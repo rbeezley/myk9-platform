@@ -2,6 +2,7 @@ import { useEffect } from 'react';
 import type { Show } from '@/types/show-types';
 import type { Trial } from '@/components/trials/types/trial.types';
 import { publicClassesHref } from '@/features/_shared/publicClassesHref';
+import { OfferedClassesSection } from '@/features/_shared/landing/OfferedClassesSection';
 import { useCountdown } from '@/features/_shared/hooks/useCountdown';
 import { ensurePosterFontsLoaded } from '../fonts';
 import { posterColors } from '../tokens';
@@ -64,7 +65,7 @@ export function PosterLandingPage({
   }, []);
 
   const data = usePosterLandingData(show, trial, allTrials);
-  const classesHref = publicClassesHref(show?.id, allTrials);
+  const classesHref = publicClassesHref(show);
   const entryCountdown = useCountdown(data.entryCloseDate, data.timezone);
   const entryClosed = entryCountdown.closed;
   // `entryNotYetOpen` matters as much as closed: a show whose entries open
@@ -158,6 +159,8 @@ export function PosterLandingPage({
           secretaryName={data.secretaryName}
           secretaryEmail={data.secretaryEmail}
         />
+        <OfferedClassesSection show={show} className="po-section" />
+
         <FinalCtaSection
           entryWizardUrl={data.entryWizardUrl}
           classesHref={classesHref}

@@ -94,7 +94,7 @@ export function useSelfCheckinMap(classIds: string[]): Record<string, boolean> {
 
   // `useQueries` hands back a fresh array on every render, so building the map
   // inline produced a new object identity every time. My Shows passes this map
-  // to every MyEntryCard, and MyEntryCard is React.memo'd — one unstable prop
+  // to every MyShowDogCard, and MyShowDogCard is React.memo'd — one unstable prop
   // out of six was enough to defeat the memo entirely and re-render the whole
   // entry list on every parent render, including each replication sync tick.
   // Memoise on the resolved values rather than on `results`, whose identity is

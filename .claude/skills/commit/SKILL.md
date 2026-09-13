@@ -20,7 +20,7 @@ This file is shared by Claude Code and Codex (`.agents/skills/commit` is a symli
 ### Step 0: In-flight check — is someone already doing this?
 
 ```bash
-pnpm qa:inflight            # exit 1 if an open PR, another worktree (even uncommitted), or an unmerged local branch touches the paths this branch changes
+pnpm qa:inflight            # exit 1 if an open PR, another worktree (even uncommitted), or a recent unmerged local branch touches the paths; refs older than 3 days are counted as inventory and --verbose expands them
 # Before ANY work exists, name the paths you intend to touch — with nothing to check it exits 2, not 0:
 # pnpm qa:inflight apps/myk9show/src/features/entries .claude/skills/ship-pr
 ```
@@ -123,7 +123,7 @@ grep -E '^ (Test Files|Tests) ' "$LOGS/suite.log"
 - For `src/services/Bar.ts` → look for `Bar.test.ts`
 - For `src/hooks/useBaz.ts` → look for `useBaz.test.ts`
 
-If related test files exist, run them (at most two positional path filters per invocation — vitest 4 finds **no files** with three or more):
+If related test files exist, run them together in one targeted Vitest invocation:
 
 ```bash
 cd apps/myk9show && pnpm vitest run <test-file> --reporter=verbose

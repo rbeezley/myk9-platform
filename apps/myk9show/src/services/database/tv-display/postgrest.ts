@@ -1,5 +1,6 @@
 import { supabase } from '../supabaseClient';
 import { fetchPublicEntryCountsByShow, type PublicClassCounts } from '../_shared/entryCounts';
+import { fetchJudgeNamesByClass } from '../_shared/judgeNamesByClass';
 import { isExpectedEntry } from '@/features/_shared/entryAccounting';
 import {
   groupEntriesByClass,
@@ -102,7 +103,7 @@ export async function getPostgrestTVDisplayData(
   let classQuery = supabase
     .from('classes')
     .select(
-      'id, name, element, level, status, scored_count, start_time, trials!inner(show_id, trial_date:date, trial_number), judge_assignments(people(first_name, last_name))'
+      'id, name, element, level, status, scored_count, start_time, trials!inner(show_id, trial_date:date, trial_number)'
     )
     .eq('trials.show_id', showId)
     .in('status', [...TV_ACTIVE_STATUSES]);
@@ -121,9 +122,10 @@ export async function getPostgrestTVDisplayData(
   // Withdrawn entries must not ride the running order, or the board's own list
   // disagrees with the total counted beside it — the RPC applies that filter,
   // and the same show predicate, server-side.
-  const [entryData, entryCounts] = await Promise.all([
+  const [entryData, entryCounts, judgeNamesByClass] = await Promise.all([
     fetchTVBoardEntries(showId, classIds),
     fetchTVEntryCounts(showId, classIds),
+    fetchJudgeNamesByClass(showId),
   ]);
 
   const classIdByEntryId = new Map<string, string>(
@@ -142,17 +144,13 @@ export async function getPostgrestTVDisplayData(
         trial_date: string | null;
         trial_number: string | number | null;
       } | null;
-      const judgeAssignments = c.judge_assignments as unknown as Array<{
-        people: { first_name: string; last_name: string } | null;
-      }> | null;
-      const firstJudge = judgeAssignments?.[0]?.people;
       return {
         id: c.id,
         name: c.name,
         element: c.element,
         level: c.level,
         status: c.status,
-        judgeName: firstJudge ? `${firstJudge.first_name} ${firstJudge.last_name}`.trim() : null,
+        judgeName: judgeNamesByClass.get(c.id) ?? null,
         totalEntries: entryCounts?.get(c.id)?.total ?? null,
         // Numerator and denominator come from the same RPC row, so the board
         // cannot render an impossible ratio. classes.scored_count is only the
@@ -174,9 +172,7 @@ export async function getPostgrestTVDisplayResults(
 ): Promise<TVCompletedClass[]> {
   let classQuery = supabase
     .from('classes')
-    .select(
-      'id, name, element, level, trials!inner(show_id), judge_assignments(people(first_name, last_name))'
-    )
+    .select('id, name, element, level, trials!inner(show_id)')
     .eq('trials.show_id', showId)
     .eq('is_scoring_finalized', true);
 
@@ -189,7 +185,10 @@ export async function getPostgrestTVDisplayResults(
   if (!classData || classData.length === 0) return [];
 
   const classIds = classData.map(c => c.id);
-  const entryCounts = await fetchTVEntryCounts(showId, classIds);
+  const [entryCounts, judgeNamesByClass] = await Promise.all([
+    fetchTVEntryCounts(showId, classIds),
+    fetchJudgeNamesByClass(showId),
+  ]);
   // INTENT: The TV display is a public surface. Read results through
   // view_public_entry_results so the result-visibility cascade is enforced by
   // the database — placements/times/quals for classes whose results have not
@@ -269,17 +268,13 @@ export async function getPostgrestTVDisplayResults(
   }
 
   return classData.map(c => {
-    const judgeAssignments = c.judge_assignments as unknown as Array<{
-      people: { first_name: string; last_name: string } | null;
-    }> | null;
-    const firstJudge = judgeAssignments?.[0]?.people;
     const stats = qualifiedByClass.get(c.id);
     return {
       id: c.id,
       name: c.name,
       element: c.element,
       level: c.level,
-      judgeName: firstJudge ? `${firstJudge.first_name} ${firstJudge.last_name}`.trim() : null,
+      judgeName: judgeNamesByClass.get(c.id) ?? null,
       totalEntries: entryCounts?.get(c.id)?.total ?? null,
       qualifiedCount: stats?.count ?? 0,
       fastestTime: stats?.fastest ?? null,

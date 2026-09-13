@@ -11,12 +11,23 @@ import { describe, expect, it } from 'vitest';
  * MYK9-228.
  */
 // `emergency_packet_input` is rebuilt in full by each successive
-// `CREATE OR REPLACE`; the latest is `20260824223000` (trial-registry
-// registration numbers). Every assertion about that function's body must read the LATEST
+// `CREATE OR REPLACE`; the latest is `20260912234500` (classes.judge_name
+// retired, MYK9-479). Every assertion about that function's body must read the LATEST
 // definition — asserting against a superseded file passes against text that no
 // longer describes the deployed function. This path is the one thing here that
 // MUST be updated whenever the function is rebuilt again.
 const sql = readFileSync(
+  resolve(
+    __dirname,
+    '../../../../../supabase/migrations/20260912234500_drop_classes_judge_name.sql'
+  ),
+  'utf8'
+);
+
+// `public.emergency_packet_registry_key` is likewise a SEPARATE helper that
+// `20260912234500` calls but does not redefine — its `CREATE OR REPLACE` lives in
+// `20260824223000`, so the registry-normalisation assertions read that file.
+const registryHelperSql = readFileSync(
   resolve(
     __dirname,
     '../../../../../supabase/migrations/20260824223000_emergency_packet_registration_numbers.sql'
@@ -79,15 +90,18 @@ describe('emergency_packet_input contract', () => {
     );
   });
 
-  it('prefers the judge assignment over the denormalised column', () => {
-    // `resolveClassJudgeName` reads the assignment FIRST, and classes created
-    // via create_show_with_children leave `judge_name` null — reading only the
-    // column prints an empty judge for normally configured classes.
+  it('resolves the judge through the confirmed assignment and nothing else', () => {
+    // MYK9-479: `classes.judge_name` was dropped, so the COALESCE fallback that
+    // used to read it is gone. A class with no confirmed assignment prints an
+    // empty judge rather than a stale snapshot.
     expect(sql).toMatch(/FROM public\.judge_assignments a/);
     expect(sql).toMatch(/a\.status = 'confirmed'/);
-    expect(sql).toMatch(
-      /NULLIF\(btrim\(ja\.judge_full_name\), ''\),\s*\n\s*NULLIF\(btrim\(cl\.judge_name\), ''\)/
+    expect(sql).toMatch(/NULLIF\(btrim\(ja\.judge_full_name\), ''\) AS judge_display_name/);
+    const fn = sql.slice(
+      sql.indexOf('CREATE OR REPLACE FUNCTION public.emergency_packet_input'),
+      sql.indexOf('COMMENT ON FUNCTION public.emergency_packet_input')
     );
+    expect(fn).not.toMatch(/cl\.judge_name/);
   });
 
   it('normalises the section sentinel the way the app does', () => {
@@ -213,18 +227,20 @@ describe('emergency_packet_input contract', () => {
       ['CANADIAN KENNEL CLUB', 'CKC'],
       ['FEDERATION CYNOLOGIQUE INTERNATIONALE', 'FCI'],
     ]) {
-      expect(sql).toContain(`WHEN '${name}' THEN '${code}'`);
+      expect(registryHelperSql).toContain(`WHEN '${name}' THEN '${code}'`);
     }
     expect(sql).toMatch(/'registrationNumber', e\.registration_number/);
     expect(sql).not.toMatch(/'registrationNumber', NULL/);
   });
 
   it('normalises registry labels with the same exact rules as the app', () => {
-    expect(sql).toMatch(/CREATE OR REPLACE FUNCTION public\.emergency_packet_registry_key/);
-    expect(sql).toMatch(/regexp_replace\(COALESCE\(value, ''\), '\\\(\.\*\$', ''\)/);
-    expect(sql).toMatch(/ELSE registry_key/);
-    expect(sql).not.toMatch(/registry_key LIKE 'AKC%'/);
-    expect(sql).toMatch(
+    expect(registryHelperSql).toMatch(
+      /CREATE OR REPLACE FUNCTION public\.emergency_packet_registry_key/
+    );
+    expect(registryHelperSql).toMatch(/regexp_replace\(COALESCE\(value, ''\), '\\\(\.\*\$', ''\)/);
+    expect(registryHelperSql).toMatch(/ELSE registry_key/);
+    expect(registryHelperSql).not.toMatch(/registry_key LIKE 'AKC%'/);
+    expect(registryHelperSql).toMatch(
       /REVOKE ALL ON FUNCTION public\.emergency_packet_registry_key\(text\)\s+FROM PUBLIC, anon, authenticated;/
     );
   });

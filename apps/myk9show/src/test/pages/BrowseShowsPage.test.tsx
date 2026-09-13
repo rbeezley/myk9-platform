@@ -126,6 +126,7 @@ vi.mock('@/hooks/useAuthContext', () => ({
     isAuthenticated: !!mockAuthUser.current,
     isSecretary: false,
     isAdmin: false,
+    hasRole: () => false,
   }),
 }));
 

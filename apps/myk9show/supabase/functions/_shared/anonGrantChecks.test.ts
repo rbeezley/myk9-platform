@@ -10,9 +10,10 @@ describe('anonGrantsCheck — exact applied ACL drift', () => {
     expect(check.status).toBe('ok');
     // 19 table grants: judge_assignments moved to its ten-column allowlist in MYK9-146.
     expect(check.detail).toContain('19 table grants (1 write)');
-    // 86 + the three platform_settings fee columns the public /fees page reads
+    // 85 + the three platform_settings fee columns the public /fees page reads
     // signed out (MYK9-229). platform_settings stays OFF the table allowlist.
-    expect(check.detail).toContain('89 column grants');
+    // 86 became 85 when classes.judge_name was dropped (MYK9-479).
+    expect(check.detail).toContain('88 column grants');
   });
 
   it('fails when a table not on the allowlist gains an anon grant', () => {

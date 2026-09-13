@@ -2,6 +2,7 @@ import { useEffect } from 'react';
 import type { Show } from '@/types/show-types';
 import type { Trial } from '@/components/trials/types/trial.types';
 import { publicClassesHref } from '@/features/_shared/publicClassesHref';
+import { OfferedClassesSection } from '@/features/_shared/landing/OfferedClassesSection';
 import { useCountdown } from '@/features/_shared/hooks/useCountdown';
 import { ensureHeritageFontsLoaded } from '../fonts';
 import { useHeritageLandingData } from './useHeritageLandingData';
@@ -49,7 +50,7 @@ export function HeritageLandingPage({
   // INTENT: "See classes" must reach a PUBLIC surface. The registration wizard
   // (entryWizardUrl) is auth-gated, so a signed-out visitor would bounce to /sign-in.
   // The trial details page is public and lists the offered classes (UX-P2-04-EXP).
-  const classesHref = publicClassesHref(show?.id, allTrials);
+  const classesHref = publicClassesHref(show);
   const entryCountdown = useCountdown(data.entryCloseDate, data.timezone);
   const entryClosed = entryCountdown.closed;
   // `entryNotYetOpen` matters as much as closed: a show whose entries open
@@ -142,6 +143,8 @@ export function HeritageLandingPage({
           secretaryName={data.secretaryName}
           secretaryEmail={data.secretaryEmail}
         />
+
+        <OfferedClassesSection show={show} className="mx-auto max-w-4xl px-6 py-16" />
 
         <FinalCtaBand
           entryWizardUrl={data.entryWizardUrl}

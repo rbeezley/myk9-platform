@@ -30,6 +30,7 @@ import {
   ShowCalendarSkeleton,
 } from '@/components/common/SkeletonLoaders';
 import { ShowPermissionValidator } from '@/utils/permissionValidation';
+import { canManageShowSurface, filterManagedShows, managedClubIds } from '@/utils/roleScopes';
 
 // Shared primitives
 import { PageShell } from '@/components/common/PageShell';
@@ -55,8 +56,18 @@ import { buildChipFilters, getDefaultViewMode } from './browseShowsPage.helpers'
 
 const BrowseShowsPage: React.FC = () => {
   const [searchParams, setSearchParams] = useSearchParams();
-  const { userWithRoles: authUser, isSecretary, isAdmin } = useAuthContext();
-  const canManageShows = isSecretary || isAdmin;
+  const { userWithRoles: authUser, isSecretary, isAdmin, hasRole } = useAuthContext();
+  const canManageShow = useCallback(
+    (show: Pick<Show, 'id' | 'clubId'>) =>
+      canManageShowSurface({
+        isSecretary,
+        isAdmin,
+        hasRole,
+        userWithRoles: authUser,
+        clubId: show.clubId ?? undefined,
+      }),
+    [authUser, hasRole, isAdmin, isSecretary]
+  );
 
   // Where the visitor is, for the Near field, the miles label and the Distance
   // chip. Resolved from a device choice, the profile, or the connection; never
@@ -152,8 +163,12 @@ const BrowseShowsPage: React.FC = () => {
 
   // Bulk selection for shows
   const getShowId = useCallback((show: { id: string }) => show.id, []);
+  const manageableShows = useMemo(
+    () => filterManagedShows(enhancedShows, managedClubIds({ isAdmin, userWithRoles: authUser })),
+    [authUser, enhancedShows, isAdmin]
+  );
   const bulkSelection = useBulkSelection({
-    items: enhancedShows,
+    items: manageableShows,
     getItemId: getShowId,
   });
 
@@ -371,12 +386,11 @@ const BrowseShowsPage: React.FC = () => {
         return (
           <ShowsTableView
             shows={enhancedShows}
-            {...(canManageShows && {
-              isSelected: bulkSelection.isSelected,
-              onToggleSelect: bulkSelection.toggleItem,
-              isAllSelected: bulkSelection.isAllSelected,
-              onToggleAll: bulkSelection.toggleAll,
-            })}
+            canManageShow={canManageShow}
+            isSelected={bulkSelection.isSelected}
+            onToggleSelect={bulkSelection.toggleItem}
+            isAllSelected={bulkSelection.isAllSelected}
+            onToggleAll={bulkSelection.toggleAll}
           />
         );
 
@@ -385,14 +399,13 @@ const BrowseShowsPage: React.FC = () => {
         return (
           <ShowCardGrid
             shows={enhancedShows}
+            canManageShow={canManageShow}
             entries={entries}
             selectedTab={selectedTab}
             user={user}
             origin={origin}
-            {...(canManageShows && {
-              isSelected: bulkSelection.isSelected,
-              onToggleSelect: bulkSelection.toggleItem,
-            })}
+            isSelected={bulkSelection.isSelected}
+            onToggleSelect={bulkSelection.toggleItem}
           />
         );
     }
@@ -448,13 +461,11 @@ const BrowseShowsPage: React.FC = () => {
           />
 
           {/* Bulk Actions Bar — secretary/admin only */}
-          {canManageShows && (
-            <ShowBulkActionsBar
-              selectedShows={bulkSelection.selectedItems}
-              onClearSelection={bulkSelection.clearSelection}
-              onBulkComplete={handleBulkComplete}
-            />
-          )}
+          <ShowBulkActionsBar
+            selectedShows={bulkSelection.selectedItems}
+            onClearSelection={bulkSelection.clearSelection}
+            onBulkComplete={handleBulkComplete}
+          />
 
           {/* Month scrubber — counts reflect every filter except the month, so
               the tiles answer "when?" for the list the visitor is looking at. */}

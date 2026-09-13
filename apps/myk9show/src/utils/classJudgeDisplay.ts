@@ -5,7 +5,6 @@ type ClassJudgeSource = {
   judge_assignments?: unknown;
   judge?: string | null | undefined;
   judgeName?: string | null | undefined;
-  judge_name?: string | null | undefined;
   judgeId?: string | null | undefined;
   judge_id?: string | null | undefined;
 };
@@ -62,7 +61,6 @@ export function resolveClassJudgeName(
     readAssignedJudgeForClass(classData, assignedJudges) ??
     cleanDisplayName(classData.judge) ??
     cleanDisplayName(classData.judgeName) ??
-    cleanDisplayName(classData.judge_name) ??
     fallback
   );
 }

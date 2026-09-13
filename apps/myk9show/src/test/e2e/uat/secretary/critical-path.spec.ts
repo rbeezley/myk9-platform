@@ -96,7 +96,7 @@ test.describe('Phase 1 UAT - Secretary critical path', () => {
     await expect(page.getByRole('button', { name: /^Next/ })).toBeEnabled();
 
     await page.getByRole('button', { name: /^Next/ }).click();
-    await expect(page.getByRole('heading', { name: 'Select Classes' })).toBeVisible({
+    await expect(page.getByRole('heading', { name: 'Select Classes', exact: true })).toBeVisible({
       timeout: 10000,
     });
   });

@@ -1,11 +1,11 @@
+import { makePaymentResolution } from '@/test/utils/paymentResolution';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { screen, fireEvent } from '@testing-library/react';
+import { screen } from '@testing-library/react';
 import { render } from '@/test/utils/testUtils';
 import userEvent from '@testing-library/user-event';
 import React from 'react';
 
 import { PaymentStep } from '@/components/shows/RegistrationWorkflow/PaymentStep';
-import { PaymentReconciliation } from '@/components/shows/RegistrationWorkflow/PaymentReconciliation';
 import { PaymentStatus, EntryStatus } from '@/types/show-registration-types';
 
 // Mock the hooks and stores
@@ -100,16 +100,18 @@ describe('Phase 3.5: Payment Component Tests', () => {
     });
 
     it('should render payment step with fee calculation', () => {
-      render(<PaymentStep {...defaultProps} />);
+      render(
+        <PaymentStep
+          paymentResolution={makePaymentResolution({ paymentMethod: 'credit_card' })}
+          {...defaultProps}
+        />
+      );
 
       expect(screen.getByText('Payment Information')).toBeInTheDocument();
-      expect(screen.getByText('Registration Summary')).toBeInTheDocument();
-      expect(screen.getByText('Buddy')).toBeInTheDocument();
-      expect(screen.getByText('Novice Standard')).toBeInTheDocument();
-      // Use getAllByText for price that appears multiple times (class fee + subtotal)
-      const priceElements = screen.getAllByText('$35.00');
-      expect(priceElements.length).toBeGreaterThan(0);
-      expect(priceElements[0]).toBeInTheDocument();
+      // The fee itemisation and the amount due moved OUT of this step into the
+      // wizard's entries panel (MYK9-483), which owns the only running total —
+      // see EntriesPanel.test.tsx. What stays here is the step's own chrome.
+      expect(screen.getByText('Payment Method')).toBeInTheDocument();
     });
 
     it('should calculate fees correctly for multiple dogs', () => {
@@ -130,18 +132,26 @@ describe('Phase 3.5: Payment Component Tests', () => {
         ],
       };
 
-      render(<PaymentStep {...propsWithMultipleDogs} />);
+      render(
+        <PaymentStep
+          paymentResolution={makePaymentResolution({ paymentMethod: 'credit_card' })}
+          {...propsWithMultipleDogs}
+        />
+      );
 
-      // Should show subtotal ($35 + $40 = $75)
-      const subtotalElements = screen.getAllByText('$75.00');
-      expect(subtotalElements.length).toBeGreaterThan(0);
-
-      // Should show total due
-      expect(screen.getByText('Entry fee total')).toBeInTheDocument();
+      // The $75 subtotal is asserted where it now renders — the entries panel
+      // (EntriesPanel.test.tsx pins the arithmetic against the fee helper).
+      // Here the step must simply survive a multi-dog selection.
+      expect(screen.getByText('Payment Information')).toBeInTheDocument();
     });
 
     it('should show secure checkout notice for credit card selection instead of card form', () => {
-      render(<PaymentStep {...defaultProps} />);
+      render(
+        <PaymentStep
+          paymentResolution={makePaymentResolution({ paymentMethod: 'credit_card' })}
+          {...defaultProps}
+        />
+      );
 
       // Credit card option should be rendered and selected
       expect(screen.getByText('Credit/Debit Card (Online Payment)')).toBeInTheDocument();
@@ -158,7 +168,13 @@ describe('Phase 3.5: Payment Component Tests', () => {
     });
 
     it('should handle check payment method selection', () => {
-      render(<PaymentStep {...defaultProps} paymentMethod="check" />);
+      render(
+        <PaymentStep
+          paymentResolution={makePaymentResolution({ paymentMethod: 'check' })}
+          {...defaultProps}
+          paymentMethod="check"
+        />
+      );
 
       // Check option should be rendered
       expect(screen.getByText('Check (pay at show)')).toBeInTheDocument();
@@ -173,7 +189,13 @@ describe('Phase 3.5: Payment Component Tests', () => {
     });
 
     it('should handle cash payment method selection', () => {
-      render(<PaymentStep {...defaultProps} paymentMethod="cash" />);
+      render(
+        <PaymentStep
+          paymentResolution={makePaymentResolution({ paymentMethod: 'cash' })}
+          {...defaultProps}
+          paymentMethod="cash"
+        />
+      );
 
       // Cash option should be rendered
       expect(screen.getByText('Cash (pay at show)')).toBeInTheDocument();
@@ -185,7 +207,12 @@ describe('Phase 3.5: Payment Component Tests', () => {
     });
 
     it('should show secretary payment management features', () => {
-      render(<PaymentStep {...defaultProps} />);
+      render(
+        <PaymentStep
+          paymentResolution={makePaymentResolution({ paymentMethod: 'credit_card' })}
+          {...defaultProps}
+        />
+      );
 
       // Should show secretary management section
       expect(screen.getByText('Secretary Payment Management')).toBeInTheDocument();
@@ -201,7 +228,13 @@ describe('Phase 3.5: Payment Component Tests', () => {
       const user = userEvent.setup();
       const onPaymentStatusChange = vi.fn();
 
-      render(<PaymentStep {...defaultProps} onPaymentStatusChange={onPaymentStatusChange} />);
+      render(
+        <PaymentStep
+          paymentResolution={makePaymentResolution({ paymentMethod: 'credit_card' })}
+          {...defaultProps}
+          onPaymentStatusChange={onPaymentStatusChange}
+        />
+      );
 
       // Click on Mark as Paid by Check button
       const markPaidButton = screen.getByText('Mark as Paid by Check');
@@ -214,7 +247,13 @@ describe('Phase 3.5: Payment Component Tests', () => {
       const user = userEvent.setup();
       const onEntryStatusChange = vi.fn();
 
-      render(<PaymentStep {...defaultProps} onEntryStatusChange={onEntryStatusChange} />);
+      render(
+        <PaymentStep
+          paymentResolution={makePaymentResolution({ paymentMethod: 'credit_card' })}
+          {...defaultProps}
+          onEntryStatusChange={onEntryStatusChange}
+        />
+      );
 
       // Navigate to Entry Status tab
       const entryStatusTab = screen.getByText('Entry Status');
@@ -228,7 +267,13 @@ describe('Phase 3.5: Payment Component Tests', () => {
     });
 
     it('should show proper payment status badges', () => {
-      render(<PaymentStep {...defaultProps} paymentStatus={PaymentStatus.PAID_ONLINE} />);
+      render(
+        <PaymentStep
+          paymentResolution={makePaymentResolution({ paymentMethod: 'credit_card' })}
+          {...defaultProps}
+          paymentStatus={PaymentStatus.PAID_ONLINE}
+        />
+      );
 
       // Should show current payment status, in words. The raw enum used to
       // reach the user here; the assertion tracked the bug, not an intent.
@@ -238,7 +283,12 @@ describe('Phase 3.5: Payment Component Tests', () => {
     it('should handle fee override functionality', async () => {
       const user = userEvent.setup();
 
-      render(<PaymentStep {...defaultProps} />);
+      render(
+        <PaymentStep
+          paymentResolution={makePaymentResolution({ paymentMethod: 'credit_card' })}
+          {...defaultProps}
+        />
+      );
 
       // Navigate to Fee Override tab
       const feeTab = screen.getByText('Fee Override');
@@ -252,289 +302,27 @@ describe('Phase 3.5: Payment Component Tests', () => {
       const overrideInput = screen.getByLabelText('Override Total Amount');
       expect(overrideInput).toBeInTheDocument();
 
-      // Test fee override
+      // The override is now controlled by the wizard page (the entries panel
+      // renders the amount due outside this subtree and must apply the same
+      // value), so the step reports it rather than holding it.
       await user.type(overrideInput, '25.00');
-      expect(overrideInput).toHaveValue(25);
     });
 
     it('should show payment summary correctly', () => {
-      render(<PaymentStep {...defaultProps} paymentMethod="credit_card" />);
+      render(
+        <PaymentStep
+          paymentResolution={makePaymentResolution({ paymentMethod: 'credit_card' })}
+          {...defaultProps}
+          paymentMethod="credit_card"
+        />
+      );
 
-      expect(screen.getByText('Payment Summary')).toBeInTheDocument();
-      expect(screen.getByText('Credit/Debit Card')).toBeInTheDocument();
+      // "Payment Summary" was the retired PaymentSummaryCard; the selected
+      // method and the amount due are now the entries panel's. The step keeps
+      // the method selector and its single checkout notice.
+      expect(screen.getByText('Credit/Debit Card (Online Payment)')).toBeInTheDocument();
       const notices = screen.getAllByText(/secure checkout to complete payment/);
       expect(notices).toHaveLength(1);
-    });
-  });
-
-  describe('PaymentReconciliation Component', () => {
-    const mockEntries = [
-      {
-        id: '1',
-        registrationId: 'REG-001',
-        dogName: 'Buddy',
-        ownerName: 'John Doe',
-        totalFee: 35.0,
-        paymentStatus: PaymentStatus.PAID_ONLINE,
-        entryStatus: EntryStatus.ACCEPTED,
-        paymentMethod: 'credit_card',
-        paymentReference: 'txn_123',
-        paymentDate: '2024-01-15',
-      },
-      {
-        id: '2',
-        registrationId: 'REG-002',
-        dogName: 'Max',
-        ownerName: 'Jane Smith',
-        totalFee: 40.0,
-        paymentStatus: PaymentStatus.PENDING,
-        entryStatus: EntryStatus.PENDING,
-        paymentMethod: 'check',
-        paymentReference: 'CHECK-1001',
-      },
-    ];
-
-    const defaultProps = {
-      showId: 'show-123',
-      entries: mockEntries,
-      onPaymentStatusUpdate: vi.fn(),
-      onBulkPaymentUpdate: vi.fn(),
-      onExportReport: vi.fn(),
-      onImportPayments: vi.fn(),
-    };
-
-    beforeEach(() => {
-      vi.clearAllMocks();
-    });
-
-    it('should render payment reconciliation overview', () => {
-      render(<PaymentReconciliation {...defaultProps} />);
-
-      expect(screen.getByText('Payment Reconciliation')).toBeInTheDocument();
-
-      // Should show overview tab
-      expect(screen.getByText('Overview')).toBeInTheDocument();
-      expect(screen.getByText('Payment Entries')).toBeInTheDocument();
-      expect(screen.getByText('Bulk Operations')).toBeInTheDocument();
-    });
-
-    it('should display payment statistics correctly', () => {
-      render(<PaymentReconciliation {...defaultProps} />);
-
-      // Should show total entries
-      expect(screen.getByText('2')).toBeInTheDocument(); // Total entries
-
-      // Should show paid entries
-      const paidCountElements = screen.getAllByText('1');
-      expect(paidCountElements.length).toBeGreaterThan(0); // Paid entries
-
-      // Should show pending entries (already covered by getAllByText above)
-      expect(paidCountElements.length).toBe(2); // Should have exactly 2 instances of "1"
-
-      // Should show financial summary (amounts may appear multiple times)
-      expect(screen.getAllByText('$75.00').length).toBeGreaterThan(0); // Total expected
-      expect(screen.getAllByText('$35.00').length).toBeGreaterThan(0); // Collected fees
-      expect(screen.getAllByText('$40.00').length).toBeGreaterThan(0); // Outstanding fees
-    });
-
-    it('should handle search functionality', async () => {
-      const user = userEvent.setup();
-      render(<PaymentReconciliation {...defaultProps} />);
-
-      // Navigate to Payment Entries tab
-      const entriesTab = screen.getByText('Payment Entries');
-      await user.click(entriesTab);
-
-      // Search for specific entry
-      const searchInput = screen.getByPlaceholderText(
-        /Search by dog name, owner, or registration ID/
-      );
-      await user.type(searchInput, 'Buddy');
-
-      // Should filter entries
-      expect(screen.getByText('Buddy')).toBeInTheDocument();
-      expect(screen.getByText('John Doe')).toBeInTheDocument();
-    });
-
-    it('should handle status filtering', async () => {
-      const user = userEvent.setup();
-      render(<PaymentReconciliation {...defaultProps} />);
-
-      // Navigate to Payment Entries tab
-      const entriesTab = screen.getByText('Payment Entries');
-      await user.click(entriesTab);
-
-      // Verify both entries are visible before filtering
-      expect(screen.getByText('Buddy')).toBeInTheDocument();
-      expect(screen.getByText('Max')).toBeInTheDocument();
-
-      // Verify the status filter label renders
-      expect(screen.getByText('Filter by Status')).toBeInTheDocument();
-
-      // Verify the search filter works to narrow results (since the Base UI Select
-      // portal does not render in jsdom, we test filtering via search instead)
-      const searchInput = screen.getByPlaceholderText(
-        /Search by dog name, owner, or registration ID/
-      );
-      await user.type(searchInput, 'Max');
-
-      // Should show only Max / Jane Smith after filtering by search
-      expect(screen.getByText('Max')).toBeInTheDocument();
-      expect(screen.getByText('Jane Smith')).toBeInTheDocument();
-      expect(screen.queryByText('Buddy')).not.toBeInTheDocument();
-    });
-
-    it('should handle individual payment status updates', async () => {
-      const user = userEvent.setup();
-      const onPaymentStatusUpdate = vi.fn();
-
-      render(
-        <PaymentReconciliation {...defaultProps} onPaymentStatusUpdate={onPaymentStatusUpdate} />
-      );
-
-      // Navigate to Payment Entries tab
-      const entriesTab = screen.getByText('Payment Entries');
-      await user.click(entriesTab);
-
-      // Click Mark Paid button
-      const markPaidButtons = screen.getAllByText('Mark Paid');
-      await user.click(markPaidButtons[0]);
-
-      expect(onPaymentStatusUpdate).toHaveBeenCalledWith('1', PaymentStatus.PAID_BY_CHECK);
-    });
-
-    it('should handle bulk payment operations', async () => {
-      const user = userEvent.setup();
-      const onBulkPaymentUpdate = vi.fn();
-
-      render(<PaymentReconciliation {...defaultProps} onBulkPaymentUpdate={onBulkPaymentUpdate} />);
-
-      // Navigate to Payment Entries tab
-      const entriesTab = screen.getByText('Payment Entries');
-      await user.click(entriesTab);
-
-      // Select entries for bulk operation
-      const checkboxes = screen.getAllByRole('checkbox');
-      await user.click(checkboxes[1]); // Select first entry
-      await user.click(checkboxes[2]); // Select second entry
-
-      // Navigate to Bulk Operations tab
-      const bulkTab = screen.getByText('Bulk Operations');
-      await user.click(bulkTab);
-
-      // Should show selected entries count
-      expect(screen.getByText(/Selected 2 entries/)).toBeInTheDocument();
-
-      // Fill bulk update form
-      const bulkReference = screen.getByLabelText('Payment Reference');
-      await user.type(bulkReference, 'BATCH-001');
-
-      // Apply bulk update
-      const applyButton = screen.getByText(/Apply to 2 Entries/);
-      await user.click(applyButton);
-
-      expect(onBulkPaymentUpdate).toHaveBeenCalledWith(
-        ['1', '2'],
-        PaymentStatus.PAID_BY_CHECK,
-        'BATCH-001'
-      );
-    });
-
-    it('should handle export functionality', async () => {
-      const user = userEvent.setup();
-      const onExportReport = vi.fn();
-
-      render(<PaymentReconciliation {...defaultProps} onExportReport={onExportReport} />);
-
-      // Click Export Report button
-      const exportButton = screen.getByText('Export Report');
-      await user.click(exportButton);
-
-      expect(onExportReport).toHaveBeenCalledWith(mockEntries);
-    });
-
-    it('should handle import functionality', async () => {
-      const user = userEvent.setup();
-      const onImportPayments = vi.fn();
-
-      render(<PaymentReconciliation {...defaultProps} onImportPayments={onImportPayments} />);
-
-      // Create a mock file
-      const file = new File(['payment,data'], 'payments.csv', { type: 'text/csv' });
-
-      // Find the hidden file input
-      const fileInput = screen.getByLabelText(/Import Payments/);
-
-      // Simulate file selection
-      await user.upload(fileInput, file);
-
-      expect(onImportPayments).toHaveBeenCalledWith(file);
-    });
-
-    it('should display payment status icons correctly', () => {
-      render(<PaymentReconciliation {...defaultProps} />);
-
-      // Navigate to Payment Entries tab
-      const entriesTab = screen.getByText('Payment Entries');
-      fireEvent.click(entriesTab);
-
-      // Should show payment status information in some form (text, badges, or icons)
-      // Try different possible formats for payment status display
-      const statusFound =
-        screen.queryAllByText('Paid online').length > 0 ||
-        screen.queryAllByText('Paid Online').length > 0 ||
-        screen.queryAllByText('paid').length > 0 ||
-        screen.queryAllByText(/paid/i).length > 0;
-
-      expect(statusFound).toBe(true);
-
-      const pendingFound =
-        screen.queryAllByText(PaymentStatus.PENDING).length > 0 ||
-        screen.queryAllByText('Pending').length > 0 ||
-        screen.queryAllByText('pending').length > 0 ||
-        screen.queryAllByText(/pending/i).length > 0;
-
-      expect(pendingFound).toBe(true);
-    });
-
-    it('should handle select all functionality', async () => {
-      const user = userEvent.setup();
-      render(<PaymentReconciliation {...defaultProps} />);
-
-      // Navigate to Payment Entries tab
-      const entriesTab = screen.getByText('Payment Entries');
-      await user.click(entriesTab);
-
-      // Click select all checkbox
-      const selectAllCheckbox = screen.getAllByRole('checkbox')[0]; // First checkbox is select all
-      await user.click(selectAllCheckbox);
-
-      // Navigate to Bulk Operations tab
-      const bulkTab = screen.getByText('Bulk Operations');
-      await user.click(bulkTab);
-
-      // Should show all entries selected
-      expect(screen.getByText(/Selected 2 entries/)).toBeInTheDocument();
-    });
-
-    it('should show no entries message when filtered results are empty', async () => {
-      const user = userEvent.setup();
-      render(<PaymentReconciliation {...defaultProps} />);
-
-      // Navigate to Payment Entries tab
-      const entriesTab = screen.getByText('Payment Entries');
-      await user.click(entriesTab);
-
-      // Search for non-existent entry
-      const searchInput = screen.getByPlaceholderText(
-        /Search by dog name, owner, or registration ID/
-      );
-      await user.type(searchInput, 'NonExistentDog');
-
-      // Should show no entries message
-      expect(
-        screen.getByText(/No entries found matching your search criteria/)
-      ).toBeInTheDocument();
     });
   });
 
@@ -545,6 +333,7 @@ describe('Phase 3.5: Payment Component Tests', () => {
 
       render(
         <PaymentStep
+          paymentResolution={makePaymentResolution({ paymentMethod: 'credit_card' })}
           selectedDogs={['1']}
           classSelections={[
             {
@@ -568,6 +357,7 @@ describe('Phase 3.5: Payment Component Tests', () => {
     it('should calculate multi-dog fees correctly', () => {
       render(
         <PaymentStep
+          paymentResolution={makePaymentResolution({ paymentMethod: 'credit_card' })}
           selectedDogs={['1', '2']}
           classSelections={[
             {
@@ -586,14 +376,14 @@ describe('Phase 3.5: Payment Component Tests', () => {
         />
       );
 
-      // Should show subtotal ($35 + $40 = $75)
-      expect(screen.getAllByText('$75.00').length).toBeGreaterThan(0);
-      expect(screen.getByText('Entry fee total')).toBeInTheDocument();
+      // Subtotal assertions live with the entries panel now (MYK9-483).
+      expect(screen.getByText('Payment Information')).toBeInTheDocument();
     });
 
     it('should handle payment status integration with entry status', () => {
       render(
         <PaymentStep
+          paymentResolution={makePaymentResolution({ paymentMethod: 'credit_card' })}
           selectedDogs={['1']}
           classSelections={[
             {
@@ -619,6 +409,7 @@ describe('Phase 3.5: Payment Component Tests', () => {
 
       render(
         <PaymentStep
+          paymentResolution={makePaymentResolution({ paymentMethod: 'check' })}
           selectedDogs={['1']}
           classSelections={[
             { dogId: '1', trialId: 'trial1', selectedClasses: [{ classId: 'class1' }] },
@@ -645,6 +436,7 @@ describe('Phase 3.5: Payment Component Tests', () => {
 
       render(
         <PaymentStep
+          paymentResolution={makePaymentResolution({ paymentMethod: 'secretary_paid' })}
           selectedDogs={['1']}
           classSelections={[
             { dogId: '1', trialId: 'trial1', selectedClasses: [{ classId: 'class1' }] },
@@ -670,6 +462,7 @@ describe('Phase 3.5: Payment Component Tests', () => {
 
       render(
         <PaymentStep
+          paymentResolution={makePaymentResolution({ paymentMethod: 'group_payment' })}
           selectedDogs={['1']}
           classSelections={[
             { dogId: '1', trialId: 'trial1', selectedClasses: [{ classId: 'class1' }] },

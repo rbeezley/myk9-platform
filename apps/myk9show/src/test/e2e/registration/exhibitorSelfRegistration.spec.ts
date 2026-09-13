@@ -124,7 +124,7 @@ async function preventSharedEntryWrites(page: Page, captured: CapturedWrites) {
 }
 
 async function selectFirstAvailableClass(page: Page) {
-  await expect(page.getByRole('heading', { name: 'Select Classes' })).toBeVisible({
+  await expect(page.getByRole('heading', { name: 'Select Classes', exact: true })).toBeVisible({
     timeout: 15000,
   });
 

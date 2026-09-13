@@ -5,7 +5,6 @@ import { cn } from '@/lib/utils';
 interface Step {
   id: number;
   label: string;
-  description?: string;
 }
 
 interface HorizontalProgressIndicatorProps {
@@ -19,13 +18,17 @@ interface HorizontalProgressIndicatorProps {
 /**
  * Horizontal step indicator for the Show Creation and Registration wizards.
  *
- * Renders steps in a high-contrast navigator that wraps through tablet widths
- * so every required step name stays readable without asking exhibitors to
- * discover a horizontal scroll area.
+ * A numbered rail: one row of circles joined by a connector, with a single
+ * title under each circle. It is one row at every width from 320px up — the
+ * previous two-column card grid gave each label a ~48px box at 1024px and
+ * `break-words` then split titles between characters ("Pa"/"ym"/"en"/"t").
  *
- * On phones and tablets the step cards use a two-column grid. On desktop they
- * return to a single row. Descriptions stay secondary on phones, while the
- * current, completed, and upcoming states remain explicit at every width.
+ * The title therefore NEVER wraps: it is `truncate` (nowrap + clip + ellipsis)
+ * inside a `min-w-0` flex child, so a title too wide for its share of the row
+ * is cut with an ellipsis while the full text stays in the step's accessible
+ * name. State is carried by the circle (check / ring / number) and by
+ * `aria-current` plus the accessible-name suffix — there is no status word and
+ * no description line to compete with the title for the row.
  */
 export const HorizontalProgressIndicator: React.FC<HorizontalProgressIndicatorProps> = ({
   steps,
@@ -73,26 +76,26 @@ export const HorizontalProgressIndicator: React.FC<HorizontalProgressIndicatorPr
         />
       </div>
 
-      <div data-testid="wizard-step-list" className="px-1 pb-2">
-        <ol className="grid grid-cols-2 items-stretch gap-2 sm:gap-3 lg:flex">
+      <div data-testid="wizard-step-list" className="mx-auto w-full max-w-[640px] px-1 pb-1">
+        <ol className="flex items-start">
           {steps.map((step, index) => {
             const isCompleted = isStepCompleted(step.id);
             const isCurrent = isStepCurrent(step.id);
             const isClickable = isStepClickable(step.id);
             const isLast = index === steps.length - 1;
-            const statusLabel = isCompleted ? 'Done' : isCurrent ? 'Current' : 'Upcoming';
 
             return (
               <li key={step.id} className="relative flex min-w-0 flex-1 flex-col items-center">
-                {/* Connecting line bridges the outer edges of adjacent circles.
-                  Starting at the edge keeps it out of translucent inactive
-                  circles, where a center-to-center line would show through. */}
+                {/* Connector runs between the outer edges of adjacent circles at
+                  circle mid-height, so it can never cross a title. The circle is
+                  28px, hence the 0.875rem inset on each side. */}
                 {!isLast && (
                   <div
                     data-testid={`wizard-step-connector-${step.id}`}
-                    className="absolute left-[calc(50%+0.875rem)] top-8 hidden h-0.5 w-[calc(100%-1.75rem)] -translate-y-1/2 lg:block"
+                    aria-hidden="true"
+                    className="pointer-events-none absolute left-[calc(50%+0.875rem)] top-5 h-0.5 w-[calc(100%-1.75rem)] -translate-y-1/2"
                   >
-                    <div className="absolute inset-0 rounded-full bg-border/40" />
+                    <div className="absolute inset-0 rounded-full bg-border" />
                     <div
                       className={cn(
                         'absolute inset-y-0 left-0 rounded-full bg-primary transition-all duration-500 ease-out',
@@ -102,68 +105,51 @@ export const HorizontalProgressIndicator: React.FC<HorizontalProgressIndicatorPr
                   </div>
                 )}
 
-                {/* The whole step card is one touch target. Future steps remain
-                  disabled so the visible path cannot be mistaken for a way to
-                  skip required work. */}
+                {/* The whole step — circle and title — is one touch target.
+                  Future steps stay disabled so the visible path cannot be
+                  mistaken for a way to skip required work. */}
                 <button
                   type="button"
                   onClick={() => isClickable && onStepClick?.(step.id)}
                   disabled={!isClickable}
                   aria-current={isCurrent ? 'step' : undefined}
-                  aria-label={`${step.label}${isCompleted ? ' (completed)' : isCurrent ? ' (current)' : ''}`}
+                  /* Current WINS over completed: a step the user has gone back
+                     to is both, and the name must say where they ARE. The
+                     circle still shows the check — history is visual, position
+                     is announced. */
+                  aria-label={`${step.label}${isCurrent ? ' (current)' : isCompleted ? ' (completed)' : ''}`}
                   className={cn(
-                    'group/step relative z-10 flex min-h-[64px] w-full flex-col justify-center rounded-xl border px-3 py-2 text-left',
+                    'relative z-10 flex min-h-[44px] w-full min-w-0 flex-col items-center gap-1.5 rounded-lg px-1 py-1.5',
                     'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2',
-                    isClickable ? 'cursor-pointer' : 'cursor-default',
-                    isCompleted && 'border-primary/50 bg-primary/5',
-                    isCurrent &&
-                      !isCompleted &&
-                      'border-primary bg-primary/10 shadow-sm ring-2 ring-primary/20',
-                    !isCompleted && !isCurrent && 'border-border bg-muted/20'
+                    isClickable ? 'cursor-pointer' : 'cursor-default'
                   )}
                 >
-                  <span className="flex min-w-0 flex-col items-start gap-1 sm:flex-row sm:items-center sm:justify-between sm:gap-2">
-                    <span
-                      className={cn('flex min-w-0 items-center gap-2', isCurrent && 'text-primary')}
-                    >
-                      {/* Step circle (visual only) */}
-                      <span
-                        data-testid={`wizard-step-circle-${step.id}`}
-                        className={cn(
-                          'relative flex h-7 w-7 shrink-0 items-center justify-center rounded-full border-2 transition-colors',
-                          isCompleted && 'border-primary bg-primary text-primary-foreground',
-                          isCurrent && !isCompleted && 'border-primary bg-background text-primary',
-                          !isCompleted &&
-                            !isCurrent &&
-                            'border-border bg-background text-muted-foreground'
-                        )}
-                      >
-                        {isCompleted ? (
-                          <Check className="h-4 w-4" strokeWidth={3} />
-                        ) : (
-                          <span className="text-xs font-semibold">{index + 1}</span>
-                        )}
-                      </span>
-                      <span className="min-w-0">
-                        <span
-                          className={cn(
-                            'block whitespace-normal break-words text-sm font-semibold',
-                            isCompleted && 'text-foreground',
-                            !isCompleted && !isCurrent && 'text-muted-foreground'
-                          )}
-                        >
-                          {step.label}
-                        </span>
-                        {step.description && (
-                          <span className="mt-0.5 hidden truncate text-xs text-muted-foreground sm:block">
-                            {step.description}
-                          </span>
-                        )}
-                      </span>
-                    </span>
-                    <span className="shrink-0 text-xs font-medium text-muted-foreground">
-                      {statusLabel}
-                    </span>
+                  <span
+                    data-testid={`wizard-step-circle-${step.id}`}
+                    className={cn(
+                      'flex h-7 w-7 shrink-0 items-center justify-center rounded-full border-2 bg-background transition-colors',
+                      isCompleted && 'border-primary bg-primary text-primary-foreground',
+                      isCurrent &&
+                        !isCompleted &&
+                        'border-primary text-primary ring-2 ring-primary/30',
+                      !isCompleted && !isCurrent && 'border-border text-muted-foreground'
+                    )}
+                  >
+                    {isCompleted ? (
+                      <Check className="h-4 w-4" strokeWidth={3} />
+                    ) : (
+                      <span className="text-xs font-semibold">{index + 1}</span>
+                    )}
+                  </span>
+                  <span
+                    className={cn(
+                      'block w-full min-w-0 truncate text-center text-xs font-semibold leading-tight',
+                      isCurrent && !isCompleted && 'text-primary',
+                      isCompleted && 'text-foreground',
+                      !isCompleted && !isCurrent && 'text-muted-foreground'
+                    )}
+                  >
+                    {step.label}
                   </span>
                 </button>
               </li>

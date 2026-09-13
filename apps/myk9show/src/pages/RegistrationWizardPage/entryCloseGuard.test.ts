@@ -49,7 +49,7 @@ describe('getEntryCloseSubmitBlocker', () => {
         entryCloseDate: '2026-05-01',
         today: '2026-05-10',
         isLateEntryMode: false,
-        workflowMode: 'secretary_existing',
+        workflowMode: 'secretary_new',
       })
     ).toBeNull();
   });

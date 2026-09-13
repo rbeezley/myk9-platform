@@ -171,7 +171,7 @@ async function searchAndSelectDog(page: Page) {
 }
 
 async function selectFirstContainerClass(page: Page) {
-  await expect(page.getByRole('heading', { name: 'Select Classes' })).toBeVisible({
+  await expect(page.getByRole('heading', { name: 'Select Classes', exact: true })).toBeVisible({
     timeout: 10000,
   });
 

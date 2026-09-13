@@ -1,5 +1,5 @@
-import { expect, test, type Page } from '@playwright/test';
-import { signInAsExhibitor } from '../helpers/testUsers';
+import { expect, test, type Locator, type Page } from '@playwright/test';
+import { signInAsExhibitor, signInAsSecretary } from '../helpers/testUsers';
 import { LIVE_REGISTRATION_SHOW_ID } from '../uat/shared/seededShows';
 
 test.describe.configure({ mode: 'serial', timeout: 120000 });
@@ -64,13 +64,100 @@ async function selectFirstDog(page: Page) {
   await page.getByRole('button', { name: /^Next$/ }).click();
 }
 
+// `.first()` is a coin flip on shared staging: the first chip in the fixture
+// may be already entered, registration-blocked, or full-without-waitlist, all
+// of which render the checkbox disabled and swallow the click — and the failure
+// then reads as "Next never enabled" rather than "that chip was never
+// clickable". Intersect the role query with the not-disabled selector so the
+// walk always picks a chip that can actually be toggled.
+function enabledClassChips(page: Page) {
+  return page.getByRole('checkbox', { name: /^Select / }).and(
+    page.locator(
+      // Base UI renders the chip as a <span role="checkbox">, so a disabled
+      // one carries `data-disabled` rather than the `disabled` attribute —
+      // filtering on `disabled` alone still selects chips that swallow the
+      // click.
+      ':not([disabled]):not([aria-disabled="true"]):not([data-disabled]):not([data-checked])'
+    )
+  );
+}
+
+/** Chips already in this exhibitor's cart on the shared staging show. */
+function selectedClassChips(page: Page) {
+  return page.getByRole('checkbox', { name: /^Select / }).and(page.locator('[data-checked]'));
+}
+
+/**
+ * Availability arrives after the chips render, so a chip that is enabled on the
+ * first frame can become disabled once its class comes back full — clicking it
+ * then times out and reads as "Next never enabled". Wait until the enabled,
+ * not-yet-selected set has held still across two polls before picking one.
+ *
+ * Returns false when this dog has nothing left to add, which the shared
+ * staging cart reaches after enough walks; the caller then proceeds on what is
+ * already in the cart rather than un-selecting it.
+ */
+async function waitForSelectableClass(page: Page): Promise<boolean> {
+  let previous = -1;
+  let settled = 0;
+  await expect
+    .poll(
+      async () => {
+        settled = await enabledClassChips(page).count();
+        const stable = settled === previous;
+        previous = settled;
+        return stable && (settled > 0 || (await selectedClassChips(page).count()) > 0);
+      },
+      { timeout: 30000, intervals: [500] }
+    )
+    .toBe(true);
+  return settled > 0;
+}
+
+/**
+ * Add ONE class for the walk and hand back a locator to THAT chip, so the
+ * cleanup removes the class this test added and nothing else. On the shared
+ * staging cart `selectedClassChips(page).last()` is a coin flip: it un-selects
+ * whichever checked chip renders last, which may be a pre-existing entry, and
+ * leaves the added one behind for the next walk (LESSONS
+ * `confirm-click-destructive`; Codex #2210 P2). Returns null when nothing was
+ * selectable, in which case there is nothing to undo.
+ */
+async function addOneClass(page: Page): Promise<Locator | null> {
+  if (!(await waitForSelectableClass(page))) return null;
+  const candidate = enabledClassChips(page).first();
+  // The accessible name is NOT unique ("Select Novice" exists under every
+  // element), so anchor on the chip's DOM id, `chip-<classId>` /
+  // `single-<classId>`, which is. The primitive may put that id on the role
+  // element itself or on the hidden input inside the same <label>; the
+  // selector accepts either placement.
+  const id = await candidate.evaluate(
+    el => el.id || el.closest('label')?.querySelector('[id]')?.id || ''
+  );
+  expect(id, 'the chip must carry a DOM id to anchor the cleanup to').not.toBe('');
+  const chip = page
+    .getByRole('checkbox', { name: /^Select / })
+    .and(page.locator(`[id="${id}"], label:has([id="${id}"]) [role="checkbox"]`));
+  await expect(chip).toHaveCount(1);
+  await chip.click();
+  await expect(chip.and(page.locator('[data-checked]'))).toHaveCount(1);
+  return chip;
+}
+
+/** Undo `addOneClass`: un-select exactly that chip and prove it is unchecked. */
+async function removeAddedClass(page: Page, chip: Locator | null) {
+  if (!chip) return;
+  await chip.click();
+  await expect(chip.and(page.locator('[data-checked]'))).toHaveCount(0);
+}
+
 async function selectFirstClass(page: Page) {
-  await expect(page.getByRole('heading', { name: 'Select Classes' })).toBeVisible({
+  await expect(page.getByRole('heading', { name: 'Select Classes', exact: true })).toBeVisible({
     timeout: 15000,
   });
-  const classes = page.getByRole('checkbox', { name: /^Select / });
-  await expect(classes.first()).toBeVisible({ timeout: 15000 });
-  await classes.first().click();
+  if (await waitForSelectableClass(page)) {
+    await enabledClassChips(page).first().click();
+  }
   await expect(page.getByRole('button', { name: /^Next$/ })).toBeEnabled();
   await page.getByRole('button', { name: /^Next$/ }).click();
 }
@@ -132,7 +219,7 @@ test('registration wizard covers dog, class, payment, and draft dialog states', 
   await assertWizardShell(page, consoleErrors);
 
   await selectFirstDog(page);
-  await expect(page.getByRole('heading', { name: 'Select Classes' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Select Classes', exact: true })).toBeVisible();
   await selectFirstClass(page);
   await expect(page.getByRole('heading', { name: 'Payment Information' })).toBeVisible();
 
@@ -140,6 +227,12 @@ test('registration wizard covers dog, class, payment, and draft dialog states', 
   const saveDialog = page.getByRole('dialog');
   await saveDialog.getByLabel('Draft Title').fill('Visual QA Draft');
   await saveDialog.getByRole('button', { name: 'Save Draft' }).click();
+
+  // The "Draft saved" toast lands over the bottom navigation on phones and
+  // tablets (the entries bar and the toaster share the bottom edge); wait for it
+  // to clear so the Back click reaches the button, not the toast.
+  await expect(page.getByText('Draft saved')).toBeVisible();
+  await expect(page.getByText('Draft saved')).toBeHidden({ timeout: 15000 });
 
   await page.getByRole('button', { name: /^Back$/ }).click();
   await page.getByRole('button', { name: /^Back$/ }).click();
@@ -155,6 +248,7 @@ test('registration wizard covers dog, class, payment, and draft dialog states', 
   await loadDialog.getByText('Visual QA Draft').click();
   await loadDialog.getByRole('button', { name: 'Load Selected Draft' }).click();
   await expect(page.getByText('Draft loaded successfully')).toBeVisible();
+  await expect(page.getByText('Draft loaded successfully')).toBeHidden({ timeout: 15000 });
   await page.getByRole('button', { name: /^Back$/ }).click();
   await page.getByRole('button', { name: /^Back$/ }).click();
   await expect(page.locator('[role="checkbox"][aria-checked="true"]').first()).toBeVisible();
@@ -355,4 +449,395 @@ test('dark-mode muted captions clear WCAG AA on the composited wizard surfaces',
   expect(muted).not.toBeNull();
   console.log('WORST_MUTED ' + muted!.worst.toFixed(2) + ' :: ' + muted!.worstText);
   expect(muted!.worst, 'worst muted caption: ' + muted!.worstText).toBeGreaterThanOrEqual(4.5);
+});
+
+// ---------------------------------------------------------------------------
+// Step-title geometry (MYK9-483, spec wizard-progress-indicator)
+//
+// The stepper split titles mid-word from 1024px up — "Pa"/"ym"/"en"/"t" in the
+// exhibitor variant and one character per line in the five-step staff variant.
+// A class-name assertion cannot see that: the split came from `break-words` on
+// the label combining with a `shrink-0` status pill, and every class involved
+// was "correct". These assertions therefore measure RENDERED line boxes.
+//
+// Measurement: a Range over the title's own text node; `getClientRects()`
+// returns one rect per line box, so distinct rect tops == wrapped lines. The
+// harness is proved capable of seeing a 2-line element before it is trusted
+// (LESSONS `measurement-harness`).
+// ---------------------------------------------------------------------------
+
+const STEP_TITLE_WIDTHS = [390, 1024, 1100, 1280, 1440];
+
+interface TitleMeasurement {
+  text: string;
+  lineCount: number;
+  clientWidth: number;
+  scrollWidth: number;
+  whiteSpace: string;
+  textOverflow: string;
+  overflowX: string;
+  accessibleName: string;
+  fontSize: string;
+}
+
+interface StepTitleReport {
+  probeLineCount: number;
+  probeText: string;
+  steps: TitleMeasurement[];
+}
+
+/**
+ * Runs in the page. Measures the known-answer probe with the SAME code path as
+ * the step titles, then every step title in `wizard-step-list`.
+ *
+ * The title element is found structurally rather than by test id or by text, so
+ * this function keeps working across the rewrite and across the label rename:
+ * inside each step button, the first descendant (outside the step circle) whose
+ * only child is a non-empty text node is the title.
+ */
+const MEASURE_STEP_TITLES = () => {
+  const measure = (el: Element) => {
+    const node = Array.from(el.childNodes).find(
+      candidate => candidate.nodeType === 3 && (candidate.textContent || '').trim().length > 0
+    );
+    if (!node) return null;
+    const range = document.createRange();
+    range.selectNodeContents(node);
+    const tops: number[] = [];
+    for (const rect of Array.from(range.getClientRects())) {
+      if (rect.width <= 0 || rect.height <= 0) continue;
+      if (!tops.some(top => Math.abs(top - rect.top) <= 2)) tops.push(rect.top);
+    }
+    const styles = getComputedStyle(el);
+    return {
+      text: (node.textContent || '').trim(),
+      lineCount: tops.length,
+      clientWidth: el.clientWidth,
+      scrollWidth: el.scrollWidth,
+      whiteSpace: styles.whiteSpace,
+      textOverflow: styles.textOverflow,
+      overflowX: styles.overflowX,
+      accessibleName: '',
+      fontSize: styles.fontSize,
+    };
+  };
+
+  // Known answer: a two-word label in a box far too narrow for one word MUST
+  // report more than one line. If it does not, the measurement is broken and
+  // every "exactly one line" assertion below is vacuous.
+  const probe = document.createElement('div');
+  probe.style.cssText =
+    'position:fixed;top:0;left:0;width:24px;font-size:13px;line-height:16px;z-index:-1;';
+  probe.appendChild(document.createTextNode('Select classes'));
+  document.body.appendChild(probe);
+  const probeResult = measure(probe);
+  probe.remove();
+
+  const steps: ReturnType<typeof measure>[] = [];
+  const buttons = Array.from(
+    document.querySelectorAll('[data-testid="wizard-step-list"] button')
+  ) as HTMLElement[];
+  for (const button of buttons) {
+    const titleEl = Array.from(button.querySelectorAll('*')).find(el => {
+      if (el.closest('[data-testid^="wizard-step-circle-"]')) return false;
+      const kids = Array.from(el.childNodes);
+      return kids.length === 1 && kids[0].nodeType === 3 && (kids[0].textContent || '').trim();
+    });
+    if (!titleEl) continue;
+    const measured = measure(titleEl);
+    if (!measured) continue;
+    measured.accessibleName = button.getAttribute('aria-label') || button.innerText || '';
+    steps.push(measured);
+  }
+
+  return {
+    probeLineCount: probeResult ? probeResult.lineCount : 0,
+    probeText: probeResult ? probeResult.text : '',
+    steps: steps.filter(Boolean),
+  };
+};
+
+async function assertStepTitlesFitOneLine(page: Page, width: number, expectedSteps: number) {
+  await page.setViewportSize({ width, height: 900 });
+  await expect(page.getByTestId('wizard-step-list')).toBeVisible({ timeout: 30000 });
+  await expect
+    .poll(() => page.locator('[data-testid="wizard-step-list"] button').count(), {
+      timeout: 30000,
+    })
+    .toBe(expectedSteps);
+
+  const report = (await page.evaluate(MEASURE_STEP_TITLES)) as StepTitleReport;
+
+  expect(
+    report.probeLineCount,
+    'known-answer probe: a two-word label in a 24px box must wrap, or this harness cannot see a wrapped title'
+  ).toBeGreaterThanOrEqual(2);
+  expect(report.steps.length, `step titles found at ${width}px`).toBe(expectedSteps);
+
+  for (const step of report.steps) {
+    const where = `"${step.text}" @ ${width}px (box ${step.clientWidth}px, content ${step.scrollWidth}px, ${step.fontSize})`;
+    expect(step.lineCount, `one rendered line box for ${where}`).toBe(1);
+
+    if (step.scrollWidth > step.clientWidth + 1) {
+      // Too narrow for the whole title: it must be CUT WITH AN ELLIPSIS, which
+      // is only true when the text cannot wrap and the box clips with one.
+      expect(step.whiteSpace, `nowrap so ${where} cannot break inside a word`).toBe('nowrap');
+      expect(step.textOverflow, `ellipsis truncation for ${where}`).toBe('ellipsis');
+      expect(step.overflowX, `clipped overflow for ${where}`).not.toBe('visible');
+    }
+
+    // Truncation is visual only: the full title stays in the accessible name.
+    expect(step.accessibleName, `accessible name keeps the full title for ${where}`).toContain(
+      step.text
+    );
+  }
+
+  console.log(
+    `STEP_TITLES ${width} :: ` +
+      report.steps.map(s => `${s.text}[${s.lineCount}L/${s.clientWidth}px]`).join(' | ')
+  );
+}
+
+test.describe('wizard step titles never break mid-word', () => {
+  test('exhibitor variant keeps every step title on one line', async ({ page }) => {
+    await signInAsExhibitor(page, `/shows/${SHOW_ID}/register`);
+    await expect(page.getByRole('heading', { name: 'Register for Show' })).toBeVisible({
+      timeout: 30000,
+    });
+    for (const width of STEP_TITLE_WIDTHS) {
+      await assertStepTitlesFitOneLine(page, width, 4);
+    }
+  });
+
+  test('staff variant keeps every step title on one line', async ({ page }) => {
+    await signInAsSecretary(page, `/secretary/register/${SHOW_ID}`);
+    await expect(page.getByTestId('wizard-step-list')).toBeVisible({ timeout: 30000 });
+    for (const width of STEP_TITLE_WIDTHS) {
+      await assertStepTitlesFitOneLine(page, width, 5);
+    }
+  });
+});
+
+/**
+ * The wizard owns its scroll context in BOTH modes. The embedded
+ * /secretary route was left on the app shell's scroll container on the belief
+ * that the sidebar pane scrolls; it does not — `SidebarLayout`'s `main`
+ * expands and the DOCUMENT scrolls, so sticky boxes scrolled away on long
+ * staff steps exactly as they did full-page (Codex #2210 round 8 P2).
+ */
+test('the secretary wizard scrolls itself, keeping its header pinned', async ({ page }) => {
+  // A SHORT viewport so the staff step overflows regardless of how much seed
+  // data the environment happens to have. The height is the variable under
+  // test anyway: the root is bound to the viewport, so a short one must scroll.
+  await page.setViewportSize({ width: 1440, height: 600 });
+  await signInAsSecretary(page, `/secretary/register/${SHOW_ID}`);
+  await expect(page.getByTestId('wizard-step-list')).toBeVisible({ timeout: 30000 });
+
+  const shell = page.getByTestId('registration-wizard-shell');
+  const header = page.getByTestId('registration-wizard-header');
+
+  // Known answer first: a root that cannot scroll would pass the assertions
+  // below for the wrong reason.
+  // Structural first: the root is the scrollport, bounded to the viewport.
+  expect(await shell.evaluate(el => getComputedStyle(el).overflowY)).toBe('auto');
+  expect(
+    await shell.evaluate(el => el.clientHeight),
+    'the root must be bounded by the viewport, not by its content'
+  ).toBeLessThanOrEqual(600);
+
+  // Known answer: a root that cannot scroll would pass the assertions below for
+  // the wrong reason.
+  const scrollable = await shell.evaluate(el => el.scrollHeight - el.clientHeight);
+  expect(scrollable, 'the secretary wizard root must be scrollable').toBeGreaterThan(200);
+
+  await shell.evaluate(el => el.scrollBy(0, 800));
+  await page.waitForTimeout(300);
+
+  expect(
+    await shell.evaluate(el => el.scrollTop),
+    'the root must be what scrolled'
+  ).toBeGreaterThan(0);
+  expect(await page.evaluate(() => window.scrollY), 'the document must NOT be what scrolled').toBe(
+    0
+  );
+
+  const shellTop = await shell.evaluate(el => el.getBoundingClientRect().top);
+  const headerTop = await header.evaluate(el => el.getBoundingClientRect().top);
+  expect(
+    Math.abs(headerTop - shellTop),
+    `header top ${headerTop} must stay at the scrollport top ${shellTop}`
+  ).toBeLessThanOrEqual(1);
+});
+
+// ---------------------------------------------------------------------------
+// Entries panel (MYK9-483, spec entry-wizard-running-total)
+//
+// Below `lg` the panel is a bar fixed to the bottom of the viewport that owns
+// Back/Next. Two things can only be checked in a browser: that the bar covers
+// none of the step's own controls (the shell reserves its MEASURED height, so
+// a hard-coded padding would pass a class-name check and still overlap), and
+// that Details reveals the itemised list.
+// ---------------------------------------------------------------------------
+
+test('the phone entries bar totals the cart without covering the class list', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await signInAsExhibitor(page, `/shows/${SHOW_ID}/register`);
+  await selectFirstDog(page);
+  await expect(page.getByRole('heading', { name: 'Select Classes', exact: true })).toBeVisible({
+    timeout: 15000,
+  });
+
+  const added = await addOneClass(page);
+  try {
+    const bar = page.getByTestId('entries-panel-bar');
+    await expect(bar).toBeVisible();
+    // The desktop aside must NOT also be on screen at this width — one total.
+    await expect(page.getByTestId('entries-panel')).toBeHidden();
+    await expect(page.getByTestId('entries-panel-total')).toHaveText(
+      /\d+ class(es)? · \$\d+\.\d{2}/
+    );
+
+    // The bar is sticky inside the wizard's own scrollport, so it must lie
+    // entirely within the shell root's box — which is what keeps it off the app
+    // sidebar at tablet widths (768-1023), where a viewport-fixed bar spanned and
+    // painted over the sidebar.
+    const rootBox = await page.getByTestId('registration-wizard-shell').boundingBox();
+    const barBoxInitial = await bar.boundingBox();
+    expect(rootBox).not.toBeNull();
+    expect(barBoxInitial).not.toBeNull();
+    expect(barBoxInitial!.height, 'bar must have a measured height').toBeGreaterThan(44);
+    expect(
+      barBoxInitial!.x,
+      'bar left must not start left of the wizard root'
+    ).toBeGreaterThanOrEqual(rootBox!.x - 1);
+    expect(
+      barBoxInitial!.x + barBoxInitial!.width,
+      'bar right must not extend past the wizard root'
+    ).toBeLessThanOrEqual(rootBox!.x + rootBox!.width + 1);
+
+    // Scroll to the very bottom of the step: the last chip must still be fully
+    // above the bar, not underneath it.
+    // The wizard owns its scroll context, so scrolling the DOCUMENT moves nothing.
+    await page.evaluate(() => {
+      const root = document.querySelector('[data-testid="registration-wizard-shell"]');
+      if (root) root.scrollTop = root.scrollHeight;
+    });
+    await page.waitForTimeout(300);
+    const lastChip = page.getByRole('checkbox', { name: /^Select / }).last();
+    await lastChip.scrollIntoViewIfNeeded();
+    await page.waitForTimeout(200);
+    const chipBox = await lastChip.boundingBox();
+    const barBox = await bar.boundingBox();
+    expect(chipBox).not.toBeNull();
+    expect(barBox).not.toBeNull();
+    expect(
+      chipBox!.y + chipBox!.height,
+      `last class chip bottom ${chipBox!.y + chipBox!.height} must clear the bar top ${barBox!.y}`
+    ).toBeLessThanOrEqual(barBox!.y + 1);
+
+    // The sticky header is pinned to the wizard's own scrollport, so it is still
+    // at the top of that scrollport after the scroll above.
+    const phoneShellTop = await page
+      .getByTestId('registration-wizard-shell')
+      .evaluate(el => el.getBoundingClientRect().top);
+    const phoneHeaderTop = await page
+      .getByTestId('registration-wizard-header')
+      .evaluate(el => el.getBoundingClientRect().top);
+    expect(
+      Math.abs(phoneHeaderTop - phoneShellTop),
+      `header top ${phoneHeaderTop} must stay at the scrollport top ${phoneShellTop}`
+    ).toBeLessThanOrEqual(1);
+
+    // Details expands the itemised list in place.
+    const details = page.getByTestId('entries-panel-details');
+    await expect(details).toHaveAttribute('aria-expanded', 'false');
+    await expect(page.getByTestId('entries-panel-details-list')).toHaveCount(0);
+    await details.click();
+    await expect(details).toHaveAttribute('aria-expanded', 'true');
+    const list = page.getByTestId('entries-panel-details-list');
+    await expect(list).toBeVisible();
+    await expect(list.getByTestId('entries-panel-line').first()).toBeVisible();
+
+    // Back/Next live in the bar at this width, and only there.
+    await expect(page.getByRole('button', { name: /^Next$/ })).toHaveCount(1);
+    await expect(bar.getByRole('button', { name: /^Next$/ })).toBeVisible();
+
+    await details.click();
+  } finally {
+    // Leave the staging cart as it was found.
+    await removeAddedClass(page, added);
+  }
+});
+
+test('the desktop entries panel is the only place the total appears', async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await signInAsExhibitor(page, `/shows/${SHOW_ID}/register`);
+  await selectFirstDog(page);
+  await expect(page.getByRole('heading', { name: 'Select Classes', exact: true })).toBeVisible({
+    timeout: 15000,
+  });
+
+  const added = await addOneClass(page);
+  try {
+    const panel = page.getByTestId('entries-panel');
+    await expect(panel).toBeVisible();
+    await expect(page.getByTestId('entries-panel-bar')).toBeHidden();
+    await expect(panel.getByText('Entry fees')).toBeVisible();
+    // Spec scenario "Only one place shows the total": the bottom-of-page
+    // DogCartSummary / OverallCartSummary are gone, not merely hidden.
+    await expect(page.getByText(/Cart Total \(/)).toHaveCount(0);
+    await expect(page.getByText(/classes? in cart/)).toHaveCount(0);
+
+    // The panel's card is a sticky box in a STRETCHED column, so it can travel
+    // the full height of the content card beside it.
+    const card = panel.locator('> div');
+    expect(await card.evaluate(el => getComputedStyle(el).position)).toBe('sticky');
+    expect(await panel.evaluate(el => el.getBoundingClientRect().height)).toBeGreaterThan(
+      await card.evaluate(el => el.getBoundingClientRect().height)
+    );
+
+    // ...and it actually STICKS. The wizard bounds itself to the viewport and
+    // scrolls itself, so the sticky card and the sticky header have a real
+    // scrollport. Previously the app shell's MAIN.flex-1.overflow-auto was the
+    // nearest scrolling ancestor but never scrolled — the document did — and
+    // every sticky box in the wizard was carried off screen.
+    const shell = page.getByTestId('registration-wizard-shell');
+    const header = page.getByTestId('registration-wizard-header');
+
+    // Known answer first: a scrollport that cannot scroll would make the
+    // assertions below pass for the wrong reason.
+    const scrollable = await shell.evaluate(el => el.scrollHeight - el.clientHeight);
+    expect(
+      scrollable,
+      'the wizard root must be scrollable for this to mean anything'
+    ).toBeGreaterThan(200);
+
+    const cardTopBefore = await card.evaluate(el => el.getBoundingClientRect().top);
+    await shell.evaluate(el => el.scrollBy(0, 800));
+    await page.waitForTimeout(300);
+
+    expect(
+      await shell.evaluate(el => el.scrollTop),
+      'the root must be what scrolled'
+    ).toBeGreaterThan(0);
+    expect(
+      await page.evaluate(() => window.scrollY),
+      'the document must NOT be what scrolled'
+    ).toBe(0);
+
+    const cardTopAfter = await card.evaluate(el => el.getBoundingClientRect().top);
+    expect(
+      Math.abs(cardTopAfter - cardTopBefore),
+      `panel card top moved from ${cardTopBefore} to ${cardTopAfter}`
+    ).toBeLessThanOrEqual(1);
+
+    const shellTop = await shell.evaluate(el => el.getBoundingClientRect().top);
+    const headerTop = await header.evaluate(el => el.getBoundingClientRect().top);
+    expect(
+      Math.abs(headerTop - shellTop),
+      `header top ${headerTop} must stay at the scrollport top ${shellTop}`
+    ).toBeLessThanOrEqual(1);
+  } finally {
+    await removeAddedClass(page, added);
+  }
 });

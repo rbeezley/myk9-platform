@@ -3,15 +3,13 @@ import type { RegistrationFormData } from '@/types/show-registration-types';
 export interface RegistrationStep {
   id: number;
   label: string;
-  description: string;
   icon: React.ReactNode;
   completed: boolean;
   optional?: boolean;
   requiredForRole?: string[];
 }
 
-export type WorkflowMode =
-  'exhibitor' | 'secretary_existing' | 'secretary_new' | 'club_admin' | 'site_admin';
+export type WorkflowMode = 'exhibitor' | 'secretary_new' | 'club_admin' | 'site_admin';
 
 export type StepId =
   'dog-selection' | 'class-selection' | 'handler-assignment' | 'payment' | 'confirmation';

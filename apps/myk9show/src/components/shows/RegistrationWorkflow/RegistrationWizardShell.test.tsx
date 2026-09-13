@@ -8,7 +8,6 @@ describe('RegistrationWizardShell', () => {
     render(
       <RegistrationWizardShell
         rootRef={createRef<HTMLDivElement>()}
-        isInsideSidebar={false}
         header={<div>Wizard header</div>}
         footer={<div>Wizard footer</div>}
       >
@@ -26,5 +25,48 @@ describe('RegistrationWizardShell', () => {
     expect(header).toHaveClass('sticky', 'top-0');
     expect(main).toHaveClass('pt-[var(--app-shell-page-gap,1.5rem)]');
     expect(card).toHaveClass('min-h-[600px]', 'flex', 'flex-col');
+    // No panel passed: no second column is reserved (the Receipt step).
+    expect(main.className).not.toContain('lg:grid-cols-');
+    // The phone bar is sticky inside the wizard's own scrollport and takes flow
+    // space at the end of the step, so no reserved-height variable exists.
+    expect(main.className).not.toContain('--registration-bottom-bar-height');
+  });
+
+  it('puts the entries panel in a second column beside the card', () => {
+    render(
+      <RegistrationWizardShell
+        rootRef={createRef<HTMLDivElement>()}
+        header={<div>Wizard header</div>}
+        footer={<div>Wizard footer</div>}
+        aside={<div>Your entries</div>}
+      >
+        <div>Wizard content</div>
+      </RegistrationWizardShell>
+    );
+
+    expect(screen.getByText('Your entries')).toBeVisible();
+    const main = screen.getByTestId('registration-wizard-main');
+    expect(main.className).toContain('lg:grid-cols-[minmax(0,1fr)_320px]');
+    // The panel is a sibling of the card, not nested inside its scroll context.
+    expect(screen.getByTestId('registration-wizard-card').parentElement).toBe(main);
+  });
+
+  it('publishes the measured header height for the sticky panel to clear', () => {
+    render(
+      <RegistrationWizardShell
+        rootRef={createRef<HTMLDivElement>()}
+        header={<div>Wizard header</div>}
+        footer={<div>Wizard footer</div>}
+        aside={<div>Your entries</div>}
+      >
+        <div>Wizard content</div>
+      </RegistrationWizardShell>
+    );
+
+    expect(
+      screen
+        .getByTestId('registration-wizard-shell')
+        .style.getPropertyValue('--registration-header-height')
+    ).toMatch(/px$/);
   });
 });

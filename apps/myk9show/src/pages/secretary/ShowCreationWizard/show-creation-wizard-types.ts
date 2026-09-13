@@ -24,7 +24,6 @@ export interface CreatedShow {
 export interface WizardStep {
   id: number;
   label: string;
-  description: string;
 }
 
 /**
@@ -53,8 +52,8 @@ export type JudgeDetailsMap = Record<string, JudgeDetailsInfo>;
 export type ShowStatus = 'draft' | 'unpublished' | 'published';
 
 export const WIZARD_STEPS: WizardStep[] = [
-  { id: 0, label: 'Show Details', description: 'Basic information' },
-  { id: 1, label: 'Trials', description: 'Configure trials' },
-  { id: 2, label: 'Classes', description: 'Select from templates' },
-  { id: 3, label: 'Review', description: 'Final confirmation' },
+  { id: 0, label: 'Show Details' },
+  { id: 1, label: 'Trials' },
+  { id: 2, label: 'Classes' },
+  { id: 3, label: 'Review' },
 ];

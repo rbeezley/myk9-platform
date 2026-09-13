@@ -277,7 +277,7 @@ describe('RegistrationWizardPage — workflowMode derivation', () => {
 
     await waitFor(() => expect(screen.getByTestId('step-content')).toBeInTheDocument());
 
-    // Should map to 'site_admin' config, not 'secretary_existing'
+    // Should map to 'site_admin' config, not a secretary config
     expect(capturedWorkflowConfig).toStrictEqual(WORKFLOW_CONFIGS.site_admin);
   });
 

@@ -170,7 +170,7 @@ test.describe('Registration Wizard — Mail-in entry happy path', () => {
     await page.getByRole('button', { name: /^Next/ }).click();
 
     // ─── Step 2: Class selection (per-dog tab) ─────────────────────────────
-    await expect(page.getByRole('heading', { name: 'Select Classes' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Select Classes', exact: true })).toBeVisible();
 
     // The Interior element card lists 5 level chips (Novice A/B, Advanced,
     // Excellent, Master). Click Novice A and Excellent — both at $30.

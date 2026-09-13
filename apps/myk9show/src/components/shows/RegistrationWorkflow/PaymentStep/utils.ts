@@ -1,4 +1,4 @@
-import type { ClassSelectionData } from '@/types/show-registration-types';
+import type { ClassSelectionData, PaymentMethod } from '@/types/show-registration-types';
 import type { FeeCalculationResult, FeeBreakdownItem } from './types';
 import { getDogDisplayName } from '@/types/dog-types';
 
@@ -211,4 +211,47 @@ export function getPaymentMethodLabel(method: string): string {
     default:
       return method;
   }
+}
+
+/** What the show will take, as PaymentStep resolves it from the show record. */
+export interface AcceptedPaymentMethods {
+  check: boolean;
+  cash: boolean;
+}
+
+export interface EffectivePaymentMethodInput {
+  /** What the wizard currently holds in parent state. */
+  paymentMethod: PaymentMethod | '';
+  acceptedMethods: AcceptedPaymentMethods;
+  /**
+   * Whether an online card payment can actually be taken right now. False both
+   * while the club's Stripe readiness is still being checked and when it
+   * resolves negative — the fallback is the same either way — and always false
+   * for on-behalf organizers, whose cart stripe-checkout would 403.
+   */
+  cardCheckoutAvailable: boolean;
+}
+
+/**
+ * The payment method that is actually in force.
+ *
+ * A card selection that cannot be charged falls back to whatever the show will
+ * take at the show. This is the ONE derivation: PaymentStep used to compute it
+ * privately and only write it back to parent state in an effect, so until that
+ * effect ran the entries panel quoted "Credit/Debit Card" and a service fee
+ * while the controls below showed Check — two answers to "how am I paying?" on
+ * the screen where the money is quoted (Codex #2210 round 5 P2).
+ *
+ * Only `credit_card` is ever rewritten: every other method is either already
+ * payable at the show or staff-recorded.
+ */
+export function getEffectivePaymentMethod({
+  paymentMethod,
+  acceptedMethods,
+  cardCheckoutAvailable,
+}: EffectivePaymentMethodInput): PaymentMethod | '' {
+  if (cardCheckoutAvailable || paymentMethod !== 'credit_card') return paymentMethod;
+  if (acceptedMethods.check) return 'check';
+  if (acceptedMethods.cash) return 'cash';
+  return '';
 }

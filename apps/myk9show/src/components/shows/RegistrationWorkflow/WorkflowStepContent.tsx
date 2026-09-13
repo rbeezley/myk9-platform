@@ -1,3 +1,4 @@
+import type { PaymentMethodResolution } from './PaymentStep/usePaymentMethodResolution';
 import { useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { DogSelectionStep } from './DogSelectionStep';
@@ -49,6 +50,11 @@ interface OptimisticRegistrationState {
 }
 
 interface WorkflowStepContentProps {
+  /**
+   * Resolved by the page (`usePaymentMethodResolution`) and passed straight
+   * through, so the entries panel and the payment controls read one derivation.
+   */
+  paymentResolution: PaymentMethodResolution;
   currentStepId: string;
   currentWorkflowConfig: WorkflowConfig;
   currentWorkflowMode: WorkflowMode;
@@ -90,9 +96,15 @@ interface WorkflowStepContentProps {
   agreedToEntryAgreement?: boolean | undefined;
   /** Callback when the entry agreement checkbox is toggled on the payment step. */
   onAgreementChange?: ((agreed: boolean) => void) | undefined;
+  /** Secretary fee waiver / manual override, owned by the wizard page. */
+  waiveFees?: boolean | undefined;
+  feeOverride?: number | null | undefined;
+  onWaiveFeesChange?: ((waived: boolean) => void) | undefined;
+  onFeeOverrideChange?: ((override: number | null) => void) | undefined;
 }
 
 export function WorkflowStepContent({
+  paymentResolution,
   currentStepId,
   currentWorkflowConfig,
   currentWorkflowMode,
@@ -124,6 +136,10 @@ export function WorkflowStepContent({
   offlineFirstCreate = false,
   agreedToEntryAgreement,
   onAgreementChange,
+  waiveFees,
+  feeOverride,
+  onWaiveFeesChange,
+  onFeeOverrideChange,
 }: WorkflowStepContentProps) {
   const hasDogSelectionStep = currentWorkflowConfig.steps.includes('dog-selection');
   const hasHandlerStep = currentWorkflowConfig.steps.includes('handler-assignment');
@@ -370,6 +386,7 @@ export function WorkflowStepContent({
       {currentStepId === 'payment' && (
         <PaymentErrorBoundary>
           <PaymentStep
+            paymentResolution={paymentResolution}
             selectedDogs={optimisticState.formData.selectedDogs}
             classSelections={optimisticState.classSelections}
             paymentMethod={optimisticState.formData.paymentMethod || ''}
@@ -402,7 +419,10 @@ export function WorkflowStepContent({
             registrationId={registrationId}
             agreedToEntryAgreement={agreedToEntryAgreement}
             onAgreementChange={onAgreementChange}
-            onClassSelectionChange={onClassSelectionChange}
+            waiveFees={waiveFees}
+            feeOverride={feeOverride}
+            onWaiveFeesChange={onWaiveFeesChange}
+            onFeeOverrideChange={onFeeOverrideChange}
             capacityReady={capacityReady}
             capacityError={capacityError}
             capacityUnavailable={capacityUnavailable}

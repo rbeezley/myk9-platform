@@ -19,7 +19,7 @@ describe('AlreadyEnteredNotice', () => {
     expect(link).toHaveAttribute('href', '/messages/show-1');
   });
 
-  it.each(['secretary_existing', 'secretary_new', 'club_admin', 'site_admin'] as const)(
+  it.each(['secretary_new', 'club_admin', 'site_admin'] as const)(
     'points %s staff at Entry Management, never at messaging themselves',
     mode => {
       render(<AlreadyEnteredNotice showId="show-1" dogName="Willow" workflowMode={mode} />);

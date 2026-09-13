@@ -196,7 +196,7 @@ test.describe('Secretary Entry Walk', () => {
 
     // ── Step 2: Classes ────────────────────────────────────────────────────
     await nextBtn.click();
-    await expect(page.getByRole('heading', { name: 'Select Classes' })).toBeVisible({
+    await expect(page.getByRole('heading', { name: 'Select Classes', exact: true })).toBeVisible({
       timeout: 8000,
     });
 

@@ -74,15 +74,6 @@ export function getCartItemsForDog(
 }
 
 /**
- * Calculate total fees for a dog based on cart items.
- */
-export function getTotalFeesForDog(cartItems: CartItemWithDetails[], dogId: string): number {
-  return getCartItemsForDog(cartItems, dogId).reduce((total, item) => {
-    return total + item.entry_fee_cents / 100;
-  }, 0);
-}
-
-/**
  * Get count of cart items for a specific dog.
  */
 export function getCartCountForDog(cartItems: CartItemWithDetails[], dogId: string): number {

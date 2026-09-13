@@ -82,8 +82,8 @@ describe('RegistrationWizardPage — step state reset on mode change', () => {
       'class-selection': true,
     });
 
-    // Simulate role change — mode flips to secretary_existing
-    mode = 'secretary_existing';
+    // Simulate role change — mode flips to secretary_new
+    mode = 'secretary_new';
     rerender();
 
     expect(result.current.stepCompletionState).toEqual({});
@@ -167,7 +167,7 @@ describe('RegistrationWizardPage — step state reset on mode change', () => {
     const { result, rerender } = renderHook(() => useModeChangeReset(mode));
 
     // First mode change
-    mode = 'secretary_existing';
+    mode = 'secretary_new';
     rerender();
 
     act(() => {

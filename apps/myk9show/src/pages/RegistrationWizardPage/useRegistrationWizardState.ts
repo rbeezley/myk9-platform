@@ -189,21 +189,28 @@ export function useRegistrationWizardState() {
     specialRequests: undefined,
   });
 
-  // Scroll the wizard back to the top of its scroll container on every step
-  // change. Steps differ a lot in height, so otherwise the prior scroll offset
-  // carries over and a tall step (the payment step in particular) opens scrolled
-  // past its first controls — exactly the "I land near the bottom and can't see
-  // the payment choices" symptom. scrollIntoView climbs to whichever ancestor
-  // actually scrolls: the window when the wizard is full-page, the sidebar's
-  // overflow-auto pane when embedded under /secretary.
+  // Scroll the wizard back to the top on every step change. Steps differ a lot
+  // in height, so otherwise the prior scroll offset carries over and a tall step
+  // (the payment step in particular) opens scrolled past its first controls —
+  // exactly the "I land near the bottom and can't see the payment choices"
+  // symptom.
+  //
+  // TWO calls, because the ref is the shell root and the root is the scroller
+  // only when the wizard is full-page:
+  //  - `scrollTo` resets the root's OWN offset. This is the full-page case;
+  //    `scrollIntoView` alone cannot do it, since bringing an element into view
+  //    says nothing about where that element is scrolled internally.
+  //  - `scrollIntoView` still handles the embedded /secretary case, where the
+  //    sidebar's overflow-auto pane is the ancestor that actually scrolls.
+  // Each is a harmless no-op in the other's case.
   const scrollTopRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
     const el = scrollTopRef.current;
-    // jsdom (test env) doesn't implement scrollIntoView; guard so it's a no-op
-    // there while still running in every real browser.
-    if (el && typeof el.scrollIntoView === 'function') {
-      el.scrollIntoView({ block: 'start' });
-    }
+    if (!el) return;
+    // jsdom (test env) implements neither; guard so both are no-ops there while
+    // still running in every real browser.
+    if (typeof el.scrollTo === 'function') el.scrollTo({ top: 0 });
+    if (typeof el.scrollIntoView === 'function') el.scrollIntoView({ block: 'start' });
   }, [currentStep]);
 
   // Resolve the exhibitor that this submission is filed under. For exhibitor
@@ -384,7 +391,10 @@ export function useRegistrationWizardState() {
   // Paused offline, or failed. Not "still arriving".
   const agreementUnavailable = agreementGateApplies && !agreementAnswered && !agreementLoadingNow;
 
-  const liveTotalFees = useMemo(
+  // The FULL result, not just the total: the entries panel itemises exactly
+  // what this totalled, so the panel, the Next gate and the payment step's
+  // amount due all read one calculation (design.md decision 3).
+  const liveFeeCalculation = useMemo(
     () =>
       calculateTotalFees(
         registrationData.selectedDogs,
@@ -399,7 +409,7 @@ export function useRegistrationWizardState() {
             }
           : undefined,
         capacityReady ? registrationCapacity.waitlistClassIds : new Set()
-      ).total,
+      ),
     [
       registrationData.selectedDogs,
       classSelections,
@@ -410,6 +420,13 @@ export function useRegistrationWizardState() {
       registrationCapacity.waitlistClassIds,
     ]
   );
+  const liveTotalFees = liveFeeCalculation.total;
+
+  // Secretary fee waiver / manual override. Page state rather than PaymentStep
+  // state because the entries panel renders the amount due outside the step's
+  // own subtree and must apply the same two flags the step does.
+  const [waiveFees, setWaiveFees] = useState(false);
+  const [feeOverride, setFeeOverride] = useState<number | null>(null);
 
   const entryCloseAvailability = useMemo(
     () =>
@@ -571,6 +588,11 @@ export function useRegistrationWizardState() {
     optimisticState,
     completedSteps,
     liveTotalFees,
+    liveFeeCalculation,
+    waiveFees,
+    setWaiveFees,
+    feeOverride,
+    setFeeOverride,
     capacityReady,
     capacityError,
     capacityUnavailable,

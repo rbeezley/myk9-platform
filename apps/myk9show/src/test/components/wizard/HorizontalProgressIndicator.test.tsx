@@ -1,13 +1,12 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen } from '@testing-library/react';
-import userEvent from '@testing-library/user-event';
+import { render, screen, userEvent } from '@/test/utils/testUtils';
 import HorizontalProgressIndicator from '@/components/shows/wizard/components/HorizontalProgressIndicator';
 
 const STEPS = [
-  { id: 0, label: 'Show Details', description: 'Basic information' },
-  { id: 1, label: 'Trials', description: 'Configure trials' },
-  { id: 2, label: 'Classes', description: 'Select from templates' },
-  { id: 3, label: 'Review', description: 'Final confirmation' },
+  { id: 0, label: 'Show Details' },
+  { id: 1, label: 'Trials' },
+  { id: 2, label: 'Classes' },
+  { id: 3, label: 'Review' },
 ];
 
 function renderIndicator(
@@ -16,7 +15,7 @@ function renderIndicator(
   const onStepClick = vi.fn();
   render(
     <HorizontalProgressIndicator
-      steps={STEPS}
+      steps={props?.steps ?? STEPS}
       currentStep={props?.currentStep ?? 1}
       completedSteps={props?.completedSteps ?? [0]}
       onStepClick={props?.onStepClick ?? onStepClick}
@@ -39,6 +38,26 @@ describe('HorizontalProgressIndicator', () => {
     renderIndicator({ currentStep: 1, completedSteps: [0] });
     const current = screen.getByRole('button', { name: 'Trials (current)' });
     expect(current).toHaveAttribute('aria-current', 'step');
+  });
+
+  // A step the exhibitor has gone BACK to is both current and completed. The
+  // name must say where they are, not where they have been: "(completed)" on
+  // the step you are standing in reads as a different step (Codex #2210 round 6
+  // P3). The circle keeps its check — that is the visual history — but the
+  // accessible name follows `aria-current`.
+  it('calls a revisited completed step current, not completed', () => {
+    renderIndicator({ currentStep: 0, completedSteps: [0, 1] });
+
+    const revisited = screen.getByRole('button', { name: 'Show Details (current)' });
+    expect(revisited).toHaveAttribute('aria-current', 'step');
+    expect(
+      screen.queryByRole('button', { name: 'Show Details (completed)' })
+    ).not.toBeInTheDocument();
+  });
+
+  it('still shows the completed check on a revisited step', () => {
+    renderIndicator({ currentStep: 0, completedSteps: [0, 1] });
+    expect(screen.getByTestId('wizard-step-circle-0').querySelector('svg')).not.toBeNull();
   });
 
   it('labels a completed step as completed', () => {
@@ -82,7 +101,7 @@ describe('HorizontalProgressIndicator', () => {
   it('gives each step a >=44px-tall, full-width hit area (touch-target guardrail)', () => {
     renderIndicator({ currentStep: 1, completedSteps: [0] });
     const button = screen.getByRole('button', { name: 'Trials (current)' });
-    expect(button.className).toContain('min-h-[64px]');
+    expect(button.className).toContain('min-h-[44px]');
     expect(button.className).toContain('w-full');
   });
 
@@ -106,7 +125,7 @@ describe('HorizontalProgressIndicator', () => {
   });
 });
 
-describe('HorizontalProgressIndicator — steps remain discoverable through tablet widths', () => {
+describe('HorizontalProgressIndicator — one row of single-line titles', () => {
   const SIX_STEPS = [
     { id: 0, label: 'Exhibitor' },
     { id: 1, label: 'Dogs' },
@@ -126,8 +145,70 @@ describe('HorizontalProgressIndicator — steps remain discoverable through tabl
 
     const stepList = screen.getByTestId('wizard-step-list');
     expect(stepList).not.toHaveClass('overflow-x-auto');
-    expect(stepList.querySelector('ol')).toHaveClass('grid-cols-2');
-    expect(stepList.querySelector('ol')).toHaveClass('lg:flex');
+    // One row at EVERY width: the two-column grid is what squeezed a title into
+    // a ~48px box at 1024px, where `break-words` then split it mid-word.
+    const list = stepList.querySelector('ol');
+    expect(list).toHaveClass('flex');
+    expect(list?.className).not.toContain('grid-cols-2');
     expect(screen.getByText('Exhibitor').closest('li')).toHaveClass('min-w-0');
+    expect(screen.getByText('Exhibitor').closest('li')).toHaveClass('flex-1');
+  });
+
+  it('truncates a title too wide for its share of the row instead of wrapping it', () => {
+    render(
+      <HorizontalProgressIndicator
+        steps={[
+          { id: 0, label: 'Select classes for every dog in the cart' },
+          { id: 1, label: 'Payment' },
+        ]}
+        currentStep={0}
+        completedSteps={[]}
+      />
+    );
+
+    const title = screen.getByText('Select classes for every dog in the cart');
+    // jsdom does not lay text out, so assert the mechanism that makes wrapping
+    // impossible: nowrap + hidden overflow + ellipsis, inside a min-w-0 box.
+    // The rendered geometry is pinned in wizardVisualQA.spec.ts.
+    expect(title.className).toContain('truncate');
+    expect(title.className).toContain('min-w-0');
+    expect(title.closest('li')).toHaveClass('min-w-0');
+  });
+
+  it('keeps the full title in the accessible name when it is visually truncated', () => {
+    const longTitle = 'Select classes for every dog in the cart';
+    render(
+      <HorizontalProgressIndicator
+        steps={[
+          { id: 0, label: longTitle },
+          { id: 1, label: 'Payment' },
+        ]}
+        currentStep={0}
+        completedSteps={[]}
+      />
+    );
+
+    expect(screen.getByRole('button', { name: `${longTitle} (current)` })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Payment' })).toBeInTheDocument();
+  });
+
+  it('renders no status word and no description beside the title', () => {
+    render(
+      <HorizontalProgressIndicator steps={SIX_STEPS} currentStep={2} completedSteps={[0, 1]} />
+    );
+
+    for (const word of ['Done', 'Current', 'Upcoming']) {
+      expect(screen.queryByText(word)).not.toBeInTheDocument();
+    }
+    // Exactly one text label per step: the title, and nothing else. The step
+    // number lives inside the circle, so it is removed from the clone first.
+    const stepList = screen.getByTestId('wizard-step-list');
+    const buttons = Array.from(stepList.querySelectorAll('button'));
+    expect(buttons).toHaveLength(SIX_STEPS.length);
+    buttons.forEach((button, index) => {
+      const clone = button.cloneNode(true) as HTMLElement;
+      clone.querySelector('[data-testid^="wizard-step-circle-"]')?.remove();
+      expect(clone.textContent?.trim()).toBe(SIX_STEPS[index]!.label);
+    });
   });
 });

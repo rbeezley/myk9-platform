@@ -15,7 +15,10 @@ export function useLandingShowData(
   const showId = show?.id ?? '';
   const { user, loading: authLoading } = useAuthContext();
   const isAuthenticatedUser = Boolean(user && user.is_anonymous !== true);
-  const entriesQuery = useEntriesByShowQuery(showId, !!showId && isAuthenticatedUser && !authLoading);
+  const entriesQuery = useEntriesByShowQuery(
+    showId,
+    !!showId && isAuthenticatedUser && !authLoading
+  );
   const publicClassIds = useMemo(
     () =>
       (show?.trials ?? []).flatMap(trial => (trial.classes ?? []).map(classInfo => classInfo.id)),

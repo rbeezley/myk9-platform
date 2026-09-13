@@ -21,7 +21,7 @@ vi.mock('@/hooks/useAuthContext', () => ({
 
 const wrapper = ({ children }: { children: React.ReactNode }) =>
   React.createElement(QueryClientProvider, { client: new QueryClient() }, children);
-const renderHook = <Result,>(callback: () => Result) => baseRenderHook(callback, { wrapper });
+const renderHook = <Result>(callback: () => Result) => baseRenderHook(callback, { wrapper });
 
 describe('toLowerRoman', () => {
   it('converts small numbers to lowercase Roman numerals', () => {

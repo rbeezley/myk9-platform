@@ -16,7 +16,7 @@ vi.mock('@/hooks/useAuthContext', () => ({
 
 const wrapper = ({ children }: { children: React.ReactNode }) =>
   React.createElement(QueryClientProvider, { client: new QueryClient() }, children);
-const renderHook = <Result,>(callback: () => Result) => baseRenderHook(callback, { wrapper });
+const renderHook = <Result>(callback: () => Result) => baseRenderHook(callback, { wrapper });
 
 // The `reads entryCount` test below installs a persistent mockReturnValue of
 // 47 entries via setEntries(). That value survives to later tests in this file,

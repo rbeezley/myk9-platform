@@ -191,6 +191,12 @@ test('registration wizard covers dog, class, payment, and draft dialog states', 
   await saveDialog.getByLabel('Draft Title').fill('Visual QA Draft');
   await saveDialog.getByRole('button', { name: 'Save Draft' }).click();
 
+  // The "Draft saved" toast lands over the bottom navigation on phones and
+  // tablets (the entries bar and the toaster share the bottom edge); wait for it
+  // to clear so the Back click reaches the button, not the toast.
+  await expect(page.getByText('Draft saved')).toBeVisible();
+  await expect(page.getByText('Draft saved')).toBeHidden({ timeout: 15000 });
+
   await page.getByRole('button', { name: /^Back$/ }).click();
   await page.getByRole('button', { name: /^Back$/ }).click();
   const selectedDog = page.locator('[role="checkbox"][aria-checked="true"]').first();
@@ -205,6 +211,7 @@ test('registration wizard covers dog, class, payment, and draft dialog states', 
   await loadDialog.getByText('Visual QA Draft').click();
   await loadDialog.getByRole('button', { name: 'Load Selected Draft' }).click();
   await expect(page.getByText('Draft loaded successfully')).toBeVisible();
+  await expect(page.getByText('Draft loaded successfully')).toBeHidden({ timeout: 15000 });
   await page.getByRole('button', { name: /^Back$/ }).click();
   await page.getByRole('button', { name: /^Back$/ }).click();
   await expect(page.locator('[role="checkbox"][aria-checked="true"]').first()).toBeVisible();
@@ -652,15 +659,23 @@ test('the phone entries bar totals the cart without covering the class list', as
   await expect(page.getByTestId('entries-panel')).toBeHidden();
   await expect(page.getByTestId('entries-panel-total')).toHaveText(/\d+ class(es)? · \$\d+\.\d{2}/);
 
-  // Known answer before the geometry is trusted: the bar must actually have a
-  // measured height, and the shell must have been told about it.
-  const reserved = await page.evaluate(() =>
-    getComputedStyle(document.documentElement)
-      .getPropertyValue('--registration-bottom-bar-height')
-      .trim()
-  );
-  expect(reserved, 'shell must reserve the bar height').toMatch(/^\d+(\.\d+)?px$/);
-  expect(parseFloat(reserved)).toBeGreaterThan(44);
+  // The bar is sticky inside the wizard's own scrollport, so it must lie
+  // entirely within the shell root's box — which is what keeps it off the app
+  // sidebar at tablet widths (768-1023), where a viewport-fixed bar spanned and
+  // painted over the sidebar.
+  const rootBox = await page.getByTestId('registration-wizard-shell').boundingBox();
+  const barBoxInitial = await bar.boundingBox();
+  expect(rootBox).not.toBeNull();
+  expect(barBoxInitial).not.toBeNull();
+  expect(barBoxInitial!.height, 'bar must have a measured height').toBeGreaterThan(44);
+  expect(
+    barBoxInitial!.x,
+    'bar left must not start left of the wizard root'
+  ).toBeGreaterThanOrEqual(rootBox!.x - 1);
+  expect(
+    barBoxInitial!.x + barBoxInitial!.width,
+    'bar right must not extend past the wizard root'
+  ).toBeLessThanOrEqual(rootBox!.x + rootBox!.width + 1);
 
   // Scroll to the very bottom of the step: the last chip must still be fully
   // above the bar, not underneath it.

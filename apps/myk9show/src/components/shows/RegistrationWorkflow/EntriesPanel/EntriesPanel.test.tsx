@@ -252,11 +252,18 @@ describe('EntriesPanel phone bar', () => {
     expect(list.getByText('Rover')).toBeInTheDocument();
   });
 
-  it('reserves its own height so the bar covers nothing behind it', () => {
+  it('sticks to the bottom of the wizard scrollport instead of fixing to the viewport', () => {
     render(<EntriesPanel groups={groupsFor(1)} />);
+    const bar = screen.getByTestId('entries-panel-bar');
+    // jsdom lays nothing out; the rendered proof is wizardVisualQA's containment
+    // assertion. This pins the positioning mode so a regression to `fixed`
+    // (which escapes the main area and covers the sidebar at tablet widths)
+    // cannot slip in silently.
+    expect(bar).toHaveClass('sticky');
+    expect(bar).not.toHaveClass('fixed');
     expect(
       document.documentElement.style.getPropertyValue('--registration-bottom-bar-height')
-    ).toMatch(/px$/);
+    ).toBe('');
   });
 });
 

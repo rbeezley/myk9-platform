@@ -42,13 +42,11 @@ interface RegistrationWizardShellProps {
  * it. Step content owns content layout; it must not add margins to compensate
  * for the header.
  *
- * Two CSS variables carry measured chrome heights to the things that must
+ * One CSS variable carries a measured chrome height to the things that must
  * clear them, because both heights depend on content (a wrapped breadcrumb, a
  * two-line commit label) and neither can be hard-coded:
  *  - `--registration-header-height`, set here, is what the sticky panel offsets
  *    itself by.
- *  - `--registration-bottom-bar-height`, set by the panel's phone bar, is added
- *    to the main area's bottom padding so the bar covers no control.
  */
 export function RegistrationWizardShell({
   children,
@@ -99,7 +97,7 @@ export function RegistrationWizardShell({
         data-layout="registration-wizard-main"
         data-testid="registration-wizard-main"
         className={cn(
-          'container mx-auto max-w-7xl px-4 pb-[calc(var(--app-shell-page-bottom,2rem)+var(--registration-bottom-bar-height,0px))] pt-[var(--app-shell-page-gap,1.5rem)] sm:px-6',
+          'container mx-auto max-w-7xl px-4 pb-[var(--app-shell-page-bottom,2rem)] pt-[var(--app-shell-page-gap,1.5rem)] sm:px-6',
           // The second column only exists when there is a panel to put in it —
           // the Receipt step would otherwise reserve 320px of nothing.
           // No `items-start`: the panel column must stretch to the row height

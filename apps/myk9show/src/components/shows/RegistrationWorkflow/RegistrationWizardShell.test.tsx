@@ -27,7 +27,9 @@ describe('RegistrationWizardShell', () => {
     expect(card).toHaveClass('min-h-[600px]', 'flex', 'flex-col');
     // No panel passed: no second column is reserved (the Receipt step).
     expect(main.className).not.toContain('lg:grid-cols-');
-    expect(main.className).toContain('--registration-bottom-bar-height');
+    // The phone bar is sticky inside the wizard's own scrollport and takes flow
+    // space at the end of the step, so no reserved-height variable exists.
+    expect(main.className).not.toContain('--registration-bottom-bar-height');
   });
 
   it('puts the entries panel in a second column beside the card', () => {

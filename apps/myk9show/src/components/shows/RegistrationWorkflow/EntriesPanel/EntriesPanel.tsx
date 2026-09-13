@@ -1,4 +1,4 @@
-import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import React, { useState } from 'react';
 import { ChevronDown, ShoppingCart } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
@@ -18,7 +18,6 @@ import { useRemoveLineConfirm } from './EntriesPanel.removeConfirm';
 import { EntriesPanelTotals } from './EntriesPanel.totals';
 
 /** CSS variable the shell pads the content with so the bar covers nothing. */
-const BOTTOM_BAR_VAR = '--registration-bottom-bar-height';
 
 export interface EntriesPanelProps {
   /** Itemised cart, from `groupCartByDogAndDay`. */
@@ -69,7 +68,6 @@ export const EntriesPanel: React.FC<EntriesPanelProps> = ({
   const liveRates = usePlatformFeeRates();
   const resolvedRates = rates ?? liveRates;
   const [detailsOpen, setDetailsOpen] = useState(false);
-  const barRef = useRef<HTMLDivElement>(null);
 
   const isPayment = variant === 'payment' && !!feeCalculation;
   const totals = isPayment
@@ -98,32 +96,6 @@ export const EntriesPanel: React.FC<EntriesPanelProps> = ({
     entryFeeCents,
     classCount,
   });
-
-  // The bar is fixed, so the content behind it has to reserve its height or the
-  // last control of the step sits underneath it (spec: "Phone class selection").
-  // Measured rather than assumed: the bar grows with the wrapped Next label and
-  // with the Details disclosure.
-  useLayoutEffect(() => {
-    const node = barRef.current;
-    const root = document.documentElement;
-    if (!node) {
-      root.style.removeProperty(BOTTOM_BAR_VAR);
-      return;
-    }
-    const apply = () => root.style.setProperty(BOTTOM_BAR_VAR, `${node.offsetHeight}px`);
-    apply();
-    if (typeof ResizeObserver === 'undefined') return;
-    const observer = new ResizeObserver(apply);
-    observer.observe(node);
-    return () => observer.disconnect();
-  });
-
-  useEffect(
-    () => () => {
-      document.documentElement.style.removeProperty(BOTTOM_BAR_VAR);
-    },
-    []
-  );
 
   // Removing a line asks first; `requestRemove` opens the confirmation and the
   // confirmation calls `onRemoveLine` with the very same arguments.
@@ -175,10 +147,13 @@ export const EntriesPanel: React.FC<EntriesPanelProps> = ({
       </aside>
 
       <div
-        ref={barRef}
+        // Sticky to the bottom of the wizard's OWN scrollport (the shell root),
+        // not fixed to the viewport: it stays inside the main area, so it can never
+        // paint over the app sidebar at tablet widths, and it occupies flow space
+        // at the end of the step, so nothing needs to reserve its height.
         data-testid="entries-panel-bar"
         aria-label="Your entries"
-        className="fixed inset-x-0 bottom-0 z-40 border-t border-border bg-card/95 backdrop-blur lg:hidden"
+        className="sticky bottom-0 z-40 border-t border-border bg-card/95 backdrop-blur lg:hidden"
       >
         {detailsOpen && (
           <div

@@ -7,19 +7,7 @@ interface ExistingEntryCartMatch {
   dog_id: string | null;
   class_id: string | null;
   payment_status: string | null;
-  entry_status: string | null;
-  deleted_at: string | null;
 }
-
-const INACTIVE_ENTRY_STATUSES = new Set([
-  'withdrawn',
-  'scratched',
-  'not_accepted',
-  'absent',
-  'promotion-expired',
-  'cancelled',
-  'moved',
-]);
 
 interface ReconcileCartItemsParams {
   cartId: string;
@@ -39,8 +27,9 @@ export async function reconcileCartItemsAgainstExistingEntries({
 
   const { data, error } = await supabase
     .from('entries')
-    .select('dog_id, class_id, payment_status, entry_status, deleted_at')
+    .select('dog_id, class_id, payment_status')
     .eq('show_id', showId)
+    .is('deleted_at', null)
     .in('dog_id', dogIds)
     .in('class_id', classIds);
 
@@ -73,14 +62,7 @@ export async function reconcileCartItemsAgainstExistingEntries({
       if (!item.dog_id || !item.class_id) return false;
       const matches = matchesByPair.get(`${item.dog_id}:${item.class_id}`);
       if (!matches) return false;
-      return !matches.some(
-        entry =>
-          entry.payment_status === 'pending' &&
-          (entry.deleted_at === null || entry.deleted_at === undefined) &&
-          (entry.entry_status === null ||
-            entry.entry_status === undefined ||
-            !INACTIVE_ENTRY_STATUSES.has(entry.entry_status))
-      );
+      return !matches.some(entry => entry.payment_status === 'pending');
     })
     .map(item => item.id);
 

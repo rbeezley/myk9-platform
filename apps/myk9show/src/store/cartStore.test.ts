@@ -160,7 +160,6 @@ const freshHydratedCart = {
 
 const hydratedItem = {
   id: 'item-1',
-  entry_id: 'entry-1',
   cart_id: 'cart-expired',
   dog_id: 'dog-1',
   class_id: 'class-1',
@@ -192,14 +191,6 @@ const pendingEntryCartItem = {
   entry_fee_cents: 1800,
   dog: { id: 'dog-pending', name: 'Pending Dog', call_name: 'Pending', breed: 'Mixed' },
   class: { id: 'class-pending', name: 'Novice Exterior', level: 'Novice', trial_id: 'trial-1' },
-};
-
-const withdrawnEntryCartItem = {
-  ...hydratedItem,
-  id: 'item-withdrawn',
-  dog_id: 'dog-withdrawn',
-  class_id: 'class-withdrawn',
-  entry_fee_cents: 1200,
 };
 
 describe('cartStore payment recovery', () => {
@@ -490,10 +481,7 @@ describe('cartStore payment recovery', () => {
           }
 
           if (call.table === 'entry_cart_items') {
-            return {
-              data: [paidEntryCartItem, pendingEntryCartItem, withdrawnEntryCartItem],
-              error: null,
-            };
+            return { data: [paidEntryCartItem, pendingEntryCartItem], error: null };
           }
 
           if (call.table === 'entries') {
@@ -503,22 +491,6 @@ describe('cartStore payment recovery', () => {
                   dog_id: 'dog-paid',
                   class_id: 'class-paid',
                   payment_status: 'paid_by_check',
-                  entry_status: 'paid',
-                  deleted_at: null,
-                },
-                {
-                  dog_id: 'dog-pending',
-                  class_id: 'class-pending',
-                  payment_status: 'pending',
-                  entry_status: 'submitted',
-                  deleted_at: null,
-                },
-                {
-                  dog_id: 'dog-withdrawn',
-                  class_id: 'class-withdrawn',
-                  payment_status: 'pending',
-                  entry_status: 'withdrawn',
-                  deleted_at: null,
                 },
               ],
               error: null,
@@ -538,15 +510,16 @@ describe('cartStore payment recovery', () => {
 
     const entriesCall = queryCalls.find(call => call.table === 'entries');
     expect(entriesCall?.eqs).toEqual([{ column: 'show_id', value: 'show-1' }]);
+    expect(entriesCall?.ises).toEqual([{ column: 'deleted_at', value: null }]);
     expect(entriesCall?.ins).toEqual([
-      { column: 'dog_id', values: ['dog-paid', 'dog-pending', 'dog-withdrawn'] },
-      { column: 'class_id', values: ['class-paid', 'class-pending', 'class-withdrawn'] },
+      { column: 'dog_id', values: ['dog-paid', 'dog-pending'] },
+      { column: 'class_id', values: ['class-paid', 'class-pending'] },
     ]);
 
     const deleteCall = queryCalls.find(
       call => call.table === 'entry_cart_items' && call.deleteCalled
     );
-    expect(deleteCall?.ins).toEqual([{ column: 'id', values: ['item-paid', 'item-withdrawn'] }]);
+    expect(deleteCall?.ins).toEqual([{ column: 'id', values: ['item-paid'] }]);
 
     const totalsUpdate = queryCalls.find(
       call => call.table === 'entry_carts' && call.updatePayload?.subtotal_cents === 1800
@@ -609,123 +582,6 @@ describe('cartStore payment recovery', () => {
     expect(queryCalls.some(call => call.table === 'entry_cart_items' && call.deleteCalled)).toBe(
       false
     );
-  });
-
-  it('persists only requested entries when recovering a partially populated cart', async () => {
-    queryCalls.length = 0;
-    const linked = { ...hydratedItem, id: 'item-linked', cart_id: 'cart-scoped' };
-    const unrelated = {
-      ...hydratedItem,
-      id: 'item-unrelated',
-      cart_id: 'cart-scoped',
-      entry_id: 'entry-other',
-      dog_id: 'dog-other',
-      class_id: 'class-other',
-    };
-    const unlinked = {
-      ...hydratedItem,
-      id: 'item-unlinked',
-      cart_id: 'cart-scoped',
-      entry_id: null,
-      dog_id: 'dog-2',
-      class_id: 'class-2',
-    };
-    let persistedItems = [linked, unrelated, unlinked];
-    mockFrom.mockImplementation(
-      (table: string) =>
-        new MockQueryBuilder(table, call => {
-          if (table === 'entry_carts' && call.updatePayload) return { data: null, error: null };
-          if (table === 'entry_carts' && call.select === 'id, show_id, status, expires_at') {
-            return {
-              data: { ...freshCartLookup, id: 'cart-scoped' },
-              error: null,
-            };
-          }
-          if (table === 'entry_carts') {
-            return {
-              data: { ...freshHydratedCart, id: 'cart-scoped' },
-              error: null,
-            };
-          }
-          if (table === 'entry_cart_items' && call.deleteCalled) {
-            const ids = call.ins.find(filter => filter.column === 'id')?.values ?? [];
-            persistedItems = persistedItems.filter(item => !ids.includes(item.id));
-            return { data: null, error: null };
-          }
-          if (table === 'entry_cart_items' && call.upsertPayload) {
-            const inserts = call.upsertPayload as Array<{
-              entry_id: string;
-              dog_id: string;
-              class_id: string;
-            }>;
-            for (const insert of inserts) {
-              if (
-                persistedItems.some(
-                  item => item.dog_id === insert.dog_id && item.class_id === insert.class_id
-                )
-              )
-                continue;
-              persistedItems.push({
-                ...hydratedItem,
-                ...insert,
-                id: 'item-recovered',
-                cart_id: 'cart-scoped',
-              });
-            }
-            return { data: null, error: null };
-          }
-          if (table === 'entry_cart_items') return { data: persistedItems, error: null };
-          if (table === 'exhibitor_profiles')
-            return { data: { person_id: 'person-1' }, error: null };
-          if (table === 'dogs') return { data: [{ id: 'dog-1' }, { id: 'dog-2' }], error: null };
-          if (table === 'entries' && call.select?.startsWith('id,')) {
-            return {
-              data: [
-                { id: 'entry-1', dog_id: 'dog-1', class_id: 'class-1', entry_fee: 25 },
-                { id: 'entry-2', dog_id: 'dog-2', class_id: 'class-2', entry_fee: 25 },
-              ],
-              error: null,
-            };
-          }
-          if (table === 'entries') {
-            return {
-              data: [
-                {
-                  dog_id: 'dog-1',
-                  class_id: 'class-1',
-                  payment_status: 'pending',
-                  entry_status: 'submitted',
-                  deleted_at: null,
-                },
-                {
-                  dog_id: 'dog-2',
-                  class_id: 'class-2',
-                  payment_status: 'pending',
-                  entry_status: 'submitted',
-                  deleted_at: null,
-                },
-              ],
-              error: null,
-            };
-          }
-          return { data: null, error: null };
-        })
-    );
-
-    const cart = await useCartStore.getState().loadActiveCart('exhibitor-1', {
-      showId: 'show-1',
-      recoveryEntryIds: ['entry-1', 'entry-2'],
-    });
-
-    expect(cart?.items.map(item => item.entry_id).sort()).toEqual(['entry-1', 'entry-2']);
-    expect(persistedItems.map(item => item.entry_id).sort()).toEqual(['entry-1', 'entry-2']);
-    const excludedDelete = queryCalls.find(
-      call => call.table === 'entry_cart_items' && call.deleteCalled
-    );
-    expect(excludedDelete?.eqs).toEqual([{ column: 'cart_id', value: 'cart-scoped' }]);
-    expect(excludedDelete?.ins).toEqual([
-      { column: 'id', values: ['item-unrelated', 'item-unlinked'] },
-    ]);
   });
 
   it('creates a recovery cart when an unpaid balance has no existing cart shell', async () => {

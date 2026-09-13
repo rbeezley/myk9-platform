@@ -470,7 +470,9 @@ describe('MYK9-423 fee-card payment recovery', () => {
             }
             if (method === 'DELETE') {
               const deletedIds = (params.get('id') ?? '').replace(/^in\.\(|\)$/g, '').split(',');
-              savedItems = savedItems.filter(item => !deletedIds.includes(item.entry_id));
+              savedItems = savedItems.filter(
+                item => item.entry_id == null || !deletedIds.includes(item.entry_id)
+              );
               return json(null);
             }
             const matchingItems = savedItems.filter(matches);

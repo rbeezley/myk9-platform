@@ -229,6 +229,8 @@ Full mechanics: [`docs/reference/git-workflow.md`](docs/reference/git-workflow.m
 
 ## Auto Mode — shared-system writes
 
+Tracked `.githooks/pre-push` enforces trusted `PUSH HOLD` / newer `PUSH RELEASE` directives, failing closed on GitHub errors. Verify `core.hooksPath` in every active checkout; old worktrees remain unguarded until updated.
+
 Auto Mode's "execute immediately" guidance does NOT extend to shared-system mutations. Confirm before each of these even when the initial request implied consent — adding rows to a shared DB counts, "not destructive" is not the test:
 
 - `supabase db push` on a linked project (writes to staging/prod DB)

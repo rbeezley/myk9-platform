@@ -73,6 +73,16 @@ export function deriveMyEntryCardState(
   // that whole day — a dead end on the last day anyone would need them
   // (Codex, PR #2201). `getEntryWindowTimezone` picks the same primary trial
   // the submission guard does, so the page and the server agree at midnight.
+  //
+  // The zone is derived from the classes the exhibitor ENTERED, while the
+  // submission guard reads every trial on the show. Those two agree because a
+  // show runs at one venue and therefore in one timezone: verified 2026-09-13
+  // against the live database, where no show has trials in more than one zone
+  // (max 1 distinct zone across all shows carrying trials), and confirmed as a
+  // domain rule by the product owner. If a show ever spans two zones, this
+  // must stop inferring and carry the show's own entry-window timezone through
+  // the data layer instead — the entered classes cannot name the show's
+  // primary trial when the exhibitor skipped it.
   const entryWindowTimezone = getEntryWindowTimezone(
     entry.classes.map(cls => ({
       id: cls.trialNumber ?? null,

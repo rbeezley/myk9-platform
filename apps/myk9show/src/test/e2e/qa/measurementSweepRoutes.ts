@@ -57,7 +57,6 @@ export const SWEEP_GROUPS: readonly SweepGroup[] = [
       { id: 'registration-wizard', path: '/shows/{registrationShowId}/register' },
       { id: 'my-dogs', path: '/dogs' },
       { id: 'account', path: '/account' },
-      { id: 'notifications', path: '/notifications' },
       { id: 'payments', path: '/exhibitor/payments' },
       { id: 'show-detail', path: '/shows/{registrationShowId}' },
       { id: 'browse-shows', path: '/shows' },

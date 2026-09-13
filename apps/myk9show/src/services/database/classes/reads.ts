@@ -249,11 +249,12 @@ async function postgrestGetClassById(
     data: { session },
   } = await supabase.auth.getSession();
 
-  const { data, error } = session
-    ? await supabase
-        .from('classes')
-        .select(
-          `
+  const { data, error } =
+    session?.user && !session.user.is_anonymous
+      ? await supabase
+          .from('classes')
+          .select(
+            `
           ${CLASS_COLUMN_SELECT},
           trial:trials (
             id,
@@ -269,14 +270,14 @@ async function postgrestGetClassById(
             class_id
           )
           `
-        )
-        .eq('id', id)
-        .is('deleted_at', null)
-        .maybeSingle()
-    : await supabase
-        .from('classes')
-        .select(
-          `
+          )
+          .eq('id', id)
+          .is('deleted_at', null)
+          .maybeSingle()
+      : await supabase
+          .from('classes')
+          .select(
+            `
           ${CLASS_COLUMN_SELECT},
           trial:trials (
             id,
@@ -288,10 +289,10 @@ async function postgrestGetClassById(
             max_entries_per_handler
           )
           `
-        )
-        .eq('id', id)
-        .is('deleted_at', null)
-        .maybeSingle();
+          )
+          .eq('id', id)
+          .is('deleted_at', null)
+          .maybeSingle();
 
   if (error) throw createDatabaseError(error, 'class', 'select_by_id');
   return { data: (data as Record<string, unknown> | null) ?? null, error: null };

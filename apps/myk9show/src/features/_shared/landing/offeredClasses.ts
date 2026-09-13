@@ -1,4 +1,5 @@
 import type { Show, ShowTrial } from '@/types/show-types';
+import { buildClassDisambiguator, type ClassIdentity } from '../classLabel';
 
 /**
  * The offered-classes view of a show, grouped trial -> element -> level.
@@ -25,6 +26,11 @@ import type { Show, ShowTrial } from '@/types/show-types';
  */
 
 export interface OfferedLevel {
+  /**
+   * The exhibitor-facing label, not the raw `classes.level` column. Normally
+   * identical to it; it carries the extra words when two classes of one element
+   * share a level and only their names tell them apart. See `levelLabel`.
+   */
   level: string;
   /** Section letters when a level is split (A/B). Empty when it is not split. */
   sections: string[];
@@ -68,8 +74,52 @@ function elementLabel(cls: ClassLike): string | null {
   return clean(cls.element) ?? clean(cls.name);
 }
 
+/**
+ * The exhibitor-facing label for a class within its element group.
+ *
+ * Usually this is just the level — "Advanced". But a show can run two classes
+ * that share an element AND a level: the seeded Heartland Saturday trial runs
+ * both "Interior Advanced" and "Interior Advanced Preliminary". Grouping on the
+ * level alone silently merged those into one entry, so the premium told a
+ * prospective exhibitor the show offered one Interior Advanced class when it
+ * offers two (MYK9-487). It failed quietly — no error, just a shorter list.
+ *
+ * So anything in the class NAME that the element, level and section do not
+ * already account for is kept, and the two read as "Advanced" and "Advanced
+ * Preliminary". A name that merely restates element + level + section adds
+ * nothing and is discarded, which is what keeps "Interior Novice A" and
+ * "Interior Novice B" merged into one level with two sections rather than
+ * splitting into two.
+ *
+ * The rule itself lives in `classLabel.ts` because the registration wizard's
+ * class chips need the same answer (MYK9-489) — those two screens are read
+ * minutes apart by the same exhibitor, so two rules would drift.
+ */
+function levelLabel(
+  cls: ClassLike,
+  element: string,
+  level: string,
+  disambiguate: (cls: ClassIdentity) => string
+): string {
+  const extra = disambiguate({ name: cls.name, element, level, section: cls.section });
+  if (!extra) return level;
+  return level ? `${level} ${extra}` : extra;
+}
+
 function groupTrial(trial: ShowTrial): OfferedClassesTrial | null {
   const classes = (trial.classes ?? []) as ClassLike[];
+
+  // Scoped to this trial: two classes only compete for one label within the
+  // trial an exhibitor is reading. A Saturday and a Sunday "Interior Advanced"
+  // are already separated by their trial headings.
+  const disambiguate = buildClassDisambiguator(
+    classes.map(cls => ({
+      name: cls.name,
+      element: elementLabel(cls) ?? '',
+      level: clean(cls.level) ?? '',
+      section: cls.section,
+    }))
+  );
 
   const byElement = new Map<string, Map<string, Set<string>>>();
 
@@ -82,7 +132,7 @@ function groupTrial(trial: ShowTrial): OfferedClassesTrial | null {
 
     // A class with an element but no level still belongs under that element.
     // '' is the "no level stated" bucket and renders as the element alone.
-    const level = clean(cls.level) ?? '';
+    const level = levelLabel(cls, element, clean(cls.level) ?? '', disambiguate);
     const sections = levels.get(level) ?? new Set<string>();
     levels.set(level, sections);
 

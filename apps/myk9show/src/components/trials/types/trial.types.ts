@@ -30,6 +30,17 @@ export interface Trial {
 
 export interface TrialClass {
   id: string;
+  /**
+   * The class's stored name, when the source carried one.
+   *
+   * Optional because several producers only ever knew element/level/section.
+   * It exists so a surface can tell two classes apart when those three are
+   * identical — the registration wizard reads it through
+   * `buildClassDisambiguator` (MYK9-489). Do NOT synthesise it from
+   * element+level+section: a derived name carries no information those fields
+   * do not already have, and silently defeats the disambiguation.
+   */
+  name?: string | undefined;
   element: string;
   level: string;
   section: string;

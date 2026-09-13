@@ -152,4 +152,69 @@ describe('buildOfferedClasses', () => {
     expect(buildOfferedClasses(null)).toEqual([]);
     expect(buildOfferedClasses(undefined)).toEqual([]);
   });
+  /**
+   * MYK9-487. The seeded Heartland Saturday trial really does run two classes
+   * that share an element AND a level:
+   *   dec1a55e-...032  "Interior Advanced"
+   *   dec1a55e-...040  "Interior Advanced Preliminary"
+   * Keying the level map on the level string alone merged them into one entry,
+   * so the public premium under-reported what the show offers — silently, with
+   * no error, just a shorter list. Every pre-existing section test used a
+   * distinct `section`, which was handled; nothing exercised this shape.
+   */
+  it('keeps two classes that share an element and a level distinct', () => {
+    const result = buildOfferedClasses(
+      show([
+        {
+          id: 't1',
+          name: 'Saturday Trial',
+          classes: [
+            { id: 'c1', element: 'Interior', level: 'Advanced', name: 'Interior Advanced' },
+            {
+              id: 'c2',
+              element: 'Interior',
+              level: 'Advanced',
+              name: 'Interior Advanced Preliminary',
+            },
+          ],
+        },
+      ])
+    );
+
+    expect(result[0]?.elements[0]?.levels).toEqual([
+      { level: 'Advanced', sections: [] },
+      { level: 'Advanced Preliminary', sections: [] },
+    ]);
+  });
+
+  it('still merges sections of one level rather than splitting on the name', () => {
+    // The split-level case must NOT regress into two entries: a class name that
+    // only restates element + level + section carries no extra information.
+    const result = buildOfferedClasses(
+      show([
+        {
+          id: 't1',
+          name: 'T',
+          classes: [
+            {
+              id: 'c1',
+              element: 'Interior',
+              level: 'Novice',
+              section: 'A',
+              name: 'Interior Novice A',
+            },
+            {
+              id: 'c2',
+              element: 'Interior',
+              level: 'Novice',
+              section: 'B',
+              name: 'Interior Novice B',
+            },
+          ],
+        },
+      ])
+    );
+
+    expect(result[0]?.elements[0]?.levels).toEqual([{ level: 'Novice', sections: ['A', 'B'] }]);
+  });
 });

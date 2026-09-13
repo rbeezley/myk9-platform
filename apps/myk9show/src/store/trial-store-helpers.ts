@@ -1,13 +1,26 @@
 import type { SyncableTrial, SyncableTrialClass } from './trial-store-types';
 import type { ReplicatedTrial, ReplicatedClass } from '@/services/replication';
 import { shouldUseMockData } from '@/config/dataSource';
+import { classNameMatchesFields } from '@/features/_shared/classLabel';
 
 /** Map a SyncableTrialClass to ReplicatedClass for offline persistence */
 export function trialClassToReplicated(tc: SyncableTrialClass, trialId: string): ReplicatedClass {
   return {
     id: tc.id,
     trialId,
-    name: [tc.element, tc.level, tc.section].filter(Boolean).join(' ').trim() || tc.id,
+    // Keep the stored name, but only while it still agrees with the class's
+    // current fields.
+    //
+    // Overwriting it unconditionally erases the only thing that distinguishes
+    // two classes sharing element+level+section, and does so silently on a
+    // round trip through the client. Keeping it unconditionally is worse:
+    // TrialClassInput has no `name`, so editing a class from Interior/Advanced
+    // to Interior/Excellent leaves "Interior Advanced" behind and the label
+    // renders "Excellent Advanced" — a statement that is not merely incomplete
+    // but false. Regenerate in that case (MYK9-489, review of #2196).
+    name: classNameMatchesFields(tc.name, tc.element, tc.level, tc.section)
+      ? (tc.name as string)
+      : [tc.element, tc.level, tc.section].filter(Boolean).join(' ').trim() || tc.id,
     element: tc.element,
     level: tc.level,
     section: tc.section,
@@ -33,6 +46,10 @@ export function trialClassToReplicated(tc: SyncableTrialClass, trialId: string):
 export function replicatedToTrialClass(replicated: ReplicatedClass): SyncableTrialClass {
   return {
     id: replicated.id,
+    // Carried, not dropped: this is the offline-first path the registration
+    // wizard prefers over its query and availability fallbacks, so a name lost
+    // here is a name no exhibitor-facing surface can ever see (MYK9-489).
+    name: replicated.name,
     element: replicated.element || '',
     level: replicated.level || '',
     section: replicated.section || '',

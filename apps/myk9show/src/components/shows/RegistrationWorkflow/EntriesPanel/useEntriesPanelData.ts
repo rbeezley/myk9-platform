@@ -36,14 +36,34 @@ export function useEntriesPanelGroups({
   feeCalculation,
 }: EntriesPanelGroupsInput): PanelDogGroup[] {
   const { dogs } = useDogStoreCompat();
-  const { classes = [] } = useClassStoreCompat();
+  const { classes: queryClasses = [] } = useClassStoreCompat();
   const trials = useTrialStore(s => s.trials);
+  const trialClasses = useTrialStore(s => s.trialClasses);
 
   const dogsById = useMemo(() => new Map<string, PanelDog>(dogs.map(dog => [dog.id, dog])), [dogs]);
-  const classesById = useMemo(
-    () => new Map<string, PanelClass>(classes.map(klass => [klass.id, klass])),
-    [classes]
-  );
+  // Replicated classes first, the same order `ClassSelectionStep` uses: the
+  // class query is a PostgREST read, so in a cold or offline secretary
+  // late-entry flow it is empty while `trialClasses` already holds the row. The
+  // query only fills ids replication does not have.
+  const classesById = useMemo(() => {
+    const byId = new Map<string, PanelClass>();
+    for (const [trialId, replicated] of Object.entries(trialClasses)) {
+      for (const cls of replicated) {
+        byId.set(cls.id, {
+          id: cls.id,
+          trialId,
+          element: cls.element,
+          level: cls.level,
+          section: cls.section,
+          className: cls.name,
+        });
+      }
+    }
+    for (const klass of queryClasses) {
+      if (!byId.has(klass.id)) byId.set(klass.id, klass);
+    }
+    return byId;
+  }, [trialClasses, queryClasses]);
   const trialsById = useMemo(
     () => new Map<string, PanelTrial>((trials || []).map(trial => [trial.id, trial])),
     [trials]

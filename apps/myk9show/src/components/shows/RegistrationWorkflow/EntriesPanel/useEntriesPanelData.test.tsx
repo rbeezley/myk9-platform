@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import { renderHook, act, waitFor } from '@testing-library/react';
-import { useRemoveEntryLine } from './useEntriesPanelData';
+import { useEntriesPanelGroups, useRemoveEntryLine } from './useEntriesPanelData';
 import type { ClassSelectionData } from '@/types/show-registration-types';
 
 /**
@@ -20,6 +20,78 @@ vi.mock('@/store/cartStore', () => ({
 }));
 
 vi.mock('sonner', () => ({ toast: { error: toastError } }));
+
+// Replication-backed stores for `useEntriesPanelGroups`. The class query
+// (`useClassStoreCompat`) is a PostgREST read and returns nothing here — the
+// cold/offline secretary late-entry case — while the replicated
+// `trialClasses` slice holds the class.
+const trialClassesMock = vi.hoisted(() => ({ current: {} as Record<string, unknown[]> }));
+const queryClassesMock = vi.hoisted(() => ({ current: [] as unknown[] }));
+
+vi.mock('@/hooks/useDogStoreCompat', () => ({
+  useDogStoreCompat: () => ({ dogs: [{ id: 'dog-1', name: 'Rex', callName: 'Rex' }] }),
+}));
+vi.mock('@/hooks/useClassStoreCompat', () => ({
+  useClassStoreCompat: () => ({ classes: queryClassesMock.current }),
+}));
+vi.mock('@/store/trialStore', () => ({
+  useTrialStore: (
+    selector: (state: { trials: unknown[]; trialClasses: Record<string, unknown[]> }) => unknown
+  ) =>
+    selector({
+      trials: [{ id: 'trial-1', name: 'Trial 1', trialDate: '2026-08-01' }],
+      trialClasses: trialClassesMock.current,
+    }),
+}));
+
+describe('useEntriesPanelGroups', () => {
+  const feeCalculation = {
+    subtotal: 30,
+    discounts: [],
+    taxes: 0,
+    total: 30,
+    breakdown: [
+      {
+        dogId: 'dog-1',
+        dogName: 'Rex',
+        subtotal: 30,
+        classes: [{ classId: 'class-1', className: 'Interior Advanced', fee: 30 }],
+      },
+    ],
+  };
+
+  it('labels a line from the replicated trial classes when the class query has nothing', () => {
+    queryClassesMock.current = [];
+    trialClassesMock.current = {
+      'trial-1': [{ id: 'class-1', element: 'Interior', level: 'Advanced', section: '' }],
+    };
+
+    const { result } = renderHook(() =>
+      useEntriesPanelGroups({ selectedDogIds: ['dog-1'], feeCalculation })
+    );
+
+    expect(result.current[0]?.lines[0]).toMatchObject({
+      label: 'Interior Advanced',
+      dayLabel: 'Sat',
+    });
+  });
+
+  it('falls back to the class query for a class replication does not hold', () => {
+    trialClassesMock.current = {};
+    queryClassesMock.current = [
+      { id: 'class-1', trialId: 'trial-1', element: 'Interior', level: 'Advanced', section: '' },
+    ];
+
+    const { result } = renderHook(() =>
+      useEntriesPanelGroups({ selectedDogIds: ['dog-1'], feeCalculation })
+    );
+
+    expect(result.current[0]?.lines[0]).toMatchObject({
+      label: 'Interior Advanced',
+      dayLabel: 'Sat',
+    });
+  });
+});
 
 const classSelections: ClassSelectionData[] = [
   { dogId: 'dog-1', trialId: 'trial-1', selectedClasses: [{ classId: 'class-1' }] },

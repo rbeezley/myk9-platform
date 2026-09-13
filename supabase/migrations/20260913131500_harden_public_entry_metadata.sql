@@ -19,6 +19,7 @@ WITH (security_invoker = false) AS
     CASE WHEN c.results_released_at IS NOT NULL THEN e.check_in_status END AS check_in_status,
     CASE WHEN c.results_released_at IS NOT NULL THEN e.entry_status END AS entry_status,
     CASE WHEN c.results_released_at IS NOT NULL THEN e.scoring_completed_at END AS scoring_completed_at,
+    e.created_at,
     CASE
       WHEN vis.placement_visible AND c.results_released_at IS NOT NULL THEN e.final_placement
       ELSE NULL::integer

@@ -9,6 +9,8 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { renderHook, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { render } from '@/test/utils/testUtils';
+import { EntryStatus, PaymentStatus } from '@/types/show-registration-types';
+import type { MyEntry } from './my-entries-types';
 import { heartlandRows, makeClass, makeRow, NOW, toOrders } from '@/test/fixtures/myShowsFixtures';
 import { applyEntryScope } from './entryScopeFilter';
 import { buildScopeMessage } from './entryScopeMessage';
@@ -301,5 +303,74 @@ describe('MyShowsList — a scoped ?entryIds= link narrows the group (task 4.3)'
     expect(buildScopeMessage(match, orders.length)).toBe(
       'Showing 1 of 3 entries — the ones your payment for Heartland Scent Work Classic covered.'
     );
+  });
+});
+
+describe('MyShowsList — the status filter narrows DOGS, not just orders (Codex, PR #2198)', () => {
+  beforeEach(() => localStorage.clear());
+
+  /** ONE order holding a pending dog and an accepted dog. */
+  function mixedOrderRows(): MyEntry[] {
+    return [
+      makeRow({
+        id: 'mix-pending',
+        registrationId: 'reg-mixed',
+        dogId: 'dog-pending',
+        dogName: 'Pepper',
+        entryStatus: EntryStatus.PENDING,
+        paymentStatus: PaymentStatus.PAID_ONLINE,
+        classes: [
+          makeClass({
+            id: 'c-mix-1',
+            entryStatus: EntryStatus.PENDING,
+            paymentStatus: PaymentStatus.PAID_ONLINE,
+          }),
+        ],
+      }),
+      makeRow({
+        id: 'mix-accepted',
+        registrationId: 'reg-mixed',
+        dogId: 'dog-accepted',
+        dogName: 'Atlas',
+        entryStatus: EntryStatus.ACCEPTED,
+        paymentStatus: PaymentStatus.PAID_ONLINE,
+        classes: [
+          makeClass({
+            id: 'c-mix-2',
+            entryStatus: EntryStatus.ACCEPTED,
+            paymentStatus: PaymentStatus.PAID_ONLINE,
+          }),
+        ],
+      }),
+    ];
+  }
+
+  it('renders only the pending dog under Pending, even though the order is one card', () => {
+    // The order's dominant status is ACCEPTED, so the hook would keep it under
+    // "Accepted" and drop it under "Pending"; the list must narrow by dog.
+    const orders = toOrders(mixedOrderRows());
+    expect(orders).toHaveLength(1);
+
+    renderList({ filteredEntries: orders, selectedStatus: 'pending' });
+
+    expect(screen.getByText('Pepper')).toBeInTheDocument();
+    expect(screen.queryByText('Atlas')).not.toBeInTheDocument();
+  });
+
+  it('renders only the accepted dog under Accepted', () => {
+    renderList({ filteredEntries: toOrders(mixedOrderRows()), selectedStatus: 'accepted' });
+
+    expect(screen.getByText('Atlas')).toBeInTheDocument();
+    expect(screen.queryByText('Pepper')).not.toBeInTheDocument();
+  });
+
+  it('renders both under Any status, and hides the show when no dog matches', () => {
+    const { unmount } = renderList({ filteredEntries: toOrders(mixedOrderRows()) });
+    expect(screen.getByText('Pepper')).toBeInTheDocument();
+    expect(screen.getByText('Atlas')).toBeInTheDocument();
+    unmount();
+
+    renderList({ filteredEntries: toOrders(mixedOrderRows()), selectedStatus: 'waitlist' });
+    expect(screen.queryByRole('heading', { name: 'Heartland Scent Work Classic' })).toBeNull();
   });
 });

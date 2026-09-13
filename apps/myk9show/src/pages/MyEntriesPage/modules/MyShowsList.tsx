@@ -15,7 +15,8 @@ import type { ResultCardModel } from '@/features/result-card';
 import { groupEntriesByShow } from './groupEntriesByShow';
 import type { MyShowClass, MyShowDog, MyShowGroup } from './groupEntriesByShow';
 import { MyShowGroupCard } from './MyShowGroup';
-import type { MyEntry } from './my-entries-types';
+import type { EntryStatusFilter, MyEntry } from './my-entries-types';
+import { narrowDogsToStatus } from './statusFilterPredicate';
 
 /**
  * Group the filtered orders into the show groups the list renders.
@@ -25,12 +26,20 @@ import type { MyEntry } from './my-entries-types';
  * a dev-server nicety rather than a correctness constraint.
  */
 // eslint-disable-next-line react-refresh/only-export-components
-export function useMyShowGroups(filteredEntries: MyEntry[]): MyShowGroup[] {
-  return React.useMemo(() => groupEntriesByShow(filteredEntries), [filteredEntries]);
+export function useMyShowGroups(
+  filteredEntries: MyEntry[],
+  selectedStatus: EntryStatusFilter = 'any'
+): MyShowGroup[] {
+  return React.useMemo(
+    () => narrowDogsToStatus(groupEntriesByShow(filteredEntries), selectedStatus),
+    [filteredEntries, selectedStatus]
+  );
 }
 
 export interface MyShowsListProps {
   filteredEntries: MyEntry[];
+  /** The strip's status axis, re-applied per dog (see `narrowDogsToStatus`). */
+  selectedStatus?: EntryStatusFilter | undefined;
   selfCheckinByClassId?: Record<string, boolean> | undefined;
   seenResultReleaseKeys: Set<string>;
   onCheckInDay: (dog: MyShowDog, classes: MyShowClass[]) => void;
@@ -48,6 +57,7 @@ export interface MyShowsListProps {
 
 export const MyShowsList: React.FC<MyShowsListProps> = ({
   filteredEntries,
+  selectedStatus = 'any',
   selfCheckinByClassId,
   seenResultReleaseKeys,
   onCheckInDay,
@@ -57,7 +67,7 @@ export const MyShowsList: React.FC<MyShowsListProps> = ({
   onResultRevealClick,
   now: nowProp,
 }) => {
-  const groups = useMyShowGroups(filteredEntries);
+  const groups = useMyShowGroups(filteredEntries, selectedStatus);
   // One instant for the whole render pass, so the day gate, the money state
   // and the paid-strip window cannot disagree mid-list. Captured in state
   // rather than a `useMemo` — a `new Date()` inside a memo is a dependency

@@ -78,7 +78,31 @@ test.describe('header wordmark fits', () => {
       await page.goto('/sign-in');
       await page.getByTestId('credential-input').waitFor();
       assertWordmarkFits(await measureWordmark(page), `signed out @ ${width}`);
+      const toggle = page.getByRole('button', { name: /^Switch to (light|dark) mode$/ });
+      const bounds = await toggle.boundingBox();
+      expect(bounds, `signed out @ ${width}: theme toggle must be visible`).not.toBeNull();
+      expect(bounds!.width).toBeGreaterThanOrEqual(44);
+      expect(bounds!.height).toBeGreaterThanOrEqual(44);
     }
+  });
+
+  test('guest theme choice carries from sign-in to sign-up and reload', async ({ page }) => {
+    await page.setViewportSize({ width: 375, height: 812 });
+    await page.goto('/sign-in');
+    await page.getByTestId('credential-input').waitFor();
+
+    const darkButton = page.getByRole('button', { name: 'Switch to dark mode' });
+    const lightButton = page.getByRole('button', { name: 'Switch to light mode' });
+    if (await lightButton.isVisible()) await lightButton.click();
+    await darkButton.click();
+    await expect(page.locator('html')).toHaveClass(/\bdark\b/);
+
+    await page.goto('/sign-up');
+    await expect(lightButton).toBeVisible();
+    await page.reload();
+    await expect(lightButton).toBeVisible();
+    await lightButton.click();
+    await expect(page.locator('html')).not.toHaveClass(/\bdark\b/);
   });
 
   for (const cartCount of [0, 3]) {

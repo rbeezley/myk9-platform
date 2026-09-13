@@ -2,7 +2,7 @@ import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useTheme } from '@/hooks/useTheme';
 import { useAuthContext } from '@/hooks/useAuthContext';
-import { Search, ShoppingCart, Menu } from 'lucide-react';
+import { Search, ShoppingCart, Menu, Moon, Sun } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { CommandPalette } from '@/components/common/CommandPalette';
 import { KeyboardShortcutsOverlay } from '@/components/common/KeyboardShortcutsOverlay';
@@ -273,6 +273,19 @@ const AppHeader: React.FC = () => {
               </>
             ) : (
               <>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={toggleTheme}
+                  className="min-h-11 min-w-11 rounded-lg p-2"
+                  aria-label={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
+                >
+                  {theme === 'dark' ? (
+                    <Moon className="h-4 w-4" aria-hidden="true" />
+                  ) : (
+                    <Sun className="h-4 w-4" aria-hidden="true" />
+                  )}
+                </Button>
                 {/* size="touch", and via Button rather than a hand-rolled
                     <Link>. These measured 36px on 7 routes: `px-3 py-1.5`
                     around 14px text lands well under the 44px floor

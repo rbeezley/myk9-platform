@@ -512,6 +512,10 @@ describe('cartStore payment recovery', () => {
     expect(entriesCall?.eqs).toEqual([{ column: 'show_id', value: 'show-1' }]);
     expect(entriesCall?.ises).toEqual([{ column: 'deleted_at', value: null }]);
     expect(entriesCall?.ins).toEqual([
+      {
+        column: 'entry_status',
+        values: ['pending', 'submitted', 'pending-payment', 'confirmed'],
+      },
       { column: 'dog_id', values: ['dog-paid', 'dog-pending'] },
       { column: 'class_id', values: ['class-paid', 'class-pending'] },
     ]);

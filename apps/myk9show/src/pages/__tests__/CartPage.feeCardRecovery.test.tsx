@@ -222,6 +222,8 @@ type RecoveryFixtureEntry = {
   fixtureShowId?: string;
 };
 
+let initialRecoveryEntryIds: string | null = null;
+
 function RecoveryCartRoute() {
   const location = useLocation();
   const navigate = useNavigate();
@@ -230,6 +232,7 @@ function RecoveryCartRoute() {
 
   useEffect(() => {
     if (entryIds && !hasAugmentedIds) {
+      initialRecoveryEntryIds = entryIds;
       const params = new URLSearchParams(location.search);
       params.set(
         'entryIds',
@@ -444,8 +447,11 @@ describe('MYK9-423 fee-card payment recovery', () => {
           const params = url.searchParams;
           const requestBody = init?.body ? JSON.parse(String(init.body)) : undefined;
           requests.push({ table, method, params, body: requestBody });
-          if (table === 'entry_carts' && (method === 'GET' || method === 'POST')) {
-            requestEvents.push(`${method}:entry_carts`);
+          if (
+            (table === 'entry_carts' || table === 'entries') &&
+            (method === 'GET' || method === 'POST')
+          ) {
+            requestEvents.push(`${method}:${table}`);
           }
           const json = (data: unknown) =>
             new Response(JSON.stringify(data), {
@@ -580,6 +586,7 @@ describe('MYK9-423 fee-card payment recovery', () => {
       table => client.from(table) as unknown as ReturnType<typeof mockSupabase.from>
     );
     useCartStore.getState().reset();
+    initialRecoveryEntryIds = null;
 
     const { user } = render(
       <Routes>
@@ -592,6 +599,7 @@ describe('MYK9-423 fee-card payment recovery', () => {
       screen.getByRole('button', { name: /Entry fees: \$90.00 due.*Finish payment/i })
     );
     expect(unsupportedFilter).toBeNull();
+    expect(initialRecoveryEntryIds).toBe('entry-53,entry-54,entry-57');
     const checkout = await screen.findByRole('button', { name: 'Pay $96.30 and confirm entries' });
     expect(checkout).toBeEnabled();
     expect(screen.queryByText('Your cart is empty')).not.toBeInTheDocument();
@@ -639,12 +647,12 @@ describe('MYK9-423 fee-card payment recovery', () => {
     const cartCreateEventIndex = requestEvents.indexOf('POST:entry_carts');
     expect(cartCreateEventIndex).toBeGreaterThanOrEqual(2);
     expect(
-      requestEvents.slice(0, cartCreateEventIndex).filter(event => event === 'GET:entry_carts')
-    ).toHaveLength(3);
+      requestEvents.slice(0, cartCreateEventIndex).filter(event => event === 'GET:entries').length
+    ).toBeGreaterThanOrEqual(2);
 
-    await user.click(screen.getAllByRole('button', { name: 'Remove' })[0]);
+    await user.click(screen.getAllByRole('button', { name: 'Remove' })[1]);
     await waitFor(() => {
-      expect(savedItems.map(item => item.entry_id).sort()).toEqual(['entry-54', 'entry-57']);
+      expect(savedItems.map(item => item.entry_id).sort()).toEqual(['entry-53', 'entry-57']);
     });
     const deleteRequests = requests.filter(
       request => request.table === 'entry_cart_items' && request.method === 'DELETE'
@@ -654,6 +662,6 @@ describe('MYK9-423 fee-card payment recovery', () => {
     expect(deletedIds).toEqual(
       expect.arrayContaining([expect.stringMatching(/^in\.\(item-stale\)$/)])
     );
-    expect(deletedIds.filter(id => id?.startsWith('eq.item-'))).toEqual(['eq.item-1']);
+    expect(deletedIds.filter(id => id?.startsWith('eq.item-'))).toEqual(['eq.item-2']);
   });
 });

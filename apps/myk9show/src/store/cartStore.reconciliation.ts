@@ -7,6 +7,7 @@ interface ExistingEntryCartMatch {
   dog_id: string | null;
   class_id: string | null;
   payment_status: string | null;
+  entry_status: string | null;
 }
 
 interface ReconcileCartItemsParams {
@@ -27,9 +28,10 @@ export async function reconcileCartItemsAgainstExistingEntries({
 
   const { data, error } = await supabase
     .from('entries')
-    .select('dog_id, class_id, payment_status')
+    .select('dog_id, class_id, payment_status, entry_status')
     .eq('show_id', showId)
     .is('deleted_at', null)
+    .in('entry_status', ['pending', 'submitted', 'pending-payment', 'confirmed'])
     .in('dog_id', dogIds)
     .in('class_id', classIds);
 

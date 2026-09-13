@@ -241,36 +241,50 @@ async function postgrestGetClassById(
   const {
     data: { session },
   } = await supabase.auth.getSession();
-  // The migration intentionally leaves authenticated direct entry access at
-  // the safe id/class_id projection; scored and dog metadata come from the
-  // replication or dedicated results paths.
-  const authenticatedEntrySelect = session
-    ? `,
-      entries (
-        id,
-        class_id
-      )`
-    : '';
 
-  const { data, error } = await supabase
-    .from('classes')
-    .select(
-      `
-      ${CLASS_COLUMN_SELECT},
-      trial:trials (
-        id,
-        name,
-        date,
-        trial_number,
-        status,
-        max_entries_per_dog,
-        max_entries_per_handler
-      )${authenticatedEntrySelect}
-      ` as any
-    )
-    .eq('id', id)
-    .is('deleted_at', null)
-    .maybeSingle();
+  const { data, error } = session
+    ? await supabase
+        .from('classes')
+        .select(
+          `
+          ${CLASS_COLUMN_SELECT},
+          trial:trials (
+            id,
+            name,
+            date,
+            trial_number,
+            status,
+            max_entries_per_dog,
+            max_entries_per_handler
+          ),
+          entries (
+            id,
+            class_id
+          )
+          `
+        )
+        .eq('id', id)
+        .is('deleted_at', null)
+        .maybeSingle()
+    : await supabase
+        .from('classes')
+        .select(
+          `
+          ${CLASS_COLUMN_SELECT},
+          trial:trials (
+            id,
+            name,
+            date,
+            trial_number,
+            status,
+            max_entries_per_dog,
+            max_entries_per_handler
+          )
+          `
+        )
+        .eq('id', id)
+        .is('deleted_at', null)
+        .maybeSingle();
 
   if (error) throw createDatabaseError(error, 'class', 'select_by_id');
   return { data: (data as Record<string, unknown> | null) ?? null, error: null };

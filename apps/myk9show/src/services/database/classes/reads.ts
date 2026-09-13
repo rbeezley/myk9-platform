@@ -238,24 +238,14 @@ async function postgrestGetClassById(id: string) {
   const {
     data: { session },
   } = await supabase.auth.getSession();
+  // The migration intentionally leaves authenticated direct entry access at
+  // the safe id/class_id projection; scored and dog metadata come from the
+  // replication or dedicated results paths.
   const authenticatedEntrySelect = session
     ? `,
       entries (
         id,
-        entry_status,
-        points_earned,
-        search_time_seconds,
-        final_placement,
-        dog:dogs (
-          id,
-          name,
-          breed,
-          owner:people (
-            id,
-            first_name,
-            last_name
-          )
-        )
+        class_id
       )`
     : '';
 

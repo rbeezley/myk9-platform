@@ -255,7 +255,7 @@ describe('buildIcsAttachmentFilename (MYK9-504)', () => {
   });
 
   it('strips punctuation and collapses runs of separators', () => {
-    expect(buildIcsAttachmentFilename("St. Croix Valley K-9 Club — Trial #2")).toBe(
+    expect(buildIcsAttachmentFilename('St. Croix Valley K-9 Club — Trial #2')).toBe(
       'st-croix-valley-k-9-club-trial-2-runs.ics'
     );
   });

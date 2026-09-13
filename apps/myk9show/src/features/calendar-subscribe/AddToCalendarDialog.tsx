@@ -92,7 +92,7 @@ export function AddToCalendarDialog({
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogContent className="grid-cols-[minmax(0,1fr)] max-w-md">
+      <DialogContent className="grid-cols-[minmax(0,1fr)] max-h-[85vh] max-w-md overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <CalendarPlus className="h-5 w-5" />
@@ -131,16 +131,19 @@ export function AddToCalendarDialog({
                 {/* Not a fetch: webcal:// hands off to the OS calendar app. */}
                 <a href={urls.subscribeUrl}>Add to my calendar</a>
               </Button>
-              <p className="text-xs text-muted-foreground">
-                Works on iPhone, iPad and Mac.
-              </p>
+              <p className="text-sm text-muted-foreground">Works on iPhone, iPad and Mac.</p>
             </div>
 
             <div className="space-y-1.5 border-t pt-3">
               <p className="text-sm font-medium">Using Android or Google Calendar?</p>
-              <p className="text-xs text-muted-foreground">
-                Copy this link. Then in Google Calendar, choose Other calendars, then From URL, and
-                paste it there.
+              {/* INTENT: the Google Calendar phone app cannot add a calendar by
+                  link at all — "Other calendars → From URL" exists only in the
+                  desktop site. Saying "in Google Calendar" sends this audience
+                  hunting for a control that is not there, so name the computer
+                  explicitly and promise the phone will catch up. */}
+              <p className="text-sm text-muted-foreground">
+                This one needs a computer. Copy the link below, go to calendar.google.com, and
+                choose Other calendars, then From URL. Your phone will show it soon after.
               </p>
               <div className="flex min-w-0 items-center gap-2">
                 <code className="min-w-0 flex-1 truncate rounded bg-muted px-2 py-2 text-xs">
@@ -162,13 +165,13 @@ export function AddToCalendarDialog({
                 its own refresh schedule — Google's is often only a few times a
                 day — so an exhibitor at the ring must be sent to the show page,
                 not left trusting a stale entry on their phone. */}
-            <p className="rounded bg-muted/60 px-3 py-2 text-xs text-muted-foreground">
+            <p className="rounded bg-muted/60 px-3 py-2 text-sm text-muted-foreground">
               Your calendar looks for changes on its own, usually a few times a day. It will not
               keep up with last-minute ring changes, so check the show page on the day.
             </p>
 
             <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 border-t pt-3">
-              <p className="min-w-0 text-xs text-muted-foreground">
+              <p className="min-w-0 text-sm text-muted-foreground">
                 Or save your runs once. They will not update later.
               </p>
               <Button asChild variant="outline" size="sm" className="min-h-[44px] shrink-0">
@@ -180,7 +183,7 @@ export function AddToCalendarDialog({
             </div>
 
             <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 border-t pt-3">
-              <p className="min-w-0 text-xs text-muted-foreground">
+              <p className="min-w-0 text-sm text-muted-foreground">
                 Anyone who has this link can see your schedule.
               </p>
               <Button
@@ -196,7 +199,6 @@ export function AddToCalendarDialog({
             </div>
           </div>
         )}
-
       </DialogContent>
     </Dialog>
   );

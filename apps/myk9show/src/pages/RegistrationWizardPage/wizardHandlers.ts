@@ -294,11 +294,11 @@ export function createWizardHandlers(state: RegistrationWizardState) {
     }
   };
 
-  // "Choose classes again" from the expired-cart notice. Clears the wizard's
-  // own selections and releases the dead cart BEFORE navigating — see
-  // `startOver.ts` for why navigating alone duplicates entries.
-  const handleStartOver = async () => {
-    await startOverAtClassSelection({
+  // "Choose classes again" from the expired-cart notice. Synchronously resets
+  // selections, step completion and the current step, THEN releases the dead
+  // cart without awaiting it — see `startOver.ts` for why each piece matters.
+  const handleStartOver = () => {
+    startOverAtClassSelection({
       cartBelongsToThisRegistration: cartBelongsToRegistration(
         useCartStore.getState().cart,
         showId,
@@ -307,8 +307,8 @@ export function createWizardHandlers(state: RegistrationWizardState) {
       classStepIndex: currentWorkflowConfig.steps.indexOf('class-selection'),
       abandonCart,
       setClassSelections,
-      // The wizard's own step navigation, guard included.
-      goToStep: handleStepClick,
+      setStepCompletionState,
+      setCurrentStep,
     });
   };
 

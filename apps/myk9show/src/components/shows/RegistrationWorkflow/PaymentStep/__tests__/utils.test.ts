@@ -8,7 +8,12 @@
  */
 
 import { describe, it, expect, afterEach, vi } from 'vitest';
-import { getShowEntryFee, calculateTotalFees, type ShowFeeInfo } from '../utils';
+import {
+  getShowEntryFee,
+  calculateTotalFees,
+  getEffectivePaymentMethod,
+  type ShowFeeInfo,
+} from '../utils';
 import type { ClassSelectionData } from '@/types/show-registration-types';
 
 describe('getShowEntryFee — zero-fee handling', () => {
@@ -176,5 +181,83 @@ describe('calculateTotalFees — multi-dog discount', () => {
     expect(result.subtotal).toBe(75);
     expect(result.discounts).toEqual([]);
     expect(result.total).toBe(75);
+  });
+});
+
+/**
+ * The effective payment method, as ONE rule.
+ *
+ * PaymentStep derived a check/cash fallback for an unpayable card selection and
+ * only wrote it back to parent state afterwards, so between those two moments
+ * the entries panel quoted "Credit/Debit Card" plus a service fee while the
+ * controls underneath showed Check (Codex #2210 round 5 P2). The derivation now
+ * lives here and both surfaces read it.
+ */
+describe('getEffectivePaymentMethod', () => {
+  const both = { check: true, cash: true };
+
+  it('leaves a card selection alone when card checkout is available', () => {
+    expect(
+      getEffectivePaymentMethod({
+        paymentMethod: 'credit_card',
+        acceptedMethods: both,
+        cardCheckoutAvailable: true,
+      })
+    ).toBe('credit_card');
+  });
+
+  it('falls back to check while card checkout is unavailable or still pending', () => {
+    // `cardCheckoutAvailable` is false both while the Stripe readiness query is
+    // in flight and when it resolves negative — the fallback is the same, which
+    // is why the caller does not need to distinguish them here.
+    expect(
+      getEffectivePaymentMethod({
+        paymentMethod: 'credit_card',
+        acceptedMethods: both,
+        cardCheckoutAvailable: false,
+      })
+    ).toBe('check');
+  });
+
+  it('falls back to cash when the show does not take checks', () => {
+    expect(
+      getEffectivePaymentMethod({
+        paymentMethod: 'credit_card',
+        acceptedMethods: { check: false, cash: true },
+        cardCheckoutAvailable: false,
+      })
+    ).toBe('cash');
+  });
+
+  it('returns no method when the show takes neither check nor cash', () => {
+    expect(
+      getEffectivePaymentMethod({
+        paymentMethod: 'credit_card',
+        acceptedMethods: { check: false, cash: false },
+        cardCheckoutAvailable: false,
+      })
+    ).toBe('');
+  });
+
+  it('never rewrites a method that is not credit_card', () => {
+    for (const method of ['check', 'cash', 'secretary_paid', 'group_payment', 'waived'] as const) {
+      expect(
+        getEffectivePaymentMethod({
+          paymentMethod: method,
+          acceptedMethods: { check: false, cash: false },
+          cardCheckoutAvailable: false,
+        })
+      ).toBe(method);
+    }
+  });
+
+  it('leaves an unset method unset', () => {
+    expect(
+      getEffectivePaymentMethod({
+        paymentMethod: '',
+        acceptedMethods: both,
+        cardCheckoutAvailable: false,
+      })
+    ).toBe('');
   });
 });

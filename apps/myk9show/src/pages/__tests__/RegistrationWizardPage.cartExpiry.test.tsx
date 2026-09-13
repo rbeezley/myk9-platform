@@ -101,6 +101,18 @@ vi.mock('@/hooks/useRegistrationPermissions', () => ({
   useRegistrationPermissions: () => mockPermissions,
 }));
 
+// Club Stripe readiness: false = card checkout unavailable, which is what makes
+// a `credit_card` selection fall back to check.
+const mockCardReady = vi.hoisted(() => ({ current: false }));
+vi.mock('@/features/payments/useClubStripeAccount', () => ({
+  useClubStripePaymentReadiness: () => ({
+    isSuccess: true,
+    isPending: false,
+    isFetching: false,
+    data: mockCardReady.current,
+  }),
+}));
+
 vi.mock('@/context/RegistrationContext', () => ({
   RegistrationProvider: ({ children }: { children: React.ReactNode }) => <>{children}</>,
 }));
@@ -108,11 +120,27 @@ vi.mock('@/context/RegistrationContext', () => ({
 vi.mock('@/components/shows/RegistrationWorkflow/WorkflowStepContent', () => ({
   WorkflowStepContent: () => <div data-testid="step-content" />,
 }));
-vi.mock('@/components/shows/wizard/components/HorizontalProgressIndicator', () => ({
-  default: () => <div data-testid="progress" />,
+// Capture what the rail is told, so the test can read the wizard's real
+// currentStep / completedSteps rather than inferring them from pixels.
+const railState = vi.hoisted(() => ({
+  current: { currentStep: 0, completedSteps: [] as number[] },
 }));
+vi.mock('@/components/shows/wizard/components/HorizontalProgressIndicator', () => ({
+  default: (props: { currentStep: number; completedSteps: number[] }) => {
+    railState.current = { currentStep: props.currentStep, completedSteps: props.completedSteps };
+    return <div data-testid="progress" />;
+  },
+}));
+
+// A lever onto the page's REAL draft-load handler, which is how the wizard
+// legitimately arrives on Payment with completion state already set.
+const loadedDraft = vi.hoisted(() => ({ current: null as unknown }));
 vi.mock('@/components/shows/RegistrationWorkflow/DraftManager', () => ({
-  DraftManager: () => <div data-testid="draft-manager" />,
+  DraftManager: (props: { onDraftLoaded: (draft: unknown) => void }) => (
+    <button data-testid="load-draft" onClick={() => props.onDraftLoaded(loadedDraft.current)}>
+      load draft
+    </button>
+  ),
 }));
 vi.mock('@/components/common/ErrorBoundary', () => ({
   RegistrationErrorBoundary: ({ children }: { children: React.ReactNode }) => <>{children}</>,
@@ -147,6 +175,7 @@ beforeEach(() => {
   mockPermissions.isSiteAdmin = false;
   mockIsSecretaryRoute.current = false;
   mockIsDesktop.current = true;
+  mockCardReady.current = false;
   mockShow.current.entryCloseDate = undefined;
   useCartStore.getState().reset();
 });
@@ -211,5 +240,124 @@ describe('RegistrationWizardPage blocked-Next reason follows the navigation', ()
     const bar = screen.getByTestId('entries-panel-bar');
     expect(within(bar).queryByRole('status')).toBeNull();
     expect(screen.getByTestId('registration-wizard-card')).toContainElement(blockedReason());
+  });
+});
+
+/**
+ * Rounds 1, 2 and 5 all landed on this path. The defect round 5 named: while
+ * `abandonCart()` was awaited, Payment stayed the active step with its
+ * completion intact, so Submit was still pressable over an entry whose classes
+ * had just been cleared — an empty enrollment.
+ */
+describe('RegistrationWizardPage start-over leaves no live Payment step', () => {
+  /** Land on Payment the way a resumed draft does, with completion recorded. */
+  async function arriveOnPaymentWithAnExpiredCart() {
+    loadedDraft.current = {
+      id: 'draft-1',
+      data: {
+        selectedDogs: ['dog-1'],
+        entries: [],
+        documents: [],
+        paymentMethod: 'check',
+        _workflowState: {
+          currentStep: 'payment',
+          stepCompletionState: { 'dog-selection': true, 'class-selection': true, payment: true },
+          classSelections: [{ dogId: 'dog-1', trialId: 'trial-1', selectedClasses: [] }],
+          handlerAssignments: {},
+        },
+      },
+    };
+    seedExpiredOwnedCart();
+    const view = render(<RegistrationWizardPage />, { initialRoute: '/shows/show-1/register' });
+    await waitFor(() => expect(screen.getByTestId('step-content')).toBeInTheDocument());
+
+    await view.user.click(screen.getByTestId('load-draft'));
+    await waitFor(() => expect(railState.current.currentStep).toBe(2));
+    return view;
+  }
+
+  it('arrives on Payment with completion recorded (positive control)', async () => {
+    await arriveOnPaymentWithAnExpiredCart();
+
+    expect(railState.current.currentStep).toBe(2);
+    expect(railState.current.completedSteps).toContain(2);
+    expect(screen.getAllByTestId('cart-expiry-notice').length).toBeGreaterThan(0);
+  });
+
+  it('moves off Payment and clears every completion when start-over is pressed', async () => {
+    const view = await arriveOnPaymentWithAnExpiredCart();
+
+    await view.user.click(
+      screen.getAllByRole('button', { name: 'Choose classes again' })[0] as HTMLElement
+    );
+
+    // Synchronously, in the same commit: no await window in which Payment is
+    // still live over an emptied entry.
+    await waitFor(() => expect(railState.current.currentStep).toBe(1));
+    expect(railState.current.completedSteps).toEqual([]);
+  });
+
+  it('takes the commit control away with it', async () => {
+    const view = await arriveOnPaymentWithAnExpiredCart();
+    expect(screen.getByRole('button', { name: /^Submit/ })).toBeInTheDocument();
+
+    await view.user.click(
+      screen.getAllByRole('button', { name: 'Choose classes again' })[0] as HTMLElement
+    );
+
+    await waitFor(() =>
+      expect(screen.queryByRole('button', { name: /^Submit/ })).not.toBeInTheDocument()
+    );
+  });
+});
+
+/**
+ * `PaymentStep` derived the check/cash fallback for an unpayable card selection
+ * privately and only wrote it back to parent state in an effect, so the entries
+ * panel could quote Credit/Debit Card plus a service fee while the controls
+ * showed Check (Codex #2210 round 5 P2). One derivation now, owned by the page.
+ */
+describe('RegistrationWizardPage quotes one payment method', () => {
+  async function arriveOnPaymentWithCard() {
+    loadedDraft.current = {
+      id: 'draft-1',
+      data: {
+        selectedDogs: ['dog-1'],
+        entries: [],
+        documents: [],
+        paymentMethod: 'credit_card',
+        _workflowState: {
+          currentStep: 'payment',
+          stepCompletionState: { 'dog-selection': true, 'class-selection': true },
+          classSelections: [{ dogId: 'dog-1', trialId: 'trial-1', selectedClasses: [] }],
+          handlerAssignments: {},
+        },
+      },
+    };
+    const view = render(<RegistrationWizardPage />, { initialRoute: '/shows/show-1/register' });
+    await waitFor(() => expect(screen.getByTestId('step-content')).toBeInTheDocument());
+    await view.user.click(screen.getByTestId('load-draft'));
+    await waitFor(() => expect(railState.current.currentStep).toBe(2));
+    return view;
+  }
+
+  it('shows the fallback method and NO service fee when card checkout is unavailable', async () => {
+    mockCardReady.current = false;
+    await arriveOnPaymentWithCard();
+
+    const panel = within(screen.getByTestId('entries-panel'));
+    expect(panel.getByText('Check at Show')).toBeInTheDocument();
+    expect(panel.queryByText('Credit/Debit Card')).not.toBeInTheDocument();
+    // The service fee is card-only; quoting it against a check entry overstates
+    // what the exhibitor owes.
+    expect(panel.queryByText(/Service fee/i)).not.toBeInTheDocument();
+  });
+
+  it('shows the card method when card checkout IS available (positive control)', async () => {
+    mockCardReady.current = true;
+    await arriveOnPaymentWithCard();
+
+    const panel = within(screen.getByTestId('entries-panel'));
+    expect(panel.getByText('Credit/Debit Card')).toBeInTheDocument();
   });
 });

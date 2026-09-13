@@ -1,3 +1,4 @@
+import { makePaymentResolution } from '@/test/utils/paymentResolution';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { screen } from '@testing-library/react';
 import { render } from '@/test/utils/testUtils';
@@ -99,7 +100,12 @@ describe('Phase 3.5: Payment Component Tests', () => {
     });
 
     it('should render payment step with fee calculation', () => {
-      render(<PaymentStep {...defaultProps} />);
+      render(
+        <PaymentStep
+          paymentResolution={makePaymentResolution({ paymentMethod: 'credit_card' })}
+          {...defaultProps}
+        />
+      );
 
       expect(screen.getByText('Payment Information')).toBeInTheDocument();
       // The fee itemisation and the amount due moved OUT of this step into the
@@ -126,7 +132,12 @@ describe('Phase 3.5: Payment Component Tests', () => {
         ],
       };
 
-      render(<PaymentStep {...propsWithMultipleDogs} />);
+      render(
+        <PaymentStep
+          paymentResolution={makePaymentResolution({ paymentMethod: 'credit_card' })}
+          {...propsWithMultipleDogs}
+        />
+      );
 
       // The $75 subtotal is asserted where it now renders — the entries panel
       // (EntriesPanel.test.tsx pins the arithmetic against the fee helper).
@@ -135,7 +146,12 @@ describe('Phase 3.5: Payment Component Tests', () => {
     });
 
     it('should show secure checkout notice for credit card selection instead of card form', () => {
-      render(<PaymentStep {...defaultProps} />);
+      render(
+        <PaymentStep
+          paymentResolution={makePaymentResolution({ paymentMethod: 'credit_card' })}
+          {...defaultProps}
+        />
+      );
 
       // Credit card option should be rendered and selected
       expect(screen.getByText('Credit/Debit Card (Online Payment)')).toBeInTheDocument();
@@ -152,7 +168,13 @@ describe('Phase 3.5: Payment Component Tests', () => {
     });
 
     it('should handle check payment method selection', () => {
-      render(<PaymentStep {...defaultProps} paymentMethod="check" />);
+      render(
+        <PaymentStep
+          paymentResolution={makePaymentResolution({ paymentMethod: 'check' })}
+          {...defaultProps}
+          paymentMethod="check"
+        />
+      );
 
       // Check option should be rendered
       expect(screen.getByText('Check (pay at show)')).toBeInTheDocument();
@@ -167,7 +189,13 @@ describe('Phase 3.5: Payment Component Tests', () => {
     });
 
     it('should handle cash payment method selection', () => {
-      render(<PaymentStep {...defaultProps} paymentMethod="cash" />);
+      render(
+        <PaymentStep
+          paymentResolution={makePaymentResolution({ paymentMethod: 'cash' })}
+          {...defaultProps}
+          paymentMethod="cash"
+        />
+      );
 
       // Cash option should be rendered
       expect(screen.getByText('Cash (pay at show)')).toBeInTheDocument();
@@ -179,7 +207,12 @@ describe('Phase 3.5: Payment Component Tests', () => {
     });
 
     it('should show secretary payment management features', () => {
-      render(<PaymentStep {...defaultProps} />);
+      render(
+        <PaymentStep
+          paymentResolution={makePaymentResolution({ paymentMethod: 'credit_card' })}
+          {...defaultProps}
+        />
+      );
 
       // Should show secretary management section
       expect(screen.getByText('Secretary Payment Management')).toBeInTheDocument();
@@ -195,7 +228,13 @@ describe('Phase 3.5: Payment Component Tests', () => {
       const user = userEvent.setup();
       const onPaymentStatusChange = vi.fn();
 
-      render(<PaymentStep {...defaultProps} onPaymentStatusChange={onPaymentStatusChange} />);
+      render(
+        <PaymentStep
+          paymentResolution={makePaymentResolution({ paymentMethod: 'credit_card' })}
+          {...defaultProps}
+          onPaymentStatusChange={onPaymentStatusChange}
+        />
+      );
 
       // Click on Mark as Paid by Check button
       const markPaidButton = screen.getByText('Mark as Paid by Check');
@@ -208,7 +247,13 @@ describe('Phase 3.5: Payment Component Tests', () => {
       const user = userEvent.setup();
       const onEntryStatusChange = vi.fn();
 
-      render(<PaymentStep {...defaultProps} onEntryStatusChange={onEntryStatusChange} />);
+      render(
+        <PaymentStep
+          paymentResolution={makePaymentResolution({ paymentMethod: 'credit_card' })}
+          {...defaultProps}
+          onEntryStatusChange={onEntryStatusChange}
+        />
+      );
 
       // Navigate to Entry Status tab
       const entryStatusTab = screen.getByText('Entry Status');
@@ -222,7 +267,13 @@ describe('Phase 3.5: Payment Component Tests', () => {
     });
 
     it('should show proper payment status badges', () => {
-      render(<PaymentStep {...defaultProps} paymentStatus={PaymentStatus.PAID_ONLINE} />);
+      render(
+        <PaymentStep
+          paymentResolution={makePaymentResolution({ paymentMethod: 'credit_card' })}
+          {...defaultProps}
+          paymentStatus={PaymentStatus.PAID_ONLINE}
+        />
+      );
 
       // Should show current payment status, in words. The raw enum used to
       // reach the user here; the assertion tracked the bug, not an intent.
@@ -232,7 +283,12 @@ describe('Phase 3.5: Payment Component Tests', () => {
     it('should handle fee override functionality', async () => {
       const user = userEvent.setup();
 
-      render(<PaymentStep {...defaultProps} />);
+      render(
+        <PaymentStep
+          paymentResolution={makePaymentResolution({ paymentMethod: 'credit_card' })}
+          {...defaultProps}
+        />
+      );
 
       // Navigate to Fee Override tab
       const feeTab = screen.getByText('Fee Override');
@@ -253,7 +309,13 @@ describe('Phase 3.5: Payment Component Tests', () => {
     });
 
     it('should show payment summary correctly', () => {
-      render(<PaymentStep {...defaultProps} paymentMethod="credit_card" />);
+      render(
+        <PaymentStep
+          paymentResolution={makePaymentResolution({ paymentMethod: 'credit_card' })}
+          {...defaultProps}
+          paymentMethod="credit_card"
+        />
+      );
 
       // "Payment Summary" was the retired PaymentSummaryCard; the selected
       // method and the amount due are now the entries panel's. The step keeps
@@ -271,6 +333,7 @@ describe('Phase 3.5: Payment Component Tests', () => {
 
       render(
         <PaymentStep
+          paymentResolution={makePaymentResolution({ paymentMethod: 'credit_card' })}
           selectedDogs={['1']}
           classSelections={[
             {
@@ -294,6 +357,7 @@ describe('Phase 3.5: Payment Component Tests', () => {
     it('should calculate multi-dog fees correctly', () => {
       render(
         <PaymentStep
+          paymentResolution={makePaymentResolution({ paymentMethod: 'credit_card' })}
           selectedDogs={['1', '2']}
           classSelections={[
             {
@@ -319,6 +383,7 @@ describe('Phase 3.5: Payment Component Tests', () => {
     it('should handle payment status integration with entry status', () => {
       render(
         <PaymentStep
+          paymentResolution={makePaymentResolution({ paymentMethod: 'credit_card' })}
           selectedDogs={['1']}
           classSelections={[
             {
@@ -344,6 +409,7 @@ describe('Phase 3.5: Payment Component Tests', () => {
 
       render(
         <PaymentStep
+          paymentResolution={makePaymentResolution({ paymentMethod: 'check' })}
           selectedDogs={['1']}
           classSelections={[
             { dogId: '1', trialId: 'trial1', selectedClasses: [{ classId: 'class1' }] },
@@ -370,6 +436,7 @@ describe('Phase 3.5: Payment Component Tests', () => {
 
       render(
         <PaymentStep
+          paymentResolution={makePaymentResolution({ paymentMethod: 'secretary_paid' })}
           selectedDogs={['1']}
           classSelections={[
             { dogId: '1', trialId: 'trial1', selectedClasses: [{ classId: 'class1' }] },
@@ -395,6 +462,7 @@ describe('Phase 3.5: Payment Component Tests', () => {
 
       render(
         <PaymentStep
+          paymentResolution={makePaymentResolution({ paymentMethod: 'group_payment' })}
           selectedDogs={['1']}
           classSelections={[
             { dogId: '1', trialId: 'trial1', selectedClasses: [{ classId: 'class1' }] },

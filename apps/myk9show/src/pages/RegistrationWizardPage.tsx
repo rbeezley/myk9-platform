@@ -33,6 +33,7 @@ import {
   useEntriesPanelGroups,
   useRemoveEntryLine,
 } from '@/components/shows/RegistrationWorkflow/EntriesPanel/useEntriesPanelData';
+import { usePaymentMethodResolution } from '@/components/shows/RegistrationWorkflow/PaymentStep/usePaymentMethodResolution';
 import { useRegistrationWizard } from './RegistrationWizardPage/useRegistrationWizard';
 import { getPaymentSubmitLabel } from './RegistrationWizardPage/commitLabels';
 
@@ -124,6 +125,14 @@ function RegistrationWizardContent() {
     classSelections,
     handleClassSelectionChange
   );
+  // ONE payment-method derivation for the whole step: the panel below and the
+  // controls inside WorkflowStepContent both read this, so they cannot quote
+  // different methods (and different service fees) at the same moment.
+  const paymentResolution = usePaymentMethodResolution(
+    showId,
+    registrationData.paymentMethod || ''
+  );
+
   // Cart expiry is an exhibitor-flow concern only. Staff flows never create a
   // cart (`useCartFlow` in ClassSelectionStep excludes secretary/admin) and
   // their `exhibitorProfile` is the signed-in organizer, not the exhibitor being
@@ -135,7 +144,7 @@ function RegistrationWizardContent() {
       ? {
           showId,
           exhibitorId: exhibitorProfile?.id,
-          ...(hasClassStep ? { onStartOver: () => void handleStartOver() } : {}),
+          ...(hasClassStep ? { onStartOver: handleStartOver } : {}),
         }
       : undefined;
 
@@ -193,7 +202,7 @@ function RegistrationWizardContent() {
         {...(cartExpiry ? { cartExpiry } : {})}
         {...(isPaymentStep
           ? {
-              paymentMethod: registrationData.paymentMethod || '',
+              paymentMethod: paymentResolution.effectivePaymentMethod,
               feeCalculation: liveFeeCalculation,
               waiveFees,
               feeOverride,
@@ -387,6 +396,7 @@ function RegistrationWizardContent() {
                 the step's own content begins. */}
             {/* Step content */}
             <WorkflowStepContent
+              paymentResolution={paymentResolution}
               currentStepId={currentStepId}
               currentWorkflowConfig={currentWorkflowConfig}
               currentWorkflowMode={currentWorkflowMode}

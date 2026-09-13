@@ -1,22 +1,32 @@
 /**
  * "Choose classes again" — the way back from an expired cart.
  *
- * Navigation alone is not enough. An expired cart is gone server-side, but the
- * wizard's own `classSelections` are local React state that survives it, so
- * landing back on the class step would show the stale picks over a cart that no
- * longer has their rows. `toggleClassSelection` reads a local selection with no
- * cart row as an ADD, so the next replacement cart would take a second copy of
- * every class — duplicate entries on the money path.
+ * Navigation alone is not enough, and neither is clearing the selections. Three
+ * pieces of wizard state outlive an expired cart, and each one is a defect:
  *
- * So: drop the selections, release the dead cart, and only then navigate. Both
- * steps use the paths that already exist (`setClassSelections` from the wizard
- * state, `abandonCart` from the cart store); nothing new is written here.
+ *  - `classSelections` are local React state, so the class step would show the
+ *    stale picks over a cart that no longer has their rows. `toggleClassSelection`
+ *    reads a local selection with no cart row as an ADD, so the next replacement
+ *    cart takes a second copy of every class — duplicate entries.
+ *  - `stepCompletionState` still marks class-selection AND payment complete, so
+ *    the rail lets the exhibitor walk straight back to Payment and Submit.
+ *  - `currentStep` is still Payment, whose Submit control commits an entry whose
+ *    classes were just cleared — an empty enrollment.
+ *
+ * So the reset is one SYNCHRONOUS block covering all three, and it runs to
+ * completion before anything touches the network. The cart release is fired
+ * afterwards and deliberately not awaited: nothing downstream depends on its
+ * result, and awaiting it was the window in which Payment stayed live and
+ * submittable.
+ *
+ * `setCurrentStep` directly rather than the rail's `handleStepClick`: that
+ * helper refuses a step the exhibitor has not "reached", which is judged from
+ * the very completion state being cleared here on purpose.
  *
  * The release is conditional on the cart actually being this registration's.
  * `useCartStore` is a singleton, so a wizard opened before this show's cart has
  * loaded can find a previous show's expired cart in it — abandoning that would
- * discard a cart this wizard never owned. Clearing the local selections and
- * navigating is correct either way.
+ * discard a cart this wizard never owned. The reset is correct either way.
  */
 
 import type { ClassSelectionData } from '@/types/show-registration-types';
@@ -32,31 +42,31 @@ export interface StartOverDeps {
   classStepIndex: number;
   abandonCart: () => Promise<boolean>;
   setClassSelections: (selections: ClassSelectionData[]) => void;
-  goToStep: (step: number) => void;
+  setStepCompletionState: (completion: Record<string, boolean>) => void;
+  setCurrentStep: (step: number) => void;
 }
 
-export async function startOverAtClassSelection({
+export function startOverAtClassSelection({
   cartBelongsToThisRegistration,
   classStepIndex,
   abandonCart,
   setClassSelections,
-  goToStep,
-}: StartOverDeps): Promise<void> {
+  setStepCompletionState,
+  setCurrentStep,
+}: StartOverDeps): void {
   // A workflow with no class step has nowhere to send them; do nothing at all
   // rather than half-clear an entry the exhibitor cannot rebuild.
   if (classStepIndex < 0) return;
 
+  // One synchronous reset. React batches these into a single render, so there
+  // is no frame in which the entry is empty but Payment is still live.
   setClassSelections([]);
+  setStepCompletionState({});
+  setCurrentStep(classStepIndex);
 
+  // Fire and forget. The cart is already expired server-side; failing to mark
+  // it abandoned must not block, or strand, the exhibitor.
   if (cartBelongsToThisRegistration) {
-    try {
-      await abandonCart();
-    } catch {
-      // The cart is already expired; failing to mark it abandoned must not
-      // strand the exhibitor on a dead payment step. The local selections are
-      // cleared either way, so nothing can be double-added.
-    }
+    void abandonCart().catch(() => {});
   }
-
-  goToStep(classStepIndex);
 }

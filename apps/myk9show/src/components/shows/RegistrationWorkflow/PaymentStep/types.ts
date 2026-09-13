@@ -1,3 +1,4 @@
+import type { PaymentMethodResolution } from './usePaymentMethodResolution';
 import type {
   ClassSelectionData,
   PaymentMethod,
@@ -35,6 +36,12 @@ export interface PaymentStepProps {
   feeOverride?: number | null | undefined;
   onWaiveFeesChange?: ((waived: boolean) => void) | undefined;
   onFeeOverrideChange?: ((override: number | null) => void) | undefined;
+  /**
+   * Payment-method resolution, owned by the PAGE so the entries panel and these
+   * controls read the same effective method in the same render
+   * (`usePaymentMethodResolution`). PaymentStep must not re-derive it.
+   */
+  paymentResolution: PaymentMethodResolution;
   /** False while the selected classes' capacity is loading or failed. */
   capacityReady?: boolean | undefined;
   /** Availability query error, when capacityReady is false because of a failure. */

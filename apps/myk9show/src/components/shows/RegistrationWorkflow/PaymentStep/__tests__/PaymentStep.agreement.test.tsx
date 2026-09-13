@@ -3,6 +3,8 @@ import { cleanup, render, screen } from '@/test/utils/testUtils';
 import userEvent from '@testing-library/user-event';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { PaymentStep } from '../index';
+import { usePaymentMethodResolution } from '../usePaymentMethodResolution';
+import type { PaymentStepProps } from '../types';
 import { useShowStore } from '@/store/showStore';
 import { useClubStripePaymentReadiness } from '@/features/payments/useClubStripeAccount';
 
@@ -62,6 +64,17 @@ vi.mock('@/hooks/queries/useOrganizationAgreement', () => ({
   }),
 }));
 
+/**
+ * The payment-method resolution is owned by the PAGE now, so these tests call
+ * the same hook the page calls and hand the result down. The mocks above
+ * (showStore, club Stripe readiness) still drive it, so what each test asserts
+ * is unchanged — only who computes it moved.
+ */
+function PaymentStepHarness(props: Omit<PaymentStepProps, 'paymentResolution'>) {
+  const paymentResolution = usePaymentMethodResolution(props.showId, props.paymentMethod);
+  return <PaymentStep {...props} paymentResolution={paymentResolution} />;
+}
+
 const baseProps = {
   selectedDogs: [],
   classSelections: [],
@@ -94,12 +107,12 @@ describe('PaymentStep — entry agreement integration', () => {
   });
 
   it('renders the EntryAgreementSection', () => {
-    render(<PaymentStep {...baseProps} />);
+    render(<PaymentStepHarness {...baseProps} />);
     expect(screen.getByText('AKC Entry Agreement')).toBeInTheDocument();
   });
 
   it('renders the agreement checkbox', () => {
-    render(<PaymentStep {...baseProps} />);
+    render(<PaymentStepHarness {...baseProps} />);
     expect(
       screen.getByRole('checkbox', {
         name: /I have read and agree to the AKC entry agreement/,
@@ -108,14 +121,14 @@ describe('PaymentStep — entry agreement integration', () => {
   });
 
   it('agreement checkbox is unchecked by default', () => {
-    render(<PaymentStep {...baseProps} />);
+    render(<PaymentStepHarness {...baseProps} />);
     const checkbox = screen.getByRole('checkbox');
     expect(checkbox).not.toBeChecked();
   });
 
   it('agreement checkbox can be toggled', async () => {
     const user = userEvent.setup();
-    render(<PaymentStep {...baseProps} />);
+    render(<PaymentStepHarness {...baseProps} />);
 
     const checkbox = screen.getByRole('checkbox');
     await user.click(checkbox);
@@ -127,7 +140,7 @@ describe('PaymentStep — entry agreement integration', () => {
     const user = userEvent.setup();
     const onAgreementChange = vi.fn();
     render(
-      <PaymentStep
+      <PaymentStepHarness
         {...baseProps}
         agreedToEntryAgreement={false}
         onAgreementChange={onAgreementChange}
@@ -149,12 +162,12 @@ describe('PaymentStep — entry agreement integration', () => {
       ],
     } as ReturnType<typeof useShowStore>);
 
-    render(<PaymentStep {...baseProps} showId="show-no-org" />);
+    render(<PaymentStepHarness {...baseProps} showId="show-no-org" />);
     expect(screen.queryByText(/Entry Agreement/)).not.toBeInTheDocument();
   });
 
   it('offers card payment only when the hosting club has a usable Stripe account', () => {
-    render(<PaymentStep {...baseProps} />);
+    render(<PaymentStepHarness {...baseProps} />);
     expect(screen.getByText('Credit/Debit Card (Online Payment)')).toBeInTheDocument();
 
     vi.mocked(useClubStripePaymentReadiness).mockReturnValue({
@@ -177,7 +190,7 @@ describe('PaymentStep — entry agreement integration', () => {
     } as ReturnType<typeof useShowStore>);
 
     cleanup();
-    render(<PaymentStep {...baseProps} showId="show-no-stripe" />);
+    render(<PaymentStepHarness {...baseProps} showId="show-no-stripe" />);
     expect(screen.queryByText('Credit/Debit Card (Online Payment)')).not.toBeInTheDocument();
     expect(
       screen.getByText(/Online card payment isn't available for this club/)

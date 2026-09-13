@@ -1,3 +1,4 @@
+import type { PaymentMethodResolution } from './PaymentStep/usePaymentMethodResolution';
 import { useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { DogSelectionStep } from './DogSelectionStep';
@@ -49,6 +50,11 @@ interface OptimisticRegistrationState {
 }
 
 interface WorkflowStepContentProps {
+  /**
+   * Resolved by the page (`usePaymentMethodResolution`) and passed straight
+   * through, so the entries panel and the payment controls read one derivation.
+   */
+  paymentResolution: PaymentMethodResolution;
   currentStepId: string;
   currentWorkflowConfig: WorkflowConfig;
   currentWorkflowMode: WorkflowMode;
@@ -98,6 +104,7 @@ interface WorkflowStepContentProps {
 }
 
 export function WorkflowStepContent({
+  paymentResolution,
   currentStepId,
   currentWorkflowConfig,
   currentWorkflowMode,
@@ -379,6 +386,7 @@ export function WorkflowStepContent({
       {currentStepId === 'payment' && (
         <PaymentErrorBoundary>
           <PaymentStep
+            paymentResolution={paymentResolution}
             selectedDogs={optimisticState.formData.selectedDogs}
             classSelections={optimisticState.classSelections}
             paymentMethod={optimisticState.formData.paymentMethod || ''}

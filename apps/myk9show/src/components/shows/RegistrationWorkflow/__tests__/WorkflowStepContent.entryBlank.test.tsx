@@ -1,3 +1,4 @@
+import { makePaymentResolution } from '@/test/utils/paymentResolution';
 import type { ReactElement, ReactNode } from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { render, screen } from '@/test/utils/testUtils';
@@ -194,6 +195,7 @@ function renderConfirmation(outcomes: EntrySubmissionOutcome[]) {
 
   return render(
     <WorkflowStepContent
+      paymentResolution={makePaymentResolution()}
       currentStepId="confirmation"
       currentWorkflowConfig={workflowConfig}
       currentWorkflowMode="secretary_new"

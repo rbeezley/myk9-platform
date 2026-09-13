@@ -1,3 +1,4 @@
+import { makePaymentResolution } from '@/test/utils/paymentResolution';
 /**
  * Codex review finding (PR #1298): after a submission where every entry was
  * denied or waitlisted, navigating back to class-selection must still show
@@ -139,14 +140,14 @@ function baseProps() {
 
 describe('WorkflowStepContent — class-selection back-navigation after denial/waitlist', () => {
   it('passes the original (unfiltered) selected dogs to ClassSelectionStep, not the created-only receipt list', () => {
-    render(<WorkflowStepContent {...baseProps()} />);
+    render(<WorkflowStepContent {...baseProps()} paymentResolution={makePaymentResolution()} />);
 
     const selectedDogs = JSON.parse(screen.getByTestId('selected-dogs').textContent ?? '[]');
     expect(selectedDogs).toEqual(['dog-1', 'dog-2']);
   });
 
   it('passes the original (unfiltered) class selections to ClassSelectionStep', () => {
-    render(<WorkflowStepContent {...baseProps()} />);
+    render(<WorkflowStepContent {...baseProps()} paymentResolution={makePaymentResolution()} />);
 
     const classSelections = JSON.parse(screen.getByTestId('class-selections').textContent ?? '[]');
     expect(classSelections).toEqual(originalClassSelections);

@@ -35,6 +35,7 @@ The mental model: the user's experience is a single coherent workflow, not a men
 3. **Follow SLC** — Simple, Lovable, Complete. Avoid feature bloat (Simple). Prioritize UX polish, error states, and "delight" (Lovable). Deliver end-to-end functionality with zero placeholders or TODOs (Complete)
 4. **Keep files under 500 lines** — Extract types, helpers, and constants into sibling modules. CI's `pnpm qa:code-quality-ratchet` fails any regression against the committed baseline, and nothing in typecheck, lint, or the test suite approximates it; run it from the worktree before pushing a change that adds lines to an existing file.
 5. **Protect intent** — When code looks "wrong" but has an `// INTENT:` comment, it's deliberate (see "Intent & Emotional Design" above)
+6. **Evidence over confidence** — Compilation is necessary but not sufficient. Before declaring work complete, verify the real artifact and relevant user-visible side effects. Trace bugs to their root cause. For non-trivial work, establish the data shape first, sequence changes into independently verifiable units, and prefer reusable tests or scripts for checks that will recur.
 
 ## Commands
 

@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  buildIcsAttachmentFilename,
   buildIcsDocument,
   buildVEvent,
   escapeIcsText,
@@ -243,5 +244,37 @@ describe('buildIcsDocument', () => {
     });
     expect(ics).toContain('UID:class-a@myk9show.com');
     expect(ics).not.toContain('UID:class-b@myk9show.com');
+  });
+});
+
+describe('buildIcsAttachmentFilename (MYK9-504)', () => {
+  it('names the file after the show', () => {
+    expect(buildIcsAttachmentFilename('Flint Hills Fall Classic')).toBe(
+      'flint-hills-fall-classic-runs.ics'
+    );
+  });
+
+  it('strips punctuation and collapses runs of separators', () => {
+    expect(buildIcsAttachmentFilename('St. Croix Valley K-9 Club — Trial #2')).toBe(
+      'st-croix-valley-k-9-club-trial-2-runs.ics'
+    );
+  });
+
+  it('never leaves a trailing hyphen when the 60-character cut lands on one', () => {
+    // 59 letters then a space: the slug's 60th character is the separator, so
+    // the cut lands exactly on it.
+    const filename = buildIcsAttachmentFilename(`${'a'.repeat(59)} classic`);
+    expect(filename).toBe(`${'a'.repeat(59)}-runs.ics`);
+  });
+
+  it('carries no character that would need quoting in a header', () => {
+    const filename = buildIcsAttachmentFilename('Quote " and \\ backslash; semicolon');
+    expect(filename).toMatch(/^[a-z0-9-]+\.ics$/);
+  });
+
+  it('falls back when the show has no usable name', () => {
+    expect(buildIcsAttachmentFilename('')).toBe('myk9show-runs.ics');
+    expect(buildIcsAttachmentFilename(null)).toBe('myk9show-runs.ics');
+    expect(buildIcsAttachmentFilename('***')).toBe('myk9show-runs.ics');
   });
 });

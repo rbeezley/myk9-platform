@@ -20,7 +20,6 @@ export const features = {
   // Show management — coming soon for exhibitors
   showRegistration: true,
   myEntries: true,
-  calendar: false,
   analytics: false,
   showMap: true,
 

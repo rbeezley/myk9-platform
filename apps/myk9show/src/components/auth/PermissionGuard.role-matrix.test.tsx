@@ -4,8 +4,8 @@ import { UserRole, PERMISSIONS, MOCK_USERS } from '@/types/auth-types';
 import { PermissionGuard } from './PermissionGuard';
 
 // Live component: components/auth/PermissionGuard.tsx (imported by
-// RBACUtilityComponents, RegistrationWorkflow panels, CalendarPage,
-// BrowseShowsPage, and hooks/usePermissionGuard.tsx — see grep evidence
+// RBACUtilityComponents, RegistrationWorkflow panels, BrowseShowsPage,
+// and hooks/usePermissionGuard.tsx — see grep evidence
 // in the task report). This suite extends the existing
 // src/test/rbac/rbac.test.tsx coverage (exhibitor-only) with a full
 // role x guard decision table.

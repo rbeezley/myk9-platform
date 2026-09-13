@@ -88,9 +88,9 @@ const publicRouteComponents: Record<string, ImportFunction> = {
   '/clubs/:id': () => import('@/pages/ClubDetailPage'),
 
   // Feature pages
-  '/calendar': () => import('@/pages/CalendarPage'),
   '/subscription': () => import('@/pages/SubscriptionPage'),
-  '/registration': () => import('@/pages/CalendarPage'),
+  // Legacy /registration redirects to /shows in publicRoutes.
+  '/registration': () => import('@/pages/BrowseShowsPage'),
   '/shows/:showId/register': () => import('@/pages/RegistrationWizardPage'),
 
   // Cart and checkout

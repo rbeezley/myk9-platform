@@ -45,6 +45,23 @@ export function buildCalendarFeedUrls(token: string, baseUrl: string): CalendarF
   };
 }
 
+/**
+ * How many events a feed document carries.
+ *
+ * Asked of the REAL document rather than re-derived from show data on the
+ * client: a feed can be legitimately empty (no class times and no trial start
+ * yet), and the exhibitor must be told that before they add a calendar that
+ * will show them nothing (MYK9-506). Re-deriving the emptiness rule here is how
+ * the warning and the feed come to disagree.
+ *
+ * Anchored to the line start: a folded continuation line always begins with a
+ * space, so this cannot be fooled by the text "BEGIN:VEVENT" inside a
+ * description a secretary typed.
+ */
+export function countIcsEvents(document: string): number {
+  return (document.match(/^BEGIN:VEVENT[ \t]*\r?$/gm) ?? []).length;
+}
+
 /** Filename an exhibitor will recognise months later in their downloads folder. */
 export function buildIcsFilename(showName: string | null | undefined): string {
   const slug = (showName ?? '')

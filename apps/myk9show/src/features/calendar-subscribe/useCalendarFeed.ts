@@ -2,6 +2,7 @@ import { useCallback, useState } from 'react';
 import { supabase } from '@/lib/supabase';
 import {
   buildCalendarFeedUrls,
+  countIcsEvents,
   getCalendarFeedBaseUrl,
   type CalendarFeedUrls,
 } from './calendarFeedUrls';
@@ -23,6 +24,12 @@ export interface UseCalendarFeedResult {
   issue: (showId: string) => Promise<CalendarFeedUrls | null>;
   /** Disable the current URL. Clears local state on success. */
   revoke: (showId: string) => Promise<boolean>;
+  /**
+   * Events in the issued feed, or null when it could not be read. 0 means the
+   * link works but has nothing in it yet, which the dialog must say out loud —
+   * otherwise the exhibitor adds a calendar and sees silence (MYK9-506).
+   */
+  eventCount: number | null;
   /** False when no feed base URL is configured — callers should hide the UI. */
   configured: boolean;
 }
@@ -52,12 +59,14 @@ export function useCalendarFeed(): UseCalendarFeedResult {
   const [urls, setUrls] = useState<CalendarFeedUrls | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [eventCount, setEventCount] = useState<number | null>(null);
   const baseUrl = getCalendarFeedBaseUrl();
 
   const issue = useCallback(
     async (showId: string): Promise<CalendarFeedUrls | null> => {
       setLoading(true);
       setError(null);
+      setEventCount(null);
       try {
         const { data, error: rpcError } = await calendarFeedRpc('issue_calendar_feed_token', {
           p_show_id: showId,
@@ -67,6 +76,17 @@ export function useCalendarFeed(): UseCalendarFeedResult {
         const next = buildCalendarFeedUrls(String(data ?? ''), baseUrl);
         if (!next) throw new Error('Calendar feed is not configured');
         setUrls(next);
+
+        // Read the document the exhibitor is about to hand their calendar. A
+        // failure here leaves the count unknown and changes nothing on screen:
+        // the link is already valid, and this only decides whether to warn.
+        try {
+          const response = await fetch(next.displayUrl);
+          if (response.ok) setEventCount(countIcsEvents(await response.text()));
+        } catch {
+          // Offline, blocked, or CORS — no warning rather than a wrong one.
+        }
+
         return next;
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Could not create the calendar link');
@@ -87,6 +107,7 @@ export function useCalendarFeed(): UseCalendarFeedResult {
       });
       if (rpcError) throw new Error(rpcError.message);
       setUrls(null);
+      setEventCount(null);
       return true;
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Could not turn off the calendar link');
@@ -96,5 +117,5 @@ export function useCalendarFeed(): UseCalendarFeedResult {
     }
   }, []);
 
-  return { urls, loading, error, issue, revoke, configured: baseUrl.length > 0 };
+  return { urls, loading, error, issue, revoke, eventCount, configured: baseUrl.length > 0 };
 }

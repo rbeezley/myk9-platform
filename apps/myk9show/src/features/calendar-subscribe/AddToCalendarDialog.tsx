@@ -47,7 +47,7 @@ export function AddToCalendarDialog({
   showId,
   showName,
 }: AddToCalendarDialogProps) {
-  const { urls, loading, error, issue, revoke, configured } = useCalendarFeed();
+  const { urls, loading, error, issue, revoke, eventCount, configured } = useCalendarFeed();
   const [copied, setCopied] = useState(false);
   const requestedRef = useRef(false);
 
@@ -126,6 +126,24 @@ export function AddToCalendarDialog({
 
         {configured && urls && (
           <div className="min-w-0 space-y-4">
+            {/* INTENT: a feed with no events still adds a calendar successfully
+                — the phone says "added" and then shows nothing, which reads as
+                the app being broken. Say it BEFORE the button, in terms of who
+                has to act (the club) and what happens next, so adding it now is
+                still the right move rather than a wasted one (MYK9-506). */}
+            {eventCount === 0 && (
+              <div
+                className="rounded border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-sm"
+                role="status"
+              >
+                <p className="font-medium">No times to add yet.</p>
+                <p className="mt-1 text-muted-foreground">
+                  The club has not posted the schedule for this show. You can still add it now —
+                  your runs will appear once they do. Saving a copy today would save an empty file.
+                </p>
+              </div>
+            )}
+
             <div className="space-y-1.5">
               <Button asChild className="min-h-[44px] w-full">
                 {/* Not a fetch: webcal:// hands off to the OS calendar app. */}

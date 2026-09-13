@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
   buildCalendarFeedUrls,
   buildIcsFilename,
+  countIcsEvents,
   getCalendarFeedBaseUrl,
 } from './calendarFeedUrls';
 
@@ -86,5 +87,42 @@ describe('buildIcsFilename', () => {
 
   it('bounds the length so the filename stays sane', () => {
     expect(buildIcsFilename('x'.repeat(200)).length).toBeLessThanOrEqual(70);
+  });
+});
+
+describe('countIcsEvents', () => {
+  const wrap = (body: string) =>
+    ['BEGIN:VCALENDAR', 'VERSION:2.0', body, 'END:VCALENDAR', ''].filter(Boolean).join('\r\n');
+
+  it('counts the events in a feed', () => {
+    expect(
+      countIcsEvents(
+        wrap(['BEGIN:VEVENT', 'UID:a', 'END:VEVENT', 'BEGIN:VEVENT', 'UID:b', 'END:VEVENT'].join('\r\n'))
+      )
+    ).toBe(2);
+  });
+
+  it('reports zero for the empty calendar that made the exhibitor see nothing', () => {
+    // The exact document MYK9-109 Load Show 1 was serving: valid, no events.
+    expect(countIcsEvents(wrap(''))).toBe(0);
+  });
+
+  it('is not fooled by the text appearing inside a folded description', () => {
+    // Continuation lines start with a space, so an anchored match cannot see it.
+    const ics = wrap(
+      ['BEGIN:VEVENT', 'DESCRIPTION:careful', ' BEGIN:VEVENT is only words here', 'END:VEVENT'].join(
+        '\r\n'
+      )
+    );
+    expect(countIcsEvents(ics)).toBe(1);
+  });
+
+  it('reads a feed that uses bare LF instead of CRLF', () => {
+    expect(countIcsEvents('BEGIN:VCALENDAR\nBEGIN:VEVENT\nEND:VEVENT\nEND:VCALENDAR\n')).toBe(1);
+  });
+
+  it('reports zero rather than throwing on junk', () => {
+    expect(countIcsEvents('')).toBe(0);
+    expect(countIcsEvents('<html>not a calendar</html>')).toBe(0);
   });
 });

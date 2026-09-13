@@ -34,6 +34,12 @@ import {
   buildIcsDocument,
   type CalendarClassEvent,
 } from './icsBuilder.ts';
+import {
+  resolveTrialZone,
+  selectFeedEvents,
+  type ClassEventForFeed,
+  type TrialForFeed,
+} from './eventSelection.ts';
 
 const TOKEN_PATTERN = /^[0-9a-f]{64}$/;
 
@@ -98,7 +104,9 @@ serve(async (req: Request) => {
   // weekend, and each trial carries its OWN date and timezone.
   const { data: show, error: showError } = await supabase
     .from('shows')
-    .select('id, name, venue_name, address, city, state, trials(id, name, date, timezone)')
+    .select(
+      'id, name, venue_name, address, city, state, trials(id, name, date, timezone, planned_start_time, actual_end_time)'
+    )
     .eq('id', showId)
     .is('deleted_at', null)
     .maybeSingle();
@@ -115,10 +123,26 @@ serve(async (req: Request) => {
     address: string | null;
     city: string | null;
     state: string | null;
-    trials?: Array<{ id: string; name: string | null; date: string; timezone: string | null }>;
+    trials?: Array<{
+      id: string;
+      name: string | null;
+      date: string;
+      timezone: string | null;
+      planned_start_time: string | null;
+      actual_end_time: string | null;
+    }>;
   };
 
-  const trialsById = new Map((showRow.trials ?? []).map(t => [t.id, t] as const));
+  // Snake-case DB rows -> the shape the pure selection module works in.
+  const trials: TrialForFeed[] = (showRow.trials ?? []).map(t => ({
+    id: t.id,
+    name: t.name,
+    date: t.date,
+    timezone: t.timezone,
+    plannedStartTime: t.planned_start_time,
+    plannedEndTime: t.actual_end_time,
+  }));
+  const trialsById = new Map(trials.map(t => [t.id, t] as const));
   if (trialsById.size === 0) {
     console.error('calendar-feed: show has no trials', showId);
   }
@@ -155,7 +179,9 @@ serve(async (req: Request) => {
 
   // One event per class, deduped: an exhibitor with two dogs in the same class
   // gets one calendar entry, not two overlapping ones.
-  const eventsByClass = new Map<string, CalendarClassEvent>();
+  const eventsByClass = new Map<string, ClassEventForFeed>();
+  /** The exhibitor's armbands per trial, before per-class dedup discards them. */
+  const armbandsByTrialId = new Map<string, Set<number>>();
 
   for (const raw of entries ?? []) {
     const entry = raw as unknown as {
@@ -185,16 +211,23 @@ serve(async (req: Request) => {
     const trial = trialsById.get(entry.class.trial_id);
     if (!trial) continue;
 
+    if (entry.armband !== null) {
+      const armbands = armbandsByTrialId.get(trial.id) ?? new Set<number>();
+      armbands.add(entry.armband);
+      armbandsByTrialId.set(trial.id, armbands);
+    }
+
     const existing = eventsByClass.get(entry.class.id);
     if (existing) {
       // Second dog in the same class — keep the event, drop the per-dog naming
       // rather than claim it is only about one of them.
-      existing.dogName = null;
-      existing.armband = null;
+      existing.event.dogName = null;
+      existing.event.armband = null;
       continue;
     }
 
-    eventsByClass.set(entry.class.id, {
+    const classEvent: CalendarClassEvent = {
+      kind: 'class',
       classId: entry.class.id,
       className: entry.class.name ?? 'Class',
       trialDate: trial.date,
@@ -202,18 +235,32 @@ serve(async (req: Request) => {
       actualStartTime: entry.class.actual_start_time,
       actualEndTime: entry.class.actual_end_time,
       estimatedDuration: entry.class.estimated_duration,
-      timeZone: trial.timezone?.trim() || 'America/New_York',
+      timeZone: resolveTrialZone(trial),
       venue,
       armband: entry.armband,
       dogName: entry.dog?.call_name ?? null,
       trialName: trial.name,
-    });
+    };
+    eventsByClass.set(entry.class.id, { trialId: trial.id, event: classEvent });
   }
+
+  // Per trial: real class times if the secretary published them, otherwise ONE
+  // block for the day. Class times are the exception — the day's start is
+  // normally recorded on the trial — and before this fallback existed such a
+  // show produced a valid, entirely empty calendar (MYK9-506). The rule itself
+  // lives in eventSelection.ts so vitest can hold it to account.
+  const events = selectFeedEvents({
+    trials,
+    classEvents: [...eventsByClass.values()],
+    armbandsByTrialId,
+    showName: showRow.name,
+    venue,
+  });
 
   const calendarName = showRow.name ?? 'My runs';
   const ics = buildIcsDocument({
     calendarName,
-    events: [...eventsByClass.values()],
+    events,
     dtstamp: new Date(),
     origin: feedOrigin,
   });

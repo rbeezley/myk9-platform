@@ -10,12 +10,18 @@
  * gives the "shifts as judging runs ahead or behind" behaviour the plan asks
  * for without turning the exhibitor's phone into a nag.
  *
+ * That design assumed classes carry start times. In practice almost none do —
+ * the day's start lives on the trial — so there is a second event shape: when a
+ * trial's classes are untimed, ONE block covers the trial day. See
+ * `CalendarTrialEvent` (MYK9-506).
+ *
  * All times are emitted as UTC instants (`...Z`). Emitting local times would
  * require shipping VTIMEZONE blocks; converting to UTC is exact, far less code,
  * and every client renders it back in the viewer's own zone.
  */
 
 export interface CalendarClassEvent {
+  kind: 'class';
   /** Stable per-class identity — the UID must not change between fetches. */
   classId: string;
   className: string;
@@ -37,7 +43,46 @@ export interface CalendarClassEvent {
   trialName: string | null;
 }
 
+/**
+ * The fallback event: one block for a whole trial day.
+ *
+ * Per-class times are the exception, not the rule — secretaries record the
+ * day's start on the TRIAL (`trials.planned_start_time`) and leave
+ * `classes.start_time` null. Without this shape the feed emitted nothing at
+ * all for such a show, and the exhibitor's calendar came back empty (MYK9-506).
+ */
+export interface CalendarTrialEvent {
+  kind: 'trial';
+  /** Stable per-trial identity — distinct from any class UID. */
+  trialId: string;
+  trialName: string | null;
+  showName: string | null;
+  trialDate: string;
+  /**
+   * Wall-clock start in the trial's zone. Free text as the secretary typed it
+   * (`trials.planned_start_time` is TEXT, usually "8:00 AM"), so it goes
+   * through the same 12-and-24-hour parser as everything else.
+   */
+  plannedStartTime: string | null;
+  /** Wall-clock end, same free-text shape; falls back to a default day length. */
+  plannedEndTime: string | null;
+  timeZone: string;
+  venue: string | null;
+  /** The exhibitor's own classes that day — what the block is actually for. */
+  classNames: string[];
+  /** Distinct armbands across those classes; named only when unambiguous. */
+  armbands: number[];
+}
+
+export type CalendarEvent = CalendarClassEvent | CalendarTrialEvent;
+
 const DEFAULT_DURATION_MINUTES = 60;
+/**
+ * A trial day with no published end is a whole-day commitment; 8am–5pm is the
+ * shape of a normal trial. Deliberately generous — an exhibitor who blocks too
+ * much of the day loses nothing, one who blocks too little double-books.
+ */
+const DEFAULT_TRIAL_DURATION_MINUTES = 540;
 /** Calendar clients poll on their own schedule; this is a hint, not a promise. */
 const REFRESH_INTERVAL = 'PT30M';
 
@@ -55,12 +100,11 @@ export function zonedWallTimeToUtc(
   timeZone: string
 ): Date | null {
   const dateMatch = /^(\d{4})-(\d{2})-(\d{2})$/.exec(dateISO.trim());
-  const timeMatch = /^(\d{1,2}):(\d{2})/.exec(timeHHMM.trim());
-  if (!dateMatch || !timeMatch) return null;
+  const time = parseWallClockTime(timeHHMM);
+  if (!dateMatch || !time) return null;
 
   const [, y, m, d] = dateMatch;
-  const [, hh, mm] = timeMatch;
-  const guess = Date.UTC(Number(y), Number(m) - 1, Number(d), Number(hh), Number(mm));
+  const guess = Date.UTC(Number(y), Number(m) - 1, Number(d), time.hour, time.minute);
   if (!Number.isFinite(guess)) return null;
 
   const firstOffset = zoneOffsetMs(new Date(guess), timeZone);
@@ -72,6 +116,41 @@ export function zonedWallTimeToUtc(
     instant = guess - secondOffset;
   }
   return new Date(instant);
+}
+
+/**
+ * Wall-clock text -> {hour, minute}, 24-hour and 12-hour both.
+ *
+ * Two columns feed this and they are typed differently. `classes.start_time`
+ * is a Postgres TIME, so PostgREST hands over "08:30:00" — 24-hour, always.
+ * `trials.planned_start_time` is TEXT the secretary typed, in practice
+ * "8:00 AM". Reading only the leading H:MM parses "1:00 PM" as 01:00 and puts
+ * an afternoon trial at one in the morning, so the meridiem is not optional to
+ * honour once a 12-hour source exists (MYK9-506).
+ *
+ * Returns null rather than a guess: an unparsable time must drop its event,
+ * never place it at a plausible-looking hour.
+ */
+export function parseWallClockTime(value: string): { hour: number; minute: number } | null {
+  const match = /^(\d{1,2}):(\d{2})(?::\d{2})?\s*(am|pm)?\s*$/i.exec(value.trim());
+  if (!match) return null;
+
+  const [, rawHour, rawMinute, meridiem] = match;
+  let hour = Number(rawHour);
+  const minute = Number(rawMinute);
+  if (minute > 59) return null;
+
+  if (meridiem) {
+    // 12-hour: 12am is midnight, 12pm is noon — neither is 12 on the 24h clock
+    // it maps to, so the hour must be normalised before the shift.
+    if (hour < 1 || hour > 12) return null;
+    if (hour === 12) hour = 0;
+    if (meridiem.toLowerCase() === 'pm') hour += 12;
+  } else if (hour > 23) {
+    return null;
+  }
+
+  return { hour, minute };
 }
 
 /** Offset of `timeZone` from UTC at `date`, in ms. Null for an unusable zone. */
@@ -154,7 +233,19 @@ export function foldIcsLine(line: string): string {
   return out.join('\r\n ');
 }
 
-function resolveWindow(event: CalendarClassEvent): { start: Date; end: Date } | null {
+function resolveTrialWindow(event: CalendarTrialEvent): { start: Date; end: Date } | null {
+  if (!event.plannedStartTime) return null;
+  const start = zonedWallTimeToUtc(event.trialDate, event.plannedStartTime, event.timeZone);
+  if (!start || Number.isNaN(start.getTime())) return null;
+
+  if (event.plannedEndTime) {
+    const end = zonedWallTimeToUtc(event.trialDate, event.plannedEndTime, event.timeZone);
+    if (end && !Number.isNaN(end.getTime()) && end > start) return { start, end };
+  }
+  return { start, end: new Date(start.getTime() + DEFAULT_TRIAL_DURATION_MINUTES * 60_000) };
+}
+
+function resolveClassWindow(event: CalendarClassEvent): { start: Date; end: Date } | null {
   const start = event.actualStartTime
     ? new Date(event.actualStartTime)
     : event.startTime
@@ -182,11 +273,29 @@ function buildSummary(event: CalendarClassEvent): string {
 }
 
 /**
- * One VEVENT. Returns '' when the class has no resolvable time — a class with
- * no schedule yet must be omitted, never emitted at a guessed hour.
+ * Whether this event will actually appear in the feed.
+ *
+ * Exported because `index.ts` has to decide, per trial, whether the per-class
+ * events carry real times or the trial-level block must stand in for them.
+ * Re-deriving that rule there is how the two halves come to disagree, so there
+ * is exactly one answer to "is this timeable" and it lives here.
  */
-export function buildVEvent(event: CalendarClassEvent, dtstamp: Date, origin: string): string {
-  const window = resolveWindow(event);
+export function hasResolvableTime(event: CalendarEvent): boolean {
+  return (event.kind === 'class' ? resolveClassWindow(event) : resolveTrialWindow(event)) !== null;
+}
+
+/**
+ * One VEVENT. Returns '' when the event has no resolvable time — nothing is
+ * ever emitted at a guessed hour.
+ */
+export function buildVEvent(event: CalendarEvent, dtstamp: Date, origin: string): string {
+  return event.kind === 'class'
+    ? buildClassVEvent(event, dtstamp, origin)
+    : buildTrialVEvent(event, dtstamp, origin);
+}
+
+function buildClassVEvent(event: CalendarClassEvent, dtstamp: Date, origin: string): string {
+  const window = resolveClassWindow(event);
   if (!window) return '';
 
   const descriptionParts = [
@@ -213,9 +322,43 @@ export function buildVEvent(event: CalendarClassEvent, dtstamp: Date, origin: st
   return lines.map(foldIcsLine).join('\r\n');
 }
 
+function buildTrialVEvent(event: CalendarTrialEvent, dtstamp: Date, origin: string): string {
+  const window = resolveTrialWindow(event);
+  if (!window) return '';
+
+  const summary = [event.showName?.trim(), event.trialName?.trim()].filter(Boolean).join(' — ');
+
+  const descriptionParts = [
+    event.classNames.length > 0 ? `Your classes: ${event.classNames.join(', ')}` : null,
+    // Several armbands would read as a list of numbers with nothing to attach
+    // them to; one is the exhibitor's own identifier at ringside.
+    event.armbands.length === 1 ? `Armband: ${event.armbands[0]}` : null,
+    'Ring times are not posted yet. This covers the whole day — check the show page for your running order.',
+  ].filter(Boolean) as string[];
+
+  const lines = [
+    'BEGIN:VEVENT',
+    // Namespaced apart from class UIDs so a trial block and a class event can
+    // never collide, and so the block disappears cleanly once real class times
+    // arrive and the feed stops emitting it.
+    `UID:trial-${event.trialId}@${origin}`,
+    `DTSTAMP:${formatIcsUtc(dtstamp)}`,
+    `DTSTART:${formatIcsUtc(window.start)}`,
+    `DTEND:${formatIcsUtc(window.end)}`,
+    `SUMMARY:${escapeIcsText(summary || 'Show day')}`,
+    event.venue ? `LOCATION:${escapeIcsText(event.venue)}` : null,
+    `DESCRIPTION:${escapeIcsText(descriptionParts.join('\n'))}`,
+    // A whole-day placeholder is provisional by construction.
+    'STATUS:TENTATIVE',
+    'END:VEVENT',
+  ].filter(Boolean) as string[];
+
+  return lines.map(foldIcsLine).join('\r\n');
+}
+
 export interface CalendarDocumentOptions {
   calendarName: string;
-  events: CalendarClassEvent[];
+  events: CalendarEvent[];
   dtstamp: Date;
   /** Host used to namespace UIDs; keep stable across deploys. */
   origin: string;

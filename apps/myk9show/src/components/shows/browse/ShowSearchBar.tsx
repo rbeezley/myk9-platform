@@ -82,7 +82,7 @@ export function ShowSearchBar({
         value={search}
         onChange={onSearchChange}
         placeholder={searchPlaceholder}
-        className="w-full shrink-0 sm:w-52"
+        className="w-full shrink-0 sm:w-80"
       />
       <Popover open={open} onOpenChange={setOpen}>
         <PopoverTrigger asChild nativeButton>

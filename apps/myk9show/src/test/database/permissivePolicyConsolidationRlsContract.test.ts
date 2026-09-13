@@ -75,6 +75,47 @@ const reviewedLaterPolicyDdl: Readonly<Record<string, string>> = {
     'is_show_office_manager(). enrollments SELECT, and every other reviewed table, are ' +
     'untouched. No grant, RLS-mode, or existing-helper change, so the consolidation counts and ' +
     'overlap groups this test pins are unaffected.',
+  '20260912154500_scope_public_select_policies_to_published_shows.sql':
+    'MYK9-469 / SA-2026-09-12-01. Replaces the unconditional USING (TRUE) on four PUBLIC SELECT ' +
+    'policies that let anon read rows belonging to unpublished shows: from this inventory it ' +
+    'touches judge_assignments (judge_assignments_select) only — armbands, achievements and ' +
+    'show_templates are not reviewed tables. The public predicate admits the row when its show ' +
+    'is non-deleted and in published/upcoming/in_progress/completed; the authenticated policy ' +
+    'repeats it and adds the assigned judge, show office managers, show officials and site ' +
+    'admin. SPLITS the single PUBLIC judge_assignments_select into judge_assignments_anon_select ' +
+    '(TO anon, public predicate only) plus judge_assignments_select (TO authenticated), because ' +
+    'anon has no EXECUTE on is_show_office_manager/can_manage_show and evaluating them raises ' +
+    '42501 for the whole request — the shape entries already uses (entries_anon_select_for_tv TO ' +
+    'anon, entries_select TO authenticated). The two policies target DIFFERENT roles, so they ' +
+    'form no multiple-permissive-policies overlap and add nothing to the MYK9-112 debt. SELECT ' +
+    'only — no INSERT/UPDATE/DELETE policy, grant, RLS-mode or helper change, so the ' +
+    'consolidation counts this test pins are unaffected.',
+  '20260912171500_scope_unscoped_role_predicates.sql':
+    'MYK9-470 / SA-2026-09-12-02. Replaces the ARGUMENT-LESS is_club_admin()/is_trial_secretary() ' +
+    '("any club") with show-scoped predicates. From this inventory it touches vaccinations ' +
+    '(vaccinations_select) and offline_scoring (offline_scoring_insert/update/delete); the other ' +
+    'tables in the migration — nationals_scores/rankings/advancement and result_submissions — are ' +
+    'not reviewed tables. volunteer_roles IS a reviewed table and is deliberately NOT changed: it ' +
+    'has no show_id or club_id to scope by, so its unscoped write is recorded as an intentional ' +
+    'boundary in a COMMENT ON TABLE instead. Policy names, commands and roles are all unchanged ' +
+    '(same SELECT on vaccinations, same INSERT/UPDATE/DELETE on offline_scoring, all TO ' +
+    'authenticated) — predicates only, like the MYK9-147 and MYK9-469 entries above. Scoping uses ' +
+    'the UNCORRELATED manageable_show_ids() and a new secretary-only trial_secretary_show_ids(), ' +
+    'never a per-row can_manage_show(), so it does not reintroduce the 20260611120000 ' +
+    'statement-timeout shape. offline_scoring_select (is_real_account, MYK9-117) and ' +
+    'volunteer_roles_select are untouched, so the consolidation counts and overlap groups this ' +
+    'test pins are unaffected.',
+  '20260912194500_vaccinations_select_dog_soft_delete.sql':
+    'MYK9-475. From this inventory it touches vaccinations (vaccinations_select) only. Adds the ' +
+    'dog-level `deleted_at IS NULL` gate that the owner arm was missing, by restructuring the ' +
+    'predicate into one correlated EXISTS over dogs.id so soft-delete AND-s over every ' +
+    'dog-derived arm — the same shape achievements_select took in MYK9-469, and matching ' +
+    "dogs_select. Narrowing only: it removes access to a soft-deleted dog's records and adds " +
+    'none. Same policy name, same SELECT command, same TO authenticated role — predicate only, ' +
+    'like the MYK9-147 / MYK9-469 / MYK9-470 entries above. The MYK9-470 secretary arm and its ' +
+    'UNCORRELATED trial_secretary_show_ids() are preserved, and vaccinations ' +
+    'INSERT/UPDATE/DELETE (which carry a has_effective_premium_access arm) are untouched, so ' +
+    'the consolidation counts this test pins are unaffected.',
 };
 
 const tableCases: TableCase[] = [

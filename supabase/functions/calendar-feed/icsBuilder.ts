@@ -240,3 +240,25 @@ export function buildIcsDocument(options: CalendarDocumentOptions): string {
 
   return [...header, ...body, 'END:VCALENDAR', ''].join('\r\n');
 }
+
+/**
+ * Filename for the one-off download, derived from the show's own name.
+ *
+ * This has to be decided HERE, not by the client's `download` attribute: the
+ * feed is served from a different origin than the app, and browsers ignore
+ * `download` cross-origin. Content-Disposition is therefore the only thing
+ * that actually names the saved file, and before this every show saved as the
+ * same generic "myk9show-runs.ics".
+ *
+ * ASCII-only and quote-free by construction, so it is safe to interpolate
+ * into the header without RFC 5987 encoding.
+ */
+export function buildIcsAttachmentFilename(showName: string | null | undefined): string {
+  const slug = (showName ?? '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .slice(0, 60)
+    .replace(/-+$/g, '');
+  return slug ? `${slug}-runs.ics` : 'myk9show-runs.ics';
+}

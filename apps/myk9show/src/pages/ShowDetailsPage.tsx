@@ -11,6 +11,8 @@ import { useShowLandingData } from '@/hooks/useShowLandingData';
 import { useNavigationPerformance } from '@/hooks/useNavigationPerformance';
 import { useAuthContext } from '@/hooks/useAuthContext';
 import { useShowManageGate } from './ShowDetailsPage.viewer';
+import { hasScopedClubRole } from '@/utils/roleScopes';
+import { UserRole } from '@/types/auth-types';
 import { useTrialStore } from '@/store/trialStore';
 import { resolveEntryClassInventory } from './ShowDetailsPage.entryInventory';
 import type { SyncableTrialClass } from '@/store/trial-store-types';
@@ -52,7 +54,15 @@ const ShowDetailsPage: React.FC = () => {
   const [searchParams] = useSearchParams();
   const managementSectionMatch = useMatch('/shows/:id/:section/*');
   const { endNavigation } = useNavigationPerformance();
-  const { user, userWithRoles, isSecretary, isAdmin, hasRole } = useAuthContext();
+  const {
+    user,
+    loading: authLoading,
+    userWithRoles,
+    isSecretary,
+    isAdmin,
+    rbacLoading,
+  } = useAuthContext();
+  const canReadEntryRows = Boolean(user && user.is_anonymous !== true);
   const trials = useTrialStore(s => s.trials);
   const trialClasses = useTrialStore(s => s.trialClasses);
   const trialClassesReadStatus = useTrialStore(s => s.trialClassesReadStatus);
@@ -62,7 +72,7 @@ const ShowDetailsPage: React.FC = () => {
     data: showEntries = [],
     isLoading: showEntriesLoading,
     isError: showEntriesIsError,
-  } = useEntriesByShowQuery(id || '', Boolean(id && isValidUUID(id)));
+  } = useEntriesByShowQuery(id || '', Boolean(id && isValidUUID(id) && canReadEntryRows));
   const { dogs } = useDogStoreCompat();
 
   // Use fast show details loading with cache optimization
@@ -126,6 +136,8 @@ const ShowDetailsPage: React.FC = () => {
     (SHOW_MANAGEMENT_SECTIONS.some(item => item.path === activeManagementSection) ||
       activeManagementSection === 'classes')
   );
+  const isScopedSecretary =
+    isSecretary && hasScopedClubRole(userWithRoles, UserRole.SECRETARY, actualCurrentShow?.clubId);
 
   useEffect(() => {
     if (!id || !isValidUUID(id)) return;
@@ -155,7 +167,12 @@ const ShowDetailsPage: React.FC = () => {
   // classes, and per-trial stats fetched via anon-safe PostgREST when the
   // replicated store is cold (guest session). See useShowLandingData.
   const { landingTrials, publicShowClasses, publicTrialStats, publicClassInventoryResolved } =
-    useShowLandingData(showId_, associatedTrials, showEntriesIsError ? null : showEntries);
+    useShowLandingData(
+      showId_,
+      associatedTrials,
+      canReadEntryRows && !showEntriesIsError ? showEntries : null,
+      !canReadEntryRows && !authLoading
+    );
   // For tabs/counts/derivations, treat landingTrials as the effective trial
   // list: it IS associatedTrials when the store is warm, and the anon-safe
   // public rows when the store is cold. (Lane 3.7)
@@ -187,9 +204,9 @@ const ShowDetailsPage: React.FC = () => {
   const audience = resolveShowAudience({
     isManagementSection,
     forcePublicPreview: searchParams.get('preview') === 'public',
-    isSecretary,
-    isAdmin,
-    isClubAdmin: hasRole('club_admin'),
+    canManageShow,
+    isManagementStaff: isAdmin || isScopedSecretary,
+    rbacLoading: rbacLoading && !userWithRoles,
     isAuthenticated,
     userEntriesLoading: exhibitorEntryDataState === 'loading',
     hasUserEntries: hasOwnedEntryHistory,
@@ -423,6 +440,7 @@ const ShowDetailsPage: React.FC = () => {
       <ShowPublicLanding
         show={actualCurrentShow}
         landingTrials={landingTrials}
+        offeredClasses={publicShowClasses}
         hasEntryClassInventory={hasEntryClassInventory}
         entryNotYetOpen={entryStatus.status === 'not_yet_open'}
         refreshFailed={refreshFailed}

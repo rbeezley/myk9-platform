@@ -64,7 +64,11 @@ export function SecretaryRunSheet({
   });
 
   return (
-    <div className="mt-6 space-y-3">
+    // The operational surface's one stable hook. `canOperate` decides whether
+    // this renders at all (MYK9-464), and an e2e ABSENCE assertion needs a
+    // locator that matches something real — anchoring on inner copy like "Set
+    // run order" would silently pass whenever that conditional link is hidden.
+    <div className="mt-6 space-y-3" data-testid="secretary-run-sheet">
       {parentShowId && sortedEntries.length > 1 && (
         <div className="flex justify-end">
           <Link

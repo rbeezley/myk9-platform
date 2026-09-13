@@ -4,6 +4,7 @@ import webpush from 'npm:web-push@3';
 import { handle } from '../_shared/http/handler.ts';
 import { MYK9SHOW_ORIGINS } from '../_shared/http/cors.ts';
 import { HttpError } from '../_shared/http/responses.ts';
+import { timingSafeEqual } from '../_shared/timingSafeEqual.ts';
 
 const vapidPublicKey = Deno.env.get('VAPID_PUBLIC_KEY')!;
 const vapidPrivateKey = Deno.env.get('VAPID_PRIVATE_KEY')!;
@@ -36,9 +37,18 @@ handle<SendPushPayload>(
       throw new HttpError(400, 'user_id and payload are required');
     }
 
-    // If not service role key, verify as JWT and enforce self-send only
+    // If not service role key, verify as JWT and enforce self-send only.
+    //
+    // MYK9-471 / SA-2026-09-12-03: this was `token !== supabaseServiceKey`, the last
+    // non-constant-time secret comparison in the repo after MYK9-404 fixed
+    // send-confirmation-email. Every other gate — requireFunctionSecret,
+    // requirePushWebhookSecret, assertWaitlistInviteSecret, requireConfirmationEmailSecret —
+    // uses the shared constant-time compare, and the value on the right here is the SERVICE
+    // ROLE KEY rather than a single-purpose function secret. Not practically exploitable over a
+    // network against a high-entropy key; the point is that the next gate someone copies from
+    // should be the right shape.
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-    if (token !== supabaseServiceKey) {
+    if (!timingSafeEqual(token, supabaseServiceKey)) {
       const {
         data: { user },
         error: authError,

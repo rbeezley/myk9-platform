@@ -135,8 +135,18 @@ test.describe('Phase 4 cross-role seams — render-only (exhibitor)', () => {
     // (Show/dog NAMES read "Unknown" here — the scored-entry path bypasses the
     // replication name join; documented cosmetic gap, same as the secretary
     // pull card. The seam STATUSES below are the cross-role evidence.)
+    //
+    // The seam status is the DOG CARD's rolled-up chip since the dog-first
+    // redesign (MYK9-482), so it is read inside a dog card rather than
+    // anywhere on the page — a page-wide match could be satisfied by a filter
+    // chip. "Pending Secretary Approval" is dropped: the exhibitor vocabulary
+    // has said "Pending review" since `reviewStateLabels`, so that alternative
+    // could never have matched.
     await expect(
-      page.getByText(/Withdrawn|Scratched|Pending Secretary Approval/i).first()
+      page
+        .locator('.myk9-entries-dog-card')
+        .filter({ hasText: /Withdrawn|Scratched|Pulled|Pending review/i })
+        .first()
     ).toBeVisible({
       timeout: 9000,
     });

@@ -57,7 +57,8 @@ set -euo pipefail
 # Outcome ignored entirely. Keep this list as short as it can possibly be --
 # every entry is a job that can be broken without blocking a deploy.
 INFORMATIONAL_JOBS='[
-  "Test myK9Show (coverage)"
+  "Test myK9Show (coverage)",
+  "Supabase types drift (report-only)"
 ]'
 
 # Must each be present AND `success`. Deliberately the aggregators rather than

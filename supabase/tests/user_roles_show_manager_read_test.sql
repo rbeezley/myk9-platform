@@ -80,10 +80,10 @@ SELECT fixture.person_id, r.id, fixture.club_id, NULL, fixture.is_active,
        fixture.auth_id, fixture.expires_at
 FROM (VALUES
   ('00000000-0000-0000-0000-000000457011'::uuid, 'secretary'::text, '00000000-0000-0000-0000-000000457001'::uuid, true,  '00000000-0000-0000-0000-000000457101'::uuid, NULL::timestamptz),
-  ('00000000-0000-0000-0000-000000457012'::uuid, 'judge'::text,     NULL::uuid,                                   true,  '00000000-0000-0000-0000-000000457102'::uuid, NULL::timestamptz),
+  ('00000000-0000-0000-0000-000000457012'::uuid, 'judge'::text,     '00000000-0000-0000-0000-000000457001'::uuid, true,  '00000000-0000-0000-0000-000000457102'::uuid, NULL::timestamptz),
   ('00000000-0000-0000-0000-000000457012'::uuid, 'club_admin'::text,'00000000-0000-0000-0000-000000457001'::uuid, true,  '00000000-0000-0000-0000-000000457102'::uuid, NULL::timestamptz),
   ('00000000-0000-0000-0000-000000457014'::uuid, 'club_admin'::text,'00000000-0000-0000-0000-000000457002'::uuid, true,  '00000000-0000-0000-0000-000000457104'::uuid, NULL::timestamptz),
-  ('00000000-0000-0000-0000-000000457015'::uuid, 'judge'::text,     NULL::uuid,                                   true,  '00000000-0000-0000-0000-000000457105'::uuid, NULL::timestamptz),
+  ('00000000-0000-0000-0000-000000457015'::uuid, 'judge'::text,     '00000000-0000-0000-0000-000000457002'::uuid, true,  '00000000-0000-0000-0000-000000457105'::uuid, NULL::timestamptz),
   ('00000000-0000-0000-0000-000000457016'::uuid, 'site_admin'::text,NULL::uuid,                                   true,  '00000000-0000-0000-0000-000000457106'::uuid, NULL::timestamptz),
   ('00000000-0000-0000-0000-000000457017'::uuid, 'judge'::text,     NULL::uuid,                                   false, '00000000-0000-0000-0000-000000457107'::uuid, NULL::timestamptz),
   ('00000000-0000-0000-0000-000000457018'::uuid, 'judge'::text,     NULL::uuid,                                   true,  '00000000-0000-0000-0000-000000457108'::uuid, now() - interval '1 day'),
@@ -131,8 +131,8 @@ BEGIN
     '00000000-0000-0000-0000-000000457015'::uuid
   ])
   WHERE role_name = 'judge';
-  IF visible <> 2 THEN
-    RAISE EXCEPTION 'FAIL secretary did not receive both current judge labels (visible=%)', visible;
+  IF visible <> 1 THEN
+    RAISE EXCEPTION 'FAIL secretary received an out-of-scope judge label (visible=%)', visible;
   END IF;
   SELECT count(*) INTO visible
   FROM public.get_visible_person_roles(ARRAY[
@@ -206,8 +206,8 @@ BEGIN
     'sub', secretary_uid, 'role', 'authenticated')::text, true);
   SELECT count(*) INTO visible
   FROM public.get_visible_person_ids_by_role('judge');
-  IF visible <> 2 THEN
-    RAISE EXCEPTION 'FAIL secretary did not receive both current judge IDs (visible=%)', visible;
+  IF visible <> 1 THEN
+    RAISE EXCEPTION 'FAIL secretary received an out-of-scope judge ID (visible=%)', visible;
   END IF;
   SELECT count(*) INTO visible
   FROM public.get_visible_person_ids_by_role('club_admin')

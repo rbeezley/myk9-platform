@@ -11,8 +11,9 @@
 --   intentionally heavy persona; targeted exhibitor tests must tolerate 504
 --   additional entries. It also includes complete show officials and
 --   full RBAC role coverage so every role's golden path is walkable after a reseed:
---     - Show officials are modeled through user_roles grants. classes.judge_name
---       remains a snapshot of the assigned judge (section 2 + 4).
+--     - Show officials are modeled through user_roles grants. A class's judge is
+--       ONLY its judge_assignments row (section 11); classes.judge_name was
+--       dropped by 20260912234500 (MYK9-479).
 --     - Judges modeled as PEOPLE, not strings: judge_qualifications rows carry
 --       each judge's number + disciplines (section 13); CLASS-LEVEL
 --       judge_assignments put all 5 classes on each judge's dashboard (section
@@ -550,55 +551,54 @@ VALUES
 -- ---------------------------------------------------------------------------
 -- 4. Classes (10) -- valid element/level/section, status 'upcoming'
 --    Saturday: 3 classes  |  Sunday: 2 classes  |  Sunday UKC: 2  |  Sunday ASCA: 2
---    judge_name is a DENORMALIZED SNAPSHOT of the assigned judge ('Test Judge' =
---    judge@myk9t.com), NOT the source of truth: the relational link is
---    judge_assignments.person_id (section 11) + judge_qualifications (section 13).
---    Kept as a label so historical scorecards/reports print the name as-judged.
+--    No judge column here: a class's judge is its judge_assignments row
+--    (section 11), resolved through people + judge_qualifications (section 13).
+--    classes.judge_name was dropped by 20260912234500 (MYK9-479).
 -- ---------------------------------------------------------------------------
 INSERT INTO public.classes (
-  id, trial_id, name, level, element, section, judge_name,
+  id, trial_id, name, level, element, section,
   entry_fee, status, time_limit_seconds, num_hides, num_areas,
   has_blank, timer_mode, hides_known, display_order, version
 )
 VALUES
   ('dec1a55e-0000-0000-0000-000000000031', 'dededede-0000-0000-0000-000000000021',
-   'Container Novice A', 'Novice', 'Container', 'A', 'Test Judge',
+   'Container Novice A', 'Novice', 'Container', 'A',
    30.00, 'upcoming', 120, 1, 1, false, 'single', true, 1, 1),
   ('dec1a55e-0000-0000-0000-000000000032', 'dededede-0000-0000-0000-000000000021',
-   'Interior Advanced', 'Advanced', 'Interior', NULL, 'Test Judge',
+   'Interior Advanced', 'Advanced', 'Interior', NULL,
    30.00, 'upcoming', 180, 2, 2, false, 'single', true, 2, 1),
   ('dec1a55e-0000-0000-0000-000000000033', 'dededede-0000-0000-0000-000000000021',
-   'Exterior Excellent', 'Excellent', 'Exterior', NULL, 'Test Judge',
+   'Exterior Excellent', 'Excellent', 'Exterior', NULL,
    30.00, 'upcoming', 180, 2, 1, false, 'single', false, 3, 1),
   ('dec1a55e-0000-0000-0000-000000000034', 'dededede-0000-0000-0000-000000000022',
-   'Buried Master', 'Master', 'Buried', NULL, 'Test Judge',
+   'Buried Master', 'Master', 'Buried', NULL,
    30.00, 'upcoming', 240, 3, 1, true, 'single', false, 1, 1),
   ('dec1a55e-0000-0000-0000-000000000035', 'dededede-0000-0000-0000-000000000022',
-   'Interior Novice B', 'Novice', 'Interior', 'B', 'Test Judge',
+   'Interior Novice B', 'Novice', 'Interior', 'B',
    30.00, 'upcoming', 120, 1, 1, false, 'single', true, 2, 1),
   -- UKC Nosework (registry_id 'UKC' on trial ...023) -- elements/levels per
   -- sport_templates 'ukc-nosework' (030_seed_sport_templates.sql): Container,
   -- Interior, Exterior, Vehicle, Handler Discrimination x Novice..Elite.
   ('dec1a55e-0000-0000-0000-000000000036', 'dededede-0000-0000-0000-000000000023',
-   'Container Novice', 'Novice', 'Container', NULL, 'Test Judge',
+   'Container Novice', 'Novice', 'Container', NULL,
    30.00, 'upcoming', 120, 1, 1, false, 'single', true, 1, 1),
   ('dec1a55e-0000-0000-0000-000000000037', 'dededede-0000-0000-0000-000000000023',
-   'Vehicle Advanced', 'Advanced', 'Vehicle', NULL, 'Test Judge',
+   'Vehicle Advanced', 'Advanced', 'Vehicle', NULL,
    30.00, 'upcoming', 180, 2, 1, false, 'single', true, 2, 1),
   -- ASCA Scent Detection (registry_id 'ASCA' on trial ...024) -- elements/levels
   -- per sport_templates 'asca-scent-detection': Container, Interior, Exterior,
   -- Vehicle x Novice/Open/Advanced/Excellent.
   ('dec1a55e-0000-0000-0000-000000000038', 'dededede-0000-0000-0000-000000000024',
-   'Container Novice', 'Novice', 'Container', NULL, 'Test Judge',
+   'Container Novice', 'Novice', 'Container', NULL,
    30.00, 'upcoming', 120, 1, 1, false, 'single', true, 1, 1),
   ('dec1a55e-0000-0000-0000-000000000039', 'dededede-0000-0000-0000-000000000024',
-   'Exterior Open', 'Open', 'Exterior', NULL, 'Test Judge',
+   'Exterior Open', 'Open', 'Exterior', NULL,
    30.00, 'upcoming', 180, 2, 1, false, 'single', true, 2, 1),
   -- Purpose-built two-entry class for the unreleased-results fixture. It is
   -- intentionally outside the MYK9-109 load set so every eligible entry can
   -- be scored and its persisted placements can be read back deterministically.
   ('dec1a55e-0000-0000-0000-000000000040', 'dededede-0000-0000-0000-000000000021',
-   'Interior Advanced Preliminary', 'Advanced', 'Interior', NULL, 'Test Judge',
+   'Interior Advanced Preliminary', 'Advanced', 'Interior', NULL,
    30.00, 'upcoming', 180, 2, 2, false, 'single', true, 4, 1);
 
 -- ---------------------------------------------------------------------------
@@ -1287,8 +1287,8 @@ WHERE ur.user_id = p.id
 --     vacuously. Assigning all nine would silently delete the negative case, so
 --     seedDemoOfficialsContract pins 036 as absent from this block.
 --
---     trial_id matches each class's trial, and the judge is named "Test Judge" to
---     match the classes.judge_name snapshot written above.
+--     trial_id matches each class's trial. The judge's display name ("Test
+--     Judge") comes from the people row; there is no per-class name column.
 --
 --     SCOPE NOTE: a judge_assignments row fixes the judge's SCHEDULING surface.
 --     It does NOT by itself grant entry-visibility RLS at ringside — entries_select
@@ -1373,9 +1373,8 @@ END $$;
 -- 13. Judge qualifications (people-table judge model, not free text).
 --     A judge is a `people` row with attributes we reason about — their judge
 --     NUMBER and WHAT THEY CAN JUDGE — recorded in judge_qualifications, NOT a
---     `classes.judge_name` string. (classes.judge_name above is a denormalized
---     report/scorecard SNAPSHOT of the assigned judge, never the source of
---     truth; the relational link is judge_assignments.person_id in section 11.)
+--     free-text name string. The relational link is judge_assignments.person_id
+--     in section 11; every report and scorecard resolves the name through it.
 --     A judge does NOT need a login for this — judge_qualifications.person_id
 --     just references people; both demo judges happen to also hold a login +
 --     the section 10b `judge` role grant, which is what surfaces them in the
@@ -1744,7 +1743,7 @@ CROSS JOIN generate_series(1, 2) AS load_trials(t);
 -- Two classes per trial, matching the show-0 layout. class c belongs to trial
 -- ((c - 1) / 2) + 1, which loadFixture.ts pins in a test.
 INSERT INTO public.classes (
-  id, trial_id, name, level, element, section, judge_name,
+  id, trial_id, name, level, element, section,
   entry_fee, status, time_limit_seconds, num_hides, num_areas,
   has_blank, timer_mode, hides_known, display_order, version
 )
@@ -1759,7 +1758,7 @@ SELECT
     WHEN 2 THEN 'Exterior'
     ELSE 'Buried'
   END,
-  NULL, 'Test Judge',
+  NULL,
   30.00, 'upcoming', 180, 2, 2, false, 'single', true, c, 1
 FROM generate_series(1, 3) AS load_shows(s)
 CROSS JOIN generate_series(1, 4) AS load_classes(c);

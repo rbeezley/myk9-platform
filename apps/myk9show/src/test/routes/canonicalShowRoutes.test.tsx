@@ -31,6 +31,12 @@ vi.mock('@/hooks/useAuthContext', () => ({
 
 vi.mock('@/hooks/queries/useShowsDatabase', () => ({
   useShowsQuery: () => mockShows,
+  useShowQuery: (id?: string) => ({
+    data: mockShows.data.find(show => show.id === id) ?? null,
+    isLoading: mockShows.isLoading,
+    isError: false,
+    isPlaceholderData: false,
+  }),
 }));
 
 vi.mock('@/context/AuthContext', () => ({
@@ -244,8 +250,10 @@ describe('canonical show management routes', () => {
     'secretary renders %s through the production PublicRoutes tree',
     async (path, sectionTestId) => {
       mockAuth.hasRole = (role: string) => role === UserRole.SECRETARY;
-      mockAuth.userWithRoles = null;
-      mockShows.data = [];
+      mockAuth.userWithRoles = {
+        scopes: [{ scopeType: ScopeType.CLUB, scopeId: 'club-a', roleId: UserRole.SECRETARY }],
+      };
+      mockShows.data = [{ id: 'show-1', clubId: 'club-a' }];
       mockShows.isLoading = false;
 
       render(
@@ -324,6 +332,26 @@ describe('canonical show management routes', () => {
 
     expect(await screen.findByTestId('production-show-details')).toBeInTheDocument();
     expect(screen.getByTestId('production-setup')).toBeInTheDocument();
+  });
+
+  it('redirects a secretary scoped to a different club', async () => {
+    mockAuth.hasRole = (role: string) => role === UserRole.SECRETARY;
+    mockAuth.userWithRoles = {
+      scopes: [{ scopeType: ScopeType.CLUB, scopeId: 'club-b', roleId: UserRole.SECRETARY }],
+    };
+    mockShows.data = [{ id: 'show-1', clubId: 'club-a' }];
+    mockShows.isLoading = false;
+
+    render(
+      <MemoryRouter initialEntries={['/shows/show-1/setup']}>
+        <Routes>{PublicRoutes()}</Routes>
+      </MemoryRouter>
+    );
+
+    expect(await screen.findByTestId('production-show-details-location')).toHaveTextContent(
+      '/shows/show-1'
+    );
+    expect(screen.queryByTestId('production-setup')).not.toBeInTheDocument();
   });
 
   it('redirects a club admin scoped to a different club', async () => {

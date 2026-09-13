@@ -1,6 +1,6 @@
 import { useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { getTrialsByShow } from '@/services/database/trials';
+import { getPublicTrialsByShow, getTrialsByShow } from '@/services/database/trials';
 import { getClassesByTrialId } from '@/services/database/classes';
 import { pickLandingTrials } from '@/pages/ShowDetailsPage.landingTrials';
 import {
@@ -50,8 +50,10 @@ export interface ShowLandingData {
 export function useShowLandingData(
   showId: string | undefined,
   associatedTrials: Trial[],
-  showEntries: Record<string, unknown>[] | null
+  showEntries: Record<string, unknown>[] | null,
+  isSignedOut = false
 ): ShowLandingData {
+  const storeTrialsAreAuthoritative = associatedTrials.length > 0 && !isSignedOut;
   // Public/anon fallback for trials. The trial store (associatedTrials) is fed by the
   // replication layer, which does NOT sync for guests — so a cold signed-out visitor on a
   // public styled landing has zero replicated trials even though the public show loaded.
@@ -59,14 +61,19 @@ export function useShowLandingData(
   // replicated store, so it works for anon. We only enable it when the store is empty, then
   // map the rows to the Trial[] the landing expects.
   const { data: publicTrialsResult } = useQuery({
-    queryKey: ['public-show-trials', showId],
-    queryFn: () => getTrialsByShow(showId as string),
-    enabled: !!showId && associatedTrials.length === 0,
+    queryKey: ['public-show-trials', showId, isSignedOut ? 'anon' : 'authenticated'],
+    queryFn: () =>
+      isSignedOut ? getPublicTrialsByShow(showId as string) : getTrialsByShow(showId as string),
+    enabled: !!showId && !storeTrialsAreAuthoritative,
     staleTime: 60_000,
   });
   const landingTrials = useMemo(
-    () => pickLandingTrials(associatedTrials, publicTrialsResult?.data),
-    [associatedTrials, publicTrialsResult]
+    () =>
+      pickLandingTrials(
+        storeTrialsAreAuthoritative ? associatedTrials : [],
+        publicTrialsResult?.data
+      ),
+    [associatedTrials, publicTrialsResult, storeTrialsAreAuthoritative]
   );
 
   // Public/anon fallback for trial *classes*. Same cold-store gap as trials:
@@ -92,7 +99,7 @@ export function useShowLandingData(
         );
         return results;
       },
-      enabled: !!showId && associatedTrials.length === 0 && landingTrials.length > 0,
+      enabled: !!showId && !storeTrialsAreAuthoritative && landingTrials.length > 0,
       staleTime: 60_000,
     }
   );
@@ -124,7 +131,7 @@ export function useShowLandingData(
    * callers can treat this as "the cold path has nothing outstanding".
    */
   const publicClassInventoryResolved =
-    associatedTrials.length > 0 || landingTrials.length === 0 ? true : publicClassesLoaded;
+    storeTrialsAreAuthoritative || landingTrials.length === 0 ? true : publicClassesLoaded;
 
   return { landingTrials, publicShowClasses, publicTrialStats, publicClassInventoryResolved };
 }

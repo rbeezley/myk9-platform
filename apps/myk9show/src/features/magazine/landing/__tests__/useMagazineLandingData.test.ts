@@ -1,4 +1,6 @@
-import { renderHook } from '@testing-library/react';
+import { renderHook as baseRenderHook } from '@testing-library/react';
+import React from 'react';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { describe, expect, it, vi } from 'vitest';
 import type { Show } from '@/types/show-types';
 import type { Trial } from '@/components/trials/types/trial.types';
@@ -12,6 +14,14 @@ import {
 vi.mock('@/hooks/queries/useEntriesDatabase', () => ({
   useEntriesByShowQuery: () => ({ data: [] }),
 }));
+
+vi.mock('@/hooks/useAuthContext', () => ({
+  useAuthContext: () => ({ user: null, loading: false }),
+}));
+
+const wrapper = ({ children }: { children: React.ReactNode }) =>
+  React.createElement(QueryClientProvider, { client: new QueryClient() }, children);
+const renderHook = <Result>(callback: () => Result) => baseRenderHook(callback, { wrapper });
 
 describe('toLowerRoman', () => {
   it('converts small numbers to lowercase Roman numerals', () => {

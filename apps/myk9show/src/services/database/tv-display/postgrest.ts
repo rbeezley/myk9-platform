@@ -1,5 +1,6 @@
 import { supabase } from '../supabaseClient';
 import { fetchPublicEntryCountsByShow, type PublicClassCounts } from '../_shared/entryCounts';
+import { fetchJudgeNamesByClass } from '../_shared/judgeNamesByClass';
 import { isExpectedEntry } from '@/features/_shared/entryAccounting';
 import {
   groupEntriesByClass,
@@ -94,14 +95,15 @@ export async function getPostgrestTVDisplayData(
     .from('shows')
     .select('id, name, start_date, end_date')
     .eq('id', showId)
-    .single();
+    .maybeSingle();
 
-  if (showError || !showData) return { show: null, classes: [] };
+  if (showError) throw new Error(`Unable to load TV show: ${showError.message}`);
+  if (!showData) return { show: null, classes: [] };
 
   let classQuery = supabase
     .from('classes')
     .select(
-      'id, name, element, level, status, scored_count, start_time, trials!inner(show_id, trial_date:date, trial_number), judge_assignments(people(first_name, last_name))'
+      'id, version, name, element, level, status, scored_count, start_time, trials!inner(show_id, trial_date:date, trial_number)'
     )
     .eq('trials.show_id', showId)
     .in('status', [...TV_ACTIVE_STATUSES]);
@@ -109,7 +111,10 @@ export async function getPostgrestTVDisplayData(
   if (trialId) classQuery = classQuery.eq('trial_id', trialId);
 
   const { data: classData, error: classError } = await classQuery;
-  if (classError || !classData || classData.length === 0) {
+  if (classError) {
+    throw new Error(`Unable to refresh TV classes: ${classError.message}`);
+  }
+  if (!classData || classData.length === 0) {
     return { show: mapShow(showData), classes: [] };
   }
 
@@ -117,9 +122,10 @@ export async function getPostgrestTVDisplayData(
   // Withdrawn entries must not ride the running order, or the board's own list
   // disagrees with the total counted beside it — the RPC applies that filter,
   // and the same show predicate, server-side.
-  const [entryData, entryCounts] = await Promise.all([
+  const [entryData, entryCounts, judgeNamesByClass] = await Promise.all([
     fetchTVBoardEntries(showId, classIds),
     fetchTVEntryCounts(showId, classIds),
+    fetchJudgeNamesByClass(showId),
   ]);
 
   const classIdByEntryId = new Map<string, string>(
@@ -138,17 +144,14 @@ export async function getPostgrestTVDisplayData(
         trial_date: string | null;
         trial_number: string | number | null;
       } | null;
-      const judgeAssignments = c.judge_assignments as unknown as Array<{
-        people: { first_name: string; last_name: string } | null;
-      }> | null;
-      const firstJudge = judgeAssignments?.[0]?.people;
       return {
         id: c.id,
+        version: c.version,
         name: c.name,
         element: c.element,
         level: c.level,
         status: c.status,
-        judgeName: firstJudge ? `${firstJudge.first_name} ${firstJudge.last_name}`.trim() : null,
+        judgeName: judgeNamesByClass.get(c.id) ?? null,
         totalEntries: entryCounts?.get(c.id)?.total ?? null,
         // Numerator and denominator come from the same RPC row, so the board
         // cannot render an impossible ratio. classes.scored_count is only the
@@ -170,24 +173,28 @@ export async function getPostgrestTVDisplayResults(
 ): Promise<TVCompletedClass[]> {
   let classQuery = supabase
     .from('classes')
-    .select(
-      'id, name, element, level, trials!inner(show_id), judge_assignments(people(first_name, last_name))'
-    )
+    .select('id, version, name, element, level, trials!inner(show_id)')
     .eq('trials.show_id', showId)
     .eq('is_scoring_finalized', true);
 
   if (trialId) classQuery = classQuery.eq('trial_id', trialId);
 
   const { data: classData, error: classError } = await classQuery;
-  if (classError || !classData || classData.length === 0) return [];
+  if (classError) {
+    throw new Error(`Unable to refresh TV results: ${classError.message}`);
+  }
+  if (!classData || classData.length === 0) return [];
 
   const classIds = classData.map(c => c.id);
-  const entryCounts = await fetchTVEntryCounts(showId, classIds);
+  const [entryCounts, judgeNamesByClass] = await Promise.all([
+    fetchTVEntryCounts(showId, classIds),
+    fetchJudgeNamesByClass(showId),
+  ]);
   // INTENT: The TV display is a public surface. Read results through
   // view_public_entry_results so the result-visibility cascade is enforced by
   // the database — placements/times/quals for classes whose results have not
   // been released arrive NULL and are naturally filtered out below.
-  const { data: placementRows } = await supabase
+  const { data: placementRows, error: placementError } = await supabase
     .from('view_public_entry_results')
     .select(
       'id, class_id, armband, handler, final_placement, search_time_seconds, total_score, result_status, entry_status, check_in_status, dog_name, dog_call_name, dog_image_url'
@@ -196,12 +203,18 @@ export async function getPostgrestTVDisplayResults(
     .gte('final_placement', 1)
     .lte('final_placement', 4)
     .order('final_placement', { ascending: true });
+  if (placementError) {
+    throw new Error(`Unable to refresh TV placements: ${placementError.message}`);
+  }
 
-  const { data: qualifiedRows } = await supabase
+  const { data: qualifiedRows, error: qualifiedError } = await supabase
     .from('view_public_entry_results')
     .select('class_id, search_time_seconds, entry_status, check_in_status')
     .in('class_id', classIds)
     .eq('result_status', 'qualified');
+  if (qualifiedError) {
+    throw new Error(`Unable to refresh TV qualified: ${qualifiedError.message}`);
+  }
 
   // An entry that was scored and only later withdrawn, scratched or pulled is
   // excluded from `entry_count` by tv_class_entry_counts, so it must drop out of
@@ -262,17 +275,14 @@ export async function getPostgrestTVDisplayResults(
   }
 
   return classData.map(c => {
-    const judgeAssignments = c.judge_assignments as unknown as Array<{
-      people: { first_name: string; last_name: string } | null;
-    }> | null;
-    const firstJudge = judgeAssignments?.[0]?.people;
     const stats = qualifiedByClass.get(c.id);
     return {
       id: c.id,
+      version: c.version,
       name: c.name,
       element: c.element,
       level: c.level,
-      judgeName: firstJudge ? `${firstJudge.first_name} ${firstJudge.last_name}`.trim() : null,
+      judgeName: judgeNamesByClass.get(c.id) ?? null,
       totalEntries: entryCounts?.get(c.id)?.total ?? null,
       qualifiedCount: stats?.count ?? 0,
       fastestTime: stats?.fastest ?? null,

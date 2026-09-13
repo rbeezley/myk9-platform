@@ -30,10 +30,19 @@ import { describe, it, expect } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 
-const CSS_PATH = join(__dirname, '../../styles/myk9-show-details.css');
+const CSS_PATH = join(__dirname, '../../styles/myk9-my-shows.css');
 
-/** Selectors whose base rule must declare wrapping. */
-const MUST_WRAP = ['.myk9-entries-action-buttons', '.myk9-entries-actions'];
+/**
+ * Selectors whose base rule must declare wrapping.
+ *
+ * These are the dog-first layout's two action rows (MYK9-482): the show
+ * header's secondary links and the dog card's chip + primary button. They
+ * replaced `.myk9-entries-action-buttons` / `.myk9-entries-actions` when the
+ * order card was retired, and they inherit the same contract — the row is
+ * still inside a fixed-width column, and a link that wraps out of view is
+ * still the failure this guard exists to prevent.
+ */
+const MUST_WRAP = ['.myk9-entries-show-actions', '.myk9-entries-dog-card-actions'];
 
 /** Strip `/* … *\/` comments. Must run before any `@` or brace scanning: prose
  * inside a comment can mention `@media` or carry unbalanced braces, and would

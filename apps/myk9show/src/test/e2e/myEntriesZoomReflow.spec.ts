@@ -5,6 +5,15 @@ import { signInAsExhibitor } from './helpers/testUsers';
  * MYK9-124 / EUX-2026-07-30-04 — My Shows must reflow, not clip, under browser
  * zoom.
  *
+ * RETARGETED for the dog-first redesign (MYK9-482). The order card and its
+ * collapsed `.myk9-entries-action-buttons` row are gone; the two rows that
+ * now carry wrapping controls are the show header's link row
+ * (`.myk9-entries-show-actions`) and the dog card's chip + day-check-in row
+ * (`.myk9-entries-dog-card-actions`). Both declare `flex-wrap: wrap`
+ * unconditionally, and this spec is the real-browser half of the guard in
+ * `src/test/architecture/entryActionsWrapUnconditionally.test.ts`. Nothing has
+ * to be expanded any more — the dog-first card has no disclosure.
+ *
  * WHAT THIS SPEC IS. A regression guard for the zoom reflow contract, not a
  * reproduction of the original report. Run against `main` at 4465fe1d5 BEFORE
  * any fix, all three zoom levels already passed: the seeded exhibitor renders a
@@ -17,9 +26,9 @@ import { signInAsExhibitor } from './helpers/testUsers';
  * It is kept because the contract it asserts was genuinely unguarded, and
  * because the CSS hazard behind the original report is real even though this
  * data does not trigger it: every Button carries `whitespace-nowrap`, an
- * expanded card can render up to five secondary actions, and
- * `.myk9-entries-card` is `overflow:hidden`. A row that outgrows its card is
- * therefore CLIPPED — no scrollbar, no ellipsis, no hint the action exists.
+ * show header can render four secondary links, and a container that clips its
+ * overflow gives a row that outgrows it no scrollbar, no ellipsis, and no hint
+ * the action exists.
  *
  * HOW ZOOM IS EMULATED. By shrinking the CSS-pixel viewport, because that is
  * what a browser does: 125% zoom on a 1440px window leaves the page 1152 CSS px
@@ -35,6 +44,15 @@ import { signInAsExhibitor } from './helpers/testUsers';
 const PHYSICAL = { width: 1440, height: 900 } as const;
 
 const ZOOM_LEVELS = [1.25, 1.5, 2] as const;
+
+/**
+ * The two rows that carry wrapping controls on the dog-first list. Both are
+ * asserted together: a wrap contract that holds for one and not the other is
+ * exactly the drift this guard exists to catch.
+ */
+const ACTION_ROWS = '.myk9-entries-show-actions, .myk9-entries-dog-card-actions';
+/** The same two rows, addressing their direct children. */
+const ACTION_ROW_CHILDREN = '.myk9-entries-show-actions > *, .myk9-entries-dog-card-actions > *';
 
 const cssViewportFor = (zoom: number) => ({
   width: Math.round(PHYSICAL.width / zoom),
@@ -58,29 +76,14 @@ test.describe('My Shows reflows under browser zoom', () => {
         timeout: 15_000,
       });
 
-      // The secondary action row is the worst case for clipping and is
-      // collapsed by default, so a spec that never expands a card would assert
-      // nothing. A bounded prefix keeps the run fast — the seeded exhibitor has
-      // dozens of entries.
-      const CARDS_TO_EXPAND = 4;
-      const detailToggles = page.getByRole('button', { name: /^Entered Classes \(\d+\)$/ });
-      const toggleCount = Math.min(await detailToggles.count(), CARDS_TO_EXPAND);
-      for (let i = 0; i < toggleCount; i += 1) {
-        const toggle = detailToggles.nth(i);
-        await toggle.scrollIntoViewIfNeeded();
-        await toggle.click();
-      }
-      expect(
-        toggleCount,
-        'no expandable entry cards found — spec would be vacuous'
-      ).toBeGreaterThan(0);
+      // Every control is in the open on the dog-first card, so there is
+      // nothing to expand — but the spec must still prove it found some.
+      await expect(page.locator(ACTION_ROWS).first()).toBeVisible();
 
-      await expect(page.locator('.myk9-entries-action-buttons').first()).toBeVisible();
-
-      const cards = page.locator('.myk9-entries-card');
+      const cards = page.locator('.myk9-entries-dog-card');
       expect(
         await cards.count(),
-        'seeded exhibitor must have at least one entry card, or this spec proves nothing'
+        'seeded exhibitor must have at least one dog card, or this spec proves nothing'
       ).toBeGreaterThan(0);
 
       // 1. No two-dimensional hunting: the document must not scroll sideways.
@@ -92,14 +95,15 @@ test.describe('My Shows reflows under browser zoom', () => {
       );
       expect(documentOverflow, `${zoom * 100}%: document scrolls horizontally`).toBe(0);
 
-      // 2. An action button whose box escapes the `overflow:hidden` card is
-      //    invisible to the user but still laid out, so compare geometry rather
-      //    than trusting visibility — `toBeVisible()` would not catch this.
+      // 2. A control whose box escapes its dog card is laid out but reads as
+      //    broken (and is clipped outright by any ancestor that hides
+      //    overflow), so compare geometry rather than trusting visibility —
+      //    `toBeVisible()` would not catch this.
       const clipped = await page.evaluate(() => {
         const escapes: string[] = [];
-        for (const card of document.querySelectorAll('.myk9-entries-card')) {
+        for (const card of document.querySelectorAll('.myk9-entries-dog-card')) {
           const cardBox = card.getBoundingClientRect();
-          for (const row of card.querySelectorAll('.myk9-entries-action-buttons')) {
+          for (const row of card.querySelectorAll('.myk9-entries-dog-card-actions')) {
             for (const button of row.children) {
               const box = button.getBoundingClientRect();
               // 1px tolerance absorbs sub-pixel layout rounding.
@@ -118,10 +122,12 @@ test.describe('My Shows reflows under browser zoom', () => {
       expect(clipped, `${zoom * 100}%: action buttons clipped by their card`).toEqual([]);
 
       // 3. Action rows wrap rather than overflow their own box.
-      const rowOverflow = await page.evaluate(() =>
-        Array.from(document.querySelectorAll('.myk9-entries-action-buttons'))
-          .map(row => Math.max(0, row.scrollWidth - row.clientWidth))
-          .filter(overflow => overflow > 1)
+      const rowOverflow = await page.evaluate(
+        selector =>
+          Array.from(document.querySelectorAll(selector))
+            .map(row => Math.max(0, row.scrollWidth - row.clientWidth))
+            .filter(overflow => overflow > 1),
+        ACTION_ROWS
       );
       expect(rowOverflow, `${zoom * 100}%: action row overflows its own box`).toEqual([]);
 
@@ -129,13 +135,16 @@ test.describe('My Shows reflows under browser zoom', () => {
       //    fails on the unfixed tree regardless of how many buttons the seed
       //    data happens to render, so it is what makes this spec a real guard
       //    rather than a description of the current seed.
-      const wrapModes = await page.evaluate(() => [
-        ...new Set(
-          Array.from(document.querySelectorAll('.myk9-entries-action-buttons')).map(
-            row => getComputedStyle(row).flexWrap
-          )
-        ),
-      ]);
+      const wrapModes = await page.evaluate(
+        selector => [
+          ...new Set(
+            Array.from(document.querySelectorAll(selector)).map(
+              row => getComputedStyle(row).flexWrap
+            )
+          ),
+        ],
+        ACTION_ROWS
+      );
       expect(wrapModes, `${zoom * 100}%: action rows are not set to wrap`).toEqual(['wrap']);
 
       // 5. Money stays readable — the report claimed "Current Fees clipped".
@@ -192,7 +201,7 @@ test.describe('My Shows reflows under browser zoom', () => {
 
       // 7. Keyboard focus stays visible — a wrapped control that lands outside
       //    the viewport would still be reachable but not findable.
-      const firstButton = page.locator('.myk9-entries-action-buttons > *').first();
+      const firstButton = page.locator(ACTION_ROW_CHILDREN).first();
       await firstButton.focus();
       await expect(firstButton).toBeFocused();
       const focusInView = await firstButton.evaluate(element => {

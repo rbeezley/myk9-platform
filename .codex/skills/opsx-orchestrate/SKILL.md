@@ -63,13 +63,13 @@ For every returned batch, the root agent:
 3. Re-runs value-sensitive tests and the final required typecheck.
 4. Sends numbered defects with `followup_task`; then re-reviews the new diff.
 5. Stops after three failed review rounds. Rewrite the dispatch or implement the batch inline.
-6. Updates `tasks.md` only after acceptance and commits an accepted checkpoint.
+6. Updates `tasks.md` only after acceptance, commits an accepted checkpoint, and ships that batch before dispatching the next: PR, `pnpm qa:codex-review`, gate comment, merge, then the next batch starts from merged `main`. One PR per batch (shared rules, Gates § 3); batches that cannot compile or pass CI alone ship together and the PR says so.
 
 Reports are not proof. A checked task means root-agent acceptance.
 
 ## Finish
 
-Resume `opsx-ship` verification, PR, merge, archive, and cleanup. Preserve approval gates for pushes, merges, database writes, deployments, and external messages.
+Each batch already shipped through PR, review, and merge. After the last batch merges, run `opsx-ship` verification against merged `main` (fixes go in a follow-up PR), then archive and cleanup. Preserve approval gates for pushes, merges, database writes, deployments, and external messages.
 
 Report batches, review rounds, migration audits, and root-agent implementation.
 

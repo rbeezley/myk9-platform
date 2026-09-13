@@ -90,14 +90,20 @@ Do not trust the report — verify. For each returned batch:
    a cheap model past the point where doing it yourself is cheaper.
 4. Only the orchestrator updates `tasks.md` checkboxes — a checkbox means _reviewed and
    accepted_, not _implementer says done_.
-5. Commit a checkpoint after each accepted batch.
+5. Commit a checkpoint after each accepted batch, then **ship that batch before dispatching
+   the next**: open its PR, run `pnpm qa:codex-review`, record the gate, merge, and start the
+   next batch from the merged `main`. One PR per batch (shared rules, Gates § 3): the reviewer
+   reads the whole net diff, so one end-of-change PR of N batches costs roughly N times the
+   review rounds and hides cross-batch interactions until the end (#2210: 63 files, 8 rounds).
+   Batches that cannot compile or pass CI on their own ship together, and the PR says so.
 
 ## Finishing
 
-Resume `opsx:ship` phases 4+ as the orchestrator: run `opsx:verify`, fix CRITICAL findings
-(small fixes yourself; substantial ones re-dispatched), then PR / review / merge / archive /
-cleanup per the pipeline. All Auto Mode shared-system gates (db push, deploys, merges)
-remain yours and still require the usual confirmation.
+Each batch already went through PR / review / merge (review gate step 5). After the LAST
+batch merges, run `opsx:verify` against merged `main`; fix CRITICAL findings in a follow-up
+PR (small fixes yourself; substantial ones re-dispatched), then archive / cleanup per the
+pipeline. All Auto Mode shared-system gates (db push, deploys, merges) remain yours and
+still require the usual confirmation.
 
 ### Second-opinion fallback
 

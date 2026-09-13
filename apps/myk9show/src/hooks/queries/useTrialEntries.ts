@@ -86,7 +86,7 @@ export function publicRowToTrialEntryRow(row: PublicEntryRow): TrialEntryRow {
  */
 export const useTrialEntries = (trialId: string) => {
   const { user, loading } = useAuthContext();
-  const isAnon = !user;
+  const isAnon = !user || user.is_anonymous === true;
 
   return useQuery<TrialEntryRow[]>({
     queryKey: [...queryKeys.trialEntries(trialId), isAnon ? 'public' : 'auth'],

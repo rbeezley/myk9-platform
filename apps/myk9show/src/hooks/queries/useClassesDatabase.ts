@@ -2,6 +2,7 @@
 // Provides type-safe, cached database operations for classes and entries
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useAuthContext } from '@/hooks/useAuthContext';
 import {
   getAllClasses,
   getClassById,
@@ -148,6 +149,8 @@ export const useClassStatisticsQuery = () => {
  * Get all entries with caching
  */
 export const useEntriesQuery = () => {
+  const { user, loading } = useAuthContext();
+
   return useQuery({
     queryKey: entryKeys.lists(),
     queryFn: async () => {
@@ -155,6 +158,7 @@ export const useEntriesQuery = () => {
       if (error) throw error;
       return data;
     },
+    enabled: Boolean(user && user.is_anonymous !== true) && !loading,
     staleTime: 2 * 60 * 1000, // 2 minutes - entry data changes frequently
     gcTime: 5 * 60 * 1000, // 5 minutes
   });
@@ -164,6 +168,8 @@ export const useEntriesQuery = () => {
  * Get entries by class ID
  */
 export const useEntriesByClassQuery = (classId: string, enabled = true) => {
+  const { user, loading } = useAuthContext();
+
   return useQuery({
     queryKey: entryKeys.byClass(classId),
     queryFn: async () => {
@@ -171,7 +177,7 @@ export const useEntriesByClassQuery = (classId: string, enabled = true) => {
       if (error) throw error;
       return data;
     },
-    enabled: enabled && !!classId,
+    enabled: enabled && !!classId && Boolean(user && user.is_anonymous !== true) && !loading,
     staleTime: 1 * 60 * 1000, // 1 minute - entry data changes very frequently during events
     gcTime: 3 * 60 * 1000, // 3 minutes
   });

@@ -30,6 +30,8 @@ import type { DbEntryInsert, DbEntryUpdate } from '@/types/database-mappings';
 
 // Get all entries with related data
 export const useEntriesQuery = () => {
+  const { user, loading } = useAuthContext();
+
   return useQuery({
     queryKey: queryKeys.entries,
     queryFn: async () => {
@@ -37,6 +39,7 @@ export const useEntriesQuery = () => {
       if (error) throw error;
       return data;
     },
+    enabled: Boolean(user && user.is_anonymous !== true) && !loading,
     ...cacheStrategies.moderate, // 5 minutes stale, 10 minutes cache
   });
 };
@@ -62,7 +65,7 @@ export const useEntriesByShowQuery = (showId: string, enabled = true) => {
   // cascade-gated public view (safe columns only); authenticated callers keep
   // the full replication-backed read.
   const { user, loading } = useAuthContext();
-  const isAnon = !user;
+  const isAnon = !user || user.is_anonymous === true;
 
   return useQuery({
     queryKey: [...queryKeys.showEntries(showId), isAnon ? 'public' : 'auth'],
@@ -109,7 +112,7 @@ export const useEntriesByClassQuery = (classId: string, enabled = true) => {
   // view (safe columns only); authenticated callers keep the full read. Mirrors
   // useEntriesByShowQuery and useClassEntriesRaw.
   const { user, loading } = useAuthContext();
-  const isAnon = !user;
+  const isAnon = !user || user.is_anonymous === true;
 
   return useQuery({
     queryKey: [...queryKeys.classEntries(classId), isAnon ? 'public' : 'auth'],

@@ -5,6 +5,9 @@
 
 REVOKE ALL ON public.entries FROM anon;
 REVOKE ALL ON public.entries FROM PUBLIC;
+-- Authenticated entry workflows already depend on the complete entry projection.
+-- Keep that existing boundary explicit while removing anonymous table access.
+GRANT SELECT ON public.entries TO authenticated;
 GRANT SELECT (id, class_id) ON public.entries TO authenticated;
 
 COMMENT ON TABLE public.entries IS

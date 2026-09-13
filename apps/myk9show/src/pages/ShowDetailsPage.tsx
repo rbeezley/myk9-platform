@@ -62,6 +62,7 @@ const ShowDetailsPage: React.FC = () => {
     isAdmin,
     rbacLoading,
   } = useAuthContext();
+  const canReadEntryRows = Boolean(user && user.is_anonymous !== true);
   const trials = useTrialStore(s => s.trials);
   const trialClasses = useTrialStore(s => s.trialClasses);
   const trialClassesReadStatus = useTrialStore(s => s.trialClassesReadStatus);
@@ -71,7 +72,7 @@ const ShowDetailsPage: React.FC = () => {
     data: showEntries = [],
     isLoading: showEntriesLoading,
     isError: showEntriesIsError,
-  } = useEntriesByShowQuery(id || '', Boolean(id && isValidUUID(id) && user));
+  } = useEntriesByShowQuery(id || '', Boolean(id && isValidUUID(id) && canReadEntryRows));
   const { dogs } = useDogStoreCompat();
 
   // Use fast show details loading with cache optimization
@@ -169,8 +170,8 @@ const ShowDetailsPage: React.FC = () => {
     useShowLandingData(
       showId_,
       associatedTrials,
-      user && !showEntriesIsError ? showEntries : null,
-      !user && !authLoading
+      canReadEntryRows && !showEntriesIsError ? showEntries : null,
+      !canReadEntryRows && !authLoading
     );
   // For tabs/counts/derivations, treat landingTrials as the effective trial
   // list: it IS associatedTrials when the store is warm, and the anon-safe

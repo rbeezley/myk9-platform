@@ -11,7 +11,14 @@ interface ExistingEntryCartMatch {
   deleted_at: string | null;
 }
 
-const ACTIVE_ENTRY_STATUSES = new Set(['pending', 'submitted', 'pending-payment', 'confirmed']);
+const INACTIVE_ENTRY_STATUSES = new Set([
+  'withdrawn',
+  'scratched',
+  'not_accepted',
+  'absent',
+  'promotion-expired',
+  'cancelled',
+]);
 
 interface ReconcileCartItemsParams {
   cartId: string;
@@ -71,7 +78,7 @@ export async function reconcileCartItemsAgainstExistingEntries({
           (entry.deleted_at === null || entry.deleted_at === undefined) &&
           (entry.entry_status === null ||
             entry.entry_status === undefined ||
-            ACTIVE_ENTRY_STATUSES.has(entry.entry_status))
+            !INACTIVE_ENTRY_STATUSES.has(entry.entry_status))
       );
     })
     .map(item => item.id);

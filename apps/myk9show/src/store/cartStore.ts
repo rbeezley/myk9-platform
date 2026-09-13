@@ -291,6 +291,10 @@ export const useCartStore = create<CartState>()(
           // Exact-entry recovery rebuilds only the explicit unpaid entries. It
           // never sweeps unrelated pending entries into checkout or backfills a
           // partially emptied cart.
+          if (items.length > 0 && options.recoveryEntryIds?.length) {
+            const requestedEntryIds = new Set(options.recoveryEntryIds);
+            items = items.filter(item => requestedEntryIds.has(item.entry_id));
+          }
           if (items.length === 0 && options.recoveryEntryIds?.length) {
             items = await recoverCartItemsFromEntryIds({
               cartId: cartData.id,

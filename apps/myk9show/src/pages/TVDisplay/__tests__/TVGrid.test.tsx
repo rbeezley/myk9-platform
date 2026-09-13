@@ -1,7 +1,7 @@
 import { render } from '@/test/utils/testUtils';
 import { screen } from '@testing-library/react';
 import { TVGrid } from '../TVGrid';
-import type { TVClass } from '../types';
+import type { TVClass, TVCompletedClass } from '../types';
 
 const makeClass = (id: string, name: string): TVClass => ({
   id,
@@ -17,6 +17,18 @@ const makeClass = (id: string, name: string): TVClass => ({
   trialNumber: null,
   entries: [],
 });
+
+const completedClass: TVCompletedClass = {
+  id: 'completed-1',
+  name: 'Exterior Novice',
+  element: null,
+  level: null,
+  judgeName: 'Lee',
+  totalEntries: 8,
+  qualifiedCount: 6,
+  fastestTime: 35,
+  placements: [],
+};
 
 describe('TVGrid', () => {
   it('renders all class cards in a grid', () => {
@@ -39,6 +51,12 @@ describe('TVGrid', () => {
       'href',
       '/shows/show-1'
     );
+  });
+
+  it('keeps completed results in the grid when no class is running', () => {
+    render(<TVGrid classes={[]} completedClasses={[completedClass]} />);
+    expect(screen.getByText('Exterior Novice')).toBeInTheDocument();
+    expect(screen.queryByText(/no classes currently in progress/i)).not.toBeInTheDocument();
   });
 
   it('distinguishes a refresh failure from no active classes', () => {

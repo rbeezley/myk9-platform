@@ -9,6 +9,7 @@ import { TVPodiumOverlay } from './TVPodiumOverlay';
 import { TVMobileList } from './TVMobileList';
 import { TVSoundToggle } from './TVSoundToggle';
 import { TVEmptyState } from './TVEmptyState';
+import { TVRefreshNotice } from './TVRefreshNotice';
 
 // INTENT: TVDisplay is a fixed-dark venue screen, not an app-themed page. The
 // literal zinc/green/red colors are tuned for projected or wall-mounted displays
@@ -68,6 +69,9 @@ export default function TVDisplay() {
     () => completedClasses.filter(c => !shownPodiums.has(c.id)),
     [completedClasses, shownPodiums]
   );
+  const hasRefreshError = Boolean(dataError || resultsError);
+  const podiumVisible = isDesktop && podiumQueue.length > 0;
+  const showRefreshNotice = hasRefreshError && (classes.length > 0 || completedClasses.length > 0);
 
   // Detect class card updates for highlight animation
   const classKey = useMemo(() => classes.map(c => `${c.id}:${c.scoredCount}`).join(','), [classes]);
@@ -145,11 +149,12 @@ export default function TVDisplay() {
 
   return (
     <div className="min-h-screen bg-zinc-950 text-zinc-100">
-      {isDesktop && podiumQueue.length > 0 && (
+      {podiumVisible && (
         <TVPodiumOverlay
           queue={podiumQueue}
           onComplete={handlePodiumComplete}
           soundEnabled={soundEnabled}
+          refreshFailed={showRefreshNotice}
         />
       )}
 
@@ -160,10 +165,10 @@ export default function TVDisplay() {
         <div className="flex items-center gap-3">
           <div className="flex items-center gap-1.5 text-sm">
             <span
-              className={`h-2 w-2 rounded-full ${isConnected ? 'bg-green-500' : 'bg-red-500'}`}
+              className={`h-2 w-2 rounded-full ${hasRefreshError ? 'bg-amber-500' : isConnected ? 'bg-green-500' : 'bg-red-500'}`}
             />
             <span className="text-zinc-500">
-              {isConnected ? 'Live' : 'Reconnecting...'}
+              {hasRefreshError ? 'Updates delayed' : isConnected ? 'Live' : 'Reconnecting...'}
               {classes.length > 0 &&
                 ` • ${classes.length} class${classes.length !== 1 ? 'es' : ''} active`}
             </span>
@@ -182,9 +187,16 @@ export default function TVDisplay() {
         </div>
       </header>
 
+      {showRefreshNotice && !podiumVisible && (
+        <div className="px-4 pt-3">
+          <TVRefreshNotice />
+        </div>
+      )}
+
       {isDesktop ? (
         <TVGrid
           classes={classes}
+          completedClasses={completedClasses}
           highlightedClassId={highlightedClassId}
           showName={show.name}
           showId={show.id}

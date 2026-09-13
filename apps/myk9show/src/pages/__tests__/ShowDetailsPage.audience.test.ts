@@ -6,9 +6,8 @@ import { resolveShowAudience, type ShowAudienceInput } from '../ShowDetailsPage.
 function input(overrides: Partial<ShowAudienceInput> = {}): ShowAudienceInput {
   return {
     isManagementSection: false,
-    isSecretary: false,
-    isAdmin: false,
-    isClubAdmin: false,
+    canManageShow: false,
+    isManagementStaff: false,
     isAuthenticated: false,
     userEntriesLoading: false,
     hasUserEntries: false,
@@ -22,23 +21,50 @@ describe('resolveShowAudience', () => {
   });
 
   it('a secretary sees the management shell', () => {
-    expect(resolveShowAudience(input({ isSecretary: true }))).toBe('management');
-  });
-
-  it('public preview forces the public landing on the canonical route', () => {
-    expect(resolveShowAudience(input({ isSecretary: true, forcePublicPreview: true }))).toBe(
-      'public'
+    expect(resolveShowAudience(input({ canManageShow: true, isManagementStaff: true }))).toBe(
+      'management'
     );
   });
 
+  it('public preview forces the public landing on the canonical route', () => {
+    expect(
+      resolveShowAudience(
+        input({ forcePublicPreview: true, canManageShow: true, isManagementStaff: true })
+      )
+    ).toBe('public');
+  });
+
   it('an admin sees the management shell', () => {
-    expect(resolveShowAudience(input({ isAdmin: true }))).toBe('management');
+    expect(resolveShowAudience(input({ canManageShow: true, isManagementStaff: true }))).toBe(
+      'management'
+    );
+  });
+
+  it('does not expose management shell to a secretary outside their club', () => {
+    expect(
+      resolveShowAudience(
+        input({
+          isAuthenticated: true,
+          hasUserEntries: true,
+          canManageShow: false,
+          isManagementStaff: false,
+        })
+      )
+    ).toBe('exhibitor');
   });
 
   it('a club admin sees the exhibitor view, not management or public', () => {
-    // club_admin is staff enough to skip the public landing, but is NOT
-    // canManageShow — so it lands on the exhibitor view.
-    expect(resolveShowAudience(input({ isClubAdmin: true }))).toBe('exhibitor');
+    expect(resolveShowAudience(input({ canManageShow: true, isManagementStaff: false }))).toBe(
+      'exhibitor'
+    );
+  });
+
+  it('holds a signed-in staff viewer while RBAC resolves', () => {
+    expect(
+      resolveShowAudience(
+        input({ isAuthenticated: true, rbacLoading: true, hasUserEntries: false })
+      )
+    ).toBe('pending');
   });
 
   it('an entered exhibitor (authenticated, has entries) sees the exhibitor view', () => {
@@ -62,7 +88,12 @@ describe('resolveShowAudience', () => {
   it('a staff user is never held pending (skips the landing gate entirely)', () => {
     expect(
       resolveShowAudience(
-        input({ isSecretary: true, isAuthenticated: true, userEntriesLoading: true })
+        input({
+          canManageShow: true,
+          isManagementStaff: true,
+          isAuthenticated: true,
+          userEntriesLoading: true,
+        })
       )
     ).toBe('management');
   });
@@ -74,9 +105,11 @@ describe('resolveShowAudience', () => {
   });
 
   it('a management-section URL for a secretary resolves to management', () => {
-    expect(resolveShowAudience(input({ isManagementSection: true, isSecretary: true }))).toBe(
-      'management'
-    );
+    expect(
+      resolveShowAudience(
+        input({ isManagementSection: true, canManageShow: true, isManagementStaff: true })
+      )
+    ).toBe('management');
   });
 
   it('pending takes precedence over the public landing while entries load', () => {

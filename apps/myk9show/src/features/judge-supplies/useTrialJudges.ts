@@ -1,9 +1,15 @@
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/services/database/supabaseClient';
 
-/** Resolved judge identity for a trial. person_id is null for legacy
- * classes whose `classes.judge_name` is set without a corresponding
- * `judge_assignments` row. */
+/**
+ * Resolved judge identity for a trial.
+ *
+ * `person_id` is typed nullable because `trial_judge_supplies.person_id` is, and
+ * `judgeKey` folds both shapes. This hook itself only ever yields a person-backed
+ * judge: the legacy path that surfaced `classes.judge_name` strings without an
+ * assignment row ended when that column was dropped (MYK9-479) — a class's judge
+ * is its judge_assignments row and nothing else.
+ */
 export interface TrialJudge {
   person_id: string | null;
   judge_name: string;
@@ -14,47 +20,25 @@ interface JudgeAssignmentRow {
   people: { id: string; first_name: string | null; last_name: string | null };
 }
 
-interface ClassJudgeNameRow {
-  judge_name: string | null;
-}
-
 async function fetchTrialJudges(trialId: string): Promise<TrialJudge[]> {
-  const [assignmentsRes, classesRes] = await Promise.all([
-    supabase
-      .from('judge_assignments')
-      .select('person_id, people!inner(id, first_name, last_name)')
-      .eq('trial_id', trialId),
-    supabase
-      .from('classes')
-      .select('judge_name')
-      .eq('trial_id', trialId)
-      .not('judge_name', 'is', null),
-  ]);
+  const { data, error } = await supabase
+    .from('judge_assignments')
+    .select('person_id, people!inner(id, first_name, last_name)')
+    .eq('trial_id', trialId);
 
-  if (assignmentsRes.error) throw assignmentsRes.error;
-  if (classesRes.error) throw classesRes.error;
+  if (error) throw error;
 
   const judges: TrialJudge[] = [];
   const seenPersonIds = new Set<string>();
-  const seenNames = new Set<string>();
 
-  for (const row of (assignmentsRes.data ?? []) as unknown as JudgeAssignmentRow[]) {
+  for (const row of (data ?? []) as unknown as JudgeAssignmentRow[]) {
     const personId = row.person_id;
     if (!personId || seenPersonIds.has(personId)) continue;
     seenPersonIds.add(personId);
     const first = row.people?.first_name ?? '';
     const last = row.people?.last_name ?? '';
     const name = `${first} ${last}`.trim() || 'Unknown Judge';
-    seenNames.add(name);
     judges.push({ person_id: personId, judge_name: name });
-  }
-
-  for (const row of (classesRes.data ?? []) as ClassJudgeNameRow[]) {
-    const name = (row.judge_name ?? '').trim();
-    if (!name) continue;
-    if (seenNames.has(name)) continue;
-    seenNames.add(name);
-    judges.push({ person_id: null, judge_name: name });
   }
 
   return judges.sort((a, b) => a.judge_name.localeCompare(b.judge_name));

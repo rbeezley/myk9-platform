@@ -70,7 +70,12 @@ const ClassDetailsMain: React.FC<ClassDetailsMainProps> = ({
   );
 
   return (
-    <div className="space-y-6">
+    // The non-staff counterpart to SecretaryRunSheet: ClassDetailsPage renders
+    // exactly one of the two. This hook lets an e2e absence assertion WAIT for
+    // the surface that did render instead of racing it — `toHaveCount(0)` on the
+    // run sheet passes while the page is still settling, so without a positive
+    // marker it reports "absent" for a surface that is merely late (MYK9-464).
+    <div className="space-y-6" data-testid="class-details-main">
       {/* Statistics Cards — only when there are entries */}
       {classEntries.length > 0 && (
         <StatsGrid columns={stats.length as 2 | 3}>

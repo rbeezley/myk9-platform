@@ -17,9 +17,10 @@ export interface ShowAudienceInput {
   isManagementSection: boolean;
   /** Staff-only escape hatch for checking the public/exhibitor landing without staff chrome. */
   forcePublicPreview?: boolean;
-  isSecretary: boolean;
-  isAdmin: boolean;
-  isClubAdmin: boolean;
+  canManageShow: boolean;
+  isManagementStaff: boolean;
+  /** RBAC is still resolving, so staff access is unknown. */
+  rbacLoading?: boolean;
   /** Whether a user is signed in at all. */
   isAuthenticated: boolean;
   /** The my-entries query is still resolving — can't yet tell public from exhibitor. */
@@ -31,9 +32,9 @@ export function resolveShowAudience(input: ShowAudienceInput): ShowAudience {
   const {
     isManagementSection,
     forcePublicPreview,
-    isSecretary,
-    isAdmin,
-    isClubAdmin,
+    canManageShow,
+    isManagementStaff,
+    rbacLoading = false,
     isAuthenticated,
     userEntriesLoading,
     hasUserEntries,
@@ -41,9 +42,11 @@ export function resolveShowAudience(input: ShowAudienceInput): ShowAudience {
 
   if (forcePublicPreview && !isManagementSection) return 'public';
 
+  if (isAuthenticated && rbacLoading) return 'pending';
+
   // Staff (secretary / admin / club_admin) and management-section URLs always
   // reach the non-public UI — they never see the marketing landing.
-  const isStaff = isSecretary || isAdmin || isClubAdmin;
+  const isStaff = canManageShow;
   if (!isManagementSection && !isStaff) {
     // Defer while an authenticated visitor's entries resolve, so we don't flash
     // the public landing before discovering they're an entered exhibitor.
@@ -52,7 +55,7 @@ export function resolveShowAudience(input: ShowAudienceInput): ShowAudience {
     if (!hasUserEntries) return 'public';
   }
 
-  // Reached the tabbed UI. Secretary/admin get the management shell; everyone
-  // else who lands here (entered exhibitors, club admins) gets the exhibitor view.
-  return isSecretary || isAdmin ? 'management' : 'exhibitor';
+  // Reached the tabbed UI. Secretary/admin staff get the management shell;
+  // entered exhibitors and club admins get the exhibitor view.
+  return isManagementStaff ? 'management' : 'exhibitor';
 }

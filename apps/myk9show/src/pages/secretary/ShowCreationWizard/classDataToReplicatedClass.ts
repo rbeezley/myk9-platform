@@ -17,6 +17,10 @@ export function classDataToReplicatedClass(
     entryFee: classData.preEntryFee || classData.entryFee,
     maxEntries: classData.maxEntries,
     judgeName: classData.judge,
+    // The person id behind `judge`. createWizardClasses writes the class-level
+    // judge_assignments row from it; the local read shim (mapReplicatedClassToDbRow)
+    // only synthesises an assignment when BOTH id and name are present (MYK9-479).
+    judgeId: classData.judgeId,
     classOrder: classData.classOrder ? parseInt(classData.classOrder, 10) : undefined,
     classStatus: classData.status || 'Scheduled',
     startTime: classData.startTime,

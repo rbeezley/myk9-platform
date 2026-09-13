@@ -12,7 +12,7 @@
 
 import { useRef, useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { onlineManager, useQuery, useQueryClient } from '@tanstack/react-query';
 import { showQueryKeys } from '@/hooks/queries/useShowsDatabase';
 import { useShowStore } from '@/store/showStore';
 import { getShowById } from '@/services/database/shows';
@@ -109,14 +109,12 @@ export function useFastShowDetails(explicitShowId?: string): FastShowDetailsResu
      * renders a full, confident show page from a possibly-stale row -- dates and
      * fee included -- with nothing telling the viewer it could not be refreshed.
      *
-     * `fetchStatus === 'paused'` is not optional here. This query declares no
-     * `networkMode`, so it inherits 'online' and PAUSES rather than errors when
-     * the device is offline -- meaning the single most common way to "not reach
-     * the server" never sets `isError` at all. Checking only the error would
-     * have shipped a stale-data notice that stays silent in exactly the case its
-     * own copy describes.
+     * `fetchStatus === 'paused'` is not optional here. This query inherits the
+     * default online network mode and pauses rather than errors when the device
+     * is offline, so the most common way to miss a refresh never sets `isError`.
      */
-    refreshFailed: (isNetworkError || fetchStatus === 'paused') && !!show,
+    refreshFailed:
+      (isNetworkError || fetchStatus === 'paused' || !onlineManager.isOnline()) && !!show,
     refetch,
     isFromCache,
     loadTime,

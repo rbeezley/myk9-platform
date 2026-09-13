@@ -4,6 +4,7 @@ import { act, renderHook } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { EntryStatus, PaymentStatus } from '@/types/show-registration-types';
 import { groupEntriesByShow } from './groupEntriesByShow';
+import { narrowDogsToStatus } from './statusFilterPredicate';
 import { useMyEntriesFilters } from './useMyEntriesFilters';
 import type { EntryClass, MyEntry } from './my-entries-types';
 
@@ -828,5 +829,69 @@ describe('status filter over a multi-order show', () => {
 
     expect(before).toEqual({ any: 3, pending: 1, accepted: 2, waitlist: 0 });
     expect(filtered.result.current.statusCounts).toEqual(before);
+  });
+});
+
+describe('status filter keeps an order that holds ANY matching dog (Codex, PR #2198)', () => {
+  const pendingClass: EntryClass = {
+    id: 'c-pending',
+    name: 'Novice A',
+    number: '1',
+    fee: 30,
+    status: 'entered',
+    entryStatus: EntryStatus.PENDING,
+    paymentStatus: PaymentStatus.PAID_ONLINE,
+  };
+  const acceptedClass: EntryClass = {
+    id: 'c-accepted',
+    name: 'Novice B',
+    number: '2',
+    fee: 30,
+    status: 'entered',
+    entryStatus: EntryStatus.ACCEPTED,
+    paymentStatus: PaymentStatus.PAID_ONLINE,
+  };
+  /** One order: a pending dog and an accepted dog; dominant status ACCEPTED. */
+  const mixedOrder = makeEntry({
+    id: 'mixed',
+    showId: 'show-mixed',
+    showDate: new Date(2099, 5, 2),
+    entryStatus: EntryStatus.ACCEPTED,
+    paymentStatus: PaymentStatus.PAID_ONLINE,
+    classes: [pendingClass, acceptedClass],
+    dogs: [
+      {
+        id: 'r-p',
+        dogId: 'dog-p',
+        dogName: 'Pepper',
+        classes: [pendingClass],
+        entryStatus: EntryStatus.PENDING,
+      },
+      {
+        id: 'r-a',
+        dogId: 'dog-a',
+        dogName: 'Atlas',
+        classes: [acceptedClass],
+        entryStatus: EntryStatus.ACCEPTED,
+      },
+    ],
+  });
+
+  it('survives the Pending filter, counts as pending, and narrows to the pending dog', () => {
+    const { result } = renderFilters(
+      { entries: [mixedOrder] },
+      '/exhibitor/entries?status=pending'
+    );
+
+    expect(result.current.selectedStatus).toBe('pending');
+    expect(result.current.filteredEntries.map(e => e.id)).toEqual(['mixed']);
+    expect(result.current.statusCounts.pending).toBe(1);
+    expect(result.current.statusCounts.accepted).toBe(1);
+
+    const groups = narrowDogsToStatus(
+      groupEntriesByShow(result.current.filteredEntries),
+      'pending'
+    );
+    expect(groups.flatMap(g => g.dogs.map(d => d.dogName))).toEqual(['Pepper']);
   });
 });

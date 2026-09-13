@@ -15,7 +15,7 @@
 
 import { EntryStatus, PaymentStatus } from '@/types/show-registration-types';
 import { isPendingEntry, isWaitlistEntry } from '@/utils/entryPredicates';
-import type { EntryStatusFilter } from './my-entries-types';
+import type { EntryStatusFilter, MyEntry } from './my-entries-types';
 import type { MyShowGroup } from './groupEntriesByShow';
 
 export interface StatusFilterRow {
@@ -52,14 +52,51 @@ export function matchesEntryStatusFilter(row: StatusFilterRow, status: EntryStat
   }
 }
 
+/** Does this dog belong under the filter? True when any of its class rows does. */
+function dogMatchesStatusFilter(
+  dog: {
+    entryStatus: EntryStatus;
+    classes: {
+      entryStatus?: EntryStatus | undefined;
+      paymentStatus?: PaymentStatus | undefined;
+    }[];
+  },
+  orderPaymentStatus: PaymentStatus,
+  selectedStatus: EntryStatusFilter
+): boolean {
+  return dog.classes.some(cls =>
+    matchesEntryStatusFilter(
+      {
+        entryStatus: cls.entryStatus ?? dog.entryStatus,
+        paymentStatus: cls.paymentStatus ?? orderPaymentStatus,
+      },
+      selectedStatus
+    )
+  );
+}
+
 /**
- * The status filter, applied a second time at DOG level. `useMyEntriesFilters`
- * keeps or drops whole orders by their dominant status, so an order holding a
- * pending dog and an accepted dog survives "Accepted" intact — and without
- * this pass the pending dog would render under Accepted and vanish under
- * Pending. A dog stays when any of its class rows matches; a show with no
- * matching dog is not rendered. Counts are untouched: they are still asked
- * about the same orders, in the hook.
+ * Does an ORDER belong under the filter? True when ANY of its dogs does — not
+ * only when its dominant status does. An order holding a pending dog and an
+ * accepted dog must survive "Pending", or the pending dog can never render
+ * there (Codex review on PR #2198). The list then narrows the surviving order
+ * to the matching dogs with `narrowDogsToStatus`, and the strip's counts ask
+ * this same question, so a chip's number is the number of orders that will
+ * show something when clicked.
+ */
+export function orderMatchesStatusFilter(
+  order: MyEntry,
+  selectedStatus: EntryStatusFilter
+): boolean {
+  if (selectedStatus === 'any') return true;
+  if (order.dogs.length === 0) return matchesEntryStatusFilter(order, selectedStatus);
+  return order.dogs.some(dog => dogMatchesStatusFilter(dog, order.paymentStatus, selectedStatus));
+}
+
+/**
+ * The status filter, applied a second time at DOG level, after grouping by
+ * show. A dog stays when any of its class rows matches; a show with no
+ * matching dog is not rendered.
  */
 export function narrowDogsToStatus(
   groups: MyShowGroup[],
@@ -70,16 +107,18 @@ export function narrowDogsToStatus(
   for (const group of groups) {
     const ordersById = new Map(group.orders.map(order => [order.id, order]));
     const dogs = group.dogs.filter(dog =>
-      dog.classes.some(cls => {
-        const order = ordersById.get(cls.orderId);
-        return matchesEntryStatusFilter(
+      dog.classes.some(cls =>
+        matchesEntryStatusFilter(
           {
             entryStatus: cls.entryStatus ?? dog.entryStatus,
-            paymentStatus: cls.paymentStatus ?? order?.paymentStatus ?? PaymentStatus.PENDING,
+            paymentStatus:
+              cls.paymentStatus ??
+              ordersById.get(cls.orderId)?.paymentStatus ??
+              PaymentStatus.PENDING,
           },
           selectedStatus
-        );
-      })
+        )
+      )
     );
     if (dogs.length > 0) narrowed.push({ ...group, dogs });
   }

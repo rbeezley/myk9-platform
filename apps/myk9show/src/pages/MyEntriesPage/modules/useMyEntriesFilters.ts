@@ -7,7 +7,7 @@
 import { useCallback, useMemo, useRef } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { EntryStatus, PaymentStatus } from '@/types/show-registration-types';
-import { isPendingEntry, isWaitlistEntry } from '@/utils/entryPredicates';
+import { isPendingEntry } from '@/utils/entryPredicates';
 import {
   summarizeEntryBalances,
   type EntryBalanceSummary,
@@ -28,7 +28,7 @@ import {
 } from './entryScopeFilter';
 import { resolveWaitlistSurface, type WaitlistSurface } from './waitlistSurface';
 import type { MyEntry, MyEntryStats, EntryStatusFilter, EntryTabFilter } from './my-entries-types';
-import { isExhibitorInEntry, matchesEntryStatusFilter } from './statusFilterPredicate';
+import { isExhibitorInEntry, orderMatchesStatusFilter } from './statusFilterPredicate';
 
 /**
  * Apply the entry-status axis. Kept as one function so the filtered list and
@@ -36,7 +36,7 @@ import { isExhibitorInEntry, matchesEntryStatusFilter } from './statusFilterPred
  * about different sets.
  */
 function filterEntriesByStatus(entries: MyEntry[], status: EntryStatusFilter): MyEntry[] {
-  return entries.filter(entry => matchesEntryStatusFilter(entry, status));
+  return entries.filter(entry => orderMatchesStatusFilter(entry, status));
 }
 
 interface UseMyEntriesFiltersProps {
@@ -340,7 +340,7 @@ export function useMyEntriesFilters({
     const now = new Date();
     const inTab = scopedEntries.filter(entry => TAB_PREDICATES[selectedTab](entry, now));
     return resolveWaitlistSurface({
-      waitlistEntryCount: inTab.filter(isWaitlistEntry).length,
+      waitlistEntryCount: inTab.filter(entry => orderMatchesStatusFilter(entry, 'waitlist')).length,
       activePositionCount: activeWaitlistPositionCount,
       displayedPositionCount: displayedWaitlistPositionCount,
       isLoadingPositions: waitlistPositionsLoading,
@@ -363,8 +363,8 @@ export function useMyEntriesFilters({
     const inTab = scopedEntries.filter(entry => TAB_PREDICATES[selectedTab](entry, now));
     return {
       any: inTab.length,
-      pending: inTab.filter(isPendingEntry).length,
-      accepted: inTab.filter(isExhibitorInEntry).length,
+      pending: inTab.filter(entry => orderMatchesStatusFilter(entry, 'pending')).length,
+      accepted: inTab.filter(entry => orderMatchesStatusFilter(entry, 'accepted')).length,
       waitlist: waitlistSurface.chipCount,
     };
   }, [scopedEntries, selectedTab, waitlistSurface]);

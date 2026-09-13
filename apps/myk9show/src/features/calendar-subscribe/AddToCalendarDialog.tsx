@@ -24,9 +24,22 @@ interface AddToCalendarDialogProps {
  * thing — the copy here has to make that difference obvious, because choosing
  * wrong is invisible until show day:
  *
- *   Subscribe — the calendar re-fetches, so times move when judging runs ahead
- *               or behind. This is the one exhibitors actually want.
- *   Download  — a snapshot. Correct at the moment of download and never again.
+ *   Add     — the calendar re-reads the link on its own, so later schedule
+ *             changes arrive. NOT live: the feed asks to be re-read every 30
+ *             minutes, but that is a hint. Apple honours a short interval;
+ *             Google refreshes subscribed calendars on its own schedule,
+ *             often only a few times a day. The copy must not promise the
+ *             ring's live running order.
+ *   Save    — a one-time file. Correct at the moment it is saved, never again.
+ *
+ * The copy link is not a nicety. `webcal://` is registered by iOS, macOS and
+ * Outlook, but NOT by Android, and the Google Calendar app adds no handler —
+ * so for an Android or Google Calendar exhibitor, copying the link into
+ * "Other calendars → From URL" is the ONLY path that works. It says so.
+ *
+ * Audience: exhibitors are largely retired and not confident with computers.
+ * Say what a control does and who it is for, in plain words. No jargon
+ * ("subscribe", "feed", "URL", "iCal"), no unexplained file extensions.
  */
 export function AddToCalendarDialog({
   open,
@@ -62,24 +75,24 @@ export function AddToCalendarDialog({
     try {
       await navigator.clipboard.writeText(urls.displayUrl);
       setCopied(true);
-      notifications.success('Calendar link copied.');
+      notifications.success('Link copied.');
     } catch {
       // Clipboard permissions vary; the link is on screen to copy by hand.
-      notifications.error('Could not copy automatically. Select the link below.');
+      notifications.error('Could not copy it for you. Select the link below and copy it yourself.');
     }
   };
 
   const handleRevoke = async () => {
     if (await revoke(showId)) {
       requestedRef.current = false;
-      notifications.success('Calendar link turned off. Any calendar using it will stop updating.');
+      notifications.success('Link turned off. Any calendar using it will stop updating.');
       handleOpenChange(false);
     }
   };
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogContent className="max-w-md">
+      <DialogContent className="grid-cols-[minmax(0,1fr)] max-w-md">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <CalendarPlus className="h-5 w-5" />
@@ -87,21 +100,21 @@ export function AddToCalendarDialog({
           </DialogTitle>
           <DialogDescription>
             {showName
-              ? `Put your runs for ${showName} in the calendar app you already use.`
-              : 'Put your runs in the calendar app you already use.'}
+              ? `Put your runs for ${showName} in the calendar you already use.`
+              : 'Put your runs in the calendar you already use.'}
           </DialogDescription>
         </DialogHeader>
 
         {!configured && (
           <p className="text-sm text-muted-foreground">
-            Calendar links aren&apos;t available yet. Please check back.
+            This isn&apos;t ready yet. Please check back later.
           </p>
         )}
 
         {configured && loading && !urls && (
           <div className="flex items-center gap-2 py-6 text-sm text-muted-foreground">
             <Loader2 className="h-4 w-4 animate-spin" />
-            Preparing your link…
+            Getting your link ready…
           </div>
         )}
 
@@ -112,57 +125,78 @@ export function AddToCalendarDialog({
         )}
 
         {configured && urls && (
-          <div className="space-y-5">
-            <section className="space-y-2">
-              <h3 className="text-sm font-semibold">Subscribe — stays up to date</h3>
-              <p className="text-xs text-muted-foreground">
-                Your calendar re-checks this link, so run times update as the day runs ahead or
-                behind. Recommended.
-              </p>
-              <Button asChild className="w-full">
+          <div className="min-w-0 space-y-4">
+            <div className="space-y-1.5">
+              <Button asChild className="min-h-[44px] w-full">
                 {/* Not a fetch: webcal:// hands off to the OS calendar app. */}
-                <a href={urls.subscribeUrl}>Subscribe in my calendar</a>
+                <a href={urls.subscribeUrl}>Add to my calendar</a>
               </Button>
-              <div className="flex items-center gap-2">
-                <code className="min-w-0 flex-1 truncate rounded bg-muted px-2 py-1.5 text-xs">
+              <p className="text-xs text-muted-foreground">
+                Works on iPhone, iPad and Mac.
+              </p>
+            </div>
+
+            <div className="space-y-1.5 border-t pt-3">
+              <p className="text-sm font-medium">Using Android or Google Calendar?</p>
+              <p className="text-xs text-muted-foreground">
+                Copy this link. Then in Google Calendar, choose Other calendars, then From URL, and
+                paste it there.
+              </p>
+              <div className="flex min-w-0 items-center gap-2">
+                <code className="min-w-0 flex-1 truncate rounded bg-muted px-2 py-2 text-xs">
                   {urls.displayUrl}
                 </code>
-                <Button variant="outline" size="sm" onClick={handleCopy} aria-label="Copy link">
+                <Button
+                  variant="outline"
+                  onClick={handleCopy}
+                  aria-label="Copy the calendar link"
+                  className="min-h-[44px] shrink-0"
+                >
                   {copied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
+                  <span className="ml-2">{copied ? 'Copied' : 'Copy'}</span>
                 </Button>
               </div>
-            </section>
+            </div>
 
-            <section className="space-y-2 border-t pt-4">
-              <h3 className="text-sm font-semibold">Download — a snapshot</h3>
-              <p className="text-xs text-muted-foreground">
-                A one-time file. It won&apos;t update if the schedule changes.
+            {/* INTENT: never promise live times. A subscribed calendar decides
+                its own refresh schedule — Google's is often only a few times a
+                day — so an exhibitor at the ring must be sent to the show page,
+                not left trusting a stale entry on their phone. */}
+            <p className="rounded bg-muted/60 px-3 py-2 text-xs text-muted-foreground">
+              Your calendar looks for changes on its own, usually a few times a day. It will not
+              keep up with last-minute ring changes, so check the show page on the day.
+            </p>
+
+            <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 border-t pt-3">
+              <p className="min-w-0 text-xs text-muted-foreground">
+                Or save your runs once. They will not update later.
               </p>
-              <Button asChild variant="outline" className="w-full">
+              <Button asChild variant="outline" size="sm" className="min-h-[44px] shrink-0">
                 <a href={urls.downloadUrl} download={buildIcsFilename(showName)}>
                   <Download className="mr-2 h-4 w-4" />
-                  Download .ics
+                  Save a copy
                 </a>
               </Button>
-            </section>
+            </div>
 
-            <section className="border-t pt-4">
+            <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 border-t pt-3">
+              <p className="min-w-0 text-xs text-muted-foreground">
+                Anyone who has this link can see your schedule.
+              </p>
               <Button
                 variant="ghost"
                 size="sm"
                 onClick={handleRevoke}
                 disabled={loading}
-                className="text-muted-foreground"
+                className="min-h-[44px] shrink-0 text-muted-foreground"
               >
                 <Link2Off className="mr-2 h-4 w-4" />
                 Turn off this link
               </Button>
-              <p className="mt-1 text-xs text-muted-foreground">
-                Use this if you shared the link by mistake. You can create a new one any time.
-              </p>
-            </section>
+            </div>
           </div>
         )}
+
       </DialogContent>
     </Dialog>
   );

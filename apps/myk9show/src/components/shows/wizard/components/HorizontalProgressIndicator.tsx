@@ -113,7 +113,11 @@ export const HorizontalProgressIndicator: React.FC<HorizontalProgressIndicatorPr
                   onClick={() => isClickable && onStepClick?.(step.id)}
                   disabled={!isClickable}
                   aria-current={isCurrent ? 'step' : undefined}
-                  aria-label={`${step.label}${isCompleted ? ' (completed)' : isCurrent ? ' (current)' : ''}`}
+                  /* Current WINS over completed: a step the user has gone back
+                     to is both, and the name must say where they ARE. The
+                     circle still shows the check — history is visual, position
+                     is announced. */
+                  aria-label={`${step.label}${isCurrent ? ' (current)' : isCompleted ? ' (completed)' : ''}`}
                   className={cn(
                     'relative z-10 flex min-h-[44px] w-full min-w-0 flex-col items-center gap-1.5 rounded-lg px-1 py-1.5',
                     'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2',

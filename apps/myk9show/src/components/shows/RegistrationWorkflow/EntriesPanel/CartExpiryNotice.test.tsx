@@ -78,30 +78,33 @@ describe('CartExpiryNotice', () => {
   });
 });
 
-describe('CartExpiryNotice start-over control', () => {
-  it('offers no control when the wizard passes no handler', () => {
+describe('CartExpiryNotice recovery control', () => {
+  it('offers Start again on the expired branch, at the 44px touch floor', () => {
     seedCart(-60_000, true);
-    render(<CartExpiryNotice {...OWNER} />);
-    expect(screen.getByTestId('cart-expiry-notice')).toHaveTextContent('Your selections expired');
-    expect(screen.queryByRole('button', { name: 'Choose classes again' })).not.toBeInTheDocument();
-  });
+    render(<CartExpiryNotice {...OWNER} reload={vi.fn()} />);
 
-  it('calls the wizard handler once when the exhibitor chooses to start again', async () => {
-    const onStartOver = vi.fn();
-    seedCart(-60_000, true);
-    const { user } = render(<CartExpiryNotice {...OWNER} onStartOver={onStartOver} />);
-
-    const button = screen.getByRole('button', { name: 'Choose classes again' });
+    const button = screen.getByRole('button', { name: 'Start again' });
     expect(button).toHaveClass('min-h-11');
-    await user.click(button);
-
-    expect(onStartOver).toHaveBeenCalledTimes(1);
   });
 
-  it('offers no start-over control while the cart is merely expiring', () => {
+  it('reloads the wizard when Start again is pressed', async () => {
+    // A reload, not a state reset: `loadCart` filters `expires_at > now`, the
+    // wizard's selections and completion are React state, and the dead cart
+    // needs no `abandonCart`. Four hand-built resets each raced the cart
+    // lifecycle; a fresh boot has no ordering to get wrong.
+    const reload = vi.fn();
+    seedCart(-60_000, true);
+    const { user } = render(<CartExpiryNotice {...OWNER} reload={reload} />);
+
+    await user.click(screen.getByRole('button', { name: 'Start again' }));
+
+    expect(reload).toHaveBeenCalledTimes(1);
+  });
+
+  it('offers no recovery control while the cart is merely expiring', () => {
     seedCart(2 * 60 * 1000, true);
-    render(<CartExpiryNotice {...OWNER} onStartOver={vi.fn()} />);
-    expect(screen.queryByRole('button', { name: 'Choose classes again' })).not.toBeInTheDocument();
+    render(<CartExpiryNotice {...OWNER} reload={vi.fn()} />);
+    expect(screen.queryByRole('button', { name: 'Start again' })).not.toBeInTheDocument();
   });
 });
 

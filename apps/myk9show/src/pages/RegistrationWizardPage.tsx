@@ -59,7 +59,6 @@ function RegistrationWizardContent() {
     isLateEntryMode,
     currentWorkflowMode,
     handleStepClick,
-    handleStartOver,
     draftSave,
     draftLoad,
     draftDelete,
@@ -138,13 +137,11 @@ function RegistrationWizardContent() {
   // their `exhibitorProfile` is the signed-in organizer, not the exhibitor being
   // entered — so there is nothing to expire and nothing to own. The mode is the
   // gate; no ownership check is asked to stand in for it.
-  const hasClassStep = currentWorkflowConfig.steps.includes('class-selection');
   const cartExpiry =
     currentWorkflowMode === 'exhibitor'
       ? {
           showId,
           exhibitorId: exhibitorProfile?.id,
-          ...(hasClassStep ? { onStartOver: handleStartOver } : {}),
         }
       : undefined;
 

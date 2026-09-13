@@ -18,6 +18,11 @@ export interface EntriesPanelTotalsProps {
   capacityUnavailable?: boolean | undefined;
   /** Discounts applied to the entry. Always empty today; see MEMORY. */
   discounts?: readonly { amount: number; description: string }[] | undefined;
+  /**
+   * Signed difference between a staff fee override and the itemised sum. Zero
+   * (omitted) when no override is set, or when it matches the lines.
+   */
+  adjustmentCents?: number | undefined;
   /** Payment step only — when present the money block is the payable one. */
   payment?:
     | {
@@ -50,6 +55,7 @@ export const EntriesPanelTotals: React.FC<EntriesPanelTotalsProps> = ({
   capacityReady,
   capacityUnavailable,
   discounts,
+  adjustmentCents,
   payment,
 }) => {
   const totals = payment?.totals;
@@ -103,9 +109,21 @@ export const EntriesPanelTotals: React.FC<EntriesPanelTotalsProps> = ({
           <div className="flex items-baseline justify-between gap-2 text-sm">
             <span className="text-muted-foreground">Subtotal</span>
             <span className="tabular-nums">
-              {moneyOrPlaceholder(capacityReady, capacityUnavailable, totals?.entryFeeCents ?? 0)}
+              {moneyOrPlaceholder(capacityReady, capacityUnavailable, entryFeeCents)}
             </span>
           </div>
+          {/* The override, said out loud. Without this row the total simply
+              disagrees with every line above it and nothing explains why. */}
+          {!!adjustmentCents && (
+            <div className="flex items-baseline justify-between gap-2 text-sm">
+              <span className="text-muted-foreground">Secretary adjustment</span>
+              <span className="tabular-nums">
+                {capacityReady
+                  ? `${adjustmentCents > 0 ? '+' : '-'}${formatCartCurrency(Math.abs(adjustmentCents))}`
+                  : '—'}
+              </span>
+            </div>
+          )}
           {totals?.isPayableCard && (
             <PlatformFeeSplitLines subtotalCents={totals.entryFeeCents} rates={payment.rates} />
           )}

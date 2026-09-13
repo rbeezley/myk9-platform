@@ -18,8 +18,8 @@ export interface CartExpiryNoticeProps {
   showId?: string | null | undefined;
   /** The exhibitor the cart is held for — the on-behalf one in staff flows. */
   exhibitorId?: string | null | undefined;
-  /** Sends the exhibitor back to Select classes. Omitted = text-only notice. */
-  onStartOver?: (() => void) | undefined;
+  /** Injectable for tests, so asserting the click needs no real navigation. */
+  reload?: (() => void) | undefined;
 }
 
 /**
@@ -37,12 +37,23 @@ export interface CartExpiryNoticeProps {
  * exists, which makes the store's own getters recompute. No store logic, no new
  * data path, cleared on unmount.
  *
+ * Recovery is a RELOAD, not a hand-built state reset, and that is deliberate.
+ * Four review rounds of a bespoke restart each opened a new cart-lifecycle race:
+ * navigate-then-clear left stale selections that re-added as duplicates; then an
+ * awaited `abandonCart` left Payment live and submittable over an emptied entry;
+ * then the fire-and-forget release raced the replacement cart's own
+ * `loadCart`/`createCart` and could null the NEW cart. A fresh boot has none of
+ * those orderings to get wrong: `loadCart` already filters `expires_at > now` so
+ * the dead cart is simply not found, the wizard's selections and step-completion
+ * are React state and vanish with the unmount, and no `abandonCart` is owed
+ * because the cart is already dead server-side.
+ *
  * INTENT: exhibitor — the flow must never lose work silently.
  */
 export const CartExpiryNotice: React.FC<CartExpiryNoticeProps> = ({
   showId,
   exhibitorId,
-  onStartOver,
+  reload = () => window.location.reload(),
 }) => {
   const { expiresAt, timeRemaining, isExpired, isWarning } = useCartExpiration();
   // The store is a singleton and may still hold a previous show's expired cart
@@ -68,17 +79,15 @@ export const CartExpiryNotice: React.FC<CartExpiryNoticeProps> = ({
         <Clock className="h-4 w-4" />
         <AlertDescription className="space-y-2">
           <p>Your selections expired — nothing has been entered or charged.</p>
-          {onStartOver && (
-            <Button
-              type="button"
-              variant="outline"
-              size="touch"
-              className="min-h-11"
-              onClick={onStartOver}
-            >
-              Choose classes again
-            </Button>
-          )}
+          <Button
+            type="button"
+            variant="outline"
+            size="touch"
+            className="min-h-11"
+            onClick={reload}
+          >
+            Start again
+          </Button>
         </AlertDescription>
       </Alert>
     );

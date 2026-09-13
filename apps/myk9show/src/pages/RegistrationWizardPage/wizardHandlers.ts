@@ -12,8 +12,6 @@
 
 import { notifications } from '@/lib/notifications';
 import { useShowRegistrationStore } from '@/store/showRegistrationStore';
-import { useCartStore } from '@/store/cartStore';
-import { cartBelongsToRegistration } from '@/store/cartStore.helpers';
 import {
   PaymentStatus,
   EntryStatus,
@@ -26,7 +24,6 @@ import type { StepId } from '@/components/shows/RegistrationWorkflow/Registratio
 import { selectedDogsOwner } from '@/features/registration/selectedDogsOwner';
 import { resolveRegistrationCompletionPath } from '../RegistrationWizardPage.routes';
 import { submitPaymentStep } from './submitPaymentStep';
-import { startOverAtClassSelection } from './startOver';
 import { getEntryWindowTimezone } from './entryCloseGuard';
 import type { RegistrationWizardState } from './useRegistrationWizardState';
 import type { SavedDraft } from '@/hooks/useDraftPersistence';
@@ -294,24 +291,6 @@ export function createWizardHandlers(state: RegistrationWizardState) {
     }
   };
 
-  // "Choose classes again" from the expired-cart notice. Synchronously resets
-  // selections, step completion and the current step, THEN releases the dead
-  // cart without awaiting it — see `startOver.ts` for why each piece matters.
-  const handleStartOver = () => {
-    startOverAtClassSelection({
-      cartBelongsToThisRegistration: cartBelongsToRegistration(
-        useCartStore.getState().cart,
-        showId,
-        exhibitorProfile?.id
-      ),
-      classStepIndex: currentWorkflowConfig.steps.indexOf('class-selection'),
-      abandonCart,
-      setClassSelections,
-      setStepCompletionState,
-      setCurrentStep,
-    });
-  };
-
   const handlePaymentMethodChange = (method: PaymentMethod) => {
     setRegistrationData(prev => ({ ...prev, paymentMethod: method }));
   };
@@ -341,7 +320,6 @@ export function createWizardHandlers(state: RegistrationWizardState) {
     handleDraftLoaded,
     handleExit,
     handleStepClick,
-    handleStartOver,
     handlePaymentMethodChange,
     handlePaymentMethodClear,
     handlePaymentDetailsChange,

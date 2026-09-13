@@ -399,3 +399,60 @@ describe('EntriesPanel bar headline agrees with the totals block', () => {
     expect(bar().getByTestId('entries-panel-total')).toHaveTextContent('Checking availability');
   });
 });
+
+/**
+ * A staff fee override replaced `totals.entryFeeCents` wholesale, so "Entry
+ * fees" and "Subtotal" quoted the override while the lines above them still
+ * itemised the real classes — $30.00 claimed over two visible $25.00 rows
+ * (Codex #2210 round 6 P2). The itemised sum is now what those rows say, and
+ * the difference is named.
+ */
+describe('EntriesPanel reconciles a staff fee override with the lines', () => {
+  function overridePanel(feeOverride: number | null, paymentMethod: PaymentMethod = 'check') {
+    return paymentPanel({
+      groups: groupsFor(2),
+      feeCalculation: fees(2),
+      paymentMethod,
+      feeOverride,
+    });
+  }
+
+  it('keeps Entry fees and Subtotal as the sum of the lines actually shown', () => {
+    render(overridePanel(30));
+    const panel = aside();
+
+    // Two lines at $30 each — this fixture's class fee — against a $30
+    // override. The rows must read the LINES, not the override.
+    expect(panel.getByText('Entry fees').parentElement).toHaveTextContent('$60.00');
+    expect(panel.getByText('Subtotal').parentElement).toHaveTextContent('$60.00');
+  });
+
+  it('names the difference as a Secretary adjustment', () => {
+    render(overridePanel(30));
+    const panel = aside();
+
+    const row = panel.getByText('Secretary adjustment').parentElement;
+    expect(row).toHaveTextContent('-$30.00');
+  });
+
+  it('still quotes the override as the amount due', () => {
+    render(overridePanel(30));
+    expect(aside().getByText('Total due').parentElement).toHaveTextContent('$30.00');
+  });
+
+  it('shows a positive adjustment when the override is higher', () => {
+    render(overridePanel(80));
+    expect(aside().getByText('Secretary adjustment').parentElement).toHaveTextContent('+$20.00');
+  });
+
+  it('adds no adjustment row when there is no override', () => {
+    render(overridePanel(null));
+    expect(aside().queryByText('Secretary adjustment')).not.toBeInTheDocument();
+    expect(aside().getByText('Entry fees').parentElement).toHaveTextContent('$60.00');
+  });
+
+  it('adds no adjustment row when the override equals the itemised sum', () => {
+    render(overridePanel(60));
+    expect(aside().queryByText('Secretary adjustment')).not.toBeInTheDocument();
+  });
+});

@@ -46,13 +46,12 @@ export interface EntriesPanelProps {
    * false for secretary/admin), and their `exhibitorProfile` is the signed-in
    * ORGANIZER rather than the exhibitor being entered — so an ownership check
    * there would compare the wrong id against a cart that should not exist.
-   * Absent = no notice and no start-over, structurally rather than by guard.
+   * Absent = no notice at all, structurally rather than by guard.
    */
   cartExpiry?:
     | {
         showId: string | null | undefined;
         exhibitorId: string | null | undefined;
-        onStartOver?: (() => void) | undefined;
       }
     | undefined;
 }
@@ -102,7 +101,12 @@ export const EntriesPanel: React.FC<EntriesPanelProps> = ({
     : undefined;
 
   const classCount = countPanelLines(groups);
-  const entryFeeCents = totals ? totals.entryFeeCents : sumPanelFeeCents(groups);
+  // ALWAYS the sum of the lines rendered above it. `totals.entryFeeCents` is the
+  // staff override when one is set, which made "Entry fees" and "Subtotal"
+  // contradict the itemisation directly beneath them (Codex #2210 round 6 P2).
+  // The override still decides what is OWED; it is reconciled as its own row.
+  const entryFeeCents = sumPanelFeeCents(groups);
+  const adjustmentCents = totals ? totals.entryFeeCents - entryFeeCents : 0;
   // The SAME string the totals block shows — one derivation, two widths.
   const headline = formatAmountDue({
     capacityReady,
@@ -160,6 +164,7 @@ export const EntriesPanel: React.FC<EntriesPanelProps> = ({
       capacityReady={capacityReady}
       capacityUnavailable={capacityUnavailable}
       {...(isPayment ? { discounts: feeCalculation.discounts } : {})}
+      {...(adjustmentCents !== 0 ? { adjustmentCents } : {})}
       {...(totals ? { payment: { totals, paymentMethod, rates: resolvedRates } } : {})}
     />
   );

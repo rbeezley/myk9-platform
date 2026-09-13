@@ -40,6 +40,26 @@ describe('HorizontalProgressIndicator', () => {
     expect(current).toHaveAttribute('aria-current', 'step');
   });
 
+  // A step the exhibitor has gone BACK to is both current and completed. The
+  // name must say where they are, not where they have been: "(completed)" on
+  // the step you are standing in reads as a different step (Codex #2210 round 6
+  // P3). The circle keeps its check — that is the visual history — but the
+  // accessible name follows `aria-current`.
+  it('calls a revisited completed step current, not completed', () => {
+    renderIndicator({ currentStep: 0, completedSteps: [0, 1] });
+
+    const revisited = screen.getByRole('button', { name: 'Show Details (current)' });
+    expect(revisited).toHaveAttribute('aria-current', 'step');
+    expect(
+      screen.queryByRole('button', { name: 'Show Details (completed)' })
+    ).not.toBeInTheDocument();
+  });
+
+  it('still shows the completed check on a revisited step', () => {
+    renderIndicator({ currentStep: 0, completedSteps: [0, 1] });
+    expect(screen.getByTestId('wizard-step-circle-0').querySelector('svg')).not.toBeNull();
+  });
+
   it('labels a completed step as completed', () => {
     renderIndicator({ currentStep: 1, completedSteps: [0] });
     expect(screen.getByRole('button', { name: 'Show Details (completed)' })).toBeInTheDocument();

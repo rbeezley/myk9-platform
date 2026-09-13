@@ -31,7 +31,7 @@
 
 - [x] 5.1 Run the targeted suites shuffled: `pnpm vitest run --sequence.shuffle` for the wizard, indicator, cart and payment tests, six times because the panel reads a module-scope store; record EXIT codes to `.logs/`
 - [x] 5.2 `pnpm typecheck`, `pnpm lint`, and `pnpm qa:code-quality-ratchet` from the worktree; fix any file over 500 lines by extracting a sibling module
-- [ ] 5.3 `pnpm test:e2e -- wizardVisualQA` plus a manual walk at 390 and 1440 on the exhibitor route and 1024 on the secretary route; attach screenshots of both wizards' steppers to the PR
+- [x] 5.3 `pnpm test:e2e -- wizardVisualQA` plus a manual walk at 390 and 1440 on the exhibitor route and 1024 on the secretary route; attach screenshots of both wizards' steppers to the PR
 - [x] 5.4 Verify the commit boundary by test: `submitPaymentStep` is still invoked only from the Payment step's commit control and `entryCloseGuard`'s recovery route test still passes
 
 ## 6. Ship

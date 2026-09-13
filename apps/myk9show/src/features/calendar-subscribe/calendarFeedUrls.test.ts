@@ -97,7 +97,11 @@ describe('countIcsEvents', () => {
   it('counts the events in a feed', () => {
     expect(
       countIcsEvents(
-        wrap(['BEGIN:VEVENT', 'UID:a', 'END:VEVENT', 'BEGIN:VEVENT', 'UID:b', 'END:VEVENT'].join('\r\n'))
+        wrap(
+          ['BEGIN:VEVENT', 'UID:a', 'END:VEVENT', 'BEGIN:VEVENT', 'UID:b', 'END:VEVENT'].join(
+            '\r\n'
+          )
+        )
       )
     ).toBe(2);
   });
@@ -110,9 +114,12 @@ describe('countIcsEvents', () => {
   it('is not fooled by the text appearing inside a folded description', () => {
     // Continuation lines start with a space, so an anchored match cannot see it.
     const ics = wrap(
-      ['BEGIN:VEVENT', 'DESCRIPTION:careful', ' BEGIN:VEVENT is only words here', 'END:VEVENT'].join(
-        '\r\n'
-      )
+      [
+        'BEGIN:VEVENT',
+        'DESCRIPTION:careful',
+        ' BEGIN:VEVENT is only words here',
+        'END:VEVENT',
+      ].join('\r\n')
     );
     expect(countIcsEvents(ics)).toBe(1);
   });

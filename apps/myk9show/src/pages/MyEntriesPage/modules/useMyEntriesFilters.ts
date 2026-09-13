@@ -39,6 +39,24 @@ function filterEntriesByStatus(entries: MyEntry[], status: EntryStatusFilter): M
   return entries.filter(entry => orderMatchesStatusFilter(entry, status));
 }
 
+function describeFilteredResults(
+  entryCount: number,
+  positionCount: number,
+  offerUpdateCount: number,
+  isLoadingPositions: boolean
+): string {
+  const parts: string[] = [];
+  if (entryCount > 0) parts.push(`${entryCount} ${entryCount === 1 ? 'entry' : 'entries'}`);
+  if (positionCount > 0)
+    parts.push(`${positionCount} wait list ${positionCount === 1 ? 'position' : 'positions'}`);
+  if (offerUpdateCount > 0)
+    parts.push(
+      `${offerUpdateCount} wait list offer ${offerUpdateCount === 1 ? 'update' : 'updates'}`
+    );
+  if (isLoadingPositions) parts.push('Checking wait list positions');
+  return parts.join(' and ') || '0 entries';
+}
+
 interface UseMyEntriesFiltersProps {
   entries: MyEntry[];
   /**
@@ -68,6 +86,8 @@ interface UseMyEntriesFiltersProps {
 
 interface UseMyEntriesFiltersReturn {
   filteredEntries: MyEntry[];
+  /** Accessible result count, including visible positions and terminal offer updates. */
+  filteredResultAnnouncement: string;
   selectedTab: EntryTabFilter;
   setSelectedTab: (tab: EntryTabFilter) => void;
   /** Entry-status filter, composed with the tab rather than replacing it. */
@@ -317,15 +337,22 @@ export function useMyEntriesFilters({
   const tabCounts = useMemo<Record<EntryTabFilter, number>>(() => {
     const now = new Date();
     const statusFiltered = filterEntriesByStatus(scopedEntries, selectedStatus);
+    const positionCount =
+      (selectedStatus === 'any' || selectedStatus === 'waitlist') &&
+      (scopeMatch.kind === 'none' || scopeMatch.kind === 'unmatched')
+        ? activeWaitlistPositionCount
+        : 0;
     // Every badge counts with the exact predicate its tab filters by, so a
     // count can no longer describe a list the panel would refuse to produce.
+    // Active wait-list positions belong to All and Upcoming, never Completed.
     return Object.fromEntries(
       ENTRY_TAB_DEFS.map(tab => [
         tab.id,
-        statusFiltered.filter(entry => TAB_PREDICATES[tab.id](entry, now)).length,
+        statusFiltered.filter(entry => TAB_PREDICATES[tab.id](entry, now)).length +
+          (tab.id === 'completed' ? 0 : positionCount),
       ])
     ) as Record<EntryTabFilter, number>;
-  }, [scopedEntries, selectedStatus]);
+  }, [scopedEntries, selectedStatus, scopeMatch.kind, activeWaitlistPositionCount]);
 
   // ...and status counts describe the list within the ACTIVE tab, so a chip
   // never promises rows the current tab would hide. The two counts read each
@@ -361,16 +388,31 @@ export function useMyEntriesFilters({
   const statusCounts = useMemo<Record<EntryStatusFilter, number>>(() => {
     const now = new Date();
     const inTab = scopedEntries.filter(entry => TAB_PREDICATES[selectedTab](entry, now));
+    const visiblePositions =
+      waitlistSurface.chipCount -
+      inTab.filter(entry => orderMatchesStatusFilter(entry, 'waitlist')).length;
     return {
-      any: inTab.length,
+      any: inTab.length + visiblePositions,
       pending: inTab.filter(entry => orderMatchesStatusFilter(entry, 'pending')).length,
       accepted: inTab.filter(entry => orderMatchesStatusFilter(entry, 'accepted')).length,
       waitlist: waitlistSurface.chipCount,
     };
   }, [scopedEntries, selectedTab, waitlistSurface]);
 
+  const visibleActivePositions = waitlistSurface.showPositions ? activeWaitlistPositionCount : 0;
+  const visibleOfferUpdates = waitlistSurface.showPositions
+    ? Math.max(0, displayedWaitlistPositionCount - activeWaitlistPositionCount)
+    : 0;
+  const filteredResultAnnouncement = describeFilteredResults(
+    filteredEntries.length,
+    visibleActivePositions,
+    visibleOfferUpdates,
+    waitlistSurface.showPositions && waitlistPositionsLoading
+  );
+
   return {
     filteredEntries,
+    filteredResultAnnouncement,
     selectedTab,
     setSelectedTab,
     selectedStatus,

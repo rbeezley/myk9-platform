@@ -3,7 +3,10 @@ import { EntryStatus, PaymentStatus } from '@/types/show-registration-types';
 import { groupEntriesByOrder } from './groupEntriesByOrder';
 import { groupEntriesByShow, indexOrdersById } from './groupEntriesByShow';
 import type { MyShowClass, MyShowDog } from './groupEntriesByShow';
-import { ENTRY_STATUS_DESCRIPTORS, getStatusDescriptor } from '@/components/status/statusIconGrammar';
+import {
+  ENTRY_STATUS_DESCRIPTORS,
+  getStatusDescriptor,
+} from '@/components/status/statusIconGrammar';
 import { deriveClassRowState, deriveDogChip, type DogChipState } from './myShowDogState';
 import type { DayCheckInContext } from './dayCheckIn';
 import type { EntryClass, MyEntry } from './my-entries-types';
@@ -95,6 +98,24 @@ describe('deriveClassRowState', () => {
       kind: 'in-ring',
     });
   });
+
+  // The production mapper sets `entryStatusKind` from the SAME column, and
+  // `getEntryStatusKindForDisplay` collapses checked-in, at-gate and in-ring
+  // into one `in_ring` kind. Reading the kind first therefore printed "in the
+  // ring" over every checked-in and at-gate class and withheld its "change"
+  // link — the check-in column has to win whenever it says anything.
+  it.each([
+    ['at-gate', 'at-gate'],
+    ['come-to-gate', 'come-to-gate'],
+    ['checked-in', 'checked-in'],
+  ] as const)(
+    'keeps the %s column over the collapsed in_ring kind the mapper sets beside it',
+    (checkInStatus, kind) => {
+      expect(
+        stateOf([makeRow([makeClass({ checkInStatus, entryStatusKind: 'in_ring' })])])
+      ).toEqual({ kind });
+    }
+  );
 
   it('reports at-gate', () => {
     expect(stateOf([makeRow([makeClass({ checkInStatus: 'at-gate' })])])).toEqual({
@@ -220,6 +241,14 @@ describe('deriveDogChip', () => {
         makeClass({ id: 'c2', classId: 'class-2', checkInStatus: 'checked-in' }),
       ])
     ).toEqual({ kind: 'at_gate', label: 'At gate', status: 'at_gate' });
+  });
+
+  it('chips an at-gate dog "At gate" despite the collapsed in_ring kind beside it', () => {
+    expect(chipFor([makeClass({ checkInStatus: 'at-gate', entryStatusKind: 'in_ring' })])).toEqual({
+      kind: 'at_gate',
+      label: 'At gate',
+      status: 'at_gate',
+    });
   });
 
   it('reports checked-in only when every class carrying a state is in', () => {

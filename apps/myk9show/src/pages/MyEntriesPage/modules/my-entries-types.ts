@@ -80,7 +80,7 @@ export interface EntryClass {
 /**
  * One dog's slice of a grouped order card: identity + its own nested classes.
  * A single-dog order still populates a one-element `dogs` array on `MyEntry`
- * so `MyEntryCard` has one shape to render regardless of dog count.
+ * so the My Shows cards have one shape to render regardless of dog count.
  */
 export interface MyEntryDogGroup {
   /** Stable row id for this dog within the order (first merged class row's id). */

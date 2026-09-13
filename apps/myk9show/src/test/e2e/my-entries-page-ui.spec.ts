@@ -305,34 +305,36 @@ test.describe('My Shows Page - Current Status', () => {
     // Wait for content to load
     await page.waitForTimeout(1000);
 
-    const entryCards = page.locator('.myk9-entries-card');
-    const entryCount = await entryCards.count();
+    // One card per DOG now (MYK9-482), not one per order, and the rolled-up
+    // chip lives in the dog card's action row rather than a badge column.
+    const dogCards = page.locator('.myk9-entries-dog-card');
+    const dogCount = await dogCards.count();
 
-    if (entryCount > 0) {
+    if (dogCount > 0) {
       await expect(page.locator('.entry-status-stepper')).toHaveCount(0);
-      // Assert the card carries a status BADGE, not that its text is one of a
+      // Assert the card carries a status CHIP, not that its text is one of a
       // hand-listed set. The previous whitelist regex drifted from
       // `getEntryStatusBadge` twice over: it omitted "In Ring", which the page
       // plainly renders, and every label added since — and "Scored" never
       // covered "Partially scored" anyway, the capital S stops it matching. It
       // passed only while the first card happened to land in a listed state,
-      // then failed on correct UI. Every EntryStatus resolves to a descriptor
-      // label, so the durable check is that a badge is there and says
-      // something, scoped to the badge row so contextual copy elsewhere on the
-      // card ("1 class still to run") cannot stand in for it.
-      const statusBadge = entryCards
+      // then failed on correct UI. Every chip resolves to a descriptor label,
+      // so the durable check is that one is there and says something, scoped
+      // to the action row so contextual copy elsewhere on the card cannot
+      // stand in for it.
+      const statusChip = dogCards
         .first()
-        .locator('.myk9-entries-badges')
+        .locator('.myk9-entries-dog-card-actions')
         .locator(':scope > *')
-        // The status badge is the one carrying the entry-family icon; the
-        // payment badge sits beside it in the same row.
+        // The chip is the element carrying the entry-family icon; the day
+        // check-in button may sit beside it in the same row.
         .filter({ has: page.locator('[data-family="entry"]') })
         .first();
-      await expect(statusBadge).toBeVisible();
-      // Non-empty TEXT, not just a rendered badge: the icon alone would satisfy
-      // a container-level emptiness check, leaving a badge whose label span had
+      await expect(statusChip).toBeVisible();
+      // Non-empty TEXT, not just a rendered chip: the icon alone would satisfy
+      // a container-level emptiness check, leaving a chip whose label span had
       // vanished to pass a test whose whole subject is the label.
-      await expect(statusBadge).toHaveText(/\S/);
+      await expect(statusChip).toHaveText(/\S/);
     }
   });
 });

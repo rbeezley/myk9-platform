@@ -67,17 +67,19 @@ export function deriveClassRowState(cls: MyShowClass, ctx: DayCheckInContext): C
   if (cls.isScored === true) return { kind: 'result' };
   if (isAbsentClass(cls)) return { kind: 'absent' };
 
-  // `entryStatusKind === 'in_ring'` is the signal the current card reads;
-  // `check_in_status = 'in-ring'` is the same fact recorded on the other
-  // column. Either one means the dog is in the ring right now.
-  if (cls.checkInStatus === 'in-ring' || cls.entryStatusKind === 'in_ring') {
-    return { kind: 'in-ring' };
-  }
+  // The check-in column is read FIRST and in full. `entryStatusKind` is only a
+  // fallback for a row that has no check-in column of its own, because
+  // `getEntryStatusKindForDisplay` collapses checked-in, at-gate AND in-ring
+  // into the single `in_ring` kind — testing it first made every checked-in or
+  // at-gate class render "in the ring" and lose its "change" link, since the
+  // production mapper always populates the kind alongside the column.
+  if (cls.checkInStatus === 'in-ring') return { kind: 'in-ring' };
   if (cls.checkInStatus === 'pulled') return { kind: 'pulled' };
   if (cls.checkInStatus === 'conflict') return { kind: 'conflict' };
   if (cls.checkInStatus === 'at-gate') return { kind: 'at-gate' };
   if (cls.checkInStatus === 'come-to-gate') return { kind: 'come-to-gate' };
   if (cls.checkInStatus === 'checked-in') return { kind: 'checked-in' };
+  if (cls.entryStatusKind === 'in_ring') return { kind: 'in-ring' };
 
   if (isClassCheckInAvailableToday(cls, ctx)) return { kind: 'check-in-available' };
 
@@ -153,11 +155,16 @@ export function deriveDogChip(dog: MyShowDog, ctx: DogChipContext): DogChipState
   if (classes.some(cls => cls.checkInStatus === 'conflict')) {
     return { kind: 'conflict', label: 'Conflict', status: 'conflict' };
   }
-  if (classes.some(cls => cls.checkInStatus === 'in-ring' || cls.entryStatusKind === 'in_ring')) {
+  if (classes.some(cls => cls.checkInStatus === 'in-ring')) {
     return { kind: 'in_ring', label: 'In ring', status: 'in_ring' };
   }
   if (classes.some(cls => cls.checkInStatus === 'at-gate')) {
     return { kind: 'at_gate', label: 'At gate', status: 'at_gate' };
+  }
+  // Same fallback ordering as the row: the collapsed `in_ring` kind only
+  // speaks for a class whose own check-in column said nothing.
+  if (classes.some(cls => cls.entryStatusKind === 'in_ring' && !cls.checkInStatus)) {
+    return { kind: 'in_ring', label: 'In ring', status: 'in_ring' };
   }
 
   const bearing = checkInBearingClasses(dog);

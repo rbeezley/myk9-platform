@@ -94,7 +94,7 @@ export const MyShowClassRow: React.FC<MyShowClassRowProps> = ({
 
   return (
     <div className="myk9-entries-class-row">
-      <span className="break-words text-foreground">{cls.name}</span>
+      <span className="myk9-entries-class-name text-foreground">{cls.name}</span>
       <span className="myk9-entries-class-when">{when.join(' · ')}</span>
       <span className="myk9-entries-class-state">
         {state.kind === 'result' && renderResult()}

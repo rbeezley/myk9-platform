@@ -9,7 +9,7 @@
  * entries the balance covers; recovered lines retain their existing entry
  * identity for checkout.
  *
- * Shared by MyEntryCard's per-entry "Finish Payment" button and the My Payments
+ * Shared by My Shows' balance-due strip "Finish payment" link and the My Payments
  * page's retry affordance for failed/cancelled orders, so both produce an
  * identical recovery URL.
  */

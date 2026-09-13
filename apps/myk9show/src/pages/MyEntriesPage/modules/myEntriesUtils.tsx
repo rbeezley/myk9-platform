@@ -123,23 +123,6 @@ export function getEntryStatusBadgeLabel(
 }
 
 /**
- * Whether the card's status sentence would only repeat the badge beside it.
- *
- * Compares the two rendered strings rather than re-deriving the cases from
- * status kinds: the sentence for a terminal status can still add a fact
- * ("Withdrawn - refunded"), and only a literal match is safe to drop.
- */
-export function isStatusMessageRedundant(
-  message: string,
-  status: EntryStatus,
-  options: StatusBadgeOptions = {}
-): boolean {
-  const label = getEntryStatusBadgeLabel(status, options);
-  if (!label) return false;
-  return label.trim().toLowerCase() === message.trim().toLowerCase();
-}
-
-/**
  * Returns a styled badge for entry status
  */
 export function getEntryStatusBadge(

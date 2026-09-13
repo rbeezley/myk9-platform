@@ -4,12 +4,13 @@
  * Money is only allowed to speak when it needs something: exactly one strip
  * per show, no chips, and a paid confirmation that retires on Dismiss.
  */
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, afterEach, beforeEach } from 'vitest';
 import { screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { EntryStatus, PaymentStatus } from '@/types/show-registration-types';
 import { render } from '@/test/utils/testUtils';
 import { day, makeClass, makeRow, NOW, toOrders } from '@/test/fixtures/myShowsFixtures';
+import { parseShowDate } from './myEntriesStats.helpers';
 import { MyShowsList, type MyShowsListProps } from './MyShowsList';
 import type { MyEntry } from './my-entries-types';
 
@@ -191,5 +192,129 @@ describe('paid confirmation', () => {
     unmount();
     renderRows(paidRows);
     expect(screen.queryByText(/entry is paid/)).not.toBeInTheDocument();
+  });
+});
+
+describe('entries-close deadline', () => {
+  /** An editable (accepted, still-open) order, so the header may state a deadline. */
+  function editableRow(entryCloseDate: Date | undefined): MyEntry {
+    return futureShowRow({
+      id: 'e-close',
+      dogId: 'dog-scout',
+      dogName: 'Scout',
+      entryStatus: EntryStatus.ACCEPTED,
+      entryCloseDate,
+      classes: [makeClass({ id: 'c-close-1', trialDate: day('2026-11-14') })],
+    });
+  }
+
+  it('states the deadline in the meta line while editing is still possible', () => {
+    renderRows([editableRow(day('2026-11-01'))]);
+
+    expect(screen.getByText('Entries close Nov 1, 2026')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Edit entry' })).toBeInTheDocument();
+  });
+
+  it('drops the deadline — and the edit control — once the close date has passed', () => {
+    renderRows([editableRow(day('2026-01-01'))]);
+
+    expect(screen.queryByText(/Entries close/)).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Edit entry' })).not.toBeInTheDocument();
+  });
+
+  it('says nothing about a deadline the show never set', () => {
+    renderRows([editableRow(undefined)]);
+
+    expect(screen.queryByText(/Entries close/)).not.toBeInTheDocument();
+  });
+
+  // MYK9-384 (E28): the DATE column reaches the page through `parseShowDate`.
+  // Rendering it through `new Date()` dated a Jan 2 deadline to Jan 1 west of
+  // UTC, so My Shows disagreed with the show detail page and with the server
+  // guard, which keeps the show open through the END of Jan 2.
+  describe('renders the deadline on its written calendar day', () => {
+    const originalTimezone = process.env.TZ;
+
+    afterEach(() => {
+      if (originalTimezone === undefined) delete process.env.TZ;
+      else process.env.TZ = originalTimezone;
+    });
+
+    it.each(['America/Chicago', 'UTC', 'Asia/Tokyo', 'Pacific/Kiritimati'])(
+      'shows "Jan 2, 2027" for entry_close_date 2027-01-02T00:00:00+00:00 in %s',
+      timezone => {
+        process.env.TZ = timezone;
+
+        // Exactly what useMyEntriesData builds from the DB column.
+        renderRows([editableRow(parseShowDate('2027-01-02T00:00:00+00:00'))]);
+
+        expect(screen.getByText('Entries close Jan 2, 2027')).toBeInTheDocument();
+      }
+    );
+  });
+});
+
+describe('venue directions', () => {
+  it('links the place label at a Google Maps route built from venue, city and state', () => {
+    renderRows([
+      futureShowRow({
+        id: 'e-venue',
+        dogId: 'dog-scout',
+        dogName: 'Scout',
+        location: { venue: 'Test Venue', city: 'Portland', state: 'OR' },
+        classes: [makeClass({ id: 'c-venue-1', trialDate: day('2026-11-14') })],
+      }),
+    ]);
+
+    const link = screen.getByRole('link', { name: 'Get directions to Test Venue, Portland, OR' });
+    expect(link).toHaveAttribute(
+      'href',
+      'https://www.google.com/maps/dir/?api=1&destination=Test%20Venue%2C%20Portland%2C%20OR'
+    );
+    expect(link).toHaveAttribute('target', '_blank');
+    expect(link).toHaveAttribute('rel', 'noopener noreferrer');
+    // The visible label stays the short "city, state" form.
+    expect(link).toHaveTextContent('Portland, OR');
+  });
+
+  it('falls back to plain text when no address part is known', () => {
+    renderRows([
+      futureShowRow({
+        id: 'e-novenue',
+        dogId: 'dog-scout',
+        dogName: 'Scout',
+        location: { venue: '', city: '', state: '' },
+        classes: [makeClass({ id: 'c-novenue-1', trialDate: day('2026-11-14') })],
+      }),
+    ]);
+
+    expect(screen.queryByRole('link', { name: /Get directions/ })).not.toBeInTheDocument();
+  });
+});
+
+describe('add to calendar', () => {
+  function calendarRow(showId: string): MyEntry {
+    return futureShowRow({
+      id: 'e-cal',
+      showId,
+      dogId: 'dog-scout',
+      dogName: 'Scout',
+      classes: [makeClass({ id: 'c-cal-1', trialDate: day('2026-11-14') })],
+    });
+  }
+
+  it('offers the control once the show id is known', () => {
+    renderRows([calendarRow('show-flint')]);
+
+    expect(screen.getByRole('button', { name: 'Add to calendar' })).toBeInTheDocument();
+  });
+
+  it('withholds it while the show relation is still replicating', () => {
+    // The guard travels WITH the control: AddToCalendarDialog issues a
+    // subscription for the id the moment it opens, so an empty showId must not
+    // be reachable at all.
+    renderRows([calendarRow('')]);
+
+    expect(screen.queryByRole('button', { name: 'Add to calendar' })).not.toBeInTheDocument();
   });
 });

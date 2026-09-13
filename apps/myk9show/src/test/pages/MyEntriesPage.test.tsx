@@ -276,6 +276,13 @@ const seedLoadedEntry = () => {
  * One accepted, unscored entry — the shape the exhibitor self check-in flow
  * needs. Shared by the success and failure paths so the two tests cannot drift
  * apart on fixture details that have nothing to do with what they assert.
+ *
+ * The row sits AT THE GATE rather than at `'no-status'`: on the dog-first list
+ * a class that already carries a check-in state is the one that offers the
+ * "change" link into `CheckInStatusDialog`, and the dialog is what these two
+ * tests are about (which mutation it calls, and that a rejection keeps it
+ * open). The untouched `'no-status'` path writes through the dog card's day
+ * button instead and is pinned in `useMyEntriesDialogs.checkIn.test.ts`.
  */
 const buildSelfCheckinEntryRow = () => ({
   id: 'entry-1',
@@ -288,7 +295,7 @@ const buildSelfCheckinEntryRow = () => ({
   entry_status: 'accepted',
   payment_status: 'paid_online',
   entry_fee: 25,
-  check_in_status: 'no-status',
+  check_in_status: 'at-gate',
   is_scored: false,
   result_status: null,
   search_time_seconds: null,
@@ -313,12 +320,11 @@ const buildSelfCheckinEntryRow = () => ({
   registration: { id: 'reg-1', confirmation_number: 'ABC123' },
 });
 
-/** Walks the collapsed details panel down to a submitted check-in status change. */
+/** Walks the class row's "change" link down to a submitted check-in status change. */
 const submitSelfCheckin = async (user: ReturnType<typeof userEvent.setup>) => {
   await screen.findByText('Spring Trial');
-  // Per-class check-in controls live behind the collapsed details panel.
-  await user.click(screen.getByRole('button', { name: /entered classes/i }));
-  await user.click(screen.getByRole('button', { name: /update check-in for koda in novice a/i }));
+  // The class row carries its control in the open — nothing to expand.
+  await user.click(await screen.findByRole('button', { name: 'Change check-in for Novice A' }));
   const statusOptions = await screen.findAllByRole('radio', { name: /checked in/i });
   const checkedInOption = statusOptions.find(
     option => option.getAttribute('aria-labelledby') === 'checked-in-label'
@@ -754,8 +760,7 @@ describe('MyEntriesPage UI Improvements', () => {
 
       renderWithProviders(<MyEntriesPage />, '/exhibitor/entries');
 
-      // Result buttons render inside the collapsed details panel.
-      await user.click(await screen.findByRole('button', { name: /entered classes/i }));
+      // The reveal button is the class row's state column — no disclosure.
       await user.click(await screen.findByRole('button', { name: /New result/i }));
 
       expect(await screen.findByRole('dialog', { name: /New result/i })).toBeInTheDocument();

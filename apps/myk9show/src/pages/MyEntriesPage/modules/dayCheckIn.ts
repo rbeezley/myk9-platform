@@ -18,7 +18,7 @@ import type { MyShowClass, MyShowDog } from './groupEntriesByShow';
 import type { MyEntry } from './my-entries-types';
 
 /** The calendar day (`YYYY-MM-DD`) a local-midnight `Date` stands for. */
-function calendarDayOf(date: Date): string {
+export function calendarDayOf(date: Date): string {
   const month = String(date.getMonth() + 1).padStart(2, '0');
   const day = String(date.getDate()).padStart(2, '0');
   return `${date.getFullYear()}-${month}-${day}`;

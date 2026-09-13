@@ -175,4 +175,67 @@ describe('deriveMyEntryCardState', () => {
     expect(state.canEdit).toBe(false);
     expect(state.canRequestPostDeadlineHelp).toBe(false);
   });
+
+  // Codex, PR #2201 (P1). The close date is inclusive: the server still accepts
+  // edits all day. Losing BOTH "Edit entry" and its replacement for that day is
+  // the dead end docs/INTENT.md forbids.
+  describe('the inclusive close day', () => {
+    const CHICAGO = 'America/Chicago';
+    const onCloseDay = (closeDate: Date, now: Date) =>
+      deriveMyEntryCardState(
+        makeEntry({
+          entryCloseDate: closeDate,
+          classes: [makeClass({ trialDate: new Date(2026, 8, 20), trialTimezone: CHICAGO })],
+        }),
+        now
+      );
+
+    it('keeps editing open all through the close date', () => {
+      const state = onCloseDay(new Date(2026, 8, 1), new Date('2026-09-01T23:30:00'));
+      expect(state.canEdit).toBe(true);
+      expect(state.canRequestPostDeadlineHelp).toBe(false);
+    });
+
+    it('hands over to the post-deadline state the next day', () => {
+      const state = onCloseDay(new Date(2026, 8, 1), new Date('2026-09-02T00:30:00'));
+      expect(state.canEdit).toBe(false);
+      expect(state.canRequestPostDeadlineHelp).toBe(true);
+    });
+
+    it('never leaves an editable order with neither state', () => {
+      for (const hour of [0, 6, 12, 23]) {
+        const now = new Date(2026, 8, 1, hour, 30);
+        const state = onCloseDay(new Date(2026, 8, 1), now);
+        expect(state.canEdit || state.canRequestPostDeadlineHelp).toBe(true);
+      }
+    });
+
+    // P2: the zone comes from the PRIMARY trial (earliest date), not whichever
+    // class happens to render first.
+    it('reckons the day in the primary trial zone, whatever order classes arrive in', () => {
+      const state = deriveMyEntryCardState(
+        makeEntry({
+          entryCloseDate: new Date(2026, 8, 1),
+          classes: [
+            makeClass({
+              id: 'later-honolulu',
+              trialDate: new Date(2026, 8, 21),
+              trialTimezone: 'Pacific/Honolulu',
+            }),
+            makeClass({
+              id: 'earlier-chicago',
+              trialDate: new Date(2026, 8, 20),
+              trialTimezone: CHICAGO,
+            }),
+          ],
+        }),
+        // 06:00 UTC on 2 Sep reads 01:00 on the 2nd in Chicago but 20:00 on
+        // the 1st in Honolulu, so the two zones disagree about the day. The
+        // primary trial is the Chicago one, and it decides.
+        new Date('2026-09-02T06:00:00Z')
+      );
+      expect(state.canEdit).toBe(false);
+      expect(state.canRequestPostDeadlineHelp).toBe(true);
+    });
+  });
 });

@@ -1,6 +1,8 @@
 import { formatDistanceToNow, format, isToday, isTomorrow, differenceInDays } from 'date-fns';
 import { EntryStatus, PaymentStatus } from '@/types/show-registration-types';
 import { buildVenueMapsUrls, formatVenueAddress } from '@/utils/venueMaps';
+import { getEntryWindowTimezone } from '@/utils/entryWindowDate';
+import { calendarDayOf, isEntryCloseDayPast } from './dayCheckIn';
 import {
   buildOrderPaymentHref,
   getOrderOnlinePrompt,
@@ -64,9 +66,25 @@ export function deriveMyEntryCardState(
     PaymentStatus.PAID_BY_CHECK,
     PaymentStatus.PAID_BY_CASH,
   ].includes(entry.paymentStatus);
-  const isPastEntryDeadline = entry.entryCloseDate
-    ? entry.entryCloseDate.getTime() < currentTime.getTime()
-    : false;
+  // The close date is INCLUSIVE and belongs to a calendar day, not an instant:
+  // entries stay open through the end of the day the show wrote down, which is
+  // how the server guard reads it. Comparing instants shut the window at 00:00
+  // on the close date and retired BOTH the edit control and its replacement for
+  // that whole day — a dead end on the last day anyone would need them
+  // (Codex, PR #2201). `getEntryWindowTimezone` picks the same primary trial
+  // the submission guard does, so the page and the server agree at midnight.
+  const entryWindowTimezone = getEntryWindowTimezone(
+    entry.classes.map(cls => ({
+      id: cls.trialNumber ?? null,
+      date: cls.trialDate ? calendarDayOf(cls.trialDate) : null,
+      timezone: cls.trialTimezone ?? null,
+    }))
+  );
+  const isPastEntryDeadline = isEntryCloseDayPast(
+    entry.entryCloseDate,
+    entryWindowTimezone,
+    currentTime
+  );
   const isCompleted =
     entry.entryStatus === EntryStatus.COMPLETED || entry.entryStatusKind === 'completed';
   const hasEditableStatus =

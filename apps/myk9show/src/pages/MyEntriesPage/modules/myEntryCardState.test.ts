@@ -248,4 +248,57 @@ describe('deriveMyEntryCardState', () => {
       expect(state.canRequestPostDeadlineHelp).toBe(true);
     });
   });
+
+  // Codex, PR #2201 (round five). Before the trial relation replicates the
+  // zone is unknown; guessing New York for a western show crosses midnight
+  // hours early and takes the edit control with it.
+  describe('an unresolved trial timezone', () => {
+    const westernEvening = new Date('2026-09-02T04:30:00Z'); // 21:30 on 1 Sep in LA
+
+    it('keeps editing open rather than deciding the deadline on a guess', () => {
+      const state = deriveMyEntryCardState(
+        makeEntry({
+          entryCloseDate: new Date(2026, 8, 1),
+          // The shape a row has before its trial has replicated.
+          classes: [makeClass({ trialDate: undefined, trialTimezone: undefined })],
+        }),
+        westernEvening
+      );
+
+      expect(state.canEdit).toBe(true);
+      expect(state.canRequestPostDeadlineHelp).toBe(false);
+    });
+
+    it('decides normally once the real zone arrives', () => {
+      const state = deriveMyEntryCardState(
+        makeEntry({
+          entryCloseDate: new Date(2026, 8, 1),
+          classes: [
+            makeClass({ trialDate: new Date(2026, 8, 20), trialTimezone: 'America/Los_Angeles' }),
+          ],
+        }),
+        westernEvening
+      );
+
+      // 21:30 on the close date in Los Angeles: still open.
+      expect(state.canEdit).toBe(true);
+    });
+
+    it('a New York show at the same instant HAS crossed midnight', () => {
+      const state = deriveMyEntryCardState(
+        makeEntry({
+          entryCloseDate: new Date(2026, 8, 1),
+          classes: [
+            makeClass({ trialDate: new Date(2026, 8, 20), trialTimezone: 'America/New_York' }),
+          ],
+        }),
+        westernEvening
+      );
+
+      // 00:30 on 2 Sep in New York — which is exactly the guess the unresolved
+      // path used to make for a Los Angeles show.
+      expect(state.canEdit).toBe(false);
+      expect(state.canRequestPostDeadlineHelp).toBe(true);
+    });
+  });
 });

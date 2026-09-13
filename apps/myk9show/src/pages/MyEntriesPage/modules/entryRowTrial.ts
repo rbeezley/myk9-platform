@@ -20,19 +20,26 @@ export interface EntryRowTrial {
 }
 
 /**
- * The IANA zone of the trial a class row belongs to.
+ * The IANA zone of the trial a class row belongs to, or `undefined` when no
+ * trial relation has replicated yet.
  *
- * The show-day check-in gate compares calendar days in the TRIAL's zone, so
- * every class row must carry one. `getTrialTimezone` is idempotent here (the
- * replication path already resolved it) and supplies the migration default when
- * the trial relation has not replicated yet.
+ * "Not known yet" is a state of its own, and it must NOT arrive downstream
+ * disguised as a real zone. `getTrialTimezone` answers `America/New_York` for
+ * an absent trial, which is the right default for DISPLAY but a wrong answer
+ * for any decision: a Los Angeles show judged in New York time crosses
+ * midnight three hours early, and on an entry-close date that retires the
+ * exhibitor's edit control while the server still accepts the edit
+ * (Codex, PR #2201). Callers that need a concrete zone still apply the default
+ * themselves; callers deciding a deadline must treat `undefined` as unknown.
+ *
+ * A zone that IS present still goes through `getTrialTimezone`, so an invalid
+ * IANA value is validated and reported exactly as before.
  */
 export function resolveTrialTimezone(
   trial: EntryRowTrial | null | undefined,
   classTrial: EntryRowTrial | null | undefined
-): string {
-  return getTrialTimezone({
-    id: trial?.id ?? classTrial?.id,
-    timezone: trial?.timezone ?? classTrial?.timezone ?? null,
-  });
+): string | undefined {
+  const raw = trial?.timezone ?? classTrial?.timezone ?? null;
+  if (!raw) return undefined;
+  return getTrialTimezone({ id: trial?.id ?? classTrial?.id, timezone: raw });
 }

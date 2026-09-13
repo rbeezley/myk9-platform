@@ -276,3 +276,36 @@ describe('isEntryCloseDayPast (Codex, PR #2201)', () => {
     expect(isEntryCloseDayPast(undefined, CHICAGO, now)).toBe(false);
   });
 });
+
+describe('isEntryCloseDayPast with an unknown zone (Codex, PR #2201 round five)', () => {
+  const closeDay = (iso: string) => {
+    const [y, m, d] = iso.split('-').map(Number);
+    return new Date(y, m - 1, d);
+  };
+
+  it('holds the window open while zones could still disagree', () => {
+    // 21:30 on 1 Sep in Los Angeles. Guessing New York would call this the 2nd
+    // and shut the window three hours early.
+    expect(
+      isEntryCloseDayPast(closeDay('2026-09-01'), undefined, new Date('2026-09-02T04:30:00Z'))
+    ).toBe(false);
+  });
+
+  it('is past once every zone on earth agrees', () => {
+    expect(
+      isEntryCloseDayPast(closeDay('2026-09-01'), undefined, new Date('2026-09-03T01:00:00Z'))
+    ).toBe(true);
+  });
+
+  it('still calls a months-old deadline past', () => {
+    expect(
+      isEntryCloseDayPast(closeDay('2026-07-01'), undefined, new Date('2026-09-01T12:00:00Z'))
+    ).toBe(true);
+  });
+
+  it('never reports past before the close day itself', () => {
+    expect(
+      isEntryCloseDayPast(closeDay('2026-09-05'), undefined, new Date('2026-09-01T12:00:00Z'))
+    ).toBe(false);
+  });
+});

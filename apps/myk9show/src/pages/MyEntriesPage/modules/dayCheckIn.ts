@@ -61,6 +61,13 @@ export function isTrialDayToday(
  * `isEntryCloseDayPast` in the entries service both read it. Comparing the
  * instants instead would call the window shut at 00:00 on the close date and
  * retire the exhibitor's controls a full day early (Codex, PR #2201).
+ *
+ * `trialTimezone` may be UNDEFINED before the trial relation replicates. The
+ * honest answer then is "only where every zone agrees": zones span at most a
+ * day, so a close day more than one day behind UTC is past no matter where the
+ * show is, and anything nearer the boundary stays open. Guessing a zone
+ * instead would cross midnight up to three hours early for a western show and
+ * take the exhibitor's edit control with it.
  */
 export function isEntryCloseDayPast(
   entryCloseDate: Date | undefined,
@@ -68,7 +75,12 @@ export function isEntryCloseDayPast(
   now: Date
 ): boolean {
   if (!entryCloseDate || Number.isNaN(entryCloseDate.getTime())) return false;
-  return calendarDayInZone(now, trialTimezone || DEFAULT_TIMEZONE) > calendarDayOf(entryCloseDate);
+  const closeDay = calendarDayOf(entryCloseDate);
+  if (trialTimezone) return calendarDayInZone(now, trialTimezone) > closeDay;
+
+  const dayAfterClose = new Date(entryCloseDate.getTime());
+  dayAfterClose.setDate(dayAfterClose.getDate() + 1);
+  return calendarDayInZone(now, 'UTC') > calendarDayOf(dayAfterClose);
 }
 
 /** Is the trial's calendar day still ahead of `now` in the trial's timezone? */

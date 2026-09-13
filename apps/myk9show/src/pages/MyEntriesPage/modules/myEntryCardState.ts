@@ -83,16 +83,18 @@ export function deriveMyEntryCardState(
   // must stop inferring and carry the show's own entry-window timezone through
   // the data layer instead — the entered classes cannot name the show's
   // primary trial when the exhibitor skipped it.
-  const entryWindowTimezone = getEntryWindowTimezone(
-    entry.classes.map(cls => ({
+  const knownTrialZones = entry.classes
+    .filter(cls => Boolean(cls.trialTimezone))
+    .map(cls => ({
       id: cls.trialNumber ?? null,
       date: cls.trialDate ? calendarDayOf(cls.trialDate) : null,
       timezone: cls.trialTimezone ?? null,
-    }))
-  );
+    }));
+  // Before any trial replicates the zone is unknown, NOT New York; the day
+  // helper then answers only where every zone agrees.
   const isPastEntryDeadline = isEntryCloseDayPast(
     entry.entryCloseDate,
-    entryWindowTimezone,
+    knownTrialZones.length > 0 ? getEntryWindowTimezone(knownTrialZones) : undefined,
     currentTime
   );
   const isCompleted =

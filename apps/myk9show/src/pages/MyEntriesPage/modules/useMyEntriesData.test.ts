@@ -157,7 +157,11 @@ describe('useMyEntriesData — trial timezone lands on the class row', () => {
     expect(result.current.entries[0]?.classes[0]?.trialTimezone).toBe('America/Los_Angeles');
   });
 
-  it('falls back to the migration default when the trial carries no zone', async () => {
+  // Changed by Codex round five on PR #2201: the row used to carry
+  // 'America/New_York' here, which no consumer could tell from a real zone.
+  // The check-in gate still applies that default itself (`dayCheckIn`), so its
+  // behaviour is unchanged; deadline decisions now see the unknown.
+  it('leaves the zone undefined when the trial carries none', async () => {
     (getUserEntries as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
       data: [entryRow()],
       error: null,
@@ -166,7 +170,7 @@ describe('useMyEntriesData — trial timezone lands on the class row', () => {
     const { result } = renderData();
     await waitFor(() => expect(result.current.entries).toHaveLength(1));
 
-    expect(result.current.entries[0]?.classes[0]?.trialTimezone).toBe('America/New_York');
+    expect(result.current.entries[0]?.classes[0]?.trialTimezone).toBeUndefined();
   });
 });
 

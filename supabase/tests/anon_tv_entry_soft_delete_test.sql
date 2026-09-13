@@ -163,6 +163,25 @@ BEGIN
   UPDATE public.classes
   SET deleted_at = NULL
   WHERE id = '00000000-0000-0000-0000-000000149004';
+
+  UPDATE public.entries
+  SET entry_status = 'moved'
+  WHERE id = '00000000-0000-0000-0000-000000149007';
+
+  SELECT count(*)
+  INTO hidden_count
+  FROM public.tv_class_entry_counts(
+    '00000000-0000-0000-0000-000000149002',
+    ARRAY['00000000-0000-0000-0000-000000149004']::uuid[]
+  );
+
+  IF hidden_count IS DISTINCT FROM 0 THEN
+    RAISE EXCEPTION 'FAIL public count included a moved entry: % rows', hidden_count;
+  END IF;
+
+  UPDATE public.entries
+  SET entry_status = 'confirmed'
+  WHERE id = '00000000-0000-0000-0000-000000149007';
 END;
 $$;
 

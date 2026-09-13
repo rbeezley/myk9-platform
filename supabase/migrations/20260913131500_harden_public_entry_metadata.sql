@@ -105,7 +105,9 @@ AS $$
     ON e.class_id = requested.class_id
    AND e.show_id = p_show_id
    AND e.deleted_at IS NULL
-   AND lower(coalesce(e.entry_status, '')) NOT IN ('scratched', 'withdrawn', 'cancelled')
+   AND lower(coalesce(e.entry_status, '')) NOT IN (
+     'scratched', 'withdrawn', 'moved', 'not_accepted', 'absent'
+   )
    AND lower(coalesce(e.check_in_status, '')) IS DISTINCT FROM 'pulled'
   WHERE EXISTS (
     SELECT 1

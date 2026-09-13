@@ -370,6 +370,7 @@ describe('MYK9-423 fee-card payment recovery', () => {
       params: URLSearchParams;
       body?: unknown;
     }> = [];
+    const requestEvents: string[] = [];
     const databaseEntries: RecoveryFixtureEntry[] = [
       ...(entries as readonly RecoveryFixtureEntry[]),
       {
@@ -443,6 +444,9 @@ describe('MYK9-423 fee-card payment recovery', () => {
           const params = url.searchParams;
           const requestBody = init?.body ? JSON.parse(String(init.body)) : undefined;
           requests.push({ table, method, params, body: requestBody });
+          if (table === 'entry_carts' && (method === 'GET' || method === 'POST')) {
+            requestEvents.push(`${method}:entry_carts`);
+          }
           const json = (data: unknown) =>
             new Response(JSON.stringify(data), {
               status: 200,
@@ -632,6 +636,11 @@ describe('MYK9-423 fee-card payment recovery', () => {
     expect(
       requests.filter(request => request.table === 'entry_carts' && request.method === 'POST')
     ).toHaveLength(1);
+    const cartCreateEventIndex = requestEvents.indexOf('POST:entry_carts');
+    expect(cartCreateEventIndex).toBeGreaterThanOrEqual(2);
+    expect(
+      requestEvents.slice(0, cartCreateEventIndex).filter(event => event === 'GET:entry_carts')
+    ).toHaveLength(3);
 
     await user.click(screen.getAllByRole('button', { name: 'Remove' })[0]);
     await waitFor(() => {

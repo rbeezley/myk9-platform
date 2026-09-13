@@ -141,7 +141,21 @@ export const ClassSelectionStep: React.FC<ClassSelectionStepProps> = ({
     const defaultFee = getClassFee(show, { entryFee: undefined });
 
     for (const trial of showTrials) {
-      const replicatedClasses: RegistrationClassSource[] = trialClasses[trial.id] || [];
+      // Mapped rather than assigned straight through: `SyncableTrialClass`
+      // spells the stored name `name`, and `RegistrationClassSource` spells it
+      // `className`. Assigning the array directly type-checks — `className` is
+      // optional — and silently leaves every name undefined, which disables the
+      // disambiguator on the path this branch PREFERS over the two fallbacks
+      // below. Found in review of #2196.
+      const replicatedClasses: RegistrationClassSource[] = (trialClasses[trial.id] || []).map(
+        cls => ({
+          id: cls.id,
+          element: cls.element,
+          level: cls.level,
+          section: cls.section,
+          className: cls.name,
+        })
+      );
       const queryBackedClasses: RegistrationClassSource[] = queryClasses
         .filter(cls => cls.trialId === trial.id)
         .map(cls => ({

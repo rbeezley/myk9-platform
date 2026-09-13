@@ -7,7 +7,11 @@ export function trialClassToReplicated(tc: SyncableTrialClass, trialId: string):
   return {
     id: tc.id,
     trialId,
-    name: [tc.element, tc.level, tc.section].filter(Boolean).join(' ').trim() || tc.id,
+    // Prefer the stored name. The synthesised fallback is only for classes that
+    // never carried one — writing it over a real name would erase the only
+    // thing that distinguishes two classes sharing element+level+section, and
+    // it would do so on a round-trip through the client, silently (MYK9-489).
+    name: tc.name || [tc.element, tc.level, tc.section].filter(Boolean).join(' ').trim() || tc.id,
     element: tc.element,
     level: tc.level,
     section: tc.section,
@@ -33,6 +37,10 @@ export function trialClassToReplicated(tc: SyncableTrialClass, trialId: string):
 export function replicatedToTrialClass(replicated: ReplicatedClass): SyncableTrialClass {
   return {
     id: replicated.id,
+    // Carried, not dropped: this is the offline-first path the registration
+    // wizard prefers over its query and availability fallbacks, so a name lost
+    // here is a name no exhibitor-facing surface can ever see (MYK9-489).
+    name: replicated.name,
     element: replicated.element || '',
     level: replicated.level || '',
     section: replicated.section || '',

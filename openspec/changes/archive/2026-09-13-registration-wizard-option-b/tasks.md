@@ -36,6 +36,6 @@
 
 ## 6. Ship
 
-- [ ] 6.1 Open the PR per `.github/pull_request_template.md` with MYK9-483, the checked ACs, screenshots, non-goals and the three follow-up issues to file (reload resume, judge-day "Full" reason, `in_progress` class entry)
-- [ ] 6.2 Run `pnpm qa:codex-review` (`--base origin/main`) and post the review-gate comment; `bash scripts/qa/watch-pr-checks.sh <pr>` returns 0
-- [ ] 6.3 Merge with `gh pr merge --squash` from the main repo directory; confirm a green production build on `main`; comment on MYK9-483 with what changed, checks run, PR link, and tick the remaining ACs; then `/opsx:archive`
+- [x] 6.1 Open the PR per `.github/pull_request_template.md` with MYK9-483, the checked ACs, screenshots, non-goals and the three follow-up issues to file (reload resume, judge-day "Full" reason, `in_progress` class entry)
+- [x] 6.2 Run `pnpm qa:codex-review` (`--base origin/main`) and post the review-gate comment; `bash scripts/qa/watch-pr-checks.sh <pr>` returns 0
+- [x] 6.3 Merge with `gh pr merge --squash` from the main repo directory; confirm a green production build on `main`; comment on MYK9-483 with what changed, checks run, PR link, and tick the remaining ACs; then `/opsx:archive`

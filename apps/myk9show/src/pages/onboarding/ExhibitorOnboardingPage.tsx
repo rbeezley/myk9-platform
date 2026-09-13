@@ -25,23 +25,32 @@ const DOGS_STEP = 2;
 const WELCOME_STEP = 3;
 
 // This page renders UNDER the fixed AppHeader, which nothing here offsets — a
-// plain `py-10` put "Welcome to myK9Show" behind the header bar. `--app-top-inset`
-// is the full fixed-chrome height (PWA banner + header), so the heading clears
-// both; the extra 2.5rem preserves the breathing room `py-10` was there for.
-// Shared by the loading skeleton and the loaded page so the content cannot jump
-// between them.
+// plain `py-10` put "Welcome to myK9Show" behind the header bar.
+//
+// `--app-header-height`, NOT `--app-top-inset`: this is in-flow content inside
+// the Outlet, and PWAInstallBanner already renders an in-flow spacer above that
+// subtree. Adding the banner's height again double-counts it, pushing onboarding
+// an extra 52/56px down for install-eligible users. Same rule, same reason, as
+// the comment on `<main>` in SidebarLayout. The full inset is for FIXED and
+// STICKY chrome, which the spacer cannot move.
+//
+// The extra 2.5rem preserves the breathing room `py-10` was there for. Shared by
+// the loading skeleton and the loaded page so content cannot jump between them.
 const PAGE_SHELL =
-  'min-h-screen bg-background flex flex-col items-center justify-start px-4 pb-10 pt-[calc(var(--app-top-inset,3rem)+2.5rem)]';
+  'min-h-screen bg-background flex flex-col items-center justify-start px-4 pb-10 pt-[calc(var(--app-header-height,3rem)+2.5rem)]';
 
 // The auth-loading skeleton centres itself instead of stacking from the top, so
 // the header never clipped it — but `min-h-screen` centres against the FULL
 // viewport, including the 48px sitting behind the fixed header, which pulls the
-// box half the header's height too high. Padding the top by the same inset makes
-// the content box start below the chrome, so it centres in the area the visitor
+// box half the header's height too high. Padding the top by the header height
+// makes the content box start below it, so it centres in the area the visitor
 // can actually see. `box-sizing: border-box` (Tailwind's default) is what makes
 // that work: the padding comes out of the 100vh, it does not add to it.
+//
+// Header height only, for the same reason as PAGE_SHELL above — the PWA banner
+// is already accounted for by an in-flow spacer.
 const AUTH_LOADING_SHELL =
-  'flex min-h-screen items-center justify-center bg-background px-4 pb-4 pt-[calc(var(--app-top-inset,3rem)+1rem)]';
+  'flex min-h-screen items-center justify-center bg-background px-4 pb-4 pt-[calc(var(--app-header-height,3rem)+1rem)]';
 
 const STEP_LABELS: Record<number, string> = {
   [PROFILE_STEP]: 'Profile',

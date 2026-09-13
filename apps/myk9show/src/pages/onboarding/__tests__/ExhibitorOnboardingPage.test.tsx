@@ -267,9 +267,10 @@ describe('ExhibitorOnboardingPage', () => {
 
     expect(loadedShell).not.toBeNull();
     expect(loadingShell).toBe(loadedShell);
-    // The token, not a hardcoded height: --app-top-inset already accounts for
-    // the PWA install banner stacking above the header.
-    expect(loadedShell).toContain('pt-[calc(var(--app-top-inset,3rem)+2.5rem)]');
+    // The HEADER height, not --app-top-inset: this is in-flow content and
+    // PWAInstallBanner's spacer already applies the banner offset above it.
+    // Using the full inset double-counts the banner (caught in review of #2196).
+    expect(loadedShell).toContain('pt-[calc(var(--app-header-height,3rem)+2.5rem)]');
     expect(loadedShell).not.toMatch(/\bpy-10\b/);
   });
 
@@ -296,7 +297,7 @@ describe('ExhibitorOnboardingPage', () => {
     render(<ExhibitorOnboardingPage />);
 
     const shell = screen.getByRole('status', { name: 'Loading exhibitor onboarding' });
-    expect(shell.className).toContain('pt-[calc(var(--app-top-inset,3rem)+1rem)]');
+    expect(shell.className).toContain('pt-[calc(var(--app-header-height,3rem)+1rem)]');
     // `p-4` padded the top by a flat 1rem, which is what put it behind the header.
     expect(shell.className).not.toMatch(/\bp-4\b/);
   });

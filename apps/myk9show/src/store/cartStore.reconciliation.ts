@@ -18,6 +18,7 @@ const INACTIVE_ENTRY_STATUSES = new Set([
   'absent',
   'promotion-expired',
   'cancelled',
+  'moved',
 ]);
 
 interface ReconcileCartItemsParams {

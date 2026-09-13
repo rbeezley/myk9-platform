@@ -8,7 +8,8 @@
  *
  * The rule, per trial the exhibitor has entries in:
  *   1. Any class with a real time  -> those class events, as before.
- *   2. Otherwise, a trial start    -> ONE block covering the trial day.
+ *   2. Otherwise, a trial start    -> ONE block covering the trial day,
+ *                                     actual if the day began, else planned.
  *   3. Neither                     -> nothing, and the subscribe dialog says so.
  *
  * Step 1 asks `hasResolvableTime` rather than re-reading start_time itself.
@@ -33,6 +34,8 @@ export interface TrialForFeed {
   timezone: string | null;
   /** Free text as the secretary typed it, e.g. "8:00 AM". */
   plannedStartTime: string | null;
+  /** Same shape, recorded once the day actually began; wins over the plan. */
+  actualStartTime: string | null;
   plannedEndTime: string | null;
 }
 
@@ -77,6 +80,7 @@ export function selectFeedEvents(input: FeedSelectionInput): CalendarEvent[] {
       showName: input.showName,
       trialDate: trial.date,
       plannedStartTime: trial.plannedStartTime,
+      actualStartTime: trial.actualStartTime,
       plannedEndTime: trial.plannedEndTime,
       timeZone: resolveTrialZone(trial),
       venue: input.venue,

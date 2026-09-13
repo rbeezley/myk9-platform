@@ -2,10 +2,40 @@ import { useCallback, useState } from 'react';
 import { supabase } from '@/lib/supabase';
 import {
   buildCalendarFeedUrls,
-  countIcsEvents,
+  EVENT_COUNT_HEADER,
   getCalendarFeedBaseUrl,
   type CalendarFeedUrls,
 } from './calendarFeedUrls';
+
+/**
+ * The inspection is a HEAD, so it never counts as a fetch of the feed —
+ * `last_fetched_at` is how the platform measures whether anyone actually
+ * subscribes, and opening a dialog is not subscribing.
+ *
+ * Bounded because the dialog waits for it: the exhibitor must not see the Add
+ * and Save buttons before the "nothing to add yet" warning that belongs above
+ * them. A probe that stalls resolves as unknown and the buttons appear
+ * unwarned, which is the same place we were before — never a hung dialog.
+ */
+const INSPECT_TIMEOUT_MS = 4000;
+
+async function inspectFeed(url: string): Promise<number | null> {
+  const abort = new AbortController();
+  const timer = setTimeout(() => abort.abort(), INSPECT_TIMEOUT_MS);
+  try {
+    const response = await fetch(url, { method: 'HEAD', signal: abort.signal });
+    if (!response.ok) return null;
+    const raw = response.headers.get(EVENT_COUNT_HEADER);
+    if (raw === null) return null; // Older deploy: unknown, so do not warn.
+    const count = Number(raw);
+    return Number.isInteger(count) && count >= 0 ? count : null;
+  } catch {
+    // Offline, blocked, aborted or CORS — no warning rather than a wrong one.
+    return null;
+  } finally {
+    clearTimeout(timer);
+  }
+}
 
 /**
  * useCalendarFeed — issue, rotate and revoke an exhibitor's webcal token for
@@ -75,17 +105,13 @@ export function useCalendarFeed(): UseCalendarFeedResult {
 
         const next = buildCalendarFeedUrls(String(data ?? ''), baseUrl);
         if (!next) throw new Error('Calendar feed is not configured');
-        setUrls(next);
 
-        // Read the document the exhibitor is about to hand their calendar. A
-        // failure here leaves the count unknown and changes nothing on screen:
-        // the link is already valid, and this only decides whether to warn.
-        try {
-          const response = await fetch(next.displayUrl);
-          if (response.ok) setEventCount(countIcsEvents(await response.text()));
-        } catch {
-          // Offline, blocked, or CORS — no warning rather than a wrong one.
-        }
+        // Inspect BEFORE publishing the URLs. The dialog shows its actions the
+        // moment `urls` is set, so setting it first would open a window in
+        // which an exhibitor can add an empty calendar without ever seeing the
+        // warning meant to precede the buttons.
+        setEventCount(await inspectFeed(next.displayUrl));
+        setUrls(next);
 
         return next;
       } catch (err) {

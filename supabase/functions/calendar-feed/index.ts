@@ -43,6 +43,13 @@ import {
 
 const TOKEN_PATTERN = /^[0-9a-f]{64}$/;
 
+/**
+ * How many events the document carries, so the app can ask WITHOUT counting as
+ * a subscription. No new disclosure: the URL is already the credential, and
+ * anyone holding it can read the events themselves.
+ */
+const EVENT_COUNT_HEADER = 'X-MyK9-Event-Count';
+
 const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
 const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
 const feedOrigin = (Deno.env.get('CALENDAR_FEED_ORIGIN') || 'myk9show.com').trim();
@@ -52,6 +59,10 @@ const feedOrigin = (Deno.env.get('CALENDAR_FEED_ORIGIN') || 'myk9show.com').trim
 const BASE_HEADERS: Record<string, string> = {
   'Access-Control-Allow-Origin': '*',
   'Cache-Control': 'no-cache, max-age=0',
+  // The app reads this off a HEAD to warn before an exhibitor adds a calendar
+  // that has nothing in it. Custom headers are invisible to cross-origin JS
+  // unless they are named here.
+  'Access-Control-Expose-Headers': EVENT_COUNT_HEADER,
 };
 
 function notFound(): Response {
@@ -64,7 +75,11 @@ serve(async (req: Request) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, {
       status: 204,
-      headers: { ...BASE_HEADERS, 'Access-Control-Allow-Headers': 'content-type' },
+      headers: {
+        ...BASE_HEADERS,
+        'Access-Control-Allow-Headers': 'content-type',
+        'Access-Control-Allow-Methods': 'GET, HEAD, OPTIONS',
+      },
     });
   }
   if (req.method !== 'GET' && req.method !== 'HEAD') {
@@ -105,7 +120,7 @@ serve(async (req: Request) => {
   const { data: show, error: showError } = await supabase
     .from('shows')
     .select(
-      'id, name, venue_name, address, city, state, trials(id, name, date, timezone, planned_start_time, actual_end_time)'
+      'id, name, venue_name, address, city, state, trials(id, name, date, timezone, planned_start_time, actual_start_time, actual_end_time)'
     )
     .eq('id', showId)
     .is('deleted_at', null)
@@ -129,6 +144,7 @@ serve(async (req: Request) => {
       date: string;
       timezone: string | null;
       planned_start_time: string | null;
+      actual_start_time: string | null;
       actual_end_time: string | null;
     }>;
   };
@@ -140,6 +156,7 @@ serve(async (req: Request) => {
     date: t.date,
     timezone: t.timezone,
     plannedStartTime: t.planned_start_time,
+    actualStartTime: t.actual_start_time,
     plannedEndTime: t.actual_end_time,
   }));
   const trialsById = new Map(trials.map(t => [t.id, t] as const));
@@ -267,17 +284,25 @@ serve(async (req: Request) => {
 
   // Best-effort telemetry: whether anyone actually subscribes decides if this
   // feature earns its keep. Never block the response on it.
-  supabase
-    .from('calendar_feed_tokens')
-    .update({ last_fetched_at: new Date().toISOString() })
-    .eq('id', (tokenRow as { id: string }).id)
-    .then(undefined, () => undefined);
+  //
+  // GET only. A HEAD is the app inspecting the document on the exhibitor's
+  // behalf — it is how the dialog knows whether to warn about an empty feed —
+  // and counting that as a fetch would report every dialog opening as a
+  // subscription, which is the one question this column exists to answer.
+  if (req.method === 'GET') {
+    supabase
+      .from('calendar_feed_tokens')
+      .update({ last_fetched_at: new Date().toISOString() })
+      .eq('id', (tokenRow as { id: string }).id)
+      .then(undefined, () => undefined);
+  }
 
   return new Response(req.method === 'HEAD' ? null : ics, {
     status: 200,
     headers: {
       ...BASE_HEADERS,
       'Content-Type': 'text/calendar; charset=utf-8',
+      [EVENT_COUNT_HEADER]: String(events.length),
       // The app cannot name this file: `download` on an <a> is ignored across
       // origins, and the feed is not on the app's origin. So the show's own
       // name goes here, or every show saves under the same generic filename.

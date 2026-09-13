@@ -18,6 +18,7 @@ function trial(overrides: Partial<TrialForFeed> = {}): TrialForFeed {
     date: '2026-10-24',
     timezone: 'America/Chicago',
     plannedStartTime: '8:00 AM',
+    actualStartTime: null,
     plannedEndTime: null,
     ...overrides,
   };
@@ -114,9 +115,19 @@ describe('selectFeedEvents', () => {
     expect(events[0]).toMatchObject({ kind: 'class', classId: 'live' });
   });
 
+  it('carries the trial actual start through to the block', () => {
+    const events = select({
+      trials: [trial({ plannedStartTime: null, actualStartTime: '8:42 AM' })],
+    });
+    expect(events).toHaveLength(1);
+    expect(events[0]).toMatchObject({ kind: 'trial', actualStartTime: '8:42 AM' });
+  });
+
   it('emits nothing for a day with neither class times nor a trial start', () => {
     // Honest silence. The subscribe dialog is what warns the exhibitor.
-    expect(select({ trials: [trial({ plannedStartTime: null })] })).toEqual([]);
+    expect(
+      select({ trials: [trial({ plannedStartTime: null, actualStartTime: null })] })
+    ).toEqual([]);
   });
 
   it('skips a trial the exhibitor has no entries in', () => {

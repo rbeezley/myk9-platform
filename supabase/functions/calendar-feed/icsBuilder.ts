@@ -64,6 +64,12 @@ export interface CalendarTrialEvent {
    * through the same 12-and-24-hour parser as everything else.
    */
   plannedStartTime: string | null;
+  /**
+   * Wall-clock start once the day actually began, same free-text shape. Wins
+   * over the planned time, mirroring how a class event prefers its actual
+   * start — a day that has started is not still "planned for" 8am.
+   */
+  actualStartTime: string | null;
   /** Wall-clock end, same free-text shape; falls back to a default day length. */
   plannedEndTime: string | null;
   timeZone: string;
@@ -234,8 +240,10 @@ export function foldIcsLine(line: string): string {
 }
 
 function resolveTrialWindow(event: CalendarTrialEvent): { start: Date; end: Date } | null {
-  if (!event.plannedStartTime) return null;
-  const start = zonedWallTimeToUtc(event.trialDate, event.plannedStartTime, event.timeZone);
+  // Actual first, then planned — the same precedence a class event uses.
+  const startText = event.actualStartTime ?? event.plannedStartTime;
+  if (!startText) return null;
+  const start = zonedWallTimeToUtc(event.trialDate, startText, event.timeZone);
   if (!start || Number.isNaN(start.getTime())) return null;
 
   if (event.plannedEndTime) {
@@ -328,12 +336,15 @@ function buildTrialVEvent(event: CalendarTrialEvent, dtstamp: Date, origin: stri
 
   const summary = [event.showName?.trim(), event.trialName?.trim()].filter(Boolean).join(' — ');
 
+  const started = Boolean(event.actualStartTime);
   const descriptionParts = [
     event.classNames.length > 0 ? `Your classes: ${event.classNames.join(', ')}` : null,
     // Several armbands would read as a list of numbers with nothing to attach
     // them to; one is the exhibitor's own identifier at ringside.
     event.armbands.length === 1 ? `Armband: ${event.armbands[0]}` : null,
-    'Ring times are not posted yet. This covers the whole day — check the show page for your running order.',
+    started
+      ? 'The day has started. This covers the whole day — check the show page for your running order.'
+      : 'Ring times are not posted yet. This covers the whole day — check the show page for your running order.',
   ].filter(Boolean) as string[];
 
   const lines = [
@@ -348,8 +359,9 @@ function buildTrialVEvent(event: CalendarTrialEvent, dtstamp: Date, origin: stri
     `SUMMARY:${escapeIcsText(summary || 'Show day')}`,
     event.venue ? `LOCATION:${escapeIcsText(event.venue)}` : null,
     `DESCRIPTION:${escapeIcsText(descriptionParts.join('\n'))}`,
-    // A whole-day placeholder is provisional by construction.
-    'STATUS:TENTATIVE',
+    // The day's start is a fact once the ring reports it; the runs inside it
+    // are still not, which is what the description says.
+    started ? 'STATUS:CONFIRMED' : 'STATUS:TENTATIVE',
     'END:VEVENT',
   ].filter(Boolean) as string[];
 

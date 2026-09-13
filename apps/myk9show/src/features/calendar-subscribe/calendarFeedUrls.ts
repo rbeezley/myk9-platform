@@ -46,21 +46,14 @@ export function buildCalendarFeedUrls(token: string, baseUrl: string): CalendarF
 }
 
 /**
- * How many events a feed document carries.
+ * Response header the calendar-feed function puts the event count in.
  *
- * Asked of the REAL document rather than re-derived from show data on the
- * client: a feed can be legitimately empty (no class times and no trial start
- * yet), and the exhibitor must be told that before they add a calendar that
- * will show them nothing (MYK9-506). Re-deriving the emptiness rule here is how
- * the warning and the feed come to disagree.
- *
- * Anchored to the line start: a folded continuation line always begins with a
- * space, so this cannot be fooled by the text "BEGIN:VEVENT" inside a
- * description a secretary typed.
+ * Duplicated from `supabase/functions/calendar-feed/index.ts` on purpose: the
+ * edge function is a separate Deno module graph and the app cannot import from
+ * it. Change one, change the other — `calendarFeedUrls.test.ts` pins the
+ * spelling so a rename cannot drift silently.
  */
-export function countIcsEvents(document: string): number {
-  return (document.match(/^BEGIN:VEVENT[ \t]*\r?$/gm) ?? []).length;
-}
+export const EVENT_COUNT_HEADER = 'X-MyK9-Event-Count';
 
 /** Filename an exhibitor will recognise months later in their downloads folder. */
 export function buildIcsFilename(showName: string | null | undefined): string {

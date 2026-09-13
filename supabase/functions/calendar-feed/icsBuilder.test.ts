@@ -43,6 +43,7 @@ function trialEvent(overrides: Partial<CalendarTrialEvent> = {}): CalendarTrialE
     showName: 'MYK9-109 Load Show 1',
     trialDate: '2026-10-24',
     plannedStartTime: '8:00 AM',
+    actualStartTime: null,
     plannedEndTime: null,
     timeZone: 'America/Chicago',
     venue: 'Purina Farms',
@@ -292,6 +293,23 @@ describe('buildVEvent — trial-day block', () => {
     expect(buildVEvent(trialEvent(), DTSTAMP, ORIGIN)).toContain('UID:trial-trial-1@myk9show.com');
   });
 
+  it('prefers the actual start once the day has begun', () => {
+    // 8:42 CDT = 13:42Z. Mirrors how a class event prefers its actual start.
+    const ics = buildVEvent(trialEvent({ actualStartTime: '8:42 AM' }), DTSTAMP, ORIGIN);
+    expect(ics).toContain('DTSTART:20261024T134200Z');
+    expect(ics).toContain('STATUS:CONFIRMED');
+    expect(ics.replace(/\r\n /g, '')).toContain('The day has started');
+  });
+
+  it('uses the actual start even when no planned time was ever recorded', () => {
+    const ics = buildVEvent(
+      trialEvent({ plannedStartTime: null, actualStartTime: '9:00 AM' }),
+      DTSTAMP,
+      ORIGIN
+    );
+    expect(ics).toContain('DTSTART:20261024T140000Z');
+  });
+
   it('OMITS the block when the trial has no start time either', () => {
     expect(buildVEvent(trialEvent({ plannedStartTime: null }), DTSTAMP, ORIGIN)).toBe('');
     expect(buildVEvent(trialEvent({ plannedStartTime: 'TBD' }), DTSTAMP, ORIGIN)).toBe('');
@@ -309,6 +327,7 @@ describe('hasResolvableTime', () => {
       trialEvent(),
       trialEvent({ plannedStartTime: null }),
       trialEvent({ plannedStartTime: 'whenever' }),
+      trialEvent({ plannedStartTime: null, actualStartTime: '9:00 AM' }),
     ];
     for (const candidate of cases) {
       expect(hasResolvableTime(candidate)).toBe(buildVEvent(candidate, DTSTAMP, ORIGIN) !== '');

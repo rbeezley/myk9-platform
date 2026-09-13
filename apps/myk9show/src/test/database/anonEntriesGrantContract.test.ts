@@ -20,6 +20,10 @@ import { describe, expect, it } from 'vitest';
  * safe, it treats as unsafe.
  */
 const MIGRATIONS_DIR = resolve(__dirname, '../../../../../supabase/migrations');
+const CLASS_READS_SOURCE = readFileSync(
+  resolve(__dirname, '../../../../../apps/myk9show/src/services/database/classes/reads.ts'),
+  'utf8'
+);
 
 /**
  * Anonymous callers have no direct entry-column grant. Public results and TV
@@ -409,6 +413,16 @@ describe('anon grant contract on public.classes', () => {
         `classes.${column} must stay granted or the public show/class pages break`
       ).toContain(column);
     }
+  });
+});
+
+describe('anonymous class preview query boundary', () => {
+  it('does not embed base entries after anonymous entry access is revoked', () => {
+    const functionSource = CLASS_READS_SOURCE.slice(
+      CLASS_READS_SOURCE.indexOf('async function postgrestGetClassesByTrialId'),
+      CLASS_READS_SOURCE.indexOf('async function postgrestSearchClasses')
+    );
+    expect(functionSource).not.toMatch(/\bentries\s*\(/);
   });
 });
 

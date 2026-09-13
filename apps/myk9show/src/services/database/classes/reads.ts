@@ -285,9 +285,6 @@ async function postgrestGetClassesByTrialId(trialId: string) {
     .select(
       `
       ${CLASS_COLUMN_SELECT},
-      entries (
-        id
-      ),
       judge_assignments!judge_assignments_class_id_fkey (
         person_id,
         people!inner (

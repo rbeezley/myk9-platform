@@ -222,6 +222,26 @@ describe('RegistrationWizardPage — handleDraftLoaded', () => {
     expect(mockCreateRegistration).not.toHaveBeenCalled();
   });
 
+  it('does not restore a draft while dogs are still loading', async () => {
+    mockDogStoreState.dogs = [];
+    mockDogStoreState.isLoading = true;
+    render(<RegistrationWizardPage />, { initialRoute: '/shows/show-1/register' });
+    await waitFor(() => expect(capturedOnDraftLoaded).not.toBeNull());
+    act(() => capturedOnDraftLoaded!(buildDraft(['dog-1'])));
+    expect(mockCreateRegistration).not.toHaveBeenCalled();
+    expect(capturedSelectedDogs).toEqual([]);
+  });
+
+  it('rejects a draft containing a dog no longer in the store', async () => {
+    mockDogStoreState.dogs = [{ id: 'dog-1', ownerId: 'user-1', ownerName: 'Owner' }];
+    render(<RegistrationWizardPage />, { initialRoute: '/shows/show-1/register' });
+    await waitFor(() => expect(capturedOnDraftLoaded).not.toBeNull());
+    mockCreateRegistration.mockClear();
+    act(() => capturedOnDraftLoaded!(buildDraft(['dog-1', 'dog-deleted'])));
+    expect(mockCreateRegistration).not.toHaveBeenCalled();
+    expect(capturedSelectedDogs).not.toContain('dog-deleted');
+  });
+
   it('disables the progress rail on a completed entry receipt', async () => {
     render(<RegistrationWizardPage />, { initialRoute: '/shows/show-1/register' });
     await waitFor(() => expect(capturedOnDraftLoaded).not.toBeNull());

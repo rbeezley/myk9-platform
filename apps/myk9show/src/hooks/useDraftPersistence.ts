@@ -21,6 +21,7 @@ export interface DraftMetadata {
   timestamp: number;
   stepCompleted: string;
   title: string;
+  customTitle?: boolean;
   preview: string;
   /** Derived from the saved payload when listing drafts; older previews can be stale. */
   selectedDogsCount?: number;
@@ -39,6 +40,8 @@ const DEFAULT_CONFIG: Required<DraftPersistenceConfig> = {
   maxDraftsPerShow: 5,
   debug: false,
 };
+
+const DRAFTS_UPDATED_EVENT = 'registration-drafts-updated';
 
 /**
  * Hook for managing registration draft persistence with auto-save functionality
@@ -132,6 +135,7 @@ export function useDraftPersistence(
     (metadata: DraftMetadata[]) => {
       try {
         localStorage.setItem(getMetadataKey(), JSON.stringify(metadata));
+        window.dispatchEvent(new CustomEvent(DRAFTS_UPDATED_EVENT, { detail: getMetadataKey() }));
         log('Saved draft metadata:', metadata.length, 'drafts');
       } catch (error) {
         log('Error saving draft metadata:', error);
@@ -154,7 +158,19 @@ export function useDraftPersistence(
         return null;
       }
 
-      const draftMetadata = metadata || generateDraftMetadata(data);
+      const refreshedMetadata = generateDraftMetadata(data);
+      const draftMetadata = metadata
+        ? {
+            ...refreshedMetadata,
+            id: metadata.id,
+            title: metadata.customTitle
+              ? metadata.title
+              : metadata.title.startsWith('Draft from ')
+                ? refreshedMetadata.title
+                : metadata.title,
+            ...(metadata.customTitle ? { customTitle: true } : {}),
+          }
+        : refreshedMetadata;
       const savedDraft: SavedDraft = { metadata: draftMetadata, data };
 
       try {
@@ -181,7 +197,6 @@ export function useDraftPersistence(
 
         saveDraftMetadata(allMetadata);
         activeDraftMetadataRef.current = draftMetadata;
-        setDraftsVersion(version => version + 1);
         log('Saved draft:', draftMetadata.id, 'with', Object.keys(data).length, 'fields');
 
         return draftMetadata.id;
@@ -246,7 +261,6 @@ export function useDraftPersistence(
         if (activeDraftMetadataRef.current?.id === draftId) {
           activeDraftMetadataRef.current = null;
         }
-        setDraftsVersion(version => version + 1);
 
         log('Deleted draft:', draftId);
       } catch (error) {
@@ -287,12 +301,13 @@ export function useDraftPersistence(
   // Manual save with custom title
   const saveWithTitle = useCallback(
     (title: string) => {
-      if (!draftData || Object.keys(draftData).length === 0) {
+      if (skipFinalSaveRef.current || !draftData || Object.keys(draftData).length === 0) {
         return null;
       }
 
       const metadata = generateDraftMetadata(draftData);
       metadata.title = title;
+      metadata.customTitle = true;
 
       return saveDraft(draftData, metadata);
     },
@@ -306,9 +321,9 @@ export function useDraftPersistence(
       localStorage.removeItem(getDraftKey(meta.id));
     });
     localStorage.removeItem(getMetadataKey());
+    window.dispatchEvent(new CustomEvent(DRAFTS_UPDATED_EVENT, { detail: getMetadataKey() }));
     activeDraftMetadataRef.current = null;
     lastSavedDataRef.current = JSON.stringify(draftData ?? {});
-    setDraftsVersion(version => version + 1);
     log('Cleared all drafts for show:', showId);
   }, [draftData, getDraftMetadata, getDraftKey, getMetadataKey, showId, log]);
 
@@ -371,7 +386,16 @@ export function useDraftPersistence(
       if (event.key === getMetadataKey()) setDraftsVersion(version => version + 1);
     };
     window.addEventListener('storage', onStorage);
-    return () => window.removeEventListener('storage', onStorage);
+    const onLocalUpdate = (event: Event) => {
+      if ((event as CustomEvent<string>).detail === getMetadataKey()) {
+        setDraftsVersion(version => version + 1);
+      }
+    };
+    window.addEventListener(DRAFTS_UPDATED_EVENT, onLocalUpdate);
+    return () => {
+      window.removeEventListener('storage', onStorage);
+      window.removeEventListener(DRAFTS_UPDATED_EVENT, onLocalUpdate);
+    };
   }, [getMetadataKey]);
 
   // Draft payloads only change after in-hook writes or another tab's storage
@@ -417,7 +441,7 @@ export function useDraftPersistence(
     discardDraftsWithoutFinalSave,
 
     // State
-    hasUnsavedChanges: draftData && Object.keys(draftData).length > 0,
+    hasUnsavedChanges: !skipFinalSaveRef.current && draftData && Object.keys(draftData).length > 0,
     lastAutoSave: lastAutoSaveTime,
   };
 }

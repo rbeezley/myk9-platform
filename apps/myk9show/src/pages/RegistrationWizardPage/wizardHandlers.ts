@@ -39,6 +39,7 @@ export function createWizardHandlers(state: RegistrationWizardState) {
     exhibitorProfile,
     triggerSync,
     dogs,
+    dogsLoading,
     classes,
     currentShow,
     loadCart,
@@ -241,6 +242,21 @@ export function createWizardHandlers(state: RegistrationWizardState) {
 
   // Draft loading handler
   const handleDraftLoaded = (draft: SavedDraft) => {
+    const selectedDogs = draft.data.selectedDogs ?? [];
+    if (dogsLoading) {
+      notifications.error('Your dogs are still loading. Please try resuming in a moment.');
+      return;
+    }
+    if (
+      selectedDogs.length > 0 &&
+      (!selectedDogs.every(id => dogs.some(dog => dog.id === id)) ||
+        !selectedDogsOwner(dogs, selectedDogs).ok)
+    ) {
+      notifications.error(
+        'One or more dogs in this draft are no longer available for this entry. Select a dog below to start again.'
+      );
+      return;
+    }
     if (draft.data._workflowState) {
       const workflowState = draft.data._workflowState;
       setStepCompletionState(workflowState.stepCompletionState || {});
@@ -271,7 +287,7 @@ export function createWizardHandlers(state: RegistrationWizardState) {
     if (!registrationId && (draft.data.selectedDogs?.length ?? 0) > 0) {
       // createRegistration is synchronous — returns the new local registration directly.
       // Resolve the loaded selection's owner the same way handleDogSelectionChange does.
-      const owner = selectedDogsOwner(dogs, draft.data.selectedDogs ?? []);
+      const owner = selectedDogsOwner(dogs, selectedDogs);
       if (owner.ok) {
         const reg = createRegistration(showId, userId, owner.ownerId);
         setRegistrationId(reg.id);

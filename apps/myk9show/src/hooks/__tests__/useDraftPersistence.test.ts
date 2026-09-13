@@ -144,24 +144,25 @@ describe('useDraftPersistence — cross-user scoping', () => {
     expect(result.current.availableDrafts[0]?.id).toBe(draftId);
   });
 
-  it('reports persisted dog selections even when the metadata preview is stale', () => {
+  it('refreshes metadata when autosaving an existing draft', () => {
     seedDraftData({ selectedDogs: [] });
-    const { result, rerender } = renderHook(() =>
-      useDraftPersistence(SHOW_ID, USER_A, 'dog-selection')
-    );
+    let step = 'dog-selection';
+    const { result, rerender } = renderHook(() => useDraftPersistence(SHOW_ID, USER_A, step));
     act(() => {
       result.current.saveDraft('Empty manual draft');
     });
     expect(result.current.availableDrafts[0]?.selectedDogsCount).toBe(0);
 
     seedDraftData({ selectedDogs: ['dog-1'] });
+    step = 'class-selection';
     rerender();
     act(() => {
       result.current.autoSave();
     });
 
-    expect(result.current.availableDrafts[0]?.preview).toBe('New registration');
+    expect(result.current.availableDrafts[0]?.preview).toBe('1 dog');
     expect(result.current.availableDrafts[0]?.selectedDogsCount).toBe(1);
+    expect(result.current.availableDrafts[0]?.stepCompleted).toBe('class-selection');
   });
 
   it('saves a selection when browser navigation hides the page before the timer fires', () => {
@@ -203,7 +204,7 @@ describe('useDraftPersistence — cross-user scoping', () => {
     expect(result.current.availableDrafts[0]?.completed).toBe(true);
   });
 
-  it('refreshes its memoized draft list when another tab changes metadata', () => {
+  it('refreshes another hook instance in the same document after a save', () => {
     seedDraftData({ selectedDogs: ['dog-1'] });
     const { result: reader } = renderHook(() =>
       useDraftPersistence(SHOW_ID, USER_A, 'dog-selection')
@@ -213,6 +214,30 @@ describe('useDraftPersistence — cross-user scoping', () => {
     );
 
     act(() => writer.current.saveDraft('Saved elsewhere'));
+    expect(reader.current.availableDrafts[0]?.selectedDogsCount).toBe(1);
+  });
+
+  it('refreshes its memoized draft list when another tab changes metadata', () => {
+    const { result: reader } = renderHook(() =>
+      useDraftPersistence(SHOW_ID, USER_A, 'dog-selection')
+    );
+    const metadata = {
+      id: 'other-tab-draft',
+      showId: SHOW_ID,
+      userId: USER_A,
+      timestamp: Date.now(),
+      stepCompleted: 'dog-selection',
+      title: 'Other tab',
+      preview: '1 dog',
+    };
+    localStorage.setItem(
+      `registration-draft-${SHOW_ID}-${USER_A}-${metadata.id}`,
+      JSON.stringify({ metadata, data: { selectedDogs: ['dog-1'] } })
+    );
+    localStorage.setItem(
+      `registration-draft-metadata-${SHOW_ID}-${USER_A}`,
+      JSON.stringify([metadata])
+    );
     expect(reader.current.availableDrafts).toHaveLength(0);
 
     act(() =>
@@ -266,8 +291,10 @@ describe('useDraftPersistence — cross-user scoping', () => {
     rerender();
     act(() => {
       result.current.autoSave();
+      expect(result.current.saveDraft('Filed entry')).toBeNull();
       window.dispatchEvent(new Event('pagehide'));
     });
+    expect(result.current.hasUnsavedChanges).toBe(false);
     expect(localStorage.getItem(metadataKey)).toBeNull();
 
     unmount();

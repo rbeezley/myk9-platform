@@ -1,5 +1,7 @@
 # MYK9-508: resume an unfinished show entry
 
+> **Status:** Active
+
 ## Scope
 
 Browser Back from the agreement leaves the registration route. Reopening the
@@ -33,11 +35,12 @@ owns the wizard structure and this only exposes its existing draft loader.
 
 ## Verification recorded
 
-- Focused hook, prompt, submission, and existing draft-load tests: 26 passed,
+- Focused hook, prompt, submission, and existing draft-load tests: 29 passed,
   including a shuffled run. Review coverage also checks that completed entries
   cannot be resumed, empty exits cannot evict a useful draft, and successful
-  non-card submission clears same-show drafts. The receipt rail is no longer a
-  route back into a filed entry.
+  non-card submission clears same-show drafts. Resume waits for dog data and
+  rejects missing dogs; metadata stays current across autosaves and hook
+  instances. The receipt rail is no longer a route back into a filed entry.
 - Chromium browser Back → reopen → Resume entry: passed. The initial run failed
   before the pagehide save was added, confirming the immediate-exit gap.
 - App typecheck, touched-file ESLint, and code-quality ratchet: passed.

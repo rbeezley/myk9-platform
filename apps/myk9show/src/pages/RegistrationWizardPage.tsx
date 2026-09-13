@@ -359,6 +359,7 @@ function RegistrationWizardContent() {
           <>
             {currentWorkflowMode === 'exhibitor' &&
               currentStepId === 'dog-selection' &&
+              !dogsLoading &&
               registrationData.selectedDogs.length === 0 && (
                 <DraftResumePrompt
                   drafts={availableDrafts ?? []}

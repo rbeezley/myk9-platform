@@ -136,4 +136,22 @@ describe('class name survives the replication round trip', () => {
 
     expect(roundTrip(plain)).not.toBe(roundTrip(preliminary));
   });
+
+  it('regenerates a name left stale by an edit, rather than preserving a false one', () => {
+    // TrialClassInput carries element/level/section but no name, so changing a
+    // class from Interior/Advanced to Interior/Excellent leaves the old name
+    // behind. Preserving it would render "Excellent Advanced" — not merely
+    // incomplete, but untrue. Found in review of #2196.
+    const edited = syncable({ name: 'Interior Advanced', level: 'Excellent' });
+
+    expect(trialClassToReplicated(edited, 'trial-1').name).toBe('Interior Excellent');
+  });
+
+  it('keeps an authored name that still agrees with the current fields', () => {
+    const stillValid = syncable({ name: 'Interior Advanced Preliminary', level: 'Advanced' });
+
+    expect(trialClassToReplicated(stillValid, 'trial-1').name).toBe(
+      'Interior Advanced Preliminary'
+    );
+  });
 });

@@ -1,17 +1,26 @@
 import type { SyncableTrial, SyncableTrialClass } from './trial-store-types';
 import type { ReplicatedTrial, ReplicatedClass } from '@/services/replication';
 import { shouldUseMockData } from '@/config/dataSource';
+import { classNameMatchesFields } from '@/features/_shared/classLabel';
 
 /** Map a SyncableTrialClass to ReplicatedClass for offline persistence */
 export function trialClassToReplicated(tc: SyncableTrialClass, trialId: string): ReplicatedClass {
   return {
     id: tc.id,
     trialId,
-    // Prefer the stored name. The synthesised fallback is only for classes that
-    // never carried one — writing it over a real name would erase the only
-    // thing that distinguishes two classes sharing element+level+section, and
-    // it would do so on a round-trip through the client, silently (MYK9-489).
-    name: tc.name || [tc.element, tc.level, tc.section].filter(Boolean).join(' ').trim() || tc.id,
+    // Keep the stored name, but only while it still agrees with the class's
+    // current fields.
+    //
+    // Overwriting it unconditionally erases the only thing that distinguishes
+    // two classes sharing element+level+section, and does so silently on a
+    // round trip through the client. Keeping it unconditionally is worse:
+    // TrialClassInput has no `name`, so editing a class from Interior/Advanced
+    // to Interior/Excellent leaves "Interior Advanced" behind and the label
+    // renders "Excellent Advanced" — a statement that is not merely incomplete
+    // but false. Regenerate in that case (MYK9-489, review of #2196).
+    name: classNameMatchesFields(tc.name, tc.element, tc.level, tc.section)
+      ? (tc.name as string)
+      : [tc.element, tc.level, tc.section].filter(Boolean).join(' ').trim() || tc.id,
     element: tc.element,
     level: tc.level,
     section: tc.section,

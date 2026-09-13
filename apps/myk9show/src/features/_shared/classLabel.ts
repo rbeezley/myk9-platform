@@ -69,6 +69,37 @@ export function classNameExtra(
   return rest.replace(/\s+/g, ' ').trim();
 }
 
+/**
+ * Whether a stored class name still agrees with the class's current fields.
+ *
+ * A name can go stale: `TrialClassInput` carries element, level and section but
+ * no name, so editing a class from Interior/Advanced to Interior/Excellent
+ * leaves the old "Interior Advanced" behind. Treating that as authored text
+ * would render "Excellent Advanced" — worse than the ambiguity this module
+ * exists to remove, because it states something untrue rather than something
+ * incomplete.
+ *
+ * A name agrees when every non-empty field still appears in it. "Interior
+ * Advanced Preliminary" agrees with Interior/Advanced; "Interior Advanced" does
+ * not agree with Interior/Excellent, because Excellent is missing.
+ */
+export function classNameMatchesFields(
+  name: string | null | undefined,
+  element: string | null | undefined,
+  level: string | null | undefined,
+  section: string | null | undefined
+): boolean {
+  const cleanedName = clean(name);
+  if (!cleanedName) return false;
+
+  return [clean(element), clean(level), clean(section)].every(token => {
+    if (!token) return true;
+    const lead = /^\w/.test(token) ? '\\b' : '';
+    const trail = /\w$/.test(token) ? '\\b' : '';
+    return new RegExp(`${lead}${escapeRegExp(token)}${trail}`, 'i').test(cleanedName);
+  });
+}
+
 /** What a caller has already resolved for a class, and groups it by. */
 export interface ClassIdentity {
   /** The class's own name, as stored. */

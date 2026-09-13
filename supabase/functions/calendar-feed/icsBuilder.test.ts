@@ -6,8 +6,11 @@ import {
   escapeIcsText,
   foldIcsLine,
   formatIcsUtc,
+  hasResolvableTime,
+  parseWallClockTime,
   zonedWallTimeToUtc,
   type CalendarClassEvent,
+  type CalendarTrialEvent,
 } from './icsBuilder';
 
 const DTSTAMP = new Date('2026-08-16T12:00:00Z');
@@ -15,6 +18,7 @@ const ORIGIN = 'myk9show.com';
 
 function event(overrides: Partial<CalendarClassEvent> = {}): CalendarClassEvent {
   return {
+    kind: 'class',
     classId: 'class-1',
     className: 'Excellent Interiors',
     trialDate: '2026-08-16',
@@ -30,6 +34,57 @@ function event(overrides: Partial<CalendarClassEvent> = {}): CalendarClassEvent 
     ...overrides,
   };
 }
+
+function trialEvent(overrides: Partial<CalendarTrialEvent> = {}): CalendarTrialEvent {
+  return {
+    kind: 'trial',
+    trialId: 'trial-1',
+    trialName: 'Load 1 Trial 1',
+    showName: 'MYK9-109 Load Show 1',
+    trialDate: '2026-10-24',
+    plannedStartTime: '8:00 AM',
+    actualStartTime: null,
+    plannedEndTime: null,
+    timeZone: 'America/Chicago',
+    venue: 'Purina Farms',
+    classNames: ['Load 1 Class 1', 'Load 1 Class 2'],
+    armbands: [314],
+    ...overrides,
+  };
+}
+
+describe('parseWallClockTime', () => {
+  it('reads the 24-hour TIME shape Postgres hands over for classes.start_time', () => {
+    expect(parseWallClockTime('08:30:00')).toEqual({ hour: 8, minute: 30 });
+    expect(parseWallClockTime('17:05')).toEqual({ hour: 17, minute: 5 });
+  });
+
+  it('reads the 12-hour TEXT shape secretaries type into trials.planned_start_time', () => {
+    expect(parseWallClockTime('8:00 AM')).toEqual({ hour: 8, minute: 0 });
+    expect(parseWallClockTime('8:00am')).toEqual({ hour: 8, minute: 0 });
+  });
+
+  it('puts an afternoon trial in the AFTERNOON', () => {
+    // The whole point: reading only the leading H:MM makes this 01:00 and
+    // schedules a 1pm trial at one in the morning (MYK9-506).
+    expect(parseWallClockTime('1:00 PM')).toEqual({ hour: 13, minute: 0 });
+    expect(parseWallClockTime('4:30 pm')).toEqual({ hour: 16, minute: 30 });
+  });
+
+  it('maps the two hours that are not their own 24-hour selves', () => {
+    expect(parseWallClockTime('12:00 AM')).toEqual({ hour: 0, minute: 0 }); // midnight
+    expect(parseWallClockTime('12:00 PM')).toEqual({ hour: 12, minute: 0 }); // noon
+  });
+
+  it('returns null rather than a plausible-looking hour for junk', () => {
+    expect(parseWallClockTime('')).toBeNull();
+    expect(parseWallClockTime('morning')).toBeNull();
+    expect(parseWallClockTime('25:00')).toBeNull();
+    expect(parseWallClockTime('08:75')).toBeNull();
+    expect(parseWallClockTime('13:00 PM')).toBeNull(); // 13 is not a 12-hour hour
+    expect(parseWallClockTime('0:30 AM')).toBeNull();
+  });
+});
 
 describe('zonedWallTimeToUtc', () => {
   it('converts eastern daylight wall time to the right UTC instant', () => {
@@ -195,6 +250,91 @@ describe('buildVEvent', () => {
   });
 });
 
+describe('buildVEvent — trial-day block', () => {
+  it('times the block from the trial planned start, in the trial zone', () => {
+    // 2026-10-24 is CDT (UTC-5): 08:00 local = 13:00Z.
+    const ics = buildVEvent(trialEvent(), DTSTAMP, ORIGIN);
+    expect(ics).toContain('DTSTART:20261024T130000Z');
+    expect(ics).toContain('DTEND:20261024T220000Z'); // +9h default day
+    expect(ics).toContain('STATUS:TENTATIVE');
+  });
+
+  it('does NOT read an afternoon start as the small hours', () => {
+    // 13:00 CDT = 18:00Z. A meridiem-blind parser gives 06:00Z — 1am local.
+    const ics = buildVEvent(trialEvent({ plannedStartTime: '1:00 PM' }), DTSTAMP, ORIGIN);
+    expect(ics).toContain('DTSTART:20261024T180000Z');
+  });
+
+  it('uses a recorded end when the trial has one', () => {
+    const ics = buildVEvent(trialEvent({ plannedEndTime: '3:30 PM' }), DTSTAMP, ORIGIN);
+    expect(ics).toContain('DTEND:20261024T203000Z');
+  });
+
+  it('ignores an end at or before the start rather than emitting a negative event', () => {
+    const ics = buildVEvent(trialEvent({ plannedEndTime: '6:00 AM' }), DTSTAMP, ORIGIN);
+    expect(ics).toContain('DTEND:20261024T220000Z'); // falls back to the default day
+  });
+
+  it('names the show and the trial, and lists the exhibitor own classes', () => {
+    const ics = buildVEvent(trialEvent(), DTSTAMP, ORIGIN);
+    expect(ics).toContain('SUMMARY:MYK9-109 Load Show 1 — Load 1 Trial 1');
+    expect(ics).toContain('Your classes: Load 1 Class 1\\, Load 1 Class 2');
+    expect(ics).toContain('Armband: 314');
+    // The note is long enough to be folded across lines; unfold before matching.
+    expect(ics.replace(/\r\n /g, '')).toContain('Ring times are not posted yet');
+  });
+
+  it('omits the armband when several dogs would make the number ambiguous', () => {
+    const ics = buildVEvent(trialEvent({ armbands: [314, 315] }), DTSTAMP, ORIGIN);
+    expect(ics).not.toContain('Armband:');
+  });
+
+  it('keys the UID on the trial, apart from any class UID', () => {
+    expect(buildVEvent(trialEvent(), DTSTAMP, ORIGIN)).toContain('UID:trial-trial-1@myk9show.com');
+  });
+
+  it('prefers the actual start once the day has begun', () => {
+    // 8:42 CDT = 13:42Z. Mirrors how a class event prefers its actual start.
+    const ics = buildVEvent(trialEvent({ actualStartTime: '8:42 AM' }), DTSTAMP, ORIGIN);
+    expect(ics).toContain('DTSTART:20261024T134200Z');
+    expect(ics).toContain('STATUS:CONFIRMED');
+    expect(ics.replace(/\r\n /g, '')).toContain('The day has started');
+  });
+
+  it('uses the actual start even when no planned time was ever recorded', () => {
+    const ics = buildVEvent(
+      trialEvent({ plannedStartTime: null, actualStartTime: '9:00 AM' }),
+      DTSTAMP,
+      ORIGIN
+    );
+    expect(ics).toContain('DTSTART:20261024T140000Z');
+  });
+
+  it('OMITS the block when the trial has no start time either', () => {
+    expect(buildVEvent(trialEvent({ plannedStartTime: null }), DTSTAMP, ORIGIN)).toBe('');
+    expect(buildVEvent(trialEvent({ plannedStartTime: 'TBD' }), DTSTAMP, ORIGIN)).toBe('');
+  });
+});
+
+describe('hasResolvableTime', () => {
+  it('agrees with what buildVEvent actually emits, for both event shapes', () => {
+    // These two must never disagree: index.ts picks the trial-block fallback
+    // from this predicate, and the document is built by buildVEvent.
+    const cases = [
+      event(),
+      event({ startTime: null }),
+      event({ startTime: null, actualStartTime: '2026-08-16T13:00:00Z' }),
+      trialEvent(),
+      trialEvent({ plannedStartTime: null }),
+      trialEvent({ plannedStartTime: 'whenever' }),
+      trialEvent({ plannedStartTime: null, actualStartTime: '9:00 AM' }),
+    ];
+    for (const candidate of cases) {
+      expect(hasResolvableTime(candidate)).toBe(buildVEvent(candidate, DTSTAMP, ORIGIN) !== '');
+    }
+  });
+});
+
 describe('buildIcsDocument', () => {
   it('wraps events in a valid VCALENDAR with CRLF line endings', () => {
     const ics = buildIcsDocument({
@@ -244,6 +384,25 @@ describe('buildIcsDocument', () => {
     });
     expect(ics).toContain('UID:class-a@myk9show.com');
     expect(ics).not.toContain('UID:class-b@myk9show.com');
+  });
+
+  it('gives a show whose classes are all untimed one block per trial day', () => {
+    // The reported case: MYK9-109 Load Show 1, four classes, no class times,
+    // both trials starting 8:00 AM Central. Before MYK9-506 this document
+    // came back valid and completely empty.
+    const ics = buildIcsDocument({
+      calendarName: 'MYK9-109 Load Show 1',
+      events: [
+        trialEvent({ trialId: 't1', trialName: 'Load 1 Trial 1', trialDate: '2026-10-24' }),
+        trialEvent({ trialId: 't2', trialName: 'Load 1 Trial 2', trialDate: '2026-10-25' }),
+      ],
+      dtstamp: DTSTAMP,
+      origin: ORIGIN,
+    });
+
+    expect(ics.match(/BEGIN:VEVENT/g)).toHaveLength(2);
+    expect(ics).toContain('DTSTART:20261024T130000Z');
+    expect(ics).toContain('DTSTART:20261025T130000Z');
   });
 });
 

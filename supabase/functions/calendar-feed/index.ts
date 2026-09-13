@@ -34,8 +34,21 @@ import {
   buildIcsDocument,
   type CalendarClassEvent,
 } from './icsBuilder.ts';
+import {
+  resolveTrialZone,
+  selectFeedEvents,
+  type ClassEventForFeed,
+  type TrialForFeed,
+} from './eventSelection.ts';
 
 const TOKEN_PATTERN = /^[0-9a-f]{64}$/;
+
+/**
+ * How many events the document carries, so the app can ask WITHOUT counting as
+ * a subscription. No new disclosure: the URL is already the credential, and
+ * anyone holding it can read the events themselves.
+ */
+const EVENT_COUNT_HEADER = 'X-MyK9-Event-Count';
 
 const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
 const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
@@ -46,6 +59,10 @@ const feedOrigin = (Deno.env.get('CALENDAR_FEED_ORIGIN') || 'myk9show.com').trim
 const BASE_HEADERS: Record<string, string> = {
   'Access-Control-Allow-Origin': '*',
   'Cache-Control': 'no-cache, max-age=0',
+  // The app reads this off a HEAD to warn before an exhibitor adds a calendar
+  // that has nothing in it. Custom headers are invisible to cross-origin JS
+  // unless they are named here.
+  'Access-Control-Expose-Headers': EVENT_COUNT_HEADER,
 };
 
 function notFound(): Response {
@@ -58,7 +75,11 @@ serve(async (req: Request) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, {
       status: 204,
-      headers: { ...BASE_HEADERS, 'Access-Control-Allow-Headers': 'content-type' },
+      headers: {
+        ...BASE_HEADERS,
+        'Access-Control-Allow-Headers': 'content-type',
+        'Access-Control-Allow-Methods': 'GET, HEAD, OPTIONS',
+      },
     });
   }
   if (req.method !== 'GET' && req.method !== 'HEAD') {
@@ -98,7 +119,9 @@ serve(async (req: Request) => {
   // weekend, and each trial carries its OWN date and timezone.
   const { data: show, error: showError } = await supabase
     .from('shows')
-    .select('id, name, venue_name, address, city, state, trials(id, name, date, timezone)')
+    .select(
+      'id, name, venue_name, address, city, state, trials(id, name, date, timezone, planned_start_time, actual_start_time, actual_end_time)'
+    )
     .eq('id', showId)
     .is('deleted_at', null)
     .maybeSingle();
@@ -115,10 +138,28 @@ serve(async (req: Request) => {
     address: string | null;
     city: string | null;
     state: string | null;
-    trials?: Array<{ id: string; name: string | null; date: string; timezone: string | null }>;
+    trials?: Array<{
+      id: string;
+      name: string | null;
+      date: string;
+      timezone: string | null;
+      planned_start_time: string | null;
+      actual_start_time: string | null;
+      actual_end_time: string | null;
+    }>;
   };
 
-  const trialsById = new Map((showRow.trials ?? []).map(t => [t.id, t] as const));
+  // Snake-case DB rows -> the shape the pure selection module works in.
+  const trials: TrialForFeed[] = (showRow.trials ?? []).map(t => ({
+    id: t.id,
+    name: t.name,
+    date: t.date,
+    timezone: t.timezone,
+    plannedStartTime: t.planned_start_time,
+    actualStartTime: t.actual_start_time,
+    plannedEndTime: t.actual_end_time,
+  }));
+  const trialsById = new Map(trials.map(t => [t.id, t] as const));
   if (trialsById.size === 0) {
     console.error('calendar-feed: show has no trials', showId);
   }
@@ -155,7 +196,9 @@ serve(async (req: Request) => {
 
   // One event per class, deduped: an exhibitor with two dogs in the same class
   // gets one calendar entry, not two overlapping ones.
-  const eventsByClass = new Map<string, CalendarClassEvent>();
+  const eventsByClass = new Map<string, ClassEventForFeed>();
+  /** The exhibitor's armbands per trial, before per-class dedup discards them. */
+  const armbandsByTrialId = new Map<string, Set<number>>();
 
   for (const raw of entries ?? []) {
     const entry = raw as unknown as {
@@ -185,16 +228,23 @@ serve(async (req: Request) => {
     const trial = trialsById.get(entry.class.trial_id);
     if (!trial) continue;
 
+    if (entry.armband !== null) {
+      const armbands = armbandsByTrialId.get(trial.id) ?? new Set<number>();
+      armbands.add(entry.armband);
+      armbandsByTrialId.set(trial.id, armbands);
+    }
+
     const existing = eventsByClass.get(entry.class.id);
     if (existing) {
       // Second dog in the same class — keep the event, drop the per-dog naming
       // rather than claim it is only about one of them.
-      existing.dogName = null;
-      existing.armband = null;
+      existing.event.dogName = null;
+      existing.event.armband = null;
       continue;
     }
 
-    eventsByClass.set(entry.class.id, {
+    const classEvent: CalendarClassEvent = {
+      kind: 'class',
       classId: entry.class.id,
       className: entry.class.name ?? 'Class',
       trialDate: trial.date,
@@ -202,35 +252,57 @@ serve(async (req: Request) => {
       actualStartTime: entry.class.actual_start_time,
       actualEndTime: entry.class.actual_end_time,
       estimatedDuration: entry.class.estimated_duration,
-      timeZone: trial.timezone?.trim() || 'America/New_York',
+      timeZone: resolveTrialZone(trial),
       venue,
       armband: entry.armband,
       dogName: entry.dog?.call_name ?? null,
       trialName: trial.name,
-    });
+    };
+    eventsByClass.set(entry.class.id, { trialId: trial.id, event: classEvent });
   }
+
+  // Per trial: real class times if the secretary published them, otherwise ONE
+  // block for the day. Class times are the exception — the day's start is
+  // normally recorded on the trial — and before this fallback existed such a
+  // show produced a valid, entirely empty calendar (MYK9-506). The rule itself
+  // lives in eventSelection.ts so vitest can hold it to account.
+  const events = selectFeedEvents({
+    trials,
+    classEvents: [...eventsByClass.values()],
+    armbandsByTrialId,
+    showName: showRow.name,
+    venue,
+  });
 
   const calendarName = showRow.name ?? 'My runs';
   const ics = buildIcsDocument({
     calendarName,
-    events: [...eventsByClass.values()],
+    events,
     dtstamp: new Date(),
     origin: feedOrigin,
   });
 
   // Best-effort telemetry: whether anyone actually subscribes decides if this
   // feature earns its keep. Never block the response on it.
-  supabase
-    .from('calendar_feed_tokens')
-    .update({ last_fetched_at: new Date().toISOString() })
-    .eq('id', (tokenRow as { id: string }).id)
-    .then(undefined, () => undefined);
+  //
+  // GET only. A HEAD is the app inspecting the document on the exhibitor's
+  // behalf — it is how the dialog knows whether to warn about an empty feed —
+  // and counting that as a fetch would report every dialog opening as a
+  // subscription, which is the one question this column exists to answer.
+  if (req.method === 'GET') {
+    supabase
+      .from('calendar_feed_tokens')
+      .update({ last_fetched_at: new Date().toISOString() })
+      .eq('id', (tokenRow as { id: string }).id)
+      .then(undefined, () => undefined);
+  }
 
   return new Response(req.method === 'HEAD' ? null : ics, {
     status: 200,
     headers: {
       ...BASE_HEADERS,
       'Content-Type': 'text/calendar; charset=utf-8',
+      [EVENT_COUNT_HEADER]: String(events.length),
       // The app cannot name this file: `download` on an <a> is ignored across
       // origins, and the feed is not on the app's origin. So the show's own
       // name goes here, or every show saves under the same generic filename.

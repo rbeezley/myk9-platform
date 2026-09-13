@@ -49,7 +49,7 @@ async function hasAuthenticatedSession(): Promise<boolean> {
   const {
     data: { session },
   } = await supabase.auth.getSession();
-  return Boolean(session?.user);
+  return Boolean(session?.user && !session.user.is_anonymous);
 }
 
 /**

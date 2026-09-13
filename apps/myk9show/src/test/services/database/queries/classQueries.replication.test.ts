@@ -242,6 +242,25 @@ describe('classQueries (replication)', () => {
       expect((result.data[0] as Record<string, unknown>).id).toBe('pg-class-1');
     });
 
+    it('bypasses a warm replication store for anonymous sessions', async () => {
+      mockSupabase.auth.getSession.mockResolvedValue({
+        data: { session: { user: { id: 'anon-1', is_anonymous: true } } },
+        error: null,
+      });
+      mockClassesTable.getAll.mockResolvedValue([makeClass()]);
+      mockSupabase.from.mockReturnValue(
+        createChainableQuery({
+          data: [{ id: 'pg-class-1', name: 'Public class', trial_id: 't1' }],
+          error: null,
+        })
+      );
+
+      const result = await getAllClasses();
+
+      expect(mockClassesTable.getAll).not.toHaveBeenCalled();
+      expect((result.data[0] as Record<string, unknown>).id).toBe('pg-class-1');
+    });
+
     it('preserves the empty list when the store is empty AND PostgREST fails (authed + offline)', async () => {
       // A legitimately-empty store offline must keep rendering an empty class
       // list, not error the whole query — the empty-fallthrough degrades back to

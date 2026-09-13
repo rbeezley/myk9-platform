@@ -131,11 +131,13 @@ export function AddToCalendarDialog({
                 {/* Not a fetch: webcal:// hands off to the OS calendar app. */}
                 <a href={urls.subscribeUrl}>Add to my calendar</a>
               </Button>
-              <p className="text-sm text-muted-foreground">Works on iPhone, iPad and Mac.</p>
+              <p className="text-sm text-muted-foreground">
+                Works on iPhone, iPad, Mac, and Outlook on Windows.
+              </p>
             </div>
 
             <div className="space-y-1.5 border-t pt-3">
-              <p className="text-sm font-medium">Using Android or Google Calendar?</p>
+              <p className="text-sm font-medium">Using Android, or Google Calendar?</p>
               {/* INTENT: the Google Calendar phone app cannot add a calendar by
                   link at all — "Other calendars → From URL" exists only in the
                   desktop site. Saying "in Google Calendar" sends this audience

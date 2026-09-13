@@ -210,36 +210,22 @@ SET LOCAL ROLE anon;
 DO $$
 DECLARE
   live_entry_id uuid := '00000000-0000-0000-0000-000000149007';
-  deleted_entry_id uuid := '00000000-0000-0000-0000-000000149008';
   v_show_id uuid := '00000000-0000-0000-0000-000000149002';
   v_class_id uuid := '00000000-0000-0000-0000-000000149004';
-  visible_ids uuid[];
   tv_ids uuid[];
   public_view_ids uuid[];
   tv_entry_count bigint;
   protected_value text;
   protected_column text;
 BEGIN
-  -- Anonymous base-table access is limited to the safe embed identifiers. The
-  -- class-scoped read must still honor the soft-delete policy while retaining
-  -- the live row.
-  SELECT array_agg(e.id ORDER BY e.id)
-  INTO visible_ids
-  FROM public.entries AS e
-  WHERE e.class_id = v_class_id;
-
-  IF visible_ids IS DISTINCT FROM ARRAY[live_entry_id] THEN
-    RAISE EXCEPTION
-      'FAIL anon TV read returned %, expected only the live entry', visible_ids;
-  END IF;
-
-  IF EXISTS (
-    SELECT 1
-    FROM public.entries AS e
-    WHERE e.id = deleted_entry_id
-  ) THEN
-    RAISE EXCEPTION 'FAIL cold anon lookup returned a soft-deleted entry';
-  END IF;
+  -- Anonymous callers must use the dedicated TV RPC/view surfaces rather than
+  -- enumerating base entry identifiers, even for a public show.
+  BEGIN
+    PERFORM 1 FROM public.entries AS e WHERE e.class_id = v_class_id;
+    RAISE EXCEPTION 'FAIL anon can read base entries';
+  EXCEPTION
+    WHEN insufficient_privilege THEN NULL;
+  END;
 
   -- The TV running order and canonical total are SECURITY DEFINER RPCs, so
   -- assert the public runtime path independently of the base-table policy.

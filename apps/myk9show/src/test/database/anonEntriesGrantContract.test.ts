@@ -22,12 +22,10 @@ import { describe, expect, it } from 'vitest';
 const MIGRATIONS_DIR = resolve(__dirname, '../../../../../supabase/migrations');
 
 /**
- * The only direct entry columns available to anon are `id` and `class_id`,
- * which are required by the public class query's safe `entries ( id )` embed
- * and its join predicate. Public results and TV
+ * Anonymous callers have no direct entry-column grant. Public results and TV
  * use their dedicated view/RPC paths instead of direct entry rows.
  */
-const ANON_ENTRY_COLUMN_ALLOWLIST = ['id', 'class_id'];
+const ANON_ENTRY_COLUMN_ALLOWLIST: string[] = [];
 
 /**
  * The scent-work hide secrets anon must never reach on `classes` (MYK9-116).
@@ -352,15 +350,13 @@ describe('the evaluator itself', () => {
 });
 
 describe('anon grant contract on public.entries', () => {
-  it('leaves anon with a column-scoped grant, never a table-wide one', () => {
+  it('leaves anon with no direct entry grant', () => {
     expect(
       entries?.tableWide,
       `anon must not hold a table-wide SELECT on public.entries. ` +
         `Table-wide grants seen in: ${tableWideSources.get('entries')?.join(', ') || '(none)'}`
     ).toBe(false);
-    expect(entries && entries.columns.size > 0, 'anon must retain the board column grant').toBe(
-      true
-    );
+    expect(entries?.columns.size ?? 0, 'anon must not retain direct entry columns').toBe(0);
   });
 
   it('matches the release gate allowlist EXACTLY — no column added, none dropped', () => {

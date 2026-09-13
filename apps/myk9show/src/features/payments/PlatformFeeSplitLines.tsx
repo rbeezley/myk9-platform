@@ -6,9 +6,8 @@
  * than myK9Show's take. Kept OUT of CartSummary so the file that owns checkout
  * gating does not also own fee copy.
  *
- * The long-form explanation lives on /fees and is LINKED, never restated here —
- * the same sentences in two places drift, and the club admin needs one URL they
- * can forward verbatim.
+ * The cart links to the long-form explanation on /fees instead of restating it.
+ * The wizard still uses the shared component's existing inline copy.
  */
 
 import { Link } from 'react-router-dom';
@@ -28,9 +27,15 @@ interface PlatformFeeSplitLinesProps {
   subtotalCents: number;
   /** The live rates — the same ones stripe-checkout prices the charge with. */
   rates: PlatformFeeRates;
+  /** Preserve the wizard's existing copy while the cart links to /fees. */
+  showExplanation?: boolean;
 }
 
-export function PlatformFeeSplitLines({ subtotalCents, rates }: PlatformFeeSplitLinesProps) {
+export function PlatformFeeSplitLines({
+  subtotalCents,
+  rates,
+  showExplanation = true,
+}: PlatformFeeSplitLinesProps) {
   const split = splitPlatformFee(subtotalCents, rates);
 
   return (
@@ -60,11 +65,13 @@ export function PlatformFeeSplitLines({ subtotalCents, rates }: PlatformFeeSplit
           {split.cardProcessingCoversWholeFee && (
             <p className="text-xs text-muted-foreground">{CARD_PROCESSING_COVERS_FEE_NOTE}</p>
           )}
-          <p className="text-xs text-muted-foreground">
-            These two amounts are approximate — Stripe&rsquo;s exact fee depends on the card and is
-            only known after the payment settles. The service fee above is exact, and the club
-            receives 100% of the entry fees.
-          </p>
+          {showExplanation && (
+            <p className="text-xs text-muted-foreground">
+              These two amounts are approximate — Stripe&rsquo;s exact fee depends on the card and
+              is only known after the payment settles. The service fee above is exact, and the club
+              receives 100% of the entry fees.
+            </p>
+          )}
           <Link to="/fees" className="text-xs underline hover:text-foreground">
             How our fees work
           </Link>

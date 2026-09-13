@@ -260,7 +260,11 @@ export function CartSummary({
               share. Both parts are derived from the same
               `calculatePlatformFeeCents` that prices the charge, so the
               disclosure can never total a different number than the fee. */}
-          <PlatformFeeSplitLines subtotalCents={subtotal} rates={feeRates} />
+          <PlatformFeeSplitLines
+            subtotalCents={subtotal}
+            rates={feeRates}
+            showExplanation={false}
+          />
           <Separator />
           {/* State the amount whenever it is known. A wait list line contributes
               $0 to what is payable now, so `total` is exact even with wait list

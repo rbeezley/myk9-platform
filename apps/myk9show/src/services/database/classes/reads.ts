@@ -218,9 +218,6 @@ async function postgrestGetAllClasses() {
         trial_number,
         status
       ),
-      entries (
-        id
-      ),
       judge_assignments!judge_assignments_class_id_fkey (
         person_id,
         people!inner (
@@ -251,23 +248,6 @@ async function postgrestGetClassById(id: string) {
         status,
         max_entries_per_dog,
         max_entries_per_handler
-      ),
-      entries (
-        id,
-        entry_status,
-        points_earned,
-        search_time_seconds,
-        final_placement,
-        dog:dogs (
-          id,
-          name,
-          breed,
-          owner:people (
-            id,
-            first_name,
-            last_name
-          )
-        )
       )
     `
     )
@@ -382,7 +362,9 @@ export const getAllClasses = async () => {
 };
 
 /**
- * Get a class by ID with full details including entries (excluding soft-deleted)
+ * Get a class by ID with class/trial details. Entry details come from the
+ * replication path or the dedicated public results surface; anonymous callers
+ * must never embed the base entries table.
  */
 export const getClassById = async (id: string) => {
   return readWithReplicationFallback({

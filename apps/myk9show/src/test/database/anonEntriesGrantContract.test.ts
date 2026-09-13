@@ -418,11 +418,7 @@ describe('anon grant contract on public.classes', () => {
 
 describe('anonymous class preview query boundary', () => {
   it('does not embed base entries after anonymous entry access is revoked', () => {
-    const functionSource = CLASS_READS_SOURCE.slice(
-      CLASS_READS_SOURCE.indexOf('async function postgrestGetClassesByTrialId'),
-      CLASS_READS_SOURCE.indexOf('async function postgrestSearchClasses')
-    );
-    expect(functionSource).not.toMatch(/\bentries\s*\(/);
+    expect(CLASS_READS_SOURCE).not.toMatch(/^\s*entries\s*\(/m);
   });
 });
 

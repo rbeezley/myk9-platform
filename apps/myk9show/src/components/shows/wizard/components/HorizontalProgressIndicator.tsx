@@ -139,7 +139,7 @@ export const HorizontalProgressIndicator: React.FC<HorizontalProgressIndicatorPr
                   </span>
                   <span
                     className={cn(
-                      'block w-full min-w-0 truncate text-center text-[13px] font-semibold leading-tight',
+                      'block w-full min-w-0 truncate text-center text-xs font-semibold leading-tight',
                       isCurrent && !isCompleted && 'text-primary',
                       isCompleted && 'text-foreground',
                       !isCompleted && !isCurrent && 'text-muted-foreground'

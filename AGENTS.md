@@ -229,6 +229,8 @@ Full mechanics: [`docs/reference/git-workflow.md`](docs/reference/git-workflow.m
 
 ## Auto Mode — shared-system writes
 
+The repository-wide operator push hold is enforced by the tracked `.githooks/pre-push` hook. A trusted first-line `PUSH HOLD: <reason>` comment on any PR blocks every remote ref; a newer trusted first-line `PUSH RELEASE` comment lifts it. The hook scans open and closed PR comments newest-first and fails closed when GitHub cannot be queried. Every active checkout must receive the commit containing the hook and have its effective `core.hooksPath` verified before claiming that all agent loops are protected; older worktrees remain unguarded until bootstrapped.
+
 Auto Mode's "execute immediately" guidance does NOT extend to shared-system mutations. Confirm before each of these even when the initial request implied consent — adding rows to a shared DB counts, "not destructive" is not the test:
 
 - `supabase db push` on a linked project (writes to staging/prod DB)

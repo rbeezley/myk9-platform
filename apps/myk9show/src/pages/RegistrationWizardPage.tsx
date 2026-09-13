@@ -70,6 +70,7 @@ function RegistrationWizardContent() {
     registrationData,
     optimisticState,
     showId,
+    exhibitorProfile,
     registrationId,
     registrationNumber,
     liveTotalFees,
@@ -162,6 +163,8 @@ function RegistrationWizardContent() {
         capacityReady={capacityReady}
         capacityUnavailable={capacityUnavailable}
         waitlistClassIds={waitlistClassIds}
+        showId={showId}
+        exhibitorId={exhibitorProfile?.id}
         {...(hasClassStep ? { onStartOver: () => void handleStartOver() } : {})}
         {...(isPaymentStep
           ? {

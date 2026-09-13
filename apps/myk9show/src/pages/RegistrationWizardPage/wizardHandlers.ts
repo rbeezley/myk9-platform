@@ -13,6 +13,7 @@
 import { notifications } from '@/lib/notifications';
 import { useShowRegistrationStore } from '@/store/showRegistrationStore';
 import { useCartStore } from '@/store/cartStore';
+import { cartBelongsToRegistration } from '@/store/cartStore.helpers';
 import {
   PaymentStatus,
   EntryStatus,
@@ -298,7 +299,11 @@ export function createWizardHandlers(state: RegistrationWizardState) {
   // `startOver.ts` for why navigating alone duplicates entries.
   const handleStartOver = async () => {
     await startOverAtClassSelection({
-      hasCart: !!useCartStore.getState().cart,
+      cartBelongsToThisRegistration: cartBelongsToRegistration(
+        useCartStore.getState().cart,
+        showId,
+        exhibitorProfile?.id
+      ),
       classStepIndex: currentWorkflowConfig.steps.indexOf('class-selection'),
       abandonCart,
       setClassSelections,

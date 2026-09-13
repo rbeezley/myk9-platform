@@ -156,3 +156,32 @@ export function calculateCartTotals(items: CartItemWithDetails[]): {
 export function formatCartCurrency(cents: number): string {
   return `$${(cents / 100).toFixed(2)}`;
 }
+
+/** The identity fields a cart carries about who and what it is for. */
+export interface CartOwnership {
+  show_id?: string | null | undefined;
+  exhibitor_id?: string | null | undefined;
+}
+
+/**
+ * Whether the cart the singleton store is holding is THIS registration's.
+ *
+ * `useCartStore` is a module singleton, so a wizard opened on the dog-selection
+ * step — or a staff flow that never loads a cart at all — can find it still
+ * holding an expired cart from a previous show. Anything that reads the cart
+ * before `ClassSelectionStep` has loaded this show's must ask first, or it
+ * announces someone else's expiry and abandons someone else's cart.
+ *
+ * Both ids must match and both must be known: an unattributable cart is not
+ * "mine". This is the guard `ClassSelectionStep` already applies before
+ * reconciling cart items into the wizard's selections, lifted here so the
+ * expiry notice and the start-over handler apply the same one.
+ */
+export function cartBelongsToRegistration(
+  cart: CartOwnership | null | undefined,
+  showId: string | null | undefined,
+  exhibitorId: string | null | undefined
+): boolean {
+  if (!cart || !showId || !exhibitorId) return false;
+  return cart.show_id === showId && cart.exhibitor_id === exhibitorId;
+}

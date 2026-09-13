@@ -11,13 +11,23 @@
  * So: drop the selections, release the dead cart, and only then navigate. Both
  * steps use the paths that already exist (`setClassSelections` from the wizard
  * state, `abandonCart` from the cart store); nothing new is written here.
+ *
+ * The release is conditional on the cart actually being this registration's.
+ * `useCartStore` is a singleton, so a wizard opened before this show's cart has
+ * loaded can find a previous show's expired cart in it — abandoning that would
+ * discard a cart this wizard never owned. Clearing the local selections and
+ * navigating is correct either way.
  */
 
 import type { ClassSelectionData } from '@/types/show-registration-types';
 
 export interface StartOverDeps {
-  /** Whether the store is holding a cart at all — no cart, nothing to release. */
-  hasCart: boolean;
+  /**
+   * Whether the singleton cart store is holding THIS registration's cart.
+   * False for no cart at all, and false for a previous show's leftover — which
+   * must not be abandoned here; it is not this wizard's to throw away.
+   */
+  cartBelongsToThisRegistration: boolean;
   /** Index of `class-selection` in the ACTIVE workflow; -1 if it has no such step. */
   classStepIndex: number;
   abandonCart: () => Promise<boolean>;
@@ -26,7 +36,7 @@ export interface StartOverDeps {
 }
 
 export async function startOverAtClassSelection({
-  hasCart,
+  cartBelongsToThisRegistration,
   classStepIndex,
   abandonCart,
   setClassSelections,
@@ -38,7 +48,7 @@ export async function startOverAtClassSelection({
 
   setClassSelections([]);
 
-  if (hasCart) {
+  if (cartBelongsToThisRegistration) {
     try {
       await abandonCart();
     } catch {

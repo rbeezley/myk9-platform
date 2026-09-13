@@ -2,8 +2,8 @@ import React, { useEffect, useState } from 'react';
 import { Clock } from 'lucide-react';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
-import { useCartExpiration } from '@/store/cartStore';
-import { EXPIRATION_WARNING_MINUTES } from '@/store/cartStore.helpers';
+import { useCartExpiration, useCartStore } from '@/store/cartStore';
+import { cartBelongsToRegistration, EXPIRATION_WARNING_MINUTES } from '@/store/cartStore.helpers';
 
 /** A part-minute still has time left in it, so round up: 30s reads "1 minute". */
 function minutesLeft(timeRemainingMs: number): number {
@@ -14,6 +14,10 @@ function minutesLeft(timeRemainingMs: number): number {
 const TICK_MS = 30_000;
 
 export interface CartExpiryNoticeProps {
+  /** The show this wizard is registering for. */
+  showId?: string | null | undefined;
+  /** The exhibitor the cart is held for — the on-behalf one in staff flows. */
+  exhibitorId?: string | null | undefined;
   /** Sends the exhibitor back to Select classes. Omitted = text-only notice. */
   onStartOver?: (() => void) | undefined;
 }
@@ -35,16 +39,28 @@ export interface CartExpiryNoticeProps {
  *
  * INTENT: exhibitor — the flow must never lose work silently.
  */
-export const CartExpiryNotice: React.FC<CartExpiryNoticeProps> = ({ onStartOver }) => {
+export const CartExpiryNotice: React.FC<CartExpiryNoticeProps> = ({
+  showId,
+  exhibitorId,
+  onStartOver,
+}) => {
   const { expiresAt, timeRemaining, isExpired, isWarning } = useCartExpiration();
+  // The store is a singleton and may still hold a previous show's expired cart
+  // (see `cartBelongsToRegistration`). Announcing that as this registration's
+  // expiry tells the exhibitor their work lapsed when it did not.
+  const isOwnCart = useCartStore(state =>
+    cartBelongsToRegistration(state.cart, showId, exhibitorId)
+  );
   const [, setTick] = useState(0);
 
   useEffect(() => {
     // No cart, or a cart with no expiry: nothing can count down, so no timer.
-    if (!expiresAt) return;
+    if (!expiresAt || !isOwnCart) return;
     const id = setInterval(() => setTick(value => value + 1), TICK_MS);
     return () => clearInterval(id);
-  }, [expiresAt]);
+  }, [expiresAt, isOwnCart]);
+
+  if (!isOwnCart) return null;
 
   if (isExpired) {
     return (

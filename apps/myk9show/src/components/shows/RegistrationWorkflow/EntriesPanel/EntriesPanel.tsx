@@ -41,6 +41,9 @@ export interface EntriesPanelProps {
   rates?: PlatformFeeRates | undefined;
   /** Sends the exhibitor back to Select classes when the cart has expired. */
   onStartOver?: (() => void) | undefined;
+  /** Identifies whose cart the expiry notice may speak for (singleton store). */
+  showId?: string | null | undefined;
+  exhibitorId?: string | null | undefined;
 }
 
 /**
@@ -69,6 +72,8 @@ export const EntriesPanel: React.FC<EntriesPanelProps> = ({
   removingLineKey,
   rates,
   onStartOver,
+  showId,
+  exhibitorId,
 }) => {
   const liveRates = usePlatformFeeRates();
   const resolvedRates = rates ?? liveRates;
@@ -161,7 +166,7 @@ export const EntriesPanel: React.FC<EntriesPanelProps> = ({
             <ShoppingCart className="h-4 w-4 text-muted-foreground" />
             <h2 className="text-sm font-semibold text-foreground">Your entries</h2>
           </div>
-          <CartExpiryNotice onStartOver={onStartOver} />
+          <CartExpiryNotice showId={showId} exhibitorId={exhibitorId} onStartOver={onStartOver} />
           <div className="max-h-[50vh] overflow-y-auto">{lines}</div>
           {totalsBlock}
         </div>
@@ -187,7 +192,7 @@ export const EntriesPanel: React.FC<EntriesPanelProps> = ({
             without opening anything. It renders nothing at all when the cart is
             neither expiring nor expired, so the bar keeps its usual height. */}
         <div className="px-4 pt-2 empty:hidden">
-          <CartExpiryNotice onStartOver={onStartOver} />
+          <CartExpiryNotice showId={showId} exhibitorId={exhibitorId} onStartOver={onStartOver} />
         </div>
         <div className="flex min-h-11 items-center gap-2 px-4 py-1.5">
           <ShoppingCart className="h-4 w-4 shrink-0 text-muted-foreground" />

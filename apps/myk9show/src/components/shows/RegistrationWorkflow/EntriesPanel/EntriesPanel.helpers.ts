@@ -14,6 +14,7 @@ import {
   formatCartCurrency,
   type PlatformFeeRates,
 } from '@/store/cartStore.helpers';
+import { buildClassDisambiguator, type ClassIdentity } from '@/features/_shared/classLabel';
 import type { PaymentMethod } from '@/types/show-registration-types';
 import { availabilityPlaceholder } from '../PaymentStep/types';
 import type { FeeBreakdownItem, FeeCalculationResult } from '../PaymentStep/types';
@@ -31,6 +32,8 @@ export interface PanelClass {
   trialId?: string | null | undefined;
   element?: string | null | undefined;
   level?: string | null | undefined;
+  /** AKC Novice A/B, UKC A/B — part of a class's identity, not decoration. */
+  section?: string | null | undefined;
   className?: string | null | undefined;
 }
 
@@ -68,8 +71,37 @@ function dogLabel(dog: PanelDog | undefined): string {
   return dog?.callName || dog?.name || 'Dog';
 }
 
-function classLabel(item: CartItemWithDetails, klass: PanelClass | undefined): string {
-  const fromStore = [klass?.element, klass?.level].filter(Boolean).join(' ');
+function classIdentity(klass: PanelClass): ClassIdentity {
+  return {
+    name: klass.className,
+    element: klass.element,
+    level: klass.level,
+    section: klass.section,
+  };
+}
+
+/**
+ * What names this class to the exhibitor.
+ *
+ * The section is part of the identity: without it Container Novice A and
+ * Container Novice B render identically, both in the panel and in the remove
+ * confirmation that asks "Remove <class> from this entry?" (Codex #2210 P2).
+ *
+ * The remaining case — two classes sharing element, level AND section, told
+ * apart only by their stored names — is delegated to `buildClassDisambiguator`,
+ * the same collision-gated rule the class chips and the public premium use. It
+ * is deliberately NOT re-implemented here: applied ungated, that rule rewrote 14
+ * of 24 real labels and published fixture names such as "Advanced Load 2 Class
+ * 1" to exhibitors (LESSONS `label-rule-vs-real-columns`). A third copy of the
+ * rule is a third chance to drift on the screen the money is quoted on.
+ */
+function classLabel(
+  item: CartItemWithDetails,
+  klass: PanelClass | undefined,
+  disambiguate: (cls: ClassIdentity) => string
+): string {
+  const extra = klass ? disambiguate(classIdentity(klass)) : '';
+  const fromStore = [klass?.element, klass?.level, klass?.section, extra].filter(Boolean).join(' ');
   if (fromStore) return fromStore;
   return klass?.className || item.class?.name || 'Class';
 }
@@ -97,12 +129,21 @@ export function groupCartByDogAndDay(
   const order: string[] = [...selectedDogIds];
   const linesByDog = new Map<string, Array<PanelClassLine & { sortKey: string }>>();
 
+  // Scoped to the classes actually in the cart: a label only has to be unique
+  // among the lines shown side by side here.
+  const disambiguate = buildClassDisambiguator(
+    cartItems
+      .map(item => (item.class_id ? classesById.get(item.class_id) : undefined))
+      .filter((klass): klass is PanelClass => !!klass)
+      .map(classIdentity)
+  );
+
   for (const item of cartItems) {
     if (!item.dog_id || !item.class_id) continue;
     if (!order.includes(item.dog_id)) order.push(item.dog_id);
     const klass = classesById.get(item.class_id);
     const trial = trialsById.get(resolveTrialId(item, klass));
-    const label = classLabel(item, klass);
+    const label = classLabel(item, klass, disambiguate);
     const line = {
       lineKey: `${item.dog_id}:${item.class_id}`,
       classId: item.class_id,

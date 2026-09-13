@@ -8,6 +8,7 @@ import {
   PLATFORM_FEE_PERCENT,
   PLATFORM_FEE_LABEL,
   type PlatformFeeRates,
+  cartBelongsToRegistration,
 } from './cartStore.helpers';
 import type { CartItemWithDetails } from './cartStore.types';
 
@@ -89,5 +90,41 @@ describe('platform fee display', () => {
     expect(PLATFORM_FEE_PERCENT).toBe(7);
     expect(DEFAULT_PLATFORM_FEE_RATES).toEqual({ percent: 7, flatCents: 0, minCents: 0 });
     expect(PLATFORM_FEE_LABEL).toBe('7%');
+  });
+});
+
+/**
+ * The cart store is a SINGLETON. Opening the wizard on the dog-selection step,
+ * or in a staff flow, can find it still holding an expired cart from a previous
+ * show — and the expiry notice would then announce someone else's lapsed cart
+ * while start-over would abandon it (Codex #2210 P1). `ClassSelectionStep`
+ * already guards its cart reconcile on exactly this pair; this is that rule,
+ * named and shared.
+ */
+describe('cartBelongsToRegistration', () => {
+  const cart = { show_id: 'show-1', exhibitor_id: 'exhibitor-1' };
+
+  it('accepts the cart for this show and this exhibitor', () => {
+    expect(cartBelongsToRegistration(cart, 'show-1', 'exhibitor-1')).toBe(true);
+  });
+
+  it('rejects a cart left over from another show', () => {
+    expect(cartBelongsToRegistration(cart, 'show-2', 'exhibitor-1')).toBe(false);
+  });
+
+  it("rejects another exhibitor's cart in a staff on-behalf flow", () => {
+    expect(cartBelongsToRegistration(cart, 'show-1', 'exhibitor-2')).toBe(false);
+  });
+
+  it('rejects when there is no cart', () => {
+    expect(cartBelongsToRegistration(null, 'show-1', 'exhibitor-1')).toBe(false);
+    expect(cartBelongsToRegistration(undefined, 'show-1', 'exhibitor-1')).toBe(false);
+  });
+
+  it('rejects when the wizard has not resolved a show or an exhibitor yet', () => {
+    // Unattributable is not "mine": a pre-load frame must not adopt whatever
+    // the singleton happens to hold.
+    expect(cartBelongsToRegistration(cart, undefined, 'exhibitor-1')).toBe(false);
+    expect(cartBelongsToRegistration(cart, 'show-1', undefined)).toBe(false);
   });
 });

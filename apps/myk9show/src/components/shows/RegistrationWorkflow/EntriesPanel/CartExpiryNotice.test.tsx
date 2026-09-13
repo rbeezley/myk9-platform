@@ -34,16 +34,19 @@ afterEach(() => {
   useCartStore.getState().reset();
 });
 
+/** The wizard's own identity — matches `seedCart`'s cart by default. */
+const OWNER = { showId: 'show-1', exhibitorId: 'exhibitor-1' } as const;
+
 describe('CartExpiryNotice', () => {
   it('says nothing while the cart is comfortably alive', () => {
     seedCart(20 * 60 * 1000, false);
-    render(<CartExpiryNotice />);
+    render(<CartExpiryNotice {...OWNER} />);
     expect(screen.queryByTestId('cart-expiry-notice')).not.toBeInTheDocument();
   });
 
   it('announces the minutes remaining inside the warning window', () => {
     seedCart(4 * 60 * 1000 + 30_000, true);
-    render(<CartExpiryNotice />);
+    render(<CartExpiryNotice {...OWNER} />);
 
     const notice = screen.getByTestId('cart-expiry-notice');
     expect(notice).toHaveAttribute('role', 'status');
@@ -54,13 +57,13 @@ describe('CartExpiryNotice', () => {
 
   it('says "1 minute" in the singular on the last minute', () => {
     seedCart(30_000, true);
-    render(<CartExpiryNotice />);
+    render(<CartExpiryNotice {...OWNER} />);
     expect(screen.getByTestId('cart-expiry-notice')).toHaveTextContent('1 minute left to finish');
   });
 
   it('states that the selections expired rather than showing nothing', () => {
     seedCart(-60_000, true);
-    render(<CartExpiryNotice />);
+    render(<CartExpiryNotice {...OWNER} />);
 
     const notice = screen.getByTestId('cart-expiry-notice');
     expect(notice).toHaveAttribute('role', 'status');
@@ -70,7 +73,7 @@ describe('CartExpiryNotice', () => {
   });
 
   it('shows nothing when there is no cart at all', () => {
-    render(<CartExpiryNotice />);
+    render(<CartExpiryNotice {...OWNER} />);
     expect(screen.queryByTestId('cart-expiry-notice')).not.toBeInTheDocument();
   });
 });
@@ -78,7 +81,7 @@ describe('CartExpiryNotice', () => {
 describe('CartExpiryNotice start-over control', () => {
   it('offers no control when the wizard passes no handler', () => {
     seedCart(-60_000, true);
-    render(<CartExpiryNotice />);
+    render(<CartExpiryNotice {...OWNER} />);
     expect(screen.getByTestId('cart-expiry-notice')).toHaveTextContent('Your selections expired');
     expect(screen.queryByRole('button', { name: 'Choose classes again' })).not.toBeInTheDocument();
   });
@@ -86,7 +89,7 @@ describe('CartExpiryNotice start-over control', () => {
   it('calls the wizard handler once when the exhibitor chooses to start again', async () => {
     const onStartOver = vi.fn();
     seedCart(-60_000, true);
-    const { user } = render(<CartExpiryNotice onStartOver={onStartOver} />);
+    const { user } = render(<CartExpiryNotice {...OWNER} onStartOver={onStartOver} />);
 
     const button = screen.getByRole('button', { name: 'Choose classes again' });
     expect(button).toHaveClass('min-h-11');
@@ -97,7 +100,7 @@ describe('CartExpiryNotice start-over control', () => {
 
   it('offers no start-over control while the cart is merely expiring', () => {
     seedCart(2 * 60 * 1000, true);
-    render(<CartExpiryNotice onStartOver={vi.fn()} />);
+    render(<CartExpiryNotice {...OWNER} onStartOver={vi.fn()} />);
     expect(screen.queryByRole('button', { name: 'Choose classes again' })).not.toBeInTheDocument();
   });
 });
@@ -119,7 +122,7 @@ describe('CartExpiryNotice keeps its own time', () => {
 
   it('counts the remaining minutes down as time passes', async () => {
     seedCart(3 * 60 * 1000, true);
-    render(<CartExpiryNotice />);
+    render(<CartExpiryNotice {...OWNER} />);
     expect(screen.getByTestId('cart-expiry-notice')).toHaveTextContent('3 minutes left');
 
     await act(async () => {
@@ -131,7 +134,7 @@ describe('CartExpiryNotice keeps its own time', () => {
   it('announces a cart that crosses into the warning window while the wizard is open', async () => {
     // The store's flag is still false — this is the case it cannot cover.
     seedCart(5 * 60 * 1000 + 30_000, false);
-    render(<CartExpiryNotice />);
+    render(<CartExpiryNotice {...OWNER} />);
     expect(screen.queryByTestId('cart-expiry-notice')).not.toBeInTheDocument();
 
     await act(async () => {
@@ -142,7 +145,7 @@ describe('CartExpiryNotice keeps its own time', () => {
 
   it('switches to the expired branch when the cart lapses while on screen', async () => {
     seedCart(60_000, true);
-    render(<CartExpiryNotice />);
+    render(<CartExpiryNotice {...OWNER} />);
     expect(screen.getByTestId('cart-expiry-notice')).toHaveTextContent('1 minute left');
 
     await act(async () => {
@@ -152,7 +155,39 @@ describe('CartExpiryNotice keeps its own time', () => {
   });
 
   it('runs no timer when there is no cart to count down', () => {
-    render(<CartExpiryNotice />);
+    render(<CartExpiryNotice {...OWNER} />);
     expect(vi.getTimerCount()).toBe(0);
+  });
+});
+
+/**
+ * The cart store is a singleton: a wizard opened on the dog step can find it
+ * still holding an expired cart from a PREVIOUS show, and announcing that as
+ * this registration's expiry is a lie about the exhibitor's own work
+ * (Codex #2210 P1).
+ */
+describe('CartExpiryNotice only speaks for this registration', () => {
+  it('says nothing about an expired cart left over from another show', () => {
+    seedCart(-60_000, true);
+    render(<CartExpiryNotice showId="show-2" exhibitorId="exhibitor-1" />);
+    expect(screen.queryByTestId('cart-expiry-notice')).not.toBeInTheDocument();
+  });
+
+  it("says nothing about another exhibitor's cart in a staff flow", () => {
+    seedCart(-60_000, true);
+    render(<CartExpiryNotice showId="show-1" exhibitorId="exhibitor-2" />);
+    expect(screen.queryByTestId('cart-expiry-notice')).not.toBeInTheDocument();
+  });
+
+  it("says nothing about another show's cart that is merely expiring", () => {
+    seedCart(2 * 60 * 1000, true);
+    render(<CartExpiryNotice showId="show-2" exhibitorId="exhibitor-1" />);
+    expect(screen.queryByTestId('cart-expiry-notice')).not.toBeInTheDocument();
+  });
+
+  it('stays silent until the wizard has resolved its own identity', () => {
+    seedCart(-60_000, true);
+    render(<CartExpiryNotice />);
+    expect(screen.queryByTestId('cart-expiry-notice')).not.toBeInTheDocument();
   });
 });

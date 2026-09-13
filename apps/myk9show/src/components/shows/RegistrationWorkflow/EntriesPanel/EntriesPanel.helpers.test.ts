@@ -276,3 +276,121 @@ describe('cartItemsFromFeeBreakdown', () => {
     expect(sumPanelFeeCents(groups)).toBe(3000);
   });
 });
+
+/**
+ * Two classes that differ ONLY by section rendered identically in the panel and
+ * in the remove confirmation, so "Remove Container Novice" named either of them
+ * (Codex #2210 P2). The rule is the shared one from PR #2196, not a new one:
+ * the section is rendered, and the name-collision case is delegated to
+ * `buildClassDisambiguator` (LESSONS `label-rule-vs-real-columns`).
+ */
+describe('groupCartByDogAndDay class labels', () => {
+  const sectioned = new Map<string, PanelClass>([
+    [
+      'class-a',
+      {
+        id: 'class-a',
+        trialId: 'trial-1',
+        element: 'Container',
+        level: 'Novice',
+        section: 'A',
+        className: 'Container Novice A',
+      },
+    ],
+    [
+      'class-b',
+      {
+        id: 'class-b',
+        trialId: 'trial-1',
+        element: 'Container',
+        level: 'Novice',
+        section: 'B',
+        className: 'Container Novice B',
+      },
+    ],
+  ]);
+
+  it('tells two classes apart when only their section differs', () => {
+    const groups = groupCartByDogAndDay(
+      [
+        cartItem({ dog_id: 'dog-1', class_id: 'class-a' }),
+        cartItem({ dog_id: 'dog-1', class_id: 'class-b' }),
+      ],
+      dogs,
+      sectioned,
+      trials,
+      ['dog-1']
+    );
+
+    const labels = groups[0]!.lines.map(line => line.label);
+    expect(labels).toContain('Container Novice A');
+    expect(labels).toContain('Container Novice B');
+    expect(new Set(labels).size).toBe(2);
+  });
+
+  it('adds no extra words to a class that has no twin', () => {
+    const solo = new Map<string, PanelClass>([
+      [
+        'class-a',
+        {
+          id: 'class-a',
+          trialId: 'trial-1',
+          element: 'Interior',
+          level: 'Advanced',
+          // A fixture-ish stored name that must NOT reach the exhibitor while
+          // nothing collides with it.
+          className: 'Interior Advanced Load 2 Class 1',
+        },
+      ],
+    ]);
+    const groups = groupCartByDogAndDay(
+      [cartItem({ dog_id: 'dog-1', class_id: 'class-a' })],
+      dogs,
+      solo,
+      trials,
+      ['dog-1']
+    );
+
+    expect(groups[0]!.lines[0]!.label).toBe('Interior Advanced');
+  });
+
+  it('distinguishes a genuine collision using the shared disambiguator', () => {
+    // The Heartland case: same element and level, no section, different names.
+    const colliding = new Map<string, PanelClass>([
+      [
+        'class-a',
+        {
+          id: 'class-a',
+          trialId: 'trial-1',
+          element: 'Interior',
+          level: 'Advanced',
+          className: 'Interior Advanced',
+        },
+      ],
+      [
+        'class-b',
+        {
+          id: 'class-b',
+          trialId: 'trial-1',
+          element: 'Interior',
+          level: 'Advanced',
+          className: 'Interior Advanced Preliminary',
+        },
+      ],
+    ]);
+    const groups = groupCartByDogAndDay(
+      [
+        cartItem({ dog_id: 'dog-1', class_id: 'class-a' }),
+        cartItem({ dog_id: 'dog-1', class_id: 'class-b' }),
+      ],
+      dogs,
+      colliding,
+      trials,
+      ['dog-1']
+    );
+
+    const labels = groups[0]!.lines.map(line => line.label);
+    expect(new Set(labels).size).toBe(2);
+    expect(labels).toContain('Interior Advanced Preliminary');
+  });
+});

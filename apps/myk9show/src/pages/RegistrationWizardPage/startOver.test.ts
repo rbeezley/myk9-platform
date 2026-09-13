@@ -4,7 +4,7 @@ import { startOverAtClassSelection } from './startOver';
 function deps(overrides: Partial<Parameters<typeof startOverAtClassSelection>[0]> = {}) {
   const calls: string[] = [];
   const base = {
-    hasCart: true,
+    cartBelongsToThisRegistration: true,
     classStepIndex: 1,
     abandonCart: vi.fn(async () => {
       calls.push('abandonCart');
@@ -31,7 +31,7 @@ describe('startOverAtClassSelection', () => {
   });
 
   it('still navigates when there is no cart to release', async () => {
-    const d = deps({ hasCart: false });
+    const d = deps({ cartBelongsToThisRegistration: false });
     await startOverAtClassSelection(d);
 
     expect(d.abandonCart).not.toHaveBeenCalled();
@@ -57,5 +57,17 @@ describe('startOverAtClassSelection', () => {
     expect(d.setClassSelections).not.toHaveBeenCalled();
     expect(d.abandonCart).not.toHaveBeenCalled();
     expect(d.goToStep).not.toHaveBeenCalled();
+  });
+  // The cart store is a singleton: on a wizard opened before this show's cart
+  // has loaded it may still hold a PREVIOUS show's expired cart. Abandoning
+  // that one would throw away a cart this wizard never owned (Codex #2210 P1).
+  it('never abandons a cart that belongs to another show or exhibitor', async () => {
+    const d = deps({ cartBelongsToThisRegistration: false });
+    await startOverAtClassSelection(d);
+
+    expect(d.abandonCart).not.toHaveBeenCalled();
+    // The exhibitor still gets back to the class step with a clean slate.
+    expect(d.setClassSelections).toHaveBeenCalledWith([]);
+    expect(d.goToStep).toHaveBeenCalledWith(1);
   });
 });

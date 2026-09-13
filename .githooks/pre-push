@@ -1,0 +1,6 @@
+#!/usr/bin/env bash
+# Check trusted operator holds before any pushed ref leaves this checkout.
+set -euo pipefail
+HERE="$(cd "$(dirname "$0")/.." && pwd)"
+node --experimental-strip-types --disable-warning=MODULE_TYPELESS_PACKAGE_JSON \
+  "$HERE/scripts/qa/push-hold.ts"

@@ -227,9 +227,7 @@ describe('MyShowsList — the self-check-in cascade and settled classes (task 3.
       selfCheckinByClassId: { 'class-open': false, 'class-closed': false },
     });
 
-    expect(
-      screen.queryByRole('button', { name: /^Check in for/ })
-    ).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /^Check in for/ })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /^Check in Pilot/ })).not.toBeInTheDocument();
   });
 

@@ -194,10 +194,18 @@ describe('derivePaidStrips', () => {
     const justOutside = new Date(NOW.getTime() - (PAID_STRIP_WINDOW_DAYS * 24 + 1) * 3600 * 1000);
 
     expect(
-      derivePaidStrips(groupEntriesByOrder([makeRow({ lastUpdated: justInside })], NOW), NOW, neverSeen)
+      derivePaidStrips(
+        groupEntriesByOrder([makeRow({ lastUpdated: justInside })], NOW),
+        NOW,
+        neverSeen
+      )
     ).toHaveLength(1);
     expect(
-      derivePaidStrips(groupEntriesByOrder([makeRow({ lastUpdated: justOutside })], NOW), NOW, neverSeen)
+      derivePaidStrips(
+        groupEntriesByOrder([makeRow({ lastUpdated: justOutside })], NOW),
+        NOW,
+        neverSeen
+      )
     ).toEqual([]);
   });
 

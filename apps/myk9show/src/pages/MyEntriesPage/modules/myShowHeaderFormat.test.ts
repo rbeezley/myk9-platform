@@ -13,7 +13,9 @@ describe('formatShowHeaderDateRange', () => {
   });
 
   it('collapses a same-month range', () => {
-    expect(formatShowHeaderDateRange(day('2026-10-24'), day('2026-10-25'))).toBe('Sat–Sun, Oct 24–25');
+    expect(formatShowHeaderDateRange(day('2026-10-24'), day('2026-10-25'))).toBe(
+      'Sat–Sun, Oct 24–25'
+    );
   });
 
   it('spells both months when the range crosses a month boundary', () => {

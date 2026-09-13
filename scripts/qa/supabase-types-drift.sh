@@ -25,6 +25,9 @@ usage() { sed -n '2,20p' "$0" | sed 's/^# \{0,1\}//'; }
 COMMITTED="packages/supabase/src/types/database.types.ts"
 GENERATED=""
 SUMMARY="${GITHUB_STEP_SUMMARY:-}"
+# A step summary is capped at 1 MiB; a full regeneration diff can be thousands
+# of lines, so the report shows a readable head and says it truncated.
+DIFF_LINE_CAP="${MYK9_TYPES_DRIFT_DIFF_LINES:-80}"
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --committed) COMMITTED="$2"; shift 2 ;;
@@ -70,9 +73,35 @@ if [[ -z "$GENERATED" ]]; then
 fi
 [[ -s "$GENERATED" ]] || not_a_verdict "generated output is empty: $GENERATED"
 
-# PostgrestVersion tracks the platform, not the schema; a CLI upgrade moves it.
-grep -v 'PostgrestVersion:' "$COMMITTED" > "$tmp/committed.ts"
-grep -v 'PostgrestVersion:' "$GENERATED" > "$tmp/generated.norm.ts"
+# Drop the whole `__InternalSupabase` block from both sides. It is platform
+# metadata, never schema: `PostgrestVersion` tracks the hosted project's
+# PostgREST and moves on a CLI or platform upgrade. Filtering only the
+# `PostgrestVersion:` line was not enough — `--db-url` has no project context,
+# so whether the block is emitted at all depends on how the generator was
+# invoked, and its two brace lines then read as schema drift nothing can fix.
+#
+# Full-line `//` comments go too. The generator emits a two-line comment above
+# `export type Database` explaining the `PostgrestVersion` client option, and
+# emits it only when it knows that version — so it tracks the invocation, not
+# the schema, exactly like the block it documents. This file is generated in
+# full, so no comment in it is ever hand-written information worth diffing.
+#
+# Finally, trailing blank lines are normalised away: whether the output ends in
+# one newline or two is a generator detail that reads as a one-line diff.
+strip_platform_metadata() {
+  awk '
+    /^  __InternalSupabase: \{$/ { skip = 1; next }
+    skip && /^  \}$/             { skip = 0; next }
+    skip                         { next }
+    /^[[:space:]]*\/\// { next }
+    { print }
+  ' "$1" | awk 'BEGIN { blanks = 0 }
+    /^[[:space:]]*$/ { blanks++; next }
+    { while (blanks-- > 0) print ""; blanks = 0; print }
+  '
+}
+strip_platform_metadata "$COMMITTED" > "$tmp/committed.ts"
+strip_platform_metadata "$GENERATED" > "$tmp/generated.norm.ts"
 
 # One line per object: <schema>.<section>.<name>, e.g. public.Tables.entries or
 # public.Functions.get_show_judges. Tracks the 2-space schema and 4-space
@@ -92,6 +121,10 @@ object_headers "$tmp/generated.norm.ts" > "$tmp/generated.objects"
 live_only="$(comm -13 "$tmp/committed.objects" "$tmp/generated.objects")"
 committed_only="$(comm -23 "$tmp/committed.objects" "$tmp/generated.objects")"
 line_delta="$(diff "$tmp/committed.ts" "$tmp/generated.norm.ts" | grep -c '^[<>]' || true)"
+# `diff` exits 1 when the files differ, so every use of it here needs a guard:
+# under `set -e` an unguarded call aborts the script, and inside the report
+# block that abort produces a silently EMPTY summary rather than any error.
+{ diff -U2 "$tmp/committed.ts" "$tmp/generated.norm.ts" || true; } | tail -n +3 > "$tmp/full.diff"
 
 count() { if [[ -z "$1" ]]; then echo 0; else printf '%s\n' "$1" | wc -l | tr -d ' '; fi; }
 as_list() {
@@ -105,7 +138,7 @@ report="$tmp/report.md"
 {
   echo "## Supabase types drift (report-only)"
   echo
-  echo "Committed \`$COMMITTED\` vs \`supabase gen types\` against the applied schema, \`PostgrestVersion\` ignored."
+  echo "Committed \`$COMMITTED\` vs \`supabase gen types\` against the applied schema, the \`__InternalSupabase\` platform block ignored."
   echo
   if [[ "$line_delta" == "0" ]]; then
     echo "**No drift.** The committed types match the applied schema."
@@ -116,6 +149,24 @@ report="$tmp/report.md"
     if [[ "$n_live" == "0" && "$n_committed" == "0" ]]; then
       echo "- No object was added or removed; the drift is inside existing objects (columns, arguments, relationships) or comes from a newer CLI."
     fi
+    echo
+    # Without this, a drift with no object-header change reports only a line
+    # count, and nobody can tell a dropped column from generator churn without
+    # a generator they may not be able to run (it needs Docker). MYK9-493 spent
+    # a round trip on exactly that question.
+    echo "<details><summary>Diff (committed → applied, first $DIFF_LINE_CAP lines)</summary>"
+    echo
+    echo '```diff'
+    # `diff` exits 1 whenever the files differ, which is the only case that
+    # reaches here — without the guard `set -e` kills the report mid-write and
+    # the summary comes out empty.
+    head -n "$DIFF_LINE_CAP" "$tmp/full.diff"
+    if [[ "$(wc -l < "$tmp/full.diff" | tr -d ' ')" -gt "$DIFF_LINE_CAP" ]]; then
+      echo "… truncated at $DIFF_LINE_CAP lines; regenerate locally to see the rest."
+    fi
+    echo '```'
+    echo
+    echo "</details>"
     echo
     echo "This check never blocks. Regenerate (db-push skill, Step 4):"
     echo

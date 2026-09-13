@@ -30,16 +30,23 @@ function types(objects: {
   tables?: Record<string, string>;
   functions?: Record<string, string>;
   postgrestVersion?: string;
+  /** `--db-url` has no project context and may emit no platform block at all. */
+  omitPlatformBlock?: boolean;
 }): string {
   const block = (section: string, entries: Record<string, string> | undefined) =>
     Object.entries(entries ?? {})
       .map(([name, body]) => `      ${name}: {\n        ${body}\n      }`)
       .join('\n');
+  const platform = objects.omitPlatformBlock
+    ? []
+    : [
+        '  __InternalSupabase: {',
+        `    PostgrestVersion: "${objects.postgrestVersion ?? '14.5'}"`,
+        '  }',
+      ];
   return [
     'export type Database = {',
-    '  __InternalSupabase: {',
-    `    PostgrestVersion: "${objects.postgrestVersion ?? '14.5'}"`,
-    '  }',
+    ...platform,
     '  public: {',
     '    Tables: {',
     block('Tables', objects.tables),
@@ -96,6 +103,93 @@ describe('supabase-types-drift.sh', () => {
     expect(result.stdout).toContain('**No drift.**');
     expect(result.summary).toContain('**No drift.**');
     expect(result.stdout).not.toContain('::warning');
+  });
+
+  it('reports no drift when the generator emits no platform block at all', () => {
+    // MYK9-493: filtering only the `PostgrestVersion:` line left the block's two
+    // brace lines behind, so a `--db-url` run that omits the block entirely
+    // reported drift that regenerating could never clear.
+    const committed = types({ tables: { entries } });
+    const generated = types({ tables: { entries }, omitPlatformBlock: true });
+    expect(generated).not.toContain('__InternalSupabase');
+    const result = run(committed, generated);
+    expect(result.status).toBe(0);
+    expect(result.summary).toContain('**No drift.**');
+  });
+
+  it('ignores the generator churn a --db-url run actually produced', () => {
+    // The exact residue from PR #2197's own CI run: `--project-id` emits a
+    // two-line comment documenting the PostgrestVersion client option (it only
+    // does so when it knows that version) and differs in trailing newlines.
+    // Both track how the generator was invoked, not the schema.
+    const generated = types({ tables: { entries }, omitPlatformBlock: true });
+    const committed = generated
+      .replace(
+        'export type Database = {',
+        [
+          '// Allows to automatically instantiate createClient with right options',
+          "// instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)",
+          'export type Database = {',
+        ].join('\n')
+      )
+      .concat('\n\n');
+    expect(committed).not.toBe(generated);
+    const result = run(committed, generated);
+    expect(result.status).toBe(0);
+    expect(result.summary).toContain('**No drift.**');
+  });
+
+  it('prints the actual diff, so a drift with no object change is still diagnosable', () => {
+    const committed = types({
+      tables: { entries: 'Row: { id: string; judge_name: string | null }' },
+    });
+    const generated = types({ tables: { entries: 'Row: { id: string }' } });
+    const result = run(committed, generated);
+    expect(result.status).toBe(1);
+    expect(result.summary).toContain('<details><summary>Diff (committed → applied');
+    expect(result.summary).toContain('```diff');
+    // The removed column is visible as a diff line, not just a line count.
+    expect(result.summary).toMatch(/^-.*judge_name/m);
+  });
+
+  it('truncates a large diff and says so', () => {
+    const many = Object.fromEntries(
+      Array.from({ length: 40 }, (_, i) => [`t${i}`, 'Row: { id: string }'])
+    );
+    const committed = types({ tables: many });
+    const generated = types({ tables: {} });
+    const dir = mkdtempSync(join(tmpdir(), 'types-drift-cap-'));
+    dirs.push(dir);
+    const committedPath = join(dir, 'committed.ts');
+    const generatedPath = join(dir, 'generated.ts');
+    const summaryPath = join(dir, 'summary.md');
+    writeFileSync(committedPath, committed);
+    writeFileSync(generatedPath, generated);
+    let summary = '';
+    try {
+      execFileSync(
+        'bash',
+        [
+          SCRIPT,
+          '--committed',
+          committedPath,
+          '--generated',
+          generatedPath,
+          '--summary',
+          summaryPath,
+        ],
+        {
+          encoding: 'utf8',
+          stdio: 'pipe',
+          env: { ...process.env, MYK9_TYPES_DRIFT_DIFF_LINES: '10' },
+        }
+      );
+    } catch {
+      summary = readFileSync(summaryPath, 'utf8');
+    }
+    expect(summary).toContain('… truncated at 10 lines');
+    const fenced = summary.split('```diff')[1]?.split('```')[0] ?? '';
+    expect(fenced.trim().split('\n').length).toBeLessThanOrEqual(11);
   });
 
   it('names a live object the committed file lacks, and a committed object the database lacks', () => {

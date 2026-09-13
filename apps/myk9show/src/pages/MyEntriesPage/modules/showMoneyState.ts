@@ -115,20 +115,29 @@ export interface RefundNote {
  * `useMyEntriesData`), so it is converted here.
  */
 export function refundNotesByDog(orders: MyEntry[]): Record<string, RefundNote> {
-  const notes: Record<string, RefundNote> = {};
+  // Aggregate first, classify last: a dog refunded on two orders is "fully"
+  // refunded only against the fees of BOTH orders (Codex review on PR #2198).
+  const totals: Record<string, { amountCents: number; feeCents: number; date: Date }> = {};
   for (const order of orders) {
     for (const dog of order.dogs) {
       const amount = dog.refundAmount ?? 0;
       if (amount <= 0 || !dog.refundedAt) continue;
-      const feeTotal = dog.classes.reduce((sum, cls) => sum + cls.fee, 0);
-      const prior = notes[dog.dogId];
-      const merged: RefundNote = {
+      const feeCents = dog.classes.reduce((sum, cls) => sum + Math.round(cls.fee * 100), 0);
+      const prior = totals[dog.dogId];
+      totals[dog.dogId] = {
         amountCents: (prior?.amountCents ?? 0) + Math.round(amount * 100),
+        feeCents: (prior?.feeCents ?? 0) + feeCents,
         date: prior && prior.date > dog.refundedAt ? prior.date : dog.refundedAt,
-        kind: feeTotal > 0 && amount >= feeTotal ? 'full' : 'partial',
       };
-      notes[dog.dogId] = merged;
     }
+  }
+  const notes: Record<string, RefundNote> = {};
+  for (const [dogId, total] of Object.entries(totals)) {
+    notes[dogId] = {
+      amountCents: total.amountCents,
+      date: total.date,
+      kind: total.feeCents > 0 && total.amountCents >= total.feeCents ? 'full' : 'partial',
+    };
   }
   return notes;
 }

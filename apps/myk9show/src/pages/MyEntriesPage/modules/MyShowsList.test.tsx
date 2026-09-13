@@ -136,7 +136,7 @@ describe('MyShowsList — check-in controls', () => {
     renderList({ onCheckInDay });
 
     await user.click(
-      within(dogCard('Scout')).getByRole('button', { name: 'Check in for Saturday' })
+      within(dogCard('Scout')).getByRole('button', { name: /^Check in .* for Saturday$/ })
     );
 
     expect(onCheckInDay).toHaveBeenCalledTimes(1);
@@ -170,7 +170,9 @@ describe('MyShowsList — check-in controls', () => {
     const onOpenCheckIn = vi.fn();
     renderList({ onOpenCheckIn });
 
-    await user.click(screen.getByRole('button', { name: 'Change check-in for Interior Advanced' }));
+    await user.click(
+      screen.getByRole('button', { name: /^Change .*'s check-in for Interior Advanced$/ })
+    );
 
     expect(onOpenCheckIn).toHaveBeenCalledTimes(1);
     const [order, cls] = onOpenCheckIn.mock.calls[0];
@@ -217,7 +219,7 @@ describe('MyShowsList — the self-check-in cascade and settled classes (task 3.
       screen.queryByRole('button', { name: 'Check in Pilot for Buried Novice A' })
     ).not.toBeInTheDocument();
 
-    await user.click(screen.getByRole('button', { name: 'Check in for Saturday' }));
+    await user.click(screen.getByRole('button', { name: /^Check in .* for Saturday$/ }));
     expect(onCheckInDay.mock.calls[0][1].map((cls: { id: string }) => cls.id)).toEqual([
       'c-pilot-1',
     ]);

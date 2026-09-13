@@ -324,7 +324,9 @@ const buildSelfCheckinEntryRow = () => ({
 const submitSelfCheckin = async (user: ReturnType<typeof userEvent.setup>) => {
   await screen.findByText('Spring Trial');
   // The class row carries its control in the open — nothing to expand.
-  await user.click(await screen.findByRole('button', { name: 'Change check-in for Novice A' }));
+  await user.click(
+    await screen.findByRole('button', { name: /^Change .*'s check-in for Novice A$/ })
+  );
   const statusOptions = await screen.findAllByRole('radio', { name: /checked in/i });
   const checkedInOption = statusOptions.find(
     option => option.getAttribute('aria-labelledby') === 'checked-in-label'

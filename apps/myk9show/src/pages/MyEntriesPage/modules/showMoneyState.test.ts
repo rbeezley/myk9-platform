@@ -299,3 +299,38 @@ describe('deriveShowMoneyState — names only the dogs whose rows owe (Codex, PR
     expect(state.dueDogNames).toEqual(['Scout']);
   });
 });
+
+describe('refundNotesByDog — a dog refunded on two orders (Codex, PR #2198)', () => {
+  it('classifies against the fees of both orders, not the last one', () => {
+    const refundedAt = new Date('2026-10-08T00:00:00');
+    const notes = refundNotesByDog(
+      groupEntriesByOrder(
+        [
+          makeRow({
+            id: 'row-1',
+            registrationId: 'reg-1',
+            dogId: 'd1',
+            dogName: 'Rex',
+            refundAmount: 10,
+            refundedAt,
+            classes: [makeClass({ id: 'c1', fee: 20 })],
+          }),
+          makeRow({
+            id: 'row-2',
+            registrationId: 'reg-2',
+            dogId: 'd1',
+            dogName: 'Rex',
+            refundAmount: 10,
+            refundedAt,
+            classes: [makeClass({ id: 'c2', fee: 10 })],
+          }),
+        ],
+        NOW
+      )
+    );
+
+    // $20 back against $30 of fees: partial, even though the second order alone
+    // was refunded in full.
+    expect(notes['d1']).toEqual({ amountCents: 2000, date: refundedAt, kind: 'partial' });
+  });
+});

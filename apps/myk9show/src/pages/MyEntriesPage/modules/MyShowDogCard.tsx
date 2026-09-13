@@ -82,6 +82,7 @@ const MyShowDogCardComponent: React.FC<MyShowDogCardProps> = ({
             <Button
               type="button"
               onClick={() => onCheckInDay(dog, targets.classes)}
+              aria-label={`Check in ${dog.dogName} for ${targets.weekday}`}
               className="min-h-[44px]"
             >
               <ClipboardCheck className="mr-1.5 h-5 w-5" />

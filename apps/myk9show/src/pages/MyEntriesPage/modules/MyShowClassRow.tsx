@@ -111,7 +111,7 @@ export const MyShowClassRow: React.FC<MyShowClassRowProps> = ({
             <button
               type="button"
               onClick={() => onOpenCheckIn(order, cls)}
-              aria-label={`Change check-in for ${cls.name}`}
+              aria-label={`Change ${dogName}'s check-in for ${cls.name}`}
               className={LINK_CLASS}
             >
               change

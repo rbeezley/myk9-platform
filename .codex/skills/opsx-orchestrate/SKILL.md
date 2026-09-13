@@ -63,13 +63,13 @@ For every returned batch, the root agent:
 3. Re-runs value-sensitive tests and the final required typecheck.
 4. Sends numbered defects with `followup_task`; then re-reviews the new diff.
 5. Stops after three failed review rounds. Rewrite the dispatch or implement the batch inline.
-6. Updates `tasks.md` only after acceptance, commits an accepted checkpoint, and ships that batch before dispatching the next: PR, `pnpm qa:codex-review`, gate comment, merge, then the next batch starts from merged `main`. One PR per batch (shared rules, Gates § 3); batches that cannot compile or pass CI alone ship together and the PR says so.
+6. Updates `tasks.md` only after acceptance, commits an accepted checkpoint, and ships that batch before dispatching the next: PR, the OTHER harness's review (`scripts/qa/claude-review.sh --detach`, then `--wait 240` until the exit is not 3 — never `pnpm qa:codex-review`, which is a same-harness review from Codex), gate comment, merge, then the next batch starts from merged `main`. Batches run one at a time (implementers share the worktree). Before the last batch's PR is opened, run `opsx-ship` verification against the integrated tree and fix CRITICAL findings in that PR, never after merge. One PR per batch (shared rules, Gates § 3); batches that cannot compile or pass CI alone ship together and the PR says so.
 
 Reports are not proof. A checked task means root-agent acceptance.
 
 ## Finish
 
-Each batch already shipped through PR, review, and merge. After the last batch merges, run `opsx-ship` verification against merged `main` (fixes go in a follow-up PR), then archive and cleanup. Preserve approval gates for pushes, merges, database writes, deployments, and external messages.
+Each batch already shipped through PR, review, and merge, and verification ran before the last batch's PR. After the last merge: archive and cleanup. Preserve approval gates for pushes, merges, database writes, deployments, and external messages.
 
 Report batches, review rounds, migration audits, and root-agent implementation.
 

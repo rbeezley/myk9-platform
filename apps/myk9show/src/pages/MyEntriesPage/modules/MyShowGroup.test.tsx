@@ -221,7 +221,9 @@ describe('entries-close deadline', () => {
   it('drops the deadline — and the edit control — once the close date has passed', () => {
     renderRows([editableRow(day('2026-01-01'))]);
 
-    expect(screen.queryByText(/Entries close/)).not.toBeInTheDocument();
+    // A trailing space keeps this off "Entries closed", the post-deadline
+    // state MYK9-502 added; what must be gone is the stated DATE.
+    expect(screen.queryByText(/Entries close /)).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Edit entry' })).not.toBeInTheDocument();
   });
 
@@ -254,6 +256,88 @@ describe('entries-close deadline', () => {
         expect(screen.getByText('Entries close Jan 2, 2027')).toBeInTheDocument();
       }
     );
+  });
+});
+
+describe('post-deadline help (MYK9-502)', () => {
+  /** An order past its close date whose status is still editable. */
+  function closedRow(overrides: Partial<MyEntry> = {}): MyEntry {
+    return futureShowRow({
+      id: 'e-closed',
+      dogId: 'dog-scout',
+      dogName: 'Scout',
+      entryStatus: EntryStatus.ACCEPTED,
+      entryCloseDate: day('2026-01-01'),
+      classes: [makeClass({ id: 'c-closed-1', trialDate: day('2026-11-14') })],
+      ...overrides,
+    });
+  }
+
+  it('offers the show team once nothing is editable any more', () => {
+    renderRows([closedRow()]);
+
+    expect(screen.getByText('Entries closed')).toBeInTheDocument();
+    const link = screen.getByRole('link', {
+      name: 'Message the show team about Flint Hills Fall Classic',
+    });
+    expect(link).toHaveAttribute('href', '/messages/show-flint');
+    expect(screen.queryByRole('button', { name: 'Edit entry' })).not.toBeInTheDocument();
+  });
+
+  // Codex, PR #2201: the close date is inclusive. NOW is midday Central on
+  // 24 Oct 2026, so a show closing THAT day is still open — reading the
+  // instant instead of the calendar day retired the controls a day early.
+  it('offers Edit entry, not the help link, through the whole close date', () => {
+    renderRows([closedRow({ entryCloseDate: day('2026-10-24') })]);
+
+    // Codex P1: the exhibitor must never be left with neither control.
+    expect(screen.getByRole('button', { name: 'Edit entry' })).toBeInTheDocument();
+    expect(screen.queryByText('Entries closed')).not.toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: /Message the show team/ })).not.toBeInTheDocument();
+  });
+
+  it('speaks the day AFTER the close date', () => {
+    renderRows([closedRow({ entryCloseDate: day('2026-10-23') })]);
+
+    expect(screen.getByText('Entries closed')).toBeInTheDocument();
+  });
+
+  it('stays silent while any order can still be edited', () => {
+    renderRows([
+      closedRow(),
+      futureShowRow({
+        id: 'e-open',
+        registrationId: 'r2',
+        dogId: 'dog-willow',
+        dogName: 'Willow',
+        entryStatus: EntryStatus.ACCEPTED,
+        entryCloseDate: day('2026-11-01'),
+        classes: [makeClass({ id: 'c-open-1', trialDate: day('2026-11-14') })],
+      }),
+    ]);
+
+    expect(screen.getByRole('button', { name: 'Edit entry' })).toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: /Message the show team/ })).not.toBeInTheDocument();
+    expect(screen.queryByText('Entries closed')).not.toBeInTheDocument();
+  });
+
+  it('says nothing once the show itself is over', () => {
+    renderRows([
+      closedRow({
+        showDate: day('2026-08-01'),
+        showEndDate: day('2026-08-02'),
+        entryCloseDate: day('2026-07-01'),
+      }),
+    ]);
+
+    expect(screen.queryByRole('link', { name: /Message the show team/ })).not.toBeInTheDocument();
+    expect(screen.queryByText('Entries closed')).not.toBeInTheDocument();
+  });
+
+  it('withholds the link while the show relation is still replicating', () => {
+    renderRows([closedRow({ showId: '' })]);
+
+    expect(screen.queryByRole('link', { name: /Message the show team/ })).not.toBeInTheDocument();
   });
 });
 

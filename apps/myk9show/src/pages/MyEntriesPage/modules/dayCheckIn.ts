@@ -18,7 +18,7 @@ import type { MyShowClass, MyShowDog } from './groupEntriesByShow';
 import type { MyEntry } from './my-entries-types';
 
 /** The calendar day (`YYYY-MM-DD`) a local-midnight `Date` stands for. */
-function calendarDayOf(date: Date): string {
+export function calendarDayOf(date: Date): string {
   const month = String(date.getMonth() + 1).padStart(2, '0');
   const day = String(date.getDate()).padStart(2, '0');
   return `${date.getFullYear()}-${month}-${day}`;
@@ -37,6 +37,12 @@ function calendarDayInZone(instant: Date, timeZone: string): string {
   return `${get('year')}-${get('month')}-${get('day')}`;
 }
 
+/**
+ * UTC-12: the last place on earth to reach any given calendar day. POSIX
+ * inverts the sign in these names, so `Etc/GMT+12` IS UTC-12.
+ */
+const LAST_ZONE_TO_ROLL_OVER = 'Etc/GMT+12';
+
 /** Trials carry a resolved zone; the migration default covers legacy rows. */
 const DEFAULT_TIMEZONE = 'America/New_York';
 
@@ -51,6 +57,36 @@ export function isTrialDayToday(
 ): boolean {
   if (!trialDate || Number.isNaN(trialDate.getTime())) return false;
   return calendarDayOf(trialDate) === calendarDayInZone(now, trialTimezone || DEFAULT_TIMEZONE);
+}
+
+/**
+ * Is the entry-close DAY already behind us, reckoned in the trial's timezone?
+ *
+ * The close date is INCLUSIVE: entries stay open through the end of the day
+ * written on the show, which is how the server guard (`entryCloseGuard`) and
+ * `isEntryCloseDayPast` in the entries service both read it. Comparing the
+ * instants instead would call the window shut at 00:00 on the close date and
+ * retire the exhibitor's controls a full day early (Codex, PR #2201).
+ *
+ * `trialTimezone` may be UNDEFINED before the trial relation replicates. The
+ * honest answer then is "only once every zone agrees", and the zone that
+ * agrees last is the westernmost, UTC-12: when the day THERE is past the close
+ * day, it is past everywhere on earth. Guessing a zone instead would cross
+ * midnight up to three hours early for a western show and take the exhibitor's
+ * edit control with it; adding a whole calendar day instead — the first
+ * attempt here — erred the other way and left the card offering an edit the
+ * server would refuse for about a day (Codex, PR #2201 rounds five and six).
+ */
+export function isEntryCloseDayPast(
+  entryCloseDate: Date | undefined,
+  trialTimezone: string | undefined,
+  now: Date
+): boolean {
+  if (!entryCloseDate || Number.isNaN(entryCloseDate.getTime())) return false;
+  const closeDay = calendarDayOf(entryCloseDate);
+  if (trialTimezone) return calendarDayInZone(now, trialTimezone) > closeDay;
+
+  return calendarDayInZone(now, LAST_ZONE_TO_ROLL_OVER) > closeDay;
 }
 
 /** Is the trial's calendar day still ahead of `now` in the trial's timezone? */

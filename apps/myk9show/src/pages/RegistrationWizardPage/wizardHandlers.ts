@@ -40,6 +40,7 @@ export function createWizardHandlers(state: RegistrationWizardState) {
     triggerSync,
     dogs,
     dogsLoading,
+    activateDraft,
     classes,
     currentShow,
     loadCart,
@@ -242,6 +243,10 @@ export function createWizardHandlers(state: RegistrationWizardState) {
 
   // Draft loading handler
   const handleDraftLoaded = (draft: SavedDraft) => {
+    if (draft.data._workflowState?.currentStep === 'confirmation') {
+      notifications.error('This entry is already complete. Start a new entry below.');
+      return;
+    }
     const selectedDogs = draft.data.selectedDogs ?? [];
     if (dogsLoading) {
       notifications.error('Your dogs are still loading. Please try resuming in a moment.');
@@ -257,6 +262,7 @@ export function createWizardHandlers(state: RegistrationWizardState) {
       );
       return;
     }
+    activateDraft(draft);
     if (draft.data._workflowState) {
       const workflowState = draft.data._workflowState;
       setStepCompletionState(workflowState.stepCompletionState || {});

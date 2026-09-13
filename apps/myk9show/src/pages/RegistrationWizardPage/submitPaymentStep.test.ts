@@ -134,6 +134,15 @@ describe('submitPaymentStep', () => {
     expect(ctx.discardDraftsWithoutFinalSave).toHaveBeenCalledTimes(1);
   });
 
+  it('discards the filed draft after an on-behalf submission', async () => {
+    const { ctx } = makeContextAndOrder({ currentWorkflowMode: 'secretary_new' });
+
+    await submitPaymentStep(ctx);
+
+    expect(ctx.discardDraftsWithoutFinalSave).toHaveBeenCalledTimes(1);
+    expect(ctx.clearDraftData).toHaveBeenCalledTimes(1);
+  });
+
   it('keeps the cart and the payment step when submission fails', async () => {
     // MYK9-302: an enrollment insert failure must reach this catch path, not
     // present as a confirmation step with an empty registration and no cart.

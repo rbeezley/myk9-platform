@@ -73,8 +73,9 @@ vi.mock('@/hooks/useReplicationSync', () => ({
   useReplicationSync: () => ({ triggerSync: vi.fn() }),
 }));
 
+const mockActivateDraft = vi.fn();
 vi.mock('@/hooks/useDraftPersistence', () => ({
-  useDraftPersistence: () => ({}),
+  useDraftPersistence: () => ({ activateDraft: mockActivateDraft }),
 }));
 
 // dogs mock — mutable so individual tests can override
@@ -178,6 +179,7 @@ describe('RegistrationWizardPage — handleDraftLoaded', () => {
     capturedOnDogSelectionChange = null;
     progressOnStepClick = undefined;
     mockCreateRegistration.mockClear();
+    mockActivateDraft.mockClear();
     mockCreateRegistration.mockReturnValue({ id: 'reg-1' });
     // Default: one dog available (auto-select will fire for exhibitor mode)
     mockDogStoreState.dogs = [{ id: 'dog-1', ownerId: 'user-1', ownerName: 'Owner' }];
@@ -203,6 +205,7 @@ describe('RegistrationWizardPage — handleDraftLoaded', () => {
       capturedOnDraftLoaded!(buildDraft(['dog-1']));
     });
     await waitFor(() => expect(capturedSelectedDogs).toEqual(['dog-1']));
+    expect(mockActivateDraft).toHaveBeenCalledTimes(1);
   });
 
   it('does NOT call createRegistration when draft has no dogs', async () => {
@@ -230,6 +233,7 @@ describe('RegistrationWizardPage — handleDraftLoaded', () => {
     act(() => capturedOnDraftLoaded!(buildDraft(['dog-1'])));
     expect(mockCreateRegistration).not.toHaveBeenCalled();
     expect(capturedSelectedDogs).toEqual([]);
+    expect(mockActivateDraft).not.toHaveBeenCalled();
   });
 
   it('rejects a draft containing a dog no longer in the store', async () => {
@@ -240,14 +244,16 @@ describe('RegistrationWizardPage — handleDraftLoaded', () => {
     act(() => capturedOnDraftLoaded!(buildDraft(['dog-1', 'dog-deleted'])));
     expect(mockCreateRegistration).not.toHaveBeenCalled();
     expect(capturedSelectedDogs).not.toContain('dog-deleted');
+    expect(mockActivateDraft).not.toHaveBeenCalled();
   });
 
-  it('disables the progress rail on a completed entry receipt', async () => {
+  it('refuses to restore a completed draft into a dead-end receipt', async () => {
     render(<RegistrationWizardPage />, { initialRoute: '/shows/show-1/register' });
     await waitFor(() => expect(capturedOnDraftLoaded).not.toBeNull());
     expect(progressOnStepClick).toBeTypeOf('function');
 
     act(() => capturedOnDraftLoaded!(buildDraft(['dog-1'], 'confirmation')));
-    await waitFor(() => expect(progressOnStepClick).toBeUndefined());
+    expect(progressOnStepClick).toBeTypeOf('function');
+    expect(mockActivateDraft).not.toHaveBeenCalled();
   });
 });

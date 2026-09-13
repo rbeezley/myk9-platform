@@ -136,12 +136,35 @@ describe('useDraftPersistence — cross-user scoping', () => {
     expect(draftId).not.toBeNull();
 
     act(() => {
-      result.current.loadDraft(draftId!);
+      const loaded = result.current.loadDraft(draftId!);
+      if (loaded) result.current.activateDraft(loaded);
       result.current.autoSave();
     });
 
     expect(result.current.availableDrafts).toHaveLength(1);
     expect(result.current.availableDrafts[0]?.id).toBe(draftId);
+  });
+
+  it('does not overwrite a read but rejected draft when an empty page exits', () => {
+    seedDraftData({ selectedDogs: ['dog-1'] });
+    const { result: writer, unmount } = renderHook(() =>
+      useDraftPersistence(SHOW_ID, USER_A, 'dog-selection')
+    );
+    let draftId: string | null = null;
+    act(() => {
+      draftId = writer.current.saveDraft('Saved dog');
+    });
+    unmount();
+
+    seedDraftData({ selectedDogs: [] });
+    const { result: reader } = renderHook(() =>
+      useDraftPersistence(SHOW_ID, USER_A, 'dog-selection')
+    );
+    act(() => {
+      reader.current.loadDraft(draftId!);
+      window.dispatchEvent(new Event('pagehide'));
+    });
+    expect(reader.current.loadDraft(draftId!)?.data.selectedDogs).toEqual(['dog-1']);
   });
 
   it('refreshes metadata when autosaving an existing draft', () => {
@@ -269,7 +292,7 @@ describe('useDraftPersistence — cross-user scoping', () => {
     expect(result.current.availableDrafts).toHaveLength(0);
   });
 
-  it('discardDraftsWithoutFinalSave clears every draft and blocks later autosaves', () => {
+  it('discards filed-dog drafts, preserves another dog, and blocks later saves', () => {
     seedDraftData({ selectedDogs: ['dog-1'] });
     const metadataKey = `registration-draft-metadata-${SHOW_ID}-${USER_A}`;
     const { result, unmount, rerender } = renderHook(() =>
@@ -282,10 +305,19 @@ describe('useDraftPersistence — cross-user scoping', () => {
     });
     expect(JSON.parse(localStorage.getItem(metadataKey) ?? '[]')).toHaveLength(2);
 
+    seedDraftData({ selectedDogs: ['dog-2'] });
+    rerender();
+    let unrelatedId: string | null = null;
+    act(() => {
+      unrelatedId = result.current.saveDraft('Different dog');
+    });
+    seedDraftData({ selectedDogs: ['dog-1'] });
+    rerender();
+
     act(() => {
       result.current.discardDraftsWithoutFinalSave();
     });
-    expect(localStorage.getItem(metadataKey)).toBeNull();
+    expect(result.current.availableDrafts.map(draft => draft.id)).toEqual([unrelatedId]);
 
     seedDraftData({ selectedDogs: ['dog-2'] });
     rerender();
@@ -295,10 +327,10 @@ describe('useDraftPersistence — cross-user scoping', () => {
       window.dispatchEvent(new Event('pagehide'));
     });
     expect(result.current.hasUnsavedChanges).toBe(false);
-    expect(localStorage.getItem(metadataKey)).toBeNull();
+    expect(result.current.availableDrafts.map(draft => draft.id)).toEqual([unrelatedId]);
 
     unmount();
 
-    expect(localStorage.getItem(metadataKey)).toBeNull();
+    expect(result.current.availableDrafts.map(draft => draft.id)).toEqual([unrelatedId]);
   });
 });

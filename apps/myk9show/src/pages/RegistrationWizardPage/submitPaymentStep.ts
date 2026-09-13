@@ -218,12 +218,10 @@ export async function submitPaymentStep(ctx: SubmitPaymentStepContext): Promise<
       );
     }
     await ctx.cart.clearCart();
-    if (ctx.currentWorkflowMode === 'exhibitor') {
-      // A filed check/cash entry is no longer resumable. Clear sibling drafts
-      // too: they may contain the same already-filed dog and classes.
-      ctx.discardDraftsWithoutFinalSave();
-      ctx.clearDraftData();
-    }
+    // A filed entry is no longer resumable, including an on-behalf submission.
+    // Keep drafts for unrelated dogs on this device.
+    ctx.discardDraftsWithoutFinalSave();
+    ctx.clearDraftData();
     ctx.triggerSync();
     ctx.markStepComplete(ctx.currentStep);
     ctx.setCurrentStep(prev => prev + 1);

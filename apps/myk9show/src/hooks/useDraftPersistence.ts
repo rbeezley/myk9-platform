@@ -238,8 +238,6 @@ export function useDraftPersistence(
         }
 
         log('Loaded draft:', draftId, 'with', Object.keys(savedDraft.data).length, 'fields');
-        activeDraftMetadataRef.current = savedDraft.metadata;
-
         return savedDraft;
       } catch (error) {
         log('Error loading draft:', error);
@@ -247,6 +245,17 @@ export function useDraftPersistence(
       }
     },
     [getDraftKey, userId, log]
+  );
+
+  // A read is not an accepted resume: callers validate dog ownership and the
+  // workflow step before allowing autosave to overwrite this draft.
+  const activateDraft = useCallback(
+    (draft: SavedDraft) => {
+      if (draft.metadata.showId === showId && draft.metadata.userId === userId) {
+        activeDraftMetadataRef.current = draft.metadata;
+      }
+    },
+    [showId, userId]
   );
 
   // Delete draft from localStorage
@@ -329,8 +338,19 @@ export function useDraftPersistence(
 
   const discardDraftsWithoutFinalSave = useCallback(() => {
     skipFinalSaveRef.current = true;
-    clearAllDrafts();
-  }, [clearAllDrafts]);
+    const submittedDogs = new Set(draftData?.selectedDogs ?? []);
+    const activeId = activeDraftMetadataRef.current?.id;
+    const remaining = getDraftMetadata().filter(metadata => {
+      const draft = loadDraft(metadata.id);
+      const overlaps = draft?.data.selectedDogs?.some(id => submittedDogs.has(id));
+      if (!overlaps && !(submittedDogs.size === 0 && metadata.id === activeId)) return true;
+      localStorage.removeItem(getDraftKey(metadata.id));
+      return false;
+    });
+    saveDraftMetadata(remaining);
+    activeDraftMetadataRef.current = null;
+    lastSavedDataRef.current = JSON.stringify(draftData ?? {});
+  }, [draftData, getDraftMetadata, getDraftKey, loadDraft, saveDraftMetadata]);
 
   // Keep a ref to the latest autoSave so the timer effect can call it without
   // having `autoSave` as a dependency — otherwise the timer gets cleared and
@@ -432,6 +452,7 @@ export function useDraftPersistence(
     // Draft operations
     saveDraft: saveWithTitle,
     loadDraft,
+    activateDraft,
     deleteDraft,
     autoSave,
 
@@ -464,6 +485,7 @@ export function useDraftRestoration(
       const savedDraft = draftPersistence.loadDraft(draftId);
 
       if (savedDraft) {
+        draftPersistence.activateDraft(savedDraft);
         setDraftData(savedDraft.data);
         onDraftSelected?.(savedDraft);
         return true;

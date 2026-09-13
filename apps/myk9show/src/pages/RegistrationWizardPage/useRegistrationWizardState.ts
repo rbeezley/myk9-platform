@@ -263,6 +263,7 @@ export function useRegistrationWizardState() {
   const {
     saveDraft: draftSave,
     loadDraft: draftLoad,
+    activateDraft,
     deleteDraft: draftDelete,
     availableDrafts,
     clearAllDrafts,
@@ -576,6 +577,7 @@ export function useRegistrationWizardState() {
     // Drafts
     draftSave,
     draftLoad,
+    activateDraft,
     draftDelete,
     availableDrafts,
     clearAllDrafts,

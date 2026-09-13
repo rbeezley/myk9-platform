@@ -140,33 +140,6 @@ vi.mock('@/pages/MyEntriesPage/modules', async () => {
           lastUpdated: new Date('2099-01-01'),
         },
       ],
-      legacyBalanceSummary: {
-        currentFeesCents: 9000,
-        amountDueCents: 9000,
-        onlineDueCents: 9000,
-        payAtShowDueCents: 0,
-        onlineShowBalances: [
-          {
-            showId: 'show-423',
-            showName: 'Recovery Trial',
-            entryCloseDay: '2099-11-20',
-            showTimezone: 'America/Chicago',
-            amountDueCents: 9000,
-            onlineDueCents: 9000,
-            payAtShowDueCents: 0,
-            entryIds: [
-              'entry-outsider',
-              'entry-withdrawn',
-              'entry-deleted',
-              'entry-53',
-              'entry-54',
-              'entry-57',
-            ],
-            paymentHref:
-              '/cart?showId=show-423&entryIds=entry-outsider,entry-withdrawn,entry-deleted,entry-53,entry-54,entry-57',
-          },
-        ],
-      },
       balanceSummary,
       identityState: 'resolved',
       isLoading: false,
@@ -245,22 +218,24 @@ type RecoveryFixtureEntry = {
   className: string;
   fixtureEntryStatus?: string;
   fixtureDeletedAt?: string;
+  fixturePaymentStatus?: string;
 };
 
 function RecoveryCartRoute() {
   const location = useLocation();
   const navigate = useNavigate();
+  const entryIds = new URLSearchParams(location.search).get('entryIds');
+  const hasAugmentedIds = entryIds?.includes('entry-outsider') ?? false;
 
   useEffect(() => {
-    const params = new URLSearchParams(location.search);
-    const entryIds = params.get('entryIds');
-    if (entryIds && !entryIds.includes('entry-outsider')) {
-      params.set('entryIds', entryIds + ',entry-outsider,entry-withdrawn,entry-deleted');
+    if (entryIds && !hasAugmentedIds) {
+      const params = new URLSearchParams(location.search);
+      params.set('entryIds', entryIds + ',entry-outsider,entry-withdrawn,entry-deleted,entry-paid');
       navigate(location.pathname + '?' + params.toString(), { replace: true });
     }
-  }, [location.pathname, location.search, navigate]);
+  }, [entryIds, hasAugmentedIds, location.pathname, location.search, navigate]);
 
-  return <CartPage />;
+  return hasAugmentedIds ? <CartPage /> : null;
 }
 
 describe('MYK9-423 fee-card payment recovery', () => {
@@ -328,7 +303,8 @@ describe('MYK9-423 fee-card payment recovery', () => {
     // Only PostgREST transport is replaced; returned cart items depend on real
     // recovery upserts, so an empty-hydration regression cannot get canned lines.
     let cart: Record<string, unknown> | null = null;
-    let savedItems: EntryCartItemInsert[] = [];
+    type FixtureCartItem = EntryCartItemInsert & { id: string };
+    let savedItems: FixtureCartItem[] = [];
     const requests: Array<{
       table: string;
       method: string;
@@ -367,10 +343,18 @@ describe('MYK9-423 fee-card payment recovery', () => {
         className: 'Deleted Class',
         fixtureDeletedAt: '2099-01-01T00:00:00.000Z',
       },
+      {
+        id: 'entry-paid',
+        dog_id: 'dog-paid',
+        class_id: 'class-paid',
+        dog: 'Paid',
+        className: 'Interior Novice A',
+        fixturePaymentStatus: 'paid',
+      },
     ].map(entry => ({
       ...entry,
       show_id: 'show-423',
-      payment_status: 'pending',
+      payment_status: entry.fixturePaymentStatus ?? 'pending',
       entry_status: entry.fixtureEntryStatus ?? 'submitted',
       deleted_at: entry.fixtureDeletedAt ?? null,
       handler_id: null,
@@ -457,7 +441,13 @@ describe('MYK9-423 fee-card payment recovery', () => {
           }
           if (table === 'entry_cart_items') {
             if (method === 'POST') {
-              savedItems = [...savedItems, ...body()].filter(
+              savedItems = [
+                ...savedItems,
+                ...(body() as EntryCartItemInsert[]).map((item, index) => ({
+                  ...item,
+                  id: `item-${savedItems.length + index}`,
+                })),
+              ].filter(
                 (item, index, all) =>
                   all.findIndex(
                     candidate =>
@@ -469,10 +459,11 @@ describe('MYK9-423 fee-card payment recovery', () => {
               return json(null);
             }
             if (method === 'DELETE') {
-              const deletedIds = (params.get('id') ?? '').replace(/^in\.\(|\)$/g, '').split(',');
-              savedItems = savedItems.filter(
-                item => item.entry_id == null || !deletedIds.includes(item.entry_id)
-              );
+              const deletedIds = (params.get('id') ?? '')
+                .replace(/^eq\./, '')
+                .replace(/^in\.\(|\)$/g, '')
+                .split(',');
+              savedItems = savedItems.filter(item => !deletedIds.includes(item.id));
               return json(null);
             }
             const matchingItems = savedItems.filter(matches);
@@ -482,7 +473,7 @@ describe('MYK9-423 fee-card payment recovery', () => {
                 const entry = databaseEntries.find(entry => entry.id === item.entry_id)!;
                 return {
                   ...item,
-                  id: 'item-' + index,
+                  id: item.id ?? 'item-' + index,
                   dog: {
                     id: entry.dog_id,
                     name: entry.dog,
@@ -553,5 +544,7 @@ describe('MYK9-423 fee-card payment recovery', () => {
     expect(recoveryRead.params.get('id')).toContain('entry-outsider');
     expect(recoveryRead.params.get('id')).toContain('entry-withdrawn');
     expect(recoveryRead.params.get('id')).toContain('entry-deleted');
+    expect(recoveryRead.params.get('id')).toContain('entry-paid');
+    expect(savedItems.some(item => item.entry_id === 'entry-paid')).toBe(false);
   });
 });

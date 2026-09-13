@@ -1,4 +1,4 @@
-import { expect, test, type Page } from '@playwright/test';
+import { expect, test, type Locator, type Page } from '@playwright/test';
 import { signInAsExhibitor, signInAsSecretary } from '../helpers/testUsers';
 import { LIVE_REGISTRATION_SHOW_ID } from '../uat/shared/seededShows';
 
@@ -112,6 +112,43 @@ async function waitForSelectableClass(page: Page): Promise<boolean> {
     )
     .toBe(true);
   return settled > 0;
+}
+
+/**
+ * Add ONE class for the walk and hand back a locator to THAT chip, so the
+ * cleanup removes the class this test added and nothing else. On the shared
+ * staging cart `selectedClassChips(page).last()` is a coin flip: it un-selects
+ * whichever checked chip renders last, which may be a pre-existing entry, and
+ * leaves the added one behind for the next walk (LESSONS
+ * `confirm-click-destructive`; Codex #2210 P2). Returns null when nothing was
+ * selectable, in which case there is nothing to undo.
+ */
+async function addOneClass(page: Page): Promise<Locator | null> {
+  if (!(await waitForSelectableClass(page))) return null;
+  const candidate = enabledClassChips(page).first();
+  // The accessible name is NOT unique ("Select Novice" exists under every
+  // element), so anchor on the chip's DOM id, `chip-<classId>` /
+  // `single-<classId>`, which is. The primitive may put that id on the role
+  // element itself or on the hidden input inside the same <label>; the
+  // selector accepts either placement.
+  const id = await candidate.evaluate(
+    el => el.id || el.closest('label')?.querySelector('[id]')?.id || ''
+  );
+  expect(id, 'the chip must carry a DOM id to anchor the cleanup to').not.toBe('');
+  const chip = page
+    .getByRole('checkbox', { name: /^Select / })
+    .and(page.locator(`[id="${id}"], label:has([id="${id}"]) [role="checkbox"]`));
+  await expect(chip).toHaveCount(1);
+  await chip.click();
+  await expect(chip.and(page.locator('[data-checked]'))).toHaveCount(1);
+  return chip;
+}
+
+/** Undo `addOneClass`: un-select exactly that chip and prove it is unchecked. */
+async function removeAddedClass(page: Page, chip: Locator | null) {
+  if (!chip) return;
+  await chip.click();
+  await expect(chip.and(page.locator('[data-checked]'))).toHaveCount(0);
 }
 
 async function selectFirstClass(page: Page) {
@@ -650,83 +687,86 @@ test('the phone entries bar totals the cart without covering the class list', as
     timeout: 15000,
   });
 
-  const added = await waitForSelectableClass(page);
-  if (added) await enabledClassChips(page).first().click();
+  const added = await addOneClass(page);
+  try {
+    const bar = page.getByTestId('entries-panel-bar');
+    await expect(bar).toBeVisible();
+    // The desktop aside must NOT also be on screen at this width — one total.
+    await expect(page.getByTestId('entries-panel')).toBeHidden();
+    await expect(page.getByTestId('entries-panel-total')).toHaveText(
+      /\d+ class(es)? · \$\d+\.\d{2}/
+    );
 
-  const bar = page.getByTestId('entries-panel-bar');
-  await expect(bar).toBeVisible();
-  // The desktop aside must NOT also be on screen at this width — one total.
-  await expect(page.getByTestId('entries-panel')).toBeHidden();
-  await expect(page.getByTestId('entries-panel-total')).toHaveText(/\d+ class(es)? · \$\d+\.\d{2}/);
+    // The bar is sticky inside the wizard's own scrollport, so it must lie
+    // entirely within the shell root's box — which is what keeps it off the app
+    // sidebar at tablet widths (768-1023), where a viewport-fixed bar spanned and
+    // painted over the sidebar.
+    const rootBox = await page.getByTestId('registration-wizard-shell').boundingBox();
+    const barBoxInitial = await bar.boundingBox();
+    expect(rootBox).not.toBeNull();
+    expect(barBoxInitial).not.toBeNull();
+    expect(barBoxInitial!.height, 'bar must have a measured height').toBeGreaterThan(44);
+    expect(
+      barBoxInitial!.x,
+      'bar left must not start left of the wizard root'
+    ).toBeGreaterThanOrEqual(rootBox!.x - 1);
+    expect(
+      barBoxInitial!.x + barBoxInitial!.width,
+      'bar right must not extend past the wizard root'
+    ).toBeLessThanOrEqual(rootBox!.x + rootBox!.width + 1);
 
-  // The bar is sticky inside the wizard's own scrollport, so it must lie
-  // entirely within the shell root's box — which is what keeps it off the app
-  // sidebar at tablet widths (768-1023), where a viewport-fixed bar spanned and
-  // painted over the sidebar.
-  const rootBox = await page.getByTestId('registration-wizard-shell').boundingBox();
-  const barBoxInitial = await bar.boundingBox();
-  expect(rootBox).not.toBeNull();
-  expect(barBoxInitial).not.toBeNull();
-  expect(barBoxInitial!.height, 'bar must have a measured height').toBeGreaterThan(44);
-  expect(
-    barBoxInitial!.x,
-    'bar left must not start left of the wizard root'
-  ).toBeGreaterThanOrEqual(rootBox!.x - 1);
-  expect(
-    barBoxInitial!.x + barBoxInitial!.width,
-    'bar right must not extend past the wizard root'
-  ).toBeLessThanOrEqual(rootBox!.x + rootBox!.width + 1);
+    // Scroll to the very bottom of the step: the last chip must still be fully
+    // above the bar, not underneath it.
+    // The wizard owns its scroll context, so scrolling the DOCUMENT moves nothing.
+    await page.evaluate(() => {
+      const root = document.querySelector('[data-testid="registration-wizard-shell"]');
+      if (root) root.scrollTop = root.scrollHeight;
+    });
+    await page.waitForTimeout(300);
+    const lastChip = page.getByRole('checkbox', { name: /^Select / }).last();
+    await lastChip.scrollIntoViewIfNeeded();
+    await page.waitForTimeout(200);
+    const chipBox = await lastChip.boundingBox();
+    const barBox = await bar.boundingBox();
+    expect(chipBox).not.toBeNull();
+    expect(barBox).not.toBeNull();
+    expect(
+      chipBox!.y + chipBox!.height,
+      `last class chip bottom ${chipBox!.y + chipBox!.height} must clear the bar top ${barBox!.y}`
+    ).toBeLessThanOrEqual(barBox!.y + 1);
 
-  // Scroll to the very bottom of the step: the last chip must still be fully
-  // above the bar, not underneath it.
-  // The wizard owns its scroll context, so scrolling the DOCUMENT moves nothing.
-  await page.evaluate(() => {
-    const root = document.querySelector('[data-testid="registration-wizard-shell"]');
-    if (root) root.scrollTop = root.scrollHeight;
-  });
-  await page.waitForTimeout(300);
-  const lastChip = page.getByRole('checkbox', { name: /^Select / }).last();
-  await lastChip.scrollIntoViewIfNeeded();
-  await page.waitForTimeout(200);
-  const chipBox = await lastChip.boundingBox();
-  const barBox = await bar.boundingBox();
-  expect(chipBox).not.toBeNull();
-  expect(barBox).not.toBeNull();
-  expect(
-    chipBox!.y + chipBox!.height,
-    `last class chip bottom ${chipBox!.y + chipBox!.height} must clear the bar top ${barBox!.y}`
-  ).toBeLessThanOrEqual(barBox!.y + 1);
+    // The sticky header is pinned to the wizard's own scrollport, so it is still
+    // at the top of that scrollport after the scroll above.
+    const phoneShellTop = await page
+      .getByTestId('registration-wizard-shell')
+      .evaluate(el => el.getBoundingClientRect().top);
+    const phoneHeaderTop = await page
+      .getByTestId('registration-wizard-header')
+      .evaluate(el => el.getBoundingClientRect().top);
+    expect(
+      Math.abs(phoneHeaderTop - phoneShellTop),
+      `header top ${phoneHeaderTop} must stay at the scrollport top ${phoneShellTop}`
+    ).toBeLessThanOrEqual(1);
 
-  // The sticky header is pinned to the wizard's own scrollport, so it is still
-  // at the top of that scrollport after the scroll above.
-  const phoneShellTop = await page
-    .getByTestId('registration-wizard-shell')
-    .evaluate(el => el.getBoundingClientRect().top);
-  const phoneHeaderTop = await page
-    .getByTestId('registration-wizard-header')
-    .evaluate(el => el.getBoundingClientRect().top);
-  expect(
-    Math.abs(phoneHeaderTop - phoneShellTop),
-    `header top ${phoneHeaderTop} must stay at the scrollport top ${phoneShellTop}`
-  ).toBeLessThanOrEqual(1);
+    // Details expands the itemised list in place.
+    const details = page.getByTestId('entries-panel-details');
+    await expect(details).toHaveAttribute('aria-expanded', 'false');
+    await expect(page.getByTestId('entries-panel-details-list')).toHaveCount(0);
+    await details.click();
+    await expect(details).toHaveAttribute('aria-expanded', 'true');
+    const list = page.getByTestId('entries-panel-details-list');
+    await expect(list).toBeVisible();
+    await expect(list.getByTestId('entries-panel-line').first()).toBeVisible();
 
-  // Details expands the itemised list in place.
-  const details = page.getByTestId('entries-panel-details');
-  await expect(details).toHaveAttribute('aria-expanded', 'false');
-  await expect(page.getByTestId('entries-panel-details-list')).toHaveCount(0);
-  await details.click();
-  await expect(details).toHaveAttribute('aria-expanded', 'true');
-  const list = page.getByTestId('entries-panel-details-list');
-  await expect(list).toBeVisible();
-  await expect(list.getByTestId('entries-panel-line').first()).toBeVisible();
+    // Back/Next live in the bar at this width, and only there.
+    await expect(page.getByRole('button', { name: /^Next$/ })).toHaveCount(1);
+    await expect(bar.getByRole('button', { name: /^Next$/ })).toBeVisible();
 
-  // Back/Next live in the bar at this width, and only there.
-  await expect(page.getByRole('button', { name: /^Next$/ })).toHaveCount(1);
-  await expect(bar.getByRole('button', { name: /^Next$/ })).toBeVisible();
-
-  // Leave the staging cart as it was found.
-  await details.click();
-  if (added) await selectedClassChips(page).last().click();
+    await details.click();
+  } finally {
+    // Leave the staging cart as it was found.
+    await removeAddedClass(page, added);
+  }
 });
 
 test('the desktop entries panel is the only place the total appears', async ({ page }) => {
@@ -737,66 +777,67 @@ test('the desktop entries panel is the only place the total appears', async ({ p
     timeout: 15000,
   });
 
-  const added = await waitForSelectableClass(page);
-  if (added) await enabledClassChips(page).first().click();
+  const added = await addOneClass(page);
+  try {
+    const panel = page.getByTestId('entries-panel');
+    await expect(panel).toBeVisible();
+    await expect(page.getByTestId('entries-panel-bar')).toBeHidden();
+    await expect(panel.getByText('Entry fees')).toBeVisible();
+    // Spec scenario "Only one place shows the total": the bottom-of-page
+    // DogCartSummary / OverallCartSummary are gone, not merely hidden.
+    await expect(page.getByText(/Cart Total \(/)).toHaveCount(0);
+    await expect(page.getByText(/classes? in cart/)).toHaveCount(0);
 
-  const panel = page.getByTestId('entries-panel');
-  await expect(panel).toBeVisible();
-  await expect(page.getByTestId('entries-panel-bar')).toBeHidden();
-  await expect(panel.getByText('Entry fees')).toBeVisible();
-  // Spec scenario "Only one place shows the total": the bottom-of-page
-  // DogCartSummary / OverallCartSummary are gone, not merely hidden.
-  await expect(page.getByText(/Cart Total \(/)).toHaveCount(0);
-  await expect(page.getByText(/classes? in cart/)).toHaveCount(0);
+    // The panel's card is a sticky box in a STRETCHED column, so it can travel
+    // the full height of the content card beside it.
+    const card = panel.locator('> div');
+    expect(await card.evaluate(el => getComputedStyle(el).position)).toBe('sticky');
+    expect(await panel.evaluate(el => el.getBoundingClientRect().height)).toBeGreaterThan(
+      await card.evaluate(el => el.getBoundingClientRect().height)
+    );
 
-  // The panel's card is a sticky box in a STRETCHED column, so it can travel
-  // the full height of the content card beside it.
-  const card = panel.locator('> div');
-  expect(await card.evaluate(el => getComputedStyle(el).position)).toBe('sticky');
-  expect(await panel.evaluate(el => el.getBoundingClientRect().height)).toBeGreaterThan(
-    await card.evaluate(el => el.getBoundingClientRect().height)
-  );
+    // ...and it actually STICKS. The wizard bounds itself to the viewport and
+    // scrolls itself, so the sticky card and the sticky header have a real
+    // scrollport. Previously the app shell's MAIN.flex-1.overflow-auto was the
+    // nearest scrolling ancestor but never scrolled — the document did — and
+    // every sticky box in the wizard was carried off screen.
+    const shell = page.getByTestId('registration-wizard-shell');
+    const header = page.getByTestId('registration-wizard-header');
 
-  // ...and it actually STICKS. The wizard bounds itself to the viewport and
-  // scrolls itself, so the sticky card and the sticky header have a real
-  // scrollport. Previously the app shell's MAIN.flex-1.overflow-auto was the
-  // nearest scrolling ancestor but never scrolled — the document did — and
-  // every sticky box in the wizard was carried off screen.
-  const shell = page.getByTestId('registration-wizard-shell');
-  const header = page.getByTestId('registration-wizard-header');
+    // Known answer first: a scrollport that cannot scroll would make the
+    // assertions below pass for the wrong reason.
+    const scrollable = await shell.evaluate(el => el.scrollHeight - el.clientHeight);
+    expect(
+      scrollable,
+      'the wizard root must be scrollable for this to mean anything'
+    ).toBeGreaterThan(200);
 
-  // Known answer first: a scrollport that cannot scroll would make the
-  // assertions below pass for the wrong reason.
-  const scrollable = await shell.evaluate(el => el.scrollHeight - el.clientHeight);
-  expect(
-    scrollable,
-    'the wizard root must be scrollable for this to mean anything'
-  ).toBeGreaterThan(200);
+    const cardTopBefore = await card.evaluate(el => el.getBoundingClientRect().top);
+    await shell.evaluate(el => el.scrollBy(0, 800));
+    await page.waitForTimeout(300);
 
-  const cardTopBefore = await card.evaluate(el => el.getBoundingClientRect().top);
-  await shell.evaluate(el => el.scrollBy(0, 800));
-  await page.waitForTimeout(300);
+    expect(
+      await shell.evaluate(el => el.scrollTop),
+      'the root must be what scrolled'
+    ).toBeGreaterThan(0);
+    expect(
+      await page.evaluate(() => window.scrollY),
+      'the document must NOT be what scrolled'
+    ).toBe(0);
 
-  expect(
-    await shell.evaluate(el => el.scrollTop),
-    'the root must be what scrolled'
-  ).toBeGreaterThan(0);
-  expect(await page.evaluate(() => window.scrollY), 'the document must NOT be what scrolled').toBe(
-    0
-  );
+    const cardTopAfter = await card.evaluate(el => el.getBoundingClientRect().top);
+    expect(
+      Math.abs(cardTopAfter - cardTopBefore),
+      `panel card top moved from ${cardTopBefore} to ${cardTopAfter}`
+    ).toBeLessThanOrEqual(1);
 
-  const cardTopAfter = await card.evaluate(el => el.getBoundingClientRect().top);
-  expect(
-    Math.abs(cardTopAfter - cardTopBefore),
-    `panel card top moved from ${cardTopBefore} to ${cardTopAfter}`
-  ).toBeLessThanOrEqual(1);
-
-  const shellTop = await shell.evaluate(el => el.getBoundingClientRect().top);
-  const headerTop = await header.evaluate(el => el.getBoundingClientRect().top);
-  expect(
-    Math.abs(headerTop - shellTop),
-    `header top ${headerTop} must stay at the scrollport top ${shellTop}`
-  ).toBeLessThanOrEqual(1);
-
-  if (added) await selectedClassChips(page).last().click();
+    const shellTop = await shell.evaluate(el => el.getBoundingClientRect().top);
+    const headerTop = await header.evaluate(el => el.getBoundingClientRect().top);
+    expect(
+      Math.abs(headerTop - shellTop),
+      `header top ${headerTop} must stay at the scrollport top ${shellTop}`
+    ).toBeLessThanOrEqual(1);
+  } finally {
+    await removeAddedClass(page, added);
+  }
 });

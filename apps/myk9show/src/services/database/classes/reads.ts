@@ -9,6 +9,7 @@ import {
   readWithReplicationFallback,
   sortedCopy,
 } from '../_shared/read-shape';
+import type { ReadResult } from '../_shared/read-shape';
 import type { DbClassInsert, DbClassUpdate } from '@/types/database-mappings';
 import { replicatedClassesTable } from '@/services/replication/ReplicatedClassesTable';
 import { replicatedEntriesTable } from '@/services/replication/ReplicatedEntriesTable';
@@ -234,7 +235,9 @@ async function postgrestGetAllClasses() {
   return { data: data || [], error: null };
 }
 
-async function postgrestGetClassById(id: string) {
+async function postgrestGetClassById(
+  id: string
+): Promise<ReadResult<Record<string, unknown> | null>> {
   const {
     data: { session },
   } = await supabase.auth.getSession();
@@ -263,14 +266,14 @@ async function postgrestGetClassById(id: string) {
         max_entries_per_dog,
         max_entries_per_handler
       )${authenticatedEntrySelect}
-      `
+      ` as any
     )
     .eq('id', id)
     .is('deleted_at', null)
     .maybeSingle();
 
   if (error) throw createDatabaseError(error, 'class', 'select_by_id');
-  return { data, error: null };
+  return { data: (data as Record<string, unknown> | null) ?? null, error: null };
 }
 
 async function postgrestGetClassesByTrialId(trialId: string) {

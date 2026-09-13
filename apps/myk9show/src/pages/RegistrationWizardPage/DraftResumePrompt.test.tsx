@@ -44,4 +44,15 @@ describe('DraftResumePrompt', () => {
     );
     expect(screen.queryByRole('button', { name: 'Resume entry' })).not.toBeInTheDocument();
   });
+
+  it('does not offer a previously completed entry for resubmission', () => {
+    render(
+      <DraftResumePrompt
+        drafts={[{ ...draft('filed', 1, 2), completed: true }]}
+        loadDraft={vi.fn()}
+        onDraftLoaded={vi.fn()}
+      />
+    );
+    expect(screen.queryByRole('button', { name: 'Resume entry' })).not.toBeInTheDocument();
+  });
 });

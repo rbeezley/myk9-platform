@@ -150,7 +150,7 @@ describe('useDraftPersistence — cross-user scoping', () => {
       useDraftPersistence(SHOW_ID, USER_A, 'dog-selection')
     );
     act(() => {
-      result.current.autoSave();
+      result.current.saveDraft('Empty manual draft');
     });
     expect(result.current.availableDrafts[0]?.selectedDogsCount).toBe(0);
 
@@ -172,6 +172,72 @@ describe('useDraftPersistence — cross-user scoping', () => {
     act(() => window.dispatchEvent(new Event('pagehide')));
 
     expect(result.current.availableDrafts[0]?.selectedDogsCount).toBe(1);
+  });
+
+  it('does not create empty autosaves that evict a meaningful draft', () => {
+    seedDraftData({ selectedDogs: ['dog-1'] });
+    const { result: saved, unmount: unmountSaved } = renderHook(() =>
+      useDraftPersistence(SHOW_ID, USER_A, 'dog-selection')
+    );
+    act(() => saved.current.autoSave());
+    const savedId = saved.current.availableDrafts[0]?.id;
+    unmountSaved();
+
+    seedDraftData({ selectedDogs: [] });
+    for (let visit = 0; visit < 6; visit++) {
+      const { result, unmount } = renderHook(() =>
+        useDraftPersistence(SHOW_ID, USER_A, 'dog-selection')
+      );
+      act(() => window.dispatchEvent(new Event('pagehide')));
+      unmount();
+      expect(result.current.availableDrafts[0]?.id).toBe(savedId);
+    }
+  });
+
+  it('recognizes a completed entry from the saved payload, not stale metadata', () => {
+    seedDraftData({ selectedDogs: ['dog-1'], _workflowState: { currentStep: 'confirmation' } });
+    const { result } = renderHook(() => useDraftPersistence(SHOW_ID, USER_A, 'dog-selection'));
+    act(() => result.current.saveDraft('Filed entry'));
+
+    expect(result.current.availableDrafts[0]?.stepCompleted).toBe('dog-selection');
+    expect(result.current.availableDrafts[0]?.completed).toBe(true);
+  });
+
+  it('discards only the submitted draft and keeps another saved entry', () => {
+    seedDraftData({ selectedDogs: ['dog-1'] });
+    const { result, unmount } = renderHook(() => useDraftPersistence(SHOW_ID, USER_A, 'payment'));
+    let otherId: string | null = null;
+    act(() => {
+      otherId = result.current.saveDraft('Other entry');
+      result.current.saveDraft('Filed entry');
+    });
+
+    act(() => result.current.discardActiveDraftWithoutFinalSave());
+    expect(result.current.availableDrafts.map(draft => draft.id)).toEqual([otherId]);
+    unmount();
+    expect(localStorage.getItem(`registration-draft-metadata-${SHOW_ID}-${USER_A}`)).toContain(
+      otherId
+    );
+  });
+
+  it('refreshes its memoized draft list when another tab changes metadata', () => {
+    seedDraftData({ selectedDogs: ['dog-1'] });
+    const { result: reader } = renderHook(() =>
+      useDraftPersistence(SHOW_ID, USER_A, 'dog-selection')
+    );
+    const { result: writer } = renderHook(() =>
+      useDraftPersistence(SHOW_ID, USER_A, 'dog-selection')
+    );
+
+    act(() => writer.current.saveDraft('Saved elsewhere'));
+    expect(reader.current.availableDrafts).toHaveLength(0);
+
+    act(() =>
+      window.dispatchEvent(
+        new StorageEvent('storage', { key: `registration-draft-metadata-${SHOW_ID}-${USER_A}` })
+      )
+    );
+    expect(reader.current.availableDrafts[0]?.selectedDogsCount).toBe(1);
   });
 
   it('does not recreate a draft from unchanged form state after clearing all drafts', () => {

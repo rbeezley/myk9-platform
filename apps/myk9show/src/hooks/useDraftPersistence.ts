@@ -1,4 +1,4 @@
-import { useEffect, useRef, useCallback, useState } from 'react';
+import { useEffect, useRef, useCallback, useMemo, useState } from 'react';
 import { useShowRegistrationStore } from '../store/showRegistrationStore';
 import { RegistrationFormData } from '../types/show-registration-types';
 import { logger } from '@/services/LoggingService';
@@ -24,6 +24,8 @@ export interface DraftMetadata {
   preview: string;
   /** Derived from the saved payload when listing drafts; older previews can be stale. */
   selectedDogsCount?: number;
+  /** Derived from the saved workflow step so filed entries cannot be resumed. */
+  completed?: boolean;
 }
 
 export interface SavedDraft {
@@ -58,7 +60,7 @@ export function useDraftPersistence(
   const activeDraftMetadataRef = useRef<DraftMetadata | null>(null);
   const skipFinalSaveRef = useRef(false);
   const [lastAutoSaveTime, setLastAutoSaveTime] = useState<Date | null>(null);
-  const [, setDraftsVersion] = useState(0);
+  const [draftsVersion, setDraftsVersion] = useState(0);
 
   const log = useCallback(
     (message: string, ...args: unknown[]) => {
@@ -259,6 +261,12 @@ export function useDraftPersistence(
     if (!draftData || Object.keys(draftData).length === 0) {
       return;
     }
+    // The wizard always supplies a non-empty envelope, even before a dog is
+    // selected. Do not create a new empty autosave that can evict a real draft.
+    // An existing active draft must still record a later deselection.
+    if (!draftData.selectedDogs?.length && !activeDraftMetadataRef.current) {
+      return;
+    }
 
     // Check if data has changed since last save
     const currentDataString = JSON.stringify(draftData);
@@ -308,6 +316,12 @@ export function useDraftPersistence(
     clearAllDrafts();
   }, [clearAllDrafts]);
 
+  const discardActiveDraftWithoutFinalSave = useCallback(() => {
+    skipFinalSaveRef.current = true;
+    const activeId = activeDraftMetadataRef.current?.id;
+    if (activeId) deleteDraft(activeId);
+  }, [deleteDraft]);
+
   // Keep a ref to the latest autoSave so the timer effect can call it without
   // having `autoSave` as a dependency — otherwise the timer gets cleared and
   // restarted on every render (because `autoSave` depends on `draftData`,
@@ -356,30 +370,44 @@ export function useDraftPersistence(
     return () => window.removeEventListener('pagehide', saveOnPageHide);
   }, []);
 
-  // Available drafts for the current (show, user) pair. Storage keys already
-  // scope by userId, so no read-side filter is needed.
-  // Reading the small metadata list on render keeps localStorage as the source
-  // of truth. draftsVersion forces a render after in-hook storage mutations.
-  const availableDrafts = getDraftMetadata().map(metadata => {
-    try {
-      const raw = localStorage.getItem(getDraftKey(metadata.id));
-      if (!raw) return { ...metadata, selectedDogsCount: 0 };
-      const saved: SavedDraft = JSON.parse(raw);
-      const validOwner =
-        saved.metadata?.id === metadata.id &&
-        saved.metadata.showId === showId &&
-        saved.metadata.userId === userId;
-      return {
-        ...metadata,
-        selectedDogsCount:
-          validOwner && Array.isArray(saved.data?.selectedDogs)
-            ? saved.data.selectedDogs.length
-            : 0,
-      };
-    } catch {
-      return { ...metadata, selectedDogsCount: 0 };
-    }
-  });
+  // A different tab can change this user's draft list without a local save.
+  useEffect(() => {
+    const onStorage = (event: StorageEvent) => {
+      if (event.key === getMetadataKey()) setDraftsVersion(version => version + 1);
+    };
+    window.addEventListener('storage', onStorage);
+    return () => window.removeEventListener('storage', onStorage);
+  }, [getMetadataKey]);
+
+  // Draft payloads only change after in-hook writes or another tab's storage
+  // event. Avoid synchronous JSON parsing on unrelated wizard renders.
+  const availableDrafts = useMemo(
+    () =>
+      getDraftMetadata().map(metadata => {
+        try {
+          const raw = localStorage.getItem(getDraftKey(metadata.id));
+          if (!raw) return { ...metadata, selectedDogsCount: 0, completed: false };
+          const saved: SavedDraft = JSON.parse(raw);
+          const validOwner =
+            saved.metadata?.id === metadata.id &&
+            saved.metadata.showId === showId &&
+            saved.metadata.userId === userId;
+          return {
+            ...metadata,
+            completed: validOwner && saved.data?._workflowState?.currentStep === 'confirmation',
+            selectedDogsCount:
+              validOwner && Array.isArray(saved.data?.selectedDogs)
+                ? saved.data.selectedDogs.length
+                : 0,
+          };
+        } catch {
+          return { ...metadata, selectedDogsCount: 0, completed: false };
+        }
+      }),
+    // The version is an intentional invalidation signal for localStorage writes.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [draftsVersion, getDraftMetadata, getDraftKey, showId, userId]
+  );
 
   return {
     // Draft operations
@@ -392,6 +420,7 @@ export function useDraftPersistence(
     availableDrafts,
     clearAllDrafts,
     discardDraftsWithoutFinalSave,
+    discardActiveDraftWithoutFinalSave,
 
     // State
     hasUnsavedChanges: draftData && Object.keys(draftData).length > 0,

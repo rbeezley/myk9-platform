@@ -267,6 +267,7 @@ export function useRegistrationWizardState() {
     availableDrafts,
     clearAllDrafts,
     discardDraftsWithoutFinalSave,
+    discardActiveDraftWithoutFinalSave,
     hasUnsavedChanges,
   } = useDraftPersistence(showId || '', userId, currentStepId, {
     autoSaveInterval: 30000,
@@ -580,6 +581,7 @@ export function useRegistrationWizardState() {
     availableDrafts,
     clearAllDrafts,
     discardDraftsWithoutFinalSave,
+    discardActiveDraftWithoutFinalSave,
     clearDraftData,
     hasUnsavedChanges,
 

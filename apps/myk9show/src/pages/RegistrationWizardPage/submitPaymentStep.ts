@@ -94,6 +94,7 @@ export interface SubmitPaymentStepContext {
   triggerSync: () => void;
   navigate: (path: string) => void;
   discardDraftsWithoutFinalSave: () => void;
+  discardActiveDraftWithoutFinalSave: () => void;
   clearDraftData: () => void;
 }
 
@@ -218,6 +219,12 @@ export async function submitPaymentStep(ctx: SubmitPaymentStepContext): Promise<
       );
     }
     await ctx.cart.clearCart();
+    if (ctx.currentWorkflowMode === 'exhibitor') {
+      // A filed check/cash entry is no longer a draft. Leaving it behind would
+      // offer Resume on the next visit and could lead to a duplicate submission.
+      ctx.discardActiveDraftWithoutFinalSave();
+      ctx.clearDraftData();
+    }
     ctx.triggerSync();
     ctx.markStepComplete(ctx.currentStep);
     ctx.setCurrentStep(prev => prev + 1);

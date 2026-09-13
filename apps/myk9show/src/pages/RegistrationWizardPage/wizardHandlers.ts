@@ -77,6 +77,7 @@ export function createWizardHandlers(state: RegistrationWizardState) {
     submittingRef,
     mountedRef,
     discardDraftsWithoutFinalSave,
+    discardActiveDraftWithoutFinalSave,
     clearDraftData,
     currentStepId,
     completedSteps,
@@ -172,6 +173,7 @@ export function createWizardHandlers(state: RegistrationWizardState) {
           triggerSync,
           navigate: path => navigate(path),
           discardDraftsWithoutFinalSave,
+          discardActiveDraftWithoutFinalSave,
           clearDraftData,
         });
       } finally {

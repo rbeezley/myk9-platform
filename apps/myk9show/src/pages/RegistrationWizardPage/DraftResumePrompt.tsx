@@ -9,7 +9,7 @@ interface DraftResumePromptProps {
 }
 
 export function DraftResumePrompt({ drafts, loadDraft, onDraftLoaded }: DraftResumePromptProps) {
-  const latest = drafts.find(draft => (draft.selectedDogsCount ?? 0) > 0);
+  const latest = drafts.find(draft => (draft.selectedDogsCount ?? 0) > 0 && !draft.completed);
   if (!latest) return null;
 
   const resume = () => {

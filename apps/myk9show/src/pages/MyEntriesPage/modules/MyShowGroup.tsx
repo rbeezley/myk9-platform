@@ -12,7 +12,7 @@
 
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { ArrowRight, Check, CreditCard } from 'lucide-react';
+import { ArrowRight, Check, CreditCard, MessageSquare } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { AddToCalendarDialog } from '@/features/calendar-subscribe';
 import { formatPaymentCents } from '@/features/payments/moneyPresentation';
@@ -81,6 +81,14 @@ export const MyShowGroupCard: React.FC<MyShowGroupProps> = ({
     state: deriveMyEntryCardState(order, now, selfCheckinByClassId ?? {}),
   }));
   const editableOrders = orderStates.filter(({ state }) => state.canEdit).map(({ order }) => order);
+  // INTENT: an exhibitor whose editing window has closed must not face a
+  // silent card. Once no order is still editable, a show that holds an order
+  // past its close date offers the show team instead of nothing — the same
+  // destination the pre-MYK9-482 card used, never a second messaging surface.
+  const needsPostDeadlineHelp =
+    !isPastShow &&
+    editableOrders.length === 0 &&
+    orderStates.some(({ state }) => state.canRequestPostDeadlineHelp);
 
   const checkInContext: DayCheckInContext = {
     now,
@@ -153,6 +161,12 @@ export const MyShowGroupCard: React.FC<MyShowGroupProps> = ({
                 <span>Entries close {formatShortCalendarDate(group.entryCloseDate)}</span>
               </>
             )}
+            {needsPostDeadlineHelp && (
+              <>
+                <span aria-hidden="true">·</span>
+                <span>Entries closed</span>
+              </>
+            )}
           </p>
         </div>
 
@@ -176,6 +190,18 @@ export const MyShowGroupCard: React.FC<MyShowGroupProps> = ({
             >
               Edit entry
             </button>
+          )}
+          {/* The showId guard travels with the control, as it does for Add to
+              calendar: `/messages/` with nothing after it is a dead link. */}
+          {needsPostDeadlineHelp && group.showId && (
+            <Link
+              to={`/messages/${group.showId}`}
+              aria-label={`Message the show team about ${group.showName}`}
+              className={HEADER_LINK_CLASS}
+            >
+              <MessageSquare className="h-4 w-4" aria-hidden="true" />
+              Message the show team
+            </Link>
           )}
           {/* The showId guard travels with the control: an empty showId is the
               partial-replication window, and AddToCalendarDialog issues a

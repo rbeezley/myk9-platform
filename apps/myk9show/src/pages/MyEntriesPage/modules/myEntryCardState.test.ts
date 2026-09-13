@@ -99,7 +99,7 @@ describe('deriveMyEntryCardState', () => {
     expect(state.nextAction).toEqual({ kind: 'view-show' });
   });
 
-  it('derives deadline, receipt, and run-order affordances from one snapshot', () => {
+  it('derives deadline and receipt affordances from one snapshot', () => {
     const entryClass = makeClass({ runOrder: 4 });
     const state = deriveMyEntryCardState(
       makeEntry({
@@ -113,7 +113,6 @@ describe('deriveMyEntryCardState', () => {
     expect(state.canEdit).toBe(true);
     expect(state.canRequestPostDeadlineHelp).toBe(false);
     expect(state.canShowReceipt).toBe(true);
-    expect(state.canViewRunOrder).toBe(true);
   });
 
   it('scopes a check-in next action to the dog that owns its class', () => {
@@ -159,7 +158,6 @@ describe('deriveMyEntryCardState', () => {
 
     expect(state.isPastShow).toBe(true);
     expect(state.isPendingReview).toBe(false);
-    expect(state.canViewRunOrder).toBe(false);
     expect(state.canRequestPostDeadlineHelp).toBe(true);
   });
 

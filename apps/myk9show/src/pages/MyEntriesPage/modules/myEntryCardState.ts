@@ -25,7 +25,6 @@ export interface MyEntryCardDerivedState {
   canEdit: boolean;
   canRequestPostDeadlineHelp: boolean;
   isTerminalStatus: boolean;
-  canViewRunOrder: boolean;
   canShowReceipt: boolean;
   isPendingReview: boolean;
   nextAction: EntryNextAction;
@@ -83,13 +82,6 @@ export function deriveMyEntryCardState(
       EntryStatus.REJECTED,
       EntryStatus.MOVED,
     ].includes(entry.entryStatus);
-  const hasRunOrder = entry.classes.some(cls => cls.runOrder != null);
-  const canViewRunOrder =
-    !isCompleted &&
-    !isPastShow &&
-    hasRunOrder &&
-    (entry.entryStatus === EntryStatus.ACCEPTED ||
-      entry.entryStatus === EntryStatus.MOVE_UP_REQUESTED);
   const canShowReceipt = Boolean(entry.confirmationNumber && isPaid);
   const isPendingReview =
     entry.entryStatus === EntryStatus.PENDING &&
@@ -121,7 +113,6 @@ export function deriveMyEntryCardState(
     canEdit,
     canRequestPostDeadlineHelp,
     isTerminalStatus,
-    canViewRunOrder,
     canShowReceipt,
     isPendingReview,
     nextAction,

@@ -1,6 +1,6 @@
 # MYK9-423 payment proof
 
-> **Status:** Active
+> **Status:** Archived (2026-09-13)
 
 ## Original request
 

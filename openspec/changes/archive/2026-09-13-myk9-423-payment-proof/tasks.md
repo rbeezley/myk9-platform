@@ -1,6 +1,6 @@
 # MYK9-423 proof tasks
 
-> **Status:** Delivery complete; ready for archive
+> **Status:** Archived (2026-09-13)
 
 ## 1. Regression
 

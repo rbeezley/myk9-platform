@@ -83,9 +83,12 @@ describe('useHeritageLandingData', () => {
   // Phase 5a — the landing reads the trial's registry (camelCase registryId on the mapped
   // domain Trial), not a hardcoded AKC. A UKC trial must show UKC license/member-club copy.
   it('renders the trial registry license + member-club copy (UKC)', () => {
-    const { result } = renderHook(() => useHeritageLandingData(SHOW, trial('UKC'), [trial('UKC')]), {
-      wrapper,
-    });
+    const { result } = renderHook(
+      () => useHeritageLandingData(SHOW, trial('UKC'), [trial('UKC')]),
+      {
+        wrapper,
+      }
+    );
     expect(result.current.licenseLanguage).toBe(ukcRegistry.licenseLanguage);
     expect(result.current.memberClubLanguage).toBe(ukcRegistry.memberClubLanguage);
     expect(result.current.showSubtitle).toContain(ukcRegistry.licenseLanguage);

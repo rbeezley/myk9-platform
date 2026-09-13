@@ -1,6 +1,6 @@
 # MYK9-423 verification — 2026-09-11
 
-> **Status:** Ready for delivery
+> **Status:** Archived (2026-09-13)
 
 Baseline: `17b4fb7a33a7650b093b7760cba0a53d6670cf2d`.
 Branch: `codex/myk9-423-payment-proof`.
@@ -17,7 +17,7 @@ The missing fee-card-to-cart regression is implemented and passes. Both money su
 | Paid-state display | Both actual balance components clear when the original three raw rows return payment_status=paid; this is fixture-based integration proof                                                    |
 | Hosted proof       | Fee-card → exact cart → approved test payment succeeded; My Shows says Paid in full and My Payments says $0.00 due                                                                           |
 | Coherence          | Tests/docs only; no production implementation changed                                                                                                                                        |
-| Release            | PR #2179 open; fallback review fixes are implemented; final current-head re-review, CI and merge remain pending                                                                              |
+| Release            | PR #2179 passed the approved two-Codex-review fallback and required CI, merged as `0a802a7a`, and its production Vercel build succeeded                                                       |
 
 ## Regression evidence
 
@@ -51,13 +51,14 @@ Later [load rehearsal 34394781017](https://github.com/rbeezley/myk9-platform/act
 - After updating the proof branch to 2026-09-13 `main` and removing the test-only cart preload, the same focused two-file suite passes **9/9**; `CartPage` now consumes the fee-card URL itself.
 - `pnpm exec tsc --noEmit -p tsconfig.test.json`: pass before the fallback-review assertion fix; rerun in CI on the final head.
 - Targeted ESLint: exit 0.
-- Prettier and OpenSpec validation pass. Installed CLI uses `pnpm openspec validate myk9-423-payment-proof`; its documented `--change` spelling is unsupported.
+- Prettier and OpenSpec validation passed before archival on PR #2179 head `8dc4b116c9288a39215575476109a3097e8f0696`, using `pnpm openspec validate myk9-423-payment-proof`. After archival, that command does not discover the change as active.
 - Full `pnpm exec vitest run --sequence.shuffle`, seed `1789155371261`: **20,039 tests passed, 9 skipped in 434.57s**. The earlier stopped run was reporter buffering, not a test hang.
-- The full shuffled suite passed on the pre-fallback-review-fix tree; current-head CI rerun is required before merge.
+- The full shuffled suite passed on the pre-fallback-review-fix tree. On the final PR head, all six shuffled app test shards, coverage gate, SQL tests, E2E and accessibility smoke, build, and Quality Checks passed in CI.
 - Initial test authoring failed because this repository's Card has no data-slot attribute; the scoped DOM lookup was corrected to its existing card class. The first negative-control wrapper inspected stdout alone, while Vitest wrote the expected failure to stderr; corrected the wrapper and confirmed the same intended failure.
 
-## Remaining gates
+## Delivery gates
 
 - **Live proof:** complete. One controlled Stripe test-mode checkout ($96.30) was approved, succeeded, and was followed immediately by both live balance readbacks. No duplicate submission was made.
-- **Before merge:** pass the final fallback re-review, current-head required CI, and the human-fallback attestation.
-- **Before archive/closure:** PR, independent review, required CI and merge evidence. MYK9-423 remains In Progress.
+- **Review and merge:** two adversarial Codex fallback reviews found no remaining blockers; an owner-authored, head-pinned human-fallback attestation passed the Review gate. All required checks passed, and PR #2179 merged as `0a802a7a7c9e344812887041b3d6bc90b2056919` on 2026-09-13.
+- **Production and issue tracking:** the production Vercel build for that merge commit succeeded at 2026-09-13T14:30:28Z. MYK9-423 was marked Done and received its final acceptance-evidence comment. Linear returned it to In Progress at 2026-09-13T14:48:13Z, four seconds after archive PR #2204 opened; no new finding accompanied the status change. Recheck its state after the archive PR merges.
+- **Archive:** no delta specs exist to sync. This record is moved under `openspec/changes/archive/2026-09-13-myk9-423-payment-proof/` by PR #2204.

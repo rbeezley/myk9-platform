@@ -1,6 +1,6 @@
 # Plan verification
 
-> **Status:** Active
+> **Status:** Archived (2026-09-13)
 
 | Requirement                                          | Coverage | Evidence                         |
 | ---------------------------------------------------- | -------- | -------------------------------- |

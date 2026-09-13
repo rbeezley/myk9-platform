@@ -79,12 +79,26 @@ fi
 # `PostgrestVersion:` line was not enough — `--db-url` has no project context,
 # so whether the block is emitted at all depends on how the generator was
 # invoked, and its two brace lines then read as schema drift nothing can fix.
+#
+# Full-line `//` comments go too. The generator emits a two-line comment above
+# `export type Database` explaining the `PostgrestVersion` client option, and
+# emits it only when it knows that version — so it tracks the invocation, not
+# the schema, exactly like the block it documents. This file is generated in
+# full, so no comment in it is ever hand-written information worth diffing.
+#
+# Finally, trailing blank lines are normalised away: whether the output ends in
+# one newline or two is a generator detail that reads as a one-line diff.
 strip_platform_metadata() {
   awk '
     /^  __InternalSupabase: \{$/ { skip = 1; next }
     skip && /^  \}$/             { skip = 0; next }
-    !skip
-  ' "$1"
+    skip                         { next }
+    /^[[:space:]]*\/\// { next }
+    { print }
+  ' "$1" | awk 'BEGIN { blanks = 0 }
+    /^[[:space:]]*$/ { blanks++; next }
+    { while (blanks-- > 0) print ""; blanks = 0; print }
+  '
 }
 strip_platform_metadata "$COMMITTED" > "$tmp/committed.ts"
 strip_platform_metadata "$GENERATED" > "$tmp/generated.norm.ts"

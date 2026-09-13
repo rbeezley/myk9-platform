@@ -117,6 +117,28 @@ describe('supabase-types-drift.sh', () => {
     expect(result.summary).toContain('**No drift.**');
   });
 
+  it('ignores the generator churn a --db-url run actually produced', () => {
+    // The exact residue from PR #2197's own CI run: `--project-id` emits a
+    // two-line comment documenting the PostgrestVersion client option (it only
+    // does so when it knows that version) and differs in trailing newlines.
+    // Both track how the generator was invoked, not the schema.
+    const generated = types({ tables: { entries }, omitPlatformBlock: true });
+    const committed = generated
+      .replace(
+        'export type Database = {',
+        [
+          '// Allows to automatically instantiate createClient with right options',
+          "// instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)",
+          'export type Database = {',
+        ].join('\n')
+      )
+      .concat('\n\n');
+    expect(committed).not.toBe(generated);
+    const result = run(committed, generated);
+    expect(result.status).toBe(0);
+    expect(result.summary).toContain('**No drift.**');
+  });
+
   it('prints the actual diff, so a drift with no object change is still diagnosable', () => {
     const committed = types({
       tables: { entries: 'Row: { id: string; judge_name: string | null }' },

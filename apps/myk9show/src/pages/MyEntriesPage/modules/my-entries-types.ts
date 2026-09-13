@@ -94,6 +94,13 @@ export interface MyEntryDogGroup {
   entryStatus: EntryStatus;
   /** Dominant canonical kind retained beside the lossy UI enum. */
   entryStatusKind?: EntryStatusKind | undefined;
+  /**
+   * Refund recorded against THIS dog's rows (dollars), or null. Kept per dog so
+   * a two-dog order refunded for one dog never paints the other dog's card.
+   */
+  refundAmount?: number | null | undefined;
+  /** Latest refund date across this dog's rows. */
+  refundedAt?: Date | undefined;
 }
 
 /**

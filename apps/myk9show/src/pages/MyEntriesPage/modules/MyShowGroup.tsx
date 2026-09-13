@@ -81,7 +81,6 @@ export const MyShowGroupCard: React.FC<MyShowGroupProps> = ({
     state: deriveMyEntryCardState(order, now, selfCheckinByClassId ?? {}),
   }));
   const editableOrders = orderStates.filter(({ state }) => state.canEdit).map(({ order }) => order);
-  const canShowReceipts = orderStates.some(({ state }) => state.canShowReceipt);
 
   const checkInContext: DayCheckInContext = {
     now,
@@ -158,7 +157,9 @@ export const MyShowGroupCard: React.FC<MyShowGroupProps> = ({
         </div>
 
         <div className="myk9-entries-show-actions">
-          {canShowReceipts && (
+          {/* Always offered: a pending, cash or check order still has an order and a
+              card-derived receipt to show; only a paid one has a Stripe receipt. */}
+          {group.orders.length > 0 && (
             <button
               type="button"
               onClick={() => onOpenReceipts(group)}

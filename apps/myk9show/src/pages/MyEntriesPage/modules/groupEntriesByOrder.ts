@@ -110,6 +110,15 @@ interface OrderAccum {
  * would claim a $0 refund was issued). The date is the LATEST across the rows,
  * which is the day the exhibitor last saw money come back.
  */
+/** Same fold, per DOG: the refund note belongs to the dog whose row it was. */
+function mergeDogRefund(dog: MyEntryDogGroup, row: MyEntry): void {
+  const amount = row.refundAmount ?? 0;
+  if (amount > 0) dog.refundAmount = (dog.refundAmount ?? 0) + amount;
+  if (row.refundedAt && (!dog.refundedAt || row.refundedAt > dog.refundedAt)) {
+    dog.refundedAt = row.refundedAt;
+  }
+}
+
 function mergeRefund(order: OrderAccum, row: MyEntry): void {
   const amount = row.refundAmount ?? 0;
   if (amount > 0) order.refundAmount = (order.refundAmount ?? 0) + amount;
@@ -194,6 +203,7 @@ export function groupEntriesByOrder(rawEntries: MyEntry[], now: Date = new Date(
       dog.armband = dog.armband ?? row.armband;
     }
     dog.classes.push(...row.classes);
+    mergeDogRefund(dog, row);
   }
 
   return orderKeys.map(key => {

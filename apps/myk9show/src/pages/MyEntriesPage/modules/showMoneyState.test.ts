@@ -174,14 +174,6 @@ describe('deriveShowMoneyState', () => {
 
 describe('refundNotesByDog', () => {
   /** Set the refund on an already-grouped order (isolates the derivation). */
-  function withRefund(order: MyEntry, amount: number, status: PaymentStatus): MyEntry {
-    return {
-      ...order,
-      refundAmount: amount,
-      refundedAt: new Date('2026-10-08T00:00:00'),
-      paymentStatus: status,
-    };
-  }
 
   // End-to-end through the real grouping: the raw rows carry the refund, so
   // this fails if `groupEntriesByOrder` ever stops threading it onto the order.
@@ -204,9 +196,17 @@ describe('refundNotesByDog', () => {
     });
   });
 
-  it('marks a full refund', () => {
-    const [order] = orders([paidOrder('e1', 'd1', 'Rex')]);
-    const notes = refundNotesByDog([withRefund(order, 45, PaymentStatus.REFUNDED)]);
+  it('marks a full refund, read against the dog\u2019s own fees', () => {
+    // Through the real grouping: the refund rides on the dog's row, and a
+    // refund equal to the dog's class fees is a full one.
+    const refundedRow: MyEntry = {
+      ...paidOrder('e1', 'd1', 'Rex'),
+      refundAmount: 45,
+      refundedAt: new Date('2026-10-08T00:00:00'),
+      paymentStatus: PaymentStatus.REFUNDED,
+      classes: [makeClass({ id: 'cls-e1', fee: 45, paymentStatus: PaymentStatus.REFUNDED })],
+    };
+    const notes = refundNotesByDog(orders([refundedRow]));
 
     expect(notes['d1'].kind).toBe('full');
     expect(notes['d1'].amountCents).toBe(4500);
@@ -219,5 +219,39 @@ describe('refundNotesByDog', () => {
   it('ignores a refund amount with no date', () => {
     const [order] = orders([paidOrder('e1', 'd1', 'Rex')]);
     expect(refundNotesByDog([{ ...order, refundAmount: 15 }])).toEqual({});
+  });
+});
+
+describe('refundNotesByDog — one order, two dogs, one refund (Codex, PR #2198)', () => {
+  it('notes the refund on the refunded dog only', () => {
+    const refundedAt = new Date('2026-10-08T00:00:00');
+    const orders = groupEntriesByOrder(
+      [
+        makeRow({
+          id: 'row-a',
+          registrationId: 'reg-shared',
+          dogId: 'dog-a',
+          dogName: 'Ava',
+          refundAmount: 15,
+          refundedAt,
+          classes: [makeClass({ id: 'ca', fee: 45 })],
+        }),
+        makeRow({
+          id: 'row-b',
+          registrationId: 'reg-shared',
+          dogId: 'dog-b',
+          dogName: 'Bo',
+          refundAmount: null,
+          classes: [makeClass({ id: 'cb', fee: 45 })],
+        }),
+      ],
+      NOW
+    );
+    expect(orders).toHaveLength(1);
+
+    const notes = refundNotesByDog(orders);
+
+    expect(notes['dog-a']).toEqual({ amountCents: 1500, date: refundedAt, kind: 'partial' });
+    expect(notes['dog-b']).toBeUndefined();
   });
 });

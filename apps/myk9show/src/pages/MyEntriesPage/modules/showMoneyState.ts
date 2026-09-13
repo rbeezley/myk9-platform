@@ -11,7 +11,6 @@
  * @module MyEntriesPage/modules/showMoneyState
  */
 
-import { PaymentStatus } from '@/types/show-registration-types';
 import { buildFinishPaymentHref } from '@/features/payments/finishPaymentHref';
 import { getOrderOnlinePrompt, getOrderPayAtShowPrompt } from './myEntryOrderBalance';
 import { isPastShowEntry } from './myEntriesStats.helpers';
@@ -96,24 +95,29 @@ export interface RefundNote {
 }
 
 /**
- * Refund notes keyed by `dogId`, attached only to the dogs of the order that
- * was actually refunded — a two-order show must not paint the other order's
- * dogs with a refund they never received.
+ * Refund notes keyed by `dogId`, from each DOG's own refund facts — never the
+ * order's total. A two-dog order refunded for one dog must not tell the other
+ * dog's owner money came back (Codex review on PR #2198). Full vs partial is
+ * read against the dog's own class fees.
  *
- * `MyEntry.refundAmount` is in DOLLARS (it is compared against the entry fee in
+ * `refundAmount` is in DOLLARS (it is compared against the entry fee in
  * `useMyEntriesData`), so it is converted here.
  */
 export function refundNotesByDog(orders: MyEntry[]): Record<string, RefundNote> {
   const notes: Record<string, RefundNote> = {};
   for (const order of orders) {
-    const amount = order.refundAmount ?? 0;
-    if (amount <= 0 || !order.refundedAt) continue;
-    const note: RefundNote = {
-      amountCents: Math.round(amount * 100),
-      date: order.refundedAt,
-      kind: order.paymentStatus === PaymentStatus.PARTIAL_REFUND ? 'partial' : 'full',
-    };
-    for (const dog of order.dogs) notes[dog.dogId] = note;
+    for (const dog of order.dogs) {
+      const amount = dog.refundAmount ?? 0;
+      if (amount <= 0 || !dog.refundedAt) continue;
+      const feeTotal = dog.classes.reduce((sum, cls) => sum + cls.fee, 0);
+      const prior = notes[dog.dogId];
+      const merged: RefundNote = {
+        amountCents: (prior?.amountCents ?? 0) + Math.round(amount * 100),
+        date: prior && prior.date > dog.refundedAt ? prior.date : dog.refundedAt,
+        kind: feeTotal > 0 && amount >= feeTotal ? 'full' : 'partial',
+      };
+      notes[dog.dogId] = merged;
+    }
   }
   return notes;
 }

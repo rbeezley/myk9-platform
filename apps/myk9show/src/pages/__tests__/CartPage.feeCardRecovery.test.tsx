@@ -219,6 +219,7 @@ type RecoveryFixtureEntry = {
   fixtureEntryStatus?: string;
   fixtureDeletedAt?: string;
   fixturePaymentStatus?: string;
+  fixtureShowId?: string;
 };
 
 function RecoveryCartRoute() {
@@ -230,7 +231,10 @@ function RecoveryCartRoute() {
   useEffect(() => {
     if (entryIds && !hasAugmentedIds) {
       const params = new URLSearchParams(location.search);
-      params.set('entryIds', entryIds + ',entry-outsider,entry-withdrawn,entry-deleted,entry-paid');
+      params.set(
+        'entryIds',
+        entryIds + ',entry-outsider,entry-withdrawn,entry-deleted,entry-paid,entry-foreign-show'
+      );
       navigate(location.pathname + '?' + params.toString(), { replace: true });
     }
   }, [entryIds, hasAugmentedIds, location.pathname, location.search, navigate]);
@@ -252,6 +256,7 @@ function ConcurrentRecoveryLoader() {
         'entry-withdrawn',
         'entry-deleted',
         'entry-paid',
+        'entry-foreign-show',
       ],
     };
     void Promise.all([
@@ -405,9 +410,17 @@ describe('MYK9-423 fee-card payment recovery', () => {
         className: 'Interior Novice A',
         fixturePaymentStatus: 'paid',
       },
+      {
+        id: 'entry-foreign-show',
+        dog_id: 'dog-foreign-show',
+        class_id: 'class-foreign-show',
+        dog: 'Foreign Show Dog',
+        className: 'Foreign Show Class',
+        fixtureShowId: 'show-other',
+      },
     ].map(entry => ({
       ...entry,
-      show_id: 'show-423',
+      show_id: entry.fixtureShowId ?? 'show-423',
       payment_status: entry.fixturePaymentStatus ?? 'pending',
       entry_status: entry.fixtureEntryStatus ?? 'submitted',
       deleted_at: entry.fixtureDeletedAt ?? null,
@@ -604,7 +617,9 @@ describe('MYK9-423 fee-card payment recovery', () => {
     expect(recoveryRead.params.get('id')).toContain('entry-withdrawn');
     expect(recoveryRead.params.get('id')).toContain('entry-deleted');
     expect(recoveryRead.params.get('id')).toContain('entry-paid');
+    expect(recoveryRead.params.get('id')).toContain('entry-foreign-show');
     expect(savedItems.some(item => item.entry_id === 'entry-paid')).toBe(false);
+    expect(savedItems.some(item => item.entry_id === 'entry-foreign-show')).toBe(false);
     const cartCreate = requests.find(
       request => request.table === 'entry_carts' && request.method === 'POST'
     );
@@ -620,7 +635,7 @@ describe('MYK9-423 fee-card payment recovery', () => {
 
     await user.click(screen.getAllByRole('button', { name: 'Remove' })[0]);
     await waitFor(() => {
-      expect(savedItems).toHaveLength(2);
+      expect(savedItems.map(item => item.entry_id).sort()).toEqual(['entry-54', 'entry-57']);
     });
     const deleteRequests = requests.filter(
       request => request.table === 'entry_cart_items' && request.method === 'DELETE'
@@ -630,6 +645,6 @@ describe('MYK9-423 fee-card payment recovery', () => {
     expect(deletedIds).toEqual(
       expect.arrayContaining([expect.stringMatching(/^in\.\(item-stale\)$/)])
     );
-    expect(deletedIds.filter(id => id?.startsWith('eq.item-'))).toHaveLength(1);
+    expect(deletedIds.filter(id => id?.startsWith('eq.item-'))).toEqual(['eq.item-1']);
   });
 });

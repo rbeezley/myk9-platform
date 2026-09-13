@@ -338,3 +338,46 @@ describe('EntriesPanel fee-line removal (payment step)', () => {
     expect(aside().getByText('No payment due')).toBeInTheDocument();
   });
 });
+
+/**
+ * The phone bar and the Details block are the SAME numbers at two widths. A
+ * headline that formats `amountDueCents` unconditionally disagrees with the
+ * totals block the moment money is not a plain figure — waived, or a capacity
+ * that has not resolved (Codex #2210 P2).
+ */
+describe('EntriesPanel bar headline agrees with the totals block', () => {
+  function bar() {
+    return within(screen.getByTestId('entries-panel-bar'));
+  }
+
+  it('quotes the waived entry as waived, not as the full fee', () => {
+    render(paymentPanel({ waiveFees: true }));
+    expect(bar().getByTestId('entries-panel-total')).toHaveTextContent('$0.00 (Waived)');
+    expect(bar().getByTestId('entries-panel-total')).not.toHaveTextContent('$30.00');
+  });
+
+  it('quotes the waived payment method as waived', () => {
+    render(paymentPanel({ paymentMethod: 'waived' as PaymentMethod }));
+    expect(bar().getByTestId('entries-panel-total')).toHaveTextContent('$0.00 (Waived)');
+  });
+
+  it('shows the availability placeholder rather than a figure while capacity is unread', () => {
+    render(paymentPanel({ capacityReady: false }));
+    expect(bar().getByTestId('entries-panel-total')).toHaveTextContent('Checking availability');
+  });
+
+  it('says "Not confirmed" in the bar when availability could not be read', () => {
+    render(paymentPanel({ capacityReady: false, capacityUnavailable: true }));
+    expect(bar().getByTestId('entries-panel-total')).toHaveTextContent('Not confirmed');
+  });
+
+  it('still shows entry fees in the bar before the payment step', () => {
+    render(<EntriesPanel groups={groupsFor(1)} />);
+    expect(bar().getByTestId('entries-panel-total')).toHaveTextContent('$30.00');
+  });
+
+  it('placeholders the pre-payment bar too while capacity is unread', () => {
+    render(<EntriesPanel groups={groupsFor(1)} capacityReady={false} />);
+    expect(bar().getByTestId('entries-panel-total')).toHaveTextContent('Checking availability');
+  });
+});

@@ -2,13 +2,14 @@ import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { ChevronDown, ShoppingCart } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
-import { formatCartCurrency, type PlatformFeeRates } from '@/store/cartStore.helpers';
+import type { PlatformFeeRates } from '@/store/cartStore.helpers';
 import { usePlatformFeeRates } from '@/hooks/queries/usePlatformFeeRates';
 import type { PaymentMethod } from '@/types/show-registration-types';
 import type { FeeCalculationResult } from '../PaymentStep/types';
 import {
   computePaymentTotals,
   countPanelLines,
+  formatAmountDue,
   sumPanelFeeCents,
   type PanelDogGroup,
 } from './EntriesPanel.helpers';
@@ -88,7 +89,8 @@ export const EntriesPanel: React.FC<EntriesPanelProps> = ({
 
   const classCount = countPanelLines(groups);
   const entryFeeCents = totals ? totals.entryFeeCents : sumPanelFeeCents(groups);
-  const headlineCents = totals ? totals.amountDueCents : entryFeeCents;
+  // The SAME string the totals block shows — one derivation, two widths.
+  const headline = formatAmountDue({ capacityReady, capacityUnavailable, totals, entryFeeCents });
 
   // The bar is fixed, so the content behind it has to reserve its height or the
   // last control of the step sits underneath it (spec: "Phone class selection").
@@ -191,7 +193,7 @@ export const EntriesPanel: React.FC<EntriesPanelProps> = ({
           <ShoppingCart className="h-4 w-4 shrink-0 text-muted-foreground" />
           <span data-testid="entries-panel-total" className="min-w-0 truncate text-sm font-medium">
             {classCount} class{classCount === 1 ? '' : 'es'} ·{' '}
-            <span className="tabular-nums">{formatCartCurrency(headlineCents)}</span>
+            <span className="tabular-nums">{headline}</span>
           </span>
           <Button
             type="button"

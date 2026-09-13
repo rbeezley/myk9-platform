@@ -12,6 +12,7 @@
 
 import { notifications } from '@/lib/notifications';
 import { useShowRegistrationStore } from '@/store/showRegistrationStore';
+import { useCartStore } from '@/store/cartStore';
 import {
   PaymentStatus,
   EntryStatus,
@@ -24,6 +25,7 @@ import type { StepId } from '@/components/shows/RegistrationWorkflow/Registratio
 import { selectedDogsOwner } from '@/features/registration/selectedDogsOwner';
 import { resolveRegistrationCompletionPath } from '../RegistrationWizardPage.routes';
 import { submitPaymentStep } from './submitPaymentStep';
+import { startOverAtClassSelection } from './startOver';
 import { getEntryWindowTimezone } from './entryCloseGuard';
 import type { RegistrationWizardState } from './useRegistrationWizardState';
 import type { SavedDraft } from '@/hooks/useDraftPersistence';
@@ -291,6 +293,20 @@ export function createWizardHandlers(state: RegistrationWizardState) {
     }
   };
 
+  // "Choose classes again" from the expired-cart notice. Clears the wizard's
+  // own selections and releases the dead cart BEFORE navigating — see
+  // `startOver.ts` for why navigating alone duplicates entries.
+  const handleStartOver = async () => {
+    await startOverAtClassSelection({
+      hasCart: !!useCartStore.getState().cart,
+      classStepIndex: currentWorkflowConfig.steps.indexOf('class-selection'),
+      abandonCart,
+      setClassSelections,
+      // The wizard's own step navigation, guard included.
+      goToStep: handleStepClick,
+    });
+  };
+
   const handlePaymentMethodChange = (method: PaymentMethod) => {
     setRegistrationData(prev => ({ ...prev, paymentMethod: method }));
   };
@@ -320,6 +336,7 @@ export function createWizardHandlers(state: RegistrationWizardState) {
     handleDraftLoaded,
     handleExit,
     handleStepClick,
+    handleStartOver,
     handlePaymentMethodChange,
     handlePaymentMethodClear,
     handlePaymentDetailsChange,

@@ -8,7 +8,7 @@ import { PlatformFeeSplitLines } from '@/features/payments/PlatformFeeSplitLines
 import { getPaymentMethodLabel } from '../PaymentStep/utils';
 import { availabilityPlaceholder } from '../PaymentStep/types';
 import type { PaymentMethod } from '@/types/show-registration-types';
-import type { PaymentTotals } from './EntriesPanel.helpers';
+import { formatAmountDue, type PaymentTotals } from './EntriesPanel.helpers';
 
 export interface EntriesPanelTotalsProps {
   classCount: number;
@@ -53,11 +53,13 @@ export const EntriesPanelTotals: React.FC<EntriesPanelTotalsProps> = ({
   payment,
 }) => {
   const totals = payment?.totals;
-  const amountDue = !capacityReady
-    ? availabilityPlaceholder(capacityUnavailable)
-    : totals?.isWaived
-      ? '$0.00 (Waived)'
-      : formatCartCurrency(totals?.amountDueCents ?? 0);
+  // Shared with the phone bar's headline so the two can never disagree.
+  const amountDue = formatAmountDue({
+    capacityReady,
+    capacityUnavailable,
+    totals,
+    entryFeeCents: totals?.amountDueCents ?? 0,
+  });
 
   return (
     <div className="space-y-2">

@@ -9,7 +9,7 @@
  * hook's values and handlers.
  */
 
-import { useCallback, useEffect, useRef } from 'react';
+import { useEffect, useRef } from 'react';
 import { Link, useParams, useNavigate } from 'react-router-dom';
 import { ArrowLeft, HelpCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -58,6 +58,7 @@ function RegistrationWizardContent() {
     isLateEntryMode,
     currentWorkflowMode,
     handleStepClick,
+    handleStartOver,
     draftSave,
     draftLoad,
     draftDelete,
@@ -122,14 +123,8 @@ function RegistrationWizardContent() {
     classSelections,
     handleClassSelectionChange
   );
-
-  // An expired cart's way back: the wizard's OWN step navigation, not a reload
-  // or a new route. `handleStepClick` already refuses a step the exhibitor has
-  // not reached, so this cannot jump anyone forward.
-  const classStepIndex = currentWorkflowConfig.steps.indexOf('class-selection');
-  const handleStartOver = useCallback(() => {
-    if (classStepIndex >= 0) handleStepClick(classStepIndex);
-  }, [classStepIndex, handleStepClick]);
+  // No class step in this workflow means no way back, so no start-over control.
+  const hasClassStep = currentWorkflowConfig.steps.includes('class-selection');
 
   // ONE WizardNavigation, repositioned — not a desktop copy and a phone copy.
   // Below `lg` it belongs to the entries bar (design.md decision 4); from `lg`
@@ -167,7 +162,7 @@ function RegistrationWizardContent() {
         capacityReady={capacityReady}
         capacityUnavailable={capacityUnavailable}
         waitlistClassIds={waitlistClassIds}
-        {...(classStepIndex >= 0 ? { onStartOver: handleStartOver } : {})}
+        {...(hasClassStep ? { onStartOver: () => void handleStartOver() } : {})}
         {...(isPaymentStep
           ? {
               paymentMethod: registrationData.paymentMethod || '',

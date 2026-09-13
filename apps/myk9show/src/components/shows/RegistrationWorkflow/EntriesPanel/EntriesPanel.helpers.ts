@@ -9,8 +9,13 @@
 
 import type { CartItemWithDetails } from '@/store/cartStore';
 import { formatWeekdayShort } from '@/lib/format/dates';
-import { calculatePlatformFeeCents, type PlatformFeeRates } from '@/store/cartStore.helpers';
+import {
+  calculatePlatformFeeCents,
+  formatCartCurrency,
+  type PlatformFeeRates,
+} from '@/store/cartStore.helpers';
 import type { PaymentMethod } from '@/types/show-registration-types';
+import { availabilityPlaceholder } from '../PaymentStep/types';
 import type { FeeBreakdownItem, FeeCalculationResult } from '../PaymentStep/types';
 
 /** Minimal dog shape — `useDogStoreCompat` rows satisfy it structurally. */
@@ -225,4 +230,34 @@ export function computePaymentTotals({
     amountDueCents,
     requiresPaymentMethod: capacityReady && !isWaived && amountDueCents > 0 && !paymentMethod,
   };
+}
+
+export interface AmountDueInput {
+  capacityReady: boolean;
+  capacityUnavailable?: boolean | undefined;
+  /** Payment step only. Absent = the headline is entry fees. */
+  totals?: PaymentTotals | undefined;
+  /** Used when `totals` is absent (every step before payment). */
+  entryFeeCents: number;
+}
+
+/**
+ * The one derivation of the headline money string.
+ *
+ * The phone bar and the desktop totals block render the same entry at two
+ * widths, so two derivations is two chances to disagree — and they did: the bar
+ * formatted `amountDueCents` unconditionally, quoting $30.00 for a waived entry
+ * whose Details block said "$0.00 (Waived)", and a dollar figure while Details
+ * said "Checking availability". Both now call this.
+ */
+export function formatAmountDue({
+  capacityReady,
+  capacityUnavailable,
+  totals,
+  entryFeeCents,
+}: AmountDueInput): string {
+  // Capacity first: until it is read, no figure on this screen is trustworthy.
+  if (!capacityReady) return availabilityPlaceholder(capacityUnavailable);
+  if (totals?.isWaived) return '$0.00 (Waived)';
+  return formatCartCurrency(totals ? totals.amountDueCents : entryFeeCents);
 }

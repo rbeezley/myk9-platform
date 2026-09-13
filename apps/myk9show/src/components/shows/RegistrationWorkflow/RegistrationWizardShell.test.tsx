@@ -8,7 +8,6 @@ describe('RegistrationWizardShell', () => {
     render(
       <RegistrationWizardShell
         rootRef={createRef<HTMLDivElement>()}
-        isInsideSidebar={false}
         header={<div>Wizard header</div>}
         footer={<div>Wizard footer</div>}
       >
@@ -35,7 +34,6 @@ describe('RegistrationWizardShell', () => {
     render(
       <RegistrationWizardShell
         rootRef={createRef<HTMLDivElement>()}
-        isInsideSidebar={false}
         header={<div>Wizard header</div>}
         footer={<div>Wizard footer</div>}
         aside={<div>Your entries</div>}
@@ -55,7 +53,6 @@ describe('RegistrationWizardShell', () => {
     render(
       <RegistrationWizardShell
         rootRef={createRef<HTMLDivElement>()}
-        isInsideSidebar={false}
         header={<div>Wizard header</div>}
         footer={<div>Wizard footer</div>}
         aside={<div>Your entries</div>}

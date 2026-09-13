@@ -36,17 +36,3 @@ On the payment step, removing a class from the entry SHALL require a confirmatio
 
 - **WHEN** the exhibitor confirms the removal
 - **THEN** the line is gone and the totals are recomputed
-
-### Requirement: An expiring cart is announced before it expires
-
-When the cart is within its warning window of expiry, the wizard SHALL show a status message stating the time remaining and what happens at expiry. When the cart has expired the wizard SHALL say so rather than presenting an empty cart as if nothing had been chosen.
-
-#### Scenario: Warning window
-
-- **WHEN** the cart's expiry is within the warning window computed by the cart store
-- **THEN** a status message with the remaining minutes is visible on the current step
-
-#### Scenario: Expired
-
-- **WHEN** the cart has expired while the wizard is open
-- **THEN** the wizard states that the selections expired and offers to start again

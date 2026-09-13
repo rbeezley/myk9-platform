@@ -19,33 +19,11 @@ function ctx(overrides: Partial<ProceedGatingContext>): ProceedGatingContext {
     capacityUnavailable: false,
     agreementUnavailable: false,
     agreementLoadingNow: false,
-    cartExpired: false,
     ...overrides,
   };
 }
 
 describe('proceedBlockedReason', () => {
-  describe('payment — expired cart', () => {
-    it('blocks Submit once the cart has expired, ahead of every other payment check', () => {
-      expect(
-        proceedBlockedReason(
-          ctx({
-            stepId: 'payment',
-            cartExpired: true,
-            capacityReady: false,
-            hasPaymentMethod: false,
-          })
-        )
-      ).toBe('Your selections expired. Use Start again to choose your classes.');
-    });
-
-    it('does not block other steps for an expired cart', () => {
-      expect(
-        proceedBlockedReason(ctx({ stepId: 'class-selection', cartExpired: true }))
-      ).toBeNull();
-    });
-  });
-
   describe('dog-selection', () => {
     it('blocks with no dogs selected', () => {
       expect(proceedBlockedReason(ctx({ stepId: 'dog-selection', selectedDogsCount: 0 }))).toBe(

@@ -574,6 +574,57 @@ test.describe('wizard step titles never break mid-word', () => {
   });
 });
 
+/**
+ * The wizard owns its scroll context in BOTH modes. The embedded
+ * /secretary route was left on the app shell's scroll container on the belief
+ * that the sidebar pane scrolls; it does not — `SidebarLayout`'s `main`
+ * expands and the DOCUMENT scrolls, so sticky boxes scrolled away on long
+ * staff steps exactly as they did full-page (Codex #2210 round 8 P2).
+ */
+test('the secretary wizard scrolls itself, keeping its header pinned', async ({ page }) => {
+  // A SHORT viewport so the staff step overflows regardless of how much seed
+  // data the environment happens to have. The height is the variable under
+  // test anyway: the root is bound to the viewport, so a short one must scroll.
+  await page.setViewportSize({ width: 1440, height: 600 });
+  await signInAsSecretary(page, `/secretary/register/${SHOW_ID}`);
+  await expect(page.getByTestId('wizard-step-list')).toBeVisible({ timeout: 30000 });
+
+  const shell = page.getByTestId('registration-wizard-shell');
+  const header = page.getByTestId('registration-wizard-header');
+
+  // Known answer first: a root that cannot scroll would pass the assertions
+  // below for the wrong reason.
+  // Structural first: the root is the scrollport, bounded to the viewport.
+  expect(await shell.evaluate(el => getComputedStyle(el).overflowY)).toBe('auto');
+  expect(
+    await shell.evaluate(el => el.clientHeight),
+    'the root must be bounded by the viewport, not by its content'
+  ).toBeLessThanOrEqual(600);
+
+  // Known answer: a root that cannot scroll would pass the assertions below for
+  // the wrong reason.
+  const scrollable = await shell.evaluate(el => el.scrollHeight - el.clientHeight);
+  expect(scrollable, 'the secretary wizard root must be scrollable').toBeGreaterThan(200);
+
+  await shell.evaluate(el => el.scrollBy(0, 800));
+  await page.waitForTimeout(300);
+
+  expect(
+    await shell.evaluate(el => el.scrollTop),
+    'the root must be what scrolled'
+  ).toBeGreaterThan(0);
+  expect(await page.evaluate(() => window.scrollY), 'the document must NOT be what scrolled').toBe(
+    0
+  );
+
+  const shellTop = await shell.evaluate(el => el.getBoundingClientRect().top);
+  const headerTop = await header.evaluate(el => el.getBoundingClientRect().top);
+  expect(
+    Math.abs(headerTop - shellTop),
+    `header top ${headerTop} must stay at the scrollport top ${shellTop}`
+  ).toBeLessThanOrEqual(1);
+});
+
 // ---------------------------------------------------------------------------
 // Entries panel (MYK9-483, spec entry-wizard-running-total)
 //

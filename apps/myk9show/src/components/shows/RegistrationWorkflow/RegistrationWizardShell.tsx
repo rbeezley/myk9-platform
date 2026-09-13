@@ -5,7 +5,6 @@ interface RegistrationWizardShellProps {
   children: React.ReactNode;
   footer: React.ReactNode;
   header: React.ReactNode;
-  isInsideSidebar: boolean;
   rootRef: React.RefObject<HTMLDivElement | null>;
   /**
    * The running-entries panel. From `lg` up it is the second grid column and
@@ -33,8 +32,10 @@ interface RegistrationWizardShellProps {
  * `--app-header-height`, which is only what `main` pads by and would leave the
  * wizard a banner's height too tall.
  *
- * Embedded under /secretary the wizard is not the scroller: it sits inside the
- * sidebar's own scrolling pane, which already provides a scrollport.
+ * BOTH modes, including embedded under /secretary. That route was once left on
+ * the app shell's container on the belief that the sidebar pane scrolls; it
+ * does not — `main` expands and the document scrolls there too, so sticky boxes
+ * scrolled away on long staff steps exactly as they did full-page.
  *
  * The stepper is part of that header, so the content card follows the fully
  * rendered header in normal flow and only uses the shared app-shell gap below
@@ -53,7 +54,6 @@ export function RegistrationWizardShell({
   children,
   footer,
   header,
-  isInsideSidebar,
   rootRef,
   aside,
 }: RegistrationWizardShellProps) {
@@ -81,11 +81,9 @@ export function RegistrationWizardShell({
       data-testid="registration-wizard-shell"
       className={cn(
         'bg-background',
-        isInsideSidebar
-          ? undefined
-          : // min-h-0 so the height is the height, not a floor a tall step can
-            // grow past — a grown root would scroll the document again.
-            'h-[calc(100dvh-var(--app-top-inset,3rem))] min-h-0 overflow-y-auto'
+        // min-h-0 so the height is the height, not a floor a tall step can grow
+        // past — a grown root would scroll the document again.
+        'h-[calc(100dvh-var(--app-top-inset,3rem))] min-h-0 overflow-y-auto'
       )}
     >
       <header

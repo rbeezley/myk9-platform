@@ -35,13 +35,6 @@ export interface ProceedGatingContext {
    * "we cannot check", which never resolves on its own.
    */
   capacityUnavailable: boolean;
-  /**
-   * THIS registration's cart has passed `expires_at`. The store's `loadCart`
-   * would drop it and `submitRegistrationCartCheckout` would then rebuild a
-   * cart from the stale in-memory selections — so an expired cart must not be
-   * submittable; the entries panel's expiry notice offers "Start again".
-   */
-  cartExpired: boolean;
 }
 
 function handlerReason(count: number): string {
@@ -69,9 +62,6 @@ export function proceedBlockedReason(ctx: ProceedGatingContext): string | null {
       if (ctx.unassignedHandlerCount > 0) return handlerReason(ctx.unassignedHandlerCount);
       return null;
     case 'payment':
-      if (ctx.cartExpired) {
-        return 'Your selections expired. Use Start again to choose your classes.';
-      }
       if (ctx.capacityUnavailable) {
         return 'We could not confirm which classes still have room, so we cannot total this entry yet. Check your connection and try again, or go back and re-pick the classes.';
       }

@@ -44,7 +44,6 @@ function RegistrationWizardContent() {
   const wiz = useRegistrationWizard();
   const {
     scrollTopRef,
-    isInsideSidebar,
     exitTarget,
     workflowLabel,
     sidebarTitle,
@@ -70,7 +69,6 @@ function RegistrationWizardContent() {
     registrationData,
     optimisticState,
     showId,
-    exhibitorProfile,
     registrationId,
     registrationNumber,
     liveTotalFees,
@@ -132,19 +130,6 @@ function RegistrationWizardContent() {
     registrationData.paymentMethod || ''
   );
 
-  // Cart expiry is an exhibitor-flow concern only. Staff flows never create a
-  // cart (`useCartFlow` in ClassSelectionStep excludes secretary/admin) and
-  // their `exhibitorProfile` is the signed-in organizer, not the exhibitor being
-  // entered — so there is nothing to expire and nothing to own. The mode is the
-  // gate; no ownership check is asked to stand in for it.
-  const cartExpiry =
-    currentWorkflowMode === 'exhibitor'
-      ? {
-          showId,
-          exhibitorId: exhibitorProfile?.id,
-        }
-      : undefined;
-
   // ONE WizardNavigation, repositioned — not a desktop copy and a phone copy.
   // Below `lg` it belongs to the entries bar (design.md decision 4); from `lg`
   // up it stays in the card footer. Two rendered copies would double the tab
@@ -196,7 +181,6 @@ function RegistrationWizardContent() {
         capacityReady={capacityReady}
         capacityUnavailable={capacityUnavailable}
         waitlistClassIds={waitlistClassIds}
-        {...(cartExpiry ? { cartExpiry } : {})}
         {...(isPaymentStep
           ? {
               paymentMethod: paymentResolution.effectivePaymentMethod,
@@ -230,7 +214,6 @@ function RegistrationWizardContent() {
     <RegistrationErrorBoundary>
       <RegistrationWizardShell
         rootRef={scrollTopRef}
-        isInsideSidebar={isInsideSidebar}
         {...(entriesPanel ? { aside: entriesPanel } : {})}
         header={
           <div className="container mx-auto px-4 py-3 max-w-7xl sm:px-6">

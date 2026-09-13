@@ -125,9 +125,9 @@ describe('selectFeedEvents', () => {
 
   it('emits nothing for a day with neither class times nor a trial start', () => {
     // Honest silence. The subscribe dialog is what warns the exhibitor.
-    expect(
-      select({ trials: [trial({ plannedStartTime: null, actualStartTime: null })] })
-    ).toEqual([]);
+    expect(select({ trials: [trial({ plannedStartTime: null, actualStartTime: null })] })).toEqual(
+      []
+    );
   });
 
   it('skips a trial the exhibitor has no entries in', () => {

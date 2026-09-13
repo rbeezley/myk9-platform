@@ -37,6 +37,7 @@ export type ClassRowKind =
   | 'checked-in'
   | 'check-in-available'
   | 'opens-later'
+  | 'closed-today'
   | 'not-run'
   | 'absent';
 
@@ -84,12 +85,14 @@ export function deriveClassRowState(cls: MyShowClass, ctx: DayCheckInContext): C
   if (isClassCheckInAvailableToday(cls, ctx)) return { kind: 'check-in-available' };
 
   // With no state and no outcome the row is either still ahead of the
-  // exhibitor or was never run. "Ahead" covers a later day AND today-but-no-
-  // control (self-check-in closed, entry not accepted yet, class relation
-  // unresolved): the run has not happened, so "not run" would be a lie.
+  // exhibitor, closed to them today, or was never run. Today-but-no-control
+  // (self-check-in closed by the secretary, entry not accepted yet, class
+  // relation unresolved) gets its own kind: "opens Saturday" ON Saturday reads
+  // as a broken clock, and "not run" would be a lie — the run is still ahead.
   const dayAhead = isTrialDayAhead(cls.trialDate, cls.trialTimezone, ctx.now);
   const dayToday = isTrialDayToday(cls.trialDate, cls.trialTimezone, ctx.now);
   const dayPast = cls.trialDate ? !dayAhead && !dayToday : false;
+  if (!ctx.isPastShow && dayToday) return { kind: 'closed-today' };
   if (!ctx.isPastShow && !dayPast) {
     return { kind: 'opens-later', weekday: weekdayLabel(cls.trialDate, cls.trialTimezone) };
   }

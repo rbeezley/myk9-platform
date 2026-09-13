@@ -36,7 +36,12 @@ A dog card SHALL offer one primary button, "Check in for <weekday>", when and on
 
 ### Requirement: Per-class check-in controls on the class row
 
-Each class row SHALL carry its own control in the state column. A class with no check-in state that is eligible today SHALL show a "Check in" link that checks in that class alone through the same mutation. A class that carries a state (checked in, at gate, come to gate, conflict, pulled) SHALL show that state followed by a "change" link that opens the existing `CheckInStatusDialog` for that class, with the same options the dialog offers today (at gate, conflict, pulled, notes). A class with a result SHALL show the result instead of a control. A class on a future day SHALL read "opens <weekday>" with no control. A class on a past day with no result and no state SHALL read "not run".
+Each class row SHALL carry its own control in the state column. A class with no check-in state that is eligible today SHALL show a "Check in" link that checks in that class alone through the same mutation. A class that carries a state (checked in, at gate, come to gate, conflict, pulled) SHALL show that state followed by a "change" link that opens the existing `CheckInStatusDialog` for that class, with the same options the dialog offers today (at gate, conflict, pulled, notes). A class with a result SHALL show the result instead of a control. A class on a future day SHALL read "opens <weekday>" with no control. A class on the trial day itself that offers no control (self check-in closed by the secretary, entry not yet accepted, unresolved class) SHALL read "check in with the secretary", never "opens <weekday>". A class on a past day with no result and no state SHALL read "not run".
+
+#### Scenario: Closed to self check-in on the trial day
+
+- **WHEN** it is the trial day and the secretary has disabled self check-in for a class with no state
+- **THEN** the row reads "check in with the secretary" and offers no control
 
 #### Scenario: Row-level check in
 

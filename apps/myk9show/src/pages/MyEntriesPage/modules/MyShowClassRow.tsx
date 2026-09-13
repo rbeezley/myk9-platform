@@ -133,6 +133,12 @@ export const MyShowClassRow: React.FC<MyShowClassRowProps> = ({
             {state.weekday ? `opens ${state.weekday}` : 'not yet open'}
           </span>
         )}
+        {/* The trial day, but no control for this row: self check-in closed by
+            the secretary, entry not accepted yet, or an unresolved class. The
+            secretary owns check-in in every one of those cases. */}
+        {state.kind === 'closed-today' && (
+          <span className="text-muted-foreground">check in with the secretary</span>
+        )}
         {state.kind === 'not-run' && <span className="text-muted-foreground">not run</span>}
         {/* Settled without a score — absent, excused, withdrawn. The existing
             ResultBadge already names each one; only a row whose outcome was

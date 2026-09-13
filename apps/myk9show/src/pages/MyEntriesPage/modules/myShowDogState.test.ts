@@ -166,10 +166,19 @@ describe('deriveClassRowState', () => {
     });
   });
 
-  it('offers no control when self-check-in is disabled for the class', () => {
+  it('sends the exhibitor to the secretary when self-check-in is closed on the trial day', () => {
+    // NOT "opens Saturday" — it is Saturday. The secretary owns check-in now.
     expect(
       stateOf([makeRow([makeClass()])], { selfCheckinByClassId: { 'class-1': false } })
-    ).toEqual({ kind: 'opens-later', weekday: 'Saturday' });
+    ).toEqual({ kind: 'closed-today' });
+  });
+
+  it('keeps "opens <weekday>" for a closed class whose day is still ahead', () => {
+    expect(
+      stateOf([makeRow([makeClass({ trialDate: SUNDAY })])], {
+        selfCheckinByClassId: { 'class-1': false },
+      })
+    ).toEqual({ kind: 'opens-later', weekday: 'Sunday' });
   });
 
   it('reads not-run once the show is past with no result and no state', () => {
@@ -185,8 +194,7 @@ describe('deriveClassRowState', () => {
 
   it('offers no control for a cancelled show', () => {
     expect(stateOf([makeRow([makeClass()], { isShowCancelled: true })])).toEqual({
-      kind: 'opens-later',
-      weekday: 'Saturday',
+      kind: 'closed-today',
     });
   });
 });

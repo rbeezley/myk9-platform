@@ -32,9 +32,9 @@
 
 ## 5. Delete the old card and reconcile tests
 
-- [ ] 5.1 Delete `MyEntryCard.tsx`, `MyEntryCardDetails.tsx`, `MyEntryDogFace.tsx`, `dogFaceSummary.ts` (+ tests) and `MyEntryCard.test.tsx` after triaging each `it`: keep an equivalent for pending reassurance, close-date gating, payment-chip suppression (now money-word suppression), next-action precedence (now button gating), result reveal, and the MYK9-209 / MYK9-263 / MYK9-384 regressions; drop the rest. Remove now-unused exports from `myEntriesUtils.tsx`, `myEntryCardState.ts`, `entryNextAction.ts` and `modules/index.ts`.
-- [ ] 5.2 Update E2E specs that assert the old anatomy: `my-entries-page-ui.spec.ts`, `myEntriesZoomReflow.spec.ts` (guard moves to the dog card action row), `simple-show-edit-debug.spec.ts`, `show/phase4CrossRoleSeams.spec.ts` and `fixtures/phase4SeamFixture.ts`, `qa/measurementSweepRoutes.ts` if it names selectors.
-- [ ] 5.3 Run `cd apps/myk9show && pnpm vitest run src/pages/MyEntriesPage src/test/architecture > ../../.logs/my-shows.log 2>&1; echo EXIT=$?` and then the whole app suite shuffled once (`pnpm vitest run --sequence.shuffle`); six times if any test adds module-scope mutable state (the seen-marker tests do: reset with `localStorage.clear()` in `beforeEach`).
+- [x] 5.1 Delete `MyEntryCard.tsx`, `MyEntryCardDetails.tsx`, `MyEntryDogFace.tsx`, `dogFaceSummary.ts` (+ tests) and `MyEntryCard.test.tsx` after triaging each `it`: keep an equivalent for pending reassurance, close-date gating, payment-chip suppression (now money-word suppression), next-action precedence (now button gating), result reveal, and the MYK9-209 / MYK9-263 / MYK9-384 regressions; drop the rest. Remove now-unused exports from `myEntriesUtils.tsx`, `myEntryCardState.ts`, `entryNextAction.ts` and `modules/index.ts`.
+- [x] 5.2 Update E2E specs that assert the old anatomy: `my-entries-page-ui.spec.ts`, `myEntriesZoomReflow.spec.ts` (guard moves to the dog card action row), `simple-show-edit-debug.spec.ts`, `show/phase4CrossRoleSeams.spec.ts` and `fixtures/phase4SeamFixture.ts`, `qa/measurementSweepRoutes.ts` if it names selectors.
+- [x] 5.3 Run `cd apps/myk9show && pnpm vitest run src/pages/MyEntriesPage src/test/architecture > ../../.logs/my-shows.log 2>&1; echo EXIT=$?` and then the whole app suite shuffled once (`pnpm vitest run --sequence.shuffle`); six times if any test adds module-scope mutable state (the seen-marker tests do: reset with `localStorage.clear()` in `beforeEach`).
 
 ## 6. Browser verification (evidence for MYK9-482)
 

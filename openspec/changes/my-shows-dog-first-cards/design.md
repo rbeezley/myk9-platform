@@ -72,5 +72,5 @@ Single PR, clean cut, no flag: there are no real users, and the old and new list
 
 ## Open Questions
 
-- ~~Whether `paidAt` is available on the order for the green strip's date, or whether the strip should use the payment's `lastUpdated`.~~ **Resolved (task 4.5): `lastUpdated`.** `MyEntry` carries no `paidAt` — neither `groupEntriesByOrder` nor the replicated entry rows expose one — so the payment's date is the order's `lastUpdated`, the timestamp the payment write itself moved. Pinned by `paidStripSeen.test.ts` ("dates the strip by the payment's lastUpdated, never by submittedAt").
+- ~~Whether `paidAt` is available on the order for the green strip's date, or whether the strip should use the payment's `lastUpdated`.~~ **Resolved (task 4.5, revised after the browser walk): `submittedAt`.** `MyEntry` carries no `paidAt`; an online order is paid at checkout, so submission is the payment moment. `lastUpdated` was tried first and flooded the seeded exhibitor with 255 strips because every later write (check-in, score, secretary edit) moves it. One strip per show now folds every fresh order together; pinned by `paidStripSeen.test.ts`.
 - Resolved (task 4.2): "Edit entry" on a show with several editable orders opens the shared `OrdersPickerDialog` in edit mode first; a single editable order opens the edit dialog directly.

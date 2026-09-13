@@ -44,15 +44,25 @@ export function markPaidStripSeen(orderId: string): void {
   }
 }
 
+/**
+ * ONE strip per show, folding every recently paid, not-yet-dismissed order at
+ * that show together. One strip per ORDER was the first cut, and the browser
+ * walk on the seeded exhibitor rendered 255 of them: a show entered through
+ * many orders must still say "you're paid here" exactly once.
+ */
 export interface PaidStrip {
-  orderId: string;
-  /** Dogs the payment covered, in card order. */
+  /** Every order the strip confirms; Dismiss retires them all. */
+  orderIds: string[];
+  /** Dogs the payments covered, in card order, each once. */
   dogNames: string[];
-  /** What was paid, in cents. */
+  /** What was paid across those orders, in cents. */
   amountCents: number;
   /**
-   * When it was paid. `MyEntry` carries no `paidAt`, so this is the order's
-   * `lastUpdated` — the timestamp the payment write itself moved.
+   * When it was paid: the LATEST `submittedAt` among the folded orders. An
+   * online order is paid at checkout, so submission IS the payment moment.
+   * `lastUpdated` was the first choice and is wrong for this: it moves with
+   * every later write (a check-in, a score, a secretary edit), so a show-day
+   * update turned every paid order back into a fresh confirmation.
    */
   date: Date;
 }
@@ -68,32 +78,42 @@ function isPaidOnline(order: MyEntry): boolean {
 
 /** Was this payment recent enough to still be worth confirming? */
 function isWithinWindow(order: MyEntry, now: Date): boolean {
-  return now.getTime() - order.lastUpdated.getTime() <= PAID_STRIP_WINDOW_MS;
+  return now.getTime() - order.submittedAt.getTime() <= PAID_STRIP_WINDOW_MS;
 }
 
 /**
- * The paid strips a show group should render right now.
+ * The paid strip a show group should render right now, or null.
  *
+ * @param orders The show group's orders.
  * @param hasSeen Injected so the pure derivation stays testable and the caller
  *   can keep an in-memory dismissal set alongside the stored one.
  */
-export function derivePaidStrips(
+export function derivePaidStrip(
   orders: MyEntry[],
   now: Date,
   hasSeen: (orderId: string) => boolean
-): PaidStrip[] {
-  return orders
-    .filter(
-      order =>
-        isPaidOnline(order) &&
-        isWithinWindow(order, now) &&
-        !isPastShowEntry(order, now) &&
-        !hasSeen(order.id)
-    )
-    .map(order => ({
-      orderId: order.id,
-      dogNames: order.dogs.length > 0 ? order.dogs.map(dog => dog.dogName) : [order.dogName],
-      amountCents: Math.round(order.totalFee * 100),
-      date: order.lastUpdated,
-    }));
+): PaidStrip | null {
+  const fresh = orders.filter(
+    order =>
+      isPaidOnline(order) &&
+      isWithinWindow(order, now) &&
+      !isPastShowEntry(order, now) &&
+      !hasSeen(order.id)
+  );
+  if (fresh.length === 0) return null;
+
+  const dogNames: string[] = [];
+  for (const order of fresh) {
+    const names = order.dogs.length > 0 ? order.dogs.map(dog => dog.dogName) : [order.dogName];
+    for (const name of names) if (!dogNames.includes(name)) dogNames.push(name);
+  }
+  return {
+    orderIds: fresh.map(order => order.id),
+    dogNames,
+    amountCents: fresh.reduce((sum, order) => sum + Math.round(order.totalFee * 100), 0),
+    date: fresh.reduce(
+      (latest, order) => (order.submittedAt > latest ? order.submittedAt : latest),
+      fresh[0].submittedAt
+    ),
+  };
 }

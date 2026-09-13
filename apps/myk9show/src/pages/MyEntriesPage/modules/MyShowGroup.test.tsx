@@ -159,8 +159,11 @@ describe('paid confirmation', () => {
       totalFee: 45,
       paymentStatus: PaymentStatus.PAID_ONLINE,
       paymentMethod: 'online',
-      // Two days before NOW, inside the 14-day confirmation window.
-      lastUpdated: new Date('2026-10-22T12:00:00Z'),
+      // Paid (submitted) two days before NOW, inside the 14-day confirmation
+      // window. `lastUpdated` is deliberately OLDER: the window keys on the
+      // checkout moment, and a later unrelated write must not matter.
+      submittedAt: new Date('2026-10-22T12:00:00Z'),
+      lastUpdated: new Date('2026-09-02T00:00:00Z'),
       classes: [
         makeClass({
           id: 'c-paid-1',

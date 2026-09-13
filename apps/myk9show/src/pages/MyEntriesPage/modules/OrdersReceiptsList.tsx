@@ -166,7 +166,11 @@ export const OrdersPickerDialog: React.FC<OrdersPickerDialogProps> = ({
             : 'You placed more than one order for this show. Choose the one you want to change.'}
         </DialogDescription>
       </DialogHeader>
-      <OrdersReceiptsList orders={orders} mode={mode} onSelect={onSelect} />
+      {/* A show entered through dozens of orders (the seeded exhibitor has 63
+          at one show) must scroll inside the dialog, not past its bottom edge. */}
+      <div className="max-h-[60vh] overflow-y-auto pr-1">
+        <OrdersReceiptsList orders={orders} mode={mode} onSelect={onSelect} />
+      </div>
       <div className="flex justify-end">
         <Button type="button" variant="outline" className="min-h-11" onClick={onClose}>
           Close

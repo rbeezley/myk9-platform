@@ -28,7 +28,7 @@ import type { MyEntry } from './my-entries-types';
 import { deriveMyEntryCardState } from './myEntryCardState';
 import { isPastShowEntry } from './myEntriesStats.helpers';
 import { formatDogNamesPossessive, formatShowHeaderDateRange } from './myShowHeaderFormat';
-import { derivePaidStrips, hasSeenPaidStrip, markPaidStripSeen } from './paidStripSeen';
+import { derivePaidStrip, hasSeenPaidStrip, markPaidStripSeen } from './paidStripSeen';
 import { deriveShowMoneyState, refundNotesByDog } from './showMoneyState';
 
 const HEADER_LINK_CLASS =
@@ -70,7 +70,7 @@ export const MyShowGroupCard: React.FC<MyShowGroupProps> = ({
   const isPastShow = isPastShowEntry(group.orders[0], now);
   const money = deriveShowMoneyState(group.orders, now);
   const refunds = refundNotesByDog(group.orders);
-  const paidStrips = derivePaidStrips(
+  const paidStrip = derivePaidStrip(
     group.orders,
     now,
     orderId => hasSeenPaidStrip(orderId) || dismissed.has(orderId)
@@ -241,18 +241,15 @@ export const MyShowGroupCard: React.FC<MyShowGroupProps> = ({
         </div>
       )}
 
-      {paidStrips.map(strip => (
-        <div
-          key={strip.orderId}
-          className="myk9-entries-strip border-success/20 bg-success/10 text-success"
-        >
+      {paidStrip && (
+        <div className="myk9-entries-strip border-success/20 bg-success/10 text-success">
           <div className="min-w-0">
             <p className="myk9-entries-strip-head">
               <Check className="h-3.5 w-3.5" aria-hidden="true" />
-              {formatDogNamesPossessive(strip.dogNames)}{' '}
-              {strip.dogNames.length > 1 ? 'entries are' : 'entry is'} paid —{' '}
-              {formatPaymentCents(strip.amountCents, 'USD')} on{' '}
-              {formatShortCalendarDate(strip.date)}
+              {formatDogNamesPossessive(paidStrip.dogNames)}{' '}
+              {paidStrip.dogNames.length > 1 ? 'entries are' : 'entry is'} paid —{' '}
+              {formatPaymentCents(paidStrip.amountCents, 'USD')} on{' '}
+              {formatShortCalendarDate(paidStrip.date)}
             </p>
             <p className="myk9-entries-strip-body">
               The secretary will review it next. Receipt sent to your email.
@@ -262,15 +259,19 @@ export const MyShowGroupCard: React.FC<MyShowGroupProps> = ({
             type="button"
             variant="ghost"
             onClick={() => {
-              markPaidStripSeen(strip.orderId);
-              setDismissed(prev => new Set(prev).add(strip.orderId));
+              for (const orderId of paidStrip.orderIds) markPaidStripSeen(orderId);
+              setDismissed(prev => {
+                const next = new Set(prev);
+                for (const orderId of paidStrip.orderIds) next.add(orderId);
+                return next;
+              });
             }}
             className="min-h-[44px] text-muted-foreground"
           >
             Dismiss
           </Button>
         </div>
-      ))}
+      )}
 
       <ul className="space-y-4">
         {group.dogs.map(dog => (

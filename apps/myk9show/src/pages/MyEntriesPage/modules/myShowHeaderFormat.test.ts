@@ -62,3 +62,21 @@ describe('formatDogNamesPossessive', () => {
     expect(formatDogNamesPossessive(['  '])).toBe('');
   });
 });
+
+describe('formatDogNamesPossessive — long lists', () => {
+  it('names three dogs and counts the rest', () => {
+    expect(formatDogNamesPossessive(['Juni', 'Scout', 'Willow', 'Load 63', 'Load 62'])).toBe(
+      "Juni, Scout, Willow and 2 more dogs'"
+    );
+  });
+
+  it('keeps the singular possessive for exactly one extra dog', () => {
+    expect(formatDogNamesPossessive(['Juni', 'Scout', 'Willow', 'Ranger'])).toBe(
+      "Juni, Scout, Willow and 1 more dog's"
+    );
+  });
+
+  it('still spells out a list of three in full', () => {
+    expect(formatDogNamesPossessive(['Juni', 'Scout', 'Willow'])).toBe("Juni, Scout and Willow's");
+  });
+});

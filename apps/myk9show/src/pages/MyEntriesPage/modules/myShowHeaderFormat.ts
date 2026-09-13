@@ -68,9 +68,16 @@ export function formatShowHeaderDateRange(showDate: Date | undefined, showEndDat
  * Kept pure and separate from the strip because the possessive is the part
  * that reads wrong most easily, and it is worth pinning in a test.
  */
-export function formatDogNamesPossessive(names: string[]): string {
+export function formatDogNamesPossessive(names: string[], maxNamed = 3): string {
   const list = names.filter(name => name.trim().length > 0);
   if (list.length === 0) return '';
   if (list.length === 1) return `${list[0]}'s`;
+  // A show entered through dozens of orders would otherwise open its strip
+  // with a paragraph of names (the seeded exhibitor has 63 at one show).
+  // Name a few, count the rest, and keep the possessive on the group.
+  if (list.length > maxNamed) {
+    const rest = list.length - maxNamed;
+    return `${list.slice(0, maxNamed).join(', ')} and ${rest} more ${rest === 1 ? "dog's" : "dogs'"}`;
+  }
   return `${list.slice(0, -1).join(', ')} and ${list[list.length - 1]}'s`;
 }

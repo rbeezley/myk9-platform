@@ -38,13 +38,13 @@
 
 ## 6. Browser verification (evidence for MYK9-482)
 
-- [ ] 6.1 `pnpm dev:show`, sign in as an e2e exhibitor with a multi-order show, and capture desktop + phone screenshots in dark and light of: settled show, balance-due show, pay-at-show show, pending-review dog, two-trials-one-day rows, and the check-in button on a trial day (set the device clock or use a fixture whose trial is today). No horizontal scroll on phone; 44px targets measured, not eyeballed.
-- [ ] 6.2 Walk: batch check-in → both rows flip; row "change" → dialog; Orders & receipts → direct for one order, list for several; My Payments Receipt link → same dialog; Dismiss on the paid strip survives reload.
-- [ ] 6.3 Attach the screenshots and the walk notes to MYK9-482.
+- [x] 6.1 `pnpm dev:show`, sign in as an e2e exhibitor with a multi-order show, and capture desktop + phone screenshots in dark and light of: settled show, balance-due show, pay-at-show show, pending-review dog, two-trials-one-day rows, and the check-in button on a trial day (set the device clock or use a fixture whose trial is today). No horizontal scroll on phone; 44px targets measured, not eyeballed.
+- [x] 6.2 Walk: batch check-in → both rows flip; row "change" → dialog; Orders & receipts → direct for one order, list for several; My Payments Receipt link → same dialog; Dismiss on the paid strip survives reload.
+- [x] 6.3 Attach the screenshots and the walk notes to MYK9-482.
 
 ## 7. Ship
 
-- [ ] 7.1 `pnpm typecheck`, `pnpm lint`, `pnpm qa:code-quality-ratchet` (from the worktree), `pnpm format:check:changed`; fix anything red.
+- [x] 7.1 `pnpm typecheck`, `pnpm lint`, `pnpm qa:code-quality-ratchet` (from the worktree), `pnpm format:check:changed`; fix anything red.
 - [ ] 7.2 Commit via `/commit`, push, open the PR against `main` with the template (what/why, MYK9-482, checked ACs, screenshots, risk, how to test, non-goals, agent involvement, follow-ups).
 - [ ] 7.3 Independent review gate: `pnpm qa:codex-review --base origin/main`; address findings; record the `Review gate:` comment. `bash scripts/qa/watch-pr-checks.sh <pr>` until green.
 - [ ] 7.4 Merge with `gh pr merge --squash` from the main repo directory, no `--delete-branch`. Confirm a green production build on `main`.

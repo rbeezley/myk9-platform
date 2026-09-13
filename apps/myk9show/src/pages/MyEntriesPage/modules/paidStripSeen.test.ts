@@ -121,7 +121,12 @@ describe('derivePaidStrip', () => {
   it('shows the strip on the first visit after paying online', () => {
     const strip = derivePaidStrip(groupEntriesByOrder([makeRow()], NOW), NOW, neverSeen);
 
-    expect(strip).toEqual({ orderIds: ['e1'], dogNames: ['Rex'], amountCents: 4500, date: PAID_AT });
+    expect(strip).toEqual({
+      orderIds: ['e1'],
+      dogNames: ['Rex'],
+      amountCents: 4500,
+      date: PAID_AT,
+    });
   });
 
   // An online order is paid at checkout, so `submittedAt` IS the payment
@@ -228,7 +233,9 @@ describe('derivePaidStrip', () => {
     const dismissed = new Set<string>();
     markPaidStripSeen('e1');
     dismissed.add('e1');
-    expect(derivePaidStrip(orders, NOW, id => dismissed.has(id) || hasSeenPaidStrip(id))).toBeNull();
+    expect(
+      derivePaidStrip(orders, NOW, id => dismissed.has(id) || hasSeenPaidStrip(id))
+    ).toBeNull();
   });
 
   // A new device would otherwise greet the exhibitor with one strip per show
@@ -246,7 +253,11 @@ describe('derivePaidStrip', () => {
     const justOutside = new Date(NOW.getTime() - (PAID_STRIP_WINDOW_DAYS * 24 + 1) * 3600 * 1000);
 
     expect(
-      derivePaidStrip(groupEntriesByOrder([makeRow({ submittedAt: justInside })], NOW), NOW, neverSeen)
+      derivePaidStrip(
+        groupEntriesByOrder([makeRow({ submittedAt: justInside })], NOW),
+        NOW,
+        neverSeen
+      )
     ).not.toBeNull();
     expect(
       derivePaidStrip(

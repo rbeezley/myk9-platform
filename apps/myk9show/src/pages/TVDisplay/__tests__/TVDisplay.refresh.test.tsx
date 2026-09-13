@@ -19,6 +19,7 @@ vi.mock('react-router-dom', async () => {
 
 const activeClass: TVClass = {
   id: 'class-active',
+  version: 4,
   name: 'Interior Advanced',
   element: 'Interior',
   level: 'Advanced',
@@ -34,6 +35,7 @@ const activeClass: TVClass = {
 
 const completedClass: TVCompletedClass = {
   id: 'class-completed',
+  version: 5,
   name: 'Exterior Novice',
   element: 'Exterior',
   level: 'Novice',
@@ -41,7 +43,16 @@ const completedClass: TVCompletedClass = {
   totalEntries: 8,
   qualifiedCount: 6,
   fastestTime: 35,
-  placements: [],
+  placements: [
+    {
+      placement: 1,
+      armband: '42',
+      handler: 'A. Smith',
+      searchTime: 35,
+      totalScore: null,
+      dog: { name: 'Scout', callName: 'Scout', imageUrl: null },
+    },
+  ],
 };
 
 const boardData: TVDisplayData = {
@@ -100,6 +111,168 @@ describe.each([false, true])('TVDisplay refresh at desktop=%s', desktop => {
     }
   );
 });
+
+describe.each([false, true])('completed result visibility at desktop=%s', desktop => {
+  beforeEach(() => {
+    window.matchMedia = vi.fn().mockImplementation(() => ({
+      matches: desktop,
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn(),
+    }));
+    sessionStorage.clear();
+  });
+
+  it('does not present a finalized class without public placements', () => {
+    const client = createTestQueryClient();
+    client.setQueryData([...queryKeys.tvClasses('show-proof'), undefined], {
+      ...boardData,
+      classes: [],
+    });
+    client.setQueryData(
+      [...queryKeys.tvResults('show-proof'), undefined],
+      [{ ...completedClass, placements: [] }]
+    );
+    render(<TVDisplay />, { initialRoute: '/tv/show-proof', queryClient: client });
+    expect(screen.queryByText('Exterior Novice')).not.toBeInTheDocument();
+    expect(screen.queryByText('Final Results')).not.toBeInTheDocument();
+    expect(screen.getByText('No classes currently in progress')).toBeInTheDocument();
+    client.clear();
+  });
+
+  it('shows a released result once even if a stale active request finishes later', () => {
+    const client = createTestQueryClient();
+    client.setQueryData([...queryKeys.tvClasses('show-proof'), undefined], boardData, {
+      updatedAt: Date.now(),
+    });
+    client.setQueryData(
+      [...queryKeys.tvResults('show-proof'), undefined],
+      [{ ...completedClass, id: activeClass.id, name: activeClass.name }],
+      { updatedAt: Date.now() - 1000 }
+    );
+    sessionStorage.setItem('tv-shown-podiums-show-proof', JSON.stringify([activeClass.id]));
+    render(<TVDisplay />, { initialRoute: '/tv/show-proof', queryClient: client });
+    expect(screen.getAllByText('Interior Advanced')).toHaveLength(1);
+    expect(screen.getByText('COMPLETED')).toBeInTheDocument();
+    expect(screen.queryByText('IN PROGRESS')).not.toBeInTheDocument();
+    client.clear();
+  });
+
+  it('shows a reopened active class when its old results refresh fails', async () => {
+    vi.mocked(getTVDisplayData).mockReset().mockResolvedValue(boardData);
+    vi.mocked(getTVDisplayResults).mockReset().mockRejectedValue(new Error('injected 503'));
+    const client = createTestQueryClient();
+    client.setQueryData([...queryKeys.tvClasses('show-proof'), undefined], {
+      ...boardData,
+      classes: [{ ...activeClass, version: 6 }],
+    });
+    client.setQueryData(
+      [...queryKeys.tvResults('show-proof'), undefined],
+      [{ ...completedClass, id: activeClass.id, name: activeClass.name, version: 5 }]
+    );
+    sessionStorage.setItem('tv-shown-podiums-show-proof', JSON.stringify([activeClass.id]));
+    render(<TVDisplay />, { initialRoute: '/tv/show-proof', queryClient: client });
+    await act(async () => {
+      await client.invalidateQueries({ queryKey: queryKeys.tvResults('show-proof') });
+    });
+    await waitFor(() =>
+      expect(client.getQueryState([...queryKeys.tvResults('show-proof'), undefined])?.status).toBe(
+        'error'
+      )
+    );
+    expect(screen.getAllByText('Interior Advanced')).toHaveLength(1);
+    expect(screen.getByText('IN PROGRESS')).toBeInTheDocument();
+    expect(screen.queryByText('COMPLETED')).not.toBeInTheDocument();
+    expect(screen.getByRole('status')).toHaveTextContent(/Updates delayed/i);
+    client.clear();
+  });
+
+  it('retains a finalized result when only its results refresh fails', async () => {
+    vi.mocked(getTVDisplayData).mockReset().mockResolvedValue(boardData);
+    vi.mocked(getTVDisplayResults).mockReset().mockRejectedValue(new Error('injected 503'));
+    const client = createTestQueryClient();
+    client.setQueryData([...queryKeys.tvClasses('show-proof'), undefined], {
+      ...boardData,
+      classes: [{ ...activeClass, version: 4 }],
+    });
+    client.setQueryData(
+      [...queryKeys.tvResults('show-proof'), undefined],
+      [{ ...completedClass, id: activeClass.id, name: activeClass.name, version: 5 }]
+    );
+    sessionStorage.setItem('tv-shown-podiums-show-proof', JSON.stringify([activeClass.id]));
+    render(<TVDisplay />, { initialRoute: '/tv/show-proof', queryClient: client });
+    await act(async () => {
+      await client.invalidateQueries({ queryKey: queryKeys.tvResults('show-proof') });
+    });
+    await waitFor(() =>
+      expect(client.getQueryState([...queryKeys.tvResults('show-proof'), undefined])?.status).toBe(
+        'error'
+      )
+    );
+    expect(screen.getAllByText('Interior Advanced')).toHaveLength(1);
+    expect(screen.getByText('COMPLETED')).toBeInTheDocument();
+    expect(screen.queryByText('IN PROGRESS')).not.toBeInTheDocument();
+    client.clear();
+  });
+
+  it('shows a newer reopened class even if the old results query is healthy', () => {
+    const client = createTestQueryClient();
+    client.setQueryData([...queryKeys.tvClasses('show-proof'), undefined], {
+      ...boardData,
+      classes: [{ ...activeClass, version: 6 }],
+    });
+    client.setQueryData(
+      [...queryKeys.tvResults('show-proof'), undefined],
+      [{ ...completedClass, id: activeClass.id, name: activeClass.name, version: 5 }]
+    );
+    sessionStorage.setItem('tv-shown-podiums-show-proof', JSON.stringify([activeClass.id]));
+    render(<TVDisplay />, { initialRoute: '/tv/show-proof', queryClient: client });
+    expect(screen.getAllByText('Interior Advanced')).toHaveLength(1);
+    expect(screen.getByText('IN PROGRESS')).toBeInTheDocument();
+    expect(screen.queryByText('COMPLETED')).not.toBeInTheDocument();
+    client.clear();
+  });
+});
+
+it.each(['active', 'results'] as const)(
+  'automatically retries a failed %s query while realtime remains connected',
+  async branch => {
+    window.matchMedia = vi.fn().mockImplementation(() => ({
+      matches: false,
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn(),
+    }));
+    sessionStorage.clear();
+    vi.mocked(getTVDisplayData).mockReset().mockResolvedValue(boardData);
+    vi.mocked(getTVDisplayResults).mockReset().mockResolvedValue([completedClass]);
+    const client = createTestQueryClient();
+    try {
+      render(<TVDisplay />, { initialRoute: '/tv/show-proof', queryClient: client });
+      await screen.findByText('Interior Advanced');
+      await screen.findByText('Exterior Novice');
+      vi.useFakeTimers({ toFake: ['setInterval', 'clearInterval'] });
+
+      const service = branch === 'active' ? getTVDisplayData : getTVDisplayResults;
+      vi.mocked(service).mockRejectedValueOnce(new Error('injected 503'));
+      const key =
+        branch === 'active' ? queryKeys.tvClasses('show-proof') : queryKeys.tvResults('show-proof');
+      await act(async () => {
+        await client.invalidateQueries({ queryKey: key });
+      });
+      await waitFor(() => expect(client.getQueryState([...key, undefined])?.status).toBe('error'));
+      expect(screen.getByRole('status')).toHaveTextContent(/Updates delayed/i);
+
+      act(() => vi.advanceTimersByTime(30_000));
+      await waitFor(() =>
+        expect(client.getQueryState([...key, undefined])?.status).toBe('success')
+      );
+      expect(service).toHaveBeenCalledTimes(3);
+      expect(screen.queryByRole('status')).not.toBeInTheDocument();
+    } finally {
+      vi.useRealTimers();
+      client.clear();
+    }
+  }
+);
 
 it('keeps completed results visible after a completed-only podium ends', () => {
   window.matchMedia = vi.fn().mockImplementation(() => ({

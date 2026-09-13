@@ -5,6 +5,7 @@ import type { TVClass, TVCompletedClass } from '../types';
 
 const makeClass = (id: string, name: string): TVClass => ({
   id,
+  version: 1,
   name,
   element: null,
   level: null,
@@ -20,6 +21,7 @@ const makeClass = (id: string, name: string): TVClass => ({
 
 const completedClass: TVCompletedClass = {
   id: 'completed-1',
+  version: 2,
   name: 'Exterior Novice',
   element: null,
   level: null,
@@ -27,7 +29,16 @@ const completedClass: TVCompletedClass = {
   totalEntries: 8,
   qualifiedCount: 6,
   fastestTime: 35,
-  placements: [],
+  placements: [
+    {
+      placement: 1,
+      armband: '42',
+      handler: 'A. Smith',
+      searchTime: 35,
+      totalScore: null,
+      dog: { name: 'Scout', callName: 'Scout', imageUrl: null },
+    },
+  ],
 };
 
 describe('TVGrid', () => {

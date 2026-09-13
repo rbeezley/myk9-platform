@@ -25,6 +25,7 @@ const mockTVData = {
   classes: [
     {
       id: 'class-1',
+      version: 4,
       name: 'Novice A',
       element: 'Container',
       level: 'Novice',

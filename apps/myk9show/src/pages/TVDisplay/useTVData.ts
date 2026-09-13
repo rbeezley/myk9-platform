@@ -23,6 +23,7 @@ export function useTVData(showId: string, trialId?: string): TVDataResult {
     queryFn: () => fetchTVData(showId, trialId),
     ...cacheStrategies.realtime,
     enabled: !!showId,
+    refetchInterval: query => (query.state.status === 'error' ? 30_000 : false),
   });
 
   return {

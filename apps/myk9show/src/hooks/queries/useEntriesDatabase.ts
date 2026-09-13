@@ -46,6 +46,8 @@ export const useEntriesQuery = () => {
 
 // Get entry by ID with full details
 export const useEntryQuery = (id: string, enabled = true) => {
+  const { user, loading } = useAuthContext();
+
   return useQuery({
     queryKey: queryKeys.entry(id),
     queryFn: async () => {
@@ -53,7 +55,7 @@ export const useEntryQuery = (id: string, enabled = true) => {
       if (error) throw error;
       return data;
     },
-    enabled: !!id && enabled,
+    enabled: !!id && enabled && Boolean(user && user.is_anonymous !== true) && !loading,
     ...cacheStrategies.moderate,
   });
 };

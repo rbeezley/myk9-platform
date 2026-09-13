@@ -2,7 +2,7 @@ import { createClient } from '@supabase/supabase-js';
 import { useEffect } from 'react';
 import { Route, Routes, useLocation, useNavigate } from 'react-router-dom';
 import { describe, expect, it, vi } from 'vitest';
-import { render, screen, within } from '@/test/utils/testUtils';
+import { render, screen, waitFor, within } from '@/test/utils/testUtils';
 import { mockSupabase } from '@/test/mocks/supabase';
 import { createSupabaseNetworkGuard } from '@/test/supabaseNetworkGuard';
 import { CompactStatsRow } from '@/components/exhibitor/CompactStatsRow';
@@ -302,7 +302,12 @@ describe('MYK9-423 fee-card payment recovery', () => {
     // Assert presentation through the real router/store/recovery, not a loader spy.
     // Only PostgREST transport is replaced; returned cart items depend on real
     // recovery upserts, so an empty-hydration regression cannot get canned lines.
-    let cart: Record<string, unknown> | null = null;
+    let cart: Record<string, unknown> | null = {
+      id: 'cart-other-scope',
+      show_id: 'show-other',
+      exhibitor_id: 'profile-other',
+      status: 'active',
+    };
     type FixtureCartItem = EntryCartItemInsert & { id: string };
     let savedItems: FixtureCartItem[] = [];
     const requests: Array<{
@@ -555,5 +560,19 @@ describe('MYK9-423 fee-card payment recovery', () => {
       show_id: 'show-423',
       exhibitor_id: 'profile-423',
     });
+    expect(
+      requests.filter(request => request.table === 'entry_carts' && request.method === 'POST')
+    ).toHaveLength(1);
+
+    await user.click(screen.getAllByRole('button', { name: 'Remove' })[0]);
+    await waitFor(() => {
+      expect(savedItems).toHaveLength(2);
+    });
+    const deleteRequest = requests.find(
+      request => request.table === 'entry_cart_items' && request.method === 'DELETE'
+    );
+    expect(deleteRequest).toBeDefined();
+    if (!deleteRequest) throw new Error('Expected the cart-item delete request');
+    expect(deleteRequest.params.get('id')).toMatch(/^eq\.item-/);
   });
 });

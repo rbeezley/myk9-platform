@@ -141,6 +141,10 @@ function setupListMocks(
 describe('classQueries (replication)', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mockSupabase.auth.getSession.mockResolvedValue({
+      data: { session: { user: { id: 'user-1' } } },
+      error: null,
+    });
   });
 
   // -----------------------------------------------------------------------
@@ -200,6 +204,10 @@ describe('classQueries (replication)', () => {
       mockClassesTable.getAll.mockResolvedValue([]);
       mockTrialsTable.getAll.mockResolvedValue([]);
       mockEntriesTable.getAll.mockResolvedValue([]);
+      mockSupabase.auth.getSession.mockResolvedValue({
+        data: { session: null },
+        error: null,
+      });
       mockSupabase.from.mockReturnValue(
         createChainableQuery({
           data: [{ id: 'pg-class-1', name: 'From PostgREST', trial_id: 't1', deleted_at: null }],
@@ -210,6 +218,26 @@ describe('classQueries (replication)', () => {
       const result = await getAllClasses();
 
       expect(mockSupabase.from).toHaveBeenCalledWith('classes');
+      expect(result.data).toHaveLength(1);
+      expect((result.data[0] as Record<string, unknown>).id).toBe('pg-class-1');
+    });
+
+    it('bypasses a warm replication store for logged-out guests', async () => {
+      mockSupabase.auth.getSession.mockResolvedValue({
+        data: { session: null },
+        error: null,
+      });
+      mockClassesTable.getAll.mockResolvedValue([makeClass()]);
+      mockSupabase.from.mockReturnValue(
+        createChainableQuery({
+          data: [{ id: 'pg-class-1', name: 'Public class', trial_id: 't1' }],
+          error: null,
+        })
+      );
+
+      const result = await getAllClasses();
+
+      expect(mockClassesTable.getAll).not.toHaveBeenCalled();
       expect(result.data).toHaveLength(1);
       expect((result.data[0] as Record<string, unknown>).id).toBe('pg-class-1');
     });
@@ -318,6 +346,25 @@ describe('classQueries (replication)', () => {
       expect(dog.owner).toBeNull(); // people not replicated
     });
 
+    it('bypasses a warm replication store for logged-out guests', async () => {
+      mockSupabase.auth.getSession.mockResolvedValue({
+        data: { session: null },
+        error: null,
+      });
+      mockClassesTable.getClassById.mockResolvedValue(makeClass());
+      mockSupabase.from.mockReturnValue(
+        createChainableQuery({
+          data: { id: 'class-1', name: 'Public class' },
+          error: null,
+        })
+      );
+
+      const result = await getClassById('class-1');
+
+      expect(mockClassesTable.getClassById).not.toHaveBeenCalled();
+      expect((result.data as Record<string, unknown>).id).toBe('class-1');
+    });
+
     it('returns { data: null, error: null } for missing records', async () => {
       // Cold store AND no DB row: replication returns null, then the PostgREST
       // self-fall-through (maybeSingle) also yields null — still a clean
@@ -406,6 +453,26 @@ describe('classQueries (replication)', () => {
       const row2 = result.data[1] as Record<string, unknown>;
       expect((row1.entries as unknown[]).length).toBe(2);
       expect((row2.entries as unknown[]).length).toBe(0);
+    });
+
+    it('bypasses a warm replication store for logged-out guests', async () => {
+      mockSupabase.auth.getSession.mockResolvedValue({
+        data: { session: null },
+        error: null,
+      });
+      mockClassesTable.getClassesByTrial.mockResolvedValue([makeClass()]);
+      mockSupabase.from.mockReturnValue(
+        createChainableQuery({
+          data: [{ id: 'pg-class-1', trial_id: 'trial-1', name: 'Public class' }],
+          error: null,
+        })
+      );
+
+      const result = await getClassesByTrialId('trial-1');
+
+      expect(mockClassesTable.getClassesByTrial).not.toHaveBeenCalled();
+      expect(result.data).toHaveLength(1);
+      expect((result.data[0] as Record<string, unknown>).id).toBe('pg-class-1');
     });
 
     it('returns judge data on each class via the synthesized join', async () => {

@@ -45,6 +45,13 @@ async function loadEntryCountsByClassMap(): Promise<Map<string, number>> {
   return map;
 }
 
+async function hasAuthenticatedSession(): Promise<boolean> {
+  const {
+    data: { session },
+  } = await supabase.auth.getSession();
+  return Boolean(session?.user);
+}
+
 /**
  * Map an array of ReplicatedClass to DB-row-shaped objects using pre-loaded
  * lookup maps.
@@ -359,6 +366,10 @@ async function postgrestGetClassStatistics() {
 export const getAllClasses = async () => {
   return readWithReplicationFallback({
     replication: async () => {
+      // A warm IndexedDB store can survive sign-out. Never let an anonymous
+      // caller receive replicated entry-derived fields from that stale store.
+      if (!(await hasAuthenticatedSession())) return await postgrestGetAllClasses();
+
       const [classes, trialsMap, entryCountsMap] = await Promise.all([
         replicatedClassesTable.getAll(),
         loadTrialsMap(),
@@ -400,6 +411,11 @@ export const getAllClasses = async () => {
 export const getClassById = async (id: string) => {
   return readWithReplicationFallback({
     replication: async () => {
+      // A warm IndexedDB store can survive sign-out. Anonymous class details
+      // must use the entry-free PostgREST projection even when replication is
+      // populated from a prior authenticated session.
+      if (!(await hasAuthenticatedSession())) return await postgrestGetClassById(id);
+
       const cls = await replicatedClassesTable.getClassById(id);
       // A cold replication store (logged-out guest never syncs) returns null
       // WITHOUT throwing, so withReplicationFallback's catch never fires and the
@@ -446,6 +462,10 @@ export const getClassById = async (id: string) => {
 export const getClassesByTrialId = async (trialId: string) => {
   return readWithReplicationFallback({
     replication: async () => {
+      // A warm IndexedDB store can survive sign-out. Keep anonymous trial
+      // previews on the entry-free PostgREST projection.
+      if (!(await hasAuthenticatedSession())) return await postgrestGetClassesByTrialId(trialId);
+
       const [classes, entryCountsMap] = await Promise.all([
         replicatedClassesTable.getClassesByTrial(trialId),
         loadEntryCountsByClassMap(),

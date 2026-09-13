@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { replicatedToTrialClass, mergeTrialClassData } from '../trial-store-helpers';
+import {
+  replicatedToTrialClass,
+  mergeTrialClassData,
+  trialClassToReplicated,
+} from '../trial-store-helpers';
+import type { SyncableTrialClass } from '../trial-store-types';
 import type { ReplicatedClass } from '@/services/replication';
 
 /**
@@ -63,5 +68,72 @@ describe('replicatedToTrialClass — reopenedAfterCloseoutAt carry (warm path)',
     expect(mapped.revisedExpectedStart).toBe('2026-07-20T15:15:00Z');
     expect(mapped.actualStartTime).toBe('2026-07-20T15:18:00Z');
     expect(mapped.actualFinishTime).toBe('2026-07-20T15:47:00Z');
+  });
+});
+
+/**
+ * The stored class NAME is the only thing that separates two classes sharing an
+ * element, a level and a section — the case `buildClassDisambiguator` exists for
+ * (MYK9-489). The registration wizard PREFERS this replicated path over its
+ * query and availability fallbacks, so a name lost on either hop is a name no
+ * exhibitor-facing surface can recover. Found in review of #2196: the read hop
+ * dropped it, and the write hop overwrote it with a synthesised one.
+ */
+describe('class name survives the replication round trip', () => {
+  const syncable = (fields: Partial<SyncableTrialClass>): SyncableTrialClass =>
+    ({
+      id: 'class-1',
+      element: 'Interior',
+      level: 'Advanced',
+      section: '',
+      judgeId: '',
+      startTime: '',
+      status: 'Scheduled',
+      entries: 0,
+      _version: 1,
+      _lastModified: new Date(),
+      _lastModifiedBy: '',
+      _syncStatus: 'synced',
+      ...fields,
+    }) as SyncableTrialClass;
+
+  it('carries the name from the replicated row into the domain class', () => {
+    const mapped = replicatedToTrialClass({
+      ...makeReplicated({}),
+      id: 'class-40',
+      name: 'Interior Advanced Preliminary',
+      element: 'Interior',
+      level: 'Advanced',
+      section: '',
+    });
+
+    expect(mapped.name).toBe('Interior Advanced Preliminary');
+  });
+
+  it('does not overwrite a stored name with a synthesised one on the way out', () => {
+    const written = trialClassToReplicated(
+      syncable({ name: 'Interior Advanced Preliminary' }),
+      'trial-1'
+    );
+
+    // The synthesised fallback would be "Interior Advanced" — identical to the
+    // sibling class, which is exactly the ambiguity being fixed.
+    expect(written.name).toBe('Interior Advanced Preliminary');
+  });
+
+  it('still synthesises a name for a class that never had one', () => {
+    const written = trialClassToReplicated(syncable({ section: 'B', level: 'Novice' }), 'trial-1');
+
+    expect(written.name).toBe('Interior Novice B');
+  });
+
+  it('keeps two same-level classes distinguishable across a full round trip', () => {
+    const plain = syncable({ id: 'c1', name: 'Interior Advanced' });
+    const preliminary = syncable({ id: 'c2', name: 'Interior Advanced Preliminary' });
+
+    const roundTrip = (cls: SyncableTrialClass) =>
+      replicatedToTrialClass(trialClassToReplicated(cls, 'trial-1')).name;
+
+    expect(roundTrip(plain)).not.toBe(roundTrip(preliminary));
   });
 });

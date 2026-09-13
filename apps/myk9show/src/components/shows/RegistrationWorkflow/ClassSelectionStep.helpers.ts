@@ -223,11 +223,27 @@ export function updateJumpHeightInSelections(
  * Always shows section when present (AKC Scent Work: only Novice has A/B;
  * UKC Nose Work: every level has A/B).
  * Returns undefined for level-less elements (e.g., Detective).
+ *
+ * `extra` distinguishes two classes that share an element and a level with no
+ * section between them — the Heartland Saturday trial runs both "Interior
+ * Advanced" and "Interior Advanced Preliminary". Without it both chips read
+ * "Advanced" and choosing between them is a coin flip at $30 a class
+ * (MYK9-489).
+ *
+ * The caller computes it with `buildClassDisambiguator`, the same rule the
+ * public premium uses, so the two surfaces cannot drift — and so it stays ''
+ * for every class that has no twin. Passing raw name text here unconditionally
+ * publishes this project's fixture names ("Advanced Load 2 Class 1") to
+ * exhibitors; the collision gate is what prevents that.
  */
-export function buildDisplayLabel(level: string, section: string | undefined): string | undefined {
+export function buildDisplayLabel(
+  level: string,
+  section: string | undefined,
+  extra?: string
+): string | undefined {
   // "Unknown" is used for Detective-style classes that have no real level
   if (!level || level === 'Unknown') return undefined;
-  return [level, section].filter(Boolean).join(' ');
+  return [level, section, extra].filter(Boolean).join(' ');
 }
 
 /**

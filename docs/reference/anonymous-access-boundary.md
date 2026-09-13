@@ -16,8 +16,11 @@ anonymous data route requires an explicit reason here and in that policy.
 | `/sms` | Public SMS opt-in disclosure |
 | `/fees` | Shareable service-fee explanation |
 | `/help/credentials` | Public sign-in recovery help |
+| `/prototype/show` | Development-only prototype route |
 
 Trial details, trial entries, and operational class details require
 authentication. Released results remain public and are served through the
-release-gated results path. Anonymous visitors never receive direct entry
-rows from the `entries` table or its public-results view for those surfaces.
+release-gated results path. Anonymous visitors receive only the safe `id` and
+`class_id` columns from the `entries` table for the public class embed. Released
+results are a separate, intentionally public surface and may expose their
+published result fields.

@@ -3,7 +3,7 @@ export const ANONYMOUS_PUBLIC_ROUTE_POLICY = [
   { path: '/shows/:id', reason: 'Show premium and offered-classes preview.' },
   {
     path: '/shows/:showId/trials/:trialId/classes/:classId/results',
-    reason: 'Released public results share link.'
+    reason: 'Released public results share link.',
   },
   { path: '/clubs', reason: 'Club discovery; this is not personal entry data.' },
   { path: '/clubs/:id', reason: 'Public club profile and discovery.' },
@@ -15,4 +15,5 @@ export const ANONYMOUS_PUBLIC_ROUTE_POLICY = [
   { path: '/sms', reason: 'Public SMS opt-in disclosure.' },
   { path: '/fees', reason: 'Shareable service-fee explanation.' },
   { path: '/help/credentials', reason: 'Public sign-in recovery help.' },
+  { path: '/prototype/show', reason: 'Development-only prototype route.' },
 ] as const;

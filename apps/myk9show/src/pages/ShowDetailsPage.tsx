@@ -54,7 +54,14 @@ const ShowDetailsPage: React.FC = () => {
   const [searchParams] = useSearchParams();
   const managementSectionMatch = useMatch('/shows/:id/:section/*');
   const { endNavigation } = useNavigationPerformance();
-  const { user, userWithRoles, isSecretary, isAdmin, rbacLoading } = useAuthContext();
+  const {
+    user,
+    loading: authLoading,
+    userWithRoles,
+    isSecretary,
+    isAdmin,
+    rbacLoading,
+  } = useAuthContext();
   const trials = useTrialStore(s => s.trials);
   const trialClasses = useTrialStore(s => s.trialClasses);
   const trialClassesReadStatus = useTrialStore(s => s.trialClassesReadStatus);
@@ -163,7 +170,7 @@ const ShowDetailsPage: React.FC = () => {
       showId_,
       associatedTrials,
       user && !showEntriesIsError ? showEntries : null,
-      !user
+      !user && !authLoading
     );
   // For tabs/counts/derivations, treat landingTrials as the effective trial
   // list: it IS associatedTrials when the store is warm, and the anon-safe

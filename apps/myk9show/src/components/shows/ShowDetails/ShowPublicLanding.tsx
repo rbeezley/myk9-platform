@@ -1,3 +1,4 @@
+import { useMemo } from 'react';
 import { getShowStyle } from '@/features/registries';
 import { STYLED_LANDING_BY_STYLE } from '@/features/_shared/styledLandingRegistry';
 import { StaleShowNotice } from './StaleShowNotice';
@@ -46,36 +47,42 @@ export function ShowPublicLanding({
 }: ShowPublicLandingProps) {
   // When an experience is published, its published style wins over the show's
   // current (possibly draft) style for public visitors.
-  const publicLandingShow =
-    show.experienceIsPublished && show.experiencePublishedStyle
-      ? { ...show, style: show.experiencePublishedStyle }
-      : show;
+  const publicLandingShow = useMemo(
+    () =>
+      show.experienceIsPublished && show.experiencePublishedStyle
+        ? { ...show, style: show.experiencePublishedStyle }
+        : show,
+    [show]
+  );
 
-  const offeredClassesByTrial = new Map<string, ClassInfo[]>();
-  for (const classInfo of offeredClasses) {
-    const classes = offeredClassesByTrial.get(classInfo.trialId) ?? [];
-    classes.push(classInfo);
-    offeredClassesByTrial.set(classInfo.trialId, classes);
-  }
-  const previewShow = offeredClasses.length
-    ? {
-        ...publicLandingShow,
-        trials: landingTrials.map(trial => ({
-          id: trial.id,
-          name: trial.name || trial.trialNumber || 'Trial',
-          date: trial.trialDate || '',
-          trialNumber: trial.trialNumber || '',
-          status: trial.status || '',
-          classes: (offeredClassesByTrial.get(trial.id) ?? []).map(classInfo => ({
-            id: classInfo.id,
-            name: classInfo.name,
-            element: classInfo.element,
-            level: classInfo.level,
-            section: classInfo.section,
-          })),
+  const previewShow = useMemo(() => {
+    if (offeredClasses.length === 0) return publicLandingShow;
+
+    const offeredClassesByTrial = new Map<string, ClassInfo[]>();
+    for (const classInfo of offeredClasses) {
+      const classes = offeredClassesByTrial.get(classInfo.trialId) ?? [];
+      classes.push(classInfo);
+      offeredClassesByTrial.set(classInfo.trialId, classes);
+    }
+
+    return {
+      ...publicLandingShow,
+      trials: landingTrials.map(trial => ({
+        id: trial.id,
+        name: trial.name || trial.trialNumber || 'Trial',
+        date: trial.trialDate || '',
+        trialNumber: trial.trialNumber || '',
+        status: trial.status || '',
+        classes: (offeredClassesByTrial.get(trial.id) ?? []).map(classInfo => ({
+          id: classInfo.id,
+          name: classInfo.name,
+          element: classInfo.element,
+          level: classInfo.level,
+          section: classInfo.section,
         })),
-      }
-    : publicLandingShow;
+      })),
+    };
+  }, [landingTrials, offeredClasses, publicLandingShow]);
 
   // INTENT: null/default style uses the product's committed Monogram default
   // for public visitors. That keeps the shareable show URL on a brand landing

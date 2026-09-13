@@ -36,6 +36,7 @@ describe('anonymous access boundary', () => {
       { path: '/sms', reason: 'Public SMS opt-in disclosure.' },
       { path: '/fees', reason: 'Shareable service-fee explanation.' },
       { path: '/help/credentials', reason: 'Public sign-in recovery help.' },
+      { path: '/prototype/show', reason: 'Development-only prototype route.' },
     ]);
   });
 

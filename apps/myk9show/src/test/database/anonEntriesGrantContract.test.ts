@@ -22,11 +22,12 @@ import { describe, expect, it } from 'vitest';
 const MIGRATIONS_DIR = resolve(__dirname, '../../../../../supabase/migrations');
 
 /**
- * The only direct entry column available to anon is `id`, which is required by
- * the public class query's safe `entries ( id )` embed. Public results and TV
+ * The only direct entry columns available to anon are `id` and `class_id`,
+ * which are required by the public class query's safe `entries ( id )` embed
+ * and its join predicate. Public results and TV
  * use their dedicated view/RPC paths instead of direct entry rows.
  */
-const ANON_ENTRY_COLUMN_ALLOWLIST = ['id'];
+const ANON_ENTRY_COLUMN_ALLOWLIST = ['id', 'class_id'];
 
 /**
  * The scent-work hide secrets anon must never reach on `classes` (MYK9-116).

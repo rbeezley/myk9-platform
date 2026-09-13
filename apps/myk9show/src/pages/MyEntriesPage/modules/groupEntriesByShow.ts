@@ -71,8 +71,26 @@ export interface MyShowGroup {
  * rows can arrive without a `showId`, and collapsing them all under `''` would
  * merge unrelated shows into one card group.
  */
-function showKeyFor(entry: MyEntry): string {
-  return entry.showId || `${entry.showName}|${entry.showDate.getTime()}`;
+function nameDateKey(entry: MyEntry): string {
+  return `${entry.showName}|${entry.showDate.getTime()}`;
+}
+
+/**
+ * Resolve an order to its show group's key. An order can arrive before its
+ * show relation has replicated (`showId === ''`) while a sibling order for the
+ * same show already carries the id; keying those apart rendered two groups,
+ * one with a dead `/shows/` link (Codex review on PR #2198). So name+date is
+ * the bridge: a degraded order joins a resolved group that shares its
+ * name+date, and a resolved order adopts a degraded group opened before it.
+ */
+function resolveShowKey(entry: MyEntry, byNameDate: Map<string, string>): string {
+  const nameDate = nameDateKey(entry);
+  const existing = byNameDate.get(nameDate);
+  if (entry.showId) {
+    // A degraded group already open under name+date is this show; retarget it.
+    return existing && !existing.includes('|') ? existing : entry.showId;
+  }
+  return existing ?? nameDate;
 }
 
 /**
@@ -153,10 +171,25 @@ function toShowClasses(order: MyEntry, classes: EntryClass[]): MyShowClass[] {
 export function groupEntriesByShow(orders: MyEntry[]): MyShowGroup[] {
   const shows = new Map<string, ShowAccum>();
   const showOrder: string[] = [];
+  /** name+date → the key of the group opened for that show, degraded or not. */
+  const byNameDate = new Map<string, string>();
 
   for (const order of orders) {
-    const key = showKeyFor(order);
+    const nameDate = nameDateKey(order);
+    let key = resolveShowKey(order, byNameDate);
     let accum = shows.get(key);
+    if (!accum && order.showId && byNameDate.get(nameDate)?.includes('|')) {
+      // A degraded group was opened under name+date before this resolved
+      // order arrived: adopt it and give it the real show id.
+      const degradedKey = byNameDate.get(nameDate)!;
+      accum = shows.get(degradedKey)!;
+      shows.delete(degradedKey);
+      key = order.showId;
+      accum.group.key = key;
+      accum.group.showId = order.showId;
+      shows.set(key, accum);
+      showOrder[showOrder.indexOf(degradedKey)] = key;
+    }
     if (!accum) {
       accum = startGroup(order, key);
       shows.set(key, accum);
@@ -164,6 +197,7 @@ export function groupEntriesByShow(orders: MyEntry[]): MyShowGroup[] {
     } else {
       mergeShowFacts(accum, order);
     }
+    byNameDate.set(nameDate, key);
     accum.group.orders.push(order);
 
     for (const orderDog of order.dogs) {

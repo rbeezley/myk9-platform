@@ -43,8 +43,19 @@ function onlineDueCentsOf(order: MyEntry): number {
   return Math.round(order.totalFee * 100);
 }
 
-function dogNamesOf(order: MyEntry): string[] {
-  return order.dogs.length > 0 ? order.dogs.map(dog => dog.dogName) : [order.dogName];
+/**
+ * The dogs whose OWN class rows still owe: a two-dog order paid for one dog
+ * must not tell the exhibitor both dogs are waiting on payment (Codex review
+ * on PR #2198). Falls back to every dog only when the balance carries no
+ * row ids at all (the partial-replication window).
+ */
+function dueDogNamesOf(order: MyEntry): string[] {
+  const dueIds = new Set(order.balance?.dueEntryIds ?? []);
+  const dogs = order.dogs.length > 0 ? order.dogs : null;
+  if (!dogs) return [order.dogName];
+  if (dueIds.size === 0) return dogs.map(dog => dog.dogName);
+  const due = dogs.filter(dog => dog.classes.some(cls => dueIds.has(cls.id)));
+  return (due.length > 0 ? due : dogs).map(dog => dog.dogName);
 }
 
 /**
@@ -67,7 +78,7 @@ export function deriveShowMoneyState(orders: MyEntry[], now: Date): ShowMoneySta
     return {
       kind: isPast ? 'unresolved' : 'balance-due',
       amountCents,
-      dueDogNames: [...new Set(dueOrders.flatMap(dogNamesOf))],
+      dueDogNames: [...new Set(dueOrders.flatMap(dueDogNamesOf))],
       paymentHref:
         isPast || !showId || dueEntryIds.length === 0
           ? null

@@ -254,3 +254,50 @@ describe('groupEntriesByShow — show facts', () => {
     expect(byId['e1'].registrationId).toBe('r1');
   });
 });
+
+describe('groupEntriesByShow — partial replication (Codex, PR #2198)', () => {
+  it('merges a degraded order (no showId yet) into the resolved group for the same show', () => {
+    const groups = group([
+      makeRow({ id: 'e1', registrationId: 'r1', showId: 's1', classes: [makeClass({ id: 'c1' })] }),
+      makeRow({
+        id: 'e2',
+        registrationId: 'r2',
+        showId: '',
+        dogId: 'd2',
+        dogName: 'Bo',
+        classes: [makeClass({ id: 'c2' })],
+      }),
+    ]);
+
+    expect(groups).toHaveLength(1);
+    expect(groups[0].showId).toBe('s1');
+    expect(groups[0].dogs.map(dog => dog.dogName)).toEqual(['Bo', 'Rex']);
+  });
+
+  it('adopts a degraded group when the resolved order arrives second, keeping order', () => {
+    const groups = group([
+      makeRow({ id: 'e1', registrationId: 'r1', showId: '', classes: [makeClass({ id: 'c1' })] }),
+      makeRow({
+        id: 'e3',
+        registrationId: 'r3',
+        showId: 's2',
+        showName: 'Other Trial',
+        dogId: 'd3',
+        dogName: 'Cy',
+        classes: [makeClass({ id: 'c3' })],
+      }),
+      makeRow({
+        id: 'e2',
+        registrationId: 'r2',
+        showId: 's1',
+        dogId: 'd2',
+        dogName: 'Bo',
+        classes: [makeClass({ id: 'c2' })],
+      }),
+    ]);
+
+    expect(groups.map(g => g.showId)).toEqual(['s1', 's2']);
+    expect(groups[0].key).toBe('s1');
+    expect(groups[0].orders).toHaveLength(2);
+  });
+});

@@ -255,3 +255,47 @@ describe('refundNotesByDog — one order, two dogs, one refund (Codex, PR #2198)
     expect(notes['dog-b']).toBeUndefined();
   });
 });
+
+describe('deriveShowMoneyState — names only the dogs whose rows owe (Codex, PR #2198)', () => {
+  it('names the unpaid dog, not its paid sibling on the same order', () => {
+    const [order] = orders([paidOrder('e1', 'd1', 'Rex')]);
+    const twoDog: MyEntry = {
+      ...order,
+      dogs: [
+        {
+          id: 'r1',
+          dogId: 'd1',
+          dogName: 'Rex',
+          classes: [makeClass({ id: 'c-rex' })],
+          entryStatus: EntryStatus.ACCEPTED,
+        },
+        {
+          id: 'r2',
+          dogId: 'd2',
+          dogName: 'Scout',
+          classes: [makeClass({ id: 'c-scout' })],
+          entryStatus: EntryStatus.ACCEPTED,
+        },
+      ],
+      classes: [
+        makeClass({ id: 'c-rex' }),
+        makeClass({ id: 'c-scout', paymentStatus: PaymentStatus.PENDING }),
+      ],
+      paymentStatus: PaymentStatus.PENDING,
+      balance: {
+        paymentStatus: PaymentStatus.PENDING,
+        paymentMethod: 'online',
+        amountDueCents: 4500,
+        onlineDueCents: 4500,
+        payAtShowDueCents: 0,
+        payAtShowMethod: null,
+        dueEntryIds: ['c-scout'],
+      },
+    };
+
+    const state = deriveShowMoneyState([twoDog], NOW);
+
+    expect(state.kind).toBe('balance-due');
+    expect(state.dueDogNames).toEqual(['Scout']);
+  });
+});

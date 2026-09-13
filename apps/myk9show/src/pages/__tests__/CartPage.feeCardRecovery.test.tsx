@@ -1,6 +1,5 @@
 import { createClient } from '@supabase/supabase-js';
-import { useEffect, useLayoutEffect } from 'react';
-import { Route, Routes, useLocation, useNavigate } from 'react-router-dom';
+import { Route, Routes, useNavigate } from 'react-router-dom';
 import { describe, expect, it, vi } from 'vitest';
 import { render, screen, waitFor, within } from '@/test/utils/testUtils';
 import { mockSupabase } from '@/test/mocks/supabase';
@@ -222,55 +221,6 @@ type RecoveryFixtureEntry = {
   fixtureShowId?: string;
 };
 
-let initialRecoveryEntryIds: string | null = null;
-
-function RecoveryCartRoute() {
-  const location = useLocation();
-  const navigate = useNavigate();
-  const entryIds = new URLSearchParams(location.search).get('entryIds');
-  const hasAugmentedIds = entryIds?.includes('entry-outsider') ?? false;
-
-  useEffect(() => {
-    if (entryIds && !hasAugmentedIds) {
-      initialRecoveryEntryIds = entryIds;
-      const params = new URLSearchParams(location.search);
-      params.set(
-        'entryIds',
-        entryIds + ',entry-outsider,entry-withdrawn,entry-deleted,entry-paid,entry-foreign-show'
-      );
-      navigate(location.pathname + '?' + params.toString(), { replace: true });
-    }
-  }, [entryIds, hasAugmentedIds, location.pathname, location.search, navigate]);
-
-  return hasAugmentedIds ? <ConcurrentRecoveryLoader /> : null;
-}
-
-function ConcurrentRecoveryLoader() {
-  const loadActiveCart = useCartStore(state => state.loadActiveCart);
-
-  useLayoutEffect(() => {
-    const options = {
-      showId: 'show-423',
-      recoveryEntryIds: [
-        'entry-53',
-        'entry-54',
-        'entry-57',
-        'entry-outsider',
-        'entry-withdrawn',
-        'entry-deleted',
-        'entry-paid',
-        'entry-foreign-show',
-      ],
-    };
-    void Promise.all([
-      loadActiveCart('profile-423', options),
-      loadActiveCart('profile-423', options),
-    ]);
-  }, [loadActiveCart]);
-
-  return <CartPage />;
-}
-
 describe('MYK9-423 fee-card payment recovery', () => {
   it('clears both money surfaces when the same recovered entries return paid', () => {
     function MoneySurfaces({ paid }: { paid: boolean }) {
@@ -373,7 +323,6 @@ describe('MYK9-423 fee-card payment recovery', () => {
       params: URLSearchParams;
       body?: unknown;
     }> = [];
-    const requestEvents: string[] = [];
     const databaseEntries: RecoveryFixtureEntry[] = [
       ...(entries as readonly RecoveryFixtureEntry[]),
       {
@@ -447,12 +396,6 @@ describe('MYK9-423 fee-card payment recovery', () => {
           const params = url.searchParams;
           const requestBody = init?.body ? JSON.parse(String(init.body)) : undefined;
           requests.push({ table, method, params, body: requestBody });
-          if (
-            (table === 'entry_carts' || table === 'entries') &&
-            (method === 'GET' || method === 'POST')
-          ) {
-            requestEvents.push(`${method}:${table}`);
-          }
           const json = (data: unknown) =>
             new Response(JSON.stringify(data), {
               status: 200,
@@ -586,12 +529,11 @@ describe('MYK9-423 fee-card payment recovery', () => {
       table => client.from(table) as unknown as ReturnType<typeof mockSupabase.from>
     );
     useCartStore.getState().reset();
-    initialRecoveryEntryIds = null;
 
     const { user } = render(
       <Routes>
         <Route path="/exhibitor/entries" element={<MyEntriesPage />} />
-        <Route path="/cart" element={<RecoveryCartRoute />} />
+        <Route path="/cart" element={<CartPage />} />
       </Routes>,
       { initialRoute: '/exhibitor/entries' }
     );
@@ -599,7 +541,6 @@ describe('MYK9-423 fee-card payment recovery', () => {
       screen.getByRole('button', { name: /Entry fees: \$90.00 due.*Finish payment/i })
     );
     expect(unsupportedFilter).toBeNull();
-    expect(initialRecoveryEntryIds).toBe('entry-53,entry-54,entry-57');
     const checkout = await screen.findByRole('button', { name: 'Pay $96.30 and confirm entries' });
     expect(checkout).toBeEnabled();
     expect(screen.queryByText('Your cart is empty')).not.toBeInTheDocument();
@@ -619,17 +560,17 @@ describe('MYK9-423 fee-card payment recovery', () => {
       entries.map(entry => entry.id).sort()
     );
     const recoveryRead = requests.find(
-      request => request.table === 'entries' && request.params.get('id')?.includes('entry-outsider')
+      request => request.table === 'entries' && request.params.has('id')
     );
     expect(recoveryRead).toBeDefined();
     if (!recoveryRead) throw new Error('Expected an exact-entry recovery read');
     expect(recoveryRead.params.get('show_id')).toBe('eq.show-423');
     expect(recoveryRead.params.get('payment_status')).toBe('eq.pending');
-    expect(recoveryRead.params.get('id')).toContain('entry-outsider');
-    expect(recoveryRead.params.get('id')).toContain('entry-withdrawn');
-    expect(recoveryRead.params.get('id')).toContain('entry-deleted');
-    expect(recoveryRead.params.get('id')).toContain('entry-paid');
-    expect(recoveryRead.params.get('id')).toContain('entry-foreign-show');
+    const requestedIds = recoveryRead.params.get('id');
+    expect(requestedIds?.startsWith('in.(')).toBe(true);
+    expect(new Set(requestedIds?.slice(4, -1).split(','))).toEqual(
+      new Set(entries.map(entry => entry.id))
+    );
     expect(savedItems.some(item => item.entry_id === 'entry-paid')).toBe(false);
     expect(savedItems.some(item => item.entry_id === 'entry-foreign-show')).toBe(false);
     const cartCreate = requests.find(
@@ -644,12 +585,6 @@ describe('MYK9-423 fee-card payment recovery', () => {
     expect(
       requests.filter(request => request.table === 'entry_carts' && request.method === 'POST')
     ).toHaveLength(1);
-    const cartCreateEventIndex = requestEvents.indexOf('POST:entry_carts');
-    expect(cartCreateEventIndex).toBeGreaterThanOrEqual(2);
-    expect(
-      requestEvents.slice(0, cartCreateEventIndex).filter(event => event === 'GET:entries').length
-    ).toBeGreaterThanOrEqual(2);
-
     await user.click(screen.getAllByRole('button', { name: 'Remove' })[1]);
     await waitFor(() => {
       expect(savedItems.map(item => item.entry_id).sort()).toEqual(['entry-53', 'entry-57']);

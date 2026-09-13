@@ -39,6 +39,8 @@ At approximately 2026-09-11T19:14–19:18Z, an isolated signed-in exhibitor brow
 - `/exhibitor/payments` after settlement: `Amount due · $0.00 · Current entries are paid up`; payment history shows Sep 11, 2026 / Heartland / `$96.30` / Paid.
 - No browser console errors were recorded. The owned session was closed after readback.
 
+Read-only linked-database reconciliation on 2026-09-13 confirms the September 11 `stripe_orders` row for `pi_3UEZx0AIej2Q9UtX1EjZntVz` has `status=succeeded`, `amount_cents=9630`, and `entry_ids` exactly 053, 054 and 057. `refunded_cents` and `make_whole_refunded_cents` are both zero. Each of those same `entries.id` rows currently has `payment_status=paid` and `stripe_payment_intent_id=pi_3UEZx0AIej2Q9UtX1EjZntVz`; each has exactly one non-deleted row for its show/dog/class pair. This row-level and order-level evidence supports the hosted readbacks without relying on a zero-balance display alone. No payment or database mutation was performed during this check.
+
 The original canonical comment `2c55186e-1e14-4757-9c9b-ae14195d688a`, September 9 at 13:20Z, records the approved test payment `pi_3UDlOQAIej2Q9UtX2d96avum`, correct three lines, $90 + $6.30 = $96.30, success/receipt and $0 payments balance.
 
 Later [load rehearsal 34394781017](https://github.com/rbeezley/myk9-platform/actions/runs/34394781017) successfully executed “Canonical reseed” on September 9 at 20:11:57–20:12:06Z and also completed “Always restore canonical seed”. `supabase/seed-demo.sql` explicitly recreates entries 053, 054 and 057 as submitted/pending at $30 each. The current $90 matches that later reset; it is not evidence that the earlier payment failed. It also cannot serve as a passing zero-balance readback.
@@ -46,6 +48,7 @@ Later [load rehearsal 34394781017](https://github.com/rbeezley/myk9-platform/act
 ## Checks
 
 - Focused real-cart integration plus existing cart-store suite: **9/9 pass**, twice on restored production source.
+- After updating the proof branch to 2026-09-13 `main` and removing the test-only cart preload, the same focused two-file suite passes **9/9**; `CartPage` now consumes the fee-card URL itself.
 - `pnpm exec tsc --noEmit -p tsconfig.test.json`: pass before the fallback-review assertion fix; rerun in CI on the final head.
 - Targeted ESLint: exit 0.
 - Prettier and OpenSpec validation pass. Installed CLI uses `pnpm openspec validate myk9-423-payment-proof`; its documented `--change` spelling is unsupported.

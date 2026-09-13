@@ -29,7 +29,11 @@
 
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
-import { buildIcsDocument, type CalendarClassEvent } from './icsBuilder.ts';
+import {
+  buildIcsAttachmentFilename,
+  buildIcsDocument,
+  type CalendarClassEvent,
+} from './icsBuilder.ts';
 
 const TOKEN_PATTERN = /^[0-9a-f]{64}$/;
 
@@ -227,7 +231,10 @@ serve(async (req: Request) => {
     headers: {
       ...BASE_HEADERS,
       'Content-Type': 'text/calendar; charset=utf-8',
-      'Content-Disposition': `${asAttachment ? 'attachment' : 'inline'}; filename="myk9show-runs.ics"`,
+      // The app cannot name this file: `download` on an <a> is ignored across
+      // origins, and the feed is not on the app's origin. So the show's own
+      // name goes here, or every show saves under the same generic filename.
+      'Content-Disposition': `${asAttachment ? 'attachment' : 'inline'}; filename="${buildIcsAttachmentFilename(showRow.name)}"`,
     },
   });
 });

@@ -2,6 +2,7 @@ import { useEffect, useCallback } from 'react';
 import { TVPodiumCard } from './TVPodiumCard';
 import { TVConfetti } from './TVConfetti';
 import type { TVCompletedClass } from './types';
+import { TVRefreshNotice } from './TVRefreshNotice';
 
 const DISPLAY_DURATION_MS = 20_000;
 
@@ -12,9 +13,15 @@ interface TVPodiumOverlayProps {
   queue: TVCompletedClass[];
   onComplete: (classId: string) => void;
   soundEnabled?: boolean;
+  refreshFailed?: boolean;
 }
 
-export function TVPodiumOverlay({ queue, onComplete, soundEnabled }: TVPodiumOverlayProps) {
+export function TVPodiumOverlay({
+  queue,
+  onComplete,
+  soundEnabled,
+  refreshFailed,
+}: TVPodiumOverlayProps) {
   const current = queue[0];
 
   const handleComplete = useCallback(() => {
@@ -62,6 +69,11 @@ export function TVPodiumOverlay({ queue, onComplete, soundEnabled }: TVPodiumOve
   return (
     <div className="fixed inset-0 bg-zinc-950 z-50 flex flex-col items-center justify-center">
       <TVConfetti key={current.id} />
+      {refreshFailed && (
+        <div className="absolute left-4 right-4 top-4 z-20">
+          <TVRefreshNotice />
+        </div>
+      )}
       <div className="text-center mb-8">
         <div className="text-xs text-zinc-500 uppercase tracking-[0.2em]">Final Results</div>
         <div className="text-2xl font-bold text-zinc-100 mt-1">{current.name}</div>

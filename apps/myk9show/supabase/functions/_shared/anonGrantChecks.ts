@@ -137,7 +137,6 @@ export const ANON_COLUMN_ALLOWLIST: Readonly<Record<string, readonly string[]>> 
     'timer_mode',
     'distraction_count',
     'is_results_reviewed',
-    'judge_name',
     'time_limit_area2_seconds',
     'time_limit_area3_seconds',
     'display_order',

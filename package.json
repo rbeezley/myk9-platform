@@ -38,6 +38,8 @@
     "qa:advisor-inventory": "node --experimental-strip-types --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/qa/db-drift/advisor-inventory.ts",
     "qa:db-drift:test": "vitest run scripts/qa/db-drift/*.test.ts",
     "qa:migrations:guard": "tsx scripts/qa/migration-version-guard.ts",
+    "qa:types-drift": "bash scripts/qa/supabase-types-drift.sh",
+    "qa:types-drift:test": "vitest run scripts/qa/supabase-types-drift.test.ts",
     "qa:migrations:guard:test": "vitest run scripts/qa/migration-version-guard.test.ts scripts/qa/migration-version-guard.provenance.test.ts",
     "qa:bulk-pii": "tsx scripts/qa/check-bulk-pii.ts",
     "qa:prompt-parity": "tsx scripts/qa/check-prompt-parity.ts",
@@ -98,19 +100,19 @@
     "clean": "turbo clean && rm -rf node_modules"
   },
   "devDependencies": {
-    "@anthropic-ai/sdk": "^0.122.0",
-    "@fission-ai/openspec": "^1.11.0",
-    "@playwright/test": "^1.62.1",
+    "@anthropic-ai/sdk": "^0.124.0",
+    "@fission-ai/openspec": "^1.12.0",
+    "@playwright/test": "^1.63.0",
     "@stryker-mutator/core": "9.6.1",
     "@stryker-mutator/vitest-runner": "9.6.1",
     "@supabase/supabase-js": "^2.115.0",
     "@types/node": "^22",
-    "globals": "^17.11.0",
+    "globals": "^17.12.0",
     "prettier": "^3.9.6",
-    "tsx": "^4.23.12",
+    "tsx": "^4.23.13",
     "turbo": "^2.10.12",
     "typescript": "~5.9.3",
-    "vitest": "^4.1.11"
+    "vitest": "^5.0.0"
   },
   "packageManager": "pnpm@9.15.9",
   "engines": {

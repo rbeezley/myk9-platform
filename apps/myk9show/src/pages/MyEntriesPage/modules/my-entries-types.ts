@@ -36,6 +36,13 @@ export interface EntryClass {
   trialDate?: Date | undefined;
   /** Trial number assigned by the show secretary/registry. */
   trialNumber?: string | undefined;
+  /**
+   * IANA timezone of the trial this class belongs to, already resolved through
+   * `getTrialTimezone` (so it is always a valid zone, never a raw column
+   * value). "Today" for the show-day check-in gate is the TRIAL's calendar
+   * day in this zone, never the device's — see `dayCheckIn.isTrialDayToday`.
+   */
+  trialTimezone?: string | undefined;
   jumpHeight?: string | undefined;
   /** Trial discipline (e.g. "Scent Work", "Agility"); gates the jump-height field. */
   trialType?: string | undefined;
@@ -73,7 +80,7 @@ export interface EntryClass {
 /**
  * One dog's slice of a grouped order card: identity + its own nested classes.
  * A single-dog order still populates a one-element `dogs` array on `MyEntry`
- * so `MyEntryCard` has one shape to render regardless of dog count.
+ * so the My Shows cards have one shape to render regardless of dog count.
  */
 export interface MyEntryDogGroup {
   /** Stable row id for this dog within the order (first merged class row's id). */
@@ -87,6 +94,13 @@ export interface MyEntryDogGroup {
   entryStatus: EntryStatus;
   /** Dominant canonical kind retained beside the lossy UI enum. */
   entryStatusKind?: EntryStatusKind | undefined;
+  /**
+   * Refund recorded against THIS dog's rows (dollars), or null. Kept per dog so
+   * a two-dog order refunded for one dog never paints the other dog's card.
+   */
+  refundAmount?: number | null | undefined;
+  /** Latest refund date across this dog's rows. */
+  refundedAt?: Date | undefined;
 }
 
 /**
@@ -219,19 +233,26 @@ export interface CheckInDialogState {
 }
 
 /**
- * Dialog state for entry edit
+ * Dialog state for entry edit.
+ *
+ * A show can carry several editable orders. When it does, `entry` starts null
+ * and `orders` holds the candidates so the dialog can open on a picker first
+ * (design D9); with one order `entry` is set directly and `orders` is absent.
  */
 export interface EditDialogState {
   open: boolean;
   entry: MyEntry | null;
+  orders?: MyEntry[] | undefined;
 }
 
 /**
- * Dialog state for receipt
+ * Dialog state for receipt. Same two shapes as `EditDialogState`: one order
+ * opens its receipt directly, several open the orders list stage first.
  */
 export interface ReceiptDialogState {
   open: boolean;
   entry: MyEntry | null;
+  orders?: MyEntry[] | undefined;
 }
 
 /**

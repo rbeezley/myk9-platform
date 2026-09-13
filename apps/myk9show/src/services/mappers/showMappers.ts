@@ -217,13 +217,17 @@ export const mapDatabaseToShow = (
     latitude: dbShow.latitude ?? null,
     longitude: dbShow.longitude ?? null,
     status: dbShow.status || 'upcoming',
-    // Extract unique trial types (e.g., "Scent Work", "Agility")
-    // Uses trial_type (user-friendly), falls back to organization
+    // Extract unique trial types (e.g., "Scent Work", "Agility"), falling back
+    // to organization. Accept BOTH spellings: a PostgREST row carries
+    // `trial_type`, but a row from `replicatedTrialsTable` carries `trialType`,
+    // and the browse list is fed by replication. Reading only the snake_case
+    // key silently yielded `[organization]` for every show, which made every
+    // discipline filter on /shows return zero results.
     events: (() => {
       const trialTypes = [
         ...new Set(
           (rawTrials as Array<Record<string, unknown>>)
-            .map(t => t.trial_type as string | null)
+            .map(t => (t.trial_type ?? t.trialType) as string | null)
             .filter((s): s is string => !!s)
         ),
       ];

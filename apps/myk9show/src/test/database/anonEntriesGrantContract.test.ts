@@ -20,30 +20,16 @@ import { describe, expect, it } from 'vitest';
  * safe, it treats as unsafe.
  */
 const MIGRATIONS_DIR = resolve(__dirname, '../../../../../supabase/migrations');
+const CLASS_READS_SOURCE = readFileSync(
+  resolve(__dirname, '../../../../../apps/myk9show/src/services/database/classes/reads.ts'),
+  'utf8'
+);
 
 /**
- * The exact 15-column security boundary established by the release gate
- * (20260616120000) and restored by 20260725170000 plus the public timeline
- * tombstone filter grant. Asserted as an exact set: a
- * denylist can only catch the sensitive columns someone remembered to enumerate.
+ * Anonymous callers have no direct entry-column grant. Public results and TV
+ * use their dedicated view/RPC paths instead of direct entry rows.
  */
-const ANON_ENTRY_COLUMN_ALLOWLIST = [
-  'id',
-  'class_id',
-  'trial_id',
-  'show_id',
-  'dog_id',
-  'armband',
-  'handler',
-  'run_order',
-  'is_in_ring',
-  'is_scored',
-  'check_in_status',
-  'entry_status',
-  'jump_height',
-  'created_at',
-  'deleted_at',
-];
+const ANON_ENTRY_COLUMN_ALLOWLIST: string[] = [];
 
 /**
  * The scent-work hide secrets anon must never reach on `classes` (MYK9-116).
@@ -368,15 +354,13 @@ describe('the evaluator itself', () => {
 });
 
 describe('anon grant contract on public.entries', () => {
-  it('leaves anon with a column-scoped grant, never a table-wide one', () => {
+  it('leaves anon with no direct entry grant', () => {
     expect(
       entries?.tableWide,
       `anon must not hold a table-wide SELECT on public.entries. ` +
         `Table-wide grants seen in: ${tableWideSources.get('entries')?.join(', ') || '(none)'}`
     ).toBe(false);
-    expect(entries && entries.columns.size > 0, 'anon must retain the board column grant').toBe(
-      true
-    );
+    expect(entries?.columns.size ?? 0, 'anon must not retain direct entry columns').toBe(0);
   });
 
   it('matches the release gate allowlist EXACTLY — no column added, none dropped', () => {
@@ -429,6 +413,22 @@ describe('anon grant contract on public.classes', () => {
         `classes.${column} must stay granted or the public show/class pages break`
       ).toContain(column);
     }
+  });
+});
+
+describe('anonymous class preview query boundary', () => {
+  it('does not embed base entries after anonymous entry access is revoked', () => {
+    const anonymousReaders = [
+      CLASS_READS_SOURCE.slice(
+        CLASS_READS_SOURCE.indexOf('async function postgrestGetAllClasses'),
+        CLASS_READS_SOURCE.indexOf('async function postgrestGetClassById')
+      ),
+      CLASS_READS_SOURCE.slice(
+        CLASS_READS_SOURCE.indexOf('async function postgrestGetClassesByTrialId'),
+        CLASS_READS_SOURCE.indexOf('async function postgrestSearchClasses')
+      ),
+    ].join('\n');
+    expect(anonymousReaders).not.toMatch(/^\s*entries\s*\(/m);
   });
 });
 

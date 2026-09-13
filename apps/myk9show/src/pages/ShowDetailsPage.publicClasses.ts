@@ -62,7 +62,7 @@ export function buildPublicShowClasses(
       const id = str(row.id);
       result.push({
         id,
-        name: `${element} ${level}`.trim(),
+        name: str(row.name) || `${element} ${level}`.trim(),
         element,
         level,
         section: str(row.section),

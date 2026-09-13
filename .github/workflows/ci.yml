@@ -271,6 +271,9 @@ jobs:
           pnpm qa:plans:test
           pnpm qa:plans
 
+      - name: Supabase types drift contract
+        run: pnpm qa:types-drift:test
+
       - name: Migration version guard
         if: github.event_name == 'push' || github.event.pull_request.head.repo.full_name == github.repository
         env:
@@ -280,6 +283,39 @@ jobs:
         run: |
           pnpm qa:migrations:guard:test
           pnpm qa:migrations:guard
+
+  # Report-only: compares the committed Supabase types against the applied
+  # schema. MYK9-484 found the file 28 objects behind the database; MYK9-488
+  # added this so the gap is visible on every run. It can never block: a
+  # migration is applied by `supabase db push` AFTER its PR merges, so the
+  # migration PR can never carry matching types, and a blocking check would go
+  # red on every unrelated PR opened between the push and the regeneration.
+  # The drift step carries continue-on-error, so the job concludes success
+  # either way; drift shows as a warning annotation and in the step summary,
+  # by object name. Not in the main-required-checks ruleset, and on the gating
+  # evaluator's informational list. The generator needs Docker for the
+  # postgres-meta image, which ubuntu-latest provides.
+  types-drift:
+    name: Supabase types drift (report-only)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    if: github.event_name == 'push' || github.event.pull_request.head.repo.full_name == github.repository
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: pnpm/action-setup@v6
+
+      - uses: supabase/setup-cli@v3
+        with:
+          version: latest
+
+      - name: Compare committed types with the applied schema
+        continue-on-error: true
+        env:
+          MYK9_MIGRATION_DATABASE_URL: postgresql://postgres.sojmvhhwsjxmfistvzbe@aws-1-us-east-2.pooler.supabase.com:5432/postgres
+          PGPASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
+        run: pnpm qa:types-drift
 
   # Executable SQL tests. The financial contracts use a minimal throwaway
   # Postgres cluster; the behavioral RLS/RPC contracts need the complete

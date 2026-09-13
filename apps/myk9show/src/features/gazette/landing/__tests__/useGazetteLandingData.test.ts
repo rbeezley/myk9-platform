@@ -1,4 +1,6 @@
 import { renderHook } from '@testing-library/react';
+import React from 'react';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { describe, expect, it, vi } from 'vitest';
 import type { Show } from '@/types/show-types';
 import { useGazetteLandingData, buildJourneySteps } from '../useGazetteLandingData';
@@ -6,6 +8,12 @@ import { useGazetteLandingData, buildJourneySteps } from '../useGazetteLandingDa
 vi.mock('@/hooks/queries/useEntriesDatabase', () => ({
   useEntriesByShowQuery: () => ({ data: [] }),
 }));
+vi.mock('@/hooks/useAuthContext', () => ({
+  useAuthContext: () => ({ user: null, loading: false }),
+}));
+
+const wrapper = ({ children }: { children: React.ReactNode }) =>
+  React.createElement(QueryClientProvider, { client: new QueryClient() }, children);
 
 const baseShow = (overrides: Partial<Show> = {}): Show =>
   ({
@@ -22,7 +30,7 @@ const baseShow = (overrides: Partial<Show> = {}): Show =>
 
 describe('useGazetteLandingData', () => {
   it('maps show / club / dates onto the data shape', () => {
-    const { result } = renderHook(() => useGazetteLandingData(baseShow(), null, []));
+    const { result } = renderHook(() => useGazetteLandingData(baseShow(), null, []), { wrapper });
     expect(result.current.clubName).toBe('Bexar County Kennel Club');
     expect(result.current.showName).toBe('Spring Scent Work Trial');
     expect(result.current.trialStartDate).toBe('2026-06-12');
@@ -33,19 +41,19 @@ describe('useGazetteLandingData', () => {
   it('falls back to /shows when show id is missing', () => {
     const show = baseShow();
     delete (show as { id?: string }).id;
-    const { result } = renderHook(() => useGazetteLandingData(show, null, []));
+    const { result } = renderHook(() => useGazetteLandingData(show, null, []), { wrapper });
     expect(result.current.entryWizardUrl).toBe('/shows');
   });
 
   it('exposes the default fixed visual metadata', () => {
-    const { result } = renderHook(() => useGazetteLandingData(baseShow(), null, []));
+    const { result } = renderHook(() => useGazetteLandingData(baseShow(), null, []), { wrapper });
     expect(result.current.volumeRoman).toBe('LXXIX');
     expect(result.current.edition).toBe(47);
     expect(result.current.motto).toMatch(/news fit to point/);
   });
 
   it('emits a fee row for preEntryFee', () => {
-    const { result } = renderHook(() => useGazetteLandingData(baseShow(), null, []));
+    const { result } = renderHook(() => useGazetteLandingData(baseShow(), null, []), { wrapper });
     expect(result.current.fees.length).toBeGreaterThan(0);
     expect(result.current.fees[0].label).toBe('First entry');
   });
@@ -56,7 +64,9 @@ describe('useGazetteLandingData', () => {
       { id: 't2', trialNumber: 3, trialDate: '2026-06-13', judge: 'Mrs. Beagles' },
       { id: 't3', trialNumber: 5, trialDate: '2026-06-14', judge: 'Mr. Whitfield' },
     ] as never[];
-    const { result } = renderHook(() => useGazetteLandingData(baseShow(), null, trials));
+    const { result } = renderHook(() => useGazetteLandingData(baseShow(), null, trials), {
+      wrapper,
+    });
     expect(result.current.judges).toHaveLength(2);
     const beagles = result.current.judges.find(j => j.name === 'Mrs. Beagles');
     expect(beagles?.trials).toEqual(['i', 'iii']);
@@ -67,7 +77,9 @@ describe('useGazetteLandingData', () => {
       { id: 't1', trialNumber: 1, trialDate: '2026-06-12', maxTotalEntries: 60 },
       { id: 't2', trialNumber: 2, trialDate: '2026-06-12', maxTotalEntries: 90 },
     ] as never[];
-    const { result } = renderHook(() => useGazetteLandingData(baseShow(), null, trials));
+    const { result } = renderHook(() => useGazetteLandingData(baseShow(), null, trials), {
+      wrapper,
+    });
     expect(result.current.entryLimit).toBe(90);
   });
 
@@ -88,7 +100,7 @@ describe('useGazetteLandingData', () => {
         outputs: { premiumUrl: null },
       },
     } as never);
-    const { result } = renderHook(() => useGazetteLandingData(show, null, []));
+    const { result } = renderHook(() => useGazetteLandingData(show, null, []), { wrapper });
     expect(result.current.hospitalityNotes).toBe('Tacos at check-in.');
     expect(result.current.awardsDescription).toBe('Rosettes presented daily.');
     expect(result.current.accommodations).toHaveLength(2); // 1 hotel + 1 vet
@@ -97,7 +109,7 @@ describe('useGazetteLandingData', () => {
   });
 
   it('schedule and officers default to empty arrays in MVP', () => {
-    const { result } = renderHook(() => useGazetteLandingData(baseShow(), null, []));
+    const { result } = renderHook(() => useGazetteLandingData(baseShow(), null, []), { wrapper });
     expect(result.current.schedule).toEqual([]);
     expect(result.current.officers).toEqual([]);
   });

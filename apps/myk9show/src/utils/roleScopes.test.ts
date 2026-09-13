@@ -167,9 +167,8 @@ describe('canManageShowSurface', () => {
     ).toBe(false);
   });
 
-  // A SHOW-scoped secretary grant does not satisfy is_trial_secretary either:
-  // that predicate requires `ur.show_id IS NULL`.
-  it('denies a show-scoped secretary grant on the club check', () => {
+  // SHOW-scoped secretary grants do not satisfy the server's club predicate.
+  it('denies a secretary assigned directly to this show', () => {
     expect(
       canManageShowSurface({
         isSecretary: true,

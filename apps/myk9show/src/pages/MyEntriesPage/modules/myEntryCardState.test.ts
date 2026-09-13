@@ -99,7 +99,7 @@ describe('deriveMyEntryCardState', () => {
     expect(state.nextAction).toEqual({ kind: 'view-show' });
   });
 
-  it('derives deadline, receipt, and run-order affordances from one snapshot', () => {
+  it('derives deadline and receipt affordances from one snapshot', () => {
     const entryClass = makeClass({ runOrder: 4 });
     const state = deriveMyEntryCardState(
       makeEntry({
@@ -113,7 +113,6 @@ describe('deriveMyEntryCardState', () => {
     expect(state.canEdit).toBe(true);
     expect(state.canRequestPostDeadlineHelp).toBe(false);
     expect(state.canShowReceipt).toBe(true);
-    expect(state.canViewRunOrder).toBe(true);
   });
 
   it('scopes a check-in next action to the dog that owns its class', () => {
@@ -159,7 +158,6 @@ describe('deriveMyEntryCardState', () => {
 
     expect(state.isPastShow).toBe(true);
     expect(state.isPendingReview).toBe(false);
-    expect(state.canViewRunOrder).toBe(false);
     expect(state.canRequestPostDeadlineHelp).toBe(true);
   });
 
@@ -176,5 +174,131 @@ describe('deriveMyEntryCardState', () => {
     expect(state.isTerminalStatus).toBe(true);
     expect(state.canEdit).toBe(false);
     expect(state.canRequestPostDeadlineHelp).toBe(false);
+  });
+
+  // Codex, PR #2201 (P1). The close date is inclusive: the server still accepts
+  // edits all day. Losing BOTH "Edit entry" and its replacement for that day is
+  // the dead end docs/INTENT.md forbids.
+  describe('the inclusive close day', () => {
+    const CHICAGO = 'America/Chicago';
+    const onCloseDay = (closeDate: Date, now: Date) =>
+      deriveMyEntryCardState(
+        makeEntry({
+          entryCloseDate: closeDate,
+          classes: [makeClass({ trialDate: new Date(2026, 8, 20), trialTimezone: CHICAGO })],
+        }),
+        now
+      );
+
+    it('keeps editing open all through the close date', () => {
+      // 04:30Z on 2 Sep is 23:30 on 1 Sep in Chicago — the last half hour of
+      // the close day. Written as an explicit instant so the device zone the
+      // suite happens to run in cannot change which day this is.
+      const state = onCloseDay(new Date(2026, 8, 1), new Date('2026-09-02T04:30:00Z'));
+      expect(state.canEdit).toBe(true);
+      expect(state.canRequestPostDeadlineHelp).toBe(false);
+    });
+
+    it('hands over to the post-deadline state the next day', () => {
+      // 05:30Z is 00:30 on 2 Sep in Chicago — half an hour into the next day.
+      const state = onCloseDay(new Date(2026, 8, 1), new Date('2026-09-02T05:30:00Z'));
+      expect(state.canEdit).toBe(false);
+      expect(state.canRequestPostDeadlineHelp).toBe(true);
+    });
+
+    it('never leaves an editable order with neither state', () => {
+      // Every one of these is a moment ON 1 Sep in Chicago: 00:30, 06:30,
+      // 12:30 and 23:30 local.
+      for (const instant of [
+        '2026-09-01T05:30:00Z',
+        '2026-09-01T11:30:00Z',
+        '2026-09-01T17:30:00Z',
+        '2026-09-02T04:30:00Z',
+      ]) {
+        const state = onCloseDay(new Date(2026, 8, 1), new Date(instant));
+        expect(state.canEdit || state.canRequestPostDeadlineHelp).toBe(true);
+      }
+    });
+
+    // P2: the zone comes from the PRIMARY trial (earliest date), not whichever
+    // class happens to render first.
+    it('reckons the day in the primary trial zone, whatever order classes arrive in', () => {
+      const state = deriveMyEntryCardState(
+        makeEntry({
+          entryCloseDate: new Date(2026, 8, 1),
+          classes: [
+            makeClass({
+              id: 'later-honolulu',
+              trialDate: new Date(2026, 8, 21),
+              trialTimezone: 'Pacific/Honolulu',
+            }),
+            makeClass({
+              id: 'earlier-chicago',
+              trialDate: new Date(2026, 8, 20),
+              trialTimezone: CHICAGO,
+            }),
+          ],
+        }),
+        // 06:00 UTC on 2 Sep reads 01:00 on the 2nd in Chicago but 20:00 on
+        // the 1st in Honolulu, so the two zones disagree about the day. The
+        // primary trial is the Chicago one, and it decides.
+        new Date('2026-09-02T06:00:00Z')
+      );
+      expect(state.canEdit).toBe(false);
+      expect(state.canRequestPostDeadlineHelp).toBe(true);
+    });
+  });
+
+  // Codex, PR #2201 (round five). Before the trial relation replicates the
+  // zone is unknown; guessing New York for a western show crosses midnight
+  // hours early and takes the edit control with it.
+  describe('an unresolved trial timezone', () => {
+    const westernEvening = new Date('2026-09-02T04:30:00Z'); // 21:30 on 1 Sep in LA
+
+    it('keeps editing open rather than deciding the deadline on a guess', () => {
+      const state = deriveMyEntryCardState(
+        makeEntry({
+          entryCloseDate: new Date(2026, 8, 1),
+          // The shape a row has before its trial has replicated.
+          classes: [makeClass({ trialDate: undefined, trialTimezone: undefined })],
+        }),
+        westernEvening
+      );
+
+      expect(state.canEdit).toBe(true);
+      expect(state.canRequestPostDeadlineHelp).toBe(false);
+    });
+
+    it('decides normally once the real zone arrives', () => {
+      const state = deriveMyEntryCardState(
+        makeEntry({
+          entryCloseDate: new Date(2026, 8, 1),
+          classes: [
+            makeClass({ trialDate: new Date(2026, 8, 20), trialTimezone: 'America/Los_Angeles' }),
+          ],
+        }),
+        westernEvening
+      );
+
+      // 21:30 on the close date in Los Angeles: still open.
+      expect(state.canEdit).toBe(true);
+    });
+
+    it('a New York show at the same instant HAS crossed midnight', () => {
+      const state = deriveMyEntryCardState(
+        makeEntry({
+          entryCloseDate: new Date(2026, 8, 1),
+          classes: [
+            makeClass({ trialDate: new Date(2026, 8, 20), trialTimezone: 'America/New_York' }),
+          ],
+        }),
+        westernEvening
+      );
+
+      // 00:30 on 2 Sep in New York — which is exactly the guess the unresolved
+      // path used to make for a Los Angeles show.
+      expect(state.canEdit).toBe(false);
+      expect(state.canRequestPostDeadlineHelp).toBe(true);
+    });
   });
 });

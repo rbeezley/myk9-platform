@@ -1,6 +1,8 @@
 import { formatDistanceToNow, format, isToday, isTomorrow, differenceInDays } from 'date-fns';
 import { EntryStatus, PaymentStatus } from '@/types/show-registration-types';
 import { buildVenueMapsUrls, formatVenueAddress } from '@/utils/venueMaps';
+import { getEntryWindowTimezone } from '@/utils/entryWindowDate';
+import { calendarDayOf, isEntryCloseDayPast } from './dayCheckIn';
 import {
   buildOrderPaymentHref,
   getOrderOnlinePrompt,
@@ -25,7 +27,6 @@ export interface MyEntryCardDerivedState {
   canEdit: boolean;
   canRequestPostDeadlineHelp: boolean;
   isTerminalStatus: boolean;
-  canViewRunOrder: boolean;
   canShowReceipt: boolean;
   isPendingReview: boolean;
   nextAction: EntryNextAction;
@@ -65,9 +66,37 @@ export function deriveMyEntryCardState(
     PaymentStatus.PAID_BY_CHECK,
     PaymentStatus.PAID_BY_CASH,
   ].includes(entry.paymentStatus);
-  const isPastEntryDeadline = entry.entryCloseDate
-    ? entry.entryCloseDate.getTime() < currentTime.getTime()
-    : false;
+  // The close date is INCLUSIVE and belongs to a calendar day, not an instant:
+  // entries stay open through the end of the day the show wrote down, which is
+  // how the server guard reads it. Comparing instants shut the window at 00:00
+  // on the close date and retired BOTH the edit control and its replacement for
+  // that whole day — a dead end on the last day anyone would need them
+  // (Codex, PR #2201). `getEntryWindowTimezone` picks the same primary trial
+  // the submission guard does, so the page and the server agree at midnight.
+  //
+  // The zone is derived from the classes the exhibitor ENTERED, while the
+  // submission guard reads every trial on the show. Those two agree because a
+  // show runs at one venue and therefore in one timezone: verified 2026-09-13
+  // against the live database, where no show has trials in more than one zone
+  // (max 1 distinct zone across all shows carrying trials), and confirmed as a
+  // domain rule by the product owner. If a show ever spans two zones, this
+  // must stop inferring and carry the show's own entry-window timezone through
+  // the data layer instead — the entered classes cannot name the show's
+  // primary trial when the exhibitor skipped it.
+  const knownTrialZones = entry.classes
+    .filter(cls => Boolean(cls.trialTimezone))
+    .map(cls => ({
+      id: cls.trialNumber ?? null,
+      date: cls.trialDate ? calendarDayOf(cls.trialDate) : null,
+      timezone: cls.trialTimezone ?? null,
+    }));
+  // Before any trial replicates the zone is unknown, NOT New York; the day
+  // helper then answers only where every zone agrees.
+  const isPastEntryDeadline = isEntryCloseDayPast(
+    entry.entryCloseDate,
+    knownTrialZones.length > 0 ? getEntryWindowTimezone(knownTrialZones) : undefined,
+    currentTime
+  );
   const isCompleted =
     entry.entryStatus === EntryStatus.COMPLETED || entry.entryStatusKind === 'completed';
   const hasEditableStatus =
@@ -83,13 +112,6 @@ export function deriveMyEntryCardState(
       EntryStatus.REJECTED,
       EntryStatus.MOVED,
     ].includes(entry.entryStatus);
-  const hasRunOrder = entry.classes.some(cls => cls.runOrder != null);
-  const canViewRunOrder =
-    !isCompleted &&
-    !isPastShow &&
-    hasRunOrder &&
-    (entry.entryStatus === EntryStatus.ACCEPTED ||
-      entry.entryStatus === EntryStatus.MOVE_UP_REQUESTED);
   const canShowReceipt = Boolean(entry.confirmationNumber && isPaid);
   const isPendingReview =
     entry.entryStatus === EntryStatus.PENDING &&
@@ -121,7 +143,6 @@ export function deriveMyEntryCardState(
     canEdit,
     canRequestPostDeadlineHelp,
     isTerminalStatus,
-    canViewRunOrder,
     canShowReceipt,
     isPendingReview,
     nextAction,

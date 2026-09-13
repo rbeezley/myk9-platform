@@ -1,0 +1,48 @@
+-- MYK9-472 / SA-2026-09-12-04: INSERT/UPDATE/DELETE on three OWNER-RUN views.
+--
+-- view_public_entry_results, view_authenticated_entry_results and
+-- view_authenticated_entry_results_replication are all `security_invoker = false`, so their
+-- bodies execute as the owner and base-table RLS does not apply inside them. That owner-run
+-- property is the deliberate, documented design for the nulling public-results view
+-- (20260909203500_document_replication_view_definer_acceptance). The write grants are not part
+-- of that design — view_public_entry_results, the one view anon can read, carried
+-- `authenticated=arwd`.
+--
+-- Verified inert rather than assumed: pg_relation_is_updatable(oid, true) returns 0 for all
+-- three, because each joins entries to classes/shows/dogs and a multi-table view is not
+-- auto-updatable. The grants cannot be exercised today.
+--
+-- The reason to remove them anyway: the grant and the owner-run property are each safe alone and
+-- unsafe together. Simplify any of these views to a single base table — or give it an INSTEAD OF
+-- trigger — and an authenticated user gains writes to `entries` that execute as the table owner
+-- with RLS skipped. Nothing in the schema couples the two properties, and the same
+-- CREATE OR REPLACE that drops a join preserves the ACL.
+--
+-- These are read surfaces; no caller writes through them. A GRANT can never narrow an earlier
+-- broader GRANT, so this needs the explicit REVOKE.
+--
+-- Report: docs/security-audit-2026-09-12.md
+--
+-- ===========================================================================
+-- SA-2026-09-12-05 / MYK9-473 (people.email) IS NOT IN THIS MIGRATION — on purpose
+-- ===========================================================================
+-- The audit recommended revoking anon's column-level SELECT on public.people.email as dead
+-- grant surface. Attempting it here was WRONG, and the repo said so:
+-- anonEntriesGrantContract's "covers every people column embedded by the public show pages"
+-- asserts email must stay granted, with the note "`email` was missed on the first repair and
+-- 42501'd /shows/:id". The failure mode is the postgrest-embed-grants one — PostgREST needs the
+-- column grant to resolve an embed at all, so revoking turns a harmless `"people": null` into a
+-- hard 42501 that fails the WHOLE request, taking out the public show-detail page.
+--
+-- The current query in services/database/shows/reads.postgrest.ts no longer selects email
+-- (it embeds judge:people!…(id, first_name, last_name)), so the revoke would probably be safe
+-- today. "Probably" is the problem: the downside is breaking a launch-critical public page, the
+-- upside is P3 grant hygiene, and the finding's actual risk — "a future anon-visible people
+-- policy would leak email" — is ALREADY pinned by a sibling assertion in that same file,
+-- "keeps dogs_select and people_select restricted to authenticated". The guard that would catch
+-- the leak exists; the revoke only removes a second layer at real cost.
+--
+-- Left as accepted risk. See MYK9-473 for the full reasoning.
+REVOKE INSERT, UPDATE, DELETE ON public.view_public_entry_results FROM authenticated;
+REVOKE INSERT, UPDATE, DELETE ON public.view_authenticated_entry_results FROM authenticated;
+REVOKE INSERT, UPDATE, DELETE ON public.view_authenticated_entry_results_replication FROM authenticated;

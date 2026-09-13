@@ -33,7 +33,7 @@ supabase migration list   # what the linked DB has actually applied
 # Ask GitHub for the files, not git: a PR head may not be fetched locally, and a
 # fork PR has no origin/<branch> ref at all — `git ls-tree origin/<head>` would
 # fail silently and the sweep would report a clean miss.
-pnpm qa:inflight supabase/migrations
+pnpm qa:inflight --verbose supabase/migrations
 gh pr list --state open --limit 200 --json number --jq '.[].number' \
   | xargs -I{} gh pr view {} --json files --jq '.files[].path' \
   | grep '^supabase/migrations/' | sort -u
@@ -193,6 +193,26 @@ Do not use `information_schema.role_table_grants` — it only shows grants visib
 to the querying role and returns empty over the MCP connection, so it cannot
 prove absence. Then run `get_advisors` (Supabase MCP) to catch new RLS/security
 warnings.
+
+### Step 4: Regenerate the committed types
+
+`packages/supabase/src/types/database.types.ts` is committed and generated from
+the **applied** database, so it can only be refreshed after the push lands. Do it
+in the same PR or the very next one, whether or not client code needs the new
+object yet — skipping it "because nothing calls it" is exactly how the file fell
+28 objects behind the schema (MYK9-484). CI's `Supabase types drift
+(report-only)` job (`pnpm qa:types-drift`, MYK9-488) catches a missed regen and
+names the objects in its step summary, but it never blocks.
+
+```bash
+cd packages/supabase && SUPABASE_PROJECT_ID=sojmvhhwsjxmfistvzbe pnpm generate-types
+cd ../.. && pnpm --filter @myk9/supabase build && pnpm typecheck --force
+```
+
+The file is in `.prettierignore` — commit the generator's formatting as-is. A
+`PostgrestVersion` change alone is platform churn, not drift. Any error the
+regenerated types surface in app code is a real one that was previously hidden
+behind `any`; fix it, never suppress it.
 
 ## Common Errors
 

@@ -7,6 +7,7 @@ import { formatJourneyDate } from '@/features/heritage/landing/utils/dateFormat'
 import { useCountdown } from '@/features/heritage/hooks/useCountdown';
 import { SeeClassesLink } from '@/features/_shared/SeeClassesLink';
 import { publicClassesHref } from '@/features/_shared/publicClassesHref';
+import { OfferedClassesSection } from '@/features/_shared/landing/OfferedClassesSection';
 import { entryCapacityPercent, formatEntryCount } from '@/features/_shared/landing/entryCount';
 import { ensureHeadlineFontsLoaded } from '../fonts';
 import { FinalCta, Footer, Officers, ScheduleAndPlan } from './HeadlineLandingLowerSections';
@@ -398,7 +399,7 @@ export function HeadlineLandingPage({
   }, []);
 
   const data = useHeritageLandingData(show, trial, allTrials);
-  const classesHref = publicClassesHref(show?.id, allTrials);
+  const classesHref = publicClassesHref(show);
   const entryCountdown = useCountdown(data.entryCloseDate, data.timezone);
   const entryClosed = entryCountdown.closed;
   // `entryNotYetOpen` matters as much as closed: a show whose entries open
@@ -434,6 +435,8 @@ export function HeadlineLandingPage({
         <Roster data={data} />
         <ScheduleAndPlan data={data} />
         <Officers data={data} />
+        <OfferedClassesSection show={show} className="hd-section" />
+
         <FinalCta data={data} canEnterOnline={canEnterOnline} entryClosed={entryClosed} />
       </main>
       <Footer data={data} />

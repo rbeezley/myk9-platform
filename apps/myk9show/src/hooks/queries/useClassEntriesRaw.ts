@@ -106,7 +106,7 @@ export function publicRowToRawEntryRow(row: PublicEntryRow): RawEntryRow {
  */
 export function useClassEntriesRaw(classId: string | undefined, enabled = true) {
   const { user, loading } = useAuthContext();
-  const isAnon = !user;
+  const isAnon = !user || user.is_anonymous === true;
 
   return useQuery({
     queryKey: ['classes', classId, 'entries', isAnon ? 'public' : 'auth'],

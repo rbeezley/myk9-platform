@@ -5,6 +5,7 @@ import type { TVClass, TVCompletedClass } from '../types';
 
 const mockClass: TVClass = {
   id: 'c1',
+  version: 1,
   name: 'Novice A',
   element: null,
   level: null,
@@ -30,6 +31,7 @@ const mockClass: TVClass = {
 
 const mockCompleted: TVCompletedClass = {
   id: 'c2',
+  version: 2,
   name: 'Advanced',
   element: null,
   level: null,
@@ -71,7 +73,40 @@ describe('TVMobileList', () => {
   });
 
   it('shows empty state when no classes', () => {
-    render(<TVMobileList classes={[]} completedClasses={[]} />);
+    render(
+      <TVMobileList
+        classes={[]}
+        completedClasses={[]}
+        showName="Spring Trial 2026"
+        showId="show-1"
+      />
+    );
     expect(screen.getByText(/no classes currently in progress/i)).toBeInTheDocument();
+    expect(screen.getByText(/Spring Trial 2026/)).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: /view show details/i })).toHaveAttribute(
+      'href',
+      '/shows/show-1'
+    );
+  });
+
+  it('does not show the empty state when only completed classes remain', () => {
+    render(
+      <TVMobileList classes={[]} completedClasses={[mockCompleted]} showName="Spring Trial 2026" />
+    );
+    expect(screen.queryByText(/no classes currently in progress/i)).not.toBeInTheDocument();
+    expect(screen.getByText('Advanced')).toBeInTheDocument();
+  });
+
+  it('distinguishes a refresh failure from no active classes', () => {
+    render(
+      <TVMobileList
+        classes={[]}
+        completedClasses={[]}
+        showName="Spring Trial 2026"
+        error={new Error('network unavailable')}
+      />
+    );
+    expect(screen.getByText('TV board data unavailable')).toBeInTheDocument();
+    expect(screen.queryByText(/no classes currently in progress/i)).not.toBeInTheDocument();
   });
 });

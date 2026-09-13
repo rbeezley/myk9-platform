@@ -39,6 +39,10 @@ VALUES (
   'in_progress'
 );
 
+UPDATE public.classes
+SET results_released_at = now()
+WHERE id = '00000000-0000-0000-0000-000000149004';
+
 INSERT INTO public.people (id, first_name, last_name)
 VALUES ('00000000-0000-0000-0000-000000149005', 'TV', 'Handler');
 
@@ -137,40 +141,91 @@ BEGIN
 END;
 $$;
 
+DO $$
+DECLARE
+  hidden_count bigint;
+BEGIN
+  UPDATE public.classes
+  SET deleted_at = now()
+  WHERE id = '00000000-0000-0000-0000-000000149004';
+
+  SELECT count(*)
+  INTO hidden_count
+  FROM public.tv_class_entry_counts(
+    '00000000-0000-0000-0000-000000149002',
+    ARRAY['00000000-0000-0000-0000-000000149004']::uuid[]
+  );
+
+  IF hidden_count IS DISTINCT FROM 0 THEN
+    RAISE EXCEPTION 'FAIL public count returned a hidden class: % rows', hidden_count;
+  END IF;
+
+  UPDATE public.classes
+  SET deleted_at = NULL
+  WHERE id = '00000000-0000-0000-0000-000000149004';
+
+  UPDATE public.entries
+  SET entry_status = 'moved'
+  WHERE id = '00000000-0000-0000-0000-000000149007';
+
+  SELECT counts.entry_count
+  INTO hidden_count
+  FROM public.tv_class_entry_counts(
+    '00000000-0000-0000-0000-000000149002',
+    ARRAY['00000000-0000-0000-0000-000000149004']::uuid[]
+  ) AS counts;
+
+  IF hidden_count IS DISTINCT FROM 0 THEN
+    RAISE EXCEPTION 'FAIL public count included a moved entry: % rows', hidden_count;
+  END IF;
+
+  UPDATE public.entries
+  SET entry_status = 'confirmed'
+  WHERE id = '00000000-0000-0000-0000-000000149007';
+END;
+$$;
+
+UPDATE public.classes
+SET results_released_at = NULL
+WHERE id = '00000000-0000-0000-0000-000000149004';
+
+DO $$
+BEGIN
+  IF EXISTS (
+    SELECT 1
+    FROM public.view_public_entry_results
+    WHERE class_id = '00000000-0000-0000-0000-000000149004'
+  ) THEN
+    RAISE EXCEPTION 'FAIL unreleased class entries remain enumerable in public results view';
+  END IF;
+END;
+$$;
+
+UPDATE public.classes
+SET results_released_at = now()
+WHERE id = '00000000-0000-0000-0000-000000149004';
+
 SET LOCAL ROLE anon;
 
 DO $$
 DECLARE
   live_entry_id uuid := '00000000-0000-0000-0000-000000149007';
-  deleted_entry_id uuid := '00000000-0000-0000-0000-000000149008';
   v_show_id uuid := '00000000-0000-0000-0000-000000149002';
   v_class_id uuid := '00000000-0000-0000-0000-000000149004';
-  visible_ids uuid[];
   tv_ids uuid[];
   public_view_ids uuid[];
   tv_entry_count bigint;
   protected_value text;
   protected_column text;
 BEGIN
-  -- Base REST table read: both a cold lookup by id and a show-scoped query
-  -- must hide the tombstone while retaining the live row.
-  SELECT array_agg(e.id ORDER BY e.id)
-  INTO visible_ids
-  FROM public.entries AS e
-  WHERE e.show_id = v_show_id;
-
-  IF visible_ids IS DISTINCT FROM ARRAY[live_entry_id] THEN
-    RAISE EXCEPTION
-      'FAIL anon TV read returned %, expected only the live entry', visible_ids;
-  END IF;
-
-  IF EXISTS (
-    SELECT 1
-    FROM public.entries AS e
-    WHERE e.id = deleted_entry_id
-  ) THEN
-    RAISE EXCEPTION 'FAIL cold anon lookup returned a soft-deleted entry';
-  END IF;
+  -- Anonymous callers must use the dedicated TV RPC/view surfaces rather than
+  -- enumerating base entry identifiers, even for a public show.
+  BEGIN
+    PERFORM 1 FROM public.entries AS e WHERE e.class_id = v_class_id;
+    RAISE EXCEPTION 'FAIL anon can read base entries';
+  EXCEPTION
+    WHEN insufficient_privilege THEN NULL;
+  END;
 
   -- The TV running order and canonical total are SECURITY DEFINER RPCs, so
   -- assert the public runtime path independently of the base-table policy.
@@ -207,7 +262,8 @@ BEGIN
   END IF;
 
   -- Keep the column-level anon boundary intact while exercising the same
-  -- public role as the REST, TV, and public-results checks above.
+  -- public role as the TV and public-results checks above. The base table
+  -- grants only expose id/class_id; operational and PII columns remain denied.
   FOREACH protected_column IN ARRAY ARRAY[
     'payment_status',
     'entry_fee',
@@ -230,7 +286,7 @@ BEGIN
   END LOOP;
 
   RAISE NOTICE
-    'PASS anon REST, TV, public-view, and protected-column reads exclude soft-deleted entries';
+    'PASS anon REST, TV, public-view, protected-column, and unreleased-row boundaries hold';
 END;
 $$;
 

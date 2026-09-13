@@ -152,12 +152,13 @@ DECLARE
   protected_value text;
   protected_column text;
 BEGIN
-  -- Base REST table read: both a cold lookup by id and a show-scoped query
-  -- must hide the tombstone while retaining the live row.
+  -- Anonymous base-table access is limited to the safe embed identifiers. The
+  -- class-scoped read must still honor the soft-delete policy while retaining
+  -- the live row.
   SELECT array_agg(e.id ORDER BY e.id)
   INTO visible_ids
   FROM public.entries AS e
-  WHERE e.show_id = v_show_id;
+  WHERE e.class_id = v_class_id;
 
   IF visible_ids IS DISTINCT FROM ARRAY[live_entry_id] THEN
     RAISE EXCEPTION
@@ -207,7 +208,8 @@ BEGIN
   END IF;
 
   -- Keep the column-level anon boundary intact while exercising the same
-  -- public role as the REST, TV, and public-results checks above.
+  -- public role as the TV and public-results checks above. The base table
+  -- grants only expose id/class_id; operational and PII columns remain denied.
   FOREACH protected_column IN ARRAY ARRAY[
     'payment_status',
     'entry_fee',

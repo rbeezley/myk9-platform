@@ -79,20 +79,17 @@ export const WORKFLOW_CONFIGS: Record<WorkflowMode, WorkflowConfig> = {
 export const ALL_STEP_DEFINITIONS: Record<StepId, Omit<RegistrationStep, 'completed'>> = {
   'dog-selection': {
     id: 0,
-    label: 'Select Dogs',
-    description: 'Choose which dogs to register',
+    label: 'Select dogs',
     icon: <Dog className="h-5 w-5" />,
   },
   'class-selection': {
     id: 1,
-    label: 'Classes',
-    description: 'Select classes for each dog',
+    label: 'Select classes',
     icon: <Trophy className="h-5 w-5" />,
   },
   'handler-assignment': {
     id: 2,
     label: 'Handlers',
-    description: 'Assign handlers for entries',
     icon: <UserCheck className="h-5 w-5" />,
     // Secretary/admin roles get a dedicated step. Exhibitors use an inline
     // collapsible in ClassSelectionStep instead (see InlineHandlerSection).
@@ -100,7 +97,6 @@ export const ALL_STEP_DEFINITIONS: Record<StepId, Omit<RegistrationStep, 'comple
   payment: {
     id: 3,
     label: 'Payment',
-    description: 'Review fees and payment',
     icon: <CreditCard className="h-5 w-5" />,
   },
   confirmation: {
@@ -110,7 +106,6 @@ export const ALL_STEP_DEFINITIONS: Record<StepId, Omit<RegistrationStep, 'comple
     // the after-the-fact receipt, not a place that still asks the user to confirm
     // (UX walk remediation 4.A). Do not relabel back to "Review and confirm".
     label: 'Receipt',
-    description: 'Your entry receipt',
     icon: <CheckSquare className="h-5 w-5" />,
   },
 };

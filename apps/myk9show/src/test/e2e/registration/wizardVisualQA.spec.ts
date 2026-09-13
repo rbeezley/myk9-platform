@@ -1,5 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
-import { signInAsExhibitor } from '../helpers/testUsers';
+import { signInAsExhibitor, signInAsSecretary } from '../helpers/testUsers';
 import { LIVE_REGISTRATION_SHOW_ID } from '../uat/shared/seededShows';
 
 test.describe.configure({ mode: 'serial', timeout: 120000 });
@@ -65,7 +65,7 @@ async function selectFirstDog(page: Page) {
 }
 
 async function selectFirstClass(page: Page) {
-  await expect(page.getByRole('heading', { name: 'Select Classes' })).toBeVisible({
+  await expect(page.getByRole('heading', { name: 'Select Classes', exact: true })).toBeVisible({
     timeout: 15000,
   });
   const classes = page.getByRole('checkbox', { name: /^Select / });
@@ -132,7 +132,7 @@ test('registration wizard covers dog, class, payment, and draft dialog states', 
   await assertWizardShell(page, consoleErrors);
 
   await selectFirstDog(page);
-  await expect(page.getByRole('heading', { name: 'Select Classes' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Select Classes', exact: true })).toBeVisible();
   await selectFirstClass(page);
   await expect(page.getByRole('heading', { name: 'Payment Information' })).toBeVisible();
 
@@ -355,4 +355,171 @@ test('dark-mode muted captions clear WCAG AA on the composited wizard surfaces',
   expect(muted).not.toBeNull();
   console.log('WORST_MUTED ' + muted!.worst.toFixed(2) + ' :: ' + muted!.worstText);
   expect(muted!.worst, 'worst muted caption: ' + muted!.worstText).toBeGreaterThanOrEqual(4.5);
+});
+
+// ---------------------------------------------------------------------------
+// Step-title geometry (MYK9-483, spec wizard-progress-indicator)
+//
+// The stepper split titles mid-word from 1024px up — "Pa"/"ym"/"en"/"t" in the
+// exhibitor variant and one character per line in the five-step staff variant.
+// A class-name assertion cannot see that: the split came from `break-words` on
+// the label combining with a `shrink-0` status pill, and every class involved
+// was "correct". These assertions therefore measure RENDERED line boxes.
+//
+// Measurement: a Range over the title's own text node; `getClientRects()`
+// returns one rect per line box, so distinct rect tops == wrapped lines. The
+// harness is proved capable of seeing a 2-line element before it is trusted
+// (LESSONS `measurement-harness`).
+// ---------------------------------------------------------------------------
+
+const STEP_TITLE_WIDTHS = [390, 1024, 1100, 1280, 1440];
+
+interface TitleMeasurement {
+  text: string;
+  lineCount: number;
+  clientWidth: number;
+  scrollWidth: number;
+  whiteSpace: string;
+  textOverflow: string;
+  overflowX: string;
+  accessibleName: string;
+  fontSize: string;
+}
+
+interface StepTitleReport {
+  probeLineCount: number;
+  probeText: string;
+  steps: TitleMeasurement[];
+}
+
+/**
+ * Runs in the page. Measures the known-answer probe with the SAME code path as
+ * the step titles, then every step title in `wizard-step-list`.
+ *
+ * The title element is found structurally rather than by test id or by text, so
+ * this function keeps working across the rewrite and across the label rename:
+ * inside each step button, the first descendant (outside the step circle) whose
+ * only child is a non-empty text node is the title.
+ */
+const MEASURE_STEP_TITLES = () => {
+  const measure = (el: Element) => {
+    const node = Array.from(el.childNodes).find(
+      candidate => candidate.nodeType === 3 && (candidate.textContent || '').trim().length > 0
+    );
+    if (!node) return null;
+    const range = document.createRange();
+    range.selectNodeContents(node);
+    const tops: number[] = [];
+    for (const rect of Array.from(range.getClientRects())) {
+      if (rect.width <= 0 || rect.height <= 0) continue;
+      if (!tops.some(top => Math.abs(top - rect.top) <= 2)) tops.push(rect.top);
+    }
+    const styles = getComputedStyle(el);
+    return {
+      text: (node.textContent || '').trim(),
+      lineCount: tops.length,
+      clientWidth: el.clientWidth,
+      scrollWidth: el.scrollWidth,
+      whiteSpace: styles.whiteSpace,
+      textOverflow: styles.textOverflow,
+      overflowX: styles.overflowX,
+      accessibleName: '',
+      fontSize: styles.fontSize,
+    };
+  };
+
+  // Known answer: a two-word label in a box far too narrow for one word MUST
+  // report more than one line. If it does not, the measurement is broken and
+  // every "exactly one line" assertion below is vacuous.
+  const probe = document.createElement('div');
+  probe.style.cssText =
+    'position:fixed;top:0;left:0;width:24px;font-size:13px;line-height:16px;z-index:-1;';
+  probe.appendChild(document.createTextNode('Select classes'));
+  document.body.appendChild(probe);
+  const probeResult = measure(probe);
+  probe.remove();
+
+  const steps: ReturnType<typeof measure>[] = [];
+  const buttons = Array.from(
+    document.querySelectorAll('[data-testid="wizard-step-list"] button')
+  ) as HTMLElement[];
+  for (const button of buttons) {
+    const titleEl = Array.from(button.querySelectorAll('*')).find(el => {
+      if (el.closest('[data-testid^="wizard-step-circle-"]')) return false;
+      const kids = Array.from(el.childNodes);
+      return kids.length === 1 && kids[0].nodeType === 3 && (kids[0].textContent || '').trim();
+    });
+    if (!titleEl) continue;
+    const measured = measure(titleEl);
+    if (!measured) continue;
+    measured.accessibleName = button.getAttribute('aria-label') || button.innerText || '';
+    steps.push(measured);
+  }
+
+  return {
+    probeLineCount: probeResult ? probeResult.lineCount : 0,
+    probeText: probeResult ? probeResult.text : '',
+    steps: steps.filter(Boolean),
+  };
+};
+
+async function assertStepTitlesFitOneLine(page: Page, width: number, expectedSteps: number) {
+  await page.setViewportSize({ width, height: 900 });
+  await expect(page.getByTestId('wizard-step-list')).toBeVisible({ timeout: 30000 });
+  await expect
+    .poll(() => page.locator('[data-testid="wizard-step-list"] button').count(), {
+      timeout: 30000,
+    })
+    .toBe(expectedSteps);
+
+  const report = (await page.evaluate(MEASURE_STEP_TITLES)) as StepTitleReport;
+
+  expect(
+    report.probeLineCount,
+    'known-answer probe: a two-word label in a 24px box must wrap, or this harness cannot see a wrapped title'
+  ).toBeGreaterThanOrEqual(2);
+  expect(report.steps.length, `step titles found at ${width}px`).toBe(expectedSteps);
+
+  for (const step of report.steps) {
+    const where = `"${step.text}" @ ${width}px (box ${step.clientWidth}px, content ${step.scrollWidth}px, ${step.fontSize})`;
+    expect(step.lineCount, `one rendered line box for ${where}`).toBe(1);
+
+    if (step.scrollWidth > step.clientWidth + 1) {
+      // Too narrow for the whole title: it must be CUT WITH AN ELLIPSIS, which
+      // is only true when the text cannot wrap and the box clips with one.
+      expect(step.whiteSpace, `nowrap so ${where} cannot break inside a word`).toBe('nowrap');
+      expect(step.textOverflow, `ellipsis truncation for ${where}`).toBe('ellipsis');
+      expect(step.overflowX, `clipped overflow for ${where}`).not.toBe('visible');
+    }
+
+    // Truncation is visual only: the full title stays in the accessible name.
+    expect(step.accessibleName, `accessible name keeps the full title for ${where}`).toContain(
+      step.text
+    );
+  }
+
+  console.log(
+    `STEP_TITLES ${width} :: ` +
+      report.steps.map(s => `${s.text}[${s.lineCount}L/${s.clientWidth}px]`).join(' | ')
+  );
+}
+
+test.describe('wizard step titles never break mid-word', () => {
+  test('exhibitor variant keeps every step title on one line', async ({ page }) => {
+    await signInAsExhibitor(page, `/shows/${SHOW_ID}/register`);
+    await expect(page.getByRole('heading', { name: 'Register for Show' })).toBeVisible({
+      timeout: 30000,
+    });
+    for (const width of STEP_TITLE_WIDTHS) {
+      await assertStepTitlesFitOneLine(page, width, 4);
+    }
+  });
+
+  test('staff variant keeps every step title on one line', async ({ page }) => {
+    await signInAsSecretary(page, `/secretary/register/${SHOW_ID}`);
+    await expect(page.getByTestId('wizard-step-list')).toBeVisible({ timeout: 30000 });
+    for (const width of STEP_TITLE_WIDTHS) {
+      await assertStepTitlesFitOneLine(page, width, 5);
+    }
+  });
 });

@@ -3,7 +3,6 @@ import type { RegistrationFormData } from '@/types/show-registration-types';
 export interface RegistrationStep {
   id: number;
   label: string;
-  description: string;
   icon: React.ReactNode;
   completed: boolean;
   optional?: boolean;

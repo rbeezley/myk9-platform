@@ -6,10 +6,10 @@
 
 ## 2. Stepper
 
-- [ ] 2.1 Write the failing geometry test in `src/test/e2e/registration/wizardVisualQA.spec.ts`: widths [390, 1024, 1100, 1280, 1440] × variants [exhibitor route, secretary route] × every step title → exactly one line rect and no intra-word split; include the known-answer probe that proves the harness detects a 2-line element; run it and confirm it fails on current `main` at 1024
-- [ ] 2.2 Rewrite `HorizontalProgressIndicator.tsx` as the numbered rail (single title, truncate, no pill, no description, connector as a pseudo-element, `aria-current` + name suffixes + progressbar preserved); verify the existing indicator unit tests plus new tests for truncation and a11y names pass
-- [ ] 2.3 Update `ALL_STEP_DEFINITIONS` titles (`Select dogs`, `Select classes`, `Handlers`, `Payment`, `Receipt` — keep the INTENT comment) and drop `description` from both wizards' step types; verify `pnpm typecheck` and the show-creation wizard renders in `show-creation-wizard-detailed.spec.ts`
-- [ ] 2.4 Re-run 2.1 and confirm it passes at every width in both variants
+- [x] 2.1 Write the failing geometry test in `src/test/e2e/registration/wizardVisualQA.spec.ts`: widths [390, 1024, 1100, 1280, 1440] × variants [exhibitor route, secretary route] × every step title → exactly one line rect and no intra-word split; include the known-answer probe that proves the harness detects a 2-line element; run it and confirm it fails on current `main` at 1024
+- [x] 2.2 Rewrite `HorizontalProgressIndicator.tsx` as the numbered rail (single title, truncate, no pill, no description, connector as a pseudo-element, `aria-current` + name suffixes + progressbar preserved); verify the existing indicator unit tests plus new tests for truncation and a11y names pass
+- [x] 2.3 Update `ALL_STEP_DEFINITIONS` titles (`Select dogs`, `Select classes`, `Handlers`, `Payment`, `Receipt` — keep the INTENT comment) and drop `description` from both wizards' step types; verify `pnpm typecheck` and the show-creation wizard renders in `show-creation-wizard-detailed.spec.ts`
+- [x] 2.4 Re-run 2.1 and confirm it passes at every width in both variants
 
 ## 3. Entries panel
 

@@ -304,10 +304,10 @@ WHERE NOT EXISTS (
   --     behind. Asserting updated_at and version are unchanged is what proves
   --     the write was actually suppressed rather than merely made idempotent.
   -- =====================================================================
-  INSERT INTO public.classes (id, trial_id, name, level, element, judge_name,
+  INSERT INTO public.classes (id, trial_id, name, level, element,
                               entry_fee, status, time_limit_seconds, num_areas,
                               display_order, version)
-    VALUES (v_c9, v_trial, '3.8 Check-in Churn', 'Novice', 'Container', 'Test Judge',
+    VALUES (v_c9, v_trial, '3.8 Check-in Churn', 'Novice', 'Container',
             30.00, 'upcoming', 120, 1, 9, 1);
 
   INSERT INTO public.entries (class_id, show_id, trial_id, entry_status, check_in_status, is_scored, result_status)

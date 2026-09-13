@@ -1,4 +1,4 @@
-import '@testing-library/jest-dom';
+import '@myk9/test-utils/src/setup/jest-dom';
 import { afterEach, beforeAll, beforeEach, vi } from 'vitest';
 import { cleanup } from '@testing-library/react';
 import { testCleanup } from './config/testOptimization';

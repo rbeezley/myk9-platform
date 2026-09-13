@@ -47,12 +47,22 @@ function renderDialog(onRefunded = vi.fn()) {
 
 beforeEach(() => {
   vi.clearAllMocks();
-  // Default: no snapshot policy → dialog behaves exactly as before.
-  suggestionMock.mockReturnValue({ data: undefined });
+  // Default: the policy lookup has completed and the entry is eligible for a
+  // normal full refund. Missing/error states are covered explicitly below.
+  suggestionMock.mockReturnValue({
+    data: {
+      hasPolicy: true,
+      refundCents: 5000,
+      retainedCents: 0,
+      requiresManual: false,
+      reason: 'before_cutoff',
+      policy: null,
+    },
+  });
 });
 
 describe('RefundEntryDialog', () => {
-  it('full refund invokes the function with NO amount (server refunds the exact fee)', async () => {
+  it('full refund leaves the exact fee amount server-authoritative', async () => {
     mockedInvoke.mockResolvedValue({
       data: { refund_id: 're_1', amount_cents: 5000 },
       error: null,
@@ -208,7 +218,7 @@ describe('RefundEntryDialog — withdrawal policy pre-fill', () => {
     expect(screen.getByRole('radio', { name: /full refund/i })).toBeChecked();
   });
 
-  it('does NOT auto-select for a prose-only/unset policy (requiresManual) but still shows guidance', () => {
+  it('requires an explicit partial amount for a prose-only/unset policy', () => {
     suggestionMock.mockReturnValue({
       data: {
         hasPolicy: true,
@@ -221,8 +231,74 @@ describe('RefundEntryDialog — withdrawal policy pre-fill', () => {
     });
     renderDialog();
     expect(screen.getByText(/needs your judgment/i)).toBeInTheDocument();
-    // No partial pre-fill — the secretary decides from the default full.
-    expect(screen.getByRole('radio', { name: /full refund/i })).toBeChecked();
+    expect(screen.getByRole('radio', { name: /partial amount/i })).toBeChecked();
+    expect(screen.getByRole('button', { name: /issue refund/i })).toBeDisabled();
+  });
+
+  it('allows an explicit partial refund when the policy lookup fails closed', async () => {
+    suggestionMock.mockReturnValue({
+      data: undefined,
+      error: new Error('policy lookup failed'),
+    });
+    mockedInvoke.mockResolvedValue({ data: { amount_cents: 2500 }, error: null });
+    renderDialog();
+    const user = userEvent.setup();
+
+    await user.click(screen.getByRole('radio', { name: /partial amount/i }));
+    await user.type(screen.getByLabelText(/amount \(max/i), '25.00');
+    await user.click(screen.getByRole('button', { name: /issue refund/i }));
+
+    await waitFor(() => {
+      expect(mockedInvoke).toHaveBeenCalledWith('stripe-refund-entry', {
+        body: { entry_id: 'entry-1', amount_cents: 2500, notes: undefined },
+      });
+    });
+  });
+
+  it('issues an explicitly entered amount during manual review without trusting the snapshot amount', async () => {
+    suggestionMock.mockReturnValue({
+      data: {
+        hasPolicy: true,
+        refundCents: 5000,
+        retainedCents: 0,
+        requiresManual: true,
+        reason: 'manual_review',
+        policy: null,
+      },
+    });
+    mockedInvoke.mockResolvedValue({ data: { amount_cents: 5000 }, error: null });
+    renderDialog();
+    const user = userEvent.setup();
+
+    await user.type(screen.getByLabelText(/amount \(max/i), '25.00');
+    await user.click(screen.getByRole('button', { name: /issue refund/i }));
+
+    await waitFor(() => {
+      expect(mockedInvoke).toHaveBeenCalledWith('stripe-refund-entry', {
+        body: {
+          entry_id: 'entry-1',
+          amount_cents: 2500,
+          notes: undefined,
+        },
+      });
+    });
+  });
+
+  it('requires an explicit amount for a structured manual-review policy', () => {
+    suggestionMock.mockReturnValue({
+      data: {
+        hasPolicy: true,
+        refundCents: 5000,
+        retainedCents: 0,
+        requiresManual: true,
+        reason: 'manual_review',
+        policy: { cutoffDate: null, retentionType: 'flat', retentionValue: 0, notes: null },
+      },
+    });
+    renderDialog();
+
+    expect(screen.getByRole('radio', { name: /partial amount/i })).toBeChecked();
+    expect(screen.getByRole('button', { name: /issue refund/i })).toBeDisabled();
   });
 
   it('shows no policy message when the entry has no snapshot', () => {
@@ -237,7 +313,7 @@ describe('RefundEntryDialog — withdrawal policy pre-fill', () => {
       },
     });
     renderDialog();
-    expect(screen.queryByText(/withdrawal policy/i)).not.toBeInTheDocument();
+    expect(screen.getByText(/needs your judgment/i)).toBeInTheDocument();
   });
 });
 

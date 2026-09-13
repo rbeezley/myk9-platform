@@ -39,11 +39,18 @@ describe('seed-demo officials + RBAC completeness contract', () => {
     expect(showInsertColumns).not.toMatch(/\bchief_steward\b/);
   });
 
-  it('sets a judge_name on every seeded class', () => {
-    expect(seed).toContain('section, judge_name,');
-    // 5 classes, each carrying the assigned judge's display name.
-    const judgeNameMatches = seed.match(/'Test Judge'/g) ?? [];
-    expect(judgeNameMatches.length).toBeGreaterThanOrEqual(5);
+  it('never writes the retired classes.judge_name column (MYK9-479)', () => {
+    // The column was dropped by 20260912234500. A class's judge is its
+    // judge_assignments row (pinned below); a seed that still wrote a name
+    // string would fail at INSERT on a fresh database.
+    const classInserts = [...seed.matchAll(/INSERT INTO public\.classes \(([^)]*)\)/g)].map(
+      match => match[1]!
+    );
+    expect(classInserts.length).toBeGreaterThanOrEqual(2);
+    for (const columns of classInserts) {
+      expect(columns).not.toMatch(/\bjudge_name\b/);
+    }
+    expect(seed).not.toContain("'Test Judge'");
   });
 
   // Every role whose golden path the demo must support has an idempotent grant.
@@ -96,10 +103,11 @@ describe('seed-demo officials + RBAC completeness contract', () => {
     expect(seed).toContain('dededede-0000-0000-0000-000000000092');
   });
 
-  it('treats classes.judge_name as a derived snapshot, documented as such', () => {
-    // The comment must flag this as a snapshot so a future edit does not mistake
-    // it for the source of truth (which is the assignment).
-    expect(seed).toContain('DENORMALIZED SNAPSHOT');
+  it('documents the assignment row as the only judge source', () => {
+    // The class-block comment must say where the judge lives, so a future edit
+    // does not re-add a name column to "fix" a missing judge on a class.
+    expect(seed).toContain('classes.judge_name was dropped by 20260912234500 (MYK9-479)');
+    expect(seed).not.toContain('DENORMALIZED SNAPSHOT');
     expect(seed).toMatch(/judge_qualifications/);
   });
 

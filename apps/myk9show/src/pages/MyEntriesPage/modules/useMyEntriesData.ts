@@ -25,6 +25,7 @@ import {
   type EntryBalanceRawRow,
   type EntryBalanceSummary,
 } from '@/features/payments/entryBalanceSummary';
+import { resolveTrialTimezone, type EntryRowTrial } from './entryRowTrial';
 import { parseShowDate } from './myEntriesStats.helpers';
 import { normalizeCheckInStatus } from './myEntriesUtils';
 import { groupEntriesByOrder } from './groupEntriesByOrder';
@@ -179,15 +180,11 @@ export function useMyEntriesData({
       id: string;
       name: string;
       class_number?: string;
-      trial?: { trial_type?: string; date?: string; trial_number?: string | null } | null;
+      trial?: EntryRowTrial | null;
     } | null;
     // Discipline gates the jump-height field. Prefer entries.trial_id, but fall
     // back through class.trial_id so legacy entries with NULL trial_id still work.
-    const trialData = entry.trial as {
-      trial_type?: string;
-      date?: string;
-      trial_number?: string | null;
-    } | null;
+    const trialData = entry.trial as EntryRowTrial | null;
     const armband = entry.armband ? String(entry.armband) : undefined;
     // Per-ROW payment facts, carried onto the class row so the grouped card can
     // reconcile money across rows instead of inheriting the first row's status
@@ -201,6 +198,7 @@ export function useMyEntriesData({
     const rowPaymentMethod = (entry.payment_method as string | null) ?? null;
     const trialDate = parseShowDate(trialData?.date ?? classData?.trial?.date);
     const trialNumber = trialData?.trial_number ?? classData?.trial?.trial_number ?? undefined;
+    const trialTimezone = resolveTrialTimezone(trialData, classData?.trial);
     const rawEntryStatus = entry.entry_status as string | null | undefined;
     const isShowCancelled = Boolean(show?.deleted_at);
     const rowPaymentStatus = getOwnEntryPaymentStatus(
@@ -236,6 +234,7 @@ export function useMyEntriesData({
         fee: (entry.entry_fee as number) || 0,
         trialDate,
         trialNumber,
+        trialTimezone,
         jumpHeight: (entry.jump_height as string) || undefined,
         trialType: trialData?.trial_type || classData?.trial?.trial_type || undefined,
         runOrder: (entry.run_order as number) || undefined,

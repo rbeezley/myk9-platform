@@ -1,5 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/services/database/supabaseClient';
+import { fetchJudgeNamesByClass } from '@/services/database/_shared/judgeNamesByClass';
 import { useAuthContext } from '@/hooks/useAuthContext';
 import type { ExhibitorClassInfo } from '@/types/exhibitor-types';
 import { isCheckInStatus } from '@myk9/core';
@@ -25,7 +26,6 @@ interface CheckInDataRow {
     level: string | null;
     max_entries: number | null;
     start_time: string | null;
-    judge_name: string | null;
     trial: {
       id: string;
       name: string;
@@ -40,7 +40,15 @@ interface CheckInDataRow {
   };
 }
 
-export function mapRowToClassInfo(row: CheckInDataRow): ExhibitorClassInfo {
+/**
+ * @param judgeName The class's judge from get_show_judges (see fetchJudgeNamesByClass), or
+ *   undefined when the class has no confirmed assignment. Passed in rather than read off the
+ *   row: `classes.judge_name` was dropped (MYK9-479), and an exhibitor cannot embed `people`.
+ */
+export function mapRowToClassInfo(
+  row: CheckInDataRow,
+  judgeName: string | undefined
+): ExhibitorClassInfo {
   const cls = row.class;
   const trial = cls.trial;
   const show = trial.show;
@@ -54,7 +62,7 @@ export function mapRowToClassInfo(row: CheckInDataRow): ExhibitorClassInfo {
       element: cls.element ?? '',
       level: cls.level ?? '',
       maxEntries: cls.max_entries ?? 0,
-      judgeName: cls.judge_name ?? '',
+      judgeName: judgeName ?? '',
       startTime: cls.start_time ?? new Date().toISOString(),
       ringNumber: null,
     },
@@ -85,7 +93,7 @@ export function mapRowToClassInfo(row: CheckInDataRow): ExhibitorClassInfo {
       handlerName: '',
       className: cls.name,
       ringNumber: null,
-      judgeName: cls.judge_name ?? '',
+      judgeName: judgeName ?? '',
       dog: {
         id: row.dog.id,
         name: row.dog.call_name ?? '',
@@ -102,7 +110,7 @@ export function mapRowToClassInfo(row: CheckInDataRow): ExhibitorClassInfo {
       classId: cls.id,
       className: cls.name,
       ringNumber: null,
-      judgeName: cls.judge_name ?? '',
+      judgeName: judgeName ?? '',
       judgeStatus: 'active',
       totalEntries: 0,
       completedEntries: 0,
@@ -123,7 +131,7 @@ async function fetchCheckInData(
       id, check_in_status, armband, run_order, handler_id,
       dog:dogs!inner(id, call_name, breed, sex, date_of_birth),
       class:classes!inner(
-        id, name, element, level, max_entries, start_time, judge_name,
+        id, name, element, level, max_entries, start_time,
         trial:trials!inner(
           id, name, date, planned_start_time,
           show:shows!inner(id, name, location)
@@ -137,7 +145,9 @@ async function fetchCheckInData(
 
   if (error) throw new Error(error.message);
   if (!data) return null;
-  return mapRowToClassInfo(data as unknown as CheckInDataRow);
+  const row = data as unknown as CheckInDataRow;
+  const judgeNames = await fetchJudgeNamesByClass(row.class.trial.show.id);
+  return mapRowToClassInfo(row, judgeNames.get(row.class.id));
 }
 
 export function useClassCheckInData(entryId: string) {

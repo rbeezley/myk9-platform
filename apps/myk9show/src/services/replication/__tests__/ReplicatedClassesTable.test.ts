@@ -1104,3 +1104,35 @@ describe('rowToClass — area count column name', () => {
     expect(cls.areaCount).toBeUndefined();
   });
 });
+
+/**
+ * MYK9-479. `classes.judge_name` was dropped: it was a free-text snapshot that
+ * no trigger maintained and that disagreed with judge_assignments on 26 of 31
+ * classes. The assignment embed is the only judge source a replicated class
+ * has; a row that still carries the retired key (an old fixture, a stale cold
+ * store) must not resurrect it.
+ */
+describe('rowToClass — judge name comes only from the assignment embed', () => {
+  it('reads the judge from judge_assignments', () => {
+    const cls = rowToClass({
+      id: 'c1',
+      name: 'Interior Advanced',
+      judge_assignments: [{ person_id: 'p-1', people: { first_name: 'Ada', last_name: 'Judge' } }],
+    } as unknown as Parameters<typeof rowToClass>[0]);
+
+    expect(cls.judgeName).toBe('Ada Judge');
+    expect(cls.judgeId).toBe('p-1');
+  });
+
+  it('ignores a stray judge_name key when there is no assignment', () => {
+    const cls = rowToClass({
+      id: 'c1',
+      name: 'Interior Advanced',
+      judge_name: 'Stale Snapshot',
+      judge_assignments: [],
+    } as unknown as Parameters<typeof rowToClass>[0]);
+
+    expect(cls.judgeName).toBeUndefined();
+    expect(cls.judgeId).toBeUndefined();
+  });
+});

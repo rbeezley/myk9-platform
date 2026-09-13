@@ -35,8 +35,11 @@ const classData = {
   element: 'Container',
   level: 'Novice',
   section: 'A',
-  judge_name: 'Pat Judge',
-} as DbClass;
+  // MYK9-479: classes.judge_name is gone; the assignment is the only judge source.
+  judge_assignments: [
+    { person_id: 'judge-pat', people: { first_name: 'Pat', last_name: 'Judge' } },
+  ],
+} as unknown as DbClass;
 
 const entry = {
   id: 'entry-1',
@@ -154,7 +157,7 @@ describe('buildTrialReportProps', () => {
     expect(props.entries[0]?.registrationNumber).not.toBe('AKC-123');
   });
 
-  it('uses assignment-shaped class judge data before legacy judge_name', () => {
+  it('uses assignment-shaped class judge data and ignores a stray judge_name key', () => {
     const assignmentBackedClass = {
       ...classData,
       judge_name: 'Legacy Judge',
@@ -180,24 +183,31 @@ describe('buildTrialReportProps', () => {
     expect(props.allClasses?.[0]?.judgeName).toBe('Assigned Judge');
   });
 
-  it('keeps legacy judge_name fixtures displayable', () => {
+  it('does not resurrect the dropped judge_name column as a judge (MYK9-479)', () => {
+    // A stale row shape carrying only the retired key has no assignment, so it
+    // is unassigned — not "Stale Snapshot".
+    const staleClass = {
+      ...classData,
+      judge_name: 'Stale Snapshot',
+      judge_assignments: [],
+    } as unknown as DbClass;
+
     const [props] = buildTrialReportProps({
       show,
       trials: [trial],
-      classes: [classData],
+      classes: [staleClass],
       entries: [entry],
       scope: { kind: 'trial', showId: 'show-1', trialId: 'trial-1' },
       sortOrder: '',
     });
 
-    expect(props.trial?.judgeName).toBe('Pat Judge');
-    expect(props.entries[0]?.judgeName).toBe('Pat Judge');
+    expect(props.trial?.judgeName).toBe('TBD');
+    expect(props.entries[0]?.judgeName).toBe('TBD');
   });
 
   it('renders TBD only when the class is genuinely unassigned', () => {
     const unassignedClass = {
       ...classData,
-      judge_name: null,
       judge_assignments: [],
     } as unknown as DbClass;
 
@@ -218,8 +228,10 @@ describe('buildTrialReportProps', () => {
     const secondClass = {
       ...classData,
       id: 'class-2',
-      judge_name: 'Second Judge',
-    } as DbClass;
+      judge_assignments: [
+        { person_id: 'judge-second', people: { first_name: 'Second', last_name: 'Judge' } },
+      ],
+    } as unknown as DbClass;
 
     const [props] = buildTrialReportProps({
       show,

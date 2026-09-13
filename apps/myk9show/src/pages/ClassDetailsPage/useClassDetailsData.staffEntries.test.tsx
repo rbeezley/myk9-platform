@@ -14,6 +14,7 @@ const mocks = vi.hoisted(() => ({
   useEntriesByClass: vi.fn(),
   useAuthContext: vi.fn(),
   useSecretaryShowEntriesQuery: vi.fn(),
+  useShowQuery: vi.fn(),
 }));
 
 vi.mock('@/hooks/useClassStoreCompat', () => ({
@@ -34,8 +35,9 @@ vi.mock('@/hooks/useAuthContext', () => ({ useAuthContext: mocks.useAuthContext 
 vi.mock('@/hooks/queries/useEntriesDatabase', () => ({
   useSecretaryShowEntriesQuery: mocks.useSecretaryShowEntriesQuery,
 }));
+vi.mock('@/hooks/queries/useShowsDatabase', () => ({ useShowQuery: mocks.useShowQuery }));
 
-import { useClassDetailsData } from './useClassDetailsData';
+import { SHOW_SCOPE_UNAVAILABLE_MESSAGE, useClassDetailsData } from './useClassDetailsData';
 
 const currentClass = {
   id: 'class-1',
@@ -60,7 +62,17 @@ function wrapper({ children }: { children: ReactNode }) {
 describe('useClassDetailsData staff entry source', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    mocks.useAuthContext.mockReturnValue({ isSecretary: true, isAdmin: false });
+    // `hasRole` is the single source of truth: AuthContext defines
+    // `isSecretary`/`isAdmin` as exactly these calls, so a fixture with
+    // `isSecretary: true` and `hasRole: () => false` describes a user that
+    // cannot exist. Keep the two consistent or the gate under test is
+    // exercised against an impossible state.
+    mocks.useAuthContext.mockReturnValue({
+      isSecretary: true,
+      isAdmin: false,
+      hasRole: (role: string) => role === 'secretary',
+      userWithRoles: { scopes: [{ scopeType: 'club', scopeId: 'club-1', roleId: 'secretary' }] },
+    });
     mocks.useClassStoreCompat.mockReturnValue({
       classes: [currentClass],
       updateClass: vi.fn(),
@@ -73,7 +85,10 @@ describe('useClassDetailsData staff entry source', () => {
       trials: [{ id: 'trial-1', showId: 'show-1' }],
       trialClasses: { 'trial-1': [currentClass] },
     });
-    mocks.useShowStore.mockReturnValue({ shows: [{ id: 'show-1', name: 'Heartland' }] });
+    mocks.useShowStore.mockReturnValue({
+      shows: [{ id: 'show-1', name: 'Heartland', clubId: 'club-1' }],
+    });
+    mocks.useShowQuery.mockReturnValue({ data: null });
     mocks.useDogStoreCompat.mockReturnValue({ dogs: [] });
     mocks.useEntriesByClass.mockReturnValue([]);
     mocks.useSecretaryShowEntriesQuery.mockReturnValue({
@@ -111,6 +126,40 @@ describe('useClassDetailsData staff entry source', () => {
     expect(result.current.dbRawEntries).toHaveLength(8);
     expect(result.current.dbRawEntries.filter(entry => entry.is_scored)).toHaveLength(3);
     expect(result.current.entriesLoading).toBe(false);
+    expect(result.current.entriesError).toBeNull();
+  });
+
+  // The `unavailable` arm of the ownership state machine, at the surface a user
+  // actually sees. Distinct from a failed ENTRY load (below): here the SHOW
+  // itself could not be resolved, so we cannot even say whether this viewer
+  // manages it. Silently dropping them to an empty exhibitor view is the bug.
+  it('surfaces a scope error when the owning show cannot be resolved', () => {
+    mocks.useShowStore.mockReturnValue({ shows: [] });
+    mocks.useShowQuery.mockReturnValue({
+      data: null,
+      isLoading: false,
+      isPlaceholderData: false,
+    });
+
+    const { result } = renderHook(() => useClassDetailsData(), { wrapper });
+
+    expect(result.current.manageScope.status).toBe('unavailable');
+    expect(result.current.entriesError).toBe(SHOW_SCOPE_UNAVAILABLE_MESSAGE);
+    expect(result.current.entriesLoading).toBe(false);
+  });
+
+  it('holds, without erroring, while the owning show is still resolving', () => {
+    mocks.useShowStore.mockReturnValue({ shows: [] });
+    mocks.useShowQuery.mockReturnValue({
+      data: null,
+      isLoading: true,
+      isPlaceholderData: false,
+    });
+
+    const { result } = renderHook(() => useClassDetailsData(), { wrapper });
+
+    expect(result.current.manageScope.status).toBe('resolving');
+    expect(result.current.entriesLoading).toBe(true);
     expect(result.current.entriesError).toBeNull();
   });
 

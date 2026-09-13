@@ -32,8 +32,19 @@ describe('TVGrid', () => {
   });
 
   it('renders empty state when no classes', () => {
-    render(<TVGrid classes={[]} />);
+    render(<TVGrid classes={[]} showName="Spring Trial 2026" showId="show-1" />);
     expect(screen.getByText(/no classes currently in progress/i)).toBeInTheDocument();
+    expect(screen.getByText(/Spring Trial 2026/)).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: /view show details/i })).toHaveAttribute(
+      'href',
+      '/shows/show-1'
+    );
+  });
+
+  it('distinguishes a refresh failure from no active classes', () => {
+    render(<TVGrid classes={[]} error={new Error('network unavailable')} />);
+    expect(screen.getByText('TV board data unavailable')).toBeInTheDocument();
+    expect(screen.queryByText(/no classes currently in progress/i)).not.toBeInTheDocument();
   });
 
   it('highlights recently updated class', () => {

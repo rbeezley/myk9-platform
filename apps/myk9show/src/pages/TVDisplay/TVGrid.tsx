@@ -1,19 +1,19 @@
 import { cn } from '@/lib/utils';
 import { TVClassCard } from './TVClassCard';
+import { TVEmptyState } from './TVEmptyState';
 import type { TVClass } from './types';
 
 interface TVGridProps {
   classes: TVClass[];
   highlightedClassId?: string | null;
+  showName?: string;
+  showId?: string;
+  error?: Error | null;
 }
 
-export function TVGrid({ classes, highlightedClassId }: TVGridProps) {
+export function TVGrid({ classes, highlightedClassId, showName, showId, error }: TVGridProps) {
   if (classes.length === 0) {
-    return (
-      <div className="flex flex-col items-center justify-center min-h-[60vh] text-zinc-500">
-        <div className="text-lg">No classes currently in progress</div>
-      </div>
-    );
+    return <TVEmptyState showName={showName} showId={showId} error={error} />;
   }
 
   return (

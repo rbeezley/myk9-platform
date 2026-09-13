@@ -1,5 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { describeWithdrawalPolicy } from '../formatWithdrawalPolicy';
+import { notesDescribeRefundTerms } from '../withdrawalPolicyTerms';
+import { withdrawalPolicyTermFixtures } from '../withdrawalPolicyTermFixtures';
 import type { WithdrawalPolicy } from '../withdrawalPolicy';
 
 const base: WithdrawalPolicy = {
@@ -41,8 +43,8 @@ describe('describeWithdrawalPolicy', () => {
     expect(d.refundLine).toContain('January 1, 2026');
   });
 
-  it('omits the deadline when no retention is set (full refund regardless)', () => {
-    const d = describeWithdrawalPolicy({ ...base, retentionValue: 0 });
+  it('omits the deadline when retention is explicitly zero', () => {
+    const d = describeWithdrawalPolicy({ ...base, retentionValue: 0, retentionDeclared: true });
     expect(d.refundLine).toBe('Full refund of the entry fee. Service fees are non-refundable.');
   });
 
@@ -67,5 +69,20 @@ describe('describeWithdrawalPolicy', () => {
     const d = describeWithdrawalPolicy({ ...base, notes: 'Email the secretary to withdraw.' });
     expect(d.refundLine).toContain('$10.00 is kept');
     expect(d.notes).toBe('Email the secretary to withdraw.');
+  });
+
+  it('does not assert a refund figure when prose declares a contradictory schedule', () => {
+    const d = describeWithdrawalPolicy({
+      ...base,
+      notes: 'Full refund until closing, then 50% until 7 days out, none after.',
+    });
+    expect(d.refundLine).not.toContain('$10.00');
+    expect(d.notes).toContain('50%');
+  });
+
+  it('detects multiline refund terms without treating procedural notes as terms', () => {
+    for (const [notes, expected] of withdrawalPolicyTermFixtures) {
+      expect(notesDescribeRefundTerms(notes)).toBe(expected);
+    }
   });
 });

@@ -28,7 +28,7 @@ export const ENTRIES_LOAD_ERROR =
   "We couldn't refresh your entries just now. Your saved information is still here — try again in a moment.";
 
 /**
- * One-line reassurance shown on the `MyEntryCard` summary band while an
+ * One-line reassurance shown beneath a `MyShowDogCard`'s class rows while an
  * entry's status is "Pending Secretary Approval" — calms the "did this vanish
  * into a void?" anxiety before the exhibitor expands details.
  */

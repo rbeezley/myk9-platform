@@ -12,13 +12,16 @@
  *   - other git worktrees on this machine: their branch's commits past
  *     origin/main PLUS their uncommitted and untracked files — work that has
  *     no PR yet is exactly the work a PR list cannot show
- *   - unmerged local branches not checked out anywhere
+ *   - recent unmerged local branches not checked out anywhere; branches older
+ *     than STALE_BRANCH_DAYS are retained as inventory only
  *
  * Overlap is exact path or directory prefix in either direction. The current
  * branch and its own same-repository PR are excluded. With no paths given and
  * no changes on the branch, the check fails closed (exit 2): before work
- * starts, name the paths you intend to touch. Exit 1 on any overlap so a chained
- * `pnpm qa:inflight && …` stops; `--warn` reports without failing. Linear
+ * starts, name the paths you intend to touch. Actionable overlaps make a chained
+ * `pnpm qa:inflight && …` stop; stale-only inventory exits 0. `--warn` reports
+ * actionable overlaps without failing, and
+ * `--verbose` expands stale local-branch details. Linear
  * "In Progress" issues and other Claude sessions are MCP tools, not shell,
  * and stay as the skill's manual steps.
  */
@@ -29,6 +32,8 @@ import { pathToFileURL } from 'node:url';
 
 export interface ChangeSource {
   kind: 'pr' | 'worktree' | 'branch';
+  /** A local branch whose tip is older than STALE_BRANCH_DAYS. */
+  stale?: boolean;
   /** For a worktree: its uncommitted/untracked files alone — kept even when its branch already merged. */
   dirty?: string[];
   /** For a PR: true when its head lives in THIS repository, not a fork. Only such a PR can be "our own". */
@@ -45,6 +50,14 @@ export interface Overlap {
   path: string;
   matched: string;
   source: ChangeSource;
+}
+
+/** Old local refs are useful inventory, but should not drown out live work. */
+export const STALE_BRANCH_DAYS = 3;
+export const STALE_BRANCH_SECONDS = STALE_BRANCH_DAYS * 24 * 60 * 60;
+
+export function isStaleCommit(committedAt: number, now = Date.now()): boolean {
+  return Number.isFinite(committedAt) && now / 1000 - committedAt > STALE_BRANCH_SECONDS;
 }
 
 export function normalizePath(p: string): string {
@@ -119,7 +132,10 @@ export function findOverlaps(
   return out;
 }
 
-export function renderOverlaps(overlaps: readonly Overlap[]): string {
+export function renderOverlaps(
+  overlaps: readonly Overlap[],
+  opts: { verbose?: boolean } = {}
+): string {
   if (overlaps.length === 0)
     return 'inflight: no open PR, other worktree, or unmerged branch touches these paths.';
   const bySource = new Map<string, Overlap[]>();
@@ -127,17 +143,51 @@ export function renderOverlaps(overlaps: readonly Overlap[]): string {
     const key = `${o.source.kind} ${o.source.id}`;
     bySource.set(key, [...(bySource.get(key) ?? []), o]);
   }
+  const actionableOverlaps = overlaps.filter(isActionableOverlap);
+  const actionable = actionableOverlaps.length > 0;
+  const stale = overlaps.filter(o => !isActionableOverlap(o));
+  const staleNote = stale.length ? ` (${overlaps.length} total including stale inventory)` : '';
   const lines = [
-    `inflight: ${overlaps.length} overlap(s) with work already in flight — coordinate before continuing:`,
+    actionable
+      ? `inflight: ${actionableOverlaps.length} actionable overlap(s) with work already in flight${staleNote} — coordinate before continuing:`
+      : `inflight: no actionable overlaps; ${overlaps.length} stale inventory match(es) found, gate can continue:`,
   ];
-  for (const [key, list] of bySource) {
+  const ordered = [...bySource].sort(([, listA], [, listB]) => {
+    const priority = (list: Overlap[]) => {
+      const source = list[0].source;
+      if (source.kind === 'pr') return 0;
+      if (source.kind === 'worktree') return 1;
+      if (source.stale) return 3;
+      return 2;
+    };
+    return priority(listA) - priority(listB);
+  });
+  const isStaleBranch = (list: Overlap[]) =>
+    list[0].source.kind === 'branch' && list[0].source.stale;
+  const staleGroups = ordered.filter(([, list]) => isStaleBranch(list));
+  // Keep the individual stale groups out of the default report, but retain
+  // their exact counts in the summary below. `--verbose` shows the same
+  // groups as the original report for branch cleanup work.
+  const displayed = opts.verbose ? ordered : ordered.filter(([, list]) => !isStaleBranch(list));
+  for (const [key, list] of displayed) {
     const s = list[0].source;
-    const meta = [s.branch && `branch ${s.branch}`, s.owner && `by ${s.owner}`, s.url]
+    const meta = [
+      s.kind !== 'branch' && s.branch && `branch ${s.branch}`,
+      s.stale && 'stale local branch',
+      s.owner && `by ${s.owner}`,
+      s.url,
+    ]
       .filter(Boolean)
       .join(', ');
     lines.push(`  ${key}${meta ? ` (${meta})` : ''}`);
     for (const o of list.slice(0, 8)) lines.push(`    ${o.path}  ~  ${o.matched}`);
     if (list.length > 8) lines.push(`    … and ${list.length - 8} more`);
+  }
+  if (!opts.verbose && staleGroups.length) {
+    const staleFiles = new Set(staleGroups.flatMap(([, list]) => list.map(o => o.matched)));
+    lines.push(
+      `  and ${staleGroups.length} stale local branch(es) covering ${staleFiles.size} matched path(s) (older than ${STALE_BRANCH_DAYS} days; run with --verbose)`
+    );
   }
   return lines.join('\n');
 }
@@ -423,6 +473,10 @@ export function finishedSinceMerge(ref: string, mergedHead: string, cwd?: string
   return isAncestor(ref, mergedHead, cwd);
 }
 
+function isActionableOverlap(overlap: Overlap): boolean {
+  return overlap.source.kind !== 'branch' || !overlap.source.stale;
+}
+
 /** Exclusions for `ref`'s own-commit walk: main, plus the merged head when it is in `ref`'s history. */
 export function commitExcludes(
   ref: string,
@@ -500,9 +554,14 @@ export function unmergedLocalBranches(
 ): ChangeSource[] {
   // No allowFail: an inventory that could not be read is unknown, not empty,
   // and must reach the exit-2 handler (Codex, #2073 round 12).
-  const names = lines(
-    run('git', ['for-each-ref', '--format=%(refname:short)', 'refs/heads'], { cwd })
-  );
+  const refs = lines(
+    run('git', ['for-each-ref', '--format=%(refname:short)\t%(committerdate:unix)', 'refs/heads'], {
+      cwd,
+    })
+  ).map(line => {
+    const [name, committedAt] = line.split('\t');
+    return { name, committedAt: Number(committedAt) };
+  });
   // Every branch already contained in the base, in ONE call. Asking per branch
   // cost a subprocess apiece — 45 of them made the enumeration test a timeout
   // liability, and a real run pays the same on every local branch (Codex,
@@ -518,7 +577,7 @@ export function unmergedLocalBranches(
   // The base's own branch, not the literal `main`: with a non-main base, local
   // `main` is an ordinary branch whose commits may well be in flight.
   const baseBranch = baseLocalBranch(base);
-  for (const name of names) {
+  for (const { name, committedAt } of refs) {
     if (name === baseBranch || skip.has(name)) continue;
     // Contained in the base means merged (or empty): nothing in flight. Ask this
     // first — it is already answered, and it spares a `gh` round trip for every
@@ -529,7 +588,14 @@ export function unmergedLocalBranches(
     const mergedHead = merged.get(name);
     if (mergedHead && finishedSinceMerge(name, mergedHead, cwd)) continue;
     const files = committedPaths(name, commitExcludes(name, base, mergedHead, cwd), cwd);
-    if (files.length) out.push({ kind: 'branch', id: name, branch: name, files });
+    if (files.length)
+      out.push({
+        kind: 'branch',
+        id: name,
+        branch: name,
+        stale: isStaleCommit(committedAt),
+        files,
+      });
   }
   return out;
 }
@@ -546,6 +612,7 @@ export function runCli(argv = process.argv.slice(2), cwd = process.cwd()): numbe
 
 function runCliInner(argv: string[], cwd: string): number {
   const warn = argv.includes('--warn');
+  const verbose = argv.includes('--verbose');
   const base = argv.find(a => a.startsWith('--base='))?.slice('--base='.length) ?? 'origin/main';
   const explicit = argv.filter(a => !a.startsWith('--'));
   run('git', ['fetch', '-q', 'origin', 'main'], { cwd, allowFail: true });
@@ -609,11 +676,12 @@ function runCliInner(argv: string[], cwd: string): number {
   console.log(
     `inflight: checking ${paths.length} path(s) on ${branch} against ${sources.length} in-flight source(s)`
   );
-  console.log(renderOverlaps(overlaps));
+  console.log(renderOverlaps(overlaps, { verbose }));
   if (overlaps.length === 0) return 0;
   console.log(
     'Also check by hand: Linear issues In Progress that name these paths, and other running sessions (list_sessions).'
   );
+  if (!overlaps.some(isActionableOverlap)) return 0;
   return warn ? 0 : 1;
 }
 

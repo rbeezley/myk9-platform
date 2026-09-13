@@ -60,7 +60,27 @@ export function useWithdrawalRefundSuggestion(
       const timeZone = getTrialTimezone(trial);
 
       const withdrawnAt = (row.withdrawn_at as string | null) ?? null;
-      const asOf = withdrawnAt ? new Date(withdrawnAt) : new Date();
+      if (!withdrawnAt) {
+        return {
+          hasPolicy: snapshot !== null,
+          refundCents: entryFeeCents,
+          retainedCents: 0,
+          requiresManual: true,
+          reason: snapshot === null ? 'no_policy' : 'manual_review',
+          policy: snapshot,
+        };
+      }
+      const asOf = new Date(withdrawnAt);
+      if (Number.isNaN(asOf.getTime())) {
+        return {
+          hasPolicy: snapshot !== null,
+          refundCents: entryFeeCents,
+          retainedCents: 0,
+          requiresManual: true,
+          reason: snapshot === null ? 'no_policy' : 'manual_review',
+          policy: snapshot,
+        };
+      }
 
       const result = resolveWithdrawalRefundCents(snapshot, entryFeeCents, asOf, timeZone);
       return {

@@ -2,6 +2,7 @@ import { useEffect } from 'react';
 import type { Show } from '@/types/show-types';
 import type { Trial } from '@/components/trials/types/trial.types';
 import { publicClassesHref } from '@/features/_shared/publicClassesHref';
+import { OfferedClassesSection } from '@/features/_shared/landing/OfferedClassesSection';
 import { useCountdown } from '@/features/_shared/hooks/useCountdown';
 import { ensureFieldGuideFontsLoaded } from '../fonts';
 import { useFieldGuideLandingData } from './useFieldGuideLandingData';
@@ -47,7 +48,7 @@ export function FieldGuideLandingPage({
   }, []);
 
   const data = useFieldGuideLandingData(show, trial, allTrials);
-  const classesHref = publicClassesHref(show?.id, allTrials);
+  const classesHref = publicClassesHref(show);
   const entryCountdown = useCountdown(data.entryCloseDate, data.timezone);
   const entryClosed = entryCountdown.closed;
   // `entryNotYetOpen` matters as much as closed: a show whose entries open
@@ -129,6 +130,8 @@ export function FieldGuideLandingPage({
           secretaryEmail={data.secretaryEmail}
         />
       </main>
+
+      <OfferedClassesSection show={show} className="fg-section" />
 
       <FinalCtaSection
         entryWizardUrl={data.entryWizardUrl}

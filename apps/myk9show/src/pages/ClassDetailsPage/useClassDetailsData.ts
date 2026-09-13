@@ -26,9 +26,10 @@ import { useEntriesByClass } from '@/hooks/useFilteredEntries';
 import type { ShowEntry } from '@/types/entry-lifecycle';
 import type { CompetitionData } from '@/store/entryStore';
 import type { ClassEntryDisplay } from './types';
-import { useAuthContext } from '@/hooks/useAuthContext';
 import { useSecretaryShowEntriesQuery } from '@/hooks/queries/useEntriesDatabase';
 import type { SecretaryEntry } from '@/services/database/entries';
+import { useShowManageScope } from '@/hooks/useShowManageScope';
+import { useShowQuery } from '@/hooks/queries/useShowsDatabase';
 
 function secretaryEntryToRawRow(entry: SecretaryEntry): RawEntryRow {
   return {
@@ -104,6 +105,14 @@ function localEntryToDisplay(
   };
 }
 
+/**
+ * Shown when a viewer who holds a club-staff role somewhere reaches a class
+ * whose owning show cannot be resolved. Without this they would silently drop
+ * to the exhibitor surface and believe the class had no entries.
+ */
+export const SHOW_SCOPE_UNAVAILABLE_MESSAGE =
+  'We could not verify this show\u2019s ownership. Please retry.';
+
 export function useClassDetailsData() {
   const { classId, showId, trialId } = useParams<{
     classId: string;
@@ -111,8 +120,6 @@ export function useClassDetailsData() {
     trialId?: string;
   }>();
   const location = useLocation();
-  const { isSecretary, isAdmin } = useAuthContext();
-  const isStaff = isSecretary || isAdmin;
 
   // Detect if we're in "results view mode" based on URL path
   const isResultsView = location.pathname.endsWith('/results');
@@ -164,17 +171,36 @@ export function useClassDetailsData() {
       ? trials.find(trial => trial.id === currentClass.trialId)
       : undefined;
 
-  const parentShow = showId
+  const storedParentShow = showId
     ? shows.find(show => show.id === showId)
     : parentTrial
       ? shows.find(show => show.id === parentTrial.showId)
       : undefined;
-  const resolvedShowId = showId ?? parentShow?.id ?? parentTrial?.showId ?? '';
+  const resolvedShowId = showId ?? storedParentShow?.id ?? parentTrial?.showId ?? undefined;
+
+  // Parent show for DISPLAY (section links, headers). Separate concern from the
+  // authorization gate below, which owns its own resolution states. Both read
+  // `showQueryKeys.detail(id)`, so React Query dedupes them into one request.
+  const { data: queriedShow, isPlaceholderData } = useShowQuery(
+    storedParentShow ? '' : (resolvedShowId ?? '')
+  );
+  const parentShow = storedParentShow ?? (isPlaceholderData ? undefined : queriedShow);
+
+  // ONE ownership gate for the whole page (MYK9-464). The hook owns the
+  // resolving / resolved / unavailable transitions so this file never
+  // hand-rolls them again; see useShowManageScope for why each state exists.
+  const manageScope = useShowManageScope(resolvedShowId);
 
   const staffShowEntries = useSecretaryShowEntriesQuery(
-    resolvedShowId,
-    isStaff && Boolean(classId && resolvedShowId)
+    resolvedShowId ?? '',
+    manageScope.canOperate && Boolean(classId && resolvedShowId)
   );
+  // The show-wide secretary cache follows `canOperate`, NOT `canManage`: a club
+  // admin of this club may edit the class but is not show-day staff, so they
+  // read the public class query like every other non-operational viewer. One
+  // predicate drives the staff query and the disabling of the public ones, so
+  // the two can never disagree and strand a viewer with no entry source at all.
+  const useStaffEntrySource = manageScope.canOperate;
 
   // --- Entry sources ---
   // 1. Database entries via React Query (primary source)
@@ -182,7 +208,7 @@ export function useClassDetailsData() {
     entries: dbEntries,
     isLoading: dbEntriesLoading,
     error: dbEntriesError,
-  } = useClassEntriesWithQuery(classId || '', !!classId && !isStaff);
+  } = useClassEntriesWithQuery(classId || '', !!classId && !useStaffEntrySource);
 
   // 2. Local-only entries from the Zustand entry store (may include entries not yet synced)
   const localEntries = useEntriesByClass(classId || '');
@@ -197,7 +223,7 @@ export function useClassDetailsData() {
     data: dbRawEntries = [],
     isLoading: dbRawEntriesLoading,
     error: dbRawEntriesError,
-  } = useClassEntriesRaw(classId || undefined, !isStaff);
+  } = useClassEntriesRaw(classId || undefined, !useStaffEntrySource);
 
   const staffClassEntries = useMemo(
     () =>
@@ -206,7 +232,7 @@ export function useClassDetailsData() {
         .map(secretaryEntryToRawRow),
     [classId, staffShowEntries.data]
   );
-  const effectiveRawEntries = isStaff ? staffClassEntries : dbRawEntries;
+  const effectiveRawEntries = useStaffEntrySource ? staffClassEntries : dbRawEntries;
   const staffEntriesError = staffShowEntries.isError
     ? staffShowEntries.error instanceof Error
       ? staffShowEntries.error.message
@@ -296,12 +322,27 @@ export function useClassDetailsData() {
     localRawEntries,
     dbRawEntries: effectiveRawEntries,
     classEntries,
-    entriesLoading: isStaff ? staffShowEntries.isLoading : dbEntriesLoading || dbRawEntriesLoading,
-    entriesError: isStaff ? staffEntriesError : (dbRawEntriesError?.message ?? dbEntriesError),
+    // One switch over the ownership state machine, so every arm is reachable
+    // and each state has exactly one loading/error meaning.
+    entriesLoading:
+      manageScope.status === 'resolving'
+        ? true
+        : useStaffEntrySource
+          ? staffShowEntries.isLoading
+          : dbEntriesLoading || dbRawEntriesLoading,
+    entriesError:
+      manageScope.status === 'resolving'
+        ? null
+        : manageScope.status === 'unavailable'
+          ? SHOW_SCOPE_UNAVAILABLE_MESSAGE
+          : useStaffEntrySource
+            ? staffEntriesError
+            : (dbRawEntriesError?.message ?? dbEntriesError),
 
     // Parent context
     parentTrial,
     parentShow,
+    manageScope,
 
     // Dogs for entry lookups
     dogs,

@@ -60,7 +60,7 @@ export function StickyNav({
   return (
     <nav
       aria-label="Show sections"
-      className="sticky top-0 z-50 flex h-12 items-center justify-between border-b px-6"
+      className="sticky top-[var(--app-top-inset,3rem)] z-50 flex h-12 items-center justify-between border-b px-6"
       style={{
         background: 'var(--gz-paper)',
         borderColor: 'var(--gz-ink)',

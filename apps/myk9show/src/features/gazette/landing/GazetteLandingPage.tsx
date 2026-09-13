@@ -2,6 +2,7 @@ import { useEffect } from 'react';
 import type { Show } from '@/types/show-types';
 import type { Trial } from '@/components/trials/types/trial.types';
 import { publicClassesHref } from '@/features/_shared/publicClassesHref';
+import { OfferedClassesSection } from '@/features/_shared/landing/OfferedClassesSection';
 import { useCountdown } from '@/features/_shared/hooks/useCountdown';
 import { ensureGazetteFontsLoaded } from '../fonts';
 import { useGazetteLandingData } from './useGazetteLandingData';
@@ -47,7 +48,7 @@ export function GazetteLandingPage({
   }, []);
 
   const data = useGazetteLandingData(show, trial, allTrials);
-  const classesHref = publicClassesHref(show?.id, allTrials);
+  const classesHref = publicClassesHref(show);
   const entryCountdown = useCountdown(data.entryCloseDate, data.timezone);
   const entryClosed = entryCountdown.closed;
   // `entryNotYetOpen` matters as much as closed: a show whose entries open
@@ -141,6 +142,11 @@ export function GazetteLandingPage({
           officers={data.officers}
           secretaryName={data.secretaryName}
           volumeRoman={data.volumeRoman}
+        />
+
+        <OfferedClassesSection
+          show={show}
+          className="mx-auto max-w-[1100px] border-b px-6 py-12 md:px-12 md:py-14"
         />
 
         <FinalCtaSection

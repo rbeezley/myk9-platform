@@ -21,7 +21,8 @@ const activeClassRows = [
     scored_count: 3,
     start_time: '09:00',
     trials: { trial_date: '2026-04-01', trial_number: '1' },
-    judge_assignments: [{ people: { first_name: 'John', last_name: 'Smith' } }],
+    // MYK9-474: no judge_assignments embed any more. The board got `"people": null` from it on
+    // every row for an anonymous viewer, so judge names now come from the get_show_judges RPC.
   },
 ];
 
@@ -62,7 +63,6 @@ const completedClassRows = [
     element: 'Interior',
     level: 'Advanced',
     total_entries_count: 20,
-    judge_assignments: [{ people: { first_name: 'Alice', last_name: 'Smith' } }],
   },
 ];
 
@@ -141,6 +141,36 @@ function mockBoardRpcs(options: {
         error: null,
       });
     }
+    if (name === 'get_show_judges') {
+      // One row per ASSIGNMENT, as the RPC returns them — the class_id is what the board maps by.
+      return Promise.resolve({
+        data: [
+          // An invited (not confirmed) row for the same class sorts first and must be ignored.
+          {
+            person_id: 'p9',
+            first_name: 'Declined',
+            last_name: 'Judge',
+            class_id: 'class-active',
+            status: 'invited',
+          },
+          {
+            person_id: 'p1',
+            first_name: 'John',
+            last_name: 'Smith',
+            class_id: 'class-active',
+            status: 'confirmed',
+          },
+          {
+            person_id: 'p2',
+            first_name: 'Alice',
+            last_name: 'Smith',
+            class_id: 'class-done',
+            status: 'confirmed',
+          },
+        ],
+        error: null,
+      });
+    }
     return Promise.resolve({ data: null, error: null });
   });
 }
@@ -192,6 +222,9 @@ describe('tv-display database reads', () => {
     expect(mockSupabase.rpc.mock.calls).toEqual([
       ['tv_board_entries', { p_show_id: 'show-1', p_class_ids: ['class-active'] }],
       ['tv_class_entry_counts', { p_show_id: 'show-1', p_class_ids: ['class-active'] }],
+      // MYK9-474: judge names come from a definer RPC rather than a people embed anon cannot
+      // see through. Keyed by show, not by class, so it stays one call however many classes.
+      ['get_show_judges', { p_show_id: 'show-1' }],
     ]);
     expect(result.show).toEqual({
       id: 'show-1',
@@ -216,6 +249,34 @@ describe('tv-display database reads', () => {
     });
     expect(result.classes[0].entries.map(entry => entry.id)).toEqual(['entry-ring', 'entry-next']);
     expect(result.classes[0].entries[0].dog?.callName).toBe('Comet');
+  });
+
+  it('does not turn an active-class read failure into an empty board', async () => {
+    mockSupabase.from.mockImplementation((table: string) => {
+      if (table === 'shows') return createChainableQuery({ data: showRow, error: null });
+      if (table === 'classes') {
+        return createChainableQuery({
+          data: null,
+          error: { message: 'temporary database outage' },
+        });
+      }
+      return createChainableQuery();
+    });
+
+    await expect(getTVDisplayData('show-1')).rejects.toThrow(
+      'Unable to refresh TV classes: temporary database outage'
+    );
+  });
+
+  it('uses a nullable show lookup so a missing show remains not found', async () => {
+    const showQuery = createChainableQuery({ data: null, error: null });
+    mockSupabase.from.mockImplementation((table: string) => {
+      if (table === 'shows') return showQuery;
+      return createChainableQuery();
+    });
+
+    await expect(getTVDisplayData('missing-show')).resolves.toEqual({ show: null, classes: [] });
+    expect(showQuery.maybeSingle).toHaveBeenCalled();
   });
 
   it('returns the show with an empty class list when no active classes are online', async () => {

@@ -144,6 +144,36 @@ describe('useDraftPersistence — cross-user scoping', () => {
     expect(result.current.availableDrafts[0]?.id).toBe(draftId);
   });
 
+  it('reports persisted dog selections even when the metadata preview is stale', () => {
+    seedDraftData({ selectedDogs: [] });
+    const { result, rerender } = renderHook(() =>
+      useDraftPersistence(SHOW_ID, USER_A, 'dog-selection')
+    );
+    act(() => {
+      result.current.autoSave();
+    });
+    expect(result.current.availableDrafts[0]?.selectedDogsCount).toBe(0);
+
+    seedDraftData({ selectedDogs: ['dog-1'] });
+    rerender();
+    act(() => {
+      result.current.autoSave();
+    });
+
+    expect(result.current.availableDrafts[0]?.preview).toBe('New registration');
+    expect(result.current.availableDrafts[0]?.selectedDogsCount).toBe(1);
+  });
+
+  it('saves a selection when browser navigation hides the page before the timer fires', () => {
+    seedDraftData({ selectedDogs: ['dog-1'] });
+    const { result } = renderHook(() => useDraftPersistence(SHOW_ID, USER_A, 'dog-selection'));
+
+    expect(result.current.availableDrafts).toHaveLength(0);
+    act(() => window.dispatchEvent(new Event('pagehide')));
+
+    expect(result.current.availableDrafts[0]?.selectedDogsCount).toBe(1);
+  });
+
   it('does not recreate a draft from unchanged form state after clearing all drafts', () => {
     seedDraftData({ selectedDogs: ['dog-1'] });
     const { result, rerender } = renderHook(() =>

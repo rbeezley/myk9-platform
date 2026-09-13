@@ -22,6 +22,8 @@ export interface DraftMetadata {
   stepCompleted: string;
   title: string;
   preview: string;
+  /** Derived from the saved payload when listing drafts; older previews can be stale. */
+  selectedDogsCount?: number;
 }
 
 export interface SavedDraft {
@@ -344,11 +346,40 @@ export function useDraftPersistence(
     };
   }, [log]);
 
+  // Browser Back can unload the document without a React unmount. Persist the
+  // latest form state before navigation, even when the 30-second timer has not fired.
+  useEffect(() => {
+    const saveOnPageHide = () => {
+      if (!skipFinalSaveRef.current) autoSaveRef.current();
+    };
+    window.addEventListener('pagehide', saveOnPageHide);
+    return () => window.removeEventListener('pagehide', saveOnPageHide);
+  }, []);
+
   // Available drafts for the current (show, user) pair. Storage keys already
   // scope by userId, so no read-side filter is needed.
   // Reading the small metadata list on render keeps localStorage as the source
   // of truth. draftsVersion forces a render after in-hook storage mutations.
-  const availableDrafts = getDraftMetadata();
+  const availableDrafts = getDraftMetadata().map(metadata => {
+    try {
+      const raw = localStorage.getItem(getDraftKey(metadata.id));
+      if (!raw) return { ...metadata, selectedDogsCount: 0 };
+      const saved: SavedDraft = JSON.parse(raw);
+      const validOwner =
+        saved.metadata?.id === metadata.id &&
+        saved.metadata.showId === showId &&
+        saved.metadata.userId === userId;
+      return {
+        ...metadata,
+        selectedDogsCount:
+          validOwner && Array.isArray(saved.data?.selectedDogs)
+            ? saved.data.selectedDogs.length
+            : 0,
+      };
+    } catch {
+      return { ...metadata, selectedDogsCount: 0 };
+    }
+  });
 
   return {
     // Draft operations

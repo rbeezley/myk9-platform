@@ -36,6 +36,7 @@ import {
 import { usePaymentMethodResolution } from '@/components/shows/RegistrationWorkflow/PaymentStep/usePaymentMethodResolution';
 import { useRegistrationWizard } from './RegistrationWizardPage/useRegistrationWizard';
 import { getPaymentSubmitLabel } from './RegistrationWizardPage/commitLabels';
+import { DraftResumePrompt } from './RegistrationWizardPage/DraftResumePrompt';
 
 /** Stable id so the Next button can point at the blocked-reason text. */
 const PROCEED_BLOCKED_ID = 'registration-wizard-blocked-reason';
@@ -356,6 +357,15 @@ function RegistrationWizardContent() {
           </div>
         ) : (
           <>
+            {currentWorkflowMode === 'exhibitor' &&
+              currentStepId === 'dog-selection' &&
+              registrationData.selectedDogs.length === 0 && (
+                <DraftResumePrompt
+                  drafts={availableDrafts ?? []}
+                  loadDraft={draftLoad}
+                  onDraftLoaded={handleDraftLoaded}
+                />
+              )}
             {/* Multi-owner / orphan-owner cart guard */}
             {currentStepId === 'dog-selection' &&
               registrationData.selectedDogs.length > 0 &&

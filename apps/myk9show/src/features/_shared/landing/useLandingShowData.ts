@@ -14,7 +14,8 @@ export function useLandingShowData(
 ): LandingData {
   const showId = show?.id ?? '';
   const { user, loading: authLoading } = useAuthContext();
-  const entriesQuery = useEntriesByShowQuery(showId, !!showId && !!user && !authLoading);
+  const isAuthenticatedUser = Boolean(user && user.is_anonymous !== true);
+  const entriesQuery = useEntriesByShowQuery(showId, !!showId && isAuthenticatedUser && !authLoading);
   const publicClassIds = useMemo(
     () =>
       (show?.trials ?? []).flatMap(trial => (trial.classes ?? []).map(classInfo => classInfo.id)),
@@ -24,12 +25,12 @@ export function useLandingShowData(
     queryKey: ['public-show-entry-counts', showId, publicClassIds.join(',')],
     queryFn: () =>
       fetchPublicEntryCountsByShow(showId, publicClassIds, 'select_landing_entry_counts'),
-    enabled: !!showId && !authLoading && !user && publicClassIds.length > 0,
+    enabled: !!showId && !authLoading && !isAuthenticatedUser && publicClassIds.length > 0,
     staleTime: 60_000,
   });
   const entryCount = useMemo(() => {
     if (authLoading) return null;
-    if (user) return entriesQuery.isError ? null : (entriesQuery.data?.length ?? 0);
+    if (isAuthenticatedUser) return entriesQuery.isError ? null : (entriesQuery.data?.length ?? 0);
     if (publicCountsQuery.isError || !publicCountsQuery.data) return null;
     return [...publicCountsQuery.data.values()].reduce((total, count) => total + count.total, 0);
   }, [
@@ -38,7 +39,7 @@ export function useLandingShowData(
     entriesQuery.isError,
     publicCountsQuery.data,
     publicCountsQuery.isError,
-    user,
+    isAuthenticatedUser,
   ]);
 
   return useMemo(

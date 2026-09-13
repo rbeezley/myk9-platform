@@ -1,4 +1,6 @@
-import { renderHook } from '@testing-library/react';
+import { renderHook as baseRenderHook } from '@testing-library/react';
+import React from 'react';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Show } from '@/types/show-types';
 import type { Trial } from '@/components/trials/types/trial.types';
@@ -7,6 +9,14 @@ import { usePosterLandingData } from '../usePosterLandingData';
 vi.mock('@/hooks/queries/useEntriesDatabase', () => ({
   useEntriesByShowQuery: vi.fn(() => ({ data: [] })),
 }));
+
+vi.mock('@/hooks/useAuthContext', () => ({
+  useAuthContext: () => ({ user: { id: 'test-user' }, loading: false }),
+}));
+
+const wrapper = ({ children }: { children: React.ReactNode }) =>
+  React.createElement(QueryClientProvider, { client: new QueryClient() }, children);
+const renderHook = <Result,>(callback: () => Result) => baseRenderHook(callback, { wrapper });
 
 // The `reads entryCount` test below installs a persistent mockReturnValue of
 // 47 entries via setEntries(). That value survives to later tests in this file,

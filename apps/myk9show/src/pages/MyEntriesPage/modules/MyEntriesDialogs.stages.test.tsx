@@ -15,6 +15,7 @@ import { screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render } from '@/test/utils/testUtils';
+import { formatShortCalendarDate } from '@/lib/format/dates';
 import { heartlandRows, toOrders } from '@/test/fixtures/myShowsFixtures';
 
 const { useEntryReceiptOrdersMock, refetch } = vi.hoisted(() => ({
@@ -93,8 +94,12 @@ describe('ReceiptEntryDialog — the orders list stage (task 4.1)', () => {
     const rows = screen.getAllByRole('listitem');
     expect(rows).toHaveLength(3);
     // The row's own text: submitted date, confirmation number, dogs.
-    expect(rows[0]).toHaveTextContent('Aug 31, 2026 · HSC-1001 · Juni, Willow');
-    expect(rows[1]).toHaveTextContent('Aug 31, 2026 · HSC-1002 · Scout');
+    // `submittedAt` is an INSTANT, so its calendar day depends on the runner's
+    // zone (CI runs in UTC; this Mac in Chicago). Expect what the row's own
+    // formatter renders, not a hard-coded day.
+    const submitted = formatShortCalendarDate(orders[0].submittedAt);
+    expect(rows[0]).toHaveTextContent(`${submitted} · HSC-1001 · Juni, Willow`);
+    expect(rows[1]).toHaveTextContent(`${submitted} · HSC-1002 · Scout`);
     // Money in words, no chip: exhibitor-money-on-exception.
     expect(within(rows[1]).getByText('$50.00')).toBeInTheDocument();
     expect(within(rows[1]).getByText('Paid')).toBeInTheDocument();

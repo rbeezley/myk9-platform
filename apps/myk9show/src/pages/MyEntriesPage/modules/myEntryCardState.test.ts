@@ -191,21 +191,31 @@ describe('deriveMyEntryCardState', () => {
       );
 
     it('keeps editing open all through the close date', () => {
-      const state = onCloseDay(new Date(2026, 8, 1), new Date('2026-09-01T23:30:00'));
+      // 04:30Z on 2 Sep is 23:30 on 1 Sep in Chicago — the last half hour of
+      // the close day. Written as an explicit instant so the device zone the
+      // suite happens to run in cannot change which day this is.
+      const state = onCloseDay(new Date(2026, 8, 1), new Date('2026-09-02T04:30:00Z'));
       expect(state.canEdit).toBe(true);
       expect(state.canRequestPostDeadlineHelp).toBe(false);
     });
 
     it('hands over to the post-deadline state the next day', () => {
-      const state = onCloseDay(new Date(2026, 8, 1), new Date('2026-09-02T00:30:00'));
+      // 05:30Z is 00:30 on 2 Sep in Chicago — half an hour into the next day.
+      const state = onCloseDay(new Date(2026, 8, 1), new Date('2026-09-02T05:30:00Z'));
       expect(state.canEdit).toBe(false);
       expect(state.canRequestPostDeadlineHelp).toBe(true);
     });
 
     it('never leaves an editable order with neither state', () => {
-      for (const hour of [0, 6, 12, 23]) {
-        const now = new Date(2026, 8, 1, hour, 30);
-        const state = onCloseDay(new Date(2026, 8, 1), now);
+      // Every one of these is a moment ON 1 Sep in Chicago: 00:30, 06:30,
+      // 12:30 and 23:30 local.
+      for (const instant of [
+        '2026-09-01T05:30:00Z',
+        '2026-09-01T11:30:00Z',
+        '2026-09-01T17:30:00Z',
+        '2026-09-02T04:30:00Z',
+      ]) {
+        const state = onCloseDay(new Date(2026, 8, 1), new Date(instant));
         expect(state.canEdit || state.canRequestPostDeadlineHelp).toBe(true);
       }
     });

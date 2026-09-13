@@ -22,10 +22,10 @@
 
 ## 4. Payment fixes and cart expiry
 
-- [ ] 4.1 `commitLabels.test.ts`: assert the check label reads `Submit — bring check to show` (red), then change `commitLabels.ts` (green)
-- [ ] 4.2 Replace the `Check` icon on the check option in `PaymentMethodSelector.tsx` with `FileText`; verify the selector test renders no check-mark glyph for an unselected check option
-- [ ] 4.3 Wrap the fee-line remove in `RegistrationSummary` / the panel with the existing confirm primitive naming the class; add tests for cancel (unchanged) and confirm (line removed)
-- [ ] 4.4 Add `CartExpiryNotice` reading `cartStore.expirationWarning` into the panel with `role="status"`; unit test the warning and expired states by seeding the store
+- [x] 4.1 `commitLabels.test.ts`: assert the check label reads `Submit — bring check to show` (red), then change `commitLabels.ts` (green)
+- [x] 4.2 Replace the `Check` icon on the check option in `PaymentMethodSelector.tsx` with `FileText`; verify the selector test renders no check-mark glyph for an unselected check option
+- [x] 4.3 Wrap the fee-line remove in `RegistrationSummary` / the panel with the existing confirm primitive naming the class; add tests for cancel (unchanged) and confirm (line removed)
+- [x] 4.4 Add `CartExpiryNotice` reading `cartStore.expirationWarning` into the panel with `role="status"`; unit test the warning and expired states by seeding the store
 
 ## 5. Verification
 

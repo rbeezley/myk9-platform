@@ -70,8 +70,8 @@ interface RemoveEntryLine {
 /**
  * Remove one fee line on the payment step: the cart row first, then the
  * wizard's own selection. Lifted out of `PaymentStep` unchanged when the
- * fee-line list moved into the panel; the confirm-before-remove step is a
- * separate task and deliberately not here yet.
+ * fee-line list moved into the panel; the panel asks for confirmation before
+ * calling this (see `EntriesPanel.removeConfirm`).
  */
 export function useRemoveEntryLine(
   classSelections: ClassSelectionData[],

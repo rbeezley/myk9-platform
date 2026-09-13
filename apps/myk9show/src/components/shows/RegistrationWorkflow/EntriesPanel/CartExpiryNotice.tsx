@@ -1,0 +1,88 @@
+import React, { useEffect, useState } from 'react';
+import { Clock } from 'lucide-react';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Button } from '@/components/ui/button';
+import { useCartExpiration } from '@/store/cartStore';
+import { EXPIRATION_WARNING_MINUTES } from '@/store/cartStore.helpers';
+
+/** A part-minute still has time left in it, so round up: 30s reads "1 minute". */
+function minutesLeft(timeRemainingMs: number): number {
+  return Math.max(1, Math.ceil(timeRemainingMs / 60_000));
+}
+
+/** Coarse enough to cost nothing, fine enough that a minute count never lies. */
+const TICK_MS = 30_000;
+
+export interface CartExpiryNoticeProps {
+  /** Sends the exhibitor back to Select classes. Omitted = text-only notice. */
+  onStartOver?: (() => void) | undefined;
+}
+
+/**
+ * The cart's expiry, said out loud (entry-wizard-guidance — "An expiring cart is
+ * announced before it expires").
+ *
+ * `cartStore` has computed `expirationWarning` and `isExpired` all along with
+ * nothing rendering them, so an exhibitor's held classes could lapse mid-wizard
+ * and the next screen would simply look as if they had chosen nothing.
+ *
+ * The store has no clock of its own: `expirationWarning` is set once, when the
+ * cart loads, and `getTimeUntilExpiration()` is a getter that only re-reads when
+ * something re-renders. So the tick is here, and it is the whole mechanism —
+ * a counter that re-renders this component while a cart with an `expires_at`
+ * exists, which makes the store's own getters recompute. No store logic, no new
+ * data path, cleared on unmount.
+ *
+ * INTENT: exhibitor — the flow must never lose work silently.
+ */
+export const CartExpiryNotice: React.FC<CartExpiryNoticeProps> = ({ onStartOver }) => {
+  const { expiresAt, timeRemaining, isExpired, isWarning } = useCartExpiration();
+  const [, setTick] = useState(0);
+
+  useEffect(() => {
+    // No cart, or a cart with no expiry: nothing can count down, so no timer.
+    if (!expiresAt) return;
+    const id = setInterval(() => setTick(value => value + 1), TICK_MS);
+    return () => clearInterval(id);
+  }, [expiresAt]);
+
+  if (isExpired) {
+    return (
+      <Alert variant="destructive" role="status" data-testid="cart-expiry-notice">
+        <Clock className="h-4 w-4" />
+        <AlertDescription className="space-y-2">
+          <p>Your selections expired — nothing has been entered or charged.</p>
+          {onStartOver && (
+            <Button
+              type="button"
+              variant="outline"
+              size="touch"
+              className="min-h-11"
+              onClick={onStartOver}
+            >
+              Choose classes again
+            </Button>
+          )}
+        </AlertDescription>
+      </Alert>
+    );
+  }
+
+  if (timeRemaining === null) return null;
+  // The store's flag is only set at load time, so a cart that crosses into the
+  // window while the wizard is open would never announce itself on the flag
+  // alone. The threshold is the store's own constant, not a second opinion.
+  const inWarningWindow = isWarning || timeRemaining < EXPIRATION_WARNING_MINUTES * 60 * 1000;
+  if (!inWarningWindow) return null;
+
+  const minutes = minutesLeft(timeRemaining);
+  return (
+    <Alert role="status" data-testid="cart-expiry-notice">
+      <Clock className="h-4 w-4" />
+      <AlertDescription>
+        {minutes} minute{minutes === 1 ? '' : 's'} left to finish. After that your selections are
+        released and you will need to choose your classes again.
+      </AlertDescription>
+    </Alert>
+  );
+};

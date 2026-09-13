@@ -12,7 +12,9 @@ import {
   sumPanelFeeCents,
   type PanelDogGroup,
 } from './EntriesPanel.helpers';
+import { CartExpiryNotice } from './CartExpiryNotice';
 import { EntriesPanelLines } from './EntriesPanel.lines';
+import { useRemoveLineConfirm } from './EntriesPanel.removeConfirm';
 import { EntriesPanelTotals } from './EntriesPanel.totals';
 
 /** CSS variable the shell pads the content with so the bar covers nothing. */
@@ -36,6 +38,8 @@ export interface EntriesPanelProps {
   removingLineKey?: string | null | undefined;
   /** Injectable for tests; defaults to the live platform-fee rates. */
   rates?: PlatformFeeRates | undefined;
+  /** Sends the exhibitor back to Select classes when the cart has expired. */
+  onStartOver?: (() => void) | undefined;
 }
 
 /**
@@ -63,6 +67,7 @@ export const EntriesPanel: React.FC<EntriesPanelProps> = ({
   onRemoveLine,
   removingLineKey,
   rates,
+  onStartOver,
 }) => {
   const liveRates = usePlatformFeeRates();
   const resolvedRates = rates ?? liveRates;
@@ -111,13 +116,18 @@ export const EntriesPanel: React.FC<EntriesPanelProps> = ({
     []
   );
 
+  // Removing a line asks first; `requestRemove` opens the confirmation and the
+  // confirmation calls `onRemoveLine` with the very same arguments.
+  const { requestRemove, dialog: removeConfirmDialog } = useRemoveLineConfirm(groups, onRemoveLine);
+  const showRemove = isPayment && !!onRemoveLine;
+
   const lines = (
     <EntriesPanelLines
       groups={groups}
       capacityReady={capacityReady}
       capacityUnavailable={capacityUnavailable}
       waitlistClassIds={waitlistClassIds}
-      {...(isPayment && onRemoveLine ? { onRemoveLine, removingLineKey } : {})}
+      {...(showRemove ? { onRemoveLine: requestRemove, removingLineKey } : {})}
     />
   );
 
@@ -149,6 +159,7 @@ export const EntriesPanel: React.FC<EntriesPanelProps> = ({
             <ShoppingCart className="h-4 w-4 text-muted-foreground" />
             <h2 className="text-sm font-semibold text-foreground">Your entries</h2>
           </div>
+          <CartExpiryNotice onStartOver={onStartOver} />
           <div className="max-h-[50vh] overflow-y-auto">{lines}</div>
           {totalsBlock}
         </div>
@@ -170,6 +181,12 @@ export const EntriesPanel: React.FC<EntriesPanelProps> = ({
             {totalsBlock}
           </div>
         )}
+        {/* Outside the Details disclosure: an expiring cart has to be seen
+            without opening anything. It renders nothing at all when the cart is
+            neither expiring nor expired, so the bar keeps its usual height. */}
+        <div className="px-4 pt-2 empty:hidden">
+          <CartExpiryNotice onStartOver={onStartOver} />
+        </div>
         <div className="flex min-h-11 items-center gap-2 px-4 py-1.5">
           <ShoppingCart className="h-4 w-4 shrink-0 text-muted-foreground" />
           <span data-testid="entries-panel-total" className="min-w-0 truncate text-sm font-medium">
@@ -194,6 +211,9 @@ export const EntriesPanel: React.FC<EntriesPanelProps> = ({
         </div>
         {navigation && <div className="px-4 pb-3">{navigation}</div>}
       </div>
+
+      {/* Once per panel: the line list above is rendered twice (aside + bar). */}
+      {showRemove && removeConfirmDialog}
     </>
   );
 };

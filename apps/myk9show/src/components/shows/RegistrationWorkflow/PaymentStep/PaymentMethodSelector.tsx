@@ -3,7 +3,7 @@ import type { LucideIcon } from 'lucide-react';
 import {
   CreditCard,
   DollarSign,
-  Check,
+  FileText,
   Tag,
   Receipt,
   Users,
@@ -192,7 +192,7 @@ export const PaymentMethodSelector: React.FC<PaymentMethodSelectorProps> = ({
               <PaymentOptionCard
                 value="check"
                 selected={paymentMethod === 'check'}
-                icon={Check}
+                icon={FileText}
                 title="Check (pay at show)"
                 description="Bring check made payable to hosting club"
                 onSelect={handleSelect}

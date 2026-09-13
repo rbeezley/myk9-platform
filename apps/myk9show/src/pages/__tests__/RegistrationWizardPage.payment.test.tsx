@@ -80,6 +80,14 @@ vi.mock('@/store/entryStore', () => ({
 vi.mock('@/store/cartStore', () => ({
   useCartItems: () => [],
   useCartStore: (selector: (state: typeof cartActionsMock) => unknown) => selector(cartActionsMock),
+  // The entries panel's expiry notice reads this; a live, un-expiring cart is
+  // the right baseline for the Stripe handoff these tests are about.
+  useCartExpiration: () => ({
+    expiresAt: null,
+    timeRemaining: null,
+    isExpired: false,
+    isWarning: false,
+  }),
 }));
 
 vi.mock('@/hooks/useAuthContext', () => ({

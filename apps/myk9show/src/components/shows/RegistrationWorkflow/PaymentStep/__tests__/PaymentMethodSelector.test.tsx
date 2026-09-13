@@ -90,4 +90,22 @@ describe('PaymentMethodSelector — acceptedMethods filtering', () => {
     ).toBeInTheDocument();
     expect(screen.queryByText(/Online card payment is coming soon/)).not.toBeInTheDocument();
   });
+  // The check option's identifying icon must not be a check mark: a tick inside
+  // an unselected option reads as "already selected" (entry-wizard-guidance —
+  // payment-method options do not use a selection glyph as their icon).
+  it('renders no check-mark glyph on the unselected check option', () => {
+    render(<PaymentMethodSelector {...baseProps} paymentMethod="credit_card" />);
+
+    const checkOption = screen.getByText('Check (pay at show)').closest('button');
+    expect(checkOption).not.toBeNull();
+
+    const glyphClasses = Array.from(checkOption!.querySelectorAll('svg')).flatMap(svg =>
+      Array.from(svg.classList)
+    );
+    // lucide stamps `lucide-<icon>`; `check` is the bare tick, `circle-check`
+    // is the selection indicator and is absent while another method is selected.
+    expect(glyphClasses).not.toContain('lucide-check');
+    expect(glyphClasses).not.toContain('lucide-circle-check');
+    expect(glyphClasses).toContain('lucide-file-text');
+  });
 });

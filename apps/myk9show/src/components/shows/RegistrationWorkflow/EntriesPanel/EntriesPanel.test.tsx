@@ -268,12 +268,49 @@ describe('EntriesPanel fee-line removal (payment step)', () => {
     );
   });
 
-  it('removes the line the button belongs to', async () => {
+  it('asks before removing, naming the class', async () => {
     const onRemoveLine = vi.fn();
     const { user } = render(
       paymentPanel({ groups: groupsFor(2), feeCalculation: fees(2), onRemoveLine })
     );
     await user.click(aside().getByRole('button', { name: 'Remove Container Level 1' }));
+
+    const dialog = await screen.findByRole('alertdialog');
+    expect(
+      within(dialog).getByText('Remove Container Level 1 from this entry?')
+    ).toBeInTheDocument();
+    // Nothing has left the entry yet.
+    expect(onRemoveLine).not.toHaveBeenCalled();
+  });
+
+  it('leaves the line and the total unchanged when the confirmation is cancelled', async () => {
+    const onRemoveLine = vi.fn();
+    const { user } = render(
+      paymentPanel({ groups: groupsFor(2), feeCalculation: fees(2), onRemoveLine })
+    );
+    const totalDue = () => aside().getByText('Total due').parentElement?.textContent;
+    const totalBefore = totalDue();
+
+    await user.click(aside().getByRole('button', { name: 'Remove Container Level 1' }));
+    const dialog = await screen.findByRole('alertdialog');
+    await user.click(within(dialog).getByRole('button', { name: 'Cancel' }));
+
+    expect(onRemoveLine).not.toHaveBeenCalled();
+    expect(aside().getAllByTestId('entries-panel-line')).toHaveLength(2);
+    expect(totalDue()).toBe(totalBefore);
+  });
+
+  it('removes the line the button belongs to once the removal is confirmed', async () => {
+    const onRemoveLine = vi.fn();
+    const { user } = render(
+      paymentPanel({ groups: groupsFor(2), feeCalculation: fees(2), onRemoveLine })
+    );
+    await user.click(aside().getByRole('button', { name: 'Remove Container Level 1' }));
+    const dialog = await screen.findByRole('alertdialog');
+    await user.click(within(dialog).getByRole('button', { name: 'Remove' }));
+
+    // The SAME arguments the trash button used to pass straight through.
+    expect(onRemoveLine).toHaveBeenCalledTimes(1);
     expect(onRemoveLine).toHaveBeenCalledWith('dog-1', 'class-1');
   });
 

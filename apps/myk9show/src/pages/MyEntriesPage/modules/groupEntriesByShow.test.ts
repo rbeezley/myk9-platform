@@ -301,3 +301,22 @@ describe('groupEntriesByShow — partial replication (Codex, PR #2198)', () => {
     expect(groups[0].orders).toHaveLength(2);
   });
 });
+
+describe('groupEntriesByShow — same name and date, different shows (Codex, PR #2198)', () => {
+  it('keeps two resolved shows apart even when their name and start date match', () => {
+    const groups = group([
+      makeRow({ id: 'e1', registrationId: 'r1', showId: 's1', classes: [makeClass({ id: 'c1' })] }),
+      makeRow({
+        id: 'e2',
+        registrationId: 'r2',
+        showId: 's2',
+        dogId: 'd2',
+        dogName: 'Bo',
+        classes: [makeClass({ id: 'c2' })],
+      }),
+    ]);
+
+    expect(groups.map(g => g.showId)).toEqual(['s1', 's2']);
+    expect(groups.map(g => g.dogs.map(d => d.dogName))).toEqual([['Rex'], ['Bo']]);
+  });
+});

@@ -84,13 +84,12 @@ function nameDateKey(entry: MyEntry): string {
  * name+date, and a resolved order adopts a degraded group opened before it.
  */
 function resolveShowKey(entry: MyEntry, byNameDate: Map<string, string>): string {
+  // A resolved order ALWAYS keys by its own show id: two different shows can
+  // share a name and a start date, and name+date must never merge them. The
+  // degraded-group adoption is handled by the caller.
+  if (entry.showId) return entry.showId;
   const nameDate = nameDateKey(entry);
-  const existing = byNameDate.get(nameDate);
-  if (entry.showId) {
-    // A degraded group already open under name+date is this show; retarget it.
-    return existing && !existing.includes('|') ? existing : entry.showId;
-  }
-  return existing ?? nameDate;
+  return byNameDate.get(nameDate) ?? nameDate;
 }
 
 /**

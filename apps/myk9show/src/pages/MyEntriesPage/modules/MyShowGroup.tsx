@@ -189,10 +189,14 @@ export const MyShowGroupCard: React.FC<MyShowGroupProps> = ({
               Add to calendar
             </button>
           )}
-          <Link to={`/shows/${group.showId}`} className={HEADER_LINK_CLASS}>
-            View show
-            <ArrowRight className="h-4 w-4" aria-hidden="true" />
-          </Link>
+          {/* Same guard as Add to calendar: an empty showId is the replication
+              window, and `/shows/` with nothing after it is a dead link. */}
+          {group.showId && (
+            <Link to={`/shows/${group.showId}`} className={HEADER_LINK_CLASS}>
+              View show
+              <ArrowRight className="h-4 w-4" aria-hidden="true" />
+            </Link>
+          )}
         </div>
       </div>
 

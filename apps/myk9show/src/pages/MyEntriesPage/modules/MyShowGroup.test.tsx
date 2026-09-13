@@ -321,3 +321,13 @@ describe('add to calendar', () => {
     expect(screen.queryByRole('button', { name: 'Add to calendar' })).not.toBeInTheDocument();
   });
 });
+
+describe('unresolved show id (Codex, PR #2198)', () => {
+  it('offers no View show or Add to calendar link while the show relation is still replicating', () => {
+    renderRows([futureShowRow({ id: 'e-unresolved', showId: '' })]);
+
+    expect(screen.queryByRole('link', { name: /View show/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Add to calendar' })).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Orders & receipts' })).toBeInTheDocument();
+  });
+});

@@ -3,12 +3,16 @@ import { STYLED_LANDING_BY_STYLE } from '@/features/_shared/styledLandingRegistr
 import { StaleShowNotice } from './StaleShowNotice';
 import type { Show } from '@/types/show-types';
 import type { Trial } from '@/components/trials/types/trial.types';
+import type { ClassInfo } from '@/components/shows/tabs/ClassesTab';
+import { OfferedClassesSection } from '@/features/_shared/OfferedClassesSection';
 
 export interface ShowPublicLandingProps {
   /** The resolved show (already narrowed non-null by the page). */
   show: Show;
   /** Trials for the landing — store rows when warm, anon public rows when cold. */
   landingTrials: Trial[];
+  /** Anonymous-safe class identity rows for the shared public preview. */
+  offeredClasses?: ClassInfo[];
   /**
    * Whether the show's offered classes are known yet. `null` while unresolved;
    * the styled landing uses it to gate its "find your class" affordances. The
@@ -35,6 +39,7 @@ export interface ShowPublicLandingProps {
 export function ShowPublicLanding({
   show,
   landingTrials,
+  offeredClasses = [],
   hasEntryClassInventory,
   entryNotYetOpen,
   refreshFailed,
@@ -67,6 +72,7 @@ export function ShowPublicLanding({
         hasEntryClassInventory={hasEntryClassInventory}
         entryNotYetOpen={entryNotYetOpen}
       />
+      <OfferedClassesSection classes={offeredClasses} />
     </>
   );
 }

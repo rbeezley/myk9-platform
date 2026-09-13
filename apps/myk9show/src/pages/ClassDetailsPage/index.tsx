@@ -345,16 +345,18 @@ const ClassDetailsPage: React.FC = () => {
           <ExhibitorClassCallout classId={classId} releasedRows={releasedResults.rawEntries} />
         )}
 
-        <ClassReadinessStrip
-          isStaff={isStaff}
-          classData={currentClass}
-          entries={dbRawEntries}
-          showId={parentShow?.id}
-          trialId={trialId || currentClass.trialId}
-          classId={classId}
-          isLoading={entriesLoading}
-          error={!scopeUnverified && dbRawEntries.length > 0 ? null : entriesError}
-        />
+        {isStaff && (
+          <ClassReadinessStrip
+            isStaff={isStaff}
+            classData={currentClass}
+            entries={dbRawEntries}
+            showId={parentShow?.id}
+            trialId={trialId || currentClass.trialId}
+            classId={classId}
+            isLoading={entriesLoading}
+            error={!scopeUnverified && dbRawEntries.length > 0 ? null : entriesError}
+          />
+        )}
 
         {isStaff && !entriesLoading ? (
           entriesError && (scopeUnverified || dbRawEntries.length === 0) ? (

@@ -2,7 +2,6 @@ import { useQuery } from '@tanstack/react-query';
 import { queryKeys, cacheStrategies } from '@/lib/queryClient';
 import {
   getEntriesByTrial,
-  getPublicEntriesByTrial,
   type PublicEntryRow,
 } from '@/services/database/entries';
 import { useAuthContext } from '@/hooks/useAuthContext';
@@ -84,8 +83,9 @@ export function publicRowToTrialEntryRow(row: PublicEntryRow): TrialEntryRow {
  * Used by TrialDetailsPage, TrialEntriesTable, and FinancialSummary.
  * React Query deduplicates calls with the same trialId.
  *
- * Anonymous visitors read through the cascade-gated `view_public_entry_results`;
- * authenticated callers use the full table read (still governed by RLS).
+ * Anonymous visitors do not read entry rows here. Released public results use
+ * their dedicated result surface; this hook is reserved for authenticated
+ * entry management and the authenticated trial entries tab.
  */
 export const useTrialEntries = (trialId: string) => {
   const { user, loading } = useAuthContext();
@@ -94,15 +94,11 @@ export const useTrialEntries = (trialId: string) => {
   return useQuery<TrialEntryRow[]>({
     queryKey: [...queryKeys.trialEntries(trialId), isAnon ? 'public' : 'auth'],
     queryFn: async () => {
-      if (isAnon) {
-        const { data } = await getPublicEntriesByTrial(trialId);
-        return data.map(publicRowToTrialEntryRow);
-      }
       const { data, error } = await getEntriesByTrial(trialId);
       if (error) throw error;
       return data as unknown as TrialEntryRow[];
     },
-    enabled: !!trialId && !loading,
+    enabled: !!trialId && !loading && !isAnon,
     ...cacheStrategies.dynamic,
   });
 };

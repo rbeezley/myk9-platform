@@ -208,7 +208,10 @@ export function useClassDetailsData() {
     entries: dbEntries,
     isLoading: dbEntriesLoading,
     error: dbEntriesError,
-  } = useClassEntriesWithQuery(classId || '', !!classId && !useStaffEntrySource);
+  } = useClassEntriesWithQuery(
+    classId || '',
+    !!classId && !useStaffEntrySource && !isResultsView
+  );
 
   // 2. Local-only entries from the Zustand entry store (may include entries not yet synced)
   const localEntries = useEntriesByClass(classId || '');
@@ -223,7 +226,10 @@ export function useClassDetailsData() {
     data: dbRawEntries = [],
     isLoading: dbRawEntriesLoading,
     error: dbRawEntriesError,
-  } = useClassEntriesRaw(classId || undefined, !useStaffEntrySource);
+  } = useClassEntriesRaw(
+    classId || undefined,
+    !useStaffEntrySource && !isResultsView
+  );
 
   const staffClassEntries = useMemo(
     () =>

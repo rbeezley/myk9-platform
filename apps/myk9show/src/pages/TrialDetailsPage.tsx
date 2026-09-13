@@ -43,11 +43,11 @@ import { useTrialEntries } from '@/hooks/queries/useTrialEntries';
 import { deriveTrialCompositeStatus, deriveTrialStatusKey } from '@myk9/core';
 import { StatusIcon, getStatusDescriptor } from '@/components/status';
 
-// Public tabs render for every visitor; management tabs are staff-only. The
-// split is load-bearing: useUrlTab validates `?tab=` against the *allowed* list,
-// so management tabs must be excluded for non-staff or a deep link like
-// `?tab=financials` would render the panel even with its trigger hidden.
-const PUBLIC_TAB_IDS = ['overview', 'entries'] as const;
+// The overview is public to authenticated visitors; entry and management tabs
+// are gated. The split is load-bearing: useUrlTab validates `?tab=` against the
+// *allowed* list, so hidden tabs cannot be reached by deep link.
+const PUBLIC_TAB_IDS = ['overview'] as const;
+const AUTHENTICATED_TAB_IDS = ['overview', 'entries'] as const;
 const MANAGEMENT_TAB_IDS = ['financials'] as const;
 const TAB_IDS = [...PUBLIC_TAB_IDS, ...MANAGEMENT_TAB_IDS] as const;
 
@@ -55,7 +55,7 @@ const TrialDetailsPage: React.FC = () => {
   const { trialId, showId } = useParams<{ trialId: string; showId?: string }>();
   const navigate = useNavigate();
   const { trials, selectedTrialId, selectTrial } = useTrialStore();
-  const { isSecretary, isAdmin, hasRole, userWithRoles } = useAuthContext();
+  const { user, isSecretary, isAdmin, hasRole, userWithRoles } = useAuthContext();
   const dialogsRef = useRef<TrialManagementDialogsHandle>(null);
 
   // Current trial + its parent show, with the anon/cold-store by-id fallback the
@@ -69,7 +69,7 @@ const TrialDetailsPage: React.FC = () => {
     refetchFallbackTrial,
   } = useTrialDetailData(trialId);
 
-  // Public route — exhibitors are now deep-linked here from styled landings.
+  // Authenticated route — exhibitors reach the overview from the show premium.
   // Only staff may see create/edit/manage affordances; everyone else gets a
   // read-only view. The club scoping (and why a global hasRole() is wrong for
   // club_admin) lives in canManageShowSurface, shared with Class Details.
@@ -85,7 +85,11 @@ const TrialDetailsPage: React.FC = () => {
   // Tab state — URL-synced. Pass only the tabs this visitor may see so a
   // hidden management tab in `?tab=` falls back to 'overview' instead of
   // rendering its panel (PromoCodes/Financials) to a non-staff visitor.
-  const allowedTabIds = canManageTrial ? TAB_IDS : PUBLIC_TAB_IDS;
+  const allowedTabIds = canManageTrial
+    ? TAB_IDS
+    : user
+      ? AUTHENTICATED_TAB_IDS
+      : PUBLIC_TAB_IDS;
   const [activeTab, setActiveTab] = useUrlTab(allowedTabIds, 'overview');
 
   // Get classes store (page only needs the list for trialWithClasses below; the

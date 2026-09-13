@@ -9,6 +9,7 @@ import { KeyboardShortcutsOverlay } from '@/components/common/KeyboardShortcutsO
 import { useKeyboardShortcuts, getShortcutDisplays } from '@/hooks/useKeyboardShortcuts';
 import { buildAppShortcuts } from '@/components/layout/appShortcuts';
 import { useCartItemCount, useCartStore } from '@/store/cartStore';
+import { useSettingsStore } from '@/store/settingsStore';
 import { useActiveCartItemCount } from '@/hooks/queries/useActiveCartItemCount';
 import { useExhibitorProfile } from '@/hooks/useExhibitorProfile';
 import { AccountMenu } from '@/components/layout/AccountMenu';
@@ -43,6 +44,7 @@ function useIsMobileSidebarViewport() {
 
 const AppHeader: React.FC = () => {
   const { theme, toggleTheme } = useTheme();
+  const updateSettings = useSettingsStore(state => state.updateSettings);
   const { user } = useAuthContext();
   const navigate = useNavigate();
   const location = useLocation();
@@ -81,6 +83,13 @@ const AppHeader: React.FC = () => {
   const storeCartLoaded = useCartStore(state => state.cart != null);
   const queryCartItemCount = useActiveCartItemCount(exhibitorProfile?.id);
   const cartItemCount = storeCartLoaded ? storeCartItemCount : queryCartItemCount;
+
+  const handleGuestThemeToggle = () => {
+    // The boot script and OS-change listener read this device setting.
+    // Keep it aligned with ThemeContext, as the account Appearance selector does.
+    updateSettings({ theme: theme === 'dark' ? 'light' : 'dark' });
+    toggleTheme();
+  };
 
   const openCommandPalette = useCallback(() => setCommandPaletteOpen(true), []);
   // Shared by the `?` keyboard shortcut and the palette footer's
@@ -276,7 +285,7 @@ const AppHeader: React.FC = () => {
                 <Button
                   variant="ghost"
                   size="sm"
-                  onClick={toggleTheme}
+                  onClick={handleGuestThemeToggle}
                   className="min-h-11 min-w-11 rounded-lg p-2"
                   aria-label={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
                 >

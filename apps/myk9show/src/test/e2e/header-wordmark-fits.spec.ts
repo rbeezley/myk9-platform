@@ -88,6 +88,7 @@ test.describe('header wordmark fits', () => {
 
   test('guest theme choice carries from sign-in to sign-up and reload', async ({ page }) => {
     await page.setViewportSize({ width: 375, height: 812 });
+    await page.emulateMedia({ colorScheme: 'dark' });
     await page.goto('/sign-in');
     await page.getByTestId('credential-input').waitFor();
 
@@ -95,6 +96,13 @@ test.describe('header wordmark fits', () => {
     const lightButton = page.getByRole('button', { name: 'Switch to light mode' });
     if (await lightButton.isVisible()) await lightButton.click();
     await darkButton.click();
+    await expect(page.locator('html')).toHaveClass(/\bdark\b/);
+    const bootTheme = await page.evaluate(() => {
+      const stored = localStorage.getItem('myK9Q_settings');
+      return stored ? JSON.parse(stored).state.settings.theme : null;
+    });
+    expect(bootTheme).toBe('dark');
+    await page.emulateMedia({ colorScheme: 'light' });
     await expect(page.locator('html')).toHaveClass(/\bdark\b/);
 
     await page.goto('/sign-up');

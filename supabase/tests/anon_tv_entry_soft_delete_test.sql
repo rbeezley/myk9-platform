@@ -39,6 +39,10 @@ VALUES (
   'in_progress'
 );
 
+UPDATE public.classes
+SET results_released_at = now()
+WHERE id = '00000000-0000-0000-0000-000000149004';
+
 INSERT INTO public.people (id, first_name, last_name)
 VALUES ('00000000-0000-0000-0000-000000149005', 'TV', 'Handler');
 
@@ -162,6 +166,26 @@ BEGIN
 END;
 $$;
 
+UPDATE public.classes
+SET results_released_at = NULL
+WHERE id = '00000000-0000-0000-0000-000000149004';
+
+DO $$
+BEGIN
+  IF EXISTS (
+    SELECT 1
+    FROM public.view_public_entry_results
+    WHERE class_id = '00000000-0000-0000-0000-000000149004'
+  ) THEN
+    RAISE EXCEPTION 'FAIL unreleased class entries remain enumerable in public results view';
+  END IF;
+END;
+$$;
+
+UPDATE public.classes
+SET results_released_at = now()
+WHERE id = '00000000-0000-0000-0000-000000149004';
+
 SET LOCAL ROLE anon;
 
 DO $$
@@ -176,10 +200,6 @@ DECLARE
   tv_entry_count bigint;
   protected_value text;
   protected_column text;
-  public_dog_id uuid;
-  public_handler text;
-  public_armband text;
-  public_dog_name text;
 BEGIN
   -- Anonymous base-table access is limited to the safe embed identifiers. The
   -- class-scoped read must still honor the soft-delete policy while retaining
@@ -236,20 +256,6 @@ BEGIN
       'FAIL public results view returned %, expected only the live entry', public_view_ids;
   END IF;
 
-  SELECT results.dog_id, results.handler, results.armband, results.dog_name
-  INTO public_dog_id, public_handler, public_armband, public_dog_name
-  FROM public.view_public_entry_results AS results
-  WHERE results.id = live_entry_id;
-
-  IF public_dog_id IS NOT NULL
-     OR public_handler IS NOT NULL
-     OR public_armband IS NOT NULL
-     OR public_dog_name IS NOT NULL THEN
-    RAISE EXCEPTION
-      'FAIL unreleased public results exposed entry metadata: dog %, handler %, armband %, name %',
-      public_dog_id, public_handler, public_armband, public_dog_name;
-  END IF;
-
   -- Keep the column-level anon boundary intact while exercising the same
   -- public role as the TV and public-results checks above. The base table
   -- grants only expose id/class_id; operational and PII columns remain denied.
@@ -275,7 +281,7 @@ BEGIN
   END LOOP;
 
   RAISE NOTICE
-    'PASS anon REST, TV, public-view, protected-column, and unreleased-metadata boundaries hold';
+    'PASS anon REST, TV, public-view, protected-column, and unreleased-row boundaries hold';
 END;
 $$;
 

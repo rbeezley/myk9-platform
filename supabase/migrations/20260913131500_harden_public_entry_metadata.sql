@@ -76,6 +76,7 @@ WITH (security_invoker = false) AS
      ) vis
   WHERE e.deleted_at IS NULL
     AND c.deleted_at IS NULL
+    AND c.results_released_at IS NOT NULL
     AND (t.id IS NULL OR t.deleted_at IS NULL)
     AND sh.deleted_at IS NULL
     AND sh.status = ANY (ARRAY['published'::text, 'upcoming'::text, 'in_progress'::text, 'completed'::text]);

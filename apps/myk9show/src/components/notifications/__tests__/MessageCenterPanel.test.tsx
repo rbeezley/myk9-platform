@@ -457,6 +457,8 @@ describe('MessageCenterPanel', () => {
 
     renderPanel();
     fireEvent.click(screen.getByRole('tab', { name: 'Show messages' }));
+    expect(screen.getByText('Can you confirm your armband?')).toBeInTheDocument();
+    expect(screen.getByRole('dialog', { name: /message center/i })).toHaveTextContent('2 unread');
     fireEvent.click(screen.getByRole('button', { name: /Spring Trial/i }));
 
     expect(navigateMock).toHaveBeenCalledWith('/messages/show-1');

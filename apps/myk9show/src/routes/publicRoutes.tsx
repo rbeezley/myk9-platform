@@ -86,7 +86,6 @@ const TVDisplay = lazy(() => import('@/pages/TVDisplay'));
 const ChatPage = lazy(() => import('@/features/messages/pages/ChatPage'));
 
 // Notifications history
-const NotificationsPage = lazy(() => import('@/pages/NotificationsPage'));
 
 // Cart and checkout pages
 const CartPage = lazy(() => import('@/pages/CartPage'));
@@ -347,20 +346,6 @@ export const PublicRoutes = () => (
     />
 
     <Route path="/profile" element={<Navigate to="/account" replace />} />
-
-    {/* Notifications history */}
-    <Route
-      path="/notifications"
-      element={
-        <ProtectedRoute>
-          <SuspenseWrapper>
-            <PageTransition>
-              <NotificationsPage />
-            </PageTransition>
-          </SuspenseWrapper>
-        </ProtectedRoute>
-      }
-    />
 
     {/* Account (unified profile + preferences + settings) */}
     <Route

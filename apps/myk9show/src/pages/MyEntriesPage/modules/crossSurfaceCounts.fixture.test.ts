@@ -23,8 +23,12 @@
 
 import { describe, it, expect } from 'vitest';
 import { EntryStatus, PaymentStatus } from '@/types/show-registration-types';
-import { computeMyEntriesShowProgressStats } from './myEntriesStats.helpers';
+import {
+  computeMyEntriesShowProgressStats,
+  countUpcomingClassesByDog,
+} from './myEntriesStats.helpers';
 import type { MyEntry, MyEntryDogGroup, EntryClass } from './my-entries-types';
+import { deriveDogActivity } from '@/features/_shared/dogActivity';
 import {
   buildSubmittedEntryProjection,
   type SubmittedEntryProjectionRow,
@@ -108,6 +112,28 @@ const orderB = makeOrder({
 const allOrders: MyEntry[] = [orderA, orderB];
 
 describe('cross-surface count fixture — MyEntriesPage/My Shows (order-level)', () => {
+  it('keeps a day-two unscored run upcoming on both the dog strip and dog Activity', () => {
+    const dog = makeDogGroup('rex', 'Rex', ['scored', 'still-to-run']);
+    dog.classes[0] = { ...dog.classes[0]!, entryStatus: EntryStatus.COMPLETED, isScored: true };
+    const order = makeOrder({
+      showDate: new Date(2026, 5, 1),
+      showEndDate: new Date(2026, 5, 2),
+      dogs: [dog],
+    });
+    const activityRows = dog.classes.map(cls => ({
+      id: cls.id,
+      entry_status: cls.entryStatus === EntryStatus.COMPLETED ? 'completed' : 'confirmed',
+      is_scored: cls.isScored ?? false,
+      show: { id: 'show-1', start_date: '2026-06-01', end_date: '2026-06-02' },
+    }));
+
+    expect(countUpcomingClassesByDog([order], NOW).rex).toBe(1);
+    expect(deriveDogActivity(activityRows, NOW).upcoming.map(entry => entry.id)).toEqual([
+      'still-to-run',
+    ]);
+    expect(deriveDogActivity(activityRows, new Date(2026, 5, 3)).upcoming).toEqual([]);
+  });
+
   it('orders: distinct registrationId count is 2, not 5 (class entries) or 2 (dogs, coincidentally equal here)', () => {
     const orderIds = new Set(allOrders.map(e => e.registrationId));
     expect(orderIds.size).toBe(2);

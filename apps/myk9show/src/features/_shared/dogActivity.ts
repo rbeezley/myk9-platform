@@ -22,7 +22,12 @@ export interface DogActivityEntry {
   search_time_seconds?: number | null;
   final_placement?: string | number | null;
   show_id?: string | null;
-  show?: { name?: string | null; start_date?: string | null; id?: string | null } | null;
+  show?: {
+    name?: string | null;
+    start_date?: string | null;
+    end_date?: string | null;
+    id?: string | null;
+  } | null;
   class?: { name?: string | null; id?: string | null } | null;
 }
 
@@ -35,20 +40,21 @@ function startOfLocalDay(date: Date): Date {
   return new Date(date.getFullYear(), date.getMonth(), date.getDate());
 }
 
-function parseShowDate(entry: DogActivityEntry): Date | null {
-  const raw = entry.show?.start_date;
+function parseShowDate(raw: string | null | undefined): Date | null {
   if (!raw) return null;
   const date = toLocalDate(raw);
   return Number.isNaN(date.getTime()) ? null : date;
 }
 
 function isTodayOrFuture(entry: DogActivityEntry, today: Date): boolean {
-  const showDate = parseShowDate(entry);
+  // An unscored class is still ahead during a multi-day show, even after its
+  // first day. The dog read supplies end_date online and from the replica.
+  const showDate = parseShowDate(entry.show?.end_date ?? entry.show?.start_date);
   return showDate != null && showDate >= startOfLocalDay(today);
 }
 
 function isTodayOrPast(entry: DogActivityEntry, today: Date): boolean {
-  const showDate = parseShowDate(entry);
+  const showDate = parseShowDate(entry.show?.start_date);
   return showDate != null && showDate <= startOfLocalDay(today);
 }
 

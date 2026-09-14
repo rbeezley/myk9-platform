@@ -1,4 +1,4 @@
-import React, { Suspense } from 'react';
+import React, { Suspense, useEffect, useRef } from 'react';
 import RegistrationsSection from '@/components/dogs/DogDetails/Registrations/RegistrationsSection';
 import TitleProgressSection from './TitleProgressSection';
 import { TabContentSkeleton } from './Skeletons';
@@ -18,6 +18,7 @@ const DogDetailsTabs: React.FC<DogDetailsTabsProps> = ({
   autoOpenAddRegistration,
   onAddRequestConsumed,
   showRegistrationDetails = false,
+  focusRegistrationDetailsRequest = 0,
   registrationsCount = 0,
   role = 'exhibitor',
 }) => {
@@ -25,6 +26,16 @@ const DogDetailsTabs: React.FC<DogDetailsTabsProps> = ({
   const { user } = useAuthContext();
   const { state, setSection, setView } = useDogDetailsNavigation();
   const isSecretary = role === 'secretary';
+  const registrationDetailsHeadingRef = useRef<HTMLHeadingElement>(null);
+  // Runs after the commit that renders the heading, so a Manage-registrations
+  // click from Career or Records lands on a mounted node instead of racing it.
+  useEffect(() => {
+    if (!focusRegistrationDetailsRequest) return;
+    const heading = registrationDetailsHeadingRef.current;
+    if (!heading) return;
+    heading.scrollIntoView({ block: 'start' });
+    heading.focus({ preventScroll: true });
+  }, [focusRegistrationDetailsRequest]);
   const dogName = getDogDisplayName(dog);
   // `locked` is the DISPLAY treatment (blur gate on view-only Premium panels)
   // and may use the optimistic legacy value. Anything that unlocks a WRITE
@@ -71,7 +82,12 @@ const DogDetailsTabs: React.FC<DogDetailsTabsProps> = ({
           </section>
           {isPremium && <TitleProgressSection dogId={dog.id} />}
           {showRegistrationDetails && registrationsCount > 0 && (
-            <h2 id="dog-registration-details" tabIndex={-1} className="text-base font-semibold">
+            <h2
+              id="dog-registration-details"
+              ref={registrationDetailsHeadingRef}
+              tabIndex={-1}
+              className="text-base font-semibold"
+            >
               Manage registrations
             </h2>
           )}

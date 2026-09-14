@@ -47,7 +47,14 @@ const DogDetailsMain: React.FC<DogDetailsMainProps> = ({
   useRouteEntryFocus(headingRef, dog.id);
 
   const [addRegistrationDogId, setAddRegistrationDogId] = useState<string | null>(null);
-  const [registrationDetailsDogId, setRegistrationDetailsDogId] = useState<string | null>(null);
+  // The request counter is what moves focus, not the dog id: the heading only
+  // exists once Overview has rendered it, so a one-shot rAF scheduled here fires
+  // before the commit when the click came from Career/Records and silently
+  // no-ops. DogDetailsTabs owns the heading, so it owns the focus effect.
+  const [registrationDetails, setRegistrationDetails] = useState<{
+    dogId: string;
+    requestId: number;
+  } | null>(null);
 
   const navigateToOverview = () => {
     const next = new URLSearchParams(searchParams);
@@ -68,12 +75,7 @@ const DogDetailsMain: React.FC<DogDetailsMainProps> = ({
 
   const openRegistrationDetails = () => {
     navigateToOverview();
-    setRegistrationDetailsDogId(dog.id);
-    requestAnimationFrame(() => {
-      const heading = document.getElementById('dog-registration-details');
-      heading?.scrollIntoView({ block: 'start' });
-      heading?.focus({ preventScroll: true });
-    });
+    setRegistrationDetails(prev => ({ dogId: dog.id, requestId: (prev?.requestId ?? 0) + 1 }));
   };
 
   useEffect(() => {
@@ -293,7 +295,10 @@ const DogDetailsMain: React.FC<DogDetailsMainProps> = ({
               autoOpenAddRegistration={addRegistrationDogId === dog.id}
               onAddRequestConsumed={() => setAddRegistrationDogId(null)}
               showRegistrationDetails={
-                registrationDetailsDogId === dog.id || searchParams.get('tab') === 'registrations'
+                registrationDetails?.dogId === dog.id || searchParams.get('tab') === 'registrations'
+              }
+              focusRegistrationDetailsRequest={
+                registrationDetails?.dogId === dog.id ? registrationDetails.requestId : 0
               }
               registrationsCount={liveRegistrationsCount}
               role={isSecretary ? 'secretary' : 'exhibitor'}

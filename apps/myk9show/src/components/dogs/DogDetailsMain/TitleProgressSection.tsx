@@ -21,8 +21,11 @@ interface TitleProgressSectionProps {
 const TitleProgressSection: React.FC<TitleProgressSectionProps> = ({ dogId }) => {
   const { progressBySport, earnedAbbreviations, isLoading } = useTitleProgress(dogId);
   const tracks = Object.values(progressBySport).flat();
+  // Must stay byte-identical to Career's SportTitleGroup `inProgress` filter:
+  // titleEngine step 6 can mark an UNEARNED title superseded, so adding
+  // `!isSuperseded` here makes Overview under-count what Career lists.
   const inProgressCount = tracks.filter(
-    t => !t.isEarned && !t.isSuperseded && t.prerequisiteMet && t.earnedLegs > 0
+    t => !t.isEarned && t.prerequisiteMet && t.earnedLegs > 0
   ).length;
 
   if (isLoading) {

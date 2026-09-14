@@ -288,9 +288,12 @@ test.describe('Dogs UI — Exhibitor own-dog CRUD', () => {
     await page.waitForURL(/\/dogs\/[0-9a-f-]{36}$/);
   }
 
+  // MYK9-518 moved the exhibitor's Edit out of a standalone rail button and into
+  // the identity rail's overflow menu, so anchor on the menu trigger itself. The
+  // rail is scoped by `data-dog-identity` because Overview's other sections
+  // render their own row menus.
   async function openActionsMenu(page: Page) {
-    const editBtn = page.getByRole('button', { name: 'Edit', exact: true });
-    await editBtn.locator('..').getByRole('button').last().click();
+    await page.locator('[data-dog-identity]').getByRole('button', { name: 'More actions' }).click();
   }
 
   test('exhibitor creates, edits, and deletes their own dog', async ({ page }) => {
@@ -312,7 +315,8 @@ test.describe('Dogs UI — Exhibitor own-dog CRUD', () => {
     await page.waitForURL(/\/dogs\/[0-9a-f-]{36}$/, { timeout: 10000 });
     await expect(page.getByRole('heading', { name: EXHIBITOR_DOG_NAME })).toBeVisible();
 
-    await page.getByRole('button', { name: 'Edit', exact: true }).click();
+    await openActionsMenu(page);
+    await page.getByRole('menuitem', { name: 'Edit Dog' }).click();
     await expect(page.getByRole('heading', { name: 'Edit Dog' })).toBeVisible();
     await page.locator('input#color').fill('Blue Merle');
 

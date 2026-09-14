@@ -218,7 +218,10 @@ export default function RegistrationsSection({
   }
 
   return (
-    <div>
+    // With `showDetails` off this renders only the add/edit panels, which draw
+    // no box. `display: contents` keeps it out of Overview's `space-y-8` rhythm
+    // so the hidden section leaves no ~32px dead gap above Activity.
+    <div className={showDetails ? undefined : 'contents'}>
       {registrationSaveError && (
         <Alert className="mb-4 border-destructive/30 bg-destructive/10">
           <AlertDescription className="text-destructive">{registrationSaveError}</AlertDescription>

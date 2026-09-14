@@ -133,6 +133,14 @@ describe('DogIdentityRail', () => {
     expect(onManageRegistrations).toHaveBeenCalledOnce();
   });
 
+  // The absence half: without it, dropping the `registry.rows.length > 0` guard
+  // ships a control that scrolls to a heading Overview never renders, and the
+  // presence test above still passes.
+  it('hides registration management when the dog has no registrations', () => {
+    renderRail(base, { registrations: [], onManageRegistrations: vi.fn() });
+    expect(screen.queryByRole('button', { name: 'Manage registrations' })).toBeNull();
+  });
+
   it('keeps the photo action at least 44px and named for assistive technology', () => {
     renderRail(base);
     expect(screen.getByRole('button', { name: 'Edit dog photo' })).toHaveClass('h-11', 'w-11');

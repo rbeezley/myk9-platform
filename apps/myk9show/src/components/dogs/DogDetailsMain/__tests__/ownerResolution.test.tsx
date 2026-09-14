@@ -97,7 +97,10 @@ vi.mock('@/components/common/ThreeDotMenu', () => ({
 }));
 
 vi.mock('../DogDetailsTabs', () => ({
-  default: function MockDogDetailsTabs({ autoOpenAddRegistration, showRegistrationDetails }: {
+  default: function MockDogDetailsTabs({
+    autoOpenAddRegistration,
+    showRegistrationDetails,
+  }: {
     autoOpenAddRegistration: boolean;
     showRegistrationDetails: boolean;
   }) {
@@ -235,11 +238,17 @@ describe('DogDetailsMain — owner resolution', () => {
     });
 
     fireEvent.click(screen.getByRole('button', { name: 'Manage registrations' }));
-    expect(screen.getByTestId('dog-tabs')).toHaveAttribute('data-show-registration-details', 'true');
+    expect(screen.getByTestId('dog-tabs')).toHaveAttribute(
+      'data-show-registration-details',
+      'true'
+    );
     expect(screen.getByTestId('dog-tabs')).toHaveAttribute('data-navigation-type', 'POP');
 
     rerender(<DogDetailsMain dog={{ ...mockDog, id: 'dog-2' }} />);
-    expect(screen.getByTestId('dog-tabs')).toHaveAttribute('data-show-registration-details', 'false');
+    expect(screen.getByTestId('dog-tabs')).toHaveAttribute(
+      'data-show-registration-details',
+      'false'
+    );
   });
 
   it('opens the management view for a legacy registration bookmark', () => {
@@ -249,7 +258,10 @@ describe('DogDetailsMain — owner resolution', () => {
     render(<DogDetailsMain dog={mockDog} />, {
       initialRoute: '/dogs/dog-1?tab=registrations',
     });
-    expect(screen.getByTestId('dog-tabs')).toHaveAttribute('data-show-registration-details', 'true');
+    expect(screen.getByTestId('dog-tabs')).toHaveAttribute(
+      'data-show-registration-details',
+      'true'
+    );
   });
 
   it('lands on Overview and opens Add registration from a mixed deep link', async () => {

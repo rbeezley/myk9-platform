@@ -511,6 +511,7 @@ describe('Replicated*Table mappers — db row -> domain -> db row', () => {
       judge_assignments: [
         {
           person_id: 'judge-1',
+          status: 'confirmed',
           people: { first_name: 'Jane', last_name: 'Doe' },
         },
       ],

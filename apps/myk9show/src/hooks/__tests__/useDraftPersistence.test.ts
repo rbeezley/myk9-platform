@@ -178,12 +178,165 @@ describe('useDraftPersistence — cross-user scoping', () => {
     expect(JSON.parse(localStorage.getItem(metadataKey) ?? '[]')).toHaveLength(1);
 
     act(() => {
-      result.current.discardDraftsWithoutFinalSave();
+      result.current.discardDraftsWithoutFinalSave(['dog-1']);
     });
     expect(localStorage.getItem(metadataKey)).toBeNull();
 
     unmount();
 
     expect(localStorage.getItem(metadataKey)).toBeNull();
+  });
+
+  it('saves the selected dog on pagehide before the autosave interval', () => {
+    seedDraftData({ selectedDogs: ['dog-1'], _workflowState: { currentStep: 'class-selection' } });
+    const { result } = renderHook(() => useDraftPersistence(SHOW_ID, USER_A, 'class-selection'));
+
+    act(() => window.dispatchEvent(new Event('pagehide')));
+
+    expect(result.current.availableDrafts).toHaveLength(1);
+    expect(result.current.availableDrafts[0]).toMatchObject({
+      selectedDogsCount: 1,
+      completed: false,
+    });
+  });
+
+  it('does not let an empty reentry evict a saved entry', () => {
+    seedDraftData({ selectedDogs: ['dog-1'] });
+    const first = renderHook(() => useDraftPersistence(SHOW_ID, USER_A, 'dog-selection'));
+    act(() => first.result.current.autoSave());
+    const savedId = first.result.current.availableDrafts[0]?.id;
+    first.unmount();
+
+    seedDraftData({ selectedDogs: [], _workflowState: { currentStep: 'dog-selection' } });
+    const second = renderHook(() => useDraftPersistence(SHOW_ID, USER_A, 'dog-selection'));
+    act(() => {
+      second.result.current.autoSave();
+      window.dispatchEvent(new Event('pagehide'));
+    });
+
+    expect(second.result.current.availableDrafts.map(draft => draft.id)).toEqual([savedId]);
+    expect(second.result.current.availableDrafts[0]?.selectedDogsCount).toBe(1);
+  });
+
+  it('does not activate a rejected read or overwrite its saved payload', () => {
+    seedDraftData({ selectedDogs: ['dog-1'] });
+    const first = renderHook(() => useDraftPersistence(SHOW_ID, USER_A, 'dog-selection'));
+    let savedId: string | null = null;
+    act(() => {
+      savedId = first.result.current.saveDraft('Entry to resume');
+    });
+    first.unmount();
+
+    seedDraftData({ selectedDogs: [], _workflowState: { currentStep: 'dog-selection' } });
+    const second = renderHook(() => useDraftPersistence(SHOW_ID, USER_A, 'dog-selection'));
+    expect(second.result.current.loadDraft(savedId!)?.data.selectedDogs).toEqual(['dog-1']);
+    act(() => second.result.current.autoSave());
+    expect(second.result.current.loadDraft(savedId!)?.data.selectedDogs).toEqual(['dog-1']);
+  });
+
+  it('does not overwrite an accepted draft before the restored form reaches the hook', () => {
+    seedDraftData({ selectedDogs: ['dog-1'] });
+    const first = renderHook(() => useDraftPersistence(SHOW_ID, USER_A, 'dog-selection'));
+    let savedId: string | null = null;
+    act(() => {
+      savedId = first.result.current.saveDraft('Entry to resume');
+    });
+    first.unmount();
+
+    seedDraftData({ selectedDogs: [], _workflowState: { currentStep: 'dog-selection' } });
+    const second = renderHook(() => useDraftPersistence(SHOW_ID, USER_A, 'dog-selection'));
+    act(() => {
+      second.result.current.activateDraft(second.result.current.loadDraft(savedId!)!);
+      second.result.current.autoSave();
+    });
+
+    expect(second.result.current.loadDraft(savedId!)?.data.selectedDogs).toEqual(['dog-1']);
+  });
+
+  it('keeps unrelated saved drafts when only one dog is handed off', () => {
+    seedDraftData({ selectedDogs: ['dog-1'] });
+    const { result, rerender } = renderHook(() =>
+      useDraftPersistence(SHOW_ID, USER_A, 'dog-selection')
+    );
+    act(() => result.current.saveDraft('Dog one'));
+    seedDraftData({ selectedDogs: ['dog-2'] });
+    rerender();
+    act(() => result.current.saveDraft('Dog two'));
+
+    act(() => result.current.discardDraftsWithoutFinalSave(['dog-1']));
+
+    expect(result.current.availableDrafts.map(draft => draft.title)).toEqual(['Dog two']);
+    expect(
+      result.current.loadDraft(result.current.availableDrafts[0]!.id)?.data.selectedDogs
+    ).toEqual(['dog-2']);
+  });
+
+  it('retains unfiled dog work inside a mixed draft', () => {
+    seedDraftData({
+      selectedDogs: ['dog-1', 'dog-2'],
+      _workflowState: {
+        currentStep: 'payment',
+        stepCompletionState: { 'dog-selection': true },
+        classSelections: [
+          { dogId: 'dog-1', trialId: 'trial-1', selectedClasses: [{ classId: 'class-1' }] },
+          { dogId: 'dog-2', trialId: 'trial-1', selectedClasses: [{ classId: 'class-2' }] },
+        ],
+        handlerAssignments: {},
+        paymentStatus: 'pending',
+        entryStatus: 'pending',
+      },
+    });
+    const { result } = renderHook(() => useDraftPersistence(SHOW_ID, USER_A, 'payment'));
+    let draftId: string | null = null;
+    act(() => {
+      draftId = result.current.saveDraft('Two dogs');
+      result.current.discardDraftsWithoutFinalSave(['dog-1']);
+    });
+
+    expect(result.current.availableDrafts).toHaveLength(1);
+    expect(result.current.availableDrafts[0]).toMatchObject({
+      id: draftId,
+      selectedDogsCount: 1,
+    });
+    expect(result.current.loadDraft(draftId!)?.data).toMatchObject({
+      selectedDogs: ['dog-2'],
+      _workflowState: {
+        currentStep: 'dog-selection',
+        classSelections: [
+          { dogId: 'dog-2', trialId: 'trial-1', selectedClasses: [{ classId: 'class-2' }] },
+        ],
+      },
+    });
+  });
+
+  it('updates the accepted draft and derives resume eligibility from its payload', () => {
+    seedDraftData({ selectedDogs: ['dog-1'] });
+    const { result, rerender } = renderHook(() =>
+      useDraftPersistence(SHOW_ID, USER_A, 'dog-selection')
+    );
+    let savedId: string | null = null;
+    act(() => {
+      savedId = result.current.saveDraft('Entry to resume');
+      result.current.activateDraft(result.current.loadDraft(savedId!)!);
+    });
+
+    // The first render after activation has the restored selection. An earlier
+    // empty render must not overwrite it while React applies the loaded state.
+    rerender();
+    act(() => result.current.autoSave());
+
+    seedDraftData({
+      selectedDogs: ['dog-1', 'dog-2'],
+      _workflowState: { currentStep: 'confirmation' },
+    });
+    rerender();
+    act(() => result.current.autoSave());
+
+    expect(result.current.availableDrafts).toHaveLength(1);
+    expect(result.current.availableDrafts[0]).toMatchObject({
+      id: savedId,
+      selectedDogsCount: 2,
+      completed: true,
+    });
   });
 });

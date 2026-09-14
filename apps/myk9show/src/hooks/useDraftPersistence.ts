@@ -2,6 +2,8 @@ import { useEffect, useRef, useCallback, useState } from 'react';
 import { useShowRegistrationStore } from '../store/showRegistrationStore';
 import { RegistrationFormData } from '../types/show-registration-types';
 import { logger } from '@/services/LoggingService';
+import { pruneFiledDogsFromDraft } from './pruneFiledDogsFromDraft';
+import { readSavedDraftMetadata } from './readSavedDraftMetadata';
 
 export interface DraftPersistenceConfig {
   /** Auto-save interval in milliseconds (default: 30000 = 30 seconds) */
@@ -22,6 +24,9 @@ export interface DraftMetadata {
   stepCompleted: string;
   title: string;
   preview: string;
+  /** Read from the saved payload when listing drafts. */
+  selectedDogsCount?: number;
+  completed?: boolean;
 }
 
 export interface SavedDraft {
@@ -54,6 +59,7 @@ export function useDraftPersistence(
   const autoSaveTimerRef = useRef<NodeJS.Timeout | null>(null);
   const lastSavedDataRef = useRef<string>('');
   const activeDraftMetadataRef = useRef<DraftMetadata | null>(null);
+  const pendingRestoreDogIdsRef = useRef<string[] | null>(null);
   const skipFinalSaveRef = useRef(false);
   const [lastAutoSaveTime, setLastAutoSaveTime] = useState<Date | null>(null);
   const [, setDraftsVersion] = useState(0);
@@ -150,7 +156,9 @@ export function useDraftPersistence(
         return null;
       }
 
-      const draftMetadata = metadata || generateDraftMetadata(data);
+      const draftMetadata = metadata
+        ? { ...generateDraftMetadata(data), id: metadata.id, title: metadata.title }
+        : generateDraftMetadata(data);
       const savedDraft: SavedDraft = { metadata: draftMetadata, data };
 
       try {
@@ -219,8 +227,6 @@ export function useDraftPersistence(
         }
 
         log('Loaded draft:', draftId, 'with', Object.keys(savedDraft.data).length, 'fields');
-        activeDraftMetadataRef.current = savedDraft.metadata;
-
         return savedDraft;
       } catch (error) {
         log('Error loading draft:', error);
@@ -228,6 +234,18 @@ export function useDraftPersistence(
       }
     },
     [getDraftKey, userId, log]
+  );
+
+  // Reading a draft does not accept it. The wizard activates it only after
+  // the dog roster has loaded and the saved selection has been validated.
+  const activateDraft = useCallback(
+    (draft: SavedDraft) => {
+      if (draft.metadata.showId === showId && draft.metadata.userId === userId) {
+        activeDraftMetadataRef.current = draft.metadata;
+        pendingRestoreDogIdsRef.current = draft.data.selectedDogs ?? [];
+      }
+    },
+    [showId, userId]
   );
 
   // Delete draft from localStorage
@@ -241,6 +259,7 @@ export function useDraftPersistence(
         saveDraftMetadata(allMetadata);
         if (activeDraftMetadataRef.current?.id === draftId) {
           activeDraftMetadataRef.current = null;
+          pendingRestoreDogIdsRef.current = null;
         }
         setDraftsVersion(version => version + 1);
 
@@ -254,9 +273,24 @@ export function useDraftPersistence(
 
   // Auto-save current draft data
   const autoSave = useCallback(() => {
+    if (skipFinalSaveRef.current) return;
     if (!draftData || Object.keys(draftData).length === 0) {
       return;
     }
+    const pendingDogs = pendingRestoreDogIdsRef.current;
+    if (pendingDogs) {
+      const currentDogs = draftData.selectedDogs ?? [];
+      if (
+        currentDogs.length !== pendingDogs.length ||
+        currentDogs.some((dogId, index) => dogId !== pendingDogs[index])
+      ) {
+        return;
+      }
+      pendingRestoreDogIdsRef.current = null;
+    }
+    // The wizard supplies a non-empty envelope even before a dog is selected.
+    // Do not let a fresh empty wizard evict an unfinished entry on this device.
+    if (!draftData.selectedDogs?.length && !activeDraftMetadataRef.current) return;
 
     // Check if data has changed since last save
     const currentDataString = JSON.stringify(draftData);
@@ -296,15 +330,64 @@ export function useDraftPersistence(
     });
     localStorage.removeItem(getMetadataKey());
     activeDraftMetadataRef.current = null;
+    pendingRestoreDogIdsRef.current = null;
     lastSavedDataRef.current = JSON.stringify(draftData ?? {});
     setDraftsVersion(version => version + 1);
     log('Cleared all drafts for show:', showId);
   }, [draftData, getDraftMetadata, getDraftKey, getMetadataKey, showId, log]);
 
-  const discardDraftsWithoutFinalSave = useCallback(() => {
-    skipFinalSaveRef.current = true;
-    clearAllDrafts();
-  }, [clearAllDrafts]);
+  const discardDraftsWithoutFinalSave = useCallback(
+    (filedDogIds: string[]) => {
+      skipFinalSaveRef.current = true;
+      const filed = new Set(filedDogIds);
+      const remainingMetadata: DraftMetadata[] = [];
+      for (const metadata of getDraftMetadata()) {
+        try {
+          const raw = localStorage.getItem(getDraftKey(metadata.id));
+          if (!raw) continue;
+          const saved: SavedDraft = JSON.parse(raw);
+          if (
+            saved.metadata?.id !== metadata.id ||
+            saved.metadata.showId !== showId ||
+            saved.metadata.userId !== userId
+          ) {
+            remainingMetadata.push(metadata);
+            continue;
+          }
+          const pruned = pruneFiledDogsFromDraft(saved, filed);
+          if (!pruned) {
+            localStorage.removeItem(getDraftKey(metadata.id));
+          } else if (pruned !== saved) {
+            localStorage.setItem(getDraftKey(metadata.id), JSON.stringify(pruned));
+            remainingMetadata.push(pruned.metadata);
+          } else {
+            remainingMetadata.push(metadata);
+          }
+        } catch (error) {
+          log('Could not prune saved draft:', metadata.id, error);
+          remainingMetadata.push(metadata);
+        }
+      }
+      if (remainingMetadata.length > 0) {
+        remainingMetadata.sort((a, b) => b.timestamp - a.timestamp);
+        saveDraftMetadata(remainingMetadata);
+      } else localStorage.removeItem(getMetadataKey());
+      activeDraftMetadataRef.current = null;
+      pendingRestoreDogIdsRef.current = null;
+      lastSavedDataRef.current = JSON.stringify(draftData ?? {});
+      setDraftsVersion(version => version + 1);
+    },
+    [
+      draftData,
+      getDraftKey,
+      getDraftMetadata,
+      getMetadataKey,
+      log,
+      saveDraftMetadata,
+      showId,
+      userId,
+    ]
+  );
 
   // Keep a ref to the latest autoSave so the timer effect can call it without
   // having `autoSave` as a dependency — otherwise the timer gets cleared and
@@ -344,16 +427,26 @@ export function useDraftPersistence(
     };
   }, [log]);
 
+  // Browser Back can leave the document before the 30-second timer fires.
+  useEffect(() => {
+    const saveOnPageHide = () => autoSaveRef.current();
+    window.addEventListener('pagehide', saveOnPageHide);
+    return () => window.removeEventListener('pagehide', saveOnPageHide);
+  }, []);
+
   // Available drafts for the current (show, user) pair. Storage keys already
   // scope by userId, so no read-side filter is needed.
   // Reading the small metadata list on render keeps localStorage as the source
   // of truth. draftsVersion forces a render after in-hook storage mutations.
-  const availableDrafts = getDraftMetadata();
+  const availableDrafts = getDraftMetadata().map(metadata =>
+    readSavedDraftMetadata(metadata, getDraftKey(metadata.id), showId, userId)
+  );
 
   return {
     // Draft operations
     saveDraft: saveWithTitle,
     loadDraft,
+    activateDraft,
     deleteDraft,
     autoSave,
 
@@ -386,6 +479,7 @@ export function useDraftRestoration(
       const savedDraft = draftPersistence.loadDraft(draftId);
 
       if (savedDraft) {
+        draftPersistence.activateDraft(savedDraft);
         setDraftData(savedDraft.data);
         onDraftSelected?.(savedDraft);
         return true;

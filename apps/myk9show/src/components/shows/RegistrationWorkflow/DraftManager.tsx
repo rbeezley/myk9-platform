@@ -18,8 +18,12 @@ interface DraftManagerProps {
   availableDrafts: DraftMetadata[];
   clearAllDrafts: () => void;
   hasUnsavedChanges: boolean;
-  onDraftLoaded?: (draft: SavedDraft) => void;
+  onDraftLoaded?: (draft: SavedDraft) => boolean | void;
   onDraftSaved?: (draftId: string) => void;
+  showResume?: boolean;
+  dogsReady?: boolean;
+  loadError?: boolean;
+  onRetryDogs?: () => void;
 }
 
 export function DraftManager({
@@ -31,11 +35,18 @@ export function DraftManager({
   hasUnsavedChanges,
   onDraftLoaded,
   onDraftSaved,
+  showResume = false,
+  dogsReady = true,
+  loadError = false,
+  onRetryDogs,
 }: DraftManagerProps) {
   const [isLoadDialogOpen, setIsLoadDialogOpen] = useState(false);
   const [isSaveDialogOpen, setIsSaveDialogOpen] = useState(false);
   const [saveTitle, setSaveTitle] = useState('');
   const [selectedDraft, setSelectedDraft] = useState<DraftMetadata | null>(null);
+  const latestEntryDraft = showResume
+    ? availableDrafts.find(draft => (draft.selectedDogsCount ?? 0) > 0 && !draft.completed)
+    : undefined;
 
   const handleSaveDraft = async () => {
     if (!saveTitle.trim()) {
@@ -60,7 +71,7 @@ export function DraftManager({
   const handleLoadDraft = (draftId: string) => {
     const draft = loadDraft(draftId);
     if (draft) {
-      onDraftLoaded?.(draft);
+      if (onDraftLoaded?.(draft) === false) return;
       setIsLoadDialogOpen(false);
       setSelectedDraft(null);
       return;
@@ -106,7 +117,7 @@ export function DraftManager({
   };
 
   return (
-    <div className="flex items-center gap-3">
+    <div className="flex w-full flex-wrap items-center justify-end gap-3">
       {/* Save Status Indicator */}
       <DraftIndicator hasUnsavedChanges={!!hasUnsavedChanges} />
 
@@ -250,6 +261,27 @@ export function DraftManager({
           </div>
         </DialogContent>
       </Dialog>
+      {latestEntryDraft && (
+        <section className="flex w-full flex-col gap-3 rounded-xl border border-primary/30 bg-primary/5 p-4 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <h3 className="font-semibold text-foreground">Continue your entry?</h3>
+            <p className="text-sm text-muted-foreground">
+              {loadError
+                ? 'Your entry is saved here, but your dogs could not be loaded. Reconnect and try again.'
+                : dogsReady
+                  ? 'Your previous selection is saved on this device. Resume it or select a dog below to start a different entry.'
+                  : 'Your entry is saved here. Waiting for your dogs to load.'}
+            </p>
+          </div>
+          <Button
+            className="min-h-11 shrink-0"
+            onClick={loadError ? onRetryDogs : () => handleLoadDraft(latestEntryDraft.id)}
+            disabled={loadError ? !onRetryDogs : !dogsReady}
+          >
+            {loadError ? 'Retry loading dogs' : 'Resume entry'}
+          </Button>
+        </section>
+      )}
     </div>
   );
 }

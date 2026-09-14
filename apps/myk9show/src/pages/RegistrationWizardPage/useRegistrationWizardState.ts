@@ -85,7 +85,11 @@ export function useRegistrationWizardState() {
   // Auth and permissions
   const { isSecretary, isClubAdmin, isSiteAdmin, canAssignArmbands } = useRegistrationPermissions();
   const { user } = useAuthContext();
-  const { profile: exhibitorProfile } = useExhibitorProfile();
+  const {
+    profile: exhibitorProfile,
+    error: profileError,
+    refetch: refetchExhibitorProfile,
+  } = useExhibitorProfile();
   const { triggerSync } = useReplicationSync();
 
   // Trigger a sync on mount so any pending local mutations are uploaded
@@ -112,7 +116,13 @@ export function useRegistrationWizardState() {
   }, []);
 
   // Data stores
-  const { dogs, isLoading: dogsLoading } = useDogStoreCompat();
+  const {
+    dogs,
+    isLoading: dogsLoading,
+    isReady: dogsReady,
+    rosterError: dogsError,
+    refetch: refetchDogs,
+  } = useDogStoreCompat();
   const { shows = [] } = useShowStore();
   const { classes = [] } = useClassStoreCompat();
   const loadCart = useCartStore(state => state.loadCart);
@@ -263,6 +273,7 @@ export function useRegistrationWizardState() {
   const {
     saveDraft: draftSave,
     loadDraft: draftLoad,
+    activateDraft,
     deleteDraft: draftDelete,
     availableDrafts,
     clearAllDrafts,
@@ -522,6 +533,12 @@ export function useRegistrationWizardState() {
     // Stores / data
     dogs,
     dogsLoading,
+    dogsReady,
+    dogsError: dogsError || profileError,
+    retryDogLoad: () => {
+      if (exhibitorProfile) refetchDogs();
+      else void refetchExhibitorProfile();
+    },
     classes,
     currentShow,
     loadCart,
@@ -576,6 +593,7 @@ export function useRegistrationWizardState() {
     // Drafts
     draftSave,
     draftLoad,
+    activateDraft,
     draftDelete,
     availableDrafts,
     clearAllDrafts,

@@ -9,7 +9,7 @@
  * hook's values and handlers.
  */
 
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Link, useParams, useNavigate } from 'react-router-dom';
 import { ArrowLeft, HelpCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -88,6 +88,9 @@ function RegistrationWizardContent() {
     entryOutcomes,
     ownerResolution,
     dogsLoading,
+    dogsReady,
+    dogsError,
+    retryDogLoad,
     agreedToEntryAgreement,
     setAgreedToEntryAgreement,
     setPaymentStatus,
@@ -109,6 +112,7 @@ function RegistrationWizardContent() {
   } = wiz;
 
   const showBlockedReason = !!proceedBlocked && !isSubmitting;
+  const [hasEditedDogSelection, setHasEditedDogSelection] = useState(false);
 
   // "Your entries" — the wizard's single running total. Mounted on every step
   // except the Receipt, which has nothing left to total and keeps its own
@@ -304,7 +308,7 @@ function RegistrationWizardContent() {
       >
         {entryCloseAvailability.canEnter && (
           <>
-            <div className="mb-6 flex flex-wrap items-center justify-between gap-2">
+            <div className="mb-6">
               <h2
                 ref={stepHeadingRef}
                 tabIndex={-1}
@@ -322,6 +326,15 @@ function RegistrationWizardContent() {
                 hasUnsavedChanges={!!hasUnsavedChanges}
                 onDraftLoaded={handleDraftLoaded}
                 onDraftSaved={() => notifications.success('Draft saved')}
+                showResume={
+                  currentWorkflowMode === 'exhibitor' &&
+                  currentStepId === 'dog-selection' &&
+                  !hasEditedDogSelection &&
+                  registrationData.selectedDogs.length === 0
+                }
+                dogsReady={dogsReady}
+                loadError={!!dogsError}
+                onRetryDogs={retryDogLoad}
               />
             </div>
 
@@ -394,7 +407,10 @@ function RegistrationWizardContent() {
               blockedClassIds={blockedClassIds}
               armbandAssignments={armbandAssignments}
               entryOutcomes={entryOutcomes}
-              onDogSelectionChange={handleDogSelectionChange}
+              onDogSelectionChange={dogIds => {
+                setHasEditedDogSelection(true);
+                handleDogSelectionChange(dogIds);
+              }}
               onClassSelectionChange={handleClassSelectionChange}
               onHandlerAssignmentChange={handleHandlerAssignmentChange}
               onPaymentMethodChange={(method: PaymentMethod) => handlePaymentMethodChange(method)}

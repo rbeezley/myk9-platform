@@ -93,7 +93,7 @@ export interface SubmitPaymentStepContext {
   ) => void;
   triggerSync: () => void;
   navigate: (path: string) => void;
-  discardDraftsWithoutFinalSave: () => void;
+  discardDraftsWithoutFinalSave: (filedDogIds: string[]) => void;
   clearDraftData: () => void;
 }
 
@@ -103,6 +103,21 @@ function buildOfflineLateEntryRegistrationNumber(entryIds: string[]): string {
     .slice(0, 8)
     .toUpperCase();
   return token ? `LOCAL-${token}` : 'LOCAL-PENDING';
+}
+
+function handledDogIds(
+  selections: ClassSelectionData[],
+  outcomes?: EntrySubmissionOutcome[]
+): string[] {
+  return [
+    ...new Set(
+      outcomes
+        ? outcomes.filter(outcome => outcome.outcome !== 'denied').map(outcome => outcome.dogId)
+        : selections
+            .filter(selection => selection.selectedClasses.length > 0)
+            .map(selection => selection.dogId)
+    ),
+  ];
 }
 
 export async function submitPaymentStep(ctx: SubmitPaymentStepContext): Promise<void> {
@@ -148,7 +163,7 @@ export async function submitPaymentStep(ctx: SubmitPaymentStepContext): Promise<
           addItem: ctx.cart.addItem,
           abandonCart: ctx.cart.abandonCart,
           deleteDraft: async () => {
-            ctx.discardDraftsWithoutFinalSave();
+            ctx.discardDraftsWithoutFinalSave(handledDogIds(ctx.classSelections));
             ctx.clearDraftData();
           },
           navigate: path => ctx.navigate(path),
@@ -173,6 +188,9 @@ export async function submitPaymentStep(ctx: SubmitPaymentStepContext): Promise<
         ctx.setArmbandAssignments(offlineResult.armbandAssignments);
       }
       ctx.setEntryOutcomes(offlineResult.entryOutcomes);
+      ctx.discardDraftsWithoutFinalSave(
+        handledDogIds(ctx.classSelections, offlineResult.entryOutcomes)
+      );
       ctx.setRegistrationNumber(buildOfflineLateEntryRegistrationNumber(offlineResult.entryIds));
       await ctx.cart.clearCart();
       ctx.triggerSync();
@@ -203,6 +221,9 @@ export async function submitPaymentStep(ctx: SubmitPaymentStepContext): Promise<
     if (submissionResult.aborted) return;
     ctx.setRegistrationNumber(submissionResult.registrationNumber);
     ctx.setEntryOutcomes(submissionResult.entryOutcomes ?? []);
+    ctx.discardDraftsWithoutFinalSave(
+      handledDogIds(ctx.classSelections, submissionResult.entryOutcomes)
+    );
     if (submissionResult.armbandAssignments.length > 0) {
       ctx.setArmbandAssignments(submissionResult.armbandAssignments);
     }

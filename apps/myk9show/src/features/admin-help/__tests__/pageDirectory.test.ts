@@ -188,7 +188,13 @@ describe('pageDirectory (invariant)', () => {
     expect(stale).toEqual([]);
   });
 
-  it('every linksTo path resolves to an existing PageEntry path', () => {
+  /**
+   * Existence only. This does NOT check that the page renders a link to the
+   * target — proving that would mean rendering every page and walking its
+   * hrefs, which is out of scope here. What it catches is the class of error
+   * that actually occurred: a `linksTo` naming a path that no longer exists.
+   */
+  it('every linksTo path names a path the directory still catalogues (existence only)', () => {
     const knownPaths = new Set(pageDirectory.map(e => e.path));
     const orphans: string[] = [];
     for (const entry of pageDirectory) {
@@ -199,5 +205,48 @@ describe('pageDirectory (invariant)', () => {
       }
     }
     expect(orphans).toEqual([]);
+  });
+
+  /**
+   * MYK9-476. Retired paths are declared, not derived: reintroducing one has to
+   * fail loudly rather than quietly re-pass.
+   */
+  const RETIRED_PATHS = ['/exhibitor/show-day', '/exhibitor/check-in/:entryId', '/calendar'];
+
+  it('no retired path survives in the registry, the directory, or any linksTo', () => {
+    expect(Object.keys(fullRouteRegistry).filter(p => RETIRED_PATHS.includes(p))).toEqual([]);
+    expect(pageDirectory.map(e => e.path).filter(p => RETIRED_PATHS.includes(p))).toEqual([]);
+
+    const claims: string[] = [];
+    for (const entry of pageDirectory) {
+      for (const target of entry.linksTo ?? []) {
+        if (RETIRED_PATHS.includes(target)) claims.push(`${entry.path} \u2192 ${target}`);
+      }
+    }
+    expect(claims).toEqual([]);
+  });
+
+  it('every linksTo target is a live registered route, not a dangling path', () => {
+    const registryPaths = new Set(Object.keys(fullRouteRegistry));
+    const dangling: string[] = [];
+    for (const entry of pageDirectory) {
+      for (const target of entry.linksTo ?? []) {
+        if (!registryPaths.has(target)) dangling.push(`${entry.path} \u2192 ${target}`);
+      }
+    }
+    expect(dangling).toEqual([]);
+  });
+
+  /**
+   * A bare redirect renders no UI and a disabled-flag placeholder renders no
+   * navigation, so neither has a link of its own to declare. Which rows those
+   * are is decided behaviourally in pageDirectoryHonesty.test.tsx; this pins
+   * the consequence cheaply, keyed on the status that sweep enforces.
+   */
+  it('a stub row declares no outgoing links', () => {
+    const talkative = pageDirectory
+      .filter(e => e.status === 'stub' && (e.linksTo ?? []).length > 0)
+      .map(e => `${e.path}: ${(e.linksTo ?? []).join(', ')}`);
+    expect(talkative).toEqual([]);
   });
 });

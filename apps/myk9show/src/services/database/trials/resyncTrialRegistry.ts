@@ -16,11 +16,19 @@ import { deriveRegistryId } from '@/features/registries';
  * child trial regardless of any client's replica. This function just gives the editing
  * client immediate local consistency for the trials it already holds.
  *
+ * ORDERING MATTERS ON THE WIRE (MYK9-490). The server refuses a trial whose registry_id
+ * disagrees with its show's organization (SQLSTATE MK490), so these trial updates must not
+ * reach it before the show update that justifies them. Offline they are separate queue
+ * entries, and `MutationUploadRunner` uploads an independent mutation even while an earlier
+ * one is held back, so "queued second" is not "uploaded second". Pass the show update's
+ * mutation id as `dependsOn` and the runner holds every trial update until it lands.
+ *
  * Idempotent: skips trials already correct. Returns the number of local trials updated.
  */
 export async function resyncTrialRegistry(
   showId: string,
-  organization: string | null | undefined
+  organization: string | null | undefined,
+  dependsOn?: string[]
 ): Promise<number> {
   const registryId = deriveRegistryId(organization);
   const trials = await replicatedTrialsTable.getTrialsByShow(showId);
@@ -28,7 +36,7 @@ export async function resyncTrialRegistry(
   let updated = 0;
   for (const trial of trials) {
     if (trial.registryId !== registryId) {
-      await replicatedTrialsTable.updateTrial(trial.id, { registryId });
+      await replicatedTrialsTable.updateTrial(trial.id, { registryId }, dependsOn);
       updated += 1;
     }
   }

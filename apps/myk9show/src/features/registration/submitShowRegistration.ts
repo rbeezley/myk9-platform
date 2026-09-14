@@ -167,6 +167,10 @@ export async function submitShowRegistration({
         paymentMethod,
         paymentDetails,
         totalAmountCents: createdAmountCents,
+        // An exhibitor entering their own dogs is not allowed to move
+        // enrollments.payment_status; the BEFORE UPDATE trigger rejects the
+        // whole statement, so nothing was entered at all (MYK9-486).
+        selfService: submissionSource === 'self_service',
         deps: resolvedDeps,
       });
       if (!isStillActive(isActive)) return { aborted: true };
@@ -242,6 +246,7 @@ async function recordEnrollmentPayment({
   paymentMethod,
   paymentDetails,
   totalAmountCents,
+  selfService,
   deps,
 }: {
   showId: string;
@@ -249,6 +254,7 @@ async function recordEnrollmentPayment({
   paymentMethod: PaymentMethod;
   paymentDetails?: PaymentDetails | undefined;
   totalAmountCents: number;
+  selfService: boolean;
   deps: SubmitShowRegistrationDeps;
 }): Promise<void> {
   assertResolvedEnrollmentOwner(ownerResolution);
@@ -259,7 +265,8 @@ async function recordEnrollmentPayment({
     paymentDetails?.paymentReference,
     paymentDetails,
     paymentMethod,
-    totalAmountCents
+    totalAmountCents,
+    { selfService }
   );
 
   if (result.error) {

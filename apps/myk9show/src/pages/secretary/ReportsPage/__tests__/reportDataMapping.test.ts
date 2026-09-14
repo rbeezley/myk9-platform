@@ -509,7 +509,7 @@ describe('mapScopedReportEntries', () => {
     });
   });
 
-  it('maps joined enrollment payment fields for secretary-recorded closeout totals', () => {
+  it('maps joined enrollment payment fields, entry row authoritative (MYK9-495)', () => {
     const paidEnrollmentEntry = {
       ...e1,
       payment_status: 'pending',
@@ -530,10 +530,14 @@ describe('mapScopedReportEntries', () => {
       paymentStatus: 'pending',
       enrollmentPaymentStatus: 'paid_by_check',
     });
+    // The join still carries the order's status; it just no longer masks the
+    // entry row's `pending`. `enrollments` is one row per (show, handler)
+    // reused by every later submission, and `submit_show_entries` already
+    // stamps entries `paid` for the order-level payment methods that are truly
+    // settled up front — so this shape is unreconciled money, not collected.
     expect(totals.summary).toMatchObject({
-      collected: 45,
-      outstanding: 0,
-      netRetained: 45,
+      collected: 0,
+      outstanding: 45,
     });
   });
 });

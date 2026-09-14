@@ -973,3 +973,64 @@ test('the draft toast never overlaps the phone entries bar', async ({ page }) =>
   await page.getByRole('button', { name: /^Back$/ }).click();
   await expect(page.getByRole('heading', { name: 'Select Dogs to Register' })).toBeVisible();
 });
+
+/**
+ * MYK9-515 — a full chip must explain itself at both widths.
+ *
+ * SKIPPED, deliberately and with the reason recorded rather than left as a
+ * silent gap: the seeded Heartland show has no full class to assert against.
+ * Verified against the linked database on 2026-09-14 — every class carries
+ * `max_entries = null` and the show's `default_judge_day_capacity` is 125
+ * against at most 66 entries in any one class, so nothing renders a "Full"
+ * badge and the assertions below would pass on an empty locator set.
+ *
+ * To enable: seed a full class on the QA show — set `max_entries` on one class
+ * at or below its current entry count, or lower
+ * `shows.default_judge_day_capacity` for that show — then remove the `.skip`.
+ * The reason text itself is covered by `ClassSelectionStep.fullReason.test.ts`
+ * (the rule) and `__tests__/ClassSelectionStep.fullChip.test.tsx` (the render
+ * and the `aria-describedby` wiring); what is missing here is only the
+ * end-to-end proof that a real full class reaches them.
+ */
+for (const viewport of [
+  { name: 'phone', width: 390, height: 844 },
+  { name: 'desktop', width: 1440, height: 900 },
+]) {
+  test.skip(`a full chip explains itself at ${viewport.width} (needs a seeded full class)`, async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width: viewport.width, height: viewport.height });
+    await signInAsExhibitor(page, `/shows/${SHOW_ID}/register`);
+    await selectFirstDog(page);
+    await expect(page.getByRole('heading', { name: 'Select Classes', exact: true })).toBeVisible({
+      timeout: 15000,
+    });
+
+    // Positive control: without a full chip on the page this test proves
+    // nothing, so fail loudly rather than pass on zero matches.
+    const fullBadges = page.getByText('Full', { exact: true });
+    expect(
+      await fullBadges.count(),
+      'no full class is seeded on this show — see the comment above this test'
+    ).toBeGreaterThan(0);
+
+    const chip = page
+      .locator('label', { has: page.locator('[role="checkbox"]') })
+      .filter({ has: page.locator('xpath=..//*[text()="Full"]') })
+      .first();
+    const checkbox = chip.locator('[role="checkbox"]');
+    const describedBy = await checkbox.getAttribute('aria-describedby');
+    expect(describedBy, 'a full chip must carry an accessible description').toBeTruthy();
+
+    const reason = page.locator(`#${describedBy}`);
+    await expect(reason).toBeVisible();
+    await expect(reason).toContainText(/is full/);
+
+    // The reason is a one-liner beside the chip, not an overflow that pushes
+    // the page sideways at phone width.
+    const overflow = await page.evaluate(
+      () => document.documentElement.scrollWidth - window.innerWidth
+    );
+    expect(Math.max(0, overflow)).toBe(0);
+  });
+}

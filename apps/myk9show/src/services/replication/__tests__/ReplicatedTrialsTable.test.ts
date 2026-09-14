@@ -246,6 +246,60 @@ describe('ReplicatedTrialsTable', () => {
         expect(payload.registry_id).toBe('AKC');
       });
     });
+
+    describe('updateTrial — dependsOn pass-through (MYK9-490)', () => {
+      // The last hop. `resyncTrialRegistry` names the show mutation, but a dependency that
+      // is dropped between here and `queueMutation` is invisible to a test on the caller:
+      // the queue entry simply carries no `dependsOn` and the upload runner is free to send
+      // the trial update before the organization change that justifies it, which the server
+      // now refuses with SQLSTATE MK490 on every retry.
+      type Spyable = { queueMutation: (...args: unknown[]) => Promise<string> };
+
+      const seeded: ReplicatedTrial = fromAny({
+        id: 'trial-dep',
+        showId: 'show-1',
+        name: 'Saturday Trial',
+        date: '2026-06-12',
+        registryId: 'AKC',
+      });
+
+      it('forwards the dependency ids to the queued UPDATE mutation', async () => {
+        await table.set('trial-dep', seeded);
+        const spy = vi
+          .spyOn(table as unknown as Spyable, 'queueMutation')
+          .mockResolvedValue('mutation-3');
+
+        await table.updateTrial('trial-dep', { registryId: 'UKC' }, ['show-mutation-1']);
+
+        expect(spy.mock.calls[0]?.[3]).toEqual(['show-mutation-1']);
+        // The payload still carries the new registry — the dependency is ordering, not content.
+        expect((spy.mock.calls[0]?.[2] as Record<string, unknown>).registry_id).toBe('UKC');
+      });
+
+      it('queues no dependency for an ordinary update', async () => {
+        await table.set('trial-dep', seeded);
+        const spy = vi
+          .spyOn(table as unknown as Spyable, 'queueMutation')
+          .mockResolvedValue('mutation-4');
+
+        await table.updateTrial('trial-dep', { name: 'Renamed' });
+
+        expect(spy.mock.calls[0]?.[3]).toBeUndefined();
+      });
+
+      it('treats an empty dependency array as no dependency', async () => {
+        // An empty array would make `dependsOn: []` — harmless for the runner, but it
+        // persists a field that reads as "has dependencies" to anything inspecting the queue.
+        await table.set('trial-dep', seeded);
+        const spy = vi
+          .spyOn(table as unknown as Spyable, 'queueMutation')
+          .mockResolvedValue('mutation-5');
+
+        await table.updateTrial('trial-dep', { registryId: 'UKC' }, []);
+
+        expect(spy.mock.calls[0]?.[3]).toBeUndefined();
+      });
+    });
   });
 
   describe('Trial Filtering and Query Operations', () => {

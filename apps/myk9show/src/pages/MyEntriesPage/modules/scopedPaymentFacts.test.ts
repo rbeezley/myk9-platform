@@ -1,13 +1,19 @@
 import type { EntryReceiptOrder } from '@/features/payments/entryReceiptOrder';
 
+import { expectedLocalDate } from '@/test/utils/expectedLocalDate';
 import { buildScopedPaymentFacts } from './scopedPaymentFacts';
 
 function order(overrides: Partial<EntryReceiptOrder> = {}): EntryReceiptOrder {
   return {
     id: 'ff08fa39-41c6-4ef7-bd8a-0195469b1bb8',
-    // Midday UTC: `formatPaymentDate` renders in LOCAL time (same as the My
-    // Payments row), so a midnight fixture reports the previous day west of
-    // Greenwich and the test fails on the runner's zone rather than the code.
+    // `formatPaymentDate` renders in LOCAL time (same as the My Payments row
+    // that linked here), so every assertion below builds its expectation with
+    // `expectedLocalDate` — independent of `formatPaymentDate` and of Intl —
+    // driven by the same pinned instant, rather than a literal date string or
+    // the formatter under test. No fixture is safe from every runner zone,
+    // from UTC-12 to UTC+13, and a tautological assertion (expected computed
+    // by calling the very function being tested) would not catch a day-shift
+    // bug in it.
     createdAt: '2026-09-06T12:00:00Z',
     paidOn: '2026-09-06T12:00:00Z',
     amountCents: 3210,
@@ -39,7 +45,7 @@ describe('buildScopedPaymentFacts', () => {
     expect(facts.headlineLabel).toBe('Amount paid');
     expect(facts.headlineValue).toBe('$32.10');
     expect(facts.statusLabel).toBe('Paid');
-    expect(valueFor(facts, 'Paid on')).toBe('Sep 6, 2026');
+    expect(valueFor(facts, 'Paid on')).toBe(expectedLocalDate('2026-09-06T12:00:00Z'));
     expect(valueFor(facts, 'Reference')).toBe('pi_3RwalkDog');
     expect(facts.entriesCovered).toBe(1);
   });
@@ -61,7 +67,7 @@ describe('buildScopedPaymentFacts', () => {
     expect(facts.headlineValue).toBe('$22.10');
     expect(valueFor(facts, 'Amount charged')).toBe('$32.10');
     expect(valueFor(facts, 'Refunded')).toBe('-$10.00');
-    expect(valueFor(facts, 'Refunded on')).toBe('Sep 8, 2026');
+    expect(valueFor(facts, 'Refunded on')).toBe(expectedLocalDate('2026-09-08T12:00:00Z'));
   });
 
   it('never states a bare zero for a fully refunded order', () => {
@@ -120,7 +126,7 @@ describe('buildScopedPaymentFacts', () => {
         entryRefundedCents: 0,
       })
     );
-    expect(valueFor(facts, 'Paid on')).toBe('Sep 9, 2026');
+    expect(valueFor(facts, 'Paid on')).toBe(expectedLocalDate('2026-09-09T12:00:00Z'));
   });
 
   it('formats in the order currency, not a hard-coded dollar sign', () => {

@@ -60,7 +60,7 @@ Find REAL, VERIFIED defects **in your assigned scope only**:
 
 Refresh this list each run; a stale entry costs a whole scope.
 
-- `SlideOverPanel`'s inert `size` prop (MYK9-99).
+- `SlideOverPanel`'s `size` prop doing nothing between 640 and 767px only (MYK9-99 fixed the rest in #1482; a size that fails to apply at any OTHER width IS reportable).
 - `manageable_show_ids()` omitting `deleted_at` (MYK9-126, pinned by a parity test).
 - The always-empty `discounts` array in cart/registration pricing (decided not a feature).
 - The public Show Map tab being read-only for managers (row actions live on Show Desk).

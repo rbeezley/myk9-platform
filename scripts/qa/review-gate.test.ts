@@ -330,7 +330,37 @@ describe('human fallback policy', () => {
     expect(humanFallbackAccepted(evidence)).toBe(false);
   });
 
-  it('requires a concrete reason for Claude unavailability', () => {
+  it('accepts Codex as the unavailable harness for a Claude-authored PR', () => {
+    const evidence = parseGateComments([
+      comment(
+        [
+          `Review gate: human-fallback reviewed 0a2020c7a..${H9} — 2 adversarial subagent reviews, all findings addressed`,
+          'Fallback reason: Codex unavailable — usage limit',
+          'Adversarial subagent review: correctness',
+          'Adversarial subagent review: security',
+          'Required checks: passing',
+        ].join('\n')
+      ),
+    ])[0];
+    expect(humanFallbackAccepted(evidence)).toBe(true);
+  });
+
+  it('still rejects a harness it does not know', () => {
+    const evidence = parseGateComments([
+      comment(
+        [
+          `Review gate: human-fallback reviewed 0a2020c7a..${H9} — 2 adversarial subagent reviews, all findings addressed`,
+          'Fallback reason: Gemini unavailable — usage limit',
+          'Adversarial subagent review: correctness',
+          'Adversarial subagent review: security',
+          'Required checks: passing',
+        ].join('\n')
+      ),
+    ])[0];
+    expect(humanFallbackAccepted(evidence)).toBe(false);
+  });
+
+  it('requires a concrete reason for harness unavailability', () => {
     const evidence = parseGateComments([
       comment(
         [

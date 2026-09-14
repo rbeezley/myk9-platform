@@ -434,17 +434,19 @@ export function evaluateReviewGate(input: EvaluateReviewGateInput): GateResult {
   // corrected).
   //
   // C1 is actually held by `overrideAccepted`'s own association check
-  // (`HUMAN_FALLBACK_ASSOCIATIONS.has(...)`, above near line 276) — NOT by
-  // this exemption line. Widening `overrideExempt` below to a bare
-  // `latest.tier === 'owner'` test changes nothing behaviourally: reaching
-  // this point already requires `accepted === true`, and for `isOverride`
-  // that means `overrideAccepted(latest)` already returned true, which
-  // already proves the association. (Round 1 review, I-A: an earlier
-  // version of this comment claimed the opposite — that THIS condition was
-  // what held C1 — which is wrong and would have sent the next maintainer
-  // to the wrong line.) This condition is defence-in-depth against a future
-  // `owner`-tier reviewer token that might route around `overrideAccepted`
-  // entirely, not the thing actually stopping the COLLABORATOR case today.
+  // (`HUMAN_FALLBACK_ASSOCIATIONS.has(...)`, above near line 280) — NOT by
+  // this exemption line. (Round 1 review, I-A: an earlier version of this
+  // comment claimed the opposite — that THIS condition was what held C1 —
+  // which is wrong and would have sent the next maintainer to the wrong
+  // line.) This condition is defence-in-depth against a future `owner`-tier
+  // reviewer token that might route around `overrideAccepted` entirely, not
+  // the thing actually stopping the COLLABORATOR case today.
+  //
+  // Round 2 review, I-B follow-up: `latest.tier === 'owner'` is NOT unique
+  // to the bare `owner` override — `human-fallback` also maps to tier
+  // `owner` (see `TIER_BY_REVIEWER`). So this condition must stay keyed on
+  // an ACCEPTED override (`overrideExempt`, via `overrideAccepted`), never
+  // widened to a bare tier check.
   const humanFallbackExempt = isHumanFallback && humanFallbackAccepted(latest);
   const overrideExempt = isOverride && overrideAccepted(latest);
   // Round 1 review, I-B: `accepted` above only confirmed the override's
@@ -459,7 +461,11 @@ export function evaluateReviewGate(input: EvaluateReviewGateInput): GateResult {
   // a debt record that misstates the risk. Refuse the mismatch instead of
   // silently trusting the poster's own arithmetic.
   if (overrideExempt) {
-    const claimed = OVERRIDE_VERDICT.exec(latest.verdict.trim())?.[1]?.toLowerCase();
+    // Unreachable in pristine code — `overrideExempt` already required
+    // `OVERRIDE_VERDICT` to match — but the fallback keeps this message
+    // readable rather than "claims floor was undefined" under a mutant
+    // that removes the verdict-grammar check upstream.
+    const claimed = OVERRIDE_VERDICT.exec(latest.verdict.trim())?.[1]?.toLowerCase() ?? 'unstated';
     const real = resolveFloor(input).tier;
     if (claimed !== real) {
       return {

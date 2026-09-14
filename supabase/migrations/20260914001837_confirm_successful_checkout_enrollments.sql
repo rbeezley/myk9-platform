@@ -57,6 +57,10 @@ BEGIN
 END;
 $$;
 
+REVOKE ALL ON FUNCTION public.sync_enrollment_on_payment_success() FROM PUBLIC;
+REVOKE ALL ON FUNCTION public.sync_enrollment_on_payment_success() FROM anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.sync_enrollment_on_payment_success() TO service_role;
+
 DROP TRIGGER IF EXISTS trg_stripe_orders_sync_enrollment ON public.stripe_orders;
 CREATE TRIGGER trg_stripe_orders_sync_enrollment
   BEFORE UPDATE ON public.stripe_orders
@@ -79,6 +83,10 @@ BEGIN
   RETURN NEW;
 END;
 $$;
+
+REVOKE ALL ON FUNCTION public.sync_inserted_checkout_enrollment() FROM PUBLIC;
+REVOKE ALL ON FUNCTION public.sync_inserted_checkout_enrollment() FROM anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.sync_inserted_checkout_enrollment() TO service_role;
 
 DROP TRIGGER IF EXISTS zz_sync_inserted_checkout_enrollment ON public.stripe_orders;
 CREATE TRIGGER zz_sync_inserted_checkout_enrollment

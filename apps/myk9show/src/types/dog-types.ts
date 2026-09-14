@@ -352,6 +352,26 @@ export function getDogRegisteredName(dog: {
 }
 
 /**
+ * The registered name to show ALONGSIDE the call name, or `null` when it would
+ * only repeat it.
+ *
+ * Call sites render `CALLNAME "Registered Name"`. A dog whose registered name
+ * IS its call name then reads `MAPLE "MAPLE"` (MYK9-485). Compared after
+ * trimming and case-folding, because the two values are typed on different
+ * screens and differ in case far more often than in substance.
+ */
+export function getDogDistinctRegisteredName(
+  dog: Pick<Dog, 'callName' | 'name'> & {
+    registrations?: readonly (DogRegistrationLike | MappedDogRegistrationLike)[] | null | undefined;
+  }
+): string | null {
+  const registeredName = getDogRegisteredName(dog);
+  if (!registeredName) return null;
+  const displayName = getDogDisplayName(dog).trim().toLowerCase();
+  return registeredName.toLowerCase() === displayName ? null : registeredName;
+}
+
+/**
  * Format a dog's age for display, or `null` when its date of birth is not
  * recorded (or is not a usable date). `null` means "we do not know" — render
  * nothing rather than a zero, which would read as a fact.

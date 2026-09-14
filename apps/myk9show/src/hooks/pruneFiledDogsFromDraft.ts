@@ -1,5 +1,6 @@
 import type { DraftMetadata, SavedDraft } from './useDraftPersistence';
 import { makeHandlerKey } from '@/types/show-registration-types';
+import { EntryStatus, PaymentStatus } from '@/types/show-registration-types';
 
 export interface HandledDraftClass {
   dogId: string;
@@ -23,7 +24,12 @@ export function pruneFiledDogsFromDraft(
         ...draft.metadata,
         preview: `${remainingDogs.length} dog${remainingDogs.length === 1 ? '' : 's'}`,
       },
-      data: { ...draft.data, selectedDogs: remainingDogs },
+      data: {
+        ...draft.data,
+        selectedDogs: remainingDogs,
+        paymentMethod: undefined,
+        registrationNumber: undefined,
+      },
     };
   }
 
@@ -87,6 +93,8 @@ export function pruneFiledDogsFromDraft(
     data: {
       ...draft.data,
       selectedDogs: remainingDogs,
+      paymentMethod: undefined,
+      registrationNumber: undefined,
       ...(draft.data.entries && {
         entries: draft.data.entries
           .filter(entry => remainingIds.has(entry.dogId))
@@ -101,6 +109,8 @@ export function pruneFiledDogsFromDraft(
         ...workflowState,
         currentStep: 'dog-selection',
         stepCompletionState: {},
+        paymentStatus: PaymentStatus.PENDING,
+        entryStatus: EntryStatus.PENDING,
         classSelections,
         handlerAssignments: Object.fromEntries(
           Object.entries(workflowState.handlerAssignments).filter(([key]) =>

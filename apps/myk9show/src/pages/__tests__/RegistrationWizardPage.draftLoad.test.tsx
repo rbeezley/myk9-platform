@@ -291,6 +291,23 @@ describe('RegistrationWizardPage — handleDraftLoaded', () => {
     await waitFor(() => expect(mockCreateRegistration).toHaveBeenCalledOnce());
   });
 
+  it('returns an offline-restored draft to dog selection when the roster no longer has its dog', async () => {
+    mockDogStoreState.dogs = [];
+    mockDogStoreState.isReady = false;
+    const view = render(<RegistrationWizardPage />, { initialRoute: '/shows/show-1/register' });
+    await waitFor(() => expect(capturedOnDraftLoaded).not.toBeNull());
+
+    act(() => capturedOnDraftLoaded!(buildDraft(['dog-1'])));
+    await waitFor(() => expect(capturedStepId).toBe('class-selection'));
+
+    mockDogStoreState.isReady = true;
+    view.rerender(<RegistrationWizardPage />);
+
+    await waitFor(() => expect(capturedStepId).toBe('dog-selection'));
+    expect(mockCreateRegistration).not.toHaveBeenCalled();
+    expect(mockActivateDraft).toHaveBeenCalledOnce();
+  });
+
   it('keeps a draft whose dog is absent from the loaded roster', async () => {
     mockDogStoreState.dogs = [];
     render(<RegistrationWizardPage />, { initialRoute: '/shows/show-1/register' });

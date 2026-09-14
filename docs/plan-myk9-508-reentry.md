@@ -27,7 +27,8 @@ owns the wizard structure, so a second OpenSpec proposal would duplicate it.
    legal-agreement submission.
 4. After a successful entry submission or cart handoff, remove only class
    lines that were handled. Keep denied classes, unrelated drafts, and unfiled
-   dogs; never turn a completed entry into a resume candidate.
+   dogs. Reset payment and entry status for remaining work; never turn a
+   completed entry into a resume candidate.
 
 ## Testing
 
@@ -40,12 +41,13 @@ owns the wizard structure, so a second OpenSpec proposal would duplicate it.
 
 ## Verification recorded
 
-- Focused draft hook, DraftManager, wizard, and submission tests: 42 passed. They cover
+- Focused draft hook, DraftManager, wizard, and submission tests: 44 passed. They cover
   pagehide, empty-reentry preservation, rejected and accepted draft reads,
   eligibility, roster loading/error recovery, dog/class/step restoration,
   profile-refetch failure, the first post-resume edit, class-level cleanup,
   stale pre-class draft cleanup, continued saving after partial submission,
-  offline manual draft restoration, and stable payload parsing across unrelated renders.
+  offline manual draft restoration and later roster validation, money-status
+  reset, malformed draft tolerance, and stable payload parsing across unrelated renders.
 - Chromium browser Back → reopen → Resume entry: passed.
 - App and test TypeScript checks, E2E typecheck ratchet, touched-file ESLint,
   code-quality ratchet, plan metadata, and diff check: passed.

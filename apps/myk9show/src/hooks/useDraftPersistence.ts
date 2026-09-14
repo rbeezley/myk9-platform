@@ -288,9 +288,14 @@ export function useDraftPersistence(
         metadata: activeDraftMetadataRef.current ?? generateDraftMetadata(data),
         data,
       };
-      return pruneFiledDogsFromDraft(candidate, handled.classKeys, handled.dogIds)?.data ?? null;
+      try {
+        return pruneFiledDogsFromDraft(candidate, handled.classKeys, handled.dogIds)?.data ?? null;
+      } catch (error) {
+        log('Could not save malformed restored draft:', error);
+        return null;
+      }
     },
-    [generateDraftMetadata]
+    [generateDraftMetadata, log]
   );
 
   // Auto-save current draft data

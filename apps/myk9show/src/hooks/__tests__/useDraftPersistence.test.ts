@@ -410,10 +410,14 @@ describe('useDraftPersistence — cross-user scoping', () => {
         { dogId: 'dog-2', trialId: 'trial-1', selectedClasses: [{ classId: 'class-2' }] },
       ],
       handlerAssignments: {},
-      paymentStatus: 'pending',
-      entryStatus: 'pending',
+      paymentStatus: 'paid_by_cash',
+      entryStatus: 'accepted',
     };
-    seedDraftData({ selectedDogs: ['dog-1', 'dog-2'], _workflowState: workflow });
+    seedDraftData({
+      selectedDogs: ['dog-1', 'dog-2'],
+      paymentMethod: 'cash',
+      _workflowState: workflow,
+    });
     const { result, rerender } = renderHook(() => useDraftPersistence(SHOW_ID, USER_A, 'payment'));
     let draftId: string | null = null;
     act(() => {
@@ -442,6 +446,8 @@ describe('useDraftPersistence — cross-user scoping', () => {
     expect(result.current.loadDraft(draftId!)?.data).toMatchObject({
       selectedDogs: ['dog-2'],
       _workflowState: {
+        paymentStatus: 'pending',
+        entryStatus: 'pending',
         classSelections: [
           {
             dogId: 'dog-2',
@@ -450,7 +456,27 @@ describe('useDraftPersistence — cross-user scoping', () => {
         ],
       },
     });
+    expect(result.current.loadDraft(draftId!)?.data.paymentMethod).toBeUndefined();
     expect(result.current.availableDrafts).toHaveLength(1);
+  });
+
+  it('does not throw while saving a malformed restored entry', () => {
+    seedDraftData({
+      selectedDogs: ['dog-1', 'dog-2'],
+      entries: [{ dogId: 'dog-2', classes: null }],
+      _workflowState: {
+        currentStep: 'class-selection',
+        classSelections: [
+          { dogId: 'dog-2', trialId: 'trial-1', selectedClasses: [{ classId: 'class-2' }] },
+        ],
+      },
+    });
+    const { result } = renderHook(() => useDraftPersistence(SHOW_ID, USER_A, 'class-selection'));
+    act(() =>
+      result.current.discardDraftsWithoutFinalSave([{ dogId: 'dog-1', classId: 'class-1' }])
+    );
+
+    expect(() => act(() => window.dispatchEvent(new Event('pagehide')))).not.toThrow();
   });
 
   it('refuses a manual Save Draft on the receipt after filing', () => {

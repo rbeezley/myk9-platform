@@ -232,6 +232,30 @@ export function createWizardHandlers(state: RegistrationWizardState) {
     setIsCreatingRegistration(false);
   };
 
+  const draftDogsAvailable = (selectedDogs: string[]) => {
+    if (
+      selectedDogs.every(id => dogs.some(dog => dog.id === id)) &&
+      selectedDogsOwner(dogs, selectedDogs).ok
+    ) {
+      return true;
+    }
+    notifications.error(
+      'One or more dogs in this draft are unavailable. Your saved entry remains here; you can try again or start a new entry below.'
+    );
+    return false;
+  };
+
+  const handlePendingDraftRegistration = () => {
+    const selectedDogs = registrationData.selectedDogs;
+    if (!dogsReady || selectedDogs.length === 0) return;
+    if (!draftDogsAvailable(selectedDogs)) {
+      const dogStep = currentWorkflowConfig.steps.indexOf('dog-selection');
+      setCurrentStep(dogStep >= 0 ? dogStep : 0);
+      return;
+    }
+    void handleDogSelectionChange(selectedDogs);
+  };
+
   // Class selection handler
   const handleClassSelectionChange = (selections: ClassSelectionData[]) => {
     setClassSelections(selections);
@@ -249,15 +273,7 @@ export function createWizardHandlers(state: RegistrationWizardState) {
       return false;
     }
     const selectedDogs = draft.data.selectedDogs ?? [];
-    if (
-      dogsReady &&
-      selectedDogs.length > 0 &&
-      (!selectedDogs.every(id => dogs.some(dog => dog.id === id)) ||
-        !selectedDogsOwner(dogs, selectedDogs).ok)
-    ) {
-      notifications.error(
-        'One or more dogs in this draft are unavailable. Your saved entry remains here; you can try again or start a new entry below.'
-      );
+    if (dogsReady && selectedDogs.length > 0 && !draftDogsAvailable(selectedDogs)) {
       return false;
     }
     pendingDraftRegistrationRef.current = !dogsReady && selectedDogs.length > 0;
@@ -337,6 +353,7 @@ export function createWizardHandlers(state: RegistrationWizardState) {
     handleNext,
     handleBack,
     handleDogSelectionChange,
+    handlePendingDraftRegistration,
     handleClassSelectionChange,
     handleHandlerAssignmentChange,
     handleDraftLoaded,

@@ -31,9 +31,7 @@ export function useRegistrationWizard() {
   useEffect(() => {
     if (!dogsReady || !pendingDraftRegistrationRef.current) return;
     pendingDraftRegistrationRef.current = false;
-    if (registrationData.selectedDogs.length > 0) {
-      void handlers.handleDogSelectionChange(registrationData.selectedDogs);
-    }
+    handlers.handlePendingDraftRegistration();
     // The pending flag is set only by a draft load that preceded the roster.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [dogsReady, registrationData.selectedDogs]);

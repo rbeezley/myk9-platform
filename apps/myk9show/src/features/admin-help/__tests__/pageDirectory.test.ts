@@ -5,7 +5,7 @@ import { fullRouteRegistry } from '@/routes/routeRegistry';
 import { routeDiff } from '../utils/routeDiff';
 import { UserRole } from '@/types/auth-types';
 import { router } from '@/router';
-import { redirectTarget, routeSurfaceKind, type RouteSurfaceKind } from './routeSurfaceKind';
+import { routeSurfaceKind, type RouteSurfaceKind } from './routeSurfaceKind';
 
 describe('pageDirectory (invariant)', () => {
   it('every entry path exists in fullRouteRegistry', () => {
@@ -322,7 +322,8 @@ describe('pageDirectory (status and linksTo tell the truth about the route)', ()
     expect(kindOf('/my-entries')).toBe('redirect');
     expect(kindOf('/exhibitor/entries')).toBe('page');
 
-    const element = elementsBySignature.get(routePatternSignature('/my-entries'));
-    expect(redirectTarget(element)).toBe('/exhibitor/entries');
+    // Where /my-entries lands, and that it keeps the query string and hash the
+    // deep links ride on, is pinned behaviourally in
+    // routes/MyEntriesRedirect.test.tsx.
   });
 });

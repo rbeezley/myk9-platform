@@ -14,8 +14,18 @@ import { SuspenseWrapper } from '@/routes/utils/SuspenseWrapper';
 import { PageTransition } from '@/components/common/PageTransition';
 import { RoleSurfaceErrorBoundary } from '@/components/common/RoleSurfaceErrorBoundary';
 import { ComingSoonPage } from '@/components/common/ComingSoonPage';
+import { MyEntriesRedirect } from '@/routes/MyEntriesRedirect';
 
 export type RouteSurfaceKind = 'page' | 'redirect' | 'placeholder' | 'unknown';
+
+/**
+ * Components whose entire output is a `<Navigate>`. Declared, not inferred from
+ * a name or a source scan. A redirect component left off this list classifies
+ * as a page, so add one here the moment you add one to a route — the
+ * MyEntriesRedirect.test.tsx / pageDirectory.test.ts pair is what proves the
+ * entries already here really do redirect.
+ */
+const REDIRECT_COMPONENTS: ReadonlySet<unknown> = new Set<unknown>([Navigate, MyEntriesRedirect]);
 
 /**
  * Components that only wrap whatever a route renders. Recursed through; never
@@ -53,34 +63,11 @@ function collectContentTypes(node: ReactNode, out: unknown[]): void {
  *   redirect component that itself returns one).
  * `placeholder` — renders nothing but the disabled-feature `<ComingSoonPage>`.
  */
-/** The `to` prop of the single `<Navigate>` a redirect-only route renders. */
-export function redirectTarget(element: ReactNode): string | null {
-  const content: unknown[] = [];
-  const elements: ReactNode[] = [];
-  collectContentTypes(element, content);
-  if (content.length !== 1 || content[0] !== Navigate) return null;
-  collectNavigateElements(element, elements);
-  const only = elements[0];
-  if (!isValidElement(only)) return null;
-  const to = (only.props as { to?: unknown }).to;
-  return typeof to === 'string' ? to : null;
-}
-
-function collectNavigateElements(node: ReactNode, out: ReactNode[]): void {
-  if (Array.isArray(node)) {
-    for (const child of node) collectNavigateElements(child, out);
-    return;
-  }
-  if (!isValidElement(node)) return;
-  if (node.type === Navigate) out.push(node);
-  collectNavigateElements((node.props as { children?: ReactNode })?.children, out);
-}
-
 export function routeSurfaceKind(element: ReactNode): RouteSurfaceKind {
   const content: unknown[] = [];
   collectContentTypes(element, content);
   if (content.length === 0) return 'unknown';
-  if (content.every(t => t === Navigate)) return 'redirect';
+  if (content.every(t => REDIRECT_COMPONENTS.has(t))) return 'redirect';
   if (content.every(t => t === ComingSoonPage)) return 'placeholder';
   return 'page';
 }

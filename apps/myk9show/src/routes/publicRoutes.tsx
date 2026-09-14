@@ -18,6 +18,7 @@ import { PageTransition } from '@/components/common/PageTransition';
 import { RoleSurfaceErrorBoundary } from '@/components/common/RoleSurfaceErrorBoundary';
 import { SuspenseWrapper } from './utils/SuspenseWrapper';
 import { ClassDetailsRedirect } from './ClassDetailsRedirect';
+import { MyEntriesRedirect } from './MyEntriesRedirect';
 import { ComingSoonPage, type ComingSoonPageProps } from '@/components/common/ComingSoonPage';
 import { features } from '@/config/features';
 import DogDetailPage from '@/pages/DogDetailPage';
@@ -275,9 +276,11 @@ export const PublicRoutes = () => (
       }
     />
 
-    {/* Legacy My Shows path. The canonical route is /exhibitor/entries;
-        this stays as a redirect so old bookmarks and e2e specs resolve. */}
-    <Route path="/my-entries" element={<Navigate to="/exhibitor/entries" replace />} />
+    {/* Legacy My Shows path. The canonical route is /exhibitor/entries; this
+        stays as a redirect so old bookmarks and e2e specs resolve. It carries
+        the query string and hash across — My Shows reads ?resultEntryId= and
+        ?waitlistOffer= from them. */}
+    <Route path="/my-entries" element={<MyEntriesRedirect />} />
 
     {/* Exhibitor pages — flat routes, no separate layout */}
     <Route path="/exhibitor/dashboard" element={<Navigate to="/exhibitor/entries" replace />} />

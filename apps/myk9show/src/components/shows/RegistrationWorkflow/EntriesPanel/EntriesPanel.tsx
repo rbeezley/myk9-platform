@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import type { PlatformFeeRates } from '@/store/cartStore.helpers';
 import { usePlatformFeeRates } from '@/hooks/queries/usePlatformFeeRates';
+import { useRegisterActionBar } from '@/hooks/useRegisterActionBar';
 import type { PaymentMethod } from '@/types/show-registration-types';
 import type { FeeCalculationResult } from '../PaymentStep/types';
 import {
@@ -100,6 +101,7 @@ export const EntriesPanel: React.FC<EntriesPanelProps> = ({
   // Removing a line asks first; `requestRemove` opens the confirmation and the
   // confirmation calls `onRemoveLine` with the very same arguments.
   const { requestRemove, dialog: removeConfirmDialog } = useRemoveLineConfirm(groups, onRemoveLine);
+  const actionBarRef = useRegisterActionBar<HTMLDivElement>();
   const showRemove = isPayment && !!onRemoveLine;
 
   const lines = (
@@ -151,6 +153,15 @@ export const EntriesPanel: React.FC<EntriesPanelProps> = ({
         // not fixed to the viewport: it stays inside the main area, so it can never
         // paint over the app sidebar at tablet widths, and it occupies flow space
         // at the end of the step, so nothing needs to reserve its height.
+        //
+        // The PAGE does not need to reserve that height; the sonner stack does.
+        // Back/Next live in this bar below 1024px and the toaster is docked to
+        // the same bottom edge, so "Draft saved" landed on Next and intercepted
+        // the tap (MYK9-517). Registering here is the mechanism that already
+        // exists for exactly this (`actionBarStore`); it beats a route-scoped
+        // toaster position, and it costs nothing at lg, where the bar is
+        // display:none and therefore measures 0.
+        ref={actionBarRef}
         data-testid="entries-panel-bar"
         aria-label="Your entries"
         className="sticky bottom-0 z-40 border-t border-border bg-card/95 backdrop-blur lg:hidden"

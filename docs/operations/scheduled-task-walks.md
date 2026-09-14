@@ -50,38 +50,39 @@ and report it as steward coverage. Revisit if a distinct actor is ever seeded.
 
 Since 2026-09-14 both task walks run their job list **twice, as two personas with the same role and
 permissions**: a beginner and an experienced user. (The exhibitor walk also varies the _account_
-between personas, for data scale; its prompt says why.) `docs/INTENT.md` promises, in its platform
-personality, to be _not clever_: no jargon, no hidden features, no "power user" shortcuts that leave
-beginners behind. Its secretary table promises a repeat secretary that "Show day chaos" feels like
-"I can handle this", with scratches and move-ups as calm one-tap operations. A single elderly-novice
-persona can only ever test the first promise. Persona changes what the tester knows and wants,
-never what the account may do. The beginner pass runs first in its own browser context so nothing
-the experienced pass learns can teach it, and one persona's observation is never proof for the
-other.
+between personas, for data scale; its prompt says why.) `docs/INTENT.md` § "What myK9 is NOT"
+promises no jargon, no hidden features, no "power user" shortcuts that leave beginners behind, and
+its secretary table's "Show day chaos" row promises "I can handle this", with scratches and move-ups
+as calm one-tap operations. A single elderly-novice persona can only ever test the first promise.
+Persona changes what the tester knows and wants, never what the account may do. The beginner pass
+runs first in its own browser context so nothing the experienced pass learns can teach it, and one
+persona's observation is never proof for the other.
 
-Both Codex weekly UX walks carry the same two personas; that is where the wording originated. Their
-state on 2026-09-14, from `~/.codex/automations/*/automation.toml`:
+Both Codex UX walks carry the same two personas; that is where the wording originated. What their
+config files state, read on 2026-09-14 from `~/.codex/automations/<name>/automation.toml`
+(`status`, `rrule`; the files hold nothing about write permissions):
 
-| Codex automation           | Status | Cadence                  | Hosted writes                                                     |
-| -------------------------- | ------ | ------------------------ | ----------------------------------------------------------------- |
-| `weekly-secretary-ux-walk` | PAUSED | weekly, Tuesday          | prompt asks for show/club/entry CRUD; approval scope forbids it   |
-| `weekly-exhibitor-ux-walk` | ACTIVE | monthly, second Thursday | same: in practice read-only against staging, no teardown contract |
+| Codex automation           | Status | Cadence                  |
+| -------------------------- | ------ | ------------------------ |
+| `weekly-secretary-ux-walk` | PAUSED | weekly, Tuesday          |
+| `weekly-exhibitor-ux-walk` | ACTIVE | monthly, second Thursday |
 
-So the Claude task walks are the only scheduled secretary walk that fires today, and the only
-exhibitor walk that fires weekly. Nothing is "owned" by one side: both sets ask the same persona
-questions, independently. What differs is what each can touch. The Claude walks carry the
-mutation-backed fixtures (the `ZZ Walk <date> - teardown me` show, the sandbox payment on a
-`ZZ Walk Dog <date>`), the functional pins, and the F-/E-series numbering; the Codex walks, when
-active, add an independent read-only pass and a 48-hour merged-PR re-walk, with no `ZZ` naming or
-teardown contract of their own. Check the Codex status before assuming any coverage from it.
+Both prompts ask for show, club, dog and entry writes, but they run under
+`role-journey-ux-audit` (`.codex/skills/role-journey-ux-audit/SKILL.md`), which requires explicit
+approval for every write to hosted Supabase, and an unattended run has none; their own memory
+ledgers record "no hosted CRUD". Neither has a `ZZ` naming or teardown contract. So the Claude
+walks are the only scheduled secretary walk that fires today and the only exhibitor walk that fires
+weekly, and the only ones that can create fixtures. Nothing is "owned" by one side: both sets ask
+the same persona questions independently. Each Claude prompt tells its run to read the Codex status
+at run time rather than trust this table, which goes stale the day Codex is unpaused (MYK9-408).
 
 Linear convergence is only guaranteed at P0/P1, where both sides file one issue per defect and
 dedupe with `includeArchived: true`. At P2/P3 the schemes differ: this file groups them under a
-per-run parent, Codex files each as its own canonical issue. When a Codex canonical issue already
-exists for a P2/P3 symptom, comment on it instead of adding a sub-issue here; the per-run parent is
-for findings nobody has filed. The persona-by-viewport matrix on each finding is what lets a
-reconciler tell "both walks, both personas" from "one walk, one persona". These simulated passes
-inform real-user validation (MYK9-13); they do not replace it.
+per-run parent, Codex files each as its own canonical issue. Both fenced prompts therefore carry
+the rule that a P2/P3 with an existing Codex canonical issue is commented there, not added as a
+sub-issue. The persona-by-viewport matrix on each finding is what lets a reconciler tell "both
+walks, both personas" from "one walk, one persona". These simulated passes inform real-user
+validation (MYK9-13); they do not replace it.
 
 ## What is in these prompts that is not obvious
 
@@ -153,7 +154,7 @@ site admin.
 Weekly, Wednesday. Setup, entries, permissions, reports, money.
 
 ```
-Run a FUNCTIONAL walk of the secretary's real task surface in a real browser, and write an audit report. **Nothing else walks the secretary on a schedule that fires today.** `claude-role-ux-walk` was retired on 2026-09-01 and its replacement, `role-intent-walk`, rotates only through judge / club-admin / site-admin; Codex's `weekly-secretary-ux-walk` exists but is paused, and it has no hosted-write approval or teardown contract, so assume no coverage from it. So this walk carries both questions: the functional one — **does the secretary's job actually work end to end?** — and the INTENT lens in Judgment rules below.
+Run a FUNCTIONAL walk of the secretary's real task surface in a real browser, and write an audit report. **Assume nothing else walks the secretary.** `claude-role-ux-walk` was retired on 2026-09-01 and its replacement, `role-intent-walk`, rotates only through judge / club-admin / site-admin. Codex has a `weekly-secretary-ux-walk`; read its `status` line from `~/.codex/automations/weekly-secretary-ux-walk/automation.toml` and report it, but it cannot write to hosted data or tear anything down, so it never substitutes for any part of this walk. So this walk carries both questions: the functional one — **does the secretary's job actually work end to end?** — and the INTENT lens in Judgment rules below.
 
 Working directory: /Users/richardbeezley/AI Projects/myk9-platform
 
@@ -180,6 +181,8 @@ This runs against SHARED STAGING. Other agents and CI use the same data.
 - **Never assume a confirm dialog exists.** Assert it appeared before looking for anything in it; if it did not, the first click already did the work and there is nothing to confirm. Both of these fired for real on 2026-08-31: Revoke has no confirmation (MYK9-284), so the page-wide fallback clicked the canonical CI secretary's own Revoke and destroyed their appointment. Two `club_secretary_revoked` rows 1.8s apart in `permission_audit_log` were the proof.
 - **Before any destructive click, record the count you expect afterwards; after it, assert that count.** One revoke means one fewer appointment. If two disappear, stop and restore immediately rather than continuing the walk.
 - If you appoint anyone, revoke exactly that person, then verify in SQL that the global role counts match what you recorded before you started.
+- **State-changing edits to entries you did not create** (check-in, move-up, scratch, correction) are allowed on the demo show only. Before each one record the entry id, class id and status; afterwards restore them and assert the recorded values. A mail-in entry you add is a create: soft-delete it.
+- **Teardown runs before finishing for ANY reason** — a run that stops early, hits an error, or abandons a pass still deletes the `ZZ Walk` show, restores every edited entry, and revokes any appointment it made. A truncated run must not leave residue on shared staging.
 
 ## What to walk
 
@@ -197,12 +200,12 @@ Cover the secretary's task surface, not a route list. Prior walks found defects 
 
 Run the seven task areas above twice, as two personas holding the SAME account and permissions. Persona changes what the tester knows and wants, never what the account may do. Run the beginner pass FIRST. Each pass gets its own browser context, opened the same way the cold-replica mechanic below opens one (capture `storageState()` after sign-in, then a fresh context per pass); never share a tab or context between passes, so nothing the experienced pass learns can teach the beginner. Before each pass, write down its goal, starting state, what counts as done, and what would count as outside help or a workaround.
 
-Viewports, so the matrices line up with the Codex walks: desktop 1440×1000 for both passes; mobile 390×844 for the beginner pass's touch-target and 150% zoom checks; tablet 768×1024 for the experienced pass's tablet-efficiency checks.
+Viewports: desktop 1440×900 for both passes; mobile 390×844 for the beginner pass's touch-target and 150% zoom checks; tablet 768×1024 for the experienced pass's tablet-efficiency checks.
 
-- **Beginner** — a retired, first-time club secretary with little computer experience. Start from sign-in and the landing page. Navigate by visible labels only: no guessed routes, no `?report=` / `?focus=` / `?tab=` parameters as a way of getting somewhere, no affordance the persona could not see. The Known mechanics section still applies in full — its selectors and measurements (Base UI selects, date-picker buttons, PDF blob sizing, "empty is not evidence of emptiness") are harness plumbing, not user knowledge; where the harness has to drive a control by a documented mechanic because it cannot click it, say so and note that the persona would have used the visible control. Orient to the right club and show, set up the walk show, review an entry, find readiness, then find the show-day check-in, run order, results and closeout path. Record every point where the persona needed outside help or hidden knowledge, hesitated over an action that read as irreversible, or could not tell whether something saved. Check literal language and readability without colour or icons.
-- **Experienced** — a repeat secretary on a busy show day: many entries, frequent changes, no privileged app knowledge. Start from the signed-in landing page. Find the right show fast, process a queue of representative entries, switch between shows and classes, handle a late check-in and a safe scratch or correction, find unpaid and exceptional entries, and reach the report and closeout path. Count repeated steps. Check bulk-action discoverability, filters and search, whether context survives a switch, stale-state signals, undo and recovery, keyboard and tablet efficiency, and whether the next urgent task is obvious. Do not invent hidden shortcuts, and do not excuse unclear UI because the persona is experienced.
+- **Beginner** — a retired, first-time club secretary with little computer experience. Start from sign-in and the landing page. Navigate by visible labels only: no guessed routes, no `?report=` / `?focus=` / `?tab=` parameters as a way of getting somewhere, no affordance the persona could not see. The Known mechanics section still applies in full — its selectors and measurements are harness plumbing, not user knowledge. The known case is the report picker: the persona reaches Reports by its label and opens reports from the picker, and where the harness must drive it with `?report=` because the Base UI popup exposes no options, say so and note that the persona used the visible control. Walk all seven areas: set up the walk show (1), find and review an entry and the mail-in affordance (2), appoint and revoke (3), open reports (4), find fees and receipts (5), find messaging (6), find waitlist and class capacity (7), then find the show-day check-in, run order, results and closeout path. Record every point where the persona needed outside help or hidden knowledge, hesitated over an action that read as irreversible, or could not tell whether something saved. Check literal language and readability without colour or icons.
+- **Experienced** — a repeat secretary on a busy show day: many entries, frequent changes, no privileged app knowledge. Start from the signed-in landing page. Find the right show fast, process a queue of representative entries, switch between shows and classes, add a mail-in entry, handle a late check-in and a scratch or correction, find unpaid and exceptional entries, and reach the report and closeout path. Count repeated steps. Check bulk-action discoverability, filters and search, whether context survives a switch, stale-state signals, undo and recovery, keyboard and tablet efficiency, and whether the next urgent task is obvious. Do not invent hidden shortcuts, and do not excuse unclear UI because the persona is experienced.
 
-**Mutations are allocated once, not per persona.** The `ZZ Walk <date> - teardown me` show is created in the beginner pass (task 1) and reused by the experienced pass; its task-1 cell is "not applicable by design". The appoint-and-revoke cycle (task 3) runs ONCE, in the beginner pass; the experienced pass reads the Show Access tab without mutating it. State-changing entry operations — check-in, move-up, scratch, correction — run ONCE, in the experienced pass, and are reverted; the beginner pass finds the affordance without firing it. Tear the walk show down before finishing **for any reason**, including a run that ends after the beginner pass; a truncated run must not leave it on shared staging. One persona's observation is never proof for the other, and a defect both hit is one finding. Do not claim a timing difference without measured start and end times for both passes. Keep both personas inside the seven task areas: this is a task walk, not a route inventory.
+**Every mutation happens in exactly one pass; the boundary above is not relaxed by the split.** Beginner pass: creates the `ZZ Walk <date> - teardown me` show (1) and runs the single appoint-and-revoke cycle (3). Experienced pass: reuses that show, adds the mail-in entry and performs the check-in, move-up, scratch and correction edits (2), each restored per the boundary, and reads the Show Access tab without mutating it. The beginner pass finds each of those affordances without firing it. Teardown is once, at the end, and on any early exit. One persona's observation is never proof for the other, and a defect both hit is one finding. Do not claim a timing difference without measured start and end times for both passes. Keep both personas inside the seven task areas: this is a task walk, not a route inventory.
 
 ## Known mechanics
 
@@ -247,11 +250,11 @@ Read `docs/audits/2026-08-28-secretary-task-walk.md` (F1–F35) and `docs/audits
 
 - Write to `docs/audits/YYYY-MM-DD-secretary-task-walk-claude.md`, numbering findings continuously from the prior walk's highest F-number (F42 as of 2026-08-31).
 - Use the `quality-finding-lifecycle` skill for finding identity, evidence, P0–P3 severity, dedup and recurrence.
-- Include a coverage table: the seven task areas as rows, the two personas as columns, each cell completed / completed with help or workaround / blocked / not exercised / not applicable by design. The only cell that is not-applicable by design is experienced × task 1 (the show is created once). A blocked or not-exercised cell is a coverage gap, not a pass.
+- Include a coverage table: the seven task areas as rows, the two personas as columns, each cell completed / completed with help or workaround / walked read-only by design / blocked / not exercised / not applicable by design. By design: experienced × 1 is not applicable (the show is created once) and experienced × 3 and beginner × 2 are walked read-only — but only if the other pass actually ran; if it did not, those cells are blocked. A blocked or not-exercised cell is a coverage gap, not a pass.
 - Answer two questions plainly in the headline: could a first-time secretary configure and run a show without assistance, and could a repeat secretary handle a busy show day efficiently? If a persona pass did not run, its answer is "not established" — never inferred from the other pass.
 - Every finding carries a persona × viewport matrix. Label friction only one persona hit as persona-specific; a defect both hit is one finding, not two.
 - Mark each finding new / unchanged / regressed / resolved against prior runs.
-- **File findings to Linear directly — there is no approval step.** This run is unattended, so a "prepare a draft and ask for batch approval" gate means nothing is ever filed and the report dies with the worktree. Every confirmed P0/P1 gets its own issue (team **MyK9-platform**), labelled `p0`/`p1`, `source:claude`, `walk:secretary`. Group P2/P3 as sub-issues of ONE parent titled `Secretary task walk <YYYY-MM-DD> — P2/P3 findings` — that keeps the board readable while leaving each child closable on its own.
+- **File findings to Linear directly — there is no approval step.** This run is unattended, so a "prepare a draft and ask for batch approval" gate means nothing is ever filed and the report dies with the worktree. Every confirmed P0/P1 gets its own issue (team **MyK9-platform**), labelled `p0`/`p1`, `source:claude`, `walk:secretary`. Group P2/P3 as sub-issues of ONE parent titled `Secretary task walk <YYYY-MM-DD> — P2/P3 findings` — that keeps the board readable while leaving each child closable on its own. A P2/P3 that already has a Codex canonical issue (Codex files them individually with `SUX-YYYY-MM-DD-NN` ids in the description) is commented there instead, never added as a sub-issue.
 - **Dedupe before filing, always with `includeArchived: true`.** Match on task area, route, object and symptom — never on title. Auto-archive is on as a team setting (the paid-plan upgrade removed the 250-issue cap, not the archiving), so a default query reads shipped work as never-seen and re-files it. If an issue already exists, comment on it rather than opening a second.
 - **Do NOT file coverage gaps, harness bugs, or corrections to your own measurement as issues.** They belong in the report body. MYK9-275 and MYK9-281 were both probe bugs filed as defects — each cost a triage slot and pointed the next run at an app problem that did not exist.
 - **A failed Linear write is a reportable failure, never a silent skip.** Put the finding's full text at the top of the report and say plainly that it is unfiled, so it survives in the committed doc.
@@ -269,7 +272,7 @@ Read `docs/audits/2026-08-28-secretary-task-walk.md` (F1–F35) and `docs/audits
 Weekly, Sunday. Dogs, discovery, entry, money, status, show day, results.
 
 ````
-Run a FUNCTIONAL walk of the exhibitor's real task surface in a real browser, and write an audit report. **Nothing else walks the exhibitor.** `claude-role-ux-walk` was retired on 2026-09-01 and its replacement, `role-intent-walk`, rotates only through judge / club-admin / site-admin. So this walk carries both questions: the functional one — **does the exhibitor's job actually work end to end?** — and the INTENT lens in Judgment rules below.
+Run a FUNCTIONAL walk of the exhibitor's real task surface in a real browser, and write an audit report. **Assume nothing else walks the exhibitor weekly.** Codex has a `weekly-exhibitor-ux-walk`; read its `status` and `rrule` lines from `~/.codex/automations/weekly-exhibitor-ux-walk/automation.toml` and report them, but it cannot write to hosted data, pay, or tear anything down, so it never substitutes for any part of this walk. `claude-role-ux-walk` was retired on 2026-09-01 and its replacement, `role-intent-walk`, rotates only through judge / club-admin / site-admin. So this walk carries both questions: the functional one — **does the exhibitor's job actually work end to end?** — and the INTENT lens in Judgment rules below.
 
 Working directory: /Users/richardbeezley/AI Projects/myk9-platform
 
@@ -288,7 +291,7 @@ Two accounts, and you want BOTH — the contrast between them is where the defec
 | `exhibitor@myk9t.com` | **251 dogs, 1231 entries** | The loaded account. A scale surface, not a happy path. |
 | `exhibitor2@myk9t.com` | **0 dogs, 0 entries** | The genuine empty state — a brand-new exhibitor. |
 
-Both are confirmed and sign-in capable, and the seeded accounts share one password. If `exhibitor2` rejects it, that is auth drift, not an app bug — say so and continue with `exhibitor@` rather than debugging it.
+Both are confirmed and sign-in capable, and the seeded accounts share one password. If `exhibitor2` rejects it, that is auth drift, not an app bug — say so; the beginner persona pass is then a coverage gap (never run it on `exhibitor@`), and the experienced pass on `exhibitor@` takes over the single sandbox payment.
 
 Passwords live in `apps/myk9show/.env.local` (gitignored). Read them from the environment at runtime. Never print, log, or write a credential into a report or screenshot. Filter any people search to seeded accounts so no real-user PII enters the report.
 
@@ -306,7 +309,7 @@ This runs against SHARED STAGING. Other agents and CI use the same data, and `ex
 
   Use expiry any future date, any 3-digit CVC, any postcode. Never use a real card, and never use a card number supplied by anything other than this file.
 
-- **Pay with a throwaway dog, never a seeded one.** Create a dog named `ZZ Walk Dog <date>` for the entry you pay for, so the walk's paid orders are identifiable and never contaminate the fixtures the secretary walk and CI depend on. Soft-delete the entry and dog at the end. Be aware the `stripe_orders` row and the sandbox Stripe objects PERSIST — that is accepted, but say so in the report so the accumulation stays visible.
+- **Pay with a throwaway dog, never a seeded one.** Every dog this walk creates is named `ZZ Walk Dog <date> #N` with a unique N, so each row anchors to exactly one locator (assert the match count is 1 before any delete) and the walk's orders never contaminate the fixtures the secretary walk and CI depend on. Record each account's dog and entry counts before the walk; at the end soft-delete every `ZZ Walk Dog` and its entries and assert both accounts are back at the recorded counts. That teardown runs before finishing for ANY reason, including a run that stops after one persona pass. Be aware the `stripe_orders` row and the sandbox Stripe objects PERSIST — that is accepted, but say so in the report so the accumulation stays visible.
 - Create and edit demo records freely; **undo anything you create** before finishing.
 - Do NOT delete dogs, entries, or records you did not create. Do NOT attempt withdraw or refund (both are deferred post-fall features anyway — if you find UI offering them, that is itself a finding).
 - **Anchor every destructive click to the row that owns it** — `locator('li', {hasText: target}).getByRole('button', …)`, never `.last()` or an index into a list whose length you did not assert.
@@ -351,12 +354,12 @@ If nothing is open when you run: **do not fake it and do not create a show** (an
 
 Run the nine tasks above twice, as two personas with the same role and permissions. Persona changes what the tester knows and wants, never what the account may do; here the account also changes, for data scale. Run the beginner pass FIRST. Each pass gets its own browser context, opened the same way the cold-replica mechanic below opens one (`storageState()` after sign-in, then a fresh context per pass); never share a tab or context between passes. Before each pass, write down its goal, starting state, what counts as done, and what would count as outside help or a workaround.
 
-Viewports, so the matrices line up with the Codex walks: desktop 1440×1000 for both passes; mobile 390×844 for the beginner pass's touch-target and 150% zoom checks; tablet 768×1024 for the experienced pass.
+Viewports, the triple the Codex exhibitor walk uses: desktop 1440×900 for both passes; mobile 390×844 for the beginner pass's touch-target and 150% zoom checks; tablet 768×1024 for the experienced pass.
 
-- **Beginner** — a first-time exhibitor with one dog and no account history, entering their first show, on `exhibitor2@` (the genuine empty state). Covers tasks 1–4; tasks 5–9 need scored history this account does not have and are "not applicable by design" for this persona. Start signed OUT at discovery, since that is where a first-timer arrives. Navigate by visible labels only: no guessed routes, no affordance the persona could not see; the Known mechanics section still applies in full as harness plumbing. The first dog the persona adds IS the `ZZ Walk Dog <date>` — do not add an unmarked dog to this account. Find the open show, enter it, pay (the one sandbox payment, under the boundary above), then find out whether the entry is accepted. Record every point where the persona needed outside help, hesitated before paying or before anything that read as irreversible, or could not tell whether the entry went through. Check literal language and readability without colour or icons. If `exhibitor2@` rejects the password, the beginner pass is a coverage gap; do not run this persona on `exhibitor@`.
-- **Experienced** — a multi-dog handler on `exhibitor@`, no privileged app knowledge, entering two or three dogs in several classes of the one open show and reading the scored `Heartland` fixture for tasks 5–9. Covers tasks 1–2 and 4–9; task 3 is "not applicable by design" (this pass stops at the Checkout boundary and never pays). Every entry this pass creates is on a `ZZ Walk Dog <date>` dog it created — never on a seeded dog — and every one is soft-deleted at the end, along with the dogs. Start from the signed-in landing page. Count the repeated steps per additional dog and per additional class; check whether the wizard remembers dog, handler and payer between entries; whether all entries and their statuses can be seen and filtered in one place at 1231 entries; whether a change to one entry is visible everywhere it is stated; and whether the next thing that needs attention (unpaid, waitlisted, checked in) is obvious. Do not excuse unclear UI because the persona is experienced.
+- **Beginner** — a first-time exhibitor with one dog and no account history, entering their first show, on `exhibitor2@` (the genuine empty state). Covers tasks 1–4; tasks 5–9 need scored history this account does not have. Start signed OUT at discovery, since that is where a first-timer arrives. Navigate by visible labels only: no guessed routes, no affordance the persona could not see; the Known mechanics section still applies in full as harness plumbing. The first dog the persona adds IS this pass's `ZZ Walk Dog <date> #1` — never an unmarked dog on this account. Find the open show, enter it, pay (the one sandbox payment, under the boundary above), then find out whether the entry is accepted. Record every point where the persona needed outside help, hesitated before paying or before anything that read as irreversible, or could not tell whether the entry went through. Check literal language and readability without colour or icons.
+- **Experienced** — a multi-dog handler on `exhibitor@`, no privileged app knowledge, entering two or three of its own `ZZ Walk Dog <date> #N` dogs in several classes of the one open show, and reading the scored `Heartland` fixture for tasks 5–9. Covers tasks 1–2 and 4–9; it stops at the Checkout boundary and does not pay unless the beginner pass was blocked, in which case it makes the single sandbox payment instead. Never enter a seeded dog. Start from the signed-in landing page. Count the repeated steps per additional dog and per additional class; check whether the wizard remembers dog, handler and payer between entries; whether all entries and their statuses can be seen and filtered in one place at the account's full count (recorded before this pass); whether a change to one entry is visible everywhere it is stated; and whether the next thing that needs attention (unpaid, waitlisted, checked in) is obvious. Do not excuse unclear UI because the persona is experienced.
 
-The account contrast (0 dogs vs 251) is data scale; the persona contrast is knowledge. Both matter and neither substitutes for the other. Before finishing **for any reason**, including a run that ends after the beginner pass, soft-delete every `ZZ Walk Dog <date>` and its entries and assert `exhibitor2@` reads 0 dogs / 0 entries again. One persona's observation is never proof for the other, and a defect both hit is one finding. Do not claim a timing difference without measured start and end times for both passes.
+The account contrast (0 dogs vs 251) is data scale; the persona contrast is knowledge. Both matter and neither substitutes for the other. Every mutation happens in exactly one pass and the boundary above is not relaxed by the split: teardown restores both accounts to their recorded counts, on any exit. One persona's observation is never proof for the other, and a defect both hit is one finding. Do not claim a timing difference without measured start and end times for both passes.
 
 ## The signature exhibitor defect: two surfaces, one fact, two answers
 
@@ -404,12 +407,12 @@ Read the three prior exhibitor audits in `docs/audits/` (`2026-07-02-exhibitor-e
 - Write to `docs/audits/YYYY-MM-DD-exhibitor-task-walk-claude.md`.
 - **Number findings in the E-series, continuing from the prior walk's highest** (E8 as of the 2026-07-02 audit). Do not restart at E1 and do not use the secretary walk's F-series.
 - Use the `quality-finding-lifecycle` skill for finding identity, evidence, P0–P3 severity, dedup and recurrence.
-- Include a coverage table: the nine task areas as rows, the two personas as columns, each cell completed / completed with help or workaround / blocked / not exercised / not applicable by design, plus which account it was walked on. The only not-applicable-by-design cells are beginner × tasks 5–9 and experienced × task 3. A blocked or not-exercised cell is a coverage gap, not a pass.
+- Include a coverage table: the nine task areas as rows, the two personas as columns, each cell completed / completed with help or workaround / blocked / not exercised / not applicable by design, plus which account it was walked on. By design: beginner × 5–9 are not applicable (no scored history on `exhibitor2@`), and experienced × 3 is not applicable only when the beginner pass paid; if the beginner pass was blocked, experienced × 3 is a real cell. A blocked or not-exercised cell is a coverage gap, not a pass.
 - Answer two questions plainly in the headline: could a first-time exhibitor enter and pay for a show without assistance, and could a multi-dog handler enter a full weekend efficiently? If a persona pass did not run, its answer is "not established" — never inferred from the other pass.
 - Every finding carries a persona × viewport matrix. Label friction only one persona hit as persona-specific; a defect both hit is one finding, not two.
 - Mark each finding new / unchanged / regressed / resolved against prior runs.
 - Include a short "Corrections to my own measurement" section if any first reading turned out wrong — the secretary walks showed this is where the most useful signal hides.
-- **File findings to Linear directly — there is no approval step.** This run is unattended, so a "prepare a draft and ask for batch approval" gate means nothing is ever filed and the report dies with the worktree. Every confirmed P0/P1 gets its own issue (team **MyK9-platform**), labelled `p0`/`p1`, `source:claude`, `walk:exhibitor`. Group P2/P3 as sub-issues of ONE parent titled `Exhibitor task walk <YYYY-MM-DD> — P2/P3 findings`.
+- **File findings to Linear directly — there is no approval step.** This run is unattended, so a "prepare a draft and ask for batch approval" gate means nothing is ever filed and the report dies with the worktree. Every confirmed P0/P1 gets its own issue (team **MyK9-platform**), labelled `p0`/`p1`, `source:claude`, `walk:exhibitor`. Group P2/P3 as sub-issues of ONE parent titled `Exhibitor task walk <YYYY-MM-DD> — P2/P3 findings`. A P2/P3 that already has a Codex canonical issue (Codex files them individually with `SUX-YYYY-MM-DD-NN` ids in the description) is commented there instead, never added as a sub-issue.
 - **Dedupe before filing, always with `includeArchived: true`.** Match on task area, route, object and symptom — never on title. Auto-archive is on as a team setting (the paid-plan upgrade removed the 250-issue cap, not the archiving), so a default query reads shipped work as never-seen and re-files it. If an issue already exists, comment on it rather than opening a second.
 - **Do NOT file coverage gaps, harness bugs, or the "Corrections to my own measurement" items as issues.** They belong in the report body — that section is the most useful signal in the walk and it is not a defect list.
 - **A failed Linear write is a reportable failure, never a silent skip.** Put the finding's full text at the top of the report and say plainly that it is unfiled.

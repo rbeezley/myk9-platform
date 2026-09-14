@@ -139,7 +139,12 @@ export const CLEAN_VERDICT = /^(no findings|\d+ findings?, all (addressed|fixed)
 export const HUMAN_FALLBACK_VERDICT =
   /^2 adversarial subagent reviews, all findings addressed\.?$/i;
 
-const FALLBACK_REASON = /^Fallback reason: Claude unavailable\s*[-—:]\s*.+$/im;
+// EITHER harness can be the unavailable one: the required reviewer is the OTHER
+// harness, so a Codex-authored PR falls back when Claude is down and a
+// Claude-authored PR falls back when Codex is. Naming only Claude made the
+// Claude-authored direction inexpressible, so the honest attestation was
+// rejected and the only green one was literally false (#2228).
+const FALLBACK_REASON = /^Fallback reason: (Claude|Codex) unavailable\s*[-—:]\s*.+$/im;
 const SUBAGENT_REVIEW = /^Adversarial subagent review: .+$/gim;
 const PASSING_CHECKS = /^Required checks: passing$/im;
 

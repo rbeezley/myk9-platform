@@ -1,5 +1,12 @@
 import { supabase } from '../supabaseClient';
 
+/** The name half of a confirmed judge assignment, split as `people` stores it. */
+export interface JudgeNameParts {
+  personId: string;
+  firstName: string | null;
+  lastName: string | null;
+}
+
 /**
  * Judge name per class for one show, via the get_show_judges RPC.
  *
@@ -18,8 +25,10 @@ import { supabase } from '../supabaseClient';
  * Degrades to an empty Map on failure: a judge-name error must not take a running order off the
  * board or block an exhibitor's check-in.
  */
-export async function fetchJudgeNamesByClass(showId: string): Promise<Map<string, string>> {
-  const byClass = new Map<string, string>();
+export async function fetchJudgeNamePartsByClass(
+  showId: string
+): Promise<Map<string, JudgeNameParts>> {
+  const byClass = new Map<string, JudgeNameParts>();
   const { data, error } = await supabase.rpc('get_show_judges', { p_show_id: showId });
   if (error || !data) return byClass;
 
@@ -28,8 +37,23 @@ export async function fetchJudgeNamesByClass(showId: string): Promise<Map<string
   for (const row of data) {
     if (row.status !== 'confirmed') continue;
     if (!row.class_id || byClass.has(row.class_id)) continue;
-    const name = `${row.first_name ?? ''} ${row.last_name ?? ''}`.trim();
-    if (name) byClass.set(row.class_id, name);
+    if (!row.first_name && !row.last_name) continue;
+    byClass.set(row.class_id, {
+      personId: row.person_id,
+      firstName: row.first_name ?? null,
+      lastName: row.last_name ?? null,
+    });
+  }
+  return byClass;
+}
+
+/** `fetchJudgeNamePartsByClass` flattened to the display string. */
+export async function fetchJudgeNamesByClass(showId: string): Promise<Map<string, string>> {
+  const parts = await fetchJudgeNamePartsByClass(showId);
+  const byClass = new Map<string, string>();
+  for (const [classId, judge] of parts) {
+    const name = `${judge.firstName ?? ''} ${judge.lastName ?? ''}`.trim();
+    if (name) byClass.set(classId, name);
   }
   return byClass;
 }

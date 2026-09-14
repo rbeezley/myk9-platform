@@ -237,9 +237,13 @@ describe('ReplicatedClassesTable', () => {
         expect(selectArg).not.toContain('*,');
         expect(selectArg).not.toContain('num_hides');
         expect(selectArg).toContain('hides_known');
+        // MYK9-494: no `people` embed. An exhibitor cannot read another person's people row,
+        // so `people!inner` dropped the whole assignment and every schedule row read
+        // `Judge TBD`. Names come from the get_show_judges RPC enrichment instead.
         expect(selectArg).toContain(
-          'judge_assignments!judge_assignments_class_id_fkey(person_id, people!inner(first_name, last_name))'
+          'judge_assignments!judge_assignments_class_id_fkey(person_id, status)'
         );
+        expect(selectArg).not.toContain('people!inner');
         expect(mockSupabaseGt).toHaveBeenCalledWith('updated_at', expect.any(String));
         expect(mockSupabaseOrder).toHaveBeenCalledWith('updated_at', { ascending: true });
       });
@@ -1113,16 +1117,50 @@ describe('rowToClass — area count column name', () => {
  * store) must not resurrect it.
  */
 describe('rowToClass — judge name comes only from the assignment embed', () => {
-  it('reads the judge from judge_assignments', () => {
+  it('reads the judge from a confirmed judge_assignments embed', () => {
     const cls = rowToClass({
       id: 'c1',
       name: 'Interior Advanced',
-      judge_assignments: [{ person_id: 'p-1', people: { first_name: 'Ada', last_name: 'Judge' } }],
+      judge_assignments: [
+        { person_id: 'p-1', status: 'confirmed', people: { first_name: 'Ada', last_name: 'Judge' } },
+      ],
     } as unknown as Parameters<typeof rowToClass>[0]);
 
     expect(cls.judgeName).toBe('Ada Judge');
     expect(cls.judgeId).toBe('p-1');
   });
+
+  // MYK9-494: the restricted-exhibitor transport shape — judge_assignments arrives, the
+  // people embed does not. The name comes from the get_show_judges enrichment.
+  it('reads the judge from the RPC enrichment when no people row is visible', () => {
+    const cls = rowToClass({
+      id: 'c1',
+      name: 'Interior Advanced',
+      judge_assignments: [{ person_id: 'p-1', status: 'confirmed' }],
+      _judge: { personId: 'p-1', firstName: 'Test', lastName: 'Judge' },
+    } as unknown as Parameters<typeof rowToClass>[0]);
+
+    expect(cls.judgeName).toBe('Test Judge');
+    expect(cls.judgeId).toBe('p-1');
+    expect(cls.judgeFirstName).toBe('Test');
+    expect(cls.judgeLastName).toBe('Judge');
+  });
+
+  it.each(['invited', 'declined', 'cancelled'])(
+    'rejects a %s assignment — only confirmed names a judge',
+    status => {
+      const cls = rowToClass({
+        id: 'c1',
+        name: 'Interior Advanced',
+        judge_assignments: [
+          { person_id: 'p-1', status, people: { first_name: 'Ada', last_name: 'Judge' } },
+        ],
+      } as unknown as Parameters<typeof rowToClass>[0]);
+
+      expect(cls.judgeName).toBeUndefined();
+      expect(cls.judgeId).toBeUndefined();
+    }
+  );
 
   it('ignores a stray judge_name key when there is no assignment', () => {
     const cls = rowToClass({

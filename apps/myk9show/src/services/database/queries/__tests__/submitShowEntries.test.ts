@@ -1,4 +1,5 @@
 import { createDatabaseError } from '@/services/database/databaseError';
+import { getErrorMessage } from '@myk9/core';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { submitShowEntries, updateEntryHandler } from '../../entries';
 
@@ -284,5 +285,63 @@ describe('submitShowEntries', () => {
       p_handler_id: null,
       p_clear_handler_id: true,
     });
+  });
+});
+
+/**
+ * MYK9-516. The started-class guard lives in the RPC, so the only thing the
+ * client owes it is a faithful path from PostgREST's error to the toast. The
+ * assertion is written against the exact message the migration RAISEs
+ * (20260914174500_block_entries_into_started_classes.sql, pinned verbatim by
+ * supabase/tests/submit_entries_started_class_test.sql): if either side is
+ * reworded alone, one of the two tests goes red rather than an exhibitor
+ * silently getting "Database operation failed".
+ */
+describe('submitShowEntries — started-class rejection (MYK9-516)', () => {
+  const STARTED_MESSAGE =
+    'This class has already started, so it can no longer be entered online. ' +
+    'Contact the show secretary about a late entry.';
+
+  beforeEach(() => {
+    mockRpc.mockReset();
+  });
+
+  it('surfaces the RPC message and SQLSTATE rather than a generic failure', async () => {
+    mockRpc.mockResolvedValue({
+      data: null,
+      error: { message: STARTED_MESSAGE, code: '42501', details: null, hint: null },
+    });
+
+    await expect(submitShowEntries(baseParams)).rejects.toMatchObject({
+      name: 'DatabaseError',
+      message: STARTED_MESSAGE,
+      code: '42501',
+      table: 'entry_submissions',
+      operation: 'rpc_submit',
+    });
+  });
+
+  it('gives getErrorMessage the readable sentence the wizard toasts', async () => {
+    mockRpc.mockResolvedValue({
+      data: null,
+      error: { message: STARTED_MESSAGE, code: '42501', details: null, hint: null },
+    });
+
+    // `submitPaymentStep` catches and calls `notifications.error(getErrorMessage(error))`.
+    // A DatabaseError is a plain object, not an Error instance, so this is the
+    // `isErrorLike` branch — the one that would quietly degrade to
+    // String(value) = '[object Object]' if the shape ever changed.
+    const caught = await submitShowEntries(baseParams).catch((error: unknown) => error);
+    expect(getErrorMessage(caught)).toBe(STARTED_MESSAGE);
+  });
+
+  it('does not commit any entry when the RPC rejects', async () => {
+    mockRpc.mockResolvedValue({
+      data: null,
+      error: { message: STARTED_MESSAGE, code: '42501', details: null, hint: null },
+    });
+
+    await expect(submitShowEntries(baseParams)).rejects.toBeDefined();
+    expect(mockRpc).toHaveBeenCalledTimes(1);
   });
 });

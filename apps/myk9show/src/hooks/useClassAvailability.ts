@@ -17,6 +17,13 @@ export interface ClassAvailability {
   element: string | null;
   level: string;
   section: string | null;
+  /**
+   * `classes.status` as stored ('upcoming' | 'setup' | 'in_progress' |
+   * 'completed' | 'cancelled'). The registration wizard refuses a class the
+   * judge has already started (MYK9-516); read it through
+   * `getClassEntryWindow`, never by comparing the raw string.
+   */
+  status: string | null;
   trialId: string;
   trialName: string;
   trialDate: string;
@@ -43,6 +50,7 @@ interface ClassWithTrialRow {
   element: string | null;
   level: string | null;
   section: string | null;
+  status: string | null;
   max_entries: number | null;
   allow_waitlist: boolean | null;
   trial_id: string;
@@ -103,6 +111,7 @@ export function useClassAvailability(
           element,
           level,
           section,
+          status,
           max_entries,
           allow_waitlist,
           trial_id,
@@ -269,6 +278,7 @@ export function useClassAvailability(
           element: cls.element,
           level: cls.level ?? 'Open',
           section: cls.section,
+          status: cls.status,
           trialId: trial.id,
           trialName: trial.name,
           trialDate: trial.date,

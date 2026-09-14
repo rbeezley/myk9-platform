@@ -24,6 +24,13 @@ export interface RegistrationClassSource {
   level?: string | undefined;
   section?: string | undefined;
   className?: string | undefined;
+  /**
+   * The class's own lifecycle status, as whichever source supplied it spells
+   * it — `classes.status` ('in_progress') from the availability read, the
+   * canonical `ClassStatusValue` ('In Progress') from replication. Read only
+   * through `getClassEntryWindow`, which normalises both (MYK9-516).
+   */
+  status?: string | undefined;
 }
 
 export interface LevelInfo {
@@ -50,6 +57,14 @@ export interface LevelInfo {
   isRegistrationBlocked?: boolean | undefined;
   /** Calm explanation for a registration block or puppy-class exception. */
   registrationGuidance?: string | null | undefined;
+  /**
+   * The class has started or finished, so it can no longer be entered
+   * (MYK9-516). Distinct from `isFull`: a full class may still take a wait-list
+   * request, a running one cannot take anything.
+   */
+  isClassClosed?: boolean | undefined;
+  /** One short sentence saying why the class is closed. */
+  classClosedReason?: string | null | undefined;
 }
 
 export interface ElementGroup {

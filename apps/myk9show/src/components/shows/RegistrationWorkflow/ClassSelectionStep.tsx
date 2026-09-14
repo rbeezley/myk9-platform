@@ -46,7 +46,11 @@ import { Skeleton } from '@/components/common/SkeletonLoaders';
 import { AddEditRegistrationDialog } from '@/components/dogs/AddEditRegistrationDialog';
 import { useInlineDogRegistration } from './useInlineDogRegistration';
 import '@/styles/myk9-registration-workflow.css';
-import { buildAvailabilityMap, isAvailabilityUnreadable } from './ClassSelectionStep.availability';
+import {
+  buildAvailabilityMap,
+  getClassEntryWindow,
+  isAvailabilityUnreadable,
+} from './ClassSelectionStep.availability';
 
 export type { ClassSelectionStepProps } from './ClassSelectionStep.types';
 
@@ -65,6 +69,13 @@ export const ClassSelectionStep: React.FC<ClassSelectionStepProps> = ({
   const trialClasses = useTrialStore(s => s.trialClasses);
   const { classes: queryClasses = [] } = useClassStoreCompat();
   const { isSecretary, isAdmin } = useAuthContext();
+  /**
+   * Show officials take late entries at the desk for a class already in the
+   * ring, so the started-class guard does not apply to them. The server makes
+   * the same carve-out through its own `v_is_official` predicate, which is the
+   * one that actually holds — this only keeps the chip usable.
+   */
+  const isStaff = isSecretary || isAdmin;
   const { profile: exhibitorProfile } = useExhibitorProfile();
   const { status: syncStatus } = useReplicationSync();
   // 'idle' means sync hasn't started yet (status initialises to idle before
@@ -151,6 +162,7 @@ export const ClassSelectionStep: React.FC<ClassSelectionStepProps> = ({
           level: cls.level,
           section: cls.section,
           className: cls.name,
+          status: cls.status,
         })
       );
       const queryBackedClasses: RegistrationClassSource[] = queryClasses
@@ -161,6 +173,7 @@ export const ClassSelectionStep: React.FC<ClassSelectionStepProps> = ({
           level: cls.level,
           section: cls.section,
           className: cls.className,
+          status: cls.status,
         }));
       const availabilityBackedClasses: RegistrationClassSource[] = availabilityClasses
         .filter(cls => cls.trialId === trial.id)
@@ -170,6 +183,7 @@ export const ClassSelectionStep: React.FC<ClassSelectionStepProps> = ({
           level: cls.level,
           section: cls.section ?? undefined,
           className: cls.className,
+          status: cls.status ?? undefined,
         }));
       const classes =
         replicatedClasses.length > 0
@@ -185,6 +199,8 @@ export const ClassSelectionStep: React.FC<ClassSelectionStepProps> = ({
           level: string;
           section: string;
           displayLabel: string;
+          isClassClosed: boolean;
+          classClosedReason: string | null;
         }[]
       >();
 
@@ -218,12 +234,17 @@ export const ClassSelectionStep: React.FC<ClassSelectionStepProps> = ({
           cls.section,
           disambiguate({ name: cls.className, element, level, section: cls.section })
         );
+        // A class the judge has already started is not enterable, whatever the
+        // entry-close DATE says (MYK9-516). Staff keep taking gate entries.
+        const entryWindow = getClassEntryWindow({ status: cls.status, isStaff });
         const entry = {
           classId: cls.id,
           className: cls.className || '',
           level,
           section: cls.section || '',
           displayLabel: displayLabel ?? '',
+          isClassClosed: !entryWindow.enterable,
+          classClosedReason: entryWindow.reason,
         };
         const existing = elementMap.get(element);
         if (existing) {
@@ -252,7 +273,7 @@ export const ClassSelectionStep: React.FC<ClassSelectionStepProps> = ({
     }
 
     return result;
-  }, [showTrials, trialClasses, queryClasses, availabilityClasses, show]);
+  }, [showTrials, trialClasses, queryClasses, availabilityClasses, show, isStaff]);
   const hasClassGroups = useMemo(
     () => Array.from(classesByTrialElement.values()).some(groups => groups.length > 0),
     [classesByTrialElement]

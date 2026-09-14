@@ -160,12 +160,18 @@ export const ElementCard: React.FC<ElementCardProps> = ({
               disabled={
                 cls.isAlreadyEntered ||
                 cls.isRegistrationBlocked ||
+                cls.isClassClosed ||
                 (cls.isFull && cls.allowsWaitlist === false)
               }
               aria-label={
                 cls.isAlreadyEntered ? `${element} (already entered)` : `Select ${element}`
               }
-              onCheckedChange={() => !cls.isAlreadyEntered && onToggle(cls.classId)}
+              {...(cls.isClassClosed && cls.classClosedReason
+                ? { 'aria-describedby': `single-reason-${cls.classId}` }
+                : {})}
+              onCheckedChange={() =>
+                !cls.isAlreadyEntered && !cls.isClassClosed && onToggle(cls.classId)
+              }
             />
             <Label
               htmlFor={`single-${cls.classId}`}
@@ -187,15 +193,29 @@ export const ElementCard: React.FC<ElementCardProps> = ({
                 In cart
               </Badge>
             )}
-            {cls.isAvailabilityUnknown && !cls.isAlreadyEntered && <AvailabilityUnknownBadge />}
-            {cls.isFull && cls.allowsWaitlist !== false && !cls.isAlreadyEntered && (
-              <WaitlistBadge waitlistCount={cls.waitlistCount} />
+            {cls.isClassClosed && cls.classClosedReason && (
+              <span
+                id={`single-reason-${cls.classId}`}
+                className="text-sm text-muted-foreground"
+              >
+                {cls.classClosedReason}
+              </span>
             )}
-            {cls.isFull && cls.allowsWaitlist === false && !cls.isAlreadyEntered && (
-              <Badge variant="destructive" className="h-5 text-xs">
-                Full
-              </Badge>
+            {cls.isAvailabilityUnknown && !cls.isClassClosed && !cls.isAlreadyEntered && (
+              <AvailabilityUnknownBadge />
             )}
+            {cls.isFull &&
+              cls.allowsWaitlist !== false &&
+              !cls.isClassClosed &&
+              !cls.isAlreadyEntered && <WaitlistBadge waitlistCount={cls.waitlistCount} />}
+            {cls.isFull &&
+              cls.allowsWaitlist === false &&
+              !cls.isClassClosed &&
+              !cls.isAlreadyEntered && (
+                <Badge variant="destructive" className="h-5 text-xs">
+                  Full
+                </Badge>
+              )}
             {cls.registrationGuidance && !cls.isRegistrationBlocked && (
               <span className="text-sm text-muted-foreground">{cls.registrationGuidance}</span>
             )}
@@ -241,6 +261,8 @@ export const ElementCard: React.FC<ElementCardProps> = ({
             isAvailabilityUnknown={cls.isAvailabilityUnknown}
             isRegistrationBlocked={cls.isRegistrationBlocked}
             registrationGuidance={cls.isRegistrationBlocked ? null : cls.registrationGuidance}
+            isClassClosed={cls.isClassClosed}
+            classClosedReason={cls.classClosedReason}
             onToggle={onToggle}
           />
         ))}
@@ -290,6 +312,8 @@ interface LevelChipProps {
   isAvailabilityUnknown?: boolean | undefined;
   isRegistrationBlocked?: boolean | undefined;
   registrationGuidance?: string | null | undefined;
+  isClassClosed?: boolean | undefined;
+  classClosedReason?: string | null | undefined;
   onToggle: (classId: string) => void;
 }
 
@@ -304,9 +328,13 @@ const LevelChip: React.FC<LevelChipProps> = ({
   isAvailabilityUnknown = false,
   isRegistrationBlocked,
   registrationGuidance,
+  isClassClosed = false,
+  classClosedReason,
   onToggle,
 }) => {
   const isChecked = isSelected || isAlreadyEntered;
+  const descriptionId = `chip-reason-${classId}`;
+  const description = isClassClosed ? classClosedReason : null;
 
   return (
     <div className="flex flex-col gap-1">
@@ -321,9 +349,13 @@ const LevelChip: React.FC<LevelChipProps> = ({
           id={`chip-${classId}`}
           checked={isChecked}
           disabled={
-            isAlreadyEntered || isRegistrationBlocked || (isFull && allowsWaitlist === false)
+            isAlreadyEntered ||
+            isRegistrationBlocked ||
+            isClassClosed ||
+            (isFull && allowsWaitlist === false)
           }
-          onCheckedChange={() => !isAlreadyEntered && onToggle(classId)}
+          {...(description ? { 'aria-describedby': descriptionId } : {})}
+          onCheckedChange={() => !isAlreadyEntered && !isClassClosed && onToggle(classId)}
           className="h-3.5 w-3.5"
         />
         {/* The wrapping <label> is the checkbox's single naming source. Do NOT add
@@ -332,11 +364,16 @@ const LevelChip: React.FC<LevelChipProps> = ({
         <span className="sr-only">{isAlreadyEntered ? 'Already entered:' : 'Select'}</span>{' '}
         <span className="text-xs">{displayLabel}</span>
       </label>
-      {isAvailabilityUnknown && !isAlreadyEntered && <AvailabilityUnknownBadge />}
-      {isFull && allowsWaitlist && !isAlreadyEntered && (
+      {description && (
+        <span id={descriptionId} className="max-w-64 text-xs text-muted-foreground">
+          {description}
+        </span>
+      )}
+      {isAvailabilityUnknown && !isClassClosed && !isAlreadyEntered && <AvailabilityUnknownBadge />}
+      {isFull && allowsWaitlist && !isClassClosed && !isAlreadyEntered && (
         <WaitlistBadge waitlistCount={waitlistCount} />
       )}
-      {isFull && !allowsWaitlist && !isAlreadyEntered && (
+      {isFull && !allowsWaitlist && !isClassClosed && !isAlreadyEntered && (
         <Badge variant="destructive" className="h-5 text-xs">
           Full
         </Badge>

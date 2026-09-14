@@ -33,6 +33,32 @@ describe('resolveEffectivePaymentStatus (MYK9-495)', () => {
     ).toBe(PaymentStatus.PARTIAL_REFUND);
   });
 
+  it("never re-opens an entry's own settled terminal status for a sibling's debt", () => {
+    // An order goes `pending` as soon as ANY entry under it is unpaid. A waived
+    // or refunded entry in that order is settled money and must not be dragged
+    // back into "owes $X" by a sibling's balance.
+    expect(resolveEffectivePaymentStatus(PaymentStatus.WAIVED, PaymentStatus.PENDING)).toBe(
+      PaymentStatus.WAIVED
+    );
+    expect(resolveEffectivePaymentStatus(PaymentStatus.REFUNDED, PaymentStatus.PENDING)).toBe(
+      PaymentStatus.REFUNDED
+    );
+    expect(resolveEffectivePaymentStatus(PaymentStatus.PARTIAL_REFUND, PaymentStatus.PENDING)).toBe(
+      PaymentStatus.PARTIAL_REFUND
+    );
+  });
+
+  it('keeps an entry-level waive or refund visible under a PAID order', () => {
+    // A per-entry comp or refund against an order the rest of which was paid:
+    // the order never made that decision, so it cannot erase it.
+    expect(resolveEffectivePaymentStatus(PaymentStatus.REFUNDED, PaymentStatus.PAID_BY_CHECK)).toBe(
+      PaymentStatus.REFUNDED
+    );
+    expect(resolveEffectivePaymentStatus(PaymentStatus.WAIVED, PaymentStatus.PAID_ONLINE)).toBe(
+      PaymentStatus.WAIVED
+    );
+  });
+
   it('leaves every settled-vs-settled pair on the prior order-first precedence', () => {
     // Only the UNPAID contest changes. Once neither side says pending they
     // describe the same settled outcome and the order carries the finer value,
@@ -73,6 +99,21 @@ describe('getEffectivePaymentStatus (entry management / card badges)', () => {
         refundAmount: null,
       })
     ).toBe(0);
+  });
+
+  it('keeps a waived or refunded entry settled under a pending order', () => {
+    expect(
+      getEffectivePaymentStatus({
+        paymentStatus: PaymentStatus.WAIVED,
+        enrollmentPaymentStatus: PaymentStatus.PENDING,
+      })
+    ).toBe(PaymentStatus.WAIVED);
+    expect(
+      getEffectivePaymentStatus({
+        paymentStatus: PaymentStatus.REFUNDED,
+        enrollmentPaymentStatus: PaymentStatus.PENDING,
+      })
+    ).toBe(PaymentStatus.REFUNDED);
   });
 
   it('still credits a genuinely order-paid entry in full', () => {

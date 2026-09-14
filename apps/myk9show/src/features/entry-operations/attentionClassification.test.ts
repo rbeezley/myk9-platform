@@ -61,6 +61,22 @@ describe('classifyEntryAttention', () => {
     ).toEqual(['payment_due']);
   });
 
+  it("does not re-flag a settled entry for a sibling's unpaid order", () => {
+    // The order reads `pending` because ANOTHER entry under it is unpaid. This
+    // entry's own money is settled, so it owes nothing.
+    for (const settled of [
+      PaymentStatus.WAIVED,
+      PaymentStatus.REFUNDED,
+      PaymentStatus.PARTIAL_REFUND,
+    ]) {
+      expect(
+        classifyEntryAttention(
+          input({ paymentStatus: settled, enrollmentPaymentStatus: PaymentStatus.PENDING })
+        )
+      ).toEqual([]);
+    }
+  });
+
   it('does not classify terminal entries as payment due', () => {
     expect(
       classifyEntryAttention(

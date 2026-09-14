@@ -3,6 +3,8 @@ import {
   financialReportPaymentLabel,
   resolvePaymentChannel,
 } from '@/features/payments/paymentChannel';
+import { mapPaymentStatus } from '@/utils/entryManagementUtils';
+import { resolveEffectivePaymentStatus } from '@/utils/effectivePaymentStatus';
 import type { ReportEntry } from '@/lib/reports/types';
 
 export type FinancialReportMode = 'current' | 'waitlist';
@@ -59,23 +61,38 @@ function normalize(value: string | null | undefined): string {
   return value?.trim().toLowerCase() ?? '';
 }
 
+/**
+ * Which of the two recorded statuses this line's money follows.
+ *
+ * The precedence is NOT this module's to decide — it is the one shared rule in
+ * `@/utils/effectivePaymentStatus`, so the report can never disagree with the
+ * secretary's attention list or the exhibitor's balance about whether an entry
+ * is settled (MYK9-495).
+ *
+ * What stays local is the VOCABULARY. The report works in raw database strings,
+ * and the shared rule works in the `PaymentStatus` enum, so the mapped values
+ * are used only to pick a SIDE — the raw string of the winning side is what
+ * travels on. Returning the mapped enum instead would turn a bare `'paid'` into
+ * `paid_online` and hand `resolvePaymentChannel` an online channel nobody
+ * recorded, which is exactly the F18 claim `getFinancialPaymentLabel` exists to
+ * avoid.
+ */
 function getEffectivePaymentStatus(entry: ReportEntry): string {
   const entryStatus = normalize(entry.paymentStatus);
   const enrollmentStatus = normalize(entry.enrollmentPaymentStatus);
 
-  // An entry with no status of its own inherits the order's.
   if (!entryStatus) return enrollmentStatus;
+  if (!enrollmentStatus) return entryStatus;
 
-  // ...but an entry that says `pending` is authoritative: the enrollment is one
-  // row per (show, handler) reused by every later order, so its `paid` cannot
-  // vouch for this entry (MYK9-495, and `@/utils/effectivePaymentStatus` for
-  // the shared rule this mirrors in the report's raw-string vocabulary). The
-  // submit RPC already stamps entries `paid`/`waived` for secretary_paid,
-  // group_payment and waived orders, so a genuinely order-paid entry does not
-  // reach here as `pending`.
-  if (entryStatus === PaymentStatus.PENDING) return PaymentStatus.PENDING;
+  const mappedEntryStatus = mapPaymentStatus(entryStatus);
+  const resolved = resolveEffectivePaymentStatus(
+    mappedEntryStatus,
+    mapPaymentStatus(enrollmentStatus)
+  );
 
-  return entryStatus;
+  // Ties (both sides mapping to the same enum member) keep the entry's raw
+  // spelling, which is what this function returned before the rule was shared.
+  return resolved === mappedEntryStatus ? entryStatus : enrollmentStatus;
 }
 
 export function isEntryIncludedInFinancialReport(

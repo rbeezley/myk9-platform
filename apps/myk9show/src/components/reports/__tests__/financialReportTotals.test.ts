@@ -4,7 +4,8 @@ import {
   getFinancialPaymentLabel,
   isEntryIncludedInFinancialReport,
 } from '../financialReportTotals';
-import { PaymentStatus } from '@/types/show-registration-types';
+import { EntryStatus, PaymentStatus } from '@/types/show-registration-types';
+import { classifyEntryAttention } from '@/features/entry-operations/attentionClassification';
 import type { ReportEntry } from '@/lib/reports/types';
 
 function entry(overrides: Partial<ReportEntry>): ReportEntry {
@@ -194,6 +195,26 @@ describe('financialReportTotals', () => {
       collected: 0,
       outstanding: 45,
     });
+  });
+
+  it('agrees with the attention list when the ORDER is the unpaid side (MYK9-495)', () => {
+    // Entry row settled by check, order still `pending`. The report used to read
+    // only the entry side of the pair and call this collected while the
+    // secretary's attention list called the same entry payment due. Both now
+    // route through `@/utils/effectivePaymentStatus`.
+    const shape = {
+      paymentStatus: PaymentStatus.PAID_BY_CHECK,
+      enrollmentPaymentStatus: PaymentStatus.PENDING,
+    };
+    const totals = calculateFinancialReportTotals(
+      [entry({ id: 'order-pending', entryFee: 50, paymentMethod: 'check', ...shape })],
+      'current'
+    );
+
+    expect(totals.summary).toMatchObject({ collected: 0, outstanding: 50 });
+    expect(classifyEntryAttention({ entryStatus: EntryStatus.ACCEPTED, ...shape })).toEqual([
+      'payment_due',
+    ]);
   });
 
   it('keeps entry-level refunds authoritative over enrollment payment status', () => {

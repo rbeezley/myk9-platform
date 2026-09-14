@@ -104,7 +104,12 @@ describe('EnrollmentCard', () => {
             paid('e1'),
             paid('e2'),
             paid('e3'),
-            makeEntry({ id: 'e4', paymentStatus: PaymentStatus.PENDING, totalFee: 30, paidAmount: 0 }),
+            makeEntry({
+              id: 'e4',
+              paymentStatus: PaymentStatus.PENDING,
+              totalFee: 30,
+              paidAmount: 0,
+            }),
           ],
         })}
       />

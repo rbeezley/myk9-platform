@@ -204,10 +204,7 @@ describe('groupEntriesByEnrollment', () => {
       enrollmentPaymentStatus: PaymentStatus.PAID_BY_CHECK,
       paymentStatus: status,
     });
-    const entries = [
-      settled('e1', PaymentStatus.PAID_ONLINE),
-      settled('e2', PaymentStatus.WAIVED),
-    ];
+    const entries = [settled('e1', PaymentStatus.PAID_ONLINE), settled('e2', PaymentStatus.WAIVED)];
 
     expect(groupEntriesByEnrollment(entries)[0].paymentStatus).toBe(PaymentStatus.PAID_BY_CHECK);
     expect(groupEntriesByEnrollment([...entries].reverse())[0].paymentStatus).toBe(

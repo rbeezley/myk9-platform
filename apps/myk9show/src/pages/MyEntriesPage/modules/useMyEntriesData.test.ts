@@ -214,7 +214,7 @@ describe('useMyEntriesData — a failed reload must not discard loaded entries',
     expect(result.current.entries[0]?.paymentStatus).toBe(expected);
   });
 
-  it("badges a pending entry as pending even when its order reads paid", async () => {
+  it('badges a pending entry as pending even when its order reads paid', async () => {
     (getUserEntries as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
       data: [
         {

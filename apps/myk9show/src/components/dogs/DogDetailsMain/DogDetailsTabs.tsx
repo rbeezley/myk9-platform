@@ -13,11 +13,7 @@ import CareerSection from './CareerSection';
 import RecordsSection from './RecordsSection';
 import type { CareerView, RecordsView } from './dogDetailsSections';
 
-const DogDetailsTabs: React.FC<DogDetailsTabsProps> = ({
-  dog,
-  autoOpenAddRegistration,
-  role = 'exhibitor',
-}) => {
+const DogDetailsTabs: React.FC<DogDetailsTabsProps> = ({ dog, role = 'exhibitor' }) => {
   const { isPremium, isLoading, canAuthorizePremium } = useSubscriptionGate();
   const { user } = useAuthContext();
   const { state, setSection, setView } = useDogDetailsNavigation();
@@ -35,7 +31,7 @@ const DogDetailsTabs: React.FC<DogDetailsTabsProps> = ({
   if (isSecretary) {
     return (
       <div className="pt-6 space-y-8">
-        <RegistrationsSection dog={dog} autoOpenAddDialog={autoOpenAddRegistration} />
+        <RegistrationsSection dog={dog} />
         <section>
           <h2 className="text-base font-semibold mb-3">Health Records</h2>
           <Suspense fallback={<TabContentSkeleton />}>
@@ -57,13 +53,12 @@ const DogDetailsTabs: React.FC<DogDetailsTabsProps> = ({
       <TopLevelSectionNav value={state.section} onValueChange={setSection} />
 
       {state.section === 'overview' && (
-        <div className="pt-6 space-y-8">
-          {isPremium && <TitleProgressSection dogId={dog.id} />}
-          <RegistrationsSection dog={dog} autoOpenAddDialog={autoOpenAddRegistration} />
+        <div className="pt-4 lg:pt-6 space-y-8">
           <section>
             <h2 className="text-base font-semibold mb-3">Activity</h2>
             <ActivityTab dogId={dog.id} dogName={dogName} role={role} />
           </section>
+          {isPremium && <TitleProgressSection dogId={dog.id} />}
         </div>
       )}
 

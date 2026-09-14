@@ -13,7 +13,7 @@ At a glance: upcoming shows list with pipeline phase badge (Setup / Accepting En
 
 **Exhibitor** → `/exhibitor/dashboard`
 
-Dedicated exhibitor home screen. At a glance: upcoming entries with status (Pending / Accepted / Waitlisted), next show date and class, quick links to Find Shows and My Dogs. Fall 2026 nav: Home (`/exhibitor/dashboard`), Find Shows (`/shows`), My Dogs (`/dogs`), My Entries (`/exhibitor/entries`), Show Day (`/exhibitor/show-day`), Profile (`/profile`), Settings (`/preferences`). Hide from nav: Clubs, Calendar, Messages (all parked).
+Dedicated exhibitor home screen. At a glance: upcoming entries with status (Pending / Accepted / Waitlisted), next show date and class, quick links to Find Shows and My Dogs. Fall 2026 nav: Home (`/exhibitor/dashboard`), Find Shows (`/shows`), My Dogs (`/dogs`), My Entries (`/exhibitor/entries`), Show Day (`/at-show`), Profile (`/profile`), Settings (`/preferences`). Hide from nav: Clubs, Calendar, Messages (all parked).
 
 **Admin** → `/admin/dashboard`
 

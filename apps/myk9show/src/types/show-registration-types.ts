@@ -42,7 +42,7 @@ export interface PaymentDetails {
 
 // Registration context for role-based workflows
 export interface RegistrationContext {
-  mode: 'exhibitor' | 'secretary_existing' | 'secretary_new';
+  mode: 'exhibitor' | 'secretary_new';
   permissions: string[];
   scopedClubs?: string[] | undefined;
   showId: string;

@@ -27,7 +27,7 @@ import { useDogStoreCompat } from '@/hooks/useDogStoreCompat';
 import {
   getDogBreedLabel,
   getDogDisplayName,
-  getDogRegisteredName,
+  getDogDistinctRegisteredName,
   Dog,
   User,
 } from '@/types/dog-types';
@@ -162,7 +162,10 @@ const DogRow: React.FC<DogRowProps> = ({ index, style, data }) => {
   };
 
   const tooltipDetails: { label: string; value: string }[] = [];
-  const registeredName = getDogRegisteredName(dog);
+  // Only when it says something the call name above it does not: a dog whose
+  // registered name IS its call name gave a secretary "Registered Name: Maple"
+  // under a row that already reads Maple (MYK9-485 review round 1).
+  const registeredName = getDogDistinctRegisteredName(dog);
   if (registeredName) tooltipDetails.push({ label: 'Registered Name', value: registeredName });
   if (dog.gender) tooltipDetails.push({ label: 'Gender', value: dog.gender });
   if (dog.dateOfBirth)

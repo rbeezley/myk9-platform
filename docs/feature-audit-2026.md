@@ -46,23 +46,23 @@
 
 ## Section 2: Exhibitor (exhibitor-only sidebar)
 
-| Page / Feature             | Route                   | Classification | Rationale                                                                             |
-| -------------------------- | ----------------------- | -------------- | ------------------------------------------------------------------------------------- |
-| Home (Exhibitor Dashboard) | /exhibitor/dashboard    | critical-path  | Exhibitor home screen after login — must show upcoming entries and pending actions    |
-| Show Day                   | /exhibitor/show-day     | critical-path  | Phase 4 Step 1 — show hero, self check-in, live results                               |
-| My Dogs                    | /dogs                   | critical-path  | Required for first-time exhibitors — must add at least one dog before entering a show |
-| My Entries                 | /exhibitor/entries      | critical-path  | Phase 3 Step 1 — Pending/Accepted/Waitlisted tabs                                     |
-| Find Shows                 | /shows                  | critical-path  | Phase 1 Step 1 — unauthenticated browse; canonical entry point                        |
-| Clubs                      | /clubs                  | park           | Real discovery feature; not in either journey                                         |
-| Calendar                   | /calendar               | park           | Real feature; not in either journey                                                   |
-| Settings (Preferences)     | /preferences            | critical-path  | Exhibitor account and notification preferences; needed for a complete experience      |
-| Messages                   | /messages/:showId       | park           | Exhibitor ↔ secretary chat; not in exhibitor journey steps                            |
-| Registration Wizard        | /shows/:showId/register | critical-path  | Phase 2 Steps 1–3 — class selection, entry agreement, payment                         |
-| Cart                       | /cart                   | critical-path  | Phase 2 Step 3 — Stripe checkout                                                      |
-| Checkout Success           | /checkout/success       | critical-path  | Phase 2 Step 4 — confirmation + "What happens next?"                                  |
-| Checkout Cancel            | /checkout/cancel        | park           | Edge-case cancel path; not a named journey step                                       |
-| Profile                    | /profile                | critical-path  | Exhibitor identity; needed for a complete account experience                          |
-| Subscription               | /subscription           | park           | Real feature; not in journey                                                          |
+| Page / Feature             | Route                      | Classification | Rationale                                                                                                                                                       |
+| -------------------------- | -------------------------- | -------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Home (Exhibitor Dashboard) | /exhibitor/dashboard       | critical-path  | Exhibitor home screen after login — must show upcoming entries and pending actions                                                                              |
+| Show Day                   | /at-show, /at-show/:showId | critical-path  | Show hero, self check-in, live results. The old /exhibitor/show-day route was deleted in MYK9-476; the entry point is the ShowTodayBanner on /exhibitor/entries |
+| My Dogs                    | /dogs                      | critical-path  | Required for first-time exhibitors — must add at least one dog before entering a show                                                                           |
+| My Entries                 | /exhibitor/entries         | critical-path  | Phase 3 Step 1 — Pending/Accepted/Waitlisted tabs                                                                                                               |
+| Find Shows                 | /shows                     | critical-path  | Phase 1 Step 1 — unauthenticated browse; canonical entry point                                                                                                  |
+| Clubs                      | /clubs                     | park           | Real discovery feature; not in either journey                                                                                                                   |
+| Calendar                   | /calendar                  | park           | Real feature; not in either journey                                                                                                                             |
+| Settings (Preferences)     | /preferences               | critical-path  | Exhibitor account and notification preferences; needed for a complete experience                                                                                |
+| Messages                   | /messages/:showId          | park           | Exhibitor ↔ secretary chat; not in exhibitor journey steps                                                                                                      |
+| Registration Wizard        | /shows/:showId/register    | critical-path  | Phase 2 Steps 1–3 — class selection, entry agreement, payment                                                                                                   |
+| Cart                       | /cart                      | critical-path  | Phase 2 Step 3 — Stripe checkout                                                                                                                                |
+| Checkout Success           | /checkout/success          | critical-path  | Phase 2 Step 4 — confirmation + "What happens next?"                                                                                                            |
+| Checkout Cancel            | /checkout/cancel           | park           | Edge-case cancel path; not a named journey step                                                                                                                 |
+| Profile                    | /profile                   | critical-path  | Exhibitor identity; needed for a complete account experience                                                                                                    |
+| Subscription               | /subscription              | park           | Real feature; not in journey                                                                                                                                    |
 
 ---
 

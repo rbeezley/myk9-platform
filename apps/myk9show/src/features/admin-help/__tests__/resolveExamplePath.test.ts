@@ -75,10 +75,9 @@ describe('resolveExamplePath', () => {
     );
   });
 
-  it('resolves exhibitor check-in and tv display patterns', () => {
-    expect(resolveExamplePath('/exhibitor/check-in/:entryId', fullIds)).toBe(
-      '/exhibitor/check-in/ENTRY_1'
-    );
+  it('resolves tv display and registration patterns', () => {
+    // /exhibitor/check-in/:entryId was retired (MYK9-476); it has no resolver.
+    expect(resolveExamplePath('/exhibitor/check-in/:entryId', fullIds)).toBeNull();
     expect(resolveExamplePath('/tv/:showId', fullIds)).toBe('/tv/SHOW_1');
     expect(resolveExamplePath('/shows/:showId/register', fullIds)).toBe('/shows/SHOW_1/register');
   });

@@ -295,9 +295,22 @@ export class ReplicatedTrialsTable extends ReplicatedTable<ReplicatedTrial> {
 
   /**
    * Update trial (marks as dirty for sync)
+   *
+   * @param dependsOn mutation ids this update must upload AFTER. MYK9-490: when a show's
+   *   organization changes, every trial's `registry_id` follows — and the server now refuses
+   *   (SQLSTATE MK490) a trial whose registry disagrees with its show's organization. Without
+   *   a dependency the two are independent queue entries, and `MutationUploadRunner` uploads
+   *   an independent mutation even while an earlier one is held back (backoff, an unresolved
+   *   conflict, a containment window). The trial update would then land first, be refused, and
+   *   be refused again on every retry until the show update finally went through. Naming the
+   *   show mutation here makes the runner hold these until it lands. Mirrors `createTrial`.
    * @returns mutation ID if queued, null if no MutationManager
    */
-  async updateTrial(trialId: string, updates: Partial<ReplicatedTrial>): Promise<string | null> {
+  async updateTrial(
+    trialId: string,
+    updates: Partial<ReplicatedTrial>,
+    dependsOn?: string[]
+  ): Promise<string | null> {
     const currentTrial = await this.get(trialId);
     if (!currentTrial) {
       throw new Error(`Trial ${trialId} not found`);
@@ -314,7 +327,8 @@ export class ReplicatedTrialsTable extends ReplicatedTable<ReplicatedTrial> {
     const mutationId = await this.queueMutation(
       'UPDATE',
       trialId,
-      this.toSupabaseRow(updatedTrial)
+      this.toSupabaseRow(updatedTrial),
+      dependsOn && dependsOn.length > 0 ? dependsOn : undefined
     );
     this._lastMutationId = mutationId;
     logger.log(`[${this.getTableName()}] Updated trial ${trialId}`);

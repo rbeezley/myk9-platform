@@ -108,8 +108,8 @@ If a generated route inventory exists at `docs/qa/generated/route-inventory.md`,
 
 ```
 /exhibitor/dashboard    /exhibitor/entries      /exhibitor/entries/history
-/exhibitor/profile      /exhibitor/account      /exhibitor/show-day
-/exhibitor/check-in/:entryId    /my-entries     /cart
+/exhibitor/profile      /exhibitor/account      /my-entries
+/cart
 /checkout/success       /checkout/cancel        /subscription
 /preferences            /profile                /messages/:showId
 /shows/:showId/register /shows/:showId/trials/:trialId

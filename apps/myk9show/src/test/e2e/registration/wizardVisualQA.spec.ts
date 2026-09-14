@@ -228,11 +228,11 @@ test('registration wizard covers dog, class, payment, and draft dialog states', 
   await saveDialog.getByLabel('Draft Title').fill('Visual QA Draft');
   await saveDialog.getByRole('button', { name: 'Save Draft' }).click();
 
-  // The "Draft saved" toast lands over the bottom navigation on phones and
-  // tablets (the entries bar and the toaster share the bottom edge); wait for it
-  // to clear so the Back click reaches the button, not the toast.
+  // No wait for the toast to clear: MYK9-517 lifted the sonner stack above the
+  // entries bar, so Back is clickable WHILE "Draft saved" is on screen. The
+  // toast is still asserted visible — the click below is what proves it no
+  // longer intercepts.
   await expect(page.getByText('Draft saved')).toBeVisible();
-  await expect(page.getByText('Draft saved')).toBeHidden({ timeout: 15000 });
 
   await page.getByRole('button', { name: /^Back$/ }).click();
   await page.getByRole('button', { name: /^Back$/ }).click();
@@ -248,7 +248,6 @@ test('registration wizard covers dog, class, payment, and draft dialog states', 
   await loadDialog.getByText('Visual QA Draft').click();
   await loadDialog.getByRole('button', { name: 'Load Selected Draft' }).click();
   await expect(page.getByText('Draft loaded successfully')).toBeVisible();
-  await expect(page.getByText('Draft loaded successfully')).toBeHidden({ timeout: 15000 });
   await page.getByRole('button', { name: /^Back$/ }).click();
   await page.getByRole('button', { name: /^Back$/ }).click();
   await expect(page.locator('[role="checkbox"][aria-checked="true"]').first()).toBeVisible();
@@ -466,7 +465,7 @@ test('dark-mode muted captions clear WCAG AA on the composited wizard surfaces',
 // (LESSONS `measurement-harness`).
 // ---------------------------------------------------------------------------
 
-const STEP_TITLE_WIDTHS = [390, 1024, 1100, 1280, 1440];
+const STEP_TITLE_WIDTHS = [390, 768, 1024, 1100, 1280, 1440];
 
 interface TitleMeasurement {
   text: string;
@@ -578,13 +577,15 @@ async function assertStepTitlesFitOneLine(page: Page, width: number, expectedSte
     const where = `"${step.text}" @ ${width}px (box ${step.clientWidth}px, content ${step.scrollWidth}px, ${step.fontSize})`;
     expect(step.lineCount, `one rendered line box for ${where}`).toBe(1);
 
-    if (step.scrollWidth > step.clientWidth + 1) {
-      // Too narrow for the whole title: it must be CUT WITH AN ELLIPSIS, which
-      // is only true when the text cannot wrap and the box clips with one.
-      expect(step.whiteSpace, `nowrap so ${where} cannot break inside a word`).toBe('nowrap');
-      expect(step.textOverflow, `ellipsis truncation for ${where}`).toBe('ellipsis');
-      expect(step.overflowX, `clipped overflow for ${where}`).not.toBe('visible');
-    }
+    // MYK9-517: every title now FITS. The nowrap/ellipsis contract stays
+    // asserted — it is what keeps a future long title from breaking mid-word —
+    // but it must no longer have anything to do.
+    expect(step.whiteSpace, `nowrap so ${where} cannot break inside a word`).toBe('nowrap');
+    expect(step.textOverflow, `ellipsis truncation for ${where}`).toBe('ellipsis');
+    expect(step.overflowX, `clipped overflow for ${where}`).not.toBe('visible');
+    expect(step.scrollWidth, `untruncated title for ${where}`).toBeLessThanOrEqual(
+      step.clientWidth + 1
+    );
 
     // Truncation is visual only: the full title stays in the accessible name.
     expect(step.accessibleName, `accessible name keeps the full title for ${where}`).toContain(
@@ -841,3 +842,195 @@ test('the desktop entries panel is the only place the total appears', async ({ p
     await removeAddedClass(page, added);
   }
 });
+
+/**
+ * MYK9-485. The touch-target minimum used to sit on the Checkbox's own
+ * className, which painted a 44px square around a 16px tick. The fix moves it
+ * to a wrapper, so the only honest check is a RENDERED one: the control keeps
+ * the shared default size while the region around it still toggles the row.
+ */
+test.describe('dog picker checkbox geometry', () => {
+  for (const width of [390, 1440]) {
+    test(`the checkbox is the shared default size with a 44px hit area at ${width}px`, async ({
+      page,
+    }) => {
+      await page.setViewportSize({ width, height: 900 });
+      await signInAsExhibitor(page, `/shows/${SHOW_ID}/register`);
+      await expect(page.getByRole('heading', { name: 'Select Dogs to Register' })).toBeVisible({
+        timeout: 30000,
+      });
+
+      const control = page.locator('[role="checkbox"][aria-label^="Select "]').first();
+      await expect(control).toBeVisible();
+      // The roster is 250+ dogs, so the first row sits below the fold at 390.
+      // Measure and click only once it is actually on screen — raw viewport
+      // coordinates from an off-screen box click nothing at all.
+      await control.scrollIntoViewIfNeeded();
+
+      // Known answer: the shared control is h-4 w-4. A regression that restored
+      // the override would report ~44 here, which is what the audit saw.
+      const controlBox = (await control.boundingBox())!;
+      expect(controlBox, 'the checkbox must be measurable').not.toBeNull();
+      expect(
+        controlBox.width,
+        `checkbox painted box ${controlBox.width}x${controlBox.height} at ${width}px`
+      ).toBeLessThanOrEqual(24);
+      expect(controlBox.height).toBeLessThanOrEqual(24);
+      expect(controlBox.width).toBeGreaterThanOrEqual(12);
+
+      // The hit area is the wrapper, and it is the one that must clear 44px.
+      const hitArea = control.locator('xpath=..');
+      const hitBox = (await hitArea.boundingBox())!;
+      expect(hitBox.width, `hit area ${hitBox.width}x${hitBox.height}`).toBeGreaterThanOrEqual(44);
+      expect(hitBox.height).toBeGreaterThanOrEqual(44);
+
+      // A tap in the hit area but OUTSIDE the painted control still toggles the
+      // row. Aim 3px inside the wrapper's top-left corner, which is ~11px clear
+      // of the centred 16px box.
+      const before = await control.getAttribute('aria-checked');
+      await hitArea.click({ position: { x: 3, y: 3 } });
+      await expect
+        .poll(async () => control.getAttribute('aria-checked'), { timeout: 10000 })
+        .not.toBe(before);
+
+      // Put the row back the way it was found — this spec runs serially.
+      await hitArea.click({ position: { x: 3, y: 3 } });
+      await expect.poll(async () => control.getAttribute('aria-checked')).toBe(before);
+    });
+  }
+});
+
+/**
+ * MYK9-517. Below 1024px Back/Next live in the sticky entries bar and sonner is
+ * docked to the same bottom edge, so "Draft saved" sat ON Next. The bar now
+ * registers its measured height with the action-bar registry the toaster reads,
+ * and this is the check that it did: two boxes, no intersection.
+ */
+test('the draft toast never overlaps the phone entries bar', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await signInAsExhibitor(page, `/shows/${SHOW_ID}/register`);
+  await selectFirstDog(page);
+  await expect(page.getByRole('heading', { name: 'Select Classes', exact: true })).toBeVisible({
+    timeout: 15000,
+  });
+
+  const bar = page.getByTestId('entries-panel-bar');
+  await expect(bar).toBeVisible();
+
+  await page.getByRole('button', { name: 'Save Draft' }).click();
+  const saveDialog = page.getByRole('dialog');
+  await saveDialog.getByLabel('Draft Title').fill('Toast Geometry QA');
+  await saveDialog.getByRole('button', { name: 'Save Draft' }).click();
+
+  const toast = page.getByText('Draft saved');
+  await expect(toast).toBeVisible();
+
+  // An unmounted sonner toast is in the DOM at `translateY(100%)` with
+  // `opacity: 0` — Playwright calls that visible, and its box is a full
+  // toast-height LOW, which reports an overlap that never reaches the screen.
+  // Wait for the mounted state and for the slide-in to settle before measuring.
+  const toastItem = toast.locator('xpath=ancestor-or-self::li[1]');
+  await expect(toastItem).toHaveAttribute('data-mounted', 'true', { timeout: 15000 });
+  await expect
+    .poll(async () => toastItem.evaluate(el => getComputedStyle(el).opacity), { timeout: 15000 })
+    .toBe('1');
+  let toastBox = (await toastItem.boundingBox())!;
+  await expect
+    .poll(
+      async () => {
+        const next = (await toastItem.boundingBox())!;
+        const settled = !!next && !!toastBox && Math.abs(next.y - toastBox.y) < 0.5;
+        toastBox = next;
+        return settled;
+      },
+      { timeout: 5000, intervals: [150] }
+    )
+    .toBe(true);
+
+  const barBox = (await bar.boundingBox())!;
+  expect(toastBox, 'the toast must be measurable').not.toBeNull();
+  expect(barBox, 'the entries bar must be measurable').not.toBeNull();
+
+  // Known answer: both boxes must be on screen, or "no intersection" is true
+  // for the wrong reason.
+  expect(toastBox.height, 'toast height').toBeGreaterThan(0);
+  expect(barBox.height, 'bar height').toBeGreaterThan(0);
+  expect(barBox.y, 'the bar must be inside the viewport').toBeLessThan(844);
+
+  const intersects =
+    toastBox.x < barBox.x + barBox.width &&
+    toastBox.x + toastBox.width > barBox.x &&
+    toastBox.y < barBox.y + barBox.height &&
+    toastBox.y + toastBox.height > barBox.y;
+  expect(
+    intersects,
+    `toast ${JSON.stringify(toastBox)} must clear bar ${JSON.stringify(barBox)}`
+  ).toBe(false);
+
+  // ...and Back is reachable while the toast is still up, which is what the
+  // exhibitor's thumb actually needs.
+  await expect(toast).toBeVisible();
+  await page.getByRole('button', { name: /^Back$/ }).click();
+  await expect(page.getByRole('heading', { name: 'Select Dogs to Register' })).toBeVisible();
+});
+
+/**
+ * MYK9-515 — a full chip must explain itself at both widths.
+ *
+ * SKIPPED, deliberately and with the reason recorded rather than left as a
+ * silent gap: the seeded Heartland show has no full class to assert against.
+ * Verified against the linked database on 2026-09-14 — every class carries
+ * `max_entries = null` and the show's `default_judge_day_capacity` is 125
+ * against at most 66 entries in any one class, so nothing renders a "Full"
+ * badge and the assertions below would pass on an empty locator set.
+ *
+ * To enable: seed a full class on the QA show — set `max_entries` on one class
+ * at or below its current entry count, or lower
+ * `shows.default_judge_day_capacity` for that show — then remove the `.skip`.
+ * The reason text itself is covered by `ClassSelectionStep.fullReason.test.ts`
+ * (the rule) and `__tests__/ClassSelectionStep.fullChip.test.tsx` (the render
+ * and the `aria-describedby` wiring); what is missing here is only the
+ * end-to-end proof that a real full class reaches them.
+ */
+for (const viewport of [
+  { name: 'phone', width: 390, height: 844 },
+  { name: 'desktop', width: 1440, height: 900 },
+]) {
+  test.skip(`a full chip explains itself at ${viewport.width} (needs a seeded full class)`, async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width: viewport.width, height: viewport.height });
+    await signInAsExhibitor(page, `/shows/${SHOW_ID}/register`);
+    await selectFirstDog(page);
+    await expect(page.getByRole('heading', { name: 'Select Classes', exact: true })).toBeVisible({
+      timeout: 15000,
+    });
+
+    // Positive control: without a full chip on the page this test proves
+    // nothing, so fail loudly rather than pass on zero matches.
+    const fullBadges = page.getByText('Full', { exact: true });
+    expect(
+      await fullBadges.count(),
+      'no full class is seeded on this show — see the comment above this test'
+    ).toBeGreaterThan(0);
+
+    const chip = page
+      .locator('label', { has: page.locator('[role="checkbox"]') })
+      .filter({ has: page.locator('xpath=..//*[text()="Full"]') })
+      .first();
+    const checkbox = chip.locator('[role="checkbox"]');
+    const describedBy = await checkbox.getAttribute('aria-describedby');
+    expect(describedBy, 'a full chip must carry an accessible description').toBeTruthy();
+
+    const reason = page.locator(`#${describedBy}`);
+    await expect(reason).toBeVisible();
+    await expect(reason).toContainText(/is full/);
+
+    // The reason is a one-liner beside the chip, not an overflow that pushes
+    // the page sideways at phone width.
+    const overflow = await page.evaluate(
+      () => document.documentElement.scrollWidth - window.innerWidth
+    );
+    expect(Math.max(0, overflow)).toBe(0);
+  });
+}

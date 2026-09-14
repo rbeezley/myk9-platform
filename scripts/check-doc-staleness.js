@@ -84,6 +84,21 @@ const COMPOSED_ROUTE_BASES = [
   { fileMatch: 'routes/showManagementSections.ts', base: '/shows/:showId' },
 ];
 
+// Files that both DECLARE routes and REFERENCE other routes, where only the
+// declaration means "this route changed". pageDirectory.ts declares one entry
+// per route with `path: '/x'` and then names other routes in that entry's
+// `linksTo` array and its prose. Scanning every quoted path there reads a
+// reference edit as a change to the referenced route: dropping `/dogs/:id` from
+// one entry's `linksTo` flagged the Exhibitor Guide's dog sections as stale
+// while the `/dogs/:id` route itself was untouched (MYK9-476). Only `path:`
+// declarations are extracted from these files.
+const DECLARATION_ONLY_FILES = ['features/admin-help/data/pageDirectory.ts'];
+
+/** Route literals from `path: '<route>'` declarations only. */
+function extractDeclaredRoutes(text) {
+  return Array.from(text.matchAll(/\bpath:\s*["'`](\/[^"'`]*)["'`]/g), m => m[1]);
+}
+
 // ---------------------------------------------------------------------------
 // Pure helpers (exported for tests — no git, no fs, no process side effects).
 // ---------------------------------------------------------------------------
@@ -158,17 +173,31 @@ function parseDiffForRoutes(diffText) {
   };
 
   for (const line of diffText.split('\n')) {
-    const fileHeader = line.match(/^\+\+\+ b\/(.+)/);
+    // Track the file from BOTH headers. A deleted file's new-side header is
+    // `+++ /dev/null`, so reading only the `+++` side leaves currentFile
+    // pointing at the PREVIOUS file in the diff — which matters now that
+    // extraction is per-file (DECLARATION_ONLY_FILES). An added file's old-side
+    // header is `--- /dev/null`, and the `+++` line that follows corrects it.
+    const oldHeader = line.match(/^--- (?:a\/)?(.+)/);
+    if (oldHeader) {
+      if (oldHeader[1] !== '/dev/null') currentFile = oldHeader[1];
+      continue; // old-file header, not content
+    }
+    const fileHeader = line.match(/^\+\+\+ (?:b\/)?(.+)/);
     if (fileHeader) {
-      currentFile = fileHeader[1];
+      if (fileHeader[1] !== '/dev/null') currentFile = fileHeader[1];
       continue;
     }
-    if (line.startsWith('---')) continue; // old-file header, not content
     if (!/^[+-]/.test(line)) continue; // context / hunk meta
     if (NON_ROUTE_SOURCE_PATHS.has(currentFile)) continue;
     const target = line.startsWith('+') ? added : removed;
     const content = line.slice(1);
-    for (const r of extractRoutesFromSource(content)) record(target, r);
+    const declarationOnly =
+      currentFile !== null && DECLARATION_ONLY_FILES.some(f => currentFile.includes(f));
+    const extracted = declarationOnly
+      ? extractDeclaredRoutes(content)
+      : extractRoutesFromSource(content);
+    for (const r of extracted) record(target, r);
     if (currentFile) {
       const composed = COMPOSED_ROUTE_BASES.find(c => currentFile.includes(c.fileMatch));
       if (composed) {
@@ -494,6 +523,7 @@ module.exports = {
   extractRoutesFromMarkdown,
   extractRoutesFromSource,
   extractComposedRoutes,
+  extractDeclaredRoutes,
   parseDiffForRoutes,
   reverifiedRoutesFromMapDiff,
   parseSourceMap,

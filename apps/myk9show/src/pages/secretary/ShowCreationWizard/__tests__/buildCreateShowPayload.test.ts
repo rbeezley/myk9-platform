@@ -140,6 +140,40 @@ describe('buildCreateShowPayload', () => {
     expect(localEntities.trials[0]!.registryId).toBe('UKC');
   });
 
+  it('stamps ONE registry on every trial, whatever sport each trial is (MYK9-490)', () => {
+    // MYK9-490: a show may not carry trials from different sanctioning organizations,
+    // enforced server-side by trg_enforce_show_registry_on_trial (SQLSTATE MK490).
+    // The wizard must make that error unreachable, and it does so by INHERITANCE: the
+    // registry is derived once from the show's organization and stamped on every trial,
+    // so there is no per-trial registry input a secretary could set wrong.
+    //
+    // The trials below differ in the thing a secretary DOES choose per trial — the sport
+    // — because that is exactly the case the rule permits (an AKC show running AKC Scent
+    // Work alongside AKC Obedience). If the registry were ever derived per trial from
+    // trialType, this is where it would diverge.
+    const ukcShow: WizardShowData = { ...baseShow, organization: 'UKC' };
+    const scentWork: WizardTrial = { ...baseTrial, id: 'wizard-trial-1', trialType: 'Nosework' };
+    const obedience: WizardTrial = { ...baseTrial, id: 'wizard-trial-2', trialType: 'Obedience' };
+    const rally: WizardTrial = { ...baseTrial, id: 'wizard-trial-3', trialType: 'Rally' };
+
+    const { rpcInput, localEntities } = buildCreateShowPayload(
+      ukcShow,
+      [scentWork, obedience, rally],
+      {},
+      new Map(),
+      'unpublished'
+    );
+
+    expect(rpcInput.p_trials.map(trial => trial.registry_id)).toEqual(['UKC', 'UKC', 'UKC']);
+    expect(localEntities.trials.map(trial => trial.registryId)).toEqual(['UKC', 'UKC', 'UKC']);
+    // The sports really did differ — otherwise the assertion above proves nothing.
+    expect(rpcInput.p_trials.map(trial => trial.trial_type)).toEqual([
+      'Nosework',
+      'Obedience',
+      'Rally',
+    ]);
+  });
+
   it('defaults registry_id to AKC for a non-registry organization', () => {
     const nacswShow: WizardShowData = { ...baseShow, organization: 'NACSW' };
     const { rpcInput, localEntities } = buildCreateShowPayload(

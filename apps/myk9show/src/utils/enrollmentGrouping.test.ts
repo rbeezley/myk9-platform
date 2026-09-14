@@ -169,6 +169,49 @@ describe('groupEntriesByEnrollment', () => {
     expect(groups[0].refundAmount).toBe(60);
   });
 
+  // MYK9-495 round 2: the group's status was taken from whichever entry the
+  // iteration happened to reach first, so one unpaid entry in a four-entry order
+  // was visible or invisible depending on array order alone.
+  it('derives a group status that does not depend on entry order', () => {
+    const paid = (id: string): EntryManagementEntry => ({
+      ...base,
+      id,
+      registrationId: 'reg-1',
+      enrollmentPaymentStatus: PaymentStatus.PAID_BY_CHECK,
+      paymentStatus: PaymentStatus.PAID_ONLINE,
+      totalFee: 30,
+    });
+    const pendingEntry: EntryManagementEntry = {
+      ...base,
+      id: 'e4',
+      registrationId: 'reg-1',
+      enrollmentPaymentStatus: PaymentStatus.PAID_BY_CHECK,
+      paymentStatus: PaymentStatus.PENDING,
+      totalFee: 30,
+    };
+    const paidFirst = [paid('e1'), paid('e2'), paid('e3'), pendingEntry];
+    const pendingFirst = [pendingEntry, paid('e1'), paid('e2'), paid('e3')];
+
+    expect(groupEntriesByEnrollment(paidFirst)[0].paymentStatus).toBe(PaymentStatus.PENDING);
+    expect(groupEntriesByEnrollment(pendingFirst)[0].paymentStatus).toBe(PaymentStatus.PENDING);
+  });
+
+  it('keeps a fully settled group settled whatever the order', () => {
+    const settled = (id: string, status: PaymentStatus): EntryManagementEntry => ({
+      ...base,
+      id,
+      registrationId: 'reg-1',
+      enrollmentPaymentStatus: PaymentStatus.PAID_BY_CHECK,
+      paymentStatus: status,
+    });
+    const entries = [settled('e1', PaymentStatus.PAID_ONLINE), settled('e2', PaymentStatus.WAIVED)];
+
+    expect(groupEntriesByEnrollment(entries)[0].paymentStatus).toBe(PaymentStatus.PAID_BY_CHECK);
+    expect(groupEntriesByEnrollment([...entries].reverse())[0].paymentStatus).toBe(
+      PaymentStatus.PAID_BY_CHECK
+    );
+  });
+
   it('keeps enrollment-level refund amount when present (entry refunds do not override)', () => {
     const entries: EntryManagementEntry[] = [
       {

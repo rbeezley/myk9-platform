@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useId, useRef, useState } from 'react';
 import { X, ChevronLeft } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
@@ -83,6 +83,9 @@ export const SlideOverPanel: React.FC<SlideOverPanelProps> = ({
   // Stable per-instance id for the open-panel stack (topmost-only Escape).
   const panelIdRef = useRef<symbol>(Symbol('slide-over-panel'));
   const openFocusBaselineRef = useRef<HTMLElement | null>(null);
+  // Per-instance: panels nest (a row's Edit opens over a list panel), and a
+  // hardcoded id made the inner dialog borrow the outer panel's heading.
+  const titleId = useId();
   const wasOpenRef = useRef(false);
   // Initialize mounted to true - portal is always ready in modern React
   const [mounted] = useState(true);
@@ -277,7 +280,7 @@ export const SlideOverPanel: React.FC<SlideOverPanelProps> = ({
       onClick={handleBackdropClick}
       role="dialog"
       aria-modal="true"
-      aria-labelledby="panel-title"
+      aria-labelledby={titleId}
     >
       {/* Desktop: Slide from selected side */}
       <div
@@ -322,7 +325,7 @@ export const SlideOverPanel: React.FC<SlideOverPanelProps> = ({
                 </Button>
               )}
               <div className="min-w-0 flex-1">
-                <h2 id="panel-title" className={appleDesign.typography.title}>
+                <h2 id={titleId} className={appleDesign.typography.title}>
                   {title}
                 </h2>
                 {subtitle && <p className={appleDesign.typography.subtitle}>{subtitle}</p>}

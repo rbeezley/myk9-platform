@@ -6,6 +6,7 @@ import type { EntryStatus as CanonicalEntryStatus } from '@/types/entry-lifecycl
 import type { EntryManagementEntry } from '@/types/entry-management-types';
 import { getEntryStatusKind } from '@/services/entryDisplay/entryDisplaySelectors';
 import { mapEntryStatus } from '@/services/entryDisplay/entryStatusUiAdapter';
+import { resolveEffectivePaymentStatus } from '@/utils/effectivePaymentStatus';
 
 /**
  * Entry management utility functions
@@ -50,10 +51,19 @@ export const mapPaymentStatus = (status?: string | null): PaymentStatus => {
   }
 };
 
+/**
+ * The entry's payment status combined with its order's, under the one rule in
+ * `@/utils/effectivePaymentStatus` — an order's `paid` can never mask an
+ * entry's `pending` (MYK9-495). `entry.paymentStatus` is always set here, so
+ * the resolver never returns null.
+ */
 export function getEffectivePaymentStatus(
   entry: Pick<EntryManagementEntry, 'paymentStatus' | 'enrollmentPaymentStatus'>
 ): PaymentStatus {
-  return entry.enrollmentPaymentStatus ?? entry.paymentStatus;
+  return (
+    resolveEffectivePaymentStatus(entry.paymentStatus, entry.enrollmentPaymentStatus) ??
+    entry.paymentStatus
+  );
 }
 
 export function hasEntryLevelRefund(

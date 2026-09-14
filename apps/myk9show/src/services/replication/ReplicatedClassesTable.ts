@@ -23,6 +23,9 @@ import {
   type ResolvedClassVisibility,
 } from './resolveClassVisibility';
 import { resolveHideCountsForClassRows } from './resolveClassHideCounts';
+import { resolveJudgeNamesForClassRows } from './resolveClassJudgeNames';
+import { resolveClassJudgeFields } from '@/services/database/_shared/classJudgeFields';
+import type { JudgeNameParts } from '@/services/database/_shared/judgeNamesByClass';
 import { CLASS_AUTHENTICATED_COLUMN_SELECT } from '@/services/database/classes/reads';
 import type { Database } from '@/types/supabase';
 
@@ -68,6 +71,11 @@ export interface ReplicatedClass {
   judgeId?: string | undefined;
   judgeFirstName?: string | undefined;
   judgeLastName?: string | undefined;
+  /**
+   * MYK9-494: whether the `get_show_judges` enrichment actually ran for this row's show.
+   * `false` means the judge fields above are "unknown", NOT "no judge" — see resolveConflict.
+   */
+  judgeResolved?: boolean | undefined;
   classStatus?: string | undefined;
   /**
    * Resolved visibility-cascade values, denormalized at sync time so the
@@ -158,6 +166,12 @@ export interface ReplicatedClass {
 export function rowToClass(row: ClassRow): ReplicatedClass {
   // Cast to Record for accessing fields not in the Supabase schema type
   const dbRow = row as ClassRow & Record<string, unknown>;
+  // MYK9-494: assignment graph + get_show_judges enrichment; `classes.judge_name` is gone.
+  const judge = resolveClassJudgeFields({
+    judge_assignments: dbRow.judge_assignments,
+    _judge: dbRow._judge as JudgeNameParts | null | undefined,
+    _judgeResolved: dbRow._judgeResolved as boolean | undefined,
+  });
   return {
     id: String(row.id),
     trialId: row.trial_id ?? undefined,
@@ -192,35 +206,11 @@ export function rowToClass(row: ClassRow): ReplicatedClass {
     timeLimitSeconds: (dbRow.time_limit_seconds as number | undefined) ?? undefined,
     timeLimitArea2Seconds: (dbRow.time_limit_area2_seconds as number | undefined) ?? undefined,
     timeLimitArea3Seconds: (dbRow.time_limit_area3_seconds as number | undefined) ?? undefined,
-    judgeName: (() => {
-      const ja =
-        (dbRow.judge_assignments as Array<{
-          person_id: string;
-          people: { first_name: string; last_name: string };
-        }>) || [];
-      // MYK9-479: the assignment is the only source. classes.judge_name was
-      // dropped; a class with no confirmed assignment has no judge name.
-      const first = ja[0];
-      return first ? `${first.people.first_name} ${first.people.last_name}`.trim() : undefined;
-    })(),
-    judgeId: (() => {
-      const ja = (dbRow.judge_assignments as Array<{ person_id: string }>) || [];
-      return ja[0]?.person_id;
-    })(),
-    judgeFirstName: (() => {
-      const ja =
-        (dbRow.judge_assignments as Array<{
-          people: { first_name: string | null };
-        }>) || [];
-      return ja[0]?.people.first_name ?? undefined;
-    })(),
-    judgeLastName: (() => {
-      const ja =
-        (dbRow.judge_assignments as Array<{
-          people: { last_name: string | null };
-        }>) || [];
-      return ja[0]?.people.last_name ?? undefined;
-    })(),
+    judgeName: judge.name,
+    judgeId: judge.personId,
+    judgeFirstName: judge.firstName,
+    judgeLastName: judge.lastName,
+    judgeResolved: judge.resolved,
     classStatus: (dbRow.class_status as string | undefined) ?? row.status ?? undefined,
     statusSource: (dbRow.status_source as string | undefined) ?? undefined,
     reopenedAfterCloseoutAt:
@@ -496,6 +486,8 @@ export class ReplicatedClassesTable extends ReplicatedTable<ReplicatedClass> {
     type EnrichedClassRow = ClassRow & {
       _selfCheckinEnabled?: boolean | undefined;
       _visibilityPreset?: string | undefined;
+      _judge?: JudgeNameParts | null | undefined;
+      _judgeResolved?: boolean | undefined;
     };
 
     const adapter: SyncReplicatedTableAdapter<EnrichedClassRow, ReplicatedClass> = {
@@ -534,7 +526,7 @@ export class ReplicatedClassesTable extends ReplicatedTable<ReplicatedClass> {
           // star select now fails 42501 for every user. Safe public fixed counts and
           // authorized official counts are enriched below.
           .select(
-            `${CLASS_AUTHENTICATED_COLUMN_SELECT}, judge_assignments!judge_assignments_class_id_fkey(person_id, people!inner(first_name, last_name))`
+            `${CLASS_AUTHENTICATED_COLUMN_SELECT}, judge_assignments!judge_assignments_class_id_fkey(id, person_id, status)`
           )
           .gt('updated_at', new Date(since).toISOString())
           .order('updated_at', { ascending: true });
@@ -576,8 +568,23 @@ export class ReplicatedClassesTable extends ReplicatedTable<ReplicatedClass> {
           return new Map<string, number>();
         });
 
+        // MYK9-494: names cannot come from a `people` embed — an exhibitor cannot read
+        // another person's row, so the embed (or `people!inner`) yields nothing and every
+        // schedule row reads `Judge TBD`. get_show_judges is the authorized source.
+        const judgeByClassId = await resolveJudgeNamesForClassRows(rows).catch(() => {
+          logger.warn(
+            `[${this.getTableName()}] Judge-name resolve failed; cached names are retained`,
+            'replication'
+          );
+          return new Map<string, JudgeNameParts | null>();
+        });
+
         return rows.map(row => ({
           ...row,
+          // `has` vs `get`: an absent key means the enrichment never ran for this row, which
+          // must NOT be committed over a good cached name (MYK9-494 review, P1).
+          _judge: judgeByClassId.get(String(row.id)) ?? null,
+          _judgeResolved: judgeByClassId.has(String(row.id)),
           num_hides: hideCountByClassId.get(String(row.id)) ?? null,
           _selfCheckinEnabled: visibilityByClassId.get(String(row.id))?.selfCheckinEnabled,
           _visibilityPreset: visibilityByClassId.get(String(row.id))?.visibilityPreset,
@@ -618,10 +625,33 @@ export class ReplicatedClassesTable extends ReplicatedTable<ReplicatedClass> {
     // enrichment-only (not on the raw row), so any sync path that didn't enrich
     // carries them as undefined — preserve the prior values rather than wiping
     // an already-enriched class.
-    return {
+    const merged: ReplicatedClass = {
       ...remote,
       selfCheckinEnabled: remote.selfCheckinEnabled ?? local.selfCheckinEnabled,
       visibilityPreset: remote.visibilityPreset ?? local.visibilityPreset,
+    };
+
+    // MYK9-494: judge NAMES are enrichment too, and their resolver is allowed to fail (the
+    // catch at fetchRemoteRows swallows it). `judgeResolved === false` therefore means
+    // "unknown", not "no judge" — committing it would regress a correct schedule to
+    // `Judge TBD` on an incremental re-fetch that had nothing to do with the judge.
+    //
+    // Retained ONLY when the remote row still carries a confirmed assignment for the SAME
+    // person: a removed or swapped judge must not keep the old name on the board.
+    const keepCachedJudgeName =
+      remote.judgeResolved !== true &&
+      remote.judgeId !== undefined &&
+      remote.judgeId === local.judgeId &&
+      (local.judgeFirstName !== undefined || local.judgeLastName !== undefined);
+
+    if (!keepCachedJudgeName) return merged;
+
+    return {
+      ...merged,
+      judgeName: local.judgeName,
+      judgeFirstName: local.judgeFirstName,
+      judgeLastName: local.judgeLastName,
+      judgeResolved: local.judgeResolved,
     };
   }
 

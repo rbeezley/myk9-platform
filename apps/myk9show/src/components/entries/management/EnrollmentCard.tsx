@@ -23,7 +23,6 @@ import {
   EMPTY_CHECK_DIALOG,
   EMPTY_PARTIAL_DIALOG,
   EMPTY_REFUND_DIALOG,
-  PAID_STATUSES,
   resolvePartialPayment,
   resolveRefund,
   type CheckDialog,
@@ -74,8 +73,11 @@ export const EnrollmentCard: React.FC<EnrollmentCardProps> = ({
   const paidDollars = group.paidAmount;
   const remainingDollars = totalDollars - paidDollars;
   const dogGroups = useMemo(() => groupEnrollmentEntriesByDog(group.entries), [group.entries]);
-  const isPartiallyPaid =
-    paidDollars > 0 && paidDollars < totalDollars && !PAID_STATUSES.has(group.paymentStatus);
+  // Partial payment is a fact about the MONEY, not about the headline label: a
+  // group can read "Paid by check" while only part of the total has arrived, and
+  // gating this on the status hid the shortfall exactly when it mattered
+  // (MYK9-495 round 2).
+  const isPartiallyPaid = paidDollars > 0 && paidDollars < totalDollars;
 
   const handlePayment = (
     status: PaymentStatus,

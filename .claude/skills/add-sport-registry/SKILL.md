@@ -13,6 +13,7 @@ This skill is a **procedure and pitfall checklist**, not reusable code. The scen
 
 - `apps/myk9show/src/features/registries/types.ts` — `Registry { id, name, shortName, licenseLanguage, memberClubLanguage?, exhibitorAgreement, registrationField, sports: Record<string, RegistrySport>, dogFields }`
 - `lookup.ts` — `getRegistry`, `getSport`, `listRegistries`
+  - **A new registry id must be added to `public.derive_registry_id(text)` in the SAME PR** (a new migration `CREATE OR REPLACE`-ing it). That function is the server's copy of the registry set, and the one-registry-per-show trigger (MYK9-490) compares every trial write against it: a registry the server does not recognise derives `'AKC'`, so `create_show_with_children` raises `MK490` on the first trial and show creation fails outright for the organization you just added. `apps/myk9show/src/test/database/registryDeriveFunctionParityContract.test.ts` fails CI on the drift.
 - `helpers.ts` — `getTrialRegistry`, `getTrialTimezone`, `getShowStyle` (registry-agnostic selectors)
 - The registry-per-trial DB model: `trials.registry_id`, one registry per show (trials within a show share it — confirmed for scent work; **re-confirm this still holds before assuming it for a new sport family**, e.g. a club running an AKC obedience trial alongside a Barn Hunt trial under one show would break this assumption)
 

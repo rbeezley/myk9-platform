@@ -86,6 +86,57 @@ describe('EnrollmentCard', () => {
     expect(screen.getByText('Jane Smith')).toBeTruthy();
   });
 
+  // MYK9-495 round 2: an order with three paid entries and one pending rendered
+  // "Paid" and the full total with no unpaid indicator whenever the pending
+  // entry happened to sort last.
+  it('surfaces the unpaid remainder when one entry of a paid order is pending', () => {
+    const paid = (id: string) =>
+      makeEntry({ id, paymentStatus: PaymentStatus.PAID_ONLINE, totalFee: 30, paidAmount: 30 });
+    render(
+      <EnrollmentCard
+        {...defaultProps}
+        group={makeGroup({
+          paymentStatus: PaymentStatus.PENDING,
+          totalAmount: 12000,
+          totalAmountUnit: 'cents',
+          paidAmount: 90,
+          entries: [
+            paid('e1'),
+            paid('e2'),
+            paid('e3'),
+            makeEntry({
+              id: 'e4',
+              paymentStatus: PaymentStatus.PENDING,
+              totalFee: 30,
+              paidAmount: 0,
+            }),
+          ],
+        })}
+      />
+    );
+
+    expect(screen.getByText('Payment Due')).toBeInTheDocument();
+    expect(screen.getByText('($90.00 paid · $30.00 due)')).toBeInTheDocument();
+  });
+
+  it('shows the partial-payment split even while the headline status reads paid', () => {
+    // `isPartiallyPaid` was gated on the headline label, so a group whose status
+    // still said "Paid" hid the fact that only part of the money had arrived.
+    render(
+      <EnrollmentCard
+        {...defaultProps}
+        group={makeGroup({
+          paymentStatus: PaymentStatus.PAID_BY_CHECK,
+          totalAmount: 12000,
+          totalAmountUnit: 'cents',
+          paidAmount: 90,
+        })}
+      />
+    );
+
+    expect(screen.getByText('($90.00 paid · $30.00 due)')).toBeInTheDocument();
+  });
+
   it('renders confirmation number', () => {
     render(<EnrollmentCard {...defaultProps} />);
     expect(screen.getByText('Confirmation # MK9-000123')).toBeTruthy();

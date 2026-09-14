@@ -31,21 +31,21 @@ Checked before naming anything "wrong":
 
 ### Live routes
 
-| Route                                   | Purpose                                                     | Parent in IA           | Component                       |
-| --------------------------------------- | ----------------------------------------------------------- | ---------------------- | ------------------------------- |
-| `/exhibitor/entries`                    | My Shows — every entry the exhibitor owns, across all shows | (top)                  | `pages/MyEntriesPage/index.tsx` |
-| `/exhibitor/payments`                   | My Payments — balance owed + payment history                | (top)                  | `ExhibitorPaymentsPage`         |
-| `/dogs`                                 | My Dogs — the dog roster                                    | (top)                  | dogs list page                  |
-| `/dogs/:id`                             | One dog: profile, activity, titles                          | `/dogs`                | dog details                     |
-| `/shows`                                | Shows — browse/find, plus tabs for past and entered         | (top)                  | `BrowseShowsPage`               |
-| `/shows/:id`                            | One show: details, classes, my entries tab                  | `/shows`               | Show details                    |
-| `/shows/:showId/register`               | Enter a show                                                | `/shows/:id`           | registration flow               |
-| `/cart`                                 | Entry cart                                                  | (top, transient)       | cart page                       |
-| `/checkout/success`, `/checkout/cancel` | Stripe return legs                                          | `/cart`                | checkout results                |
-| `/exhibitor/check-in/:entryId`          | Deep-linked self check-in for one entry                     | `/exhibitor/entries`   | check-in page                   |
-| `/exhibitor/show-day`                   | Ringside entry point (resolves showId at destination)       | (top)                  | redirect into `/at-show`        |
-| `/exhibitor/analytics`                  | Per-dog analytics                                           | _(ambiguous — see F5)_ | `AnalyticsPage`                 |
-| `/account`                              | Account settings                                            | (top)                  | account page                    |
+| Route                                   | Purpose                                                                | Parent in IA           | Component                       |
+| --------------------------------------- | ---------------------------------------------------------------------- | ---------------------- | ------------------------------- |
+| `/exhibitor/entries`                    | My Shows — every entry the exhibitor owns, across all shows            | (top)                  | `pages/MyEntriesPage/index.tsx` |
+| `/exhibitor/payments`                   | My Payments — balance owed + payment history                           | (top)                  | `ExhibitorPaymentsPage`         |
+| `/dogs`                                 | My Dogs — the dog roster                                               | (top)                  | dogs list page                  |
+| `/dogs/:id`                             | One dog: profile, activity, titles                                     | `/dogs`                | dog details                     |
+| `/shows`                                | Shows — browse/find, plus tabs for past and entered                    | (top)                  | `BrowseShowsPage`               |
+| `/shows/:id`                            | One show: details, classes, my entries tab                             | `/shows`               | Show details                    |
+| `/shows/:showId/register`               | Enter a show                                                           | `/shows/:id`           | registration flow               |
+| `/cart`                                 | Entry cart                                                             | (top, transient)       | cart page                       |
+| `/checkout/success`, `/checkout/cancel` | Stripe return legs                                                     | `/cart`                | checkout results                |
+| ~~`/exhibitor/check-in/:entryId`~~      | Deep-linked self check-in for one entry — **route deleted (MYK9-476)** | `/exhibitor/entries`   | _(removed)_                     |
+| ~~`/exhibitor/show-day`~~               | Ringside entry point — **route deleted (MYK9-476)**; use `/at-show`    | (top)                  | _(removed)_                     |
+| `/exhibitor/analytics`                  | Per-dog analytics                                                      | _(ambiguous — see F5)_ | `AnalyticsPage`                 |
+| `/account`                              | Account settings                                                       | (top)                  | account page                    |
 
 ### Redirect-only routes (legacy aliases — healthy, not debt)
 

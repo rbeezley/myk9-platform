@@ -191,6 +191,7 @@ export type CheckoutVerificationResult =
       refundAmount?: number;
       refundStatus?: 'issued' | 'processing';
       confirmationNumber?: string;
+      paymentReference?: string;
     }
   | {
       success: false;
@@ -202,6 +203,10 @@ function getOrderCartId(metadata: unknown): string | undefined {
   if (!metadata || typeof metadata !== 'object' || Array.isArray(metadata)) return undefined;
   const cartId = (metadata as Record<string, unknown>).cart_id;
   return typeof cartId === 'string' ? cartId : undefined;
+}
+
+function paymentReferenceField(id: string | null | undefined): { paymentReference?: string } {
+  return id ? { paymentReference: id } : {};
 }
 
 export async function verifyCheckoutSession(
@@ -277,7 +282,7 @@ export async function verifyCheckoutSession(
       ...(cartId !== undefined && { cartId }),
       ...(overflowRefund.amountCents != null && { refundAmount: overflowRefund.amountCents }),
       refundStatus: order.status === 'refunded' ? 'issued' : 'processing',
-      ...(order.stripe_payment_intent_id && { confirmationNumber: order.stripe_payment_intent_id }),
+      ...paymentReferenceField(order.stripe_payment_intent_id),
     };
   }
 
@@ -318,9 +323,6 @@ export async function verifyCheckoutSession(
     };
   }
 
-  // Online cart orders have no enrollment record; the payment intent id is the
-  // reference that support, refunds, and the Stripe dashboard all pivot on.
-  const confirmationNumber = order.confirmation_number || order.stripe_payment_intent_id;
   const cartId = getOrderCartId(order.metadata);
 
   return {
@@ -333,7 +335,8 @@ export async function verifyCheckoutSession(
     ...(order.show_name && { showName: order.show_name }),
     ...(cartId !== undefined && { cartId }),
     ...(order.amount_cents != null && { totalAmountCents: order.amount_cents }),
-    ...(confirmationNumber && { confirmationNumber }),
+    ...(order.confirmation_number && { confirmationNumber: order.confirmation_number }),
+    ...paymentReferenceField(order.stripe_payment_intent_id),
   };
 }
 

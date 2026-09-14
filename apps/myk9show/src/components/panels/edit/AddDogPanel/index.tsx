@@ -346,6 +346,7 @@ const AddDogPanelContent: React.FC<AddDogPanelContentProps> = ({
               userRole={userRole}
               currentUserPersonId={currentUserPersonId}
               onPhotoOpen={() => handlePhotoDialogOpen(true)}
+              onAddRegistration={openAddRegistration}
             />
           </TabsContent>
 

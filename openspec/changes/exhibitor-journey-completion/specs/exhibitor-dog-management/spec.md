@@ -21,6 +21,12 @@ The Dog Details page SHALL replace the peer strip of Registrations, Competitions
 - **WHEN** an exhibitor selects Manage registrations for a registered dog
 - **THEN** the existing registration edit and delete controls SHALL become available without creating another page
 - **AND** the rail SHALL remain the only default registration summary
+- **AND** the revealed state SHALL be carried in the URL as `tab=registrations`, so Back closes it and a copied link reopens it
+
+#### Scenario: Returning to Overview keeps an open management view
+
+- **WHEN** an exhibitor opens the add-registration panel while registration management is revealed
+- **THEN** saving or closing SHALL return to the management view rather than a bare Overview
 
 #### Scenario: Add registration deep link
 

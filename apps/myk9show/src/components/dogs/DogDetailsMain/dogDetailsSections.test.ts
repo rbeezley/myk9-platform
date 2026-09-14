@@ -5,6 +5,9 @@ import {
   LEGACY_TAB_TO_SECTION_VIEW,
   isCareerView,
   isRecordsView,
+  isRegistrationDetailsRequested,
+  applyRegistrationDetails,
+  applyOverviewKeepingRegistrationDetails,
 } from './dogDetailsSections';
 
 function params(query: string) {
@@ -117,5 +120,38 @@ describe('isCareerView / isRecordsView', () => {
     expect(isRecordsView('health')).toBe(true);
     expect(isRecordsView('titles')).toBe(false);
     expect(isRecordsView(null)).toBe(false);
+  });
+});
+
+// MYK9-518: the registration reveal is URL state so it commits in the same
+// render as the section that hosts it. Held in component state it rendered a
+// commit ahead of react-router's transition and anything keyed on both lost.
+describe('registration details URL state', () => {
+  it('is off by default and on for tab=registrations', () => {
+    expect(isRegistrationDetailsRequested(params(''))).toBe(false);
+    expect(isRegistrationDetailsRequested(params('tab=registrations'))).toBe(true);
+  });
+
+  it('is off when an explicit section takes precedence over the legacy tab', () => {
+    expect(isRegistrationDetailsRequested(params('section=career&tab=registrations'))).toBe(false);
+  });
+
+  it('lands on Overview with the reveal on, from any section', () => {
+    const next = applyRegistrationDetails(params('section=career&view=titles'));
+    expect(next.get('section')).toBeNull();
+    expect(next.get('view')).toBeNull();
+    expect(next.get('tab')).toBe('registrations');
+    expect(isRegistrationDetailsRequested(next)).toBe(true);
+  });
+
+  it('keeps the reveal when returning to Overview, and adds none when it was off', () => {
+    expect(applyOverviewKeepingRegistrationDetails(params('tab=registrations')).get('tab')).toBe(
+      'registrations'
+    );
+    expect(applyOverviewKeepingRegistrationDetails(params('section=career')).get('tab')).toBeNull();
+  });
+
+  it('preserves unrelated params', () => {
+    expect(applyRegistrationDetails(params('entry=abc')).get('entry')).toBe('abc');
   });
 });

@@ -18,7 +18,6 @@ const DogDetailsTabs: React.FC<DogDetailsTabsProps> = ({
   autoOpenAddRegistration,
   onAddRequestConsumed,
   showRegistrationDetails = false,
-  focusRegistrationDetailsRequest = 0,
   registrationsCount = 0,
   role = 'exhibitor',
 }) => {
@@ -27,16 +26,22 @@ const DogDetailsTabs: React.FC<DogDetailsTabsProps> = ({
   const { state, setSection, setView } = useDogDetailsNavigation();
   const isSecretary = role === 'secretary';
   const registrationDetailsHeadingRef = useRef<HTMLHeadingElement>(null);
-  // Runs after the commit that renders the heading, so a Manage-registrations
-  // click from Career or Records lands on a mounted node instead of racing it.
+  const wasShowingRegistrationDetails = useRef(showRegistrationDetails);
+  // `showRegistrationDetails` is URL-derived, so the heading mounts in the SAME
+  // commit that turns this true — the effect always sees the node. Only a
+  // false -> true transition moves focus: a direct `?tab=registrations` load
+  // should not yank the page on arrival.
   useEffect(() => {
-    if (!focusRegistrationDetailsRequest) return;
+    const wasShowing = wasShowingRegistrationDetails.current;
+    wasShowingRegistrationDetails.current = showRegistrationDetails;
+    if (wasShowing || !showRegistrationDetails) return;
     const heading = registrationDetailsHeadingRef.current;
     if (!heading) return;
     heading.scrollIntoView({ block: 'start' });
     heading.focus({ preventScroll: true });
-  }, [focusRegistrationDetailsRequest]);
+  }, [showRegistrationDetails]);
   const dogName = getDogDisplayName(dog);
+  const registrationDetailsVisible = showRegistrationDetails && registrationsCount > 0;
   // `locked` is the DISPLAY treatment (blur gate on view-only Premium panels)
   // and may use the optimistic legacy value. Anything that unlocks a WRITE
   // takes `canAuthorizePremium` instead: an untrusted entitlement read must not
@@ -81,22 +86,32 @@ const DogDetailsTabs: React.FC<DogDetailsTabsProps> = ({
             <ActivityTab dogId={dog.id} dogName={dogName} role={role} />
           </section>
           {isPremium && <TitleProgressSection dogId={dog.id} />}
-          {showRegistrationDetails && registrationsCount > 0 && (
-            <h2
-              id="dog-registration-details"
-              ref={registrationDetailsHeadingRef}
-              tabIndex={-1}
-              className="text-base font-semibold"
-            >
-              Manage registrations
-            </h2>
-          )}
-          <RegistrationsSection
-            dog={dog}
-            autoOpenAddDialog={autoOpenAddRegistration}
-            onAddRequestConsumed={onAddRequestConsumed}
-            showDetails={showRegistrationDetails && registrationsCount > 0}
-          />
+          {/* `contents` while hidden: the section is still mounted (it owns the
+              add/edit panels) but draws no box, so Overview's space-y-8 rhythm
+              closes up instead of leaving a gap above nothing. */}
+          <section
+            className={registrationDetailsVisible ? undefined : 'contents'}
+            {...(registrationDetailsVisible
+              ? { 'aria-labelledby': 'dog-registration-details' }
+              : {})}
+          >
+            {registrationDetailsVisible && (
+              <h2
+                id="dog-registration-details"
+                ref={registrationDetailsHeadingRef}
+                tabIndex={-1}
+                className="text-base font-semibold mb-3"
+              >
+                Manage registrations
+              </h2>
+            )}
+            <RegistrationsSection
+              dog={dog}
+              autoOpenAddDialog={autoOpenAddRegistration}
+              onAddRequestConsumed={onAddRequestConsumed}
+              showDetails={registrationDetailsVisible}
+            />
+          </section>
         </div>
       )}
 

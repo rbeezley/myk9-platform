@@ -57,8 +57,6 @@ export interface DogDetailsTabsProps {
   autoOpenAddRegistration: boolean;
   onAddRequestConsumed?: () => void;
   showRegistrationDetails?: boolean;
-  /** Bumped per Manage-registrations click; 0 means "do not move focus". */
-  focusRegistrationDetailsRequest?: number;
   registrationsCount?: number;
   role?: 'exhibitor' | 'secretary';
 }

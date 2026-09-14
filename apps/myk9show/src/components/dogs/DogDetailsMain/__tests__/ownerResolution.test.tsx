@@ -229,22 +229,30 @@ describe('DogDetailsMain — owner resolution', () => {
     expect(document.querySelector('[data-dog-identity]')).not.toBeNull();
   });
 
-  it('keeps registration management scoped to the dog that opened it', () => {
+  // MYK9-518 moved this reveal from component state into the URL, so opening it
+  // is a real navigation: Back closes the management view instead of leaving the
+  // page. Scoping it to one dog stopped being something to enforce — the reveal
+  // now lives in a URL whose path names the dog, so no other dog's URL carries it.
+  it('reveals registration management as a history entry Back can close', () => {
     mockRole = 'exhibitor';
     mockPeople = [{ id: DOG_OWNER_ID, firstName: 'Jane', lastName: 'Smith' }];
     mockRegistrations = [{ organization: 'AKC', registration_number: 'SR123' }];
-    const { rerender } = render(<DogDetailsMain dog={mockDog} />, {
-      initialRoute: '/dogs/dog-1',
-    });
+    render(<DogDetailsMain dog={mockDog} />, { initialRoute: '/dogs/dog-1' });
 
     fireEvent.click(screen.getByRole('button', { name: 'Manage registrations' }));
-    expect(screen.getByTestId('dog-tabs')).toHaveAttribute(
-      'data-show-registration-details',
-      'true'
-    );
-    expect(screen.getByTestId('dog-tabs')).toHaveAttribute('data-navigation-type', 'POP');
+    const tabs = screen.getByTestId('dog-tabs');
+    expect(tabs).toHaveAttribute('data-show-registration-details', 'true');
+    expect(tabs).toHaveAttribute('data-search', '?tab=registrations');
+    expect(tabs).toHaveAttribute('data-navigation-type', 'PUSH');
+  });
 
-    rerender(<DogDetailsMain dog={{ ...mockDog, id: 'dog-2' }} />);
+  it('does not carry the reveal onto another dog', () => {
+    mockRole = 'exhibitor';
+    mockPeople = [{ id: DOG_OWNER_ID, firstName: 'Jane', lastName: 'Smith' }];
+    mockRegistrations = [{ organization: 'AKC', registration_number: 'SR123' }];
+    render(<DogDetailsMain dog={{ ...mockDog, id: 'dog-2' }} />, {
+      initialRoute: '/dogs/dog-2',
+    });
     expect(screen.getByTestId('dog-tabs')).toHaveAttribute(
       'data-show-registration-details',
       'false'

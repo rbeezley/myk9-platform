@@ -20,6 +20,11 @@ import DogDialogs from './DogDialogs';
 import DogStatusDialog from '@/components/dogs/DogStatusDialog';
 import { saveDogPhoto, validateImageFile } from './utils';
 import { useRouteEntryFocus } from './useRouteEntryFocus';
+import {
+  applyOverviewKeepingRegistrationDetails,
+  applyRegistrationDetails,
+  isRegistrationDetailsRequested,
+} from './dogDetailsSections';
 import type { DogDetailsMainProps } from './types';
 
 const DogDetailsMain: React.FC<DogDetailsMainProps> = ({
@@ -47,43 +52,28 @@ const DogDetailsMain: React.FC<DogDetailsMainProps> = ({
   useRouteEntryFocus(headingRef, dog.id);
 
   const [addRegistrationDogId, setAddRegistrationDogId] = useState<string | null>(null);
-  // The request counter is what moves focus, not the dog id: the heading only
-  // exists once Overview has rendered it, so a one-shot rAF scheduled here fires
-  // before the commit when the click came from Career/Records and silently
-  // no-ops. DogDetailsTabs owns the heading, so it owns the focus effect.
-  const [registrationDetails, setRegistrationDetails] = useState<{
-    dogId: string;
-    requestId: number;
-  } | null>(null);
+
+  // Whether registration management is revealed is URL state, not component
+  // state — see the REGISTRATIONS_TAB note in dogDetailsSections.
+  const showRegistrationDetails = isRegistrationDetailsRequested(searchParams);
 
   const navigateToOverview = () => {
-    const next = new URLSearchParams(searchParams);
-    next.delete('tab');
-    next.delete('section');
-    next.delete('view');
+    const next = applyOverviewKeepingRegistrationDetails(searchParams);
     if (next.toString() !== searchParams.toString()) setSearchParams(next);
   };
 
   // The rail's "Add registration" is the one ordinary path into the add
   // panel (RegistrationsSection's empty state deliberately carries no action).
   const openAddRegistration = () => {
-    // Registrations live on Overview — the default section — so clearing
-    // section/view state is enough to land there; no `tab` param is needed.
-    // navigateToOverview() drops `tab`, which is what a legacy
-    // `?tab=registrations` bookmark used to keep the management list open.
-    // Carry that view forward so saving does not dump the user on a bare
-    // Overview. requestId stays put: opening the panel must not steal focus.
-    const wasShowingDetails = searchParams.get('tab') === 'registrations';
+    // The add panel lives on Overview — the default section — so landing there
+    // is enough. An open management list is preserved, so saving from a
+    // `?tab=registrations` view returns to that view rather than a bare Overview.
     navigateToOverview();
-    if (wasShowingDetails) {
-      setRegistrationDetails(prev => ({ dogId: dog.id, requestId: prev?.requestId ?? 0 }));
-    }
     setAddRegistrationDogId(dog.id);
   };
 
   const openRegistrationDetails = () => {
-    navigateToOverview();
-    setRegistrationDetails(prev => ({ dogId: dog.id, requestId: (prev?.requestId ?? 0) + 1 }));
+    setSearchParams(prev => applyRegistrationDetails(prev));
   };
 
   useEffect(() => {
@@ -302,12 +292,7 @@ const DogDetailsMain: React.FC<DogDetailsMainProps> = ({
               dog={updatedDog}
               autoOpenAddRegistration={addRegistrationDogId === dog.id}
               onAddRequestConsumed={() => setAddRegistrationDogId(null)}
-              showRegistrationDetails={
-                registrationDetails?.dogId === dog.id || searchParams.get('tab') === 'registrations'
-              }
-              focusRegistrationDetailsRequest={
-                registrationDetails?.dogId === dog.id ? registrationDetails.requestId : 0
-              }
+              showRegistrationDetails={showRegistrationDetails}
               registrationsCount={liveRegistrationsCount}
               role={isSecretary ? 'secretary' : 'exhibitor'}
             />

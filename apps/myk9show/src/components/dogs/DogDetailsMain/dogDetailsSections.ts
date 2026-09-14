@@ -121,6 +121,45 @@ export function applyDogDetailsState(
   return params;
 }
 
+/**
+ * `tab=registrations` is the canonical URL for "Overview, with registration
+ * management revealed" — the same thing it meant before the consolidation, so
+ * old bookmarks land where they always did.
+ *
+ * It is a URL param rather than component state on purpose. react-router
+ * commits navigation inside `startTransition`; a reveal held in urgent
+ * component state renders a commit earlier than the section it belongs to, so
+ * anything keyed on both (a scroll, a focus move) races the router and loses.
+ * Deriving the reveal from the URL puts them in one commit.
+ */
+export const REGISTRATIONS_TAB = 'registrations';
+
+/** True when the URL asks Overview to reveal registration management. */
+export function isRegistrationDetailsRequested(searchParams: URLSearchParams): boolean {
+  return (
+    parseDogDetailsState(searchParams).section === DEFAULT_SECTION &&
+    searchParams.get('tab') === REGISTRATIONS_TAB
+  );
+}
+
+/** Overview with registration management revealed. */
+export function applyRegistrationDetails(prev: URLSearchParams): URLSearchParams {
+  const params = applyDogDetailsState(prev, { section: DEFAULT_SECTION, view: null });
+  params.set('tab', REGISTRATIONS_TAB);
+  return params;
+}
+
+/**
+ * Overview, preserving the registration reveal if it was on.
+ * `applyDogDetailsState` strips `tab` wholesale, which would otherwise close
+ * the management list the user is standing in.
+ */
+export function applyOverviewKeepingRegistrationDetails(prev: URLSearchParams): URLSearchParams {
+  return prev.get('tab') === REGISTRATIONS_TAB
+    ? applyRegistrationDetails(prev)
+    : applyDogDetailsState(prev, { section: DEFAULT_SECTION, view: null });
+}
+
 export function isCareerView(view: DogDetailsView | null): view is CareerView {
   return view !== null && (CAREER_VIEWS as readonly string[]).includes(view);
 }

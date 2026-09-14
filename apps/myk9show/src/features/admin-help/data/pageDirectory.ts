@@ -135,7 +135,7 @@ export const pageDirectory: readonly PageEntry[] = [
     classification: 'park',
     category: 'Admin',
     status: 'stub',
-    linksTo: ['/admin/permissions', '/admin/users'],
+    linksTo: [],
   },
   {
     path: '/admin/templates',
@@ -231,8 +231,8 @@ export const pageDirectory: readonly PageEntry[] = [
     roles: [UserRole.JUDGE, UserRole.SECRETARY, UserRole.SITE_ADMIN],
     classification: 'park',
     category: 'Results',
-    status: 'working',
-    linksTo: ['/shows'],
+    status: 'stub',
+    linksTo: [],
   },
   {
     path: '/secretary/create-show/wizard',
@@ -408,7 +408,7 @@ export const pageDirectory: readonly PageEntry[] = [
     classification: 'park',
     category: 'Shows',
     status: 'stub',
-    linksTo: ['/shows'],
+    linksTo: [],
   },
   {
     path: '/my-entries',
@@ -418,7 +418,7 @@ export const pageDirectory: readonly PageEntry[] = [
     classification: 'park',
     category: 'Entries',
     status: 'stub',
-    linksTo: ['/exhibitor/entries'],
+    linksTo: [],
   },
   {
     path: '/exhibitor/entries',
@@ -440,7 +440,7 @@ export const pageDirectory: readonly PageEntry[] = [
     classification: 'park',
     category: 'Entries',
     status: 'stub',
-    linksTo: ['/dogs/:id'],
+    linksTo: [],
   },
   {
     path: '/exhibitor/payments',
@@ -515,7 +515,7 @@ export const pageDirectory: readonly PageEntry[] = [
     classification: 'park',
     category: 'Public',
     status: 'stub',
-    linksTo: ['/shows'],
+    linksTo: [],
   },
   {
     path: '/shows/:showId/register',

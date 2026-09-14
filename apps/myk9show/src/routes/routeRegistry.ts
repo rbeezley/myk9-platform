@@ -29,11 +29,13 @@ const adminRouteComponents: Record<string, ImportFunction> = {
   '/admin/permissions/roles/new': () => import('@/pages/admin/permissions/CreateRolePage'),
   '/admin/permissions/roles/:roleId': () => import('@/pages/admin/permissions/RoleEditPage'),
   '/admin/permissions/roles/:roleId/clone': () => import('@/pages/admin/permissions/CloneRolePage'),
-  '/admin/permissions/audit': () => import('@/pages/admin/permissions/PermissionAuditPage'),
+  // Compatibility redirect: /admin/permissions/audit renders <Navigate> to
+  // /admin/permissions?tab=audit (see adminRoutes.tsx). The audit log is a tab
+  // on the permissions page; no dedicated page module backs this path.
+  '/admin/permissions/audit': () => import('@/pages/admin/permissions/PermissionManagementPage'),
   // Compatibility redirect: /admin/permissions/users renders <Navigate> to
   // /admin/permissions?tab=assignments (see adminRoutes.tsx). No dedicated page
   // module exists for this path — it resolves straight to the permissions page.
-  // Do not "clean up" as a duplicate of /admin/permissions/audit.
   '/admin/permissions/users': () => import('@/pages/admin/permissions/PermissionManagementPage'),
 
   '/admin/deleted-items': () =>

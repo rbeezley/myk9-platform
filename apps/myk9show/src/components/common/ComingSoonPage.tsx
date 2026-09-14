@@ -19,7 +19,12 @@ export function ComingSoonPage({
 }: ComingSoonPageProps) {
   return (
     <PageShell>
-      <div className="flex flex-col items-center justify-center min-h-[60vh] gap-6 text-center px-4">
+      {/* Test hook: pageDirectoryHonesty.test.tsx renders every static route and
+          uses this to tell a disabled-flag placeholder from a real page. */}
+      <div
+        data-testid="coming-soon-page"
+        className="flex flex-col items-center justify-center min-h-[60vh] gap-6 text-center px-4"
+      >
         <div className="rounded-full bg-muted p-6">
           <Icon className="h-10 w-10 text-muted-foreground" />
         </div>

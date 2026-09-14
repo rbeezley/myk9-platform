@@ -1,11 +1,8 @@
-import type { ReactNode } from 'react';
 import { describe, it, expect } from 'vitest';
 import { pageDirectory } from '../data/pageDirectory';
 import { fullRouteRegistry } from '@/routes/routeRegistry';
 import { routeDiff } from '../utils/routeDiff';
 import { UserRole } from '@/types/auth-types';
-import { router } from '@/router';
-import { routeSurfaceKind, type RouteSurfaceKind } from './routeSurfaceKind';
 
 describe('pageDirectory (invariant)', () => {
   it('every entry path exists in fullRouteRegistry', () => {
@@ -191,7 +188,13 @@ describe('pageDirectory (invariant)', () => {
     expect(stale).toEqual([]);
   });
 
-  it('every linksTo path resolves to an existing PageEntry path', () => {
+  /**
+   * Existence only. This does NOT check that the page renders a link to the
+   * target — proving that would mean rendering every page and walking its
+   * hrefs, which is out of scope here. What it catches is the class of error
+   * that actually occurred: a `linksTo` naming a path that no longer exists.
+   */
+  it('every linksTo path names a path the directory still catalogues (existence only)', () => {
     const knownPaths = new Set(pageDirectory.map(e => e.path));
     const orphans: string[] = [];
     for (const entry of pageDirectory) {
@@ -203,93 +206,12 @@ describe('pageDirectory (invariant)', () => {
     }
     expect(orphans).toEqual([]);
   });
-});
 
-/**
- * MYK9-476. The directory described two retired redirects as working
- * critical-path show-day features, and four more `park` rows as working while
- * they rendered a redirect or a disabled-flag placeholder. Path existence — the
- * only thing the invariants above checked — was true for every one of them.
- *
- * These tests read what each route ACTUALLY renders out of the router's own
- * element tree (see routeSurfaceKind.ts), so a row cannot go back to
- * advertising a redirect as a feature.
- */
-describe('pageDirectory (status and linksTo tell the truth about the route)', () => {
   /**
-   * Paths deliberately removed from the app. Declared rather than derived so an
-   * accidental reintroduction fails loudly instead of quietly re-passing.
+   * MYK9-476. Retired paths are declared, not derived: reintroducing one has to
+   * fail loudly rather than quietly re-pass.
    */
   const RETIRED_PATHS = ['/exhibitor/show-day', '/exhibitor/check-in/:entryId', '/calendar'];
-
-  function joinRoutePaths(parentPath: string, childPath: string): string {
-    if (childPath.startsWith('/')) return childPath;
-    return `${parentPath}/${childPath}`.replace(/\/+/g, '/');
-  }
-
-  function routePatternSignature(path: string): string {
-    return path
-      .split('/')
-      .filter(Boolean)
-      .map(segment => (segment.startsWith(':') ? ':' : segment === '*' ? '*' : segment))
-      .join('/');
-  }
-
-  function collectElements(
-    routes: typeof router.routes,
-    parentPath = '',
-    out = new Map<string, ReactNode>()
-  ): Map<string, ReactNode> {
-    for (const route of routes) {
-      const path = route.path ? joinRoutePaths(parentPath, route.path) : parentPath;
-      if (route.path && route.element) {
-        out.set(routePatternSignature(path), route.element as ReactNode);
-      }
-      collectElements(route.children ?? [], path, out);
-    }
-    return out;
-  }
-
-  const elementsBySignature = collectElements(router.routes);
-
-  function kindOf(path: string): RouteSurfaceKind {
-    const element = elementsBySignature.get(routePatternSignature(path));
-    return element === undefined ? 'unknown' : routeSurfaceKind(element);
-  }
-
-  // Positive control. Without it, a classifier that returned 'page' for
-  // everything — a broken import, a wrapper set that swallows the whole tree —
-  // would make every assertion below pass while measuring nothing.
-  it('the classifier actually recognises a redirect and a disabled-flag placeholder', () => {
-    // A bare <Route element={<Navigate to="/shows" replace />} />.
-    expect(kindOf('/browse-shows')).toBe('redirect');
-    // featurePage(features.analytics === false, ...) → <ComingSoonPage />.
-    expect(kindOf('/exhibitor/analytics')).toBe('placeholder');
-    // A real page, for contrast.
-    expect(kindOf('/exhibitor/entries')).toBe('page');
-  });
-
-  it('every directory path resolves to a route in the application route tree', () => {
-    const unresolved = pageDirectory.map(e => e.path).filter(p => kindOf(p) === 'unknown');
-    expect(unresolved).toEqual([]);
-  });
-
-  it("no entry claims status 'working' while its route renders only a redirect or a placeholder", () => {
-    const lying = pageDirectory
-      .filter(e => e.status === 'working')
-      .map(e => ({ path: e.path, renders: kindOf(e.path) }))
-      .filter(r => r.renders === 'redirect' || r.renders === 'placeholder');
-    expect(lying).toEqual([]);
-  });
-
-  it("every entry whose route renders only a redirect or a placeholder is marked 'stub'", () => {
-    const mismarked = pageDirectory
-      .map(e => ({ path: e.path, status: e.status, renders: kindOf(e.path) }))
-      .filter(
-        r => (r.renders === 'redirect' || r.renders === 'placeholder') && r.status !== 'stub'
-      );
-    expect(mismarked).toEqual([]);
-  });
 
   it('no retired path survives in the registry, the directory, or any linksTo', () => {
     expect(Object.keys(fullRouteRegistry).filter(p => RETIRED_PATHS.includes(p))).toEqual([]);
@@ -298,7 +220,7 @@ describe('pageDirectory (status and linksTo tell the truth about the route)', ()
     const claims: string[] = [];
     for (const entry of pageDirectory) {
       for (const target of entry.linksTo ?? []) {
-        if (RETIRED_PATHS.includes(target)) claims.push(`${entry.path} → ${target}`);
+        if (RETIRED_PATHS.includes(target)) claims.push(`${entry.path} \u2192 ${target}`);
       }
     }
     expect(claims).toEqual([]);
@@ -309,21 +231,22 @@ describe('pageDirectory (status and linksTo tell the truth about the route)', ()
     const dangling: string[] = [];
     for (const entry of pageDirectory) {
       for (const target of entry.linksTo ?? []) {
-        if (!registryPaths.has(target) || kindOf(target) === 'unknown') {
-          dangling.push(`${entry.path} → ${target}`);
-        }
+        if (!registryPaths.has(target)) dangling.push(`${entry.path} \u2192 ${target}`);
       }
     }
     expect(dangling).toEqual([]);
   });
 
-  it('MyEntriesPage is reachable from exactly one canonical route', () => {
-    // /my-entries is a redirect now; only /exhibitor/entries renders the page.
-    expect(kindOf('/my-entries')).toBe('redirect');
-    expect(kindOf('/exhibitor/entries')).toBe('page');
-
-    // Where /my-entries lands, and that it keeps the query string and hash the
-    // deep links ride on, is pinned behaviourally in
-    // routes/MyEntriesRedirect.test.tsx.
+  /**
+   * A bare redirect renders no UI and a disabled-flag placeholder renders no
+   * navigation, so neither has a link of its own to declare. Which rows those
+   * are is decided behaviourally in pageDirectoryHonesty.test.tsx; this pins
+   * the consequence cheaply, keyed on the status that sweep enforces.
+   */
+  it('a stub row declares no outgoing links', () => {
+    const talkative = pageDirectory
+      .filter(e => e.status === 'stub' && (e.linksTo ?? []).length > 0)
+      .map(e => `${e.path}: ${(e.linksTo ?? []).join(', ')}`);
+    expect(talkative).toEqual([]);
   });
 });

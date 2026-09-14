@@ -3,7 +3,7 @@
 **Date:** 2026-09-13
 **Auditor:** Codex
 **Scope:** Exhibitor `/dogs/:id`, with the secretary variation checked for regressions
-**Sources:** Richard's five complaints in the MYK9-478 comments; current page components and navigation tests; `docs/INTENT.md`; the open `exhibitor-journey-completion` delta spec; read-only counts from the linked database. This is a code-and-data audit, not an authenticated visual walkthrough.
+**Sources:** Richard's five complaints in the MYK9-478 comments; current page components and navigation tests; `docs/INTENT.md`; the open `exhibitor-journey-completion` delta spec; read-only counts from the linked database; and an authenticated live browser walkthrough on 2026-09-13 at 1280×800 and 390×844.
 
 The exhibitor target is “Everything is in one place” and “This respects my time.” Keep the three-section Overview / Career / Records model: it gives one stable home to each concern, supports compact phone navigation, and already preserves legacy bookmarks and entry focus. The problems below occur **inside** Overview and the identity rail. A new section or page would duplicate an existing surface. The open delta spec still requires registrations on Overview, so removing the second copy needs an explicit, coordinated spec update in the implementation change; this audit does not silently redefine the contract.
 
@@ -36,7 +36,7 @@ The exhibitor target is “Everything is in one place” and “This respects my
 | Late primary content | Overview                              | Activity is third, or sole content after the proposed removals                                                            | Lead Overview with Activity; check the nearly empty case before deciding whether Overview needs another existing summary.                                                                               |
 | Action buried        | Rail, especially stacked phone layout | Show entry and Edit follow the whole rail                                                                                 | Move the primary action near the dog heading; consider moving Edit into the existing menu while keeping the entry action visible.                                                                       |
 
-**Visibility problems:** Activity and the primary entry action sit below duplicated content on a phone. The Registrations add action is already visible in the rail; do not recreate it in another location.
+**Visibility problems:** On the verified one-dog phone page, the identity rail fills the first viewport; both the duplicate registration empty state and Activity follow it. Activity starts below the first 844px viewport. The Registrations add action is already visible in the rail; do not recreate it in another location.
 
 ## Pass 3: Affordance Clarity
 
@@ -76,41 +76,43 @@ The exhibitor target is “Everything is in one place” and “This respects my
 
 ### Overview and identity rail
 
-| State              | Implemented?    | Quality                            | Issue                                                                                                |
-| ------------------ | --------------- | ---------------------------------- | ---------------------------------------------------------------------------------------------------- |
-| Empty activity     | Yes             | Good when the query is trustworthy | “No upcoming entries” and Find a show are shown after a resolved empty read                          |
-| Loading activity   | Yes             | Good                               | Skeletons replace the activity cards                                                                 |
-| Populated activity | Yes             | Good                               | Entry rows link to their shows                                                                       |
-| Partial history    | Yes             | Mixed                              | Recent results card disappears when empty; the large photo area remains mostly blank without a photo |
-| Error / offline    | Yes             | Good                               | Activity distinguishes failed/offline unresolved emptiness and offers Try again                      |
-| Not permitted      | Not established | Unknown                            | The read-only code audit does not prove every ownership/RLS boundary                                 |
-| Filtered empty     | Partly          | Unknown                            | `canTrustEmpty` guards Activity, but this audit did not exercise a denied owner read                 |
+| State              | Implemented?    | Quality                            | Issue                                                                                                                                                   |
+| ------------------ | --------------- | ---------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Empty activity     | Yes             | Good when the query is trustworthy | “No upcoming entries” and Find a show are shown after a resolved empty read                                                                             |
+| Loading activity   | Yes             | Good                               | Skeletons replace the activity cards                                                                                                                    |
+| Populated activity | Yes             | Good                               | Entry rows link to their shows                                                                                                                          |
+| Partial history    | Yes             | Mixed                              | The live no-history dog shows both “No registrations yet” in the rail and “No Registrations Found” on Overview; Activity follows the second empty state |
+| Error / offline    | Yes             | Good                               | Activity distinguishes failed/offline unresolved emptiness and offers Try again                                                                         |
+| Not permitted      | Not established | Unknown                            | The read-only code audit does not prove every ownership/RLS boundary                                                                                    |
+| Filtered empty     | Partly          | Unknown                            | `canTrustEmpty` guards Activity, but this audit did not exercise a denied owner read                                                                    |
 
-The rail has an initials fallback and “No registrations yet” copy. Its registry table prefers live registrations but falls back to dog registrations while the query is unresolved; the visual accuracy of that transition needs a live walkthrough. The photo is a 144px circle inside a 320px panel at desktop width, leaving about 84% background even with an image. Below `lg`, the panel has a fixed 224px height but fluid width: a 112px avatar would leave about 80% background in a 224×224 reference square; the actual fraction depends on phone width. The camera button remains a 44px target; shrinking it would violate `docs/INTENT.md`.
+The rail has an initials fallback and “No registrations yet” copy. Its registry table prefers live registrations but falls back to dog registrations while the query is unresolved; that intermediate transition was not captured in the browser walk. The photo is a 144px circle inside a 320px panel at desktop width, leaving about 84% background even with an image. Below `lg`, the panel has a fixed 224px height but fluid width: a 112px avatar would leave about 80% background in a 224×224 reference square; the actual fraction depends on phone width. The camera button remains a 44px target; shrinking it would violate `docs/INTENT.md`.
 
-**Realistic-scale evidence and limit:** A read-only database query on 2026-09-13 found one owner with **one dog and three show entries** (Tera, with three separate registry rows), and another with one dog and four show entries. The generic 259-dog demo account was not used to infer roster behavior. The code's no-photo and no-recent-results branches were inspected against that small-account shape, but no credential for a one-to-five-dog **exhibitor** was available for an authenticated visual walk. Thus the acceptance criterion for rendered, realistic-scale verification remains **open**; database counts alone do not close it. Sanitize account identifiers in any future evidence.
+**Realistic-scale browser evidence:** With Richard's approval, a synthetic female dog, **MYK9-478 Sparse Audit Dog** (born 2022-01-01), was added through the live app to an existing exhibitor test account that previously had zero dogs. The My Dogs page then showed **1 dog** and one dog-detail link. No registration, entry, result, photo, or title history was added. This is a deliberately empty-history test record, not a claim about a real exhibitor's data. The 2026-09-13 signed-in browser walk at 1280×800 and 390×844 showed the same rail and Overview empty states, with no horizontal overflow at phone width. The no-photo avatar remains a small circle in a large panel; the camera control is visually dominant. The rail's “No registrations yet” is immediately repeated by Overview's “No Registrations Found.” On the phone, the entry action is near the bottom of the first viewport, and the Overview tabs and Activity require scrolling. The Activity empty state honestly says there are no upcoming entries and offers Find a show. The separate read-only database counts of existing one-dog owners remain useful context but were not substituted for this rendered test.
+
+The free test account displayed no Overview title teaser. Direct navigation to `?section=career&view=titles` showed Career → Title Progress with its Premium gate; `?addRegistration=true` opened the add-registration panel and returned the page to its short default URL. These checks establish the current behavior, not a recommendation to change either route. Not-permitted and RLS-filtered-empty states remain untested; no denied owner read was attempted.
 
 **Dead ends found:** None proven. **Missing error handling:** None proven for Activity; other secondary views were outside this scoped walk.
 
 ## Pass 6: Flow Integrity
 
-**Primary flow tested:** Code-level trace from dog detail landing through Activity, registration add, Career titles, and Enter a show. This is not a browser-executed flow.
+**Primary flow tested:** Signed-in browser walk from the one-dog roster to Dog Details Overview, the empty Activity state, Career → Titles via its URL, and the add-registration deep link. Enter a show's destination was inspected as a link; no show entry or registration was submitted.
 
-| Step | Action                  | Friction                                                                                 | Severity |
-| ---- | ----------------------- | ---------------------------------------------------------------------------------------- | -------- |
-| 1    | Open dog detail         | Rail precedes Overview when stacked; photo and duplicate data delay Activity and actions | Medium   |
-| 2    | Check entries / results | Activity's reliable empty/loading/error states support recovery                          | None     |
-| 3    | Add registration        | Rail control clears section/view and opens the Overview-mounted panel                    | None     |
-| 4    | Open Career → Titles    | Link carries explicit `section=career&view=titles`; free users see no Overview teaser    | None     |
-| 5    | Enter a show            | Plain `<a href="/shows">` reloads the app and drops dog context                          | Medium   |
+| Step | Action                  | Friction                                                                                                                | Severity |
+| ---- | ----------------------- | ----------------------------------------------------------------------------------------------------------------------- | -------- |
+| 1    | Open dog detail         | One-dog roster reaches the page; stacked rail and duplicate registration empty state delay Activity on phone            | Medium   |
+| 2    | Check entries / results | “No upcoming entries” is accurate for the synthetic dog and provides Find a show; no horizontal overflow                | None     |
+| 3    | Add registration        | `?addRegistration=true` opens the existing panel and clears the query param; no registration was saved                  | None     |
+| 4    | Open Career → Titles    | Direct `section=career&view=titles` resolves; the free account has no Overview teaser and Career shows the Premium gate | None     |
+| 5    | Enter a show            | The visible link targets generic `/shows` and carries no dog context; no entry was submitted                            | Medium   |
 
 **Abandonment risks:** Sparse-history dogs may yield an Overview consisting only of “No upcoming entries” after the duplicate sections are removed. The add-registration panel's host is a migration risk if Overview registrations change; the present flow works.
 **Recovery gaps:** No broken Back/Forward path found in the navigation code; the 11 legacy `tab=` mappings and `useRouteEntryFocus` tests are load-bearing and should be retained.
-**Flow verdict:** Completable with friction; the sparse, signed-in exhibitor rendering is unverified.
+**Flow verdict:** Completable with friction on the verified sparse, signed-in exhibitor page. Submission paths were outside this audit.
 
 ## UX Audit Summary
 
-**Overall UX health:** Needs Work; no critical blocker found in this scoped code-and-data audit.
+**Overall UX health:** Needs Work; no critical blocker found in the scoped code, data, and live sparse-account audit.
 
 ### Critical (Fix immediately)
 
@@ -147,5 +149,5 @@ The rail has an initials fallback and “No registrations yet” copy. Its regis
 ### Recommendations and verification phase
 
 1. **Keep** the three sections and current URL/deep-link model. The problems are local to Overview and the rail; the active delta spec already chose this grouping.
-2. Authentically walk a one-to-five-dog exhibitor account with a dog with zero to a few entries, both free and premium where available, at phone and desktop widths. Inspect no-photo, no-results, registration editing and show-entry return behavior; attach sanitized screenshots or test evidence before closing MYK9-478.
+2. Use the verified one-dog, no-history browser evidence above when deciding the sparse Overview layout. A premium-account comparison, registration submission, and show-entry return behavior were outside this audit and should be checked in the corresponding implementation change, before altering those flows.
 3. In a separate implementation change, settle whether premium Overview needs its summary, then remove only confirmed redundant detail. If registrations leave Overview, update the open delta spec, preserve `?addRegistration=true` and the rail's add-panel host, and add focused tests for both deep links and free-user no-teaser intent. Check the existing title/registration route and role tests before and after; run the app's relevant suite and manual viewport checks.

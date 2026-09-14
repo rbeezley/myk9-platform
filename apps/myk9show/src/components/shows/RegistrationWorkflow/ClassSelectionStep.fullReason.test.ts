@@ -1,8 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import {
-  buildFullChipReason,
-  type FullReasonClass,
-} from './ClassSelectionStep.fullReason';
+import { buildFullChipReason, type FullReasonClass } from './ClassSelectionStep.fullReason';
 
 function row(overrides: Partial<FullReasonClass> & { classId: string }): FullReasonClass {
   return {

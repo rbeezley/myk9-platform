@@ -51,7 +51,13 @@ describe('ElementCard — full chip reason (MYK9-515)', () => {
   it('shows the reason alongside the wait-list badge, which says nothing about why', () => {
     const waitlistReason = "The judge's Saturday is full — you can join the wait list.";
     renderCard([
-      { ...baseLevel, isFull: true, allowsWaitlist: true, waitlistCount: 2, fullReason: waitlistReason },
+      {
+        ...baseLevel,
+        isFull: true,
+        allowsWaitlist: true,
+        waitlistCount: 2,
+        fullReason: waitlistReason,
+      },
     ]);
     expect(screen.getByText('Full: join wait list')).toBeInTheDocument();
     expect(screen.getByText(waitlistReason)).toBeInTheDocument();

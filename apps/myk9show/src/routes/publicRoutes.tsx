@@ -18,7 +18,6 @@ import { PageTransition } from '@/components/common/PageTransition';
 import { RoleSurfaceErrorBoundary } from '@/components/common/RoleSurfaceErrorBoundary';
 import { SuspenseWrapper } from './utils/SuspenseWrapper';
 import { ClassDetailsRedirect } from './ClassDetailsRedirect';
-import { LegacyCheckInRedirect, LegacyShowDayRedirect } from './LegacyExhibitorRedirects';
 import { ComingSoonPage, type ComingSoonPageProps } from '@/components/common/ComingSoonPage';
 import { features } from '@/config/features';
 import DogDetailPage from '@/pages/DogDetailPage';
@@ -276,31 +275,12 @@ export const PublicRoutes = () => (
       }
     />
 
-    {/* My Shows - exhibitor's show hub; entries are one section inside it. */}
-    <Route
-      path="/my-entries"
-      element={
-        <ProtectedRoute>
-          {featurePage(features.myEntries, <MyEntriesPage />, {
-            title: 'My Shows',
-            description:
-              'Your entries, dogs, and upcoming shows are ready here when you need them.',
-            icon: ClipboardList,
-          })}
-        </ProtectedRoute>
-      }
-    />
+    {/* Legacy My Shows path. The canonical route is /exhibitor/entries;
+        this stays as a redirect so old bookmarks and e2e specs resolve. */}
+    <Route path="/my-entries" element={<Navigate to="/exhibitor/entries" replace />} />
 
     {/* Exhibitor pages — flat routes, no separate layout */}
     <Route path="/exhibitor/dashboard" element={<Navigate to="/exhibitor/entries" replace />} />
-    <Route
-      path="/exhibitor/show-day"
-      element={
-        <ProtectedRoute>
-          <LegacyShowDayRedirect />
-        </ProtectedRoute>
-      }
-    />
     <Route path="/exhibitor/profile" element={<Navigate to="/account" replace />} />
     <Route path="/exhibitor/account" element={<Navigate to="/account" replace />} />
     <Route
@@ -333,14 +313,6 @@ export const PublicRoutes = () => (
       element={
         <ProtectedRoute>
           <ExhibitorPaymentsPage />
-        </ProtectedRoute>
-      }
-    />
-    <Route
-      path="/exhibitor/check-in/:entryId"
-      element={
-        <ProtectedRoute>
-          <LegacyCheckInRedirect />
         </ProtectedRoute>
       }
     />

@@ -579,7 +579,7 @@ export default function CheckoutSuccessPage() {
           </CardContent>
 
           <CardFooter className="flex-col gap-2">
-            <Button className="w-full" onClick={() => navigate('/my-entries')}>
+            <Button className="w-full" onClick={() => navigate('/exhibitor/entries')}>
               View My Shows
               <ArrowRight className="h-4 w-4 ml-2" />
             </Button>

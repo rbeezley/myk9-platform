@@ -1,8 +1,11 @@
+import type { ReactNode } from 'react';
 import { describe, it, expect } from 'vitest';
 import { pageDirectory } from '../data/pageDirectory';
 import { fullRouteRegistry } from '@/routes/routeRegistry';
 import { routeDiff } from '../utils/routeDiff';
 import { UserRole } from '@/types/auth-types';
+import { router } from '@/router';
+import { redirectTarget, routeSurfaceKind, type RouteSurfaceKind } from './routeSurfaceKind';
 
 describe('pageDirectory (invariant)', () => {
   it('every entry path exists in fullRouteRegistry', () => {
@@ -199,5 +202,127 @@ describe('pageDirectory (invariant)', () => {
       }
     }
     expect(orphans).toEqual([]);
+  });
+});
+
+/**
+ * MYK9-476. The directory described two retired redirects as working
+ * critical-path show-day features, and four more `park` rows as working while
+ * they rendered a redirect or a disabled-flag placeholder. Path existence — the
+ * only thing the invariants above checked — was true for every one of them.
+ *
+ * These tests read what each route ACTUALLY renders out of the router's own
+ * element tree (see routeSurfaceKind.ts), so a row cannot go back to
+ * advertising a redirect as a feature.
+ */
+describe('pageDirectory (status and linksTo tell the truth about the route)', () => {
+  /**
+   * Paths deliberately removed from the app. Declared rather than derived so an
+   * accidental reintroduction fails loudly instead of quietly re-passing.
+   */
+  const RETIRED_PATHS = ['/exhibitor/show-day', '/exhibitor/check-in/:entryId', '/calendar'];
+
+  function joinRoutePaths(parentPath: string, childPath: string): string {
+    if (childPath.startsWith('/')) return childPath;
+    return `${parentPath}/${childPath}`.replace(/\/+/g, '/');
+  }
+
+  function routePatternSignature(path: string): string {
+    return path
+      .split('/')
+      .filter(Boolean)
+      .map(segment => (segment.startsWith(':') ? ':' : segment === '*' ? '*' : segment))
+      .join('/');
+  }
+
+  function collectElements(
+    routes: typeof router.routes,
+    parentPath = '',
+    out = new Map<string, ReactNode>()
+  ): Map<string, ReactNode> {
+    for (const route of routes) {
+      const path = route.path ? joinRoutePaths(parentPath, route.path) : parentPath;
+      if (route.path && route.element) {
+        out.set(routePatternSignature(path), route.element as ReactNode);
+      }
+      collectElements(route.children ?? [], path, out);
+    }
+    return out;
+  }
+
+  const elementsBySignature = collectElements(router.routes);
+
+  function kindOf(path: string): RouteSurfaceKind {
+    const element = elementsBySignature.get(routePatternSignature(path));
+    return element === undefined ? 'unknown' : routeSurfaceKind(element);
+  }
+
+  // Positive control. Without it, a classifier that returned 'page' for
+  // everything — a broken import, a wrapper set that swallows the whole tree —
+  // would make every assertion below pass while measuring nothing.
+  it('the classifier actually recognises a redirect and a disabled-flag placeholder', () => {
+    // A bare <Route element={<Navigate to="/shows" replace />} />.
+    expect(kindOf('/browse-shows')).toBe('redirect');
+    // featurePage(features.analytics === false, ...) → <ComingSoonPage />.
+    expect(kindOf('/exhibitor/analytics')).toBe('placeholder');
+    // A real page, for contrast.
+    expect(kindOf('/exhibitor/entries')).toBe('page');
+  });
+
+  it('every directory path resolves to a route in the application route tree', () => {
+    const unresolved = pageDirectory.map(e => e.path).filter(p => kindOf(p) === 'unknown');
+    expect(unresolved).toEqual([]);
+  });
+
+  it("no entry claims status 'working' while its route renders only a redirect or a placeholder", () => {
+    const lying = pageDirectory
+      .filter(e => e.status === 'working')
+      .map(e => ({ path: e.path, renders: kindOf(e.path) }))
+      .filter(r => r.renders === 'redirect' || r.renders === 'placeholder');
+    expect(lying).toEqual([]);
+  });
+
+  it("every entry whose route renders only a redirect or a placeholder is marked 'stub'", () => {
+    const mismarked = pageDirectory
+      .map(e => ({ path: e.path, status: e.status, renders: kindOf(e.path) }))
+      .filter(
+        r => (r.renders === 'redirect' || r.renders === 'placeholder') && r.status !== 'stub'
+      );
+    expect(mismarked).toEqual([]);
+  });
+
+  it('no retired path survives in the registry, the directory, or any linksTo', () => {
+    expect(Object.keys(fullRouteRegistry).filter(p => RETIRED_PATHS.includes(p))).toEqual([]);
+    expect(pageDirectory.map(e => e.path).filter(p => RETIRED_PATHS.includes(p))).toEqual([]);
+
+    const claims: string[] = [];
+    for (const entry of pageDirectory) {
+      for (const target of entry.linksTo ?? []) {
+        if (RETIRED_PATHS.includes(target)) claims.push(`${entry.path} → ${target}`);
+      }
+    }
+    expect(claims).toEqual([]);
+  });
+
+  it('every linksTo target is a live registered route, not a dangling path', () => {
+    const registryPaths = new Set(Object.keys(fullRouteRegistry));
+    const dangling: string[] = [];
+    for (const entry of pageDirectory) {
+      for (const target of entry.linksTo ?? []) {
+        if (!registryPaths.has(target) || kindOf(target) === 'unknown') {
+          dangling.push(`${entry.path} → ${target}`);
+        }
+      }
+    }
+    expect(dangling).toEqual([]);
+  });
+
+  it('MyEntriesPage is reachable from exactly one canonical route', () => {
+    // /my-entries is a redirect now; only /exhibitor/entries renders the page.
+    expect(kindOf('/my-entries')).toBe('redirect');
+    expect(kindOf('/exhibitor/entries')).toBe('page');
+
+    const element = elementsBySignature.get(routePatternSignature('/my-entries'));
+    expect(redirectTarget(element)).toBe('/exhibitor/entries');
   });
 });

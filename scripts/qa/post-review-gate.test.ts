@@ -226,16 +226,26 @@ describe('post-review-gate.sh', () => {
   });
 
   describe('owner tier', () => {
-    it('posts Override reason and Deferred re-review as the 2nd and 3rd lines', () => {
+    // The critical fix: `owner` has no review log by definition, so its
+    // content must never be required to LOOK like a completed review. Before
+    // this fix, the only log this suite fed the owner path was
+    // logFile('No actionable defects found.\n') — a fabricated clean-review
+    // sentence describing a review that never ran. That is the workaround
+    // this fix removes; these tests now use an HONEST log describing why no
+    // review happened, and prove it posts (it used to be refused).
+    const HONEST_LOG = 'Codex was unavailable — usage limit reached. No review was run.\n';
+    const OWNER_ENV = {
+      OVERRIDE_REASON: 'Codex unavailable — usage limit',
+      DEFERRED_REVIEW: 'MYK9-523',
+    };
+
+    it('posts an HONEST "no review ran" log, with Override reason and Deferred re-review as the 2nd and 3rd lines', () => {
       const gh = stubGh();
-      const log = logFile('No actionable defects found.\n');
+      const log = logFile(HONEST_LOG);
       const r = run(
         ['42', 'owner', '0a2020c7a', '5af9af158', 'override, floor was independent', log],
         gh.bin,
-        {
-          OVERRIDE_REASON: 'Codex unavailable — usage limit',
-          DEFERRED_REVIEW: 'MYK9-523',
-        }
+        OWNER_ENV
       );
       expect(r.code).toBe(0);
       const body = readFileSync(gh.calls, 'utf8').split('--body\n')[1]!.split('\n---')[0]!;
@@ -246,13 +256,25 @@ describe('post-review-gate.sh', () => {
       expect(lines[1]).toBe('Override reason: Codex unavailable — usage limit');
       expect(lines[2]).toBe('Deferred re-review: MYK9-523');
       expect(lines[3]).toMatch(/^log sha256: [0-9a-f]{64}$/);
+      expect(body).toContain(HONEST_LOG.trim());
+    });
+
+    it('posts with NO log at all (/dev/null) — owner never requires a log', () => {
+      const gh = stubGh();
+      const r = run(
+        ['42', 'owner', '0a2020c7a', '5af9af158', 'override, floor was independent', '/dev/null'],
+        gh.bin,
+        OWNER_ENV
+      );
+      expect(r.code).toBe(0);
+      const body = readFileSync(gh.calls, 'utf8').split('--body\n')[1]!.split('\n---')[0]!;
+      expect(body.split('\n')[3]).toBe('log sha256: n/a');
     });
 
     it('refuses without OVERRIDE_REASON and posts nothing', () => {
       const gh = stubGh();
-      const log = logFile('No actionable defects found.\n');
       const r = run(
-        ['42', 'owner', '0a2020c7a', '5af9af158', 'override, floor was independent', log],
+        ['42', 'owner', '0a2020c7a', '5af9af158', 'override, floor was independent', '/dev/null'],
         gh.bin,
         { DEFERRED_REVIEW: 'MYK9-523' }
       );
@@ -263,15 +285,71 @@ describe('post-review-gate.sh', () => {
 
     it('refuses without DEFERRED_REVIEW and posts nothing', () => {
       const gh = stubGh();
-      const log = logFile('No actionable defects found.\n');
       const r = run(
-        ['42', 'owner', '0a2020c7a', '5af9af158', 'override, floor was independent', log],
+        ['42', 'owner', '0a2020c7a', '5af9af158', 'override, floor was independent', '/dev/null'],
         gh.bin,
         { OVERRIDE_REASON: 'Codex unavailable — usage limit' }
       );
       expect(r.code).toBe(2);
       expect(r.out).toContain('DEFERRED_REVIEW');
       expect(() => readFileSync(gh.calls, 'utf8')).toThrow();
+    });
+
+    // Presence is not shape: both of these are non-empty and would have
+    // passed the old `[ -n ... ]`-only check, posted successfully, and then
+    // been refused by the real gate (overrideAccepted's regexes).
+    it('refuses a well-formed-looking but malformed OVERRIDE_REASON (no "unavailable")', () => {
+      const gh = stubGh();
+      const r = run(
+        ['42', 'owner', '0a2020c7a', '5af9af158', 'override, floor was independent', '/dev/null'],
+        gh.bin,
+        { OVERRIDE_REASON: 'I was busy', DEFERRED_REVIEW: 'MYK9-523' }
+      );
+      expect(r.code).toBe(2);
+      expect(r.out).toContain('OVERRIDE_REASON');
+      expect(() => readFileSync(gh.calls, 'utf8')).toThrow();
+    });
+
+    it('refuses a lowercase DEFERRED_REVIEW issue id (review-gate.ts requires an uppercase prefix)', () => {
+      const gh = stubGh();
+      const r = run(
+        ['42', 'owner', '0a2020c7a', '5af9af158', 'override, floor was independent', '/dev/null'],
+        gh.bin,
+        { OVERRIDE_REASON: 'Codex unavailable — usage limit', DEFERRED_REVIEW: 'myk9-523' }
+      );
+      expect(r.code).toBe(2);
+      expect(r.out).toContain('DEFERRED_REVIEW');
+      expect(() => readFileSync(gh.calls, 'utf8')).toThrow();
+    });
+  });
+
+  describe('none tier', () => {
+    // `none` has no review log either — same fix as `owner`, and previously
+    // uncovered entirely (0 real-post tests before this fix).
+    it('posts an HONEST "no review ran" log', () => {
+      const gh = stubGh();
+      const log = logFile('No review was run: all changed paths are low-risk and CI is green.\n');
+      const r = run(
+        ['42', 'none', '0a2020c7a', '5af9af158', 'low-risk paths, CI green', log],
+        gh.bin
+      );
+      expect(r.code).toBe(0);
+      const body = readFileSync(gh.calls, 'utf8').split('--body\n')[1]!.split('\n---')[0]!;
+      expect(body.split('\n')[0]).toBe(
+        'Review gate: none reviewed 0a2020c7a..5af9af158 — low-risk paths, CI green'
+      );
+      expect(body).toContain('all changed paths are low-risk');
+    });
+
+    it('posts with NO log at all (/dev/null) — none never requires a log', () => {
+      const gh = stubGh();
+      const r = run(
+        ['42', 'none', '0a2020c7a', '5af9af158', 'low-risk paths, CI green', '/dev/null'],
+        gh.bin
+      );
+      expect(r.code).toBe(0);
+      const body = readFileSync(gh.calls, 'utf8').split('--body\n')[1]!.split('\n---')[0]!;
+      expect(body.split('\n')[1]).toBe('log sha256: n/a');
     });
   });
 

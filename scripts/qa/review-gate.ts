@@ -688,5 +688,27 @@ if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) 
     }
     process.exit(verdictAccepted(text) ? 0 : 2);
   }
+  // `--override-reason-line "<full line>"` / `--deferred-review-line "<full
+  // line>"`: exit 0 when OVERRIDE_REASON / DEFERRED_REVIEW accepts the
+  // WHOLE line, 2 when it does not. post-review-gate.sh's env-var presence
+  // check (`[ -n "${OVERRIDE_REASON:-}" ]`) only proves the var is non-empty
+  // — `OVERRIDE_REASON="I was busy"` or `DEFERRED_REVIEW=myk9-523` both pass
+  // that check, post successfully, and are then refused by the real gate
+  // (overrideAccepted requires the "<harness> unavailable — <detail>" shape
+  // and DEFERRED_REVIEW's uppercase-prefix issue-id shape — deliberately
+  // case-sensitive, see the comment at DEFERRED_REVIEW's definition above).
+  // Same class of poster/judge disagreement `--reviewer` closed for
+  // verdicts; these two flags close it for the override body lines by
+  // asking the ONE definition of each shape instead of re-deriving it.
+  const overrideReasonLineFlag = process.argv.indexOf('--override-reason-line');
+  if (overrideReasonLineFlag >= 0) {
+    const line = process.argv[overrideReasonLineFlag + 1] ?? '';
+    process.exit(OVERRIDE_REASON.test(line) ? 0 : 2);
+  }
+  const deferredReviewLineFlag = process.argv.indexOf('--deferred-review-line');
+  if (deferredReviewLineFlag >= 0) {
+    const line = process.argv[deferredReviewLineFlag + 1] ?? '';
+    process.exit(DEFERRED_REVIEW.test(line) ? 0 : 2);
+  }
   process.exitCode = runCli();
 }

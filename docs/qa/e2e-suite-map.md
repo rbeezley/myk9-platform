@@ -176,6 +176,7 @@ PR smoke is intentionally small. Its purpose is to confirm the app boots, auth s
 | `apps/myk9show/src/test/e2e/my-entries-page-ui.spec.ts`                | Exhibitor entries page regression coverage. Also in REGRESSION_SPECS, so it appears under Nightly Active too.                                                                                                                      |
 | `apps/myk9show/src/test/e2e/sign-in-fits-one-screen.spec.ts`           | Sign-in front door fits the viewport without scrolling, with and without the PWA install banner. Geometry-asserted, so any PR that regrows the card fails it.                                                                      |
 | `apps/myk9show/src/test/e2e/header-wordmark-fits.spec.ts`              | Header brand renders whole, never truncated to `myK9S…`, at every phone width signed in and signed out; below 360px the mark carries the brand instead. Also pins that exactly one appearance control is reachable at every width. |
+| `apps/myk9show/src/test/e2e/dialogContainsLongContent.spec.ts`         | A long unbreakable string cannot widen a dialog's other children. Appends an unbreakable string and a `w-full` sibling as direct grid items of `DialogContent` and measures the sibling against the dialog's own width. Geometry-asserted, so it guards every dialog carrying no local `min-w-0`, not only `dialog.tsx`.                                    |
 
 ## Nightly Active
 

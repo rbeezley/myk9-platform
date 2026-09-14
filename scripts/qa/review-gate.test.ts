@@ -946,6 +946,87 @@ describe('owner override', () => {
     expect(result.description).toContain('Deferred re-review');
   });
 
+  // Round 1 review, C-A: the pre-existing tests above are all POSITIVE — a
+  // full, correct body passes. That cannot distinguish "the reason line is
+  // required" from "the reason line is parsed but ignored", nor "the verdict
+  // must match owner's own grammar" from "any verdict text is accepted once
+  // association and the other two lines are right". The reviewer's mutation
+  // matrix found exactly that: removing the `OVERRIDE_REASON.test(...)`
+  // check (M2) or the `verdictMatchesTier(..., 'owner')` check (M3) from
+  // `overrideAccepted` left the whole suite green. These three negative
+  // tests exist specifically to kill M2 and M3 — each must go RED if the
+  // guard it names is deleted.
+  it('refuses an override with no "Override reason:" line (kills M2)', () => {
+    const noReasonBody = [
+      `Review gate: owner reviewed abc1234..${HEAD} — override, floor was independent`,
+      'Deferred re-review: MYK9-523',
+    ].join('\n');
+    const result = evaluateReviewGate({
+      headSha: HEAD,
+      comments: [comment(noReasonBody)],
+      changedFiles: ['scripts/qa/review-gate.ts'],
+    });
+    expect(result.state).toBe('failure');
+  });
+
+  // These two assert `overrideAccepted` DIRECTLY, not through
+  // `evaluateReviewGate`: a verdict that fails `OVERRIDE_VERDICT` also fails
+  // the I-B claimed-floor extraction (same regex), so `evaluateReviewGate`
+  // would report 'failure' for these bodies via I-B's mismatch check even
+  // with M3 applied — that would make the test pass for the WRONG reason
+  // and fail to kill the mutant it names. Calling `overrideAccepted` in
+  // isolation is the only way to pin the verdict-grammar check itself.
+  it('refuses an `owner` line wearing the `independent` verdict phrase, even with reason+deferred (kills M3)', () => {
+    const wrongVerdictBody = [
+      `Review gate: owner reviewed abc1234..${HEAD} — no findings`,
+      'Override reason: Codex unavailable — usage limit until Sep 19',
+      'Deferred re-review: MYK9-523',
+    ].join('\n');
+    const [evidence] = parseGateComments([comment(wrongVerdictBody)]);
+    expect(overrideAccepted(evidence!)).toBe(false);
+  });
+
+  it('refuses an `owner` line wearing the `none` verdict phrase, even with reason+deferred (kills M3)', () => {
+    const wrongVerdictBody = [
+      `Review gate: owner reviewed abc1234..${HEAD} — low-risk paths, CI green`,
+      'Override reason: Codex unavailable — usage limit until Sep 19',
+      'Deferred re-review: MYK9-523',
+    ].join('\n');
+    const [evidence] = parseGateComments([comment(wrongVerdictBody)]);
+    expect(overrideAccepted(evidence!)).toBe(false);
+  });
+
+  // Round 1 review, I-B: OVERRIDE_VERDICT captures WHICH floor the poster
+  // claims they skipped, but nothing checked that claim against the REAL
+  // floor `requiredTier` would compute for these `changedFiles`. Not an
+  // enforcement hole (the override bypasses the floor either way) — but the
+  // recorded debt is the whole contract, so a claim that understates the
+  // real floor must be refused.
+  it('refuses an override claiming "floor was independent" on a migration (real floor: adversarial)', () => {
+    const result = evaluateReviewGate({
+      headSha: HEAD,
+      comments: [comment(body('Deferred re-review: MYK9-523'))],
+      changedFiles: ['supabase/migrations/20260101000000_x.sql'],
+    });
+    expect(result.state).toBe('failure');
+    expect(result.description).toContain('adversarial');
+  });
+
+  it('refuses an override claiming "floor was adversarial" on a guardrail path (real floor: independent)', () => {
+    const adversarialClaimBody = [
+      `Review gate: owner reviewed abc1234..${HEAD} — override, floor was adversarial`,
+      'Override reason: Codex unavailable — usage limit until Sep 19',
+      'Deferred re-review: MYK9-523',
+    ].join('\n');
+    const result = evaluateReviewGate({
+      headSha: HEAD,
+      comments: [comment(adversarialClaimBody)],
+      changedFiles: ['scripts/qa/review-gate.ts'],
+    });
+    expect(result.state).toBe('failure');
+    expect(result.description).toContain('independent');
+  });
+
   it('refuses an override from an untrusted association', () => {
     const result = evaluateReviewGate({
       headSha: HEAD,
@@ -992,6 +1073,18 @@ describe('owner override', () => {
       comment(body('Deferred re-review: MYK9-523'), undefined, undefined, 'COLLABORATOR'),
     ]);
     expect(overrideAccepted(evidence!)).toBe(false);
+  });
+
+  it('refuses a lowercase issue id in Deferred re-review (M-a: shape check, not decorative)', () => {
+    // Round 1 review, M-a: DEFERRED_REVIEW previously carried the `i` flag,
+    // making `[A-Z][A-Z0-9]*` decorative — `myk9-523` parsed despite the
+    // comment above the regex claiming uppercase. Dropped `i`, kept `m`.
+    const result = evaluateReviewGate({
+      headSha: HEAD,
+      comments: [comment(body('Deferred re-review: myk9-523'))],
+      changedFiles: ['scripts/qa/review-gate.ts'],
+    });
+    expect(result.state).toBe('failure');
   });
 
   it('the legacy human-fallback evidence form keeps working unchanged', () => {

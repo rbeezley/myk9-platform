@@ -262,8 +262,12 @@ const PASSING_CHECKS = /^Required checks: passing$/im;
 const OVERRIDE_REASON = /^Override reason: .+ unavailable\s*[-—:]\s*.+$/im;
 // [A-Z][A-Z0-9]*, not [A-Z]+: this repo's own issue prefix is MYK9-<n> — a
 // digit inside the prefix — and a brief-literal `[A-Z]+-\d+` cannot match it
-// (verified against MYK9-523 during implementation: it does not match).
-const DEFERRED_REVIEW = /^Deferred re-review: [A-Z][A-Z0-9]*-\d+$/im;
+// (verified against MYK9-523 during implementation: it does not match). No
+// `i` flag: this is a SHAPE check (an issue id was named), not an identity
+// check, so `A-1` is fine — but an `i` flag made the letters decorative,
+// letting lowercase `myk9-523` parse despite the comment above claiming
+// uppercase (round 1 finding M-a).
+const DEFERRED_REVIEW = /^Deferred re-review: [A-Z][A-Z0-9]*-\d+$/m;
 
 /**
  * The full owner-override contract. Checks the trusted-association gate
@@ -325,7 +329,7 @@ export function humanFallbackAccepted(evidence: GateEvidence): boolean {
   return [...evidence.body.matchAll(SUBAGENT_REVIEW)].length >= 2;
 }
 
-export function evaluateReviewGate(input: {
+interface EvaluateReviewGateInput {
   headSha: string;
   comments: readonly GateComment[];
   changedFiles: readonly string[];
@@ -337,7 +341,39 @@ export function evaluateReviewGate(input: {
    * worse than no floor at all.
    */
   fileListUnusable?: boolean;
-}): GateResult {
+}
+
+/**
+ * The floor this input would face under ordinary (non-exempt) evidence.
+ * Shared by the general floor check below AND the override claimed-floor
+ * check (round 1 review, I-B): an override's verdict claims which floor it
+ * is skipping (`override, floor was independent|adversarial`), and that
+ * claim must match the REAL floor for these `changedFiles` — an override
+ * bypasses the floor either way, but the recorded debt IS the contract, and
+ * a claim that understates the floor it skipped leaves an audit trail that
+ * misrepresents the risk deferred.
+ */
+function resolveFloor(input: { changedFiles: readonly string[]; fileListUnusable?: boolean }): {
+  tier: Tier;
+  reason: string;
+} {
+  // The invariant lives HERE, not only in runCli's caller-side check, so a
+  // future caller that computes changedFiles itself (push-hold.ts already
+  // imports this module) cannot silently clear a guardrail PR on a
+  // transient `gh` failure that yields an empty list (I2).
+  const listUnusable =
+    input.fileListUnusable === true ||
+    input.changedFiles.length === 0 ||
+    input.changedFiles.length >= 3000;
+  return listUnusable
+    ? {
+        tier: 'independent',
+        reason: 'the changed-file list is empty or hit GitHub’s 3000-file cap and may be truncated',
+      }
+    : requiredTier(input.changedFiles);
+}
+
+export function evaluateReviewGate(input: EvaluateReviewGateInput): GateResult {
   const head = input.headSha.toLowerCase();
   const short = head.slice(0, 9);
   // Kill switch: MYK9_REVIEW_TIERS=off restores origin/main's behaviour
@@ -395,32 +431,46 @@ export function evaluateReviewGate(input: {
   // TIER unconditionally, which let a COLLABORATOR bypass the floor on any
   // guardrail path by posting a bare `owner reviewed … — no findings` line
   // (Codex review of Task 3 round 1, C1 — controller's own instruction,
-  // corrected). C1 is held by THIS exemption condition, never by tier alone:
-  // giving `owner` a `VERDICT_BY_TIER` grammar entry (Task 4) does not, by
-  // itself, exempt it from the floor — `overrideAccepted` re-checks
-  // `HUMAN_FALLBACK_ASSOCIATIONS` independently of `commentTrusted`, so a
-  // COLLABORATOR's `owner` line fails `accepted` above and never reaches
-  // this line at all. Widening this condition back to a bare
-  // `latest.tier === 'owner'` test would reopen the hole (simulated during
-  // Task 3 round 2 review) — change it with that in mind.
+  // corrected).
+  //
+  // C1 is actually held by `overrideAccepted`'s own association check
+  // (`HUMAN_FALLBACK_ASSOCIATIONS.has(...)`, above near line 276) — NOT by
+  // this exemption line. Widening `overrideExempt` below to a bare
+  // `latest.tier === 'owner'` test changes nothing behaviourally: reaching
+  // this point already requires `accepted === true`, and for `isOverride`
+  // that means `overrideAccepted(latest)` already returned true, which
+  // already proves the association. (Round 1 review, I-A: an earlier
+  // version of this comment claimed the opposite — that THIS condition was
+  // what held C1 — which is wrong and would have sent the next maintainer
+  // to the wrong line.) This condition is defence-in-depth against a future
+  // `owner`-tier reviewer token that might route around `overrideAccepted`
+  // entirely, not the thing actually stopping the COLLABORATOR case today.
   const humanFallbackExempt = isHumanFallback && humanFallbackAccepted(latest);
   const overrideExempt = isOverride && overrideAccepted(latest);
+  // Round 1 review, I-B: `accepted` above only confirmed the override's
+  // OWN grammar (verdict text matches `override, floor was
+  // independent|adversarial`); nothing previously checked that claim
+  // against the REAL floor these `changedFiles` require. Not an
+  // enforcement hole on its own — the override still bypasses the floor
+  // whichever tier it names — but the whole point of this plan is that an
+  // override records what it deferred, and a claim of "floor was
+  // independent" on a migration (real floor: adversarial), or "floor was
+  // adversarial" on a guardrail path (real floor: independent), would ship
+  // a debt record that misstates the risk. Refuse the mismatch instead of
+  // silently trusting the poster's own arithmetic.
+  if (overrideExempt) {
+    const claimed = OVERRIDE_VERDICT.exec(latest.verdict.trim())?.[1]?.toLowerCase();
+    const real = resolveFloor(input).tier;
+    if (claimed !== real) {
+      return {
+        state: 'failure',
+        description: `override of ${short} claims floor was ${claimed}, but the real floor for these changes is ${real}`,
+        evidence: latest,
+      };
+    }
+  }
   if (tiersEnabled && !humanFallbackExempt && !overrideExempt) {
-    // The invariant lives HERE, not only in runCli's caller-side check, so a
-    // future caller that computes changedFiles itself (push-hold.ts already
-    // imports this module) cannot silently clear a guardrail PR on a
-    // transient `gh` failure that yields an empty list (I2).
-    const listUnusable =
-      input.fileListUnusable === true ||
-      input.changedFiles.length === 0 ||
-      input.changedFiles.length >= 3000;
-    const floor = listUnusable
-      ? {
-          tier: 'independent' as Tier,
-          reason:
-            'the changed-file list is empty or hit GitHub’s 3000-file cap and may be truncated',
-        }
-      : requiredTier(input.changedFiles);
+    const floor = resolveFloor(input);
     if (!meetsFloor(latest.tier, floor.tier)) {
       return {
         state: 'failure',

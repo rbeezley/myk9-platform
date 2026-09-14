@@ -278,7 +278,10 @@ describe('MYK9-486 — exhibitor non-card submit never writes enrollments.paymen
 
   it('still writes payment_status for the organizer (staff) path', async () => {
     const { updates } = installTransport(makeEnrollmentRow());
-    const ctx = makeContext({ currentWorkflowMode: 'secretary_new', paymentMethod: 'secretary_paid' });
+    const ctx = makeContext({
+      currentWorkflowMode: 'secretary_new',
+      paymentMethod: 'secretary_paid',
+    });
 
     await submitPaymentStep(ctx);
 

@@ -129,7 +129,10 @@ export function hasEnrollmentPaymentInput({
   );
 }
 
-export function shouldPreserveFinancialForWaived(existing: Registration, paymentMethod?: PaymentMethod) {
+export function shouldPreserveFinancialForWaived(
+  existing: Registration,
+  paymentMethod?: PaymentMethod
+) {
   if (paymentMethod !== 'waived') return false;
   return (
     existing.paymentStatus !== PaymentStatus.PENDING ||

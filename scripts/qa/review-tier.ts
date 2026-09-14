@@ -54,8 +54,10 @@ function floorFor(file: string): { tier: Tier; reason: string } {
 
 export function requiredTier(files: readonly string[]): { tier: Tier; reason: string } {
   if (files.length === 0) return { tier: 'adversarial', reason: 'no files' };
-  let best = { tier: 'none' as Tier, reason: 'no files' };
-  for (const file of files) {
+  // Seed from the first file's own candidate so `reason` always names a real
+  // path for a non-empty list, even when every file resolves to 'none'.
+  let best = floorFor(files[0]!);
+  for (const file of files.slice(1)) {
     const candidate = floorFor(file);
     if (TIER_ORDER.indexOf(candidate.tier) > TIER_ORDER.indexOf(best.tier)) best = candidate;
   }

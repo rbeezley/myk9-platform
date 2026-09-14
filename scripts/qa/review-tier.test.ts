@@ -39,6 +39,13 @@ describe('requiredTier', () => {
     expect(requiredTier(['README.md']).tier).toBe('none');
   });
 
+  it('names a real file in the reason for a non-empty docs-only list, never "no files"', () => {
+    const got = requiredTier(['docs/qa/findings.md', 'README.md']);
+    expect(got.tier).toBe('none');
+    expect(got.reason).not.toBe('no files');
+    expect(['docs/qa/findings.md', 'README.md']).toContain(got.reason.split(' ')[0]);
+  });
+
   it('defaults an unknown path to adversarial, never none', () => {
     expect(requiredTier(['some/brand/new/place.txt']).tier).toBe('adversarial');
   });

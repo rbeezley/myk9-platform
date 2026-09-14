@@ -204,34 +204,34 @@ export default function RegistrationsSection({
     );
   }
 
-  // NOT gated on showDetails: the rail is the only other registration surface and
-  // it renders "No registrations yet." from an empty `data`, so a failed fetch on
-  // a registered dog would otherwise read as "you have none" with no retry.
-  if (error) {
-    return (
-      <div className="flex items-center justify-center py-8">
-        <div className="text-center">
-          <p className="text-destructive mb-4">Error loading registrations</p>
-          <Button onClick={() => refetch()} variant="outline">
-            Try Again
-          </Button>
-        </div>
-      </div>
-    );
-  }
-
   return (
-    // With `showDetails` off this renders only the add/edit panels, which draw
-    // no box. `display: contents` keeps it out of Overview's `space-y-8` rhythm
-    // so the hidden section leaves no ~32px dead gap above Activity.
-    <div className={showDetails ? undefined : 'contents'}>
+    // With `showDetails` off and nothing to report this renders only the
+    // add/edit panels, which draw no box. `display: contents` keeps it out of
+    // Overview's `space-y-8` rhythm so the hidden section leaves no ~32px dead
+    // gap above Activity.
+    <div className={showDetails || error ? undefined : 'contents'}>
       {registrationSaveError && (
         <Alert className="mb-4 border-destructive/30 bg-destructive/10">
           <AlertDescription className="text-destructive">{registrationSaveError}</AlertDescription>
         </Alert>
       )}
 
-      {showDetails && (!registrations || registrations.length === 0) ? (
+      {/* Not gated on showDetails: the rail is the only other registration
+          surface and renders "No registrations yet." from an empty `data`, so a
+          failed fetch on a registered dog would otherwise read as "you have
+          none" with no retry. Rendered INLINE rather than as an early return —
+          returning above the panels below would make the rail's Add
+          registration a dead control for as long as the query is failing. */}
+      {error ? (
+        <div className="flex items-center justify-center py-8">
+          <div className="text-center">
+            <p className="text-destructive mb-4">Error loading registrations</p>
+            <Button onClick={() => refetch()} variant="outline">
+              Try Again
+            </Button>
+          </div>
+        </div>
+      ) : showDetails && (!registrations || registrations.length === 0) ? (
         <EmptyState
           icon={Plus}
           title="No Registrations Found"

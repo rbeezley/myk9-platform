@@ -57,7 +57,6 @@ export interface DogDetailsTabsProps {
   autoOpenAddRegistration: boolean;
   onAddRequestConsumed?: () => void;
   showRegistrationDetails?: boolean;
-  registrationsCount?: number;
   role?: 'exhibitor' | 'secretary';
 }
 

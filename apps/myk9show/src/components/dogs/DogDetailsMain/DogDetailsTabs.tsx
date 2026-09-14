@@ -18,7 +18,6 @@ const DogDetailsTabs: React.FC<DogDetailsTabsProps> = ({
   autoOpenAddRegistration,
   onAddRequestConsumed,
   showRegistrationDetails = false,
-  registrationsCount = 0,
   role = 'exhibitor',
 }) => {
   const { isPremium, isLoading, canAuthorizePremium } = useSubscriptionGate();
@@ -41,7 +40,11 @@ const DogDetailsTabs: React.FC<DogDetailsTabsProps> = ({
     heading.focus({ preventScroll: true });
   }, [showRegistrationDetails]);
   const dogName = getDogDisplayName(dog);
-  const registrationDetailsVisible = showRegistrationDetails && registrationsCount > 0;
+  // The URL alone governs the reveal. Gating it on a registration count too
+  // made the section vanish in place (focus falling to <body>) when the last
+  // registration was deleted, and rendered nothing at all for a legacy
+  // `?tab=registrations` bookmark on an unregistered dog.
+  const registrationDetailsVisible = showRegistrationDetails;
   // `locked` is the DISPLAY treatment (blur gate on view-only Premium panels)
   // and may use the optimistic legacy value. Anything that unlocks a WRITE
   // takes `canAuthorizePremium` instead: an untrusted entitlement read must not

@@ -155,7 +155,6 @@ describe('DogDetailsTabs navigation', () => {
                 dog={mockDog}
                 autoOpenAddRegistration={false}
                 showRegistrationDetails
-                registrationsCount={1}
               />
             }
           />

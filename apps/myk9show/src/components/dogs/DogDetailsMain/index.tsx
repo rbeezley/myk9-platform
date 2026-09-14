@@ -268,7 +268,6 @@ const DogDetailsMain: React.FC<DogDetailsMainProps> = ({
 
   // Live registrations count
   const { data: dbRegistrations } = useRegistrationsByDogQuery(updatedDog.id);
-  const liveRegistrationsCount = dbRegistrations?.length ?? updatedDog.registrations?.length ?? 0;
 
   return (
     <>
@@ -298,7 +297,6 @@ const DogDetailsMain: React.FC<DogDetailsMainProps> = ({
               autoOpenAddRegistration={addRegistrationDogId === dog.id}
               onAddRequestConsumed={() => setAddRegistrationDogId(null)}
               showRegistrationDetails={showRegistrationDetails}
-              registrationsCount={liveRegistrationsCount}
               role={isSecretary ? 'secretary' : 'exhibitor'}
             />
           </main>

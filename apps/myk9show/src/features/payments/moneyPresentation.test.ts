@@ -2,11 +2,14 @@ import { describe, expect, it } from 'vitest';
 import {
   buildPaymentDisplayRows,
   formatPaymentCents,
+  formatPaymentDate,
   isRetryablePaymentStatus,
   isSettlingPaymentStatus,
   paymentStatusLabel,
   type PaymentPresentationSource,
 } from './moneyPresentation';
+
+import { expectedLocalDate } from '@/test/utils/expectedLocalDate';
 
 function payment(overrides: Partial<PaymentPresentationSource> = {}): PaymentPresentationSource {
   return {
@@ -271,6 +274,39 @@ describe('moneyPresentation', () => {
     ]);
 
     expect(rows[1]).toMatchObject({ kind: 'refund', date: '2025-12-20T12:00:00Z' });
+  });
+});
+
+describe('formatPaymentDate', () => {
+  // `expectedLocalDate` builds its expectation from the same pinned instant
+  // WITHOUT calling `formatPaymentDate` or `Intl` (see its own module doc) —
+  // asserting a receipt date against the very formatter under test would be
+  // tautological and would not catch a day-shift bug inside it.
+  it('renders in local time, matching an independently built expectation', () => {
+    expect(formatPaymentDate('2026-09-06T12:00:00Z')).toBe(
+      expectedLocalDate('2026-09-06T12:00:00Z')
+    );
+  });
+
+  // A UTC-midnight boundary: two instants one second apart, straddling
+  // 2026-09-05/06 in UTC. A whole-day-off bug (e.g. an injected
+  // `setUTCDate(d.getUTCDate() - 1)`) shifts the computed calendar day by
+  // exactly one day in every timezone, so pinning both sides of this
+  // boundary against `expectedLocalDate` catches it regardless of which zone
+  // the suite runs in — unlike asserting the two instants differ FROM EACH
+  // OTHER, which is only true in a zone whose offset is exactly zero.
+  it('reads a UTC-midnight boundary correctly on both sides', () => {
+    expect(formatPaymentDate('2026-09-05T23:59:59Z')).toBe(
+      expectedLocalDate('2026-09-05T23:59:59Z')
+    );
+    expect(formatPaymentDate('2026-09-06T00:00:00Z')).toBe(
+      expectedLocalDate('2026-09-06T00:00:00Z')
+    );
+  });
+
+  it('renders a dash for a null or unparsable date rather than inventing one', () => {
+    expect(formatPaymentDate(null)).toBe('-');
+    expect(formatPaymentDate('not-a-date')).toBe('-');
   });
 });
 

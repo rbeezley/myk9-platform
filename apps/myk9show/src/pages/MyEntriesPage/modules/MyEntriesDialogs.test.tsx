@@ -13,16 +13,18 @@ vi.mock('@/features/payments/entryReceiptOrder', () => ({
   useEntryReceiptOrders: useEntryReceiptOrdersMock,
 }));
 
-import { formatPaymentDate } from '@/features/payments/moneyPresentation';
+import { expectedLocalDate } from '@/test/utils/expectedLocalDate';
 
 import { ReceiptEntryDialog } from './MyEntriesDialogs';
 import { buildScopedPaymentFacts } from './scopedPaymentFacts';
 
-// `formatPaymentDate` renders in LOCAL time, so every date-bearing assertion
-// below reads its expectation back through the same formatter, driven by the
-// same pinned instant as the fixture, rather than a literal date string.
-const ORDER_1_PAID_ON = formatPaymentDate('2026-08-01T12:00:00Z');
-const ORDER_2_PAID_ON = formatPaymentDate('2026-08-09T12:00:00Z');
+// The production aria-label renders the date via `formatPaymentDate`, in
+// LOCAL time. `expectedLocalDate` builds the same "Mon D, YYYY" string from
+// the same pinned instant WITHOUT calling `formatPaymentDate` or `Intl` —
+// asserting through the formatter under test would be tautological, passing
+// even if that formatter itself had a day-shift bug.
+const ORDER_1_PAID_ON = expectedLocalDate('2026-08-01T12:00:00Z');
+const ORDER_2_PAID_ON = expectedLocalDate('2026-08-09T12:00:00Z');
 
 const splitRegistration: MyEntry = {
   id: 'entry-a',

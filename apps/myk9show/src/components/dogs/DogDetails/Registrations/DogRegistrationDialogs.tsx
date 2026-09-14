@@ -12,7 +12,7 @@
  * Opening is driven by `registrationsStore`, so any surface can raise a panel
  * without owning one.
  */
-import { useEffect, useState } from 'react';
+import { useEffect } from 'react';
 import { toast } from 'sonner';
 import type { Dog } from '@/types/dog-types';
 import AddRegistrationPanel from './AddRegistrationPanel';
@@ -28,9 +28,6 @@ interface DogRegistrationDialogsProps {
   autoOpenAddDialog?: boolean;
   onAddRequestConsumed?: (() => void) | undefined;
 }
-
-/** SlideOverPanel keeps a closed panel mounted this long for its exit slide. */
-const PANEL_CLOSE_MS = 350;
 
 interface RegistrationFormData {
   organization: string;
@@ -92,18 +89,6 @@ export default function DogRegistrationDialogs({
     };
   }, [dogId, setIsAddOpen, setIsEditOpen, setIsDeleteOpen, setSelectedRegistration]);
 
-  // EditPanelWrapper resets only when `initialData`'s VALUE changes, and Add's is
-  // a module constant — so a panel that no longer unmounts between uses reopens
-  // holding the registration just saved, inviting a duplicate row. Remount it
-  // AFTER the close animation: remounting at the moment of opening would seed
-  // `prevOpen` from `open` and skip the slide-in.
-  const [addPanelKey, setAddPanelKey] = useState(0);
-  useEffect(() => {
-    if (isAddOpen) return;
-    const timer = setTimeout(() => setAddPanelKey(key => key + 1), PANEL_CLOSE_MS);
-    return () => clearTimeout(timer);
-  }, [isAddOpen]);
-
   // The delete confirmation is a plain dialog with no error surface of its own,
   // so its failures need a toast.
   const reportSaveError = (error: unknown) => toast.error(translateDogDbError(error).message);
@@ -152,7 +137,6 @@ export default function DogRegistrationDialogs({
   return (
     <>
       <AddRegistrationPanel
-        key={addPanelKey}
         open={isAddOpen}
         onClose={() => setIsAddOpen(false)}
         onSave={handleAdd}

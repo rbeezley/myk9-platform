@@ -51,6 +51,7 @@ import {
   getClassEntryWindow,
   isAvailabilityUnreadable,
 } from './ClassSelectionStep.availability';
+import { buildFullChipReason } from './ClassSelectionStep.fullReason';
 
 export type { ClassSelectionStepProps } from './ClassSelectionStep.types';
 
@@ -490,6 +491,14 @@ export const ClassSelectionStep: React.FC<ClassSelectionStepProps> = ({
                                       isFull: avail.isFull,
                                       waitlistCount: avail.waitlistCount,
                                       allowsWaitlist: avail.allowsWaitlist,
+                                      // A "Full" badge with no explanation is a
+                                      // dead end; the sentence comes from the
+                                      // server's own payload (MYK9-515).
+                                      fullReason: buildFullChipReason({
+                                        classId: l.classId,
+                                        availability: availabilityClasses,
+                                        secretaryContact: show?.clubEmail,
+                                      }),
                                     }),
                                   };
                                 })}

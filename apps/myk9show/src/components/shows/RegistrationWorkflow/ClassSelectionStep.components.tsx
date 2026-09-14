@@ -150,6 +150,11 @@ export const ElementCard: React.FC<ElementCardProps> = ({
   if (isSingleClass) {
     const cls = levels[0];
     if (!cls) return null;
+    const singleDescription = cls.isClassClosed
+      ? cls.classClosedReason
+      : cls.isFull && !cls.isAlreadyEntered
+        ? cls.fullReason
+        : null;
     return (
       <div className="myk9-element-card myk9-element-card-single">
         <div className="flex items-center justify-between">
@@ -166,9 +171,7 @@ export const ElementCard: React.FC<ElementCardProps> = ({
               aria-label={
                 cls.isAlreadyEntered ? `${element} (already entered)` : `Select ${element}`
               }
-              {...(cls.isClassClosed && cls.classClosedReason
-                ? { 'aria-describedby': `single-reason-${cls.classId}` }
-                : {})}
+              {...(singleDescription ? { 'aria-describedby': `single-reason-${cls.classId}` } : {})}
               onCheckedChange={() =>
                 !cls.isAlreadyEntered && !cls.isClassClosed && onToggle(cls.classId)
               }
@@ -193,12 +196,9 @@ export const ElementCard: React.FC<ElementCardProps> = ({
                 In cart
               </Badge>
             )}
-            {cls.isClassClosed && cls.classClosedReason && (
-              <span
-                id={`single-reason-${cls.classId}`}
-                className="text-sm text-muted-foreground"
-              >
-                {cls.classClosedReason}
+            {singleDescription && (
+              <span id={`single-reason-${cls.classId}`} className="text-sm text-muted-foreground">
+                {singleDescription}
               </span>
             )}
             {cls.isAvailabilityUnknown && !cls.isClassClosed && !cls.isAlreadyEntered && (
@@ -263,6 +263,7 @@ export const ElementCard: React.FC<ElementCardProps> = ({
             registrationGuidance={cls.isRegistrationBlocked ? null : cls.registrationGuidance}
             isClassClosed={cls.isClassClosed}
             classClosedReason={cls.classClosedReason}
+            fullReason={cls.fullReason}
             onToggle={onToggle}
           />
         ))}
@@ -314,6 +315,7 @@ interface LevelChipProps {
   registrationGuidance?: string | null | undefined;
   isClassClosed?: boolean | undefined;
   classClosedReason?: string | null | undefined;
+  fullReason?: string | null | undefined;
   onToggle: (classId: string) => void;
 }
 
@@ -330,11 +332,18 @@ const LevelChip: React.FC<LevelChipProps> = ({
   registrationGuidance,
   isClassClosed = false,
   classClosedReason,
+  fullReason,
   onToggle,
 }) => {
   const isChecked = isSelected || isAlreadyEntered;
   const descriptionId = `chip-reason-${classId}`;
-  const description = isClassClosed ? classClosedReason : null;
+  // A started class outranks a full one: it takes nothing at all, so offering a
+  // wait list or another day would be wrong, not merely redundant.
+  const description = isClassClosed
+    ? classClosedReason
+    : isFull && !isAlreadyEntered
+      ? fullReason
+      : null;
 
   return (
     <div className="flex flex-col gap-1">

@@ -65,6 +65,12 @@ export interface LevelInfo {
   isClassClosed?: boolean | undefined;
   /** One short sentence saying why the class is closed. */
   classClosedReason?: string | null | undefined;
+  /**
+   * One line saying what is full and what the exhibitor can do instead
+   * (MYK9-515). Derived from the server's availability payload by
+   * `buildFullChipReason`, never from a client count of entries.
+   */
+  fullReason?: string | null | undefined;
 }
 
 export interface ElementGroup {

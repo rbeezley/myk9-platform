@@ -14,6 +14,8 @@
 # Usage: bash scripts/qa/claude-review.sh [--post] [pr-number]
 #        bash scripts/qa/claude-review.sh --detach [--post] [pr-number]
 #        bash scripts/qa/claude-review.sh --wait <seconds> [pr-number]
+#        Check `pnpm qa:review-tier --base origin/main` FIRST — a cross-harness
+#        review is only required when the printed tier is `independent`.
 #
 # A real `/code-review` of a PR takes 5-20 minutes and `claude -p` prints
 # NOTHING until it finishes, so a caller with a per-command timeout sees an

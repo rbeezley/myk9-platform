@@ -23,6 +23,8 @@
 #
 # Usage: scripts/qa/codex-review.sh [base-ref] [--post]   (default: origin/main)
 #        pnpm qa:codex-review --post                      (no `--`: see the parser)
+#        Check `pnpm qa:review-tier --base origin/main` FIRST — a cross-harness
+#        review is only required when the printed tier is `independent`.
 # Env:   CODEX_BIN  override the codex executable (tests use a stub)
 #        GH_BIN     override the gh executable (tests use a stub)
 # Exit:  0 review ran and found nothing actionable

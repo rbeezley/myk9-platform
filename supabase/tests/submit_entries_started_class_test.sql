@@ -1,4 +1,4 @@
--- Behavioral test for 20260914174500_block_entries_into_started_classes.sql (MYK9-516).
+-- Behavioral test for 20260914184500_block_entries_into_started_classes.sql (MYK9-516).
 --
 -- `submit_show_entries` must refuse an exhibitor's entry into a class the judge
 -- has already started or finished, and must NOT refuse a show official's.

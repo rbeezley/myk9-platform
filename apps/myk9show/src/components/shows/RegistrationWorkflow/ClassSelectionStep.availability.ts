@@ -83,7 +83,7 @@ export function buildAvailabilityMap(
  *
  * Falling back to ENTERABLE for an unknown or absent status is deliberate: this
  * is the client half of a pair. The server rejects a started class on its own
- * (`submit_show_entries`, migration 20260914174500), so a status we cannot read
+ * (`submit_show_entries`, migration 20260914184500), so a status we cannot read
  * — offline, or a source that never carried the column — costs a clear message,
  * never a committed entry into a running ring.
  *

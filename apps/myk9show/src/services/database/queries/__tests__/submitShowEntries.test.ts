@@ -292,7 +292,7 @@ describe('submitShowEntries', () => {
  * MYK9-516. The started-class guard lives in the RPC, so the only thing the
  * client owes it is a faithful path from PostgREST's error to the toast. The
  * assertion is written against the exact message the migration RAISEs
- * (20260914174500_block_entries_into_started_classes.sql, pinned verbatim by
+ * (20260914184500_block_entries_into_started_classes.sql, pinned verbatim by
  * supabase/tests/submit_entries_started_class_test.sql): if either side is
  * reworded alone, one of the two tests goes red rather than an exhibitor
  * silently getting "Database operation failed".

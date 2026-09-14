@@ -67,7 +67,13 @@ for (const vp of VIEWPORTS) {
     test('Edit Dog names its gender combobox and photo action', async ({ page }) => {
       await signInAsExhibitor(page, '/dogs');
       await openFirstDogDetail(page);
-      await page.getByRole('button', { name: 'Edit', exact: true }).first().click();
+      // MYK9-518: the exhibitor's Edit moved into the identity rail's overflow
+      // menu; the standalone Edit button is now secretary-only.
+      await page
+        .locator('[data-dog-identity]')
+        .getByRole('button', { name: 'More actions' })
+        .click();
+      await page.getByRole('menuitem', { name: 'Edit Dog' }).click();
 
       const gender = page.getByRole('combobox', { name: /^Gender/ });
       await expect(gender).toMatchAriaSnapshot(`- combobox "Gender (required)"`);

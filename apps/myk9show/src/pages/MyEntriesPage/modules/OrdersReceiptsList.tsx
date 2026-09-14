@@ -27,7 +27,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import type { EntryReceiptOrder } from '@/features/payments/entryReceiptOrder';
-import { formatPaymentCents } from '@/features/payments/moneyPresentation';
+import { formatPaymentCents, formatPaymentDate } from '@/features/payments/moneyPresentation';
 import { formatShortCalendarDate } from '@/lib/format/dates';
 import { PaymentStatus } from '@/types/show-registration-types';
 import { getOrderOnlinePrompt } from './myEntryOrderBalance';
@@ -217,13 +217,7 @@ export const StripeOrderChooserDialog: React.FC<StripeOrderChooserDialogProps> =
           // `paidOn`, not `createdAt`: capture can lag creation, and this
           // chooser sits one click from the My Payments row that shows
           // `paid_at ?? created_at`.
-          const paidOn = order.paidOn
-            ? new Date(order.paidOn).toLocaleDateString('en-US', {
-                month: 'short',
-                day: 'numeric',
-                year: 'numeric',
-              })
-            : 'Date unavailable';
+          const paidOn = order.paidOn ? formatPaymentDate(order.paidOn) : 'Date unavailable';
           const amount = formatOrderAmount(order);
           return (
             <Button

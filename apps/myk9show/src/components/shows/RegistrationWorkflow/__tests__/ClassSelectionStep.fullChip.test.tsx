@@ -111,3 +111,39 @@ describe('ElementCard — full chip reason (MYK9-515)', () => {
     expect(document.getElementById(describedBy!)?.textContent).toBe(REASON);
   });
 });
+
+describe('ElementCard — a closed class that is already selected (MYK9-516)', () => {
+  const CLOSED = { isClassClosed: true, classClosedReason: 'This class has started' } as const;
+
+  it('stays operable so a stale cart line can be removed', async () => {
+    // The class started AFTER it went in the cart. Payment now refuses the whole
+    // submission, and a disabled checkbox is the one control that would fix it.
+    const onToggle = vi.fn();
+    const { user } = render(
+      <ElementCard
+        element="Interior"
+        levels={[{ ...baseLevel, isSelected: true, ...CLOSED }]}
+        fee={30}
+        isSingleClass={false}
+        onToggle={onToggle}
+      />
+    );
+
+    expect(screen.getByRole('checkbox')).not.toHaveAttribute('aria-disabled', 'true');
+    await user.click(screen.getByText('Advanced'));
+    expect(onToggle).toHaveBeenCalledWith('c1');
+  });
+
+  it('is still disabled when it is NOT selected', () => {
+    render(
+      <ElementCard
+        element="Interior"
+        levels={[{ ...baseLevel, isSelected: false, ...CLOSED }]}
+        fee={30}
+        isSingleClass={false}
+        onToggle={vi.fn()}
+      />
+    );
+    expect(screen.getByRole('checkbox')).toHaveAttribute('aria-disabled', 'true');
+  });
+});

@@ -1,5 +1,7 @@
 import { createDatabaseError } from '@/services/database/databaseError';
 import { getErrorMessage } from '@myk9/core';
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { submitShowEntries, updateEntryHandler } from '../../entries';
 
@@ -290,31 +292,78 @@ describe('submitShowEntries', () => {
 
 /**
  * MYK9-516. The started-class guard lives in the RPC, so the only thing the
- * client owes it is a faithful path from PostgREST's error to the toast. The
- * assertion is written against the exact message the migration RAISEs
- * (20260914184500_block_entries_into_started_classes.sql, pinned verbatim by
- * supabase/tests/submit_entries_started_class_test.sql): if either side is
- * reworded alone, one of the two tests goes red rather than an exhibitor
- * silently getting "Database operation failed".
+ * client owes it is a faithful path from PostgREST's error to the toast.
+ *
+ * The expected strings are READ OUT OF THE MIGRATION at test time rather than
+ * retyped here. A hand-copied constant is an independent copy: reword the RAISE
+ * and every assertion below keeps passing against text no exhibitor will ever
+ * see, which is precisely the drift the assertion is supposed to prevent
+ * (LESSONS `source-text-tests` — a test that proves someone typed the thing
+ * proves nothing about what runs).
  */
+const MIGRATION = readFileSync(
+  resolve(
+    import.meta.dirname,
+    '../../../../../../../supabase/migrations/20260914184500_block_entries_into_started_classes.sql'
+  ),
+  'utf8'
+);
+
+/**
+ * The message the RPC RAISEs for a status, exactly as the migration spells it.
+ * Fails loudly rather than returning a placeholder: a regex that silently
+ * stopped matching would hand every test below an empty expectation.
+ */
+function raisedMessage(marker: string): string {
+  const match = MIGRATION.match(
+    new RegExp(`v_class_status = '${marker}'[^\\n]*THEN\\s*\\n\\s*RAISE EXCEPTION '([^']+)'`)
+  );
+  if (!match?.[1]) {
+    throw new Error(
+      `Could not read the RAISE message for '${marker}' out of the migration. ` +
+        'If the guard moved or was reworded, update this reader — do not hand-copy the text.'
+    );
+  }
+  // The RAISE ends with `: %`, the class label the RPC interpolates. Strip the
+  // placeholder and keep the prose; the rendered message is built per test.
+  return match[1].replace(/:\s*%$/, '');
+}
+
+/** What the RPC actually sends: the prose, then the class it is talking about. */
+const CLASS_LABEL = 'Interior Advanced (Saturday Trial)';
+const rendered = (prose: string) => `${prose}: ${CLASS_LABEL}`;
+
 describe('submitShowEntries — started-class rejection (MYK9-516)', () => {
-  const STARTED_MESSAGE =
-    'This class has already started, so it can no longer be entered online. ' +
-    'Contact the show secretary about a late entry.';
+  const STARTED_MESSAGE = raisedMessage('in_progress');
+  const FINISHED_MESSAGE = raisedMessage('completed');
+  const CANCELLED_MESSAGE = raisedMessage('cancelled');
 
   beforeEach(() => {
     mockRpc.mockReset();
   });
 
+  it('reads three distinct messages out of the migration, with the placeholder stripped', () => {
+    // Known answer for the reader itself. Without this a regex that matched the
+    // same guard three times would make every assertion below agree for the
+    // wrong reason.
+    expect(STARTED_MESSAGE).toMatch(/already started/);
+    expect(FINISHED_MESSAGE).toMatch(/finished/);
+    expect(CANCELLED_MESSAGE).toMatch(/cancelled/);
+    expect(new Set([STARTED_MESSAGE, FINISHED_MESSAGE, CANCELLED_MESSAGE]).size).toBe(3);
+    for (const message of [STARTED_MESSAGE, FINISHED_MESSAGE, CANCELLED_MESSAGE]) {
+      expect(message).not.toContain('%');
+    }
+  });
+
   it('surfaces the RPC message and SQLSTATE rather than a generic failure', async () => {
     mockRpc.mockResolvedValue({
       data: null,
-      error: { message: STARTED_MESSAGE, code: '42501', details: null, hint: null },
+      error: { message: rendered(STARTED_MESSAGE), code: '42501', details: null, hint: null },
     });
 
     await expect(submitShowEntries(baseParams)).rejects.toMatchObject({
       name: 'DatabaseError',
-      message: STARTED_MESSAGE,
+      message: rendered(STARTED_MESSAGE),
       code: '42501',
       table: 'entry_submissions',
       operation: 'rpc_submit',
@@ -324,7 +373,7 @@ describe('submitShowEntries — started-class rejection (MYK9-516)', () => {
   it('gives getErrorMessage the readable sentence the wizard toasts', async () => {
     mockRpc.mockResolvedValue({
       data: null,
-      error: { message: STARTED_MESSAGE, code: '42501', details: null, hint: null },
+      error: { message: rendered(STARTED_MESSAGE), code: '42501', details: null, hint: null },
     });
 
     // `submitPaymentStep` catches and calls `notifications.error(getErrorMessage(error))`.
@@ -332,13 +381,28 @@ describe('submitShowEntries — started-class rejection (MYK9-516)', () => {
     // `isErrorLike` branch — the one that would quietly degrade to
     // String(value) = '[object Object]' if the shape ever changed.
     const caught = await submitShowEntries(baseParams).catch((error: unknown) => error);
-    expect(getErrorMessage(caught)).toBe(STARTED_MESSAGE);
+    expect(getErrorMessage(caught)).toBe(rendered(STARTED_MESSAGE));
+    // The toast must name WHICH class: a multi-class cart fails as a whole, and
+    // "a class has started" leaves the exhibitor guessing which chip to remove.
+    expect(getErrorMessage(caught)).toContain(CLASS_LABEL);
+  });
+
+  it('carries the finished and cancelled messages through unchanged too', async () => {
+    for (const message of [FINISHED_MESSAGE, CANCELLED_MESSAGE]) {
+      mockRpc.mockReset();
+      mockRpc.mockResolvedValue({
+        data: null,
+        error: { message: rendered(message), code: '42501', details: null, hint: null },
+      });
+      const caught = await submitShowEntries(baseParams).catch((error: unknown) => error);
+      expect(getErrorMessage(caught)).toBe(rendered(message));
+    }
   });
 
   it('does not commit any entry when the RPC rejects', async () => {
     mockRpc.mockResolvedValue({
       data: null,
-      error: { message: STARTED_MESSAGE, code: '42501', details: null, hint: null },
+      error: { message: rendered(STARTED_MESSAGE), code: '42501', details: null, hint: null },
     });
 
     await expect(submitShowEntries(baseParams)).rejects.toBeDefined();

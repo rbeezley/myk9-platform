@@ -79,6 +79,48 @@ describe('getClassEntryWindow (MYK9-516)', () => {
     expect(getClassEntryWindow({ status: 'Scheduled', isStaff: false }).enterable).toBe(true);
   });
 
+  it('blocks a class whose dogs are in the ring while status still says upcoming', () => {
+    // refresh_class_scoring_state writes 'in_progress' only once the first score
+    // lands, so this is the real show-day state for the whole first run — and
+    // the window an exhibitor is most likely to be entering a running class.
+    expect(getClassEntryWindow({ status: 'upcoming', hasStarted: true, isStaff: false })).toEqual({
+      enterable: false,
+      reason: 'This class has started',
+    });
+  });
+
+  it('leaves an upcoming class with nothing in the ring enterable', () => {
+    // Positive control for the case above: without it, blocking every upcoming
+    // class would pass it.
+    expect(
+      getClassEntryWindow({ status: 'upcoming', hasStarted: false, isStaff: false }).enterable
+    ).toBe(true);
+  });
+
+  it('still exempts staff from an in-ring class, as the RPC does', () => {
+    expect(
+      getClassEntryWindow({ status: 'upcoming', hasStarted: true, isStaff: true }).enterable
+    ).toBe(true);
+  });
+
+  it('blocks a cancelled class — it is not happening at all', () => {
+    expect(getClassEntryWindow({ status: 'cancelled', isStaff: false })).toEqual({
+      enterable: false,
+      reason: 'This class was cancelled',
+    });
+    expect(getClassEntryWindow({ status: 'Cancelled', isStaff: false }).enterable).toBe(false);
+  });
+
+  it('blocks a cancelled class for STAFF too, unlike a running one', () => {
+    // The staff carve-out exists for a late entry into a class that is running.
+    // A cancelled class has no ring, no judge and no paperwork, so a desk entry
+    // into one is a refund whoever takes it.
+    expect(getClassEntryWindow({ status: 'cancelled', isStaff: true })).toEqual({
+      enterable: false,
+      reason: 'This class was cancelled',
+    });
+  });
+
   it('does not block staff, who take late entries at the gate by design', () => {
     expect(getClassEntryWindow({ status: 'in_progress', isStaff: true })).toEqual({
       enterable: true,

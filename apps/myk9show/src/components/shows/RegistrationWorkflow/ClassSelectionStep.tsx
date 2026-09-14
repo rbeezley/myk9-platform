@@ -166,6 +166,14 @@ export const ClassSelectionStep: React.FC<ClassSelectionStepProps> = ({
     const result = new Map<string, ElementGroup[]>();
     const defaultFee = getClassFee(show, { entryFee: undefined });
 
+    // Keyed by class id, NOT read off the chosen source: the step prefers the
+    // replicated class list, and only the availability read knows whether dogs
+    // are in the ring. Looking it up here keeps the guard working on every
+    // source rather than only the one the step falls back to (MYK9-516).
+    const startedByClassId = new Map<string, boolean>(
+      availabilityClasses.map(cls => [cls.classId, cls.hasStarted])
+    );
+
     for (const trial of showTrials) {
       // Mapped rather than assigned straight through: `SyncableTrialClass`
       // spells the stored name `name`, and `RegistrationClassSource` spells it
@@ -254,7 +262,11 @@ export const ClassSelectionStep: React.FC<ClassSelectionStepProps> = ({
         );
         // A class the judge has already started is not enterable, whatever the
         // entry-close DATE says (MYK9-516). Staff keep taking gate entries.
-        const entryWindow = getClassEntryWindow({ status: cls.status, isStaff });
+        const entryWindow = getClassEntryWindow({
+          status: cls.status,
+          hasStarted: startedByClassId.get(cls.id) ?? false,
+          isStaff,
+        });
         const entry = {
           classId: cls.id,
           className: cls.className || '',

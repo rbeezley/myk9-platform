@@ -201,9 +201,16 @@ function setupStepMocks(opts: {
   replicatedStatus?: string | undefined;
   /** Status on the availability row — the fallback source. */
   availabilityStatus?: string | null;
+  /** `hasStarted` on the availability payload: a dog in the ring, or a score. */
+  hasStarted?: boolean;
   isStaff?: boolean;
 }) {
-  const { replicatedStatus, availabilityStatus = 'upcoming', isStaff = false } = opts;
+  const {
+    replicatedStatus,
+    availabilityStatus = 'upcoming',
+    hasStarted = false,
+    isStaff = false,
+  } = opts;
 
   mockUseDogStoreCompat.mockReturnValue({
     dogs: [
@@ -305,6 +312,7 @@ function setupStepMocks(opts: {
         level: 'Advanced',
         section: null,
         status: availabilityStatus,
+        hasStarted,
         trialId: TRIAL_ID,
         trialName: 'Saturday Trial',
         trialDate: '2026-10-24',
@@ -359,6 +367,21 @@ describe('ClassSelectionStep — started classes (MYK9-516, integration)', () =>
     renderStep();
 
     expect(await screen.findByText('This class has started')).toBeInTheDocument();
+  });
+
+  it('blocks a class with a dog in the ring even though status says upcoming', async () => {
+    // The column lags the ring until the first score lands, and this is the
+    // path the step PREFERS — the replicated class carries only the status, so
+    // `hasStarted` has to be looked up by class id or the guard is inert here.
+    setupStepMocks({
+      replicatedStatus: 'Upcoming',
+      availabilityStatus: 'upcoming',
+      hasStarted: true,
+    });
+    renderStep();
+
+    expect(await screen.findByText('This class has started')).toBeInTheDocument();
+    expect(screen.getByRole('checkbox')).toHaveAttribute('aria-disabled', 'true');
   });
 
   it('leaves an upcoming class selectable', async () => {

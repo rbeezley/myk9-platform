@@ -18,6 +18,17 @@
 --   4. A show secretary IS allowed into the 'in_progress' class. This is the
 --      assumed product rule (late entry at the desk); if Richard decides
 --      otherwise, this is the case that changes.
+--   5. A class whose status still says 'upcoming' but which has a dog in the
+--      ring is rejected. `refresh_class_scoring_state` only writes 'in_progress'
+--      once the first score lands, so a status-only guard is open for the whole
+--      first run -- the exact window an exhibitor is most likely to be entering
+--      a class being judged. Case 3 is its positive control.
+--   6. A 'cancelled' class is rejected for an exhibitor AND for a secretary.
+--      This is the one guard with no official carve-out: a cancelled class is
+--      not running late, it is not happening, so a desk entry into it is a
+--      refund whoever takes it. Case 6 is what stops that claim being untested
+--      wishful thinking -- the same secretary who succeeds in case 4 must fail
+--      here, in the same run, or the carve-out is not actually conditional.
 --
 -- Run against a database where all migrations are applied:
 --   psql "$DATABASE_URL" -v ON_ERROR_STOP=1 \
@@ -56,7 +67,14 @@ VALUES
   ('00000000-0000-0000-0000-000000516303', '00000000-0000-0000-0000-000000516200',
    'Interior Excellent', 'Interior', 'Excellent', 'completed', 'manual', 30),
   ('00000000-0000-0000-0000-000000516304', '00000000-0000-0000-0000-000000516200',
-   'Container Novice A', 'Container', 'Novice', 'in_progress', 'manual', 30);
+   'Container Novice A', 'Container', 'Novice', 'in_progress', 'manual', 30),
+  ('00000000-0000-0000-0000-000000516305', '00000000-0000-0000-0000-000000516200',
+   'Exterior Master', 'Exterior', 'Master', 'cancelled', 'manual', 30),
+  -- Status says 'upcoming' and a dog is in the ring. This is the real show-day
+  -- state: refresh_class_scoring_state only writes 'in_progress' once the first
+  -- score lands, so the column lags the ring by the whole first run.
+  ('00000000-0000-0000-0000-000000516306', '00000000-0000-0000-0000-000000516200',
+   'Vehicle Novice', 'Vehicle', 'Novice', 'upcoming', 'manual', 30);
 
 INSERT INTO public.people (id, first_name, last_name, email)
 VALUES
@@ -116,6 +134,8 @@ VALUES
   ('00000000-0000-0000-0000-000000516401', 'MYK9-516 Dog One', 'Uno', 'Beagle', 'active',
    '00000000-0000-0000-0000-000000516001'),
   ('00000000-0000-0000-0000-000000516402', 'MYK9-516 Dog Two', 'Dos', 'Beagle', 'active',
+   '00000000-0000-0000-0000-000000516001'),
+  ('00000000-0000-0000-0000-000000516403', 'MYK9-516 Dog Three', 'Tres', 'Beagle', 'active',
    '00000000-0000-0000-0000-000000516001');
 
 -- An entry needs a registration with the TRIAL'S registry (20260828210000), or
@@ -123,7 +143,18 @@ VALUES
 INSERT INTO public.dog_registrations (dog_id, organization, registration_number, is_primary)
 VALUES
   ('00000000-0000-0000-0000-000000516401', 'AKC', 'SR51600001', true),
-  ('00000000-0000-0000-0000-000000516402', 'AKC', 'SR51600002', true);
+  ('00000000-0000-0000-0000-000000516402', 'AKC', 'SR51600002', true),
+  ('00000000-0000-0000-0000-000000516403', 'AKC', 'SR51600003', true);
+
+-- A dog already in the ring for the 'upcoming' class. status_source stays
+-- 'manual' on that class so no rollup rewrites the column back and hides the
+-- very lag this case exists to cover.
+INSERT INTO public.entries (show_id, trial_id, class_id, dog_id, entry_status, is_in_ring)
+VALUES ('00000000-0000-0000-0000-000000516100',
+        '00000000-0000-0000-0000-000000516200',
+        '00000000-0000-0000-0000-000000516306',
+        '00000000-0000-0000-0000-000000516403',
+        'submitted', true);
 
 INSERT INTO public.enrollments (id, show_id, handler_id)
 VALUES ('00000000-0000-0000-0000-000000516500',
@@ -144,6 +175,8 @@ DECLARE
   running_cls    CONSTANT uuid := '00000000-0000-0000-0000-000000516302';
   finished_cls   CONSTANT uuid := '00000000-0000-0000-0000-000000516303';
   staff_cls      CONSTANT uuid := '00000000-0000-0000-0000-000000516304';
+  cancelled_cls  CONSTANT uuid := '00000000-0000-0000-0000-000000516305';
+  in_ring_cls    CONSTANT uuid := '00000000-0000-0000-0000-000000516306';
   caught_state   text;
   caught_message text;
   result         jsonb;
@@ -177,7 +210,7 @@ BEGIN
     RAISE EXCEPTION 'FAIL in_progress rejection used SQLSTATE % (expected 42501): %',
       caught_state, caught_message;
   END IF;
-  IF caught_message <> 'This class has already started, so it can no longer be entered online. Contact the show secretary about a late entry.' THEN
+  IF caught_message <> 'This class has already started, so it can no longer be entered online. Contact the show secretary about a late entry: Interior Advanced (MYK9-516 Saturday Trial)' THEN
     RAISE EXCEPTION 'FAIL in_progress message is not the exhibitor-facing copy: %', caught_message;
   END IF;
 
@@ -205,8 +238,61 @@ BEGIN
     RAISE EXCEPTION 'FAIL completed rejection used SQLSTATE % (expected 42501): %',
       caught_state, caught_message;
   END IF;
-  IF caught_message <> 'This class has finished, so it can no longer be entered.' THEN
+  IF caught_message <> 'This class has finished, so it can no longer be entered: Interior Excellent (MYK9-516 Saturday Trial)' THEN
     RAISE EXCEPTION 'FAIL completed message is not the exhibitor-facing copy: %', caught_message;
+  END IF;
+
+  ----------------------------------------------------------------------------
+  -- 3a. Exhibitor into a cancelled class -> rejected.
+  ----------------------------------------------------------------------------
+  caught_state := NULL;
+  caught_message := NULL;
+  BEGIN
+    PERFORM public.submit_show_entries(
+      show_id, enrollment_id,
+      jsonb_build_array(jsonb_build_object(
+        'dog_id', dog_one, 'class_id', cancelled_cls,
+        'handler_name', 'MYK9-516 Exhibitor', 'client_fee_cents', 3000)),
+      '00000000-0000-0000-0000-000000516905'::uuid, 'check');
+  EXCEPTION WHEN OTHERS THEN
+    caught_state := SQLSTATE;
+    caught_message := SQLERRM;
+  END;
+
+  IF caught_state IS NULL THEN
+    RAISE EXCEPTION 'FAIL exhibitor entry into a cancelled class was accepted';
+  END IF;
+  IF caught_message <> 'This class was cancelled, so it can no longer be entered: Exterior Master (MYK9-516 Saturday Trial)' THEN
+    RAISE EXCEPTION 'FAIL cancelled message is not the exhibitor-facing copy: %', caught_message;
+  END IF;
+
+  ----------------------------------------------------------------------------
+  -- 3b. THE WINDOW THE STATUS COLUMN MISSES: status 'upcoming', a dog in the
+  --     ring, no score yet. A status-only guard accepts this and sells an entry
+  --     into a class being judged. Case 3 below is its positive control -- the
+  --     same 'upcoming' status with no in-ring entry still commits -- so this
+  --     cannot pass by blocking every upcoming class.
+  ----------------------------------------------------------------------------
+  caught_state := NULL;
+  caught_message := NULL;
+  BEGIN
+    PERFORM public.submit_show_entries(
+      show_id, enrollment_id,
+      jsonb_build_array(jsonb_build_object(
+        'dog_id', dog_one, 'class_id', in_ring_cls,
+        'handler_name', 'MYK9-516 Exhibitor', 'client_fee_cents', 3000)),
+      '00000000-0000-0000-0000-000000516907'::uuid, 'check');
+  EXCEPTION WHEN OTHERS THEN
+    caught_state := SQLSTATE;
+    caught_message := SQLERRM;
+  END;
+
+  IF caught_state IS NULL THEN
+    RAISE EXCEPTION
+      'FAIL entry into an upcoming class with a dog in the ring was accepted';
+  END IF;
+  IF caught_message NOT LIKE 'This class has already started%Vehicle Novice%' THEN
+    RAISE EXCEPTION 'FAIL in-ring rejection did not use the started copy: %', caught_message;
   END IF;
 
   ----------------------------------------------------------------------------
@@ -239,6 +325,33 @@ BEGIN
 
   IF jsonb_array_length(result->'entries') <> 1 THEN
     RAISE EXCEPTION 'FAIL secretary late entry into an in_progress class was blocked: %', result;
+  END IF;
+
+  ----------------------------------------------------------------------------
+  -- 6. ...but the SAME secretary is refused the cancelled class. Without this
+  --    case 5 proves only that somebody somewhere is blocked, and the "no
+  --    official carve-out for cancelled" claim rests on the migration text.
+  ----------------------------------------------------------------------------
+  caught_state := NULL;
+  caught_message := NULL;
+  BEGIN
+    PERFORM public.submit_show_entries(
+      show_id, enrollment_id,
+      jsonb_build_array(jsonb_build_object(
+        'dog_id', dog_two, 'class_id', cancelled_cls,
+        'handler_name', 'MYK9-516 Exhibitor', 'client_fee_cents', 3000)),
+      '00000000-0000-0000-0000-000000516906'::uuid, 'secretary_paid');
+  EXCEPTION WHEN OTHERS THEN
+    caught_state := SQLSTATE;
+    caught_message := SQLERRM;
+  END;
+
+  IF caught_state IS NULL THEN
+    RAISE EXCEPTION 'FAIL secretary entry into a cancelled class was accepted';
+  END IF;
+  IF caught_message <> 'This class was cancelled, so it can no longer be entered: Exterior Master (MYK9-516 Saturday Trial)' THEN
+    RAISE EXCEPTION 'FAIL secretary cancelled message is not the exhibitor-facing copy: %',
+      caught_message;
   END IF;
 
   RAISE NOTICE 'PASS submit_entries_started_class_test';

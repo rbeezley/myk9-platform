@@ -7,11 +7,14 @@
 -- simply not the caller -- `submit_show_entries` is the authority for what
 -- becomes an entry, exactly as it already is for the fee and the entry window.
 --
--- Show officials are NOT blocked. Taking a day-of entry at the desk for a class
--- already in the ring is the normal late-entry case, so the carve-out reuses the
--- function's existing `v_is_official` predicate (site admin OR show secretary OR
--- club admin). Recorded as an assumed product rule on MYK9-516 pending Richard's
--- confirmation; narrowing it later is a one-line change to the two IFs below.
+-- Show officials are NOT blocked for a RUNNING or FINISHED class. Taking a
+-- day-of entry at the desk for a class already in the ring is the normal
+-- late-entry case, so that carve-out reuses the function's existing
+-- `v_is_official` predicate (site admin OR show secretary OR club admin).
+--
+-- They ARE blocked for a CANCELLED class, which is not running late but not
+-- happening at all. Both are assumed product rules recorded on MYK9-516 pending
+-- Richard's confirmation; changing either is a one-line edit to the IFs below.
 --
 -- Rebuilt from 20260829030000_day_of_fee_zero_is_not_a_tier.sql, which is the
 -- LATEST migration defining this function (`grep -l "CREATE OR REPLACE FUNCTION
@@ -54,6 +57,10 @@ DECLARE
 
   v_trial_id      uuid;
   v_class_status  text;
+  v_class_name    text;
+  v_trial_name    text;
+  v_class_running boolean;
+  v_class_label   text;
   v_entry_id      uuid;
   v_capacity      record;
   v_entry_pairs   jsonb[] := '{}';
@@ -190,8 +197,8 @@ BEGIN
         USING ERRCODE = '42501';
     END IF;
 
-    SELECT c.entry_fee, t.id, c.status
-    INTO   v_class_fee, v_trial_id, v_class_status
+    SELECT c.entry_fee, t.id, c.status, c.name, t.name
+    INTO   v_class_fee, v_trial_id, v_class_status, v_class_name, v_trial_name
     FROM   public.classes c
     JOIN   public.trials t ON t.id = c.trial_id
     WHERE  c.id = v_class_id
@@ -221,13 +228,49 @@ BEGIN
     -- toasts `getErrorMessage(error)`. The message is therefore exhibitor-facing
     -- prose, deliberately, and is asserted verbatim by
     -- supabase/tests/submit_entries_started_class_test.sql.
-    IF NOT v_is_official AND v_class_status = 'in_progress' THEN
-      RAISE EXCEPTION 'This class has already started, so it can no longer be entered online. Contact the show secretary about a late entry.'
+    -- Which class, in words. One stale cart line otherwise fails the whole
+    -- submission with a message naming nothing, and the exhibitor has to guess
+    -- which of five chips to remove.
+    v_class_label := COALESCE(NULLIF(v_class_name, ''), 'This class')
+      || COALESCE(' (' || NULLIF(v_trial_name, '') || ')', '');
+
+    -- `classes.status` LAGS. `refresh_class_scoring_state` writes 'in_progress'
+    -- only once the first score lands, so from the moment dogs are in the ring
+    -- until somebody scores one the column still reads 'upcoming' -- the exact
+    -- window an exhibitor is most likely to be entering a class being judged.
+    -- Ringside never trusts the column alone either (`getEffectiveClassStatus`
+    -- derives it from `is_in_ring` and scoring state), so neither does this.
+    --
+    -- The scored predicate is `is_scored = true`, copied from the LATEST
+    -- definition of public.refresh_class_scoring_state
+    -- (20260904160000_exclude_absent_entries_from_class_rollup.sql), not invented
+    -- here: two notions of "this class has been scored" would drift.
+    SELECT EXISTS (
+      SELECT 1
+      FROM   public.entries e
+      WHERE  e.class_id = v_class_id
+        AND  e.deleted_at IS NULL
+        AND  (e.is_in_ring IS TRUE OR e.is_scored IS TRUE)
+    )
+    INTO v_class_running;
+
+    -- No NOT v_is_official here, deliberately. A cancelled class is not running
+    -- late, it is not happening: no ring, no judge, no paperwork. The official
+    -- carve-out below exists for a desk entry into a class that IS running and
+    -- has nothing to offer here, so nobody may buy an entry into a cancelled
+    -- class. (Assumed product rule, recorded on MYK9-516 with the other one.)
+    IF v_class_status = 'cancelled' THEN
+      RAISE EXCEPTION 'This class was cancelled, so it can no longer be entered: %', v_class_label
+        USING ERRCODE = '42501';
+    END IF;
+
+    IF NOT v_is_official AND (v_class_status = 'in_progress' OR v_class_running) THEN
+      RAISE EXCEPTION 'This class has already started, so it can no longer be entered online. Contact the show secretary about a late entry: %', v_class_label
         USING ERRCODE = '42501';
     END IF;
 
     IF NOT v_is_official AND v_class_status = 'completed' THEN
-      RAISE EXCEPTION 'This class has finished, so it can no longer be entered.'
+      RAISE EXCEPTION 'This class has finished, so it can no longer be entered: %', v_class_label
         USING ERRCODE = '42501';
     END IF;
 

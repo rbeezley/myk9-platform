@@ -19,6 +19,15 @@
 /** The availability fields this module reads. A subset of `ClassAvailability`. */
 export interface FullReasonClass {
   classId: string;
+  /**
+   * The class's stored name. Load-bearing, not decorative: a show can run two
+   * classes that share an element AND a level and differ only here — the seeded
+   * Heartland trial runs both "Interior Advanced" and "Interior Advanced
+   * Preliminary" (MYK9-489). Matching an alternative on element + level alone
+   * would send an exhibitor turned away from Advanced to Preliminary and call it
+   * the same class: MYK9-489's defect wearing this module's clothes.
+   */
+  className?: string | null | undefined;
   element: string | null;
   level: string;
   trialId: string;
@@ -82,10 +91,27 @@ function whatIsFull(target: FullReasonClass, availability: readonly FullReasonCl
 }
 
 /**
- * The same element and level on a DIFFERENT day, still open. Same-day siblings
- * are excluded deliberately: an exhibitor who cannot get into Saturday's
- * Interior Advanced is being offered a real alternative only if it runs at
- * another time they could attend.
+ * Whether two rows are the same class offered on two days.
+ *
+ * Element and level are the coarse test; the NAME settles it when a show runs
+ * two classes sharing both (MYK9-489). Names are compared only when both rows
+ * carry one — a source that never populated `name` must not silently switch the
+ * suggestion off, and with no name to disagree about, element + level is the
+ * best answer available.
+ */
+function isSameOffering(a: FullReasonClass, b: FullReasonClass): boolean {
+  if (!sameLabel(a.element, b.element) || !sameLabel(a.level, b.level)) return false;
+  const aName = (a.className ?? '').trim();
+  const bName = (b.className ?? '').trim();
+  if (!aName || !bName) return true;
+  return sameLabel(aName, bName);
+}
+
+/**
+ * The same class on a DIFFERENT day, still open. Same-day siblings are excluded
+ * deliberately: an exhibitor who cannot get into Saturday's Interior Advanced is
+ * being offered a real alternative only if it runs at another time they could
+ * attend.
  */
 function openAlternative(
   target: FullReasonClass,
@@ -97,15 +123,19 @@ function openAlternative(
         cls.classId !== target.classId &&
         !cls.isFull &&
         cls.trialDate !== target.trialDate &&
-        sameLabel(cls.element, target.element) &&
-        sameLabel(cls.level, target.level)
+        isSameOffering(cls, target)
     ) ?? null
   );
 }
 
 function describeAlternative(alternative: FullReasonClass): string {
   const day = weekday(alternative.trialDate);
-  const name = [alternative.element, alternative.level].filter(Boolean).join(' ').trim();
+  // The class's own name first: it is what the exhibitor will look for on the
+  // page, and the only spelling that survives two classes sharing an element
+  // and a level.
+  const name =
+    (alternative.className ?? '').trim() ||
+    [alternative.element, alternative.level].filter(Boolean).join(' ').trim();
   if (day && name) return `${day}'s ${name} still has space.`;
   if (day) return `${day}'s class still has space.`;
   return `Another day's ${name || 'class'} still has space.`;

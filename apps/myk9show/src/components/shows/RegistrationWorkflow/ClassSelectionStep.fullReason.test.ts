@@ -134,3 +134,63 @@ describe('buildFullChipReason (MYK9-515)', () => {
     ).toContain("Sunday's");
   });
 });
+
+describe('buildFullChipReason — two classes sharing element and level (MYK9-489)', () => {
+  // The Heartland Saturday trial runs both "Interior Advanced" and "Interior
+  // Advanced Preliminary". Matching an alternative on element + level alone
+  // answers a full Advanced chip with "Sunday's Interior Advanced still has
+  // space" while pointing at a DIFFERENT class — MYK9-489's defect re-created
+  // inside the sentence that sits beside the chips it fixed.
+  const advancedFull = row({
+    classId: 'sat-advanced',
+    className: 'Interior Advanced',
+    isFull: true,
+    judgeDayFull: true,
+  });
+  const preliminaryOpen = row({
+    classId: 'sun-preliminary',
+    className: 'Interior Advanced Preliminary',
+    trialId: 'trial-sun',
+    trialDate: '2026-10-25',
+  });
+
+  it('does not offer a differently named class as the same offering', () => {
+    expect(
+      buildFullChipReason({
+        classId: 'sat-advanced',
+        availability: [advancedFull, preliminaryOpen],
+      })
+    ).not.toContain('still has space');
+  });
+
+  it('offers the genuinely matching class on the other day, by its own name', () => {
+    const advancedOpen = row({
+      classId: 'sun-advanced',
+      className: 'Interior Advanced',
+      trialId: 'trial-sun',
+      trialDate: '2026-10-25',
+    });
+    expect(
+      buildFullChipReason({
+        classId: 'sat-advanced',
+        availability: [advancedFull, preliminaryOpen, advancedOpen],
+      })
+    ).toBe("The judge's Saturday is full. Sunday's Interior Advanced still has space.");
+  });
+
+  it('still matches on element and level when a source carried no name', () => {
+    // Not every producer populates `name`; a missing one must not silently
+    // switch the suggestion off.
+    const namelessOpen = row({
+      classId: 'sun-advanced',
+      trialId: 'trial-sun',
+      trialDate: '2026-10-25',
+    });
+    expect(
+      buildFullChipReason({
+        classId: 'sat-advanced',
+        availability: [advancedFull, namelessOpen],
+      })
+    ).toContain('still has space');
+  });
+});

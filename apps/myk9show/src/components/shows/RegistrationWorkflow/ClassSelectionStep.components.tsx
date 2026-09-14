@@ -165,7 +165,9 @@ export const ElementCard: React.FC<ElementCardProps> = ({
               disabled={
                 cls.isAlreadyEntered ||
                 cls.isRegistrationBlocked ||
-                cls.isClassClosed ||
+                // Selected + closed stays operable so a stale cart line can be
+                // removed; see the LevelChip note.
+                (cls.isClassClosed && !cls.isSelected) ||
                 (cls.isFull && cls.allowsWaitlist === false)
               }
               aria-label={
@@ -173,7 +175,9 @@ export const ElementCard: React.FC<ElementCardProps> = ({
               }
               {...(singleDescription ? { 'aria-describedby': `single-reason-${cls.classId}` } : {})}
               onCheckedChange={() =>
-                !cls.isAlreadyEntered && !cls.isClassClosed && onToggle(cls.classId)
+                !cls.isAlreadyEntered &&
+                (!cls.isClassClosed || cls.isSelected) &&
+                onToggle(cls.classId)
               }
             />
             <Label
@@ -360,11 +364,17 @@ const LevelChip: React.FC<LevelChipProps> = ({
           disabled={
             isAlreadyEntered ||
             isRegistrationBlocked ||
-            isClassClosed ||
+            // A closed class that is ALREADY SELECTED stays operable, so the
+            // exhibitor can uncheck it. Disabling it strands a stale cart line:
+            // the class started after it went in, Payment now refuses the whole
+            // submission, and the one control that would fix it is greyed out.
+            (isClassClosed && !isSelected) ||
             (isFull && allowsWaitlist === false)
           }
           {...(description ? { 'aria-describedby': descriptionId } : {})}
-          onCheckedChange={() => !isAlreadyEntered && !isClassClosed && onToggle(classId)}
+          onCheckedChange={() =>
+            !isAlreadyEntered && (!isClassClosed || isSelected) && onToggle(classId)
+          }
           className="h-3.5 w-3.5"
         />
         {/* The wrapping <label> is the checkbox's single naming source. Do NOT add

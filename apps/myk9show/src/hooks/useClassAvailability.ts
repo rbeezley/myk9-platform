@@ -24,6 +24,21 @@ export interface ClassAvailability {
    * `getClassEntryWindow`, never by comparing the raw string.
    */
   status: string | null;
+  /**
+   * True when this class is actually RUNNING or has run, whatever `status` says.
+   *
+   * `classes.status` only flips to 'in_progress' once the first score lands
+   * (`refresh_class_scoring_state`), so between "dogs are in the ring" and
+   * "somebody scored one" the column still reads 'upcoming'. Ringside never
+   * trusts the column alone either — `getEffectiveClassStatus` derives the same
+   * thing from `is_in_ring` / scoring state — and neither may the wizard, or the
+   * guard is open for exactly the window it exists to close (MYK9-516).
+   *
+   * Derived from the entry rows the SERVER returned, using the same predicate
+   * `refresh_class_scoring_state` counts as scored (`is_scored = true`), never
+   * from a capacity recount.
+   */
+  hasStarted: boolean;
   trialId: string;
   trialName: string;
   trialDate: string;
@@ -152,7 +167,7 @@ export function useClassAvailability(
           .single(),
         supabase
           .from('entries')
-          .select('class_id')
+          .select('class_id, is_in_ring, is_scored')
           .in('class_id', classIds)
           .is('deleted_at', null)
           .in('entry_status', [
@@ -193,9 +208,16 @@ export function useClassAvailability(
       const defaultCapacity = show?.default_judge_day_capacity ?? 125;
 
       const entryCountMap: Record<string, number> = {};
+      // Classes with a dog in the ring or a score already recorded. Same pass,
+      // same rows — no extra round trip, and no independent notion of "started".
+      const startedClassIds = new Set<string>();
       for (const entry of entryResult.data ?? []) {
         if (entry.class_id) {
           entryCountMap[entry.class_id] = (entryCountMap[entry.class_id] ?? 0) + 1;
+          const row = entry as { is_in_ring?: boolean | null; is_scored?: boolean | null };
+          if (row.is_in_ring === true || row.is_scored === true) {
+            startedClassIds.add(entry.class_id);
+          }
         }
       }
 
@@ -279,6 +301,7 @@ export function useClassAvailability(
           level: cls.level ?? 'Open',
           section: cls.section,
           status: cls.status,
+          hasStarted: startedClassIds.has(cls.id),
           trialId: trial.id,
           trialName: trial.name,
           trialDate: trial.date,

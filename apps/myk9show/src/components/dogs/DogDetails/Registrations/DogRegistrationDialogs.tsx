@@ -12,7 +12,7 @@
  * Opening is driven by `registrationsStore`, so any surface can raise a panel
  * without owning one.
  */
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { toast } from 'sonner';
 import type { Dog } from '@/types/dog-types';
 import AddRegistrationPanel from './AddRegistrationPanel';
@@ -68,8 +68,18 @@ export default function DogRegistrationDialogs({
   const selectedRegistration = useRegistrationsStore(state => state.selectedRegistration);
   const setSelectedRegistration = useRegistrationsStore(state => state.setSelectedRegistration);
 
+  // Latched, because `onAddRequestConsumed` is an inline closure at the call
+  // site: without this the effect re-runs on every parent render and re-asserts
+  // the open flag, so a caller that omits the reset callback gets a panel that
+  // cannot be closed.
+  const handledAddRequest = useRef(false);
   useEffect(() => {
-    if (!autoOpenAddDialog) return;
+    if (!autoOpenAddDialog) {
+      handledAddRequest.current = false;
+      return;
+    }
+    if (handledAddRequest.current) return;
+    handledAddRequest.current = true;
     setIsAddOpen(true);
     onAddRequestConsumed?.();
   }, [autoOpenAddDialog, onAddRequestConsumed, setIsAddOpen]);

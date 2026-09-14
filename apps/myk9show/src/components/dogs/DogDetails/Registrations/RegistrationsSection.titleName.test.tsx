@@ -9,11 +9,12 @@ import DogRegistrationDialogs from './DogRegistrationDialogs';
 
 const mocks = vi.hoisted(() => ({
   createRegistration: vi.fn(),
+  registrations: vi.fn(),
 }));
 
 vi.mock('@/hooks/queries/useRegistrationsDatabase', () => ({
   useDogRegistrationManagement: () => ({
-    registrations: [
+    registrations: mocks.registrations() ?? [
       {
         id: 'registration-1',
         organization: 'AKC',
@@ -62,6 +63,7 @@ vi.mock('./EditRegistrationPanel', () => ({
 // hold the raw snake_case PostgREST row.
 
 afterEach(() => {
+  mocks.registrations.mockReset();
   useRegistrationsStore.getState().setIsAddRegistrationDialogOpen(false);
   useRegistrationsStore.getState().setIsEditRegistrationDialogOpen(false);
   useRegistrationsStore.getState().setSelectedRegistration(null);
@@ -163,5 +165,40 @@ describe('registration name editing', () => {
       })
     ).rejects.toThrow();
     expect(useRegistrationsStore.getState().isAddRegistrationDialogOpen).toBe(true);
+  });
+
+  // The secretary sees this list inline beside the identity rail, which has its
+  // own "Add registration". A second one here is both a duplicate control and a
+  // Playwright strict-mode failure in dogsUI.spec.ts.
+  it('adds no second Add control to the empty state', () => {
+    mocks.registrations.mockReturnValue([]);
+    const dog = { id: 'dog-1', callName: 'Test Dog' } as Dog;
+    render(<RegistrationsSection dog={dog} />);
+
+    expect(screen.getByText('No Registrations Found')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /^Add registration$/i })).toBeNull();
+  });
+
+  // The open request must not re-assert itself on every parent render: the
+  // caller's `onAddRequestConsumed` is an inline closure, so an unlatched effect
+  // re-opens the panel the user just closed.
+  it('opens the add panel once, not on every render', () => {
+    const dog = { id: 'dog-1', callName: 'Test Dog' } as Dog;
+    // A FRESH inline closure per render, which is what the real call site
+    // passes. With a stable (or omitted) callback the effect deps never change
+    // and the effect never re-runs, so a test that does that cannot fail.
+    const { rerender } = render(
+      <DogRegistrationDialogs dog={dog} autoOpenAddDialog onAddRequestConsumed={() => {}} />
+    );
+    expect(screen.getByRole('dialog')).toBeInTheDocument();
+
+    act(() => {
+      useRegistrationsStore.getState().setIsAddRegistrationDialogOpen(false);
+    });
+    rerender(
+      <DogRegistrationDialogs dog={dog} autoOpenAddDialog onAddRequestConsumed={() => {}} />
+    );
+
+    expect(screen.queryByRole('dialog')).toBeNull();
   });
 });

@@ -224,7 +224,6 @@ const DogIdentityRail: React.FC<DogIdentityRailProps> = ({
               type="button"
               onClick={onManageRegistrations}
               aria-haspopup="dialog"
-              aria-expanded={registrationDetailsOpen}
               className="mt-2 inline-flex min-h-11 items-center text-xs font-medium text-primary hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded-sm"
             >
               Manage registrations

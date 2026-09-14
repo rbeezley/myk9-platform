@@ -141,17 +141,17 @@ describe('DogIdentityRail', () => {
     expect(screen.queryByRole('button', { name: 'Manage registrations' })).toBeNull();
   });
 
-  // Deleting the last registration while the view is open must not remove the
-  // only control that can collapse it.
-  it('keeps the toggle while the view is open with no registrations left', () => {
+  // Deleting the last registration while the panel is open must not unmount the
+  // control the panel was raised from.
+  it('keeps the control while the panel is open with no registrations left', () => {
     renderRail(base, {
       registrations: [],
       onManageRegistrations: vi.fn(),
       registrationDetailsOpen: true,
     });
     expect(screen.getByRole('button', { name: 'Manage registrations' })).toHaveAttribute(
-      'aria-expanded',
-      'true'
+      'aria-haspopup',
+      'dialog'
     );
   });
 

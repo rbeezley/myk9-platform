@@ -20,7 +20,6 @@ import DogDialogs from './DogDialogs';
 import DogStatusDialog from '@/components/dogs/DogStatusDialog';
 import { saveDogPhoto, validateImageFile } from './utils';
 import { useRouteEntryFocus } from './useRouteEntryFocus';
-import { applyDogDetailsState } from './dogDetailsSections';
 import DogRegistrationDialogs from '@/components/dogs/DogDetails/Registrations/DogRegistrationDialogs';
 import ManageRegistrationsPanel from '@/components/dogs/DogDetails/Registrations/ManageRegistrationsPanel';
 import type { DogDetailsMainProps } from './types';
@@ -52,25 +51,20 @@ const DogDetailsMain: React.FC<DogDetailsMainProps> = ({
   const [addRegistrationDogId, setAddRegistrationDogId] = useState<string | null>(null);
   const [isManageRegistrationsOpen, setIsManageRegistrationsOpen] = useState(false);
 
-  const navigateToOverview = () => {
-    const next = applyDogDetailsState(searchParams, { section: 'overview', view: null });
-    if (next.toString() !== searchParams.toString()) setSearchParams(next);
-  };
-
   // The rail's "Add registration" is the one ordinary path into the add panel
-  // (the registrations list's empty state deliberately carries no action).
-  const openAddRegistration = () => {
-    navigateToOverview();
-    setAddRegistrationDogId(dog.id);
-  };
+  // (the registrations list's empty state deliberately carries no action). It
+  // does NOT navigate: the panel is hosted by the page, so opening it from
+  // Career or Records no longer needs Overview, and rewriting section/view
+  // behind the modal would strand the user somewhere else on close.
+  const openAddRegistration = () => setAddRegistrationDogId(dog.id);
 
+  // Consume `?addRegistration=true` and strip it so a refresh or Back does not
+  // re-raise the panel. Only that param: the panel is page-hosted, so whatever
+  // section the link pointed at stays selected underneath it.
   useEffect(() => {
     if (searchParams.get('addRegistration') !== 'true') return;
     const next = new URLSearchParams(searchParams);
     next.delete('addRegistration');
-    next.delete('tab');
-    next.delete('section');
-    next.delete('view');
     setAddRegistrationDogId(dog.id);
     setSearchParams(next, { replace: true });
   }, [dog.id, searchParams, setSearchParams]);
@@ -281,6 +275,20 @@ const DogDetailsMain: React.FC<DogDetailsMainProps> = ({
         </div>
       </div>
 
+      {/* ORDER IS LOAD-BEARING. SlideOverPanel does not portal and its root is
+          `fixed inset-0 z-50`, so among equal-z siblings the LATER one paints on
+          top. The Add/Edit/Delete panels are raised FROM the Manage panel, so
+          they must come after it or they mount invisibly behind its backdrop —
+          and since Overview no longer carries a registrations list, that is the
+          exhibitor's only route to edit or delete one. Pinned by a DOM-order
+          test in ownerResolution.test.tsx. */}
+      {!isSecretary && (
+        <ManageRegistrationsPanel
+          open={isManageRegistrationsOpen}
+          onClose={() => setIsManageRegistrationsOpen(false)}
+          dog={updatedDog}
+        />
+      )}
       {/* Mounted once, for every role: the rail's Add, the list's per-row Edit
           and Delete, and the `?addRegistration=true` deep link all raise these,
           so they must not depend on any list being on screen. */}
@@ -289,13 +297,6 @@ const DogDetailsMain: React.FC<DogDetailsMainProps> = ({
         autoOpenAddDialog={addRegistrationDogId === dog.id}
         onAddRequestConsumed={() => setAddRegistrationDogId(null)}
       />
-      {!isSecretary && (
-        <ManageRegistrationsPanel
-          open={isManageRegistrationsOpen}
-          onClose={() => setIsManageRegistrationsOpen(false)}
-          dog={updatedDog}
-        />
-      )}
 
       <DogDialogs
         dog={updatedDog}

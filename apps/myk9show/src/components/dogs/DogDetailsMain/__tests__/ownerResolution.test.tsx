@@ -1,10 +1,11 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { fireEvent, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, screen, waitFor } from '@testing-library/react';
 import { useLocation, useNavigationType } from 'react-router-dom';
 import { render } from '@/test/utils/testUtils';
 import DogDetailsMain from '../index';
 import type { Dog } from '@/types/dog-types';
 import type { User } from '@/types/user-types';
+import { useRegistrationsStore } from '@/store/registrationsStore';
 
 // ---------------------------------------------------------------------------
 // Minimal Dog fixture
@@ -238,27 +239,42 @@ describe('DogDetailsMain — owner resolution', () => {
     mockRegistrations = [{ organization: 'AKC', registration_number: 'SR123' }];
     render(<DogDetailsMain dog={mockDog} />, { initialRoute: '/dogs/dog-1' });
 
-    const toggle = screen.getByRole('button', { name: 'Manage registrations' });
-    expect(toggle).toHaveAttribute('aria-expanded', 'false');
-
-    fireEvent.click(toggle);
-    expect(await screen.findByRole('dialog')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Manage registrations' }));
+    const manage = await screen.findByRole('dialog');
     // Opening it is not navigation: the URL, and Back, are untouched.
     expect(screen.getByTestId('dog-tabs')).toHaveAttribute('data-search', '');
     expect(screen.getByTestId('dog-tabs')).toHaveAttribute('data-navigation-type', 'POP');
+
+    // SlideOverPanel does not portal and every panel is `fixed inset-0 z-50`, so
+    // among equal-z siblings the LATER one paints on top. The panels raised FROM
+    // the Manage panel must therefore follow it in document order, or they mount
+    // invisibly behind its backdrop — and this is the exhibitor's only route to
+    // edit or delete a registration.
+    act(() => {
+      useRegistrationsStore.getState().setIsAddRegistrationDialogOpen(true);
+    });
+    const dialogs = await screen.findAllByRole('dialog');
+    expect(dialogs).toHaveLength(2);
+    expect(
+      manage.compareDocumentPosition(dialogs[dialogs.length - 1]) & Node.DOCUMENT_POSITION_FOLLOWING
+    ).toBe(Node.DOCUMENT_POSITION_FOLLOWING);
+    act(() => {
+      useRegistrationsStore.getState().setIsAddRegistrationDialogOpen(false);
+    });
   });
 
-  it('lands on Overview and opens Add registration from a mixed deep link', async () => {
+  it('opens Add registration from a deep link without moving the reader off their section', async () => {
     mockRole = 'exhibitor';
     mockPeople = [{ id: DOG_OWNER_ID, firstName: 'Jane', lastName: 'Smith' }];
     render(<DogDetailsMain dog={mockDog} />, {
       initialRoute: '/dogs/dog-1?section=career&addRegistration=true',
     });
-    // The add panel is hosted by the page, so it opens even though Overview
-    // shows no registrations at all.
+    // The add panel is hosted by the page, so it opens over whatever section the
+    // link pointed at: only `addRegistration` is stripped, and Career stays
+    // selected underneath rather than the reader being dumped on Overview.
     expect(await screen.findByRole('dialog')).toHaveTextContent(/registration/i);
     await waitFor(() => {
-      expect(screen.getByTestId('dog-tabs')).toHaveAttribute('data-search', '');
+      expect(screen.getByTestId('dog-tabs')).toHaveAttribute('data-search', '?section=career');
       expect(screen.getByTestId('dog-tabs')).toHaveAttribute('data-navigation-type', 'REPLACE');
     });
   });

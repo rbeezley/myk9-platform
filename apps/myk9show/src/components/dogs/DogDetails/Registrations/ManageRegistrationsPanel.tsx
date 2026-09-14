@@ -29,7 +29,9 @@ export default function ManageRegistrationsPanel({
       onClose={onClose}
       title="Registrations"
       {...(dog.callName ? { subtitle: dog.callName } : {})}
-      size="lg"
+      // `size` is inert here: sizeClasses[size] is followed by `sm:max-w-none
+      // sm:w-full` (MYK9-99). className is merged last, so it is what lands.
+      className="md:max-w-2xl"
     >
       <RegistrationsSection dog={dog} />
     </SlideOverPanel>

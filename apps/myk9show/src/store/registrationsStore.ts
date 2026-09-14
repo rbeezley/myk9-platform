@@ -13,6 +13,14 @@ interface RegistrationsStore {
   // Dialog and selection state
   isAddRegistrationDialogOpen: boolean;
   setIsAddRegistrationDialogOpen: (open: boolean) => void;
+  /**
+   * Bumped on every OPEN of the add panel. The panel is hosted for the whole
+   * page now, so it never unmounts between uses and EditPanelWrapper only
+   * resets when its `initialData` VALUE changes — which for Add is a module
+   * constant. Hosts key the panel on this so each open starts blank instead of
+   * pre-filled with the registration just saved.
+   */
+  addRegistrationOpenCount: number;
   isEditRegistrationDialogOpen: boolean;
   setIsEditRegistrationDialogOpen: (open: boolean) => void;
   isDeleteRegistrationDialogOpen: boolean;
@@ -45,7 +53,15 @@ export const useRegistrationsStore = create<RegistrationsStore>()(
 
       // Dialog and selection state
       isAddRegistrationDialogOpen: false,
-      setIsAddRegistrationDialogOpen: open => set({ isAddRegistrationDialogOpen: open }),
+      addRegistrationOpenCount: 0,
+      setIsAddRegistrationDialogOpen: open =>
+        set(state => ({
+          isAddRegistrationDialogOpen: open,
+          addRegistrationOpenCount:
+            open && !state.isAddRegistrationDialogOpen
+              ? state.addRegistrationOpenCount + 1
+              : state.addRegistrationOpenCount,
+        })),
       isEditRegistrationDialogOpen: false,
       setIsEditRegistrationDialogOpen: open => set({ isEditRegistrationDialogOpen: open }),
       isDeleteRegistrationDialogOpen: false,

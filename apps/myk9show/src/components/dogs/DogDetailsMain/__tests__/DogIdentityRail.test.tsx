@@ -143,6 +143,20 @@ describe('DogIdentityRail', () => {
     );
   });
 
+  // React Query keeps `data` across a failed refetch, and dog.registrations is
+  // often already populated — a rendered registry must survive both.
+  it('keeps showing rows when the query is failing or still loading', () => {
+    const rows = [{ organization: 'AKC', registration_number: 'SR123' }];
+    const { unmount } = renderRail(base, { registrations: rows, registrationsFailed: true });
+    expect(screen.getByText('SR123')).toBeInTheDocument();
+    expect(screen.queryByText('Couldn\u2019t load registrations.')).toBeNull();
+    unmount();
+
+    renderRail(base, { registrations: rows, registrationsLoading: true });
+    expect(screen.getByText('SR123')).toBeInTheDocument();
+    expect(screen.queryByText('Loading registrations…')).toBeNull();
+  });
+
   // A failed read must not wear the empty state's clothes: this rail is the only
   // registration summary on the page.
   it('reports a failed registrations read instead of "No registrations yet"', () => {

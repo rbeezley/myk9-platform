@@ -212,10 +212,16 @@ const DogIdentityRail: React.FC<DogIdentityRailProps> = ({
             Add registration
           </button>
         </div>
-        {/* A failed read is NOT "no registrations": this rail is the only
-            registration summary on the page, so if it printed the empty copy
-            here a registered dog would read as unregistered, with no retry. */}
-        {registrationsLoading && registry.rows.length === 0 ? (
+        {/* Rows first: React Query keeps `data` across a failed refetch and the
+            `dog.registrations` fallback is often already populated by the dogs
+            list read, so neither a pending nor a failed query should blank a
+            registry we can actually render. Only when there is nothing to show
+            do loading and failure need to be told apart from "has none" — this
+            rail is the page's only registration summary, so printing the empty
+            copy for either would read a registered dog as unregistered. */}
+        {registry.rows.length > 0 ? (
+          <DogRegistryTable registry={registry} />
+        ) : registrationsLoading ? (
           <p className="text-xs text-muted-foreground" role="status">
             Loading registrations…
           </p>
@@ -232,8 +238,6 @@ const DogIdentityRail: React.FC<DogIdentityRailProps> = ({
               </button>
             )}
           </div>
-        ) : registry.rows.length > 0 ? (
-          <DogRegistryTable registry={registry} />
         ) : (
           <p className="text-xs text-muted-foreground">No registrations yet.</p>
         )}

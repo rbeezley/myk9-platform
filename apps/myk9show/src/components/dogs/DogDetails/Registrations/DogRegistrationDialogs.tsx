@@ -74,6 +74,24 @@ export default function DogRegistrationDialogs({
     onAddRequestConsumed?.();
   }, [autoOpenAddDialog, onAddRequestConsumed, setIsAddOpen]);
 
+  // registrationsStore is module-global and this host is mounted on every dog
+  // page. Without this, Back-ing out of an open Edit on dog A and opening dog B
+  // re-opens that panel holding A's registration under B's name — and saving
+  // writes to A's row. Clear the panel state whenever the dog changes or the
+  // page unmounts.
+  const dogId = dog?.id;
+  useEffect(() => {
+    return () => {
+      setIsAddOpen(false);
+      setIsEditOpen(false);
+      setIsDeleteOpen(false);
+      setSelectedRegistration(null);
+    };
+  }, [dogId, setIsAddOpen, setIsEditOpen, setIsDeleteOpen, setSelectedRegistration]);
+
+  // Keyed per open so the form starts blank — see addRegistrationOpenCount.
+  const addOpenCount = useRegistrationsStore(state => state.addRegistrationOpenCount);
+
   // A save failure is transient feedback about an action the user just took, and
   // the panel that failed may be the only thing on screen — a toast reaches them
   // wherever this host happens to be mounted.
@@ -113,6 +131,7 @@ export default function DogRegistrationDialogs({
   return (
     <>
       <AddRegistrationPanel
+        key={addOpenCount}
         open={isAddOpen}
         onClose={() => setIsAddOpen(false)}
         onSave={handleAdd}

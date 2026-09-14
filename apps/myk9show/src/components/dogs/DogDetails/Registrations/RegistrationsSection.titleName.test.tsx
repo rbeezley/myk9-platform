@@ -1,5 +1,6 @@
 import React from 'react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import { act } from '@testing-library/react';
 import { render, screen } from '@/test/utils/testUtils';
 import type { Dog } from '@/types/dog-types';
 import { useRegistrationsStore } from '@/store/registrationsStore';
@@ -85,5 +86,27 @@ describe('registration name editing', () => {
     );
 
     expect(screen.getByRole('dialog')).toHaveTextContent('Editing UKC: UCH Test Dog');
+  });
+
+  // registrationsStore is module-global and DogRegistrationDialogs is mounted on
+  // every dog page. Left un-reset, Back-ing out of an open Edit on dog A and
+  // opening dog B re-opens that panel holding A's registration under B's name —
+  // and saving writes to A's row.
+  it('clears panel state when the dog changes', () => {
+    const dogA = { id: 'dog-1', callName: 'Test Dog' } as Dog;
+    const dogB = { id: 'dog-2', callName: 'Other Dog' } as Dog;
+    const { rerender } = render(<DogRegistrationDialogs dog={dogA} />);
+
+    act(() => {
+      useRegistrationsStore
+        .getState()
+        .setSelectedRegistration({ id: 'registration-1', organization: 'AKC' } as never);
+      useRegistrationsStore.getState().setIsEditRegistrationDialogOpen(true);
+    });
+    expect(screen.getByRole('dialog')).toHaveTextContent('Editing AKC');
+
+    rerender(<DogRegistrationDialogs dog={dogB} />);
+    expect(screen.queryByRole('dialog')).toBeNull();
+    expect(useRegistrationsStore.getState().selectedRegistration).toBeNull();
   });
 });

@@ -182,6 +182,7 @@ const DogIdentityRail: React.FC<DogIdentityRailProps> = ({
               onChangeStatus={onStatusDialogOpen}
               onDelete={canDelete ? onDeleteDialogOpen : undefined}
               editLabel="Edit Dog"
+              triggerClassName="h-11 w-11"
             />
           </div>
         )}
@@ -248,6 +249,7 @@ const DogIdentityRail: React.FC<DogIdentityRailProps> = ({
               onChangeStatus={onStatusDialogOpen}
               onDelete={canDelete ? onDeleteDialogOpen : undefined}
               hideEdit
+              triggerClassName="h-11 w-11"
             />
           </div>
         )}

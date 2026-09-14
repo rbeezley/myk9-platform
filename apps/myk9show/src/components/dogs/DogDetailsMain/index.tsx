@@ -73,7 +73,12 @@ const DogDetailsMain: React.FC<DogDetailsMainProps> = ({
   };
 
   const openRegistrationDetails = () => {
-    setSearchParams(prev => applyRegistrationDetails(prev));
+    // Same no-op guard navigateToOverview uses: the rail button stays visible
+    // once the view is open, and RRv7 pushes even when the params are identical,
+    // so an unguarded re-click stacks dead history entries that Back has to
+    // chew through before it can close the view.
+    const next = applyRegistrationDetails(searchParams);
+    if (next.toString() !== searchParams.toString()) setSearchParams(next);
   };
 
   useEffect(() => {

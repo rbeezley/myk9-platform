@@ -31,6 +31,13 @@ interface ThreeDotMenuProps {
   showManageQualifications?: boolean | undefined;
   /** Hide the Edit item (use when a separate Edit button is rendered alongside) */
   hideEdit?: boolean | undefined;
+  /**
+   * Trigger size override. Defaults to the 40px this menu has always rendered:
+   * RowActionMenu's `size="touch"` is h-11 w-11, but every existing call site
+   * has laid out against 40px, so a surface that needs the 44px touch target
+   * opts in rather than all ~10 of them changing untested.
+   */
+  triggerClassName?: string | undefined;
 }
 
 const ThreeDotMenu: React.FC<ThreeDotMenuProps> = ({
@@ -50,6 +57,7 @@ const ThreeDotMenu: React.FC<ThreeDotMenuProps> = ({
   sendInvitationDisabled = false,
   showManageQualifications = false,
   hideEdit = false,
+  triggerClassName = 'h-10 w-10',
 }) => {
   const actions: RowAction[] = [];
 
@@ -102,10 +110,12 @@ const ThreeDotMenu: React.FC<ThreeDotMenuProps> = ({
   }
 
   return (
-    // No triggerClassName: RowActionMenu's `size="touch"` is already h-11 w-11.
-    // The old `h-10 w-10` override won through twMerge and quietly defeated the
-    // 44px touch target this menu asks for.
-    <RowActionMenu actions={actions} label="More actions" size="touch" />
+    <RowActionMenu
+      actions={actions}
+      label="More actions"
+      size="touch"
+      triggerClassName={triggerClassName}
+    />
   );
 };
 

@@ -155,7 +155,10 @@ export function applyRegistrationDetails(prev: URLSearchParams): URLSearchParams
  * the management list the user is standing in.
  */
 export function applyOverviewKeepingRegistrationDetails(prev: URLSearchParams): URLSearchParams {
-  return prev.get('tab') === REGISTRATIONS_TAB
+  // Resolved state, not the raw param: `?section=career&tab=registrations` has
+  // the reveal OFF (an explicit section outranks the legacy tab), so keying on
+  // `tab` alone would expand management on a view that never had it.
+  return isRegistrationDetailsRequested(prev)
     ? applyRegistrationDetails(prev)
     : applyDogDetailsState(prev, { section: DEFAULT_SECTION, view: null });
 }

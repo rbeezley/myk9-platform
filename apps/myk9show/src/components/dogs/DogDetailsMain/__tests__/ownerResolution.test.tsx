@@ -246,6 +246,20 @@ describe('DogDetailsMain — owner resolution', () => {
     expect(tabs).toHaveAttribute('data-navigation-type', 'PUSH');
   });
 
+  it('does not stack history entries when the reveal is already open', () => {
+    mockRole = 'exhibitor';
+    mockPeople = [{ id: DOG_OWNER_ID, firstName: 'Jane', lastName: 'Smith' }];
+    mockRegistrations = [{ organization: 'AKC', registration_number: 'SR123' }];
+    render(<DogDetailsMain dog={mockDog} />, { initialRoute: '/dogs/dog-1?tab=registrations' });
+
+    // The rail button stays visible while the view is open, and RRv7 pushes even
+    // for identical params — so an unguarded re-click buries Back under no-ops.
+    fireEvent.click(screen.getByRole('button', { name: 'Manage registrations' }));
+    const tabs = screen.getByTestId('dog-tabs');
+    expect(tabs).toHaveAttribute('data-show-registration-details', 'true');
+    expect(tabs).toHaveAttribute('data-navigation-type', 'POP');
+  });
+
   it('does not carry the reveal onto another dog', () => {
     mockRole = 'exhibitor';
     mockPeople = [{ id: DOG_OWNER_ID, firstName: 'Jane', lastName: 'Smith' }];

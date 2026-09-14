@@ -47,6 +47,41 @@ describe('DraftResumePrompt', () => {
     expect(screen.queryByRole('button', { name: 'Resume entry' })).not.toBeInTheDocument();
   });
 
+  it('keeps the saved entry visible while the dog roster is unavailable', () => {
+    render(
+      <DraftResumePrompt
+        drafts={[draft('saved', 1, 1)]}
+        canResume={false}
+        loadError
+        loadDraft={vi.fn()}
+        deleteDraft={vi.fn()}
+        onDraftLoaded={vi.fn()}
+      />
+    );
+    expect(screen.getByRole('button', { name: 'Resume entry' })).toBeDisabled();
+    expect(screen.getByText(/your dogs could not be loaded/i)).toBeInTheDocument();
+  });
+
+  it('offers the next saved entry after one is rejected', () => {
+    const onDraftLoaded = vi.fn(() => false);
+    const loadDraft = vi.fn((id: string) => ({
+      metadata: draft(id, 1, id === 'new' ? 2 : 1),
+      data: { selectedDogs: [id] },
+    }));
+    render(
+      <DraftResumePrompt
+        drafts={[draft('new', 1, 2), draft('old', 1, 1)]}
+        loadDraft={loadDraft}
+        deleteDraft={vi.fn()}
+        onDraftLoaded={onDraftLoaded}
+      />
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'Resume entry' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Resume entry' }));
+    expect(loadDraft).toHaveBeenNthCalledWith(1, 'new');
+    expect(loadDraft).toHaveBeenNthCalledWith(2, 'old');
+  });
+
   it('does not offer a previously completed entry for resubmission', () => {
     render(
       <DraftResumePrompt

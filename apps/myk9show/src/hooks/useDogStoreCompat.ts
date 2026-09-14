@@ -345,6 +345,7 @@ export const useDogStoreCompat = () => {
     // Data
     dogs,
     isLoading,
+    isReady: dogsQuery.isSuccess,
     error,
 
     // Operations (compatible with dogStore API)

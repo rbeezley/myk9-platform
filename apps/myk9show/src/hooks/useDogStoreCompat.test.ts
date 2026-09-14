@@ -29,6 +29,7 @@ vi.mock('@/hooks/queries/useDogsDatabase', () => ({
   useDogsQuery: () => ({
     data: [],
     isLoading: false,
+    isSuccess: true,
     error: null,
     isStale: false,
     isFetching: false,
@@ -129,6 +130,7 @@ beforeEach(() => {
 describe('useDogStoreCompat.addDog — atomic RPC path (with registrations)', () => {
   it('calls create_dog_with_registrations RPC instead of the direct mutation', async () => {
     const { result } = renderHook(() => useDogStoreCompat(), { wrapper: makeWrapper() });
+    expect(result.current.isReady).toBe(true);
 
     await act(async () => {
       await result.current.addDog(dogInputWithRegistrations);

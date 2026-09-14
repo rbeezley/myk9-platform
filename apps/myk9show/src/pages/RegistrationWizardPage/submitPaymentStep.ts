@@ -175,6 +175,8 @@ export async function submitPaymentStep(ctx: SubmitPaymentStepContext): Promise<
       ctx.setEntryOutcomes(offlineResult.entryOutcomes);
       ctx.setRegistrationNumber(buildOfflineLateEntryRegistrationNumber(offlineResult.entryIds));
       await ctx.cart.clearCart();
+      ctx.discardDraftsWithoutFinalSave();
+      ctx.clearDraftData();
       ctx.triggerSync();
       ctx.markStepComplete(ctx.currentStep);
       ctx.setCurrentStep(prev => prev + 1);

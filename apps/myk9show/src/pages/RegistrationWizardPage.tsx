@@ -89,6 +89,8 @@ function RegistrationWizardContent() {
     entryOutcomes,
     ownerResolution,
     dogsLoading,
+    dogsReady,
+    dogsError,
     agreedToEntryAgreement,
     setAgreedToEntryAgreement,
     setPaymentStatus,
@@ -359,10 +361,11 @@ function RegistrationWizardContent() {
           <>
             {currentWorkflowMode === 'exhibitor' &&
               currentStepId === 'dog-selection' &&
-              !dogsLoading &&
               registrationData.selectedDogs.length === 0 && (
                 <DraftResumePrompt
                   drafts={availableDrafts ?? []}
+                  canResume={dogsReady && !dogsLoading}
+                  loadError={!!dogsError}
                   loadDraft={draftLoad}
                   deleteDraft={draftDelete}
                   onDraftLoaded={handleDraftLoaded}

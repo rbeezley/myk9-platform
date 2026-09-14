@@ -82,6 +82,8 @@ vi.mock('@/hooks/useDraftPersistence', () => ({
 const mockDogStoreState = {
   dogs: [{ id: 'dog-1', ownerId: 'user-1', ownerName: 'Owner' }],
   isLoading: false,
+  isReady: true,
+  error: null,
 };
 vi.mock('@/hooks/useDogStoreCompat', () => ({
   useDogStoreCompat: () => mockDogStoreState,
@@ -184,6 +186,8 @@ describe('RegistrationWizardPage — handleDraftLoaded', () => {
     // Default: one dog available (auto-select will fire for exhibitor mode)
     mockDogStoreState.dogs = [{ id: 'dog-1', ownerId: 'user-1', ownerName: 'Owner' }];
     mockDogStoreState.isLoading = false;
+    mockDogStoreState.isReady = true;
+    mockDogStoreState.error = null;
   });
 
   it('replaces an in-progress dog selection with the loaded draft selection', async () => {
@@ -233,6 +237,17 @@ describe('RegistrationWizardPage — handleDraftLoaded', () => {
     act(() => capturedOnDraftLoaded!(buildDraft(['dog-1'])));
     expect(mockCreateRegistration).not.toHaveBeenCalled();
     expect(capturedSelectedDogs).toEqual([]);
+    expect(mockActivateDraft).not.toHaveBeenCalled();
+  });
+
+  it('does not treat a disabled or failed dog query as a deleted dog', async () => {
+    mockDogStoreState.dogs = [];
+    mockDogStoreState.isLoading = false;
+    mockDogStoreState.isReady = false;
+    render(<RegistrationWizardPage />, { initialRoute: '/shows/show-1/register' });
+    await waitFor(() => expect(capturedOnDraftLoaded).not.toBeNull());
+    act(() => capturedOnDraftLoaded!(buildDraft(['dog-1'])));
+    expect(mockCreateRegistration).not.toHaveBeenCalled();
     expect(mockActivateDraft).not.toHaveBeenCalled();
   });
 

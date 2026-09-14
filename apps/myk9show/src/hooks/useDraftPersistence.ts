@@ -343,7 +343,9 @@ export function useDraftPersistence(
     const remaining = getDraftMetadata().filter(metadata => {
       const draft = loadDraft(metadata.id);
       const overlaps = draft?.data.selectedDogs?.some(id => submittedDogs.has(id));
-      if (!overlaps && !(submittedDogs.size === 0 && metadata.id === activeId)) return true;
+      if (draft && !overlaps && !(submittedDogs.size === 0 && metadata.id === activeId)) {
+        return true;
+      }
       localStorage.removeItem(getDraftKey(metadata.id));
       return false;
     });

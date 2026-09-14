@@ -333,4 +333,27 @@ describe('useDraftPersistence — cross-user scoping', () => {
 
     expect(result.current.availableDrafts.map(draft => draft.id)).toEqual([unrelatedId]);
   });
+
+  it('removes orphaned metadata when discarding a filed entry', () => {
+    const metadataKey = `registration-draft-metadata-${SHOW_ID}-${USER_A}`;
+    localStorage.setItem(
+      metadataKey,
+      JSON.stringify([
+        {
+          id: 'missing-payload',
+          showId: SHOW_ID,
+          userId: USER_A,
+          timestamp: Date.now(),
+          stepCompleted: 'dog-selection',
+          title: 'Stale',
+          preview: '1 dog',
+        },
+      ])
+    );
+    seedDraftData({ selectedDogs: ['dog-1'] });
+    const { result } = renderHook(() => useDraftPersistence(SHOW_ID, USER_A, 'payment'));
+    act(() => result.current.discardDraftsWithoutFinalSave());
+    expect(result.current.availableDrafts).toEqual([]);
+    expect(JSON.parse(localStorage.getItem(metadataKey) ?? 'null')).toEqual([]);
+  });
 });

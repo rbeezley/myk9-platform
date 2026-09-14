@@ -40,6 +40,7 @@ export function createWizardHandlers(state: RegistrationWizardState) {
     triggerSync,
     dogs,
     dogsLoading,
+    dogsReady,
     activateDraft,
     classes,
     currentShow,
@@ -245,12 +246,12 @@ export function createWizardHandlers(state: RegistrationWizardState) {
   const handleDraftLoaded = (draft: SavedDraft) => {
     if (draft.data._workflowState?.currentStep === 'confirmation') {
       notifications.error('This entry is already complete. Start a new entry below.');
-      return;
+      return false;
     }
     const selectedDogs = draft.data.selectedDogs ?? [];
-    if (dogsLoading) {
+    if (dogsLoading || !dogsReady) {
       notifications.error('Your dogs are still loading. Please try resuming in a moment.');
-      return;
+      return false;
     }
     if (
       selectedDogs.length > 0 &&
@@ -260,7 +261,7 @@ export function createWizardHandlers(state: RegistrationWizardState) {
       notifications.error(
         'One or more dogs in this draft are no longer available for this entry. Select a dog below to start again.'
       );
-      return;
+      return false;
     }
     activateDraft(draft);
     if (draft.data._workflowState) {
@@ -301,6 +302,7 @@ export function createWizardHandlers(state: RegistrationWizardState) {
     }
 
     notifications.success('Draft loaded successfully');
+    return true;
   };
 
   // Step indicator click: jump to a completed step or the next step in sequence.

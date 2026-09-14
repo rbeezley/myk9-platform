@@ -112,7 +112,12 @@ export function useRegistrationWizardState() {
   }, []);
 
   // Data stores
-  const { dogs, isLoading: dogsLoading } = useDogStoreCompat();
+  const {
+    dogs,
+    isLoading: dogsLoading,
+    isReady: dogsReady,
+    error: dogsError,
+  } = useDogStoreCompat();
   const { shows = [] } = useShowStore();
   const { classes = [] } = useClassStoreCompat();
   const loadCart = useCartStore(state => state.loadCart);
@@ -523,6 +528,8 @@ export function useRegistrationWizardState() {
     // Stores / data
     dogs,
     dogsLoading,
+    dogsReady,
+    dogsError,
     classes,
     currentShow,
     loadCart,

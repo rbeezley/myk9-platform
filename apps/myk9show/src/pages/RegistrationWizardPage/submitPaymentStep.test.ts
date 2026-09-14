@@ -242,6 +242,8 @@ describe('submitPaymentStep', () => {
     expect(submitOfflineLateEntryMock).toHaveBeenCalledTimes(1);
     expect(submitShowRegistrationMock).not.toHaveBeenCalled();
     expect(ctx.cart.clearCart).toHaveBeenCalledTimes(1);
+    expect(ctx.discardDraftsWithoutFinalSave).toHaveBeenCalledTimes(1);
+    expect(ctx.clearDraftData).toHaveBeenCalledTimes(1);
   });
 
   it('routes staff late-entry non-card payment through offline replicated entry submission', async () => {

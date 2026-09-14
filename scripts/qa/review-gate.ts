@@ -383,9 +383,11 @@ export function adversarialBodyProblem(
   evidence: GateEvidence,
   changedFiles: readonly string[]
 ): string | undefined {
-  const lenses = adversarialLensNames(evidence.body);
+  // Distinct names only: the tier's substance is two INDEPENDENT bug-finding
+  // lenses, so the same lens listed twice is one lens, not two.
+  const lenses = [...new Set(adversarialLensNames(evidence.body))];
   if (lenses.length < ADVERSARIAL_MIN_LENSES) {
-    return `must name ${ADVERSARIAL_MIN_LENSES} lenses as "Adversarial subagent review: <name>" body lines (found ${lenses.length})`;
+    return `must name ${ADVERSARIAL_MIN_LENSES} distinct lenses as "Adversarial subagent review: <name>" body lines (found ${lenses.length})`;
   }
   if (touchesMigration(changedFiles) && !lenses.includes(MIGRATION_LENS)) {
     return `touches a migration, so one lens must be ${MIGRATION_LENS} (named: ${lenses.join(', ')})`;

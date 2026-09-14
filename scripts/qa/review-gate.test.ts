@@ -1240,17 +1240,74 @@ describe('owner override', () => {
     expect(result.state).toBe('failure');
   });
 
+  it('refuses the same lens named twice as two lenses', () => {
+    // The tier's substance is two INDEPENDENT bug-finding lenses. Repeating
+    // one name is one lens, so it must not clear the minimum.
+    const result = evaluateReviewGate({
+      headSha: HEAD,
+      comments: [
+        comment(
+          adversarialBody('2 lenses, all findings addressed', [
+            'correctness and data flow',
+            'correctness and data flow',
+          ])
+        ),
+      ],
+      changedFiles: ['apps/myk9show/src/components/ui/dialog/dialog.tsx'],
+    });
+    expect(result.state).toBe('failure');
+    expect(result.description).toContain('2 distinct lenses');
+  });
+
+  it('counts a repeated migration-auditor as one lens on a migration', () => {
+    // The dangerous shape: the migration rule is satisfied by the repeat,
+    // so ONLY the distinct-count rule can refuse this.
+    const result = evaluateReviewGate({
+      headSha: HEAD,
+      comments: [
+        comment(
+          adversarialBody('2 lenses, all findings addressed', [
+            'migration-auditor',
+            'migration-auditor',
+          ])
+        ),
+      ],
+      changedFiles: ['supabase/migrations/20260914174500_x.sql'],
+    });
+    expect(result.state).toBe('failure');
+    expect(result.description).toContain('2 distinct lenses');
+  });
+
+  it('accepts two genuinely different lenses', () => {
+    const result = evaluateReviewGate({
+      headSha: HEAD,
+      comments: [
+        comment(
+          adversarialBody('2 lenses, all findings addressed', [
+            'correctness and data flow',
+            'security and failure modes',
+          ])
+        ),
+      ],
+      changedFiles: ['apps/myk9show/src/components/ui/dialog/dialog.tsx'],
+    });
+    expect(result.state).toBe('success');
+  });
+
   it('the legacy human-fallback evidence form keeps working unchanged', () => {
     // OVERRIDE_REASON is a NEW, separate contract for the bare `owner`
-    // token; `FALLBACK_REASON` (the `human-fallback` token's own contract,
-    // still hardcoded to "Fallback reason: Claude unavailable") is untouched.
+    // token; `FALLBACK_REASON` (the `human-fallback` token's own contract) is
+    // untouched by the tier work. The fixture is the LIVE body shape on PR
+    // #2241, which is green on `main` today and must stay green here — it
+    // says "Codex unavailable", so a fixture saying "Claude unavailable"
+    // would not guard what this test claims to guard.
     const result = evaluateReviewGate({
       headSha: HEAD,
       comments: [
         comment(
           [
             `Review gate: human-fallback reviewed abc1234..${HEAD} — 2 adversarial subagent reviews, all findings addressed`,
-            'Fallback reason: Claude unavailable — authentication failure',
+            'Fallback reason: Codex unavailable — usage limit',
             'Adversarial subagent review: correctness and data flow',
             'Adversarial subagent review: security and migration safety',
             'Required checks: passing',

@@ -652,7 +652,26 @@ describe('post-review-gate.sh', () => {
         REVIEW_LENSES: 'correctness',
       });
       expect(r.code).toBe(2);
-      expect(r.out).toContain('at least 2 lens names');
+      expect(r.out).toContain('at least 2 distinct lens names');
+    });
+
+    it('refuses the same lens name listed twice', () => {
+      const gh = stubGh();
+      const r = run(['42', 'adversarial', 'abc1234', 'def5678', VERDICT, logFile(CLEAN)], gh.bin, {
+        REVIEW_LENSES: 'correctness\ncorrectness',
+      });
+      expect(r.code).toBe(2);
+      expect(r.out).toContain('at least 2 distinct lens names');
+      expect(() => readFileSync(gh.calls, 'utf8')).toThrow();
+    });
+
+    it('refuses a duplicate that differs only by surrounding whitespace', () => {
+      const gh = stubGh();
+      const r = run(['42', 'adversarial', 'abc1234', 'def5678', VERDICT, logFile(CLEAN)], gh.bin, {
+        REVIEW_LENSES: 'correctness\n  correctness  ',
+      });
+      expect(r.code).toBe(2);
+      expect(r.out).toContain('at least 2 distinct lens names');
     });
 
     it('refuses a lens name that would forge a second evidence line', () => {

@@ -76,9 +76,11 @@ esac
 if [ "$REVIEWER" = "adversarial" ]; then
   [ -n "${REVIEW_LENSES:-}" ] || { echo "post-review-gate: adversarial tier needs REVIEW_LENSES=<one lens name per line, 2 or more>" >&2; exit 2; }
   LENS_LINES="$(printf '%s\n' "$REVIEW_LENSES" | sed -e 's/[[:space:]]*$//' -e 's/^[[:space:]]*//' | grep -v '^$' || true)"
-  LENS_COUNT="$(printf '%s\n' "$LENS_LINES" | grep -c '.' || true)"
+  # Distinct names: the tier's substance is two INDEPENDENT bug-finding lenses,
+  # so the same lens listed twice is one lens. The gate applies the same rule.
+  LENS_COUNT="$(printf '%s\n' "$LENS_LINES" | sort -u | grep -c '.' || true)"
   if [ "${LENS_COUNT:-0}" -lt 2 ]; then
-    echo "post-review-gate: adversarial tier needs at least 2 lens names in REVIEW_LENSES (got ${LENS_COUNT:-0})" >&2
+    echo "post-review-gate: adversarial tier needs at least 2 distinct lens names in REVIEW_LENSES (got ${LENS_COUNT:-0})" >&2
     exit 2
   fi
   # A lens name is published verbatim into the comment body, so it may never

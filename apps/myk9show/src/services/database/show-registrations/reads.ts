@@ -5,138 +5,16 @@
 import { supabase, logQuery, createDatabaseError } from '../supabaseClient';
 import { mapDbToRegistration } from '../../mappers/registrationMappers';
 import type { Registration, DbRegistration } from '@/types/registration-types';
-import {
-  PaymentStatus,
-  type PaymentDetails,
-  type PaymentMethod,
-} from '@/types/show-registration-types';
+import type { PaymentDetails, PaymentMethod } from '@/types/show-registration-types';
 import type { TablesUpdate } from '@/types/supabase';
+import { buildSelfServiceEnrollmentPaymentFields } from './selfServiceEnrollmentFields';
+import {
+  buildEnrollmentPaymentFields,
+  hasEnrollmentPaymentInput,
+  shouldPreserveFinancialForWaived,
+} from './enrollmentPaymentFields';
 
 const POSTGRES_UNIQUE_VIOLATION = '23505';
-
-function paymentMethodToEnrollmentStatus(
-  paymentMethod: PaymentMethod | undefined
-): string | undefined {
-  switch (paymentMethod) {
-    case 'check':
-    case 'cash':
-      return PaymentStatus.PENDING;
-    case 'secretary_paid':
-    case 'group_payment':
-      return 'paid';
-    case 'waived':
-      return PaymentStatus.WAIVED;
-    case 'credit_card':
-      return PaymentStatus.PENDING;
-    default:
-      return undefined;
-  }
-}
-
-function isEnrollmentPaidAtSubmit(paymentStatus: string | undefined): boolean {
-  return (
-    paymentStatus === 'paid' ||
-    paymentStatus === PaymentStatus.PAID_BY_CHECK ||
-    paymentStatus === PaymentStatus.PAID_BY_CASH
-  );
-}
-
-function buildEnrollmentPaymentFields({
-  paymentReference,
-  paymentDetails,
-  paymentMethod,
-  totalAmountCents,
-  existingTotalAmountCents = 0,
-  existingPaidAmountDollars = 0,
-  includeEmptyPaymentDetails = false,
-  preservePaidAmountForPending = false,
-  preserveFinancialForWaived = false,
-}: {
-  paymentReference?: string | undefined;
-  paymentDetails?: PaymentDetails | undefined;
-  paymentMethod?: PaymentMethod | undefined;
-  totalAmountCents?: number | undefined;
-  existingTotalAmountCents?: number | null | undefined;
-  existingPaidAmountDollars?: number | null | undefined;
-  includeEmptyPaymentDetails?: boolean | undefined;
-  preservePaidAmountForPending?: boolean | undefined;
-  preserveFinancialForWaived?: boolean | undefined;
-}): TablesUpdate<'enrollments'> {
-  const paymentStatus = paymentMethodToEnrollmentStatus(paymentMethod);
-  const shouldPreserveFinancialForWaived = preserveFinancialForWaived && paymentStatus === 'waived';
-  const nextTotalAmountCents =
-    totalAmountCents !== undefined && !shouldPreserveFinancialForWaived
-      ? (existingTotalAmountCents ?? 0) + totalAmountCents
-      : undefined;
-  const isRecordedPaid = isEnrollmentPaidAtSubmit(paymentStatus);
-  const paidAmount = isRecordedPaid
-    ? (existingPaidAmountDollars ?? 0) + (totalAmountCents ?? 0) / 100
-    : 0;
-  const nextTotalAmountDollars =
-    nextTotalAmountCents !== undefined ? nextTotalAmountCents / 100 : undefined;
-  const resolvedPaymentStatus =
-    isRecordedPaid && nextTotalAmountDollars !== undefined && paidAmount < nextTotalAmountDollars
-      ? PaymentStatus.PENDING
-      : paymentStatus;
-  const shouldPreservePaidAmount =
-    preservePaidAmountForPending && paymentStatus === PaymentStatus.PENDING;
-
-  const fields: TablesUpdate<'enrollments'> = {
-    ...(resolvedPaymentStatus && !shouldPreserveFinancialForWaived
-      ? {
-          payment_status: resolvedPaymentStatus,
-          ...(!shouldPreservePaidAmount ? { paid_amount: paidAmount } : {}),
-        }
-      : {}),
-    ...(paymentMethod && !shouldPreserveFinancialForWaived
-      ? { payment_method: paymentMethod }
-      : {}),
-    ...(nextTotalAmountCents !== undefined ? { total_amount: nextTotalAmountCents } : {}),
-  };
-
-  if (includeEmptyPaymentDetails || paymentReference !== undefined) {
-    fields.payment_reference = paymentReference ?? null;
-  }
-  if (includeEmptyPaymentDetails || paymentDetails?.checkNumber !== undefined) {
-    fields.check_number = paymentDetails?.checkNumber ?? null;
-  }
-  if (includeEmptyPaymentDetails || paymentDetails?.paymentDate !== undefined) {
-    fields.payment_date = paymentDetails?.paymentDate ?? null;
-  }
-  if (includeEmptyPaymentDetails || paymentDetails?.groupReference !== undefined) {
-    fields.group_reference = paymentDetails?.groupReference ?? null;
-  }
-  if (includeEmptyPaymentDetails || paymentDetails?.paymentNotes !== undefined) {
-    fields.payment_notes = paymentDetails?.paymentNotes ?? null;
-  }
-
-  return fields;
-}
-
-function hasEnrollmentPaymentInput({
-  paymentReference,
-  paymentDetails,
-  paymentMethod,
-  totalAmountCents,
-}: {
-  paymentReference?: string | undefined;
-  paymentDetails?: PaymentDetails | undefined;
-  paymentMethod?: PaymentMethod | undefined;
-  totalAmountCents?: number | undefined;
-}): boolean {
-  return Boolean(
-    paymentReference || paymentDetails || paymentMethod || totalAmountCents !== undefined
-  );
-}
-
-function shouldPreserveFinancialForWaived(existing: Registration, paymentMethod?: PaymentMethod) {
-  if (paymentMethod !== 'waived') return false;
-  return (
-    existing.paymentStatus !== PaymentStatus.PENDING ||
-    (existing.totalAmount ?? 0) > 0 ||
-    (existing.paidAmount ?? 0) > 0
-  );
-}
 
 async function updateExistingEnrollmentPayment({
   existing,
@@ -144,6 +22,7 @@ async function updateExistingEnrollmentPayment({
   paymentDetails,
   paymentMethod,
   totalAmountCents,
+  selfService,
   startTime,
 }: {
   existing: Registration;
@@ -151,22 +30,32 @@ async function updateExistingEnrollmentPayment({
   paymentDetails?: PaymentDetails | undefined;
   paymentMethod?: PaymentMethod | undefined;
   totalAmountCents?: number | undefined;
+  selfService?: boolean | undefined;
   startTime: number;
 }): Promise<{
   data: Registration | null;
   error: ReturnType<typeof createDatabaseError> | null;
 }> {
-  const paymentFields = buildEnrollmentPaymentFields({
-    paymentReference,
-    paymentDetails,
-    paymentMethod,
-    totalAmountCents,
-    existingTotalAmountCents: existing.totalAmount,
-    existingPaidAmountDollars: existing.paidAmount,
-    includeEmptyPaymentDetails: paymentMethod !== undefined && paymentMethod !== 'waived',
-    preservePaidAmountForPending: true,
-    preserveFinancialForWaived: shouldPreserveFinancialForWaived(existing, paymentMethod),
-  });
+  // An exhibitor submitting their own entries may not touch payment_status;
+  // trg_restrict_payment_status rejects the whole statement (MYK9-486).
+  const paymentFields = selfService
+    ? buildSelfServiceEnrollmentPaymentFields({
+        existingPaymentStatus: existing.paymentStatus,
+        existingTotalAmountCents: existing.totalAmount,
+        paymentMethod,
+        totalAmountCents,
+      })
+    : buildEnrollmentPaymentFields({
+        paymentReference,
+        paymentDetails,
+        paymentMethod,
+        totalAmountCents,
+        existingTotalAmountCents: existing.totalAmount,
+        existingPaidAmountDollars: existing.paidAmount,
+        includeEmptyPaymentDetails: paymentMethod !== undefined && paymentMethod !== 'waived',
+        preservePaidAmountForPending: true,
+        preserveFinancialForWaived: shouldPreserveFinancialForWaived(existing, paymentMethod),
+      });
 
   if (Object.keys(paymentFields).length === 0) {
     return { data: existing, error: null };
@@ -222,7 +111,14 @@ export const createShowRegistration = async (
   paymentReference?: string,
   paymentDetails?: PaymentDetails,
   paymentMethod?: PaymentMethod,
-  totalAmountCents?: number
+  totalAmountCents?: number,
+  /**
+   * Set for an exhibitor entering their own dogs. Restricts the write to the
+   * columns an unprivileged caller is allowed to change — no payment_status,
+   * no paid_amount, no null-out of secretary-entered payment details. See
+   * `selfServiceEnrollmentFields.ts` (MYK9-486).
+   */
+  options?: { selfService?: boolean | undefined }
 ): Promise<{
   data: Registration | null;
   error: ReturnType<typeof createDatabaseError> | null;
@@ -252,6 +148,7 @@ export const createShowRegistration = async (
         paymentDetails,
         paymentMethod,
         totalAmountCents,
+        selfService: options?.selfService,
         startTime,
       });
     }
@@ -261,13 +158,15 @@ export const createShowRegistration = async (
       .insert({
         show_id: showId,
         handler_id: handlerId,
-        ...buildEnrollmentPaymentFields({
-          paymentReference,
-          paymentDetails,
-          paymentMethod,
-          totalAmountCents,
-          includeEmptyPaymentDetails: true,
-        }),
+        ...(options?.selfService
+          ? buildSelfServiceEnrollmentPaymentFields({ paymentMethod, totalAmountCents })
+          : buildEnrollmentPaymentFields({
+              paymentReference,
+              paymentDetails,
+              paymentMethod,
+              totalAmountCents,
+              includeEmptyPaymentDetails: true,
+            })),
       })
       .select('*')
       .single();
@@ -297,6 +196,7 @@ export const createShowRegistration = async (
           paymentDetails,
           paymentMethod,
           totalAmountCents,
+          selfService: options?.selfService,
           startTime,
         });
       }

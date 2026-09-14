@@ -37,6 +37,46 @@ describe('classifyEntryAttention', () => {
     ).toEqual(['payment_due']);
   });
 
+  it('keeps a pending entry visible when its ORDER reads paid (MYK9-495)', () => {
+    // `enrollments` is one row per (show, handler), reused by every later
+    // submission, so its `paid` must not drop this entry off the secretary's
+    // attention list.
+    expect(
+      classifyEntryAttention(
+        input({
+          paymentStatus: PaymentStatus.PENDING,
+          enrollmentPaymentStatus: PaymentStatus.PAID_ONLINE,
+        })
+      )
+    ).toEqual(['payment_due']);
+  });
+
+  it('classifies the same shape from a raw row (MYK9-495)', () => {
+    expect(
+      classifyRawEntryAttention({
+        entry_status: 'confirmed',
+        payment_status: 'pending',
+        registration: { payment_status: 'paid' },
+      })
+    ).toEqual(['payment_due']);
+  });
+
+  it("does not re-flag a settled entry for a sibling's unpaid order", () => {
+    // The order reads `pending` because ANOTHER entry under it is unpaid. This
+    // entry's own money is settled, so it owes nothing.
+    for (const settled of [
+      PaymentStatus.WAIVED,
+      PaymentStatus.REFUNDED,
+      PaymentStatus.PARTIAL_REFUND,
+    ]) {
+      expect(
+        classifyEntryAttention(
+          input({ paymentStatus: settled, enrollmentPaymentStatus: PaymentStatus.PENDING })
+        )
+      ).toEqual([]);
+    }
+  });
+
   it('does not classify terminal entries as payment due', () => {
     expect(
       classifyEntryAttention(

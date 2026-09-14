@@ -79,7 +79,7 @@ export function useRemoveLineConfirm(
           </AlertDialogTitle>
           <AlertDialogDescription>
             {pending
-              ? `${pending.label} will be taken off this entry and its fee removed from the total. You can add it again from the Select classes step.`
+              ? `${pending.label} will be taken off this entry and its fee removed from the total. You can add it again from the Classes step.`
               : ''}
           </AlertDialogDescription>
         </AlertDialogHeader>

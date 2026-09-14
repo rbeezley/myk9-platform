@@ -304,8 +304,17 @@ const ShowCreationWizardPage: React.FC = () => {
           {/* Horizontal step indicator — sticky under the page header so the
               steps stay visible while the form scrolls. Kept a direct child of
               the tall container (not nested in a short title wrapper) so it
-              sticks for the whole scroll, not just while the title is on screen. */}
-          <div className="sticky top-16 z-30 mb-4 rounded-2xl border border-border bg-card px-3 py-4 shadow-sm sm:mb-6 sm:px-6 sm:py-5">
+              sticks for the whole scroll, not just while the title is on screen.
+
+              The offset is the fixed app chrome (--app-top-inset) PLUS the
+              wizard header, which is itself sticky right above it and whose
+              measured height WizardHeader publishes as
+              --show-wizard-header-height. A hard-coded top-16 (64px) put this
+              behind both on a phone, where the breadcrumb wraps. */}
+          <div
+            data-testid="show-creation-wizard-steps"
+            className="sticky top-[calc(var(--app-top-inset,3rem)+var(--show-wizard-header-height,4rem))] z-30 mb-4 rounded-2xl border border-border bg-card px-3 py-4 shadow-sm sm:mb-6 sm:px-6 sm:py-5"
+          >
             <HorizontalProgressIndicator
               steps={WIZARD_STEPS}
               currentStep={currentStep}

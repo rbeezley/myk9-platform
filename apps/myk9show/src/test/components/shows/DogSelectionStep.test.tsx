@@ -111,6 +111,72 @@ describe('DogSelectionStep', () => {
     expect(screen.getByRole('checkbox', { name: 'Select Max' })).toBeChecked();
   });
 
+  // MYK9-485. The 44px touch floor used to be on the Checkbox's own className,
+  // which inflated the PAINTED box to 44px around a 16px tick. jsdom has no
+  // layout, so the rendered size itself is pinned in
+  // `test/e2e/registration/wizardVisualQA.spec.ts`; what is pinned here is the
+  // behaviour that made the override removable — the region around the control
+  // still toggles the row.
+  it('toggles selection from the padded region around the checkbox, not just the control', async () => {
+    vi.mocked(useDogStoreCompat).mockReturnValue(
+      fromPartial({ dogs: [mockDog()], isLoading: false })
+    );
+    const onSelectionChange = vi.fn();
+    const { user } = render(
+      <DogSelectionStep selectedDogs={[]} onSelectionChange={onSelectionChange} />
+    );
+
+    const control = screen.getByRole('checkbox', { name: 'Select Max' });
+    const hitArea = control.parentElement;
+    expect(hitArea).not.toBeNull();
+
+    // A click that lands in the wrapper's padding, NOT on the control.
+    await user.click(hitArea as HTMLElement);
+    expect(onSelectionChange).toHaveBeenCalledWith(['dog-1']);
+
+    onSelectionChange.mockClear();
+    await user.click(control);
+    expect(onSelectionChange).toHaveBeenCalledWith(['dog-1']);
+    // Exactly once: the control stops propagation, so the card must not toggle
+    // a second time and cancel it out.
+    expect(onSelectionChange).toHaveBeenCalledTimes(1);
+  });
+
+  it('renders a registered name that repeats the call name only once', () => {
+    const registration = {
+      id: 'reg-1',
+      organization: 'AKC',
+      breed: 'Golden Retriever',
+      registrationNumber: 'SS1',
+      status: 'Active',
+      isPrimary: true,
+    };
+    vi.mocked(useDogStoreCompat).mockReturnValue(
+      fromPartial({
+        dogs: [
+          mockDog({
+            id: 'dog-1',
+            callName: 'MAPLE',
+            registrations: [{ ...registration, registeredName: ' maple ' }],
+          }),
+          mockDog({
+            id: 'dog-2',
+            callName: 'JUNI',
+            registrations: [{ ...registration, id: 'reg-2', registeredName: 'JUNIPER' }],
+          }),
+        ],
+        isLoading: false,
+      })
+    );
+    render(<DogSelectionStep selectedDogs={[]} onSelectionChange={vi.fn()} />);
+
+    // Same name, differing only in case and padding: shown once, unquoted.
+    expect(screen.getByText('MAPLE')).toBeInTheDocument();
+    expect(screen.queryByText(/MAPLE\s+"/)).not.toBeInTheDocument();
+    // Positive control: a genuinely different registered name still appears.
+    expect(screen.getByText('JUNI "JUNIPER"')).toBeInTheDocument();
+  });
+
   it('shows a retryable load failure rather than an empty list', async () => {
     const refetch = vi.fn();
     vi.mocked(useDogStoreCompat).mockReturnValue(
@@ -226,7 +292,7 @@ describe('DogSelectionStep', () => {
 
     expect(await screen.findByText('Add New Registration')).toBeInTheDocument();
     expect(onSelectionChange).not.toHaveBeenCalled();
-    expect(screen.getByText('Selected')).toBeInTheDocument();
+    expect(screen.getByRole('checkbox', { name: 'Select Max' })).toBeChecked();
   });
 
   it('does not show registration warning when registrations is undefined (replication path)', () => {
@@ -244,19 +310,23 @@ describe('DogSelectionStep', () => {
     expect(screen.queryByText(/no registration on file/i)).not.toBeInTheDocument();
   });
 
-  it('shows the selected badge when dog is checked', async () => {
+  // MYK9-485 removed the third selection signal (a "Selected" badge at the far
+  // end of the row, repeating what the checkbox and the card border already
+  // said). What remains has to still be visible on the row itself.
+  it('signals selection on the row without a redundant badge', () => {
     vi.mocked(useDogStoreCompat).mockReturnValue({
       dogs: [mockDog()],
       isLoading: false,
     } as ReturnType<typeof useDogStoreCompat>);
 
-    render(<DogSelectionStep selectedDogs={[]} onSelectionChange={() => {}} />);
+    const { rerender } = render(
+      <DogSelectionStep selectedDogs={[]} onSelectionChange={() => {}} />
+    );
+    expect(screen.getByRole('checkbox', { name: 'Select Max' })).not.toBeChecked();
 
+    rerender(<DogSelectionStep selectedDogs={['dog-1']} onSelectionChange={() => {}} />);
+    expect(screen.getByRole('checkbox', { name: 'Select Max' })).toBeChecked();
     expect(screen.queryByText('Selected')).not.toBeInTheDocument();
-
-    render(<DogSelectionStep selectedDogs={['dog-1']} onSelectionChange={() => {}} />);
-
-    expect(screen.getByText('Selected')).toBeInTheDocument();
   });
 
   it('calls onSelectionChange when an eligible dog checkbox is toggled', async () => {

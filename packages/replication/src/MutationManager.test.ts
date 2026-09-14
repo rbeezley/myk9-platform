@@ -2182,6 +2182,75 @@ describe('MutationManager', () => {
       ).resolves.toBeDefined();
     });
 
+    it('holds MYK9-490 trial registry updates behind a deferred show organization update', async () => {
+      // MYK9-490 in its real shape. `trg_enforce_show_registry_on_trial` refuses a trial whose
+      // registry_id disagrees with its show's organization (SQLSTATE MK490), so a trial update
+      // that reaches the server before the organization change that justifies it is refused —
+      // and refused again on every retry, because retrying cannot reorder the queue.
+      //
+      // "Queued second" is not "uploaded second": this pass defers the show update on backoff
+      // and would otherwise send both trial updates, which are independent of it.
+      const futureRetry = Date.now() + 60_000;
+
+      await mockDb.put(
+        REPLICATION_STORES.PENDING_MUTATIONS,
+        makeMutation({
+          id: 'show-organization-mutation',
+          tableName: 'shows',
+          operation: 'UPDATE',
+          rowId: 'show-1',
+          data: { id: 'show-1', organization: 'UKC' },
+          nextRetryAt: futureRetry,
+        })
+      );
+      for (const trialId of ['trial-1', 'trial-2']) {
+        await mockDb.put(
+          REPLICATION_STORES.PENDING_MUTATIONS,
+          makeMutation({
+            id: `${trialId}-registry-mutation`,
+            tableName: 'trials',
+            operation: 'UPDATE',
+            rowId: trialId,
+            data: { id: trialId, show_id: 'show-1', registry_id: 'UKC' },
+            dependsOn: ['show-organization-mutation'],
+          })
+        );
+      }
+
+      const heldResults = await manager.uploadPendingMutations();
+
+      expect(heldResults).toHaveLength(0);
+      expect(mockSupabase.from).not.toHaveBeenCalled();
+      for (const id of [
+        'show-organization-mutation',
+        'trial-1-registry-mutation',
+        'trial-2-registry-mutation',
+      ]) {
+        await expect(mockDb.get(REPLICATION_STORES.PENDING_MUTATIONS, id)).resolves.toBeDefined();
+      }
+
+      // Backoff elapses: the show update goes first, and only then do the trials follow.
+      const show = (await mockDb.get(
+        REPLICATION_STORES.PENDING_MUTATIONS,
+        'show-organization-mutation'
+      )) as PendingMutation;
+      await mockDb.put(REPLICATION_STORES.PENDING_MUTATIONS, {
+        ...show,
+        nextRetryAt: Date.now() - 1,
+      });
+
+      const uploadedResults = await manager.uploadPendingMutations();
+
+      expect(uploadedResults).toHaveLength(3);
+      expect(uploadedResults.every(result => result.success)).toBe(true);
+      // Order is the property under test, not merely that all three went.
+      expect(vi.mocked(mockSupabase.from).mock.calls.map(call => call[0])).toEqual([
+        'shows',
+        'trials',
+        'trials',
+      ]);
+    });
+
     it('should hold a dependent mutation when its parent dependency fails this pass', async () => {
       await mockDb.put(
         REPLICATION_STORES.PENDING_MUTATIONS,

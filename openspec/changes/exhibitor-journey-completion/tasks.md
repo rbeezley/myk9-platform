@@ -29,6 +29,12 @@
 - [x] 3.9 Verify Slice 2 with focused Dog Details, Title Progress, Statistics, Health, Training, and Pedigree tests; `pnpm typecheck`; `pnpm lint`; and browser checks at all four viewport classes in light and dark modes.
 - [x] 3.10 Open the Slice 2 PR with before/after screenshots and accessibility evidence; wait for CI/review, resolve findings, and merge.
 
+### MYK9-518 Dog Details hierarchy follow-up
+
+- [x] 3.11 Make the identity rail the sole default registration summary, move the show-entry action beside identity, reduce the photo panel, and preserve the accessible photo and edit actions.
+- [x] 3.12 Put Activity first in Overview and remove registrations from it entirely; raise the existing registration management in a panel from the rail; keep Career as the detailed title destination and make Premium Overview title counts distinct.
+- [x] 3.13 Test empty and registered dog states, add/edit access, legacy navigation, and responsive 390px/desktop layout; re-walk the signed-in sparse-history dog and record evidence. **(Shuffled: 3552 component + store tests pass, covering every SlideOverPanel and registrations-store consumer touched here. Browser: Activity y=755 at 390×844, one registration empty state, 44×44 photo action, no overflow at 390/1280, rail add and deep-link add panels open. Dog-context wizard handoff is MYK9-519.)**
+
 ## 4. Slice 3A — Entitlement Grant Data and Authorization
 
 - [x] 4.1 Inventory `roles`, `permissions`, `role_permissions`, site-admin helpers, `people`, `exhibitor_profiles`, and legacy `early_adopter_until` rows in one evidence pass before writing the migration.

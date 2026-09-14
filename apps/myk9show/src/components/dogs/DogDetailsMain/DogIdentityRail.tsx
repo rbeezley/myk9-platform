@@ -49,6 +49,10 @@ const DogIdentityRail: React.FC<DogIdentityRailProps> = ({
   owner,
   registrations,
   onAddRegistration,
+  onManageRegistrations,
+  registrationsFailed = false,
+  registrationsLoading = false,
+  onRetryRegistrations,
   role = 'exhibitor',
   onEditPanelOpen,
   onPhotoDialogOpen,
@@ -117,8 +121,8 @@ const DogIdentityRail: React.FC<DogIdentityRailProps> = ({
       data-dog-identity
       className="rounded-xl bg-card border border-border overflow-hidden lg:w-[320px] lg:flex-shrink-0"
     >
-      <div className="relative h-56 lg:h-80 bg-card-secondary flex items-center justify-center">
-        <Avatar className="h-28 w-28 lg:h-36 lg:w-36">
+      <div className="relative h-32 lg:h-44 bg-card-secondary flex items-center justify-center">
+        <Avatar className="h-24 w-24 lg:h-28 lg:w-28">
           {dog.imageUrl ? (
             <AvatarImage
               src={dog.imageUrl}
@@ -135,7 +139,7 @@ const DogIdentityRail: React.FC<DogIdentityRailProps> = ({
           type="button"
           onClick={onPhotoDialogOpen}
           aria-label="Edit dog photo"
-          className="absolute right-3 bottom-3 flex h-11 w-11 items-center justify-center rounded-full bg-foreground text-background shadow-sm hover:opacity-90 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+          className="absolute right-3 bottom-3 flex h-11 w-11 items-center justify-center rounded-full border border-border bg-card text-foreground shadow-sm hover:bg-accent focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
         >
           <Camera className="h-5 w-5" />
         </button>
@@ -146,7 +150,7 @@ const DogIdentityRail: React.FC<DogIdentityRailProps> = ({
         <h1
           ref={headingRef}
           tabIndex={-1}
-          className="text-2xl font-semibold tracking-tight text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 rounded-sm"
+          className="text-xl lg:text-2xl font-semibold tracking-tight text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 rounded-sm"
         >
           {dog.callName}
         </h1>
@@ -167,7 +171,26 @@ const DogIdentityRail: React.FC<DogIdentityRailProps> = ({
           )}
         </div>
 
-        <div className="mt-5 space-y-2">
+        {!isSecretary && (
+          <div className="mt-4 flex items-center gap-2">
+            <Button variant="default" className="min-h-11 flex-1 gap-1.5" asChild>
+              <Link to="/shows">
+                <Plus className="h-4 w-4" />
+                Enter a show
+              </Link>
+            </Button>
+            <ThreeDotMenu
+              onEdit={onEditPanelOpen}
+              onEditPhoto={onPhotoDialogOpen}
+              onChangeStatus={onStatusDialogOpen}
+              onDelete={canDelete ? onDeleteDialogOpen : undefined}
+              editLabel="Edit Dog"
+              triggerClassName="h-11 w-11"
+            />
+          </div>
+        )}
+
+        <div className="mt-4 space-y-2">
           <Row label="Breed" value={registry.breed} />
           {registry.breedVaries && <Row label="Breed" value="Varies by registry" />}
           <Row label="Born" value={born} />
@@ -176,7 +199,7 @@ const DogIdentityRail: React.FC<DogIdentityRailProps> = ({
           <Row label="Microchip" value={dog.microchipNumber ?? null} mono />
         </div>
 
-        <div className="mt-5 mb-1 flex items-center justify-between">
+        <div className="mt-4 mb-1 flex items-center justify-between">
           <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
             Registrations
           </span>
@@ -189,15 +212,53 @@ const DogIdentityRail: React.FC<DogIdentityRailProps> = ({
             Add registration
           </button>
         </div>
+        {/* Rows first: React Query keeps `data` across a failed refetch and the
+            `dog.registrations` fallback is often already populated by the dogs
+            list read, so neither a pending nor a failed query should blank a
+            registry we can actually render. Only when there is nothing to show
+            do loading and failure need to be told apart from "has none" — this
+            rail is the page's only registration summary, so printing the empty
+            copy for either would read a registered dog as unregistered. */}
         {registry.rows.length > 0 ? (
           <DogRegistryTable registry={registry} />
+        ) : registrationsLoading ? (
+          <p className="text-xs text-muted-foreground" role="status">
+            Loading registrations…
+          </p>
+        ) : registrationsFailed ? (
+          <div className="flex items-center gap-2">
+            <p className="text-xs text-destructive">Couldn’t load registrations.</p>
+            {onRetryRegistrations && (
+              <button
+                type="button"
+                onClick={onRetryRegistrations}
+                className="inline-flex min-h-11 items-center text-xs font-medium text-primary hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded-sm"
+              >
+                Try again
+              </button>
+            )}
+          </div>
         ) : (
           <p className="text-xs text-muted-foreground">No registrations yet.</p>
+        )}
+        {/* Always mounted for an exhibitor — not gated on the row count, and not
+            on the read succeeding. Unmounting it while the panel is open (last
+            registration deleted, or a refetch failing) takes away the element
+            SlideOverPanel returns focus to, dropping focus on <body>. */}
+        {!isSecretary && onManageRegistrations && (
+          <button
+            type="button"
+            onClick={onManageRegistrations}
+            aria-haspopup="dialog"
+            className="mt-2 inline-flex min-h-11 items-center text-xs font-medium text-primary hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded-sm"
+          >
+            Manage registrations
+          </button>
         )}
 
         <div
           className={cn(
-            'mt-5',
+            'mt-4',
             isSecretary && 'rounded-lg border border-teal-400 dark:border-teal-600 p-3'
           )}
         >
@@ -206,19 +267,10 @@ const DogIdentityRail: React.FC<DogIdentityRailProps> = ({
           </div>
           {ownerBody}
         </div>
-
-        <div className="mt-6 flex flex-col gap-2">
-          {!isSecretary && (
-            <Button variant="default" className="w-full gap-1.5" asChild>
-              <a href="/shows">
-                <Plus className="h-4 w-4" />
-                Enter a show
-              </a>
-            </Button>
-          )}
-          <div className="flex gap-2">
-            <Button variant="outline" onClick={onEditPanelOpen} className="flex-1 gap-1.5">
-              <Pencil className="h-3.5 w-3.5" />
+        {isSecretary && (
+          <div className="mt-6 flex items-center gap-2">
+            <Button variant="outline" className="min-h-11 flex-1 gap-1.5" onClick={onEditPanelOpen}>
+              <Pencil className="h-4 w-4" />
               Edit
             </Button>
             <ThreeDotMenu
@@ -226,11 +278,11 @@ const DogIdentityRail: React.FC<DogIdentityRailProps> = ({
               onEditPhoto={onPhotoDialogOpen}
               onChangeStatus={onStatusDialogOpen}
               onDelete={canDelete ? onDeleteDialogOpen : undefined}
-              editLabel="Edit Dog"
               hideEdit
+              triggerClassName="h-11 w-11"
             />
           </div>
-        </div>
+        )}
       </div>
     </aside>
   );

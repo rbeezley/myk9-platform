@@ -1,6 +1,7 @@
 import { mapEntryStatus } from '@/services/entryDisplay/entryStatusUiAdapter';
 import { EntryStatus, PaymentStatus } from '@/types/show-registration-types';
 import { mapPaymentStatus } from '@/utils/entryManagementUtils';
+import { resolveEffectivePaymentStatus } from '@/utils/effectivePaymentStatus';
 
 export const ENTRY_ATTENTION_REASONS = [
   'pending_review',
@@ -91,10 +92,16 @@ export function classifyRawEntryAttention(entry: RawOperationalEntryInput): Entr
   });
 }
 
+/**
+ * Secretary-facing half of the same rule as the exhibitor balance — see
+ * `@/utils/effectivePaymentStatus`. An order's `paid` must not drop an entry
+ * that is still `pending` off the attention list (MYK9-495), and an order's
+ * `pending` must still raise an entry row that reads paid.
+ */
 export function getEffectivePaymentStatus(
   entry: Pick<OperationalEntryInput, 'paymentStatus' | 'enrollmentPaymentStatus'>
 ): PaymentStatus | null {
-  return entry.enrollmentPaymentStatus ?? entry.paymentStatus ?? null;
+  return resolveEffectivePaymentStatus(entry.paymentStatus, entry.enrollmentPaymentStatus);
 }
 
 export function classifyClassAttention(cls: OperationalClassInput): ClassAttentionReason[] {

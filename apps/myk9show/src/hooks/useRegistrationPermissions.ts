@@ -203,15 +203,20 @@ export function useRegistrationPermissions() {
   /**
    * Get registration workflow mode based on permissions
    */
-  const getRegistrationMode = (): 'exhibitor' | 'secretary_existing' | 'secretary_new' => {
+  const getRegistrationMode = (): 'exhibitor' | 'secretary_new' => {
     if (!userWithRoles) return 'exhibitor';
 
-    if (hasRole(UserRole.SITE_ADMIN) || hasRole(UserRole.CLUB_ADMIN)) {
-      return 'secretary_new'; // Full capabilities
-    }
-
-    if (hasRole(UserRole.SECRETARY)) {
-      return canCreateExhibitor ? 'secretary_new' : 'secretary_existing';
+    // Secretaries, club admins and site admins all take the same workflow:
+    // mail-in entry requires creating offline exhibitors and dogs, which is
+    // what `secretary_new` is. The superseded existing-exhibitor branch this
+    // used to fall back to was deleted from the wizard and nothing ever routed
+    // to it (MYK9-512).
+    if (
+      hasRole(UserRole.SITE_ADMIN) ||
+      hasRole(UserRole.CLUB_ADMIN) ||
+      hasRole(UserRole.SECRETARY)
+    ) {
+      return 'secretary_new';
     }
 
     return 'exhibitor';

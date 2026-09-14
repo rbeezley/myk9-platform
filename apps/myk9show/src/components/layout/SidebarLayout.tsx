@@ -200,11 +200,24 @@ export const SidebarLayout: React.FC<SidebarLayoutProps> = ({
       {/* Main content area with responsive left margin.
           pt-12 clears the fixed header only — the PWA banner offset is already
           applied by PWAInstallBanner's in-flow spacer above this subtree, so we
-          must NOT add --app-top-inset here or the banner height double-counts. */}
+          must NOT add --app-top-inset here or the banner height double-counts.
+
+          NO `overflow` here, deliberately (MYK9-510, docs/adr/011). Any
+          non-visible overflow makes this element the nearest scroll container
+          for every descendant, and it never actually scrolls — the document
+          does — so every `position: sticky` box inside the shell was inert.
+          Leaving overflow visible hands sticky the document scrollport, which
+          is what --app-top-inset offsets are already written against.
+
+          `min-w-0` replaces what `overflow-auto` used to do for width: a flex
+          item's automatic minimum size is its content, so an over-wide child
+          (a table, a long unbroken string) used to be absorbed by this
+          element's own scrollbar. Now it is the document that scrolls
+          sideways, and min-w-0 keeps the column itself from stretching. */}
       <main
         data-layout="app-shell-main"
         className={cn(
-          'flex-1 overflow-auto pt-[var(--app-header-height,3rem)]',
+          'flex-1 min-w-0 pt-[var(--app-header-height,3rem)]',
           'md:ml-[var(--sidebar-width)]'
         )}
         style={{ '--sidebar-width': `${mainMarginWidth}px` } as React.CSSProperties}

@@ -77,14 +77,21 @@ export const WORKFLOW_CONFIGS: Record<WorkflowMode, WorkflowConfig> = {
 };
 
 export const ALL_STEP_DEFINITIONS: Record<StepId, Omit<RegistrationStep, 'completed'>> = {
+  // INTENT: One-word titles. The rail is a POSITION indicator, not a sentence:
+  // its titles share one row at every width, and "Select dogs" / "Select
+  // classes" were the two that had to be cut with an ellipsis at 390px
+  // (MYK9-517) — the verb is the half that truncated, and it is the half the
+  // step heading on screen ("Select Dogs to Register") already says. The Show
+  // Creation wizard's rail has always been one-word ("Trials", "Classes",
+  // "Review"). Do not restore the verbs; they do not fit five steps at 390.
   'dog-selection': {
     id: 0,
-    label: 'Select dogs',
+    label: 'Dogs',
     icon: <Dog className="h-5 w-5" />,
   },
   'class-selection': {
     id: 1,
-    label: 'Select classes',
+    label: 'Classes',
     icon: <Trophy className="h-5 w-5" />,
   },
   'handler-assignment': {

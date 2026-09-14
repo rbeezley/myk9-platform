@@ -147,9 +147,12 @@ END $$;
 -- Fixed ids
 -- ---------------------------------------------------------------------------
 --   club   dededede-0000-0000-0000-000000000001
---   show   dededede-0000-0000-0000-000000000010
---   trials dededede-0000-0000-0000-00000000002{1,2}
---   class  dec1a55e-0000-0000-0000-00000000003{1..5}, ...040
+--   show   dededede-0000-0000-0000-000000000010 (AKC)
+--   trials dededede-0000-0000-0000-00000000002{1..4}  -- all AKC (MYK9-490)
+--   class  dec1a55e-0000-0000-0000-00000000003{1..9}, ...040
+--   MYK9-490 single-registry sibling shows, same club:
+--   show   dededede-0000-0000-0000-000000000011 (UKC)  trial ...025  class dec1a55e-...04{1,2}
+--   show   dededede-0000-0000-0000-000000000012 (ASCA) trial ...026  class dec1a55e-...04{3,4}
 --   dog    dededede-0000-0000-0000-00000000004{1..6}
 --   entry  dededede-0000-0000-0000-00000000005{1..8}, ...067/...068 (+ ...059/...060 refund fixtures)
 --   armband      dededede-0000-0000-0000-00000000006{1..6}
@@ -169,7 +172,10 @@ DELETE FROM public.entry_cart_items
 WHERE class_id IN (
         'dec1a55e-0000-0000-0000-000000000031','dec1a55e-0000-0000-0000-000000000032',
         'dec1a55e-0000-0000-0000-000000000033','dec1a55e-0000-0000-0000-000000000034',
-        'dec1a55e-0000-0000-0000-000000000035','dec1a55e-0000-0000-0000-000000000040')
+        'dec1a55e-0000-0000-0000-000000000035','dec1a55e-0000-0000-0000-000000000040',
+        -- MYK9-490 sibling-show classes (UKC / ASCA)
+        'dec1a55e-0000-0000-0000-000000000041','dec1a55e-0000-0000-0000-000000000042',
+        'dec1a55e-0000-0000-0000-000000000043','dec1a55e-0000-0000-0000-000000000044')
    OR dog_id IN (
         'dededede-0000-0000-0000-000000000041','dededede-0000-0000-0000-000000000042',
         'dededede-0000-0000-0000-000000000043','dededede-0000-0000-0000-000000000044',
@@ -243,7 +249,8 @@ DELETE FROM public.classes WHERE id IN (
   'dec1a55e-0000-0000-0000-000000000031','dec1a55e-0000-0000-0000-000000000032',
   'dec1a55e-0000-0000-0000-000000000033','dec1a55e-0000-0000-0000-000000000034',
   'dec1a55e-0000-0000-0000-000000000035',
-  -- UKC Nosework / ASCA Scent Detection registry demo classes (task 6.3)
+  -- MYK9-490: ...036-...039 are now AKC classes on the AKC show. The UKC and ASCA
+  -- classes they used to be live on the sibling shows and are cleared below.
   'dec1a55e-0000-0000-0000-000000000036','dec1a55e-0000-0000-0000-000000000037',
   'dec1a55e-0000-0000-0000-000000000038','dec1a55e-0000-0000-0000-000000000039',
   'dec1a55e-0000-0000-0000-000000000040'
@@ -255,8 +262,27 @@ DELETE FROM public.dogs WHERE id IN (
 );
 DELETE FROM public.trials WHERE id IN (
   'dededede-0000-0000-0000-000000000021','dededede-0000-0000-0000-000000000022',
-  -- UKC Nosework / ASCA Scent Detection registry demo trials (task 6.3)
+  -- MYK9-490: ...023/...024 kept their ids but are now AKC trials 3 and 4 of the
+  -- AKC show. The UKC / ASCA trials moved to the sibling shows cleared below.
   'dededede-0000-0000-0000-000000000023','dededede-0000-0000-0000-000000000024'
+);
+
+-- MYK9-490 sibling single-registry shows (UKC ...011, ASCA ...012). Same FK-safe
+-- order as the main show: classes -> trials -> visibility settings -> shows. Their
+-- cart items were cleared with the class list at the top of this section. They hold
+-- no entries, dogs, armbands or judge assignments, so nothing else can block them.
+DELETE FROM public.classes WHERE id IN (
+  'dec1a55e-0000-0000-0000-000000000041','dec1a55e-0000-0000-0000-000000000042',
+  'dec1a55e-0000-0000-0000-000000000043','dec1a55e-0000-0000-0000-000000000044'
+);
+DELETE FROM public.trials WHERE id IN (
+  'dededede-0000-0000-0000-000000000025','dededede-0000-0000-0000-000000000026'
+);
+DELETE FROM public.show_visibility_settings WHERE show_id IN (
+  'dededede-0000-0000-0000-000000000011','dededede-0000-0000-0000-000000000012'
+);
+DELETE FROM public.shows WHERE id IN (
+  'dededede-0000-0000-0000-000000000011','dededede-0000-0000-0000-000000000012'
 );
 -- Email delivery history fixtures (section 18). email_log.show_id is
 -- ON DELETE SET NULL, so those rows would SURVIVE the show delete below with a
@@ -523,7 +549,10 @@ VALUES (
 );
 
 -- ---------------------------------------------------------------------------
--- 3. Trials (2)  -- trial_type 'scent_work', date literals within show window
+-- 3. Trials (4)  -- trial_type 'scent_work', date literals within show window
+--    MYK9-490: every trial here is AKC, because the show is AKC. One sanctioning
+--    registry per show; the UKC and ASCA fixtures live on their own shows in
+--    section 3b. Four AKC trials over a weekend is an ordinary big-show shape.
 -- ---------------------------------------------------------------------------
 INSERT INTO public.trials (
   id, show_id, name, date, trial_number, status,
@@ -537,20 +566,117 @@ VALUES
   ('dededede-0000-0000-0000-000000000022', 'dededede-0000-0000-0000-000000000010',
    'Sunday Trial', (CURRENT_DATE + 46), 'Sunday Trial', 'upcoming',
    '8:00 AM', false, 'scent_work', 1, 2, 'Sunday Trial', 'AKC', 'America/Chicago', 1),
-  -- Multi-registry demo coverage (task 6.3): same show, different sanctioning
-  -- body per trial (trials.registry_id is per-trial, NOT per-show — see
-  -- CLAUDE.md heritage/registry notes). Same Sunday date as the AKC trial
-  -- above; a later display_order keeps tab ordering stable.
+  -- These two carried UKC and ASCA registries until MYK9-490 decided that a show
+  -- may not span sanctioning bodies. Their IDS ARE DELIBERATELY UNCHANGED: the
+  -- MYK9-109 load fixture pins show ...010 at four trials x two classes = 8 rings
+  -- and 504 generated entries by id (apps/myk9show/src/test/load/loadFixture.ts,
+  -- 'leaves the original show byte-identical'), so moving them would have
+  -- rewritten the load profile every prior measurement was taken against.
+  -- They are now the afternoon AKC trials they always should have been.
   ('dededede-0000-0000-0000-000000000023', 'dededede-0000-0000-0000-000000000010',
-   'Sunday UKC Nosework', (CURRENT_DATE + 46), 'UKC-Nosework', 'upcoming',
-   '1:00 PM', false, 'nosework', 1, 3, 'Sunday UKC Nosework', 'UKC', 'America/Chicago', 1),
+   'Sunday Trial 3', (CURRENT_DATE + 46), 'Sunday Trial 3', 'upcoming',
+   '1:00 PM', false, 'scent_work', 1, 3, 'Sunday Trial 3', 'AKC', 'America/Chicago', 1),
   ('dededede-0000-0000-0000-000000000024', 'dededede-0000-0000-0000-000000000010',
-   'Sunday ASCA Scent Detection', (CURRENT_DATE + 46), 'ASCA-ScentDetection', 'upcoming',
-   '2:00 PM', false, 'scent_detection', 1, 4, 'Sunday ASCA Scent Detection', 'ASCA', 'America/Chicago', 1);
+   'Sunday Trial 4', (CURRENT_DATE + 46), 'Sunday Trial 4', 'upcoming',
+   '2:00 PM', false, 'scent_work', 1, 4, 'Sunday Trial 4', 'AKC', 'America/Chicago', 1);
+
+-- ---------------------------------------------------------------------------
+-- 3b. Sibling single-registry shows (MYK9-490)
+--
+-- The UKC Nosework and ASCA Scent Detection trials used to sit inside
+-- `Heartland Scent Work Classic`, which made the show every audit, screenshot and
+-- manual walk uses the single most unusual configuration the schema allows — and
+-- an illegal one as of MYK9-490. They keep their own shows instead, under the same
+-- club, so the registry-aware surfaces (offered classes, class selection, entry
+-- forms, the @/features/registries helpers, judge supplies, premium PDFs) stay
+-- exercised against UKC and ASCA without the demo show carrying three registries.
+--
+-- Deliberately small and entry-free: they exist to cover registry variation, not
+-- to be a second demo show.
+-- ---------------------------------------------------------------------------
+INSERT INTO public.shows (
+  id, name, organization, description,
+  start_date, end_date, entry_open_date, entry_close_date,
+  location, city, state, latitude, longitude, status, club_id,
+  pre_entry_fee, day_of_show_fee,
+  allow_non_owner_handlers, results_visible_to_all,
+  starting_armband_number, default_judge_day_capacity,
+  mail_in_strategy, mail_in_auto_release, waitlist_payment_deadline_hours,
+  accept_check_payments, accept_cash_payments,
+  cc_secretary_on_exhibitor_emails,
+  style, experience_is_published, experience_published_content,
+  brand_color, version, is_nationals
+)
+VALUES
+  (
+    'dededede-0000-0000-0000-000000000011',
+    'Heartland UKC Nosework Trial',
+    'UKC',
+    'A one-day UKC Nosework demo trial. Single-registry by rule (MYK9-490); the club''s AKC weekend is a separate show.',
+    ((CURRENT_DATE + 52)::timestamp AT TIME ZONE 'UTC'), ((CURRENT_DATE + 52)::timestamp AT TIME ZONE 'UTC'),
+    ((CURRENT_DATE - 16)::timestamp AT TIME ZONE 'UTC'), ((CURRENT_DATE + 76)::timestamp AT TIME ZONE 'UTC'),
+    '100 Dog Show Lane, Tulsa, OK 74101',
+    'Tulsa', 'Oklahoma',
+    36.15, -95.99,
+    'published',
+    'dededede-0000-0000-0000-000000000001',
+    30.00, 35.00,
+    true, true,
+    100, 125,
+    'none', false, 48,
+    true, true,
+    true,
+    'headline', false, '{}'::jsonb,
+    '#0d4d4f', 1, false
+  ),
+  (
+    'dededede-0000-0000-0000-000000000012',
+    'Heartland ASCA Scent Detection Trial',
+    'ASCA',
+    'A one-day ASCA Scent Detection demo trial. Single-registry by rule (MYK9-490); the club''s AKC weekend is a separate show.',
+    ((CURRENT_DATE + 53)::timestamp AT TIME ZONE 'UTC'), ((CURRENT_DATE + 53)::timestamp AT TIME ZONE 'UTC'),
+    ((CURRENT_DATE - 16)::timestamp AT TIME ZONE 'UTC'), ((CURRENT_DATE + 76)::timestamp AT TIME ZONE 'UTC'),
+    '100 Dog Show Lane, Tulsa, OK 74101',
+    'Tulsa', 'Oklahoma',
+    36.15, -95.99,
+    'published',
+    'dededede-0000-0000-0000-000000000001',
+    30.00, 35.00,
+    true, true,
+    100, 125,
+    'none', false, 48,
+    true, true,
+    true,
+    'headline', false, '{}'::jsonb,
+    '#0d4d4f', 1, false
+  );
+
+-- Same 'open' preset as the main demo show so an anon results walk behaves identically.
+INSERT INTO public.show_visibility_settings (
+  show_id, preset, placement_timing, qualification_timing,
+  time_timing, faults_timing, self_checkin_enabled
+)
+VALUES
+  ('dededede-0000-0000-0000-000000000011', 'open', 'class_complete', 'immediate', 'immediate', 'immediate', true),
+  ('dededede-0000-0000-0000-000000000012', 'open', 'class_complete', 'immediate', 'immediate', 'immediate', true);
+
+INSERT INTO public.trials (
+  id, show_id, name, date, trial_number, status,
+  planned_start_time, allow_self_checkin, trial_type, pipeline_stage,
+  display_order, category, registry_id, timezone, version
+)
+VALUES
+  ('dededede-0000-0000-0000-000000000025', 'dededede-0000-0000-0000-000000000011',
+   'UKC Nosework Trial', (CURRENT_DATE + 52), 'UKC-Nosework', 'upcoming',
+   '9:00 AM', false, 'nosework', 1, 1, 'UKC Nosework Trial', 'UKC', 'America/Chicago', 1),
+  ('dededede-0000-0000-0000-000000000026', 'dededede-0000-0000-0000-000000000012',
+   'ASCA Scent Detection Trial', (CURRENT_DATE + 53), 'ASCA-ScentDetection', 'upcoming',
+   '9:00 AM', false, 'scent_detection', 1, 1, 'ASCA Scent Detection Trial', 'ASCA', 'America/Chicago', 1);
 
 -- ---------------------------------------------------------------------------
 -- 4. Classes (10) -- valid element/level/section, status 'upcoming'
---    Saturday: 3 classes  |  Sunday: 2 classes  |  Sunday UKC: 2  |  Sunday ASCA: 2
+--    Saturday: 3 (+ the ...040 fixture) | Sunday: 2 | Sunday 3: 2 | Sunday 4: 2
+--    Every class here is AKC Scent Work: the show is AKC (MYK9-490).
 --    No judge column here: a class's judge is its judge_assignments row
 --    (section 11), resolved through people + judge_qualifications (section 13).
 --    classes.judge_name was dropped by 20260912234500 (MYK9-479).
@@ -576,30 +702,64 @@ VALUES
   ('dec1a55e-0000-0000-0000-000000000035', 'dededede-0000-0000-0000-000000000022',
    'Interior Novice B', 'Novice', 'Interior', 'B',
    30.00, 'upcoming', 120, 1, 1, false, 'single', true, 2, 1),
-  -- UKC Nosework (registry_id 'UKC' on trial ...023) -- elements/levels per
-  -- sport_templates 'ukc-nosework' (030_seed_sport_templates.sql): Container,
-  -- Interior, Exterior, Vehicle, Handler Discrimination x Novice..Elite.
+  -- MYK9-490: these four were the UKC and ASCA classes. They keep their ids (the
+  -- MYK9-109 load fixture addresses them directly) and are now AKC Scent Work
+  -- classes on AKC trials 3 and 4. Elements and levels are from the AKC vocabulary
+  -- (Container/Interior/Exterior/Buried/Handler Discrimination x
+  -- Novice/Advanced/Excellent/Master/Detective) and none of them repeats an
+  -- element+level pair already present, which is the shape MYK9-487 turned on.
+  -- The show as a whole is NOT free of repeated pairs, and deliberately so:
+  -- ...032 'Interior Advanced' and the ...040 unreleased-results fixture both
+  -- sit at Interior/Advanced/NULL, which is the collision MYK9-489 exists to
+  -- keep distinguishable. These four must not add a third.
   ('dec1a55e-0000-0000-0000-000000000036', 'dededede-0000-0000-0000-000000000023',
-   'Container Novice', 'Novice', 'Container', NULL,
-   30.00, 'upcoming', 120, 1, 1, false, 'single', true, 1, 1),
+   'Container Advanced', 'Advanced', 'Container', NULL,
+   30.00, 'upcoming', 180, 2, 1, false, 'single', true, 1, 1),
   ('dec1a55e-0000-0000-0000-000000000037', 'dededede-0000-0000-0000-000000000023',
-   'Vehicle Advanced', 'Advanced', 'Vehicle', NULL,
-   30.00, 'upcoming', 180, 2, 1, false, 'single', true, 2, 1),
-  -- ASCA Scent Detection (registry_id 'ASCA' on trial ...024) -- elements/levels
-  -- per sport_templates 'asca-scent-detection': Container, Interior, Exterior,
-  -- Vehicle x Novice/Open/Advanced/Excellent.
+   'Handler Discrimination Novice A', 'Novice', 'Handler Discrimination', 'A',
+   30.00, 'upcoming', 120, 1, 1, false, 'single', true, 2, 1),
   ('dec1a55e-0000-0000-0000-000000000038', 'dededede-0000-0000-0000-000000000024',
-   'Container Novice', 'Novice', 'Container', NULL,
-   30.00, 'upcoming', 120, 1, 1, false, 'single', true, 1, 1),
+   'Exterior Advanced', 'Advanced', 'Exterior', NULL,
+   30.00, 'upcoming', 180, 2, 1, false, 'single', true, 1, 1),
   ('dec1a55e-0000-0000-0000-000000000039', 'dededede-0000-0000-0000-000000000024',
-   'Exterior Open', 'Open', 'Exterior', NULL,
-   30.00, 'upcoming', 180, 2, 1, false, 'single', true, 2, 1),
+   'Buried Novice A', 'Novice', 'Buried', 'A',
+   30.00, 'upcoming', 120, 1, 1, false, 'single', true, 2, 1),
   -- Purpose-built two-entry class for the unreleased-results fixture. It is
   -- intentionally outside the MYK9-109 load set so every eligible entry can
   -- be scored and its persisted placements can be read back deterministically.
   ('dec1a55e-0000-0000-0000-000000000040', 'dededede-0000-0000-0000-000000000021',
    'Interior Advanced Preliminary', 'Advanced', 'Interior', NULL,
    30.00, 'upcoming', 180, 2, 2, false, 'single', true, 4, 1);
+
+-- ---------------------------------------------------------------------------
+-- 4b. Classes for the sibling single-registry shows (MYK9-490)
+--     UKC Nosework elements/levels per sport_templates 'ukc-nosework'
+--     (030_seed_sport_templates.sql): Container, Interior, Exterior, Vehicle,
+--     Handler Discrimination x Novice..Elite.
+--     ASCA Scent Detection per 'asca-scent-detection': Container, Interior,
+--     Exterior, Vehicle x Novice/Open/Advanced/Excellent.
+--     These are the exact class shapes the UKC and ASCA trials carried inside the
+--     demo show before the split, so the registry-aware surfaces see the same
+--     inputs they saw before -- on legal shows.
+-- ---------------------------------------------------------------------------
+INSERT INTO public.classes (
+  id, trial_id, name, level, element, section,
+  entry_fee, status, time_limit_seconds, num_hides, num_areas,
+  has_blank, timer_mode, hides_known, display_order, version
+)
+VALUES
+  ('dec1a55e-0000-0000-0000-000000000041', 'dededede-0000-0000-0000-000000000025',
+   'Container Novice', 'Novice', 'Container', NULL,
+   30.00, 'upcoming', 120, 1, 1, false, 'single', true, 1, 1),
+  ('dec1a55e-0000-0000-0000-000000000042', 'dededede-0000-0000-0000-000000000025',
+   'Vehicle Advanced', 'Advanced', 'Vehicle', NULL,
+   30.00, 'upcoming', 180, 2, 1, false, 'single', true, 2, 1),
+  ('dec1a55e-0000-0000-0000-000000000043', 'dededede-0000-0000-0000-000000000026',
+   'Container Novice', 'Novice', 'Container', NULL,
+   30.00, 'upcoming', 120, 1, 1, false, 'single', true, 1, 1),
+  ('dec1a55e-0000-0000-0000-000000000044', 'dededede-0000-0000-0000-000000000026',
+   'Exterior Open', 'Open', 'Exterior', NULL,
+   30.00, 'upcoming', 180, 2, 1, false, 'single', true, 2, 1);
 
 -- ---------------------------------------------------------------------------
 -- 5. Dogs (6)  -- owner_id resolved from protected accounts by email
@@ -624,11 +784,13 @@ VALUES
 -- (20260828210000) rejects an entry whose dog has none for the TRIAL'S registry, so a
 -- seed without these would fail on the first entry insert.
 --
--- One row per registry the seed actually uses, NOT just AKC: this show hosts AKC,
--- UKC and ASCA trials side by side, and the load block gives every dog 8 entries
--- spanning all four trials (classes ...036/...037 are UKC, ...038/...039 are ASCA).
--- An AKC-only backfill therefore fails half of them with 23514 and no reseed can
--- complete. Idempotent and keyed off the dog id so reseeds are stable; the
+-- One row per CONFIGURED registry, not just the one a given show needs. Since
+-- MYK9-490 a show carries a single registry, so the AKC demo show's own entries
+-- would be satisfied by an AKC row alone -- but the UKC and ASCA sibling shows
+-- (section 3b) are enterable in a demo walk, and the guard is per TRIAL registry,
+-- not per show. Seeding all three means a seeded dog can be entered anywhere in the
+-- fixture set without a second backfill appearing here the first time someone tries.
+-- Idempotent and keyed off the dog id so reseeds are stable; the
 -- NOT EXISTS matches on the NORMALISED organisation so a differently-spelled
 -- existing row does not trip UNIQUE (dog_id, organization).
 INSERT INTO public.dog_registrations (
@@ -1508,11 +1670,13 @@ FROM generate_series(1, 63) AS load_dogs(dog_number);
 -- (20260828210000) rejects an entry whose dog has none for the TRIAL'S registry, so a
 -- seed without these would fail on the first entry insert.
 --
--- One row per registry the seed actually uses, NOT just AKC: this show hosts AKC,
--- UKC and ASCA trials side by side, and the load block gives every dog 8 entries
--- spanning all four trials (classes ...036/...037 are UKC, ...038/...039 are ASCA).
--- An AKC-only backfill therefore fails half of them with 23514 and no reseed can
--- complete. Idempotent and keyed off the dog id so reseeds are stable; the
+-- One row per CONFIGURED registry, not just the one a given show needs. Since
+-- MYK9-490 a show carries a single registry, so the AKC demo show's own entries
+-- would be satisfied by an AKC row alone -- but the UKC and ASCA sibling shows
+-- (section 3b) are enterable in a demo walk, and the guard is per TRIAL registry,
+-- not per show. Seeding all three means a seeded dog can be entered anywhere in the
+-- fixture set without a second backfill appearing here the first time someone tries.
+-- Idempotent and keyed off the dog id so reseeds are stable; the
 -- NOT EXISTS matches on the NORMALISED organisation so a differently-spelled
 -- existing row does not trip UNIQUE (dog_id, organization).
 INSERT INTO public.dog_registrations (
@@ -1784,11 +1948,13 @@ CROSS JOIN generate_series(1, 63) AS load_dogs(dog_number);
 -- (20260828210000) rejects an entry whose dog has none for the TRIAL'S registry, so a
 -- seed without these would fail on the first entry insert.
 --
--- One row per registry the seed actually uses, NOT just AKC: this show hosts AKC,
--- UKC and ASCA trials side by side, and the load block gives every dog 8 entries
--- spanning all four trials (classes ...036/...037 are UKC, ...038/...039 are ASCA).
--- An AKC-only backfill therefore fails half of them with 23514 and no reseed can
--- complete. Idempotent and keyed off the dog id so reseeds are stable; the
+-- One row per CONFIGURED registry, not just the one a given show needs. Since
+-- MYK9-490 a show carries a single registry, so the AKC demo show's own entries
+-- would be satisfied by an AKC row alone -- but the UKC and ASCA sibling shows
+-- (section 3b) are enterable in a demo walk, and the guard is per TRIAL registry,
+-- not per show. Seeding all three means a seeded dog can be entered anywhere in the
+-- fixture set without a second backfill appearing here the first time someone tries.
+-- Idempotent and keyed off the dog id so reseeds are stable; the
 -- NOT EXISTS matches on the NORMALISED organisation so a differently-spelled
 -- existing row does not trip UNIQUE (dog_id, organization).
 INSERT INTO public.dog_registrations (

@@ -64,7 +64,6 @@ describe('isOnSensitiveRoute', () => {
     ['/checkout/success', true],
     ['/checkout/cancel', true],
     ['/shows/abc123/register', true],
-    ['/exhibitor/check-in/entry-42', true],
     ['/secretary/register/show-1', true],
     ['/scoring/classes/c1/entries/e1', true],
   ])('defers prompts on %s', (path, expected) => {
@@ -77,6 +76,7 @@ describe('isOnSensitiveRoute', () => {
     ['/sign-in'],
     ['/dashboard'],
     ['/shows/abc123'], // detail page — not the register sub-route
+    ['/exhibitor/check-in/entry-42'], // route retired (MYK9-476)
     ['/admin/shows'],
   ])('does NOT defer on %s', path => {
     setPath(path);

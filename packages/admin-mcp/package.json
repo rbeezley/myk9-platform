@@ -28,7 +28,7 @@
     "@modelcontextprotocol/sdk": "1.30.0",
     "@myk9/core": "workspace:*",
     "@myk9/supabase": "workspace:*",
-    "@supabase/supabase-js": "2.115.0",
+    "@supabase/supabase-js": "2.116.0",
     "zod": "^4.6.2"
   },
   "devDependencies": {

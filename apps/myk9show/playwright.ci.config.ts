@@ -91,6 +91,19 @@ const REGRESSION_SPECS = [
 // it was Nightly-only, so nothing caught a stale assertion until the page was
 // opened in a browser by hand. It is exhibitor-authed; the smoke job now
 // receives E2E_DEMO_EXHIBITOR_* alongside E2E_SECRETARY_* to support it.
+//
+// dialogContainsLongContent.spec.ts is here because MYK9-503 shipped a fix to
+// a shared primitive whose only evidence was `toHaveClass('grid-cols-[...]')`
+// under jsdom -- which loads no Tailwind and performs no layout, so it passed
+// whether or not the utility was emitted. This spec measures rendered
+// geometry instead: it appends an unbreakable string and a `w-full` sibling as
+// direct grid items of DialogContent and asserts the sibling cannot inherit
+// the string's width. Verified BOTH directions before promotion: green on the
+// fix, and red with the guard reverted ("a w-full child rendered 3419px inside
+// a 446px dialog"). It guards every dialog carrying no local min-w-0, so any
+// PR can break it, not only one touching dialog.tsx. Exhibitor-authed and
+// ~14s for one case; verified green under this config before promotion
+// (2026-09-14).
 const PR_SMOKE_SPECS = [
   '**/simple-connectivity.spec.ts',
   '**/uat/secretary/qa-regression-proof.spec.ts',
@@ -98,6 +111,7 @@ const PR_SMOKE_SPECS = [
   '**/my-entries-page-ui.spec.ts',
   '**/sign-in-fits-one-screen.spec.ts',
   '**/header-wordmark-fits.spec.ts',
+  '**/dialogContainsLongContent.spec.ts',
 ];
 
 /**

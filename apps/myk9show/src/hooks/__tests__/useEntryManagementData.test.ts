@@ -439,7 +439,7 @@ describe('useEntryManagementData', () => {
     expect(result.current.entries[1]?.paidAmount).toBe(0);
   });
 
-  it('does not count accepted enrollment-paid entries as issues', async () => {
+  it('counts an accepted entry still pending under a paid order as an issue (MYK9-495)', async () => {
     mocks.getEntriesForShow.mockResolvedValue({
       data: [
         {
@@ -477,10 +477,14 @@ describe('useEntryManagementData', () => {
     act(() => result.current.setSelectedShowId('show-1'));
     await waitFor(() => expect(result.current.isLoading).toBe(false));
 
-    expect(result.current.tabCounts.issues).toBe(1);
+    // Both rows owe money: the second's ORDER is pending, and the first's entry
+    // row is pending under an order whose `paid` covers a different submission
+    // (`enrollments` is one row per show+handler, reused). Neither may be
+    // dropped from the secretary's attention list.
+    expect(result.current.tabCounts.issues).toBe(2);
   });
 
-  it('counts enrollment-paid entries as collected revenue even when entry rows are still pending', async () => {
+  it('does not credit an order-level payment to an entry row still pending (MYK9-495)', async () => {
     mocks.getEntriesForShow.mockResolvedValue({
       data: [
         {
@@ -516,9 +520,12 @@ describe('useEntryManagementData', () => {
     act(() => result.current.setSelectedShowId('show-1'));
     await waitFor(() => expect(result.current.isLoading).toBe(false));
 
-    expect(result.current.entries[0]?.paidAmount).toBe(35);
+    // `submit_show_entries` stamps entries `paid` for the secretary_paid and
+    // group_payment orders that really are settled at order level, so a
+    // `pending` entry row under a `paid` order is unreconciled, not collected.
+    expect(result.current.entries[0]?.paidAmount).toBe(0);
     expect(result.current.entries[1]?.paidAmount).toBe(0);
-    expect(result.current.stats.revenue).toBe(35);
+    expect(result.current.stats.revenue).toBe(0);
   });
 
   it('nets entry-level refunds even when the enrollment remains paid', async () => {

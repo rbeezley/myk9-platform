@@ -190,6 +190,48 @@ describe('useMyEntriesData — a failed reload must not discard loaded entries',
   // Clearing `entries` on a failed reload made that sentence false — the whole
   // list vanished behind a card telling the exhibitor nothing was lost. The
   // entries survive; only `isError` flips.
+  // MYK9-495 round 2: an order reads `pending` as soon as ANY entry under it is
+  // unpaid, so a waived or refunded entry in that order must stay settled on the
+  // card rather than being badged as owing money for a sibling's balance.
+  it.each([
+    ['waived', 'waived'],
+    ['refunded', 'refunded'],
+  ])('keeps a %s entry settled under a pending order', async (rowStatus, expected) => {
+    (getUserEntries as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
+      data: [
+        {
+          ...entryRow(),
+          payment_status: rowStatus,
+          registration: { id: 'reg-1', confirmation_number: 'ABC123', payment_status: 'pending' },
+        },
+      ],
+      error: null,
+    });
+
+    const { result } = renderData();
+    await waitFor(() => expect(result.current.entries).toHaveLength(1));
+
+    expect(result.current.entries[0]?.paymentStatus).toBe(expected);
+  });
+
+  it('badges a pending entry as pending even when its order reads paid', async () => {
+    (getUserEntries as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
+      data: [
+        {
+          ...entryRow(),
+          payment_status: 'pending',
+          registration: { id: 'reg-1', confirmation_number: 'ABC123', payment_status: 'paid' },
+        },
+      ],
+      error: null,
+    });
+
+    const { result } = renderData();
+    await waitFor(() => expect(result.current.entries).toHaveLength(1));
+
+    expect(result.current.entries[0]?.paymentStatus).toBe('pending');
+  });
+
   it('keeps the previously loaded entries when a reload returns an error', async () => {
     (getUserEntries as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
       data: [entryRow()],

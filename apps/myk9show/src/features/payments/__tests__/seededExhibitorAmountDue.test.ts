@@ -8,11 +8,15 @@
  * number, so this test checks the canonical selector against the rows
  * themselves, independent of any rendering.
  *
- * Outcome: $0 is correct. Both pending rows belong to an `enrollments` order
- * that was paid at checkout ($210); per-entry rows are not reconciled after an
- * order-level payment, so they keep a stale `pending` that the order's status
- * overrides. The reading that looks alarming in the raw `entries` table is the
- * expected shape of a paid order.
+ * Original outcome (2026-07): $0 was called correct, on the premise that
+ * per-entry rows are "not reconciled" after an order-level payment and keep a
+ * harmless stale `pending`. MYK9-495 falsified that premise. `enrollments` is
+ * uniquely keyed (show_id, handler_id) — ONE row per exhibitor per show, reused
+ * by every later submission — so a `paid` order says nothing about an entry
+ * added afterwards, and `submit_show_entries` already stamps entries `paid` /
+ * `waived` for the secretary_paid, group_payment and waived orders that really
+ * are settled at order level. A fee-bearing `pending` entry row is therefore
+ * real debt, and this fixture carries $60.00 of it.
  *
  * Fixture is verbatim from staging (`Heartland Scent Work Classic`, owner
  * exhibitor@myk9t.com) — 15 per-class rows across 5 dogs, spanning
@@ -45,10 +49,9 @@ type Row = {
   payment_method: string | null;
   entry_fee: number | null;
   /**
-   * `entries.registration_id` FKs to `enrollments` — the ORDER. When an order
-   * was paid at checkout its per-entry rows are not individually reconciled
-   * and keep a stale `pending`, so the order's status is authoritative. Buddy
-   * and Codex Daisy both belong to a `paid` enrollment (paid_amount $210).
+   * `entries.registration_id` FKs to `enrollments` — the ORDER. Buddy and
+   * Codex Daisy both belong to a `paid` enrollment, and both entry rows still
+   * read `pending`: the MYK9-495 shape.
    */
   enrollment_payment_status?: string;
 };
@@ -188,25 +191,25 @@ describe('seeded exhibitor amount due (staging fixture)', () => {
     expect(eligible).toHaveLength(13);
   });
 
-  it('reports nothing due — the only fee-bearing pending rows sit on a paid order', () => {
+  it('reports the $60.00 the pending rows owe, despite their paid order', () => {
     const summary = summarizeEntryBalances(rawRows().map(mapEntryRowToBalanceSource), NOW);
 
     // Buddy and Codex Daisy are the only current rows that are both
-    // fee-bearing and row-level `pending`, and BOTH belong to an enrollment
-    // that was paid at checkout ($210). The order's status wins, so neither is
-    // debt. Every other current row is paid, waived, refunded, or fee-less.
-    expect(summary.amountDueCents).toBe(0);
-    expect(summary.onlineDueCents).toBe(0);
+    // fee-bearing and row-level `pending`. Both sit under a `paid` enrollment,
+    // which used to zero them out — the MYK9-495 masking. Every other current
+    // row is paid, waived, refunded, or fee-less.
+    expect(summary.amountDueCents).toBe(6000);
+    expect(summary.onlineDueCents).toBe(6000);
     expect(summary.payAtShowDueCents).toBe(0);
   });
 
   /**
-   * Guards the precedence itself. Drop the enrollment override and the same
-   * rows become $60 of debt — so a regression that stopped reading the order's
-   * payment status would be caught here rather than by telling a paid-up
-   * exhibitor they owe money.
+   * Pins that the order status is not simply ignored: with the enrollment
+   * dropped entirely the same rows produce the same figure, so the number above
+   * comes from the ENTRY rows, and the order's role is only to fill in where an
+   * entry has no status of its own.
    */
-  it('would report $60.00 due if the paid order were ignored', () => {
+  it('reports the same $60.00 with no order attached at all', () => {
     const withoutOrder = rawRows().map(row => ({ ...row, registration: null }));
     const summary = summarizeEntryBalances(withoutOrder.map(mapEntryRowToBalanceSource), NOW);
 

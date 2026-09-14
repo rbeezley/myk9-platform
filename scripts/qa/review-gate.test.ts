@@ -6,15 +6,19 @@ import {
   clampDescription,
   evaluateReviewGate,
   flattenPages,
+  overrideAccepted,
   parseGateComments,
   REVIEW_GATE_LINE,
+  REVIEWER_TOKENS,
   HUMAN_FALLBACK_ASSOCIATIONS,
   humanFallbackAccepted,
   requiredChecksResult,
+  tierForReviewer,
   TRUSTED_ASSOCIATIONS,
   verdictAccepted,
   type GateComment,
 } from './review-gate';
+import { TIER_ORDER } from './review-tier';
 
 const HEAD = '5af9af1585c4376ffbb648600ba5a22c8e009743';
 const OLD_HEAD = '4100e2f8daf6ac70a043aeb9eb9370e9cbce95f9';
@@ -895,5 +899,120 @@ describe('floor enforcement', () => {
       if (prev === undefined) delete process.env.MYK9_REVIEW_TIERS;
       else process.env.MYK9_REVIEW_TIERS = prev;
     }
+  });
+});
+
+describe('tierForReviewer', () => {
+  // The if-chain this replaced ended `return 'independent'`, so any token
+  // matching REVIEW_GATE_LINE's alternation but missing from the chain
+  // silently got the STRONGEST tier and cleared every floor. The exhaustive
+  // `TIER_BY_REVIEWER satisfies Record<ReviewerToken, Tier>` table makes
+  // that a `tsc` error instead — this test proves every current token still
+  // resolves to a real, ordered tier (the compile-time guarantee is proven
+  // separately: see task-4-report.md's tsc evidence).
+  it('has an explicit mapping for every REVIEWER_TOKENS member', () => {
+    for (const token of REVIEWER_TOKENS) {
+      expect(TIER_ORDER).toContain(tierForReviewer(token));
+    }
+  });
+});
+
+describe('owner override', () => {
+  const body = (extra: string) =>
+    [
+      `Review gate: owner reviewed abc1234..${HEAD} — override, floor was independent`,
+      'Override reason: Codex unavailable — usage limit until Sep 19',
+      extra,
+    ]
+      .filter(Boolean)
+      .join('\n');
+
+  it('accepts an override that names a deferred re-review issue', () => {
+    const result = evaluateReviewGate({
+      headSha: HEAD,
+      comments: [comment(body('Deferred re-review: MYK9-523'))],
+      changedFiles: ['scripts/qa/review-gate.ts'],
+    });
+    expect(result.state).toBe('success');
+  });
+
+  it('refuses an override with no deferred re-review', () => {
+    const result = evaluateReviewGate({
+      headSha: HEAD,
+      comments: [comment(body(''))],
+      changedFiles: ['scripts/qa/review-gate.ts'],
+    });
+    expect(result.state).toBe('failure');
+    expect(result.description).toContain('Deferred re-review');
+  });
+
+  it('refuses an override from an untrusted association', () => {
+    const result = evaluateReviewGate({
+      headSha: HEAD,
+      comments: [
+        comment(
+          body('Deferred re-review: MYK9-523'),
+          '2026-09-14T18:00:00Z',
+          undefined,
+          'CONTRIBUTOR'
+        ),
+      ],
+      changedFiles: ['scripts/qa/review-gate.ts'],
+    });
+    expect(result.state).toBe('failure');
+  });
+
+  it('accepts a non-Claude harness in the override reason', () => {
+    const [evidence] = parseGateComments([comment(body('Deferred re-review: MYK9-523'))]);
+    expect(overrideAccepted(evidence!)).toBe(true);
+  });
+
+  it('refuses a COLLABORATOR-authored override even with a perfect body (C1 regression)', () => {
+    // Guards against re-widening the floor exemption to a bare
+    // `latest.tier === 'owner'` test: a COLLABORATOR can post the full
+    // override contract — verdict, reason, deferred issue, everything —
+    // on a guardrail-path PR, and it must still be refused because
+    // `overrideAccepted` checks `HUMAN_FALLBACK_ASSOCIATIONS` (OWNER/MEMBER
+    // only) itself, independent of `commentTrusted`'s broader
+    // OWNER/MEMBER/COLLABORATOR bar.
+    const result = evaluateReviewGate({
+      headSha: HEAD,
+      comments: [
+        comment(
+          body('Deferred re-review: MYK9-523'),
+          '2026-09-14T18:00:00Z',
+          undefined,
+          'COLLABORATOR'
+        ),
+      ],
+      changedFiles: ['scripts/qa/review-gate.ts'],
+    });
+    expect(result.state).toBe('failure');
+    const [evidence] = parseGateComments([
+      comment(body('Deferred re-review: MYK9-523'), undefined, undefined, 'COLLABORATOR'),
+    ]);
+    expect(overrideAccepted(evidence!)).toBe(false);
+  });
+
+  it('the legacy human-fallback evidence form keeps working unchanged', () => {
+    // OVERRIDE_REASON is a NEW, separate contract for the bare `owner`
+    // token; `FALLBACK_REASON` (the `human-fallback` token's own contract,
+    // still hardcoded to "Fallback reason: Claude unavailable") is untouched.
+    const result = evaluateReviewGate({
+      headSha: HEAD,
+      comments: [
+        comment(
+          [
+            `Review gate: human-fallback reviewed abc1234..${HEAD} — 2 adversarial subagent reviews, all findings addressed`,
+            'Fallback reason: Claude unavailable — authentication failure',
+            'Adversarial subagent review: correctness and data flow',
+            'Adversarial subagent review: security and migration safety',
+            'Required checks: passing',
+          ].join('\n')
+        ),
+      ],
+      changedFiles: ['scripts/qa/review-gate.ts'],
+    });
+    expect(result.state).toBe('success');
   });
 });

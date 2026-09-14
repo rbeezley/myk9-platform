@@ -164,12 +164,30 @@ export function requiredChecksResult(
 export const REVIEW_GATE_LINE =
   /^Review gate: (independent\/codex|independent\/claude|codex|claude|adversarial|owner|none|human-fallback) reviewed ([0-9a-f]{7,40})\.\.([0-9a-f]{7,40})\s+[—–-]\s+(.+?)\s*$/m;
 
+/**
+ * Exhaustive tier table, `satisfies Record<ReviewerToken, Tier>` so an
+ * unmapped token is a COMPILE error, not a silent floor bypass. The if-chain
+ * this replaced ended `return 'independent'` — any token that matched
+ * `REVIEW_GATE_LINE`'s alternation but fell through every branch silently
+ * received the STRONGEST tier, clearing every floor. Confirmed:
+ * `tierForReviewer('gemini')` used to return `'independent'` on a guardrail
+ * path with no compile-time or runtime signal (2026-09-14). Adding a new
+ * `ReviewerToken` without adding a row here is now a `tsc` error.
+ */
+const TIER_BY_REVIEWER = {
+  'independent/codex': 'independent',
+  'independent/claude': 'independent',
+  codex: 'independent',
+  claude: 'independent',
+  adversarial: 'adversarial',
+  owner: 'owner',
+  none: 'none',
+  'human-fallback': 'owner',
+} satisfies Record<ReviewerToken, Tier>;
+
 /** Legacy reviewer tokens predate tiers and all mean a cross-harness review. */
-export function tierForReviewer(reviewer: string): Tier {
-  if (reviewer === 'none') return 'none';
-  if (reviewer === 'adversarial') return 'adversarial';
-  if (reviewer === 'owner' || reviewer === 'human-fallback') return 'owner';
-  return 'independent';
+export function tierForReviewer(reviewer: ReviewerToken): Tier {
+  return TIER_BY_REVIEWER[reviewer];
 }
 
 /**
@@ -190,11 +208,23 @@ export function tierForReviewer(reviewer: string): Tier {
  * through, Codex review of Task 3 round 2, C3) — one lens is not adversarial
  * review, and the mandatory `migration-auditor` lens on migration paths must
  * be one of the (at least) two.
+ *
+ * `owner` claims `OVERRIDE_VERDICT` — the same grammar `overrideAccepted`
+ * checks. Giving `owner` a row here, by itself, does NOT exempt it from the
+ * floor: `verdictMatchesTier` only decides whether the verdict TEXT matches
+ * the tier's grammar, and evaluateReviewGate still runs the floor check for
+ * every tier except a CONFIRMED override or human-fallback (see the
+ * exemption comment below). This was proven safe by simulation during
+ * Task 3 review — widening the EXEMPTION condition itself is what would
+ * reopen C1, not this table entry.
  */
-export const VERDICT_BY_TIER: Readonly<Record<'independent' | 'adversarial' | 'none', RegExp>> = {
+export const OVERRIDE_VERDICT = /^override, floor was (independent|adversarial)\.?$/i;
+
+export const VERDICT_BY_TIER: Readonly<Record<Tier, RegExp>> = {
   independent: /^(no findings|\d+ findings?, all (addressed|fixed))\.?$/i,
   adversarial: /^(?:[2-9]|[1-9]\d+) (?:lens|lenses), all findings addressed\.?$/i,
   none: /^low-risk paths, CI green\.?$/i,
+  owner: OVERRIDE_VERDICT,
 };
 
 /**
@@ -217,6 +247,37 @@ export const HUMAN_FALLBACK_VERDICT =
 const FALLBACK_REASON = /^Fallback reason: Claude unavailable\s*[-—:]\s*.+$/im;
 const SUBAGENT_REVIEW = /^Adversarial subagent review: .+$/gim;
 const PASSING_CHECKS = /^Required checks: passing$/im;
+
+/**
+ * The bare `owner` token's own contract — distinct from `human-fallback`'s
+ * `FALLBACK_REASON` above, which stays untouched (the legacy evidence form
+ * must keep working exactly as it does today). `OVERRIDE_REASON` is free
+ * text on which HARNESS was unavailable, not hardcoded to Claude: the old
+ * `Fallback reason: Claude unavailable` grammar made the documented fallback
+ * unusable whenever Codex — not Claude — was the missing reviewer, which is
+ * the bug this whole plan exists to fix (2026-09-14). An override defers
+ * scrutiny rather than skipping it, so `DEFERRED_REVIEW` names a tracked
+ * issue; without one there is no debt record and the override is refused.
+ */
+const OVERRIDE_REASON = /^Override reason: .+ unavailable\s*[-—:]\s*.+$/im;
+// [A-Z][A-Z0-9]*, not [A-Z]+: this repo's own issue prefix is MYK9-<n> — a
+// digit inside the prefix — and a brief-literal `[A-Z]+-\d+` cannot match it
+// (verified against MYK9-523 during implementation: it does not match).
+const DEFERRED_REVIEW = /^Deferred re-review: [A-Z][A-Z0-9]*-\d+$/im;
+
+/**
+ * The full owner-override contract. Checks the trusted-association gate
+ * ITSELF (not merely via the caller) — this is what keeps a COLLABORATOR
+ * from posting a bare `owner` line and having it accepted (C1): only OWNER
+ * or MEMBER may authorize deferring scrutiny, same bar as human-fallback.
+ */
+export function overrideAccepted(evidence: GateEvidence): boolean {
+  if (evidence.tier !== 'owner' || evidence.reviewer !== 'owner') return false;
+  if (!HUMAN_FALLBACK_ASSOCIATIONS.has(evidence.authorAssociation)) return false;
+  if (!verdictMatchesTier(evidence.verdict, 'owner')) return false;
+  if (!OVERRIDE_REASON.test(evidence.body)) return false;
+  return DEFERRED_REVIEW.test(evidence.body);
+}
 
 export function parseGateComments(comments: readonly GateComment[]): GateEvidence[] {
   const out: GateEvidence[] = [];
@@ -246,9 +307,12 @@ export function parseGateComments(comments: readonly GateComment[]): GateEvidenc
   return out;
 }
 
-/** Strict tier binding: `latest.tier` decides which single grammar applies. */
+/**
+ * Strict tier binding: `latest.tier` decides which single grammar applies.
+ * `VERDICT_BY_TIER` now has an entry for every `Tier` (including `owner`),
+ * so no fallback branch is needed — the type system guarantees exhaustion.
+ */
 function verdictMatchesTier(verdict: string, tier: Tier): boolean {
-  if (tier !== 'independent' && tier !== 'adversarial' && tier !== 'none') return false;
   return VERDICT_BY_TIER[tier].test(verdict.trim());
 }
 
@@ -293,46 +357,55 @@ export function evaluateReviewGate(input: {
       description: `no independent review recorded for ${short} — run the gate (ship-pr Step 4) against this head`,
     };
   }
-  // Human fallback is checked on its own contract (association, two named
-  // subagent lenses, passing checks). Every OTHER reviewer's verdict is bound
-  // to the evidence's OWN tier — never the tier-agnostic union — so a
-  // `codex` (independent) line cannot pass by wearing an `adversarial` or
+  // Human fallback and the bare `owner` override are each checked on their
+  // OWN contract (association plus reason/lenses/deferred-issue, as the case
+  // may be) — never merely on verdict grammar. Every OTHER reviewer's verdict
+  // is bound to the evidence's OWN tier — never the tier-agnostic union — so
+  // a `codex` (independent) line cannot pass by wearing an `adversarial` or
   // `none` verdict phrase (Codex review of Task 3 round 1, C2). With the kill
   // switch off, `latest` can only ever be a legacy-token evidence (filtered
-  // above), so this branch is reachable only for `independent` grammar in
-  // practice — the explicit `VERDICT_BY_TIER.independent` check below is
-  // kept anyway so a future change to the filter fails safe, not open.
+  // above — `owner` is not in LEGACY_REVIEWER_TOKENS, so `isOverride` is
+  // unreachable there), so the tiersEnabled-false branch is reachable only
+  // for `independent` grammar in practice — the explicit
+  // `VERDICT_BY_TIER.independent` check below is kept anyway so a future
+  // change to the filter fails safe, not open.
   const isHumanFallback = latest.reviewer === 'human-fallback';
+  const isOverride = latest.reviewer === 'owner';
   const accepted = isHumanFallback
     ? humanFallbackAccepted(latest)
-    : tiersEnabled
-      ? verdictMatchesTier(latest.verdict, latest.tier)
-      : VERDICT_BY_TIER.independent.test(latest.verdict.trim());
+    : isOverride
+      ? overrideAccepted(latest)
+      : tiersEnabled
+        ? verdictMatchesTier(latest.verdict, latest.tier)
+        : VERDICT_BY_TIER.independent.test(latest.verdict.trim());
   if (!accepted) {
-    return {
-      state: 'failure',
-      description: `${latest.reviewer} review of ${short} is not clean: ${latest.verdict}`,
-      evidence: latest,
-    };
+    // Name what is missing for an override specifically — the association
+    // check and the verdict grammar already produce the generic "not clean"
+    // message, but a poster who got everything else right except the
+    // deferred-issue line deserves to be told exactly that.
+    const why =
+      isOverride && !DEFERRED_REVIEW.test(latest.body)
+        ? `override of ${short} must name a Deferred re-review: <ISSUE-ID>`
+        : `${latest.reviewer} review of ${short} is not clean: ${latest.verdict}`;
+    return { state: 'failure', description: why, evidence: latest };
   }
-  // Only a CONFIRMED human-fallback attestation (association, two lenses,
-  // passing checks — all already verified by `accepted` above) is exempt
-  // from the floor. The bare `owner` token routes through `verdictMatchesTier`
-  // above, which has no `owner` grammar entry and so can never reach here —
-  // this exemption is belt-and-suspenders, not the only thing stopping it.
-  // Originally this exempted the whole `owner` TIER unconditionally, which
-  // let a COLLABORATOR bypass the floor on any guardrail path by posting a
-  // bare `owner reviewed … — no findings` line (Codex review of Task 3
-  // round 1, C1 — controller's own instruction, corrected). Task 4 adds a
-  // real override path (`overrideAccepted`) with its own association check.
-  // C1 is held by THIS exemption condition, not by verdictMatchesTier's
-  // missing `owner` arm: giving `owner` a grammar entry there, alone, cannot
-  // reopen the hole — the floor below would still apply to it like any other
-  // weak-tier evidence — but widening this condition back to a bare
-  // `latest.tier === 'owner'` test would (simulated during Task 3 round 2
-  // review). Change this line with that in mind.
+  // Only a CONFIRMED human-fallback attestation OR a CONFIRMED override
+  // (association, full contract — both already verified by `accepted` above)
+  // is exempt from the floor. Originally this exempted the whole `owner`
+  // TIER unconditionally, which let a COLLABORATOR bypass the floor on any
+  // guardrail path by posting a bare `owner reviewed … — no findings` line
+  // (Codex review of Task 3 round 1, C1 — controller's own instruction,
+  // corrected). C1 is held by THIS exemption condition, never by tier alone:
+  // giving `owner` a `VERDICT_BY_TIER` grammar entry (Task 4) does not, by
+  // itself, exempt it from the floor — `overrideAccepted` re-checks
+  // `HUMAN_FALLBACK_ASSOCIATIONS` independently of `commentTrusted`, so a
+  // COLLABORATOR's `owner` line fails `accepted` above and never reaches
+  // this line at all. Widening this condition back to a bare
+  // `latest.tier === 'owner'` test would reopen the hole (simulated during
+  // Task 3 round 2 review) — change it with that in mind.
   const humanFallbackExempt = isHumanFallback && humanFallbackAccepted(latest);
-  if (tiersEnabled && !humanFallbackExempt) {
+  const overrideExempt = isOverride && overrideAccepted(latest);
+  if (tiersEnabled && !humanFallbackExempt && !overrideExempt) {
     // The invariant lives HERE, not only in runCli's caller-side check, so a
     // future caller that computes changedFiles itself (push-hold.ts already
     // imports this module) cannot silently clear a guardrail PR on a

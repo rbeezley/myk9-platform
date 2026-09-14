@@ -35,7 +35,7 @@
  */
 import { execFileSync } from 'node:child_process';
 import { pathToFileURL } from 'node:url';
-import type { Tier } from './review-tier';
+import { meetsFloor, requiredTier, type Tier } from './review-tier.ts';
 
 export const REVIEW_GATE_CONTEXT = 'Review gate';
 
@@ -161,8 +161,14 @@ export function tierForReviewer(reviewer: string): Tier {
  * the line. Anything else — a parenthetical, "not all addressed", "no findings
  * yet", a log excerpt — is red by default. Extra detail belongs on the
  * comment's later lines, not in the verdict.
+ *
+ * Includes the `none` and `adversarial` tiers' canonical verdicts (Task 6
+ * documents these exact phrases for ship-pr to post) — without them the
+ * floor enforcement below is unreachable for those two tiers, since
+ * `accepted` gates the floor check.
  */
-export const CLEAN_VERDICT = /^(no findings|\d+ findings?, all (addressed|fixed))\.?$/i;
+export const CLEAN_VERDICT =
+  /^(no findings|\d+ findings?, all (addressed|fixed)|\d+ lenses, all findings addressed|low-risk paths, CI green)\.?$/i;
 
 export const HUMAN_FALLBACK_VERDICT =
   /^2 adversarial subagent reviews, all findings addressed\.?$/i;
@@ -215,9 +221,20 @@ export function humanFallbackAccepted(evidence: GateEvidence): boolean {
 export function evaluateReviewGate(input: {
   headSha: string;
   comments: readonly GateComment[];
+  changedFiles: readonly string[];
+  /**
+   * True when the changed-file list is empty or hit GitHub's 3000-file cap
+   * and may therefore be truncated. Pins the floor to `independent` instead
+   * of guessing a (possibly lower) floor from a partial diff — a truncated
+   * list silently LOWERING the floor is the one way this feature would be
+   * worse than no floor at all.
+   */
+  fileListUnusable?: boolean;
 }): GateResult {
   const head = input.headSha.toLowerCase();
   const short = head.slice(0, 9);
+  // Kill switch: MYK9_REVIEW_TIERS=off restores pre-floor behaviour exactly.
+  const tiersEnabled = (process.env.MYK9_REVIEW_TIERS ?? 'on') !== 'off';
   // Latest by UPDATE, not creation: an older attestation edited to withdraw
   // a clean verdict must outrank a newer-created clean one (Codex, #2058).
   const forHead = parseGateComments(input.comments)
@@ -240,6 +257,26 @@ export function evaluateReviewGate(input: {
       description: `${latest.reviewer} review of ${short} is not clean: ${latest.verdict}`,
       evidence: latest,
     };
+  }
+  // The `owner` tier (human-fallback) sits below the `adversarial` floor
+  // that an application-code change computes. Task 4 formalises override
+  // semantics on top of this; for now `owner` is simply exempt so every
+  // intermediate commit stays bisectable (controller ruling, task-3 brief).
+  if (tiersEnabled && latest.tier !== 'owner') {
+    const floor = input.fileListUnusable
+      ? {
+          tier: 'independent' as Tier,
+          reason:
+            'the changed-file list is empty or hit GitHub’s 3000-file cap and may be truncated',
+        }
+      : requiredTier(input.changedFiles);
+    if (!meetsFloor(latest.tier, floor.tier)) {
+      return {
+        state: 'failure',
+        description: `${latest.tier} review of ${short} is below the ${floor.tier} floor: ${floor.reason}`,
+        evidence: latest,
+      };
+    }
   }
   return {
     state: 'success',
@@ -289,6 +326,7 @@ interface PrView {
   headRefOid: string;
   isDraft: boolean;
   statusCheckRollup?: StatusCheck[];
+  files?: Array<{ path: string }>;
 }
 
 /** REST shape — `gh pr view --json comments` carries no edit timestamp. */
@@ -311,11 +349,29 @@ export function runCli(
     return 2;
   }
   const view = JSON.parse(
-    gh(['pr', 'view', prNumber, '--repo', repo, '--json', 'headRefOid,isDraft,statusCheckRollup'])
+    gh([
+      'pr',
+      'view',
+      prNumber,
+      '--repo',
+      repo,
+      '--json',
+      'headRefOid,isDraft,statusCheckRollup,files',
+    ])
   ) as PrView;
   if (view.isDraft) {
     console.log(`review-gate: PR #${prNumber} is a draft — no status posted`);
     return 0;
+  }
+  // gh caps the files list at 3000 entries, so a PR at or past the cap may be
+  // truncated. Treat an empty or capped list as unusable rather than guessing
+  // a floor from a partial diff (Step 3a).
+  const changedFiles = (view.files ?? []).map(f => f.path);
+  const fileListUnusable = changedFiles.length === 0 || changedFiles.length >= 3000;
+  if (fileListUnusable) {
+    console.log(
+      `review-gate: file list unusable (${changedFiles.length}) — forcing independent floor`
+    );
   }
   // --paginate alone concatenates one JSON array per page, which JSON.parse
   // rejects on any PR past 100 comments (Codex, #2058). --slurp wraps the
@@ -325,6 +381,8 @@ export function runCli(
   );
   const result = evaluateReviewGate({
     headSha: view.headRefOid,
+    changedFiles,
+    fileListUnusable,
     comments: comments.map(c => ({
       body: c.body,
       createdAt: c.created_at,

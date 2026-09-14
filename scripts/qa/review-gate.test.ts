@@ -31,7 +31,7 @@ function comment(
 
 describe('evaluateReviewGate', () => {
   it('fails with no review recorded at all', () => {
-    const r = evaluateReviewGate({ headSha: HEAD, comments: [] });
+    const r = evaluateReviewGate({ headSha: HEAD, comments: [], changedFiles: [] });
     expect(r.state).toBe('failure');
     expect(r.description).toContain(H9);
   });
@@ -42,6 +42,7 @@ describe('evaluateReviewGate', () => {
     // SHA must not count for this one.
     const r = evaluateReviewGate({
       headSha: HEAD,
+      changedFiles: [],
       comments: [
         comment(`Review gate: codex reviewed 0a2020c7a..${OLD_HEAD.slice(0, 9)} — no findings`),
       ],
@@ -53,6 +54,7 @@ describe('evaluateReviewGate', () => {
   it('passes on a clean review of the current head', () => {
     const r = evaluateReviewGate({
       headSha: HEAD,
+      changedFiles: [],
       comments: [comment(`Review gate: codex reviewed 0a2020c7a..${H9} — no findings`)],
     });
     expect(r.state).toBe('success');
@@ -63,6 +65,7 @@ describe('evaluateReviewGate', () => {
   it('passes when findings were reported AND addressed', () => {
     const r = evaluateReviewGate({
       headSha: HEAD,
+      changedFiles: [],
       comments: [
         comment(`Review gate: claude reviewed 0a2020c7a..${H9} — 2 findings, all addressed`),
       ],
@@ -73,6 +76,7 @@ describe('evaluateReviewGate', () => {
   it('passes the documented human fallback with two adversarial reviews', () => {
     const r = evaluateReviewGate({
       headSha: HEAD,
+      changedFiles: [],
       comments: [
         comment(
           [
@@ -104,6 +108,7 @@ describe('evaluateReviewGate', () => {
       const association = scenario === 'untrusted maintainer claim' ? 'COLLABORATOR' : 'OWNER';
       const r = evaluateReviewGate({
         headSha: HEAD,
+        changedFiles: [],
         comments: [comment(lines.join('\n'), undefined, undefined, association)],
       });
       expect(r.state).toBe('failure');
@@ -113,6 +118,7 @@ describe('evaluateReviewGate', () => {
   it('fails when the review did not actually run, even if a line was posted', () => {
     const r = evaluateReviewGate({
       headSha: HEAD,
+      changedFiles: [],
       comments: [
         comment(`Review gate: codex reviewed 0a2020c7a..${H9} — GATE DID NOT RUN (usage limit)`),
       ],
@@ -136,6 +142,7 @@ describe('evaluateReviewGate', () => {
     expect(verdictAccepted(verdict)).toBe(false);
     const r = evaluateReviewGate({
       headSha: HEAD,
+      changedFiles: [],
       comments: [comment(`Review gate: codex reviewed 0a2020c7a..${H9} — ${verdict}`)],
     });
     expect(r.state).toBe('failure');
@@ -151,6 +158,7 @@ describe('evaluateReviewGate', () => {
   it('takes the LATEST evidence for the head, so a re-gate after fixes supersedes', () => {
     const r = evaluateReviewGate({
       headSha: HEAD,
+      changedFiles: [],
       comments: [
         comment(
           `Review gate: codex reviewed 0a2020c7a..${H9} — 1 finding unaddressed`,
@@ -170,6 +178,7 @@ describe('evaluateReviewGate', () => {
     // by editing the earlier comment lose to a later clean comment.
     const r = evaluateReviewGate({
       headSha: HEAD,
+      changedFiles: [],
       comments: [
         comment(
           `Review gate: codex reviewed 0a2020c7a..${H9} — 1 finding unaddressed`,
@@ -193,6 +202,7 @@ describe('evaluateReviewGate', () => {
       // so a comment from an outsider must never become a green status.
       const r = evaluateReviewGate({
         headSha: HEAD,
+        changedFiles: [],
         comments: [
           comment(
             `Review gate: codex reviewed 0a2020c7a..${H9} — no findings`,
@@ -212,6 +222,7 @@ describe('evaluateReviewGate', () => {
     association => {
       const r = evaluateReviewGate({
         headSha: HEAD,
+        changedFiles: [],
         comments: [
           comment(
             `Review gate: codex reviewed 0a2020c7a..${H9} — no findings`,
@@ -228,6 +239,7 @@ describe('evaluateReviewGate', () => {
   it("an outsider's NEWER clean line cannot outrank a trusted withdrawal", () => {
     const r = evaluateReviewGate({
       headSha: HEAD,
+      changedFiles: [],
       comments: [
         comment(
           `Review gate: codex reviewed 0a2020c7a..${H9} — 1 finding unaddressed`,
@@ -247,6 +259,7 @@ describe('evaluateReviewGate', () => {
   it('ignores the format when it is quoted, indented, or backticked — prose is not evidence', () => {
     const r = evaluateReviewGate({
       headSha: HEAD,
+      changedFiles: [],
       comments: [
         comment(`> Review gate: codex reviewed 0a2020c7a..${H9} — no findings`),
         comment(
@@ -311,6 +324,7 @@ describe('contract with the ship-pr skill', () => {
           : ex[0];
       const r = evaluateReviewGate({
         headSha: ex[3].padEnd(40, '0'),
+        changedFiles: [],
         comments: [comment(body)],
       });
       expect(r.state, ex[0]).toBe('success');
@@ -452,6 +466,7 @@ describe('withdrawal evidence', () => {
     // stayed the latest evidence and the gate stayed green (Codex, #2115 r3).
     const r = evaluateReviewGate({
       headSha: HEAD,
+      changedFiles: [],
       comments: [
         comment(
           `Review gate: codex reviewed 0a2020c7a..${H9} — no findings`,
@@ -548,5 +563,95 @@ describe('tier parsing', () => {
       comment(`Review gate: none reviewed abc1234..${HEAD} — low-risk paths, CI green`),
     ]);
     expect(evidence.tier).toBe('none');
+  });
+});
+
+describe('floor enforcement', () => {
+  const noneLine = `Review gate: none reviewed abc1234..${HEAD} — low-risk paths, CI green`;
+
+  it('accepts the none tier on a docs-only change', () => {
+    const result = evaluateReviewGate({
+      headSha: HEAD,
+      comments: [comment(noneLine)],
+      changedFiles: ['docs/qa/findings.md'],
+    });
+    expect(result.state).toBe('success');
+  });
+
+  it('refuses the none tier on application code', () => {
+    const result = evaluateReviewGate({
+      headSha: HEAD,
+      comments: [comment(noneLine)],
+      changedFiles: ['apps/myk9show/src/pages/Foo.tsx'],
+    });
+    expect(result.state).toBe('failure');
+    expect(result.description).toContain('adversarial');
+  });
+
+  it('refuses adversarial on a guardrail change', () => {
+    const result = evaluateReviewGate({
+      headSha: HEAD,
+      comments: [
+        comment(
+          `Review gate: adversarial reviewed abc1234..${HEAD} — 2 lenses, all findings addressed`
+        ),
+      ],
+      changedFiles: ['scripts/qa/review-gate.ts'],
+    });
+    expect(result.state).toBe('failure');
+    expect(result.description).toContain('independent');
+  });
+
+  it('forces the independent floor when the file list may be truncated', () => {
+    const result = evaluateReviewGate({
+      headSha: HEAD,
+      comments: [
+        comment(
+          `Review gate: adversarial reviewed abc1234..${HEAD} — 2 lenses, all findings addressed`
+        ),
+      ],
+      changedFiles: [],
+      fileListUnusable: true,
+    });
+    expect(result.state).toBe('failure');
+    expect(result.description).toContain('independent');
+  });
+
+  it('exempts the owner tier (human-fallback) from the floor, even below adversarial', () => {
+    // `human-fallback` maps to tier `owner`, which sits BELOW the
+    // `adversarial` floor that application code computes. Task 4 formalises
+    // override semantics on top of this; for now `owner` is simply exempt.
+    const result = evaluateReviewGate({
+      headSha: HEAD,
+      comments: [
+        comment(
+          [
+            `Review gate: human-fallback reviewed abc1234..${HEAD} — 2 adversarial subagent reviews, all findings addressed`,
+            'Fallback reason: Claude unavailable — authentication failure',
+            'Adversarial subagent review: correctness and data flow',
+            'Adversarial subagent review: security and migration safety',
+            'Required checks: passing',
+          ].join('\n')
+        ),
+      ],
+      changedFiles: ['apps/myk9show/src/pages/Foo.tsx'],
+    });
+    expect(result.state).toBe('success');
+  });
+
+  it('skips floor enforcement when the kill switch is off', () => {
+    const prev = process.env.MYK9_REVIEW_TIERS;
+    process.env.MYK9_REVIEW_TIERS = 'off';
+    try {
+      const result = evaluateReviewGate({
+        headSha: HEAD,
+        comments: [comment(noneLine)],
+        changedFiles: ['scripts/qa/review-gate.ts'],
+      });
+      expect(result.state).toBe('success');
+    } finally {
+      if (prev === undefined) delete process.env.MYK9_REVIEW_TIERS;
+      else process.env.MYK9_REVIEW_TIERS = prev;
+    }
   });
 });

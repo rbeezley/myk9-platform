@@ -50,7 +50,13 @@ function RegistrationFormFields({ open }: { open: boolean }) {
   // registration just saved, with Save enabled by `forceHasChanges`: a
   // duplicate-row invitation. Reset on the open edge, not on a timer — a
   // timer races a quick reopen, and remounting on open skips the slide-in.
-  const wasOpen = useRef(open);
+  //
+  // Seeded FALSE, not from `open`: SlideOverPanel returns null once
+  // `!open && !isAnimating`, so ~300ms after close THIS subtree unmounts while
+  // EditPanelWrapper's form state survives above it. Seeding from `open` made
+  // a remounted instance start at `wasOpen = true`, so the edge never fired and
+  // the reset never ran — on the exact path it exists for.
+  const wasOpen = useRef(false);
   useEffect(() => {
     if (!wasOpen.current && open) form?.reset(INITIAL_FORM_DATA);
     wasOpen.current = open;

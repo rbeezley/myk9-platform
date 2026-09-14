@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { screen } from '@testing-library/react';
+import { screen, waitForElementToBeRemoved } from '@testing-library/react';
 import { render } from '@/test/utils/testUtils';
 import AddRegistrationPanel from './AddRegistrationPanel';
 
@@ -11,7 +11,7 @@ import AddRegistrationPanel from './AddRegistrationPanel';
  * saved, with Save enabled by `forceHasChanges`: a duplicate-row invitation.
  */
 describe('AddRegistrationPanel reopen', () => {
-  it('starts blank again when reopened without unmounting', async () => {
+  it('starts blank again when reopened after the panel subtree has unmounted', async () => {
     const { rerender, user } = render(
       <AddRegistrationPanel open={false} onClose={vi.fn()} onSave={vi.fn()} dogName="Maple" />
     );
@@ -23,10 +23,17 @@ describe('AddRegistrationPanel reopen', () => {
     await user.type(number, 'SR999');
     expect(number).toHaveValue('SR999');
 
-    // Close and reopen the SAME mounted instance.
+    // Close, and WAIT for the fields to actually leave the DOM. SlideOverPanel
+    // returns null once `!open && !isAnimating` (~300ms), so the real flow
+    // remounts this subtree while EditPanelWrapper's form state survives above
+    // it. Reopening synchronously stays inside the animation window, where the
+    // subtree is still mounted — a test that does that cannot fail on the path
+    // this guard exists for.
     rerender(
       <AddRegistrationPanel open={false} onClose={vi.fn()} onSave={vi.fn()} dogName="Maple" />
     );
+    await waitForElementToBeRemoved(() => screen.queryByLabelText(/registration number/i));
+
     rerender(
       <AddRegistrationPanel open={true} onClose={vi.fn()} onSave={vi.fn()} dogName="Maple" />
     );

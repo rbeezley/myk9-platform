@@ -94,9 +94,9 @@ export default function DogRegistrationDialogs({
   const reportSaveError = (error: unknown) => toast.error(translateDogDbError(error).message);
 
   // Add and Edit REJECT instead: EditPanelWrapper.wrappedSave catches, reports,
-  // and deliberately does not close, so the user keeps the form they typed. The
-  // panels are keyed to remount blank, so a swallowed failure would throw the
-  // whole form away and leave only a toast.
+  // and deliberately does not close, so the user keeps the form they typed. Add
+  // clears itself on its next open, so a swallowed failure would throw the whole
+  // form away and leave only a toast.
   const handleAdd = (data: RegistrationFormData) =>
     new Promise<void>((resolve, reject) => {
       createRegistration(toDbRegistration(data), {

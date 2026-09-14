@@ -9,7 +9,10 @@
  * focus choreography, and no layout rule for the hidden case.
  */
 import type { Dog } from '@/types/dog-types';
+import { useRegistrationsStore } from '@/store/registrationsStore';
 import SlideOverPanel from '@/components/panels/SlideOverPanel';
+import { Button } from '@/components/ui/button';
+import { Plus } from 'lucide-react';
 import RegistrationsSection from './RegistrationsSection';
 
 interface ManageRegistrationsPanelProps {
@@ -23,15 +26,29 @@ export default function ManageRegistrationsPanel({
   onClose,
   dog,
 }: ManageRegistrationsPanelProps) {
+  const isDeleteOpen = useRegistrationsStore(state => state.isDeleteRegistrationDialogOpen);
+  const setIsAddOpen = useRegistrationsStore(state => state.setIsAddRegistrationDialogOpen);
+
   return (
     <SlideOverPanel
       open={open}
       onClose={onClose}
       title="Registrations"
       {...(dog.callName ? { subtitle: dog.callName } : {})}
-      // `size` is inert here: sizeClasses[size] is followed by `sm:max-w-none
-      // sm:w-full` (MYK9-99). className is merged last, so it is what lands.
-      className="md:max-w-2xl"
+      size="lg"
+      // The delete confirmation is a CommonDialog, which registers no Escape
+      // handler and is not in SlideOverPanel's openPanelIds stack — so without
+      // this, Escape over the confirmation closes THIS panel and leaves the
+      // confirmation floating over a bare page.
+      preventClose={isDeleteOpen}
+      // The rail's Add sits behind this backdrop, so the panel carries its own
+      // for the loaded-list and error states as well as the empty one.
+      headerActions={
+        <Button size="sm" onClick={() => setIsAddOpen(true)}>
+          <Plus className="h-4 w-4 mr-1" />
+          Add
+        </Button>
+      }
     >
       <RegistrationsSection dog={dog} />
     </SlideOverPanel>

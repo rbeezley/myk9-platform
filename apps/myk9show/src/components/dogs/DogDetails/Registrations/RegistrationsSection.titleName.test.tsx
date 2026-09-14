@@ -51,7 +51,8 @@ vi.mock('./EditRegistrationPanel', () => ({
       </div>
     ) : null,
 }));
-vi.mock('./ConfirmDeleteRegistrationDialog', () => ({ default: () => null }));
+// NOT mocked: the delete confirmation names the registration, and the store can
+// hold the raw snake_case PostgREST row.
 
 afterEach(() => {
   useRegistrationsStore.getState().setIsAddRegistrationDialogOpen(false);
@@ -108,5 +109,24 @@ describe('registration name editing', () => {
     rerender(<DogRegistrationDialogs dog={dogB} />);
     expect(screen.queryByRole('dialog')).toBeNull();
     expect(useRegistrationsStore.getState().selectedRegistration).toBeNull();
+  });
+
+  // The store carries whatever the caller selected — the mapped domain object in
+  // some paths, the raw `dog_registrations` row in others. Reading only
+  // `registeredName` rendered `delete ""`, on the exhibitor's only delete path.
+  it('names the registration in the delete confirmation on the raw row shape', () => {
+    const dog = { id: 'dog-1', callName: 'Test Dog' } as Dog;
+    render(<DogRegistrationDialogs dog={dog} />);
+
+    act(() => {
+      useRegistrationsStore.getState().setSelectedRegistration({
+        id: 'registration-1',
+        organization: 'AKC',
+        registered_name: 'CH Test Dog',
+      } as never);
+      useRegistrationsStore.getState().setIsDeleteRegistrationDialogOpen(true);
+    });
+
+    expect(screen.getByText(/CH Test Dog/)).toBeInTheDocument();
   });
 });

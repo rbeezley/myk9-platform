@@ -51,9 +51,16 @@ const DogDetailsMain: React.FC<DogDetailsMainProps> = ({
   const [addRegistrationDogId, setAddRegistrationDogId] = useState<string | null>(null);
   const [isManageRegistrationsOpen, setIsManageRegistrationsOpen] = useState(false);
 
-  // The rail's "Add registration" is the one ordinary path into the add panel
-  // (the registrations list's empty state deliberately carries no action). It
-  // does NOT navigate: the panel is hosted by the page, so opening it from
+  // DogDetailPage carries no key={id}, so Back/Forward between two dogs reuses
+  // this component. Without this the panel stays open over a dog the user never
+  // opened it for — the same leak the store-backed panels are reset for.
+  useEffect(() => {
+    setIsManageRegistrationsOpen(false);
+  }, [dog.id]);
+
+  // The rail's "Add registration" is the ordinary path into the add panel; the
+  // Manage panel carries its own Add for when the rail is behind its backdrop.
+  // It does NOT navigate: the panel is hosted by the page, so opening it from
   // Career or Records no longer needs Overview, and rewriting section/view
   // behind the modal would strand the user somewhere else on close.
   const openAddRegistration = () => setAddRegistrationDogId(dog.id);

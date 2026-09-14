@@ -123,7 +123,7 @@ describe('DogIdentityRail', () => {
     expect(onAddRegistration).toHaveBeenCalledTimes(1);
   });
 
-  it('offers registration management only when a registration exists', () => {
+  it('offers registration management for a registered dog', () => {
     const onManageRegistrations = vi.fn();
     renderRail(base, {
       registrations: [{ organization: 'AKC', registration_number: 'SR123' }],

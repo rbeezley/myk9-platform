@@ -58,7 +58,8 @@ const makeContextValue = (form: ReturnType<typeof makeMockForm>) => ({
 const renderBasicInfoTab = (
   userRole: UserRole,
   currentUserPersonId?: string,
-  formOverrides: Partial<DogFormData> = {}
+  formOverrides: Partial<DogFormData> = {},
+  onAddRegistration = vi.fn()
 ) => {
   const form = makeMockForm(formOverrides);
   const contextValue = makeContextValue(form);
@@ -69,11 +70,12 @@ const renderBasicInfoTab = (
         userRole={userRole}
         currentUserPersonId={currentUserPersonId}
         onPhotoOpen={vi.fn()}
+        onAddRegistration={onAddRegistration}
       />
     </EditPanelContext.Provider>
   );
 
-  return { ...result, form };
+  return { ...result, form, onAddRegistration };
 };
 
 // ---------------------------------------------------------------------------
@@ -104,6 +106,30 @@ describe('BasicInfoTab', () => {
   });
 
   describe('Exhibitor role', () => {
+    it('points to the existing registration editor before a first show entry', async () => {
+      const { user, onAddRegistration } = renderBasicInfoTab(UserRole.EXHIBITOR, 'person-123');
+
+      expect(screen.getByText(/breed is recorded with that registration/i)).toBeInTheDocument();
+      await user.click(screen.getByRole('button', { name: 'Add dog registration' }));
+      expect(onAddRegistration).toHaveBeenCalledOnce();
+    });
+
+    it('does not repeat the prompt after a registration is added', () => {
+      renderBasicInfoTab(UserRole.EXHIBITOR, 'person-123', {
+        registrations: [
+          {
+            id: 'r1',
+            organization: 'AKC',
+            registeredName: 'Dog',
+            breed: 'Beagle',
+            registrationNumber: 'SR123',
+            status: 'Active',
+          },
+        ],
+      });
+      expect(screen.queryByRole('button', { name: 'Add dog registration' })).toBeNull();
+    });
+
     it('does NOT render the owner Select', () => {
       mockSupabasePeople([]);
       renderBasicInfoTab(UserRole.EXHIBITOR, 'person-123');
@@ -167,7 +193,11 @@ describe('BasicInfoTab', () => {
 
       render(
         <EditPanelContext.Provider value={contextValue}>
-          <BasicInfoTab userRole={UserRole.SECRETARY} onPhotoOpen={vi.fn()} />
+          <BasicInfoTab
+            userRole={UserRole.SECRETARY}
+            onPhotoOpen={vi.fn()}
+            onAddRegistration={vi.fn()}
+          />
         </EditPanelContext.Provider>
       );
 

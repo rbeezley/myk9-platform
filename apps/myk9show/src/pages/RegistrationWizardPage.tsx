@@ -9,7 +9,7 @@
  * hook's values and handlers.
  */
 
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Link, useParams, useNavigate } from 'react-router-dom';
 import { ArrowLeft, HelpCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -88,6 +88,11 @@ function RegistrationWizardContent() {
     entryOutcomes,
     ownerResolution,
     dogsLoading,
+    dogsReady,
+    dogsError,
+    resumeDataLoading,
+    dogsIdentityPending,
+    retryDogLoad,
     agreedToEntryAgreement,
     setAgreedToEntryAgreement,
     setPaymentStatus,
@@ -109,6 +114,10 @@ function RegistrationWizardContent() {
   } = wiz;
 
   const showBlockedReason = !!proceedBlocked && !isSubmitting;
+  // True only while the exhibitor's OWN clearing of the dog step is the reason
+  // the selection is empty. Picking dogs again resets it, so a later genuine
+  // return to an empty dog step can offer the saved entry again.
+  const [clearedDogSelection, setClearedDogSelection] = useState(false);
 
   // "Your entries" — the wizard's single running total. Mounted on every step
   // except the Receipt, which has nothing left to total and keeps its own
@@ -304,7 +313,7 @@ function RegistrationWizardContent() {
       >
         {entryCloseAvailability.canEnter && (
           <>
-            <div className="mb-6 flex flex-wrap items-center justify-between gap-2">
+            <div className="mb-6">
               <h2
                 ref={stepHeadingRef}
                 tabIndex={-1}
@@ -313,16 +322,29 @@ function RegistrationWizardContent() {
                 {steps[currentStep]?.label}
                 <span className="sr-only">{` — step ${currentStep + 1} of ${steps.length}`}</span>
               </h2>
-              <DraftManager
-                saveDraft={draftSave}
-                loadDraft={draftLoad}
-                deleteDraft={draftDelete}
-                availableDrafts={availableDrafts}
-                clearAllDrafts={clearAllDrafts}
-                hasUnsavedChanges={!!hasUnsavedChanges}
-                onDraftLoaded={handleDraftLoaded}
-                onDraftSaved={() => notifications.success('Draft saved')}
-              />
+              {!isLastStep && (
+                <DraftManager
+                  saveDraft={draftSave}
+                  loadDraft={draftLoad}
+                  deleteDraft={draftDelete}
+                  availableDrafts={availableDrafts}
+                  clearAllDrafts={clearAllDrafts}
+                  hasUnsavedChanges={!!hasUnsavedChanges}
+                  onDraftLoaded={handleDraftLoaded}
+                  onDraftSaved={() => notifications.success('Draft saved')}
+                  showResume={
+                    currentWorkflowMode === 'exhibitor' &&
+                    currentStepId === 'dog-selection' &&
+                    !clearedDogSelection &&
+                    registrationData.selectedDogs.length === 0
+                  }
+                  dogsReady={dogsReady}
+                  loadError={!!dogsError}
+                  loadingDogs={resumeDataLoading}
+                  identityPending={dogsIdentityPending}
+                  onRetryDogs={retryDogLoad}
+                />
+              )}
             </div>
 
             <div className="mb-6 border-t border-border" />
@@ -394,7 +416,10 @@ function RegistrationWizardContent() {
               blockedClassIds={blockedClassIds}
               armbandAssignments={armbandAssignments}
               entryOutcomes={entryOutcomes}
-              onDogSelectionChange={handleDogSelectionChange}
+              onDogSelectionChange={dogIds => {
+                setClearedDogSelection(dogIds.length === 0);
+                handleDogSelectionChange(dogIds);
+              }}
               onClassSelectionChange={handleClassSelectionChange}
               onHandlerAssignmentChange={handleHandlerAssignmentChange}
               onPaymentMethodChange={(method: PaymentMethod) => handlePaymentMethodChange(method)}

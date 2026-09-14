@@ -352,6 +352,22 @@ export class ReplicatedDogsTable extends ReplicatedTable<ReplicatedDog> {
   }
 
   /**
+   * Get all dogs, distinguishing "this exhibitor has no dogs" from "the local
+   * store cannot answer yet". An unhydrated IndexedDB and a failed read both
+   * return zero rows from getAll(), and callers that turn an empty roster into
+   * a user-visible claim ("one or more dogs in this draft are unavailable")
+   * must not make it from a cold store.
+   */
+  async getAllDogsWithStatus(): Promise<{ rows: ReplicatedDog[]; cold: boolean }> {
+    const result = await this.getAllWithStatus();
+    if (!result.ok) return { rows: [], cold: true };
+    if (result.rows.length > 0) return { rows: result.rows, cold: false };
+    // Empty AND never synced on this device: the store is cold, not empty.
+    const metadata = await this.getSyncMetadata();
+    return { rows: [], cold: !metadata?.lastFullSyncAt };
+  }
+
+  /**
    * Get dog by ID
    */
   async getDogById(dogId: string): Promise<ReplicatedDog | null> {

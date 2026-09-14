@@ -119,6 +119,99 @@ describe('submitPaymentStep', () => {
     });
   });
 
+  it('discards only dogs with class lines handed to the cart', async () => {
+    const { ctx } = makeContextAndOrder({
+      paymentMethod: 'credit_card',
+      classSelections: [
+        { dogId: 'dog-1', trialId: 'trial-1', selectedClasses: [{ classId: 'class-1' }] },
+        { dogId: 'dog-2', trialId: 'trial-1', selectedClasses: [] },
+      ],
+    });
+    submitRegistrationCartCheckoutMock.mockImplementation(async ({ deps }) => deps.deleteDraft());
+
+    await submitPaymentStep(ctx);
+
+    expect(ctx.discardDraftsWithoutFinalSave).toHaveBeenCalledWith([
+      { dogId: 'dog-1', classId: 'class-1' },
+    ]);
+  });
+
+  it('keeps denied dogs while clearing only successful submission outcomes', async () => {
+    submitShowRegistrationMock.mockResolvedValue({
+      aborted: false,
+      registrationNumber: 'REG-1',
+      armbandAssignments: [],
+      armbandFailures: [],
+      entryOutcomes: [
+        { dogId: 'dog-1', classId: 'class-1', outcome: 'created' },
+        { dogId: 'dog-2', classId: 'class-2', outcome: 'denied' },
+      ],
+    });
+    const { ctx } = makeContextAndOrder({
+      classSelections: [
+        { dogId: 'dog-1', trialId: 'trial-1', selectedClasses: [{ classId: 'class-1' }] },
+        { dogId: 'dog-2', trialId: 'trial-1', selectedClasses: [{ classId: 'class-2' }] },
+      ],
+    });
+
+    await submitPaymentStep(ctx);
+
+    expect(ctx.discardDraftsWithoutFinalSave).toHaveBeenCalledWith([
+      { dogId: 'dog-1', classId: 'class-1' },
+    ]);
+  });
+
+  it('preserves a denied class when another class for the same dog was filed', async () => {
+    submitShowRegistrationMock.mockResolvedValue({
+      aborted: false,
+      registrationNumber: 'REG-1',
+      armbandAssignments: [],
+      armbandFailures: [],
+      entryOutcomes: [
+        { dogId: 'dog-1', classId: 'class-1', outcome: 'created' },
+        { dogId: 'dog-1', classId: 'class-2', outcome: 'denied' },
+      ],
+    });
+    const { ctx } = makeContextAndOrder({
+      classSelections: [
+        {
+          dogId: 'dog-1',
+          trialId: 'trial-1',
+          selectedClasses: [{ classId: 'class-1' }, { classId: 'class-2' }],
+        },
+      ],
+    });
+
+    await submitPaymentStep(ctx);
+
+    expect(ctx.discardDraftsWithoutFinalSave).toHaveBeenCalledWith([
+      { dogId: 'dog-1', classId: 'class-1' },
+    ]);
+  });
+
+  it('keeps an ambiguous dog/class pair when one trial was denied', async () => {
+    submitShowRegistrationMock.mockResolvedValue({
+      aborted: false,
+      registrationNumber: 'REG-1',
+      armbandAssignments: [],
+      armbandFailures: [],
+      entryOutcomes: [
+        { dogId: 'dog-1', classId: 'class-1', outcome: 'created' },
+        { dogId: 'dog-1', classId: 'class-1', outcome: 'denied' },
+      ],
+    });
+    const { ctx } = makeContextAndOrder({
+      classSelections: [
+        { dogId: 'dog-1', trialId: 'trial-1', selectedClasses: [{ classId: 'class-1' }] },
+        { dogId: 'dog-1', trialId: 'trial-2', selectedClasses: [{ classId: 'class-1' }] },
+      ],
+    });
+
+    await submitPaymentStep(ctx);
+
+    expect(ctx.discardDraftsWithoutFinalSave).toHaveBeenCalledWith([]);
+  });
+
   afterEach(() => {
     vi.useRealTimers();
   });

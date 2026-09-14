@@ -41,7 +41,11 @@ export const useDogsQuery = () => {
       // had just tried. For admins / secretaries who legitimately see zero
       // dogs in the replicated store on first load, the double-fetch fired
       // on every render until the cache warmed. See harden-backlog memory.
-      const { data, error } = await getAllDogs(personId!, showAll);
+      // `enabled` keeps this query idle until identity resolves, but refetch()
+      // bypasses `enabled` — without this guard a retry button could run the
+      // roster read with an undefined person and report its result as fact.
+      if (!personId) throw new Error('Cannot load dogs before the signed-in person resolves');
+      const { data, error } = await getAllDogs(personId, showAll);
       if (error) throw error;
       return data ?? [];
     },

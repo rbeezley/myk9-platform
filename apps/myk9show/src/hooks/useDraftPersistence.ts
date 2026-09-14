@@ -1,7 +1,17 @@
-import { useEffect, useRef, useCallback, useState } from 'react';
+import { useEffect, useRef, useCallback, useMemo, useState } from 'react';
 import { useShowRegistrationStore } from '../store/showRegistrationStore';
 import { RegistrationFormData } from '../types/show-registration-types';
 import { logger } from '@/services/LoggingService';
+import {
+  pruneFiledDogsFromDraft,
+  pruneStoredDrafts,
+  type HandledDraftClass,
+} from './pruneFiledDogsFromDraft';
+import { makeHandlerKey } from '@/types/show-registration-types';
+import { readSavedDraftMetadata } from './readSavedDraftMetadata';
+import { createDraftMetadata, type DraftMetadata, type SavedDraft } from './draftMetadata';
+
+export type { DraftMetadata, SavedDraft } from './draftMetadata';
 
 export interface DraftPersistenceConfig {
   /** Auto-save interval in milliseconds (default: 30000 = 30 seconds) */
@@ -12,21 +22,6 @@ export interface DraftPersistenceConfig {
   maxDraftsPerShow?: number;
   /** Enable debug logging (default: false) */
   debug?: boolean;
-}
-
-export interface DraftMetadata {
-  id: string;
-  showId: string;
-  userId: string;
-  timestamp: number;
-  stepCompleted: string;
-  title: string;
-  preview: string;
-}
-
-export interface SavedDraft {
-  metadata: DraftMetadata;
-  data: Partial<RegistrationFormData>;
 }
 
 const DEFAULT_CONFIG: Required<DraftPersistenceConfig> = {
@@ -54,9 +49,13 @@ export function useDraftPersistence(
   const autoSaveTimerRef = useRef<NodeJS.Timeout | null>(null);
   const lastSavedDataRef = useRef<string>('');
   const activeDraftMetadataRef = useRef<DraftMetadata | null>(null);
-  const skipFinalSaveRef = useRef(false);
+  const pendingRestoreDataRef = useRef<Partial<RegistrationFormData> | null>(null);
+  const handledAfterSubmitRef = useRef<{
+    classKeys: Set<string>;
+    dogIds: Set<string>;
+  } | null>(null);
   const [lastAutoSaveTime, setLastAutoSaveTime] = useState<Date | null>(null);
-  const [, setDraftsVersion] = useState(0);
+  const [draftsVersion, setDraftsVersion] = useState(0);
 
   const log = useCallback(
     (message: string, ...args: unknown[]) => {
@@ -81,38 +80,12 @@ export function useDraftPersistence(
     [storageKeyPrefix, showId, userId]
   );
 
-  // Generate draft metadata
   const generateDraftMetadata = useCallback(
-    (data: Partial<RegistrationFormData>): DraftMetadata => {
-      const selectedDogs = data.selectedDogs?.length || 0;
-      const selectedClasses =
-        data.entries?.reduce((total, entry) => total + (entry.classes?.length || 0), 0) || 0;
-
-      let preview = '';
-      if (selectedDogs > 0) {
-        preview += `${selectedDogs} dog${selectedDogs !== 1 ? 's' : ''}`;
-      }
-      if (selectedClasses > 0) {
-        preview += `${preview ? ', ' : ''}${selectedClasses} class${selectedClasses !== 1 ? 'es' : ''}`;
-      }
-      if (!preview) {
-        preview = 'New registration';
-      }
-
-      return {
-        id: crypto.randomUUID(),
-        showId,
-        userId,
-        timestamp: Date.now(),
-        stepCompleted: currentStep,
-        title: `Draft from ${new Date().toLocaleDateString()}`,
-        preview,
-      };
-    },
+    (data: Partial<RegistrationFormData>): DraftMetadata =>
+      createDraftMetadata(data, { showId, userId, currentStep }),
     [showId, userId, currentStep]
   );
 
-  // Get all draft metadata for the current show
   const getDraftMetadata = useCallback((): DraftMetadata[] => {
     try {
       const metadata = localStorage.getItem(getMetadataKey());
@@ -123,7 +96,6 @@ export function useDraftPersistence(
     }
   }, [getMetadataKey, log]);
 
-  // Save draft metadata
   const saveDraftMetadata = useCallback(
     (metadata: DraftMetadata[]) => {
       try {
@@ -136,7 +108,6 @@ export function useDraftPersistence(
     [getMetadataKey, log]
   );
 
-  // Save draft to localStorage
   const saveDraft = useCallback(
     (data: Partial<RegistrationFormData>, metadata?: DraftMetadata) => {
       if (!data || Object.keys(data).length === 0) {
@@ -150,7 +121,9 @@ export function useDraftPersistence(
         return null;
       }
 
-      const draftMetadata = metadata || generateDraftMetadata(data);
+      const draftMetadata = metadata
+        ? { ...generateDraftMetadata(data), id: metadata.id, title: metadata.title }
+        : generateDraftMetadata(data);
       const savedDraft: SavedDraft = { metadata: draftMetadata, data };
 
       try {
@@ -197,7 +170,6 @@ export function useDraftPersistence(
     ]
   );
 
-  // Load draft from localStorage
   const loadDraft = useCallback(
     (draftId: string): SavedDraft | null => {
       try {
@@ -219,8 +191,6 @@ export function useDraftPersistence(
         }
 
         log('Loaded draft:', draftId, 'with', Object.keys(savedDraft.data).length, 'fields');
-        activeDraftMetadataRef.current = savedDraft.metadata;
-
         return savedDraft;
       } catch (error) {
         log('Error loading draft:', error);
@@ -230,7 +200,21 @@ export function useDraftPersistence(
     [getDraftKey, userId, log]
   );
 
-  // Delete draft from localStorage
+  const activateDraft = useCallback(
+    (draft: SavedDraft) => {
+      if (draft.metadata.showId === showId && draft.metadata.userId === userId) {
+        activeDraftMetadataRef.current = draft.metadata;
+        pendingRestoreDataRef.current = draftData;
+      }
+    },
+    [draftData, showId, userId]
+  );
+
+  const deactivateDraft = () => {
+    activeDraftMetadataRef.current = null;
+    pendingRestoreDataRef.current = null;
+  };
+
   const deleteDraft = useCallback(
     (draftId: string) => {
       try {
@@ -241,6 +225,7 @@ export function useDraftPersistence(
         saveDraftMetadata(allMetadata);
         if (activeDraftMetadataRef.current?.id === draftId) {
           activeDraftMetadataRef.current = null;
+          pendingRestoreDataRef.current = null;
         }
         setDraftsVersion(version => version + 1);
 
@@ -252,26 +237,55 @@ export function useDraftPersistence(
     [getDraftKey, getDraftMetadata, saveDraftMetadata, log]
   );
 
-  // Auto-save current draft data
+  const saveableData = useCallback(
+    (data: Partial<RegistrationFormData>): Partial<RegistrationFormData> | null => {
+      const handled = handledAfterSubmitRef.current;
+      if (!handled) return data;
+      if (data._workflowState?.currentStep === 'confirmation') return null;
+      const candidate: SavedDraft = {
+        metadata: activeDraftMetadataRef.current ?? generateDraftMetadata(data),
+        data,
+      };
+      try {
+        return pruneFiledDogsFromDraft(candidate, handled.classKeys, handled.dogIds)?.data ?? null;
+      } catch (error) {
+        log('Could not save malformed restored draft:', error);
+        return null;
+      }
+    },
+    [generateDraftMetadata, log]
+  );
+
   const autoSave = useCallback(() => {
     if (!draftData || Object.keys(draftData).length === 0) {
       return;
     }
+    if (pendingRestoreDataRef.current === draftData) return;
+    pendingRestoreDataRef.current = null;
+    const dataToSave = saveableData(draftData);
+    if (!dataToSave) return;
+    // The wizard supplies a non-empty envelope even before a dog is selected,
+    // and a resumed draft can be emptied again by deselecting every dog. A
+    // dogless payload can never be resumed (DraftManager only offers drafts
+    // with selectedDogsCount > 0), so it is never worth writing — neither over
+    // an unfinished entry on this device nor over the draft just resumed.
+    // Drafts are discarded deliberately through deleteDraft/clearAllDrafts.
+    if (!dataToSave.selectedDogs?.length) return;
 
     // Check if data has changed since last save
-    const currentDataString = JSON.stringify(draftData);
+    const currentDataString = JSON.stringify(dataToSave);
     if (currentDataString === lastSavedDataRef.current) {
       log('No changes detected, skipping auto-save');
       return;
     }
 
-    const draftId = saveDraft(draftData, activeDraftMetadataRef.current ?? undefined);
+    const draftId = saveDraft(dataToSave, activeDraftMetadataRef.current ?? undefined);
     if (draftId) {
       lastSavedDataRef.current = currentDataString;
       setLastAutoSaveTime(new Date());
       log('Auto-saved draft:', draftId);
     }
-  }, [draftData, saveDraft, log]);
+  }, [draftData, saveDraft, saveableData, log]);
 
   // Manual save with custom title
   const saveWithTitle = useCallback(
@@ -279,13 +293,15 @@ export function useDraftPersistence(
       if (!draftData || Object.keys(draftData).length === 0) {
         return null;
       }
+      const dataToSave = saveableData(draftData);
+      if (!dataToSave) return null;
 
-      const metadata = generateDraftMetadata(draftData);
+      const metadata = generateDraftMetadata(dataToSave);
       metadata.title = title;
 
-      return saveDraft(draftData, metadata);
+      return saveDraft(dataToSave, metadata);
     },
-    [draftData, generateDraftMetadata, saveDraft]
+    [draftData, generateDraftMetadata, saveDraft, saveableData]
   );
 
   // Clear all drafts for current show
@@ -296,15 +312,40 @@ export function useDraftPersistence(
     });
     localStorage.removeItem(getMetadataKey());
     activeDraftMetadataRef.current = null;
+    pendingRestoreDataRef.current = null;
     lastSavedDataRef.current = JSON.stringify(draftData ?? {});
     setDraftsVersion(version => version + 1);
     log('Cleared all drafts for show:', showId);
   }, [draftData, getDraftMetadata, getDraftKey, getMetadataKey, showId, log]);
 
-  const discardDraftsWithoutFinalSave = useCallback(() => {
-    skipFinalSaveRef.current = true;
-    clearAllDrafts();
-  }, [clearAllDrafts]);
+  const discardDraftsWithoutFinalSave = useCallback(
+    (handledClasses: HandledDraftClass[]) => {
+      const handled = new Set(
+        handledClasses.map(({ dogId, classId }) => makeHandlerKey(dogId, classId))
+      );
+      const handledDogIds = new Set(handledClasses.map(({ dogId }) => dogId));
+      handledAfterSubmitRef.current = { classKeys: handled, dogIds: handledDogIds };
+      const { remainingMetadata, remainingActive } = pruneStoredDrafts({
+        metadata: getDraftMetadata(),
+        keyFor: getDraftKey,
+        showId,
+        userId,
+        handledClassKeys: handled,
+        handledDogIds,
+        activeId: activeDraftMetadataRef.current?.id,
+        onError: (id, error) => log('Could not prune saved draft:', id, error),
+      });
+      if (remainingMetadata.length > 0) {
+        remainingMetadata.sort((a, b) => b.timestamp - a.timestamp);
+        saveDraftMetadata(remainingMetadata);
+      } else localStorage.removeItem(getMetadataKey());
+      activeDraftMetadataRef.current = remainingActive;
+      pendingRestoreDataRef.current = null;
+      lastSavedDataRef.current = '';
+      setDraftsVersion(version => version + 1);
+    },
+    [getDraftKey, getDraftMetadata, getMetadataKey, log, saveDraftMetadata, showId, userId]
+  );
 
   // Keep a ref to the latest autoSave so the timer effect can call it without
   // having `autoSave` as a dependency — otherwise the timer gets cleared and
@@ -335,25 +376,53 @@ export function useDraftPersistence(
   // Save on component unmount
   useEffect(() => {
     return () => {
-      if (skipFinalSaveRef.current) {
-        log('Component unmounting, final draft save skipped');
-        return;
-      }
       log('Component unmounting, performing final save');
       autoSaveRef.current();
     };
   }, [log]);
 
-  // Available drafts for the current (show, user) pair. Storage keys already
-  // scope by userId, so no read-side filter is needed.
-  // Reading the small metadata list on render keeps localStorage as the source
-  // of truth. draftsVersion forces a render after in-hook storage mutations.
-  const availableDrafts = getDraftMetadata();
+  // Browser Back can leave the document before the 30-second timer fires.
+  useEffect(() => {
+    const saveOnPageHide = () => autoSaveRef.current();
+    window.addEventListener('pagehide', saveOnPageHide);
+    return () => window.removeEventListener('pagehide', saveOnPageHide);
+  }, []);
+
+  useEffect(() => {
+    const onStorage = (event: StorageEvent) => {
+      if (event.key === getMetadataKey()) setDraftsVersion(version => version + 1);
+    };
+    window.addEventListener('storage', onStorage);
+    return () => window.removeEventListener('storage', onStorage);
+  }, [getMetadataKey]);
+
+  const availableDrafts = useMemo(
+    () =>
+      getDraftMetadata().map(metadata =>
+        readSavedDraftMetadata(metadata, getDraftKey(metadata.id), showId, userId)
+      ),
+    // Local draft writes invalidate the memo without changing the storage key.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [draftsVersion, getDraftKey, getDraftMetadata, showId, userId]
+  );
+
+  // saveableData() mints a UUID and prunes the payload, so calling it inline in
+  // the returned object ran that work on every render of every consumer.
+  // draftsVersion is a dependency because saveableData also reads
+  // handledAfterSubmitRef, which discardDraftsWithoutFinalSave mutates while
+  // bumping that counter — without it the memo would hold a pre-submit answer.
+  const hasUnsavedChanges = useMemo(
+    () => !!(draftData && Object.keys(draftData).length > 0 && saveableData(draftData)),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [draftData, saveableData, draftsVersion]
+  );
 
   return {
     // Draft operations
     saveDraft: saveWithTitle,
     loadDraft,
+    activateDraft,
+    deactivateDraft,
     deleteDraft,
     autoSave,
 
@@ -363,7 +432,7 @@ export function useDraftPersistence(
     discardDraftsWithoutFinalSave,
 
     // State
-    hasUnsavedChanges: draftData && Object.keys(draftData).length > 0,
+    hasUnsavedChanges,
     lastAutoSave: lastAutoSaveTime,
   };
 }
@@ -386,6 +455,7 @@ export function useDraftRestoration(
       const savedDraft = draftPersistence.loadDraft(draftId);
 
       if (savedDraft) {
+        draftPersistence.activateDraft(savedDraft);
         setDraftData(savedDraft.data);
         onDraftSelected?.(savedDraft);
         return true;

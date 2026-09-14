@@ -402,7 +402,12 @@ async function postgrestGetDogStatistics(personId: string) {
 export const getAllDogs = async (personId: string, showAll = false) => {
   return readWithReplicationFallback({
     replication: async () => {
-      const allDogs = await replicatedDogsTable.getAllDogs();
+      // A cold or unreadable local store returns zero rows with no error, which
+      // downstream reads as "this user owns no dogs". Throw instead so the
+      // PostgREST fallback answers, and so an offline cold boot surfaces an
+      // error the UI can hold rather than a false empty roster.
+      const { rows: allDogs, cold } = await replicatedDogsTable.getAllDogsWithStatus();
+      if (cold) throw new Error('[dogs] local replica is cold — falling back to PostgREST');
       const filtered = showAll ? allDogs : filterByOwnership(allDogs, personId);
       const sortedDogs = sortedCopy(
         filtered,

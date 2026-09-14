@@ -107,6 +107,7 @@ retired to [`archive/`](archive/) (kept for history, not maintained).
 | [plan-myk9-80-podium-completion-celebration.md](plan-myk9-80-podium-completion-celebration.md)                   | Active    | MYK9-80 — At-show podium + class completion celebration                            |
 | [plan-myk9-84-authz-dead-letter.md](plan-myk9-84-authz-dead-letter.md)                                           | Active    | MYK9-84 — Permanent Authorization Dead-Letter Messaging                            |
 | [plan-myk9-100-entry-status-kind.md](plan-myk9-100-entry-status-kind.md)                                         | Active    | MYK9-100 — Preserve entry status kind for honest exhibitor badges                  |
+| [plan-myk9-508-reentry.md](plan-myk9-508-reentry.md)                                                             | Active    | MYK9-508 — Resume an unfinished show entry                                         |
 | [plan-myk9-180-show-email-delivery-history.md](plan-myk9-180-show-email-delivery-history.md)                     | Active    | MYK9-180 — Show email delivery history in Communication History                    |
 | [plan-myk9-269-279-batch.md](plan-myk9-269-279-batch.md)                                                         | Active    | MYK9-269–279 — Accessibility, E2E typecheck, and route cleanup (MYK9-277 deferred) |
 | [plan-p3-bug-and-dead-code-batch.md](plan-p3-bug-and-dead-code-batch.md)                                         | Active    | P3 reliability defects and dead-code batch remediation                             |

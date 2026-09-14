@@ -8,6 +8,7 @@ const {
   mockPeopleIn,
   mockReplicatedGetAllDogs,
   mockPostgrestAllDogs,
+  mockColdStore,
 } = vi.hoisted(() => ({
   mockServerIn: vi.fn(),
   mockServerSelect: vi.fn(),
@@ -15,6 +16,7 @@ const {
   mockPeopleIn: vi.fn(),
   mockReplicatedGetAllDogs: vi.fn(),
   mockPostgrestAllDogs: vi.fn(),
+  mockColdStore: vi.fn(),
 }));
 
 vi.mock('../../supabaseClient', () => ({
@@ -37,7 +39,16 @@ vi.mock('@/services/replication/ReplicatedDogRegistrationsTable', () => ({
   replicatedDogRegistrationsTable: { getRegistrationsForDogs: mockLocalGet },
 }));
 vi.mock('@/services/replication/ReplicatedDogsTable', () => ({
-  replicatedDogsTable: { getAllDogs: mockReplicatedGetAllDogs },
+  replicatedDogsTable: {
+    getAllDogs: mockReplicatedGetAllDogs,
+    // getAllDogs is the cold-blind read; getAllDogsWithStatus wraps it and is
+    // what getAllDogs() in reads.ts calls. Tests that set a cold store override
+    // this implementation.
+    getAllDogsWithStatus: async () =>
+      mockColdStore()
+        ? { rows: [], cold: true }
+        : { rows: await mockReplicatedGetAllDogs(), cold: false },
+  },
 }));
 
 import { getAllDogs, loadDogRegistrations } from '../reads';
@@ -299,6 +310,31 @@ describe('getAllDogs registration completeness', () => {
     expect(result.data).toHaveLength(1);
     expect(result.data?.[0]?.registrations).toEqual([]);
     expect(result.data?.[0]?.registrations_read_complete).toBe(true);
+  });
+
+  it('reads online rather than reporting an empty roster from a cold local store', async () => {
+    mockColdStore.mockReturnValueOnce(true);
+    mockPostgrestAllDogs.mockResolvedValue({
+      data: [{ id: 'dog-9', name: 'Kilo', owner_id: null }],
+      error: null,
+    });
+    mockServerIn.mockResolvedValue({ data: [], error: null });
+
+    const result = await getAllDogs('person-1', true);
+
+    expect(mockPostgrestAllDogs).toHaveBeenCalled();
+    expect(result.error).toBeNull();
+    expect(result.data).toHaveLength(1);
+  });
+
+  it('reports an error instead of an empty roster when the store is cold and offline', async () => {
+    mockColdStore.mockReturnValueOnce(true);
+    mockPostgrestAllDogs.mockRejectedValue(new Error('offline'));
+
+    const result = await getAllDogs('person-1', true);
+
+    expect(result.error).not.toBeNull();
+    expect(result.data).toEqual([]);
   });
 
   it('preserves registrations when the PostgREST fallback supplies the dog list', async () => {

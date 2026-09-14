@@ -85,7 +85,12 @@ export function useRegistrationWizardState() {
   // Auth and permissions
   const { isSecretary, isClubAdmin, isSiteAdmin, canAssignArmbands } = useRegistrationPermissions();
   const { user } = useAuthContext();
-  const { profile: exhibitorProfile } = useExhibitorProfile();
+  const {
+    profile: exhibitorProfile,
+    isLoading: profileLoading,
+    error: profileError,
+    refetch: refetchExhibitorProfile,
+  } = useExhibitorProfile();
   const { triggerSync } = useReplicationSync();
 
   // Trigger a sync on mount so any pending local mutations are uploaded
@@ -112,7 +117,13 @@ export function useRegistrationWizardState() {
   }, []);
 
   // Data stores
-  const { dogs, isLoading: dogsLoading } = useDogStoreCompat();
+  const {
+    dogs,
+    isLoading: dogsLoading,
+    isReady: dogsReady,
+    rosterError: dogsError,
+    refetch: refetchDogs,
+  } = useDogStoreCompat();
   const { shows = [] } = useShowStore();
   const { classes = [] } = useClassStoreCompat();
   const loadCart = useCartStore(state => state.loadCart);
@@ -238,6 +249,7 @@ export function useRegistrationWizardState() {
   const submittingRef = useRef(false);
   const mountedRef = useRef(true);
   const hasAutoSelectedDogs = useRef(false);
+  const pendingDraftRegistrationRef = useRef(false);
 
   const {
     createRegistration,
@@ -263,6 +275,8 @@ export function useRegistrationWizardState() {
   const {
     saveDraft: draftSave,
     loadDraft: draftLoad,
+    activateDraft,
+    deactivateDraft,
     deleteDraft: draftDelete,
     availableDrafts,
     clearAllDrafts,
@@ -522,6 +536,19 @@ export function useRegistrationWizardState() {
     // Stores / data
     dogs,
     dogsLoading,
+    dogsReady,
+    dogsError: dogsReady ? null : dogsError || (!exhibitorProfile ? profileError : null),
+    resumeDataLoading: profileLoading || dogsLoading,
+    // Unresolved identity is its own state: no roster request is in flight and
+    // an empty roster says nothing about this exhibitor. A profile error is a
+    // failure the exhibitor can retry, so it is not identity-pending.
+    dogsIdentityPending: !exhibitorProfile?.person_id && !profileError,
+    retryDogLoad: () => {
+      // Never refetch the roster without a resolved person — the query is
+      // disabled for that reason and refetch() would bypass it.
+      if (exhibitorProfile?.person_id && !profileError) refetchDogs();
+      else void refetchExhibitorProfile();
+    },
     classes,
     currentShow,
     loadCart,
@@ -572,10 +599,13 @@ export function useRegistrationWizardState() {
     submittingRef,
     mountedRef,
     hasAutoSelectedDogs,
+    pendingDraftRegistrationRef,
 
     // Drafts
     draftSave,
     draftLoad,
+    activateDraft,
+    deactivateDraft,
     draftDelete,
     availableDrafts,
     clearAllDrafts,

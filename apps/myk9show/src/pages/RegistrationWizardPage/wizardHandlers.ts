@@ -25,7 +25,7 @@ import { selectedDogsOwner } from '@/features/registration/selectedDogsOwner';
 import { resolveRegistrationCompletionPath } from '../RegistrationWizardPage.routes';
 import { submitPaymentStep } from './submitPaymentStep';
 import { getEntryWindowTimezone } from './entryCloseGuard';
-import type { RegistrationWizardState } from './useRegistrationWizardState';
+import { defaultPaymentForMode, type RegistrationWizardState } from './useRegistrationWizardState';
 import type { SavedDraft } from '@/hooks/useDraftPersistence';
 
 export function createWizardHandlers(state: RegistrationWizardState) {
@@ -39,6 +39,10 @@ export function createWizardHandlers(state: RegistrationWizardState) {
     exhibitorProfile,
     triggerSync,
     dogs,
+    dogsReady,
+    pendingDraftRegistrationRef,
+    activateDraft,
+    deactivateDraft,
     classes,
     currentShow,
     loadCart,
@@ -229,6 +233,44 @@ export function createWizardHandlers(state: RegistrationWizardState) {
     setIsCreatingRegistration(false);
   };
 
+  const draftDogsAvailable = (selectedDogs: string[]) => {
+    if (
+      selectedDogs.every(id => dogs.some(dog => dog.id === id)) &&
+      selectedDogsOwner(dogs, selectedDogs).ok
+    ) {
+      return true;
+    }
+    notifications.error(
+      'One or more dogs in this draft are unavailable. Your saved entry remains here; you can try again or start a new entry below.'
+    );
+    return false;
+  };
+
+  const handlePendingDraftRegistration = () => {
+    const selectedDogs = registrationData.selectedDogs;
+    if (!dogsReady || selectedDogs.length === 0) return;
+    if (!draftDogsAvailable(selectedDogs)) {
+      deactivateDraft();
+      setRegistrationData({
+        selectedDogs: [],
+        entries: [],
+        documents: [],
+        paymentMethod: defaultPaymentForMode(currentWorkflowMode),
+      });
+      setClassSelections([]);
+      setHandlerAssignments({});
+      setStepCompletionState({});
+      setPaymentStatus(PaymentStatus.PENDING);
+      setEntryStatus(EntryStatus.PENDING);
+      paymentDetailsRef.current = {};
+      setAgreedToEntryAgreement(false);
+      const dogStep = currentWorkflowConfig.steps.indexOf('dog-selection');
+      setCurrentStep(dogStep >= 0 ? dogStep : 0);
+      return;
+    }
+    void handleDogSelectionChange(selectedDogs);
+  };
+
   // Class selection handler
   const handleClassSelectionChange = (selections: ClassSelectionData[]) => {
     setClassSelections(selections);
@@ -241,6 +283,16 @@ export function createWizardHandlers(state: RegistrationWizardState) {
 
   // Draft loading handler
   const handleDraftLoaded = (draft: SavedDraft) => {
+    if (draft.data._workflowState?.currentStep === 'confirmation') {
+      notifications.error('This entry is already complete. Start a new entry below.');
+      return false;
+    }
+    const selectedDogs = draft.data.selectedDogs ?? [];
+    if (dogsReady && selectedDogs.length > 0 && !draftDogsAvailable(selectedDogs)) {
+      return false;
+    }
+    pendingDraftRegistrationRef.current = !dogsReady && selectedDogs.length > 0;
+    activateDraft(draft);
     if (draft.data._workflowState) {
       const workflowState = draft.data._workflowState;
       setStepCompletionState(workflowState.stepCompletionState || {});
@@ -268,7 +320,7 @@ export function createWizardHandlers(state: RegistrationWizardState) {
       specialRequests: draft.data.specialRequests,
     });
 
-    if (!registrationId && (draft.data.selectedDogs?.length ?? 0) > 0) {
+    if (dogsReady && !registrationId && selectedDogs.length > 0) {
       // createRegistration is synchronous — returns the new local registration directly.
       // Resolve the loaded selection's owner the same way handleDogSelectionChange does.
       const owner = selectedDogsOwner(dogs, draft.data.selectedDogs ?? []);
@@ -279,6 +331,7 @@ export function createWizardHandlers(state: RegistrationWizardState) {
     }
 
     notifications.success('Draft loaded successfully');
+    return true;
   };
 
   // Step indicator click: jump to a completed step or the next step in sequence.
@@ -315,6 +368,7 @@ export function createWizardHandlers(state: RegistrationWizardState) {
     handleNext,
     handleBack,
     handleDogSelectionChange,
+    handlePendingDraftRegistration,
     handleClassSelectionChange,
     handleHandlerAssignmentChange,
     handleDraftLoaded,

@@ -32,6 +32,7 @@ import type {
   ShowRegistration,
 } from '@/types/show-registration-types';
 import type { EntrySubmissionOutcome } from '@/services/database/entries';
+import type { HandledDraftClass } from '@/hooks/pruneFiledDogsFromDraft';
 import type { CartWithDetails, NewCartItem } from '@/store/cartStore';
 import { getEntrySubmitBlocker } from './entryCloseGuard';
 
@@ -93,7 +94,7 @@ export interface SubmitPaymentStepContext {
   ) => void;
   triggerSync: () => void;
   navigate: (path: string) => void;
-  discardDraftsWithoutFinalSave: () => void;
+  discardDraftsWithoutFinalSave: (handledClasses: HandledDraftClass[]) => void;
   clearDraftData: () => void;
 }
 
@@ -103,6 +104,28 @@ function buildOfflineLateEntryRegistrationNumber(entryIds: string[]): string {
     .slice(0, 8)
     .toUpperCase();
   return token ? `LOCAL-${token}` : 'LOCAL-PENDING';
+}
+
+function handledClasses(
+  selections: ClassSelectionData[],
+  outcomes?: EntrySubmissionOutcome[]
+): HandledDraftClass[] {
+  if (outcomes) {
+    // Outcomes do not include trialId. If the same dog/class pair was filed
+    // in one trial and denied in another, keep both local lines for recovery.
+    const deniedPairs = new Set(
+      outcomes
+        .filter(outcome => outcome.outcome === 'denied')
+        .map(({ dogId, classId }) => `${dogId}|${classId}`)
+    );
+    return outcomes
+      .filter(outcome => outcome.outcome !== 'denied')
+      .filter(({ dogId, classId }) => !deniedPairs.has(`${dogId}|${classId}`))
+      .map(({ dogId, classId }) => ({ dogId, classId }));
+  }
+  return selections.flatMap(selection =>
+    selection.selectedClasses.map(({ classId }) => ({ dogId: selection.dogId, classId }))
+  );
 }
 
 export async function submitPaymentStep(ctx: SubmitPaymentStepContext): Promise<void> {
@@ -148,7 +171,7 @@ export async function submitPaymentStep(ctx: SubmitPaymentStepContext): Promise<
           addItem: ctx.cart.addItem,
           abandonCart: ctx.cart.abandonCart,
           deleteDraft: async () => {
-            ctx.discardDraftsWithoutFinalSave();
+            ctx.discardDraftsWithoutFinalSave(handledClasses(ctx.classSelections));
             ctx.clearDraftData();
           },
           navigate: path => ctx.navigate(path),
@@ -173,6 +196,9 @@ export async function submitPaymentStep(ctx: SubmitPaymentStepContext): Promise<
         ctx.setArmbandAssignments(offlineResult.armbandAssignments);
       }
       ctx.setEntryOutcomes(offlineResult.entryOutcomes);
+      ctx.discardDraftsWithoutFinalSave(
+        handledClasses(ctx.classSelections, offlineResult.entryOutcomes)
+      );
       ctx.setRegistrationNumber(buildOfflineLateEntryRegistrationNumber(offlineResult.entryIds));
       await ctx.cart.clearCart();
       ctx.triggerSync();
@@ -203,6 +229,9 @@ export async function submitPaymentStep(ctx: SubmitPaymentStepContext): Promise<
     if (submissionResult.aborted) return;
     ctx.setRegistrationNumber(submissionResult.registrationNumber);
     ctx.setEntryOutcomes(submissionResult.entryOutcomes ?? []);
+    ctx.discardDraftsWithoutFinalSave(
+      handledClasses(ctx.classSelections, submissionResult.entryOutcomes)
+    );
     if (submissionResult.armbandAssignments.length > 0) {
       ctx.setArmbandAssignments(submissionResult.armbandAssignments);
     }

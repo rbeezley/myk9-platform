@@ -28,8 +28,9 @@ export interface DogIdentityRailProps {
   onAddRegistration?: (() => void) | undefined;
   /** Opens the registration-management panel. */
   onManageRegistrations?: (() => void) | undefined;
-  /** Whether that panel is open, for aria-expanded. */
-  registrationDetailsOpen?: boolean | undefined;
+  /** The registrations read failed — distinct from the dog having none. */
+  registrationsFailed?: boolean | undefined;
+  onRetryRegistrations?: (() => void) | undefined;
   role?: 'exhibitor' | 'secretary';
   onEditPanelOpen: () => void;
   onPhotoDialogOpen: () => void;

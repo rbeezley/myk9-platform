@@ -50,7 +50,8 @@ const DogIdentityRail: React.FC<DogIdentityRailProps> = ({
   registrations,
   onAddRegistration,
   onManageRegistrations,
-  registrationDetailsOpen = false,
+  registrationsFailed = false,
+  onRetryRegistrations,
   role = 'exhibitor',
   onEditPanelOpen,
   onPhotoDialogOpen,
@@ -210,25 +211,40 @@ const DogIdentityRail: React.FC<DogIdentityRailProps> = ({
             Add registration
           </button>
         </div>
-        {registry.rows.length > 0 ? (
+        {/* A failed read is NOT "no registrations": this rail is the only
+            registration summary on the page, so if it printed the empty copy
+            here a registered dog would read as unregistered, with no retry. */}
+        {registrationsFailed ? (
+          <div className="flex items-center gap-2">
+            <p className="text-xs text-destructive">Couldn’t load registrations.</p>
+            {onRetryRegistrations && (
+              <button
+                type="button"
+                onClick={onRetryRegistrations}
+                className="inline-flex min-h-11 items-center text-xs font-medium text-primary hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded-sm"
+              >
+                Try again
+              </button>
+            )}
+          </div>
+        ) : registry.rows.length > 0 ? (
           <DogRegistryTable registry={registry} />
         ) : (
           <p className="text-xs text-muted-foreground">No registrations yet.</p>
         )}
-        {/* Stays mounted while the panel is open even after the last registration
-            is deleted, so the panel never outlives the control that opened it. */}
-        {!isSecretary &&
-          onManageRegistrations &&
-          (registry.rows.length > 0 || registrationDetailsOpen) && (
-            <button
-              type="button"
-              onClick={onManageRegistrations}
-              aria-haspopup="dialog"
-              className="mt-2 inline-flex min-h-11 items-center text-xs font-medium text-primary hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded-sm"
-            >
-              Manage registrations
-            </button>
-          )}
+        {/* Always mounted for an exhibitor, not gated on the row count: closing
+            the panel after deleting the last registration would otherwise
+            unmount the control focus returns to, dropping it on <body>. */}
+        {!isSecretary && onManageRegistrations && !registrationsFailed && (
+          <button
+            type="button"
+            onClick={onManageRegistrations}
+            aria-haspopup="dialog"
+            className="mt-2 inline-flex min-h-11 items-center text-xs font-medium text-primary hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded-sm"
+          >
+            Manage registrations
+          </button>
+        )}
 
         <div
           className={cn(

@@ -30,7 +30,7 @@ The Dog Details page SHALL replace the peer strip of Registrations, Competitions
 #### Scenario: Add registration deep link
 
 - **WHEN** an exhibitor opens a dog URL with `addRegistration=true` or selects Add registration in the rail
-- **THEN** the existing add panel SHALL open on Overview without showing a second registration empty state
+- **THEN** the existing add panel SHALL open over whatever section the link selected, without moving the reader to Overview and without showing a second registration empty state
 
 #### Scenario: Premium feature grouping
 

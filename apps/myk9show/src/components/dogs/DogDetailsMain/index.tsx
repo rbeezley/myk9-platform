@@ -243,8 +243,14 @@ const DogDetailsMain: React.FC<DogDetailsMainProps> = ({
     fromPerson,
   });
 
-  // Live registrations count
-  const { data: dbRegistrations } = useRegistrationsByDogQuery(updatedDog.id);
+  // The rail is the only registration summary on the page, so it has to carry
+  // the failure too: without `isError`, an errored read looks exactly like an
+  // empty one and the dog reads as having no registrations.
+  const {
+    data: dbRegistrations,
+    isError: registrationsFailed,
+    refetch: refetchRegistrations,
+  } = useRegistrationsByDogQuery(updatedDog.id);
 
   return (
     <>
@@ -260,7 +266,8 @@ const DogDetailsMain: React.FC<DogDetailsMainProps> = ({
             registrations={dbRegistrations}
             onAddRegistration={openAddRegistration}
             onManageRegistrations={() => setIsManageRegistrationsOpen(true)}
-            registrationDetailsOpen={isManageRegistrationsOpen}
+            registrationsFailed={registrationsFailed}
+            onRetryRegistrations={() => void refetchRegistrations()}
             role={isSecretary ? 'secretary' : 'exhibitor'}
             onEditPanelOpen={() => setIsEditPanelOpen(true)}
             onPhotoDialogOpen={() => handlePhotoDialogOpen(true)}

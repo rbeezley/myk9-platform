@@ -133,26 +133,26 @@ describe('DogIdentityRail', () => {
     expect(onManageRegistrations).toHaveBeenCalledOnce();
   });
 
-  // The absence half: without it, dropping the `registry.rows.length > 0` guard
-  // ships a control that scrolls to a heading Overview never renders, and the
-  // presence test above still passes.
-  it('hides registration management when the dog has no registrations', () => {
+  // Deleting the last registration and closing the panel must not unmount the
+  // control focus returns to, so the trigger is not gated on the row count.
+  it('keeps registration management for a dog with no registrations', () => {
     renderRail(base, { registrations: [], onManageRegistrations: vi.fn() });
-    expect(screen.queryByRole('button', { name: 'Manage registrations' })).toBeNull();
-  });
-
-  // Deleting the last registration while the panel is open must not unmount the
-  // control the panel was raised from.
-  it('keeps the control while the panel is open with no registrations left', () => {
-    renderRail(base, {
-      registrations: [],
-      onManageRegistrations: vi.fn(),
-      registrationDetailsOpen: true,
-    });
     expect(screen.getByRole('button', { name: 'Manage registrations' })).toHaveAttribute(
       'aria-haspopup',
       'dialog'
     );
+  });
+
+  // A failed read must not wear the empty state's clothes: this rail is the only
+  // registration summary on the page.
+  it('reports a failed registrations read instead of "No registrations yet"', () => {
+    const onRetryRegistrations = vi.fn();
+    renderRail(base, { registrations: [], registrationsFailed: true, onRetryRegistrations });
+
+    expect(screen.getByText('Couldn\u2019t load registrations.')).toBeInTheDocument();
+    expect(screen.queryByText('No registrations yet.')).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: 'Try again' }));
+    expect(onRetryRegistrations).toHaveBeenCalledTimes(1);
   });
 
   it('keeps the photo action at least 44px and named for assistive technology', () => {

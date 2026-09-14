@@ -1,20 +1,24 @@
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
+import { parseGhaExpression, topLevelAndOperands, type GhaExpr } from './ghaExpressionParser';
 
 /**
  * MYK9-520: `smoke-build`, `A11y smoke` and `E2E PR Smoke` each carry
  * `github.actor != 'dependabot[bot]'`, so before this fix every Dependabot PR
  * skipped all three browser-level jobs unconditionally — with no way for a
  * maintainer to force real coverage on a dependency bump that touches runtime
- * code. The `run-smoke` label (already read by `smoke-scope`, ci.yml:~40) is
- * the escape hatch: it must be ANDed into the SAME `if:` as the actor check,
- * not just into `smoke-scope`'s own condition, or the label has no effect on
- * whether these jobs run.
+ * code. The `run-smoke` label (read by `smoke-scope`, ci.yml:~40) is the
+ * escape hatch: it must sit ANDed alongside the actor check as ONE operand of
+ * the job's top-level `&&` chain (`... && (actor-ok || run-smoke-label)`),
+ * not loose at the top level (`... && actor-ok || run-smoke-label`) — the
+ * second form lets a labelled PR bypass the enabled/scope/draft gates too,
+ * since `&&` binds tighter than `||`.
  *
- * These assertions read the raw `if:` line for each job rather than grepping
- * the whole file, so a comment that merely NAMES `run-smoke` near the guard
- * (without actually wiring it into the condition) does not satisfy them.
+ * A substring/text check cannot tell these two shapes apart — both contain
+ * every token the other does, just grouped differently. This file parses the
+ * real boolean structure of each job's `if:` line with a tiny GHA-expression
+ * parser (`./ghaExpressionParser.ts`) instead of pattern-matching text.
  */
 const workflow = readFileSync(
   resolve(import.meta.dirname, '../../../../../.github/workflows/ci.yml'),
@@ -23,15 +27,15 @@ const workflow = readFileSync(
 
 const BROWSER_JOBS = ['smoke-build:', 'a11y:', 'e2e-myk9show:'];
 
-/** The `if:` line for a job, found by its `<name>:` heading at 2-space indent. */
-function ifLineForJob(jobHeading: string): string {
-  const lines = workflow.split('\n');
+/** The `if:` value for a job, found by its `<name>:` heading at 2-space indent. */
+function ifExpressionForJob(jobHeading: string, source: string = workflow): string {
+  const lines = source.split('\n');
   const start = lines.findIndex(line => line === `  ${jobHeading}`);
-  expect(start, `job "${jobHeading}" not found in ci.yml`).toBeGreaterThan(-1);
+  expect(start, `job "${jobHeading}" not found in workflow`).toBeGreaterThan(-1);
 
   for (let i = start + 1; i < lines.length; i += 1) {
     const trimmed = lines[i]?.trimStart() ?? '';
-    if (trimmed.startsWith('if:')) return trimmed;
+    if (trimmed.startsWith('if:')) return trimmed.slice('if:'.length).trim();
     // Stop once we reach the next top-level job (2-space indent, ends with ':').
     if (/^ {2}\S.*:$/.test(lines[i] ?? '')) break;
   }
@@ -39,39 +43,106 @@ function ifLineForJob(jobHeading: string): string {
   throw new Error(`job "${jobHeading}" has no if: line`);
 }
 
+/** True if `node` is an atom whose text contains `substring`. */
+function isAtomContaining(node: GhaExpr, substring: string): boolean {
+  return node.type === 'atom' && node.text.includes(substring);
+}
+
+/**
+ * True if `node` is a single operand — a bare atom, or a `group` wrapping
+ * exactly one — that is itself an `or` of (a) the dependabot actor check and
+ * (b) something mentioning the run-smoke label. This is the shape a fourth
+ * job MUST have for its actor check to be label-overridable; a bare
+ * `github.actor != 'dependabot[bot]'` atom with no surrounding `or` fails
+ * this, and so does an `or` that is not wrapped as a single top-level AND
+ * operand (the review-finding mutation).
+ */
+function isActorLabelDisjunction(node: GhaExpr): boolean {
+  const disjunction = node.type === 'group' ? node.inner : node;
+  if (disjunction.type !== 'or') return false;
+  const hasActorCheck = disjunction.operands.some(op => isAtomContaining(op, 'dependabot[bot]'));
+  const hasLabelEscape = disjunction.operands.some(
+    op =>
+      isAtomContaining(op, 'run-smoke') || (op.type === 'group' && containsText(op, 'run-smoke'))
+  );
+  return hasActorCheck && hasLabelEscape;
+}
+
+/** Recursively true if any atom under `node` contains `substring`. */
+function containsText(node: GhaExpr, substring: string): boolean {
+  switch (node.type) {
+    case 'atom':
+      return node.text.includes(substring);
+    case 'group':
+      return containsText(node.inner, substring);
+    case 'and':
+    case 'or':
+      return node.operands.some(op => containsText(op, substring));
+  }
+}
+
 describe('Dependabot actor guard cannot skip browser smoke without an override', () => {
-  it.each(BROWSER_JOBS)('%s still gates on the smoke-scope/enabled preconditions', jobHeading => {
-    const ifLine = ifLineForJob(jobHeading);
-    expect(ifLine).toContain("vars.MYK9SHOW_SMOKE_CI_ENABLED == 'true'");
-    expect(ifLine).toContain("needs.smoke-scope.outputs.run == 'true'");
-  });
-
   it.each(BROWSER_JOBS)(
-    '%s: the dependabot actor check is overridable by the run-smoke label, not a bare skip',
+    '%s: the actor/run-smoke disjunction is ONE operand of the top-level AND chain, not a top-level OR',
     jobHeading => {
-      const ifLine = ifLineForJob(jobHeading);
-      expect(ifLine).toContain("github.actor != 'dependabot[bot]'");
+      const expr = parseGhaExpression(ifExpressionForJob(jobHeading));
 
-      // The regression this test exists to catch: an actor check ANDed into
-      // the job condition with no label escape hatch beside it. A bare
-      // `&& github.actor != 'dependabot[bot]'` with nothing after it in the
-      // expression is exactly the shape the label cannot rescue.
-      const actorClauseAndAfter = ifLine.slice(
-        ifLine.indexOf("github.actor != 'dependabot[bot]'")
-      );
-      expect(actorClauseAndAfter).toContain('run-smoke');
-      expect(actorClauseAndAfter).toContain('||');
+      // The regression this test exists to catch (review finding on
+      // MYK9-520): dropping the outer parens around the actor/label
+      // disjunction turns the whole expression's root into an `or`, because
+      // `&&` binds tighter than `||`. A real `or` root means a labelled PR
+      // bypasses vars.MYK9SHOW_SMOKE_CI_ENABLED / smoke-scope / draft-push
+      // entirely -- so the root must be `and` (or, degenerately, a single
+      // operand -- but every real job here has 4).
+      expect(expr.type, `job "${jobHeading}" if: parsed to a top-level OR, not AND`).toBe('and');
+
+      const operands = topLevelAndOperands(expr);
+      const disjunctionOperand = operands.find(isActorLabelDisjunction);
+      expect(
+        disjunctionOperand,
+        `job "${jobHeading}" has no single AND-operand pairing the dependabot actor check with a run-smoke escape`
+      ).toBeDefined();
     }
   );
 
-  it('the run-smoke override checks PR labels, not just the actor', () => {
-    // Positive control: every occurrence of the override clause reads the
-    // real label list off the triggering event, so a maintainer adding the
-    // label on GitHub is what flips this — not some unrelated always-true stub.
+  it.each(BROWSER_JOBS)('%s still gates on the smoke-scope/enabled preconditions', jobHeading => {
+    const operands = topLevelAndOperands(parseGhaExpression(ifExpressionForJob(jobHeading)));
+    expect(operands.some(op => containsText(op, 'MYK9SHOW_SMOKE_CI_ENABLED'))).toBe(true);
+    expect(operands.some(op => containsText(op, 'smoke-scope.outputs.run'))).toBe(true);
+  });
+
+  it('the run-smoke override checks PR labels via contains(), not just naming the label in prose', () => {
     for (const jobHeading of BROWSER_JOBS) {
-      const ifLine = ifLineForJob(jobHeading);
-      expect(ifLine).toContain("contains(github.event.pull_request.labels.*.name, 'run-smoke')");
+      const expr = parseGhaExpression(ifExpressionForJob(jobHeading));
+      const disjunctionOperand = topLevelAndOperands(expr).find(isActorLabelDisjunction);
+      expect(
+        disjunctionOperand &&
+          containsText(
+            disjunctionOperand,
+            "contains(github.event.pull_request.labels.*.name, 'run-smoke')"
+          )
+      ).toBe(true);
     }
+  });
+
+  it('rejects a synthetic job whose actor check has no run-smoke escape at all (positive control)', () => {
+    // Proves the structural checks above actually fail on the exact defect
+    // they exist to prevent -- a job that re-adds a bare, unrescuable actor
+    // conjunct -- rather than passing vacuously. Uses a literal fixture
+    // rather than mutating ci.yml so this test can never itself be broken by
+    // an unrelated future edit to the real workflow.
+    const bareActorGuard =
+      "(github.event_name == 'push' || github.event.pull_request.draft == false) && vars.MYK9SHOW_SMOKE_CI_ENABLED == 'true' && needs.smoke-scope.outputs.run == 'true' && github.actor != 'dependabot[bot]'";
+    const expr = parseGhaExpression(bareActorGuard);
+    const operands = topLevelAndOperands(expr);
+    expect(operands.some(isActorLabelDisjunction)).toBe(false);
+  });
+
+  it('rejects the review-finding mutation: dropping the outer parens turns the root into an OR (positive control)', () => {
+    const droppedOuterParens =
+      "(github.event_name == 'push' || github.event.pull_request.draft == false) && vars.MYK9SHOW_SMOKE_CI_ENABLED == 'true' && needs.smoke-scope.outputs.run == 'true' && github.actor != 'dependabot[bot]' || (github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'run-smoke'))";
+    const expr = parseGhaExpression(droppedOuterParens);
+    expect(expr.type).toBe('or');
   });
 
   it('dependabot.yml documents when to add the run-smoke label', () => {

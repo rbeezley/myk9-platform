@@ -4,6 +4,8 @@ import { replicatedEntriesTable } from '@/services/replication/ReplicatedEntries
 import { replicatedTrialsTable } from '@/services/replication/ReplicatedTrialsTable';
 import { withReplicationFallback } from '../_shared/replication-fallback';
 import { fetchEntryCountsByClassIds } from '../_shared/entryCounts';
+import { fetchJudgeNamePartsByClass, type JudgeNameParts } from '../_shared/judgeNamesByClass';
+import { resolveClassJudgeFields } from '../_shared/classJudgeFields';
 import type { ReplicatedClass } from '@/services/replication/ReplicatedClassesTable';
 import type { ReplicatedTrial } from '@/services/replication/ReplicatedTrialsTable';
 
@@ -174,11 +176,9 @@ async function postgrestGetShowScheduleTimelineRows(
         status,
         deleted_at,
         judge_assignments (
+          id,
           person_id,
-          people!inner (
-            first_name,
-            last_name
-          )
+          status
         )
       )
     `
@@ -193,7 +193,12 @@ async function postgrestGetShowScheduleTimelineRows(
       .filter(cls => cls.deleted_at === null)
       .map(cls => cls.id)
   );
-  const entryCountsMap = await fetchEntryCountsByClassIds(classIds, 'select_schedule_entry_counts');
+  const [entryCountsMap, judgesByClassId] = await Promise.all([
+    fetchEntryCountsByClassIds(classIds, 'select_schedule_entry_counts'),
+    // MYK9-494: NOT a `people` embed — `people_select` admits only the caller's own row and
+    // show managers, so an exhibitor's embed resolves to null on every assignment.
+    fetchJudgeNamePartsByClass(showId),
+  ]);
 
   const rows: ShowScheduleTimelineRow[] = [];
   for (const trial of data ?? []) {
@@ -206,14 +211,15 @@ async function postgrestGetShowScheduleTimelineRows(
         start_time: string | null;
         status: string | null;
         deleted_at: string | null;
-        judge_assignments: Array<{
-          person_id: string;
-          people: { first_name: string; last_name: string };
-        }> | null;
+        judge_assignments: Array<{ id: string; person_id: string; status: string | null }> | null;
       }> | null) ?? [];
 
     for (const cls of classes.filter(c => c.deleted_at === null)) {
-      const assignment = cls.judge_assignments?.[0];
+      const judge = resolveClassJudgeFields({
+        judge_assignments: cls.judge_assignments,
+        _judge: judgesByClassId.get(cls.id) ?? null,
+        _judgeResolved: judgesByClassId.has(cls.id),
+      });
       rows.push({
         trialId: trial.id,
         trialDate: trial.date,
@@ -226,14 +232,30 @@ async function postgrestGetShowScheduleTimelineRows(
         startTime: cls.start_time,
         status: cls.status ?? 'no-status',
         totalEntriesCount: entryCountsMap.get(cls.id) ?? 0,
-        judgePersonId: assignment?.person_id ?? null,
-        judgeFirstName: assignment?.people.first_name ?? null,
-        judgeLastName: assignment?.people.last_name ?? null,
+        judgePersonId: judge.personId ?? null,
+        judgeFirstName: judge.firstName ?? null,
+        judgeLastName: judge.lastName ?? null,
       });
     }
   }
 
   return { data: rows, error: null };
+}
+
+/**
+ * get_show_judges is show-scoped, and the trial timeline is queried by trial, so the show has to
+ * be resolved first. Degrades to an empty map: a judge-name miss must not take the running order
+ * off the board.
+ */
+async function fetchTrialJudgeNameParts(trialId: string): Promise<Map<string, JudgeNameParts>> {
+  const { data, error } = await supabase
+    .from('trials')
+    .select('show_id')
+    .eq('id', trialId)
+    .maybeSingle();
+
+  if (error || !data?.show_id) return new Map<string, JudgeNameParts>();
+  return fetchJudgeNamePartsByClass(data.show_id);
 }
 
 async function postgrestGetTrialTimelineRows(
@@ -250,11 +272,9 @@ async function postgrestGetTrialTimelineRows(
       start_time,
       status,
       judge_assignments (
+        id,
         person_id,
-        people!inner (
-          first_name,
-          last_name
-        )
+        status
       )
     `
     )
@@ -264,16 +284,18 @@ async function postgrestGetTrialTimelineRows(
   if (error) throw createDatabaseError(error, 'trial', 'select_trial_timeline');
 
   const classIds = (data ?? []).map(cls => cls.id);
-  const entryCountsMap = await fetchEntryCountsByClassIds(classIds, 'select_trial_entry_counts');
+  const [entryCountsMap, judgesByClassId] = await Promise.all([
+    fetchEntryCountsByClassIds(classIds, 'select_trial_entry_counts'),
+    fetchTrialJudgeNameParts(trialId),
+  ]);
 
   return {
     data: (data ?? []).map(cls => {
-      const assignment = (
-        cls.judge_assignments as Array<{
-          person_id: string;
-          people: { first_name: string; last_name: string };
-        }> | null
-      )?.[0];
+      const judge = resolveClassJudgeFields({
+        judge_assignments: cls.judge_assignments,
+        _judge: judgesByClassId.get(cls.id) ?? null,
+        _judgeResolved: judgesByClassId.has(cls.id),
+      });
 
       return {
         classId: cls.id,
@@ -283,9 +305,9 @@ async function postgrestGetTrialTimelineRows(
         startTime: cls.start_time,
         status: cls.status ?? 'no-status',
         totalEntriesCount: entryCountsMap.get(cls.id) ?? 0,
-        judgePersonId: assignment?.person_id ?? null,
-        judgeFirstName: assignment?.people.first_name ?? null,
-        judgeLastName: assignment?.people.last_name ?? null,
+        judgePersonId: judge.personId ?? null,
+        judgeFirstName: judge.firstName ?? null,
+        judgeLastName: judge.lastName ?? null,
       };
     }),
     error: null,

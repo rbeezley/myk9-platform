@@ -91,6 +91,29 @@ export function groupEntriesByEnrollment(entries: EntryManagementEntry[]): Enrol
   // Enrollment-level fields, when present, stay authoritative.
   for (const group of map.values()) {
     const hasEnrollmentStatus = group.entries.some(e => e.enrollmentPaymentStatus != null);
+
+    // The group's status is an AGGREGATE over every entry, never the one the
+    // iteration reached first (MYK9-495 round 2). An order of four entries with
+    // three paid and one pending rendered "Paid" and the full total when the
+    // pending entry sorted last, and "Pending" when it sorted first — the same
+    // money, two different cards.
+    //
+    // Any entry that still owes makes the whole group owe; nothing else about
+    // the precedence changes. For a settled group the ENROLLMENT's own status
+    // is the group's, which is both the finer value (payment method) and
+    // order-independent — every entry in an enrollment group shares one
+    // enrollment row. A pi-grouped (online) group has no enrollment row, so it
+    // falls back to the first entry's effective status exactly as before and
+    // the refund pass below refines it.
+    const effectiveStatuses = group.entries.map(getEffectivePaymentStatus);
+    if (effectiveStatuses.includes(PaymentStatus.PENDING)) {
+      group.paymentStatus = PaymentStatus.PENDING;
+    } else {
+      const enrollmentStatus = group.entries.find(
+        e => e.enrollmentPaymentStatus != null
+      )?.enrollmentPaymentStatus;
+      group.paymentStatus = enrollmentStatus ?? effectiveStatuses[0] ?? group.paymentStatus;
+    }
     const refunded = group.entries.filter(e => e.paymentStatus === PaymentStatus.REFUNDED);
 
     if (!hasEnrollmentStatus && refunded.length > 0) {

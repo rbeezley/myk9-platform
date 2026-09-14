@@ -140,7 +140,7 @@ describe('verifyCheckoutSession', () => {
     expect(result.totalAmountCents).toBe(7500);
   });
 
-  it('falls back to the payment intent id when no enrollment is linked (online cart path)', async () => {
+  it('does not call a payment intent the confirmation number when enrollment is missing', async () => {
     mockSingle.mockResolvedValue({
       data: {
         id: 'order-uuid',
@@ -159,7 +159,8 @@ describe('verifyCheckoutSession', () => {
     const result = await verifyCheckoutSession('cs_test_abc123');
 
     expectSuccessfulVerification(result);
-    expect(result.confirmationNumber).toBe('pi_3TgoK2AIej2Q9UtX3HSHZh3M');
+    expect(result.confirmationNumber).toBeUndefined();
+    expect(result.paymentReference).toBe('pi_3TgoK2AIej2Q9UtX3HSHZh3M');
   });
 
   it('returns success without confirmationNumber when neither source exists', async () => {
@@ -376,6 +377,7 @@ describe('CheckoutSuccessPage', () => {
         entry_ids: [],
         show_id: 'show-uuid',
         paid_at: '2026-04-13T10:00:00Z',
+        stripe_payment_intent_id: 'pi_3TgoK2AIej2Q9UtX3HSHZh3M',
         shows: { name: 'Spring Invitational' },
         enrollment: { confirmation_number: 'MK9-000042' },
       },
@@ -388,11 +390,12 @@ describe('CheckoutSuccessPage', () => {
       expect(screen.getByText('MK9-000042')).toBeInTheDocument();
     });
     expect(screen.getByText('Confirmation #')).toBeInTheDocument();
+    expect(screen.queryByText(/Payment reference:/)).not.toBeInTheDocument();
     expect(screen.queryByText('Entry #')).not.toBeInTheDocument();
     expect(screen.queryByText('Registration #')).not.toBeInTheDocument();
   });
 
-  it('displays the payment intent id as confirmation when no enrollment is linked', async () => {
+  it('shows the Stripe id as a payment reference, never as Confirmation #', async () => {
     mockSingle.mockResolvedValue({
       data: {
         id: 'order-uuid',
@@ -411,9 +414,11 @@ describe('CheckoutSuccessPage', () => {
     renderSuccessPage();
 
     await waitFor(() => {
-      expect(screen.getByText('pi_3TgoK2AIej2Q9UtX3HSHZh3M')).toBeInTheDocument();
+      expect(
+        screen.getByText('Payment reference: pi_3TgoK2AIej2Q9UtX3HSHZh3M')
+      ).toBeInTheDocument();
     });
-    expect(screen.getByText('Confirmation #')).toBeInTheDocument();
+    expect(screen.queryByText('Confirmation #')).not.toBeInTheDocument();
   });
 
   it('shows the already-assigned armband number and accurate next-step copy', async () => {

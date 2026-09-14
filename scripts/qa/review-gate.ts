@@ -35,6 +35,7 @@
  */
 import { execFileSync } from 'node:child_process';
 import { pathToFileURL } from 'node:url';
+import type { Tier } from './review-tier';
 
 export const REVIEW_GATE_CONTEXT = 'Review gate';
 
@@ -64,6 +65,7 @@ export function commentTrusted(comment: GateComment): boolean {
 
 export interface GateEvidence {
   reviewer: 'codex' | 'claude' | 'human-fallback';
+  tier: Tier;
   base: string;
   head: string;
   verdict: string;
@@ -126,7 +128,15 @@ export function requiredChecksResult(
  * trigger filter uses the same rule); the dash accepts em, en or hyphen.
  */
 export const REVIEW_GATE_LINE =
-  /^Review gate: (codex|claude|human-fallback) reviewed ([0-9a-f]{7,40})\.\.([0-9a-f]{7,40})\s+[—–-]\s+(.+?)\s*$/m;
+  /^Review gate: (independent\/codex|independent\/claude|codex|claude|adversarial|owner|none|human-fallback) reviewed ([0-9a-f]{7,40})\.\.([0-9a-f]{7,40})\s+[—–-]\s+(.+?)\s*$/m;
+
+/** Legacy reviewer tokens predate tiers and all mean a cross-harness review. */
+export function tierForReviewer(reviewer: string): Tier {
+  if (reviewer === 'none') return 'none';
+  if (reviewer === 'adversarial') return 'adversarial';
+  if (reviewer === 'owner' || reviewer === 'human-fallback') return 'owner';
+  return 'independent';
+}
 
 /**
  * The ONLY verdicts that are green, matched against the whole remainder of
@@ -155,6 +165,7 @@ export function parseGateComments(comments: readonly GateComment[]): GateEvidenc
     const [, reviewer, base, head, verdict] = match;
     out.push({
       reviewer: reviewer as GateEvidence['reviewer'],
+      tier: tierForReviewer(reviewer),
       base,
       head,
       verdict,

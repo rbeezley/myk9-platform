@@ -524,3 +524,29 @@ describe('clampDescription', () => {
     expect(clampDescription('x'.repeat(200))).toMatch(/\.\.\.$/);
   });
 });
+
+describe('tier parsing', () => {
+  it('maps the legacy codex line to the independent tier', () => {
+    const [evidence] = parseGateComments([
+      comment(`Review gate: codex reviewed abc1234..${HEAD} — no findings`),
+    ]);
+    expect(evidence.tier).toBe('independent');
+    expect(evidence.reviewer).toBe('codex');
+  });
+
+  it('parses an explicit tier token', () => {
+    const [evidence] = parseGateComments([
+      comment(
+        `Review gate: adversarial reviewed abc1234..${HEAD} — 2 lenses, all findings addressed`
+      ),
+    ]);
+    expect(evidence.tier).toBe('adversarial');
+  });
+
+  it('parses the none tier', () => {
+    const [evidence] = parseGateComments([
+      comment(`Review gate: none reviewed abc1234..${HEAD} — low-risk paths, CI green`),
+    ]);
+    expect(evidence.tier).toBe('none');
+  });
+});

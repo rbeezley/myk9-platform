@@ -706,8 +706,12 @@ VALUES
   -- MYK9-109 load fixture addresses them directly) and are now AKC Scent Work
   -- classes on AKC trials 3 and 4. Elements and levels are from the AKC vocabulary
   -- (Container/Interior/Exterior/Buried/Handler Discrimination x
-  -- Novice/Advanced/Excellent/Master/Detective) and each element+level pair is
-  -- distinct across the show, which is the shape MYK9-487 turned on.
+  -- Novice/Advanced/Excellent/Master/Detective) and none of them repeats an
+  -- element+level pair already present, which is the shape MYK9-487 turned on.
+  -- The show as a whole is NOT free of repeated pairs, and deliberately so:
+  -- ...032 'Interior Advanced' and the ...040 unreleased-results fixture both
+  -- sit at Interior/Advanced/NULL, which is the collision MYK9-489 exists to
+  -- keep distinguishable. These four must not add a third.
   ('dec1a55e-0000-0000-0000-000000000036', 'dededede-0000-0000-0000-000000000023',
    'Container Advanced', 'Advanced', 'Container', NULL,
    30.00, 'upcoming', 180, 2, 1, false, 'single', true, 1, 1),

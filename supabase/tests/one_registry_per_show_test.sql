@@ -177,6 +177,38 @@ begin
 end;
 $$;
 
+-- A trial naming a show that does not exist must fail with the FOREIGN KEY violation (23503),
+-- not MK490. The guard has nothing to compare against and must get out of the way so the
+-- error names the real problem.
+--
+-- This is a live trap, not a hypothetical: `SELECT ... INTO` assigns NULL to EVERY target on
+-- zero rows, so a `SELECT s.organization, true INTO v_organization, v_show_found` sentinel
+-- comes back NULL rather than false, `IF NOT v_show_found` evaluates to NULL, the early return
+-- is skipped, and the missing show derives 'AKC' through the NULL fallback — turning a clean
+-- 23503 into a baffling MK490. The guard uses `IF NOT FOUND` instead, and this case is what
+-- proves it.
+do $$
+declare
+  v_state text;
+begin
+  begin
+    insert into public.trials (id, show_id, name, date, registry_id)
+    values ('00000000-0000-0000-0000-000000490029', '00000000-0000-0000-0000-0000004900ff',
+            'MYK9-490 Orphan Trial', current_date, 'UKC');
+    raise exception 'FAIL orphan: a trial naming a nonexistent show was accepted';
+  exception
+    when foreign_key_violation then
+      v_state := '23503';
+    when sqlstate 'MK490' then
+      v_state := 'MK490';
+  end;
+  if v_state <> '23503' then
+    raise exception 'FAIL orphan: expected the foreign key violation 23503, got %', v_state;
+  end if;
+  raise notice 'PASS orphan: a missing show yields 23503, not MK490';
+end;
+$$;
+
 -- ---------------------------------------------------------------------------
 -- UPDATE PATH: an accepted trial cannot be edited into a mismatch afterwards.
 --
@@ -269,6 +301,92 @@ begin
   end;
 end;
 $$;
+
+-- ---------------------------------------------------------------------------
+-- THE CASCADE MUST ALSO WORK FOR A NON-SUPERUSER.
+--
+-- This is the case the rest of this file cannot see, because psql runs as superuser and a
+-- superuser passes every privilege check. `sync_trial_registry_from_show()` is SECURITY
+-- INVOKER, so its NESTED call to `derive_registry_id()` is checked against the CALLER's role.
+-- A trigger fires its own function regardless of EXECUTE, but a nested call is not exempt —
+-- so revoking EXECUTE on the helper from `authenticated` turns a secretary's ordinary
+-- organization edit into `42501 permission denied for function derive_registry_id`, failing
+-- the whole UPDATE. Run this against the migration WITHOUT its
+-- `GRANT EXECUTE ... TO authenticated` and it fails here and nowhere else.
+--
+-- `enforce_show_registry_on_trial()` is SECURITY DEFINER, so its own nested call is fine.
+-- That asymmetry is why only one of the two callers needed the grant.
+-- ---------------------------------------------------------------------------
+insert into public.people (id, first_name, last_name, auth_user_id)
+values ('00000000-0000-0000-0000-000000490031', 'MYK9-490', 'Club Admin',
+        '00000000-0000-0000-0000-000000490041');
+
+insert into public.user_roles (user_id, role_id, club_id, is_active, auth_user_id)
+select '00000000-0000-0000-0000-000000490031', id,
+       '00000000-0000-0000-0000-000000490001', true,
+       '00000000-0000-0000-0000-000000490041'
+from public.roles where name = 'club_admin';
+
+-- A second AKC show for this case: show ...010 has already been flipped to UKC above, so
+-- editing it again would be a no-op and the AFTER UPDATE guard would return before cascading.
+insert into public.shows (id, name, organization, start_date, end_date, club_id, status)
+values ('00000000-0000-0000-0000-000000490013', 'MYK9-490 Secretary Edit Show', 'AKC',
+        current_date, current_date + 1, '00000000-0000-0000-0000-000000490001', 'published');
+
+insert into public.trials (id, show_id, name, date, registry_id)
+values
+  ('00000000-0000-0000-0000-000000490027', '00000000-0000-0000-0000-000000490013',
+   'MYK9-490 Secretary Trial A', current_date, 'AKC'),
+  ('00000000-0000-0000-0000-000000490028', '00000000-0000-0000-0000-000000490013',
+   'MYK9-490 Secretary Trial B', current_date + 1, 'AKC');
+
+set local role authenticated;
+
+do $$
+declare
+  v_registries text;
+begin
+  perform set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-000000490041', true);
+  perform set_config(
+    'request.jwt.claims',
+    '{"sub":"00000000-0000-0000-0000-000000490041","role":"authenticated"}',
+    true
+  );
+
+  -- The helper itself must be callable as authenticated. Asserted separately from the UPDATE
+  -- so a 42501 is attributed to the privilege, not to RLS.
+  begin
+    if public.derive_registry_id('UKC') <> 'UKC' then
+      raise exception 'FAIL authenticated: derive_registry_id returned the wrong value';
+    end if;
+  exception
+    when insufficient_privilege then
+      raise exception 'FAIL authenticated: derive_registry_id is not EXECUTE-able by authenticated (SQLSTATE 42501) — the sync trigger nested-calls it as the caller';
+  end;
+
+  -- The real path: a club admin edits the show's organization. The AFTER UPDATE trigger
+  -- cascades to both trials, through the enforcement trigger, all as `authenticated`.
+  begin
+    update public.shows
+       set organization = 'UKC'
+     where id = '00000000-0000-0000-0000-000000490013';
+  exception
+    when insufficient_privilege then
+      raise exception 'FAIL authenticated: the organization edit died on a privilege check (SQLSTATE 42501) inside the registry cascade';
+  end;
+
+  select string_agg(distinct registry_id, ',' order by registry_id) into v_registries
+  from public.trials
+  where show_id = '00000000-0000-0000-0000-000000490013';
+
+  if v_registries is distinct from 'UKC' then
+    raise exception 'FAIL authenticated: trials read % after the edit, expected UKC', coalesce(v_registries, '(none)');
+  end if;
+  raise notice 'PASS authenticated: a club admin can change a show organization and the cascade runs';
+end;
+$$;
+
+reset role;
 
 -- An unconfigured organization projects to AKC (the column default), so an AKC trial under it
 -- is legal. This is the common real case — most shows carry a free-text organization.

@@ -63,13 +63,29 @@ COMMENT ON FUNCTION public.derive_registry_id(text) IS
   'Mirrors the client deriveRegistryId(). Used by sync_trial_registry_from_show() and '
   'enforce_show_registry_on_trial() so the projection cannot drift between them.';
 
--- Callable by nobody: it is an internal helper for two triggers, not an API surface. A trigger
--- fires its function regardless of EXECUTE privileges, and this helper is invoked from inside
--- those trigger bodies, so revoking it costs nothing and closes a handle on a function that
--- would otherwise be reachable over PostgREST RPC.
+-- EXECUTE **must** be granted to authenticated, and this is not a convenience.
+--
+-- A trigger fires ITS OWN function regardless of EXECUTE privileges (the privilege is checked
+-- once, at CREATE TRIGGER). A NESTED call inside that function is NOT exempt: it is checked
+-- against whoever the function runs as. `sync_trial_registry_from_show()` is SECURITY INVOKER,
+-- so when a secretary edits a show's organization the nested `derive_registry_id()` call runs
+-- as `authenticated`. Revoking EXECUTE there turns every organization edit into
+-- `42501 permission denied for function derive_registry_id` — the whole update fails, not just
+-- the cascade. `enforce_show_registry_on_trial()` is SECURITY DEFINER and would have been fine,
+-- which is exactly why this was easy to miss: only one of the two callers is exposed.
+--
+-- The function is safe to expose: pure text in, text out, no data access, no side effects. It
+-- reveals only which registry strings the platform recognises, which the client ships anyway.
+-- `anon` stays revoked — it never writes shows, and a revoke is the documented default here.
+--
+-- NOT `STRICT`. A strict function returns NULL for NULL input, but the whole point of the
+-- fallback is that a NULL organization derives 'AKC' (matching `deriveRegistryId(null)`), and a
+-- NULL here would make every guard comparison `IS DISTINCT FROM NULL` — true — so every trial
+-- write on a show with no organization would be refused. The SQL test pins the NULL case.
 REVOKE ALL ON FUNCTION public.derive_registry_id(text) FROM PUBLIC;
 REVOKE ALL ON FUNCTION public.derive_registry_id(text) FROM anon;
-REVOKE ALL ON FUNCTION public.derive_registry_id(text) FROM authenticated;
+GRANT EXECUTE ON FUNCTION public.derive_registry_id(text) TO authenticated;
+GRANT EXECUTE ON FUNCTION public.derive_registry_id(text) TO service_role;
 
 -- ---------------------------------------------------------------------------
 -- Enforcement
@@ -87,17 +103,23 @@ SET search_path = ''
 AS $fn$
 DECLARE
   v_organization text;
-  v_show_found boolean := false;
   v_show_registry text;
 BEGIN
-  SELECT s.organization, true
-    INTO v_organization, v_show_found
+  SELECT s.organization
+    INTO v_organization
     FROM public.shows s
    WHERE s.id = NEW.show_id;
 
-  -- No show row: the foreign key will reject this write on its own. Raising here would replace
-  -- a clear FK error with a confusing registry one.
-  IF NOT v_show_found THEN
+  -- No show row: the foreign key will reject this write on its own, with a message that names
+  -- the real problem. Raising here would replace it with a confusing registry error.
+  --
+  -- This MUST be FOUND, not a sentinel column selected alongside the organization. On zero
+  -- rows PL/pgSQL assigns NULL to EVERY `INTO` target, so a `SELECT s.organization, true INTO
+  -- v_organization, v_show_found` leaves v_show_found NULL — not false — and `IF NOT
+  -- v_show_found` is then NULL, which is not true, so the guard falls through. The nonexistent
+  -- show would derive 'AKC' (the NULL fallback) and a UKC trial naming it would die MK490
+  -- instead of 23503. A DECLARE-time `:= false` does not help: the INTO overwrites it.
+  IF NOT FOUND THEN
     RETURN NEW;
   END IF;
 
@@ -175,9 +197,10 @@ BEGIN
 END;
 $fn$;
 
--- Same decision as the other two: a trigger fires its function regardless of EXECUTE
--- privileges, so no client role needs a handle on it. Restated here because this migration
--- REPLACES the function and a replace carries the decision with it.
+-- Unlike the helper above, this one IS a trigger function: it is reached only through
+-- trg_sync_trial_registry_from_show, whose EXECUTE privilege was checked at CREATE TRIGGER, so
+-- no client role needs a handle on it. Restated here because this migration REPLACES the
+-- function and a replace carries the decision with it.
 REVOKE ALL ON FUNCTION public.sync_trial_registry_from_show() FROM PUBLIC;
 REVOKE ALL ON FUNCTION public.sync_trial_registry_from_show() FROM anon;
 REVOKE ALL ON FUNCTION public.sync_trial_registry_from_show() FROM authenticated;

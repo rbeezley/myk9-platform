@@ -13,8 +13,16 @@ vi.mock('@/features/payments/entryReceiptOrder', () => ({
   useEntryReceiptOrders: useEntryReceiptOrdersMock,
 }));
 
+import { formatPaymentDate } from '@/features/payments/moneyPresentation';
+
 import { ReceiptEntryDialog } from './MyEntriesDialogs';
 import { buildScopedPaymentFacts } from './scopedPaymentFacts';
+
+// `formatPaymentDate` renders in LOCAL time, so every date-bearing assertion
+// below reads its expectation back through the same formatter, driven by the
+// same pinned instant as the fixture, rather than a literal date string.
+const ORDER_1_PAID_ON = formatPaymentDate('2026-08-01T12:00:00Z');
+const ORDER_2_PAID_ON = formatPaymentDate('2026-08-09T12:00:00Z');
 
 const splitRegistration: MyEntry = {
   id: 'entry-a',
@@ -100,10 +108,14 @@ describe('ReceiptEntryDialog order resolution', () => {
     // Named by date and amount: a raw UUID tells the exhibitor nothing about
     // which of their two payments they are choosing between.
     expect(
-      screen.getByRole('button', { name: /\$65\.00 payment on Aug 1, 2026/i })
+      screen.getByRole('button', {
+        name: new RegExp(`\\$65\\.00 payment on ${ORDER_1_PAID_ON}`, 'i'),
+      })
     ).toBeInTheDocument();
     expect(
-      screen.getByRole('button', { name: /\$75\.00 payment on Aug 9, 2026/i })
+      screen.getByRole('button', {
+        name: new RegExp(`\\$75\\.00 payment on ${ORDER_2_PAID_ON}`, 'i'),
+      })
     ).toBeInTheDocument();
     expect(screen.queryByText('Amount charged')).not.toBeInTheDocument();
   });
@@ -123,7 +135,11 @@ describe('ReceiptEntryDialog order resolution', () => {
         onClose={vi.fn()}
       />
     );
-    await userEvent.click(screen.getByRole('button', { name: /\$65\.00 payment on Aug 1, 2026/i }));
+    await userEvent.click(
+      screen.getByRole('button', {
+        name: new RegExp(`\\$65\\.00 payment on ${ORDER_1_PAID_ON}`, 'i'),
+      })
+    );
 
     expect(screen.getByText('Novice')).toBeInTheDocument();
     expect(screen.queryByText('Advanced')).not.toBeInTheDocument();

@@ -1,13 +1,16 @@
 import type { EntryReceiptOrder } from '@/features/payments/entryReceiptOrder';
 
+import { formatPaymentDate } from '@/features/payments/moneyPresentation';
 import { buildScopedPaymentFacts } from './scopedPaymentFacts';
 
 function order(overrides: Partial<EntryReceiptOrder> = {}): EntryReceiptOrder {
   return {
     id: 'ff08fa39-41c6-4ef7-bd8a-0195469b1bb8',
-    // Midday UTC: `formatPaymentDate` renders in LOCAL time (same as the My
-    // Payments row), so a midnight fixture reports the previous day west of
-    // Greenwich and the test fails on the runner's zone rather than the code.
+    // `formatPaymentDate` renders in LOCAL time (same as the My Payments row
+    // that linked here), so every assertion below reads its expectation back
+    // through the same formatter, driven by the same pinned instant, rather
+    // than a literal date string — no fixture is safe from every runner zone,
+    // from UTC-12 to UTC+13.
     createdAt: '2026-09-06T12:00:00Z',
     paidOn: '2026-09-06T12:00:00Z',
     amountCents: 3210,
@@ -39,7 +42,7 @@ describe('buildScopedPaymentFacts', () => {
     expect(facts.headlineLabel).toBe('Amount paid');
     expect(facts.headlineValue).toBe('$32.10');
     expect(facts.statusLabel).toBe('Paid');
-    expect(valueFor(facts, 'Paid on')).toBe('Sep 6, 2026');
+    expect(valueFor(facts, 'Paid on')).toBe(formatPaymentDate('2026-09-06T12:00:00Z'));
     expect(valueFor(facts, 'Reference')).toBe('pi_3RwalkDog');
     expect(facts.entriesCovered).toBe(1);
   });
@@ -61,7 +64,7 @@ describe('buildScopedPaymentFacts', () => {
     expect(facts.headlineValue).toBe('$22.10');
     expect(valueFor(facts, 'Amount charged')).toBe('$32.10');
     expect(valueFor(facts, 'Refunded')).toBe('-$10.00');
-    expect(valueFor(facts, 'Refunded on')).toBe('Sep 8, 2026');
+    expect(valueFor(facts, 'Refunded on')).toBe(formatPaymentDate('2026-09-08T12:00:00Z'));
   });
 
   it('never states a bare zero for a fully refunded order', () => {
@@ -120,7 +123,7 @@ describe('buildScopedPaymentFacts', () => {
         entryRefundedCents: 0,
       })
     );
-    expect(valueFor(facts, 'Paid on')).toBe('Sep 9, 2026');
+    expect(valueFor(facts, 'Paid on')).toBe(formatPaymentDate('2026-09-09T12:00:00Z'));
   });
 
   it('formats in the order currency, not a hard-coded dollar sign', () => {

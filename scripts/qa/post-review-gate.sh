@@ -39,7 +39,7 @@ if [ "$WITHDRAW" = 1 ]; then
     exit 2
   fi
 elif [ "$VERDICT_ACCEPTED" != 1 ]; then
-  echo "post-review-gate: verdict '$VERDICT' is outside the gate grammar (review-gate.ts CLEAN_VERDICT); nothing posted" >&2
+  echo "post-review-gate: verdict '$VERDICT' is outside the gate grammar (review-gate.ts verdictAccepted); nothing posted" >&2
   exit 2
 fi
 if [ ! -s "$LOG" ]; then

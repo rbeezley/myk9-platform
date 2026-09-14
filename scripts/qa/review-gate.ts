@@ -81,6 +81,22 @@ function isReviewerToken(value: string): value is ReviewerToken {
   return (REVIEWER_TOKENS as readonly string[]).includes(value);
 }
 
+/**
+ * The tokens `REVIEW_GATE_LINE` accepted before Task 2 added tiers. With
+ * `MYK9_REVIEW_TIERS=off`, evidence claiming any OTHER token is treated as
+ * though it never parsed at all (Codex review of Task 3 round 2, I1
+ * residual) — not merely rejected on its verdict grammar. Filtering only the
+ * verdict grammar left a `none`/`adversarial`/`owner`/`independent/*` line
+ * PARSEABLE with the switch off, which `REVIEW_GATE_LINE` on `origin/main`
+ * cannot do at all; a lever pulled at 2am to revert a misfiring feature must
+ * land exactly on the state being reverted to, not somewhere weaker than it.
+ */
+const LEGACY_REVIEWER_TOKENS: ReadonlySet<ReviewerToken> = new Set([
+  'codex',
+  'claude',
+  'human-fallback',
+]);
+
 export interface GateEvidence {
   reviewer: ReviewerToken;
   tier: Tier;
@@ -169,13 +185,15 @@ export function tierForReviewer(reviewer: string): Tier {
  * union let a `codex reviewed … — low-risk paths, CI green` line — which
  * literally asserts no review happened — pass at the `independent` floor,
  * reopening the #2040 hole this file's header describes. The adversarial
- * grammar requires at least 2 lenses (`[2-9]|\d{2,}`, never `0` or `1`) —
- * one lens is not adversarial review, and the mandatory `migration-auditor`
- * lens on migration paths must be one of the (at least) two.
+ * grammar requires at least 2 lenses (`[2-9]|[1-9]\d+`, never `0` or `1` —
+ * and never a zero-padded `00`/`01`, which `\d{2,}` alone would have let
+ * through, Codex review of Task 3 round 2, C3) — one lens is not adversarial
+ * review, and the mandatory `migration-auditor` lens on migration paths must
+ * be one of the (at least) two.
  */
 export const VERDICT_BY_TIER: Readonly<Record<'independent' | 'adversarial' | 'none', RegExp>> = {
   independent: /^(no findings|\d+ findings?, all (addressed|fixed))\.?$/i,
-  adversarial: /^(?:[2-9]|\d{2,}) (?:lens|lenses), all findings addressed\.?$/i,
+  adversarial: /^(?:[2-9]|[1-9]\d+) (?:lens|lenses), all findings addressed\.?$/i,
   none: /^low-risk paths, CI green\.?$/i,
 };
 
@@ -258,12 +276,15 @@ export function evaluateReviewGate(input: {
 }): GateResult {
   const head = input.headSha.toLowerCase();
   const short = head.slice(0, 9);
-  // Kill switch: MYK9_REVIEW_TIERS=off restores pre-floor behaviour exactly.
+  // Kill switch: MYK9_REVIEW_TIERS=off restores origin/main's behaviour
+  // exactly — no floor, and only the legacy codex/claude/human-fallback
+  // tokens are even recognised as evidence (see LEGACY_REVIEWER_TOKENS).
   const tiersEnabled = (process.env.MYK9_REVIEW_TIERS ?? 'on') !== 'off';
   // Latest by UPDATE, not creation: an older attestation edited to withdraw
   // a clean verdict must outrank a newer-created clean one (Codex, #2058).
   const forHead = parseGateComments(input.comments)
     .filter(e => head.startsWith(e.head.toLowerCase()))
+    .filter(e => tiersEnabled || LEGACY_REVIEWER_TOKENS.has(e.reviewer))
     .sort((a, b) => a.updatedAt.localeCompare(b.updatedAt));
   const latest = forHead.at(-1);
   if (!latest) {
@@ -277,8 +298,10 @@ export function evaluateReviewGate(input: {
   // to the evidence's OWN tier — never the tier-agnostic union — so a
   // `codex` (independent) line cannot pass by wearing an `adversarial` or
   // `none` verdict phrase (Codex review of Task 3 round 1, C2). With the kill
-  // switch off, only the original `independent` grammar is ever valid,
-  // restoring exactly today's behaviour rather than a superset of it (I1).
+  // switch off, `latest` can only ever be a legacy-token evidence (filtered
+  // above), so this branch is reachable only for `independent` grammar in
+  // practice — the explicit `VERDICT_BY_TIER.independent` check below is
+  // kept anyway so a future change to the filter fails safe, not open.
   const isHumanFallback = latest.reviewer === 'human-fallback';
   const accepted = isHumanFallback
     ? humanFallbackAccepted(latest)
@@ -302,6 +325,12 @@ export function evaluateReviewGate(input: {
   // bare `owner reviewed … — no findings` line (Codex review of Task 3
   // round 1, C1 — controller's own instruction, corrected). Task 4 adds a
   // real override path (`overrideAccepted`) with its own association check.
+  // C1 is held by THIS exemption condition, not by verdictMatchesTier's
+  // missing `owner` arm: giving `owner` a grammar entry there, alone, cannot
+  // reopen the hole — the floor below would still apply to it like any other
+  // weak-tier evidence — but widening this condition back to a bare
+  // `latest.tier === 'owner'` test would (simulated during Task 3 round 2
+  // review). Change this line with that in mind.
   const humanFallbackExempt = isHumanFallback && humanFallbackAccepted(latest);
   if (tiersEnabled && !humanFallbackExempt) {
     // The invariant lives HERE, not only in runCli's caller-side check, so a

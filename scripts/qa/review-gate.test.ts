@@ -139,9 +139,18 @@ describe('evaluateReviewGate', () => {
     // Tier-bound grammar near-misses (Codex review of Task 3 round 1, C3/I3):
     // fewer than 2 lenses is not adversarial review, and the `none` phrase
     // must be exactly "CI green" — never a substring or a near neighbor.
+    // '2 lenses, not all findings addressed' is a regression pin, not
+    // mutation evidence — it stays rejected under both the min-count guard
+    // AND the (already-correct, pre-task-3) anchoring, so it cannot by
+    // itself prove either guard is load-bearing (Codex review of Task 3
+    // round 2 process note).
     '0 lenses, all findings addressed',
     '2 lenses, not all findings addressed',
     'low-risk paths, CI red',
+    // Zero-padded counts (Codex review of Task 3 round 2, C3): `\d{2,}`
+    // matched these because a leading zero is still "two or more digits".
+    '00 lenses, all findings addressed',
+    '01 lenses, all findings addressed',
   ])('rejects the near-miss verdict %j — the grammar is exact, not substring', verdict => {
     // Codex's review of #2058: a substring check accepted several of these as
     // green. A negation or a qualifier inside the verdict must fail.
@@ -750,6 +759,11 @@ describe('floor enforcement', () => {
       '0 lenses, all findings addressed',
       '1 lens, all findings addressed',
       '1 lenses, all findings addressed',
+      // Zero-padded (Codex review of Task 3 round 2): \d{2,} alone treats a
+      // leading zero as "two or more digits", so "00"/"01" cleared the old
+      // minimum. [1-9]\d+ closes it — the first digit can never be zero.
+      '00 lenses, all findings addressed',
+      '01 lenses, all findings addressed',
     ])('rejects %j', verdict => {
       const result = evaluateReviewGate({
         headSha: HEAD,
@@ -811,6 +825,56 @@ describe('floor enforcement', () => {
         changedFiles: ['scripts/qa/review-gate.ts'],
       });
       expect(result.state).toBe('failure');
+    } finally {
+      if (prev === undefined) delete process.env.MYK9_REVIEW_TIERS;
+      else process.env.MYK9_REVIEW_TIERS = prev;
+    }
+  });
+
+  it('the kill switch makes a `none`/`adversarial`/`owner` line UNPARSEABLE, not merely unclean (I1 residual)', () => {
+    // Codex review of Task 3 round 2: gating only the verdict grammar left
+    // these tokens PARSEABLE with the switch off — REVIEW_GATE_LINE on
+    // origin/main cannot parse them at all. Pin the exact "no evidence"
+    // description (same as an unrecognised token) rather than the generic
+    // "not clean" one, proving the evidence is treated as though it never
+    // matched the line, not merely rejected on its verdict text.
+    const prev = process.env.MYK9_REVIEW_TIERS;
+    process.env.MYK9_REVIEW_TIERS = 'off';
+    try {
+      const result = evaluateReviewGate({
+        headSha: HEAD,
+        comments: [comment(noneLine)],
+        changedFiles: ['scripts/qa/review-gate.ts'],
+      });
+      expect(result.state).toBe('failure');
+      expect(result.description).toMatch(/no independent review recorded/);
+      expect(result.description).not.toMatch(/not clean/);
+    } finally {
+      if (prev === undefined) delete process.env.MYK9_REVIEW_TIERS;
+      else process.env.MYK9_REVIEW_TIERS = prev;
+    }
+  });
+
+  it('the kill switch falls back to an earlier LEGACY evidence comment when a newer non-legacy one is ignored', () => {
+    // With the switch off, a `none` line posted after a clean `codex` line
+    // must not blank out the earlier legacy evidence — it should be as if
+    // the `none` comment were never posted at all.
+    const prev = process.env.MYK9_REVIEW_TIERS;
+    process.env.MYK9_REVIEW_TIERS = 'off';
+    try {
+      const result = evaluateReviewGate({
+        headSha: HEAD,
+        comments: [
+          comment(
+            `Review gate: codex reviewed abc1234..${HEAD} — no findings`,
+            '2026-09-05T16:00:00Z'
+          ),
+          comment(noneLine, '2026-09-05T17:00:00Z'),
+        ],
+        changedFiles: ['scripts/qa/review-gate.ts'],
+      });
+      expect(result.state).toBe('success');
+      expect(result.evidence?.reviewer).toBe('codex');
     } finally {
       if (prev === undefined) delete process.env.MYK9_REVIEW_TIERS;
       else process.env.MYK9_REVIEW_TIERS = prev;

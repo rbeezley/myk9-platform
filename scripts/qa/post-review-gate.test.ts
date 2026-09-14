@@ -66,7 +66,7 @@ describe('post-review-gate.sh', () => {
   });
 
   it.each(['no blocking findings', '1 finding(s), all addressed', 'no findings yet'])(
-    'refuses %j (rejected by review-gate.ts CLEAN_VERDICT) and posts nothing',
+    'refuses %j (rejected by review-gate.ts verdictAccepted) and posts nothing',
     verdict => {
       const gh = stubGh();
       const log = logFile('codex\nNo actionable defects found.\n');

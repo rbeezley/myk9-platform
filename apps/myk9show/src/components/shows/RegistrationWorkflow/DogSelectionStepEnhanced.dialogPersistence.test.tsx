@@ -11,6 +11,7 @@ const mockUseRegistrationContext = vi.fn();
 // in-progress wizard (tab resets to "basic", form fields clear), so the mount
 // count is the assertion that matters — not merely "is it in the document".
 const addDogPanelMounts = vi.fn();
+const addDogPanelProps = vi.fn();
 
 vi.mock('@/hooks/useDogStoreCompat', () => ({
   useDogStoreCompat: () => mockUseDogStoreCompat(),
@@ -33,7 +34,8 @@ vi.mock('@/components/shows/RegistrationWorkflow/CreateExhibitorDialog', () => (
 }));
 
 vi.mock('@/components/panels/edit', () => ({
-  AddDogPanel: () => {
+  AddDogPanel: (props: { userRole: UserRole }) => {
+    addDogPanelProps(props);
     useEffect(() => {
       addDogPanelMounts();
     }, []);
@@ -69,6 +71,7 @@ const DOGS = [
 describe('DogSelectionStepEnhanced dialog persistence', () => {
   beforeEach(() => {
     addDogPanelMounts.mockClear();
+    addDogPanelProps.mockClear();
     mockUseDogStoreCompat.mockReturnValue({ dogs: DOGS, isLoading: false });
     mockUseRegistrationPermissions.mockReturnValue({
       user: { id: 'user-1' },
@@ -115,5 +118,20 @@ describe('DogSelectionStepEnhanced dialog persistence', () => {
 
     expect(screen.getByTestId('add-dog-panel')).toBeInTheDocument();
     expect(addDogPanelMounts).toHaveBeenCalledTimes(1);
+  });
+
+  it('opens the dog editor in staff mode when creating an exhibitor on behalf of someone', () => {
+    mockUseRegistrationPermissions.mockReturnValue({
+      user: { id: 'user-1' },
+      roles: [UserRole.SECRETARY],
+      canBulkOperations: true,
+      canCreateExhibitor: true,
+      getMaxDogsPerRegistration: () => 50,
+    });
+    render(<DogSelectionStepEnhanced selectedDogs={[]} onSelectionChange={vi.fn()} />);
+
+    expect(addDogPanelProps).toHaveBeenCalledWith(
+      expect.objectContaining({ userRole: UserRole.SECRETARY })
+    );
   });
 });

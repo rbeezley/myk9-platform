@@ -37,6 +37,23 @@ interface EntryDetails {
 type SuccessfulCheckoutVerification = Extract<CheckoutVerificationResult, { success: true }>;
 type VerificationIssue = Extract<CheckoutVerificationResult, { success: false }>;
 
+function PaymentReferenceDetail({
+  details,
+}: {
+  details: { paymentReference?: string; confirmationNumber?: string } | null;
+}) {
+  if (!details?.paymentReference || details.confirmationNumber) return null;
+  return (
+    <p className="text-center text-xs text-muted-foreground break-all">
+      Payment reference: {details.paymentReference}
+    </p>
+  );
+}
+
+function paymentReferenceField(id: string | undefined): { paymentReference?: string } {
+  return id ? { paymentReference: id } : {};
+}
+
 export default function CheckoutSuccessPage() {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
@@ -61,6 +78,7 @@ export default function CheckoutSuccessPage() {
     refundAmount?: number;
     refundStatus?: 'issued' | 'processing';
     confirmationNumber?: string;
+    paymentReference?: string;
   } | null>(null);
   const [entries, setEntries] = useState<EntryDetails[]>([]);
 
@@ -98,6 +116,7 @@ export default function CheckoutSuccessPage() {
         ...(result.confirmationNumber !== undefined && {
           confirmationNumber: result.confirmationNumber,
         }),
+        ...paymentReferenceField(result.paymentReference),
       });
       if (
         nextSplitSummary &&
@@ -397,7 +416,6 @@ export default function CheckoutSuccessPage() {
                 <p className="text-xs text-muted-foreground tracking-wide mb-1">
                   {CONFIRMATION_NUMBER_LABEL}
                 </p>
-                {/* break-all: pi_… fallback ids are 27 chars and must wrap on mobile */}
                 <p className="text-xl font-mono font-bold break-all text-success ">
                   {orderDetails.confirmationNumber}
                 </p>
@@ -406,6 +424,8 @@ export default function CheckoutSuccessPage() {
                 </p>
               </div>
             )}
+
+            <PaymentReferenceDetail details={orderDetails} />
 
             {/* Order Summary */}
             {orderDetails?.totalAmountCents !== undefined && (

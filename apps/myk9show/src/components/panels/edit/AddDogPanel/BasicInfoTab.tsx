@@ -8,6 +8,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Heart, User, Camera, Edit, PawPrint, Loader2 } from 'lucide-react';
 import { UserRole } from '@/types/auth-types';
@@ -34,12 +35,14 @@ interface BasicInfoTabProps {
   userRole: UserRole;
   currentUserPersonId?: string | undefined;
   onPhotoOpen: () => void;
+  onAddRegistration: () => void;
 }
 
 export const BasicInfoTab: React.FC<BasicInfoTabProps> = ({
   userRole,
   currentUserPersonId,
   onPhotoOpen,
+  onAddRegistration,
 }) => {
   const { form } = useEditPanel<DogFormData>();
 
@@ -71,6 +74,17 @@ export const BasicInfoTab: React.FC<BasicInfoTabProps> = ({
         </p>
       </CardHeader>
       <CardContent className="space-y-8 relative">
+        {userRole === UserRole.EXHIBITOR && formData.registrations.length === 0 && (
+          <div className="rounded-xl border border-border bg-muted/30 p-4 space-y-3">
+            <p className="text-sm text-foreground">
+              To enter most classes, your dog needs an organization registration. Breed is recorded
+              with that registration, so you only enter it once.
+            </p>
+            <Button type="button" variant="outline" size="touch" onClick={onAddRegistration}>
+              Add dog registration
+            </Button>
+          </div>
+        )}
         {/* Photo Section */}
         <div className="flex items-start gap-6 p-6 bg-gradient-to-r from-muted/20 via-muted/10 to-transparent border border-border/20 rounded-2xl backdrop-blur-sm">
           <button

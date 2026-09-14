@@ -61,30 +61,56 @@ This is the canonical 8-step loop: implement → simplify → commit → PR → 
 
 Run Codex review **before** merging, not after — it's a gate, not a follow-up.
 
-**If the required harness is genuinely unavailable** (usage limit, outage, auth failure
-— not merely slow or inconvenient), use the **human-fallback** path instead of
-silently treating same-harness agents as equivalent:
+**Scrutiny scales with risk.** Run `pnpm qa:review-tier --base origin/main` to get the
+floor before spending a review round — it also runs inside `qa:review-gate.ts`, which
+refuses evidence below it. Four tiers, weakest to strongest: `none` < `owner` <
+`adversarial` < `independent`. Nobody types a `Review gate:` evidence line by hand;
+`scripts/qa/post-review-gate.sh` is the only writer, for every tier.
 
-1. Run at least two adversarial subagent reviews in parallel, using separate lenses and
-   prompts that say to _find bugs, not approve_ ("assume the author was overconfident";
-   "report only defects with a concrete failure scenario").
-2. Fix every finding and wait for the repository's required checks to pass.
-3. A repository OWNER or MEMBER posts a first-line attestation in this exact form,
-   pinned to the current head SHA, followed by the required detail lines:
+- **`independent`** — guardrails (`.github/`, `.claude/`, `.codex/`, `.agents/`,
+  `scripts/qa/`, `playwright*.config.ts`, `CLAUDE.md`, `AGENTS.md`,
+  `docs/agents/shared-rules.md`), auth, money, edge functions, `packages/replication`.
+  The cross-harness gate above.
+- **`adversarial`** — app code, tests, dependency manifests, and an unrecognised path
+  (fail safe, not fail cheap). Run at least two same-harness subagent reviews with
+  distinct bug-finding lenses — prompts that say to _find bugs, not approve_ ("assume
+  the author was overconfident"; "report only defects with a concrete failure
+  scenario") — fix every finding, and post
+  `<N> lenses, all findings addressed` with `<N>` >= 2. A migration path requires
+  `migration-auditor` as one of the two lenses, and `src/test/database/` must be
+  green. **On #1536, two clean subagent rounds still missed a P1 that Codex caught** —
+  this tier is real evidence, not a substitute for `independent`; do not reach for it
+  just because it is cheaper.
+- **`none`** — docs only. Verdict is exactly `low-risk paths, CI green`, no log
+  required.
+- **`owner` override** — when the required harness is genuinely unavailable (usage
+  limit, outage, auth failure — not merely slow or inconvenient), a repository OWNER
+  or MEMBER may defer scrutiny rather than silently treat same-harness agents as
+  equivalent. The override claims the SAME floor `qa:review-tier` printed for this
+  branch; a mismatched claim is refused. Set `OVERRIDE_REASON="<harness> unavailable —
+<detail>"` and `DEFERRED_REVIEW=<ISSUE-ID>` (uppercase prefix, e.g. `MYK9-523`) in
+  the environment and run:
 
-   ```text
-   Review gate: human-fallback reviewed <base>..<head> — 2 adversarial subagent reviews, all findings addressed
-   Fallback reason: Claude unavailable — <reason>
-   Adversarial subagent review: <lens one>
-   Adversarial subagent review: <lens two>
-   Required checks: passing
-   ```
+  ```bash
+  bash scripts/qa/post-review-gate.sh "$PR" owner <base-sha> <head-sha> \
+    "override, floor was independent" /dev/null
+  ```
 
-This is an explicitly labelled, second-best gate. Keep the PR a draft when nothing is
-time-pressured; when a maintainer authorizes the fallback, mark it ready so the status
-can be evaluated. Re-run the real independent gate once the harness is available and
-record that follow-up. On #1536 two clean subagent rounds still missed a P1 that Codex
-caught.
+  which posts, pinned to the current head SHA:
+
+  ```text
+  Review gate: owner reviewed <base>..<head> — override, floor was independent
+  Override reason: <harness> unavailable — <detail>
+  Deferred re-review: MYK9-<n>
+  ```
+
+  (`override, floor was adversarial` when that is the real floor.) No review log is
+  required for a clean `owner` post — scrutiny is deferred and tracked via
+  `DEFERRED_REVIEW`, never skipped and never faked with a fabricated "no findings"
+  log. Keep the PR a draft when nothing is time-pressured; when a maintainer
+  authorizes the override, mark it ready so the status can be evaluated. Re-run the
+  real gate at the deferred floor once the harness is available and close the tracked
+  issue.
 
 ## 5. Database change
 

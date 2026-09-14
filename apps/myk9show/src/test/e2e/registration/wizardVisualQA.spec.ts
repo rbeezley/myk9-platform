@@ -841,3 +841,56 @@ test('the desktop entries panel is the only place the total appears', async ({ p
     await removeAddedClass(page, added);
   }
 });
+
+/**
+ * MYK9-485. The touch-target minimum used to sit on the Checkbox's own
+ * className, which painted a 44px square around a 16px tick. The fix moves it
+ * to a wrapper, so the only honest check is a RENDERED one: the control keeps
+ * the shared default size while the region around it still toggles the row.
+ */
+test.describe('dog picker checkbox geometry', () => {
+  for (const width of [390, 1440]) {
+    test(`the checkbox is the shared default size with a 44px hit area at ${width}px`, async ({
+      page,
+    }) => {
+      await page.setViewportSize({ width, height: 900 });
+      await signInAsExhibitor(page, `/shows/${SHOW_ID}/register`);
+      await expect(page.getByRole('heading', { name: 'Select Dogs to Register' })).toBeVisible({
+        timeout: 30000,
+      });
+
+      const control = page.locator('[role="checkbox"][aria-label^="Select "]').first();
+      await expect(control).toBeVisible();
+
+      // Known answer: the shared control is h-4 w-4. A regression that restored
+      // the override would report ~44 here, which is what the audit saw.
+      const controlBox = (await control.boundingBox())!;
+      expect(controlBox, 'the checkbox must be measurable').not.toBeNull();
+      expect(
+        controlBox.width,
+        `checkbox painted box ${controlBox.width}x${controlBox.height} at ${width}px`
+      ).toBeLessThanOrEqual(24);
+      expect(controlBox.height).toBeLessThanOrEqual(24);
+      expect(controlBox.width).toBeGreaterThanOrEqual(12);
+
+      // The hit area is the wrapper, and it is the one that must clear 44px.
+      const hitArea = control.locator('xpath=..');
+      const hitBox = (await hitArea.boundingBox())!;
+      expect(hitBox.width, `hit area ${hitBox.width}x${hitBox.height}`).toBeGreaterThanOrEqual(44);
+      expect(hitBox.height).toBeGreaterThanOrEqual(44);
+
+      // A tap in the hit area but OUTSIDE the painted control still toggles the
+      // row. Aim 3px inside the wrapper's top-left corner, which is ~11px clear
+      // of the centred 16px box.
+      const before = await control.getAttribute('aria-checked');
+      await page.mouse.click(hitBox.x + 3, hitBox.y + 3);
+      await expect
+        .poll(async () => control.getAttribute('aria-checked'), { timeout: 10000 })
+        .not.toBe(before);
+
+      // Put the row back the way it was found — this spec runs serially.
+      await page.mouse.click(hitBox.x + 3, hitBox.y + 3);
+      await expect.poll(async () => control.getAttribute('aria-checked')).toBe(before);
+    });
+  }
+});

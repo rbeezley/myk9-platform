@@ -32,6 +32,7 @@ describe('TitleProgressSection', () => {
             requiredLegs: 3,
             isEarned: false,
             isSuperseded: false,
+            prerequisiteMet: true,
           },
         ],
       },
@@ -46,5 +47,20 @@ describe('TitleProgressSection', () => {
       'href',
       '/dogs/dog-1?section=career&view=titles'
     );
+  });
+
+  it('does not count untouched or prerequisite-locked catalogue titles', () => {
+    progress.value = {
+      progressBySport: {
+        'scent-work': [
+          { isEarned: false, isSuperseded: false, prerequisiteMet: true, earnedLegs: 0 },
+          { isEarned: false, isSuperseded: false, prerequisiteMet: false, earnedLegs: 2 },
+        ],
+      },
+      earnedAbbreviations: [],
+      isLoading: false,
+    };
+    const { container } = render(<TitleProgressSection dogId="dog-1" />);
+    expect(container).toBeEmptyDOMElement();
   });
 });

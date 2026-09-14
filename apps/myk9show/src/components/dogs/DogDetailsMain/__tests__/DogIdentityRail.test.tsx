@@ -93,7 +93,7 @@ describe('DogIdentityRail', () => {
     expect(screen.getByText('Primary contact')).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /verify for entry/i })).not.toBeInTheDocument();
     expect(screen.queryByRole('link', { name: /enter a show/i })).not.toBeInTheDocument();
-    fireEvent.click(screen.getByRole('button', { name: 'Edit Dog' }));
+    fireEvent.click(screen.getByRole('button', { name: /^Edit$/ }));
     expect(onEditPanelOpen).toHaveBeenCalledTimes(1);
   });
 

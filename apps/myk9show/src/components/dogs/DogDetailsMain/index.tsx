@@ -46,33 +46,29 @@ const DogDetailsMain: React.FC<DogDetailsMainProps> = ({
   const headingRef = useRef<HTMLHeadingElement>(null);
   useRouteEntryFocus(headingRef, dog.id);
 
-  const [autoOpenAddRegistration, setAutoOpenAddRegistration] = useState(false);
-  const [showRegistrationDetails, setShowRegistrationDetails] = useState(false);
+  const [addRegistrationDogId, setAddRegistrationDogId] = useState<string | null>(null);
+  const [registrationDetailsDogId, setRegistrationDetailsDogId] = useState<string | null>(null);
+
+  const navigateToOverview = () => {
+    const next = new URLSearchParams(searchParams);
+    next.delete('tab');
+    next.delete('section');
+    next.delete('view');
+    if (next.toString() !== searchParams.toString()) setSearchParams(next);
+  };
 
   // The rail's "Add registration" is the one ordinary path into the add
   // panel (RegistrationsSection's empty state deliberately carries no action).
   const openAddRegistration = () => {
     // Registrations live on Overview — the default section — so clearing
     // section/view state is enough to land there; no `tab` param is needed.
-    setSearchParams(prev => {
-      const next = new URLSearchParams(prev);
-      next.delete('tab');
-      next.delete('section');
-      next.delete('view');
-      return next;
-    });
-    setAutoOpenAddRegistration(true);
+    navigateToOverview();
+    setAddRegistrationDogId(dog.id);
   };
 
   const openRegistrationDetails = () => {
-    setSearchParams(prev => {
-      const next = new URLSearchParams(prev);
-      next.delete('tab');
-      next.delete('section');
-      next.delete('view');
-      return next;
-    });
-    setShowRegistrationDetails(true);
+    navigateToOverview();
+    setRegistrationDetailsDogId(dog.id);
     requestAnimationFrame(() => {
       const heading = document.getElementById('dog-registration-details');
       heading?.scrollIntoView({ block: 'start' });
@@ -81,14 +77,15 @@ const DogDetailsMain: React.FC<DogDetailsMainProps> = ({
   };
 
   useEffect(() => {
-    const shouldAddRegistration = searchParams.get('addRegistration') === 'true';
-    if (shouldAddRegistration) {
-      setAutoOpenAddRegistration(true);
-      const newUrl = new URL(window.location.href);
-      newUrl.searchParams.delete('addRegistration');
-      window.history.replaceState({}, '', newUrl.toString());
-    }
-  }, [searchParams]);
+    if (searchParams.get('addRegistration') !== 'true') return;
+    const next = new URLSearchParams(searchParams);
+    next.delete('addRegistration');
+    next.delete('tab');
+    next.delete('section');
+    next.delete('view');
+    setAddRegistrationDogId(dog.id);
+    setSearchParams(next, { replace: true });
+  }, [dog.id, searchParams, setSearchParams]);
 
   // Owner — try store first, fall back to Supabase query
   const storeOwner: Owner | null = React.useMemo(() => {
@@ -293,9 +290,11 @@ const DogDetailsMain: React.FC<DogDetailsMainProps> = ({
           <main className="flex-1 min-w-0">
             <DogDetailsTabs
               dog={updatedDog}
-              autoOpenAddRegistration={autoOpenAddRegistration}
-              onAddRequestConsumed={() => setAutoOpenAddRegistration(false)}
-              showRegistrationDetails={showRegistrationDetails}
+              autoOpenAddRegistration={addRegistrationDogId === dog.id}
+              onAddRequestConsumed={() => setAddRegistrationDogId(null)}
+              showRegistrationDetails={
+                registrationDetailsDogId === dog.id || searchParams.get('tab') === 'registrations'
+              }
               registrationsCount={liveRegistrationsCount}
               role={isSecretary ? 'secretary' : 'exhibitor'}
             />

@@ -21,7 +21,9 @@ interface TitleProgressSectionProps {
 const TitleProgressSection: React.FC<TitleProgressSectionProps> = ({ dogId }) => {
   const { progressBySport, earnedAbbreviations, isLoading } = useTitleProgress(dogId);
   const tracks = Object.values(progressBySport).flat();
-  const inProgressCount = tracks.filter(t => !t.isEarned && !t.isSuperseded).length;
+  const inProgressCount = tracks.filter(
+    t => !t.isEarned && !t.isSuperseded && t.prerequisiteMet && t.earnedLegs > 0
+  ).length;
 
   if (isLoading) {
     return (

@@ -10,7 +10,7 @@
 
 import React, { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Camera, Mail, Phone, Plus } from 'lucide-react';
+import { Camera, Mail, Pencil, Phone, Plus } from 'lucide-react';
 import ThreeDotMenu from '@/components/common/ThreeDotMenu';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -168,23 +168,23 @@ const DogIdentityRail: React.FC<DogIdentityRailProps> = ({
           )}
         </div>
 
-        <div className="mt-4 flex items-center gap-2">
-          {!isSecretary && (
+        {!isSecretary && (
+          <div className="mt-4 flex items-center gap-2">
             <Button variant="default" className="min-h-11 flex-1 gap-1.5" asChild>
               <Link to="/shows">
                 <Plus className="h-4 w-4" />
                 Enter a show
               </Link>
             </Button>
-          )}
-          <ThreeDotMenu
-            onEdit={onEditPanelOpen}
-            onEditPhoto={onPhotoDialogOpen}
-            onChangeStatus={onStatusDialogOpen}
-            onDelete={canDelete ? onDeleteDialogOpen : undefined}
-            editLabel="Edit Dog"
-          />
-        </div>
+            <ThreeDotMenu
+              onEdit={onEditPanelOpen}
+              onEditPhoto={onPhotoDialogOpen}
+              onChangeStatus={onStatusDialogOpen}
+              onDelete={canDelete ? onDeleteDialogOpen : undefined}
+              editLabel="Edit Dog"
+            />
+          </div>
+        )}
 
         <div className="mt-4 space-y-2">
           <Row label="Breed" value={registry.breed} />
@@ -236,6 +236,21 @@ const DogIdentityRail: React.FC<DogIdentityRailProps> = ({
           </div>
           {ownerBody}
         </div>
+        {isSecretary && (
+          <div className="mt-6 flex items-center gap-2">
+            <Button variant="outline" className="min-h-11 flex-1 gap-1.5" onClick={onEditPanelOpen}>
+              <Pencil className="h-4 w-4" />
+              Edit
+            </Button>
+            <ThreeDotMenu
+              onEdit={onEditPanelOpen}
+              onEditPhoto={onPhotoDialogOpen}
+              onChangeStatus={onStatusDialogOpen}
+              onDelete={canDelete ? onDeleteDialogOpen : undefined}
+              hideEdit
+            />
+          </div>
+        )}
       </div>
     </aside>
   );

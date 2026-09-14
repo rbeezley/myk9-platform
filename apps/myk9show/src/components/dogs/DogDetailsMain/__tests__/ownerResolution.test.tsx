@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { screen, waitFor } from '@testing-library/react';
+import { fireEvent, screen, waitFor } from '@testing-library/react';
+import { useLocation, useNavigationType } from 'react-router-dom';
 import { render } from '@/test/utils/testUtils';
 import DogDetailsMain from '../index';
 import type { Dog } from '@/types/dog-types';
@@ -39,6 +40,8 @@ vi.mock('@/services/database/supabaseClient', () => ({
 // ---------------------------------------------------------------------------
 // mockPeople is mutated per-test; the factory closure reads it at call time
 let mockPeople: User[] = [];
+let mockRole = 'secretary';
+let mockRegistrations: { organization: string; registration_number: string }[] = [];
 
 vi.mock('@/store/userStore', () => ({
   useUserStore: (selector: (s: { people: unknown[] }) => unknown) =>
@@ -53,8 +56,8 @@ vi.mock('@/store/entryStore', () => ({
 // Hook / dependency mocks
 // ---------------------------------------------------------------------------
 vi.mock('@/hooks/useAuthContext', () => ({
-  useAuthContext: () => ({ getUserRoles: () => ['secretary'], hasRole: () => false }),
-  getPrimaryRole: () => 'secretary',
+  useAuthContext: () => ({ getUserRoles: () => [mockRole], hasRole: () => false }),
+  getPrimaryRole: () => mockRole,
 }));
 
 // Delete-permission logic is covered in useRoleBasedData.test.ts; mock it here so
@@ -83,7 +86,7 @@ vi.mock('@/services/LoggingService', () => ({
 }));
 
 vi.mock('@/hooks/queries/useRegistrationsDatabase', () => ({
-  useRegistrationsByDogQuery: () => ({ data: [], isLoading: false }),
+  useRegistrationsByDogQuery: () => ({ data: mockRegistrations, isLoading: false }),
 }));
 
 // ---------------------------------------------------------------------------
@@ -94,7 +97,22 @@ vi.mock('@/components/common/ThreeDotMenu', () => ({
 }));
 
 vi.mock('../DogDetailsTabs', () => ({
-  default: () => <div data-testid="dog-tabs" />,
+  default: function MockDogDetailsTabs({ autoOpenAddRegistration, showRegistrationDetails }: {
+    autoOpenAddRegistration: boolean;
+    showRegistrationDetails: boolean;
+  }) {
+    const location = useLocation();
+    const navigationType = useNavigationType();
+    return (
+      <div
+        data-testid="dog-tabs"
+        data-add-registration={String(autoOpenAddRegistration)}
+        data-show-registration-details={String(showRegistrationDetails)}
+        data-search={location.search}
+        data-navigation-type={navigationType}
+      />
+    );
+  },
 }));
 
 vi.mock('../DogDialogs', () => ({
@@ -121,6 +139,8 @@ describe('DogDetailsMain — owner resolution', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockPeople = [];
+    mockRole = 'secretary';
+    mockRegistrations = [];
   });
 
   it('renders owner name immediately when found in the people store, with no Supabase query', async () => {
@@ -204,5 +224,44 @@ describe('DogDetailsMain — owner resolution', () => {
 
     // No crash — the component is still mounted
     expect(document.querySelector('[data-dog-identity]')).not.toBeNull();
+  });
+
+  it('keeps registration management scoped to the dog that opened it', () => {
+    mockRole = 'exhibitor';
+    mockPeople = [{ id: DOG_OWNER_ID, firstName: 'Jane', lastName: 'Smith' }];
+    mockRegistrations = [{ organization: 'AKC', registration_number: 'SR123' }];
+    const { rerender } = render(<DogDetailsMain dog={mockDog} />, {
+      initialRoute: '/dogs/dog-1',
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Manage registrations' }));
+    expect(screen.getByTestId('dog-tabs')).toHaveAttribute('data-show-registration-details', 'true');
+    expect(screen.getByTestId('dog-tabs')).toHaveAttribute('data-navigation-type', 'POP');
+
+    rerender(<DogDetailsMain dog={{ ...mockDog, id: 'dog-2' }} />);
+    expect(screen.getByTestId('dog-tabs')).toHaveAttribute('data-show-registration-details', 'false');
+  });
+
+  it('opens the management view for a legacy registration bookmark', () => {
+    mockRole = 'exhibitor';
+    mockPeople = [{ id: DOG_OWNER_ID, firstName: 'Jane', lastName: 'Smith' }];
+    mockRegistrations = [{ organization: 'AKC', registration_number: 'SR123' }];
+    render(<DogDetailsMain dog={mockDog} />, {
+      initialRoute: '/dogs/dog-1?tab=registrations',
+    });
+    expect(screen.getByTestId('dog-tabs')).toHaveAttribute('data-show-registration-details', 'true');
+  });
+
+  it('lands on Overview and opens Add registration from a mixed deep link', async () => {
+    mockRole = 'exhibitor';
+    mockPeople = [{ id: DOG_OWNER_ID, firstName: 'Jane', lastName: 'Smith' }];
+    render(<DogDetailsMain dog={mockDog} />, {
+      initialRoute: '/dogs/dog-1?section=career&addRegistration=true',
+    });
+    await waitFor(() => {
+      expect(screen.getByTestId('dog-tabs')).toHaveAttribute('data-search', '');
+      expect(screen.getByTestId('dog-tabs')).toHaveAttribute('data-add-registration', 'true');
+      expect(screen.getByTestId('dog-tabs')).toHaveAttribute('data-navigation-type', 'REPLACE');
+    });
   });
 });

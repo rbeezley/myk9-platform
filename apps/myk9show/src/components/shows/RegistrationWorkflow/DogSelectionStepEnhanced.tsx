@@ -34,6 +34,7 @@ import {
 import { formatDateMMDDYYYY } from '@/utils/dateFormat';
 import { useRegistrationPermissions } from '@/hooks/useRegistrationPermissions';
 import { UserRole } from '@/types/auth-types';
+import { getPrimaryRole } from '@/context/authContextHelpers';
 import { useRegistrationContext } from '@/hooks/useRegistrationContext';
 import { useDebounce } from '@myk9/scoring-ui';
 import { searchAllDogs, SEARCH_ALL_DOGS_LIMIT } from '@/services/database/dogs';
@@ -534,6 +535,7 @@ export const DogSelectionStepEnhanced: React.FC<DogSelectionStepProps> = ({
       />
       <AddDogPanel
         open={showDogDialog}
+        userRole={getPrimaryRole(roles)}
         onClose={() => setShowDogDialog(false)}
         onDogCreated={handleDogCreated}
         variant="dialog"

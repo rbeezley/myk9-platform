@@ -495,13 +495,6 @@ export type Database = {
             foreignKeyName: "armbands_entry_id_fkey"
             columns: ["entry_id"]
             isOneToOne: false
-            referencedRelation: "view_public_entry_results"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "armbands_entry_id_fkey"
-            columns: ["entry_id"]
-            isOneToOne: false
             referencedRelation: "view_stats_summary"
             referencedColumns: ["entry_id"]
           },
@@ -2473,13 +2466,6 @@ export type Database = {
             foreignKeyName: "entry_cart_items_entry_id_fkey"
             columns: ["entry_id"]
             isOneToOne: false
-            referencedRelation: "view_public_entry_results"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "entry_cart_items_entry_id_fkey"
-            columns: ["entry_id"]
-            isOneToOne: false
             referencedRelation: "view_stats_summary"
             referencedColumns: ["entry_id"]
           },
@@ -2760,13 +2746,6 @@ export type Database = {
             columns: ["entry_id"]
             isOneToOne: false
             referencedRelation: "view_own_entry_results"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "entry_status_history_entry_id_fkey"
-            columns: ["entry_id"]
-            isOneToOne: false
-            referencedRelation: "view_public_entry_results"
             referencedColumns: ["id"]
           },
           {
@@ -3645,13 +3624,6 @@ export type Database = {
             foreignKeyName: "nationals_advancement_entry_id_fkey"
             columns: ["entry_id"]
             isOneToOne: false
-            referencedRelation: "view_public_entry_results"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "nationals_advancement_entry_id_fkey"
-            columns: ["entry_id"]
-            isOneToOne: false
             referencedRelation: "view_stats_summary"
             referencedColumns: ["entry_id"]
           },
@@ -3748,13 +3720,6 @@ export type Database = {
             columns: ["entry_id"]
             isOneToOne: true
             referencedRelation: "view_own_entry_results"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "nationals_rankings_entry_id_fkey"
-            columns: ["entry_id"]
-            isOneToOne: true
-            referencedRelation: "view_public_entry_results"
             referencedColumns: ["id"]
           },
           {
@@ -3866,13 +3831,6 @@ export type Database = {
             columns: ["entry_id"]
             isOneToOne: false
             referencedRelation: "view_own_entry_results"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "nationals_scores_entry_id_fkey"
-            columns: ["entry_id"]
-            isOneToOne: false
-            referencedRelation: "view_public_entry_results"
             referencedColumns: ["id"]
           },
           {
@@ -4185,13 +4143,6 @@ export type Database = {
             columns: ["entry_id"]
             isOneToOne: false
             referencedRelation: "view_own_entry_results"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "offline_scoring_entry_id_fkey"
-            columns: ["entry_id"]
-            isOneToOne: false
-            referencedRelation: "view_public_entry_results"
             referencedColumns: ["id"]
           },
           {
@@ -6448,13 +6399,6 @@ export type Database = {
             foreignKeyName: "show_incidents_entry_id_fkey"
             columns: ["entry_id"]
             isOneToOne: false
-            referencedRelation: "view_public_entry_results"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "show_incidents_entry_id_fkey"
-            columns: ["entry_id"]
-            isOneToOne: false
             referencedRelation: "view_stats_summary"
             referencedColumns: ["entry_id"]
           },
@@ -6789,13 +6733,6 @@ export type Database = {
             columns: ["entry_id"]
             isOneToOne: false
             referencedRelation: "view_own_entry_results"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "show_lifecycle_email_jobs_entry_id_fkey"
-            columns: ["entry_id"]
-            isOneToOne: false
-            referencedRelation: "view_public_entry_results"
             referencedColumns: ["id"]
           },
           {
@@ -7898,13 +7835,6 @@ export type Database = {
             columns: ["entry_id"]
             isOneToOne: false
             referencedRelation: "view_own_entry_results"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "sms_proximity_sends_entry_id_fkey"
-            columns: ["entry_id"]
-            isOneToOne: false
-            referencedRelation: "view_public_entry_results"
             referencedColumns: ["id"]
           },
           {
@@ -10365,13 +10295,6 @@ export type Database = {
             foreignKeyName: "waitlist_entries_promoted_entry_id_fkey"
             columns: ["promoted_entry_id"]
             isOneToOne: false
-            referencedRelation: "view_public_entry_results"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "waitlist_entries_promoted_entry_id_fkey"
-            columns: ["promoted_entry_id"]
-            isOneToOne: false
             referencedRelation: "view_stats_summary"
             referencedColumns: ["entry_id"]
           },
@@ -11662,48 +11585,6 @@ export type Database = {
             referencedColumns: ["trial_id"]
           },
           {
-            foreignKeyName: "entries_class_id_fkey"
-            columns: ["class_id"]
-            isOneToOne: false
-            referencedRelation: "classes"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "entries_class_id_fkey"
-            columns: ["class_id"]
-            isOneToOne: false
-            referencedRelation: "view_breed_stats"
-            referencedColumns: ["class_id"]
-          },
-          {
-            foreignKeyName: "entries_class_id_fkey"
-            columns: ["class_id"]
-            isOneToOne: false
-            referencedRelation: "view_fastest_times"
-            referencedColumns: ["class_id"]
-          },
-          {
-            foreignKeyName: "entries_class_id_fkey"
-            columns: ["class_id"]
-            isOneToOne: false
-            referencedRelation: "view_myk9q_entries"
-            referencedColumns: ["class_id"]
-          },
-          {
-            foreignKeyName: "entries_class_id_fkey"
-            columns: ["class_id"]
-            isOneToOne: false
-            referencedRelation: "view_stats_summary"
-            referencedColumns: ["class_id"]
-          },
-          {
-            foreignKeyName: "entries_dog_id_fkey"
-            columns: ["dog_id"]
-            isOneToOne: false
-            referencedRelation: "dogs"
-            referencedColumns: ["id"]
-          },
-          {
             foreignKeyName: "entries_show_id_fkey"
             columns: ["show_id"]
             isOneToOne: false
@@ -12087,6 +11968,7 @@ export type Database = {
         Args: { p_request_id: string; p_reviewer_note?: string }
         Returns: undefined
       }
+      derive_registry_id: { Args: { p_organization: string }; Returns: string }
       emergency_packet_input: {
         Args: { p_show_id: string; p_trial_date?: string }
         Returns: Json

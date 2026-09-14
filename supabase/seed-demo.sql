@@ -195,6 +195,13 @@ WHERE id >= 'a1090000-0000-0000-0003-000000000000'::uuid
 DELETE FROM public.entries
 WHERE id >= 'a1090000-0000-0000-0002-000000000000'::uuid
   AND id < 'a1090000-0000-0000-0003-000000000000'::uuid; -- myk9_109
+-- waitlist_entries.dog_id has no ON DELETE action (pg_constraint confdeltype='a'),
+-- unlike entries.dog_id which cascades. A stray waitlist join for a load-range dog
+-- would block the dogs delete below the same way the stray wizard entry blocked
+-- the enrollment delete further down this section (MYK9-490 self-cleaning follow-up).
+DELETE FROM public.waitlist_entries
+WHERE dog_id >= 'a1090000-0000-0000-0001-000000000000'::uuid
+  AND dog_id < 'a1090000-0000-0000-0002-000000000000'::uuid; -- myk9_109
 DELETE FROM public.dogs
 WHERE id >= 'a1090000-0000-0000-0001-000000000000'::uuid
   AND id < 'a1090000-0000-0000-0002-000000000000'::uuid; -- myk9_109
@@ -236,6 +243,21 @@ DELETE FROM public.entries WHERE id IN (
 -- The multi-dog enrollment (section 6b) is referenced by the entries above via
 -- entries.registration_id, whose FK is NO ACTION — so it can only be deleted
 -- once those entries are gone. Hence its position here, not with the shows.
+-- The hard-coded entries delete above only removes THIS seed's own entry ids.
+-- On 2026-09-12 a stray entry (fdf15504-d9ea-4862-b373-40db20cc4566) created by
+-- a manual walk through the registration wizard against the demo show also
+-- pointed its registration_id at this enrollment, was not in that id list, and
+-- blocked the delete below with "violates foreign key constraint
+-- entries_registration_id_fkey". Clear by PARENT RELATIONSHIP too — every
+-- entry whose registration_id resolves to this enrollment, however it was
+-- created — not only the seed's own hard-coded ids.
+DELETE FROM public.entries
+WHERE registration_id = 'dededede-0000-0000-0000-000000000070'
+   OR registration_id IN (
+        SELECT id FROM public.enrollments
+        WHERE show_id = 'dededede-0000-0000-0000-000000000010'
+          AND handler_id = (SELECT id FROM public.people WHERE lower(email)='exhibitor@myk9t.com')
+      );
 -- Delete by the (show, handler) PAIR as well as by id: that pair is uniquely
 -- indexed, so a stray enrollment created by a real Stripe checkout against the
 -- demo show would otherwise survive, absorb the insert below through ON
@@ -254,6 +276,14 @@ DELETE FROM public.classes WHERE id IN (
   'dec1a55e-0000-0000-0000-000000000036','dec1a55e-0000-0000-0000-000000000037',
   'dec1a55e-0000-0000-0000-000000000038','dec1a55e-0000-0000-0000-000000000039',
   'dec1a55e-0000-0000-0000-000000000040'
+);
+-- waitlist_entries.dog_id is also NO ACTION (see the myk9_109 waitlist cleanup
+-- above); a stray waitlist join for one of these demo dogs would block this
+-- delete the same way the stray wizard entry blocked the enrollment delete above.
+DELETE FROM public.waitlist_entries WHERE dog_id IN (
+  'dededede-0000-0000-0000-000000000041','dededede-0000-0000-0000-000000000042',
+  'dededede-0000-0000-0000-000000000043','dededede-0000-0000-0000-000000000044',
+  'dededede-0000-0000-0000-000000000045','dededede-0000-0000-0000-000000000046'
 );
 DELETE FROM public.dogs WHERE id IN (
   'dededede-0000-0000-0000-000000000041','dededede-0000-0000-0000-000000000042',

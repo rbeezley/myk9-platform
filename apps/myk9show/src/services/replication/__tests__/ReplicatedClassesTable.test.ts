@@ -1122,7 +1122,11 @@ describe('rowToClass — judge name comes only from the assignment embed', () =>
       id: 'c1',
       name: 'Interior Advanced',
       judge_assignments: [
-        { person_id: 'p-1', status: 'confirmed', people: { first_name: 'Ada', last_name: 'Judge' } },
+        {
+          person_id: 'p-1',
+          status: 'confirmed',
+          people: { first_name: 'Ada', last_name: 'Judge' },
+        },
       ],
     } as unknown as Parameters<typeof rowToClass>[0]);
 

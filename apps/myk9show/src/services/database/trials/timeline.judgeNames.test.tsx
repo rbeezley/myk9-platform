@@ -22,8 +22,7 @@ const mockRpc = vi.fn();
 const mockFrom = vi.fn();
 
 vi.mock('@/services/database/supabaseClient', async importOriginal => {
-  const actual =
-    await importOriginal<typeof import('@/services/database/supabaseClient')>();
+  const actual = await importOriginal<typeof import('@/services/database/supabaseClient')>();
   return {
     ...actual,
     supabase: {
@@ -33,18 +32,14 @@ vi.mock('@/services/database/supabaseClient', async importOriginal => {
   };
 });
 
-const { rowToClass, replicatedClassesTable } = await import(
-  '@/services/replication/ReplicatedClassesTable'
-);
+const { rowToClass, replicatedClassesTable } =
+  await import('@/services/replication/ReplicatedClassesTable');
 const { replicatedEntriesTable } = await import('@/services/replication/ReplicatedEntriesTable');
 const { replicatedTrialsTable } = await import('@/services/replication/ReplicatedTrialsTable');
-const { resolveJudgeNamesForClassRows } = await import(
-  '@/services/replication/resolveClassJudgeNames'
-);
+const { resolveJudgeNamesForClassRows } =
+  await import('@/services/replication/resolveClassJudgeNames');
 const { getShowScheduleTimelineRows } = await import('./timeline');
-const { CompactScheduleTimeline } = await import(
-  '@/components/schedule/CompactScheduleTimeline'
-);
+const { CompactScheduleTimeline } = await import('@/components/schedule/CompactScheduleTimeline');
 
 const SHOW_ID = 'show-heartland';
 const TRIAL_ID = 'trial-saturday';
@@ -157,11 +152,13 @@ function resolveQuery(ctx: QueryContext): { data: unknown; error: unknown; count
 function makeQueryBuilder(table: string): Record<string, unknown> {
   const ctx: QueryContext = { table, select: '', filters: [] };
   const builder: Record<string, unknown> = {};
-  const chain = (method: string) => (...args: unknown[]) => {
-    if (method === 'select') ctx.select = String(args[0] ?? '');
-    ctx.filters.push([method, ...args]);
-    return builder;
-  };
+  const chain =
+    (method: string) =>
+    (...args: unknown[]) => {
+      if (method === 'select') ctx.select = String(args[0] ?? '');
+      ctx.filters.push([method, ...args]);
+      return builder;
+    };
   for (const method of ['select', 'eq', 'in', 'is', 'gt', 'not', 'order', 'limit']) {
     builder[method] = chain(method);
   }

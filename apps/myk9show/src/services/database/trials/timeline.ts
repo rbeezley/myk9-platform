@@ -4,10 +4,7 @@ import { replicatedEntriesTable } from '@/services/replication/ReplicatedEntries
 import { replicatedTrialsTable } from '@/services/replication/ReplicatedTrialsTable';
 import { withReplicationFallback } from '../_shared/replication-fallback';
 import { fetchEntryCountsByClassIds } from '../_shared/entryCounts';
-import {
-  fetchJudgeNamePartsByClass,
-  type JudgeNameParts,
-} from '../_shared/judgeNamesByClass';
+import { fetchJudgeNamePartsByClass, type JudgeNameParts } from '../_shared/judgeNamesByClass';
 import { resolveClassJudgeFields } from '../_shared/classJudgeFields';
 import type { ReplicatedClass } from '@/services/replication/ReplicatedClassesTable';
 import type { ReplicatedTrial } from '@/services/replication/ReplicatedTrialsTable';

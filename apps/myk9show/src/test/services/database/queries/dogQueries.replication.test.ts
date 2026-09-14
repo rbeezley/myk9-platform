@@ -12,6 +12,7 @@ const { mockDogsTable, mockEntriesTable, mockDogRegistrationsTable, mockServerRe
   vi.hoisted(() => ({
     mockDogsTable: {
       getAllDogs: vi.fn(),
+      getAllDogsWithStatus: vi.fn(),
       getDogById: vi.fn(),
       getDogsByOwner: vi.fn(),
       searchDogs: vi.fn(),
@@ -130,6 +131,13 @@ function makeEntry(overrides: Partial<ReplicatedEntry> = {}): ReplicatedEntry {
 describe('dogQueries (replication)', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    // getAllDogs() in reads.ts reads through getAllDogsWithStatus so a cold
+    // local store cannot masquerade as an empty roster; these tests exercise a
+    // warm store, so the wrapper just reports what getAllDogs returns.
+    mockDogsTable.getAllDogsWithStatus.mockImplementation(async () => ({
+      rows: await mockDogsTable.getAllDogs(),
+      cold: false,
+    }));
     mockServerRegistrationRows.mockReturnValue([]);
     mockDogRegistrationsTable.getRegistrationsForDogs.mockResolvedValue([]);
     mockDogRegistrationsTable.getRegistrationsForDog.mockResolvedValue([]);

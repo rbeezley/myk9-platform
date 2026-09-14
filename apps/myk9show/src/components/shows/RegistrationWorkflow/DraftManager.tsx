@@ -24,6 +24,8 @@ interface DraftManagerProps {
   dogsReady?: boolean;
   loadError?: boolean;
   loadingDogs?: boolean;
+  /** The signed-in person has not resolved yet, so no roster request is even in flight. */
+  identityPending?: boolean;
   onRetryDogs?: () => void;
 }
 
@@ -40,6 +42,7 @@ export function DraftManager({
   dogsReady = true,
   loadError = false,
   loadingDogs = false,
+  identityPending = false,
   onRetryDogs,
 }: DraftManagerProps) {
   const [isLoadDialogOpen, setIsLoadDialogOpen] = useState(false);
@@ -49,7 +52,10 @@ export function DraftManager({
   const latestEntryDraft = showResume
     ? availableDrafts.find(draft => (draft.selectedDogsCount ?? 0) > 0 && !draft.completed)
     : undefined;
-  const retryDogs = loadError || (!dogsReady && !loadingDogs);
+  // Retrying is only meaningful once we know WHO to load dogs for. Without a
+  // resolved person there is no roster request to retry, so the panel waits
+  // instead of offering a button that would fire an identity-less read.
+  const retryDogs = !identityPending && (loadError || (!dogsReady && !loadingDogs));
 
   const handleSaveDraft = async () => {
     if (!saveTitle.trim()) {
@@ -275,7 +281,9 @@ export function DraftManager({
                   ? 'Your previous selection is saved on this device. Resume it or select a dog below to start a different entry.'
                   : loadingDogs
                     ? 'Your entry is saved here. Waiting for your dogs to load.'
-                    : 'Your entry is saved here. Reconnect and try loading your dogs.'}
+                    : identityPending
+                      ? 'Your entry is saved here. Waiting for your account to finish loading.'
+                      : 'Your entry is saved here. Reconnect and try loading your dogs.'}
             </p>
           </div>
           <Button

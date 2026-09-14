@@ -1,4 +1,4 @@
-import type { DraftMetadata, SavedDraft } from './useDraftPersistence';
+import type { DraftMetadata, SavedDraft } from './draftMetadata';
 import { makeHandlerKey } from '@/types/show-registration-types';
 import { EntryStatus, PaymentStatus } from '@/types/show-registration-types';
 

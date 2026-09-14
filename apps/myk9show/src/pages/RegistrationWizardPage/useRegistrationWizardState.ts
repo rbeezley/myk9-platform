@@ -539,8 +539,14 @@ export function useRegistrationWizardState() {
     dogsReady,
     dogsError: dogsReady ? null : dogsError || (!exhibitorProfile ? profileError : null),
     resumeDataLoading: profileLoading || dogsLoading,
+    // Unresolved identity is its own state: no roster request is in flight and
+    // an empty roster says nothing about this exhibitor. A profile error is a
+    // failure the exhibitor can retry, so it is not identity-pending.
+    dogsIdentityPending: !exhibitorProfile?.person_id && !profileError,
     retryDogLoad: () => {
-      if (exhibitorProfile && !profileError) refetchDogs();
+      // Never refetch the roster without a resolved person — the query is
+      // disabled for that reason and refetch() would bypass it.
+      if (exhibitorProfile?.person_id && !profileError) refetchDogs();
       else void refetchExhibitorProfile();
     },
     classes,

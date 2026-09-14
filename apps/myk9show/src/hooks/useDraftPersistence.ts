@@ -9,6 +9,9 @@ import {
 } from './pruneFiledDogsFromDraft';
 import { makeHandlerKey } from '@/types/show-registration-types';
 import { readSavedDraftMetadata } from './readSavedDraftMetadata';
+import { createDraftMetadata, type DraftMetadata, type SavedDraft } from './draftMetadata';
+
+export type { DraftMetadata, SavedDraft } from './draftMetadata';
 
 export interface DraftPersistenceConfig {
   /** Auto-save interval in milliseconds (default: 30000 = 30 seconds) */
@@ -19,24 +22,6 @@ export interface DraftPersistenceConfig {
   maxDraftsPerShow?: number;
   /** Enable debug logging (default: false) */
   debug?: boolean;
-}
-
-export interface DraftMetadata {
-  id: string;
-  showId: string;
-  userId: string;
-  timestamp: number;
-  stepCompleted: string;
-  title: string;
-  preview: string;
-  /** Read from the saved payload when listing drafts. */
-  selectedDogsCount?: number;
-  completed?: boolean;
-}
-
-export interface SavedDraft {
-  metadata: DraftMetadata;
-  data: Partial<RegistrationFormData>;
 }
 
 const DEFAULT_CONFIG: Required<DraftPersistenceConfig> = {
@@ -96,32 +81,8 @@ export function useDraftPersistence(
   );
 
   const generateDraftMetadata = useCallback(
-    (data: Partial<RegistrationFormData>): DraftMetadata => {
-      const selectedDogs = data.selectedDogs?.length || 0;
-      const selectedClasses =
-        data.entries?.reduce((total, entry) => total + (entry.classes?.length || 0), 0) || 0;
-
-      let preview = '';
-      if (selectedDogs > 0) {
-        preview += `${selectedDogs} dog${selectedDogs !== 1 ? 's' : ''}`;
-      }
-      if (selectedClasses > 0) {
-        preview += `${preview ? ', ' : ''}${selectedClasses} class${selectedClasses !== 1 ? 'es' : ''}`;
-      }
-      if (!preview) {
-        preview = 'New registration';
-      }
-
-      return {
-        id: crypto.randomUUID(),
-        showId,
-        userId,
-        timestamp: Date.now(),
-        stepCompleted: data._workflowState?.currentStep ?? currentStep,
-        title: `Draft from ${new Date().toLocaleDateString()}`,
-        preview,
-      };
-    },
+    (data: Partial<RegistrationFormData>): DraftMetadata =>
+      createDraftMetadata(data, { showId, userId, currentStep }),
     [showId, userId, currentStep]
   );
 
@@ -303,9 +264,13 @@ export function useDraftPersistence(
     pendingRestoreDataRef.current = null;
     const dataToSave = saveableData(draftData);
     if (!dataToSave) return;
-    // The wizard supplies a non-empty envelope even before a dog is selected.
-    // Do not let a fresh empty wizard evict an unfinished entry on this device.
-    if (!dataToSave.selectedDogs?.length && !activeDraftMetadataRef.current) return;
+    // The wizard supplies a non-empty envelope even before a dog is selected,
+    // and a resumed draft can be emptied again by deselecting every dog. A
+    // dogless payload can never be resumed (DraftManager only offers drafts
+    // with selectedDogsCount > 0), so it is never worth writing — neither over
+    // an unfinished entry on this device nor over the draft just resumed.
+    // Drafts are discarded deliberately through deleteDraft/clearAllDrafts.
+    if (!dataToSave.selectedDogs?.length) return;
 
     // Check if data has changed since last save
     const currentDataString = JSON.stringify(dataToSave);
@@ -441,6 +406,17 @@ export function useDraftPersistence(
     [draftsVersion, getDraftKey, getDraftMetadata, showId, userId]
   );
 
+  // saveableData() mints a UUID and prunes the payload, so calling it inline in
+  // the returned object ran that work on every render of every consumer.
+  // draftsVersion is a dependency because saveableData also reads
+  // handledAfterSubmitRef, which discardDraftsWithoutFinalSave mutates while
+  // bumping that counter — without it the memo would hold a pre-submit answer.
+  const hasUnsavedChanges = useMemo(
+    () => !!(draftData && Object.keys(draftData).length > 0 && saveableData(draftData)),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [draftData, saveableData, draftsVersion]
+  );
+
   return {
     // Draft operations
     saveDraft: saveWithTitle,
@@ -456,11 +432,7 @@ export function useDraftPersistence(
     discardDraftsWithoutFinalSave,
 
     // State
-    hasUnsavedChanges: !!(
-      draftData &&
-      Object.keys(draftData).length > 0 &&
-      saveableData(draftData)
-    ),
+    hasUnsavedChanges,
     lastAutoSave: lastAutoSaveTime,
   };
 }

@@ -91,6 +91,7 @@ function RegistrationWizardContent() {
     dogsReady,
     dogsError,
     resumeDataLoading,
+    dogsIdentityPending,
     retryDogLoad,
     agreedToEntryAgreement,
     setAgreedToEntryAgreement,
@@ -113,7 +114,10 @@ function RegistrationWizardContent() {
   } = wiz;
 
   const showBlockedReason = !!proceedBlocked && !isSubmitting;
-  const [hasEditedDogSelection, setHasEditedDogSelection] = useState(false);
+  // True only while the exhibitor's OWN clearing of the dog step is the reason
+  // the selection is empty. Picking dogs again resets it, so a later genuine
+  // return to an empty dog step can offer the saved entry again.
+  const [clearedDogSelection, setClearedDogSelection] = useState(false);
 
   // "Your entries" — the wizard's single running total. Mounted on every step
   // except the Receipt, which has nothing left to total and keeps its own
@@ -331,12 +335,13 @@ function RegistrationWizardContent() {
                   showResume={
                     currentWorkflowMode === 'exhibitor' &&
                     currentStepId === 'dog-selection' &&
-                    !hasEditedDogSelection &&
+                    !clearedDogSelection &&
                     registrationData.selectedDogs.length === 0
                   }
                   dogsReady={dogsReady}
                   loadError={!!dogsError}
                   loadingDogs={resumeDataLoading}
+                  identityPending={dogsIdentityPending}
                   onRetryDogs={retryDogLoad}
                 />
               )}
@@ -412,7 +417,7 @@ function RegistrationWizardContent() {
               armbandAssignments={armbandAssignments}
               entryOutcomes={entryOutcomes}
               onDogSelectionChange={dogIds => {
-                setHasEditedDogSelection(true);
+                setClearedDogSelection(dogIds.length === 0);
                 handleDogSelectionChange(dogIds);
               }}
               onClassSelectionChange={handleClassSelectionChange}

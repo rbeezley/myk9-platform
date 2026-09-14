@@ -74,7 +74,7 @@ vi.mock('@/hooks/useReplicationSync', () => ({
 }));
 
 const mockProfileState: {
-  profile: { id: string; person_id: string };
+  profile: { id: string; person_id: string } | undefined;
   isLoading: boolean;
   error: Error | null;
   refetch: ReturnType<typeof vi.fn>;
@@ -162,15 +162,18 @@ vi.mock('@/components/shows/wizard/components/WizardNavigation', () => ({
 let capturedOnDraftLoaded: ((draft: SavedDraft) => void) | null = null;
 let capturedShowResume = false;
 let capturedLoadError = false;
+let capturedIdentityPending = false;
 vi.mock('@/components/shows/RegistrationWorkflow/DraftManager', () => ({
   DraftManager: (props: {
     onDraftLoaded: (draft: SavedDraft) => void;
     showResume: boolean;
     loadError: boolean;
+    identityPending: boolean;
   }) => {
     capturedOnDraftLoaded = props.onDraftLoaded;
     capturedShowResume = props.showResume;
     capturedLoadError = props.loadError;
+    capturedIdentityPending = props.identityPending;
     return <div data-testid="draft-manager" />;
   },
 }));
@@ -225,6 +228,7 @@ describe('RegistrationWizardPage — handleDraftLoaded', () => {
     capturedOnDogSelectionChange = null;
     capturedShowResume = false;
     capturedLoadError = false;
+    capturedIdentityPending = false;
     mockCreateRegistration.mockClear();
     mockActivateDraft.mockClear();
     mockCreateRegistration.mockReturnValue({ id: 'reg-1' });
@@ -233,6 +237,7 @@ describe('RegistrationWizardPage — handleDraftLoaded', () => {
     mockDogStoreState.isLoading = false;
     mockDogStoreState.isReady = true;
     mockProfileState.error = null;
+    mockProfileState.profile = { id: 'profile-1', person_id: 'user-1' };
   });
 
   it('replaces an in-progress dog selection with the loaded draft selection', async () => {
@@ -282,6 +287,39 @@ describe('RegistrationWizardPage — handleDraftLoaded', () => {
 
     act(() => capturedOnDogSelectionChange!(['dog-1']));
     await waitFor(() => expect(capturedShowResume).toBe(false));
+  });
+
+  it('does not re-offer resume after the exhibitor clears the dog step themselves', async () => {
+    mockDogStoreState.dogs = [];
+    render(<RegistrationWizardPage />, { initialRoute: '/shows/show-1/register' });
+    await waitFor(() => expect(capturedOnDraftLoaded).not.toBeNull());
+    expect(capturedShowResume).toBe(true);
+
+    act(() => capturedOnDogSelectionChange!(['dog-1']));
+    await waitFor(() => expect(capturedShowResume).toBe(false));
+
+    // Removing the dog puts the step back to empty, but the exhibitor emptied
+    // it on purpose — the saved entry stays available through Load Draft
+    // rather than the panel popping back up under their hands.
+    act(() => capturedOnDogSelectionChange!([]));
+    await waitFor(() => expect(capturedSelectedDogs).toEqual([]));
+    expect(capturedShowResume).toBe(false);
+  });
+
+  it('waits for the account instead of blaming the roster when identity is unresolved', async () => {
+    mockProfileState.profile = undefined;
+    mockDogStoreState.dogs = [];
+    mockDogStoreState.isReady = false;
+    render(<RegistrationWizardPage />, { initialRoute: '/shows/show-1/register' });
+
+    await waitFor(() => expect(capturedOnDraftLoaded).not.toBeNull());
+    expect(capturedIdentityPending).toBe(true);
+    expect(capturedLoadError).toBe(false);
+
+    // A profile error IS retryable, so it is not the identity-pending state.
+    mockProfileState.error = new Error('profile read failed');
+    act(() => capturedOnDogSelectionChange!([]));
+    await waitFor(() => expect(capturedIdentityPending).toBe(false));
   });
 
   it('restores an offline draft and creates registration after the roster returns', async () => {

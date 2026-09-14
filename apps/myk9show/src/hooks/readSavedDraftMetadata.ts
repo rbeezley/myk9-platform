@@ -1,4 +1,4 @@
-import type { DraftMetadata, SavedDraft } from './useDraftPersistence';
+import type { DraftMetadata, SavedDraft } from './draftMetadata';
 
 /** Derive eligibility from the payload, not a potentially stale preview. */
 export function readSavedDraftMetadata(

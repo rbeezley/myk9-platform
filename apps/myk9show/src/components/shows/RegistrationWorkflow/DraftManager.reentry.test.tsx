@@ -111,6 +111,16 @@ describe('DraftManager reentry', () => {
     expect(onRetryDogs).toHaveBeenCalledTimes(2);
   });
 
+  it('waits for the account instead of offering a retry that cannot run', () => {
+    const onRetryDogs = vi.fn();
+    renderManager({ dogsReady: false, identityPending: true, onRetryDogs });
+
+    expect(screen.queryByRole('button', { name: 'Retry loading dogs' })).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Resume entry' })).toBeDisabled();
+    expect(screen.getByText(/waiting for your account to finish loading/i)).toBeInTheDocument();
+    expect(onRetryDogs).not.toHaveBeenCalled();
+  });
+
   it('leaves a rejected draft available for a later retry', () => {
     const onDraftLoaded = vi.fn(() => false);
     renderManager({ onDraftLoaded });

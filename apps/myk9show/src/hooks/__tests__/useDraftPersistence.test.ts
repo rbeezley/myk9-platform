@@ -260,6 +260,32 @@ describe('useDraftPersistence — cross-user scoping', () => {
     expect(second.result.current.loadDraft(savedId!)?.data.selectedDogs).toEqual(['dog-1']);
   });
 
+  it('keeps the resumed draft when the exhibitor deselects every dog', () => {
+    seedDraftData({
+      selectedDogs: ['dog-1'],
+      _workflowState: { currentStep: 'class-selection' },
+    });
+    const first = renderHook(() => useDraftPersistence(SHOW_ID, USER_A, 'class-selection'));
+    let savedId: string | null = null;
+    act(() => {
+      savedId = first.result.current.saveDraft('Entry to resume');
+    });
+    first.unmount();
+
+    seedDraftData({ selectedDogs: [], _workflowState: { currentStep: 'dog-selection' } });
+    const second = renderHook(() => useDraftPersistence(SHOW_ID, USER_A, 'dog-selection'));
+    act(() => second.result.current.activateDraft(second.result.current.loadDraft(savedId!)!));
+
+    // The exhibitor resumes, then clears the selection back to nothing. That
+    // empty payload must not overwrite the entry they are holding on to.
+    seedDraftData({ selectedDogs: [], _workflowState: { currentStep: 'dog-selection' } });
+    second.rerender();
+    act(() => window.dispatchEvent(new Event('pagehide')));
+
+    expect(second.result.current.loadDraft(savedId!)?.data.selectedDogs).toEqual(['dog-1']);
+    expect(second.result.current.availableDrafts[0]?.selectedDogsCount).toBe(1);
+  });
+
   it('autosaves a changed selection before the first timer tick after resume', () => {
     seedDraftData({ selectedDogs: ['dog-1'] });
     const first = renderHook(() => useDraftPersistence(SHOW_ID, USER_A, 'dog-selection'));

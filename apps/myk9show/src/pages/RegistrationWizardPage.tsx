@@ -9,7 +9,7 @@
  * hook's values and handlers.
  */
 
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Link, useParams, useNavigate } from 'react-router-dom';
 import { ArrowLeft, HelpCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -91,6 +91,7 @@ function RegistrationWizardContent() {
     dogsLoading,
     dogsReady,
     dogsError,
+    retryDogLoad,
     agreedToEntryAgreement,
     setAgreedToEntryAgreement,
     setPaymentStatus,
@@ -112,6 +113,7 @@ function RegistrationWizardContent() {
   } = wiz;
 
   const showBlockedReason = !!proceedBlocked && !isSubmitting;
+  const [hasEditedDogSelection, setHasEditedDogSelection] = useState(false);
 
   // "Your entries" — the wizard's single running total. Mounted on every step
   // except the Receipt, which has nothing left to total and keeps its own
@@ -361,11 +363,13 @@ function RegistrationWizardContent() {
           <>
             {currentWorkflowMode === 'exhibitor' &&
               currentStepId === 'dog-selection' &&
+              !hasEditedDogSelection &&
               registrationData.selectedDogs.length === 0 && (
                 <DraftResumePrompt
                   drafts={availableDrafts ?? []}
                   canResume={dogsReady && !dogsLoading}
                   loadError={!!dogsError}
+                  onRetry={retryDogLoad}
                   loadDraft={draftLoad}
                   deleteDraft={draftDelete}
                   onDraftLoaded={handleDraftLoaded}
@@ -409,7 +413,10 @@ function RegistrationWizardContent() {
               blockedClassIds={blockedClassIds}
               armbandAssignments={armbandAssignments}
               entryOutcomes={entryOutcomes}
-              onDogSelectionChange={handleDogSelectionChange}
+              onDogSelectionChange={dogIds => {
+                setHasEditedDogSelection(true);
+                handleDogSelectionChange(dogIds);
+              }}
               onClassSelectionChange={handleClassSelectionChange}
               onHandlerAssignmentChange={handleHandlerAssignmentChange}
               onPaymentMethodChange={(method: PaymentMethod) => handlePaymentMethodChange(method)}

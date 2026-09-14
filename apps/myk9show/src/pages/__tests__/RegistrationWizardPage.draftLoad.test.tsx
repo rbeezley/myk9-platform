@@ -2,7 +2,7 @@ import React from 'react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { act, screen, waitFor } from '@testing-library/react';
 import { render } from '@/test/utils/testUtils';
-import type { SavedDraft } from '@/hooks/useDraftPersistence';
+import type { DraftMetadata, SavedDraft } from '@/hooks/useDraftPersistence';
 
 // ─── Mock react-router-dom params ────────────────────────────────────────────
 vi.mock('react-router-dom', async () => {
@@ -74,8 +74,14 @@ vi.mock('@/hooks/useReplicationSync', () => ({
 }));
 
 const mockActivateDraft = vi.fn();
+const mockDeleteDraft = vi.fn();
+let mockAvailableDrafts: DraftMetadata[] = [];
 vi.mock('@/hooks/useDraftPersistence', () => ({
-  useDraftPersistence: () => ({ activateDraft: mockActivateDraft }),
+  useDraftPersistence: () => ({
+    activateDraft: mockActivateDraft,
+    deleteDraft: mockDeleteDraft,
+    availableDrafts: mockAvailableDrafts,
+  }),
 }));
 
 // dogs mock — mutable so individual tests can override
@@ -182,6 +188,8 @@ describe('RegistrationWizardPage — handleDraftLoaded', () => {
     progressOnStepClick = undefined;
     mockCreateRegistration.mockClear();
     mockActivateDraft.mockClear();
+    mockDeleteDraft.mockClear();
+    mockAvailableDrafts = [];
     mockCreateRegistration.mockReturnValue({ id: 'reg-1' });
     // Default: one dog available (auto-select will fire for exhibitor mode)
     mockDogStoreState.dogs = [{ id: 'dog-1', ownerId: 'user-1', ownerName: 'Owner' }];
@@ -229,6 +237,18 @@ describe('RegistrationWizardPage — handleDraftLoaded', () => {
     expect(mockCreateRegistration).not.toHaveBeenCalled();
   });
 
+  it('does not re-offer resume after an exhibitor edits the dog selection', async () => {
+    mockAvailableDrafts = [buildDraft(['dog-1']).metadata];
+    mockAvailableDrafts[0] = { ...mockAvailableDrafts[0]!, selectedDogsCount: 1 };
+    render(<RegistrationWizardPage />, { initialRoute: '/shows/show-1/register' });
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: 'Resume entry' })).toBeInTheDocument()
+    );
+    act(() => capturedOnDogSelectionChange!(['dog-1']));
+    act(() => capturedOnDogSelectionChange!([]));
+    expect(screen.queryByRole('button', { name: 'Resume entry' })).not.toBeInTheDocument();
+  });
+
   it('does not restore a draft while dogs are still loading', async () => {
     mockDogStoreState.dogs = [];
     mockDogStoreState.isLoading = true;
@@ -270,5 +290,6 @@ describe('RegistrationWizardPage — handleDraftLoaded', () => {
     act(() => capturedOnDraftLoaded!(buildDraft(['dog-1'], 'confirmation')));
     expect(progressOnStepClick).toBeTypeOf('function');
     expect(mockActivateDraft).not.toHaveBeenCalled();
+    expect(mockDeleteDraft).toHaveBeenCalledWith('draft-1');
   });
 });

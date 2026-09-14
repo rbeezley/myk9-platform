@@ -48,17 +48,20 @@ describe('DraftResumePrompt', () => {
   });
 
   it('keeps the saved entry visible while the dog roster is unavailable', () => {
+    const onRetry = vi.fn();
     render(
       <DraftResumePrompt
         drafts={[draft('saved', 1, 1)]}
         canResume={false}
         loadError
+        onRetry={onRetry}
         loadDraft={vi.fn()}
         deleteDraft={vi.fn()}
         onDraftLoaded={vi.fn()}
       />
     );
-    expect(screen.getByRole('button', { name: 'Resume entry' })).toBeDisabled();
+    fireEvent.click(screen.getByRole('button', { name: 'Try loading dogs' }));
+    expect(onRetry).toHaveBeenCalledTimes(1);
     expect(screen.getByText(/your dogs could not be loaded/i)).toBeInTheDocument();
   });
 

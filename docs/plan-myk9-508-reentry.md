@@ -35,7 +35,7 @@ owns the wizard structure and this only exposes its existing draft loader.
 
 ## Verification recorded
 
-- Focused hook, prompt, submission, and existing draft-load tests: 35 passed,
+- Focused hook, prompt, submission, and existing draft-load tests: 36 passed,
   including a shuffled run. Review coverage also checks that completed entries
   cannot be resumed, rejected draft reads cannot overwrite the saved payload,
   and successful submission clears drafts for the filed dog while preserving
@@ -43,7 +43,9 @@ owns the wizard structure and this only exposes its existing draft loader.
   stays current across autosaves and hook instances. The receipt rail is no
   longer a route back into a filed entry. The prompt keeps a saved entry visible
   while the dog query is unavailable, skips rejected candidates, and offline
-  staff submissions discard the filed draft.
+  staff submissions discard the filed draft. A retry action can refresh the
+  profile and dog roster; the resume prompt stays hidden after the exhibitor
+  edits the dog selection, and completed drafts are removed on attempted load.
 - Chromium browser Back → reopen → Resume entry: passed. The initial run failed
   before the pagehide save was added, confirming the immediate-exit gap.
 - App typecheck, touched-file ESLint, and code-quality ratchet: passed.

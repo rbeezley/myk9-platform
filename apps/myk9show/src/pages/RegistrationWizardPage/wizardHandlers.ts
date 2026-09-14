@@ -42,6 +42,7 @@ export function createWizardHandlers(state: RegistrationWizardState) {
     dogsLoading,
     dogsReady,
     activateDraft,
+    draftDelete,
     classes,
     currentShow,
     loadCart,
@@ -245,6 +246,7 @@ export function createWizardHandlers(state: RegistrationWizardState) {
   // Draft loading handler
   const handleDraftLoaded = (draft: SavedDraft) => {
     if (draft.data._workflowState?.currentStep === 'confirmation') {
+      draftDelete(draft.metadata.id);
       notifications.error('This entry is already complete. Start a new entry below.');
       return false;
     }

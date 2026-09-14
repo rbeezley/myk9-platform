@@ -18,7 +18,7 @@ interface DraftManagerProps {
   availableDrafts: DraftMetadata[];
   clearAllDrafts: () => void;
   hasUnsavedChanges: boolean;
-  onDraftLoaded?: (draft: SavedDraft) => void;
+  onDraftLoaded?: (draft: SavedDraft) => boolean | void;
   onDraftSaved?: (draftId: string) => void;
 }
 
@@ -60,7 +60,7 @@ export function DraftManager({
   const handleLoadDraft = (draftId: string) => {
     const draft = loadDraft(draftId);
     if (draft) {
-      onDraftLoaded?.(draft);
+      if (onDraftLoaded?.(draft) === false) return;
       setIsLoadDialogOpen(false);
       setSelectedDraft(null);
       return;

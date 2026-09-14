@@ -7,6 +7,7 @@ interface DraftResumePromptProps {
   drafts: DraftMetadata[];
   canResume?: boolean;
   loadError?: boolean;
+  onRetry?: () => void;
   loadDraft: (id: string) => SavedDraft | null;
   deleteDraft: (id: string) => void;
   onDraftLoaded: (draft: SavedDraft) => boolean | void;
@@ -16,6 +17,7 @@ export function DraftResumePrompt({
   drafts,
   canResume = true,
   loadError = false,
+  onRetry,
   loadDraft,
   deleteDraft,
   onDraftLoaded,
@@ -47,14 +49,18 @@ export function DraftResumePrompt({
         <h3 className="font-semibold text-foreground">Continue your entry?</h3>
         <p className="text-sm text-muted-foreground">
           {loadError
-            ? 'Your entry is saved here, but your dogs could not be loaded. Try again when your dogs are available.'
+            ? 'Your entry is saved here, but your dogs could not be loaded. Reconnect and try again.'
             : canResume
               ? 'Your previous selection is saved on this device. You can resume it or select a dog below to start again.'
-              : 'Your entry is saved here. Resume will be available when your dogs finish loading.'}
+              : 'Your entry is saved here. If your dogs do not appear, try loading them again.'}
         </p>
       </div>
-      <Button className="min-h-11 shrink-0" onClick={resume} disabled={!canResume}>
-        Resume entry
+      <Button
+        className="min-h-11 shrink-0"
+        onClick={canResume ? resume : onRetry}
+        disabled={!canResume && !onRetry}
+      >
+        {canResume ? 'Resume entry' : 'Try loading dogs'}
       </Button>
     </section>
   );

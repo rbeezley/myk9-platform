@@ -85,7 +85,7 @@ export function useRegistrationWizardState() {
   // Auth and permissions
   const { isSecretary, isClubAdmin, isSiteAdmin, canAssignArmbands } = useRegistrationPermissions();
   const { user } = useAuthContext();
-  const { profile: exhibitorProfile } = useExhibitorProfile();
+  const { profile: exhibitorProfile, refetch: refetchExhibitorProfile } = useExhibitorProfile();
   const { triggerSync } = useReplicationSync();
 
   // Trigger a sync on mount so any pending local mutations are uploaded
@@ -117,6 +117,7 @@ export function useRegistrationWizardState() {
     isLoading: dogsLoading,
     isReady: dogsReady,
     error: dogsError,
+    refetch: refetchDogs,
   } = useDogStoreCompat();
   const { shows = [] } = useShowStore();
   const { classes = [] } = useClassStoreCompat();
@@ -530,6 +531,10 @@ export function useRegistrationWizardState() {
     dogsLoading,
     dogsReady,
     dogsError,
+    retryDogLoad: () => {
+      void refetchExhibitorProfile();
+      refetchDogs();
+    },
     classes,
     currentShow,
     loadCart,

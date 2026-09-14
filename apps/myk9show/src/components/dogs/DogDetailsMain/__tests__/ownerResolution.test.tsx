@@ -239,25 +239,37 @@ describe('DogDetailsMain — owner resolution', () => {
     mockRegistrations = [{ organization: 'AKC', registration_number: 'SR123' }];
     render(<DogDetailsMain dog={mockDog} />, { initialRoute: '/dogs/dog-1' });
 
-    fireEvent.click(screen.getByRole('button', { name: 'Manage registrations' }));
+    const toggle = screen.getByRole('button', { name: 'Manage registrations' });
+    expect(toggle).toHaveAttribute('aria-expanded', 'false');
+
+    fireEvent.click(toggle);
     const tabs = screen.getByTestId('dog-tabs');
     expect(tabs).toHaveAttribute('data-show-registration-details', 'true');
     expect(tabs).toHaveAttribute('data-search', '?tab=registrations');
     expect(tabs).toHaveAttribute('data-navigation-type', 'PUSH');
   });
 
-  it('does not stack history entries when the reveal is already open', () => {
+  // The button stays visible while the view is open and is often the only
+  // registration control on screen after scrolling back up, so a second click
+  // has to do something. Toggling also keeps the params changing, so RRv7 never
+  // stacks an identical-params push.
+  it('collapses the management view on a second click', () => {
     mockRole = 'exhibitor';
     mockPeople = [{ id: DOG_OWNER_ID, firstName: 'Jane', lastName: 'Smith' }];
     mockRegistrations = [{ organization: 'AKC', registration_number: 'SR123' }];
     render(<DogDetailsMain dog={mockDog} />, { initialRoute: '/dogs/dog-1?tab=registrations' });
 
-    // The rail button stays visible while the view is open, and RRv7 pushes even
-    // for identical params — so an unguarded re-click buries Back under no-ops.
-    fireEvent.click(screen.getByRole('button', { name: 'Manage registrations' }));
+    const toggle = screen.getByRole('button', { name: 'Manage registrations' });
+    expect(toggle).toHaveAttribute('aria-expanded', 'true');
+
+    fireEvent.click(toggle);
     const tabs = screen.getByTestId('dog-tabs');
-    expect(tabs).toHaveAttribute('data-show-registration-details', 'true');
-    expect(tabs).toHaveAttribute('data-navigation-type', 'POP');
+    expect(tabs).toHaveAttribute('data-show-registration-details', 'false');
+    expect(tabs).toHaveAttribute('data-search', '');
+    expect(screen.getByRole('button', { name: 'Manage registrations' })).toHaveAttribute(
+      'aria-expanded',
+      'false'
+    );
   });
 
   it('does not carry the reveal onto another dog', () => {

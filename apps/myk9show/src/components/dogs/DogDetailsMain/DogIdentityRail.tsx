@@ -50,6 +50,7 @@ const DogIdentityRail: React.FC<DogIdentityRailProps> = ({
   registrations,
   onAddRegistration,
   onManageRegistrations,
+  registrationDetailsOpen = false,
   role = 'exhibitor',
   onEditPanelOpen,
   onPhotoDialogOpen,
@@ -216,6 +217,8 @@ const DogIdentityRail: React.FC<DogIdentityRailProps> = ({
               <button
                 type="button"
                 onClick={onManageRegistrations}
+                aria-expanded={registrationDetailsOpen}
+                aria-controls="dog-registration-details"
                 className="mt-2 inline-flex min-h-11 items-center text-xs font-medium text-primary hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded-sm"
               >
                 Manage registrations

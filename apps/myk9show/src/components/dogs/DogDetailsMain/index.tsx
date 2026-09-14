@@ -21,6 +21,7 @@ import DogStatusDialog from '@/components/dogs/DogStatusDialog';
 import { saveDogPhoto, validateImageFile } from './utils';
 import { useRouteEntryFocus } from './useRouteEntryFocus';
 import {
+  applyDogDetailsState,
   applyOverviewKeepingRegistrationDetails,
   applyRegistrationDetails,
   isRegistrationDetailsRequested,
@@ -72,13 +73,18 @@ const DogDetailsMain: React.FC<DogDetailsMainProps> = ({
     setAddRegistrationDogId(dog.id);
   };
 
-  const openRegistrationDetails = () => {
-    // Same no-op guard navigateToOverview uses: the rail button stays visible
-    // once the view is open, and RRv7 pushes even when the params are identical,
-    // so an unguarded re-click stacks dead history entries that Back has to
-    // chew through before it can close the view.
-    const next = applyRegistrationDetails(searchParams);
-    if (next.toString() !== searchParams.toString()) setSearchParams(next);
+  // A toggle, not an open: the rail button stays visible while the view is open,
+  // and after scrolling back up it is often the only registration control on
+  // screen. Opening-only made a second click do nothing at all — no navigation,
+  // no scroll, and no way to collapse the section. Toggling also means every
+  // activation changes the params, so there is no identical-params push for RRv7
+  // to stack on the history.
+  const toggleRegistrationDetails = () => {
+    setSearchParams(prev =>
+      isRegistrationDetailsRequested(prev)
+        ? applyDogDetailsState(prev, { section: 'overview', view: null })
+        : applyRegistrationDetails(prev)
+    );
   };
 
   useEffect(() => {
@@ -282,7 +288,8 @@ const DogDetailsMain: React.FC<DogDetailsMainProps> = ({
             owner={owner}
             registrations={dbRegistrations}
             onAddRegistration={openAddRegistration}
-            onManageRegistrations={openRegistrationDetails}
+            onManageRegistrations={toggleRegistrationDetails}
+            registrationDetailsOpen={showRegistrationDetails}
             role={isSecretary ? 'secretary' : 'exhibitor'}
             onEditPanelOpen={() => setIsEditPanelOpen(true)}
             onPhotoDialogOpen={() => handlePhotoDialogOpen(true)}

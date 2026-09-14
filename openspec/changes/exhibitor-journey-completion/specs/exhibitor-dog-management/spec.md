@@ -22,6 +22,7 @@ The Dog Details page SHALL replace the peer strip of Registrations, Competitions
 - **THEN** the existing registration edit and delete controls SHALL become available without creating another page
 - **AND** the rail SHALL remain the only default registration summary
 - **AND** the revealed state SHALL be carried in the URL as `tab=registrations`, so Back closes it and a copied link reopens it
+- **AND** the control SHALL toggle that state and report it with `aria-expanded`
 
 #### Scenario: Returning to Overview keeps an open management view
 

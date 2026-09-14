@@ -80,7 +80,7 @@ These routes exist in `pageDirectory.ts` but should not appear in customer-facin
 ### 6. Check in on show day
 
 **Outcome:** Exhibitor marks themselves present for a class.
-**Canonical route:** `/at-show` (permanent **Show day** sidebar entry for exhibitor-only users; **Ringside** for staff roles) **or** `/at-show/:showId` (via ShowTodayBanner on `/exhibitor/entries`) → `/exhibitor/check-in/:entryId` _(source-map re-verified 2026-08-04)_
+**Canonical route:** `/at-show` (permanent **Show day** sidebar entry for exhibitor-only users; **Ringside** for staff roles) **or** `/at-show/:showId` (via ShowTodayBanner on `/exhibitor/entries`), then the per-entry check-in dialog on the My Shows card _(source-map re-verified 2026-09-14; the dedicated `/exhibitor/check-in/:entryId` route was deleted in MYK9-476)_
 **Note:** Re-verified 2026-07-02 for #1088. The bare `/at-show` link resolves the live show at the destination via `RingsideEntryPage`; exhibitor-only navigation labels it **Show day** so the guide should not instruct exhibitors to look for **Ringside** in the sidebar. Staff roles still see **Ringside**. The context-aware ShowTodayBanner on My Shows appears only on show day. As of #949/#950, exhibitor self-check-in is gated on a secretary toggle and routed through the `self_checkin_entry` RPC — guides must not promise self-check-in unconditionally.
 **Source-map note:** Re-verified 2026-08-04 after route definitions moved into the centralized router; the guide-facing show-day flow is unchanged.
 **Docs target:** Exhibitor Guide § Show Day, KB: `check-in.md`
@@ -269,5 +269,5 @@ Workflows where the same user outcome appears at more than one route. Document o
 | Trial details          | `/shows/:showId/trials/:trialId`                  | `/trials/:trialId`                      | Document the nested path only                                                 |
 | Class details          | `/shows/:showId/trials/:trialId/classes/:classId` | `/classes/:classId`                     | Document the nested path only                                                 |
 | Entry list (exhibitor) | `/exhibitor/entries`                              | `/my-entries`                           | `/my-entries` is a redirect — document `/exhibitor/entries` only              |
-| Show day entry point   | ShowTodayBanner on `/exhibitor/entries`           | `/exhibitor/show-day`                   | `/exhibitor/show-day` is a legacy redirect — document the banner CTA only     |
+| Show day entry point   | ShowTodayBanner on `/exhibitor/entries`           | _(none)_                                | `/exhibitor/show-day` was deleted (MYK9-476) — document the banner CTA only   |
 | Profile/settings       | `/account`                                        | `/profile`, `/settings`, `/preferences` | `/account` is the consolidated surface — document the single destination only |

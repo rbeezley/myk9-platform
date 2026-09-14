@@ -69,10 +69,10 @@ Without this, `applyPwaUpdate()` falls back to a 3-second timeout reload, which 
 
 ## App wiring
 
-| App      | Sensitive routes (deferred)                                                                      |
-| -------- | ------------------------------------------------------------------------------------------------ |
-| myK9Q    | `/score`, `/entry/` (scoresheets)                                                                |
-| myK9Show | `/checkout/`, `/shows/:id/register`, `/exhibitor/check-in/`, `/secretary/register/`, `/scoring/` |
+| App      | Sensitive routes (deferred)                                              |
+| -------- | ------------------------------------------------------------------------ |
+| myK9Q    | `/score`, `/entry/` (scoresheets)                                        |
+| myK9Show | `/checkout/`, `/shows/:id/register`, `/secretary/register/`, `/scoring/` |
 
 ## Tests
 

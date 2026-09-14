@@ -50,12 +50,6 @@ const PATTERN_RESOLVERS: Record<string, Resolver> = {
   '/dogs/:id': makeResolver(ids => `/dogs/${ids.dogId}`, ['dogId']),
   '/clubs/:id': makeResolver(ids => `/clubs/${ids.clubId}`, ['clubId']),
 
-  // Exhibitor
-  '/exhibitor/check-in/:entryId': makeResolver(
-    ids => `/exhibitor/check-in/${ids.entryId}`,
-    ['entryId']
-  ),
-
   // TV display
   '/tv/:showId': makeResolver(ids => `/tv/${ids.showId}`, ['showId']),
 

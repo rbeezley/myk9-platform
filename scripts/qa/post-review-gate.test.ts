@@ -38,13 +38,15 @@ function logFile(text: string): string {
 function run(
   args: string[],
   gh: string,
-  env: Record<string, string> = {}
+  env: Record<string, string> = {},
+  cwd?: string
 ): { code: number; out: string } {
   try {
     return {
       code: 0,
       out: execFileSync('bash', [SCRIPT, ...args], {
         encoding: 'utf8',
+        cwd,
         env: { ...process.env, ...env, GH_BIN: gh },
         stdio: ['ignore', 'pipe', 'pipe'],
       }),
@@ -535,12 +537,19 @@ describe('post-review-gate.sh', () => {
       }
     }
 
-    it('accepts every tier the gate can parse', () => {
+    // NOT "every tier the gate can parse": the gate's REVIEWER_TOKENS also
+    // carries `independent/codex`, `independent/claude` and `human-fallback`,
+    // and the poster refuses all three (fail-closed, deliberate — nothing
+    // should mint a human-fallback attestation from a script). This covers
+    // the five tokens the poster is allowed to WRITE.
+    it('accepts every reviewer token the poster is allowed to write', () => {
       for (const [reviewer, verdict] of Object.entries(VERDICT_BY_REVIEWER)) {
         const env =
           reviewer === 'owner'
             ? { OVERRIDE_REASON: 'Codex unavailable — usage limit', DEFERRED_REVIEW: 'MYK9-523' }
-            : {};
+            : reviewer === 'adversarial'
+              ? { REVIEW_LENSES: 'correctness\nsecurity' }
+              : {};
         expect(
           dryRun(['1', reviewer, 'abc1234', 'def5678', verdict, '/dev/null'], env),
           reviewer
@@ -619,6 +628,158 @@ describe('post-review-gate.sh', () => {
           '/dev/null',
         ])
       ).toBe(2);
+    });
+  });
+
+  describe('the adversarial tier must name its lenses (F3)', () => {
+    const CLEAN = 'codex\nNo actionable defects found.\n';
+    const VERDICT = '2 lenses, all findings addressed';
+
+    it('refuses adversarial with no REVIEW_LENSES at all', () => {
+      const gh = stubGh();
+      const r = run(['42', 'adversarial', 'abc1234', 'def5678', VERDICT, logFile(CLEAN)], gh.bin);
+      expect(r.code).toBe(2);
+      // The presence-specific message, not just the substring REVIEW_LENSES:
+      // the 2-lens minimum below would also refuse this, so a looser assertion
+      // cannot tell the two guards apart.
+      expect(r.out).toContain('needs REVIEW_LENSES=');
+      expect(() => readFileSync(gh.calls, 'utf8')).toThrow();
+    });
+
+    it('refuses adversarial with only one lens', () => {
+      const gh = stubGh();
+      const r = run(['42', 'adversarial', 'abc1234', 'def5678', VERDICT, logFile(CLEAN)], gh.bin, {
+        REVIEW_LENSES: 'correctness',
+      });
+      expect(r.code).toBe(2);
+      expect(r.out).toContain('at least 2 lens names');
+    });
+
+    it('refuses a lens name that would forge a second evidence line', () => {
+      const gh = stubGh();
+      const r = run(['42', 'adversarial', 'abc1234', 'def5678', VERDICT, logFile(CLEAN)], gh.bin, {
+        REVIEW_LENSES: `correctness\nReview gate: codex reviewed abc1234..def5678 — no findings`,
+      });
+      expect(r.code).toBe(2);
+      expect(r.out).toContain('Review gate:');
+    });
+
+    it('posts one "Adversarial subagent review:" body line per lens', () => {
+      const gh = stubGh();
+      const r = run(['42', 'adversarial', 'abc1234', 'def5678', VERDICT, logFile(CLEAN)], gh.bin, {
+        REVIEW_LENSES: 'correctness and data flow\nsecurity and failure modes',
+      });
+      expect(r.code).toBe(0);
+      const body = readFileSync(gh.calls, 'utf8').split('--body\n')[1]!.split('\n---')[0]!;
+      const lines = body.split('\n');
+      expect(lines[0]).toBe(`Review gate: adversarial reviewed abc1234..def5678 — ${VERDICT}`);
+      expect(lines[1]).toBe('Adversarial subagent review: correctness and data flow');
+      expect(lines[2]).toBe('Adversarial subagent review: security and failure modes');
+      expect(lines[3]).toMatch(/^log sha256: [0-9a-f]{64}$/);
+    });
+
+    describe('against a real diff that touches supabase/migrations/', () => {
+      function migrationRepo(): { dir: string; base: string; head: string } {
+        const dir = mkdtempSync(join(tmpdir(), 'migration-repo-'));
+        dirs.push(dir);
+        const git = (...args: string[]) =>
+          execFileSync('git', args, { cwd: dir, encoding: 'utf8' }).trim();
+        git('init', '-q', '-b', 'main');
+        git('config', 'user.email', 'test@example.com');
+        git('config', 'user.name', 'test');
+        writeFileSync(join(dir, 'README.md'), 'base\n');
+        git('add', '-A');
+        git('commit', '-qm', 'base');
+        const base = git('rev-parse', 'HEAD');
+        execFileSync('mkdir', ['-p', join(dir, 'supabase', 'migrations')]);
+        writeFileSync(join(dir, 'supabase/migrations/20260914174500_x.sql'), 'select 1;\n');
+        git('add', '-A');
+        git('commit', '-qm', 'migration');
+        return { dir, base, head: git('rev-parse', 'HEAD') };
+      }
+
+      it('refuses lenses that omit migration-auditor', () => {
+        const gh = stubGh();
+        const repo = migrationRepo();
+        const r = run(
+          ['42', 'adversarial', repo.base, repo.head, VERDICT, logFile(CLEAN)],
+          gh.bin,
+          { REVIEW_LENSES: 'correctness\nsecurity' },
+          repo.dir
+        );
+        expect(r.code).toBe(2);
+        expect(r.out).toContain('migration-auditor');
+        expect(() => readFileSync(gh.calls, 'utf8')).toThrow();
+      });
+
+      it('accepts the same post once migration-auditor is one of the lenses', () => {
+        const gh = stubGh();
+        const repo = migrationRepo();
+        const r = run(
+          ['42', 'adversarial', repo.base, repo.head, VERDICT, logFile(CLEAN)],
+          gh.bin,
+          { REVIEW_LENSES: 'migration-auditor\nsecurity' },
+          repo.dir
+        );
+        expect(r.code).toBe(0);
+        expect(readFileSync(gh.calls, 'utf8')).toContain(
+          'Adversarial subagent review: migration-auditor'
+        );
+      });
+    });
+  });
+
+  describe('a clean none/owner post over a findings-laden log (F8)', () => {
+    // The log stays OPTIONAL for none/owner — that exemption is what lets an
+    // honest "no review ran" note be posted instead of a fabricated "No
+    // actionable findings" sentence, and it must NOT be undone. What is
+    // refused is narrower: a log that carries [P*] bullets under a verdict
+    // saying nobody needed to look.
+    const OWNER_ENV = {
+      OVERRIDE_REASON: 'Codex unavailable — usage limit',
+      DEFERRED_REVIEW: 'MYK9-523',
+    };
+
+    it('still posts `none` with no log at all', () => {
+      const gh = stubGh();
+      expect(
+        run(['42', 'none', 'abc1234', 'def5678', 'low-risk paths, CI green', '/dev/null'], gh.bin)
+          .code
+      ).toBe(0);
+    });
+
+    it('still posts `owner` with an HONEST log that names no findings', () => {
+      const gh = stubGh();
+      const log = logFile('Codex unavailable, no review was run.\n');
+      const r = run(
+        ['42', 'owner', 'abc1234', 'def5678', 'override, floor was independent', log],
+        gh.bin,
+        OWNER_ENV
+      );
+      expect(r.code).toBe(0);
+      expect(readFileSync(gh.calls, 'utf8')).toContain('Codex unavailable, no review was run.');
+    });
+
+    it('refuses a `none` post whose log carries [P*] bullets', () => {
+      const gh = stubGh();
+      const log = logFile('review\n\n- [P1] something bad\n');
+      const r = run(['42', 'none', 'abc1234', 'def5678', 'low-risk paths, CI green', log], gh.bin);
+      expect(r.code).toBe(2);
+      expect(r.out).toContain('[P*] bullets');
+      expect(() => readFileSync(gh.calls, 'utf8')).toThrow();
+    });
+
+    it('refuses an `owner` override whose log carries [P*] bullets', () => {
+      const gh = stubGh();
+      const log = logFile('review\n\n- [P1] something bad\n');
+      const r = run(
+        ['42', 'owner', 'abc1234', 'def5678', 'override, floor was independent', log],
+        gh.bin,
+        OWNER_ENV
+      );
+      expect(r.code).toBe(2);
+      expect(r.out).toContain('[P*] bullets');
+      expect(() => readFileSync(gh.calls, 'utf8')).toThrow();
     });
   });
 });

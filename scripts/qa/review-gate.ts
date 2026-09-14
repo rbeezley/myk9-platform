@@ -35,7 +35,13 @@
  */
 import { execFileSync } from 'node:child_process';
 import { pathToFileURL } from 'node:url';
-import { meetsFloor, requiredTier, type Tier } from './review-tier.ts';
+import {
+  meetsFloor,
+  MIGRATION_LENS,
+  requiredTier,
+  touchesMigration,
+  type Tier,
+} from './review-tier.ts';
 
 export const REVIEW_GATE_CONTEXT = 'Review gate';
 
@@ -172,7 +178,11 @@ export const REVIEW_GATE_LINE =
  * received the STRONGEST tier, clearing every floor. Confirmed:
  * `tierForReviewer('gemini')` used to return `'independent'` on a guardrail
  * path with no compile-time or runtime signal (2026-09-14). Adding a new
- * `ReviewerToken` without adding a row here is now a `tsc` error.
+ * `ReviewerToken` without adding a row here is caught by
+ * `review-gate.test.ts`'s "has an explicit mapping for every REVIEWER_TOKENS
+ * member" test, which DOES run in CI. It is deliberately not described as a
+ * `tsc` error: `scripts/qa/` belongs to no typecheck project, so `pnpm
+ * typecheck` exits 0 on a `satisfies` violation here (verified 2026-09-14).
  */
 const TIER_BY_REVIEWER = {
   'independent/codex': 'independent',
@@ -185,6 +195,15 @@ const TIER_BY_REVIEWER = {
   'human-fallback': 'owner',
 } satisfies Record<ReviewerToken, Tier>;
 
+/**
+ * LEGACY: `human-fallback` maps to tier `owner` and, unlike the bare `owner`
+ * override, is floor-exempt with NO `Deferred re-review:` line — it is the one
+ * accepted route that defers scrutiny without recording the debt anywhere.
+ * Nothing instructs its use any more (the skills and PLAYBOOK route an
+ * unavailable harness to the `owner` override, which does record the debt);
+ * it is kept only so gates already posted with it stay green, and is to be
+ * removed once the in-flight PRs using it have drained.
+ */
 /** Legacy reviewer tokens predate tiers and all mean a cross-harness review. */
 export function tierForReviewer(reviewer: ReviewerToken): Tier {
   return TIER_BY_REVIEWER[reviewer];
@@ -246,6 +265,14 @@ export const HUMAN_FALLBACK_VERDICT =
 
 const FALLBACK_REASON = /^Fallback reason: Claude unavailable\s*[-—:]\s*.+$/im;
 const SUBAGENT_REVIEW = /^Adversarial subagent review: .+$/gim;
+/**
+ * The same line form as `SUBAGENT_REVIEW`, capturing the lens NAME. The
+ * `adversarial` tier reuses human-fallback's line grammar deliberately: one
+ * shape for "a named subagent lens looked at this", so the migration rule
+ * ("one lens must be migration-auditor") becomes a thing the gate can CHECK
+ * rather than prose in a reason string that nothing enforces.
+ */
+const SUBAGENT_LENS = /^Adversarial subagent review:[ \t]*(\S.*?)[ \t]*$/gim;
 const PASSING_CHECKS = /^Required checks: passing$/im;
 
 /**
@@ -327,6 +354,38 @@ export function humanFallbackAccepted(evidence: GateEvidence): boolean {
   if (!FALLBACK_REASON.test(evidence.body)) return false;
   if (!PASSING_CHECKS.test(evidence.body)) return false;
   return [...evidence.body.matchAll(SUBAGENT_REVIEW)].length >= 2;
+}
+
+/** The lens names an `adversarial` evidence comment attests to, in order. */
+export function adversarialLensNames(body: string): string[] {
+  return [...body.matchAll(SUBAGENT_LENS)].map(match => match[1]!.trim());
+}
+
+/** Minimum lenses an `adversarial` verdict's BODY must actually name. */
+export const ADVERSARIAL_MIN_LENSES = 2;
+
+/**
+ * The `adversarial` tier's body contract. Before this, the tier's whole
+ * substance lived in the VERDICT text (`<N> lenses, all findings addressed`)
+ * — a number the poster typed — and the spec's "a migration needs the
+ * `migration-auditor` lens" existed ONLY as prose inside `review-tier.ts`'s
+ * reason string and the PLAYBOOK. A migration could therefore go green on
+ * `adversarial` with no lens named at all (final whole-branch review, F3).
+ * Now the body must NAME the lenses, and on a migration diff one of them must
+ * be `migration-auditor` exactly.
+ */
+export function adversarialBodyProblem(
+  evidence: GateEvidence,
+  changedFiles: readonly string[]
+): string | undefined {
+  const lenses = adversarialLensNames(evidence.body);
+  if (lenses.length < ADVERSARIAL_MIN_LENSES) {
+    return `must name ${ADVERSARIAL_MIN_LENSES} lenses as "Adversarial subagent review: <name>" body lines (found ${lenses.length})`;
+  }
+  if (touchesMigration(changedFiles) && !lenses.includes(MIGRATION_LENS)) {
+    return `touches a migration, so one lens must be ${MIGRATION_LENS} (named: ${lenses.join(', ')})`;
+  }
+  return undefined;
 }
 
 interface EvaluateReviewGateInput {
@@ -481,6 +540,20 @@ export function evaluateReviewGate(input: EvaluateReviewGateInput): GateResult {
       return {
         state: 'failure',
         description: `${latest.tier} review of ${short} is below the ${floor.tier} floor: ${floor.reason}`,
+        evidence: latest,
+      };
+    }
+  }
+  // The `adversarial` tier's BODY contract (F3). Ordered AFTER the floor check
+  // so a guardrail path still reports the floor it missed (the stronger, more
+  // actionable message) rather than a lens complaint about a tier it may not
+  // use at all.
+  if (tiersEnabled && latest.tier === 'adversarial') {
+    const problem = adversarialBodyProblem(latest, input.changedFiles);
+    if (problem) {
+      return {
+        state: 'failure',
+        description: `adversarial review of ${short} ${problem}`,
         evidence: latest,
       };
     }

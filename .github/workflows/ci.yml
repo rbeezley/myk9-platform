@@ -233,8 +233,14 @@ jobs:
       # The Review gate workflow (review-gate.yml) posts a status computed by
       # scripts/qa/review-gate.ts; its unit tests run here so a change to the
       # evidence format cannot land without the checker's tests agreeing.
+      # review-tier.ts owns the risk map that gate refuses evidence below, so
+      # its suite runs in the same step — the root vitest project is never
+      # loaded by the bare vitest jobs below (they set working-directory:
+      # apps/myk9show), so without this line it ran nowhere in CI (F1).
       - name: Review gate contract
-        run: pnpm qa:review-gate:test
+        run: |
+          pnpm qa:review-gate:test
+          pnpm qa:review-tier:test
 
       # Executable forms of two CLAUDE.md lessons: the review wrappers (exit 0
       # is not a verdict; always --base) plus post-review-gate.sh, the only

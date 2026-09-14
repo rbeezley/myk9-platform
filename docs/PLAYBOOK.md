@@ -65,12 +65,16 @@ Run Codex review **before** merging, not after — it's a gate, not a follow-up.
 floor before spending a review round — the same floor `scripts/qa/review-gate.ts`
 refuses evidence below. Four tiers, weakest to strongest: `none` < `owner` <
 `adversarial` < `independent`. Nobody types a `Review gate:` evidence line by hand;
-`scripts/qa/post-review-gate.sh` is the only writer, for every tier.
+`scripts/qa/post-review-gate.sh` is the only writer, for every tier it can write —
+`codex`, `claude`, `adversarial`, `none`, `owner`. It deliberately refuses the legacy
+`human-fallback` token (see below), which is the one evidence form no script mints.
 
 - **`independent`** — guardrails (`.github/`, `.claude/`, `.codex/`, `.agents/`,
   `scripts/qa/`, `playwright*.config.ts`, `CLAUDE.md`, `AGENTS.md`,
-  `docs/agents/shared-rules.md`), auth, money, edge functions, `packages/replication`.
-  The cross-harness gate above.
+  `docs/agents/shared-rules.md`), auth/RBAC/permissions/roles directories, money
+  (`stripe`/`payout`/`refund`/`checkout`/`payment` anywhere in the path), edge
+  functions, `packages/replication`, and any `rls*`/`grant*`/`polic*` `.sql`/`.ts`
+  file. The cross-harness gate above.
 - **`adversarial`** — app code, tests, dependency manifests, and an unrecognised path
   (fail safe, not fail cheap). Run at least two same-harness subagent reviews with
   distinct bug-finding lenses — prompts that say to _find bugs, not approve_ ("assume
@@ -78,11 +82,22 @@ refuses evidence below. Four tiers, weakest to strongest: `none` < `owner` <
   scenario") — fix every finding, and post
   `<N> lenses, all findings addressed` with `<N>` >= 2. A migration path requires
   `migration-auditor` as one of the two lenses, and `src/test/database/` must be
-  green. **On #1536, two clean subagent rounds still missed a P1 that Codex caught** —
+  green — and the lenses must be NAMED, not just counted: set
+  `REVIEW_LENSES` (one lens name per line, 2 or more) so the poster emits one
+  `Adversarial subagent review: <name>` body line per lens. The gate refuses
+  adversarial evidence naming fewer than two, and on a migration diff refuses any
+  set of lenses that does not include `migration-auditor` exactly — the rule used to
+  be prose in a reason string that nothing enforced.
+  **On #1536, two clean subagent rounds still missed a P1 that Codex caught** —
   this tier is real evidence, not a substitute for `independent`; do not reach for it
   just because it is cheaper.
 - **`none`** — docs only. Verdict is exactly `low-risk paths, CI green`, no log
-  required.
+  required. "Docs only" is a path rule, not a subject-matter one in reverse: a docs
+  path whose NAME carries money or auth still floors higher (the money pattern has no
+  directory anchor, so `docs/archive/stripe-notes.md` floors at `independent`). When
+  a log IS supplied for `none` or `owner` it is hashed and quoted into the comment,
+  and one carrying `[P*]` bullets is refused — the record may never assert less than
+  the log shows.
 - **`owner` override** — when the required harness is genuinely unavailable (usage
   limit, outage, auth failure — not merely slow or inconvenient), a repository OWNER
   or MEMBER may defer scrutiny rather than silently treat same-harness agents as
@@ -111,6 +126,14 @@ refuses evidence below. Four tiers, weakest to strongest: `none` < `owner` <
   authorizes the override, mark it ready so the status can be evaluated. Re-run the
   real gate at the deferred floor once the harness is available and close the tracked
   issue.
+
+- **`human-fallback` (LEGACY, do not use)** — the pre-tier token. It maps to tier
+  `owner`, is floor-exempt, and is the one accepted route that defers scrutiny
+  without recording the debt anywhere: it requires no `Deferred re-review:` line.
+  Nothing instructs its use any more — an unavailable harness goes through the
+  `owner` override above — and `post-review-gate.sh` refuses to write it. It is kept
+  only so gates already posted with it stay green, and is to be removed once the
+  in-flight PRs using it have drained.
 
 ## 5. Database change
 

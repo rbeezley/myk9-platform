@@ -14,7 +14,7 @@ Two consequences, both hit on 2026-09-14:
    Sep 19). Every Claude-authored PR became unmergeable, including a one-line
    lockfile revert. The documented human-fallback could not be used either: its
    regex is `/^Fallback reason: Claude unavailable\s*[-—:]\s*.+$/im`, which
-   hardcodes *Claude* as the missing reviewer, so "Codex unavailable" is
+   hardcodes _Claude_ as the missing reviewer, so "Codex unavailable" is
    unsayable. The fallback is structurally unavailable in exactly half the
    cases it was written for.
 
@@ -52,12 +52,12 @@ today. A floor can be exceeded, never understated.
 
 ### The tier ladder
 
-| Tier | Meaning | Supplied by |
-| --- | --- | --- |
-| `independent` | Cross-harness review | `codex-review.sh` / `claude-review.sh` |
-| `adversarial` | >=2 same-harness subagent reviews, distinct bug-finding lenses, all findings addressed | any agent |
-| `owner` | A human read the diff and says so | repository OWNER/MEMBER only |
-| `none` | No independent review; low-risk paths, CI green | any agent |
+| Tier          | Meaning                                                                                | Supplied by                            |
+| ------------- | -------------------------------------------------------------------------------------- | -------------------------------------- |
+| `independent` | Cross-harness review                                                                   | `codex-review.sh` / `claude-review.sh` |
+| `adversarial` | >=2 same-harness subagent reviews, distinct bug-finding lenses, all findings addressed | any agent                              |
+| `owner`       | A human read the diff and says so                                                      | repository OWNER/MEMBER only           |
+| `none`        | No independent review; low-risk paths, CI green                                        | any agent                              |
 
 `owner` is weaker than `adversarial` in scrutiny but is the only tier with
 override authority. That asymmetry is deliberate and is the one place a human
@@ -68,11 +68,11 @@ can outrank the computed floor.
 Highest floor wins across a PR's changed files. An unrecognised path defaults to
 `adversarial` — fail safe, not fail cheap.
 
-| Floor | Paths |
-| --- | --- |
+| Floor         | Paths                                                                                                                                                                                                                                                                                     |
+| ------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `independent` | RLS / grants / policies, auth & RBAC, money (`stripe`, `payout`, `refund`, `checkout`, fees), `supabase/functions/**`, `packages/replication/**`, **and the guardrails**: `.github/**`, `scripts/qa/**`, `playwright*.config.ts`, `CLAUDE.md`, `AGENTS.md`, `docs/agents/shared-rules.md` |
-| `adversarial` | `supabase/migrations/**` (see below), everything else in `apps/**` and `packages/**`, test files, dependency manifests (`package.json`, `pnpm-lock.yaml`) |
-| `none` | `docs/**` and `*.md` outside the instruction files |
+| `adversarial` | `supabase/migrations/**` (see below), everything else in `apps/**` and `packages/**`, test files, dependency manifests (`package.json`, `pnpm-lock.yaml`)                                                                                                                                 |
+| `none`        | `docs/**` and `*.md` outside the instruction files                                                                                                                                                                                                                                        |
 
 The semantic categories above (RLS, auth/RBAC, money) must be expressed as
 concrete path patterns in the module, not matched by keyword inference at

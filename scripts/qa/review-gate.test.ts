@@ -18,11 +18,26 @@ import {
   verdictAccepted,
   type GateComment,
 } from './review-gate';
-import { TIER_ORDER } from './review-tier';
+import { MIGRATION_LENS, TIER_ORDER } from './review-tier';
 
 const HEAD = '5af9af1585c4376ffbb648600ba5a22c8e009743';
 const OLD_HEAD = '4100e2f8daf6ac70a043aeb9eb9370e9cbce95f9';
 const H9 = HEAD.slice(0, 9);
+
+/**
+ * An `adversarial` evidence body. The tier now requires the lenses be NAMED in
+ * the body (F3), so every adversarial fixture carries them; the migration rule
+ * is exercised by passing `migration-auditor` as one of them.
+ */
+function adversarialBody(
+  verdict = '2 lenses, all findings addressed',
+  lenses: readonly string[] = ['correctness and data flow', 'security and failure modes']
+): string {
+  return [
+    `Review gate: adversarial reviewed abc1234..${HEAD} — ${verdict}`,
+    ...lenses.map(lens => `Adversarial subagent review: ${lens}`),
+  ].join('\n');
+}
 
 function comment(
   body: string,
@@ -610,11 +625,7 @@ describe('floor enforcement', () => {
   it('refuses adversarial on a guardrail change', () => {
     const result = evaluateReviewGate({
       headSha: HEAD,
-      comments: [
-        comment(
-          `Review gate: adversarial reviewed abc1234..${HEAD} — 2 lenses, all findings addressed`
-        ),
-      ],
+      comments: [comment(adversarialBody())],
       changedFiles: ['scripts/qa/review-gate.ts'],
     });
     expect(result.state).toBe('failure');
@@ -624,11 +635,7 @@ describe('floor enforcement', () => {
   it('forces the independent floor when the file list may be truncated', () => {
     const result = evaluateReviewGate({
       headSha: HEAD,
-      comments: [
-        comment(
-          `Review gate: adversarial reviewed abc1234..${HEAD} — 2 lenses, all findings addressed`
-        ),
-      ],
+      comments: [comment(adversarialBody())],
       changedFiles: [],
       fileListUnusable: true,
     });
@@ -688,7 +695,7 @@ describe('floor enforcement', () => {
 
   describe('verdicts are bound to the tier that claimed them (C2)', () => {
     const independentLine = `Review gate: codex reviewed abc1234..${HEAD} — no findings`;
-    const adversarialLine = `Review gate: adversarial reviewed abc1234..${HEAD} — 2 lenses, all findings addressed`;
+    const adversarialLine = adversarialBody();
 
     it('a `none` reviewer cannot wear the `independent` verdict phrase', () => {
       const result = evaluateReviewGate({
@@ -771,7 +778,7 @@ describe('floor enforcement', () => {
     ])('rejects %j', verdict => {
       const result = evaluateReviewGate({
         headSha: HEAD,
-        comments: [comment(`Review gate: adversarial reviewed abc1234..${HEAD} — ${verdict}`)],
+        comments: [comment(adversarialBody(verdict))],
         changedFiles: ['apps/myk9show/src/pages/Foo.tsx'],
       });
       expect(result.state).toBe('failure');
@@ -785,7 +792,7 @@ describe('floor enforcement', () => {
     ])('accepts %j — (lens|lenses) both work once the count is >= 2 (M1)', verdict => {
       const result = evaluateReviewGate({
         headSha: HEAD,
-        comments: [comment(`Review gate: adversarial reviewed abc1234..${HEAD} — ${verdict}`)],
+        comments: [comment(adversarialBody(verdict))],
         changedFiles: ['apps/myk9show/src/pages/Foo.tsx'],
       });
       expect(result.state).toBe('success');
@@ -802,11 +809,7 @@ describe('floor enforcement', () => {
     // list alone must now force `independent`, with no flag required.
     const result = evaluateReviewGate({
       headSha: HEAD,
-      comments: [
-        comment(
-          `Review gate: adversarial reviewed abc1234..${HEAD} — 2 lenses, all findings addressed`
-        ),
-      ],
+      comments: [comment(adversarialBody())],
       changedFiles: [],
     });
     expect(result.state).toBe('failure');
@@ -899,6 +902,126 @@ describe('floor enforcement', () => {
       if (prev === undefined) delete process.env.MYK9_REVIEW_TIERS;
       else process.env.MYK9_REVIEW_TIERS = prev;
     }
+  });
+});
+
+describe('the adversarial tier must NAME its lenses (F3)', () => {
+  const MIGRATION = ['supabase/migrations/20260914174500_x.sql'];
+  const APP = ['apps/myk9show/src/pages/Foo.tsx'];
+
+  it('accepts a migration when migration-auditor is one of the two lenses', () => {
+    const result = evaluateReviewGate({
+      headSha: HEAD,
+      comments: [
+        comment(adversarialBody('2 lenses, all findings addressed', [MIGRATION_LENS, 'data flow'])),
+      ],
+      changedFiles: MIGRATION,
+    });
+    expect(result.state).toBe('success');
+  });
+
+  it('refuses a migration whose lenses do not include migration-auditor', () => {
+    // The exact reproduction from the final whole-branch review: a GREEN gate
+    // on a migration with `adversarial` and no lens named.
+    const result = evaluateReviewGate({
+      headSha: HEAD,
+      comments: [comment(adversarialBody())],
+      changedFiles: MIGRATION,
+    });
+    expect(result.state).toBe('failure');
+    expect(result.description).toContain(MIGRATION_LENS);
+  });
+
+  it('refuses a migration whose body names NO lens at all', () => {
+    const result = evaluateReviewGate({
+      headSha: HEAD,
+      comments: [comment(adversarialBody('2 lenses, all findings addressed', []))],
+      changedFiles: MIGRATION,
+    });
+    expect(result.state).toBe('failure');
+    expect(result.description).toContain('Adversarial subagent review');
+  });
+
+  it('refuses fewer than 2 lens lines even off a migration path', () => {
+    const result = evaluateReviewGate({
+      headSha: HEAD,
+      comments: [comment(adversarialBody('2 lenses, all findings addressed', ['only one lens']))],
+      changedFiles: APP,
+    });
+    expect(result.state).toBe('failure');
+    expect(result.description).toContain('found 1');
+  });
+
+  it('sees the migration in a MIXED diff whose reason string names another file', () => {
+    // requiredTier's reason would name the .tsx here (see review-tier.test.ts);
+    // the lens rule must key off the file list, not that string.
+    const result = evaluateReviewGate({
+      headSha: HEAD,
+      comments: [comment(adversarialBody())],
+      changedFiles: [...APP, ...MIGRATION],
+    });
+    expect(result.state).toBe('failure');
+    expect(result.description).toContain(MIGRATION_LENS);
+  });
+
+  it('does not require the migration lens on a non-migration diff', () => {
+    const result = evaluateReviewGate({
+      headSha: HEAD,
+      comments: [comment(adversarialBody())],
+      changedFiles: APP,
+    });
+    expect(result.state).toBe('success');
+  });
+
+  it('leaves the legacy human-fallback body contract unchanged', () => {
+    // PR #2241 is live on this token; its body has no `adversarial` evidence
+    // line and must keep passing exactly as it did.
+    const result = evaluateReviewGate({
+      headSha: HEAD,
+      comments: [
+        comment(
+          [
+            `Review gate: human-fallback reviewed abc1234..${HEAD} — 2 adversarial subagent reviews, all findings addressed`,
+            'Fallback reason: Claude unavailable — authentication failure',
+            'Adversarial subagent review: correctness and data flow',
+            'Adversarial subagent review: security and migration safety',
+            'Required checks: passing',
+          ].join('\n')
+        ),
+      ],
+      changedFiles: ['supabase/migrations/20260914174500_x.sql'],
+    });
+    expect(result.state).toBe('success');
+  });
+});
+
+describe('the 3000-file truncation cap (F5)', () => {
+  // review-gate.ts's resolveFloor pins the floor to `independent` when the
+  // changed-file list is empty OR at/over gh's 3000-entry cap, because a
+  // truncated list silently LOWERING the floor is the one way this feature
+  // would be worse than no floor at all. The cap had no test: replacing
+  // `>= 3000` with `false` left the whole suite green.
+  const noneLine = `Review gate: none reviewed abc1234..${HEAD} — low-risk paths, CI green`;
+  const docs = (n: number) => Array.from({ length: n }, (_, i) => `docs/notes/n${i}.md`);
+
+  it('accepts a docs-only `none` review at 2999 files (below the cap)', () => {
+    const result = evaluateReviewGate({
+      headSha: HEAD,
+      comments: [comment(noneLine)],
+      changedFiles: docs(2999),
+    });
+    expect(result.state).toBe('success');
+  });
+
+  it('forces the independent floor at exactly 3000 files, docs or not', () => {
+    const result = evaluateReviewGate({
+      headSha: HEAD,
+      comments: [comment(noneLine)],
+      changedFiles: docs(3000),
+    });
+    expect(result.state).toBe('failure');
+    expect(result.description).toContain('independent');
+    expect(result.description).toContain('3000-file cap');
   });
 });
 

@@ -32,6 +32,15 @@
 # one (real provenance, never fabricated); codex/claude/adversarial keep
 # every check as before, because those tiers DO have a log.
 #
+# The `adversarial` tier requires REVIEW_LENSES in the environment: the
+# newline-separated NAMES of the lenses that were run, two or more. They are
+# emitted as `Adversarial subagent review: <name>` body lines, the same line
+# form review-gate.ts already parses for human-fallback, and the gate refuses
+# adversarial evidence whose body names fewer than two. When the base..head
+# diff can be resolved locally and touches supabase/migrations/, one lens must
+# be exactly `migration-auditor` — refused here by name, and independently
+# enforced by the gate (which always has the real file list).
+#
 # The `owner` tier additionally requires OVERRIDE_REASON="<harness>
 # unavailable — <detail>" and DEFERRED_REVIEW=<ISSUE-ID> in the environment
 # — checked for PRESENCE and, via review-gate.ts (the same parser that will
@@ -60,6 +69,38 @@ case "$REVIEWER" in
   codex|claude|adversarial|none|owner) ;;
   *) echo "post-review-gate: reviewer must be codex, claude, adversarial, none or owner" >&2; exit 2;;
 esac
+
+# The `adversarial` tier's lens attestation. Checked here, before the dry-run
+# exit, so the poster and the gate agree about what an adversarial record must
+# carry instead of the poster publishing a body the gate will refuse.
+if [ "$REVIEWER" = "adversarial" ]; then
+  [ -n "${REVIEW_LENSES:-}" ] || { echo "post-review-gate: adversarial tier needs REVIEW_LENSES=<one lens name per line, 2 or more>" >&2; exit 2; }
+  LENS_LINES="$(printf '%s\n' "$REVIEW_LENSES" | sed -e 's/[[:space:]]*$//' -e 's/^[[:space:]]*//' | grep -v '^$' || true)"
+  LENS_COUNT="$(printf '%s\n' "$LENS_LINES" | grep -c '.' || true)"
+  if [ "${LENS_COUNT:-0}" -lt 2 ]; then
+    echo "post-review-gate: adversarial tier needs at least 2 lens names in REVIEW_LENSES (got ${LENS_COUNT:-0})" >&2
+    exit 2
+  fi
+  # A lens name is published verbatim into the comment body, so it may never
+  # forge another evidence line (same class as the owner-tier line-terminator
+  # check below; line 1 is all the checker reads, but a human reading the PR
+  # would see the forgery).
+  if printf '%s\n' "$LENS_LINES" | grep -qi '^Review gate:'; then
+    echo "post-review-gate: a REVIEW_LENSES entry may not begin with 'Review gate:'" >&2
+    exit 2
+  fi
+  # Migration diffs need the migration-auditor lens. Resolved from git in the
+  # CURRENT working tree (the poster is always run from the repo it is posting
+  # about); when the SHAs are not present locally — a shallow clone, a fixture
+  # — this check simply does not fire, and the gate re-checks it against the
+  # PR's real file list either way, so the record can never go green without
+  # the lens.
+  MIGRATION_FILES="$(git diff --name-only "$BASE...$HEAD" 2>/dev/null | grep '^supabase/migrations/' || true)"
+  if [ -n "$MIGRATION_FILES" ] && ! printf '%s\n' "$LENS_LINES" | grep -qx 'migration-auditor'; then
+    echo "post-review-gate: this diff touches supabase/migrations/, so one REVIEW_LENSES entry must be exactly 'migration-auditor'" >&2
+    exit 2
+  fi
+fi
 
 # The `owner` tier defers scrutiny rather than skipping it, so it needs a
 # reason (which harness was unavailable and why) and a tracked issue to
@@ -180,7 +221,9 @@ if [ "$REQUIRES_LOG" = 1 ] && [ ! -s "$LOG" ]; then
   exit 2
 fi
 
+LOG_SUPPLIED=0
 if [ -s "$LOG" ] 2>/dev/null; then
+  LOG_SUPPLIED=1
   HASH="$(shasum -a 256 "$LOG" | cut -d' ' -f1)"
   # Codex logs carry a `codex` marker line before the verdict; `claude -p`
   # output has no marker, so the whole log is the verdict. Never a `tail`: a
@@ -230,11 +273,21 @@ fi
 # addressed" means the reviewer was re-run on the fixed head and that re-run
 # came back clean, so the log it is posted with must pass the same checks
 # (Codex review of #2110, round 8). No verdict form skips them.
-if [ "$HAS_REVIEW_LOG" = 1 ] && [ "$WITHDRAW" != 1 ]; then
+# Gated on LOG_SUPPLIED, not HAS_REVIEW_LOG: owner/none never NEED a log, but
+# when one is supplied it is hashed and quoted into the comment as provenance,
+# and a clean verdict published directly above a quoted `[P1] ...` bullet is a
+# record that asserts more than what happened (final whole-branch review, F8).
+# This does NOT reintroduce the inverted property it replaced: the log stays
+# OPTIONAL for owner/none, and an honest log that carries no findings bullets
+# ("Codex unavailable, no review was run") is still accepted — only a
+# findings-laden log under a clean verdict is refused.
+if [ "$LOG_SUPPLIED" = 1 ] && [ "$WITHDRAW" != 1 ]; then
   if review_text_matches "$REVIEW_FINDING_BULLET" "$VERDICT_BLOCK"; then
     echo "post-review-gate: log does not support '$VERDICT' (it still carries [P*] bullets); nothing posted" >&2
     exit 2
   fi
+fi
+if [ "$HAS_REVIEW_LOG" = 1 ] && [ "$WITHDRAW" != 1 ]; then
   # Not free text: both review wrappers instruct the reviewer to open a clean
   # verdict with the CONTRACT sentence "No actionable <findings> ..." and
   # nothing else counts. "No findings yet; only the workflow file has been
@@ -247,7 +300,15 @@ if [ "$HAS_REVIEW_LOG" = 1 ] && [ "$WITHDRAW" != 1 ]; then
     exit 2
   fi
 fi
-if [ "$REVIEWER" = "owner" ]; then
+if [ "$REVIEWER" = "adversarial" ]; then
+  # Adversarial tier: the lens attestation lines come first, ahead of the log
+  # hash — the tier's whole claim is WHICH lenses looked, and review-gate.ts's
+  # adversarialBodyProblem refuses the evidence when fewer than two are named
+  # (or when a migration diff's lenses omit migration-auditor).
+  LENS_BLOCK="$(printf '%s\n' "$LENS_LINES" | sed 's/^/Adversarial subagent review: /')"
+  BODY="$(printf 'Review gate: %s reviewed %s..%s — %s\n%s\nlog sha256: %s\n\n<details><summary>%s verdict</summary>\n\n```text\n%s\n```\n\n</details>\n' \
+    "$REVIEWER" "${BASE:0:9}" "${HEAD:0:9}" "$VERDICT" "$LENS_BLOCK" "$HASH" "$REVIEWER" "$VERDICT_BLOCK")"
+elif [ "$REVIEWER" = "owner" ]; then
   # Owner tier: Override reason and Deferred re-review are the 2nd and 3rd
   # lines, ahead of the log hash — overrideAccepted (review-gate.ts) matches
   # them anywhere in the body via `m`, but the brief fixes their position so

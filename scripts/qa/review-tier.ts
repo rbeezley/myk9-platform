@@ -32,6 +32,19 @@ const INDEPENDENT_PATTERNS: readonly RegExp[] = [
 
 const MIGRATION_PATTERN = /^supabase\/migrations\//;
 
+/**
+ * True when ANY changed file is a migration. Deliberately NOT derived from
+ * `requiredTier(...).reason`: `requiredTier` seeds `best` from the first file
+ * and only replaces it on a STRICTLY higher tier, so a list of
+ * `[app-code.tsx, migration.sql]` keeps the app-code reason even though a
+ * migration is present — both resolve to `adversarial`. Reading the migration
+ * rule off that reason string would therefore drop the mandatory
+ * `migration-auditor` lens for exactly the mixed diffs most likely to have one.
+ */
+export function touchesMigration(files: readonly string[]): boolean {
+  return files.some(file => MIGRATION_PATTERN.test(file));
+}
+
 /** Docs are the only `none`, and never the instruction files above. */
 const NONE_PATTERNS: readonly RegExp[] = [/^docs\//, /^[^/]*\.md$/];
 

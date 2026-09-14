@@ -124,8 +124,12 @@ comments for every tier — never type an evidence line by hand.
   bug-finding lenses (a migration path makes one lens `migration-auditor`
   and requires `src/test/database/` green), fix every finding, save the
   combined log, then post:
-  `bash scripts/qa/post-review-gate.sh $PR_NUMBER adversarial <base-sha> <head-sha> "<N> lenses, all findings addressed" <log>`
+  `REVIEW_LENSES=$'<lens one>\n<lens two>' bash scripts/qa/post-review-gate.sh $PR_NUMBER adversarial <base-sha> <head-sha> "<N> lenses, all findings addressed" <log>`
   `<N>` must be 2 or more — the checker refuses `0`, `1`, and zero-padded counts.
+  `REVIEW_LENSES` (one lens NAME per line, 2 or more) is required: it becomes
+  one `Adversarial subagent review: <name>` body line per lens, and the gate
+  refuses adversarial evidence whose body names fewer than two — or, on a
+  migration diff, whose lenses do not include `migration-auditor` exactly.
 - **`independent`** — the cross-harness gate in Step 4 below, unchanged.
 - **owner override** (harness genuinely unavailable) — claim the SAME floor
   `pnpm qa:review-tier` just printed (`override, floor was independent` or

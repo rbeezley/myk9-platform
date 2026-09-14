@@ -20,12 +20,9 @@ import DogDialogs from './DogDialogs';
 import DogStatusDialog from '@/components/dogs/DogStatusDialog';
 import { saveDogPhoto, validateImageFile } from './utils';
 import { useRouteEntryFocus } from './useRouteEntryFocus';
-import {
-  applyDogDetailsState,
-  applyOverviewKeepingRegistrationDetails,
-  applyRegistrationDetails,
-  isRegistrationDetailsRequested,
-} from './dogDetailsSections';
+import { applyDogDetailsState } from './dogDetailsSections';
+import DogRegistrationDialogs from '@/components/dogs/DogDetails/Registrations/DogRegistrationDialogs';
+import ManageRegistrationsPanel from '@/components/dogs/DogDetails/Registrations/ManageRegistrationsPanel';
 import type { DogDetailsMainProps } from './types';
 
 const DogDetailsMain: React.FC<DogDetailsMainProps> = ({
@@ -53,42 +50,18 @@ const DogDetailsMain: React.FC<DogDetailsMainProps> = ({
   useRouteEntryFocus(headingRef, dog.id);
 
   const [addRegistrationDogId, setAddRegistrationDogId] = useState<string | null>(null);
-
-  // Whether registration management is revealed is URL state, not component
-  // state — see the REGISTRATIONS_TAB note in dogDetailsSections.
-  const showRegistrationDetails = isRegistrationDetailsRequested(searchParams);
+  const [isManageRegistrationsOpen, setIsManageRegistrationsOpen] = useState(false);
 
   const navigateToOverview = () => {
-    const next = applyOverviewKeepingRegistrationDetails(searchParams);
+    const next = applyDogDetailsState(searchParams, { section: 'overview', view: null });
     if (next.toString() !== searchParams.toString()) setSearchParams(next);
   };
 
-  // The rail's "Add registration" is the one ordinary path into the add
-  // panel (RegistrationsSection's empty state deliberately carries no action).
+  // The rail's "Add registration" is the one ordinary path into the add panel
+  // (the registrations list's empty state deliberately carries no action).
   const openAddRegistration = () => {
-    // The add panel lives on Overview — the default section — so landing there
-    // is enough. An open management list is preserved, so saving from a
-    // `?tab=registrations` view returns to that view rather than a bare Overview.
     navigateToOverview();
     setAddRegistrationDogId(dog.id);
-  };
-
-  // A toggle, not an open: the rail button stays visible while the view is open,
-  // and after scrolling back up it is often the only registration control on
-  // screen. Opening-only made a second click do nothing at all — no navigation,
-  // no scroll, and no way to collapse the section. Toggling also means every
-  // activation changes the params, so there is no identical-params push for RRv7
-  // to stack on the history.
-  // The disclosure's history contract, settled: opening PUSHES, so Back closes
-  // it and a copied link reopens it; collapsing REPLACES, so it unwinds the open
-  // rather than stacking a second entry Back has to chew through (which would
-  // re-expand the section on the way out of the page).
-  const toggleRegistrationDetails = () => {
-    const open = isRegistrationDetailsRequested(searchParams);
-    const next = open
-      ? applyDogDetailsState(searchParams, { section: 'overview', view: null })
-      : applyRegistrationDetails(searchParams);
-    setSearchParams(next, { replace: open });
   };
 
   useEffect(() => {
@@ -292,8 +265,8 @@ const DogDetailsMain: React.FC<DogDetailsMainProps> = ({
             owner={owner}
             registrations={dbRegistrations}
             onAddRegistration={openAddRegistration}
-            onManageRegistrations={toggleRegistrationDetails}
-            registrationDetailsOpen={showRegistrationDetails}
+            onManageRegistrations={() => setIsManageRegistrationsOpen(true)}
+            registrationDetailsOpen={isManageRegistrationsOpen}
             role={isSecretary ? 'secretary' : 'exhibitor'}
             onEditPanelOpen={() => setIsEditPanelOpen(true)}
             onPhotoDialogOpen={() => handlePhotoDialogOpen(true)}
@@ -303,16 +276,26 @@ const DogDetailsMain: React.FC<DogDetailsMainProps> = ({
             headingRef={headingRef}
           />
           <main className="flex-1 min-w-0">
-            <DogDetailsTabs
-              dog={updatedDog}
-              autoOpenAddRegistration={addRegistrationDogId === dog.id}
-              onAddRequestConsumed={() => setAddRegistrationDogId(null)}
-              showRegistrationDetails={showRegistrationDetails}
-              role={isSecretary ? 'secretary' : 'exhibitor'}
-            />
+            <DogDetailsTabs dog={updatedDog} role={isSecretary ? 'secretary' : 'exhibitor'} />
           </main>
         </div>
       </div>
+
+      {/* Mounted once, for every role: the rail's Add, the list's per-row Edit
+          and Delete, and the `?addRegistration=true` deep link all raise these,
+          so they must not depend on any list being on screen. */}
+      <DogRegistrationDialogs
+        dog={updatedDog}
+        autoOpenAddDialog={addRegistrationDogId === dog.id}
+        onAddRequestConsumed={() => setAddRegistrationDogId(null)}
+      />
+      {!isSecretary && (
+        <ManageRegistrationsPanel
+          open={isManageRegistrationsOpen}
+          onClose={() => setIsManageRegistrationsOpen(false)}
+          dog={updatedDog}
+        />
+      )}
 
       <DogDialogs
         dog={updatedDog}

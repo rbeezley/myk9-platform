@@ -4,6 +4,7 @@ import { render, screen } from '@/test/utils/testUtils';
 import type { Dog } from '@/types/dog-types';
 import { useRegistrationsStore } from '@/store/registrationsStore';
 import RegistrationsSection from './RegistrationsSection';
+import DogRegistrationDialogs from './DogRegistrationDialogs';
 
 vi.mock('@/hooks/queries/useRegistrationsDatabase', () => ({
   useDogRegistrationManagement: () => ({
@@ -58,16 +59,24 @@ afterEach(() => {
 });
 
 describe('registration name editing', () => {
-  it('keeps the add panel available while the duplicate registration cards are hidden', () => {
+  // The panels no longer depend on the list: the rail's Add and the
+  // `?addRegistration=true` link work on a page that shows no registrations at
+  // all, which is the whole point of hosting them separately (MYK9-518).
+  it('opens the add panel with no registrations list mounted', () => {
     const dog = { id: 'dog-1', callName: 'Test Dog' } as Dog;
-    render(<RegistrationsSection dog={dog} showDetails={false} autoOpenAddDialog />);
+    render(<DogRegistrationDialogs dog={dog} autoOpenAddDialog />);
     expect(screen.getByRole('dialog')).toHaveTextContent('Add registration');
     expect(screen.queryByText('CH Test Dog')).not.toBeInTheDocument();
   });
 
   it('opens the selected organization’s registration from its visible name action', async () => {
     const dog = { id: 'dog-1', callName: 'Test Dog' } as Dog;
-    const { user } = render(<RegistrationsSection dog={dog} />);
+    const { user } = render(
+      <>
+        <DogRegistrationDialogs dog={dog} />
+        <RegistrationsSection dog={dog} />
+      </>
+    );
 
     expect(screen.getByText('CH Test Dog')).toBeInTheDocument();
     expect(screen.getByText('UCH Test Dog')).toBeInTheDocument();

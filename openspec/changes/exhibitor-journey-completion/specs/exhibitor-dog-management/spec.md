@@ -2,7 +2,7 @@
 
 ### Requirement: Dog Details tab strip fits without Activity tab
 
-The Dog Details page SHALL replace the peer strip of Registrations, Competitions, Title Progress, Statistics, Health, Training, and Pedigree with three top-level concerns—Overview, Career, and Records. Overview SHALL be selected by default. The identity rail SHALL be the sole default registration summary and empty state, with its add action always available and the existing edit/delete management controls revealed on demand for registered dogs. Activity SHALL be the first substantive Overview section. Premium Overview MAY show a compact count of titles in progress and earned, while Career SHALL own individual title tracks and progress bars. Career SHALL contain Competitions, Title Progress, and Statistics as secondary views. Records SHALL contain Health Records, Training Journal, and Pedigree as secondary views.
+The Dog Details page SHALL replace the peer strip of Registrations, Competitions, Title Progress, Statistics, Health, Training, and Pedigree with three top-level concerns—Overview, Career, and Records. Overview SHALL be selected by default. The identity rail SHALL be the sole registration summary and empty state, with its add action always available and the existing edit/delete management controls raised on demand in a panel. Activity SHALL be the first substantive Overview section. Premium Overview MAY show a compact count of titles in progress and earned, while Career SHALL own individual title tracks and progress bars. Career SHALL contain Competitions, Title Progress, and Statistics as secondary views. Records SHALL contain Health Records, Training Journal, and Pedigree as secondary views.
 
 #### Scenario: Default Overview
 
@@ -19,15 +19,13 @@ The Dog Details page SHALL replace the peer strip of Registrations, Competitions
 #### Scenario: Registration management from the identity rail
 
 - **WHEN** an exhibitor selects Manage registrations for a registered dog
-- **THEN** the existing registration edit and delete controls SHALL become available without creating another page
-- **AND** the rail SHALL remain the only default registration summary
-- **AND** the revealed state SHALL be carried in the URL as `tab=registrations`, so Back closes it and a copied link reopens it
-- **AND** the control SHALL toggle that state and report it with `aria-expanded`
+- **THEN** the existing registration edit and delete controls SHALL open in a panel raised from the rail, without creating another page or a standing Overview section
+- **AND** the rail SHALL remain the only registration summary on the page
 
-#### Scenario: Returning to Overview keeps an open management view
+#### Scenario: Registration panels do not depend on a list
 
-- **WHEN** an exhibitor opens the add-registration panel while registration management is revealed
-- **THEN** saving or closing SHALL return to the management view rather than a bare Overview
+- **WHEN** an exhibitor adds or edits a registration from the rail or a deep link
+- **THEN** the panel SHALL open regardless of whether any registrations list is on screen
 
 #### Scenario: Add registration deep link
 

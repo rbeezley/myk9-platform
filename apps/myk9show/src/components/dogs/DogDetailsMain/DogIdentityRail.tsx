@@ -215,17 +215,16 @@ const DogIdentityRail: React.FC<DogIdentityRailProps> = ({
         ) : (
           <p className="text-xs text-muted-foreground">No registrations yet.</p>
         )}
-        {/* Stays mounted while the view is open even after the last registration
-            is deleted — it is the only control that can collapse it, and the
-            revealed section is gated on the URL, not on this count. */}
+        {/* Stays mounted while the panel is open even after the last registration
+            is deleted, so the panel never outlives the control that opened it. */}
         {!isSecretary &&
           onManageRegistrations &&
           (registry.rows.length > 0 || registrationDetailsOpen) && (
             <button
               type="button"
               onClick={onManageRegistrations}
+              aria-haspopup="dialog"
               aria-expanded={registrationDetailsOpen}
-              aria-controls="dog-registration-management"
               className="mt-2 inline-flex min-h-11 items-center text-xs font-medium text-primary hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded-sm"
             >
               Manage registrations

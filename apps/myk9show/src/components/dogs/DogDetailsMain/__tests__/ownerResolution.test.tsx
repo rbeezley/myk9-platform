@@ -87,6 +87,15 @@ vi.mock('@/services/LoggingService', () => ({
 
 vi.mock('@/hooks/queries/useRegistrationsDatabase', () => ({
   useRegistrationsByDogQuery: () => ({ data: mockRegistrations, isLoading: false }),
+  useDogRegistrationManagement: () => ({
+    registrations: mockRegistrations,
+    isLoading: false,
+    error: null,
+    createRegistration: vi.fn(),
+    updateRegistration: vi.fn(),
+    deleteRegistration: vi.fn(),
+    refetch: vi.fn(),
+  }),
 }));
 
 // ---------------------------------------------------------------------------
@@ -97,20 +106,12 @@ vi.mock('@/components/common/ThreeDotMenu', () => ({
 }));
 
 vi.mock('../DogDetailsTabs', () => ({
-  default: function MockDogDetailsTabs({
-    autoOpenAddRegistration,
-    showRegistrationDetails,
-  }: {
-    autoOpenAddRegistration: boolean;
-    showRegistrationDetails: boolean;
-  }) {
+  default: function MockDogDetailsTabs() {
     const location = useLocation();
     const navigationType = useNavigationType();
     return (
       <div
         data-testid="dog-tabs"
-        data-add-registration={String(autoOpenAddRegistration)}
-        data-show-registration-details={String(showRegistrationDetails)}
         data-search={location.search}
         data-navigation-type={navigationType}
       />
@@ -229,11 +230,9 @@ describe('DogDetailsMain — owner resolution', () => {
     expect(document.querySelector('[data-dog-identity]')).not.toBeNull();
   });
 
-  // MYK9-518 moved this reveal from component state into the URL, so opening it
-  // is a real navigation: Back closes the management view instead of leaving the
-  // page. Scoping it to one dog stopped being something to enforce — the reveal
-  // now lives in a URL whose path names the dog, so no other dog's URL carries it.
-  it('reveals registration management as a history entry Back can close', () => {
+  // Registrations are consulted rarely, so they have no standing room on
+  // Overview: the rail summarises them and raises this panel on demand.
+  it('opens the registrations panel from the rail, leaving Overview alone', async () => {
     mockRole = 'exhibitor';
     mockPeople = [{ id: DOG_OWNER_ID, firstName: 'Jane', lastName: 'Smith' }];
     mockRegistrations = [{ organization: 'AKC', registration_number: 'SR123' }];
@@ -243,62 +242,10 @@ describe('DogDetailsMain — owner resolution', () => {
     expect(toggle).toHaveAttribute('aria-expanded', 'false');
 
     fireEvent.click(toggle);
-    const tabs = screen.getByTestId('dog-tabs');
-    expect(tabs).toHaveAttribute('data-show-registration-details', 'true');
-    expect(tabs).toHaveAttribute('data-search', '?tab=registrations');
-    expect(tabs).toHaveAttribute('data-navigation-type', 'PUSH');
-  });
-
-  // The button stays visible while the view is open and is often the only
-  // registration control on screen after scrolling back up, so a second click
-  // has to do something. Toggling also keeps the params changing, so RRv7 never
-  // stacks an identical-params push.
-  it('collapses the management view on a second click', () => {
-    mockRole = 'exhibitor';
-    mockPeople = [{ id: DOG_OWNER_ID, firstName: 'Jane', lastName: 'Smith' }];
-    mockRegistrations = [{ organization: 'AKC', registration_number: 'SR123' }];
-    render(<DogDetailsMain dog={mockDog} />, { initialRoute: '/dogs/dog-1?tab=registrations' });
-
-    const toggle = screen.getByRole('button', { name: 'Manage registrations' });
-    expect(toggle).toHaveAttribute('aria-expanded', 'true');
-
-    fireEvent.click(toggle);
-    const tabs = screen.getByTestId('dog-tabs');
-    expect(tabs).toHaveAttribute('data-show-registration-details', 'false');
-    expect(tabs).toHaveAttribute('data-search', '');
-    // Collapse REPLACES so it unwinds the open instead of stacking an entry
-    // that would re-expand the section on the way out of the page.
-    expect(tabs).toHaveAttribute('data-navigation-type', 'REPLACE');
-    expect(screen.getByRole('button', { name: 'Manage registrations' })).toHaveAttribute(
-      'aria-expanded',
-      'false'
-    );
-  });
-
-  it('does not carry the reveal onto another dog', () => {
-    mockRole = 'exhibitor';
-    mockPeople = [{ id: DOG_OWNER_ID, firstName: 'Jane', lastName: 'Smith' }];
-    mockRegistrations = [{ organization: 'AKC', registration_number: 'SR123' }];
-    render(<DogDetailsMain dog={{ ...mockDog, id: 'dog-2' }} />, {
-      initialRoute: '/dogs/dog-2',
-    });
-    expect(screen.getByTestId('dog-tabs')).toHaveAttribute(
-      'data-show-registration-details',
-      'false'
-    );
-  });
-
-  it('opens the management view for a legacy registration bookmark', () => {
-    mockRole = 'exhibitor';
-    mockPeople = [{ id: DOG_OWNER_ID, firstName: 'Jane', lastName: 'Smith' }];
-    mockRegistrations = [{ organization: 'AKC', registration_number: 'SR123' }];
-    render(<DogDetailsMain dog={mockDog} />, {
-      initialRoute: '/dogs/dog-1?tab=registrations',
-    });
-    expect(screen.getByTestId('dog-tabs')).toHaveAttribute(
-      'data-show-registration-details',
-      'true'
-    );
+    expect(await screen.findByRole('dialog')).toBeInTheDocument();
+    // Opening it is not navigation: the URL, and Back, are untouched.
+    expect(screen.getByTestId('dog-tabs')).toHaveAttribute('data-search', '');
+    expect(screen.getByTestId('dog-tabs')).toHaveAttribute('data-navigation-type', 'POP');
   });
 
   it('lands on Overview and opens Add registration from a mixed deep link', async () => {
@@ -307,9 +254,11 @@ describe('DogDetailsMain — owner resolution', () => {
     render(<DogDetailsMain dog={mockDog} />, {
       initialRoute: '/dogs/dog-1?section=career&addRegistration=true',
     });
+    // The add panel is hosted by the page, so it opens even though Overview
+    // shows no registrations at all.
+    expect(await screen.findByRole('dialog')).toHaveTextContent(/registration/i);
     await waitFor(() => {
       expect(screen.getByTestId('dog-tabs')).toHaveAttribute('data-search', '');
-      expect(screen.getByTestId('dog-tabs')).toHaveAttribute('data-add-registration', 'true');
       expect(screen.getByTestId('dog-tabs')).toHaveAttribute('data-navigation-type', 'REPLACE');
     });
   });

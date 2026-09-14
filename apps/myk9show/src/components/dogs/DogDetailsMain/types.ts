@@ -26,9 +26,9 @@ export interface DogIdentityRailProps {
   registrations?: DogCardRegistration[] | undefined;
   /** Opens the add-registration panel on Overview. */
   onAddRegistration?: (() => void) | undefined;
-  /** Toggles the Overview registration-management view. */
+  /** Opens the registration-management panel. */
   onManageRegistrations?: (() => void) | undefined;
-  /** Drives the toggle's aria-expanded; the view itself lives in the URL. */
+  /** Whether that panel is open, for aria-expanded. */
   registrationDetailsOpen?: boolean | undefined;
   role?: 'exhibitor' | 'secretary';
   onEditPanelOpen: () => void;
@@ -57,9 +57,6 @@ export interface DogSummaryCardProps {
 
 export interface DogDetailsTabsProps {
   dog: Dog;
-  autoOpenAddRegistration: boolean;
-  onAddRequestConsumed?: () => void;
-  showRegistrationDetails?: boolean;
   role?: 'exhibitor' | 'secretary';
 }
 

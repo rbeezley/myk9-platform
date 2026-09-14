@@ -63,8 +63,26 @@ export function commentTrusted(comment: GateComment): boolean {
   return TRUSTED_ASSOCIATIONS.has((comment.authorAssociation ?? '').toUpperCase());
 }
 
+/** Every token REVIEW_GATE_LINE can capture in its reviewer group. */
+export const REVIEWER_TOKENS = [
+  'independent/codex',
+  'independent/claude',
+  'codex',
+  'claude',
+  'adversarial',
+  'owner',
+  'none',
+  'human-fallback',
+] as const;
+
+export type ReviewerToken = (typeof REVIEWER_TOKENS)[number];
+
+function isReviewerToken(value: string): value is ReviewerToken {
+  return (REVIEWER_TOKENS as readonly string[]).includes(value);
+}
+
 export interface GateEvidence {
-  reviewer: 'codex' | 'claude' | 'human-fallback';
+  reviewer: ReviewerToken;
   tier: Tier;
   base: string;
   head: string;
@@ -163,8 +181,11 @@ export function parseGateComments(comments: readonly GateComment[]): GateEvidenc
     const match = REVIEW_GATE_LINE.exec(firstLine);
     if (!match) continue;
     const [, reviewer, base, head, verdict] = match;
+    // REVIEW_GATE_LINE's own alternation only ever captures a ReviewerToken;
+    // this guard makes that true by construction rather than by an `as` cast.
+    if (!isReviewerToken(reviewer)) continue;
     out.push({
-      reviewer: reviewer as GateEvidence['reviewer'],
+      reviewer,
       tier: tierForReviewer(reviewer),
       base,
       head,

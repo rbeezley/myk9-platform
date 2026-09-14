@@ -20,16 +20,33 @@ Known noise to ignore: `Maximum update depth exceeded` (tracked in Linear "App-W
 
 ## Seed IDs (dev database, verified 2026-09-10)
 
-| Placeholder    | Value                                  | Notes                                                |
-| -------------- | -------------------------------------- | ---------------------------------------------------- |
-| `:showId`      | `dededede-0000-0000-0000-000000000010` | Heartland Scent Work Classic, published, 516 entries |
-| `:trialId`     | `dededede-0000-0000-0000-000000000021` | first trial of the show above                        |
-| `:classId`     | `dec1a55e-0000-0000-0000-000000000032` | first class of that trial                            |
-| `:entryId`     | `dededede-0000-0000-0000-000000000051` | an entry owned by exhibitor@myk9t.com                |
-| `:id` (club)   | `dededede-0000-0000-0000-000000000001` |                                                      |
-| `:id` (dog)    | `dededede-0000-0000-0000-000000000041` | owned by exhibitor@myk9t.com                         |
-| `:id` (person) | `6fd402f4-88fb-447d-876e-7c6ae3c429d1` | exhibitor@myk9t.com                                  |
-| draft show     | `6cea4cdf-0f2c-4db9-98bc-aa97a654ef31` | "ZZ Audit - Club Persistence Probe", 0 entries       |
+| Placeholder    | Value                                  | Notes                                                                                       |
+| -------------- | -------------------------------------- | ------------------------------------------------------------------------------------------- |
+| `:showId`      | `dededede-0000-0000-0000-000000000010` | Heartland Scent Work Classic — **AKC only**, published, 516 entries, 4 AKC trials           |
+| `:trialId`     | `dededede-0000-0000-0000-000000000021` | first trial of the show above                                                               |
+| `:classId`     | `dec1a55e-0000-0000-0000-000000000032` | first class of that trial                                                                   |
+| `:entryId`     | `dededede-0000-0000-0000-000000000051` | an entry owned by exhibitor@myk9t.com                                                       |
+| `:id` (club)   | `dededede-0000-0000-0000-000000000001` |                                                                                             |
+| `:id` (dog)    | `dededede-0000-0000-0000-000000000041` | owned by exhibitor@myk9t.com                                                                |
+| `:id` (person) | `6fd402f4-88fb-447d-876e-7c6ae3c429d1` | exhibitor@myk9t.com                                                                         |
+| draft show     | `6cea4cdf-0f2c-4db9-98bc-aa97a654ef31` | "ZZ Audit - Club Persistence Probe", 0 entries                                              |
+| UKC show       | `dededede-0000-0000-0000-000000000011` | Heartland UKC Nosework Trial — trial `…025`, classes `dec1a55e-…041/042`, 0 entries         |
+| ASCA show      | `dededede-0000-0000-0000-000000000012` | Heartland ASCA Scent Detection Trial — trial `…026`, classes `dec1a55e-…043/044`, 0 entries |
+
+**Which show for which case (MYK9-490).** A show carries exactly ONE sanctioning
+registry; several sports under that registry are fine, and a cross-registry cluster is
+separate shows. So:
+
+- **Ordinary walks, screenshots, demos, entry and payment journeys** → the AKC show
+  `…010`. It is now a normal single-registry show; until 2026-09-14 it also carried a UKC
+  and an ASCA trial, which made every exhibitor screenshot unrepresentative and let
+  ordinary bugs hide behind the complexity (that is how MYK9-487 survived verification).
+- **Registry-variation checks** — offered classes, class selection, entry forms, the
+  `@/features/registries` helpers, judge supplies, premium PDF class ordering → the UKC
+  show `…011` or the ASCA show `…012`. They are deliberately small and entry-free.
+- **A show with trials from two registries is no longer reachable**: `trg_enforce_show_registry_on_trial`
+  (migration `20260915163500`) refuses the write with SQLSTATE `MK490`. If a walk finds
+  one, it is stale data, not a supported configuration.
 
 Accounts: `exhibitor@` / `secretary@` / `judge@` / `clubadmin@` / `testadmin@` at `myk9t.com`; password in `.env.local`.
 

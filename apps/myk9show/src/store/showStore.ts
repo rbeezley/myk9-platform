@@ -408,15 +408,24 @@ export const useShowStore = create<ShowStore>()((set, get) => ({
       if (updates.style !== undefined) replicatedUpdates.style = updates.style ?? undefined;
       if (updates.isNationals !== undefined) replicatedUpdates.isNationals = updates.isNationals;
 
-      await replicatedShowsTable.updateShow(id, replicatedUpdates);
+      const showMutationId = await replicatedShowsTable.updateShow(id, replicatedUpdates);
 
       // Registry is show-wide and stored denormalized on each trial (write-path Phase 1).
       // On an organization change, give the editing client immediate LOCAL consistency for
       // the trials it already holds. This is best-effort (replica-bound) — the authoritative
       // resync is the sync_trial_registry_from_show DB trigger, which corrects every child
       // trial server-side when the org change syncs. Only fire on an actual change.
+      //
+      // MYK9-490: the trial updates depend on the show update. The server refuses a trial
+      // whose registry disagrees with its show's organization, so a trial update that
+      // overtook the organization change (which it can — the upload runner does not stall
+      // independent mutations behind a held-back one) would hard-fail on every retry.
       if (updates.organization !== undefined && updates.organization !== currentShow.organization) {
-        await resyncTrialRegistry(id, updates.organization);
+        await resyncTrialRegistry(
+          id,
+          updates.organization,
+          showMutationId ? [showMutationId] : undefined
+        );
       }
 
       // Create updated show with local-only fields preserved

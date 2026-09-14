@@ -159,6 +159,117 @@ async function selectFirstChairman(page: Page) {
   await selectFirstOfficial(page, 'Show Chairman', 'Search show chairman…');
 }
 
+/**
+ * MYK9-510 / ADR-011. The app shell's `main` used to declare `overflow-auto`,
+ * which made it the nearest scroll container for everything inside it while
+ * the DOCUMENT was what actually scrolled — so every `position: sticky` box
+ * under the shell was pinned inside a box that never moved and scrolled away.
+ *
+ * These assertions are rendered geometry on purpose. A class-list check
+ * (`toHaveClass(/sticky/)`) passed throughout the entire period the header was
+ * inert, because the class was always there; only the scrollport was wrong.
+ */
+test.describe('Show Creation Wizard - sticky chrome (MYK9-510)', () => {
+  for (const viewport of [
+    { name: 'desktop', width: 1440, height: 600 },
+    { name: 'phone', width: 390, height: 600 },
+  ]) {
+    test(`the wizard header stays pinned while the page scrolls at ${viewport.width}`, async ({
+      page,
+    }) => {
+      await page.setViewportSize({ width: viewport.width, height: viewport.height });
+      await signInAsSecretary(page, '/secretary/create-show/wizard');
+
+      const header = page.getByTestId('show-creation-wizard-header');
+      const steps = page.getByTestId('show-creation-wizard-steps');
+      await expect(header).toBeVisible({ timeout: 30000 });
+      await expect(steps).toBeVisible();
+
+      // Known answer first: on a page that cannot scroll, "the header did not
+      // move" is true of a plainly-static header too.
+      const scrollable = await page.evaluate(
+        () => document.documentElement.scrollHeight - window.innerHeight
+      );
+      expect(
+        scrollable,
+        'the wizard page must be scrollable for this to mean anything'
+      ).toBeGreaterThan(200);
+
+      // Park at the top and let it settle first. The page performs its own
+      // scrolls on mount (field focus, draft banner), so a measurement taken
+      // straight after load can land mid-flight and read a header that is
+      // still travelling — that made this flake at ~4px when run alongside
+      // other specs.
+      await page.evaluate(() => window.scrollTo(0, 0));
+      await page.waitForFunction(() => window.scrollY === 0);
+      await page.waitForTimeout(200);
+      const stepsTopAtRest = await steps.evaluate(el => el.getBoundingClientRect().top);
+
+      // Two scrolled samples, not rest-vs-scrolled: at rest the header already
+      // sits at the chrome height, so "it did not move" would be trivially
+      // true. A header that is NOT pinned travels between these two.
+      await page.evaluate(() => window.scrollBy(0, 400));
+      await page.waitForTimeout(300);
+      expect(
+        await page.evaluate(() => window.scrollY),
+        'the document must be what scrolled'
+      ).toBeGreaterThan(0);
+      const headerTopFirst = await header.evaluate(el => el.getBoundingClientRect().top);
+
+      await page.evaluate(() => window.scrollBy(0, 400));
+      await page.waitForTimeout(300);
+      const headerTopSecond = await header.evaluate(el => el.getBoundingClientRect().top);
+
+      expect(
+        Math.abs(headerTopSecond - headerTopFirst),
+        `wizard header top moved from ${headerTopFirst} to ${headerTopSecond} across 400px of scroll`
+      ).toBeLessThanOrEqual(1);
+
+      // It must be pinned BELOW the fixed app bar, not behind it and not
+      // carried off the top of the viewport.
+      // --app-top-inset is declared as `var(--app-header-height)`, so reading
+      // the custom property back returns that literal, not a length. Resolve it
+      // the only way CSS will: give a probe element that height and measure it.
+      const topInset = await page.evaluate(() => {
+        const probe = document.createElement('div');
+        probe.style.cssText =
+          'position:absolute;top:0;left:0;width:1px;visibility:hidden;height:var(--app-top-inset,3rem)';
+        document.body.appendChild(probe);
+        const height = probe.getBoundingClientRect().height;
+        probe.remove();
+        return height;
+      });
+      expect(
+        Math.abs(headerTopSecond - topInset),
+        `wizard header top ${headerTopSecond} must sit at the fixed chrome height ${topInset}`
+      ).toBeLessThanOrEqual(2);
+
+      // The step indicator sticks too, and clears the header rather than
+      // sliding under it.
+      const stepsTopAfter = await steps.evaluate(el => el.getBoundingClientRect().top);
+      expect(
+        stepsTopAfter,
+        `step indicator top ${stepsTopAfter} must not rise above where it started (${stepsTopAtRest})`
+      ).toBeLessThanOrEqual(stepsTopAtRest + 1);
+      const headerBottom = await header.evaluate(el => el.getBoundingClientRect().bottom);
+      expect(
+        stepsTopAfter,
+        `step indicator top ${stepsTopAfter} must clear the sticky header bottom ${headerBottom}`
+      ).toBeGreaterThanOrEqual(headerBottom - 1);
+
+      // Structural, LAST on purpose: the geometry above is the real proof, and
+      // an assertion placed ahead of it would short-circuit the shell
+      // regression this test exists to catch. This one only names the cause.
+      expect(
+        await page
+          .locator('[data-layout="app-shell-main"]')
+          .evaluate(el => getComputedStyle(el).overflow),
+        'the app shell main must leave overflow visible (ADR-011)'
+      ).toBe('visible');
+    });
+  }
+});
+
 async function selectFirstSecretary(page: Page) {
   await selectFirstOfficial(page, 'Show Secretary', 'Search show secretary…');
 }

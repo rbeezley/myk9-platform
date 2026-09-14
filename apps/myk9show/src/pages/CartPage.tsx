@@ -570,7 +570,7 @@ export default function CartPage() {
 
           {/* Order Summary */}
           <div className="lg:col-span-1">
-            <div className="sticky top-24">
+            <div className="sticky top-[calc(var(--app-top-inset,3rem)+1.5rem)]">
               <CartSummary
                 onCheckout={handleCheckout}
                 onContinueShopping={handleContinueShopping}

@@ -62,9 +62,24 @@ A "missing" column is NOT automatically drift — before writing a repair migrat
 
 Migration-parsing tests (e.g. `anonEntriesGrantContract`) read the whole `supabase/migrations/` directory, so an UNTRACKED scratch `.sql` left there fails them with a confusing ACL error. Keep experiments out of that directory.
 
-## slideover-size-inert
+## slideover-size-band
 
-`SlideOverPanel`'s `size` prop is currently inert — a fixed `sm:/md:/lg:/xl:` chain overrides the size-derived width at every breakpoint, so all panels render the same. Override via `className` for a single panel; see MYK9-99 before "fixing" it globally.
+MYK9-99 (2026-07-26) found `SlideOverPanel`'s `size` prop genuinely inert: the chain hardcoded `md:max-w-lg lg:max-w-2xl xl:max-w-4xl`, so every panel rendered the same width and PR #1469's attempt to widen one form had no visible effect. The lesson was written that morning (#1476, 10:15) and PR #1482 fixed it that afternoon (14:29) by deriving the responsive width from `size`. The warning then sat in CLAUDE.md for six weeks describing behavior that had been corrected four hours after it was recorded, and on 2026-09-14 it cost a real edit: acting on it in #2221 I added `className="md:max-w-2xl"` to `ManageRegistrationsPanel`, a no-op duplicate of what `size="lg"` already supplies, caught in review and reverted.
+
+Measured in a browser against the app's real stylesheet, injecting the exact class string `cn()` produces per size (`cn` is `twMerge`, so which variant wins is a cascade question, not a source-reading one):
+
+| viewport | sm  | md  | lg  | xl  | what governs                           |
+| -------- | --- | --- | --- | --- | -------------------------------------- |
+| 390      | 390 | 390 | 390 | 390 | viewport narrower than every cap       |
+| 560      | 448 | 512 | 560 | 560 | unprefixed `max-w-*` — sizes DIFFER    |
+| 700      | 700 | 700 | 700 | 700 | `sm:max-w-none sm:w-full` — size inert |
+| 767      | 767 | 767 | 767 | 767 | same                                   |
+| 768      | 448 | 512 | 672 | 757 | `md:max-w-*` — sizes differ            |
+| 1280     | 448 | 512 | 672 | 896 | same                                   |
+
+So the surviving trap is narrow and real: `size` does nothing between 640 and 767px, and only there. The original "inert at every breakpoint" is wrong, and so is the opposite over-correction — my first pass at this retired the lesson outright on the strength of a probe that sampled 1280/768/767/700/390 and skipped 448–639, the one band that would have shown sizes differing below the `sm` breakpoint. Sample every regime a breakpoint chain creates, not the ones that confirm the reading.
+
+Retirement was also argued on the grounds that `SlideOverPanel.test.tsx` makes regression structurally impossible. It does not, on its own: it filters `^(sm|md|lg|xl):max-w-` and never sees the unprefixed base, so changing `sizeClasses` to share one base width — all four sizes identical below 640px, the exact failure MYK9-99 described — left 16/16 green. A base-class assertion now covers that half.
 
 ## migration-timestamp
 

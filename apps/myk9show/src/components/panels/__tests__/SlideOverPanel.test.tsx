@@ -27,6 +27,30 @@ describe('SlideOverPanel responsive sizing', () => {
 
     expect(responsiveMaxWidths.sort()).toEqual(['sm:max-w-none', expected].sort());
   });
+
+  // The assertion above filters on `^(sm|md|lg|xl):max-w-` and so never sees the
+  // UNPREFIXED base, which is the class that governs width below 640px. Without
+  // this, giving every size the same base — all four identical on a phone, the
+  // exact failure MYK9-99 described — left the suite 16/16 green.
+  it.each([
+    ['sm', 'max-w-md'],
+    ['md', 'max-w-lg'],
+    ['lg', 'max-w-2xl'],
+    ['xl', 'max-w-4xl'],
+  ] as const)('keeps a distinct %s width below the sm breakpoint', (size, expected) => {
+    render(
+      <SlideOverPanel open onClose={vi.fn()} title={`${size} panel`} size={size}>
+        <p>Body</p>
+      </SlideOverPanel>
+    );
+
+    const panel = screen.getByRole('dialog').querySelector('.slide-over-panel');
+    const baseMaxWidths = [...(panel?.classList ?? [])].filter(className =>
+      /^max-w-/.test(className)
+    );
+
+    expect(baseMaxWidths).toEqual([expected]);
+  });
 });
 
 describe('SlideOverPanel action-bar registration', () => {

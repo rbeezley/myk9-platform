@@ -211,23 +211,26 @@ const DogIdentityRail: React.FC<DogIdentityRailProps> = ({
           </button>
         </div>
         {registry.rows.length > 0 ? (
-          <>
-            <DogRegistryTable registry={registry} />
-            {!isSecretary && onManageRegistrations && (
-              <button
-                type="button"
-                onClick={onManageRegistrations}
-                aria-expanded={registrationDetailsOpen}
-                aria-controls="dog-registration-details"
-                className="mt-2 inline-flex min-h-11 items-center text-xs font-medium text-primary hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded-sm"
-              >
-                Manage registrations
-              </button>
-            )}
-          </>
+          <DogRegistryTable registry={registry} />
         ) : (
           <p className="text-xs text-muted-foreground">No registrations yet.</p>
         )}
+        {/* Stays mounted while the view is open even after the last registration
+            is deleted — it is the only control that can collapse it, and the
+            revealed section is gated on the URL, not on this count. */}
+        {!isSecretary &&
+          onManageRegistrations &&
+          (registry.rows.length > 0 || registrationDetailsOpen) && (
+            <button
+              type="button"
+              onClick={onManageRegistrations}
+              aria-expanded={registrationDetailsOpen}
+              aria-controls="dog-registration-management"
+              className="mt-2 inline-flex min-h-11 items-center text-xs font-medium text-primary hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded-sm"
+            >
+              Manage registrations
+            </button>
+          )}
 
         <div
           className={cn(

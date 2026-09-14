@@ -79,12 +79,16 @@ const DogDetailsMain: React.FC<DogDetailsMainProps> = ({
   // no scroll, and no way to collapse the section. Toggling also means every
   // activation changes the params, so there is no identical-params push for RRv7
   // to stack on the history.
+  // The disclosure's history contract, settled: opening PUSHES, so Back closes
+  // it and a copied link reopens it; collapsing REPLACES, so it unwinds the open
+  // rather than stacking a second entry Back has to chew through (which would
+  // re-expand the section on the way out of the page).
   const toggleRegistrationDetails = () => {
-    setSearchParams(prev =>
-      isRegistrationDetailsRequested(prev)
-        ? applyDogDetailsState(prev, { section: 'overview', view: null })
-        : applyRegistrationDetails(prev)
-    );
+    const open = isRegistrationDetailsRequested(searchParams);
+    const next = open
+      ? applyDogDetailsState(searchParams, { section: 'overview', view: null })
+      : applyRegistrationDetails(searchParams);
+    setSearchParams(next, { replace: open });
   };
 
   useEffect(() => {

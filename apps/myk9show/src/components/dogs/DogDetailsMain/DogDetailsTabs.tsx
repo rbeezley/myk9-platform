@@ -93,6 +93,7 @@ const DogDetailsTabs: React.FC<DogDetailsTabsProps> = ({
               add/edit panels) but draws no box, so Overview's space-y-8 rhythm
               closes up instead of leaving a gap above nothing. */}
           <section
+            id="dog-registration-management"
             className={registrationDetailsVisible ? undefined : 'contents'}
             {...(registrationDetailsVisible
               ? { 'aria-labelledby': 'dog-registration-details' }

@@ -266,6 +266,9 @@ describe('DogDetailsMain — owner resolution', () => {
     const tabs = screen.getByTestId('dog-tabs');
     expect(tabs).toHaveAttribute('data-show-registration-details', 'false');
     expect(tabs).toHaveAttribute('data-search', '');
+    // Collapse REPLACES so it unwinds the open instead of stacking an entry
+    // that would re-expand the section on the way out of the page.
+    expect(tabs).toHaveAttribute('data-navigation-type', 'REPLACE');
     expect(screen.getByRole('button', { name: 'Manage registrations' })).toHaveAttribute(
       'aria-expanded',
       'false'

@@ -205,11 +205,12 @@ export default function RegistrationsSection({
   }
 
   return (
-    // With `showDetails` off and nothing to report this renders only the
-    // add/edit panels, which draw no box. `display: contents` keeps it out of
-    // Overview's `space-y-8` rhythm so the hidden section leaves no ~32px dead
-    // gap above Activity.
-    <div className={showDetails || error ? undefined : 'contents'}>
+    // With `showDetails` off this renders only the add/edit panels, which draw
+    // no box. `display: contents` keeps it out of Overview's `space-y-8` rhythm
+    // so the hidden section leaves no ~32px dead gap above Activity. The error
+    // block below carries its own `py-8` — the same 2rem space-y-8 would have
+    // added — so it keeps its separation without a box of its own.
+    <div className={showDetails ? undefined : 'contents'}>
       {registrationSaveError && (
         <Alert className="mb-4 border-destructive/30 bg-destructive/10">
           <AlertDescription className="text-destructive">{registrationSaveError}</AlertDescription>

@@ -141,6 +141,20 @@ describe('DogIdentityRail', () => {
     expect(screen.queryByRole('button', { name: 'Manage registrations' })).toBeNull();
   });
 
+  // Deleting the last registration while the view is open must not remove the
+  // only control that can collapse it.
+  it('keeps the toggle while the view is open with no registrations left', () => {
+    renderRail(base, {
+      registrations: [],
+      onManageRegistrations: vi.fn(),
+      registrationDetailsOpen: true,
+    });
+    expect(screen.getByRole('button', { name: 'Manage registrations' })).toHaveAttribute(
+      'aria-expanded',
+      'true'
+    );
+  });
+
   it('keeps the photo action at least 44px and named for assistive technology', () => {
     renderRail(base);
     expect(screen.getByRole('button', { name: 'Edit dog photo' })).toHaveClass('h-11', 'w-11');

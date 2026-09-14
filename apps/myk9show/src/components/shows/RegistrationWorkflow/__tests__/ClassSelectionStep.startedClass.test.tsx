@@ -194,6 +194,7 @@ const SHOW_ID = 'dededede-0000-0000-0000-000000000010';
 const TRIAL_ID = 'trial-saturday';
 const DOG_ID = 'dog-1';
 const CLASS_ID = 'dec1a55e-0000-0000-0000-000000000040';
+const CLUB_ID = 'club-heartland';
 
 function setupStepMocks(opts: {
   /** Status on the REPLICATED class — the source the step prefers. */
@@ -231,6 +232,7 @@ function setupStepMocks(opts: {
         name: 'Heartland Scent Work Classic',
         preEntryFee: '30',
         startDate: '2026-10-24',
+        clubId: CLUB_ID,
       },
     ],
   });
@@ -276,7 +278,19 @@ function setupStepMocks(opts: {
     })
   );
   mockUseClassStoreCompat.mockReturnValue({ classes: [] });
-  mockUseAuthContext.mockReturnValue({ isSecretary: isStaff, isAdmin: false, user: null });
+  // The staff carve-out is SCOPED to the show's owning club, so a bare
+  // `isSecretary` is not enough — the viewer must hold the secretary role on
+  // CLUB_ID. That is the whole point of the scoping: a secretary of another
+  // club must see the chip blocked, exactly as the RPC would refuse them.
+  mockUseAuthContext.mockReturnValue({
+    isSecretary: isStaff,
+    isAdmin: false,
+    user: null,
+    hasRole: vi.fn().mockReturnValue(false),
+    userWithRoles: isStaff
+      ? { scopes: [{ scopeType: 'club', scopeId: CLUB_ID, roleId: 'secretary' }] }
+      : { scopes: [] },
+  });
   mockUseExhibitorProfile.mockReturnValue({ profile: null });
   mockUseExistingEntries.mockReturnValue({
     getExistingEntry: vi.fn().mockReturnValue(undefined),
@@ -356,12 +370,31 @@ describe('ClassSelectionStep — started classes (MYK9-516, integration)', () =>
     expect(screen.getByRole('checkbox')).not.toHaveAttribute('aria-disabled', 'true');
   });
 
-  it('still lets a secretary take a gate entry into a running class', async () => {
+  it("still lets THIS club's secretary take a gate entry into a running class", async () => {
     setupStepMocks({ availabilityStatus: 'in_progress', isStaff: true });
     renderStep();
 
     expect(await screen.findByText('Advanced')).toBeInTheDocument();
     expect(screen.queryByText('This class has started')).not.toBeInTheDocument();
     expect(screen.getByRole('checkbox')).not.toHaveAttribute('aria-disabled', 'true');
+  });
+
+  it('blocks a secretary of a DIFFERENT club, as the RPC would', async () => {
+    // MYK9-123 / MYK9-458: a global `isSecretary` offers a control the database
+    // then refuses. `v_is_official` is club-scoped, so the chip must be too.
+    setupStepMocks({ availabilityStatus: 'in_progress', isStaff: true });
+    mockUseAuthContext.mockReturnValue({
+      isSecretary: true,
+      isAdmin: false,
+      user: null,
+      hasRole: vi.fn().mockReturnValue(false),
+      userWithRoles: {
+        scopes: [{ scopeType: 'club', scopeId: 'club-somewhere-else', roleId: 'secretary' }],
+      },
+    });
+    renderStep();
+
+    expect(await screen.findByText('This class has started')).toBeInTheDocument();
+    expect(screen.getByRole('checkbox')).toHaveAttribute('aria-disabled', 'true');
   });
 });

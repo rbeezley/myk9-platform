@@ -90,8 +90,25 @@ SELECT '00000000-0000-0000-0000-000000516002', roles.id,
        '00000000-0000-0000-0000-000000516102'
 FROM public.roles WHERE roles.name = 'secretary';
 
-INSERT INTO public.exhibitor_profiles (person_id, auth_user_id)
-VALUES ('00000000-0000-0000-0000-000000516001', '00000000-0000-0000-0000-000000516101');
+-- NO explicit exhibitor_profiles insert. `handle_new_user` fires on each
+-- auth.users insert above, adopts the pre-seeded people row BY EMAIL
+-- (migration 131) and creates the exhibitor_profiles row itself, so an explicit
+-- INSERT collides with the unique auth_user_id (CI run 34889227517). Assert the
+-- trigger did its job instead: without that row `submit_show_entries` refuses
+-- every case below with "registration does not belong to the caller", and each
+-- rejection assertion would pass for the wrong reason.
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM public.exhibitor_profiles
+    WHERE person_id = '00000000-0000-0000-0000-000000516001'
+      AND auth_user_id = '00000000-0000-0000-0000-000000516101'
+  ) THEN
+    RAISE EXCEPTION
+      'FIXTURE handle_new_user did not create the exhibitor profile — every case below would fail for the wrong reason';
+  END IF;
+END;
+$$;
 
 -- `breed` and `call_name` are NOT NULL without defaults on public.dogs.
 INSERT INTO public.dogs (id, name, call_name, breed, status, owner_id)

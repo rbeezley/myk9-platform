@@ -52,6 +52,7 @@ import {
   isAvailabilityUnreadable,
 } from './ClassSelectionStep.availability';
 import { buildFullChipReason } from './ClassSelectionStep.fullReason';
+import { canManageShowSurface } from '@/utils/roleScopes';
 
 export type { ClassSelectionStepProps } from './ClassSelectionStep.types';
 
@@ -69,14 +70,7 @@ export const ClassSelectionStep: React.FC<ClassSelectionStepProps> = ({
   const trials = useTrialStore(s => s.trials);
   const trialClasses = useTrialStore(s => s.trialClasses);
   const { classes: queryClasses = [] } = useClassStoreCompat();
-  const { isSecretary, isAdmin } = useAuthContext();
-  /**
-   * Show officials take late entries at the desk for a class already in the
-   * ring, so the started-class guard does not apply to them. The server makes
-   * the same carve-out through its own `v_is_official` predicate, which is the
-   * one that actually holds — this only keeps the chip usable.
-   */
-  const isStaff = isSecretary || isAdmin;
+  const { isSecretary, isAdmin, hasRole, userWithRoles } = useAuthContext();
   const { profile: exhibitorProfile } = useExhibitorProfile();
   const { status: syncStatus } = useReplicationSync();
   // 'idle' means sync hasn't started yet (status initialises to idle before
@@ -106,6 +100,29 @@ export const ClassSelectionStep: React.FC<ClassSelectionStepProps> = ({
     useClassAvailability(showId);
 
   const show = shows.find(s => s.id === showId);
+
+  /**
+   * Show officials take late entries at the desk for a class already in the
+   * ring, so the started-class guard (MYK9-516) does not apply to them.
+   *
+   * SCOPED to the show's owning club, not `isSecretary || isAdmin`. The server's
+   * `v_is_official` is `is_site_admin() OR is_show_secretary(show) OR
+   * is_club_admin(club)` — all club-scoped but the first — so a global role
+   * boolean would hand Club A's secretary an enabled chip on Club B's show and
+   * the RPC would then refuse the entry with a 403. That is the exact shape of
+   * MYK9-123 / MYK9-458, and `scopedManageGate.test.ts` exists to catch it.
+   *
+   * `canManageShowSurface` denies while `clubId` is unknown, which is the right
+   * direction here: a secretary briefly sees the chip disabled and explained,
+   * rather than an exhibitor briefly seeing it enabled.
+   */
+  const isStaff = canManageShowSurface({
+    isSecretary,
+    isAdmin,
+    hasRole,
+    userWithRoles,
+    clubId: show?.clubId,
+  });
   const showTrials = useMemo(
     () =>
       (trials || [])

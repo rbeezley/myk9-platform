@@ -345,7 +345,7 @@ export const useDogStoreCompat = () => {
     // Data
     dogs,
     isLoading,
-    isReady: dogsQuery.isSuccess,
+    isReady: dogsQuery.data !== undefined,
     rosterError: dogsQuery.error,
     error,
 

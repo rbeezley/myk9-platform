@@ -25,7 +25,7 @@ import { selectedDogsOwner } from '@/features/registration/selectedDogsOwner';
 import { resolveRegistrationCompletionPath } from '../RegistrationWizardPage.routes';
 import { submitPaymentStep } from './submitPaymentStep';
 import { getEntryWindowTimezone } from './entryCloseGuard';
-import type { RegistrationWizardState } from './useRegistrationWizardState';
+import { defaultPaymentForMode, type RegistrationWizardState } from './useRegistrationWizardState';
 import type { SavedDraft } from '@/hooks/useDraftPersistence';
 
 export function createWizardHandlers(state: RegistrationWizardState) {
@@ -42,6 +42,7 @@ export function createWizardHandlers(state: RegistrationWizardState) {
     dogsReady,
     pendingDraftRegistrationRef,
     activateDraft,
+    deactivateDraft,
     classes,
     currentShow,
     loadCart,
@@ -249,6 +250,20 @@ export function createWizardHandlers(state: RegistrationWizardState) {
     const selectedDogs = registrationData.selectedDogs;
     if (!dogsReady || selectedDogs.length === 0) return;
     if (!draftDogsAvailable(selectedDogs)) {
+      deactivateDraft();
+      setRegistrationData({
+        selectedDogs: [],
+        entries: [],
+        documents: [],
+        paymentMethod: defaultPaymentForMode(currentWorkflowMode),
+      });
+      setClassSelections([]);
+      setHandlerAssignments({});
+      setStepCompletionState({});
+      setPaymentStatus(PaymentStatus.PENDING);
+      setEntryStatus(EntryStatus.PENDING);
+      paymentDetailsRef.current = {};
+      setAgreedToEntryAgreement(false);
       const dogStep = currentWorkflowConfig.steps.indexOf('dog-selection');
       setCurrentStep(dogStep >= 0 ? dogStep : 0);
       return;

@@ -95,7 +95,6 @@ export function useDraftPersistence(
     [storageKeyPrefix, showId, userId]
   );
 
-  // Generate draft metadata
   const generateDraftMetadata = useCallback(
     (data: Partial<RegistrationFormData>): DraftMetadata => {
       const selectedDogs = data.selectedDogs?.length || 0;
@@ -126,7 +125,6 @@ export function useDraftPersistence(
     [showId, userId, currentStep]
   );
 
-  // Get all draft metadata for the current show
   const getDraftMetadata = useCallback((): DraftMetadata[] => {
     try {
       const metadata = localStorage.getItem(getMetadataKey());
@@ -137,7 +135,6 @@ export function useDraftPersistence(
     }
   }, [getMetadataKey, log]);
 
-  // Save draft metadata
   const saveDraftMetadata = useCallback(
     (metadata: DraftMetadata[]) => {
       try {
@@ -150,7 +147,6 @@ export function useDraftPersistence(
     [getMetadataKey, log]
   );
 
-  // Save draft to localStorage
   const saveDraft = useCallback(
     (data: Partial<RegistrationFormData>, metadata?: DraftMetadata) => {
       if (!data || Object.keys(data).length === 0) {
@@ -213,7 +209,6 @@ export function useDraftPersistence(
     ]
   );
 
-  // Load draft from localStorage
   const loadDraft = useCallback(
     (draftId: string): SavedDraft | null => {
       try {
@@ -244,8 +239,6 @@ export function useDraftPersistence(
     [getDraftKey, userId, log]
   );
 
-  // Reading a draft does not accept it. The wizard activates a requested draft;
-  // it validates dogs immediately when available or defers registration creation.
   const activateDraft = useCallback(
     (draft: SavedDraft) => {
       if (draft.metadata.showId === showId && draft.metadata.userId === userId) {
@@ -256,7 +249,11 @@ export function useDraftPersistence(
     [draftData, showId, userId]
   );
 
-  // Delete draft from localStorage
+  const deactivateDraft = () => {
+    activeDraftMetadataRef.current = null;
+    pendingRestoreDataRef.current = null;
+  };
+
   const deleteDraft = useCallback(
     (draftId: string) => {
       try {
@@ -298,7 +295,6 @@ export function useDraftPersistence(
     [generateDraftMetadata, log]
   );
 
-  // Auto-save current draft data
   const autoSave = useCallback(() => {
     if (!draftData || Object.keys(draftData).length === 0) {
       return;
@@ -450,6 +446,7 @@ export function useDraftPersistence(
     saveDraft: saveWithTitle,
     loadDraft,
     activateDraft,
+    deactivateDraft,
     deleteDraft,
     autoSave,
 
@@ -459,7 +456,11 @@ export function useDraftPersistence(
     discardDraftsWithoutFinalSave,
 
     // State
-    hasUnsavedChanges: draftData && Object.keys(draftData).length > 0,
+    hasUnsavedChanges: !!(
+      draftData &&
+      Object.keys(draftData).length > 0 &&
+      saveableData(draftData)
+    ),
     lastAutoSave: lastAutoSaveTime,
   };
 }

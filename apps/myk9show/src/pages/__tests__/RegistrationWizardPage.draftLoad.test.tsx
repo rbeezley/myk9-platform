@@ -90,7 +90,10 @@ vi.mock('@/hooks/useExhibitorProfile', () => ({
 
 const mockActivateDraft = vi.fn();
 vi.mock('@/hooks/useDraftPersistence', () => ({
-  useDraftPersistence: () => ({ activateDraft: mockActivateDraft }),
+  useDraftPersistence: () => ({
+    activateDraft: mockActivateDraft,
+    deactivateDraft: vi.fn(),
+  }),
 }));
 
 // dogs mock — mutable so individual tests can override
@@ -125,8 +128,11 @@ let capturedStepId = '';
 let capturedOnDogSelectionChange: ((dogIds: string[]) => void) | null = null;
 vi.mock('@/components/shows/RegistrationWorkflow/WorkflowStepContent', () => ({
   WorkflowStepContent: (props: {
-    registrationData: { selectedDogs: string[] };
-    optimisticState: { classSelections: typeof capturedClassSelections };
+    registrationData: { selectedDogs: string[]; paymentMethod?: string };
+    optimisticState: {
+      classSelections: typeof capturedClassSelections;
+      paymentStatus: PaymentStatus;
+    };
     currentStepId: string;
     onDogSelectionChange: (dogIds: string[]) => void;
   }) => {
@@ -134,7 +140,13 @@ vi.mock('@/components/shows/RegistrationWorkflow/WorkflowStepContent', () => ({
     capturedClassSelections = props.optimisticState.classSelections;
     capturedStepId = props.currentStepId;
     capturedOnDogSelectionChange = props.onDogSelectionChange;
-    return <div data-testid="step-content" />;
+    return (
+      <div
+        data-testid="step-content"
+        data-payment-method={props.registrationData.paymentMethod}
+        data-payment-status={props.optimisticState.paymentStatus}
+      />
+    );
   },
 }));
 
@@ -297,7 +309,10 @@ describe('RegistrationWizardPage — handleDraftLoaded', () => {
     const view = render(<RegistrationWizardPage />, { initialRoute: '/shows/show-1/register' });
     await waitFor(() => expect(capturedOnDraftLoaded).not.toBeNull());
 
-    act(() => capturedOnDraftLoaded!(buildDraft(['dog-1'])));
+    const draft = buildDraft(['dog-1']);
+    draft.data.paymentMethod = 'cash';
+    draft.data._workflowState!.paymentStatus = PaymentStatus.PAID_BY_CASH;
+    act(() => capturedOnDraftLoaded!(draft));
     await waitFor(() => expect(capturedStepId).toBe('class-selection'));
 
     mockDogStoreState.isReady = true;
@@ -306,6 +321,13 @@ describe('RegistrationWizardPage — handleDraftLoaded', () => {
     await waitFor(() => expect(capturedStepId).toBe('dog-selection'));
     expect(mockCreateRegistration).not.toHaveBeenCalled();
     expect(mockActivateDraft).toHaveBeenCalledOnce();
+    expect(capturedSelectedDogs).toEqual([]);
+    expect(capturedShowResume).toBe(true);
+    expect(screen.getByTestId('step-content')).toHaveAttribute(
+      'data-payment-method',
+      'credit_card'
+    );
+    expect(screen.getByTestId('step-content')).toHaveAttribute('data-payment-status', 'pending');
   });
 
   it('keeps a draft whose dog is absent from the loaded roster', async () => {

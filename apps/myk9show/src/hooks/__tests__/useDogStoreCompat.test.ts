@@ -174,6 +174,14 @@ describe('useDogStoreCompat.addDog — local-first', () => {
     mockGetRegistrationsForDogs.mockResolvedValue([]);
   });
 
+  it('treats cached dog data as ready when the query is not successful', () => {
+    const { result } = renderHook(() => useDogStoreCompat(), { wrapper: makeWrapper() });
+
+    // The query mock supplies cached data without isSuccess, as a failed
+    // background refetch can do in the real query state.
+    expect(result.current.isReady).toBe(true);
+  });
+
   it('writes to IndexedDB before PostgREST insert', async () => {
     let indexedDbWriteOrder = 0;
     let postgrestCallOrder = 0;

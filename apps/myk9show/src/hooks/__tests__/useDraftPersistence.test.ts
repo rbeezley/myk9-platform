@@ -504,6 +504,37 @@ describe('useDraftPersistence — cross-user scoping', () => {
     expect(result.current.availableDrafts).toHaveLength(0);
   });
 
+  it('does not offer Save Draft when only already-filed work remains', () => {
+    seedDraftData({
+      selectedDogs: ['dog-1'],
+      _workflowState: { currentStep: 'dog-selection', classSelections: [] },
+    });
+    const { result } = renderHook(() => useDraftPersistence(SHOW_ID, USER_A, 'dog-selection'));
+    act(() =>
+      result.current.discardDraftsWithoutFinalSave([{ dogId: 'dog-1', classId: 'class-1' }])
+    );
+
+    expect(result.current.hasUnsavedChanges).toBe(false);
+  });
+
+  it('keeps the saved payload when an unavailable dog deactivates its draft', () => {
+    seedDraftData({ selectedDogs: ['dog-1'] });
+    const { result, rerender } = renderHook(() =>
+      useDraftPersistence(SHOW_ID, USER_A, 'dog-selection')
+    );
+    let draftId: string | null = null;
+    act(() => {
+      draftId = result.current.saveDraft('Unavailable dog');
+      result.current.activateDraft(result.current.loadDraft(draftId!)!);
+      result.current.deactivateDraft();
+    });
+    seedDraftData({ selectedDogs: [] });
+    rerender();
+    act(() => window.dispatchEvent(new Event('pagehide')));
+
+    expect(result.current.loadDraft(draftId!)?.data.selectedDogs).toEqual(['dog-1']);
+  });
+
   it('does not reread draft payloads on an unrelated wizard rerender', () => {
     seedDraftData({ selectedDogs: ['dog-1'] });
     const first = renderHook(() => useDraftPersistence(SHOW_ID, USER_A, 'dog-selection'));

@@ -22,9 +22,10 @@ owns the wizard structure, so a second OpenSpec proposal would duplicate it.
    exhibitor's empty dog step. Preserve the option to select a different dog.
 3. Wait for the dog roster before offering automatic resume. The existing
    manual draft loader can restore locally while offline; defer registration
-   creation until the roster arrives and validates the selected dog. Keep the
-   draft if the roster is temporarily unavailable. Do not change payment or
-   legal-agreement submission.
+   creation until the roster arrives and validates the selected dog. Cached
+   roster data remains usable after a failed background refetch. If validation
+   fails, return to the empty dog step without overwriting the saved draft.
+   Do not change payment or legal-agreement submission.
 4. After a successful entry submission or cart handoff, remove only class
    lines that were handled. Keep denied classes, unrelated drafts, and unfiled
    dogs. Reset payment and entry status for remaining work; never turn a
@@ -41,13 +42,14 @@ owns the wizard structure, so a second OpenSpec proposal would duplicate it.
 
 ## Verification recorded
 
-- Focused draft hook, DraftManager, wizard, and submission tests: 44 passed. They cover
+- Focused dog-store, draft hook, DraftManager, wizard, and submission tests: 75 passed. They cover
   pagehide, empty-reentry preservation, rejected and accepted draft reads,
   eligibility, roster loading/error recovery, dog/class/step restoration,
   profile-refetch failure, the first post-resume edit, class-level cleanup,
   stale pre-class draft cleanup, continued saving after partial submission,
   offline manual draft restoration and later roster validation, money-status
-  reset, malformed draft tolerance, and stable payload parsing across unrelated renders.
+  reset, malformed draft tolerance, cached-roster readiness, invalid-dog retry,
+  and stable payload parsing across unrelated renders.
 - Chromium browser Back → reopen → Resume entry: passed.
 - App and test TypeScript checks, E2E typecheck ratchet, touched-file ESLint,
   code-quality ratchet, plan metadata, and diff check: passed.

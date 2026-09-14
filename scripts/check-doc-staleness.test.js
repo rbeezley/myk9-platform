@@ -16,6 +16,7 @@ const {
   extractRoutesFromMarkdown,
   extractRoutesFromSource,
   extractComposedRoutes,
+  extractDeclaredRoutes,
   parseDiffForRoutes,
   reverifiedRoutesFromMapDiff,
   parseSourceMap,
@@ -89,6 +90,61 @@ test('parseDiffForRoutes composes slug changes only for the composed-base file',
   const routes = parseDiffForRoutes(diff);
   assert.ok(routes.includes('/shows/:showId/entry-management'), 'old slug composed');
   assert.ok(routes.includes('/shows/:showId/entries'), 'new slug composed');
+});
+
+test('extractDeclaredRoutes takes path: declarations and nothing else', () => {
+  const line = "    path: '/dogs', linksTo: ['/dogs/:id', '/clubs'],";
+  assert.deepEqual(extractDeclaredRoutes(line), ['/dogs']);
+});
+
+// MYK9-476. pageDirectory.ts both declares routes (`path:`) and names other
+// routes in `linksTo` and prose. Scanning every quoted path there read the
+// removal of one entry's linksTo entry as a change to the LINKED route, which
+// flagged the Exhibitor Guide's `/dogs/:id` sections as stale while the
+// /dogs/:id route itself was never touched.
+test('parseDiffForRoutes reads a pageDirectory linksTo edit as no route change', () => {
+  const diff = [
+    'diff --git a/apps/myk9show/src/features/admin-help/data/pageDirectory.ts b/apps/myk9show/src/features/admin-help/data/pageDirectory.ts',
+    '--- a/apps/myk9show/src/features/admin-help/data/pageDirectory.ts',
+    '+++ b/apps/myk9show/src/features/admin-help/data/pageDirectory.ts',
+    '@@ -1 +1 @@',
+    "-    linksTo: ['/dogs/:id'],",
+    '+    linksTo: [],',
+  ].join('\n');
+  assert.deepEqual(parseDiffForRoutes(diff), []);
+});
+
+test('parseDiffForRoutes still sees a pageDirectory path: declaration change', () => {
+  const diff = [
+    '--- a/apps/myk9show/src/features/admin-help/data/pageDirectory.ts',
+    '+++ b/apps/myk9show/src/features/admin-help/data/pageDirectory.ts',
+    '@@ -1 +1 @@',
+    "-    path: '/exhibitor/show-day',",
+    "+    path: '/exhibitor/show-time',",
+  ].join('\n');
+  const routes = parseDiffForRoutes(diff);
+  assert.ok(routes.includes('/exhibitor/show-day'), 'removed declaration seen');
+  assert.ok(routes.includes('/exhibitor/show-time'), 'added declaration seen');
+});
+
+// A deleted file's new-side header is `+++ /dev/null`, so tracking the file from
+// the `+++` line alone leaves it pointing at the PREVIOUS file in the diff.
+// Harmless while extraction was uniform; once it is per-file, a file deleted
+// straight after pageDirectory.ts gets scanned as declaration-only and its route
+// literals vanish.
+test('parseDiffForRoutes attributes a deleted file to itself, not the previous file', () => {
+  const diff = [
+    '--- a/apps/myk9show/src/features/admin-help/data/pageDirectory.ts',
+    '+++ b/apps/myk9show/src/features/admin-help/data/pageDirectory.ts',
+    '@@ -1 +1 @@',
+    "-    path: '/kept',",
+    "+    path: '/kept',",
+    '--- a/apps/myk9show/src/routes/LegacyThing.tsx',
+    '+++ /dev/null',
+    '@@ -1 +0 @@',
+    '-  return <Navigate to="/at-show/show-1" replace />;',
+  ].join('\n');
+  assert.deepEqual(parseDiffForRoutes(diff), ['/at-show/show-1']);
 });
 
 test('parseDiffForRoutes ignores label-only edits where the route is unchanged', () => {

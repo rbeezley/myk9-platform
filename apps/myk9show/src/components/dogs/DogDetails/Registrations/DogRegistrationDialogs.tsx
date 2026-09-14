@@ -12,7 +12,7 @@
  * Opening is driven by `registrationsStore`, so any surface can raise a panel
  * without owning one.
  */
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { toast } from 'sonner';
 import type { Dog } from '@/types/dog-types';
 import AddRegistrationPanel from './AddRegistrationPanel';
@@ -28,6 +28,9 @@ interface DogRegistrationDialogsProps {
   autoOpenAddDialog?: boolean;
   onAddRequestConsumed?: (() => void) | undefined;
 }
+
+/** SlideOverPanel keeps a closed panel mounted this long for its exit slide. */
+const PANEL_CLOSE_MS = 350;
 
 interface RegistrationFormData {
   organization: string;
@@ -89,33 +92,51 @@ export default function DogRegistrationDialogs({
     };
   }, [dogId, setIsAddOpen, setIsEditOpen, setIsDeleteOpen, setSelectedRegistration]);
 
-  // Keyed per open so the form starts blank — see addRegistrationOpenCount.
-  const addOpenCount = useRegistrationsStore(state => state.addRegistrationOpenCount);
+  // EditPanelWrapper resets only when `initialData`'s VALUE changes, and Add's is
+  // a module constant — so a panel that no longer unmounts between uses reopens
+  // holding the registration just saved, inviting a duplicate row. Remount it
+  // AFTER the close animation: remounting at the moment of opening would seed
+  // `prevOpen` from `open` and skip the slide-in.
+  const [addPanelKey, setAddPanelKey] = useState(0);
+  useEffect(() => {
+    if (isAddOpen) return;
+    const timer = setTimeout(() => setAddPanelKey(key => key + 1), PANEL_CLOSE_MS);
+    return () => clearTimeout(timer);
+  }, [isAddOpen]);
 
-  // A save failure is transient feedback about an action the user just took, and
-  // the panel that failed may be the only thing on screen — a toast reaches them
-  // wherever this host happens to be mounted.
+  // The delete confirmation is a plain dialog with no error surface of its own,
+  // so its failures need a toast.
   const reportSaveError = (error: unknown) => toast.error(translateDogDbError(error).message);
 
-  const handleAdd = async (data: RegistrationFormData) => {
-    createRegistration(toDbRegistration(data), {
-      onSuccess: () => setIsAddOpen(false),
-      onError: reportSaveError,
-    });
-  };
-
-  const handleUpdate = async (data: RegistrationFormData & { id: string }) => {
-    updateRegistration(
-      { id: data.id, updates: toDbRegistration(data) },
-      {
+  // Add and Edit REJECT instead: EditPanelWrapper.wrappedSave catches, reports,
+  // and deliberately does not close, so the user keeps the form they typed. The
+  // panels are keyed to remount blank, so a swallowed failure would throw the
+  // whole form away and leave only a toast.
+  const handleAdd = (data: RegistrationFormData) =>
+    new Promise<void>((resolve, reject) => {
+      createRegistration(toDbRegistration(data), {
         onSuccess: () => {
-          setIsEditOpen(false);
-          setSelectedRegistration(null);
+          setIsAddOpen(false);
+          resolve();
         },
-        onError: reportSaveError,
-      }
-    );
-  };
+        onError: error => reject(new Error(translateDogDbError(error).message)),
+      });
+    });
+
+  const handleUpdate = (data: RegistrationFormData & { id: string }) =>
+    new Promise<void>((resolve, reject) => {
+      updateRegistration(
+        { id: data.id, updates: toDbRegistration(data) },
+        {
+          onSuccess: () => {
+            setIsEditOpen(false);
+            setSelectedRegistration(null);
+            resolve();
+          },
+          onError: error => reject(new Error(translateDogDbError(error).message)),
+        }
+      );
+    });
 
   const handleDelete = () => {
     // Same onError as add and update: the optimistic update targets a different
@@ -131,7 +152,7 @@ export default function DogRegistrationDialogs({
   return (
     <>
       <AddRegistrationPanel
-        key={addOpenCount}
+        key={addPanelKey}
         open={isAddOpen}
         onClose={() => setIsAddOpen(false)}
         onSave={handleAdd}

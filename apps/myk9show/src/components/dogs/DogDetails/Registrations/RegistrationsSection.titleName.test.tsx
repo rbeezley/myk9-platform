@@ -7,6 +7,10 @@ import { useRegistrationsStore } from '@/store/registrationsStore';
 import RegistrationsSection from './RegistrationsSection';
 import DogRegistrationDialogs from './DogRegistrationDialogs';
 
+const mocks = vi.hoisted(() => ({
+  createRegistration: vi.fn(),
+}));
+
 vi.mock('@/hooks/queries/useRegistrationsDatabase', () => ({
   useDogRegistrationManagement: () => ({
     registrations: [
@@ -27,15 +31,18 @@ vi.mock('@/hooks/queries/useRegistrationsDatabase', () => ({
     ],
     isLoading: false,
     error: null,
-    createRegistration: vi.fn(),
+    createRegistration: mocks.createRegistration,
     updateRegistration: vi.fn(),
     deleteRegistration: vi.fn(),
     refetch: vi.fn(),
   }),
 }));
+let capturedOnSave: ((data: Record<string, string>) => Promise<void>) | undefined;
 vi.mock('./AddRegistrationPanel', () => ({
-  default: ({ open }: { open: boolean }) =>
-    open ? <div role="dialog">Add registration</div> : null,
+  default: ({ open, onSave }: { open: boolean; onSave: (d: never) => Promise<void> }) => {
+    capturedOnSave = onSave as unknown as (data: Record<string, string>) => Promise<void>;
+    return open ? <div role="dialog">Add registration</div> : null;
+  },
 }));
 vi.mock('./EditRegistrationPanel', () => ({
   default: ({
@@ -128,5 +135,33 @@ describe('registration name editing', () => {
     });
 
     expect(screen.getByText(/CH Test Dog/)).toBeInTheDocument();
+  });
+
+  // EditPanelWrapper keeps the panel open when onSave rejects, so a rejected
+  // insert has to reject — swallowing it closed the panel and, because the panel
+  // is keyed to remount blank, threw away everything the user typed.
+  it('rejects a failed add so the panel keeps what was typed', async () => {
+    mocks.createRegistration.mockImplementation((_data, opts) =>
+      opts.onError(new Error('duplicate key value violates unique constraint'))
+    );
+    const dog = { id: 'dog-1', callName: 'Test Dog' } as Dog;
+    render(<DogRegistrationDialogs dog={dog} />);
+
+    act(() => {
+      useRegistrationsStore.getState().setIsAddRegistrationDialogOpen(true);
+    });
+
+    await expect(
+      capturedOnSave!({
+        organization: 'AKC',
+        registeredName: 'CH Test Dog',
+        breed: 'Beagle',
+        variety: '',
+        registrationNumber: 'SR1',
+        status: 'Active',
+        registrationDate: '',
+      })
+    ).rejects.toThrow();
+    expect(useRegistrationsStore.getState().isAddRegistrationDialogOpen).toBe(true);
   });
 });

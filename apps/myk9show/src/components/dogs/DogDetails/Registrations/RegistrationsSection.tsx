@@ -204,7 +204,10 @@ export default function RegistrationsSection({
     );
   }
 
-  if (showDetails && error) {
+  // NOT gated on showDetails: the rail is the only other registration surface and
+  // it renders "No registrations yet." from an empty `data`, so a failed fetch on
+  // a registered dog would otherwise read as "you have none" with no retry.
+  if (error) {
     return (
       <div className="flex items-center justify-center py-8">
         <div className="text-center">

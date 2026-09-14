@@ -69,7 +69,15 @@ const DogDetailsMain: React.FC<DogDetailsMainProps> = ({
   const openAddRegistration = () => {
     // Registrations live on Overview — the default section — so clearing
     // section/view state is enough to land there; no `tab` param is needed.
+    // navigateToOverview() drops `tab`, which is what a legacy
+    // `?tab=registrations` bookmark used to keep the management list open.
+    // Carry that view forward so saving does not dump the user on a bare
+    // Overview. requestId stays put: opening the panel must not steal focus.
+    const wasShowingDetails = searchParams.get('tab') === 'registrations';
     navigateToOverview();
+    if (wasShowingDetails) {
+      setRegistrationDetails(prev => ({ dogId: dog.id, requestId: prev?.requestId ?? 0 }));
+    }
     setAddRegistrationDogId(dog.id);
   };
 

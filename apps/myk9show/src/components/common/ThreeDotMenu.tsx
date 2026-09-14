@@ -102,12 +102,10 @@ const ThreeDotMenu: React.FC<ThreeDotMenuProps> = ({
   }
 
   return (
-    <RowActionMenu
-      actions={actions}
-      label="More actions"
-      size="touch"
-      triggerClassName="h-11 w-11"
-    />
+    // No triggerClassName: RowActionMenu's `size="touch"` is already h-11 w-11.
+    // The old `h-10 w-10` override won through twMerge and quietly defeated the
+    // 44px touch target this menu asks for.
+    <RowActionMenu actions={actions} label="More actions" size="touch" />
   );
 };
 

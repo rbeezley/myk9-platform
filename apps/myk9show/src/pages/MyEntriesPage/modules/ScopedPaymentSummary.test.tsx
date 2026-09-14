@@ -29,6 +29,7 @@ const { maybeSingle, eq, entriesIn, from } = vi.hoisted(() => {
 vi.mock('@/lib/supabase', () => ({ supabase: { from } }));
 
 import { buildEntryReceiptHref } from '@/features/payments/entryReceiptHref';
+import { expectedLocalDate } from '@/test/utils/expectedLocalDate';
 
 import { ScopedPaymentSummary } from './ScopedPaymentSummary';
 
@@ -84,7 +85,7 @@ describe('ScopedPaymentSummary', () => {
     expect(await screen.findByText('$32.10')).toBeInTheDocument();
     expect(screen.getByText('Amount paid')).toBeInTheDocument();
     expect(screen.getByText('Paid')).toBeInTheDocument();
-    expect(screen.getByText('Sep 6, 2026')).toBeInTheDocument();
+    expect(screen.getByText(expectedLocalDate('2026-09-06T12:00:00Z'))).toBeInTheDocument();
     expect(screen.getByText('pi_3RwalkDog')).toBeInTheDocument();
     expect(screen.getByText('Paid for 1 entry.')).toBeInTheDocument();
     expect(from).toHaveBeenCalledWith('stripe_orders');
@@ -143,8 +144,8 @@ describe('ScopedPaymentSummary', () => {
     });
     renderAt(buildEntryReceiptHref(SHOW_ID, [ENTRY_ID], ORDER_ID));
 
-    expect(await screen.findByText('Sep 9, 2026')).toBeInTheDocument();
-    expect(screen.queryByText('Sep 6, 2026')).not.toBeInTheDocument();
+    expect(await screen.findByText(expectedLocalDate('2026-09-09T12:00:00Z'))).toBeInTheDocument();
+    expect(screen.queryByText(expectedLocalDate('2026-09-06T12:00:00Z'))).not.toBeInTheDocument();
   });
 
   it('does not serve one viewer the cached receipt of another', async () => {

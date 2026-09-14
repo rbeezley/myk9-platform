@@ -119,7 +119,12 @@ export const HorizontalProgressIndicator: React.FC<HorizontalProgressIndicatorPr
                      is announced. */
                   aria-label={`${step.label}${isCurrent ? ' (current)' : isCompleted ? ' (completed)' : ''}`}
                   className={cn(
-                    'relative z-10 flex min-h-[44px] w-full min-w-0 flex-col items-center gap-1.5 rounded-lg px-1 py-1.5',
+                    // No horizontal padding below `sm`: the five-step staff
+                    // rail gives each title ~70px at 390px, and the 4px on each
+                    // side was the difference between "Handlers" fitting and
+                    // being cut (MYK9-517). The titles are centred, so the gap
+                    // between two of them is what is left over, not this.
+                    'relative z-10 flex min-h-[44px] w-full min-w-0 flex-col items-center gap-1.5 rounded-lg px-0 py-1.5 sm:px-1',
                     'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2',
                     isClickable ? 'cursor-pointer' : 'cursor-default'
                   )}

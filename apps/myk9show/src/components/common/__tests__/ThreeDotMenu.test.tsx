@@ -83,4 +83,17 @@ describe('ThreeDotMenu', () => {
     await user.click(deleteItem);
     expect(onDelete).toHaveBeenCalledTimes(1);
   });
+
+  // MYK9-518: RowActionMenu's size="touch" is h-11 w-11 but this wrapper has
+  // always overridden it to 40px, and ~10 surfaces lay out against that. A
+  // surface needing the 44px touch target opts in; nothing resizes app-wide by
+  // accident.
+  it('keeps a 40px trigger by default and lets one call site opt into 44px', () => {
+    const { unmount } = render(<ThreeDotMenu onView={vi.fn()} />);
+    expect(screen.getByRole('button', { name: /more actions/i })).toHaveClass('h-10', 'w-10');
+    unmount();
+
+    render(<ThreeDotMenu onView={vi.fn()} triggerClassName="h-11 w-11" />);
+    expect(screen.getByRole('button', { name: /more actions/i })).toHaveClass('h-11', 'w-11');
+  });
 });

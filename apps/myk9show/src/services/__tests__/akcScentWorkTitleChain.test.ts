@@ -35,8 +35,16 @@ function locked(results: TitleProgressResult[]): string[] {
   return results.filter(r => !r.isEarned && !r.prerequisiteMet).map(r => r.abbreviation);
 }
 
-/** Exactly what `DogDetailsMain/TitleProgressSection` puts on the Overview card. */
-function overviewCards(results: TitleProgressResult[]): string[] {
+/**
+ * The first three unearned, unsuperseded titles in engine sort order.
+ *
+ * This used to mirror `DogDetailsMain/TitleProgressSection`'s Overview cards
+ * one-for-one. MYK9-518 replaced those cards with a count whose filter is
+ * `!isEarned && prerequisiteMet && earnedLegs > 0`, so this no longer tracks any
+ * UI — it pins the ENGINE's ordering, which is what the chain assertions below
+ * actually need. `TitleProgressSection.test.tsx` owns the Overview projection.
+ */
+function pursuableOrder(results: TitleProgressResult[]): string[] {
   return results
     .filter(r => !r.isEarned && !r.isSuperseded)
     .slice(0, 3)
@@ -65,19 +73,19 @@ describe('AKC Scent Work title chain', () => {
     expect(locked(results)).toHaveLength(42);
   });
 
-  it('shows Container, Interior and Exterior Novice on the Overview card', () => {
+  it('sorts Container, Interior and Exterior Novice first among pursuable titles', () => {
     const results = computeTitleProgress([], buildAkcScentWorkTitles(), akcLevels);
-    expect(overviewCards(results)).toEqual(['SCN', 'SIN', 'SEN']);
+    expect(pursuableOrder(results)).toEqual(['SCN', 'SIN', 'SEN']);
   });
 
-  it('without the chain, every title is pursuable and the card shows one element at three levels', () => {
+  it('without the chain, every title is pursuable and the order collapses to one element at three levels', () => {
     // The pre-migration data. This is the regression the chain exists to prevent:
     // the assertions above must fail here, or they prove nothing.
     const results = computeTitleProgress([], buildAkcScentWorkTitles(false), akcLevels);
 
     expect(nextEligible(results)).toHaveLength(49);
     expect(locked(results)).toHaveLength(0);
-    expect(overviewCards(results)).toEqual(['SCN', 'SCA', 'SCE']);
+    expect(pursuableOrder(results)).toEqual(['SCN', 'SCA', 'SCE']);
   });
 
   it('unlocks the next level in an element only once that element is titled', () => {
@@ -116,6 +124,6 @@ describe('AKC Scent Work title chain', () => {
     const detective = results.find(r => r.abbreviation === 'SWD');
 
     expect(detective!.prerequisiteMet).toBe(true);
-    expect(overviewCards(results)).not.toContain('SWD');
+    expect(pursuableOrder(results)).not.toContain('SWD');
   });
 });

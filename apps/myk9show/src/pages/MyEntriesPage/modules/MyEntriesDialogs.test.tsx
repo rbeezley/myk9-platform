@@ -13,8 +13,18 @@ vi.mock('@/features/payments/entryReceiptOrder', () => ({
   useEntryReceiptOrders: useEntryReceiptOrdersMock,
 }));
 
+import { expectedLocalDate } from '@/test/utils/expectedLocalDate';
+
 import { ReceiptEntryDialog } from './MyEntriesDialogs';
 import { buildScopedPaymentFacts } from './scopedPaymentFacts';
+
+// The production aria-label renders the date via `formatPaymentDate`, in
+// LOCAL time. `expectedLocalDate` builds the same "Mon D, YYYY" string from
+// the same pinned instant WITHOUT calling `formatPaymentDate` or `Intl` —
+// asserting through the formatter under test would be tautological, passing
+// even if that formatter itself had a day-shift bug.
+const ORDER_1_PAID_ON = expectedLocalDate('2026-08-01T12:00:00Z');
+const ORDER_2_PAID_ON = expectedLocalDate('2026-08-09T12:00:00Z');
 
 const splitRegistration: MyEntry = {
   id: 'entry-a',
@@ -100,10 +110,14 @@ describe('ReceiptEntryDialog order resolution', () => {
     // Named by date and amount: a raw UUID tells the exhibitor nothing about
     // which of their two payments they are choosing between.
     expect(
-      screen.getByRole('button', { name: /\$65\.00 payment on Aug 1, 2026/i })
+      screen.getByRole('button', {
+        name: new RegExp(`\\$65\\.00 payment on ${ORDER_1_PAID_ON}`, 'i'),
+      })
     ).toBeInTheDocument();
     expect(
-      screen.getByRole('button', { name: /\$75\.00 payment on Aug 9, 2026/i })
+      screen.getByRole('button', {
+        name: new RegExp(`\\$75\\.00 payment on ${ORDER_2_PAID_ON}`, 'i'),
+      })
     ).toBeInTheDocument();
     expect(screen.queryByText('Amount charged')).not.toBeInTheDocument();
   });
@@ -123,7 +137,11 @@ describe('ReceiptEntryDialog order resolution', () => {
         onClose={vi.fn()}
       />
     );
-    await userEvent.click(screen.getByRole('button', { name: /\$65\.00 payment on Aug 1, 2026/i }));
+    await userEvent.click(
+      screen.getByRole('button', {
+        name: new RegExp(`\\$65\\.00 payment on ${ORDER_1_PAID_ON}`, 'i'),
+      })
+    );
 
     expect(screen.getByText('Novice')).toBeInTheDocument();
     expect(screen.queryByText('Advanced')).not.toBeInTheDocument();

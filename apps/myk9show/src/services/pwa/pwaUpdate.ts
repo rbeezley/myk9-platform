@@ -32,7 +32,6 @@ export interface SetupPwaOptions {
 const SENSITIVE_PATH_FRAGMENTS = [
   '/checkout/',
   '/shows/', // covers /shows/:id/register
-  '/exhibitor/check-in/',
   '/secretary/register/',
   '/scoring/',
 ];

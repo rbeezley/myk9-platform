@@ -26,6 +26,13 @@ export interface DogIdentityRailProps {
   registrations?: DogCardRegistration[] | undefined;
   /** Opens the add-registration panel on Overview. */
   onAddRegistration?: (() => void) | undefined;
+  /** Opens the registration-management panel. */
+  onManageRegistrations?: (() => void) | undefined;
+  /** The registrations read failed — distinct from the dog having none. */
+  registrationsFailed?: boolean | undefined;
+  /** The registrations read is still in flight — also not "has none". */
+  registrationsLoading?: boolean | undefined;
+  onRetryRegistrations?: (() => void) | undefined;
   role?: 'exhibitor' | 'secretary';
   onEditPanelOpen: () => void;
   onPhotoDialogOpen: () => void;
@@ -53,8 +60,6 @@ export interface DogSummaryCardProps {
 
 export interface DogDetailsTabsProps {
   dog: Dog;
-  autoOpenAddRegistration: boolean;
-  registrationsCount?: number;
   role?: 'exhibitor' | 'secretary';
 }
 

@@ -46,7 +46,13 @@ import { Skeleton } from '@/components/common/SkeletonLoaders';
 import { AddEditRegistrationDialog } from '@/components/dogs/AddEditRegistrationDialog';
 import { useInlineDogRegistration } from './useInlineDogRegistration';
 import '@/styles/myk9-registration-workflow.css';
-import { buildAvailabilityMap, isAvailabilityUnreadable } from './ClassSelectionStep.availability';
+import {
+  buildAvailabilityMap,
+  getClassEntryWindow,
+  isAvailabilityUnreadable,
+} from './ClassSelectionStep.availability';
+import { buildFullChipReason } from './ClassSelectionStep.fullReason';
+import { canManageShowSurface } from '@/utils/roleScopes';
 
 export type { ClassSelectionStepProps } from './ClassSelectionStep.types';
 
@@ -64,7 +70,7 @@ export const ClassSelectionStep: React.FC<ClassSelectionStepProps> = ({
   const trials = useTrialStore(s => s.trials);
   const trialClasses = useTrialStore(s => s.trialClasses);
   const { classes: queryClasses = [] } = useClassStoreCompat();
-  const { isSecretary, isAdmin } = useAuthContext();
+  const { isSecretary, isAdmin, hasRole, userWithRoles } = useAuthContext();
   const { profile: exhibitorProfile } = useExhibitorProfile();
   const { status: syncStatus } = useReplicationSync();
   // 'idle' means sync hasn't started yet (status initialises to idle before
@@ -94,6 +100,29 @@ export const ClassSelectionStep: React.FC<ClassSelectionStepProps> = ({
     useClassAvailability(showId);
 
   const show = shows.find(s => s.id === showId);
+
+  /**
+   * Show officials take late entries at the desk for a class already in the
+   * ring, so the started-class guard (MYK9-516) does not apply to them.
+   *
+   * SCOPED to the show's owning club, not `isSecretary || isAdmin`. The server's
+   * `v_is_official` is `is_site_admin() OR is_show_secretary(show) OR
+   * is_club_admin(club)` — all club-scoped but the first — so a global role
+   * boolean would hand Club A's secretary an enabled chip on Club B's show and
+   * the RPC would then refuse the entry with a 403. That is the exact shape of
+   * MYK9-123 / MYK9-458, and `scopedManageGate.test.ts` exists to catch it.
+   *
+   * `canManageShowSurface` denies while `clubId` is unknown, which is the right
+   * direction here: a secretary briefly sees the chip disabled and explained,
+   * rather than an exhibitor briefly seeing it enabled.
+   */
+  const isStaff = canManageShowSurface({
+    isSecretary,
+    isAdmin,
+    hasRole,
+    userWithRoles,
+    clubId: show?.clubId,
+  });
   const showTrials = useMemo(
     () =>
       (trials || [])
@@ -137,6 +166,14 @@ export const ClassSelectionStep: React.FC<ClassSelectionStepProps> = ({
     const result = new Map<string, ElementGroup[]>();
     const defaultFee = getClassFee(show, { entryFee: undefined });
 
+    // Keyed by class id, NOT read off the chosen source: the step prefers the
+    // replicated class list, and only the availability read knows whether dogs
+    // are in the ring. Looking it up here keeps the guard working on every
+    // source rather than only the one the step falls back to (MYK9-516).
+    const startedByClassId = new Map<string, boolean>(
+      availabilityClasses.map(cls => [cls.classId, cls.hasStarted])
+    );
+
     for (const trial of showTrials) {
       // Mapped rather than assigned straight through: `SyncableTrialClass`
       // spells the stored name `name`, and `RegistrationClassSource` spells it
@@ -151,6 +188,7 @@ export const ClassSelectionStep: React.FC<ClassSelectionStepProps> = ({
           level: cls.level,
           section: cls.section,
           className: cls.name,
+          status: cls.status,
         })
       );
       const queryBackedClasses: RegistrationClassSource[] = queryClasses
@@ -161,6 +199,7 @@ export const ClassSelectionStep: React.FC<ClassSelectionStepProps> = ({
           level: cls.level,
           section: cls.section,
           className: cls.className,
+          status: cls.status,
         }));
       const availabilityBackedClasses: RegistrationClassSource[] = availabilityClasses
         .filter(cls => cls.trialId === trial.id)
@@ -170,6 +209,7 @@ export const ClassSelectionStep: React.FC<ClassSelectionStepProps> = ({
           level: cls.level,
           section: cls.section ?? undefined,
           className: cls.className,
+          status: cls.status ?? undefined,
         }));
       const classes =
         replicatedClasses.length > 0
@@ -185,6 +225,8 @@ export const ClassSelectionStep: React.FC<ClassSelectionStepProps> = ({
           level: string;
           section: string;
           displayLabel: string;
+          isClassClosed: boolean;
+          classClosedReason: string | null;
         }[]
       >();
 
@@ -218,12 +260,21 @@ export const ClassSelectionStep: React.FC<ClassSelectionStepProps> = ({
           cls.section,
           disambiguate({ name: cls.className, element, level, section: cls.section })
         );
+        // A class the judge has already started is not enterable, whatever the
+        // entry-close DATE says (MYK9-516). Staff keep taking gate entries.
+        const entryWindow = getClassEntryWindow({
+          status: cls.status,
+          hasStarted: startedByClassId.get(cls.id) ?? false,
+          isStaff,
+        });
         const entry = {
           classId: cls.id,
           className: cls.className || '',
           level,
           section: cls.section || '',
           displayLabel: displayLabel ?? '',
+          isClassClosed: !entryWindow.enterable,
+          classClosedReason: entryWindow.reason,
         };
         const existing = elementMap.get(element);
         if (existing) {
@@ -252,7 +303,7 @@ export const ClassSelectionStep: React.FC<ClassSelectionStepProps> = ({
     }
 
     return result;
-  }, [showTrials, trialClasses, queryClasses, availabilityClasses, show]);
+  }, [showTrials, trialClasses, queryClasses, availabilityClasses, show, isStaff]);
   const hasClassGroups = useMemo(
     () => Array.from(classesByTrialElement.values()).some(groups => groups.length > 0),
     [classesByTrialElement]
@@ -469,6 +520,14 @@ export const ClassSelectionStep: React.FC<ClassSelectionStepProps> = ({
                                       isFull: avail.isFull,
                                       waitlistCount: avail.waitlistCount,
                                       allowsWaitlist: avail.allowsWaitlist,
+                                      // A "Full" badge with no explanation is a
+                                      // dead end; the sentence comes from the
+                                      // server's own payload (MYK9-515).
+                                      fullReason: buildFullChipReason({
+                                        classId: l.classId,
+                                        availability: availabilityClasses,
+                                        secretaryContact: show?.clubEmail,
+                                      }),
                                     }),
                                   };
                                 })}

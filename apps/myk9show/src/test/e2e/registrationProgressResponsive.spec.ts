@@ -9,7 +9,7 @@ const VIEWPORTS = [
 ] as const;
 
 const THEMES = ['light', 'dark'] as const;
-const STEP_LABELS = ['Select dogs', 'Select classes', 'Payment', 'Receipt'];
+const STEP_LABELS = ['Dogs', 'Classes', 'Payment', 'Receipt'];
 
 test.describe('exhibitor registration progress remains legible', () => {
   test.setTimeout(90_000);
@@ -45,9 +45,10 @@ test.describe('exhibitor registration progress remains legible', () => {
         expect(horizontalOverflow, `${viewport.id}/${theme}: document overflow`).toBe(0);
         expect(stepListOverflow, `${viewport.id}/${theme}: stepper overflow`).toBe(0);
 
-        await expect(
-          page.getByRole('button', { name: /^Select dogs \(current\)$/ })
-        ).toHaveAttribute('aria-current', 'step');
+        await expect(page.getByRole('button', { name: /^Dogs \(current\)$/ })).toHaveAttribute(
+          'aria-current',
+          'step'
+        );
         await page.screenshot({
           path: testInfo.outputPath(`registration-progress-${viewport.id}-${theme}.png`),
           fullPage: true,

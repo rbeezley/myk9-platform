@@ -8,7 +8,7 @@ import { Separator } from '@/components/ui/separator';
 import { User as UserIcon, CheckCircle, Plus, Info } from 'lucide-react';
 import { CreateExhibitorDialog } from './CreateExhibitorDialog';
 import { AddDogPanel } from '@/components/panels/edit';
-import { getDogBreedLabel, getDogRegisteredName, User, Dog } from '@/types/dog-types';
+import { getDogBreedLabel, getDogDistinctRegisteredName, User, Dog } from '@/types/dog-types';
 import { UserRole } from '@/types/auth-types';
 
 interface QuickCreateFlowProps {
@@ -338,9 +338,13 @@ export const QuickCreateFlow: React.FC<QuickCreateFlowProps> = ({
                               <Badge variant="outline">{getDogBreedLabel(dog)}</Badge>
                               <Badge variant="secondary">{dog.gender}</Badge>
                             </div>
-                            {getDogRegisteredName(dog) && (
+                            {/* Suppressed when it would only repeat the call
+                              name printed just above (MYK9-485 review round 2):
+                              "Registered Name: Maple" under Maple is noise on a
+                              summary a secretary is checking for mistakes. */}
+                            {getDogDistinctRegisteredName(dog) && (
                               <p className="text-sm text-muted-foreground">
-                                Registered Name: {getDogRegisteredName(dog)}
+                                Registered Name: {getDogDistinctRegisteredName(dog)}
                               </p>
                             )}
                             <p className="text-sm text-muted-foreground">

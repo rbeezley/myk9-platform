@@ -174,7 +174,7 @@ name-display inconsistency.
 
 ## Part 7 — Check In to a Class ✅ 🔧 🐞 (walked 2026-06-03)
 
-> The dedicated `/exhibitor/check-in/:entryId` and `/exhibitor/show-day` routes are now **legacy redirects** (→ `/exhibitor/entries`). The exhibitor's self-check-in surface is the **My Entries card** check-in dialog (and `/at-show` ringside).
+> The dedicated `/exhibitor/check-in/:entryId` and `/exhibitor/show-day` routes were **deleted** in MYK9-476. The exhibitor's self-check-in surface is the **My Entries card** check-in dialog (and `/at-show` ringside).
 
 - [x] My Entries card for a today show (Heritage) exposes a **"Not Checked In"** button → opens the check-in dialog
 - [x] Select **Checked In** → **Update Status** → card shows "✓ Checked In", **no failed requests**, and it **persists across reload** (after the read-fix)

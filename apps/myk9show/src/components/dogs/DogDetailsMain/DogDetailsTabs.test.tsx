@@ -106,10 +106,7 @@ function setUntrustedPremium() {
 function renderAt(initialRoute: string, dog: Dog = mockDog) {
   return render(
     <Routes>
-      <Route
-        path="/dogs/:id"
-        element={<DogDetailsTabs dog={dog} autoOpenAddRegistration={false} />}
-      />
+      <Route path="/dogs/:id" element={<DogDetailsTabs dog={dog} />} />
     </Routes>,
     { initialRoute }
   );
@@ -130,15 +127,27 @@ describe('DogDetailsTabs navigation', () => {
       );
     });
 
-    it('renders registrations and one Activity section, with no separate Activity tab', () => {
+    it('starts Overview with Activity and no duplicate registration empty state', () => {
       renderAt('/dogs/dog-1');
       expect(screen.getByRole('heading', { name: 'Activity' })).toBeInTheDocument();
+      expect(screen.queryByText('No Registrations Found')).not.toBeInTheDocument();
+      expect(
+        screen.queryByRole('heading', { name: 'Manage registrations' })
+      ).not.toBeInTheDocument();
       expect(screen.queryByRole('tab', { name: /activity/i })).not.toBeInTheDocument();
     });
 
     it('renders exactly one Activity heading (not repeated per view)', () => {
       renderAt('/dogs/dog-1');
       expect(screen.getAllByRole('heading', { name: 'Activity' })).toHaveLength(1);
+    });
+
+    // MYK9-478: registrations are consulted rarely and the identity rail
+    // already summarises them, so Overview carries none of it.
+    it('carries no registrations section', () => {
+      renderAt('/dogs/dog-1');
+      expect(screen.queryByRole('heading', { name: /registration/i })).toBeNull();
+      expect(screen.queryByText('No Registrations Found')).toBeNull();
     });
   });
 
@@ -231,10 +240,7 @@ describe('DogDetailsTabs navigation', () => {
       window.history.pushState({}, '', '/dogs/dog-1');
       const { user } = render(
         <Routes>
-          <Route
-            path="/dogs/:id"
-            element={<DogDetailsTabs dog={mockDog} autoOpenAddRegistration={false} />}
-          />
+          <Route path="/dogs/:id" element={<DogDetailsTabs dog={mockDog} />} />
         </Routes>,
         { initialRoute: '' }
       );
@@ -311,7 +317,7 @@ describe('DogDetailsTabs navigation', () => {
 
   describe('secretary role', () => {
     it('renders Registrations and a vaccinations-only Health Records section, no Overview/Career/Records strip', () => {
-      render(<DogDetailsTabs dog={mockDog} autoOpenAddRegistration={false} role="secretary" />);
+      render(<DogDetailsTabs dog={mockDog} role="secretary" />);
       expect(screen.getByRole('heading', { name: 'Health Records' })).toBeInTheDocument();
       expect(screen.queryByRole('tab', { name: 'Career' })).not.toBeInTheDocument();
     });

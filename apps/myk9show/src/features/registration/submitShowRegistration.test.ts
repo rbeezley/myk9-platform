@@ -171,7 +171,8 @@ describe('submitShowRegistration', () => {
         paymentDate: '2026-07-07',
       }),
       'secretary_paid',
-      3000
+      3000,
+      { selfService: false }
     );
   });
 
@@ -250,7 +251,8 @@ describe('submitShowRegistration', () => {
       'check-1',
       { paymentReference: 'check-1' },
       'secretary_paid',
-      3000
+      3000,
+      { selfService: false }
     );
     expect(params.deps.claimNextArmband).toHaveBeenCalledTimes(1);
     expect(params.deps.claimNextArmband).toHaveBeenCalledWith('show-1', 'dog-1', {

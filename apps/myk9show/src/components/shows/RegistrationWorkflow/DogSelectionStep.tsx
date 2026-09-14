@@ -1,5 +1,5 @@
 import React from 'react';
-import { Check, Plus } from 'lucide-react';
+import { Plus } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
@@ -7,7 +7,12 @@ import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { useDogStoreCompat } from '@/hooks/useDogStoreCompat';
 import { getAgeInMonths } from '@/hooks/useEntryEligibility';
-import { getDogDisplayName, getDogBreedLabel, getDogRegisteredName, Dog } from '@/types/dog-types';
+import {
+  getDogDisplayName,
+  getDogBreedLabel,
+  getDogDistinctRegisteredName,
+  Dog,
+} from '@/types/dog-types';
 import { formatDateMMDDYYYY } from '@/utils/dateFormat';
 import { cn } from '@/lib/utils';
 import { Skeleton } from '@/components/common/SkeletonLoaders';
@@ -160,34 +165,37 @@ export const DogSelectionStep: React.FC<DogSelectionStepProps> = ({
               >
                 <CardContent className="p-0">
                   <div className="flex items-start space-x-3">
-                    <Checkbox
-                      aria-label={`Select ${getDogDisplayName(dog)}`}
-                      checked={isSelected}
-                      disabled={!eligible}
-                      onCheckedChange={() => handleDogToggle(dog.id)}
-                      onClick={e => e.stopPropagation()}
-                      className="mt-1 min-h-11 min-w-11"
-                    />
+                    {/* The 44px touch floor belongs to this WRAPPER, never to
+                      the checkbox's painted box: sizing the control itself gave
+                      a 44px square around a 16px tick (MYK9-485). The whole
+                      Card also toggles selection, so this hit area is a second
+                      one, not the only one. */}
+                    <span className="flex min-h-11 min-w-11 shrink-0 items-center justify-center">
+                      <Checkbox
+                        aria-label={`Select ${getDogDisplayName(dog)}`}
+                        checked={isSelected}
+                        disabled={!eligible}
+                        onCheckedChange={() => handleDogToggle(dog.id)}
+                        onClick={e => e.stopPropagation()}
+                      />
+                    </span>
 
                     <div className="min-w-0 flex-1">
-                      <div className="flex flex-col items-start gap-2 sm:flex-row sm:justify-between">
-                        <div>
-                          <Label className="break-words text-base font-medium text-foreground cursor-pointer">
-                            {getDogDisplayName(dog)}
-                            {getDogRegisteredName(dog) && ` "${getDogRegisteredName(dog)}"`}
-                          </Label>
-                          <p className="text-sm text-muted-foreground mt-1">
-                            {getDogBreedLabel(dog)} • {dog.gender || 'Unknown'} • Born{' '}
-                            {formatDateMMDDYYYY(dog.dateOfBirth)}
-                          </p>
-                        </div>
-
-                        {isSelected && (
-                          <Badge variant="default" className="shrink-0">
-                            <Check className="w-3 h-3 mr-1" />
-                            Selected
-                          </Badge>
-                        )}
+                      {/* Selection is signalled TWICE, not three times: the
+                        checkbox and the card's primary border. The "Selected"
+                        badge that used to sit at the end of this row said the
+                        same thing a third time, one row-width away from the
+                        control that sets it (MYK9-485). */}
+                      <div>
+                        <Label className="break-words text-base font-medium text-foreground cursor-pointer">
+                          {getDogDisplayName(dog)}
+                          {getDogDistinctRegisteredName(dog) &&
+                            ` "${getDogDistinctRegisteredName(dog)}"`}
+                        </Label>
+                        <p className="text-sm text-muted-foreground mt-1">
+                          {getDogBreedLabel(dog)} • {dog.gender || 'Unknown'} • Born{' '}
+                          {formatDateMMDDYYYY(dog.dateOfBirth)}
+                        </p>
                       </div>
 
                       {dog.registrations && dog.registrations.length > 0 && (

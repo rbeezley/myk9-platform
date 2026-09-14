@@ -36,7 +36,9 @@ jobs:
   # for docs/tooling-only PRs. This job keeps required CI checks present while
   # letting E2E/a11y smoke run only when relevant paths changed. Add the
   # `run-smoke` PR label to force browser smoke, or `skip-smoke` for an explicit
-  # tooling/docs override.
+  # tooling/docs override. `run-smoke` ALSO overrides the separate Dependabot
+  # actor skip on smoke-build/a11y/e2e-myk9show below (MYK9-520) -- see the
+  # rationale comment on `smoke-build` and .github/dependabot.yml.
   smoke-scope:
     name: Smoke scope
     runs-on: ubuntu-latest
@@ -630,12 +632,34 @@ jobs:
   # Browser smoke needs a Supabase-configured bundle; the budgeted production
   # build above intentionally runs without shared-project configuration.
   # Build this once and share it between the a11y and E2E smoke jobs.
+  #
+  # `github.actor != 'dependabot[bot]'` (MYK9-520): GitHub withholds repository
+  # secrets from `pull_request` runs whose triggering actor is Dependabot. ALL
+  # THREE of smoke-build, a11y and e2e-myk9show are affected: THIS job reads
+  # VITE_SUPABASE_URL / VITE_SUPABASE_ANON_KEY directly, and the downstream
+  # a11y / E2E jobs additionally need real E2E_* login credentials. Confirmed
+  # by pushing a human commit to a dependabot branch: that flips `github.actor`
+  # and all three jobs then run and pass (see MYK9-520 evidence). Deleting the
+  # guard outright would trade a silent SKIP for a silent auth/build failure on
+  # every future dependency PR, so it stays -- but the `run-smoke` label
+  # (read by `smoke-scope` above) can now override it, giving a maintainer who
+  # labels a dependency bump a REAL conclusion instead of an invisible one --
+  # PROVIDED the same secrets are also registered under this repo's Dependabot
+  # secrets scope (Settings -> Secrets and variables -> Dependabot); that is a
+  # maintainer action outside this PR. Until it's done, labelling a Dependabot
+  # PR still runs this job under empty secret values: THIS job builds against
+  # an empty VITE_SUPABASE_URL/ANON_KEY and can go GREEN on a meaningless
+  # build, which then feeds a meaningless artifact to a11y/e2e-myk9show --
+  # which DO still fail loudly on missing E2E_* credentials. A green
+  # smoke-build alone is therefore not evidence of anything; only all three
+  # reporting real (non-empty-secret) conclusions is. See
+  # .github/dependabot.yml for when to add the label.
   smoke-build:
     name: Smoke build
     runs-on: ubuntu-latest
     timeout-minutes: 15
     needs: [build, smoke-scope]
-    if: (github.event_name == 'push' || github.event.pull_request.draft == false) && vars.MYK9SHOW_SMOKE_CI_ENABLED == 'true' && needs.smoke-scope.outputs.run == 'true' && github.actor != 'dependabot[bot]'
+    if: (github.event_name == 'push' || github.event.pull_request.draft == false) && vars.MYK9SHOW_SMOKE_CI_ENABLED == 'true' && needs.smoke-scope.outputs.run == 'true' && (github.actor != 'dependabot[bot]' || (github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'run-smoke')))
 
     steps:
       - uses: actions/checkout@v7
@@ -649,6 +673,30 @@ jobs:
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
+
+      # Only smoke-build's own build step lacks a preflight: without this,
+      # a labelled Dependabot PR (whose run still gets no repo secrets unless
+      # a maintainer has separately registered them under Dependabot secrets,
+      # see .github/dependabot.yml) builds against an EMPTY
+      # VITE_SUPABASE_URL/ANON_KEY and goes GREEN on a meaningless bundle,
+      # which a11y/e2e-myk9show then consume and fail against with a
+      # confusing "Missing required env" message that gives no pointer to the
+      # actual cause (MYK9-520).
+      - name: Verify Dependabot-run secrets are available
+        if: github.actor == 'dependabot[bot]'
+        env:
+          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+          VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
+        run: |
+          set -euo pipefail
+          missing=()
+          for name in VITE_SUPABASE_URL VITE_SUPABASE_ANON_KEY; do
+            [[ -z "${!name:-}" ]] && missing+=("$name")
+          done
+          if [[ ${#missing[@]} -gt 0 ]]; then
+            echo "::error::Repository secrets are withheld from Dependabot-triggered runs (missing: ${missing[*]}). Register VITE_SUPABASE_URL, VITE_SUPABASE_ANON_KEY and the E2E_* credentials under Settings -> Secrets and variables -> Dependabot, or push a human commit to this branch. See .github/dependabot.yml."
+            exit 1
+          fi
 
       - name: Build app + packages
         run: pnpm build
@@ -677,9 +725,11 @@ jobs:
     timeout-minutes: 15
     needs: [smoke-build, smoke-scope]
     # GitHub withholds repo secrets from workflows triggered by Dependabot, so
-    # this job can never pass on a Dependabot PR — skip it there rather than
-    # permanently blocking those PRs on a required check that can't succeed.
-    if: (github.event_name == 'push' || github.event.pull_request.draft == false) && vars.MYK9SHOW_SMOKE_CI_ENABLED == 'true' && needs.smoke-scope.outputs.run == 'true' && github.actor != 'dependabot[bot]'
+    # this job can never pass on a Dependabot PR by default — skip it there
+    # rather than permanently blocking those PRs on a required check that
+    # can't succeed. The `run-smoke` label overrides the skip (MYK9-520): see
+    # the rationale comment on `smoke-build` above and .github/dependabot.yml.
+    if: (github.event_name == 'push' || github.event.pull_request.draft == false) && vars.MYK9SHOW_SMOKE_CI_ENABLED == 'true' && needs.smoke-scope.outputs.run == 'true' && (github.actor != 'dependabot[bot]' || (github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'run-smoke')))
 
     steps:
       - uses: actions/checkout@v7
@@ -693,6 +743,31 @@ jobs:
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
+
+      # Gives a labelled Dependabot PR a clear, actionable failure instead of
+      # the generic "Missing required env" from the preflight below, which
+      # names variables but not the reason they're empty (MYK9-520).
+      - name: Verify Dependabot-run secrets are available
+        if: github.actor == 'dependabot[bot]'
+        env:
+          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+          VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
+          E2E_ADMIN_EMAIL: ${{ secrets.E2E_ADMIN_EMAIL }}
+          E2E_ADMIN_PASSWORD: ${{ secrets.E2E_ADMIN_PASSWORD }}
+          E2E_SECRETARY_EMAIL: ${{ secrets.E2E_SECRETARY_EMAIL }}
+          E2E_SECRETARY_PASSWORD: ${{ secrets.E2E_SECRETARY_PASSWORD }}
+          E2E_JUDGE_EMAIL: ${{ secrets.E2E_JUDGE_EMAIL }}
+          E2E_JUDGE_PASSWORD: ${{ secrets.E2E_JUDGE_PASSWORD }}
+        run: |
+          set -euo pipefail
+          missing=()
+          for name in VITE_SUPABASE_URL VITE_SUPABASE_ANON_KEY E2E_ADMIN_EMAIL E2E_ADMIN_PASSWORD E2E_SECRETARY_EMAIL E2E_SECRETARY_PASSWORD E2E_JUDGE_EMAIL E2E_JUDGE_PASSWORD; do
+            [[ -z "${!name:-}" ]] && missing+=("$name")
+          done
+          if [[ ${#missing[@]} -gt 0 ]]; then
+            echo "::error::Repository secrets are withheld from Dependabot-triggered runs (missing: ${missing[*]}). Register VITE_SUPABASE_URL, VITE_SUPABASE_ANON_KEY and the E2E_* credentials under Settings -> Secrets and variables -> Dependabot, or push a human commit to this branch. See .github/dependabot.yml."
+            exit 1
+          fi
 
       - name: Verify E2E auth credentials
         working-directory: apps/myk9show
@@ -757,9 +832,11 @@ jobs:
     timeout-minutes: 15
     needs: [smoke-build, smoke-scope]
     # GitHub withholds repo secrets from workflows triggered by Dependabot, so
-    # this job can never pass on a Dependabot PR — skip it there rather than
-    # permanently blocking those PRs on a required check that can't succeed.
-    if: (github.event_name == 'push' || github.event.pull_request.draft == false) && vars.MYK9SHOW_SMOKE_CI_ENABLED == 'true' && needs.smoke-scope.outputs.run == 'true' && github.actor != 'dependabot[bot]'
+    # this job can never pass on a Dependabot PR by default — skip it there
+    # rather than permanently blocking those PRs on a required check that
+    # can't succeed. The `run-smoke` label overrides the skip (MYK9-520): see
+    # the rationale comment on `smoke-build` above and .github/dependabot.yml.
+    if: (github.event_name == 'push' || github.event.pull_request.draft == false) && vars.MYK9SHOW_SMOKE_CI_ENABLED == 'true' && needs.smoke-scope.outputs.run == 'true' && (github.actor != 'dependabot[bot]' || (github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'run-smoke')))
 
     steps:
       - uses: actions/checkout@v7
@@ -773,6 +850,29 @@ jobs:
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
+
+      # Gives a labelled Dependabot PR a clear, actionable failure instead of
+      # the generic "Missing required env" from the preflight below, which
+      # names variables but not the reason they're empty (MYK9-520).
+      - name: Verify Dependabot-run secrets are available
+        if: github.actor == 'dependabot[bot]'
+        env:
+          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+          VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
+          E2E_SECRETARY_EMAIL: ${{ secrets.E2E_SECRETARY_EMAIL }}
+          E2E_SECRETARY_PASSWORD: ${{ secrets.E2E_SECRETARY_PASSWORD }}
+          E2E_DEMO_EXHIBITOR_EMAIL: ${{ secrets.E2E_DEMO_EXHIBITOR_EMAIL }}
+          E2E_DEMO_EXHIBITOR_PASSWORD: ${{ secrets.E2E_DEMO_EXHIBITOR_PASSWORD }}
+        run: |
+          set -euo pipefail
+          missing=()
+          for name in VITE_SUPABASE_URL VITE_SUPABASE_ANON_KEY E2E_SECRETARY_EMAIL E2E_SECRETARY_PASSWORD E2E_DEMO_EXHIBITOR_EMAIL E2E_DEMO_EXHIBITOR_PASSWORD; do
+            [[ -z "${!name:-}" ]] && missing+=("$name")
+          done
+          if [[ ${#missing[@]} -gt 0 ]]; then
+            echo "::error::Repository secrets are withheld from Dependabot-triggered runs (missing: ${missing[*]}). Register VITE_SUPABASE_URL, VITE_SUPABASE_ANON_KEY and the E2E_* credentials under Settings -> Secrets and variables -> Dependabot, or push a human commit to this branch. See .github/dependabot.yml."
+            exit 1
+          fi
 
       - name: Verify E2E auth credentials
         working-directory: apps/myk9show

@@ -16,6 +16,7 @@ This directory contains the Architecture Decision Records (ADRs) for the myK9 Pl
 | [008](008-entity-module-export-shape.md)         | Canonical Entity-Module Export Shape (Flat Named Functions) | Accepted | 2026-05-14 |
 | [009](009-online-only-data-access-exceptions.md) | Online-Only Data Access Exceptions                          | Accepted | 2026-06-15 |
 | [010](010-cold-offline-query-semantics.md)       | Cold-Offline Query Semantics (Errors, Not Pauses)           | Accepted | 2026-09-03 |
+| [011](011-app-shell-document-scrollport.md)      | The Document Is the App Shell's Scrollport                  | Accepted | 2026-09-14 |
 
 ## Format
 

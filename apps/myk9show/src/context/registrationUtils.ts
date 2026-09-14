@@ -1,4 +1,5 @@
 import { ReactNode } from 'react';
+import type { WorkflowMode } from '@/components/shows/RegistrationWorkflow/RegistrationWorkflow.types';
 
 /**
  * Workflow configuration based on user role
@@ -22,9 +23,15 @@ export interface WorkflowConfig {
 }
 
 /**
- * Default workflow configurations by role
+ * Default workflow configurations by role.
+ *
+ * Keyed on the wizard's own `WorkflowMode` so this config cannot carry a
+ * workflow the wizard does not define. A superseded secretary workflow
+ * outlived the wizard's deletion of it here, behind a branch nothing routed to
+ * (MYK9-512). A mode added or removed in `RegistrationWorkflow.types.ts` now
+ * fails to compile until this record follows.
  */
-export const WORKFLOW_CONFIGS: Record<string, WorkflowConfig> = {
+export const WORKFLOW_CONFIGS: Record<WorkflowMode, WorkflowConfig> = {
   exhibitor: {
     steps: ['dog-selection', 'class-selection', 'payment', 'confirmation'],
     features: {
@@ -40,23 +47,6 @@ export const WORKFLOW_CONFIGS: Record<string, WorkflowConfig> = {
       showBulkActions: false,
       showQuickFilters: true,
       maxDogsPerRegistration: 5,
-    },
-  },
-  secretary_existing: {
-    steps: ['dog-selection', 'class-selection', 'handler-assignment', 'payment', 'confirmation'],
-    features: {
-      bulkSelection: true,
-      createNew: false,
-      advancedSearch: true,
-      handlerAssignment: true,
-      statusManagement: true,
-      paymentOverride: false,
-    },
-    ui: {
-      showAdvancedOptions: true,
-      showBulkActions: true,
-      showQuickFilters: true,
-      maxDogsPerRegistration: 50,
     },
   },
   secretary_new: {

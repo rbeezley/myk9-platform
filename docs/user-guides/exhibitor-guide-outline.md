@@ -255,7 +255,7 @@ The sign-in/sign-up gate is triggered only by "Enter This Show" — not by brows
 **Stability notes:**
 
 - Check-in is stable (BUG-EX-11 fixed; check-in status persists across reload). Self check-in must be enabled by the secretary per class — if the button is not visible, the secretary has not yet opened check-in for that class.
-- No separate `/exhibitor/check-in` route — legacy redirects go to `/exhibitor/entries`. Document only the My Entries card path.
+- No `/exhibitor/check-in` route — it was deleted in MYK9-476. Document only the My Entries card path.
 
 **Friction finding:**
 

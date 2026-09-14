@@ -24,7 +24,7 @@ describe('Enhanced ShowRegistrationStore', () => {
       const store = useShowRegistrationStore.getState();
 
       const context = {
-        mode: 'secretary_existing' as const,
+        mode: 'secretary_new' as const,
         permissions: ['registration:view_all_dogs', 'registration:register_any'],
         scopedClubs: ['club-1', 'club-2'],
         showId: 'show-123',

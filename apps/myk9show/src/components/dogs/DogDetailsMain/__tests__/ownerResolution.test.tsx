@@ -1,9 +1,11 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, screen, waitFor } from '@testing-library/react';
+import { useLocation, useNavigationType } from 'react-router-dom';
 import { render } from '@/test/utils/testUtils';
 import DogDetailsMain from '../index';
 import type { Dog } from '@/types/dog-types';
 import type { User } from '@/types/user-types';
+import { useRegistrationsStore } from '@/store/registrationsStore';
 
 // ---------------------------------------------------------------------------
 // Minimal Dog fixture
@@ -39,6 +41,8 @@ vi.mock('@/services/database/supabaseClient', () => ({
 // ---------------------------------------------------------------------------
 // mockPeople is mutated per-test; the factory closure reads it at call time
 let mockPeople: User[] = [];
+let mockRole = 'secretary';
+let mockRegistrations: { organization: string; registration_number: string }[] = [];
 
 vi.mock('@/store/userStore', () => ({
   useUserStore: (selector: (s: { people: unknown[] }) => unknown) =>
@@ -53,8 +57,8 @@ vi.mock('@/store/entryStore', () => ({
 // Hook / dependency mocks
 // ---------------------------------------------------------------------------
 vi.mock('@/hooks/useAuthContext', () => ({
-  useAuthContext: () => ({ getUserRoles: () => ['secretary'], hasRole: () => false }),
-  getPrimaryRole: () => 'secretary',
+  useAuthContext: () => ({ getUserRoles: () => [mockRole], hasRole: () => false }),
+  getPrimaryRole: () => mockRole,
 }));
 
 // Delete-permission logic is covered in useRoleBasedData.test.ts; mock it here so
@@ -83,7 +87,16 @@ vi.mock('@/services/LoggingService', () => ({
 }));
 
 vi.mock('@/hooks/queries/useRegistrationsDatabase', () => ({
-  useRegistrationsByDogQuery: () => ({ data: [], isLoading: false }),
+  useRegistrationsByDogQuery: () => ({ data: mockRegistrations, isLoading: false }),
+  useDogRegistrationManagement: () => ({
+    registrations: mockRegistrations,
+    isLoading: false,
+    error: null,
+    createRegistration: vi.fn(),
+    updateRegistration: vi.fn(),
+    deleteRegistration: vi.fn(),
+    refetch: vi.fn(),
+  }),
 }));
 
 // ---------------------------------------------------------------------------
@@ -94,7 +107,17 @@ vi.mock('@/components/common/ThreeDotMenu', () => ({
 }));
 
 vi.mock('../DogDetailsTabs', () => ({
-  default: () => <div data-testid="dog-tabs" />,
+  default: function MockDogDetailsTabs() {
+    const location = useLocation();
+    const navigationType = useNavigationType();
+    return (
+      <div
+        data-testid="dog-tabs"
+        data-search={location.search}
+        data-navigation-type={navigationType}
+      />
+    );
+  },
 }));
 
 vi.mock('../DogDialogs', () => ({
@@ -121,6 +144,8 @@ describe('DogDetailsMain — owner resolution', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockPeople = [];
+    mockRole = 'secretary';
+    mockRegistrations = [];
   });
 
   it('renders owner name immediately when found in the people store, with no Supabase query', async () => {
@@ -204,5 +229,53 @@ describe('DogDetailsMain — owner resolution', () => {
 
     // No crash — the component is still mounted
     expect(document.querySelector('[data-dog-identity]')).not.toBeNull();
+  });
+
+  // Registrations are consulted rarely, so they have no standing room on
+  // Overview: the rail summarises them and raises this panel on demand.
+  it('opens the registrations panel from the rail, leaving Overview alone', async () => {
+    mockRole = 'exhibitor';
+    mockPeople = [{ id: DOG_OWNER_ID, firstName: 'Jane', lastName: 'Smith' }];
+    mockRegistrations = [{ organization: 'AKC', registration_number: 'SR123' }];
+    render(<DogDetailsMain dog={mockDog} />, { initialRoute: '/dogs/dog-1' });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Manage registrations' }));
+    const manage = await screen.findByRole('dialog');
+    // Opening it is not navigation: the URL, and Back, are untouched.
+    expect(screen.getByTestId('dog-tabs')).toHaveAttribute('data-search', '');
+    expect(screen.getByTestId('dog-tabs')).toHaveAttribute('data-navigation-type', 'POP');
+
+    // SlideOverPanel does not portal and every panel is `fixed inset-0 z-50`, so
+    // among equal-z siblings the LATER one paints on top. The panels raised FROM
+    // the Manage panel must therefore follow it in document order, or they mount
+    // invisibly behind its backdrop — and this is the exhibitor's only route to
+    // edit or delete a registration.
+    act(() => {
+      useRegistrationsStore.getState().setIsAddRegistrationDialogOpen(true);
+    });
+    const dialogs = await screen.findAllByRole('dialog');
+    expect(dialogs).toHaveLength(2);
+    expect(
+      manage.compareDocumentPosition(dialogs[dialogs.length - 1]) & Node.DOCUMENT_POSITION_FOLLOWING
+    ).toBe(Node.DOCUMENT_POSITION_FOLLOWING);
+    act(() => {
+      useRegistrationsStore.getState().setIsAddRegistrationDialogOpen(false);
+    });
+  });
+
+  it('opens Add registration from a deep link without moving the reader off their section', async () => {
+    mockRole = 'exhibitor';
+    mockPeople = [{ id: DOG_OWNER_ID, firstName: 'Jane', lastName: 'Smith' }];
+    render(<DogDetailsMain dog={mockDog} />, {
+      initialRoute: '/dogs/dog-1?section=career&addRegistration=true',
+    });
+    // The add panel is hosted by the page, so it opens over whatever section the
+    // link pointed at: only `addRegistration` is stripped, and Career stays
+    // selected underneath rather than the reader being dumped on Overview.
+    expect(await screen.findByRole('dialog')).toHaveTextContent(/registration/i);
+    await waitFor(() => {
+      expect(screen.getByTestId('dog-tabs')).toHaveAttribute('data-search', '?section=career');
+      expect(screen.getByTestId('dog-tabs')).toHaveAttribute('data-navigation-type', 'REPLACE');
+    });
   });
 });

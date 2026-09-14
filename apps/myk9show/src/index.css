@@ -331,16 +331,13 @@
     scroll-padding-top: calc(var(--pwa-banner-height, 0px) + 3rem);
   }
 
-  /* `scroll-padding-top` is NOT inherited, and the element that performs the
-     scroll is the one that must carry it. The app shell's main is its own
-     scroll container (`overflow-auto`), so on every page inside the shell the
-     `:root` rule above never applies and an anchor would still land under the
-     fixed header. The PWA banner is excluded on purpose: an in-flow spacer
-     above this subtree already offsets it, so counting it here would
-     double-count (see SidebarLayout's `pt-` comment). */
-  [data-layout='app-shell-main'] {
-    scroll-padding-top: var(--app-header-height, 3rem);
-  }
+  /* The app shell's `main` deliberately declares no `overflow`, so it is NOT a
+     scroll container and the `:root` rule above is what applies on shell pages
+     too (MYK9-510, docs/adr/011-app-shell-document-scrollport.md). It counts
+     the PWA banner because the banner is `position: fixed` and overlays the
+     document exactly like the header does. A `scroll-padding-top` override on
+     `[data-layout='app-shell-main']` used to live here; it is gone because a
+     non-scrolling element's scroll padding is never consulted. */
 
   /* Semantic status tokens registered in tailwind.config.js as success/warning/info/destructive */
 

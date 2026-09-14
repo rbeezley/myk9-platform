@@ -371,7 +371,11 @@ export function EntryManagementCockpit({
         )}
 
         {showDetail && !trialScopePending && cockpit.focusedGroup && (
-          <div className={cn(!responsive.compact && 'sticky top-4')}>
+          <div
+            className={cn(
+              !responsive.compact && 'sticky top-[calc(var(--app-top-inset,3rem)+1rem)]'
+            )}
+          >
             <EntryFocusedRegistration
               key={cockpit.focusedGroup.groupKey}
               registration={cockpit.focusedGroup}

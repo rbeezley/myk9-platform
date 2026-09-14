@@ -17,8 +17,9 @@ files never reach CI.
 
 [`scheduled-audits-claude.md`](scheduled-audits-claude.md) holds the Claude tasks paired against the
 Codex nightly set, and its taxonomy is relative to Codex: _complements_ run alongside a Codex task
-to disagree with it, _substitutes_ replace one while it is dark. These three fit neither. They have
-no Codex counterpart and are not seeking a second opinion.
+to disagree with it, _substitutes_ replace one while it is dark. These three fit neither. Codex runs
+its own `weekly-secretary-ux-walk` and `weekly-exhibitor-ux-walk`, but these are not paired against
+them for a second opinion; the division of labour is in § "Personas" below.
 
 ## The three walks, and the line between them
 
@@ -43,6 +44,28 @@ three times as often.
 **Steward is in none of them,** because there is no steward sign-in: `testUsers.ts` states steward
 flows use the canonical secretary account, so a steward slot would silently re-walk as the secretary
 and report it as steward coverage. Revisit if a distinct actor is ever seeded.
+
+## Personas, and the division with the Codex walks
+
+Since 2026-09-14 both task walks run their job list **twice, as two personas holding the same
+account**: a beginner and an experienced user. `docs/INTENT.md` makes two promises that pull
+against each other on the same screen — "no power-user shortcuts that leave beginners behind" and,
+for operational surfaces, "efficient for power users" — and a single elderly-novice persona can only
+ever test the first. Persona changes what the tester knows and wants, never what the account may
+do. The beginner pass runs first in its own fresh browser context so nothing the experienced pass
+learns can teach it, and one persona's observation is never proof for the other.
+
+The Codex `weekly-secretary-ux-walk` runs the same two personas (its prompt is where the idea was
+first written down). The two secretary walks are deliberately not duplicates:
+
+| Walk                             | Owns                                                                                                                                |
+| -------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------- |
+| Claude `secretary-task-walk`     | The functional pins (named-official grants, `NaN` on the AKC form, appoint-and-revoke) and the mutation-backed show setup/teardown. |
+| Codex `weekly-secretary-ux-walk` | The read-only lifecycle sweep, the 48-hour merged-PR re-walk, and the experienced persona's busy-day throughput questions.          |
+
+Both file to the same Linear issue when they hit the same defect; the persona-by-viewport matrix on
+each finding is what lets a reconciler tell "both walks, both personas" from "one walk, one persona".
+These simulated passes inform real-user validation (MYK9-13); they do not replace it.
 
 ## What is in these prompts that is not obvious
 
@@ -98,6 +121,9 @@ site admin.
   fixed and confirmed, move it to the do-not-re-file note rather than deleting it.
 - If a walk's findings become dominated by harness bugs rather than product defects, the prompt has
   drifted from the app. Re-walk it by hand before trusting the next report.
+- The persona split is a prompt change, not a scheduler change. After it merges, copy the two fenced
+  blocks into the installed `SKILL.md` files (frontmatter kept) and run `pnpm qa:prompt-parity`;
+  until then parity reports both task walks as drifted, which is expected.
 - `claude-role-ux-walk` was retired on 2026-09-01 and replaced by `role-intent-walk`. Its
   deregistered `SKILL.md` may still be on disk at `~/.claude/scheduled-tasks/claude-role-ux-walk/`;
   it does not run. Delete it when convenient.
@@ -149,6 +175,15 @@ Cover the secretary's task surface, not a route list. Prior walks found defects 
 6. **Messages / communication** — composing scoped to a show, history filters.
 7. **Waitlist and classes** — capacity cards, class judge display.
 
+## Personas — run the job list twice
+
+Run the seven task areas above twice, as two personas holding the SAME account and permissions. Persona changes what the tester knows and wants, never what the account may do. Run the beginner pass FIRST, in its own fresh browser context (`browser.newContext()`, not a new tab), so nothing the experienced pass learns can teach it. Before each pass, write down its goal, starting state, what counts as done, and what would count as outside help or a workaround.
+
+- **Beginner** — a retired, first-time club secretary with little computer experience. Start from sign-in and the landing page. Use visible labels only: no guessed routes, no `?report=` or `?focus=` parameters, nothing from the Known mechanics section. Orient to the right club and show, set up the walk show, review an entry, find readiness, then find the show-day check-in, run order, results and closeout path. Record every point where the persona needed outside help or hidden knowledge, hesitated over an action that read as irreversible, or could not tell whether something saved. Check literal language, readability without colour or icons, 150% browser zoom and touch targets.
+- **Experienced** — a repeat secretary on a busy show day: many entries, frequent changes, no privileged app knowledge. Start from the signed-in landing page. Find the right show fast, process a queue of representative entries, switch between shows and classes, handle a late check-in and a safe scratch or correction, find unpaid and exceptional entries, and reach the report and closeout path. Count repeated steps. Check bulk-action discoverability, filters and search, whether context survives a switch, stale-state signals, undo and recovery, keyboard and tablet efficiency, and whether the next urgent task is obvious. Do not invent hidden shortcuts, and do not excuse unclear UI because the persona is experienced.
+
+The mutation boundary does not change per persona: ONE `ZZ Walk` show, created in the beginner pass, reused (never re-created) by the experienced pass, torn down once at the end. One persona's observation is never proof for the other, and a defect both hit is still one finding. Do not claim a timing difference without measured start and end times for both passes. The Codex `weekly-secretary-ux-walk` runs the same two personas over a read-only lifecycle sweep; this walk owns the functional pins above and the mutation-backed setup/teardown, so keep the personas inside the seven task areas rather than widening into a route inventory.
+
 ## Known mechanics
 
 Hints from the 2026-08-31 run, to save you rediscovering them. **Verify each one
@@ -192,7 +227,9 @@ Read `docs/audits/2026-08-28-secretary-task-walk.md` (F1–F35) and `docs/audits
 
 - Write to `docs/audits/YYYY-MM-DD-secretary-task-walk-claude.md`, numbering findings continuously from the prior walk's highest F-number (F42 as of 2026-08-31).
 - Use the `quality-finding-lifecycle` skill for finding identity, evidence, P0–P3 severity, dedup and recurrence.
-- Include a coverage table: task areas walked vs. skipped. A skipped area is a coverage gap, not a pass.
+- Include a coverage table: the seven task areas as rows, the two personas as columns, each cell completed / completed with help or workaround / blocked / not exercised. A skipped cell is a coverage gap, not a pass.
+- Answer two questions plainly in the headline: could a first-time secretary configure and run a show without assistance, and could a repeat secretary handle a busy show day efficiently?
+- Every finding carries a persona × viewport matrix. Label friction only one persona hit as persona-specific; a defect both hit is one finding, not two.
 - Mark each finding new / unchanged / regressed / resolved against prior runs.
 - **File findings to Linear directly — there is no approval step.** This run is unattended, so a "prepare a draft and ask for batch approval" gate means nothing is ever filed and the report dies with the worktree. Every confirmed P0/P1 gets its own issue (team **MyK9-platform**), labelled `p0`/`p1`, `source:claude`, `walk:secretary`. Group P2/P3 as sub-issues of ONE parent titled `Secretary task walk <YYYY-MM-DD> — P2/P3 findings` — that keeps the board readable while leaving each child closable on its own.
 - **Dedupe before filing, always with `includeArchived: true`.** Match on task area, route, object and symptom — never on title. Auto-archive is on as a team setting (the paid-plan upgrade removed the 250-issue cap, not the archiving), so a default query reads shipped work as never-seen and re-files it. If an issue already exists, comment on it rather than opening a second.
@@ -290,6 +327,15 @@ If nothing is open when you run: **do not fake it and do not create a show** (an
 8. **Review results** — per class entered, once posted.
 9. **Review statistics** — per-dog past performance.
 
+## Personas — run the job list twice
+
+Run the nine tasks above twice, as two personas. Persona changes what the tester knows and wants, never what the account may do. Run the beginner pass FIRST, in its own fresh browser context (`browser.newContext()`, not a new tab), so nothing the experienced pass learns can teach it. Before each pass, write down its goal, starting state, what counts as done, and what would count as outside help or a workaround.
+
+- **Beginner** — a first-time exhibitor with one dog and no account history, entering their first show. Natural account: `exhibitor2@`. Start signed OUT at discovery, since that is where a first-timer arrives. Use visible labels only: no guessed routes, nothing from the Known mechanics section. Add the first dog, find an open show, enter it, pay, and then find out whether the entry is accepted. Record every point where the persona needed outside help, hesitated before paying or before anything that read as irreversible, or could not tell whether the entry went through. Check literal language, readability without colour or icons, 150% browser zoom and touch targets.
+- **Experienced** — a multi-dog handler on `exhibitor@` entering several dogs in several classes across two shows, with no privileged app knowledge. Start from the signed-in landing page. Count the repeated steps per additional dog and per additional class; check whether the wizard remembers dog, handler and payer between entries; whether all entries and their statuses can be seen and filtered in one place at 1231 entries; whether a change to one entry is visible everywhere it is stated; and whether the next thing that needs attention (unpaid, waitlisted, checked in) is obvious. Do not excuse unclear UI because the persona is experienced.
+
+The account contrast (0 dogs vs 251) is data scale; the persona contrast is knowledge. Both matter and neither substitutes for the other. The payment boundary does not change per persona: one sandbox payment, on a `ZZ Walk Dog`, in the beginner pass; the experienced pass stops at the Checkout boundary. One persona's observation is never proof for the other, and a defect both hit is one finding. Do not claim a timing difference without measured start and end times for both passes.
+
 ## The signature exhibitor defect: two surfaces, one fact, two answers
 
 Nearly every finding in the July exhibitor audits (E1–E8) was the same shape — the app stating a fact one way in one place and another way somewhere else, often **on the same page**. Hunt for this deliberately; it is the highest-yield technique for this role:
@@ -336,7 +382,9 @@ Read the three prior exhibitor audits in `docs/audits/` (`2026-07-02-exhibitor-e
 - Write to `docs/audits/YYYY-MM-DD-exhibitor-task-walk-claude.md`.
 - **Number findings in the E-series, continuing from the prior walk's highest** (E8 as of the 2026-07-02 audit). Do not restart at E1 and do not use the secretary walk's F-series.
 - Use the `quality-finding-lifecycle` skill for finding identity, evidence, P0–P3 severity, dedup and recurrence.
-- Include a coverage table: the nine task areas above, walked vs. skipped, and which account each was walked on. A skipped area is a coverage gap, not a pass.
+- Include a coverage table: the nine task areas as rows, the two personas as columns, each cell completed / completed with help or workaround / blocked / not exercised, plus which account it was walked on. A skipped cell is a coverage gap, not a pass.
+- Answer two questions plainly in the headline: could a first-time exhibitor enter and pay for a show without assistance, and could a multi-dog handler enter a full weekend efficiently?
+- Every finding carries a persona × viewport matrix. Label friction only one persona hit as persona-specific; a defect both hit is one finding, not two.
 - Mark each finding new / unchanged / regressed / resolved against prior runs.
 - Include a short "Corrections to my own measurement" section if any first reading turned out wrong — the secretary walks showed this is where the most useful signal hides.
 - **File findings to Linear directly — there is no approval step.** This run is unattended, so a "prepare a draft and ask for batch approval" gate means nothing is ever filed and the report dies with the worktree. Every confirmed P0/P1 gets its own issue (team **MyK9-platform**), labelled `p0`/`p1`, `source:claude`, `walk:exhibitor`. Group P2/P3 as sub-issues of ONE parent titled `Exhibitor task walk <YYYY-MM-DD> — P2/P3 findings`.

@@ -1,5 +1,7 @@
 # Review Gate Tiers Implementation Plan
 
+> **Status:** Active
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Make the review gate scale scrutiny to a change's risk, and accept a weaker-but-honestly-labelled tier when the required reviewer is unavailable, without ever letting the recorded evidence overstate what happened.
@@ -19,16 +21,37 @@
 - Unrecognised paths default to `adversarial` — fail safe, not fail cheap.
 - This work touches `scripts/qa/`, which the map itself puts at `independent`. It cannot be self-reviewed; it needs a cross-harness review or an owner override with recorded debt.
 
+## Validation Profile
+
+- Risk: high
+- Validation: full
+- Rationale: changes a shared guardrail every PR passes through; a defect here either blocks all merges or silently accepts anything.
+
+## Rollback [ADDED]
+
+Every task is a separate commit, so a bad tier rule reverts with `git revert`.
+The failure mode that matters is not a broken build but a gate that wrongly
+PASSES, which is invisible. Two mitigations:
+
+- **Fail closed on an unreadable file list.** See Task 3 Step 3a.
+- **Kill switch.** `evaluateReviewGate` honours `MYK9_REVIEW_TIERS=off`
+  (env, set as a repo variable on the workflow) which skips floor enforcement
+  and restores today's behaviour exactly, without a revert or a deploy. Added
+  in Task 3 Step 3b and tested there. This is the lever to pull at 2am; a
+  revert is the considered fix afterwards.
+
 ---
 
 ### Task 1: The risk map and floor calculator
 
 **Files:**
+
 - Create: `scripts/qa/review-tier.ts`
 - Create: `scripts/qa/review-tier.test.ts`
 - Modify: `package.json` (scripts block, after the `qa:review-gate:test` line)
 
 **Interfaces:**
+
 - Produces: `export type Tier = 'independent' | 'adversarial' | 'owner' | 'none'`
 - Produces: `export const TIER_ORDER: readonly Tier[]` — weakest to strongest for comparison: `['none', 'owner', 'adversarial', 'independent']`
 - Produces: `export function requiredTier(files: readonly string[]): { tier: Tier; reason: string }` — `reason` names the path that set the floor, or `'no files'`.
@@ -45,6 +68,9 @@ describe('requiredTier', () => {
   it('puts guardrails at independent', () => {
     for (const file of [
       '.github/workflows/ci.yml',
+      '.claude/skills/ship-pr/SKILL.md',
+      '.codex/config.toml',
+      '.agents/anything.md',
       'scripts/qa/review-gate.ts',
       'apps/myk9show/playwright.ci.config.ts',
       'CLAUDE.md',
@@ -132,6 +158,7 @@ export const MIGRATION_LENS = 'migration-auditor';
 /** Guardrails: a change here can disable what catches the next defect. */
 const INDEPENDENT_PATTERNS: readonly RegExp[] = [
   /^\.github\//,
+  /^\.(claude|codex|agents)\//,
   /^scripts\/qa\//,
   /(^|\/)playwright[^/]*\.config\.ts$/,
   /^(CLAUDE|AGENTS)\.md$/,
@@ -246,10 +273,12 @@ git commit -m "feat(qa): add review-tier risk map and floor calculator"
 ### Task 2: Accept a tier token in the evidence line
 
 **Files:**
+
 - Modify: `scripts/qa/review-gate.ts:128` (`REVIEW_GATE_LINE`), and the `GateEvidence` interface near `:66`
 - Modify: `scripts/qa/review-gate.test.ts`
 
 **Interfaces:**
+
 - Consumes: `Tier` from Task 1.
 - Produces: `GateEvidence` gains `tier: Tier`. The legacy `codex` / `claude` reviewers map to `tier: 'independent'`; `human-fallback` maps to `tier: 'owner'`.
 
@@ -269,7 +298,9 @@ describe('tier parsing', () => {
 
   it('parses an explicit tier token', () => {
     const [evidence] = parseGateComments([
-      comment(`Review gate: adversarial reviewed abc1234..${HEAD} — 2 lenses, all findings addressed`),
+      comment(
+        `Review gate: adversarial reviewed abc1234..${HEAD} — 2 lenses, all findings addressed`
+      ),
     ]);
     expect(evidence.tier).toBe('adversarial');
   });
@@ -324,10 +355,12 @@ git commit -m "feat(qa): name the review tier in gate evidence, legacy lines map
 ### Task 3: Refuse evidence below the computed floor
 
 **Files:**
+
 - Modify: `scripts/qa/review-gate.ts` (`evaluateReviewGate` at `:183`, and the `main()` `gh pr view --json` call)
 - Modify: `scripts/qa/review-gate.test.ts`
 
 **Interfaces:**
+
 - Consumes: `requiredTier`, `meetsFloor` from Task 1; `GateEvidence.tier` from Task 2.
 - Produces: `evaluateReviewGate` gains a `changedFiles: readonly string[]` input. Callers must pass it.
 
@@ -360,7 +393,9 @@ describe('floor enforcement', () => {
     const result = evaluateReviewGate({
       headSha: HEAD,
       comments: [
-        comment(`Review gate: adversarial reviewed abc1234..${HEAD} — 2 lenses, all findings addressed`),
+        comment(
+          `Review gate: adversarial reviewed abc1234..${HEAD} — 2 lenses, all findings addressed`
+        ),
       ],
       changedFiles: ['scripts/qa/review-gate.ts'],
     });
@@ -380,18 +415,85 @@ Expected: FAIL — `changedFiles` is not an accepted input and no floor is appli
 In `evaluateReviewGate`, widen the input to `{ headSha: string; comments: readonly GateComment[]; changedFiles: readonly string[] }`. After the existing `accepted` check passes, and before the success return:
 
 ```ts
-  const floor = requiredTier(input.changedFiles);
-  if (!meetsFloor(latest.tier, floor.tier)) {
-    return {
-      state: 'failure',
-      description: `${latest.tier} review of ${short} is below the ${floor.tier} floor: ${floor.reason}`,
-      evidence: latest,
-    };
-  }
+const floor = requiredTier(input.changedFiles);
+if (!meetsFloor(latest.tier, floor.tier)) {
+  return {
+    state: 'failure',
+    description: `${latest.tier} review of ${short} is below the ${floor.tier} floor: ${floor.reason}`,
+    evidence: latest,
+  };
+}
 ```
 
 In `main()`, add `files` to the `gh pr view --json` field list and pass
 `changedFiles: pr.files.map(f => f.path)` into `evaluateReviewGate`.
+
+- [ ] **Step 3a: Fail closed on an unreadable or truncated file list [ADDED]**
+
+`gh pr view --json files` caps at 3000 files and can return fewer than the PR
+really changed. A short list silently lowers the floor, which is the one way
+this feature makes things WORSE than today. In `main()`:
+
+```ts
+const files = (pr.files ?? []).map((f: { path: string }) => f.path);
+if (files.length === 0 || files.length >= 3000) {
+  // No list, or one at GitHub's cap and therefore possibly truncated.
+  // Treat as the strongest floor rather than guessing from a partial diff.
+  console.log(`review-gate: file list unusable (${files.length}) — forcing independent floor`);
+}
+```
+
+and pass a flag into `evaluateReviewGate` that pins the floor to `independent`
+when set. Test it:
+
+```ts
+it('forces the independent floor when the file list may be truncated', () => {
+  const result = evaluateReviewGate({
+    headSha: HEAD,
+    comments: [
+      comment(
+        `Review gate: adversarial reviewed abc1234..${HEAD} — 2 lenses, all findings addressed`
+      ),
+    ],
+    changedFiles: [],
+    fileListUnusable: true,
+  });
+  expect(result.state).toBe('failure');
+  expect(result.description).toContain('independent');
+});
+```
+
+- [ ] **Step 3b: Add the kill switch [ADDED]**
+
+At the top of `evaluateReviewGate`, before the floor check:
+
+```ts
+const tiersEnabled = (process.env.MYK9_REVIEW_TIERS ?? 'on') !== 'off';
+```
+
+and guard the floor block with `if (tiersEnabled && !meetsFloor(...))`. Test
+that `MYK9_REVIEW_TIERS=off` restores today's behaviour:
+
+```ts
+it('skips floor enforcement when the kill switch is off', () => {
+  const prev = process.env.MYK9_REVIEW_TIERS;
+  process.env.MYK9_REVIEW_TIERS = 'off';
+  try {
+    const result = evaluateReviewGate({
+      headSha: HEAD,
+      comments: [comment(`Review gate: none reviewed abc1234..${HEAD} — low-risk paths, CI green`)],
+      changedFiles: ['scripts/qa/review-gate.ts'],
+    });
+    expect(result.state).toBe('success');
+  } finally {
+    if (prev === undefined) delete process.env.MYK9_REVIEW_TIERS;
+    else process.env.MYK9_REVIEW_TIERS = prev;
+  }
+});
+```
+
+The `finally` restores the variable so the test cannot leak module-scope state
+into a shuffled run (LESSONS #vitest-shuffle).
 
 - [ ] **Step 4: Run the tests to verify they pass**
 
@@ -414,10 +516,12 @@ git commit -m "feat(qa): refuse review evidence below the risk floor"
 ### Task 4: Owner override with mandatory recorded debt
 
 **Files:**
+
 - Modify: `scripts/qa/review-gate.ts` (replace `FALLBACK_REASON`, add `OVERRIDE_REASON` / `DEFERRED_REVIEW`, extend the acceptance branch)
 - Modify: `scripts/qa/review-gate.test.ts`
 
 **Interfaces:**
+
 - Consumes: `GateEvidence.tier` from Task 2; the floor from Task 3.
 - Produces: `export function overrideAccepted(evidence: GateEvidence): boolean`
 
@@ -457,7 +561,12 @@ describe('owner override', () => {
     const result = evaluateReviewGate({
       headSha: HEAD,
       comments: [
-        comment(body('Deferred re-review: MYK9-523'), '2026-09-14T18:00:00Z', undefined, 'CONTRIBUTOR'),
+        comment(
+          body('Deferred re-review: MYK9-523'),
+          '2026-09-14T18:00:00Z',
+          undefined,
+          'CONTRIBUTOR'
+        ),
       ],
       changedFiles: ['scripts/qa/review-gate.ts'],
     });
@@ -505,23 +614,24 @@ export function overrideAccepted(evidence: GateEvidence): boolean {
 In `evaluateReviewGate`, replace the `accepted` expression:
 
 ```ts
-  const isOverride = latest.tier === 'owner';
-  const accepted = isOverride
-    ? latest.reviewer === 'human-fallback'
-      ? humanFallbackAccepted(latest)
-      : overrideAccepted(latest)
-    : verdictAccepted(latest.verdict);
+const isOverride = latest.tier === 'owner';
+const accepted = isOverride
+  ? latest.reviewer === 'human-fallback'
+    ? humanFallbackAccepted(latest)
+    : overrideAccepted(latest)
+  : verdictAccepted(latest.verdict);
 ```
 
 and skip the floor check when `isOverride && accepted` — an accepted override is, by definition, permission to be below the floor. Give the failure path a description naming what is missing:
 
 ```ts
-  if (!accepted) {
-    const why = isOverride && !DEFERRED_REVIEW.test(latest.body)
+if (!accepted) {
+  const why =
+    isOverride && !DEFERRED_REVIEW.test(latest.body)
       ? 'override must name a Deferred re-review: <ISSUE-ID>'
       : `${latest.tier} review of ${short} is not clean: ${latest.verdict}`;
-    return { state: 'failure', description: why, evidence: latest };
-  }
+  return { state: 'failure', description: why, evidence: latest };
+}
 ```
 
 - [ ] **Step 4: Run the tests to verify they pass**
@@ -544,14 +654,137 @@ git commit -m "feat(qa): owner override with mandatory deferred re-review, any h
 
 ---
 
-### Task 5: Teach the shipping path to ask for the floor first
+### Task 5: Let the poster emit the new tiers [ADDED — BLOCKING]
+
+`scripts/qa/post-review-gate.sh` is the ONLY writer of evidence comments, and
+line 29 hard-refuses anything but `codex`/`claude`:
+
+```bash
+case "$REVIEWER" in codex|claude) ;; *) echo "post-review-gate: reviewer must be codex or claude" >&2; exit 2;; esac
+```
+
+Without this task the gate accepts tiers nobody can post, and the rule that
+nobody types an evidence line by hand would have to be broken to use the
+feature. Do this task BEFORE Task 6 or the new tiers are unusable.
 
 **Files:**
+
+- Modify: `scripts/qa/post-review-gate.sh` (usage block at `:17`, validation at `:29`, line assembly at `:105`)
+- Create: `scripts/qa/post-review-gate.test.ts`
+
+**Interfaces:**
+
+- Consumes: the tier tokens from Task 2.
+- Produces: `post-review-gate.sh [--withdraw] <pr> <codex|claude|adversarial|none|owner> <base-sha> <head-sha> "<verdict>" <log>`
+
+- [ ] **Step 1: Widen the reviewer validation**
+
+Replace line 29:
+
+```bash
+case "$REVIEWER" in
+  codex|claude|adversarial|none|owner) ;;
+  *) echo "post-review-gate: reviewer must be codex, claude, adversarial, none or owner" >&2; exit 2;;
+esac
+```
+
+Update the `Usage:` comment at `:17` to list the new tokens.
+
+- [ ] **Step 2: Require the override lines when the tier is `owner`**
+
+Before assembling the comment:
+
+```bash
+if [ "$REVIEWER" = "owner" ]; then
+  [ -n "${OVERRIDE_REASON:-}" ] || { echo "post-review-gate: owner tier needs OVERRIDE_REASON=\"<harness> unavailable — <detail>\"" >&2; exit 2; }
+  [ -n "${DEFERRED_REVIEW:-}" ] || { echo "post-review-gate: owner tier needs DEFERRED_REVIEW=<ISSUE-ID>" >&2; exit 2; }
+fi
+```
+
+and append `Override reason: $OVERRIDE_REASON` and `Deferred re-review: $DEFERRED_REVIEW`
+as the second and third lines of the comment body.
+
+- [ ] **Step 3: Write the contract test**
+
+```ts
+import { execFileSync } from 'node:child_process';
+import { describe, expect, it } from 'vitest';
+
+const SCRIPT = 'scripts/qa/post-review-gate.sh';
+
+function run(args: string[], env: Record<string, string> = {}) {
+  try {
+    execFileSync('bash', [SCRIPT, ...args], {
+      encoding: 'utf8',
+      env: { ...process.env, ...env, GH_BIN: 'true', POST_REVIEW_GATE_DRY_RUN: '1' },
+    });
+    return 0;
+  } catch (error) {
+    return (error as { status: number }).status;
+  }
+}
+
+describe('post-review-gate reviewer validation', () => {
+  it('accepts every tier the gate can parse', () => {
+    for (const tier of ['codex', 'claude', 'adversarial', 'none', 'owner']) {
+      const env =
+        tier === 'owner'
+          ? { OVERRIDE_REASON: 'Codex unavailable — usage limit', DEFERRED_REVIEW: 'MYK9-523' }
+          : {};
+      expect(
+        run(['1', tier, 'abc1234', 'def5678', 'no findings', '/dev/null'], env),
+        tier
+      ).not.toBe(2);
+    }
+  });
+
+  it('refuses an unknown tier', () => {
+    expect(run(['1', 'wishful', 'abc1234', 'def5678', 'no findings', '/dev/null'])).toBe(2);
+  });
+
+  it('refuses the owner tier without a deferred re-review', () => {
+    expect(
+      run(['1', 'owner', 'abc1234', 'def5678', 'override, floor was independent', '/dev/null'], {
+        OVERRIDE_REASON: 'Codex unavailable — usage limit',
+      })
+    ).toBe(2);
+  });
+});
+```
+
+Add a `POST_REVIEW_GATE_DRY_RUN` guard in the script that assembles the comment
+and exits 0 without calling `gh`, so the test never posts.
+
+- [ ] **Step 4: Run the test**
+
+Run: `pnpm vitest run scripts/qa/post-review-gate.test.ts`
+Expected: PASS, 3 tests.
+
+- [ ] **Step 5: Prove the validation can fail**
+
+Restore line 29 to `codex|claude` only, run the test, confirm
+`accepts every tier the gate can parse` FAILS, then re-apply. Record it in the
+commit body.
+
+- [ ] **Step 6: Commit**
+
+```bash
+git add scripts/qa/post-review-gate.sh scripts/qa/post-review-gate.test.ts package.json
+git commit -m "feat(qa): let the evidence poster emit every review tier"
+```
+
+---
+
+### Task 6: Teach the shipping path to ask for the floor first
+
+**Files:**
+
 - Modify: `.claude/skills/ship-pr/SKILL.md`
 - Modify: `scripts/qa/codex-review.sh` (header usage block only)
 - Modify: `scripts/qa/claude-review.sh` (header usage block only)
 
 **Interfaces:**
+
 - Consumes: `pnpm qa:review-tier` from Task 1.
 
 - [ ] **Step 1: Add the floor check to ship-pr Step 4**
@@ -602,14 +835,16 @@ git commit -m "docs(qa): check the review tier before spending a cross-harness r
 
 ---
 
-### Task 6: Document the tiers in the shared rulebook
+### Task 7: Document the tiers in the shared rulebook
 
 **Files:**
+
 - Modify: `docs/agents/shared-rules.md` (the "Gates, in order" section, item 3)
 - Modify: `docs/PLAYBOOK.md` (§ 4, replacing the human-fallback block)
 - Generated: `CLAUDE.md`, `AGENTS.md` (never edited by hand)
 
 **Interfaces:**
+
 - Consumes: the grammar from Tasks 2 and 4.
 
 - [ ] **Step 1: Rewrite the gate rule in shared-rules.md**
@@ -664,9 +899,35 @@ git commit -m "docs(agents): document risk-scaled review tiers and the owner ove
 
 ---
 
+## Known limitations, accepted deliberately [ADDED]
+
+Stated here so a reader does not mistake the gate for more than it is.
+
+**The deferred re-review is format-checked, not verified.** `DEFERRED_REVIEW`
+matches `/^Deferred re-review: [A-Z]+-\d+$/im`, so `Deferred re-review: FAKE-1`
+passes. The ids are Linear (`MYK9-*`), and the gate has no Linear token — only
+`gh`. Verifying existence would mean giving a public-repo workflow a Linear
+credential, which is a worse trade than a typo slipping through. The ledger's
+integrity rests on `ship-pr` filing the issue and on you reading the overrides,
+not on the regex.
+
+**The migration lens is documented, not enforced.** `requiredTier` names
+`migration-auditor` in its `reason`, and Task 6 puts it in the skill, but
+nothing verifies that lens actually ran — the evidence line carries a count,
+not lens identities. Enforcing it would require the poster to take lens names
+and the gate to trust them, which proves only that someone typed them
+(LESSONS #comment-satisfies-grep). Left as guidance.
+
+**The gate still proves a CLAIM, not a review.** Unchanged from today and
+restated because tiers make it easier to forget: `adversarial` in a status
+means somebody said they ran two lenses. It does not mean they did, or that the
+lenses were good.
+
 ## Final verification
 
 - [ ] `pnpm qa:review-tier:test && pnpm qa:review-gate:test` — both pass
+- [ ] `pnpm vitest run scripts/qa/post-review-gate.test.ts` — passes [ADDED]
+- [ ] `MYK9_REVIEW_TIERS=off pnpm qa:review-gate:test` — passes, proving the kill switch restores today's behaviour [ADDED]
 - [ ] `pnpm typecheck && pnpm lint` — both exit 0
 - [ ] `pnpm format:check:changed` — exit 0
 - [ ] `pnpm qa:e2e-map:check` — exit 0 (no specs changed, but Quality Checks runs it)

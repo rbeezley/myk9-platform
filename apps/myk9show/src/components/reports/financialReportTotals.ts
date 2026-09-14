@@ -63,9 +63,17 @@ function getEffectivePaymentStatus(entry: ReportEntry): string {
   const entryStatus = normalize(entry.paymentStatus);
   const enrollmentStatus = normalize(entry.enrollmentPaymentStatus);
 
-  if (!entryStatus || entryStatus === PaymentStatus.PENDING) {
-    return enrollmentStatus || entryStatus;
-  }
+  // An entry with no status of its own inherits the order's.
+  if (!entryStatus) return enrollmentStatus;
+
+  // ...but an entry that says `pending` is authoritative: the enrollment is one
+  // row per (show, handler) reused by every later order, so its `paid` cannot
+  // vouch for this entry (MYK9-495, and `@/utils/effectivePaymentStatus` for
+  // the shared rule this mirrors in the report's raw-string vocabulary). The
+  // submit RPC already stamps entries `paid`/`waived` for secretary_paid,
+  // group_payment and waived orders, so a genuinely order-paid entry does not
+  // reach here as `pending`.
+  if (entryStatus === PaymentStatus.PENDING) return PaymentStatus.PENDING;
 
   return entryStatus;
 }

@@ -19,6 +19,7 @@ import {
   mapPaymentStatus,
   mapClassEntryStatus,
 } from '@/utils/entryManagementUtils';
+import { resolveEffectivePaymentStatus } from '@/utils/effectivePaymentStatus';
 import {
   mapEntryRowToBalanceSource,
   summarizeEntryBalances,
@@ -111,11 +112,17 @@ function getOwnEntryPaymentStatus(
   registrationPaymentStatus: string | null | undefined,
   isShowCancelled: boolean
 ) {
-  const status = mapPaymentStatus(
-    isShowCancelled
-      ? (entry.payment_status as string)
-      : (registrationPaymentStatus ?? (entry.payment_status as string))
-  );
+  // The card badge reads from the same rule as the balance: an order's `paid`
+  // may not mask an entry that is still `pending` (MYK9-495), or the card says
+  // "Paid" over live debt. A cancelled show still reads the entry row alone —
+  // the refund reconciliation below owns that case.
+  const rowStatus = entry.payment_status as string | null | undefined;
+  const status = isShowCancelled
+    ? mapPaymentStatus(rowStatus as string)
+    : (resolveEffectivePaymentStatus(
+        rowStatus != null ? mapPaymentStatus(rowStatus) : null,
+        registrationPaymentStatus != null ? mapPaymentStatus(registrationPaymentStatus) : null
+      ) ?? PaymentStatus.PENDING);
   const refundAmount = Number(entry.refund_amount ?? 0);
   const entryFee = Number(entry.entry_fee ?? 0);
   if (

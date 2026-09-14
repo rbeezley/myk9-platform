@@ -672,7 +672,7 @@ describe('MyEntriesPage UI Improvements', () => {
       expect(screen.getByText('Update Check-In Status')).toBeInTheDocument();
     });
 
-    it('uses enrollment payment status when secretary marks a grouped entry paid', async () => {
+    it('keeps a pending entry marked Payment Due under a paid order (MYK9-495)', async () => {
       (useAuthContext as ReturnType<typeof vi.fn>).mockReturnValue({
         user: mockUser,
         userWithRoles: { ...mockUser, databaseUserId: 'person-1' },
@@ -726,8 +726,17 @@ describe('MyEntriesPage UI Improvements', () => {
       renderWithProviders(<MyEntriesPage />);
 
       await screen.findByText('A Trial');
-      expect(screen.getAllByText('Paid').length).toBeGreaterThan(0);
-      expect(screen.queryByText('Payment Due')).not.toBeInTheDocument();
+      // A secretary recording payment on the order cascades `paid` down onto
+      // its entry rows (`updateEnrollmentPaymentStatus`), so an entry left at
+      // `pending` under a `paid` enrollment is unreconciled debt — and
+      // `enrollments` is one row per (show, handler) reused by every later
+      // submission, so the order's status cannot vouch for it.
+      // The show has ended relative to the suite clock, so the card renders the
+      // past-debt treatment rather than a "Payment Due" chip. Either way it must
+      // not read "Paid", and it must name the balance and a way to settle it.
+      expect(screen.getAllByText(/outstanding balance/).length).toBeGreaterThan(0);
+      expect(screen.getByText(/contact the club to settle/i)).toBeInTheDocument();
+      expect(screen.queryByText('Paid')).not.toBeInTheDocument();
     });
 
     it('opens the result reveal from a resultEntryId query param when the result is visible', async () => {

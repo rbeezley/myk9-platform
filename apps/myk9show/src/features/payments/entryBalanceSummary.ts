@@ -1,5 +1,6 @@
 import { EntryStatus, PaymentStatus } from '@/types/show-registration-types';
 import { mapEntryStatus, mapPaymentStatus } from '@/utils/entryManagementUtils';
+import { resolveEffectivePaymentStatus } from '@/utils/effectivePaymentStatus';
 import { parseShowDate } from '@/pages/MyEntriesPage/modules/myEntriesStats.helpers';
 import { buildFinishPaymentHref } from './finishPaymentHref';
 import { getTrialTimezone } from '@/features/registries';
@@ -125,7 +126,19 @@ function resolveShowTimezone(row: EntryBalanceRawRow): string {
 
 export function mapEntryRowToBalanceSource(row: EntryBalanceRawRow): EntryBalanceSource {
   const show = row.show;
-  const paymentStatus = row.registration?.payment_status ?? row.payment_status ?? 'pending';
+  // The ORDER's status may not mask this ENTRY's (MYK9-495): `enrollments` is
+  // one row per (show, handler) reused by every later submission, so its
+  // `paid` says nothing about a row added afterwards. See
+  // `@/utils/effectivePaymentStatus` for the full rule. Each side is mapped
+  // only when the raw column is actually present, so "no status of its own"
+  // stays distinguishable from `pending` and the order can still fill in.
+  const paymentStatus =
+    resolveEffectivePaymentStatus(
+      row.payment_status != null ? mapPaymentStatus(row.payment_status) : null,
+      row.registration?.payment_status != null
+        ? mapPaymentStatus(row.registration.payment_status)
+        : null
+    ) ?? PaymentStatus.PENDING;
 
   return {
     id: row.id,
@@ -136,7 +149,7 @@ export function mapEntryRowToBalanceSource(row: EntryBalanceRawRow): EntryBalanc
     entryCloseDay: toEntryCloseDay(show?.entry_close_date),
     showTimezone: resolveShowTimezone(row),
     entryStatus: mapEntryStatus(row.entry_status ?? 'pending'),
-    paymentStatus: mapPaymentStatus(paymentStatus),
+    paymentStatus,
     paymentMethod: row.payment_method ?? null,
     totalFee: row.entry_fee ?? 0,
   };

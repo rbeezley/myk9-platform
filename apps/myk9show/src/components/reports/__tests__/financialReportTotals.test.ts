@@ -170,7 +170,7 @@ describe('financialReportTotals', () => {
     });
   });
 
-  it('counts enrollment-paid secretary entries as collected revenue', () => {
+  it('leaves an entry row still pending outstanding, whatever its order says (MYK9-495)', () => {
     const totals = calculateFinancialReportTotals(
       [
         entry({
@@ -184,14 +184,16 @@ describe('financialReportTotals', () => {
       'current'
     );
 
+    // `enrollments` is one row per (show, handler), reused by every later
+    // submission, so its `paid_by_check` cannot vouch for this entry — and the
+    // submit RPC already stamps entries `paid` for the order-level payment
+    // methods that genuinely are settled up front.
     expect(totals.summary).toMatchObject({
       count: 1,
       gross: 45,
-      collected: 45,
-      outstanding: 0,
-      netRetained: 45,
+      collected: 0,
+      outstanding: 45,
     });
-    expect(totals.paymentBreakdown.map(bucket => bucket.label)).toEqual(['Check']);
   });
 
   it('keeps entry-level refunds authoritative over enrollment payment status', () => {

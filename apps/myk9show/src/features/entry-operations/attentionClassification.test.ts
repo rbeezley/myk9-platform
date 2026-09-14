@@ -37,6 +37,30 @@ describe('classifyEntryAttention', () => {
     ).toEqual(['payment_due']);
   });
 
+  it('keeps a pending entry visible when its ORDER reads paid (MYK9-495)', () => {
+    // `enrollments` is one row per (show, handler), reused by every later
+    // submission, so its `paid` must not drop this entry off the secretary's
+    // attention list.
+    expect(
+      classifyEntryAttention(
+        input({
+          paymentStatus: PaymentStatus.PENDING,
+          enrollmentPaymentStatus: PaymentStatus.PAID_ONLINE,
+        })
+      )
+    ).toEqual(['payment_due']);
+  });
+
+  it('classifies the same shape from a raw row (MYK9-495)', () => {
+    expect(
+      classifyRawEntryAttention({
+        entry_status: 'confirmed',
+        payment_status: 'pending',
+        registration: { payment_status: 'paid' },
+      })
+    ).toEqual(['payment_due']);
+  });
+
   it('does not classify terminal entries as payment due', () => {
     expect(
       classifyEntryAttention(

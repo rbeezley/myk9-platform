@@ -144,13 +144,33 @@ describe('EntryListCard - check-in button affordance', () => {
     expect(screen.queryByText('Waitlisted')).toBeNull();
   });
 
-  it('renders the enrollment payment status when it differs from entry payment status', () => {
+  it('keeps a pending entry marked Payment Due under a paid order (MYK9-495)', () => {
+    // `enrollments` is one row per (show, handler), reused by every later
+    // submission, so its `paid` cannot vouch for this entry. Letting it badge
+    // "Paid" is how $30 of live debt read as settled on every money surface.
     render(
       <EntryListCard
         {...defaultProps}
         entries={[
           makeEntry({
             paymentStatus: PaymentStatus.PENDING,
+            enrollmentPaymentStatus: PaymentStatus.PAID_BY_CHECK,
+          }),
+        ]}
+      />
+    );
+
+    expect(screen.getByText('Payment Due')).toBeInTheDocument();
+    expect(screen.queryByText('Paid')).not.toBeInTheDocument();
+  });
+
+  it('still renders the order-level payment method once the entry row is settled', () => {
+    render(
+      <EntryListCard
+        {...defaultProps}
+        entries={[
+          makeEntry({
+            paymentStatus: PaymentStatus.PAID_ONLINE,
             enrollmentPaymentStatus: PaymentStatus.PAID_BY_CHECK,
           }),
         ]}

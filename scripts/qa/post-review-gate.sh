@@ -69,23 +69,36 @@ esac
 if [ "$REVIEWER" = "owner" ]; then
   [ -n "${OVERRIDE_REASON:-}" ] || { echo "post-review-gate: owner tier needs OVERRIDE_REASON=\"<harness> unavailable — <detail>\"" >&2; exit 2; }
   [ -n "${DEFERRED_REVIEW:-}" ] || { echo "post-review-gate: owner tier needs DEFERRED_REVIEW=<ISSUE-ID>" >&2; exit 2; }
-  # Reject a newline BEFORE the shape probe below. The probe's regexes
-  # (review-gate.ts's OVERRIDE_REASON/DEFERRED_REVIEW) are `m`-flagged
-  # because the GATE side legitimately needs to find the line within a
-  # multi-line PR comment body read back from GitHub — but that same `m`
-  # means the PROBE asks "does some line of this value match", not "is this
-  # value one well-formed line". A caller could then smuggle a second line
-  # — including a forged `Review gate: ...` line — straight into the
-  # published comment. It cannot fool the checker (parseGateComments only
-  # ever reads line 1), but it is a human-visible forgery from the one
+  # Reject any LINE-TERMINATOR character BEFORE the shape probe below. The
+  # probe's regexes (review-gate.ts's OVERRIDE_REASON/DEFERRED_REVIEW) are
+  # `m`-flagged because the GATE side legitimately needs to find the line
+  # within a multi-line PR comment body read back from GitHub — but that
+  # same `m` means the PROBE asks "does some line of this value match", not
+  # "is this value one well-formed line". A caller could then smuggle a
+  # second line — including a forged `Review gate: ...` line — straight
+  # into the published comment. It cannot fool the checker (parseGateComments
+  # only ever reads line 1), but it is a human-visible forgery from the one
   # script whose whole premise is that nobody types an evidence line by
   # hand. Checked here, on the RAW env values, not the gate's regexes, so
   # the gate's own multi-line search over real GitHub bodies is untouched.
+  #
+  # This is a CLASS of character, not one instance: `\n` alone let a bare
+  # `\r` through, and `\r` is a line terminator for JS `/m` (defeats the
+  # probe the same way `\n` did) AND for CommonMark (a line ending GitHub
+  # renders), reproducing the forged-second-line finding verbatim. U+2028
+  # (LINE SEPARATOR) is also a JS `/m` terminator — folded in even though it
+  # is NOT a CommonMark line ending (renders inline, so it cannot itself
+  # forge a visible line): defeating the probe with an invisible character
+  # is still a hole, and it costs nothing to close alongside CR.
   case "$OVERRIDE_REASON" in
-    *$'\n'*) echo "post-review-gate: OVERRIDE_REASON must be a single line (no newlines)" >&2; exit 2;;
+    *$'\n'*|*$'\r'*|*$'\xe2\x80\xa8'*)
+      echo "post-review-gate: OVERRIDE_REASON must be a single line (no line-terminator characters)" >&2
+      exit 2;;
   esac
   case "$DEFERRED_REVIEW" in
-    *$'\n'*) echo "post-review-gate: DEFERRED_REVIEW must be a single line (no newlines)" >&2; exit 2;;
+    *$'\n'*|*$'\r'*|*$'\xe2\x80\xa8'*)
+      echo "post-review-gate: DEFERRED_REVIEW must be a single line (no line-terminator characters)" >&2
+      exit 2;;
   esac
   # Presence alone reopens the same disagreement --reviewer just closed for
   # verdicts: "I was busy" and "myk9-523" are both non-empty and would post
@@ -176,9 +189,11 @@ if [ -s "$LOG" ] 2>/dev/null; then
   VERDICT_BLOCK="$(review_last_block "$LOG")"
   [ -n "$VERDICT_BLOCK" ] || VERDICT_BLOCK="$(cat "$LOG")"
 else
-  # Only reachable for owner/none (HAS_REVIEW_LOG=1 tiers already exited
-  # above on an empty/missing log). No fabricated "clean review" text — say
-  # plainly that there is no log, because for these two tiers there isn't one.
+  # Only reachable for owner/none on a NON-WITHDRAW post: REQUIRES_LOG folds
+  # WITHDRAW in above, so a withdrawal (any tier) already exited on an
+  # empty/missing log before we get here — this branch is a CLEAN owner/none
+  # post with no log supplied. No fabricated "clean review" text — say
+  # plainly that there is no log, because for that case there isn't one.
   HASH="n/a"
   VERDICT_BLOCK="(no review log — $REVIEWER tier)"
 fi

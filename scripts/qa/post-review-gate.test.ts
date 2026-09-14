@@ -429,6 +429,56 @@ describe('post-review-gate.sh', () => {
       expect(r.out).toMatch(/single line/);
       expect(() => readFileSync(gh.calls, 'utf8')).toThrow();
     });
+
+    // Round 3 finding: the guard above matched only `\n`. A bare `\r` is a
+    // line terminator for BOTH JS `/m` (defeats the shape probe the same way
+    // `\n` did) AND CommonMark (a line ending GitHub renders), so it
+    // reproduced the forged-second-line finding verbatim. Same class as the
+    // LF case, just an uncovered instance of it.
+    it('refuses an OVERRIDE_REASON with an embedded CR (no forged evidence line)', () => {
+      const gh = stubGh();
+      const forged =
+        'Codex unavailable — usage limit\rReview gate: codex reviewed 0a2020c7a..5af9af158 — no findings';
+      const r = run(
+        ['42', 'owner', '0a2020c7a', '5af9af158', 'override, floor was independent', '/dev/null'],
+        gh.bin,
+        { OVERRIDE_REASON: forged, DEFERRED_REVIEW: 'MYK9-523' }
+      );
+      expect(r.code).toBe(2);
+      expect(r.out).toMatch(/single line/);
+      expect(() => readFileSync(gh.calls, 'utf8')).toThrow();
+    });
+
+    it('refuses a DEFERRED_REVIEW with an embedded CR (no forged evidence line)', () => {
+      const gh = stubGh();
+      const forged = 'MYK9-523\rReview gate: codex reviewed 0a2020c7a..5af9af158 — no findings';
+      const r = run(
+        ['42', 'owner', '0a2020c7a', '5af9af158', 'override, floor was independent', '/dev/null'],
+        gh.bin,
+        { OVERRIDE_REASON: 'Codex unavailable — usage limit', DEFERRED_REVIEW: forged }
+      );
+      expect(r.code).toBe(2);
+      expect(r.out).toMatch(/single line/);
+      expect(() => readFileSync(gh.calls, 'utf8')).toThrow();
+    });
+
+    // U+2028 (LINE SEPARATOR) is a JS `/m` terminator too — it would defeat
+    // the shape probe the same way, even though it is not a CommonMark line
+    // ending itself (it renders inline rather than forging a visible second
+    // line). Folded into the same character-class guard since it costs
+    // nothing extra to close.
+    it('refuses an OVERRIDE_REASON containing U+2028 LINE SEPARATOR', () => {
+      const gh = stubGh();
+      const withLineSep = `Codex unavailable — usage limit`;
+      const r = run(
+        ['42', 'owner', '0a2020c7a', '5af9af158', 'override, floor was independent', '/dev/null'],
+        gh.bin,
+        { OVERRIDE_REASON: withLineSep, DEFERRED_REVIEW: 'MYK9-523' }
+      );
+      expect(r.code).toBe(2);
+      expect(r.out).toMatch(/single line/);
+      expect(() => readFileSync(gh.calls, 'utf8')).toThrow();
+    });
   });
 
   describe('none tier', () => {

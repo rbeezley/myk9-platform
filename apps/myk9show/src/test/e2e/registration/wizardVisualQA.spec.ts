@@ -862,6 +862,10 @@ test.describe('dog picker checkbox geometry', () => {
 
       const control = page.locator('[role="checkbox"][aria-label^="Select "]').first();
       await expect(control).toBeVisible();
+      // The roster is 250+ dogs, so the first row sits below the fold at 390.
+      // Measure and click only once it is actually on screen — raw viewport
+      // coordinates from an off-screen box click nothing at all.
+      await control.scrollIntoViewIfNeeded();
 
       // Known answer: the shared control is h-4 w-4. A regression that restored
       // the override would report ~44 here, which is what the audit saw.
@@ -884,13 +888,13 @@ test.describe('dog picker checkbox geometry', () => {
       // row. Aim 3px inside the wrapper's top-left corner, which is ~11px clear
       // of the centred 16px box.
       const before = await control.getAttribute('aria-checked');
-      await page.mouse.click(hitBox.x + 3, hitBox.y + 3);
+      await hitArea.click({ position: { x: 3, y: 3 } });
       await expect
         .poll(async () => control.getAttribute('aria-checked'), { timeout: 10000 })
         .not.toBe(before);
 
       // Put the row back the way it was found — this spec runs serially.
-      await page.mouse.click(hitBox.x + 3, hitBox.y + 3);
+      await hitArea.click({ position: { x: 3, y: 3 } });
       await expect.poll(async () => control.getAttribute('aria-checked')).toBe(before);
     });
   }
@@ -921,7 +925,28 @@ test('the draft toast never overlaps the phone entries bar', async ({ page }) =>
   const toast = page.getByText('Draft saved');
   await expect(toast).toBeVisible();
 
-  const toastBox = (await toast.locator('xpath=ancestor-or-self::li[1]').boundingBox())!;
+  // An unmounted sonner toast is in the DOM at `translateY(100%)` with
+  // `opacity: 0` — Playwright calls that visible, and its box is a full
+  // toast-height LOW, which reports an overlap that never reaches the screen.
+  // Wait for the mounted state and for the slide-in to settle before measuring.
+  const toastItem = toast.locator('xpath=ancestor-or-self::li[1]');
+  await expect(toastItem).toHaveAttribute('data-mounted', 'true', { timeout: 15000 });
+  await expect
+    .poll(async () => toastItem.evaluate(el => getComputedStyle(el).opacity), { timeout: 15000 })
+    .toBe('1');
+  let toastBox = (await toastItem.boundingBox())!;
+  await expect
+    .poll(
+      async () => {
+        const next = (await toastItem.boundingBox())!;
+        const settled = !!next && !!toastBox && Math.abs(next.y - toastBox.y) < 0.5;
+        toastBox = next;
+        return settled;
+      },
+      { timeout: 5000, intervals: [150] }
+    )
+    .toBe(true);
+
   const barBox = (await bar.boundingBox())!;
   expect(toastBox, 'the toast must be measurable').not.toBeNull();
   expect(barBox, 'the entries bar must be measurable').not.toBeNull();

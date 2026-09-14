@@ -7,6 +7,19 @@ version: 2
 # Schedule: Monday 06:00 UTC = early Monday US for triage at start of week.
 # See docs/plan-dependabot-remediation.md for the policy this codifies.
 #
+# Browser-level CI coverage (MYK9-520): ci.yml's smoke-build / A11y smoke /
+# E2E PR Smoke jobs skip by default when `github.actor == 'dependabot[bot]'`,
+# because GitHub withholds repository secrets from Dependabot-triggered
+# `pull_request` runs and those jobs need real Supabase/E2E credentials. A
+# maintainer reviewing a bump that touches runtime `dependencies` (not just
+# `devDependencies`) should add the `run-smoke` label to the PR before
+# merging -- it overrides the actor skip and forces the three jobs to report
+# a real conclusion instead of silently SKIPPED. If the touched dependency
+# genuinely needs those secrets to verify safely (e.g. a renderer or data
+# layer bump), a SKIPPED/failed smoke run is not enough evidence to merge;
+# push a follow-up commit (which flips `github.actor` off dependabot) or
+# verify manually before merging.
+#
 # Note on the npm "ignore semver-major" rule below: this suppresses ONLY the
 # scheduled / non-security major-version PRs. Dependabot security updates
 # bypass `ignore` rules — so a major-version SECURITY fix (e.g. undici 5→6)

@@ -36,7 +36,9 @@ jobs:
   # for docs/tooling-only PRs. This job keeps required CI checks present while
   # letting E2E/a11y smoke run only when relevant paths changed. Add the
   # `run-smoke` PR label to force browser smoke, or `skip-smoke` for an explicit
-  # tooling/docs override.
+  # tooling/docs override. `run-smoke` ALSO overrides the separate Dependabot
+  # actor skip on smoke-build/a11y/e2e-myk9show below (MYK9-520) -- see the
+  # rationale comment on `smoke-build` and .github/dependabot.yml.
   smoke-scope:
     name: Smoke scope
     runs-on: ubuntu-latest
@@ -624,12 +626,24 @@ jobs:
   # Browser smoke needs a Supabase-configured bundle; the budgeted production
   # build above intentionally runs without shared-project configuration.
   # Build this once and share it between the a11y and E2E smoke jobs.
+  #
+  # `github.actor != 'dependabot[bot]'` (MYK9-520): GitHub withholds repository
+  # secrets from `pull_request` runs whose triggering actor is Dependabot, and
+  # this job (plus its downstream a11y / E2E jobs) reads VITE_SUPABASE_URL,
+  # VITE_SUPABASE_ANON_KEY and real E2E_* login credentials. Confirmed by
+  # pushing a human commit to a dependabot branch: that flips `github.actor`
+  # and all three jobs then run and pass (see MYK9-520 evidence). Deleting the
+  # guard outright would trade a silent SKIP for a silent auth/build failure on
+  # every future dependency PR, so it stays -- but the `run-smoke` label
+  # (read by `smoke-scope` above) can now override it, giving a maintainer who
+  # labels a dependency bump a REAL conclusion instead of an invisible one.
+  # See .github/dependabot.yml for when to add the label.
   smoke-build:
     name: Smoke build
     runs-on: ubuntu-latest
     timeout-minutes: 15
     needs: [build, smoke-scope]
-    if: (github.event_name == 'push' || github.event.pull_request.draft == false) && vars.MYK9SHOW_SMOKE_CI_ENABLED == 'true' && needs.smoke-scope.outputs.run == 'true' && github.actor != 'dependabot[bot]'
+    if: (github.event_name == 'push' || github.event.pull_request.draft == false) && vars.MYK9SHOW_SMOKE_CI_ENABLED == 'true' && needs.smoke-scope.outputs.run == 'true' && (github.actor != 'dependabot[bot]' || (github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'run-smoke')))
 
     steps:
       - uses: actions/checkout@v7
@@ -671,9 +685,11 @@ jobs:
     timeout-minutes: 15
     needs: [smoke-build, smoke-scope]
     # GitHub withholds repo secrets from workflows triggered by Dependabot, so
-    # this job can never pass on a Dependabot PR — skip it there rather than
-    # permanently blocking those PRs on a required check that can't succeed.
-    if: (github.event_name == 'push' || github.event.pull_request.draft == false) && vars.MYK9SHOW_SMOKE_CI_ENABLED == 'true' && needs.smoke-scope.outputs.run == 'true' && github.actor != 'dependabot[bot]'
+    # this job can never pass on a Dependabot PR by default — skip it there
+    # rather than permanently blocking those PRs on a required check that
+    # can't succeed. The `run-smoke` label overrides the skip (MYK9-520): see
+    # the rationale comment on `smoke-build` above and .github/dependabot.yml.
+    if: (github.event_name == 'push' || github.event.pull_request.draft == false) && vars.MYK9SHOW_SMOKE_CI_ENABLED == 'true' && needs.smoke-scope.outputs.run == 'true' && (github.actor != 'dependabot[bot]' || (github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'run-smoke')))
 
     steps:
       - uses: actions/checkout@v7
@@ -751,9 +767,11 @@ jobs:
     timeout-minutes: 15
     needs: [smoke-build, smoke-scope]
     # GitHub withholds repo secrets from workflows triggered by Dependabot, so
-    # this job can never pass on a Dependabot PR — skip it there rather than
-    # permanently blocking those PRs on a required check that can't succeed.
-    if: (github.event_name == 'push' || github.event.pull_request.draft == false) && vars.MYK9SHOW_SMOKE_CI_ENABLED == 'true' && needs.smoke-scope.outputs.run == 'true' && github.actor != 'dependabot[bot]'
+    # this job can never pass on a Dependabot PR by default — skip it there
+    # rather than permanently blocking those PRs on a required check that
+    # can't succeed. The `run-smoke` label overrides the skip (MYK9-520): see
+    # the rationale comment on `smoke-build` above and .github/dependabot.yml.
+    if: (github.event_name == 'push' || github.event.pull_request.draft == false) && vars.MYK9SHOW_SMOKE_CI_ENABLED == 'true' && needs.smoke-scope.outputs.run == 'true' && (github.actor != 'dependabot[bot]' || (github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'run-smoke')))
 
     steps:
       - uses: actions/checkout@v7

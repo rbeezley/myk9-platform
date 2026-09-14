@@ -62,8 +62,8 @@ This is the canonical 8-step loop: implement → simplify → commit → PR → 
 Run Codex review **before** merging, not after — it's a gate, not a follow-up.
 
 **Scrutiny scales with risk.** Run `pnpm qa:review-tier --base origin/main` to get the
-floor before spending a review round — it also runs inside `qa:review-gate.ts`, which
-refuses evidence below it. Four tiers, weakest to strongest: `none` < `owner` <
+floor before spending a review round — the same floor `scripts/qa/review-gate.ts`
+refuses evidence below. Four tiers, weakest to strongest: `none` < `owner` <
 `adversarial` < `independent`. Nobody types a `Review gate:` evidence line by hand;
 `scripts/qa/post-review-gate.sh` is the only writer, for every tier.
 

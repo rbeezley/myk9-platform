@@ -318,26 +318,28 @@ function RegistrationWizardContent() {
                 {steps[currentStep]?.label}
                 <span className="sr-only">{` — step ${currentStep + 1} of ${steps.length}`}</span>
               </h2>
-              <DraftManager
-                saveDraft={draftSave}
-                loadDraft={draftLoad}
-                deleteDraft={draftDelete}
-                availableDrafts={availableDrafts}
-                clearAllDrafts={clearAllDrafts}
-                hasUnsavedChanges={!!hasUnsavedChanges}
-                onDraftLoaded={handleDraftLoaded}
-                onDraftSaved={() => notifications.success('Draft saved')}
-                showResume={
-                  currentWorkflowMode === 'exhibitor' &&
-                  currentStepId === 'dog-selection' &&
-                  !hasEditedDogSelection &&
-                  registrationData.selectedDogs.length === 0
-                }
-                dogsReady={dogsReady}
-                loadError={!!dogsError}
-                loadingDogs={resumeDataLoading}
-                onRetryDogs={retryDogLoad}
-              />
+              {!isLastStep && (
+                <DraftManager
+                  saveDraft={draftSave}
+                  loadDraft={draftLoad}
+                  deleteDraft={draftDelete}
+                  availableDrafts={availableDrafts}
+                  clearAllDrafts={clearAllDrafts}
+                  hasUnsavedChanges={!!hasUnsavedChanges}
+                  onDraftLoaded={handleDraftLoaded}
+                  onDraftSaved={() => notifications.success('Draft saved')}
+                  showResume={
+                    currentWorkflowMode === 'exhibitor' &&
+                    currentStepId === 'dog-selection' &&
+                    !hasEditedDogSelection &&
+                    registrationData.selectedDogs.length === 0
+                  }
+                  dogsReady={dogsReady}
+                  loadError={!!dogsError}
+                  loadingDogs={resumeDataLoading}
+                  onRetryDogs={retryDogLoad}
+                />
+              )}
             </div>
 
             <div className="mb-6 border-t border-border" />

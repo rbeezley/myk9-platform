@@ -20,9 +20,11 @@ owns the wizard structure, so a second OpenSpec proposal would duplicate it.
    resume; an empty or completed entry does not qualify.
 2. Show the latest unfinished entry prominently within DraftManager on the
    exhibitor's empty dog step. Preserve the option to select a different dog.
-3. Wait for the dog roster before accepting a resume. Keep the draft if the
-   roster is temporarily unavailable, and activate autosave only after a valid
-   load. Do not change payment or legal-agreement submission.
+3. Wait for the dog roster before offering automatic resume. The existing
+   manual draft loader can restore locally while offline; defer registration
+   creation until the roster arrives and validates the selected dog. Keep the
+   draft if the roster is temporarily unavailable. Do not change payment or
+   legal-agreement submission.
 4. After a successful entry submission or cart handoff, remove only class
    lines that were handled. Keep denied classes, unrelated drafts, and unfiled
    dogs; never turn a completed entry into a resume candidate.
@@ -38,11 +40,12 @@ owns the wizard structure, so a second OpenSpec proposal would duplicate it.
 
 ## Verification recorded
 
-- Focused draft hook, DraftManager, wizard, and submission tests: 39 passed. They cover
+- Focused draft hook, DraftManager, wizard, and submission tests: 42 passed. They cover
   pagehide, empty-reentry preservation, rejected and accepted draft reads,
   eligibility, roster loading/error recovery, dog/class/step restoration,
   profile-refetch failure, the first post-resume edit, class-level cleanup,
-  and stable payload parsing across unrelated renders.
+  stale pre-class draft cleanup, continued saving after partial submission,
+  offline manual draft restoration, and stable payload parsing across unrelated renders.
 - Chromium browser Back → reopen → Resume entry: passed.
 - App and test TypeScript checks, E2E typecheck ratchet, touched-file ESLint,
   code-quality ratchet, plan metadata, and diff check: passed.

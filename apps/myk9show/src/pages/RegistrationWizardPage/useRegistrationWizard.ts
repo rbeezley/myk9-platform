@@ -18,7 +18,25 @@ export function useRegistrationWizard() {
   const state = useRegistrationWizardState();
   const handlers = createWizardHandlers(state);
 
-  const { dogs, dogsLoading, currentWorkflowConfig, registrationData, hasAutoSelectedDogs } = state;
+  const {
+    dogs,
+    dogsLoading,
+    dogsReady,
+    currentWorkflowConfig,
+    registrationData,
+    hasAutoSelectedDogs,
+    pendingDraftRegistrationRef,
+  } = state;
+
+  useEffect(() => {
+    if (!dogsReady || !pendingDraftRegistrationRef.current) return;
+    pendingDraftRegistrationRef.current = false;
+    if (registrationData.selectedDogs.length > 0) {
+      void handlers.handleDogSelectionChange(registrationData.selectedDogs);
+    }
+    // The pending flag is set only by a draft load that preceded the roster.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [dogsReady, registrationData.selectedDogs]);
 
   // Auto-select all dogs when dog-selection step is not in the workflow (exhibitor
   // flow). Runs once after dogs load; draft loading restores selectedDogs so

@@ -249,6 +249,7 @@ export function useRegistrationWizardState() {
   const submittingRef = useRef(false);
   const mountedRef = useRef(true);
   const hasAutoSelectedDogs = useRef(false);
+  const pendingDraftRegistrationRef = useRef(false);
 
   const {
     createRegistration,
@@ -591,6 +592,7 @@ export function useRegistrationWizardState() {
     submittingRef,
     mountedRef,
     hasAutoSelectedDogs,
+    pendingDraftRegistrationRef,
 
     // Drafts
     draftSave,

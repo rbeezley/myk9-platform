@@ -272,17 +272,23 @@ describe('RegistrationWizardPage — handleDraftLoaded', () => {
     await waitFor(() => expect(capturedShowResume).toBe(false));
   });
 
-  it('does not activate a draft until the dog roster is ready', async () => {
+  it('restores an offline draft and creates registration after the roster returns', async () => {
     mockDogStoreState.dogs = [];
     mockDogStoreState.isReady = false;
-    render(<RegistrationWizardPage />, { initialRoute: '/shows/show-1/register' });
+    const view = render(<RegistrationWizardPage />, { initialRoute: '/shows/show-1/register' });
     await waitFor(() => expect(capturedOnDraftLoaded).not.toBeNull());
 
     const accepted = capturedOnDraftLoaded!(buildDraft(['dog-1']));
 
-    expect(accepted).toBe(false);
-    expect(mockActivateDraft).not.toHaveBeenCalled();
-    expect(capturedSelectedDogs).toEqual([]);
+    expect(accepted).toBe(true);
+    expect(mockActivateDraft).toHaveBeenCalledOnce();
+    await waitFor(() => expect(capturedSelectedDogs).toEqual(['dog-1']));
+    expect(mockCreateRegistration).not.toHaveBeenCalled();
+
+    mockDogStoreState.dogs = [{ id: 'dog-1', ownerId: 'user-1', ownerName: 'Owner' }];
+    mockDogStoreState.isReady = true;
+    view.rerender(<RegistrationWizardPage />);
+    await waitFor(() => expect(mockCreateRegistration).toHaveBeenCalledOnce());
   });
 
   it('keeps a draft whose dog is absent from the loaded roster', async () => {

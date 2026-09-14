@@ -2,7 +2,11 @@ import { useEffect, useRef, useCallback, useMemo, useState } from 'react';
 import { useShowRegistrationStore } from '../store/showRegistrationStore';
 import { RegistrationFormData } from '../types/show-registration-types';
 import { logger } from '@/services/LoggingService';
-import { pruneFiledDogsFromDraft, type HandledDraftClass } from './pruneFiledDogsFromDraft';
+import {
+  pruneFiledDogsFromDraft,
+  pruneStoredDrafts,
+  type HandledDraftClass,
+} from './pruneFiledDogsFromDraft';
 import { makeHandlerKey } from '@/types/show-registration-types';
 import { readSavedDraftMetadata } from './readSavedDraftMetadata';
 
@@ -61,7 +65,10 @@ export function useDraftPersistence(
   const lastSavedDataRef = useRef<string>('');
   const activeDraftMetadataRef = useRef<DraftMetadata | null>(null);
   const pendingRestoreDataRef = useRef<Partial<RegistrationFormData> | null>(null);
-  const skipFinalSaveRef = useRef(false);
+  const handledAfterSubmitRef = useRef<{
+    classKeys: Set<string>;
+    dogIds: Set<string>;
+  } | null>(null);
   const [lastAutoSaveTime, setLastAutoSaveTime] = useState<Date | null>(null);
   const [draftsVersion, setDraftsVersion] = useState(0);
 
@@ -111,7 +118,7 @@ export function useDraftPersistence(
         showId,
         userId,
         timestamp: Date.now(),
-        stepCompleted: currentStep,
+        stepCompleted: data._workflowState?.currentStep ?? currentStep,
         title: `Draft from ${new Date().toLocaleDateString()}`,
         preview,
       };
@@ -237,8 +244,8 @@ export function useDraftPersistence(
     [getDraftKey, userId, log]
   );
 
-  // Reading a draft does not accept it. The wizard activates it only after
-  // the dog roster has loaded and the saved selection has been validated.
+  // Reading a draft does not accept it. The wizard activates a requested draft;
+  // it validates dogs immediately when available or defers registration creation.
   const activateDraft = useCallback(
     (draft: SavedDraft) => {
       if (draft.metadata.showId === showId && draft.metadata.userId === userId) {
@@ -272,32 +279,47 @@ export function useDraftPersistence(
     [getDraftKey, getDraftMetadata, saveDraftMetadata, log]
   );
 
+  const saveableData = useCallback(
+    (data: Partial<RegistrationFormData>): Partial<RegistrationFormData> | null => {
+      const handled = handledAfterSubmitRef.current;
+      if (!handled) return data;
+      if (data._workflowState?.currentStep === 'confirmation') return null;
+      const candidate: SavedDraft = {
+        metadata: activeDraftMetadataRef.current ?? generateDraftMetadata(data),
+        data,
+      };
+      return pruneFiledDogsFromDraft(candidate, handled.classKeys, handled.dogIds)?.data ?? null;
+    },
+    [generateDraftMetadata]
+  );
+
   // Auto-save current draft data
   const autoSave = useCallback(() => {
-    if (skipFinalSaveRef.current) return;
     if (!draftData || Object.keys(draftData).length === 0) {
       return;
     }
     if (pendingRestoreDataRef.current === draftData) return;
     pendingRestoreDataRef.current = null;
+    const dataToSave = saveableData(draftData);
+    if (!dataToSave) return;
     // The wizard supplies a non-empty envelope even before a dog is selected.
     // Do not let a fresh empty wizard evict an unfinished entry on this device.
-    if (!draftData.selectedDogs?.length && !activeDraftMetadataRef.current) return;
+    if (!dataToSave.selectedDogs?.length && !activeDraftMetadataRef.current) return;
 
     // Check if data has changed since last save
-    const currentDataString = JSON.stringify(draftData);
+    const currentDataString = JSON.stringify(dataToSave);
     if (currentDataString === lastSavedDataRef.current) {
       log('No changes detected, skipping auto-save');
       return;
     }
 
-    const draftId = saveDraft(draftData, activeDraftMetadataRef.current ?? undefined);
+    const draftId = saveDraft(dataToSave, activeDraftMetadataRef.current ?? undefined);
     if (draftId) {
       lastSavedDataRef.current = currentDataString;
       setLastAutoSaveTime(new Date());
       log('Auto-saved draft:', draftId);
     }
-  }, [draftData, saveDraft, log]);
+  }, [draftData, saveDraft, saveableData, log]);
 
   // Manual save with custom title
   const saveWithTitle = useCallback(
@@ -305,13 +327,15 @@ export function useDraftPersistence(
       if (!draftData || Object.keys(draftData).length === 0) {
         return null;
       }
+      const dataToSave = saveableData(draftData);
+      if (!dataToSave) return null;
 
-      const metadata = generateDraftMetadata(draftData);
+      const metadata = generateDraftMetadata(dataToSave);
       metadata.title = title;
 
-      return saveDraft(draftData, metadata);
+      return saveDraft(dataToSave, metadata);
     },
-    [draftData, generateDraftMetadata, saveDraft]
+    [draftData, generateDraftMetadata, saveDraft, saveableData]
   );
 
   // Clear all drafts for current show
@@ -330,57 +354,31 @@ export function useDraftPersistence(
 
   const discardDraftsWithoutFinalSave = useCallback(
     (handledClasses: HandledDraftClass[]) => {
-      skipFinalSaveRef.current = true;
       const handled = new Set(
         handledClasses.map(({ dogId, classId }) => makeHandlerKey(dogId, classId))
       );
-      const remainingMetadata: DraftMetadata[] = [];
-      for (const metadata of getDraftMetadata()) {
-        try {
-          const raw = localStorage.getItem(getDraftKey(metadata.id));
-          if (!raw) continue;
-          const saved: SavedDraft = JSON.parse(raw);
-          if (
-            saved.metadata?.id !== metadata.id ||
-            saved.metadata.showId !== showId ||
-            saved.metadata.userId !== userId
-          ) {
-            remainingMetadata.push(metadata);
-            continue;
-          }
-          const pruned = pruneFiledDogsFromDraft(saved, handled);
-          if (!pruned) {
-            localStorage.removeItem(getDraftKey(metadata.id));
-          } else if (pruned !== saved) {
-            localStorage.setItem(getDraftKey(metadata.id), JSON.stringify(pruned));
-            remainingMetadata.push(pruned.metadata);
-          } else {
-            remainingMetadata.push(metadata);
-          }
-        } catch (error) {
-          log('Could not prune saved draft:', metadata.id, error);
-          remainingMetadata.push(metadata);
-        }
-      }
+      const handledDogIds = new Set(handledClasses.map(({ dogId }) => dogId));
+      handledAfterSubmitRef.current = { classKeys: handled, dogIds: handledDogIds };
+      const { remainingMetadata, remainingActive } = pruneStoredDrafts({
+        metadata: getDraftMetadata(),
+        keyFor: getDraftKey,
+        showId,
+        userId,
+        handledClassKeys: handled,
+        handledDogIds,
+        activeId: activeDraftMetadataRef.current?.id,
+        onError: (id, error) => log('Could not prune saved draft:', id, error),
+      });
       if (remainingMetadata.length > 0) {
         remainingMetadata.sort((a, b) => b.timestamp - a.timestamp);
         saveDraftMetadata(remainingMetadata);
       } else localStorage.removeItem(getMetadataKey());
-      activeDraftMetadataRef.current = null;
+      activeDraftMetadataRef.current = remainingActive;
       pendingRestoreDataRef.current = null;
-      lastSavedDataRef.current = JSON.stringify(draftData ?? {});
+      lastSavedDataRef.current = '';
       setDraftsVersion(version => version + 1);
     },
-    [
-      draftData,
-      getDraftKey,
-      getDraftMetadata,
-      getMetadataKey,
-      log,
-      saveDraftMetadata,
-      showId,
-      userId,
-    ]
+    [getDraftKey, getDraftMetadata, getMetadataKey, log, saveDraftMetadata, showId, userId]
   );
 
   // Keep a ref to the latest autoSave so the timer effect can call it without
@@ -412,10 +410,6 @@ export function useDraftPersistence(
   // Save on component unmount
   useEffect(() => {
     return () => {
-      if (skipFinalSaveRef.current) {
-        log('Component unmounting, final draft save skipped');
-        return;
-      }
       log('Component unmounting, performing final save');
       autoSaveRef.current();
     };

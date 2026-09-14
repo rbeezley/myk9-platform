@@ -56,7 +56,7 @@ const RESTRICTED_CLASS_ROWS = [
     status: 'scheduled',
     start_time: '09:00:00',
     deleted_at: null,
-    judge_assignments: [{ person_id: JUDGE_PERSON_ID, status: 'confirmed' }],
+    judge_assignments: [{ id: 'a-1', person_id: JUDGE_PERSON_ID, status: 'confirmed' }],
   },
   {
     id: 'class-buried-master',
@@ -67,7 +67,7 @@ const RESTRICTED_CLASS_ROWS = [
     status: 'scheduled',
     start_time: '10:00:00',
     deleted_at: null,
-    judge_assignments: [{ person_id: 'person-invited-judge', status: 'invited' }],
+    judge_assignments: [{ id: 'a-2', person_id: 'person-invited-judge', status: 'invited' }],
   },
   {
     id: 'class-container-novice',
@@ -178,7 +178,11 @@ function makeQueryBuilder(table: string): Record<string, unknown> {
 async function hydrateReplicatedClasses() {
   const judgeByClassId = await resolveJudgeNamesForClassRows(RESTRICTED_CLASS_ROWS);
   return RESTRICTED_CLASS_ROWS.map(row =>
-    rowToClass({ ...row, _judge: judgeByClassId.get(row.id) } as never)
+    rowToClass({
+      ...row,
+      _judge: judgeByClassId.get(row.id) ?? null,
+      _judgeResolved: judgeByClassId.has(row.id),
+    } as never)
   );
 }
 

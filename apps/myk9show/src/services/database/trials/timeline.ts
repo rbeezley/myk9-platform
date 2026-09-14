@@ -176,6 +176,7 @@ async function postgrestGetShowScheduleTimelineRows(
         status,
         deleted_at,
         judge_assignments (
+          id,
           person_id,
           status
         )
@@ -210,13 +211,14 @@ async function postgrestGetShowScheduleTimelineRows(
         start_time: string | null;
         status: string | null;
         deleted_at: string | null;
-        judge_assignments: Array<{ person_id: string; status: string | null }> | null;
+        judge_assignments: Array<{ id: string; person_id: string; status: string | null }> | null;
       }> | null) ?? [];
 
     for (const cls of classes.filter(c => c.deleted_at === null)) {
       const judge = resolveClassJudgeFields({
         judge_assignments: cls.judge_assignments,
-        _judge: judgesByClassId.get(cls.id),
+        _judge: judgesByClassId.get(cls.id) ?? null,
+        _judgeResolved: judgesByClassId.has(cls.id),
       });
       rows.push({
         trialId: trial.id,
@@ -270,6 +272,7 @@ async function postgrestGetTrialTimelineRows(
       start_time,
       status,
       judge_assignments (
+        id,
         person_id,
         status
       )
@@ -290,7 +293,8 @@ async function postgrestGetTrialTimelineRows(
     data: (data ?? []).map(cls => {
       const judge = resolveClassJudgeFields({
         judge_assignments: cls.judge_assignments,
-        _judge: judgesByClassId.get(cls.id),
+        _judge: judgesByClassId.get(cls.id) ?? null,
+        _judgeResolved: judgesByClassId.has(cls.id),
       });
 
       return {

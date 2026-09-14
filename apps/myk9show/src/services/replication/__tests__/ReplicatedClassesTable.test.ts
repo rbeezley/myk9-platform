@@ -241,7 +241,7 @@ describe('ReplicatedClassesTable', () => {
         // so `people!inner` dropped the whole assignment and every schedule row read
         // `Judge TBD`. Names come from the get_show_judges RPC enrichment instead.
         expect(selectArg).toContain(
-          'judge_assignments!judge_assignments_class_id_fkey(person_id, status)'
+          'judge_assignments!judge_assignments_class_id_fkey(id, person_id, status)'
         );
         expect(selectArg).not.toContain('people!inner');
         expect(mockSupabaseGt).toHaveBeenCalledWith('updated_at', expect.any(String));
@@ -1140,8 +1140,9 @@ describe('rowToClass — judge name comes only from the assignment embed', () =>
     const cls = rowToClass({
       id: 'c1',
       name: 'Interior Advanced',
-      judge_assignments: [{ person_id: 'p-1', status: 'confirmed' }],
+      judge_assignments: [{ id: 'a-1', person_id: 'p-1', status: 'confirmed' }],
       _judge: { personId: 'p-1', firstName: 'Test', lastName: 'Judge' },
+      _judgeResolved: true,
     } as unknown as Parameters<typeof rowToClass>[0]);
 
     expect(cls.judgeName).toBe('Test Judge');

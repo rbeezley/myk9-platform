@@ -25,19 +25,36 @@ export interface JudgeNameParts {
  * Degrades to an empty Map on failure: a judge-name error must not take a running order off the
  * board or block an exhibitor's check-in.
  */
-export async function fetchJudgeNamePartsByClass(
+export async function fetchShowJudgeNameParts(
   showId: string
-): Promise<Map<string, JudgeNameParts>> {
+): Promise<Map<string, JudgeNameParts> | null> {
+  let data: Awaited<ReturnType<typeof supabase.rpc<'get_show_judges'>>>['data'] = null;
+  try {
+    const result = await supabase.rpc('get_show_judges', { p_show_id: showId });
+    // A failed call is NOT "this show has no judges": the caller must be able to tell them
+    // apart, or a transient RPC failure overwrites a correct cached name with `Judge TBD`.
+    if (result.error) return null;
+    data = result.data;
+  } catch {
+    return null;
+  }
+  if (!data) return null;
+
   const byClass = new Map<string, JudgeNameParts>();
-  const { data, error } = await supabase.rpc('get_show_judges', { p_show_id: showId });
-  if (error || !data) return byClass;
+  // The RPC has no ORDER BY, so a class with two confirmed assignments would otherwise resolve
+  // to whichever row arrived first. Pick the lowest assignment_id — stable across calls and the
+  // same tie-break the embed uses — and take the id AND the name from that one row.
+  const chosen = new Map<string, string>();
 
   // No cast: the get_show_judges row type comes from the generated Database types, so a change
   // to the function's RETURNS TABLE surfaces here as a type error rather than at runtime.
   for (const row of data) {
     if (row.status !== 'confirmed') continue;
-    if (!row.class_id || byClass.has(row.class_id)) continue;
+    if (!row.class_id) continue;
     if (!row.first_name && !row.last_name) continue;
+    const incumbent = chosen.get(row.class_id);
+    if (incumbent !== undefined && incumbent <= row.assignment_id) continue;
+    chosen.set(row.class_id, row.assignment_id);
     byClass.set(row.class_id, {
       personId: row.person_id,
       firstName: row.first_name ?? null,
@@ -45,6 +62,13 @@ export async function fetchJudgeNamePartsByClass(
     });
   }
   return byClass;
+}
+
+/** `fetchShowJudgeNameParts` for callers that degrade to "no judge" rather than branching. */
+export async function fetchJudgeNamePartsByClass(
+  showId: string
+): Promise<Map<string, JudgeNameParts>> {
+  return (await fetchShowJudgeNameParts(showId)) ?? new Map<string, JudgeNameParts>();
 }
 
 /** `fetchJudgeNamePartsByClass` flattened to the display string. */

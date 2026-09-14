@@ -62,10 +62,6 @@ A "missing" column is NOT automatically drift — before writing a repair migrat
 
 Migration-parsing tests (e.g. `anonEntriesGrantContract`) read the whole `supabase/migrations/` directory, so an UNTRACKED scratch `.sql` left there fails them with a confusing ACL error. Keep experiments out of that directory.
 
-## slideover-size-inert
-
-`SlideOverPanel`'s `size` prop is currently inert — a fixed `sm:/md:/lg:/xl:` chain overrides the size-derived width at every breakpoint, so all panels render the same. Override via `className` for a single panel; see MYK9-99 before "fixing" it globally.
-
 ## migration-timestamp
 
 Pick a migration timestamp against `origin/main`, not your branch — `migrationVersionUniqueness` only sees your own tree, so a version another PR merged first passes every local check and then dies in CI at `INSERT INTO supabase_migrations.schema_migrations` ("Failed to execute statement", no filename in the error). Before naming the file, run `git fetch origin main`, inspect `git log --all --oneline --name-only -- supabase/migrations/<version>*`, and query `select count(*) from supabase_migrations.schema_migrations where version = '<version>'` against the linked database. Pick a specific odd time such as `174500`, never a shared default like `120000`, and re-check after any long-running branch (#1533 collided with `20260730190000_fix_ukc_hd_levels`). CI also runs the read-only migration version guard; do not run `supabase db push` from an unmerged branch.

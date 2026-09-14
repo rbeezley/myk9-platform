@@ -664,14 +664,28 @@ if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) 
   // carrying its own copy of the grammar — a hand-copied regex drifts from
   // the parser that actually judges the comment, which is how `finding(s)`
   // came to be documented as accepted while the real grammar rejected it.
-  // One grammar, one owner. (post-review-gate.sh only ever posts
-  // codex/claude — independent-tier — verdicts today, so the union check
-  // here is equivalent to the tier-bound one `evaluateReviewGate` applies;
-  // a future poster for the other tiers should ask review-gate.ts for the
-  // reviewer's own grammar instead of widening what this flag accepts.)
+  // One grammar, one owner.
+  //
+  // `--reviewer <token>` narrows the check to that reviewer's OWN tier
+  // grammar via `verdictMatchesTier`, the same binding `evaluateReviewGate`
+  // applies to real evidence. Without it a `codex` line wearing an
+  // `adversarial`/`owner` verdict phrase would pass this probe (the
+  // tier-agnostic union `verdictAccepted` matches ANY tier's grammar) and
+  // get posted, only for the real gate to refuse it on the tier-bound check
+  // — the poster and the judge disagreeing is how a confusing red gate
+  // happens. Omitting `--reviewer` keeps the old union behaviour for any
+  // other caller of this flag.
   const verdictFlag = process.argv.indexOf('--verdict');
   if (verdictFlag >= 0) {
     const text = (process.argv[verdictFlag + 1] ?? '').trim();
+    const reviewerFlag = process.argv.indexOf('--reviewer');
+    if (reviewerFlag >= 0) {
+      const reviewerArg = process.argv[reviewerFlag + 1] ?? '';
+      const accepted = isReviewerToken(reviewerArg)
+        ? verdictMatchesTier(text, tierForReviewer(reviewerArg))
+        : false;
+      process.exit(accepted ? 0 : 2);
+    }
     process.exit(verdictAccepted(text) ? 0 : 2);
   }
   process.exitCode = runCli();

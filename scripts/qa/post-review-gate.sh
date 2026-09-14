@@ -14,8 +14,18 @@
 # checker rejects and the log really does carry findings — it can only ever
 # make the gate redder.
 #
-# Usage: post-review-gate.sh [--withdraw] <pr> <codex|claude> <base-sha> <head-sha> "<verdict>" <log>
-# Exit:  0 posted · 2 refused (bad verdict grammar or empty log); nothing posted
+# Usage: post-review-gate.sh [--withdraw] <pr> <codex|claude|adversarial|none|owner> <base-sha> <head-sha> "<verdict>" <log>
+# Exit:  0 posted · 2 refused (bad reviewer/verdict grammar, missing owner
+#        env vars, or empty log); nothing posted
+#
+# The `owner` tier additionally requires OVERRIDE_REASON="<harness>
+# unavailable — <detail>" and DEFERRED_REVIEW=<ISSUE-ID> in the environment;
+# they are appended as the 2nd and 3rd lines of the comment body.
+#
+# POST_REVIEW_GATE_DRY_RUN=1 validates the reviewer token, the owner-tier env
+# vars and the verdict-vs-tier grammar, then exits 0 WITHOUT touching the log
+# or calling gh — so a contract test can probe reviewer/tier validation
+# without a real review log or a live PR.
 set -euo pipefail
 WITHDRAW=0
 if [ "${1:-}" = "--withdraw" ]; then WITHDRAW=1; shift; fi
@@ -26,13 +36,45 @@ HERE="$(cd "$(dirname "$0")" && pwd)"
 # shellcheck source=scripts/qa/review-verdict.sh
 . "$HERE/review-verdict.sh"
 
-case "$REVIEWER" in codex|claude) ;; *) echo "post-review-gate: reviewer must be codex or claude" >&2; exit 2;; esac
-# ONE grammar: ask the parser that will judge the comment, never a copied regex.
+case "$REVIEWER" in
+  codex|claude|adversarial|none|owner) ;;
+  *) echo "post-review-gate: reviewer must be codex, claude, adversarial, none or owner" >&2; exit 2;;
+esac
+
+# The `owner` tier defers scrutiny rather than skipping it, so it needs a
+# reason (which harness was unavailable and why) and a tracked issue to
+# re-review later — without either there is no debt record and the override
+# is refused. Checked before the verdict/log work below so a caller who
+# forgot the env vars gets a fast, cheap failure.
+if [ "$REVIEWER" = "owner" ]; then
+  [ -n "${OVERRIDE_REASON:-}" ] || { echo "post-review-gate: owner tier needs OVERRIDE_REASON=\"<harness> unavailable — <detail>\"" >&2; exit 2; }
+  [ -n "${DEFERRED_REVIEW:-}" ] || { echo "post-review-gate: owner tier needs DEFERRED_REVIEW=<ISSUE-ID>" >&2; exit 2; }
+fi
+
+# ONE grammar: ask the parser that will judge the comment, never a copied
+# regex. `--reviewer` binds the check to THIS reviewer's own tier grammar so
+# a codex/independent line wearing an owner/adversarial verdict phrase is
+# refused here instead of being posted and then refused by the real gate.
 VERDICT_ACCEPTED=0
 if node --experimental-strip-types --disable-warning=MODULE_TYPELESS_PACKAGE_JSON \
-  "$HERE/review-gate.ts" --verdict "$VERDICT"; then
+  "$HERE/review-gate.ts" --reviewer "$REVIEWER" --verdict "$VERDICT"; then
   VERDICT_ACCEPTED=1
 fi
+
+if [ "${POST_REVIEW_GATE_DRY_RUN:-}" = "1" ]; then
+  if [ "$WITHDRAW" = 1 ]; then
+    if [ "$VERDICT_ACCEPTED" = 1 ]; then
+      echo "post-review-gate: [dry run] '$VERDICT' is a CLEAN verdict, so it cannot withdraw anything; nothing posted" >&2
+      exit 2
+    fi
+  elif [ "$VERDICT_ACCEPTED" != 1 ]; then
+    echo "post-review-gate: [dry run] verdict '$VERDICT' is outside the '$REVIEWER' tier grammar; nothing posted" >&2
+    exit 2
+  fi
+  echo "post-review-gate: [dry run] '$VERDICT' accepted for reviewer '$REVIEWER'; nothing posted"
+  exit 0
+fi
+
 if [ "$WITHDRAW" = 1 ]; then
   if [ "$VERDICT_ACCEPTED" = 1 ]; then
     echo "post-review-gate: '$VERDICT' is a CLEAN verdict, so it cannot withdraw anything; nothing posted" >&2
@@ -101,7 +143,16 @@ if [ "$WITHDRAW" != 1 ]; then
     exit 2
   fi
 fi
-BODY="$(printf 'Review gate: %s reviewed %s..%s — %s\nlog sha256: %s\n\n<details><summary>%s verdict</summary>\n\n```text\n%s\n```\n\n</details>\n' \
-  "$REVIEWER" "${BASE:0:9}" "${HEAD:0:9}" "$VERDICT" "$HASH" "$REVIEWER" "$VERDICT_BLOCK")"
+if [ "$REVIEWER" = "owner" ]; then
+  # Owner tier: Override reason and Deferred re-review are the 2nd and 3rd
+  # lines, ahead of the log hash — overrideAccepted (review-gate.ts) matches
+  # them anywhere in the body via `m`, but the brief fixes their position so
+  # the override's own contract reads first, before the log provenance line.
+  BODY="$(printf 'Review gate: %s reviewed %s..%s — %s\nOverride reason: %s\nDeferred re-review: %s\nlog sha256: %s\n\n<details><summary>%s verdict</summary>\n\n```text\n%s\n```\n\n</details>\n' \
+    "$REVIEWER" "${BASE:0:9}" "${HEAD:0:9}" "$VERDICT" "$OVERRIDE_REASON" "$DEFERRED_REVIEW" "$HASH" "$REVIEWER" "$VERDICT_BLOCK")"
+else
+  BODY="$(printf 'Review gate: %s reviewed %s..%s — %s\nlog sha256: %s\n\n<details><summary>%s verdict</summary>\n\n```text\n%s\n```\n\n</details>\n' \
+    "$REVIEWER" "${BASE:0:9}" "${HEAD:0:9}" "$VERDICT" "$HASH" "$REVIEWER" "$VERDICT_BLOCK")"
+fi
 "$GH" pr comment "$PR" --body "$BODY"
 echo "post-review-gate: posted '$VERDICT' for ${HEAD:0:9} on #$PR (log sha256 ${HASH:0:12})"

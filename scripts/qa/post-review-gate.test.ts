@@ -35,13 +35,17 @@ function logFile(text: string): string {
   writeFileSync(p, text);
   return p;
 }
-function run(args: string[], gh: string): { code: number; out: string } {
+function run(
+  args: string[],
+  gh: string,
+  env: Record<string, string> = {}
+): { code: number; out: string } {
   try {
     return {
       code: 0,
       out: execFileSync('bash', [SCRIPT, ...args], {
         encoding: 'utf8',
-        env: { ...process.env, GH_BIN: gh },
+        env: { ...process.env, ...env, GH_BIN: gh },
         stdio: ['ignore', 'pipe', 'pipe'],
       }),
     };
@@ -219,5 +223,166 @@ describe('post-review-gate.sh', () => {
       0
     );
     expect(readFileSync(gh.calls, 'utf8')).toContain('checked file 59');
+  });
+
+  describe('owner tier', () => {
+    it('posts Override reason and Deferred re-review as the 2nd and 3rd lines', () => {
+      const gh = stubGh();
+      const log = logFile('No actionable defects found.\n');
+      const r = run(
+        ['42', 'owner', '0a2020c7a', '5af9af158', 'override, floor was independent', log],
+        gh.bin,
+        {
+          OVERRIDE_REASON: 'Codex unavailable — usage limit',
+          DEFERRED_REVIEW: 'MYK9-523',
+        }
+      );
+      expect(r.code).toBe(0);
+      const body = readFileSync(gh.calls, 'utf8').split('--body\n')[1]!.split('\n---')[0]!;
+      const lines = body.split('\n');
+      expect(lines[0]).toBe(
+        'Review gate: owner reviewed 0a2020c7a..5af9af158 — override, floor was independent'
+      );
+      expect(lines[1]).toBe('Override reason: Codex unavailable — usage limit');
+      expect(lines[2]).toBe('Deferred re-review: MYK9-523');
+      expect(lines[3]).toMatch(/^log sha256: [0-9a-f]{64}$/);
+    });
+
+    it('refuses without OVERRIDE_REASON and posts nothing', () => {
+      const gh = stubGh();
+      const log = logFile('No actionable defects found.\n');
+      const r = run(
+        ['42', 'owner', '0a2020c7a', '5af9af158', 'override, floor was independent', log],
+        gh.bin,
+        { DEFERRED_REVIEW: 'MYK9-523' }
+      );
+      expect(r.code).toBe(2);
+      expect(r.out).toContain('OVERRIDE_REASON');
+      expect(() => readFileSync(gh.calls, 'utf8')).toThrow();
+    });
+
+    it('refuses without DEFERRED_REVIEW and posts nothing', () => {
+      const gh = stubGh();
+      const log = logFile('No actionable defects found.\n');
+      const r = run(
+        ['42', 'owner', '0a2020c7a', '5af9af158', 'override, floor was independent', log],
+        gh.bin,
+        { OVERRIDE_REASON: 'Codex unavailable — usage limit' }
+      );
+      expect(r.code).toBe(2);
+      expect(r.out).toContain('DEFERRED_REVIEW');
+      expect(() => readFileSync(gh.calls, 'utf8')).toThrow();
+    });
+  });
+
+  describe('reviewer tier validation (POST_REVIEW_GATE_DRY_RUN)', () => {
+    // Each reviewer's own tier grammar (scripts/qa/review-gate.ts
+    // VERDICT_BY_TIER) — not the stale "no findings for every tier" shape,
+    // which cannot pass once the poster binds the verdict to the tier.
+    const VERDICT_BY_REVIEWER: Record<string, string> = {
+      codex: 'no findings',
+      claude: 'no findings',
+      adversarial: '2 lenses, all findings addressed',
+      none: 'low-risk paths, CI green',
+      owner: 'override, floor was independent',
+    };
+
+    function dryRun(args: string[], env: Record<string, string> = {}): number {
+      try {
+        execFileSync('bash', [SCRIPT, ...args], {
+          encoding: 'utf8',
+          env: { ...process.env, ...env, GH_BIN: 'true', POST_REVIEW_GATE_DRY_RUN: '1' },
+        });
+        return 0;
+      } catch (e) {
+        return (e as { status: number }).status;
+      }
+    }
+
+    it('accepts every tier the gate can parse', () => {
+      for (const [reviewer, verdict] of Object.entries(VERDICT_BY_REVIEWER)) {
+        const env =
+          reviewer === 'owner'
+            ? { OVERRIDE_REASON: 'Codex unavailable — usage limit', DEFERRED_REVIEW: 'MYK9-523' }
+            : {};
+        expect(
+          dryRun(['1', reviewer, 'abc1234', 'def5678', verdict, '/dev/null'], env),
+          reviewer
+        ).not.toBe(2);
+      }
+    });
+
+    it('refuses an unknown reviewer token', () => {
+      expect(dryRun(['1', 'wishful', 'abc1234', 'def5678', 'no findings', '/dev/null'])).toBe(2);
+    });
+
+    it('refuses the owner tier without a deferred re-review', () => {
+      expect(
+        dryRun(
+          ['1', 'owner', 'abc1234', 'def5678', 'override, floor was independent', '/dev/null'],
+          { OVERRIDE_REASON: 'Codex unavailable — usage limit' }
+        )
+      ).toBe(2);
+    });
+
+    it('refuses the owner tier without an override reason', () => {
+      expect(
+        dryRun(
+          ['1', 'owner', 'abc1234', 'def5678', 'override, floor was independent', '/dev/null'],
+          { DEFERRED_REVIEW: 'MYK9-523' }
+        )
+      ).toBe(2);
+    });
+
+    it('never calls gh in dry-run mode, even for an accepted tier', () => {
+      const dir = mkdtempSync(join(tmpdir(), 'gh-must-not-run-'));
+      dirs.push(dir);
+      const marker = join(dir, 'called');
+      const bin = join(dir, 'gh');
+      writeFileSync(bin, `#!/usr/bin/env bash\ntouch '${marker}'\n`);
+      chmodSync(bin, 0o755);
+      const code = (() => {
+        try {
+          execFileSync(
+            'bash',
+            [SCRIPT, '1', 'codex', 'abc1234', 'def5678', 'no findings', '/dev/null'],
+            {
+              encoding: 'utf8',
+              env: { ...process.env, GH_BIN: bin, POST_REVIEW_GATE_DRY_RUN: '1' },
+            }
+          );
+          return 0;
+        } catch (e) {
+          return (e as { status: number }).status;
+        }
+      })();
+      expect(code).not.toBe(2);
+      expect(() => readFileSync(marker, 'utf8')).toThrow();
+    });
+
+    // Regression for the poster/judge disagreement: review-gate.ts's
+    // `--verdict` probe used to be a tier-agnostic union, so a codex
+    // (independent-tier) line wearing an owner/adversarial verdict phrase
+    // would be ACCEPTED here and posted, only for the real gate
+    // (evaluateReviewGate, tier-bound via verdictMatchesTier) to refuse it —
+    // a green post immediately followed by a red gate.
+    it('refuses a codex reviewer wearing an owner-tier verdict phrase', () => {
+      expect(
+        dryRun(['1', 'codex', 'abc1234', 'def5678', 'override, floor was independent', '/dev/null'])
+      ).toBe(2);
+    });
+
+    it('refuses a claude reviewer wearing an adversarial-tier verdict phrase', () => {
+      expect(
+        dryRun([
+          '1',
+          'claude',
+          'abc1234',
+          'def5678',
+          '2 lenses, all findings addressed',
+          '/dev/null',
+        ])
+      ).toBe(2);
+    });
   });
 });

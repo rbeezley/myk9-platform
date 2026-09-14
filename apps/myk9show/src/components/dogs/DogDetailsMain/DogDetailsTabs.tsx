@@ -16,6 +16,9 @@ import type { CareerView, RecordsView } from './dogDetailsSections';
 const DogDetailsTabs: React.FC<DogDetailsTabsProps> = ({
   dog,
   autoOpenAddRegistration,
+  onAddRequestConsumed,
+  showRegistrationDetails = false,
+  registrationsCount = 0,
   role = 'exhibitor',
 }) => {
   const { isPremium, isLoading, canAuthorizePremium } = useSubscriptionGate();
@@ -35,7 +38,11 @@ const DogDetailsTabs: React.FC<DogDetailsTabsProps> = ({
   if (isSecretary) {
     return (
       <div className="pt-6 space-y-8">
-        <RegistrationsSection dog={dog} autoOpenAddDialog={autoOpenAddRegistration} />
+        <RegistrationsSection
+          dog={dog}
+          autoOpenAddDialog={autoOpenAddRegistration}
+          onAddRequestConsumed={onAddRequestConsumed}
+        />
         <section>
           <h2 className="text-base font-semibold mb-3">Health Records</h2>
           <Suspense fallback={<TabContentSkeleton />}>
@@ -57,13 +64,23 @@ const DogDetailsTabs: React.FC<DogDetailsTabsProps> = ({
       <TopLevelSectionNav value={state.section} onValueChange={setSection} />
 
       {state.section === 'overview' && (
-        <div className="pt-6 space-y-8">
-          {isPremium && <TitleProgressSection dogId={dog.id} />}
-          <RegistrationsSection dog={dog} autoOpenAddDialog={autoOpenAddRegistration} />
+        <div className="pt-4 lg:pt-6 space-y-8">
           <section>
             <h2 className="text-base font-semibold mb-3">Activity</h2>
             <ActivityTab dogId={dog.id} dogName={dogName} role={role} />
           </section>
+          {isPremium && <TitleProgressSection dogId={dog.id} />}
+          {showRegistrationDetails && registrationsCount > 0 && (
+            <h2 id="dog-registration-details" tabIndex={-1} className="text-base font-semibold">
+              Manage registrations
+            </h2>
+          )}
+          <RegistrationsSection
+            dog={dog}
+            autoOpenAddDialog={autoOpenAddRegistration}
+            onAddRequestConsumed={onAddRequestConsumed}
+            showDetails={showRegistrationDetails && registrationsCount > 0}
+          />
         </div>
       )}
 

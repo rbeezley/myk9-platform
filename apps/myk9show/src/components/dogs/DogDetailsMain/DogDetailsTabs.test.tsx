@@ -130,15 +130,43 @@ describe('DogDetailsTabs navigation', () => {
       );
     });
 
-    it('renders registrations and one Activity section, with no separate Activity tab', () => {
+    it('starts Overview with Activity and no duplicate registration empty state', () => {
       renderAt('/dogs/dog-1');
       expect(screen.getByRole('heading', { name: 'Activity' })).toBeInTheDocument();
+      expect(screen.queryByText('No Registrations Found')).not.toBeInTheDocument();
+      expect(
+        screen.queryByRole('heading', { name: 'Manage registrations' })
+      ).not.toBeInTheDocument();
       expect(screen.queryByRole('tab', { name: /activity/i })).not.toBeInTheDocument();
     });
 
     it('renders exactly one Activity heading (not repeated per view)', () => {
       renderAt('/dogs/dog-1');
       expect(screen.getAllByRole('heading', { name: 'Activity' })).toHaveLength(1);
+    });
+
+    it('reveals registration management after Activity when requested for a registered dog', () => {
+      render(
+        <Routes>
+          <Route
+            path="/dogs/:id"
+            element={
+              <DogDetailsTabs
+                dog={mockDog}
+                autoOpenAddRegistration={false}
+                showRegistrationDetails
+                registrationsCount={1}
+              />
+            }
+          />
+        </Routes>,
+        { initialRoute: '/dogs/dog-1' }
+      );
+      const activity = screen.getByRole('heading', { name: 'Activity' });
+      const management = screen.getByRole('heading', { name: 'Manage registrations' });
+      expect(activity.compareDocumentPosition(management) & Node.DOCUMENT_POSITION_FOLLOWING).toBe(
+        Node.DOCUMENT_POSITION_FOLLOWING
+      );
     });
   });
 

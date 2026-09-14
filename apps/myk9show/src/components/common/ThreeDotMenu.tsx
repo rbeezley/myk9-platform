@@ -106,7 +106,7 @@ const ThreeDotMenu: React.FC<ThreeDotMenuProps> = ({
       actions={actions}
       label="More actions"
       size="touch"
-      triggerClassName="h-10 w-10"
+      triggerClassName="h-11 w-11"
     />
   );
 };

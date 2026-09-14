@@ -4,7 +4,7 @@ import type { Dog, Owner } from '@/types/dog-types';
 import DogIdentityRail from '../DogIdentityRail';
 
 vi.mock('@/components/common/ThreeDotMenu', () => ({
-  default: () => <button type="button">More</button>,
+  default: ({ onEdit }: { onEdit: () => void }) => <button onClick={onEdit}>Edit Dog</button>,
 }));
 
 const owner: Owner = { id: 'owner-1', name: 'Jane Smith', email: 'jane@example.com', phone: '' };
@@ -93,7 +93,7 @@ describe('DogIdentityRail', () => {
     expect(screen.getByText('Primary contact')).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /verify for entry/i })).not.toBeInTheDocument();
     expect(screen.queryByRole('link', { name: /enter a show/i })).not.toBeInTheDocument();
-    fireEvent.click(screen.getByRole('button', { name: /^edit$/i }));
+    fireEvent.click(screen.getByRole('button', { name: 'Edit Dog' }));
     expect(onEditPanelOpen).toHaveBeenCalledTimes(1);
   });
 
@@ -121,5 +121,29 @@ describe('DogIdentityRail', () => {
     expect(screen.getByText('No registrations yet.')).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: /add registration/i }));
     expect(onAddRegistration).toHaveBeenCalledTimes(1);
+  });
+
+  it('offers registration management only when a registration exists', () => {
+    const onManageRegistrations = vi.fn();
+    renderRail(base, {
+      registrations: [{ organization: 'AKC', registration_number: 'SR123' }],
+      onManageRegistrations,
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Manage registrations' }));
+    expect(onManageRegistrations).toHaveBeenCalledOnce();
+  });
+
+  it('keeps the photo action at least 44px and named for assistive technology', () => {
+    renderRail(base);
+    expect(screen.getByRole('button', { name: 'Edit dog photo' })).toHaveClass('h-11', 'w-11');
+  });
+
+  it('keeps a populated photo and its edit action in the same compact panel', () => {
+    renderRail({ ...base, imageUrl: 'https://example.com/maple.jpg' });
+    expect(screen.getByRole('img', { name: "Maple's photo" })).toHaveAttribute(
+      'src',
+      'https://example.com/maple.jpg'
+    );
+    expect(screen.getByRole('button', { name: 'Edit dog photo' })).toBeInTheDocument();
   });
 });

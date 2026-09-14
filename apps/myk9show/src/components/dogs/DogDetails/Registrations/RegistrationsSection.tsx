@@ -41,6 +41,9 @@ interface RegistrationRecord {
 interface RegistrationsSectionProps {
   dog?: Dog;
   autoOpenAddDialog?: boolean;
+  onAddRequestConsumed?: (() => void) | undefined;
+  /** Overview keeps the editor mounted while the rail owns the visible summary. */
+  showDetails?: boolean;
 }
 
 import { useRegistrationsStore } from '@/store/registrationsStore';
@@ -48,6 +51,8 @@ import { useRegistrationsStore } from '@/store/registrationsStore';
 export default function RegistrationsSection({
   dog,
   autoOpenAddDialog = false,
+  onAddRequestConsumed,
+  showDetails = true,
 }: RegistrationsSectionProps) {
   const dogId = dog?.id || '';
 
@@ -77,8 +82,9 @@ export default function RegistrationsSection({
   useEffect(() => {
     if (autoOpenAddDialog) {
       setIsAddRegistrationDialogOpen(true);
+      onAddRequestConsumed?.();
     }
-  }, [autoOpenAddDialog, setIsAddRegistrationDialogOpen]);
+  }, [autoOpenAddDialog, onAddRequestConsumed, setIsAddRegistrationDialogOpen]);
 
   const isEditRegistrationDialogOpen = useRegistrationsStore(
     state => state.isEditRegistrationDialogOpen
@@ -185,7 +191,7 @@ export default function RegistrationsSection({
     );
   };
 
-  if (isLoading) {
+  if (showDetails && isLoading) {
     return (
       <div role="status" aria-label="Loading registrations" className="space-y-4 py-2">
         <div className="flex justify-end">
@@ -198,7 +204,7 @@ export default function RegistrationsSection({
     );
   }
 
-  if (error) {
+  if (showDetails && error) {
     return (
       <div className="flex items-center justify-center py-8">
         <div className="text-center">
@@ -219,14 +225,14 @@ export default function RegistrationsSection({
         </Alert>
       )}
 
-      {!registrations || registrations.length === 0 ? (
+      {showDetails && (!registrations || registrations.length === 0) ? (
         <EmptyState
           icon={Plus}
           title="No Registrations Found"
           description="Add your first kennel club registration to get started."
           action={null}
         />
-      ) : (
+      ) : showDetails ? (
         <div className="grid gap-4 grid-cols-1">
           {(registrations as RegistrationRecord[]).map((reg: RegistrationRecord, idx: number) => (
             <SectionCard key={reg.id || idx} className="min-h-[170px] justify-between">
@@ -336,7 +342,7 @@ export default function RegistrationsSection({
             </SectionCard>
           ))}
         </div>
-      )}
+      ) : null}
       <AddRegistrationPanel
         open={isAddRegistrationDialogOpen}
         onClose={() => setIsAddRegistrationDialogOpen(false)}

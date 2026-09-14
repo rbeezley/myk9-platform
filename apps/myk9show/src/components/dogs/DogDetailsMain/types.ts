@@ -26,6 +26,7 @@ export interface DogIdentityRailProps {
   registrations?: DogCardRegistration[] | undefined;
   /** Opens the add-registration panel on Overview. */
   onAddRegistration?: (() => void) | undefined;
+  onManageRegistrations?: (() => void) | undefined;
   role?: 'exhibitor' | 'secretary';
   onEditPanelOpen: () => void;
   onPhotoDialogOpen: () => void;
@@ -54,6 +55,8 @@ export interface DogSummaryCardProps {
 export interface DogDetailsTabsProps {
   dog: Dog;
   autoOpenAddRegistration: boolean;
+  onAddRequestConsumed?: () => void;
+  showRegistrationDetails?: boolean;
   registrationsCount?: number;
   role?: 'exhibitor' | 'secretary';
 }

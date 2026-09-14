@@ -47,6 +47,7 @@ const DogDetailsMain: React.FC<DogDetailsMainProps> = ({
   useRouteEntryFocus(headingRef, dog.id);
 
   const [autoOpenAddRegistration, setAutoOpenAddRegistration] = useState(false);
+  const [showRegistrationDetails, setShowRegistrationDetails] = useState(false);
 
   // The rail's "Add registration" is the one ordinary path into the add
   // panel (RegistrationsSection's empty state deliberately carries no action).
@@ -61,6 +62,22 @@ const DogDetailsMain: React.FC<DogDetailsMainProps> = ({
       return next;
     });
     setAutoOpenAddRegistration(true);
+  };
+
+  const openRegistrationDetails = () => {
+    setSearchParams(prev => {
+      const next = new URLSearchParams(prev);
+      next.delete('tab');
+      next.delete('section');
+      next.delete('view');
+      return next;
+    });
+    setShowRegistrationDetails(true);
+    requestAnimationFrame(() => {
+      const heading = document.getElementById('dog-registration-details');
+      heading?.scrollIntoView({ block: 'start' });
+      heading?.focus({ preventScroll: true });
+    });
   };
 
   useEffect(() => {
@@ -253,17 +270,18 @@ const DogDetailsMain: React.FC<DogDetailsMainProps> = ({
 
   return (
     <>
-      <div className="max-w-[1440px] mx-auto py-6">
-        <div className="px-6 py-3">
+      <div className="max-w-[1440px] mx-auto pt-2 pb-6 lg:py-6">
+        <div className="px-6 py-2 lg:py-3">
           <Breadcrumb items={breadcrumbItems} showHomeIcon={true} />
         </div>
         {/* Identity rail beside the content column; stacked below lg. */}
-        <div className="flex flex-col lg:flex-row lg:items-start gap-6 px-6 pb-8">
+        <div className="flex flex-col lg:flex-row lg:items-start gap-4 lg:gap-6 px-6 pb-8">
           <DogIdentityRail
             dog={updatedDog}
             owner={owner}
             registrations={dbRegistrations}
             onAddRegistration={openAddRegistration}
+            onManageRegistrations={openRegistrationDetails}
             role={isSecretary ? 'secretary' : 'exhibitor'}
             onEditPanelOpen={() => setIsEditPanelOpen(true)}
             onPhotoDialogOpen={() => handlePhotoDialogOpen(true)}
@@ -276,6 +294,8 @@ const DogDetailsMain: React.FC<DogDetailsMainProps> = ({
             <DogDetailsTabs
               dog={updatedDog}
               autoOpenAddRegistration={autoOpenAddRegistration}
+              onAddRequestConsumed={() => setAutoOpenAddRegistration(false)}
+              showRegistrationDetails={showRegistrationDetails}
               registrationsCount={liveRegistrationsCount}
               role={isSecretary ? 'secretary' : 'exhibitor'}
             />

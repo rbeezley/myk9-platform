@@ -10,7 +10,7 @@
 
 import React, { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Camera, Mail, Pencil, Phone, Plus } from 'lucide-react';
+import { Camera, Mail, Phone, Plus } from 'lucide-react';
 import ThreeDotMenu from '@/components/common/ThreeDotMenu';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -49,6 +49,7 @@ const DogIdentityRail: React.FC<DogIdentityRailProps> = ({
   owner,
   registrations,
   onAddRegistration,
+  onManageRegistrations,
   role = 'exhibitor',
   onEditPanelOpen,
   onPhotoDialogOpen,
@@ -117,8 +118,8 @@ const DogIdentityRail: React.FC<DogIdentityRailProps> = ({
       data-dog-identity
       className="rounded-xl bg-card border border-border overflow-hidden lg:w-[320px] lg:flex-shrink-0"
     >
-      <div className="relative h-56 lg:h-80 bg-card-secondary flex items-center justify-center">
-        <Avatar className="h-28 w-28 lg:h-36 lg:w-36">
+      <div className="relative h-32 lg:h-44 bg-card-secondary flex items-center justify-center">
+        <Avatar className="h-24 w-24 lg:h-28 lg:w-28">
           {dog.imageUrl ? (
             <AvatarImage
               src={dog.imageUrl}
@@ -135,7 +136,7 @@ const DogIdentityRail: React.FC<DogIdentityRailProps> = ({
           type="button"
           onClick={onPhotoDialogOpen}
           aria-label="Edit dog photo"
-          className="absolute right-3 bottom-3 flex h-11 w-11 items-center justify-center rounded-full bg-foreground text-background shadow-sm hover:opacity-90 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+          className="absolute right-3 bottom-3 flex h-11 w-11 items-center justify-center rounded-full border border-border bg-card text-foreground shadow-sm hover:bg-accent focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
         >
           <Camera className="h-5 w-5" />
         </button>
@@ -146,7 +147,7 @@ const DogIdentityRail: React.FC<DogIdentityRailProps> = ({
         <h1
           ref={headingRef}
           tabIndex={-1}
-          className="text-2xl font-semibold tracking-tight text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 rounded-sm"
+          className="text-xl lg:text-2xl font-semibold tracking-tight text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 rounded-sm"
         >
           {dog.callName}
         </h1>
@@ -167,7 +168,25 @@ const DogIdentityRail: React.FC<DogIdentityRailProps> = ({
           )}
         </div>
 
-        <div className="mt-5 space-y-2">
+        <div className="mt-4 flex items-center gap-2">
+          {!isSecretary && (
+            <Button variant="default" className="min-h-11 flex-1 gap-1.5" asChild>
+              <Link to="/shows">
+                <Plus className="h-4 w-4" />
+                Enter a show
+              </Link>
+            </Button>
+          )}
+          <ThreeDotMenu
+            onEdit={onEditPanelOpen}
+            onEditPhoto={onPhotoDialogOpen}
+            onChangeStatus={onStatusDialogOpen}
+            onDelete={canDelete ? onDeleteDialogOpen : undefined}
+            editLabel="Edit Dog"
+          />
+        </div>
+
+        <div className="mt-4 space-y-2">
           <Row label="Breed" value={registry.breed} />
           {registry.breedVaries && <Row label="Breed" value="Varies by registry" />}
           <Row label="Born" value={born} />
@@ -176,7 +195,7 @@ const DogIdentityRail: React.FC<DogIdentityRailProps> = ({
           <Row label="Microchip" value={dog.microchipNumber ?? null} mono />
         </div>
 
-        <div className="mt-5 mb-1 flex items-center justify-between">
+        <div className="mt-4 mb-1 flex items-center justify-between">
           <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
             Registrations
           </span>
@@ -190,14 +209,25 @@ const DogIdentityRail: React.FC<DogIdentityRailProps> = ({
           </button>
         </div>
         {registry.rows.length > 0 ? (
-          <DogRegistryTable registry={registry} />
+          <>
+            <DogRegistryTable registry={registry} />
+            {!isSecretary && onManageRegistrations && (
+              <button
+                type="button"
+                onClick={onManageRegistrations}
+                className="mt-2 inline-flex min-h-11 items-center text-xs font-medium text-primary hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded-sm"
+              >
+                Manage registrations
+              </button>
+            )}
+          </>
         ) : (
           <p className="text-xs text-muted-foreground">No registrations yet.</p>
         )}
 
         <div
           className={cn(
-            'mt-5',
+            'mt-4',
             isSecretary && 'rounded-lg border border-teal-400 dark:border-teal-600 p-3'
           )}
         >
@@ -205,31 +235,6 @@ const DogIdentityRail: React.FC<DogIdentityRailProps> = ({
             {isSecretary ? 'Primary contact' : 'Owner'}
           </div>
           {ownerBody}
-        </div>
-
-        <div className="mt-6 flex flex-col gap-2">
-          {!isSecretary && (
-            <Button variant="default" className="w-full gap-1.5" asChild>
-              <a href="/shows">
-                <Plus className="h-4 w-4" />
-                Enter a show
-              </a>
-            </Button>
-          )}
-          <div className="flex gap-2">
-            <Button variant="outline" onClick={onEditPanelOpen} className="flex-1 gap-1.5">
-              <Pencil className="h-3.5 w-3.5" />
-              Edit
-            </Button>
-            <ThreeDotMenu
-              onEdit={onEditPanelOpen}
-              onEditPhoto={onPhotoDialogOpen}
-              onChangeStatus={onStatusDialogOpen}
-              onDelete={canDelete ? onDeleteDialogOpen : undefined}
-              editLabel="Edit Dog"
-              hideEdit
-            />
-          </div>
         </div>
       </div>
     </aside>

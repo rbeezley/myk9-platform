@@ -31,7 +31,10 @@ vi.mock('@/hooks/queries/useRegistrationsDatabase', () => ({
     refetch: vi.fn(),
   }),
 }));
-vi.mock('./AddRegistrationPanel', () => ({ default: () => null }));
+vi.mock('./AddRegistrationPanel', () => ({
+  default: ({ open }: { open: boolean }) =>
+    open ? <div role="dialog">Add registration</div> : null,
+}));
 vi.mock('./EditRegistrationPanel', () => ({
   default: ({
     open,
@@ -49,11 +52,19 @@ vi.mock('./EditRegistrationPanel', () => ({
 vi.mock('./ConfirmDeleteRegistrationDialog', () => ({ default: () => null }));
 
 afterEach(() => {
+  useRegistrationsStore.getState().setIsAddRegistrationDialogOpen(false);
   useRegistrationsStore.getState().setIsEditRegistrationDialogOpen(false);
   useRegistrationsStore.getState().setSelectedRegistration(null);
 });
 
 describe('registration name editing', () => {
+  it('keeps the add panel available while the duplicate registration cards are hidden', () => {
+    const dog = { id: 'dog-1', callName: 'Test Dog' } as Dog;
+    render(<RegistrationsSection dog={dog} showDetails={false} autoOpenAddDialog />);
+    expect(screen.getByRole('dialog')).toHaveTextContent('Add registration');
+    expect(screen.queryByText('CH Test Dog')).not.toBeInTheDocument();
+  });
+
   it('opens the selected organization’s registration from its visible name action', async () => {
     const dog = { id: 'dog-1', callName: 'Test Dog' } as Dog;
     const { user } = render(<RegistrationsSection dog={dog} />);

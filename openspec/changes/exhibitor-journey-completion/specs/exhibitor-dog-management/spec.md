@@ -2,13 +2,30 @@
 
 ### Requirement: Dog Details tab strip fits without Activity tab
 
-The Dog Details page SHALL replace the peer strip of Registrations, Competitions, Title Progress, Statistics, Health, Training, and Pedigree with three top-level concerns—Overview, Career, and Records. Overview SHALL be selected by default and SHALL contain identity, registrations, and the single Activity section. Career SHALL contain Competitions, Title Progress, and Statistics as secondary views. Records SHALL contain Health Records, Training Journal, and Pedigree as secondary views.
+The Dog Details page SHALL replace the peer strip of Registrations, Competitions, Title Progress, Statistics, Health, Training, and Pedigree with three top-level concerns—Overview, Career, and Records. Overview SHALL be selected by default. The identity rail SHALL be the sole default registration summary and empty state, with its add action always available and the existing edit/delete management controls revealed on demand for registered dogs. Activity SHALL be the first substantive Overview section. Premium Overview MAY show a compact count of titles in progress and earned, while Career SHALL own individual title tracks and progress bars. Career SHALL contain Competitions, Title Progress, and Statistics as secondary views. Records SHALL contain Health Records, Training Journal, and Pedigree as secondary views.
 
 #### Scenario: Default Overview
 
 - **WHEN** an exhibitor opens a dog detail URL without section state
 - **THEN** Overview SHALL be selected
-- **AND** registrations and one Activity section SHALL render without a separate Activity tab
+- **AND** the rail SHALL show the sole registration summary or empty state
+- **AND** one Activity section SHALL render first in Overview without a separate Activity tab
+
+#### Scenario: Activity rendered below tabs
+
+- **WHEN** an exhibitor opens a dog's detail page
+- **THEN** the top-level navigation SHALL omit Activity, Overview SHALL be selected by default, and the activity feed SHALL appear as the first Overview section
+
+#### Scenario: Registration management from the identity rail
+
+- **WHEN** an exhibitor selects Manage registrations for a registered dog
+- **THEN** the existing registration edit and delete controls SHALL become available without creating another page
+- **AND** the rail SHALL remain the only default registration summary
+
+#### Scenario: Add registration deep link
+
+- **WHEN** an exhibitor opens a dog URL with `addRegistration=true` or selects Add registration in the rail
+- **THEN** the existing add panel SHALL open on Overview without showing a second registration empty state
 
 #### Scenario: Premium feature grouping
 

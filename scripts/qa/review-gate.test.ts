@@ -136,6 +136,12 @@ describe('evaluateReviewGate', () => {
     'all addressed',
     'findings, all addressed',
     'no findings, but see below',
+    // Tier-bound grammar near-misses (Codex review of Task 3 round 1, C3/I3):
+    // fewer than 2 lenses is not adversarial review, and the `none` phrase
+    // must be exactly "CI green" — never a substring or a near neighbor.
+    '0 lenses, all findings addressed',
+    '2 lenses, not all findings addressed',
+    'low-risk paths, CI red',
   ])('rejects the near-miss verdict %j — the grammar is exact, not substring', verdict => {
     // Codex's review of #2058: a substring check accepted several of these as
     // green. A negation or a qualifier inside the verdict must fail.
@@ -617,10 +623,12 @@ describe('floor enforcement', () => {
     expect(result.description).toContain('independent');
   });
 
-  it('exempts the owner tier (human-fallback) from the floor, even below adversarial', () => {
+  it('exempts a CONFIRMED human fallback from the floor, even below adversarial', () => {
     // `human-fallback` maps to tier `owner`, which sits BELOW the
     // `adversarial` floor that application code computes. Task 4 formalises
-    // override semantics on top of this; for now `owner` is simply exempt.
+    // override semantics on top of this; for now a confirmed human-fallback
+    // attestation (association, two lenses, passing checks — the full
+    // contract `humanFallbackAccepted` checks) is exempt.
     const result = evaluateReviewGate({
       headSha: HEAD,
       comments: [
@@ -639,13 +647,183 @@ describe('floor enforcement', () => {
     expect(result.state).toBe('success');
   });
 
-  it('skips floor enforcement when the kill switch is off', () => {
+  it('refuses a COLLABORATOR-authored bare "owner" line on a guardrail path (C1)', () => {
+    // Codex review of Task 3 round 1: the ORIGINAL exemption keyed off
+    // `latest.tier === 'owner'` unconditionally, which the bare `owner`
+    // reviewer token also maps to — but `owner` is gated only by
+    // `commentTrusted` (OWNER/MEMBER/COLLABORATOR), never by
+    // `HUMAN_FALLBACK_ASSOCIATIONS` (OWNER/MEMBER only) or the two-lens
+    // contract. A COLLABORATOR could post `Review gate: owner reviewed
+    // …  — no findings` on a PR rewriting review-gate.ts itself and pass.
+    // Corrected: only a CONFIRMED human-fallback (the test above) is exempt;
+    // the bare `owner` token gets no exemption and, since it has no entry in
+    // VERDICT_BY_TIER, is refused as "not clean" regardless of the floor.
+    const result = evaluateReviewGate({
+      headSha: HEAD,
+      comments: [
+        comment(
+          `Review gate: owner reviewed abc1234..${HEAD} — no findings`,
+          undefined,
+          undefined,
+          'COLLABORATOR'
+        ),
+      ],
+      changedFiles: ['scripts/qa/review-gate.ts'],
+    });
+    expect(result.state).toBe('failure');
+  });
+
+  describe('verdicts are bound to the tier that claimed them (C2)', () => {
+    const independentLine = `Review gate: codex reviewed abc1234..${HEAD} — no findings`;
+    const adversarialLine = `Review gate: adversarial reviewed abc1234..${HEAD} — 2 lenses, all findings addressed`;
+
+    it('a `none` reviewer cannot wear the `independent` verdict phrase', () => {
+      const result = evaluateReviewGate({
+        headSha: HEAD,
+        comments: [comment(`Review gate: none reviewed abc1234..${HEAD} — no findings`)],
+        changedFiles: ['docs/qa/findings.md'],
+      });
+      expect(result.state).toBe('failure');
+      expect(result.description).toMatch(/not clean/);
+    });
+
+    it('a `codex` (independent) reviewer cannot wear the `none` verdict phrase — reopens #2040 otherwise (C2)', () => {
+      // This is the exact probe from Codex review of Task 3 round 1: a verdict
+      // that literally asserts NO review happened must never pass at the
+      // strongest tier just because the union grammar used to accept it.
+      const result = evaluateReviewGate({
+        headSha: HEAD,
+        comments: [comment(noneLine.replace('none reviewed', 'codex reviewed'))],
+        changedFiles: ['scripts/qa/review-gate.ts'],
+      });
+      expect(result.state).toBe('failure');
+      expect(result.description).toMatch(/not clean/);
+    });
+
+    it('a `codex` (independent) reviewer cannot wear the `adversarial` verdict phrase', () => {
+      const result = evaluateReviewGate({
+        headSha: HEAD,
+        comments: [comment(adversarialLine.replace('adversarial reviewed', 'codex reviewed'))],
+        changedFiles: ['scripts/qa/review-gate.ts'],
+      });
+      expect(result.state).toBe('failure');
+      expect(result.description).toMatch(/not clean/);
+    });
+
+    it('an `adversarial` reviewer cannot wear the `independent` verdict phrase', () => {
+      const result = evaluateReviewGate({
+        headSha: HEAD,
+        comments: [comment(independentLine.replace('codex reviewed', 'adversarial reviewed'))],
+        changedFiles: ['supabase/migrations/20260101000000_x.sql'],
+      });
+      expect(result.state).toBe('failure');
+      expect(result.description).toMatch(/not clean/);
+    });
+
+    it('each tier still accepts its OWN phrase', () => {
+      expect(
+        evaluateReviewGate({
+          headSha: HEAD,
+          comments: [comment(independentLine)],
+          changedFiles: ['scripts/qa/review-gate.ts'],
+        }).state
+      ).toBe('success');
+      expect(
+        evaluateReviewGate({
+          headSha: HEAD,
+          comments: [comment(adversarialLine)],
+          changedFiles: ['apps/myk9show/src/pages/Foo.tsx'],
+        }).state
+      ).toBe('success');
+      expect(
+        evaluateReviewGate({
+          headSha: HEAD,
+          comments: [comment(noneLine)],
+          changedFiles: ['docs/qa/findings.md'],
+        }).state
+      ).toBe('success');
+    });
+  });
+
+  describe('the adversarial verdict requires at least 2 lenses (C3)', () => {
+    it.each([
+      '0 lenses, all findings addressed',
+      '1 lens, all findings addressed',
+      '1 lenses, all findings addressed',
+    ])('rejects %j', verdict => {
+      const result = evaluateReviewGate({
+        headSha: HEAD,
+        comments: [comment(`Review gate: adversarial reviewed abc1234..${HEAD} — ${verdict}`)],
+        changedFiles: ['apps/myk9show/src/pages/Foo.tsx'],
+      });
+      expect(result.state).toBe('failure');
+      expect(result.description).toMatch(/not clean/);
+    });
+
+    it.each([
+      '2 lens, all findings addressed',
+      '2 lenses, all findings addressed',
+      '10 lenses, all findings addressed',
+    ])('accepts %j — (lens|lenses) both work once the count is >= 2 (M1)', verdict => {
+      const result = evaluateReviewGate({
+        headSha: HEAD,
+        comments: [comment(`Review gate: adversarial reviewed abc1234..${HEAD} — ${verdict}`)],
+        changedFiles: ['apps/myk9show/src/pages/Foo.tsx'],
+      });
+      expect(result.state).toBe('success');
+    });
+  });
+
+  it('the empty/truncated-list invariant lives INSIDE evaluateReviewGate, not only in the caller (I2)', () => {
+    // Codex review of Task 3 round 1, probe F: changedFiles: [] with NO
+    // fileListUnusable flag used to fall through to requiredTier([]), which
+    // resolves to 'adversarial' — a real floor, but not the STRONGEST one,
+    // so a caller that forgot the flag (or computed changedFiles itself,
+    // like push-hold.ts) could silently accept adversarial evidence on a
+    // guardrail-class PR whose real diff needed `independent`. The empty
+    // list alone must now force `independent`, with no flag required.
+    const result = evaluateReviewGate({
+      headSha: HEAD,
+      comments: [
+        comment(
+          `Review gate: adversarial reviewed abc1234..${HEAD} — 2 lenses, all findings addressed`
+        ),
+      ],
+      changedFiles: [],
+    });
+    expect(result.state).toBe('failure');
+    expect(result.description).toContain('independent');
+  });
+
+  it('skips floor enforcement AND the widened verdict grammar when the kill switch is off (I1)', () => {
+    // Codex review of Task 3 round 1: the kill switch used to guard only the
+    // floor block, but CLEAN_VERDICT had been widened unconditionally — so
+    // MYK9_REVIEW_TIERS=off was MORE permissive than today, not equal to it.
+    // With the switch off, only the original independent-tier grammar is
+    // ever valid, so this `none` line (which is red today, before tiers
+    // existed at all) must stay red.
     const prev = process.env.MYK9_REVIEW_TIERS;
     process.env.MYK9_REVIEW_TIERS = 'off';
     try {
       const result = evaluateReviewGate({
         headSha: HEAD,
         comments: [comment(noneLine)],
+        changedFiles: ['scripts/qa/review-gate.ts'],
+      });
+      expect(result.state).toBe('failure');
+    } finally {
+      if (prev === undefined) delete process.env.MYK9_REVIEW_TIERS;
+      else process.env.MYK9_REVIEW_TIERS = prev;
+    }
+  });
+
+  it('the kill switch leaves ordinary independent-tier evidence unaffected', () => {
+    const prev = process.env.MYK9_REVIEW_TIERS;
+    process.env.MYK9_REVIEW_TIERS = 'off';
+    try {
+      const result = evaluateReviewGate({
+        headSha: HEAD,
+        comments: [comment(`Review gate: codex reviewed abc1234..${HEAD} — no findings`)],
         changedFiles: ['scripts/qa/review-gate.ts'],
       });
       expect(result.state).toBe('success');

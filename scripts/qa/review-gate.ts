@@ -162,13 +162,36 @@ export function tierForReviewer(reviewer: string): Tier {
  * yet", a log excerpt — is red by default. Extra detail belongs on the
  * comment's later lines, not in the verdict.
  *
- * Includes the `none` and `adversarial` tiers' canonical verdicts (Task 6
- * documents these exact phrases for ship-pr to post) — without them the
- * floor enforcement below is unreachable for those two tiers, since
- * `accepted` gates the floor check.
+ * Bound to the TIER the reviewer token maps to (Codex review of Task 3 round
+ * 1, C2): `no findings` / `N findings, all addressed` is only ever valid
+ * evidence for `independent`, `N lenses, all findings addressed` only for
+ * `adversarial`, `low-risk paths, CI green` only for `none`. A tier-agnostic
+ * union let a `codex reviewed … — low-risk paths, CI green` line — which
+ * literally asserts no review happened — pass at the `independent` floor,
+ * reopening the #2040 hole this file's header describes. The adversarial
+ * grammar requires at least 2 lenses (`[2-9]|\d{2,}`, never `0` or `1`) —
+ * one lens is not adversarial review, and the mandatory `migration-auditor`
+ * lens on migration paths must be one of the (at least) two.
  */
-export const CLEAN_VERDICT =
-  /^(no findings|\d+ findings?, all (addressed|fixed)|\d+ lenses, all findings addressed|low-risk paths, CI green)\.?$/i;
+export const VERDICT_BY_TIER: Readonly<Record<'independent' | 'adversarial' | 'none', RegExp>> = {
+  independent: /^(no findings|\d+ findings?, all (addressed|fixed))\.?$/i,
+  adversarial: /^(?:[2-9]|\d{2,}) (?:lens|lenses), all findings addressed\.?$/i,
+  none: /^low-risk paths, CI green\.?$/i,
+};
+
+/**
+ * True when `verdict` is clean text under ANY tier's grammar. Used by the
+ * pure-text near-miss table (which is not testing a specific reviewer's
+ * claim) and the `--verdict` CLI probe (which does not know which tier the
+ * poster will ultimately claim). `evaluateReviewGate` never calls this
+ * directly for a non-human-fallback reviewer — it binds the verdict to the
+ * evidence's OWN tier via `VERDICT_BY_TIER[latest.tier]` instead, which is
+ * strictly narrower.
+ */
+export function verdictAccepted(verdict: string): boolean {
+  const trimmed = verdict.trim();
+  return Object.values(VERDICT_BY_TIER).some(re => re.test(trimmed));
+}
 
 export const HUMAN_FALLBACK_VERDICT =
   /^2 adversarial subagent reviews, all findings addressed\.?$/i;
@@ -205,8 +228,10 @@ export function parseGateComments(comments: readonly GateComment[]): GateEvidenc
   return out;
 }
 
-export function verdictAccepted(verdict: string): boolean {
-  return CLEAN_VERDICT.test(verdict.trim());
+/** Strict tier binding: `latest.tier` decides which single grammar applies. */
+function verdictMatchesTier(verdict: string, tier: Tier): boolean {
+  if (tier !== 'independent' && tier !== 'adversarial' && tier !== 'none') return false;
+  return VERDICT_BY_TIER[tier].test(verdict.trim());
 }
 
 export function humanFallbackAccepted(evidence: GateEvidence): boolean {
@@ -247,10 +272,19 @@ export function evaluateReviewGate(input: {
       description: `no independent review recorded for ${short} — run the gate (ship-pr Step 4) against this head`,
     };
   }
-  const accepted =
-    latest.reviewer === 'human-fallback'
-      ? humanFallbackAccepted(latest)
-      : verdictAccepted(latest.verdict);
+  // Human fallback is checked on its own contract (association, two named
+  // subagent lenses, passing checks). Every OTHER reviewer's verdict is bound
+  // to the evidence's OWN tier — never the tier-agnostic union — so a
+  // `codex` (independent) line cannot pass by wearing an `adversarial` or
+  // `none` verdict phrase (Codex review of Task 3 round 1, C2). With the kill
+  // switch off, only the original `independent` grammar is ever valid,
+  // restoring exactly today's behaviour rather than a superset of it (I1).
+  const isHumanFallback = latest.reviewer === 'human-fallback';
+  const accepted = isHumanFallback
+    ? humanFallbackAccepted(latest)
+    : tiersEnabled
+      ? verdictMatchesTier(latest.verdict, latest.tier)
+      : VERDICT_BY_TIER.independent.test(latest.verdict.trim());
   if (!accepted) {
     return {
       state: 'failure',
@@ -258,12 +292,27 @@ export function evaluateReviewGate(input: {
       evidence: latest,
     };
   }
-  // The `owner` tier (human-fallback) sits below the `adversarial` floor
-  // that an application-code change computes. Task 4 formalises override
-  // semantics on top of this; for now `owner` is simply exempt so every
-  // intermediate commit stays bisectable (controller ruling, task-3 brief).
-  if (tiersEnabled && latest.tier !== 'owner') {
-    const floor = input.fileListUnusable
+  // Only a CONFIRMED human-fallback attestation (association, two lenses,
+  // passing checks — all already verified by `accepted` above) is exempt
+  // from the floor. The bare `owner` token routes through `verdictMatchesTier`
+  // above, which has no `owner` grammar entry and so can never reach here —
+  // this exemption is belt-and-suspenders, not the only thing stopping it.
+  // Originally this exempted the whole `owner` TIER unconditionally, which
+  // let a COLLABORATOR bypass the floor on any guardrail path by posting a
+  // bare `owner reviewed … — no findings` line (Codex review of Task 3
+  // round 1, C1 — controller's own instruction, corrected). Task 4 adds a
+  // real override path (`overrideAccepted`) with its own association check.
+  const humanFallbackExempt = isHumanFallback && humanFallbackAccepted(latest);
+  if (tiersEnabled && !humanFallbackExempt) {
+    // The invariant lives HERE, not only in runCli's caller-side check, so a
+    // future caller that computes changedFiles itself (push-hold.ts already
+    // imports this module) cannot silently clear a guardrail PR on a
+    // transient `gh` failure that yields an empty list (I2).
+    const listUnusable =
+      input.fileListUnusable === true ||
+      input.changedFiles.length === 0 ||
+      input.changedFiles.length >= 3000;
+    const floor = listUnusable
       ? {
           tier: 'independent' as Tier,
           reason:
@@ -364,8 +413,11 @@ export function runCli(
     return 0;
   }
   // gh caps the files list at 3000 entries, so a PR at or past the cap may be
-  // truncated. Treat an empty or capped list as unusable rather than guessing
-  // a floor from a partial diff (Step 3a).
+  // truncated. evaluateReviewGate itself re-derives this invariant from
+  // `changedFiles.length` (I2, Codex review of Task 3 round 1) — this local
+  // copy exists only to print the diagnostic log line below, not to gate
+  // anything; a caller that skipped this flag entirely would still get the
+  // independent floor forced from inside evaluateReviewGate.
   const changedFiles = (view.files ?? []).map(f => f.path);
   const fileListUnusable = changedFiles.length === 0 || changedFiles.length >= 3000;
   if (fileListUnusable) {
@@ -449,15 +501,20 @@ function postStatus(
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
-  // `--verdict "<text>"`: exit 0 when CLEAN_VERDICT accepts the text, 2 when it
-  // does not. scripts/qa/post-review-gate.sh calls this instead of carrying its
-  // own copy of the grammar — a hand-copied regex drifts from the parser that
-  // actually judges the comment, which is how `finding(s)` came to be documented
-  // as accepted while CLEAN_VERDICT rejected it. One grammar, one owner.
+  // `--verdict "<text>"`: exit 0 when verdictAccepted() accepts the text, 2
+  // when it does not. scripts/qa/post-review-gate.sh calls this instead of
+  // carrying its own copy of the grammar — a hand-copied regex drifts from
+  // the parser that actually judges the comment, which is how `finding(s)`
+  // came to be documented as accepted while the real grammar rejected it.
+  // One grammar, one owner. (post-review-gate.sh only ever posts
+  // codex/claude — independent-tier — verdicts today, so the union check
+  // here is equivalent to the tier-bound one `evaluateReviewGate` applies;
+  // a future poster for the other tiers should ask review-gate.ts for the
+  // reviewer's own grammar instead of widening what this flag accepts.)
   const verdictFlag = process.argv.indexOf('--verdict');
   if (verdictFlag >= 0) {
     const text = (process.argv[verdictFlag + 1] ?? '').trim();
-    process.exit(CLEAN_VERDICT.test(text) ? 0 : 2);
+    process.exit(verdictAccepted(text) ? 0 : 2);
   }
   process.exitCode = runCli();
 }

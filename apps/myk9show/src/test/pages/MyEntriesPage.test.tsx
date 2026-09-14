@@ -12,6 +12,7 @@ import { EntryStatus, PaymentStatus } from '@/types/show-registration-types';
 import { UserRole, type UserWithRoles } from '@/types/auth-types';
 import { fromAny } from '@total-typescript/shoehorn';
 import { mockSupabase, createChainableQuery } from '@/test/mocks/supabase';
+import { expectedLocalDate } from '@/test/utils/expectedLocalDate';
 
 // Mock dependencies
 const mockCheckInMutateAsync = vi.hoisted(() => vi.fn().mockResolvedValue(undefined));
@@ -1038,7 +1039,7 @@ describe('Receipt deep-link scope from My Payments', () => {
     // The figure the My Payments row that linked here showed.
     expect(await screen.findByText('$32.10')).toBeInTheDocument();
     expect(screen.getByText('Amount paid')).toBeInTheDocument();
-    expect(screen.getByText('Sep 6, 2026')).toBeInTheDocument();
+    expect(screen.getByText(expectedLocalDate('2026-09-06T12:00:00Z'))).toBeInTheDocument();
     expect(screen.getByText('pi_3RwalkDog')).toBeInTheDocument();
     // The word the walk searched for and could not find anywhere on the page.
     expect(screen.getByRole('heading', { name: 'Receipt' })).toBeInTheDocument();

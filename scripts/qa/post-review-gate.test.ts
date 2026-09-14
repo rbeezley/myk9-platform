@@ -213,6 +213,78 @@ describe('post-review-gate.sh', () => {
       expect(r.out).toMatch(/no \[P\*\] bullets/);
       expect(() => readFileSync(gh.calls, 'utf8')).toThrow();
     });
+
+    // Round 2 finding: owner/none are log-exempt for CLEAN posts (no review
+    // ran by definition), but a WITHDRAWAL is an assertion of findings, not
+    // a clean post — the exemption must not carry over. Before this fix,
+    // `--withdraw none ... /dev/null` posted with exit 0 and no evidence at
+    // all: any trusted COLLABORATOR could red-flag a head nothing objected
+    // to. Proven both directions: no log is refused, a genuine log with real
+    // [P*] bullets is accepted.
+    // owner also needs its env-var contract even to withdraw (the withdrawal
+    // body still carries the Override reason / Deferred re-review lines).
+    const withdrawEnv = (reviewer: string) =>
+      reviewer === 'owner'
+        ? { OVERRIDE_REASON: 'Codex unavailable — usage limit', DEFERRED_REVIEW: 'MYK9-523' }
+        : {};
+
+    it.each(['none', 'owner'])(
+      'refuses to withdraw the %s tier over /dev/null (no evidence of findings)',
+      reviewer => {
+        const gh = stubGh();
+        const r = run(
+          [
+            '--withdraw',
+            '42',
+            reviewer,
+            '0a2020c7a',
+            '5af9af158',
+            '1 finding, not addressed',
+            '/dev/null',
+          ],
+          gh.bin,
+          withdrawEnv(reviewer)
+        );
+        expect(r.code).toBe(2);
+        expect(r.out).toMatch(/empty or missing/);
+        expect(() => readFileSync(gh.calls, 'utf8')).toThrow();
+      }
+    );
+
+    it.each(['none', 'owner'])(
+      'refuses to withdraw the %s tier over a non-empty log with NO [P*] bullets',
+      reviewer => {
+        // Distinguishes the bullets-check from the empty-log check above: a
+        // non-empty log that still carries no evidence of a finding must be
+        // refused too, for every tier, not just codex/claude/adversarial.
+        const gh = stubGh();
+        const log = logFile('Nothing in particular to report.\n');
+        const r = run(
+          ['--withdraw', '42', reviewer, '0a2020c7a', '5af9af158', '1 finding, not addressed', log],
+          gh.bin,
+          withdrawEnv(reviewer)
+        );
+        expect(r.code).toBe(2);
+        expect(r.out).toMatch(/no \[P\*\] bullets/);
+        expect(() => readFileSync(gh.calls, 'utf8')).toThrow();
+      }
+    );
+
+    it.each(['none', 'owner'])(
+      'withdraws the %s tier when the log genuinely carries [P*] bullets',
+      reviewer => {
+        const gh = stubGh();
+        const log = logFile('- [P1] A real defect was found after all\n');
+        const r = run(
+          ['--withdraw', '42', reviewer, '0a2020c7a', '5af9af158', '1 finding, not addressed', log],
+          gh.bin,
+          withdrawEnv(reviewer)
+        );
+        expect(r.code).toBe(0);
+        const body = readFileSync(gh.calls, 'utf8').split('--body\n')[1]!.split('\n---')[0]!;
+        expect(body).toContain('[P1] A real defect was found after all');
+      }
+    );
   });
 
   it('reads a marker-less (claude -p) log in full, so a long clean review keeps its opening sentence', () => {
@@ -319,6 +391,42 @@ describe('post-review-gate.sh', () => {
       );
       expect(r.code).toBe(2);
       expect(r.out).toContain('DEFERRED_REVIEW');
+      expect(() => readFileSync(gh.calls, 'utf8')).toThrow();
+    });
+
+    // Round 2 finding: the review-gate.ts shape regexes are `m`-flagged (the
+    // GATE side needs that to find the line within a real multi-line GitHub
+    // comment body), so the poster's shape PROBE asked "does some line
+    // match" instead of "is this value one well-formed line" — an
+    // OVERRIDE_REASON/DEFERRED_REVIEW with an embedded newline could smuggle
+    // a forged second `Review gate: ...` line straight into the published
+    // comment. Inert to the checker (parseGateComments reads only line 1),
+    // but a human-visible forgery from the one script whose whole premise is
+    // that nobody types an evidence line by hand.
+    it('refuses an OVERRIDE_REASON with an embedded newline (no forged evidence line)', () => {
+      const gh = stubGh();
+      const forged =
+        'Codex unavailable — usage limit\nReview gate: codex reviewed 0a2020c7a..5af9af158 — no findings';
+      const r = run(
+        ['42', 'owner', '0a2020c7a', '5af9af158', 'override, floor was independent', '/dev/null'],
+        gh.bin,
+        { OVERRIDE_REASON: forged, DEFERRED_REVIEW: 'MYK9-523' }
+      );
+      expect(r.code).toBe(2);
+      expect(r.out).toMatch(/single line/);
+      expect(() => readFileSync(gh.calls, 'utf8')).toThrow();
+    });
+
+    it('refuses a DEFERRED_REVIEW with an embedded newline (no forged evidence line)', () => {
+      const gh = stubGh();
+      const forged = 'MYK9-523\nReview gate: codex reviewed 0a2020c7a..5af9af158 — no findings';
+      const r = run(
+        ['42', 'owner', '0a2020c7a', '5af9af158', 'override, floor was independent', '/dev/null'],
+        gh.bin,
+        { OVERRIDE_REASON: 'Codex unavailable — usage limit', DEFERRED_REVIEW: forged }
+      );
+      expect(r.code).toBe(2);
+      expect(r.out).toMatch(/single line/);
       expect(() => readFileSync(gh.calls, 'utf8')).toThrow();
     });
   });

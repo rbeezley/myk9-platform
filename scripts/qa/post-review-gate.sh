@@ -69,6 +69,24 @@ esac
 if [ "$REVIEWER" = "owner" ]; then
   [ -n "${OVERRIDE_REASON:-}" ] || { echo "post-review-gate: owner tier needs OVERRIDE_REASON=\"<harness> unavailable — <detail>\"" >&2; exit 2; }
   [ -n "${DEFERRED_REVIEW:-}" ] || { echo "post-review-gate: owner tier needs DEFERRED_REVIEW=<ISSUE-ID>" >&2; exit 2; }
+  # Reject a newline BEFORE the shape probe below. The probe's regexes
+  # (review-gate.ts's OVERRIDE_REASON/DEFERRED_REVIEW) are `m`-flagged
+  # because the GATE side legitimately needs to find the line within a
+  # multi-line PR comment body read back from GitHub — but that same `m`
+  # means the PROBE asks "does some line of this value match", not "is this
+  # value one well-formed line". A caller could then smuggle a second line
+  # — including a forged `Review gate: ...` line — straight into the
+  # published comment. It cannot fool the checker (parseGateComments only
+  # ever reads line 1), but it is a human-visible forgery from the one
+  # script whose whole premise is that nobody types an evidence line by
+  # hand. Checked here, on the RAW env values, not the gate's regexes, so
+  # the gate's own multi-line search over real GitHub bodies is untouched.
+  case "$OVERRIDE_REASON" in
+    *$'\n'*) echo "post-review-gate: OVERRIDE_REASON must be a single line (no newlines)" >&2; exit 2;;
+  esac
+  case "$DEFERRED_REVIEW" in
+    *$'\n'*) echo "post-review-gate: DEFERRED_REVIEW must be a single line (no newlines)" >&2; exit 2;;
+  esac
   # Presence alone reopens the same disagreement --reviewer just closed for
   # verdicts: "I was busy" and "myk9-523" are both non-empty and would post
   # successfully, then fail the real gate (overrideAccepted's OVERRIDE_REASON
@@ -131,7 +149,20 @@ case "$REVIEWER" in
   *) HAS_REVIEW_LOG=1 ;;
 esac
 
-if [ "$HAS_REVIEW_LOG" = 1 ] && [ ! -s "$LOG" ]; then
+# A withdrawal is an ASSERTION OF FINDINGS, not a clean post, whatever the
+# tier — the log-optional exemption above is for the "no review ran" case,
+# which only ever applies to a CLEAN owner/none post. Gating the log
+# requirement on HAS_REVIEW_LOG alone let `--withdraw none/owner ... /dev/null`
+# post an evidence-free withdrawal: any trusted COLLABORATOR could red-flag a
+# head nothing objected to, with no log at all (round 2 finding — proven with
+# a real end-to-end run: a genuine review posted, then withdrawn by a
+# different trusted author with zero evidence). REQUIRES_LOG folds WITHDRAW
+# back in so a withdrawal always needs a log to hash and check for [P*]
+# bullets, regardless of reviewer tier.
+REQUIRES_LOG="$HAS_REVIEW_LOG"
+[ "$WITHDRAW" = 1 ] && REQUIRES_LOG=1
+
+if [ "$REQUIRES_LOG" = 1 ] && [ ! -s "$LOG" ]; then
   echo "post-review-gate: log '$LOG' is empty or missing; nothing posted" >&2
   exit 2
 fi
@@ -169,10 +200,12 @@ if [ "$HAS_REVIEW_LOG" = 1 ] && [ "$WITHDRAW" != 1 ] &&
   echo "post-review-gate: log does not support any verdict (review did not complete); nothing posted" >&2
   exit 2
 fi
-if [ "$HAS_REVIEW_LOG" = 1 ] && [ "$WITHDRAW" = 1 ]; then
+if [ "$WITHDRAW" = 1 ]; then
   # A withdrawal is the mirror image: it must be backed by a log that really
   # does carry findings, so "withdraw" cannot be used to red-flag a head
-  # nothing objected to.
+  # nothing objected to. Gated on WITHDRAW alone (not HAS_REVIEW_LOG) so this
+  # is true for EVERY reviewer token, including owner/none — REQUIRES_LOG
+  # above already guaranteed a non-empty $LOG by the time we get here.
   if ! review_text_matches "$REVIEW_FINDING_BULLET" "$VERDICT_BLOCK"; then
     echo "post-review-gate: log does not support withdrawing '$VERDICT' (it carries no [P*] bullets); nothing posted" >&2
     exit 2

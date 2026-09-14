@@ -23,9 +23,9 @@ owns the wizard structure, so a second OpenSpec proposal would duplicate it.
 3. Wait for the dog roster before accepting a resume. Keep the draft if the
    roster is temporarily unavailable, and activate autosave only after a valid
    load. Do not change payment or legal-agreement submission.
-4. After a successful entry submission or cart handoff, remove only dogs whose
-   class lines were handled. Keep unrelated drafts and unfiled dogs in a mixed
-   draft; never turn a completed entry into a resume candidate.
+4. After a successful entry submission or cart handoff, remove only class
+   lines that were handled. Keep denied classes, unrelated drafts, and unfiled
+   dogs; never turn a completed entry into a resume candidate.
 
 ## Testing
 
@@ -38,10 +38,11 @@ owns the wizard structure, so a second OpenSpec proposal would duplicate it.
 
 ## Verification recorded
 
-- Focused draft hook, DraftManager, wizard, and submission tests: 33 passed. They cover
+- Focused draft hook, DraftManager, wizard, and submission tests: 39 passed. They cover
   pagehide, empty-reentry preservation, rejected and accepted draft reads,
-  eligibility, roster loading/error recovery, dog/class/step restoration, and
-  preservation of unfiled dogs after cart handoff or submission.
+  eligibility, roster loading/error recovery, dog/class/step restoration,
+  profile-refetch failure, the first post-resume edit, class-level cleanup,
+  and stable payload parsing across unrelated renders.
 - Chromium browser Back → reopen → Resume entry: passed.
 - App and test TypeScript checks, E2E typecheck ratchet, touched-file ESLint,
   code-quality ratchet, plan metadata, and diff check: passed.

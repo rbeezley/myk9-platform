@@ -87,6 +87,7 @@ export function useRegistrationWizardState() {
   const { user } = useAuthContext();
   const {
     profile: exhibitorProfile,
+    isLoading: profileLoading,
     error: profileError,
     refetch: refetchExhibitorProfile,
   } = useExhibitorProfile();
@@ -534,9 +535,10 @@ export function useRegistrationWizardState() {
     dogs,
     dogsLoading,
     dogsReady,
-    dogsError: dogsError || profileError,
+    dogsError: dogsReady ? null : dogsError || (!exhibitorProfile ? profileError : null),
+    resumeDataLoading: profileLoading || dogsLoading,
     retryDogLoad: () => {
-      if (exhibitorProfile) refetchDogs();
+      if (exhibitorProfile && !profileError) refetchDogs();
       else void refetchExhibitorProfile();
     },
     classes,

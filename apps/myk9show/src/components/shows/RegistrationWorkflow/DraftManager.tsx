@@ -23,6 +23,7 @@ interface DraftManagerProps {
   showResume?: boolean;
   dogsReady?: boolean;
   loadError?: boolean;
+  loadingDogs?: boolean;
   onRetryDogs?: () => void;
 }
 
@@ -38,6 +39,7 @@ export function DraftManager({
   showResume = false,
   dogsReady = true,
   loadError = false,
+  loadingDogs = false,
   onRetryDogs,
 }: DraftManagerProps) {
   const [isLoadDialogOpen, setIsLoadDialogOpen] = useState(false);
@@ -47,6 +49,7 @@ export function DraftManager({
   const latestEntryDraft = showResume
     ? availableDrafts.find(draft => (draft.selectedDogsCount ?? 0) > 0 && !draft.completed)
     : undefined;
+  const retryDogs = loadError || (!dogsReady && !loadingDogs);
 
   const handleSaveDraft = async () => {
     if (!saveTitle.trim()) {
@@ -270,15 +273,17 @@ export function DraftManager({
                 ? 'Your entry is saved here, but your dogs could not be loaded. Reconnect and try again.'
                 : dogsReady
                   ? 'Your previous selection is saved on this device. Resume it or select a dog below to start a different entry.'
-                  : 'Your entry is saved here. Waiting for your dogs to load.'}
+                  : loadingDogs
+                    ? 'Your entry is saved here. Waiting for your dogs to load.'
+                    : 'Your entry is saved here. Reconnect and try loading your dogs.'}
             </p>
           </div>
           <Button
             className="min-h-11 shrink-0"
-            onClick={loadError ? onRetryDogs : () => handleLoadDraft(latestEntryDraft.id)}
-            disabled={loadError ? !onRetryDogs : !dogsReady}
+            onClick={retryDogs ? onRetryDogs : () => handleLoadDraft(latestEntryDraft.id)}
+            disabled={retryDogs ? !onRetryDogs : !dogsReady}
           >
-            {loadError ? 'Retry loading dogs' : 'Resume entry'}
+            {retryDogs ? 'Retry loading dogs' : 'Resume entry'}
           </Button>
         </section>
       )}

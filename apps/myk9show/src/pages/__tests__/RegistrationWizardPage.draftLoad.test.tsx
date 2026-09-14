@@ -73,6 +73,21 @@ vi.mock('@/hooks/useReplicationSync', () => ({
   useReplicationSync: () => ({ triggerSync: vi.fn() }),
 }));
 
+const mockProfileState: {
+  profile: { id: string; person_id: string };
+  isLoading: boolean;
+  error: Error | null;
+  refetch: ReturnType<typeof vi.fn>;
+} = {
+  profile: { id: 'profile-1', person_id: 'user-1' },
+  isLoading: false,
+  error: null,
+  refetch: vi.fn(),
+};
+vi.mock('@/hooks/useExhibitorProfile', () => ({
+  useExhibitorProfile: () => mockProfileState,
+}));
+
 const mockActivateDraft = vi.fn();
 vi.mock('@/hooks/useDraftPersistence', () => ({
   useDraftPersistence: () => ({ activateDraft: mockActivateDraft }),
@@ -134,10 +149,16 @@ vi.mock('@/components/shows/wizard/components/WizardNavigation', () => ({
 // DraftManager — capture the onDraftLoaded prop so tests can call it
 let capturedOnDraftLoaded: ((draft: SavedDraft) => void) | null = null;
 let capturedShowResume = false;
+let capturedLoadError = false;
 vi.mock('@/components/shows/RegistrationWorkflow/DraftManager', () => ({
-  DraftManager: (props: { onDraftLoaded: (draft: SavedDraft) => void; showResume: boolean }) => {
+  DraftManager: (props: {
+    onDraftLoaded: (draft: SavedDraft) => void;
+    showResume: boolean;
+    loadError: boolean;
+  }) => {
     capturedOnDraftLoaded = props.onDraftLoaded;
     capturedShowResume = props.showResume;
+    capturedLoadError = props.loadError;
     return <div data-testid="draft-manager" />;
   },
 }));
@@ -191,6 +212,7 @@ describe('RegistrationWizardPage — handleDraftLoaded', () => {
     capturedStepId = '';
     capturedOnDogSelectionChange = null;
     capturedShowResume = false;
+    capturedLoadError = false;
     mockCreateRegistration.mockClear();
     mockActivateDraft.mockClear();
     mockCreateRegistration.mockReturnValue({ id: 'reg-1' });
@@ -198,6 +220,7 @@ describe('RegistrationWizardPage — handleDraftLoaded', () => {
     mockDogStoreState.dogs = [{ id: 'dog-1', ownerId: 'user-1', ownerName: 'Owner' }];
     mockDogStoreState.isLoading = false;
     mockDogStoreState.isReady = true;
+    mockProfileState.error = null;
   });
 
   it('replaces an in-progress dog selection with the loaded draft selection', async () => {
@@ -290,5 +313,15 @@ describe('RegistrationWizardPage — handleDraftLoaded', () => {
     expect(capturedClassSelections).toEqual([
       { dogId: 'dog-1', trialId: 'trial-1', selectedClasses: [{ classId: 'class-1' }] },
     ]);
+  });
+
+  it('keeps Resume available when a background profile refetch fails but dogs are ready', async () => {
+    mockDogStoreState.dogs = [];
+    mockProfileState.error = new Error('Background profile refresh failed');
+    render(<RegistrationWizardPage />, { initialRoute: '/shows/show-1/register' });
+
+    await waitFor(() => expect(capturedOnDraftLoaded).not.toBeNull());
+    expect(capturedShowResume).toBe(true);
+    expect(capturedLoadError).toBe(false);
   });
 });

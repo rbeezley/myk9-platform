@@ -1,8 +1,9 @@
-import { useEffect, useRef, useCallback, useState } from 'react';
+import { useEffect, useRef, useCallback, useMemo, useState } from 'react';
 import { useShowRegistrationStore } from '../store/showRegistrationStore';
 import { RegistrationFormData } from '../types/show-registration-types';
 import { logger } from '@/services/LoggingService';
-import { pruneFiledDogsFromDraft } from './pruneFiledDogsFromDraft';
+import { pruneFiledDogsFromDraft, type HandledDraftClass } from './pruneFiledDogsFromDraft';
+import { makeHandlerKey } from '@/types/show-registration-types';
 import { readSavedDraftMetadata } from './readSavedDraftMetadata';
 
 export interface DraftPersistenceConfig {
@@ -59,10 +60,10 @@ export function useDraftPersistence(
   const autoSaveTimerRef = useRef<NodeJS.Timeout | null>(null);
   const lastSavedDataRef = useRef<string>('');
   const activeDraftMetadataRef = useRef<DraftMetadata | null>(null);
-  const pendingRestoreDogIdsRef = useRef<string[] | null>(null);
+  const pendingRestoreDataRef = useRef<Partial<RegistrationFormData> | null>(null);
   const skipFinalSaveRef = useRef(false);
   const [lastAutoSaveTime, setLastAutoSaveTime] = useState<Date | null>(null);
-  const [, setDraftsVersion] = useState(0);
+  const [draftsVersion, setDraftsVersion] = useState(0);
 
   const log = useCallback(
     (message: string, ...args: unknown[]) => {
@@ -242,10 +243,10 @@ export function useDraftPersistence(
     (draft: SavedDraft) => {
       if (draft.metadata.showId === showId && draft.metadata.userId === userId) {
         activeDraftMetadataRef.current = draft.metadata;
-        pendingRestoreDogIdsRef.current = draft.data.selectedDogs ?? [];
+        pendingRestoreDataRef.current = draftData;
       }
     },
-    [showId, userId]
+    [draftData, showId, userId]
   );
 
   // Delete draft from localStorage
@@ -259,7 +260,7 @@ export function useDraftPersistence(
         saveDraftMetadata(allMetadata);
         if (activeDraftMetadataRef.current?.id === draftId) {
           activeDraftMetadataRef.current = null;
-          pendingRestoreDogIdsRef.current = null;
+          pendingRestoreDataRef.current = null;
         }
         setDraftsVersion(version => version + 1);
 
@@ -277,17 +278,8 @@ export function useDraftPersistence(
     if (!draftData || Object.keys(draftData).length === 0) {
       return;
     }
-    const pendingDogs = pendingRestoreDogIdsRef.current;
-    if (pendingDogs) {
-      const currentDogs = draftData.selectedDogs ?? [];
-      if (
-        currentDogs.length !== pendingDogs.length ||
-        currentDogs.some((dogId, index) => dogId !== pendingDogs[index])
-      ) {
-        return;
-      }
-      pendingRestoreDogIdsRef.current = null;
-    }
+    if (pendingRestoreDataRef.current === draftData) return;
+    pendingRestoreDataRef.current = null;
     // The wizard supplies a non-empty envelope even before a dog is selected.
     // Do not let a fresh empty wizard evict an unfinished entry on this device.
     if (!draftData.selectedDogs?.length && !activeDraftMetadataRef.current) return;
@@ -330,16 +322,18 @@ export function useDraftPersistence(
     });
     localStorage.removeItem(getMetadataKey());
     activeDraftMetadataRef.current = null;
-    pendingRestoreDogIdsRef.current = null;
+    pendingRestoreDataRef.current = null;
     lastSavedDataRef.current = JSON.stringify(draftData ?? {});
     setDraftsVersion(version => version + 1);
     log('Cleared all drafts for show:', showId);
   }, [draftData, getDraftMetadata, getDraftKey, getMetadataKey, showId, log]);
 
   const discardDraftsWithoutFinalSave = useCallback(
-    (filedDogIds: string[]) => {
+    (handledClasses: HandledDraftClass[]) => {
       skipFinalSaveRef.current = true;
-      const filed = new Set(filedDogIds);
+      const handled = new Set(
+        handledClasses.map(({ dogId, classId }) => makeHandlerKey(dogId, classId))
+      );
       const remainingMetadata: DraftMetadata[] = [];
       for (const metadata of getDraftMetadata()) {
         try {
@@ -354,7 +348,7 @@ export function useDraftPersistence(
             remainingMetadata.push(metadata);
             continue;
           }
-          const pruned = pruneFiledDogsFromDraft(saved, filed);
+          const pruned = pruneFiledDogsFromDraft(saved, handled);
           if (!pruned) {
             localStorage.removeItem(getDraftKey(metadata.id));
           } else if (pruned !== saved) {
@@ -373,7 +367,7 @@ export function useDraftPersistence(
         saveDraftMetadata(remainingMetadata);
       } else localStorage.removeItem(getMetadataKey());
       activeDraftMetadataRef.current = null;
-      pendingRestoreDogIdsRef.current = null;
+      pendingRestoreDataRef.current = null;
       lastSavedDataRef.current = JSON.stringify(draftData ?? {});
       setDraftsVersion(version => version + 1);
     },
@@ -434,12 +428,22 @@ export function useDraftPersistence(
     return () => window.removeEventListener('pagehide', saveOnPageHide);
   }, []);
 
-  // Available drafts for the current (show, user) pair. Storage keys already
-  // scope by userId, so no read-side filter is needed.
-  // Reading the small metadata list on render keeps localStorage as the source
-  // of truth. draftsVersion forces a render after in-hook storage mutations.
-  const availableDrafts = getDraftMetadata().map(metadata =>
-    readSavedDraftMetadata(metadata, getDraftKey(metadata.id), showId, userId)
+  useEffect(() => {
+    const onStorage = (event: StorageEvent) => {
+      if (event.key === getMetadataKey()) setDraftsVersion(version => version + 1);
+    };
+    window.addEventListener('storage', onStorage);
+    return () => window.removeEventListener('storage', onStorage);
+  }, [getMetadataKey]);
+
+  const availableDrafts = useMemo(
+    () =>
+      getDraftMetadata().map(metadata =>
+        readSavedDraftMetadata(metadata, getDraftKey(metadata.id), showId, userId)
+      ),
+    // Local draft writes invalidate the memo without changing the storage key.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [draftsVersion, getDraftKey, getDraftMetadata, showId, userId]
   );
 
   return {

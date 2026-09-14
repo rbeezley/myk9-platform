@@ -71,6 +71,7 @@ describe('DraftManager reentry', () => {
         hasUnsavedChanges={false}
         showResume
         dogsReady={false}
+        loadingDogs
         onRetryDogs={onRetryDogs}
       />
     );
@@ -92,6 +93,22 @@ describe('DraftManager reentry', () => {
     );
     fireEvent.click(screen.getByRole('button', { name: 'Retry loading dogs' }));
     expect(onRetryDogs).toHaveBeenCalledOnce();
+
+    rerender(
+      <DraftManager
+        saveDraft={vi.fn(() => null)}
+        loadDraft={vi.fn(() => savedDraft)}
+        deleteDraft={vi.fn()}
+        availableDrafts={[metadata]}
+        clearAllDrafts={vi.fn()}
+        hasUnsavedChanges={false}
+        showResume
+        dogsReady={false}
+        onRetryDogs={onRetryDogs}
+      />
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'Retry loading dogs' }));
+    expect(onRetryDogs).toHaveBeenCalledTimes(2);
   });
 
   it('leaves a rejected draft available for a later retry', () => {

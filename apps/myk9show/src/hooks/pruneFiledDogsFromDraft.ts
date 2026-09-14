@@ -1,21 +1,55 @@
 import type { SavedDraft } from './useDraftPersistence';
+import { makeHandlerKey } from '@/types/show-registration-types';
 
-/** Remove submitted dog work while keeping other dogs in the same local draft. */
+export interface HandledDraftClass {
+  dogId: string;
+  classId: string;
+}
+
+/** Remove handled class lines while keeping denied or unrelated entry work. */
 export function pruneFiledDogsFromDraft(
   draft: SavedDraft,
-  filedDogIds: ReadonlySet<string>
+  handledClassKeys: ReadonlySet<string>
 ): SavedDraft | null {
   const selectedDogs = draft.data.selectedDogs ?? [];
-  if (!selectedDogs.some(id => filedDogIds.has(id))) return draft;
+  const workflowState = draft.data._workflowState;
+  if (!workflowState) return draft;
 
-  const remainingDogs = selectedDogs.filter(id => !filedDogIds.has(id));
+  const classSelections = workflowState.classSelections
+    .map(selection => ({
+      ...selection,
+      selectedClasses: selection.selectedClasses.filter(
+        selectedClass =>
+          !handledClassKeys.has(makeHandlerKey(selection.dogId, selectedClass.classId))
+      ),
+    }))
+    .filter(selection => selection.selectedClasses.length > 0);
+  const originalKeys = workflowState.classSelections.flatMap(selection =>
+    selection.selectedClasses.map(selectedClass =>
+      makeHandlerKey(selection.dogId, selectedClass.classId)
+    )
+  );
+  if (!originalKeys.some(key => handledClassKeys.has(key))) return draft;
+
+  const dogsWithClasses = new Set(
+    workflowState.classSelections
+      .filter(selection => selection.selectedClasses.length > 0)
+      .map(selection => selection.dogId)
+  );
+  const dogsWithRemainingClasses = new Set(classSelections.map(selection => selection.dogId));
+  const remainingDogs = selectedDogs.filter(
+    id => !dogsWithClasses.has(id) || dogsWithRemainingClasses.has(id)
+  );
   if (remainingDogs.length === 0) return null;
 
   const remainingIds = new Set(remainingDogs);
-  const workflowState = draft.data._workflowState;
-  const classSelections = workflowState
-    ? workflowState.classSelections.filter(selection => remainingIds.has(selection.dogId))
-    : [];
+  const remainingClassKeys = new Set(
+    classSelections.flatMap(selection =>
+      selection.selectedClasses.map(selectedClass =>
+        makeHandlerKey(selection.dogId, selectedClass.classId)
+      )
+    )
+  );
   const remainingClasses = classSelections.reduce(
     (total, selection) => total + selection.selectedClasses.length,
     0
@@ -35,21 +69,26 @@ export function pruneFiledDogsFromDraft(
       ...draft.data,
       selectedDogs: remainingDogs,
       ...(draft.data.entries && {
-        entries: draft.data.entries.filter(entry => remainingIds.has(entry.dogId)),
+        entries: draft.data.entries
+          .filter(entry => remainingIds.has(entry.dogId))
+          .map(entry => ({
+            ...entry,
+            classes: entry.classes.filter(
+              classEntry => !handledClassKeys.has(makeHandlerKey(entry.dogId, classEntry.classId))
+            ),
+          })),
       }),
-      ...(workflowState && {
-        _workflowState: {
-          ...workflowState,
-          currentStep: 'dog-selection',
-          stepCompletionState: {},
-          classSelections,
-          handlerAssignments: Object.fromEntries(
-            Object.entries(workflowState.handlerAssignments).filter(([key]) =>
-              remainingIds.has(key.split('|')[0] ?? '')
-            )
-          ),
-        },
-      }),
+      _workflowState: {
+        ...workflowState,
+        currentStep: 'dog-selection',
+        stepCompletionState: {},
+        classSelections,
+        handlerAssignments: Object.fromEntries(
+          Object.entries(workflowState.handlerAssignments).filter(([key]) =>
+            remainingClassKeys.has(key)
+          )
+        ),
+      },
     },
   };
 }

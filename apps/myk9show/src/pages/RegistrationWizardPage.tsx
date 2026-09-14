@@ -90,6 +90,7 @@ function RegistrationWizardContent() {
     dogsLoading,
     dogsReady,
     dogsError,
+    resumeDataLoading,
     retryDogLoad,
     agreedToEntryAgreement,
     setAgreedToEntryAgreement,
@@ -334,6 +335,7 @@ function RegistrationWizardContent() {
                 }
                 dogsReady={dogsReady}
                 loadError={!!dogsError}
+                loadingDogs={resumeDataLoading}
                 onRetryDogs={retryDogLoad}
               />
             </div>

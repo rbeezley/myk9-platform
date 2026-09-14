@@ -166,7 +166,14 @@ describe('useDraftPersistence — cross-user scoping', () => {
   });
 
   it('discardDraftsWithoutFinalSave clears drafts and skips the unmount auto-save', () => {
-    seedDraftData({ selectedDogs: ['dog-1'] });
+    seedDraftData({
+      selectedDogs: ['dog-1'],
+      _workflowState: {
+        classSelections: [
+          { dogId: 'dog-1', trialId: 'trial-1', selectedClasses: [{ classId: 'class-1' }] },
+        ],
+      },
+    });
     const metadataKey = `registration-draft-metadata-${SHOW_ID}-${USER_A}`;
     const { result, unmount } = renderHook(() =>
       useDraftPersistence(SHOW_ID, USER_A, 'dog-selection')
@@ -178,7 +185,7 @@ describe('useDraftPersistence — cross-user scoping', () => {
     expect(JSON.parse(localStorage.getItem(metadataKey) ?? '[]')).toHaveLength(1);
 
     act(() => {
-      result.current.discardDraftsWithoutFinalSave(['dog-1']);
+      result.current.discardDraftsWithoutFinalSave([{ dogId: 'dog-1', classId: 'class-1' }]);
     });
     expect(localStorage.getItem(metadataKey)).toBeNull();
 
@@ -253,17 +260,52 @@ describe('useDraftPersistence — cross-user scoping', () => {
     expect(second.result.current.loadDraft(savedId!)?.data.selectedDogs).toEqual(['dog-1']);
   });
 
-  it('keeps unrelated saved drafts when only one dog is handed off', () => {
+  it('autosaves a changed selection before the first timer tick after resume', () => {
     seedDraftData({ selectedDogs: ['dog-1'] });
+    const first = renderHook(() => useDraftPersistence(SHOW_ID, USER_A, 'dog-selection'));
+    let savedId: string | null = null;
+    act(() => {
+      savedId = first.result.current.saveDraft('Entry to resume');
+    });
+    first.unmount();
+
+    seedDraftData({ selectedDogs: [] });
+    const second = renderHook(() => useDraftPersistence(SHOW_ID, USER_A, 'dog-selection'));
+    act(() => second.result.current.activateDraft(second.result.current.loadDraft(savedId!)!));
+    seedDraftData({ selectedDogs: ['dog-2'] });
+    second.rerender();
+    act(() => window.dispatchEvent(new Event('pagehide')));
+
+    expect(second.result.current.loadDraft(savedId!)?.data.selectedDogs).toEqual(['dog-2']);
+  });
+
+  it('keeps unrelated saved drafts when only one dog is handed off', () => {
+    seedDraftData({
+      selectedDogs: ['dog-1'],
+      _workflowState: {
+        classSelections: [
+          { dogId: 'dog-1', trialId: 'trial-1', selectedClasses: [{ classId: 'class-1' }] },
+        ],
+      },
+    });
     const { result, rerender } = renderHook(() =>
       useDraftPersistence(SHOW_ID, USER_A, 'dog-selection')
     );
     act(() => result.current.saveDraft('Dog one'));
-    seedDraftData({ selectedDogs: ['dog-2'] });
+    seedDraftData({
+      selectedDogs: ['dog-2'],
+      _workflowState: {
+        classSelections: [
+          { dogId: 'dog-2', trialId: 'trial-1', selectedClasses: [{ classId: 'class-2' }] },
+        ],
+      },
+    });
     rerender();
     act(() => result.current.saveDraft('Dog two'));
 
-    act(() => result.current.discardDraftsWithoutFinalSave(['dog-1']));
+    act(() =>
+      result.current.discardDraftsWithoutFinalSave([{ dogId: 'dog-1', classId: 'class-1' }])
+    );
 
     expect(result.current.availableDrafts.map(draft => draft.title)).toEqual(['Dog two']);
     expect(
@@ -290,7 +332,7 @@ describe('useDraftPersistence — cross-user scoping', () => {
     let draftId: string | null = null;
     act(() => {
       draftId = result.current.saveDraft('Two dogs');
-      result.current.discardDraftsWithoutFinalSave(['dog-1']);
+      result.current.discardDraftsWithoutFinalSave([{ dogId: 'dog-1', classId: 'class-1' }]);
     });
 
     expect(result.current.availableDrafts).toHaveLength(1);
@@ -307,6 +349,56 @@ describe('useDraftPersistence — cross-user scoping', () => {
         ],
       },
     });
+  });
+
+  it('keeps a denied class for the same dog after another class is filed', () => {
+    seedDraftData({
+      selectedDogs: ['dog-1'],
+      _workflowState: {
+        currentStep: 'payment',
+        stepCompletionState: {},
+        classSelections: [
+          {
+            dogId: 'dog-1',
+            trialId: 'trial-1',
+            selectedClasses: [{ classId: 'class-1' }, { classId: 'class-2' }],
+          },
+        ],
+        handlerAssignments: {},
+        paymentStatus: 'pending',
+        entryStatus: 'pending',
+      },
+    });
+    const { result } = renderHook(() => useDraftPersistence(SHOW_ID, USER_A, 'payment'));
+    let draftId: string | null = null;
+    act(() => {
+      draftId = result.current.saveDraft('Two classes');
+      result.current.discardDraftsWithoutFinalSave([{ dogId: 'dog-1', classId: 'class-1' }]);
+    });
+
+    expect(result.current.loadDraft(draftId!)?.data).toMatchObject({
+      selectedDogs: ['dog-1'],
+      _workflowState: {
+        currentStep: 'dog-selection',
+        classSelections: [{ dogId: 'dog-1', selectedClasses: [{ classId: 'class-2' }] }],
+      },
+    });
+  });
+
+  it('does not reread draft payloads on an unrelated wizard rerender', () => {
+    seedDraftData({ selectedDogs: ['dog-1'] });
+    const first = renderHook(() => useDraftPersistence(SHOW_ID, USER_A, 'dog-selection'));
+    act(() => first.result.current.saveDraft('Saved entry'));
+    first.unmount();
+
+    const read = vi.spyOn(Storage.prototype, 'getItem');
+    const second = renderHook(() => useDraftPersistence(SHOW_ID, USER_A, 'dog-selection'));
+    const payloadKey = `registration-draft-${SHOW_ID}-${USER_A}-${second.result.current.availableDrafts[0]!.id}`;
+    const readsBefore = read.mock.calls.filter(([key]) => key === payloadKey).length;
+    second.rerender();
+
+    expect(read.mock.calls.filter(([key]) => key === payloadKey)).toHaveLength(readsBefore);
+    read.mockRestore();
   });
 
   it('updates the accepted draft and derives resume eligibility from its payload', () => {

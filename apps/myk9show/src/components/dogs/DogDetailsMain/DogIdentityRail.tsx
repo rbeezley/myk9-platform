@@ -51,6 +51,7 @@ const DogIdentityRail: React.FC<DogIdentityRailProps> = ({
   onAddRegistration,
   onManageRegistrations,
   registrationsFailed = false,
+  registrationsLoading = false,
   onRetryRegistrations,
   role = 'exhibitor',
   onEditPanelOpen,
@@ -214,7 +215,11 @@ const DogIdentityRail: React.FC<DogIdentityRailProps> = ({
         {/* A failed read is NOT "no registrations": this rail is the only
             registration summary on the page, so if it printed the empty copy
             here a registered dog would read as unregistered, with no retry. */}
-        {registrationsFailed ? (
+        {registrationsLoading && registry.rows.length === 0 ? (
+          <p className="text-xs text-muted-foreground" role="status">
+            Loading registrations…
+          </p>
+        ) : registrationsFailed ? (
           <div className="flex items-center gap-2">
             <p className="text-xs text-destructive">Couldn’t load registrations.</p>
             {onRetryRegistrations && (
@@ -232,10 +237,11 @@ const DogIdentityRail: React.FC<DogIdentityRailProps> = ({
         ) : (
           <p className="text-xs text-muted-foreground">No registrations yet.</p>
         )}
-        {/* Always mounted for an exhibitor, not gated on the row count: closing
-            the panel after deleting the last registration would otherwise
-            unmount the control focus returns to, dropping it on <body>. */}
-        {!isSecretary && onManageRegistrations && !registrationsFailed && (
+        {/* Always mounted for an exhibitor — not gated on the row count, and not
+            on the read succeeding. Unmounting it while the panel is open (last
+            registration deleted, or a refetch failing) takes away the element
+            SlideOverPanel returns focus to, dropping focus on <body>. */}
+        {!isSecretary && onManageRegistrations && (
           <button
             type="button"
             onClick={onManageRegistrations}

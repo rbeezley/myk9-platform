@@ -100,7 +100,12 @@ export default function DogRegistrationDialogs({
   };
 
   const handleDelete = () => {
-    if (selectedRegistration?.id) deleteRegistration(selectedRegistration.id);
+    // Same onError as add and update: the optimistic update targets a different
+    // query key, so a rejected delete leaves the row on screen and would
+    // otherwise say nothing at all.
+    if (selectedRegistration?.id) {
+      deleteRegistration(selectedRegistration.id, { onError: reportSaveError });
+    }
     setIsDeleteOpen(false);
     setSelectedRegistration(null);
   };

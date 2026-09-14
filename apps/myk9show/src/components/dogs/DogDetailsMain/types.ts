@@ -30,6 +30,8 @@ export interface DogIdentityRailProps {
   onManageRegistrations?: (() => void) | undefined;
   /** The registrations read failed — distinct from the dog having none. */
   registrationsFailed?: boolean | undefined;
+  /** The registrations read is still in flight — also not "has none". */
+  registrationsLoading?: boolean | undefined;
   onRetryRegistrations?: (() => void) | undefined;
   role?: 'exhibitor' | 'secretary';
   onEditPanelOpen: () => void;

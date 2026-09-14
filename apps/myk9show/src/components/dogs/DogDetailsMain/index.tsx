@@ -249,6 +249,7 @@ const DogDetailsMain: React.FC<DogDetailsMainProps> = ({
   const {
     data: dbRegistrations,
     isError: registrationsFailed,
+    isLoading: registrationsLoading,
     refetch: refetchRegistrations,
   } = useRegistrationsByDogQuery(updatedDog.id);
 
@@ -267,6 +268,7 @@ const DogDetailsMain: React.FC<DogDetailsMainProps> = ({
             onAddRegistration={openAddRegistration}
             onManageRegistrations={() => setIsManageRegistrationsOpen(true)}
             registrationsFailed={registrationsFailed}
+            registrationsLoading={registrationsLoading}
             onRetryRegistrations={() => void refetchRegistrations()}
             role={isSecretary ? 'secretary' : 'exhibitor'}
             onEditPanelOpen={() => setIsEditPanelOpen(true)}

@@ -60,6 +60,9 @@ export default function RegistrationsSection({ dog }: RegistrationsSectionProps)
   const storeRegistrations = useRegistrationsStore(state => state.registrations);
   const registrations = dbRegistrations || dog?.registrations || storeRegistrations;
 
+  const setIsAddRegistrationDialogOpen = useRegistrationsStore(
+    state => state.setIsAddRegistrationDialogOpen
+  );
   const setIsEditRegistrationDialogOpen = useRegistrationsStore(
     state => state.setIsEditRegistrationDialogOpen
   );
@@ -117,7 +120,13 @@ export default function RegistrationsSection({ dog }: RegistrationsSectionProps)
         icon={Plus}
         title="No Registrations Found"
         description="Add your first kennel club registration to get started."
-        action={null}
+        /* The rail's Add sits behind this panel's backdrop when the list is
+           shown there, so the empty state has to carry its own way out. */
+        action={{
+          label: 'Add registration',
+          onClick: () => setIsAddRegistrationDialogOpen(true),
+          icon: Plus,
+        }}
       />
     );
   }

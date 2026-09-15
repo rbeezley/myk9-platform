@@ -15,10 +15,21 @@ export const TIER_ORDER: readonly Tier[] = ['none', 'owner', 'adversarial', 'ind
 
 export const MIGRATION_LENS = 'migration-auditor';
 
-/** Guardrails: a change here can disable what catches the next defect. */
+/**
+ * Guardrails: a change here can disable what catches the next defect.
+ *
+ * `.githooks/` is here for the LAUNCHER reason, not only the content reason:
+ * `.githooks/pre-push` is what invokes `scripts/qa/push-hold.ts` (itself
+ * `independent`) and `.githooks/pre-commit` is what enforces the worktree
+ * rule. A guard at `independent` reached through a launcher that is not
+ * leaves the guard perfectly reviewed and trivially unreachable — a PR
+ * neutering the hook went green on two self-typed lens names (fallback review
+ * of #2243, M1). When adding a guard, floor its ENTRYPOINT too.
+ */
 const INDEPENDENT_PATTERNS: readonly RegExp[] = [
   /^\.github\//,
   /^\.(claude|codex|agents)\//,
+  /^\.githooks\//,
   /^scripts\/qa\//,
   /(^|\/)playwright[^/]*\.config\.ts$/,
   /^(CLAUDE|AGENTS)\.md$/,
@@ -82,6 +93,7 @@ export function meetsFloor(supplied: Tier, floor: Tier): boolean {
 }
 
 import { execFileSync } from 'node:child_process';
+import { readFileSync } from 'node:fs';
 import { pathToFileURL } from 'node:url';
 
 /** Files changed against a base ref, for the CLI. */
@@ -90,7 +102,26 @@ export function changedFiles(base: string): string[] {
   return out.split('\n').filter(Boolean);
 }
 
+/**
+ * `--files-stdin`: read a newline-separated file list on stdin and print ONLY
+ * the tier. `scripts/qa/post-review-gate.sh` uses it to check an `owner`
+ * override's claimed floor against the real one BEFORE posting — the same
+ * check `evaluateReviewGate` applies afterwards. One table, two callers; a
+ * copied rule in shell would drift (fallback review of #2243, S-c).
+ */
+function runFilesStdin(): void {
+  const raw = readFileSync(0, 'utf8');
+  const files = raw.split('\n').filter(Boolean);
+  // An empty list is not "no risk": it is "we could not tell". Match
+  // review-gate.ts's resolveFloor, which pins an empty list to independent.
+  console.log(files.length === 0 ? 'independent' : requiredTier(files).tier);
+}
+
 if (import.meta.url === pathToFileURL(process.argv[1] ?? '').href) {
+  if (process.argv.includes('--files-stdin')) {
+    runFilesStdin();
+    process.exit(0);
+  }
   const baseIndex = process.argv.indexOf('--base');
   const base = baseIndex === -1 ? 'origin/main' : (process.argv[baseIndex + 1] ?? 'origin/main');
   const files = changedFiles(base);

@@ -125,7 +125,9 @@ comments for every tier — never type an evidence line by hand.
   and requires `src/test/database/` green), fix every finding, save the
   combined log, then post:
   `REVIEW_LENSES=$'<lens one>\n<lens two>' bash scripts/qa/post-review-gate.sh $PR_NUMBER adversarial <base-sha> <head-sha> "<N> lenses, all findings addressed" <log>`
-  `<N>` must be 2 or more — the checker refuses `0`, `1`, and zero-padded counts.
+  `<N>` must be 2 or more — the checker refuses `0`, `1`, and zero-padded counts
+  — and it must EQUAL the number of distinct lens names in `REVIEW_LENSES`,
+  refused in both directions by the poster and again by the gate.
   `REVIEW_LENSES` (one lens NAME per line, 2 or more) is required: it becomes
   one `Adversarial subagent review: <name>` body line per lens, and the gate
   refuses adversarial evidence whose body names fewer than two — or, on a
@@ -134,7 +136,9 @@ comments for every tier — never type an evidence line by hand.
 - **owner override** (harness genuinely unavailable) — claim the SAME floor
   `pnpm qa:review-tier` just printed (`override, floor was independent` or
   `override, floor was adversarial`; a mismatched claim is refused), set
-  `OVERRIDE_REASON="<harness> unavailable — <detail>"` and
+  `OVERRIDE_REASON="<harness> unavailable — <detail>"` (or `"convergence stop —
+<detail>"` when the reviewer IS reachable and the convergence rule says to
+  stop the round; never write "unavailable" for that) and
   `DEFERRED_REVIEW=<ISSUE-ID>` (uppercase prefix, e.g. `MYK9-523`) in the
   environment, then run `post-review-gate.sh ... owner ...` — see
   `docs/PLAYBOOK.md` § 4. No review log required, but a withdrawal at any
@@ -199,7 +203,7 @@ Review gate: codex reviewed 0a2020c7a..5af9af158 — no findings
 
 The reviewer is `codex` or `claude` (whichever ran, i.e. the OTHER harness). The verdict is the whole remainder of the line and must be exactly `no findings` or `<N> findings, all addressed` / `<N> findings, all fixed` — `finding(s)` is **not** accepted, and neither is a parenthetical, "not all addressed", or "no findings yet"; `1 findings, all addressed` is the singular, ugly but green. `scripts/qa/review-gate.ts --verdict "<text>"` answers 0/2 for any candidate, and the poster asks it rather than carrying its own copy of the grammar. Put detail on the comment's later lines. The status is pinned to the SHA: any later push turns it red until a new line is recorded for the new head, which is the whole point. Editing or deleting the evidence comment re-evaluates it too.
 
-**If the reviewer is genuinely unavailable** (usage limit, outage, auth failure — not merely slow), this PR's floor is `independent` (see Step 3a) — use the `owner` override documented there and in `docs/PLAYBOOK.md` § 4, not the legacy `human-fallback` grammar: claim `override, floor was independent`, set `OVERRIDE_REASON="<harness> unavailable — <detail>"` and `DEFERRED_REVIEW=<ISSUE-ID>`, then run `post-review-gate.sh $PR_NUMBER owner <base-sha> <head-sha> "override, floor was independent" /dev/null`. Keep the PR a draft when nothing is time-pressured; when a maintainer authorizes the override, mark it ready so the status can be evaluated, and re-run the real gate once the reviewer is available.
+**If the reviewer is genuinely unavailable** (usage limit, outage, auth failure — not merely slow), this PR's floor is `independent` (see Step 3a) — use the `owner` override documented there and in `docs/PLAYBOOK.md` § 4, not the legacy `human-fallback` grammar: claim `override, floor was independent`, set `OVERRIDE_REASON="<harness> unavailable — <detail>"` (or `"convergence stop — <detail>"` when the reviewer is reachable but the convergence rule says to stop the round — never write "unavailable" for that) and `DEFERRED_REVIEW=<ISSUE-ID>`, then run `post-review-gate.sh $PR_NUMBER owner <base-sha> <head-sha> "override, floor was independent" /dev/null`. Keep the PR a draft when nothing is time-pressured; when a maintainer authorizes the override, mark it ready so the status can be evaluated, and re-run the real gate once the reviewer is available.
 
 **Findings:** fix every critical/high (P1/P2) finding and any medium (P3) that is straightforward. Invoke `/commit`, then re-run the wrapper against the new head. **Max 5 review rounds** — escalate to the user if not clean after 5.
 

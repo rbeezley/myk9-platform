@@ -1,3 +1,5 @@
+import { execFileSync } from 'node:child_process';
+import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { requiredTier, meetsFloor, touchesMigration, MIGRATION_LENS } from './review-tier';
 
@@ -31,6 +33,28 @@ describe('requiredTier', () => {
     ['money paths', 'apps/myk9show/src/features/checkout/CartSummary.tsx'],
   ])('puts %s at independent', (_label, file) => {
     expect(requiredTier([file]).tier, file).toBe('independent');
+  });
+
+  // M1 of the fallback review of #2243: a guard at `independent` reached
+  // through a LAUNCHER that is not leaves the guard perfectly reviewed and
+  // trivially unreachable. `.githooks/pre-push` invokes scripts/qa/push-hold.ts
+  // (independent); the hook itself sat at `adversarial`, so a PR neutering the
+  // trusted PUSH HOLD enforcement went green on two self-typed lens names.
+  // Neither path matches any OTHER INDEPENDENT_PATTERN, so deleting
+  // `/^\.githooks\//` is the only way to turn these red.
+  it.each(['.githooks/pre-push', '.githooks/pre-commit', '.githooks/README.md'])(
+    'puts the hook launcher %s at independent',
+    file => {
+      expect(requiredTier([file]).tier, file).toBe('independent');
+    }
+  );
+
+  // The CLI's own empty-list answer. The gate never reaches it (resolveFloor
+  // pins an empty list to `independent` first), but `pnpm qa:review-tier` with
+  // no diff is advice an agent acts on, and flipping this to 'none' left every
+  // suite green (fallback review of #2243, test lens S2).
+  it('answers an empty file list with adversarial, never none', () => {
+    expect(requiredTier([]).tier).toBe('adversarial');
   });
 
   it('puts migrations at adversarial and names the required lens', () => {
@@ -109,5 +133,40 @@ describe('meetsFloor', () => {
   it('refuses a weaker tier', () => {
     expect(meetsFloor('none', 'adversarial')).toBe(false);
     expect(meetsFloor('owner', 'independent')).toBe(false);
+  });
+});
+
+/**
+ * The `--files-stdin` mode exists so `scripts/qa/post-review-gate.sh` can ask
+ * THIS table for an override's real floor instead of copying the rules into
+ * shell (fallback review of #2243, S-c). Its end-to-end behaviour is pinned by
+ * the poster suite; these cover the contract of the mode itself, including the
+ * fail-safe an empty list must get.
+ */
+describe('the --files-stdin CLI mode', () => {
+  const SCRIPT = resolve(import.meta.dirname, 'review-tier.ts');
+  const tierOf = (stdin: string) =>
+    execFileSync(
+      'node',
+      [
+        '--experimental-strip-types',
+        '--disable-warning=MODULE_TYPELESS_PACKAGE_JSON',
+        SCRIPT,
+        '--files-stdin',
+      ],
+      { input: stdin, encoding: 'utf8' }
+    ).trim();
+
+  it('prints ONLY the tier, so the shell can compare it directly', () => {
+    expect(tierOf('scripts/qa/review-gate.ts\n')).toBe('independent');
+    expect(tierOf('supabase/migrations/20260914174500_x.sql\n')).toBe('adversarial');
+    expect(tierOf('docs/qa/findings.md\n')).toBe('none');
+  });
+
+  it('answers an EMPTY list with independent, never a cheaper tier', () => {
+    // "We could not tell" is not "no risk" — the same fail-safe
+    // review-gate.ts's resolveFloor applies to an empty changed-file list.
+    expect(tierOf('')).toBe('independent');
+    expect(tierOf('\n\n')).toBe('independent');
   });
 });

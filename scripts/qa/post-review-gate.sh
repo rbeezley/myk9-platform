@@ -36,18 +36,24 @@
 # newline-separated NAMES of the lenses that were run, two or more. They are
 # emitted as `Adversarial subagent review: <name>` body lines, the same line
 # form review-gate.ts already parses for human-fallback, and the gate refuses
-# adversarial evidence whose body names fewer than two. When the base..head
+# adversarial evidence whose body names fewer than two, and the verdict's <N>
+# must equal the number of distinct lenses named. When the base..head
 # diff can be resolved locally and touches supabase/migrations/, one lens must
 # be exactly `migration-auditor` — refused here by name, and independently
 # enforced by the gate (which always has the real file list).
 #
 # The `owner` tier additionally requires OVERRIDE_REASON="<harness>
-# unavailable — <detail>" and DEFERRED_REVIEW=<ISSUE-ID> in the environment
+# unavailable — <detail>" (or "convergence stop — <detail>", the honest wording
+# for a reviewer that IS available when the convergence rule says to stop the
+# round) and DEFERRED_REVIEW=<ISSUE-ID> in the environment
 # — checked for PRESENCE and, via review-gate.ts (the same parser that will
 # judge the posted comment), for SHAPE, so `DEFERRED_REVIEW=myk9-523` or
 # `OVERRIDE_REASON="I was busy"` is refused here instead of posting
 # successfully and then failing the real gate. They are appended as the 2nd
-# and 3rd lines of the comment body.
+# and 3rd lines of the comment body. When the base..head diff resolves
+# locally, the verdict's claimed floor is also checked against the real one
+# (scripts/qa/review-tier.ts --files-stdin) — the gate refuses a mismatch, so
+# posting one only produces a confusing red.
 #
 # POST_REVIEW_GATE_DRY_RUN=1 validates the reviewer token, the owner-tier env
 # vars and the verdict-vs-tier grammar, then exits 0 WITHOUT touching the log
@@ -64,6 +70,31 @@ HERE="$(cd "$(dirname "$0")" && pwd)"
 # One definition of "clean verdict", shared with both review wrappers.
 # shellcheck source=scripts/qa/review-verdict.sh
 . "$HERE/review-verdict.sh"
+
+# Line terminators, as a CLASS. Every value this script publishes verbatim into
+# a comment body passes through one of these two checks, so no value can smuggle
+# an extra rendered line — in particular a forged `Review gate:` line — into the
+# record written by the one script whose premise is that nobody types an
+# evidence line by hand.
+#
+# The class is CR, LF, U+2028 (LINE SEPARATOR) and U+2029 (PARAGRAPH
+# SEPARATOR). CR and LF are CommonMark line endings AND JavaScript `/m`
+# terminators; U+2028/U+2029 are JS `/m` terminators only (they render inline),
+# but defeating the shape probe with an invisible character is still a hole.
+# `\n` alone once let a bare CR through, and CR-plus-U+2028 once let U+2029
+# through (fallback review of #2243, M3) — hence one named class, two callers.
+has_inline_terminator() {  # CR / U+2028 / U+2029 — anything but a bare LF
+  case "$1" in
+    *$'\r'*|*$'\xe2\x80\xa8'*|*$'\xe2\x80\xa9'*) return 0;;
+  esac
+  return 1
+}
+has_any_terminator() {  # the above, plus LF
+  case "$1" in
+    *$'\n'*) return 0;;
+  esac
+  has_inline_terminator "$1"
+}
 
 case "$REVIEWER" in
   codex|claude|adversarial|none|owner) ;;
@@ -84,11 +115,40 @@ if [ "$REVIEWER" = "adversarial" ]; then
     exit 2
   fi
   # A lens name is published verbatim into the comment body, so it may never
-  # forge another evidence line (same class as the owner-tier line-terminator
-  # check below; line 1 is all the checker reads, but a human reading the PR
-  # would see the forgery).
+  # forge another evidence line. TWO rules, because each misses what the other
+  # catches: the grep sees an LF-separated entry that BEGINS "Review gate:",
+  # and the terminator check sees a CR / U+2028 / U+2029 smuggled INSIDE an
+  # entry, which the grep cannot — it splits on LF only. A raw CR mid-entry
+  # published a second, human-visible forged evidence line at exit 0 (fallback
+  # review of #2243, M2); this is the owner tier's guard, reused verbatim.
+  # LF itself is the legitimate separator here, so only the inline class is
+  # refused; an LF entry that forges a line is caught by the grep below.
+  if has_inline_terminator "$REVIEW_LENSES"; then
+    echo "post-review-gate: a REVIEW_LENSES entry may not contain a line-terminator character (CR, U+2028 or U+2029)" >&2
+    exit 2
+  fi
   if printf '%s\n' "$LENS_LINES" | grep -qi '^Review gate:'; then
     echo "post-review-gate: a REVIEW_LENSES entry may not begin with 'Review gate:'" >&2
+    exit 2
+  fi
+  # The verdict's <N> is a number the CALLER typed; LENS_COUNT is what the
+  # record will actually name. Unbound, "9 lenses, all findings addressed" over
+  # a two-lens body went green (fallback review of #2243, M5). Refuse the
+  # mismatch here so the poster and the gate — which applies the same rule in
+  # adversarialBodyProblem — never disagree.
+  # `case`, not sed: BSD sed (this repo's own macOS dev machine) has no `\|`
+  # alternation in a BRE, so a `lens\|lenses` pattern silently matched NOTHING
+  # and the check was inert — it exited 0 on a "9 lenses" verdict over a
+  # two-lens body, i.e. it reported the very bug it was added to close.
+  VERDICT_LOWER="$(printf '%s' "$VERDICT" | tr '[:upper:]' '[:lower:]')"
+  VERDICT_LENS_COUNT=""
+  case "$VERDICT_LOWER" in
+    [0-9]*' lens, all findings addressed'|[0-9]*' lenses, all findings addressed'|[0-9]*' lens, all findings addressed.'|[0-9]*' lenses, all findings addressed.')
+      VERDICT_LENS_COUNT="${VERDICT_LOWER%% *}"
+      case "$VERDICT_LENS_COUNT" in *[!0-9]*) VERDICT_LENS_COUNT="";; esac;;
+  esac
+  if [ -n "$VERDICT_LENS_COUNT" ] && [ "$VERDICT_LENS_COUNT" -ne "$LENS_COUNT" ]; then
+    echo "post-review-gate: verdict claims $VERDICT_LENS_COUNT lenses but REVIEW_LENSES names $LENS_COUNT distinct; nothing posted" >&2
     exit 2
   fi
   # Migration diffs need the migration-auditor lens. Resolved from git in the
@@ -125,24 +185,17 @@ if [ "$REVIEWER" = "owner" ]; then
   # hand. Checked here, on the RAW env values, not the gate's regexes, so
   # the gate's own multi-line search over real GitHub bodies is untouched.
   #
-  # This is a CLASS of character, not one instance: `\n` alone let a bare
-  # `\r` through, and `\r` is a line terminator for JS `/m` (defeats the
-  # probe the same way `\n` did) AND for CommonMark (a line ending GitHub
-  # renders), reproducing the forged-second-line finding verbatim. U+2028
-  # (LINE SEPARATOR) is also a JS `/m` terminator — folded in even though it
-  # is NOT a CommonMark line ending (renders inline, so it cannot itself
-  # forge a visible line): defeating the probe with an invisible character
-  # is still a hole, and it costs nothing to close alongside CR.
-  case "$OVERRIDE_REASON" in
-    *$'\n'*|*$'\r'*|*$'\xe2\x80\xa8'*)
-      echo "post-review-gate: OVERRIDE_REASON must be a single line (no line-terminator characters)" >&2
-      exit 2;;
-  esac
-  case "$DEFERRED_REVIEW" in
-    *$'\n'*|*$'\r'*|*$'\xe2\x80\xa8'*)
-      echo "post-review-gate: DEFERRED_REVIEW must be a single line (no line-terminator characters)" >&2
-      exit 2;;
-  esac
+  # The class itself lives in has_any_terminator above (CR, LF, U+2028,
+  # U+2029) — it has been widened twice by review, which is exactly why it is
+  # one named function now rather than two hand-copied `case` patterns.
+  if has_any_terminator "$OVERRIDE_REASON"; then
+    echo "post-review-gate: OVERRIDE_REASON must be a single line (no line-terminator characters)" >&2
+    exit 2
+  fi
+  if has_any_terminator "$DEFERRED_REVIEW"; then
+    echo "post-review-gate: DEFERRED_REVIEW must be a single line (no line-terminator characters)" >&2
+    exit 2
+  fi
   # Presence alone reopens the same disagreement --reviewer just closed for
   # verdicts: "I was busy" and "myk9-523" are both non-empty and would post
   # successfully, then fail the real gate (overrideAccepted's OVERRIDE_REASON
@@ -156,6 +209,25 @@ if [ "$REVIEWER" = "owner" ]; then
     "$HERE/review-gate.ts" --deferred-review-line "Deferred re-review: $DEFERRED_REVIEW"; then
     echo "post-review-gate: DEFERRED_REVIEW must be an issue id like MYK9-523 (uppercase prefix; got: \"$DEFERRED_REVIEW\")" >&2
     exit 2
+  fi
+  # The claimed floor, checked against the REAL one — the same check
+  # evaluateReviewGate runs after the comment is posted. Until now the poster
+  # published a claim the gate would then refuse, which is precisely the
+  # poster/judge disagreement `--reviewer` closed for verdicts and the two
+  # shape probes closed for the body lines (fallback review of #2243, S-c; the
+  # file's own comments claimed the two sides already agreed here). Resolved
+  # from git in the CURRENT working tree, exactly like the migration-lens check
+  # above: when the SHAs are not present locally — a shallow clone, a fixture —
+  # it does not fire, and the gate re-checks it against the PR's real file list
+  # either way, so the record can never go green on a misstated floor.
+  OWNER_DIFF="$(git diff --name-only "$BASE...$HEAD" 2>/dev/null || true)"
+  if [ -n "$OWNER_DIFF" ]; then
+    CLAIMED_FLOOR="$(printf '%s' "$VERDICT" | tr '[:upper:]' '[:lower:]' | sed -n 's/^override, floor was \([a-z][a-z]*\)\.\{0,1\}$/\1/p')"
+    REAL_FLOOR="$(printf '%s\n' "$OWNER_DIFF" | node --experimental-strip-types --disable-warning=MODULE_TYPELESS_PACKAGE_JSON "$HERE/review-tier.ts" --files-stdin)"
+    if [ -n "$CLAIMED_FLOOR" ] && [ "$CLAIMED_FLOOR" != "$REAL_FLOOR" ]; then
+      echo "post-review-gate: override claims floor was $CLAIMED_FLOOR, but the real floor for $BASE...$HEAD is $REAL_FLOOR; nothing posted" >&2
+      exit 2
+    fi
   fi
 fi
 

@@ -70,17 +70,23 @@ refuses evidence below. Four tiers, weakest to strongest: `none` < `owner` <
 `human-fallback` token (see below), which is the one evidence form no script mints.
 
 - **`independent`** — guardrails (`.github/`, `.claude/`, `.codex/`, `.agents/`,
-  `scripts/qa/`, `playwright*.config.ts`, `CLAUDE.md`, `AGENTS.md`,
+  `.githooks/`, `scripts/qa/`, `playwright*.config.ts`, `CLAUDE.md`, `AGENTS.md`,
   `docs/agents/shared-rules.md`), auth/RBAC/permissions/roles directories, money
   (`stripe`/`payout`/`refund`/`checkout`/`payment` anywhere in the path), edge
   functions, `packages/replication`, and any `rls*`/`grant*`/`polic*` `.sql`/`.ts`
-  file. The cross-harness gate above.
+  file. The cross-harness gate above. `.githooks/` is listed for the LAUNCHER
+  reason as much as the content one: `pre-push` is what invokes
+  `scripts/qa/push-hold.ts` (itself `independent`), so a guard at `independent`
+  reached through a launcher that is not is perfectly reviewed and trivially
+  unreachable. When you add a guard, floor its entrypoint too.
 - **`adversarial`** — app code, tests, dependency manifests, and an unrecognised path
   (fail safe, not fail cheap). Run at least two same-harness subagent reviews with
   distinct bug-finding lenses — prompts that say to _find bugs, not approve_ ("assume
   the author was overconfident"; "report only defects with a concrete failure
   scenario") — fix every finding, and post
-  `<N> lenses, all findings addressed` with `<N>` >= 2. A migration path requires
+  `<N> lenses, all findings addressed` with `<N>` >= 2 — and `<N>` must EQUAL the
+  number of distinct lenses the body names, in both directions; the digit is a
+  claim, the named lines are the record. A migration path requires
   `migration-auditor` as one of the two lenses, and `src/test/database/` must be
   green — and the lenses must be NAMED, not just counted: set
   `REVIEW_LENSES` (one lens name per line, 2 or more) so the poster emits one
@@ -102,9 +108,17 @@ refuses evidence below. Four tiers, weakest to strongest: `none` < `owner` <
   limit, outage, auth failure — not merely slow or inconvenient), a repository OWNER
   or MEMBER may defer scrutiny rather than silently treat same-harness agents as
   equivalent. The override claims the SAME floor `qa:review-tier` printed for this
-  branch; a mismatched claim is refused. Set `OVERRIDE_REASON="<harness> unavailable —
-<detail>"` and `DEFERRED_REVIEW=<ISSUE-ID>` (uppercase prefix, e.g. `MYK9-523`) in
-  the environment and run:
+  branch; a mismatched claim is refused, by the poster and by the gate. Set
+  `OVERRIDE_REASON` and `DEFERRED_REVIEW=<ISSUE-ID>` (uppercase prefix, e.g.
+  `MYK9-523`) in the environment and run:
+
+  `OVERRIDE_REASON` takes one of two shapes, because there are two honest
+  reasons to defer: `"<harness> unavailable - <detail>"`, or `"convergence stop
+  - <detail>"`for the case where the reviewer IS reachable and the convergence
+rule above says to stop the round anyway. Do not write "unavailable" to
+describe a convergence stop - a record that asserts more than what happened
+is the thing this whole gate exists to prevent. A convergence stop still owes
+the`Deferred re-review:` issue AND the restructure proposal.
 
   ```bash
   bash scripts/qa/post-review-gate.sh "$PR" owner <base-sha> <head-sha> \
@@ -128,12 +142,16 @@ refuses evidence below. Four tiers, weakest to strongest: `none` < `owner` <
   issue.
 
 - **`human-fallback` (LEGACY, do not use)** — the pre-tier token. It maps to tier
-  `owner`, is floor-exempt, and is the one accepted route that defers scrutiny
-  without recording the debt anywhere: it requires no `Deferred re-review:` line.
-  Nothing instructs its use any more — an unavailable harness goes through the
-  `owner` override above — and `post-review-gate.sh` refuses to write it. It is kept
-  only so gates already posted with it stay green, and is to be removed once the
-  in-flight PRs using it have drained.
+  `owner` and is NO LONGER floor-exempt: it meets the floor like any other
+  tier-`owner` evidence, so it clears a `none` floor and nothing else. Being
+  floor-exempt on any path, with no `Deferred re-review:` line and no
+  claimed-floor check, made every constraint the `owner` override adds elective
+  — you simply typed the older token instead. It keeps its own body contract
+  (`Fallback reason:`, two DISTINCT named lenses, `Required checks: passing`)
+  and still needs no deferred issue, so the in-flight PRs using it on docs-only
+  diffs stay green. Nothing instructs its use any more — an unavailable harness
+  goes through the `owner` override above — and `post-review-gate.sh` refuses to
+  write it.
 
 ## 5. Database change
 

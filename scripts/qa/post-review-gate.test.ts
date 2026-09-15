@@ -9,6 +9,16 @@ import { afterEach, describe, expect, it } from 'vitest';
  * a behavioural test with a stub `gh`: we assert what it posts and, more
  * importantly, what it refuses to post. Grepping its source for the guard
  * phrases would prove someone typed them, not that they bite.
+ *
+ * OBSERVATION, not a diagnosed bug (fallback review of #2243, S4): under heavy
+ * machine load this suite has been seen to red nondeterministically, a
+ * different random subset each time, including `exit 127` from inside the
+ * script. Each case passed deterministically when driven directly (60/60), and
+ * once the machine quieted the suite went 3/3 green and 4 concurrent copies
+ * 4/4 green, so it could not be reproduced on demand. Every test here spawns
+ * bash plus up to two `node --experimental-strip-types` probes, so process
+ * contention is the suspect. Recorded here so the next person to see a random
+ * red checks load before theorising about a rule.
  */
 const SCRIPT = resolve(import.meta.dirname, 'post-review-gate.sh');
 const dirs: string[] = [];
@@ -464,18 +474,38 @@ describe('post-review-gate.sh', () => {
       expect(() => readFileSync(gh.calls, 'utf8')).toThrow();
     });
 
-    // U+2028 (LINE SEPARATOR) is a JS `/m` terminator too — it would defeat
-    // the shape probe the same way, even though it is not a CommonMark line
-    // ending itself (it renders inline rather than forging a visible second
-    // line). Folded into the same character-class guard since it costs
-    // nothing extra to close.
-    it('refuses an OVERRIDE_REASON containing U+2028 LINE SEPARATOR', () => {
+    // The guard's stated intent is a CLASS of character, and it has been
+    // widened twice by review: `\n` alone let a bare CR through, then
+    // CR-plus-U+2028 let U+2029 (PARAGRAPH SEPARATOR, also a JS `/m`
+    // terminator) through (fallback review of #2243, M3). The asymmetry that
+    // review found was in the TESTS, not the rule: OVERRIDE_REASON had a
+    // U+2028 case and DEFERRED_REVIEW had none (S-d). This table covers both
+    // variables against the whole class, so neither can drift again.
+    const FORGERY = 'Review gate: codex reviewed 0a2020c7a..5af9af158 \u2014 no findings';
+    const TERMINATORS: ReadonlyArray<[string, string]> = [
+      ['LF', '\n'],
+      ['CR', '\r'],
+      ['U+2028 LINE SEPARATOR', '\u2028'],
+      ['U+2029 PARAGRAPH SEPARATOR', '\u2029'],
+    ];
+    it.each(
+      TERMINATORS.flatMap(([label, ch]) =>
+        (['OVERRIDE_REASON', 'DEFERRED_REVIEW'] as const).map(
+          v => [v, label, ch] as [string, string, string]
+        )
+      )
+    )('refuses a %s containing %s', (variable, _label, ch) => {
       const gh = stubGh();
-      const withLineSep = `Codex unavailable — usage limit`;
+      const reason = 'Codex unavailable \u2014 usage limit';
+      const base = variable === 'OVERRIDE_REASON' ? reason : 'MYK9-523';
       const r = run(
         ['42', 'owner', '0a2020c7a', '5af9af158', 'override, floor was independent', '/dev/null'],
         gh.bin,
-        { OVERRIDE_REASON: withLineSep, DEFERRED_REVIEW: 'MYK9-523' }
+        {
+          OVERRIDE_REASON: reason,
+          DEFERRED_REVIEW: 'MYK9-523',
+          [variable]: `${base}${ch}${FORGERY}`,
+        }
       );
       expect(r.code).toBe(2);
       expect(r.out).toMatch(/single line/);
@@ -557,9 +587,22 @@ describe('post-review-gate.sh', () => {
       }
     });
 
-    it('refuses an unknown reviewer token', () => {
-      expect(dryRun(['1', 'wishful', 'abc1234', 'def5678', 'no findings', '/dev/null'])).toBe(2);
-    });
+    // Exit 2 alone does NOT pin this rule: the verdict-grammar path returns 2
+    // as well, so deleting the whole `case` allowlist left this green
+    // (fallback review of #2243, S-a). `human-fallback` and `independent/codex`
+    // are both valid gate-side ReviewerTokens, so the verdict path cannot
+    // refuse them — only the allowlist can, and only by this message. This is
+    // the rule that keeps the poster from minting a `human-fallback` line.
+    it.each(['wishful', 'human-fallback', 'independent/codex', 'independent/claude'])(
+      'refuses the reviewer token %s by name, not merely with exit 2',
+      reviewer => {
+        const gh = stubGh();
+        const r = run(['1', reviewer, 'abc1234', 'def5678', 'no findings', '/dev/null'], gh.bin);
+        expect(r.code).toBe(2);
+        expect(r.out).toMatch(/reviewer must be codex, claude, adversarial, none or owner/);
+        expect(() => readFileSync(gh.calls, 'utf8')).toThrow();
+      }
+    );
 
     it('refuses the owner tier without a deferred re-review', () => {
       expect(
@@ -683,6 +726,66 @@ describe('post-review-gate.sh', () => {
       expect(r.out).toContain('Review gate:');
     });
 
+    // The `grep -qi '^Review gate:'` guard above splits on LF, so it CANNOT
+    // see a terminator smuggled INSIDE an entry. A raw CR published a second,
+    // human-visible forged evidence line at exit 0 — the owner tier's finding
+    // reproduced verbatim on the tier this branch adds (fallback review of
+    // #2243, M2). CR is a CommonMark line ending; U+2028/U+2029 are JS `/m`
+    // terminators that render inline. LF is the legitimate SEPARATOR here, so
+    // its case is the forged-line test above, not this one.
+    it.each([
+      ['CR', '\r'],
+      ['U+2028 LINE SEPARATOR', '\u2028'],
+      ['U+2029 PARAGRAPH SEPARATOR', '\u2029'],
+    ])('refuses a lens name containing %s', (_label, ch) => {
+      const gh = stubGh();
+      const forgery = 'Review gate: codex reviewed abc1234..def5678 \u2014 no findings';
+      const r = run(['42', 'adversarial', 'abc1234', 'def5678', VERDICT, logFile(CLEAN)], gh.bin, {
+        REVIEW_LENSES: `correctness\nsecurity${ch}${forgery}`,
+      });
+      expect(r.code).toBe(2);
+      expect(r.out).toMatch(/line-terminator character/);
+      expect(() => readFileSync(gh.calls, 'utf8')).toThrow();
+    });
+
+    // The verdict's <N> was a number the caller typed, bound to nothing: "9
+    // lenses, all findings addressed" over a two-lens body posted, and went
+    // green at the gate (fallback review of #2243, M5). Both directions —
+    // an understated count is still a record of a different review.
+    it.each([
+      ['9 lenses, all findings addressed', 'correctness\nsecurity', 9, 2],
+      ['3 lenses, all findings addressed', 'correctness\nsecurity', 3, 2],
+      ['2 lenses, all findings addressed', 'a\nb\nc', 2, 3],
+    ])('refuses %j when REVIEW_LENSES names a different count', (verdict, lenses, claim, named) => {
+      const gh = stubGh();
+      const r = run(['42', 'adversarial', 'abc1234', 'def5678', verdict, logFile(CLEAN)], gh.bin, {
+        REVIEW_LENSES: lenses,
+      });
+      expect(r.code).toBe(2);
+      expect(r.out).toContain(`claims ${claim} lenses but REVIEW_LENSES names ${named} distinct`);
+      expect(() => readFileSync(gh.calls, 'utf8')).toThrow();
+    });
+
+    // The count is over DISTINCT names, so a repeated lens cannot pad a claim
+    // — and a claim that matches the distinct count is honest even when the
+    // caller listed a duplicate. Both the poster and the gate dedupe first.
+    it('accepts a claim that matches the DISTINCT count, duplicates and all', () => {
+      const gh = stubGh();
+      const r = run(
+        [
+          '42',
+          'adversarial',
+          'abc1234',
+          'def5678',
+          '2 lenses, all findings addressed',
+          logFile(CLEAN),
+        ],
+        gh.bin,
+        { REVIEW_LENSES: 'correctness\ncorrectness\nsecurity' }
+      );
+      expect(r.code).toBe(0);
+    });
+
     it('posts one "Adversarial subagent review:" body line per lens', () => {
       const gh = stubGh();
       const r = run(['42', 'adversarial', 'abc1234', 'def5678', VERDICT, logFile(CLEAN)], gh.bin, {
@@ -800,5 +903,96 @@ describe('post-review-gate.sh', () => {
       expect(r.out).toContain('[P*] bullets');
       expect(() => readFileSync(gh.calls, 'utf8')).toThrow();
     });
+  });
+});
+
+/**
+ * S-c of the fallback review of #2243: the poster published an `owner`
+ * override whose claimed floor the gate then refused — the one direction in
+ * which the poster was LOOSER than the judge, in a file whose own comments say
+ * the two sides were made to agree ("the poster and the judge disagreeing is
+ * how a confusing red gate happens"). It fails closed, so this is record
+ * hygiene, not a bypass — but the claimed floor IS the debt record.
+ */
+describe("the owner override's claimed floor is checked against the real one", () => {
+  function repoWith(files: readonly string[]): { dir: string; base: string; head: string } {
+    const dir = mkdtempSync(join(tmpdir(), 'floor-repo-'));
+    dirs.push(dir);
+    const git = (...args: string[]) =>
+      execFileSync('git', args, { cwd: dir, encoding: 'utf8' }).trim();
+    git('init', '-q', '-b', 'main');
+    git('config', 'user.email', 'test@example.com');
+    git('config', 'user.name', 'test');
+    writeFileSync(join(dir, 'README.md'), 'base\n');
+    git('add', '-A');
+    git('commit', '-qm', 'base');
+    const base = git('rev-parse', 'HEAD');
+    for (const file of files) {
+      const full = join(dir, file);
+      execFileSync('mkdir', ['-p', resolve(full, '..')]);
+      writeFileSync(full, 'x\n');
+    }
+    git('add', '-A');
+    git('commit', '-qm', 'change');
+    return { dir, base, head: git('rev-parse', 'HEAD') };
+  }
+  const ENV = {
+    OVERRIDE_REASON: 'Codex unavailable \u2014 usage limit',
+    DEFERRED_REVIEW: 'MYK9-523',
+  };
+
+  it('refuses "floor was adversarial" on a guardrail diff (real floor: independent)', () => {
+    const gh = stubGh();
+    const repo = repoWith(['scripts/qa/review-gate.ts']);
+    const r = run(
+      ['42', 'owner', repo.base, repo.head, 'override, floor was adversarial', '/dev/null'],
+      gh.bin,
+      ENV,
+      repo.dir
+    );
+    expect(r.code).toBe(2);
+    expect(r.out).toContain('claims floor was adversarial');
+    expect(r.out).toContain('real floor');
+    expect(() => readFileSync(gh.calls, 'utf8')).toThrow();
+  });
+
+  it('refuses "floor was independent" on a migration diff (real floor: adversarial)', () => {
+    const gh = stubGh();
+    const repo = repoWith(['supabase/migrations/20260914174500_x.sql']);
+    const r = run(
+      ['42', 'owner', repo.base, repo.head, 'override, floor was independent', '/dev/null'],
+      gh.bin,
+      ENV,
+      repo.dir
+    );
+    expect(r.code).toBe(2);
+    expect(r.out).toContain('claims floor was independent');
+    expect(() => readFileSync(gh.calls, 'utf8')).toThrow();
+  });
+
+  it('accepts the claim that matches the real floor', () => {
+    const gh = stubGh();
+    const repo = repoWith(['scripts/qa/review-gate.ts']);
+    const r = run(
+      ['42', 'owner', repo.base, repo.head, 'override, floor was independent', '/dev/null'],
+      gh.bin,
+      ENV,
+      repo.dir
+    );
+    expect(r.code).toBe(0);
+    expect(readFileSync(gh.calls, 'utf8')).toContain('override, floor was independent');
+  });
+
+  it('does not fire when the SHAs are not resolvable locally', () => {
+    // Same fail-open-to-the-gate shape as the migration-lens check: a shallow
+    // clone or a fixture must not block a legitimate post, because the gate
+    // re-checks the claim against the PR's real file list either way.
+    const gh = stubGh();
+    const r = run(
+      ['42', 'owner', 'abc1234', 'def5678', 'override, floor was adversarial', '/dev/null'],
+      gh.bin,
+      ENV
+    );
+    expect(r.code).toBe(0);
   });
 });

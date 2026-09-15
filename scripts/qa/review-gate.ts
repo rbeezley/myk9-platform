@@ -196,13 +196,20 @@ const TIER_BY_REVIEWER = {
 } satisfies Record<ReviewerToken, Tier>;
 
 /**
- * LEGACY: `human-fallback` maps to tier `owner` and, unlike the bare `owner`
- * override, is floor-exempt with NO `Deferred re-review:` line — it is the one
- * accepted route that defers scrutiny without recording the debt anywhere.
+ * LEGACY: `human-fallback` maps to tier `owner`. It no longer carries a floor
+ * EXEMPTION (fallback review of #2243, M4 — flagged independently by three
+ * reviewers): being floor-exempt on any path, with no deferred-issue line and
+ * no claimed-floor check, made every constraint the `owner` override adds
+ * elective — you simply typed the older token instead. It is now subject to
+ * the floor like any other tier-`owner` evidence, WITHOUT the override's
+ * `Deferred re-review:` requirement, so the in-flight PRs that legitimately
+ * use it on low-floor (docs) diffs stay green while the token can no longer
+ * clear a guardrail path. Measured before the change: PR #2241, the only live
+ * user, changes one docs file, so its floor is `none` and `meetsFloor('owner',
+ * 'none')` is true — pinned by a regression test carrying its verbatim body.
  * Nothing instructs its use any more (the skills and PLAYBOOK route an
- * unavailable harness to the `owner` override, which does record the debt);
- * it is kept only so gates already posted with it stay green, and is to be
- * removed once the in-flight PRs using it have drained.
+ * unavailable harness to the `owner` override, which records the debt); it is
+ * kept only so gates already posted with it stay green.
  */
 /** Legacy reviewer tokens predate tiers and all mean a cross-harness review. */
 export function tierForReviewer(reviewer: ReviewerToken): Tier {
@@ -269,9 +276,8 @@ export const HUMAN_FALLBACK_VERDICT =
 // Claude-authored direction inexpressible, so the honest attestation was
 // rejected and the only green one was literally false (#2228).
 const FALLBACK_REASON = /^Fallback reason: (Claude|Codex) unavailable\s*[-—:]\s*.+$/im;
-const SUBAGENT_REVIEW = /^Adversarial subagent review: .+$/gim;
 /**
- * The same line form as `SUBAGENT_REVIEW`, capturing the lens NAME. The
+ * The lens line form, capturing the lens NAME. The
  * `adversarial` tier reuses human-fallback's line grammar deliberately: one
  * shape for "a named subagent lens looked at this", so the migration rule
  * ("one lens must be migration-auditor") becomes a thing the gate can CHECK
@@ -291,7 +297,19 @@ const PASSING_CHECKS = /^Required checks: passing$/im;
  * scrutiny rather than skipping it, so `DEFERRED_REVIEW` names a tracked
  * issue; without one there is no debt record and the override is refused.
  */
-const OVERRIDE_REASON = /^Override reason: .+ unavailable\s*[-—:]\s*.+$/im;
+/**
+ * Two accepted shapes, because there are two honest reasons to defer:
+ *  - `<harness> unavailable — <detail>`: the reviewer cannot be reached.
+ *  - `convergence stop — <detail>`: the reviewer IS reachable, and CLAUDE.md's
+ *    convergence rule says to stop the round anyway (the second finding on one
+ *    path, or findings describing code the previous fix introduced). Before
+ *    this, the ONLY green phrasing asserted unavailability, so recording a
+ *    convergence stop required writing something false — the exact shape this
+ *    whole feature exists to remove (fallback review of #2243, S-e). The
+ *    deferred-issue line is still required: a convergence stop is deferred
+ *    scrutiny plus a restructure proposal, never a waiver.
+ */
+const OVERRIDE_REASON = /^Override reason: (?:.+ unavailable|convergence stop)\s*[-—:]\s*.+$/im;
 // [A-Z][A-Z0-9]*, not [A-Z]+: this repo's own issue prefix is MYK9-<n> — a
 // digit inside the prefix — and a brief-literal `[A-Z]+-\d+` cannot match it
 // (verified against MYK9-523 during implementation: it does not match). No
@@ -358,7 +376,11 @@ export function humanFallbackAccepted(evidence: GateEvidence): boolean {
   if (!HUMAN_FALLBACK_VERDICT.test(evidence.verdict.trim())) return false;
   if (!FALLBACK_REASON.test(evidence.body)) return false;
   if (!PASSING_CHECKS.test(evidence.body)) return false;
-  return [...evidence.body.matchAll(SUBAGENT_REVIEW)].length >= 2;
+  // Distinct names, exactly as the `adversarial` tier counts them: the claim
+  // is "2 adversarial subagent reviews", and the same lens listed twice is one
+  // lens. Left undeduped, the MORE privileged legacy path counted a repeat as
+  // two while the floor-bound tier refused it (fallback review of #2243, D2).
+  return new Set(adversarialLensNames(evidence.body)).size >= ADVERSARIAL_MIN_LENSES;
 }
 
 /** The lens names an `adversarial` evidence comment attests to, in order. */
@@ -368,6 +390,13 @@ export function adversarialLensNames(body: string): string[] {
 
 /** Minimum lenses an `adversarial` verdict's BODY must actually name. */
 export const ADVERSARIAL_MIN_LENSES = 2;
+
+/**
+ * The `<N>` of an adversarial verdict, for binding it to the lenses the body
+ * names. Same count alternation as `VERDICT_BY_TIER.adversarial` (no `0`, `1`
+ * or zero-padded form) so this can never accept a shape that grammar rejects.
+ */
+const ADVERSARIAL_COUNT = /^(?:([2-9]|[1-9]\d+)) (?:lens|lenses), all findings addressed\.?$/i;
 
 /**
  * The `adversarial` tier's body contract. Before this, the tier's whole
@@ -388,6 +417,15 @@ export function adversarialBodyProblem(
   const lenses = [...new Set(adversarialLensNames(evidence.body))];
   if (lenses.length < ADVERSARIAL_MIN_LENSES) {
     return `must name ${ADVERSARIAL_MIN_LENSES} distinct lenses as "Adversarial subagent review: <name>" body lines (found ${lenses.length})`;
+  }
+  // The verdict's `<N>` was free text: `9 lenses, all findings addressed` over
+  // a body naming two went green (fallback review of #2243, M5). A digit the
+  // poster types is a CLAIM; the named lines are the record. Bind them, in
+  // both directions — an understated count is still a record that does not
+  // match what happened.
+  const claimed = Number(ADVERSARIAL_COUNT.exec(evidence.verdict.trim())?.[1] ?? NaN);
+  if (claimed !== lenses.length) {
+    return `claims ${Number.isNaN(claimed) ? 'an unreadable number of' : claimed} lenses but names ${lenses.length} distinct (${lenses.join(', ')})`;
   }
   if (touchesMigration(changedFiles) && !lenses.includes(MIGRATION_LENS)) {
     return `touches a migration, so one lens must be ${MIGRATION_LENS} (named: ${lenses.join(', ')})`;
@@ -491,9 +529,13 @@ export function evaluateReviewGate(input: EvaluateReviewGateInput): GateResult {
         : `${latest.reviewer} review of ${short} is not clean: ${latest.verdict}`;
     return { state: 'failure', description: why, evidence: latest };
   }
-  // Only a CONFIRMED human-fallback attestation OR a CONFIRMED override
-  // (association, full contract — both already verified by `accepted` above)
-  // is exempt from the floor. Originally this exempted the whole `owner`
+  // Only a CONFIRMED override (association, full contract — already verified
+  // by `accepted` above) is exempt from the floor. `human-fallback` was exempt
+  // too until #2243's fallback review measured the cost: floor-exempt on any
+  // path, with no deferred-issue line and no claimed-floor check, it made
+  // every constraint the `owner` override adds elective. It now meets the
+  // floor at its own tier (`owner`) like anything else. Originally this
+  // exempted the whole `owner`
   // TIER unconditionally, which let a COLLABORATOR bypass the floor on any
   // guardrail path by posting a bare `owner reviewed … — no findings` line
   // (Codex review of Task 3 round 1, C1 — controller's own instruction,
@@ -513,7 +555,10 @@ export function evaluateReviewGate(input: EvaluateReviewGateInput): GateResult {
   // `owner` (see `TIER_BY_REVIEWER`). So this condition must stay keyed on
   // an ACCEPTED override (`overrideExempt`, via `overrideAccepted`), never
   // widened to a bare tier check.
-  const humanFallbackExempt = isHumanFallback && humanFallbackAccepted(latest);
+  // Only a CONFIRMED override is floor-exempt now. `human-fallback` used to be
+  // too; see the LEGACY comment on `tierForReviewer` for why that exemption is
+  // gone (#2243 M4). Its tier is still `owner`, so it clears a `none` floor and
+  // nothing else — which is exactly what the one live PR on it needs.
   const overrideExempt = isOverride && overrideAccepted(latest);
   // Round 1 review, I-B: `accepted` above only confirmed the override's
   // OWN grammar (verdict text matches `override, floor was
@@ -541,7 +586,7 @@ export function evaluateReviewGate(input: EvaluateReviewGateInput): GateResult {
       };
     }
   }
-  if (tiersEnabled && !humanFallbackExempt && !overrideExempt) {
+  if (tiersEnabled && !overrideExempt) {
     const floor = resolveFloor(input);
     if (!meetsFloor(latest.tier, floor.tier)) {
       return {

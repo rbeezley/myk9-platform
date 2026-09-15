@@ -15,10 +15,11 @@ import {
   requiredChecksResult,
   tierForReviewer,
   TRUSTED_ASSOCIATIONS,
+  VERDICT_BY_TIER,
   verdictAccepted,
   type GateComment,
 } from './review-gate';
-import { MIGRATION_LENS, TIER_ORDER } from './review-tier';
+import { MIGRATION_LENS, requiredTier, TIER_ORDER } from './review-tier';
 
 const HEAD = '5af9af1585c4376ffbb648600ba5a22c8e009743';
 const OLD_HEAD = '4100e2f8daf6ac70a043aeb9eb9370e9cbce95f9';
@@ -93,9 +94,12 @@ describe('evaluateReviewGate', () => {
   });
 
   it('passes the documented human fallback with two adversarial reviews', () => {
+    // changedFiles is a real docs-only diff, not `[]`: an empty list pins the
+    // floor to `independent`, and since M4 the human-fallback token is no
+    // longer floor-exempt, so `[]` would test the floor, not the contract.
     const r = evaluateReviewGate({
       headSha: HEAD,
-      changedFiles: [],
+      changedFiles: ['docs/operations/scheduled-task-walks.md'],
       comments: [
         comment(
           [
@@ -127,10 +131,14 @@ describe('evaluateReviewGate', () => {
       const association = scenario === 'untrusted maintainer claim' ? 'COLLABORATOR' : 'OWNER';
       const r = evaluateReviewGate({
         headSha: HEAD,
-        changedFiles: [],
+        // A `none`-floor diff, so the refusal can only come from the fallback
+        // CONTRACT. With `[]` the floor alone would red it and this table
+        // would pass without exercising the contract at all.
+        changedFiles: ['docs/operations/scheduled-task-walks.md'],
         comments: [comment(lines.join('\n'), undefined, undefined, association)],
       });
       expect(r.state).toBe('failure');
+      expect(r.description).not.toContain('floor');
     }
   );
 
@@ -673,12 +681,14 @@ describe('floor enforcement', () => {
     expect(result.description).toContain('independent');
   });
 
-  it('exempts a CONFIRMED human fallback from the floor, even below adversarial', () => {
+  it('subjects a CONFIRMED human fallback to the floor at its own tier (M4)', () => {
     // `human-fallback` maps to tier `owner`, which sits BELOW the
-    // `adversarial` floor that application code computes. Task 4 formalises
-    // override semantics on top of this; for now a confirmed human-fallback
-    // attestation (association, two lenses, passing checks — the full
-    // contract `humanFallbackAccepted` checks) is exempt.
+    // `adversarial` floor application code computes. It USED to be exempt from
+    // the floor on any path, which made every constraint the `owner` override
+    // adds elective — you simply typed the older token instead (fallback
+    // review of #2243, M4; flagged independently by three reviewers). A
+    // complete, trusted attestation is still not enough on an adversarial
+    // path: the tier is what has to meet the floor.
     const result = evaluateReviewGate({
       headSha: HEAD,
       comments: [
@@ -694,7 +704,8 @@ describe('floor enforcement', () => {
       ],
       changedFiles: ['apps/myk9show/src/pages/Foo.tsx'],
     });
-    expect(result.state).toBe('success');
+    expect(result.state).toBe('failure');
+    expect(result.description).toContain('below the adversarial floor');
   });
 
   it('refuses a COLLABORATOR-authored bare "owner" line on a guardrail path (C1)', () => {
@@ -815,14 +826,23 @@ describe('floor enforcement', () => {
       expect(result.description).toMatch(/not clean/);
     });
 
+    // The body must now NAME as many distinct lenses as the verdict claims
+    // (M5), so each case carries its own lens list rather than the default two.
     it.each([
-      '2 lens, all findings addressed',
-      '2 lenses, all findings addressed',
-      '10 lenses, all findings addressed',
-    ])('accepts %j — (lens|lenses) both work once the count is >= 2 (M1)', verdict => {
+      ['2 lens, all findings addressed', 2],
+      ['2 lenses, all findings addressed', 2],
+      ['10 lenses, all findings addressed', 10],
+    ])('accepts %j — (lens|lenses) both work once the count is >= 2 (M1)', (verdict, n) => {
       const result = evaluateReviewGate({
         headSha: HEAD,
-        comments: [comment(adversarialBody(verdict))],
+        comments: [
+          comment(
+            adversarialBody(
+              verdict as string,
+              Array.from({ length: n as number }, (_, i) => `lens ${i}`)
+            )
+          ),
+        ],
         changedFiles: ['apps/myk9show/src/pages/Foo.tsx'],
       });
       expect(result.state).toBe('success');
@@ -1003,9 +1023,30 @@ describe('the adversarial tier must NAME its lenses (F3)', () => {
     expect(result.state).toBe('success');
   });
 
-  it('leaves the legacy human-fallback body contract unchanged', () => {
+  it('leaves the legacy human-fallback BODY contract unchanged', () => {
     // PR #2241 is live on this token; its body has no `adversarial` evidence
-    // line and must keep passing exactly as it did.
+    // line and must keep parsing exactly as it did. Only the FLOOR changed
+    // (M4), so the fixture's changedFiles moved from a migration to the
+    // docs-only diff #2241 actually carries; the body is untouched.
+    const result = evaluateReviewGate({
+      headSha: HEAD,
+      comments: [
+        comment(
+          [
+            `Review gate: human-fallback reviewed abc1234..${HEAD} — 2 adversarial subagent reviews, all findings addressed`,
+            'Fallback reason: Claude unavailable — authentication failure',
+            'Adversarial subagent review: correctness and data flow',
+            'Adversarial subagent review: security and migration safety',
+            'Required checks: passing',
+          ].join('\n')
+        ),
+      ],
+      changedFiles: ['docs/operations/scheduled-task-walks.md'],
+    });
+    expect(result.state).toBe('success');
+  });
+
+  it('refuses the same human-fallback body on the migration floor it used to clear', () => {
     const result = evaluateReviewGate({
       headSha: HEAD,
       comments: [
@@ -1021,7 +1062,8 @@ describe('the adversarial tier must NAME its lenses (F3)', () => {
       ],
       changedFiles: ['supabase/migrations/20260914174500_x.sql'],
     });
-    expect(result.state).toBe('success');
+    expect(result.state).toBe('failure');
+    expect(result.description).toContain('below the adversarial floor');
   });
 });
 
@@ -1294,13 +1336,16 @@ describe('owner override', () => {
     expect(result.state).toBe('success');
   });
 
-  it('the legacy human-fallback evidence form keeps working unchanged', () => {
+  it('the legacy human-fallback evidence form keeps working at its own floor', () => {
     // OVERRIDE_REASON is a NEW, separate contract for the bare `owner`
     // token; `FALLBACK_REASON` (the `human-fallback` token's own contract) is
     // untouched by the tier work. The fixture is the LIVE body shape on PR
     // #2241, which is green on `main` today and must stay green here — it
     // says "Codex unavailable", so a fixture saying "Claude unavailable"
-    // would not guard what this test claims to guard.
+    // would not guard what this test claims to guard. Its changedFiles are
+    // #2241's real one-file docs diff (floor `none`), not the guardrail path
+    // this fixture used to carry: M4 removed the floor exemption, so the
+    // floor is now the thing that decides, and #2241's floor is `none`.
     const result = evaluateReviewGate({
       headSha: HEAD,
       comments: [
@@ -1314,8 +1359,182 @@ describe('owner override', () => {
           ].join('\n')
         ),
       ],
-      changedFiles: ['scripts/qa/review-gate.ts'],
+      changedFiles: ['docs/operations/scheduled-task-walks.md'],
     });
     expect(result.state).toBe('success');
+  });
+});
+
+/**
+ * The fallback review of PR #2243 promoted "remove human-fallback's floor
+ * exemption" from should-fix to must-fix (M4). The blocker each previous round
+ * cited was PR #2241, which is live and green on this token — so the change
+ * was gated on measuring it rather than assuming. This block is that
+ * measurement, kept as a regression test.
+ */
+describe('human-fallback after the floor exemption was removed (M4)', () => {
+  // The VERBATIM body of the evidence comment on PR #2241 (head a0dd3e1ae,
+  // base 057d24d75), fetched from GitHub on 2026-09-14, wrapped only for
+  // line length. Its diff is one file: docs/operations/scheduled-task-walks.md.
+  const PR2241_HEAD = 'a0dd3e1ae0b6f7e4b9aca8be6355758735634630';
+  const PR2241_BODY = [
+    'Review gate: human-fallback reviewed 057d24d75..a0dd3e1ae — 2 adversarial subagent reviews, all findings addressed',
+    'Fallback reason: Codex unavailable — usage limit reached (`pnpm qa:codex-review` exited 2, GATE DID NOT RUN; limit resets 2026-09-19)',
+    'Adversarial subagent review: correctness and internal consistency (Opus, 2 rounds + final verification)',
+    'Adversarial subagent review: operational safety of unattended runs against shared staging (Opus, 2 rounds + final verification)',
+    'Required checks: passing',
+  ].join('\n');
+  const PR2241_FILES = ['docs/operations/scheduled-task-walks.md'];
+
+  it("keeps PR #2241's live evidence green — its real floor is `none`", () => {
+    expect(requiredTier(PR2241_FILES).tier).toBe('none');
+    const r = evaluateReviewGate({
+      headSha: PR2241_HEAD,
+      changedFiles: PR2241_FILES,
+      comments: [comment(PR2241_BODY)],
+    });
+    expect(r.state).toBe('success');
+    expect(r.evidence?.reviewer).toBe('human-fallback');
+  });
+
+  it('refuses the same token on a guardrail path it used to clear', () => {
+    const r = evaluateReviewGate({
+      headSha: PR2241_HEAD,
+      changedFiles: ['scripts/qa/review-gate.ts'],
+      comments: [comment(PR2241_BODY)],
+    });
+    expect(r.state).toBe('failure');
+    expect(r.description).toContain('below the independent floor');
+  });
+
+  it('counts DUPLICATE lens lines as one lens, exactly as adversarial does (D2)', () => {
+    // The floor-EXEMPT legacy path counted a repeated name as two while the
+    // floor-BOUND adversarial tier refused it — the more privileged route had
+    // the weaker rule. Both fixtures sit on the `none` floor so only the lens
+    // count can decide.
+    const body = (lenses: readonly string[]) =>
+      [
+        'Review gate: human-fallback reviewed 057d24d75..a0dd3e1ae — 2 adversarial subagent reviews, all findings addressed',
+        'Fallback reason: Codex unavailable — usage limit',
+        ...lenses.map(lens => `Adversarial subagent review: ${lens}`),
+        'Required checks: passing',
+      ].join('\n');
+    const duplicate = parseGateComments([comment(body(['same-lens', 'same-lens']))])[0]!;
+    expect(humanFallbackAccepted(duplicate)).toBe(false);
+    const distinct = parseGateComments([comment(body(['correctness', 'security']))])[0]!;
+    expect(humanFallbackAccepted(distinct)).toBe(true);
+  });
+});
+
+describe("the adversarial verdict's N is bound to the lenses actually named (M5)", () => {
+  const body = (verdict: string, lenses: readonly string[]) =>
+    [
+      `Review gate: adversarial reviewed abc1234..${HEAD} — ${verdict}`,
+      ...lenses.map(lens => `Adversarial subagent review: ${lens}`),
+    ].join('\n');
+  const APP = ['apps/myk9show/src/pages/Foo.tsx'];
+
+  it('refuses an OVERSTATED count — 9 claimed, 2 named', () => {
+    const r = evaluateReviewGate({
+      headSha: HEAD,
+      changedFiles: APP,
+      comments: [comment(body('9 lenses, all findings addressed', ['correctness', 'security']))],
+    });
+    expect(r.state).toBe('failure');
+    expect(r.description).toContain('claims 9 lenses but names 2 distinct');
+  });
+
+  it('refuses an UNDERSTATED count — 2 claimed, 3 named', () => {
+    // Both directions: the record must match what happened, not merely clear a
+    // minimum. An understated count is still a record of a different review.
+    const r = evaluateReviewGate({
+      headSha: HEAD,
+      changedFiles: APP,
+      comments: [comment(body('2 lenses, all findings addressed', ['a', 'b', 'c']))],
+    });
+    expect(r.state).toBe('failure');
+    expect(r.description).toContain('claims 2 lenses but names 3 distinct');
+  });
+
+  it('counts DISTINCT names, so a repeat cannot pad the claim', () => {
+    const r = evaluateReviewGate({
+      headSha: HEAD,
+      changedFiles: APP,
+      comments: [comment(body('3 lenses, all findings addressed', ['a', 'b', 'a']))],
+    });
+    expect(r.state).toBe('failure');
+    expect(r.description).toContain('names 2 distinct');
+  });
+
+  it('accepts a count that matches', () => {
+    const r = evaluateReviewGate({
+      headSha: HEAD,
+      changedFiles: APP,
+      comments: [comment(body('3 lenses, all findings addressed', ['a', 'b', 'c']))],
+    });
+    expect(r.state).toBe('success');
+  });
+});
+
+describe('VERDICT_BY_TIER exhaustiveness is a program, not an annotation', () => {
+  // `Readonly<Record<Tier, RegExp>>` and the `satisfies` on TIER_BY_REVIEWER
+  // are enforced by a `tsc` that never runs: scripts/qa/ belongs to no
+  // typecheck project, so `pnpm typecheck` exits 0 on a deliberate type error
+  // in this file (re-verified by the fallback review of #2243, D3/S-b).
+  // TIER_BY_REVIEWER already had a runtime test; this is its counterpart.
+  // A missing row makes verdictMatchesTier throw INSIDE the Action, so no
+  // status is posted at all — the checker crashing instead of returning a red
+  // verdict is the exact failure mode review-gate.ts's header forbids.
+  it.each(TIER_ORDER)('has a verdict grammar for tier %s', tier => {
+    expect(VERDICT_BY_TIER[tier]).toBeInstanceOf(RegExp);
+  });
+
+  it('has no rows beyond the declared tiers', () => {
+    expect(Object.keys(VERDICT_BY_TIER).sort()).toEqual([...TIER_ORDER].sort());
+  });
+});
+
+describe('an override can record a convergence stop honestly (S-e)', () => {
+  // Security lens S5: OVERRIDE_REASON required the literal word "unavailable",
+  // so the one state where the reviewer IS reachable and the round must stop
+  // anyway (CLAUDE.md's convergence rule) had no green wording — recording it
+  // meant writing something false, the exact shape this feature exists to
+  // remove. The deferred-issue line is still required: a convergence stop
+  // defers scrutiny and owes a restructure, it does not waive anything.
+  const evidence = (reason: string, deferred = 'Deferred re-review: MYK9-523') =>
+    parseGateComments([
+      comment(
+        [
+          `Review gate: owner reviewed abc1234..${HEAD} — override, floor was independent`,
+          `Override reason: ${reason}`,
+          deferred,
+        ].join('\n')
+      ),
+    ])[0]!;
+
+  it('accepts a convergence stop with a concrete detail', () => {
+    expect(
+      overrideAccepted(
+        evidence(
+          'convergence stop — 2nd finding on scripts/qa/review-gate.ts; restructure proposed'
+        )
+      )
+    ).toBe(true);
+  });
+
+  it('still accepts the unavailable-harness form', () => {
+    expect(overrideAccepted(evidence('Codex unavailable — usage limit until Sep 19'))).toBe(true);
+  });
+
+  it('still requires a detail after the dash', () => {
+    expect(overrideAccepted(evidence('convergence stop'))).toBe(false);
+  });
+
+  it('still requires the deferred issue', () => {
+    expect(overrideAccepted(evidence('convergence stop — rounds 1-7 on one path', ''))).toBe(false);
+  });
+
+  it('refuses a reason that is neither form', () => {
+    expect(overrideAccepted(evidence('I was busy — will review later'))).toBe(false);
   });
 });

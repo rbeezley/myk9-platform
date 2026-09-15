@@ -22,6 +22,7 @@ import type { EntryManagementEntry } from '@/types/entry-management-types';
 import { EntryStatus as SecretaryEntryStatus } from '@/types/show-registration-types';
 import { mapStatusToDb } from '@/utils/entryManagementUtils';
 import { supabase, logQuery, createDatabaseError } from '../supabaseClient';
+import { replicatedEntriesTable } from '@/services/replication/ReplicatedEntriesTable';
 import { updateEntryStatus } from './secretary';
 import type { SecretaryStatusEntrySeed } from './secretary';
 import { AUTHENTICATED_ENTRY_READ_COLUMNS } from './entrySelects';
@@ -150,6 +151,49 @@ export const pullEntry = async (entryId: string, reason?: string) => {
     reason,
   });
   return result;
+};
+
+/**
+ * Exhibitor (or manager) self-withdrawal — MYK9-535.
+ *
+ * Routes through the `withdraw_own_entry` SECURITY DEFINER RPC because the
+ * `entries_update` RLS policy admits only `can_manage_show(show_id)`; an
+ * exhibitor's direct UPDATE matches 0 rows and the replication MutationManager
+ * reports it as failureKind "authorization". The RPC restates every filter the
+ * policy would have applied (see the migration) and additionally refuses a paid
+ * entry, which must go through the refund path instead.
+ */
+export const withdrawOwnEntry = async (entryId: string, reason?: string) => {
+  const startTime = Date.now();
+
+  try {
+    const mutationId = await replicatedEntriesTable.withdrawOwnEntry(entryId, reason);
+    const entry = await replicatedEntriesTable.getEntryById(entryId);
+
+    logQuery('entries', 'withdraw_own_entry', Date.now() - startTime);
+
+    await logEntryStatusChange({
+      entryId,
+      fromStatus: null,
+      toStatus: 'withdrawn',
+      action: 'withdraw_own_entry',
+      reason,
+    });
+
+    return {
+      data: {
+        id: entryId,
+        show_id: entry?.showId ?? null,
+        class_id: entry?.classId ?? null,
+        mutationId,
+      },
+      error: null,
+    };
+  } catch (error) {
+    const dbError = createDatabaseError(error, 'entries', 'withdraw_own_entry');
+    logQuery('entries', 'withdraw_own_entry', Date.now() - startTime, dbError.message);
+    return { data: null, error: dbError };
+  }
 };
 
 export const waitlistEntry = async (entryId: string) => {

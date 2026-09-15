@@ -32,6 +32,20 @@ import { buildRingsideRpcFields, RINGSIDE_RPC_FUNCTION } from './ringsideEntryRp
 export { rowToEntry };
 export type { ReplicatedEntry };
 
+/**
+ * MYK9-535: SECURITY DEFINER RPC that lets the person who owns an entry (dog
+ * owner / co-owner / listed handler) withdraw it themselves.
+ *
+ * The `entries_update` RLS policy admits only `can_manage_show(show_id)`, so an
+ * exhibitor's direct UPDATE matches 0 rows and the MutationManager reports
+ * failureKind "authorization". Unlike the ringside RPC this is NOT auto-routed
+ * by column delta — `entry_status` is also written by secretary lifecycle
+ * changes, which must stay on the direct path. Routing is per call site, and
+ * the function admits show managers too so the secretary use of
+ * `EntryEditDialog` keeps working unchanged.
+ */
+export const WITHDRAW_OWN_ENTRY_RPC = 'withdraw_own_entry';
+
 export class ReplicatedEntriesTable extends ReplicatedTable<ReplicatedEntry> {
   /** Most recent mutation ID from a create/update operation */
   private _lastMutationId: string | null = null;
@@ -436,6 +450,42 @@ export class ReplicatedEntriesTable extends ReplicatedTable<ReplicatedEntry> {
     const mutationId = await this.queueMutation('UPDATE', entryId, payload);
     this._lastMutationId = mutationId;
     logger.log(`[${this.getTableName()}] Updated entry ${entryId} secretary lifecycle status`);
+    return mutationId;
+  }
+
+  /**
+   * Withdraw an entry the caller owns (or manages) — MYK9-535.
+   *
+   * Queues through the same MutationManager RPC seam the ringside writes use,
+   * so the withdrawal is still durable/offline-queued; only the server-side
+   * apply differs (`withdraw_own_entry` instead of a direct UPDATE).
+   */
+  async withdrawOwnEntry(entryId: string, reason?: string): Promise<string | null> {
+    const entry = (await this.get(entryId)) ?? ({ id: entryId } as ReplicatedEntry);
+    const updated: ReplicatedEntry = {
+      ...entry,
+      entryStatus: 'withdrawn',
+      entry_status: 'withdrawn',
+      status: 'withdrawn',
+      ...(reason !== undefined ? { withdrawalReason: reason, withdrawal_reason: reason } : {}),
+      _lastModified: new Date(),
+      _syncStatus: 'pending',
+    };
+
+    await this.set(entryId, updated, true);
+
+    const fields: Record<string, unknown> = { entry_status: 'withdrawn' };
+    if (reason !== undefined) fields.withdrawal_reason = reason;
+
+    const mutationId = await this.queueMutation(
+      'UPDATE',
+      entryId,
+      { id: entryId, entry_status: 'withdrawn', updated_at: new Date().toISOString() },
+      undefined,
+      { name: WITHDRAW_OWN_ENTRY_RPC, fields }
+    );
+    this._lastMutationId = mutationId;
+    logger.log(`[${this.getTableName()}] Withdrew entry ${entryId} via ${WITHDRAW_OWN_ENTRY_RPC}`);
     return mutationId;
   }
 

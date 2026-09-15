@@ -8,7 +8,7 @@ import { supabase, logQuery, createDatabaseError } from '../supabaseClient';
 import { logger } from '@/services/LoggingService';
 import type { DbEntryInsert, DbEntryUpdate } from '../../../types/database-mappings';
 import type { EntryStatus } from '@/types/entry-lifecycle';
-import { rejectEntry, setEntryLifecycleStatus } from './lifecycle';
+import { setEntryLifecycleStatus, withdrawOwnEntry } from './lifecycle';
 import {
   AUTHENTICATED_ENTRY_READ_COLUMNS,
   ENTRY_WITH_STANDARD_RELATIONS_SELECT,
@@ -250,10 +250,11 @@ export const updateEntryHandler = async (params: {
 };
 
 // Withdraw an entry — routes through the lifecycle seam so the transition is
-// audit-logged. The lifecycle `rejectEntry` transition writes
-// `entry_status='withdrawn'` (preserving prior behavior of this function).
-export const withdrawEntry = async (entryId: string) => {
-  return rejectEntry(entryId);
+// audit-logged. MYK9-535: the write goes through the `withdraw_own_entry`
+// SECURITY DEFINER RPC, because `entries_update` RLS admits only show managers
+// and an exhibitor's direct UPDATE fails with failureKind "authorization".
+export const withdrawEntry = async (entryId: string, reason?: string) => {
+  return withdrawOwnEntry(entryId, reason);
 };
 
 // Comp an entry (mark as comped with reason, set payment_status to waived)

@@ -163,6 +163,9 @@ describe('seed-demo self-cleaning relationship deletes (MYK9-490 follow-up)', ()
       's.stripe_payment_intent_id IS NOT NULL',
       's.payment_reference IS NOT NULL',
       's.refunded_at IS NOT NULL',
+      // A decided refund may be recorded without refunded_at being set.
+      's.refund_amount IS NOT NULL',
+      's.refund_decided_at IS NOT NULL',
       // Check and cash payments a secretary records have no Stripe trail by
       // design. Without these three the guard reads a recorded $30 check as a
       // worthless artifact and deletes it with a warning — which is how it

@@ -260,6 +260,7 @@ BEGIN
   ),
   stray AS (
     SELECT e.id, e.stripe_payment_intent_id, e.payment_reference, e.refunded_at,
+           e.refund_amount, e.refund_decided_at,
            e.payment_method, e.payment_received_on, e.payment_notes, e.entry_fee
     FROM public.entries e
     WHERE e.payment_status IN ('paid', 'refunded')
@@ -279,6 +280,8 @@ BEGIN
     WHERE s.stripe_payment_intent_id IS NOT NULL
        OR s.payment_reference IS NOT NULL
        OR s.refunded_at IS NOT NULL
+       OR s.refund_amount IS NOT NULL
+       OR s.refund_decided_at IS NOT NULL
        -- A check or cash payment a secretary recorded has no Stripe trail BY
        -- DESIGN. Keying corroboration on Stripe-shaped evidence alone made a
        -- recorded $30 check read as an artifact, which is how this guard came

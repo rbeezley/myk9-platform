@@ -1,5 +1,6 @@
 import React, { useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useEntryDogLink } from '@/features/registration/entryDogContext';
 import { type ColumnDef } from '@tanstack/react-table';
 import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -189,6 +190,7 @@ export const ShowsTableView: React.FC<ShowsTableViewProps> = ({
   onToggleAll,
 }) => {
   const navigate = useNavigate();
+  const entryDogLink = useEntryDogLink();
   const hasSelection = Boolean(onToggleSelect && shows.some(canManageShow));
 
   const columns = useMemo<ColumnDef<EnhancedShow, unknown>[]>(() => {
@@ -233,7 +235,7 @@ export const ShowsTableView: React.FC<ShowsTableViewProps> = ({
         // Page-level ListControls owns search; table keeps only its Columns control.
         showSearch={false}
         getRowId={show => show.id}
-        onRowClick={show => navigate(`/shows/${show.id}`)}
+        onRowClick={show => navigate(entryDogLink(`/shows/${show.id}`))}
       />
     </div>
   );

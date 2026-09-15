@@ -10,6 +10,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../../ui/dialo
 import { Calendar as CalendarIcon, MapPin, Users, Trophy } from 'lucide-react';
 import { useShowStore } from '../../../store/showStore';
 import { useNavigate } from 'react-router-dom';
+import { useEntryDogLink } from '@/features/registration/entryDogContext';
 import type { Show } from '../../../types/show-types';
 import { motion } from 'framer-motion';
 import 'react-big-calendar/lib/css/react-big-calendar.css';
@@ -49,6 +50,7 @@ function ShowCalendarComponent({
   const { shows: storeShows } = useShowStore();
   const shows = propShows || storeShows;
   const navigate = useNavigate();
+  const entryDogLink = useEntryDogLink();
   const [selectedEvent, setSelectedEvent] = useState<CalendarEvent | null>(null);
   const [view, setView] = useState<ViewName>('month');
   const [date, setDate] = useState(new Date());
@@ -276,7 +278,7 @@ function ShowCalendarComponent({
                     size="sm"
                     onClick={() => {
                       startTransition(() => {
-                        navigate(`/shows/${selectedEvent.resource.id}`);
+                        navigate(entryDogLink(`/shows/${selectedEvent.resource.id}`));
                       });
                       setSelectedEvent(null);
                     }}

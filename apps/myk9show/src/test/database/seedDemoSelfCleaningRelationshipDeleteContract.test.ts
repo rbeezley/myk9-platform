@@ -92,6 +92,32 @@ describe('seed-demo self-cleaning relationship deletes (MYK9-490 follow-up)', ()
     );
   });
 
+  it('also refuses a paid stray reached only by class, which has no registration_id to follow', () => {
+    // The registration_id checks cannot see a mail-in / non-wizard entry, and
+    // entries.class_id CASCADES, so the class deletes would destroy it silently.
+    // Proven against staging 2026-09-15 in a rolled-back transaction: with one
+    // planted paid entry (registration_id NULL) this guard raises, while the
+    // pre-fix guard on main does not.
+    const relationshipDelete = seed.indexOf(
+      `DELETE FROM public.entries\nWHERE registration_id = '${ENROLLMENT_ID}'`
+    );
+    const guardBlockStart = seed.lastIndexOf('DO $$', relationshipDelete);
+    const guardBlock = seed.slice(guardBlockStart, relationshipDelete);
+
+    expect(
+      guardBlock,
+      'no show-scoped paid-stray check precedes the relationship delete'
+    ).toContain('JOIN public.trials t ON t.id = c.trial_id');
+    expect(guardBlock).toContain("e.payment_status IN ('paid', 'refunded')");
+    // Scoped by SHOW, so it covers every class the seed deletes rather than a
+    // list that has to be kept in step with the class deletes below.
+    expect(guardBlock).toContain("t.show_id IN ('dededede-0000-0000-0000-000000000010'");
+    expect(guardBlock).toContain("'dededede-0000-0000-0000-000000000011'");
+    expect(guardBlock).toContain("'dededede-0000-0000-0000-000000000012'");
+    expect(guardBlock).toContain("t.show_id >= 'a1090000-0000-0000-0010-000000000000'");
+    expect(guardBlock).toMatch(/RAISE EXCEPTION[^;]*remain on classes this reseed deletes/);
+  });
+
   it("runs the hard-coded entries delete before the guard, so the seed's own paid rows never trip it", () => {
     // Entries ...051/052/055/056 are seeded paid under the enrollment. The guard
     // must see only strays, which means the id-list delete has to come first;

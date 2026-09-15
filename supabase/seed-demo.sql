@@ -285,7 +285,7 @@ DELETE FROM public.entries WHERE id IN (
 -- Stripe order; an operator then deletes it deliberately. Unpaid wizard strays
 -- (the 2026-09-12 case) are still cleared without ceremony.
 DO $$
-DECLARE v_paid integer; v_orders integer;
+DECLARE v_paid integer; v_orders integer; v_class_paid integer;
 BEGIN
   -- Money that moved in either direction: 'paid' and 'refunded' both carry an
   -- audit trail in entry_status_history that the cascade would erase.
@@ -310,6 +310,29 @@ BEGIN
          AND en.handler_id = (SELECT id FROM public.people WHERE lower(email)='exhibitor@myk9t.com'));
   IF v_orders > 0 THEN
     RAISE EXCEPTION 'seed-demo: % Stripe order(s) point at the demo exhibitor''s enrollment on show ...010 — refusing to orphan them; remove them deliberately, then rerun', v_orders;
+  END IF;
+  -- The two checks above both reach entries through registration_id. A mail-in or
+  -- non-wizard entry has registration_id NULL, so neither sees it — and
+  -- entries.class_id CASCADES, so the class deletes below would destroy it
+  -- silently along with its entry_status_history. Scope this one by SHOW instead.
+  -- Every entry the seed itself put on these shows is already gone by this point:
+  -- the myk9_109 id range at the top of this section, and the hard-coded id list
+  -- above. So anything still standing here was created by something else, and the
+  -- deletion order rather than an id list is what tells them apart — no list to
+  -- keep in sync. Verified against staging 2026-09-15: 513 paid/refunded rows on
+  -- these shows before those two deletes, 0 after, so this cannot self-trip.
+  SELECT count(*) INTO v_class_paid
+  FROM public.entries e
+  JOIN public.classes c ON c.id = e.class_id
+  JOIN public.trials t ON t.id = c.trial_id
+  WHERE (t.show_id IN ('dededede-0000-0000-0000-000000000010',
+                       'dededede-0000-0000-0000-000000000011',
+                       'dededede-0000-0000-0000-000000000012')
+         OR (t.show_id >= 'a1090000-0000-0000-0010-000000000000'::uuid
+             AND t.show_id <  'a1090000-0000-0000-0011-000000000000'::uuid))
+    AND e.payment_status IN ('paid', 'refunded');
+  IF v_class_paid > 0 THEN
+    RAISE EXCEPTION 'seed-demo: % paid or refunded entr(ies) remain on classes this reseed deletes — refusing to cascade them away; remove them deliberately, then rerun', v_class_paid;
   END IF;
 END $$;
 DELETE FROM public.entries

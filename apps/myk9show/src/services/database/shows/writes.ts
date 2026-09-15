@@ -127,11 +127,56 @@ export const deleteShow = async (id: string, deletedBy?: string) => {
   }
 };
 
+// MYK9-527: the code the ledger guard below stamps on its refusal. The Data
+// Lifecycle tab keys on it to render the guard's own message instead of its
+// generic "please try again", because retrying is exactly the wrong advice —
+// the delete is refused until the orders are resolved, not failing transiently.
+export const SHOW_HAS_STRIPE_ORDERS = 'SHOW_HAS_STRIPE_ORDERS';
+
+export const showHasStripeOrdersMessage = (count: number) =>
+  `This show has ${count} Stripe order${count === 1 ? '' : 's'}; refunds and reconciliation still reference them. Resolve or reassign those orders before deleting the show permanently.`;
+
 // Hard delete show (permanent removal)
 export const hardDeleteShow = async (id: string) => {
   const startTime = Date.now();
 
   try {
+    // MYK9-527: stripe_orders.show_id and .enrollment_id are ON DELETE RESTRICT
+    // (migration 20260915191700), so a show carrying orders — directly or via
+    // one of its enrollments — now fails with a raw 23503 instead of silently
+    // nulling the ledger's scope columns. Check first so the admin sees what is
+    // actually wrong. Counted with an explicit column, never `*`: a count over
+    // `*` on a column-allowlisted table returns a bodyless 403.
+    const { data: enrollmentRows, error: enrollmentError } = await supabase
+      .from('enrollments')
+      .select('id')
+      .eq('show_id', id);
+    if (enrollmentError) throw enrollmentError;
+
+    const enrollmentIds = (enrollmentRows ?? []).map(row => row.id);
+    // One query, so an order carrying BOTH the show_id and an enrollment_id of
+    // that show is counted once rather than twice.
+    const orFilter =
+      enrollmentIds.length > 0
+        ? `show_id.eq.${id},enrollment_id.in.(${enrollmentIds.join(',')})`
+        : `show_id.eq.${id}`;
+
+    const { count, error: countError } = await supabase
+      .from('stripe_orders')
+      .select('id', { count: 'exact', head: true })
+      .or(orFilter);
+    if (countError) throw countError;
+
+    const orderCount = count ?? 0;
+
+    if (orderCount > 0) {
+      const guardError = new Error(showHasStripeOrdersMessage(orderCount)) as Error & {
+        code?: string;
+      };
+      guardError.code = SHOW_HAS_STRIPE_ORDERS;
+      throw guardError;
+    }
+
     const { data, error } = await supabase.from('shows').delete().eq('id', id).select('id, name');
 
     const duration = Date.now() - startTime;

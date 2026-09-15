@@ -26,4 +26,6 @@ export {
   hardDeleteShow,
   restoreShow,
   getDeletedShows,
+  SHOW_HAS_STRIPE_ORDERS,
+  showHasStripeOrdersMessage,
 } from './writes';

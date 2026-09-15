@@ -10,6 +10,7 @@ import {
   updateShow,
   deleteShow,
   hardDeleteShow,
+  SHOW_HAS_STRIPE_ORDERS,
   searchShows,
   getShowStatistics,
   getShowsWithEntryCounts,
@@ -475,6 +476,86 @@ describe('Show Queries', () => {
 
       expect(result.data).toBeNull();
       expect(result.error).toBeDefined();
+    });
+
+    // MYK9-527: stripe_orders.show_id / .enrollment_id are ON DELETE RESTRICT
+    // (migration 20260915191700). Without this pre-check the admin sees a raw
+    // 23503; with it, a typed refusal naming the count.
+    describe('Stripe ledger guard (MYK9-527)', () => {
+      const routeByTable = (
+        responses: Record<string, Record<string, unknown>>,
+        seen?: string[]
+      ) => {
+        mockSupabase.from.mockImplementation((table: string) => {
+          seen?.push(table);
+          return createChainableQuery(responses[table] ?? { data: [], error: null, count: null });
+        });
+      };
+
+      it('refuses the delete and names the order count when the show carries orders', async () => {
+        const tables: string[] = [];
+        routeByTable(
+          {
+            enrollments: { data: [{ id: 'enr-1' }], error: null },
+            stripe_orders: { data: null, error: null, count: 3 },
+          },
+          tables
+        );
+
+        const result = await hardDeleteShow('show-with-orders');
+
+        expect(result.data).toBeNull();
+        expect(result.error?.code).toBe(SHOW_HAS_STRIPE_ORDERS);
+        expect(result.error?.message).toBe(
+          'This show has 3 Stripe orders; refunds and reconciliation still reference them. Resolve or reassign those orders before deleting the show permanently.'
+        );
+        // The refusal must happen BEFORE the delete, not be recovered from it.
+        expect(tables).not.toContain('shows');
+      });
+
+      it('singularises the message for exactly one order', async () => {
+        routeByTable({
+          enrollments: { data: [], error: null },
+          stripe_orders: { data: null, error: null, count: 1 },
+        });
+
+        const result = await hardDeleteShow('show-with-one-order');
+
+        expect(result.error?.message).toContain('has 1 Stripe order;');
+      });
+
+      it('deletes normally when the show carries no orders', async () => {
+        const deleted = { id: 'show-clean', name: 'Clean Show' };
+        routeByTable({
+          enrollments: { data: [], error: null },
+          stripe_orders: { data: null, error: null, count: 0 },
+          shows: { data: [deleted], error: null },
+        });
+
+        const result = await hardDeleteShow('show-clean');
+
+        expect(result.error).toBeNull();
+        expect(result.data).toEqual(deleted);
+      });
+
+      it("counts orders reached through the show's enrollments, not only its show_id", async () => {
+        const filters: unknown[] = [];
+        mockSupabase.from.mockImplementation((table: string) => {
+          if (table === 'enrollments') {
+            return createChainableQuery({ data: [{ id: 'enr-1' }, { id: 'enr-2' }], error: null });
+          }
+          const query = createChainableQuery({ data: null, error: null, count: 2 });
+          filters.push(query);
+          return query;
+        });
+
+        const result = await hardDeleteShow('show-enr');
+
+        expect(result.error?.code).toBe(SHOW_HAS_STRIPE_ORDERS);
+        const orFilter = (filters[0] as Record<string, { mock: { calls: unknown[][] } }>).or.mock
+          .calls[0][0];
+        expect(orFilter).toBe('show_id.eq.show-enr,enrollment_id.in.(enr-1,enr-2)');
+      });
     });
   });
 

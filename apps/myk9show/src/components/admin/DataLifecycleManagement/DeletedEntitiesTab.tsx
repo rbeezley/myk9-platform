@@ -35,7 +35,12 @@ import { useAuthContext } from '@/hooks/useAuthContext';
 import { logger } from '@/services/LoggingService';
 import { notifications } from '@/lib/notifications';
 
-import { getDeletedShows, restoreShow, hardDeleteShow } from '@/services/database/shows';
+import {
+  getDeletedShows,
+  restoreShow,
+  hardDeleteShow,
+  SHOW_HAS_STRIPE_ORDERS,
+} from '@/services/database/shows';
 import { getDeletedTrials, restoreTrial, hardDeleteTrial } from '@/services/database/trials';
 import { getDeletedClasses, restoreClass, hardDeleteClass } from '@/services/database/classes';
 import { getDeletedEntries, restoreEntry, hardDeleteEntry } from '@/services/database/entries';
@@ -382,10 +387,17 @@ export function DeletedEntitiesTab() {
       if (config) {
         const label = ENTITY_LABEL[deleteTarget.type];
         const result = (await config.hardDelete(deleteTarget.id)) as
-          { error?: unknown } | undefined;
+          { error?: { code?: string; message?: string } | null } | undefined;
         if (result?.error) {
           logger.error('Failed to permanently delete entity', 'trash', { target: deleteTarget });
-          notifications.error(`Couldn't permanently delete ${label}. Please try again.`);
+          // MYK9-527: a refusal is not a transient failure, so do not tell the
+          // admin to try again. The ledger guard stamps a code and a message
+          // that says what to do; render that verbatim.
+          if (result.error.code === SHOW_HAS_STRIPE_ORDERS && result.error.message) {
+            notifications.error(result.error.message);
+          } else {
+            notifications.error(`Couldn't permanently delete ${label}. Please try again.`);
+          }
           return;
         }
         logger.info('Entity permanently deleted', 'trash', {

@@ -97,16 +97,15 @@ describe('seed-demo self-cleaning relationship deletes (MYK9-490 follow-up)', ()
   it('never DELETEs from stripe_orders, and reports rows a past reseed already orphaned (MYK9-527)', () => {
     // MYK9-527: 22/22 stripe_orders rows on staging were found with BOTH
     // show_id and enrollment_id already nulled by a past reseed's ON DELETE
-    // SET NULL. Deleting them is NOT the fix: stripe_order_refunds.order_id is
-    // itself ON DELETE SET NULL, so the delete orphans the refund rows one
-    // level down (all 4 on staging hang off that set), and stripe-webhook's
+    // SET NULL. Deleting them is NOT the fix: all 4 refund rows on staging hang
+    // off that set, and stripe-webhook's
     // refund path matches on payment intent — a deleted order turns a later
     // charge.refunded into the MP-12 "unmatched refund" alert with the refund
     // fact lost. The row is also unscoped by definition, so a DELETE here
     // cannot be limited to demo data. Report, never destroy.
     expect(
       seed,
-      'the seed must never DELETE from stripe_orders — the row is the only local record of a real charge, and its refund children are ON DELETE SET NULL'
+      'the seed must never DELETE from stripe_orders — the row is the only local record of a real charge, and its refund children now block the delete outright (stripe_order_refunds.order_id is ON DELETE RESTRICT, migration 20260915191700)'
     ).not.toMatch(/DELETE\s+FROM\s+public\.stripe_orders/i);
 
     const report = seed.indexOf('WHERE show_id IS NULL AND enrollment_id IS NULL;');
@@ -213,6 +212,66 @@ describe('seed-demo self-cleaning relationship deletes (MYK9-490 follow-up)', ()
           `the paid-stray guard runs after a ${parent} delete at offset ${del.index}, so those rows cascade unguarded`
         ).toBeLessThan(del.index);
       }
+    }
+  });
+
+  it('guards stripe_orders against EVERY show in scope_shows, before the first parent delete (MYK9-527)', () => {
+    // Migration 20260915191700 moves stripe_orders.show_id, .enrollment_id and
+    // stripe_order_refunds.order_id to ON DELETE RESTRICT. Once that lands, an
+    // order pointing at any show this section deletes — or at an enrollment on
+    // one of those shows, which cascades from shows — aborts the reseed with a
+    // bare 23503 deep in the delete sequence. The narrower guard further down
+    // section 0 (#2248) covers only show ...010 and the demo exhibitor's
+    // enrollment, so it could not see an order on ...011, ...012 or any
+    // a1090000... load show. This arm must be scoped from the SAME scope_shows
+    // CTE as the other two, in the SAME block, before the first parent delete.
+    const guard = seed.indexOf('v_real');
+    const block = seed.slice(guard, seed.indexOf('END $$;', guard));
+
+    expect(block, 'no stripe_orders arm in the consolidated guard').toMatch(
+      /order_stray AS \(\s*SELECT[^)]*FROM public\.stripe_orders so/
+    );
+    expect(block, 'the orders arm is not scoped from scope_shows by show_id').toContain(
+      'so.show_id IN (SELECT id FROM scope_shows)'
+    );
+    expect(
+      block,
+      'the orders arm misses the shows -> enrollments cascade route, which nulls enrollment_id'
+    ).toContain('WHERE en.show_id IN (SELECT id FROM scope_shows)');
+    expect(block, 'the orders arm does not abort').toMatch(
+      /RAISE EXCEPTION[^;]*Stripe order\(s\) point at a show this reseed deletes/
+    );
+    expect(
+      block,
+      'the abort count must come straight from order_stray, not a narrowed subset'
+    ).toContain('(SELECT count(*) FROM order_stray)');
+
+    // No warn-then-cascade for a money ledger, and no constant-false neutering.
+    expect(
+      block,
+      'an in-scope Stripe order must ABORT the reseed, never warn and cascade'
+    ).not.toMatch(/RAISE WARNING[^;]*order_stray/i);
+    expect(block, 'the orders arm was neutered with a constant-false predicate').not.toMatch(
+      /order_stray AS[\s\S]*?WHERE\s+false|order_stray AS[\s\S]*?AND\s+false/i
+    );
+
+    // Already-orphaned rows (both columns null) must NOT be matched here: they
+    // reference no parent, RESTRICT cannot fire on them, and matching them
+    // would wedge every reseed on the 22 rows already on staging. They are
+    // reported by the separate RAISE WARNING instead.
+    expect(
+      block,
+      'the orders arm matches already-orphaned rows, which would wedge every reseed'
+    ).not.toMatch(/order_stray AS[\s\S]*?show_id IS NULL/i);
+
+    // Placement: before every delete of `shows`, the cascade parent.
+    const showsDeletes = statements(/DELETE FROM public\.shows\b[^;]*;/g);
+    expect(showsDeletes.length).toBeGreaterThan(0);
+    for (const del of showsDeletes) {
+      expect(
+        guard,
+        'the stripe_orders guard runs after a shows delete it is supposed to protect'
+      ).toBeLessThan(del.index);
     }
   });
 

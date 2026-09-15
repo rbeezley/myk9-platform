@@ -44,12 +44,14 @@ const Checkbox = React.forwardRef<React.ElementRef<typeof CheckboxPrimitive.Root
         {...filteredProps}
       >
         <CheckboxPrimitive.Indicator
-          className={cn('inline-flex items-center justify-center text-current')}
+          className={cn('inline-flex h-full w-full items-center justify-center text-current')}
           keepMounted={false}
         >
-          {/* 14px, not 16px: the 1px border leaves a 14px content box, so an
-              h-4 icon overflows and gets squeezed out of square. */}
-          <Check className="h-3.5 w-3.5" />
+          {/* Sized from the root's content box, never a literal: box-sizing is
+              border-box, so a caller that shrinks the root (ClassSelectionStep
+              passes h-3.5) leaves a content box 2px smaller than the declared
+              size, and any hardcoded icon overflows it on all four sides. */}
+          <Check className="h-full w-full" />
         </CheckboxPrimitive.Indicator>
       </CheckboxPrimitive.Root>
     );

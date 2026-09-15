@@ -106,6 +106,44 @@ After fixes, invoke `/commit` to push.
 
 ---
 
+### Step 3a: Ask what tier this change needs — BEFORE the review gate
+
+```bash
+pnpm qa:review-tier --base origin/main
+```
+
+The printed `tier:` is the floor for this PR. Do NOT run a cross-harness
+review when the floor is `adversarial` or `none` — that is the whole point
+of the calculator, and a needless Codex/Claude round is the budget leaving.
+`scripts/qa/post-review-gate.sh` is the only writer of `Review gate:`
+comments for every tier — never type an evidence line by hand.
+
+- **`none`** — no review log required (`/dev/null` is fine):
+  `bash scripts/qa/post-review-gate.sh $PR_NUMBER none <base-sha> <head-sha> "low-risk paths, CI green" /dev/null`
+- **`adversarial`** — run at least 2 subagent reviews with distinct
+  bug-finding lenses (a migration path makes one lens `migration-auditor`
+  and requires `src/test/database/` green), fix every finding, save the
+  combined log, then post:
+  `REVIEW_LENSES=$'<lens one>\n<lens two>' bash scripts/qa/post-review-gate.sh $PR_NUMBER adversarial <base-sha> <head-sha> "<N> lenses, all findings addressed" <log>`
+  `<N>` must be 2 or more — the checker refuses `0`, `1`, and zero-padded counts
+  — and it must EQUAL the number of distinct lens names in `REVIEW_LENSES`,
+  refused in both directions by the poster and again by the gate.
+  `REVIEW_LENSES` (one lens NAME per line, 2 or more) is required: it becomes
+  one `Adversarial subagent review: <name>` body line per lens, and the gate
+  refuses adversarial evidence whose body names fewer than two — or, on a
+  migration diff, whose lenses do not include `migration-auditor` exactly.
+- **`independent`** — the cross-harness gate in Step 4 below, unchanged.
+- **owner override** (harness genuinely unavailable) — claim the SAME floor
+  `pnpm qa:review-tier` just printed (`override, floor was independent` or
+  `override, floor was adversarial`; a mismatched claim is refused), set
+  `OVERRIDE_REASON="<harness> unavailable — <detail>"` (or `"convergence stop —
+<detail>"` when the reviewer IS reachable and the convergence rule says to
+  stop the round; never write "unavailable" for that) and
+  `DEFERRED_REVIEW=<ISSUE-ID>` (uppercase prefix, e.g. `MYK9-523`) in the
+  environment, then run `post-review-gate.sh ... owner ...` — see
+  `docs/PLAYBOOK.md` § 4. No review log required, but a withdrawal at any
+  tier always needs a log carrying `[P*]` bullets.
+
 ### Step 4: Independent Review Gate — BEFORE merge
 
 The gate is a review by the **other** harness. A subagent of your own harness is never a substitute (see `docs/PLAYBOOK.md` § 4 — that substitution is a recorded lapse). The review must finish, and its findings must be acted on, before Step 5. A review that finishes after the merge is an audit, not a gate: on 2026-09-05 PR #2040 merged while its review was still running and both findings shipped to `main`.
@@ -165,17 +203,7 @@ Review gate: codex reviewed 0a2020c7a..5af9af158 — no findings
 
 The reviewer is `codex` or `claude` (whichever ran, i.e. the OTHER harness). The verdict is the whole remainder of the line and must be exactly `no findings` or `<N> findings, all addressed` / `<N> findings, all fixed` — `finding(s)` is **not** accepted, and neither is a parenthetical, "not all addressed", or "no findings yet"; `1 findings, all addressed` is the singular, ugly but green. `scripts/qa/review-gate.ts --verdict "<text>"` answers 0/2 for any candidate, and the poster asks it rather than carrying its own copy of the grammar. Put detail on the comment's later lines. The status is pinned to the SHA: any later push turns it red until a new line is recorded for the new head, which is the whole point. Editing or deleting the evidence comment re-evaluates it too.
 
-**If the reviewer is genuinely unavailable** (usage limit, outage, auth failure — not merely slow), use the documented `human-fallback` path: run two adversarial subagent reviews in parallel, fix every finding, wait for required checks to pass, and have a repository OWNER or MEMBER post this exact first line against the current head, followed by the detail lines shown in `docs/PLAYBOOK.md`:
-
-```text
-Review gate: human-fallback reviewed 0a2020c7a..5af9af158 — 2 adversarial subagent reviews, all findings addressed
-Fallback reason: Claude unavailable — authentication failure
-Adversarial subagent review: correctness
-Adversarial subagent review: security
-Required checks: passing
-```
-
-The fallback is explicitly labelled and second-best. Keep the PR a draft when nothing is time-pressured; when a maintainer authorizes it, mark the PR ready so the status can be evaluated, and re-run the real gate once the reviewer is available.
+**If the reviewer is genuinely unavailable** (usage limit, outage, auth failure — not merely slow), this PR's floor is `independent` (see Step 3a) — use the `owner` override documented there and in `docs/PLAYBOOK.md` § 4, not the legacy `human-fallback` grammar: claim `override, floor was independent`, set `OVERRIDE_REASON="<harness> unavailable — <detail>"` (or `"convergence stop — <detail>"` when the reviewer is reachable but the convergence rule says to stop the round — never write "unavailable" for that) and `DEFERRED_REVIEW=<ISSUE-ID>`, then run `post-review-gate.sh $PR_NUMBER owner <base-sha> <head-sha> "override, floor was independent" /dev/null`. Keep the PR a draft when nothing is time-pressured; when a maintainer authorizes the override, mark it ready so the status can be evaluated, and re-run the real gate once the reviewer is available.
 
 **Findings:** fix every critical/high (P1/P2) finding and any medium (P3) that is straightforward. Invoke `/commit`, then re-run the wrapper against the new head. **Max 5 review rounds** — escalate to the user if not clean after 5.
 

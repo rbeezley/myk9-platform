@@ -61,30 +61,99 @@ This is the canonical 8-step loop: implement → simplify → commit → PR → 
 
 Run Codex review **before** merging, not after — it's a gate, not a follow-up.
 
-**If the required harness is genuinely unavailable** (usage limit, outage, auth failure
-— not merely slow or inconvenient), use the **human-fallback** path instead of
-silently treating same-harness agents as equivalent:
+**Scrutiny scales with risk.** Run `pnpm qa:review-tier --base origin/main` to get the
+floor before spending a review round — the same floor `scripts/qa/review-gate.ts`
+refuses evidence below. Four tiers, weakest to strongest: `none` < `owner` <
+`adversarial` < `independent`. Nobody types a `Review gate:` evidence line by hand;
+`scripts/qa/post-review-gate.sh` is the only writer, for every tier it can write —
+`codex`, `claude`, `adversarial`, `none`, `owner`. It deliberately refuses the legacy
+`human-fallback` token (see below), which is the one evidence form no script mints.
 
-1. Run at least two adversarial subagent reviews in parallel, using separate lenses and
-   prompts that say to _find bugs, not approve_ ("assume the author was overconfident";
-   "report only defects with a concrete failure scenario").
-2. Fix every finding and wait for the repository's required checks to pass.
-3. A repository OWNER or MEMBER posts a first-line attestation in this exact form,
-   pinned to the current head SHA, followed by the required detail lines:
+- **`independent`** — guardrails (`.github/`, `.claude/`, `.codex/`, `.agents/`,
+  `.githooks/`, `scripts/qa/`, `playwright*.config.ts`, `CLAUDE.md`, `AGENTS.md`,
+  `docs/agents/shared-rules.md`), auth/RBAC/permissions/roles directories, money
+  (`stripe`/`payout`/`refund`/`checkout`/`payment` anywhere in the path), edge
+  functions, `packages/replication`, and any `rls*`/`grant*`/`polic*` `.sql`/`.ts`
+  file. The cross-harness gate above. `.githooks/` is listed for the LAUNCHER
+  reason as much as the content one: `pre-push` is what invokes
+  `scripts/qa/push-hold.ts` (itself `independent`), so a guard at `independent`
+  reached through a launcher that is not is perfectly reviewed and trivially
+  unreachable. When you add a guard, floor its entrypoint too.
+- **`adversarial`** — app code, tests, dependency manifests, and an unrecognised path
+  (fail safe, not fail cheap). Run at least two same-harness subagent reviews with
+  distinct bug-finding lenses — prompts that say to _find bugs, not approve_ ("assume
+  the author was overconfident"; "report only defects with a concrete failure
+  scenario") — fix every finding, and post
+  `<N> lenses, all findings addressed` with `<N>` >= 2 — and `<N>` must EQUAL the
+  number of distinct lenses the body names, in both directions; the digit is a
+  claim, the named lines are the record. A migration path requires
+  `migration-auditor` as one of the two lenses, and `src/test/database/` must be
+  green — and the lenses must be NAMED, not just counted: set
+  `REVIEW_LENSES` (one lens name per line, 2 or more) so the poster emits one
+  `Adversarial subagent review: <name>` body line per lens. The gate refuses
+  adversarial evidence naming fewer than two, and on a migration diff refuses any
+  set of lenses that does not include `migration-auditor` exactly — the rule used to
+  be prose in a reason string that nothing enforced.
+  **On #1536, two clean subagent rounds still missed a P1 that Codex caught** —
+  this tier is real evidence, not a substitute for `independent`; do not reach for it
+  just because it is cheaper.
+- **`none`** — docs only. Verdict is exactly `low-risk paths, CI green`, no log
+  required. "Docs only" is a path rule, not a subject-matter one in reverse: a docs
+  path whose NAME carries money or auth still floors higher (the money pattern has no
+  directory anchor, so `docs/archive/stripe-notes.md` floors at `independent`). When
+  a log IS supplied for `none` or `owner` it is hashed and quoted into the comment,
+  and one carrying `[P*]` bullets is refused — the record may never assert less than
+  the log shows.
+- **`owner` override** — when the required harness is genuinely unavailable (usage
+  limit, outage, auth failure — not merely slow or inconvenient), a repository OWNER
+  or MEMBER may defer scrutiny rather than silently treat same-harness agents as
+  equivalent. The override claims the SAME floor `qa:review-tier` printed for this
+  branch; a mismatched claim is refused, by the poster and by the gate. Set
+  `OVERRIDE_REASON` and `DEFERRED_REVIEW=<ISSUE-ID>` (uppercase prefix, e.g.
+  `MYK9-523`) in the environment.
 
-   ```text
-   Review gate: human-fallback reviewed <base>..<head> — 2 adversarial subagent reviews, all findings addressed
-   Fallback reason: Claude unavailable — <reason>
-   Adversarial subagent review: <lens one>
-   Adversarial subagent review: <lens two>
-   Required checks: passing
-   ```
+  `OVERRIDE_REASON` takes one of two shapes, because there are two honest reasons
+  to defer: `"<harness> unavailable - <detail>"`, or `"convergence stop - <detail>"`
+  for the case where the reviewer IS reachable and the convergence rule above says
+  to stop the round anyway. Do not write "unavailable" to describe a convergence
+  stop — a record that asserts more than what happened is the thing this whole gate
+  exists to prevent. A convergence stop still owes the `Deferred re-review:` issue
+  AND the restructure proposal.
 
-This is an explicitly labelled, second-best gate. Keep the PR a draft when nothing is
-time-pressured; when a maintainer authorizes the fallback, mark it ready so the status
-can be evaluated. Re-run the real independent gate once the harness is available and
-record that follow-up. On #1536 two clean subagent rounds still missed a P1 that Codex
-caught.
+  Then run:
+
+  ```bash
+  bash scripts/qa/post-review-gate.sh "$PR" owner <base-sha> <head-sha> \
+    "override, floor was independent" /dev/null
+  ```
+
+  which posts, pinned to the current head SHA:
+
+  ```text
+  Review gate: owner reviewed <base>..<head> — override, floor was independent
+  Override reason: <harness> unavailable — <detail>
+  Deferred re-review: MYK9-<n>
+  ```
+
+  (`override, floor was adversarial` when that is the real floor.) No review log is
+  required for a clean `owner` post — scrutiny is deferred and tracked via
+  `DEFERRED_REVIEW`, never skipped and never faked with a fabricated "no findings"
+  log. Keep the PR a draft when nothing is time-pressured; when a maintainer
+  authorizes the override, mark it ready so the status can be evaluated. Re-run the
+  real gate at the deferred floor once the harness is available and close the tracked
+  issue.
+
+- **`human-fallback` (LEGACY, do not use)** — the pre-tier token. It maps to tier
+  `owner` and is NO LONGER floor-exempt: it meets the floor like any other
+  tier-`owner` evidence, so it clears a `none` floor and nothing else. Being
+  floor-exempt on any path, with no `Deferred re-review:` line and no
+  claimed-floor check, made every constraint the `owner` override adds elective
+  — you simply typed the older token instead. It keeps its own body contract
+  (`Fallback reason:`, two DISTINCT named lenses, `Required checks: passing`)
+  and still needs no deferred issue, so the in-flight PRs using it on docs-only
+  diffs stay green. Nothing instructs its use any more — an unavailable harness
+  goes through the `owner` override above — and `post-review-gate.sh` refuses to
+  write it.
 
 ## 5. Database change
 

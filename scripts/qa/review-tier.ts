@@ -1,0 +1,135 @@
+/**
+ * Risk map for the review gate: which tier of scrutiny a change's paths
+ * require. Imported by BOTH scripts/qa/review-gate.ts (to refuse evidence
+ * below the floor) and the qa:review-tier CLI (so an agent can learn the
+ * floor BEFORE spending tokens on a review it does not need).
+ *
+ * Deliberately a short readable table, never inference over file contents:
+ * a keyword scan would make the floor depend on prose, and prose about code
+ * satisfies a text scan (LESSONS #comment-satisfies-grep).
+ */
+export type Tier = 'independent' | 'adversarial' | 'owner' | 'none';
+
+/** Weakest to strongest. `owner` outranks `none` but is below `adversarial`. */
+export const TIER_ORDER: readonly Tier[] = ['none', 'owner', 'adversarial', 'independent'];
+
+export const MIGRATION_LENS = 'migration-auditor';
+
+/**
+ * Guardrails: a change here can disable what catches the next defect.
+ *
+ * `.githooks/` is here for the LAUNCHER reason, not only the content reason:
+ * `.githooks/pre-push` is what invokes `scripts/qa/push-hold.ts` (itself
+ * `independent`) and `.githooks/pre-commit` is what enforces the worktree
+ * rule. The other launcher is root `package.json` — its `qa:*` scripts —
+ * which CANNOT be floored here without flooring every dependency bump;
+ * `scripts/qa/required-job-launchers.ts` pins it from inside this floor
+ * instead. A guard at `independent` reached through a launcher that is not
+ * leaves the guard perfectly reviewed and trivially unreachable — a PR
+ * neutering the hook went green on two self-typed lens names (fallback review
+ * of #2243, M1). When adding a guard, floor its ENTRYPOINT too.
+ */
+const INDEPENDENT_PATTERNS: readonly RegExp[] = [
+  /^\.github\//,
+  /^\.(claude|codex|agents)\//,
+  /^\.githooks\//,
+  /^scripts\/qa\//,
+  /(^|\/)playwright[^/]*\.config\.ts$/,
+  /^(CLAUDE|AGENTS)\.md$/,
+  /^docs\/agents\/shared-rules\.md$/,
+  /^supabase\/functions\//,
+  /^packages\/replication\//,
+  /(^|\/)(rls|grants?|policies)[^/]*\.(sql|ts)$/i,
+  /(^|\/)(auth|rbac|permissions?|roles?)\//i,
+  /(^|\/)(stripe|payout|refund|checkout|payments?)/i,
+];
+
+const MIGRATION_PATTERN = /^supabase\/migrations\//;
+
+/**
+ * True when ANY changed file is a migration. Deliberately NOT derived from
+ * `requiredTier(...).reason`: `requiredTier` seeds `best` from the first file
+ * and only replaces it on a STRICTLY higher tier, so a list of
+ * `[app-code.tsx, migration.sql]` keeps the app-code reason even though a
+ * migration is present — both resolve to `adversarial`. Reading the migration
+ * rule off that reason string would therefore drop the mandatory
+ * `migration-auditor` lens for exactly the mixed diffs most likely to have one.
+ */
+export function touchesMigration(files: readonly string[]): boolean {
+  return files.some(file => MIGRATION_PATTERN.test(file));
+}
+
+/** Docs are the only `none`, and never the instruction files above. */
+const NONE_PATTERNS: readonly RegExp[] = [/^docs\//, /^[^/]*\.md$/];
+
+function floorFor(file: string): { tier: Tier; reason: string } {
+  if (INDEPENDENT_PATTERNS.some(p => p.test(file))) {
+    return { tier: 'independent', reason: `${file} is a guardrail or high-risk path` };
+  }
+  if (MIGRATION_PATTERN.test(file)) {
+    return {
+      tier: 'adversarial',
+      reason: `${file} is a migration — one lens must be ${MIGRATION_LENS}, and src/test/database/ must be green`,
+    };
+  }
+  if (NONE_PATTERNS.some(p => p.test(file))) {
+    return { tier: 'none', reason: `${file} is documentation` };
+  }
+  // Everything else, INCLUDING unrecognised paths: fail safe, not fail cheap.
+  return { tier: 'adversarial', reason: `${file} is application or tooling code` };
+}
+
+export function requiredTier(files: readonly string[]): { tier: Tier; reason: string } {
+  if (files.length === 0) return { tier: 'adversarial', reason: 'no files' };
+  // Seed from the first file's own candidate so `reason` always names a real
+  // path for a non-empty list, even when every file resolves to 'none'.
+  let best = floorFor(files[0]!);
+  for (const file of files.slice(1)) {
+    const candidate = floorFor(file);
+    if (TIER_ORDER.indexOf(candidate.tier) > TIER_ORDER.indexOf(best.tier)) best = candidate;
+  }
+  return best;
+}
+
+export function meetsFloor(supplied: Tier, floor: Tier): boolean {
+  return TIER_ORDER.indexOf(supplied) >= TIER_ORDER.indexOf(floor);
+}
+
+import { execFileSync } from 'node:child_process';
+import { readFileSync } from 'node:fs';
+import { pathToFileURL } from 'node:url';
+
+/** Files changed against a base ref, for the CLI. */
+export function changedFiles(base: string): string[] {
+  const out = execFileSync('git', ['diff', '--name-only', `${base}...HEAD`], { encoding: 'utf8' });
+  return out.split('\n').filter(Boolean);
+}
+
+/**
+ * `--files-stdin`: read a newline-separated file list on stdin and print ONLY
+ * the tier. `scripts/qa/post-review-gate.sh` uses it to check an `owner`
+ * override's claimed floor against the real one BEFORE posting — the same
+ * check `evaluateReviewGate` applies afterwards. One table, two callers; a
+ * copied rule in shell would drift (fallback review of #2243, S-c).
+ */
+function runFilesStdin(): void {
+  const raw = readFileSync(0, 'utf8');
+  const files = raw.split('\n').filter(Boolean);
+  // An empty list is not "no risk": it is "we could not tell". Match
+  // review-gate.ts's resolveFloor, which pins an empty list to independent.
+  console.log(files.length === 0 ? 'independent' : requiredTier(files).tier);
+}
+
+if (import.meta.url === pathToFileURL(process.argv[1] ?? '').href) {
+  if (process.argv.includes('--files-stdin')) {
+    runFilesStdin();
+    process.exit(0);
+  }
+  const baseIndex = process.argv.indexOf('--base');
+  const base = baseIndex === -1 ? 'origin/main' : (process.argv[baseIndex + 1] ?? 'origin/main');
+  const files = changedFiles(base);
+  const { tier, reason } = requiredTier(files);
+  console.log(`review-tier: ${files.length} file(s) vs ${base}`);
+  console.log(`tier: ${tier}`);
+  console.log(`reason: ${reason}`);
+}

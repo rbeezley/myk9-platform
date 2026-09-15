@@ -25,6 +25,13 @@ function mockReadBack(result: { data: unknown; error: unknown }) {
   node.select = vi.fn(() => node);
   node.eq = vi.fn(() => node);
   node.maybeSingle = vi.fn(() => Promise.resolve(result));
+  // The batch eligibility read terminates on `.in(...)`, and returns a LIST.
+  node.in = vi.fn(() =>
+    Promise.resolve({
+      data: result.data == null ? [] : [result.data],
+      error: result.error,
+    })
+  );
   supabaseMocks.from.mockReturnValue(node);
   return node;
 }
@@ -220,6 +227,91 @@ describe('ReplicatedEntriesTable.withdrawOwnEntry — online-only', () => {
       version: 1,
     };
 
+    it('reads every class row in ONE round trip, not one read per row', async () => {
+      // Once the eligibility read stopped seeding, the per-id version became N
+      // parallel PostgREST reads on EVERY dialog open — and a card groups by
+      // registration_id, so a multi-dog order is routinely 20-40 rows.
+      get.mockResolvedValue(undefined);
+      const node = mockReadBack({ data: COLD_ROW, error: null });
+
+      await table.getWithdrawEligibilityForEntries(['entry-1', 'entry-2', 'entry-3']);
+
+      expect(supabaseMocks.from).toHaveBeenCalledTimes(1);
+      expect(node.in).toHaveBeenCalledTimes(1);
+      expect((node.in as ReturnType<typeof vi.fn>).mock.calls[0]).toEqual([
+        'id',
+        ['entry-1', 'entry-2', 'entry-3'],
+      ]);
+      expect(node.maybeSingle).not.toHaveBeenCalled();
+    });
+
+    it('answers an id the batch did not return as missing, not as allowed', async () => {
+      // Per-id semantics survive batching: only entry-1 comes back.
+      get.mockResolvedValue(undefined);
+      mockReadBack({ data: COLD_ROW, error: null });
+
+      const batch = await table.getWithdrawEligibilityForEntries(['entry-1', 'entry-9']);
+
+      expect(batch['entry-1']).toEqual({ allowed: true });
+      expect(batch['entry-9']).toMatchObject({ allowed: false, code: 'missing' });
+      expect(batch['entry-9']?.reason).toBeTruthy();
+    });
+
+    it('leaves every id unanswered when the batch itself fails', async () => {
+      // The hook turns an unanswered id into its own lookup-failed refusal, so
+      // the batch must not invent an "allowed" for one.
+      get.mockResolvedValue(undefined);
+      mockReadBack({ data: null, error: { message: 'view unavailable' } });
+
+      const batch = await table.getWithdrawEligibilityForEntries(['entry-1', 'entry-2']);
+
+      expect(batch).toEqual({});
+    });
+
+    it('never fetches an id it already has cached', async () => {
+      get.mockResolvedValue(withdrawableEntry);
+      mockReadBack({ data: COLD_ROW, error: null });
+
+      const batch = await table.getWithdrawEligibilityForEntries(['entry-1']);
+
+      expect(batch['entry-1']).toEqual({ allowed: true });
+      expect(supabaseMocks.from).not.toHaveBeenCalled();
+    });
+
+    it('reports an entry deleted locally this session as missing', async () => {
+      get.mockResolvedValue(undefined);
+      (table as unknown as { _deletedIds: Set<string> })._deletedIds.add('entry-1');
+      mockReadBack({ data: COLD_ROW, error: null });
+
+      const batch = await table.getWithdrawEligibilityForEntries(['entry-1']);
+
+      expect(batch['entry-1']).toMatchObject({ allowed: false, code: 'missing' });
+      expect(supabaseMocks.from).not.toHaveBeenCalled();
+    });
+
+    it('refuses to withdraw an entry deleted locally this session', async () => {
+      // The server copy must not resurrect a row the user just deleted here.
+      get.mockResolvedValue(undefined);
+      (table as unknown as { _deletedIds: Set<string> })._deletedIds.add('entry-1');
+      mockReadBack({ data: COLD_ROW, error: null });
+
+      await expect(table.withdrawOwnEntry('entry-1')).rejects.toThrow(/no longer exists/);
+      expect(supabaseMocks.rpc).not.toHaveBeenCalled();
+    });
+
+    it('sends the COLD row version as the OCC token', async () => {
+      // With the seed gone there is no serverVersion in the replica, so without
+      // carrying the cold row's version the RPC would get null and the
+      // retry-once-on-40001 contract would be unreachable on /my-entries.
+      get.mockResolvedValue(undefined);
+      mockReadBack({ data: { ...COLD_ROW, version: 7 }, error: null });
+      supabaseMocks.rpc.mockResolvedValue({ data: 8, error: null });
+
+      await table.withdrawOwnEntry('entry-1');
+
+      expect(supabaseMocks.rpc.mock.calls[0]?.[1]).toMatchObject({ p_expected_version: 7 });
+    });
+
     it('the eligibility check does not cache a cold row (the dialog-open seed)', async () => {
       // EntryEditDialog runs this for EVERY class row on open, and it is mounted
       // on the account-level page. Via getOrHydrateEntry it inserted one row per
@@ -245,6 +337,10 @@ describe('ReplicatedEntriesTable.withdrawOwnEntry — online-only', () => {
       expect(set).not.toHaveBeenCalled();
     });
 
+    // Pins THREE guards at once — the probe's position before the RPC, the cold
+    // `wasCached`, and the early return in hydrateConfirmedRow. Do not retire it
+    // casually: without it, moving the probe after the RPC leaves the whole file
+    // green.
     it('does not write when a sync lands DURING the call (pins the pre-RPC probe)', async () => {
       // Absent at the probe, present afterwards. Only the BEFORE-the-RPC capture
       // can hold here — the fresh re-check guards the opposite direction and

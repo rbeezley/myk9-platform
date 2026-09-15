@@ -15,7 +15,7 @@
  * exhibitor-only guards do not apply and every row stays enabled.
  */
 import { useEffect, useState } from 'react';
-import { getWithdrawEligibility } from '@/services/database/entries/withdrawOwnEntry';
+import { getWithdrawEligibilityForEntries } from '@/services/database/entries/withdrawOwnEntry';
 import type { WithdrawEligibility } from '@/services/database/entries/withdrawEligibility';
 
 export type WithdrawEligibilityMap = Record<string, WithdrawEligibility>;
@@ -54,15 +54,16 @@ export function useWithdrawEligibility(
     let cancelled = false;
     void (async () => {
       const ids = classIdKey.split(',');
-      const pairs = await Promise.all(
-        ids.map(async classId => {
-          try {
-            return [classId, await getWithdrawEligibility(classId)] as const;
-          } catch {
-            return [classId, LOOKUP_FAILED] as const;
-          }
-        })
-      );
+      // ONE round trip for the whole card. Any id the batch does not answer —
+      // because the batch failed, or because that row is gone — falls back to
+      // the refusal, so an unchecked row never offers Pull.
+      let batch: Record<string, WithdrawEligibility> = {};
+      try {
+        batch = await getWithdrawEligibilityForEntries(ids);
+      } catch {
+        batch = {};
+      }
+      const pairs = ids.map(id => [id, batch[id] ?? LOOKUP_FAILED] as const);
       if (!cancelled) setLoaded({ key: classIdKey, map: Object.fromEntries(pairs) });
     })();
 

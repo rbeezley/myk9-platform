@@ -142,6 +142,17 @@ export function evaluateWithdrawEligibility(input: WithdrawEligibilityInput): Wi
  * Thrown by the client pre-check so the refusal reaches the dialog as an error
  * instead of an optimistic "withdrawn" the server never accepted.
  */
+/**
+ * The eligibility answer for a row that is gone. Shares its sentence with
+ * `WithdrawNotFoundError` so the affordance and the failure path say the same
+ * thing about the same state.
+ */
+export const WITHDRAW_MISSING: WithdrawEligibility = {
+  allowed: false,
+  code: 'missing',
+  reason: 'This entry no longer exists — refresh the page and try again.',
+};
+
 /** The entry could not be found at all — deleted, or never existed. */
 export class WithdrawNotFoundError extends Error {
   readonly code: WithdrawRefusalCode = 'missing';

@@ -32,6 +32,7 @@ import {
 import { buildRingsideRpcFields, RINGSIDE_RPC_FUNCTION } from './ringsideEntryRpc';
 import {
   evaluateWithdrawEligibility,
+  WITHDRAW_MISSING,
   WithdrawConflictError,
   WithdrawNotAllowedError,
   WithdrawNotFoundError,
@@ -504,8 +505,64 @@ export class ReplicatedEntriesTable extends ReplicatedTable<ReplicatedEntry> {
    * into an otherwise-empty show-scoped store before Pull was ever clicked.
    */
   async getWithdrawEligibility(entryId: string): Promise<WithdrawEligibility> {
-    const { entry } = await this.readEntryForWithdrawal(entryId);
-    return withdrawEligibilityOf(entry);
+    const batch = await this.getWithdrawEligibilityForEntries([entryId]);
+    return batch[entryId] ?? WITHDRAW_MISSING;
+  }
+
+  /**
+   * The same guards for MANY entries in ONE round trip.
+   *
+   * The dialog runs this on every open, for every class row, and cards group by
+   * `registration_id` — a multi-dog order is routinely 20-40 rows. Once the
+   * eligibility read stopped seeding the replica (MYK9-573) the per-id version
+   * became N parallel PostgREST reads on each open, where previously the first
+   * open seeded and every later one was free. One `in('id', ids)` restores that.
+   *
+   * Still writes NOTHING to the store. Cached rows are answered locally and only
+   * the misses are fetched. Per-id semantics are preserved: an id missing from
+   * the batch result is 'missing'; a failed batch leaves every uncached id
+   * absent from the map so the caller applies its own lookup-failed refusal.
+   */
+  async getWithdrawEligibilityForEntries(
+    entryIds: string[]
+  ): Promise<Record<string, WithdrawEligibility>> {
+    const unique = [...new Set(entryIds.filter(Boolean))];
+    const result: Record<string, WithdrawEligibility> = {};
+    const misses: string[] = [];
+
+    for (const entryId of unique) {
+      const cached = await this.get(entryId);
+      if (cached) result[entryId] = withdrawEligibilityOf(cached);
+      else if (this._deletedIds.has(entryId)) result[entryId] = WITHDRAW_MISSING;
+      else misses.push(entryId);
+    }
+
+    if (misses.length === 0) return result;
+
+    let rows: unknown[];
+    try {
+      const { data, error } = await supabase
+        .from('view_authenticated_entry_results')
+        .select('*')
+        .in('id', misses);
+      // A failed batch leaves every miss out of the map — the caller decides
+      // what an unanswered id means, and its default is a refusal.
+      if (error || !data) return result;
+      rows = data as unknown[];
+    } catch {
+      return result;
+    }
+
+    const byId = new Map<string, unknown>();
+    for (const row of rows) {
+      const id = (row as { id?: string }).id;
+      if (id) byId.set(id, row);
+    }
+    for (const entryId of misses) {
+      const row = byId.get(entryId);
+      result[entryId] = row ? withdrawEligibilityOf(rowToEntry(row as EntryRow)) : WITHDRAW_MISSING;
+    }
+    return result;
   }
 
   /**
@@ -519,12 +576,15 @@ export class ReplicatedEntriesTable extends ReplicatedTable<ReplicatedEntry> {
    * else changed it), or the raw Postgres error for anything unclassified.
    */
   async withdrawOwnEntry(entryId: string): Promise<{ from: string | undefined }> {
-    const { entry, wasCached } = await this.readEntryForWithdrawal(entryId);
+    const { entry, wasCached, coldVersion } = await this.readEntryForWithdrawal(entryId);
 
     const eligibility = withdrawEligibilityOf(entry);
     if (!eligibility.allowed) throw new WithdrawNotAllowedError(eligibility);
 
-    const version = await this.callWithdrawRpc(entryId, await this.getServerVersion(entryId));
+    // A cached row's OCC token lives in the replica; a cold row's came back with
+    // the read that answered the guards.
+    const expectedVersion = wasCached ? await this.getServerVersion(entryId) : coldVersion;
+    const version = await this.callWithdrawRpc(entryId, expectedVersion);
 
     // MYK9-573: `wasCached` is probed BEFORE the RPC and is the primary gate —
     // a row that was absent then is never written, even if a sync lands during
@@ -556,9 +616,13 @@ export class ReplicatedEntriesTable extends ReplicatedTable<ReplicatedEntry> {
    */
   private async readEntryForWithdrawal(
     entryId: string
-  ): Promise<{ entry: ReplicatedEntry; wasCached: boolean }> {
+  ): Promise<{ entry: ReplicatedEntry; wasCached: boolean; coldVersion: number | null }> {
     const cached = await this.get(entryId);
-    if (cached) return { entry: cached, wasCached: true };
+    if (cached) return { entry: cached, wasCached: true, coldVersion: null };
+
+    // An entry deleted locally this session is gone as far as this caller is
+    // concerned; the server copy must not resurrect it into a withdrawal.
+    if (this._deletedIds.has(entryId)) throw new WithdrawNotFoundError();
 
     let result: { data: unknown; error: unknown };
     try {
@@ -572,7 +636,17 @@ export class ReplicatedEntriesTable extends ReplicatedTable<ReplicatedEntry> {
     }
     if (result.error) throw new WithdrawUnavailableError();
     if (!result.data) throw new WithdrawNotFoundError();
-    return { entry: rowToEntry(result.data as unknown as EntryRow), wasCached: false };
+    const row = result.data as unknown as EntryRow;
+    // Carried out so the RPC still gets an OCC precondition on a cold row. The
+    // replica has no `serverVersion` for a row it never stored, and without this
+    // the account-level path would send `p_expected_version: null` — which makes
+    // the retry-once-on-40001 contract unreachable exactly where it is needed.
+    const version = (row as unknown as Record<string, unknown>).version;
+    return {
+      entry: rowToEntry(row),
+      wasCached: false,
+      coldVersion: typeof version === 'number' ? version : null,
+    };
   }
 
   /**

@@ -6,9 +6,11 @@ import {
   clampDescription,
   evaluateReviewGate,
   fileListIsUnusable,
+  GH_MAX_BUFFER_BYTES,
   flattenPages,
   overrideAccepted,
   OWNER_OVERRIDE_ASSOCIATIONS,
+  parseFileNameList,
   parseGateComments,
   runCli,
   REVIEW_GATE_LINE,
@@ -1394,9 +1396,21 @@ describe('fileListIsUnusable', () => {
     expect(fileListIsUnusable(REST_FILE_PAGE_CAP, REST_FILE_PAGE_CAP)).toBe(true);
   });
 
-  it('falls back to the count alone when GitHub declares nothing', () => {
-    expect(fileListIsUnusable(42)).toBe(false);
-    expect(fileListIsUnusable(0)).toBe(true);
+  it('refuses to vouch for a list GitHub declares nothing about', () => {
+    // `changedFiles` is a real `gh pr view --json` field, so its absence means
+    // an assumption broke. Falling back to the count-only rule is exactly what
+    // let the original truncation through, so this fails closed instead.
+    expect(fileListIsUnusable(42)).toBe(true);
+    expect(fileListIsUnusable(42, undefined)).toBe(true);
+  });
+
+  it('catches a shortfall of ONE, not just a gross one', () => {
+    // A mutant reading `fetchedCount * 2 < declaredCount` passes every other
+    // assertion here: it still calls 100-of-1734 unusable. These pin the
+    // comparison itself rather than its order of magnitude.
+    expect(fileListIsUnusable(419, 420)).toBe(true);
+    expect(fileListIsUnusable(1733, 1734)).toBe(true);
+    expect(fileListIsUnusable(420, 420)).toBe(false);
   });
 });
 
@@ -1418,10 +1432,10 @@ describe('runCli’s changed-file fetch', () => {
           ...(opts.declared === undefined ? {} : { changedFiles: opts.declared }),
         });
       }
-      if (args[0] === 'api' && args[3]?.includes('/pulls/')) {
-        return JSON.stringify([opts.fetched.map(filename => ({ filename }))]);
+      if (args.some(a => a.includes('/pulls/'))) {
+        return opts.fetched.join('\n') + (opts.fetched.length ? '\n' : '');
       }
-      if (args[0] === 'api' && args[3]?.includes('/issues/')) {
+      if (args.some(a => a.includes('/issues/'))) {
         return JSON.stringify([
           [
             {
@@ -1457,9 +1471,23 @@ describe('runCli’s changed-file fetch', () => {
     expect(calls).toContainEqual([
       'api',
       '--paginate',
-      '--slurp',
+      '--jq',
+      '.[].filename',
       'repos/rbeezley/myk9-platform/pulls/2121/files?per_page=100',
     ]);
+  });
+
+  it('asks for filenames only, never the patch bodies', () => {
+    // Measured 2026-09-15: this endpoint returns 8.2 MB with `patch` bodies
+    // for PR #2121 and 99 KB filtered to names. execFileSync throws ENOBUFS
+    // past 1 MiB, and the script would die before posting any status.
+    const { run, calls } = fakeGh({ declared: 3, fetched: docs(3) });
+    runCli(env, ['--dry-run'], run);
+    const files = calls.find(c => c.some(a => a.includes('/pulls/')));
+    if (!files) throw new Error('runCli never fetched the file list');
+    expect(files).toContain('--jq');
+    expect(files).not.toContain('--slurp');
+    expect(GH_MAX_BUFFER_BYTES).toBeGreaterThan(8_214_722);
   });
 
   it('refuses a `none` review when the fetch came back short of the declared count', () => {
@@ -1482,5 +1510,56 @@ describe('runCli’s changed-file fetch', () => {
       fetched: [...docs(419), 'scripts/qa/review-gate.ts'],
     });
     expect(runCli(env, ['--dry-run'], run)).toBe(1);
+  });
+});
+
+describe('parseFileNameList', () => {
+  it('reads one path per line and ignores blank lines', () => {
+    expect(parseFileNameList('a.ts\nb.ts\n')).toEqual(['a.ts', 'b.ts']);
+    expect(parseFileNameList('a.ts\n\nb.ts')).toEqual(['a.ts', 'b.ts']);
+  });
+
+  it('reads an empty response as no files, not as one blank path', () => {
+    expect(parseFileNameList('')).toEqual([]);
+    expect(parseFileNameList('\n')).toEqual([]);
+  });
+});
+
+describe('evaluateReviewGate sees the declared count too', () => {
+  // Before this was threaded through, the in-module copy of the invariant
+  // could only detect an EMPTY or at-cap list, so a caller other than runCli
+  // could clear a guardrail PR on a short list — the exact case the fix is
+  // about. The floor check must not depend on runCli remembering to set a flag.
+  const noneLine = `Review gate: none reviewed abc1234..${HEAD} — low-risk paths, CI green`;
+  const docs = (n: number) => Array.from({ length: n }, (_, i) => `docs/notes/n${i}.md`);
+
+  it('forces the independent floor on a short list with no flag set', () => {
+    const result = evaluateReviewGate({
+      headSha: HEAD,
+      comments: [comment(noneLine)],
+      changedFiles: docs(100),
+      declaredFileCount: 1734,
+    });
+    expect(result.state).toBe('failure');
+    expect(result.description).toContain('independent');
+  });
+
+  it('accepts the same list when GitHub declares exactly that many', () => {
+    const result = evaluateReviewGate({
+      headSha: HEAD,
+      comments: [comment(noneLine)],
+      changedFiles: docs(100),
+      declaredFileCount: 100,
+    });
+    expect(result.state).toBe('success');
+  });
+
+  it('does not punish a caller that has no declared count', () => {
+    const result = evaluateReviewGate({
+      headSha: HEAD,
+      comments: [comment(noneLine)],
+      changedFiles: docs(100),
+    });
+    expect(result.state).toBe('success');
   });
 });

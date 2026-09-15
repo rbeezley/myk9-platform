@@ -416,6 +416,13 @@ interface EvaluateReviewGateInput {
    * worse than no floor at all.
    */
   fileListUnusable?: boolean;
+  /**
+   * GitHub's own `changedFiles` count, when the caller has it. Threaded in so
+   * the in-module invariant can detect the SHORT-list case too, not only the
+   * empty and at-cap cases. Without it a caller that computes `changedFiles`
+   * itself would be back to the rule that let the original truncation past.
+   */
+  declaredFileCount?: number;
 }
 
 /**
@@ -428,7 +435,11 @@ interface EvaluateReviewGateInput {
  * a claim that understates the floor it skipped leaves an audit trail that
  * misrepresents the risk deferred.
  */
-function resolveFloor(input: { changedFiles: readonly string[]; fileListUnusable?: boolean }): {
+function resolveFloor(input: {
+  changedFiles: readonly string[];
+  fileListUnusable?: boolean;
+  declaredFileCount?: number;
+}): {
   tier: Tier;
   reason: string;
 } {
@@ -436,8 +447,17 @@ function resolveFloor(input: { changedFiles: readonly string[]; fileListUnusable
   // future caller that computes changedFiles itself (push-hold.ts already
   // imports this module) cannot silently clear a guardrail PR on a
   // transient `gh` failure that yields an empty list (I2).
+  // A caller that supplies no declared count is not punished here: only
+  // runCli can vouch for one, and evaluateReviewGate is called directly by
+  // tests and by any future in-process caller. With none, the list is its own
+  // corroboration, so the shortfall arm is a no-op and the empty and at-cap
+  // arms still apply.
   const listUnusable =
-    input.fileListUnusable === true || fileListIsUnusable(input.changedFiles.length);
+    input.fileListUnusable === true ||
+    fileListIsUnusable(
+      input.changedFiles.length,
+      input.declaredFileCount ?? input.changedFiles.length
+    );
   return listUnusable
     ? {
         tier: 'independent',
@@ -597,6 +617,19 @@ export function clampDescription(text: string): string {
   return text.length <= 140 ? text : `${text.slice(0, 137)}...`;
 }
 
+/**
+ * Parse `gh api --paginate --jq '.[].filename'` output: one path per line,
+ * pages concatenated. A path containing a literal newline would split into
+ * two entries, which can only ADD paths — and `requiredTier` is a maximum
+ * over the paths, so the floor can only rise. Safe direction.
+ */
+export function parseFileNameList(out: string): string[] {
+  return out
+    .split('\n')
+    .map(line => line.trim())
+    .filter(line => line.length > 0);
+}
+
 /** Parse `gh api --paginate --slurp` output: an array of pages, each an array. */
 export function flattenPages<T>(slurped: string): T[] {
   const pages = JSON.parse(slurped) as T[][] | T[];
@@ -619,12 +652,25 @@ export const REST_FILE_PAGE_CAP = 3000;
 export function fileListIsUnusable(fetchedCount: number, declaredCount?: number): boolean {
   if (fetchedCount === 0) return true;
   if (fetchedCount >= REST_FILE_PAGE_CAP) return true;
-  if (typeof declaredCount === 'number' && fetchedCount < declaredCount) return true;
-  return false;
+  // No declared count means nothing corroborates the fetch. `changedFiles` is
+  // a real `gh pr view --json` field, so its absence is a broken assumption,
+  // not a normal case — fail closed rather than quietly reverting to the
+  // count-only rule that let the original truncation through.
+  if (typeof declaredCount !== 'number') return true;
+  return fetchedCount < declaredCount;
 }
 
+/**
+ * `execFileSync` defaults to a 1 MiB output buffer and throws ENOBUFS past it,
+ * which on this script means no status is posted at all. Measured 2026-09-15:
+ * the files endpoint for PR #2121 returns 8.2 MB when it carries `patch`
+ * bodies, and 99 KB when filtered to filenames. We filter (see the fetch in
+ * runCli), so this ceiling is a backstop, not the primary defence.
+ */
+export const GH_MAX_BUFFER_BYTES = 64 * 1024 * 1024;
+
 function gh(args: string[]): string {
-  return execFileSync('gh', args, { encoding: 'utf8' });
+  return execFileSync('gh', args, { encoding: 'utf8', maxBuffer: GH_MAX_BUFFER_BYTES });
 }
 
 interface PrView {
@@ -636,11 +682,6 @@ interface PrView {
    * fetched list, never as the list itself — see fileListIsUnusable.
    */
   changedFiles?: number;
-}
-
-/** REST shape of one entry in `GET /repos/{repo}/pulls/{n}/files`. */
-interface RestPrFile {
-  filename: string;
 }
 
 /** REST shape — `gh pr view --json comments` carries no edit timestamp. */
@@ -686,19 +727,29 @@ export function runCli(
   // `>= 3000` check that read as a complete, usable list and computed the
   // floor from a partial diff. The REST endpoint paginates, and its own
   // 3000-entry ceiling is what the cap check now measures.
-  const changedFiles = flattenPages<RestPrFile>(
-    run(['api', '--paginate', '--slurp', `repos/${repo}/pulls/${prNumber}/files?per_page=100`])
-  ).map(f => f.filename);
-  // evaluateReviewGate re-derives this invariant from `changedFiles.length`
-  // (I2, Codex review of Task 3 round 1); this copy also sees GitHub's
-  // declared count, which catches a short fetch the length alone cannot.
+  //
+  // `--jq` rather than `--slurp`: every entry of this endpoint carries the
+  // file's full `patch` body, which for PR #2121 is 8.2 MB against a 99 KB
+  // list of names. `execFileSync` throws ENOBUFS past 1 MiB and this script
+  // would die before posting any status at all.
+  const changedFiles = parseFileNameList(
+    run([
+      'api',
+      '--paginate',
+      '--jq',
+      '.[].filename',
+      `repos/${repo}/pulls/${prNumber}/files?per_page=100`,
+    ])
+  );
+  // evaluateReviewGate re-derives this invariant from the same helper; the
+  // declared count is threaded through so BOTH copies can see a short fetch,
+  // not just this one (I2, Codex review of Task 3 round 1).
   const fileListUnusable = fileListIsUnusable(changedFiles.length, view.changedFiles);
-  if (fileListUnusable) {
-    console.log(
-      `review-gate: file list unusable (fetched ${changedFiles.length}, ` +
-        `GitHub declares ${view.changedFiles ?? 'unknown'}) — forcing independent floor`
-    );
-  }
+  console.log(
+    `review-gate: changed files fetched ${changedFiles.length}, ` +
+      `GitHub declares ${view.changedFiles ?? 'unknown'}` +
+      (fileListUnusable ? ' — unusable, forcing independent floor' : '')
+  );
   // --paginate alone concatenates one JSON array per page, which JSON.parse
   // rejects on any PR past 100 comments (Codex, #2058). --slurp wraps the
   // pages in one outer array; flattenPages unwraps it.
@@ -708,6 +759,7 @@ export function runCli(
   const result = evaluateReviewGate({
     headSha: view.headRefOid,
     changedFiles,
+    declaredFileCount: view.changedFiles,
     fileListUnusable,
     comments: comments.map(c => ({
       body: c.body,

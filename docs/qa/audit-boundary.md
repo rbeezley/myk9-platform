@@ -41,13 +41,22 @@ named in the report, not quietly absorbed.
 `Last reviewed SHA` is the newest commit on `main` that has been reviewed for that stream. Dates are
 UTC.
 
-| Stream                | Last reviewed SHA                          | Window end           | Run by                    | Run date   |
-| --------------------- | ------------------------------------------ | -------------------- | ------------------------- | ---------- |
-| `daily-commit-review` | `c660131f5d091fe5f7e5972edf5493b2af44bc6d` | 2026-09-11T10:12:28Z | codex-daily-commit-review | 2026-09-11 |
+| Stream                | Last reviewed SHA                          | Window end           | Run by                     | Run date   |
+| --------------------- | ------------------------------------------ | -------------------- | -------------------------- | ---------- |
+| `daily-commit-review` | `738a5a6cfe7cd7d1431f03f738da5729989100c0` | 2026-09-15T09:05:00Z | claude-daily-commit-review | 2026-09-15 |
 
 If this row is ever `unset`, nobody has verified which commits the Codex daily stream has actually
 covered; the first run of either automation on this stream must take its default window and stamp a
 real boundary.
+
+> **Provenance of the 2026-09-15 stamp.** The 88 commits from `c660131f5` to `738a5a6cf` were
+> covered in two parts. The first 23 (through `de90d1b0b`) were reviewed by Codex on 2026-09-12 and
+> 2026-09-13, but neither report reached `main` — both are blocked by
+> [MYK9-501](https://linear.app/myk9-platform/issue/MYK9-501) and survive only as uncommitted files
+> in `/private/tmp/myk9-ncr-review-20260912` and `/private/tmp/myk9-ncr-review-20260913`. Their
+> commit inventories are reproduced in `docs/qa/claude-daily-commit-review-2026-09-15.md` so this
+> stamp stays provable from `main` if those worktrees are lost. The remaining 65
+> (`de90d1b0b..738a5a6cf`) were reviewed by `claude-daily-commit-review` on 2026-09-15.
 
 ### Adding a stream
 

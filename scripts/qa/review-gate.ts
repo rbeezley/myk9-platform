@@ -178,11 +178,12 @@ export const REVIEW_GATE_LINE =
  * received the STRONGEST tier, clearing every floor. Confirmed:
  * `tierForReviewer('gemini')` used to return `'independent'` on a guardrail
  * path with no compile-time or runtime signal (2026-09-14). Adding a new
- * `ReviewerToken` without adding a row here is caught by
+ * `ReviewerToken` without adding a row here is now BOTH a `tsc` error (this
+ * file is covered by `scripts/qa/tsconfig.json`, wired into `pnpm typecheck`
+ * via `typecheck:scripts`, MYK9-531) AND caught at runtime by
  * `review-gate.test.ts`'s "has an explicit mapping for every REVIEWER_TOKENS
- * member" test, which DOES run in CI. It is deliberately not described as a
- * `tsc` error: `scripts/qa/` belongs to no typecheck project, so `pnpm
- * typecheck` exits 0 on a `satisfies` violation here (verified 2026-09-14).
+ * member" test — the runtime test stays as defence in depth even now that
+ * the type-level guarantee is real (verified 2026-09-14).
  */
 const TIER_BY_REVIEWER = {
   'independent/codex': 'independent',
@@ -343,6 +344,18 @@ export function parseGateComments(comments: readonly GateComment[]): GateEvidenc
     const match = REVIEW_GATE_LINE.exec(firstLine);
     if (!match) continue;
     const [, reviewer, base, head, verdict] = match;
+    // REVIEW_GATE_LINE has no optional groups, so a successful match always
+    // captures all four; this narrows `noUncheckedIndexedAccess`'s
+    // `string | undefined` element type back to `string` by construction
+    // (MYK9-531), never with `!` or `as`.
+    if (
+      reviewer === undefined ||
+      base === undefined ||
+      head === undefined ||
+      verdict === undefined
+    ) {
+      continue;
+    }
     // REVIEW_GATE_LINE's own alternation only ever captures a ReviewerToken;
     // this guard makes that true by construction rather than by an `as` cast.
     if (!isReviewerToken(reviewer)) continue;

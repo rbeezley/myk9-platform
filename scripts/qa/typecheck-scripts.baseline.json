@@ -1,0 +1,802 @@
+[
+  {
+    "file": "apps/myk9show/src/test/load/loadFixture.ts",
+    "code": "TS18048",
+    "message": "'PRIMARY_LOAD_SHOW' is possibly 'undefined'."
+  },
+  {
+    "file": "apps/myk9show/src/test/load/loadFixture.ts",
+    "code": "TS18048",
+    "message": "'PRIMARY_LOAD_SHOW' is possibly 'undefined'."
+  },
+  {
+    "file": "apps/myk9show/src/test/load/loadFixture.ts",
+    "code": "TS18048",
+    "message": "'PRIMARY_LOAD_SHOW' is possibly 'undefined'."
+  },
+  {
+    "file": "apps/myk9show/src/test/load/loadFixture.ts",
+    "code": "TS18048",
+    "message": "'PRIMARY_LOAD_SHOW' is possibly 'undefined'."
+  },
+  {
+    "file": "apps/myk9show/src/test/load/loadFixture.ts",
+    "code": "TS18048",
+    "message": "'PRIMARY_LOAD_SHOW' is possibly 'undefined'."
+  },
+  {
+    "file": "apps/myk9show/src/test/load/loadFixture.ts",
+    "code": "TS2322",
+    "message": "Type 'string | undefined' is not assignable to type 'string'."
+  },
+  {
+    "file": "apps/myk9show/src/test/load/loadFixture.ts",
+    "code": "TS2322",
+    "message": "Type 'string | undefined' is not assignable to type 'string'."
+  },
+  {
+    "file": "apps/myk9show/src/test/load/loadFixture.ts",
+    "code": "TS2345",
+    "message": "Argument of type 'string | undefined' is not assignable to parameter of type 'string'."
+  },
+  {
+    "file": "apps/myk9show/src/test/load/loadFixture.ts",
+    "code": "TS2345",
+    "message": "Argument of type 'string | undefined' is not assignable to parameter of type 'string'."
+  },
+  {
+    "file": "apps/myk9show/supabase/functions/_shared/publicSchemaAclChecks.ts",
+    "code": "TS2532",
+    "message": "Object is possibly 'undefined'."
+  },
+  {
+    "file": "apps/myk9show/supabase/functions/_shared/systemHealthChecks.ts",
+    "code": "TS2532",
+    "message": "Object is possibly 'undefined'."
+  },
+  {
+    "file": "apps/myk9show/supabase/functions/_shared/systemHealthChecks.ts",
+    "code": "TS2532",
+    "message": "Object is possibly 'undefined'."
+  },
+  {
+    "file": "scripts/qa/browser-session.ts",
+    "code": "TS2339",
+    "message": "Property 'once' does not exist on type 'never'."
+  },
+  {
+    "file": "scripts/qa/browser-session.ts",
+    "code": "TS2339",
+    "message": "Property 'once' does not exist on type 'never'."
+  },
+  {
+    "file": "scripts/qa/browser-session.ts",
+    "code": "TS2339",
+    "message": "Property 'pid' does not exist on type 'never'."
+  },
+  {
+    "file": "scripts/qa/browser-session.ts",
+    "code": "TS2339",
+    "message": "Property 'pid' does not exist on type 'never'."
+  },
+  {
+    "file": "scripts/qa/browser-session.ts",
+    "code": "TS2769",
+    "message": "No overload matches this call."
+  },
+  {
+    "file": "scripts/qa/browser-session.ts",
+    "code": "TS7006",
+    "message": "Parameter 'code' implicitly has an 'any' type."
+  },
+  {
+    "file": "scripts/qa/browser-session.ts",
+    "code": "TS7006",
+    "message": "Parameter 'error' implicitly has an 'any' type."
+  },
+  {
+    "file": "scripts/qa/browser-session.ts",
+    "code": "TS7006",
+    "message": "Parameter 'signal' implicitly has an 'any' type."
+  },
+  {
+    "file": "scripts/qa/check-bulk-pii.test.ts",
+    "code": "TS2345",
+    "message": "Argument of type '(file: string) => string | undefined' is not assignable to parameter of type '(file: string) => string'."
+  },
+  {
+    "file": "scripts/qa/check-bulk-pii.test.ts",
+    "code": "TS2345",
+    "message": "Argument of type '(file: string) => string | undefined' is not assignable to parameter of type '(file: string) => string'."
+  },
+  {
+    "file": "scripts/qa/check-bulk-pii.test.ts",
+    "code": "TS2345",
+    "message": "Argument of type '(file: string) => string | undefined' is not assignable to parameter of type '(file: string) => string'."
+  },
+  {
+    "file": "scripts/qa/check-bulk-pii.test.ts",
+    "code": "TS2345",
+    "message": "Argument of type '(file: string) => string | undefined' is not assignable to parameter of type '(file: string) => string'."
+  },
+  {
+    "file": "scripts/qa/check-bulk-pii.test.ts",
+    "code": "TS2345",
+    "message": "Argument of type '(file: string) => string | undefined' is not assignable to parameter of type '(file: string) => string'."
+  },
+  {
+    "file": "scripts/qa/check-bulk-pii.test.ts",
+    "code": "TS2345",
+    "message": "Argument of type '(file: string) => string | undefined' is not assignable to parameter of type '(file: string) => string'."
+  },
+  {
+    "file": "scripts/qa/check-bulk-pii.test.ts",
+    "code": "TS2345",
+    "message": "Argument of type '(file: string) => string | undefined' is not assignable to parameter of type '(file: string) => string'."
+  },
+  {
+    "file": "scripts/qa/check-bulk-pii.test.ts",
+    "code": "TS2345",
+    "message": "Argument of type '(file: string) => string | undefined' is not assignable to parameter of type '(file: string) => string'."
+  },
+  {
+    "file": "scripts/qa/check-bulk-pii.test.ts",
+    "code": "TS2345",
+    "message": "Argument of type '(file: string) => string | undefined' is not assignable to parameter of type '(file: string) => string'."
+  },
+  {
+    "file": "scripts/qa/check-bulk-pii.test.ts",
+    "code": "TS2532",
+    "message": "Object is possibly 'undefined'."
+  },
+  {
+    "file": "scripts/qa/check-bulk-pii.test.ts",
+    "code": "TS2532",
+    "message": "Object is possibly 'undefined'."
+  },
+  {
+    "file": "scripts/qa/check-dist-fresh.test.ts",
+    "code": "TS2532",
+    "message": "Object is possibly 'undefined'."
+  },
+  {
+    "file": "scripts/qa/check-dist-fresh.test.ts",
+    "code": "TS2532",
+    "message": "Object is possibly 'undefined'."
+  },
+  {
+    "file": "scripts/qa/check-prompt-parity.test.ts",
+    "code": "TS18048",
+    "message": "'result' is possibly 'undefined'."
+  },
+  {
+    "file": "scripts/qa/check-prompt-parity.test.ts",
+    "code": "TS18048",
+    "message": "'result' is possibly 'undefined'."
+  },
+  {
+    "file": "scripts/qa/check-prompt-parity.test.ts",
+    "code": "TS18048",
+    "message": "'result' is possibly 'undefined'."
+  },
+  {
+    "file": "scripts/qa/check-prompt-parity.test.ts",
+    "code": "TS18048",
+    "message": "'result' is possibly 'undefined'."
+  },
+  {
+    "file": "scripts/qa/check-prompt-parity.test.ts",
+    "code": "TS2345",
+    "message": "Argument of type 'string | undefined' is not assignable to parameter of type 'string'."
+  },
+  {
+    "file": "scripts/qa/check-prompt-parity.test.ts",
+    "code": "TS2345",
+    "message": "Argument of type 'string | undefined' is not assignable to parameter of type 'string'."
+  },
+  {
+    "file": "scripts/qa/check-prompt-parity.ts",
+    "code": "TS2322",
+    "message": "Type 'string | undefined' is not assignable to type 'string'."
+  },
+  {
+    "file": "scripts/qa/check-prompt-parity.ts",
+    "code": "TS2345",
+    "message": "Argument of type 'string | undefined' is not assignable to parameter of type 'string'."
+  },
+  {
+    "file": "scripts/qa/check-prompt-parity.ts",
+    "code": "TS2345",
+    "message": "Argument of type 'string | undefined' is not assignable to parameter of type 'string'."
+  },
+  {
+    "file": "scripts/qa/check-prompt-parity.ts",
+    "code": "TS2345",
+    "message": "Argument of type 'string | undefined' is not assignable to parameter of type 'string'."
+  },
+  {
+    "file": "scripts/qa/check-prompt-parity.ts",
+    "code": "TS2345",
+    "message": "Argument of type 'string | undefined' is not assignable to parameter of type 'string'."
+  },
+  {
+    "file": "scripts/qa/check-prompt-parity.ts",
+    "code": "TS2532",
+    "message": "Object is possibly 'undefined'."
+  },
+  {
+    "file": "scripts/qa/claude-review.test.ts",
+    "code": "TS2532",
+    "message": "Object is possibly 'undefined'."
+  },
+  {
+    "file": "scripts/qa/claude-review.test.ts",
+    "code": "TS2532",
+    "message": "Object is possibly 'undefined'."
+  },
+  {
+    "file": "scripts/qa/claude-review.test.ts",
+    "code": "TS2532",
+    "message": "Object is possibly 'undefined'."
+  },
+  {
+    "file": "scripts/qa/codex-review.test.ts",
+    "code": "TS2532",
+    "message": "Object is possibly 'undefined'."
+  },
+  {
+    "file": "scripts/qa/codex-review.test.ts",
+    "code": "TS2532",
+    "message": "Object is possibly 'undefined'."
+  },
+  {
+    "file": "scripts/qa/codex-review.test.ts",
+    "code": "TS2532",
+    "message": "Object is possibly 'undefined'."
+  },
+  {
+    "file": "scripts/qa/db-drift/advisor-inventory.test.ts",
+    "code": "TS18048",
+    "message": "'entry' is possibly 'undefined'."
+  },
+  {
+    "file": "scripts/qa/db-drift/advisor-inventory.test.ts",
+    "code": "TS18048",
+    "message": "'entry' is possibly 'undefined'."
+  },
+  {
+    "file": "scripts/qa/db-drift/advisor-inventory.test.ts",
+    "code": "TS18048",
+    "message": "'entry' is possibly 'undefined'."
+  },
+  {
+    "file": "scripts/qa/db-drift/advisor-inventory.test.ts",
+    "code": "TS18048",
+    "message": "'entry' is possibly 'undefined'."
+  },
+  {
+    "file": "scripts/qa/db-drift/advisor-inventory.test.ts",
+    "code": "TS18048",
+    "message": "'entry' is possibly 'undefined'."
+  },
+  {
+    "file": "scripts/qa/db-drift/enum-check-drift.ts",
+    "code": "TS2322",
+    "message": "Type '{ table: string | undefined; column: string | undefined; value: string; files: string[]; allowedValues: string[]; constraintSource: string; }[]' is not assignable to type 'EnumDriftFinding[]'."
+  },
+  {
+    "file": "scripts/qa/db-drift/enum-check-drift.ts",
+    "code": "TS2322",
+    "message": "Type 'string | undefined' is not assignable to type 'string'."
+  },
+  {
+    "file": "scripts/qa/db-drift/enum-check-drift.ts",
+    "code": "TS2322",
+    "message": "Type 'string | undefined' is not assignable to type 'string'."
+  },
+  {
+    "file": "scripts/qa/db-drift/enum-check-drift.ts",
+    "code": "TS2345",
+    "message": "Argument of type 'string | undefined' is not assignable to parameter of type 'string'."
+  },
+  {
+    "file": "scripts/qa/db-drift/enum-check-drift.ts",
+    "code": "TS2345",
+    "message": "Argument of type 'string | undefined' is not assignable to parameter of type 'string'."
+  },
+  {
+    "file": "scripts/qa/db-drift/enum-check-drift.ts",
+    "code": "TS2345",
+    "message": "Argument of type 'string | undefined' is not assignable to parameter of type 'string'."
+  },
+  {
+    "file": "scripts/qa/db-drift/enum-check-drift.ts",
+    "code": "TS2345",
+    "message": "Argument of type 'string | undefined' is not assignable to parameter of type 'string'."
+  },
+  {
+    "file": "scripts/qa/db-drift/enum-check-drift.ts",
+    "code": "TS2345",
+    "message": "Argument of type 'string | undefined' is not assignable to parameter of type 'string'."
+  },
+  {
+    "file": "scripts/qa/db-drift/enum-check-drift.ts",
+    "code": "TS2345",
+    "message": "Argument of type 'string | undefined' is not assignable to parameter of type 'string'."
+  },
+  {
+    "file": "scripts/qa/db-drift/enum-check-drift.ts",
+    "code": "TS2345",
+    "message": "Argument of type 'string | undefined' is not assignable to parameter of type 'string'."
+  },
+  {
+    "file": "scripts/qa/db-drift/enum-check-drift.ts",
+    "code": "TS2345",
+    "message": "Argument of type 'string | undefined' is not assignable to parameter of type 'string'."
+  },
+  {
+    "file": "scripts/qa/db-drift/enum-check-drift.ts",
+    "code": "TS2345",
+    "message": "Argument of type 'string | undefined' is not assignable to parameter of type 'string'."
+  },
+  {
+    "file": "scripts/qa/db-drift/enum-check-drift.ts",
+    "code": "TS2345",
+    "message": "Argument of type 'string | undefined' is not assignable to parameter of type 'string'."
+  },
+  {
+    "file": "scripts/qa/db-drift/enum-check-drift.ts",
+    "code": "TS2345",
+    "message": "Argument of type 'string | undefined' is not assignable to parameter of type 'string'."
+  },
+  {
+    "file": "scripts/qa/db-drift/enum-check-drift.ts",
+    "code": "TS2345",
+    "message": "Argument of type 'string | undefined' is not assignable to parameter of type 'string'."
+  },
+  {
+    "file": "scripts/qa/db-drift/enum-check-drift.ts",
+    "code": "TS2345",
+    "message": "Argument of type 'string | undefined' is not assignable to parameter of type 'string'."
+  },
+  {
+    "file": "scripts/qa/db-drift/enum-check-drift.ts",
+    "code": "TS2532",
+    "message": "Object is possibly 'undefined'."
+  },
+  {
+    "file": "scripts/qa/db-drift/enum-check-drift.ts",
+    "code": "TS2532",
+    "message": "Object is possibly 'undefined'."
+  },
+  {
+    "file": "scripts/qa/db-drift/enum-check-drift.ts",
+    "code": "TS2532",
+    "message": "Object is possibly 'undefined'."
+  },
+  {
+    "file": "scripts/qa/db-drift/function-inventory.ts",
+    "code": "TS2345",
+    "message": "Argument of type '(string | undefined)[]' is not assignable to parameter of type 'string[]'."
+  },
+  {
+    "file": "scripts/qa/db-drift/function-inventory.ts",
+    "code": "TS2345",
+    "message": "Argument of type '(string | undefined)[]' is not assignable to parameter of type 'string[]'."
+  },
+  {
+    "file": "scripts/qa/db-drift/function-inventory.ts",
+    "code": "TS2345",
+    "message": "Argument of type 'string | undefined' is not assignable to parameter of type 'string'."
+  },
+  {
+    "file": "scripts/qa/db-drift/function-inventory.ts",
+    "code": "TS2345",
+    "message": "Argument of type 'string | undefined' is not assignable to parameter of type 'string'."
+  },
+  {
+    "file": "scripts/qa/db-drift/function-inventory.ts",
+    "code": "TS2769",
+    "message": "No overload matches this call."
+  },
+  {
+    "file": "scripts/qa/inflight.test.ts",
+    "code": "TS2532",
+    "message": "Object is possibly 'undefined'."
+  },
+  {
+    "file": "scripts/qa/inflight.ts",
+    "code": "TS18048",
+    "message": "'rec' is possibly 'undefined'."
+  },
+  {
+    "file": "scripts/qa/inflight.ts",
+    "code": "TS18048",
+    "message": "'rec' is possibly 'undefined'."
+  },
+  {
+    "file": "scripts/qa/inflight.ts",
+    "code": "TS18048",
+    "message": "'rec' is possibly 'undefined'."
+  },
+  {
+    "file": "scripts/qa/inflight.ts",
+    "code": "TS18048",
+    "message": "'rec' is possibly 'undefined'."
+  },
+  {
+    "file": "scripts/qa/inflight.ts",
+    "code": "TS18048",
+    "message": "'tok' is possibly 'undefined'."
+  },
+  {
+    "file": "scripts/qa/inflight.ts",
+    "code": "TS18048",
+    "message": "'tok' is possibly 'undefined'."
+  },
+  {
+    "file": "scripts/qa/inflight.ts",
+    "code": "TS2322",
+    "message": "Type 'string | undefined' is not assignable to type 'string'."
+  },
+  {
+    "file": "scripts/qa/inflight.ts",
+    "code": "TS2345",
+    "message": "Argument of type 'string | undefined' is not assignable to parameter of type 'string'."
+  },
+  {
+    "file": "scripts/qa/inflight.ts",
+    "code": "TS2345",
+    "message": "Argument of type 'string | undefined' is not assignable to parameter of type 'string'."
+  },
+  {
+    "file": "scripts/qa/inflight.ts",
+    "code": "TS2345",
+    "message": "Argument of type 'string | undefined' is not assignable to parameter of type 'string'."
+  },
+  {
+    "file": "scripts/qa/inflight.ts",
+    "code": "TS2345",
+    "message": "Argument of type 'string | undefined' is not assignable to parameter of type 'string'."
+  },
+  {
+    "file": "scripts/qa/inflight.ts",
+    "code": "TS2345",
+    "message": "Argument of type 'string | undefined' is not assignable to parameter of type 'string'."
+  },
+  {
+    "file": "scripts/qa/inflight.ts",
+    "code": "TS2345",
+    "message": "Argument of type 'string | undefined' is not assignable to parameter of type 'string'."
+  },
+  {
+    "file": "scripts/qa/inflight.ts",
+    "code": "TS2345",
+    "message": "Argument of type 'string | undefined' is not assignable to parameter of type 'string'."
+  },
+  {
+    "file": "scripts/qa/inflight.ts",
+    "code": "TS2532",
+    "message": "Object is possibly 'undefined'."
+  },
+  {
+    "file": "scripts/qa/inflight.ts",
+    "code": "TS2532",
+    "message": "Object is possibly 'undefined'."
+  },
+  {
+    "file": "scripts/qa/inflight.ts",
+    "code": "TS2532",
+    "message": "Object is possibly 'undefined'."
+  },
+  {
+    "file": "scripts/qa/inflight.ts",
+    "code": "TS2532",
+    "message": "Object is possibly 'undefined'."
+  },
+  {
+    "file": "scripts/qa/isolated-e2e-lifecycle.ts",
+    "code": "TS2322",
+    "message": "Type 'string | undefined' is not assignable to type 'string'."
+  },
+  {
+    "file": "scripts/qa/isolated-e2e-lifecycle.ts",
+    "code": "TS2322",
+    "message": "Type 'string | undefined' is not assignable to type 'string'."
+  },
+  {
+    "file": "scripts/qa/isolated-e2e-lifecycle.ts",
+    "code": "TS2322",
+    "message": "Type 'string | undefined' is not assignable to type 'string'."
+  },
+  {
+    "file": "scripts/qa/isolated-e2e-lifecycle.ts",
+    "code": "TS2322",
+    "message": "Type 'string | undefined' is not assignable to type 'string'."
+  },
+  {
+    "file": "scripts/qa/isolated-e2e-lifecycle.ts",
+    "code": "TS2532",
+    "message": "Object is possibly 'undefined'."
+  },
+  {
+    "file": "scripts/qa/isolated-e2e-lifecycle.ts",
+    "code": "TS2538",
+    "message": "Type 'undefined' cannot be used as an index type."
+  },
+  {
+    "file": "scripts/qa/isolated-e2e-target.test.ts",
+    "code": "TS2790",
+    "message": "The operand of a 'delete' operator must be optional."
+  },
+  {
+    "file": "scripts/qa/myk9-147-applied-replay.ts",
+    "code": "TS2322",
+    "message": "Type 'T | undefined' is not assignable to type 'T | null'."
+  },
+  {
+    "file": "scripts/qa/myk9-147-applied-replay.ts",
+    "code": "TS2345",
+    "message": "Argument of type '{ apikey: string | undefined; Authorization: string; }' is not assignable to parameter of type 'HeadersInit | undefined'."
+  },
+  {
+    "file": "scripts/qa/myk9-147-applied-replay.ts",
+    "code": "TS2345",
+    "message": "Argument of type 'string | undefined' is not assignable to parameter of type 'string'."
+  },
+  {
+    "file": "scripts/qa/myk9-147-applied-replay.ts",
+    "code": "TS2345",
+    "message": "Argument of type 'string | undefined' is not assignable to parameter of type 'string'."
+  },
+  {
+    "file": "scripts/qa/myk9-147-applied-replay.ts",
+    "code": "TS2345",
+    "message": "Argument of type 'string | undefined' is not assignable to parameter of type 'string'."
+  },
+  {
+    "file": "scripts/qa/myk9-147-applied-replay.ts",
+    "code": "TS2345",
+    "message": "Argument of type 'string | undefined' is not assignable to parameter of type 'string'."
+  },
+  {
+    "file": "scripts/qa/myk9-147-applied-replay.ts",
+    "code": "TS2345",
+    "message": "Argument of type 'string | undefined' is not assignable to parameter of type 'string'."
+  },
+  {
+    "file": "scripts/qa/myk9-147-applied-replay.ts",
+    "code": "TS2345",
+    "message": "Argument of type 'string | undefined' is not assignable to parameter of type 'string'."
+  },
+  {
+    "file": "scripts/qa/myk9-147-applied-replay.ts",
+    "code": "TS2345",
+    "message": "Argument of type 'string | undefined' is not assignable to parameter of type 'string'."
+  },
+  {
+    "file": "scripts/qa/myk9-147-applied-replay.ts",
+    "code": "TS2345",
+    "message": "Argument of type 'string | undefined' is not assignable to parameter of type 'string'."
+  },
+  {
+    "file": "scripts/qa/myk9-147-applied-replay.ts",
+    "code": "TS2345",
+    "message": "Argument of type 'string | undefined' is not assignable to parameter of type 'string'."
+  },
+  {
+    "file": "scripts/qa/myk9-147-applied-replay.ts",
+    "code": "TS2345",
+    "message": "Argument of type 'string | undefined' is not assignable to parameter of type 'string'."
+  },
+  {
+    "file": "scripts/qa/myk9-147-applied-replay.ts",
+    "code": "TS2345",
+    "message": "Argument of type 'string | undefined' is not assignable to parameter of type 'string'."
+  },
+  {
+    "file": "scripts/qa/myk9-147-applied-replay.ts",
+    "code": "TS2345",
+    "message": "Argument of type 'string | undefined' is not assignable to parameter of type 'string'."
+  },
+  {
+    "file": "scripts/qa/myk9-147-applied-replay.ts",
+    "code": "TS2345",
+    "message": "Argument of type 'string | undefined' is not assignable to parameter of type 'string'."
+  },
+  {
+    "file": "scripts/qa/myk9-147-applied-replay.ts",
+    "code": "TS2345",
+    "message": "Argument of type 'string | undefined' is not assignable to parameter of type 'string'."
+  },
+  {
+    "file": "scripts/qa/myk9-147-applied-replay.ts",
+    "code": "TS2345",
+    "message": "Argument of type 'string | undefined' is not assignable to parameter of type 'string'."
+  },
+  {
+    "file": "scripts/qa/myk9-147-applied-replay.ts",
+    "code": "TS2345",
+    "message": "Argument of type 'string | undefined' is not assignable to parameter of type 'string'."
+  },
+  {
+    "file": "scripts/qa/myk9-147-applied-replay.ts",
+    "code": "TS2345",
+    "message": "Argument of type 'string | undefined' is not assignable to parameter of type 'string'."
+  },
+  {
+    "file": "scripts/qa/myk9-147-applied-replay.ts",
+    "code": "TS2345",
+    "message": "Argument of type 'string | undefined' is not assignable to parameter of type 'string'."
+  },
+  {
+    "file": "scripts/qa/myk9-147-applied-replay.ts",
+    "code": "TS2345",
+    "message": "Argument of type 'string | undefined' is not assignable to parameter of type 'string'."
+  },
+  {
+    "file": "scripts/qa/myk9-147-applied-replay.ts",
+    "code": "TS2345",
+    "message": "Argument of type 'string | undefined' is not assignable to parameter of type 'string'."
+  },
+  {
+    "file": "scripts/qa/myk9-147-applied-replay.ts",
+    "code": "TS2345",
+    "message": "Argument of type 'string | undefined' is not assignable to parameter of type 'string'."
+  },
+  {
+    "file": "scripts/qa/myk9-147-applied-replay.ts",
+    "code": "TS2345",
+    "message": "Argument of type 'string | undefined' is not assignable to parameter of type 'string'."
+  },
+  {
+    "file": "scripts/qa/myk9-147-applied-replay.ts",
+    "code": "TS2345",
+    "message": "Argument of type 'string | undefined' is not assignable to parameter of type 'string'."
+  },
+  {
+    "file": "scripts/qa/myk9-147-applied-replay.ts",
+    "code": "TS2345",
+    "message": "Argument of type 'string | undefined' is not assignable to parameter of type 'string'."
+  },
+  {
+    "file": "scripts/qa/myk9-147-applied-replay.ts",
+    "code": "TS2345",
+    "message": "Argument of type 'string | undefined' is not assignable to parameter of type 'string'."
+  },
+  {
+    "file": "scripts/qa/myk9-147-applied-replay.ts",
+    "code": "TS2345",
+    "message": "Argument of type 'string | undefined' is not assignable to parameter of type 'string'."
+  },
+  {
+    "file": "scripts/qa/myk9-147-applied-replay.ts",
+    "code": "TS2345",
+    "message": "Argument of type 'string | undefined' is not assignable to parameter of type 'string'."
+  },
+  {
+    "file": "scripts/qa/myk9-147-applied-replay.ts",
+    "code": "TS2345",
+    "message": "Argument of type 'string | undefined' is not assignable to parameter of type 'string'."
+  },
+  {
+    "file": "scripts/qa/myk9-147-applied-replay.ts",
+    "code": "TS2345",
+    "message": "Argument of type 'string | undefined' is not assignable to parameter of type 'string'."
+  },
+  {
+    "file": "scripts/qa/myk9-147-applied-replay.ts",
+    "code": "TS2345",
+    "message": "Argument of type 'string | undefined' is not assignable to parameter of type 'string'."
+  },
+  {
+    "file": "scripts/qa/myk9-147-applied-replay.ts",
+    "code": "TS2345",
+    "message": "Argument of type 'string | undefined' is not assignable to parameter of type 'string'."
+  },
+  {
+    "file": "scripts/qa/myk9-147-applied-replay.ts",
+    "code": "TS2345",
+    "message": "Argument of type 'string | undefined' is not assignable to parameter of type 'string'."
+  },
+  {
+    "file": "scripts/qa/myk9-147-applied-replay.ts",
+    "code": "TS2345",
+    "message": "Argument of type 'string | undefined' is not assignable to parameter of type 'string'."
+  },
+  {
+    "file": "scripts/qa/myk9-147-applied-replay.ts",
+    "code": "TS2345",
+    "message": "Argument of type 'string | undefined' is not assignable to parameter of type 'string'."
+  },
+  {
+    "file": "scripts/qa/myk9-147-applied-replay.ts",
+    "code": "TS2345",
+    "message": "Argument of type 'string | undefined' is not assignable to parameter of type 'string'."
+  },
+  {
+    "file": "scripts/qa/myk9-161-applied-acl-replay.ts",
+    "code": "TS2769",
+    "message": "No overload matches this call."
+  },
+  {
+    "file": "scripts/qa/nightly-health-workflow.test.ts",
+    "code": "TS2322",
+    "message": "Type 'string | undefined' is not assignable to type 'string | null'."
+  },
+  {
+    "file": "scripts/qa/post-review-gate.test.ts",
+    "code": "TS2345",
+    "message": "Argument of type '{ OVERRIDE_REASON: string; DEFERRED_REVIEW: string; } | { OVERRIDE_REASON?: undefined; DEFERRED_REVIEW?: undefined; }' is not assignable to parameter of type 'Record<string, string> | undefined'."
+  },
+  {
+    "file": "scripts/qa/post-review-gate.test.ts",
+    "code": "TS2345",
+    "message": "Argument of type '{ OVERRIDE_REASON: string; DEFERRED_REVIEW: string; } | { OVERRIDE_REASON?: undefined; DEFERRED_REVIEW?: undefined; }' is not assignable to parameter of type 'Record<string, string> | undefined'."
+  },
+  {
+    "file": "scripts/qa/post-review-gate.test.ts",
+    "code": "TS2345",
+    "message": "Argument of type '{ OVERRIDE_REASON: string; DEFERRED_REVIEW: string; } | { OVERRIDE_REASON?: undefined; DEFERRED_REVIEW?: undefined; }' is not assignable to parameter of type 'Record<string, string> | undefined'."
+  },
+  {
+    "file": "scripts/qa/post-review-gate.test.ts",
+    "code": "TS2345",
+    "message": "Argument of type '{ OVERRIDE_REASON: string; DEFERRED_REVIEW: string; REVIEW_LENSES?: undefined; } | { REVIEW_LENSES: string; OVERRIDE_REASON?: undefined; DEFERRED_REVIEW?: undefined; } | { OVERRIDE_REASON?: undefined; DEFERRED_REVIEW?: undefined; REVIEW_LENSES?: undefined; }' is not assignable to parameter of type 'Record<string, string> | undefined'."
+  },
+  {
+    "file": "scripts/qa/review-gate.test.ts",
+    "code": "TS18048",
+    "message": "'evidence' is possibly 'undefined'."
+  },
+  {
+    "file": "scripts/qa/review-gate.test.ts",
+    "code": "TS18048",
+    "message": "'evidence' is possibly 'undefined'."
+  },
+  {
+    "file": "scripts/qa/review-gate.test.ts",
+    "code": "TS18048",
+    "message": "'evidence' is possibly 'undefined'."
+  },
+  {
+    "file": "scripts/qa/review-gate.test.ts",
+    "code": "TS18048",
+    "message": "'evidence' is possibly 'undefined'."
+  },
+  {
+    "file": "scripts/qa/review-gate.test.ts",
+    "code": "TS2345",
+    "message": "Argument of type 'GateEvidence | undefined' is not assignable to parameter of type 'GateEvidence'."
+  },
+  {
+    "file": "scripts/qa/review-gate.test.ts",
+    "code": "TS2345",
+    "message": "Argument of type 'GateEvidence | undefined' is not assignable to parameter of type 'GateEvidence'."
+  },
+  {
+    "file": "scripts/qa/review-gate.test.ts",
+    "code": "TS2345",
+    "message": "Argument of type 'GateEvidence | undefined' is not assignable to parameter of type 'GateEvidence'."
+  },
+  {
+    "file": "scripts/qa/review-gate.test.ts",
+    "code": "TS2345",
+    "message": "Argument of type 'GateEvidence | undefined' is not assignable to parameter of type 'GateEvidence'."
+  },
+  {
+    "file": "scripts/qa/review-gate.test.ts",
+    "code": "TS2532",
+    "message": "Object is possibly 'undefined'."
+  },
+  {
+    "file": "scripts/qa/review-gate.test.ts",
+    "code": "TS2532",
+    "message": "Object is possibly 'undefined'."
+  },
+  {
+    "file": "scripts/qa/review-gate.test.ts",
+    "code": "TS2532",
+    "message": "Object is possibly 'undefined'."
+  }
+]

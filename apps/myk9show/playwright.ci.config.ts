@@ -101,9 +101,12 @@ const REGRESSION_SPECS = [
 // the string's width. Verified BOTH directions before promotion: green on the
 // fix, and red with the guard reverted ("a w-full child rendered 3419px inside
 // a 446px dialog"). It guards every dialog carrying no local min-w-0, so any
-// PR can break it, not only one touching dialog.tsx. Exhibitor-authed and
-// ~14s for one case; verified green under this config before promotion
-// (2026-09-14).
+// PR can break it, not only one touching dialog.tsx. It is parametrized over
+// BOTH grid-based popup primitives (DialogContent and AlertDialogContent),
+// which carry the same guard class, so dropping it from either goes red.
+// Exhibitor-authed and ~14s per case; its seed-data dependency is stated in
+// docs/qa/e2e-suite-map.md and surfaced in the spec's own failure messages.
+// Verified green under this config before promotion (2026-09-14).
 const PR_SMOKE_SPECS = [
   '**/simple-connectivity.spec.ts',
   '**/uat/secretary/qa-regression-proof.spec.ts',

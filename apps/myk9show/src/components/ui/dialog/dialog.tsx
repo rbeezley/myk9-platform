@@ -93,6 +93,9 @@ const DialogContent = React.forwardRef<
         // dialog stayed 448px while its button rendered 1253px. minmax(0,1fr)
         // caps the column at the dialog's own width, which also restores the
         // call site's `truncate` -- it was inert while the column was wider.
+        // This is the canonical statement of that guard: AlertDialogContent
+        // carries the same class and points here. Geometry coverage for both:
+        // `src/test/e2e/dialogContainsLongContent.spec.ts`.
         // Card background + border + foreground text are the dialog default
         // (folded in from the former enhanced-dialog wrapper) so every dialog
         // gets proper light/dark surfaces without opting in through the barrel.

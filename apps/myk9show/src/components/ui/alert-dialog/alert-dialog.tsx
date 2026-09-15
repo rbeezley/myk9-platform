@@ -60,13 +60,12 @@ const AlertDialogContent = React.forwardRef<
     <AlertDialogPrimitive.Popup
       ref={ref}
       className={cn(
-        // A grid item's implicit column is sized `auto`, whose minimum is
-        // min-content, so one unbreakable string (URL, UUID, file path) sizes
-        // the column past max-w-lg and every w-full child inherits that width.
-        // Measured on /exhibitor/entries -> Add to calendar (MYK9-503): the
-        // dialog stayed 448px while its button rendered 1253px. minmax(0,1fr)
-        // caps the column at the dialog's own width, which also restores the
-        // call site's `truncate` -- it was inert while the column was wider.
+        // `grid-cols-[minmax(0,1fr)]` is the MYK9-503 track guard. The full
+        // rationale lives once, on DialogContent in
+        // `src/components/ui/dialog/dialog.tsx` -- read it there before
+        // editing this class string. Both primitives are covered by
+        // `src/test/e2e/dialogContainsLongContent.spec.ts`, which is
+        // parametrized over them and goes red here if the guard is dropped.
         'fixed left-[50%] top-[50%] z-50 grid grid-cols-[minmax(0,1fr)] w-full max-w-lg translate-x-[-50%] translate-y-[-50%] gap-4 border bg-background p-6 shadow-lg duration-200 data-[open]:animate-in data-[closed]:animate-out data-[closed]:fade-out-0 data-[open]:fade-in-0 data-[closed]:zoom-out-95 data-[open]:zoom-in-95 data-[closed]:slide-out-to-left-1/2 data-[closed]:slide-out-to-top-[48%] data-[open]:slide-in-from-left-1/2 data-[open]:slide-in-from-top-[48%] sm:rounded-lg',
         className
       )}

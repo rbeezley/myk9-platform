@@ -9,6 +9,8 @@ import { useBrowseDogsData, type DogFilters } from '@/hooks/useBrowseDogsData';
 import { useBulkSelection } from '@/hooks/useBulkSelection';
 import { DogsGridView, DogsTableView } from '@/components/dogs/browse';
 import { DogsBulkActionsBar } from '@/components/dogs/browse/DogsBulkActionsBar';
+import { BlockedDogDeleteDialog } from '@/components/dogs/browse/BlockedDogDeleteDialog';
+import { useBlockedDogDeletes } from '@/components/dogs/browse/useBlockedDogDeletes';
 import { BrowseDogsSkeleton } from '@/components/common/SkeletonLoaders';
 import { AddDogPanel } from '@/components/panels/edit';
 import type { Dog as DogType } from '@/types/dog-types';
@@ -104,6 +106,11 @@ const BrowseDogsPage: React.FC = () => {
     getItemId: (dog: DogType) => dog.id,
     pruneToItems: true,
   });
+
+  // Owned by the PAGE, not the bulk bar. The optimistic delete prunes the
+  // selection, which unmounts the bar — a dialog owned there never rendered
+  // (MYK9-584). See useBlockedDogDeletes for the full reasoning.
+  const blockedDeletes = useBlockedDogDeletes(dogSelection.clearSelection);
 
   // FilterChips definitions
   const chipFilters: ChipFilterDefinition[] = useMemo(
@@ -357,6 +364,19 @@ const BrowseDogsPage: React.FC = () => {
               selectedDogs={dogSelection.selectedItems}
               onClear={dogSelection.clearSelection}
               canDelete={canDeleteDogs}
+              onBlockedDogs={blockedDeletes.reportBlocked}
+            />
+          )}
+
+          {/* Rendered at page level and gated only on its own state, so it
+              survives the selection pruning that unmounts the bar above. */}
+          {blockedDeletes.blockedDogs.length > 0 && (
+            <BlockedDogDeleteDialog
+              dogs={blockedDeletes.blockedDogs}
+              open
+              onClose={blockedDeletes.dismiss}
+              onForceDelete={blockedDeletes.forceDelete}
+              isSubmitting={blockedDeletes.isSubmitting}
               canForceDelete={canForceDeleteDogs}
             />
           )}

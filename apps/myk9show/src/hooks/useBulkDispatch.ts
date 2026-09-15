@@ -2,6 +2,7 @@ import { useCallback, useRef, useState } from 'react';
 import { toast } from 'sonner';
 import {
   dispatchBulk,
+  errorReason,
   retryFailedItems,
   summarizeBulkOutcome,
   type BulkDispatchOutcome,
@@ -38,19 +39,20 @@ export interface BulkDispatchRunOptions<T> {
    */
   applicableWhen?: (item: T) => boolean;
   /**
-   * Lets the caller take ownership of reporting a subset of failures, so the
-   * summary toast stops reporting them. Claimed items are excluded from the
-   * toast's count, its detail lines, and its "Retry failed" set; the full
-   * outcome is still returned from `run`, so the caller can surface them its
-   * own way.
+   * Lets the caller take ownership of reporting a subset of failures in its own
+   * UI. Claimed items are excluded from the toast's DETAIL LINES and its "Retry
+   * failed" set, so the two reports do not duplicate each other.
+   *
+   * Claiming does NOT reduce the toast's counts, and it never suppresses the
+   * toast — see MYK9-584. An earlier version stayed silent when every failure
+   * was claimed, and shipped a bulk delete that reported nothing at all once the
+   * caller's dialog turned out to be unmountable at that moment. The toast is
+   * the only report that does not depend on a caller's render tree surviving.
    *
    * Use it when a specific failure has a specific resolution the user must act
    * on — a bulk dog delete refused over paid/scored entries offers an admin
    * override, and a list of names you must act on does not belong in a toast
-   * that disappears. Everything else keeps the ordinary toast.
-   *
-   * When every failure is claimed and nothing succeeded, no toast is shown at
-   * all: the caller's own UI is the entire report.
+   * that disappears.
    */
   claimFailure?: (item: T, error: unknown) => boolean;
   /**
@@ -102,32 +104,29 @@ export function useBulkDispatch<T>({
       claimFailure?: (item: T, error: unknown) => boolean,
       onClaimedFailures?: (items: T[]) => void
     ) => {
-      // Failures the caller has claimed are reported by the caller's own UI, so
-      // drop them here before anything is counted or worded. `total` shrinks
-      // with them, otherwise the toast reads "1 of 3 succeeded" about a batch
-      // the user is being shown two separate accounts of.
+      // A claimed failure is one the caller reports itself (e.g. in a dialog).
+      // Claiming removes it from the DETAIL LINES and the retry set so the two
+      // reports do not duplicate each other — it must never remove the toast.
+      //
+      // MYK9-584: this used to return early and show nothing when every failure
+      // was claimed. In production that produced a bulk delete with no feedback
+      // at all, because the caller's dialog lived in a component the optimistic
+      // update had already unmounted. The toast is the one report that does not
+      // depend on any caller's render tree still existing, so it always fires.
       const claimed = claimFailure
         ? outcome.failed.filter(({ item, error }) => claimFailure(item, error))
         : [];
-      const reportable: BulkDispatchOutcome<T> = claimed.length
-        ? {
-            succeeded: outcome.succeeded,
-            failed: outcome.failed.filter(f => !claimed.includes(f)),
-          }
-        : outcome;
+      const unclaimed = claimed.length
+        ? outcome.failed.filter(f => !claimed.includes(f))
+        : outcome.failed;
 
       if (claimed.length > 0) onClaimedFailures?.(claimed.map(({ item }) => item));
 
-      // Everything failed and the caller owns every failure: its dialog is the
-      // whole report, so stay silent rather than stacking a toast on top of it.
-      if (reportable.succeeded.length === 0 && reportable.failed.length === 0) return;
-
-      const summary = summarizeBulkOutcome(total - claimed.length, reportable, getLabel);
+      // Counts come from the FULL outcome: "1 of 3 succeeded — 2 failed" stays
+      // true regardless of who reports the two.
+      const summary = summarizeBulkOutcome(total, outcome, getLabel);
       if (summary.fullSuccess) {
-        // Only a genuinely clean batch clears the selection: claimed failures
-        // are still unresolved, and their dogs must stay selected so the
-        // override acts on them.
-        if (claimed.length === 0) onFullSuccess?.();
+        onFullSuccess?.();
         const onUndo = buildUndo?.(outcome);
         toast.success(
           summary.title,
@@ -135,22 +134,32 @@ export function useBulkDispatch<T>({
         );
         return;
       }
+
+      const details = unclaimed.map(
+        ({ item, error }) => `${getLabel(item)}: ${errorReason(error)}`
+      );
       toast.error(summary.title, {
-        description: summary.details?.join('\n'),
-        action: {
-          label: 'Retry failed',
-          onClick: () => {
-            void retry(
-              reportable.failed.map(({ item }) => item),
-              runItem,
-              runApplicableWhen,
-              buildUndo,
-              onFullSuccess,
-              claimFailure,
-              onClaimedFailures
-            );
-          },
-        },
+        ...(details.length > 0 ? { description: details.join('\n') } : {}),
+        // No retry when every failure was claimed: retrying them is the
+        // caller's affordance, not a generic re-run of the same rejection.
+        ...(unclaimed.length > 0
+          ? {
+              action: {
+                label: 'Retry failed',
+                onClick: () => {
+                  void retry(
+                    unclaimed.map(({ item }) => item),
+                    runItem,
+                    runApplicableWhen,
+                    buildUndo,
+                    onFullSuccess,
+                    claimFailure,
+                    onClaimedFailures
+                  );
+                },
+              },
+            }
+          : {}),
       });
     },
     // eslint-disable-next-line react-hooks/exhaustive-deps -- `retry` is declared below and stable per-render via useCallback closure

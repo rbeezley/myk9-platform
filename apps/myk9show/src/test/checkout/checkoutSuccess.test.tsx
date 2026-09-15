@@ -20,10 +20,11 @@ import { createTestQueryClient } from '@/test/utils/testUtils';
 // Hoisted mock refs (must be hoisted so vi.mock factory can reference them)
 // ---------------------------------------------------------------------------
 
-const { mockSingle, mockRpc, mockGetSession, mockEntries } = vi.hoisted(() => ({
+const { mockSingle, mockRpc, mockGetSession, mockEntries, mockPruneDrafts } = vi.hoisted(() => ({
   mockSingle: vi.fn(),
   mockRpc: vi.fn(),
   mockGetSession: vi.fn(),
+  mockPruneDrafts: vi.fn(),
   // Rows returned from the entries fetch (`.select().in('id', ...)`). The
   // armband is read straight off the entry row (denormalized column).
   mockEntries: { rows: [] as unknown[] },
@@ -46,6 +47,10 @@ vi.mock('@/lib/supabase', () => {
     },
   };
 });
+
+vi.mock('@/hooks/pruneWizardDraftsForFiledEntries', () => ({
+  pruneWizardDraftsForFiledEntries: mockPruneDrafts,
+}));
 
 import { type CheckoutVerificationResult, verifyCheckoutSession } from '@/lib/stripe';
 import CheckoutSuccessPage from '@/pages/CheckoutSuccessPage';
@@ -108,6 +113,7 @@ describe('verifyCheckoutSession', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockEntries.rows = [];
+    mockPruneDrafts.mockClear();
     mockAuthSession();
     mockCheckoutRpcFromSingle();
   });
@@ -452,6 +458,57 @@ describe('CheckoutSuccessPage', () => {
     // Copy must NOT claim the number is assigned later; it already exists.
     expect(screen.queryByText(/will be assigned at check-in/i)).not.toBeInTheDocument();
     expect(screen.getByText(/Bring your armband number/i)).toBeInTheDocument();
+  });
+
+  it('retires exactly the filed draft lines once the payment is verified', async () => {
+    // MYK9-509: the wizard draft survives the cart hand-off so a CANCELLED
+    // checkout can resume. This is the one place it is right to retire it, and
+    // only for the lines that were actually filed.
+    mockSingle.mockResolvedValue({
+      data: {
+        id: 'order-uuid',
+        status: 'succeeded',
+        amount_cents: 7500,
+        entry_ids: ['entry-1', 'entry-2'],
+        show_id: 'show-uuid',
+        paid_at: '2026-04-13T10:00:00Z',
+        shows: { name: 'Spring Invitational' },
+        enrollment: { confirmation_number: 'MK9-000042' },
+      },
+      error: null,
+    });
+    mockGetSession.mockResolvedValue({
+      data: { session: { access_token: 'token_xyz', user: { id: 'auth-user-1' } } },
+    });
+    mockEntries.rows = [
+      {
+        id: 'entry-1',
+        armband: '142',
+        dog_id: 'dog-1',
+        class_id: 'class-1',
+        dogs: { name: 'Scout', call_name: 'Scout' },
+        classes: { name: 'Container', level: 'Novice' },
+      },
+      // A row with no dog/class pair must not become a phantom filed line.
+      {
+        id: 'entry-2',
+        armband: null,
+        dog_id: null,
+        class_id: 'class-2',
+        dogs: { name: 'Ziva', call_name: 'Ziva' },
+        classes: { name: 'Interior', level: 'Advanced' },
+      },
+    ];
+
+    renderSuccessPage();
+
+    await waitFor(() => {
+      expect(mockPruneDrafts).toHaveBeenCalledWith({
+        showId: 'show-uuid',
+        userId: 'auth-user-1',
+        filed: [{ dogId: 'dog-1', classId: 'class-1' }],
+      });
+    });
   });
 
   it('falls back to secretary-confirmation copy when an armband is missing', async () => {

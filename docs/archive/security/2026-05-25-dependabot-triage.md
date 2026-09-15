@@ -108,7 +108,7 @@ Resolved to `undici@7.26.0` and `path-to-regexp@8.4.2`. The pre-existing `path-t
 **Verification:**
 
 - `pnpm install` clean, no new peer warnings introduced
-- `pnpm typecheck` — all 23 workspace tasks pass, including `apps/myk9show/tsconfig.api.json` (the OG functions)
+- `pnpm typecheck` — all 23 workspace tasks pass. **Correction (2026-09-14, MYK9-521):** `apps/myk9show/tsconfig.api.json` (the OG functions) was NOT one of those tasks — no script invoked it at the time this was written, so it was not actually verified here. It was wired into the `typecheck` chain and confirmed clean in MYK9-521.
 - `pnpm build:show` — full Vite + Rollup + Workbox service-worker build succeeds
 - Pre-existing unmet peer `workbox-build@^7.4.1: found 7.4.0` warning is not regression — already present before this change
 

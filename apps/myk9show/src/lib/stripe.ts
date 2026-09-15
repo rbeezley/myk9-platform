@@ -131,7 +131,17 @@ export async function createEntryCheckoutSession(
       mode: 'entry',
       cart_id: cartId,
       success_url: successUrl,
-      cancel_url: `${window.location.origin}/checkout/cancel`,
+      // The SAME literal token as `success_url`, for the same reason and one
+      // more: Stripe's cancel_url is also reachable AFTER a payment completes
+      // (the exhibitor hits Back from the receipt, or re-opens a stale tab).
+      // Without a session id the cancel page has no way to tell that apart
+      // from a genuine abandonment and tells someone whose card was charged
+      // that their payment was cancelled, one click from paying again
+      // (MYK9-509). Concatenated, never through URLSearchParams — see
+      // STRIPE_CHECKOUT_SESSION_ID_TOKEN for what encoding the braces costs.
+      cancel_url:
+        `${window.location.origin}/checkout/cancel` +
+        `?session_id=${STRIPE_CHECKOUT_SESSION_ID_TOKEN}`,
     },
   });
 

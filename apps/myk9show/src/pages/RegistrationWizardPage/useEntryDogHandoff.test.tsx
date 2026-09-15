@@ -41,6 +41,7 @@ interface Options {
   mode?: string;
   steps?: string[];
   canEnter?: boolean;
+  rehydrationSettled?: boolean;
 }
 
 function render(options: Options = {}) {
@@ -50,6 +51,7 @@ function render(options: Options = {}) {
     dogsReady: options.dogsReady ?? true,
     registrationData: { selectedDogs: options.selectedDogs ?? [] },
     currentWorkflowMode: options.mode ?? 'exhibitor',
+    rehydrationSettled: options.rehydrationSettled ?? true,
     currentWorkflowConfig: { steps: options.steps ?? ['dog-selection', 'class-selection'] },
     entryCloseAvailability: { canEnter: options.canEnter ?? true },
     handleDogSelectionChange,
@@ -154,6 +156,24 @@ describe('useEntryDogHandoff', () => {
     expect(handleDogSelectionChange).not.toHaveBeenCalled();
     rerender({ ...props, entryCloseAvailability: { canEnter: true } });
     expect(handleDogSelectionChange).toHaveBeenCalledWith(['dog-1']);
+  });
+
+  it('waits for the draft restore to settle before reading an empty selection', () => {
+    // MYK9-514: on a client-side entry with a warm roster the restore lands one
+    // render after this hook's first effect. Acting on the mount commit's empty
+    // `selectedDogs` replaced a whole restored entry with the carried dog.
+    const { rerender, handleDogSelectionChange, props } = render({ rehydrationSettled: false });
+    expect(handleDogSelectionChange).not.toHaveBeenCalled();
+    expect(warning).not.toHaveBeenCalled();
+
+    // The restore applied: the draft's dogs are here and it now wins.
+    rerender({
+      ...props,
+      rehydrationSettled: true,
+      registrationData: { selectedDogs: ['dog-7'] },
+    });
+    expect(handleDogSelectionChange).not.toHaveBeenCalled();
+    expect(warning).not.toHaveBeenCalled();
   });
 
   it('skips a workflow with no dog-selection step to preselect into', () => {

@@ -4,6 +4,12 @@ import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { FormSkeleton } from '@/components/common/SkeletonLoaders';
 import { useRegisterActionBar } from '@/hooks/useRegisterActionBar';
+import {
+  isTopmostOverlay,
+  openOverlayCount,
+  popOpenOverlay,
+  pushOpenOverlay,
+} from '@/lib/overlayStack';
 
 export interface SlideOverPanelProps {
   open: boolean;
@@ -21,13 +27,6 @@ export interface SlideOverPanelProps {
   footer?: React.ReactNode;
   preventClose?: boolean;
 }
-
-// Module-level stack of currently-open SlideOverPanel instances, in open
-// order. Each instance registers its own document `keydown` listener, so with
-// two panels open (e.g. the Add-a-Dog wizard + a nested registration
-// slide-over), a single Escape press would otherwise fire both listeners and
-// close both panels. Only the topmost (last-pushed) instance should respond.
-let openPanelIds: symbol[] = [];
 
 // Matches the `duration-300` slide/fade classes below; the panel stays mounted
 // for this long after `open` goes false.
@@ -194,12 +193,12 @@ export const SlideOverPanel: React.FC<SlideOverPanelProps> = ({
   useEffect(() => {
     const panelId = panelIdRef.current;
     if (open) {
-      openPanelIds.push(panelId);
+      pushOpenOverlay(panelId);
       document.body.style.overflow = 'hidden';
     }
     return () => {
-      openPanelIds = openPanelIds.filter(id => id !== panelId);
-      if (openPanelIds.length === 0) {
+      popOpenOverlay(panelId);
+      if (openOverlayCount() === 0) {
         document.body.style.overflow = 'unset';
       }
     };
@@ -212,8 +211,8 @@ export const SlideOverPanel: React.FC<SlideOverPanelProps> = ({
       if (!open || !panelRef.current) return;
 
       if (e.key === 'Escape' && !preventClose) {
-        // Only the topmost open panel responds — see openPanelIds above.
-        if (openPanelIds[openPanelIds.length - 1] !== panelId) return;
+        // Only the topmost open overlay responds — see overlayStack above.
+        if (!isTopmostOverlay(panelId)) return;
         onClose();
         return;
       }

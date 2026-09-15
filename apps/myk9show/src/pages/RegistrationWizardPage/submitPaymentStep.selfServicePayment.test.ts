@@ -180,7 +180,6 @@ function makeContext(overrides: Partial<SubmitPaymentStepContext> = {}): SubmitP
     triggerSync: vi.fn(),
     navigate: vi.fn(),
     discardDraftsWithoutFinalSave: vi.fn(),
-    clearDraftData: vi.fn(),
     ...overrides,
   };
 }

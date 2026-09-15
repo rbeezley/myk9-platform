@@ -1,4 +1,4 @@
-import { execFileSync } from 'node:child_process';
+import { execFileSync, spawn } from 'node:child_process';
 import { chmodSync, existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
@@ -142,6 +142,27 @@ function run(
     const e = error as { status: number; stdout: string; stderr: string };
     return { code: e.status, out: `${e.stdout}${e.stderr}` };
   }
+}
+
+/** Same env `run` sends, for a case that needs an async `spawn` instead of `execFileSync`. */
+function stubEnv(
+  stub: { bin: string; log: string; stateDir?: string },
+  gh: { bin: string }
+): NodeJS.ProcessEnv {
+  return {
+    ...process.env,
+    CLAUDE_BIN: stub.bin,
+    CLAUDE_REVIEW_LOG: stub.log,
+    GH_BIN: gh.bin,
+    CLAUDE_REVIEW_NET_PROBE: process.env.CLAUDE_REVIEW_NET_PROBE_TEST ?? 'echo 200',
+    ANTHROPIC_API_KEY: '',
+    ANTHROPIC_AUTH_TOKEN: '',
+    CLAUDE_CODE_USE_BEDROCK: '',
+    CLAUDE_CODE_USE_VERTEX: '',
+    ANTHROPIC_BASE_URL: '',
+    CODEX_SANDBOX_NETWORK_DISABLED: '',
+    ...(stub.stateDir ? { CLAUDE_REVIEW_STATE_DIR: stub.stateDir } : {}),
+  };
 }
 
 describe('claude-review.sh', () => {
@@ -666,6 +687,77 @@ describe('claude-review.sh', () => {
       const done = run(stub, gh, ['--wait', '30', '7']);
       expect(done.code).toBe(0);
       expect(bodies(gh.calls).some(b => b.startsWith('Review gate: claude reviewed'))).toBe(true);
+    });
+  });
+  describe('MYK9-522: --wait exit code contract survives a signalled poller', () => {
+    // The observed bug: `--wait` exited 144 (128+SIGURG) with an empty log,
+    // outside the documented 0/1/2/3 set. These four cases are the same
+    // stub-`claude` matrix the issue calls for: normal findings, normal
+    // clean, killed by a signal, and an empty log with a zero exit.
+    it('(a) a detached review that exits normally WITH findings surfaces exit 1 through --wait', () => {
+      const stub = stubClaude('- [P1] Something is broken', 0, 1);
+      const gh = stubGh();
+      const stateDir = mkdtempSync(join(tmpdir(), 'claude-state-'));
+      dirs.push(stateDir);
+      expect(run({ ...stub, stateDir }, gh, ['--detach', '7']).code).toBe(0);
+      const done = run({ ...stub, stateDir }, gh, ['--wait', '30', '7']);
+      expect(done.code).toBe(1);
+      expect(done.out).toContain('[P1]');
+    });
+
+    it('(b) a detached review that exits normally CLEAN surfaces exit 0 through --wait', () => {
+      const stub = stubClaude('No actionable defects found.', 0, 1);
+      const gh = stubGh();
+      const stateDir = mkdtempSync(join(tmpdir(), 'claude-state-'));
+      dirs.push(stateDir);
+      expect(run({ ...stub, stateDir }, gh, ['--detach', '7']).code).toBe(0);
+      const done = run({ ...stub, stateDir }, gh, ['--wait', '30', '7']);
+      expect(done.code).toBe(0);
+      expect(done.out).toContain('finished with exit 0');
+    });
+
+    it('(c) a --wait poller killed by SIGTERM mid-poll exits 2 with a plain message, never a bare 128+signal', async () => {
+      // Long-running detached child (10s) so the poller is still sleeping
+      // when we signal it — reproducing the "killed mid-sleep" shape from
+      // the 2026-09-14 incident (observed exit 144 = 128+SIGURG, empty log).
+      const stub = stubClaude('No actionable defects found.', 0, 10);
+      const gh = stubGh();
+      const stateDir = mkdtempSync(join(tmpdir(), 'claude-state-'));
+      dirs.push(stateDir);
+      expect(run({ ...stub, stateDir }, gh, ['--detach', '7']).code).toBe(0);
+
+      const child = spawn('bash', [SCRIPT, '--wait', '30', '7'], {
+        env: stubEnv({ ...stub, stateDir }, gh),
+        stdio: ['ignore', 'pipe', 'pipe'],
+      });
+      let out = '';
+      child.stdout.on('data', d => (out += d));
+      child.stderr.on('data', d => (out += d));
+      await new Promise(r => setTimeout(r, 800)); // let it enter the sleep loop
+      child.kill('SIGTERM');
+      const { code, signal } = await new Promise<{ code: number | null; signal: string | null }>(
+        r => child.on('close', (code, signal) => r({ code, signal }))
+      );
+      // `signal` non-null means bash itself died of the signal (the bug: a
+      // bare 128+signal exit with nothing printed). The trap must turn this
+      // into a normal `exit 2` instead.
+      expect(signal).toBeNull();
+      expect(code).toBe(2);
+      expect(out).toContain('killed by SIGTERM');
+      expect(out).toContain('not a verdict');
+    });
+
+    it('(d) a detached review with an empty log but a zero cli exit is reported as did-not-complete (2), not clean', () => {
+      // The inner (non-wait) invocation hits the script's own "empty log"
+      // guard and writes status 2; --wait must surface that 2, never a 0.
+      const stub = stubClaude('', 0, 1);
+      const gh = stubGh();
+      const stateDir = mkdtempSync(join(tmpdir(), 'claude-state-'));
+      dirs.push(stateDir);
+      expect(run({ ...stub, stateDir }, gh, ['--detach', '7']).code).toBe(0);
+      const done = run({ ...stub, stateDir }, gh, ['--wait', '30', '7']);
+      expect(done.code).toBe(2);
+      expect(readFileSync(join(stateDir, 'claude-review-7.status'), 'utf8').trim()).toBe('2');
     });
   });
 });

@@ -81,7 +81,6 @@ export function createWizardHandlers(state: RegistrationWizardState) {
     submittingRef,
     mountedRef,
     discardDraftsWithoutFinalSave,
-    clearDraftData,
     currentStepId,
     completedSteps,
     ownerResolution,
@@ -176,7 +175,6 @@ export function createWizardHandlers(state: RegistrationWizardState) {
           triggerSync,
           navigate: path => navigate(path),
           discardDraftsWithoutFinalSave,
-          clearDraftData,
         });
       } finally {
         submittingRef.current = false;
@@ -281,8 +279,13 @@ export function createWizardHandlers(state: RegistrationWizardState) {
     setHandlerAssignments(assignments);
   };
 
-  // Draft loading handler
-  const handleDraftLoaded = (draft: SavedDraft) => {
+  // Draft loading handler.
+  //
+  // `silent` is for the automatic same-tab rehydrate (MYK9-514): the exhibitor
+  // reloaded, or came back from a cancelled checkout, and never chose to load
+  // anything — a success toast there reports an action they did not take. The
+  // failure notices stay in both modes; those explain why the wizard is empty.
+  const handleDraftLoaded = (draft: SavedDraft, options?: { silent?: boolean }) => {
     if (draft.data._workflowState?.currentStep === 'confirmation') {
       notifications.error('This entry is already complete. Start a new entry below.');
       return false;
@@ -330,7 +333,7 @@ export function createWizardHandlers(state: RegistrationWizardState) {
       }
     }
 
-    notifications.success('Draft loaded successfully');
+    if (!options?.silent) notifications.success('Draft loaded successfully');
     return true;
   };
 

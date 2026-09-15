@@ -1,5 +1,6 @@
 import React, { useEffect, useRef } from 'react';
 import { useRegisterActionBar } from '@/hooks/useRegisterActionBar';
+import { isTopmostOverlay, popOpenOverlay, pushOpenOverlay } from '@/lib/overlayStack';
 
 interface CommonDialogProps {
   open: boolean;
@@ -24,6 +25,10 @@ export const CommonDialog: React.FC<CommonDialogProps> = ({
 }) => {
   const dialogRef = useRef<HTMLDivElement>(null);
   const actionBarRef = useRegisterActionBar<HTMLDivElement>();
+  // Stable per-instance id for the shared open-overlay stack (topmost-only
+  // Escape), shared with SlideOverPanel so a dialog and a panel can nest in
+  // either order without either guessing who is on top (MYK9-523).
+  const dialogIdRef = useRef<symbol>(Symbol('common-dialog'));
 
   // Auto-focus management for accessibility
   useEffect(() => {
@@ -38,6 +43,36 @@ export const CommonDialog: React.FC<CommonDialogProps> = ({
       }
     }
   }, [open]);
+
+  // Track this instance's position in the shared open-overlay stack. Depends
+  // ONLY on `open` — an inline `onClose` prop (new identity every parent
+  // render) must not re-push this dialog's id while it is already open, or it
+  // would jump to the top of the stack and steal Escape from a surface that
+  // actually opened later. Same reasoning as SlideOverPanel's stack effect.
+  useEffect(() => {
+    const dialogId = dialogIdRef.current;
+    if (open) {
+      pushOpenOverlay(dialogId);
+    }
+    return () => {
+      popOpenOverlay(dialogId);
+    };
+  }, [open]);
+
+  // Handle Escape: only the topmost open overlay (this dialog, or a
+  // SlideOverPanel, or another CommonDialog) responds, so a nested surface
+  // never closes the one behind it.
+  useEffect(() => {
+    if (!open) return;
+    const dialogId = dialogIdRef.current;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key !== 'Escape') return;
+      if (!isTopmostOverlay(dialogId)) return;
+      onClose();
+    };
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [open, onClose]);
 
   if (!open) return null;
   return (

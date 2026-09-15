@@ -256,7 +256,6 @@ export function useRegistrationWizardState() {
     submitRegistration,
     currentRegistration,
     setDraftData,
-    clearDraftData,
     updateRegistration: updateShowRegistration,
     updatePaymentStatus: storeUpdatePaymentStatus,
     updateEntryStatus: storeUpdateEntryStatus,
@@ -610,7 +609,6 @@ export function useRegistrationWizardState() {
     availableDrafts,
     clearAllDrafts,
     discardDraftsWithoutFinalSave,
-    clearDraftData,
     hasUnsavedChanges,
 
     // Derived

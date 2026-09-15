@@ -11,6 +11,7 @@ import type { EnhancedShow } from '@/hooks/useBrowseShowsData';
 import type { ShowMarkerStatus } from '@/features/maps/markerStatus';
 import { OSM_TILE_URL, OSM_ATTRIBUTION, US_CENTER, MISSING_TILE_URL } from '@/features/maps/tiles';
 import { formatShowDateRange } from '@/lib/format/dates';
+import { useEntryDogLink } from '@/features/registration/entryDogContext';
 import { partitionMappableShows, type LocatedShow } from './ShowsMapView.helpers';
 
 /** Marker/legend colors — fixed palette chosen to read on OSM tiles in both themes. */
@@ -104,6 +105,7 @@ interface ShowsMapViewProps {
  * useBrowseShowsFilters, identical to the cards/table/calendar views.
  */
 export function ShowsMapView({ shows, onSwitchToCards }: ShowsMapViewProps) {
+  const entryDogLink = useEntryDogLink();
   const { located, omittedCount } = useMemo(() => partitionMappableShows(shows), [shows]);
 
   if (located.length === 0) {
@@ -174,7 +176,7 @@ export function ShowsMapView({ shows, onSwitchToCards }: ShowsMapViewProps) {
                     )}
                   </p>
                   <Link
-                    to={`/shows/${show.id}`}
+                    to={entryDogLink(`/shows/${show.id}`)}
                     className="inline-flex items-center gap-1 text-sm font-medium text-primary hover:underline"
                   >
                     View show <ArrowRight className="h-3.5 w-3.5" />

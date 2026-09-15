@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useCallback, useEffect } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import {
   Users,
   ChevronDown,
@@ -48,6 +48,8 @@ import { logger } from '@/services/LoggingService';
 import {
   addDogSelection,
   addVisibleDogSelections,
+  filterAccessibleDogs,
+  getDogEligibilityStatus,
   removeDogSelection,
   removeVisibleDogSelections,
 } from './DogSelectionStepEnhanced.helpers';
@@ -308,16 +310,10 @@ export const DogSelectionStepEnhanced: React.FC<DogSelectionStepProps> = ({
     }
   };
 
-  const accessibleDogs = useMemo(() => {
-    if (!user) return [];
-    const isSiteAdmin = roles.includes(UserRole.SITE_ADMIN);
-    return dogs.filter(dog => {
-      if (dog.deletedAt) return false;
-      if (dog.status && dog.status !== 'active') return false;
-      if (isSiteAdmin) return true;
-      return dog.ownerId === user.id;
-    });
-  }, [dogs, user, roles]);
+  const accessibleDogs = useMemo(
+    () => filterAccessibleDogs(dogs, user?.id, roles.includes(UserRole.SITE_ADMIN)),
+    [dogs, user, roles]
+  );
 
   const canCreateNew = workflowConfig?.features?.createNew && canCreateExhibitor;
 
@@ -417,23 +413,6 @@ export const DogSelectionStepEnhanced: React.FC<DogSelectionStepProps> = ({
     });
     return sorted;
   }, [unsortedDogs, sortColumn, sortDirection]);
-
-  const getDogEligibilityStatus = useCallback((dog: Dog) => {
-    const issues: string[] = [];
-    if (dog.dateOfBirth) {
-      const birthDate = new Date(dog.dateOfBirth);
-      const ageInMonths = (new Date().getTime() - birthDate.getTime()) / (1000 * 60 * 60 * 24 * 30);
-      if (ageInMonths < 6) {
-        issues.push('Too young (must be 6+ months)');
-      }
-    }
-    // Registration is NOT a blocker — mixed-breed dogs routinely have no
-    // registration number, and class-level eligibility (including any
-    // registration requirements) is validated later in the flow. Mirrors the
-    // documented policy in DogSelectionStep.getDogEligibilityStatus, which
-    // this enhanced variant had diverged from (2026-06-10 walkthrough).
-    return { eligible: issues.length === 0, issues };
-  }, []);
 
   const handleQuickCreateFlowCompleted = (exhibitor: User, newDogs: Dog[]) => {
     logger.debug('Quick create flow completed:', 'shows', { data: { exhibitor, dogs: newDogs } });

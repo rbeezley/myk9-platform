@@ -103,7 +103,11 @@ describe('DogIdentityRail', () => {
       'href',
       '/people/owner-1'
     );
-    expect(screen.getByRole('link', { name: /enter a show/i })).toHaveAttribute('href', '/shows');
+    // MYK9-519: the browse hop carries the dog so the wizard can preselect it.
+    expect(screen.getByRole('link', { name: /enter a show/i })).toHaveAttribute(
+      'href',
+      '/shows?dogId=dog-1'
+    );
   });
 
   it('wears the same sex and status badges as the /dogs card', () => {

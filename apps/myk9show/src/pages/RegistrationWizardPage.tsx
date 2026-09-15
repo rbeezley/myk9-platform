@@ -35,6 +35,7 @@ import {
 } from '@/components/shows/RegistrationWorkflow/EntriesPanel/useEntriesPanelData';
 import { usePaymentMethodResolution } from '@/components/shows/RegistrationWorkflow/PaymentStep/usePaymentMethodResolution';
 import { useRegistrationWizard } from './RegistrationWizardPage/useRegistrationWizard';
+import { useEntryDogHandoff } from './RegistrationWizardPage/useEntryDogHandoff';
 import { getPaymentSubmitLabel } from './RegistrationWizardPage/commitLabels';
 
 /** Stable id so the Next button can point at the blocked-reason text. */
@@ -112,6 +113,9 @@ function RegistrationWizardContent() {
     handleBack,
     handleExit,
   } = wiz;
+
+  // Dog Details' "Enter a show" carries `?dogId=` here (MYK9-519).
+  useEntryDogHandoff(wiz);
 
   const showBlockedReason = !!proceedBlocked && !isSubmitting;
   // True only while the exhibitor's OWN clearing of the dog step is the reason

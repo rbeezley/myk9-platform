@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo } from 'react';
 import { useParams, useNavigate, useSearchParams, useMatch } from 'react-router-dom';
+import { readEntryDogId, withEntryDogContext } from '@/features/registration/entryDogContext';
 import { type PrimaryTabDef } from '@/components/common/PrimaryTabs';
 import { useUrlTab } from '@/hooks/useUrlTab';
 import { resolveOverviewJudgesWithRoster } from '@/components/shows/overview/overviewJudges';
@@ -194,6 +195,7 @@ const ShowDetailsPage: React.FC = () => {
   const hasOwnedEntryHistory = submittedEntryProjection.historyCount > 0;
   const isAuthenticated = !!user;
   const requestedTab = searchParams.get('tab');
+  const entryDogId = readEntryDogId(searchParams);
   const isWaitingForExhibitorEntryDefault =
     isAuthenticated && !canManageShow && !requestedTab && exhibitorEntryDataState === 'loading';
 
@@ -349,7 +351,9 @@ const ShowDetailsPage: React.FC = () => {
 
   function handleRegisterForShow(): void {
     if (showId) {
-      navigate(`/shows/${showId}/register`);
+      // Preserve any `?dogId=` the exhibitor arrived with so the wizard can
+      // preselect the dog they pressed "Enter a show" on (MYK9-519).
+      navigate(withEntryDogContext(`/shows/${showId}/register`, entryDogId));
     }
   }
 

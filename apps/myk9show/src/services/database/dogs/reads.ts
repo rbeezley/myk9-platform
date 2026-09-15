@@ -654,8 +654,7 @@ export const deleteDog = async (id: string, deletedBy?: string) => {
 
     // Use a SECURITY DEFINER RPC to bypass the dogs_update RLS WITH CHECK
     // restriction on deleted_at, while still enforcing ownership in the function.
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const { error } = await (supabase.rpc as any)('soft_delete_dog', { p_dog_id: id });
+    const { error } = await supabase.rpc('soft_delete_dog', { p_dog_id: id });
 
     const duration = Date.now() - startTime;
     logQuery('dog', 'soft_delete', duration, error?.message);
@@ -706,8 +705,9 @@ export const forceDeleteDog = async (id: string) => {
   try {
     const deletedAt = new Date().toISOString();
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const { error } = await (supabase.rpc as any)('force_delete_dog', { p_dog_id: id });
+    // Typed: a typo'd argument key or a future signature change fails the
+    // typecheck instead of 404-ing at runtime on a destructive admin path.
+    const { error } = await supabase.rpc('force_delete_dog', { p_dog_id: id });
 
     const duration = Date.now() - startTime;
     logQuery('dog', 'force_delete', duration, error?.message);

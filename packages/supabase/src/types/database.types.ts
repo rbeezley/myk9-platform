@@ -12122,6 +12122,7 @@ export type Database = {
           isSetofReturn: false
         }
       }
+      force_delete_dog: { Args: { p_dog_id: string }; Returns: undefined }
       get_account_today_entries: {
         Args: never
         Returns: {
@@ -13303,6 +13304,10 @@ export type Database = {
         }[]
       }
       volunteer_show_id: { Args: { vol_id: string }; Returns: string }
+      withdraw_own_entry: {
+        Args: { p_entry_id: string; p_expected_version: number; p_fields: Json }
+        Returns: number
+      }
     }
     Enums: {
       [_ in never]: never

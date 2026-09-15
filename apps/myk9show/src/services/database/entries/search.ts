@@ -13,7 +13,9 @@ import { replicatedClassesTable } from '@/services/replication/ReplicatedClasses
 import { replicatedShowsTable } from '@/services/replication/ReplicatedShowsTable';
 import { replicatedTrialsTable } from '@/services/replication/ReplicatedTrialsTable';
 import { mapReplicatedEntryToDbRow } from '@/services/mappers/entryMappers';
+import { logger } from '@/services/LoggingService';
 import { buildMapFromArray } from '../_shared/maps';
+import { withTimeout, DEFAULT_TIMEOUT_MS } from '@myk9/core';
 import { buildReplicatedUserEntryRows } from './userEntriesReplication';
 import { selectOwnedDogIds } from '@/utils/dogOwnership';
 import { toEntryCloseDay } from '@/features/payments/entryCloseDeadline';
@@ -207,14 +209,23 @@ function isOfflineFetchError(error: unknown): boolean {
     return true;
   }
 
-  const message =
-    error instanceof Error
-      ? error.message
-      : typeof error === 'object' && error !== null && 'message' in error
-        ? String(error.message)
-        : String(error);
+  return /Failed to fetch|NetworkError|Load failed/i.test(errorMessageOf(error));
+}
 
-  return /Failed to fetch|NetworkError|Load failed/i.test(message);
+/**
+ * The human message of anything thrown on a read path.
+ *
+ * Not every rejection here is an `Error`: `postgrestGetUserEntries` throws a
+ * `DatabaseError` OBJECT, so a bare `String(error)` yields "[object Object]"
+ * and any log built from it says nothing. Shared by the offline test and the
+ * stale-replica warning so both read the same value.
+ */
+function errorMessageOf(error: unknown): string {
+  if (error instanceof Error) return error.message;
+  if (typeof error === 'object' && error !== null && 'message' in error) {
+    return String((error as { message: unknown }).message);
+  }
+  return String(error);
 }
 
 const SEARCH_ENTRIES_SELECT = `
@@ -393,6 +404,17 @@ export const getEntryStatistics = async (showId?: string) => {
 };
 
 /**
+ * How long the account-level view read may hang before the replica takes over.
+ *
+ * A dead venue wifi or a captive portal leaves `navigator.onLine` true and the
+ * request simply never settles, so without a deadline the offline fallback is
+ * unreachable exactly where show-day needs it. `DEFAULT_TIMEOUT_MS` is the
+ * app's own network deadline (`@myk9/core`), used here rather than a bespoke
+ * number so every timed read agrees.
+ */
+const USER_ENTRIES_VIEW_TIMEOUT_MS = DEFAULT_TIMEOUT_MS;
+
+/**
  * Account-level own-entry read (My Shows, My Payments, the exhibitor dashboard).
  *
  * The AUTHORITATIVE source here is the online view, not the replication store,
@@ -409,9 +431,21 @@ export const getEntryStatistics = async (showId?: string) => {
  * and so does sync, listed both classes (MYK9-536).
  *
  * So: read the authoritative account-scoped view first, and fall back to the
- * replicated snapshot only when that read fails. Offline behaviour is
- * unchanged — a failed fetch still renders the exhibitor's replicated entries
- * rather than an empty page.
+ * replicated snapshot when that read fails, times out, or comes back EMPTY
+ * while the replica has rows.
+ *
+ * That last case is not paranoia. The view resolves ownership in SQL from
+ * `auth.uid()`; the replica filter below resolves it from the client's
+ * `personId` plus owned dog ids, and `people.id` is never `auth.uid()` in this
+ * project. An identity-resolution mismatch therefore surfaces as a
+ * successful-but-empty view read, and "you have no entries / $0 due" is a
+ * positive claim this function is not entitled to make over a populated
+ * replica. An empty view may confirm an empty replica; it may not contradict a
+ * full one.
+ *
+ * NOTE ON OFFLINE REACH: this function's fallback is only as reachable as its
+ * caller. React Query callers must set `networkMode: 'always'`, or the query
+ * parks at `fetchStatus: 'paused'` offline and never invokes this code at all.
  */
 export const getUserEntries = async (userId: string) => {
   const startTime = Date.now();
@@ -421,7 +455,20 @@ export const getUserEntries = async (userId: string) => {
     // true), so this returns the complete authoritative set — including own
     // entries in shows the local replica has never synced — without leaking
     // manageable-not-own rows.
-    const result = await postgrestGetUserEntries();
+    const result = await withTimeout(
+      postgrestGetUserEntries(),
+      USER_ENTRIES_VIEW_TIMEOUT_MS,
+      'My Entries account read'
+    );
+
+    if (result.data.length === 0) {
+      const replica = await readReplicaUserEntryRows(userId);
+      if (replica && replica.data.length > 0) {
+        logQuery('entries', 'select_user_entries_empty_view_replica_kept', Date.now() - startTime);
+        return replica;
+      }
+    }
+
     logQuery('entries', 'select_user_entries', Date.now() - startTime);
     return result;
   } catch (error) {
@@ -430,24 +477,17 @@ export const getUserEntries = async (userId: string) => {
 };
 
 /**
- * Offline/degraded fallback for {@link getUserEntries}: rebuild the exhibitor's
- * rows from the per-show replication snapshot.
- *
- * That snapshot is known-incomplete for an account-level query (see above), so
- * this is a last resort, not a preference. When it has nothing to offer AND the
- * online read failed for a reason other than being offline, the error is
- * surfaced instead of an empty list — "no entries" is a positive claim.
+ * Rebuild the exhibitor's rows from the per-show replication snapshot, or
+ * `null` when the snapshot itself cannot be read.
  *
  * The replicated rows carry raw scored columns WITHOUT the per-field visibility
  * cascade, which is not in replication scope; `buildReplicatedUserEntryRows`
  * nulls them (see `withholdScoredResultColumns`), so withheld results never
  * leak on this path.
  */
-async function readUserEntriesFromReplica(
-  userId: string,
-  onlineError: unknown,
-  startTime: number
-): Promise<{ data: Record<string, unknown>[]; error: DatabaseError | null }> {
+async function readReplicaUserEntryRows(
+  userId: string
+): Promise<{ data: Record<string, unknown>[]; error: null } | null> {
   try {
     const [allEntries, dogs, classes, shows, trials] = await Promise.all([
       replicatedEntriesTable.getAll(),
@@ -465,36 +505,71 @@ async function readUserEntriesFromReplica(
       e => e.handlerId === userId || (e.dogId ? ownedDogIds.has(e.dogId) : false)
     );
 
-    if (filtered.length === 0 && !isOfflineFetchError(onlineError)) {
-      const dbError = createDatabaseError(onlineError, 'entries', 'select_user_entries');
-      logQuery(
-        'entries',
-        'select_user_entries_empty_replica_error',
-        Date.now() - startTime,
-        dbError.message
-      );
-      return { data: [], error: dbError as DatabaseError };
-    }
-
-    const partialReplicationResult = await buildReplicatedUserEntryRows(filtered, {
+    return await buildReplicatedUserEntryRows(filtered, {
       dogsMap,
       classesMap,
       showsMap,
       trialsMap,
     });
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Offline/degraded fallback for {@link getUserEntries}, used when the view read
+ * FAILED (rejected or timed out) rather than merely came back empty.
+ *
+ * The snapshot is known-incomplete for an account-level query (see above), so
+ * this is a last resort, not a preference. When it has nothing to offer AND the
+ * view failed for a reason other than being offline, the error is surfaced
+ * instead of an empty list — "no entries" is a positive claim.
+ */
+async function readUserEntriesFromReplica(
+  userId: string,
+  viewError: unknown,
+  startTime: number
+): Promise<{ data: Record<string, unknown>[]; error: DatabaseError | null }> {
+  const replica = await readReplicaUserEntryRows(userId);
+
+  if (!replica || (replica.data.length === 0 && !isOfflineFetchError(viewError))) {
+    const dbError = createDatabaseError(viewError, 'entries', 'select_user_entries');
     logQuery(
       'entries',
-      filtered.length === 0
-        ? 'select_user_entries_empty_replica_offline'
-        : 'select_user_entries_partial',
-      Date.now() - startTime
+      replica ? 'select_user_entries_empty_replica_error' : 'select_user_entries',
+      Date.now() - startTime,
+      dbError.message
     );
-    return partialReplicationResult;
-  } catch {
-    const dbError = createDatabaseError(onlineError, 'entries', 'select_user_entries');
-    logQuery('entries', 'select_user_entries', Date.now() - startTime, dbError.message);
     return { data: [], error: dbError as DatabaseError };
   }
+
+  // Offline is the EXPECTED reason to be here and needs no alarm. A 403, a
+  // 500 or an RLS denial is not: the exhibitor is served a per-show snapshot
+  // that may be missing exactly the rows MYK9-536 was about, and silence would
+  // make that symptom reachable again on a transient server error with nothing
+  // in the logs to say so. Warn, and give the state its own query label.
+  const offline = isOfflineFetchError(viewError);
+  if (!offline) {
+    logger.warn(
+      'My Entries served a possibly-stale replica after a non-offline view error',
+      'database',
+      {
+        rows: replica.data.length,
+        error: errorMessageOf(viewError),
+      }
+    );
+  }
+
+  logQuery(
+    'entries',
+    replica.data.length === 0
+      ? 'select_user_entries_empty_replica_offline'
+      : offline
+        ? 'select_user_entries_partial'
+        : 'select_user_entries_stale_replica_after_error',
+    Date.now() - startTime
+  );
+  return replica;
 }
 
 // Search entries by armband or handler name

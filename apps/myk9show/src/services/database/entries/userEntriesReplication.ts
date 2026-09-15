@@ -104,8 +104,8 @@ export async function buildReplicatedUserEntryRows(
       null;
     // The per-class result-visibility cascade is NOT in replication scope, so
     // the raw scored columns synced here are withheld until the cascade-aware
-    // server view (preferred by getUserEntries when any entry is scored) can
-    // release them. Safe-by-default: never leak placement/result/time/faults
+    // server view (always preferred by getUserEntries; this replica is the
+    // offline fallback) can release them. Safe-by-default: never leak placement/result/time/faults
     // from the offline path. See ./resultVisibility for the full rationale.
     withholdScoredResultColumns(row);
     return row;

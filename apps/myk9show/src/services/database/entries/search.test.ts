@@ -1,7 +1,9 @@
 import { createDatabaseError } from '@/services/database/databaseError';
+import { DEFAULT_TIMEOUT_MS } from '@myk9/core';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const mocks = vi.hoisted(() => ({
+  loggerWarn: vi.fn(),
   logQuery: vi.fn(),
   supabaseFrom: vi.fn(),
   replicatedEntriesGetAll: vi.fn(),
@@ -10,6 +12,16 @@ const mocks = vi.hoisted(() => ({
   replicatedShowsGetAllShows: vi.fn(),
   replicatedTrialsGetAll: vi.fn(),
   mapReplicatedEntryToDbRow: vi.fn(),
+}));
+
+vi.mock('@/services/LoggingService', () => ({
+  logger: {
+    debug: vi.fn(),
+    info: vi.fn(),
+    warn: mocks.loggerWarn,
+    error: vi.fn(),
+    log: vi.fn(),
+  },
 }));
 
 vi.mock('../supabaseClient', () => ({
@@ -333,6 +345,104 @@ describe('getUserEntries account-scope read', () => {
 
     expect(result.error).toBeNull();
     expect(result.data.map(row => row.id)).toEqual(['entry-1', 'entry-2']);
+    // The distinct failure this test owns (the one the mechanism test above
+    // cannot see): a read that returned the paid class but dropped the pending
+    // add-on would still "prefer the view" and still return rows. Both rows,
+    // on ONE enrollment, carrying their OWN payment facts, is the thing that
+    // was broken.
+    expect(new Set(result.data.map(row => row.registration_id))).toEqual(new Set(['reg-1']));
+    expect(result.data.map(row => row.payment_status)).toEqual(['paid_by_cash', 'pending']);
+    expect(result.data.map(row => row.payment_method)).toEqual([undefined, 'check']);
+  });
+
+  // An empty view may CONFIRM an empty replica; it may not CONTRADICT a full
+  // one. The view resolves ownership from `auth.uid()` in SQL while the replica
+  // filter uses the client's personId + owned dog ids, and `people.id` is never
+  // `auth.uid()` here — so an identity-resolution mismatch arrives as a
+  // successful-but-empty read, and "you have no entries / $0 due" is a positive
+  // claim this function may not make over a populated snapshot.
+  it('keeps populated replica rows when the view returns successfully but EMPTY', async () => {
+    mockReplicatedStores();
+    mockSupabaseTables({
+      viewEntryRows: [],
+      enrollmentRows: [
+        {
+          id: 'reg-1',
+          confirmation_number: 'MK9-1',
+          payment_status: 'paid',
+          payment_reference: null,
+          paid_amount: 30,
+        },
+      ],
+    });
+
+    const result = await getUserEntries('user-1');
+
+    expect(result.error).toBeNull();
+    expect(result.data.map(row => row.id)).toEqual(['entry-1']);
+    expect(mocks.supabaseFrom).toHaveBeenCalledWith('view_authenticated_entry_results');
+    expect(mocks.logQuery).toHaveBeenCalledWith(
+      'entries',
+      'select_user_entries_empty_view_replica_kept',
+      expect.any(Number)
+    );
+  });
+
+  it('reports an empty account when the view AND the replica are both empty', async () => {
+    mockReplicatedStores({ entries: [] });
+    mockSupabaseTables({ viewEntryRows: [] });
+
+    const result = await getUserEntries('user-1');
+
+    expect(result).toEqual({ data: [], error: null });
+    expect(mocks.logQuery).toHaveBeenCalledWith(
+      'entries',
+      'select_user_entries',
+      expect.any(Number)
+    );
+  });
+
+  // Captive portal / dead venue wifi: `navigator.onLine` stays true and the
+  // request never settles, so without a deadline the replica is unreachable.
+  it('falls back to the replica when the view read never settles', async () => {
+    vi.useFakeTimers();
+    try {
+      mockReplicatedStores();
+      const hangingQuery = {
+        select: vi.fn(() => hangingQuery),
+        is: vi.fn(() => hangingQuery),
+        eq: vi.fn(() => hangingQuery),
+        order: vi.fn(() => hangingQuery),
+        range: vi.fn(() => new Promise(() => {})),
+      };
+      const enrollmentsQuery = {
+        select: vi.fn(() => enrollmentsQuery),
+        in: vi.fn(() => Promise.resolve({ data: [], error: null })),
+      };
+      mocks.supabaseFrom.mockImplementation((table: string) => {
+        if (table === 'view_authenticated_entry_results') return hangingQuery;
+        if (table === 'enrollments') return enrollmentsQuery;
+        throw new Error(`Unexpected table: ${table}`);
+      });
+
+      const pending = getUserEntries('user-1');
+      await vi.advanceTimersByTimeAsync(DEFAULT_TIMEOUT_MS + 1);
+      const result = await pending;
+
+      expect(result.error).toBeNull();
+      expect(result.data.map(row => row.id)).toEqual(['entry-1']);
+      expect(mocks.logQuery).toHaveBeenCalledWith(
+        'entries',
+        'select_user_entries_stale_replica_after_error',
+        expect.any(Number)
+      );
+      // A hang is not provably offline — a captive portal keeps
+      // `navigator.onLine` true — so it warns like any other non-offline reason
+      // to hand an account-level page a per-show snapshot.
+      expect(mocks.loggerWarn).toHaveBeenCalled();
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it("fetches every page when the account has more than PostgREST's 1000-row cap", async () => {
@@ -388,10 +498,10 @@ describe('getUserEntries account-scope read', () => {
     expect(mocks.mapReplicatedEntryToDbRow).not.toHaveBeenCalled();
   });
 
-  it('falls back to replicated rows when the online read fails and the replica has rows', async () => {
+  it('falls back to replicated rows, without alarm, when the device is offline', async () => {
     mockReplicatedStores();
     mockSupabaseTables({
-      viewEntriesError: new Error('offline'),
+      viewEntriesError: new Error('Failed to fetch'),
       enrollmentRows: [
         {
           id: 'reg-1',
@@ -422,6 +532,37 @@ describe('getUserEntries account-scope read', () => {
     expect(mocks.logQuery).toHaveBeenCalledWith(
       'entries',
       'select_user_entries_partial',
+      expect.any(Number)
+    );
+    // Offline is the EXPECTED reason to be here; it must not cry wolf.
+    expect(mocks.loggerWarn).not.toHaveBeenCalled();
+  });
+
+  // Offline is the expected reason to be on the replica and needs no alarm. A
+  // 403, a 500 or an RLS denial is NOT: the exhibitor is handed a per-show
+  // snapshot that may be missing exactly the rows MYK9-536 was about, with
+  // `error: null` on the result. Silence there makes the original symptom
+  // reachable again on a transient server error with nothing in the logs to say
+  // so, which is why this path warns and carries its own query label.
+  it('warns and labels the read when a NON-offline view error serves the replica', async () => {
+    mockReplicatedStores();
+    mockSupabaseTables({
+      viewEntriesError: new Error('RLS policy denied'),
+      enrollmentRows: [],
+    });
+
+    const result = await getUserEntries('user-1');
+
+    expect(result.data.map(row => row.id)).toEqual(['entry-1']);
+    expect(result.error).toBeNull();
+    expect(mocks.loggerWarn).toHaveBeenCalledWith(
+      expect.stringContaining('possibly-stale replica'),
+      'database',
+      expect.objectContaining({ rows: 1, error: 'RLS policy denied' })
+    );
+    expect(mocks.logQuery).toHaveBeenCalledWith(
+      'entries',
+      'select_user_entries_stale_replica_after_error',
       expect.any(Number)
     );
   });

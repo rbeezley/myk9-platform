@@ -10,9 +10,14 @@
  *
  * The root cause was upstream, in `getUserEntries` (the account-level read
  * preferred a show-scoped — therefore never-synced on `/my-entries` —
- * replication snapshot over the authoritative view). These tests pin the rest
- * of the chain on the EXACT row shape that read returns, so a regression
- * anywhere between the raw rows and the rendered balance is caught here:
+ * replication snapshot over the authoritative view).
+ *
+ * WHAT THIS FILE IS NOT. It stubs `@/services/database/entries` wholesale, so
+ * it never loads `search.ts` and it passes verbatim on `origin/main`. It is
+ * NOT the red-green evidence for the fix — `search.test.ts` is (4 failures
+ * against the pre-fix read). What this file does is pin the rest of the chain
+ * on the EXACT row shape that read returns, so the downstream behaviour that
+ * was already correct cannot silently rot:
  *
  *  - both rows group into ONE card whose `classes` carries BOTH classes — the
  *    array the Edit Entry dialog maps (`MyEntriesDialogs.tsx`), so a card with
@@ -23,9 +28,15 @@
  *    the real prop shape does NOT say "Paid in full" (LESSONS `last-hop-drop`).
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { renderHook, render, screen, waitFor } from '@testing-library/react';
+import { renderHook, screen, waitFor } from '@testing-library/react';
+import { MemoryRouter } from 'react-router-dom';
+// The project's custom render (QueryClient + Auth + Router providers), never
+// raw `render` — see CLAUDE.md § Testing.
+import { render } from '@/test/utils/testUtils';
 import { useMyEntriesData } from './useMyEntriesData';
+import { useMyEntriesFilters } from './useMyEntriesFilters';
 import { CompactStatsRow } from '@/components/exhibitor/CompactStatsRow';
+import { buildEntryBalanceRecoveryHref } from '@/features/payments/entryBalanceSummary';
 import { getUserEntries } from '@/services/database/entries';
 import { useAuthContext } from '@/hooks/useAuthContext';
 import { useCurrentUserPersonId } from '@/hooks/useRoleBasedData';
@@ -42,12 +53,20 @@ vi.mock('@/services/AuditService', () => ({
   auditService: { log: vi.fn() },
   AuditAction: { READ: 'READ', UPDATE: 'UPDATE' },
 }));
-vi.mock('@/services/LoggingService', () => ({
-  logger: { error: vi.fn(), warn: vi.fn(), info: vi.fn() },
-  LoggingService: {
-    getInstance: () => ({ error: vi.fn(), log: vi.fn(), info: vi.fn() }),
-  },
-}));
+vi.mock('@/services/LoggingService', () => {
+  // The full surface, not a hand-picked subset. A method this mock omits throws
+  // from an EFFECT, which unmounts the whole tree and leaves an EMPTY DOM
+  // instead of a failing render — a missing-method bug wearing the costume of
+  // "the dialog rendered nothing".
+  const logger = {
+    debug: vi.fn(),
+    info: vi.fn(),
+    warn: vi.fn(),
+    error: vi.fn(),
+    log: vi.fn(),
+  };
+  return { logger, LoggingService: { getInstance: () => logger } };
+});
 
 const ENROLLMENT_ID = '4b9132b4-64d1-4012-8663-7ec6820a442b';
 const SHOW_ID = 'dededede-0000-0000-0000-000000000011';
@@ -189,22 +208,52 @@ describe('MyEntries — a pending class added to a paid enrollment (MYK9-536)', 
     expect(result.current.balanceSummary.onlineDueCents).toBe(0);
   });
 
-  it('does not render "Paid in full" on the dashboard strip for that balance', async () => {
-    const { result } = renderData();
+  /**
+   * Drive the strip the way the page does. `index.tsx` passes
+   * `entryStats.currentFees` / `entryStats.currentAmountDue` out of
+   * `useMyEntriesFilters`, not raw cents off the summary — and for THIS fixture
+   * `onlineDueCents` is 0, because a check is pay-at-show. So a projection that
+   * reached for `onlineDueCents` instead of `amountDueCents` would reproduce
+   * the reported bug exactly while every cents-level assertion stayed green.
+   * Going through the real hook is what makes that mutation visible.
+   */
+  // `useMyEntriesFilters` keeps the active tab in the URL, so the hook needs a
+  // router exactly as the page gives it one.
+  const RouterWrapper = ({ children }: { children: React.ReactNode }) => (
+    <MemoryRouter>{children}</MemoryRouter>
+  );
 
-    await waitFor(() => expect(result.current.entries).toHaveLength(1));
+  function useDashboardStrip() {
+    const data = useMyEntriesData({
+      persistCheckInStatus: vi.fn().mockResolvedValue(undefined),
+    });
+    const filters = useMyEntriesFilters({
+      entries: data.entries,
+      balanceSummary: data.balanceSummary,
+    });
+    return { data, filters };
+  }
 
-    const summary = result.current.balanceSummary;
+  it('shows the outstanding balance on the dashboard strip the page actually renders', async () => {
+    const { result } = renderHook(() => useDashboardStrip(), { wrapper: RouterWrapper });
+
+    await waitFor(() => expect(result.current.data.entries).toHaveLength(1));
+
+    const summary = result.current.data.balanceSummary;
+    const stats = result.current.filters.entryStats;
     render(
       <CompactStatsRow
-        currentFees={summary.currentFeesCents / 100}
-        amountDue={summary.amountDueCents / 100}
+        currentFees={stats.currentFees}
+        amountDue={stats.currentAmountDue}
+        hasPastBalance={summary.onlineShowBalances.some(show => show.isPastShow)}
+        currentFeesHref={buildEntryBalanceRecoveryHref(summary)}
         onNavigate={vi.fn()}
       />
     );
 
     expect(screen.queryByText('Paid in full')).not.toBeInTheDocument();
     expect(screen.getByText('$30.00')).toBeInTheDocument();
+    expect(screen.getByText('due of $60.00 entered')).toBeInTheDocument();
   });
 
   it('still says "Paid in full" once the add-on is settled', async () => {
@@ -215,17 +264,20 @@ describe('MyEntries — a pending class added to a paid enrollment (MYK9-536)', 
       error: null,
     });
 
-    const { result } = renderData();
+    const { result } = renderHook(() => useDashboardStrip(), { wrapper: RouterWrapper });
 
-    await waitFor(() => expect(result.current.entries).toHaveLength(1));
+    await waitFor(() => expect(result.current.data.entries).toHaveLength(1));
 
-    const summary = result.current.balanceSummary;
+    const summary = result.current.data.balanceSummary;
+    const stats = result.current.filters.entryStats;
     expect(summary.amountDueCents).toBe(0);
 
     render(
       <CompactStatsRow
-        currentFees={summary.currentFeesCents / 100}
-        amountDue={summary.amountDueCents / 100}
+        currentFees={stats.currentFees}
+        amountDue={stats.currentAmountDue}
+        hasPastBalance={summary.onlineShowBalances.some(show => show.isPastShow)}
+        currentFeesHref={buildEntryBalanceRecoveryHref(summary)}
         onNavigate={vi.fn()}
       />
     );

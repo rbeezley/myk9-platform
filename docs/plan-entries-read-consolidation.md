@@ -82,10 +82,14 @@ All 7 modules are listed below. `secretaryReadReplication.ts` and `secretaryPost
 
 ### `userEntriesReplication.ts` (4,585 b) — not in barrel
 
-| Export                                    | Kind             |
-| ----------------------------------------- | ---------------- |
-| `findMissingReplicatedUserEntryRelations` | utility function |
-| `buildReplicatedUserEntryRows`            | utility function |
+| Export                         | Kind             |
+| ------------------------------ | ---------------- |
+| `buildReplicatedUserEntryRows` | utility function |
+
+> `findMissingReplicatedUserEntryRelations` was deleted by MYK9-536. It existed
+> only to decide whether `getUserEntries` should leave the replica for the
+> authoritative view; that read now always prefers the view, so the question it
+> answered no longer exists.
 
 ### `index.ts` (1,240 b) — public barrel
 
@@ -147,10 +151,9 @@ Tags: `replication` = offline-safe (backed by replication layer), `postgrest-pub
 
 ### `userEntriesReplication.ts`
 
-| Function                                  | Tag           | Evidence                                                                                                                                                                                                                      |
-| ----------------------------------------- | ------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `findMissingReplicatedUserEntryRelations` | n/a (utility) | Pure function — detects missing relations in provided maps (line 23). No DB calls.                                                                                                                                            |
-| `buildReplicatedUserEntryRows`            | `replication` | Takes already-fetched `ReplicatedEntry[]`; only PostgREST call is for `enrollments` (line 61), which is not replicated — best-effort enrichment. Calls `withholdScoredResultColumns` for result-visibility safety (line 109). |
+| Function                       | Tag           | Evidence                                                                                                                                                                                                                      |
+| ------------------------------ | ------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `buildReplicatedUserEntryRows` | `replication` | Takes already-fetched `ReplicatedEntry[]`; only PostgREST call is for `enrollments` (line 61), which is not replicated — best-effort enrichment. Calls `withholdScoredResultColumns` for result-visibility safety (line 109). |
 
 ---
 
@@ -191,10 +194,9 @@ Tags: `replication` = offline-safe (backed by replication layer), `postgrest-pub
 
 ### `userEntriesReplication.ts` exports
 
-| Function                                  | Production callers                                               |
-| ----------------------------------------- | ---------------------------------------------------------------- |
-| `findMissingReplicatedUserEntryRelations` | `services/database/entries/search.ts:349` (internal sibling)     |
-| `buildReplicatedUserEntryRows`            | `services/database/entries/search.ts:377,388` (internal sibling) |
+| Function                       | Production callers                                                                                                  |
+| ------------------------------ | ------------------------------------------------------------------------------------------------------------------- |
+| `buildReplicatedUserEntryRows` | `services/database/entries/search.ts` — `readReplicaUserEntryRows`, the offline/timeout fallback (internal sibling) |
 
 ### `secretaryReadReplication.ts` and `secretaryPostgrest.ts` exports
 

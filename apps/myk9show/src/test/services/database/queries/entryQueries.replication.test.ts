@@ -61,9 +61,12 @@ vi.mock('@/services/replication/ReplicatedTrialsTable', () => ({
 }));
 
 // Captured rows returned by the cascade-aware authenticated view
-// (view_authenticated_entry_results). The view is what getUserEntries must
-// PREFER once any own entry is scored, since it applies the per-field
-// visibility cascade the replication store cannot.
+// (view_authenticated_entry_results). Since MYK9-536 getUserEntries ALWAYS
+// prefers this view — it applies the per-field visibility cascade the
+// replication store cannot, and it is the only source scoped to the whole
+// account rather than to one show. The replica is the offline fallback, and
+// (because an empty view may not contradict a populated snapshot) the source
+// of record whenever the view comes back empty.
 const { mockViewRows } = vi.hoisted(() => ({
   mockViewRows: { current: [] as Record<string, unknown>[] },
 }));
@@ -620,12 +623,26 @@ describe('entryQueries (replication)', () => {
   // getUserEntries
   // -----------------------------------------------------------------------
   describe('getUserEntries', () => {
-    it('filters by handlerId', async () => {
+    // These three are the ONLY coverage of own-entry scoping on the replica
+    // fallback (`search.ts`: `e.handlerId === userId || ownedDogIds.has(e.dogId)`).
+    // Online, that filter never runs — the view scopes ownership in SQL with
+    // `.eq('is_own_entry', true)`. So each one makes the view read FAIL, which
+    // is the only state in which the client-side filter is what protects the
+    // exhibitor from seeing rows that are not theirs.
+    async function failTheViewRead() {
+      const client = await import('@/services/database/supabaseClient');
+      vi.spyOn(client.supabase, 'from').mockImplementationOnce(() => {
+        throw new Error('view unreachable');
+      });
+    }
+
+    it('filters the replica fallback by handlerId', async () => {
       const entries = [
         makeEntry({ id: 'e1', handlerId: 'user-1' }),
         makeEntry({ id: 'e2', handlerId: 'user-other' }),
       ];
       setupListMocks(entries);
+      await failTheViewRead();
 
       const result = await getUserEntries('user-1');
 
@@ -633,7 +650,7 @@ describe('entryQueries (replication)', () => {
       expect((result.data[0] as Record<string, unknown>).id).toBe('e1');
     });
 
-    it('includes entries for dogs owned by the user when handlerId differs', async () => {
+    it('includes replica-fallback entries for dogs owned by the user when handlerId differs', async () => {
       const entries = [
         makeEntry({ id: 'e1', dogId: 'dog-owned', handlerId: 'handler-other' }),
         makeEntry({ id: 'e2', dogId: 'dog-other', handlerId: 'handler-other' }),
@@ -643,11 +660,36 @@ describe('entryQueries (replication)', () => {
         makeDog({ id: 'dog-other', ownerId: 'user-other' }),
       ];
       setupListMocks(entries, dogs);
+      await failTheViewRead();
 
       const result = await getUserEntries('user-1');
 
       expect(result.data).toHaveLength(1);
       expect((result.data[0] as Record<string, unknown>).id).toBe('e1');
+    });
+
+    // The negative case the two above cannot make: a row that is neither
+    // handled by this person NOR on a dog they own must not reach My Entries
+    // through the fallback, even though the local snapshot holds it (the
+    // replica is populated per SHOW, so it legitimately contains every
+    // exhibitor's entries for any show this device has visited).
+    it('excludes another exhibitor\'s row from the replica fallback', async () => {
+      const entries = [
+        makeEntry({ id: 'mine', dogId: 'dog-owned', handlerId: 'user-1' }),
+        makeEntry({ id: 'theirs', dogId: 'dog-theirs', handlerId: 'handler-other' }),
+      ];
+      const dogs = [
+        makeDog({ id: 'dog-owned', ownerId: 'user-1' }),
+        makeDog({ id: 'dog-theirs', ownerId: 'user-other' }),
+      ];
+      setupListMocks(entries, dogs);
+      await failTheViewRead();
+
+      const result = await getUserEntries('user-1');
+
+      const ids = (result.data as Array<Record<string, unknown>>).map(row => row.id);
+      expect(ids).toEqual(['mine']);
+      expect(ids).not.toContain('theirs');
     });
 
     it('returns empty when user has no entries', async () => {
@@ -694,7 +736,7 @@ describe('entryQueries (replication)', () => {
       expect(row.is_scored).toBe(true);
     });
 
-    it('prefers the cascade-aware server view when an entry is scored', async () => {
+    it('surfaces the cascade-released placement the replica must withhold', async () => {
       const entries = [
         makeEntry({
           id: 'scored-1',
@@ -724,10 +766,36 @@ describe('entryQueries (replication)', () => {
       expect(row.result_status).toBe('qualified');
     });
 
-    it('stays on the replication path (no view round-trip) when no entry is scored', async () => {
+    // MYK9-536 inverted this. `/my-entries` is a cross-show route and the
+    // entries replica only ever syncs per show, so a snapshot that merely
+    // LOOKS complete — every relation hydrated, nothing scored — is exactly the
+    // shape that hid a class added to an already-synced enrollment. Scored or
+    // not, the authoritative view wins while it is reachable.
+    it('prefers the authoritative view over an unscored replica row', async () => {
+      const entries = [makeEntry({ id: 'stale-replica-1', handlerId: 'user-1', isScored: false })];
+      setupListMocks(entries);
+      mockViewRows.current = [
+        { id: 'stale-replica-1', is_own_entry: true },
+        // The row the replica has never seen: added after that show last synced.
+        { id: 'added-after-last-sync', is_own_entry: true },
+      ];
+
+      const result = await getUserEntries('user-1');
+
+      expect((result.data as Array<Record<string, unknown>>).map(row => row.id)).toEqual([
+        'stale-replica-1',
+        'added-after-last-sync',
+      ]);
+    });
+
+    it('falls back to the replica when the view read fails', async () => {
       const entries = [makeEntry({ id: 'unscored-1', handlerId: 'user-1', isScored: false })];
       setupListMocks(entries);
-      mockViewRows.current = [{ id: 'SHOULD-NOT-BE-USED', final_placement: 9 }];
+      mockViewRows.current = [];
+      const client = await import('@/services/database/supabaseClient');
+      vi.spyOn(client.supabase, 'from').mockImplementationOnce(() => {
+        throw new Error('view unreachable');
+      });
 
       const result = await getUserEntries('user-1');
 

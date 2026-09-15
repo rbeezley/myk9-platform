@@ -26,6 +26,12 @@ export function useMyEntryBalanceSummary() {
     // scoping outright so the guard can see it (MYK9-429).
     queryKey: ['exhibitor', 'my-entry-balance-summary', viewerScope(personId)],
     enabled: Boolean(user?.id && personId),
+    // `getUserEntries` is network-first with the replicated snapshot as its
+    // offline fallback (MYK9-536), but React Query's default
+    // `networkMode: 'online'` parks this query at `fetchStatus: 'paused'`
+    // offline and never calls it — so the exhibitor's amount due would read as
+    // a spinner forever rather than the last known balance.
+    networkMode: 'always' as const,
     queryFn: async (): Promise<EntryBalanceSummary> => {
       if (!personId) return summarizeEntryBalances([]);
 

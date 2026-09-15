@@ -299,19 +299,37 @@ BEGIN
   IF v_paid > 0 THEN
     RAISE EXCEPTION 'seed-demo: % paid or refunded entr(ies) hang off the demo exhibitor''s enrollment on show ...010 — refusing to delete them; remove them deliberately, then rerun', v_paid;
   END IF;
-  -- Checked at the ENROLLMENT, not through entries: an order whose entries
-  -- never materialised (or were removed by hand) still points here, and the
-  -- enrollment delete below would null its enrollment_id silently.
+  -- Checked directly on stripe_orders' OWN scope columns, not only through
+  -- the enrollment join: an order whose entries never materialised (or were
+  -- removed by hand) still points here via enrollment_id OR show_id, and the
+  -- enrollment delete below would null either column silently. MYK9-527:
+  -- every stripe_orders row on staging (22/22, spanning 2026-06..2026-09) was
+  -- found with BOTH columns already nulled by a past reseed — a guard that
+  -- only joins through enrollment_id can never match a row once that FK is
+  -- null, so it was structurally blind to every order that already existed,
+  -- not just ones created since the last reseed. Checking so.show_id
+  -- directly closes that gap for any order still holding a live scope.
   SELECT count(*) INTO v_orders
   FROM public.stripe_orders so
-  JOIN public.enrollments en ON en.id = so.enrollment_id
-  WHERE en.id = 'dededede-0000-0000-0000-000000000070'
-     OR (en.show_id = 'dededede-0000-0000-0000-000000000010'
-         AND en.handler_id = (SELECT id FROM public.people WHERE lower(email)='exhibitor@myk9t.com'));
+  WHERE so.show_id = 'dededede-0000-0000-0000-000000000010'
+     OR so.enrollment_id = 'dededede-0000-0000-0000-000000000070'
+     OR so.enrollment_id IN (
+          SELECT id FROM public.enrollments
+          WHERE show_id = 'dededede-0000-0000-0000-000000000010'
+            AND handler_id = (SELECT id FROM public.people WHERE lower(email)='exhibitor@myk9t.com')
+        );
   IF v_orders > 0 THEN
-    RAISE EXCEPTION 'seed-demo: % Stripe order(s) point at the demo exhibitor''s enrollment on show ...010 — refusing to orphan them; remove them deliberately, then rerun', v_orders;
+    RAISE EXCEPTION 'seed-demo: % Stripe order(s) point at the demo exhibitor''s enrollment or show ...010 — refusing to orphan them; remove them deliberately, then rerun', v_orders;
   END IF;
 END $$;
+-- MYK9-527: prune stripe_orders rows a PAST reseed already orphaned (both
+-- show_id and enrollment_id nulled by their ON DELETE SET NULL). These are
+-- unreconcilable sandbox residue from old test-mode checkouts — the guard
+-- above can never see them again once both columns are null, so without this
+-- they silently accumulate forever (22 rows, 2026-06..2026-09, before this
+-- fix landed). A row that still carries either FK is caught by the guard
+-- above and raises instead of ever reaching this DELETE.
+DELETE FROM public.stripe_orders WHERE show_id IS NULL AND enrollment_id IS NULL;
 DELETE FROM public.entries
 WHERE registration_id = 'dededede-0000-0000-0000-000000000070'
    OR registration_id IN (

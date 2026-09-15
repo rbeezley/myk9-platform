@@ -85,11 +85,36 @@ describe('seed-demo self-cleaning relationship deletes (MYK9-490 follow-up)', ()
     const guardBlock = seed.slice(guardBlockStart, relationshipDelete);
     expect(guardBlock).toContain("e.payment_status IN ('paid', 'refunded')");
     expect(guardBlock).toContain(`en.id = '${ENROLLMENT_ID}'`);
-    // The Stripe check must be keyed on the enrollment itself, not reached
-    // through entries: an order whose entries are gone would otherwise pass.
-    expect(guardBlock).toContain(
-      'FROM public.stripe_orders so\n  JOIN public.enrollments en ON en.id = so.enrollment_id'
+    // MYK9-527: the Stripe check must be keyed directly on stripe_orders' OWN
+    // scope columns (show_id / enrollment_id), not only reached through an
+    // enrollment join — once either FK is already null (true of every row on
+    // staging, from a past reseed) a join-only guard can never match again.
+    expect(guardBlock).toContain('FROM public.stripe_orders so');
+    expect(guardBlock).toContain("so.show_id = 'dededede-0000-0000-0000-000000000010'");
+    expect(guardBlock).toContain(`so.enrollment_id = '${ENROLLMENT_ID}'`);
+  });
+
+  it('prunes stripe_orders rows a past reseed already orphaned (both FKs null), so orphans never accumulate (MYK9-527)', () => {
+    // MYK9-527: 22/22 stripe_orders rows on staging were found with BOTH
+    // show_id and enrollment_id already nulled by a past reseed's ON DELETE
+    // SET NULL — permanently invisible to the live-order guard above, which
+    // can only match a row that still carries one of those FKs. The prune
+    // must run AFTER that guard (so a still-scoped order raises instead of
+    // being silently swept up) and must not restrict by anything except both
+    // columns being null, or it would leave orphans behind again.
+    const guardStart = seed.indexOf('DO $$\nDECLARE v_paid integer; v_orders integer;');
+    expect(guardStart, 'stripe_orders/entries guard block not found').toBeGreaterThan(-1);
+    const guardEnd = seed.indexOf('END $$;', guardStart);
+    expect(guardEnd, 'guard block has no END $$;').toBeGreaterThan(-1);
+
+    const prune = seed.indexOf(
+      'DELETE FROM public.stripe_orders WHERE show_id IS NULL AND enrollment_id IS NULL;'
     );
+    expect(prune, 'no prune of already-orphaned stripe_orders rows found').toBeGreaterThan(-1);
+    expect(
+      prune,
+      'the prune must run after the live-order guard, or a still-scoped order could be swept up before the guard sees it'
+    ).toBeGreaterThan(guardEnd);
   });
 
   it("runs the hard-coded entries delete before the guard, so the seed's own paid rows never trip it", () => {

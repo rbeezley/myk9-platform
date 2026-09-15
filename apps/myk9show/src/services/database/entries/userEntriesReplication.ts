@@ -1,4 +1,6 @@
 import { supabase } from '../supabaseClient';
+import { withTimeout, DEFAULT_TIMEOUT_MS } from '@myk9/core';
+import { logger } from '@/services/LoggingService';
 import { mapReplicatedEntryToDbRow } from '@/services/mappers/entryMappers';
 import { withholdScoredResultColumns } from './resultVisibility';
 import type { ReplicatedEntry } from '@/services/replication/ReplicatedEntriesTable';
@@ -8,12 +10,6 @@ import type { ReplicatedShow } from '@/services/replication/ReplicatedShowsTable
 import type { ReplicatedTrial } from '@/services/replication/ReplicatedTrialsTable';
 import { getTrialTimezone } from '@/features/registries';
 
-interface ReplicatedUserEntryRelationMaps {
-  dogsMap: ReadonlyMap<string, unknown>;
-  classesMap: ReadonlyMap<string, unknown>;
-  showsMap: ReadonlyMap<string, unknown>;
-}
-
 interface ReplicatedUserEntryMaps {
   dogsMap: ReadonlyMap<string, ReplicatedDog>;
   classesMap: ReadonlyMap<string, ReplicatedClass>;
@@ -21,31 +17,18 @@ interface ReplicatedUserEntryMaps {
   trialsMap: ReadonlyMap<string, ReplicatedTrial>;
 }
 
-export function findMissingReplicatedUserEntryRelations(
-  entries: Pick<ReplicatedEntry, 'id' | 'classId' | 'dogId' | 'showId'>[],
-  maps: ReplicatedUserEntryRelationMaps
-): string[] {
-  const missing = new Set<string>();
-
-  for (const entry of entries) {
-    if (entry.classId && !maps.classesMap.has(entry.classId)) {
-      missing.add(`class:${entry.classId}`);
-    }
-    if (entry.dogId && !maps.dogsMap.has(entry.dogId)) {
-      missing.add(`dog:${entry.dogId}`);
-    }
-    if (entry.showId && !maps.showsMap.has(entry.showId)) {
-      missing.add(`show:${entry.showId}`);
-    }
-  }
-
-  return Array.from(missing);
-}
-
 export async function buildReplicatedUserEntryRows(
   entries: ReplicatedEntry[],
   maps: ReplicatedUserEntryMaps
-): Promise<{ data: Record<string, unknown>[]; error: null }> {
+): Promise<{ data: Record<string, unknown>[]; error: null; enrichmentMissing?: boolean }> {
+  // Whether the enrollment read below failed or timed out. It matters beyond
+  // cosmetics: without the order's payment_status,
+  // `resolveEffectivePaymentStatus` takes branch 2 ("no order to consult, the
+  // entry row stands") instead of branch 4 ("either side pending wins"), so a
+  // pending order over a row that reads paid silently UNDER-claims the amount
+  // due. The caller turns this into `stale`, which is what makes the money
+  // surface disclose it.
+  let enrichmentMissing = false;
   // Load enrollment payment fields (not in the replication store)
   const enrollmentIds = [...new Set(entries.map(e => e.registrationId).filter(Boolean))];
   const enrollmentsMap = new Map<
@@ -59,14 +42,40 @@ export async function buildReplicatedUserEntryRows(
     }
   >();
   if (enrollmentIds.length > 0) {
-    const { data: enrollments } = await supabase
-      .from('enrollments')
-      .select('id, confirmation_number, payment_status, payment_reference, paid_amount')
-      .in('id', enrollmentIds as string[]);
-    if (enrollments) {
-      for (const e of enrollments) {
-        enrollmentsMap.set(e.id, e);
+    // This is the OFFLINE path's one network call, and it is best-effort
+    // enrichment: confirmation numbers and the order's payment status. It must
+    // therefore never be what stops the page from rendering.
+    //
+    // It is reached mainly when the authoritative view failed or TIMED OUT —
+    // i.e. on the same dead network. Without its own deadline a captive portal
+    // hangs here instead, and `getUserEntries` never settles at all, which is
+    // exactly the failure the view's timeout was added to end. On expiry we
+    // carry on with an empty map: the rows still render, they just fall back to
+    // the id-derived confirmation number and their own `payment_status`.
+    try {
+      const { data: enrollments } = await withTimeout(
+        supabase
+          .from('enrollments')
+          .select('id, confirmation_number, payment_status, payment_reference, paid_amount')
+          .in('id', enrollmentIds as string[])
+          .abortSignal(AbortSignal.timeout(DEFAULT_TIMEOUT_MS)),
+        DEFAULT_TIMEOUT_MS,
+        'My Entries enrollment enrichment'
+      );
+      if (enrollments) {
+        for (const e of enrollments) {
+          enrollmentsMap.set(e.id, e);
+        }
       }
+    } catch (error) {
+      enrichmentMissing = true;
+      logger.warn(
+        'Enrollment enrichment unavailable; rendering replicated entries alone',
+        'database',
+        {
+          error: error instanceof Error ? error.message : String(error),
+        }
+      );
     }
   }
 
@@ -131,12 +140,12 @@ export async function buildReplicatedUserEntryRows(
       null;
     // The per-class result-visibility cascade is NOT in replication scope, so
     // the raw scored columns synced here are withheld until the cascade-aware
-    // server view (preferred by getUserEntries when any entry is scored) can
-    // release them. Safe-by-default: never leak placement/result/time/faults
+    // server view can release them. That view is ALWAYS preferred by
+    // getUserEntries; this replica is only its offline fallback. Safe-by-default: never leak placement/result/time/faults
     // from the offline path. See ./resultVisibility for the full rationale.
     withholdScoredResultColumns(row);
     return row;
   });
 
-  return { data, error: null };
+  return enrichmentMissing ? { data, error: null, enrichmentMissing: true } : { data, error: null };
 }

@@ -3,11 +3,7 @@ import type { ReplicatedEntry } from '@/services/replication/ReplicatedEntriesTa
 import type { ReplicatedClass } from '@/services/replication/ReplicatedClassesTable';
 import type { ReplicatedShow } from '@/services/replication/ReplicatedShowsTable';
 import type { ReplicatedTrial } from '@/services/replication/ReplicatedTrialsTable';
-import {
-  WITHHELD_SCORED_COLUMNS,
-  withholdScoredResultColumns,
-  hasScoredResult,
-} from './resultVisibility';
+import { WITHHELD_SCORED_COLUMNS, withholdScoredResultColumns } from './resultVisibility';
 
 // supabase is only touched by buildReplicatedUserEntryRows for the enrollments
 // lookup — stub it to return no rows so the mapper path runs purely.
@@ -135,18 +131,6 @@ describe('withholdScoredResultColumns', () => {
     expect(row.entry_status).toBe('confirmed');
     expect(row.payment_status).toBe('paid');
     expect(row.final_placement).toBeNull();
-  });
-});
-
-describe('hasScoredResult', () => {
-  it('is true for isScored / is_scored true', () => {
-    expect(hasScoredResult({ isScored: true })).toBe(true);
-    expect(hasScoredResult({ is_scored: true })).toBe(true);
-  });
-
-  it('is false otherwise', () => {
-    expect(hasScoredResult({ isScored: false })).toBe(false);
-    expect(hasScoredResult({})).toBe(false);
   });
 });
 

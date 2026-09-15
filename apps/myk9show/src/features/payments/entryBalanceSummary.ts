@@ -59,6 +59,18 @@ export interface EntryBalanceShowSummary {
 }
 
 export interface EntryBalanceSummary {
+  /**
+   * True when this summary was computed from rows the authoritative server read
+   * did not confirm — an offline/timed-out read served from the replicated
+   * snapshot, or a snapshot the server no longer agrees with (MYK9-536).
+   *
+   * The figures are still the best available; what changes is their STANDING. A
+   * surface that states money as fact ("$30.00 due", "Paid in full") should say
+   * it is showing saved data instead. Optional, and absent on every
+   * `summarizeEntryBalances` result: only a reader that knows the rows'
+   * provenance can set it.
+   */
+  stale?: boolean;
   currentFeesCents: number;
   amountDueCents: number;
   onlineDueCents: number;

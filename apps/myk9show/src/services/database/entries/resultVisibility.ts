@@ -52,15 +52,3 @@ export function withholdScoredResultColumns(row: Record<string, unknown>): Recor
   }
   return row;
 }
-
-/**
- * Does this replicated entry carry a scored result? Drives whether
- * `getUserEntries` should prefer the cascade-aware server view so released
- * results still surface online.
- */
-export function hasScoredResult(entry: {
-  isScored?: boolean | null | undefined;
-  is_scored?: boolean | null | undefined;
-}): boolean {
-  return entry.isScored === true || entry.is_scored === true;
-}

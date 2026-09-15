@@ -9,7 +9,9 @@
  * has no signal to tell "an entered exhibitor visiting early" apart from "a
  * stranger with no relationship to this show," so it always spoke in
  * worker-passcode language. This hook supplies that missing signal from the
- * same account-level, offline-aware entry source already used by My Shows.
+ * same account-level entry source already used by My Shows. Since MYK9-536
+ * that source is NETWORK-FIRST (authoritative view, per-show replica as the
+ * failure/timeout fallback), so this query sets `networkMode: 'always'`.
  */
 import { useQuery } from '@tanstack/react-query';
 import { useCurrentUserPersonId } from '@/hooks/useRoleBasedData';
@@ -29,6 +31,12 @@ export function useHasAnyEntryForShow(showId: string | undefined): {
       return (data ?? []).some(row => (row as { show_id?: string }).show_id === showId);
     },
     enabled: !!personId && !!showId,
+    // `getUserEntries` carries its own offline fallback (the replicated
+    // snapshot), but React Query's default `networkMode: 'online'` parks
+    // this query at `fetchStatus: 'paused'` while offline and never calls
+    // it, so the fallback is unreachable exactly when it matters. Same
+    // reason as `useAtShowClassList` / `RingsideShowBoundary`.
+    networkMode: 'always' as const,
   });
 
   return { hasAnyEntryForShow: data ?? false, isLoading };

@@ -9,7 +9,7 @@
  * only action left on screen. Managers and judges both feed an "upcoming"
  * bucket; this gives exhibitors the equivalent one.
  *
- * Reads the same account-level, offline-aware `getUserEntries` rows My Shows
+ * Reads the same account-level `getUserEntries` rows My Shows
  * uses — no new network path — and emits UPCOMING refs only. A show running
  * today is already covered by the today source, and `resolveRingsideEntry`
  * drops any upcoming ref that is also live, so overlap is harmless either way.

@@ -10,7 +10,7 @@ Dev/staging run on the idempotent `seed-demo.sql` demo dataset (clean-wiped 2026
 
 ## Canonical accounts
 
-Sign-in-capable accounts are the `@myk9t.com` set (exhibitor, secretary, judge, clubadmin, chairman, steward, testadmin — see the table in the `audit-pages` skill). They replaced `e2e-*@test.myk9.com` on 2026-08-23, when that undeliverable domain was retired. `exhibitor1/3/4/5@myk9t.com` remain demo fixture rows holding no roles. All e2e accounts share one password kept in `.env.local`.
+Sign-in-capable accounts are the `@myk9t.com` set (exhibitor, secretary, judge, clubadmin, chairman, steward, testadmin — see the table in the `audit-pages` skill). They replaced `e2e-*@test.myk9.com` on 2026-08-23, when that undeliverable domain was retired. `exhibitor2@myk9t.com` also exists on staging and can sign in; `exhibitor3/4/5` are declared in `testUsers.ts` but are not present on staging. The `audit-pages` table lists five of the seven, not chairman or steward. All e2e accounts share one password kept in `.env.local`.
 
 ## Known failure modes after a reseed
 
@@ -23,25 +23,29 @@ Sign-in-capable accounts are the `@myk9t.com` set (exhibitor, secretary, judge, 
 
 ## When the seed aborts: the money guards
 
-Section 0 of `seed-demo.sql` refuses, on purpose, to delete rows that carry real money. Every message below is quoted from the seed, so search this file for the sentence you saw. Each one names the count; the three broad guards also print the first 10 ids.
+Section 0 of `seed-demo.sql` refuses, on purpose, to delete rows that carry real money. Every message below is quoted from the seed, so search this file for the sentence you saw. Each one names the count; four of them also print the first 10 ids, and the two `...010` guards print a count only. The whole file runs inside one `BEGIN`/`COMMIT` under `psql -v ON_ERROR_STOP=1 -f` (see the seed's header), which is why an abort leaves the database untouched rather than half-reseeded. The guards raise one at a time, so clearing one and rerunning can surface the next; that is expected, not a regression.
 
 **Before you delete anything the guard named:** decide whether it is real. If it is, record what you are about to lose first. Hard-deleting an entry cascades its `entry_status_history` away, and a `stripe_orders` row that lists that entry in `entry_ids` keeps pointing at the deleted id with no error, because that column has no foreign key. Soft-deleting never clears any of these guards: none of them look at `deleted_at`, deliberately, because a soft-deleted row still cascades. Never widen a guard to get past it.
 
-To see the rows with their evidence, the named CTEs need their dependencies. Copy `scope_shows`, `stray` and the CTE you want from the guard block (find it with `grep -n 'substantiated AS (' supabase/seed-demo.sql` and siblings; the line offsets printed in the seed's own error text are stale) and run, for example:
+To see the rows with their evidence, the named CTEs need their dependencies. Copy `scope_shows`, `stray` and the CTE you want from the guard block (find it with `grep -n 'substantiated AS (' supabase/seed-demo.sql` and siblings; the line offsets printed in the seed's own error text are stale), prefix them with `WITH`, drop the trailing comma from the last one you pasted, and run, for example:
 
 ```sql
-SELECT * FROM stray WHERE id IN (SELECT id FROM substantiated);
+SELECT s.*,
+       EXISTS (SELECT 1 FROM public.entry_status_history h WHERE h.entry_id = s.id) AS has_history,
+       EXISTS (SELECT 1 FROM public.stripe_orders o WHERE o.entry_ids @> ARRAY[s.id]) AS in_order
+FROM stray s
+WHERE s.id IN (SELECT id FROM substantiated);
 ```
 
-`substantiated` alone returns only ids and cannot tell a real check payment from fixture noise; `stray` carries `payment_method`, `entry_fee`, `payment_reference`, `payment_received_on`, `payment_notes`, the refund columns and `stripe_payment_intent_id`.
+`substantiated` alone returns only ids and cannot tell a real check payment from fixture noise. `stray` carries `payment_method`, `entry_fee`, `payment_reference`, `payment_received_on`, `payment_notes`, the refund columns and `stripe_payment_intent_id`, but not the two `EXISTS` terms; the two extra columns above are what let you evaluate "no history, no order" below.
 
 ### ABORT: `paid or refunded entr(ies) with a real payment trail sit on a show, trial, class or dog this reseed deletes`
 
-An entry with money evidence sits on a show, trial, class or dog the seed deletes. Evidence means any of: a Stripe payment intent, a `stripe_orders` row listing the entry, a `payment_reference`, any of the three refund columns, a `payment_method` set to anything but `waived` (NULL does not count), a `payment_received_on` date, `payment_notes`, or any `entry_status_history` row. A walk or manual test left it there (MYK9-526).
+An entry with money evidence sits on a show, trial, class or dog the seed deletes. Evidence means any of: a Stripe payment intent, a `stripe_orders` row listing the entry, a `payment_reference`, any of the three refund columns, a `payment_method` set to anything but `waived` (NULL does not count), a `payment_received_on` date, `payment_notes`, or any `entry_status_history` row. A walk or manual test left it there; the guard was added under MYK9-526.
 
 1. Run the query above and look at each id's evidence.
 2. A zero-fee `secretary_paid` entry with nothing else behind it (`payment_method = 'secretary_paid'`, `entry_fee = 0.00`, no reference, no history, no order) is fixture noise and safe to hard-delete. That false abort is MYK9-539.
-3. Anything else is real. Record the trail, then hard-delete the entry by id: `DELETE FROM public.entries WHERE id IN (...)`. If a `stripe_orders` row lists the entry, deal with that order first under the Stripe heading below; deleting the entry does not fix the order.
+3. Anything else is real. Record the trail (the `stray` row and its `entry_status_history` rows), then hard-delete the entry by id: `DELETE FROM public.entries WHERE id IN (...)`. If `in_order` is true, there is no repair: `entry_ids` has no foreign key, so the order keeps the deleted id and nothing will ever notice. Record the order id alongside the entry before you delete. The Stripe heading below is about an order's scope columns, not this.
 
 ### WARNING: `entr(ies) on data this reseed deletes carry no payment trail`
 
@@ -49,16 +53,19 @@ A `paid` or `refunded` status label with nothing behind it: no history, no Strip
 
 ### ABORT: `paid or refunded enrollment(s) sit on a show this reseed deletes`
 
-`enrollments.show_id` is ON DELETE CASCADE, and a paid or refunded enrollment sits on a seed-deleted show (MYK9-528). Run `enrollment_stray` as a SELECT with `scope_shows`. Two constraints point into `enrollments` and will block a bare delete with a 23503: `entries.registration_id` (NO ACTION) and `stripe_orders.enrollment_id` (RESTRICT). Clear the enrollment's entries first, following the entries heading above. If a `stripe_orders` row is what blocks it, that is the Stripe case below, not a row to delete. Then hard-delete the enrollment by id; there is no soft-delete column to set instead.
+`enrollments.show_id` is ON DELETE CASCADE, and a paid or refunded enrollment sits on a seed-deleted show (MYK9-528). Run `enrollment_stray` as a SELECT with `scope_shows`. Two constraints point into `enrollments` and will block a bare delete with a 23503: `entries.registration_id` (NO ACTION) and `stripe_orders.enrollment_id` (RESTRICT). Any entry with that `registration_id` blocks it, paid or not. Paid or refunded ones follow the entries heading above; plain pending ones can be deleted, or detached with `UPDATE public.entries SET registration_id = NULL WHERE registration_id = '...'`. If a `stripe_orders` row is what blocks it, that is the Stripe case below, not a row to delete. Then hard-delete the enrollment by id; there is no soft-delete column to set instead.
 
 ### ABORT: `Stripe order(s) point at a show this reseed deletes, or at an enrollment on one of those shows`
 
-Both `stripe_orders` scope FKs are ON DELETE RESTRICT since migration `20260915191700` (MYK9-527), so the seed refuses before the FK would fail with a raw violation. Run `order_stray` as a SELECT with `scope_shows`. There is no surviving show to reassign to: the seed deletes every show in scope. Two honest exits:
+Both `stripe_orders` scope FKs are ON DELETE RESTRICT since migration `20260915191700` (MYK9-527), so the seed refuses before the FK would fail with a raw violation. Run `order_stray` as a SELECT with `scope_shows`.
 
-- **Keep the ledger row, lose the link.** `UPDATE public.stripe_orders SET show_id = NULL, enrollment_id = NULL WHERE id IN (...)`. This clears the guard, keeps the payment intent, checkout session, amount and fee split, and puts the row in exactly the class `docs/operations/stripe-ledger-orphans.md` says is kept deliberately. This is the default.
-- **Delete the row** only as a reviewed step, which for a solo operator means reconciling it against Stripe first. `stripe_order_refunds.order_id` is RESTRICT too, so a refunded order will not delete without its refund rows.
+**First, record the scope you are about to clear:** `SELECT id, show_id, enrollment_id, amount_cents FROM public.stripe_orders WHERE id IN (...)`, saved somewhere you will find again. Once a scope column is NULL there is no stamped identity to rebuild it from.
 
-That decision record covers rows that are ALREADY orphaned; do not copy its prune SQL for these, since its predicate requires both scope columns to be NULL and will match nothing here.
+- **Default: detach, reseed, reattach.** `UPDATE public.stripe_orders SET show_id = NULL, enrollment_id = NULL WHERE id IN (...)` clears the guard and keeps the payment intent, checkout session, amount and fee split. The seed re-inserts the demo shows `dededede-...010/011/012`, the load shows and enrollment `dededede-...070` under the same fixed ids, so after the reseed you can restore the recorded scope with an `UPDATE` and lose nothing. That is the lossless exit.
+- **If you leave it detached,** the row joins the class `docs/operations/stripe-ledger-orphans.md` keeps deliberately. That record was written for orphans an earlier bug created and migration `20260915191700` exists to stop reseeds making more, so append the id and amount to that document; it carries a dated count and total that your row would silently falsify.
+- **Delete the row** only as a reviewed step, which for a solo operator means reconciling it against Stripe first. `stripe_order_refunds.order_id` is RESTRICT too: the refund rows go first.
+
+That decision record's prune SQL requires both scope columns to be NULL already and will match nothing here; do not copy it for these rows. The seed also carries a narrower twin, `Stripe order(s) point at the demo exhibitor's enrollment or show ...010`, that is subsumed by this guard and cannot fire first; treat it as the same case.
 
 ### WARNING: `stripe_orders row(s) already have BOTH show_id and enrollment_id nulled by an earlier reseed`
 
@@ -81,7 +88,7 @@ Then follow the entries heading above: decide, record, hard-delete.
 
 ### Preflight refusals
 
-Messages beginning `seed-demo preflight:` are a different category: a misconfigured database, not a money stray. The `trial_packet_snapshots` ones need packet objects removed through the Storage API before reseeding; the person, role and auth ones mean a canonical account is missing or duplicated. None of them is cleared by deleting entries.
+Messages beginning `seed-demo preflight:` are a different category: a misconfigured database, not a money stray. The `trial_packet_snapshots` ones need packet objects removed through the Storage API before reseeding. The person one means a canonical account is missing or duplicated in `people`; the role one means a row in `public.roles` is missing or renamed, nothing to do with accounts; the auth one almost always means the account exists exactly once but its `auth_user_id` is NULL, so link it rather than recreate it. None of them is cleared by deleting entries.
 
 ## Reseeding procedure
 

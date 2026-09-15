@@ -52,6 +52,8 @@
     "qa:review-gate:test": "vitest run scripts/qa/review-gate.test.ts",
     "qa:review-tier": "node --experimental-strip-types --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/qa/review-tier.ts",
     "qa:review-tier:test": "vitest run scripts/qa/review-tier.test.ts",
+    "qa:deferred-reviews": "node --experimental-strip-types --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/qa/deferred-reviews.ts",
+    "qa:deferred-reviews:test": "vitest run scripts/qa/deferred-reviews.test.ts",
     "qa:launcher-pin:test": "vitest run scripts/qa/required-job-launchers.test.ts",
     "qa:codex-review": "bash scripts/qa/codex-review.sh",
     "qa:codex-review:test": "vitest run scripts/qa/codex-review.test.ts",

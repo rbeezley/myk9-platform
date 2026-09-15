@@ -155,6 +155,26 @@ refuses evidence below. Four tiers, weakest to strongest: `none` < `owner` <
   goes through the `owner` override above — and `post-review-gate.sh` refuses to
   write it.
 
+- **Deferred re-review reconciliation (MYK9-533).** The `owner` override's
+  `Deferred re-review: <ISSUE-ID>` line is validated by shape only at merge
+  time (`[A-Z][A-Z0-9]*-\d+`), never checked to resolve — `MYK9-999999` parses
+  fine. `scripts/qa/deferred-reviews.ts` runs weekly
+  (`.github/workflows/deferred-reviews.yml`) rather than inline in the gate
+  itself: the `Review gate` status is computed by a `pull_request_target`
+  workflow with no Linear credential, and wiring a lookup into that path means
+  either handing an untrusted PR's workflow run a `LINEAR_API_KEY` or letting a
+  Linear outage silently pass every id — the same "outage reads as green"
+  failure this repo has been bitten by before. The scheduled job instead lists
+  every merged PR's accepted `owner` override, resolves each named id through
+  Linear's GraphQL API, and exits 2 (loud, non-zero, never a silent pass) on a
+  missing key or an unreachable API, exits 1 if any id does not resolve, and 0
+  otherwise; it also writes the still-open deferrals (state not Done/Canceled)
+  to the run's job summary, so the debt is visible without anyone going
+  looking for it. **A maintainer must add `LINEAR_API_KEY` as a repository
+  secret before this job can ever pass** — that action is Richard's, not an
+  agent's; until it exists every run fails loud by design rather than skipping
+  quietly.
+
 ## 5. Database change
 
 1. `supabase migration list` — check remote migration state before writing a new one (never assume local is authoritative).

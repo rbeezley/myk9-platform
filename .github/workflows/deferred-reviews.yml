@@ -1,0 +1,71 @@
+name: Deferred Re-Review Reconciliation
+
+# Weekly reconciliation for MYK9-533: the review gate's `owner` override
+# (review-gate.ts) lets a PR merge with scrutiny DEFERRED rather than skipped,
+# on the condition the evidence names a tracked issue —
+# `Deferred re-review: <ISSUE-ID>` — but that id is only ever validated by
+# SHAPE at merge time, never checked to actually resolve. This job resolves
+# every such id (named on a merged PR in the lookback window) through Linear's
+# API and fails loudly if any does not exist, or if the check could not run at
+# all. See docs/PLAYBOOK.md § 4 for why this runs on a schedule rather than
+# inline in the review-gate workflow (no Linear credential there, and an
+# outage must never silently pass every id).
+#
+# Requires the `LINEAR_API_KEY` repository secret. Until a maintainer adds it,
+# every run fails loud (exit 2) rather than skipping quietly — that is
+# deliberate: a missing credential must read as "not yet wired up", not as
+# "nothing to reconcile".
+
+on:
+  schedule:
+    - cron: '30 7 * * 1' # 07:30 UTC every Monday
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+concurrency:
+  group: deferred-reviews
+  cancel-in-progress: true
+
+jobs:
+  reconcile:
+    permissions:
+      contents: read
+      issues: write
+    name: Reconcile deferred re-reviews
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: pnpm/action-setup@v6
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '22.12.0'
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Reconcile deferred re-reviews against Linear
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+          LINEAR_API_KEY: ${{ secrets.LINEAR_API_KEY }}
+        run: pnpm qa:deferred-reviews
+
+      - name: Report status to the tracking issue
+        if: always()
+        uses: ./.github/actions/report-scheduled-failure
+        with:
+          workflow-name: Deferred Re-Review Reconciliation
+          outcome: ${{ job.status }}
+          token: ${{ secrets.GITHUB_TOKEN }}
+          extra: >-
+            A `Deferred re-review:` id from a merged PR's review-gate override
+            does not resolve in Linear, or the reconciliation itself could not
+            reach the GitHub or Linear API (including a missing
+            `LINEAR_API_KEY` repository secret — see docs/PLAYBOOK.md § 4).

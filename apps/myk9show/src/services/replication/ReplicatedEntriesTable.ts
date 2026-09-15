@@ -497,9 +497,14 @@ export class ReplicatedEntriesTable extends ReplicatedTable<ReplicatedEntry> {
   /**
    * The owner-tier guards, evaluated against the replicated row. Used by the
    * Pull affordance and by `withdrawOwnEntry` itself so the two cannot drift.
+   *
+   * MYK9-573: goes through the NON-CACHING read. This runs on open for every
+   * class row in `EntryEditDialog`, which is mounted on the account-level
+   * `/my-entries`; the previous `getOrHydrateEntry` seeded one row per class
+   * into an otherwise-empty show-scoped store before Pull was ever clicked.
    */
   async getWithdrawEligibility(entryId: string): Promise<WithdrawEligibility> {
-    const entry = await this.getOrHydrateEntry(entryId);
+    const { entry } = await this.readEntryForWithdrawal(entryId);
     return withdrawEligibilityOf(entry);
   }
 
@@ -514,15 +519,17 @@ export class ReplicatedEntriesTable extends ReplicatedTable<ReplicatedEntry> {
    * else changed it), or the raw Postgres error for anything unclassified.
    */
   async withdrawOwnEntry(entryId: string): Promise<{ from: string | undefined }> {
-    const { entry, wasCached } = await this.loadEntryForWithdrawal(entryId);
+    const { entry, wasCached } = await this.readEntryForWithdrawal(entryId);
 
     const eligibility = withdrawEligibilityOf(entry);
     if (!eligibility.allowed) throw new WithdrawNotAllowedError(eligibility);
 
     const version = await this.callWithdrawRpc(entryId, await this.getServerVersion(entryId));
 
-    // MYK9-573: captured BEFORE the RPC, so a sync landing mid-call cannot turn
-    // an update into an insert.
+    // MYK9-573: `wasCached` is probed BEFORE the RPC and is the primary gate —
+    // a row that was absent then is never written, even if a sync lands during
+    // the call. The write additionally re-checks the store for the OPPOSITE
+    // race (present then, evicted during the call).
     await this.hydrateConfirmedRow(entryId, wasCached, version);
 
     logger.log(`[${this.getTableName()}] Withdrew entry ${entryId} via ${WITHDRAW_OWN_ENTRY_RPC}`);
@@ -537,11 +544,17 @@ export class ReplicatedEntriesTable extends ReplicatedTable<ReplicatedEntry> {
    * case is resolved here: a read error means "no connection", an empty result
    * means "this entry is gone".
    *
-   * Reports whether the row came from the CACHE, because that decides whether
-   * the post-write hydrate may touch the store at all (MYK9-573). A cold row is
-   * read for the guards and deliberately never cached.
+   * NEVER WRITES TO THE STORE (MYK9-573) — unlike `getOrHydrateEntry`, which
+   * seeds a clean row on a cache miss because the secretary check-in/scratch
+   * path needs an OCC token to write against. Both withdrawal-path readers (the
+   * Pull affordance's eligibility check and the withdrawal itself) come through
+   * here, so a cold row is read for the guards and discarded. That is what keeps
+   * "the row is in the store" meaning "the show-scoped sync put it there".
+   *
+   * `wasCached` is reported for logging and intent; the write gate itself is a
+   * FRESH `get` at the moment of writing (see `hydrateConfirmedRow`).
    */
-  private async loadEntryForWithdrawal(
+  private async readEntryForWithdrawal(
     entryId: string
   ): Promise<{ entry: ReplicatedEntry; wasCached: boolean }> {
     const cached = await this.get(entryId);
@@ -649,15 +662,27 @@ export class ReplicatedEntriesTable extends ReplicatedTable<ReplicatedEntry> {
    * in the replica, clean. Falls back to a local status patch when the read-back
    * fails, so a successful withdrawal is never displayed as still entered.
    *
-   * NEVER INSERTS (MYK9-573). The invariant this has to respect: this table is
-   * SHOW-SCOPED, and an account-scope read treats a non-empty store as complete.
+   * NEVER INSERTS (MYK9-573). The invariant: this table is SHOW-SCOPED, and an
+   * account-scope read treats a non-empty store as complete —
    * `readWithReplicationFallback` falls through to PostgREST only while the
    * local result is empty, and an unscoped `getAll()` returns whatever the store
-   * holds — so seeding one row into an otherwise empty replica made
+   * holds. Seeding one row into an otherwise empty replica made
    * /exhibitor/entries report that single row as the user's entire entry list,
-   * across reloads, until the row was deleted by hand. Updating a row the
-   * show-scoped sync already put there is safe; creating one is not, and an
-   * account-level page re-reads from the server anyway.
+   * across reloads, until the row was deleted by hand.
+   *
+   * BOTH withdrawal-path readers must therefore be non-caching — the Pull
+   * affordance's `getWithdrawEligibility` (which runs for every class row when
+   * the dialog opens, on the account-level page) and the withdrawal's own
+   * `readEntryForWithdrawal`. Otherwise the eligibility check seeds the rows and
+   * the gate below sees its own writes.
+   *
+   * TWO gates, in opposite directions, and BOTH must hold:
+   *  - `wasCached`, probed BEFORE the RPC — a row that was absent then is never
+   *    written, even if a sync lands mid-call. The ordering matters: probing
+   *    afterwards would let exactly that sync re-open the seeding hole.
+   *  - a FRESH `get` immediately before each write — a sign-out, scope change or
+   *    store clear during the RPC (or its retry) would otherwise let the
+   *    read-back INSERT the row straight back.
    *
    * A clean write also lands only while the row is not locally dirty — `setOnce`
    * refuses to overwrite a dirty row with a clean value. Withdrawal itself no
@@ -672,7 +697,7 @@ export class ReplicatedEntriesTable extends ReplicatedTable<ReplicatedEntry> {
   ): Promise<void> {
     if (!wasCached) {
       logger.log(
-        `[${this.getTableName()}] Entry ${entryId} is not in the show-scoped replica; ` +
+        `[${this.getTableName()}] Entry ${entryId} was not in the show-scoped replica; ` +
           'skipping the post-withdrawal cache write so an account-scope read still falls through'
       );
       return;
@@ -685,6 +710,9 @@ export class ReplicatedEntriesTable extends ReplicatedTable<ReplicatedEntry> {
         .eq('id', entryId)
         .maybeSingle();
       if (!error && data) {
+        // Re-checked HERE as well as before the RPC: an eviction DURING the
+        // call would otherwise let this INSERT the row straight back.
+        if (!(await this.get(entryId))) return;
         const row = data as unknown as EntryRow;
         const serverVersion =
           ((row as Record<string, unknown>).version as number | undefined) ?? newVersion;

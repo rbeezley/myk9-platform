@@ -201,32 +201,42 @@ describe('ReplicatedEntriesTable.withdrawOwnEntry — online-only', () => {
     // `entries` replication is per-show scoped, so on account-level pages
     // (/exhibitor/entries, /my-entries) the store is normally EMPTY and
     // `readWithReplicationFallback` falls through to PostgREST only while
-    // `isEmptyReadData` is true. Writing the confirmed row into an empty store
-    // made it non-empty, the online read was skipped, and an unscoped getAll()
-    // returned that ONE row as the whole dataset: staging went from
-    // "All 259 / Upcoming 258" to "All 2 / Upcoming 1", and stayed there across
-    // reloads. LESSONS `partition-rearms-guards`.
-    beforeEach(() => {
+    // `isEmptyReadData` is true. Writing a row into an empty store made it
+    // non-empty, the online read was skipped, and an unscoped getAll() returned
+    // that row as the whole dataset: staging went from "All 259 / Upcoming 258"
+    // to "All 2 / Upcoming 1" and stayed there across reloads.
+    // LESSONS `partition-rearms-guards`.
+    //
+    // TWO writers had to stop seeding: the Pull affordance's eligibility check
+    // (which runs per class row when the dialog OPENS — that is where staging's
+    // two rows came from) and the post-withdrawal hydrate. Each guard below is
+    // pinned by a test that only IT can hold, so no single-line deletion passes.
+    const COLD_ROW = {
+      id: 'entry-1',
+      entry_status: 'confirmed',
+      payment_status: 'pending',
+      check_in_status: 'no-status',
+      is_scored: false,
+      version: 1,
+    };
+
+    it('the eligibility check does not cache a cold row (the dialog-open seed)', async () => {
+      // EntryEditDialog runs this for EVERY class row on open, and it is mounted
+      // on the account-level page. Via getOrHydrateEntry it inserted one row per
+      // class before Pull was ever clicked — which also made `wasCached` true by
+      // the time it mattered, bypassing the withdrawal-side gate entirely.
       get.mockResolvedValue(undefined);
-      // A COLD row, read from the view for the guards only. It must carry a
-      // real payment/check-in shape or the fail-closed money arm refuses before
-      // the RPC and the test would pass for the wrong reason.
-      mockReadBack({
-        data: {
-          id: 'entry-1',
-          entry_status: 'confirmed',
-          payment_status: 'pending',
-          check_in_status: 'no-status',
-          is_scored: false,
-          version: 1,
-        },
-        error: null,
-      });
+      mockReadBack({ data: COLD_ROW, error: null });
+
+      await table.getWithdrawEligibility('entry-1');
+      await table.getWithdrawEligibility('entry-2');
+
+      expect(set).not.toHaveBeenCalled();
     });
 
     it('leaves an EMPTY store empty after a successful withdrawal', async () => {
-      // The cold row is fetched for the guards but never cached, so the
-      // withdrawal must not leave a single row behind it.
+      get.mockResolvedValue(undefined);
+      mockReadBack({ data: COLD_ROW, error: null });
       supabaseMocks.rpc.mockResolvedValue({ data: 2, error: null });
 
       await table.withdrawOwnEntry('entry-1');
@@ -235,32 +245,49 @@ describe('ReplicatedEntriesTable.withdrawOwnEntry — online-only', () => {
       expect(set).not.toHaveBeenCalled();
     });
 
-    it('leaves an empty store empty even when the read-back fails', async () => {
-      // The fallback patch path must not insert either. The cold guard-read and
-      // the post-write read-back share one mock, so sequence them: the guards
-      // see the row, the read-back afterwards fails.
+    it('does not write when a sync lands DURING the call (pins the pre-RPC probe)', async () => {
+      // Absent at the probe, present afterwards. Only the BEFORE-the-RPC capture
+      // can hold here — the fresh re-check guards the opposite direction and
+      // would happily write. Probing after the RPC instead leaves every other
+      // test green, so without this one the ordering claim is untested.
+      get.mockResolvedValueOnce(undefined).mockResolvedValue(withdrawableEntry);
+      mockReadBack({ data: COLD_ROW, error: null });
       supabaseMocks.rpc.mockResolvedValue({ data: 2, error: null });
-      const node = mockReadBack({ data: null, error: null });
-      (node.maybeSingle as ReturnType<typeof vi.fn>)
-        .mockResolvedValueOnce({
-          data: {
-            id: 'entry-1',
-            entry_status: 'confirmed',
-            payment_status: 'pending',
-            check_in_status: 'no-status',
-            is_scored: false,
-            version: 1,
-          },
-          error: null,
-        })
-        .mockResolvedValueOnce({ data: null, error: { message: 'view unavailable' } });
 
       await table.withdrawOwnEntry('entry-1');
 
       expect(set).not.toHaveBeenCalled();
     });
 
-    it('still updates the row when the store was already populated', async () => {
+    it('does not re-INSERT a row evicted during the call (pins the read-back re-check)', async () => {
+      // The reverse race: present at the probe, so `wasCached` is true, but a
+      // sign-out / scope change / store clear emptied the store while the RPC
+      // was in flight. Only the fresh `get` before the write can hold here.
+      get.mockResolvedValueOnce(withdrawableEntry).mockResolvedValue(undefined);
+      supabaseMocks.rpc.mockResolvedValue({ data: 7, error: null });
+      mockReadBack({
+        data: { id: 'entry-1', entry_status: 'withdrawn', version: 7 },
+        error: null,
+      });
+
+      await table.withdrawOwnEntry('entry-1');
+
+      expect(set).not.toHaveBeenCalled();
+    });
+
+    it('does not re-INSERT via the fallback patch either (pins the fallback re-check)', async () => {
+      // Same eviction, but the read-back ALSO fails, so the status-patch branch
+      // is the one that must no-op. Only its own `get` check can hold here.
+      get.mockResolvedValueOnce(withdrawableEntry).mockResolvedValue(undefined);
+      supabaseMocks.rpc.mockResolvedValue({ data: 7, error: null });
+      mockReadBack({ data: null, error: { message: 'view unavailable' } });
+
+      await table.withdrawOwnEntry('entry-1');
+
+      expect(set).not.toHaveBeenCalled();
+    });
+
+    it('still updates the row when the store was and stays populated', async () => {
       // The show-scoped case: /at-show and show pages hydrate entries, and there
       // the confirmed row must land so the UI reflects the withdrawal at once.
       get.mockResolvedValue(withdrawableEntry);

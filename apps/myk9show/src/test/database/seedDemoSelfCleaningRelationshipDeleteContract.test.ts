@@ -163,11 +163,23 @@ describe('seed-demo self-cleaning relationship deletes (MYK9-490 follow-up)', ()
       's.stripe_payment_intent_id IS NOT NULL',
       's.payment_reference IS NOT NULL',
       's.refunded_at IS NOT NULL',
+      // Check and cash payments a secretary records have no Stripe trail by
+      // design. Without these three the guard reads a recorded $30 check as a
+      // worthless artifact and deletes it with a warning — which is how it
+      // came to classify money as disposable to keep the script green.
+      "s.payment_method IS NOT NULL AND s.payment_method <> 'waived'",
+      's.payment_received_on IS NOT NULL',
+      's.payment_notes IS NOT NULL',
       'public.entry_status_history',
       'public.stripe_orders',
     ]) {
       expect(block, `substantiation drops ${trail}`).toContain(trail);
     }
+    // The warning has to carry the facts an operator judges on. Ids alone
+    // cannot tell them whether the row they are about to lose was money.
+    expect(block, 'the bare-row warning does not print payment_method / entry_fee').toMatch(
+      /method=.*fee=/s
+    );
 
     // Each derived arm must actually resolve against scope_shows. Emptying a
     // subquery (`... WHERE false`) leaves every structural assertion green

@@ -259,7 +259,8 @@ BEGIN
            AND id <  'a1090000-0000-0000-0011-000000000000'::uuid)
   ),
   stray AS (
-    SELECT e.id, e.stripe_payment_intent_id, e.payment_reference, e.refunded_at
+    SELECT e.id, e.stripe_payment_intent_id, e.payment_reference, e.refunded_at,
+           e.payment_method, e.payment_received_on, e.payment_notes, e.entry_fee
     FROM public.entries e
     WHERE e.payment_status IN ('paid', 'refunded')
       AND (e.show_id IN (SELECT id FROM scope_shows)
@@ -278,6 +279,13 @@ BEGIN
     WHERE s.stripe_payment_intent_id IS NOT NULL
        OR s.payment_reference IS NOT NULL
        OR s.refunded_at IS NOT NULL
+       -- A check or cash payment a secretary recorded has no Stripe trail BY
+       -- DESIGN. Keying corroboration on Stripe-shaped evidence alone made a
+       -- recorded $30 check read as an artifact, which is how this guard came
+       -- to classify money as disposable to keep the script green.
+       OR (s.payment_method IS NOT NULL AND s.payment_method <> 'waived')
+       OR s.payment_received_on IS NOT NULL
+       OR s.payment_notes IS NOT NULL
        OR EXISTS (SELECT 1 FROM public.entry_status_history h WHERE h.entry_id = s.id)
        OR EXISTS (SELECT 1 FROM public.stripe_orders o WHERE o.entry_ids @> ARRAY[s.id])
   )
@@ -286,8 +294,10 @@ BEGIN
          -- Capped: an unbounded list put 756 ids in one error line when it ran.
          (SELECT string_agg(t.id::text, ', ' ORDER BY t.id)
           FROM (SELECT id FROM substantiated ORDER BY id LIMIT 10) t),
-         (SELECT string_agg(t.id::text, ', ' ORDER BY t.id)
-          FROM (SELECT id FROM stray WHERE id NOT IN (SELECT id FROM substantiated) ORDER BY id LIMIT 10) t)
+         (SELECT string_agg(t.id::text || ' (method=' || coalesce(t.payment_method,'none')
+                            || ', fee=' || coalesce(t.entry_fee::text,'none') || ')', ', ' ORDER BY t.id)
+          FROM (SELECT id, payment_method, entry_fee FROM stray
+                WHERE id NOT IN (SELECT id FROM substantiated) ORDER BY id LIMIT 10) t)
     INTO v_real, v_bare, v_ids, v_bare_ids;
 
   IF v_bare > 0 THEN

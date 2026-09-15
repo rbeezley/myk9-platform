@@ -117,6 +117,23 @@ describe('seed-demo self-cleaning relationship deletes (MYK9-490 follow-up)', ()
     expect(block, 'no demo-dog arm').toContain('e.dog_id IN');
     expect(block).toMatch(/RAISE EXCEPTION[^;]*show, trial, class or dog this reseed deletes/);
 
+    // The arms must be a DISJUNCTION. Rewriting the ORs to ANDs leaves every
+    // assertion above satisfied while the guard matches nothing — an inert
+    // guard that reads as a live one, which is the failure this file exists
+    // to prevent one level up.
+    expect(block, 'trial arm is not OR-joined').toMatch(/OR e\.trial_id IN/);
+    expect(block, 'class arm is not OR-joined').toMatch(/OR e\.class_id IN/);
+    expect(block, 'dog range arm is not OR-joined').toMatch(/OR \(e\.dog_id >=/);
+    expect(block, 'demo dog arm is not OR-joined').toMatch(/OR e\.dog_id IN/);
+    expect(block, 'the raise threshold was moved off zero').toContain('IF v_stray > 0 THEN');
+    // deleted_at is ignored on purpose: a soft-deleted row still cascades, so
+    // the PREDICATE must not filter on it. The message may still mention it —
+    // it tells the operator why soft-deleting does not clear the abort — so
+    // this matches the filter forms, not the word.
+    expect(block, 'a deleted_at filter would let a soft-deleted paid row through').not.toMatch(
+      /e\.deleted_at|deleted_at\s+IS\s+(NOT\s+)?NULL/i
+    );
+
     // Placement: ahead of EVERY delete of a parent that cascades entries.
     for (const parent of ['classes', 'dogs', 'shows', 'trials']) {
       const dels = statements(new RegExp(`DELETE FROM public\\.${parent}\\b[^;]*;`, 'g'));

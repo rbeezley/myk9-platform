@@ -223,8 +223,13 @@ DELETE FROM public.entries WHERE id IN (
 -- twice: one placed after the load classes could never fire, and one scoped
 -- only by show missed demo-show entries whose DOG is a load-range fixture.
 -- So: one guard, every cascade vector, before the first parent delete.
--- Measured on staging 2026-09-15: 1269 paid/refunded rows across these scopes
--- before the two deletes above, 0 after — it cannot refuse its own rerun.
+-- It cannot refuse its own rerun: every paid/refunded row the seed itself
+-- creates in these scopes is removed by the two deletes above (measured
+-- 2026-09-15, 1269 such rows, all inside the myk9_109 id range or the
+-- hard-coded id list). Whatever remains is by definition not the seed's. Do
+-- NOT re-derive "and 0 remain" as a fixed number: on 2026-09-15 one genuine
+-- stray was already present — a paid-by-check entry a walk left on show ...011
+-- — which is precisely the case this guard exists to refuse.
 DO $$
 DECLARE v_stray integer; v_ids text;
 BEGIN
@@ -265,7 +270,7 @@ BEGIN
           FROM (SELECT id FROM stray ORDER BY id LIMIT 10) t)
     INTO v_stray, v_ids;
   IF v_stray > 0 THEN
-    RAISE EXCEPTION 'seed-demo: % paid or refunded entr(ies) sit on a show, trial, class or dog this reseed deletes — refusing to cascade them away. First ids: %. The full set is the stray CTE in the guard at the top of section 0; remove them deliberately, then rerun', v_stray, v_ids;
+    RAISE EXCEPTION 'seed-demo: % paid or refunded entr(ies) sit on a show, trial, class or dog this reseed deletes — refusing to cascade them away, which would take their entry_status_history with them. First ids: %. For the full set, run this guard''s stray CTE as a SELECT (~60 lines into section 0 of supabase/seed-demo.sql). To clear it, HARD-delete those rows: DELETE FROM public.entries WHERE id IN (...). Soft-deleting will NOT clear this — the guard ignores deleted_at on purpose, because a soft-deleted row still cascades. Never widen this guard to get past it.', v_stray, v_ids;
   END IF;
 END $$;
 

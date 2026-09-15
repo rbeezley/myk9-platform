@@ -25,6 +25,13 @@ function mockReadBack(result: { data: unknown; error: unknown }) {
   node.select = vi.fn(() => node);
   node.eq = vi.fn(() => node);
   node.maybeSingle = vi.fn(() => Promise.resolve(result));
+  // The batch eligibility read terminates on `.in(...)`, and returns a LIST.
+  node.in = vi.fn(() =>
+    Promise.resolve({
+      data: result.data == null ? [] : [result.data],
+      error: result.error,
+    })
+  );
   supabaseMocks.from.mockReturnValue(node);
   return node;
 }
@@ -195,6 +202,203 @@ describe('ReplicatedEntriesTable.withdrawOwnEntry — online-only', () => {
     const [, row, isDirty] = set.mock.calls.at(-1) ?? [];
     expect(row).toMatchObject({ entryStatus: 'withdrawn' });
     expect(isDirty).toBe(false);
+  });
+
+  describe('MYK9-573: never SEEDS the replica', () => {
+    // `entries` replication is per-show scoped, so on account-level pages
+    // (/exhibitor/entries, /my-entries) the store is normally EMPTY and
+    // `readWithReplicationFallback` falls through to PostgREST only while
+    // `isEmptyReadData` is true. Writing a row into an empty store made it
+    // non-empty, the online read was skipped, and an unscoped getAll() returned
+    // that row as the whole dataset: staging went from "All 259 / Upcoming 258"
+    // to "All 2 / Upcoming 1" and stayed there across reloads.
+    // LESSONS `partition-rearms-guards`.
+    //
+    // TWO writers had to stop seeding: the Pull affordance's eligibility check
+    // (which runs per class row when the dialog OPENS — that is where staging's
+    // two rows came from) and the post-withdrawal hydrate. Each guard below is
+    // pinned by a test that only IT can hold, so no single-line deletion passes.
+    const COLD_ROW = {
+      id: 'entry-1',
+      entry_status: 'confirmed',
+      payment_status: 'pending',
+      check_in_status: 'no-status',
+      is_scored: false,
+      version: 1,
+    };
+
+    it('reads every class row in ONE round trip, not one read per row', async () => {
+      // Once the eligibility read stopped seeding, the per-id version became N
+      // parallel PostgREST reads on EVERY dialog open — and a card groups by
+      // registration_id, so a multi-dog order is routinely 20-40 rows.
+      get.mockResolvedValue(undefined);
+      const node = mockReadBack({ data: COLD_ROW, error: null });
+
+      await table.getWithdrawEligibilityForEntries(['entry-1', 'entry-2', 'entry-3']);
+
+      expect(supabaseMocks.from).toHaveBeenCalledTimes(1);
+      expect(node.in).toHaveBeenCalledTimes(1);
+      expect((node.in as ReturnType<typeof vi.fn>).mock.calls[0]).toEqual([
+        'id',
+        ['entry-1', 'entry-2', 'entry-3'],
+      ]);
+      expect(node.maybeSingle).not.toHaveBeenCalled();
+    });
+
+    it('answers an id the batch did not return as missing, not as allowed', async () => {
+      // Per-id semantics survive batching: only entry-1 comes back.
+      get.mockResolvedValue(undefined);
+      mockReadBack({ data: COLD_ROW, error: null });
+
+      const batch = await table.getWithdrawEligibilityForEntries(['entry-1', 'entry-9']);
+
+      expect(batch['entry-1']).toEqual({ allowed: true });
+      expect(batch['entry-9']).toMatchObject({ allowed: false, code: 'missing' });
+      expect(batch['entry-9']?.reason).toBeTruthy();
+    });
+
+    it('leaves every id unanswered when the batch itself fails', async () => {
+      // The hook turns an unanswered id into its own lookup-failed refusal, so
+      // the batch must not invent an "allowed" for one.
+      get.mockResolvedValue(undefined);
+      mockReadBack({ data: null, error: { message: 'view unavailable' } });
+
+      const batch = await table.getWithdrawEligibilityForEntries(['entry-1', 'entry-2']);
+
+      expect(batch).toEqual({});
+    });
+
+    it('never fetches an id it already has cached', async () => {
+      get.mockResolvedValue(withdrawableEntry);
+      mockReadBack({ data: COLD_ROW, error: null });
+
+      const batch = await table.getWithdrawEligibilityForEntries(['entry-1']);
+
+      expect(batch['entry-1']).toEqual({ allowed: true });
+      expect(supabaseMocks.from).not.toHaveBeenCalled();
+    });
+
+    it('reports an entry deleted locally this session as missing', async () => {
+      get.mockResolvedValue(undefined);
+      (table as unknown as { _deletedIds: Set<string> })._deletedIds.add('entry-1');
+      mockReadBack({ data: COLD_ROW, error: null });
+
+      const batch = await table.getWithdrawEligibilityForEntries(['entry-1']);
+
+      expect(batch['entry-1']).toMatchObject({ allowed: false, code: 'missing' });
+      expect(supabaseMocks.from).not.toHaveBeenCalled();
+    });
+
+    it('refuses to withdraw an entry deleted locally this session', async () => {
+      // The server copy must not resurrect a row the user just deleted here.
+      get.mockResolvedValue(undefined);
+      (table as unknown as { _deletedIds: Set<string> })._deletedIds.add('entry-1');
+      mockReadBack({ data: COLD_ROW, error: null });
+
+      await expect(table.withdrawOwnEntry('entry-1')).rejects.toThrow(/no longer exists/);
+      expect(supabaseMocks.rpc).not.toHaveBeenCalled();
+    });
+
+    it('sends the COLD row version as the OCC token', async () => {
+      // With the seed gone there is no serverVersion in the replica, so without
+      // carrying the cold row's version the RPC would get null and the
+      // retry-once-on-40001 contract would be unreachable on /my-entries.
+      get.mockResolvedValue(undefined);
+      mockReadBack({ data: { ...COLD_ROW, version: 7 }, error: null });
+      supabaseMocks.rpc.mockResolvedValue({ data: 8, error: null });
+
+      await table.withdrawOwnEntry('entry-1');
+
+      expect(supabaseMocks.rpc.mock.calls[0]?.[1]).toMatchObject({ p_expected_version: 7 });
+    });
+
+    it('the eligibility check does not cache a cold row (the dialog-open seed)', async () => {
+      // EntryEditDialog runs this for EVERY class row on open, and it is mounted
+      // on the account-level page. Via getOrHydrateEntry it inserted one row per
+      // class before Pull was ever clicked — which also made `wasCached` true by
+      // the time it mattered, bypassing the withdrawal-side gate entirely.
+      get.mockResolvedValue(undefined);
+      mockReadBack({ data: COLD_ROW, error: null });
+
+      await table.getWithdrawEligibility('entry-1');
+      await table.getWithdrawEligibility('entry-2');
+
+      expect(set).not.toHaveBeenCalled();
+    });
+
+    it('leaves an EMPTY store empty after a successful withdrawal', async () => {
+      get.mockResolvedValue(undefined);
+      mockReadBack({ data: COLD_ROW, error: null });
+      supabaseMocks.rpc.mockResolvedValue({ data: 2, error: null });
+
+      await table.withdrawOwnEntry('entry-1');
+
+      expect(supabaseMocks.rpc).toHaveBeenCalledTimes(1);
+      expect(set).not.toHaveBeenCalled();
+    });
+
+    // Pins THREE guards at once — the probe's position before the RPC, the cold
+    // `wasCached`, and the early return in hydrateConfirmedRow. Do not retire it
+    // casually: without it, moving the probe after the RPC leaves the whole file
+    // green.
+    it('does not write when a sync lands DURING the call (pins the pre-RPC probe)', async () => {
+      // Absent at the probe, present afterwards. Only the BEFORE-the-RPC capture
+      // can hold here — the fresh re-check guards the opposite direction and
+      // would happily write. Probing after the RPC instead leaves every other
+      // test green, so without this one the ordering claim is untested.
+      get.mockResolvedValueOnce(undefined).mockResolvedValue(withdrawableEntry);
+      mockReadBack({ data: COLD_ROW, error: null });
+      supabaseMocks.rpc.mockResolvedValue({ data: 2, error: null });
+
+      await table.withdrawOwnEntry('entry-1');
+
+      expect(set).not.toHaveBeenCalled();
+    });
+
+    it('does not re-INSERT a row evicted during the call (pins the read-back re-check)', async () => {
+      // The reverse race: present at the probe, so `wasCached` is true, but a
+      // sign-out / scope change / store clear emptied the store while the RPC
+      // was in flight. Only the fresh `get` before the write can hold here.
+      get.mockResolvedValueOnce(withdrawableEntry).mockResolvedValue(undefined);
+      supabaseMocks.rpc.mockResolvedValue({ data: 7, error: null });
+      mockReadBack({
+        data: { id: 'entry-1', entry_status: 'withdrawn', version: 7 },
+        error: null,
+      });
+
+      await table.withdrawOwnEntry('entry-1');
+
+      expect(set).not.toHaveBeenCalled();
+    });
+
+    it('does not re-INSERT via the fallback patch either (pins the fallback re-check)', async () => {
+      // Same eviction, but the read-back ALSO fails, so the status-patch branch
+      // is the one that must no-op. Only its own `get` check can hold here.
+      get.mockResolvedValueOnce(withdrawableEntry).mockResolvedValue(undefined);
+      supabaseMocks.rpc.mockResolvedValue({ data: 7, error: null });
+      mockReadBack({ data: null, error: { message: 'view unavailable' } });
+
+      await table.withdrawOwnEntry('entry-1');
+
+      expect(set).not.toHaveBeenCalled();
+    });
+
+    it('still updates the row when the store was and stays populated', async () => {
+      // The show-scoped case: /at-show and show pages hydrate entries, and there
+      // the confirmed row must land so the UI reflects the withdrawal at once.
+      get.mockResolvedValue(withdrawableEntry);
+      mockReadBack({
+        data: { id: 'entry-1', entry_status: 'withdrawn', version: 7 },
+        error: null,
+      });
+
+      await table.withdrawOwnEntry('entry-1');
+
+      const [id, row, isDirty] = set.mock.calls.at(-1) ?? [];
+      expect(id).toBe('entry-1');
+      expect(row).toMatchObject({ entryStatus: 'withdrawn' });
+      expect(isDirty).toBe(false);
+    });
   });
 
   it('reports eligibility for the Pull affordance from the same predicate', async () => {

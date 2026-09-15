@@ -18,7 +18,7 @@ const mocks = vi.hoisted(() => ({
   updateEntryDetails: vi.fn(),
   updateEntryHandler: vi.fn(),
   withdrawEntry: vi.fn(),
-  getWithdrawEligibility: vi.fn(),
+  getWithdrawEligibilityForEntries: vi.fn(),
 }));
 
 vi.mock('@/services/database/entries', () => ({
@@ -29,7 +29,7 @@ vi.mock('@/services/database/entries', () => ({
 }));
 
 vi.mock('@/services/database/entries/withdrawOwnEntry', () => ({
-  getWithdrawEligibility: mocks.getWithdrawEligibility,
+  getWithdrawEligibilityForEntries: mocks.getWithdrawEligibilityForEntries,
 }));
 
 const noop = () => {};
@@ -57,10 +57,40 @@ beforeEach(() => {
   mocks.updateEntryDetails.mockResolvedValue({ error: null });
   mocks.updateEntryHandler.mockResolvedValue({ error: null });
   mocks.withdrawEntry.mockResolvedValue({ error: null });
-  mocks.getWithdrawEligibility.mockResolvedValue({ allowed: true });
+  // The hook now asks for the whole card in one call; answer every id it asks for.
+  mocks.getWithdrawEligibilityForEntries.mockImplementation(async (ids: string[]) =>
+    Object.fromEntries(ids.map(id => [id, { allowed: true }]))
+  );
 });
 
 describe('EntryEditDialog — MYK9-535 withdraw guard', () => {
+  it('asks for the whole card in ONE call, not one per class row', async () => {
+    // A card groups by registration_id, so a multi-dog order is routinely 20-40
+    // rows; per-row reads would be that many round trips on every open.
+    const twoClasses = {
+      ...entry,
+      classes: [
+        entry.classes[0]!,
+        { ...entry.classes[0]!, id: 'class-2', name: 'Interior Novice A' },
+      ],
+    };
+
+    render(<EntryEditDialog open entry={twoClasses} onOpenChange={noop} onUpdate={noop} />);
+
+    await waitFor(() => expect(mocks.getWithdrawEligibilityForEntries).toHaveBeenCalledTimes(1));
+    expect(mocks.getWithdrawEligibilityForEntries).toHaveBeenCalledWith(['class-1', 'class-2']);
+  });
+
+  it('refuses a row the batch did not answer', async () => {
+    // An unanswered id must never fall through to "allowed".
+    mocks.getWithdrawEligibilityForEntries.mockResolvedValue({});
+
+    render(<EntryEditDialog open entry={entry} onOpenChange={noop} onUpdate={noop} />);
+
+    const pull = await screen.findByRole('button', { name: /pull/i });
+    await waitFor(() => expect(pull).toBeDisabled());
+  });
+
   it('leaves Pull enabled for an unpaid, pre-show entry', async () => {
     render(<EntryEditDialog open entry={entry} onOpenChange={noop} onUpdate={noop} />);
 
@@ -68,11 +98,18 @@ describe('EntryEditDialog — MYK9-535 withdraw guard', () => {
   });
 
   it('disables Pull for a PAID entry and names the refund path', async () => {
-    mocks.getWithdrawEligibility.mockResolvedValue({
-      allowed: false,
-      code: 'paid',
-      reason: 'This entry is paid — request a refund instead of withdrawing.',
-    });
+    mocks.getWithdrawEligibilityForEntries.mockImplementation(async (ids: string[]) =>
+      Object.fromEntries(
+        ids.map(id => [
+          id,
+          {
+            allowed: false,
+            code: 'paid',
+            reason: 'This entry is paid — request a refund instead of withdrawing.',
+          },
+        ])
+      )
+    );
 
     render(<EntryEditDialog open entry={entry} onOpenChange={noop} onUpdate={noop} />);
 
@@ -82,11 +119,18 @@ describe('EntryEditDialog — MYK9-535 withdraw guard', () => {
   });
 
   it('never calls the withdraw path for a refused entry', async () => {
-    mocks.getWithdrawEligibility.mockResolvedValue({
-      allowed: false,
-      code: 'at-show',
-      reason: 'This entry is checked in at the show — ask the secretary to pull it.',
-    });
+    mocks.getWithdrawEligibilityForEntries.mockImplementation(async (ids: string[]) =>
+      Object.fromEntries(
+        ids.map(id => [
+          id,
+          {
+            allowed: false,
+            code: 'at-show',
+            reason: 'This entry is checked in at the show — ask the secretary to pull it.',
+          },
+        ])
+      )
+    );
 
     render(<EntryEditDialog open entry={entry} onOpenChange={noop} onUpdate={noop} />);
 
@@ -160,12 +204,12 @@ describe('EntryEditDialog — MYK9-535 withdraw guard', () => {
     );
 
     expect(await screen.findByRole('button', { name: /pull/i })).toBeEnabled();
-    expect(mocks.getWithdrawEligibility).not.toHaveBeenCalled();
+    expect(mocks.getWithdrawEligibilityForEntries).not.toHaveBeenCalled();
   });
 
   it('disables Pull while the eligibility check is still in flight', async () => {
-    let resolveCheck: (value: { allowed: boolean }) => void = () => {};
-    mocks.getWithdrawEligibility.mockReturnValue(
+    let resolveCheck: (value: Record<string, { allowed: boolean }>) => void = () => {};
+    mocks.getWithdrawEligibilityForEntries.mockReturnValue(
       new Promise(resolve => {
         resolveCheck = resolve;
       })
@@ -177,12 +221,12 @@ describe('EntryEditDialog — MYK9-535 withdraw guard', () => {
     expect(pull).toBeDisabled();
     expect(screen.getByText(/checking whether this entry can be withdrawn/i)).toBeInTheDocument();
 
-    resolveCheck({ allowed: true });
+    resolveCheck({ 'class-1': { allowed: true } });
     await waitFor(() => expect(pull).toBeEnabled());
   });
 
   it('refuses rather than re-enabling Pull when the check itself fails', async () => {
-    mocks.getWithdrawEligibility.mockRejectedValue(new Error('replica unavailable'));
+    mocks.getWithdrawEligibilityForEntries.mockRejectedValue(new Error('replica unavailable'));
 
     render(<EntryEditDialog open entry={entry} onOpenChange={noop} onUpdate={noop} />);
 

@@ -67,3 +67,11 @@ export const withdrawOwnEntry = async (entryId: string) => {
  */
 export const getWithdrawEligibility = async (entryId: string) =>
   replicatedEntriesTable.getWithdrawEligibility(entryId);
+
+/**
+ * The same guards for every class row on a card, in ONE round trip. The dialog
+ * runs this on each open and a multi-dog order is routinely 20-40 rows, so the
+ * per-id version would be that many parallel PostgREST reads every time.
+ */
+export const getWithdrawEligibilityForEntries = async (entryIds: string[]) =>
+  replicatedEntriesTable.getWithdrawEligibilityForEntries(entryIds);

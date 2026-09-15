@@ -216,6 +216,81 @@ describe('seed-demo self-cleaning relationship deletes (MYK9-490 follow-up)', ()
     }
   });
 
+  it('extends the consolidated guard to enrollments, scoped from scope_shows, before the first parent delete (MYK9-528)', () => {
+    // enrollments.show_id is ALSO ON DELETE CASCADE from shows, and this
+    // section deletes every show in scope_shows — so a paid enrollment on any
+    // of them (not only the demo show, and not only the demo exhibitor) is
+    // destroyed silently unless this arm catches it too. Unlike entries,
+    // enrollments has no trial_id / class_id / dog_id, so one arm — scoped by
+    // show_id alone — covers the whole cascade.
+    const guard = seed.indexOf('v_real');
+    const block = seed.slice(guard, seed.indexOf('END $$;', guard));
+
+    expect(block, 'no enrollments arm').toContain('FROM public.enrollments en');
+    expect(
+      block,
+      "enrollments' payment_status vocabulary (migration 168) is not covered"
+    ).toContain(
+      "en.payment_status IN\n            ('paid', 'paid_online', 'paid_by_cash', 'paid_by_check', 'refunded', 'partial_refund')"
+    );
+    expect(block, 'no show_id scoping on the enrollments arm').toContain(
+      'en.show_id IN (SELECT id FROM scope_shows)'
+    );
+    expect(block, 'the enrollments arm no longer derives from scope_shows').toMatch(
+      /enrollment_stray AS \(\s*SELECT[^)]*FROM public\.enrollments en/
+    );
+    expect(block).toMatch(/RAISE EXCEPTION[^;]*enrollment\(s\) with a real payment trail/);
+    expect(block, 'bare enrollment rows must warn, not be silent').toMatch(
+      /RAISE WARNING[^;]*paid\/refunded enrollment\(s\)[^;]*carry no payment trail/
+    );
+
+    // Substantiation trail: mirrors the entries arm's "guard the harm, not the
+    // label" split, using enrollments' OWN columns (it has no
+    // entry_status_history or entry_fee of its own).
+    for (const trail of [
+      's.payment_reference IS NOT NULL',
+      's.paid_amount > 0',
+      's.total_amount IS NOT NULL',
+      's.refund_amount IS NOT NULL',
+      's.refunded_at IS NOT NULL',
+      's.check_number IS NOT NULL',
+      's.payment_date IS NOT NULL',
+      's.group_reference IS NOT NULL',
+      's.payment_notes IS NOT NULL',
+    ]) {
+      expect(block, `enrollment substantiation drops ${trail}`).toContain(trail);
+    }
+    expect(
+      block,
+      'the enrollments arm must also check stripe_orders.enrollment_id, not only its own columns'
+    ).toContain('FROM public.stripe_orders so WHERE so.enrollment_id = s.id');
+
+    // Self-trip freedom: the seed's own multi-dog order (section 6b) is paid
+    // by fixture and is NOT yet deleted at this point in the file (its DELETE
+    // depends on the registration_id-scoped entries clear further down), so it
+    // must be excluded by id, not merely relied on to have already been removed.
+    expect(
+      block,
+      "the seed's own enrollment (...070) is not excluded from the new arm — every rerun would refuse itself"
+    ).toContain("en.id <> 'dededede-0000-0000-0000-000000000070'");
+
+    // No constant-false neutering, same failure mode as the entries arms.
+    expect(block, 'the enrollments arm was neutered with a constant-false predicate').not.toMatch(
+      /enrollment_stray AS[\s\S]*?WHERE\s+false|enrollment_stray AS[\s\S]*?AND\s+false/i
+    );
+
+    // Placement: before the first delete of `shows` (the only cascade parent
+    // enrollments has), same as the entries arms.
+    const showsDeletes = statements(/DELETE FROM public\.shows\b[^;]*;/g);
+    expect(showsDeletes.length).toBeGreaterThan(0);
+    for (const del of showsDeletes) {
+      expect(
+        guard,
+        `the enrollments arm runs after a shows delete at offset ${del.index}, so those rows cascade unguarded`
+      ).toBeLessThan(del.index);
+    }
+  });
+
   it("lets no entries delete widen past the seed's own ids before the guard", () => {
     // Placement alone does not protect the money rows. A DELETE FROM entries
     // that runs BEFORE the guard and is scoped wider than the seed's own ids

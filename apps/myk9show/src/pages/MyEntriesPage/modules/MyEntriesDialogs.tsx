@@ -127,6 +127,8 @@ export const EditEntryDialog: React.FC<EditEntryDialogProps> = ({ dialog, onClos
   // Phase 3 edit-awareness hook/badge inside the dialog have a roster to ride.
   return (
     <ShowPresenceProvider showId={entry.showId}>
+      {/* MYK9-535: no `asShowManager` — /my-entries IS the exhibitor surface, so
+          the owner-tier withdraw guards must apply here. */}
       <EntryEditDialog
         open={dialog.open}
         onOpenChange={open => !open && close()}

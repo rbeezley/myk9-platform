@@ -9,6 +9,7 @@ import { logger } from '@/services/LoggingService';
 import type { DbEntryInsert, DbEntryUpdate } from '../../../types/database-mappings';
 import type { EntryStatus } from '@/types/entry-lifecycle';
 import { rejectEntry, setEntryLifecycleStatus } from './lifecycle';
+import { withdrawOwnEntry } from './withdrawOwnEntry';
 import {
   AUTHENTICATED_ENTRY_READ_COLUMNS,
   ENTRY_WITH_STANDARD_RELATIONS_SELECT,
@@ -249,11 +250,18 @@ export const updateEntryHandler = async (params: {
   }
 };
 
-// Withdraw an entry — routes through the lifecycle seam so the transition is
-// audit-logged. The lifecycle `rejectEntry` transition writes
-// `entry_status='withdrawn'` (preserving prior behavior of this function).
-export const withdrawEntry = async (entryId: string) => {
-  return rejectEntry(entryId);
+// Withdraw an entry.
+//
+// MYK9-535: the two tiers take different paths on purpose. A SHOW MANAGER is
+// admitted by the `entries_update` RLS policy, so they keep the existing
+// `rejectEntry` lifecycle transition — same `reject_entry` audit action, same
+// secretary seed, same replication payload as before this issue. An EXHIBITOR
+// is NOT admitted by that policy (its USING and WITH CHECK are both
+// `can_manage_show(show_id)`), so their direct UPDATE matched zero rows and
+// failed with failureKind "authorization"; the owner tier therefore goes
+// through the `withdraw_own_entry` SECURITY DEFINER RPC, pre-checked locally.
+export const withdrawEntry = async (entryId: string, options: { asShowManager?: boolean } = {}) => {
+  return options.asShowManager ? rejectEntry(entryId) : withdrawOwnEntry(entryId);
 };
 
 // Comp an entry (mark as comped with reason, set payment_status to waived)

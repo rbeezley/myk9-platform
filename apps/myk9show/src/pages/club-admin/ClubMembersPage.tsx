@@ -63,14 +63,6 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 
-const CLUB_MEMBERS_TABS: PrimaryTabDef[] = [
-  { id: 'members', label: 'Members', icon: Users },
-  { id: 'officers', label: 'Officers', icon: Shield },
-  // Separate from Members on purpose: an appointed secretary need not be a member, so
-  // this tab can list people the roster structurally cannot.
-  { id: 'show-access', label: 'Show Access', icon: KeyRound },
-];
-
 // --- Main Page ---
 
 const ClubMembersPage: React.FC = () => {
@@ -152,6 +144,26 @@ const ClubMembersPage: React.FC = () => {
   const officers = useMemo(() => officersQuery.data ?? [], [officersQuery.data]);
   const showManagers = useMemo(() => showManagersQuery.data ?? [], [showManagersQuery.data]);
   const pendingRoleRequests = useMemo(() => roleRequestsQuery.data ?? [], [roleRequestsQuery.data]);
+
+  // MYK9-571: the Show Access tab strip carries a count badge for pending
+  // requests, so a club admin does not have to open the tab to notice one.
+  // Memoized (not a module-level constant) because `badge` now varies with
+  // live data.
+  const clubMembersTabs: PrimaryTabDef[] = useMemo(
+    () => [
+      { id: 'members', label: 'Members', icon: Users },
+      { id: 'officers', label: 'Officers', icon: Shield },
+      // Separate from Members on purpose: an appointed secretary need not be a member, so
+      // this tab can list people the roster structurally cannot.
+      {
+        id: 'show-access',
+        label: 'Show Access',
+        icon: KeyRound,
+        ...(pendingRoleRequests.length > 0 ? { badge: pendingRoleRequests.length } : {}),
+      },
+    ],
+    [pendingRoleRequests.length]
+  );
   // The roster still annotates member rows, so it still needs the id set — now derived
   // from the same fetch instead of a second RPC.
   const showManagerIds = useMemo(() => new Set(showManagers.map(m => m.personId)), [showManagers]);
@@ -308,7 +320,8 @@ const ClubMembersPage: React.FC = () => {
   });
 
   const denyRoleRequestMutation = useMutation({
-    mutationFn: (requestId: string) => denyClubRoleRequest(requestId),
+    mutationFn: ({ requestId, note }: { requestId: string; note?: string }) =>
+      denyClubRoleRequest(requestId, note ?? null),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['club-role-requests', clubId] });
       notifications.success('Request denied.');
@@ -542,7 +555,7 @@ const ClubMembersPage: React.FC = () => {
         <Card className="border border-border rounded-2xl shadow-sm ">
           <CardContent className="p-6">
             <PrimaryTabs
-              tabs={CLUB_MEMBERS_TABS}
+              tabs={clubMembersTabs}
               value={selectedTab}
               onValueChange={setSelectedTab}
             >
@@ -634,7 +647,11 @@ const ClubMembersPage: React.FC = () => {
                   requestsUnavailable={roleRequestsQuery.isError}
                   onRetryRequests={() => void roleRequestsQuery.refetch()}
                   onApproveRequest={id => approveRoleRequestMutation.mutate(id)}
-                  onDenyRequest={id => denyRoleRequestMutation.mutate(id)}
+                  onDenyRequest={(id, note) =>
+                    denyRoleRequestMutation.mutate(
+                      note !== undefined ? { requestId: id, note } : { requestId: id }
+                    )
+                  }
                   isSavingRequest={
                     approveRoleRequestMutation.isPending || denyRoleRequestMutation.isPending
                   }

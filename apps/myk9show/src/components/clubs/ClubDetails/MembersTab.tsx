@@ -59,7 +59,7 @@ export const MembersTab: React.FC<MembersTabProps> = ({
     return (
       <div className="space-y-6">
         <div className="flex justify-end">
-          <RequestShowAccessCard club={club} />
+          <RequestShowAccessCard key={club.id} club={club} />
         </div>
         <div className="text-center py-16 px-8 bg-muted/50 rounded-2xl border border-dashed border-border">
           <Users className="w-16 h-16 mx-auto mb-4 text-muted-foreground opacity-60" />
@@ -96,7 +96,7 @@ export const MembersTab: React.FC<MembersTabProps> = ({
             </span>
           )}
           <div className="flex items-center gap-2">
-            <RequestShowAccessCard club={club} />
+            <RequestShowAccessCard key={club.id} club={club} />
             {canManageMembers && (
               <Button onClick={onAddMember} className="min-h-[44px]">
                 <Plus className="w-5 h-5 mr-2" />

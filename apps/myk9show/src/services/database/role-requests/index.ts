@@ -5,6 +5,7 @@ import {
   RoleRequestAlreadyPendingError,
   RoleRequestStandingDenialError,
   type ApproveRoleRequestInput,
+  type ClubSecretaryRequestStatus,
   type DbRoleRequestRow,
   type RoleRequest,
   type RoleRequestStatus,
@@ -12,6 +13,7 @@ import {
 
 export type {
   ApproveRoleRequestInput,
+  ClubSecretaryRequestStatus,
   DbRoleRequestRow,
   RequestedRole,
   RequestedScope,
@@ -25,7 +27,7 @@ export {
 } from './types';
 
 /** The SQLSTATE submit_role_request raises for a standing-denial resubmission. */
-const STANDING_DENIAL_ERROR_CODE = 'YMKDN';
+const STANDING_DENIAL_ERROR_CODE = 'MK571';
 
 const ROLE_REQUEST_SELECT = `
   *,
@@ -117,16 +119,25 @@ export async function submitClubSecretaryRequest(
 
 /**
  * Reads the caller's own most recent club-scoped secretary request for this
- * club, if any. Relies on the "Users can view their own role requests" RLS
- * policy (auth_user_id = auth.uid()) — no explicit person filter is needed
- * or possible from the client.
+ * club, if any. Filtered explicitly to the current auth user (not just
+ * relied on via role_requests_select's own-row arm), because "the caller's
+ * OWN latest request" is a claim this query makes on purpose — without the
+ * filter it would silently also match any other row role_requests_select
+ * happens to let this caller see, such as a club admin's own read of the
+ * requests they administer.
  */
 export async function getMyClubSecretaryRequestStatus(
   clubId: string
-): Promise<RoleRequestStatus | null> {
+): Promise<ClubSecretaryRequestStatus | null> {
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return null;
+
   const { data, error } = await supabase
     .from('role_requests')
-    .select('status')
+    .select('status, reviewer_note')
+    .eq('auth_user_id', user.id)
     .eq('club_id', clubId)
     .eq('requested_role', 'secretary')
     .eq('requested_scope', 'club')
@@ -135,14 +146,18 @@ export async function getMyClubSecretaryRequestStatus(
     .maybeSingle();
 
   if (error) throw error;
-  return (data?.status as RoleRequestStatus | undefined) ?? null;
+  if (!data) return null;
+
+  return {
+    status: data.status as RoleRequestStatus,
+    reviewerNote: (data.reviewer_note as string | null) ?? null,
+  };
 }
 
 /**
  * Lists pending club-scoped secretary requests for a club. Relies on the
- * "Club admins can view their club's role requests" RLS policy; a caller who
- * is not a site admin or that club's admin gets an empty result, not an
- * error.
+ * role_requests_select club-admin arm; a caller who is not a site admin or
+ * that club's admin gets an empty result, not an error.
  */
 export async function listClubRoleRequests(clubId: string): Promise<RoleRequest[]> {
   const { data, error } = await supabase

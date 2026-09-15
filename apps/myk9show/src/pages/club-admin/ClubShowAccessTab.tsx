@@ -167,7 +167,7 @@ interface ClubShowAccessTabProps {
   requestsUnavailable: boolean;
   onRetryRequests: () => void;
   onApproveRequest: (requestId: string) => void;
-  onDenyRequest: (requestId: string) => void;
+  onDenyRequest: (requestId: string, note?: string) => void;
   isSavingRequest: boolean;
 }
 

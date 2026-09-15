@@ -116,15 +116,16 @@ const reviewedLaterPolicyDdl: Readonly<Record<string, string>> = {
     'UNCORRELATED trial_secretary_show_ids() are preserved, and vaccinations ' +
     'INSERT/UPDATE/DELETE (which carry a has_effective_premium_access arm) are untouched, so ' +
     'the consolidation counts this test pins are unaffected.',
-  '20260915201500_club_routed_role_requests.sql':
-    'MYK9-571. From this inventory it touches role_requests only. ADDS a third permissive ' +
-    'SELECT policy, "Club admins can view their club\'s role requests" (TO authenticated, ' +
-    "requested_scope = 'club' AND club_id IS NOT NULL AND is_club_admin(club_id)), alongside " +
-    'the existing "own rows" and "site admin" SELECT policies from 20260524195251 — additive ' +
-    'only, neither existing policy is dropped or altered, so role_requests_select above (which ' +
-    'models the admin/own union) is unaffected; a club admin reading a request for a club they ' +
-    'do not administer still falls through to no visibility. No INSERT/UPDATE/DELETE policy, ' +
-    'grant, RLS-mode or existing-helper change on role_requests.',
+  '20260915231500_club_routed_role_requests.sql':
+    'MYK9-571. From this inventory it touches role_requests only. DROPS and RECREATES the ' +
+    "single role_requests_select policy (TO authenticated) this test's own tableCase models " +
+    "below, adding a third OR arm — requested_role = 'secretary' AND is_club_admin(club_id) — " +
+    'alongside the existing site-admin and own-row arms, copied verbatim. Same policy name, ' +
+    'same SELECT command, same TO authenticated role, same requester/site-admin arms — a ' +
+    'requester still sees only their own request, a site admin still sees everything, and a ' +
+    'club admin reading a request for a club they do not administer still falls through to no ' +
+    'visibility. No INSERT/UPDATE/DELETE policy, grant, RLS-mode or existing-helper change on ' +
+    'role_requests.',
 };
 
 const tableCases: TableCase[] = [

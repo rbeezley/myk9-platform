@@ -64,6 +64,8 @@ export const RequestShowAccessCard: React.FC<RequestShowAccessCardProps> = ({ cl
     queryFn: () => getMyClubSecretaryRequestStatus(club.id),
     enabled: eligibleToAsk,
   });
+  const requestStatus = statusQuery.data?.status ?? null;
+  const reviewerNote = statusQuery.data?.reviewerNote ?? null;
 
   const submitMutation = useMutation({
     mutationFn: (requesterNote: string) =>
@@ -100,21 +102,40 @@ export const RequestShowAccessCard: React.FC<RequestShowAccessCardProps> = ({ cl
 
   if (!eligibleToAsk) return null;
 
+  // An approval can arrive before the auth context's own scopes refresh (a
+  // 5-minute poll) catch up, so alreadySecretary above may still be false
+  // here. Treat 'approved' the same way: nothing actionable, no re-askable
+  // button.
+  if (requestStatus === 'approved') return null;
+
   // A standing denial (guardrail): show nothing actionable, just a quiet
-  // note. Do not re-expose a button whose submit the server will refuse.
-  if (unavailable || statusQuery.data === 'denied') {
+  // note — including the club's own reason, when they gave one. Do not
+  // re-expose a button whose submit the server will refuse.
+  if (unavailable || requestStatus === 'denied') {
     return (
       <p className="text-sm text-muted-foreground">
         Show access request not available for this club right now.
+        {reviewerNote && <span className="block italic">&ldquo;{reviewerNote}&rdquo;</span>}
       </p>
     );
   }
 
-  if (statusQuery.data === 'pending') {
+  if (requestStatus === 'pending') {
     return (
       <Badge className="bg-[color:var(--chip-stone-bg)] text-[color:var(--chip-stone-fg)] border-transparent hover:bg-[color:var(--chip-stone-bg)]">
         Show access request under review
       </Badge>
+    );
+  }
+
+  // A failed status check fails CLOSED: showing the button on an unknown
+  // status could re-offer a request the server would refuse (e.g. a standing
+  // denial the query just couldn't confirm).
+  if (statusQuery.isError) {
+    return (
+      <p className="text-sm text-muted-foreground">
+        We couldn&apos;t check show access request status right now.
+      </p>
     );
   }
 

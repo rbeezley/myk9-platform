@@ -259,11 +259,11 @@ describe('club-routed secretary requests (MYK9-571)', () => {
     ).rejects.toBeInstanceOf(RoleRequestAlreadyPendingError);
   });
 
-  it('throws RoleRequestStandingDenialError when the RPC raises the YMKDN error code', async () => {
+  it('throws RoleRequestStandingDenialError when the RPC raises the MK571 error code', async () => {
     mockSupabase.rpc.mockReturnValue(
       createChainableQuery({
         data: null,
-        error: { code: 'YMKDN', message: 'A previous request for this role was denied.' },
+        error: { code: 'MK571', message: 'A previous request for this role was denied.' },
       })
     );
 
@@ -282,53 +282,97 @@ describe('club-routed secretary requests (MYK9-571)', () => {
     );
   });
 
-  it('reads the caller’s own latest club-scoped secretary request status', async () => {
-    mockSupabase.from.mockReturnValue(
-      createChainableQuery({ data: { status: 'pending' }, error: null })
-    );
+  it('reads the caller\u2019s own latest club-scoped secretary request status, filtered to their own auth id', async () => {
+    mockSupabase.auth.getUser.mockResolvedValue({
+      data: { user: { id: 'auth-1' } },
+      error: null,
+    });
+    const chain = createChainableQuery({
+      data: { status: 'pending', reviewer_note: null },
+      error: null,
+    });
+    mockSupabase.from.mockReturnValue(chain);
 
     const status = await getMyClubSecretaryRequestStatus('club-1');
 
     expect(mockSupabase.from).toHaveBeenCalledWith('role_requests');
-    expect(status).toBe('pending');
+    expect(chain.eq).toHaveBeenCalledWith('auth_user_id', 'auth-1');
+    expect(chain.eq).toHaveBeenCalledWith('club_id', 'club-1');
+    expect(chain.eq).toHaveBeenCalledWith('requested_role', 'secretary');
+    expect(chain.eq).toHaveBeenCalledWith('requested_scope', 'club');
+    expect(chain.order).toHaveBeenCalledWith('created_at', { ascending: false });
+    expect(chain.limit).toHaveBeenCalledWith(1);
+    expect(status).toEqual({ status: 'pending', reviewerNote: null });
+  });
+
+  it('returns null without querying when the caller is signed out', async () => {
+    mockSupabase.auth.getUser.mockResolvedValue({ data: { user: null }, error: null });
+
+    expect(await getMyClubSecretaryRequestStatus('club-1')).toBeNull();
+    expect(mockSupabase.from).not.toHaveBeenCalled();
   });
 
   it('returns null when there is no prior request', async () => {
+    mockSupabase.auth.getUser.mockResolvedValue({
+      data: { user: { id: 'auth-1' } },
+      error: null,
+    });
     mockSupabase.from.mockReturnValue(createChainableQuery({ data: null, error: null }));
 
     expect(await getMyClubSecretaryRequestStatus('club-1')).toBeNull();
   });
 
-  it('lists only pending club-scoped secretary requests for the club', async () => {
+  it('surfaces the reviewer note on a denied request', async () => {
+    mockSupabase.auth.getUser.mockResolvedValue({
+      data: { user: { id: 'auth-1' } },
+      error: null,
+    });
     mockSupabase.from.mockReturnValue(
       createChainableQuery({
-        data: [
-          {
-            id: 'request-1',
-            auth_user_id: 'auth-1',
-            person_id: 'person-1',
-            requested_role: 'secretary',
-            requested_scope: 'club',
-            club_id: 'club-1',
-            show_id: null,
-            status: 'pending',
-            requester_note: 'Please.',
-            reviewer_note: null,
-            reviewed_by: null,
-            reviewed_at: null,
-            created_at: '2026-09-15T12:00:00Z',
-            updated_at: '2026-09-15T12:00:00Z',
-            person: { first_name: 'Pat', last_name: 'Morgan', email: 'pat@example.com' },
-            club: { name: 'Best Club' },
-          },
-        ],
+        data: { status: 'denied', reviewer_note: 'Not enough context yet.' },
         error: null,
       })
     );
 
+    expect(await getMyClubSecretaryRequestStatus('club-1')).toEqual({
+      status: 'denied',
+      reviewerNote: 'Not enough context yet.',
+    });
+  });
+
+  it('lists only pending club-scoped secretary requests for the club', async () => {
+    const chain = createChainableQuery({
+      data: [
+        {
+          id: 'request-1',
+          auth_user_id: 'auth-1',
+          person_id: 'person-1',
+          requested_role: 'secretary',
+          requested_scope: 'club',
+          club_id: 'club-1',
+          show_id: null,
+          status: 'pending',
+          requester_note: 'Please.',
+          reviewer_note: null,
+          reviewed_by: null,
+          reviewed_at: null,
+          created_at: '2026-09-15T12:00:00Z',
+          updated_at: '2026-09-15T12:00:00Z',
+          person: { first_name: 'Pat', last_name: 'Morgan', email: 'pat@example.com' },
+          club: { name: 'Best Club' },
+        },
+      ],
+      error: null,
+    });
+    mockSupabase.from.mockReturnValue(chain);
+
     const requests = await listClubRoleRequests('club-1');
 
     expect(mockSupabase.from).toHaveBeenCalledWith('role_requests');
+    expect(chain.eq).toHaveBeenCalledWith('club_id', 'club-1');
+    expect(chain.eq).toHaveBeenCalledWith('requested_scope', 'club');
+    expect(chain.eq).toHaveBeenCalledWith('requested_role', 'secretary');
+    expect(chain.eq).toHaveBeenCalledWith('status', 'pending');
     expect(requests).toHaveLength(1);
     expect(requests[0]?.requesterName).toBe('Pat Morgan');
   });

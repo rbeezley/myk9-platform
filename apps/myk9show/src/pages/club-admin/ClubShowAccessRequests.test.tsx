@@ -73,7 +73,7 @@ describe('ClubShowAccessRequests', () => {
     expect(onApprove).toHaveBeenCalledWith('request-1');
   });
 
-  it('confirms before denying, then denies the exact request id', async () => {
+  it('confirms before denying, then denies the exact request id with no note', async () => {
     const onDeny = vi.fn();
     const user = userEvent.setup();
     renderRequests({ onDeny });
@@ -84,7 +84,23 @@ describe('ClubShowAccessRequests', () => {
     expect(onDeny).not.toHaveBeenCalled();
     await user.click(within(dialog).getByRole('button', { name: /deny request/i }));
 
-    expect(onDeny).toHaveBeenCalledWith('request-1');
+    expect(onDeny).toHaveBeenCalledWith('request-1', undefined);
+  });
+
+  it('forwards a typed deny reason to onDeny', async () => {
+    const onDeny = vi.fn();
+    const user = userEvent.setup();
+    renderRequests({ onDeny });
+
+    await user.click(screen.getByRole('button', { name: /^deny$/i }));
+    const dialog = await screen.findByRole('alertdialog');
+    await user.type(
+      within(dialog).getByLabelText(/reason/i),
+      'Not enough context yet.'
+    );
+    await user.click(within(dialog).getByRole('button', { name: /deny request/i }));
+
+    expect(onDeny).toHaveBeenCalledWith('request-1', 'Not enough context yet.');
   });
 
   it('shows a retryable warning when requests are unavailable', async () => {

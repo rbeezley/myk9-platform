@@ -13,6 +13,8 @@
 import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { Textarea } from '@/components/ui/textarea';
+import { FormField } from '@/components/common/FormField';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -32,7 +34,7 @@ interface ClubShowAccessRequestsProps {
   unavailable: boolean;
   onRetry: () => void;
   onApprove: (requestId: string) => void;
-  onDeny: (requestId: string) => void;
+  onDeny: (requestId: string, note?: string) => void;
   isSaving: boolean;
 }
 
@@ -46,11 +48,18 @@ export const ClubShowAccessRequests: React.FC<ClubShowAccessRequestsProps> = ({
 }) => {
   const [pendingDeny, setPendingDeny] = useState<RoleRequest | null>(null);
   const [isDenyOpen, setIsDenyOpen] = useState(false);
+  const [denyNote, setDenyNote] = useState('');
+
+  const closeDenyDialog = () => {
+    setIsDenyOpen(false);
+    setDenyNote('');
+  };
 
   const confirmDeny = () => {
     if (!pendingDeny) return;
-    onDeny(pendingDeny.id);
-    setIsDenyOpen(false);
+    const trimmedNote = denyNote.trim();
+    onDeny(pendingDeny.id, trimmedNote || undefined);
+    closeDenyDialog();
   };
 
   if (unavailable) {
@@ -126,7 +135,7 @@ export const ClubShowAccessRequests: React.FC<ClubShowAccessRequestsProps> = ({
         ))}
       </ul>
 
-      <AlertDialog open={isDenyOpen} onOpenChange={open => !open && setIsDenyOpen(false)}>
+      <AlertDialog open={isDenyOpen} onOpenChange={open => !open && closeDenyDialog()}>
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Deny {pendingDeny?.requesterName}&apos;s request?</AlertDialogTitle>
@@ -136,6 +145,15 @@ export const ClubShowAccessRequests: React.FC<ClubShowAccessRequestsProps> = ({
               exact request again.
             </AlertDialogDescription>
           </AlertDialogHeader>
+          <FormField label="Reason (shown to the requester)" fieldId="deny-request-note">
+            <Textarea
+              id="deny-request-note"
+              placeholder="Optional — helps them understand what to do differently."
+              value={denyNote}
+              onChange={e => setDenyNote(e.target.value)}
+              rows={2}
+            />
+          </FormField>
           <AlertDialogFooter>
             <AlertDialogCancel>Keep pending</AlertDialogCancel>
             <AlertDialogAction onClick={confirmDeny}>Deny request</AlertDialogAction>

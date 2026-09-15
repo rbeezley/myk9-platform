@@ -108,12 +108,54 @@ describe('RequestShowAccessCard', () => {
 
   it('shows "Under review" instead of the button while a request is pending', async () => {
     mockAuth.userWithRoles = withScopes([]);
-    vi.mocked(getMyClubSecretaryRequestStatus).mockResolvedValue('pending');
+    vi.mocked(getMyClubSecretaryRequestStatus).mockResolvedValue({
+      status: 'pending',
+      reviewerNote: null,
+    });
 
     render(<RequestShowAccessCard club={club} />);
 
     expect(await screen.findByText(/under review/i)).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /request show access/i })).not.toBeInTheDocument();
+  });
+
+  it('renders nothing once approved, even if scopes have not refreshed yet', async () => {
+    mockAuth.userWithRoles = withScopes([]);
+    vi.mocked(getMyClubSecretaryRequestStatus).mockResolvedValue({
+      status: 'approved',
+      reviewerNote: null,
+    });
+
+    const { container } = render(<RequestShowAccessCard club={club} />);
+
+    await waitFor(() => expect(container).toBeEmptyDOMElement());
+  });
+
+  it('shows the reviewer note alongside the unavailable message when a request was denied', async () => {
+    mockAuth.userWithRoles = withScopes([]);
+    vi.mocked(getMyClubSecretaryRequestStatus).mockResolvedValue({
+      status: 'denied',
+      reviewerNote: 'Please appoint someone with more show experience.',
+    });
+
+    render(<RequestShowAccessCard club={club} />);
+
+    expect(await screen.findByText(/not available/i)).toBeInTheDocument();
+    expect(
+      screen.getByText(/please appoint someone with more show experience/i)
+    ).toBeInTheDocument();
+  });
+
+  it('hides the button when the status check fails, instead of failing open', async () => {
+    mockAuth.userWithRoles = withScopes([]);
+    vi.mocked(getMyClubSecretaryRequestStatus).mockRejectedValue(new Error('network error'));
+
+    render(<RequestShowAccessCard club={club} />);
+
+    await waitFor(() =>
+      expect(screen.queryByRole('button', { name: /request show access/i })).not.toBeInTheDocument()
+    );
+    expect(await screen.findByText(/couldn't check show access request status/i)).toBeInTheDocument();
   });
 
   it('renders a quiet unavailable message, not a retryable button, after a standing denial', async () => {

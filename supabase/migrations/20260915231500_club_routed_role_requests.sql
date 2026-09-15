@@ -15,10 +15,14 @@
 --   1. submit_role_request gains a "standing denial" guard: if the caller's
 --      most recent request for this exact (person, club, role, scope='club')
 --      was denied and they still do not hold that role at the club, block a
---      resubmission with a distinct error code (YMKDN) rather than silently
+--      resubmission with a distinct error code (MK571) rather than silently
 --      re-queuing something a club admin already said no to. A direct
 --      appointment by the club (grant_club_secretary) is the only thing that
---      clears this — matching the design note in the issue.
+--      clears this — matching the design note in the issue. It also now
+--      requires a non-empty p_requester_note for a club-scoped secretary
+--      request specifically: signup's own inserts go through
+--      insert_signup_role_requests (a separate, direct INSERT), so they never
+--      call this function and are unaffected.
 --
 --      Duplicate PENDING requests are already handled: the existing partial
 --      unique index role_requests_one_pending_scope_idx
@@ -39,32 +43,46 @@
 --      (same permission_audit_log row a direct appointment gets); nothing
 --      else grants. Authorization is is_site_admin() OR
 --      is_club_admin(request.club_id) — restated inside the function, not
---      trusted from the caller.
+--      trusted from the caller — and is checked BEFORE the row is locked
+--      FOR UPDATE, off a plain, unlocked read of club_id/requested_role/
+--      requested_scope/status. A non-admin therefore always gets the same
+--      42501 regardless of whether the request exists, is already reviewed,
+--      or belongs to another club: locking first would let a non-admin
+--      distinguish "no such request" (P0002) from "not yours" (42501) by
+--      probing ids, which is itself a (small) information leak.
 --
---   3. A new SELECT policy lets a club admin read pending role_requests rows
---      for their own club (requested_scope='club' AND club_id matches) so the
---      club-admin Show Access tab can list them. The existing "own rows" and
---      "site admin" SELECT policies are untouched, so a requester still sees
+--   3. role_requests_select (the one live SELECT policy on this table since
+--      20260728130000 consolidated "Site admins can view role requests" and
+--      "Users can view their own role requests" into it) gains a third OR
+--      arm so a club admin can read pending — and reviewed — club-scoped
+--      secretary requests for their own club. Dropped and recreated rather
+--      than added-to as a second policy, matching the "one SELECT policy per
+--      table" shape 20260728130000 established. The requester's own-row arm
+--      and the site-admin arm are copied verbatim; a requester still sees
 --      only their own request and a site admin still sees everything —
 --      including clubs with zero admins, which keeps the /admin/role-requests
 --      fallback intact.
 --
 --   4. approve_role_request (the site-admin inbox path) is fixed to route
---      club-scoped secretary approvals through grant_club_secretary instead
---      of upserting user_roles directly. Before this, a site admin approving
---      a club-scoped secretary request from /admin/role-requests granted the
---      role with NO permission_audit_log row — a second, unaudited door to
---      the one grant the whole 20260830210000 change set exists to fence.
---      Every other combination (club_admin requests, show-scoped requests)
+--      EVERY secretary grant through grant_club_secretary instead of only
+--      the ones whose row still carries requested_scope='club'. Before this,
+--      a site admin approving a SHOW-scoped secretary request (the UI never
+--      passes p_show_id, so p_show_id is NULL at the RPC even though the
+--      original ask named a show) fell into the manual-UPSERT ELSE branch —
+--      same unaudited-grant bug as the club-scoped case, just reached from a
+--      different requested_scope. The discriminator is now what grant is
+--      actually being made (requested_role = 'secretary' AND p_show_id IS
+--      NULL), not what scope the original ask carried. Every other
+--      combination (club_admin requests, requests approved WITH a show_id)
 --      is untouched: same manual UPSERT as before, copied verbatim from the
 --      latest definition (20260830240000).
 
 BEGIN;
 
 -- ============================================================================
--- 1. submit_role_request — standing-denial guard.
---    Copied from 20260525130000 (the only migration that has ever defined
---    it) with one addition, marked below.
+-- 1. submit_role_request — standing-denial guard + required note for a
+--    club-scoped secretary ask. Copied from 20260525130000 (the only
+--    migration that has ever defined it) with the additions marked below.
 -- ============================================================================
 
 CREATE OR REPLACE FUNCTION public.submit_role_request(
@@ -130,6 +148,17 @@ BEGIN
     END IF;
   END IF;
 
+  -- MYK9-571 addition: the club-routed ask (RequestShowAccessCard) requires
+  -- the requester to say why. insert_signup_role_requests bypasses this
+  -- function entirely (a direct INSERT), so signup's note-less requests are
+  -- unaffected.
+  IF p_requested_scope = 'club'
+     AND p_requested_role = 'secretary'
+     AND btrim(coalesce(p_requester_note, '')) = '' THEN
+    RAISE EXCEPTION 'A note is required when asking a club to appoint you as secretary'
+      USING ERRCODE = '22023';
+  END IF;
+
   -- Resolve caller's person record. Identity gate.
   SELECT id INTO v_person_id
   FROM public.people
@@ -175,7 +204,7 @@ BEGIN
       IF NOT v_already_holds_role THEN
         RAISE EXCEPTION
           'A previous request for this role at this club was denied. Ask the club to appoint you directly.'
-          USING ERRCODE = 'YMKDN';
+          USING ERRCODE = 'MK571';
       END IF;
     END IF;
   END IF;
@@ -241,7 +270,10 @@ GRANT EXECUTE ON FUNCTION public.submit_role_request(text, text, uuid, uuid, tex
 -- ============================================================================
 -- 2. Club-admin approve/deny RPCs, scoped to club-scoped secretary requests
 --    only. Both restate is_site_admin() OR is_club_admin(club_id) from the
---    request row itself, never from a caller-supplied club id.
+--    request row itself, never from a caller-supplied club id — and both
+--    check authorization BEFORE locking the row, off a plain, unlocked read
+--    of the columns the check needs. A non-admin always gets 42501, never a
+--    P0002 that would tell them the request no longer exists.
 -- ============================================================================
 
 CREATE OR REPLACE FUNCTION public.approve_club_role_request(
@@ -254,31 +286,42 @@ SECURITY DEFINER
 SET search_path = ''
 AS $$
 DECLARE
-  v_request public.role_requests%ROWTYPE;
+  v_club_id uuid;
+  v_requested_role text;
+  v_requested_scope text;
+  v_status text;
+  v_person_id uuid;
   v_reviewer_person_id uuid;
 BEGIN
-  SELECT *
-  INTO v_request
+  -- Unlocked read first: authorization must not depend on having taken the
+  -- row lock, or a non-admin could distinguish "missing" from "not yours".
+  SELECT club_id, requested_role, requested_scope, status, person_id
+  INTO v_club_id, v_requested_role, v_requested_scope, v_status, v_person_id
   FROM public.role_requests
-  WHERE id = p_request_id
-    AND status = 'pending'
-  FOR UPDATE;
+  WHERE id = p_request_id;
 
-  IF NOT FOUND THEN
-    RAISE EXCEPTION 'Pending role request was not found'
-      USING ERRCODE = 'P0002';
-  END IF;
-
-  IF v_request.requested_scope <> 'club'
-     OR v_request.requested_role <> 'secretary'
-     OR v_request.club_id IS NULL THEN
+  IF v_requested_scope IS DISTINCT FROM 'club'
+     OR v_requested_role IS DISTINCT FROM 'secretary'
+     OR v_club_id IS NULL THEN
     RAISE EXCEPTION 'approve_club_role_request only handles club-scoped secretary requests'
       USING ERRCODE = '22023';
   END IF;
 
-  IF NOT (public.is_site_admin() OR public.is_club_admin(v_request.club_id)) THEN
+  IF NOT (public.is_site_admin() OR public.is_club_admin(v_club_id)) THEN
     RAISE EXCEPTION 'Only this club''s admins or a site admin can approve this request'
       USING ERRCODE = '42501';
+  END IF;
+
+  IF v_status IS DISTINCT FROM 'pending' THEN
+    RAISE EXCEPTION 'Pending role request was not found'
+      USING ERRCODE = 'P0002';
+  END IF;
+
+  -- Re-select and lock now that the caller is authorized.
+  PERFORM 1 FROM public.role_requests WHERE id = p_request_id AND status = 'pending' FOR UPDATE;
+  IF NOT FOUND THEN
+    RAISE EXCEPTION 'Pending role request was not found'
+      USING ERRCODE = 'P0002';
   END IF;
 
   SELECT id INTO v_reviewer_person_id
@@ -293,7 +336,7 @@ BEGIN
   -- The grant, and its permission_audit_log row, are identical to a direct
   -- appointment made from the Show Access tab. This is still the only thing
   -- that grants; approval just routes to it.
-  PERFORM public.grant_club_secretary(v_request.person_id, v_request.club_id);
+  PERFORM public.grant_club_secretary(v_person_id, v_club_id);
 
   UPDATE public.role_requests
   SET status = 'approved',
@@ -305,7 +348,7 @@ END;
 $$;
 
 COMMENT ON FUNCTION public.approve_club_role_request(uuid, text) IS
-  'Approves a pending club-scoped secretary request by calling grant_club_secretary. Club-admin or site-admin only, restated from the request row''s own club_id.';
+  'Approves a pending club-scoped secretary request by calling grant_club_secretary. Club-admin or site-admin only, restated from the request row''s own club_id, checked before the row is locked.';
 
 REVOKE ALL ON FUNCTION public.approve_club_role_request(uuid, text) FROM PUBLIC, anon;
 GRANT EXECUTE ON FUNCTION public.approve_club_role_request(uuid, text) TO authenticated;
@@ -320,31 +363,41 @@ SECURITY DEFINER
 SET search_path = ''
 AS $$
 DECLARE
-  v_request public.role_requests%ROWTYPE;
+  v_club_id uuid;
+  v_requested_role text;
+  v_requested_scope text;
+  v_status text;
   v_reviewer_person_id uuid;
 BEGIN
-  SELECT *
-  INTO v_request
+  -- Unlocked read first: authorization must not depend on having taken the
+  -- row lock, or a non-admin could distinguish "missing" from "not yours".
+  SELECT club_id, requested_role, requested_scope, status
+  INTO v_club_id, v_requested_role, v_requested_scope, v_status
   FROM public.role_requests
-  WHERE id = p_request_id
-    AND status = 'pending'
-  FOR UPDATE;
+  WHERE id = p_request_id;
 
-  IF NOT FOUND THEN
-    RAISE EXCEPTION 'Pending role request was not found'
-      USING ERRCODE = 'P0002';
-  END IF;
-
-  IF v_request.requested_scope <> 'club'
-     OR v_request.requested_role <> 'secretary'
-     OR v_request.club_id IS NULL THEN
+  IF v_requested_scope IS DISTINCT FROM 'club'
+     OR v_requested_role IS DISTINCT FROM 'secretary'
+     OR v_club_id IS NULL THEN
     RAISE EXCEPTION 'deny_club_role_request only handles club-scoped secretary requests'
       USING ERRCODE = '22023';
   END IF;
 
-  IF NOT (public.is_site_admin() OR public.is_club_admin(v_request.club_id)) THEN
+  IF NOT (public.is_site_admin() OR public.is_club_admin(v_club_id)) THEN
     RAISE EXCEPTION 'Only this club''s admins or a site admin can deny this request'
       USING ERRCODE = '42501';
+  END IF;
+
+  IF v_status IS DISTINCT FROM 'pending' THEN
+    RAISE EXCEPTION 'Pending role request was not found'
+      USING ERRCODE = 'P0002';
+  END IF;
+
+  -- Re-select and lock now that the caller is authorized.
+  PERFORM 1 FROM public.role_requests WHERE id = p_request_id AND status = 'pending' FOR UPDATE;
+  IF NOT FOUND THEN
+    RAISE EXCEPTION 'Pending role request was not found'
+      USING ERRCODE = 'P0002';
   END IF;
 
   SELECT id INTO v_reviewer_person_id
@@ -366,31 +419,36 @@ END;
 $$;
 
 COMMENT ON FUNCTION public.deny_club_role_request(uuid, text) IS
-  'Denies a pending club-scoped secretary request. Club-admin or site-admin only, restated from the request row''s own club_id.';
+  'Denies a pending club-scoped secretary request. Club-admin or site-admin only, restated from the request row''s own club_id, checked before the row is locked.';
 
 REVOKE ALL ON FUNCTION public.deny_club_role_request(uuid, text) FROM PUBLIC, anon;
 GRANT EXECUTE ON FUNCTION public.deny_club_role_request(uuid, text) TO authenticated;
 
 -- ============================================================================
--- 3. RLS: a club admin may SELECT their own club's club-scoped role_requests
---    rows. Additive (permissive policies OR together) — the existing "own
---    rows" and "site admin" SELECT policies are untouched.
+-- 3. role_requests_select — drop and recreate with a third OR arm so a club
+--    admin can read their own club's club-scoped secretary requests. The
+--    first two arms are copied verbatim from the live definition
+--    (20260728130000); the club-admin arm is new.
 -- ============================================================================
 
-CREATE POLICY "Club admins can view their club's role requests"
+DROP POLICY IF EXISTS "role_requests_select" ON public.role_requests;
+
+CREATE POLICY "role_requests_select"
   ON public.role_requests
   FOR SELECT
   TO authenticated
   USING (
-    requested_scope = 'club'
-    AND club_id IS NOT NULL
-    AND (SELECT public.is_club_admin(club_id))
+    (SELECT public.is_site_admin())
+    OR auth_user_id = (SELECT auth.uid())
+    OR (requested_role = 'secretary' AND public.is_club_admin(club_id))
   );
 
 -- ============================================================================
--- 4. approve_role_request (site-admin inbox) — club-scoped secretary
---    approvals now route through grant_club_secretary. Copied verbatim from
---    the latest definition (20260830240000) except the branch marked below.
+-- 4. approve_role_request (site-admin inbox) — every secretary approval that
+--    is not itself scoped to a show (p_show_id IS NULL) now routes through
+--    grant_club_secretary, regardless of what requested_scope the original
+--    ask carried. Copied verbatim from the latest definition
+--    (20260830240000) except the branch marked below.
 -- ============================================================================
 
 CREATE OR REPLACE FUNCTION public.approve_role_request(
@@ -451,11 +509,16 @@ BEGIN
       USING ERRCODE = '22023';
   END IF;
 
-  -- MYK9-571 fix: a club-scoped secretary approval routes through
-  -- grant_club_secretary, the one function that writes permission_audit_log
-  -- for this grant. Before this, this branch upserted user_roles directly and
-  -- left no audit row, a second unaudited door to the same grant.
-  IF v_request.requested_scope = 'club' AND v_request.requested_role = 'secretary' THEN
+  -- MYK9-571 fix: EVERY secretary approval made without a show (p_show_id IS
+  -- NULL) routes through grant_club_secretary, the one function that writes
+  -- permission_audit_log for this grant — not just the ones whose row still
+  -- carries requested_scope='club'. Before this, a show-scoped secretary
+  -- request (requested_scope='show') approved with a club and no show
+  -- (RoleRequestsPage.tsx never passes showId) fell into the manual-UPSERT
+  -- ELSE branch and left no audit row: a second, unaudited door to the same
+  -- grant, reachable from a different requested_scope than the club-scoped
+  -- case this branch originally covered.
+  IF v_request.requested_role = 'secretary' AND p_show_id IS NULL THEN
     PERFORM public.grant_club_secretary(v_request.person_id, p_club_id);
   ELSE
     SELECT id INTO v_role_id FROM public.roles WHERE name = v_request.requested_role;

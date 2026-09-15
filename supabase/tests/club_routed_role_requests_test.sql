@@ -2,45 +2,150 @@
 -- All fixtures and role changes roll back.
 --
 -- Covers:
---   1. A non-admin of the request's club cannot approve it (42501).
+--   1. A non-admin of the request's club cannot approve it (42501), captured
+--      from an id read as a SUPERUSER so RLS never has a chance to hide the
+--      row and turn the assertion vacuous (a NULL id would raise P0002, not
+--      42501, and the test would pass for the wrong reason).
 --   2. A club admin's approval grants the club-scoped secretary role via
 --      grant_club_secretary and writes a permission_audit_log row — the same
 --      grant path a direct appointment uses.
 --   3. A duplicate pending submit is swallowed (NULL id), not an error.
---   4. A denial blocks a resubmission of the exact same request (YMKDN).
+--   4. A denial blocks a resubmission of the exact same request (MK571).
 --   5. A requester cannot read another person's role_requests row.
+--   6. A club admin CAN read a pending secretary request for their own club,
+--      and CANNOT read one for a club they do not administer.
+--   7. A SHOW-scoped secretary request, approved by a site admin WITHOUT a
+--      show (the UI's actual shape — RoleRequestsPage.tsx never passes
+--      showId), still routes through grant_club_secretary and is audited.
+--
+-- `role_requests.auth_user_id` is NOT NULL REFERENCES auth.users(id), so every
+-- identity below needs a real auth.users row, not just a people row carrying an
+-- unlinked uuid. People are inserted FIRST with an email and no auth_user_id;
+-- auth.users rows are inserted second with matching emails, and
+-- handle_new_user() (the trigger on auth.users) adopts each person by
+-- LOWER(email) match, filling in auth_user_id. This is the same order
+-- show_message_tenant_isolation_test.sql uses, and for the same reason:
+-- setting people.auth_user_id directly would leave a uuid with no matching
+-- auth.users row, which is exactly the bug this rewrite fixes.
 
 BEGIN;
 
 INSERT INTO public.clubs (id, name)
-VALUES ('00000000-0000-0000-0000-000000000b21', 'Routed Request Test Club');
+VALUES
+  ('00000000-0000-0000-0000-000000000b21', 'Routed Request Test Club'),
+  ('00000000-0000-0000-0000-000000000b22', 'Routed Request Test Club Two');
 
-INSERT INTO public.people (id, first_name, last_name, auth_user_id)
+INSERT INTO public.shows (id, name, organization, start_date, end_date, club_id, status)
+VALUES (
+  '00000000-0000-0000-0000-000000000b31',
+  'Routed Request Test Show',
+  'AKC',
+  current_date,
+  current_date,
+  '00000000-0000-0000-0000-000000000b21',
+  'draft'
+);
+
+INSERT INTO public.people (id, first_name, last_name, email)
 VALUES
   (
     '00000000-0000-0000-0000-000000000b11',
     'Club',
     'Administrator',
-    '00000000-0000-0000-0000-000000000b01'
+    'myk9-571-club-admin@example.test'
   ),
   (
     '00000000-0000-0000-0000-000000000b12',
     'Grace',
     'Hopper',
-    '00000000-0000-0000-0000-000000000b02'
+    'myk9-571-grace-hopper@example.test'
   ),
   (
     '00000000-0000-0000-0000-000000000b13',
     'Outside',
     'Person',
-    '00000000-0000-0000-0000-000000000b03'
+    'myk9-571-outside-person@example.test'
   ),
   (
     '00000000-0000-0000-0000-000000000b15',
     'Ada',
     'Lovelace',
-    '00000000-0000-0000-0000-000000000b05'
+    'myk9-571-ada-lovelace@example.test'
+  ),
+  (
+    '00000000-0000-0000-0000-000000000b16',
+    'Other',
+    'ClubAdmin',
+    'myk9-571-other-club-admin@example.test'
+  ),
+  (
+    '00000000-0000-0000-0000-000000000b17',
+    'Site',
+    'Admin',
+    'myk9-571-site-admin@example.test'
+  ),
+  (
+    '00000000-0000-0000-0000-000000000b18',
+    'Wanda',
+    'ShowScoped',
+    'myk9-571-wanda-showscoped@example.test'
   );
+
+INSERT INTO auth.users (
+  id, instance_id, aud, role, email, encrypted_password, email_confirmed_at,
+  created_at, updated_at, raw_app_meta_data, raw_user_meta_data,
+  is_super_admin, is_sso_user, is_anonymous
+)
+VALUES
+  ('00000000-0000-0000-0000-000000000b01', '00000000-0000-0000-0000-000000000000',
+   'authenticated', 'authenticated', 'myk9-571-club-admin@example.test', '', now(),
+   now(), now(), '{}', '{}', false, false, false),
+  ('00000000-0000-0000-0000-000000000b02', '00000000-0000-0000-0000-000000000000',
+   'authenticated', 'authenticated', 'myk9-571-grace-hopper@example.test', '', now(),
+   now(), now(), '{}', '{}', false, false, false),
+  ('00000000-0000-0000-0000-000000000b03', '00000000-0000-0000-0000-000000000000',
+   'authenticated', 'authenticated', 'myk9-571-outside-person@example.test', '', now(),
+   now(), now(), '{}', '{}', false, false, false),
+  ('00000000-0000-0000-0000-000000000b05', '00000000-0000-0000-0000-000000000000',
+   'authenticated', 'authenticated', 'myk9-571-ada-lovelace@example.test', '', now(),
+   now(), now(), '{}', '{}', false, false, false),
+  ('00000000-0000-0000-0000-000000000b06', '00000000-0000-0000-0000-000000000000',
+   'authenticated', 'authenticated', 'myk9-571-other-club-admin@example.test', '', now(),
+   now(), now(), '{}', '{}', false, false, false),
+  ('00000000-0000-0000-0000-000000000b07', '00000000-0000-0000-0000-000000000000',
+   'authenticated', 'authenticated', 'myk9-571-site-admin@example.test', '', now(),
+   now(), now(), '{}', '{}', false, false, false),
+  ('00000000-0000-0000-0000-000000000b08', '00000000-0000-0000-0000-000000000000',
+   'authenticated', 'authenticated', 'myk9-571-wanda-showscoped@example.test', '', now(),
+   now(), now(), '{}', '{}', false, false, false);
+
+-- Guard the assumption the rest of the file rests on: if handle_new_user ever
+-- stops adopting by email, every identity below would silently be missing its
+-- auth link, and submit_role_request's `people WHERE auth_user_id = ...` gate
+-- would refuse every DO block below with "No person profile found" instead of
+-- exercising anything this file is meant to cover.
+DO $$
+DECLARE
+  v_unadopted int;
+BEGIN
+  SELECT count(*) INTO v_unadopted
+  FROM public.people
+  WHERE id = ANY(ARRAY[
+    '00000000-0000-0000-0000-000000000b11',
+    '00000000-0000-0000-0000-000000000b12',
+    '00000000-0000-0000-0000-000000000b13',
+    '00000000-0000-0000-0000-000000000b15',
+    '00000000-0000-0000-0000-000000000b16',
+    '00000000-0000-0000-0000-000000000b17',
+    '00000000-0000-0000-0000-000000000b18'
+  ]::uuid[])
+    AND auth_user_id IS NULL;
+
+  IF v_unadopted <> 0 THEN
+    RAISE EXCEPTION 'FIXTURE handle_new_user did not adopt % seeded people by email', v_unadopted;
+  END IF;
+END;
+$$;
 
 INSERT INTO public.user_roles (user_id, role_id, club_id, is_active, auth_user_id)
 SELECT
@@ -51,6 +156,26 @@ SELECT
   '00000000-0000-0000-0000-000000000b01'
 FROM public.roles
 WHERE name = 'club_admin';
+
+INSERT INTO public.user_roles (user_id, role_id, club_id, is_active, auth_user_id)
+SELECT
+  '00000000-0000-0000-0000-000000000b16',
+  id,
+  '00000000-0000-0000-0000-000000000b22',
+  true,
+  '00000000-0000-0000-0000-000000000b06'
+FROM public.roles
+WHERE name = 'club_admin';
+
+INSERT INTO public.user_roles (user_id, role_id, club_id, is_active, auth_user_id)
+SELECT
+  '00000000-0000-0000-0000-000000000b17',
+  id,
+  NULL,
+  true,
+  '00000000-0000-0000-0000-000000000b07'
+FROM public.roles
+WHERE name = 'site_admin';
 
 -- ============================================================================
 -- 1. Grace submits a club-scoped secretary request for the test club.
@@ -107,9 +232,38 @@ $$;
 
 RESET ROLE;
 
+-- Capture Grace's pending request id as the superuser test-runner role (which
+-- bypasses RLS entirely), so the non-admin-approval check below exercises the
+-- REAL id. Re-querying it under the outsider's own session would return NULL
+-- (RLS filters the row away) and make the assertion pass for the wrong
+-- reason: approve_club_role_request(NULL, ...) raises P0002, not 42501, and a
+-- handler that only catches 42501 would let that escape uncaught.
+SELECT set_config(
+  'myk9_571.grace_request_id',
+  (
+    SELECT id::text
+    FROM public.role_requests
+    WHERE person_id = '00000000-0000-0000-0000-000000000b12'
+      AND club_id = '00000000-0000-0000-0000-000000000b21'
+      AND status = 'pending'
+  ),
+  true
+);
+
+DO $$
+BEGIN
+  IF current_setting('myk9_571.grace_request_id', true) IS NULL
+     OR current_setting('myk9_571.grace_request_id', true) = '' THEN
+    RAISE EXCEPTION 'FIXTURE could not resolve Grace''s pending request id';
+  END IF;
+END;
+$$;
+
 -- ============================================================================
 -- 3. Someone who is not this club's admin (and not a site admin) cannot
---    approve the pending request.
+--    approve the pending request. Uses the id captured above, not an
+--    RLS-filtered re-select, so the exception really comes from the
+--    authorization check.
 -- ============================================================================
 
 SET LOCAL ROLE authenticated;
@@ -117,30 +271,78 @@ SELECT set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-000000000b03
 
 DO $$
 DECLARE
-  v_request_id uuid;
+  v_request_id uuid := current_setting('myk9_571.grace_request_id')::uuid;
 BEGIN
-  SELECT id INTO v_request_id
-  FROM public.role_requests
-  WHERE person_id = '00000000-0000-0000-0000-000000000b12'
-    AND club_id = '00000000-0000-0000-0000-000000000b21'
-    AND status = 'pending';
-
   BEGIN
     PERFORM public.approve_club_role_request(v_request_id, 'Approved');
     RAISE EXCEPTION 'FAIL non-admin approval succeeded';
-  EXCEPTION WHEN insufficient_privilege THEN
+  EXCEPTION WHEN SQLSTATE '42501' THEN
     RAISE NOTICE 'PASS non-admin approval is rejected (42501)';
   END;
 END;
 $$;
+
+RESET ROLE;
+
+-- ============================================================================
+-- 3b. RLS on role_requests_select's new club-admin arm: this club's own
+--     admin CAN read Grace's pending secretary request; another club's
+--     admin CANNOT.
+-- ============================================================================
+
+SET LOCAL ROLE authenticated;
+SELECT set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-000000000b01', true);
+
+DO $$
+DECLARE
+  v_visible_count int;
+BEGIN
+  SELECT count(*) INTO v_visible_count
+  FROM public.role_requests
+  WHERE person_id = '00000000-0000-0000-0000-000000000b12'
+    AND club_id = '00000000-0000-0000-0000-000000000b21';
+
+  IF v_visible_count <> 1 THEN
+    RAISE EXCEPTION
+      'FAIL this club''s own admin could not read the pending secretary request (% visible)',
+      v_visible_count;
+  END IF;
+
+  RAISE NOTICE 'PASS a club admin can read their own club''s pending secretary request';
+END;
+$$;
+
+RESET ROLE;
+
+SET LOCAL ROLE authenticated;
+SELECT set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-000000000b06', true);
+
+DO $$
+DECLARE
+  v_visible_count int;
+BEGIN
+  SELECT count(*) INTO v_visible_count
+  FROM public.role_requests
+  WHERE person_id = '00000000-0000-0000-0000-000000000b12'
+    AND club_id = '00000000-0000-0000-0000-000000000b21';
+
+  IF v_visible_count <> 0 THEN
+    RAISE EXCEPTION
+      'FAIL another club''s admin could read a request for a club they do not administer (% visible)',
+      v_visible_count;
+  END IF;
+
+  RAISE NOTICE 'PASS a club admin cannot read another club''s pending secretary request';
+END;
+$$;
+
+RESET ROLE;
 
 -- ============================================================================
 -- 4. Grace cannot read Ada's role_requests row (RLS: own rows or club
 --    admin/site admin only). Insert Ada's row first, as the admin, then
 --    check visibility as Grace.
 -- ============================================================================
-
-RESET ROLE;
 
 SET LOCAL ROLE authenticated;
 SELECT set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-000000000b05', true);
@@ -293,12 +495,114 @@ BEGIN
       'Asking again.'
     );
     RAISE EXCEPTION 'FAIL resubmission after a standing denial succeeded';
-  EXCEPTION WHEN SQLSTATE 'YMKDN' THEN
-    RAISE NOTICE 'PASS a standing denial blocks resubmission (YMKDN)';
+  EXCEPTION WHEN SQLSTATE 'MK571' THEN
+    RAISE NOTICE 'PASS a standing denial blocks resubmission (MK571)';
   END;
 END;
 $$;
 
 RESET ROLE;
+
+-- ============================================================================
+-- 7. A SHOW-scoped secretary request, approved by a site admin the way the
+--    UI actually calls approve_role_request (a club, but no show — see
+--    RoleRequestsPage.tsx), must still route through grant_club_secretary
+--    and be audited. Before the MYK9-571 fix to approve_role_request, this
+--    fell into the manual user_roles UPSERT branch (discriminated on
+--    requested_scope='club', but this request's requested_scope is 'show')
+--    and left no permission_audit_log row.
+-- ============================================================================
+
+SET LOCAL ROLE authenticated;
+SELECT set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-000000000b08', true);
+
+DO $$
+DECLARE
+  v_request_id uuid;
+BEGIN
+  v_request_id := public.submit_role_request(
+    'secretary',
+    'show',
+    NULL,
+    '00000000-0000-0000-0000-000000000b31',
+    'I can run this specific show.'
+  );
+
+  IF v_request_id IS NULL THEN
+    RAISE EXCEPTION 'FAIL show-scoped submit_role_request returned NULL';
+  END IF;
+END;
+$$;
+
+RESET ROLE;
+
+SELECT set_config(
+  'myk9_571.wanda_request_id',
+  (
+    SELECT id::text
+    FROM public.role_requests
+    WHERE person_id = '00000000-0000-0000-0000-000000000b18'
+      AND show_id = '00000000-0000-0000-0000-000000000b31'
+      AND status = 'pending'
+  ),
+  true
+);
+
+SET LOCAL ROLE authenticated;
+SELECT set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-000000000b07', true);
+
+DO $$
+DECLARE
+  v_request_id uuid := current_setting('myk9_571.wanda_request_id')::uuid;
+BEGIN
+  -- The UI's actual shape: a club, and no show, even though the original ask
+  -- named a show. p_show_id is left at its default (NULL) on purpose.
+  PERFORM public.approve_role_request(
+    v_request_id,
+    '00000000-0000-0000-0000-000000000b21',
+    NULL,
+    'Approved without a show scope, matching the UI.'
+  );
+END;
+$$;
+
+RESET ROLE;
+
+DO $$
+DECLARE
+  v_role_active boolean;
+  v_audit_count int;
+BEGIN
+  SELECT EXISTS (
+    SELECT 1
+    FROM public.user_roles ur
+    JOIN public.roles r ON r.id = ur.role_id
+    WHERE ur.user_id = '00000000-0000-0000-0000-000000000b18'
+      AND ur.club_id = '00000000-0000-0000-0000-000000000b21'
+      AND ur.show_id IS NULL
+      AND ur.is_active
+      AND r.name = 'secretary'
+  ) INTO v_role_active;
+
+  IF NOT v_role_active THEN
+    RAISE EXCEPTION
+      'FAIL a show-scoped secretary request approved with a club did not grant club-scoped secretary';
+  END IF;
+
+  SELECT count(*) INTO v_audit_count
+  FROM public.permission_audit_log
+  WHERE action = 'club_secretary_granted'
+    AND new_value->>'person_id' = '00000000-0000-0000-0000-000000000b18'
+    AND new_value->>'club_id' = '00000000-0000-0000-0000-000000000b21';
+
+  IF v_audit_count < 1 THEN
+    RAISE EXCEPTION
+      'FAIL show-scoped secretary approval via approve_role_request left no permission_audit_log row (MYK9-571 P2-4)';
+  END IF;
+
+  RAISE NOTICE
+    'PASS a show-scoped secretary request approved with a club routes through grant_club_secretary and is audited';
+END;
+$$;
 
 ROLLBACK;

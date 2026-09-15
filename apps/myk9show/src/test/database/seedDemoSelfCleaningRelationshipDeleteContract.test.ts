@@ -273,6 +273,20 @@ describe('seed-demo self-cleaning relationship deletes (MYK9-490 follow-up)', ()
         'the stripe_orders guard runs after a shows delete it is supposed to protect'
       ).toBeLessThan(del.index);
     }
+
+    // …and before the DIRECT enrollments delete, which is a second route to the
+    // same 23503: `stripe_orders.enrollment_id` is ON DELETE RESTRICT, and the
+    // demo-enrollment delete removes the enrollment row itself rather than
+    // reaching it through the shows cascade. A guard placed between the two
+    // would still let that statement abort the reseed.
+    const enrollmentDeletes = statements(/DELETE FROM public\.enrollments\b[^;]*;/g);
+    expect(enrollmentDeletes.length).toBeGreaterThan(0);
+    for (const del of enrollmentDeletes) {
+      expect(
+        guard,
+        'the stripe_orders guard runs after the direct enrollments delete it is supposed to protect'
+      ).toBeLessThan(del.index);
+    }
   });
 
   it('extends the consolidated guard to enrollments, scoped from scope_shows, before the first parent delete (MYK9-528)', () => {

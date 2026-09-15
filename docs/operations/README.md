@@ -24,6 +24,7 @@ thin index over focused docs, not one merged wall.)
 | [`staging-reseed.md`](staging-reseed.md)               | Resetting the staging demo to clean seed data + the required post-reseed verification.                                                                                                                                                           |
 | [`ci-vercel-deploys.md`](ci-vercel-deploys.md)         | Turning on (or troubleshooting) CI-gated production deploys.                                                                                                                                                                                     |
 | [`vercel-preview-quota.md`](vercel-preview-quota.md)   | Preventing Vercel Hobby preview quota exhaustion: monorepo skip-unaffected settings, non-required previews, and push discipline.                                                                                                                 |
+| [`stripe-ledger-orphans.md`](stripe-ledger-orphans.md) | Someone asks about the fully-orphaned `stripe_orders` rows (both scope columns NULL): why they are kept, why they block nothing, the reseed warning that counts them, and the reviewed prune query. |
 
 The site-admin _role_ (scope, what you must accomplish for fall, what you should never have
 to think about) is defined in [`../roles/admin.md`](../roles/admin.md).

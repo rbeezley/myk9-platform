@@ -41,8 +41,34 @@ $$;
 INSERT INTO public.clubs (id, name)
 VALUES ('00000000-0000-0000-0000-000000527001', 'F527 Club');
 
-INSERT INTO public.people (id, first_name, last_name)
-VALUES ('00000000-0000-0000-0000-000000527002', 'F527', 'Handler');
+-- people BEFORE auth.users (harness ordering contract): the people rows are
+-- inserted with a NULL auth_user_id and back-filled once auth.users exists.
+INSERT INTO public.people (id, first_name, last_name, email, auth_user_id)
+VALUES
+  ('00000000-0000-0000-0000-000000527002', 'F527', 'Handler', 'f527-handler@example.test', NULL),
+  ('00000000-0000-0000-0000-000000527009', 'F527', 'Admin', 'f527-admin@example.test', NULL);
+
+INSERT INTO auth.users (
+  id, instance_id, aud, role, email, encrypted_password, email_confirmed_at,
+  created_at, updated_at, raw_app_meta_data, raw_user_meta_data,
+  is_super_admin, is_sso_user, is_anonymous
+)
+VALUES (
+  '00000000-0000-0000-0000-000000527109', '00000000-0000-0000-0000-000000000000',
+  'authenticated', 'authenticated', 'f527-admin@example.test', '', now(), now(), now(),
+  '{}', '{}', false, false, false
+);
+
+UPDATE public.people
+SET auth_user_id = '00000000-0000-0000-0000-000000527109'
+WHERE id = '00000000-0000-0000-0000-000000527009';
+
+-- is_site_admin() (which is_platform_admin() delegates to) joins user_roles on
+-- auth_user_id = auth.uid(), so the row must carry BOTH ids.
+INSERT INTO public.user_roles (user_id, role_id, club_id, is_active, auth_user_id)
+SELECT '00000000-0000-0000-0000-000000527009'::uuid, roles.id, NULL::uuid, true,
+       '00000000-0000-0000-0000-000000527109'::uuid
+FROM public.roles WHERE roles.name = 'site_admin';
 
 INSERT INTO public.shows (
   id, name, organization, start_date, end_date, club_id, status
@@ -141,6 +167,54 @@ BEGIN
   SELECT count(*) INTO v_orphans FROM public.stripe_orders
   WHERE show_id IS NULL AND enrollment_id IS NULL;
   RAISE NOTICE 'NOTE F527.5 % fully-orphaned order(s) present; they reference no parent and constrain no delete', v_orphans;
+END;
+$$;
+
+-- --- F527.6 hard_delete_show refuses readably, not with a raw 23503 ----------
+-- The RPC is the site-admin path (DeleteShowDialog). Without its pre-check the
+-- admin would see a bare foreign-key violation naming stripe_orders; assert the
+-- actionable message instead. Claims are set so is_platform_admin() -> true.
+DO $$
+DECLARE
+  admin_auth_id CONSTANT uuid := '00000000-0000-0000-0000-000000527109';
+  refused boolean := false;
+  err text;
+BEGIN
+  PERFORM set_config('request.jwt.claim.sub', admin_auth_id::text, true);
+  PERFORM set_config(
+    'request.jwt.claims',
+    jsonb_build_object('sub', admin_auth_id, 'role', 'authenticated')::text,
+    true
+  );
+
+  IF NOT public.is_platform_admin() THEN
+    RAISE EXCEPTION 'FAIL F527.6 the site_admin fixture is not recognised by is_platform_admin()';
+  END IF;
+
+  BEGIN
+    PERFORM public.hard_delete_show('00000000-0000-0000-0000-000000527003');
+  EXCEPTION WHEN OTHERS THEN
+    err := SQLERRM;
+    refused := true;
+  END;
+
+  IF NOT refused THEN
+    RAISE EXCEPTION 'FAIL F527.6 hard_delete_show deleted a show that has a Stripe order';
+  END IF;
+
+  IF NOT (err LIKE '%Stripe order(s)%' AND err LIKE '%refused%') THEN
+    RAISE EXCEPTION 'FAIL F527.6 hard_delete_show refusal is not the readable message: %', err;
+  END IF;
+
+  IF NOT EXISTS (SELECT 1 FROM public.shows
+                 WHERE id = '00000000-0000-0000-0000-000000527003') THEN
+    RAISE EXCEPTION 'FAIL F527.6 the refused show was removed anyway';
+  END IF;
+
+  PERFORM set_config('request.jwt.claims', '', true);
+  PERFORM set_config('request.jwt.claim.sub', '', true);
+
+  RAISE NOTICE 'PASS F527.6 hard_delete_show refuses a show with a Stripe order readably: %', err;
 END;
 $$;
 

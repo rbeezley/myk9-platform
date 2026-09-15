@@ -184,6 +184,34 @@ describe('deleteUserHandler', () => {
     ).rejects.toMatchObject({ status: 409, message: 'Person owns live dogs', code: 'MK001' });
   });
 
+  it('surfaces the Stripe-ledger RESTRICT cascade as a 409 with the 23503 code (MYK9-527)', async () => {
+    // enrollments.handler_id cascades from people; stripe_orders.enrollment_id
+    // is ON DELETE RESTRICT, so the people delete raises a raw 23503 naming a
+    // table the admin never touched. Assert the exact user-facing copy.
+    const { supabase, deleteUser } = makeSupabase({
+      deleteError: {
+        code: '23503',
+        message:
+          'update or delete on table "enrollments" violates foreign key constraint "stripe_orders_enrollment_id_fkey" on table "stripe_orders"',
+      },
+    });
+
+    await expect(
+      deleteUserHandler({
+        body: { personId: 'target-1' },
+        user: { id: 'auth-caller' },
+        supabase: supabase as never,
+      } as never)
+    ).rejects.toMatchObject({
+      status: 409,
+      code: '23503',
+      message:
+        'This person has Stripe orders that refunds and reconciliation still reference, so their record cannot be permanently deleted. Resolve or reassign those orders first.',
+    });
+    // The refusal must not have taken the auth.users row with it.
+    expect(deleteUser).not.toHaveBeenCalled();
+  });
+
   it('maps any other delete failure to a generic 500', async () => {
     const { supabase } = makeSupabase({ deleteError: { message: 'constraint violation' } });
 

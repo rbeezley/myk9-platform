@@ -32,12 +32,34 @@
 --     the RPC above) pre-checks the same condition client-side.
 --   * supabase/seed-demo.sql refuses to delete ANY show in scope_shows that
 --     carries orders, not only show ...010.
+--   * supabase/functions/admin-delete-user/deleteUserHandler.ts maps the 23503
+--     this raises on a person delete (enrollments.handler_id CASCADEs from
+--     people) to a readable 409.
+--
+-- Delete paths that can now hit a 23503, enumerated so none is a surprise:
+--   1. public.hard_delete_show(uuid) -- pre-checks and refuses readably (below).
+--   2. shows/writes.ts hardDeleteShow -- the site-admin Data Lifecycle tab's
+--      direct DELETE; pre-checks client-side.
+--   3. admin-delete-user -- people -> enrollments CASCADE -> stripe_orders;
+--      mapped to a 409 (above).
+--   4. The nightly cleanup-ringside-anon cron
+--      (20260625000100_cleanup_stale_ringside_anon_users.sql:77,
+--      `DELETE FROM public.people WHERE auth_user_id = ANY(v_ids)`). It is left
+--      UNCHANGED: it only ever collects `raw_app_meta_data->>'kind' =
+--      'ringside_passcode'` anonymous users, and an anonymous ringside identity
+--      holding a paid enrollment is near-theoretical (ringside scoring takes no
+--      payment). If it ever happened the cron would abort with 23503 rather
+--      than destroy the order -- which is the intended failure. Documented, not
+--      guarded.
 --
 -- GRANTS: none required and none changed. This migration creates no table, no
 -- view and no sequence; ALTER TABLE ... DROP/ADD CONSTRAINT does not touch
 -- pg_class.relacl or pg_attribute.attacl, and the CREATE OR REPLACE FUNCTION
--- below preserves the existing EXECUTE grant (re-asserted at the end to be
--- explicit). No RLS policy is added or changed.
+-- below preserves the existing EXECUTE grant. The REVOKE/GRANT pair at the end
+-- is a RE-ASSERTION, not a gap being closed: the applied proacl for
+-- hard_delete_show on sojmvhhwsjxmfistvzbe was already
+-- {postgres=X, service_role=X, authenticated=X} with no PUBLIC and no anon
+-- entry (read 2026-09-15). No RLS policy is added or changed.
 -- =============================================================================
 
 -- --- 1. stripe_orders.show_id -----------------------------------------------
@@ -160,8 +182,10 @@ END;
 $$;
 
 -- Access decision, restated in full rather than relying on CREATE OR REPLACE
--- preserving 075's grant. Permanent show deletion is a site-admin action gated
--- inside the function by is_platform_admin(); anon and PUBLIC must never reach
--- it, and an omitted REVOKE is not the same as exclusion in this project.
+-- preserving 075's grant. This closes no gap -- the applied proacl was already
+-- {postgres, service_role, authenticated}, with neither PUBLIC nor anon holding
+-- EXECUTE. It is pinned here so a future CREATE OR REPLACE cannot widen it by
+-- omission: permanent show deletion is a site-admin action gated inside the
+-- function by is_platform_admin(), and anon and PUBLIC must never reach it.
 REVOKE ALL ON FUNCTION public.hard_delete_show(UUID) FROM PUBLIC, anon;
 GRANT EXECUTE ON FUNCTION public.hard_delete_show(UUID) TO authenticated;

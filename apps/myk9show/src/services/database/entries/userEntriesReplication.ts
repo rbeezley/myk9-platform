@@ -20,7 +20,15 @@ interface ReplicatedUserEntryMaps {
 export async function buildReplicatedUserEntryRows(
   entries: ReplicatedEntry[],
   maps: ReplicatedUserEntryMaps
-): Promise<{ data: Record<string, unknown>[]; error: null }> {
+): Promise<{ data: Record<string, unknown>[]; error: null; enrichmentMissing?: boolean }> {
+  // Whether the enrollment read below failed or timed out. It matters beyond
+  // cosmetics: without the order's payment_status,
+  // `resolveEffectivePaymentStatus` takes branch 2 ("no order to consult, the
+  // entry row stands") instead of branch 4 ("either side pending wins"), so a
+  // pending order over a row that reads paid silently UNDER-claims the amount
+  // due. The caller turns this into `stale`, which is what makes the money
+  // surface disclose it.
+  let enrichmentMissing = false;
   // Load enrollment payment fields (not in the replication store)
   const enrollmentIds = [...new Set(entries.map(e => e.registrationId).filter(Boolean))];
   const enrollmentsMap = new Map<
@@ -60,6 +68,7 @@ export async function buildReplicatedUserEntryRows(
         }
       }
     } catch (error) {
+      enrichmentMissing = true;
       logger.warn(
         'Enrollment enrichment unavailable; rendering replicated entries alone',
         'database',
@@ -138,5 +147,5 @@ export async function buildReplicatedUserEntryRows(
     return row;
   });
 
-  return { data, error: null };
+  return enrichmentMissing ? { data, error: null, enrichmentMissing: true } : { data, error: null };
 }

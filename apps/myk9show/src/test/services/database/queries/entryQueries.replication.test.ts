@@ -15,7 +15,6 @@ const { mockEntriesTable, mockDogsTable, mockClassesTable, mockShowsTable, mockT
   vi.hoisted(() => ({
     mockEntriesTable: {
       getAll: vi.fn(),
-      getAllLocalIds: vi.fn(),
       getEntriesByShow: vi.fn(),
       getEntriesByClass: vi.fn(),
       getEntryById: vi.fn(),
@@ -225,8 +224,6 @@ function setupListMocks(
   trials: ReplicatedTrial[] = [makeTrial()]
 ) {
   mockEntriesTable.getAll.mockResolvedValue(entries);
-  // The cheap probe the empty-view branch gates on; keep it consistent with getAll.
-  mockEntriesTable.getAllLocalIds.mockResolvedValue(new Set(entries.map(entry => entry.id)));
   mockEntriesTable.getEntriesByShow.mockResolvedValue(entries);
   mockEntriesTable.getEntriesByClass.mockResolvedValue(entries);
   mockDogsTable.getAllDogs.mockResolvedValue(dogs);

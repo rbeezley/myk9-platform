@@ -167,6 +167,13 @@ const USER_ENTRIES_MAX_PAGES = 100;
 
 async function postgrestGetUserEntries() {
   const rows: Record<string, unknown>[] = [];
+  // ONE deadline for the whole paged read, not one per page. `withTimeout`
+  // only races the promise it is given, so when it wins, the loop below is
+  // still in flight — a per-page signal would let each SUBSEQUENT page start a
+  // fresh 15s of its own and go on fetching pages nobody awaits. Sharing a
+  // single signal across every page stops the orphaned paging at the same
+  // instant the caller gives up.
+  const deadline = AbortSignal.timeout(USER_ENTRIES_VIEW_TIMEOUT_MS);
 
   for (let page = 0; page < USER_ENTRIES_MAX_PAGES; page++) {
     const from = page * USER_ENTRIES_PAGE_SIZE;
@@ -182,9 +189,7 @@ async function postgrestGetUserEntries() {
       .eq('is_own_entry', true)
       .order('created_at', { ascending: false })
       .order('id', { ascending: false })
-      // `withTimeout` only RACES — without this the losing request keeps
-      // running, and a paged read would go on fetching pages nobody awaits.
-      .abortSignal(AbortSignal.timeout(USER_ENTRIES_VIEW_TIMEOUT_MS))
+      .abortSignal(deadline)
       .range(from, to);
 
     if (error) {
@@ -434,6 +439,13 @@ export interface UserEntriesResult {
   error: DatabaseError | null;
   /** True when the rows came from the replica without the view confirming them. */
   stale?: boolean;
+  /**
+   * True when the replica path could not read the `enrollments` enrichment.
+   * A distinct reason to distrust the figures: with no order payment_status,
+   * `resolveEffectivePaymentStatus` falls to "the entry row stands" and a
+   * pending order over a paid-looking row UNDER-claims the amount due.
+   */
+  enrichmentMissing?: boolean;
 }
 
 /**
@@ -483,7 +495,7 @@ export const getUserEntries = async (userId: string): Promise<UserEntriesResult>
       'My Entries account read'
     );
 
-    if (result.data.length === 0 && (await replicaMightHaveRows())) {
+    if (result.data.length === 0) {
       const replica = await readReplicaUserEntryRows(userId);
       if (replica && replica.data.length > 0) {
         // The rows are kept, but they are NOT confirmed. The view retains the
@@ -510,28 +522,6 @@ export const getUserEntries = async (userId: string): Promise<UserEntriesResult>
 };
 
 /**
- * Cheap "is it even worth hydrating the replica?" probe.
- *
- * The full fallback loads FIVE tables in their entirety, and an empty view is
- * the ordinary result for an exhibitor with no entries — so without this gate
- * every such account pays five whole-table reads on every load, across five
- * call sites, to discover there is nothing there. Ids alone answer it: no local
- * entry rows means the fallback has nothing to offer, whoever the caller is.
- *
- * Fails OPEN. If the probe is unavailable or throws, we do the full read rather
- * than infer an empty replica from a broken probe — guessing "empty" here would
- * reintroduce the exact false-zero this whole path exists to prevent.
- */
-async function replicaMightHaveRows(): Promise<boolean> {
-  try {
-    const ids = await replicatedEntriesTable.getAllLocalIds();
-    return ids.size > 0;
-  } catch {
-    return true;
-  }
-}
-
-/**
  * Rebuild the exhibitor's rows from the per-show replication snapshot, or
  * `null` when the snapshot itself cannot be read.
  *
@@ -542,7 +532,7 @@ async function replicaMightHaveRows(): Promise<boolean> {
  */
 async function readReplicaUserEntryRows(
   userId: string
-): Promise<{ data: Record<string, unknown>[]; error: null } | null> {
+): Promise<{ data: Record<string, unknown>[]; error: null; enrichmentMissing?: boolean } | null> {
   try {
     const [allEntries, dogs, classes, shows, trials] = await Promise.all([
       replicatedEntriesTable.getAll(),

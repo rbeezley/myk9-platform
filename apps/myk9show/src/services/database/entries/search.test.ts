@@ -7,7 +7,6 @@ const mocks = vi.hoisted(() => ({
   logQuery: vi.fn(),
   supabaseFrom: vi.fn(),
   replicatedEntriesGetAll: vi.fn(),
-  replicatedEntriesGetAllLocalIds: vi.fn(),
   replicatedDogsGetAllDogs: vi.fn(),
   replicatedClassesGetAll: vi.fn(),
   replicatedShowsGetAllShows: vi.fn(),
@@ -36,7 +35,6 @@ vi.mock('../supabaseClient', () => ({
 vi.mock('@/services/replication/ReplicatedEntriesTable', () => ({
   replicatedEntriesTable: {
     getAll: mocks.replicatedEntriesGetAll,
-    getAllLocalIds: mocks.replicatedEntriesGetAllLocalIds,
   },
 }));
 
@@ -286,15 +284,8 @@ describe('getUserEntries account-scope read', () => {
   ) {
     if (options.entriesThrows) {
       mocks.replicatedEntriesGetAll.mockRejectedValue(new Error('replication unavailable'));
-      mocks.replicatedEntriesGetAllLocalIds.mockRejectedValue(new Error('replication unavailable'));
     } else {
-      const entries = options.entries ?? [replicatedEntry];
-      mocks.replicatedEntriesGetAll.mockResolvedValue(entries);
-      // The cheap probe the empty-view branch gates on. Keep it consistent with
-      // `getAll`, or a test would exercise a state the store can never be in.
-      mocks.replicatedEntriesGetAllLocalIds.mockResolvedValue(
-        new Set((entries as Array<{ id: string }>).map(entry => entry.id))
-      );
+      mocks.replicatedEntriesGetAll.mockResolvedValue(options.entries ?? [replicatedEntry]);
     }
     mocks.replicatedDogsGetAllDogs.mockResolvedValue([replicatedDog]);
     mocks.replicatedClassesGetAll.mockResolvedValue(options.classes ?? [replicatedClass]);
@@ -405,51 +396,66 @@ describe('getUserEntries account-scope read', () => {
     );
   });
 
-  // The five-table hydration is the expensive half, and an empty view is the
-  // ORDINARY result for an exhibitor with no entries — so the common case must
-  // not pay for it.
-  it('does not hydrate the replica when the local entry store is empty', async () => {
-    mockReplicatedStores({ entries: [] });
-    mockSupabaseTables({ viewEntryRows: [] });
+  // A timed-out enrollment enrichment is its own reason to distrust the
+  // figures, not just a missing confirmation number: with no order
+  // payment_status, resolveEffectivePaymentStatus falls to "the entry row
+  // stands", so a pending order over a paid-looking row under-claims the
+  // amount due. The result must say so.
+  it('marks the read stale when the enrollment enrichment times out', async () => {
+    vi.useFakeTimers();
+    try {
+      mockReplicatedStores();
+      const hangingEnrollments = {
+        select: vi.fn(() => hangingEnrollments),
+        in: vi.fn(() => hangingEnrollments),
+        abortSignal: vi.fn(() => new Promise(() => {})),
+      };
+      const viewQuery = {
+        select: vi.fn(() => viewQuery),
+        is: vi.fn(() => viewQuery),
+        eq: vi.fn(() => viewQuery),
+        order: vi.fn(() => viewQuery),
+        abortSignal: vi.fn(() => viewQuery),
+        range: vi.fn(() => Promise.resolve({ data: [], error: null })),
+      };
+      mocks.supabaseFrom.mockImplementation((table: string) => {
+        if (table === 'view_authenticated_entry_results') return viewQuery;
+        if (table === 'enrollments') return hangingEnrollments;
+        throw new Error(`Unexpected table: ${table}`);
+      });
 
-    const result = await getUserEntries('user-1');
+      const pending = getUserEntries('user-1');
+      await vi.advanceTimersByTimeAsync(DEFAULT_TIMEOUT_MS + 1);
+      const result = await pending;
 
-    expect(result).toEqual({ data: [], error: null });
-    expect(mocks.replicatedEntriesGetAllLocalIds).toHaveBeenCalled();
-    expect(mocks.replicatedEntriesGetAll).not.toHaveBeenCalled();
-    expect(mocks.replicatedDogsGetAllDogs).not.toHaveBeenCalled();
+      expect(result.data.map(row => row.id)).toEqual(['entry-1']);
+      expect(result.stale).toBe(true);
+      expect(result.enrichmentMissing).toBe(true);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
-  // Fails OPEN: inferring "empty" from a broken probe would reintroduce the
-  // false zero this whole path exists to prevent.
-  it('still hydrates the replica when the cheap probe is unavailable', async () => {
+  // One deadline for the WHOLE paged read, not one per page: a per-page signal
+  // would let each subsequent page start a fresh 15s of its own and keep
+  // fetching pages nobody awaits after withTimeout has already won.
+  it('shares one abort signal across every page of the view read', async () => {
     mockReplicatedStores();
-    mocks.replicatedEntriesGetAllLocalIds.mockRejectedValue(new Error('probe unavailable'));
-    mockSupabaseTables({ viewEntryRows: [], enrollmentRows: [] });
+    const firstPage = Array.from({ length: 1000 }, (_, index) => ({ id: `entry-${index}` }));
+    const { viewQuery } = mockSupabaseTables({
+      viewEntryPages: [firstPage, [{ id: 'entry-1000' }]],
+    });
 
-    const result = await getUserEntries('user-1');
+    await getUserEntries('user-1');
 
-    expect(result.data.map(row => row.id)).toEqual(['entry-1']);
-    expect(result.stale).toBe(true);
-    expect(mocks.replicatedEntriesGetAll).toHaveBeenCalled();
+    expect(viewQuery.abortSignal).toHaveBeenCalledTimes(2);
+    const calls = viewQuery.abortSignal.mock.calls as unknown as Array<[AbortSignal]>;
+    expect(calls[0][0]).toBeInstanceOf(AbortSignal);
+    // The SAME instance, not merely another signal: a fresh per-page timeout
+    // would restart the clock on every page.
+    expect(calls[1][0]).toBe(calls[0][0]);
   });
 
-  it('reports an empty account when the view AND the replica are both empty', async () => {
-    mockReplicatedStores({ entries: [] });
-    mockSupabaseTables({ viewEntryRows: [] });
-
-    const result = await getUserEntries('user-1');
-
-    expect(result).toEqual({ data: [], error: null });
-    expect(mocks.logQuery).toHaveBeenCalledWith(
-      'entries',
-      'select_user_entries',
-      expect.any(Number)
-    );
-  });
-
-  // Captive portal / dead venue wifi: `navigator.onLine` stays true and the
-  // request never settles, so without a deadline the replica is unreachable.
   it('falls back to the replica when the view read never settles', async () => {
     vi.useFakeTimers();
     try {

@@ -70,7 +70,17 @@ export function AmountDueSection({
   // that into the paid-up branch told an exhibitor who owed money that they
   // owed nothing: a flicker on a warm load, and permanent on a cold offline
   // boot where the person record never resolves (the MYK9-200 pattern).
-  if (!summary) {
+  // A summary the authoritative read never confirmed (MYK9-536): served from
+  // the replicated per-show snapshot offline, on a timeout, or when the view
+  // came back empty against a populated snapshot. At ZERO it is
+  // indistinguishable from "paid up" by its numbers alone, and rendering it as
+  // such is the same false reassurance the `!summary` branch below exists to
+  // prevent, arriving by another route — so it borrows that branch's copy. A
+  // non-zero figure is still the best the exhibitor has and is kept; only its
+  // standing changes, which the note below the figure says outright.
+  const unconfirmed = Boolean(summary?.stale);
+
+  if (!summary || (unconfirmed && summary.amountDueCents <= 0)) {
     return (
       <Card>
         <CardContent className="py-5">
@@ -124,6 +134,11 @@ export function AmountDueSection({
             <p className="text-3xl font-semibold tabular-nums text-warning">
               {formatPaymentCents(summary.amountDueCents, 'usd')}
             </p>
+            {unconfirmed && (
+              <p className="mt-1 text-sm text-muted-foreground">
+                Showing saved data — we couldn&apos;t reach the server to confirm it.
+              </p>
+            )}
             {/* Name the show in the single-show case too: the name used to
                 appear only in the multi-show breakdown, so the common case
                 showed a total and a button with nothing saying what the money

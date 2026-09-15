@@ -26,7 +26,6 @@ export default function ManageRegistrationsPanel({
   onClose,
   dog,
 }: ManageRegistrationsPanelProps) {
-  const isDeleteOpen = useRegistrationsStore(state => state.isDeleteRegistrationDialogOpen);
   const setIsAddOpen = useRegistrationsStore(state => state.setIsAddRegistrationDialogOpen);
 
   return (
@@ -36,12 +35,6 @@ export default function ManageRegistrationsPanel({
       title="Registrations"
       {...(dog.callName ? { subtitle: dog.callName } : {})}
       size="lg"
-      // The delete confirmation is a CommonDialog, which registers no Escape
-      // handler and is not in SlideOverPanel's openPanelIds stack — so without
-      // this, Escape over the confirmation closes THIS panel and leaves the
-      // confirmation floating over a bare page. Local workaround; MYK9-523
-      // fixes the stack itself and removes this.
-      preventClose={isDeleteOpen}
       // The rail's Add sits behind this backdrop, so the panel carries its own
       // for the loaded-list and error states as well as the empty one.
       headerActions={

@@ -473,6 +473,15 @@ export const useCartStore = create<CartState>()(
         addItem: async (item: NewCartItem) => {
           const { cart } = get();
           if (!cart) {
+            // Says WHICH add was dropped and what the store held instead. The
+            // bare `set({ error })` was invisible in logs, so a chip clicked
+            // before the cart finished loading looked to the exhibitor like a
+            // failed add and to us like nothing at all (MYK9-542).
+            logger.warn('addItem called with no active cart; the click was dropped', 'cartStore', {
+              item,
+              loadInitiated: get().loadInitiated,
+              isLoading: get().isLoading,
+            });
             set({ error: 'No active cart' });
             return false;
           }
@@ -623,16 +632,13 @@ export const useCartStore = create<CartState>()(
               })
               .eq('id', cart.id);
 
-            if (updateError) {
-              logger.error(
-                'Error updating cart totals',
-                'cartStore',
-                { cartId: cart.id },
-                updateError
-              );
-              throw updateError;
-            }
-
+            // The DELETE has already committed, so the row is gone from the DB
+            // whatever the totals write did: commit the local removal BEFORE
+            // deciding what a totals failure means, exactly as `addItem` now
+            // does. Throwing first left the local list holding a row that no
+            // longer exists, and the next click on that chip took the REMOVE
+            // branch and deleted nothing (MYK9-530 review, P3-a). The stored
+            // totals are a cache; loadCart recomputes them from items.
             set({
               cart: {
                 ...cart,
@@ -644,6 +650,16 @@ export const useCartStore = create<CartState>()(
               },
               lastSyncedAt: new Date().toISOString(),
             });
+
+            if (updateError) {
+              logger.error(
+                'Error updating cart totals',
+                'cartStore',
+                { cartId: cart.id },
+                updateError
+              );
+              throw updateError;
+            }
 
             return true;
           } catch (error) {

@@ -143,6 +143,15 @@ interface ToggleClassSelectionOptions {
    * write (MYK9-530).
    */
   isAddInFlight: () => boolean;
+  /**
+   * Whether the cart being mutated is this show's and this exhibitor's, and has
+   * finished loading (`isCartReady`). The chips are rendered disabled while it
+   * is false; this is the second half of that guard, for a click that lands
+   * anyway (MYK9-542).
+   */
+  isCartReady: boolean;
+  /** Called once per click that the readiness gate turned away. */
+  onBlockedByCart: () => void;
   notifyAdded: () => void;
   notifyError: (message: string) => void;
 }
@@ -160,6 +169,8 @@ export async function toggleClassSelection({
   removeItem,
   setAddingItem,
   isAddInFlight,
+  isCartReady,
+  onBlockedByCart,
   notifyAdded,
   notifyError,
 }: ToggleClassSelectionOptions): Promise<void> {
@@ -172,6 +183,15 @@ export async function toggleClassSelection({
         ? removeClassFromSelections(classSelections, dogId, classId)
         : addClassToSelections(classSelections, dogId, trialId, classId)
     );
+    return;
+  }
+
+  // Nothing may be computed against a cart that is still loading, or that is
+  // still the previous show's -- see `isCartReady` for what each branch does
+  // wrong in that window. The chips render disabled meanwhile, so this is the
+  // keyboard/race path rather than the ordinary one (MYK9-542).
+  if (!isCartReady) {
+    onBlockedByCart();
     return;
   }
 
@@ -188,7 +208,19 @@ export async function toggleClassSelection({
   // `entry_cart_items_unique_dog_class_idx` (23505) -- MYK9-530.
   if (isSelected) {
     if (cartItem) {
-      const removed = await removeItem(cartItem.id);
+      // Hold the same in-flight flag the add path holds: a remove and an add
+      // that overlap both compute their new item list from the cart they read
+      // on entry, so whichever `set` lands second silently drops the other's
+      // row from the local list -- the same divergence this fix exists to
+      // close. `finally`, so a rejected mutation cannot wedge the step with a
+      // flag that is never cleared (MYK9-530 review).
+      setAddingItem(`${dogId}-${classId}`);
+      let removed: boolean;
+      try {
+        removed = await removeItem(cartItem.id);
+      } finally {
+        setAddingItem(null);
+      }
       if (!removed) {
         notifyError('Failed to remove from cart');
         return;
@@ -202,8 +234,12 @@ export async function toggleClassSelection({
   }
 
   setAddingItem(`${dogId}-${classId}`);
-  const added = await addItem({ dogId, classId, entryFeeCents: entryFee * 100 });
-  setAddingItem(null);
+  let added: boolean;
+  try {
+    added = await addItem({ dogId, classId, entryFeeCents: entryFee * 100 });
+  } finally {
+    setAddingItem(null);
+  }
   if (!added) {
     notifyError('Failed to add to cart');
     return;

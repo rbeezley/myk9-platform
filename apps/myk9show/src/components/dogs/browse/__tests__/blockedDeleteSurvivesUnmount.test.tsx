@@ -59,13 +59,28 @@ describe('useBlockedDogDeletes', () => {
     expect(result.current.blockedDogs.map(d => d.id)).toEqual(['a', 'b']);
   });
 
-  it('replaces rather than appends, so a retry does not duplicate a dog', () => {
+  // This test previously asserted the OPPOSITE — that a second report REPLACES
+  // the first. That shipped a P1: `useBulkDispatch` retries only the UNCLAIMED
+  // subset, so a retry's blocked set is disjoint from what is already shown.
+  // Replacing dropped the earlier dogs from the dialog while they were also
+  // absent from the toast's detail lines, leaving them reported NOWHERE — the
+  // exact silence MYK9-584 exists to prevent, one level up.
+  it('accumulates across reports so an earlier batch is never dropped', () => {
     const { result } = renderHook(() => useBlockedDogDeletes(), { wrapper });
 
     act(() => result.current.reportBlocked([dog('a'), dog('b')]));
-    act(() => result.current.reportBlocked([dog('a')]));
+    act(() => result.current.reportBlocked([dog('c')]));
 
-    expect(result.current.blockedDogs.map(d => d.id)).toEqual(['a']);
+    expect(result.current.blockedDogs.map(d => d.id)).toEqual(['a', 'b', 'c']);
+  });
+
+  it('de-duplicates by id, so re-reporting the same dog does not list it twice', () => {
+    const { result } = renderHook(() => useBlockedDogDeletes(), { wrapper });
+
+    act(() => result.current.reportBlocked([dog('a'), dog('b')]));
+    act(() => result.current.reportBlocked([dog('b'), dog('c')]));
+
+    expect(result.current.blockedDogs.map(d => d.id)).toEqual(['a', 'b', 'c']);
   });
 
   it('clears on dismiss', () => {

@@ -15,6 +15,18 @@ export interface UseBlockedDogDeletesResult {
   isSubmitting: boolean;
 }
 
+/** Union by id, preserving first-seen order. */
+function mergeById(existing: Dog[], incoming: Dog[]): Dog[] {
+  const seen = new Set(existing.map(d => d.id));
+  const merged = existing.slice();
+  for (const dog of incoming) {
+    if (seen.has(dog.id)) continue;
+    seen.add(dog.id);
+    merged.push(dog);
+  }
+  return merged;
+}
+
 /**
  * Owns the "these dogs could not be deleted" state for the dogs browse page.
  *
@@ -33,9 +45,13 @@ export function useBlockedDogDeletes(onResolved?: () => void): UseBlockedDogDele
   const dispatch = useBulkDispatch<Dog>({ getLabel: getDogDisplayName });
 
   const reportBlocked = useCallback((dogs: Dog[]) => {
-    // Replace rather than append: each dispatch reports the full blocked set
-    // for that batch, and appending would duplicate a dog across a retry.
-    setBlockedDogs(dogs);
+    // ACCUMULATE, never replace. `useBulkDispatch` retries only the UNCLAIMED
+    // subset, so a retry's blocked set is disjoint from what is already on
+    // screen — replacing would drop the earlier dogs from the dialog while they
+    // are also absent from the toast's detail lines (claimed items are stripped
+    // there by design), leaving them reported nowhere at all. That is the exact
+    // silence MYK9-584 exists to prevent, reintroduced one level up.
+    setBlockedDogs(current => mergeById(current, dogs));
   }, []);
 
   const dismiss = useCallback(() => setBlockedDogs([]), []);
@@ -43,14 +59,33 @@ export function useBlockedDogDeletes(onResolved?: () => void): UseBlockedDogDele
   const forceDelete = useCallback(() => {
     const dogs = blockedDogs;
     if (dogs.length === 0) return;
-    setBlockedDogs([]);
-    void dispatch.run(
-      dogs,
-      async d => {
-        await forceDeleteDogMutation.mutateAsync({ id: d.id });
-      },
-      { onFullSuccess: onResolved }
-    );
+
+    // The list is NOT cleared up front. Clearing it synchronously unmounted the
+    // dialog in the same commit that set `isBusy`, so the in-flight state could
+    // never render — and a failed override destroyed the only persistent record
+    // of which dogs were blocked, leaving a transient toast as the sole report.
+    // Clear on full success; re-seed from the failures otherwise.
+    void dispatch
+      .run(
+        dogs,
+        async d => {
+          await forceDeleteDogMutation.mutateAsync({ id: d.id });
+        },
+        {
+          onFullSuccess: () => {
+            setBlockedDogs([]);
+            onResolved?.();
+          },
+        }
+      )
+      .then(outcome => {
+        // `null` means the in-flight latch swallowed the dispatch: nothing ran,
+        // so the list must stay exactly as it was.
+        if (!outcome) return;
+        if (outcome.failed.length > 0) {
+          setBlockedDogs(outcome.failed.map(({ item }) => item));
+        }
+      });
   }, [blockedDogs, dispatch, forceDeleteDogMutation, onResolved]);
 
   return {

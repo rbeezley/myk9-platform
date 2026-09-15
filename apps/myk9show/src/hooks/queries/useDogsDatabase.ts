@@ -304,7 +304,10 @@ const useDogDeleteMutation = (
         const index = dogs.findIndex(dog => dog.id === deletedId);
         if (index === -1) continue;
         removed.push({ queryKey, index, dog: dogs[index] });
-        queryClient.setQueryData(queryKey, dogs.filter(dog => dog.id !== deletedId));
+        queryClient.setQueryData(
+          queryKey,
+          dogs.filter(dog => dog.id !== deletedId)
+        );
       }
 
       return { removed };

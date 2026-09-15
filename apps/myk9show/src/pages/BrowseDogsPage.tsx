@@ -367,23 +367,27 @@ const BrowseDogsPage: React.FC = () => {
               onBlockedDogs={blockedDeletes.reportBlocked}
             />
           )}
-
-          {/* Rendered at page level and gated only on its own state, so it
-              survives the selection pruning that unmounts the bar above. */}
-          {blockedDeletes.blockedDogs.length > 0 && (
-            <BlockedDogDeleteDialog
-              dogs={blockedDeletes.blockedDogs}
-              open
-              onClose={blockedDeletes.dismiss}
-              onForceDelete={blockedDeletes.forceDelete}
-              isSubmitting={blockedDeletes.isSubmitting}
-              canForceDelete={canForceDeleteDogs}
-            />
-          )}
         </>
       )}
 
       {/* Create Dog Panel */}
+      {/* Gated ONLY on its own state, and deliberately outside the
+          loading/error fragment above. Anchoring it there was still wrong: a
+          failed delete now invalidates the dogs query, and if that refetch
+          errors, `hasError` flips and would unmount the very report explaining
+          the failure. This is the report of last resort — nothing about the
+          list's health may take it away (MYK9-584). */}
+      {blockedDeletes.blockedDogs.length > 0 && (
+        <BlockedDogDeleteDialog
+          dogs={blockedDeletes.blockedDogs}
+          open
+          onClose={blockedDeletes.dismiss}
+          onForceDelete={blockedDeletes.forceDelete}
+          isSubmitting={blockedDeletes.isSubmitting}
+          canForceDelete={canForceDeleteDogs}
+        />
+      )}
+
       <AddDogPanel
         open={showCreateDogPanel}
         onClose={closeCreateDogPanel}

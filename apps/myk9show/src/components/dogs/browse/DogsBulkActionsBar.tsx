@@ -66,12 +66,12 @@ export function DogsBulkActionsBar({
     selectedDogsRef.current = selectedDogs;
   }, [selectedDogs]);
 
-  // The bar chrome is pointless with nothing selected, but the blocked-delete
-  // dialog must outlive the selection: a delete that clears every selected dog
-  // except the blocked ones would otherwise take the only path to the override
-  // with it. So this renders conditionally INSIDE the tree rather than as an
-  // early return.
-  const hasSelection = selectedDogs.length > 0;
+  // Nothing selected means nothing to act on. This is a plain early return
+  // again: the blocked-delete dialog that once had to outlive the selection now
+  // lives on the page (MYK9-584), so this component owns no state that must
+  // survive its own unmount.
+  if (selectedDogs.length === 0) return null;
+
   const count = selectedDogs.length;
 
   const handleBulkSetStatus = (dogs: Dog[], status: DogStatus) => {
@@ -112,14 +112,18 @@ export function DogsBulkActionsBar({
       },
       {
         onFullSuccess: onClear,
-        // Keep the paid/scored refusals out of the toast's DETAIL LINES so it
-        // does not duplicate the page's dialog. The toast itself still fires
-        // with an honest count — suppressing it entirely is what made this
-        // silent in production (MYK9-584).
-        claimFailure: (_dog, error) => isBlockedByPaidOrScoredEntries(error),
-        // Fires on retries too, so a retried failure that comes back blocked
-        // still reaches the page rather than vanishing.
-        ...(onBlockedDogs ? { onClaimedFailures: onBlockedDogs } : {}),
+        // Both halves or neither. Claiming strips the dog names and the reason
+        // from the toast's detail lines because the page's dialog carries them —
+        // so without a listener the user would get a bare count and no recourse.
+        // The two options are wired together, never one-sided (MYK9-584).
+        ...(onBlockedDogs
+          ? {
+              claimFailure: (_dog: Dog, error: unknown) => isBlockedByPaidOrScoredEntries(error),
+              // Fires on retries too, so a retried failure that comes back
+              // blocked still reaches the page rather than vanishing.
+              onClaimedFailures: onBlockedDogs,
+            }
+          : {}),
       }
     );
   };
@@ -138,35 +142,26 @@ export function DogsBulkActionsBar({
 
   return (
     <>
-      {hasSelection && (
-        <>
-          <div aria-hidden="true" style={{ height: barHeight }} />
+      <div aria-hidden="true" style={{ height: barHeight }} />
 
-          <div
-            ref={actionBarRef}
-            className="fixed bottom-0 left-0 right-0 z-50 border-t bg-background p-3 shadow-lg"
-            role="region"
-            aria-label="Bulk dog actions"
-          >
-            <div className="container mx-auto flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
-              <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
-                <span className="text-sm font-medium">
-                  {count} dog{count === 1 ? '' : 's'} selected
-                </span>
-                <Button variant="ghost" size="sm" onClick={onClear} disabled={isBusy}>
-                  Clear
-                </Button>
-              </div>
-              <RowActionMenu
-                actions={actions}
-                size="touch"
-                label="Bulk actions"
-                disabled={isBusy}
-              />
-            </div>
+      <div
+        ref={actionBarRef}
+        className="fixed bottom-0 left-0 right-0 z-50 border-t bg-background p-3 shadow-lg"
+        role="region"
+        aria-label="Bulk dog actions"
+      >
+        <div className="container mx-auto flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+            <span className="text-sm font-medium">
+              {count} dog{count === 1 ? '' : 's'} selected
+            </span>
+            <Button variant="ghost" size="sm" onClick={onClear} disabled={isBusy}>
+              Clear
+            </Button>
           </div>
-        </>
-      )}
+          <RowActionMenu actions={actions} size="touch" label="Bulk actions" disabled={isBusy} />
+        </div>
+      </div>
 
       <DeleteConfirmationDialog
         open={pendingDelete !== null}
@@ -181,7 +176,6 @@ export function DogsBulkActionsBar({
         isDeleting={deleteDispatch.isBusy}
         warningText="Deleting these dogs also removes their show entries, cart items and waitlist spots. This action cannot be undone."
       />
-
     </>
   );
 }

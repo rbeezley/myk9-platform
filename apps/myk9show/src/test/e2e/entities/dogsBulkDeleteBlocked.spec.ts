@@ -58,6 +58,13 @@ async function confirmBulkDelete(page: Page) {
 }
 
 test.describe('bulk delete of dogs the server refuses', () => {
+  // Pinned, because the geometry assertion below is only meaningful on a
+  // viewport short enough for the dialog to hit its 90vh cap. playwright.config
+  // runs six projects, and on the 1024px-tall tablet the pre-fix inline footer
+  // would have fitted anyway — the guard would pass vacuously there. 720 is the
+  // height the original defect was measured at.
+  test.use({ viewport: { width: 1280, height: 720 } });
+
   test.beforeEach(async ({ page }) => {
     await signInAsAdmin(page, '/dogs');
   });
@@ -118,10 +125,7 @@ test.describe('bulk delete of dogs the server refuses', () => {
     await confirmBulkDelete(page);
 
     await expect(page.getByText(/could not be deleted/i)).toBeVisible({ timeout: 15_000 });
-    await page
-      .getByRole('dialog')
-      .getByRole('button', { name: 'Close', exact: true })
-      .click();
+    await page.getByRole('dialog').getByRole('button', { name: 'Close', exact: true }).click();
 
     // Still there without a refresh...
     const search = page.getByPlaceholder('Search dogs by name, breed, or owner...');

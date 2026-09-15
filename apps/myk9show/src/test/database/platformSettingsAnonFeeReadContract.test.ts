@@ -192,7 +192,14 @@ describe('barrier 3 — the anonymous SESSION, judged as `authenticated`', () =>
  */
 describe('the column set the anonymous-session trade-off was judged against', () => {
   const CREATED_COLUMNS = ['id', 'platform_fee_percent', 'updated_at', 'updated_by'];
-  const ADDED_COLUMNS = ['platform_fee_flat_cents', 'platform_fee_min_cents'];
+  // MYK9-579: stripe_livemode inherits the SAME anonymous-session trade-off as
+  // the fee columns (whole-row admission via the authenticated table grant) —
+  // deliberately, since no anon or passcode-session surface reads it. Adding
+  // it here is the "re-decide, don't inherit silently" force-fail this test
+  // exists for; the anon COLUMN grant below stays at exactly the three fee
+  // columns, because stripe_livemode is read only by genuinely signed-in
+  // (non-anonymous-session) callers via the existing table-level grant.
+  const ADDED_COLUMNS = ['platform_fee_flat_cents', 'platform_fee_min_cents', 'stripe_livemode'];
 
   it('is exactly the six columns reviewed in MYK9-229', () => {
     const added = ALL_STATEMENTS.flatMap(({ statement }) => {
@@ -216,6 +223,7 @@ describe('the column set the anonymous-session trade-off was judged against', ()
         'platform_fee_flat_cents',
         'platform_fee_min_cents',
         'platform_fee_percent',
+        'stripe_livemode',
         'updated_at',
         'updated_by',
       ].sort()

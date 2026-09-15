@@ -11,6 +11,8 @@ import { useUpdateShowMutation } from '@/hooks/queries/useShowsDatabase';
 import { useClubStripeAccount } from '@/features/payments/useClubStripeAccount';
 import {
   canEnableOnlineEntries,
+  isPublishGateDbError,
+  publishGateDbErrorMessage,
   PUBLISH_BLOCKED_MESSAGE,
 } from '@/features/payments/onlineEntryGate';
 
@@ -106,7 +108,17 @@ export function ShowStatusPill({ showId, status, clubId }: ShowStatusPillProps) 
     try {
       await mutateAsync({ id: showId, updates: { status: next } });
       toast.success(`Show ${next === 'published' ? 'published' : 'moved to draft'}.`);
-    } catch {
+    } catch (error) {
+      // Backstop: the client-side checks above already cover the common
+      // case, but a stale cache or a race can still reach the DB trigger
+      // (enforce_show_publish_gate, MYK9-579). Its refusal text IS the
+      // friendly copy, so surface it instead of the generic fallback.
+      if (isPublishGateDbError(error)) {
+        toast.error(publishGateDbErrorMessage(error) ?? PUBLISH_BLOCKED_MESSAGE, {
+          action: { label: 'Open Payments', onClick: () => navigate('/club-admin/payments') },
+        });
+        return;
+      }
       toast.error('Failed to update show status. Please try again.');
     }
   }

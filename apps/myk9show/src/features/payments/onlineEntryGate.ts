@@ -1,3 +1,5 @@
+import { getErrorMessage } from '@myk9/core';
+
 // Publishing a show opens online entries (status 'published' is the
 // entries-open state), and online entry fees can only be paid out to clubs
 // with a working Stripe Connect account. Fail closed: no account row, or a
@@ -11,4 +13,39 @@ export function canEnableOnlineEntries(
   account: { payouts_enabled: boolean } | null | undefined
 ): boolean {
   return account?.payouts_enabled === true;
+}
+
+// MYK9-579: the client-side checks above are a UX convenience, not the
+// enforcement boundary — enforce_show_publish_gate() (a BEFORE UPDATE OF
+// status trigger on public.shows, supabase/migrations/20260915195500) is the
+// backstop that actually blocks a stale-cache or hand-crafted publish. It
+// raises with this SQLSTATE for BOTH of its refusals (missing club, and no
+// payouts-enabled Stripe account), and its RAISE EXCEPTION text is already
+// this module's own friendly copy — see the trigger's own comment — so the
+// client never needs a second static message table keyed by code the way
+// MK001/MK002 (apps/myk9show/src/utils/errorMessages.ts) are: it can just
+// trust `error.message` once the code confirms the refusal came from here.
+export const PUBLISH_GATE_ERRCODE = 'MK003';
+
+/** True when `error` is the DB publish-gate trigger's refusal (SQLSTATE MK003),
+ * as opposed to any other failure (network, unrelated constraint, ...). */
+export function isPublishGateDbError(error: unknown): boolean {
+  return (
+    typeof error === 'object' &&
+    error !== null &&
+    'code' in error &&
+    (error as { code?: unknown }).code === PUBLISH_GATE_ERRCODE
+  );
+}
+
+/**
+ * The friendly message for a publish-gate DB refusal, or `null` when `error`
+ * is not one. The trigger's exception text already IS the friendly copy (it
+ * mirrors PUBLISH_BLOCKED_MESSAGE and the "assign a club" message verbatim),
+ * so this trusts `error.message` rather than re-deriving it — one code covers
+ * both of the trigger's refusals, and only the DB text tells them apart.
+ */
+export function publishGateDbErrorMessage(error: unknown): string | null {
+  if (!isPublishGateDbError(error)) return null;
+  return getErrorMessage(error);
 }

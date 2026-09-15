@@ -12,18 +12,32 @@ export interface ClubStripeAccount {
 }
 
 // The client must inspect the same mode-scoped account row as the checkout
-// edge function. Staging defaults to Stripe test mode; production can opt into
-// live mode with VITE_STRIPE_LIVEMODE=true.
-const stripeLivemode = import.meta.env.VITE_STRIPE_LIVEMODE === 'true';
+// edge function. MYK9-579: platform_settings.stripe_livemode is the single
+// server-side source of truth for which Stripe mode is authoritative — it
+// replaces the build-time VITE_STRIPE_LIVEMODE env var, which a database
+// trigger (enforce_show_publish_gate, supabase/migrations/20260915195500)
+// cannot read. `authenticated` already holds table-level SELECT on
+// platform_settings (20260615180000), so this read needs no new grant.
+async function fetchStripeLivemode(): Promise<boolean> {
+  const { data, error } = await supabase
+    .from('platform_settings')
+    .select('stripe_livemode')
+    .eq('id', true)
+    .maybeSingle();
+
+  if (error) throw error;
+  return data?.stripe_livemode === true;
+}
 
 /** Exported for save-time (imperative) gate checks — e.g. ShowEditPanel,
  * where a hook subscription can't see the form's possibly-changed clubId. */
 export async function fetchClubStripeAccount(clubId: string): Promise<ClubStripeAccount | null> {
+  const livemode = await fetchStripeLivemode();
   const { data, error } = await supabase
     .from('club_stripe_accounts')
     .select('id, club_id, stripe_account_id, livemode, onboarding_complete, payouts_enabled')
     .eq('club_id', clubId)
-    .eq('livemode', stripeLivemode)
+    .eq('livemode', livemode)
     .maybeSingle();
 
   if (error) throw error;
@@ -40,9 +54,10 @@ export function useClubStripeAccount(clubId: string | undefined) {
 }
 
 export async function fetchClubStripePaymentReadiness(clubId: string): Promise<boolean> {
+  const livemode = await fetchStripeLivemode();
   const { data, error } = await supabase.rpc('can_accept_online_entry_payment', {
     p_club_id: clubId,
-    p_livemode: stripeLivemode,
+    p_livemode: livemode,
   });
 
   if (error) throw error;
@@ -51,7 +66,7 @@ export async function fetchClubStripePaymentReadiness(clubId: string): Promise<b
 
 export function useClubStripePaymentReadiness(clubId: string | undefined) {
   return useQuery({
-    queryKey: ['club-stripe-payment-readiness', clubId, stripeLivemode],
+    queryKey: ['club-stripe-payment-readiness', clubId],
     queryFn: () => fetchClubStripePaymentReadiness(clubId!),
     enabled: !!clubId,
     ...cacheStrategies.moderate,

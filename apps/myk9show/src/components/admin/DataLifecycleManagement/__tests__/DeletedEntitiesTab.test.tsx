@@ -6,12 +6,18 @@ import { DeletedEntitiesTab } from '../DeletedEntitiesTab';
 /*  Mocks                                                              */
 /* ------------------------------------------------------------------ */
 
-const { mockNot, mockFrom, mockRpc } = vi.hoisted(() => {
+const { mockNot, mockFrom, mockRpc, mockHardDeleteShow, mockNotifyError } = vi.hoisted(() => {
   const mockNot = vi.fn();
   const mockFrom = vi.fn().mockReturnValue({ select: () => ({ not: mockNot }) });
   const mockRpc = vi.fn();
-  return { mockNot, mockFrom, mockRpc };
+  const mockHardDeleteShow = vi.fn().mockResolvedValue({ error: null });
+  const mockNotifyError = vi.fn();
+  return { mockNot, mockFrom, mockRpc, mockHardDeleteShow, mockNotifyError };
 });
+
+vi.mock('@/lib/notifications', () => ({
+  notifications: { error: mockNotifyError, success: vi.fn(), info: vi.fn(), warning: vi.fn() },
+}));
 
 vi.mock('@/services/database/supabaseClient', () => ({
   supabase: { from: mockFrom, rpc: mockRpc },
@@ -36,7 +42,8 @@ vi.mock('@/services/LoggingService', () => ({
 vi.mock('@/services/database/shows', () => ({
   getDeletedShows: vi.fn().mockResolvedValue({ data: [], error: null }),
   restoreShow: vi.fn().mockResolvedValue({ error: null }),
-  hardDeleteShow: vi.fn().mockResolvedValue({ error: null }),
+  hardDeleteShow: mockHardDeleteShow,
+  SHOW_HAS_STRIPE_ORDERS: 'SHOW_HAS_STRIPE_ORDERS',
 }));
 
 vi.mock('@/services/database/trials', () => ({
@@ -134,6 +141,7 @@ describe('DeletedEntitiesTab', () => {
     // Default: all counts resolve to 0
     mockNot.mockResolvedValue({ count: 0, error: null });
     mockRpc.mockResolvedValue({ data: [], error: null });
+    mockHardDeleteShow.mockResolvedValue({ error: null });
   });
 
   it('shows loading state initially', () => {
@@ -212,5 +220,64 @@ describe('DeletedEntitiesTab', () => {
     });
 
     expect(screen.getByText(/permanently delete "Test Name"/i)).toBeInTheDocument();
+  });
+
+  // MYK9-527: the ledger guard's refusal is not transient, so "Please try
+  // again" is the wrong advice. Its own message must reach the admin.
+  it('renders the Stripe ledger guard message instead of the generic retry advice', async () => {
+    mockHardDeleteShow.mockResolvedValue({
+      error: {
+        code: 'SHOW_HAS_STRIPE_ORDERS',
+        message:
+          'This show has 3 Stripe orders; refunds and reconciliation still reference them. Resolve or reassign those orders before deleting the show permanently.',
+      },
+    });
+    setCountsPerTable({ shows: 1 });
+
+    render(<DeletedEntitiesTab />);
+
+    await waitFor(() => {
+      expect(screen.getByTestId('section-show')).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByText('Delete Shows'));
+    await waitFor(() => {
+      expect(screen.getByText('Permanently Delete Show?')).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Delete Forever' }));
+
+    await waitFor(() => {
+      expect(mockNotifyError).toHaveBeenCalledWith(
+        'This show has 3 Stripe orders; refunds and reconciliation still reference them. Resolve or reassign those orders before deleting the show permanently.'
+      );
+    });
+    expect(mockNotifyError).not.toHaveBeenCalledWith(expect.stringContaining('Please try again'));
+  });
+
+  it('still shows the generic retry advice for an unrelated delete failure', async () => {
+    mockHardDeleteShow.mockResolvedValue({
+      error: { code: '40P01', message: 'deadlock detected' },
+    });
+    setCountsPerTable({ shows: 1 });
+
+    render(<DeletedEntitiesTab />);
+
+    await waitFor(() => {
+      expect(screen.getByTestId('section-show')).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByText('Delete Shows'));
+    await waitFor(() => {
+      expect(screen.getByText('Permanently Delete Show?')).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Delete Forever' }));
+
+    await waitFor(() => {
+      expect(mockNotifyError).toHaveBeenCalledWith(
+        "Couldn't permanently delete Show. Please try again."
+      );
+    });
   });
 });

@@ -80,6 +80,17 @@ export async function deleteUserHandler({ body, user, supabase }: HandlerCtx<Del
     if (deleteError.code === 'MK001') {
       throw new HttpError(409, deleteError.message, 'MK001');
     }
+    // MYK9-527: enrollments.handler_id is ON DELETE CASCADE from people, and
+    // stripe_orders.enrollment_id is now ON DELETE RESTRICT, so deleting a
+    // person who ever paid raises a bare 23503 from a table the admin never
+    // named. Surface it as an actionable 409 rather than a generic 500.
+    if (deleteError.code === '23503') {
+      throw new HttpError(
+        409,
+        'This person has Stripe orders that refunds and reconciliation still reference, so their record cannot be permanently deleted. Resolve or reassign those orders first.',
+        '23503'
+      );
+    }
     throw new HttpError(500, 'Failed to delete user record');
   }
 

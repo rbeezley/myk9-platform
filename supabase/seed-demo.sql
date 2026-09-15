@@ -250,6 +250,7 @@ DO $$
 DECLARE
   v_real integer; v_bare integer; v_ids text; v_bare_ids text;
   v_enroll_real integer; v_enroll_ids text;
+  v_order_real integer; v_order_ids text;
 BEGIN
   -- Guard the HARM, not the label. A paid/refunded row that also carries a
   -- trail — entry_status_history, a Stripe payment intent or order, a recorded
@@ -345,6 +346,32 @@ BEGIN
       -- this arm runs. Exclude it by id — confirmed the ONLY enrollment this
       -- seed inserts (one INSERT INTO public.enrollments in this file).
       AND en.id <> 'dededede-0000-0000-0000-000000000070'
+  ),
+  -- MYK9-527. Both stripe_orders scope FKs are ON DELETE RESTRICT as of
+  -- migration 20260915191700, so any order pointing at a show this section
+  -- deletes — or at an enrollment on one of those shows, which cascades from
+  -- shows — now ABORTS the reseed with a bare 23503 somewhere deep in the
+  -- delete sequence instead of silently nulling the ledger. Refuse here
+  -- instead, before the first parent delete, with the same operator
+  -- instructions the two arms above carry.
+  --
+  -- Scoped to EVERY show in scope_shows, not only show ...010: the narrower
+  -- guard further down section 0 (added in #2248) covers the demo exhibitor's
+  -- enrollment and show ...010 only, so an order on ...011, ...012 or any
+  -- a1090000… load show was unguarded. That is the mechanism that produced the
+  -- 22 fully-orphaned rows on staging.
+  --
+  -- Rows whose scope columns are ALREADY null are deliberately NOT matched:
+  -- they reference no parent, so RESTRICT cannot fire on them and they block
+  -- nothing. They are reported by the RAISE WARNING further down instead.
+  order_stray AS (
+    SELECT so.id
+    FROM public.stripe_orders so
+    WHERE so.show_id IN (SELECT id FROM scope_shows)
+       OR so.enrollment_id IN (
+            SELECT en.id FROM public.enrollments en
+            WHERE en.show_id IN (SELECT id FROM scope_shows)
+          )
   )
   SELECT (SELECT count(*) FROM substantiated),
          (SELECT count(*) FROM stray) - (SELECT count(*) FROM substantiated),
@@ -357,8 +384,12 @@ BEGIN
                 WHERE id NOT IN (SELECT id FROM substantiated) ORDER BY id LIMIT 10) t),
          (SELECT count(*) FROM enrollment_stray),
          (SELECT string_agg(t.id::text, ', ' ORDER BY t.id)
-          FROM (SELECT id FROM enrollment_stray ORDER BY id LIMIT 10) t)
-    INTO v_real, v_bare, v_ids, v_bare_ids, v_enroll_real, v_enroll_ids;
+          FROM (SELECT id FROM enrollment_stray ORDER BY id LIMIT 10) t),
+         (SELECT count(*) FROM order_stray),
+         (SELECT string_agg(t.id::text, ', ' ORDER BY t.id)
+          FROM (SELECT id FROM order_stray ORDER BY id LIMIT 10) t)
+    INTO v_real, v_bare, v_ids, v_bare_ids, v_enroll_real, v_enroll_ids,
+         v_order_real, v_order_ids;
 
   IF v_bare > 0 THEN
     RAISE WARNING 'seed-demo: % paid/refunded entr(ies) on data this reseed deletes carry no payment trail (no history, no Stripe record, no reference) and will be removed with their parents. First ids: %', v_bare, v_bare_ids;
@@ -370,6 +401,10 @@ BEGIN
 
   IF v_enroll_real > 0 THEN
     RAISE EXCEPTION 'seed-demo: % paid or refunded enrollment(s) sit on a show this reseed deletes — refusing to cascade them away. First ids: %. For the full set, run this guard''s enrollment_stray CTE as a SELECT (~65 lines into section 0 of supabase/seed-demo.sql). To clear it, HARD-delete those rows from public.enrollments by id (there is no soft-delete column to set instead — a cascade from shows takes the row regardless). Never widen this guard to get past it.', v_enroll_real, v_enroll_ids;
+  END IF;
+
+  IF v_order_real > 0 THEN
+    RAISE EXCEPTION 'seed-demo: % Stripe order(s) point at a show this reseed deletes, or at an enrollment on one of those shows — refusing to orphan a money ledger row (MYK9-527). First ids: %. Both scope FKs are ON DELETE RESTRICT (migration 20260915191700), so continuing would abort with a raw foreign-key violation later anyway. For the full set, run this guard''s order_stray CTE as a SELECT (~70 lines into section 0 of supabase/seed-demo.sql). To clear it, resolve those orders deliberately — reassign their scope, or delete them only as a reviewed operator step, remembering public.stripe_order_refunds.order_id is RESTRICT too. Never widen this guard to get past it.', v_order_real, v_order_ids;
   END IF;
 END $$;
 

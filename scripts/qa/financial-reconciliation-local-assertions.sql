@@ -311,14 +311,22 @@ SELECT concat_ws(':', o.status, o.refunded_cents, o.refunded_at IS NOT NULL,
 PERFORM public.test_true(bad = 'refunded:500:t:t',
   format('later order insert attaches and recomputes refund (got %s)', bad));
 
-DELETE FROM public.stripe_orders
- WHERE stripe_payment_intent_id = 'pi_refund_before_order';
-SELECT concat_ws(':', f.stripe_payment_intent_id, f.order_id IS NULL, f.state)
-  INTO bad
-  FROM public.stripe_order_refunds f
- WHERE f.stripe_refund_id = 're_before_order';
-PERFORM public.test_true(bad = 'pi_refund_before_order:t:succeeded',
-  format('order deletion detaches but retains refund audit fact (got %s)', bad));
+-- MYK9-527 removed the "order deletion detaches but retains refund audit fact"
+-- assertion that stood here. stripe_order_refunds.order_id is ON DELETE
+-- RESTRICT as of migration 20260915191700, so deleting an order that still has
+-- a refund row is refused outright; that property no longer exists.
+--
+-- It is deliberately NOT re-asserted here in inverted form: this harness
+-- applies only 20260717122000 and 20260717130000 to its throwaway cluster, so
+-- its schema predates the RESTRICT and either form of the assertion describes a
+-- shape the harness cannot reach -- the permanently-green fossil this deletion
+-- removes. The real behaviour is pinned behaviourally in
+-- supabase/tests/stripe_ledger_fks_restrict_test.sql (F527.0 and F527.4), which
+-- runs in CI against a cluster carrying every migration.
+--
+-- The 'pi_refund_before_order' order on show s5 therefore survives to the end
+-- of this file. Nothing after this point reads s5 (verified 2026-09-15), so no
+-- later assertion shifts.
 
 INSERT INTO public.stripe_orders
   (stripe_payment_intent_id, show_id, status, order_type, amount_cents,

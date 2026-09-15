@@ -2,6 +2,19 @@
 
 The rule for each of these lives in `CLAUDE.md` § LESSONS, one to three lines each with a pointer here. This file keeps the incident that produced it, verbatim as it was recorded, so the rule stays short without losing its evidence. Add a section here when you add a lesson; delete it when the lesson is retired (a lesson retires once a guard, test, lint rule, or type makes the trap structurally impossible — cite the PR in the commit message). `apps/myk9show/src/test/ci/instructionFileBudget.test.ts` fails when a CLAUDE.md pointer names a slug that is not a heading here.
 
+## Budget
+
+`apps/myk9show/src/test/ci/instructionFileBudget.test.ts` caps `CLAUDE.md` (< 7,500 words), `AGENTS.md` (< 5,000) and the LESSONS section (< 3,000). On 2026-09-14 (MYK9-534) those stood at 7,489 / 4,812 / 2,993 — 10, 187 and 6 words of headroom, so the next ordinary edit would have turned CI red.
+
+**Strategy: make room first, raise the ceiling only if making room cannot.** It could. Nine LESSONS bullets were removed and the ceilings left alone, restoring ~490 words of headroom in both `CLAUDE.md` and LESSONS. Two reasons a bullet goes:
+
+- **Retired** — a program now makes the trap structurally impossible (Self Learning's bar). Cite the program and the PR in the commit; the narrative stays here under its anchor, forever.
+- **Deduplicated** — the shared-rules body carried in the same file already states the rule in full, so the LESSONS copy is read twice per session and adds nothing.
+
+Nothing that is still a live trap only a human could have known about is removed to buy room.
+
+**Why the shared block counts twice.** `docs/agents/shared-rules.md` (~4,200 words) is generated verbatim into both `CLAUDE.md` and `AGENTS.md`, and the test charges it to each. That is deliberate, not double-counting: Claude Code loads `CLAUDE.md` whole into every session and every subagent, Codex loads `AGENTS.md` whole, and neither ever loads the union. The per-session token cost each ceiling exists to bound is one WHOLE file, so a de-duplicated "union" budget would measure a number no harness ever pays. The consequence to keep in mind is that a sentence added to the shared rulebook costs two budgets, which is the correct price signal: it is read by two harnesses.
+
 ## no-docker
 
 This project does not use Docker; use the configured Supabase/staging workflows for database and browser verification instead.

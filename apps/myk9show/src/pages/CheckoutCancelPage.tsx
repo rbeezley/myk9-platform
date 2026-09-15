@@ -12,7 +12,15 @@
  */
 
 import { useNavigate } from 'react-router-dom';
-import { XCircle, CheckCircle, ShoppingCart, ArrowLeft, ArrowRight, Eye } from 'lucide-react';
+import {
+  XCircle,
+  CheckCircle,
+  Loader2,
+  ShoppingCart,
+  ArrowLeft,
+  ArrowRight,
+  Eye,
+} from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { useCartStore, useCartItems } from '@/store/cartStore';
@@ -69,6 +77,33 @@ export default function CheckoutCancelPage() {
                 View your receipt
               </Button>
             </CardFooter>
+          </Card>
+        </div>
+      </div>
+    );
+  }
+
+  if (sessionStatus === 'checking') {
+    // INTENT: MYK9-509 — until the answer is in we do not know which page this
+    // is, so we must not render EITHER verdict. Disabling one button while the
+    // heading still reads "Payment Cancelled — your payment was not completed"
+    // tells an exhibitor whose card was charged the one thing this issue exists
+    // to prevent, and leaves the primary "Return to Cart" as a live route.
+    // A neutral, honest in-flight state is the whole of the fix; it also means
+    // no button below needs a `disabled` special case.
+    return (
+      <div className="bg-background pt-6">
+        <div className="max-w-2xl mx-auto px-4 py-16">
+          <Card>
+            <CardHeader className="text-center pb-2">
+              <div className="w-16 h-16 rounded-full bg-muted flex items-center justify-center mx-auto mb-4">
+                <Loader2 className="h-8 w-8 text-muted-foreground animate-spin" />
+              </div>
+              <CardTitle className="text-2xl">Checking this payment</CardTitle>
+              <p className="text-muted-foreground mt-2" role="status">
+                One moment while we confirm whether this checkout went through.
+              </p>
+            </CardHeader>
           </Card>
         </div>
       </div>
@@ -137,14 +172,12 @@ export default function CheckoutCancelPage() {
                 "add another class for Ziva" is possible without starting over.
                 The label says where it goes.
 
-                Suppressed while a session id is still being verified: until the
-                answer is in, this button may be offering a second payment for a
-                checkout that already succeeded.
+                Unreachable until the session verdict is in: the in-flight state
+                above renders instead of this whole landing.
               */
               <Button
                 variant="outline"
                 className="w-full"
-                disabled={sessionStatus === 'checking'}
                 onClick={() => navigate(continueShoppingTarget(returnShowId))}
               >
                 <ArrowRight className="h-4 w-4 mr-2" />

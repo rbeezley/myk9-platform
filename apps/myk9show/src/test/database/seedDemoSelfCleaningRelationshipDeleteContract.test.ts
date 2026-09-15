@@ -92,83 +92,50 @@ describe('seed-demo self-cleaning relationship deletes (MYK9-490 follow-up)', ()
     );
   });
 
-  it('refuses a paid stray on every show it clears, with each guard placed where it can still fire', () => {
-    // The registration_id checks cannot see a mail-in / non-wizard entry, and
-    // entries.show_id CASCADES, so the deletes below would destroy it silently.
-    // Scoped on show_id rather than through a class join because class_id is
-    // nullable — a join would be narrower than the cascade it guards.
-    //
-    // Placement is the whole game. The load shows' classes are deleted ~90 lines
-    // before the main guard block, so a single check down there is dead code for
-    // them: it would count rows that CASCADE had already removed and never fire.
-    // These assertions pin each guard BEFORE the deletes it protects, which is
-    // the part a substring check alone would miss.
-    const loadGuard = seed.indexOf('v_load_paid');
-    const demoGuard = seed.indexOf('v_class_paid');
-    expect(loadGuard, 'no load-show paid-stray guard').toBeGreaterThan(-1);
-    expect(demoGuard, 'no demo-show paid-stray guard').toBeGreaterThan(-1);
+  it('guards paid strays against every parent that cascades an entry, before any of them is deleted', () => {
+    // entries cascades from four parents — classes, dogs, shows, trials — so a
+    // paid row reached by ANY of them is destroyed silently. This went wrong
+    // twice before it was one guard: a per-show guard placed after the load
+    // classes could never fire, and a show-scoped guard missed demo-show
+    // entries whose DOG is a load-range fixture. Both assertions below encode
+    // that: the guard exists once, and it precedes every cascading delete.
+    const guard = seed.indexOf('v_stray');
+    expect(guard, 'no consolidated paid-stray guard').toBeGreaterThan(-1);
+    const block = seed.slice(guard, seed.indexOf('END $$;', guard));
 
-    const loadScope = seed.slice(loadGuard, seed.indexOf('END $$;', loadGuard));
-    expect(loadScope).toContain("e.show_id >= 'a1090000-0000-0000-0010-000000000000'");
-    expect(loadScope).toContain("e.show_id <  'a1090000-0000-0000-0011-000000000000'");
-    expect(loadScope).toContain("e.payment_status IN ('paid', 'refunded')");
-    expect(loadScope).toMatch(/RAISE EXCEPTION[^;]*load shows this reseed clears/);
+    expect(block).toContain("e.payment_status IN ('paid', 'refunded')");
+    expect(block).toContain('e.show_id IN');
+    expect(block).toContain('e.dog_id >=');
+    expect(block).toContain('e.dog_id IN');
+    expect(block).toMatch(/RAISE EXCEPTION[^;]*show, class, trial or dog this reseed deletes/);
 
-    const demoScope = seed.slice(demoGuard, seed.indexOf('END $$;', demoGuard));
-    for (const show of ['010', '011', '012']) {
-      expect(demoScope).toContain(`'dededede-0000-0000-0000-000000000${show}'`);
+    // Placement: ahead of EVERY delete of a parent that cascades entries.
+    for (const parent of ['classes', 'dogs', 'shows', 'trials']) {
+      const dels = statements(new RegExp(`DELETE FROM public\\.${parent}\\b[^;]*;`, 'g'));
+      expect(dels.length, `no ${parent} delete found`).toBeGreaterThan(0);
+      for (const del of dels) {
+        expect(
+          guard,
+          `the paid-stray guard runs after a ${parent} delete at offset ${del.index}, so those rows cascade unguarded`
+        ).toBeLessThan(del.index);
+      }
     }
-    expect(demoScope).toContain("e.payment_status IN ('paid', 'refunded')");
-    expect(demoScope).toMatch(/RAISE EXCEPTION[^;]*demo or sibling shows this reseed clears/);
-
-    // Each guard must precede every delete that would cascade the rows it counts.
-    const deletes = (pattern: RegExp) => statements(pattern).map(d => d.index);
-    const classDeletes = deletes(/DELETE FROM public\.classes\b[^;]*;/g);
-    const showDeletes = deletes(/DELETE FROM public\.shows\b[^;]*;/g);
-    expect(classDeletes.length).toBeGreaterThanOrEqual(2);
-    expect(showDeletes.length).toBeGreaterThanOrEqual(2);
-
-    // The load guard protects the FIRST class/show delete pair (the myk9_109
-    // range); a guard after it is inert, which is the defect this pins.
-    expect(
-      loadGuard,
-      'the load-show guard runs after the load classes are deleted, so it can never fire'
-    ).toBeLessThan(Math.min(...classDeletes));
-    expect(loadGuard).toBeLessThan(Math.min(...showDeletes));
-    // The demo guard must precede the LAST class/show delete (the demo show).
-    expect(demoGuard).toBeLessThan(Math.max(...classDeletes));
-    expect(demoGuard).toBeLessThan(Math.max(...showDeletes));
   });
 
-  it('covers every show the seed deletes with a paid-stray guard', () => {
-    // The guards re-state the show scope that the DELETE statements below also
-    // carry. Asserting the guards contain three known literals would be a
-    // tautology against drift: add a sibling show ...013 later, forget the
-    // guard, and its paid entries cascade away silently — the bug this file
-    // exists to prevent, reopened. So derive the expectation from the deletes.
-    const showDeletes = statements(/DELETE FROM public\.shows\b[^;]*;/g);
-    expect(showDeletes.length).toBeGreaterThanOrEqual(2);
+  it('names every show and dog id-space the seed deletes, so a new fixture cannot drift past the guard', () => {
+    // Deriving the expectation from the DELETE statements rather than
+    // restating the same literals: add a sibling show or a dog range later,
+    // forget the guard, and its paid entries cascade away silently.
+    const guard = seed.indexOf('v_stray');
+    const block = seed.slice(guard, seed.indexOf('END $$;', guard));
+    const covered = (literal: string) => block.includes(`'${literal}'`);
 
-    const guards = [seed.indexOf('v_load_paid'), seed.indexOf('v_class_paid')].map(i =>
-      seed.slice(i, seed.indexOf('END $$;', i))
-    );
-    const coveredBySomeGuard = (literal: string) => guards.some(g => g.includes(literal));
-
-    for (const del of showDeletes) {
-      const ids = uuidsIn(del.text);
-      for (const id of ids) {
-        expect(
-          coveredBySomeGuard(`'${id}'`),
-          `show ${id} is deleted by the seed but no paid-stray guard names it`
-        ).toBe(true);
-      }
-      // A range-bounded delete must have its bounds named by a guard instead.
-      if (ids.length === 0) {
-        const bounds = [...del.text.matchAll(/'([0-9a-f-]{36})'::uuid/g)].map(m => m[1]);
-        for (const bound of bounds) {
+    for (const parent of ['shows', 'dogs']) {
+      for (const del of statements(new RegExp(`DELETE FROM public\\.${parent}\\b[^;]*;`, 'g'))) {
+        for (const id of uuidsIn(del.text)) {
           expect(
-            coveredBySomeGuard(`'${bound}'`),
-            `show range bound ${bound} is deleted by the seed but no guard names it`
+            covered(id),
+            `${parent} ${id} is deleted by the seed but the paid-stray guard does not name it`
           ).toBe(true);
         }
       }

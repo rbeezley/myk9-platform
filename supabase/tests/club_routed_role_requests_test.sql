@@ -12,8 +12,11 @@
 --   3. A duplicate pending submit is swallowed (NULL id), not an error.
 --   4. A denial blocks a resubmission of the exact same request (MK571).
 --   5. A requester cannot read another person's role_requests row.
---   6. A club admin CAN read a pending secretary request for their own club,
---      and CANNOT read one for a club they do not administer.
+--   6. A club admin CAN read a pending secretary request for their own club
+--      through list_club_role_requests, CANNOT read one for a club they do
+--      not administer through it (42501), and CANNOT read a NULL-club
+--      secretary request via a direct SELECT either way — the P0 round 1
+--      shipped and round 2 removed.
 --   7. A LEGACY SHOW-scoped secretary request, approved by a site admin
 --      WITHOUT a show (the UI's actual shape — RoleRequestsPage.tsx never
 --      passes showId), still routes through grant_club_secretary and is
@@ -306,9 +309,17 @@ $$;
 RESET ROLE;
 
 -- ============================================================================
--- 3b. RLS on role_requests_select's new club-admin arm: this club's own
---     admin CAN read Grace's pending secretary request; another club's
---     admin CANNOT.
+-- 3b. Club-admin visibility of pending secretary requests is RPC-brokered
+--     (round 2, R1): role_requests_select carries NO club-admin arm any
+--     more (round 1's `is_club_admin(club_id)` arm was the P0 this
+--     restructure removed — see the migration header), so a club admin
+--     reads through public.list_club_role_requests(p_club_id) instead.
+--     This club's own admin CAN read Grace's pending secretary request
+--     through the RPC; another club's admin calling it WITH THIS CLUB'S id
+--     gets 42501, not an empty result — the RPC checks
+--     is_club_admin(p_club_id) against the id the CALLER passed, not
+--     against the request's own club, so this proves the caller cannot
+--     name someone else's club and get data back.
 -- ============================================================================
 
 SET LOCAL ROLE authenticated;
@@ -319,17 +330,82 @@ DECLARE
   v_visible_count int;
 BEGIN
   SELECT count(*) INTO v_visible_count
-  FROM public.role_requests
-  WHERE person_id = '00000000-0000-0000-0000-000000000b12'
-    AND club_id = '00000000-0000-0000-0000-000000000b21';
+  FROM public.list_club_role_requests('00000000-0000-0000-0000-000000000b21')
+  WHERE person_id = '00000000-0000-0000-0000-000000000b12';
 
   IF v_visible_count <> 1 THEN
     RAISE EXCEPTION
-      'FAIL this club''s own admin could not read the pending secretary request (% visible)',
+      'FAIL this club''s own admin could not read the pending secretary request via the RPC (% visible)',
       v_visible_count;
   END IF;
 
-  RAISE NOTICE 'PASS a club admin can read their own club''s pending secretary request';
+  RAISE NOTICE
+    'PASS a club admin can read their own club''s pending secretary request via list_club_role_requests';
+END;
+$$;
+
+RESET ROLE;
+
+SET LOCAL ROLE authenticated;
+SELECT set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-000000000b06', true);
+
+DO $$
+BEGIN
+  BEGIN
+    PERFORM public.list_club_role_requests('00000000-0000-0000-0000-000000000b21');
+    RAISE EXCEPTION
+      'FAIL another club''s admin could call list_club_role_requests for a club they do not administer';
+  EXCEPTION WHEN SQLSTATE '42501' THEN
+    RAISE NOTICE
+      'PASS another club''s admin gets 42501 calling list_club_role_requests for a club they do not administer';
+  END;
+END;
+$$;
+
+RESET ROLE;
+
+-- ============================================================================
+-- 3c. P0 regression: a NULL-club secretary request — the shape EVERY
+--     signup-generated row has, since insert_signup_role_requests never
+--     sets club_id — must be invisible to a club admin via a DIRECT SELECT.
+--     Round 1's now-removed arm, `is_club_admin(club_id)` with club_id
+--     NULL, answered "club admin anywhere?" and would have returned this
+--     row to every club admin on the platform; a direct SELECT (not the
+--     RPC, whose own `WHERE rr.club_id = p_club_id` already excludes NULL
+--     for any real club id) is what proves the POLICY itself carries no
+--     such arm any more. Inserted directly, matching how
+--     insert_signup_role_requests actually writes the row: no club_id.
+-- ============================================================================
+
+INSERT INTO public.role_requests (
+  auth_user_id, person_id, requested_role, requested_scope, requester_note, status
+) VALUES (
+  '00000000-0000-0000-0000-000000000b03',
+  '00000000-0000-0000-0000-000000000b13',
+  'secretary',
+  'club',
+  'Created from signup role intent.',
+  'pending'
+);
+
+SET LOCAL ROLE authenticated;
+SELECT set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-000000000b01', true);
+
+DO $$
+DECLARE
+  v_visible_count int;
+BEGIN
+  SELECT count(*) INTO v_visible_count
+  FROM public.role_requests
+  WHERE person_id = '00000000-0000-0000-0000-000000000b13';
+
+  IF v_visible_count <> 0 THEN
+    RAISE EXCEPTION
+      'FAIL a club admin could read a NULL-club secretary request via a direct SELECT (% visible) — MYK9-571 round 1 P0',
+      v_visible_count;
+  END IF;
+
+  RAISE NOTICE 'PASS a club admin cannot read a NULL-club secretary request via a direct SELECT';
 END;
 $$;
 
@@ -344,16 +420,15 @@ DECLARE
 BEGIN
   SELECT count(*) INTO v_visible_count
   FROM public.role_requests
-  WHERE person_id = '00000000-0000-0000-0000-000000000b12'
-    AND club_id = '00000000-0000-0000-0000-000000000b21';
+  WHERE person_id = '00000000-0000-0000-0000-000000000b13';
 
   IF v_visible_count <> 0 THEN
     RAISE EXCEPTION
-      'FAIL another club''s admin could read a request for a club they do not administer (% visible)',
+      'FAIL a DIFFERENT club''s admin could read a NULL-club secretary request via a direct SELECT (% visible) — MYK9-571 round 1 P0',
       v_visible_count;
   END IF;
 
-  RAISE NOTICE 'PASS a club admin cannot read another club''s pending secretary request';
+  RAISE NOTICE 'PASS a different club''s admin cannot read a NULL-club secretary request via a direct SELECT either';
 END;
 $$;
 
@@ -418,11 +493,12 @@ DO $$
 DECLARE
   v_request_id uuid;
 BEGIN
+  -- MYK9-571 round 2: the admin finds the pending request the same way the
+  -- real approve flow does — through list_club_role_requests, not a direct
+  -- SELECT (role_requests_select carries no club-admin arm any more).
   SELECT id INTO v_request_id
-  FROM public.role_requests
-  WHERE person_id = '00000000-0000-0000-0000-000000000b12'
-    AND club_id = '00000000-0000-0000-0000-000000000b21'
-    AND status = 'pending';
+  FROM public.list_club_role_requests('00000000-0000-0000-0000-000000000b21')
+  WHERE person_id = '00000000-0000-0000-0000-000000000b12';
 
   PERFORM public.approve_club_role_request(v_request_id, 'Confirmed with the club.');
 END;
@@ -490,11 +566,10 @@ DO $$
 DECLARE
   v_request_id uuid;
 BEGIN
+  -- MYK9-571 round 2: same RPC-brokered read as section 5 above.
   SELECT id INTO v_request_id
-  FROM public.role_requests
-  WHERE person_id = '00000000-0000-0000-0000-000000000b15'
-    AND club_id = '00000000-0000-0000-0000-000000000b21'
-    AND status = 'pending';
+  FROM public.list_club_role_requests('00000000-0000-0000-0000-000000000b21')
+  WHERE person_id = '00000000-0000-0000-0000-000000000b15';
 
   PERFORM public.deny_club_role_request(v_request_id, 'Not enough context yet.');
 END;

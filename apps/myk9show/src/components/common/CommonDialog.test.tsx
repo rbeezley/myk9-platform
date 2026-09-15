@@ -161,9 +161,7 @@ describe('CommonDialog and SlideOverPanel share one open-overlay stack', () => {
   });
 
   it('renders both surfaces before Escape is pressed', () => {
-    render(
-      <PanelThenDialog onClosePanel={vi.fn()} onCloseDialog={vi.fn()} />
-    );
+    render(<PanelThenDialog onClosePanel={vi.fn()} onCloseDialog={vi.fn()} />);
 
     expect(screen.getByText('Panel body')).toBeInTheDocument();
     expect(screen.getByText('Are you sure?')).toBeInTheDocument();

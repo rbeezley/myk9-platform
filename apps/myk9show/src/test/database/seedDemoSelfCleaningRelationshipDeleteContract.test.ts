@@ -104,10 +104,18 @@ describe('seed-demo self-cleaning relationship deletes (MYK9-490 follow-up)', ()
     const block = seed.slice(guard, seed.indexOf('END $$;', guard));
 
     expect(block).toContain("e.payment_status IN ('paid', 'refunded')");
-    expect(block).toContain('e.show_id IN');
-    expect(block).toContain('e.dog_id >=');
-    expect(block).toContain('e.dog_id IN');
-    expect(block).toMatch(/RAISE EXCEPTION[^;]*show, class, trial or dog this reseed deletes/);
+    // One arm per cascade parent: all four columns are nullable and nothing
+    // constrains an entry's show_id to agree with its class's show.
+    expect(block, 'no show_id arm').toContain('e.show_id IN');
+    expect(block, 'no trial_id arm — a seeded trial delete would cascade unguarded').toContain(
+      'e.trial_id IN'
+    );
+    expect(block, 'no class_id arm — a seeded class delete would cascade unguarded').toContain(
+      'e.class_id IN'
+    );
+    expect(block, 'no dog range arm').toContain('e.dog_id >=');
+    expect(block, 'no demo-dog arm').toContain('e.dog_id IN');
+    expect(block).toMatch(/RAISE EXCEPTION[^;]*show, trial, class or dog this reseed deletes/);
 
     // Placement: ahead of EVERY delete of a parent that cascades entries.
     for (const parent of ['classes', 'dogs', 'shows', 'trials']) {
@@ -119,6 +127,32 @@ describe('seed-demo self-cleaning relationship deletes (MYK9-490 follow-up)', ()
           `the paid-stray guard runs after a ${parent} delete at offset ${del.index}, so those rows cascade unguarded`
         ).toBeLessThan(del.index);
       }
+    }
+  });
+
+  it("lets no entries delete widen past the seed's own ids before the guard", () => {
+    // Placement alone does not protect the money rows. A DELETE FROM entries
+    // that runs BEFORE the guard and is scoped wider than the seed's own ids
+    // removes the strays the guard exists to catch, and every placement
+    // assertion stays green — the same shape as the two defects already found.
+    // So pin what may precede it: exactly the two id-scoped deletes.
+    const guard = seed.indexOf('v_stray');
+    const before = statements(/DELETE FROM public\.entries\b[^;]*;/g).filter(d => d.index < guard);
+
+    expect(before.length, 'an entries delete was added before the paid-stray guard').toBe(2);
+    expect(
+      before[0].text,
+      'the first pre-guard entries delete is no longer the myk9_109 id range'
+    ).toMatch(/id >= 'a1090000-0000-0000-0002-000000000000'/);
+    expect(
+      before[1].text,
+      'the second pre-guard entries delete is no longer the hard-coded id list'
+    ).toMatch(/id IN \(\s*'dededede-0000-0000-0000-000000000051'/);
+    for (const del of before) {
+      expect(
+        del.text,
+        `a pre-guard entries delete is scoped by ${del.text.includes('show_id') ? 'show_id' : 'a non-id column'}, which would remove strays before the guard sees them`
+      ).not.toMatch(/show_id|class_id|dog_id|payment_status/);
     }
   });
 

@@ -228,18 +228,31 @@ DELETE FROM public.entries WHERE id IN (
 DO $$
 DECLARE v_stray integer; v_ids text;
 BEGIN
-  -- The predicate is stated ONCE, in the CTE: a second copy for the id list
-  -- would let half a guard pass a text-based contract test, which is exactly
-  -- what happened when this was written with the WHERE clause duplicated.
-  WITH stray AS (
+  -- The show scope is named ONCE, in scope_shows, and the other three cascade
+  -- vectors are derived from it. Round 3 found the previous version claimed
+  -- "every cascade vector" while keying on show_id and dog_id only: all four
+  -- columns are nullable and nothing constrains an entry's show_id to agree
+  -- with its class's show, so a paid row with show_id NULL and a seeded
+  -- class_id was cascaded by the class delete unguarded.
+  -- The predicate is stated once: a second copy for the id list let a
+  -- half-mutated guard pass the contract test the first time this was written.
+  WITH scope_shows AS (
+    SELECT id FROM public.shows
+    WHERE id IN ('dededede-0000-0000-0000-000000000010',
+                 'dededede-0000-0000-0000-000000000011',
+                 'dededede-0000-0000-0000-000000000012')
+       OR (id >= 'a1090000-0000-0000-0010-000000000000'::uuid
+           AND id <  'a1090000-0000-0000-0011-000000000000'::uuid)
+  ),
+  stray AS (
     SELECT e.id
     FROM public.entries e
     WHERE e.payment_status IN ('paid', 'refunded')
-      AND (e.show_id IN ('dededede-0000-0000-0000-000000000010',
-                         'dededede-0000-0000-0000-000000000011',
-                         'dededede-0000-0000-0000-000000000012')
-           OR (e.show_id >= 'a1090000-0000-0000-0010-000000000000'::uuid
-               AND e.show_id <  'a1090000-0000-0000-0011-000000000000'::uuid)
+      AND (e.show_id IN (SELECT id FROM scope_shows)
+           OR e.trial_id IN (SELECT id FROM public.trials WHERE show_id IN (SELECT id FROM scope_shows))
+           OR e.class_id IN (SELECT c.id FROM public.classes c
+                             JOIN public.trials t ON t.id = c.trial_id
+                             WHERE t.show_id IN (SELECT id FROM scope_shows))
            OR (e.dog_id >= 'a1090000-0000-0000-0001-000000000000'::uuid
                AND e.dog_id <  'a1090000-0000-0000-0002-000000000000'::uuid)
            OR e.dog_id IN ('dededede-0000-0000-0000-000000000041','dededede-0000-0000-0000-000000000042',
@@ -252,7 +265,7 @@ BEGIN
           FROM (SELECT id FROM stray ORDER BY id LIMIT 10) t)
     INTO v_stray, v_ids;
   IF v_stray > 0 THEN
-    RAISE EXCEPTION 'seed-demo: % paid or refunded entr(ies) sit on a show, class, trial or dog this reseed deletes — refusing to cascade them away. First ids: %. The full list is the CTE predicate in the guard at the top of section 0; remove them deliberately, then rerun', v_stray, v_ids;
+    RAISE EXCEPTION 'seed-demo: % paid or refunded entr(ies) sit on a show, trial, class or dog this reseed deletes — refusing to cascade them away. First ids: %. The full set is the stray CTE in the guard at the top of section 0; remove them deliberately, then rerun', v_stray, v_ids;
   END IF;
 END $$;
 

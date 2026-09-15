@@ -20,10 +20,16 @@
  *     remounts. Rehydrating straight onto Payment never mounts that step, so
  *     without this a cart row added elsewhere would be invisible until Back.
  *     Like the Back path, it only merges cart rows IN; a selection with no
- *     cart row is left alone.
+ *     cart row is left alone — which only holds if it reconciles against the
+ *     RESTORED selections, so it waits a render for step 1's state to flush.
+ *
+ * The hook reports whether that restore has SETTLED (applied, or ruled out).
+ * Anything else that wants to seed the wizard from outside — `?dogId=`'s
+ * handoff (MYK9-519) — has to wait for it, or it reads the mount commit's
+ * empty `selectedDogs` as fact and overwrites a draft that was about to land.
  */
 
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useCartStore, useCartItems } from '@/store/cartStore';
 import { reconcileCartToSelections } from '@/components/shows/RegistrationWorkflow/ClassSelectionStep.helpers';
 import {
@@ -37,10 +43,25 @@ import type { createWizardHandlers } from './wizardHandlers';
 
 type WizardHandlers = ReturnType<typeof createWizardHandlers>;
 
+/**
+ * `pending` until the mount-time restore has been tried; then `applied` when a
+ * draft was loaded into the wizard, or `skipped` when there was none to load.
+ */
+type RehydrateStatus = 'pending' | 'applied' | 'skipped';
+
+export interface WizardDraftRehydration {
+  /**
+   * False only while a restore may still be about to write `selectedDogs` /
+   * `classSelections`. Anything that seeds the wizard from outside must wait
+   * for this before treating the current state as the exhibitor's own.
+   */
+  rehydrationSettled: boolean;
+}
+
 export function useWizardDraftRehydration(
   state: RegistrationWizardState,
   handlers: WizardHandlers
-): void {
+): WizardDraftRehydration {
   const {
     showId,
     userId,
@@ -60,7 +81,20 @@ export function useWizardDraftRehydration(
   const eligible = !isInsideSidebar && !!userId && userId !== 'anonymous';
 
   const attemptedRehydrate = useRef(false);
-  const didRehydrate = useRef(false);
+  // State, not a ref, and that is load-bearing. `handleDraftLoaded` queues the
+  // restored `classSelections` and `selectedDogs`; every consumer below runs
+  // LATER IN THE SAME COMMIT, so a ref would let them read the pre-rehydrate
+  // (empty) values as if they were the settled truth:
+  //  - the reconcile would rebuild the selections from the cart alone and —
+  //    being the second `setClassSelections` of the batch — win, dropping
+  //    every draft line the cart no longer carries plus each line's jump height
+  //    and move-up flag, the opposite of the Back path's additions-only merge;
+  //  - `useEntryDogHandoff` would see `selectedDogs: []`, conclude no draft
+  //    chose dogs, and replace the restored list with the one `?dogId=` names.
+  // Flipping a state flag defers both to the next render, by which point the
+  // draft's own updates have flushed.
+  const [rehydrateStatus, setRehydrateStatus] = useState<RehydrateStatus>('pending');
+  const didRehydrate = rehydrateStatus === 'applied';
   const hasReconciled = useRef(false);
 
   const cartItems = useCartItems();
@@ -70,27 +104,38 @@ export function useWizardDraftRehydration(
 
   useEffect(() => {
     if (attemptedRehydrate.current) return;
-    if (!eligible) return;
+    if (!eligible) {
+      // `isInsideSidebar` comes from the URL, so a staff surface is decided on
+      // the very first render and can settle now. A missing `userId` is NOT
+      // decisive — auth resolves a tick later — so that case stays pending
+      // rather than telling a waiting consumer there is no draft coming.
+      if (isInsideSidebar) setRehydrateStatus('skipped');
+      return;
+    }
     // One attempt per mount, whatever the outcome: `availableDrafts` is read
     // synchronously from localStorage on the first render, so a miss here is a
     // real absence rather than a not-loaded-yet.
     attemptedRehydrate.current = true;
-    if (!hasWizardSession(showId, userId)) return;
-    // Live state already survived (a client-side route change rather than a
-    // document reload). Restoring over it would undo whatever came after the
-    // last save.
-    if (registrationData.selectedDogs.length > 0) return;
 
-    const candidate = pickRehydratableDraft(availableDrafts);
-    if (!candidate) return;
-    const draft = draftLoad(candidate.id);
-    if (!draft) return;
-    // Silent: the exhibitor never left, so "Draft loaded successfully" would be
-    // news about something they did not do.
-    if (handlers.handleDraftLoaded(draft, { silent: true }) === false) return;
-    didRehydrate.current = true;
+    const attempt = (): boolean => {
+      if (!hasWizardSession(showId, userId)) return false;
+      // Live state already survived (a client-side route change rather than a
+      // document reload). Restoring over it would undo whatever came after the
+      // last save.
+      if (registrationData.selectedDogs.length > 0) return false;
+
+      const candidate = pickRehydratableDraft(availableDrafts);
+      if (!candidate) return false;
+      const draft = draftLoad(candidate.id);
+      if (!draft) return false;
+      // Silent: the exhibitor never left, so "Draft loaded successfully" would
+      // be news about something they did not do.
+      return handlers.handleDraftLoaded(draft, { silent: true }) !== false;
+    };
+
+    setRehydrateStatus(attempt() ? 'applied' : 'skipped');
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [eligible, showId, userId]);
+  }, [eligible, isInsideSidebar, showId, userId]);
 
   useEffect(() => {
     if (!eligible) return;
@@ -103,7 +148,7 @@ export function useWizardDraftRehydration(
 
   useEffect(() => {
     if (hasReconciled.current) return;
-    if (!didRehydrate.current) return;
+    if (!didRehydrate) return;
     if (cartIsLoading) return;
     // The global cart may still hold the PREVIOUS show's rows while this
     // show's cart loads; reconciling against those would copy the wrong show's
@@ -113,11 +158,17 @@ export function useWizardDraftRehydration(
     if (cartItems.length === 0) return;
 
     const reconstructed = reconcileCartToSelections(cartItems, classSelections);
-    hasReconciled.current = true;
+    // Latch only on a reconcile that actually produced something, exactly as
+    // `ClassSelectionStep`'s Back path does — the two are now the same rule.
+    // A null result means the cart added nothing the selections did not already
+    // have; burning the one-shot on it would silently skip the real reconcile
+    // when the next cart row arrives a tick later.
     if (!reconstructed) return;
+    hasReconciled.current = true;
     handlers.handleClassSelectionChange(reconstructed);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
+    didRehydrate,
     cartItems,
     classSelections,
     cartIsLoading,
@@ -126,4 +177,6 @@ export function useWizardDraftRehydration(
     showId,
     exhibitorProfile?.id,
   ]);
+
+  return { rehydrationSettled: rehydrateStatus !== 'pending' };
 }

@@ -95,6 +95,26 @@ export async function aSelectedClass(page: Page): Promise<{ id: string; added: b
   return { id, added: false };
 }
 
+/**
+ * Add ONE more class beyond whatever is already selected, and hand back its
+ * stable id — or null when this dog genuinely has nothing left to add.
+ *
+ * The null case is real on shared staging (this exhibitor's cart accumulates,
+ * and classes fill), so the caller decides whether that is a skip or a failure
+ * rather than this helper inventing a click that cannot happen.
+ */
+export async function addAnotherClass(page: Page): Promise<{ id: string } | null> {
+  if ((await waitForChipsToSettle(page)) === 0) return null;
+  const id = await chipClassId(enabledClassChips(page).first());
+  if (!id) return null;
+  const chip = chipById(page, id);
+  await expect(chip).toHaveCount(1);
+  await chip.click();
+  // A cart write, not a render — see `aSelectedClass`.
+  await expect(chip.and(page.locator('[data-checked]'))).toHaveCount(1, { timeout: 20000 });
+  return { id };
+}
+
 /** Undo `aSelectedClass`, but only when this test is what selected it. */
 export async function releaseSelectedClass(
   page: Page,

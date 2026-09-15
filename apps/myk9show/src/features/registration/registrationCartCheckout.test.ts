@@ -49,8 +49,6 @@ describe('submitRegistrationCartCheckout', () => {
       jumpHeight: '16',
       entryFeeCents: 2500,
     });
-    // MYK9-509: the draft outlives the hand-off so a cancelled checkout resumes.
-    expect(deps).not.toHaveProperty('deleteDraft');
     expect(deps.navigate).toHaveBeenCalledWith('/cart');
   });
 
@@ -81,7 +79,6 @@ describe('submitRegistrationCartCheckout', () => {
     ).rejects.toThrow('Failed to add entry to cart');
 
     expect(deps.abandonCart).toHaveBeenCalledTimes(1);
-    expect(deps).not.toHaveProperty('deleteDraft');
     expect(deps.navigate).not.toHaveBeenCalled();
   });
 
@@ -143,7 +140,6 @@ describe('submitRegistrationCartCheckout', () => {
     ).rejects.toThrow('Failed to clear existing cart');
 
     expect(deps.addItem).not.toHaveBeenCalled();
-    expect(deps).not.toHaveProperty('deleteDraft');
     expect(deps.navigate).not.toHaveBeenCalled();
   });
 
@@ -174,7 +170,6 @@ describe('submitRegistrationCartCheckout', () => {
     ).rejects.toThrow('Failed to add entry to cart');
 
     expect(deps.abandonCart).not.toHaveBeenCalled();
-    expect(deps).not.toHaveProperty('deleteDraft');
     expect(deps.navigate).not.toHaveBeenCalled();
   });
 

@@ -22,7 +22,10 @@ export function useRegistrationWizard() {
   // Read side of the persisted draft: restores a same-tab reload or a return
   // from a cancelled checkout. Must sit here, not in the state hook, because it
   // drives `handleDraftLoaded`.
-  useWizardDraftRehydration(state, handlers);
+  // `rehydrationSettled` is part of the wizard's public shape because
+  // `useEntryDogHandoff` must not act on the mount commit's empty selections
+  // while a restore is still in flight (MYK9-514 / MYK9-519).
+  const { rehydrationSettled } = useWizardDraftRehydration(state, handlers);
 
   const {
     dogs,
@@ -58,5 +61,5 @@ export function useRegistrationWizard() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [dogsLoading, dogs, currentWorkflowConfig.steps, registrationData.selectedDogs.length]);
 
-  return { ...state, ...handlers };
+  return { ...state, ...handlers, rehydrationSettled };
 }

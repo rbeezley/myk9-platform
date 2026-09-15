@@ -15,6 +15,8 @@ import { signInAsExhibitor } from '../helpers/testUsers';
 import { LIVE_REGISTRATION_SHOW_ID } from '../uat/shared/seededShows';
 import {
   aSelectedClass,
+  addAnotherClass,
+  chipById,
   releaseSelectedClass,
   selectedClassChips,
   selectFirstDogAndContinue,
@@ -58,8 +60,36 @@ test('a cancelled checkout returns to the wizard with the selections intact and 
     .poll(async () => selectedClassChips(page).count(), { timeout: 30000, intervals: [500] })
     .toBeGreaterThanOrEqual(selectedBefore);
 
+  // The SAME class, by its stable id — not merely "a count that did not drop".
+  // A recovery that restored some other dog's classes would satisfy the count
+  // and fail here, which is the claim MYK9-509 actually makes.
+  await expect(chipById(page, selection.id).and(page.locator('[data-checked]'))).toHaveCount(1, {
+    timeout: 30000,
+  });
+
   // And the entry can still be acted on, without starting over.
   await expect(page.getByRole('button', { name: /^Next$/ })).toBeEnabled();
+
+  // "Amendable" means a class can actually be ADDED to the recovered entry, not
+  // just that the old ones came back. Assert the selection grew by exactly one.
+  const selectedAfterRecovery = await selectedClassChips(page).count();
+  const added = await addAnotherClass(page);
+  if (added) {
+    await expect
+      .poll(async () => selectedClassChips(page).count(), { timeout: 30000, intervals: [500] })
+      .toBe(selectedAfterRecovery + 1);
+    await releaseSelectedClass(page, { id: added.id, added: true });
+    await expect
+      .poll(async () => selectedClassChips(page).count(), { timeout: 30000, intervals: [500] })
+      .toBe(selectedAfterRecovery);
+  } else {
+    // Shared staging: this dog may have nothing left to add. Say so out loud
+    // rather than letting a silently skipped assertion read as a pass.
+    test.info().annotations.push({
+      type: 'not-asserted',
+      description: 'no addable class remained for this dog; the +1 amend assertion was skipped',
+    });
+  }
 
   await releaseSelectedClass(page, selection);
 });

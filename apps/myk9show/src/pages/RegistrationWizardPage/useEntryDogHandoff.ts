@@ -17,18 +17,16 @@
  */
 
 import { useEffect, useRef } from 'react';
-import { UserRole } from '@/types/auth-types';
 import type { Dog } from '@/types/dog-types';
 import { notifications } from '@/lib/notifications';
-import { useRegistrationPermissions } from '@/hooks/useRegistrationPermissions';
 import {
   entryDogHandoffMessage,
   resolveEntryDogHandoff,
   useEntryDogId,
 } from '@/features/registration/entryDogContext';
 import {
-  filterAccessibleDogs,
   getDogEligibilityStatus,
+  isDogSelectable,
 } from '@/components/shows/RegistrationWorkflow/DogSelectionStepEnhanced.helpers';
 
 /** Stable sonner id so a remount cannot stack duplicate explanations. */
@@ -61,7 +59,6 @@ export function useEntryDogHandoff(options: EntryDogHandoffOptions): void {
   const isExhibitorFlow = currentWorkflowMode === 'exhibitor';
   const hasDogSelectionStep = currentWorkflowConfig.steps.includes('dog-selection');
   const dogId = useEntryDogId();
-  const { user, roles } = useRegistrationPermissions();
   const appliedRef = useRef(false);
 
   // Every guard is re-checked on each run, but `appliedRef` makes the body a
@@ -76,7 +73,9 @@ export function useEntryDogHandoff(options: EntryDogHandoffOptions): void {
 
     const handoff = resolveEntryDogHandoff({
       dogId,
-      accessibleDogs: filterAccessibleDogs(dogs, user?.id, roles.includes(UserRole.SITE_ADMIN)),
+      // The roster is already scoped to what this user may enter; narrow it
+      // only by what the picker itself would hide.
+      accessibleDogs: dogs.filter(isDogSelectable),
       selectedDogs: registrationData.selectedDogs,
       eligibility: getDogEligibilityStatus,
     });
@@ -95,8 +94,6 @@ export function useEntryDogHandoff(options: EntryDogHandoffOptions): void {
     hasDogSelectionStep,
     dogs,
     registrationData,
-    user,
-    roles,
     handleDogSelectionChange,
   ]);
 }

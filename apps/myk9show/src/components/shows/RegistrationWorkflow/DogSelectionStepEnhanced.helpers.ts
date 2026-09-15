@@ -58,10 +58,30 @@ export function getDogEligibilityStatus(dog: Dog): { eligible: boolean; issues: 
 }
 
 /**
- * Dogs this user may enter: soft-deleted and non-active dogs are never
- * selectable, a site admin sees every dog, and everyone else sees only their
- * own. Extracted alongside the eligibility rule so the handoff cannot
- * preselect a dog the picker itself would hide.
+ * A dog the picker will offer at all: soft-deleted and non-active dogs are
+ * never selectable, whoever is looking. Extracted alongside the eligibility
+ * rule so the MYK9-519 handoff cannot preselect a dog the picker itself hides.
+ *
+ * Deliberately says nothing about ownership. The wizard's roster is already
+ * scoped to what the signed-in user may enter, and `dog.ownerId` is a
+ * `people.id` — NOT the auth user id that `useRegistrationPermissions()`
+ * returns — so an ownership comparison belongs only where that mapping is
+ * actually resolved.
+ */
+export function isDogSelectable(dog: Dog): boolean {
+  if (dog.deletedAt) return false;
+  if (dog.status && dog.status !== 'active') return false;
+  return true;
+}
+
+/**
+ * Dogs the secretary/admin search panel may offer: selectable, and — for
+ * anyone but a site admin — matching `userId`.
+ *
+ * NOTE: the ownership branch predates MYK9-519 and compares `dog.ownerId`
+ * (a `people.id`) against the auth user id, so it matches nothing for an
+ * ordinary exhibitor. Left as-is here because only the advanced-search roles
+ * reach this component; filed separately rather than changed under this issue.
  */
 export function filterAccessibleDogs(
   dogs: Dog[],
@@ -70,8 +90,7 @@ export function filterAccessibleDogs(
 ): Dog[] {
   if (!userId) return [];
   return dogs.filter(dog => {
-    if (dog.deletedAt) return false;
-    if (dog.status && dog.status !== 'active') return false;
+    if (!isDogSelectable(dog)) return false;
     if (isSiteAdmin) return true;
     return dog.ownerId === userId;
   });

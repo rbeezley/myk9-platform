@@ -11,7 +11,6 @@ import { renderHook } from '@testing-library/react';
 import React from 'react';
 import { MemoryRouter } from 'react-router-dom';
 import type { Dog } from '@/types/dog-types';
-import { UserRole } from '@/types/auth-types';
 import { useEntryDogHandoff } from './useEntryDogHandoff';
 
 const warning = vi.fn();
@@ -19,11 +18,6 @@ vi.mock('@/lib/notifications', () => ({
   notifications: {
     warning: (...args: unknown[]) => warning(...args),
   },
-}));
-
-const permissions = { user: { id: 'owner-1' }, roles: [UserRole.EXHIBITOR] as UserRole[] };
-vi.mock('@/hooks/useRegistrationPermissions', () => ({
-  useRegistrationPermissions: () => permissions,
 }));
 
 function makeDog(overrides: Partial<Dog> = {}): Dog {
@@ -71,8 +65,6 @@ function render(options: Options = {}) {
 
 beforeEach(() => {
   warning.mockClear();
-  permissions.user = { id: 'owner-1' };
-  permissions.roles = [UserRole.EXHIBITOR];
 });
 
 describe('useEntryDogHandoff', () => {
@@ -109,9 +101,9 @@ describe('useEntryDogHandoff', () => {
     expect(warning).not.toHaveBeenCalled();
   });
 
-  it('explains a dog that is not theirs instead of selecting another one', () => {
+  it('explains a dog outside the roster instead of selecting another one', () => {
     const { handleDogSelectionChange } = render({
-      dogs: [makeDog({ id: 'dog-1', ownerId: 'someone-else' }), makeDog({ id: 'dog-9' })],
+      dogs: [makeDog({ id: 'dog-8' }), makeDog({ id: 'dog-9' })],
     });
     expect(handleDogSelectionChange).not.toHaveBeenCalled();
     expect(warning).toHaveBeenCalledWith(

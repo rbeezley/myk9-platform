@@ -8,6 +8,8 @@ export interface DogDetailsMainProps {
   dog: Dog;
   fromPerson?: User | undefined;
   onDelete?: () => Promise<void>;
+  /** Platform-admin override of the paid/scored refusal (force_delete_dog). */
+  onForceDelete?: () => Promise<void>;
   onUpdate?: (id: string, updates: Partial<DogInput>) => Promise<Dog | null>;
   isDeleting?: boolean;
 }
@@ -77,9 +79,12 @@ export interface DogDialogsProps {
   isDeleting?: boolean;
   /** Whether the current user can restore a deleted dog (drives the warning copy). */
   canRestore?: boolean;
+  /** Platform admin: may override the paid/scored delete refusal. */
+  canForceDelete?: boolean;
   onEditPanelClose: () => void;
   onDeleteDialogClose: () => void;
   onDelete?: (() => Promise<void>) | undefined;
+  onForceDelete?: (() => Promise<void>) | undefined;
   onUpdate?: ((id: string, updates: Partial<DogInput>) => Promise<Dog | null>) | undefined;
   onPhotoDialogOpen: (open: boolean) => void;
   onPhotoDrop: (e: React.DragEvent) => void;

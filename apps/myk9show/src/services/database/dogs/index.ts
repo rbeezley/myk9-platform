@@ -9,6 +9,7 @@ export {
   createDog,
   updateDog,
   deleteDog,
+  forceDeleteDog,
   searchDogs,
   searchAllDogs,
   SEARCH_ALL_DOGS_LIMIT,

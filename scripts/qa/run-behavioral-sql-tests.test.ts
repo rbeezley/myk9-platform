@@ -76,6 +76,7 @@ const launchCriticalSqlTests = [
   'support_triage_atomic_send_test.sql',
   'support_ticket_creation_atomicity_test.sql',
   'soft_delete_dog_cascade_test.sql',
+  'force_delete_dog_test.sql',
   'show_email_delivery_history_test.sql',
   'user_roles_show_manager_read_test.sql',
   'withdraw_own_entry_test.sql',

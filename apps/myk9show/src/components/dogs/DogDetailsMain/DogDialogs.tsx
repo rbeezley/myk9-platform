@@ -29,9 +29,11 @@ const DogDialogs: React.FC<DogDialogsProps> = ({
   people,
   isDeleting,
   canRestore,
+  canForceDelete,
   onEditPanelClose,
   onDeleteDialogClose,
   onDelete,
+  onForceDelete,
   onUpdate,
   onPhotoDialogOpen,
   onPhotoDrop,
@@ -151,6 +153,18 @@ const DogDialogs: React.FC<DogDialogsProps> = ({
           activeEntryCount={activeEntryCount}
           blockingEntryCount={blockingEntryCount}
           canRestore={canRestore ?? false}
+          canForceDelete={canForceDelete ?? false}
+          onForceDelete={
+            onForceDelete
+              ? async () => {
+                  // Mirrors onDelete above: the page owns the toast and the
+                  // navigate-away, and a rejection leaves the dialog open so a
+                  // failed override stays correctable.
+                  await onForceDelete();
+                  onDeleteDialogClose();
+                }
+              : undefined
+          }
         />
       )}
 

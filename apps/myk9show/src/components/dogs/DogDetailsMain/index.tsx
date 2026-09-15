@@ -28,6 +28,7 @@ const DogDetailsMain: React.FC<DogDetailsMainProps> = ({
   dog,
   fromPerson,
   onDelete,
+  onForceDelete,
   onUpdate,
   isDeleting,
 }) => {
@@ -41,6 +42,10 @@ const DogDetailsMain: React.FC<DogDetailsMainProps> = ({
   // can reach the admin-only restore UI.
   const canDeleteDog = useCanDeleteDog(dog.id);
   const canRestoreDog = hasRole(UserRole.SITE_ADMIN);
+  // Same population as restore today, but a separate decision: this one unlocks
+  // the force_delete_dog override, whose real gate is is_platform_admin() in the
+  // function itself. Keep it named for what it authorises.
+  const canForceDeleteDog = hasRole(UserRole.SITE_ADMIN);
 
   // Route-entry focus/scroll (task 3.8, design.md Decision 10): a dog-card
   // click or a Career/Records deep link lands on the main heading; browser
@@ -326,9 +331,11 @@ const DogDetailsMain: React.FC<DogDetailsMainProps> = ({
         userRole={userRole}
         people={people}
         canRestore={canRestoreDog}
+        canForceDelete={canForceDeleteDog}
         onEditPanelClose={() => setIsEditPanelOpen(false)}
         onDeleteDialogClose={() => setIsDeleteDialogOpen(false)}
         onDelete={onDelete}
+        onForceDelete={onForceDelete}
         onUpdate={onUpdate}
         isDeleting={isDeleting ?? false}
         onPhotoDialogOpen={handlePhotoDialogOpen}

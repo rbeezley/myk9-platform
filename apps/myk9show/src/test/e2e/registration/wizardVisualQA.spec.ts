@@ -989,9 +989,9 @@ test('the draft toast never overlaps the phone entries bar', async ({ page }) =>
  *
  * None of the exhibitor's named dogs is entered in `...036`, so
  * `selectFirstDog`'s dog always sees this chip as full-but-selectable, never
- * already-entered. `allow_waitlist` is false on this class and the show's
- * `secretary_email` is null, so the rendered reason is the "no alternative,
- * contact the secretary" branch, not the "another day still has space"
+ * already-entered. `allow_waitlist` is false on this class, so the rendered
+ * reason is the "no alternative, contact the secretary" branch (the contact
+ * is the club email, `clubs.email`), not the "another day still has space"
  * branch — no other class in this show shares Container/Advanced on a
  * different day (see the seed comment for why).
  *
@@ -1023,9 +1023,7 @@ for (const viewport of [
     const idSelector = `chip-${FULL_CLASS_ID}`;
     const checkbox = page
       .getByRole('checkbox')
-      .and(
-        page.locator(`[id="${idSelector}"], label:has([id="${idSelector}"]) [role="checkbox"]`)
-      );
+      .and(page.locator(`[id="${idSelector}"], label:has([id="${idSelector}"]) [role="checkbox"]`));
     await expect(
       checkbox,
       `the seeded full class (${FULL_CLASS_ID}) must render on this page — see the comment above this test`

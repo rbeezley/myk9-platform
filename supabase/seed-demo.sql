@@ -866,9 +866,10 @@ VALUES
 --     the "no alternative, contact the secretary" branch of the reason, not
 --     the "another day still has space" branch -- the latter would need an
 --     eleventh class, out of scope here. `allow_waitlist` is already `false`
---     on this class and the show's `secretary_email` is null, so the
---     rendered reason reads "This class is full. Contact the show
---     secretary." -- it still satisfies the e2e's `/is full/` assertion
+--     on this class, and the secretary contact comes from the club's email
+--     (shows.club_id -> clubs.email, testadmin@myk9t.com), so the rendered
+--     reason reads "This class is full. Contact the show secretary at
+--     testadmin@myk9t.com." -- it satisfies the e2e's `/is full/` assertion
 --     (wizardVisualQA.spec.ts).
 UPDATE public.classes
 SET max_entries = 63

@@ -874,6 +874,48 @@ VALUES
    'Interior Advanced Preliminary', 'Advanced', 'Interior', NULL,
    30.00, 'upcoming', 180, 2, 2, false, 'single', true, 4, 1);
 
+-- MYK9-515: one full class fixture, so the registration wizard's full-chip
+-- reason (`ClassSelectionStep.fullReason.ts`) has something real to explain
+-- end to end. Every class above is left at `max_entries = null`; this is the
+-- only class in the show with a cap, set to exactly its seeded entry count
+-- (63, from the MYK9-109 load fixture, section 17 below) so it reads as full
+-- without inventing headroom.
+--
+-- Why `...036` ('Container Advanced', Sunday Trial 3, trial `...023`), and
+-- NOT `...034`/`...035` (Sunday Trial, trial `...022`):
+--   - `judge_day_summary` already reports BOTH judge-days on this show over
+--     `default_judge_day_capacity` (125) from real entry volume alone --
+--     Saturday (`...021`: 031/032/033) sits at 129 confirmed, Sunday
+--     (`...022`: 034/035) at 127 -- so ...034 and ...035 already render
+--     "Every class in this trial is full" with no seed change at all. Trials
+--     `...023`/`...024` (036-039) carry no confirmed judge assignment, so
+--     they are the only classes NOT already full for an unrelated reason;
+--     ...036 is the first of them.
+--   - None of the exhibitor's own named dogs (Willow, Ranger, Juniper, Scout,
+--     Maple; section 5) has an entry in this class, so `exhibitor@myk9t.com`
+--     always sees it as an available-but-full chip, never an already-entered
+--     one, regardless of which dog the e2e walk selects first.
+--   - Its 63 entries are the MYK9-109 load fixture only (handler
+--     `exhibitor@myk9t.com`, but different dogs from the account's five named
+--     ones); no hand-authored entry (section 6) targets this class, so
+--     nothing else in the seed depends on its headroom.
+--   - No other class in this show shares its element+level (Container/
+--     Advanced) on a DIFFERENT day: the only repeated element+level pair
+--     anywhere in the show is the deliberate SAME-day `...032`/`...040`
+--     Interior/Advanced collision (MYK9-489), which `openAlternative()`
+--     excludes because it is not a different day. So this fixture exercises
+--     the "no alternative, contact the secretary" branch of the reason, not
+--     the "another day still has space" branch -- the latter would need an
+--     eleventh class, out of scope here. `allow_waitlist` is already `false`
+--     on this class, and the secretary contact comes from the club's email
+--     (shows.club_id -> clubs.email, testadmin@myk9t.com), so the rendered
+--     reason reads "This class is full. Contact the show secretary at
+--     testadmin@myk9t.com." -- it satisfies the e2e's `/is full/` assertion
+--     (wizardVisualQA.spec.ts).
+UPDATE public.classes
+SET max_entries = 63
+WHERE id = 'dec1a55e-0000-0000-0000-000000000036';
+
 -- ---------------------------------------------------------------------------
 -- 4b. Classes for the sibling single-registry shows (MYK9-490)
 --     UKC Nosework elements/levels per sport_templates 'ukc-nosework'

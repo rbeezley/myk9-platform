@@ -977,28 +977,36 @@ test('the draft toast never overlaps the phone entries bar', async ({ page }) =>
 /**
  * MYK9-515 — a full chip must explain itself at both widths.
  *
- * SKIPPED, deliberately and with the reason recorded rather than left as a
- * silent gap: the seeded Heartland show has no full class to assert against.
- * Verified against the linked database on 2026-09-14 — every class carries
- * `max_entries = null` and the show's `default_judge_day_capacity` is 125
- * against at most 66 entries in any one class, so nothing renders a "Full"
- * badge and the assertions below would pass on an empty locator set.
+ * Full class fixture: `...036` ("Container Advanced", Sunday Trial 3) —
+ * seeded with `max_entries = 63` against its 63 seeded entries
+ * (supabase/seed-demo.sql, MYK9-515 comment above the classes insert). Not
+ * `...034`/`...035` (Sunday Trial): `judge_day_summary` already reports both
+ * of this show's judge-days over `default_judge_day_capacity` from real
+ * entry volume alone, so those two render "Every class in this trial is
+ * full" independently of any seed change — verified against the linked
+ * database on 2026-09-14. Trial `...023` carries no confirmed judge
+ * assignment, so `...036` is full ONLY because of the seeded `max_entries`.
  *
- * To enable: seed a full class on the QA show — set `max_entries` on one class
- * at or below its current entry count, or lower
- * `shows.default_judge_day_capacity` for that show — then remove the `.skip`.
+ * None of the exhibitor's named dogs is entered in `...036`, so
+ * `selectFirstDog`'s dog always sees this chip as full-but-selectable, never
+ * already-entered. `allow_waitlist` is false on this class, so the rendered
+ * reason is the "no alternative, contact the secretary" branch (the contact
+ * is the club email, `clubs.email`), not the "another day still has space"
+ * branch — no other class in this show shares Container/Advanced on a
+ * different day (see the seed comment for why).
+ *
  * The reason text itself is covered by `ClassSelectionStep.fullReason.test.ts`
  * (the rule) and `__tests__/ClassSelectionStep.fullChip.test.tsx` (the render
- * and the `aria-describedby` wiring); what is missing here is only the
- * end-to-end proof that a real full class reaches them.
+ * and the `aria-describedby` wiring); this is the end-to-end proof that a
+ * real full class reaches them.
  */
+const FULL_CLASS_ID = 'dec1a55e-0000-0000-0000-000000000036';
+
 for (const viewport of [
   { name: 'phone', width: 390, height: 844 },
   { name: 'desktop', width: 1440, height: 900 },
 ]) {
-  test.skip(`a full chip explains itself at ${viewport.width} (needs a seeded full class)`, async ({
-    page,
-  }) => {
+  test(`a full chip explains itself at ${viewport.width}`, async ({ page }) => {
     await page.setViewportSize({ width: viewport.width, height: viewport.height });
     await signInAsExhibitor(page, `/shows/${SHOW_ID}/register`);
     await selectFirstDog(page);
@@ -1006,19 +1014,24 @@ for (const viewport of [
       timeout: 15000,
     });
 
-    // Positive control: without a full chip on the page this test proves
-    // nothing, so fail loudly rather than pass on zero matches.
-    const fullBadges = page.getByText('Full', { exact: true });
-    expect(
-      await fullBadges.count(),
-      'no full class is seeded on this show — see the comment above this test'
-    ).toBeGreaterThan(0);
+    // Positive control: target the SEEDED class specifically, not "any Full
+    // badge on the page" — a page with an unrelated full chip but not this
+    // one would otherwise pass vacuously. The chip's DOM id
+    // (`chip-<classId>`) may land on the underlying native input rather than
+    // the accessible `role=checkbox` node (see `addOneClass` above), so match
+    // either placement the same way it does.
+    const idSelector = `chip-${FULL_CLASS_ID}`;
+    const checkbox = page
+      .getByRole('checkbox')
+      .and(page.locator(`[id="${idSelector}"], label:has([id="${idSelector}"]) [role="checkbox"]`));
+    await expect(
+      checkbox,
+      `the seeded full class (${FULL_CLASS_ID}) must render on this page — see the comment above this test`
+    ).toBeVisible();
 
-    const chip = page
-      .locator('label', { has: page.locator('[role="checkbox"]') })
-      .filter({ has: page.locator('xpath=..//*[text()="Full"]') })
-      .first();
-    const checkbox = chip.locator('[role="checkbox"]');
+    const chip = page.locator('label').filter({ has: checkbox });
+    await expect(chip.getByText('Full', { exact: true })).toBeVisible();
+
     const describedBy = await checkbox.getAttribute('aria-describedby');
     expect(describedBy, 'a full chip must carry an accessible description').toBeTruthy();
 

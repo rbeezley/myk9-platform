@@ -231,16 +231,25 @@ DELETE FROM public.entries WHERE id IN (
 -- stray was already present — a paid-by-check entry a walk left on show ...011
 -- — which is precisely the case this guard exists to refuse.
 DO $$
-DECLARE v_stray integer; v_ids text;
+DECLARE v_real integer; v_bare integer; v_ids text; v_bare_ids text;
 BEGIN
-  -- The show scope is named ONCE, in scope_shows, and the other three cascade
-  -- vectors are derived from it. Round 3 found the previous version claimed
-  -- "every cascade vector" while keying on show_id and dog_id only: all four
-  -- columns are nullable and nothing constrains an entry's show_id to agree
-  -- with its class's show, so a paid row with show_id NULL and a seeded
-  -- class_id was cascaded by the class delete unguarded.
-  -- The predicate is stated once: a second copy for the id list let a
-  -- half-mutated guard pass the contract test the first time this was written.
+  -- Guard the HARM, not the label. A paid/refunded row that also carries a
+  -- trail — entry_status_history, a Stripe payment intent or order, a recorded
+  -- payment reference, a refund — loses that trail when a parent cascade takes
+  -- it, and this reseed deletes all four of entries' cascade parents below
+  -- (classes, dogs, shows, trials; pg_constraint confdeltype='c' on each).
+  -- Those abort.
+  --
+  -- A bare `payment_status='paid'` with NONE of that corroboration is a QA-walk
+  -- artifact, not money: nothing is lost by letting it cascade. Aborting on
+  -- those put a mandatory manual DELETE in front of the reseed, which is the
+  -- tool the seed-reset runbook reaches for when staging is already broken, and
+  -- any walk that marks a demo entry paid re-armed it. Those WARN instead, so
+  -- they stay visible without wedging recovery.
+  --
+  -- The seed cannot trip either branch on its own rows: both entry deletes
+  -- above run first, and every INSERT INTO public.entries in this file writes
+  -- into the myk9_109 id range or the hard-coded id list they remove.
   WITH scope_shows AS (
     SELECT id FROM public.shows
     WHERE id IN ('dededede-0000-0000-0000-000000000010',
@@ -250,7 +259,7 @@ BEGIN
            AND id <  'a1090000-0000-0000-0011-000000000000'::uuid)
   ),
   stray AS (
-    SELECT e.id
+    SELECT e.id, e.stripe_payment_intent_id, e.payment_reference, e.refunded_at
     FROM public.entries e
     WHERE e.payment_status IN ('paid', 'refunded')
       AND (e.show_id IN (SELECT id FROM scope_shows)
@@ -263,14 +272,30 @@ BEGIN
            OR e.dog_id IN ('dededede-0000-0000-0000-000000000041','dededede-0000-0000-0000-000000000042',
                            'dededede-0000-0000-0000-000000000043','dededede-0000-0000-0000-000000000044',
                            'dededede-0000-0000-0000-000000000045','dededede-0000-0000-0000-000000000046'))
+  ),
+  substantiated AS (
+    SELECT s.id FROM stray s
+    WHERE s.stripe_payment_intent_id IS NOT NULL
+       OR s.payment_reference IS NOT NULL
+       OR s.refunded_at IS NOT NULL
+       OR EXISTS (SELECT 1 FROM public.entry_status_history h WHERE h.entry_id = s.id)
+       OR EXISTS (SELECT 1 FROM public.stripe_orders o WHERE o.entry_ids @> ARRAY[s.id])
   )
-  SELECT (SELECT count(*) FROM stray),
+  SELECT (SELECT count(*) FROM substantiated),
+         (SELECT count(*) FROM stray) - (SELECT count(*) FROM substantiated),
          -- Capped: an unbounded list put 756 ids in one error line when it ran.
          (SELECT string_agg(t.id::text, ', ' ORDER BY t.id)
-          FROM (SELECT id FROM stray ORDER BY id LIMIT 10) t)
-    INTO v_stray, v_ids;
-  IF v_stray > 0 THEN
-    RAISE EXCEPTION 'seed-demo: % paid or refunded entr(ies) sit on a show, trial, class or dog this reseed deletes — refusing to cascade them away, which would take their entry_status_history with them. First ids: %. For the full set, run this guard''s stray CTE as a SELECT (~60 lines into section 0 of supabase/seed-demo.sql). To clear it, HARD-delete those rows: DELETE FROM public.entries WHERE id IN (...). Soft-deleting will NOT clear this — the guard ignores deleted_at on purpose, because a soft-deleted row still cascades. Never widen this guard to get past it.', v_stray, v_ids;
+          FROM (SELECT id FROM substantiated ORDER BY id LIMIT 10) t),
+         (SELECT string_agg(t.id::text, ', ' ORDER BY t.id)
+          FROM (SELECT id FROM stray WHERE id NOT IN (SELECT id FROM substantiated) ORDER BY id LIMIT 10) t)
+    INTO v_real, v_bare, v_ids, v_bare_ids;
+
+  IF v_bare > 0 THEN
+    RAISE WARNING 'seed-demo: % paid/refunded entr(ies) on data this reseed deletes carry no payment trail (no history, no Stripe record, no reference) and will be removed with their parents. First ids: %', v_bare, v_bare_ids;
+  END IF;
+
+  IF v_real > 0 THEN
+    RAISE EXCEPTION 'seed-demo: % paid or refunded entr(ies) with a real payment trail sit on a show, trial, class or dog this reseed deletes — refusing to cascade them away. First ids: %. For the full set, run this guard''s substantiated CTE as a SELECT (~60 lines into section 0 of supabase/seed-demo.sql). To clear it, HARD-delete those rows: DELETE FROM public.entries WHERE id IN (...). Soft-deleting will NOT clear this — the guard ignores deleted_at on purpose, because a soft-deleted row still cascades. Never widen this guard to get past it.', v_real, v_ids;
   END IF;
 END $$;
 

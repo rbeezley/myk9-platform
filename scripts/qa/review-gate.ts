@@ -13,9 +13,11 @@
  *   Review gate: codex reviewed 0a2020c7a..5af9af158 — no findings
  *
  * and this script turns that into a `Review gate` status on the head commit.
- * The documented human-fallback evidence is deliberately more constrained than
- * a normal reviewer verdict: it requires a trusted owner/member, two named
- * adversarial subagent lenses, and passing required checks.
+ * The `owner` override evidence is deliberately more constrained than a normal
+ * reviewer verdict: it requires a trusted owner/member, a claimed floor that
+ * matches the real one, an `Override reason:` and a `Deferred re-review:`
+ * issue so the debt is recorded (MYK9-532 retired the pre-tier `human-fallback`
+ * token this override replaced — it carried none of that).
  * A push after the review moves the head, the recorded SHA no longer matches,
  * and the status goes red until a review is recorded for the new head. That
  * is the whole point: a review of an earlier head is an audit, not a gate.
@@ -62,8 +64,8 @@ export const TRUSTED_ASSOCIATIONS: ReadonlySet<string> = new Set([
   'COLLABORATOR',
 ]);
 
-/** Only repository owners or members may authorize a degraded review path. */
-export const HUMAN_FALLBACK_ASSOCIATIONS: ReadonlySet<string> = new Set(['OWNER', 'MEMBER']);
+/** Only repository owners or members may authorize the `owner` override. */
+export const OWNER_OVERRIDE_ASSOCIATIONS: ReadonlySet<string> = new Set(['OWNER', 'MEMBER']);
 
 export function commentTrusted(comment: GateComment): boolean {
   return TRUSTED_ASSOCIATIONS.has((comment.authorAssociation ?? '').toUpperCase());
@@ -78,7 +80,6 @@ export const REVIEWER_TOKENS = [
   'adversarial',
   'owner',
   'none',
-  'human-fallback',
 ] as const;
 
 export type ReviewerToken = (typeof REVIEWER_TOKENS)[number];
@@ -96,12 +97,10 @@ function isReviewerToken(value: string): value is ReviewerToken {
  * PARSEABLE with the switch off, which `REVIEW_GATE_LINE` on `origin/main`
  * cannot do at all; a lever pulled at 2am to revert a misfiring feature must
  * land exactly on the state being reverted to, not somewhere weaker than it.
+ * `human-fallback` predates this set too, but MYK9-532 retired it outright —
+ * it is no longer a `ReviewerToken` at all, kill switch or not.
  */
-const LEGACY_REVIEWER_TOKENS: ReadonlySet<ReviewerToken> = new Set([
-  'codex',
-  'claude',
-  'human-fallback',
-]);
+const LEGACY_REVIEWER_TOKENS: ReadonlySet<ReviewerToken> = new Set(['codex', 'claude']);
 
 export interface GateEvidence {
   reviewer: ReviewerToken;
@@ -168,7 +167,30 @@ export function requiredChecksResult(
  * trigger filter uses the same rule); the dash accepts em, en or hyphen.
  */
 export const REVIEW_GATE_LINE =
-  /^Review gate: (independent\/codex|independent\/claude|codex|claude|adversarial|owner|none|human-fallback) reviewed ([0-9a-f]{7,40})\.\.([0-9a-f]{7,40})\s+[—–-]\s+(.+?)\s*$/m;
+  /^Review gate: (independent\/codex|independent\/claude|codex|claude|adversarial|owner|none) reviewed ([0-9a-f]{7,40})\.\.([0-9a-f]{7,40})\s+[—–-]\s+(.+?)\s*$/m;
+
+/**
+ * MYK9-532: `human-fallback` is retired and is deliberately NOT part of
+ * `REVIEW_GATE_LINE`'s grammar any more — nothing parses a `human-fallback`
+ * comment as evidence. This pattern exists only so `evaluateReviewGate` can
+ * recognize the shape well enough to answer with a refusal naming its
+ * replacement, the `owner` override, instead of the generic "no review
+ * recorded" message.
+ */
+const LEGACY_HUMAN_FALLBACK_LINE =
+  /^Review gate: human-fallback reviewed ([0-9a-f]{7,40})\.\.([0-9a-f]{7,40})\s+[—–-]\s+.+$/m;
+
+/** True when a trusted comment's first line claims the retired `human-fallback` token for this head. */
+function legacyHumanFallbackAttempt(comments: readonly GateComment[], head: string): boolean {
+  const normalizedHead = head.toLowerCase();
+  return comments.some(c => {
+    if (!commentTrusted(c)) return false;
+    const firstLine = c.body.split(/\r?\n/, 1)[0] ?? '';
+    const match = LEGACY_HUMAN_FALLBACK_LINE.exec(firstLine);
+    const commentHead = match?.[2];
+    return commentHead !== undefined && normalizedHead.startsWith(commentHead.toLowerCase());
+  });
+}
 
 /**
  * Exhaustive tier table, `satisfies Record<ReviewerToken, Tier>` so an
@@ -193,24 +215,18 @@ const TIER_BY_REVIEWER = {
   adversarial: 'adversarial',
   owner: 'owner',
   none: 'none',
-  'human-fallback': 'owner',
 } satisfies Record<ReviewerToken, Tier>;
 
 /**
- * LEGACY: `human-fallback` maps to tier `owner`. It no longer carries a floor
- * EXEMPTION (fallback review of #2243, M4 — flagged independently by three
- * reviewers): being floor-exempt on any path, with no deferred-issue line and
- * no claimed-floor check, made every constraint the `owner` override adds
- * elective — you simply typed the older token instead. It is now subject to
- * the floor like any other tier-`owner` evidence, WITHOUT the override's
- * `Deferred re-review:` requirement, so the in-flight PRs that legitimately
- * use it on low-floor (docs) diffs stay green while the token can no longer
- * clear a guardrail path. Measured before the change: PR #2241, the only live
- * user, changes one docs file, so its floor is `none` and `meetsFloor('owner',
- * 'none')` is true — pinned by a regression test carrying its verbatim body.
- * Nothing instructs its use any more (the skills and PLAYBOOK route an
- * unavailable harness to the `owner` override, which records the debt); it is
- * kept only so gates already posted with it stay green.
+ * MYK9-532: `human-fallback` — the pre-tier token that used to map to tier
+ * `owner` here — is retired outright, not merely re-floored. It carried no
+ * `Deferred re-review:` requirement and no claimed-floor check, so it let a
+ * poster skip every constraint the `owner` override adds simply by typing
+ * the older token (fallback review of #2243, M4 — flagged independently by
+ * three reviewers). The one PR that kept it green (#2241) is merged; nothing
+ * open depends on it (confirmed 2026-09-14). `evaluateReviewGate` still
+ * recognizes the shape (`legacyHumanFallbackAttempt`) well enough to name the
+ * `owner` override as the replacement instead of failing silently.
  */
 /** Legacy reviewer tokens predate tiers and all mean a cross-harness review. */
 export function tierForReviewer(reviewer: ReviewerToken): Tier {
@@ -240,10 +256,9 @@ export function tierForReviewer(reviewer: ReviewerToken): Tier {
  * checks. Giving `owner` a row here, by itself, does NOT exempt it from the
  * floor: `verdictMatchesTier` only decides whether the verdict TEXT matches
  * the tier's grammar, and evaluateReviewGate still runs the floor check for
- * every tier except a CONFIRMED override or human-fallback (see the
- * exemption comment below). This was proven safe by simulation during
- * Task 3 review — widening the EXEMPTION condition itself is what would
- * reopen C1, not this table entry.
+ * every tier except a CONFIRMED override (see the exemption comment below).
+ * This was proven safe by simulation during Task 3 review — widening the
+ * EXEMPTION condition itself is what would reopen C1, not this table entry.
  */
 export const OVERRIDE_VERDICT = /^override, floor was (independent|adversarial)\.?$/i;
 
@@ -259,7 +274,7 @@ export const VERDICT_BY_TIER: Readonly<Record<Tier, RegExp>> = {
  * pure-text near-miss table (which is not testing a specific reviewer's
  * claim) and the `--verdict` CLI probe (which does not know which tier the
  * poster will ultimately claim). `evaluateReviewGate` never calls this
- * directly for a non-human-fallback reviewer — it binds the verdict to the
+ * directly for a real reviewer's evidence — it binds the verdict to the
  * evidence's OWN tier via `VERDICT_BY_TIER[latest.tier]` instead, which is
  * strictly narrower.
  */
@@ -268,35 +283,24 @@ export function verdictAccepted(verdict: string): boolean {
   return Object.values(VERDICT_BY_TIER).some(re => re.test(trimmed));
 }
 
-export const HUMAN_FALLBACK_VERDICT =
-  /^2 adversarial subagent reviews, all findings addressed\.?$/i;
-
-// EITHER harness can be the unavailable one: the required reviewer is the OTHER
-// harness, so a Codex-authored PR falls back when Claude is down and a
-// Claude-authored PR falls back when Codex is. Naming only Claude made the
-// Claude-authored direction inexpressible, so the honest attestation was
-// rejected and the only green one was literally false (#2228).
-const FALLBACK_REASON = /^Fallback reason: (Claude|Codex) unavailable\s*[-—:]\s*.+$/im;
 /**
- * The lens line form, capturing the lens NAME. The
- * `adversarial` tier reuses human-fallback's line grammar deliberately: one
- * shape for "a named subagent lens looked at this", so the migration rule
- * ("one lens must be migration-auditor") becomes a thing the gate can CHECK
- * rather than prose in a reason string that nothing enforces.
+ * The lens line form, capturing the lens NAME. This shape ("a named
+ * subagent lens looked at this") is what the `adversarial` tier's body
+ * contract runs on, so the migration rule ("one lens must be
+ * migration-auditor") becomes a thing the gate can CHECK rather than prose
+ * in a reason string that nothing enforces.
  */
 const SUBAGENT_LENS = /^Adversarial subagent review:[ \t]*(\S.*?)[ \t]*$/gim;
-const PASSING_CHECKS = /^Required checks: passing$/im;
 
 /**
- * The bare `owner` token's own contract — distinct from `human-fallback`'s
- * `FALLBACK_REASON` above, which stays untouched (the legacy evidence form
- * must keep working exactly as it does today). `OVERRIDE_REASON` is free
- * text on which HARNESS was unavailable, not hardcoded to Claude: the old
- * `Fallback reason: Claude unavailable` grammar made the documented fallback
- * unusable whenever Codex — not Claude — was the missing reviewer, which is
- * the bug this whole plan exists to fix (2026-09-14). An override defers
- * scrutiny rather than skipping it, so `DEFERRED_REVIEW` names a tracked
- * issue; without one there is no debt record and the override is refused.
+ * The bare `owner` token's own contract. `OVERRIDE_REASON` is free text on
+ * which HARNESS was unavailable, not hardcoded to Claude — the retired
+ * `human-fallback` token's `Fallback reason: Claude unavailable` grammar made
+ * the documented fallback unusable whenever Codex, not Claude, was the
+ * missing reviewer, which is the bug this whole plan exists to fix
+ * (2026-09-14). An override defers scrutiny rather than skipping it, so
+ * `DEFERRED_REVIEW` names a tracked issue; without one there is no debt
+ * record and the override is refused.
  */
 /**
  * Two accepted shapes, because there are two honest reasons to defer:
@@ -324,11 +328,11 @@ const DEFERRED_REVIEW = /^Deferred re-review: [A-Z][A-Z0-9]*-\d+$/m;
  * The full owner-override contract. Checks the trusted-association gate
  * ITSELF (not merely via the caller) — this is what keeps a COLLABORATOR
  * from posting a bare `owner` line and having it accepted (C1): only OWNER
- * or MEMBER may authorize deferring scrutiny, same bar as human-fallback.
+ * or MEMBER may authorize deferring scrutiny.
  */
 export function overrideAccepted(evidence: GateEvidence): boolean {
   if (evidence.tier !== 'owner' || evidence.reviewer !== 'owner') return false;
-  if (!HUMAN_FALLBACK_ASSOCIATIONS.has(evidence.authorAssociation)) return false;
+  if (!OWNER_OVERRIDE_ASSOCIATIONS.has(evidence.authorAssociation)) return false;
   if (!verdictMatchesTier(evidence.verdict, 'owner')) return false;
   if (!OVERRIDE_REASON.test(evidence.body)) return false;
   return DEFERRED_REVIEW.test(evidence.body);
@@ -381,19 +385,6 @@ export function parseGateComments(comments: readonly GateComment[]): GateEvidenc
  */
 function verdictMatchesTier(verdict: string, tier: Tier): boolean {
   return VERDICT_BY_TIER[tier].test(verdict.trim());
-}
-
-export function humanFallbackAccepted(evidence: GateEvidence): boolean {
-  if (evidence.reviewer !== 'human-fallback') return false;
-  if (!HUMAN_FALLBACK_ASSOCIATIONS.has(evidence.authorAssociation)) return false;
-  if (!HUMAN_FALLBACK_VERDICT.test(evidence.verdict.trim())) return false;
-  if (!FALLBACK_REASON.test(evidence.body)) return false;
-  if (!PASSING_CHECKS.test(evidence.body)) return false;
-  // Distinct names, exactly as the `adversarial` tier counts them: the claim
-  // is "2 adversarial subagent reviews", and the same lens listed twice is one
-  // lens. Left undeduped, the MORE privileged legacy path counted a repeat as
-  // two while the floor-bound tier refused it (fallback review of #2243, D2).
-  return new Set(adversarialLensNames(evidence.body)).size >= ADVERSARIAL_MIN_LENSES;
 }
 
 /** The lens names an `adversarial` evidence comment attests to, in order. */
@@ -494,8 +485,8 @@ export function evaluateReviewGate(input: EvaluateReviewGateInput): GateResult {
   const head = input.headSha.toLowerCase();
   const short = head.slice(0, 9);
   // Kill switch: MYK9_REVIEW_TIERS=off restores origin/main's behaviour
-  // exactly — no floor, and only the legacy codex/claude/human-fallback
-  // tokens are even recognised as evidence (see LEGACY_REVIEWER_TOKENS).
+  // exactly — no floor, and only the legacy codex/claude tokens are even
+  // recognised as evidence (see LEGACY_REVIEWER_TOKENS).
   const tiersEnabled = (process.env.MYK9_REVIEW_TIERS ?? 'on') !== 'off';
   // Latest by UPDATE, not creation: an older attestation edited to withdraw
   // a clean verdict must outrank a newer-created clean one (Codex, #2058).
@@ -505,32 +496,43 @@ export function evaluateReviewGate(input: EvaluateReviewGateInput): GateResult {
     .sort((a, b) => a.updatedAt.localeCompare(b.updatedAt));
   const latest = forHead.at(-1);
   if (!latest) {
+    // MYK9-532: nothing parses a `human-fallback` comment as evidence any
+    // more, so a poster who only tried that token lands here (no evidence
+    // found) rather than in the `accepted` check below. Name the retired
+    // token's replacement explicitly instead of the generic message — a
+    // silent "no review recorded" would send the poster looking for a typo
+    // in a token that was never going to work again.
+    if (legacyHumanFallbackAttempt(input.comments, head)) {
+      return {
+        state: 'failure',
+        description:
+          `human-fallback is retired for ${short} — post an owner override instead: ` +
+          `"Review gate: owner reviewed <base>..<head> — override, floor was <independent|adversarial>" ` +
+          `plus "Override reason: <detail>" and "Deferred re-review: <ISSUE-ID>"`,
+      };
+    }
     return {
       state: 'failure',
       description: `no independent review recorded for ${short} — run the gate (ship-pr Step 4) against this head`,
     };
   }
-  // Human fallback and the bare `owner` override are each checked on their
-  // OWN contract (association plus reason/lenses/deferred-issue, as the case
-  // may be) — never merely on verdict grammar. Every OTHER reviewer's verdict
-  // is bound to the evidence's OWN tier — never the tier-agnostic union — so
-  // a `codex` (independent) line cannot pass by wearing an `adversarial` or
-  // `none` verdict phrase (Codex review of Task 3 round 1, C2). With the kill
-  // switch off, `latest` can only ever be a legacy-token evidence (filtered
-  // above — `owner` is not in LEGACY_REVIEWER_TOKENS, so `isOverride` is
-  // unreachable there), so the tiersEnabled-false branch is reachable only
-  // for `independent` grammar in practice — the explicit
-  // `VERDICT_BY_TIER.independent` check below is kept anyway so a future
-  // change to the filter fails safe, not open.
-  const isHumanFallback = latest.reviewer === 'human-fallback';
+  // The bare `owner` override is checked on its OWN contract (association
+  // plus reason/deferred-issue) — never merely on verdict grammar. Every
+  // OTHER reviewer's verdict is bound to the evidence's OWN tier — never the
+  // tier-agnostic union — so a `codex` (independent) line cannot pass by
+  // wearing an `adversarial` or `none` verdict phrase (Codex review of Task 3
+  // round 1, C2). With the kill switch off, `latest` can only ever be a
+  // legacy-token evidence (filtered above — `owner` is not in
+  // LEGACY_REVIEWER_TOKENS, so `isOverride` is unreachable there), so the
+  // tiersEnabled-false branch is reachable only for `independent` grammar in
+  // practice — the explicit `VERDICT_BY_TIER.independent` check below is kept
+  // anyway so a future change to the filter fails safe, not open.
   const isOverride = latest.reviewer === 'owner';
-  const accepted = isHumanFallback
-    ? humanFallbackAccepted(latest)
-    : isOverride
-      ? overrideAccepted(latest)
-      : tiersEnabled
-        ? verdictMatchesTier(latest.verdict, latest.tier)
-        : VERDICT_BY_TIER.independent.test(latest.verdict.trim());
+  const accepted = isOverride
+    ? overrideAccepted(latest)
+    : tiersEnabled
+      ? verdictMatchesTier(latest.verdict, latest.tier)
+      : VERDICT_BY_TIER.independent.test(latest.verdict.trim());
   if (!accepted) {
     // Name what is missing for an override specifically — the association
     // check and the verdict grammar already produce the generic "not clean"
@@ -543,19 +545,14 @@ export function evaluateReviewGate(input: EvaluateReviewGateInput): GateResult {
     return { state: 'failure', description: why, evidence: latest };
   }
   // Only a CONFIRMED override (association, full contract — already verified
-  // by `accepted` above) is exempt from the floor. `human-fallback` was exempt
-  // too until #2243's fallback review measured the cost: floor-exempt on any
-  // path, with no deferred-issue line and no claimed-floor check, it made
-  // every constraint the `owner` override adds elective. It now meets the
-  // floor at its own tier (`owner`) like anything else. Originally this
-  // exempted the whole `owner`
-  // TIER unconditionally, which let a COLLABORATOR bypass the floor on any
-  // guardrail path by posting a bare `owner reviewed … — no findings` line
-  // (Codex review of Task 3 round 1, C1 — controller's own instruction,
-  // corrected).
+  // by `accepted` above) is exempt from the floor. Originally this exempted
+  // the whole `owner` TIER unconditionally, which let a COLLABORATOR bypass
+  // the floor on any guardrail path by posting a bare `owner reviewed … — no
+  // findings` line (Codex review of Task 3 round 1, C1 — controller's own
+  // instruction, corrected).
   //
   // C1 is actually held by `overrideAccepted`'s own association check
-  // (`HUMAN_FALLBACK_ASSOCIATIONS.has(...)`, above near line 280) — NOT by
+  // (`OWNER_OVERRIDE_ASSOCIATIONS.has(...)`, above near line 280) — NOT by
   // this exemption line. (Round 1 review, I-A: an earlier version of this
   // comment claimed the opposite — that THIS condition was what held C1 —
   // which is wrong and would have sent the next maintainer to the wrong
@@ -563,15 +560,11 @@ export function evaluateReviewGate(input: EvaluateReviewGateInput): GateResult {
   // reviewer token that might route around `overrideAccepted` entirely, not
   // the thing actually stopping the COLLABORATOR case today.
   //
-  // Round 2 review, I-B follow-up: `latest.tier === 'owner'` is NOT unique
-  // to the bare `owner` override — `human-fallback` also maps to tier
-  // `owner` (see `TIER_BY_REVIEWER`). So this condition must stay keyed on
-  // an ACCEPTED override (`overrideExempt`, via `overrideAccepted`), never
-  // widened to a bare tier check.
-  // Only a CONFIRMED override is floor-exempt now. `human-fallback` used to be
-  // too; see the LEGACY comment on `tierForReviewer` for why that exemption is
-  // gone (#2243 M4). Its tier is still `owner`, so it clears a `none` floor and
-  // nothing else — which is exactly what the one live PR on it needs.
+  // MYK9-532 retired the only other reviewer token that ever mapped to tier
+  // `owner` (`human-fallback`), so `latest.tier === 'owner'` is unique to the
+  // bare `owner` override now — but this stays keyed on an ACCEPTED override
+  // (`overrideExempt`, via `overrideAccepted`), never widened to a bare tier
+  // check, so a future `owner`-tier token doesn't quietly reopen C1.
   const overrideExempt = isOverride && overrideAccepted(latest);
   // Round 1 review, I-B: `accepted` above only confirmed the override's
   // OWN grammar (verdict text matches `override, floor was
@@ -643,28 +636,6 @@ export function flattenPages<T>(slurped: string): T[] {
 
 function gh(args: string[]): string {
   return execFileSync('gh', args, { encoding: 'utf8' });
-}
-
-function requiredChecksFor(repo: string): string[] {
-  const rulesetName = process.env.MYK9_PR_RULESET ?? 'main-required-checks';
-  const rulesets = JSON.parse(gh(['api', `repos/${repo}/rulesets`])) as Array<{
-    id: number;
-    name: string;
-  }>;
-  const ruleset = rulesets.find(candidate => candidate.name === rulesetName);
-  if (!ruleset) throw new Error(`required ruleset '${rulesetName}' was not found`);
-  const detail = JSON.parse(gh(['api', `repos/${repo}/rulesets/${ruleset.id}`])) as {
-    rules?: Array<{
-      type?: string;
-      parameters?: { required_status_checks?: Array<{ context?: string }> };
-    }>;
-  };
-  return (detail.rules ?? [])
-    .filter(rule => rule.type === 'required_status_checks')
-    .flatMap(rule =>
-      (rule.parameters?.required_status_checks ?? []).map(check => check.context ?? '')
-    )
-    .filter(Boolean);
 }
 
 interface PrView {
@@ -739,36 +710,6 @@ export function runCli(
       authorAssociation: c.author_association,
     })),
   });
-  if (result.state === 'success' && result.evidence?.reviewer === 'human-fallback') {
-    try {
-      const checks = requiredChecksResult(view.statusCheckRollup ?? [], requiredChecksFor(repo));
-      if (checks.pending.length > 0 || checks.failed.length > 0) {
-        const outstanding = [
-          ...checks.pending.map(name => `${name} pending`),
-          ...checks.failed.map(name => `${name} failed`),
-        ];
-        return postStatus(
-          view.headRefOid,
-          {
-            state: 'failure',
-            description: `human fallback requires passing checks: ${outstanding.join(', ')}`,
-          },
-          env,
-          argv
-        );
-      }
-    } catch (error) {
-      return postStatus(
-        view.headRefOid,
-        {
-          state: 'failure',
-          description: `human fallback could not verify required checks: ${error instanceof Error ? error.message : String(error)}`,
-        },
-        env,
-        argv
-      );
-    }
-  }
   return postStatus(view.headRefOid, result, env, argv);
 }
 

@@ -201,11 +201,11 @@ This runs against SHARED STAGING. Other agents and CI use the same data.
 
 A show carries exactly one sanctioning registry (MYK9-490), and each registry has its own class template, level names and official forms, so one AKC show per run leaves UKC and ASCA unwalked. Rotate:
 
-  week mod 3 == 0 -> AKC, trial type `Scent Work`
-  week mod 3 == 1 -> UKC, trial type `Nosework`
-  week mod 3 == 2 -> ASCA, trial type `Scent Detection`
+  week mod 3 == 0 -> ASCA, trial type `Scent Detection`
+  week mod 3 == 1 -> AKC, trial type `Scent Work`
+  week mod 3 == 2 -> UKC, trial type `Nosework`
 
-Compute the week with `date -u +%V` (use `$((10#$WEEK % 3))`, since a bare `08` is an octal error) and print it with the chosen registry at the top of the report. The walk show's one full name, used by every match-count assertion and by teardown, is `ZZ Walk <run token> <registry> - teardown me`. Put the registry in the coverage table's caption and on rows 1, 4 and 7 so a registry check that was not performed is a visible gap. At a year boundary ISO week 52 and week 1 both give `mod 3 == 1`, so UKC repeats once (in a 53-week year the sequence is 52 UKC, 53 ASCA, 1 UKC and AKC is the one skipped); that is accepted, not a rotation bug. Every task below runs on that registry's walk show, except the read-only demo-show checks in task 2 (cold replication store), which stay on the demo show; the registry-specific checks are marked in tasks 1, 4 and 7. MYK9-448 and MYK9-447 are the shape of defect this rotation exists to catch: a registry's form missing from its own show's catalog, and a registry-specific field never set.
+Compute the week with `date -u +%V` (use `$((10#$WEEK % 3))`, since a bare `08` is an octal error) and print it with the chosen registry at the top of the report. The walk show's one full name, used by every match-count assertion and by teardown, is `ZZ Walk <run token> <registry> - teardown me`. Put the registry in the coverage table's caption and on rows 1, 4 and 7 so a registry check that was not performed is a visible gap. At a year boundary ISO week 52 and week 1 both give `mod 3 == 1`, so AKC repeats once (in a 53-week year the sequence is 52 AKC, 53 UKC, 1 AKC and ASCA is the one skipped); that is accepted, not a rotation bug. The mapping was rotated on 2026-09-15 so that weeks 38 and 41 (2026-09-16, 2026-10-07) land on UKC ahead of a club's UKC trial on 2026-10-10 (MYK9-524). Every task below runs on that registry's walk show, except the read-only demo-show checks in task 2 (cold replication store), which stay on the demo show; the registry-specific checks are marked in tasks 1, 4 and 7. MYK9-448 and MYK9-447 are the shape of defect this rotation exists to catch: a registry's form missing from its own show's catalog, and a registry-specific field never set.
 
 ## What to walk
 

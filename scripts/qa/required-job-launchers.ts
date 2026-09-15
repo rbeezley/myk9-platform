@@ -68,7 +68,11 @@ export interface PinnedScript {
  * resolve to. Repointing any of these at `true` turns the contract test red.
  */
 export const PINNED_SCRIPTS: readonly PinnedScript[] = [
-  { pkgDir: '.', script: 'typecheck', command: 'turbo typecheck' },
+  {
+    pkgDir: '.',
+    script: 'typecheck',
+    command: 'turbo typecheck && pnpm run typecheck:scripts',
+  },
   { pkgDir: '.', script: 'lint', command: 'turbo lint' },
   {
     pkgDir: '.',

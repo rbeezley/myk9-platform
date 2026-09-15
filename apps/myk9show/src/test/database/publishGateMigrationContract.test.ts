@@ -6,7 +6,7 @@
  * enforces that the two stay byte-identical after an edit to either side.
  */
 
-import { readFileSync } from 'node:fs';
+import { readFileSync, readdirSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import {
@@ -14,13 +14,25 @@ import {
   CLUB_REQUIRED_MESSAGE,
 } from '@/features/payments/onlineEntryGate';
 
-const MIGRATION_PATH = resolve(
-  __dirname,
-  '../../../../../supabase/migrations/20260915221500_enforce_show_publish_gate.sql'
-);
+// Resolved by glob, not a hard-coded filename -- a re-versioned migration
+// (the file is renamed, never edited in place once merged) must fail this
+// test with a useful "no match" / "multiple matches" message instead of a
+// silent ENOENT against a stale path.
+const MIGRATIONS_DIR = resolve(__dirname, '../../../../../supabase/migrations');
+const MIGRATION_NAME_PATTERN = /_enforce_show_publish_gate\.sql$/;
+
+function migrationPath(): string {
+  const matches = readdirSync(MIGRATIONS_DIR).filter(name => MIGRATION_NAME_PATTERN.test(name));
+  if (matches.length !== 1) {
+    throw new Error(
+      `expected exactly one migration matching ${MIGRATION_NAME_PATTERN} in ${MIGRATIONS_DIR}, found ${matches.length}: ${matches.join(', ')}`
+    );
+  }
+  return resolve(MIGRATIONS_DIR, matches[0]);
+}
 
 function migrationSql(): string {
-  return readFileSync(MIGRATION_PATH, 'utf8');
+  return readFileSync(migrationPath(), 'utf8');
 }
 
 /** A SQL string literal escapes an apostrophe as `''`, not `'` -- compare
@@ -30,7 +42,7 @@ function sqlEscaped(text: string): string {
 }
 
 describe('enforce_show_publish_gate migration text', () => {
-  it('exists at the re-versioned filename (20260915221500, below MYK9-572s 223500)', () => {
+  it('resolves to exactly one enforce_show_publish_gate migration', () => {
     expect(() => migrationSql()).not.toThrow();
   });
 

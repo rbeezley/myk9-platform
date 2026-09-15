@@ -11,14 +11,25 @@
 -- club_id IS NULL. Both livemode values are exercised by flipping
 -- platform_settings inside this transaction.
 --
+-- The gate carves out everything except the `authenticated` and `anon`
+-- roles (see the migration header) — it is a backstop for PostgREST/API
+-- callers only. A plain postgres session (no SET ROLE) is therefore no
+-- longer enough to exercise it: every case below that expects the gate to
+-- actually fire runs as `SET LOCAL ROLE authenticated` with a JWT
+-- (`set_config('request.jwt.claim.sub', ...)`) for a real person holding a
+-- club-scoped secretary appointment at the fixture club. Fixture setup
+-- (clubs, shows, club_stripe_accounts, people, auth.users, user_roles)
+-- stays under the plain postgres session; `platform_settings` writes stay
+-- under `SET LOCAL ROLE service_role` (trg_guard_platform_settings_write).
+--
 -- Run with psql -X -v ON_ERROR_STOP=1 after migrations. All fixtures roll back.
 
 BEGIN;
 
 -- ---------------------------------------------------------------------------
 -- Wiring: the guard must actually be attached, BEFORE, and scoped to
--- UPDATE OF status (not every column, and not INSERT — see the migration's
--- own comment for why INSERT is deliberately out of scope).
+-- INSERT and UPDATE OF status (see the migration's own SCOPE comment for
+-- why both operations are in scope).
 -- ---------------------------------------------------------------------------
 DO $$
 DECLARE
@@ -67,7 +78,8 @@ $$;
 
 -- ---------------------------------------------------------------------------
 -- Fixtures: four clubs, one per matrix cell that needs its own
--- club_stripe_accounts state.
+-- club_stripe_accounts state. A fifth club (loses-readiness) is added later,
+-- immediately before the section that needs it.
 -- ---------------------------------------------------------------------------
 INSERT INTO public.clubs (id, name) VALUES
   ('00000000-0000-0000-0000-000000579001', 'MYK9-579 No Account Club'),
@@ -109,21 +121,76 @@ INSERT INTO public.shows (id, name, organization, start_date, end_date, club_id,
   ('00000000-0000-0000-0000-000000579015', 'MYK9-579 Clubless Show', 'AKC',
    current_date, current_date + 1, NULL, 'draft');
 
--- Already-published fixture: inserted directly AS published (this trigger is
--- deliberately scoped to UPDATE OF status, not INSERT — see the migration
--- comment), so it starts published with no club_stripe_accounts row at all.
+-- Already-published fixture: inserted directly as postgres, WITH no SET ROLE
+-- active, so `current_setting('role', true)` reads 'none' and the gate's
+-- API-roles-only carve-out (see the migration header) bypasses it — same as
+-- every other plain-postgres INSERT in this file. It starts published with
+-- no club_stripe_accounts row at all; the case under test further down is
+-- the UPDATE arm's "already published is exempt" rule, not this INSERT.
 INSERT INTO public.shows (id, name, organization, start_date, end_date, club_id, status) VALUES
   ('00000000-0000-0000-0000-000000579014', 'MYK9-579 Already Published Show', 'AKC',
    current_date, current_date + 1, '00000000-0000-0000-0000-000000579001', 'published');
 
 -- ---------------------------------------------------------------------------
--- 1. No club_stripe_accounts row at all -> refused.
+-- Secretary identity used to exercise the gate as a real authenticated
+-- PostgREST-shaped caller for every case below. handle_new_user() adopts a
+-- pre-seeded people row BY EMAIL when its auth_user_id is still NULL (see
+-- 20260625000000), so the person row is seeded first with auth_user_id NULL
+-- and the auth.users row is inserted second, matching on email — inserting
+-- people.auth_user_id directly with no matching auth.users row would violate
+-- the FK (009_online_entry_system.sql) and abort the whole script. One
+-- identity holds a club-scoped secretary appointment at every club this
+-- matrix touches; a club-5 appointment is added later, immediately before
+-- the section that needs it.
+-- ---------------------------------------------------------------------------
+INSERT INTO public.people (id, first_name, last_name, email, auth_user_id)
+VALUES (
+  '00000000-0000-0000-0000-000000579200',
+  'MYK9-579',
+  'Secretary',
+  'myk9-579-secretary@example.test',
+  NULL
+);
+
+INSERT INTO auth.users (
+  id, instance_id, aud, role, email, encrypted_password, email_confirmed_at,
+  created_at, updated_at, raw_app_meta_data, raw_user_meta_data,
+  is_super_admin, is_sso_user, is_anonymous
+)
+VALUES (
+  '00000000-0000-0000-0000-000000579201',
+  '00000000-0000-0000-0000-000000000000',
+  'authenticated', 'authenticated', 'myk9-579-secretary@example.test', '', now(),
+  now(), now(), '{}', '{}', false, false, false
+);
+
+INSERT INTO public.user_roles (user_id, role_id, club_id, is_active, auth_user_id)
+SELECT
+  '00000000-0000-0000-0000-000000579200',
+  id,
+  club.id,
+  true,
+  '00000000-0000-0000-0000-000000579201'
+FROM public.roles
+CROSS JOIN (VALUES
+  ('00000000-0000-0000-0000-000000579001'::uuid),
+  ('00000000-0000-0000-0000-000000579002'::uuid),
+  ('00000000-0000-0000-0000-000000579003'::uuid),
+  ('00000000-0000-0000-0000-000000579004'::uuid)
+) AS club(id)
+WHERE roles.name = 'secretary';
+
+-- ---------------------------------------------------------------------------
+-- 1. No club_stripe_accounts row at all -> refused. Secretary of club 1.
 -- ---------------------------------------------------------------------------
 DO $$
 DECLARE
   v_state text;
   v_message text;
 BEGIN
+  SET LOCAL ROLE authenticated;
+  PERFORM set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-000000579201', true);
+
   BEGIN
     UPDATE public.shows SET status = 'published'
      WHERE id = '00000000-0000-0000-0000-000000579010';
@@ -132,41 +199,52 @@ BEGIN
     GET STACKED DIAGNOSTICS v_message = MESSAGE_TEXT;
     v_state := 'MK003';
   END;
+  RESET ROLE;
   IF v_message !~* 'payment account' THEN
     RAISE EXCEPTION 'FAIL no-account: unexpected message %', v_message;
   END IF;
   RAISE NOTICE 'PASS no-account: refused with MK003 and the payment-account message';
 END;
 $$;
+RESET ROLE;
 
 -- ---------------------------------------------------------------------------
--- 2. A row with payouts_enabled=false -> refused.
+-- 2. A row with payouts_enabled=false -> refused. Secretary of club 2.
 -- ---------------------------------------------------------------------------
 DO $$
 BEGIN
+  SET LOCAL ROLE authenticated;
+  PERFORM set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-000000579201', true);
+
   BEGIN
     UPDATE public.shows SET status = 'published'
      WHERE id = '00000000-0000-0000-0000-000000579011';
     RAISE EXCEPTION 'FAIL payouts-disabled: publish succeeded with payouts_enabled=false';
   EXCEPTION WHEN SQLSTATE 'MK003' THEN
+    RESET ROLE;
     RAISE NOTICE 'PASS payouts-disabled: refused with MK003';
   END;
 END;
 $$;
+RESET ROLE;
 
 -- ---------------------------------------------------------------------------
 -- 3. payouts_enabled=true in the mode MATCHING platform_settings.stripe_livemode
---    (both false here) -> succeeds.
+--    (both false here) -> succeeds. Secretary of club 3.
 -- ---------------------------------------------------------------------------
 DO $$
 DECLARE
   v_status text;
 BEGIN
+  SET LOCAL ROLE authenticated;
+  PERFORM set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-000000579201', true);
+
   UPDATE public.shows SET status = 'published'
    WHERE id = '00000000-0000-0000-0000-000000579012';
 
   SELECT status INTO v_status FROM public.shows
   WHERE id = '00000000-0000-0000-0000-000000579012';
+  RESET ROLE;
 
   IF v_status <> 'published' THEN
     RAISE EXCEPTION 'FAIL matching-mode: expected published, got %', v_status;
@@ -174,36 +252,52 @@ BEGIN
   RAISE NOTICE 'PASS matching-mode: publish succeeds when payouts_enabled is true in the live platform mode';
 END;
 $$;
+RESET ROLE;
 
 -- ---------------------------------------------------------------------------
--- 4. payouts_enabled=true, but only in the OTHER mode -> refused.
+-- 4. payouts_enabled=true, but only in the OTHER mode -> refused. Secretary
+--    of club 4.
 -- ---------------------------------------------------------------------------
 DO $$
 BEGIN
+  SET LOCAL ROLE authenticated;
+  PERFORM set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-000000579201', true);
+
   BEGIN
     UPDATE public.shows SET status = 'published'
      WHERE id = '00000000-0000-0000-0000-000000579013';
     RAISE EXCEPTION 'FAIL wrong-mode: publish succeeded against a live-mode-only account while the platform is in test mode';
   EXCEPTION WHEN SQLSTATE 'MK003' THEN
+    RESET ROLE;
     RAISE NOTICE 'PASS wrong-mode: refused when the ready account is in the OTHER Stripe mode';
   END;
 END;
 $$;
+RESET ROLE;
 
 -- ---------------------------------------------------------------------------
 -- 5. club_id IS NULL -> refused, with the assign-a-club message (same SQLSTATE
 --    as the Stripe-readiness refusal — only the message text tells them apart).
+--    Run as the secretary: is_trial_secretary(check_club_id) returns true
+--    whenever check_club_id IS NULL regardless of the caller's own club
+--    scoping (20260830210000), so shows_update RLS admits any active
+--    secretary on a clubless row — this proves the TRIGGER, not RLS, is what
+--    refuses the publish.
 -- ---------------------------------------------------------------------------
 DO $$
 DECLARE
   v_message text;
 BEGIN
+  SET LOCAL ROLE authenticated;
+  PERFORM set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-000000579201', true);
+
   BEGIN
     UPDATE public.shows SET status = 'published'
      WHERE id = '00000000-0000-0000-0000-000000579015';
     RAISE EXCEPTION 'FAIL clubless: publish succeeded with club_id IS NULL';
   EXCEPTION WHEN SQLSTATE 'MK003' THEN
     GET STACKED DIAGNOSTICS v_message = MESSAGE_TEXT;
+    RESET ROLE;
   END;
   IF v_message !~* 'assign a club' THEN
     RAISE EXCEPTION 'FAIL clubless: unexpected message %', v_message;
@@ -211,23 +305,29 @@ BEGIN
   RAISE NOTICE 'PASS clubless: refused with the assign-a-club message';
 END;
 $$;
+RESET ROLE;
 
 -- ---------------------------------------------------------------------------
 -- 6. An already-published show receiving an edit that explicitly re-sets
 --    status (still the same value) succeeds untouched — the gate only fires
 --    on a transition INTO published, never on a show that is already there.
+--    Secretary of club 1 (the fixture's own club).
 -- ---------------------------------------------------------------------------
 DO $$
 DECLARE
   v_name text;
   v_status text;
 BEGIN
+  SET LOCAL ROLE authenticated;
+  PERFORM set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-000000579201', true);
+
   UPDATE public.shows
      SET status = 'published', name = 'MYK9-579 Already Published Show (renamed)'
    WHERE id = '00000000-0000-0000-0000-000000579014';
 
   SELECT name, status INTO v_name, v_status FROM public.shows
   WHERE id = '00000000-0000-0000-0000-000000579014';
+  RESET ROLE;
 
   IF v_status <> 'published' OR v_name <> 'MYK9-579 Already Published Show (renamed)' THEN
     RAISE EXCEPTION 'FAIL already-published: edit did not land (name=%, status=%)', v_name, v_status;
@@ -235,10 +335,11 @@ BEGIN
   RAISE NOTICE 'PASS already-published: an edit to a show already published is never re-gated, even with a club that has no Stripe account at all';
 END;
 $$;
+RESET ROLE;
 
 -- ---------------------------------------------------------------------------
 -- 7. Flip platform_settings.stripe_livemode to TRUE and re-test clubs 3 and 4
---    with FRESH draft shows — the roles reverse.
+--    with FRESH draft shows — the roles reverse. Secretaries of clubs 3/4.
 -- ---------------------------------------------------------------------------
 SET LOCAL ROLE service_role;
 UPDATE public.platform_settings SET stripe_livemode = true WHERE id = true;
@@ -254,26 +355,35 @@ DO $$
 BEGIN
   -- Club 3's account is test-mode only; now that the platform is live, it is
   -- the account in the WRONG mode.
+  SET LOCAL ROLE authenticated;
+  PERFORM set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-000000579201', true);
+
   BEGIN
     UPDATE public.shows SET status = 'published'
      WHERE id = '00000000-0000-0000-0000-000000579016';
     RAISE EXCEPTION 'FAIL live-cutover: a test-mode-only account was accepted once the platform switched to live mode';
   EXCEPTION WHEN SQLSTATE 'MK003' THEN
+    RESET ROLE;
     RAISE NOTICE 'PASS live-cutover: the test-mode account no longer satisfies the gate once platform_settings.stripe_livemode flips to true';
   END;
 END;
 $$;
+RESET ROLE;
 
 DO $$
 DECLARE
   v_status text;
 BEGIN
   -- Club 4's account is live-mode and payouts_enabled — now the matching one.
+  SET LOCAL ROLE authenticated;
+  PERFORM set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-000000579201', true);
+
   UPDATE public.shows SET status = 'published'
    WHERE id = '00000000-0000-0000-0000-000000579017';
 
   SELECT status INTO v_status FROM public.shows
   WHERE id = '00000000-0000-0000-0000-000000579017';
+  RESET ROLE;
 
   IF v_status <> 'published' THEN
     RAISE EXCEPTION 'FAIL live-cutover: expected published, got %', v_status;
@@ -281,44 +391,18 @@ BEGIN
   RAISE NOTICE 'PASS live-cutover: the live-mode account satisfies the gate once platform_settings.stripe_livemode flips to true';
 END;
 $$;
+RESET ROLE;
 
 
 -- ---------------------------------------------------------------------------
 -- 8. INSERT bypass (P1-2): the trigger now also fires on INSERT, so a
 --    hand-crafted request cannot create an already-published show. Platform
---    is back in TEST mode from section 7's flip... actually still LIVE at
---    this point (section 7 flipped it true and never flipped it back) -- club
---    1 has no club_stripe_accounts row at all, so the mode is irrelevant to
---    these cases: can_accept_online_entry_payment's EXISTS check refuses
---    regardless of livemode.
+--    is still LIVE at this point (section 7 flipped it true and never
+--    flipped it back) -- club 1 has no club_stripe_accounts row at all, so
+--    the mode is irrelevant to these cases: can_accept_online_entry_payment's
+--    EXISTS check refuses regardless of livemode. Secretary/roles for clubs
+--    1 and 3 were seeded above, alongside the fixture identity.
 -- ---------------------------------------------------------------------------
-INSERT INTO public.people (id, first_name, last_name, auth_user_id)
-VALUES (
-  '00000000-0000-0000-0000-000000579200',
-  'MYK9-579',
-  'Secretary',
-  '00000000-0000-0000-0000-000000579201'
-);
-
-INSERT INTO public.user_roles (user_id, role_id, club_id, is_active, auth_user_id)
-SELECT
-  '00000000-0000-0000-0000-000000579200',
-  id,
-  '00000000-0000-0000-0000-000000579001', -- No Account Club
-  true,
-  '00000000-0000-0000-0000-000000579201'
-FROM public.roles
-WHERE name = 'secretary';
-
-INSERT INTO public.user_roles (user_id, role_id, club_id, is_active, auth_user_id)
-SELECT
-  '00000000-0000-0000-0000-000000579200',
-  id,
-  '00000000-0000-0000-0000-000000579003', -- Test-Mode Ready Club
-  true,
-  '00000000-0000-0000-0000-000000579201'
-FROM public.roles
-WHERE name = 'secretary';
 
 -- 8a. create_show_with_children (SECURITY DEFINER, RPC) with status='published'
 --     for a club with no Stripe account -> MK003. This is the exact hole
@@ -386,11 +470,44 @@ END;
 $$;
 RESET ROLE;
 
--- 8c. The service_role carve-out this same trigger needs so
---     supabase/seed-demo.sql's deliberate MYK9-386 fixture (clubs with no
---     Stripe account, published on purpose) keeps working. Not reachable
---     from any client path (see the migration header) -- only a connection
---     actually running AS service_role reaches it.
+-- 8c. The API-roles-only carve-out this same trigger needs, split into the
+--     two roles it actually exempts (see the migration header):
+--
+-- 8c-i. A plain postgres session with no SET ROLE at all -- the shape of
+--       EVERY other fixture INSERT in this file, and of every migration and
+--       supabase/tests/*.sql fixture -- inserting an already-published show
+--       succeeds. current_setting('role', true) reads 'none' with no SET
+--       ROLE active in the session, which is NOT IN ('authenticated',
+--       'anon'), so the gate bypasses it.
+DO $$
+DECLARE
+  v_role text;
+  v_status text;
+BEGIN
+  v_role := current_setting('role', true);
+  IF v_role IS DISTINCT FROM 'none' THEN
+    RAISE EXCEPTION 'FAIL superuser-no-role: expected current_setting(''role'', true) = ''none'' with no SET ROLE active, got %', COALESCE(v_role, '(null)');
+  END IF;
+
+  INSERT INTO public.shows (id, name, organization, start_date, end_date, club_id, status)
+  VALUES (
+    '00000000-0000-0000-0000-000000579031', 'MYK9-579 Superuser No-Role Fixture', 'AKC',
+    current_date, current_date + 1, '00000000-0000-0000-0000-000000579001', 'published'
+  );
+
+  SELECT status INTO v_status FROM public.shows WHERE id = '00000000-0000-0000-0000-000000579031';
+  IF v_status <> 'published' THEN
+    RAISE EXCEPTION 'FAIL superuser-no-role: expected the no-SET-ROLE INSERT to succeed, got %', v_status;
+  END IF;
+  RAISE NOTICE 'PASS superuser-no-role: a plain postgres session with no SET ROLE (current_setting(''role'', true) = ''none'') bypasses the gate, same as every migration and supabase/tests/*.sql fixture';
+END;
+$$;
+
+-- 8c-ii. supabase/seed-demo.sql's deliberate MYK9-386 fixture shape: a
+--        SET LOCAL ROLE service_role INSERT of an already-published show
+--        with no club_stripe_accounts row. Not reachable from any client
+--        path (see the migration header) -- only a connection actually
+--        running AS service_role reaches it.
 DO $$
 DECLARE
   v_status text;
@@ -407,9 +524,9 @@ BEGIN
   WHERE id = '00000000-0000-0000-0000-000000579030';
 
   IF v_status <> 'published' THEN
-    RAISE EXCEPTION 'FAIL service-role-carveout: expected the service_role INSERT to succeed, got %', v_status;
+    RAISE EXCEPTION 'FAIL service-role-passthrough: expected the service_role INSERT to succeed, got %', v_status;
   END IF;
-  RAISE NOTICE 'PASS service-role-carveout: a service_role INSERT of an already-published show (the seed-demo.sql fixture shape) is exempt';
+  RAISE NOTICE 'PASS service-role-passthrough: a service_role INSERT of an already-published show (the seed-demo.sql fixture shape) is exempt';
 END;
 $$;
 
@@ -492,17 +609,24 @@ RESET ROLE;
 
 -- ---------------------------------------------------------------------------
 -- 10. P3-8: an UPDATE that never touches status is never gated, even on a
---     clubless draft that would fail the gate if it tried to publish.
+--     clubless draft that would fail the gate if it tried to publish. Run as
+--     the secretary too (is_trial_secretary(NULL) admits any active
+--     secretary, same reasoning as section 5) -- the trigger's column list
+--     (UPDATE OF status only) is what's under test, not RLS.
 -- ---------------------------------------------------------------------------
 DO $$
 DECLARE
   v_name text;
 BEGIN
+  SET LOCAL ROLE authenticated;
+  PERFORM set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-000000579201', true);
+
   UPDATE public.shows SET name = 'MYK9-579 Clubless Show (renamed)'
    WHERE id = '00000000-0000-0000-0000-000000579015';
 
   SELECT name INTO v_name FROM public.shows
   WHERE id = '00000000-0000-0000-0000-000000579015';
+  RESET ROLE;
 
   IF v_name <> 'MYK9-579 Clubless Show (renamed)' THEN
     RAISE EXCEPTION 'FAIL name-only-update: rename did not land (name=%)', v_name;
@@ -510,12 +634,13 @@ BEGIN
   RAISE NOTICE 'PASS name-only-update: renaming a clubless draft never reaches the gate (UPDATE OF status only)';
 END;
 $$;
+RESET ROLE;
 
 -- ---------------------------------------------------------------------------
 -- 11. P3-8: publish -> draft -> publish again after the club LOSES its
 --     Stripe readiness in between -> the second publish is refused, proving
 --     the "already-published exempt" branch does not leak into a show that
---     was moved back to draft.
+--     was moved back to draft. Secretary of a fifth, dedicated club.
 -- ---------------------------------------------------------------------------
 INSERT INTO public.clubs (id, name) VALUES
   ('00000000-0000-0000-0000-000000579005', 'MYK9-579 Loses Readiness Club');
@@ -527,10 +652,23 @@ INSERT INTO public.shows (id, name, organization, start_date, end_date, club_id,
   ('00000000-0000-0000-0000-000000579050', 'MYK9-579 Loses Readiness Show', 'AKC',
    current_date, current_date + 1, '00000000-0000-0000-0000-000000579005', 'draft');
 
+INSERT INTO public.user_roles (user_id, role_id, club_id, is_active, auth_user_id)
+SELECT
+  '00000000-0000-0000-0000-000000579200',
+  id,
+  '00000000-0000-0000-0000-000000579005',
+  true,
+  '00000000-0000-0000-0000-000000579201'
+FROM public.roles
+WHERE name = 'secretary';
+
 DO $$
 DECLARE
   v_status text;
 BEGIN
+  SET LOCAL ROLE authenticated;
+  PERFORM set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-000000579201', true);
+
   -- First publish: club is ready (test mode, matches the platform's current
   -- test-mode setting from section 9c's flip) -> succeeds.
   UPDATE public.shows SET status = 'published'
@@ -538,6 +676,7 @@ BEGIN
 
   SELECT status INTO v_status FROM public.shows WHERE id = '00000000-0000-0000-0000-000000579050';
   IF v_status <> 'published' THEN
+    RESET ROLE;
     RAISE EXCEPTION 'FAIL republish: first publish should have succeeded, got %', v_status;
   END IF;
 
@@ -545,22 +684,28 @@ BEGIN
   -- transition INTO published), and not itself under test here.
   UPDATE public.shows SET status = 'draft'
    WHERE id = '00000000-0000-0000-0000-000000579050';
+  RESET ROLE;
 
-  -- The club loses its Stripe readiness.
+  -- The club loses its Stripe readiness (not itself under this test's RLS
+  -- scope -- done as the fixture owner).
   UPDATE public.club_stripe_accounts SET payouts_enabled = false
    WHERE club_id = '00000000-0000-0000-0000-000000579005';
 
   -- Second publish attempt -> refused. The exemption is OLD.status =
   -- 'published' at the moment of THIS update, not "was published once".
+  SET LOCAL ROLE authenticated;
+  PERFORM set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-000000579201', true);
   BEGIN
     UPDATE public.shows SET status = 'published'
      WHERE id = '00000000-0000-0000-0000-000000579050';
     RAISE EXCEPTION 'FAIL republish: second publish succeeded after the club lost payouts_enabled';
   EXCEPTION WHEN SQLSTATE 'MK003' THEN
+    RESET ROLE;
     RAISE NOTICE 'PASS republish: publish -> draft -> publish is re-gated after the club loses Stripe readiness in between';
   END;
 END;
 $$;
+RESET ROLE;
 
 
 ROLLBACK;

@@ -70,30 +70,57 @@
 --     (OLD.status IS DISTINCT FROM 'published'), so an already-published show
 --     keeps saving unrelated edits without being re-gated.
 --
--- -- SERVICE_ROLE CARVE-OUT (seed fixture) -------------------------------------
--- supabase/seed-demo.sql inserts three shows directly as 'published',
--- including MYK9-109's Load Clubs 2 and 3, which are published WITHOUT a
--- club_stripe_accounts row ON PURPOSE (comment: "a club with no payment
--- account is itself a fixture" — it exercises the exhibitor checkout-refusal
--- state, MYK9-386). Gating INSERT unconditionally would abort that seed.
--- Mirrors trg_guard_platform_settings_write's own carve-out
--- (20260615180000): `IF current_setting('role', true) = 'service_role' THEN
--- RETURN NEW; END IF;` at the top of the function. The seed now wraps its
--- three `INSERT INTO public.shows` statements in `SET LOCAL ROLE
--- service_role; ... RESET ROLE;` to reach this carve-out — it does not run as
--- service_role by default (it connects over psql as the `postgres` user, the
--- same reason trg_guard_platform_settings_write's own manual-fix runbook
--- calls this out).
+-- -- API-ROLES-ONLY CARVE-OUT (not just service_role) --------------------------
+-- The gate is a backstop for API callers — PostgREST always `SET ROLE` to
+-- `anon` or `authenticated` (or, when a request uses the service-role key,
+-- `service_role`) before running a request. A direct superuser session — a
+-- migration, `supabase/seed-demo.sql`, or a `supabase/tests/*.sql` fixture
+-- connecting over psql as the `postgres` user — never issues a `SET ROLE` at
+-- all, so `current_setting('role', true)` reads `'none'` (Postgres's
+-- documented default/reset value for the `role` GUC when no `SET ROLE` is
+-- active in the session). A carve-out scoped to `= 'service_role'` only
+-- would still gate that `'none'` session: 34 existing `supabase/tests/*.sql`
+-- files insert `status='published'` fixtures as plain postgres with no `SET
+-- ROLE` at all (e.g. `admin_soft_deleted_show_visibility_test.sql`), and
+-- `supabase/seed-demo.sql` inserts three shows directly as 'published' the
+-- same way, including MYK9-109's Load Clubs 2 and 3, published WITHOUT a
+-- club_stripe_accounts row ON PURPOSE ("a club with no payment account is
+-- itself a fixture" — it exercises the exhibitor checkout-refusal state,
+-- MYK9-386). Wrapping every one of those fixtures in `SET LOCAL ROLE
+-- service_role; ... RESET ROLE;` is the wrong fix for a backstop that exists
+-- only for API callers. Scope the gate to the roles PostgREST actually uses
+-- instead:
+--
+--   IF coalesce(current_setting('role', true), 'none') NOT IN ('authenticated', 'anon') THEN
+--     RETURN NEW;
+--   END IF;
+--
+-- This bypasses postgres/superuser sessions (`'none'`) AND `service_role`
+-- (edge functions, crons, and the service-role key) in one branch, while
+-- still gating exactly the two roles a PostgREST request ever runs as. The
+-- `coalesce(..., 'none')` only guards the case where the GUC comes back
+-- unset rather than the string `'none'`; either value takes the bypass
+-- branch.
 --
 -- This carve-out is NOT reachable from any client path: `create_show_with_children`
 -- is SECURITY DEFINER, which changes the EFFECTIVE USER the function body runs
 -- as (so its internal checks like is_site_admin()/is_club_admin() see the
 -- function owner's privileges), but it does NOT change `current_setting('role',
--- true)` — that GUC reflects the session's SET ROLE, which for a PostgREST
+-- true)` — that GUC reflects the session's `SET ROLE`, which for a PostgREST
 -- request is always the JWT-derived role (`authenticated` or `anon`), never
--- `service_role`. A client cannot set that GUC itself. Only a connection
+-- `'none'` or `service_role`. A client cannot set that GUC itself. Only a
+-- direct superuser session (no SET ROLE) or a connection actually
 -- authenticated as the Postgres `service_role` role (the seed script, cron
--- jobs, and edge functions using the service-role key) reaches this branch.
+-- jobs, and edge functions using the service-role key) reaches the bypass.
+-- Mirrors trg_guard_platform_settings_write's own `service_role` carve-out
+-- (20260615180000) in spirit, widened to the roles this gate needs to exempt.
+--
+-- Behavioural SQL tests (`supabase/tests/show_publish_gate_trigger_test.sql`)
+-- must therefore `SET LOCAL ROLE authenticated` plus a JWT
+-- (`set_config('request.jwt.claim.sub', <person's auth_user_id>, true)`) for
+-- every case that expects the gate to actually fire — a plain postgres
+-- session (the default for every other fixture in this file) no longer
+-- exercises it at all.
 --
 -- -- ALREADY-PUBLISHED SHOWS ARE EXEMPT (UPDATE only) -------------------------
 -- Mirrors publishGateError exactly: on UPDATE the gate only fires on a
@@ -126,13 +153,22 @@ DECLARE
   v_livemode boolean;
   v_ready boolean;
 BEGIN
-  -- Seed-fixture carve-out (see header). Mirrors
-  -- trg_guard_platform_settings_write's own carve-out. Not reachable from any
+  -- API-roles-only carve-out (see header). This gate is a backstop for
+  -- PostgREST/API callers only, so it applies exclusively to the roles a
+  -- PostgREST request actually runs as (`authenticated`, `anon`). Everything
+  -- else -- a direct superuser session with no SET ROLE ('none'), and
+  -- `service_role` (edge functions, crons, the seed script, and every
+  -- supabase/tests/*.sql fixture) -- bypasses it. Not reachable from any
   -- client path: SECURITY DEFINER changes the effective user this function
   -- body runs as, not current_setting('role', true), which always reflects
   -- the caller's own SET ROLE (the JWT-derived `authenticated`/`anon` for a
-  -- PostgREST request) — a client cannot set this GUC itself.
-  IF current_setting('role', true) = 'service_role' THEN
+  -- PostgREST request) — a client cannot set this GUC itself. Mirrors
+  -- trg_guard_platform_settings_write's own `service_role` carve-out
+  -- (20260615180000), widened to the roles this gate needs to exempt.
+  -- INVARIANT: service_role bypasses this gate; if publish ever moves behind
+  -- an edge function (which runs as service_role), the gate must be
+  -- restated there, not assumed inherited from this trigger.
+  IF coalesce(current_setting('role', true), 'none') NOT IN ('authenticated', 'anon') THEN
     RETURN NEW;
   END IF;
 
@@ -176,7 +212,7 @@ END;
 $$;
 
 COMMENT ON FUNCTION public.enforce_show_publish_gate() IS
-  'MYK9-579: server-side backstop for the draft->published Stripe-payouts gate. Mirrors publishGateError (ShowEditPanel.helpers.ts) and the inline check in ShowStatusPill.tsx exactly, including their copy (SQLSTATE MK003, mapped client-side via isPublishGateDbError in onlineEntryGate.ts). Livemode is read from platform_settings.stripe_livemode (Option 1 of the MYK9-579 design decision; flips together with STRIPE_SECRET_KEY for the MYK9-11 live cutover, see the column comment). Fires on BEFORE INSERT OR UPDATE OF status, branching on TG_OP: INSERT gates any row created already-published (create_show_with_children and createShow() both let the caller set status); UPDATE gates only a transition INTO published and exempts an already-published show (OLD.status = published) so unrelated edits on a live show are never re-gated or retroactively un-published. Carves out current_setting(''role'', true) = ''service_role'' for supabase/seed-demo.sql''s deliberate MYK9-386 fixture (Load Clubs 2/3 published with no Stripe account); unreachable from any client path, since SECURITY DEFINER changes the effective user the function runs as, not this GUC.';
+  'MYK9-579: server-side backstop for the draft->published Stripe-payouts gate. Mirrors publishGateError (ShowEditPanel.helpers.ts) and the inline check in ShowStatusPill.tsx exactly, including their copy (SQLSTATE MK003, mapped client-side via isPublishGateDbError in onlineEntryGate.ts). Livemode is read from platform_settings.stripe_livemode (Option 1 of the MYK9-579 design decision; flips together with STRIPE_SECRET_KEY for the MYK9-11 live cutover, see the column comment). Fires on BEFORE INSERT OR UPDATE OF status, branching on TG_OP: INSERT gates any row created already-published (create_show_with_children and createShow() both let the caller set status); UPDATE gates only a transition INTO published and exempts an already-published show (OLD.status = published) so unrelated edits on a live show are never re-gated or retroactively un-published. Carves out coalesce(current_setting(''role'', true), ''none'') NOT IN (''authenticated'', ''anon'') -- a direct superuser session (no SET ROLE, reads ''none'') and service_role (edge functions, crons, the seed script, supabase/tests/*.sql fixtures) both bypass; only the two roles PostgREST actually runs requests as are gated. Unreachable from any client path, since SECURITY DEFINER changes the effective user the function runs as, not this GUC. INVARIANT: if publish ever moves behind an edge function (service_role), the gate must be restated there.';
 
 DROP TRIGGER IF EXISTS trg_enforce_show_publish_gate ON public.shows;
 CREATE TRIGGER trg_enforce_show_publish_gate

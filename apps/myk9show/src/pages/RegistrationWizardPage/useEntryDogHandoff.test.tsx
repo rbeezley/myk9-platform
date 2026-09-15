@@ -40,6 +40,7 @@ interface Options {
   selectedDogs?: string[];
   mode?: string;
   steps?: string[];
+  canEnter?: boolean;
 }
 
 function render(options: Options = {}) {
@@ -50,6 +51,7 @@ function render(options: Options = {}) {
     registrationData: { selectedDogs: options.selectedDogs ?? [] },
     currentWorkflowMode: options.mode ?? 'exhibitor',
     currentWorkflowConfig: { steps: options.steps ?? ['dog-selection', 'class-selection'] },
+    entryCloseAvailability: { canEnter: options.canEnter ?? true },
     handleDogSelectionChange,
   };
   const result = renderHook((next: typeof props) => useEntryDogHandoff(next), {
@@ -134,9 +136,24 @@ describe('useEntryDogHandoff', () => {
   });
 
   it('does not touch the secretary-on-behalf flow', () => {
-    const { handleDogSelectionChange } = render({ mode: 'secretary' });
+    const { handleDogSelectionChange } = render({ mode: 'secretary_new' });
     expect(handleDogSelectionChange).not.toHaveBeenCalled();
     expect(warning).not.toHaveBeenCalled();
+  });
+
+  it('does nothing on a show whose entry window is shut', () => {
+    // The wizard renders the closed panel instead of the dog step, so there is
+    // no list for "Choose a dog below" to point at and nothing to select into.
+    const { handleDogSelectionChange } = render({ canEnter: false, dogs: [makeDog({ id: 'x' })] });
+    expect(handleDogSelectionChange).not.toHaveBeenCalled();
+    expect(warning).not.toHaveBeenCalled();
+  });
+
+  it('applies once the entry window opens while the page is up', () => {
+    const { rerender, handleDogSelectionChange, props } = render({ canEnter: false });
+    expect(handleDogSelectionChange).not.toHaveBeenCalled();
+    rerender({ ...props, entryCloseAvailability: { canEnter: true } });
+    expect(handleDogSelectionChange).toHaveBeenCalledWith(['dog-1']);
   });
 
   it('skips a workflow with no dog-selection step to preselect into', () => {

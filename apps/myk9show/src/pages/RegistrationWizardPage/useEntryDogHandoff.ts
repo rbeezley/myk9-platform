@@ -14,6 +14,9 @@
  *  - A draft/resume that already chose dogs wins; the param is dropped.
  *  - A dog that is missing, deleted, not theirs or ineligible is never
  *    substituted — the step falls back to normal selection with a toast.
+ *  - A show whose entry window is shut renders the closed panel instead of the
+ *    dog step, so there is nothing to preselect into and no list the fallback
+ *    toast could send the exhibitor to. Nothing runs at all there.
  */
 
 import { useEffect, useRef } from 'react';
@@ -43,6 +46,8 @@ export interface EntryDogHandoffOptions {
   currentWorkflowMode: string;
   /** Skip entirely when the workflow has no dog step to preselect into. */
   currentWorkflowConfig: { steps: readonly string[] };
+  /** The wizard renders the closed/not-yet-open panel instead of any step. */
+  entryCloseAvailability: { canEnter: boolean };
   /** The dog step's public selection handler. */
   handleDogSelectionChange: (dogIds: string[]) => void;
 }
@@ -54,6 +59,7 @@ export function useEntryDogHandoff(options: EntryDogHandoffOptions): void {
     registrationData,
     currentWorkflowMode,
     currentWorkflowConfig,
+    entryCloseAvailability,
     handleDogSelectionChange,
   } = options;
   const isExhibitorFlow = currentWorkflowMode === 'exhibitor';
@@ -67,14 +73,20 @@ export function useEntryDogHandoff(options: EntryDogHandoffOptions): void {
   useEffect(() => {
     if (appliedRef.current) return;
     if (!dogId || !isExhibitorFlow || !hasDogSelectionStep) return;
+    // Not consumed: the window can open while the page is up, and until it
+    // does there is no dog step behind this panel to select into.
+    if (!entryCloseAvailability.canEnter) return;
     if (!dogsReady) return;
 
     appliedRef.current = true;
 
     const handoff = resolveEntryDogHandoff({
       dogId,
-      // The roster is already scoped to what this user may enter; narrow it
-      // only by what the picker itself would hide.
+      // Exactly the list `DogSelectionStep` renders: the same roster
+      // (`useDogStoreCompat`, own dogs only unless the viewer holds a
+      // full-roster staff role — `rosterIsOwnDogsOnly`) narrowed by the same
+      // deleted/inactive rule. The handoff can therefore never select a dog
+      // the picker would not have offered on this same page.
       accessibleDogs: dogs.filter(isDogSelectable),
       selectedDogs: registrationData.selectedDogs,
       eligibility: getDogEligibilityStatus,
@@ -92,6 +104,7 @@ export function useEntryDogHandoff(options: EntryDogHandoffOptions): void {
     dogsReady,
     isExhibitorFlow,
     hasDogSelectionStep,
+    entryCloseAvailability.canEnter,
     dogs,
     registrationData,
     handleDogSelectionChange,

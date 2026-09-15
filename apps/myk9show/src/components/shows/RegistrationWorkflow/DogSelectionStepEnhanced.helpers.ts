@@ -1,4 +1,5 @@
 import type { Dog } from '@/types/dog-types';
+import { getAgeInMonths } from '@/hooks/useEntryEligibility';
 
 export function addDogSelection(
   selectedDogIds: string[],
@@ -47,12 +48,14 @@ export function removeVisibleDogSelections(
  */
 export function getDogEligibilityStatus(dog: Dog): { eligible: boolean; issues: string[] } {
   const issues: string[] = [];
-  if (dog.dateOfBirth) {
-    const birthDate = new Date(dog.dateOfBirth);
-    const ageInMonths = (new Date().getTime() - birthDate.getTime()) / (1000 * 60 * 60 * 24 * 30);
-    if (ageInMonths < 6) {
-      issues.push('Too young (must be 6+ months)');
-    }
+  // Calendar months via the shared `getAgeInMonths`, NOT days/30. The local
+  // 30-day approximation this replaced ran ~1.5% fast, so a dog in the last
+  // week before its six-month birthday read as eligible here while
+  // `DogSelectionStep` — which has always used `getAgeInMonths` — showed the
+  // same dog greyed out. The MYK9-519 handoff asks this function, so the
+  // divergence would have preselected a dog the picker refuses.
+  if (dog.dateOfBirth && getAgeInMonths(dog.dateOfBirth) < 6) {
+    issues.push('Too young (must be 6+ months)');
   }
   return { eligible: issues.length === 0, issues };
 }

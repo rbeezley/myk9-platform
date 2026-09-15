@@ -30,6 +30,12 @@ test.describe('Dog Details -> show entry handoff', () => {
     const dogId = new URL(page.url()).pathname.split('/')[2];
     expect(dogId).toBeTruthy();
 
+    // The identity rail's h1 is the call name, and the dog step labels its
+    // checkbox `Select <call name>` — so this is what lets the last assertion
+    // name the dog instead of settling for "something is checked".
+    const callName = (await page.locator('[data-dog-identity] h1').innerText()).trim();
+    expect(callName).not.toBe('');
+
     // The identity rail's primary action goes to the ordinary browse page,
     // carrying the dog rather than duplicating show-entry UI.
     const enterAShow = page.getByRole('link', { name: /enter a show/i });
@@ -68,11 +74,13 @@ test.describe('Dog Details -> show entry handoff', () => {
     await page.waitForURL(/\/shows\/[^/]+\/register/, { timeout: 30_000 });
     expect(new URL(page.url()).searchParams.get('dogId')).toBe(dogId);
 
-    // ...and the dog step opens with that dog already chosen. The running
-    // total is the user-visible proof that this is an ordinary selection and
-    // not a cosmetic checkmark.
-    const selectedRow = page.locator('[role="checkbox"][aria-checked="true"]').first();
-    await expect(selectedRow).toBeVisible({ timeout: 30_000 });
+    // ...and the dog step opens with THAT dog already chosen. Asserting the
+    // named checkbox, not "a checked checkbox": the whole point of the issue is
+    // that no other dog gets substituted, and a count check catches the
+    // opposite failure of preselecting the roster.
+    const chosen = page.getByRole('checkbox', { name: `Select ${callName}` });
+    await expect(chosen).toBeChecked({ timeout: 30_000 });
+    await expect(page.locator('[role="checkbox"][aria-checked="true"]')).toHaveCount(1);
   });
 
   test('falls back to normal selection for a dog the exhibitor does not own', async ({ page }) => {

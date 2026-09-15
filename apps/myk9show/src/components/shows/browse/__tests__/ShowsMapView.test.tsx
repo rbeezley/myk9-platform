@@ -118,6 +118,19 @@ describe('ShowsMapView', () => {
     );
   });
 
+  // MYK9-519: the map is one of three browse surfaces that thread the carried
+  // dog id onward; this pins that the popup link does it too.
+  it('carries an entry dog context from the browse URL into the popup link', () => {
+    render(<ShowsMapView shows={[makeShow({ id: 'show-42' })]} onSwitchToCards={vi.fn()} />, {
+      initialRoute: '/shows?dogId=dog-1',
+    });
+
+    expect(screen.getByRole('link', { name: /view show/i })).toHaveAttribute(
+      'href',
+      '/shows/show-42?dogId=dog-1'
+    );
+  });
+
   it('hands the tile layer a placeholder for tiles that fail to load', () => {
     // Blocked tiles never throw (leaflet 1.9.4 `_tileOnError` handles the image
     // error event), so the error boundary around this view cannot see them.

@@ -1,9 +1,19 @@
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { MemoryRouter } from 'react-router-dom';
-import { render, screen } from '@testing-library/react';
+import { render, screen, fireEvent } from '@testing-library/react';
 import type { EnhancedShow } from '@/hooks/useBrowseShowsData';
 import { ShowsTableView } from './ShowsTableView';
 import { formatShowsTableDateRange, splitShowLocation } from './ShowsTableView.helpers';
+
+// The row click itself navigates programmatically (DataTable's onRowClick),
+// so a link-parity check needs to see what useNavigate was called with rather
+// than an <a href>. Keep the rest of react-router-dom real for MemoryRouter
+// and the useSearchParams useEntryDogLink reads.
+const navigateMock = vi.fn();
+vi.mock('react-router-dom', async importOriginal => {
+  const actual = await importOriginal<typeof import('react-router-dom')>();
+  return { ...actual, useNavigate: () => navigateMock };
+});
 
 const originalTimezone = process.env.TZ;
 
@@ -114,5 +124,33 @@ describe('ShowsTableView columns (MYK9-427)', () => {
     // Organization now rides in the Show subline, not its own column.
     expect(row).toHaveTextContent('AKC · Scent Work');
     expect(row).toHaveTextContent(/accepting entries|entries open/i);
+  });
+});
+
+describe('ShowsTableView row navigation (MYK9-519)', () => {
+  afterEach(() => {
+    navigateMock.mockClear();
+  });
+
+  it('carries an entry dog context from the browse URL into the row navigation', () => {
+    render(
+      <MemoryRouter initialEntries={['/shows?dogId=dog-1']}>
+        <ShowsTableView shows={[makeEnhancedShow()]} canManageShow={() => false} />
+      </MemoryRouter>
+    );
+
+    fireEvent.click(screen.getByText('Heartland Scent Work Classic').closest('tr')!);
+    expect(navigateMock).toHaveBeenCalledWith('/shows/show-1?dogId=dog-1');
+  });
+
+  it('leaves the ordinary row navigation alone with no dog context', () => {
+    render(
+      <MemoryRouter>
+        <ShowsTableView shows={[makeEnhancedShow()]} canManageShow={() => false} />
+      </MemoryRouter>
+    );
+
+    fireEvent.click(screen.getByText('Heartland Scent Work Classic').closest('tr')!);
+    expect(navigateMock).toHaveBeenCalledWith('/shows/show-1');
   });
 });

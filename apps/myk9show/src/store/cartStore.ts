@@ -473,6 +473,15 @@ export const useCartStore = create<CartState>()(
         addItem: async (item: NewCartItem) => {
           const { cart } = get();
           if (!cart) {
+            // Says WHICH add was dropped and what the store held instead. The
+            // bare `set({ error })` was invisible in logs, so a chip clicked
+            // before the cart finished loading looked to the exhibitor like a
+            // failed add and to us like nothing at all (MYK9-542).
+            logger.warn('addItem called with no active cart; the click was dropped', 'cartStore', {
+              item,
+              loadInitiated: get().loadInitiated,
+              isLoading: get().isLoading,
+            });
             set({ error: 'No active cart' });
             return false;
           }
@@ -497,6 +506,34 @@ export const useCartStore = create<CartState>()(
               .single();
 
             if (insertError) {
+              // 23505 on entry_cart_items_unique_dog_class_idx means this cart
+              // ALREADY holds this (dog, class): the row is in the DB and the
+              // locally-held list had fallen short of it. That is not a failure
+              // to add -- the exhibitor's intent is already satisfied. Refresh
+              // the list from the DB so local truth matches, and report success
+              // (MYK9-530). This needs only a SELECT, which the same FOR ALL
+              // policy that allowed the read already grants.
+              if (insertError.code === '23505') {
+                logger.warn(
+                  'Cart item already present; refreshing cart from DB',
+                  'cartStore',
+                  { cartId: cart.id, item },
+                  insertError
+                );
+                const refreshedItems = await loadCartItemsByCartId(cart.id);
+                const refreshedTotals = calculateCartTotals(refreshedItems);
+                set({
+                  cart: {
+                    ...cart,
+                    items: refreshedItems,
+                    subtotal_cents: refreshedTotals.subtotal,
+                    platform_fee_cents: refreshedTotals.platformFee,
+                    total_cents: refreshedTotals.total,
+                  },
+                  lastSyncedAt: new Date().toISOString(),
+                });
+                return true;
+              }
               logger.error(
                 'Error adding cart item',
                 'cartStore',
@@ -523,16 +560,11 @@ export const useCartStore = create<CartState>()(
               })
               .eq('id', cart.id);
 
-            if (updateError) {
-              logger.error(
-                'Error updating cart totals',
-                'cartStore',
-                { cartId: cart.id },
-                updateError
-              );
-              throw updateError;
-            }
-
+            // The item row is in the DB whatever the totals write did, so commit
+            // it locally BEFORE deciding what a totals failure means. Throwing
+            // first left the local list one row short of the DB, and the next
+            // click on that chip then collided on the unique index (MYK9-530).
+            // The stored totals are a cache; loadCart recomputes them from items.
             set({
               cart: {
                 ...cart,
@@ -544,6 +576,16 @@ export const useCartStore = create<CartState>()(
               },
               lastSyncedAt: new Date().toISOString(),
             });
+
+            if (updateError) {
+              logger.error(
+                'Error updating cart totals',
+                'cartStore',
+                { cartId: cart.id },
+                updateError
+              );
+              throw updateError;
+            }
 
             return true;
           } catch (error) {
@@ -590,16 +632,13 @@ export const useCartStore = create<CartState>()(
               })
               .eq('id', cart.id);
 
-            if (updateError) {
-              logger.error(
-                'Error updating cart totals',
-                'cartStore',
-                { cartId: cart.id },
-                updateError
-              );
-              throw updateError;
-            }
-
+            // The DELETE has already committed, so the row is gone from the DB
+            // whatever the totals write did: commit the local removal BEFORE
+            // deciding what a totals failure means, exactly as `addItem` now
+            // does. Throwing first left the local list holding a row that no
+            // longer exists, and the next click on that chip took the REMOVE
+            // branch and deleted nothing (MYK9-530 review, P3-a). The stored
+            // totals are a cache; loadCart recomputes them from items.
             set({
               cart: {
                 ...cart,
@@ -611,6 +650,16 @@ export const useCartStore = create<CartState>()(
               },
               lastSyncedAt: new Date().toISOString(),
             });
+
+            if (updateError) {
+              logger.error(
+                'Error updating cart totals',
+                'cartStore',
+                { cartId: cart.id },
+                updateError
+              );
+              throw updateError;
+            }
 
             return true;
           } catch (error) {

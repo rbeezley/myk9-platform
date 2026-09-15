@@ -135,26 +135,33 @@ interface ElementCardProps {
   levels: LevelInfo[];
   fee: number;
   isSingleClass: boolean;
+  /** The cart is still loading, so no chip may be toggled — see `isCartReady` (MYK9-542). */
+  isCartPending?: boolean | undefined;
   onToggle: (classId: string) => void;
   onAddRegistration?: (() => void) | undefined;
 }
+
+const CART_PENDING_REASON = 'Loading your cart…';
 
 export const ElementCard: React.FC<ElementCardProps> = ({
   element,
   levels,
   fee,
   isSingleClass,
+  isCartPending = false,
   onToggle,
   onAddRegistration,
 }) => {
   if (isSingleClass) {
     const cls = levels[0];
     if (!cls) return null;
-    const singleDescription = cls.isClassClosed
-      ? cls.classClosedReason
-      : cls.isFull && !cls.isAlreadyEntered
-        ? cls.fullReason
-        : null;
+    const singleDescription = isCartPending
+      ? CART_PENDING_REASON
+      : cls.isClassClosed
+        ? cls.classClosedReason
+        : cls.isFull && !cls.isAlreadyEntered
+          ? cls.fullReason
+          : null;
     return (
       <div className="myk9-element-card myk9-element-card-single">
         <div className="flex items-center justify-between">
@@ -163,6 +170,7 @@ export const ElementCard: React.FC<ElementCardProps> = ({
               id={`single-${cls.classId}`}
               checked={cls.isSelected || cls.isAlreadyEntered}
               disabled={
+                isCartPending ||
                 cls.isAlreadyEntered ||
                 cls.isRegistrationBlocked ||
                 // Selected + closed stays operable so a stale cart line can be
@@ -175,6 +183,7 @@ export const ElementCard: React.FC<ElementCardProps> = ({
               }
               {...(singleDescription ? { 'aria-describedby': `single-reason-${cls.classId}` } : {})}
               onCheckedChange={() =>
+                !isCartPending &&
                 !cls.isAlreadyEntered &&
                 (!cls.isClassClosed || cls.isSelected) &&
                 onToggle(cls.classId)
@@ -268,6 +277,7 @@ export const ElementCard: React.FC<ElementCardProps> = ({
             isClassClosed={cls.isClassClosed}
             classClosedReason={cls.classClosedReason}
             fullReason={cls.fullReason}
+            isCartPending={isCartPending}
             onToggle={onToggle}
           />
         ))}
@@ -320,6 +330,7 @@ interface LevelChipProps {
   isClassClosed?: boolean | undefined;
   classClosedReason?: string | null | undefined;
   fullReason?: string | null | undefined;
+  isCartPending?: boolean | undefined;
   onToggle: (classId: string) => void;
 }
 
@@ -337,17 +348,22 @@ const LevelChip: React.FC<LevelChipProps> = ({
   isClassClosed = false,
   classClosedReason,
   fullReason,
+  isCartPending = false,
   onToggle,
 }) => {
   const isChecked = isSelected || isAlreadyEntered;
   const descriptionId = `chip-reason-${classId}`;
   // A started class outranks a full one: it takes nothing at all, so offering a
   // wait list or another day would be wrong, not merely redundant.
-  const description = isClassClosed
-    ? classClosedReason
-    : isFull && !isAlreadyEntered
-      ? fullReason
-      : null;
+  // Cart-pending outranks both: nothing here is actionable while the cart
+  // loads, and saying so beats a chip that silently refuses.
+  const description = isCartPending
+    ? CART_PENDING_REASON
+    : isClassClosed
+      ? classClosedReason
+      : isFull && !isAlreadyEntered
+        ? fullReason
+        : null;
 
   return (
     <div className="flex flex-col gap-1">
@@ -362,6 +378,7 @@ const LevelChip: React.FC<LevelChipProps> = ({
           id={`chip-${classId}`}
           checked={isChecked}
           disabled={
+            isCartPending ||
             isAlreadyEntered ||
             isRegistrationBlocked ||
             // A closed class that is ALREADY SELECTED stays operable, so the
@@ -373,7 +390,10 @@ const LevelChip: React.FC<LevelChipProps> = ({
           }
           {...(description ? { 'aria-describedby': descriptionId } : {})}
           onCheckedChange={() =>
-            !isAlreadyEntered && (!isClassClosed || isSelected) && onToggle(classId)
+            !isCartPending &&
+            !isAlreadyEntered &&
+            (!isClassClosed || isSelected) &&
+            onToggle(classId)
           }
           className="h-3.5 w-3.5"
         />

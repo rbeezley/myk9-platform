@@ -729,6 +729,7 @@ describe('ClassSelectionStep — empty class inventory', () => {
 
 describe('ClassSelectionStep — add-only entry actions (6.4)', () => {
   const NEW_CLASS_ID = 'class-new';
+  const EXHIBITOR_ID = 'exhibitor-1';
 
   function setupAddOnlyMocks() {
     mockUseDogStoreCompat.mockReturnValue({
@@ -901,19 +902,41 @@ describe('ClassSelectionStep — add-only entry actions (6.4)', () => {
     ).toBe(true);
   });
 
-  it('(f) a failed add-to-cart mutation surfaces an error and preserves the prior selection', async () => {
-    const failingAddItem = vi.fn().mockResolvedValue(false);
-    mockUseCartStore.mockImplementation((selector: (s: unknown) => unknown) => {
-      const state = {
-        cart: null,
+  /**
+   * Mock the cart store for the self-service (cart) flow.
+   *
+   * `cart` was `null` here when these tests were written (#1990, MYK9-328),
+   * which made every click land while the store held no cart at all. The
+   * readiness gate (MYK9-542) now refuses exactly that click, so a test that
+   * wants to exercise the ADD path has to hand the step the cart it is adding
+   * to — this show's and this exhibitor's, finished loading.
+   */
+  const mockCartStore = (opts: {
+    cart: { show_id: string; exhibitor_id: string } | null;
+    isLoading?: boolean;
+    addItem?: ReturnType<typeof vi.fn>;
+  }) => {
+    const addItem = opts.addItem ?? vi.fn().mockResolvedValue(true);
+    mockUseCartStore.mockImplementation((selector: (s: unknown) => unknown) =>
+      selector({
+        cart: opts.cart ? { id: 'cart-1', items: [], ...opts.cart } : null,
+        isLoading: opts.isLoading ?? false,
         loadCart: vi.fn().mockResolvedValue(null),
         createCart: vi.fn().mockResolvedValue(null),
-        addItem: failingAddItem,
+        addItem,
         removeItem: vi.fn().mockResolvedValue(true),
-      };
-      return selector(state);
+      })
+    );
+    mockUseExhibitorProfile.mockReturnValue({ profile: { id: EXHIBITOR_ID } });
+    return addItem;
+  };
+
+  it('(f) a failed add-to-cart mutation surfaces an error and preserves the prior selection', async () => {
+    const failingAddItem = vi.fn().mockResolvedValue(false);
+    mockCartStore({
+      cart: { show_id: SHOW_ID, exhibitor_id: EXHIBITOR_ID },
+      addItem: failingAddItem,
     });
-    mockUseExhibitorProfile.mockReturnValue({ profile: { id: 'exhibitor-1' } });
 
     const onSelectionChange = vi.fn();
     const { user } = render(
@@ -934,5 +957,75 @@ describe('ClassSelectionStep — add-only entry actions (6.4)', () => {
     // and still unchecked, ready to retry.
     expect(onSelectionChange).not.toHaveBeenCalled();
     expect(await screen.findByRole('checkbox', { name: /select novice a/i })).not.toBeChecked();
+  });
+
+  it('(g) before this show\u2019s cart has loaded the chip is disabled and mutates nothing (MYK9-542)', async () => {
+    const addItem = mockCartStore({ cart: null, isLoading: true });
+
+    const onSelectionChange = vi.fn();
+    const { user } = render(
+      <ClassSelectionStep
+        selectedDogs={[DOG_ID]}
+        classSelections={[]}
+        onSelectionChange={onSelectionChange}
+        showId={SHOW_ID}
+      />
+    );
+
+    const chip = await screen.findByRole('checkbox', { name: /select novice a/i });
+    expect(chip).toHaveAttribute('aria-disabled', 'true');
+    // Every disabled chip says why, the same way a full or started one does.
+    expect(screen.getAllByText(/loading your cart/i).length).toBeGreaterThan(0);
+    expect(chip).toHaveAttribute('aria-describedby', `chip-reason-${NEW_CLASS_ID}`);
+
+    await user.click(chip);
+
+    expect(addItem).not.toHaveBeenCalled();
+    expect(onSelectionChange).not.toHaveBeenCalled();
+  });
+
+  it('(g2) a cart still holding ANOTHER show\u2019s rows is not this show\u2019s cart (MYK9-542)', async () => {
+    const addItem = mockCartStore({
+      cart: { show_id: 'some-other-show', exhibitor_id: EXHIBITOR_ID },
+    });
+
+    const onSelectionChange = vi.fn();
+    const { user } = render(
+      <ClassSelectionStep
+        selectedDogs={[DOG_ID]}
+        classSelections={[]}
+        onSelectionChange={onSelectionChange}
+        showId={SHOW_ID}
+      />
+    );
+
+    await user.click(await screen.findByRole('checkbox', { name: /select novice a/i }));
+
+    expect(addItem).not.toHaveBeenCalled();
+    expect(onSelectionChange).not.toHaveBeenCalled();
+  });
+
+  it('(h) positive control: once this show\u2019s cart is present the same click adds (MYK9-542)', async () => {
+    const addItem = mockCartStore({ cart: { show_id: SHOW_ID, exhibitor_id: EXHIBITOR_ID } });
+
+    const onSelectionChange = vi.fn();
+    const { user } = render(
+      <ClassSelectionStep
+        selectedDogs={[DOG_ID]}
+        classSelections={[]}
+        onSelectionChange={onSelectionChange}
+        showId={SHOW_ID}
+      />
+    );
+
+    const chip = await screen.findByRole('checkbox', { name: /select novice a/i });
+    expect(chip).not.toHaveAttribute('aria-disabled', 'true');
+
+    await user.click(chip);
+
+    expect(addItem).toHaveBeenCalledWith(
+      expect.objectContaining({ dogId: DOG_ID, classId: NEW_CLASS_ID })
+    );
+    expect(onSelectionChange).toHaveBeenCalled();
   });
 });

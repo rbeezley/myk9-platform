@@ -136,6 +136,22 @@ interface ToggleClassSelectionOptions {
   addItem: (item: NewCartItem) => Promise<boolean>;
   removeItem: (itemId: string) => Promise<boolean>;
   setAddingItem: (itemKey: string | null) => void;
+  /**
+   * Live read of whether an add is already in flight. A getter, not a value:
+   * two clicks landing in the same React batch both close over the same stale
+   * render-time value, so only a read at call time can see the first click's
+   * write (MYK9-530).
+   */
+  isAddInFlight: () => boolean;
+  /**
+   * Whether the cart being mutated is this show's and this exhibitor's, and has
+   * finished loading (`isCartReady`). The chips are rendered disabled while it
+   * is false; this is the second half of that guard, for a click that lands
+   * anyway (MYK9-542).
+   */
+  isCartReady: boolean;
+  /** Called once per click that the readiness gate turned away. */
+  onBlockedByCart: () => void;
   notifyAdded: () => void;
   notifyError: (message: string) => void;
 }
@@ -152,6 +168,9 @@ export async function toggleClassSelection({
   addItem,
   removeItem,
   setAddingItem,
+  isAddInFlight,
+  isCartReady,
+  onBlockedByCart,
   notifyAdded,
   notifyError,
 }: ToggleClassSelectionOptions): Promise<void> {
@@ -167,19 +186,60 @@ export async function toggleClassSelection({
     return;
   }
 
-  if (cartItem) {
-    const removed = await removeItem(cartItem.id);
-    if (removed) {
-      onSelectionChange(removeClassFromSelections(classSelections, dogId, classId));
-    } else {
-      notifyError('Failed to remove from cart');
+  // Nothing may be computed against a cart that is still loading, or that is
+  // still the previous show's -- see `isCartReady` for what each branch does
+  // wrong in that window. The chips render disabled meanwhile, so this is the
+  // keyboard/race path rather than the ordinary one (MYK9-542).
+  if (!isCartReady) {
+    onBlockedByCart();
+    return;
+  }
+
+  // Ignore every cart click while an add is still in flight. The whole cart
+  // flow is blocked, not just a repeat of the same chip: `addItem` computes the
+  // new item list from the cart it read on entry, so a second mutation started
+  // mid-add would be computed against a list that is about to be replaced.
+  if (isAddInFlight()) return;
+
+  // Branch on the SAME predicate the chip renders from (`isClassSelected`),
+  // not on `cartItem` alone. A pair present in `classSelections` but missing
+  // from the locally-held cart list renders checked, and branching on the cart
+  // row sent that click down the ADD path, where the bare insert died on
+  // `entry_cart_items_unique_dog_class_idx` (23505) -- MYK9-530.
+  if (isSelected) {
+    if (cartItem) {
+      // Hold the same in-flight flag the add path holds: a remove and an add
+      // that overlap both compute their new item list from the cart they read
+      // on entry, so whichever `set` lands second silently drops the other's
+      // row from the local list -- the same divergence this fix exists to
+      // close. `finally`, so a rejected mutation cannot wedge the step with a
+      // flag that is never cleared (MYK9-530 review).
+      setAddingItem(`${dogId}-${classId}`);
+      let removed: boolean;
+      try {
+        removed = await removeItem(cartItem.id);
+      } finally {
+        setAddingItem(null);
+      }
+      if (!removed) {
+        notifyError('Failed to remove from cart');
+        return;
+      }
     }
+    // No local cart row to delete: deselecting is the whole job here. Any DB
+    // row the local list had lost is reconciled back on the next cart load
+    // (`reconcileCartToSelections`), and `addItem` now tolerates it besides.
+    onSelectionChange(removeClassFromSelections(classSelections, dogId, classId));
     return;
   }
 
   setAddingItem(`${dogId}-${classId}`);
-  const added = await addItem({ dogId, classId, entryFeeCents: entryFee * 100 });
-  setAddingItem(null);
+  let added: boolean;
+  try {
+    added = await addItem({ dogId, classId, entryFeeCents: entryFee * 100 });
+  } finally {
+    setAddingItem(null);
+  }
   if (!added) {
     notifyError('Failed to add to cart');
     return;

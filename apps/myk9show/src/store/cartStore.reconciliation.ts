@@ -68,6 +68,13 @@ export async function reconcileCartItemsAgainstExistingEntries({
 
   if (staleItemIds.length === 0) return items;
 
+  // MYK9-530 asked whether this prune can be a silent zero-row 204 under RLS,
+  // leaving the DB row alive while the local list drops it. It cannot:
+  // `entry_cart_items` carries a single FOR ALL policy whose USING expression
+  // (`is_site_admin() OR cart_id IN (my carts)`) is the same expression that
+  // gated the SELECT which produced `items` moments earlier in this same
+  // session. Dog ownership (`get_my_person_id()`) appears only in WITH CHECK,
+  // so it cannot gate a DELETE. Any row readable here is deletable here.
   const { error: deleteError } = await supabase
     .from('entry_cart_items')
     .delete()

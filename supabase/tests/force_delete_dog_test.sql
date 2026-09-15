@@ -56,9 +56,16 @@ VALUES
   );
 
 -- Make the second user a site_admin: is_platform_admin() -> is_site_admin()
--- reads user_roles joined to roles by name.
-INSERT INTO public.user_roles (auth_user_id, role_id, is_active)
-SELECT '00000000-0000-0000-0000-0000000fd102', r.id, true
+-- matches on user_roles.auth_user_id = auth.uid(). `user_id` is a SEPARATE,
+-- NOT NULL column that foreign-keys to people(id) — a people id is never an
+-- auth uid in this database, so both columns must be set, with the right value
+-- in each.
+INSERT INTO public.user_roles (user_id, auth_user_id, role_id, is_active)
+SELECT
+  '00000000-0000-0000-0000-0000000fd012',
+  '00000000-0000-0000-0000-0000000fd102',
+  r.id,
+  true
 FROM public.roles r
 WHERE r.name = 'site_admin';
 
@@ -196,6 +203,19 @@ SELECT set_config(
   '{"sub":"00000000-0000-0000-0000-0000000fd102","role":"authenticated"}',
   true
 );
+
+-- Positive control on the gate itself. The row-exists check above cannot tell a
+-- correct auth_user_id from a wrong one, and a wrong one would surface as a
+-- confusing 42501 from the call below rather than as "the fixture is broken".
+DO $$
+BEGIN
+  IF NOT (SELECT public.is_platform_admin()) THEN
+    RAISE EXCEPTION
+      'FIXTURE is_platform_admin() is false for the admin session — the role row is not wired to auth.uid()';
+  END IF;
+  RAISE NOTICE 'PASS fixture admin is recognised by is_platform_admin()';
+END;
+$$;
 
 SELECT public.force_delete_dog('00000000-0000-0000-0000-0000000fd051');
 

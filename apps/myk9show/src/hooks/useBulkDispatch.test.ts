@@ -227,14 +227,16 @@ describe('useBulkDispatch claimFailure', () => {
   });
 
   it('shows no toast when the caller claims every failure and nothing succeeded', async () => {
-    const { result } = renderHook(() =>
-      useBulkDispatch<Item>({ getLabel: i => i.id })
-    );
+    const { result } = renderHook(() => useBulkDispatch<Item>({ getLabel: i => i.id }));
 
     await act(async () => {
-      await result.current.run([item('a'), item('b')], async () => {
-        throw new Error('blocked');
-      }, { claimFailure: () => true });
+      await result.current.run(
+        [item('a'), item('b')],
+        async () => {
+          throw new Error('blocked');
+        },
+        { claimFailure: () => true }
+      );
     });
 
     expect(toast.error).not.toHaveBeenCalled();
@@ -245,9 +247,13 @@ describe('useBulkDispatch claimFailure', () => {
     const { result } = renderHook(() => useBulkDispatch<Item>({ getLabel: i => i.id }));
 
     await act(async () => {
-      await result.current.run([item('a'), item('b')], async i => {
+      await result.current.run(
+        [item('a'), item('b')],
+        async i => {
           if (i.id === 'b') throw new Error('blocked');
-        }, { claimFailure: () => true });
+        },
+        { claimFailure: () => true }
+      );
     });
 
     expect(toast.error).not.toHaveBeenCalled();
@@ -284,9 +290,13 @@ describe('useBulkDispatch claimFailure', () => {
 
     let outcome: Awaited<ReturnType<typeof result.current.run>> = null;
     await act(async () => {
-      outcome = await result.current.run([item('a'), item('b')], async i => {
+      outcome = await result.current.run(
+        [item('a'), item('b')],
+        async i => {
           if (i.id === 'b') throw new Error('blocked');
-        }, { claimFailure: () => true });
+        },
+        { claimFailure: () => true }
+      );
     });
 
     expect(outcome!.failed).toHaveLength(1);

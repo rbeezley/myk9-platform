@@ -178,7 +178,12 @@ export function DogsBulkActionsBar({
                   Clear
                 </Button>
               </div>
-              <RowActionMenu actions={actions} size="touch" label="Bulk actions" disabled={isBusy} />
+              <RowActionMenu
+                actions={actions}
+                size="touch"
+                label="Bulk actions"
+                disabled={isBusy}
+              />
             </div>
           </div>
         </>

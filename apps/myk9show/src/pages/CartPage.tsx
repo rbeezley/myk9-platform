@@ -6,6 +6,7 @@
  */
 
 import { useState, useEffect, useMemo, useRef } from 'react';
+import { continueShoppingTarget } from '@/features/registration/continueShoppingTarget';
 import { useNavigate, Link, useSearchParams } from 'react-router-dom';
 import { ShoppingCart, ArrowLeft, Trash2, AlertCircle, Eye, Info, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -381,11 +382,7 @@ export default function CartPage() {
   };
 
   const handleContinueShopping = () => {
-    if (cart?.show_id) {
-      navigate(`/shows/${cart.show_id}`);
-    } else {
-      navigate('/shows');
-    }
+    navigate(continueShoppingTarget(cart?.show_id));
   };
 
   // Loading state — wait for the profile to resolve and the cart to hydrate

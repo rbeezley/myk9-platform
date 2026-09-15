@@ -11,7 +11,12 @@
  *    same handoff rather than silently losing it.
  *  - It applies at most once per mount, so Back/Forward into a cart the
  *    exhibitor has since edited never re-adds the dog.
- *  - A draft/resume that already chose dogs wins; the param is dropped.
+ *  - A draft/resume that already chose dogs wins; the param is dropped. That
+ *    verdict is only trustworthy once `useWizardDraftRehydration` has settled:
+ *    on a client-side entry with a warm roster this hook's first commit sees
+ *    `selectedDogs: []` while the restore is still one render away, and acting
+ *    there replaced a whole restored entry with the single carried dog
+ *    (MYK9-514). Nothing runs until the restore has applied or been ruled out.
  *  - A dog that is missing, deleted, not theirs or ineligible is never
  *    substituted — the step falls back to normal selection with a toast.
  *  - A show whose entry window is shut renders the closed panel instead of the
@@ -44,6 +49,12 @@ export interface EntryDogHandoffOptions {
   registrationData: { selectedDogs: string[] };
   /** Only the exhibitor self-service flow carries this context. */
   currentWorkflowMode: string;
+  /**
+   * `useWizardDraftRehydration` has finished deciding — a draft was restored,
+   * or there was none. Before this, `registrationData.selectedDogs` is not yet
+   * the exhibitor's answer and must not be read as one.
+   */
+  rehydrationSettled: boolean;
   /** Skip entirely when the workflow has no dog step to preselect into. */
   currentWorkflowConfig: { steps: readonly string[] };
   /** The wizard renders the closed/not-yet-open panel instead of any step. */
@@ -58,6 +69,7 @@ export function useEntryDogHandoff(options: EntryDogHandoffOptions): void {
     dogsReady,
     registrationData,
     currentWorkflowMode,
+    rehydrationSettled,
     currentWorkflowConfig,
     entryCloseAvailability,
     handleDogSelectionChange,
@@ -77,6 +89,9 @@ export function useEntryDogHandoff(options: EntryDogHandoffOptions): void {
     // does there is no dog step behind this panel to select into.
     if (!entryCloseAvailability.canEnter) return;
     if (!dogsReady) return;
+    // Not consumed either: a restore lands a render later and turns this into
+    // `draft-wins`. Latching the one-shot before it would be the bug.
+    if (!rehydrationSettled) return;
 
     appliedRef.current = true;
 
@@ -105,6 +120,7 @@ export function useEntryDogHandoff(options: EntryDogHandoffOptions): void {
     isExhibitorFlow,
     hasDogSelectionStep,
     entryCloseAvailability.canEnter,
+    rehydrationSettled,
     dogs,
     registrationData,
     handleDogSelectionChange,

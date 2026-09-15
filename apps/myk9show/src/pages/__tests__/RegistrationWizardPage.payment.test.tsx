@@ -293,7 +293,11 @@ describe('RegistrationWizardPage — Stripe payment handoff', () => {
     );
   });
 
-  it('discards wizard drafts without allowing final auto-save during Stripe handoff', async () => {
+  it('keeps the wizard draft alive across the Stripe handoff so a cancelled checkout can resume', async () => {
+    // MYK9-509: this assertion is the inverse of the one it replaces. The
+    // hand-off used to discard the draft the moment the lines reached the cart,
+    // which is what left a cancelled checkout with nothing to come back to. The
+    // draft is now retired only where entries are actually filed.
     const { user } = render(<RegistrationWizardPage />, {
       initialRoute: '/shows/show-1/register',
     });
@@ -316,13 +320,14 @@ describe('RegistrationWizardPage — Stripe payment handoff', () => {
 
     await waitFor(() => expect(submitRegistrationCartCheckoutMock).toHaveBeenCalledTimes(1));
     const [{ deps }] = submitRegistrationCartCheckoutMock.mock.calls[0] as Array<{
-      deps: { deleteDraft: () => Promise<void> };
+      deps: Record<string, unknown>;
     }>;
 
-    await deps.deleteDraft();
-
-    expect(discardDraftsWithoutFinalSaveMock).toHaveBeenCalledTimes(1);
-    expect(clearDraftDataMock).toHaveBeenCalledTimes(1);
+    // No draft-deleting dependency is handed to the cart checkout at all, so
+    // there is no longer a path that can retire the draft from here.
+    expect(deps).not.toHaveProperty('deleteDraft');
+    expect(discardDraftsWithoutFinalSaveMock).not.toHaveBeenCalled();
+    expect(clearDraftDataMock).not.toHaveBeenCalled();
     expect(deleteDraftMock).not.toHaveBeenCalled();
   });
 });

@@ -15,7 +15,6 @@ interface RegistrationCartCheckoutDeps {
   createCart: (showId: string, exhibitorId: string) => Promise<CartWithDetails | null>;
   addItem: (item: NewCartItem) => Promise<boolean>;
   abandonCart: () => Promise<boolean>;
-  deleteDraft: () => Promise<void>;
   navigate: (path: string) => void;
 }
 
@@ -80,6 +79,12 @@ export async function submitRegistrationCartCheckout({
     throw error;
   }
 
-  await deps.deleteDraft();
+  // MYK9-509: the wizard draft deliberately SURVIVES the hand-off. Deleting it
+  // here retired the exhibitor's selections the moment the lines reached the
+  // cart — before Stripe had even loaded — so a cancelled checkout left nothing
+  // to come back to and Continue Shopping opened an empty wizard. The draft is
+  // retired where the entries are actually filed: the non-card submit paths
+  // call `discardDraftsWithoutFinalSave`, and a verified card checkout prunes
+  // the filed lines from `CheckoutSuccessPage`.
   deps.navigate('/cart');
 }

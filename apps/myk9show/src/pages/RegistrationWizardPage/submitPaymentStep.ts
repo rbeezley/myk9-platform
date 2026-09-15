@@ -95,7 +95,6 @@ export interface SubmitPaymentStepContext {
   triggerSync: () => void;
   navigate: (path: string) => void;
   discardDraftsWithoutFinalSave: (handledClasses: HandledDraftClass[]) => void;
-  clearDraftData: () => void;
 }
 
 function buildOfflineLateEntryRegistrationNumber(entryIds: string[]): string {
@@ -170,10 +169,6 @@ export async function submitPaymentStep(ctx: SubmitPaymentStepContext): Promise<
           createCart: ctx.cart.createCart,
           addItem: ctx.cart.addItem,
           abandonCart: ctx.cart.abandonCart,
-          deleteDraft: async () => {
-            ctx.discardDraftsWithoutFinalSave(handledClasses(ctx.classSelections));
-            ctx.clearDraftData();
-          },
           navigate: path => ctx.navigate(path),
         },
       });

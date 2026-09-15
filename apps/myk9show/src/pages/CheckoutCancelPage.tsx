@@ -1,21 +1,114 @@
 /**
  * Checkout Cancel Page
  *
- * Displayed when user cancels payment on Stripe checkout.
- * Offers options to return to cart or continue shopping.
+ * Displayed when Stripe returns the exhibitor to our cancel_url. Offers options
+ * to return to the cart or continue shopping.
+ *
+ * MYK9-509: the cancel_url is ALSO reachable after a successful payment — Back
+ * from the receipt, a restored tab, a re-followed history entry. So the landing
+ * verifies its `session_id` before claiming anything: a paid session gets the
+ * receipt, never "Payment Cancelled" and never the amend button, which leads
+ * one click into a live cart. The rule lives in `CheckoutCancelPage.session`.
  */
 
 import { useNavigate } from 'react-router-dom';
-import { XCircle, ShoppingCart, ArrowLeft, ArrowRight, Eye } from 'lucide-react';
+import {
+  XCircle,
+  CheckCircle,
+  Loader2,
+  ShoppingCart,
+  ArrowLeft,
+  ArrowRight,
+  Eye,
+} from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { useCartStore, useCartItems } from '@/store/cartStore';
+import { continueShoppingTarget } from '@/features/registration/continueShoppingTarget';
+import { useCancelledCheckoutSession } from './CheckoutCancelPage.session';
 
 export default function CheckoutCancelPage() {
   const navigate = useNavigate();
   const cart = useCartStore(state => state.cart);
+  // A real Stripe cancel returns via a full document load, so `cart` is null
+  // here and only the persisted recovery ids survive. Reading them is what
+  // makes the entry-amendment button reachable in the normal flow instead of
+  // only after an in-app navigation.
+  const recoveryShowId = useCartStore(state => state.cartRecoveryInfo?.showId ?? null);
+  const returnShowId = cart?.show_id ?? recoveryShowId;
   const items = useCartItems();
   const itemCount = items.length;
+
+  const { status: sessionStatus, sessionId } = useCancelledCheckoutSession();
+
+  if (sessionStatus === 'paid') {
+    return (
+      <div className="bg-background pt-6">
+        <div className="max-w-2xl mx-auto px-4 py-16">
+          <Card>
+            <CardHeader className="text-center pb-2">
+              <div className="w-16 h-16 rounded-full bg-muted flex items-center justify-center mx-auto mb-4">
+                <CheckCircle className="h-8 w-8 text-muted-foreground" />
+              </div>
+              <CardTitle className="text-2xl">This payment went through</CardTitle>
+              <p className="text-muted-foreground mt-2">
+                You landed on the cancelled-payment page, but this checkout was already paid. You
+                have not been charged again.
+              </p>
+            </CardHeader>
+
+            <CardContent>
+              <div className="text-sm text-muted-foreground p-4 rounded-lg bg-muted/30">
+                Open the receipt for your confirmation number and the entries it covers.
+              </div>
+            </CardContent>
+
+            <CardFooter className="flex-col gap-2">
+              {/*
+                INTENT: MYK9-509 — the ONLY action offered here is the receipt.
+                No "Return to Cart" and no "Add or change entries": both walk a
+                paid exhibitor back into a cart they could pay for a second time.
+              */}
+              <Button
+                className="w-full"
+                onClick={() => navigate(`/checkout/success?session_id=${sessionId ?? ''}`)}
+              >
+                <ArrowRight className="h-4 w-4 mr-2" />
+                View your receipt
+              </Button>
+            </CardFooter>
+          </Card>
+        </div>
+      </div>
+    );
+  }
+
+  if (sessionStatus === 'checking') {
+    // INTENT: MYK9-509 — until the answer is in we do not know which page this
+    // is, so we must not render EITHER verdict. Disabling one button while the
+    // heading still reads "Payment Cancelled — your payment was not completed"
+    // tells an exhibitor whose card was charged the one thing this issue exists
+    // to prevent, and leaves the primary "Return to Cart" as a live route.
+    // A neutral, honest in-flight state is the whole of the fix; it also means
+    // no button below needs a `disabled` special case.
+    return (
+      <div className="bg-background pt-6">
+        <div className="max-w-2xl mx-auto px-4 py-16">
+          <Card>
+            <CardHeader className="text-center pb-2">
+              <div className="w-16 h-16 rounded-full bg-muted flex items-center justify-center mx-auto mb-4">
+                <Loader2 className="h-8 w-8 text-muted-foreground animate-spin" />
+              </div>
+              <CardTitle className="text-2xl">Checking this payment</CardTitle>
+              <p className="text-muted-foreground mt-2" role="status">
+                One moment while we confirm whether this checkout went through.
+              </p>
+            </CardHeader>
+          </Card>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="bg-background pt-6">
@@ -70,14 +163,25 @@ export default function CheckoutCancelPage() {
               <ShoppingCart className="h-4 w-4 mr-2" />
               Return to Cart
             </Button>
-            {cart?.show_id ? (
+            {returnShowId ? (
+              /*
+                INTENT: MYK9-509 — this goes to the WIZARD for the show, not the
+                show's public page. A cancelled checkout leaves the exhibitor's
+                dog and class selections intact in the saved draft, and the
+                wizard rehydrates them on mount, so this is the one place where
+                "add another class for Ziva" is possible without starting over.
+                The label says where it goes.
+
+                Unreachable until the session verdict is in: the in-flight state
+                above renders instead of this whole landing.
+              */
               <Button
                 variant="outline"
                 className="w-full"
-                onClick={() => navigate(`/shows/${cart.show_id}`)}
+                onClick={() => navigate(continueShoppingTarget(returnShowId))}
               >
                 <ArrowRight className="h-4 w-4 mr-2" />
-                Continue Shopping
+                Add or change entries
               </Button>
             ) : (
               <Button variant="outline" className="w-full" onClick={() => navigate('/shows')}>

@@ -7,6 +7,7 @@ import {
   evaluateReviewGate,
   fileListIsUnusable,
   GH_MAX_BUFFER_BYTES,
+  runGh,
   flattenPages,
   overrideAccepted,
   OWNER_OVERRIDE_ASSOCIATIONS,
@@ -1561,5 +1562,73 @@ describe('evaluateReviewGate sees the declared count too', () => {
       changedFiles: docs(100),
     });
     expect(result.state).toBe('success');
+  });
+});
+
+describe('runGh hands execFileSync a buffer large enough for a real fetch', () => {
+  it('passes GH_MAX_BUFFER_BYTES, not the 1 MiB default', () => {
+    // Asserting the constant alone proves it exists, not that anything uses
+    // it. Deleting `maxBuffer:` from the call must redden THIS test — the
+    // 1 MiB default is what threw ENOBUFS on an 8.2 MB response.
+    let seen: unknown;
+    const fakeExec = ((_file: string, _args: string[], opts: unknown) => {
+      seen = opts;
+      return '';
+    }) as unknown as typeof import('node:child_process').execFileSync;
+    runGh(['pr', 'view'], fakeExec);
+    const opts = seen as { maxBuffer?: number; encoding?: string };
+    expect(opts.encoding).toBe('utf8');
+    expect(opts.maxBuffer).toBe(GH_MAX_BUFFER_BYTES);
+    expect(opts.maxBuffer ?? 0).toBeGreaterThan(8_214_722);
+  });
+});
+
+describe('a crash cannot read as a standing pass', () => {
+  // The required `Review gate` context is a COMMIT status pinned to the SHA.
+  // When the evaluation threw, nothing was posted — so on an issue_comment
+  // edit that WITHDREW an attestation, the older green status survived.
+  const env = { PR_NUMBER: '2121', REPO: 'rbeezley/myk9-platform' } as NodeJS.ProcessEnv;
+
+  function runnerThatFailsOnFiles() {
+    const posted: string[][] = [];
+    const run = (args: string[]): string => {
+      if (args[0] === 'pr' && args[1] === 'view') {
+        return JSON.stringify({ headRefOid: HEAD, isDraft: false, changedFiles: 4 });
+      }
+      if (args.some(a => a.includes('/pulls/'))) throw new Error('HTTP 403: rate limited');
+      if (args.includes('--method')) {
+        posted.push(args);
+        return '';
+      }
+      throw new Error(`unexpected gh call: ${args.join(' ')}`);
+    };
+    return { run, posted };
+  }
+
+  it('posts a failure status when the file fetch throws', () => {
+    const { run, posted } = runnerThatFailsOnFiles();
+    expect(runCli(env, [], run)).toBe(0);
+    expect(posted).toHaveLength(1);
+    const fields = posted[0] ?? [];
+    expect(fields.join(' ')).toContain('state=failure');
+    expect(fields.join(' ')).toContain(`statuses/${HEAD}`);
+    expect(fields.join(' ')).toContain('rate limited');
+  });
+
+  it('posts through the injected runner, never a real gh', () => {
+    // Without this the unit suite is one forgotten --dry-run away from
+    // POSTing a commit status to a real SHA in the real repository.
+    const { run, posted } = runnerThatFailsOnFiles();
+    runCli(env, [], run);
+    expect(posted.length).toBeGreaterThan(0);
+  });
+});
+
+describe('a fetch LONGER than GitHub declares is also unusable', () => {
+  it('rejects a count that overshoots, not just one that falls short', () => {
+    // A path containing a literal newline splits into two entries, so a
+    // truncated fetch can present a count that satisfies a `<` comparison.
+    expect(fileListIsUnusable(1734, 1733)).toBe(true);
+    expect(fileListIsUnusable(101, 100)).toBe(true);
   });
 });

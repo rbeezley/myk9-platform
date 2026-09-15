@@ -409,8 +409,9 @@ interface EvaluateReviewGateInput {
   comments: readonly GateComment[];
   changedFiles: readonly string[];
   /**
-   * True when the changed-file list is empty or hit GitHub's 3000-file cap
-   * and may therefore be truncated. Pins the floor to `independent` instead
+   * True when the changed-file list is empty, disagrees with GitHub's own
+   * `changedFiles` count, or hit the 3000-file cap, and may therefore be
+   * truncated. Pins the floor to `independent` instead
    * of guessing a (possibly lower) floor from a partial diff — a truncated
    * list silently LOWERING the floor is the one way this feature would be
    * worse than no floor at all.
@@ -443,15 +444,14 @@ function resolveFloor(input: {
   tier: Tier;
   reason: string;
 } {
-  // The invariant lives HERE, not only in runCli's caller-side check, so a
-  // future caller that computes changedFiles itself (push-hold.ts already
-  // imports this module) cannot silently clear a guardrail PR on a
-  // transient `gh` failure that yields an empty list (I2).
-  // A caller that supplies no declared count is not punished here: only
-  // runCli can vouch for one, and evaluateReviewGate is called directly by
-  // tests and by any future in-process caller. With none, the list is its own
-  // corroboration, so the shortfall arm is a no-op and the empty and at-cap
-  // arms still apply.
+  // Be honest about how much this second copy buys. It catches an EMPTY or
+  // at-cap list from a caller that computes `changedFiles` itself (I2). It
+  // cannot catch a SHORT list unless that caller also supplies GitHub's
+  // declared count, because nothing else corroborates the fetch — with no
+  // count the list is compared against itself and the mismatch arm is inert.
+  // runCli always supplies both, so the strict rule is the one that runs in
+  // production; a direct in-process caller gets the weaker check, by design,
+  // rather than being forced to `independent` on every call.
   const listUnusable =
     input.fileListUnusable === true ||
     fileListIsUnusable(
@@ -619,9 +619,15 @@ export function clampDescription(text: string): string {
 
 /**
  * Parse `gh api --paginate --jq '.[].filename'` output: one path per line,
- * pages concatenated. A path containing a literal newline would split into
- * two entries, which can only ADD paths — and `requiredTier` is a maximum
- * over the paths, so the floor can only rise. Safe direction.
+ * pages concatenated. gh emits raw unquoted strings (verified against PR
+ * #2121, 1734 lines, no quotes), so guardrail prefixes still match.
+ *
+ * A path containing a literal newline splits into two entries. That usually
+ * RAISES the floor, since `requiredTier` is a maximum over the paths, but not
+ * always: a newline inside a prefix (`scr\nipts/qa/x.ts`) destroys the match.
+ * The count check is what actually covers this — a split makes the fetched
+ * count disagree with GitHub's declared count in either direction, and
+ * `fileListIsUnusable` rejects both.
  */
 export function parseFileNameList(out: string): string[] {
   return out
@@ -644,8 +650,8 @@ export function flattenPages<T>(slurped: string): T[] {
  * guardrail change on adversarial evidence. Treat a list we cannot vouch for
  * as unusable, which pins the floor to `independent`.
  *
- * `declaredCount` is GitHub's own `changedFiles`; when it is present and the
- * fetch came back with fewer entries, the fetch was truncated.
+ * `declaredCount` is GitHub's own `changedFiles`. Any disagreement between
+ * the two counts means the fetch is not a faithful picture of the diff.
  */
 export const REST_FILE_PAGE_CAP = 3000;
 
@@ -656,8 +662,12 @@ export function fileListIsUnusable(fetchedCount: number, declaredCount?: number)
   // a real `gh pr view --json` field, so its absence is a broken assumption,
   // not a normal case — fail closed rather than quietly reverting to the
   // count-only rule that let the original truncation through.
-  if (typeof declaredCount !== 'number') return true;
-  return fetchedCount < declaredCount;
+  if (!Number.isFinite(declaredCount)) return true;
+  // Mismatch in EITHER direction, not just a shortfall. A path containing a
+  // literal newline splits into two entries, so a truncated fetch of 1733 real
+  // paths can present 1734 and satisfy a `<` comparison while the floor is
+  // computed from an incomplete diff.
+  return fetchedCount !== declaredCount;
 }
 
 /**
@@ -669,8 +679,18 @@ export function fileListIsUnusable(fetchedCount: number, declaredCount?: number)
  */
 export const GH_MAX_BUFFER_BYTES = 64 * 1024 * 1024;
 
+/**
+ * The default runner. `exec` is a parameter so a test can assert the options
+ * actually handed to `execFileSync` — asserting GH_MAX_BUFFER_BYTES alone
+ * proves the constant exists, not that anything passes it (LESSONS
+ * `source-text-tests`).
+ */
+export function runGh(args: string[], exec: typeof execFileSync = execFileSync): string {
+  return exec('gh', args, { encoding: 'utf8', maxBuffer: GH_MAX_BUFFER_BYTES }) as string;
+}
+
 function gh(args: string[]): string {
-  return execFileSync('gh', args, { encoding: 'utf8', maxBuffer: GH_MAX_BUFFER_BYTES });
+  return runGh(args);
 }
 
 interface PrView {
@@ -722,61 +742,86 @@ export function runCli(
     console.log(`review-gate: PR #${prNumber} is a draft — no status posted`);
     return 0;
   }
-  // `gh pr view --json files` asks GraphQL for ONE page and never paginates,
-  // so a PR over 100 files came back silently truncated — under the old
-  // `>= 3000` check that read as a complete, usable list and computed the
-  // floor from a partial diff. The REST endpoint paginates, and its own
-  // 3000-entry ceiling is what the cap check now measures.
+  // Everything below can throw: a 404, an auth failure, a secondary rate
+  // limit across the paginated fetches, or malformed output. A throw used to
+  // mean NO status was posted — and because the required `Review gate` context
+  // is a commit status pinned to the SHA, a crash on an `issue_comment: edited`
+  // event that WITHDRAWS an attestation left the older green status standing.
+  // Posting a failure instead means a crash can never read as a standing pass.
   //
-  // `--jq` rather than `--slurp`: every entry of this endpoint carries the
-  // file's full `patch` body, which for PR #2121 is 8.2 MB against a 99 KB
-  // list of names. `execFileSync` throws ENOBUFS past 1 MiB and this script
-  // would die before posting any status at all.
-  const changedFiles = parseFileNameList(
-    run([
-      'api',
-      '--paginate',
-      '--jq',
-      '.[].filename',
-      `repos/${repo}/pulls/${prNumber}/files?per_page=100`,
-    ])
-  );
-  // evaluateReviewGate re-derives this invariant from the same helper; the
-  // declared count is threaded through so BOTH copies can see a short fetch,
-  // not just this one (I2, Codex review of Task 3 round 1).
-  const fileListUnusable = fileListIsUnusable(changedFiles.length, view.changedFiles);
-  console.log(
-    `review-gate: changed files fetched ${changedFiles.length}, ` +
-      `GitHub declares ${view.changedFiles ?? 'unknown'}` +
-      (fileListUnusable ? ' — unusable, forcing independent floor' : '')
-  );
-  // --paginate alone concatenates one JSON array per page, which JSON.parse
-  // rejects on any PR past 100 comments (Codex, #2058). --slurp wraps the
-  // pages in one outer array; flattenPages unwraps it.
-  const comments = flattenPages<RestComment>(
-    run(['api', '--paginate', '--slurp', `repos/${repo}/issues/${prNumber}/comments?per_page=100`])
-  );
-  const result = evaluateReviewGate({
-    headSha: view.headRefOid,
-    changedFiles,
-    declaredFileCount: view.changedFiles,
-    fileListUnusable,
-    comments: comments.map(c => ({
-      body: c.body,
-      createdAt: c.created_at,
-      updatedAt: c.updated_at,
-      author: c.user?.login,
-      authorAssociation: c.author_association,
-    })),
-  });
-  return postStatus(view.headRefOid, result, env, argv);
+  // Residual: a throw from the `gh pr view` call above happens before there is
+  // a SHA to post against. That case still posts nothing (MYK9-555).
+  let result: GateResult;
+  try {
+    // `gh pr view --json files` asks GraphQL for ONE page and never paginates,
+    // so a PR over 100 files came back silently truncated — under the old
+    // `>= 3000` check that read as a complete, usable list and computed the
+    // floor from a partial diff. The REST endpoint paginates, and its own
+    // 3000-entry ceiling is what the cap check now measures.
+    //
+    // `--jq` rather than `--slurp`: every entry of this endpoint carries the
+    // file's full `patch` body, which for PR #2121 is 8.2 MB against a 99 KB
+    // list of names. `execFileSync` throws ENOBUFS past 1 MiB and this script
+    // would die before posting any status at all.
+    const changedFiles = parseFileNameList(
+      run([
+        'api',
+        '--paginate',
+        '--jq',
+        '.[].filename',
+        `repos/${repo}/pulls/${prNumber}/files?per_page=100`,
+      ])
+    );
+    // evaluateReviewGate re-derives this invariant from the same helper; the
+    // declared count is threaded through so BOTH copies can see a short fetch,
+    // not just this one (I2, Codex review of Task 3 round 1).
+    const fileListUnusable = fileListIsUnusable(changedFiles.length, view.changedFiles);
+    console.log(
+      `review-gate: changed files fetched ${changedFiles.length}, ` +
+        `GitHub declares ${view.changedFiles ?? 'unknown'}` +
+        (fileListUnusable ? ' — unusable, forcing independent floor' : '')
+    );
+    // --paginate alone concatenates one JSON array per page, which JSON.parse
+    // rejects on any PR past 100 comments (Codex, #2058). --slurp wraps the
+    // pages in one outer array; flattenPages unwraps it.
+    const comments = flattenPages<RestComment>(
+      run([
+        'api',
+        '--paginate',
+        '--slurp',
+        `repos/${repo}/issues/${prNumber}/comments?per_page=100`,
+      ])
+    );
+    result = evaluateReviewGate({
+      headSha: view.headRefOid,
+      changedFiles,
+      declaredFileCount: view.changedFiles,
+      fileListUnusable,
+      comments: comments.map(c => ({
+        body: c.body,
+        createdAt: c.created_at,
+        updatedAt: c.updated_at,
+        author: c.user?.login,
+        authorAssociation: c.author_association,
+      })),
+    });
+  } catch (error) {
+    const detail = error instanceof Error ? error.message : String(error);
+    console.error(`review-gate: evaluation failed — ${detail}`);
+    result = {
+      state: 'failure',
+      description: `could not evaluate ${view.headRefOid.slice(0, 9)}: ${detail}`,
+    };
+  }
+  return postStatus(view.headRefOid, result, env, argv, run);
 }
 
 function postStatus(
   headRefOid: string,
   result: GateResult,
   env: NodeJS.ProcessEnv,
-  argv: readonly string[]
+  argv: readonly string[],
+  run: GhRunner
 ): number {
   const description = clampDescription(result.description);
   console.log(`review-gate: ${headRefOid} -> ${result.state}: ${description}`);
@@ -790,7 +835,7 @@ function postStatus(
     `description=${description}`,
   ];
   if (env.RUN_URL) fields.push('-f', `target_url=${env.RUN_URL}`);
-  gh(['api', '--method', 'POST', `repos/${env.REPO}/statuses/${headRefOid}`, ...fields]);
+  run(['api', '--method', 'POST', `repos/${env.REPO}/statuses/${headRefOid}`, ...fields]);
   // The status carries the verdict; the job itself succeeds either way so a
   // red gate reads as "review missing", never as "the checker crashed".
   return 0;

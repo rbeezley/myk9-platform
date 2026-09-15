@@ -34,9 +34,9 @@
 #
 # The `adversarial` tier requires REVIEW_LENSES in the environment: the
 # newline-separated NAMES of the lenses that were run, two or more. They are
-# emitted as `Adversarial subagent review: <name>` body lines, the same line
-# form review-gate.ts already parses for human-fallback, and the gate refuses
-# adversarial evidence whose body names fewer than two, and the verdict's <N>
+# emitted as `Adversarial subagent review: <name>` body lines, which
+# review-gate.ts parses, and the gate refuses adversarial evidence whose body
+# names fewer than two, and the verdict's <N>
 # must equal the number of distinct lenses named. When the base..head
 # diff can be resolved locally and touches supabase/migrations/, one lens must
 # be exactly `migration-auditor` — refused here by name, and independently

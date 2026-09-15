@@ -568,10 +568,12 @@ describe('post-review-gate.sh', () => {
     }
 
     // NOT "every tier the gate can parse": the gate's REVIEWER_TOKENS also
-    // carries `independent/codex`, `independent/claude` and `human-fallback`,
-    // and the poster refuses all three (fail-closed, deliberate — nothing
-    // should mint a human-fallback attestation from a script). This covers
-    // the five tokens the poster is allowed to WRITE.
+    // carries `independent/codex` and `independent/claude`, and the poster
+    // refuses both (fail-closed, deliberate). `human-fallback` used to be a
+    // third refused-but-parseable token; MYK9-532 retired it from
+    // REVIEWER_TOKENS entirely, so it is refused for the same reason as any
+    // unrecognized string now. This covers the five tokens the poster is
+    // allowed to WRITE.
     it('accepts every reviewer token the poster is allowed to write', () => {
       for (const [reviewer, verdict] of Object.entries(VERDICT_BY_REVIEWER)) {
         const env =
@@ -589,10 +591,12 @@ describe('post-review-gate.sh', () => {
 
     // Exit 2 alone does NOT pin this rule: the verdict-grammar path returns 2
     // as well, so deleting the whole `case` allowlist left this green
-    // (fallback review of #2243, S-a). `human-fallback` and `independent/codex`
-    // are both valid gate-side ReviewerTokens, so the verdict path cannot
-    // refuse them — only the allowlist can, and only by this message. This is
-    // the rule that keeps the poster from minting a `human-fallback` line.
+    // (fallback review of #2243, S-a). `independent/codex` is a valid
+    // gate-side ReviewerToken, so the verdict path cannot refuse it — only
+    // the allowlist can, and only by this message. `human-fallback` is kept
+    // in the table as a regression: MYK9-532 retired it from the gate's own
+    // REVIEWER_TOKENS, and this proves the poster still refuses it by name
+    // rather than accidentally minting a line the gate no longer parses.
     it.each(['wishful', 'human-fallback', 'independent/codex', 'independent/claude'])(
       'refuses the reviewer token %s by name, not merely with exit 2',
       reviewer => {

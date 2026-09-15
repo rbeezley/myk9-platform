@@ -1,9 +1,11 @@
 # Review gate — posts a `Review gate` commit status on the PR head that is
 # green only when accepted review evidence has been recorded against THAT SHA
 # (scripts/qa/review-gate.ts explains the format and the #2040 incident).
-# A documented human-fallback attestation is accepted only from an OWNER or
-# MEMBER, names two adversarial subagent reviews, and requires required checks
-# to have passed; it is not an unlabelled same-harness approval.
+# A documented `owner` override is accepted only from an OWNER or MEMBER,
+# claims the real floor it is skipping, and names an `Override reason:` and a
+# `Deferred re-review:` issue; it is not an unlabelled same-harness approval.
+# The pre-tier `human-fallback` token this override replaced is retired
+# (MYK9-532) — the parser refuses it by name instead of accepting it.
 #
 # Two triggers, on purpose. `pull_request_target` re-evaluates on every push,
 # which is what turns the gate red the moment the head moves past the reviewed

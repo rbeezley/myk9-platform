@@ -28,6 +28,11 @@ import {
   type ReplicatedEntry,
 } from './ReplicatedEntriesTable.mapper';
 import { buildRingsideRpcFields, RINGSIDE_RPC_FUNCTION } from './ringsideEntryRpc';
+import {
+  evaluateWithdrawEligibility,
+  WithdrawNotAllowedError,
+  type WithdrawEligibility,
+} from '@/services/database/entries/withdrawEligibility';
 
 export { rowToEntry };
 export type { ReplicatedEntry };
@@ -45,6 +50,26 @@ export type { ReplicatedEntry };
  * `EntryEditDialog` keeps working unchanged.
  */
 export const WITHDRAW_OWN_ENTRY_RPC = 'withdraw_own_entry';
+
+/**
+ * Project a replicated entry onto the withdraw predicate's input.
+ *
+ * `enrollmentPaymentStatus` is deliberately not supplied: the replicated entry
+ * carries no order status, and `entries.payment_status` is what the
+ * `withdraw_own_entry` RPC itself checks, so passing it would let the client be
+ * stricter than the server. The predicate keeps the optional argument for
+ * callers that do have the order (and for the MYK9-495 case its unit test pins).
+ */
+function withdrawEligibilityOf(entry: ReplicatedEntry): WithdrawEligibility {
+  return evaluateWithdrawEligibility({
+    entryStatus: entry.entryStatus ?? entry.entry_status,
+    paymentStatus: entry.paymentStatus,
+    checkInStatus: entry.checkInStatus ?? entry.check_in_status,
+    isInRing: entry.isInRing ?? entry.is_in_ring,
+    isScored: entry.isScored ?? entry.is_scored,
+    deletedAt: entry.deletedAt ?? entry.deleted_at,
+  });
+}
 
 export class ReplicatedEntriesTable extends ReplicatedTable<ReplicatedEntry> {
   /** Most recent mutation ID from a create/update operation */
@@ -454,39 +479,93 @@ export class ReplicatedEntriesTable extends ReplicatedTable<ReplicatedEntry> {
   }
 
   /**
-   * Withdraw an entry the caller owns (or manages) — MYK9-535.
-   *
-   * Queues through the same MutationManager RPC seam the ringside writes use,
-   * so the withdrawal is still durable/offline-queued; only the server-side
-   * apply differs (`withdraw_own_entry` instead of a direct UPDATE).
+   * The owner-tier guards, evaluated against the replicated row. Used by the
+   * Pull affordance and by `withdrawOwnEntry` itself so the two cannot drift.
    */
-  async withdrawOwnEntry(entryId: string, reason?: string): Promise<string | null> {
-    const entry = (await this.get(entryId)) ?? ({ id: entryId } as ReplicatedEntry);
+  async getWithdrawEligibility(entryId: string): Promise<WithdrawEligibility> {
+    const entry = await this.getOrHydrateEntry(entryId);
+    return withdrawEligibilityOf(entry);
+  }
+
+  /**
+   * Withdraw an entry the caller owns — MYK9-535.
+   *
+   * Refuses LOCALLY first (see withdrawEligibility.ts): `queueMutation` resolves
+   * on local durability, so a server refusal would otherwise be invisible while
+   * the optimistic row showed "withdrawn". Then queues through the same
+   * MutationManager RPC seam the ringside writes use, so the withdrawal is still
+   * offline-durable.
+   */
+  async withdrawOwnEntry(
+    entryId: string
+  ): Promise<{ mutationId: string | null; entry: ReplicatedEntry }> {
+    // getOrHydrateEntry (not `get() ?? {id}`): a cold store would otherwise both
+    // skip every guard below and drop `serverVersion`, silently disabling OCC.
+    const entry = await this.getOrHydrateEntry(entryId);
+
+    const eligibility = withdrawEligibilityOf(entry);
+    if (!eligibility.allowed) throw new WithdrawNotAllowedError(eligibility);
+
     const updated: ReplicatedEntry = {
       ...entry,
       entryStatus: 'withdrawn',
       entry_status: 'withdrawn',
       status: 'withdrawn',
-      ...(reason !== undefined ? { withdrawalReason: reason, withdrawal_reason: reason } : {}),
       _lastModified: new Date(),
       _syncStatus: 'pending',
     };
 
-    await this.set(entryId, updated, true);
-
-    const fields: Record<string, unknown> = { entry_status: 'withdrawn' };
-    if (reason !== undefined) fields.withdrawal_reason = reason;
-
+    // Durable-first, matching updateEntry: queue BEFORE the optimistic cache
+    // write so a queue-overflow throw cannot strand a dirty row with no
+    // mutation behind it. deferUpload keeps the flush from deleting the
+    // mutation before that dirty row exists.
     const mutationId = await this.queueMutation(
       'UPDATE',
       entryId,
       { id: entryId, entry_status: 'withdrawn', updated_at: new Date().toISOString() },
       undefined,
-      { name: WITHDRAW_OWN_ENTRY_RPC, fields }
+      { name: WITHDRAW_OWN_ENTRY_RPC, fields: { entry_status: 'withdrawn' } },
+      /* deferUpload */ true
     );
+
+    await this.set(entryId, updated, true);
+    this.requestUpload();
     this._lastMutationId = mutationId;
     logger.log(`[${this.getTableName()}] Withdrew entry ${entryId} via ${WITHDRAW_OWN_ENTRY_RPC}`);
-    return mutationId;
+    return { mutationId, entry };
+  }
+
+  /**
+   * Undo the optimistic "withdrawn" after the server refused the RPC.
+   *
+   * `discardFailedMutation` only drops the queue row, and `setOnce` never lets
+   * download sync overwrite a dirty row — so without this the exhibitor would
+   * see "withdrawn" forever while the fee is still owed. Re-reads the
+   * authoritative row and stores it CLEAN so sync owns it again.
+   */
+  async revertOptimisticWithdrawal(entryId: string): Promise<boolean> {
+    try {
+      const { data, error } = await supabase
+        .from('view_authenticated_entry_results')
+        .select('*')
+        .eq('id', entryId)
+        .maybeSingle();
+      if (error || !data) return false;
+
+      const row = data as unknown as EntryRow;
+      const serverVersion = (row as Record<string, unknown>).version as number | undefined;
+      await this.set(entryId, rowToEntry(row), false, undefined, serverVersion);
+      logger.warn(
+        `[${this.getTableName()}] Reverted refused withdrawal on entry ${entryId} to the server row`
+      );
+      return true;
+    } catch (revertError) {
+      logger.warn(
+        `[${this.getTableName()}] Could not revert refused withdrawal on entry ${entryId}`,
+        revertError
+      );
+      return false;
+    }
   }
 
   async updateArmbandForDogInShow(

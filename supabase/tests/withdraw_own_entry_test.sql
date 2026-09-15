@@ -6,6 +6,13 @@
 -- database; every fixture rolls back. A clean run prints PASS notices.
 --
 --   psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f supabase/tests/withdraw_own_entry_test.sql
+--
+-- ASSUMPTION: the harness role can read public.entry_status_history directly.
+-- That table has FORCE RLS, so the success-path assertion below only reads
+-- because the CI harness connects as a superuser (the same assumption every
+-- other fixture in this directory makes for its read-backs). If the harness
+-- ever runs as a non-superuser, that one assertion must move behind a definer
+-- helper; the authorization assertions do not depend on it.
 
 begin;
 
@@ -20,9 +27,17 @@ insert into public.trials (id, show_id, name, date, registry_id)
 values ('00000000-0000-0000-0000-000000535003', '00000000-0000-0000-0000-000000535002',
   'MYK9-535 Trial', current_date, 'AKC');
 
+-- `entries_dog_class_unique_idx` is UNIQUE on (dog_id, class_id) WHERE
+-- entry_status <> ALL ('withdrawn','scratched') — note it does NOT exclude
+-- soft-deleted rows. Eight scenarios on one dog therefore need eight classes,
+-- one entry each. Giving each scenario its own class (rather than its own dog)
+-- keeps a single dog_registrations row, which the
+-- trg_entries_require_dog_registration INSERT trigger needs to match the
+-- trial's registry.
 insert into public.classes (id, trial_id, name, status)
-values ('00000000-0000-0000-0000-000000535004', '00000000-0000-0000-0000-000000535003',
-  'Container Novice', 'upcoming');
+select ('00000000-0000-0000-0000-00000053504' || n)::uuid,
+  '00000000-0000-0000-0000-000000535003', 'Container Novice ' || n, 'upcoming'
+from generate_series(1, 9) n;
 
 -- 1 owner, 2 co-owner, 3 handler, 4 outsider, 5 unlinked (no auth identity),
 -- 6 club secretary.
@@ -38,16 +53,18 @@ values ('00000000-0000-0000-0000-000000535021', 'MYK9-535 Dog', 'Dog', 'Beagle',
 insert into public.dog_registrations (dog_id, organization, registration_number, is_primary)
 values ('00000000-0000-0000-0000-000000535021', 'AKC (American Kennel Club)', 'SR535021', true);
 
--- Six independent targets so each guard is asserted on a row of its own and a
--- passing case can never mask a failing one.
+-- Nine independent targets, entry 5350'3n' in class 5350'4n' (n stays a
+-- SINGLE digit: the concatenated literal is only a valid uuid for 1..9), so each guard is
+-- asserted on a row of its own and a passing case can never mask a failing one.
 insert into public.entries (id, dog_id, class_id, show_id, trial_id, handler_id,
   entry_status, payment_status, entry_fee, check_in_status)
 select ('00000000-0000-0000-0000-00000053503' || n)::uuid,
   '00000000-0000-0000-0000-000000535021',
-  '00000000-0000-0000-0000-000000535004', '00000000-0000-0000-0000-000000535002',
+  ('00000000-0000-0000-0000-00000053504' || n)::uuid,
+  '00000000-0000-0000-0000-000000535002',
   '00000000-0000-0000-0000-000000535003', '00000000-0000-0000-0000-000000535013',
   'confirmed', 'pending', 25, 'no-status'
-from generate_series(1, 8) n;
+from generate_series(1, 9) n;
 
 update public.entries set payment_status = 'paid'
  where id = '00000000-0000-0000-0000-000000535032';
@@ -57,6 +74,10 @@ update public.entries set is_scored = true
  where id = '00000000-0000-0000-0000-000000535034';
 update public.entries set deleted_at = now()
  where id = '00000000-0000-0000-0000-000000535035';
+-- self_checkin_entry writes ONLY check_in_status, leaving entry_status
+-- 'confirmed' — the day-of self-withdrawal hole this guard closes.
+update public.entries set check_in_status = 'checked-in'
+ where id = '00000000-0000-0000-0000-000000535039';
 
 -- Club-scoped appointment: since the label/permission split a show-scoped
 -- user_roles row grants nothing, so the secretary is appointed at the club.
@@ -182,11 +203,20 @@ select pg_temp.assert_withdraw('owner cannot withdraw a soft-deleted entry',
   '00000000-0000-0000-0000-000000535101', '00000000-0000-0000-0000-000000535035',
   'Entry % has been removed');
 
--- The function is not a general-purpose entries writer.
+select pg_temp.assert_withdraw('owner cannot withdraw a CHECKED-IN entry',
+  '00000000-0000-0000-0000-000000535101', '00000000-0000-0000-0000-000000535039',
+  'Entry % is checked in at the show and cannot be withdrawn');
+
+-- The function is not a general-purpose entries writer, and an OMITTED
+-- entry_status must not withdraw by default.
 select pg_temp.assert_withdraw('rejects a non-withdrawn entry_status',
   '00000000-0000-0000-0000-000000535101', '00000000-0000-0000-0000-000000535036',
   'withdraw_own_entry only writes entry_status = withdrawn',
   '{"entry_status": "confirmed"}'::jsonb);
+select pg_temp.assert_withdraw('rejects an omitted entry_status',
+  '00000000-0000-0000-0000-000000535101', '00000000-0000-0000-0000-000000535036',
+  'withdraw_own_entry only writes entry_status = withdrawn',
+  '{"withdrawal_reason": "Dog is injured"}'::jsonb);
 
 -- OCC: a stale expected version conflicts and writes nothing.
 select pg_temp.assert_withdraw('stale expected version conflicts',
@@ -194,14 +224,27 @@ select pg_temp.assert_withdraw('stale expected version conflicts',
   'Version conflict withdrawing entry % (expected %)',
   '{"entry_status": "withdrawn"}'::jsonb, 9999);
 
--- The listed handler may withdraw, and the reason is persisted.
-select pg_temp.assert_withdraw('listed handler with a reason',
+-- The listed handler may withdraw. `withdrawal_reason` is NOT in the allow-list
+-- (the function writes exactly one column), so it must be ignored, not written.
+select pg_temp.assert_withdraw('listed handler; withdrawal_reason is ignored',
   '00000000-0000-0000-0000-000000535103', '00000000-0000-0000-0000-000000535036',
-  null, '{"entry_status": "withdrawn", "withdrawal_reason": "Dog is injured"}'::jsonb,
-  null, 'authenticated', 'Dog is injured');
+  null, '{"entry_status": "withdrawn", "withdrawal_reason": "Dog is injured"}'::jsonb);
 
--- A field outside the allow-list is ignored, not written: the withdrawal
--- succeeds and entry_fee / payment_status are untouched.
+do $$
+declare
+  v_reason text;
+begin
+  select e.withdrawal_reason into v_reason
+    from public.entries e where e.id = '00000000-0000-0000-0000-000000535036';
+  if v_reason is not null then
+    raise exception 'FAIL allow-list: withdrawal_reason was written as %', v_reason;
+  end if;
+  raise notice 'PASS withdrawal_reason outside the allow-list is ignored';
+end;
+$$;
+
+-- Other fields outside the allow-list are ignored too: the withdrawal succeeds
+-- and entry_fee / payment_status are untouched.
 select pg_temp.assert_withdraw('ignores fields outside the allow-list',
   '00000000-0000-0000-0000-000000535101', '00000000-0000-0000-0000-000000535038',
   null, '{"entry_status": "withdrawn", "entry_fee": 0, "payment_status": "paid"}'::jsonb);
@@ -225,5 +268,37 @@ $$;
 -- gives them, including on a PAID entry the owner tier refuses.
 select pg_temp.assert_withdraw('club secretary withdraws a paid entry',
   '00000000-0000-0000-0000-000000535106', '00000000-0000-0000-0000-000000535032');
+
+-- Negative control for the ORIGINAL bug: the exhibitor's DIRECT UPDATE is still
+-- denied by `entries_update`. If this ever starts succeeding, the RPC has been
+-- made redundant by a policy change and this whole seam needs revisiting.
+do $$
+declare
+  v_after text;
+begin
+  perform set_config('request.jwt.claim.sub',
+    '00000000-0000-0000-0000-000000535101', true);
+  perform set_config('request.jwt.claims', jsonb_build_object(
+    'sub', '00000000-0000-0000-0000-000000535101', 'role', 'authenticated')::text, true);
+  perform set_config('role', 'authenticated', true);
+  begin
+    update public.entries set entry_status = 'withdrawn'
+     where id = '00000000-0000-0000-0000-000000535039';
+  exception when others then
+    null;  -- a hard denial is just as good as a zero-row match
+  end;
+  reset role;
+
+  -- 535039 is the checked-in row: every RPC call against it was refused, so it
+  -- is still 'confirmed' and a successful direct UPDATE would be unambiguous.
+  select e.entry_status into v_after
+    from public.entries e where e.id = '00000000-0000-0000-0000-000000535039';
+  if v_after = 'withdrawn' then
+    raise exception
+      'FAIL direct-update control: entries_update now admits an exhibitor; the RPC seam needs review';
+  end if;
+  raise notice 'PASS a direct exhibitor UPDATE on entries is still denied';
+end;
+$$;
 
 rollback;

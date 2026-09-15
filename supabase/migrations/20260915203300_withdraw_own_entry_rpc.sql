@@ -19,6 +19,15 @@
 -- applies (definer functions drop RLS entirely), REVOKEs from PUBLIC/anon, and
 -- GRANTs EXECUTE to `authenticated` only.
 --
+-- OWNER SCOPE deliberately EXCEEDS `entries_select`. The live SELECT policy
+-- (20260730170000_hashable_entries_manager_policy.sql) admits manageable shows,
+-- `handler_id`, and `dogs.owner_id` — it has NO co-owner arm. This function adds
+-- `dogs.co_owner_id`, matching the two existing exhibitor entry-write RPCs
+-- (`self_checkin_entry`, migration 118; `update_entry_handler`,
+-- 20260606170000), both of which accept a co-owner. A co-owner who cannot yet
+-- SELECT the row simply has no surface that reaches this call; the arm is here
+-- so the three exhibitor write paths agree with each other.
+--
 -- Signature deliberately mirrors `ringside_update_entry(uuid, jsonb, integer)`
 -- so the existing MutationManager RPC seam (packages/replication
 -- mutation-execute.ts, case 'UPDATE') applies it with no client plumbing change
@@ -44,33 +53,46 @@ DECLARE
   v_entry_status text;
   v_payment_status text;
   v_deleted_at timestamptz;
+  v_check_in_status text;
+  v_is_in_ring boolean;
   v_is_scored boolean;
   v_current_version integer;
   v_is_manager boolean;
   v_is_owner boolean;
-  v_reason text;
   v_updated_id uuid;
   v_new_version integer;
   -- Statuses an entry may still be withdrawn FROM by its own exhibitor. Day-of
   -- and terminal states are excluded: those go through the pull / scratch flow.
+  -- `paid` is an ENTRY_STATUS, not a money fact — it sits in the pending bucket
+  -- alongside `promotion-expired`, and an entry can hold it while
+  -- `payment_status` is still 'pending' (the pay-by-check case this issue was
+  -- reported on). It is therefore reachable for owners, not dead.
   v_withdrawable_statuses constant text[] := ARRAY[
     'no-status', 'draft', 'submitted', 'paid', 'confirmed',
     'pending-payment', 'promotion-expired'
   ];
+  -- check_in_status values that mean the dog is at the show. Expressed as the
+  -- two values that are NOT day-of, so a value added to
+  -- `entries_check_in_status_check` later fails CLOSED rather than opening a
+  -- new self-withdrawal window.
+  v_pre_show_check_in constant text[] := ARRAY['no-status', 'pulled'];
 BEGIN
-  -- 1. The only transition this function performs. `entry_status` may be
-  -- omitted, but if present it must be exactly 'withdrawn' — the function is
-  -- not a general-purpose entries writer.
-  IF p_fields ? 'entry_status' AND (p_fields ->> 'entry_status') IS DISTINCT FROM 'withdrawn' THEN
+  -- 1. The only transition this function performs. `entry_status` must be
+  -- PRESENT and exactly 'withdrawn': this is not a general-purpose entries
+  -- writer, and an omitted key must not withdraw by default. Every other key in
+  -- p_fields (including `withdrawal_reason`) is ignored — the function writes
+  -- exactly one column.
+  IF (p_fields ->> 'entry_status') IS DISTINCT FROM 'withdrawn' THEN
     RAISE EXCEPTION 'withdraw_own_entry only writes entry_status = withdrawn'
       USING errcode = '22023';
   END IF;
-  v_reason := nullif(p_fields ->> 'withdrawal_reason', '');
 
   SELECT e.show_id, e.dog_id, e.handler_id, e.entry_status, e.payment_status,
-         e.deleted_at, coalesce(e.is_scored, false), e.version
+         e.deleted_at, e.check_in_status, coalesce(e.is_in_ring, false),
+         coalesce(e.is_scored, false), e.version
     INTO v_show_id, v_dog_id, v_handler_id, v_entry_status, v_payment_status,
-         v_deleted_at, v_is_scored, v_current_version
+         v_deleted_at, v_check_in_status, v_is_in_ring,
+         v_is_scored, v_current_version
     FROM public.entries e
    WHERE e.id = p_entry_id;
 
@@ -127,6 +149,16 @@ BEGIN
       RAISE EXCEPTION 'Entry % has been scored and cannot be withdrawn', p_entry_id
         USING errcode = '42501';
     END IF;
+
+    -- `self_checkin_entry` writes ONLY check_in_status and leaves
+    -- entry_status='confirmed', so without this an exhibitor standing at the
+    -- gate passes every guard above and self-withdraws mid-show.
+    IF v_is_in_ring
+       OR (v_check_in_status IS NOT NULL
+           AND NOT (v_check_in_status = ANY (v_pre_show_check_in))) THEN
+      RAISE EXCEPTION 'Entry % is checked in at the show and cannot be withdrawn', p_entry_id
+        USING errcode = '42501';
+    END IF;
   END IF;
 
   -- 6. Optimistic concurrency, same contract as ringside_update_entry: the
@@ -138,12 +170,11 @@ BEGIN
       USING errcode = '40001', detail = v_current_version::text;
   END IF;
 
-  -- 7. Apply. `withdrawal_reason` is only overwritten when one was supplied, so
-  -- a retry with no reason cannot erase the reason a previous call recorded.
-  -- `withdrawn_at` is stamped by trg stamp_entry_withdrawn_at.
+  -- 7. Apply. Exactly one column plus updated_at; `withdrawn_at` is stamped by
+  -- trg stamp_entry_withdrawn_at, and the status-history trigger records the
+  -- transition.
   UPDATE public.entries e
      SET entry_status = 'withdrawn',
-         withdrawal_reason = coalesce(v_reason, e.withdrawal_reason),
          updated_at = now()
    WHERE e.id = p_entry_id
      AND (p_expected_version IS NULL OR e.version = p_expected_version)

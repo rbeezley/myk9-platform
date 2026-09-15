@@ -534,6 +534,7 @@ const EntryManagementPage: React.FC = () => {
           entry={editEntry}
           onUpdate={() => loadEntries(selectedShowId)}
           ignoreModificationDeadline
+          asShowManager
         />
       )}
     </div>

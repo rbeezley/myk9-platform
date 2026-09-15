@@ -282,6 +282,15 @@ export function isRetryableError(error: unknown): boolean {
       return true;
     }
 
+    // A SECURITY DEFINER RPC's own argument and lookup failures never succeed
+    // on retry: 22023 (invalid_parameter_value) is the payload being wrong, and
+    // P0002 (no_data_found) is the row not existing. Neither starts with '4', so
+    // without this they burn the whole retry budget before dead-lettering.
+    // Raised by `withdraw_own_entry` (MYK9-535) and by `ringside_update_entry`.
+    if (code === '22023' || code === 'P0002') {
+      return false;
+    }
+
     // Integrity/constraint violations (Postgres class 23) never succeed on retry.
     if (code?.startsWith('23')) {
       return false;

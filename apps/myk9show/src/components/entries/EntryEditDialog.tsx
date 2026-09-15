@@ -15,16 +15,6 @@ import {
   SheetTitle,
   SheetDescription,
 } from '@myk9/ui';
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from '@/components/ui/alert-dialog';
 import { Button } from '@/components/ui/button';
 import { FormSkeleton } from '@/components/common/SkeletonLoaders';
 import { Input } from '@/components/ui/input';
@@ -45,6 +35,8 @@ import {
   withdrawEntry,
   canModifyEntry,
 } from '@/services/database/entries';
+import { useWithdrawEligibility } from './useWithdrawEligibility';
+import { PullConfirmDialog } from './PullConfirmDialog';
 import { logger } from '@/services/LoggingService';
 import { disciplineUsesJumpHeight } from '@/types/template.types';
 import { useEditingPresence } from '@/features/show-presence/useEditingPresence';
@@ -82,6 +74,12 @@ interface EntryEditDialogProps {
   entry: EntryData;
   onUpdate: () => void;
   ignoreModificationDeadline?: boolean;
+  /**
+   * MYK9-535: the secretary surface passes this. A show manager is admitted by
+   * the `entries_update` RLS policy, so their Pull keeps the existing lifecycle
+   * transition and is not bound by the exhibitor-only withdraw guards.
+   */
+  asShowManager?: boolean;
 }
 
 const JUMP_HEIGHTS = ['4"', '8"', '12"', '16"', '20"', '24"', '26"'];
@@ -92,6 +90,7 @@ export function EntryEditDialog({
   entry,
   onUpdate,
   ignoreModificationDeadline = false,
+  asShowManager = false,
 }: EntryEditDialogProps) {
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
@@ -103,6 +102,15 @@ export function EntryEditDialog({
   const [classEdits, setClassEdits] = useState<
     Record<string, { handler?: string; jumpHeight?: string; status?: string }>
   >({});
+
+  // MYK9-535: the Pull affordance is DISABLED with the reason when the server
+  // would refuse, so the exhibitor is told up front instead of seeing an
+  // optimistic "withdrawn" the RPC later rejects. See ./useWithdrawEligibility.
+  const withdrawEligibility = useWithdrawEligibility(
+    open,
+    asShowManager,
+    entry.classes.map(classEntry => classEntry.id)
+  );
 
   // Confirm pull dialog
   const [pullDialog, setPullDialog] = useState<{
@@ -185,10 +193,13 @@ export function EntryEditDialog({
     setError(null);
 
     try {
-      const { error } = await withdrawEntry(pullDialog.classId);
+      const { error } = await withdrawEntry(pullDialog.classId, { asShowManager });
 
       if (error) {
-        setError('Failed to withdraw from class. Please try again.');
+        // Show the refusal itself ("This entry is paid — request a refund
+        // instead…"), not a generic retry prompt: the exhibitor cannot fix a
+        // paid or checked-in entry by trying again.
+        setError(error.message || 'Failed to withdraw from class. Please try again.');
         logger.error('Failed to withdraw class entry:', 'entries', {}, error as Error);
       } else {
         // Mark as pulled locally.
@@ -362,6 +373,8 @@ export function EntryEditDialog({
                               variant="ghost"
                               size="sm"
                               onClick={() => handlePullRequest(classEntry.id, classEntry.name)}
+                              disabled={withdrawEligibility[classEntry.id]?.allowed === false}
+                              title={withdrawEligibility[classEntry.id]?.reason}
                               className="text-destructive hover:text-destructive hover:bg-destructive/10"
                             >
                               <X className="h-4 w-4 mr-1" />
@@ -369,6 +382,12 @@ export function EntryEditDialog({
                             </Button>
                           )}
                         </div>
+
+                        {!isPulled && withdrawEligibility[classEntry.id]?.allowed === false && (
+                          <p className="mt-2 text-sm text-muted-foreground">
+                            {withdrawEligibility[classEntry.id]?.reason}
+                          </p>
+                        )}
 
                         {/* Advisory heads-up if a secretary already has THIS class
                           row's entry open on ClassDetailsPage. Keyed on the per-class
@@ -459,40 +478,15 @@ export function EntryEditDialog({
         </SheetContent>
       </Sheet>
 
-      {/* Pull Confirmation Dialog */}
-      <AlertDialog
+      <PullConfirmDialog
         open={pullDialog.open}
+        className={pullDialog.className}
+        isSaving={isSaving}
         onOpenChange={open =>
           !open && setPullDialog({ open: false, classId: null, className: null })
         }
-      >
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Pull from class?</AlertDialogTitle>
-            <AlertDialogDescription>
-              Are you sure you want to withdraw from <strong>{pullDialog.className}</strong>? This
-              action cannot be undone and the entry fee will not be refunded.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel disabled={isSaving}>Cancel</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={handleConfirmPull}
-              disabled={isSaving}
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-            >
-              {isSaving ? (
-                <>
-                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                  Pulling...
-                </>
-              ) : (
-                'Pull Entry'
-              )}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+        onConfirm={handleConfirmPull}
+      />
     </>
   );
 }

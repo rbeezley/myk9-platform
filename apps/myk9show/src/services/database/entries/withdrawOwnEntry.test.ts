@@ -4,17 +4,19 @@
  * `can_manage_show(show_id)`, so the MutationManager upload fails with an
  * "authorization" failureKind and the pull silently never persists.
  *
- * Assertion-first: these pin the RPC name and the exact field delta the
- * `withdraw_own_entry` SECURITY DEFINER function receives.
+ * Assertion-first: these pin the tier split (owner -> RPC, manager -> the
+ * existing lifecycle transition) and the audit record's real from-status.
  */
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { createDatabaseError } from '@/services/database/databaseError';
+import { WithdrawNotAllowedError } from './withdrawEligibility';
 
 const mocks = vi.hoisted(() => ({
   logQuery: vi.fn(),
   withdrawOwnEntry: vi.fn(),
-  getEntryById: vi.fn(),
+  getWithdrawEligibility: vi.fn(),
   updateSecretaryLifecycleStatus: vi.fn(),
+  getEntryById: vi.fn(),
   auditLog: vi.fn(),
 }));
 
@@ -27,8 +29,9 @@ vi.mock('../supabaseClient', () => ({
 vi.mock('@/services/replication/ReplicatedEntriesTable', () => ({
   replicatedEntriesTable: {
     withdrawOwnEntry: mocks.withdrawOwnEntry,
-    getEntryById: mocks.getEntryById,
+    getWithdrawEligibility: mocks.getWithdrawEligibility,
     updateSecretaryLifecycleStatus: mocks.updateSecretaryLifecycleStatus,
+    getEntryById: mocks.getEntryById,
   },
 }));
 
@@ -41,48 +44,68 @@ import { withdrawEntry } from './writes';
 describe('withdrawEntry — MYK9-535 exhibitor self-withdrawal', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    mocks.withdrawOwnEntry.mockResolvedValue('mutation-1');
+    mocks.withdrawOwnEntry.mockResolvedValue({
+      mutationId: 'mutation-1',
+      entry: {
+        id: 'entry-1',
+        showId: 'show-1',
+        classId: 'class-1',
+        entryStatus: 'confirmed',
+      },
+    });
     mocks.getEntryById.mockResolvedValue({ id: 'entry-1', showId: 'show-1', classId: 'class-1' });
+    mocks.updateSecretaryLifecycleStatus.mockResolvedValue('mutation-secretary');
   });
 
-  it('routes the withdrawal through the withdraw_own_entry RPC seam', async () => {
+  it('routes an exhibitor withdrawal through the withdraw_own_entry RPC seam', async () => {
     const { error } = await withdrawEntry('entry-1');
 
     expect(error).toBeNull();
-    expect(mocks.withdrawOwnEntry).toHaveBeenCalledWith('entry-1', undefined);
+    expect(mocks.withdrawOwnEntry).toHaveBeenCalledWith('entry-1');
     // The direct-UPDATE lifecycle path is what RLS denies — it must not be used.
     expect(mocks.updateSecretaryLifecycleStatus).not.toHaveBeenCalled();
   });
 
-  it('passes the withdrawal reason through to the RPC', async () => {
-    await withdrawEntry('entry-1', 'Dog is injured');
+  it('keeps a SHOW MANAGER on the existing lifecycle transition', async () => {
+    // A manager is admitted by entries_update, so their audit action and
+    // replication payload must not change because of this issue.
+    await withdrawEntry('entry-1', { asShowManager: true });
 
-    expect(mocks.withdrawOwnEntry).toHaveBeenCalledWith('entry-1', 'Dog is injured');
+    expect(mocks.withdrawOwnEntry).not.toHaveBeenCalled();
+    expect(mocks.updateSecretaryLifecycleStatus).toHaveBeenCalledTimes(1);
+    expect(mocks.auditLog).toHaveBeenCalledWith(
+      expect.objectContaining({ metadata: expect.objectContaining({ action: 'reject_entry' }) })
+    );
   });
 
-  it('audit-logs the withdrawn transition', async () => {
-    await withdrawEntry('entry-1', 'Dog is injured');
+  it('audit-logs the withdrawn transition with the REAL from-status', async () => {
+    await withdrawEntry('entry-1');
 
     expect(mocks.auditLog).toHaveBeenCalledWith(
       expect.objectContaining({
         entityType: 'entry',
         entityId: 'entry-1',
-        changes: { entryStatus: { from: null, to: 'withdrawn' } },
-        metadata: expect.objectContaining({
-          action: 'withdraw_own_entry',
-          reason: 'Dog is injured',
-        }),
+        changes: { entryStatus: { from: 'confirmed', to: 'withdrawn' } },
+        metadata: expect.objectContaining({ action: 'withdraw_own_entry' }),
       })
     );
   });
 
-  it('surfaces a database error instead of reporting success', async () => {
-    mocks.withdrawOwnEntry.mockRejectedValue(new Error('Not authorized'));
+  it('surfaces the pre-check refusal as an error and never queues or audits', async () => {
+    // The refusal the exhibitor must SEE. queueMutation resolves on local
+    // durability, so a server-side 42501 would otherwise be invisible.
+    mocks.withdrawOwnEntry.mockRejectedValue(
+      new WithdrawNotAllowedError({
+        allowed: false,
+        code: 'paid',
+        reason: 'This entry is paid — request a refund instead of withdrawing.',
+      })
+    );
 
     const { data, error } = await withdrawEntry('entry-1');
 
     expect(data).toBeNull();
-    expect(error).not.toBeNull();
+    expect(error?.message).toContain('request a refund');
     expect(mocks.auditLog).not.toHaveBeenCalled();
   });
 });

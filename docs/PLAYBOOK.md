@@ -150,6 +150,33 @@ line as evidence at all; posting one is refused with a message naming the `owner
 override as the replacement. `post-review-gate.sh` never minted it, so nothing
 that follows this playbook can regress.
 
+- **Deferred re-review reconciliation (MYK9-533).** The `owner` override's
+  `Deferred re-review: <ISSUE-ID>` line is validated by shape only at merge
+  time (`[A-Z][A-Z0-9]*-\d+`), never checked to resolve — `MYK9-999999` parses
+  fine. `scripts/qa/deferred-reviews.ts` runs weekly
+  (`.github/workflows/deferred-reviews.yml`) rather than inline in the gate
+  itself: the `Review gate` status is computed by a `pull_request_target`
+  workflow with no Linear credential, and wiring a lookup into that path means
+  either handing an untrusted PR's workflow run a `LINEAR_API_KEY` or letting a
+  Linear outage silently pass every id — the same "outage reads as green"
+  failure this repo has been bitten by before. The scheduled job instead lists
+  every merged PR's accepted `owner` override, resolves each named id through
+  Linear's GraphQL API, and exits 2 (loud, non-zero, never a silent pass) on a
+  missing key or an unreachable API, exits 1 if any id does not resolve, and 0
+  otherwise; it also writes the still-open deferrals to the run's job summary,
+  so the debt is visible without anyone going looking for it. A **Canceled**
+  Linear issue does NOT clear a deferral — the re-review was dropped, not done,
+  so it lands in its own "dropped deferrals" summary section and exits 1;
+  only **completed** clears. The job reads the repo-wide comment stream
+  (`GET /repos/{owner}/{repo}/issues/comments?since=…`, ~19 requests per run)
+  rather than walking every merged PR, and honours exactly one gate line per
+  PR: the latest for the MERGED head, matching what `evaluateReviewGate`
+  itself honoured, so a corrected override supersedes the typo it replaced.
+  **A maintainer must add `LINEAR_API_KEY` as a repository
+  secret before this job can ever pass** — that action is Richard's, not an
+  agent's; until it exists every run fails loud by design rather than skipping
+  quietly.
+
 ## 5. Database change
 
 1. `supabase migration list` — check remote migration state before writing a new one (never assume local is authoritative).

@@ -245,6 +245,7 @@ jobs:
           pnpm qa:review-tier:test
           pnpm qa:launcher-pin:test
           pnpm qa:typecheck-scripts:test
+          pnpm qa:deferred-reviews:test
 
       # Executable forms of two CLAUDE.md lessons: the review wrappers (exit 0
       # is not a verdict; always --base) plus post-review-gate.sh, the only

@@ -14,11 +14,7 @@ import { replicatedShowsTable } from '@/services/replication/ReplicatedShowsTabl
 import { replicatedTrialsTable } from '@/services/replication/ReplicatedTrialsTable';
 import { mapReplicatedEntryToDbRow } from '@/services/mappers/entryMappers';
 import { buildMapFromArray } from '../_shared/maps';
-import {
-  buildReplicatedUserEntryRows,
-  findMissingReplicatedUserEntryRelations,
-} from './userEntriesReplication';
-import { hasScoredResult } from './resultVisibility';
+import { buildReplicatedUserEntryRows } from './userEntriesReplication';
 import { selectOwnedDogIds } from '@/utils/dogOwnership';
 import { toEntryCloseDay } from '@/features/payments/entryCloseDeadline';
 import { getEntryWindowTimezone } from '@/utils/entryWindowDate';
@@ -396,10 +392,62 @@ export const getEntryStatistics = async (showId?: string) => {
   }
 };
 
-// Get entries for the current user
+/**
+ * Account-level own-entry read (My Shows, My Payments, the exhibitor dashboard).
+ *
+ * The AUTHORITATIVE source here is the online view, not the replication store,
+ * and that asymmetry is deliberate rather than a bypass of offline-first.
+ * `replicatedEntriesTable.sync()` is scoped PER SHOW — it refuses to sync at
+ * all without a show scope (`[entries] Skipping remote sync without show
+ * scope`), so on a cross-show route like `/my-entries` no entries sync ever
+ * runs. The snapshot that route reads is whatever some earlier per-show visit
+ * left behind: complete for no query in particular, and unable to report its
+ * own incompleteness. Preferring it whenever it merely LOOKED whole (every
+ * relation hydrated, nothing scored) is what let a class added to an
+ * already-synced enrollment vanish from My Entries — and its fee vanish from
+ * the amount due — while the show-details page, which DOES carry a show scope
+ * and so does sync, listed both classes (MYK9-536).
+ *
+ * So: read the authoritative account-scoped view first, and fall back to the
+ * replicated snapshot only when that read fails. Offline behaviour is
+ * unchanged — a failed fetch still renders the exhibitor's replicated entries
+ * rather than an empty page.
+ */
 export const getUserEntries = async (userId: string) => {
   const startTime = Date.now();
 
+  try {
+    // postgrestGetUserEntries scopes to own entries in SQL (is_own_entry =
+    // true), so this returns the complete authoritative set — including own
+    // entries in shows the local replica has never synced — without leaking
+    // manageable-not-own rows.
+    const result = await postgrestGetUserEntries();
+    logQuery('entries', 'select_user_entries', Date.now() - startTime);
+    return result;
+  } catch (error) {
+    return readUserEntriesFromReplica(userId, error, startTime);
+  }
+};
+
+/**
+ * Offline/degraded fallback for {@link getUserEntries}: rebuild the exhibitor's
+ * rows from the per-show replication snapshot.
+ *
+ * That snapshot is known-incomplete for an account-level query (see above), so
+ * this is a last resort, not a preference. When it has nothing to offer AND the
+ * online read failed for a reason other than being offline, the error is
+ * surfaced instead of an empty list — "no entries" is a positive claim.
+ *
+ * The replicated rows carry raw scored columns WITHOUT the per-field visibility
+ * cascade, which is not in replication scope; `buildReplicatedUserEntryRows`
+ * nulls them (see `withholdScoredResultColumns`), so withheld results never
+ * leak on this path.
+ */
+async function readUserEntriesFromReplica(
+  userId: string,
+  onlineError: unknown,
+  startTime: number
+): Promise<{ data: Record<string, unknown>[]; error: DatabaseError | null }> {
   try {
     const [allEntries, dogs, classes, shows, trials] = await Promise.all([
       replicatedEntriesTable.getAll(),
@@ -417,70 +465,15 @@ export const getUserEntries = async (userId: string) => {
       e => e.handlerId === userId || (e.dogId ? ownedDogIds.has(e.dogId) : false)
     );
 
-    // If entry rows have synced before their joined class/show/dog rows, the
-    // first render can show the entry card without classes. Prefer the complete
-    // online join when available, but keep the partial replicated result if the
-    // user is offline.
-    const missingRelations = findMissingReplicatedUserEntryRelations(filtered, {
-      dogsMap,
-      classesMap,
-      showsMap,
-    });
-
-    // The replication store syncs raw scored columns (final_placement,
-    // result_status, etc.) WITHOUT the per-field visibility cascade, which is
-    // not in replication scope. The replication-mapped rows null those columns
-    // (see withholdScoredResultColumns), so when any own entry is scored we
-    // prefer the cascade-aware server view to surface correctly-RELEASED
-    // results. Offline (view unreachable) we fall back to the nulled
-    // replication rows — safe-by-default: withheld results never leak.
-    const hasScoredEntries = filtered.some(hasScoredResult);
-
-    if (filtered.length === 0 || missingRelations.length > 0 || hasScoredEntries) {
-      try {
-        // postgrestGetUserEntries scopes to own entries in SQL
-        // (is_own_entry = true), so this returns the complete authoritative set
-        // — including own entries not yet in the local replication snapshot —
-        // without leaking manageable-not-own rows.
-        const result = await postgrestGetUserEntries();
-        logQuery(
-          'entries',
-          filtered.length === 0
-            ? 'select_user_entries_empty_replica_fallback'
-            : 'select_user_entries_fallback',
-          Date.now() - startTime
-        );
-        return result;
-      } catch (error) {
-        if (filtered.length === 0 && !isOfflineFetchError(error)) {
-          const dbError = createDatabaseError(error, 'entries', 'select_user_entries');
-          logQuery(
-            'entries',
-            'select_user_entries_empty_replica_error',
-            Date.now() - startTime,
-            dbError.message
-          );
-          return { data: [], error: dbError as DatabaseError };
-        }
-
-        // Permanently-missing relation rows will try the online join on each
-        // load; when offline or blocked, the replicated rows still keep the
-        // exhibitor's entries available.
-        const partialReplicationResult = await buildReplicatedUserEntryRows(filtered, {
-          dogsMap,
-          classesMap,
-          showsMap,
-          trialsMap,
-        });
-        logQuery(
-          'entries',
-          filtered.length === 0
-            ? 'select_user_entries_empty_replica_offline'
-            : 'select_user_entries_partial',
-          Date.now() - startTime
-        );
-        return partialReplicationResult;
-      }
+    if (filtered.length === 0 && !isOfflineFetchError(onlineError)) {
+      const dbError = createDatabaseError(onlineError, 'entries', 'select_user_entries');
+      logQuery(
+        'entries',
+        'select_user_entries_empty_replica_error',
+        Date.now() - startTime,
+        dbError.message
+      );
+      return { data: [], error: dbError as DatabaseError };
     }
 
     const partialReplicationResult = await buildReplicatedUserEntryRows(filtered, {
@@ -489,20 +482,20 @@ export const getUserEntries = async (userId: string) => {
       showsMap,
       trialsMap,
     });
-    logQuery('entries', 'select_user_entries', Date.now() - startTime);
+    logQuery(
+      'entries',
+      filtered.length === 0
+        ? 'select_user_entries_empty_replica_offline'
+        : 'select_user_entries_partial',
+      Date.now() - startTime
+    );
     return partialReplicationResult;
   } catch {
-    try {
-      const result = await postgrestGetUserEntries();
-      logQuery('entries', 'select_user_entries_fallback', Date.now() - startTime);
-      return result;
-    } catch (error) {
-      const dbError = createDatabaseError(error, 'entries', 'select_user_entries');
-      logQuery('entries', 'select_user_entries', Date.now() - startTime, dbError.message);
-      return { data: [], error: dbError as DatabaseError };
-    }
+    const dbError = createDatabaseError(onlineError, 'entries', 'select_user_entries');
+    logQuery('entries', 'select_user_entries', Date.now() - startTime, dbError.message);
+    return { data: [], error: dbError as DatabaseError };
   }
-};
+}
 
 // Search entries by armband or handler name
 export const searchEntries = async (searchTerm: string) => {

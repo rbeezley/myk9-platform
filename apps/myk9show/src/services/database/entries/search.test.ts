@@ -55,7 +55,6 @@ vi.mock('@/services/mappers/entryMappers', () => ({
 }));
 
 import { USER_ENTRIES_SELECT, getUserEntries, isEntryCloseDayPast, searchEntries } from './search';
-import { findMissingReplicatedUserEntryRelations } from './userEntriesReplication';
 
 function makeViewEntriesQuery(
   data: Array<Record<string, unknown>>,
@@ -231,55 +230,16 @@ describe('USER_ENTRIES_SELECT (getUserEntries PostgREST fallback shape)', () => 
   });
 });
 
-describe('findMissingReplicatedUserEntryRelations', () => {
-  it('reports class/show/dog relation rows that have not hydrated yet', () => {
-    const missing = findMissingReplicatedUserEntryRelations(
-      [
-        {
-          id: 'entry-1',
-          classId: 'class-1',
-          dogId: 'dog-1',
-          showId: 'show-1',
-        },
-        {
-          id: 'entry-2',
-          classId: 'class-2',
-          dogId: 'dog-2',
-          showId: 'show-1',
-        },
-      ],
-      {
-        classesMap: new Map([['class-1', {}]]),
-        dogsMap: new Map([['dog-1', {}]]),
-        showsMap: new Map([['show-1', {}]]),
-      }
-    );
-
-    expect(missing).toEqual(['class:class-2', 'dog:dog-2']);
-  });
-
-  it('returns no missing relations when every referenced row is available', () => {
-    const missing = findMissingReplicatedUserEntryRelations(
-      [
-        {
-          id: 'entry-1',
-          classId: 'class-1',
-          dogId: 'dog-1',
-          showId: 'show-1',
-        },
-      ],
-      {
-        classesMap: new Map([['class-1', {}]]),
-        dogsMap: new Map([['dog-1', {}]]),
-        showsMap: new Map([['show-1', {}]]),
-      }
-    );
-
-    expect(missing).toEqual([]);
-  });
-});
-
-describe('getUserEntries replicated relation completeness', () => {
+/**
+ * MYK9-536: `/my-entries` is a CROSS-SHOW route, and the entries replication
+ * store only ever syncs with a show scope — so on that route it never syncs at
+ * all. Trusting the snapshot because it merely LOOKED complete dropped a class
+ * added to an already-synced enrollment from My Entries, its Edit Entry dialog
+ * and the dashboard balance, while `/shows/:showId` (which does carry a show
+ * scope) listed both. The account-level read must therefore prefer the
+ * authoritative view and keep the replica strictly as an offline fallback.
+ */
+describe('getUserEntries account-scope read', () => {
   const replicatedEntry = {
     id: 'entry-1',
     classId: 'class-1',
@@ -319,80 +279,64 @@ describe('getUserEntries replicated relation completeness', () => {
     mocks.replicatedTrialsGetAll.mockResolvedValue([replicatedTrial]);
   }
 
-  it('returns complete replicated rows without calling PostgREST when relations are hydrated', async () => {
+  it('reads the authoritative view even when the local replica looks fully hydrated', async () => {
     mockReplicatedStores();
-    const { enrollmentsQuery } = mockSupabaseTables({
-      enrollmentRows: [
-        {
-          id: 'reg-1',
-          confirmation_number: 'MK9-1',
-          payment_status: 'paid',
-          payment_reference: null,
-          paid_amount: 30,
-        },
-      ],
-    });
-
-    const result = await getUserEntries('user-1');
-
-    expect(result.data).toHaveLength(1);
-    expect(result.data[0]).toMatchObject({
-      id: 'entry-1',
-      class: replicatedClass,
-      dog: replicatedDog,
-      show: replicatedShow,
-      class_results_released_at: '2026-06-18T15:45:00.000Z',
-      dog_image_url: 'https://example.com/dogs/dog-1.jpg',
-      registration: {
-        id: 'reg-1',
-        confirmation_number: 'MK9-1',
-      },
-    });
-    expect(mocks.supabaseFrom).toHaveBeenCalledWith('enrollments');
-    expect(enrollmentsQuery.in).toHaveBeenCalledWith('id', ['reg-1']);
-    expect(mocks.supabaseFrom).not.toHaveBeenCalledWith('dogs');
-    expect(mocks.supabaseFrom).not.toHaveBeenCalledWith('entries');
-  });
-
-  it('prefers the complete PostgREST result when replicated relation rows are missing', async () => {
-    mockReplicatedStores({ classes: [] });
-    const onlineRows = [{ id: 'online-entry', class: { id: 'class-1', name: 'Container' } }];
-    const { viewQuery } = mockSupabaseTables({
-      viewEntryRows: onlineRows,
-    });
-
-    const result = await getUserEntries('user-1');
-
-    expect(result).toEqual({ data: onlineRows, error: null });
-    expect(mocks.supabaseFrom).toHaveBeenCalledWith('view_authenticated_entry_results');
-    // The authenticated view now retains the caller's own tombstoned entry so
-    // My Entries can reconcile it with My Payments; the view itself enforces
-    // owner-only deleted-row visibility.
-    expect(viewQuery.is).not.toHaveBeenCalledWith('deleted_at', null);
-    expect(mocks.supabaseFrom).not.toHaveBeenCalledWith('entries');
-    expect(mocks.supabaseFrom).not.toHaveBeenCalledWith('dogs');
-    expect(mocks.supabaseFrom).not.toHaveBeenCalledWith('enrollments');
-    expect(mocks.mapReplicatedEntryToDbRow).not.toHaveBeenCalled();
-  });
-
-  it('prefers the online view when the local entry replica is empty on an account-level page', async () => {
-    mockReplicatedStores({ entries: [] });
-    const onlineRows = [{ id: 'online-entry', dog: { id: 'dog-1', call_name: 'Tera' } }];
-    const { viewQuery } = mockSupabaseTables({
-      viewEntryRows: onlineRows,
-    });
+    const onlineRows = [{ id: 'entry-1' }, { id: 'entry-2' }];
+    const { viewQuery } = mockSupabaseTables({ viewEntryRows: onlineRows });
 
     const result = await getUserEntries('user-1');
 
     expect(result).toEqual({ data: onlineRows, error: null });
     expect(mocks.supabaseFrom).toHaveBeenCalledWith('view_authenticated_entry_results');
     expect(viewQuery.eq).toHaveBeenCalledWith('is_own_entry', true);
-    expect(mocks.supabaseFrom).not.toHaveBeenCalledWith('enrollments');
+    // The authenticated view retains the caller's own tombstoned entries so My
+    // Entries can reconcile them with My Payments; the view itself enforces
+    // owner-only deleted-row visibility.
+    expect(viewQuery.is).not.toHaveBeenCalledWith('deleted_at', null);
     expect(mocks.mapReplicatedEntryToDbRow).not.toHaveBeenCalled();
+    expect(mocks.supabaseFrom).not.toHaveBeenCalledWith('entries');
+    expect(mocks.supabaseFrom).not.toHaveBeenCalledWith('dogs');
+    expect(mocks.supabaseFrom).not.toHaveBeenCalledWith('enrollments');
+    expect(mocks.logQuery).toHaveBeenCalledWith(
+      'entries',
+      'select_user_entries',
+      expect.any(Number)
+    );
+  });
+
+  // The reported repro: the secretary marked the enrollment paid, the exhibitor
+  // then added a second class by check. Only the first entry was ever in the
+  // local snapshot, and every one of its relations resolved — the exact shape
+  // that used to short-circuit the online read.
+  it('returns the class added after the local snapshot last covered that show', async () => {
+    mockReplicatedStores();
+    const onlineRows = [
+      {
+        id: 'entry-1',
+        registration_id: 'reg-1',
+        payment_status: 'paid_by_cash',
+        entry_fee: 30,
+        class: { id: 'class-1', name: 'Interior Advanced' },
+      },
+      {
+        id: 'entry-2',
+        registration_id: 'reg-1',
+        payment_status: 'pending',
+        payment_method: 'check',
+        entry_fee: 30,
+        class: { id: 'class-2', name: 'Vehicle Advanced' },
+      },
+    ];
+    mockSupabaseTables({ viewEntryRows: onlineRows });
+
+    const result = await getUserEntries('user-1');
+
+    expect(result.error).toBeNull();
+    expect(result.data.map(row => row.id)).toEqual(['entry-1', 'entry-2']);
   });
 
   it("fetches every page when the account has more than PostgREST's 1000-row cap", async () => {
-    mockReplicatedStores({ classes: [] });
+    mockReplicatedStores();
     const firstPage = Array.from({ length: 1000 }, (_, index) => ({ id: `entry-${index}` }));
     const secondPage = Array.from({ length: 231 }, (_, index) => ({
       id: `entry-${1000 + index}`,
@@ -413,33 +357,7 @@ describe('getUserEntries replicated relation completeness', () => {
     expect(viewQuery.range).toHaveBeenNthCalledWith(2, 1000, 1999);
   });
 
-  it('prefers the online view when account-scope local entries filter down to empty', async () => {
-    mockReplicatedStores({
-      entries: [
-        {
-          id: 'other-entry',
-          classId: 'class-1',
-          dogId: 'other-dog',
-          showId: 'show-1',
-          handlerId: 'other-user',
-          registrationId: 'reg-1',
-        },
-      ],
-    });
-    const onlineRows = [{ id: 'online-entry', dog: { id: 'dog-1', call_name: 'Tera' } }];
-    const { viewQuery } = mockSupabaseTables({
-      viewEntryRows: onlineRows,
-    });
-
-    const result = await getUserEntries('user-1');
-
-    expect(result).toEqual({ data: onlineRows, error: null });
-    expect(mocks.supabaseFrom).toHaveBeenCalledWith('view_authenticated_entry_results');
-    expect(viewQuery.eq).toHaveBeenCalledWith('is_own_entry', true);
-    expect(mocks.mapReplicatedEntryToDbRow).not.toHaveBeenCalled();
-  });
-
-  it('keeps an empty local result when the account-level online check fails offline', async () => {
+  it('keeps an empty local result when the account-level online read fails offline', async () => {
     mockReplicatedStores({ entries: [] });
     mockSupabaseTables({
       viewEntriesError: new Error('Failed to fetch'),
@@ -470,11 +388,19 @@ describe('getUserEntries replicated relation completeness', () => {
     expect(mocks.mapReplicatedEntryToDbRow).not.toHaveBeenCalled();
   });
 
-  it('returns partial replicated rows when relation rows are missing and PostgREST fails', async () => {
-    mockReplicatedStores({ classes: [] });
+  it('falls back to replicated rows when the online read fails and the replica has rows', async () => {
+    mockReplicatedStores();
     mockSupabaseTables({
       viewEntriesError: new Error('offline'),
-      enrollmentRows: [],
+      enrollmentRows: [
+        {
+          id: 'reg-1',
+          confirmation_number: 'MK9-1',
+          payment_status: 'paid',
+          payment_reference: null,
+          paid_amount: 30,
+        },
+      ],
     });
 
     const result = await getUserEntries('user-1');
@@ -482,14 +408,17 @@ describe('getUserEntries replicated relation completeness', () => {
     expect(result.data).toHaveLength(1);
     expect(result.data[0]).toMatchObject({
       id: 'entry-1',
-      class: null,
+      class: replicatedClass,
       dog: replicatedDog,
       show: replicatedShow,
+      class_results_released_at: '2026-06-18T15:45:00.000Z',
+      dog_image_url: 'https://example.com/dogs/dog-1.jpg',
+      registration: { id: 'reg-1', confirmation_number: 'MK9-1' },
     });
     expect(mocks.supabaseFrom).toHaveBeenCalledWith('view_authenticated_entry_results');
+    expect(mocks.supabaseFrom).toHaveBeenCalledWith('enrollments');
     expect(mocks.supabaseFrom).not.toHaveBeenCalledWith('entries');
     expect(mocks.supabaseFrom).not.toHaveBeenCalledWith('dogs');
-    expect(mocks.supabaseFrom).toHaveBeenCalledWith('enrollments');
     expect(mocks.logQuery).toHaveBeenCalledWith(
       'entries',
       'select_user_entries_partial',
@@ -497,19 +426,20 @@ describe('getUserEntries replicated relation completeness', () => {
     );
   });
 
-  it('falls back to PostgREST when replicated entry loading throws', async () => {
+  it('surfaces the online error when the replica is also unreadable', async () => {
     mockReplicatedStores({ entriesThrows: true });
-    const onlineRows = [{ id: 'online-entry' }];
     mockSupabaseTables({
-      viewEntryRows: onlineRows,
+      viewEntriesError: new Error('RLS policy denied'),
     });
 
     const result = await getUserEntries('user-1');
 
-    expect(result).toEqual({ data: onlineRows, error: null });
-    expect(mocks.supabaseFrom).toHaveBeenCalledWith('view_authenticated_entry_results');
-    expect(mocks.supabaseFrom).not.toHaveBeenCalledWith('entries');
-    expect(mocks.supabaseFrom).not.toHaveBeenCalledWith('dogs');
+    expect(result.data).toEqual([]);
+    expect(result.error).toMatchObject({
+      message: 'RLS policy denied',
+      table: 'entries',
+      operation: 'select_user_entries',
+    });
   });
 });
 

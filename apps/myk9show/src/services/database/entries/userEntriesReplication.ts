@@ -8,38 +8,11 @@ import type { ReplicatedShow } from '@/services/replication/ReplicatedShowsTable
 import type { ReplicatedTrial } from '@/services/replication/ReplicatedTrialsTable';
 import { getTrialTimezone } from '@/features/registries';
 
-interface ReplicatedUserEntryRelationMaps {
-  dogsMap: ReadonlyMap<string, unknown>;
-  classesMap: ReadonlyMap<string, unknown>;
-  showsMap: ReadonlyMap<string, unknown>;
-}
-
 interface ReplicatedUserEntryMaps {
   dogsMap: ReadonlyMap<string, ReplicatedDog>;
   classesMap: ReadonlyMap<string, ReplicatedClass>;
   showsMap: ReadonlyMap<string, ReplicatedShow>;
   trialsMap: ReadonlyMap<string, ReplicatedTrial>;
-}
-
-export function findMissingReplicatedUserEntryRelations(
-  entries: Pick<ReplicatedEntry, 'id' | 'classId' | 'dogId' | 'showId'>[],
-  maps: ReplicatedUserEntryRelationMaps
-): string[] {
-  const missing = new Set<string>();
-
-  for (const entry of entries) {
-    if (entry.classId && !maps.classesMap.has(entry.classId)) {
-      missing.add(`class:${entry.classId}`);
-    }
-    if (entry.dogId && !maps.dogsMap.has(entry.dogId)) {
-      missing.add(`dog:${entry.dogId}`);
-    }
-    if (entry.showId && !maps.showsMap.has(entry.showId)) {
-      missing.add(`show:${entry.showId}`);
-    }
-  }
-
-  return Array.from(missing);
 }
 
 export async function buildReplicatedUserEntryRows(

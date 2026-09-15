@@ -237,13 +237,19 @@ DELETE FROM public.entries WHERE id IN (
 -- it exactly like the entries case above, and the entries-only guard could not
 -- see it. Extended in this SAME block, from the SAME scope_shows CTE, before
 -- the first parent delete, so the two stay in lockstep. Unlike entries,
--- enrollments carries no trial_id / class_id / dog_id — show_id is its only
--- FK into this cascade — so one arm covers every route in, including the
+-- enrollments carries no trial_id / class_id / dog_id, so scoping by show_id
+-- alone covers every route this section's show deletes open, including the
 -- load shows and the UKC/ASCA sibling shows, not only the demo show.
+-- enrollments ALSO cascades from handler_id (registrations_handler_id_fkey,
+-- confdeltype='c') — a second parent this arm does NOT scope by. That is sound
+-- only because this seed deletes no rows from public.people; if a future
+-- change adds one, this arm must be widened to catch a handler-only cascade
+-- route first (pinned by a test below that fails the moment the seed deletes
+-- people).
 DO $$
 DECLARE
   v_real integer; v_bare integer; v_ids text; v_bare_ids text;
-  v_enroll_real integer; v_enroll_bare integer; v_enroll_ids text; v_enroll_bare_ids text;
+  v_enroll_real integer; v_enroll_ids text;
 BEGIN
   -- Guard the HARM, not the label. A paid/refunded row that also carries a
   -- trail — entry_status_history, a Stripe payment intent or order, a recorded
@@ -304,18 +310,27 @@ BEGIN
        OR EXISTS (SELECT 1 FROM public.entry_status_history h WHERE h.entry_id = s.id)
        OR EXISTS (SELECT 1 FROM public.stripe_orders o WHERE o.entry_ids @> ARRAY[s.id])
   ),
-  -- MYK9-528. "Paid" for an enrollment mirrors the entries arm's disposition
-  -- (paid ∪ refunded, never pending/waived) widened to enrollments' own richer
-  -- payment_status vocabulary (migration 168): 'paid' is the generic value the
-  -- webhook trigger and the secretary_paid/group_payment UI paths write;
-  -- 'paid_online' / 'paid_by_cash' / 'paid_by_check' are the specific values
-  -- the same UI also writes (buildEnrollmentPaymentFields); 'refunded' /
-  -- 'partial_refund' are the two refund outcomes (enrollmentPayment.ts). This
-  -- matches apps/myk9show/src/utils/enrollmentGrouping.ts's dispositionOf().
+  -- MYK9-528. Unlike the entries arm above, this arm has NO trail-substantiated
+  -- vs. bare split — ANY in-scope paid/refunded enrollment aborts the reseed.
+  -- The secretary's "Mark Paid Online" action (EnrollmentCard.tsx ->
+  -- updateEnrollmentPaymentStatus) writes payment_status='paid_online' with no
+  -- payment_reference, no paid_amount, no linked stripe_orders row — nothing a
+  -- trail requirement could see — so requiring a trail here let a real paid
+  -- enrollment cascade away silently, which is the opposite of what this guard
+  -- exists for. The WARN-then-cascade leniency above exists to keep the
+  -- 1260-row load-entries reseed from wedging on QA-walk noise; enrollments is
+  -- a handful of rows and never needs that leniency.
+  --
+  -- "Paid" mirrors the entries arm's disposition (paid ∪ refunded, never
+  -- pending/waived) widened to enrollments' own richer payment_status
+  -- vocabulary (migration 168): 'paid' is the generic value the webhook
+  -- trigger and the secretary_paid/group_payment UI paths write; 'paid_online'
+  -- / 'paid_by_cash' / 'paid_by_check' are the specific values the same UI
+  -- also writes (buildEnrollmentPaymentFields); 'refunded' / 'partial_refund'
+  -- are the two refund outcomes (enrollmentPayment.ts). This matches
+  -- apps/myk9show/src/utils/enrollmentGrouping.ts's dispositionOf().
   enrollment_stray AS (
-    SELECT en.id, en.payment_reference, en.paid_amount, en.total_amount,
-           en.refund_amount, en.refunded_at, en.check_number, en.payment_date,
-           en.group_reference, en.payment_notes, en.payment_method
+    SELECT en.id
     FROM public.enrollments en
     WHERE en.payment_status IN
             ('paid', 'paid_online', 'paid_by_cash', 'paid_by_check', 'refunded', 'partial_refund')
@@ -330,19 +345,6 @@ BEGIN
       -- this arm runs. Exclude it by id — confirmed the ONLY enrollment this
       -- seed inserts (one INSERT INTO public.enrollments in this file).
       AND en.id <> 'dededede-0000-0000-0000-000000000070'
-  ),
-  enrollment_substantiated AS (
-    SELECT s.id FROM enrollment_stray s
-    WHERE s.payment_reference IS NOT NULL
-       OR s.paid_amount > 0
-       OR s.total_amount IS NOT NULL
-       OR s.refund_amount IS NOT NULL
-       OR s.refunded_at IS NOT NULL
-       OR s.check_number IS NOT NULL
-       OR s.payment_date IS NOT NULL
-       OR s.group_reference IS NOT NULL
-       OR s.payment_notes IS NOT NULL
-       OR EXISTS (SELECT 1 FROM public.stripe_orders so WHERE so.enrollment_id = s.id)
   )
   SELECT (SELECT count(*) FROM substantiated),
          (SELECT count(*) FROM stray) - (SELECT count(*) FROM substantiated),
@@ -353,15 +355,10 @@ BEGIN
                             || ', fee=' || coalesce(t.entry_fee::text,'none') || ')', ', ' ORDER BY t.id)
           FROM (SELECT id, payment_method, entry_fee FROM stray
                 WHERE id NOT IN (SELECT id FROM substantiated) ORDER BY id LIMIT 10) t),
-         (SELECT count(*) FROM enrollment_substantiated),
-         (SELECT count(*) FROM enrollment_stray) - (SELECT count(*) FROM enrollment_substantiated),
+         (SELECT count(*) FROM enrollment_stray),
          (SELECT string_agg(t.id::text, ', ' ORDER BY t.id)
-          FROM (SELECT id FROM enrollment_substantiated ORDER BY id LIMIT 10) t),
-         (SELECT string_agg(t.id::text || ' (method=' || coalesce(t.payment_method,'none')
-                            || ', total=' || coalesce(t.total_amount::text,'none') || ')', ', ' ORDER BY t.id)
-          FROM (SELECT id, payment_method, total_amount FROM enrollment_stray
-                WHERE id NOT IN (SELECT id FROM enrollment_substantiated) ORDER BY id LIMIT 10) t)
-    INTO v_real, v_bare, v_ids, v_bare_ids, v_enroll_real, v_enroll_bare, v_enroll_ids, v_enroll_bare_ids;
+          FROM (SELECT id FROM enrollment_stray ORDER BY id LIMIT 10) t)
+    INTO v_real, v_bare, v_ids, v_bare_ids, v_enroll_real, v_enroll_ids;
 
   IF v_bare > 0 THEN
     RAISE WARNING 'seed-demo: % paid/refunded entr(ies) on data this reseed deletes carry no payment trail (no history, no Stripe record, no reference) and will be removed with their parents. First ids: %', v_bare, v_bare_ids;
@@ -371,12 +368,8 @@ BEGIN
     RAISE EXCEPTION 'seed-demo: % paid or refunded entr(ies) with a real payment trail sit on a show, trial, class or dog this reseed deletes — refusing to cascade them away. First ids: %. For the full set, run this guard''s substantiated CTE as a SELECT (~60 lines into section 0 of supabase/seed-demo.sql). To clear it, HARD-delete those rows: DELETE FROM public.entries WHERE id IN (...). Soft-deleting will NOT clear this — the guard ignores deleted_at on purpose, because a soft-deleted row still cascades. Never widen this guard to get past it.', v_real, v_ids;
   END IF;
 
-  IF v_enroll_bare > 0 THEN
-    RAISE WARNING 'seed-demo: % paid/refunded enrollment(s) on a show this reseed deletes carry no payment trail (no amount, no reference, no Stripe order) and will be removed with their show. First ids: %', v_enroll_bare, v_enroll_bare_ids;
-  END IF;
-
   IF v_enroll_real > 0 THEN
-    RAISE EXCEPTION 'seed-demo: % paid or refunded enrollment(s) with a real payment trail sit on a show this reseed deletes — refusing to cascade them away. First ids: %. To clear it, HARD-delete those rows from public.enrollments by id (there is no soft-delete column to set instead — a cascade from shows takes the row regardless). Never widen this guard to get past it.', v_enroll_real, v_enroll_ids;
+    RAISE EXCEPTION 'seed-demo: % paid or refunded enrollment(s) sit on a show this reseed deletes — refusing to cascade them away. First ids: %. For the full set, run this guard''s enrollment_stray CTE as a SELECT (~65 lines into section 0 of supabase/seed-demo.sql). To clear it, HARD-delete those rows from public.enrollments by id (there is no soft-delete column to set instead — a cascade from shows takes the row regardless). Never widen this guard to get past it.', v_enroll_real, v_enroll_ids;
   END IF;
 END $$;
 

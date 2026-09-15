@@ -239,31 +239,31 @@ describe('seed-demo self-cleaning relationship deletes (MYK9-490 follow-up)', ()
     expect(block, 'the enrollments arm no longer derives from scope_shows').toMatch(
       /enrollment_stray AS \(\s*SELECT[^)]*FROM public\.enrollments en/
     );
-    expect(block).toMatch(/RAISE EXCEPTION[^;]*enrollment\(s\) with a real payment trail/);
-    expect(block, 'bare enrollment rows must warn, not be silent').toMatch(
-      /RAISE WARNING[^;]*paid\/refunded enrollment\(s\)[^;]*carry no payment trail/
-    );
+    expect(block).toMatch(/RAISE EXCEPTION[^;]*paid or refunded enrollment\(s\)/);
 
-    // Substantiation trail: mirrors the entries arm's "guard the harm, not the
-    // label" split, using enrollments' OWN columns (it has no
-    // entry_status_history or entry_fee of its own).
-    for (const trail of [
-      's.payment_reference IS NOT NULL',
-      's.paid_amount > 0',
-      's.total_amount IS NOT NULL',
-      's.refund_amount IS NOT NULL',
-      's.refunded_at IS NOT NULL',
-      's.check_number IS NOT NULL',
-      's.payment_date IS NOT NULL',
-      's.group_reference IS NOT NULL',
-      's.payment_notes IS NOT NULL',
-    ]) {
-      expect(block, `enrollment substantiation drops ${trail}`).toContain(trail);
-    }
+    // MYK9-528 review round 1 (design simplification, decided): NO
+    // trail-substantiated/bare split for enrollments — ANY in-scope
+    // paid/refunded enrollment aborts the reseed. A trail requirement (the
+    // entries arm's shape, mirrored here in round 0) missed the secretary's
+    // "Mark Paid Online" action (EnrollmentCard.tsx ->
+    // updateEnrollmentPaymentStatus), which writes payment_status='paid_online'
+    // with no payment_reference, no paid_amount, and no linked stripe_orders
+    // row — a real paid enrollment with nothing a trail check could see, so it
+    // would cascade away silently. Assert both the WARN branch and the
+    // substantiation CTE stay gone: this must go red if either is
+    // reintroduced, or if the enrollments arm is removed outright.
     expect(
       block,
-      'the enrollments arm must also check stripe_orders.enrollment_id, not only its own columns'
-    ).toContain('FROM public.stripe_orders so WHERE so.enrollment_id = s.id');
+      'enrollments must not warn-then-cascade — every in-scope paid enrollment must ABORT, not just a trail-substantiated subset'
+    ).not.toMatch(/RAISE WARNING[^;]*enrollment/i);
+    expect(
+      block,
+      'an enrollment_substantiated CTE reintroduces the trail requirement this round removed'
+    ).not.toMatch(/enrollment_substantiated/);
+    expect(
+      block,
+      'the abort count must come straight from enrollment_stray, not a narrowed substantiated-only count'
+    ).toContain('(SELECT count(*) FROM enrollment_stray)');
 
     // Self-trip freedom: the seed's own multi-dog order (section 6b) is paid
     // by fixture and is NOT yet deleted at this point in the file (its DELETE
@@ -278,6 +278,18 @@ describe('seed-demo self-cleaning relationship deletes (MYK9-490 follow-up)', ()
     expect(block, 'the enrollments arm was neutered with a constant-false predicate').not.toMatch(
       /enrollment_stray AS[\s\S]*?WHERE\s+false|enrollment_stray AS[\s\S]*?AND\s+false/i
     );
+
+    // enrollments has TWO ON DELETE CASCADE parents, not one: show_id AND
+    // handler_id (pg_constraint confdeltype='c' on registrations_show_id_fkey
+    // and registrations_handler_id_fkey). The arm above is scoped by show_id
+    // alone, which is sound only because this seed deletes no people at all —
+    // add a `DELETE FROM public.people` later and every enrollment that
+    // handler owns, on ANY show, cascades away with this guard blind to it.
+    expect(
+      /DELETE\s+FROM\s+public\.people\b/i.test(seed),
+      'the seed now deletes people, but the enrollments arm is scoped by show_id only — ' +
+        'enrollments cascade from handler_id too, so that arm must be widened first'
+    ).toBe(false);
 
     // Placement: before the first delete of `shows` (the only cascade parent
     // enrollments has), same as the entries arms.

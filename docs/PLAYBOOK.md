@@ -168,9 +168,16 @@ refuses evidence below. Four tiers, weakest to strongest: `none` < `owner` <
   every merged PR's accepted `owner` override, resolves each named id through
   Linear's GraphQL API, and exits 2 (loud, non-zero, never a silent pass) on a
   missing key or an unreachable API, exits 1 if any id does not resolve, and 0
-  otherwise; it also writes the still-open deferrals (state not Done/Canceled)
-  to the run's job summary, so the debt is visible without anyone going
-  looking for it. **A maintainer must add `LINEAR_API_KEY` as a repository
+  otherwise; it also writes the still-open deferrals to the run's job summary,
+  so the debt is visible without anyone going looking for it. A **Canceled**
+  Linear issue does NOT clear a deferral — the re-review was dropped, not done,
+  so it lands in its own "dropped deferrals" summary section and exits 1;
+  only **completed** clears. The job reads the repo-wide comment stream
+  (`GET /repos/{owner}/{repo}/issues/comments?since=…`, ~19 requests per run)
+  rather than walking every merged PR, and honours exactly one gate line per
+  PR: the latest for the MERGED head, matching what `evaluateReviewGate`
+  itself honoured, so a corrected override supersedes the typo it replaced.
+  **A maintainer must add `LINEAR_API_KEY` as a repository
   secret before this job can ever pass** — that action is Richard's, not an
   agent's; until it exists every run fails loud by design rather than skipping
   quietly.

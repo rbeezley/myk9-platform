@@ -75,40 +75,25 @@ test('select, re-click to deselect, select again — no error, count correct thr
     timeout: 30000,
   });
 
-  // Wait for THIS show's cart to exist before clicking anything. Chips are
-  // interactive while the cart is still loading/creating, and a click that lands
-  // first returns false from `addItem` with "No active cart" — which the store
-  // does not log, so it surfaces only as a toast that has faded by the time the
-  // assertion times out. The store persists `cartRecoveryInfo` once the cart is
-  // real, so that is the readiness signal.
-  await expect
-    .poll(
-      () =>
-        page.evaluate(() => {
-          try {
-            const raw = window.localStorage.getItem('myk9-cart-storage');
-            if (!raw) return null;
-            return JSON.parse(raw)?.state?.cartRecoveryInfo?.showId ?? null;
-          } catch {
-            return null;
-          }
-        }),
-      { timeout: 30000, intervals: [250] }
-    )
-    .toBe(SHOW_ID);
-
-  const baseline = await cartCount(page);
-  await page.screenshot({ path: `${EVIDENCE}/01-before.png`, fullPage: true });
-
   // ── 1. Select ─────────────────────────────────────────────────────────────
   // `waitForChipsToSettle`, not a bare count poll: availability arrives after
   // the chips render, so a chip enabled on the first frame can turn disabled a
   // moment later. Clicking that one focuses it and fires nothing, which reads
   // as "the fix did not work" rather than "the click was too early".
+  //
+  // This also subsumes the explicit `cartRecoveryInfo` poll this spec used to
+  // carry: the chips now render DISABLED until this show's and this exhibitor's
+  // cart has finished loading (MYK9-542), and `enabledClassChips` excludes
+  // `aria-disabled="true"`, so a settled enabled chip IS the readiness signal.
   expect(
     await waitForChipsToSettle(page),
     'this dog must have a class left to add'
   ).toBeGreaterThan(0);
+
+  // Read AFTER the chips settle, for the same reason: before the cart loads the
+  // badge reports 0 for a cart that is about to arrive holding rows.
+  const baseline = await cartCount(page);
+  await page.screenshot({ path: `${EVIDENCE}/01-before.png`, fullPage: true });
   const classId = await chipClassId(enabledClassChips(page).first());
   expect(classId, 'the chip must carry a chip-<classId> id to anchor on').not.toBe('');
   const chip = chipById(page, classId);

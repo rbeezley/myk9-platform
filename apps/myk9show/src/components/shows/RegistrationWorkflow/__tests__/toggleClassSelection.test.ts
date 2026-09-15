@@ -33,6 +33,8 @@ const makeHarness = (overrides: Partial<ToggleOptions> = {}) => {
       pending.key = key;
     }),
     isAddInFlight: () => pending.key !== null,
+    isCartReady: true,
+    onBlockedByCart: vi.fn(),
     notifyAdded: vi.fn(),
     notifyError: vi.fn(),
     ...overrides,
@@ -160,5 +162,60 @@ describe('toggleClassSelection — the in-flight guard actually guards (MYK9-530
     await toggleClassSelection({ ...opts, classId: 'c2' });
 
     expect(opts.addItem).toHaveBeenCalledTimes(2);
+  });
+});
+
+describe('toggleClassSelection — the cart-readiness gate (MYK9-542)', () => {
+  it('a deselect that lands before this show\u2019s cart has loaded is ignored, not silently undone', async () => {
+    // The wizard restored `classSelections` from its own draft, so the chip
+    // renders checked while the cart for this show is still loading. Mutating
+    // now drops the selection locally with no cart row to delete -- and the
+    // reconcile that runs the moment the cart lands puts the chip straight back
+    // from the row the exhibitor just asked to remove. The deselect reads as
+    // silently undone.
+    const classSelections: ClassSelectionData[] = [
+      { dogId: 'd1', trialId: 't1', selectedClasses: [{ classId: 'c1' }] },
+    ];
+    const opts = makeHarness({ classSelections, isCartReady: false });
+    await toggleClassSelection(opts);
+
+    expect(opts.onSelectionChange).not.toHaveBeenCalled();
+    expect(opts.removeItem).not.toHaveBeenCalled();
+    expect(opts.addItem).not.toHaveBeenCalled();
+    expect(opts.onBlockedByCart).toHaveBeenCalledTimes(1);
+  });
+
+  it('an add that lands before the cart has loaded is ignored too', async () => {
+    const opts = makeHarness({ isCartReady: false });
+    await toggleClassSelection(opts);
+
+    expect(opts.addItem).not.toHaveBeenCalled();
+    expect(opts.onSelectionChange).not.toHaveBeenCalled();
+    expect(opts.notifyError).not.toHaveBeenCalled();
+    expect(opts.onBlockedByCart).toHaveBeenCalledTimes(1);
+  });
+
+  it('the gate never blocks the non-cart (secretary) flow, which has no cart to wait for', async () => {
+    const classSelections: ClassSelectionData[] = [
+      { dogId: 'd1', trialId: 't1', selectedClasses: [{ classId: 'c1' }] },
+    ];
+    const opts = makeHarness({ useCartFlow: false, isCartReady: false, classSelections });
+    await toggleClassSelection(opts);
+
+    expect(opts.onSelectionChange).toHaveBeenCalledWith([]);
+    expect(opts.onBlockedByCart).not.toHaveBeenCalled();
+  });
+
+  it('once the cart is ready the same deselect goes through', async () => {
+    const cartItems = [makeCartItem('d1', 'c1', 't1')];
+    const classSelections: ClassSelectionData[] = [
+      { dogId: 'd1', trialId: 't1', selectedClasses: [{ classId: 'c1' }] },
+    ];
+    const opts = makeHarness({ cartItems, classSelections, isCartReady: true });
+    await toggleClassSelection(opts);
+
+    expect(opts.removeItem).toHaveBeenCalledWith('item-d1-c1');
+    expect(opts.onSelectionChange).toHaveBeenCalledWith([]);
+    expect(opts.onBlockedByCart).not.toHaveBeenCalled();
   });
 });

@@ -52,6 +52,7 @@ import {
   isAvailabilityUnreadable,
 } from './ClassSelectionStep.availability';
 import { buildFullChipReason } from './ClassSelectionStep.fullReason';
+import { useCartToggleGate } from './ClassSelectionStep.cartReady';
 import { canManageShowSurface } from '@/utils/roleScopes';
 
 export type { ClassSelectionStepProps } from './ClassSelectionStep.types';
@@ -353,28 +354,29 @@ export const ClassSelectionStep: React.FC<ClassSelectionStepProps> = ({
   // The global cart may still hold a previous show's items while this show's cart loads.
   // Reconciling against stale items would copy the wrong show's classes and
   // set the ref, preventing a second reconcile once the right cart arrives.
-  const hasReconciledFromCart = useRef(false);
-  useEffect(() => {
-    if (hasReconciledFromCart.current) return;
-    if (!useCartFlow) return;
-    if (cartIsLoading) return;
-    if (cartShowId !== showId || cartExhibitorId !== exhibitorId) return;
-    if (cartItems.length === 0) return;
-    const reconstructed = reconcileCartToSelections(cartItems, classSelections);
-    if (!reconstructed) return;
-    hasReconciledFromCart.current = true;
-    onSelectionChange(reconstructed);
-  }, [
-    cartItems,
-    classSelections,
+  // One predicate for "the held cart is this show's and this exhibitor's, and
+  // has settled": the reconcile reads it, `handleClassToggle` writes through
+  // it, and the chips render disabled while it is false (MYK9-542).
+  const { cartReady, onBlockedByCart } = useCartToggleGate({
     useCartFlow,
     cartIsLoading,
     cartShowId,
     cartExhibitorId,
     showId,
     exhibitorId,
-    onSelectionChange,
-  ]);
+  });
+
+  const hasReconciledFromCart = useRef(false);
+  useEffect(() => {
+    if (hasReconciledFromCart.current) return;
+    if (!useCartFlow) return;
+    if (!cartReady) return;
+    if (cartItems.length === 0) return;
+    const reconstructed = reconcileCartToSelections(cartItems, classSelections);
+    if (!reconstructed) return;
+    hasReconciledFromCart.current = true;
+    onSelectionChange(reconstructed);
+  }, [cartItems, classSelections, useCartFlow, cartReady, onSelectionChange]);
 
   const handleClassToggle = async (
     dogId: string,
@@ -397,6 +399,8 @@ export const ClassSelectionStep: React.FC<ClassSelectionStepProps> = ({
         addingItemRef.current = itemKey;
       },
       isAddInFlight: () => addingItemRef.current !== null,
+      isCartReady: cartReady,
+      onBlockedByCart,
       notifyAdded: () =>
         toast.success('Added to cart', { description: 'Class added to your cart' }),
       notifyError: message => toast.error(message),
@@ -545,6 +549,7 @@ export const ClassSelectionStep: React.FC<ClassSelectionStepProps> = ({
                                     }),
                                   };
                                 })}
+                                isCartPending={!cartReady}
                                 onToggle={classId =>
                                   handleClassToggle(dogId, trial.id, classId, group.fee)
                                 }

@@ -1348,6 +1348,8 @@ export type Database = {
         Row: {
           accent_color: string | null
           address: string | null
+          authorized_at: string | null
+          authorized_by: string | null
           city: string | null
           club_number: string | null
           cover_image_url: string | null
@@ -1373,6 +1375,8 @@ export type Database = {
         Insert: {
           accent_color?: string | null
           address?: string | null
+          authorized_at?: string | null
+          authorized_by?: string | null
           city?: string | null
           club_number?: string | null
           cover_image_url?: string | null
@@ -1398,6 +1402,8 @@ export type Database = {
         Update: {
           accent_color?: string | null
           address?: string | null
+          authorized_at?: string | null
+          authorized_by?: string | null
           city?: string | null
           club_number?: string | null
           cover_image_url?: string | null
@@ -13133,6 +13139,10 @@ export type Database = {
       run_system_health_check_now: { Args: never; Returns: Json }
       self_checkin_entry: {
         Args: { p_entry_id: string; p_new_status: string }
+        Returns: undefined
+      }
+      set_club_authorization: {
+        Args: { p_authorized: boolean; p_club_id: string }
         Returns: undefined
       }
       set_entry_refund_decision: {

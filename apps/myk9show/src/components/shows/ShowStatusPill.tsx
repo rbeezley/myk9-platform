@@ -8,12 +8,16 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { useUpdateShowMutation } from '@/hooks/queries/useShowsDatabase';
-import { useClubStripeAccount } from '@/features/payments/useClubStripeAccount';
+import {
+  useClubStripeAccount,
+  useClubAuthorization,
+} from '@/features/payments/useClubStripeAccount';
 import {
   canEnableOnlineEntries,
   isPublishGateDbError,
   publishGateDbErrorMessage,
   PUBLISH_BLOCKED_MESSAGE,
+  CLUB_UNAUTHORIZED_MESSAGE,
 } from '@/features/payments/onlineEntryGate';
 
 interface ShowStatusPillProps {
@@ -60,6 +64,7 @@ export function ShowStatusPill({ showId, status, clubId }: ShowStatusPillProps) 
   const { mutateAsync, isPending } = useUpdateShowMutation();
   const navigate = useNavigate();
   const clubAccountQuery = useClubStripeAccount(clubId);
+  const clubAuthQuery = useClubAuthorization(clubId);
   const config = STATUS_CONFIG[status] ?? {
     label: status,
     className: 'bg-muted border border-border text-muted-foreground',
@@ -83,18 +88,25 @@ export function ShowStatusPill({ showId, status, clubId }: ShowStatusPillProps) 
         );
         return;
       }
-      if (clubAccountQuery.isLoading) {
+      if (clubAccountQuery.isLoading || clubAuthQuery.isLoading) {
         // Don't misreport an onboarded club as unconnected on a cold cache.
         toast.info('Checking the club’s payment account — try again in a moment.');
         return;
       }
-      if (clubAccountQuery.isError) {
+      if (clubAccountQuery.isError || clubAuthQuery.isError) {
         // A failed lookup is not "not connected" — fail closed with the
         // truthful message instead of blaming the club's setup. Kick off a
         // refetch so "try again" can actually succeed (an errored query
         // inside staleTime would otherwise serve the same error forever).
         void clubAccountQuery.refetch();
+        void clubAuthQuery.refetch();
         toast.error('Could not check the club’s payment account. Please try again.');
+        return;
+      }
+      // MYK9-572: authorization is checked before Stripe readiness, same
+      // order as the DB trigger (enforce_show_publish_gate).
+      if (clubAuthQuery.data?.authorized_at === null) {
+        toast.error(CLUB_UNAUTHORIZED_MESSAGE);
         return;
       }
       if (!canEnableOnlineEntries(clubAccountQuery.data)) {

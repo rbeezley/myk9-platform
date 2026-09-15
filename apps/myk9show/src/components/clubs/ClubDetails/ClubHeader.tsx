@@ -9,6 +9,9 @@ import {
   MoreVertical,
   Trash2,
   Camera,
+  ShieldCheck,
+  ShieldOff,
+  ShieldAlert,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
@@ -36,6 +39,15 @@ interface ClubHeaderProps {
   canEditClub?: boolean;
   canEditBranding?: boolean;
   canDeleteClub?: boolean;
+  // MYK9-572: site-admin-only authorize/revoke control. canAuthorizeClub
+  // gates the affordance (mirrors set_club_authorization's own
+  // is_site_admin() check); isClubAuthorized is undefined while loading.
+  canAuthorizeClub?: boolean;
+  isClubAuthorized?: boolean;
+  isAuthorizationLoading?: boolean;
+  isAuthorizationUpdating?: boolean;
+  onAuthorizeClub?: () => void;
+  onRevokeAuthorization?: () => void;
 }
 
 export const ClubHeader: React.FC<ClubHeaderProps> = ({
@@ -49,14 +61,27 @@ export const ClubHeader: React.FC<ClubHeaderProps> = ({
   canEditClub = false,
   canEditBranding = false,
   canDeleteClub = false,
+  canAuthorizeClub = false,
+  isClubAuthorized,
+  isAuthorizationLoading = false,
+  isAuthorizationUpdating = false,
+  onAuthorizeClub,
+  onRevokeAuthorization,
 }) => {
+  const handleAuthorizeClub = onAuthorizeClub ?? (() => {});
+  const handleRevokeAuthorization = onRevokeAuthorization ?? (() => {});
   const palette = useMemo(
     () => (club.accentColor ? generatePalette(club.accentColor) : null),
     [club.accentColor]
   );
   const contact = useMemo(() => normalizeContactDestinations(club), [club]);
   const hasMenuActions =
-    canEditBranding || canDeleteClub || !!contact.email || !!contact.phone || !!contact.website;
+    canEditBranding ||
+    canDeleteClub ||
+    canAuthorizeClub ||
+    !!contact.email ||
+    !!contact.phone ||
+    !!contact.website;
 
   const foundedYear = club.founded
     ? club.founded instanceof Date
@@ -128,6 +153,28 @@ export const ClubHeader: React.FC<ClubHeaderProps> = ({
                   <Globe className="mr-2 h-4 w-4" />
                   Visit Website
                 </DropdownMenuItem>
+              )}
+              {canAuthorizeClub && !isAuthorizationLoading && (
+                <>
+                  <DropdownMenuSeparator />
+                  {isClubAuthorized ? (
+                    <DropdownMenuItem
+                      onClick={handleRevokeAuthorization}
+                      disabled={isAuthorizationUpdating}
+                    >
+                      <ShieldOff className="mr-2 h-4 w-4" />
+                      Revoke Authorization
+                    </DropdownMenuItem>
+                  ) : (
+                    <DropdownMenuItem
+                      onClick={handleAuthorizeClub}
+                      disabled={isAuthorizationUpdating}
+                    >
+                      <ShieldCheck className="mr-2 h-4 w-4" />
+                      Authorize Club
+                    </DropdownMenuItem>
+                  )}
+                </>
               )}
               {canDeleteClub && (
                 <>
@@ -220,7 +267,18 @@ export const ClubHeader: React.FC<ClubHeaderProps> = ({
                 Founded {foundedYear}
               </p>
             )}
-            <h1 className="text-3xl font-bold text-foreground mb-2">{club.name}</h1>
+            <div className="flex items-center gap-2 mb-2">
+              <h1 className="text-3xl font-bold text-foreground">{club.name}</h1>
+              {canAuthorizeClub && !isAuthorizationLoading && isClubAuthorized === false && (
+                <span
+                  data-testid="club-unauthorized-badge"
+                  className="inline-flex items-center gap-1 rounded-full bg-warning/10 border border-warning/30 px-2.5 py-0.5 text-xs font-medium text-warning"
+                >
+                  <ShieldAlert className="h-3 w-3" />
+                  Unauthorized
+                </span>
+              )}
+            </div>
             {(club.address?.city || club.address?.state) && (
               <div className="flex items-center gap-2 text-muted-foreground mb-2">
                 <MapPin className="w-4 h-4" />

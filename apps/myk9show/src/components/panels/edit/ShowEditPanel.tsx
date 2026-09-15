@@ -3,7 +3,10 @@ import type { z } from 'zod';
 import { EditPanelWrapper } from './EditPanelWrapper';
 import type { ShowEditPanelProps, ShowEditFormData } from './ShowEditPanel.types';
 import { showToFormData, formDataToShowSaveData, publishGateError } from './ShowEditPanel.helpers';
-import { fetchClubStripeAccount } from '@/features/payments/useClubStripeAccount';
+import {
+  fetchClubStripeAccount,
+  fetchClubAuthorization,
+} from '@/features/payments/useClubStripeAccount';
 import { showSchemas } from '@/lib/validation';
 import { ShowEditForm } from './ShowEditForm';
 import { useEditingPresence } from '@/features/show-presence/useEditingPresence';
@@ -45,9 +48,13 @@ export const ShowEditPanel: React.FC<ShowEditPanelProps> = ({
         formData.status === 'published' && initialShowData?.status !== 'published';
       if (newlyPublishing) {
         let account: { payouts_enabled: boolean } | null = null;
+        let club: { authorized_at: string | null } | null = null;
         if (formData.clubId) {
           try {
-            account = await fetchClubStripeAccount(formData.clubId);
+            [account, club] = await Promise.all([
+              fetchClubStripeAccount(formData.clubId),
+              fetchClubAuthorization(formData.clubId),
+            ]);
           } catch {
             throw new Error('Could not check the club’s payment account. Please try again.');
           }
@@ -56,7 +63,8 @@ export const ShowEditPanel: React.FC<ShowEditPanelProps> = ({
           initialShowData?.status,
           formData.status,
           formData.clubId,
-          account
+          account,
+          club
         );
         if (gateError) {
           throw new Error(gateError);

@@ -77,6 +77,12 @@ const ClubDetails: React.FC<ClubDetailsProps> = ({ selectedClub }) => {
         canEditClub={state.canEditClub}
         canEditBranding={state.canEditBranding}
         canDeleteClub={state.canDeleteClub}
+        canAuthorizeClub={state.canAuthorizeClub}
+        isClubAuthorized={state.isClubAuthorized}
+        isAuthorizationLoading={state.isAuthorizationLoading}
+        isAuthorizationUpdating={state.isAuthorizationUpdating}
+        onAuthorizeClub={state.handleAuthorizeClub}
+        onRevokeAuthorization={state.handleRevokeAuthorization}
       />
 
       {!state.canEditClub && (

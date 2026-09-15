@@ -36,6 +36,12 @@ vi.mock('@/features/payments/useClubStripeAccount', () => ({
     },
     isLoading: false,
   }),
+  // MYK9-572: club authorization is a second, independent publish-gate
+  // check — authorized here so these baseline tests keep publishing.
+  useClubAuthorization: () => ({
+    data: { authorized_at: '2026-01-01T00:00:00Z' },
+    isLoading: false,
+  }),
 }));
 
 describe('ShowStatusPill', () => {

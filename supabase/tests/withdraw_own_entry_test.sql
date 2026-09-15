@@ -29,7 +29,7 @@ values ('00000000-0000-0000-0000-000000535003', '00000000-0000-0000-0000-0000005
 
 -- `entries_dog_class_unique_idx` is UNIQUE on (dog_id, class_id) WHERE
 -- entry_status <> ALL ('withdrawn','scratched') — note it does NOT exclude
--- soft-deleted rows. Eight scenarios on one dog therefore need eight classes,
+-- soft-deleted rows. Nine scenarios on one dog therefore need nine classes,
 -- one entry each. Giving each scenario its own class (rather than its own dog)
 -- keeps a single dog_registrations row, which the
 -- trg_entries_require_dog_registration INSERT trigger needs to match the
@@ -96,8 +96,7 @@ create function pg_temp.assert_withdraw(
   expected_error text default null,
   p_fields jsonb default '{"entry_status": "withdrawn"}'::jsonb,
   expected_version integer default null,
-  caller_role text default 'authenticated',
-  expected_reason text default null
+  caller_role text default 'authenticated'
 ) returns void language plpgsql as $$
 declare
   before_rows jsonb;
@@ -105,7 +104,6 @@ declare
   actual_error text;
   actual_state text;
   new_status text;
-  new_reason text;
   new_withdrawn_at timestamptz;
 begin
   select jsonb_object_agg(id::text, to_jsonb(e)) into before_rows
@@ -142,8 +140,8 @@ begin
     return;
   end if;
 
-  select e.entry_status, e.withdrawal_reason, e.withdrawn_at
-    into new_status, new_reason, new_withdrawn_at
+  select e.entry_status, e.withdrawn_at
+    into new_status, new_withdrawn_at
     from public.entries e where e.id = target_id;
 
   if new_status <> 'withdrawn' then
@@ -151,10 +149,6 @@ begin
   end if;
   if new_withdrawn_at is null then
     raise exception 'FAIL %: withdrawn_at was not stamped', label;
-  end if;
-  if expected_reason is not null and new_reason is distinct from expected_reason then
-    raise exception 'FAIL %: withdrawal_reason is %, expected %',
-      label, coalesce(new_reason, '<NULL>'), expected_reason;
   end if;
   if not exists (
     select 1 from public.entry_status_history h
@@ -174,6 +168,19 @@ select pg_temp.assert_withdraw('dog owner', '00000000-0000-0000-0000-00000053510
   '00000000-0000-0000-0000-000000535031');
 select pg_temp.assert_withdraw('co-owner', '00000000-0000-0000-0000-000000535102',
   '00000000-0000-0000-0000-000000535037');
+
+-- An unpaid exhibitor awaiting a secretary decision must still be able to
+-- withdraw. The CHECK constraint admits both spellings and the live column
+-- holds the hyphenated one, so both are exercised with the EXACT strings.
+update public.entries set entry_status = 'move-up-requested'
+ where id = '00000000-0000-0000-0000-000000535031';
+select pg_temp.assert_withdraw('owner withdraws a move-up-requested entry',
+  '00000000-0000-0000-0000-000000535101', '00000000-0000-0000-0000-000000535031');
+
+update public.entries set entry_status = 'scratch-requested'
+ where id = '00000000-0000-0000-0000-000000535037';
+select pg_temp.assert_withdraw('owner withdraws a scratch-requested entry',
+  '00000000-0000-0000-0000-000000535102', '00000000-0000-0000-0000-000000535037');
 
 -- Denied: an unrelated authenticated caller, an authenticated caller with no
 -- person row, and anon (which has no EXECUTE grant at all).

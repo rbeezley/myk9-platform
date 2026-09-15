@@ -44,15 +44,7 @@ import { withdrawEntry } from './writes';
 describe('withdrawEntry — MYK9-535 exhibitor self-withdrawal', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    mocks.withdrawOwnEntry.mockResolvedValue({
-      mutationId: 'mutation-1',
-      entry: {
-        id: 'entry-1',
-        showId: 'show-1',
-        classId: 'class-1',
-        entryStatus: 'confirmed',
-      },
-    });
+    mocks.withdrawOwnEntry.mockResolvedValue({ from: 'confirmed' });
     mocks.getEntryById.mockResolvedValue({ id: 'entry-1', showId: 'show-1', classId: 'class-1' });
     mocks.updateSecretaryLifecycleStatus.mockResolvedValue('mutation-secretary');
   });
@@ -91,9 +83,9 @@ describe('withdrawEntry — MYK9-535 exhibitor self-withdrawal', () => {
     );
   });
 
-  it('surfaces the pre-check refusal as an error and never queues or audits', async () => {
-    // The refusal the exhibitor must SEE. queueMutation resolves on local
-    // durability, so a server-side 42501 would otherwise be invisible.
+  it('surfaces a refusal as an error and never audits', async () => {
+    // The refusal the exhibitor must SEE. The write is online-only precisely so
+    // this cannot resolve as success before the server has answered.
     mocks.withdrawOwnEntry.mockRejectedValue(
       new WithdrawNotAllowedError({
         allowed: false,

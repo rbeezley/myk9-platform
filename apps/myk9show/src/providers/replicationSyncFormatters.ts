@@ -3,10 +3,7 @@ import type { PendingMutation } from '@myk9/replication';
 export interface SyncFailedEventDetail {
   count: number;
   mutations: Array<
-    Pick<
-      PendingMutation,
-      'id' | 'rowId' | 'tableName' | 'operation' | 'error' | 'failureKind' | 'rpc'
-    >
+    Pick<PendingMutation, 'id' | 'tableName' | 'operation' | 'error' | 'failureKind' | 'rpc'>
   >;
   message: string;
 }
@@ -35,27 +32,6 @@ function isPermanentScoreAuthorizationMutation(
   return Object.keys(mutation.rpc.fields ?? {}).some(
     field => !NON_SCORING_RINGSIDE_FIELDS.has(field)
   );
-}
-
-/**
- * MYK9-535: a `withdraw_own_entry` call the server refused (42501 from the RPC's
- * own owner-tier guards, or a caller who does not own the entry).
- *
- * These need more than a toast. `discardFailedMutation` only drops the queue
- * row and `setOnce` never lets download sync overwrite a dirty row, so the
- * optimistic "withdrawn" would otherwise stand forever while the fee is still
- * owed. The provider reverts the row to the server's copy when it sees one.
- */
-export function refusedWithdrawalEntryIds(detail: SyncFailedEventDetail): string[] {
-  return detail.mutations
-    .filter(
-      mutation =>
-        mutation.failureKind === 'authorization' &&
-        mutation.tableName === 'entries' &&
-        mutation.rpc?.name === 'withdraw_own_entry'
-    )
-    .map(mutation => mutation.rowId)
-    .filter((rowId): rowId is string => typeof rowId === 'string' && rowId.length > 0);
 }
 
 export function hasPermanentScoreAuthorizationFailure(detail: SyncFailedEventDetail): boolean {

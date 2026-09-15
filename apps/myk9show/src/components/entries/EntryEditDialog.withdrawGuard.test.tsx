@@ -2,9 +2,11 @@
  * MYK9-535: the Pull affordance must not offer a withdrawal the server will
  * refuse, and a refusal must be visible.
  *
- * `queueMutation` resolves once the row is durable in IndexedDB, long before
- * the RPC answers — so without the client pre-check the exhibitor sees a
- * successful withdrawal the server rejected, while the fee is still owed.
+ * The withdrawal itself is online-only (see ReplicatedEntriesTable), so the
+ * dialog's error IS the server's answer. These pin the affordance: Pull is
+ * disabled with the reason for a refusal, and — because an unchecked row must
+ * never offer a withdrawal — also while the check is in flight or after it
+ * fails.
  */
 import { beforeEach, describe, it, expect, vi } from 'vitest';
 import userEvent from '@testing-library/user-event';
@@ -120,6 +122,36 @@ describe('EntryEditDialog — MYK9-535 withdraw guard', () => {
 
     expect(await screen.findByRole('button', { name: /pull/i })).toBeEnabled();
     expect(mocks.getWithdrawEligibility).not.toHaveBeenCalled();
+  });
+
+  it('disables Pull while the eligibility check is still in flight', async () => {
+    let resolveCheck: (value: { allowed: boolean }) => void = () => {};
+    mocks.getWithdrawEligibility.mockReturnValue(
+      new Promise(resolve => {
+        resolveCheck = resolve;
+      })
+    );
+
+    render(<EntryEditDialog open entry={entry} onOpenChange={noop} onUpdate={noop} />);
+
+    const pull = await screen.findByRole('button', { name: /pull/i });
+    expect(pull).toBeDisabled();
+    expect(screen.getByText(/checking whether this entry can be withdrawn/i)).toBeInTheDocument();
+
+    resolveCheck({ allowed: true });
+    await waitFor(() => expect(pull).toBeEnabled());
+  });
+
+  it('refuses rather than re-enabling Pull when the check itself fails', async () => {
+    mocks.getWithdrawEligibility.mockRejectedValue(new Error('replica unavailable'));
+
+    render(<EntryEditDialog open entry={entry} onOpenChange={noop} onUpdate={noop} />);
+
+    const pull = await screen.findByRole('button', { name: /pull/i });
+    await waitFor(() =>
+      expect(screen.getByText(/couldn't check this entry right now/i)).toBeInTheDocument()
+    );
+    expect(pull).toBeDisabled();
   });
 
   it('routes a manager pull through the manager tier', async () => {

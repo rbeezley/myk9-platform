@@ -57,7 +57,6 @@ import {
   formatSyncFailureToast,
   formatDownloadFailureToast,
   hasPermanentScoreAuthorizationFailure,
-  refusedWithdrawalEntryIds,
   splitPermanentScoreAuthorizationFailures,
   DOWNLOAD_SYNC_FAILURE_TOAST_ID,
 } from './replicationSyncFormatters';
@@ -653,15 +652,6 @@ export const ReplicationSyncProvider: React.FC<ReplicationSyncProviderProps> = (
       if (detail.mutations.some(m => isPasscodeRegeneratedMessage(m.error))) {
         revokeRingsidePasscodeAccess();
         return;
-      }
-
-      // MYK9-535: a refused self-withdrawal must not leave the entry reading
-      // "withdrawn" while the fee is still owed. The client pre-check makes this
-      // rare (it only fires on a race — e.g. a secretary marks the entry paid
-      // between render and click) but never impossible, so revert the optimistic
-      // row to the server's copy before the toast goes up.
-      for (const entryId of refusedWithdrawalEntryIds(detail)) {
-        void replicatedEntriesTable.revertOptimisticWithdrawal(entryId);
       }
 
       for (const failureDetail of splitPermanentScoreAuthorizationFailures(detail)) {

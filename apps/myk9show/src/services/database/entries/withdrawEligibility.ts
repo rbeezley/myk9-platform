@@ -31,6 +31,14 @@ export const OWNER_WITHDRAWABLE_ENTRY_STATUSES: readonly string[] = [
   'confirmed',
   'pending-payment',
   'promotion-expired',
+  // An unpaid exhibitor waiting on a secretary decision must still be able to
+  // withdraw. `entries_entry_status_check` admits BOTH spellings of each
+  // request status and the live column holds the hyphenated form, so all four
+  // are listed rather than the one this codebase happens to write.
+  'scratch-requested',
+  'scratch_requested',
+  'move-up-requested',
+  'move_up_requested',
 ];
 
 /**
@@ -40,7 +48,8 @@ export const OWNER_WITHDRAWABLE_ENTRY_STATUSES: readonly string[] = [
  */
 export const PRE_SHOW_CHECK_IN_STATUSES: readonly string[] = ['no-status', 'pulled'];
 
-export type WithdrawRefusalCode = 'removed' | 'paid' | 'status' | 'scored' | 'at-show';
+export type WithdrawRefusalCode =
+  'removed' | 'paid' | 'unknown-payment' | 'status' | 'scored' | 'at-show' | 'unavailable';
 
 export interface WithdrawEligibilityInput {
   entryStatus?: string | null | undefined;
@@ -66,14 +75,20 @@ function refuse(code: WithdrawRefusalCode, reason: string): WithdrawEligibility 
   return { allowed: false, code, reason };
 }
 
-/** True when money has been taken (or partly returned) for this entry. */
-function isSettledMoney(input: WithdrawEligibilityInput): boolean {
+/**
+ * The money arm, FAIL-CLOSED. The RPC refuses unless `payment_status` is
+ * literally 'pending' or 'waived' (`IS DISTINCT FROM` both), so an unknown or
+ * missing status must refuse here too — otherwise the client offers a
+ * withdrawal the server rejects, which is the whole class of bug this predicate
+ * exists to prevent. Returns null when the status could not be determined.
+ */
+function moneyAllowsWithdrawal(input: WithdrawEligibilityInput): boolean | null {
   const effective = resolveEffectivePaymentStatus(
     (input.paymentStatus ?? null) as PaymentStatus | null,
     (input.enrollmentPaymentStatus ?? null) as PaymentStatus | null
   );
-  if (effective == null) return false;
-  return effective !== PaymentStatus.PENDING && effective !== PaymentStatus.WAIVED;
+  if (effective == null) return null;
+  return effective === PaymentStatus.PENDING || effective === PaymentStatus.WAIVED;
 }
 
 export function evaluateWithdrawEligibility(input: WithdrawEligibilityInput): WithdrawEligibility {
@@ -81,7 +96,14 @@ export function evaluateWithdrawEligibility(input: WithdrawEligibilityInput): Wi
     return refuse('removed', 'This entry has been removed.');
   }
 
-  if (isSettledMoney(input)) {
+  const moneyAllows = moneyAllowsWithdrawal(input);
+  if (moneyAllows === null) {
+    return refuse(
+      'unknown-payment',
+      "We couldn't confirm this entry's payment status — ask the secretary to pull it."
+    );
+  }
+  if (!moneyAllows) {
     return refuse('paid', 'This entry is paid — request a refund instead of withdrawing.');
   }
 
@@ -112,6 +134,15 @@ export function evaluateWithdrawEligibility(input: WithdrawEligibilityInput): Wi
  * Thrown by the client pre-check so the refusal reaches the dialog as an error
  * instead of an optimistic "withdrawn" the server never accepted.
  */
+export class WithdrawUnavailableError extends Error {
+  readonly code: WithdrawRefusalCode = 'unavailable';
+
+  constructor() {
+    super("We couldn't reach the server — try withdrawing again when you're connected.");
+    this.name = 'WithdrawUnavailableError';
+  }
+}
+
 export class WithdrawNotAllowedError extends Error {
   readonly code: WithdrawRefusalCode;
 

@@ -80,6 +80,31 @@ describe('evaluateWithdrawEligibility', () => {
     );
   });
 
+  it('refuses when the payment status cannot be determined — FAIL CLOSED', () => {
+    // The RPC refuses unless payment_status IS 'pending' or 'waived', so an
+    // unknown status must refuse here too rather than offering a withdrawal the
+    // server will reject.
+    const result = evaluateWithdrawEligibility({ ...pending, paymentStatus: null });
+    expect(result.allowed).toBe(false);
+    expect(result.code).toBe('unknown-payment');
+  });
+
+  it('allows a secretary-decision request status, in BOTH DB spellings', () => {
+    // entries_entry_status_check admits both; the live column holds the
+    // hyphenated form. An unpaid exhibitor awaiting a decision must still be
+    // able to withdraw.
+    for (const entryStatus of [
+      'move-up-requested',
+      'move_up_requested',
+      'scratch-requested',
+      'scratch_requested',
+    ]) {
+      expect(evaluateWithdrawEligibility({ ...pending, entryStatus }).allowed, entryStatus).toBe(
+        true
+      );
+    }
+  });
+
   it('refuses a scored, removed, or terminal-status entry', () => {
     expect(evaluateWithdrawEligibility({ ...pending, isScored: true }).code).toBe('scored');
     expect(evaluateWithdrawEligibility({ ...pending, deletedAt: '2026-09-15' }).code).toBe(

@@ -13,7 +13,9 @@ import {
   ReplicatedTable,
   syncReplicatedTable,
   parseUpdatedAtMs,
+  databaseManager,
   REPLICATION_INCREMENTAL_BUFFER_MS_HIGH_CHURN,
+  REPLICATION_STORES,
   type SyncReplicatedTableAdapter,
   type SyncResult,
 } from '@myk9/replication';
@@ -31,6 +33,7 @@ import { buildRingsideRpcFields, RINGSIDE_RPC_FUNCTION } from './ringsideEntryRp
 import {
   evaluateWithdrawEligibility,
   WithdrawNotAllowedError,
+  WithdrawUnavailableError,
   type WithdrawEligibility,
 } from '@/services/database/entries/withdrawEligibility';
 
@@ -42,28 +45,37 @@ export type { ReplicatedEntry };
  * owner / co-owner / listed handler) withdraw it themselves.
  *
  * The `entries_update` RLS policy admits only `can_manage_show(show_id)`, so an
- * exhibitor's direct UPDATE matches 0 rows and the MutationManager reports
- * failureKind "authorization". Unlike the ringside RPC this is NOT auto-routed
- * by column delta — `entry_status` is also written by secretary lifecycle
- * changes, which must stay on the direct path. Routing is per call site, and
- * the function admits show managers too so the secretary use of
- * `EntryEditDialog` keeps working unchanged.
+ * exhibitor's direct UPDATE matches 0 rows.
+ *
+ * ONLINE-ONLY, BY DESIGN — and deliberately NOT routed through the
+ * MutationManager queue the ringside RPC uses. Withdrawal is pre-show by
+ * definition (the RPC refuses a checked-in or in-ring entry), so it is not a
+ * show-day offline flow, and it is money-adjacent: an optimistic local write
+ * would report a withdrawal the server may refuse. The first attempt at this
+ * DID queue optimistically and tried to undo the row on an authorization
+ * failure; that revert could never fire, because `setOnce` refuses to overwrite
+ * a locally-dirty row with a clean server value — exactly the guard that
+ * protects offline scoring. The entry then read "withdrawn" forever while the
+ * fee was still owed. The fix is not a better revert: it is not writing
+ * optimistically at all. The call awaits the server, then stores the CONFIRMED
+ * row clean.
  */
 export const WITHDRAW_OWN_ENTRY_RPC = 'withdraw_own_entry';
 
 /**
  * Project a replicated entry onto the withdraw predicate's input.
  *
- * `enrollmentPaymentStatus` is deliberately not supplied: the replicated entry
- * carries no order status, and `entries.payment_status` is what the
- * `withdraw_own_entry` RPC itself checks, so passing it would let the client be
- * stricter than the server. The predicate keeps the optional argument for
- * callers that do have the order (and for the MYK9-495 case its unit test pins).
+ * `enrollmentPaymentStatus` is passed when the replicated row carries it, so the
+ * MYK9-495 branch (entry `pending` + order `paid` resolves to pending, because
+ * the order row is reused per show+handler and cannot vouch for THIS entry) is
+ * exercised on the real path rather than only in the predicate's unit test.
  */
 function withdrawEligibilityOf(entry: ReplicatedEntry): WithdrawEligibility {
   return evaluateWithdrawEligibility({
     entryStatus: entry.entryStatus ?? entry.entry_status,
     paymentStatus: entry.paymentStatus,
+    enrollmentPaymentStatus: (entry as { enrollmentPaymentStatus?: string | null | undefined })
+      .enrollmentPaymentStatus,
     checkInStatus: entry.checkInStatus ?? entry.check_in_status,
     isInRing: entry.isInRing ?? entry.is_in_ring,
     isScored: entry.isScored ?? entry.is_scored,
@@ -488,83 +500,99 @@ export class ReplicatedEntriesTable extends ReplicatedTable<ReplicatedEntry> {
   }
 
   /**
-   * Withdraw an entry the caller owns — MYK9-535.
+   * Withdraw an entry the caller owns — MYK9-535. Online-only (see the note on
+   * WITHDRAW_OWN_ENTRY_RPC): awaits the server, then stores the confirmed row.
    *
-   * Refuses LOCALLY first (see withdrawEligibility.ts): `queueMutation` resolves
-   * on local durability, so a server refusal would otherwise be invisible while
-   * the optimistic row showed "withdrawn". Then queues through the same
-   * MutationManager RPC seam the ringside writes use, so the withdrawal is still
-   * offline-durable.
+   * Throws `WithdrawNotAllowedError` for a refusal the client can see coming,
+   * and `WithdrawUnavailableError` when the row cannot be read at all (cold
+   * replica with no connection), so the dialog can say something true either
+   * way. The local row is never touched on any failure path.
    */
-  async withdrawOwnEntry(
-    entryId: string
-  ): Promise<{ mutationId: string | null; entry: ReplicatedEntry }> {
-    // getOrHydrateEntry (not `get() ?? {id}`): a cold store would otherwise both
-    // skip every guard below and drop `serverVersion`, silently disabling OCC.
-    const entry = await this.getOrHydrateEntry(entryId);
+  async withdrawOwnEntry(entryId: string): Promise<{ from: string | undefined }> {
+    let entry: ReplicatedEntry;
+    try {
+      entry = await this.getOrHydrateEntry(entryId);
+    } catch {
+      throw new WithdrawUnavailableError();
+    }
 
     const eligibility = withdrawEligibilityOf(entry);
     if (!eligibility.allowed) throw new WithdrawNotAllowedError(eligibility);
 
-    const updated: ReplicatedEntry = {
-      ...entry,
-      entryStatus: 'withdrawn',
-      entry_status: 'withdrawn',
-      status: 'withdrawn',
-      _lastModified: new Date(),
-      _syncStatus: 'pending',
-    };
+    const expectedVersion = await this.getServerVersion(entryId);
 
-    // Durable-first, matching updateEntry: queue BEFORE the optimistic cache
-    // write so a queue-overflow throw cannot strand a dirty row with no
-    // mutation behind it. deferUpload keeps the flush from deleting the
-    // mutation before that dirty row exists.
-    const mutationId = await this.queueMutation(
-      'UPDATE',
-      entryId,
-      { id: entryId, entry_status: 'withdrawn', updated_at: new Date().toISOString() },
-      undefined,
-      { name: WITHDRAW_OWN_ENTRY_RPC, fields: { entry_status: 'withdrawn' } },
-      /* deferUpload */ true
+    const { data, error } = await supabase.rpc(
+      WITHDRAW_OWN_ENTRY_RPC as never,
+      {
+        p_entry_id: entryId,
+        p_fields: { entry_status: 'withdrawn' },
+        p_expected_version: expectedVersion,
+      } as never
     );
+    if (error) throw error;
 
-    await this.set(entryId, updated, true);
-    this.requestUpload();
-    this._lastMutationId = mutationId;
+    // Store the CONFIRMED row, clean, so sync still owns it. No optimistic
+    // write means `setOnce`'s dirty-row guard is never in the way.
+    await this.hydrateConfirmedRow(entryId, typeof data === 'number' ? data : undefined);
+
     logger.log(`[${this.getTableName()}] Withdrew entry ${entryId} via ${WITHDRAW_OWN_ENTRY_RPC}`);
-    return { mutationId, entry };
+    return { from: entry.entryStatus ?? entry.entry_status };
   }
 
   /**
-   * Undo the optimistic "withdrawn" after the server refused the RPC.
-   *
-   * `discardFailedMutation` only drops the queue row, and `setOnce` never lets
-   * download sync overwrite a dirty row — so without this the exhibitor would
-   * see "withdrawn" forever while the fee is still owed. Re-reads the
-   * authoritative row and stores it CLEAN so sync owns it again.
+   * The OCC token for this row, or null when it has never been synced. Read the
+   * same way `ReplicatedTable.queueMutation` reads it, so the version sent to
+   * the RPC is the one the queue path would have sent.
    */
-  async revertOptimisticWithdrawal(entryId: string): Promise<boolean> {
+  private async getServerVersion(entryId: string): Promise<number | null> {
+    try {
+      const db = await databaseManager.getDatabase(this.getTableName());
+      const row = (await db.get(REPLICATION_STORES.REPLICATED_TABLES, [
+        this.getTableName(),
+        String(entryId),
+      ])) as { serverVersion?: number } | undefined;
+      return row?.serverVersion ?? null;
+    } catch {
+      // No OCC token is safe here: the RPC treats null as "no precondition".
+      return null;
+    }
+  }
+
+  /**
+   * Re-read the authoritative row after a confirmed server write and cache it
+   * CLEAN. Falls back to a local status patch when the read-back fails, so a
+   * successful withdrawal is never displayed as still entered.
+   */
+  private async hydrateConfirmedRow(entryId: string, newVersion?: number): Promise<void> {
     try {
       const { data, error } = await supabase
         .from('view_authenticated_entry_results')
         .select('*')
         .eq('id', entryId)
         .maybeSingle();
-      if (error || !data) return false;
+      if (!error && data) {
+        const row = data as unknown as EntryRow;
+        const serverVersion =
+          ((row as Record<string, unknown>).version as number | undefined) ?? newVersion;
+        await this.set(entryId, rowToEntry(row), false, undefined, serverVersion);
+        return;
+      }
+    } catch (readBackError) {
+      logger.warn(
+        `[${this.getTableName()}] Withdrawal read-back failed for ${entryId}`,
+        readBackError
+      );
+    }
 
-      const row = data as unknown as EntryRow;
-      const serverVersion = (row as Record<string, unknown>).version as number | undefined;
-      await this.set(entryId, rowToEntry(row), false, undefined, serverVersion);
-      logger.warn(
-        `[${this.getTableName()}] Reverted refused withdrawal on entry ${entryId} to the server row`
+    const cached = await this.get(entryId);
+    if (cached) {
+      await this.set(
+        entryId,
+        { ...cached, entryStatus: 'withdrawn', entry_status: 'withdrawn', status: 'withdrawn' },
+        false,
+        undefined,
+        newVersion
       );
-      return true;
-    } catch (revertError) {
-      logger.warn(
-        `[${this.getTableName()}] Could not revert refused withdrawal on entry ${entryId}`,
-        revertError
-      );
-      return false;
     }
   }
 

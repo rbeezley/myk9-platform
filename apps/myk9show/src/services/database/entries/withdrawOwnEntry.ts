@@ -1,7 +1,7 @@
 /**
  * MYK9-535: exhibitor self-withdrawal of their own, unpaid entry.
  *
- * Lives in its own module rather than in `lifecycle.ts` (641 lines) so neither
+ * Lives in its own module rather than in `lifecycle.ts` (597 lines) so neither
  * that file nor `ReplicatedEntriesTable.ts` grows further.
  *
  * WHY THIS IS NOT THE LIFECYCLE PATH. `entries` has one UPDATE policy,
@@ -12,13 +12,13 @@
  * managers keep the existing `rejectEntry` lifecycle transition (and its
  * `reject_entry` audit action and secretary seed) — see `withdrawEntry`.
  *
- * WHY THE PRE-CHECK. `queueMutation` resolves once the row is durable locally,
- * long before the server answers, so a refusal would otherwise dead-letter
- * silently while the UI showed the withdrawal as done. `evaluateWithdrawEligibility`
- * runs the RPC's owner-tier guards against the replicated row FIRST and refuses
- * locally, so the server refusal becomes the rare race (a secretary marking the
- * entry paid between render and click) rather than the normal case. That race is
- * caught by the authorization-failure revert in `ReplicationSyncProvider`.
+ * WHY IT IS ONLINE-ONLY. The call awaits the server and writes nothing
+ * optimistically. Withdrawal is pre-show by definition (the RPC refuses a
+ * checked-in or in-ring entry), so this is not a show-day offline flow, and it
+ * is money-adjacent: reporting a withdrawal the server refused leaves the
+ * exhibitor believing they owe nothing. Everything below therefore runs AFTER
+ * the server confirms — including the audit record, which carries the real
+ * from-status rather than a placeholder.
  */
 import { auditService } from '@/services/AuditService';
 import { AuditAction } from '@/types/audit-types';
@@ -29,29 +29,19 @@ export const withdrawOwnEntry = async (entryId: string) => {
   const startTime = Date.now();
 
   try {
-    const { mutationId, entry } = await replicatedEntriesTable.withdrawOwnEntry(entryId);
+    const { from } = await replicatedEntriesTable.withdrawOwnEntry(entryId);
 
     logQuery('entries', 'withdraw_own_entry', Date.now() - startTime);
 
-    // Logged after the pre-check passed and the mutation is durable, carrying
-    // the REAL from-status read off the hydrated row (not a null placeholder).
     await auditService.log({
       action: AuditAction.UPDATE,
       entityType: 'entry',
       entityId: entryId,
-      changes: { entryStatus: { from: entry.entryStatus ?? null, to: 'withdrawn' } },
+      changes: { entryStatus: { from: from ?? null, to: 'withdrawn' } },
       metadata: { action: 'withdraw_own_entry' },
     });
 
-    return {
-      data: {
-        id: entryId,
-        show_id: entry.showId ?? null,
-        class_id: entry.classId ?? null,
-        mutationId,
-      },
-      error: null,
-    };
+    return { data: { id: entryId }, error: null };
   } catch (error) {
     const dbError = createDatabaseError(error, 'entries', 'withdraw_own_entry');
     logQuery('entries', 'withdraw_own_entry', Date.now() - startTime, dbError.message);

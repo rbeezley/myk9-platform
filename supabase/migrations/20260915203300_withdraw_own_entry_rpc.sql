@@ -67,14 +67,20 @@ DECLARE
   -- alongside `promotion-expired`, and an entry can hold it while
   -- `payment_status` is still 'pending' (the pay-by-check case this issue was
   -- reported on). It is therefore reachable for owners, not dead.
+  -- Both spellings of each request status are listed because
+  -- entries_entry_status_check admits both and the live column holds the
+  -- hyphenated form: an unpaid exhibitor waiting on a secretary decision must
+  -- still be able to withdraw.
   v_withdrawable_statuses constant text[] := ARRAY[
     'no-status', 'draft', 'submitted', 'paid', 'confirmed',
-    'pending-payment', 'promotion-expired'
+    'pending-payment', 'promotion-expired',
+    'scratch-requested', 'scratch_requested',
+    'move-up-requested', 'move_up_requested'
   ];
-  -- check_in_status values that mean the dog is at the show. Expressed as the
-  -- two values that are NOT day-of, so a value added to
-  -- `entries_check_in_status_check` later fails CLOSED rather than opening a
-  -- new self-withdrawal window.
+  -- The only check_in_status values that mean the dog is NOT yet at the show.
+  -- Listing the permitted pair (rather than the day-of values to block) means a
+  -- value added to `entries_check_in_status_check` later fails CLOSED rather
+  -- than opening a new self-withdrawal window.
   v_pre_show_check_in constant text[] := ARRAY['no-status', 'pulled'];
 BEGIN
   -- 1. The only transition this function performs. `entry_status` must be

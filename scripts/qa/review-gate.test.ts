@@ -974,7 +974,6 @@ describe('the adversarial tier must NAME its lenses (F3)', () => {
     });
     expect(result.state).toBe('success');
   });
-
 });
 
 describe('the 3000-file truncation cap (F5)', () => {
@@ -1245,7 +1244,6 @@ describe('owner override', () => {
     });
     expect(result.state).toBe('success');
   });
-
 });
 
 /**

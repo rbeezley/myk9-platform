@@ -40,12 +40,15 @@ const RadioGroupItem = React.forwardRef<
     <Radio.Root
       ref={ref}
       className={cn(
-        'aspect-square h-4 w-4 rounded-full border border-primary text-primary ring-offset-background focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50',
+        // INTENT: Radio.Root renders a <span>, which is display:inline — the
+        // indicator then sits on the text baseline and rendered 2px high. The
+        // inline-flex centering here is what actually centres the dot.
+        'inline-flex aspect-square h-4 w-4 items-center justify-center rounded-full border border-primary text-primary ring-offset-background focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50',
         className
       )}
       {...props}
     >
-      <Radio.Indicator className="flex items-center justify-center">
+      <Radio.Indicator className="inline-flex items-center justify-center">
         <Circle className="h-2.5 w-2.5 fill-current text-current" />
       </Radio.Indicator>
     </Radio.Root>

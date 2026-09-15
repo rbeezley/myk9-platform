@@ -34,17 +34,22 @@ const Checkbox = React.forwardRef<React.ElementRef<typeof CheckboxPrimitive.Root
       <CheckboxPrimitive.Root
         ref={ref}
         className={cn(
-          'peer h-4 w-4 shrink-0 rounded-sm border border-primary shadow focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50 data-[checked]:bg-primary data-[checked]:text-primary-foreground',
+          // INTENT: Checkbox.Root renders a <span>, which is display:inline — the
+          // check then sits on the text baseline and stretches to its container in
+          // a table header. inline-flex is what actually centres and sizes it.
+          'peer inline-flex h-4 w-4 shrink-0 items-center justify-center rounded-sm border border-primary shadow focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50 data-[checked]:bg-primary data-[checked]:text-primary-foreground',
           className
         )}
         onCheckedChange={handleCheckedChange}
         {...filteredProps}
       >
         <CheckboxPrimitive.Indicator
-          className={cn('flex items-center justify-center text-current')}
+          className={cn('inline-flex items-center justify-center text-current')}
           keepMounted={false}
         >
-          <Check className="h-4 w-4" />
+          {/* 14px, not 16px: the 1px border leaves a 14px content box, so an
+              h-4 icon overflows and gets squeezed out of square. */}
+          <Check className="h-3.5 w-3.5" />
         </CheckboxPrimitive.Indicator>
       </CheckboxPrimitive.Root>
     );

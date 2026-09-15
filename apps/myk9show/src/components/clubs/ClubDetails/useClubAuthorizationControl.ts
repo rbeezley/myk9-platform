@@ -17,6 +17,7 @@
  * the authorize/revoke AFFORDANCE stays gated on isSiteAdmin.
  */
 import { useCallback, useState } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import { setClubAuthorization } from '@/services/database/clubs';
 import { useClubStore } from '@/store/clubStore';
 import { notifications } from '@/lib/notifications';
@@ -25,6 +26,7 @@ import type { Club } from '@/types/club-types';
 
 export function useClubAuthorizationControl(club: Club | null | undefined, isSiteAdmin: boolean) {
   const ensureClubsReady = useClubStore(s => s.ensureClubsReady);
+  const queryClient = useQueryClient();
   const [isUpdating, setIsUpdating] = useState(false);
   const clubId = club?.id;
 
@@ -40,6 +42,14 @@ export function useClubAuthorizationControl(club: Club | null | undefined, isSit
         // pull — this is how the badge/menu item reflect the change
         // immediately instead of waiting for the next background sync.
         await ensureClubsReady({ requestedClubId: clubId, force: true });
+        // useClubAuthorization (useClubStripeAccount.ts) caches the SAME
+        // authorized_at under a separate react-query key for the publish
+        // gate (ShowStatusPill / ShowEditPanel). That cache has its own
+        // moderate staleTime and is never touched by the replication sync
+        // above, so without this a show's publish UI could keep reading a
+        // stale authorization state after a site admin authorizes/revokes
+        // the club from THIS page, until the cache happens to go stale.
+        await queryClient.invalidateQueries({ queryKey: ['club-authorization', clubId] });
         notifications.success(authorized ? 'Club authorized.' : 'Club authorization revoked.');
       } catch (error) {
         notifications.error(getErrorMessage(error) || 'Could not update club authorization.');
@@ -47,7 +57,7 @@ export function useClubAuthorizationControl(club: Club | null | undefined, isSit
         setIsUpdating(false);
       }
     },
-    [clubId, ensureClubsReady]
+    [clubId, ensureClubsReady, queryClient]
   );
 
   return {
@@ -56,7 +66,14 @@ export function useClubAuthorizationControl(club: Club | null | undefined, isSit
     // AFFORDANCE is gated on isSiteAdmin, matching set_club_authorization's
     // own server-side check.
     canAuthorizeClub: isSiteAdmin,
-    isClubAuthorized: club ? club.authorizedAt != null : undefined,
+    // MYK9-572 round 2: club.authorizedAt can now be `undefined` (field never
+    // synced on this device yet — see clubStore.ts's replicatedToClub) as
+    // well as `null` (explicitly unauthorized) or a timestamp (authorized).
+    // Collapsing undefined into "unauthorized" via `!= null` painted every
+    // pre-deploy cached club as revoked to its own admins; keep the three
+    // states distinct so the UI can render an actual loading/unknown state
+    // instead of a false negative.
+    isClubAuthorized: club?.authorizedAt === undefined ? undefined : club.authorizedAt != null,
     isAuthorizationLoading: false,
     isAuthorizationUpdating: isUpdating,
     handleAuthorizeClub: () => void setAuthorization(true),

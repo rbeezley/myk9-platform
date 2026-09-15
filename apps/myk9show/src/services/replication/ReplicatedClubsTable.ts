@@ -110,6 +110,21 @@ export function rowToClub(row: ClubRow): ReplicatedClub {
 export class ReplicatedClubsTable extends ReplicatedTable<ReplicatedClub> {
   /** Most recent mutation ID from a create/update operation */
   private _lastMutationId: string | null = null;
+  // MYK9-572 round 2 (P1-1): set after reconcileVisibility prunes any row,
+  // consumed by the NEXT sync() call to force a full re-fetch instead of an
+  // incremental one. A visibility EXPANSION (a club becomes visible again —
+  // the caller signs back in, or a site admin re-authorizes it) has no
+  // tombstone-equivalent signal on the incremental path (`updated_at >
+  // since`), so without this a pruned club would not come back until a
+  // background full sync happened to run anyway (up to 24h later).
+  private _forceFullSyncNext = false;
+  // Tracks whether the LAST sync() call observed an authenticated session,
+  // so a null->authenticated transition (sign-in) can force a full re-sync
+  // too — a device that pruned clubs while a prior bug let anon reads prune
+  // (or that simply cached a narrow anon view before sign-in) needs the same
+  // healing as a fresh prune. `null` = unknown (first call), which never
+  // counts as "just signed in".
+  private _wasAuthenticated: boolean | null = null;
 
   constructor() {
     super('clubs', { logger });
@@ -155,6 +170,20 @@ export class ReplicatedClubsTable extends ReplicatedTable<ReplicatedClub> {
   async sync(_syncScopeId?: string): Promise<SyncResult> {
     logger.log(`[${this.getTableName()}] Starting sync`);
 
+    // MYK9-572 round 2: read the session ONCE up front — both the
+    // anon-skip-prune decision below and the sign-in-transition force-full
+    // decision need to know it, and it must be known BEFORE the sync call so
+    // a fresh sign-in's forceFullSync actually reaches syncReplicatedTable.
+    const {
+      data: { session },
+    } = await supabase.auth.getSession();
+    const isAuthenticated = !!session;
+    const justSignedIn = this._wasAuthenticated === false && isAuthenticated;
+    this._wasAuthenticated = isAuthenticated;
+
+    const forceFullSync = this._forceFullSyncNext || justSignedIn;
+    this._forceFullSyncNext = false;
+
     const adapter: SyncReplicatedTableAdapter<ClubRow, ReplicatedClub> = {
       fetchRemoteRows: async ({ since }) => {
         const { data, error } = await supabase
@@ -183,6 +212,7 @@ export class ReplicatedClubsTable extends ReplicatedTable<ReplicatedClub> {
       {},
       {
         incrementalBufferMs: REPLICATION_INCREMENTAL_BUFFER_MS,
+        forceFullSync,
       }
     );
 
@@ -199,11 +229,27 @@ export class ReplicatedClubsTable extends ReplicatedTable<ReplicatedClub> {
     // guest's cached public directory (BrowseClubsPage). Side-effect only
     // and fully guarded: a failure here must never turn a successful
     // download into a failed sync.
+    //
+    // MYK9-572 round 2 (P1-1): NEVER prune while anon. `/clubs` is a public
+    // route and useBrowseClubsData.ts calls ensureClubsReady({force:true})
+    // signed OUT — anon's clubs_select visibility is narrower than an
+    // authenticated club_admin/secretary's (it cannot see their own
+    // unauthorized club, or a club it's merely a member of), and this
+    // replica is DEVICE-WIDE, shared with that same person's signed-in
+    // session. Pruning here as anon would delete a secretary's own
+    // brand-new club from local storage, and nothing clears the replica on
+    // sign-out to protect against it. Every other caller of ensureClubsReady
+    // (UnifiedAppLayout, ClubDetailPage) runs signed in, so this only ever
+    // skips the guest path — exactly the one that must not prune.
     if (result.success) {
+      if (!isAuthenticated) {
+        return result;
+      }
       try {
         const removed = await this.reconcileVisibility();
         if (removed > 0) {
           logger.log(`[${this.getTableName()}] reconcileVisibility removed ${removed} stale rows`);
+          this._forceFullSyncNext = true;
         }
       } catch (err) {
         logger.warn(`[${this.getTableName()}] reconcileVisibility skipped`, err);
@@ -221,15 +267,33 @@ export class ReplicatedClubsTable extends ReplicatedTable<ReplicatedClub> {
    * currently-visible ids and drop any non-dirty local row not in it
    * (removeStaleEntries preserves dirty rows, so a pending local edit is
    * never wiped). Unlike dogs, this is a single unpaginated `select('id')` —
-   * the clubs table is small, well under PostgREST's page cap.
+   * the clubs table is small, well under PostgREST's page cap — but it still
+   * guards against truncation (round 2, P2-2): `.limit(1001)` fetches one
+   * more row than the assumed-safe 1000, and a full page bails with no prune
+   * rather than reconciling against a partial id set, mirroring
+   * ReplicatedDogsTable.reconcileDeleted's own truncation guard.
    *
    * @returns number of stale rows removed.
    */
   async reconcileVisibility(): Promise<number> {
-    const { data, error } = await supabase.from('clubs').select('id').is('deleted_at', null);
+    const PAGE_SIZE = 1000;
+    const { data, error } = await supabase
+      .from('clubs')
+      .select('id')
+      .is('deleted_at', null)
+      .limit(PAGE_SIZE + 1);
     if (error || !data) {
       // Any fetch failure → prune nothing. Pruning against a partial/absent
       // set could wipe rows that are still perfectly visible.
+      return 0;
+    }
+    if (data.length > PAGE_SIZE) {
+      // Truncated: the clubs table has grown past what this single-page
+      // fetch can see. Pruning against a partial set would wipe every
+      // still-visible club beyond the first page — bail instead.
+      logger.warn(
+        `[${this.getTableName()}] reconcileVisibility: id set exceeds ${PAGE_SIZE}, skipping prune`
+      );
       return 0;
     }
 

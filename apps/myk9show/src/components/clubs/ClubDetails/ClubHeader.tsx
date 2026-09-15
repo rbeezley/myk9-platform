@@ -36,6 +36,7 @@ import { Club } from '@/types/club-types';
 import { generatePalette } from '@/lib/branding';
 import { getClubInitials } from './utils';
 import { normalizeContactDestinations } from './contactDestinations';
+import { CLUB_UNAUTHORIZED_MESSAGE } from '@/features/payments/onlineEntryGate';
 
 interface ClubHeaderProps {
   club: Club;
@@ -96,6 +97,12 @@ export const ClubHeader: React.FC<ClubHeaderProps> = ({
     !!contact.email ||
     !!contact.phone ||
     !!contact.website;
+  // P3-3: the separator before the Authorize/Revoke item should only render
+  // when something actually precedes it in the menu — otherwise a club with
+  // ONLY the authorize affordance (no branding edit, no contact info) shows
+  // a leading divider with nothing above it.
+  const hasItemsAboveAuthorize =
+    canEditBranding || !!contact.email || !!contact.phone || !!contact.website;
 
   const foundedYear = club.founded
     ? club.founded instanceof Date
@@ -170,7 +177,7 @@ export const ClubHeader: React.FC<ClubHeaderProps> = ({
               )}
               {canAuthorizeClub && !isAuthorizationLoading && (
                 <>
-                  <DropdownMenuSeparator />
+                  {hasItemsAboveAuthorize && <DropdownMenuSeparator />}
                   {isClubAuthorized ? (
                     <DropdownMenuItem
                       onClick={() => setShowRevokeConfirm(true)}
@@ -281,8 +288,8 @@ export const ClubHeader: React.FC<ClubHeaderProps> = ({
                 Founded {foundedYear}
               </p>
             )}
-            <div className="flex items-center gap-2 mb-2">
-              <h1 className="text-3xl font-bold text-foreground">{club.name}</h1>
+            <div className="flex flex-wrap items-center gap-2 mb-2">
+              <h1 className="text-3xl font-bold text-foreground min-w-0">{club.name}</h1>
               {/* P2-B: visible to ANY viewer who can see this club at all
                   (clubs_select already scopes that) — a club's own
                   admin/secretary needs to know WHY publish is blocked just
@@ -291,7 +298,8 @@ export const ClubHeader: React.FC<ClubHeaderProps> = ({
               {isClubAuthorized === false && (
                 <span
                   data-testid="club-unauthorized-badge"
-                  className="inline-flex items-center gap-1 rounded-full bg-warning/10 border border-warning/30 px-2.5 py-0.5 text-xs font-medium text-warning"
+                  title={CLUB_UNAUTHORIZED_MESSAGE}
+                  className="inline-flex shrink-0 items-center gap-1 rounded-full bg-warning/10 border border-warning/30 px-2.5 py-0.5 text-xs font-medium text-warning"
                 >
                   <ShieldAlert className="h-3 w-3" />
                   Unauthorized

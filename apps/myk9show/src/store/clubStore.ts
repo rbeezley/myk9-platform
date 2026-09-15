@@ -52,7 +52,12 @@ function replicatedToClub(rc: ReplicatedClub): Club {
     },
     upcomingShows: [],
     pastShows: [],
-    authorizedAt: rc.authorizedAt ?? null,
+    // MYK9-572: keep UNDEFINED (field absent — a pre-deploy cached row with
+    // no authorizedAt at all) distinct from NULL (explicitly unauthorized).
+    // Collapsing the two here made every cached club show an "Unauthorized"
+    // badge to its own admins right after deploy / while offline, since
+    // there was no way to tell "never synced this field" from "revoked".
+    authorizedAt: rc.authorizedAt,
     _syncStatus: rc._syncStatus,
     _version: rc._version,
     _lastModified: rc._lastModified,

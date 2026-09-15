@@ -187,6 +187,20 @@ describe('publishGateError', () => {
       expect(publishGateError('draft', 'published', 'club-1', enabled, authorized)).toBeNull();
     });
 
+    // P3-1: the case above pairs "unauthorized" with `enabled` (Stripe
+    // READY), so it cannot actually prove ordering — a helper that checked
+    // Stripe FIRST would also pass, since Stripe readiness is satisfied
+    // either way. Pair unauthorized with `disabled` so only a real
+    // "authorization wins" implementation can pass.
+    it('returns the authorization message, not the Stripe one, when the club is both unauthorized and not Stripe-ready', () => {
+      expect(publishGateError('draft', 'published', 'club-1', disabled, unauthorized)).toMatch(
+        /hasn't been authorized/i
+      );
+      expect(publishGateError('draft', 'published', 'club-1', disabled, unauthorized)).not.toMatch(
+        /payment account/i
+      );
+    });
+
     // Round-2 review (P2-5): a caller that could not read the club row (RLS,
     // failed fetch) must fail CLOSED, not skip the check — the prior version
     // of this test asserted the opposite (a bug: `club && ...` let a null

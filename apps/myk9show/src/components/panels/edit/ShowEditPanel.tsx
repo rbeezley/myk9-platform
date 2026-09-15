@@ -61,7 +61,7 @@ export const ShowEditPanel: React.FC<ShowEditPanelProps> = ({
               fetchClubAuthorization(formData.clubId),
             ]);
           } catch {
-            throw new Error('Could not check the club’s payment account. Please try again.');
+            throw new Error('Could not check the club’s status. Please try again.');
           }
         }
         const gateError = publishGateError(

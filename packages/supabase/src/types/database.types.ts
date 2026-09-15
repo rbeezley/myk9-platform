@@ -1426,7 +1426,15 @@ export type Database = {
           website?: string | null
           zip_code?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "clubs_authorized_by_fkey"
+            columns: ["authorized_by"]
+            isOneToOne: false
+            referencedRelation: "people"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       dog_favorites: {
         Row: {
@@ -11866,6 +11874,10 @@ export type Database = {
         Args: { p_show_id: string; p_subscription_endpoint: string }
         Returns: undefined
       }
+      club_has_public_show: {
+        Args: { check_club_id: string }
+        Returns: boolean
+      }
       create_dog_with_registrations: {
         Args: { p_dog: Json; p_registrations: Json }
         Returns: string
@@ -12687,6 +12699,7 @@ export type Database = {
         Returns: boolean
       }
       is_club_admin: { Args: { check_club_id?: string }; Returns: boolean }
+      is_club_member: { Args: { check_club_id: string }; Returns: boolean }
       is_platform_admin: { Args: never; Returns: boolean }
       is_real_account: { Args: never; Returns: boolean }
       is_show_manager: { Args: never; Returns: boolean }

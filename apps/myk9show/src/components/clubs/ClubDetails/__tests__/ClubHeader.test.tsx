@@ -114,6 +114,58 @@ describe('club authorization control', () => {
     expect(onRevokeAuthorization).toHaveBeenCalledTimes(1);
   });
 
+  it('does not call onRevokeAuthorization when the confirm dialog is cancelled', async () => {
+    const { default: userEvent } = await import('@testing-library/user-event');
+    const user = userEvent.setup();
+    const onRevokeAuthorization = vi.fn();
+
+    render(
+      <ClubHeader
+        club={baseClub}
+        onEditClub={noop}
+        onEditPhoto={noop}
+        onDeleteClub={noop}
+        canAuthorizeClub
+        isClubAuthorized
+        onRevokeAuthorization={onRevokeAuthorization}
+      />
+    );
+
+    await user.click(screen.getByRole('button', { name: 'Club options' }));
+    await user.click(await screen.findByText('Revoke Authorization'));
+
+    const dialog = await screen.findByRole('alertdialog');
+    await user.click(within(dialog).getByRole('button', { name: 'Cancel' }));
+
+    expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument();
+    expect(onRevokeAuthorization).not.toHaveBeenCalled();
+  });
+
+  it('omits the leading separator when the authorize item is the only menu entry', async () => {
+    // P3-3: the separator before Authorize/Revoke should only render when
+    // something else precedes it (branding edit or contact actions) — a
+    // club with no branding/contact affordances and only the authorize
+    // action must not show a leading divider with nothing above it.
+    const { default: userEvent } = await import('@testing-library/user-event');
+    const user = userEvent.setup();
+
+    render(
+      <ClubHeader
+        club={baseClub}
+        onEditClub={noop}
+        onEditPhoto={noop}
+        onDeleteClub={noop}
+        canAuthorizeClub
+        isClubAuthorized={false}
+      />
+    );
+
+    await user.click(screen.getByRole('button', { name: 'Club options' }));
+    await screen.findByText('Authorize Club');
+
+    expect(screen.queryByRole('separator')).not.toBeInTheDocument();
+  });
+
   it('shows the badge (but no menu item) for a non-site-admin viewer of an unauthorized club', () => {
     // P2-B: the club's own admin/secretary needs to know publish is blocked
     // just as much as a site admin does — canDeleteClub is forced true here

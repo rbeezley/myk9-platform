@@ -18,7 +18,7 @@ vi.mock('@/hooks/queries/useShowsDatabase', () => ({
   useUpdateShowMutation: vi.fn(),
 }));
 vi.mock('sonner', () => ({
-  toast: { success: vi.fn(), error: vi.fn() },
+  toast: { success: vi.fn(), error: vi.fn(), info: vi.fn() },
 }));
 
 const mockedUseAccount = vi.mocked(useClubStripeAccount);
@@ -206,6 +206,25 @@ describe('ShowStatusPill club-authorization gate (MYK9-572)', () => {
     expect(toast.error).toHaveBeenCalledWith(expect.stringMatching(/hasn't been authorized/i));
   });
 
+  // P3-1: the case above pairs "unauthorized" with mockAccount(true) (Stripe
+  // READY, set in this describe's beforeEach), so it cannot actually prove
+  // ordering — a client that checked Stripe FIRST would also pass, since
+  // Stripe readiness is satisfied either way. Pair unauthorized with Stripe
+  // DISABLED so only a real "authorization wins" implementation can pass.
+  it('shows the authorization message, not the Stripe one, when the club is both unauthorized and not Stripe-ready', async () => {
+    mockAccount(false);
+    mockAuthorization(null);
+    const user = userEvent.setup();
+    render(<ShowStatusPill showId="show-1" status="draft" clubId="club-1" />);
+
+    await user.click(screen.getByRole('button', { name: /draft/i }));
+    await user.click(await screen.findByText(/publish show/i));
+
+    expect(mutateAsync).not.toHaveBeenCalled();
+    expect(toast.error).toHaveBeenCalledWith(expect.stringMatching(/hasn't been authorized/i));
+    expect(toast.error).not.toHaveBeenCalledWith(expect.stringMatching(/payment account/i));
+  });
+
   // P2-5/P3-A: fail CLOSED when the club row is unreadable (RLS-hidden,
   // undefined data despite a "successful" query) — not just when
   // authorized_at is explicitly null — and kick off a refetch so a retry
@@ -225,6 +244,53 @@ describe('ShowStatusPill club-authorization gate (MYK9-572)', () => {
 
     expect(mutateAsync).not.toHaveBeenCalled();
     expect(toast.error).toHaveBeenCalledWith(expect.stringMatching(/hasn't been authorized/i));
+    expect(refetchAuth).toHaveBeenCalled();
+  });
+
+  // P3-5: pin the exact loading/error copy strings — a future edit could
+  // change the wording without anything else catching it.
+  it('shows the exact "checking" copy while either query is still loading', async () => {
+    mockedUseAuth.mockReturnValue({
+      data: { authorized_at: '2026-01-01T00:00:00Z' },
+      isLoading: true,
+      isError: false,
+      refetch: refetchAuth,
+    } as unknown as ReturnType<typeof useClubAuthorization>);
+    const user = userEvent.setup();
+    render(<ShowStatusPill showId="show-1" status="draft" clubId="club-1" />);
+
+    await user.click(screen.getByRole('button', { name: /draft/i }));
+    await user.click(await screen.findByText(/publish show/i));
+
+    expect(mutateAsync).not.toHaveBeenCalled();
+    expect(toast.info).toHaveBeenCalledWith('Checking the club’s status — try again in a moment.');
+  });
+
+  it('shows the exact error copy and refetches both queries when either query errors', async () => {
+    const refetchAccount = vi.fn();
+    mockedUseAccount.mockReturnValue({
+      data: null,
+      isLoading: false,
+      isError: true,
+      refetch: refetchAccount,
+    } as unknown as ReturnType<typeof useClubStripeAccount>);
+    mockedUseAuth.mockReturnValue({
+      data: { authorized_at: '2026-01-01T00:00:00Z' },
+      isLoading: false,
+      isError: false,
+      refetch: refetchAuth,
+    } as unknown as ReturnType<typeof useClubAuthorization>);
+    const user = userEvent.setup();
+    render(<ShowStatusPill showId="show-1" status="draft" clubId="club-1" />);
+
+    await user.click(screen.getByRole('button', { name: /draft/i }));
+    await user.click(await screen.findByText(/publish show/i));
+
+    expect(mutateAsync).not.toHaveBeenCalled();
+    expect(toast.error).toHaveBeenCalledWith(
+      'Could not check the club’s status. Please try again.'
+    );
+    expect(refetchAccount).toHaveBeenCalled();
     expect(refetchAuth).toHaveBeenCalled();
   });
 

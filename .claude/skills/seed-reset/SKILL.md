@@ -14,17 +14,18 @@ Sign-in-capable accounts are the `@myk9t.com` set (exhibitor, secretary, judge, 
 
 ## Known failure modes after a reseed
 
-| Symptom                                  | Cause                                                                    | Fix                                                                                                                          |
-| ---------------------------------------- | ------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------- |
-| `e2e-*` sign-in 400                      | Supabase Auth passwords drifted from `.env.local` — auth state, not code | Reset the auth passwords (admin API or dashboard), don't debug the app                                                       |
-| Secretary/club-admin pages empty         | Missing club-scoped role grants                                          | `seed-demo.sql` §10 grants them (fixed #804) — confirm those rows exist in `roles`/`role_permissions`                        |
-| Feature works for admin, not other roles | RBAC seed gap                                                            | Inventory `roles`, `permissions`, `role_permissions` in ONE query batch before writing any INSERT (CLAUDE.md debugging rule) |
+| Symptom                                                                          | Cause                                                                                                                                            | Fix                                                                                                                                                                                     |
+| -------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `e2e-*` sign-in 400                                                              | Supabase Auth passwords drifted from `.env.local` — auth state, not code                                                                         | Reset the auth passwords (admin API or dashboard), don't debug the app                                                                                                                  |
+| Secretary/club-admin pages empty                                                 | Missing club-scoped role grants                                                                                                                  | `seed-demo.sql` §10 grants them (fixed #804) — confirm those rows exist in `roles`/`role_permissions`                                                                                   |
+| Seed aborts: `paid or refunded entr(ies) remain … refusing to cascade them away` | A walk or manual test left a paid/refunded entry on a demo, sibling or load show. The seed refuses rather than destroying a money row (MYK9-526) | The error names the count, the first 10 entry ids and a query for the rest. Decide deliberately: soft-delete or remove those entries, then re-run. Never widen the guard to get past it |
+| Feature works for admin, not other roles                                         | RBAC seed gap                                                                                                                                    | Inventory `roles`, `permissions`, `role_permissions` in ONE query batch before writing any INSERT (CLAUDE.md debugging rule)                                                            |
 
 ## Reseeding procedure
 
 1. Confirm target is dev/staging — **never** run seed SQL at a production ref without explicit instruction. Project ref: `sojmvhhwsjxmfistvzbe`.
 2. Reseed is a shared-system write: confirm with the user first (Auto Mode rule).
-3. Run `seed-demo.sql` (idempotent — safe to re-run over existing demo data).
+3. Run `seed-demo.sql` (idempotent over its own rows — but it now ABORTS rather than cascading away a paid/refunded entry a walk left behind; see the failure table above).
 4. Verify, in one query batch: demo shows/trials/classes/entries exist; §10 role grants exist; `auth.users` rows exist for all five e2e accounts.
 5. Smoke-test sign-in for secretary and exhibitor (two-step SmartSignInPage flow) before declaring done.
 

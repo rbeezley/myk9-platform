@@ -92,30 +92,87 @@ describe('seed-demo self-cleaning relationship deletes (MYK9-490 follow-up)', ()
     );
   });
 
-  it('also refuses a paid stray reached only by class, which has no registration_id to follow', () => {
+  it('refuses a paid stray on every show it clears, with each guard placed where it can still fire', () => {
     // The registration_id checks cannot see a mail-in / non-wizard entry, and
-    // entries.class_id CASCADES, so the class deletes would destroy it silently.
-    // Proven against staging 2026-09-15 in a rolled-back transaction: with one
-    // planted paid entry (registration_id NULL) this guard raises, while the
-    // pre-fix guard on main does not.
-    const relationshipDelete = seed.indexOf(
-      `DELETE FROM public.entries\nWHERE registration_id = '${ENROLLMENT_ID}'`
-    );
-    const guardBlockStart = seed.lastIndexOf('DO $$', relationshipDelete);
-    const guardBlock = seed.slice(guardBlockStart, relationshipDelete);
+    // entries.show_id CASCADES, so the deletes below would destroy it silently.
+    // Scoped on show_id rather than through a class join because class_id is
+    // nullable — a join would be narrower than the cascade it guards.
+    //
+    // Placement is the whole game. The load shows' classes are deleted ~90 lines
+    // before the main guard block, so a single check down there is dead code for
+    // them: it would count rows that CASCADE had already removed and never fire.
+    // These assertions pin each guard BEFORE the deletes it protects, which is
+    // the part a substring check alone would miss.
+    const loadGuard = seed.indexOf('v_load_paid');
+    const demoGuard = seed.indexOf('v_class_paid');
+    expect(loadGuard, 'no load-show paid-stray guard').toBeGreaterThan(-1);
+    expect(demoGuard, 'no demo-show paid-stray guard').toBeGreaterThan(-1);
 
+    const loadScope = seed.slice(loadGuard, seed.indexOf('END $$;', loadGuard));
+    expect(loadScope).toContain("e.show_id >= 'a1090000-0000-0000-0010-000000000000'");
+    expect(loadScope).toContain("e.show_id <  'a1090000-0000-0000-0011-000000000000'");
+    expect(loadScope).toContain("e.payment_status IN ('paid', 'refunded')");
+    expect(loadScope).toMatch(/RAISE EXCEPTION[^;]*load shows this reseed clears/);
+
+    const demoScope = seed.slice(demoGuard, seed.indexOf('END $$;', demoGuard));
+    for (const show of ['010', '011', '012']) {
+      expect(demoScope).toContain(`'dededede-0000-0000-0000-000000000${show}'`);
+    }
+    expect(demoScope).toContain("e.payment_status IN ('paid', 'refunded')");
+    expect(demoScope).toMatch(/RAISE EXCEPTION[^;]*demo or sibling shows this reseed clears/);
+
+    // Each guard must precede every delete that would cascade the rows it counts.
+    const deletes = (pattern: RegExp) => statements(pattern).map(d => d.index);
+    const classDeletes = deletes(/DELETE FROM public\.classes\b[^;]*;/g);
+    const showDeletes = deletes(/DELETE FROM public\.shows\b[^;]*;/g);
+    expect(classDeletes.length).toBeGreaterThanOrEqual(2);
+    expect(showDeletes.length).toBeGreaterThanOrEqual(2);
+
+    // The load guard protects the FIRST class/show delete pair (the myk9_109
+    // range); a guard after it is inert, which is the defect this pins.
     expect(
-      guardBlock,
-      'no show-scoped paid-stray check precedes the relationship delete'
-    ).toContain('JOIN public.trials t ON t.id = c.trial_id');
-    expect(guardBlock).toContain("e.payment_status IN ('paid', 'refunded')");
-    // Scoped by SHOW, so it covers every class the seed deletes rather than a
-    // list that has to be kept in step with the class deletes below.
-    expect(guardBlock).toContain("t.show_id IN ('dededede-0000-0000-0000-000000000010'");
-    expect(guardBlock).toContain("'dededede-0000-0000-0000-000000000011'");
-    expect(guardBlock).toContain("'dededede-0000-0000-0000-000000000012'");
-    expect(guardBlock).toContain("t.show_id >= 'a1090000-0000-0000-0010-000000000000'");
-    expect(guardBlock).toMatch(/RAISE EXCEPTION[^;]*remain on classes this reseed deletes/);
+      loadGuard,
+      'the load-show guard runs after the load classes are deleted, so it can never fire'
+    ).toBeLessThan(Math.min(...classDeletes));
+    expect(loadGuard).toBeLessThan(Math.min(...showDeletes));
+    // The demo guard must precede the LAST class/show delete (the demo show).
+    expect(demoGuard).toBeLessThan(Math.max(...classDeletes));
+    expect(demoGuard).toBeLessThan(Math.max(...showDeletes));
+  });
+
+  it('covers every show the seed deletes with a paid-stray guard', () => {
+    // The guards re-state the show scope that the DELETE statements below also
+    // carry. Asserting the guards contain three known literals would be a
+    // tautology against drift: add a sibling show ...013 later, forget the
+    // guard, and its paid entries cascade away silently — the bug this file
+    // exists to prevent, reopened. So derive the expectation from the deletes.
+    const showDeletes = statements(/DELETE FROM public\.shows\b[^;]*;/g);
+    expect(showDeletes.length).toBeGreaterThanOrEqual(2);
+
+    const guards = [seed.indexOf('v_load_paid'), seed.indexOf('v_class_paid')].map(i =>
+      seed.slice(i, seed.indexOf('END $$;', i))
+    );
+    const coveredBySomeGuard = (literal: string) => guards.some(g => g.includes(literal));
+
+    for (const del of showDeletes) {
+      const ids = uuidsIn(del.text);
+      for (const id of ids) {
+        expect(
+          coveredBySomeGuard(`'${id}'`),
+          `show ${id} is deleted by the seed but no paid-stray guard names it`
+        ).toBe(true);
+      }
+      // A range-bounded delete must have its bounds named by a guard instead.
+      if (ids.length === 0) {
+        const bounds = [...del.text.matchAll(/'([0-9a-f-]{36})'::uuid/g)].map(m => m[1]);
+        for (const bound of bounds) {
+          expect(
+            coveredBySomeGuard(`'${bound}'`),
+            `show range bound ${bound} is deleted by the seed but no guard names it`
+          ).toBe(true);
+        }
+      }
+    }
   });
 
   it("runs the hard-coded entries delete before the guard, so the seed's own paid rows never trip it", () => {

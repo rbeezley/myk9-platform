@@ -200,6 +200,31 @@ WHERE id >= 'a1090000-0000-0000-0003-000000000000'::uuid
 DELETE FROM public.entries
 WHERE id >= 'a1090000-0000-0000-0002-000000000000'::uuid
   AND id < 'a1090000-0000-0000-0003-000000000000'::uuid; -- myk9_109
+-- Same paid-stray rule as the demo shows further down, but it has to live HERE:
+-- the load classes, trials and shows are deleted a few statements below, and
+-- entries.class_id / entries.show_id both CASCADE, so a guard placed with the
+-- others would run after these rows were already gone and could never fire.
+-- The id-range delete immediately above has just removed every entry the seed
+-- itself created here, so anything left is a stray.
+DO $$
+DECLARE v_load_paid integer; v_load_ids text;
+BEGIN
+  SELECT count(*) INTO v_load_paid
+  FROM public.entries e
+  WHERE e.show_id >= 'a1090000-0000-0000-0010-000000000000'::uuid
+    AND e.show_id <  'a1090000-0000-0000-0011-000000000000'::uuid
+    AND e.payment_status IN ('paid', 'refunded');
+  IF v_load_paid > 0 THEN
+    -- Capped: an unbounded list would put hundreds of ids in one error line.
+    SELECT string_agg(x.id::text, ', ' ORDER BY x.id) INTO v_load_ids
+    FROM (SELECT e.id FROM public.entries e
+  WHERE e.show_id >= 'a1090000-0000-0000-0010-000000000000'::uuid
+    AND e.show_id <  'a1090000-0000-0000-0011-000000000000'::uuid
+    AND e.payment_status IN ('paid', 'refunded')
+          ORDER BY e.id LIMIT 10) x;
+    RAISE EXCEPTION 'seed-demo: % paid or refunded entr(ies) remain on the myk9_109 load shows this reseed clears — refusing to cascade them away. First ids: %. List them all with: SELECT id, show_id, class_id, payment_status FROM public.entries WHERE show_id >= ''a1090000-0000-0000-0010-000000000000'' AND show_id < ''a1090000-0000-0000-0011-000000000000'' AND payment_status IN (''paid'',''refunded''); remove them deliberately, then rerun', v_load_paid, v_load_ids;
+  END IF;
+END $$;
 -- waitlist_entries.dog_id has no ON DELETE action (pg_constraint confdeltype='a'),
 -- unlike entries.dog_id which cascades. A stray waitlist join for a load-range dog
 -- would block the dogs delete below the same way the stray wizard entry blocked
@@ -285,7 +310,7 @@ DELETE FROM public.entries WHERE id IN (
 -- Stripe order; an operator then deletes it deliberately. Unpaid wizard strays
 -- (the 2026-09-12 case) are still cleared without ceremony.
 DO $$
-DECLARE v_paid integer; v_orders integer; v_class_paid integer;
+DECLARE v_paid integer; v_orders integer; v_class_paid integer; v_class_ids text;
 BEGIN
   -- Money that moved in either direction: 'paid' and 'refunded' both carry an
   -- audit trail in entry_status_history that the cascade would erase.
@@ -312,27 +337,34 @@ BEGIN
     RAISE EXCEPTION 'seed-demo: % Stripe order(s) point at the demo exhibitor''s enrollment on show ...010 — refusing to orphan them; remove them deliberately, then rerun', v_orders;
   END IF;
   -- The two checks above both reach entries through registration_id. A mail-in or
-  -- non-wizard entry has registration_id NULL, so neither sees it — and
-  -- entries.class_id CASCADES, so the class deletes below would destroy it
-  -- silently along with its entry_status_history. Scope this one by SHOW instead.
-  -- Every entry the seed itself put on these shows is already gone by this point:
-  -- the myk9_109 id range at the top of this section, and the hard-coded id list
-  -- above. So anything still standing here was created by something else, and the
-  -- deletion order rather than an id list is what tells them apart — no list to
-  -- keep in sync. Verified against staging 2026-09-15: 513 paid/refunded rows on
-  -- these shows before those two deletes, 0 after, so this cannot self-trip.
+  -- non-wizard entry has registration_id NULL, so neither sees it — and both
+  -- entries.class_id and entries.show_id CASCADE, so the deletes below would
+  -- destroy it silently along with its entry_status_history. Scope by show_id
+  -- directly: class_id is nullable, so a class join would be narrower than the
+  -- cascade it guards. Every entry the seed itself put on these shows is already
+  -- gone by this point, removed by the hard-coded id list above, so anything
+  -- still standing was created by something else — the deletion order, not an id
+  -- list, is what tells them apart. The load shows are guarded separately, up in
+  -- the myk9_109 block, because their classes are deleted long before this point.
+  -- Measured on staging 2026-09-15 across both guards' scope: 1269 paid/refunded
+  -- rows before the two id-based deletes above (513 on the demo/sibling shows,
+  -- 756 on the load shows), 0 after — so neither guard can refuse its own rerun.
   SELECT count(*) INTO v_class_paid
   FROM public.entries e
-  JOIN public.classes c ON c.id = e.class_id
-  JOIN public.trials t ON t.id = c.trial_id
-  WHERE (t.show_id IN ('dededede-0000-0000-0000-000000000010',
-                       'dededede-0000-0000-0000-000000000011',
-                       'dededede-0000-0000-0000-000000000012')
-         OR (t.show_id >= 'a1090000-0000-0000-0010-000000000000'::uuid
-             AND t.show_id <  'a1090000-0000-0000-0011-000000000000'::uuid))
+  WHERE e.show_id IN ('dededede-0000-0000-0000-000000000010',
+                      'dededede-0000-0000-0000-000000000011',
+                      'dededede-0000-0000-0000-000000000012')
     AND e.payment_status IN ('paid', 'refunded');
   IF v_class_paid > 0 THEN
-    RAISE EXCEPTION 'seed-demo: % paid or refunded entr(ies) remain on classes this reseed deletes — refusing to cascade them away; remove them deliberately, then rerun', v_class_paid;
+    -- Capped: an unbounded list would put hundreds of ids in one error line.
+    SELECT string_agg(x.id::text, ', ' ORDER BY x.id) INTO v_class_ids
+    FROM (SELECT e.id FROM public.entries e
+  WHERE e.show_id IN ('dededede-0000-0000-0000-000000000010',
+                      'dededede-0000-0000-0000-000000000011',
+                      'dededede-0000-0000-0000-000000000012')
+    AND e.payment_status IN ('paid', 'refunded')
+          ORDER BY e.id LIMIT 10) x;
+    RAISE EXCEPTION 'seed-demo: % paid or refunded entr(ies) remain on the demo or sibling shows this reseed clears — refusing to cascade them away. First ids: %. List them all with: SELECT id, show_id, class_id, payment_status FROM public.entries WHERE show_id IN (''dededede-0000-0000-0000-000000000010'',''dededede-0000-0000-0000-000000000011'',''dededede-0000-0000-0000-000000000012'') AND payment_status IN (''paid'',''refunded''); remove them deliberately, then rerun', v_class_paid, v_class_ids;
   END IF;
 END $$;
 DELETE FROM public.entries

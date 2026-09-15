@@ -60,7 +60,13 @@ const AlertDialogContent = React.forwardRef<
     <AlertDialogPrimitive.Popup
       ref={ref}
       className={cn(
-        'fixed left-[50%] top-[50%] z-50 grid w-full max-w-lg translate-x-[-50%] translate-y-[-50%] gap-4 border bg-background p-6 shadow-lg duration-200 data-[open]:animate-in data-[closed]:animate-out data-[closed]:fade-out-0 data-[open]:fade-in-0 data-[closed]:zoom-out-95 data-[open]:zoom-in-95 data-[closed]:slide-out-to-left-1/2 data-[closed]:slide-out-to-top-[48%] data-[open]:slide-in-from-left-1/2 data-[open]:slide-in-from-top-[48%] sm:rounded-lg',
+        // `grid-cols-[minmax(0,1fr)]` is the MYK9-503 track guard. The full
+        // rationale lives once, on DialogContent in
+        // `src/components/ui/dialog/dialog.tsx` -- read it there before
+        // editing this class string. Both primitives are covered by
+        // `src/test/e2e/dialogContainsLongContent.spec.ts`, which is
+        // parametrized over them and goes red here if the guard is dropped.
+        'fixed left-[50%] top-[50%] z-50 grid grid-cols-[minmax(0,1fr)] w-full max-w-lg translate-x-[-50%] translate-y-[-50%] gap-4 border bg-background p-6 shadow-lg duration-200 data-[open]:animate-in data-[closed]:animate-out data-[closed]:fade-out-0 data-[open]:fade-in-0 data-[closed]:zoom-out-95 data-[open]:zoom-in-95 data-[closed]:slide-out-to-left-1/2 data-[closed]:slide-out-to-top-[48%] data-[open]:slide-in-from-left-1/2 data-[open]:slide-in-from-top-[48%] sm:rounded-lg',
         className
       )}
       {...props}

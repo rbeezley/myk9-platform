@@ -34,13 +34,16 @@ vi.mock('@/hooks/useAuthContext', () => ({
 
 const club = { id: 'club-1', name: 'Heartland Scent Work Club' } as Club;
 
-function withScopes(scopes: RoleScope[], roles: UserRole[] = [UserRole.EXHIBITOR]): UserWithRoles {
+function withScopes(
+  scopes: Array<Pick<RoleScope, 'roleId' | 'scopeType' | 'scopeId'>>,
+  roles: UserRole[] = [UserRole.EXHIBITOR],
+): UserWithRoles {
   return {
     id: 'auth-1',
     email: 'exhibitor@example.com',
     databaseUserId: 'person-1',
     roles,
-    scopes,
+    scopes: scopes.map((scope) => ({ ...scope, userId: 'person-1', createdAt: new Date(0) })),
     permissions: [],
   } as unknown as UserWithRoles;
 }

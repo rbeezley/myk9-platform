@@ -334,6 +334,7 @@ const DogDetailsMain: React.FC<DogDetailsMainProps> = ({
         canForceDelete={canForceDeleteDog}
         onEditPanelClose={() => setIsEditPanelOpen(false)}
         onDeleteDialogClose={() => setIsDeleteDialogOpen(false)}
+        onStatusDialogOpen={() => setIsStatusDialogOpen(true)}
         onDelete={onDelete}
         onForceDelete={onForceDelete}
         onUpdate={onUpdate}

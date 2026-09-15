@@ -12,6 +12,7 @@ import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { FormField } from '@/components/common/FormField';
+import { useOverlayStackEntry } from '@/hooks/useOverlayStackEntry';
 import type { DogStatus } from '@/types/dog-types';
 
 interface DogStatusDialogProps {
@@ -22,6 +23,9 @@ interface DogStatusDialogProps {
   currentDeceasedDate?: string | undefined;
   onSave: (status: DogStatus, deceasedDate?: string) => void;
 }
+
+const OPTION_LABEL =
+  'cursor-pointer text-sm font-medium normal-case tracking-normal text-foreground';
 
 /** Inner form that mounts fresh each time the dialog opens */
 function StatusForm({
@@ -55,32 +59,38 @@ function StatusForm({
 
       <div className="py-4 space-y-6">
         <RadioGroup value={status} onValueChange={val => setStatus(val as DogStatus)}>
-          <div className="flex items-center space-x-3">
-            <RadioGroupItem value="active" id="status-active" />
-            <Label htmlFor="status-active" className="cursor-pointer">
-              <span className="font-medium">Active</span>
+          <div className="flex items-start space-x-3">
+            <RadioGroupItem value="active" id="status-active" className="mt-0.5" />
+            <div>
+              <Label htmlFor="status-active" className={OPTION_LABEL}>
+                Active
+              </Label>
               <p className="text-sm text-muted-foreground">
                 Currently showing and eligible for entries
               </p>
-            </Label>
+            </div>
           </div>
-          <div className="flex items-center space-x-3">
-            <RadioGroupItem value="retired" id="status-retired" />
-            <Label htmlFor="status-retired" className="cursor-pointer">
-              <span className="font-medium">Retired</span>
+          <div className="flex items-start space-x-3">
+            <RadioGroupItem value="retired" id="status-retired" className="mt-0.5" />
+            <div>
+              <Label htmlFor="status-retired" className={OPTION_LABEL}>
+                Retired
+              </Label>
               <p className="text-sm text-muted-foreground">
                 No longer showing but records are preserved
               </p>
-            </Label>
+            </div>
           </div>
-          <div className="flex items-center space-x-3">
-            <RadioGroupItem value="deceased" id="status-deceased" />
-            <Label htmlFor="status-deceased" className="cursor-pointer">
-              <span className="font-medium">Deceased</span>
+          <div className="flex items-start space-x-3">
+            <RadioGroupItem value="deceased" id="status-deceased" className="mt-0.5" />
+            <div>
+              <Label htmlFor="status-deceased" className={OPTION_LABEL}>
+                Deceased
+              </Label>
               <p className="text-sm text-muted-foreground">
                 Preserves {dogName}&apos;s records and competition history
               </p>
-            </Label>
+            </div>
           </div>
         </RadioGroup>
 
@@ -117,6 +127,11 @@ const DogStatusDialog: React.FC<DogStatusDialogProps> = ({
   currentDeceasedDate,
   onSave,
 }) => {
+  // This dialog is reachable from inside the Edit Dog SlideOverPanel, so it has
+  // to claim the top of the shared overlay stack while open — without it the
+  // panel behind stays "topmost" and one Escape closes the panel, not this.
+  useOverlayStackEntry(open, 'dog-status-dialog');
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[425px]">

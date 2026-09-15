@@ -23,6 +23,7 @@ import {
 import { Dog, FileText, Camera, Heart } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { FormField } from '@/components/common/FormField';
+import { DogStatusRow } from './DogStatusRow';
 import type { DogFormData } from './DogEditPanel.types';
 import { DogEditContext } from './DogEditPanel';
 import { usePeopleQuery } from '@/hooks/usePeopleQuery';
@@ -182,6 +183,8 @@ export const BasicInfoTab: React.FC<BasicInfoTabProps> = ({
             </div>
           </div>
         </div>
+
+        <DogStatusRow />
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <FormField label="Call Name" fieldId="callName" required error={callNameError}>

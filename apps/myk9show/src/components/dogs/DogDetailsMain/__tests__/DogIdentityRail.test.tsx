@@ -116,6 +116,43 @@ describe('DogIdentityRail', () => {
     expect(screen.getByText('Retired')).toBeInTheDocument();
   });
 
+  // The badge is what announces the lifecycle state, so it has to be what
+  // changes it: before this, status was reachable ONLY from the overflow menu
+  // and the badge beside it was inert, which is where people looked first.
+  it('opens the status dialog from the status badge itself', () => {
+    const onStatusDialogOpen = vi.fn();
+    renderRail({ ...base, status: 'retired' }, { onStatusDialogOpen });
+    const badgeButton = screen.getByRole('button', { name: /retired.*change status/i });
+    fireEvent.click(badgeButton);
+    expect(onStatusDialogOpen).toHaveBeenCalledTimes(1);
+  });
+
+  it('leaves the status badge inert when no status dialog is available', () => {
+    renderRail({ ...base, status: 'retired' });
+    expect(screen.getByText('Retired')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /change status/i })).not.toBeInTheDocument();
+  });
+
+  // One overflow menu per card, in its top-right corner, for every role. It
+  // used to be duplicated per role beside that role's primary button, which is
+  // why this asserts WHERE it lands and not just that one exists — a count
+  // alone passed before the move too (the mock renders one either way).
+  it.each([['exhibitor'], ['secretary']] as const)(
+    'pins the single overflow menu to the top-right of the card for a %s',
+    role => {
+      const { container } = renderRail(base, { role });
+      const menus = screen.getAllByText('Edit Dog');
+      expect(menus).toHaveLength(1);
+
+      // The corner slot, and the photo banner it is anchored to.
+      const corner = menus[0]?.closest('div.absolute.right-3.top-3');
+      expect(corner).not.toBeNull();
+      const photoButton = screen.getByRole('button', { name: /edit dog photo/i });
+      expect(corner?.parentElement).toBe(photoButton.parentElement);
+      expect(container.querySelectorAll('div.absolute.right-3.top-3')).toHaveLength(1);
+    }
+  );
+
   // The old sidebar card held the ONLY ordinary path into the add panel;
   // RegistrationsSection's empty state deliberately carries no action, so
   // the rail must offer it whether or not the dog has registrations yet.

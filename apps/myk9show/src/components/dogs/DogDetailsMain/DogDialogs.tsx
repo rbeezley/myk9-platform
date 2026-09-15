@@ -7,7 +7,12 @@ import {
   useDogActiveEntryCountQuery,
   useDogBlockingEntryCountQuery,
 } from '@/hooks/queries/useEntriesDatabase';
-import { convertDogToDogInput, CELEBRATION_DURATION_MS, CELEBRATION_FADE_DELAY_MS } from './utils';
+import {
+  convertDogToDogInput,
+  formatDisplayDate,
+  CELEBRATION_DURATION_MS,
+  CELEBRATION_FADE_DELAY_MS,
+} from './utils';
 import type { DogDialogsProps } from './types';
 
 // Lazy load heavy components
@@ -32,6 +37,7 @@ const DogDialogs: React.FC<DogDialogsProps> = ({
   canForceDelete,
   onEditPanelClose,
   onDeleteDialogClose,
+  onStatusDialogOpen,
   onDelete,
   onForceDelete,
   onUpdate,
@@ -87,6 +93,9 @@ const DogDialogs: React.FC<DogDialogsProps> = ({
           initialDogData={dog}
           userRole={userRole}
           people={people}
+          dogStatus={dog.status}
+          dogDeceasedDate={dog.deceasedDate ? formatDisplayDate(dog.deceasedDate) : undefined}
+          onChangeStatus={onStatusDialogOpen}
           onSave={async updatedDogData => {
             // Store previous state for rollback on error
             const previousDog = { ...dog };

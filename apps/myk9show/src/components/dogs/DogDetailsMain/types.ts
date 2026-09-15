@@ -83,6 +83,8 @@ export interface DogDialogsProps {
   canForceDelete?: boolean;
   onEditPanelClose: () => void;
   onDeleteDialogClose: () => void;
+  /** Raises the status dialog from inside the Edit Dog panel's Status row. */
+  onStatusDialogOpen?: (() => void) | undefined;
   onDelete?: (() => Promise<void>) | undefined;
   onForceDelete?: (() => Promise<void>) | undefined;
   onUpdate?: ((id: string, updates: Partial<DogInput>) => Promise<Dog | null>) | undefined;

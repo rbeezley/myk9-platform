@@ -13,10 +13,15 @@ const root = resolve(__dirname, '../../../../..');
 const words = (file: string) =>
   readFileSync(resolve(root, file), 'utf8').split(/\s+/).filter(Boolean).length;
 
-// The shared-rules block (docs/agents/shared-rules.md, ~3,750 words on
-// 2026-09-07) is carried verbatim by BOTH files, so each file's budget is that
-// block plus its harness-specific remainder. The LESSONS budget is the one that
-// ratchets: it was 10,097 words before this test existed.
+// The shared-rules block (docs/agents/shared-rules.md, ~4,200 words) is carried
+// verbatim by BOTH files, so each file's budget is that block plus its
+// harness-specific remainder. Charging it to both is deliberate, NOT double
+// counting: Claude Code loads CLAUDE.md whole into every session and every
+// subagent, Codex loads AGENTS.md whole, and neither ever loads the union — the
+// per-session cost each ceiling bounds is one WHOLE file, so a de-duplicated
+// budget would measure a number no harness pays (MYK9-534; docs/lessons/README.md
+// Budget). The LESSONS budget is the one that ratchets: it was 10,097 words
+// before this test existed.
 const lessonsSection = (): string => {
   const claude = readFileSync(resolve(root, 'CLAUDE.md'), 'utf8');
   const start = claude.indexOf('## LESSONS');

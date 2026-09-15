@@ -37,7 +37,7 @@ const BrowseDogsPage: React.FC = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   const navigate = useNavigate();
 
-  const { getUserRoles, userWithRoles } = useAuthContext();
+  const { getUserRoles, userWithRoles, hasRole } = useAuthContext();
   // Exhibitor-only users see their own roster; secretaries/admins see all dogs.
   // NOTE: this drives the page's chrome (title, card-only view, placeholder),
   // and it is NOT the same question as "is this roster only my own dogs" —
@@ -94,6 +94,10 @@ const BrowseDogsPage: React.FC = () => {
   // `dog:delete`. Without this the bulk Delete action would offer an operation the
   // `soft_delete_dog` RPC rejects per-dog (Codex finding).
   const canDeleteDogs = !rbacLoading && !isExhibitorOnly && hasPermission('dog:delete');
+  // Override of the server's paid/scored refusal is site-admin only, matching
+  // is_platform_admin() inside force_delete_dog. This only decides whether the
+  // affordance is offered; the function enforces it regardless.
+  const canForceDeleteDogs = canDeleteDogs && hasRole(UserRole.SITE_ADMIN);
 
   const dogSelection = useBulkSelection({
     items: filteredDogs,
@@ -353,6 +357,7 @@ const BrowseDogsPage: React.FC = () => {
               selectedDogs={dogSelection.selectedItems}
               onClear={dogSelection.clearSelection}
               canDelete={canDeleteDogs}
+              canForceDelete={canForceDeleteDogs}
             />
           )}
         </>

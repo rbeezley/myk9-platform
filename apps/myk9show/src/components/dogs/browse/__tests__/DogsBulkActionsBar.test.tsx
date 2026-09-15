@@ -5,6 +5,7 @@ import type { Dog } from '@/types/dog-types';
 import { DogsBulkActionsBar } from '../DogsBulkActionsBar';
 
 const updateDogMutateAsync = vi.fn();
+const forceDeleteDogMutateAsync = vi.fn().mockResolvedValue(undefined);
 const deleteDogMutateAsync = vi.fn();
 
 vi.mock('@/hooks/queries/useDogsDatabase', () => ({
@@ -13,6 +14,9 @@ vi.mock('@/hooks/queries/useDogsDatabase', () => ({
   }),
   useDeleteDogMutation: () => ({
     mutateAsync: (...args: unknown[]) => deleteDogMutateAsync(...args),
+  }),
+  useForceDeleteDogMutation: () => ({
+    mutateAsync: (...args: unknown[]) => forceDeleteDogMutateAsync(...args),
   }),
 }));
 
@@ -32,12 +36,35 @@ function dog(id: string, status: Dog['status'] = 'active'): Dog {
   };
 }
 
-function setup(dogs: Dog[], canDelete = true) {
+function setup(dogs: Dog[], canDelete = true, canForceDelete = false) {
   const onClear = vi.fn();
   const utils = render(
-    <DogsBulkActionsBar selectedDogs={dogs} onClear={onClear} canDelete={canDelete} />
+    <DogsBulkActionsBar
+      selectedDogs={dogs}
+      onClear={onClear}
+      canDelete={canDelete}
+      canForceDelete={canForceDelete}
+    />
   );
   return { ...utils, onClear };
+}
+
+/** The server's MK002 refusal, as it reaches the client. */
+function blockedError() {
+  return {
+    name: 'DatabaseError',
+    code: 'MK002',
+    message: 'This dog has paid or scored entries. Scratch or refund them before deleting.',
+  };
+}
+
+/** Runs a bulk delete over `dogs` and confirms it. */
+async function bulkDelete(user: ReturnType<typeof setup>['user'], count: number) {
+  await user.click(screen.getByRole('button', { name: /bulk actions/i }));
+  await user.click(
+    await screen.findByRole('menuitem', { name: new RegExp(`delete ${count} dogs?`, 'i') })
+  );
+  await user.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Delete' }));
 }
 
 /**
@@ -58,6 +85,7 @@ describe('DogsBulkActionsBar', () => {
   beforeEach(() => {
     updateDogMutateAsync.mockReset().mockResolvedValue(undefined);
     deleteDogMutateAsync.mockReset().mockResolvedValue(undefined);
+    forceDeleteDogMutateAsync.mockReset().mockResolvedValue(undefined);
   });
 
   // Restore unconditionally: a prototype stub left in place is exactly the
@@ -168,5 +196,134 @@ describe('DogsBulkActionsBar', () => {
     await waitFor(() => {
       expect(updateDogMutateAsync).toHaveBeenCalledTimes(3);
     });
+  });
+});
+
+/**
+ * The paid/scored refusal used to land in a partial-failure toast: a list of
+ * names and reasons that disappears in a few seconds and cannot be reopened.
+ * These pin the replacement — a persistent dialog that names the blocked dogs
+ * and, for an admin, offers the override.
+ */
+describe('DogsBulkActionsBar blocked deletes', () => {
+  beforeEach(() => {
+    updateDogMutateAsync.mockReset().mockResolvedValue(undefined);
+    deleteDogMutateAsync.mockReset().mockResolvedValue(undefined);
+    forceDeleteDogMutateAsync.mockReset().mockResolvedValue(undefined);
+  });
+
+  it('opens a persistent dialog naming every blocked dog', async () => {
+    deleteDogMutateAsync.mockRejectedValue(blockedError());
+    const { user } = setup([dog('1'), dog('2')]);
+
+    await bulkDelete(user, 2);
+
+    const dialog = await screen.findByRole('dialog');
+    expect(within(dialog).getByText(/could not be deleted/i)).toBeInTheDocument();
+    expect(within(dialog).getByText('Dog 1')).toBeInTheDocument();
+    expect(within(dialog).getByText('Dog 2')).toBeInTheDocument();
+  });
+
+  it('does not offer the override to a non-admin', async () => {
+    deleteDogMutateAsync.mockRejectedValue(blockedError());
+    const { user } = setup([dog('1')], true, false);
+
+    await bulkDelete(user, 1);
+
+    const dialog = await screen.findByRole('dialog');
+    expect(
+      within(dialog).queryByRole('checkbox', { name: /I understand/i })
+    ).not.toBeInTheDocument();
+    expect(within(dialog).getByRole('button', { name: /delete anyway/i })).toBeDisabled();
+  });
+
+  it('keeps Delete anyway disabled until an admin ticks the acknowledgement', async () => {
+    deleteDogMutateAsync.mockRejectedValue(blockedError());
+    const { user } = setup([dog('1')], true, true);
+
+    await bulkDelete(user, 1);
+    const dialog = await screen.findByRole('dialog');
+
+    const confirm = within(dialog).getByRole('button', { name: /delete anyway/i });
+    expect(confirm).toBeDisabled();
+
+    await user.click(within(dialog).getByRole('checkbox', { name: /I understand/i }));
+    await waitFor(() => expect(confirm).toBeEnabled());
+  });
+
+  it('routes the override to the force-delete mutation, never the ordinary one', async () => {
+    deleteDogMutateAsync.mockRejectedValue(blockedError());
+    const { user } = setup([dog('1'), dog('2')], true, true);
+
+    await bulkDelete(user, 2);
+    const dialog = await screen.findByRole('dialog');
+    await user.click(within(dialog).getByRole('checkbox', { name: /I understand/i }));
+    deleteDogMutateAsync.mockClear();
+    await user.click(within(dialog).getByRole('button', { name: /delete anyway/i }));
+
+    await waitFor(() => {
+      expect(forceDeleteDogMutateAsync).toHaveBeenCalledWith({ id: '1' });
+      expect(forceDeleteDogMutateAsync).toHaveBeenCalledWith({ id: '2' });
+    });
+    expect(forceDeleteDogMutateAsync).toHaveBeenCalledTimes(2);
+    expect(deleteDogMutateAsync).not.toHaveBeenCalled();
+  });
+
+  it('does not open the dialog for an ordinary failure', async () => {
+    deleteDogMutateAsync.mockRejectedValue(new Error('Network down'));
+    const { user } = setup([dog('1')], true, true);
+
+    await bulkDelete(user, 1);
+
+    await waitFor(() => expect(deleteDogMutateAsync).toHaveBeenCalled());
+    expect(screen.queryByText(/could not be deleted/i)).not.toBeInTheDocument();
+  });
+
+  it('only lists the blocked dogs when a batch is mixed', async () => {
+    deleteDogMutateAsync.mockImplementation(({ id }: { id: string }) =>
+      id === '2' ? Promise.reject(blockedError()) : Promise.resolve(undefined)
+    );
+    const { user } = setup([dog('1'), dog('2')], true, true);
+
+    await bulkDelete(user, 2);
+
+    const dialog = await screen.findByRole('dialog');
+    expect(within(dialog).getByText('Dog 2')).toBeInTheDocument();
+    expect(within(dialog).queryByText('Dog 1')).not.toBeInTheDocument();
+  });
+});
+
+describe('DogsBulkActionsBar override re-arms', () => {
+  beforeEach(() => {
+    updateDogMutateAsync.mockReset().mockResolvedValue(undefined);
+    deleteDogMutateAsync.mockReset().mockResolvedValue(undefined);
+    forceDeleteDogMutateAsync.mockReset().mockResolvedValue(undefined);
+  });
+
+  // The acknowledgement is reset by MOUNTING rather than an effect, which is
+  // only true while the dialog is rendered conditionally. If someone renders it
+  // unconditionally with `open={...}`, the tick survives and the next batch is
+  // one click from a force delete on a dialog nobody read. This is that guard.
+  it('starts unticked again after the dialog is dismissed and reopened', async () => {
+    deleteDogMutateAsync.mockRejectedValue(blockedError());
+    const { user } = setup([dog('1')], true, true);
+
+    await bulkDelete(user, 1);
+    let dialog = await screen.findByRole('dialog');
+    await user.click(within(dialog).getByRole('checkbox', { name: /I understand/i }));
+    await waitFor(() =>
+      expect(within(dialog).getByRole('checkbox', { name: /I understand/i })).toBeChecked()
+    );
+
+    // Dismiss without overriding.
+    await user.click(within(dialog).getByRole('button', { name: 'Close' }));
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+
+    // Same dogs, same refusal, second attempt.
+    await bulkDelete(user, 1);
+    dialog = await screen.findByRole('dialog');
+
+    expect(within(dialog).getByRole('checkbox', { name: /I understand/i })).not.toBeChecked();
+    expect(within(dialog).getByRole('button', { name: /delete anyway/i })).toBeDisabled();
   });
 });

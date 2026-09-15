@@ -220,3 +220,146 @@ describe('useBulkDispatch', () => {
     expect(secondOutcome).toBeNull();
   });
 });
+
+describe('useBulkDispatch claimFailure', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it('shows no toast when the caller claims every failure and nothing succeeded', async () => {
+    const { result } = renderHook(() =>
+      useBulkDispatch<Item>({ getLabel: i => i.id })
+    );
+
+    await act(async () => {
+      await result.current.run([item('a'), item('b')], async () => {
+        throw new Error('blocked');
+      }, { claimFailure: () => true });
+    });
+
+    expect(toast.error).not.toHaveBeenCalled();
+    expect(toast.success).not.toHaveBeenCalled();
+  });
+
+  it('reports the succeeded subset when every failure is claimed', async () => {
+    const { result } = renderHook(() => useBulkDispatch<Item>({ getLabel: i => i.id }));
+
+    await act(async () => {
+      await result.current.run([item('a'), item('b')], async i => {
+          if (i.id === 'b') throw new Error('blocked');
+        }, { claimFailure: () => true });
+    });
+
+    expect(toast.error).not.toHaveBeenCalled();
+    expect(toast.success).toHaveBeenCalledTimes(1);
+  });
+
+  it('still reports unclaimed failures, counting only those', async () => {
+    const { result } = renderHook(() => useBulkDispatch<Item>({ getLabel: i => i.id }));
+
+    await act(async () => {
+      await result.current.run(
+        [item('a'), item('b'), item('c')],
+        async i => {
+          if (i.id === 'b') throw new Error('blocked');
+          if (i.id === 'c') throw new Error('network down');
+        },
+        { claimFailure: (_i, error) => (error as Error).message === 'blocked' }
+      );
+    });
+
+    expect(toast.error).toHaveBeenCalledTimes(1);
+    const [title, options] = vi.mocked(toast.error).mock.calls[0] as [
+      string,
+      { description?: string },
+    ];
+    // 'b' is the dialog's business now; the toast must not re-report it.
+    expect(title).toContain('1 failed');
+    expect(options.description).toContain('network down');
+    expect(options.description).not.toContain('blocked');
+  });
+
+  it('returns the full outcome so the caller can act on the claimed subset', async () => {
+    const { result } = renderHook(() => useBulkDispatch<Item>({ getLabel: i => i.id }));
+
+    let outcome: Awaited<ReturnType<typeof result.current.run>> = null;
+    await act(async () => {
+      outcome = await result.current.run([item('a'), item('b')], async i => {
+          if (i.id === 'b') throw new Error('blocked');
+        }, { claimFailure: () => true });
+    });
+
+    expect(outcome!.failed).toHaveLength(1);
+    expect(outcome!.failed[0]?.item.id).toBe('b');
+  });
+});
+
+describe('useBulkDispatch onClaimedFailures', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it('hands the claimed items to the caller', async () => {
+    const { result } = renderHook(() => useBulkDispatch<Item>({ getLabel: i => i.id }));
+    const onClaimedFailures = vi.fn();
+
+    await act(async () => {
+      await result.current.run(
+        [item('a'), item('b')],
+        async i => {
+          if (i.id === 'b') throw new Error('blocked');
+        },
+        { claimFailure: () => true, onClaimedFailures }
+      );
+    });
+
+    expect(onClaimedFailures).toHaveBeenCalledTimes(1);
+    expect(onClaimedFailures.mock.calls[0]?.[0]).toEqual([item('b')]);
+  });
+
+  it('is not called when nothing is claimed', async () => {
+    const { result } = renderHook(() => useBulkDispatch<Item>({ getLabel: i => i.id }));
+    const onClaimedFailures = vi.fn();
+
+    await act(async () => {
+      await result.current.run([item('a')], async () => undefined, {
+        claimFailure: () => true,
+        onClaimedFailures,
+      });
+    });
+
+    expect(onClaimedFailures).not.toHaveBeenCalled();
+  });
+
+  // Without this, a retried item that comes back claimable is filtered out of
+  // the toast AND never reaches the caller's dialog — the failure disappears
+  // entirely.
+  it('fires on a RETRY that produces a newly claimable failure', async () => {
+    const { result } = renderHook(() => useBulkDispatch<Item>({ getLabel: i => i.id }));
+    const onClaimedFailures = vi.fn();
+    let attempt = 0;
+
+    await act(async () => {
+      await result.current.run(
+        [item('a')],
+        async () => {
+          attempt += 1;
+          throw new Error(attempt === 1 ? 'network down' : 'blocked');
+        },
+        {
+          claimFailure: (_i, error) => (error as Error).message === 'blocked',
+          onClaimedFailures,
+        }
+      );
+    });
+
+    expect(onClaimedFailures).not.toHaveBeenCalled();
+
+    await act(async () => {
+      retryActionFromCall().onClick();
+    });
+
+    await waitFor(() => expect(onClaimedFailures).toHaveBeenCalledTimes(1));
+    expect(onClaimedFailures.mock.calls[0]?.[0]).toEqual([item('a')]);
+  });
+});

@@ -687,6 +687,54 @@ export const deleteDog = async (id: string, deletedBy?: string) => {
   }
 };
 
+/**
+ * Platform-admin override for the MK002 refusal (migration 20260915214500).
+ *
+ * `deleteDog` above calls `soft_delete_dog`, which refuses when the dog has live
+ * paid or scored entries. `force_delete_dog` performs the same soft delete and
+ * the same cascade WITHOUT that guard, and is gated on `is_platform_admin()`
+ * inside the function — the UI gate is a convenience, not the security boundary.
+ *
+ * This issues no refund: a force-deleted paid entry leaves its Stripe charge
+ * captured. Callers must say so before offering it.
+ */
+export const forceDeleteDog = async (id: string) => {
+  const startTime = Date.now();
+
+  logger.debug('🗑️ Database forceDeleteDog called:', 'database', { data: { id } });
+
+  try {
+    const deletedAt = new Date().toISOString();
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { error } = await (supabase.rpc as any)('force_delete_dog', { p_dog_id: id });
+
+    const duration = Date.now() - startTime;
+    logQuery('dog', 'force_delete', duration, error?.message);
+
+    if (error) {
+      logger.error('❌ Supabase error details:', 'database', {
+        data: {
+          message: error.message,
+          code: error.code,
+          details: error.details,
+          hint: error.hint,
+        },
+      });
+      throw createDatabaseError(error, 'dog', 'force_delete');
+    }
+
+    const data = { id, deleted_at: deletedAt, deleted_by: null };
+    logger.debug('📊 Force delete succeeded:', 'database', { data });
+    return { data, error: null };
+  } catch (error) {
+    const duration = Date.now() - startTime;
+    const dbError = createDatabaseError(error, 'dog', 'force_delete');
+    logQuery('dog', 'force_delete', duration, dbError.message);
+    return { data: null, error: dbError };
+  }
+};
+
 // Default cap for searchAllDogs. Also used by UI to show a "refine your
 // search" hint when the returned row count hits this limit.
 export const SEARCH_ALL_DOGS_LIMIT = 50;

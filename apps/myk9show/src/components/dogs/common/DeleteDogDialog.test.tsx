@@ -1,5 +1,6 @@
-import { describe, it, expect } from 'vitest';
-import { screen } from '@testing-library/react';
+import { describe, it, expect, vi } from 'vitest';
+import { screen, waitFor } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { render } from '@/test/utils/testUtils';
 import { DeleteDogDialog } from './DeleteDogDialog';
 import type { Dog } from '@/types/dog-types';
@@ -112,5 +113,101 @@ describe('DeleteDogDialog blocked state', () => {
     );
 
     expect(screen.getByRole('button', { name: /delete/i })).toBeEnabled();
+  });
+});
+
+/**
+ * The admin override. Rendered rather than unit-tested off the copy builders,
+ * for the same reason as the block above: the property under test is which
+ * handler the pressable button reaches, and no pure function can see that.
+ */
+describe('DeleteDogDialog admin override', () => {
+  const blockedProps = {
+    open: true as const,
+    onClose: () => {},
+    dog,
+    blockingEntryCount: 1,
+  };
+
+  it('offers no override to a non-admin', () => {
+    render(
+      <DeleteDogDialog
+        {...blockedProps}
+        onDelete={() => {}}
+        canForceDelete={false}
+        onForceDelete={() => {}}
+      />
+    );
+
+    expect(screen.queryByRole('checkbox', { name: /I understand/i })).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /delete/i })).toBeDisabled();
+  });
+
+  it('offers no override when the delete is not blocked', () => {
+    render(
+      <DeleteDogDialog
+        open
+        onClose={() => {}}
+        onDelete={() => {}}
+        dog={dog}
+        canForceDelete
+        onForceDelete={() => {}}
+      />
+    );
+
+    expect(screen.queryByRole('checkbox', { name: /I understand/i })).not.toBeInTheDocument();
+  });
+
+  it('keeps Delete disabled for an admin until the acknowledgement is ticked', async () => {
+    const user = userEvent.setup();
+    render(
+      <DeleteDogDialog
+        {...blockedProps}
+        onDelete={() => {}}
+        canForceDelete
+        onForceDelete={() => {}}
+      />
+    );
+
+    expect(screen.getByRole('button', { name: /^delete$/i })).toBeDisabled();
+
+    await user.click(screen.getByRole('checkbox', { name: /I understand/i }));
+
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: /delete anyway/i })).toBeEnabled()
+    );
+  });
+
+  it('routes the acknowledged confirm to onForceDelete, not onDelete', async () => {
+    const user = userEvent.setup();
+    const onDelete = vi.fn();
+    const onForceDelete = vi.fn();
+    render(
+      <DeleteDogDialog
+        {...blockedProps}
+        onDelete={onDelete}
+        canForceDelete
+        onForceDelete={onForceDelete}
+      />
+    );
+
+    await user.click(screen.getByRole('checkbox', { name: /I understand/i }));
+    await user.click(await screen.findByRole('button', { name: /delete anyway/i }));
+
+    await waitFor(() => expect(onForceDelete).toHaveBeenCalledTimes(1));
+    expect(onDelete).not.toHaveBeenCalled();
+  });
+
+  it('states that no refund is issued before the override can be taken', () => {
+    render(
+      <DeleteDogDialog
+        {...blockedProps}
+        onDelete={() => {}}
+        canForceDelete
+        onForceDelete={() => {}}
+      />
+    );
+
+    expect(screen.getByText(/no refund is issued/i)).toBeInTheDocument();
   });
 });

@@ -9,6 +9,7 @@ import {
   createDog,
   updateDog,
   deleteDog,
+  forceDeleteDog,
   searchDogs,
   getDogStatistics,
   getOwnedLiveDogsByPerson,
@@ -241,12 +242,37 @@ export const useUpdateDogMutation = () => {
 };
 
 // Delete dog mutation
-export const useDeleteDogMutation = () => {
+export const useDeleteDogMutation = () => useDogDeleteMutation(deleteDog);
+
+/**
+ * Platform-admin override: deletes a dog even when it has paid or scored
+ * entries, via the `force_delete_dog` RPC (migration 20260915214500). Shares
+ * every cache/IndexedDB concern with the ordinary delete — the ONLY difference
+ * is which RPC runs — so it is built from the same factory rather than a copy
+ * that could drift.
+ *
+ * `deletedBy` is accepted and ignored so the two mutations are drop-in
+ * interchangeable at the call site; `force_delete_dog` reads `auth.uid()`
+ * server-side, which is the honest source for who deleted the row.
+ */
+export const useForceDeleteDogMutation = () => useDogDeleteMutation(id => forceDeleteDog(id));
+
+/**
+ * Shared machinery behind both delete mutations: optimistic removal from every
+ * role-scoped dog list, IndexedDB cleanup, rollback on error, and cache
+ * invalidation on success. `performDelete` supplies the server call.
+ */
+const useDogDeleteMutation = (
+  performDelete: (
+    id: string,
+    deletedBy?: string
+  ) => Promise<{ data: unknown; error: unknown | null }>
+) => {
   const queryClient = useQueryClient();
 
   return useMutation({
     mutationFn: async ({ id, deletedBy }: { id: string; deletedBy?: string }) => {
-      const { data, error } = await deleteDog(id, deletedBy);
+      const { data, error } = await performDelete(id, deletedBy);
       if (error) throw error;
       // The dogs list reads IndexedDB first (`getAllDogs` -> replication), and a
       // soft delete removes the row from RLS visibility so replication polling

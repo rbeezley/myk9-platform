@@ -30,6 +30,13 @@ export interface DeleteConfirmationDialogProps {
    * carrying the reason. A delete the server will refuse should not be clickable.
    */
   confirmDisabled?: boolean | undefined;
+  /**
+   * Rendered below the warning line, inside the dialog body. Use for an
+   * escalation the user must opt into deliberately — e.g. an admin override
+   * checkbox that unlocks a delete the server would otherwise refuse. Keep it
+   * to a single control; this is a confirmation dialog, not a form.
+   */
+  additionalContent?: React.ReactNode | undefined;
 }
 
 export function DeleteConfirmationDialog({
@@ -47,6 +54,7 @@ export function DeleteConfirmationDialog({
   impactSuffix,
   warningText = 'This action cannot be undone.',
   confirmDisabled = false,
+  additionalContent,
 }: DeleteConfirmationDialogProps) {
   const defaultTitle = title || `Delete ${entityType}`;
   const defaultTitleIcon = titleIcon || <Trash2 className="w-5 h-5" />;
@@ -76,6 +84,7 @@ export function DeleteConfirmationDialog({
               {impactSuffix}.
             </p>
             <p className="text-sm text-muted-foreground mt-2">{warningText}</p>
+            {additionalContent ? <div className="mt-3">{additionalContent}</div> : null}
           </div>
         </div>
       </div>

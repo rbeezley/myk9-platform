@@ -7,6 +7,7 @@ import {
   createDog,
   updateDog,
   deleteDog,
+  forceDeleteDog,
   searchDogs,
   searchAllDogs,
   getDogStatistics,
@@ -299,6 +300,38 @@ describe('Dog Queries', () => {
       );
       expect(result.data?.deleted_at).toBeDefined();
       expect(result.error).toBeNull();
+    });
+  });
+
+  describe('forceDeleteDog', () => {
+    // The whole point of the admin override is that it reaches a DIFFERENT
+    // function — force_delete_dog has no MK002 guard, soft_delete_dog does.
+    // Calling the wrong one still typechecks, still resolves, and still looks
+    // like a success in the UI; the only thing that changes is that the delete
+    // silently fails to override anything. Pin the name.
+    it('calls the force_delete_dog RPC, not soft_delete_dog', async () => {
+      mockSupabase.rpc.mockReturnValue(createChainableQuery({ data: null, error: null }));
+
+      const result = await forceDeleteDog('1');
+
+      expect(mockSupabase.rpc).toHaveBeenCalledWith('force_delete_dog', { p_dog_id: '1' });
+      expect(mockSupabase.rpc).not.toHaveBeenCalledWith('soft_delete_dog', expect.anything());
+      expect(result.data).toEqual(expect.objectContaining({ id: '1' }));
+      expect(result.error).toBeNull();
+    });
+
+    it('surfaces a permission denial as an error rather than a silent success', async () => {
+      mockSupabase.rpc.mockReturnValue(
+        createChainableQuery({
+          data: null,
+          error: { message: 'Permission denied', code: '42501' },
+        })
+      );
+
+      const result = await forceDeleteDog('1');
+
+      expect(result.data).toBeNull();
+      expect(result.error).not.toBeNull();
     });
   });
 

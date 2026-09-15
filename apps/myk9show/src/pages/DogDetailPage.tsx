@@ -7,6 +7,7 @@ import { useAuthContext } from '@/hooks/useAuthContext';
 import { notifications } from '@/lib/notifications';
 import { logger } from '@/services/LoggingService';
 import DogDetailsMain from '@/components/dogs/DogDetailsMain';
+import { useForceDeleteDogMutation } from '@/hooks/queries/useDogsDatabase';
 import { getDogDisplayName, type Dog } from '@/types/dog-types';
 
 /**
@@ -26,6 +27,8 @@ const DogDetailPage: React.FC = () => {
   const [createdDog] = useState<Dog | null>(
     () => (location.state as { createdDog?: Dog } | null)?.createdDog ?? null
   );
+
+  const forceDeleteMutation = useForceDeleteDogMutation();
 
   const dogs = useRoleBasedDogs();
   const { isLoading, isFetching, deleteDog, updateDog, isDeleting } = useDogStoreCompat();
@@ -82,6 +85,36 @@ const DogDetailPage: React.FC = () => {
     }
   }
 
+  /**
+   * Platform-admin override: deletes the dog even though it has paid or scored
+   * entries. Deliberately a separate handler rather than a flag on the one
+   * above — it reaches a different RPC with a different authorisation gate, and
+   * conflating them is how the guard gets bypassed by accident.
+   */
+  async function handleForceDeleteDog() {
+    if (!dog) return;
+    try {
+      const dogName = getDogDisplayName(dog);
+      await forceDeleteMutation.mutateAsync({ id: dog.id });
+      notifications.success(`${dogName} and its entries were deleted. No refund was issued.`);
+      navigate('/dogs', { replace: true });
+    } catch (err) {
+      logger.error(
+        'Failed to force delete dog',
+        'dogs',
+        { dogId: dog.id },
+        err instanceof Error ? err : new Error(String(err))
+      );
+      notifications.error(
+        err instanceof Error && err.message
+          ? err.message
+          : 'Failed to delete dog. Please try again.'
+      );
+      // Same contract as handleDeleteDog: keep the dialog open on failure.
+      throw err;
+    }
+  }
+
   if (isLoading || (!dog && dogs.length === 0 && !createdDog)) {
     return (
       <div className="max-w-4xl mx-auto px-4 py-8 space-y-6">
@@ -111,8 +144,9 @@ const DogDetailPage: React.FC = () => {
       dog={dog}
       fromPerson={fromPerson}
       onDelete={handleDeleteDog}
+      onForceDelete={handleForceDeleteDog}
       onUpdate={updateDog}
-      isDeleting={isDeleting}
+      isDeleting={isDeleting || forceDeleteMutation.isPending}
     />
   );
 };

@@ -32,7 +32,7 @@ Known noise to ignore: `Maximum update depth exceeded` (tracked in Linear "App-W
 | draft show         | `6cea4cdf-0f2c-4db9-98bc-aa97a654ef31` | "ZZ Audit - Club Persistence Probe", 0 entries                                                                             |
 | UKC show           | `dededede-0000-0000-0000-000000000011` | Heartland UKC Nosework Trial — trial `…025`, classes `dec1a55e-…041/042`, 0 entries                                        |
 | ASCA show          | `dededede-0000-0000-0000-000000000012` | Heartland ASCA Scent Detection Trial — trial `…026`, classes `dec1a55e-…043/044`, 0 entries                                |
-| full class fixture | `dec1a55e-0000-0000-0000-000000000036` | Container Advanced, Sunday Trial 3 — the only class with `max_entries` set (63, matching its seeded entry count); MYK9-515 |
+| full class fixture | `dec1a55e-0000-0000-0000-000000000036` | Container Advanced, Sunday Trial 3 — the only class with `max_entries` set (63, matching its seeded entry count); MYK9-515. As of MYK9-529 it is also the only DELIBERATELY full class on this show: `default_judge_day_capacity` was raised 125→200 because the MYK9-109 load fixture (pinned by id, `loadFixture.test.ts`) put Test Judge's Saturday day (`…021`) at 129 confirmed and Sunday (`…022`) at 127, both over 125, which folded classes `…032`–`…035` into `judgeDayFull` for every exhibitor. |
 
 **Which show for which case (MYK9-490).** A show carries exactly ONE sanctioning
 registry; several sports under that registry are fine, and a cross-registry cluster is

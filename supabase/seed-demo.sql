@@ -645,6 +645,21 @@ ON CONFLICT (club_id, person_id) DO UPDATE
 --    already cost one audit: the 2026-07-06 exhibitor walk recorded "only two
 --    shows, both Entries Closed" and could not finish the entry flow. See the
 --    SEED TIMELINE note at the top of this file.
+--
+--    MYK9-529: default_judge_day_capacity is 200, not the schema default of 125.
+--    The MYK9-109 load fixture (section 17) pins 63 confirmed entries into each
+--    of classes ...032-...039 by id -- a hard contract with
+--    apps/myk9show/src/test/load/loadFixture.ts's byte-identical show-load
+--    fixture test, so those class ids and counts cannot move. That puts Test
+--    Judge's Saturday day (...021: 031/032/033) at 129 confirmed and Sunday
+--    (...022: 034/035) at 127, both over 125 -- so useClassAvailability folded
+--    every class on both judge-days into judgeDayFull and no AKC class with a
+--    confirmed judge was enterable on this demo show (MYK9-529). 200 clears the
+--    seeded volume on both days with headroom for the hand-authored fixtures
+--    layered on top. Classes ...036-...039 (trials ...023/...024) carry no
+--    confirmed judge assignment (section 11), so judge-day capacity does not
+--    apply to them either way; the ...036 fixture (MYK9-515, comment below)
+--    stays full by its own max_entries class limit, unaffected by this change.
 -- ---------------------------------------------------------------------------
 INSERT INTO public.shows (
   id, name, organization, description,
@@ -673,7 +688,7 @@ VALUES (
   'dededede-0000-0000-0000-000000000001',
   30.00, 35.00,
   true, true,
-  100, 125,
+  100, 200,
   'none', false, 48,
   true, true,
   true,
@@ -883,14 +898,19 @@ VALUES
 --
 -- Why `...036` ('Container Advanced', Sunday Trial 3, trial `...023`), and
 -- NOT `...034`/`...035` (Sunday Trial, trial `...022`):
---   - `judge_day_summary` already reports BOTH judge-days on this show over
---     `default_judge_day_capacity` (125) from real entry volume alone --
---     Saturday (`...021`: 031/032/033) sits at 129 confirmed, Sunday
---     (`...022`: 034/035) at 127 -- so ...034 and ...035 already render
---     "Every class in this trial is full" with no seed change at all. Trials
---     `...023`/`...024` (036-039) carry no confirmed judge assignment, so
---     they are the only classes NOT already full for an unrelated reason;
---     ...036 is the first of them.
+--   - MYK9-529: before that fix, `judge_day_summary` reported BOTH judge-days
+--     on this show over `default_judge_day_capacity` (125) from real entry
+--     volume alone -- Saturday (`...021`: 031/032/033) at 129 confirmed,
+--     Sunday (`...022`: 034/035) at 127 -- so ...034 and ...035 rendered
+--     "Every class in this trial is full" from JUDGE-DAY capacity, not this
+--     fixture's own `max_entries` cap, which would have made this fixture
+--     untestable in isolation (no way to tell which mechanism produced the
+--     full chip). MYK9-529 raised the capacity to 200 so neither judge-day is
+--     full on its own; `...036` stays the only class with an explicit
+--     `max_entries` cap, so it is the only one that isolates the CLASS-LIMIT
+--     branch of the full-chip logic. Trials `...023`/`...024` (036-039) still
+--     carry no confirmed judge assignment (section 11), so they were never
+--     reachable by judge-day capacity either way; ...036 is the first of them.
 --   - None of the exhibitor's own named dogs (Willow, Ranger, Juniper, Scout,
 --     Maple; section 5) has an entry in this class, so `exhibitor@myk9t.com`
 --     always sees it as an available-but-full chip, never an already-entered

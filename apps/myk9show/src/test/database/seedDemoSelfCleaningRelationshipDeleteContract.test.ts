@@ -216,6 +216,93 @@ describe('seed-demo self-cleaning relationship deletes (MYK9-490 follow-up)', ()
     }
   });
 
+  it('extends the consolidated guard to enrollments, scoped from scope_shows, before the first parent delete (MYK9-528)', () => {
+    // enrollments.show_id is ALSO ON DELETE CASCADE from shows, and this
+    // section deletes every show in scope_shows — so a paid enrollment on any
+    // of them (not only the demo show, and not only the demo exhibitor) is
+    // destroyed silently unless this arm catches it too. Unlike entries,
+    // enrollments has no trial_id / class_id / dog_id, so one arm — scoped by
+    // show_id alone — covers the whole cascade.
+    const guard = seed.indexOf('v_real');
+    const block = seed.slice(guard, seed.indexOf('END $$;', guard));
+
+    expect(block, 'no enrollments arm').toContain('FROM public.enrollments en');
+    expect(
+      block,
+      "enrollments' payment_status vocabulary (migration 168) is not covered"
+    ).toContain(
+      "en.payment_status IN\n            ('paid', 'paid_online', 'paid_by_cash', 'paid_by_check', 'refunded', 'partial_refund')"
+    );
+    expect(block, 'no show_id scoping on the enrollments arm').toContain(
+      'en.show_id IN (SELECT id FROM scope_shows)'
+    );
+    expect(block, 'the enrollments arm no longer derives from scope_shows').toMatch(
+      /enrollment_stray AS \(\s*SELECT[^)]*FROM public\.enrollments en/
+    );
+    expect(block).toMatch(/RAISE EXCEPTION[^;]*paid or refunded enrollment\(s\)/);
+
+    // MYK9-528 review round 1 (design simplification, decided): NO
+    // trail-substantiated/bare split for enrollments — ANY in-scope
+    // paid/refunded enrollment aborts the reseed. A trail requirement (the
+    // entries arm's shape, mirrored here in round 0) missed the secretary's
+    // "Mark Paid Online" action (EnrollmentCard.tsx ->
+    // updateEnrollmentPaymentStatus), which writes payment_status='paid_online'
+    // with no payment_reference, no paid_amount, and no linked stripe_orders
+    // row — a real paid enrollment with nothing a trail check could see, so it
+    // would cascade away silently. Assert both the WARN branch and the
+    // substantiation CTE stay gone: this must go red if either is
+    // reintroduced, or if the enrollments arm is removed outright.
+    expect(
+      block,
+      'enrollments must not warn-then-cascade — every in-scope paid enrollment must ABORT, not just a trail-substantiated subset'
+    ).not.toMatch(/RAISE WARNING[^;]*enrollment/i);
+    expect(
+      block,
+      'an enrollment_substantiated CTE reintroduces the trail requirement this round removed'
+    ).not.toMatch(/enrollment_substantiated/);
+    expect(
+      block,
+      'the abort count must come straight from enrollment_stray, not a narrowed substantiated-only count'
+    ).toContain('(SELECT count(*) FROM enrollment_stray)');
+
+    // Self-trip freedom: the seed's own multi-dog order (section 6b) is paid
+    // by fixture and is NOT yet deleted at this point in the file (its DELETE
+    // depends on the registration_id-scoped entries clear further down), so it
+    // must be excluded by id, not merely relied on to have already been removed.
+    expect(
+      block,
+      "the seed's own enrollment (...070) is not excluded from the new arm — every rerun would refuse itself"
+    ).toContain("en.id <> 'dededede-0000-0000-0000-000000000070'");
+
+    // No constant-false neutering, same failure mode as the entries arms.
+    expect(block, 'the enrollments arm was neutered with a constant-false predicate').not.toMatch(
+      /enrollment_stray AS[\s\S]*?WHERE\s+false|enrollment_stray AS[\s\S]*?AND\s+false/i
+    );
+
+    // enrollments has TWO ON DELETE CASCADE parents, not one: show_id AND
+    // handler_id (pg_constraint confdeltype='c' on registrations_show_id_fkey
+    // and registrations_handler_id_fkey). The arm above is scoped by show_id
+    // alone, which is sound only because this seed deletes no people at all —
+    // add a `DELETE FROM public.people` later and every enrollment that
+    // handler owns, on ANY show, cascades away with this guard blind to it.
+    expect(
+      /DELETE\s+FROM\s+public\.people\b/i.test(seed),
+      'the seed now deletes people, but the enrollments arm is scoped by show_id only — ' +
+        'enrollments cascade from handler_id too, so that arm must be widened first'
+    ).toBe(false);
+
+    // Placement: before the first delete of `shows` (the only cascade parent
+    // enrollments has), same as the entries arms.
+    const showsDeletes = statements(/DELETE FROM public\.shows\b[^;]*;/g);
+    expect(showsDeletes.length).toBeGreaterThan(0);
+    for (const del of showsDeletes) {
+      expect(
+        guard,
+        `the enrollments arm runs after a shows delete at offset ${del.index}, so those rows cascade unguarded`
+      ).toBeLessThan(del.index);
+    }
+  });
+
   it("lets no entries delete widen past the seed's own ids before the guard", () => {
     // Placement alone does not protect the money rows. A DELETE FROM entries
     // that runs BEFORE the guard and is scoped wider than the seed's own ids

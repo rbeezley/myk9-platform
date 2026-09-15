@@ -727,7 +727,15 @@ test.describe('Phase 2: Show Management Workflow', () => {
       // Get the show ID from URL
       const showId = showTestHelper.page.url().split('/shows/')[1];
 
-      // Publish the show
+      // MYK9-579: enforce_show_publish_gate() now refuses this publish -- the
+      // club this spec creates through ShowTestDataFactory has no
+      // club_stripe_accounts row. This spec is NOT wired into
+      // playwright.ci.config.ts (neither PR_SMOKE_SPECS nor REGRESSION_SPECS
+      // name it), so it is not currently a CI gate, but it will fail if run
+      // manually or added to a spec list until the club fixture gets a
+      // payouts-enabled Stripe account (e.g. the same seed pattern
+      // showCRUD.spec.ts now uses) or this assertion is flipped to expect the
+      // MK003 refusal.
       await showTestHelper.publishShow(showId);
 
       // Verify show is now published

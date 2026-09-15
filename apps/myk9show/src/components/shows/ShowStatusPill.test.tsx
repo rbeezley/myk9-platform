@@ -101,4 +101,62 @@ describe('ShowStatusPill publish gate', () => {
 
     expect(mutateAsync).toHaveBeenCalledWith({ id: 'show-1', updates: { status: 'draft' } });
   });
+
+  it('surfaces the DB publish-gate trigger refusal (MYK9-579 backstop) with its own copy', async () => {
+    // The client-side check above passed (payouts enabled here), but a stale
+    // cache or race let the write reach enforce_show_publish_gate() anyway.
+    // Its SQLSTATE (MK003) must map to the trigger's own friendly text, not
+    // the generic "Failed to update show status" fallback.
+    mockAccount(true);
+    mutateAsync.mockRejectedValueOnce({
+      code: 'MK003',
+      message:
+        "Connect your club's payment account before publishing — online entry fees need somewhere to go. Find it under My Club → Payments.",
+    });
+    const user = userEvent.setup();
+    render(<ShowStatusPill showId="show-1" status="draft" clubId="club-1" />);
+
+    await user.click(screen.getByRole('button', { name: /draft/i }));
+    await user.click(await screen.findByText(/publish show/i));
+
+    expect(toast.error).toHaveBeenCalledWith(
+      "Connect your club's payment account before publishing — online entry fees need somewhere to go. Find it under My Club → Payments.",
+      expect.objectContaining({ action: expect.anything() })
+    );
+  });
+
+  it('surfaces the DB missing-club refusal WITHOUT an "Open Payments" action (MYK9-579)', async () => {
+    // Same SQLSTATE (MK003) as the Stripe-readiness refusal, but a trip to
+    // /club-admin/payments does not fix a clubless show -- only assigning a
+    // club does. Only the message text tells the two refusals apart.
+    mockAccount(true);
+    mutateAsync.mockRejectedValueOnce({
+      code: 'MK003',
+      message:
+        'Assign a club to this show before publishing — entry fees are paid out to the club.',
+    });
+    const user = userEvent.setup();
+    render(<ShowStatusPill showId="show-1" status="draft" clubId="club-1" />);
+
+    await user.click(screen.getByRole('button', { name: /draft/i }));
+    await user.click(await screen.findByText(/publish show/i));
+
+    expect(toast.error).toHaveBeenCalledWith(
+      'Assign a club to this show before publishing — entry fees are paid out to the club.'
+    );
+    const call = (toast.error as ReturnType<typeof vi.fn>).mock.calls[0];
+    expect(call).toHaveLength(1);
+  });
+
+  it('an unrelated mutation failure still shows the generic fallback, not the gate copy', async () => {
+    mockAccount(true);
+    mutateAsync.mockRejectedValueOnce(new Error('Network error'));
+    const user = userEvent.setup();
+    render(<ShowStatusPill showId="show-1" status="draft" clubId="club-1" />);
+
+    await user.click(screen.getByRole('button', { name: /draft/i }));
+    await user.click(await screen.findByText(/publish show/i));
+
+    expect(toast.error).toHaveBeenCalledWith('Failed to update show status. Please try again.');
+  });
 });

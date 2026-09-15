@@ -1,5 +1,58 @@
-import { describe, it, expect } from 'vitest';
-import { mapConnectOnboardingError } from './useClubStripeAccount';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
+
+// MYK9-579: fetchClubStripeAccount / fetchClubStripePaymentReadiness now read
+// platform_settings.stripe_livemode instead of the removed VITE_STRIPE_LIVEMODE
+// env var. A minimal chainable mock: `.from('platform_settings')` resolves the
+// livemode row, `.from('club_stripe_accounts')` resolves the account row, and
+// `.rpc(...)` resolves the readiness RPC. Assertion-first per CLAUDE.md: these
+// pin the EXACT livemode value forwarded to each downstream call, since a
+// silently-wrong livemode is exactly the class of bug (a stale/default false
+// reaching a live-mode cutover) this migration exists to prevent.
+const platformSettingsMaybeSingle = vi.hoisted(() => vi.fn());
+const clubStripeAccountsMaybeSingle = vi.hoisted(() => vi.fn());
+const clubStripeAccountsEq = vi.hoisted(() => vi.fn());
+const rpc = vi.hoisted(() => vi.fn());
+
+function makePlatformSettingsQuery() {
+  // fetchStripeLivemode selects, then `.limit(1)` (a singleton row, not a
+  // filter column -- see useClubStripeAccount.ts's own comment on why this
+  // is no longer `.eq('id', true)`), then `.maybeSingle()`.
+  return { select: () => ({ limit: () => ({ maybeSingle: platformSettingsMaybeSingle }) }) };
+}
+
+function makeClubStripeAccountsQuery() {
+  return {
+    select: () => ({
+      eq: (column: string, value: unknown) => {
+        clubStripeAccountsEq(column, value);
+        return {
+          eq: (column2: string, value2: unknown) => {
+            clubStripeAccountsEq(column2, value2);
+            return { maybeSingle: clubStripeAccountsMaybeSingle };
+          },
+        };
+      },
+    }),
+  };
+}
+
+vi.mock('@/lib/supabase', () => ({
+  supabase: {
+    from: (table: string) =>
+      table === 'platform_settings' ? makePlatformSettingsQuery() : makeClubStripeAccountsQuery(),
+    rpc,
+  },
+}));
+
+vi.mock('@/lib/queryClient', () => ({
+  cacheStrategies: { moderate: {} },
+}));
+
+import {
+  mapConnectOnboardingError,
+  fetchClubStripeAccount,
+  fetchClubStripePaymentReadiness,
+} from './useClubStripeAccount';
 
 const FALLBACK = "We couldn't start your payment setup. Please try again in a moment.";
 
@@ -61,5 +114,94 @@ describe('mapConnectOnboardingError', () => {
     // Contains both "authorization" wording and would otherwise be ambiguous;
     // the auth-session matcher is listed first and must win.
     expect(mapConnectOnboardingError('Authentication failed')).not.toMatch(/club administrator/i);
+  });
+});
+
+describe('fetchClubStripeAccount', () => {
+  beforeEach(() => {
+    platformSettingsMaybeSingle.mockReset();
+    clubStripeAccountsMaybeSingle.mockReset();
+    clubStripeAccountsEq.mockReset();
+  });
+
+  it('reads platform_settings.stripe_livemode and filters the account row by it', async () => {
+    platformSettingsMaybeSingle.mockResolvedValue({ data: { stripe_livemode: true }, error: null });
+    clubStripeAccountsMaybeSingle.mockResolvedValue({
+      data: {
+        id: 'csa-1',
+        club_id: 'club-1',
+        stripe_account_id: 'acct_live',
+        livemode: true,
+        onboarding_complete: true,
+        payouts_enabled: true,
+      },
+      error: null,
+    });
+
+    const account = await fetchClubStripeAccount('club-1');
+    expect(account?.livemode).toBe(true);
+    expect(clubStripeAccountsEq).toHaveBeenCalledWith('club_id', 'club-1');
+    expect(clubStripeAccountsEq).toHaveBeenCalledWith('livemode', true);
+  });
+
+  it('defaults to test mode (false) when the platform_settings row has no usable value', async () => {
+    platformSettingsMaybeSingle.mockResolvedValue({ data: null, error: null });
+    clubStripeAccountsMaybeSingle.mockResolvedValue({
+      data: {
+        id: 'csa-1',
+        club_id: 'club-1',
+        stripe_account_id: 'acct_test',
+        livemode: false,
+        onboarding_complete: true,
+        payouts_enabled: true,
+      },
+      error: null,
+    });
+
+    const account = await fetchClubStripeAccount('club-1');
+    expect(account?.livemode).toBe(false);
+    expect(clubStripeAccountsEq).toHaveBeenCalledWith('livemode', false);
+  });
+
+  it('propagates an error reading platform_settings instead of silently defaulting', async () => {
+    const error = { code: '42501', message: 'not authorized' };
+    platformSettingsMaybeSingle.mockResolvedValue({ data: null, error });
+
+    await expect(fetchClubStripeAccount('club-1')).rejects.toBe(error);
+    expect(clubStripeAccountsMaybeSingle).not.toHaveBeenCalled();
+  });
+});
+
+describe('fetchClubStripePaymentReadiness', () => {
+  beforeEach(() => {
+    platformSettingsMaybeSingle.mockReset();
+    rpc.mockReset();
+  });
+
+  it('forwards the live platform_settings.stripe_livemode value to the RPC, never the DEFAULT false', async () => {
+    platformSettingsMaybeSingle.mockResolvedValue({ data: { stripe_livemode: true }, error: null });
+    rpc.mockResolvedValue({ data: true, error: null });
+
+    await fetchClubStripePaymentReadiness('club-1');
+
+    expect(rpc).toHaveBeenCalledWith('can_accept_online_entry_payment', {
+      p_club_id: 'club-1',
+      p_livemode: true,
+    });
+  });
+
+  it('forwards false when the settings row reads test mode', async () => {
+    platformSettingsMaybeSingle.mockResolvedValue({
+      data: { stripe_livemode: false },
+      error: null,
+    });
+    rpc.mockResolvedValue({ data: true, error: null });
+
+    await fetchClubStripePaymentReadiness('club-1');
+
+    expect(rpc).toHaveBeenCalledWith('can_accept_online_entry_payment', {
+      p_club_id: 'club-1',
+      p_livemode: false,
+    });
   });
 });

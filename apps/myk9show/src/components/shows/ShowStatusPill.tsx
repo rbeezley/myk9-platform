@@ -11,7 +11,10 @@ import { useUpdateShowMutation } from '@/hooks/queries/useShowsDatabase';
 import { useClubStripeAccount } from '@/features/payments/useClubStripeAccount';
 import {
   canEnableOnlineEntries,
+  isPublishGateDbError,
+  publishGateDbErrorMessage,
   PUBLISH_BLOCKED_MESSAGE,
+  CLUB_REQUIRED_MESSAGE,
 } from '@/features/payments/onlineEntryGate';
 
 interface ShowStatusPillProps {
@@ -67,18 +70,18 @@ export function ShowStatusPill({ showId, status, clubId }: ShowStatusPillProps) 
   async function handleTransition(next: string) {
     // Publishing opens online entries; fail closed unless the club's Stripe
     // payouts are enabled. Already-published shows are unaffected (the gate
-    // only fires on the draft → published transition). NOTE: this is a UI
-    // guard — the DB does not enforce it; a bypass merely parks the payout
-    // as 'pending' until the club connects (accepted for v1).
+    // only fires on the draft → published transition). This is a UX
+    // convenience, not the enforcement boundary: enforce_show_publish_gate()
+    // (supabase/migrations/20260915221500) is the DB-side backstop that
+    // actually refuses the write on both INSERT and UPDATE OF status — see
+    // the catch block below.
     if (next === 'published') {
       if (!clubId) {
         // Fail CLOSED, not open: a missing clubId is either a wiring bug
         // (lost in the #615 merge once already) or a genuinely clubless show
         // — and the payout cron cannot pay out a show with no club, so its
         // entry fees would collect with nowhere to go.
-        toast.error(
-          'Assign a club to this show before publishing — entry fees are paid out to the club.'
-        );
+        toast.error(CLUB_REQUIRED_MESSAGE);
         return;
       }
       if (clubAccountQuery.isLoading) {
@@ -106,7 +109,25 @@ export function ShowStatusPill({ showId, status, clubId }: ShowStatusPillProps) 
     try {
       await mutateAsync({ id: showId, updates: { status: next } });
       toast.success(`Show ${next === 'published' ? 'published' : 'moved to draft'}.`);
-    } catch {
+    } catch (error) {
+      // Backstop: the client-side checks above already cover the common
+      // case, but a stale cache or a race can still reach the DB trigger
+      // (enforce_show_publish_gate, MYK9-579). Its refusal text IS the
+      // friendly copy, so surface it instead of the generic fallback.
+      if (isPublishGateDbError(error)) {
+        const message = publishGateDbErrorMessage(error) ?? PUBLISH_BLOCKED_MESSAGE;
+        // "Open Payments" only makes sense for the Stripe-readiness refusal —
+        // the missing-club refusal shares MK003 but needs "assign a club",
+        // not a trip to the payments page, to actually resolve it.
+        if (message === CLUB_REQUIRED_MESSAGE) {
+          toast.error(message);
+        } else {
+          toast.error(message, {
+            action: { label: 'Open Payments', onClick: () => navigate('/club-admin/payments') },
+          });
+        }
+        return;
+      }
       toast.error('Failed to update show status. Please try again.');
     }
   }

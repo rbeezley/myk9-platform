@@ -1,0 +1,131 @@
+/**
+ * MYK9-571 — a signed-in exhibitor whose club is on the platform but has not
+ * appointed them needs an in-app way to ask. This card is that ask, and only
+ * that ask: it must never claim to grant access itself.
+ */
+import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { screen, waitFor } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
+import { render } from '@/test/utils/testUtils';
+import { ScopeType, UserRole } from '@/types/auth-types';
+import type { RoleScope, UserWithRoles } from '@/types/auth-types';
+import type { Club } from '@/types/club-types';
+import { RequestShowAccessCard } from './RequestShowAccessCard';
+import {
+  submitClubSecretaryRequest,
+  getMyClubSecretaryRequestStatus,
+  RoleRequestStandingDenialError,
+} from '@/services/database/role-requests';
+
+vi.mock('@/services/database/role-requests', () => ({
+  submitClubSecretaryRequest: vi.fn(),
+  getMyClubSecretaryRequestStatus: vi.fn(),
+  RoleRequestAlreadyPendingError: class RoleRequestAlreadyPendingError extends Error {},
+  RoleRequestStandingDenialError: class RoleRequestStandingDenialError extends Error {},
+}));
+
+const mockAuth = vi.hoisted(() => ({
+  userWithRoles: null as UserWithRoles | null,
+}));
+
+vi.mock('@/hooks/useAuthContext', () => ({
+  useAuthContext: () => mockAuth,
+}));
+
+const club = { id: 'club-1', name: 'Heartland Scent Work Club' } as Club;
+
+function withScopes(scopes: RoleScope[], roles: UserRole[] = [UserRole.EXHIBITOR]): UserWithRoles {
+  return {
+    id: 'auth-1',
+    email: 'exhibitor@example.com',
+    databaseUserId: 'person-1',
+    roles,
+    scopes,
+    permissions: [],
+  } as unknown as UserWithRoles;
+}
+
+describe('RequestShowAccessCard', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockAuth.userWithRoles = null;
+    vi.mocked(getMyClubSecretaryRequestStatus).mockResolvedValue(null);
+  });
+
+  it('renders nothing for a signed-out viewer', () => {
+    render(<RequestShowAccessCard club={club} />);
+    expect(screen.queryByRole('button', { name: /request show access/i })).not.toBeInTheDocument();
+  });
+
+  it('renders nothing for someone already appointed secretary at this club', () => {
+    mockAuth.userWithRoles = withScopes([
+      { roleId: 'secretary', scopeType: ScopeType.CLUB, scopeId: club.id },
+    ]);
+    render(<RequestShowAccessCard club={club} />);
+    expect(screen.queryByRole('button', { name: /request show access/i })).not.toBeInTheDocument();
+  });
+
+  it('renders nothing for a club admin of this club (they can appoint directly)', () => {
+    mockAuth.userWithRoles = withScopes([
+      { roleId: 'club_admin', scopeType: ScopeType.CLUB, scopeId: club.id },
+    ]);
+    render(<RequestShowAccessCard club={club} />);
+    expect(screen.queryByRole('button', { name: /request show access/i })).not.toBeInTheDocument();
+  });
+
+  it('shows the request button for an eligible signed-in exhibitor', async () => {
+    mockAuth.userWithRoles = withScopes([]);
+    render(<RequestShowAccessCard club={club} />);
+    expect(await screen.findByRole('button', { name: /request show access/i })).toBeInTheDocument();
+  });
+
+  it('requires a non-empty note before sending, then submits with the exact args', async () => {
+    mockAuth.userWithRoles = withScopes([]);
+    vi.mocked(submitClubSecretaryRequest).mockResolvedValue('request-1');
+    const user = userEvent.setup();
+
+    render(<RequestShowAccessCard club={club} />);
+    await user.click(await screen.findByRole('button', { name: /request show access/i }));
+
+    const sendButton = screen.getByRole('button', { name: /send request/i });
+    expect(sendButton).toBeDisabled();
+
+    await user.type(screen.getByLabelText(/why are you asking/i), 'I run entries for this club.');
+    expect(sendButton).toBeEnabled();
+
+    await user.click(sendButton);
+
+    await waitFor(() => {
+      expect(submitClubSecretaryRequest).toHaveBeenCalledWith({
+        clubId: club.id,
+        note: 'I run entries for this club.',
+      });
+    });
+  });
+
+  it('shows "Under review" instead of the button while a request is pending', async () => {
+    mockAuth.userWithRoles = withScopes([]);
+    vi.mocked(getMyClubSecretaryRequestStatus).mockResolvedValue('pending');
+
+    render(<RequestShowAccessCard club={club} />);
+
+    expect(await screen.findByText(/under review/i)).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /request show access/i })).not.toBeInTheDocument();
+  });
+
+  it('renders a quiet unavailable message, not a retryable button, after a standing denial', async () => {
+    mockAuth.userWithRoles = withScopes([]);
+    vi.mocked(submitClubSecretaryRequest).mockRejectedValue(
+      new RoleRequestStandingDenialError('A previous request was denied.')
+    );
+    const user = userEvent.setup();
+
+    render(<RequestShowAccessCard club={club} />);
+    await user.click(await screen.findByRole('button', { name: /request show access/i }));
+    await user.type(screen.getByLabelText(/why are you asking/i), 'Please reconsider.');
+    await user.click(screen.getByRole('button', { name: /send request/i }));
+
+    expect(await screen.findByText(/not available/i)).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /request show access/i })).not.toBeInTheDocument();
+  });
+});

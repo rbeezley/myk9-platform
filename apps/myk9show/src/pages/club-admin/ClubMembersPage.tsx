@@ -42,6 +42,11 @@ import {
   setClubShowManagerAccess,
 } from '@/services/database/club-memberships';
 import { countUpcomingClubShows } from '@/services/database/clubs';
+import {
+  listClubRoleRequests,
+  approveClubRoleRequest,
+  denyClubRoleRequest,
+} from '@/services/database/role-requests';
 import { logger } from '@/services/LoggingService';
 import { notifications } from '@/lib/notifications';
 import { AddMemberDialog, AssignOfficerDialog } from './ClubMemberDialogs';
@@ -133,10 +138,20 @@ const ClubMembersPage: React.FC = () => {
     enabled: !!clubId,
   });
 
+  // MYK9-571: pending club-scoped secretary requests, shown on the Show
+  // Access tab. A failed fetch does not block the rest of the tab — it says
+  // so inline, same shape as showManagersQuery above.
+  const roleRequestsQuery = useQuery({
+    queryKey: ['club-role-requests', clubId],
+    queryFn: () => listClubRoleRequests(clubId!),
+    enabled: !!clubId,
+  });
+
   const members = useMemo(() => membersQuery.data ?? [], [membersQuery.data]);
   const activeMemberCount = useMemo(() => countActiveClubMembers(members), [members]);
   const officers = useMemo(() => officersQuery.data ?? [], [officersQuery.data]);
   const showManagers = useMemo(() => showManagersQuery.data ?? [], [showManagersQuery.data]);
+  const pendingRoleRequests = useMemo(() => roleRequestsQuery.data ?? [], [roleRequestsQuery.data]);
   // The roster still annotates member rows, so it still needs the id set — now derived
   // from the same fetch instead of a second RPC.
   const showManagerIds = useMemo(() => new Set(showManagers.map(m => m.personId)), [showManagers]);
@@ -276,6 +291,30 @@ const ClubMembersPage: React.FC = () => {
         error: error instanceof Error ? error.message : String(error),
       });
     },
+  });
+
+  // MYK9-571: approving routes through grant_club_secretary (same
+  // permission_audit_log row as a direct appointment), so both the requests
+  // list and the appointee list need invalidating.
+  const approveRoleRequestMutation = useMutation({
+    mutationFn: (requestId: string) => approveClubRoleRequest(requestId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['club-role-requests', clubId] });
+      queryClient.invalidateQueries({ queryKey: ['club-show-managers', clubId] });
+      notifications.success('Request approved. They can now run this club’s shows.');
+    },
+    onError: error =>
+      reportMutationFailure("We couldn't approve that request. Please try again.", error),
+  });
+
+  const denyRoleRequestMutation = useMutation({
+    mutationFn: (requestId: string) => denyClubRoleRequest(requestId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['club-role-requests', clubId] });
+      notifications.success('Request denied.');
+    },
+    onError: error =>
+      reportMutationFailure("We couldn't deny that request. Please try again.", error),
   });
 
   // Handlers
@@ -591,6 +630,14 @@ const ClubMembersPage: React.FC = () => {
                     handleToggleShowAccess(personId, false, personName)
                   }
                   upcomingShowCount={upcomingShowsQuery.data ?? 0}
+                  pendingRequests={pendingRoleRequests}
+                  requestsUnavailable={roleRequestsQuery.isError}
+                  onRetryRequests={() => void roleRequestsQuery.refetch()}
+                  onApproveRequest={id => approveRoleRequestMutation.mutate(id)}
+                  onDenyRequest={id => denyRoleRequestMutation.mutate(id)}
+                  isSavingRequest={
+                    approveRoleRequestMutation.isPending || denyRoleRequestMutation.isPending
+                  }
                 />
               </TabsContent>
             </PrimaryTabs>

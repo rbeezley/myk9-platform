@@ -127,6 +127,12 @@ const REVIEWED_CLUB_HELPER_CALL_SITES: readonly string[] = [
   //   AND (s.status IN (...) OR (s.club_id IS NOT NULL AND is_club_admin(s.club_id)) OR ...)
   // so a club-less show reaches nobody through the club-admin arm.
   'get_show_judges -> is_club_admin',
+  // Guarded in 20260915201500 (MYK9-571): both approve_club_role_request and
+  // deny_club_role_request RAISE EXCEPTION when v_request.club_id IS NULL (or
+  // requested_scope/requested_role mismatch) BEFORE calling is_club_admin, so
+  // by the time the helper runs club_id is guaranteed NOT NULL.
+  'approve_club_role_request -> is_club_admin',
+  'deny_club_role_request -> is_club_admin',
 ];
 
 describe('club-scoped authorization helpers are never handed a bare club_id column', () => {

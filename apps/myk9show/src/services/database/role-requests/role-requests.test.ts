@@ -1,6 +1,18 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { createChainableQuery, mockSupabase, resetMockSupabase } from '@/test/mocks/supabase';
-import { approveRoleRequest, denyRoleRequest, getAllRoleRequests, mapDbRoleRequest } from './index';
+import {
+  approveClubRoleRequest,
+  approveRoleRequest,
+  denyClubRoleRequest,
+  denyRoleRequest,
+  getAllRoleRequests,
+  getMyClubSecretaryRequestStatus,
+  listClubRoleRequests,
+  mapDbRoleRequest,
+  submitClubSecretaryRequest,
+  RoleRequestAlreadyPendingError,
+  RoleRequestStandingDenialError,
+} from './index';
 
 describe('role request database service', () => {
   beforeEach(() => {
@@ -215,6 +227,141 @@ describe('role request database service', () => {
     expect(mockSupabase.rpc).toHaveBeenCalledWith('deny_role_request', {
       p_request_id: 'request-1',
       p_reviewer_note: 'Not enough information.',
+    });
+  });
+});
+
+describe('club-routed secretary requests (MYK9-571)', () => {
+  beforeEach(() => {
+    resetMockSupabase();
+    vi.clearAllMocks();
+  });
+
+  it('submits a club-scoped secretary request with the exact RPC args', async () => {
+    mockSupabase.rpc.mockReturnValue(createChainableQuery({ data: 'request-99', error: null }));
+
+    const id = await submitClubSecretaryRequest({ clubId: 'club-1', note: 'I run entries.' });
+
+    expect(mockSupabase.rpc).toHaveBeenCalledWith('submit_role_request', {
+      p_requested_role: 'secretary',
+      p_requested_scope: 'club',
+      p_club_id: 'club-1',
+      p_requester_note: 'I run entries.',
+    });
+    expect(id).toBe('request-99');
+  });
+
+  it('throws RoleRequestAlreadyPendingError when the RPC returns a NULL id', async () => {
+    mockSupabase.rpc.mockReturnValue(createChainableQuery({ data: null, error: null }));
+
+    await expect(
+      submitClubSecretaryRequest({ clubId: 'club-1', note: 'Again.' })
+    ).rejects.toBeInstanceOf(RoleRequestAlreadyPendingError);
+  });
+
+  it('throws RoleRequestStandingDenialError when the RPC raises the YMKDN error code', async () => {
+    mockSupabase.rpc.mockReturnValue(
+      createChainableQuery({
+        data: null,
+        error: { code: 'YMKDN', message: 'A previous request for this role was denied.' },
+      })
+    );
+
+    await expect(
+      submitClubSecretaryRequest({ clubId: 'club-1', note: 'Please reconsider.' })
+    ).rejects.toBeInstanceOf(RoleRequestStandingDenialError);
+  });
+
+  it('propagates any other RPC error unchanged', async () => {
+    mockSupabase.rpc.mockReturnValue(
+      createChainableQuery({ data: null, error: { code: '42501', message: 'nope' } })
+    );
+
+    await expect(submitClubSecretaryRequest({ clubId: 'club-1', note: 'x' })).rejects.toMatchObject(
+      { code: '42501' }
+    );
+  });
+
+  it('reads the caller’s own latest club-scoped secretary request status', async () => {
+    mockSupabase.from.mockReturnValue(
+      createChainableQuery({ data: { status: 'pending' }, error: null })
+    );
+
+    const status = await getMyClubSecretaryRequestStatus('club-1');
+
+    expect(mockSupabase.from).toHaveBeenCalledWith('role_requests');
+    expect(status).toBe('pending');
+  });
+
+  it('returns null when there is no prior request', async () => {
+    mockSupabase.from.mockReturnValue(createChainableQuery({ data: null, error: null }));
+
+    expect(await getMyClubSecretaryRequestStatus('club-1')).toBeNull();
+  });
+
+  it('lists only pending club-scoped secretary requests for the club', async () => {
+    mockSupabase.from.mockReturnValue(
+      createChainableQuery({
+        data: [
+          {
+            id: 'request-1',
+            auth_user_id: 'auth-1',
+            person_id: 'person-1',
+            requested_role: 'secretary',
+            requested_scope: 'club',
+            club_id: 'club-1',
+            show_id: null,
+            status: 'pending',
+            requester_note: 'Please.',
+            reviewer_note: null,
+            reviewed_by: null,
+            reviewed_at: null,
+            created_at: '2026-09-15T12:00:00Z',
+            updated_at: '2026-09-15T12:00:00Z',
+            person: { first_name: 'Pat', last_name: 'Morgan', email: 'pat@example.com' },
+            club: { name: 'Best Club' },
+          },
+        ],
+        error: null,
+      })
+    );
+
+    const requests = await listClubRoleRequests('club-1');
+
+    expect(mockSupabase.from).toHaveBeenCalledWith('role_requests');
+    expect(requests).toHaveLength(1);
+    expect(requests[0]?.requesterName).toBe('Pat Morgan');
+  });
+
+  it('approves a club-scoped secretary request through approve_club_role_request', async () => {
+    mockSupabase.rpc.mockReturnValue(createChainableQuery({ data: null, error: null }));
+
+    await approveClubRoleRequest('request-1', 'Confirmed with the club.');
+
+    expect(mockSupabase.rpc).toHaveBeenCalledWith('approve_club_role_request', {
+      p_request_id: 'request-1',
+      p_note: 'Confirmed with the club.',
+    });
+  });
+
+  it('approves without a note when none is given', async () => {
+    mockSupabase.rpc.mockReturnValue(createChainableQuery({ data: null, error: null }));
+
+    await approveClubRoleRequest('request-1');
+
+    expect(mockSupabase.rpc).toHaveBeenCalledWith('approve_club_role_request', {
+      p_request_id: 'request-1',
+    });
+  });
+
+  it('denies a club-scoped secretary request through deny_club_role_request', async () => {
+    mockSupabase.rpc.mockReturnValue(createChainableQuery({ data: null, error: null }));
+
+    await denyClubRoleRequest('request-1', 'Not enough context.');
+
+    expect(mockSupabase.rpc).toHaveBeenCalledWith('deny_club_role_request', {
+      p_request_id: 'request-1',
+      p_note: 'Not enough context.',
     });
   });
 });

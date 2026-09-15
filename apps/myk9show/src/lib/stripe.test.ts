@@ -21,16 +21,23 @@ vi.mock('../stripe-config', () => ({ products: {}, annualPriceId: 'price_annual'
 
 import { createEntryCheckoutSession, STRIPE_CHECKOUT_SESSION_ID_TOKEN } from './stripe';
 
-/** The success_url the client asked the edge function to hand Stripe. */
-async function successUrlFor(options?: { splitCheckoutId?: string }): Promise<string> {
+/** The redirect URLs the client asked the edge function to hand Stripe. */
+async function redirectUrlsFor(options?: {
+  splitCheckoutId?: string;
+}): Promise<{ success_url: string; cancel_url: string }> {
   invoke.mockResolvedValue({
     data: { url: 'https://checkout.stripe.com/c/pay/cs_test_x' },
     error: null,
   });
   await createEntryCheckoutSession('cart-1', options);
   expect(invoke).toHaveBeenCalledTimes(1);
-  const body = (invoke.mock.calls[0][1] as { body: { success_url: string } }).body;
-  return body.success_url;
+  return (
+    invoke.mock.calls[0][1] as { body: { success_url: string; cancel_url: string } }
+  ).body;
+}
+
+async function successUrlFor(options?: { splitCheckoutId?: string }): Promise<string> {
+  return (await redirectUrlsFor(options)).success_url;
 }
 
 // `window` is shared across every test file in a worker, so a redefined
@@ -52,6 +59,27 @@ afterEach(() => {
   if (realLocation) {
     Object.defineProperty(window, 'location', realLocation);
   }
+});
+
+describe('createEntryCheckoutSession cancel_url', () => {
+  // MYK9-509: Stripe's cancel_url is also reached AFTER a payment completes
+  // (Back from the receipt, a restored tab). Without the session id the cancel
+  // page cannot tell that from a real abandonment, so it tells a charged
+  // exhibitor their payment was cancelled and offers the cart again.
+  it('carries the placeholder token UNENCODED so the page can verify the session', async () => {
+    const { cancel_url } = await redirectUrlsFor();
+    expect(cancel_url).toContain(`session_id=${STRIPE_CHECKOUT_SESSION_ID_TOKEN}`);
+    expect(cancel_url).toContain('session_id={CHECKOUT_SESSION_ID}');
+    expect(cancel_url).not.toContain('%7B');
+    expect(cancel_url).not.toContain('%7D');
+  });
+
+  it('stays on our own origin and on the cancel route, so the server allowlist passes', async () => {
+    const { cancel_url } = await redirectUrlsFor();
+    const parsed = new URL(cancel_url);
+    expect(parsed.origin).toBe('https://app.test');
+    expect(parsed.pathname).toBe('/checkout/cancel');
+  });
 });
 
 describe('createEntryCheckoutSession success_url', () => {

@@ -31,6 +31,8 @@ import type { User } from '@/types/user-types';
 import type { ClubShowManager } from '@/services/database/club-memberships';
 import { MEMBERSHIP_STATUS_LABELS, type MembershipStatus } from '@/types/club-membership-types';
 import { STATUS_BADGE_CLASSES } from './ClubMemberDialogs';
+import { ClubShowAccessRequests } from './ClubShowAccessRequests';
+import type { RoleRequest } from '@/services/database/role-requests';
 
 // --- Appoint dialog ---
 
@@ -161,6 +163,12 @@ interface ClubShowAccessTabProps {
   onAppoint: () => void;
   onRevoke: (personId: string, personName: string) => void;
   upcomingShowCount: number;
+  pendingRequests: RoleRequest[];
+  requestsUnavailable: boolean;
+  onRetryRequests: () => void;
+  onApproveRequest: (requestId: string) => void;
+  onDenyRequest: (requestId: string, note?: string) => void;
+  isSavingRequest: boolean;
 }
 
 export const ClubShowAccessTab: React.FC<ClubShowAccessTabProps> = ({
@@ -170,6 +178,12 @@ export const ClubShowAccessTab: React.FC<ClubShowAccessTabProps> = ({
   onAppoint,
   onRevoke,
   upcomingShowCount,
+  pendingRequests,
+  requestsUnavailable,
+  onRetryRequests,
+  onApproveRequest,
+  onDenyRequest,
+  isSavingRequest,
 }) => {
   if (unavailable) {
     // Never render an empty list as "nobody has access" — that is a claim this tab
@@ -192,6 +206,15 @@ export const ClubShowAccessTab: React.FC<ClubShowAccessTabProps> = ({
 
   return (
     <div className="space-y-4">
+      <ClubShowAccessRequests
+        requests={pendingRequests}
+        unavailable={requestsUnavailable}
+        onRetry={onRetryRequests}
+        onApprove={onApproveRequest}
+        onDeny={onDenyRequest}
+        isSaving={isSavingRequest}
+      />
+
       <div className="flex flex-wrap items-center justify-between gap-3">
         <p className="text-sm text-muted-foreground">
           {managers.length === 0

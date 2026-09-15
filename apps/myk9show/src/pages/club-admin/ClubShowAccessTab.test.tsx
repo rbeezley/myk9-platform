@@ -49,6 +49,12 @@ function renderTab(overrides: Partial<React.ComponentProps<typeof ClubShowAccess
       onAppoint={() => {}}
       onRevoke={() => {}}
       upcomingShowCount={0}
+      pendingRequests={[]}
+      requestsUnavailable={false}
+      onRetryRequests={() => {}}
+      onApproveRequest={() => {}}
+      onDenyRequest={() => {}}
+      isSavingRequest={false}
       {...overrides}
     />
   );

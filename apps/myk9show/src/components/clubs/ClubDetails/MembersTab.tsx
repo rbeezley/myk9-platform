@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Club } from '@/types/club-types';
 import type { ClubMember } from '@/types/club-membership-types';
 import { MemberList } from '../members/MemberList';
+import { RequestShowAccessCard } from './RequestShowAccessCard';
 
 interface MembersTabProps {
   club: Club;
@@ -57,6 +58,9 @@ export const MembersTab: React.FC<MembersTabProps> = ({
   if (members.length === 0) {
     return (
       <div className="space-y-6">
+        <div className="flex justify-end">
+          <RequestShowAccessCard key={club.id} club={club} />
+        </div>
         <div className="text-center py-16 px-8 bg-muted/50 rounded-2xl border border-dashed border-border">
           <Users className="w-16 h-16 mx-auto mb-4 text-muted-foreground opacity-60" />
           <div className="text-lg font-medium mb-2 text-foreground">No Members Yet</div>
@@ -91,12 +95,15 @@ export const MembersTab: React.FC<MembersTabProps> = ({
               Updating members…
             </span>
           )}
-          {canManageMembers && (
-            <Button onClick={onAddMember} className="min-h-[44px]">
-              <Plus className="w-5 h-5 mr-2" />
-              Add Member
-            </Button>
-          )}
+          <div className="flex items-center gap-2">
+            <RequestShowAccessCard key={club.id} club={club} />
+            {canManageMembers && (
+              <Button onClick={onAddMember} className="min-h-[44px]">
+                <Plus className="w-5 h-5 mr-2" />
+                Add Member
+              </Button>
+            )}
+          </div>
         </div>
         <MemberList club={club} members={members} canManageMembers={canManageMembers} />
       </div>

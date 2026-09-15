@@ -1,4 +1,15 @@
 export type RoleRequestStatus = 'pending' | 'approved' | 'denied';
+
+/**
+ * The caller's own latest club-scoped secretary request for a club: status
+ * plus the reviewer's note, so a denial can explain itself without exposing
+ * anything beyond the requester's own row (RLS already scopes this to
+ * `auth_user_id = auth.uid()`).
+ */
+export interface ClubSecretaryRequestStatus {
+  status: RoleRequestStatus;
+  reviewerNote: string | null;
+}
 export type RequestedRole = 'club_admin' | 'secretary';
 export type RequestedScope = 'club' | 'show';
 
@@ -58,6 +69,34 @@ export interface ApproveRoleRequestInput {
   clubId: string;
   showId?: string | null;
   reviewerNote?: string | null;
+}
+
+/**
+ * Thrown by submitRoleRequest when the club-scoped submit RPC's own unique
+ * index (role_requests_one_pending_scope_idx) swallowed a duplicate pending
+ * request via ON CONFLICT DO NOTHING and returned a NULL id instead of an
+ * error. A request is an ask, so "already asked" is not a failure — the UI
+ * should read this as "show Under review", not an error toast.
+ */
+export class RoleRequestAlreadyPendingError extends Error {
+  constructor() {
+    super('A request for this role at this club is already under review.');
+    this.name = 'RoleRequestAlreadyPendingError';
+  }
+}
+
+/**
+ * Thrown by submitRoleRequest when the server's standing-denial guard
+ * (submit_role_request, ERRCODE 'MK571') refused a resubmission because the
+ * most recent request for this exact role at this club was denied and the
+ * caller still does not hold the role. Only a direct appointment by the club
+ * clears this.
+ */
+export class RoleRequestStandingDenialError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'RoleRequestStandingDenialError';
+  }
 }
 
 const REQUESTED_SCOPES: readonly RequestedScope[] = ['club', 'show'];

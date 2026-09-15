@@ -11748,6 +11748,10 @@ export type Database = {
         Args: { p_grant_id: string; p_reason: string }
         Returns: undefined
       }
+      approve_club_role_request: {
+        Args: { p_note?: string; p_request_id: string }
+        Returns: undefined
+      }
       approve_role_request: {
         Args: {
           p_club_id: string
@@ -11962,6 +11966,10 @@ export type Database = {
       custom_access_token_hook: { Args: { event: Json }; Returns: Json }
       delete_show_managed_person: {
         Args: { p_person_id: string; p_show_id: string }
+        Returns: undefined
+      }
+      deny_club_role_request: {
+        Args: { p_note?: string; p_request_id: string }
         Returns: undefined
       }
       deny_role_request: {

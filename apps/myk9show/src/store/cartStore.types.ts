@@ -110,6 +110,14 @@ export interface CartState {
   loadInitiated: boolean;
   error: string | null;
   lastSyncedAt: string | null;
+  /**
+   * The only part of the cart that survives a full document load: zustand's
+   * `partialize` persists these ids (never the items). A Stripe return is a
+   * full load, so this is what the checkout-result pages have to work with
+   * before `loadActiveCart` rehydrates — it was already written and rehydrated,
+   * just never declared here.
+   */
+  cartRecoveryInfo?: { id: string; showId: string; exhibitorId: string } | null;
 
   // Expiration tracking
   expirationWarning: boolean;

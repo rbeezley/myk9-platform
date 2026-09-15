@@ -10,10 +10,17 @@ import { XCircle, ShoppingCart, ArrowLeft, ArrowRight, Eye } from 'lucide-react'
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { useCartStore, useCartItems } from '@/store/cartStore';
+import { continueShoppingTarget } from '@/features/registration/continueShoppingTarget';
 
 export default function CheckoutCancelPage() {
   const navigate = useNavigate();
   const cart = useCartStore(state => state.cart);
+  // A real Stripe cancel returns via a full document load, so `cart` is null
+  // here and only the persisted recovery ids survive. Reading them is what
+  // makes the entry-amendment button reachable in the normal flow instead of
+  // only after an in-app navigation.
+  const recoveryShowId = useCartStore(state => state.cartRecoveryInfo?.showId ?? null);
+  const returnShowId = cart?.show_id ?? recoveryShowId;
   const items = useCartItems();
   const itemCount = items.length;
 
@@ -70,14 +77,22 @@ export default function CheckoutCancelPage() {
               <ShoppingCart className="h-4 w-4 mr-2" />
               Return to Cart
             </Button>
-            {cart?.show_id ? (
+            {returnShowId ? (
+              /*
+                INTENT: MYK9-509 — this goes to the WIZARD for the show, not the
+                show's public page. A cancelled checkout leaves the exhibitor's
+                dog and class selections intact in the saved draft, and the
+                wizard rehydrates them on mount, so this is the one place where
+                "add another class for Ziva" is possible without starting over.
+                The label says where it goes.
+              */
               <Button
                 variant="outline"
                 className="w-full"
-                onClick={() => navigate(`/shows/${cart.show_id}`)}
+                onClick={() => navigate(continueShoppingTarget(returnShowId))}
               >
                 <ArrowRight className="h-4 w-4 mr-2" />
-                Continue Shopping
+                Add or change entries
               </Button>
             ) : (
               <Button variant="outline" className="w-full" onClick={() => navigate('/shows')}>

@@ -13,10 +13,16 @@
 import { useEffect } from 'react';
 import { useRegistrationWizardState } from './useRegistrationWizardState';
 import { createWizardHandlers } from './wizardHandlers';
+import { useWizardDraftRehydration } from './useWizardDraftRehydration';
 
 export function useRegistrationWizard() {
   const state = useRegistrationWizardState();
   const handlers = createWizardHandlers(state);
+
+  // Read side of the persisted draft: restores a same-tab reload or a return
+  // from a cancelled checkout. Must sit here, not in the state hook, because it
+  // drives `handleDraftLoaded`.
+  useWizardDraftRehydration(state, handlers);
 
   const {
     dogs,

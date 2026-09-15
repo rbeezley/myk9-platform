@@ -76,7 +76,6 @@ function makeContextAndOrder(overrides: Partial<SubmitPaymentStepContext> = {}):
     }),
     navigate: vi.fn(),
     discardDraftsWithoutFinalSave: vi.fn(),
-    clearDraftData: vi.fn(),
   };
 
   return {
@@ -119,7 +118,9 @@ describe('submitPaymentStep', () => {
     });
   });
 
-  it('discards only dogs with class lines handed to the cart', async () => {
+  it('leaves the wizard draft alone on the card path — the cart hand-off is not a filing', async () => {
+    // MYK9-509: discarding here retired the exhibitor's selections before
+    // Stripe had even loaded, so a cancelled checkout had nothing to resume.
     const { ctx } = makeContextAndOrder({
       paymentMethod: 'credit_card',
       classSelections: [
@@ -127,13 +128,13 @@ describe('submitPaymentStep', () => {
         { dogId: 'dog-2', trialId: 'trial-1', selectedClasses: [] },
       ],
     });
-    submitRegistrationCartCheckoutMock.mockImplementation(async ({ deps }) => deps.deleteDraft());
 
     await submitPaymentStep(ctx);
 
-    expect(ctx.discardDraftsWithoutFinalSave).toHaveBeenCalledWith([
-      { dogId: 'dog-1', classId: 'class-1' },
-    ]);
+    expect(submitRegistrationCartCheckoutMock).toHaveBeenCalledTimes(1);
+    const [{ deps }] = submitRegistrationCartCheckoutMock.mock.calls[0];
+    expect(deps).not.toHaveProperty('deleteDraft');
+    expect(ctx.discardDraftsWithoutFinalSave).not.toHaveBeenCalled();
   });
 
   it('keeps denied dogs while clearing only successful submission outcomes', async () => {

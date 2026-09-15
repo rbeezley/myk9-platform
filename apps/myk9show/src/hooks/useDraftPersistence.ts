@@ -10,6 +10,7 @@ import {
 import { makeHandlerKey } from '@/types/show-registration-types';
 import { readSavedDraftMetadata } from './readSavedDraftMetadata';
 import { createDraftMetadata, type DraftMetadata, type SavedDraft } from './draftMetadata';
+import { DRAFT_STORAGE_KEY_PREFIX, draftKey, draftMetadataKey } from './draftStorageKeys';
 
 export type { DraftMetadata, SavedDraft } from './draftMetadata';
 
@@ -26,7 +27,7 @@ export interface DraftPersistenceConfig {
 
 const DEFAULT_CONFIG: Required<DraftPersistenceConfig> = {
   autoSaveInterval: 30000, // 30 seconds
-  storageKeyPrefix: 'registration-draft',
+  storageKeyPrefix: DRAFT_STORAGE_KEY_PREFIX,
   maxDraftsPerShow: 5,
   debug: false,
 };
@@ -71,12 +72,12 @@ export function useDraftPersistence(
   // this device — read-side filtering alone would let one user's save evict
   // another user's drafts.
   const getDraftKey = useCallback(
-    (draftId: string) => `${storageKeyPrefix}-${showId}-${userId}-${draftId}`,
+    (draftId: string) => draftKey(storageKeyPrefix, showId, userId, draftId),
     [storageKeyPrefix, showId, userId]
   );
 
   const getMetadataKey = useCallback(
-    () => `${storageKeyPrefix}-metadata-${showId}-${userId}`,
+    () => draftMetadataKey(storageKeyPrefix, showId, userId),
     [storageKeyPrefix, showId, userId]
   );
 

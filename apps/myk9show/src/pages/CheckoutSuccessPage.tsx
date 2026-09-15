@@ -23,6 +23,7 @@ import {
 } from '@/features/payments/checkoutVerification';
 import { CheckoutVerificationIssueCard } from '@/features/payments/CheckoutVerificationIssueCard';
 import { CONFIRMATION_NUMBER_LABEL } from '@/features/registration/confirmationNumberDisplay';
+import { retireDraftsForCheckout } from '@/features/registration/retireDraftsForCheckout';
 
 interface EntryDetails {
   id: string;
@@ -145,6 +146,8 @@ export default function CheckoutSuccessPage() {
                 `
                   id,
                   armband,
+                  dog_id,
+                  class_id,
                   dogs:dog_id (name, call_name),
                   classes:class_id (name, level)
                 `
@@ -164,6 +167,14 @@ export default function CheckoutSuccessPage() {
                   armband_number: (e.armband as string | null) ?? null,
                 }))
               );
+              // MYK9-509: the draft survives the cart hand-off so a CANCELLED
+              // checkout can resume; a verified SUCCESS is where those lines
+              // are really filed. Per line, not by clearing the bucket: a dog
+              // with one paid and one denied class keeps the denied line.
+              // AFTER setEntries: draft bookkeeping must never delay, or on a
+              // slow session lookup withhold, the confirmation the exhibitor
+              // came here to read.
+              await retireDraftsForCheckout(result.showId, data);
             }
           } catch {
             // Payment confirmation is authoritative; entry details are optional.

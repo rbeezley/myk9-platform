@@ -8,13 +8,12 @@ function makeDeps() {
     createCart: vi.fn().mockResolvedValue({ id: 'cart-1' }),
     addItem: vi.fn().mockResolvedValue(true),
     abandonCart: vi.fn().mockResolvedValue(true),
-    deleteDraft: vi.fn().mockResolvedValue(undefined),
     navigate: vi.fn(),
   };
 }
 
 describe('submitRegistrationCartCheckout', () => {
-  it('creates a cart using exhibitorProfileId (not ownerId), adds items, deletes draft, navigates', async () => {
+  it('creates a cart using exhibitorProfileId (not ownerId), adds items, keeps the draft, navigates', async () => {
     const deps = makeDeps();
 
     await submitRegistrationCartCheckout({
@@ -50,7 +49,8 @@ describe('submitRegistrationCartCheckout', () => {
       jumpHeight: '16',
       entryFeeCents: 2500,
     });
-    expect(deps.deleteDraft).toHaveBeenCalledTimes(1);
+    // MYK9-509: the draft outlives the hand-off so a cancelled checkout resumes.
+    expect(deps).not.toHaveProperty('deleteDraft');
     expect(deps.navigate).toHaveBeenCalledWith('/cart');
   });
 
@@ -81,7 +81,7 @@ describe('submitRegistrationCartCheckout', () => {
     ).rejects.toThrow('Failed to add entry to cart');
 
     expect(deps.abandonCart).toHaveBeenCalledTimes(1);
-    expect(deps.deleteDraft).not.toHaveBeenCalled();
+    expect(deps).not.toHaveProperty('deleteDraft');
     expect(deps.navigate).not.toHaveBeenCalled();
   });
 
@@ -143,7 +143,7 @@ describe('submitRegistrationCartCheckout', () => {
     ).rejects.toThrow('Failed to clear existing cart');
 
     expect(deps.addItem).not.toHaveBeenCalled();
-    expect(deps.deleteDraft).not.toHaveBeenCalled();
+    expect(deps).not.toHaveProperty('deleteDraft');
     expect(deps.navigate).not.toHaveBeenCalled();
   });
 
@@ -174,7 +174,7 @@ describe('submitRegistrationCartCheckout', () => {
     ).rejects.toThrow('Failed to add entry to cart');
 
     expect(deps.abandonCart).not.toHaveBeenCalled();
-    expect(deps.deleteDraft).not.toHaveBeenCalled();
+    expect(deps).not.toHaveProperty('deleteDraft');
     expect(deps.navigate).not.toHaveBeenCalled();
   });
 

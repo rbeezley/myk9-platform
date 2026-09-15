@@ -105,7 +105,7 @@ export function useClubDetailsState(selectedClub: Club | null) {
   }, [userWithRoles, selectedClub, isSiteAdmin]);
 
   // MYK9-572: site-admin-only control, independent of computeClubPermissions.
-  const authorizationControl = useClubAuthorizationControl(selectedClub?.id, isSiteAdmin);
+  const authorizationControl = useClubAuthorizationControl(selectedClub, isSiteAdmin);
 
   const visibleActiveTab = !canEditBranding && activeTab === 'branding' ? 'upcoming' : activeTab;
 

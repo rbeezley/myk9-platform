@@ -6,6 +6,11 @@
 --
 -- Conventions match show_publish_gate_trigger_test.sql: run with
 -- psql -X -v ON_ERROR_STOP=1 after migrations; every fixture rolls back.
+--
+-- platform_settings writes below go through SET LOCAL ROLE service_role —
+-- the table's own write-guard trigger (trg_guard_platform_settings_write,
+-- 20260615180000) refuses an UPDATE from any role that is neither a site
+-- admin nor service_role, and the psql role this test connects as is neither.
 
 BEGIN;
 
@@ -18,7 +23,9 @@ INSERT INTO public.clubs (id, name, authorized_at) VALUES
   ('00000000-0000-0000-0000-000000572001', 'MYK9-572 Authorized Club', now()),
   ('00000000-0000-0000-0000-000000572002', 'MYK9-572 Unauthorized Club', NULL);
 
+SET LOCAL ROLE service_role;
 UPDATE public.platform_settings SET stripe_livemode = false WHERE id = true;
+RESET ROLE;
 
 INSERT INTO public.club_stripe_accounts (club_id, stripe_account_id, onboarding_complete, payouts_enabled, livemode)
 VALUES
@@ -31,14 +38,27 @@ INSERT INTO public.shows (id, name, organization, start_date, end_date, club_id,
   ('00000000-0000-0000-0000-000000572011', 'MYK9-572 Unauthorized Show', 'AKC',
    current_date, current_date + 1, '00000000-0000-0000-0000-000000572002', 'draft');
 
--- Already-published fixture on the unauthorized club, inserted directly (this
--- trigger is UPDATE-only, mirrors 20260915195500) so it starts published.
+-- Already-published fixture on the unauthorized club. The trigger is
+-- UPDATE-only (mirrors 20260915195500), so this cannot be INSERTed straight
+-- into 'published' for a club that is unauthorized right now. Insert as
+-- draft, authorize the club, publish it, then revoke authorization again —
+-- this exercises the never-retroactive rule for real instead of assuming an
+-- already-published row can be inserted directly.
 INSERT INTO public.shows (id, name, organization, start_date, end_date, club_id, status) VALUES
   ('00000000-0000-0000-0000-000000572012', 'MYK9-572 Already Published (unauthorized club)', 'AKC',
-   current_date, current_date + 1, '00000000-0000-0000-0000-000000572002', 'published');
+   current_date, current_date + 1, '00000000-0000-0000-0000-000000572002', 'draft');
+
+UPDATE public.clubs SET authorized_at = now() WHERE id = '00000000-0000-0000-0000-000000572002';
+UPDATE public.shows SET status = 'published' WHERE id = '00000000-0000-0000-0000-000000572012';
+UPDATE public.clubs SET authorized_at = NULL WHERE id = '00000000-0000-0000-0000-000000572002';
 
 -- ---------------------------------------------------------------------------
--- 1. anon SELECT excludes the unauthorized club, includes the authorized one.
+-- 1. anon SELECT excludes the unauthorized club, includes the authorized
+--    one, and does not error (the P0 regression: a clubs_select predicate
+--    that references public.club_members directly gets ACL-checked at
+--    executor start regardless of OR short-circuiting, and anon has no
+--    SELECT on club_members — 403 on every anon read of clubs, not just the
+--    unauthorized row).
 -- ---------------------------------------------------------------------------
 DO $$
 DECLARE
@@ -59,7 +79,9 @@ BEGIN
   END IF;
 
   RESET ROLE;
-  RAISE NOTICE 'PASS anon-select: excludes unauthorized, includes authorized';
+  RAISE NOTICE 'PASS anon-select: excludes unauthorized, includes authorized, no error';
+EXCEPTION WHEN OTHERS THEN
+  RAISE EXCEPTION 'FAIL anon-select: anon SELECT on clubs raised % (%)', SQLERRM, SQLSTATE;
 END;
 $$;
 
@@ -104,6 +126,142 @@ $$;
 RESET ROLE;
 
 -- ---------------------------------------------------------------------------
+-- 2b. A club_admin of a DIFFERENT club cannot see the unauthorized club, and
+--     an authenticated exhibitor with no relationship to it cannot either
+--     (negative controls in the authenticated role, not only anon).
+-- ---------------------------------------------------------------------------
+INSERT INTO public.clubs (id, name, authorized_at) VALUES
+  ('00000000-0000-0000-0000-000000572003', 'MYK9-572 Other Club', now());
+
+DO $$
+DECLARE
+  v_auth_user_id uuid := gen_random_uuid();
+  v_person_id uuid := gen_random_uuid();
+  v_role_id uuid;
+BEGIN
+  INSERT INTO public.people (id, auth_user_id, first_name, last_name, email)
+  VALUES (v_person_id, v_auth_user_id, 'MYK9-572', 'OtherClubAdmin', 'myk9572-otheradmin@example.test');
+
+  SELECT id INTO v_role_id FROM public.roles WHERE name = 'club_admin';
+
+  INSERT INTO public.user_roles (user_id, role_id, club_id, show_id, is_active, granted_at, granted_by, auth_user_id)
+  VALUES (v_person_id, v_role_id, '00000000-0000-0000-0000-000000572003', NULL, true, now(), v_person_id, v_auth_user_id);
+
+  PERFORM set_config('myk9572.otheradmin_auth_user_id', v_auth_user_id::text, false);
+END;
+$$;
+
+SET LOCAL ROLE authenticated;
+SELECT set_config('request.jwt.claim.sub', current_setting('myk9572.otheradmin_auth_user_id'), true);
+
+DO $$
+DECLARE
+  v_count integer;
+BEGIN
+  SELECT count(*) INTO v_count FROM public.clubs
+   WHERE id = '00000000-0000-0000-0000-000000572002';
+  IF v_count <> 0 THEN
+    RAISE EXCEPTION 'FAIL other-club-admin-cannot-see: a club_admin of a DIFFERENT club could see the unauthorized club';
+  END IF;
+  RAISE NOTICE 'PASS other-club-admin-cannot-see';
+END;
+$$;
+
+RESET ROLE;
+
+DO $$
+DECLARE
+  v_auth_user_id uuid := gen_random_uuid();
+  v_person_id uuid := gen_random_uuid();
+BEGIN
+  INSERT INTO public.people (id, auth_user_id, first_name, last_name, email)
+  VALUES (v_person_id, v_auth_user_id, 'MYK9-572', 'Exhibitor', 'myk9572-exhibitor@example.test');
+
+  PERFORM set_config('myk9572.exhibitor_auth_user_id', v_auth_user_id::text, false);
+END;
+$$;
+
+SET LOCAL ROLE authenticated;
+SELECT set_config('request.jwt.claim.sub', current_setting('myk9572.exhibitor_auth_user_id'), true);
+
+DO $$
+DECLARE
+  v_count integer;
+BEGIN
+  SELECT count(*) INTO v_count FROM public.clubs
+   WHERE id = '00000000-0000-0000-0000-000000572002';
+  IF v_count <> 0 THEN
+    RAISE EXCEPTION 'FAIL unrelated-exhibitor-cannot-see: an exhibitor with no relationship to the club could see it';
+  END IF;
+  RAISE NOTICE 'PASS unrelated-exhibitor-cannot-see';
+END;
+$$;
+
+RESET ROLE;
+
+-- ---------------------------------------------------------------------------
+-- 2c. An active club_members row (not club_admin) sees the unauthorized
+--     club via is_club_member(); a RESIGNED member does not.
+-- ---------------------------------------------------------------------------
+DO $$
+DECLARE
+  v_active_auth_user_id uuid := gen_random_uuid();
+  v_active_person_id uuid := gen_random_uuid();
+  v_resigned_auth_user_id uuid := gen_random_uuid();
+  v_resigned_person_id uuid := gen_random_uuid();
+BEGIN
+  INSERT INTO public.people (id, auth_user_id, first_name, last_name, email)
+  VALUES
+    (v_active_person_id, v_active_auth_user_id, 'MYK9-572', 'ActiveMember', 'myk9572-activemember@example.test'),
+    (v_resigned_person_id, v_resigned_auth_user_id, 'MYK9-572', 'ResignedMember', 'myk9572-resignedmember@example.test');
+
+  INSERT INTO public.club_members (club_id, person_id, membership_status)
+  VALUES
+    ('00000000-0000-0000-0000-000000572002', v_active_person_id, 'active'),
+    ('00000000-0000-0000-0000-000000572002', v_resigned_person_id, 'resigned');
+
+  PERFORM set_config('myk9572.active_member_auth_user_id', v_active_auth_user_id::text, false);
+  PERFORM set_config('myk9572.resigned_member_auth_user_id', v_resigned_auth_user_id::text, false);
+END;
+$$;
+
+SET LOCAL ROLE authenticated;
+SELECT set_config('request.jwt.claim.sub', current_setting('myk9572.active_member_auth_user_id'), true);
+
+DO $$
+DECLARE
+  v_count integer;
+BEGIN
+  SELECT count(*) INTO v_count FROM public.clubs
+   WHERE id = '00000000-0000-0000-0000-000000572002';
+  IF v_count <> 1 THEN
+    RAISE EXCEPTION 'FAIL active-member-sees-unauthorized-club: an active club_members row could not see it';
+  END IF;
+  RAISE NOTICE 'PASS active-member-sees-unauthorized-club';
+END;
+$$;
+
+RESET ROLE;
+
+SET LOCAL ROLE authenticated;
+SELECT set_config('request.jwt.claim.sub', current_setting('myk9572.resigned_member_auth_user_id'), true);
+
+DO $$
+DECLARE
+  v_count integer;
+BEGIN
+  SELECT count(*) INTO v_count FROM public.clubs
+   WHERE id = '00000000-0000-0000-0000-000000572002';
+  IF v_count <> 0 THEN
+    RAISE EXCEPTION 'FAIL resigned-member-cannot-see: a RESIGNED club_members row could see the unauthorized club';
+  END IF;
+  RAISE NOTICE 'PASS resigned-member-cannot-see';
+END;
+$$;
+
+RESET ROLE;
+
+-- ---------------------------------------------------------------------------
 -- 3. Publishing a show for the unauthorized club is refused with MK004,
 --    even though its Stripe account is fully ready.
 -- ---------------------------------------------------------------------------
@@ -122,6 +280,36 @@ BEGIN
     RAISE EXCEPTION 'FAIL unauthorized-publish: unexpected message %', v_message;
   END IF;
   RAISE NOTICE 'PASS unauthorized-publish: refused with MK004 and the authorization message';
+END;
+$$;
+
+-- ---------------------------------------------------------------------------
+-- 3b. A club that is BOTH unauthorized AND not Stripe-ready fails with
+--     MK004, not MK003 — the authorization check runs first in the trigger,
+--     so it must win the refusal even when both reasons apply.
+-- ---------------------------------------------------------------------------
+INSERT INTO public.clubs (id, name, authorized_at) VALUES
+  ('00000000-0000-0000-0000-000000572004', 'MYK9-572 Unauthorized, Not Stripe-Ready', NULL);
+
+INSERT INTO public.shows (id, name, organization, start_date, end_date, club_id, status) VALUES
+  ('00000000-0000-0000-0000-000000572013', 'MYK9-572 Doubly Blocked Show', 'AKC',
+   current_date, current_date + 1, '00000000-0000-0000-0000-000000572004', 'draft');
+
+DO $$
+DECLARE
+  v_sqlstate text;
+BEGIN
+  BEGIN
+    UPDATE public.shows SET status = 'published'
+     WHERE id = '00000000-0000-0000-0000-000000572013';
+    RAISE EXCEPTION 'FAIL doubly-blocked-precedence: publish succeeded for a club that is neither authorized nor Stripe-ready';
+  EXCEPTION WHEN OTHERS THEN
+    v_sqlstate := SQLSTATE;
+  END;
+  IF v_sqlstate <> 'MK004' THEN
+    RAISE EXCEPTION 'FAIL doubly-blocked-precedence: expected MK004 (authorization wins), got %', v_sqlstate;
+  END IF;
+  RAISE NOTICE 'PASS doubly-blocked-precedence: MK004 wins over MK003 when both apply';
 END;
 $$;
 
@@ -152,7 +340,10 @@ UPDATE public.clubs SET authorized_at = NULL WHERE id = '00000000-0000-0000-0000
 
 -- ---------------------------------------------------------------------------
 -- 5. An already-published show on a club that becomes/stays unauthorized
---    still accepts an unrelated edit (never retroactive).
+--    still accepts an unrelated edit (never retroactive). Fixture 572012 was
+--    built by authorizing, publishing, then revoking (see Fixtures above),
+--    so this exercises the real revoke-after-publish path, not an
+--    already-published row inserted directly.
 -- ---------------------------------------------------------------------------
 DO $$
 DECLARE
@@ -256,6 +447,112 @@ BEGIN
   END IF;
 
   RAISE NOTICE 'PASS site-admin-authorizes: authorized_at set and permission_audit_log written';
+END;
+$$;
+
+-- ---------------------------------------------------------------------------
+-- 8. set_club_authorization is idempotent: a repeat "authorize" call on an
+--    already-authorized club does not stamp a new authorized_at and does
+--    not write a second audit row.
+-- ---------------------------------------------------------------------------
+SET LOCAL ROLE authenticated;
+SELECT set_config('request.jwt.claim.sub', current_setting('myk9572.siteadmin_auth_user_id'), true);
+
+DO $$
+DECLARE
+  v_authorized_at_before timestamptz;
+  v_authorized_at_after timestamptz;
+  v_audit_count integer;
+BEGIN
+  SELECT authorized_at INTO v_authorized_at_before FROM public.clubs
+   WHERE id = '00000000-0000-0000-0000-000000572002';
+
+  PERFORM pg_sleep(0.01); -- guarantee now() would differ if the no-op path re-stamped it
+  PERFORM public.set_club_authorization('00000000-0000-0000-0000-000000572002', true);
+
+  SELECT authorized_at INTO v_authorized_at_after FROM public.clubs
+   WHERE id = '00000000-0000-0000-0000-000000572002';
+
+  IF v_authorized_at_after IS DISTINCT FROM v_authorized_at_before THEN
+    RAISE EXCEPTION 'FAIL idempotent-authorize: authorized_at changed on a repeat authorize call (% -> %)',
+      v_authorized_at_before, v_authorized_at_after;
+  END IF;
+
+  SELECT count(*) INTO v_audit_count FROM public.permission_audit_log
+   WHERE action = 'club_authorized'
+     AND target_type = 'club'
+     AND target_id = '00000000-0000-0000-0000-000000572002';
+  IF v_audit_count <> 1 THEN
+    RAISE EXCEPTION 'FAIL idempotent-authorize: expected still 1 permission_audit_log row after the repeat call, found %', v_audit_count;
+  END IF;
+
+  RAISE NOTICE 'PASS idempotent-authorize: repeat authorize is a no-op (no re-stamp, no duplicate audit row)';
+END;
+$$;
+
+RESET ROLE;
+
+-- ---------------------------------------------------------------------------
+-- 9. set_club_authorization(..., false) clears authorized_at and writes a
+--    club_authorization_revoked audit row; a repeat revoke is also a no-op.
+-- ---------------------------------------------------------------------------
+SET LOCAL ROLE authenticated;
+SELECT set_config('request.jwt.claim.sub', current_setting('myk9572.siteadmin_auth_user_id'), true);
+
+DO $$
+BEGIN
+  PERFORM public.set_club_authorization('00000000-0000-0000-0000-000000572002', false);
+END;
+$$;
+
+RESET ROLE;
+
+DO $$
+DECLARE
+  v_authorized_at timestamptz;
+  v_revoked_audit_count integer;
+BEGIN
+  SELECT authorized_at INTO v_authorized_at FROM public.clubs
+   WHERE id = '00000000-0000-0000-0000-000000572002';
+  IF v_authorized_at IS NOT NULL THEN
+    RAISE EXCEPTION 'FAIL site-admin-revokes: authorized_at was not cleared';
+  END IF;
+
+  SELECT count(*) INTO v_revoked_audit_count FROM public.permission_audit_log
+   WHERE action = 'club_authorization_revoked'
+     AND target_type = 'club'
+     AND target_id = '00000000-0000-0000-0000-000000572002';
+  IF v_revoked_audit_count <> 1 THEN
+    RAISE EXCEPTION 'FAIL site-admin-revokes: expected 1 club_authorization_revoked audit row, found %', v_revoked_audit_count;
+  END IF;
+
+  RAISE NOTICE 'PASS site-admin-revokes: authorized_at cleared and club_authorization_revoked audit row written';
+END;
+$$;
+
+SET LOCAL ROLE authenticated;
+SELECT set_config('request.jwt.claim.sub', current_setting('myk9572.siteadmin_auth_user_id'), true);
+
+DO $$
+BEGIN
+  PERFORM public.set_club_authorization('00000000-0000-0000-0000-000000572002', false);
+END;
+$$;
+
+RESET ROLE;
+
+DO $$
+DECLARE
+  v_revoked_audit_count integer;
+BEGIN
+  SELECT count(*) INTO v_revoked_audit_count FROM public.permission_audit_log
+   WHERE action = 'club_authorization_revoked'
+     AND target_type = 'club'
+     AND target_id = '00000000-0000-0000-0000-000000572002';
+  IF v_revoked_audit_count <> 1 THEN
+    RAISE EXCEPTION 'FAIL idempotent-revoke: expected still 1 club_authorization_revoked audit row after the repeat call, found %', v_revoked_audit_count;
+  END IF;
+  RAISE NOTICE 'PASS idempotent-revoke: repeat revoke is a no-op (no duplicate audit row)';
 END;
 $$;
 

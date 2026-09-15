@@ -52,6 +52,7 @@ function replicatedToClub(rc: ReplicatedClub): Club {
     },
     upcomingShows: [],
     pastShows: [],
+    authorizedAt: rc.authorizedAt ?? null,
     _syncStatus: rc._syncStatus,
     _version: rc._version,
     _lastModified: rc._lastModified,
@@ -81,6 +82,13 @@ function clubToReplicated(club: Club): ReplicatedClub {
     state: club.address.state,
     zipCode: club.address.zipCode,
     clubNumber: club.clubNumber || undefined,
+    // MYK9-572: round-trip, not editable here — clubToReplicated feeds a
+    // FULL object into ReplicatedClubsTable.updateClub's `{...current,
+    // ...updates}` merge, so omitting this would overwrite a cached
+    // authorizedAt with undefined on every unrelated club edit (name, logo,
+    // ...). The RPC (set_club_authorization) is the only real write path;
+    // this is purely preservation.
+    authorizedAt: club.authorizedAt,
     _syncStatus: club._syncStatus,
     _version: club._version,
     _lastModified: club._lastModified,

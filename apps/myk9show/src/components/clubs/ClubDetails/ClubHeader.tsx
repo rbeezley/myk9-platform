@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import {
   MapPin,
   Mail,
@@ -21,6 +21,16 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { CoverImageUpload } from '@/components/ui/cover-image-upload';
 import { Club } from '@/types/club-types';
 import { generatePalette } from '@/lib/branding';
@@ -43,7 +53,7 @@ interface ClubHeaderProps {
   // gates the affordance (mirrors set_club_authorization's own
   // is_site_admin() check); isClubAuthorized is undefined while loading.
   canAuthorizeClub?: boolean;
-  isClubAuthorized?: boolean;
+  isClubAuthorized?: boolean | undefined;
   isAuthorizationLoading?: boolean;
   isAuthorizationUpdating?: boolean;
   onAuthorizeClub?: () => void;
@@ -70,6 +80,10 @@ export const ClubHeader: React.FC<ClubHeaderProps> = ({
 }) => {
   const handleAuthorizeClub = onAuthorizeClub ?? (() => {});
   const handleRevokeAuthorization = onRevokeAuthorization ?? (() => {});
+  // P3-C: revoking has no confirm today (unlike Delete Club, right below it
+  // in this same menu) even though it immediately blocks the club from
+  // publishing any NEW show — cheap to fat-finger from a dropdown item.
+  const [showRevokeConfirm, setShowRevokeConfirm] = useState(false);
   const palette = useMemo(
     () => (club.accentColor ? generatePalette(club.accentColor) : null),
     [club.accentColor]
@@ -159,7 +173,7 @@ export const ClubHeader: React.FC<ClubHeaderProps> = ({
                   <DropdownMenuSeparator />
                   {isClubAuthorized ? (
                     <DropdownMenuItem
-                      onClick={handleRevokeAuthorization}
+                      onClick={() => setShowRevokeConfirm(true)}
                       disabled={isAuthorizationUpdating}
                     >
                       <ShieldOff className="mr-2 h-4 w-4" />
@@ -269,7 +283,12 @@ export const ClubHeader: React.FC<ClubHeaderProps> = ({
             )}
             <div className="flex items-center gap-2 mb-2">
               <h1 className="text-3xl font-bold text-foreground">{club.name}</h1>
-              {canAuthorizeClub && !isAuthorizationLoading && isClubAuthorized === false && (
+              {/* P2-B: visible to ANY viewer who can see this club at all
+                  (clubs_select already scopes that) — a club's own
+                  admin/secretary needs to know WHY publish is blocked just
+                  as much as a site admin does. Only the Authorize/Revoke
+                  MENU items above stay site-admin-only. */}
+              {isClubAuthorized === false && (
                 <span
                   data-testid="club-unauthorized-badge"
                   className="inline-flex items-center gap-1 rounded-full bg-warning/10 border border-warning/30 px-2.5 py-0.5 text-xs font-medium text-warning"
@@ -337,6 +356,30 @@ export const ClubHeader: React.FC<ClubHeaderProps> = ({
           </div>
         </div>
       </div>
+
+      <AlertDialog open={showRevokeConfirm} onOpenChange={setShowRevokeConfirm}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Revoke this club&apos;s authorization?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Hide {club.name} from the public club directory. Its published shows stay published;
+              new shows cannot be published until it is authorized again.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                handleRevokeAuthorization();
+                setShowRevokeConfirm(false);
+              }}
+              className="bg-destructive hover:bg-destructive/90 text-destructive-foreground"
+            >
+              Revoke Authorization
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };

@@ -1454,6 +1454,62 @@ describe('ReplicatedClubsTable', () => {
     });
   });
 
+  // MYK9-572 P2-A: the incremental sync above only ever ADDS/UPDATES rows
+  // still visible under clubs_select — it has no tombstone signal for a row
+  // that fell OUT of visibility (authorization revoked, membership lapsed).
+  // reconcileVisibility() closes that gap by pruning against the complete
+  // live/visible id set, the same pattern ReplicatedDogsTable.
+  // reconcileDeleted() already uses.
+  describe('reconcileVisibility (MYK9-572)', () => {
+    it('removes a locally-cached club that is absent from the live id list', async () => {
+      await table.set('club-visible', {
+        id: 'club-visible',
+        name: 'Still Visible Club',
+        email: 'visible@club.com',
+        phone: '555-1111',
+      });
+      await table.set('club-revoked', {
+        id: 'club-revoked',
+        name: 'Revoked Club',
+        email: 'revoked@club.com',
+        phone: '555-2222',
+      });
+
+      const mockIs = vi.fn().mockResolvedValue({
+        data: [{ id: 'club-visible' }],
+        error: null,
+      });
+      const mockSelect = vi.fn().mockReturnValue({ is: mockIs });
+
+      const { supabase } = await import('@/services/database/supabaseClient');
+      vi.mocked(supabase.from).mockReturnValue(fromAny({ select: mockSelect }));
+
+      const removed = await table.reconcileVisibility();
+
+      expect(removed).toBe(1);
+      expect(await table.get('club-visible')).not.toBeNull();
+      expect(await table.get('club-revoked')).toBeNull();
+    });
+
+    it('removes nothing when the id fetch fails (never prune against a partial set)', async () => {
+      await table.set('club-a', { id: 'club-a', name: 'Club A', email: 'a@club.com', phone: '1' });
+
+      const mockIs = vi.fn().mockResolvedValue({
+        data: null,
+        error: { message: 'network error' },
+      });
+      const mockSelect = vi.fn().mockReturnValue({ is: mockIs });
+
+      const { supabase } = await import('@/services/database/supabaseClient');
+      vi.mocked(supabase.from).mockReturnValue(fromAny({ select: mockSelect }));
+
+      const removed = await table.reconcileVisibility();
+
+      expect(removed).toBe(0);
+      expect(await table.get('club-a')).not.toBeNull();
+    });
+  });
+
   describe('Singleton Export', () => {
     it('should export singleton instance', async () => {
       const { replicatedClubsTable } = await import('../ReplicatedClubsTable');

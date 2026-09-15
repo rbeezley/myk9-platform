@@ -42,6 +42,8 @@ interface ClubRow {
   updated_at: string | null;
   deleted_at: string | null;
   deleted_by: string | null;
+  // MYK9-572
+  authorized_at: string | null;
   // Add other common fields returned by Supabase to avoid type mismatch
   [key: string]: string | null | undefined;
 }
@@ -67,6 +69,11 @@ export interface ReplicatedClub {
   // Timestamps
   createdAt?: string | undefined;
   updatedAt?: string | undefined;
+  // MYK9-572: null = not yet authorized by a site admin. See the matching
+  // field on the app-level Club type (club-types.ts) for the full contract —
+  // set/cleared only by set_club_authorization(), never written by the
+  // client.
+  authorizedAt?: string | null | undefined;
   // Sync metadata
   _version?: number | undefined;
   _lastModified?: Date | undefined;
@@ -96,6 +103,7 @@ export function rowToClub(row: ClubRow): ReplicatedClub {
     accentColor: row.accent_color ?? undefined,
     createdAt: row.created_at ?? undefined,
     updatedAt: row.updated_at ?? undefined,
+    authorizedAt: row.authorized_at,
   };
 }
 
@@ -183,7 +191,50 @@ export class ReplicatedClubsTable extends ReplicatedTable<ReplicatedClub> {
       return { ...result, error: getSyncErrorMessage(result.error) };
     }
 
+    // MYK9-572: reconcile against RLS visibility. The incremental pull above
+    // only ever ADDS/UPDATES rows still visible to this caller — it has no
+    // tombstone signal for a row that fell OUT of clubs_select (a club whose
+    // authorization was revoked, or whose caller's own club_members row
+    // lapsed), so without this a revoked club would linger forever in a
+    // guest's cached public directory (BrowseClubsPage). Side-effect only
+    // and fully guarded: a failure here must never turn a successful
+    // download into a failed sync.
+    if (result.success) {
+      try {
+        const removed = await this.reconcileVisibility();
+        if (removed > 0) {
+          logger.log(`[${this.getTableName()}] reconcileVisibility removed ${removed} stale rows`);
+        }
+      } catch (err) {
+        logger.warn(`[${this.getTableName()}] reconcileVisibility skipped`, err);
+      }
+    }
+
     return result;
+  }
+
+  /**
+   * Remove locally-cached clubs this caller can no longer see under
+   * clubs_select — a club whose authorization was revoked, or whose caller's
+   * own club_members/club_admin grant lapsed. Strategy mirrors
+   * ReplicatedDogsTable.reconcileDeleted(): fetch the complete set of
+   * currently-visible ids and drop any non-dirty local row not in it
+   * (removeStaleEntries preserves dirty rows, so a pending local edit is
+   * never wiped). Unlike dogs, this is a single unpaginated `select('id')` —
+   * the clubs table is small, well under PostgREST's page cap.
+   *
+   * @returns number of stale rows removed.
+   */
+  async reconcileVisibility(): Promise<number> {
+    const { data, error } = await supabase.from('clubs').select('id').is('deleted_at', null);
+    if (error || !data) {
+      // Any fetch failure → prune nothing. Pruning against a partial/absent
+      // set could wipe rows that are still perfectly visible.
+      return 0;
+    }
+
+    const liveIds = new Set(data.map(row => String((row as { id: string }).id)));
+    return this.removeStaleEntries(liveIds);
   }
 
   /**

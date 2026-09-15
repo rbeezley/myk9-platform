@@ -19,19 +19,28 @@
 --
 -- -- REPLICATION DECISION --------------------------------------------------
 -- clubs is a replicated table (clubs_version_increment). ReplicatedClubsTable
--- .sync() pulls incrementally through the AUTHENTICATED client
--- (`supabase.from('clubs').select('*').gt('updated_at', since)`), so RLS
--- applies to every pull — an offline device can never receive a club row it
--- is not allowed to see. But the incremental pull only ever ADDS/UPDATES
--- rows that are still visible; it has no tombstone or deletion signal, so a
--- club an offline client already cached BEFORE it became unauthorized (or
--- before the caller's own membership lapsed) stays in local storage until
--- some other path clears it. This is accepted as-is, not fixed here: nothing
--- that cached row can do is publicly visible, because show publication is
--- independently gated at the server (this same migration, and 20260915195500
--- for Stripe) — a stale local club row cannot be used to publish a show or to
--- appear in anyone else's public directory. Building a tombstone mechanism
--- for this is out of scope for MYK9-572.
+-- .sync() pulls incrementally through the AUTHENTICATED (or anon, for a
+-- signed-out guest) client (`supabase.from('clubs').select('*')
+-- .gt('updated_at', since)`), so RLS applies to every pull — an offline
+-- device can never receive a club row it is not allowed to see. But the
+-- incremental pull only ever ADDS/UPDATES rows that are still visible; it has
+-- no tombstone or deletion signal, so a club an offline client already cached
+-- BEFORE it became unauthorized (or before the caller's own membership
+-- lapsed) would otherwise stay in local storage, including in the public
+-- club directory (BrowseClubsPage), until some other path clears it.
+-- ReplicatedClubsTable.reconcileVisibility() closes this: after every
+-- successful sync it fetches the complete live/visible id set
+-- (`select('id')`, unpaginated — the clubs table is small) and removes any
+-- locally-cached, non-dirty club not in that set, the same reconcile-against-
+-- live-ids pattern ReplicatedDogsTable.reconcileDeleted() already uses for
+-- soft-deleted dogs. A revoked club therefore drops out of a guest's cached
+-- directory on their next sync, not only at the server.
+--
+-- This migration's backfill (`UPDATE public.clubs SET authorized_at = now()
+-- WHERE authorized_at IS NULL`, below) fires clubs_version_increment and
+-- update_clubs_updated_at on every existing row, so every replicated client
+-- re-pulls the whole clubs table on its next incremental sync — benign, it
+-- only propagates the new authorized_at/authorized_by columns.
 --
 -- -- READ-PATH AUDIT (clubs_select going from `true` to a predicate) --------
 -- apps/myk9show/src/services/database/clubs/reads.ts — getAllClubs /
@@ -82,7 +91,7 @@ ALTER TABLE public.clubs
 COMMENT ON COLUMN public.clubs.authorized_at IS
   'MYK9-572: null = not yet authorized by a site admin. Gates show publication (enforce_show_publish_gate, SQLSTATE MK004) and the public club directory (clubs_select). Set/cleared only by set_club_authorization(). Revoking (setting back to null) is deliberately never retroactive — it does not unpublish shows the club already published.';
 COMMENT ON COLUMN public.clubs.authorized_by IS
-  'MYK9-572: the site admin (people.id) who last called set_club_authorization() for this club, for either direction (authorize or revoke). Null alongside authorized_at when never authorized.';
+  'MYK9-572: the site admin (people.id) who last called set_club_authorization() for this club, for either direction (authorize or revoke). Null alongside authorized_at when never authorized. NOT cleared on revoke — after a revoke, authorized_by still names the admin who last touched the row (most recently, whoever revoked it) even though authorized_at goes back to null; read it as "last actor", not "who authorized".';
 
 -- All clubs that exist as of this migration are trusted — they predate the
 -- authorization gate entirely, most were created by site admins or vetted
@@ -164,10 +173,50 @@ REVOKE ALL ON FUNCTION public.enforce_show_publish_gate() FROM anon;
 REVOKE ALL ON FUNCTION public.enforce_show_publish_gate() FROM authenticated;
 
 -- ---------------------------------------------------------------------------
--- 3. clubs_select: hide unauthorized clubs from the public directory, but
+-- 3. is_club_member(): SECURITY DEFINER membership check, mirroring
+--    is_club_admin/is_trial_secretary's own shape (copied from the LATEST
+--    migration that defines is_club_admin, 156_denormalize_auth_user_id_
+--    into_user_roles.sql). Needed so clubs_select can check membership
+--    WITHOUT referencing public.club_members directly in the policy
+--    expression: Postgres ACL-checks every relation a policy's USING clause
+--    names at executor start, regardless of OR short-circuiting, so a bare
+--    `EXISTS (SELECT 1 FROM club_members ...)` 403s every anon SELECT on
+--    clubs the moment anon lacks table-level SELECT on club_members — which
+--    it deliberately does (club rosters are not public). Wrapping the same
+--    check in a SECURITY DEFINER function sidesteps the caller-privilege ACL
+--    check entirely (the function owner's privileges apply instead), the
+--    same reason is_club_admin/is_trial_secretary/is_site_admin already
+--    exist as functions rather than inline EXISTS clauses.
+-- ---------------------------------------------------------------------------
+CREATE OR REPLACE FUNCTION public.is_club_member(check_club_id uuid)
+RETURNS boolean
+LANGUAGE sql
+STABLE
+SECURITY DEFINER
+SET search_path = ''
+AS $$
+  SELECT EXISTS (
+    SELECT 1 FROM public.club_members cm
+    JOIN public.people p ON p.id = cm.person_id
+    WHERE cm.club_id = check_club_id
+      AND cm.membership_status = 'active'
+      AND p.auth_user_id = (SELECT auth.uid())
+  );
+$$;
+
+COMMENT ON FUNCTION public.is_club_member(uuid) IS
+  'MYK9-572: true when the caller has an ACTIVE club_members row for check_club_id. person_id on club_members is a people.id, not auth.uid() — this joins through people.auth_user_id rather than comparing them directly (a prior draft of clubs_select compared cm.person_id = auth.uid() directly, which can never match). SECURITY DEFINER so clubs_select never needs table-level SELECT on club_members for anon/authenticated.';
+
+REVOKE ALL ON FUNCTION public.is_club_member(uuid) FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.is_club_member(uuid) TO anon, authenticated;
+
+-- ---------------------------------------------------------------------------
+-- 4. clubs_select: hide unauthorized clubs from the public directory, but
 --    keep them visible to a site admin, the club's own admin(s)/secretary,
---    and any club_members row for that club (mirrors club_members_select's
---    own membership check, 053_club_members_officers.sql).
+--    and any ACTIVE club_members row for that club (mirrors
+--    club_members_select's own membership check, 053_club_members_
+--    officers.sql), via is_club_member() rather than a raw club_members
+--    EXISTS (see that function's own comment for why).
 -- ---------------------------------------------------------------------------
 DROP POLICY IF EXISTS "clubs_select" ON public.clubs;
 
@@ -175,19 +224,24 @@ CREATE POLICY "clubs_select" ON public.clubs
   FOR SELECT USING (
     authorized_at IS NOT NULL
     OR (SELECT public.is_site_admin())
-    OR (SELECT public.is_club_admin(id))
-    OR (SELECT public.is_trial_secretary(id))
-    OR EXISTS (
-      SELECT 1 FROM public.club_members cm
-      WHERE cm.club_id = clubs.id AND cm.person_id = (SELECT auth.uid())
-    )
+    OR public.is_club_admin(id)
+    OR public.is_trial_secretary(id)
+    OR public.is_club_member(id)
   );
 
 COMMENT ON POLICY clubs_select ON public.clubs IS
-  'MYK9-572: public only once authorized_at IS NOT NULL (superseding the prior "deliberately public" comment from MYK9-93 / 20260725150000). A site admin, the club''s own club_admin/secretary, or a club_members row for that club can always see it regardless of authorization state — the creator of a brand-new unauthorized club is covered by is_club_admin(id) via trg_grant_club_admin_to_club_creator (20260511100000).';
+  'MYK9-572: public only once authorized_at IS NOT NULL (superseding the prior "deliberately public" comment from MYK9-93 / 20260725150000). A site admin, the club''s own club_admin/secretary, or an active club_members row for that club can always see it regardless of authorization state — the creator of a brand-new unauthorized club is covered by is_club_admin(id) via trg_grant_club_admin_to_club_creator (20260511100000). is_site_admin() stays wrapped in a scalar subquery (InitPlan — cached once per statement, it takes no argument); is_club_admin/is_trial_secretary/is_club_member are called bare because they are correlated on clubs.id and vary per row, so wrapping them buys no caching.';
+
+-- Anon has table-level SELECT on clubs (needed for the authorized rows in the
+-- public directory), but authorized_by (the site admin's own people.id) is
+-- never meant for a signed-out guest — narrow with a column-level REVOKE
+-- rather than relying on omission (ALTER DEFAULT PRIVILEGES in this database
+-- grants anon full CRUD on every NEW table unless revoked explicitly; see
+-- the Anon Default-Privileges Trap). authenticated keeps full column access.
+REVOKE SELECT (authorized_by) ON public.clubs FROM anon;
 
 -- ---------------------------------------------------------------------------
--- 4. set_club_authorization(): the one write path for authorized_at/_by.
+-- 5. set_club_authorization(): the one write path for authorized_at/_by.
 -- ---------------------------------------------------------------------------
 CREATE OR REPLACE FUNCTION public.set_club_authorization(
   p_club_id uuid,
@@ -200,10 +254,31 @@ SET search_path = public
 AS $$
 DECLARE
   v_actor_person_id uuid;
+  v_current_authorized_at timestamptz;
 BEGIN
   IF NOT public.is_site_admin() THEN
     RAISE EXCEPTION 'Only site admins can authorize or revoke a club'
       USING ERRCODE = '42501';
+  END IF;
+
+  SELECT authorized_at INTO v_current_authorized_at
+  FROM public.clubs
+  WHERE id = p_club_id;
+
+  IF NOT FOUND THEN
+    RAISE EXCEPTION 'Club % not found', p_club_id
+      USING ERRCODE = 'P0002';
+  END IF;
+
+  -- Idempotent: already in the requested state (double-click, retry after a
+  -- slow network response, two site admins acting at once). Return early —
+  -- no authorized_at/authorized_by churn (a repeat "authorize" must not stamp
+  -- a fresh now() over the original authorization time or reassign
+  -- authorized_by to whoever merely repeated the call) and no duplicate
+  -- permission_audit_log row for the same action.
+  IF (p_authorized AND v_current_authorized_at IS NOT NULL)
+     OR (NOT p_authorized AND v_current_authorized_at IS NULL) THEN
+    RETURN;
   END IF;
 
   SELECT id INTO v_actor_person_id
@@ -215,11 +290,6 @@ BEGIN
   SET authorized_at = CASE WHEN p_authorized THEN now() ELSE NULL END,
       authorized_by = v_actor_person_id
   WHERE id = p_club_id;
-
-  IF NOT FOUND THEN
-    RAISE EXCEPTION 'Club % not found', p_club_id
-      USING ERRCODE = 'P0002';
-  END IF;
 
   INSERT INTO public.permission_audit_log (
     user_id,
@@ -239,14 +309,14 @@ END;
 $$;
 
 COMMENT ON FUNCTION public.set_club_authorization(uuid, boolean) IS
-  'MYK9-572: the only write path for clubs.authorized_at/_by. Site-admin only (restates is_site_admin(), does not rely on clubs_update RLS). Revoking never unpublishes the club''s existing shows — enforce_show_publish_gate only fires on a transition INTO published. Writes a permission_audit_log row for both directions.';
+  'MYK9-572: the only write path for clubs.authorized_at/_by. Site-admin only (restates is_site_admin(), does not rely on clubs_update RLS). Idempotent: a call that would not change authorized_at''s null-ness (already authorized and asked to authorize, or already unauthorized and asked to revoke) returns immediately with no column churn and no audit row. Revoking never unpublishes the club''s existing shows — enforce_show_publish_gate only fires on a transition INTO published. Writes a permission_audit_log row for both directions (except the idempotent no-op case above).';
 
 REVOKE ALL ON FUNCTION public.set_club_authorization(uuid, boolean) FROM PUBLIC;
 REVOKE ALL ON FUNCTION public.set_club_authorization(uuid, boolean) FROM anon;
 GRANT EXECUTE ON FUNCTION public.set_club_authorization(uuid, boolean) TO authenticated;
 
 -- ---------------------------------------------------------------------------
--- 5. Document the deliberate exposure the READ-PATH AUDIT above relies on:
+-- 6. Document the deliberate exposure the READ-PATH AUDIT above relies on:
 --    clubs_insert and the auto-club_admin trigger stay exactly as they are.
 -- ---------------------------------------------------------------------------
 COMMENT ON POLICY clubs_insert ON public.clubs IS

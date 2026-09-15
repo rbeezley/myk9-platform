@@ -153,19 +153,25 @@ describe('publishGateError', () => {
   const authorized = { authorized_at: '2026-01-01T00:00:00Z' };
   const unauthorized = { authorized_at: null };
 
+  it('allows publishing with a payout-enabled account', () => {
+    expect(publishGateError('draft', 'published', 'club-1', enabled, authorized)).toBeNull();
+  });
+
   it('never re-gates an already-published show (unrelated edits must save)', () => {
-    expect(publishGateError('published', 'published', 'club-1', null)).toBeNull();
-    expect(publishGateError('published', 'published', 'club-1', enabled)).toBeNull();
+    expect(publishGateError('published', 'published', 'club-1', null, null)).toBeNull();
+    expect(publishGateError('published', 'published', 'club-1', enabled, authorized)).toBeNull();
   });
 
   it('ignores non-publish transitions', () => {
-    expect(publishGateError('draft', 'cancelled', 'club-1', null)).toBeNull();
-    expect(publishGateError('published', 'draft', '', null)).toBeNull();
+    expect(publishGateError('draft', 'cancelled', 'club-1', null, null)).toBeNull();
+    expect(publishGateError('published', 'draft', '', null, null)).toBeNull();
   });
 
   it('still fails closed on a draft->published call, though the UI can no longer make one', () => {
-    expect(publishGateError('draft', 'published', 'club-1', null)).toMatch(/payment account/i);
-    expect(publishGateError('draft', 'published', '', enabled)).toMatch(/club/i);
+    expect(publishGateError('draft', 'published', 'club-1', null, authorized)).toMatch(
+      /payment account/i
+    );
+    expect(publishGateError('draft', 'published', '', enabled, null)).toMatch(/club/i);
   });
 
   // MYK9-572: a second, independent publish-gate check — a club must be
@@ -181,8 +187,23 @@ describe('publishGateError', () => {
       expect(publishGateError('draft', 'published', 'club-1', enabled, authorized)).toBeNull();
     });
 
-    it('omitting the club argument skips the authorization check (caller could not load it)', () => {
-      expect(publishGateError('draft', 'published', 'club-1', enabled)).toBeNull();
+    // Round-2 review (P2-5): a caller that could not read the club row (RLS,
+    // failed fetch) must fail CLOSED, not skip the check — the prior version
+    // of this test asserted the opposite (a bug: `club && ...` let a null
+    // club bypass the gate entirely).
+    it('fails closed when the club row could not be read (null or undefined)', () => {
+      expect(publishGateError('draft', 'published', 'club-1', enabled, null)).toMatch(
+        /hasn't been authorized/i
+      );
+      expect(
+        publishGateError(
+          'draft',
+          'published',
+          'club-1',
+          enabled,
+          undefined as unknown as { authorized_at: string | null } | null
+        )
+      ).toMatch(/hasn't been authorized/i);
     });
 
     it('never re-gates an already-published show even for an unauthorized club', () => {

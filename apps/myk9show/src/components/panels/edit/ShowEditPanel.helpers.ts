@@ -24,18 +24,22 @@ import type { ShowEditFormData, ShowEditSaveData } from './ShowEditPanel.types';
 // authorization check (authorized_at), threaded the same way `account`
 // already is — the caller fetches it imperatively so the check always sees
 // the form's CURRENT clubId, same reasoning as the Stripe account fetch.
+// `club` is REQUIRED (not optional): a caller that could not read the club
+// row (RLS-hidden, fetch failed) must fail CLOSED, the same as a null
+// Stripe account does below — omitting the argument must never be a way to
+// skip the authorization check.
 export function publishGateError(
   originalStatus: string | undefined,
   nextStatus: string,
   clubId: string,
   account: { payouts_enabled: boolean } | null,
-  club?: { authorized_at: string | null } | null
+  club: { authorized_at: string | null } | null
 ): string | null {
   if (nextStatus !== 'published' || originalStatus === 'published') return null;
   if (!clubId) {
     return CLUB_REQUIRED_MESSAGE;
   }
-  if (club && club.authorized_at === null) {
+  if (!club || club.authorized_at === null) {
     return CLUB_UNAUTHORIZED_MESSAGE;
   }
   if (account?.payouts_enabled !== true) {

@@ -181,6 +181,7 @@ describe('ShowStatusPill publish gate', () => {
 
 describe('ShowStatusPill club-authorization gate (MYK9-572)', () => {
   let mutateAsync: ReturnType<typeof vi.fn>;
+  let refetchAuth: ReturnType<typeof vi.fn>;
 
   beforeEach(() => {
     vi.clearAllMocks();
@@ -190,6 +191,7 @@ describe('ShowStatusPill club-authorization gate (MYK9-572)', () => {
       isPending: false,
     } as unknown as ReturnType<typeof useUpdateShowMutation>);
     mockAccount(true);
+    refetchAuth = vi.fn();
   });
 
   it('blocks publishing an unauthorized club before checking Stripe readiness', async () => {
@@ -202,6 +204,28 @@ describe('ShowStatusPill club-authorization gate (MYK9-572)', () => {
 
     expect(mutateAsync).not.toHaveBeenCalled();
     expect(toast.error).toHaveBeenCalledWith(expect.stringMatching(/hasn't been authorized/i));
+  });
+
+  // P2-5/P3-A: fail CLOSED when the club row is unreadable (RLS-hidden,
+  // undefined data despite a "successful" query) — not just when
+  // authorized_at is explicitly null — and kick off a refetch so a retry
+  // right after a site admin authorizes the club can succeed.
+  it('fails closed and refetches when the authorization query has no data', async () => {
+    mockedUseAuth.mockReturnValue({
+      data: undefined,
+      isLoading: false,
+      isError: false,
+      refetch: refetchAuth,
+    } as unknown as ReturnType<typeof useClubAuthorization>);
+    const user = userEvent.setup();
+    render(<ShowStatusPill showId="show-1" status="draft" clubId="club-1" />);
+
+    await user.click(screen.getByRole('button', { name: /draft/i }));
+    await user.click(await screen.findByText(/publish show/i));
+
+    expect(mutateAsync).not.toHaveBeenCalled();
+    expect(toast.error).toHaveBeenCalledWith(expect.stringMatching(/hasn't been authorized/i));
+    expect(refetchAuth).toHaveBeenCalled();
   });
 
   it('publishes once the club is authorized and Stripe-ready', async () => {
@@ -228,8 +252,14 @@ describe('ShowStatusPill club-authorization gate (MYK9-572)', () => {
     await user.click(screen.getByRole('button', { name: /draft/i }));
     await user.click(await screen.findByText(/publish show/i));
 
+    // P2-D: MK004 (club not authorized) has no Stripe setup to send the
+    // admin to, so the toast must NOT carry the "Open Payments" action —
+    // unlike MK003 (payment-account gate), which still does.
     expect(toast.error).toHaveBeenCalledWith(
-      "This club hasn't been authorized by myK9 yet. Shows can be built now and published once the club is approved.",
+      "This club hasn't been authorized by myK9 yet. Shows can be built now and published once the club is approved."
+    );
+    expect(toast.error).not.toHaveBeenCalledWith(
+      expect.anything(),
       expect.objectContaining({ action: expect.anything() })
     );
   });

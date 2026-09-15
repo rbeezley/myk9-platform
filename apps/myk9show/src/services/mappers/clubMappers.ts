@@ -119,6 +119,7 @@ export const mapDatabaseToClub = (
     address,
     upcomingShows,
     pastShows,
+    authorizedAt: dbClub.authorized_at ?? null,
 
     // Sync metadata for Local-First architecture
     _version: 1,

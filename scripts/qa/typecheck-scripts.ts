@@ -13,6 +13,12 @@
  * on a diagnostic NOT in the baseline, so a regression anywhere under
  * `scripts/qa/` — including a new `review-gate.ts` violation, which the
  * baseline holds zero entries for — still turns `pnpm typecheck` red.
+ *
+ * `typecheck:scripts` is deliberately a plain chain step in root
+ * `package.json` (`turbo typecheck && pnpm run typecheck:scripts`), not a
+ * turbo task: turbo's default input hashing would not pick up changes under
+ * `scripts/**`, so a turbo-cached run could report green against a stale
+ * compile.
  */
 import { readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
@@ -95,6 +101,19 @@ export function compareDiagnostics(
   };
 }
 
+/**
+ * The failure mode MYK9-531 exists to close is a check that passes because it
+ * compiled nothing. Weakening `scripts/qa/tsconfig.json` (dropping `strict` /
+ * `noUncheckedIndexedAccess`) or narrowing its `include` makes `tsc` emit zero
+ * diagnostics, which the new/resolved arithmetic alone reads as `0 new` —
+ * exit 0, gate silently inert. A non-empty baseline that produces no current
+ * diagnostics at all is therefore a gate failure, not a pass: a genuine full
+ * burn-down must refresh the baseline (`typecheck:scripts:update-baseline`).
+ */
+export function isGateInert(current: ScriptsDiagnostic[], baseline: ScriptsDiagnostic[]) {
+  return current.length === 0 && baseline.length > 0;
+}
+
 export function readBaseline(path: string): ScriptsDiagnostic[] {
   return JSON.parse(readFileSync(path, 'utf8')) as ScriptsDiagnostic[];
 }
@@ -142,6 +161,16 @@ export function runCli(args: string[] = process.argv.slice(2), rootDir = process
   );
   console.log(renderDiagnostics('New diagnostics (gate failure)', comparison.newDiagnostics));
   console.log(renderDiagnostics('Known diagnostics (ratcheted)', current));
+
+  if (isGateInert(current, baseline)) {
+    console.error(
+      `scripts/qa typecheck ratchet: tsc produced 0 diagnostics against a baseline of ` +
+        `${baseline.length}. The project compiled nothing (weakened compilerOptions or a ` +
+        `narrowed "include"), or the baseline is fully burned down and needs refreshing via ` +
+        `pnpm run typecheck:scripts:update-baseline.`
+    );
+    return 1;
+  }
 
   return comparison.newDiagnostics.length > 0 ? 1 : 0;
 }

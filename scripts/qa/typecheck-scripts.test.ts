@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { compareDiagnostics, parseDiagnostics } from './typecheck-scripts';
+import { compareDiagnostics, isGateInert, parseDiagnostics } from './typecheck-scripts';
 
 describe('scripts/qa typecheck ratchet', () => {
   it('parses diagnostics without retaining volatile line numbers', () => {
@@ -33,5 +33,16 @@ describe('scripts/qa typecheck ratchet', () => {
     ];
 
     expect(compareDiagnostics([baseline[0]!], baseline).resolvedDiagnostics).toEqual([baseline[1]]);
+  });
+
+  it('treats a run that produced no diagnostics at all as an inert gate, not a pass', () => {
+    const baseline = [{ file: 'a.ts', code: 'TS1', message: 'known' }];
+
+    // A weakened tsconfig (no `strict`) or a narrowed `include` compiles
+    // nothing: `0 new` alone would exit 0 and the gate would be silently dead.
+    expect(isGateInert([], baseline)).toBe(true);
+    expect(isGateInert(baseline, baseline)).toBe(false);
+    // An empty baseline legitimately pairs with an empty current run.
+    expect(isGateInert([], [])).toBe(false);
   });
 });

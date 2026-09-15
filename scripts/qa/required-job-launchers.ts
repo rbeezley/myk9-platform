@@ -73,6 +73,11 @@ export const PINNED_SCRIPTS: readonly PinnedScript[] = [
     script: 'typecheck',
     command: 'turbo typecheck && pnpm run typecheck:scripts',
   },
+  {
+    pkgDir: '.',
+    script: 'qa:typecheck-scripts:test',
+    command: 'vitest run scripts/qa/typecheck-scripts.test.ts',
+  },
   { pkgDir: '.', script: 'lint', command: 'turbo lint' },
   {
     pkgDir: '.',

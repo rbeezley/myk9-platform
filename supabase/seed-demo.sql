@@ -857,6 +857,13 @@ ON CONFLICT (club_id, person_id) DO UPDATE
 --    apply to them either way; the ...036 fixture (MYK9-515, comment below)
 --    stays full by its own max_entries class limit, unaffected by this change.
 -- ---------------------------------------------------------------------------
+-- MYK9-579: enforce_show_publish_gate() now also gates INSERT ... status=
+-- 'published', with a service_role carve-out for exactly this deliberate
+-- fixture (a club with no Stripe account is itself the fixture, MYK9-386).
+-- This script connects as the postgres superuser, not as service_role, so
+-- the carve-out must be reached explicitly.
+SET LOCAL ROLE service_role;
+
 INSERT INTO public.shows (
   id, name, organization, description,
   start_date, end_date, entry_open_date, entry_close_date,
@@ -891,6 +898,8 @@ VALUES (
   'headline', false, '{}'::jsonb,
   '#0d4d4f', 3, false
 );
+
+RESET ROLE;
 
 -- Visibility settings: 'open' preset => scored results immediately public to anon.
 INSERT INTO public.show_visibility_settings (
@@ -948,6 +957,13 @@ VALUES
 -- Deliberately small and entry-free: they exist to cover registry variation, not
 -- to be a second demo show.
 -- ---------------------------------------------------------------------------
+-- MYK9-579: enforce_show_publish_gate() now also gates INSERT ... status=
+-- 'published', with a service_role carve-out for exactly this deliberate
+-- fixture (a club with no Stripe account is itself the fixture, MYK9-386).
+-- This script connects as the postgres superuser, not as service_role, so
+-- the carve-out must be reached explicitly.
+SET LOCAL ROLE service_role;
+
 INSERT INTO public.shows (
   id, name, organization, description,
   start_date, end_date, entry_open_date, entry_close_date,
@@ -1004,6 +1020,8 @@ VALUES
     'headline', false, '{}'::jsonb,
     '#0d4d4f', 1, false
   );
+
+RESET ROLE;
 
 -- Same 'open' preset as the main demo show so an anon results walk behaves identically.
 INSERT INTO public.show_visibility_settings (
@@ -2240,6 +2258,13 @@ SET stripe_account_id   = EXCLUDED.stripe_account_id,
     payouts_enabled     = EXCLUDED.payouts_enabled,
     updated_at          = now();
 
+-- MYK9-579: enforce_show_publish_gate() now also gates INSERT ... status=
+-- 'published', with a service_role carve-out for exactly this deliberate
+-- fixture (a club with no Stripe account is itself the fixture, MYK9-386).
+-- This script connects as the postgres superuser, not as service_role, so
+-- the carve-out must be reached explicitly.
+SET LOCAL ROLE service_role;
+
 INSERT INTO public.shows (
   id, name, organization, description,
   start_date, end_date, entry_open_date, entry_close_date,
@@ -2274,6 +2299,8 @@ SELECT
   'headline', false, '{}'::jsonb,
   '#0d4d4f', 1, false
 FROM generate_series(1, 3) AS load_shows(s);
+
+RESET ROLE;
 
 -- Explicit visibility rows so self-check-in is enabled by a stated setting, not
 -- by the cascade's absent-row default. The exhibitor self-check-in workload

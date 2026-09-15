@@ -901,6 +901,20 @@ recorded.
 - [ ] **3.3** Rotate edge-fn secrets: `supabase secrets set STRIPE_SECRET_KEY=sk_live_…` and
       `STRIPE_WEBHOOK_SECRET=whsec_<live account-scoped>`.
       _Rollback:_ rotate both back to the `sk_test_`/test `whsec_` values.
+- [ ] **3.3a** **Flip `platform_settings.stripe_livemode` to `true` in the SAME change window as
+      3.3** (MYK9-579). Every Stripe edge function derives its own livemode from
+      `STRIPE_SECRET_KEY`; this column is the separate value `enforce_show_publish_gate()` (a DB
+      trigger, which cannot read an edge-fn secret) and the client (`useClubStripeAccount.ts`)
+      check before letting a club publish. The two must move together — forgetting this step
+      after 3.3 blocks EVERY publish platform-wide (every live-ready club looks like it is in the
+      wrong mode); flipping this column without 3.3 would silently re-check live accounts against
+      the old test-mode gate. Run as the site admin or `service_role`
+      (`trg_guard_platform_settings_write` refuses anyone else):
+      ```sql
+      update public.platform_settings set stripe_livemode = true where id = true;
+      ```
+      _Verify:_ `select stripe_livemode from public.platform_settings where id = true;` returns
+      `true`. _Rollback:_ set it back to `false` in the same rollback step as 3.3.
 - [ ] **3.4** **Purge sandbox-scoped Stripe IDs** (the 2026-06-10 "No such customer" failure in
       reverse; interim gate until MP-04 code makes it structural):
       `delete from stripe_customers where livemode = false; update exhibitor_profiles set stripe_customer_id = null where stripe_customer_id is not null and not exists (select 1 from stripe_customers where stripe_customers.stripe_customer_id = exhibitor_profiles.stripe_customer_id and stripe_customers.livemode = true); delete from club_stripe_accounts where livemode = false;`

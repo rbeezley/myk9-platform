@@ -9,6 +9,13 @@ import { getErrorMessage } from '@myk9/core';
 export const PUBLISH_BLOCKED_MESSAGE =
   "Connect your club's payment account before publishing — online entry fees need somewhere to go. Find it under My Club → Payments.";
 
+/** Mirrors enforce_show_publish_gate()'s club_id IS NULL refusal verbatim
+ * (supabase/migrations/20260915221500). Distinct from PUBLISH_BLOCKED_MESSAGE
+ * so callers can decide whether a "connect Stripe" action makes sense --
+ * it never does for this refusal. */
+export const CLUB_REQUIRED_MESSAGE =
+  'Assign a club to this show before publishing — entry fees are paid out to the club.';
+
 export function canEnableOnlineEntries(
   account: { payouts_enabled: boolean } | null | undefined
 ): boolean {
@@ -16,15 +23,17 @@ export function canEnableOnlineEntries(
 }
 
 // MYK9-579: the client-side checks above are a UX convenience, not the
-// enforcement boundary — enforce_show_publish_gate() (a BEFORE UPDATE OF
-// status trigger on public.shows, supabase/migrations/20260915195500) is the
-// backstop that actually blocks a stale-cache or hand-crafted publish. It
-// raises with this SQLSTATE for BOTH of its refusals (missing club, and no
-// payouts-enabled Stripe account), and its RAISE EXCEPTION text is already
-// this module's own friendly copy — see the trigger's own comment — so the
-// client never needs a second static message table keyed by code the way
-// MK001/MK002 (apps/myk9show/src/utils/errorMessages.ts) are: it can just
-// trust `error.message` once the code confirms the refusal came from here.
+// enforcement boundary — enforce_show_publish_gate() (a BEFORE INSERT OR
+// UPDATE OF status trigger on public.shows,
+// supabase/migrations/20260915221500) is the backstop that actually blocks a
+// stale-cache or hand-crafted publish, on both a status UPDATE and an INSERT
+// that creates an already-published row. It raises with this SQLSTATE for
+// BOTH of its refusals (missing club, and no payouts-enabled Stripe
+// account), and its RAISE EXCEPTION text is already this module's own
+// friendly copy — see the trigger's own comment — so the client never needs
+// a second static message table keyed by code the way MK001/MK002
+// (apps/myk9show/src/utils/errorMessages.ts) are: it can just trust
+// `error.message` once the code confirms the refusal came from here.
 export const PUBLISH_GATE_ERRCODE = 'MK003';
 
 /** True when `error` is the DB publish-gate trigger's refusal (SQLSTATE MK003),

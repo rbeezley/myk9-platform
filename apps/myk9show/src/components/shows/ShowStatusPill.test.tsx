@@ -125,6 +125,29 @@ describe('ShowStatusPill publish gate', () => {
     );
   });
 
+  it('surfaces the DB missing-club refusal WITHOUT an "Open Payments" action (MYK9-579)', async () => {
+    // Same SQLSTATE (MK003) as the Stripe-readiness refusal, but a trip to
+    // /club-admin/payments does not fix a clubless show -- only assigning a
+    // club does. Only the message text tells the two refusals apart.
+    mockAccount(true);
+    mutateAsync.mockRejectedValueOnce({
+      code: 'MK003',
+      message:
+        'Assign a club to this show before publishing — entry fees are paid out to the club.',
+    });
+    const user = userEvent.setup();
+    render(<ShowStatusPill showId="show-1" status="draft" clubId="club-1" />);
+
+    await user.click(screen.getByRole('button', { name: /draft/i }));
+    await user.click(await screen.findByText(/publish show/i));
+
+    expect(toast.error).toHaveBeenCalledWith(
+      'Assign a club to this show before publishing — entry fees are paid out to the club.'
+    );
+    const call = (toast.error as ReturnType<typeof vi.fn>).mock.calls[0];
+    expect(call).toHaveLength(1);
+  });
+
   it('an unrelated mutation failure still shows the generic fallback, not the gate copy', async () => {
     mockAccount(true);
     mutateAsync.mockRejectedValueOnce(new Error('Network error'));

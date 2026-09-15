@@ -10,16 +10,28 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 // reaching a live-mode cutover) this migration exists to prevent.
 const platformSettingsMaybeSingle = vi.hoisted(() => vi.fn());
 const clubStripeAccountsMaybeSingle = vi.hoisted(() => vi.fn());
+const clubStripeAccountsEq = vi.hoisted(() => vi.fn());
 const rpc = vi.hoisted(() => vi.fn());
 
 function makePlatformSettingsQuery() {
-  return { select: () => ({ eq: () => ({ maybeSingle: platformSettingsMaybeSingle }) }) };
+  // fetchStripeLivemode selects, then `.limit(1)` (a singleton row, not a
+  // filter column -- see useClubStripeAccount.ts's own comment on why this
+  // is no longer `.eq('id', true)`), then `.maybeSingle()`.
+  return { select: () => ({ limit: () => ({ maybeSingle: platformSettingsMaybeSingle }) }) };
 }
 
 function makeClubStripeAccountsQuery() {
   return {
     select: () => ({
-      eq: () => ({ eq: () => ({ maybeSingle: clubStripeAccountsMaybeSingle }) }),
+      eq: (column: string, value: unknown) => {
+        clubStripeAccountsEq(column, value);
+        return {
+          eq: (column2: string, value2: unknown) => {
+            clubStripeAccountsEq(column2, value2);
+            return { maybeSingle: clubStripeAccountsMaybeSingle };
+          },
+        };
+      },
     }),
   };
 }
@@ -105,11 +117,11 @@ describe('mapConnectOnboardingError', () => {
   });
 });
 
-
 describe('fetchClubStripeAccount', () => {
   beforeEach(() => {
     platformSettingsMaybeSingle.mockReset();
     clubStripeAccountsMaybeSingle.mockReset();
+    clubStripeAccountsEq.mockReset();
   });
 
   it('reads platform_settings.stripe_livemode and filters the account row by it', async () => {
@@ -128,6 +140,8 @@ describe('fetchClubStripeAccount', () => {
 
     const account = await fetchClubStripeAccount('club-1');
     expect(account?.livemode).toBe(true);
+    expect(clubStripeAccountsEq).toHaveBeenCalledWith('club_id', 'club-1');
+    expect(clubStripeAccountsEq).toHaveBeenCalledWith('livemode', true);
   });
 
   it('defaults to test mode (false) when the platform_settings row has no usable value', async () => {
@@ -146,6 +160,7 @@ describe('fetchClubStripeAccount', () => {
 
     const account = await fetchClubStripeAccount('club-1');
     expect(account?.livemode).toBe(false);
+    expect(clubStripeAccountsEq).toHaveBeenCalledWith('livemode', false);
   });
 
   it('propagates an error reading platform_settings instead of silently defaulting', async () => {
@@ -176,7 +191,10 @@ describe('fetchClubStripePaymentReadiness', () => {
   });
 
   it('forwards false when the settings row reads test mode', async () => {
-    platformSettingsMaybeSingle.mockResolvedValue({ data: { stripe_livemode: false }, error: null });
+    platformSettingsMaybeSingle.mockResolvedValue({
+      data: { stripe_livemode: false },
+      error: null,
+    });
     rpc.mockResolvedValue({ data: true, error: null });
 
     await fetchClubStripePaymentReadiness('club-1');

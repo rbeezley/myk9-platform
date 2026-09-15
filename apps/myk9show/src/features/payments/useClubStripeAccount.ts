@@ -12,27 +12,60 @@ export interface ClubStripeAccount {
 }
 
 // The client must inspect the same mode-scoped account row as the checkout
-// edge function. MYK9-579: platform_settings.stripe_livemode is the single
-// server-side source of truth for which Stripe mode is authoritative — it
-// replaces the build-time VITE_STRIPE_LIVEMODE env var, which a database
-// trigger (enforce_show_publish_gate, supabase/migrations/20260915195500)
-// cannot read. `authenticated` already holds table-level SELECT on
-// platform_settings (20260615180000), so this read needs no new grant.
+// edge function. MYK9-579: platform_settings.stripe_livemode is what the
+// client and enforce_show_publish_gate() (a database trigger, which cannot
+// read a Vite env var) both treat as authoritative — it replaced the
+// build-time VITE_STRIPE_LIVEMODE env var. It is NOT independently
+// authoritative: every Stripe edge function derives its own livemode from
+// the Stripe secret key and stripe-connect-onboard is what writes
+// club_stripe_accounts.livemode, so this column and that key are flipped
+// together for a cutover (see the column comment,
+// supabase/migrations/20260915221500). `authenticated` already holds
+// table-level SELECT on platform_settings (20260615180000), so this read
+// needs no new grant.
+//
+// `.limit(1)` rather than `.eq('id', true)`: platform_settings is a
+// singleton, so a filter on a specific column adds nothing here, and a
+// filter column needs its own SELECT privilege on tables that use
+// column-level grants (20260823160000's header explains the trap this
+// avoids in general — it does not bite `authenticated` today, which holds
+// table-level SELECT, but `.limit(1)` costs nothing and does not rely on
+// that staying true).
 async function fetchStripeLivemode(): Promise<boolean> {
   const { data, error } = await supabase
     .from('platform_settings')
     .select('stripe_livemode')
-    .eq('id', true)
+    .limit(1)
     .maybeSingle();
 
   if (error) throw error;
   return data?.stripe_livemode === true;
 }
 
-/** Exported for save-time (imperative) gate checks — e.g. ShowEditPanel,
- * where a hook subscription can't see the form's possibly-changed clubId. */
-export async function fetchClubStripeAccount(clubId: string): Promise<ClubStripeAccount | null> {
-  const livemode = await fetchStripeLivemode();
+/** Query key for the platform's current Stripe livemode. Exported so callers
+ * that also key off it (useClubStripeAccount, useClubStripePaymentReadiness)
+ * can invalidate together with it; a mode flip should invalidate every
+ * account/readiness query at once, not wait out their own staleTime. */
+export const STRIPE_LIVEMODE_QUERY_KEY = ['platform-stripe-livemode'] as const;
+
+/** platform_settings.stripe_livemode rarely changes (only the MYK9-11
+ * cutover flips it), so this is cached long — but it is still its OWN query,
+ * not a bare constant, so an explicit invalidation of
+ * STRIPE_LIVEMODE_QUERY_KEY at cutover time propagates into every query key
+ * below that folds this value in. */
+export function useStripeLivemode() {
+  return useQuery({
+    queryKey: STRIPE_LIVEMODE_QUERY_KEY,
+    queryFn: fetchStripeLivemode,
+    staleTime: 30 * 60 * 1000,
+    gcTime: 60 * 60 * 1000,
+  });
+}
+
+async function fetchClubStripeAccountForLivemode(
+  clubId: string,
+  livemode: boolean
+): Promise<ClubStripeAccount | null> {
   const { data, error } = await supabase
     .from('club_stripe_accounts')
     .select('id, club_id, stripe_account_id, livemode, onboarding_complete, payouts_enabled')
@@ -44,17 +77,38 @@ export async function fetchClubStripeAccount(clubId: string): Promise<ClubStripe
   return data;
 }
 
+/** Exported for save-time (imperative) gate checks — e.g. ShowEditPanel,
+ * where a hook subscription can't see the form's possibly-changed clubId. */
+export async function fetchClubStripeAccount(clubId: string): Promise<ClubStripeAccount | null> {
+  const livemode = await fetchStripeLivemode();
+  return fetchClubStripeAccountForLivemode(clubId, livemode);
+}
+
+// Both hooks below fold `useStripeLivemode()`'s value into their query key,
+// but NOT into `enabled` -- gating on it resolving first would turn v5's
+// `isLoading` (isPending && isFetching) false for the whole window before
+// the livemode read lands, which is exactly the window ShowStatusPill's own
+// "Checking the club's payment account" guard exists for. The queryFn keeps
+// resolving livemode itself (fetchClubStripeAccount / -Readiness already do,
+// same cost either way for this small singleton read), so correctness never
+// depends on the two queries resolving in a particular order -- folding the
+// value into the key is only what makes STRIPE_LIVEMODE_QUERY_KEY's
+// invalidation (the MYK9-11 cutover) propagate into these, instead of
+// waiting out cacheStrategies.moderate's own staleTime.
 export function useClubStripeAccount(clubId: string | undefined) {
+  const livemodeQuery = useStripeLivemode();
   return useQuery({
-    queryKey: ['club-stripe-account', clubId],
+    queryKey: ['club-stripe-account', clubId, livemodeQuery.data ?? 'pending-livemode'],
     queryFn: () => fetchClubStripeAccount(clubId!),
     enabled: !!clubId,
     ...cacheStrategies.moderate,
   });
 }
 
-export async function fetchClubStripePaymentReadiness(clubId: string): Promise<boolean> {
-  const livemode = await fetchStripeLivemode();
+async function fetchClubStripePaymentReadinessForLivemode(
+  clubId: string,
+  livemode: boolean
+): Promise<boolean> {
   const { data, error } = await supabase.rpc('can_accept_online_entry_payment', {
     p_club_id: clubId,
     p_livemode: livemode,
@@ -64,9 +118,16 @@ export async function fetchClubStripePaymentReadiness(clubId: string): Promise<b
   return data === true;
 }
 
+export async function fetchClubStripePaymentReadiness(clubId: string): Promise<boolean> {
+  const livemode = await fetchStripeLivemode();
+  return fetchClubStripePaymentReadinessForLivemode(clubId, livemode);
+}
+
 export function useClubStripePaymentReadiness(clubId: string | undefined) {
+  const livemodeQuery = useStripeLivemode();
   return useQuery({
-    queryKey: ['club-stripe-payment-readiness', clubId],
+    // Same reasoning as useClubStripeAccount's key above.
+    queryKey: ['club-stripe-payment-readiness', clubId, livemodeQuery.data ?? 'pending-livemode'],
     queryFn: () => fetchClubStripePaymentReadiness(clubId!),
     enabled: !!clubId,
     ...cacheStrategies.moderate,

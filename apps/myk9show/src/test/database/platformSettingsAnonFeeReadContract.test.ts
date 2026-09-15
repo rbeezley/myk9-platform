@@ -201,7 +201,7 @@ describe('the column set the anonymous-session trade-off was judged against', ()
   // (non-anonymous-session) callers via the existing table-level grant.
   const ADDED_COLUMNS = ['platform_fee_flat_cents', 'platform_fee_min_cents', 'stripe_livemode'];
 
-  it('is exactly the six columns reviewed in MYK9-229', () => {
+  it('is exactly the seven columns reviewed in MYK9-229 (plus stripe_livemode)', () => {
     const added = ALL_STATEMENTS.flatMap(({ statement }) => {
       if (!/^ALTER\s+TABLE\s+(?:public\.)?platform_settings\b/i.test(statement)) return [];
       return [...statement.matchAll(/ADD\s+COLUMN\s+(?:IF\s+NOT\s+EXISTS\s+)?"?([a-z_]+)"?/gi)].map(

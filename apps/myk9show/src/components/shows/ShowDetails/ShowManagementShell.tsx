@@ -37,7 +37,8 @@ import {
   type ShowEditTab,
 } from '@/components/shows/showEditRoutes';
 import { useShowStore, type ShowInput } from '@/store/showStore';
-import { showQueryKeys } from '@/hooks/queries/useShowsDatabase';
+import { showQueryKeys, useUpdateShowMutation } from '@/hooks/queries/useShowsDatabase';
+import { runPublishTransitionGate } from './ShowManagementShell.helpers';
 import { SHOW_MANAGEMENT_NAV_SECTIONS } from '@/routes/showManagementSections';
 import { SETUP_PUBLISH_ANCHOR } from '@/features/show-workbench/setupReadinessSignals';
 import { SHOW_STATUS_CONTROL_ANCHOR } from '@/features/show-workbench/publishReadiness';
@@ -128,6 +129,12 @@ export function ShowManagementShell({
   const queryClient = useQueryClient();
   const [searchParams, setSearchParams] = useSearchParams();
   const updateShowLocally = useShowStore(s => s.updateShow);
+  // MYK9-579: publishing must be AWAITED against the DB gate before the rest
+  // of the edit queues through replication. queueMutation (MutationManager)
+  // only enqueues and resolves immediately -- a DB refusal (enforce_show_publish_gate,
+  // SQLSTATE MK003) would otherwise land in FAILED_MUTATIONS silently while this
+  // panel already toasted success and the local store already said 'published'.
+  const publishTransitionMutation = useUpdateShowMutation();
 
   const [showEditPanel, setShowEditPanel] = useState(
     () => new URLSearchParams(window.location.search).get('edit') === 'true'
@@ -369,6 +376,17 @@ export function ShowManagementShell({
               generatedPremium?: GeneratedPremium;
               inkSaver?: boolean;
             };
+
+            // MYK9-579: gate a draft->published transition against the DB
+            // trigger BEFORE the rest of this edit queues through replication
+            // -- see ShowManagementShell.helpers.ts for why.
+            await runPublishTransitionGate({
+              currentStatus: show.status,
+              nextStatus: publishableShowData.status,
+              publishShow: () =>
+                publishTransitionMutation.mutateAsync({ id, updates: { status: 'published' } }),
+            });
+
             const localShow = await updateShowLocally(id, showData as Partial<ShowInput>);
             if (!localShow) {
               throw new Error('Show was not available in the local store.');

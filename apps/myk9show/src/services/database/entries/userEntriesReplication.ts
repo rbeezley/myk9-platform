@@ -1,4 +1,6 @@
 import { supabase } from '../supabaseClient';
+import { withTimeout, DEFAULT_TIMEOUT_MS } from '@myk9/core';
+import { logger } from '@/services/LoggingService';
 import { mapReplicatedEntryToDbRow } from '@/services/mappers/entryMappers';
 import { withholdScoredResultColumns } from './resultVisibility';
 import type { ReplicatedEntry } from '@/services/replication/ReplicatedEntriesTable';
@@ -32,14 +34,39 @@ export async function buildReplicatedUserEntryRows(
     }
   >();
   if (enrollmentIds.length > 0) {
-    const { data: enrollments } = await supabase
-      .from('enrollments')
-      .select('id, confirmation_number, payment_status, payment_reference, paid_amount')
-      .in('id', enrollmentIds as string[]);
-    if (enrollments) {
-      for (const e of enrollments) {
-        enrollmentsMap.set(e.id, e);
+    // This is the OFFLINE path's one network call, and it is best-effort
+    // enrichment: confirmation numbers and the order's payment status. It must
+    // therefore never be what stops the page from rendering.
+    //
+    // It is reached mainly when the authoritative view failed or TIMED OUT —
+    // i.e. on the same dead network. Without its own deadline a captive portal
+    // hangs here instead, and `getUserEntries` never settles at all, which is
+    // exactly the failure the view's timeout was added to end. On expiry we
+    // carry on with an empty map: the rows still render, they just fall back to
+    // the id-derived confirmation number and their own `payment_status`.
+    try {
+      const { data: enrollments } = await withTimeout(
+        supabase
+          .from('enrollments')
+          .select('id, confirmation_number, payment_status, payment_reference, paid_amount')
+          .in('id', enrollmentIds as string[])
+          .abortSignal(AbortSignal.timeout(DEFAULT_TIMEOUT_MS)),
+        DEFAULT_TIMEOUT_MS,
+        'My Entries enrollment enrichment'
+      );
+      if (enrollments) {
+        for (const e of enrollments) {
+          enrollmentsMap.set(e.id, e);
+        }
       }
+    } catch (error) {
+      logger.warn(
+        'Enrollment enrichment unavailable; rendering replicated entries alone',
+        'database',
+        {
+          error: error instanceof Error ? error.message : String(error),
+        }
+      );
     }
   }
 
@@ -104,8 +131,8 @@ export async function buildReplicatedUserEntryRows(
       null;
     // The per-class result-visibility cascade is NOT in replication scope, so
     // the raw scored columns synced here are withheld until the cascade-aware
-    // server view (always preferred by getUserEntries; this replica is the
-    // offline fallback) can release them. Safe-by-default: never leak placement/result/time/faults
+    // server view can release them. That view is ALWAYS preferred by
+    // getUserEntries; this replica is only its offline fallback. Safe-by-default: never leak placement/result/time/faults
     // from the offline path. See ./resultVisibility for the full rationale.
     withholdScoredResultColumns(row);
     return row;

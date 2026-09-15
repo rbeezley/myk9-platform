@@ -15,6 +15,7 @@ const { mockEntriesTable, mockDogsTable, mockClassesTable, mockShowsTable, mockT
   vi.hoisted(() => ({
     mockEntriesTable: {
       getAll: vi.fn(),
+      getAllLocalIds: vi.fn(),
       getEntriesByShow: vi.fn(),
       getEntriesByClass: vi.fn(),
       getEntryById: vi.fn(),
@@ -77,14 +78,18 @@ vi.mock('@/services/database/supabaseClient', () => ({
   supabase: {
     from: (table: string) => {
       if (table === 'view_authenticated_entry_results') {
+        // `.abortSignal()` sits between the orders and `.range()` since
+        // MYK9-536 bounded the paged view read.
         const eq = (column: string, value: unknown) => ({
           order: () => ({
             order: () => ({
-              range: () =>
-                Promise.resolve({
-                  data: mockViewRows.current.filter(row => row[column] === value),
-                  error: null,
-                }),
+              abortSignal: () => ({
+                range: () =>
+                  Promise.resolve({
+                    data: mockViewRows.current.filter(row => row[column] === value),
+                    error: null,
+                  }),
+              }),
             }),
           }),
         });
@@ -104,6 +109,8 @@ vi.mock('@/services/database/supabaseClient', () => ({
         select: () => ({
           in: () => ({
             in: () => Promise.resolve({ data: [], error: null }),
+            // The enrollment enrichment read, now deadline-bounded.
+            abortSignal: () => Promise.resolve({ data: [], error: null }),
           }),
           eq: () => ({
             single: () => Promise.resolve({ data: null, error: null }),
@@ -218,6 +225,8 @@ function setupListMocks(
   trials: ReplicatedTrial[] = [makeTrial()]
 ) {
   mockEntriesTable.getAll.mockResolvedValue(entries);
+  // The cheap probe the empty-view branch gates on; keep it consistent with getAll.
+  mockEntriesTable.getAllLocalIds.mockResolvedValue(new Set(entries.map(entry => entry.id)));
   mockEntriesTable.getEntriesByShow.mockResolvedValue(entries);
   mockEntriesTable.getEntriesByClass.mockResolvedValue(entries);
   mockDogsTable.getAllDogs.mockResolvedValue(dogs);
@@ -673,7 +682,7 @@ describe('entryQueries (replication)', () => {
     // through the fallback, even though the local snapshot holds it (the
     // replica is populated per SHOW, so it legitimately contains every
     // exhibitor's entries for any show this device has visited).
-    it('excludes another exhibitor\'s row from the replica fallback', async () => {
+    it("excludes another exhibitor's row from the replica fallback", async () => {
       const entries = [
         makeEntry({ id: 'mine', dogId: 'dog-owned', handlerId: 'user-1' }),
         makeEntry({ id: 'theirs', dogId: 'dog-theirs', handlerId: 'handler-other' }),

@@ -9,9 +9,11 @@ import { isActiveSubmittedEntryStatus } from '@/services/entryDisplay/entryDispl
  * `entryStore`, which is empty until the exhibitor has opened that specific
  * show, so on a fresh session the tab count reads 0 while My Shows correctly
  * shows every entry. This hook supplies the authoritative set of entered
- * show ids from the SAME account-level source My Shows uses — network-first
- * since MYK9-536 (authoritative view, per-show replica as the failure/timeout
- * fallback), which is why this query sets `networkMode: 'always'`
+ * show ids from the SAME account-level source My Shows uses.
+ *
+ * That source is network-first since MYK9-536 — the authoritative view, with the
+ * per-show replica as the failure/timeout fallback — which is why this query
+ * sets `networkMode: 'always'`
  * (`getUserEntries`, the `account-entry-sync` capability), so the tab can be
  * corrected without swapping the shared `entryStore` that many other surfaces
  * depend on.
@@ -64,6 +66,10 @@ export function useAccountEnteredShowIds(
     },
     enabled: !!personId,
     staleTime: 60_000,
+    // One retry, not the global default of two: each attempt pays the full
+    // `getUserEntries` view deadline, so the default turns a dead network into
+    // a ~46s spinner before the replica fallback is ever shown.
+    retry: 1,
     // `getUserEntries` carries its own offline fallback (the replicated
     // snapshot), but React Query's default `networkMode: 'online'` parks
     // this query at `fetchStatus: 'paused'` while offline and never calls

@@ -182,6 +182,9 @@ async function postgrestGetUserEntries() {
       .eq('is_own_entry', true)
       .order('created_at', { ascending: false })
       .order('id', { ascending: false })
+      // `withTimeout` only RACES — without this the losing request keeps
+      // running, and a paged read would go on fetching pages nobody awaits.
+      .abortSignal(AbortSignal.timeout(USER_ENTRIES_VIEW_TIMEOUT_MS))
       .range(from, to);
 
     if (error) {
@@ -415,6 +418,25 @@ export const getEntryStatistics = async (showId?: string) => {
 const USER_ENTRIES_VIEW_TIMEOUT_MS = DEFAULT_TIMEOUT_MS;
 
 /**
+ * The account-level read's result.
+ *
+ * `stale` marks rows served from the per-show replication snapshot after the
+ * authoritative view declined to confirm them — it failed, timed out, or came
+ * back empty against a populated replica. Those rows are real, but they may
+ * describe a world the server no longer agrees with (a hard-deleted entry, a
+ * reassigned dog), so a caller that makes a CLAIM from them — an amount due, a
+ * "paid in full" — should say it is showing saved data rather than state it as
+ * fact. `error: null` alone cannot carry that distinction, which is why this
+ * field exists.
+ */
+export interface UserEntriesResult {
+  data: Record<string, unknown>[];
+  error: DatabaseError | null;
+  /** True when the rows came from the replica without the view confirming them. */
+  stale?: boolean;
+}
+
+/**
  * Account-level own-entry read (My Shows, My Payments, the exhibitor dashboard).
  *
  * The AUTHORITATIVE source here is the online view, not the replication store,
@@ -447,7 +469,7 @@ const USER_ENTRIES_VIEW_TIMEOUT_MS = DEFAULT_TIMEOUT_MS;
  * caller. React Query callers must set `networkMode: 'always'`, or the query
  * parks at `fetchStatus: 'paused'` offline and never invokes this code at all.
  */
-export const getUserEntries = async (userId: string) => {
+export const getUserEntries = async (userId: string): Promise<UserEntriesResult> => {
   const startTime = Date.now();
 
   try {
@@ -461,11 +483,22 @@ export const getUserEntries = async (userId: string) => {
       'My Entries account read'
     );
 
-    if (result.data.length === 0) {
+    if (result.data.length === 0 && (await replicaMightHaveRows())) {
       const replica = await readReplicaUserEntryRows(userId);
       if (replica && replica.data.length > 0) {
+        // The rows are kept, but they are NOT confirmed. The view retains the
+        // caller's own withdrawn and soft-deleted entries, so it does not go
+        // empty for a status change — this branch trips on a hard delete or
+        // cascade, on a handler/owner reassignment, or on an identity mismatch.
+        // In the first two the server is RIGHT and the replica is a ghost, so
+        // serving it silently would state a phantom amount due as fact.
+        logger.warn(
+          'My Entries kept replica rows the authoritative view did not return',
+          'database',
+          { rows: replica.data.length }
+        );
         logQuery('entries', 'select_user_entries_empty_view_replica_kept', Date.now() - startTime);
-        return replica;
+        return { ...replica, stale: true };
       }
     }
 
@@ -475,6 +508,28 @@ export const getUserEntries = async (userId: string) => {
     return readUserEntriesFromReplica(userId, error, startTime);
   }
 };
+
+/**
+ * Cheap "is it even worth hydrating the replica?" probe.
+ *
+ * The full fallback loads FIVE tables in their entirety, and an empty view is
+ * the ordinary result for an exhibitor with no entries — so without this gate
+ * every such account pays five whole-table reads on every load, across five
+ * call sites, to discover there is nothing there. Ids alone answer it: no local
+ * entry rows means the fallback has nothing to offer, whoever the caller is.
+ *
+ * Fails OPEN. If the probe is unavailable or throws, we do the full read rather
+ * than infer an empty replica from a broken probe — guessing "empty" here would
+ * reintroduce the exact false-zero this whole path exists to prevent.
+ */
+async function replicaMightHaveRows(): Promise<boolean> {
+  try {
+    const ids = await replicatedEntriesTable.getAllLocalIds();
+    return ids.size > 0;
+  } catch {
+    return true;
+  }
+}
 
 /**
  * Rebuild the exhibitor's rows from the per-show replication snapshot, or
@@ -529,14 +584,19 @@ async function readUserEntriesFromReplica(
   userId: string,
   viewError: unknown,
   startTime: number
-): Promise<{ data: Record<string, unknown>[]; error: DatabaseError | null }> {
+): Promise<UserEntriesResult> {
   const replica = await readReplicaUserEntryRows(userId);
 
   if (!replica || (replica.data.length === 0 && !isOfflineFetchError(viewError))) {
     const dbError = createDatabaseError(viewError, 'entries', 'select_user_entries');
     logQuery(
       'entries',
-      replica ? 'select_user_entries_empty_replica_error' : 'select_user_entries',
+      // Two different failures, and the success label belonged to neither: the
+      // replica answered and had nothing, or the replica could not be read at
+      // all.
+      replica
+        ? 'select_user_entries_empty_replica_error'
+        : 'select_user_entries_replica_unreadable',
       Date.now() - startTime,
       dbError.message
     );
@@ -569,7 +629,8 @@ async function readUserEntriesFromReplica(
         : 'select_user_entries_stale_replica_after_error',
     Date.now() - startTime
   );
-  return replica;
+  // Unconfirmed by the view, exactly like the empty-view branch above.
+  return { ...replica, stale: true };
 }
 
 // Search entries by armband or handler name

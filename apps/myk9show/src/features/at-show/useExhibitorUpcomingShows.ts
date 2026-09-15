@@ -2,10 +2,12 @@
  * useExhibitorUpcomingShows — the exhibitor's entered-but-not-yet-started shows,
  * for the Ringside entry chooser (`/at-show`).
  *
- * Reads the same account-level `getUserEntries` source My Shows uses. Since
- * MYK9-536 that source is NETWORK-FIRST — the authoritative view, with the
- * per-show replica as the fallback when the view fails or times out — so this
- * hook sets `networkMode: 'always'` to keep that fallback reachable offline.
+ * Reads the same account-level `getUserEntries` source My Shows uses.
+ *
+ * Since MYK9-536 that source is NETWORK-FIRST: the authoritative view, with the
+ * per-show replica as the fallback when the view fails or times out. This hook
+ * sets `networkMode: 'always'` so the fallback stays reachable offline — though
+ * only once identity has resolved, since the query is gated on `personId`.
  * and `useHasAnyEntryForShow` already use, so this adds no new network path;
  * the bucketing itself lives in the pure `selectExhibitorUpcomingShows`.
  *
@@ -50,6 +52,10 @@ export function useExhibitorUpcomingShows(): ExhibitorUpcomingShows {
     },
     enabled: !!personId,
     staleTime: 60_000,
+    // One retry, not the global default of two: each attempt pays the full
+    // `getUserEntries` view deadline, so the default turns a dead network into
+    // a ~46s spinner before the replica fallback is ever shown.
+    retry: 1,
     // `getUserEntries` carries its own offline fallback (the replicated
     // snapshot), but React Query's default `networkMode: 'online'` parks
     // this query at `fetchStatus: 'paused'` while offline and never calls

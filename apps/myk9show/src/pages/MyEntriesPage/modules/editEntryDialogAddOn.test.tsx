@@ -9,11 +9,16 @@
  * dialog. So this renders the REAL `EditEntryDialog` on the REAL output of
  * `groupEntriesByOrder`, via the project's own `toOrders` fixture helper.
  *
- * Why this lives apart from `paidEnrollmentAddOn.test.tsx`: that file mocks
- * `@/hooks/useAuthContext` (it drives `useMyEntriesData`), and with that module
- * mocked `EntryEditDialog` renders NOTHING — no throw, no warning, an empty
- * document. Keeping the two concerns in separate files is what lets each one
- * render what it is actually asserting about.
+ * Why this lives apart from `paidEnrollmentAddOn.test.tsx`: that file stubs
+ * `@/services/database/entries` with a hand-picked factory exporting only
+ * `getUserEntries`, which is all the hook it drives needs. `EntryEditDialog`
+ * calls `canModifyEntry` from that same module in an effect, so under that
+ * factory it is `undefined`, the effect throws, and React unmounts the tree —
+ * leaving an EMPTY DOCUMENT with no failing render and no warning. (A partial
+ * module factory is a sharper version of LESSONS `last-hop-drop`: what it omits
+ * does not fail loudly, it fails silently in an effect.) Rather than widen that
+ * file's factory and couple two unrelated concerns, the dialog gets its own
+ * file with the mocks the dialog actually needs.
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen } from '@/test/utils/testUtils';

@@ -7,6 +7,7 @@ const mocks = vi.hoisted(() => ({
   logQuery: vi.fn(),
   supabaseFrom: vi.fn(),
   replicatedEntriesGetAll: vi.fn(),
+  replicatedEntriesGetAllLocalIds: vi.fn(),
   replicatedDogsGetAllDogs: vi.fn(),
   replicatedClassesGetAll: vi.fn(),
   replicatedShowsGetAllShows: vi.fn(),
@@ -35,6 +36,7 @@ vi.mock('../supabaseClient', () => ({
 vi.mock('@/services/replication/ReplicatedEntriesTable', () => ({
   replicatedEntriesTable: {
     getAll: mocks.replicatedEntriesGetAll,
+    getAllLocalIds: mocks.replicatedEntriesGetAllLocalIds,
   },
 }));
 
@@ -79,6 +81,7 @@ function makeViewEntriesQuery(
     is: vi.fn(() => query),
     eq: vi.fn(() => query),
     order: vi.fn(() => query),
+    abortSignal: vi.fn(() => query),
     range: vi.fn((from: number) => {
       if (pages) selectedData = pages[Math.floor(from / 1000)] ?? [];
       return Promise.resolve({ data: selectedData, error });
@@ -101,7 +104,8 @@ function makeSearchEntriesQuery(data: Array<Record<string, unknown>>, error: Err
 function makeEnrollmentsQuery(data: Array<Record<string, unknown>>) {
   const query = {
     select: vi.fn(() => query),
-    in: vi.fn(() => Promise.resolve({ data, error: null })),
+    in: vi.fn(() => query),
+    abortSignal: vi.fn(() => Promise.resolve({ data, error: null })),
   };
   return query;
 }
@@ -282,8 +286,15 @@ describe('getUserEntries account-scope read', () => {
   ) {
     if (options.entriesThrows) {
       mocks.replicatedEntriesGetAll.mockRejectedValue(new Error('replication unavailable'));
+      mocks.replicatedEntriesGetAllLocalIds.mockRejectedValue(new Error('replication unavailable'));
     } else {
-      mocks.replicatedEntriesGetAll.mockResolvedValue(options.entries ?? [replicatedEntry]);
+      const entries = options.entries ?? [replicatedEntry];
+      mocks.replicatedEntriesGetAll.mockResolvedValue(entries);
+      // The cheap probe the empty-view branch gates on. Keep it consistent with
+      // `getAll`, or a test would exercise a state the store can never be in.
+      mocks.replicatedEntriesGetAllLocalIds.mockResolvedValue(
+        new Set((entries as Array<{ id: string }>).map(entry => entry.id))
+      );
     }
     mocks.replicatedDogsGetAllDogs.mockResolvedValue([replicatedDog]);
     mocks.replicatedClassesGetAll.mockResolvedValue(options.classes ?? [replicatedClass]);
@@ -345,14 +356,12 @@ describe('getUserEntries account-scope read', () => {
 
     expect(result.error).toBeNull();
     expect(result.data.map(row => row.id)).toEqual(['entry-1', 'entry-2']);
-    // The distinct failure this test owns (the one the mechanism test above
-    // cannot see): a read that returned the paid class but dropped the pending
-    // add-on would still "prefer the view" and still return rows. Both rows,
-    // on ONE enrollment, carrying their OWN payment facts, is the thing that
-    // was broken.
-    expect(new Set(result.data.map(row => row.registration_id))).toEqual(new Set(['reg-1']));
-    expect(result.data.map(row => row.payment_status)).toEqual(['paid_by_cash', 'pending']);
-    expect(result.data.map(row => row.payment_method)).toEqual([undefined, 'check']);
+    // Nothing more is asserted about the row CONTENTS here: this read passes
+    // the view's rows through untouched, so restating them would only prove the
+    // stub was written correctly. What this read owns is WHICH rows arrive —
+    // and the add-on arriving at all is what was broken. The content-level
+    // guarantees (per-class effective status, the balance) belong to the
+    // fixture tests in `pages/MyEntriesPage/modules/paidEnrollmentAddOn.test.tsx`.
   });
 
   // An empty view may CONFIRM an empty replica; it may not CONTRADICT a full
@@ -380,12 +389,49 @@ describe('getUserEntries account-scope read', () => {
 
     expect(result.error).toBeNull();
     expect(result.data.map(row => row.id)).toEqual(['entry-1']);
+    // Kept, but NOT confirmed: a caller that states an amount due from these
+    // rows must be able to tell that it is showing saved data.
+    expect(result.stale).toBe(true);
+    expect(mocks.loggerWarn).toHaveBeenCalledWith(
+      expect.stringContaining('the authoritative view did not return'),
+      'database',
+      expect.objectContaining({ rows: 1 })
+    );
     expect(mocks.supabaseFrom).toHaveBeenCalledWith('view_authenticated_entry_results');
     expect(mocks.logQuery).toHaveBeenCalledWith(
       'entries',
       'select_user_entries_empty_view_replica_kept',
       expect.any(Number)
     );
+  });
+
+  // The five-table hydration is the expensive half, and an empty view is the
+  // ORDINARY result for an exhibitor with no entries — so the common case must
+  // not pay for it.
+  it('does not hydrate the replica when the local entry store is empty', async () => {
+    mockReplicatedStores({ entries: [] });
+    mockSupabaseTables({ viewEntryRows: [] });
+
+    const result = await getUserEntries('user-1');
+
+    expect(result).toEqual({ data: [], error: null });
+    expect(mocks.replicatedEntriesGetAllLocalIds).toHaveBeenCalled();
+    expect(mocks.replicatedEntriesGetAll).not.toHaveBeenCalled();
+    expect(mocks.replicatedDogsGetAllDogs).not.toHaveBeenCalled();
+  });
+
+  // Fails OPEN: inferring "empty" from a broken probe would reintroduce the
+  // false zero this whole path exists to prevent.
+  it('still hydrates the replica when the cheap probe is unavailable', async () => {
+    mockReplicatedStores();
+    mocks.replicatedEntriesGetAllLocalIds.mockRejectedValue(new Error('probe unavailable'));
+    mockSupabaseTables({ viewEntryRows: [], enrollmentRows: [] });
+
+    const result = await getUserEntries('user-1');
+
+    expect(result.data.map(row => row.id)).toEqual(['entry-1']);
+    expect(result.stale).toBe(true);
+    expect(mocks.replicatedEntriesGetAll).toHaveBeenCalled();
   });
 
   it('reports an empty account when the view AND the replica are both empty', async () => {
@@ -415,9 +461,12 @@ describe('getUserEntries account-scope read', () => {
         order: vi.fn(() => hangingQuery),
         range: vi.fn(() => new Promise(() => {})),
       };
+      // The offline path's own network call, on the SAME dead network — it has
+      // to hang too, or the test cannot see whether getUserEntries settles.
       const enrollmentsQuery = {
         select: vi.fn(() => enrollmentsQuery),
-        in: vi.fn(() => Promise.resolve({ data: [], error: null })),
+        in: vi.fn(() => enrollmentsQuery),
+        abortSignal: vi.fn(() => new Promise(() => {})),
       };
       mocks.supabaseFrom.mockImplementation((table: string) => {
         if (table === 'view_authenticated_entry_results') return hangingQuery;
@@ -426,6 +475,8 @@ describe('getUserEntries account-scope read', () => {
       });
 
       const pending = getUserEntries('user-1');
+      // Two deadlines in series: the view's, then the enrollment enrichment's.
+      await vi.advanceTimersByTimeAsync(DEFAULT_TIMEOUT_MS + 1);
       await vi.advanceTimersByTimeAsync(DEFAULT_TIMEOUT_MS + 1);
       const result = await pending;
 
@@ -475,7 +526,12 @@ describe('getUserEntries account-scope read', () => {
 
     const result = await getUserEntries('user-1');
 
-    expect(result).toEqual({ data: [], error: null });
+    expect(result.data).toEqual([]);
+    expect(result.error).toBeNull();
+    // Empty AND unconfirmed. Offline with nothing cached we do not know that
+    // the account owes nothing — we know we could not ask. `stale` keeps a
+    // money surface from reading this absence as "paid in full".
+    expect(result.stale).toBe(true);
     expect(mocks.supabaseFrom).toHaveBeenCalledWith('view_authenticated_entry_results');
     expect(mocks.mapReplicatedEntryToDbRow).not.toHaveBeenCalled();
   });
@@ -565,6 +621,7 @@ describe('getUserEntries account-scope read', () => {
       'select_user_entries_stale_replica_after_error',
       expect.any(Number)
     );
+    expect(result.stale).toBe(true);
   });
 
   it('surfaces the online error when the replica is also unreadable', async () => {
@@ -581,6 +638,12 @@ describe('getUserEntries account-scope read', () => {
       table: 'entries',
       operation: 'select_user_entries',
     });
+    expect(mocks.logQuery).toHaveBeenCalledWith(
+      'entries',
+      'select_user_entries_replica_unreadable',
+      expect.any(Number),
+      'RLS policy denied'
+    );
   });
 });
 

@@ -83,9 +83,11 @@ describe('seed-demo self-cleaning relationship deletes (MYK9-490 follow-up)', ()
 
     const guardBlockStart = seed.lastIndexOf('DO $$', guard);
     const guardBlock = seed.slice(guardBlockStart, relationshipDelete);
-    expect(guardBlock).toContain("e.payment_status = 'paid'");
-    expect(guardBlock).toContain('public.stripe_orders');
+    expect(guardBlock).toContain("e.payment_status IN ('paid', 'refunded')");
     expect(guardBlock).toContain(`en.id = '${ENROLLMENT_ID}'`);
+    // The Stripe check must be keyed on the enrollment itself, not reached
+    // through entries: an order whose entries are gone would otherwise pass.
+    expect(guardBlock).toContain('FROM public.stripe_orders so\n  JOIN public.enrollments en ON en.id = so.enrollment_id');
   });
 
   it("runs the hard-coded entries delete before the guard, so the seed's own paid rows never trip it", () => {
@@ -145,6 +147,26 @@ describe('seed-demo self-cleaning relationship deletes (MYK9-490 follow-up)', ()
       cartDeletes.some(c => c.text.includes(`dog_id >= '${LOAD_DOG_RANGE_LOW}'`)),
       'load-range entry_cart_items delete keyed on dog_id not found'
     ).toBe(true);
+  });
+
+  it('preflights trial_packet_snapshots before every shows delete instead of deleting them', () => {
+    // trial_packet_snapshots.show_id is RESTRICT on purpose: the private
+    // Storage PDFs must be removed through the Storage API before their audit
+    // rows, so the seed must refuse, never DELETE. Each shows delete needs an
+    // EXISTS preflight that names the same id or range bound and runs first.
+    const showsDeletes = statements(/DELETE FROM public\.shows\b[^;]*;/g);
+    const preflights = statements(/SELECT 1 FROM public\.trial_packet_snapshots\b[^;]*;/g);
+    expect(showsDeletes.length).toBeGreaterThanOrEqual(3);
+    expect(seed).not.toMatch(/DELETE FROM public\.trial_packet_snapshots/);
+    for (const shows of showsDeletes) {
+      const ids = uuidsIn(shows.text);
+      const partner = preflights.filter(p => ids.some(id => p.text.includes(`'${id}'`)));
+      expect(
+        partner.length,
+        `shows delete at offset ${shows.index} has no trial_packet_snapshots preflight`
+      ).toBeGreaterThan(0);
+      for (const p of partner) expect(p.index).toBeLessThan(shows.index);
+    }
   });
 
   it('clears entry_cart_items for every demo-show class the seed deletes by id', () => {

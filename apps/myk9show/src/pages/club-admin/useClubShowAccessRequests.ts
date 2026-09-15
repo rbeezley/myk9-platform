@@ -33,7 +33,16 @@ export function useClubShowAccessRequests(
     enabled: !!clubId,
   });
 
-  const pendingRoleRequests = useMemo(() => roleRequestsQuery.data ?? [], [roleRequestsQuery.data]);
+  // Defense in depth (MYK9-571 round 3, P3-5): the RPC's own WHERE clause
+  // already filters to status='pending', but the badge/heading here should
+  // not depend SOLELY on that — if a future change to the RPC ever widened
+  // it (e.g. to also return reviewed requests for a history view), this
+  // filter keeps the count and the "who is still waiting" list correct
+  // without a client-side change.
+  const pendingRoleRequests = useMemo(
+    () => (roleRequestsQuery.data ?? []).filter(request => request.status === 'pending'),
+    [roleRequestsQuery.data]
+  );
 
   // The Show Access tab strip carries a count badge for pending requests, so
   // a club admin does not have to open the tab to notice one. Memoized (not

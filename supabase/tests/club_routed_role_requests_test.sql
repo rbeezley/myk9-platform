@@ -31,6 +31,10 @@
 --      the shape check and the authorization check are one verdict, not two.
 --   11. (round 2, R4) deny_club_role_request by a non-admin of the request's
 --      club is rejected (42501), mirroring test 1's coverage of approve.
+--   12. (round 3, lens A) list_club_role_requests(NULL) is 42501 even for a
+--      site admin.
+--   13. (round 3, lens A) A site admin listing a real club's requests still
+--      gets zero rows for a NULL-club secretary request.
 --
 -- `role_requests.auth_user_id` is NOT NULL REFERENCES auth.users(id), so every
 -- identity below needs a real auth.users row, not just a people row carrying an
@@ -837,6 +841,55 @@ BEGIN
   EXCEPTION WHEN SQLSTATE '42501' THEN
     RAISE NOTICE 'PASS non-admin deny_club_role_request is rejected (42501)';
   END;
+END;
+$$;
+
+RESET ROLE;
+-- ============================================================================
+-- 12. (round 3 lens A) list_club_role_requests(NULL) is rejected (42501)
+--     even for a site admin — the verdict checks p_club_id IS NULL first,
+--     unconditionally, before is_site_admin() OR is_club_admin() ever runs.
+-- ============================================================================
+
+SET LOCAL ROLE authenticated;
+SELECT set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-000000000b07', true);
+
+DO $$
+BEGIN
+  BEGIN
+    PERFORM public.list_club_role_requests(NULL);
+    RAISE EXCEPTION 'FAIL list_club_role_requests(NULL) succeeded for a site admin';
+  EXCEPTION WHEN SQLSTATE '42501' THEN
+    RAISE NOTICE 'PASS list_club_role_requests(NULL) is rejected (42501) even for a site admin';
+  END;
+END;
+$$;
+
+-- ============================================================================
+-- 13. (round 3 lens A) A site admin listing a REAL club's requests still
+--     gets zero rows for a NULL-club secretary request (the same row
+--     section 3c proved invisible to a direct SELECT) — the RPC's own
+--     `WHERE rr.club_id = p_club_id` excludes it for ANY real club id,
+--     privileged caller or not, so a site admin cannot see it through this
+--     RPC either (they still see it through role_requests_select's own
+--     unconditional is_site_admin() arm, which this test does not touch).
+-- ============================================================================
+
+DO $$
+DECLARE
+  v_visible_count int;
+BEGIN
+  SELECT count(*) INTO v_visible_count
+  FROM public.list_club_role_requests('00000000-0000-0000-0000-000000000b21')
+  WHERE person_id = '00000000-0000-0000-0000-000000000b13';
+
+  IF v_visible_count <> 0 THEN
+    RAISE EXCEPTION
+      'FAIL a site admin saw a NULL-club secretary request through list_club_role_requests for a real club (% visible)',
+      v_visible_count;
+  END IF;
+
+  RAISE NOTICE 'PASS list_club_role_requests never returns a NULL-club request for any real club id';
 END;
 $$;
 

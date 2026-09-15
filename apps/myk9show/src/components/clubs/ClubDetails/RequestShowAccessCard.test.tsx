@@ -104,6 +104,9 @@ describe('RequestShowAccessCard', () => {
     mockAuth.userWithRoles = withScopes([]);
     render(<RequestShowAccessCard club={club} />);
     expect(await screen.findByRole('button', { name: /request show access/i })).toBeInTheDocument();
+    // MYK9-571 round 2 (P2-2): pins that the AUTH uid is passed, not
+    // databaseUserId (the person id) or anything else on the mock.
+    expect(getMyClubSecretaryRequestStatus).toHaveBeenCalledWith('club-1', 'auth-1');
   });
 
   it('requires a non-empty note before sending, then submits with the exact args', async () => {

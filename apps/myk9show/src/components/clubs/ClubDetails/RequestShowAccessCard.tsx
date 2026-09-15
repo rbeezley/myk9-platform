@@ -108,6 +108,13 @@ export const RequestShowAccessCard: React.FC<RequestShowAccessCardProps> = ({ cl
 
   if (!eligibleToAsk) return null;
 
+  // MYK9-571 round 2 (P3-3): the status query is disabled (not loading, not
+  // errored) when there is no auth user id, so without this check an
+  // eligible user with a missing id would fall straight through to the
+  // Request button below — failing OPEN on a caller the query never even
+  // ran for.
+  if (!userWithRoles?.id) return null;
+
   // An approval can arrive before the auth context's own scopes refresh (a
   // 5-minute poll) catch up, so alreadySecretary above may still be false
   // here. Treat 'approved' the same way: nothing actionable, no re-askable

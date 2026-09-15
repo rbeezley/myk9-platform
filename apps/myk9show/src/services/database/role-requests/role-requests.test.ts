@@ -329,12 +329,18 @@ describe('club-routed secretary requests (MYK9-571)', () => {
   });
 
   it('lists a club\u2019s pending club-scoped secretary requests through the list_club_role_requests RPC', async () => {
+    // A REALISTIC 18-column RPC row (MYK9-571 round 3, P2-3) — the RPC does
+    // not return auth_user_id (no club-admin consumer reads it), and
+    // created_at/updated_at are real ISO strings, not undefined:
+    // ClubShowAccessRequests.tsx calls
+    // formatDistanceToNow(new Date(request.createdAt)), which THROWS on
+    // `new Date(undefined)`, so a fixture that omits it would pass this
+    // unit test while crashing the component it feeds.
     mockSupabase.rpc.mockReturnValue(
       createChainableQuery({
         data: [
           {
             id: 'request-1',
-            auth_user_id: 'auth-1',
             person_id: 'person-1',
             requested_role: 'secretary',
             requested_scope: 'club',
@@ -363,9 +369,29 @@ describe('club-routed secretary requests (MYK9-571)', () => {
     expect(mockSupabase.rpc).toHaveBeenCalledWith('list_club_role_requests', {
       p_club_id: 'club-1',
     });
-    expect(requests).toHaveLength(1);
-    expect(requests[0]?.requesterName).toBe('Pat Morgan');
-    expect(requests[0]?.clubName).toBe('Best Club');
+    expect(requests).toEqual([
+      {
+        id: 'request-1',
+        authUserId: '',
+        personId: 'person-1',
+        requestedRole: 'secretary',
+        requestedScope: 'club',
+        clubId: 'club-1',
+        clubName: 'Best Club',
+        showId: null,
+        status: 'pending',
+        requesterNote: 'Please.',
+        reviewerNote: null,
+        reviewedBy: null,
+        reviewerName: null,
+        reviewerEmail: null,
+        reviewedAt: null,
+        createdAt: '2026-09-15T12:00:00Z',
+        updatedAt: '2026-09-15T12:00:00Z',
+        requesterName: 'Pat Morgan',
+        requesterEmail: 'pat@example.com',
+      },
+    ]);
   });
 
   it('propagates a 42501 from list_club_role_requests unchanged (non-admin caller)', async () => {

@@ -78,16 +78,24 @@ export interface ApproveRoleRequestInput {
  * header), so this is what the RPC's RETURNS TABLE actually returns, not a
  * PostgREST embed like DbRoleRequestRow.
  */
+/**
+ * Matches list_club_role_requests' generated Returns row EXACTLY (string
+ * fields, not the narrowed unions below) — MYK9-571 round 3 (P2-3): this
+ * lets the caller assign the RPC's real generated type straight into this
+ * interface with no `as unknown as` cast, structurally. Runtime narrowing
+ * into RequestedRole/RequestedScope/RoleRequestStatus happens inside
+ * mapClubRoleRequestRpcRow via the same assert* helpers mapDbRoleRequest
+ * uses below.
+ */
 export interface ClubRoleRequestRpcRow {
   id: string;
-  auth_user_id: string;
   person_id: string;
-  requested_role: RequestedRole;
-  requested_scope: RequestedScope;
+  requested_role: string;
+  requested_scope: string;
   club_id: string | null;
   club_name: string | null;
   show_id: string | null;
-  status: RoleRequestStatus;
+  status: string;
   requester_note: string | null;
   reviewer_note: string | null;
   reviewed_by: string | null;
@@ -165,7 +173,12 @@ function assertRoleRequestStatus(value: string, requestId: string): RoleRequestS
 export function mapClubRoleRequestRpcRow(row: ClubRoleRequestRpcRow): RoleRequest {
   return {
     id: row.id,
-    authUserId: row.auth_user_id,
+    // MYK9-571 round 3 (P3): the RPC does not return auth_user_id — no
+    // club-admin consumer reads RoleRequest.authUserId (it exists for the
+    // site-admin listing's mapDbRoleRequest, which still populates it for
+    // real). Left as an empty string rather than making the field optional
+    // on the shared RoleRequest shape.
+    authUserId: '',
     personId: row.person_id,
     requestedRole: assertRequestedRole(row.requested_role, row.id),
     requestedScope: assertRequestedScope(row.requested_scope, row.id),

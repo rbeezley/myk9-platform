@@ -185,25 +185,13 @@ export const ClubShowAccessTab: React.FC<ClubShowAccessTabProps> = ({
   onDenyRequest,
   isSavingRequest,
 }) => {
-  if (unavailable) {
-    // Never render an empty list as "nobody has access" — that is a claim this tab
-    // cannot support when the query failed, and it is the claim most likely to be
-    // acted on.
-    return (
-      <p
-        role="status"
-        className="rounded-lg border border-warning/40 bg-warning/10 px-3 py-2 text-sm text-warning"
-      >
-        We couldn&apos;t load who has show access. This isn&apos;t the same as nobody having it.{' '}
-        <button type="button" onClick={onRetry} className="underline underline-offset-2">
-          Try again
-        </button>
-      </p>
-    );
-  }
-
   const isLastSecretary = managers.length === 1;
 
+  // MYK9-571 round 2 (P2-1): the pending-requests section has its own
+  // unavailable/retry handling and must not be hidden just because the
+  // SEPARATE show-managers fetch failed — the tab's badge count depends on
+  // pendingRequests regardless of whether managers loaded, so a managers
+  // error used to hide the very section the badge was advertising.
   return (
     <div className="space-y-4">
       <ClubShowAccessRequests
@@ -215,6 +203,49 @@ export const ClubShowAccessTab: React.FC<ClubShowAccessTabProps> = ({
         isSaving={isSavingRequest}
       />
 
+      {unavailable ? (
+        // Never render an empty list as "nobody has access" — that is a claim this tab
+        // cannot support when the query failed, and it is the claim most likely to be
+        // acted on.
+        <p
+          role="status"
+          className="rounded-lg border border-warning/40 bg-warning/10 px-3 py-2 text-sm text-warning"
+        >
+          We couldn&apos;t load who has show access. This isn&apos;t the same as nobody having it.{' '}
+          <button type="button" onClick={onRetry} className="underline underline-offset-2">
+            Try again
+          </button>
+        </p>
+      ) : (
+        <ClubShowAccessManagers
+          managers={managers}
+          onAppoint={onAppoint}
+          onRevoke={onRevoke}
+          upcomingShowCount={upcomingShowCount}
+          isLastSecretary={isLastSecretary}
+        />
+      )}
+    </div>
+  );
+};
+
+interface ClubShowAccessManagersProps {
+  managers: ClubShowManager[];
+  onAppoint: () => void;
+  onRevoke: (personId: string, personName: string) => void;
+  upcomingShowCount: number;
+  isLastSecretary: boolean;
+}
+
+const ClubShowAccessManagers: React.FC<ClubShowAccessManagersProps> = ({
+  managers,
+  onAppoint,
+  onRevoke,
+  upcomingShowCount,
+  isLastSecretary,
+}) => {
+  return (
+    <>
       <div className="flex flex-wrap items-center justify-between gap-3">
         <p className="text-sm text-muted-foreground">
           {managers.length === 0
@@ -301,6 +332,6 @@ export const ClubShowAccessTab: React.FC<ClubShowAccessTabProps> = ({
           {upcomingShowCount === 1 ? 'show' : 'shows'}. Appoint someone else before revoking them.
         </p>
       )}
-    </div>
+    </>
   );
 };

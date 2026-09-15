@@ -53,6 +53,7 @@ export const ClubShowAccessRequests: React.FC<ClubShowAccessRequestsProps> = ({
   const closeDenyDialog = () => {
     setIsDenyOpen(false);
     setDenyNote('');
+    setPendingDeny(null);
   };
 
   const confirmDeny = () => {
@@ -145,7 +146,10 @@ export const ClubShowAccessRequests: React.FC<ClubShowAccessRequestsProps> = ({
               exact request again.
             </AlertDialogDescription>
           </AlertDialogHeader>
-          <FormField label="Reason (shown to the requester)" fieldId="deny-request-note">
+          <FormField
+            label="Reason (shown to the requester; kept in myK9’s records)"
+            fieldId="deny-request-note"
+          >
             <Textarea
               id="deny-request-note"
               placeholder="Optional — helps them understand what to do differently."

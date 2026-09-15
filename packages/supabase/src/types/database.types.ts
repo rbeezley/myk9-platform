@@ -12706,7 +12706,6 @@ export type Database = {
       list_club_role_requests: {
         Args: { p_club_id: string }
         Returns: {
-          auth_user_id: string
           club_id: string | null
           club_name: string | null
           created_at: string

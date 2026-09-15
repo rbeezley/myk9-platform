@@ -6,7 +6,6 @@ import {
   RoleRequestAlreadyPendingError,
   RoleRequestStandingDenialError,
   type ApproveRoleRequestInput,
-  type ClubRoleRequestRpcRow,
   type ClubSecretaryRequestStatus,
   type DbRoleRequestRow,
   type RoleRequest,
@@ -185,7 +184,10 @@ export async function listClubRoleRequests(clubId: string): Promise<RoleRequest[
   const { data, error } = await supabase.rpc('list_club_role_requests', { p_club_id: clubId });
 
   if (error) throw error;
-  return ((data ?? []) as unknown as ClubRoleRequestRpcRow[]).map(mapClubRoleRequestRpcRow);
+  // No cast: ClubRoleRequestRpcRow matches the generated Returns row shape
+  // structurally (MYK9-571 round 3, P2-3), so `data` (already typed via the
+  // Database-generic supabase client) assigns straight through.
+  return (data ?? []).map(mapClubRoleRequestRpcRow);
 }
 
 export async function approveClubRoleRequest(

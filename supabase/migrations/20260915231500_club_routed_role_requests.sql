@@ -12,15 +12,18 @@
 --
 -- What changes:
 --
---   1. submit_role_request gains a "standing denial" guard: if the caller's
---      most recent request for this exact (person, club, role, scope='club')
---      was denied and they still do not hold that role at the club, block a
---      resubmission with a distinct error code (MK571) rather than silently
---      re-queuing something a club admin already said no to. A direct
---      appointment by the club (grant_club_secretary) is the only thing that
---      clears this — matching the design note in the issue. It also now
---      requires a non-empty p_requester_note for a club-scoped secretary
---      request specifically: signup's own inserts go through
+--   1. submit_role_request gains a "standing denial" guard, scoped to
+--      requested_scope='club' AND requested_role='secretary' only: if the
+--      caller's most recent request for this exact (person, club,
+--      secretary) was denied and they still do not hold that role at the
+--      club, block a resubmission with a distinct error code (MK571)
+--      rather than silently re-queuing something a club admin already said
+--      no to. A denied club_admin ask is NOT covered — club governance has
+--      its own review path, not this guard. A direct appointment by the
+--      club (grant_club_secretary) is the only thing that clears this —
+--      matching the design note in the issue. It also now requires a
+--      non-empty p_requester_note for a club-scoped secretary request
+--      specifically: signup's own inserts go through
 --      insert_signup_role_requests (a separate, direct INSERT), so they never
 --      call this function and are unaffected.
 --
@@ -55,19 +58,9 @@
 --      asking, which is the same class of oracle, just smaller, as the P0
 --      the club-admin SELECT arm had).
 --
---   3. role_requests_select (the one live SELECT policy on this table since
---      20260728130000 consolidated "Site admins can view role requests" and
---      "Users can view their own role requests" into it) gains a third OR
---      arm so a club admin can read pending — and reviewed — club-scoped
---      secretary requests for their own club: requested_scope = 'club' AND
---      requested_role = 'secretary' AND club_id IS NOT NULL AND
---      is_club_admin(club_id). Dropped and recreated rather than added-to as
---      a second policy, matching the "one SELECT policy per table" shape
---      20260728130000 established. The requester's own-row arm and the
---      site-admin arm are copied verbatim; a requester still sees only their
---      own request and a site admin still sees everything — including clubs
---      with zero admins, which keeps the /admin/role-requests fallback
---      intact.
+--   3. role_requests_select is UNTOUCHED by this migration — see "Round 2
+--      restructure" below for why an earlier draft's plan to add a
+--      club-admin arm to it was abandoned instead of shipped.
 --
 --   4. approve_role_request (the site-admin inbox path) is fixed to route
 --      EVERY secretary grant through grant_club_secretary instead of only
@@ -84,26 +77,44 @@
 --      latest definition (20260830240000).
 --
 -- Round 2 restructure (same-day follow-up, before this migration ever
--- shipped): review found a P1 in round 1's own fix, on the exact path this
--- migration touches (role_requests_select <-> is_club_admin) — the nullable
--- club_id meeting the argument-less-helper trap this project has hit five
--- times before (MYK9-258/329/457/470/474). Round 1's club-admin arm passed
--- is_club_admin(club_id) with club_id NULL for every signup-generated
--- secretary request, which means "club admin anywhere", not "admin of the
--- request's club" — every club admin could read every signup secretary
--- request platform-wide. Rather than bolt on another guard, this drops the
--- source: show-scoped secretary is not a permission any more
+-- shipped): review found a P1 in an earlier draft's plan for
+-- role_requests_select — the exact path this migration otherwise leaves
+-- alone (role_requests_select <-> is_club_admin) — the nullable club_id
+-- meeting the argument-less-helper trap this project has hit five times
+-- before (MYK9-258/329/457/470/474). That draft's club-admin arm would
+-- have passed is_club_admin(club_id) with club_id NULL for every
+-- signup-generated secretary request, which means "club admin anywhere",
+-- not "admin of the request's club" — every club admin would have been
+-- able to read every signup secretary request platform-wide. Rather than
+-- guard the arm inline on a bare RLS policy (a shape the next migration
+-- can silently drop the guard from — that is exactly how the draft
+-- happened), club-admin visibility moves to a new SECURITY DEFINER RPC
+-- below, public.list_club_role_requests(p_club_id): a function has one
+-- predictable authorization check at its top, restated as
+-- `p_club_id IS NULL OR NOT (is_site_admin() OR is_club_admin(p_club_id))`
+-- before any row is read. role_requests_select itself is therefore left
+-- at exactly its 20260728130000 shape (own rows, or a site admin) — this
+-- migration makes NO policy change on role_requests at all.
+--
+-- Separately: show-scoped secretary is not a permission any more
 -- (20260830240000 retired it), so submit_role_request now REJECTS
 -- requested_scope='show' for requested_role='secretary' at the door
--- (ERRCODE 22023). That makes every secretary request club-scoped by
--- construction, and the club-admin SELECT arm above restates
--- requested_scope='club' AND club_id IS NOT NULL explicitly rather than
--- relying on that invariant holding forever. approve_club_role_request and
+-- (ERRCODE 22023) — every secretary request the RPC or the policy could
+-- ever see is club-scoped by construction. approve_club_role_request and
 -- deny_club_role_request also collapse their shape check and authorization
--- check into one 42501 verdict (previously a caller could get 22023 for a
+-- check into one 42501 verdict (an earlier shape got 22023 for a
 -- malformed id/shape before ever being checked for authorization, which is
--- itself a smaller information leak than round 1's, but the same class of
--- bug: a code path that answers a question before checking who's asking).
+-- itself a smaller information leak than the club-admin-arm P1 above, but
+-- the same class of bug: a code path that answers a question before
+-- checking who's asking).
+--
+-- OUT OF SCOPE: a club admin can only ever see a PENDING club-scoped
+-- secretary request through list_club_role_requests — the RPC does not
+-- surface requests they have already approved or denied. Club-side review
+-- history (an audit trail for "what did we do with this ask") is a
+-- separate, deliberately deferred feature; the site-admin inbox
+-- (role_requests_select's own-row/site-admin arms, via /admin/role-requests)
+-- remains the one place with full history today.
 
 BEGIN;
 
@@ -212,15 +223,19 @@ BEGIN
       USING ERRCODE = '42501';
   END IF;
 
-  -- MYK9-571 addition: a standing denial blocks re-requesting the same
-  -- club-scoped role at the same club. "Standing" means the MOST RECENT
-  -- request for this exact (person, club, role) was denied; an approved or
-  -- still-pending later request would never reach here anyway (pending is
-  -- blocked by the unique index below; approved usually means the person
-  -- already holds the role). The block lifts the moment the club appoints
-  -- them directly (grant_club_secretary), which is why this checks CURRENT
-  -- role membership, not just request history.
-  IF p_requested_scope = 'club' THEN
+  -- MYK9-571 addition: a standing denial blocks re-requesting club-scoped
+  -- SECRETARY at the same club (round 2 lens A: scoped to
+  -- p_requested_role = 'secretary' only — a denied club_admin ask is a
+  -- club-governance decision with its own, separate review path today, not
+  -- one this migration's standing-denial guard was designed against).
+  -- "Standing" means the MOST RECENT request for this exact (person, club,
+  -- role) was denied; an approved or still-pending later request would
+  -- never reach here anyway (pending is blocked by the unique index below;
+  -- approved usually means the person already holds the role). The block
+  -- lifts the moment the club appoints them directly
+  -- (grant_club_secretary), which is why this checks CURRENT role
+  -- membership, not just request history.
+  IF p_requested_scope = 'club' AND p_requested_role = 'secretary' THEN
     SELECT rr.status INTO v_latest_status
     FROM public.role_requests rr
     WHERE rr.person_id = v_person_id
@@ -518,7 +533,6 @@ GRANT EXECUTE ON FUNCTION public.deny_club_role_request(uuid, text) TO authentic
 CREATE OR REPLACE FUNCTION public.list_club_role_requests(p_club_id uuid)
 RETURNS TABLE (
   id uuid,
-  auth_user_id uuid,
   person_id uuid,
   requested_role text,
   requested_scope text,
@@ -538,6 +552,7 @@ RETURNS TABLE (
   requester_email text
 )
 LANGUAGE plpgsql
+STABLE
 SECURITY DEFINER
 SET search_path = ''
 AS $$
@@ -554,7 +569,6 @@ BEGIN
   RETURN QUERY
   SELECT
     rr.id,
-    rr.auth_user_id,
     rr.person_id,
     rr.requested_role,
     rr.requested_scope,

@@ -87,7 +87,9 @@ describe('seed-demo self-cleaning relationship deletes (MYK9-490 follow-up)', ()
     expect(guardBlock).toContain(`en.id = '${ENROLLMENT_ID}'`);
     // The Stripe check must be keyed on the enrollment itself, not reached
     // through entries: an order whose entries are gone would otherwise pass.
-    expect(guardBlock).toContain('FROM public.stripe_orders so\n  JOIN public.enrollments en ON en.id = so.enrollment_id');
+    expect(guardBlock).toContain(
+      'FROM public.stripe_orders so\n  JOIN public.enrollments en ON en.id = so.enrollment_id'
+    );
   });
 
   it("runs the hard-coded entries delete before the guard, so the seed's own paid rows never trip it", () => {

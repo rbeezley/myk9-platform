@@ -4,6 +4,7 @@ import { cn } from '@/lib/utils';
 import { Checkbox } from '@/components/ui/checkbox';
 import { ChevronRight, MapPin } from 'lucide-react';
 import { formatFee } from '@/utils/format';
+import { useEntryDogLink } from '@/features/registration/entryDogContext';
 import { DateCircle } from '@/components/shows/DateCircle';
 import { EntryStatusBadge } from '@/components/shows/EntryStatusBadge';
 import { getEntryStatus } from '@/utils/entryStatusUtils';
@@ -33,6 +34,7 @@ export const ShowCardHorizontal: React.FC<ShowCardHorizontalProps> = ({
   onToggleSelect,
   distanceMiles = null,
 }) => {
+  const entryDogLink = useEntryDogLink();
   const entryStatus = getEntryStatus(show, userHasEntries);
   const showCardStatus = getShowCardStatus(show, entryStatus.status);
 
@@ -48,7 +50,7 @@ export const ShowCardHorizontal: React.FC<ShowCardHorizontalProps> = ({
       )}
     >
       <Link
-        to={`/shows/${show.id}`}
+        to={entryDogLink(`/shows/${show.id}`)}
         className="absolute inset-0 z-10 rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
         aria-label={`View ${show.name}`}
       />

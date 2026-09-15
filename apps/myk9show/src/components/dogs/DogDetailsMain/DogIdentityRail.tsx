@@ -20,6 +20,7 @@ import { formatDogAge, getDogRegisteredName } from '@/types/dog-types';
 import { DogRegistryTable } from '@/components/dogs/common/DogRegistryTable';
 import { buildDogCardRegistryModel } from '@/components/dogs/common/dogRegistryModel';
 import { DOG_STATUS_BADGES, getDogSexBadge } from '@/components/dogs/common/dogStatusBadges';
+import { withEntryDogContext } from '@/features/registration/entryDogContext';
 import { formatDisplayDate } from './utils';
 import type { DogIdentityRailProps } from './types';
 
@@ -174,7 +175,11 @@ const DogIdentityRail: React.FC<DogIdentityRailProps> = ({
         {!isSecretary && (
           <div className="mt-4 flex items-center gap-2">
             <Button variant="default" className="min-h-11 flex-1 gap-1.5" asChild>
-              <Link to="/shows">
+              {/* Carries this dog through browse -> show detail -> the entry
+                  wizard, which preselects it if it is still enterable
+                  (MYK9-519). Still the ordinary browse page, not a second
+                  entry flow. */}
+              <Link to={withEntryDogContext('/shows', dog.id)}>
                 <Plus className="h-4 w-4" />
                 Enter a show
               </Link>

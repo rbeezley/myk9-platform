@@ -48,6 +48,29 @@ function renderCard(ui: React.ReactElement) {
 }
 
 describe('ShowCardHorizontal', () => {
+  // MYK9-519: "Enter a show" from Dog Details lands on /shows?dogId=... The
+  // card is the default browse hop, so it must carry the context onward or the
+  // wizard has nothing to preselect.
+  it('carries an entry dog context from the browse URL into the show link', () => {
+    render(
+      <MemoryRouter initialEntries={['/shows?dogId=dog-1']}>
+        <ShowCardHorizontal show={createMockShow()} />
+      </MemoryRouter>
+    );
+    expect(screen.getByRole('link', { name: /view spring agility trial/i })).toHaveAttribute(
+      'href',
+      '/shows/show-1?dogId=dog-1'
+    );
+  });
+
+  it('leaves the ordinary browse link alone with no dog context', () => {
+    renderCard(<ShowCardHorizontal show={createMockShow()} />);
+    expect(screen.getByRole('link', { name: /view spring agility trial/i })).toHaveAttribute(
+      'href',
+      '/shows/show-1'
+    );
+  });
+
   it('renders show title, club name, and location', () => {
     renderCard(<ShowCardHorizontal show={createMockShow()} />);
 

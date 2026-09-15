@@ -92,7 +92,7 @@ export function AddToCalendarDialog({
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogContent className="grid-cols-[minmax(0,1fr)] max-h-[85vh] max-w-md overflow-y-auto">
+      <DialogContent className="max-h-[85vh] max-w-md overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <CalendarPlus className="h-5 w-5" />

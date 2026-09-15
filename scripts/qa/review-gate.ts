@@ -348,7 +348,12 @@ export function parseGateComments(comments: readonly GateComment[]): GateEvidenc
     // captures all four; this narrows `noUncheckedIndexedAccess`'s
     // `string | undefined` element type back to `string` by construction
     // (MYK9-531), never with `!` or `as`.
-    if (reviewer === undefined || base === undefined || head === undefined || verdict === undefined) {
+    if (
+      reviewer === undefined ||
+      base === undefined ||
+      head === undefined ||
+      verdict === undefined
+    ) {
       continue;
     }
     // REVIEW_GATE_LINE's own alternation only ever captures a ReviewerToken;

@@ -32,8 +32,6 @@ describe('scripts/qa typecheck ratchet', () => {
       { file: 'b.ts', code: 'TS2', message: 'also known' },
     ];
 
-    expect(compareDiagnostics([baseline[0]!], baseline).resolvedDiagnostics).toEqual([
-      baseline[1],
-    ]);
+    expect(compareDiagnostics([baseline[0]!], baseline).resolvedDiagnostics).toEqual([baseline[1]]);
   });
 });

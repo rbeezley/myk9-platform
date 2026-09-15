@@ -5,11 +5,17 @@ import { describe, expect, it } from 'vitest';
 import {
   clampDescription,
   evaluateReviewGate,
+  fileListIsUnusable,
+  GH_MAX_BUFFER_BYTES,
+  runGh,
   flattenPages,
   overrideAccepted,
   OWNER_OVERRIDE_ASSOCIATIONS,
+  parseFileNameList,
   parseGateComments,
+  runCli,
   REVIEW_GATE_LINE,
+  REST_FILE_PAGE_CAP,
   REVIEWER_TOKENS,
   tierForReviewer,
   TRUSTED_ASSOCIATIONS,
@@ -1363,5 +1369,266 @@ describe('an override can record a convergence stop honestly (S-e)', () => {
 
   it('refuses a reason that is neither form', () => {
     expect(overrideAccepted(evidence('I was busy — will review later'))).toBe(false);
+  });
+});
+
+describe('fileListIsUnusable', () => {
+  // The floor is derived from WHICH paths a PR touches, so a short list is
+  // more dangerous than an empty one: it computes a LOWER floor than the diff
+  // deserves instead of failing closed.
+  it('treats an empty fetch as unusable', () => {
+    expect(fileListIsUnusable(0, 0)).toBe(true);
+    expect(fileListIsUnusable(0)).toBe(true);
+  });
+
+  it('treats a fetch short of GitHub’s own count as unusable', () => {
+    // The exact shape of PR #2121: GitHub declares 1734, one GraphQL page
+    // carries 100.
+    expect(fileListIsUnusable(100, 1734)).toBe(true);
+  });
+
+  it('accepts a complete fetch, however large', () => {
+    expect(fileListIsUnusable(1734, 1734)).toBe(false);
+    expect(fileListIsUnusable(2999, 2999)).toBe(false);
+  });
+
+  it('treats the REST endpoint’s own 3000-entry ceiling as unusable', () => {
+    expect(fileListIsUnusable(REST_FILE_PAGE_CAP, 4200)).toBe(true);
+    expect(fileListIsUnusable(REST_FILE_PAGE_CAP, REST_FILE_PAGE_CAP)).toBe(true);
+  });
+
+  it('refuses to vouch for a list GitHub declares nothing about', () => {
+    // `changedFiles` is a real `gh pr view --json` field, so its absence means
+    // an assumption broke. Falling back to the count-only rule is exactly what
+    // let the original truncation through, so this fails closed instead.
+    expect(fileListIsUnusable(42)).toBe(true);
+    expect(fileListIsUnusable(42, undefined)).toBe(true);
+  });
+
+  it('catches a shortfall of ONE, not just a gross one', () => {
+    // A mutant reading `fetchedCount * 2 < declaredCount` passes every other
+    // assertion here: it still calls 100-of-1734 unusable. These pin the
+    // comparison itself rather than its order of magnitude.
+    expect(fileListIsUnusable(419, 420)).toBe(true);
+    expect(fileListIsUnusable(1733, 1734)).toBe(true);
+    expect(fileListIsUnusable(420, 420)).toBe(false);
+  });
+});
+
+describe('runCli’s changed-file fetch', () => {
+  // `gh pr view --json files` asks GraphQL for ONE page and never paginates.
+  // Under the old `>= 3000` check a 1734-file PR arrived as 100 files, read as
+  // complete, and had its floor computed from that partial diff.
+  const noneLine = `Review gate: none reviewed abc1234..${HEAD} — low-risk paths, CI green`;
+  const env = { PR_NUMBER: '2121', REPO: 'rbeezley/myk9-platform' } as NodeJS.ProcessEnv;
+
+  function fakeGh(opts: { declared?: number; fetched: string[] }) {
+    const calls: string[][] = [];
+    const run = (args: string[]): string => {
+      calls.push(args);
+      if (args[0] === 'pr' && args[1] === 'view') {
+        return JSON.stringify({
+          headRefOid: HEAD,
+          isDraft: false,
+          ...(opts.declared === undefined ? {} : { changedFiles: opts.declared }),
+        });
+      }
+      if (args.some(a => a.includes('/pulls/'))) {
+        return opts.fetched.join('\n') + (opts.fetched.length ? '\n' : '');
+      }
+      if (args.some(a => a.includes('/issues/'))) {
+        return JSON.stringify([
+          [
+            {
+              body: noneLine,
+              created_at: '2026-09-05T16:00:00Z',
+              updated_at: '2026-09-05T16:00:00Z',
+              author_association: 'OWNER',
+              user: { login: 'rbeezley' },
+            },
+          ],
+        ]);
+      }
+      throw new Error(`unexpected gh call: ${args.join(' ')}`);
+    };
+    return { run, calls };
+  }
+
+  const docs = (n: number) => Array.from({ length: n }, (_, i) => `docs/notes/n${i}.md`);
+
+  it('never asks `gh pr view` for the files list', () => {
+    const { run, calls } = fakeGh({ declared: 3, fetched: docs(3) });
+    runCli(env, ['--dry-run'], run);
+    const view = calls.find(c => c[0] === 'pr' && c[1] === 'view');
+    if (!view) throw new Error('runCli never called `gh pr view`');
+    const fields = (view[view.indexOf('--json') + 1] ?? '').split(',');
+    expect(fields).not.toContain('files');
+    expect(fields).toContain('changedFiles');
+  });
+
+  it('fetches every page of the REST files endpoint', () => {
+    const { run, calls } = fakeGh({ declared: 3, fetched: docs(3) });
+    runCli(env, ['--dry-run'], run);
+    expect(calls).toContainEqual([
+      'api',
+      '--paginate',
+      '--jq',
+      '.[].filename',
+      'repos/rbeezley/myk9-platform/pulls/2121/files?per_page=100',
+    ]);
+  });
+
+  it('asks for filenames only, never the patch bodies', () => {
+    // Measured 2026-09-15: this endpoint returns 8.2 MB with `patch` bodies
+    // for PR #2121 and 99 KB filtered to names. execFileSync throws ENOBUFS
+    // past 1 MiB, and the script would die before posting any status.
+    const { run, calls } = fakeGh({ declared: 3, fetched: docs(3) });
+    runCli(env, ['--dry-run'], run);
+    const files = calls.find(c => c.some(a => a.includes('/pulls/')));
+    if (!files) throw new Error('runCli never fetched the file list');
+    expect(files).toContain('--jq');
+    expect(files).not.toContain('--slurp');
+    expect(GH_MAX_BUFFER_BYTES).toBeGreaterThan(8_214_722);
+  });
+
+  it('refuses a `none` review when the fetch came back short of the declared count', () => {
+    // 100 docs paths fetched, 1734 declared: the 1634 unseen files could be
+    // anything, including scripts/qa/**. Before the fix this returned 0.
+    const { run } = fakeGh({ declared: 1734, fetched: docs(100) });
+    expect(runCli(env, ['--dry-run'], run)).toBe(1);
+  });
+
+  it('accepts a `none` review on a complete docs-only fetch of over 100 files', () => {
+    // The paginated fetch returns all 420, so a large docs-only PR is not
+    // punished with the independent floor for its size alone.
+    const { run } = fakeGh({ declared: 420, fetched: docs(420) });
+    expect(runCli(env, ['--dry-run'], run)).toBe(0);
+  });
+
+  it('forces the independent floor when the complete fetch reveals a guardrail path', () => {
+    const { run } = fakeGh({
+      declared: 420,
+      fetched: [...docs(419), 'scripts/qa/review-gate.ts'],
+    });
+    expect(runCli(env, ['--dry-run'], run)).toBe(1);
+  });
+});
+
+describe('parseFileNameList', () => {
+  it('reads one path per line and ignores blank lines', () => {
+    expect(parseFileNameList('a.ts\nb.ts\n')).toEqual(['a.ts', 'b.ts']);
+    expect(parseFileNameList('a.ts\n\nb.ts')).toEqual(['a.ts', 'b.ts']);
+  });
+
+  it('reads an empty response as no files, not as one blank path', () => {
+    expect(parseFileNameList('')).toEqual([]);
+    expect(parseFileNameList('\n')).toEqual([]);
+  });
+});
+
+describe('evaluateReviewGate sees the declared count too', () => {
+  // Before this was threaded through, the in-module copy of the invariant
+  // could only detect an EMPTY or at-cap list, so a caller other than runCli
+  // could clear a guardrail PR on a short list — the exact case the fix is
+  // about. The floor check must not depend on runCli remembering to set a flag.
+  const noneLine = `Review gate: none reviewed abc1234..${HEAD} — low-risk paths, CI green`;
+  const docs = (n: number) => Array.from({ length: n }, (_, i) => `docs/notes/n${i}.md`);
+
+  it('forces the independent floor on a short list with no flag set', () => {
+    const result = evaluateReviewGate({
+      headSha: HEAD,
+      comments: [comment(noneLine)],
+      changedFiles: docs(100),
+      declaredFileCount: 1734,
+    });
+    expect(result.state).toBe('failure');
+    expect(result.description).toContain('independent');
+  });
+
+  it('accepts the same list when GitHub declares exactly that many', () => {
+    const result = evaluateReviewGate({
+      headSha: HEAD,
+      comments: [comment(noneLine)],
+      changedFiles: docs(100),
+      declaredFileCount: 100,
+    });
+    expect(result.state).toBe('success');
+  });
+
+  it('does not punish a caller that has no declared count', () => {
+    const result = evaluateReviewGate({
+      headSha: HEAD,
+      comments: [comment(noneLine)],
+      changedFiles: docs(100),
+    });
+    expect(result.state).toBe('success');
+  });
+});
+
+describe('runGh hands execFileSync a buffer large enough for a real fetch', () => {
+  it('passes GH_MAX_BUFFER_BYTES, not the 1 MiB default', () => {
+    // Asserting the constant alone proves it exists, not that anything uses
+    // it. Deleting `maxBuffer:` from the call must redden THIS test — the
+    // 1 MiB default is what threw ENOBUFS on an 8.2 MB response.
+    let seen: unknown;
+    const fakeExec = ((_file: string, _args: string[], opts: unknown) => {
+      seen = opts;
+      return '';
+    }) as unknown as typeof import('node:child_process').execFileSync;
+    runGh(['pr', 'view'], fakeExec);
+    const opts = seen as { maxBuffer?: number; encoding?: string };
+    expect(opts.encoding).toBe('utf8');
+    expect(opts.maxBuffer).toBe(GH_MAX_BUFFER_BYTES);
+    expect(opts.maxBuffer ?? 0).toBeGreaterThan(8_214_722);
+  });
+});
+
+describe('a crash cannot read as a standing pass', () => {
+  // The required `Review gate` context is a COMMIT status pinned to the SHA.
+  // When the evaluation threw, nothing was posted — so on an issue_comment
+  // edit that WITHDREW an attestation, the older green status survived.
+  const env = { PR_NUMBER: '2121', REPO: 'rbeezley/myk9-platform' } as NodeJS.ProcessEnv;
+
+  function runnerThatFailsOnFiles() {
+    const posted: string[][] = [];
+    const run = (args: string[]): string => {
+      if (args[0] === 'pr' && args[1] === 'view') {
+        return JSON.stringify({ headRefOid: HEAD, isDraft: false, changedFiles: 4 });
+      }
+      if (args.some(a => a.includes('/pulls/'))) throw new Error('HTTP 403: rate limited');
+      if (args.includes('--method')) {
+        posted.push(args);
+        return '';
+      }
+      throw new Error(`unexpected gh call: ${args.join(' ')}`);
+    };
+    return { run, posted };
+  }
+
+  it('posts a failure status when the file fetch throws', () => {
+    const { run, posted } = runnerThatFailsOnFiles();
+    expect(runCli(env, [], run)).toBe(0);
+    expect(posted).toHaveLength(1);
+    const fields = posted[0] ?? [];
+    expect(fields.join(' ')).toContain('state=failure');
+    expect(fields.join(' ')).toContain(`statuses/${HEAD}`);
+    expect(fields.join(' ')).toContain('rate limited');
+  });
+
+  it('posts through the injected runner, never a real gh', () => {
+    // Without this the unit suite is one forgotten --dry-run away from
+    // POSTing a commit status to a real SHA in the real repository.
+    const { run, posted } = runnerThatFailsOnFiles();
+    runCli(env, [], run);
+    expect(posted.length).toBeGreaterThan(0);
+  });
+});
+
+describe('a fetch LONGER than GitHub declares is also unusable', () => {
+  it('rejects a count that overshoots, not just one that falls short', () => {
+    // A path containing a literal newline splits into two entries, so a
+    // truncated fetch can present a count that satisfies a `<` comparison.
+    expect(fileListIsUnusable(1734, 1733)).toBe(true);
+    expect(fileListIsUnusable(101, 100)).toBe(true);
   });
 });

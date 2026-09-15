@@ -3,12 +3,16 @@ import { screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { render } from '@/test/utils/testUtils';
 import { ShowStatusPill } from './ShowStatusPill';
-import { useClubStripeAccount } from '@/features/payments/useClubStripeAccount';
+import {
+  useClubStripeAccount,
+  useClubAuthorization,
+} from '@/features/payments/useClubStripeAccount';
 import { useUpdateShowMutation } from '@/hooks/queries/useShowsDatabase';
 import { toast } from 'sonner';
 
 vi.mock('@/features/payments/useClubStripeAccount', () => ({
   useClubStripeAccount: vi.fn(),
+  useClubAuthorization: vi.fn(),
 }));
 vi.mock('@/hooks/queries/useShowsDatabase', () => ({
   useUpdateShowMutation: vi.fn(),
@@ -18,6 +22,7 @@ vi.mock('sonner', () => ({
 }));
 
 const mockedUseAccount = vi.mocked(useClubStripeAccount);
+const mockedUseAuth = vi.mocked(useClubAuthorization);
 const mockedUseMutation = vi.mocked(useUpdateShowMutation);
 
 function mockAccount(payoutsEnabled: boolean | null) {
@@ -38,6 +43,18 @@ function mockAccount(payoutsEnabled: boolean | null) {
   } as unknown as ReturnType<typeof useClubStripeAccount>);
 }
 
+// MYK9-572: defaults every test to an authorized club so the pre-existing
+// Stripe-only gate tests below are unaffected; the dedicated describe block
+// further down overrides this per-test to exercise the new branch.
+function mockAuthorization(authorizedAt: string | null) {
+  mockedUseAuth.mockReturnValue({
+    data: { authorized_at: authorizedAt },
+    isLoading: false,
+    isError: false,
+    refetch: vi.fn(),
+  } as unknown as ReturnType<typeof useClubAuthorization>);
+}
+
 describe('ShowStatusPill publish gate', () => {
   let mutateAsync: ReturnType<typeof vi.fn>;
 
@@ -48,6 +65,7 @@ describe('ShowStatusPill publish gate', () => {
       mutateAsync,
       isPending: false,
     } as unknown as ReturnType<typeof useUpdateShowMutation>);
+    mockAuthorization('2026-01-01T00:00:00Z');
   });
 
   it('blocks publishing when the club has no payout-enabled account', async () => {
@@ -135,5 +153,61 @@ describe('ShowStatusPill publish gate', () => {
     await user.click(await screen.findByText(/publish show/i));
 
     expect(toast.error).toHaveBeenCalledWith('Failed to update show status. Please try again.');
+  });
+});
+
+describe('ShowStatusPill club-authorization gate (MYK9-572)', () => {
+  let mutateAsync: ReturnType<typeof vi.fn>;
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mutateAsync = vi.fn().mockResolvedValue({});
+    mockedUseMutation.mockReturnValue({
+      mutateAsync,
+      isPending: false,
+    } as unknown as ReturnType<typeof useUpdateShowMutation>);
+    mockAccount(true);
+  });
+
+  it('blocks publishing an unauthorized club before checking Stripe readiness', async () => {
+    mockAuthorization(null);
+    const user = userEvent.setup();
+    render(<ShowStatusPill showId="show-1" status="draft" clubId="club-1" />);
+
+    await user.click(screen.getByRole('button', { name: /draft/i }));
+    await user.click(await screen.findByText(/publish show/i));
+
+    expect(mutateAsync).not.toHaveBeenCalled();
+    expect(toast.error).toHaveBeenCalledWith(expect.stringMatching(/hasn't been authorized/i));
+  });
+
+  it('publishes once the club is authorized and Stripe-ready', async () => {
+    mockAuthorization('2026-01-01T00:00:00Z');
+    const user = userEvent.setup();
+    render(<ShowStatusPill showId="show-1" status="draft" clubId="club-1" />);
+
+    await user.click(screen.getByRole('button', { name: /draft/i }));
+    await user.click(await screen.findByText(/publish show/i));
+
+    expect(mutateAsync).toHaveBeenCalledWith({ id: 'show-1', updates: { status: 'published' } });
+  });
+
+  it('surfaces the DB publish-gate trigger MK004 refusal with its own copy', async () => {
+    mockAuthorization('2026-01-01T00:00:00Z');
+    mutateAsync.mockRejectedValueOnce({
+      code: 'MK004',
+      message:
+        "This club hasn't been authorized by myK9 yet. Shows can be built now and published once the club is approved.",
+    });
+    const user = userEvent.setup();
+    render(<ShowStatusPill showId="show-1" status="draft" clubId="club-1" />);
+
+    await user.click(screen.getByRole('button', { name: /draft/i }));
+    await user.click(await screen.findByText(/publish show/i));
+
+    expect(toast.error).toHaveBeenCalledWith(
+      "This club hasn't been authorized by myK9 yet. Shows can be built now and published once the club is approved.",
+      expect.objectContaining({ action: expect.anything() })
+    );
   });
 });

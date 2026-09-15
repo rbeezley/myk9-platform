@@ -147,6 +147,8 @@ describe('ShowEditPanel helpers', () => {
 describe('publishGateError', () => {
   const enabled = { payouts_enabled: true };
   const disabled = { payouts_enabled: false };
+  const authorized = { authorized_at: '2026-01-01T00:00:00Z' };
+  const unauthorized = { authorized_at: null };
 
   it('allows publishing with a payout-enabled account', () => {
     expect(publishGateError('draft', 'published', 'club-1', enabled)).toBeNull();
@@ -168,5 +170,29 @@ describe('publishGateError', () => {
   it('ignores non-publish transitions', () => {
     expect(publishGateError('draft', 'cancelled', 'club-1', null)).toBeNull();
     expect(publishGateError('published', 'draft', '', null)).toBeNull();
+  });
+
+  // MYK9-572: a second, independent publish-gate check — a club must be
+  // authorized by a site admin, regardless of Stripe readiness.
+  describe('club authorization', () => {
+    it('blocks newly publishing an unauthorized club before checking Stripe readiness', () => {
+      expect(publishGateError('draft', 'published', 'club-1', enabled, unauthorized)).toMatch(
+        /hasn't been authorized/i
+      );
+    });
+
+    it('allows publishing once the club is authorized and Stripe-ready', () => {
+      expect(publishGateError('draft', 'published', 'club-1', enabled, authorized)).toBeNull();
+    });
+
+    it('omitting the club argument skips the authorization check (caller could not load it)', () => {
+      expect(publishGateError('draft', 'published', 'club-1', enabled)).toBeNull();
+    });
+
+    it('never re-gates an already-published show even for an unauthorized club', () => {
+      expect(
+        publishGateError('published', 'published', 'club-1', enabled, unauthorized)
+      ).toBeNull();
+    });
   });
 });

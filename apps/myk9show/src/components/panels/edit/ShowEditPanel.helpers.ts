@@ -5,7 +5,10 @@
  * Validation is handled by showSchemas.edit in @/lib/validation.
  */
 
-import { PUBLISH_BLOCKED_MESSAGE } from '@/features/payments/onlineEntryGate';
+import {
+  CLUB_UNAUTHORIZED_MESSAGE,
+  PUBLISH_BLOCKED_MESSAGE,
+} from '@/features/payments/onlineEntryGate';
 import type { Show } from '@/types/show-types';
 import type { ShowStyle } from '@/features/registries';
 import type { ShowEditFormData, ShowEditSaveData } from './ShowEditPanel.types';
@@ -15,15 +18,24 @@ import type { ShowEditFormData, ShowEditSaveData } from './ShowEditPanel.types';
 // shows.status write surface — pill, wizard, and bulk bar are already
 // gated/stripped. Same fail-closed rules as ShowStatusPill; already-published
 // shows are never re-gated so unrelated edits keep saving.
+//
+// MYK9-572: `club` carries just enough of the clubs row to run the
+// authorization check (authorized_at), threaded the same way `account`
+// already is — the caller fetches it imperatively so the check always sees
+// the form's CURRENT clubId, same reasoning as the Stripe account fetch.
 export function publishGateError(
   originalStatus: string | undefined,
   nextStatus: string,
   clubId: string,
-  account: { payouts_enabled: boolean } | null
+  account: { payouts_enabled: boolean } | null,
+  club?: { authorized_at: string | null } | null
 ): string | null {
   if (nextStatus !== 'published' || originalStatus === 'published') return null;
   if (!clubId) {
     return 'Assign a club to this show before publishing — entry fees are paid out to the club.';
+  }
+  if (club && club.authorized_at === null) {
+    return CLUB_UNAUTHORIZED_MESSAGE;
   }
   if (account?.payouts_enabled !== true) {
     return PUBLISH_BLOCKED_MESSAGE;

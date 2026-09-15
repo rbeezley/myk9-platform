@@ -55,3 +55,70 @@ describe('club contact actions', () => {
     expect(screen.queryByRole('link', { name: /website/i })).not.toBeInTheDocument();
   });
 });
+
+// MYK9-572: site-admin-only authorize/revoke control.
+describe('club authorization control', () => {
+  it('shows an Unauthorized badge and an Authorize Club menu item for a site admin viewing an unauthorized club', async () => {
+    const { default: userEvent } = await import('@testing-library/user-event');
+    const user = userEvent.setup();
+    const onAuthorizeClub = vi.fn();
+
+    render(
+      <ClubHeader
+        club={baseClub}
+        onEditClub={noop}
+        onEditPhoto={noop}
+        onDeleteClub={noop}
+        canAuthorizeClub
+        isClubAuthorized={false}
+        onAuthorizeClub={onAuthorizeClub}
+      />
+    );
+
+    expect(screen.getByTestId('club-unauthorized-badge')).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Club options' }));
+    await user.click(await screen.findByText('Authorize Club'));
+
+    expect(onAuthorizeClub).toHaveBeenCalledTimes(1);
+  });
+
+  it('shows a Revoke Authorization menu item, and no badge, for an authorized club', async () => {
+    const { default: userEvent } = await import('@testing-library/user-event');
+    const user = userEvent.setup();
+    const onRevokeAuthorization = vi.fn();
+
+    render(
+      <ClubHeader
+        club={baseClub}
+        onEditClub={noop}
+        onEditPhoto={noop}
+        onDeleteClub={noop}
+        canAuthorizeClub
+        isClubAuthorized
+        onRevokeAuthorization={onRevokeAuthorization}
+      />
+    );
+
+    expect(screen.queryByTestId('club-unauthorized-badge')).not.toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Club options' }));
+    await user.click(await screen.findByText('Revoke Authorization'));
+
+    expect(onRevokeAuthorization).toHaveBeenCalledTimes(1);
+  });
+
+  it('shows neither the badge nor the menu item for a non-site-admin viewer', () => {
+    render(
+      <ClubHeader
+        club={baseClub}
+        onEditClub={noop}
+        onEditPhoto={noop}
+        onDeleteClub={noop}
+        canAuthorizeClub={false}
+        isClubAuthorized={false}
+      />
+    );
+
+    expect(screen.queryByTestId('club-unauthorized-badge')).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Club options' })).not.toBeInTheDocument();
+  });
+});

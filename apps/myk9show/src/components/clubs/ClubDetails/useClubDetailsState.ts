@@ -15,6 +15,7 @@ import { uploadClubCover, deleteImage } from '@/services/imageUploadService';
 import { getActiveClubMembers, getClubMembers } from '@/services/database/club-memberships/members';
 import { showDateRangeStatus } from '@/utils/date-format';
 import { computeClubPermissions, hasClubAdminScope } from './clubPermissions';
+import { useClubAuthorizationControl } from './useClubAuthorizationControl';
 import type { ClubTab, ClubShow, StatCard } from './types';
 
 /** Maximum photo file size in bytes (5 MB) */
@@ -80,6 +81,7 @@ export function useClubDetailsState(selectedClub: Club | null) {
 
   // Auth context for RBAC
   const { userWithRoles } = useAuthContext();
+  const isSiteAdmin = userWithRoles?.roles?.includes(UserRole.SITE_ADMIN) ?? false;
 
   // RBAC permission checks — see computeClubPermissions for the rules.
   const { canEditClub, canManageMembers, canEditBranding, canDeleteClub } = useMemo(() => {
@@ -98,9 +100,12 @@ export function useClubDetailsState(selectedClub: Club | null) {
     }
     return computeClubPermissions({
       isClubAdmin: hasClubAdminScope(userWithRoles.scopes, selectedClub.id),
-      isSiteAdmin: userWithRoles.roles?.includes(UserRole.SITE_ADMIN) ?? false,
+      isSiteAdmin,
     });
-  }, [userWithRoles, selectedClub]);
+  }, [userWithRoles, selectedClub, isSiteAdmin]);
+
+  // MYK9-572: site-admin-only control, independent of computeClubPermissions.
+  const authorizationControl = useClubAuthorizationControl(selectedClub?.id, isSiteAdmin);
 
   const visibleActiveTab = !canEditBranding && activeTab === 'branding' ? 'upcoming' : activeTab;
 
@@ -450,6 +455,7 @@ export function useClubDetailsState(selectedClub: Club | null) {
     canManageMembers,
     canEditBranding,
     canDeleteClub,
+    ...authorizationControl, // MYK9-572: authorize/revoke control (site-admin only)
     // Edit panel
     showEditPanel,
     setShowEditPanel,

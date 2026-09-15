@@ -27,14 +27,30 @@ export function canEnableOnlineEntries(
 // trust `error.message` once the code confirms the refusal came from here.
 export const PUBLISH_GATE_ERRCODE = 'MK003';
 
-/** True when `error` is the DB publish-gate trigger's refusal (SQLSTATE MK003),
- * as opposed to any other failure (network, unrelated constraint, ...). */
+// MYK9-572: a club must be authorized by a site admin before it can open
+// online entries at all, independent of Stripe readiness. The trigger
+// (enforce_show_publish_gate, supabase/migrations/20260915223500) raises a
+// DISTINCT SQLSTATE for this refusal so the client can show distinct copy
+// instead of the Stripe-connect message.
+export const PUBLISH_GATE_ERRCODE_UNAUTHORIZED = 'MK004';
+
+export const CLUB_UNAUTHORIZED_MESSAGE =
+  "This club hasn't been authorized by myK9 yet. Shows can be built now and published once the club is approved.";
+
+const PUBLISH_GATE_ERRCODES: readonly string[] = [
+  PUBLISH_GATE_ERRCODE,
+  PUBLISH_GATE_ERRCODE_UNAUTHORIZED,
+];
+
+/** True when `error` is the DB publish-gate trigger's refusal (SQLSTATE MK003
+ * or MK004 — MYK9-572's club-authorization refusal), as opposed to any other
+ * failure (network, unrelated constraint, ...). */
 export function isPublishGateDbError(error: unknown): boolean {
   return (
     typeof error === 'object' &&
     error !== null &&
     'code' in error &&
-    (error as { code?: unknown }).code === PUBLISH_GATE_ERRCODE
+    PUBLISH_GATE_ERRCODES.includes((error as { code?: unknown }).code as string)
   );
 }
 

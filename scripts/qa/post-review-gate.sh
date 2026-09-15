@@ -170,7 +170,7 @@ fi
 # is refused. Checked before the verdict/log work below so a caller who
 # forgot the env vars gets a fast, cheap failure.
 if [ "$REVIEWER" = "owner" ]; then
-  [ -n "${OVERRIDE_REASON:-}" ] || { echo "post-review-gate: owner tier needs OVERRIDE_REASON=\"<harness> unavailable — <detail>\"" >&2; exit 2; }
+  [ -n "${OVERRIDE_REASON:-}" ] || { echo "post-review-gate: owner tier needs OVERRIDE_REASON=\"<harness> unavailable — <detail>\" or \"convergence stop — <detail>\"" >&2; exit 2; }
   [ -n "${DEFERRED_REVIEW:-}" ] || { echo "post-review-gate: owner tier needs DEFERRED_REVIEW=<ISSUE-ID>" >&2; exit 2; }
   # Reject any LINE-TERMINATOR character BEFORE the shape probe below. The
   # probe's regexes (review-gate.ts's OVERRIDE_REASON/DEFERRED_REVIEW) are
@@ -202,7 +202,7 @@ if [ "$REVIEWER" = "owner" ]; then
   # / DEFERRED_REVIEW regexes in review-gate.ts). Ask that parser, not a copy.
   if ! node --experimental-strip-types --disable-warning=MODULE_TYPELESS_PACKAGE_JSON \
     "$HERE/review-gate.ts" --override-reason-line "Override reason: $OVERRIDE_REASON"; then
-    echo "post-review-gate: OVERRIDE_REASON must read \"<harness> unavailable — <detail>\" (got: \"$OVERRIDE_REASON\")" >&2
+    echo "post-review-gate: OVERRIDE_REASON must read \"<harness> unavailable — <detail>\" or \"convergence stop — <detail>\" (got: \"$OVERRIDE_REASON\")" >&2
     exit 2
   fi
   if ! node --experimental-strip-types --disable-warning=MODULE_TYPELESS_PACKAGE_JSON \

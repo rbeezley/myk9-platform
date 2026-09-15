@@ -110,15 +110,17 @@ refuses evidence below. Four tiers, weakest to strongest: `none` < `owner` <
   equivalent. The override claims the SAME floor `qa:review-tier` printed for this
   branch; a mismatched claim is refused, by the poster and by the gate. Set
   `OVERRIDE_REASON` and `DEFERRED_REVIEW=<ISSUE-ID>` (uppercase prefix, e.g.
-  `MYK9-523`) in the environment and run:
+  `MYK9-523`) in the environment.
 
-  `OVERRIDE_REASON` takes one of two shapes, because there are two honest
-  reasons to defer: `"<harness> unavailable - <detail>"`, or `"convergence stop
-  - <detail>"`for the case where the reviewer IS reachable and the convergence
-rule above says to stop the round anyway. Do not write "unavailable" to
-describe a convergence stop - a record that asserts more than what happened
-is the thing this whole gate exists to prevent. A convergence stop still owes
-the`Deferred re-review:` issue AND the restructure proposal.
+  `OVERRIDE_REASON` takes one of two shapes, because there are two honest reasons
+  to defer: `"<harness> unavailable - <detail>"`, or `"convergence stop - <detail>"`
+  for the case where the reviewer IS reachable and the convergence rule above says
+  to stop the round anyway. Do not write "unavailable" to describe a convergence
+  stop — a record that asserts more than what happened is the thing this whole gate
+  exists to prevent. A convergence stop still owes the `Deferred re-review:` issue
+  AND the restructure proposal.
+
+  Then run:
 
   ```bash
   bash scripts/qa/post-review-gate.sh "$PR" owner <base-sha> <head-sha> \

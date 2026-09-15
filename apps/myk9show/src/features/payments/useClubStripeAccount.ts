@@ -39,7 +39,16 @@ async function fetchStripeLivemode(): Promise<boolean> {
     .maybeSingle();
 
   if (error) throw error;
-  return data?.stripe_livemode === true;
+  // platform_settings is a guaranteed singleton (id boolean PK DEFAULT true,
+  // seeded, INSERT/DELETE default-deny -- 20260615180000) -- a null read
+  // here means the row could not be read (e.g. an RLS/grant regression),
+  // never "no row yet". Silently treating that as test mode risked routing
+  // a live platform through the test-mode gate/account lookup (MYK9-579
+  // round-3 review, P3-I).
+  if (data == null) {
+    throw new Error('Could not read platform_settings.stripe_livemode.');
+  }
+  return data.stripe_livemode === true;
 }
 
 /** Query key for the platform's current Stripe livemode. Exported so callers
@@ -88,18 +97,27 @@ export async function fetchClubStripeAccount(clubId: string): Promise<ClubStripe
 // but NOT into `enabled` -- gating on it resolving first would turn v5's
 // `isLoading` (isPending && isFetching) false for the whole window before
 // the livemode read lands, which is exactly the window ShowStatusPill's own
-// "Checking the club's payment account" guard exists for. The queryFn keeps
-// resolving livemode itself (fetchClubStripeAccount / -Readiness already do,
-// same cost either way for this small singleton read), so correctness never
-// depends on the two queries resolving in a particular order -- folding the
-// value into the key is only what makes STRIPE_LIVEMODE_QUERY_KEY's
-// invalidation (the MYK9-11 cutover) propagate into these, instead of
-// waiting out cacheStrategies.moderate's own staleTime.
+// "Checking the club's payment account" guard exists for. Correctness never
+// depends on the two queries resolving in a particular order: when
+// `livemodeQuery.data` is already resolved (the common case once
+// useStripeLivemode's own 30-minute cache is warm), the queryFn uses it
+// directly instead of re-reading platform_settings a second time; only the
+// very first cold mount (before livemodeQuery has resolved) falls back to
+// the imperative fetchClubStripeAccount/-Readiness, which reads it itself
+// (MYK9-579 round-3 review, P3-G -- this used to unconditionally re-read
+// livemode on every call, doubling platform_settings reads on every mount,
+// not just the first). Folding the value into the key is still what makes
+// STRIPE_LIVEMODE_QUERY_KEY's invalidation (the MYK9-11 cutover) propagate
+// into these, instead of waiting out cacheStrategies.moderate's own
+// staleTime.
 export function useClubStripeAccount(clubId: string | undefined) {
   const livemodeQuery = useStripeLivemode();
   return useQuery({
     queryKey: ['club-stripe-account', clubId, livemodeQuery.data ?? 'pending-livemode'],
-    queryFn: () => fetchClubStripeAccount(clubId!),
+    queryFn: () =>
+      livemodeQuery.data !== undefined
+        ? fetchClubStripeAccountForLivemode(clubId!, livemodeQuery.data)
+        : fetchClubStripeAccount(clubId!),
     enabled: !!clubId,
     ...cacheStrategies.moderate,
   });
@@ -126,9 +144,12 @@ export async function fetchClubStripePaymentReadiness(clubId: string): Promise<b
 export function useClubStripePaymentReadiness(clubId: string | undefined) {
   const livemodeQuery = useStripeLivemode();
   return useQuery({
-    // Same reasoning as useClubStripeAccount's key above.
+    // Same reasoning as useClubStripeAccount's key + queryFn above.
     queryKey: ['club-stripe-payment-readiness', clubId, livemodeQuery.data ?? 'pending-livemode'],
-    queryFn: () => fetchClubStripePaymentReadiness(clubId!),
+    queryFn: () =>
+      livemodeQuery.data !== undefined
+        ? fetchClubStripePaymentReadinessForLivemode(clubId!, livemodeQuery.data)
+        : fetchClubStripePaymentReadiness(clubId!),
     enabled: !!clubId,
     ...cacheStrategies.moderate,
   });

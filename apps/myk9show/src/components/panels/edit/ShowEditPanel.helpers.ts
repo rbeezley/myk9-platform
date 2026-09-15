@@ -5,7 +5,10 @@
  * Validation is handled by showSchemas.edit in @/lib/validation.
  */
 
-import { PUBLISH_BLOCKED_MESSAGE } from '@/features/payments/onlineEntryGate';
+import {
+  PUBLISH_BLOCKED_MESSAGE,
+  CLUB_REQUIRED_MESSAGE,
+} from '@/features/payments/onlineEntryGate';
 import type { Show } from '@/types/show-types';
 import type { ShowStyle } from '@/features/registries';
 import type { ShowEditFormData, ShowEditSaveData } from './ShowEditPanel.types';
@@ -23,7 +26,7 @@ export function publishGateError(
 ): string | null {
   if (nextStatus !== 'published' || originalStatus === 'published') return null;
   if (!clubId) {
-    return 'Assign a club to this show before publishing — entry fees are paid out to the club.';
+    return CLUB_REQUIRED_MESSAGE;
   }
   if (account?.payouts_enabled !== true) {
     return PUBLISH_BLOCKED_MESSAGE;

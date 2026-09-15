@@ -48,10 +48,18 @@ vi.mock('@/lib/queryClient', () => ({
   cacheStrategies: { moderate: {} },
 }));
 
+const useQueryMock = vi.hoisted(() => vi.fn());
+vi.mock('@tanstack/react-query', async importOriginal => {
+  const actual = await importOriginal<typeof import('@tanstack/react-query')>();
+  return { ...actual, useQuery: useQueryMock };
+});
+
 import {
   mapConnectOnboardingError,
   fetchClubStripeAccount,
   fetchClubStripePaymentReadiness,
+  useClubStripeAccount,
+  useClubStripePaymentReadiness,
 } from './useClubStripeAccount';
 
 const FALLBACK = "We couldn't start your payment setup. Please try again in a moment.";
@@ -144,23 +152,17 @@ describe('fetchClubStripeAccount', () => {
     expect(clubStripeAccountsEq).toHaveBeenCalledWith('livemode', true);
   });
 
-  it('defaults to test mode (false) when the platform_settings row has no usable value', async () => {
+  it('throws instead of defaulting to test mode when the platform_settings row cannot be read', async () => {
+    // platform_settings is a guaranteed singleton row (20260615180000); a
+    // null read here means the row could not be read, never "no row yet".
+    // Silently defaulting to false risked routing a live platform through
+    // the test-mode gate/account lookup (MYK9-579 round-3 review, P3-I).
     platformSettingsMaybeSingle.mockResolvedValue({ data: null, error: null });
-    clubStripeAccountsMaybeSingle.mockResolvedValue({
-      data: {
-        id: 'csa-1',
-        club_id: 'club-1',
-        stripe_account_id: 'acct_test',
-        livemode: false,
-        onboarding_complete: true,
-        payouts_enabled: true,
-      },
-      error: null,
-    });
 
-    const account = await fetchClubStripeAccount('club-1');
-    expect(account?.livemode).toBe(false);
-    expect(clubStripeAccountsEq).toHaveBeenCalledWith('livemode', false);
+    await expect(fetchClubStripeAccount('club-1')).rejects.toThrow(
+      'Could not read platform_settings.stripe_livemode.'
+    );
+    expect(clubStripeAccountsMaybeSingle).not.toHaveBeenCalled();
   });
 
   it('propagates an error reading platform_settings instead of silently defaulting', async () => {
@@ -203,5 +205,94 @@ describe('fetchClubStripePaymentReadiness', () => {
       p_club_id: 'club-1',
       p_livemode: false,
     });
+  });
+});
+
+describe('useClubStripeAccount / useClubStripePaymentReadiness queryFn (P3-G)', () => {
+  beforeEach(() => {
+    useQueryMock.mockReset();
+    platformSettingsMaybeSingle.mockReset();
+    clubStripeAccountsMaybeSingle.mockReset();
+    clubStripeAccountsEq.mockReset();
+    rpc.mockReset();
+  });
+
+  it('skips re-reading platform_settings once useStripeLivemode has already resolved it', async () => {
+    // First useQuery call inside the hook is useStripeLivemode's own; give it
+    // a resolved value so the account query's queryFn can use it directly.
+    useQueryMock.mockReturnValueOnce({ data: true, isLoading: false, isError: false });
+    useQueryMock.mockReturnValueOnce({ data: undefined, isLoading: true, isError: false });
+
+    useClubStripeAccount('club-1');
+
+    const accountQueryConfig = useQueryMock.mock.calls[1]?.[0] as
+      { queryFn?: () => Promise<unknown> } | undefined;
+    clubStripeAccountsMaybeSingle.mockResolvedValue({
+      data: {
+        id: 'csa-1',
+        club_id: 'club-1',
+        stripe_account_id: 'acct_live',
+        livemode: true,
+        onboarding_complete: true,
+        payouts_enabled: true,
+      },
+      error: null,
+    });
+
+    await accountQueryConfig?.queryFn?.();
+
+    // The account row is filtered by the ALREADY-resolved livemode, and
+    // platform_settings is never touched by this queryFn call.
+    expect(clubStripeAccountsEq).toHaveBeenCalledWith('livemode', true);
+    expect(platformSettingsMaybeSingle).not.toHaveBeenCalled();
+  });
+
+  it('falls back to reading platform_settings itself on the very first cold mount', async () => {
+    useQueryMock.mockReturnValueOnce({ data: undefined, isLoading: true, isError: false });
+    useQueryMock.mockReturnValueOnce({ data: undefined, isLoading: true, isError: false });
+
+    useClubStripeAccount('club-1');
+
+    const accountQueryConfig = useQueryMock.mock.calls[1]?.[0] as
+      { queryFn?: () => Promise<unknown> } | undefined;
+    platformSettingsMaybeSingle.mockResolvedValue({
+      data: { stripe_livemode: false },
+      error: null,
+    });
+    clubStripeAccountsMaybeSingle.mockResolvedValue({
+      data: {
+        id: 'csa-1',
+        club_id: 'club-1',
+        stripe_account_id: 'acct_test',
+        livemode: false,
+        onboarding_complete: true,
+        payouts_enabled: true,
+      },
+      error: null,
+    });
+
+    await accountQueryConfig?.queryFn?.();
+
+    expect(platformSettingsMaybeSingle).toHaveBeenCalledTimes(1);
+    expect(clubStripeAccountsEq).toHaveBeenCalledWith('livemode', false);
+  });
+
+  it('forwards an already-resolved livemode straight to the readiness RPC without a platform_settings read', async () => {
+    useQueryMock.mockReturnValueOnce({ data: true, isLoading: false, isError: false });
+    useQueryMock.mockReturnValueOnce({ data: undefined, isLoading: true, isError: false });
+
+    useClubStripePaymentReadiness('club-1');
+
+    const readinessQueryConfig = useQueryMock.mock.calls[1]?.[0] as
+      { queryFn?: () => Promise<unknown> } | undefined;
+    rpc.mockResolvedValue({ data: true, error: null });
+
+    await readinessQueryConfig?.queryFn?.();
+
+    expect(rpc).toHaveBeenCalledWith('can_accept_online_entry_payment', {
+      p_club_id: 'club-1',
+      p_livemode: true,
+    });
+    expect(platformSettingsMaybeSingle).not.toHaveBeenCalled();
   });
 });

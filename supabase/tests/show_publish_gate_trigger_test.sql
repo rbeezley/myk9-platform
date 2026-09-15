@@ -167,7 +167,7 @@ VALUES (
 INSERT INTO public.user_roles (user_id, role_id, club_id, is_active, auth_user_id)
 SELECT
   '00000000-0000-0000-0000-000000579200',
-  id,
+  roles.id,
   club.id,
   true,
   '00000000-0000-0000-0000-000000579201'

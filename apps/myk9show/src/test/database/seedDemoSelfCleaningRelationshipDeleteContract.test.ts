@@ -85,11 +85,36 @@ describe('seed-demo self-cleaning relationship deletes (MYK9-490 follow-up)', ()
     const guardBlock = seed.slice(guardBlockStart, relationshipDelete);
     expect(guardBlock).toContain("e.payment_status IN ('paid', 'refunded')");
     expect(guardBlock).toContain(`en.id = '${ENROLLMENT_ID}'`);
-    // The Stripe check must be keyed on the enrollment itself, not reached
-    // through entries: an order whose entries are gone would otherwise pass.
-    expect(guardBlock).toContain(
-      'FROM public.stripe_orders so\n  JOIN public.enrollments en ON en.id = so.enrollment_id'
-    );
+    // MYK9-527: the Stripe check must be keyed directly on stripe_orders' OWN
+    // scope columns (show_id / enrollment_id), not only reached through an
+    // enrollment join — once either FK is already null (true of every row on
+    // staging, from a past reseed) a join-only guard can never match again.
+    expect(guardBlock).toContain('FROM public.stripe_orders so');
+    expect(guardBlock).toContain("so.show_id = 'dededede-0000-0000-0000-000000000010'");
+    expect(guardBlock).toContain(`so.enrollment_id = '${ENROLLMENT_ID}'`);
+  });
+
+  it('never DELETEs from stripe_orders, and reports rows a past reseed already orphaned (MYK9-527)', () => {
+    // MYK9-527: 22/22 stripe_orders rows on staging were found with BOTH
+    // show_id and enrollment_id already nulled by a past reseed's ON DELETE
+    // SET NULL. Deleting them is NOT the fix: stripe_order_refunds.order_id is
+    // itself ON DELETE SET NULL, so the delete orphans the refund rows one
+    // level down (all 4 on staging hang off that set), and stripe-webhook's
+    // refund path matches on payment intent — a deleted order turns a later
+    // charge.refunded into the MP-12 "unmatched refund" alert with the refund
+    // fact lost. The row is also unscoped by definition, so a DELETE here
+    // cannot be limited to demo data. Report, never destroy.
+    expect(
+      seed,
+      'the seed must never DELETE from stripe_orders — the row is the only local record of a real charge, and its refund children are ON DELETE SET NULL'
+    ).not.toMatch(/DELETE\s+FROM\s+public\.stripe_orders/i);
+
+    const report = seed.indexOf('WHERE show_id IS NULL AND enrollment_id IS NULL;');
+    expect(report, 'no report of already-orphaned stripe_orders rows found').toBeGreaterThan(-1);
+    expect(
+      seed.slice(report, report + 900),
+      'the orphan report must RAISE WARNING, not raise an exception or delete'
+    ).toContain('RAISE WARNING');
   });
 
   it("runs the hard-coded entries delete before the guard, so the seed's own paid rows never trip it", () => {

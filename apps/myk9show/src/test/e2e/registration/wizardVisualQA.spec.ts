@@ -1029,7 +1029,12 @@ for (const viewport of [
       `the seeded full class (${FULL_CLASS_ID}) must render on this page — see the comment above this test`
     ).toBeVisible();
 
-    const chip = page.locator('label').filter({ has: checkbox });
+    // The chip's wrapper (`div.flex.flex-col.gap-1`) holds the label, the
+    // reason text and the "Full" badge as SIBLINGS, not nested inside the
+    // label — `label:has(...)` alone times out looking for the badge text
+    // inside it. Scope to the wrapper, which is the closest ancestor that
+    // contains all three.
+    const chip = page.locator('div.flex.flex-col.gap-1').filter({ has: checkbox });
     await expect(chip.getByText('Full', { exact: true })).toBeVisible();
 
     const describedBy = await checkbox.getAttribute('aria-describedby');

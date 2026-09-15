@@ -31,9 +31,7 @@ async function redirectUrlsFor(options?: {
   });
   await createEntryCheckoutSession('cart-1', options);
   expect(invoke).toHaveBeenCalledTimes(1);
-  return (
-    invoke.mock.calls[0][1] as { body: { success_url: string; cancel_url: string } }
-  ).body;
+  return (invoke.mock.calls[0][1] as { body: { success_url: string; cancel_url: string } }).body;
 }
 
 async function successUrlFor(options?: { splitCheckoutId?: string }): Promise<string> {

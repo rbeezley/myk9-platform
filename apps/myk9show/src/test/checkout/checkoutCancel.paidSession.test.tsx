@@ -73,7 +73,9 @@ describe('CheckoutCancelPage — a paid session is not a cancelled one', () => {
     expect(screen.queryByText(/payment cancelled/i)).not.toBeInTheDocument();
 
     // Neither route back to a payable cart survives.
-    expect(screen.queryByRole('button', { name: /add or change entries/i })).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole('button', { name: /add or change entries/i })
+    ).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /return to cart/i })).not.toBeInTheDocument();
 
     // And the receipt is reachable.
@@ -108,7 +110,7 @@ describe('CheckoutCancelPage — a paid session is not a cancelled one', () => {
     expect(verifyCheckoutSessionMock).not.toHaveBeenCalled();
   });
 
-  it('does not offer the amend button while the answer is still in flight', async () => {
+  it('claims neither verdict, and offers no route to pay, while the answer is in flight', async () => {
     let resolve: (value: typeof PAID) => void = () => {};
     verifyCheckoutSessionMock.mockReturnValue(
       new Promise<typeof PAID>(r => {
@@ -120,8 +122,16 @@ describe('CheckoutCancelPage — a paid session is not a cancelled one', () => {
       initialRoute: '/checkout/cancel?session_id=cs_test_slow',
     });
 
-    // Suppressed, not merely "probably fast enough".
-    expect(screen.getByRole('button', { name: /add or change entries/i })).toBeDisabled();
+    // The in-flight window is the whole point: a paid exhibitor must not be
+    // told "your payment was not completed" for the length of a round trip,
+    // and no button here may lead back to a payable cart. Suppressing only the
+    // amend button left both the heading and the PRIMARY Return to Cart live.
+    expect(screen.getByRole('heading', { name: /checking this payment/i })).toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: /payment cancelled/i })).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole('button', { name: /add or change entries/i })
+    ).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /return to cart/i })).not.toBeInTheDocument();
 
     resolve(PAID);
     await screen.findByRole('heading', { name: /this payment went through/i });

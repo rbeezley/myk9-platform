@@ -82,7 +82,18 @@ export const ClassSelectionStep: React.FC<ClassSelectionStepProps> = ({
     syncStatus.tablesStatus.trials === 'idle';
 
   const [activeTab, setActiveTab] = useState(selectedDogs[0] || '');
-  const [, setIsAddingToCart] = useState<string | null>(null);
+  /**
+   * Key of the cart add currently in flight, or null.
+   *
+   * A ref, not `useState`. This was `const [, setIsAddingToCart] = useState(...)`
+   * -- the value was discarded, so nothing could read it and the in-flight guard
+   * did not exist; a fast double-click on an unselected chip fired two inserts
+   * and the second died on the unique index (MYK9-530). A ref is also the
+   * correct shape even had the value been kept: two clicks in the same React
+   * batch read the same stale state, while a ref is written synchronously.
+   * Nothing renders from it, so no state is needed.
+   */
+  const addingItemRef = useRef<string | null>(null);
   const { registrationDogId, openRegistrationEditor, closeRegistrationEditor, saveRegistration } =
     useInlineDogRegistration(refetch);
 
@@ -382,7 +393,10 @@ export const ClassSelectionStep: React.FC<ClassSelectionStepProps> = ({
       onSelectionChange,
       addItem,
       removeItem,
-      setAddingItem: setIsAddingToCart,
+      setAddingItem: (itemKey: string | null) => {
+        addingItemRef.current = itemKey;
+      },
+      isAddInFlight: () => addingItemRef.current !== null,
       notifyAdded: () =>
         toast.success('Added to cart', { description: 'Class added to your cart' }),
       notifyError: message => toast.error(message),

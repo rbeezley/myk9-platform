@@ -497,6 +497,34 @@ export const useCartStore = create<CartState>()(
               .single();
 
             if (insertError) {
+              // 23505 on entry_cart_items_unique_dog_class_idx means this cart
+              // ALREADY holds this (dog, class): the row is in the DB and the
+              // locally-held list had fallen short of it. That is not a failure
+              // to add -- the exhibitor's intent is already satisfied. Refresh
+              // the list from the DB so local truth matches, and report success
+              // (MYK9-530). This needs only a SELECT, which the same FOR ALL
+              // policy that allowed the read already grants.
+              if (insertError.code === '23505') {
+                logger.warn(
+                  'Cart item already present; refreshing cart from DB',
+                  'cartStore',
+                  { cartId: cart.id, item },
+                  insertError
+                );
+                const refreshedItems = await loadCartItemsByCartId(cart.id);
+                const refreshedTotals = calculateCartTotals(refreshedItems);
+                set({
+                  cart: {
+                    ...cart,
+                    items: refreshedItems,
+                    subtotal_cents: refreshedTotals.subtotal,
+                    platform_fee_cents: refreshedTotals.platformFee,
+                    total_cents: refreshedTotals.total,
+                  },
+                  lastSyncedAt: new Date().toISOString(),
+                });
+                return true;
+              }
               logger.error(
                 'Error adding cart item',
                 'cartStore',
@@ -523,16 +551,11 @@ export const useCartStore = create<CartState>()(
               })
               .eq('id', cart.id);
 
-            if (updateError) {
-              logger.error(
-                'Error updating cart totals',
-                'cartStore',
-                { cartId: cart.id },
-                updateError
-              );
-              throw updateError;
-            }
-
+            // The item row is in the DB whatever the totals write did, so commit
+            // it locally BEFORE deciding what a totals failure means. Throwing
+            // first left the local list one row short of the DB, and the next
+            // click on that chip then collided on the unique index (MYK9-530).
+            // The stored totals are a cache; loadCart recomputes them from items.
             set({
               cart: {
                 ...cart,
@@ -544,6 +567,16 @@ export const useCartStore = create<CartState>()(
               },
               lastSyncedAt: new Date().toISOString(),
             });
+
+            if (updateError) {
+              logger.error(
+                'Error updating cart totals',
+                'cartStore',
+                { cartId: cart.id },
+                updateError
+              );
+              throw updateError;
+            }
 
             return true;
           } catch (error) {

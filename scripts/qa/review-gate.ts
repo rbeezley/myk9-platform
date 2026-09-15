@@ -437,13 +437,12 @@ function resolveFloor(input: { changedFiles: readonly string[]; fileListUnusable
   // imports this module) cannot silently clear a guardrail PR on a
   // transient `gh` failure that yields an empty list (I2).
   const listUnusable =
-    input.fileListUnusable === true ||
-    input.changedFiles.length === 0 ||
-    input.changedFiles.length >= 3000;
+    input.fileListUnusable === true || fileListIsUnusable(input.changedFiles.length);
   return listUnusable
     ? {
         tier: 'independent',
-        reason: 'the changed-file list is empty or hit GitHub’s 3000-file cap and may be truncated',
+        reason:
+          'the changed-file list is empty, short of GitHub’s own count, or hit its 3000-file cap and may be truncated',
       }
     : requiredTier(input.changedFiles);
 }
@@ -604,6 +603,26 @@ export function flattenPages<T>(slurped: string): T[] {
   return (pages as unknown[]).flatMap(page => (Array.isArray(page) ? (page as T[]) : [page as T]));
 }
 
+/**
+ * GitHub's REST files endpoint stops at 3000 entries, and any fetch can come
+ * back short. A SHORT list is the dangerous case, not an empty one: the floor
+ * is derived from which paths a PR touches, so a list missing `scripts/qa/**`
+ * or `.claude/**` computes a LOWER floor than the diff deserves and clears a
+ * guardrail change on adversarial evidence. Treat a list we cannot vouch for
+ * as unusable, which pins the floor to `independent`.
+ *
+ * `declaredCount` is GitHub's own `changedFiles`; when it is present and the
+ * fetch came back with fewer entries, the fetch was truncated.
+ */
+export const REST_FILE_PAGE_CAP = 3000;
+
+export function fileListIsUnusable(fetchedCount: number, declaredCount?: number): boolean {
+  if (fetchedCount === 0) return true;
+  if (fetchedCount >= REST_FILE_PAGE_CAP) return true;
+  if (typeof declaredCount === 'number' && fetchedCount < declaredCount) return true;
+  return false;
+}
+
 function gh(args: string[]): string {
   return execFileSync('gh', args, { encoding: 'utf8' });
 }
@@ -612,7 +631,16 @@ interface PrView {
   headRefOid: string;
   isDraft: boolean;
   statusCheckRollup?: StatusCheck[];
-  files?: Array<{ path: string }>;
+  /**
+   * GitHub's own count of the files this PR touches. Used only to CHECK the
+   * fetched list, never as the list itself — see fileListIsUnusable.
+   */
+  changedFiles?: number;
+}
+
+/** REST shape of one entry in `GET /repos/{repo}/pulls/{n}/files`. */
+interface RestPrFile {
+  filename: string;
 }
 
 /** REST shape — `gh pr view --json comments` carries no edit timestamp. */
@@ -624,9 +652,13 @@ interface RestComment {
   user?: { login: string };
 }
 
+/** Shells out to `gh`. Injectable so the fetch shapes below are testable. */
+export type GhRunner = (args: string[]) => string;
+
 export function runCli(
   env: NodeJS.ProcessEnv = process.env,
-  argv: string[] = process.argv.slice(2)
+  argv: string[] = process.argv.slice(2),
+  run: GhRunner = gh
 ): number {
   const prNumber = env.PR_NUMBER;
   const repo = env.REPO;
@@ -635,38 +667,43 @@ export function runCli(
     return 2;
   }
   const view = JSON.parse(
-    gh([
+    run([
       'pr',
       'view',
       prNumber,
       '--repo',
       repo,
       '--json',
-      'headRefOid,isDraft,statusCheckRollup,files',
+      'headRefOid,isDraft,statusCheckRollup,changedFiles',
     ])
   ) as PrView;
   if (view.isDraft) {
     console.log(`review-gate: PR #${prNumber} is a draft — no status posted`);
     return 0;
   }
-  // gh caps the files list at 3000 entries, so a PR at or past the cap may be
-  // truncated. evaluateReviewGate itself re-derives this invariant from
-  // `changedFiles.length` (I2, Codex review of Task 3 round 1) — this local
-  // copy exists only to print the diagnostic log line below, not to gate
-  // anything; a caller that skipped this flag entirely would still get the
-  // independent floor forced from inside evaluateReviewGate.
-  const changedFiles = (view.files ?? []).map(f => f.path);
-  const fileListUnusable = changedFiles.length === 0 || changedFiles.length >= 3000;
+  // `gh pr view --json files` asks GraphQL for ONE page and never paginates,
+  // so a PR over 100 files came back silently truncated — under the old
+  // `>= 3000` check that read as a complete, usable list and computed the
+  // floor from a partial diff. The REST endpoint paginates, and its own
+  // 3000-entry ceiling is what the cap check now measures.
+  const changedFiles = flattenPages<RestPrFile>(
+    run(['api', '--paginate', '--slurp', `repos/${repo}/pulls/${prNumber}/files?per_page=100`])
+  ).map(f => f.filename);
+  // evaluateReviewGate re-derives this invariant from `changedFiles.length`
+  // (I2, Codex review of Task 3 round 1); this copy also sees GitHub's
+  // declared count, which catches a short fetch the length alone cannot.
+  const fileListUnusable = fileListIsUnusable(changedFiles.length, view.changedFiles);
   if (fileListUnusable) {
     console.log(
-      `review-gate: file list unusable (${changedFiles.length}) — forcing independent floor`
+      `review-gate: file list unusable (fetched ${changedFiles.length}, ` +
+        `GitHub declares ${view.changedFiles ?? 'unknown'}) — forcing independent floor`
     );
   }
   // --paginate alone concatenates one JSON array per page, which JSON.parse
   // rejects on any PR past 100 comments (Codex, #2058). --slurp wraps the
   // pages in one outer array; flattenPages unwraps it.
   const comments = flattenPages<RestComment>(
-    gh(['api', '--paginate', '--slurp', `repos/${repo}/issues/${prNumber}/comments?per_page=100`])
+    run(['api', '--paginate', '--slurp', `repos/${repo}/issues/${prNumber}/comments?per_page=100`])
   );
   const result = evaluateReviewGate({
     headSha: view.headRefOid,

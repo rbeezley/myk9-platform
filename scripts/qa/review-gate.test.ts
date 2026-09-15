@@ -5,11 +5,14 @@ import { describe, expect, it } from 'vitest';
 import {
   clampDescription,
   evaluateReviewGate,
+  fileListIsUnusable,
   flattenPages,
   overrideAccepted,
   OWNER_OVERRIDE_ASSOCIATIONS,
   parseGateComments,
+  runCli,
   REVIEW_GATE_LINE,
+  REST_FILE_PAGE_CAP,
   REVIEWER_TOKENS,
   tierForReviewer,
   TRUSTED_ASSOCIATIONS,
@@ -1363,5 +1366,121 @@ describe('an override can record a convergence stop honestly (S-e)', () => {
 
   it('refuses a reason that is neither form', () => {
     expect(overrideAccepted(evidence('I was busy — will review later'))).toBe(false);
+  });
+});
+
+describe('fileListIsUnusable', () => {
+  // The floor is derived from WHICH paths a PR touches, so a short list is
+  // more dangerous than an empty one: it computes a LOWER floor than the diff
+  // deserves instead of failing closed.
+  it('treats an empty fetch as unusable', () => {
+    expect(fileListIsUnusable(0, 0)).toBe(true);
+    expect(fileListIsUnusable(0)).toBe(true);
+  });
+
+  it('treats a fetch short of GitHub’s own count as unusable', () => {
+    // The exact shape of PR #2121: GitHub declares 1734, one GraphQL page
+    // carries 100.
+    expect(fileListIsUnusable(100, 1734)).toBe(true);
+  });
+
+  it('accepts a complete fetch, however large', () => {
+    expect(fileListIsUnusable(1734, 1734)).toBe(false);
+    expect(fileListIsUnusable(2999, 2999)).toBe(false);
+  });
+
+  it('treats the REST endpoint’s own 3000-entry ceiling as unusable', () => {
+    expect(fileListIsUnusable(REST_FILE_PAGE_CAP, 4200)).toBe(true);
+    expect(fileListIsUnusable(REST_FILE_PAGE_CAP, REST_FILE_PAGE_CAP)).toBe(true);
+  });
+
+  it('falls back to the count alone when GitHub declares nothing', () => {
+    expect(fileListIsUnusable(42)).toBe(false);
+    expect(fileListIsUnusable(0)).toBe(true);
+  });
+});
+
+describe('runCli’s changed-file fetch', () => {
+  // `gh pr view --json files` asks GraphQL for ONE page and never paginates.
+  // Under the old `>= 3000` check a 1734-file PR arrived as 100 files, read as
+  // complete, and had its floor computed from that partial diff.
+  const noneLine = `Review gate: none reviewed abc1234..${HEAD} — low-risk paths, CI green`;
+  const env = { PR_NUMBER: '2121', REPO: 'rbeezley/myk9-platform' } as NodeJS.ProcessEnv;
+
+  function fakeGh(opts: { declared?: number; fetched: string[] }) {
+    const calls: string[][] = [];
+    const run = (args: string[]): string => {
+      calls.push(args);
+      if (args[0] === 'pr' && args[1] === 'view') {
+        return JSON.stringify({
+          headRefOid: HEAD,
+          isDraft: false,
+          ...(opts.declared === undefined ? {} : { changedFiles: opts.declared }),
+        });
+      }
+      if (args[0] === 'api' && args[3]?.includes('/pulls/')) {
+        return JSON.stringify([opts.fetched.map(filename => ({ filename }))]);
+      }
+      if (args[0] === 'api' && args[3]?.includes('/issues/')) {
+        return JSON.stringify([
+          [
+            {
+              body: noneLine,
+              created_at: '2026-09-05T16:00:00Z',
+              updated_at: '2026-09-05T16:00:00Z',
+              author_association: 'OWNER',
+              user: { login: 'rbeezley' },
+            },
+          ],
+        ]);
+      }
+      throw new Error(`unexpected gh call: ${args.join(' ')}`);
+    };
+    return { run, calls };
+  }
+
+  const docs = (n: number) => Array.from({ length: n }, (_, i) => `docs/notes/n${i}.md`);
+
+  it('never asks `gh pr view` for the files list', () => {
+    const { run, calls } = fakeGh({ declared: 3, fetched: docs(3) });
+    runCli(env, ['--dry-run'], run);
+    const view = calls.find(c => c[0] === 'pr' && c[1] === 'view');
+    if (!view) throw new Error('runCli never called `gh pr view`');
+    const fields = (view[view.indexOf('--json') + 1] ?? '').split(',');
+    expect(fields).not.toContain('files');
+    expect(fields).toContain('changedFiles');
+  });
+
+  it('fetches every page of the REST files endpoint', () => {
+    const { run, calls } = fakeGh({ declared: 3, fetched: docs(3) });
+    runCli(env, ['--dry-run'], run);
+    expect(calls).toContainEqual([
+      'api',
+      '--paginate',
+      '--slurp',
+      'repos/rbeezley/myk9-platform/pulls/2121/files?per_page=100',
+    ]);
+  });
+
+  it('refuses a `none` review when the fetch came back short of the declared count', () => {
+    // 100 docs paths fetched, 1734 declared: the 1634 unseen files could be
+    // anything, including scripts/qa/**. Before the fix this returned 0.
+    const { run } = fakeGh({ declared: 1734, fetched: docs(100) });
+    expect(runCli(env, ['--dry-run'], run)).toBe(1);
+  });
+
+  it('accepts a `none` review on a complete docs-only fetch of over 100 files', () => {
+    // The paginated fetch returns all 420, so a large docs-only PR is not
+    // punished with the independent floor for its size alone.
+    const { run } = fakeGh({ declared: 420, fetched: docs(420) });
+    expect(runCli(env, ['--dry-run'], run)).toBe(0);
+  });
+
+  it('forces the independent floor when the complete fetch reveals a guardrail path', () => {
+    const { run } = fakeGh({
+      declared: 420,
+      fetched: [...docs(419), 'scripts/qa/review-gate.ts'],
+    });
+    expect(runCli(env, ['--dry-run'], run)).toBe(1);
   });
 });

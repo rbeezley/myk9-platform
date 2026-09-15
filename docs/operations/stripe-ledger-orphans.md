@@ -25,7 +25,7 @@ They are **accepted and kept deliberately**, not scheduled for deletion.
   the scope columns. Deleting the rows would destroy the only local record of those charges.
 - **What is lost is scope, and scope cannot be recovered.** There is no stamped-identity
   column to rebuild `show_id` from; the parent rows are gone.
-- **They constrain nothing.** `ON DELETE RESTRICT` fires on a delete of the *parent*. A row
+- **They constrain nothing.** `ON DELETE RESTRICT` fires on a delete of the _parent_. A row
   whose `show_id` and `enrollment_id` are both NULL references no parent, so it can never
   block a show, enrollment or reseed. Verified by the rolled-back staging probe recorded on
   PR #2261 (`F527.2` deletes a show cleanly with all 22 rows present; `F527.5` counts them).

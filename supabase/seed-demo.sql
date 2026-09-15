@@ -322,14 +322,37 @@ BEGIN
     RAISE EXCEPTION 'seed-demo: % Stripe order(s) point at the demo exhibitor''s enrollment or show ...010 — refusing to orphan them; remove them deliberately, then rerun', v_orders;
   END IF;
 END $$;
--- MYK9-527: prune stripe_orders rows a PAST reseed already orphaned (both
--- show_id and enrollment_id nulled by their ON DELETE SET NULL). These are
--- unreconcilable sandbox residue from old test-mode checkouts — the guard
--- above can never see them again once both columns are null, so without this
--- they silently accumulate forever (22 rows, 2026-06..2026-09, before this
--- fix landed). A row that still carries either FK is caught by the guard
--- above and raises instead of ever reaching this DELETE.
-DELETE FROM public.stripe_orders WHERE show_id IS NULL AND enrollment_id IS NULL;
+-- MYK9-527: REPORT the stripe_orders rows a PAST reseed already orphaned (both
+-- show_id and enrollment_id nulled by their ON DELETE SET NULL) — never delete
+-- them here. The row is the only local record of a real test-mode charge: it
+-- still carries stripe_payment_intent_id, stripe_checkout_session_id,
+-- customer_id and the fee split, all of which the webhook and reconciliation
+-- key on. Deleting it is strictly worse than leaving it:
+--   * public.stripe_order_refunds.order_id is itself ON DELETE SET NULL
+--     (pg_constraint confdeltype='n'), so deleting an order silently orphans
+--     its refund rows one level down — the same disease this issue files, with
+--     no guard anywhere that can see it. All 4 refund rows on staging hang off
+--     orders in the already-orphaned set.
+--   * stripe-webhook's record_order_refund_cents matches on payment intent; a
+--     later charge.refunded for a deleted order matches nothing, raising the
+--     MP-12 "Unmatched refund — no order found" admin alert and losing the
+--     refund fact (apps/myk9show/supabase/functions/_shared/chargeRefundedDecision.ts).
+--   * Deletion cannot be scoped to the demo data — the rows have no scope left
+--     — so the statement would reach every tenant's orders, not the seed's.
+-- Pruning, if the project wants it, is a deliberate operator step against a
+-- reviewed list, not a side effect of a reseed. Making a reseed stop CREATING
+-- orphans needs a schema change (an immutable denormalised scope column, or
+-- moving these FKs off ON DELETE SET NULL) — tracked on MYK9-527.
+DO $$
+DECLARE v_orphans integer;
+BEGIN
+  SELECT count(*) INTO v_orphans
+  FROM public.stripe_orders
+  WHERE show_id IS NULL AND enrollment_id IS NULL;
+  IF v_orphans > 0 THEN
+    RAISE WARNING 'seed-demo: % stripe_orders row(s) already have BOTH show_id and enrollment_id nulled by an earlier reseed and can no longer be joined to what they paid for (MYK9-527). They are left in place deliberately — they hold the payment intent, checkout session and fee split a refund or reconciliation still needs. Prune only as a reviewed operator step.', v_orphans;
+  END IF;
+END $$;
 DELETE FROM public.entries
 WHERE registration_id = 'dededede-0000-0000-0000-000000000070'
    OR registration_id IN (

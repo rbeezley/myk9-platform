@@ -173,6 +173,11 @@ WHERE class_id IN (
         'dec1a55e-0000-0000-0000-000000000031','dec1a55e-0000-0000-0000-000000000032',
         'dec1a55e-0000-0000-0000-000000000033','dec1a55e-0000-0000-0000-000000000034',
         'dec1a55e-0000-0000-0000-000000000035','dec1a55e-0000-0000-0000-000000000040',
+        -- ...036-...039 are AKC classes on the demo show since MYK9-490; they are
+        -- deleted below with the rest, so a cart pointing at them blocks that
+        -- delete exactly like a cart on ...031-...035 would (review of #2242).
+        'dec1a55e-0000-0000-0000-000000000036','dec1a55e-0000-0000-0000-000000000037',
+        'dec1a55e-0000-0000-0000-000000000038','dec1a55e-0000-0000-0000-000000000039',
         -- MYK9-490 sibling-show classes (UKC / ASCA)
         'dec1a55e-0000-0000-0000-000000000041','dec1a55e-0000-0000-0000-000000000042',
         'dec1a55e-0000-0000-0000-000000000043','dec1a55e-0000-0000-0000-000000000044')
@@ -199,7 +204,16 @@ WHERE id >= 'a1090000-0000-0000-0002-000000000000'::uuid
 -- unlike entries.dog_id which cascades. A stray waitlist join for a load-range dog
 -- would block the dogs delete below the same way the stray wizard entry blocked
 -- the enrollment delete further down this section (MYK9-490 self-cleaning follow-up).
+-- Unscoped by status on purpose: these are seed-owned dogs, so a promoted or
+-- expired row a walker produced is seed residue too, and the seed's own §15 row
+-- is re-inserted below.
 DELETE FROM public.waitlist_entries
+WHERE dog_id >= 'a1090000-0000-0000-0001-000000000000'::uuid
+  AND dog_id < 'a1090000-0000-0000-0002-000000000000'::uuid; -- myk9_109
+-- entry_cart_items.dog_id is the other NO ACTION FK into dogs. The load-range
+-- cart clear further down is keyed on class_id and runs AFTER this dogs delete,
+-- so a cart holding any of the demo exhibitor's 63 load dogs would block it here.
+DELETE FROM public.entry_cart_items
 WHERE dog_id >= 'a1090000-0000-0000-0001-000000000000'::uuid
   AND dog_id < 'a1090000-0000-0000-0002-000000000000'::uuid; -- myk9_109
 DELETE FROM public.dogs
@@ -251,6 +265,29 @@ DELETE FROM public.entries WHERE id IN (
 -- entries_registration_id_fkey". Clear by PARENT RELATIONSHIP too — every
 -- entry whose registration_id resolves to this enrollment, however it was
 -- created — not only the seed's own hard-coded ids.
+--
+-- But never silently. On main the same stray row made the reseed ABORT and roll
+-- back, which is the right outcome when the stray is a real payment: deleting it
+-- would cascade its entry_status_history away and the enrollment delete below
+-- would leave its stripe_orders row orphaned (enrollment_id is ON DELETE SET
+-- NULL). So refuse, loudly, if anything under this enrollment is paid or has a
+-- Stripe order; an operator then deletes it deliberately. Unpaid wizard strays
+-- (the 2026-09-12 case) are still cleared without ceremony.
+DO $$
+DECLARE v_paid integer;
+BEGIN
+  SELECT count(*) INTO v_paid
+  FROM public.entries e
+  JOIN public.enrollments en ON en.id = e.registration_id
+  WHERE (en.id = 'dededede-0000-0000-0000-000000000070'
+         OR (en.show_id = 'dededede-0000-0000-0000-000000000010'
+             AND en.handler_id = (SELECT id FROM public.people WHERE lower(email)='exhibitor@myk9t.com')))
+    AND (e.payment_status = 'paid'
+         OR EXISTS (SELECT 1 FROM public.stripe_orders so WHERE so.enrollment_id = en.id));
+  IF v_paid > 0 THEN
+    RAISE EXCEPTION 'seed-demo: % paid or Stripe-backed entr(ies) hang off the demo exhibitor''s enrollment on show ...010 — refusing to delete them; remove them deliberately, then rerun', v_paid;
+  END IF;
+END $$;
 DELETE FROM public.entries
 WHERE registration_id = 'dededede-0000-0000-0000-000000000070'
    OR registration_id IN (

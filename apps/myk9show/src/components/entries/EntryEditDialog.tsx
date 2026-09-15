@@ -35,6 +35,7 @@ import {
   withdrawEntry,
   canModifyEntry,
 } from '@/services/database/entries';
+import { withdrawErrorMessage } from '@/services/database/entries/withdrawEligibility';
 import { useWithdrawEligibility } from './useWithdrawEligibility';
 import { PullConfirmDialog } from './PullConfirmDialog';
 import { logger } from '@/services/LoggingService';
@@ -196,10 +197,13 @@ export function EntryEditDialog({
       const { error } = await withdrawEntry(pullDialog.classId, { asShowManager });
 
       if (error) {
-        // Show the refusal itself ("This entry is paid — request a refund
-        // instead…"), not a generic retry prompt: the exhibitor cannot fix a
-        // paid or checked-in entry by trying again.
-        setError(error.message || 'Failed to withdraw from class. Please try again.');
+        // Map the CODE to a sentence a person can act on. A server refusal
+        // arrives as raw Postgres text carrying the row UUID ("Entry 22eb47a9-…
+        // is paid; request a refund instead of withdrawing") — right for the
+        // log, wrong for the dialog. `withdrawErrorMessage` owns both code
+        // spaces: our own pre-check refusals (which already carry a sentence)
+        // and the SQLSTATEs the RPC raises.
+        setError(withdrawErrorMessage(error));
         logger.error('Failed to withdraw class entry:', 'entries', {}, error as Error);
       } else {
         // Mark as pulled locally.

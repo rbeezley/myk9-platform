@@ -28,10 +28,12 @@
 -- SELECT the row simply has no surface that reaches this call; the arm is here
 -- so the three exhibitor write paths agree with each other.
 --
--- Signature deliberately mirrors `ringside_update_entry(uuid, jsonb, integer)`
--- so the existing MutationManager RPC seam (packages/replication
--- mutation-execute.ts, case 'UPDATE') applies it with no client plumbing change
--- and the withdrawal stays offline-queued.
+-- Signature deliberately mirrors `ringside_update_entry(uuid, jsonb, integer)`,
+-- including the 40001-with-version-in-DETAIL conflict contract. The client calls
+-- it DIRECTLY and awaits it — this write is ONLINE-ONLY and is not queued through
+-- the MutationManager. Withdrawal is pre-show by definition (see the check-in
+-- guard below) and money-adjacent, so an optimistic local write could report a
+-- withdrawal the server refused.
 
 BEGIN;
 
@@ -203,8 +205,9 @@ $$;
 
 COMMENT ON FUNCTION public.withdraw_own_entry(uuid, jsonb, integer) IS
   'MYK9-535: owner-scoped withdrawal of an unpaid entry. Restates entries_update '
-  'for managers and entries_select scope for owners; definer, so every filter is '
-  'explicit. Called through the replication MutationManager RPC seam.';
+  'for managers and (exceeding) entries_select scope for owners; definer, so every '
+  'filter is explicit. Called directly by the client and awaited: this write is '
+  'online-only and is not queued through the replication MutationManager.';
 
 REVOKE ALL ON FUNCTION public.withdraw_own_entry(uuid, jsonb, integer) FROM public;
 REVOKE ALL ON FUNCTION public.withdraw_own_entry(uuid, jsonb, integer) FROM anon;

@@ -32,7 +32,9 @@ import {
 import { buildRingsideRpcFields, RINGSIDE_RPC_FUNCTION } from './ringsideEntryRpc';
 import {
   evaluateWithdrawEligibility,
+  WithdrawConflictError,
   WithdrawNotAllowedError,
+  WithdrawNotFoundError,
   WithdrawUnavailableError,
   type WithdrawEligibility,
 } from '@/services/database/entries/withdrawEligibility';
@@ -65,17 +67,19 @@ export const WITHDRAW_OWN_ENTRY_RPC = 'withdraw_own_entry';
 /**
  * Project a replicated entry onto the withdraw predicate's input.
  *
- * `enrollmentPaymentStatus` is passed when the replicated row carries it, so the
- * MYK9-495 branch (entry `pending` + order `paid` resolves to pending, because
- * the order row is reused per show+handler and cannot vouch for THIS entry) is
- * exercised on the real path rather than only in the predicate's unit test.
+ * The ORDER's payment status is deliberately NOT supplied. `rowToEntry` maps
+ * `payment_status` only, so the replicated row has no order status to give — and
+ * the RPC's own guard reads `entries.payment_status`, nothing else. Feeding an
+ * order status in would let the client and the server disagree in the dangerous
+ * direction: entry `paid_by_check` + order `pending` resolves to pending, so the
+ * client would ALLOW a withdrawal the RPC refuses. The predicate keeps the
+ * optional argument for callers that genuinely hold an order (its MYK9-495 unit
+ * case pins that behaviour); this path is not one of them.
  */
 function withdrawEligibilityOf(entry: ReplicatedEntry): WithdrawEligibility {
   return evaluateWithdrawEligibility({
     entryStatus: entry.entryStatus ?? entry.entry_status,
     paymentStatus: entry.paymentStatus,
-    enrollmentPaymentStatus: (entry as { enrollmentPaymentStatus?: string | null | undefined })
-      .enrollmentPaymentStatus,
     checkInStatus: entry.checkInStatus ?? entry.check_in_status,
     isInRing: entry.isInRing ?? entry.is_in_ring,
     isScored: entry.isScored ?? entry.is_scored,
@@ -503,46 +507,120 @@ export class ReplicatedEntriesTable extends ReplicatedTable<ReplicatedEntry> {
    * Withdraw an entry the caller owns — MYK9-535. Online-only (see the note on
    * WITHDRAW_OWN_ENTRY_RPC): awaits the server, then stores the confirmed row.
    *
-   * Throws `WithdrawNotAllowedError` for a refusal the client can see coming,
-   * and `WithdrawUnavailableError` when the row cannot be read at all (cold
-   * replica with no connection), so the dialog can say something true either
-   * way. The local row is never touched on any failure path.
+   * Every failure leaves the local row untouched and arrives as a typed error so
+   * the dialog can say something true: `WithdrawNotAllowedError` (a refusal the
+   * client saw coming), `WithdrawNotFoundError` (the row is gone),
+   * `WithdrawUnavailableError` (no connection), `WithdrawConflictError` (someone
+   * else changed it), or the raw Postgres error for anything unclassified.
    */
   async withdrawOwnEntry(entryId: string): Promise<{ from: string | undefined }> {
-    let entry: ReplicatedEntry;
-    try {
-      entry = await this.getOrHydrateEntry(entryId);
-    } catch {
-      throw new WithdrawUnavailableError();
-    }
+    const entry = await this.loadEntryForWithdrawal(entryId);
 
     const eligibility = withdrawEligibilityOf(entry);
     if (!eligibility.allowed) throw new WithdrawNotAllowedError(eligibility);
 
-    const expectedVersion = await this.getServerVersion(entryId);
+    const version = await this.callWithdrawRpc(entryId, await this.getServerVersion(entryId));
 
-    const { data, error } = await supabase.rpc(
-      WITHDRAW_OWN_ENTRY_RPC as never,
-      {
-        p_entry_id: entryId,
-        p_fields: { entry_status: 'withdrawn' },
-        p_expected_version: expectedVersion,
-      } as never
-    );
-    if (error) throw error;
-
-    // Store the CONFIRMED row, clean, so sync still owns it. No optimistic
-    // write means `setOnce`'s dirty-row guard is never in the way.
-    await this.hydrateConfirmedRow(entryId, typeof data === 'number' ? data : undefined);
+    await this.hydrateConfirmedRow(entryId, version);
 
     logger.log(`[${this.getTableName()}] Withdrew entry ${entryId} via ${WITHDRAW_OWN_ENTRY_RPC}`);
     return { from: entry.entryStatus ?? entry.entry_status };
   }
 
   /**
+   * The row the guards run against.
+   *
+   * `getOrHydrateEntry` throws the same "not found" for a row that is ABSENT and
+   * for a read that FAILED, and those need different sentences, so the cold-cache
+   * case is resolved here: a read error means "no connection", an empty result
+   * means "this entry is gone".
+   */
+  private async loadEntryForWithdrawal(entryId: string): Promise<ReplicatedEntry> {
+    const cached = await this.get(entryId);
+    if (cached) return cached;
+
+    let result: { data: unknown; error: unknown };
+    try {
+      result = await supabase
+        .from('view_authenticated_entry_results')
+        .select('*')
+        .eq('id', entryId)
+        .maybeSingle();
+    } catch {
+      throw new WithdrawUnavailableError();
+    }
+    if (result.error) throw new WithdrawUnavailableError();
+    if (!result.data) throw new WithdrawNotFoundError();
+    return rowToEntry(result.data as unknown as EntryRow);
+  }
+
+  /**
+   * Call the RPC, retrying ONCE on a version conflict.
+   *
+   * A 40001 is otherwise a dead end: the retry would re-read the same stale
+   * `serverVersion` out of IndexedDB and conflict forever. The RPC puts the
+   * authoritative version in DETAIL (the same contract `ringside_update_entry`
+   * uses), so the retry uses that. A second conflict is a real race with another
+   * writer and becomes an error the exhibitor can act on.
+   */
+  private async callWithdrawRpc(
+    entryId: string,
+    expectedVersion: number | null
+  ): Promise<number | undefined> {
+    const attempt = async (version: number | null) =>
+      supabase.rpc(
+        WITHDRAW_OWN_ENTRY_RPC as never,
+        {
+          p_entry_id: entryId,
+          p_fields: { entry_status: 'withdrawn' },
+          p_expected_version: version,
+        } as never
+      );
+
+    let { data, error } = await attempt(expectedVersion);
+
+    if (error && (error as { code?: string }).code === '40001') {
+      // `Number(null)` and `Number('')` are both 0, which is a perfectly valid
+      // version — so an EMPTY detail must be rejected before the conversion,
+      // not after it, or a conflict with no version retries at version 0.
+      const detail = (error as { details?: string | null }).details;
+      const serverVersion = detail == null || detail === '' ? Number.NaN : Number(detail);
+      if (!Number.isFinite(serverVersion)) throw new WithdrawConflictError();
+      logger.warn(
+        `[${this.getTableName()}] Withdrawal of ${entryId} hit a version conflict; retrying at ${serverVersion}`
+      );
+      ({ data, error } = await attempt(serverVersion));
+      if (error && (error as { code?: string }).code === '40001') {
+        throw new WithdrawConflictError();
+      }
+    }
+
+    if (error) throw this.classifyWithdrawTransportError(error);
+    return typeof data === 'number' ? data : undefined;
+  }
+
+  /**
+   * A fetch that never reached Postgres carries no SQLSTATE. Report that as
+   * "you appear to be offline" rather than leaking a transport string into the
+   * dialog — a warm cached row reaches the RPC without ever touching the
+   * cold-cache path that would otherwise have caught this.
+   */
+  private classifyWithdrawTransportError(error: unknown): unknown {
+    const code = (error as { code?: string } | null)?.code;
+    const offline = typeof navigator !== 'undefined' && navigator.onLine === false;
+    if (offline || !code) return new WithdrawUnavailableError();
+    return error;
+  }
+
+  /**
    * The OCC token for this row, or null when it has never been synced. Read the
    * same way `ReplicatedTable.queueMutation` reads it, so the version sent to
    * the RPC is the one the queue path would have sent.
+   *
+   * Unlike `queueMutation` this does NOT gate on `isConflictSurfacingEnabled()`:
+   * that kill-switch exists to keep last-write-wins behaviour for QUEUED writes
+   * whose conflicts surface asynchronously. This is a direct call that can
+   * report a conflict to the caller immediately, so it always sends the token.
    */
   private async getServerVersion(entryId: string): Promise<number | null> {
     try {
@@ -562,6 +640,12 @@ export class ReplicatedEntriesTable extends ReplicatedTable<ReplicatedEntry> {
    * Re-read the authoritative row after a confirmed server write and cache it
    * CLEAN. Falls back to a local status patch when the read-back fails, so a
    * successful withdrawal is never displayed as still entered.
+   *
+   * A clean write lands only while the row is not locally dirty — `setOnce`
+   * refuses to overwrite a dirty row with a clean value. Withdrawal itself no
+   * longer dirties it, and no other edit path in this dialog dirties a row that
+   * is still ELIGIBLE to withdraw; if one is ever added, this write would be
+   * skipped and the entry would keep showing its pre-withdrawal status.
    */
   private async hydrateConfirmedRow(entryId: string, newVersion?: number): Promise<void> {
     try {

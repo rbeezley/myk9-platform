@@ -7,6 +7,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   evaluateWithdrawEligibility,
+  withdrawErrorMessage,
   OWNER_WITHDRAWABLE_ENTRY_STATUSES,
   PRE_SHOW_CHECK_IN_STATUSES,
   WithdrawNotAllowedError,
@@ -140,5 +141,49 @@ describe('evaluateWithdrawEligibility', () => {
     );
     expect(error.code).toBe('paid');
     expect(error.message).toContain('refund');
+  });
+});
+
+/**
+ * Every server refusal used to reach the exhibitor as raw Postgres text
+ * carrying the row UUID. The dialog now switches on the CODE; the raw message
+ * stays in the logger.
+ */
+describe('withdrawErrorMessage', () => {
+  it('never leaks the raw Postgres text or the row UUID', () => {
+    const message = withdrawErrorMessage({
+      code: '42501',
+      message:
+        'Entry 22eb47a9-ce86-4906-8053-a224d37d1602 is paid; request a refund instead of withdrawing',
+    });
+
+    expect(message).not.toContain('22eb47a9');
+    expect(message).not.toMatch(/Entry [0-9a-f]{8}-/);
+    expect(message).toMatch(/ask the secretary/i);
+  });
+
+  it('maps each SQLSTATE the RPC raises to its own sentence', () => {
+    expect(withdrawErrorMessage({ code: '22023' })).toMatch(/something went wrong/i);
+    expect(withdrawErrorMessage({ code: 'P0002' })).toMatch(/no longer exists/i);
+    expect(withdrawErrorMessage({ code: '40001' })).toMatch(/someone else changed/i);
+    // Four distinct sentences, so the mapping cannot collapse to one.
+    const messages = ['42501', '22023', 'P0002', '40001'].map(code =>
+      withdrawErrorMessage({ code })
+    );
+    expect(new Set(messages).size).toBe(4);
+  });
+
+  it('passes our own pre-check refusals through, since they already read well', () => {
+    const eligibility = evaluateWithdrawEligibility({ ...pending, paymentStatus: 'paid' });
+    expect(withdrawErrorMessage({ code: eligibility.code, message: eligibility.reason })).toBe(
+      eligibility.reason
+    );
+  });
+
+  it('falls back to a plain sentence for an unclassified failure', () => {
+    expect(withdrawErrorMessage({ message: 'TypeError: Failed to fetch' })).toMatch(
+      /couldn't withdraw this entry/i
+    );
+    expect(withdrawErrorMessage(null)).toMatch(/couldn't withdraw this entry/i);
   });
 });

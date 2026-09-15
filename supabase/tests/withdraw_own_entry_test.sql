@@ -39,6 +39,13 @@ select ('00000000-0000-0000-0000-00000053504' || n)::uuid,
   '00000000-0000-0000-0000-000000535003', 'Container Novice ' || n, 'upcoming'
 from generate_series(1, 9) n;
 
+-- Four more class/entry pairs, one per spelling of the two secretary-decision
+-- request statuses, so each keeps its own row like every other guard here.
+insert into public.classes (id, trial_id, name, status)
+select ('00000000-0000-0000-0000-00000053505' || n)::uuid,
+  '00000000-0000-0000-0000-000000535003', 'Interior Novice ' || n, 'upcoming'
+from generate_series(1, 4) n;
+
 -- 1 owner, 2 co-owner, 3 handler, 4 outsider, 5 unlinked (no auth identity),
 -- 6 club secretary.
 insert into public.people (id, first_name, last_name, auth_user_id)
@@ -65,6 +72,19 @@ select ('00000000-0000-0000-0000-00000053503' || n)::uuid,
   '00000000-0000-0000-0000-000000535003', '00000000-0000-0000-0000-000000535013',
   'confirmed', 'pending', 25, 'no-status'
 from generate_series(1, 9) n;
+
+insert into public.entries (id, dog_id, class_id, show_id, trial_id, handler_id,
+  entry_status, payment_status, entry_fee, check_in_status)
+select ('00000000-0000-0000-0000-00000053506' || n)::uuid,
+  '00000000-0000-0000-0000-000000535021',
+  ('00000000-0000-0000-0000-00000053505' || n)::uuid,
+  '00000000-0000-0000-0000-000000535002',
+  '00000000-0000-0000-0000-000000535003', '00000000-0000-0000-0000-000000535013',
+  status, 'pending', 25, 'no-status'
+from unnest(array[
+  'scratch-requested', 'scratch_requested',
+  'move-up-requested', 'move_up_requested'
+]) with ordinality as t(status, n);
 
 update public.entries set payment_status = 'paid'
  where id = '00000000-0000-0000-0000-000000535032';
@@ -170,17 +190,16 @@ select pg_temp.assert_withdraw('co-owner', '00000000-0000-0000-0000-000000535102
   '00000000-0000-0000-0000-000000535037');
 
 -- An unpaid exhibitor awaiting a secretary decision must still be able to
--- withdraw. The CHECK constraint admits both spellings and the live column
--- holds the hyphenated one, so both are exercised with the EXACT strings.
-update public.entries set entry_status = 'move-up-requested'
- where id = '00000000-0000-0000-0000-000000535031';
-select pg_temp.assert_withdraw('owner withdraws a move-up-requested entry',
-  '00000000-0000-0000-0000-000000535101', '00000000-0000-0000-0000-000000535031');
-
-update public.entries set entry_status = 'scratch-requested'
- where id = '00000000-0000-0000-0000-000000535037';
-select pg_temp.assert_withdraw('owner withdraws a scratch-requested entry',
-  '00000000-0000-0000-0000-000000535102', '00000000-0000-0000-0000-000000535037');
+-- withdraw. `entries_entry_status_check` admits BOTH spellings of each request
+-- status and the live column holds the hyphenated one, so all four run — each on
+-- its own row, with the EXACT strings.
+select pg_temp.assert_withdraw('owner withdraws a ' || t.status || ' entry',
+  '00000000-0000-0000-0000-000000535101',
+  ('00000000-0000-0000-0000-00000053506' || t.n)::uuid)
+from unnest(array[
+  'scratch-requested', 'scratch_requested',
+  'move-up-requested', 'move_up_requested'
+]) with ordinality as t(status, n);
 
 -- Denied: an unrelated authenticated caller, an authenticated caller with no
 -- person row, and anon (which has no EXECUTE grant at all).

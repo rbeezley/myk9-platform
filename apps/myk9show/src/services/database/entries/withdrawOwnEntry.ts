@@ -22,6 +22,7 @@
  */
 import { auditService } from '@/services/AuditService';
 import { AuditAction } from '@/types/audit-types';
+import { logger } from '@/services/LoggingService';
 import { replicatedEntriesTable } from '@/services/replication/ReplicatedEntriesTable';
 import { createDatabaseError, logQuery } from '../supabaseClient';
 
@@ -33,13 +34,23 @@ export const withdrawOwnEntry = async (entryId: string) => {
 
     logQuery('entries', 'withdraw_own_entry', Date.now() - startTime);
 
-    await auditService.log({
-      action: AuditAction.UPDATE,
-      entityType: 'entry',
-      entityId: entryId,
-      changes: { entryStatus: { from: from ?? null, to: 'withdrawn' } },
-      metadata: { action: 'withdraw_own_entry' },
-    });
+    // The server has already committed the withdrawal. A failure to WRITE THE
+    // AUDIT RECORD (a localStorage quota throw, say) must not be reported to the
+    // exhibitor as a failed withdrawal — the entry really is withdrawn.
+    try {
+      await auditService.log({
+        action: AuditAction.UPDATE,
+        entityType: 'entry',
+        entityId: entryId,
+        changes: { entryStatus: { from: from ?? null, to: 'withdrawn' } },
+        metadata: { action: 'withdraw_own_entry' },
+      });
+    } catch (auditError) {
+      logger.warn('Withdrawal succeeded but its audit record could not be written', 'entries', {
+        entryId,
+        auditError,
+      });
+    }
 
     return { data: { id: entryId }, error: null };
   } catch (error) {

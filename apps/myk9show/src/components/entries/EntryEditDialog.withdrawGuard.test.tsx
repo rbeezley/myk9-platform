@@ -97,22 +97,61 @@ describe('EntryEditDialog — MYK9-535 withdraw guard', () => {
     expect(mocks.withdrawEntry).not.toHaveBeenCalled();
   });
 
-  it('shows the server refusal itself, not a generic retry prompt', async () => {
-    // The race the pre-check cannot close: a secretary marks the entry paid
-    // between render and click, so the RPC refuses.
-    mocks.withdrawEntry.mockResolvedValue({
-      data: null,
-      error: { message: 'This entry is paid — request a refund instead of withdrawing.' },
-    });
-
-    render(<EntryEditDialog open entry={entry} onOpenChange={noop} onUpdate={noop} />);
-
+  async function confirmPull() {
     await userEvent.click(await screen.findByRole('button', { name: /pull/i }));
     const confirm = await screen.findByRole('alertdialog');
     await userEvent.click(within(confirm).getByRole('button', { name: /pull entry/i }));
+  }
 
-    expect(await screen.findByText(/request a refund instead of withdrawing/i)).toBeInTheDocument();
-    expect(screen.queryByText(/Please try again/i)).not.toBeInTheDocument();
+  it('never shows the raw Postgres text or the row UUID on a server refusal', async () => {
+    // The race the pre-check cannot close: a secretary marks the entry paid
+    // between render and click, so the RPC refuses with its own message — which
+    // names the row and is not a sentence for a person.
+    mocks.withdrawEntry.mockResolvedValue({
+      data: null,
+      error: {
+        code: '42501',
+        message:
+          'Entry 22eb47a9-ce86-4906-8053-a224d37d1602 is paid; request a refund instead of withdrawing',
+      },
+    });
+
+    render(<EntryEditDialog open entry={entry} onOpenChange={noop} onUpdate={noop} />);
+    await confirmPull();
+
+    expect(await screen.findByText(/ask the secretary to pull it/i)).toBeInTheDocument();
+    expect(screen.queryByText(/22eb47a9/)).not.toBeInTheDocument();
+  });
+
+  it('tells the exhibitor to reopen the entry after a version conflict', async () => {
+    mocks.withdrawEntry.mockResolvedValue({
+      data: null,
+      error: {
+        code: '40001',
+        message: 'Version conflict withdrawing entry 22eb47a9-ce86-4906-8053-a224d37d1602',
+      },
+    });
+
+    render(<EntryEditDialog open entry={entry} onOpenChange={noop} onUpdate={noop} />);
+    await confirmPull();
+
+    expect(await screen.findByText(/reopen it and try again/i)).toBeInTheDocument();
+    expect(screen.queryByText(/22eb47a9/)).not.toBeInTheDocument();
+  });
+
+  it('passes a typed pre-check refusal straight through', async () => {
+    mocks.withdrawEntry.mockResolvedValue({
+      data: null,
+      error: {
+        code: 'unavailable',
+        message: "We couldn't reach the server — try withdrawing again when you're connected.",
+      },
+    });
+
+    render(<EntryEditDialog open entry={entry} onOpenChange={noop} onUpdate={noop} />);
+    await confirmPull();
+
+    expect(await screen.findByText(/when you're connected/i)).toBeInTheDocument();
   });
 
   it('does not bind a show manager to the exhibitor-only guards', async () => {
@@ -159,9 +198,7 @@ describe('EntryEditDialog — MYK9-535 withdraw guard', () => {
       <EntryEditDialog open entry={entry} onOpenChange={noop} onUpdate={noop} asShowManager />
     );
 
-    await userEvent.click(await screen.findByRole('button', { name: /pull/i }));
-    const confirm = await screen.findByRole('alertdialog');
-    await userEvent.click(within(confirm).getByRole('button', { name: /pull entry/i }));
+    await confirmPull();
 
     await waitFor(() =>
       expect(mocks.withdrawEntry).toHaveBeenCalledWith('class-1', { asShowManager: true })

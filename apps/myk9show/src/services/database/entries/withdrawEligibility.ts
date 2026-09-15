@@ -49,7 +49,15 @@ export const OWNER_WITHDRAWABLE_ENTRY_STATUSES: readonly string[] = [
 export const PRE_SHOW_CHECK_IN_STATUSES: readonly string[] = ['no-status', 'pulled'];
 
 export type WithdrawRefusalCode =
-  'removed' | 'paid' | 'unknown-payment' | 'status' | 'scored' | 'at-show' | 'unavailable';
+  | 'removed'
+  | 'paid'
+  | 'unknown-payment'
+  | 'status'
+  | 'scored'
+  | 'at-show'
+  | 'unavailable'
+  | 'missing'
+  | 'conflict';
 
 export interface WithdrawEligibilityInput {
   entryStatus?: string | null | undefined;
@@ -134,6 +142,26 @@ export function evaluateWithdrawEligibility(input: WithdrawEligibilityInput): Wi
  * Thrown by the client pre-check so the refusal reaches the dialog as an error
  * instead of an optimistic "withdrawn" the server never accepted.
  */
+/** The entry could not be found at all — deleted, or never existed. */
+export class WithdrawNotFoundError extends Error {
+  readonly code: WithdrawRefusalCode = 'missing';
+
+  constructor() {
+    super('This entry no longer exists — refresh the page and try again.');
+    this.name = 'WithdrawNotFoundError';
+  }
+}
+
+/** Someone else changed the row while this withdrawal was in flight. */
+export class WithdrawConflictError extends Error {
+  readonly code: WithdrawRefusalCode = 'conflict';
+
+  constructor() {
+    super('Someone else changed this entry — reopen it and try again.');
+    this.name = 'WithdrawConflictError';
+  }
+}
+
 export class WithdrawUnavailableError extends Error {
   readonly code: WithdrawRefusalCode = 'unavailable';
 
@@ -151,4 +179,49 @@ export class WithdrawNotAllowedError extends Error {
     this.name = 'WithdrawNotAllowedError';
     this.code = eligibility.code ?? 'status';
   }
+}
+
+/**
+ * Turn any withdrawal failure into a sentence an exhibitor can act on.
+ *
+ * Server refusals arrive as raw Postgres text carrying the row UUID
+ * ("Entry 22eb47a9-… is paid; request a refund instead of withdrawing"). That is
+ * exactly right for the logger and wrong for a person, so the UI switches on the
+ * CODE and reuses the sentences this module already owns.
+ *
+ * Two code spaces meet here: our own refusal codes (thrown by the client
+ * pre-check, already carrying a written sentence) and the SQLSTATEs the
+ * `withdraw_own_entry` RPC raises. The pre-check covers the common refusals, so
+ * a 42501 that still arrives means the row changed under us.
+ */
+const SERVER_MESSAGES: Record<string, string> = {
+  // The RPC's own owner-tier guards. Reaching one means the entry changed
+  // between the pre-check and the call — e.g. a secretary marked it paid.
+  '42501': 'This entry can no longer be withdrawn — ask the secretary to pull it.',
+  // invalid_parameter_value: the payload was wrong. Not the exhibitor's doing.
+  '22023': "Something went wrong preparing this withdrawal — we've logged it.",
+  P0002: 'This entry no longer exists — refresh the page and try again.',
+  '40001': 'Someone else changed this entry — reopen it and try again.',
+};
+
+const OWN_REFUSAL_CODES = new Set<string>([
+  'removed',
+  'paid',
+  'unknown-payment',
+  'status',
+  'scored',
+  'at-show',
+  'unavailable',
+  'missing',
+  'conflict',
+]);
+
+export function withdrawErrorMessage(
+  error: { code?: string | undefined; message?: string | undefined } | null | undefined
+): string {
+  const code = error?.code;
+  // Our own errors already carry a written sentence — pass it through.
+  if (code && OWN_REFUSAL_CODES.has(code) && error?.message) return error.message;
+  if (code && SERVER_MESSAGES[code]) return SERVER_MESSAGES[code] as string;
+  return "We couldn't withdraw this entry. Please try again.";
 }

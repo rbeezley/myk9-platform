@@ -766,26 +766,6 @@
   },
   {
     "file": "scripts/qa/review-gate.test.ts",
-    "code": "TS2345",
-    "message": "Argument of type 'GateEvidence | undefined' is not assignable to parameter of type 'GateEvidence'."
-  },
-  {
-    "file": "scripts/qa/review-gate.test.ts",
-    "code": "TS2345",
-    "message": "Argument of type 'GateEvidence | undefined' is not assignable to parameter of type 'GateEvidence'."
-  },
-  {
-    "file": "scripts/qa/review-gate.test.ts",
-    "code": "TS2345",
-    "message": "Argument of type 'GateEvidence | undefined' is not assignable to parameter of type 'GateEvidence'."
-  },
-  {
-    "file": "scripts/qa/review-gate.test.ts",
-    "code": "TS2345",
-    "message": "Argument of type 'GateEvidence | undefined' is not assignable to parameter of type 'GateEvidence'."
-  },
-  {
-    "file": "scripts/qa/review-gate.test.ts",
     "code": "TS2532",
     "message": "Object is possibly 'undefined'."
   },

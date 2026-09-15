@@ -11,7 +11,6 @@ import {
   parseGateComments,
   REVIEW_GATE_LINE,
   REVIEWER_TOKENS,
-  requiredChecksResult,
   tierForReviewer,
   TRUSTED_ASSOCIATIONS,
   VERDICT_BY_TIER,
@@ -112,12 +111,17 @@ describe('evaluateReviewGate', () => {
       ],
     });
     expect(r.state).toBe('failure');
-    expect(r.description).toContain('human-fallback is retired');
-    expect(r.description).toContain(
-      'Review gate: owner reviewed <base>..<head> — override, floor was <independent|adversarial>'
-    );
-    expect(r.description).toContain('Override reason:');
-    expect(r.description).toContain('Deferred re-review: <ISSUE-ID>');
+    // Assert the CLAMPED text: GitHub caps a status description at 140 chars,
+    // so a refusal whose grammar hints fall past the cut is invisible exactly
+    // where it is read. Asserting `r.description` alone passed while the
+    // posted status ended "...override, floor w..." (MYK9-532 review).
+    const posted = clampDescription(r.description);
+    expect(posted).toContain('human-fallback is retired');
+    expect(posted).toContain('owner override');
+    expect(posted).toContain('override, floor was <floor>');
+    expect(posted).toContain('Override reason:');
+    expect(posted).toContain('Deferred re-review:');
+    expect(posted).not.toMatch(/\.\.\.$/);
     expect(r.evidence).toBeUndefined();
   });
 
@@ -382,48 +386,6 @@ describe('owner override associations', () => {
         ),
       ])
     ).toEqual([]);
-  });
-});
-
-describe('required check verification', () => {
-  it('accepts passing check runs and status contexts', () => {
-    expect(
-      requiredChecksResult(
-        [
-          { name: 'Quality Checks', conclusion: 'SUCCESS' },
-          { context: 'Test', state: 'SUCCESS' },
-          { name: 'Review gate', conclusion: 'FAILURE' },
-        ],
-        ['Quality Checks', 'Test', 'Review gate']
-      )
-    ).toEqual({ pending: [], failed: [] });
-  });
-
-  it('does not treat the review gate itself as a required prerequisite', () => {
-    expect(
-      requiredChecksResult([{ name: 'Review gate', conclusion: 'FAILURE' }], ['Review gate'])
-    ).toEqual({ pending: [], failed: [] });
-  });
-
-  it('reports missing and in-flight checks as pending', () => {
-    expect(
-      requiredChecksResult(
-        [{ name: 'Quality Checks', conclusion: null, state: 'IN_PROGRESS' }],
-        ['Quality Checks', 'Test']
-      )
-    ).toEqual({ pending: ['Quality Checks', 'Test'], failed: [] });
-  });
-
-  it('fails closed on failed or unknown conclusions', () => {
-    expect(
-      requiredChecksResult(
-        [
-          { name: 'Quality Checks', conclusion: 'FAILURE' },
-          { name: 'Test', conclusion: 'SOME_FUTURE_VALUE' },
-        ],
-        ['Quality Checks', 'Test']
-      )
-    ).toEqual({ pending: [], failed: ['Quality Checks', 'Test'] });
   });
 });
 

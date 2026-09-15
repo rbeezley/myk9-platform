@@ -121,45 +121,12 @@ export interface GateResult {
   evidence?: GateEvidence;
 }
 
+/** Kept for `PrView.statusCheckRollup` below — the fetched rollup shape. */
 export interface StatusCheck {
   name?: string;
   context?: string;
   conclusion?: string | null;
   state?: string | null;
-}
-
-export interface RequiredChecksResult {
-  pending: string[];
-  failed: string[];
-}
-
-const PASSING_CONCLUSIONS = new Set(['SUCCESS', 'NEUTRAL', 'SKIPPED']);
-
-export function requiredChecksResult(
-  rollup: readonly StatusCheck[],
-  required: readonly string[]
-): RequiredChecksResult {
-  const pending: string[] = [];
-  const failed: string[] = [];
-  for (const requiredName of required.filter(name => name !== REVIEW_GATE_CONTEXT)) {
-    const check = rollup.find(entry => (entry.name ?? entry.context) === requiredName);
-    if (!check) {
-      pending.push(requiredName);
-      continue;
-    }
-    const conclusion = (check.conclusion ?? '').toUpperCase();
-    const state = (check.state ?? '').toUpperCase();
-    if (conclusion) {
-      if (!PASSING_CONCLUSIONS.has(conclusion)) failed.push(requiredName);
-    } else if (state === 'SUCCESS') {
-      // GitHub status contexts use state instead of conclusion.
-    } else if (state === 'FAILURE' || state === 'ERROR') {
-      failed.push(requiredName);
-    } else {
-      pending.push(requiredName);
-    }
-  }
-  return { pending, failed };
 }
 
 /**
@@ -505,10 +472,13 @@ export function evaluateReviewGate(input: EvaluateReviewGateInput): GateResult {
     if (legacyHumanFallbackAttempt(input.comments, head)) {
       return {
         state: 'failure',
+        // Must survive `clampDescription`'s 140-char GitHub cap intact: the
+        // three grammar fragments ARE the message, and a longer, prettier
+        // sentence loses the last two to the ellipsis on the commit status
+        // even though the unit test on the raw string stays green (MYK9-532).
         description:
-          `human-fallback is retired for ${short} — post an owner override instead: ` +
-          `"Review gate: owner reviewed <base>..<head> — override, floor was <independent|adversarial>" ` +
-          `plus "Override reason: <detail>" and "Deferred re-review: <ISSUE-ID>"`,
+          `human-fallback is retired for ${short}: use the owner override — ` +
+          `"override, floor was <floor>", "Override reason:", "Deferred re-review:"`,
       };
     }
     return {

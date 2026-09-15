@@ -21,7 +21,10 @@ export const MIGRATION_LENS = 'migration-auditor';
  * `.githooks/` is here for the LAUNCHER reason, not only the content reason:
  * `.githooks/pre-push` is what invokes `scripts/qa/push-hold.ts` (itself
  * `independent`) and `.githooks/pre-commit` is what enforces the worktree
- * rule. A guard at `independent` reached through a launcher that is not
+ * rule. The other launcher is root `package.json` — its `qa:*` scripts —
+ * which CANNOT be floored here without flooring every dependency bump;
+ * `scripts/qa/required-job-launchers.ts` pins it from inside this floor
+ * instead. A guard at `independent` reached through a launcher that is not
  * leaves the guard perfectly reviewed and trivially unreachable — a PR
  * neutering the hook went green on two self-typed lens names (fallback review
  * of #2243, M1). When adding a guard, floor its ENTRYPOINT too.

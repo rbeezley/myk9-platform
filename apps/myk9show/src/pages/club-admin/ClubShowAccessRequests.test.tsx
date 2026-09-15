@@ -94,10 +94,7 @@ describe('ClubShowAccessRequests', () => {
 
     await user.click(screen.getByRole('button', { name: /^deny$/i }));
     const dialog = await screen.findByRole('alertdialog');
-    await user.type(
-      within(dialog).getByLabelText(/reason/i),
-      'Not enough context yet.'
-    );
+    await user.type(within(dialog).getByLabelText(/reason/i), 'Not enough context yet.');
     await user.click(within(dialog).getByRole('button', { name: /deny request/i }));
 
     expect(onDeny).toHaveBeenCalledWith('request-1', 'Not enough context yet.');

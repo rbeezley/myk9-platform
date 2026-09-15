@@ -12703,6 +12703,30 @@ export type Database = {
         Args: { p_show_id: string }
         Returns: string
       }
+      list_club_role_requests: {
+        Args: { p_club_id: string }
+        Returns: {
+          auth_user_id: string
+          club_id: string | null
+          club_name: string | null
+          created_at: string
+          id: string
+          person_id: string
+          requested_role: string
+          requested_scope: string
+          requester_email: string | null
+          requester_name: string
+          requester_note: string | null
+          reviewed_at: string | null
+          reviewed_by: string | null
+          reviewer_email: string | null
+          reviewer_name: string | null
+          reviewer_note: string | null
+          show_id: string | null
+          status: string
+          updated_at: string
+        }[]
+      }
       list_cron_vault_secret_refs: {
         Args: never
         Returns: {

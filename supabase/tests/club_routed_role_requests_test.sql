@@ -14,9 +14,20 @@
 --   5. A requester cannot read another person's role_requests row.
 --   6. A club admin CAN read a pending secretary request for their own club,
 --      and CANNOT read one for a club they do not administer.
---   7. A SHOW-scoped secretary request, approved by a site admin WITHOUT a
---      show (the UI's actual shape — RoleRequestsPage.tsx never passes
---      showId), still routes through grant_club_secretary and is audited.
+--   7. A LEGACY SHOW-scoped secretary request, approved by a site admin
+--      WITHOUT a show (the UI's actual shape — RoleRequestsPage.tsx never
+--      passes showId), still routes through grant_club_secretary and is
+--      audited.
+--   8. (round 2, R3) submit_role_request REJECTS a show-scoped secretary ask
+--      (22023) — show-scoped secretary is not a permission any more.
+--   9. (round 2, R3) An empty note on a club-scoped secretary ask is
+--      rejected (22023).
+--   10. (round 2, R4) approve_club_role_request/deny_club_role_request give
+--      the SAME 42501 verdict for a request id that does not exist at all,
+--      not just for one that exists but belongs to another club — proving
+--      the shape check and the authorization check are one verdict, not two.
+--   11. (round 2, R4) deny_club_role_request by a non-admin of the request's
+--      club is rejected (42501), mirroring test 1's coverage of approve.
 --
 -- `role_requests.auth_user_id` is NOT NULL REFERENCES auth.users(id), so every
 -- identity below needs a real auth.users row, not just a people row carrying an
@@ -89,6 +100,12 @@ VALUES
     'Wanda',
     'ShowScoped',
     'myk9-571-wanda-showscoped@example.test'
+  ),
+  (
+    '00000000-0000-0000-0000-000000000b19',
+    'Nina',
+    'EmptyNote',
+    'myk9-571-nina-emptynote@example.test'
   );
 
 INSERT INTO auth.users (
@@ -117,6 +134,9 @@ VALUES
    now(), now(), '{}', '{}', false, false, false),
   ('00000000-0000-0000-0000-000000000b08', '00000000-0000-0000-0000-000000000000',
    'authenticated', 'authenticated', 'myk9-571-wanda-showscoped@example.test', '', now(),
+   now(), now(), '{}', '{}', false, false, false),
+  ('00000000-0000-0000-0000-000000000b09', '00000000-0000-0000-0000-000000000000',
+   'authenticated', 'authenticated', 'myk9-571-nina-emptynote@example.test', '', now(),
    now(), now(), '{}', '{}', false, false, false);
 
 -- Guard the assumption the rest of the file rests on: if handle_new_user ever
@@ -137,7 +157,8 @@ BEGIN
     '00000000-0000-0000-0000-000000000b15',
     '00000000-0000-0000-0000-000000000b16',
     '00000000-0000-0000-0000-000000000b17',
-    '00000000-0000-0000-0000-000000000b18'
+    '00000000-0000-0000-0000-000000000b18',
+    '00000000-0000-0000-0000-000000000b19'
   ]::uuid[])
     AND auth_user_id IS NULL;
 
@@ -504,37 +525,30 @@ $$;
 RESET ROLE;
 
 -- ============================================================================
--- 7. A SHOW-scoped secretary request, approved by a site admin the way the
---    UI actually calls approve_role_request (a club, but no show — see
---    RoleRequestsPage.tsx), must still route through grant_club_secretary
---    and be audited. Before the MYK9-571 fix to approve_role_request, this
---    fell into the manual user_roles UPSERT branch (discriminated on
---    requested_scope='club', but this request's requested_scope is 'show')
---    and left no permission_audit_log row.
+-- 7. LEGACY show-scoped secretary request (requested_scope='show'). Round 2
+--    of MYK9-571 makes submit_role_request REJECT this shape for secretary
+--    (see section 9 below) — show-scoped secretary is not a permission any
+--    more. But a row in this shape could already exist from before that
+--    reject shipped (or round 1, which still allowed it), so
+--    approve_role_request, called by a site admin the way the UI actually
+--    calls it (a club, but no show — RoleRequestsPage.tsx never passes
+--    showId), must still route this legacy shape through
+--    grant_club_secretary and be audited. Inserted directly as the
+--    superuser test role (not via submit_role_request, which would now
+--    refuse it) to simulate that pre-existing row.
 -- ============================================================================
 
-SET LOCAL ROLE authenticated;
-SELECT set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-000000000b08', true);
-
-DO $$
-DECLARE
-  v_request_id uuid;
-BEGIN
-  v_request_id := public.submit_role_request(
-    'secretary',
-    'show',
-    NULL,
-    '00000000-0000-0000-0000-000000000b31',
-    'I can run this specific show.'
-  );
-
-  IF v_request_id IS NULL THEN
-    RAISE EXCEPTION 'FAIL show-scoped submit_role_request returned NULL';
-  END IF;
-END;
-$$;
-
-RESET ROLE;
+INSERT INTO public.role_requests (
+  auth_user_id, person_id, requested_role, requested_scope, show_id, requester_note, status
+) VALUES (
+  '00000000-0000-0000-0000-000000000b08',
+  '00000000-0000-0000-0000-000000000b18',
+  'secretary',
+  'show',
+  '00000000-0000-0000-0000-000000000b31',
+  'I can run this specific show.',
+  'pending'
+);
 
 SELECT set_config(
   'myk9_571.wanda_request_id',
@@ -604,5 +618,153 @@ BEGIN
     'PASS a show-scoped secretary request approved with a club routes through grant_club_secretary and is audited';
 END;
 $$;
+-- ============================================================================
+-- 8. (round 2, R3) submit_role_request REJECTS a show-scoped secretary ask.
+--    Show-scoped secretary is not a permission any more (20260830240000
+--    retired it) — the discriminator this test protects is that the reject
+--    fires BEFORE the club/show mutual-exclusion or note-required checks
+--    below it, for both possible shapes of a would-be show-scoped ask.
+-- ============================================================================
+
+SET LOCAL ROLE authenticated;
+SELECT set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-000000000b02', true);
+
+DO $$
+BEGIN
+  BEGIN
+    PERFORM public.submit_role_request(
+      'secretary',
+      'show',
+      NULL,
+      '00000000-0000-0000-0000-000000000b31',
+      'I can run this specific show.'
+    );
+    RAISE EXCEPTION 'FAIL show-scoped secretary submit succeeded';
+  EXCEPTION WHEN SQLSTATE '22023' THEN
+    RAISE NOTICE 'PASS show-scoped secretary submit is rejected (22023)';
+  END;
+END;
+$$;
+
+RESET ROLE;
+
+-- ============================================================================
+-- 9. (round 2, R3) An empty note on a club-scoped secretary ask is rejected
+--    (22023). A fresh identity (Nina) avoids the standing-denial guard
+--    firing first and masking which check actually raised.
+-- ============================================================================
+
+SET LOCAL ROLE authenticated;
+SELECT set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-000000000b09', true);
+
+DO $$
+BEGIN
+  BEGIN
+    PERFORM public.submit_role_request(
+      'secretary',
+      'club',
+      '00000000-0000-0000-0000-000000000b21',
+      NULL,
+      ''
+    );
+    RAISE EXCEPTION 'FAIL empty-note club secretary submit succeeded';
+  EXCEPTION WHEN SQLSTATE '22023' THEN
+    RAISE NOTICE 'PASS an empty note on a club-scoped secretary ask is rejected (22023)';
+  END;
+END;
+$$;
+
+RESET ROLE;
+
+-- ============================================================================
+-- 10. (round 2, R4) approve_club_role_request/deny_club_role_request give
+--     the SAME 42501 for a request id that does not exist at all as for one
+--     that exists but belongs to another club (test 1 above) — the shape
+--     check and the authorization check are one verdict, not a 22023 for
+--     "wrong shape" followed by a 42501 for "not yours".
+-- ============================================================================
+
+SET LOCAL ROLE authenticated;
+SELECT set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-000000000b03', true);
+
+DO $$
+BEGIN
+  BEGIN
+    PERFORM public.approve_club_role_request(gen_random_uuid(), 'Approved');
+    RAISE EXCEPTION 'FAIL approve_club_role_request on a nonexistent id succeeded';
+  EXCEPTION WHEN SQLSTATE '42501' THEN
+    RAISE NOTICE 'PASS approve_club_role_request on a nonexistent id is 42501, not P0002';
+  END;
+
+  BEGIN
+    PERFORM public.deny_club_role_request(gen_random_uuid(), 'Denied');
+    RAISE EXCEPTION 'FAIL deny_club_role_request on a nonexistent id succeeded';
+  EXCEPTION WHEN SQLSTATE '42501' THEN
+    RAISE NOTICE 'PASS deny_club_role_request on a nonexistent id is 42501, not P0002';
+  END;
+END;
+$$;
+
+RESET ROLE;
+
+-- ============================================================================
+-- 11. (round 2, R4) deny_club_role_request by someone who is not this
+--     club's admin (and not a site admin) is rejected (42501) — mirrors
+--     test 1's coverage of approve_club_role_request. Submits a fresh
+--     pending request from Nina to deny against.
+-- ============================================================================
+
+SET LOCAL ROLE authenticated;
+SELECT set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-000000000b09', true);
+
+DO $$
+DECLARE
+  v_request_id uuid;
+BEGIN
+  v_request_id := public.submit_role_request(
+    'secretary',
+    'club',
+    '00000000-0000-0000-0000-000000000b21',
+    NULL,
+    'Nina would like to help too.'
+  );
+
+  IF v_request_id IS NULL THEN
+    RAISE EXCEPTION 'FIXTURE Nina''s submit_role_request returned NULL';
+  END IF;
+END;
+$$;
+
+RESET ROLE;
+
+SELECT set_config(
+  'myk9_571.nina_request_id',
+  (
+    SELECT id::text
+    FROM public.role_requests
+    WHERE person_id = '00000000-0000-0000-0000-000000000b19'
+      AND club_id = '00000000-0000-0000-0000-000000000b21'
+      AND status = 'pending'
+  ),
+  true
+);
+
+SET LOCAL ROLE authenticated;
+SELECT set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-000000000b03', true);
+
+DO $$
+DECLARE
+  v_request_id uuid := current_setting('myk9_571.nina_request_id')::uuid;
+BEGIN
+  BEGIN
+    PERFORM public.deny_club_role_request(v_request_id, 'Denied');
+    RAISE EXCEPTION 'FAIL non-admin deny_club_role_request succeeded';
+  EXCEPTION WHEN SQLSTATE '42501' THEN
+    RAISE NOTICE 'PASS non-admin deny_club_role_request is rejected (42501)';
+  END;
+END;
+$$;
+
+RESET ROLE;
 
 ROLLBACK;

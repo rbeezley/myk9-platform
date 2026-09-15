@@ -60,9 +60,15 @@ export const RequestShowAccessCard: React.FC<RequestShowAccessCardProps> = ({ cl
     Boolean(userWithRoles) && !isSiteAdmin && !alreadyClubAdmin && !alreadySecretary;
 
   const statusQuery = useQuery({
-    queryKey: ['my-club-secretary-request', club.id],
-    queryFn: () => getMyClubSecretaryRequestStatus(club.id),
-    enabled: eligibleToAsk,
+    queryKey: ['my-club-secretary-request', club.id, userWithRoles?.id],
+    // MYK9-571 round 2 (P2-1): pass the auth user id we already have instead
+    // of a fresh supabase.auth.getUser() round-trip inside the service call
+    // — that round-trip discarded its own error and returned null on no
+    // user, which read as "no prior request" and re-showed the Request
+    // button to someone the query had no real identity for. `enabled` below
+    // gates this on the id actually being present.
+    queryFn: () => getMyClubSecretaryRequestStatus(club.id, userWithRoles!.id),
+    enabled: eligibleToAsk && Boolean(userWithRoles?.id),
   });
   const requestStatus = statusQuery.data?.status ?? null;
   const reviewerNote = statusQuery.data?.reviewerNote ?? null;
@@ -139,14 +145,15 @@ export const RequestShowAccessCard: React.FC<RequestShowAccessCardProps> = ({ cl
     );
   }
 
+  // MYK9-571 round 2 (P3-3): render nothing while the status is still
+  // loading rather than a disabled button that can vanish the instant data
+  // arrives (into "Under review", the denied message, or nothing at all) —
+  // a control that appears only to disappear reads as broken, not loading.
+  if (statusQuery.isLoading) return null;
+
   return (
     <>
-      <Button
-        variant="outline"
-        className="gap-2 border-border"
-        onClick={() => setShowDialog(true)}
-        disabled={statusQuery.isLoading}
-      >
+      <Button variant="outline" className="gap-2 border-border" onClick={() => setShowDialog(true)}>
         <KeyRound className="h-4 w-4" />
         Request show access
       </Button>

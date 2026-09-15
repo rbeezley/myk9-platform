@@ -175,6 +175,163 @@ describe('club-scoped authorization helpers are never handed a bare club_id colu
 });
 
 /**
+ * MYK9-571 round 2 (P1-A/R2): the same trap in RLS-policy form. Round 1 of
+ * the 20260915231500 migration dropped and recreated role_requests_select
+ * with a third arm, `requested_role = 'secretary' AND is_club_admin(club_id)`
+ * — club_id is nullable (insert_signup_role_requests never sets it), and
+ * is_club_admin(NULL) answers "club admin anywhere?", so every club admin,
+ * anywhere, could read every signup-generated secretary request. Round 2
+ * removed the arm rather than guard it inline; this scanner is what stops a
+ * future PR from re-adding an unguarded one on ANY policy, not just this
+ * table's.
+ */
+
+/**
+ * Every LIVE `CREATE POLICY "<name>" ...;` statement: latest CREATE wins, and
+ * a DROP POLICY (this codebase's own drop-and-recreate convention — Postgres
+ * has no CREATE OR REPLACE POLICY) removes the name until a later CREATE
+ * brings it back. Without tracking drops, a policy renamed away (e.g.
+ * judge_assignments_write, split into judge_assignments_insert/update/delete
+ * by 20260728131000) would be scanned as if its old, dead text were still
+ * live — the opposite mistake from a stale function definition, and just as
+ * wrong for a scanner whose whole job is "what does this predicate do today".
+ */
+function latestPolicyDefinitions(): Map<string, { file: string; body: string }> {
+  const files = readdirSync(migrationsDir)
+    .filter(name => name.endsWith('.sql'))
+    .sort();
+  const latest = new Map<string, { file: string; body: string }>();
+
+  for (const file of files) {
+    const sql = readFileSync(resolve(migrationsDir, file), 'utf8');
+    const eventPattern = /(CREATE\s+POLICY|DROP\s+POLICY(?:\s+IF\s+EXISTS)?)\s+"([^"]+)"/gi;
+    let match: RegExpExecArray | null;
+    while ((match = eventPattern.exec(sql)) !== null) {
+      const name = match[2];
+      if (/^DROP/i.test(match[1])) {
+        latest.delete(name);
+        continue;
+      }
+      const start = match.index;
+      // Policy bodies are not dollar-quoted, so the statement's own terminating
+      // `;` is a safe boundary (unlike the function scanner above, which must
+      // dodge dollar-quoted bodies that can themselves contain semicolons).
+      const terminator = sql.indexOf(';', eventPattern.lastIndex);
+      const end = terminator === -1 ? sql.length : terminator + 1;
+      latest.set(name, { file, body: sql.slice(start, end) });
+      eventPattern.lastIndex = end;
+    }
+  }
+  return latest;
+}
+
+/**
+ * Call sites that pass a `club_id` column to a club-scoped helper from
+ * inside an RLS policy body. Building this scanner for MYK9-571 round 2 (the
+ * role_requests_select P0) surfaced 41 PRE-EXISTING sites — none introduced
+ * by this PR, and role_requests_select itself is NOT among them (its round-1
+ * arm was removed, not guarded; see the migration header). They predate the
+ * MYK9-258 remediation, which only ever covered the FUNCTIONS in
+ * REVIEWED_CLUB_HELPER_CALL_SITES above (can_manage_show,
+ * manageable_show_ids, etc.) — nobody had scanned RLS policy bodies for the
+ * same trap called directly. Three categories, each annotated below:
+ *
+ *   SAFE (NOT NULL) — club_premium_templates.club_id and
+ *   premium_generations.club_id are both declared `uuid not null` (188_
+ *   premium_bridge_tables.sql), so these calls can never see NULL.
+ *
+ *   GUARDED — shows_select already carries the
+ *   `club_id is not null and (select is_club_admin(club_id))` idiom
+ *   (20260606204100_include_show_scoped_secretary_drafts.sql).
+ *
+ *   UNGUARDED — genuinely unreviewed, e.g. classes_select
+ *   (108_tv_display_anon_access.sql): `... OR (SELECT is_club_admin(s.club_id))
+ *   ...` with no NULL check anywhere in the predicate, same shape as the
+ *   shows/trials mutation/select policies below. Registered here so this
+ *   scanner ships green without silently claiming they were checked;
+ *   fixing them is a dedicated follow-up, out of scope for a role_requests
+ *   fix. A truly NEW entry — one added by a later PR, not already in this
+ *   list — still fails the test and must be guarded (or proven NOT NULL)
+ *   before it can be registered.
+ */
+const REVIEWED_CLUB_HELPER_POLICY_SITES: readonly string[] = [
+  // SAFE: club_id is `uuid not null` on both tables (188_premium_bridge_tables.sql).
+  'club members can log premium generations -> is_club_admin',
+  'club members can log premium generations -> is_trial_secretary',
+  'club members can manage premium templates -> is_club_admin',
+  'club members can manage premium templates -> is_trial_secretary',
+  'club members can view premium generations -> is_club_admin',
+  'club members can view premium generations -> is_trial_secretary',
+  // GUARDED: `club_id is not null and (select is_club_admin(club_id))`.
+  'shows_select -> is_club_admin',
+  // UNGUARDED, pre-existing, out of scope for MYK9-571. Flagged as a
+  // follow-up security audit, not fixed here.
+  'class_visibility_insert -> is_club_admin',
+  'class_visibility_insert -> is_trial_secretary',
+  'class_visibility_update -> is_club_admin',
+  'class_visibility_update -> is_trial_secretary',
+  'classes_select -> is_club_admin',
+  'classes_select -> is_trial_secretary',
+  'entry_status_history_select -> is_club_admin',
+  'messages_insert -> is_club_admin',
+  'messages_insert -> is_trial_secretary',
+  'messages_select -> is_club_admin',
+  'messages_select -> is_trial_secretary',
+  'messages_update_read -> is_club_admin',
+  'messages_update_read -> is_trial_secretary',
+  'show_templates_select -> is_club_admin',
+  'show_templates_select -> is_trial_secretary',
+  'show_visibility_insert -> is_club_admin',
+  'show_visibility_insert -> is_trial_secretary',
+  'show_visibility_update -> is_club_admin',
+  'show_visibility_update -> is_trial_secretary',
+  'shows_delete -> is_club_admin',
+  'shows_insert -> is_club_admin',
+  'shows_insert -> is_trial_secretary',
+  'shows_update -> is_club_admin',
+  'shows_update -> is_trial_secretary',
+  'threads_insert -> is_club_admin',
+  'threads_insert -> is_trial_secretary',
+  'threads_select -> is_club_admin',
+  'threads_select -> is_trial_secretary',
+  'trial_visibility_insert -> is_club_admin',
+  'trial_visibility_insert -> is_trial_secretary',
+  'trial_visibility_update -> is_club_admin',
+  'trial_visibility_update -> is_trial_secretary',
+  'trials_select -> is_club_admin',
+  'trials_select -> is_trial_secretary',
+];
+
+describe('club-scoped authorization helpers are never handed a bare club_id column in an RLS policy', () => {
+  const policies = latestPolicyDefinitions();
+
+  it('parses the migration set and finds policies', () => {
+    // Guards the guard: a parser that matched nothing would make the assertion
+    // below pass vacuously.
+    expect(policies.size).toBeGreaterThan(50);
+  });
+
+  it('surfaces any NEW policy call site for review', () => {
+    const found = new Set<string>();
+
+    for (const [name, { body }] of policies) {
+      for (const call of body.matchAll(CLUB_HELPER_CALL)) {
+        const argument = call[2];
+        if (argument === '') continue;
+        // Unlike a function body (always an aliased subquery, e.g. s.club_id), a
+        // policy's USING/WITH CHECK clause reads its OWN table's columns bare —
+        // "club_id" with no alias IS the row's own (possibly nullable) column, so
+        // both forms count here.
+        if (!/^(?:[a-z_][a-z0-9_]*\.)?club_id$/i.test(argument)) continue;
+        found.add(`${name} -> ${call[1]}`);
+      }
+    }
+
+    expect([...found].sort()).toEqual([...REVIEWED_CLUB_HELPER_POLICY_SITES].sort());
+  });
+});
+
+/**
  * MYK9-329: the owner-run view had the same collapse in prose form. Its
  * `can_manage` flag carried `(sh.club_id IS NULL AND ctx.has_manager_role)`,
  * which no `is_club_admin(x)` scan can see because it never calls the helper.

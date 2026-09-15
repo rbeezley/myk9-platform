@@ -72,6 +72,35 @@ export interface ApproveRoleRequestInput {
 }
 
 /**
+ * Flat row shape returned by the list_club_role_requests RPC (MYK9-571,
+ * round 2): a club admin no longer reads role_requests directly (that arm
+ * of role_requests_select leaked on a NULL club_id — see the migration
+ * header), so this is what the RPC's RETURNS TABLE actually returns, not a
+ * PostgREST embed like DbRoleRequestRow.
+ */
+export interface ClubRoleRequestRpcRow {
+  id: string;
+  auth_user_id: string;
+  person_id: string;
+  requested_role: RequestedRole;
+  requested_scope: RequestedScope;
+  club_id: string | null;
+  club_name: string | null;
+  show_id: string | null;
+  status: RoleRequestStatus;
+  requester_note: string | null;
+  reviewer_note: string | null;
+  reviewed_by: string | null;
+  reviewer_name: string | null;
+  reviewer_email: string | null;
+  reviewed_at: string | null;
+  created_at: string;
+  updated_at: string;
+  requester_name: string;
+  requester_email: string | null;
+}
+
+/**
  * Thrown by submitRoleRequest when the club-scoped submit RPC's own unique
  * index (role_requests_one_pending_scope_idx) swallowed a duplicate pending
  * request via ON CONFLICT DO NOTHING and returned a NULL id instead of an
@@ -131,6 +160,30 @@ function assertRoleRequestStatus(value: string, requestId: string): RoleRequestS
     `mapDbRoleRequest: unknown status ${JSON.stringify(value)} on role_request ${requestId}. ` +
       `Expected one of ${ROLE_REQUEST_STATUSES.join(', ')}.`
   );
+}
+
+export function mapClubRoleRequestRpcRow(row: ClubRoleRequestRpcRow): RoleRequest {
+  return {
+    id: row.id,
+    authUserId: row.auth_user_id,
+    personId: row.person_id,
+    requestedRole: assertRequestedRole(row.requested_role, row.id),
+    requestedScope: assertRequestedScope(row.requested_scope, row.id),
+    clubId: row.club_id,
+    clubName: row.club_name,
+    showId: row.show_id,
+    status: assertRoleRequestStatus(row.status, row.id),
+    requesterNote: row.requester_note,
+    reviewerNote: row.reviewer_note,
+    reviewedBy: row.reviewed_by,
+    reviewerName: row.reviewer_name,
+    reviewerEmail: row.reviewer_email,
+    reviewedAt: row.reviewed_at,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+    requesterName: row.requester_name,
+    requesterEmail: row.requester_email,
+  };
 }
 
 export function mapDbRoleRequest(row: DbRoleRequestRow): RoleRequest {

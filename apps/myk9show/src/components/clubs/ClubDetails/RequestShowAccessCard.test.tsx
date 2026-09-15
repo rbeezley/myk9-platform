@@ -36,14 +36,14 @@ const club = { id: 'club-1', name: 'Heartland Scent Work Club' } as Club;
 
 function withScopes(
   scopes: Array<Pick<RoleScope, 'roleId' | 'scopeType' | 'scopeId'>>,
-  roles: UserRole[] = [UserRole.EXHIBITOR],
+  roles: UserRole[] = [UserRole.EXHIBITOR]
 ): UserWithRoles {
   return {
     id: 'auth-1',
     email: 'exhibitor@example.com',
     databaseUserId: 'person-1',
     roles,
-    scopes: scopes.map((scope) => ({ ...scope, userId: 'person-1', createdAt: new Date(0) })),
+    scopes: scopes.map(scope => ({ ...scope, userId: 'person-1', createdAt: new Date(0) })),
     permissions: [],
   } as unknown as UserWithRoles;
 }
@@ -74,6 +74,30 @@ describe('RequestShowAccessCard', () => {
     ]);
     render(<RequestShowAccessCard club={club} />);
     expect(screen.queryByRole('button', { name: /request show access/i })).not.toBeInTheDocument();
+  });
+
+  it('renders nothing for a site admin (they can appoint via /admin)', () => {
+    mockAuth.userWithRoles = withScopes([], [UserRole.SITE_ADMIN]);
+    render(<RequestShowAccessCard club={club} />);
+    expect(screen.queryByRole('button', { name: /request show access/i })).not.toBeInTheDocument();
+  });
+
+  it('renders nothing while the status check is still loading', async () => {
+    mockAuth.userWithRoles = withScopes([]);
+    let resolveStatus!: (value: null) => void;
+    vi.mocked(getMyClubSecretaryRequestStatus).mockReturnValue(
+      new Promise(resolve => {
+        resolveStatus = resolve;
+      })
+    );
+
+    const { container } = render(<RequestShowAccessCard club={club} />);
+
+    expect(container).toBeEmptyDOMElement();
+    expect(screen.queryByRole('button', { name: /request show access/i })).not.toBeInTheDocument();
+
+    resolveStatus(null);
+    expect(await screen.findByRole('button', { name: /request show access/i })).toBeInTheDocument();
   });
 
   it('shows the request button for an eligible signed-in exhibitor', async () => {
@@ -146,6 +170,19 @@ describe('RequestShowAccessCard', () => {
     ).toBeInTheDocument();
   });
 
+  it('shows the unavailable message with no reviewer note when the club gave none', async () => {
+    mockAuth.userWithRoles = withScopes([]);
+    vi.mocked(getMyClubSecretaryRequestStatus).mockResolvedValue({
+      status: 'denied',
+      reviewerNote: null,
+    });
+
+    const { container } = render(<RequestShowAccessCard club={club} />);
+
+    expect(await screen.findByText(/not available/i)).toBeInTheDocument();
+    expect(container.querySelector('.italic')).not.toBeInTheDocument();
+  });
+
   it('hides the button when the status check fails, instead of failing open', async () => {
     mockAuth.userWithRoles = withScopes([]);
     vi.mocked(getMyClubSecretaryRequestStatus).mockRejectedValue(new Error('network error'));
@@ -155,7 +192,9 @@ describe('RequestShowAccessCard', () => {
     await waitFor(() =>
       expect(screen.queryByRole('button', { name: /request show access/i })).not.toBeInTheDocument()
     );
-    expect(await screen.findByText(/couldn't check show access request status/i)).toBeInTheDocument();
+    expect(
+      await screen.findByText(/couldn't check show access request status/i)
+    ).toBeInTheDocument();
   });
 
   it('renders a quiet unavailable message, not a retryable button, after a standing denial', async () => {

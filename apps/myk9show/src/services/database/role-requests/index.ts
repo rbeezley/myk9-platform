@@ -1,10 +1,12 @@
 import { supabase } from '../supabaseClient';
 import type { Database } from '@/types/supabase';
 import {
+  mapClubRoleRequestRpcRow,
   mapDbRoleRequest,
   RoleRequestAlreadyPendingError,
   RoleRequestStandingDenialError,
   type ApproveRoleRequestInput,
+  type ClubRoleRequestRpcRow,
   type ClubSecretaryRequestStatus,
   type DbRoleRequestRow,
   type RoleRequest,
@@ -13,6 +15,7 @@ import {
 
 export type {
   ApproveRoleRequestInput,
+  ClubRoleRequestRpcRow,
   ClubSecretaryRequestStatus,
   DbRoleRequestRow,
   RequestedRole,
@@ -21,6 +24,7 @@ export type {
   RoleRequestStatus,
 } from './types';
 export {
+  mapClubRoleRequestRpcRow,
   mapDbRoleRequest,
   RoleRequestAlreadyPendingError,
   RoleRequestStandingDenialError,
@@ -86,7 +90,11 @@ export interface SubmitClubSecretaryRequestInput {
 
 /**
  * Submits a request for club-scoped secretary access. Requires a non-empty
- * note (enforced by the dialog, not the RPC, which accepts an optional note).
+ * note — the dialog's own `disabled={!note.trim()}` keeps the button
+ * unusable until one is typed, and submit_role_request (server-side)
+ * independently raises 22023 for an empty club-scoped secretary note, so a
+ * caller that bypasses the dialog (or a stale client) cannot submit one
+ * either.
  *
  * A NULL return means the server's own unique index silently absorbed a
  * duplicate pending request (ON CONFLICT DO NOTHING) — surfaced here as
@@ -119,25 +127,34 @@ export async function submitClubSecretaryRequest(
 
 /**
  * Reads the caller's own most recent club-scoped secretary request for this
- * club, if any. Filtered explicitly to the current auth user (not just
- * relied on via role_requests_select's own-row arm), because "the caller's
- * OWN latest request" is a claim this query makes on purpose — without the
- * filter it would silently also match any other row role_requests_select
- * happens to let this caller see, such as a club admin's own read of the
- * requests they administer.
+ * club, if any. `authUserId` comes from the caller (RequestShowAccessCard
+ * already holds it via useAuthContext) rather than a fresh
+ * supabase.auth.getUser() round-trip — the round-trip silently swallowed its
+ * own error and returned null on no user, which reads identically to "no
+ * prior request" and re-shows the Request button to someone the caller
+ * actually has no identity for (MYK9-571 round 2, P2-1). A caller with no id
+ * is a caller bug, not a "no request" answer, so this throws instead of
+ * returning null.
+ *
+ * Filtered explicitly to authUserId (not just relied on via
+ * role_requests_select's own-row arm), because "the caller's OWN latest
+ * request" is a claim this query makes on purpose — without the filter it
+ * would silently also match any other row role_requests_select happens to
+ * let this caller see, such as a club admin's own read of the requests they
+ * administer.
  */
 export async function getMyClubSecretaryRequestStatus(
-  clubId: string
+  clubId: string,
+  authUserId: string
 ): Promise<ClubSecretaryRequestStatus | null> {
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) return null;
+  if (!authUserId) {
+    throw new Error('getMyClubSecretaryRequestStatus requires an authenticated user id');
+  }
 
   const { data, error } = await supabase
     .from('role_requests')
     .select('status, reviewer_note')
-    .eq('auth_user_id', user.id)
+    .eq('auth_user_id', authUserId)
     .eq('club_id', clubId)
     .eq('requested_role', 'secretary')
     .eq('requested_scope', 'club')
@@ -155,22 +172,20 @@ export async function getMyClubSecretaryRequestStatus(
 }
 
 /**
- * Lists pending club-scoped secretary requests for a club. Relies on the
- * role_requests_select club-admin arm; a caller who is not a site admin or
- * that club's admin gets an empty result, not an error.
+ * Lists a club's pending club-scoped secretary requests via the
+ * list_club_role_requests RPC (MYK9-571 round 2). Previously a direct
+ * `.from('role_requests')` read relying on a role_requests_select
+ * club-admin arm that leaked platform-wide on a NULL club_id (round 1's
+ * P0) — that arm is gone, and this RPC restates the same club-admin-or-
+ * site-admin check as one verdict before returning any row. A caller who
+ * is not a site admin or that club's admin gets a 42501 error, not an
+ * empty result.
  */
 export async function listClubRoleRequests(clubId: string): Promise<RoleRequest[]> {
-  const { data, error } = await supabase
-    .from('role_requests')
-    .select(ROLE_REQUEST_SELECT)
-    .eq('club_id', clubId)
-    .eq('requested_scope', 'club')
-    .eq('requested_role', 'secretary')
-    .eq('status', 'pending')
-    .order('created_at', { ascending: false });
+  const { data, error } = await supabase.rpc('list_club_role_requests', { p_club_id: clubId });
 
   if (error) throw error;
-  return ((data ?? []) as unknown as DbRoleRequestRow[]).map(mapDbRoleRequest);
+  return ((data ?? []) as unknown as ClubRoleRequestRpcRow[]).map(mapClubRoleRequestRpcRow);
 }
 
 export async function approveClubRoleRequest(

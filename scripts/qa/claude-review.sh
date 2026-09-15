@@ -35,6 +35,13 @@
 #        1 review ran and reported findings (fix, re-run against the new head)
 #        2 review did NOT complete, or the evidence was not posted — not a verdict
 #        3 (--wait only) the detached review is still running; call --wait again
+#        --wait traps INT/TERM/HUP/URG so a poller killed by the calling shell
+#        or a sandbox (observed: exit 144 = 128+SIGURG, empty log, MYK9-522)
+#        reports plainly and exits 2 instead of dying silently. A signal it
+#        cannot trap (KILL, a crash) still surfaces as a bare 128+signal with
+#        no log. ANY exit code outside 0|1|2|3 means the waiter died mid-poll —
+#        callers MUST treat it as 2 (not a verdict) and call --wait again; the
+#        detached review itself may still be running.
 set -uo pipefail
 
 HERE="$(cd "$(dirname "$0")" && pwd)"
@@ -135,6 +142,24 @@ if [ -n "$WAIT" ]; then
     echo "claude-review: no detached review for PR #${PR} (no ${STATUS_FILE}); start one with --detach" >&2
     exit 2
   fi
+  # A signal that kills THIS poller — the calling shell backgrounding it, a
+  # sandbox reaping it when the tool call returns — must not escape as a bare
+  # 128+signal with an empty log: that falls outside the documented 0/1/2/3
+  # contract and gives an automated caller nothing to branch on (observed exit
+  # 144 = 128+SIGURG, empty log, on PR #2225, 2026-09-14; MYK9-522). Trap the
+  # signals a supervising shell/sandbox is known to send, report plainly, and
+  # exit 2 (not a verdict, the detached review may still be running) instead
+  # of dying silently. A signal this trap cannot catch (KILL, a crash) still
+  # surfaces as a bare 128+signal — the header documents that as the fallback
+  # rule for callers.
+  _wait_killed() {
+    echo "claude-review: the --wait poller for PR #${PR} was killed by SIG${1} while waiting; this is not a verdict — the detached review may still be running. Call --wait again. Exit 2." >&2
+    exit 2
+  }
+  trap '_wait_killed INT' INT
+  trap '_wait_killed TERM' TERM
+  trap '_wait_killed HUP' HUP
+  trap '_wait_killed URG' URG
   waited=0
   while :; do
     st="$(cat "$STATUS_FILE" 2>/dev/null)"

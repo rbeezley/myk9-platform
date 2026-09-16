@@ -140,7 +140,7 @@ describe('seed-demo self-cleaning relationship deletes (MYK9-490 follow-up)', ()
     expect(guardBlock).toContain("e.payment_status IN ('paid', 'refunded')");
     expect(guardBlock).toContain(`en.id = '${ENROLLMENT_ID}'`);
     // MYK9-562: the RAISE must print the offending ids, not only a count, like
-    // the extracted guard's three RAISEs do — capped at 10 the same way, and
+    // the extracted guard's four id-printing RAISEs do — capped at 10 the same way, and
     // with the same "First ids: %" grammar the runbook (seed-reset/SKILL.md)
     // assumes for every other guard.
     expect(guardBlock).toContain('string_agg(t.id::text');

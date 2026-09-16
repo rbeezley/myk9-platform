@@ -352,7 +352,7 @@ DECLARE v_paid integer; v_ids text;
 BEGIN
   -- Money that moved in either direction: 'paid' and 'refunded' both carry an
   -- audit trail in entry_status_history that the cascade would erase.
-  -- Capped the same way the extracted guard's three RAISEs are (MYK9-562): an
+  -- Capped the same way the extracted guard's four id-printing RAISEs are (MYK9-562): an
   -- unbounded id list once put 756 ids on one error line.
   WITH strays AS (
     SELECT e.id

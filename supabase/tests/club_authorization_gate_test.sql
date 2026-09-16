@@ -697,6 +697,7 @@ BEGIN
   VALUES (v_person_id, v_role_id, NULL, NULL, true, now(), v_person_id, v_adopted_auth_user_id);
 
   PERFORM set_config('myk9572.siteadmin_auth_user_id', v_adopted_auth_user_id::text, false);
+  PERFORM set_config('myk9572.siteadmin_person_id', v_person_id::text, false);
 END;
 $$;
 
@@ -1025,6 +1026,28 @@ $$;
 --     produces — must succeed (case 10 above already proves the paired
 --     authorized_at change still raises).
 -- ---------------------------------------------------------------------------
+-- Precondition: club 572002 was last REVOKED (case 9b above), so re-arm it
+-- as the fixture owner (superuser session, guard carved out) with both
+-- columns populated. Without this the bare authorized_by -> NULL below is a
+-- no-op on an already-null pair and the authorized_at assertion reads the
+-- revoke, not the carve-out.
+UPDATE public.clubs
+   SET authorized_at = now(),
+       authorized_by = current_setting('myk9572.siteadmin_person_id')::uuid
+ WHERE id = '00000000-0000-0000-0000-000000572002';
+
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM public.clubs
+     WHERE id = '00000000-0000-0000-0000-000000572002'
+       AND authorized_at IS NOT NULL AND authorized_by IS NOT NULL
+  ) THEN
+    RAISE EXCEPTION 'FAIL authorized-by-set-null-carveout precondition: club 572002 is not authorized with an actor';
+  END IF;
+END;
+$$;
+
 SET LOCAL ROLE authenticated;
 SELECT set_config('request.jwt.claim.sub', current_setting('myk9572.siteadmin_auth_user_id'), true);
 

@@ -90,6 +90,9 @@ Filled in as batches complete; the final report to Richard is generated from thi
 | MYK9-595 | 1     | merged                                        | #2279 → af9a68f5e | none                                                          |
 | MYK9-547 | 1     | merged                                        | #2280 → 70c4977b4 | confirm `SWDC` against `electres.xsd` once                    |
 | MYK9-567 | 1     | merged (owner override, ledgered on MYK9-544) | #2281 → 880a20870 | none; MYK9-603 (print templates read the owner) filed from it |
+| MYK9-566 | 2     | merged; In Progress until reseed              | #2282 → 0ff63ca10 | reseed staging (`seed-reset`), confirm guards; MYK9-606 filed |
+| MYK9-606 | new   | filed (Backlog)                               | —                 | triage: load-secretary e2e users still named Load Secretary   |
+| MYK9-607 | new   | filed (Backlog)                               | —                 | triage: restore_dog snapshot edges                            |
 | MYK9-603 | new   | filed (Backlog)                               | —                 | triage: print templates use the owner as handler              |
 | MYK9-604 | new   | filed (Backlog)                               | —                 | triage: wizard writes `Unknown` class triples                 |
 | MYK9-605 | new   | filed (Backlog)                               | —                 | triage: MyEntriesPage focus flake                             |

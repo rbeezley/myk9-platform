@@ -5,7 +5,7 @@
 --
 --   1. The dialog and the function COMMENT both promised a clean restore. They
 --      were wrong: `entry_cart_items` and `waitlist_entries` are hard-DELETEd
---      and `restore_dog` touches only `dogs` and `entries`. WE CHOSE HONESTY
+--      and `restore_dog` touched only `dogs` and `entries`. WE CHOSE HONESTY
 --      OVER A NEW MECHANISM. Making the cascade genuinely reversible means
 --      either soft-delete columns on two more tables or a side ledger of what
 --      was removed, plus a restore path that re-inserts waitlist rows at a
@@ -20,16 +20,36 @@
 --      it, so every exhibitor behind the removed dog kept a position number
 --      that overstated their place in the queue forever.
 --
---   2. `refresh_class_scoring_state`'s manual branch nulls `final_placement`
---      for soft-deleted entries and RETURNs without recomputing. Force-delete a
---      scored entry in a `status_source = 'manual'` class and its placement is
---      nulled; restore it and the null-out no longer matches, nothing
---      recomputes, and the entry is permanently unplaced. The manual branch now
---      re-derives placements when the class is fully accounted for — the same
---      condition the derived branch uses, so a PARTIALLY scored manual class
---      still gets no premature placements. Placements stay server-authoritative
---      and 100%-scored-gated; only the "manual classes are exempt from
---      re-ranking entirely" part goes away.
+--   2. A force-deleted SCORED entry in a `status_source = 'manual'` class came
+--      back permanently unplaced. refresh_class_scoring_state's manual branch
+--      nulls a tombstoned entry's final_placement and RETURNs; on restore the
+--      null-out no longer matches and nothing re-derives, so the placement is
+--      simply gone.
+--
+--      THE OBVIOUS FIX IS FORBIDDEN. Teaching the manual branch to call
+--      recalculate_class_placements is ruled out BY NAME in
+--      20260817150000_clear_tombstone_placement_on_manual_classes.sql: "the
+--      manual branch must not write classes.status, and must not call
+--      recalculate_class_placements, which would re-rank a class whose ordering
+--      a human may have overridden" (:23-25), because a class-wide re-rank
+--      "turns a stale-tombstone display bug into silent destruction of
+--      published results" (:14-20). Gating it on "fully accounted for" does not
+--      rescue it: a fully-accounted manual class is exactly the state in which
+--      hand-set placements exist, and ANY later entry write — a check-in, a
+--      score edit — would then re-derive every one of them. MYK9-7 is the
+--      placement-authority thread; this migration does not reopen it.
+--
+--      So the placement is carried through the DELETE/RESTORE PAIR instead of
+--      through the rollup. force_delete_dog already writes an audit row (item 3
+--      below); it now snapshots each affected entry's pre-delete
+--      final_placement and class id into that row's metadata, and restore_dog
+--      re-applies those values — only for classes that are still
+--      status_source = 'manual', matched by the same `deleted_at` it already
+--      keys the entry restore on. A DERIVED class needs none of this: its
+--      trigger re-derives on the restore UPDATE, as it always has. The audit
+--      row is the right carrier because it is the one record that already
+--      describes exactly what this override removed, it is written in the same
+--      transaction, and it needs no new table during a consolidation phase.
 --
 --   3. `force_delete_dog` wrote no audit trail at all. It now writes one
 --      `activity_log` row (`record_type = 'dog'`, the value
@@ -42,189 +62,25 @@
 --      issues no refund, and the dialog now says the payment must be refunded
 --      in Stripe directly.
 --
+--      DECISION — the row carries two display names, `actor_name` (a designed
+--      column since 046_pipeline_dashboard.sql) and `metadata.dog_label` (the
+--      dog's call name). Both are deliberate: an audit row read a year later
+--      must still be legible after the dog is hard-deleted or renamed, and the
+--      ids alone are not. They are display copies, never a lookup key — every
+--      assertion and every restore path keys on ids.
+--
 --   8. `dogs.deleted_by` was written by `force_delete_dog` but not by
 --      `soft_delete_dog`. Normalised here.
 --
--- `soft_delete_dog` below is copied from the LATEST migration that defines it
--- (20260830190000_drop_armband_release_from_dog_delete.sql) and carries its
--- `SET search_path` clause inline, per that migration's header. `restore_dog`
--- is NOT redefined: nothing in this migration changes it.
+-- `soft_delete_dog` and `restore_dog` bodies below are copied from the LATEST
+-- migration that defines them (20260830190000_drop_armband_release_from_dog_delete.sql)
+-- and carry their `SET search_path` clauses inline, per that migration's header.
+-- `refresh_class_scoring_state` is NOT redefined: see item 2.
 
 BEGIN;
 
 -- ---------------------------------------------------------------------------
--- 1. refresh_class_scoring_state — the manual branch recomputes placements
---    once the class is fully accounted for. Body copied from
---    20260904160000_exclude_absent_entries_from_class_rollup.sql; only the
---    `v_status_source = 'manual'` block changes.
--- ---------------------------------------------------------------------------
-CREATE OR REPLACE FUNCTION public.refresh_class_scoring_state(p_class_id uuid)
-RETURNS void
-LANGUAGE plpgsql
-SECURITY DEFINER
-SET search_path = ''
-AS $$
-DECLARE
-  v_expected_count integer;
-  v_accounted_count integer;
-  v_scored_count integer;
-  v_status_source text;
-  v_is_nationals boolean;
-BEGIN
-  IF p_class_id IS NULL THEN
-    RETURN;
-  END IF;
-
-  SELECT
-    COUNT(*) FILTER (
-      WHERE COALESCE(entry_status, '') NOT IN (
-        'scratched', 'withdrawn', 'moved', 'not_accepted', 'absent'
-      )
-        AND check_in_status IS DISTINCT FROM 'pulled'
-    )::integer,
-    COUNT(*) FILTER (
-      WHERE COALESCE(entry_status, '') NOT IN (
-        'scratched', 'withdrawn', 'moved', 'not_accepted', 'absent'
-      )
-        AND check_in_status IS DISTINCT FROM 'pulled'
-        AND (is_scored = true OR result_status IN ('absent', 'excused'))
-    )::integer,
-    COUNT(*) FILTER (WHERE is_scored = true)::integer
-  INTO v_expected_count, v_accounted_count, v_scored_count
-  FROM public.entries
-  WHERE class_id = p_class_id
-    AND deleted_at IS NULL;
-
-  SELECT status_source
-  INTO v_status_source
-  FROM public.classes
-  WHERE id = p_class_id;
-
-  IF v_status_source = 'manual' THEN
-    -- `status` and `is_scoring_finalized` stay untouched: that is what
-    -- `manual` means, and none of this migration changes it.
-    UPDATE public.classes
-    SET scored_count = v_scored_count
-    WHERE id = p_class_id
-      AND scored_count IS DISTINCT FROM v_scored_count;
-
-    IF v_expected_count > 0 AND v_accounted_count = v_expected_count THEN
-      -- Fully accounted for, so the placements are derivable and must be
-      -- re-derived: a soft-deleted entry has to give its rank back, and a
-      -- RESTORED one has to get its rank back. recalculate_class_placements
-      -- clears every placement in the class first (deleted rows included),
-      -- so it subsumes the null-out in the ELSE arm below.
-      SELECT s.is_nationals
-      INTO v_is_nationals
-      FROM public.classes c
-      JOIN public.trials t ON t.id = c.trial_id
-      JOIN public.shows s ON s.id = t.show_id
-      WHERE c.id = p_class_id;
-
-      PERFORM public.recalculate_class_placements(
-        ARRAY[p_class_id], COALESCE(v_is_nationals, false)
-      );
-    ELSE
-      -- Not fully accounted for: do NOT assign placements to a half-scored
-      -- class. Keep the pre-existing behaviour of stripping placements off
-      -- tombstoned rows only.
-      UPDATE public.entries
-      SET final_placement = NULL
-      WHERE class_id = p_class_id
-        AND deleted_at IS NOT NULL
-        AND final_placement IS NOT NULL;
-    END IF;
-
-    RETURN;
-  END IF;
-
-  IF v_expected_count = 0 THEN
-    UPDATE public.classes
-    SET
-      status = 'upcoming',
-      scored_count = v_scored_count,
-      is_scoring_finalized = false
-    WHERE id = p_class_id
-      AND (status IS DISTINCT FROM 'upcoming'
-           OR scored_count IS DISTINCT FROM v_scored_count
-           OR is_scoring_finalized IS DISTINCT FROM false);
-
-    UPDATE public.entries
-    SET final_placement = NULL
-    WHERE class_id = p_class_id
-      AND final_placement IS NOT NULL;
-  ELSIF v_accounted_count = v_expected_count THEN
-    SELECT s.is_nationals
-    INTO v_is_nationals
-    FROM public.classes c
-    JOIN public.trials t ON t.id = c.trial_id
-    JOIN public.shows s ON s.id = t.show_id
-    WHERE c.id = p_class_id;
-
-    UPDATE public.classes
-    SET
-      status = 'completed',
-      scored_count = v_scored_count,
-      is_scoring_finalized = true,
-      reopened_after_closeout_at = NULL
-    WHERE id = p_class_id
-      AND (status IS DISTINCT FROM 'completed'
-           OR scored_count IS DISTINCT FROM v_scored_count
-           OR is_scoring_finalized IS DISTINCT FROM true
-           OR reopened_after_closeout_at IS NOT NULL);
-
-    PERFORM public.recalculate_class_placements(ARRAY[p_class_id], COALESCE(v_is_nationals, false));
-  ELSIF v_accounted_count > 0 THEN
-    UPDATE public.classes
-    SET
-      status = 'in_progress',
-      scored_count = v_scored_count,
-      is_scoring_finalized = false
-    WHERE id = p_class_id
-      AND (status IS DISTINCT FROM 'in_progress'
-           OR scored_count IS DISTINCT FROM v_scored_count
-           OR is_scoring_finalized IS DISTINCT FROM false);
-
-    UPDATE public.entries
-    SET final_placement = NULL
-    WHERE class_id = p_class_id
-      AND final_placement IS NOT NULL;
-  ELSE
-    UPDATE public.classes
-    SET
-      status = 'upcoming',
-      scored_count = v_scored_count,
-      is_scoring_finalized = false
-    WHERE id = p_class_id
-      AND (status IS DISTINCT FROM 'upcoming'
-           OR scored_count IS DISTINCT FROM v_scored_count
-           OR is_scoring_finalized IS DISTINCT FROM false);
-
-    UPDATE public.entries
-    SET final_placement = NULL
-    WHERE class_id = p_class_id
-      AND final_placement IS NOT NULL;
-  END IF;
-END;
-$$;
-
--- Restated from 20260904160000; CREATE OR REPLACE preserves the ACL, so this is
--- a no-op against the applied database and carries the disposition for a
--- migrations-only rebuild.
-REVOKE ALL ON FUNCTION public.refresh_class_scoring_state(uuid) FROM PUBLIC, anon, authenticated;
-GRANT EXECUTE ON FUNCTION public.refresh_class_scoring_state(uuid) TO service_role;
-
-COMMENT ON FUNCTION public.refresh_class_scoring_state(uuid) IS
-  'Derives class completion from non-deleted entries. Expected entries exclude '
-  'scratched, withdrawn, moved, not_accepted, absent, and pulled rows; '
-  'accounted entries are scored or have result_status absent/excused (MYK9-356). '
-  'A status_source=manual class keeps its status and finalized flag but still '
-  're-derives placements once every expected entry is accounted for, so a '
-  'soft-deleted entry gives its rank back and a restored one gets it back '
-  '(MYK9-596).';
-
--- ---------------------------------------------------------------------------
--- 2. resequence_class_waitlist — the re-pack both delete paths were missing.
+-- 1. resequence_class_waitlist — the re-pack both delete paths were missing.
 --
 -- Its own function so the two callers cannot drift. Positions are compacted to
 -- 1..N over the `waiting` rows only, because the partial unique index
@@ -244,10 +100,25 @@ LANGUAGE plpgsql
 SECURITY DEFINER
 SET search_path = ''
 AS $$
+DECLARE
+  v_class_id uuid;
 BEGIN
   IF p_class_ids IS NULL OR cardinality(p_class_ids) = 0 THEN
     RETURN;
   END IF;
+
+  -- Take the SAME advisory lock add_to_waitlist takes before it computes
+  -- MAX(position) + 1 (20260629015413_harden_waitlist_idempotency_capacity_helper.sql:95). Without
+  -- it a concurrent join reads MAX = 3 while this function's negation pass is
+  -- still uncommitted, inserts at 4, and is not touched by the second pass
+  -- (which only matches position < 0) — the queue lands 1, 2, 4 with no error.
+  -- Locked in sorted order so two concurrent resequences over overlapping
+  -- class sets cannot deadlock against each other.
+  FOR v_class_id IN
+    SELECT DISTINCT c FROM unnest(p_class_ids) AS c WHERE c IS NOT NULL ORDER BY 1
+  LOOP
+    PERFORM pg_catalog.pg_advisory_xact_lock(pg_catalog.hashtext(v_class_id::text));
+  END LOOP;
 
   UPDATE public.waitlist_entries
   SET "position" = -"position"
@@ -279,10 +150,11 @@ GRANT EXECUTE ON FUNCTION public.resequence_class_waitlist(uuid[]) TO service_ro
 COMMENT ON FUNCTION public.resequence_class_waitlist(uuid[]) IS
   'Compacts waitlist_entries.position to 1..N over the waiting rows of each '
   'supplied class, closing the hole a removed dog leaves behind (MYK9-596). '
-  'Internal: called under definer rights from the dog delete paths.';
+  'Takes add_to_waitlist''s per-class advisory lock first. Internal: called '
+  'under definer rights from the dog delete paths.';
 
 -- ---------------------------------------------------------------------------
--- 3. soft_delete_dog — body copied from 20260830190000, plus deleted_by on the
+-- 2. soft_delete_dog — body copied from 20260830190000, plus deleted_by on the
 --    dog (item 8) and the waitlist re-sequence (item 1). Nothing else moves;
 --    in particular the MK002 refusal and the armband non-behaviour stay as they
 --    are — re-read 20260830190000's header before touching either.
@@ -376,9 +248,10 @@ END;
 $function$;
 
 -- ---------------------------------------------------------------------------
--- 4. force_delete_dog — body copied from 20260915214500, plus the waitlist
---    re-sequence (item 1) and the audit row (item 3). The admin gate, the
---    absence of a refund, and the armband non-behaviour are unchanged.
+-- 3. force_delete_dog — body copied from 20260915214500, plus the waitlist
+--    re-sequence (item 1), the placement snapshot (item 2) and the audit row
+--    (item 3). The admin gate, the absence of a refund, and the armband
+--    non-behaviour are unchanged.
 -- ---------------------------------------------------------------------------
 CREATE OR REPLACE FUNCTION public.force_delete_dog(p_dog_id uuid)
   RETURNS void
@@ -388,12 +261,14 @@ CREATE OR REPLACE FUNCTION public.force_delete_dog(p_dog_id uuid)
 AS $function$
 DECLARE
   v_rows_affected INT;
+  v_deleted_at timestamptz;
   v_dog_label TEXT;
   v_actor_name TEXT;
   v_entry_ids UUID[];
   v_trial_ids UUID[];
   v_paid_entry_ids UUID[];
   v_payment_intent_ids TEXT[];
+  v_placements JSONB;
   v_cart_item_count INT;
   v_waitlist_class_ids UUID[];
   v_waitlist_count INT;
@@ -412,7 +287,8 @@ BEGIN
     updated_at = NOW()
   WHERE
     id = p_dog_id
-    AND deleted_at IS NULL;
+    AND deleted_at IS NULL
+  RETURNING deleted_at INTO v_deleted_at;
 
   GET DIAGNOSTICS v_rows_affected = ROW_COUNT;
 
@@ -424,7 +300,9 @@ BEGIN
 
   -- Snapshot what the cascade is about to remove, for the audit row. Read
   -- BEFORE the writes: after them the entries are tombstoned and the cart and
-  -- waitlist rows are gone, so there is nothing left to name.
+  -- waitlist rows are gone, so there is nothing left to name — and the rollup
+  -- trigger has already nulled final_placement, which is precisely the value
+  -- restore_dog needs back for a manual class (item 2).
   SELECT
     COALESCE(array_agg(e.id ORDER BY e.id), '{}'::uuid[]),
     COALESCE(array_agg(DISTINCT e.trial_id) FILTER (WHERE e.trial_id IS NOT NULL), '{}'::uuid[]),
@@ -433,8 +311,20 @@ BEGIN
       array_agg(DISTINCT e.stripe_payment_intent_id)
         FILTER (WHERE e.stripe_payment_intent_id IS NOT NULL),
       '{}'::text[]
+    ),
+    COALESCE(
+      jsonb_agg(
+        jsonb_build_object(
+          'entry_id', e.id,
+          'class_id', e.class_id,
+          'final_placement', e.final_placement
+        )
+        ORDER BY e.id
+      ) FILTER (WHERE e.final_placement IS NOT NULL AND e.class_id IS NOT NULL),
+      '[]'::jsonb
     )
-  INTO v_entry_ids, v_trial_ids, v_paid_entry_ids, v_payment_intent_ids
+  INTO
+    v_entry_ids, v_trial_ids, v_paid_entry_ids, v_payment_intent_ids, v_placements
   FROM public.entries e
   WHERE e.dog_id = p_dog_id
     AND e.deleted_at IS NULL;
@@ -489,6 +379,12 @@ BEGIN
   WHERE pe.auth_user_id = (SELECT auth.uid())
   LIMIT 1;
 
+  -- DEPENDENCY: public.activity_log has FORCE ROW LEVEL SECURITY and its only
+  -- INSERT policy is `TO authenticated WITH CHECK (actor_id = auth.uid())`.
+  -- This INSERT reaches the table because the definer OWNER of this function is
+  -- `postgres`, which carries BYPASSRLS. Re-own this function to a role without
+  -- BYPASSRLS and the audit row silently stops being written (and, with it, the
+  -- placement snapshot restore_dog reads back) — add a policy first.
   INSERT INTO public.activity_log (
     trial_id, record_type, record_id, action_type, description,
     actor_id, actor_name, metadata
@@ -512,10 +408,14 @@ BEGIN
       'override', 'force_delete_dog',
       'dog_id', p_dog_id,
       'dog_label', v_dog_label,
+      -- The key restore_dog matches on. Same value the entries carry, because
+      -- both UPDATEs above read NOW() (transaction-start time).
+      'deleted_at', to_jsonb(v_deleted_at),
       'entry_ids', to_jsonb(v_entry_ids),
       'trial_ids', to_jsonb(v_trial_ids),
       'paid_entry_ids', to_jsonb(v_paid_entry_ids),
       'stripe_payment_intent_ids', to_jsonb(v_payment_intent_ids),
+      'placements', v_placements,
       'waitlist_rows_removed', COALESCE(v_waitlist_count, 0),
       'cart_items_removed', COALESCE(v_cart_item_count, 0),
       'refund_issued', false
@@ -524,11 +424,85 @@ BEGIN
 END;
 $function$;
 
+-- ---------------------------------------------------------------------------
+-- 4. restore_dog — body copied from 20260830190000, plus the manual-class
+--    placement re-apply (item 2).
+--
+-- A DERIVED class is untouched here: un-tombstoning the entry fires
+-- entries_refresh_class_scoring_state, and the derived branches re-derive the
+-- whole class exactly as they always have. Only the MANUAL branch leaves the
+-- restored row unplaced, because it deliberately never re-ranks — so only a
+-- manual class is read back from the audit row.
+-- ---------------------------------------------------------------------------
+CREATE OR REPLACE FUNCTION public.restore_dog(p_dog_id uuid)
+RETURNS SETOF public.dogs
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = ''
+AS $$
+DECLARE
+  v_deleted_at timestamptz;
+  v_placements jsonb;
+BEGIN
+  IF NOT (SELECT public.is_platform_admin()) THEN
+    RAISE EXCEPTION 'Permission denied' USING ERRCODE = '42501';
+  END IF;
+
+  SELECT deleted_at INTO v_deleted_at FROM public.dogs WHERE id = p_dog_id;
+  IF v_deleted_at IS NULL THEN
+    RAISE EXCEPTION 'Dog not found or not deleted' USING ERRCODE = 'P0002';
+  END IF;
+
+  UPDATE public.dogs
+  SET deleted_at = NULL, deleted_by = NULL, updated_at = NOW()
+  WHERE id = p_dog_id;
+
+  UPDATE public.entries
+  SET deleted_at = NULL, deleted_by = NULL, updated_at = NOW()
+  WHERE dog_id = p_dog_id AND deleted_at = v_deleted_at;
+
+  -- MYK9-596 item 2. Keyed on the SAME deleted_at as the entry restore above,
+  -- so a dog force-deleted and restored more than once picks the matching
+  -- snapshot rather than the newest one. An ordinary soft_delete_dog writes no
+  -- such row, so v_placements is NULL and everything below is a no-op.
+  -- (This SELECT also relies on the definer owner's BYPASSRLS — see the
+  -- dependency note over the INSERT in force_delete_dog.)
+  SELECT a.metadata -> 'placements'
+  INTO v_placements
+  FROM public.activity_log a
+  WHERE a.record_type = 'dog'
+    AND a.record_id = p_dog_id
+    AND a.action_type = 'deleted'
+    AND a.metadata ->> 'override' = 'force_delete_dog'
+    AND (a.metadata ->> 'deleted_at')::timestamptz = v_deleted_at
+  ORDER BY a.created_at DESC
+  LIMIT 1;
+
+  IF v_placements IS NOT NULL AND jsonb_typeof(v_placements) = 'array' THEN
+    UPDATE public.entries e
+    SET final_placement = (snapshot.value ->> 'final_placement')::integer
+    FROM jsonb_array_elements(v_placements) AS snapshot(value)
+    JOIN public.classes c
+      ON c.id = (snapshot.value ->> 'class_id')::uuid
+    WHERE e.id = (snapshot.value ->> 'entry_id')::uuid
+      AND e.dog_id = p_dog_id
+      AND e.deleted_at IS NULL
+      -- Only a class that is STILL manual. If a human flipped it back to
+      -- derived while the dog was deleted, the trigger owns the ordering and
+      -- re-applying a stale rank would fight it.
+      AND c.status_source = 'manual'
+      AND e.final_placement IS DISTINCT FROM (snapshot.value ->> 'final_placement')::integer;
+  END IF;
+
+  RETURN QUERY SELECT * FROM public.dogs WHERE id = p_dog_id;
+END;
+$$;
+
 -- A SECURITY DEFINER function is EXECUTE-able by PUBLIC by default, which would
 -- expose it to anon. The internal is_platform_admin() gate would still refuse,
 -- but do not rely on a single guard for a function that bypasses a money check.
--- Restated verbatim from 20260915214500; this migration does not widen who may
--- call it.
+-- Restated verbatim from 20260915214500 / 20260830190000; this migration does
+-- not widen who may call any of them.
 REVOKE ALL ON FUNCTION public.force_delete_dog(uuid) FROM PUBLIC;
 REVOKE ALL ON FUNCTION public.force_delete_dog(uuid) FROM anon;
 GRANT EXECUTE ON FUNCTION public.force_delete_dog(uuid) TO authenticated;
@@ -537,22 +511,33 @@ REVOKE ALL ON FUNCTION public.soft_delete_dog(uuid) FROM PUBLIC;
 REVOKE EXECUTE ON FUNCTION public.soft_delete_dog(uuid) FROM anon;
 GRANT EXECUTE ON FUNCTION public.soft_delete_dog(uuid) TO authenticated;
 
+REVOKE ALL ON FUNCTION public.restore_dog(uuid) FROM PUBLIC;
+REVOKE EXECUTE ON FUNCTION public.restore_dog(uuid) FROM anon;
+GRANT EXECUTE ON FUNCTION public.restore_dog(uuid) TO authenticated;
+
 COMMENT ON FUNCTION public.force_delete_dog(uuid) IS
   'Platform-admin override for soft_delete_dog''s MK002 refusal: soft-deletes a '
   'dog and cascades to its entries, cart items and waitlist spots even when '
   'entries are paid or scored. Issues no refund — a captured charge must be '
   'refunded in Stripe directly. Writes one activity_log row (record_type=dog) '
-  'naming the actor, the entries and the stranded payment intents. PARTIALLY '
-  'REVERSIBLE: restore_dog brings back the dog and its entries, and nothing '
-  'else. The cart items and waitlist spots are hard-deleted and do not come '
-  'back, and the waitlist positions behind the dog are re-packed on delete '
-  '(MYK9-596).';
+  'naming the actor, the entries, the stranded payment intents and each '
+  'entry''s pre-delete final_placement. PARTIALLY REVERSIBLE: restore_dog '
+  'brings back the dog and its entries, and nothing else. The cart items and '
+  'waitlist spots are hard-deleted and do not come back, and the waitlist '
+  'positions behind the dog are re-packed on delete (MYK9-596).';
 
 COMMENT ON FUNCTION public.soft_delete_dog(uuid) IS
   'Owner/admin dog delete. Refuses with MK002 over paid or scored entries. '
   'Stamps dogs.deleted_by, soft-deletes live entries, hard-deletes cart items '
   'and waitlist spots, and re-packs the waitlist positions behind the removed '
   'dog (MYK9-596). Armbands are deliberately untouched (20260830190000).';
+
+COMMENT ON FUNCTION public.restore_dog(uuid) IS
+  'Platform-admin restore of a soft-deleted dog and the entries tombstoned with '
+  'it. For an entry force-deleted out of a status_source=manual class it also '
+  're-applies the final_placement snapshotted in the force_delete_dog audit '
+  'row, because the manual rollup branch deliberately never re-ranks; derived '
+  'classes re-derive through the entries trigger (MYK9-596, 20260817150000).';
 
 COMMIT;
 

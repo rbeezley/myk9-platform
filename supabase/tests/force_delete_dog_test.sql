@@ -14,9 +14,15 @@
 --   * MK002 has TWO arms, money and results. The scored arm is asserted here
 --     because force_delete_dog is the ONLY path that reaches a scored entry.
 --   * The cascade now closes the hole it leaves: waitlist positions behind the
---     removed dog are re-packed to 1..N, and the placements of a manual-status
---     class are re-derived so the survivors move up — and move back down when
---     the dog is restored (MYK9-596 items 1 and 2).
+--     removed dog are re-packed to 1..N (MYK9-596 item 1).
+--   * A force-deleted entry's final_placement survives the round trip, by two
+--     DIFFERENT routes, and both are asserted here (MYK9-596 item 2). A DERIVED
+--     class re-derives through entries_refresh_class_scoring_state. A MANUAL
+--     class deliberately never re-ranks (20260817150000), so its survivors must
+--     KEEP their hand-set placements through the delete, and the restored row
+--     gets its own placement back from the snapshot force_delete_dog wrote into
+--     the audit row. Asserting the manual survivor stays at 2 is what stops a
+--     future 'fix' from re-ranking a class a human pinned.
 --   * The override writes ONE activity_log row naming the actor, the entries
 --     and the stranded Stripe payment intents (MYK9-596 item 3). It is the only
 --     record that a captured charge was left behind.
@@ -112,18 +118,22 @@ VALUES (
 );
 
 -- fd041 carries the paid entry and the waitlist queue.
--- fd042 is the SCORED class, and is deliberately `status_source = 'manual'`:
--- that branch of refresh_class_scoring_state used to null a tombstoned entry's
--- placement and RETURN without recomputing, so a restored entry stayed
--- unplaced forever (MYK9-596 item 2). `status` is 'in_progress', NOT
--- 'completed', because handle_entry_scoring_state_change flips status_source
--- back to 'derived' on any INSERT into a completed class — with 'completed'
--- here the manual branch is never reached and the placement assertions below
--- pass against the UNFIXED function.
+-- fd042 is the MANUAL scored class: refresh_class_scoring_state's manual branch
+-- nulls a tombstoned entry's placement and RETURNs, and must NOT re-rank
+-- (20260817150000). Its placements are set by hand in the fixture because that
+-- is how a manual class gets them — nothing derives them.
+-- fd043 is the DERIVED scored class, the control arm: its placements come from
+-- the trigger and must re-derive by themselves on delete and on restore.
+--
+-- Neither scored class is 'completed', because handle_entry_scoring_state_change
+-- flips status_source back to 'derived' on any INSERT into a completed class —
+-- with 'completed' on fd042 the manual branch would never be reached and the
+-- assertions below would pass vacuously.
 INSERT INTO public.classes (id, trial_id, name, status, status_source)
 VALUES
   ('00000000-0000-0000-0000-0000000fd041', '00000000-0000-0000-0000-0000000fd031', 'Force Delete Class', 'upcoming', 'derived'),
-  ('00000000-0000-0000-0000-0000000fd042', '00000000-0000-0000-0000-0000000fd031', 'Force Delete Scored Class', 'in_progress', 'manual');
+  ('00000000-0000-0000-0000-0000000fd042', '00000000-0000-0000-0000-0000000fd031', 'Force Delete Manual Class', 'in_progress', 'manual'),
+  ('00000000-0000-0000-0000-0000000fd043', '00000000-0000-0000-0000-0000000fd031', 'Force Delete Derived Class', 'in_progress', 'derived');
 
 INSERT INTO public.dogs (id, call_name, breed, owner_id)
 VALUES
@@ -157,12 +167,14 @@ VALUES (
   35.00
 );
 
--- The SCORED half: two qualified runs in the manual class, dog fd051 faster.
--- final_placement is left to the server (refresh -> recalculate_class_placements
--- fires on insert); the fixture guard below proves it landed 1/2.
+-- The SCORED half. fd083/fd084 are the MANUAL class: placements are written by
+-- hand, exactly as a secretary who pinned the class would have left them, and
+-- deliberately in the OPPOSITE order to the derived ranking keys (the slower dog
+-- is placed 1st) so that any accidental re-rank shows up as a changed value
+-- rather than as the same answer by luck.
 INSERT INTO public.entries (
   id, class_id, trial_id, show_id, dog_id, payment_status, entry_status,
-  is_scored, result_status, total_faults, search_time_seconds
+  is_scored, result_status, total_faults, search_time_seconds, final_placement
 )
 VALUES
   (
@@ -171,11 +183,35 @@ VALUES
     '00000000-0000-0000-0000-0000000fd031',
     '00000000-0000-0000-0000-0000000fd021',
     '00000000-0000-0000-0000-0000000fd051',
-    'pending', 'confirmed', true, 'qualified', 0, 10
+    'pending', 'confirmed', true, 'qualified', 0, 30, 1
   ),
   (
     '00000000-0000-0000-0000-0000000fd084',
     '00000000-0000-0000-0000-0000000fd042',
+    '00000000-0000-0000-0000-0000000fd031',
+    '00000000-0000-0000-0000-0000000fd021',
+    '00000000-0000-0000-0000-0000000fd052',
+    'pending', 'confirmed', true, 'qualified', 0, 20, 2
+  );
+
+-- fd085/fd086 are the DERIVED control class: no final_placement is supplied,
+-- the trigger derives 1/2 from the ranking keys (fewest faults, fastest time).
+INSERT INTO public.entries (
+  id, class_id, trial_id, show_id, dog_id, payment_status, entry_status,
+  is_scored, result_status, total_faults, search_time_seconds
+)
+VALUES
+  (
+    '00000000-0000-0000-0000-0000000fd085',
+    '00000000-0000-0000-0000-0000000fd043',
+    '00000000-0000-0000-0000-0000000fd031',
+    '00000000-0000-0000-0000-0000000fd021',
+    '00000000-0000-0000-0000-0000000fd051',
+    'pending', 'confirmed', true, 'qualified', 0, 10
+  ),
+  (
+    '00000000-0000-0000-0000-0000000fd086',
+    '00000000-0000-0000-0000-0000000fd043',
     '00000000-0000-0000-0000-0000000fd031',
     '00000000-0000-0000-0000-0000000fd021',
     '00000000-0000-0000-0000-0000000fd052',
@@ -257,7 +293,20 @@ BEGIN
     SELECT final_placement FROM public.entries
     WHERE id = '00000000-0000-0000-0000-0000000fd084'
   ) IS DISTINCT FROM 2 THEN
-    RAISE EXCEPTION 'FIXTURE the scored class did not start placed 1/2';
+    RAISE EXCEPTION
+      'FIXTURE the manual class did not start hand-placed 1/2 — something re-ranked it on insert';
+  END IF;
+
+  IF (
+    SELECT final_placement FROM public.entries
+    WHERE id = '00000000-0000-0000-0000-0000000fd085'
+  ) IS DISTINCT FROM 1
+  OR (
+    SELECT final_placement FROM public.entries
+    WHERE id = '00000000-0000-0000-0000-0000000fd086'
+  ) IS DISTINCT FROM 2 THEN
+    RAISE EXCEPTION
+      'FIXTURE the derived class was not ranked 1/2 by the trigger — the control arm would prove nothing';
   END IF;
 END;
 $$;
@@ -437,16 +486,41 @@ BEGIN
   END IF;
   RAISE NOTICE 'PASS waitlist positions re-sequenced to 1,2';
 
-  -- MYK9-596 item 2: the manual branch recomputes, so the survivor moves up.
+  -- MYK9-596 item 2, MANUAL class. The delete must NOT re-rank: the survivor
+  -- keeps the placement the secretary set. 20260817150000 forbids the manual
+  -- branch from calling recalculate_class_placements precisely because a
+  -- class-wide re-rank silently destroys published results, so this assertion
+  -- is a guard against the tempting 'fix', not just a description.
   SELECT final_placement INTO v_survivor_placement
   FROM public.entries WHERE id = '00000000-0000-0000-0000-0000000fd084';
 
-  IF v_survivor_placement IS DISTINCT FROM 1 THEN
+  IF v_survivor_placement IS DISTINCT FROM 2 THEN
     RAISE EXCEPTION
-      'FAIL the surviving scored entry is placed % (expected 1) — the manual branch did not recompute',
+      'FAIL the manual class survivor is placed % (expected its hand-set 2) — something re-ranked a pinned class',
       v_survivor_placement;
   END IF;
-  RAISE NOTICE 'PASS the surviving scored entry moved up to placement 1';
+  RAISE NOTICE 'PASS the manual class survivor kept its hand-set placement';
+
+  -- The tombstoned manual row must be unplaced (20260817150000's whole point).
+  IF (
+    SELECT final_placement FROM public.entries
+    WHERE id = '00000000-0000-0000-0000-0000000fd083'
+  ) IS NOT NULL THEN
+    RAISE EXCEPTION 'FAIL the tombstoned manual entry kept its placement';
+  END IF;
+  RAISE NOTICE 'PASS the tombstoned manual entry was left unplaced';
+
+  -- MYK9-596 item 2, DERIVED control class. Here the trigger DOES re-derive,
+  -- so the survivor moves up on its own and needs no snapshot.
+  SELECT final_placement INTO v_survivor_placement
+  FROM public.entries WHERE id = '00000000-0000-0000-0000-0000000fd086';
+
+  IF v_survivor_placement IS DISTINCT FROM 1 THEN
+    RAISE EXCEPTION
+      'FAIL the derived class survivor is placed % (expected 1) — the trigger did not re-derive',
+      v_survivor_placement;
+  END IF;
+  RAISE NOTICE 'PASS the derived class survivor was re-derived to placement 1';
 END;
 $$;
 
@@ -470,7 +544,19 @@ BEGIN
     AND metadata -> 'stripe_payment_intent_ids' ? 'pi_myk9596_forcedelete'
     AND (metadata ->> 'waitlist_rows_removed')::integer = 1
     AND (metadata ->> 'cart_items_removed')::integer = 1
-    AND (metadata ->> 'refund_issued') = 'false';
+    AND (metadata ->> 'refund_issued') = 'false'
+    -- The placement snapshot restore_dog reads back. Without it a manual-class
+    -- entry comes back permanently unplaced.
+    AND metadata -> 'placements' @> jsonb_build_array(
+      jsonb_build_object(
+        'entry_id', '00000000-0000-0000-0000-0000000fd083',
+        'class_id', '00000000-0000-0000-0000-0000000fd042',
+        'final_placement', 1
+      )
+    )
+    AND (metadata ->> 'deleted_at')::timestamptz = (
+      SELECT deleted_at FROM public.dogs WHERE id = '00000000-0000-0000-0000-0000000fd051'
+    );
 
   IF v_matches <> 1 THEN
     RAISE EXCEPTION
@@ -529,11 +615,14 @@ BEGIN
   IF (
     SELECT count(*) FROM public.entries
     WHERE dog_id = '00000000-0000-0000-0000-0000000fd051' AND deleted_at IS NULL
-  ) <> 2 THEN
-    RAISE EXCEPTION 'FAIL restore_dog did not bring both entries back';
+  ) <> 3 THEN
+    RAISE EXCEPTION 'FAIL restore_dog did not bring all three entries back';
   END IF;
-  RAISE NOTICE 'PASS restore_dog brought the dog and both entries back';
+  RAISE NOTICE 'PASS restore_dog brought the dog and all three entries back';
 
+  -- MANUAL class: the placement comes back from the snapshot in the audit row,
+  -- because nothing re-derives a pinned class. Without that re-apply this is
+  -- NULL, which is the bug MYK9-596 item 2 reported.
   SELECT final_placement INTO v_first
   FROM public.entries WHERE id = '00000000-0000-0000-0000-0000000fd083';
   SELECT final_placement INTO v_second
@@ -541,10 +630,25 @@ BEGIN
 
   IF v_first IS DISTINCT FROM 1 OR v_second IS DISTINCT FROM 2 THEN
     RAISE EXCEPTION
-      'FAIL after restore the manual class is placed %/% (expected 1/2) — the restored entry is permanently unplaced',
+      'FAIL after restore the MANUAL class is placed %/% (expected the hand-set 1/2) — the snapshot was not re-applied',
       v_first, v_second;
   END IF;
-  RAISE NOTICE 'PASS a restored force-deleted scored entry regains its placement';
+  RAISE NOTICE 'PASS a restored force-deleted entry regains its hand-set placement in a manual class';
+
+  -- DERIVED class: no snapshot involved, the trigger re-derives 1/2 on the
+  -- restore UPDATE. This is the control that proves the snapshot path is not
+  -- silently doing the derived class's job as well.
+  SELECT final_placement INTO v_first
+  FROM public.entries WHERE id = '00000000-0000-0000-0000-0000000fd085';
+  SELECT final_placement INTO v_second
+  FROM public.entries WHERE id = '00000000-0000-0000-0000-0000000fd086';
+
+  IF v_first IS DISTINCT FROM 1 OR v_second IS DISTINCT FROM 2 THEN
+    RAISE EXCEPTION
+      'FAIL after restore the DERIVED class is placed %/% (expected 1/2) — the trigger did not re-derive',
+      v_first, v_second;
+  END IF;
+  RAISE NOTICE 'PASS the derived class re-derived its placements on restore, with no snapshot';
 
   -- The honest half. These are hard deletes; nothing restores them, and the
   -- dialog copy says so. If a future change makes them reversible, replace

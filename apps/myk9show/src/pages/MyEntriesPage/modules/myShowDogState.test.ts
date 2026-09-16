@@ -235,6 +235,31 @@ describe('deriveDogChip', () => {
     });
   });
 
+  // MYK9-582 review round 1: a withdrawn row keeps whatever check-in state it
+  // had when it was pulled from the running order. It must not speak for a dog
+  // whose live class is still pending.
+  it('ignores a withdrawn class\u2019s stale check-in state', () => {
+    expect(
+      chipFor(
+        [
+          makeClass({
+            id: 'c1',
+            entryStatus: EntryStatus.CANCELLED,
+            status: 'scratched',
+            checkInStatus: 'pulled',
+          }),
+          makeClass({
+            id: 'c2',
+            classId: 'class-2',
+            entryStatus: EntryStatus.PENDING,
+            entryStatusKind: 'pending',
+          }),
+        ],
+        { entryStatus: EntryStatus.PENDING, entryStatusKind: 'pending' }
+      )
+    ).toEqual({ kind: 'status', label: 'Pending review', status: 'pending' });
+  });
+
   it('reports pulled above conflict', () => {
     expect(
       chipFor([

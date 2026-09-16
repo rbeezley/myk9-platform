@@ -42,10 +42,14 @@ const STATE_WORDS: Partial<Record<ClassRowKind, { text: string; status: string }
   'come-to-gate': { text: 'come to gate', status: 'come-to-gate' },
   conflict: { text: 'conflict', status: 'conflict' },
   pulled: { text: 'pulled', status: 'pulled' },
-  // Capitalised, because this is the Edit Entry dialog's `Pulled` BADGE for the
-  // same fact — the lowercase `pulled` above is the day-of check-in state, and
-  // a row must never read as both.
-  withdrawn: { text: 'Pulled', status: 'pulled' },
+  // The WORD follows MYK9-582 — the Edit Entry dialog's `Pulled` badge for the
+  // same fact — while the DESCRIPTOR is the grammar's own `withdrawn`, so a
+  // lifecycle withdrawal and the day-of `pulled` above stay two distinguishable
+  // states rather than one. Capitalised for the same reason.
+  withdrawn: { text: 'Pulled', status: 'withdrawn' },
+  // A move-up's source row went somewhere; it was not pulled.
+  moved: { text: 'moved', status: 'moved' },
+  'not-accepted': { text: 'not accepted', status: 'not_accepted' },
   'checked-in': { text: 'checked in', status: 'checked-in' },
 };
 

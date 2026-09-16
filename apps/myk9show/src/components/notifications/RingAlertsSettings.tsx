@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Bell, Send, MessageSquareText } from 'lucide-react';
+import { Bell, Loader2, Send, MessageSquareText } from 'lucide-react';
 import { useAuthContext } from '@/hooks/useAuthContext';
 import { usePushSubscription } from '@/hooks/usePushSubscription';
 import { useNotificationStore } from '@/store/notificationStore';
@@ -62,6 +62,12 @@ export function RingAlertsSettings() {
   const [consentChecked, setConsentChecked] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [isPushLoading, setIsPushLoading] = useState(false);
+  // Tracks the direction of the in-flight push toggle so the loading copy
+  // ('Turning on…' / 'Turning off…') matches what actually happens — the
+  // 15s subscribe bound (MYK9-549) makes a silent disabled-Switch window
+  // long enough that the exhibitor needs to see progress, not just a dim
+  // control that looks identical to 'not supported'.
+  const [isPushEnabling, setIsPushEnabling] = useState(false);
   const [isSmsSaving, setIsSmsSaving] = useState(false);
   const [smsLoadFailed, setSmsLoadFailed] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -129,11 +135,16 @@ export function RingAlertsSettings() {
 
   async function handlePushToggle(checked: boolean) {
     setIsPushLoading(true);
+    setIsPushEnabling(checked);
     try {
       const result = checked ? await subscribe() : await unsubscribe();
       if (!result.ok) {
         if ('reason' in result && result.reason === 'permission-denied') {
           notifications.warning('Push notifications blocked. Check browser settings.');
+        } else if ('reason' in result && result.reason === 'subscribe-failed') {
+          notifications.error(
+            'We could not turn on push notifications. Try again, or leave private browsing — alerts cannot be delivered in a private window.'
+          );
         } else {
           notifications.error(`Failed to ${checked ? 'enable' : 'disable'} push notifications.`);
         }
@@ -291,7 +302,7 @@ export function RingAlertsSettings() {
           Deliver by
         </Label>
 
-        <div className="flex items-start justify-between gap-3">
+        <div className="flex items-start justify-between gap-3" aria-busy={isPushLoading}>
           <div className="flex items-start gap-2">
             <Send className="h-4 w-4 text-muted-foreground mt-0.5" />
             <div>
@@ -301,6 +312,12 @@ export function RingAlertsSettings() {
               <p className="text-xs text-muted-foreground">
                 Alerts on your lock screen and in notification center.
               </p>
+              {isPushLoading && (
+                <p className="flex items-center gap-1 text-xs text-muted-foreground mt-1">
+                  <Loader2 className="h-3 w-3 animate-spin" aria-hidden="true" />
+                  {isPushEnabling ? 'Turning on…' : 'Turning off…'}
+                </p>
+              )}
               {permissionStatus === 'denied' && (
                 <p className="text-xs text-destructive mt-1">Blocked in browser settings</p>
               )}

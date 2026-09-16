@@ -38,6 +38,19 @@ export function isPushSupported(): boolean {
 export const SERVICE_WORKER_READY_TIMEOUT_MS = 2_000;
 
 /**
+ * How long `subscribeToPush` alone waits for `.ready` before giving up.
+ *
+ * The passive callers below (`unsubscribeFromPush`, `lookupExistingSubscription`
+ * via `getExistingSubscription`) fall back to a benign "no usable endpoint"
+ * result on timeout, so `SERVICE_WORKER_READY_TIMEOUT_MS` can stay short. On the
+ * user-initiated subscribe path a timeout is a hard failure shown as a toast —
+ * on a first-ever visit over a slow show-ground connection the service worker
+ * may still be installing/precaching and `.ready` can genuinely take several
+ * seconds to settle. Give that path more room before it gives up.
+ */
+export const SUBSCRIBE_READY_TIMEOUT_MS = 15_000;
+
+/**
  * Resolves the active service worker registration, or `null` when push cannot
  * work on this device.
  *
@@ -46,7 +59,9 @@ export const SERVICE_WORKER_READY_TIMEOUT_MS = 2_000;
  * state with its own fallback, and a device that cannot even query its
  * subscription is indistinguishable from one that has none.
  */
-async function getReadyRegistration(): Promise<ServiceWorkerRegistration | null> {
+async function getReadyRegistration(
+  timeoutMs: number = SERVICE_WORKER_READY_TIMEOUT_MS
+): Promise<ServiceWorkerRegistration | null> {
   if (!isPushSupported()) return null;
 
   let timer: ReturnType<typeof setTimeout> | undefined;
@@ -54,7 +69,7 @@ async function getReadyRegistration(): Promise<ServiceWorkerRegistration | null>
     return await Promise.race([
       navigator.serviceWorker.ready,
       new Promise<null>(resolve => {
-        timer = setTimeout(() => resolve(null), SERVICE_WORKER_READY_TIMEOUT_MS);
+        timer = setTimeout(() => resolve(null), timeoutMs);
       }),
     ]);
   } catch {
@@ -79,7 +94,10 @@ function urlBase64ToUint8Array(base64String: string): Uint8Array {
  * Returns subscription data to be saved server-side, or existing subscription.
  */
 export async function subscribeToPush(vapidPublicKey: string): Promise<PushSubscriptionData> {
-  const registration = await navigator.serviceWorker.ready;
+  const registration = await getReadyRegistration(SUBSCRIBE_READY_TIMEOUT_MS);
+  if (!registration) {
+    throw new Error('Push is unavailable on this device');
+  }
 
   // Check for existing subscription
   const existing = await registration.pushManager.getSubscription();

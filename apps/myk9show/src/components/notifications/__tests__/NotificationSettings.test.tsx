@@ -28,7 +28,7 @@ vi.mock('@myk9/scoring-ui', () => ({
 import { testSound, speakWithConfig } from '@myk9/notifications';
 
 const mockSubscribe = vi.fn<
-  () => Promise<{ ok: true } | { ok: false; reason: 'permission-denied' }>
+  () => Promise<{ ok: true } | { ok: false; reason: 'permission-denied' | 'subscribe-failed' }>
 >(() => Promise.resolve({ ok: true }));
 const mockUnsubscribe = vi.fn(() => Promise.resolve({ ok: true as const }));
 
@@ -329,6 +329,65 @@ describe('NotificationSettings', () => {
         'Push notifications blocked. Check browser settings.'
       )
     );
+  });
+
+  // MYK9-549: subscribeToPush used to await the unguarded
+  // `navigator.serviceWorker.ready`, which never settles when the registration
+  // fails, is policy-blocked, or the browser is in private mode — the toggle
+  // spun forever with no toast. usePushSubscription.subscribe() catches that
+  // rejection and returns { ok: false, reason: 'subscribe-failed' }; pin that
+  // the toggle reports the failure and springs back to off rather than
+  // spinning or silently staying "on".
+  // This is the component half only — usePushSubscription is mocked here, so
+  // "returned to off" and "never went on" look identical (the Switch is
+  // store-controlled). The hook half, which actually calls the real
+  // subscribeToPush and asserts it rejects into 'subscribe-failed', is covered
+  // separately by usePushSubscription.test.ts's "should return reason when
+  // subscribeToPush throws".
+  it('shows an error toast and returns the toggle to off when subscribeToPush fails', async () => {
+    mockSubscribe.mockResolvedValueOnce({ ok: false, reason: 'subscribe-failed' });
+    render(<NotificationSettings />);
+
+    const pushSwitch = screen.getByRole('switch', { name: /push notifications/i });
+    expect(pushSwitch).toHaveAttribute('data-state', 'unchecked');
+
+    fireEvent.click(pushSwitch);
+
+    await waitFor(() =>
+      expect(notifications.error).toHaveBeenCalledWith(
+        'We could not turn on push notifications. Try again, or leave private browsing — alerts cannot be delivered in a private window.'
+      )
+    );
+    // pushEnabled was never flipped on, so the switch renders unchecked again —
+    // not stuck mid-toggle or falsely showing "on".
+    expect(pushSwitch).toHaveAttribute('data-state', 'unchecked');
+    expect(useNotificationStore.getState().preferences.pushEnabled).toBe(false);
+  });
+
+  // MYK9-549 round 2: the subscribe path can now take up to 15s
+  // (SUBSCRIBE_READY_TIMEOUT_MS) before it settles, and while it is pending the
+  // only feedback used to be the Switch dimming — identical to "not supported".
+  // Pin that a "Turning on…" affordance appears while the promise is pending
+  // and disappears once it resolves.
+  it('shows a "Turning on…" affordance while the push subscribe call is pending', async () => {
+    let resolveSubscribe: (value: { ok: true }) => void = () => {};
+    mockSubscribe.mockImplementationOnce(
+      () =>
+        new Promise(resolve => {
+          resolveSubscribe = resolve;
+        })
+    );
+    render(<NotificationSettings />);
+
+    const pushSwitch = screen.getByRole('switch', { name: /push notifications/i });
+    fireEvent.click(pushSwitch);
+
+    expect(await screen.findByText('Turning on…')).toBeInTheDocument();
+    expect(pushSwitch).toHaveAttribute('aria-disabled', 'true');
+
+    resolveSubscribe({ ok: true });
+
+    await waitFor(() => expect(screen.queryByText('Turning on…')).not.toBeInTheDocument());
   });
 
   // --- Voice Announcements ---

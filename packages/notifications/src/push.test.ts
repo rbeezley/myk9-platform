@@ -3,10 +3,15 @@ import {
   isPushSupported,
   lookupExistingSubscription,
   SERVICE_WORKER_READY_TIMEOUT_MS,
+  SUBSCRIBE_READY_TIMEOUT_MS,
   subscribeToPush,
   unsubscribeFromPush,
   getExistingSubscription,
 } from './push';
+
+// Unique sentinel so the watchdog race below can be told apart from a real
+// rejection value without relying on string/shape matching.
+const watchdogToken = Symbol('watchdog-timeout');
 
 const mockSubscription = {
   endpoint: 'https://push.example.com/sub/123',
@@ -57,6 +62,59 @@ describe('isPushSupported', () => {
 });
 
 describe('subscribeToPush', () => {
+  it('rejects within SUBSCRIBE_READY_TIMEOUT_MS when .ready never settles, not sooner', async () => {
+    // Captured before vi.useFakeTimers() runs, so it stays a real, unfaked timer.
+    const realSetTimeout = globalThis.setTimeout;
+    vi.useFakeTimers();
+    try {
+      vi.stubGlobal('navigator', { serviceWorker: { ready: new Promise(() => {}) } });
+
+      const pending = subscribeToPush('test-vapid-key');
+      let settled = false;
+      // Attach handlers immediately so vitest does not flag this as an
+      // unhandled rejection while fake timers are advanced below.
+      pending.then(
+        () => {
+          settled = true;
+        },
+        () => {
+          settled = true;
+        }
+      );
+
+      // Prove the bound is genuinely SUBSCRIBE_READY_TIMEOUT_MS (15s), not just
+      // "some" timeout: a test that only advances past the bound and checks the
+      // outcome would still pass unchanged if the implementation used a 1ms
+      // timeout. Confirm it is STILL pending one tick before the bound.
+      await vi.advanceTimersByTimeAsync(SUBSCRIBE_READY_TIMEOUT_MS - 1);
+      expect(settled).toBe(false);
+
+      // Now cross the bound.
+      await vi.advanceTimersByTimeAsync(1);
+
+      // Race the settle against a real (unfaked) watchdog timer so a
+      // regression that stops the promise from settling at all fails this
+      // assertion quickly instead of hanging for vitest's default 5s test
+      // timeout (the exact failure mode this test exists to catch).
+      const watchdog = new Promise<typeof watchdogToken>(resolve => {
+        realSetTimeout(() => resolve(watchdogToken), 1000);
+      });
+      const outcome = await Promise.race([
+        pending.then(
+          () => null,
+          (err: unknown) => err
+        ),
+        watchdog,
+      ]);
+
+      expect(outcome).not.toBe(watchdogToken);
+      expect(outcome).toBeInstanceOf(Error);
+      expect((outcome as Error).message).toBe('Push is unavailable on this device');
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it('subscribes with VAPID key and returns subscription data', async () => {
     const result = await subscribeToPush('test-vapid-key');
 

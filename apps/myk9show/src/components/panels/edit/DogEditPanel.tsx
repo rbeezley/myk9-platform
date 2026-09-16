@@ -195,6 +195,9 @@ export const DogEditPanel: React.FC<DogEditPanelProps> = ({
   enableAutoSave = false,
   userRole,
   people = [],
+  dogStatus,
+  dogDeceasedDate,
+  onChangeStatus,
 }) => {
   // Convert dog data to form data
   const initialFormData = useMemo(() => dogToFormData(initialDogData), [initialDogData]);
@@ -207,8 +210,11 @@ export const DogEditPanel: React.FC<DogEditPanelProps> = ({
     () => ({
       isAdmin,
       people,
+      dogStatus,
+      dogDeceasedDate,
+      onChangeStatus,
     }),
-    [isAdmin, people]
+    [isAdmin, people, dogStatus, dogDeceasedDate, onChangeStatus]
   );
 
   // Handle save

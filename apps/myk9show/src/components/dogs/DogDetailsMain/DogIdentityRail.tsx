@@ -16,6 +16,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { cn, getInitials } from '@/lib/utils';
+import { badgeVariants } from '@/utils/badgeVariants';
 import { formatDogAge, getDogRegisteredName } from '@/types/dog-types';
 import { DogRegistryTable } from '@/components/dogs/common/DogRegistryTable';
 import { buildDogCardRegistryModel } from '@/components/dogs/common/dogRegistryModel';
@@ -144,6 +145,21 @@ const DogIdentityRail: React.FC<DogIdentityRailProps> = ({
         >
           <Camera className="h-5 w-5" />
         </button>
+        {/* The card's one overflow menu, in its top-right corner — same place
+            for every role, rather than trailing whichever primary button that
+            role happens to get. Chromed to match the photo button below it so
+            the two read as a pair of card controls, not page furniture. */}
+        <div className="absolute right-3 top-3">
+          <ThreeDotMenu
+            onEdit={onEditPanelOpen}
+            onEditPhoto={onPhotoDialogOpen}
+            onChangeStatus={onStatusDialogOpen}
+            onDelete={canDelete ? onDeleteDialogOpen : undefined}
+            editLabel="Edit Dog"
+            {...(isSecretary ? { hideEdit: true } : {})}
+            triggerClassName="h-11 w-11 rounded-full border border-border bg-card text-foreground shadow-sm hover:bg-accent"
+          />
+        </div>
       </div>
 
       <div className="p-4 lg:p-5">
@@ -165,16 +181,35 @@ const DogIdentityRail: React.FC<DogIdentityRailProps> = ({
             </Badge>
           )}
           {statusBadge && (
-            <Badge variant="secondary" className={statusBadge.className}>
+            /* The badge announces the lifecycle state, so it is also the control
+               that changes it. The ThreeDotMenu item opens the same dialog, kept
+               for parity with the card's other actions. */
+            <button
+              type="button"
+              onClick={onStatusDialogOpen}
+              aria-haspopup="dialog"
+              title="Change status"
+              className={cn(
+                badgeVariants({ variant: 'secondary' }),
+                statusBadge.className,
+                // `badgeVariants`' base ring is on `:focus`, written for a <div>
+                // that can never match it. Live on a real <button>, that would
+                // leave a ring behind after a mouse click.
+                'cursor-pointer hover:brightness-110 focus:ring-0',
+                'focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2'
+              )}
+            >
               {statusBadge.label}
               {deceasedSuffix}
-            </Badge>
+              <Pencil className="ml-1 h-3 w-3" aria-hidden="true" />
+              <span className="sr-only"> — change status</span>
+            </button>
           )}
         </div>
 
         {!isSecretary && (
-          <div className="mt-4 flex items-center gap-2">
-            <Button variant="default" className="min-h-11 flex-1 gap-1.5" asChild>
+          <div className="mt-4">
+            <Button variant="default" className="min-h-11 w-full gap-1.5" asChild>
               {/* Carries this dog through browse -> show detail -> the entry
                   wizard, which preselects it if it is still enterable
                   (MYK9-519). Still the ordinary browse page, not a second
@@ -184,14 +219,6 @@ const DogIdentityRail: React.FC<DogIdentityRailProps> = ({
                 Enter a show
               </Link>
             </Button>
-            <ThreeDotMenu
-              onEdit={onEditPanelOpen}
-              onEditPhoto={onPhotoDialogOpen}
-              onChangeStatus={onStatusDialogOpen}
-              onDelete={canDelete ? onDeleteDialogOpen : undefined}
-              editLabel="Edit Dog"
-              triggerClassName="h-11 w-11"
-            />
           </div>
         )}
 
@@ -273,19 +300,11 @@ const DogIdentityRail: React.FC<DogIdentityRailProps> = ({
           {ownerBody}
         </div>
         {isSecretary && (
-          <div className="mt-6 flex items-center gap-2">
-            <Button variant="outline" className="min-h-11 flex-1 gap-1.5" onClick={onEditPanelOpen}>
+          <div className="mt-6">
+            <Button variant="outline" className="min-h-11 w-full gap-1.5" onClick={onEditPanelOpen}>
               <Pencil className="h-4 w-4" />
               Edit
             </Button>
-            <ThreeDotMenu
-              onEdit={onEditPanelOpen}
-              onEditPhoto={onPhotoDialogOpen}
-              onChangeStatus={onStatusDialogOpen}
-              onDelete={canDelete ? onDeleteDialogOpen : undefined}
-              hideEdit
-              triggerClassName="h-11 w-11"
-            />
           </div>
         )}
       </div>

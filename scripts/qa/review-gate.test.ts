@@ -25,9 +25,21 @@ import {
 } from './review-gate';
 import { MIGRATION_LENS, requiredTier, TIER_ORDER } from './review-tier';
 
-const HEAD = '5af9af1585c4376ffbb648600ba5a22c8e009743';
-const OLD_HEAD = '4100e2f8daf6ac70a043aeb9eb9370e9cbce95f9';
+/**
+ * Synthetic SHAs, never real commits. The `runCli` tests below drive the whole
+ * CLI including `postStatus`, and the injected `gh` runner is the only thing
+ * between this suite and a real `POST repos/<owner>/<repo>/statuses/<sha>`. On
+ * 2026-09-15 a review lens reverted that injection and ran the suite: it wrote
+ * two real `Review gate: failure` statuses onto a merged commit, and commit
+ * statuses cannot be deleted (MYK9-560 item 1). Every fixture here is now a
+ * synthetic 40-char hex SHA against the non-existent repo `o/r`, so the blast
+ * radius of a future injection regression is zero.
+ */
+const HEAD = 'a'.repeat(40);
+const OLD_HEAD = 'b'.repeat(40);
 const H9 = HEAD.slice(0, 9);
+/** The repo every `runCli` fixture names. Does not exist; see HEAD above. */
+const FAKE_REPO = 'o/r';
 
 /**
  * An `adversarial` evidence body. The tier now requires the lenses be NAMED in
@@ -1420,7 +1432,7 @@ describe('runCli’s changed-file fetch', () => {
   // Under the old `>= 3000` check a 1734-file PR arrived as 100 files, read as
   // complete, and had its floor computed from that partial diff.
   const noneLine = `Review gate: none reviewed abc1234..${HEAD} — low-risk paths, CI green`;
-  const env = { PR_NUMBER: '2121', REPO: 'rbeezley/myk9-platform' } as NodeJS.ProcessEnv;
+  const env = { PR_NUMBER: '2121', REPO: FAKE_REPO } as NodeJS.ProcessEnv;
 
   function fakeGh(opts: { declared?: number; fetched: string[] }) {
     const calls: string[][] = [];
@@ -1474,7 +1486,7 @@ describe('runCli’s changed-file fetch', () => {
       '--paginate',
       '--jq',
       '.[].filename',
-      'repos/rbeezley/myk9-platform/pulls/2121/files?per_page=100',
+      `repos/${FAKE_REPO}/pulls/2121/files?per_page=100`,
     ]);
   });
 
@@ -1587,7 +1599,7 @@ describe('a crash cannot read as a standing pass', () => {
   // The required `Review gate` context is a COMMIT status pinned to the SHA.
   // When the evaluation threw, nothing was posted — so on an issue_comment
   // edit that WITHDREW an attestation, the older green status survived.
-  const env = { PR_NUMBER: '2121', REPO: 'rbeezley/myk9-platform' } as NodeJS.ProcessEnv;
+  const env = { PR_NUMBER: '2121', REPO: FAKE_REPO } as NodeJS.ProcessEnv;
 
   function runnerThatFailsOnFiles() {
     const posted: string[][] = [];

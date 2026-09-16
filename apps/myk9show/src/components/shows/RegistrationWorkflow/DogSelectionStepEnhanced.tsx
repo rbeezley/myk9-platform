@@ -33,7 +33,6 @@ import {
 } from '@/types/dog-types';
 import { formatDateMMDDYYYY } from '@/utils/dateFormat';
 import { useRegistrationPermissions } from '@/hooks/useRegistrationPermissions';
-import { UserRole } from '@/types/auth-types';
 import { getPrimaryRole } from '@/context/authContextHelpers';
 import { useRegistrationContext } from '@/hooks/useRegistrationContext';
 import { useDebounce } from '@myk9/scoring-ui';
@@ -269,7 +268,7 @@ export const DogSelectionStepEnhanced: React.FC<DogSelectionStepProps> = ({
   offlineFirst = false,
 }) => {
   const { dogs, isLoading: dogsLoading } = useDogStoreCompat();
-  const { user, roles, canBulkOperations, canCreateExhibitor, getMaxDogsPerRegistration } =
+  const { roles, canBulkOperations, canCreateExhibitor, getMaxDogsPerRegistration } =
     useRegistrationPermissions();
   const { workflowConfig } = useRegistrationContext();
 
@@ -310,15 +309,14 @@ export const DogSelectionStepEnhanced: React.FC<DogSelectionStepProps> = ({
     }
   };
 
-  const accessibleDogs = useMemo(
-    () => filterAccessibleDogs(dogs, user?.id, roles.includes(UserRole.SITE_ADMIN)),
-    [dogs, user, roles]
-  );
+  // No ownership narrowing here: the roster this reads is already scoped
+  // server-side for the viewer's role (MYK9-537). See the helper's comment.
+  const accessibleDogs = useMemo(() => filterAccessibleDogs(dogs), [dogs]);
 
   const canCreateNew = workflowConfig?.features?.createNew && canCreateExhibitor;
 
   // Server-side dog search for roles that can view all dogs (secretary, admin).
-  // The local replication store only holds the logged-in user's dogs, so a
+  // The locally replicated roster is capped at what one query returned, so a
   // secretary entering a mail-in registration needs to search the full system.
   /* eslint-disable react-hooks/set-state-in-effect */
   useEffect(() => {

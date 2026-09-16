@@ -94,6 +94,8 @@ Filled in as batches complete; the final report to Richard is generated from thi
 | MYK9-596 | 2     | merged; In Progress until db push                                        | #2283 → 73231fac4 | `supabase db push` (20260916181700) + readbacks; MYK9-607, MYK9-608 filed |
 | MYK9-585 | 2     | merged (owner override, ledgered on MYK9-544); In Progress until db push | #2284 → 9f9d3ccca | `supabase db push` (20260916015300) + `pg_policies` readback              |
 | MYK9-549 | 3     | merged                                                                   | #2285 → d379a1128 | none                                                                      |
+| MYK9-561 | 3     | merged (owner override, ledgered on MYK9-544); In Progress until db push | #2287 → b5675c7b3 | `supabase db push` (20260916194700) + staging replay as exhibitor         |
+| MYK9-610 | new   | filed (Backlog)                                                          | —                 | seed § 3 trial names contradict their dates                               |
 | MYK9-609 | new   | filed (Backlog)                                                          | —                 | decide: pull-request queue has no producer                                |
 | MYK9-608 | new   | filed (Backlog)                                                          | —                 | triage: audit row and deleted_by invisible in Deleted Items               |
 | MYK9-606 | new   | filed (Backlog)                                                          | —                 | triage: load-secretary e2e users still named Load Secretary               |

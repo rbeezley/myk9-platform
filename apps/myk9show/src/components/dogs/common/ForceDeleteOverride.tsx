@@ -18,6 +18,12 @@ interface ForceDeleteOverrideProps {
  * and the box starts unchecked every time the dialog opens. Do not turn this
  * into a one-click "force" button, and do not soften the wording to something
  * like "override safety check" — the user needs to read what is actually lost.
+ *
+ * INTENT: the restore line is PARTIAL on purpose (MYK9-596). restore_dog brings
+ * back the dog and its entries and nothing else — entry_cart_items and
+ * waitlist_entries are hard-deleted by the cascade. Do not shorten this back to
+ * "an administrator can restore this": that sentence was wrong, and it was the
+ * reason an admin could believe a force delete was free.
  */
 export function ForceDeleteOverride({
   checked,
@@ -45,7 +51,9 @@ export function ForceDeleteOverride({
         </Label>
       </div>
       <p className="mt-2 text-xs text-muted-foreground">
-        An administrator can restore this from Admin → Deleted Items.
+        Restoring from Admin → Deleted Items brings back the dog and its entries — not its waitlist
+        spots or unsubmitted cart items, which are removed for good. A captured payment must be
+        refunded in Stripe directly.
       </p>
     </div>
   );

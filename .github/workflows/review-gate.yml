@@ -41,7 +41,14 @@ jobs:
   evaluate:
     name: Evaluate review evidence
     runs-on: ubuntu-latest
-    timeout-minutes: 5
+    # A backstop only, deliberately larger than the sum of every step timeout
+    # below (2 + 3 + 5 + 3 = 13) so a STEP always hits its limit first. A job
+    # that trips its own `timeout-minutes` is marked CANCELLED, not failed
+    # (LESSONS `cancelled-may-be-timeout`), and `if: failure()` does not fire
+    # on a cancelled job — so a job limit reached first would skip the fallback
+    # step and leave no status at all. Raise this whenever a step timeout goes
+    # up; the unit test fails if the sum ever catches it.
+    timeout-minutes: 20
     if: github.event_name == 'pull_request_target' || (github.event.issue.pull_request && (startsWith(github.event.comment.body, 'Review gate:') || startsWith(github.event.changes.body.from, 'Review gate:')))
     # Concurrency lives on the JOB, not the workflow: a workflow-level group
     # is claimed by every run, including the ones whose only job is skipped
@@ -52,19 +59,112 @@ jobs:
       group: review-gate-${{ github.event.pull_request.number || github.event.issue.number }}
       cancel-in-progress: true
 
+    # EVERY step carries its own `timeout-minutes`, including these two. A hang
+    # in `checkout` or `setup-node` with no step limit runs to the JOB backstop
+    # below, and a job that trips its own limit is marked CANCELLED, not failed
+    # (LESSONS `cancelled-may-be-timeout`) — `if: failure()` would be skipped
+    # and no status posted, which is this workflow's fail-open relocated one
+    # step earlier. A step timeout FAILS the step, so the fallback still runs.
     steps:
-      - uses: actions/checkout@v7
+      - name: Check out the base branch
+        uses: actions/checkout@v7
+        timeout-minutes: 2
 
-      - uses: actions/setup-node@v7
+      - name: Set up Node
+        uses: actions/setup-node@v7
+        timeout-minutes: 3
         with:
           node-version: '22.12.0'
 
       # No install: the script has no dependencies, so Node's type stripping
       # runs it directly and the job stays under half a minute.
+      # The real time limit lives HERE, on the step, not on the job: a step
+      # that hits `timeout-minutes` FAILS, so `if: failure()` fires and the
+      # fallback below still posts a red status. Concurrency cancellation
+      # continues to skip the fallback, which is correct — the run that
+      # superseded this one posts its own status for the newer head.
       - name: Post Review gate status for the PR head
+        timeout-minutes: 5
         env:
           GH_TOKEN: ${{ github.token }}
           REPO: ${{ github.repository }}
           PR_NUMBER: ${{ github.event.pull_request.number || github.event.issue.number }}
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        # Declared, not defaulted. Without `shell:` GitHub runs `bash -e {0}`
+        # — no `pipefail` — while `shell: bash` runs
+        # `bash --noprofile --norc -eo pipefail {0}`. The unit test executes
+        # the extracted script under the SECOND set, so leaving the shell
+        # implicit would mean the test passes on options CI does not have.
+        shell: bash
         run: node --experimental-strip-types --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/qa/review-gate.ts
+
+      # Last hop. The required `Review gate` context is a commit STATUS pinned
+      # to the SHA, and a status persists until something overwrites it — so a
+      # crash on an `issue_comment: edited` event that WITHDREW an attestation
+      # used to leave the older green standing. The script's own try/catch
+      # covers everything after the first `gh pr view`; a throw from that call
+      # itself, or from the POST at the very end, happens where the script can
+      # write nothing (MYK9-555, MYK9-560 item 3). This step is outside the
+      # script entirely, so it covers those too.
+      #
+      # Chosen over a retry inside the script on purpose: a retry cannot cover
+      # a crash before the SHA is known, nor a failure of the POST it is part
+      # of, and the workflow already carries the head SHA in its own payload.
+      #
+      # `pull_request_target` payloads carry the head SHA directly.
+      # `issue_comment` payloads do not, so resolve it with one `gh pr view`.
+      # If even that fails there is no SHA to write to: post nothing and say
+      # so, rather than guessing a target.
+      #
+      # On `pull_request_target` the SHA in the event payload and the one the
+      # script's own `gh pr view` read can differ, if the head moved while the
+      # run was in flight. The window is narrow — a push starts a new run whose
+      # concurrency group cancels this one, and a cancelled job skips this step
+      # — and the event's SHA is the safe side to err toward: a failure status
+      # on a superseded commit is harmless (the newer run posts its own for the
+      # new head), while a missing one on the live head is the fail-open this
+      # step exists to close.
+      - name: Post a failure status when the gate itself crashed
+        if: failure()
+        timeout-minutes: 3
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          PR_NUMBER: ${{ github.event.pull_request.number || github.event.issue.number }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        # See the note on the step above: declared so the unit test and CI run
+        # this script under the same shell options.
+        shell: bash
+        run: |
+          sha="${HEAD_SHA:-}"
+          if [ -z "$sha" ]; then
+            # stderr goes to the LOG, never into `$sha`. Merging it in with
+            # `2>&1` meant one ordinary `gh` warning — a deprecation notice, a
+            # scope hint — contaminated an otherwise valid SHA, the guard below
+            # then rejected it, and the step posted nothing: the stale-green
+            # fail-open this step exists to close, reinstated by a warning.
+            sha="$(gh pr view "$PR_NUMBER" --repo "$REPO" --json headRefOid --jq .headRefOid || true)"
+          fi
+          # BELOW the `if`, so it guards BOTH sources. While it sat inside the
+          # branch it only ever saw the `gh pr view` answer, and `HEAD_SHA`
+          # from the event payload reached the POST unvalidated — a value like
+          # `../../../evil` became `POST repos/<repo>/statuses/../../../evil`.
+          #
+          # Exactly 40 lowercase hex, charset AND length. Both halves are
+          # load-bearing, and each passes what the other catches: a
+          # charset-only check accepts a FRAGMENT such as `abc` (hex, but 3
+          # characters, and would POST to `statuses/abc`), while a length-only
+          # check accepts 40 characters of `g`, or a 40-character traversal.
+          case "$sha" in *[!0-9a-f]* | '') sha='' ;; esac
+          [ "${#sha}" -eq 40 ] || sha=''
+          if [ -z "$sha" ]; then
+            echo "review-gate: no usable 40-hex head SHA from the event payload or \`gh pr view\` — posting no status"
+            exit 0
+          fi
+          echo "review-gate: gate crashed; posting a failure status to $sha"
+          gh api --method POST "repos/$REPO/statuses/$sha" \
+            -f state=failure \
+            -f context='Review gate' \
+            -f description='review gate crashed before it could record a verdict' \
+            -f target_url="$RUN_URL"

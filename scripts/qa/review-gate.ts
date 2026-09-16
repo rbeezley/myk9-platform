@@ -404,7 +404,7 @@ export function adversarialBodyProblem(
   return undefined;
 }
 
-interface EvaluateReviewGateInput {
+export interface EvaluateReviewGateInput {
   headSha: string;
   comments: readonly GateComment[];
   changedFiles: readonly string[];
@@ -612,6 +612,16 @@ export function evaluateReviewGate(input: EvaluateReviewGateInput): GateResult {
   };
 }
 
+/**
+ * A commit status can only be pinned to a full 40-character SHA. The same
+ * rule is enforced in `.github/workflows/review-gate.yml`, on the SHA its
+ * crash-fallback step resolves — a fragment or a contaminated string there
+ * would POST to `repos/<repo>/statuses/abc`, which is not a commit.
+ */
+export function isFullSha(value: unknown): value is string {
+  return typeof value === 'string' && /^[0-9a-f]{40}$/.test(value);
+}
+
 /** GitHub caps a status description at 140 characters. */
 export function clampDescription(text: string): string {
   return text.length <= 140 ? text : `${text.slice(0, 137)}...`;
@@ -716,10 +726,23 @@ interface RestComment {
 /** Shells out to `gh`. Injectable so the fetch shapes below are testable. */
 export type GhRunner = (args: string[]) => string;
 
+/**
+ * The evaluator. Injectable for the same reason `run` is: the short-list
+ * invariant has two copies — the `fileListUnusable` flag computed here and the
+ * one `floorFor` re-derives from `declaredFileCount` — and each was
+ * individually unpinned, because deleting either left the other covering it
+ * and all tests green (MYK9-560 item 4). Neither copy is observable from
+ * runCli's outputs alone, since runCli computes both from the same two
+ * numbers. This seam lets a test assert the INPUT runCli actually hands the
+ * evaluator, which is the only place the two are distinguishable.
+ */
+export type GateEvaluator = (input: EvaluateReviewGateInput) => GateResult;
+
 export function runCli(
   env: NodeJS.ProcessEnv = process.env,
   argv: string[] = process.argv.slice(2),
-  run: GhRunner = gh
+  run: GhRunner = gh,
+  evaluate: GateEvaluator = evaluateReviewGate
 ): number {
   const prNumber = env.PR_NUMBER;
   const repo = env.REPO;
@@ -792,7 +815,7 @@ export function runCli(
         `repos/${repo}/issues/${prNumber}/comments?per_page=100`,
       ])
     );
-    result = evaluateReviewGate({
+    result = evaluate({
       headSha: view.headRefOid,
       changedFiles,
       declaredFileCount: view.changedFiles,
@@ -808,9 +831,14 @@ export function runCli(
   } catch (error) {
     const detail = error instanceof Error ? error.message : String(error);
     console.error(`review-gate: evaluation failed — ${detail}`);
+    // The catch must never throw itself. A well-formed `pr view` payload
+    // missing `headRefOid` is exactly what lands here (evaluateReviewGate
+    // dereferences it), and `view.headRefOid.slice(0, 9)` then raised a second
+    // TypeError and posted NOTHING — reinstating the fail-open this block
+    // exists to close (MYK9-560 item 2).
     result = {
       state: 'failure',
-      description: `could not evaluate ${view.headRefOid.slice(0, 9)}: ${detail}`,
+      description: `could not evaluate ${String(view?.headRefOid ?? '').slice(0, 9) || 'the head'}: ${detail}`,
     };
   }
   return postStatus(view.headRefOid, result, env, argv, run);
@@ -824,6 +852,19 @@ function postStatus(
   run: GhRunner
 ): number {
   const description = clampDescription(result.description);
+  // No SHA, nothing to pin a status to. POSTing anyway targets
+  // `statuses/undefined` and GitHub answers 422, so the verdict never lands
+  // and the failure reads as a network error rather than as itself. Log the
+  // verdict and exit NON-ZERO instead: that fails the workflow step, and the
+  // `if: failure()` fallback in review-gate.yml resolves a SHA from the event
+  // payload — the only place a SHA still exists in this case (MYK9-555).
+  if (!isFullSha(headRefOid)) {
+    console.error(
+      `review-gate: no usable head SHA (got ${JSON.stringify(headRefOid)}) — ` +
+        `cannot post "${description}". The workflow's if:failure() step posts it instead.`
+    );
+    return 1;
+  }
   console.log(`review-gate: ${headRefOid} -> ${result.state}: ${description}`);
   if (argv.includes('--dry-run')) return result.state === 'success' ? 0 : 1;
   const fields = [

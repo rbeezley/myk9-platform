@@ -1,12 +1,14 @@
 import { execFileSync } from 'node:child_process';
-import { readFileSync } from 'node:fs';
-import { resolve } from 'node:path';
+import { chmodSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join, resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import {
   clampDescription,
   evaluateReviewGate,
   fileListIsUnusable,
   GH_MAX_BUFFER_BYTES,
+  isFullSha,
   runGh,
   flattenPages,
   overrideAccepted,
@@ -14,6 +16,7 @@ import {
   parseFileNameList,
   parseGateComments,
   runCli,
+  REVIEW_GATE_CONTEXT,
   REVIEW_GATE_LINE,
   REST_FILE_PAGE_CAP,
   REVIEWER_TOKENS,
@@ -21,13 +24,26 @@ import {
   TRUSTED_ASSOCIATIONS,
   VERDICT_BY_TIER,
   verdictAccepted,
+  type EvaluateReviewGateInput,
   type GateComment,
 } from './review-gate';
 import { MIGRATION_LENS, requiredTier, TIER_ORDER } from './review-tier';
 
-const HEAD = '5af9af1585c4376ffbb648600ba5a22c8e009743';
-const OLD_HEAD = '4100e2f8daf6ac70a043aeb9eb9370e9cbce95f9';
+/**
+ * Synthetic SHAs, never real commits. The `runCli` tests below drive the whole
+ * CLI including `postStatus`, and the injected `gh` runner is the only thing
+ * between this suite and a real `POST repos/<owner>/<repo>/statuses/<sha>`. On
+ * 2026-09-15 a review lens reverted that injection and ran the suite: it wrote
+ * two real `Review gate: failure` statuses onto a merged commit, and commit
+ * statuses cannot be deleted (MYK9-560 item 1). Every fixture here is now a
+ * synthetic 40-char hex SHA against the non-existent repo `o/r`, so the blast
+ * radius of a future injection regression is zero.
+ */
+const HEAD = 'a'.repeat(40);
+const OLD_HEAD = 'b'.repeat(40);
 const H9 = HEAD.slice(0, 9);
+/** The repo every `runCli` fixture names. Does not exist; see HEAD above. */
+const FAKE_REPO = 'o/r';
 
 /**
  * An `adversarial` evidence body. The tier now requires the lenses be NAMED in
@@ -1420,7 +1436,7 @@ describe('runCli’s changed-file fetch', () => {
   // Under the old `>= 3000` check a 1734-file PR arrived as 100 files, read as
   // complete, and had its floor computed from that partial diff.
   const noneLine = `Review gate: none reviewed abc1234..${HEAD} — low-risk paths, CI green`;
-  const env = { PR_NUMBER: '2121', REPO: 'rbeezley/myk9-platform' } as NodeJS.ProcessEnv;
+  const env = { PR_NUMBER: '2121', REPO: FAKE_REPO } as NodeJS.ProcessEnv;
 
   function fakeGh(opts: { declared?: number; fetched: string[] }) {
     const calls: string[][] = [];
@@ -1474,7 +1490,7 @@ describe('runCli’s changed-file fetch', () => {
       '--paginate',
       '--jq',
       '.[].filename',
-      'repos/rbeezley/myk9-platform/pulls/2121/files?per_page=100',
+      `repos/${FAKE_REPO}/pulls/2121/files?per_page=100`,
     ]);
   });
 
@@ -1511,6 +1527,61 @@ describe('runCli’s changed-file fetch', () => {
       fetched: [...docs(419), 'scripts/qa/review-gate.ts'],
     });
     expect(runCli(env, ['--dry-run'], run)).toBe(1);
+  });
+});
+
+/**
+ * MYK9-560 item 4. The short-list invariant has two copies — the
+ * `fileListUnusable` flag runCli computes, and the one `floorFor` re-derives
+ * from `declaredFileCount` — and each was individually unpinned: deleting
+ * `declaredFileCount: view.changedFiles` from the `runCli` call, or hardcoding
+ * `const fileListUnusable = false`, each left all 147 tests green because the
+ * other copy covered it. Neither is observable from runCli's OUTPUT, since
+ * runCli derives both from the same two numbers. These tests assert the input
+ * runCli hands the evaluator, which is where the two are distinguishable.
+ */
+describe('runCli threads BOTH halves of the short-list invariant to the evaluator', () => {
+  const env = { PR_NUMBER: '2121', REPO: FAKE_REPO } as NodeJS.ProcessEnv;
+  const docs = (n: number) => Array.from({ length: n }, (_, i) => `docs/notes/n${i}.md`);
+
+  function capture(opts: { declared?: number; fetched: string[] }): EvaluateReviewGateInput {
+    const run = (args: string[]): string => {
+      if (args[0] === 'pr' && args[1] === 'view') {
+        return JSON.stringify({
+          headRefOid: HEAD,
+          isDraft: false,
+          ...(opts.declared === undefined ? {} : { changedFiles: opts.declared }),
+        });
+      }
+      if (args.some(a => a.includes('/pulls/'))) {
+        return opts.fetched.join('\n') + (opts.fetched.length ? '\n' : '');
+      }
+      if (args.some(a => a.includes('/issues/'))) return JSON.stringify([[]]);
+      throw new Error(`unexpected gh call: ${args.join(' ')}`);
+    };
+    let seen: EvaluateReviewGateInput | undefined;
+    runCli(env, ['--dry-run'], run, input => {
+      seen = input;
+      return { state: 'failure', description: 'captured' };
+    });
+    if (!seen) throw new Error('runCli never called the evaluator');
+    return seen;
+  }
+
+  it('passes GitHub’s declared count through, so the in-module copy can see a short fetch', () => {
+    // Deleting `declaredFileCount: view.changedFiles` from the runCli call
+    // must redden THIS test. Without it `floorFor` compares the fetched list
+    // against itself and its mismatch arm is inert.
+    expect(capture({ declared: 1734, fetched: docs(100) }).declaredFileCount).toBe(1734);
+    expect(capture({ declared: 420, fetched: docs(420) }).declaredFileCount).toBe(420);
+  });
+
+  it('computes the unusable flag itself rather than leaving it to the evaluator', () => {
+    // Hardcoding `const fileListUnusable = false` must redden THIS test.
+    expect(capture({ declared: 1734, fetched: docs(100) }).fileListUnusable).toBe(true);
+    expect(capture({ declared: 420, fetched: docs(420) }).fileListUnusable).toBe(false);
+    // An absent `changedFiles` is a broken assumption, not a normal case.
+    expect(capture({ fetched: docs(3) }).fileListUnusable).toBe(true);
   });
 });
 
@@ -1587,7 +1658,7 @@ describe('a crash cannot read as a standing pass', () => {
   // The required `Review gate` context is a COMMIT status pinned to the SHA.
   // When the evaluation threw, nothing was posted — so on an issue_comment
   // edit that WITHDREW an attestation, the older green status survived.
-  const env = { PR_NUMBER: '2121', REPO: 'rbeezley/myk9-platform' } as NodeJS.ProcessEnv;
+  const env = { PR_NUMBER: '2121', REPO: FAKE_REPO } as NodeJS.ProcessEnv;
 
   function runnerThatFailsOnFiles() {
     const posted: string[][] = [];
@@ -1615,12 +1686,394 @@ describe('a crash cannot read as a standing pass', () => {
     expect(fields.join(' ')).toContain('rate limited');
   });
 
+  it('attempts no POST and exits non-zero when `pr view` came back without a headRefOid', () => {
+    // A well-formed payload MISSING `headRefOid` throws inside
+    // evaluateReviewGate (`input.headSha.toLowerCase()`), enters the catch —
+    // and the catch used to build its own description from
+    // `view.headRefOid.slice(0, 9)`, throwing a second TypeError and posting
+    // NOTHING (MYK9-560 item 2).
+    //
+    // The catch no longer throws, but there is still no SHA to pin a status
+    // to: POSTing anyway hits `statuses/undefined` and GitHub answers 422, so
+    // the improved description never lands (round-1 review, P3). Instead the
+    // script logs the verdict and exits NON-ZERO, which fails the step and
+    // hands the job to the workflow's `if: failure()` fallback — the one
+    // place that can resolve a SHA from the event payload.
+    const posted: string[][] = [];
+    const run = (args: string[]): string => {
+      if (args[0] === 'pr' && args[1] === 'view') {
+        return JSON.stringify({ isDraft: false, changedFiles: 1 });
+      }
+      if (args.some(a => a.includes('/pulls/'))) return 'docs/notes/n0.md\n';
+      if (args.some(a => a.includes('/issues/'))) return JSON.stringify([[]]);
+      if (args.includes('--method')) {
+        posted.push(args);
+        return '';
+      }
+      throw new Error(`unexpected gh call: ${args.join(' ')}`);
+    };
+    expect(runCli(env, [], run)).not.toBe(0);
+    expect(posted).toHaveLength(0);
+  });
+
+  it('attempts no POST and exits non-zero on a short-SHA `headRefOid`', () => {
+    // Not just a MISSING headRefOid: a present-but-unusable one must be
+    // refused too, or the POST targets `statuses/abc1234`, which is not a
+    // commit. This is the fixture that makes isFullSha's 40-char requirement
+    // load-bearing from the CLI's side (round-2 review, P2).
+    const posted: string[][] = [];
+    const run = (args: string[]): string => {
+      if (args[0] === 'pr' && args[1] === 'view') {
+        return JSON.stringify({ headRefOid: 'abc1234', isDraft: false, changedFiles: 1 });
+      }
+      if (args.some(a => a.includes('/pulls/'))) return 'docs/notes/n0.md\n';
+      if (args.some(a => a.includes('/issues/'))) return JSON.stringify([[]]);
+      if (args.includes('--method')) {
+        posted.push(args);
+        return '';
+      }
+      throw new Error(`unexpected gh call: ${args.join(' ')}`);
+    };
+    expect(runCli(env, [], run)).toBe(1);
+    expect(posted).toHaveLength(0);
+  });
+
   it('posts through the injected runner, never a real gh', () => {
     // Without this the unit suite is one forgotten --dry-run away from
     // POSTing a commit status to a real SHA in the real repository.
     const { run, posted } = runnerThatFailsOnFiles();
     runCli(env, [], run);
     expect(posted.length).toBeGreaterThan(0);
+  });
+});
+
+/**
+ * MYK9-555 / MYK9-560 item 3. The `if: failure()` step is the last hop: it
+ * covers a throw from the first `gh pr view` (before the script has a SHA to
+ * post against) and a throw from the POST at the end of the script. Its logic
+ * lives in the workflow's shell, so asserting the YAML text would only prove
+ * someone typed it (LESSONS `comment-satisfies-grep`). These tests EXTRACT the
+ * step's `run:` block and execute it against a stub `gh` on PATH.
+ */
+describe('the workflow’s crash-fallback step', () => {
+  const workflowPath = resolve(import.meta.dirname, '../../.github/workflows/review-gate.yml');
+  const STEP_NAME = 'Post a failure status when the gate itself crashed';
+
+  /** Pull the step's `run: |` body out of the YAML and dedent it. */
+  function extractFallbackScript(): string {
+    const yaml = readFileSync(workflowPath, 'utf8');
+    const stepAt = yaml.indexOf(`- name: ${STEP_NAME}`);
+    if (stepAt < 0) throw new Error(`workflow has no step named "${STEP_NAME}"`);
+    const runAt = yaml.indexOf('run: |\n', stepAt);
+    if (runAt < 0) throw new Error('the crash-fallback step has no `run: |` block');
+    const lines = yaml.slice(runAt + 'run: |\n'.length).split('\n');
+    const body: string[] = [];
+    for (const line of lines) {
+      if (line.trim() !== '' && !line.startsWith('          ')) break;
+      body.push(line.slice(10));
+    }
+    const script = body.join('\n').trimEnd();
+    if (script === '') throw new Error('the crash-fallback step’s run block is empty');
+    return script;
+  }
+
+  /**
+   * Run that script with a stub `gh` first on PATH. The stub appends every
+   * invocation to a log and honours `STUB_GH_VIEW_EXIT` so the
+   * `gh pr view` fallback can be made to fail.
+   */
+  function runFallback(env: Record<string, string>): { stdout: string; ghCalls: string[][] } {
+    const dir = mkdtempSync(join(tmpdir(), 'review-gate-fallback-'));
+    const log = join(dir, 'gh-calls.log');
+    const stub = join(dir, 'gh');
+    writeFileSync(
+      stub,
+      [
+        '#!/bin/sh',
+        // One line per ARGUMENT, with a record separator per invocation.
+        // Joining args with spaces made every assertion a substring match:
+        // `-f context='Review gateX'` satisfied `toContain('context=Review
+        // gate')` and the fallback would post under a context no required
+        // check watches (round-2 review, P2).
+        `{ printf '%s\\n' '--CALL--'; printf '%s\\n' "$@"; } >> ${JSON.stringify(log)}`,
+        'if [ "$1" = "pr" ]; then',
+        '  if [ -n "${STUB_GH_VIEW_STDERR:-}" ]; then',
+        '    echo "${STUB_GH_VIEW_STDERR}" >&2',
+        '  fi',
+        '  if [ "${STUB_GH_VIEW_EXIT:-0}" != "0" ]; then',
+        '    echo "gh: could not resolve the pull request" >&2',
+        '    exit "${STUB_GH_VIEW_EXIT}"',
+        '  fi',
+        '  printf \'%s\\n\' "${STUB_GH_VIEW_SHA:-}"',
+        'fi',
+        'exit 0',
+        '',
+      ].join('\n')
+    );
+    chmodSync(stub, 0o755);
+    writeFileSync(log, '');
+    const scriptPath = join(dir, 'fallback.sh');
+    writeFileSync(scriptPath, extractFallbackScript());
+    // EXACTLY the options `shell: bash` gives this step on GitHub. Without a
+    // `shell:` declaration GitHub would run `bash -e {0}` with no `pipefail`,
+    // and a test running richer options than CI can pass on behaviour CI does
+    // not have (round-2 review, P3). The assertion below pins the pairing.
+    const stdout = execFileSync('bash', ['--noprofile', '--norc', '-eo', 'pipefail', scriptPath], {
+      encoding: 'utf8',
+      env: { PATH: `${dir}:${process.env.PATH ?? ''}`, ...env },
+    });
+    const ghCalls: string[][] = [];
+    for (const line of readFileSync(log, 'utf8').split('\n')) {
+      if (line === '--CALL--') ghCalls.push([]);
+      else if (line !== '') ghCalls.at(-1)?.push(line);
+    }
+    return { stdout, ghCalls };
+  }
+
+  const isPost = (call: readonly string[]) => call.includes('--method') && call.includes('POST');
+  const isPrView = (call: readonly string[]) => call[0] === 'pr' && call[1] === 'view';
+
+  const base = { REPO: FAKE_REPO, PR_NUMBER: '2121', RUN_URL: 'https://example.invalid/run/1' };
+
+  it('posts a failure status to the head SHA the pull_request_target payload carries', () => {
+    const { ghCalls } = runFallback({ ...base, HEAD_SHA: HEAD });
+    const post = ghCalls.find(isPost);
+    if (!post) throw new Error(`no POST in: ${JSON.stringify(ghCalls)}`);
+    // Exact ARGUMENT matches, not substrings of a joined string: the context
+    // must be the token the required check watches, so `context=Review gateX`
+    // has to fail.
+    expect(post).toContain(`repos/${FAKE_REPO}/statuses/${HEAD}`);
+    expect(post).toContain('state=failure');
+    expect(post).toContain(`context=${REVIEW_GATE_CONTEXT}`);
+    expect(post.filter(a => a.startsWith('context='))).toEqual([`context=${REVIEW_GATE_CONTEXT}`]);
+    expect(ghCalls.some(isPrView)).toBe(false);
+  });
+
+  it('resolves the SHA with one `gh pr view` when the payload has none (issue_comment)', () => {
+    const { ghCalls } = runFallback({ ...base, HEAD_SHA: '', STUB_GH_VIEW_SHA: OLD_HEAD });
+    const views = ghCalls.filter(isPrView);
+    expect(views).toHaveLength(1);
+    // ADJACENCY, not mere presence: `--json a,b --jq headRefOid` contains both
+    // tokens and asks for the wrong thing (round-3 review, P3).
+    const viewArgs = views[0] ?? [];
+    expect(viewArgs[viewArgs.indexOf('--json') + 1]).toBe('headRefOid');
+    const post = ghCalls.find(isPost);
+    if (!post) throw new Error(`no POST in: ${JSON.stringify(ghCalls)}`);
+    expect(post).toContain(`repos/${FAKE_REPO}/statuses/${OLD_HEAD}`);
+    expect(post).toContain('state=failure');
+  });
+
+  it('posts the SHA even when `gh pr view` also writes a warning to stderr', () => {
+    // `2>&1` merged gh's diagnostics into the captured SHA, so ONE ordinary
+    // deprecation or scope warning contaminated an otherwise valid answer, the
+    // hex guard rejected it, and the step posted nothing — reinstating the
+    // stale-green fail-open this step exists to close (round-1 review, P2).
+    const { ghCalls } = runFallback({
+      ...base,
+      HEAD_SHA: '',
+      STUB_GH_VIEW_SHA: OLD_HEAD,
+      STUB_GH_VIEW_STDERR: 'gh: warning: this command is deprecated',
+    });
+    const post = ghCalls.find(isPost);
+    if (!post) throw new Error(`no POST in: ${JSON.stringify(ghCalls)}`);
+    expect(post).toContain(`repos/${FAKE_REPO}/statuses/${OLD_HEAD}`);
+    expect(post).toContain('state=failure');
+  });
+
+  it('posts nothing, and says so, when `gh pr view` fails too', () => {
+    const { stdout, ghCalls } = runFallback({
+      ...base,
+      HEAD_SHA: '',
+      STUB_GH_VIEW_EXIT: '1',
+    });
+    expect(ghCalls.some(isPost)).toBe(false);
+    expect(stdout).toContain('posting no status');
+  });
+
+  it('rejects a 40-char string that is the right LENGTH but not hex', () => {
+    // Both halves of the guard must be load-bearing. Every other fixture here
+    // is hex, so only the length test was firing and deleting the `case` line
+    // left the suite green (round-2 review, P3). These are exactly 40 chars.
+    const fortyNonHex = [
+      'g'.repeat(40), // out of the hex alphabet
+      HEAD.slice(0, 39).toUpperCase() + 'A', // uppercase hex is not accepted
+      `${HEAD.slice(0, 37)}../`, // 40 chars, still a traversal
+    ];
+    for (const value of fortyNonHex) {
+      expect(value).toHaveLength(40);
+      const fromPayload = runFallback({ ...base, HEAD_SHA: value });
+      expect(fromPayload.ghCalls.some(isPost)).toBe(false);
+      const fromView = runFallback({ ...base, HEAD_SHA: '', STUB_GH_VIEW_SHA: value });
+      expect(fromView.ghCalls.some(isPost)).toBe(false);
+    }
+  });
+
+  it('validates the EVENT payload’s SHA too, not just the one it resolves', () => {
+    // The guard sat inside the `if [ -z "$sha" ]` branch, so it only ever saw
+    // the `gh pr view` answer; `HEAD_SHA` from the event payload went to the
+    // POST unvalidated. A reviewer drove `HEAD_SHA=../../../evil` straight
+    // into `POST repos/<repo>/statuses/../../../evil` (round-2 review, P3).
+    for (const bogus of ['../../../evil', 'abc', `${HEAD}a`, 'not a sha']) {
+      const { ghCalls } = runFallback({ ...base, HEAD_SHA: bogus });
+      expect(ghCalls.some(isPost)).toBe(false);
+    }
+    // Control: a real 40-char SHA from the payload still posts.
+    const { ghCalls } = runFallback({ ...base, HEAD_SHA: HEAD });
+    expect(ghCalls.some(c => c.includes(`repos/${FAKE_REPO}/statuses/${HEAD}`))).toBe(true);
+  });
+
+  it('never posts a status to a target that is not a hex SHA', () => {
+    // A status posted to `gh: could not resolve...` would be a wild POST.
+    const { ghCalls } = runFallback({
+      ...base,
+      HEAD_SHA: '',
+      STUB_GH_VIEW_SHA: 'not a sha',
+    });
+    expect(ghCalls.some(isPost)).toBe(false);
+  });
+
+  it('never posts to a hex FRAGMENT — the target must be a full 40-char SHA', () => {
+    // A charset-only guard passes `abc`, which POSTs to `statuses/abc`
+    // (round-1 review, P3). Both a short fragment and an over-long string are
+    // rejected; only exactly 40 lowercase hex is a status target.
+    for (const partial of ['abc', HEAD.slice(0, 39), `${HEAD}a`]) {
+      const { ghCalls } = runFallback({ ...base, HEAD_SHA: '', STUB_GH_VIEW_SHA: partial });
+      expect(ghCalls.some(isPost)).toBe(false);
+    }
+    // The control: exactly 40 still posts, so the guard is not simply inert.
+    const { ghCalls } = runFallback({ ...base, HEAD_SHA: '', STUB_GH_VIEW_SHA: HEAD });
+    expect(ghCalls.some(c => c.includes(`repos/${FAKE_REPO}/statuses/${HEAD}`))).toBe(true);
+  });
+
+  /**
+   * Every step of the job, in order, with its declared `timeout-minutes`.
+   * A step with no timeout comes back `undefined` rather than being skipped —
+   * the whole point of the invariant below is that there are none.
+   */
+  function parseJobSteps(): { name?: string; timeout?: number }[] {
+    const yaml = readFileSync(workflowPath, 'utf8');
+    const stepsAt = yaml.indexOf('\n    steps:\n');
+    if (stepsAt < 0) throw new Error('the job has no `steps:` block');
+    const body = yaml.slice(stepsAt + '\n    steps:\n'.length);
+    // Each step starts at `      - `; nothing else in this file sits at that
+    // indent, and the job is the last thing in the file.
+    const chunks = body.split(/^ {6}- /m).slice(1);
+    return chunks.map(chunk => {
+      // ONLY a real `name:` key counts. Falling back to the chunk's first line
+      // made every step look named — an unnamed `- uses: actions/cache@v4`
+      // yielded the name "uses: actions/cache@v4", truthy, so the "every step
+      // is named" assertion could never fire (round-3 review, P3).
+      const timeout = chunk.match(/^ {8}timeout-minutes: (\d+)$/m)?.[1];
+      return {
+        name: chunk.startsWith('name: ') ? chunk.slice('name: '.length).split('\n')[0] : undefined,
+        timeout: timeout === undefined ? undefined : Number(timeout),
+      };
+    });
+  }
+
+  it('gives EVERY step its own timeout, so a hang fails the step instead of cancelling the job', () => {
+    // A job that trips its own `timeout-minutes` is marked CANCELLED, not
+    // failed (LESSONS `cancelled-may-be-timeout`), and `if: failure()` does
+    // not fire on a cancelled job. So any step WITHOUT its own limit runs to
+    // the job backstop and skips this fallback — the fail-open, relocated to
+    // whichever step was left uncovered. `checkout` and `setup-node` had none
+    // (round-2 review, P2), and the previous version of this test asserted
+    // there were exactly two step timeouts, so ADDING the missing ones would
+    // have reddened it. This asserts the invariant instead of the count.
+    const steps = parseJobSteps();
+    expect(steps.length).toBeGreaterThanOrEqual(4);
+    steps.forEach((step, i) => {
+      // Named, so the by-name assertion below actually covers it: an unnamed
+      // step is invisible to that test and could carry any timeout at all.
+      expect(step.name, `step ${i} has no \`name:\` key`).toBeTypeOf('string');
+      expect(step.timeout, `step "${step.name ?? `#${i}`}" has no timeout-minutes`).toBeTypeOf(
+        'number'
+      );
+    });
+    // Every step the job declares is one this file knows about, so a step
+    // added without a by-name expectation below cannot slip through.
+    expect(steps.map(step => step.name)).toEqual([
+      'Check out the base branch',
+      'Set up Node',
+      'Post Review gate status for the PR head',
+      STEP_NAME,
+    ]);
+  });
+
+  it('gives each step the timeout it is supposed to have, by name', () => {
+    // By NAME, not by position: swapping two timeouts leaves every count and
+    // every sum identical.
+    const byName = new Map(parseJobSteps().map(s => [s.name, s.timeout]));
+    expect(byName.get('Check out the base branch')).toBe(2);
+    expect(byName.get('Set up Node')).toBe(3);
+    expect(byName.get('Post Review gate status for the PR head')).toBe(5);
+    expect(byName.get(STEP_NAME)).toBe(3);
+  });
+
+  it('keeps the job backstop above the sum of every step timeout', () => {
+    // If the backstop could be reached first it would cancel the job and skip
+    // this step, which is the bug the per-step timeouts exist to prevent.
+    const steps = parseJobSteps();
+    const sum = steps.reduce((total, s) => total + (s.timeout ?? 0), 0);
+    const yaml = readFileSync(workflowPath, 'utf8');
+    const jobTimeout = yaml.match(/^ {4}timeout-minutes: (\d+)$/m);
+    if (!jobTimeout) throw new Error('the job has no backstop timeout');
+    expect(Number(jobTimeout[1])).toBeGreaterThan(sum);
+  });
+
+  it('declares `shell: bash` on both run steps, the options the harness replays', () => {
+    // The harness runs the extracted script under
+    // `bash --noprofile --norc -eo pipefail`. GitHub uses those options only
+    // when the step says `shell: bash`; the default is `bash -e {0}`, no
+    // pipefail. Without this, the harness tests a shell CI does not run.
+    //
+    // Matched as a LINE, not a substring: the comment above each step
+    // explains the choice and itself contains the literal `shell: bash`, so a
+    // `toContain` stayed green with the real key deleted (LESSONS
+    // `comment-satisfies-grep`).
+    const yaml = readFileSync(workflowPath, 'utf8');
+    for (const step of ['Post Review gate status for the PR head', STEP_NAME]) {
+      const at = yaml.indexOf(`- name: ${step}`);
+      expect(at, `no step named "${step}"`).toBeGreaterThan(-1);
+      const body = yaml.slice(at, yaml.indexOf('\n        run:', at));
+      expect(body, `step "${step}" does not declare shell: bash`).toMatch(/^ {8}shell: bash$/m);
+    }
+  });
+
+  it('runs only when the job has already failed', () => {
+    const yaml = readFileSync(workflowPath, 'utf8');
+    const stepAt = yaml.indexOf(`- name: ${STEP_NAME}`);
+    expect(yaml.slice(stepAt, stepAt + 200)).toContain('if: failure()');
+  });
+});
+
+describe('isFullSha', () => {
+  // A commit status can only be pinned to a full 40-character SHA, and this
+  // is the script-side half of the same rule the workflow's fallback step
+  // applies in shell. It was reachable from only ONE test, which passed
+  // `undefined` — so relaxing the pattern to `/^[0-9a-f]+$/` left all 162
+  // tests green (round-2 review, P2).
+  it('accepts exactly 40 lowercase hex characters', () => {
+    expect(isFullSha('a'.repeat(40))).toBe(true);
+    expect(isFullSha('0123456789abcdef0123456789abcdef01234567')).toBe(true);
+  });
+
+  it('rejects anything else', () => {
+    for (const value of [
+      'a'.repeat(39), // one short
+      'a'.repeat(41), // one long
+      'A'.repeat(40), // uppercase hex
+      'g'.repeat(40), // 40 chars, outside the hex alphabet
+      `${'a'.repeat(37)}../`, // 40 chars, a traversal
+      'abc1234', // a short-SHA fragment
+      '',
+      undefined,
+      null,
+      42,
+      { toString: () => 'a'.repeat(40) },
+    ]) {
+      expect(isFullSha(value), `expected ${JSON.stringify(value)} to be rejected`).toBe(false);
+    }
   });
 });
 

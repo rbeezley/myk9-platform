@@ -113,11 +113,8 @@ export abstract class ReplicatedTable<T extends { id: string }> {
       () => this.relieveQuota()
     );
 
-    this.queryManager = new ReplicatedTableQueryManager<T>(
-      tableName,
-      this.logger,
-      () => this.init(),
-      licenseKey => this.getAll(licenseKey)
+    this.queryManager = new ReplicatedTableQueryManager<T>(tableName, this.logger, () =>
+      this.init()
     );
 
     this.rowLocks = new RowLockRegistry();

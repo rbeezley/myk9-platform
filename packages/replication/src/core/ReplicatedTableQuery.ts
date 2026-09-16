@@ -11,8 +11,7 @@ export class ReplicatedTableQueryManager<T extends { id: string }> {
   constructor(
     private tableName: string,
     private logger: Logger,
-    private getDb: () => Promise<IDBPDatabase>,
-    private getAllData: (licenseKey?: string) => Promise<T[]>
+    private getDb: () => Promise<IDBPDatabase>
   ) {}
 
   /**

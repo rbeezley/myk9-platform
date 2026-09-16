@@ -25,7 +25,7 @@ describe('canEnableOnlineEntries', () => {
   });
 });
 
-// MYK9-579: enforce_show_publish_gate() (supabase/migrations/20260915221500)
+// MYK9-579: enforce_show_publish_gate() (supabase/migrations/20260916003500)
 // is the DB-side backstop for this same gate. It raises SQLSTATE MK003 for
 // BOTH of its refusals (missing club, and no payouts-enabled Stripe account),
 // with its own RAISE EXCEPTION text already equal to this module's friendly

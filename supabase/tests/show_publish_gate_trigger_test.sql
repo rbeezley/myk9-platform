@@ -1,15 +1,18 @@
 -- MYK9-579: enforce_show_publish_gate() is the DB-side backstop for the
--- Stripe-payouts gate on a show entering an entry-open status
--- ('published' OR 'accepting_entries', round 4 P2-3) that publishGateError
+-- Stripe-payouts gate on a show entering 'published' that publishGateError
 -- (ShowEditPanel.helpers.ts) and ShowStatusPill.tsx already enforce
 -- client-side. A direct PostgREST `update shows set status='published'`
--- bypassed both of them before this trigger existed.
+-- bypassed both of them before this trigger existed. Note: 'accepting_entries'
+-- is not a permitted shows.status (072_align_show_class_statuses.sql) -- a
+-- round-4 draft of the gate widened the gated set to include it, but that
+-- transition dies on the CHECK constraint (23514) before it ever reaches
+-- this trigger, so round 5 reverted the widening; the gated set is
+-- 'published' only.
 --
 -- Matrix covered below: no club_stripe_accounts row; a row with
 -- payouts_enabled=false; a row with payouts_enabled=true in the mode matching
 -- platform_settings.stripe_livemode; a row with payouts_enabled=true in the
--- OTHER mode; a show already in the gated set receiving an unrelated edit or
--- moving to the OTHER gated status (published <-> accepting_entries);
+-- OTHER mode; an already-published show receiving an unrelated edit;
 -- club_id IS NULL. Both livemode values are exercised by flipping
 -- platform_settings inside this transaction.
 --
@@ -892,78 +895,6 @@ BEGIN
     PERFORM set_config('request.jwt.claim.sub', '', true);
     RAISE NOTICE 'PASS republish: publish -> draft -> publish is re-gated after the club loses Stripe readiness in between';
   END;
-END;
-$$;
-RESET ROLE;
-SELECT set_config('request.jwt.claim.sub', '', true);
-
--- ---------------------------------------------------------------------------
--- 12. P2-3: the gate now covers a transition into 'accepting_entries' too,
---     not just 'published' -- stripe-checkout/index.ts:~503 treats both as
---     entry-open. Secretary of club 1 (no club_stripe_accounts row at all).
--- ---------------------------------------------------------------------------
-INSERT INTO public.shows (id, name, organization, start_date, end_date, club_id, status) VALUES
-  ('00000000-0000-0000-0000-000000579060', 'MYK9-579 Accepting-Entries No-Account Show', 'AKC',
-   current_date, current_date + 1, '00000000-0000-0000-0000-000000579001', 'draft');
-
--- 12a. draft -> accepting_entries with no Stripe account -> refused, same as
---      draft -> published.
-DO $$
-DECLARE
-  v_message text;
-BEGIN
-  SET LOCAL ROLE authenticated;
-  PERFORM set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-000000579201', true);
-
-  BEGIN
-    UPDATE public.shows SET status = 'accepting_entries'
-     WHERE id = '00000000-0000-0000-0000-000000579060';
-    RAISE EXCEPTION 'FAIL accepting-entries-refused: publish succeeded with no club_stripe_accounts row';
-  EXCEPTION WHEN SQLSTATE 'MK003' THEN
-    GET STACKED DIAGNOSTICS v_message = MESSAGE_TEXT;
-    RESET ROLE;
-    PERFORM set_config('request.jwt.claim.sub', '', true);
-  END;
-  IF v_message IS NULL OR v_message !~* 'payment account' THEN
-    RAISE EXCEPTION 'FAIL accepting-entries-refused: unexpected message %', v_message;
-  END IF;
-  RAISE NOTICE 'PASS accepting-entries-refused: draft -> accepting_entries is refused with MK003 exactly like draft -> published';
-END;
-$$;
-RESET ROLE;
-SELECT set_config('request.jwt.claim.sub', '', true);
-
--- 12b. A show already in the gated set (published) moving to the OTHER
---      gated status (accepting_entries) is exempt -- it already cleared the
---      gate once -- even for a club with no Stripe account at all. Reuses
---      fixture 579014 (already-published, club 1, no club_stripe_accounts
---      row), same as case 6.
-DO $$
-DECLARE
-  v_status text;
-  v_n int;
-BEGIN
-  SET LOCAL ROLE authenticated;
-  PERFORM set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-000000579201', true);
-
-  UPDATE public.shows SET status = 'accepting_entries'
-   WHERE id = '00000000-0000-0000-0000-000000579014';
-  GET DIAGNOSTICS v_n = ROW_COUNT;
-  IF v_n <> 1 THEN
-    RESET ROLE;
-    PERFORM set_config('request.jwt.claim.sub', '', true);
-    RAISE EXCEPTION 'FAIL accepting-entries-exempt: expected the transition to affect 1 row, affected %', v_n;
-  END IF;
-
-  SELECT status INTO v_status FROM public.shows
-  WHERE id = '00000000-0000-0000-0000-000000579014';
-  RESET ROLE;
-  PERFORM set_config('request.jwt.claim.sub', '', true);
-
-  IF v_status IS DISTINCT FROM 'accepting_entries' THEN
-    RAISE EXCEPTION 'FAIL accepting-entries-exempt: expected accepting_entries, got %', v_status;
-  END IF;
-  RAISE NOTICE 'PASS accepting-entries-exempt: published -> accepting_entries is exempt (a move between two gated statuses), even with no Stripe account';
 END;
 $$;
 RESET ROLE;

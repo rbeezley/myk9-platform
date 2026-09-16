@@ -5,11 +5,13 @@ import { Tabs } from '@/components/ui/tabs';
 import { ShowEditBasicInfoTab } from '../ShowEditBasicInfoTab';
 import type { ShowEditFormData } from '../ShowEditPanel.types';
 
-// MYK9-579 round 4: publishing happens in exactly one place -- the status
-// pill on the show page (ShowStatusPill.tsx). The Basic Info tab's Status
-// dropdown must never let a draft (or any non-published show) transition
-// into 'published', but an already-published show must still show
-// "Published" as its current value and be saveable unchanged.
+// MYK9-579: publishing happens in exactly one place -- the status pill on
+// the show page (ShowStatusPill.tsx). The Basic Info tab's Status dropdown
+// must never let a show that OPENED as a draft (or any non-published status)
+// transition into 'published', but a show that opened already published must
+// still show "Published" as its current value, be saveable unchanged, and
+// (round 5) keep offering "Published" after the user picks Draft and changes
+// their mind -- the option is keyed on initialStatus, not live form state.
 function baseFormData(status: string): ShowEditFormData {
   return {
     id: 'show-1',
@@ -31,11 +33,12 @@ function baseFormData(status: string): ShowEditFormData {
   };
 }
 
-function renderTab(status: string) {
+function renderTab(status: string, initialStatus: string | undefined = status) {
   return render(
     <Tabs value="basic">
       <ShowEditBasicInfoTab
         data={baseFormData(status)}
+        initialStatus={initialStatus}
         availableShowTypes={['AKC']}
         clubs={[{ id: 'club-1', name: 'Test Club', clubNumber: '123' }]}
         handleInputChange={() => vi.fn()}
@@ -57,7 +60,7 @@ function statusCombobox(): HTMLElement {
   return within(container as HTMLElement).getByRole('combobox');
 }
 
-describe('ShowEditBasicInfoTab status dropdown (MYK9-579 round 4)', () => {
+describe('ShowEditBasicInfoTab status dropdown (MYK9-579)', () => {
   it('does not offer "Published" as an option for a draft show', async () => {
     const { user } = renderTab('draft');
     await user.click(statusCombobox());
@@ -78,6 +81,26 @@ describe('ShowEditBasicInfoTab status dropdown (MYK9-579 round 4)', () => {
 
     await user.click(trigger);
     expect(await screen.findByRole('option', { name: /^published/i })).toBeInTheDocument();
+  });
+
+  it('still offers "Published" after picking Draft on a show that opened published (round 5)', async () => {
+    // Live form state says draft; the panel opened on a published show. The
+    // user must be able to change their mind without closing the panel.
+    const { user } = renderTab('draft', 'published');
+    await user.click(statusCombobox());
+
+    await screen.findByRole('option', { name: /^draft/i });
+    expect(await screen.findByRole('option', { name: /^published/i })).toBeInTheDocument();
+  });
+
+  it('never offers "Published" on a show that opened as a draft, whatever the form holds', async () => {
+    // Even if live form state somehow reads 'published', a draft-opened
+    // panel is not a publish surface -- the pill is.
+    const { user } = renderTab('published', 'draft');
+    await user.click(statusCombobox());
+
+    await screen.findByRole('option', { name: /^draft/i });
+    expect(screen.queryByRole('option', { name: /^published/i })).toBeNull();
   });
 
   it('shows helper text pointing to the status pill as the publish surface', () => {

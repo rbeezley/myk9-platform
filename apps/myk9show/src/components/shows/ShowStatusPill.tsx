@@ -19,7 +19,6 @@ import {
   PUBLISH_BLOCKED_MESSAGE,
   CLUB_UNAUTHORIZED_MESSAGE,
   CLUB_REQUIRED_MESSAGE,
-  ONLINE_ENTRY_OPEN_STATUSES,
   PUBLISH_GATE_ERRCODE_UNAUTHORIZED,
 } from '@/features/payments/onlineEntryGate';
 
@@ -61,6 +60,10 @@ const STATUS_CONFIG: Record<string, { label: string; className: string }> = {
 const TRANSITIONS: Record<string, { label: string; next: string }[]> = {
   draft: [{ label: 'Publish Show', next: 'published' }],
   published: [{ label: 'Move to Draft', next: 'draft' }],
+  upcoming: [{ label: 'Publish Show', next: 'published' }],
+  in_progress: [{ label: 'Publish Show', next: 'published' }],
+  completed: [{ label: 'Publish Show', next: 'published' }],
+  cancelled: [{ label: 'Publish Show', next: 'published' }],
 };
 
 export function ShowStatusPill({ showId, status, clubId }: ShowStatusPillProps) {
@@ -77,12 +80,13 @@ export function ShowStatusPill({ showId, status, clubId }: ShowStatusPillProps) 
   async function handleTransition(next: string) {
     // Publishing opens online entries; fail closed unless the club's Stripe
     // payouts are enabled. Already-published shows are unaffected (the gate
-    // only fires on the draft → published transition). This is a UX
-    // convenience, not the enforcement boundary: enforce_show_publish_gate()
-    // (supabase/migrations/20260915221500) is the DB-side backstop that
+    // only fires on a transition INTO 'published' from a different status —
+    // this pill can publish from any status, per MYK9-579 round 5). This is
+    // a UX convenience, not the enforcement boundary: enforce_show_publish_gate()
+    // (supabase/migrations/20260916003500) is the DB-side backstop that
     // actually refuses the write on both INSERT and UPDATE OF status — see
     // the catch block below.
-    if ((ONLINE_ENTRY_OPEN_STATUSES as readonly string[]).includes(next)) {
+    if (next === 'published') {
       if (!clubId) {
         // Fail CLOSED, not open: a missing clubId is either a wiring bug
         // (lost in the #615 merge once already) or a genuinely clubless show

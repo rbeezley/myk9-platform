@@ -34,10 +34,14 @@ interface ShowEditFormProps {
    * judge roster.
    */
   initialTab?: ShowEditTab;
+  /** The show's status when the panel opened; gates the Basic Info tab's
+   * "Published" option (MYK9-579). */
+  initialStatus?: string | undefined;
 }
 
 export const ShowEditForm: React.FC<ShowEditFormProps> = ({
   initialTab = DEFAULT_SHOW_EDIT_TAB,
+  initialStatus,
 }) => {
   const { data, form } = useEditPanel<ShowEditFormData>();
   const [activeTab, setActiveTab] = useState<string>(initialTab);
@@ -207,6 +211,7 @@ export const ShowEditForm: React.FC<ShowEditFormProps> = ({
           handleInputChange={handleInputChange}
           handleSelectChange={handleSelectChange}
           handleDateChange={handleDateChange}
+          initialStatus={initialStatus}
         />
 
         {/* Personnel Tab */}

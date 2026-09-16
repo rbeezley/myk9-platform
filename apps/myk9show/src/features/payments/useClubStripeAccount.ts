@@ -20,7 +20,7 @@ export interface ClubStripeAccount {
 // the Stripe secret key and stripe-connect-onboard is what writes
 // club_stripe_accounts.livemode, so this column and that key are flipped
 // together for a cutover (see the column comment,
-// supabase/migrations/20260915221500). `authenticated` already holds
+// supabase/migrations/20260916003500). `authenticated` already holds
 // table-level SELECT on platform_settings (20260615180000), so this read
 // needs no new grant.
 //

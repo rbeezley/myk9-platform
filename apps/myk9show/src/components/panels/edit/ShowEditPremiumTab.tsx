@@ -103,14 +103,16 @@ export function ShowEditPremiumTab({
           </div>
           <label className="mt-4 flex items-start gap-3 rounded-md border p-3 cursor-pointer">
             <Checkbox
-              aria-label="Publish to Exhibitors"
+              aria-label="Generate exhibitor documents on save"
               checked={Boolean(data.publishExperience)}
               onCheckedChange={checked =>
                 handleCheckboxChange('publishExperience')(Boolean(checked))
               }
             />
             <span>
-              <span className="block text-sm font-medium">Publish to Exhibitors</span>
+              <span className="block text-sm font-medium">
+                Generate exhibitor documents on save
+              </span>
               <span className="block text-xs text-muted-foreground">
                 When you save, publish the premium list, landing page, entry form, and confirmation
                 email from this Experience configuration.

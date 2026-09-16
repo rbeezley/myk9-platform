@@ -31,6 +31,10 @@ interface ShowEditBasicInfoTabProps {
   ) => (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => void;
   handleSelectChange: (field: keyof ShowEditFormData) => (value: string) => void;
   handleDateChange: (field: keyof ShowEditFormData) => (date: Date | undefined) => void;
+  /** The show's status when the panel OPENED (not live form state). Decides
+   * whether "Published" is offered in the Status dropdown -- see the comment
+   * on that option. */
+  initialStatus?: string | undefined;
 }
 
 export const ShowEditBasicInfoTab: React.FC<ShowEditBasicInfoTabProps> = ({
@@ -41,6 +45,7 @@ export const ShowEditBasicInfoTab: React.FC<ShowEditBasicInfoTabProps> = ({
   handleInputChange,
   handleSelectChange,
   handleDateChange,
+  initialStatus,
 }) => {
   const nameError = form?.getError('name');
   const clubError = form?.getError('clubId');
@@ -118,15 +123,17 @@ export const ShowEditBasicInfoTab: React.FC<ShowEditBasicInfoTabProps> = ({
                       </div>
                     </div>
                   </SelectItem>
-                  {/* MYK9-579 round 4: publishing happens in exactly one
-                      place -- the status pill on the show page
-                      (ShowStatusPill.tsx), which alone runs the DB publish
-                      gate. This option is only offered when the show is
-                      ALREADY published, so an existing published show can be
-                      saved unchanged (never re-gated, never force-downgraded
-                      by omission) -- but a draft can no longer be published
-                      from this panel. */}
-                  {data.status === 'published' && (
+                  {/* MYK9-579: publishing happens in exactly one place --
+                      the status pill on the show page (ShowStatusPill.tsx),
+                      which alone runs the DB publish gate. This option is
+                      only offered when the show was ALREADY published when
+                      the panel opened (initialStatus, round 5 -- NOT live
+                      form state), so an existing published show can be saved
+                      unchanged, and a user who picks Draft and then changes
+                      their mind can still pick Published back without
+                      abandoning the panel. A show that opened as a draft can
+                      never be published from here. */}
+                  {initialStatus === 'published' && (
                     <SelectItem value="published">
                       <div>
                         <div className="font-medium">Published</div>

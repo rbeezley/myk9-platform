@@ -71,19 +71,15 @@
 --     re-gated, and moving between the two gated statuses is exempt (it
 --     already cleared the gate once).
 --
--- -- GATED SET: 'published' AND 'accepting_entries' (round 4, P2-3) ----------
--- 'accepting_entries' is also an entry-open status --
--- stripe-checkout/index.ts:~503 admits status IN ('published',
--- 'accepting_entries') when deciding whether a show can take an online
--- entry payment -- so a draft (or any non-gated status) moving into EITHER
--- one must clear the same Stripe-payouts check as a plain publish. The
--- client mirrors this set in ONLINE_ENTRY_OPEN_STATUSES (onlineEntryGate.ts,
--- used by ShowStatusPill.tsx's client-side check); there is no shared
--- source of truth between SQL and TypeScript, so keep both lists in sync by
--- hand. Note 'upcoming' is NOT in the gated set: showCRUD.spec.ts retargets
--- an unrelated fixture to 'upcoming', but that status is not entry-open
--- (stripe-checkout/index.ts does not admit it), so leaving it ungated here
--- is deliberate, not an oversight.
+-- -- NOTE: 'accepting_entries' is not a permitted shows.status -------------
+-- 072_align_show_class_statuses.sql removed 'accepting_entries' from the
+-- live CHECK constraint (status IN ('draft','published','upcoming',
+-- 'in_progress','completed','cancelled')). A round-4 draft of this gate
+-- widened the gated set to include 'accepting_entries', but that status can
+-- never actually reach this trigger -- the write dies on the CHECK
+-- constraint (23514) first. stripe-checkout/index.ts's own branch admitting
+-- 'accepting_entries' is therefore dead code too, and out of scope here.
+-- The gated set is 'published' only.
 --
 -- -- API-ROLES-ONLY CARVE-OUT (not just service_role) --------------------------
 -- The gate is a backstop for API callers — PostgREST always `SET ROLE` to
@@ -139,12 +135,11 @@
 --
 -- -- ALREADY-GATED SHOWS ARE EXEMPT (UPDATE only) ----------------------------
 -- Mirrors publishGateError in spirit: on UPDATE the gate only fires on a
--- transition INTO the gated set FROM OUTSIDE it (OLD.status not already
--- 'published' or 'accepting_entries'). An unrelated edit to an
--- already-gated show (name, dates, judges, ...), or a move between the two
--- gated statuses, always passes, and a club that loses its Stripe readiness
--- after publishing is never retroactively un-published or un-opened by this
--- trigger.
+-- transition INTO 'published' FROM a different status (OLD.status IS NOT
+-- DISTINCT FROM 'published' is exempt). An unrelated edit to an
+-- already-published show (name, dates, judges, ...) always passes, and a
+-- club that loses its Stripe readiness after publishing is never
+-- retroactively un-published by this trigger.
 --
 -- -- P3-8: create_show_with_children's ON CONFLICT retry ---------------------
 -- create_show_with_children's `ON CONFLICT (id) DO NOTHING` retry path
@@ -201,29 +196,22 @@ BEGIN
     RETURN NEW;
   END IF;
 
-  -- P2-3 (round 4): 'accepting_entries' is also an entry-open status --
-  -- stripe-checkout/index.ts:~503 admits status IN ('published',
-  -- 'accepting_entries') when deciding whether a show can take an online
-  -- payment -- so a transition INTO either one must clear this gate, not
-  -- just a transition into 'published'. Keep this list and the client's
-  -- ONLINE_ENTRY_OPEN_STATUSES (onlineEntryGate.ts) in sync by hand.
-  -- NULL-safe membership checks (P1-2): NEW.status/OLD.status IS DISTINCT
-  -- FROM never collapses to NULL/unknown the way `= ANY(...)` or `IN (...)`
-  -- would if a status were ever NULL, so a NULL status cannot silently skip
-  -- the gate.
+  -- 'accepting_entries' is not a permitted shows.status
+  -- (072_align_show_class_statuses.sql) -- the gated set is 'published'
+  -- only. NULL-safe membership check (P1-2): NEW.status/OLD.status IS
+  -- DISTINCT FROM never collapses to NULL/unknown the way `= ANY(...)` or
+  -- `IN (...)` would if a status were ever NULL, so a NULL status cannot
+  -- silently skip the gate.
   IF TG_OP = 'INSERT' THEN
-    IF NEW.status IS DISTINCT FROM 'published' AND NEW.status IS DISTINCT FROM 'accepting_entries' THEN
+    IF NEW.status IS DISTINCT FROM 'published' THEN
       RETURN NEW;
     END IF;
   ELSE
-    -- UPDATE OF status. Only a transition INTO the gated set from OUTSIDE
-    -- it. A show already in the gated set moving to the other gated status
-    -- (published <-> accepting_entries) is exempt -- it already cleared the
-    -- gate once -- same as an already-published show keeps saving unrelated
-    -- edits, and a draft-to-draft or draft-to-cancelled write never reaches
-    -- this branch.
-    IF (NEW.status IS DISTINCT FROM 'published' AND NEW.status IS DISTINCT FROM 'accepting_entries')
-       OR NOT (OLD.status IS DISTINCT FROM 'published' AND OLD.status IS DISTINCT FROM 'accepting_entries') THEN
+    -- UPDATE OF status. Only a transition INTO 'published' from OUTSIDE it.
+    -- An already-published show keeps saving unrelated edits without being
+    -- re-gated, and a draft-to-draft or draft-to-cancelled write never
+    -- reaches this branch.
+    IF NEW.status IS DISTINCT FROM 'published' OR OLD.status IS NOT DISTINCT FROM 'published' THEN
       RETURN NEW;
     END IF;
   END IF;
@@ -255,7 +243,7 @@ END;
 $$;
 
 COMMENT ON FUNCTION public.enforce_show_publish_gate() IS
-  'MYK9-579 (round 4, P2-3 widened the gated set): server-side backstop for the Stripe-payouts gate on a show entering an entry-open status. The gated set is (''published'', ''accepting_entries'') — kept in sync by hand with the client''s ONLINE_ENTRY_OPEN_STATUSES (onlineEntryGate.ts). ''upcoming'' is deliberately NOT gated (not entry-open; showCRUD.spec.ts retargets an unrelated fixture there). The status pill (ShowStatusPill.tsx) is the ONLY client write surface that can transition a show into the gated set — the Edit Show panel no longer offers ''Published'' in its Status dropdown (round 4), the wizard always creates drafts, and the bulk actions bar excludes every gated status. isPublishGateDbError (onlineEntryGate.ts) still maps this trigger''s refusal (SQLSTATE MK003) client-side for the pill and for ShowEditPanel.helpers.ts''s publishGateError, which now guards only the already-published-show and hypothetical draft->published cases the panel''s dropdown restriction cannot itself express. Livemode is read from platform_settings.stripe_livemode (Option 1 of the MYK9-579 design decision; flips together with STRIPE_SECRET_KEY for the MYK9-11 live cutover, see the column comment). Fires on BEFORE INSERT OR UPDATE OF status, branching on TG_OP: INSERT gates any row created already inside the gated set (create_show_with_children and createShow() both let the caller set status); UPDATE gates only a transition INTO the gated set FROM OUTSIDE it, and exempts a show already in it (including a move BETWEEN the two gated statuses) so unrelated edits on a live show are never re-gated or retroactively un-published/un-opened. All membership checks use IS DISTINCT FROM, never IN/NOT IN, so a NULL status cannot silently skip the gate. Carves out coalesce(current_setting(''role'', true), ''none'') NOT IN (''authenticated'', ''anon'') — a direct superuser session (no SET ROLE, reads ''none'') and service_role (edge functions, crons, the seed script, supabase/tests/*.sql fixtures) both bypass; only the two roles PostgREST actually runs requests as are gated. Unreachable from any client path, since SECURITY DEFINER changes the effective user the function runs as, not this GUC. INVARIANT: if publish ever moves behind an edge function (service_role), the gate must be restated there.';
+  'MYK9-579 (round 5 reverted the round-4 widening): server-side backstop for the Stripe-payouts gate on a show entering ''published''. The gated set is (''published'') only — ''accepting_entries'' is not a permitted shows.status (072_align_show_class_statuses.sql), so a round-4 draft that widened the gate to include it was a no-op that could never fire, and stripe-checkout/index.ts''s own ''accepting_entries'' branch is dead code, out of scope here. The status pill (ShowStatusPill.tsx) is the client write surface that can transition a show into or out of ''published'' from any other status. isPublishGateDbError (onlineEntryGate.ts) maps this trigger''s refusal (SQLSTATE MK003) client-side for the pill. Livemode is read from platform_settings.stripe_livemode (Option 1 of the MYK9-579 design decision; flips together with STRIPE_SECRET_KEY for the MYK9-11 live cutover, see the column comment). Fires on BEFORE INSERT OR UPDATE OF status, branching on TG_OP: INSERT gates any row created already published (create_show_with_children and createShow() both let the caller set status); UPDATE gates only a transition INTO ''published'' FROM a different status, and exempts an already-published show (unrelated edits are never re-gated or retroactively un-published). All membership checks use IS DISTINCT FROM, never IN/NOT IN, so a NULL status cannot silently skip the gate. Carves out coalesce(current_setting(''role'', true), ''none'') NOT IN (''authenticated'', ''anon'') — a direct superuser session (no SET ROLE, reads ''none'') and service_role (edge functions, crons, the seed script, supabase/tests/*.sql fixtures) both bypass; only the two roles PostgREST actually runs requests as are gated. Unreachable from any client path, since SECURITY DEFINER changes the effective user the function runs as, not this GUC. INVARIANT: if publish ever moves behind an edge function (service_role), the gate must be restated there.';
 
 DROP TRIGGER IF EXISTS trg_enforce_show_publish_gate ON public.shows;
 CREATE TRIGGER trg_enforce_show_publish_gate

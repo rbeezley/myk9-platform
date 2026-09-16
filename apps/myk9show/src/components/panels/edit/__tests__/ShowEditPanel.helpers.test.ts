@@ -1,12 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { GeneratedPremium } from '@/types/premium-types';
 import { showSchemas } from '@/lib/validation';
-import {
-  formDataToShow,
-  formDataToShowSaveData,
-  showToFormData,
-  publishGateError,
-} from '../ShowEditPanel.helpers';
+import { formDataToShow, formDataToShowSaveData, showToFormData } from '../ShowEditPanel.helpers';
 import type { ShowEditFormData } from '../ShowEditPanel.types';
 
 const generatedPremium: GeneratedPremium = {
@@ -137,94 +132,5 @@ describe('ShowEditPanel helpers', () => {
 
     expect(parsed.success).toBe(false);
     expect(parsed.error?.issues[0]?.message).toMatch(/shared show content/i);
-  });
-});
-
-// MYK9-579 round 4: publishing now happens in exactly one place -- the
-// status pill (ShowStatusPill.tsx) -- so the panel's Status dropdown no
-// longer offers "Published" for a draft (see ShowEditBasicInfoTab.test.tsx
-// for the dropdown-option coverage). publishGateError stays only as a
-// minimal guard for the case this dropdown restriction cannot fully cover
-// server-side: an already-published show being saved must never be
-// re-gated, and a draft->published call (now unreachable from the UI, but
-// not impossible to construct) must still fail closed.
-describe('publishGateError', () => {
-  const enabled = { payouts_enabled: true };
-  const disabled = { payouts_enabled: false };
-  const authorized = { authorized_at: '2026-01-01T00:00:00Z' };
-  const unauthorized = { authorized_at: null };
-
-  it('allows publishing with a payout-enabled account', () => {
-    expect(publishGateError('draft', 'published', 'club-1', enabled, authorized)).toBeNull();
-  });
-
-  it('never re-gates an already-published show (unrelated edits must save)', () => {
-    expect(publishGateError('published', 'published', 'club-1', null, null)).toBeNull();
-    expect(publishGateError('published', 'published', 'club-1', enabled, authorized)).toBeNull();
-  });
-
-  it('ignores non-publish transitions', () => {
-    expect(publishGateError('draft', 'cancelled', 'club-1', null, null)).toBeNull();
-    expect(publishGateError('published', 'draft', '', null, null)).toBeNull();
-  });
-
-  it('still fails closed on a draft->published call, though the UI can no longer make one', () => {
-    expect(publishGateError('draft', 'published', 'club-1', null, authorized)).toMatch(
-      /payment account/i
-    );
-    expect(publishGateError('draft', 'published', '', enabled, null)).toMatch(/club/i);
-  });
-
-  // MYK9-572: a second, independent publish-gate check — a club must be
-  // authorized by a site admin, regardless of Stripe readiness.
-  describe('club authorization', () => {
-    it('blocks newly publishing an unauthorized club before checking Stripe readiness', () => {
-      expect(publishGateError('draft', 'published', 'club-1', enabled, unauthorized)).toMatch(
-        /hasn't been authorized/i
-      );
-    });
-
-    it('allows publishing once the club is authorized and Stripe-ready', () => {
-      expect(publishGateError('draft', 'published', 'club-1', enabled, authorized)).toBeNull();
-    });
-
-    // P3-1: the case above pairs "unauthorized" with `enabled` (Stripe
-    // READY), so it cannot actually prove ordering — a helper that checked
-    // Stripe FIRST would also pass, since Stripe readiness is satisfied
-    // either way. Pair unauthorized with `disabled` so only a real
-    // "authorization wins" implementation can pass.
-    it('returns the authorization message, not the Stripe one, when the club is both unauthorized and not Stripe-ready', () => {
-      expect(publishGateError('draft', 'published', 'club-1', disabled, unauthorized)).toMatch(
-        /hasn't been authorized/i
-      );
-      expect(publishGateError('draft', 'published', 'club-1', disabled, unauthorized)).not.toMatch(
-        /payment account/i
-      );
-    });
-
-    // Round-2 review (P2-5): a caller that could not read the club row (RLS,
-    // failed fetch) must fail CLOSED, not skip the check — the prior version
-    // of this test asserted the opposite (a bug: `club && ...` let a null
-    // club bypass the gate entirely).
-    it('fails closed when the club row could not be read (null or undefined)', () => {
-      expect(publishGateError('draft', 'published', 'club-1', enabled, null)).toMatch(
-        /hasn't been authorized/i
-      );
-      expect(
-        publishGateError(
-          'draft',
-          'published',
-          'club-1',
-          enabled,
-          undefined as unknown as { authorized_at: string | null } | null
-        )
-      ).toMatch(/hasn't been authorized/i);
-    });
-
-    it('never re-gates an already-published show even for an unauthorized club', () => {
-      expect(
-        publishGateError('published', 'published', 'club-1', enabled, unauthorized)
-      ).toBeNull();
-    });
   });
 });

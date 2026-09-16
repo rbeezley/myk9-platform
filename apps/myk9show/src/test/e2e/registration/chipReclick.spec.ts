@@ -20,6 +20,7 @@ import { expect, test } from '@playwright/test';
 import { signInAsExhibitor } from '../helpers/testUsers';
 import {
   chipById,
+  clickClearOfStickyChrome,
   chipClassId,
   enabledClassChips,
   selectFirstDogAndContinue,
@@ -51,18 +52,6 @@ async function cartCount(page: import('@playwright/test').Page): Promise<number>
 test('select, re-click to deselect, select again — no error, count correct throughout', async ({
   page,
 }) => {
-  // Below the tablet breakpoint the shared `selectFirstDogAndContinue` helper
-  // cannot click the dog row at all: the sticky wizard header and the sticky
-  // "Your entries" bar both intercept the click. That is pre-existing and
-  // nothing to do with this fix — the already-merged `wizardRehydrate.spec.ts`
-  // fails identically on the `mobile-chrome` project — so this spec asserts
-  // where the helper works rather than adding a second red for the same cause.
-  const width = page.viewportSize()?.width ?? 0;
-  test.skip(
-    width > 0 && width < 768,
-    'selectFirstDogAndContinue cannot click the dog row under the sticky wizard chrome at phone width (pre-existing)'
-  );
-
   const consoleErrors: string[] = [];
   page.on('console', msg => {
     if (msg.type() === 'error') consoleErrors.push(msg.text());
@@ -99,26 +88,26 @@ test('select, re-click to deselect, select again — no error, count correct thr
   const chip = chipById(page, classId);
   await expect(chip).toHaveCount(1);
 
-  await chip.click();
+  await clickClearOfStickyChrome(page, chip);
   await expect(chip.and(page.locator('[data-checked]'))).toHaveCount(1, { timeout: 25000 });
   await expect.poll(() => cartCount(page), { timeout: 25000 }).toBe(baseline + 1);
   await page.screenshot({ path: `${EVIDENCE}/02-selected.png`, fullPage: true });
 
   // ── 2. Re-click the SELECTED chip: it must deselect, not re-insert ────────
   // This is the exact click that raised the 23505.
-  await chip.click();
+  await clickClearOfStickyChrome(page, chip);
   await expect(chip.and(page.locator('[data-checked]'))).toHaveCount(0, { timeout: 25000 });
   await expect.poll(() => cartCount(page), { timeout: 25000 }).toBe(baseline);
   await page.screenshot({ path: `${EVIDENCE}/03-deselected.png`, fullPage: true });
 
   // ── 3. Select again ──────────────────────────────────────────────────────
-  await chip.click();
+  await clickClearOfStickyChrome(page, chip);
   await expect(chip.and(page.locator('[data-checked]'))).toHaveCount(1, { timeout: 25000 });
   await expect.poll(() => cartCount(page), { timeout: 25000 }).toBe(baseline + 1);
   await page.screenshot({ path: `${EVIDENCE}/04-reselected.png`, fullPage: true });
 
   // ── 4. Clean up through the UI ───────────────────────────────────────────
-  await chip.click();
+  await clickClearOfStickyChrome(page, chip);
   await expect(chip.and(page.locator('[data-checked]'))).toHaveCount(0, { timeout: 25000 });
   await expect.poll(() => cartCount(page), { timeout: 25000 }).toBe(baseline);
   await page.screenshot({ path: `${EVIDENCE}/05-cleaned-up.png`, fullPage: true });

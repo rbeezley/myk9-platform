@@ -16,6 +16,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { cn, getInitials } from '@/lib/utils';
+import { badgeVariants } from '@/utils/badgeVariants';
 import { formatDogAge, getDogRegisteredName } from '@/types/dog-types';
 import { DogRegistryTable } from '@/components/dogs/common/DogRegistryTable';
 import { buildDogCardRegistryModel } from '@/components/dogs/common/dogRegistryModel';
@@ -155,6 +156,7 @@ const DogIdentityRail: React.FC<DogIdentityRailProps> = ({
             onChangeStatus={onStatusDialogOpen}
             onDelete={canDelete ? onDeleteDialogOpen : undefined}
             editLabel="Edit Dog"
+            {...(isSecretary ? { hideEdit: true } : {})}
             triggerClassName="h-11 w-11 rounded-full border border-border bg-card text-foreground shadow-sm hover:bg-accent"
           />
         </div>
@@ -178,39 +180,35 @@ const DogIdentityRail: React.FC<DogIdentityRailProps> = ({
               {sexBadge.label}
             </Badge>
           )}
-          {statusBadge &&
-            (onStatusDialogOpen ? (
-              /* The badge announces the lifecycle state, so it is also the
-                 control that changes it — the ThreeDotMenu item is the same
-                 dialog, kept for keyboard/menu users and for parity with the
-                 other card actions. */
-              <button
-                type="button"
-                onClick={onStatusDialogOpen}
-                aria-haspopup="dialog"
-                title="Change status"
-                className="rounded-full focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-              >
-                <Badge
-                  variant="secondary"
-                  className={cn(statusBadge.className, 'cursor-pointer hover:brightness-110')}
-                >
-                  {statusBadge.label}
-                  {deceasedSuffix}
-                  <Pencil className="ml-1 h-3 w-3" aria-hidden="true" />
-                  <span className="sr-only"> — change status</span>
-                </Badge>
-              </button>
-            ) : (
-              <Badge variant="secondary" className={statusBadge.className}>
-                {statusBadge.label}
-                {deceasedSuffix}
-              </Badge>
-            ))}
+          {statusBadge && (
+            /* The badge announces the lifecycle state, so it is also the control
+               that changes it. The ThreeDotMenu item opens the same dialog, kept
+               for parity with the card's other actions. */
+            <button
+              type="button"
+              onClick={onStatusDialogOpen}
+              aria-haspopup="dialog"
+              title="Change status"
+              className={cn(
+                badgeVariants({ variant: 'secondary' }),
+                statusBadge.className,
+                // `badgeVariants`' base ring is on `:focus`, written for a <div>
+                // that can never match it. Live on a real <button>, that would
+                // leave a ring behind after a mouse click.
+                'cursor-pointer hover:brightness-110 focus:ring-0',
+                'focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2'
+              )}
+            >
+              {statusBadge.label}
+              {deceasedSuffix}
+              <Pencil className="ml-1 h-3 w-3" aria-hidden="true" />
+              <span className="sr-only"> — change status</span>
+            </button>
+          )}
         </div>
 
         {!isSecretary && (
-          <div className="mt-4 flex items-center gap-2">
+          <div className="mt-4">
             <Button variant="default" className="min-h-11 w-full gap-1.5" asChild>
               {/* Carries this dog through browse -> show detail -> the entry
                   wizard, which preselects it if it is still enterable
@@ -302,7 +300,7 @@ const DogIdentityRail: React.FC<DogIdentityRailProps> = ({
           {ownerBody}
         </div>
         {isSecretary && (
-          <div className="mt-6 flex items-center gap-2">
+          <div className="mt-6">
             <Button variant="outline" className="min-h-11 w-full gap-1.5" onClick={onEditPanelOpen}>
               <Pencil className="h-4 w-4" />
               Edit

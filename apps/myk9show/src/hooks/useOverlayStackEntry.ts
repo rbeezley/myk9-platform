@@ -1,5 +1,9 @@
 import { useEffect, useRef } from 'react';
-import { popOpenOverlay, pushOpenOverlay } from '@/lib/overlayStack';
+import {
+  popOpenOverlay,
+  pushOpenOverlay,
+  releaseBodyScrollIfNoOverlays,
+} from '@/lib/overlayStack';
 
 /**
  * Registers a modal surface in the shared open-overlay stack for as long as it
@@ -20,6 +24,12 @@ export function useOverlayStackEntry(open: boolean, label = 'overlay'): void {
     const id = idRef.current;
     if (!open) return;
     pushOpenOverlay(id);
-    return () => popOpenOverlay(id);
+    return () => {
+      popOpenOverlay(id);
+      // Registering in the stack makes this surface part of the body-scroll
+      // lock's release condition, so it carries the release too -- a panel
+      // beneath it may unmount first and be unable to perform it.
+      releaseBodyScrollIfNoOverlays();
+    };
   }, [open]);
 }

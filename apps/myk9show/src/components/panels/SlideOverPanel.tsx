@@ -6,9 +6,10 @@ import { FormSkeleton } from '@/components/common/SkeletonLoaders';
 import { useRegisterActionBar } from '@/hooks/useRegisterActionBar';
 import {
   isTopmostOverlay,
-  openOverlayCount,
+  lockBodyScroll,
   popOpenOverlay,
   pushOpenOverlay,
+  releaseBodyScrollIfNoOverlays,
 } from '@/lib/overlayStack';
 
 export interface SlideOverPanelProps {
@@ -187,20 +188,19 @@ export const SlideOverPanel: React.FC<SlideOverPanelProps> = ({
   // inline `onClose`/`preventClose` prop (new identity every parent render)
   // must not re-push this panel's id while another panel is open above it, or
   // it would jump to the top of the stack and steal Escape from the panel
-  // that actually opened later. Same reasoning applies to body-scroll lock:
-  // closing a nested panel must not unlock scroll while an outer panel is
-  // still open, so `overflow` only resets to 'unset' once the stack is empty.
+  // that actually opened later. The body-scroll lock follows the same rule --
+  // closing a nested panel must not unlock scroll while an outer panel is still
+  // open -- but the release now lives in `overlayStack` so that whichever
+  // overlay empties the stack performs it, whatever the unmount order.
   useEffect(() => {
     const panelId = panelIdRef.current;
     if (open) {
       pushOpenOverlay(panelId);
-      document.body.style.overflow = 'hidden';
+      lockBodyScroll();
     }
     return () => {
       popOpenOverlay(panelId);
-      if (openOverlayCount() === 0) {
-        document.body.style.overflow = 'unset';
-      }
+      releaseBodyScrollIfNoOverlays();
     };
   }, [open]);
 

@@ -2,7 +2,6 @@ import React, { useContext } from 'react';
 import { Activity } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Label } from '@/components/ui/label';
 import { DOG_STATUS_BADGES } from '@/components/dogs/common/dogStatusBadges';
 import { DogEditContext } from './DogEditPanel';
 
@@ -26,9 +25,12 @@ export const DogStatusRow: React.FC = () => {
   return (
     <div className="flex items-center justify-between gap-4 pb-4 border-b border-border/30">
       <div className="space-y-1">
-        <Label className="text-xs font-medium text-muted-foreground tracking-wide uppercase">
+        {/* A <span>, not the shared <Label>: there is no form control here for a
+            label to name -- the value is a badge, and the edit happens in the
+            dialog the button raises. */}
+        <span className="block text-xs font-medium text-muted-foreground tracking-wide uppercase">
           Status
-        </Label>
+        </span>
         <div>
           {badge && (
             <Badge variant="secondary" className={badge.className}>

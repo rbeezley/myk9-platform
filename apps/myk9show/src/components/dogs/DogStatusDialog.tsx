@@ -24,8 +24,16 @@ interface DogStatusDialogProps {
   onSave: (status: DogStatus, deceasedDate?: string) => void;
 }
 
-const OPTION_LABEL =
-  'cursor-pointer text-sm font-medium normal-case tracking-normal text-foreground';
+/**
+ * The shared `Label` is a FIELD label: text-xs, muted, `uppercase`. These are
+ * option names with a sentence of explanation UNDER them, and the explanation
+ * stays INSIDE the label so the whole two-line block remains one click target
+ * and the radio's accessible name keeps the description. That nesting is what
+ * made the description inherit `uppercase` and render as "PRESERVES JUNI'S
+ * RECORDS AND COMPETITION HISTORY" at someone marking their dog deceased;
+ * `normal-case` fixes the casing without shrinking the target to one word.
+ */
+const OPTION_LABEL = 'cursor-pointer block normal-case tracking-normal';
 
 /** Inner form that mounts fresh each time the dialog opens */
 function StatusForm({
@@ -61,36 +69,30 @@ function StatusForm({
         <RadioGroup value={status} onValueChange={val => setStatus(val as DogStatus)}>
           <div className="flex items-start space-x-3">
             <RadioGroupItem value="active" id="status-active" className="mt-0.5" />
-            <div>
-              <Label htmlFor="status-active" className={OPTION_LABEL}>
-                Active
-              </Label>
-              <p className="text-sm text-muted-foreground">
+            <Label htmlFor="status-active" className={OPTION_LABEL}>
+              <span className="block text-sm font-medium text-foreground">Active</span>
+              <span className="block text-sm text-muted-foreground">
                 Currently showing and eligible for entries
-              </p>
-            </div>
+              </span>
+            </Label>
           </div>
           <div className="flex items-start space-x-3">
             <RadioGroupItem value="retired" id="status-retired" className="mt-0.5" />
-            <div>
-              <Label htmlFor="status-retired" className={OPTION_LABEL}>
-                Retired
-              </Label>
-              <p className="text-sm text-muted-foreground">
+            <Label htmlFor="status-retired" className={OPTION_LABEL}>
+              <span className="block text-sm font-medium text-foreground">Retired</span>
+              <span className="block text-sm text-muted-foreground">
                 No longer showing but records are preserved
-              </p>
-            </div>
+              </span>
+            </Label>
           </div>
           <div className="flex items-start space-x-3">
             <RadioGroupItem value="deceased" id="status-deceased" className="mt-0.5" />
-            <div>
-              <Label htmlFor="status-deceased" className={OPTION_LABEL}>
-                Deceased
-              </Label>
-              <p className="text-sm text-muted-foreground">
+            <Label htmlFor="status-deceased" className={OPTION_LABEL}>
+              <span className="block text-sm font-medium text-foreground">Deceased</span>
+              <span className="block text-sm text-muted-foreground">
                 Preserves {dogName}&apos;s records and competition history
-              </p>
-            </div>
+              </span>
+            </Label>
           </div>
         </RadioGroup>
 

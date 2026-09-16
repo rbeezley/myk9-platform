@@ -39,7 +39,8 @@ export interface DogIdentityRailProps {
   onEditPanelOpen: () => void;
   onPhotoDialogOpen: () => void;
   onDeleteDialogOpen: () => void;
-  onStatusDialogOpen?: () => void;
+  /** Required: the status badge itself is a button that raises the dialog. */
+  onStatusDialogOpen: () => void;
   /** When false, the Delete action is hidden (user fails the delete permission gate). */
   canDelete?: boolean;
   /** Route-entry focus target (task 3.8) — the page's main heading. */

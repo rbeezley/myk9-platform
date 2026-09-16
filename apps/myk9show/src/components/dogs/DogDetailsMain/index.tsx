@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { toast } from 'sonner';
 import { useQuery } from '@tanstack/react-query';
@@ -249,6 +249,11 @@ const DogDetailsMain: React.FC<DogDetailsMainProps> = ({
     }
   };
 
+  // Stable identity: this is passed to the rail AND, through DogDialogs, into
+  // DogEditPanel's context memo — an inline arrow would give that memo a new
+  // object on every render of this page.
+  const openStatusDialog = useCallback(() => setIsStatusDialogOpen(true), []);
+
   const breadcrumbItems = useBreadcrumb({
     currentPage: 'dog',
     dog: updatedDog,
@@ -286,7 +291,7 @@ const DogDetailsMain: React.FC<DogDetailsMainProps> = ({
             onEditPanelOpen={() => setIsEditPanelOpen(true)}
             onPhotoDialogOpen={() => handlePhotoDialogOpen(true)}
             onDeleteDialogOpen={() => setIsDeleteDialogOpen(true)}
-            onStatusDialogOpen={() => setIsStatusDialogOpen(true)}
+            onStatusDialogOpen={openStatusDialog}
             canDelete={canDeleteDog}
             headingRef={headingRef}
           />
@@ -334,7 +339,7 @@ const DogDetailsMain: React.FC<DogDetailsMainProps> = ({
         canForceDelete={canForceDeleteDog}
         onEditPanelClose={() => setIsEditPanelOpen(false)}
         onDeleteDialogClose={() => setIsDeleteDialogOpen(false)}
-        onStatusDialogOpen={() => setIsStatusDialogOpen(true)}
+        onStatusDialogOpen={openStatusDialog}
         onDelete={onDelete}
         onForceDelete={onForceDelete}
         onUpdate={onUpdate}

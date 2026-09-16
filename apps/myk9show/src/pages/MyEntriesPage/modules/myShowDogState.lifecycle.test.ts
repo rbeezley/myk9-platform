@@ -13,7 +13,7 @@
  * Split out of `myShowDogState.test.ts` so both files stay under 500 lines.
  */
 import { describe, it, expect } from 'vitest';
-import { NON_RUNNING_ENTRY_STATUSES } from '@/features/_shared/entryAccounting';
+import { EXCLUDED_ENTRY_STATUSES } from '@/features/_shared/entryAccounting';
 import {
   getEntryStatusKindForDisplay,
   type EntryStatusKind,
@@ -61,7 +61,7 @@ function stateOfRaw(rawStatus: string, overrides: Partial<EntryClass> = {}): Cla
 describe('deriveClassRowState — settled by lifecycle, from raw statuses', () => {
   it.each<[string, ClassRowKind, EntryStatusKind]>([
     ['withdrawn', 'withdrawn', 'withdrawn'],
-    ['scratched', 'withdrawn', 'scratched'],
+    ['scratched', 'scratched', 'scratched'],
     ['absent', 'absent', 'absent'],
     ['moved', 'moved', 'moved'],
     ['not_accepted', 'not-accepted', 'not_accepted'],
@@ -98,18 +98,36 @@ describe('deriveClassRowState — settled by lifecycle, from raw statuses', () =
     expect(stateOfRaw('confirmed')).toBe('check-in-available');
   });
 
-  // A row with no classification at all must read as live rather than be
-  // silently settled; `EntryClass.entryStatusKind` is optional on the type.
-  it('leaves an unclassified row live', () => {
-    expect(rowKind([makeClass({ entryStatusKind: undefined })])).toBe('check-in-available');
+  // `EntryClass.entryStatusKind` is still OPTIONAL on the type: making it
+  // required means adding it to 24 fixture builders, one of which
+  // (`myEntryCardState.test.ts`) belongs to the open PR #2301, so this branch
+  // cannot be deleted yet. No PRODUCER emits a class without a kind — a
+  // typecheck with the field required reports 27 errors and every one is a
+  // test fixture — so this covers the type's optionality, not a real shape.
+  it('leaves a row with no classification live (type-level guard)', () => {
+    const cls = classFromRawStatus('confirmed');
+    delete (cls as { entryStatusKind?: unknown }).entryStatusKind;
+    expect(rowKind([cls])).toBe('check-in-available');
   });
 
-  // Coupling to the shared lifecycle list: if `entryAccounting` grows a
-  // non-running status, this fails rather than letting the new one fall through
-  // to "check in with the secretary" on the trial day.
-  it('settles every status entryAccounting calls non-running', () => {
-    for (const rawStatus of NON_RUNNING_ENTRY_STATUSES) {
-      expect([rawStatus, stateOfRaw(rawStatus)]).not.toEqual([rawStatus, 'closed-today']);
+  // Coupling to the shared lifecycle list, over ALL five of its members: if
+  // `entryAccounting` grows an excluded status, this fails rather than letting
+  // the new one fall through to the day math.
+  const SETTLED_KINDS: readonly ClassRowKind[] = [
+    'withdrawn',
+    'scratched',
+    'absent',
+    'moved',
+    'not-accepted',
+  ];
+
+  it('settles every status entryAccounting excludes from the expected set', () => {
+    expect(EXCLUDED_ENTRY_STATUSES.size).toBe(5);
+    for (const rawStatus of EXCLUDED_ENTRY_STATUSES) {
+      expect([rawStatus, stateOfRaw(rawStatus)]).toEqual([
+        rawStatus,
+        expect.stringMatching(new RegExp(`^(${SETTLED_KINDS.join('|')})$`)),
+      ]);
     }
   });
 
@@ -119,18 +137,30 @@ describe('deriveClassRowState — settled by lifecycle, from raw statuses', () =
   it('lets a recorded absence outrank the withdrawal', () => {
     expect(stateOfRaw('withdrawn', { resultStatus: 'excused' })).toBe('absent');
   });
-
-  // A cancelled show stamps kind `withdrawn` on every class
-  // (`useMyEntriesData.getOwnEntryStatusKind`). That is the club's decision,
-  // not the exhibitor's, and the dog chip already carries it.
-  it('does not settle a live row just because the show was cancelled', () => {
-    expect(rowKind([makeClass({ entryStatusKind: 'withdrawn' })], { isShowCancelled: true })).toBe(
-      'closed-today'
-    );
-  });
 });
 
 describe('deriveDogChip — the live filter shares the row predicate', () => {
+  // Round 3: `checkInBearingClasses` used `isExpectedEntry`, which reads the
+  // lossy UI enum. An absent class projects onto PENDING there, was counted as
+  // a class still owing a check-in, and held the chip on "Accepted" over a dog
+  // that had already checked in for everything it was going to run.
+  it('reaches Checked in past an absent class', () => {
+    const { dog, group } = buildDog(
+      [
+        classFromRawStatus('absent', { id: 'c1' }),
+        classFromRawStatus('confirmed', {
+          id: 'c2',
+          classId: 'class-2',
+          checkInStatus: 'checked-in',
+        }),
+      ],
+      { entryStatus: mapEntryStatus('confirmed'), entryStatusKind: 'accepted' }
+    );
+    expect(
+      deriveDogChip(dog, { isPastShow: false, isShowCancelled: group.isShowCancelled })
+    ).toEqual({ kind: 'checked_in', label: 'Checked in', status: 'checked_in' });
+  });
+
   it('ignores a settled class’s stale check-in state', () => {
     const { dog, group } = buildDog(
       [

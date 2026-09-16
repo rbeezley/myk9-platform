@@ -43,7 +43,17 @@ export const NON_RUNNING_ENTRY_STATUSES: ReadonlySet<string> = new Set([
   'absent',
 ]);
 
-const EXCLUDED_ENTRY_STATUSES = new Set([...NON_RUNNING_ENTRY_STATUSES, 'moved', 'not_accepted']);
+/**
+ * Every lifecycle state `isExpectedEntry` excludes: the non-running set plus
+ * the two that settle an entry somewhere else. Exported so a surface deriving
+ * per-row display from these can prove it covers all of them rather than
+ * copying a subset (MYK9-582).
+ */
+export const EXCLUDED_ENTRY_STATUSES: ReadonlySet<string> = new Set([
+  ...NON_RUNNING_ENTRY_STATUSES,
+  'moved',
+  'not_accepted',
+]);
 
 /**
  * Result states that settle an entry without a score. Deliberately narrow:

@@ -88,31 +88,42 @@ describe('MyShowDogCard — a withdrawn class beside a live one (MYK9-582)', () 
   it('marks only the withdrawn row', () => {
     renderRows([withdrawnRow(), liveRow()]);
 
-    expect(rowFor('Container Novice')).toHaveTextContent('Withdrawn');
-    expect(rowFor('Vehicle Advanced')).not.toHaveTextContent('Withdrawn');
+    expect(rowFor('Container Novice')).toHaveTextContent('withdrawn');
+    expect(rowFor('Vehicle Advanced')).not.toHaveTextContent('withdrawn');
   });
 
   it('reads the dog-level status off the live entry only', () => {
     renderRows([withdrawnRow(), liveRow()]);
 
     expect(screen.getByText('Pending review')).toBeInTheDocument();
-    // The row says it; the dog-level chip must not.
-    expect(screen.getAllByText('Withdrawn')).toHaveLength(1);
+    // The row's lowercase word is there; the chip's capitalised one is not.
+    expect(screen.getByText('withdrawn')).toBeInTheDocument();
+    expect(screen.queryByText('Withdrawn')).not.toBeInTheDocument();
   });
 
   it('control — every class withdrawn keeps the dog-level withdrawn chip', () => {
     renderRows([withdrawnRow()]);
 
-    expect(rowFor('Container Novice')).toHaveTextContent('Withdrawn');
-    // Two: the row and the chip, which agree by design.
-    expect(screen.getAllByText('Withdrawn')).toHaveLength(2);
+    // The row's own word and the chip's, in the case each column uses.
+    expect(rowFor('Container Novice')).toHaveTextContent('withdrawn');
+    expect(screen.getByText('Withdrawn')).toBeInTheDocument();
     expect(screen.queryByText('Pending review')).not.toBeInTheDocument();
+  });
+
+  // A scratched class is not a withdrawal: the chip says "Scratched", so the
+  // row says `scratched` rather than borrowing the withdrawn word.
+  it('gives a scratched class its own word', () => {
+    renderRows([mapleRow('maple-scratched', 'Container Novice', 'scratched'), liveRow()]);
+
+    const row = rowFor('Container Novice');
+    expect(row).toHaveTextContent('scratched');
+    expect(row).not.toHaveTextContent('withdrawn');
   });
 
   it('control — an all-live card carries no withdrawn marker', () => {
     renderRows([liveRow()]);
 
-    expect(rowFor('Vehicle Advanced')).not.toHaveTextContent('Withdrawn');
+    expect(rowFor('Vehicle Advanced')).not.toHaveTextContent('withdrawn');
     expect(screen.getByText('Pending review')).toBeInTheDocument();
   });
 
@@ -128,10 +139,10 @@ describe('MyShowDogCard — a withdrawn class beside a live one (MYK9-582)', () 
       }),
     ]);
 
-    expect(rowFor('Container Novice')).toHaveTextContent('Withdrawn');
+    expect(rowFor('Container Novice')).toHaveTextContent('withdrawn');
     const dayOf = rowFor('Buried Novice');
     expect(dayOf).toHaveTextContent('pulled');
-    expect(dayOf).not.toHaveTextContent('Withdrawn');
+    expect(dayOf).not.toHaveTextContent('withdrawn');
     expect(within(dayOf).getByRole('button', { name: /Change Maple/ })).toBeInTheDocument();
     expect(
       within(rowFor('Container Novice')).queryByRole('button', { name: /Change Maple/ })
@@ -143,7 +154,7 @@ describe('MyShowDogCard — a withdrawn class beside a live one (MYK9-582)', () 
 
     const row = rowFor('Container Novice');
     expect(row).toHaveTextContent('moved');
-    expect(row).not.toHaveTextContent('Withdrawn');
+    expect(row).not.toHaveTextContent('withdrawn');
   });
 
   it('reads a declined row as not accepted', () => {
@@ -151,7 +162,7 @@ describe('MyShowDogCard — a withdrawn class beside a live one (MYK9-582)', () 
 
     const row = rowFor('Container Novice');
     expect(row).toHaveTextContent('not accepted');
-    expect(row).not.toHaveTextContent('Withdrawn');
+    expect(row).not.toHaveTextContent('withdrawn');
   });
 
   // Owner decision: promotion-expired stays in the review lane. It classifies
@@ -161,7 +172,7 @@ describe('MyShowDogCard — a withdrawn class beside a live one (MYK9-582)', () 
 
     const row = rowFor('Container Novice');
     expect(row).not.toHaveTextContent('not accepted');
-    expect(row).not.toHaveTextContent('Withdrawn');
+    expect(row).not.toHaveTextContent('withdrawn');
   });
 
   // A terminal `entry_status='absent'` row projects onto the PENDING UI enum,
@@ -173,13 +184,24 @@ describe('MyShowDogCard — a withdrawn class beside a live one (MYK9-582)', () 
     expect(rowFor('Container Novice')).not.toHaveTextContent('check in with the secretary');
   });
 
+  // Round 2 added a cancelled-show carve-out that sent every row of a cancelled
+  // show — withdrawn ones included — back to the day math and the exact copy
+  // this issue was filed against. Deleted in round 3: a settled row is settled.
+  it('still settles a withdrawn row when the show is cancelled', () => {
+    renderRows([withdrawnRow(), liveRow()].map(row => ({ ...row, isShowCancelled: true })));
+
+    expect(rowFor('Container Novice')).not.toHaveTextContent('check in with the secretary');
+    expect(screen.getByText('Cancelled')).toBeInTheDocument();
+  });
+
   // A withdrawn row keeps the check-in state it had when it was pulled from the
   // running order; that stale value drove the whole dog chip.
   it('keeps a withdrawn row’s stale check-in state out of the dog chip', () => {
     renderRows([withdrawnRow({ checkInStatus: 'pulled' }), liveRow()]);
 
-    expect(rowFor('Container Novice')).toHaveTextContent('Withdrawn');
+    expect(rowFor('Container Novice')).toHaveTextContent('withdrawn');
     expect(screen.getByText('Pending review')).toBeInTheDocument();
     expect(screen.queryByText('Pulled')).not.toBeInTheDocument();
+    expect(screen.queryByText('pulled')).not.toBeInTheDocument();
   });
 });

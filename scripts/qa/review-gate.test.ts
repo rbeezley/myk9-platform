@@ -23,6 +23,7 @@ import {
   TRUSTED_ASSOCIATIONS,
   VERDICT_BY_TIER,
   verdictAccepted,
+  type EvaluateReviewGateInput,
   type GateComment,
 } from './review-gate';
 import { MIGRATION_LENS, requiredTier, TIER_ORDER } from './review-tier';
@@ -1525,6 +1526,61 @@ describe('runCli’s changed-file fetch', () => {
       fetched: [...docs(419), 'scripts/qa/review-gate.ts'],
     });
     expect(runCli(env, ['--dry-run'], run)).toBe(1);
+  });
+});
+
+/**
+ * MYK9-560 item 4. The short-list invariant has two copies — the
+ * `fileListUnusable` flag runCli computes, and the one `floorFor` re-derives
+ * from `declaredFileCount` — and each was individually unpinned: deleting
+ * `declaredFileCount: view.changedFiles` from the `runCli` call, or hardcoding
+ * `const fileListUnusable = false`, each left all 147 tests green because the
+ * other copy covered it. Neither is observable from runCli's OUTPUT, since
+ * runCli derives both from the same two numbers. These tests assert the input
+ * runCli hands the evaluator, which is where the two are distinguishable.
+ */
+describe('runCli threads BOTH halves of the short-list invariant to the evaluator', () => {
+  const env = { PR_NUMBER: '2121', REPO: FAKE_REPO } as NodeJS.ProcessEnv;
+  const docs = (n: number) => Array.from({ length: n }, (_, i) => `docs/notes/n${i}.md`);
+
+  function capture(opts: { declared?: number; fetched: string[] }): EvaluateReviewGateInput {
+    const run = (args: string[]): string => {
+      if (args[0] === 'pr' && args[1] === 'view') {
+        return JSON.stringify({
+          headRefOid: HEAD,
+          isDraft: false,
+          ...(opts.declared === undefined ? {} : { changedFiles: opts.declared }),
+        });
+      }
+      if (args.some(a => a.includes('/pulls/'))) {
+        return opts.fetched.join('\n') + (opts.fetched.length ? '\n' : '');
+      }
+      if (args.some(a => a.includes('/issues/'))) return JSON.stringify([[]]);
+      throw new Error(`unexpected gh call: ${args.join(' ')}`);
+    };
+    let seen: EvaluateReviewGateInput | undefined;
+    runCli(env, ['--dry-run'], run, input => {
+      seen = input;
+      return { state: 'failure', description: 'captured' };
+    });
+    if (!seen) throw new Error('runCli never called the evaluator');
+    return seen;
+  }
+
+  it('passes GitHub’s declared count through, so the in-module copy can see a short fetch', () => {
+    // Deleting `declaredFileCount: view.changedFiles` from the runCli call
+    // must redden THIS test. Without it `floorFor` compares the fetched list
+    // against itself and its mismatch arm is inert.
+    expect(capture({ declared: 1734, fetched: docs(100) }).declaredFileCount).toBe(1734);
+    expect(capture({ declared: 420, fetched: docs(420) }).declaredFileCount).toBe(420);
+  });
+
+  it('computes the unusable flag itself rather than leaving it to the evaluator', () => {
+    // Hardcoding `const fileListUnusable = false` must redden THIS test.
+    expect(capture({ declared: 1734, fetched: docs(100) }).fileListUnusable).toBe(true);
+    expect(capture({ declared: 420, fetched: docs(420) }).fileListUnusable).toBe(false);
+    // An absent `changedFiles` is a broken assumption, not a normal case.
+    expect(capture({ fetched: docs(3) }).fileListUnusable).toBe(true);
   });
 });
 

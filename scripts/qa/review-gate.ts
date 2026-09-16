@@ -404,7 +404,7 @@ export function adversarialBodyProblem(
   return undefined;
 }
 
-interface EvaluateReviewGateInput {
+export interface EvaluateReviewGateInput {
   headSha: string;
   comments: readonly GateComment[];
   changedFiles: readonly string[];
@@ -716,10 +716,23 @@ interface RestComment {
 /** Shells out to `gh`. Injectable so the fetch shapes below are testable. */
 export type GhRunner = (args: string[]) => string;
 
+/**
+ * The evaluator. Injectable for the same reason `run` is: the short-list
+ * invariant has two copies — the `fileListUnusable` flag computed here and the
+ * one `floorFor` re-derives from `declaredFileCount` — and each was
+ * individually unpinned, because deleting either left the other covering it
+ * and all tests green (MYK9-560 item 4). Neither copy is observable from
+ * runCli's outputs alone, since runCli computes both from the same two
+ * numbers. This seam lets a test assert the INPUT runCli actually hands the
+ * evaluator, which is the only place the two are distinguishable.
+ */
+export type GateEvaluator = (input: EvaluateReviewGateInput) => GateResult;
+
 export function runCli(
   env: NodeJS.ProcessEnv = process.env,
   argv: string[] = process.argv.slice(2),
-  run: GhRunner = gh
+  run: GhRunner = gh,
+  evaluate: GateEvaluator = evaluateReviewGate
 ): number {
   const prNumber = env.PR_NUMBER;
   const repo = env.REPO;
@@ -792,7 +805,7 @@ export function runCli(
         `repos/${repo}/issues/${prNumber}/comments?per_page=100`,
       ])
     );
-    result = evaluateReviewGate({
+    result = evaluate({
       headSha: view.headRefOid,
       changedFiles,
       declaredFileCount: view.changedFiles,

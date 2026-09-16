@@ -16,6 +16,7 @@ import {
   databaseManager,
   REPLICATION_INCREMENTAL_BUFFER_MS_HIGH_CHURN,
   REPLICATION_STORES,
+  type ColdInsertGuardMode,
   type SyncReplicatedTableAdapter,
   type SyncResult,
 } from '@myk9/replication';
@@ -117,6 +118,23 @@ export class ReplicatedEntriesTable extends ReplicatedTable<ReplicatedEntry> {
 
   protected override rebuildUpdatePayload(entry: ReplicatedEntry): Record<string, unknown> {
     return entryToSupabaseRow(entry);
+  }
+
+  /**
+   * MYK9-575: `entries` replicates PER SHOW, so a single-row INSERT from an
+   * account-level surface (/my-entries, /exhibitor/entries) makes the store
+   * non-empty and an unscoped read returns that one row as the whole dataset.
+   * `set()` therefore refuses an INSERT unless the caller names its reason via
+   * `allowColdInsert`; the sync download writes through `batchSet` and is
+   * unaffected.
+   *
+   * Loud in dev/test, quiet in production: a refusal must never crash a
+   * show-day write. The queued server mutation still uploads; only the local
+   * cache row is skipped, which is the safe side (the account read keeps
+   * falling through to PostgREST).
+   */
+  protected override coldInsertGuardMode(): ColdInsertGuardMode | null {
+    return import.meta.env.DEV || import.meta.env.MODE === 'test' ? 'throw' : 'skip';
   }
 
   async sync(syncScopeId: string): Promise<SyncResult> {
@@ -332,7 +350,9 @@ export class ReplicatedEntriesTable extends ReplicatedTable<ReplicatedEntry> {
           const row = data as unknown as EntryRow;
           const hydrated = rowToEntry(row);
           const serverVersion = (row as Record<string, unknown>).version as number | undefined;
-          await this.set(entryId, hydrated, false, undefined, serverVersion);
+          await this.set(entryId, hydrated, false, undefined, serverVersion, {
+            allowColdInsert: 'write-path hydration of a cold show-scoped replica',
+          });
           logger.log(`[${this.getTableName()}] Hydrated cold-replica entry ${entryId} for write`);
           return hydrated;
         }
@@ -471,7 +491,8 @@ export class ReplicatedEntriesTable extends ReplicatedTable<ReplicatedEntry> {
     updates: Partial<ReplicatedEntry>,
     seed: Partial<ReplicatedEntry> = {}
   ): Promise<string | null> {
-    const entry = (await this.get(entryId)) ?? ({ id: entryId, ...seed } as ReplicatedEntry);
+    const cached = await this.get(entryId);
+    const entry = cached ?? ({ id: entryId, ...seed } as ReplicatedEntry);
     const updated: ReplicatedEntry = {
       ...entry,
       ...updates,
@@ -479,7 +500,16 @@ export class ReplicatedEntriesTable extends ReplicatedTable<ReplicatedEntry> {
       _syncStatus: 'pending',
     };
 
-    await this.set(entryId, updated, true);
+    await this.set(
+      entryId,
+      updated,
+      true,
+      undefined,
+      undefined,
+      cached
+        ? undefined
+        : { allowColdInsert: 'secretary lifecycle write seeded from the loaded row' }
+    );
 
     const payload: Record<string, unknown> = {
       id: entryId,
@@ -887,7 +917,9 @@ export class ReplicatedEntriesTable extends ReplicatedTable<ReplicatedEntry> {
       _localOnly: true,
     };
 
-    await this.set(entry.id, newEntry, true);
+    await this.set(entry.id, newEntry, true, undefined, undefined, {
+      allowColdInsert: 'local create of a new entry',
+    });
     const mutationId = await this.queueMutation(
       'INSERT',
       entry.id,

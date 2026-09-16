@@ -51,6 +51,11 @@ import {
 import { mergeNonConflictingServerFields } from '../conflict/detectDirtyRowConflict';
 import { isConflictSurfacingEnabled } from '../conflictConfig';
 import { withQuotaEviction } from '../quota-eviction';
+import {
+  isColdInsertAllowed,
+  type ColdInsertGuardMode,
+  type ReplicatedSetOptions,
+} from './coldInsertGuard';
 
 /**
  * Fraction of a table's current footprint to retain when relieving storage
@@ -383,6 +388,14 @@ export abstract class ReplicatedTable<T extends { id: string }> {
   }
 
   /**
+   * Show-scoped tables override this so `set()` refuses a cold INSERT that the
+   * caller did not opt into (MYK9-575). `null` = account-scoped, no guard.
+   */
+  protected coldInsertGuardMode(): ColdInsertGuardMode | null {
+    return null;
+  }
+
+  /**
    * Set (upsert) a row in local cache
    *
    * @param incomingServerVersion - The server's `version` column value from the
@@ -394,7 +407,8 @@ export abstract class ReplicatedTable<T extends { id: string }> {
     data: T,
     isDirty = false,
     expectedVersion?: number,
-    incomingServerVersion?: number
+    incomingServerVersion?: number,
+    options?: ReplicatedSetOptions
   ): Promise<void> {
     const lockKey = String(id);
     const deferredCount = this.deferredMutationRows.get(lockKey) ?? 0;
@@ -413,7 +427,7 @@ export abstract class ReplicatedTable<T extends { id: string }> {
     // rather than escaping as an unhandled "AbortError: QuotaExceededError".
     try {
       await withQuotaEviction(
-        () => this.setOnce(id, data, isDirty, expectedVersion, incomingServerVersion),
+        () => this.setOnce(id, data, isDirty, expectedVersion, incomingServerVersion, options),
         () => this.relieveQuota(),
         this.logger
       );
@@ -436,7 +450,8 @@ export abstract class ReplicatedTable<T extends { id: string }> {
     data: T,
     isDirty: boolean,
     expectedVersion?: number,
-    incomingServerVersion?: number
+    incomingServerVersion?: number,
+    options?: ReplicatedSetOptions
   ): Promise<void> {
     const db = await this.init();
     const tx = db.transaction(REPLICATION_STORES.REPLICATED_TABLES, 'readwrite');
@@ -444,6 +459,24 @@ export abstract class ReplicatedTable<T extends { id: string }> {
     const normalizedId = String(id);
     const existingRow = (await tx.store.get([this.tableName, normalizedId])) as
       ReplicatedRow<T> | undefined;
+
+    // MYK9-575: a show-scoped table refuses a single-row INSERT unless the
+    // caller names its reason. Decided INSIDE this transaction, on the same
+    // `existingRow` read the write uses, so no sync landing mid-call can
+    // re-open the seeding hole.
+    if (
+      !existingRow &&
+      !isColdInsertAllowed({
+        mode: this.coldInsertGuardMode(),
+        tableName: this.tableName,
+        rowId: normalizedId,
+        options,
+        logger: this.logger,
+      })
+    ) {
+      await tx.done;
+      return;
+    }
 
     // Optimistic locking - verify version hasn't changed
     if (expectedVersion !== undefined && existingRow && existingRow.version !== expectedVersion) {

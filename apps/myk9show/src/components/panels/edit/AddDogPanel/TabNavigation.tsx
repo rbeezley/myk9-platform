@@ -14,8 +14,8 @@ interface TabNavigationProps {
 
 const TAB_TRIGGER_BASE = cn(
   'flex items-center justify-center gap-2 rounded-lg transition-all duration-300 ease-apple',
-  'data-[state=active]:bg-gradient-to-r data-[state=active]:from-primary/10 data-[state=active]:to-primary/5',
-  'data-[state=active]:text-primary data-[state=active]:shadow-sm data-[state=active]:scale-[1.02]',
+  'aria-selected:bg-gradient-to-r aria-selected:from-primary/10 aria-selected:to-primary/5',
+  'aria-selected:text-primary aria-selected:shadow-sm aria-selected:scale-[1.02]',
   'hover:bg-muted/20 hover:scale-[1.01] active:scale-[0.98]'
 );
 
@@ -37,7 +37,7 @@ export const TabNavigation: React.FC<TabNavigationProps> = ({
         value="basic"
         className={cn(
           TAB_TRIGGER_BASE,
-          !isBasicValid && 'text-destructive/80 data-[state=active]:text-destructive'
+          !isBasicValid && 'text-destructive/80 aria-selected:text-destructive'
         )}
       >
         <Heart className="h-4 w-4" />
@@ -50,7 +50,7 @@ export const TabNavigation: React.FC<TabNavigationProps> = ({
         value="registration"
         className={cn(
           TAB_TRIGGER_BASE,
-          showRegistrationError && 'text-destructive/80 data-[state=active]:text-destructive'
+          showRegistrationError && 'text-destructive/80 aria-selected:text-destructive'
         )}
       >
         <FileText className="h-4 w-4" />

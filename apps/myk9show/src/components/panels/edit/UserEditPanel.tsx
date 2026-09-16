@@ -29,7 +29,7 @@ import { ComplimentaryPremiumSection } from './ComplimentaryPremiumSection';
 export type { UserEditPanelProps, UserFormData } from './UserEditPanel.types';
 
 const TAB_TRIGGER_CLASS =
-  'gap-2 data-[state=active]:bg-gradient-to-r data-[state=active]:from-primary/10 data-[state=active]:to-primary/5 data-[state=active]:text-primary data-[state=active]:shadow-sm rounded-lg transition-all duration-300';
+  'gap-2 aria-selected:bg-gradient-to-r aria-selected:from-primary/10 aria-selected:to-primary/5 aria-selected:text-primary aria-selected:shadow-sm rounded-lg transition-all duration-300';
 
 // Form content component
 const UserEditForm: React.FC<{ userId: string }> = ({ userId }) => {

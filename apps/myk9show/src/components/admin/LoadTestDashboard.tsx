@@ -213,13 +213,13 @@ export function LoadTestDashboard() {
             <TabsList className="grid w-full grid-cols-2 bg-gradient-to-r from-muted/50 to-muted/30 border border-border/30 rounded-xl p-1">
               <TabsTrigger
                 value="load-tests"
-                className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-primary/10 data-[state=active]:to-primary/5 data-[state=active]:text-primary data-[state=active]:shadow-sm rounded-lg transition-all duration-300"
+                className="aria-selected:bg-gradient-to-r aria-selected:from-primary/10 aria-selected:to-primary/5 aria-selected:text-primary aria-selected:shadow-sm rounded-lg transition-all duration-300"
               >
                 Load Testing
               </TabsTrigger>
               <TabsTrigger
                 value="results"
-                className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-primary/10 data-[state=active]:to-primary/5 data-[state=active]:text-primary data-[state=active]:shadow-sm rounded-lg transition-all duration-300"
+                className="aria-selected:bg-gradient-to-r aria-selected:from-primary/10 aria-selected:to-primary/5 aria-selected:text-primary aria-selected:shadow-sm rounded-lg transition-all duration-300"
               >
                 Results Analysis
               </TabsTrigger>

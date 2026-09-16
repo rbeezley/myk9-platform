@@ -37,14 +37,8 @@ export const DogTabTrigger: React.FC<DogTabTriggerProps> = ({
       'border-0 border-b-2 font-medium text-sm transition-all duration-200',
       'bg-transparent rounded-none cursor-pointer',
       isActive
-        ? [
-            'text-primary border-primary font-semibold',
-            'data-[state=active]:text-primary data-[state=active]:border-primary',
-          ]
-        : [
-            'text-muted-foreground border-transparent hover:text-foreground',
-            'data-[state=inactive]:text-muted-foreground data-[state=inactive]:border-transparent',
-          ]
+        ? 'text-primary border-primary font-semibold'
+        : 'text-muted-foreground border-transparent hover:text-foreground'
     )}
   >
     <span>{dog?.callName || dog?.name || 'Unknown'}</span>

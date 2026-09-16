@@ -16,6 +16,15 @@ insert into public.clubs (id, name)
 values ('00000000-0000-0000-0000-000000561001', 'MYK9-561 Club');
 
 -- A: open (no close date). B: entries closed ten days ago. C: soft-deleted.
+-- D: the close day ITSELF, which is the only value that separates the guard's
+-- `>` from a `>=` — ten days out, `>`, `>=` and a timezone-dropped variant all
+-- agree, so show B alone cannot pin the boundary.
+--
+-- Both close dates are written as EXPLICIT midnight UTC, the way the app stores
+-- a close date typed as a calendar day, rather than `current_date::timestamptz`
+-- (midnight in the SERVER's timezone, which lands on the previous UTC day for
+-- any positive UTC offset and would make this fixture's verdict depend on where
+-- it runs).
 insert into public.shows (id, name, organization, start_date, end_date, club_id, status,
   entry_close_date, deleted_at)
 values
@@ -23,9 +32,12 @@ values
     current_date, current_date, '00000000-0000-0000-0000-000000561001', 'published', null, null),
   ('00000000-0000-0000-0000-000000561004', 'MYK9-561 Show B', 'AKC',
     current_date, current_date, '00000000-0000-0000-0000-000000561001', 'published',
-    (current_date - 10)::timestamptz, null),
+    ((current_date - 10)::text || ' 00:00:00+00')::timestamptz, null),
   ('00000000-0000-0000-0000-000000561005', 'MYK9-561 Show C', 'AKC',
-    current_date, current_date, '00000000-0000-0000-0000-000000561001', 'published', null, now());
+    current_date, current_date, '00000000-0000-0000-0000-000000561001', 'published', null, now()),
+  ('00000000-0000-0000-0000-000000561008', 'MYK9-561 Show D', 'AKC',
+    current_date, current_date, '00000000-0000-0000-0000-000000561001', 'published',
+    (current_date::text || ' 00:00:00+00')::timestamptz, null);
 
 insert into public.trials (id, show_id, name, date, registry_id)
 values
@@ -34,7 +46,9 @@ values
   ('00000000-0000-0000-0000-000000561006', '00000000-0000-0000-0000-000000561004',
     'MYK9-561 Trial B', current_date, 'AKC'),
   ('00000000-0000-0000-0000-000000561007', '00000000-0000-0000-0000-000000561005',
-    'MYK9-561 Trial C', current_date, 'AKC');
+    'MYK9-561 Trial C', current_date, 'AKC'),
+  ('00000000-0000-0000-0000-000000561009', '00000000-0000-0000-0000-000000561008',
+    'MYK9-561 Trial D', current_date, 'AKC');
 
 -- `entries_dog_class_unique_idx` is UNIQUE on (dog_id, class_id) WHERE
 -- entry_status <> ALL ('withdrawn','scratched') and does NOT exclude
@@ -51,7 +65,9 @@ values
   ('00000000-0000-0000-0000-000000561151', '00000000-0000-0000-0000-000000561006',
     'Interior Novice B', 'upcoming'),
   ('00000000-0000-0000-0000-000000561152', '00000000-0000-0000-0000-000000561007',
-    'Interior Novice C', 'upcoming');
+    'Interior Novice C', 'upcoming'),
+  ('00000000-0000-0000-0000-000000561153', '00000000-0000-0000-0000-000000561009',
+    'Interior Novice D', 'upcoming');
 
 -- 1 owner, 2 co-owner, 3 handler, 4 outsider, 6 club secretary.
 insert into public.people (id, first_name, last_name, auth_user_id)
@@ -93,6 +109,10 @@ values
   ('00000000-0000-0000-0000-000000561163', '00000000-0000-0000-0000-000000561021',
     '00000000-0000-0000-0000-000000561152', '00000000-0000-0000-0000-000000561005',
     '00000000-0000-0000-0000-000000561007', '00000000-0000-0000-0000-000000561013',
+    'confirmed', 'pending', 25, 'no-status', '8"'),
+  ('00000000-0000-0000-0000-000000561164', '00000000-0000-0000-0000-000000561021',
+    '00000000-0000-0000-0000-000000561153', '00000000-0000-0000-0000-000000561008',
+    '00000000-0000-0000-0000-000000561009', '00000000-0000-0000-0000-000000561013',
     'confirmed', 'pending', 25, 'no-status', '8"');
 
 -- 561132 paid: the deliberate difference from withdraw_own_entry — changing a
@@ -130,19 +150,12 @@ create function pg_temp.assert_jump(
   caller_role text default 'authenticated'
 ) returns void language plpgsql as $$
 declare
-  before_rows jsonb;
-  after_rows jsonb;
   before_version integer;
   actual_error text;
   actual_state text;
   new_height text;
   new_version integer;
 begin
-  select jsonb_object_agg(id::text, to_jsonb(e)) into before_rows
-    from public.entries e
-   where e.show_id in ('00000000-0000-0000-0000-000000561002',
-                       '00000000-0000-0000-0000-000000561004',
-                       '00000000-0000-0000-0000-000000561005');
   select e.version into before_version from public.entries e where e.id = target_id;
 
   perform set_config('request.jwt.claim.sub', coalesce(caller, ''), true);
@@ -166,15 +179,14 @@ begin
       raise exception 'FAIL %: expected %, got SQLSTATE %: %',
         label, expected_error, actual_state, actual_error;
     end if;
-    -- A denied call must change nothing at all, on any row of any of the shows.
-    select jsonb_object_agg(id::text, to_jsonb(e)) into after_rows
-      from public.entries e
-     where e.show_id in ('00000000-0000-0000-0000-000000561002',
-                         '00000000-0000-0000-0000-000000561004',
-                         '00000000-0000-0000-0000-000000561005');
-    if after_rows is distinct from before_rows then
-      raise exception 'FAIL %: denied call changed persisted entry data', label;
-    end if;
+    -- DELIBERATELY NOT a before/after snapshot of the rows. The `begin …
+    -- exception when others` above is an implicit SAVEPOINT, so anything the
+    -- function wrote before raising is already rolled back by the time this
+    -- line runs: such a compare can never fail, and would read as load-bearing
+    -- coverage of "a denied call writes nothing" while asserting nothing at all
+    -- (LESSONS `mutation-actually-mutated`). The refusal ITSELF is the
+    -- assertion — and a call that wrote and did NOT raise lands in the branch
+    -- above, which fails on the missing error.
     raise notice 'PASS %', label;
     return;
   end if;
@@ -243,6 +255,10 @@ select pg_temp.assert_jump('owner cannot edit a CHECKED-IN entry',
 select pg_temp.assert_jump('owner cannot edit after entries CLOSE',
   '00000000-0000-0000-0000-000000561101', '00000000-0000-0000-0000-000000561162',
   'Entries have closed for this show; ask the secretary to change entry %');
+-- The other half of that boundary, and the half that makes it a boundary: the
+-- close DAY itself is still open. `>` passes; `>=` fails here and nowhere else.
+select pg_temp.assert_jump('owner CAN edit on the close day itself',
+  '00000000-0000-0000-0000-000000561101', '00000000-0000-0000-0000-000000561164');
 select pg_temp.assert_jump('owner cannot edit an entry in a soft-deleted SHOW',
   '00000000-0000-0000-0000-000000561101', '00000000-0000-0000-0000-000000561163',
   'Entry % has been removed');

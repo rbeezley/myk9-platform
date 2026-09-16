@@ -15,7 +15,30 @@ function dog(id: string, status: Dog['status'] = 'active'): Dog {
   };
 }
 
+describe('dogActions row half is unreachable', () => {
+  it('every action supplies bulk.applicableWhen, so toBulkActions never falls back to the top-level applicableWhen stub', () => {
+    for (const action of dogActions) {
+      expect(action.bulk?.applicableWhen).toBeDefined();
+    }
+  });
+
+  it('the top-level applicableWhen/run stubs throw instead of silently returning false/undefined', () => {
+    for (const action of dogActions) {
+      expect(() => action.applicableWhen(dog('1'), {})).toThrow(/bulk-only/);
+      expect(() => action.run(dog('1'), {})).toThrow(/bulk-only/);
+    }
+  });
+});
+
 describe('dogActions bulk menu', () => {
+  it('treats a dog with no status as active: eligible to be marked retired, not eligible to be marked active', () => {
+    const handlers: DogActionHandlers = { onBulkSetStatus: vi.fn() };
+    const dogs = [{ ...dog('1'), status: undefined }];
+    const result = toBulkActions(dogs, handlers, dogActions);
+    expect(result.find(a => a.id === 'set-status-active')?.disabled).toBe(true);
+    expect(result.find(a => a.id === 'set-status-retired')?.disabled).toBe(false);
+  });
+
   it('narrows the eligible subset for a status action and formats the count', () => {
     const handlers: DogActionHandlers = { onBulkSetStatus: vi.fn() };
     const dogs = [dog('1', 'active'), dog('2', 'retired'), dog('3', 'active')];

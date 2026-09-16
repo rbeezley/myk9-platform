@@ -1,18 +1,25 @@
 /**
  * dogActions — the dogs domain's `EntityAction` catalog (design.md decision D1).
  *
- * Bulk-only: the only consumer is `DogsBulkActionsBar` (rendered from
- * `BrowseDogsPage`, above both `DogsGridView` and `DogsTableView`) via
- * `toBulkActions`. There is no per-row menu on /dogs (MYK9-587 decided against
- * one); `DogListRow`, the catalog's former row consumer, was deleted as dead
- * code (MYK9-588). Status changes call `useUpdateDogMutation`; delete calls
- * `useDeleteDogMutation`. Dogs are not part of the offline replication layer,
- * so calling the React Query mutation hooks directly (via injected handlers)
- * is correct here.
+ * Bulk-only: the only consumer is `DogsBulkActionsBar`, mounted by
+ * `BrowseDogsPage` in table view only (gated on
+ * `canBulkManageDogs && viewMode === 'table'`) via `toBulkActions`.
+ * `DogsGridView` has no selection props and never renders it. There is no
+ * per-row menu on /dogs (MYK9-587 decided against one); `DogListRow`, the
+ * catalog's former row consumer, was deleted as dead code (MYK9-588). Status
+ * changes call `useUpdateDogMutation`; delete calls `useDeleteDogMutation`.
+ * Dogs are not part of the offline replication layer, so calling the React
+ * Query mutation hooks directly (via injected handlers) is correct here.
  *
  * `EntityAction` still requires a top-level `applicableWhen`/`run` (shared
  * with domains that DO have a row menu, e.g. classes/entries) even though
- * nothing calls `toRowActions` for dogs — they're unreachable stubs below.
+ * nothing calls `toRowActions` for dogs. They throw below rather than
+ * quietly returning `false`/`undefined`: `toBulkActions` falls back to the
+ * top-level `applicableWhen` when an action omits `bulk.applicableWhen`
+ * (`entityActions.ts`), so a silent `() => false` would make a future action
+ * that forgets `bulk.applicableWhen` render as permanently-ineligible instead
+ * of failing loudly. Every action below supplies `bulk.applicableWhen`, so
+ * these are provably unreachable today (`dogActions.test.ts` asserts it).
  */
 import { CheckCircle2, HeartPulse, PawPrint, Trash2 } from 'lucide-react';
 import type { EntityAction } from '@/components/ui/RowActionMenu';
@@ -35,6 +42,16 @@ const STATUS_LABEL: Record<DogStatus, string> = {
   deceased: 'Deceased',
 };
 
+/** Unreachable row-menu stub: dogActions is bulk-only (MYK9-587/588). Every
+ * action below supplies `bulk.applicableWhen`, so `toBulkActions` never falls
+ * back to this, and `toRowActions` is never called for dogs. Throws instead
+ * of quietly returning `false`/`undefined` so a future action that forgets
+ * `bulk.applicableWhen` fails loudly instead of rendering permanently
+ * ineligible. */
+function unreachableRowAction(): never {
+  throw new Error('dogActions is bulk-only (MYK9-587/588); use bulk.applicableWhen/bulk.run');
+}
+
 /**
  * "3 dogs", or "2 of 3 dogs" when part of the selection cannot take the action.
  * In the "X of Y" form the noun agrees with Y, so 1-of-2 reads "1 of 2 dogs".
@@ -55,9 +72,8 @@ function makeStatusAction(
     label: `Mark ${STATUS_LABEL[status].toLowerCase()}`,
     sectionLabel: 'Status',
     icon,
-    // Unreachable: no row consumer remains for dogs (see file header).
-    applicableWhen: () => false,
-    run: () => undefined,
+    applicableWhen: unreachableRowAction,
+    run: unreachableRowAction,
     bulk: {
       applicableWhen: (dog, handlers) =>
         Boolean(handlers.onBulkSetStatus) && (dog.status ?? 'active') !== status,
@@ -84,9 +100,8 @@ export const dogActions: ReadonlyArray<EntityAction<Dog, DogActionHandlers>> = [
     sectionLabel: 'Danger zone',
     icon: <Trash2 className="h-4 w-4" />,
     variant: 'destructive',
-    // Unreachable: no row consumer remains for dogs (see file header).
-    applicableWhen: () => false,
-    run: () => undefined,
+    applicableWhen: unreachableRowAction,
+    run: unreachableRowAction,
     bulk: {
       applicableWhen: (_dog, handlers) => Boolean(handlers.onBulkDelete),
       label: (eligibleCount, selectedCount) =>

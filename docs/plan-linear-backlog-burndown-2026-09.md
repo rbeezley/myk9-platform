@@ -96,6 +96,7 @@ Filled in as batches complete; the final report to Richard is generated from thi
 | MYK9-549 | 3     | merged                                                                   | #2285 → d379a1128 | none                                                                      |
 | MYK9-561 | 3     | merged (owner override, ledgered on MYK9-544); In Progress until db push | #2287 → b5675c7b3 | `supabase db push` (20260916194700) + staging replay as exhibitor         |
 | MYK9-564 | 3     | merged                                                                   | #2286 → 2247db33f | none; MYK9-610 (seed trial names) filed                                   |
+| MYK9-568 | 4     | merged                                                                   | #2288 → 687f4d100 | staging screenshot of the My Entries row, optional                        |
 | MYK9-610 | new   | filed (Backlog)                                                          | —                 | seed § 3 trial names contradict their dates                               |
 | MYK9-609 | new   | filed (Backlog)                                                          | —                 | decide: pull-request queue has no producer                                |
 | MYK9-608 | new   | filed (Backlog)                                                          | —                 | triage: audit row and deleted_by invisible in Deleted Items               |

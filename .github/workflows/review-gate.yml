@@ -98,6 +98,15 @@ jobs:
       # `issue_comment` payloads do not, so resolve it with one `gh pr view`.
       # If even that fails there is no SHA to write to: post nothing and say
       # so, rather than guessing a target.
+      #
+      # On `pull_request_target` the SHA in the event payload and the one the
+      # script's own `gh pr view` read can differ, if the head moved while the
+      # run was in flight. The window is narrow — a push starts a new run whose
+      # concurrency group cancels this one, and a cancelled job skips this step
+      # — and the event's SHA is the safe side to err toward: a failure status
+      # on a superseded commit is harmless (the newer run posts its own for the
+      # new head), while a missing one on the live head is the fail-open this
+      # step exists to close.
       - name: Post a failure status when the gate itself crashed
         if: failure()
         timeout-minutes: 3

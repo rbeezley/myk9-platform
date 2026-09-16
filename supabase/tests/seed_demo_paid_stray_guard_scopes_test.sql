@@ -147,4 +147,21 @@ BEGIN
 END;
 $$;
 
+-- …and the mirror image: an order scoped to a show the seed never deletes is
+-- not this guard's business. Without this control, F538.19 and F538.20 would
+-- still pass if the orders arm simply matched every order in the table.
+INSERT INTO public.stripe_orders (id, amount_cents, status, show_id)
+VALUES ('00000000-0000-0000-0000-000000538304', 5000, 'succeeded',
+        '00000000-0000-0000-0000-000000538503');
+
+DO $$
+DECLARE err text := pg_temp.guard_error();
+BEGIN
+  IF err IS NOT NULL THEN
+    RAISE EXCEPTION 'FAIL F538.22 the orders arm reached past scope_shows: %', err;
+  END IF;
+  RAISE NOTICE 'PASS F538.22 an order on an unrelated show is left alone';
+END;
+$$;
+
 ROLLBACK;

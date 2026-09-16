@@ -97,6 +97,8 @@ tmpclaude-*-cwd
 # past the rule above, and a new one would go untracked silently.
 !.agents/skills/
 !.agents/skills/**
+# Local-only skill; stays out of the repo despite the re-include above.
+.agents/skills/impeccable/
 
 # Local support-triage pass state (regenerated every run; safe to delete)
 .support-triage/

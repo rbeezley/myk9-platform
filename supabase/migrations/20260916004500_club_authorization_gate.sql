@@ -191,40 +191,51 @@ REVOKE ALL ON FUNCTION public.guard_club_authorization_write() FROM anon;
 REVOKE ALL ON FUNCTION public.guard_club_authorization_write() FROM authenticated;
 
 -- ---------------------------------------------------------------------------
--- 2. enforce_show_publish_gate(): add the authorization check.
---    Copied verbatim from the LATEST migration that defines this function
---    (20260915221500_enforce_show_publish_gate.sql, MYK9-579 — BEFORE INSERT
---    OR UPDATE OF status, TG_OP branching, API-roles-only carve-out), with
---    one new check inserted in the SHARED section (after both TG_OP branches
---    rejoin) BEFORE the Stripe-readiness check and AFTER the club_id NULL
---    check, which must still run first — an authorization check needs a
---    club to check. The INSERT/UPDATE branch-specific early returns are
---    untouched, so this fires for both an INSERT that creates an
---    already-published row and an UPDATE transition INTO published.
+-- 2. enforce_show_club_authorization(): its OWN trigger, separate from
+--    enforce_show_publish_gate() (20260915221500, MYK9-579). An earlier
+--    version of this migration CREATE OR REPLACE'd that function's body to
+--    splice an authorization check into it, but that means redefining a
+--    function 579 owns every time either gate's logic changes independently
+--    — round 3 undoes that coupling. This trigger mirrors 579's structure
+--    exactly (same API-roles-only carve-out, same TG_OP branching over the
+--    SAME gated set) but owns its own function, its own trigger, and its
+--    own SQLSTATE (MK004), and never touches 579's function body.
+--
+--    GATED SET: 'published' ONLY — NOT 'accepting_entries'. That status was
+--    removed from the live shows.status CHECK constraint entirely by
+--    072_align_show_class_statuses.sql; the enum today is draft/published/
+--    upcoming/in_progress/completed/cancelled. Do not widen this trigger's
+--    gated set to include it.
+--
+--    CLUBLESS REFUSAL BELONGS TO 579: when NEW.club_id IS NULL this trigger
+--    returns NEW rather than raising — enforce_show_publish_gate already
+--    raises MK003 ("Assign a club to this show before publishing") for that
+--    case, and duplicating its message/SQLSTATE here would just race it.
+--
+--    TRIGGER ORDERING DEPENDENCY: Postgres fires multiple BEFORE triggers
+--    for the SAME event in ALPHABETICAL ORDER BY TRIGGER NAME, not
+--    declaration or migration order. trg_enforce_show_club_authorization
+--    sorts BEFORE trg_enforce_show_publish_gate ('c' < 'p'), so this
+--    trigger's MK004 always wins over 579's MK003 when a show is both
+--    unauthorized AND not Stripe-ready — pinned by
+--    supabase/tests/club_authorization_gate_test.sql's doubly-blocked-
+--    precedence case. If either trigger is ever renamed, re-verify this
+--    ordering still holds (a wiring test below also asserts it directly via
+--    pg_trigger).
 -- ---------------------------------------------------------------------------
-CREATE OR REPLACE FUNCTION public.enforce_show_publish_gate()
+CREATE OR REPLACE FUNCTION public.enforce_show_club_authorization()
 RETURNS trigger
 LANGUAGE plpgsql
 SECURITY DEFINER
-SET search_path = public
+SET search_path = ''
 AS $$
-DECLARE
-  v_livemode boolean;
-  v_ready boolean;
 BEGIN
-  -- API-roles-only carve-out (see 20260915221500's header). This gate is a
-  -- backstop for PostgREST/API callers only, so it applies exclusively to
-  -- the roles a PostgREST request actually runs as (`authenticated`,
-  -- `anon`). Everything else -- a direct superuser session with no SET ROLE
-  -- ('none'), and `service_role` (edge functions, crons, the seed script,
-  -- and every supabase/tests/*.sql fixture) -- bypasses it. Not reachable
-  -- from any client path: SECURITY DEFINER changes the effective user this
-  -- function body runs as, not current_setting('role', true), which always
-  -- reflects the caller's own SET ROLE (the JWT-derived
-  -- `authenticated`/`anon` for a PostgREST request) — a client cannot set
-  -- this GUC itself. Mirrors trg_guard_platform_settings_write's own
-  -- `service_role` carve-out (20260615180000), widened to the roles this
-  -- gate needs to exempt.
+  -- API-roles-only carve-out, identical in shape to
+  -- enforce_show_publish_gate's (20260915221500's header has the full
+  -- rationale): a direct superuser session (no SET ROLE, reads 'none') and
+  -- service_role (edge functions, crons, the seed script, every
+  -- supabase/tests/*.sql fixture) both bypass. Only the two roles
+  -- PostgREST actually runs requests as are gated.
   IF coalesce(current_setting('role', true), 'none') NOT IN ('authenticated', 'anon') THEN
     RETURN NEW;
   END IF;
@@ -234,24 +245,21 @@ BEGIN
       RETURN NEW;
     END IF;
   ELSE
-    -- UPDATE OF status. Only a transition INTO 'published'. An
-    -- already-published show keeps saving unrelated edits, and a
-    -- draft-to-draft or draft-to-cancelled write never reaches this branch.
+    -- UPDATE OF status. Only a transition INTO 'published' from OUTSIDE it.
+    -- An already-published show keeps saving unrelated edits without being
+    -- re-gated.
     IF NEW.status IS DISTINCT FROM 'published' OR OLD.status IS NOT DISTINCT FROM 'published' THEN
       RETURN NEW;
     END IF;
   END IF;
 
+  -- The clubless refusal (MK003) belongs to enforce_show_publish_gate — do
+  -- not duplicate its message or SQLSTATE here. A show with no club has
+  -- nothing for this trigger to check, so it simply steps aside.
   IF NEW.club_id IS NULL THEN
-    -- Mirrors ShowStatusPill.tsx's own copy for the same refusal.
-    RAISE EXCEPTION 'Assign a club to this show before publishing — entry fees are paid out to the club.'
-      USING ERRCODE = 'MK003';
+    RETURN NEW;
   END IF;
 
-  -- MYK9-572: a club must be authorized before it can open online entries at
-  -- all, independent of its Stripe readiness. Distinct SQLSTATE (MK004) so
-  -- the client can show a distinct message instead of the Stripe copy.
-  -- Shared by both the INSERT and UPDATE branches above.
   IF NOT EXISTS (
     SELECT 1 FROM public.clubs c WHERE c.id = NEW.club_id AND c.authorized_at IS NOT NULL
   ) THEN
@@ -259,38 +267,26 @@ BEGIN
       USING ERRCODE = 'MK004';
   END IF;
 
-  SELECT stripe_livemode INTO v_livemode FROM public.platform_settings WHERE id = true;
-
-  -- can_accept_online_entry_payment's `p_livemode` parameter carries a
-  -- `DEFAULT false` -- never rely on it here, always pass v_livemode
-  -- explicitly, or a live-mode cutover would silently re-check test-mode
-  -- accounts instead of live ones.
-  v_ready := public.can_accept_online_entry_payment(NEW.club_id, v_livemode);
-
-  IF NOT v_ready THEN
-    -- Mirrors PUBLISH_BLOCKED_MESSAGE (onlineEntryGate.ts) verbatim. A missing
-    -- club_stripe_accounts row is refused by can_accept_online_entry_payment's
-    -- own EXISTS check -- no separate "no row" branch needed here.
-    RAISE EXCEPTION 'Connect your club''s payment account before publishing — online entry fees need somewhere to go. Find it under My Club → Payments.'
-      USING ERRCODE = 'MK003';
-  END IF;
-
   RETURN NEW;
 END;
 $$;
 
-COMMENT ON FUNCTION public.enforce_show_publish_gate() IS
-  'MYK9-579/MYK9-572: server-side backstop for the draft->published gate. Mirrors publishGateError (ShowEditPanel.helpers.ts) and the inline check in ShowStatusPill.tsx exactly, including their copy. Refuses with SQLSTATE MK003 for a missing club or a not-Stripe-ready club (mapped client-side via isPublishGateDbError in onlineEntryGate.ts), and with MK004 when the club exists but is not yet authorized (clubs.authorized_at IS NULL, MYK9-572). Livemode is read from platform_settings.stripe_livemode. Fires on BEFORE INSERT OR UPDATE OF status, branching on TG_OP: INSERT gates any row created already-published (create_show_with_children and createShow() both let the caller set status); UPDATE gates only a transition INTO published and exempts an already-published show (OLD.status = published) so unrelated edits on a live show are never re-gated or retroactively un-published — this applies to BOTH refusal reasons: revoking a club''s authorization never un-publishes its existing shows. Carves out coalesce(current_setting(''role'', true), ''none'') NOT IN (''authenticated'', ''anon'') for direct superuser sessions, service_role (edge functions, crons, the seed script, supabase/tests/*.sql fixtures); unreachable from any client path (see 20260915221500 for the full carve-out rationale).';
+COMMENT ON FUNCTION public.enforce_show_club_authorization() IS
+  'MYK9-572 (round 3): a SEPARATE server-side backstop from enforce_show_publish_gate (20260915221500, MYK9-579) for the club-authorization gate on a show entering ''published''. Raises SQLSTATE MK004 (distinct from that function''s MK003) when the club exists but clubs.authorized_at IS NULL. Mirrors that function''s API-roles-only carve-out and TG_OP branching, but gates ONLY ''published'' — never ''accepting_entries'', which is not a valid shows.status value (072_align_show_class_statuses.sql removed it from the live CHECK constraint). Defers the clubless refusal to enforce_show_publish_gate (MK003) entirely: this trigger returns NEW when NEW.club_id IS NULL instead of raising its own message. TRIGGER ORDERING DEPENDENCY: fires via trg_enforce_show_club_authorization, which Postgres runs BEFORE trg_enforce_show_publish_gate because same-event triggers fire in ALPHABETICAL ORDER BY NAME (''c'' < ''p''), so MK004 always wins over MK003 when both would apply — pinned by club_authorization_gate_test.sql''s doubly-blocked-precedence case. Renaming either trigger must re-verify this ordering.';
 
--- Trigger definition (name/timing/columns) is unchanged from 20260915221500 —
--- CREATE OR REPLACE FUNCTION above is sufficient; no DROP/CREATE TRIGGER needed.
+DROP TRIGGER IF EXISTS trg_enforce_show_club_authorization ON public.shows;
+CREATE TRIGGER trg_enforce_show_club_authorization
+  BEFORE INSERT OR UPDATE OF status ON public.shows
+  FOR EACH ROW
+  EXECUTE FUNCTION public.enforce_show_club_authorization();
 
--- Re-state the grant decision for THIS file too (migrationGrantDecisionContract
--- reads every migration independently): still a trigger-only function, nothing
--- calls it directly.
-REVOKE ALL ON FUNCTION public.enforce_show_publish_gate() FROM PUBLIC;
-REVOKE ALL ON FUNCTION public.enforce_show_publish_gate() FROM anon;
-REVOKE ALL ON FUNCTION public.enforce_show_publish_gate() FROM authenticated;
+-- Trigger-only function: nothing calls it directly (mirrors
+-- enforce_show_publish_gate). A trigger fires regardless of EXECUTE
+-- privilege, so this is an explicit grant DECISION for
+-- migrationGrantDecisionContract, not a functional requirement.
+REVOKE ALL ON FUNCTION public.enforce_show_club_authorization() FROM PUBLIC;
+REVOKE ALL ON FUNCTION public.enforce_show_club_authorization() FROM anon;
+REVOKE ALL ON FUNCTION public.enforce_show_club_authorization() FROM authenticated;
 
 -- ---------------------------------------------------------------------------
 -- 3. is_club_member(): SECURITY DEFINER membership check, mirroring

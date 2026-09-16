@@ -150,6 +150,7 @@ describe('ShowEditPanel helpers', () => {
 // not impossible to construct) must still fail closed.
 describe('publishGateError', () => {
   const enabled = { payouts_enabled: true };
+  const disabled = { payouts_enabled: false };
   const authorized = { authorized_at: '2026-01-01T00:00:00Z' };
   const unauthorized = { authorized_at: null };
 

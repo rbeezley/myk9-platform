@@ -321,8 +321,10 @@ SELECT set_config('request.jwt.claim.sub', '', true);
 
 -- ---------------------------------------------------------------------------
 -- 3b. A club that is BOTH unauthorized AND not Stripe-ready fails with
---     MK004, not MK003 — the authorization check runs first in the trigger,
---     so it must win the refusal even when both reasons apply. Needs its
+--     MK004, not MK003 — trg_enforce_show_club_authorization fires BEFORE
+--     trg_enforce_show_publish_gate (same-event triggers run in alphabetical
+--     order by trigger name, 'c' < 'p'), so it must win the refusal even
+--     when both reasons apply. Needs its
 --     own club_admin appointment (club 004): the shared admin identity from
 --     the top of this file is scoped to club 002 only. Grant the SAME
 --     person_id club_admin of club 004 too, rather than a second identity —
@@ -758,6 +760,48 @@ BEGIN
     RAISE EXCEPTION 'FAIL set-club-authorization-still-works: authorized_at was not set through the GUC path';
   END IF;
   RAISE NOTICE 'PASS set-club-authorization-still-works: the sanctioned GUC path is unaffected by the new guard';
+END;
+$$;
+
+-- ---------------------------------------------------------------------------
+-- 14. Wiring assertion: trg_enforce_show_club_authorization must sort
+--     BEFORE trg_enforce_show_publish_gate in pg_trigger's own ordering
+--     (Postgres fires same-event triggers in ALPHABETICAL ORDER BY TRIGGER
+--     NAME, not declaration order) -- this is what makes the doubly-blocked-
+--     precedence case above (MK004 wins over MK003) hold at all. A rename
+--     of either trigger that broke this ordering would not be caught by
+--     that case alone if it happened to still pass for the wrong reason, so
+--     assert the ordering directly here too.
+-- ---------------------------------------------------------------------------
+DO $$
+DECLARE
+  v_authz_name text;
+  v_publish_name text;
+BEGIN
+  SELECT tgname INTO v_authz_name
+  FROM pg_trigger
+  WHERE tgrelid = 'public.shows'::regclass
+    AND tgname = 'trg_enforce_show_club_authorization'
+    AND NOT tgisinternal;
+
+  SELECT tgname INTO v_publish_name
+  FROM pg_trigger
+  WHERE tgrelid = 'public.shows'::regclass
+    AND tgname = 'trg_enforce_show_publish_gate'
+    AND NOT tgisinternal;
+
+  IF v_authz_name IS NULL THEN
+    RAISE EXCEPTION 'FAIL trigger-ordering-wiring: trg_enforce_show_club_authorization not found on public.shows';
+  END IF;
+  IF v_publish_name IS NULL THEN
+    RAISE EXCEPTION 'FAIL trigger-ordering-wiring: trg_enforce_show_publish_gate not found on public.shows';
+  END IF;
+  IF v_authz_name >= v_publish_name THEN
+    RAISE EXCEPTION 'FAIL trigger-ordering-wiring: % does not sort before % (MK004 would no longer win over MK003)',
+      v_authz_name, v_publish_name;
+  END IF;
+  RAISE NOTICE 'PASS trigger-ordering-wiring: % sorts before % (alphabetical trigger firing order)',
+    v_authz_name, v_publish_name;
 END;
 $$;
 

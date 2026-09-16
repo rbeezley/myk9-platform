@@ -48,10 +48,11 @@ export function canEnableOnlineEntries(
 export const PUBLISH_GATE_ERRCODE = 'MK003';
 
 // MYK9-572: a club must be authorized by a site admin before it can open
-// online entries at all, independent of Stripe readiness. The trigger
-// (enforce_show_publish_gate, supabase/migrations/20260915223500) raises a
-// DISTINCT SQLSTATE for this refusal so the client can show distinct copy
-// instead of the Stripe-connect message.
+// online entries at all, independent of Stripe readiness. Its OWN trigger
+// (enforce_show_club_authorization, supabase/migrations/20260916004500),
+// separate from enforce_show_publish_gate's Stripe-readiness check, raises
+// a DISTINCT SQLSTATE for this refusal so the client can show distinct
+// copy instead of the Stripe-connect message.
 export const PUBLISH_GATE_ERRCODE_UNAUTHORIZED = 'MK004';
 
 export const CLUB_UNAUTHORIZED_MESSAGE =

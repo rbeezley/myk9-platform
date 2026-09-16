@@ -20,6 +20,7 @@ import {
   CLUB_UNAUTHORIZED_MESSAGE,
   CLUB_REQUIRED_MESSAGE,
   ONLINE_ENTRY_OPEN_STATUSES,
+  PUBLISH_GATE_ERRCODE_UNAUTHORIZED,
 } from '@/features/payments/onlineEntryGate';
 
 interface ShowStatusPillProps {

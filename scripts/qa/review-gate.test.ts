@@ -1759,7 +1759,7 @@ describe('the workflow’s crash-fallback step', () => {
    * invocation to a log and honours `STUB_GH_VIEW_EXIT` so the
    * `gh pr view` fallback can be made to fail.
    */
-  function runFallback(env: Record<string, string>): { stdout: string; ghCalls: string[] } {
+  function runFallback(env: Record<string, string>): { stdout: string; ghCalls: string[][] } {
     const dir = mkdtempSync(join(tmpdir(), 'review-gate-fallback-'));
     const log = join(dir, 'gh-calls.log');
     const stub = join(dir, 'gh');
@@ -1767,7 +1767,12 @@ describe('the workflow’s crash-fallback step', () => {
       stub,
       [
         '#!/bin/sh',
-        `printf '%s\\n' "$*" >> ${JSON.stringify(log)}`,
+        // One line per ARGUMENT, with a record separator per invocation.
+        // Joining args with spaces made every assertion a substring match:
+        // `-f context='Review gateX'` satisfied `toContain('context=Review
+        // gate')` and the fallback would post under a context no required
+        // check watches (round-2 review, P2).
+        `{ printf '%s\\n' '--CALL--'; printf '%s\\n' "$@"; } >> ${JSON.stringify(log)}`,
         'if [ "$1" = "pr" ]; then',
         '  if [ -n "${STUB_GH_VIEW_STDERR:-}" ]; then',
         '    echo "${STUB_GH_VIEW_STDERR}" >&2',
@@ -1794,31 +1799,41 @@ describe('the workflow’s crash-fallback step', () => {
       encoding: 'utf8',
       env: { PATH: `${dir}:${process.env.PATH ?? ''}`, ...env },
     });
-    const ghCalls = readFileSync(log, 'utf8')
-      .split('\n')
-      .filter(line => line.trim() !== '');
+    const ghCalls: string[][] = [];
+    for (const line of readFileSync(log, 'utf8').split('\n')) {
+      if (line === '--CALL--') ghCalls.push([]);
+      else if (line !== '') ghCalls.at(-1)?.push(line);
+    }
     return { stdout, ghCalls };
   }
+
+  const isPost = (call: readonly string[]) => call.includes('--method') && call.includes('POST');
+  const isPrView = (call: readonly string[]) => call[0] === 'pr' && call[1] === 'view';
 
   const base = { REPO: FAKE_REPO, PR_NUMBER: '2121', RUN_URL: 'https://example.invalid/run/1' };
 
   it('posts a failure status to the head SHA the pull_request_target payload carries', () => {
     const { ghCalls } = runFallback({ ...base, HEAD_SHA: HEAD });
-    const post = ghCalls.find(c => c.includes('--method POST'));
-    if (!post) throw new Error(`no POST in: ${ghCalls.join(' | ')}`);
+    const post = ghCalls.find(isPost);
+    if (!post) throw new Error(`no POST in: ${JSON.stringify(ghCalls)}`);
+    // Exact ARGUMENT matches, not substrings of a joined string: the context
+    // must be the token the required check watches, so `context=Review gateX`
+    // has to fail.
     expect(post).toContain(`repos/${FAKE_REPO}/statuses/${HEAD}`);
     expect(post).toContain('state=failure');
     expect(post).toContain(`context=${REVIEW_GATE_CONTEXT}`);
-    expect(ghCalls.some(c => c.startsWith('pr view'))).toBe(false);
+    expect(post.filter(a => a.startsWith('context='))).toEqual([`context=${REVIEW_GATE_CONTEXT}`]);
+    expect(ghCalls.some(isPrView)).toBe(false);
   });
 
   it('resolves the SHA with one `gh pr view` when the payload has none (issue_comment)', () => {
     const { ghCalls } = runFallback({ ...base, HEAD_SHA: '', STUB_GH_VIEW_SHA: OLD_HEAD });
-    const views = ghCalls.filter(c => c.startsWith('pr view'));
+    const views = ghCalls.filter(isPrView);
     expect(views).toHaveLength(1);
-    expect(views[0]).toContain('--json headRefOid');
-    const post = ghCalls.find(c => c.includes('--method POST'));
-    if (!post) throw new Error(`no POST in: ${ghCalls.join(' | ')}`);
+    expect(views[0]).toContain('--json');
+    expect(views[0]).toContain('headRefOid');
+    const post = ghCalls.find(isPost);
+    if (!post) throw new Error(`no POST in: ${JSON.stringify(ghCalls)}`);
     expect(post).toContain(`repos/${FAKE_REPO}/statuses/${OLD_HEAD}`);
     expect(post).toContain('state=failure');
   });
@@ -1834,8 +1849,8 @@ describe('the workflow’s crash-fallback step', () => {
       STUB_GH_VIEW_SHA: OLD_HEAD,
       STUB_GH_VIEW_STDERR: 'gh: warning: this command is deprecated',
     });
-    const post = ghCalls.find(c => c.includes('--method POST'));
-    if (!post) throw new Error(`no POST in: ${ghCalls.join(' | ')}`);
+    const post = ghCalls.find(isPost);
+    if (!post) throw new Error(`no POST in: ${JSON.stringify(ghCalls)}`);
     expect(post).toContain(`repos/${FAKE_REPO}/statuses/${OLD_HEAD}`);
     expect(post).toContain('state=failure');
   });
@@ -1846,7 +1861,7 @@ describe('the workflow’s crash-fallback step', () => {
       HEAD_SHA: '',
       STUB_GH_VIEW_EXIT: '1',
     });
-    expect(ghCalls.some(c => c.includes('--method POST'))).toBe(false);
+    expect(ghCalls.some(isPost)).toBe(false);
     expect(stdout).toContain('posting no status');
   });
 
@@ -1862,9 +1877,9 @@ describe('the workflow’s crash-fallback step', () => {
     for (const value of fortyNonHex) {
       expect(value).toHaveLength(40);
       const fromPayload = runFallback({ ...base, HEAD_SHA: value });
-      expect(fromPayload.ghCalls.some(c => c.includes('--method POST'))).toBe(false);
+      expect(fromPayload.ghCalls.some(isPost)).toBe(false);
       const fromView = runFallback({ ...base, HEAD_SHA: '', STUB_GH_VIEW_SHA: value });
-      expect(fromView.ghCalls.some(c => c.includes('--method POST'))).toBe(false);
+      expect(fromView.ghCalls.some(isPost)).toBe(false);
     }
   });
 
@@ -1875,11 +1890,11 @@ describe('the workflow’s crash-fallback step', () => {
     // into `POST repos/<repo>/statuses/../../../evil` (round-2 review, P3).
     for (const bogus of ['../../../evil', 'abc', `${HEAD}a`, 'not a sha']) {
       const { ghCalls } = runFallback({ ...base, HEAD_SHA: bogus });
-      expect(ghCalls.some(c => c.includes('--method POST'))).toBe(false);
+      expect(ghCalls.some(isPost)).toBe(false);
     }
     // Control: a real 40-char SHA from the payload still posts.
     const { ghCalls } = runFallback({ ...base, HEAD_SHA: HEAD });
-    expect(ghCalls.some(c => c.includes(`statuses/${HEAD}`))).toBe(true);
+    expect(ghCalls.some(c => c.includes(`repos/${FAKE_REPO}/statuses/${HEAD}`))).toBe(true);
   });
 
   it('never posts a status to a target that is not a hex SHA', () => {
@@ -1889,7 +1904,7 @@ describe('the workflow’s crash-fallback step', () => {
       HEAD_SHA: '',
       STUB_GH_VIEW_SHA: 'not a sha',
     });
-    expect(ghCalls.some(c => c.includes('--method POST'))).toBe(false);
+    expect(ghCalls.some(isPost)).toBe(false);
   });
 
   it('never posts to a hex FRAGMENT — the target must be a full 40-char SHA', () => {
@@ -1898,11 +1913,11 @@ describe('the workflow’s crash-fallback step', () => {
     // rejected; only exactly 40 lowercase hex is a status target.
     for (const partial of ['abc', HEAD.slice(0, 39), `${HEAD}a`]) {
       const { ghCalls } = runFallback({ ...base, HEAD_SHA: '', STUB_GH_VIEW_SHA: partial });
-      expect(ghCalls.some(c => c.includes('--method POST'))).toBe(false);
+      expect(ghCalls.some(isPost)).toBe(false);
     }
     // The control: exactly 40 still posts, so the guard is not simply inert.
     const { ghCalls } = runFallback({ ...base, HEAD_SHA: '', STUB_GH_VIEW_SHA: HEAD });
-    expect(ghCalls.some(c => c.includes(`statuses/${HEAD}`))).toBe(true);
+    expect(ghCalls.some(c => c.includes(`repos/${FAKE_REPO}/statuses/${HEAD}`))).toBe(true);
   });
 
   /**

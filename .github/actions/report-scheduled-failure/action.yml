@@ -64,20 +64,50 @@ runs:
         MATCHES="$(gh issue list --repo "$REPO" --label "$LABEL" --state open \
           --json number,title --limit 100 \
           --jq "[.[] | select(.title == \"${TITLE}\") | .number] | sort | .[]")"
-        EXISTING="$(printf '%s' "$MATCHES" | head -n 1)"
+
+        # Split MATCHES without handing it to a short-lived reader.
+        #
+        # MYK9-578, and scoped honestly: this is a LATENT bug fix, not the
+        # cause of that incident. The old lookup piped MATCHES to `head -n 1`,
+        # which under `set -o pipefail` exits 141 if the reader leaves while
+        # the writer still has bytes to push -- but only for a payload larger
+        # than a pipe buffer, and `--limit 100` caps MATCHES near 800 bytes.
+        # Replayed 1000 times at the incident's payload size: 0 failures.
+        #
+        # Removed anyway, because a pipeline that can only fail at a size this
+        # call cannot reach today is one `--limit` change away from reachable.
+        #
+        # A here-string is not always a temp file: bash 5.1 and newer use a
+        # pipe when the payload fits the buffer. It is never a RACING pipe,
+        # though -- bash only pipes what fits whole, and the reader is this
+        # shell's own `read` loop running to EOF. Nothing exits early, so
+        # there is no SIGPIPE and no pipeline status to inherit.
+        #
+        # Two behaviour changes come with it, both deliberate, neither free.
+        # The array keeps the final entry, which the old `while read` dropped
+        # without its trailing-newline guard. And blank-line handling moves: a
+        # leading empty line used to leave EXISTING empty, closing every
+        # number as a duplicate of nothing, where now the first non-empty
+        # entry wins. The price is that `IFS= read` does not trim, so a
+        # whitespace-only line is a live entry here where the old default-IFS
+        # `read` collapsed it to empty and skipped it. That is a trade, not a
+        # free win; `jq` emits neither shape today.
+        NUMBERS=()
+        while IFS= read -r line; do
+          if [ -n "$line" ]; then NUMBERS+=("$line"); fi
+        done <<< "$MATCHES"
+
+        EXISTING=""
+        if [ ${#NUMBERS[@]} -gt 0 ]; then EXISTING="${NUMBERS[0]}"; fi
 
         # Collapse any duplicate a past race left behind.
-        #
-        # `|| [ -n "$dup" ]` is required, not defensive noise: MATCHES has no
-        # trailing newline, so `read` returns non-zero on the final line and a
-        # plain `while read` silently drops it. Caught by a dry run with three
-        # duplicates, where only the middle one was closed.
-        printf '%s' "$MATCHES" | tail -n +2 | while read -r dup || [ -n "$dup" ]; do
-          [ -n "$dup" ] || continue
-          gh issue close "$dup" --repo "$REPO" \
-            --comment "Duplicate of #${EXISTING}, which tracks this workflow."
-          echo "Closed duplicate #${dup}."
-        done
+        if [ ${#NUMBERS[@]} -gt 1 ]; then
+          for dup in "${NUMBERS[@]:1}"; do
+            gh issue close "$dup" --repo "$REPO" \
+              --comment "Duplicate of #${EXISTING}, which tracks this workflow."
+            echo "Closed duplicate #${dup}."
+          done
+        fi
 
         if [ "$OUTCOME" = "success" ]; then
           if [ -n "$EXISTING" ]; then

@@ -100,10 +100,14 @@ describe('scheduled workflows report their own failures', () => {
       expect(action).toContain('| sort | .[]');
       expect(action).toContain('Duplicate of #');
 
-      // The final line of a `printf '%s'` list has no trailing newline, so a
-      // plain `while read` drops it. Without this, a third duplicate survives
-      // — which a dry run caught after the first fix looked correct.
-      expect(action).toContain('|| [ -n "$dup" ]');
+      // The "every duplicate, including the last" property used to be pinned
+      // here as a source string. It is not any more: MYK9-578 replaced the
+      // `while read` loop with an array, and the comment explaining the old
+      // guard still contained the string it asserted — the repo's standing
+      // `comment-satisfies-grep` trap, met a second time in the same file.
+      // The property is covered by behaviour instead, in
+      // scheduledFailureNotifier.behaviour.test.ts, by
+      // "collapses EVERY duplicate, including the last".
     });
 
     it('fails loudly when it cannot report', () => {

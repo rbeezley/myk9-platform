@@ -1865,6 +1865,25 @@ describe('the workflow’s crash-fallback step', () => {
     expect(ghCalls.some(c => c.includes(`statuses/${HEAD}`))).toBe(true);
   });
 
+  it('takes its time limit from the STEP, so a timeout fails rather than cancels', () => {
+    // A job that trips its own `timeout-minutes` is marked CANCELLED, not
+    // failed (LESSONS `cancelled-may-be-timeout`), and `if: failure()` does
+    // not fire on a cancelled job — so a job-level limit meant a hung
+    // `gh api --paginate` skipped this fallback and left no status at all
+    // (round-1 review, P2). A STEP timeout fails the step instead.
+    const yaml = readFileSync(workflowPath, 'utf8');
+    const stepTimeouts = [...yaml.matchAll(/^ {8}timeout-minutes: (\d+)$/gm)].map(m =>
+      Number(m[1])
+    );
+    // The script step and this fallback step both carry one.
+    expect(stepTimeouts).toHaveLength(2);
+    const jobTimeout = yaml.match(/^ {4}timeout-minutes: (\d+)$/m);
+    if (!jobTimeout) throw new Error('the job has no backstop timeout');
+    // The job-level backstop must not fire first, or it would cancel the job
+    // and skip this step — the exact bug above.
+    expect(Number(jobTimeout[1])).toBeGreaterThan(stepTimeouts.reduce((a, b) => a + b, 0));
+  });
+
   it('runs only when the job has already failed', () => {
     const yaml = readFileSync(workflowPath, 'utf8');
     const stepAt = yaml.indexOf(`- name: ${STEP_NAME}`);

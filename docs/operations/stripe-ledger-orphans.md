@@ -10,9 +10,22 @@ migration `20260915191700_stripe_ledger_fks_restrict.sql` both were `ON DELETE S
 (`pg_constraint.confdeltype = 'n'`), so every show delete — including the enrollments
 cascade a show delete fires — silently nulled the scope of any order that pointed at it.
 
-As of 2026-09-15, **22 rows on the linked database (`sojmvhhwsjxmfistvzbe`) hold NULL in
-both columns**, spanning 2026-06-10 .. 2026-09-13, $1,121.10 in total. Nothing joins them
+As of 2026-09-16, **23 rows on the linked database (`sojmvhhwsjxmfistvzbe`) hold NULL in
+both columns**, spanning 2026-06-10 .. 2026-09-15, $1,185.30 in total. Nothing joins them
 to what they paid for any more.
+
+The 23rd row was added deliberately, not by the bug this document describes.
+`472bb590-6679-47af-bf0a-f073b2021146` ($64.20, `pi_3UFxuBAIej2Q9UtX38KBxSaL`,
+`cs_test_b1iEYG7lFiOH02moOWCnmdWfs94KNO2vGuYLfJfOogtTrZeDpJU5C7WVMA`, `succeeded`,
+created 2026-09-15) pointed at show `dededede-…011` and enrollment
+`a44a9bd8-2c67-4838-b31d-48e9eaaa19b3`. Both scope columns were nulled by hand on
+2026-09-16 to clear the `order_stray` arm of the reseed's money guard, with Richard's
+approval and the scope recorded first. Its enrollment was **checkout-created**, not the
+seed's fixed `…070`, so the show delete cascaded that enrollment away and nothing
+re-inserts it — the reattach the `seed-reset` skill offers for fixed ids is impossible
+here, which is why the row is recorded as detached for good rather than restored. Migration
+`20260915191700` (MYK9-527) is what stops a reseed making more of these silently; this one
+was a reviewed operator step, which is the only way new rows should ever arrive.
 
 ## The decision: keep them
 
@@ -42,7 +55,7 @@ in place deliberately … Prune only as a reviewed operator step.
 ```
 
 The seed's stray guard deliberately does **not** match already-orphaned rows — matching them
-would wedge every reseed on these 22. Pinned by
+would wedge every reseed on these 23. Pinned by
 `apps/myk9show/src/test/database/seedDemoSelfCleaningRelationshipDeleteContract.test.ts`.
 
 ## Pruning — a reviewed operator step, never automatic

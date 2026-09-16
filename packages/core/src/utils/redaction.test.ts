@@ -81,50 +81,83 @@ describe('redactSecretLikeString', () => {
     expect(redactSecretLikeString('rk_test_abcdefgh12345678')).toBe('[redacted-secret]');
   });
 
-  // MYK9-550 review round 1 (P2): URL_TOKEN_PARAM_RE runs before KEY_VALUE_SECRET_RE and
-  // kept the un-widened value class, so the exact same leak survives whenever the
-  // key=Bearer pair follows a `?`, `&` or `#` -- the commonest Sentry breadcrumb shape
-  // (a request URL). Widen it the same way.
-  const bearerUrlProbes: Array<{ label: string; input: string; expected: string }> = [
-    {
-      label: 'query ? param',
-      input: 'GET https://api.x/v1?token=Bearer opaque-token-value-1234',
-      expected: 'GET https://api.x/v1?token=[redacted]',
-    },
-    {
-      label: 'query & param',
-      input: 'GET https://api.x/v1?foo=1&apikey=Bearer sb_publishable_abc123defghijklmnop',
-      expected: 'GET https://api.x/v1?foo=1&apikey=[redacted]',
-    },
-    {
-      label: 'fragment # param',
-      input: 'GET https://api.x/v1?x=1#access_token=Bearer opaque-fragment-token-5678',
-      expected: 'GET https://api.x/v1?x=1#access_token=[redacted]',
-    },
+  // MYK9-550 review round 2 -> round 3 restructure: two consecutive review rounds each
+  // found a leak because URL_TOKEN_PARAM_RE and KEY_VALUE_SECRET_RE's value classes had
+  // drifted apart (round 1: only one consumed the "Bearer " prefix; round 2: only one
+  // consumed a surrounding quote). redaction.ts now builds both regexes from one shared
+  // SECRET_VALUE_SRC fragment so they cannot drift again -- this generated matrix
+  // exercises that shared fragment across representative keys, every URL delimiter the
+  // two regexes disagree on (`?`/`&`/`#` vs. none), and every Bearer/quote combination,
+  // replacing the two hand-maintained probe lists that each only covered the one shape a
+  // prior round happened to think of.
+  const MATRIX_KEYS = ['token', 'authorization', 'client_secret'];
+  const MATRIX_PREFIXES = ['', '?', '&', '#'];
+  const MATRIX_VALUE_TEMPLATES = [
+    'Bearer TOKEN',
+    '"Bearer TOKEN"',
+    "'Bearer TOKEN'",
+    'TOKEN',
+    '"TOKEN"',
   ];
+  const MATRIX_TOKEN_LITERAL = 'zzMatrixSecretValue9';
 
-  it.each(bearerUrlProbes)(
-    'redacts a Bearer-scheme value on a URL $label (MYK9-550)',
-    ({ input, expected }) => {
-      expect(redactSecretLikeString(input)).toBe(expected);
+  function buildMatrixInput(prefix: string, key: string, valueTemplate: string): string {
+    const value = valueTemplate.replace('TOKEN', MATRIX_TOKEN_LITERAL);
+    return prefix === ''
+      ? `probe ${key}=${value} end`
+      : `probe https://example.test/path${prefix}${key}=${value} end`;
+  }
+
+  const matrixCases = MATRIX_KEYS.flatMap(key =>
+    MATRIX_PREFIXES.flatMap(prefix =>
+      MATRIX_VALUE_TEMPLATES.map(valueTemplate => ({
+        key,
+        prefix: prefix === '' ? '(none)' : prefix,
+        valueTemplate,
+        input: buildMatrixInput(prefix, key, valueTemplate),
+      }))
+    )
+  );
+
+  it.each(matrixCases)(
+    'redacts key=$key prefix=$prefix value="$valueTemplate" and stays idempotent (MYK9-550 matrix)',
+    ({ input }) => {
+      const once = redactSecretLikeString(input);
+
+      expect(once).toContain('[redacted]');
+      expect(once).not.toContain(MATRIX_TOKEN_LITERAL);
+      expect(redactSecretLikeString(once)).toBe(once);
     }
   );
 
   // P3: the optional Bearer-scheme prefix must not cross a newline -- both Sentry
   // breadcrumbs and support-diagnostics blobs can carry multi-line text a human reads
-  // back, and `\s` would silently eat the next line's first word.
-  it('does not swallow the next line when a Bearer-scheme value is followed by a newline (MYK9-550)', () => {
+  // back, and `\s` would silently eat the next line's first word. Pinned as accepted
+  // behavior (the line break itself is preserved), not compared against main since this
+  // shape did not exist before MYK9-550.
+  it('does not swallow the next line when a Bearer-scheme value is followed by a newline (MYK9-550, accepted trade-off)', () => {
+    expect(redactSecretLikeString('token=Bearer\nopaque')).toBe('token=[redacted]\nopaque');
     expect(redactSecretLikeString('token=Bearer\nNextLine matters')).toBe(
       'token=[redacted]\nNextLine matters'
     );
   });
 
   // P3: a quoted Bearer-scheme value (`key="Bearer <token>"`) pre-dates this change but
-  // is fixed by the same optional-prefix approach without touching any existing output.
+  // is fixed by the shared fragment without touching any existing output.
   it('redacts a quoted Bearer-scheme value (MYK9-550)', () => {
     expect(redactSecretLikeString('authorization="Bearer abc123def456"')).toBe(
       'authorization=[redacted]'
     );
+  });
+
+  // Round 2 finding: URL_TOKEN_PARAM_RE (leading ?/&/#) previously lacked the quote
+  // handling KEY_VALUE_SECRET_RE had, so a quoted Bearer value in a URL still leaked.
+  // Covered generically by the matrix above; pinned once here with the review's exact
+  // reproduction string.
+  it('redacts a quoted Bearer-scheme value in a URL query param (MYK9-550 round 2)', () => {
+    expect(
+      redactSecretLikeString('GET https://api.x/v1?token="Bearer opaque-token-value-1234"')
+    ).toBe('GET https://api.x/v1?token=[redacted]');
   });
 
   // Non-regression: a key literally named "secret" whose free-text value happens to start
@@ -134,19 +167,21 @@ describe('redactSecretLikeString', () => {
     expect(redactSecretLikeString('secret=Bearer of bad news')).toBe('secret=[redacted] bad news');
   });
 
-  const idempotencyProbes = [
+  // Idempotency for the pinned exact-string probes above (the matrix covers idempotency
+  // for the generated shapes; these named/header shapes are distinct enough to check too).
+  const pinnedIdempotencyProbes = [
     'token=Bearer opaque-token-value-1234',
     'authorization=Bearer sb_publishable_abc123defghijklmnop',
     'apikey=Bearer rk_live_0123456789abcdef',
     'Authorization: Bearer sbp_0123456789abcdef0123456789',
     'Authorization: Bearer eyJhbGciOi.eyJzdWIiOi.SflKxwRJSM',
-    ...bearerUrlProbes.map(probe => probe.input),
     'token=Bearer\nNextLine matters',
     'authorization="Bearer abc123def456"',
+    'GET https://api.x/v1?token="Bearer opaque-token-value-1234"',
     'secret=Bearer of bad news',
   ];
 
-  it.each(idempotencyProbes)('is idempotent for %s (MYK9-550)', input => {
+  it.each(pinnedIdempotencyProbes)('is idempotent for %s (MYK9-550)', input => {
     const once = redactSecretLikeString(input);
     const twice = redactSecretLikeString(once);
     expect(twice).toBe(once);

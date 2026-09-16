@@ -1,18 +1,10 @@
 import { render, screen } from '@/test/utils/testUtils';
 import { describe, expect, it, vi } from 'vitest';
-import type { ReactNode } from 'react';
 import { BaseEntityDialog } from './BaseEntityDialog';
 
-vi.mock('@/components/common/StandardDialog', () => ({
-  default: ({ onSave, children }: { onSave: () => void; children: ReactNode }) => (
-    <div>
-      <button type="button" onClick={onSave}>
-        Save
-      </button>
-      {children}
-    </div>
-  ),
-}));
+// No StandardDialog mock: BaseEntityDialog renders CommonDialog directly now
+// (MYK9-584), so a mock of StandardDialog would be inert and would only mislead
+// a reader about what is in the path. This exercises the real footer.
 
 describe('BaseEntityDialog', () => {
   it('consumes a rejected async submit handler', async () => {
@@ -26,7 +18,7 @@ describe('BaseEntityDialog', () => {
       </BaseEntityDialog>
     );
 
-    screen.getAllByRole('button', { name: 'Save' }).at(-1)?.click();
+    screen.getByRole('button', { name: 'Save' }).click();
     await Promise.resolve();
     await Promise.resolve();
 

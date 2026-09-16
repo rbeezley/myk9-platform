@@ -12,11 +12,11 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { TabsContent } from '@/components/ui/tabs';
-import { PrimaryTabs, type PrimaryTabDef } from '@/components/common/PrimaryTabs';
+import { PrimaryTabs } from '@/components/common/PrimaryTabs';
 import { Breadcrumb } from '@/components/common/Breadcrumb';
 import { PageTransition } from '@/components/common/PageTransition';
 import { TableSkeleton } from '@/components/common/SkeletonLoaders';
-import { Users, Plus, Shield, Search, AlertTriangle, KeyRound } from 'lucide-react';
+import { Users, Plus, Shield, Search, AlertTriangle } from 'lucide-react';
 import { useClubStore } from '@/store/clubStore';
 import { useUserStore } from '@/store/userStore';
 import { useAuthContext } from '@/hooks/useAuthContext';
@@ -45,6 +45,7 @@ import { countUpcomingClubShows } from '@/services/database/clubs';
 import { logger } from '@/services/LoggingService';
 import { notifications } from '@/lib/notifications';
 import { AddMemberDialog, AssignOfficerDialog } from './ClubMemberDialogs';
+import { useClubShowAccessRequests } from './useClubShowAccessRequests';
 import { MembersTable, OfficersTable } from './ClubMemberTables';
 import { ClubShowAccessTab, AppointSecretaryDialog } from './ClubShowAccessTab';
 import {
@@ -57,14 +58,6 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-
-const CLUB_MEMBERS_TABS: PrimaryTabDef[] = [
-  { id: 'members', label: 'Members', icon: Users },
-  { id: 'officers', label: 'Officers', icon: Shield },
-  // Separate from Members on purpose: an appointed secretary need not be a member, so
-  // this tab can list people the roster structurally cannot.
-  { id: 'show-access', label: 'Show Access', icon: KeyRound },
-];
 
 // --- Main Page ---
 
@@ -277,6 +270,12 @@ const ClubMembersPage: React.FC = () => {
       });
     },
   });
+
+  // MYK9-571: role-request state/mutations, extracted to useClubShowAccessRequests.
+  const { clubMembersTabs, roleRequestsTabProps } = useClubShowAccessRequests(
+    clubId,
+    reportMutationFailure
+  );
 
   // Handlers
   const handleChangeType = (memberId: string, membershipType: MembershipType) => {
@@ -502,11 +501,7 @@ const ClubMembersPage: React.FC = () => {
         {/* Tabs */}
         <Card className="border border-border rounded-2xl shadow-sm ">
           <CardContent className="p-6">
-            <PrimaryTabs
-              tabs={CLUB_MEMBERS_TABS}
-              value={selectedTab}
-              onValueChange={setSelectedTab}
-            >
+            <PrimaryTabs tabs={clubMembersTabs} value={selectedTab} onValueChange={setSelectedTab}>
               {/* Members Tab */}
               <TabsContent value="members" className="mt-6 space-y-4">
                 {showAccessUnavailable && (
@@ -591,6 +586,7 @@ const ClubMembersPage: React.FC = () => {
                     handleToggleShowAccess(personId, false, personName)
                   }
                   upcomingShowCount={upcomingShowsQuery.data ?? 0}
+                  {...roleRequestsTabProps}
                 />
               </TabsContent>
             </PrimaryTabs>

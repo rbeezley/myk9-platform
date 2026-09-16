@@ -1,6 +1,11 @@
 import React, { useEffect, useRef } from 'react';
 import { useRegisterActionBar } from '@/hooks/useRegisterActionBar';
-import { isTopmostOverlay, popOpenOverlay, pushOpenOverlay } from '@/lib/overlayStack';
+import {
+  isTopmostOverlay,
+  popOpenOverlay,
+  pushOpenOverlay,
+  releaseBodyScrollIfNoOverlays,
+} from '@/lib/overlayStack';
 
 interface CommonDialogProps {
   open: boolean;
@@ -56,6 +61,10 @@ export const CommonDialog: React.FC<CommonDialogProps> = ({
     }
     return () => {
       popOpenOverlay(dialogId);
+      // This dialog never locks body scroll itself, but it may be the overlay
+      // that empties the stack -- a panel underneath cannot release a lock it
+      // has already unmounted past. See `overlayStack`.
+      releaseBodyScrollIfNoOverlays();
     };
   }, [open]);
 

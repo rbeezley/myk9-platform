@@ -14,6 +14,36 @@ describe('ThreeDotMenu', () => {
     expect(screen.getByRole('menuitem', { name: /delete/i })).toBeInTheDocument();
   });
 
+  // The only assertion of item ORDER anywhere. Without it, reordering the list
+  // here changes every surface that renders this menu with nothing going red --
+  // and a call site that pins order in its own mock is pinning the mock.
+  it('orders the items View, Edit, Photo, Status, Qualifications, Invitation, Delete', async () => {
+    const { user } = render(
+      <ThreeDotMenu
+        onView={vi.fn()}
+        onEdit={vi.fn()}
+        onEditPhoto={vi.fn()}
+        onChangeStatus={vi.fn()}
+        onManageQualifications={vi.fn()}
+        showManageQualifications
+        onSendInvitation={vi.fn()}
+        onDelete={vi.fn()}
+      />
+    );
+    await user.click(screen.getByRole('button', { name: /more actions/i }));
+    await screen.findByRole('menu');
+
+    expect(screen.getAllByRole('menuitem').map(item => item.textContent?.trim())).toEqual([
+      'View',
+      'Edit Profile',
+      'Change Photo',
+      'Change status',
+      'Manage Qualifications',
+      'Send Invitation',
+      'Delete',
+    ]);
+  });
+
   it('honors custom view/edit labels', async () => {
     const { user } = render(
       <ThreeDotMenu

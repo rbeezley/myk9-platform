@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { registrationToEntries } from '@/utils/registrationToEntries';
 import { mapDbEntryToReportEntry, resolveReportHandlerName } from '@/lib/reports/reportUtils';
+import { buildEmergencyPacketModel } from '@/features/emergency-trial-packet/emergencyTrialPacket';
+import { CHECK_IN_COLUMNS } from '@/features/emergency-trial-packet/buildEmergencyTrialPacketPdf';
 import { buildAKCScentWorkEntryFormValues } from '@/features/organization-forms/akcScentWorkEntryForm';
 import { AKC_SCENT_WORK_ENTRY_FORM_FIELDS } from '@/features/organization-forms/akcScentWorkEntryFormFields';
 import type { EntryFormDog, EntryFormTrial } from '@/lib/reports/entryFormTypes';
@@ -49,21 +51,25 @@ describe('MYK9-567 — handler name reaches the entry write payload intact', () 
 });
 
 describe('MYK9-567 — handler name reaches the check-in sheet intact', () => {
-  it.each([SPACED, PUNCTUATED])('resolves %s verbatim from entries.handler', name => {
-    expect(resolveReportHandlerName(name)).toBe(name);
-  });
-
-  it('trims only the ends, never the interior space', () => {
-    expect(resolveReportHandlerName(`  ${SPACED}  `)).toBe(SPACED);
-  });
-
-  it('lands the spaced name on the ReportEntry the check-in page renders', () => {
-    const entry = mapDbEntryToReportEntry(
+  /**
+   * The last hop, not the first: `resolveReportHandlerName` only end-trims and
+   * `mapDbEntryToReportEntry` copies `handler` straight through, so asserting
+   * either alone is `expect(x).toBe(x)`. This runs the projection the printed
+   * check-in sheet actually uses — DB row -> ReportEntry -> packet model ->
+   * the check-in page's entry — and asserts the cell the Handler column reads
+   * (LESSONS `last-hop-drop`).
+   *
+   * This is the packet path, which reads `entries.handler`. The separate
+   * pipeline-print surface builds its handler from the dog's OWNER instead;
+   * that is MYK9-603 and deliberately not touched here.
+   */
+  function checkInHandlerCells(handlerFromDb: string): string[] {
+    const reportEntry = mapDbEntryToReportEntry(
       {
         id: 'entry-1',
         armband: 101,
         run_order: 1,
-        check_in_status: 'checked-in',
+        check_in_status: null,
         section: null,
         is_scored: false,
         result_status: null,
@@ -73,11 +79,68 @@ describe('MYK9-567 — handler name reaches the check-in sheet intact', () => {
       },
       'Ziva',
       'Belgian Malinois',
-      resolveReportHandlerName(SPACED),
+      resolveReportHandlerName(handlerFromDb),
       'DN12345678'
     );
 
-    expect(entry.handler).toBe(SPACED);
+    const model = buildEmergencyPacketModel({
+      generatedAt: '2026-08-20T20:15:00.000Z',
+      show: {
+        id: 'show-1',
+        name: 'Old School Scent Work Trial',
+        clubName: 'Prairie Dog Club',
+        organization: 'AKC',
+        startDate: '2026-10-03',
+        endDate: '2026-10-03',
+      },
+      trials: [
+        {
+          id: 'trial-1',
+          date: '2026-10-03',
+          name: 'Saturday Trial',
+          trialNumber: '1',
+          registryId: 'AKC',
+        },
+      ],
+      classes: [
+        {
+          id: 'class-1',
+          trialId: 'trial-1',
+          name: 'Container Novice A',
+          element: 'Container',
+          level: 'Novice',
+          section: 'A',
+          classNumber: '101',
+          displayOrder: 1,
+          judgeName: 'Judge One',
+          ringLabel: 'Ring 1',
+          startTime: '08:00',
+          timeLimitSeconds: 120,
+          timeLimitArea2Seconds: null,
+          timeLimitArea3Seconds: null,
+          numAreas: null,
+          numHides: null,
+          distractionCount: null,
+        },
+      ],
+      entries: [{ ...reportEntry, classId: 'class-1', trialId: 'trial-1' }],
+    });
+
+    const checkInPages = model.pages.filter(page => page.kind === 'check-in');
+    expect(checkInPages.length).toBeGreaterThan(0);
+    return checkInPages.flatMap(page => page.entries.map(e => e.handler));
+  }
+
+  it('prints the Handler column, so the cell below is actually rendered', () => {
+    expect(CHECK_IN_COLUMNS.map(column => column.key)).toContain('handler');
+  });
+
+  it.each([SPACED, PUNCTUATED])('carries %s onto the check-in page entry', name => {
+    expect(checkInHandlerCells(name)).toEqual([name]);
+  });
+
+  it('trims only the ends, never the interior space', () => {
+    expect(checkInHandlerCells(`  ${SPACED}  `)).toEqual([SPACED]);
   });
 });
 

@@ -31,6 +31,12 @@ const REGRESSION_SPECS = [
   // exhibitorSelfRegistration depends on a separately seeded show whose entry
   // window is open; the default Heartland fixture is currently closed. Keep it
   // in the maintained inventory, but not in Nightly until that fixture exists.
+  // Secretary-authed, ~13s, every cart/entry write mocked and nothing submitted.
+  // Here rather than PR smoke on cost grounds; it guards a keyboard-level bug
+  // (Space swallowed by the Base UI popover trigger, MYK9-567) that jsdom can
+  // only approximate — the character's fate in a real browser is exactly the
+  // thing under test, so it needs a real browser somewhere in CI.
+  '**/registration/handlerNameSpace.spec.ts',
   '**/authentication-validation.spec.ts',
   '**/slice2-dog-workspace-evidence.spec.ts',
   // The former entities/entriesUI suite targets the deleted table/card

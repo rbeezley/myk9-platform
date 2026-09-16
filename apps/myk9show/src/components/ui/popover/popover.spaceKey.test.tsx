@@ -47,6 +47,56 @@ describe('PopoverTrigger — Space on a text-entry trigger (MYK9-567)', () => {
   }, 20000);
 });
 
+describe('PopoverTrigger — Space must not activate a text-entry trigger (MYK9-567)', () => {
+  /**
+   * Stopping Base UI's keyDOWN handler restores the character, but `useButton`
+   * has a SECOND non-native activation path on keyUP that dispatches a
+   * synthetic click. `useClick` turns that click into a popover toggle, so the
+   * typeahead list flickered shut on every space while the rest of the name
+   * typed fine — the same root cause wearing different clothes. Both halves
+   * have to be stopped for a text trigger.
+   */
+  function renderTextTrigger() {
+    const onClick = vi.fn();
+    const onOpenChange = vi.fn();
+    render(
+      <Popover open onOpenChange={onOpenChange}>
+        <PopoverTrigger asChild nativeButton={false}>
+          <input aria-label="Handler" defaultValue="" onClick={onClick} />
+        </PopoverTrigger>
+      </Popover>
+    );
+    return { onClick, onOpenChange, input: screen.getByLabelText('Handler') as HTMLInputElement };
+  }
+
+  it('dispatches no click on the input when a space is typed', async () => {
+    const { onClick, input } = renderTextTrigger();
+    input.focus();
+    await userEvent.setup().keyboard('a b');
+
+    expect(input.value).toBe('a b');
+    expect(onClick).not.toHaveBeenCalled();
+  }, 20000);
+
+  it('does not toggle the popover open state while a space is typed', async () => {
+    const { onOpenChange, input } = renderTextTrigger();
+    input.focus();
+    await userEvent.setup().keyboard('a b');
+
+    expect(onOpenChange).not.toHaveBeenCalled();
+  }, 20000);
+
+  it('control — typing with no space dispatches no click either', async () => {
+    const { onClick, onOpenChange, input } = renderTextTrigger();
+    input.focus();
+    await userEvent.setup().keyboard('ab');
+
+    expect(input.value).toBe('ab');
+    expect(onClick).not.toHaveBeenCalled();
+    expect(onOpenChange).not.toHaveBeenCalled();
+  }, 20000);
+});
+
 describe('isTextEntryElement', () => {
   function el(html: string): HTMLElement {
     const host = document.createElement('div');
@@ -67,6 +117,12 @@ describe('isTextEntryElement', () => {
     ['<button></button>', false],
     ['<div></div>', false],
     ['<span role="combobox"></span>', false],
+    // jsdom leaves `isContentEditable` undefined, so the predicate reads the
+    // attribute. Nothing else exercises that branch.
+    ['<div contenteditable></div>', true],
+    ['<div contenteditable="true"></div>', true],
+    ['<div contenteditable="plaintext-only"></div>', true],
+    ['<div contenteditable="false"></div>', false],
   ])('%s -> %s', (html, expected) => {
     expect(isTextEntryElement(el(html))).toBe(expected);
   });

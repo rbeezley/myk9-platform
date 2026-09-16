@@ -27,19 +27,31 @@ vi.mock('@/hooks/useAuthContext', () => ({
   useAuthContext: () => ({ userWithRoles: { roles: ['exhibitor'] } }),
 }));
 
-// No ownerName: the field starts empty, so the whole name is typed into it and
-// the "Reset to owner" button never mounts mid-typing (which would move focus in
-// jsdom and truncate the run for a reason that has nothing to do with the bug).
+// A dog with no recorded owner name: the field starts empty. The
+// owner-prefilled shape — what a real exhibitor meets, and what the tester hit —
+// is covered separately below.
 const ZIVA = { id: 'dog-1', callName: 'Ziva' } as unknown as Dog;
 
-function renderDialog(onHandlerAssignment: (a: Record<string, HandlerInfo>) => void = () => {}) {
+const ZIVA_WITH_OWNER = {
+  id: 'dog-1',
+  callName: 'Ziva',
+  ownerId: 'person-1',
+  ownerName: 'Reese Owner',
+} as unknown as Dog;
+
+function renderDialog(
+  onHandlerAssignment: (a: Record<string, HandlerInfo>) => void = () => {},
+  dog: Dog = ZIVA,
+  initialAssignments: Record<string, HandlerInfo> = {}
+) {
   render(
     <HandlerSelectionDialog
       open
       onOpenChange={() => {}}
-      selectedDogs={[ZIVA.id]}
-      dogs={[ZIVA]}
+      selectedDogs={[dog.id]}
+      dogs={[dog]}
       onHandlerAssignment={onHandlerAssignment}
+      initialAssignments={initialAssignments}
     />
   );
   return screen.getByLabelText('Handler name');
@@ -69,6 +81,25 @@ describe('HandlerSelectionDialog — handler name entry (MYK9-567)', () => {
     const field = renderDialog();
     await userEvent.setup().type(field, "Mary-Jane.O'Brien");
     expect(field).toHaveValue("Mary-Jane.O'Brien");
+  }, 20000);
+
+  // The reported repro: the field is prefilled with the dog owner's name and the
+  // exhibitor replaces it with somebody else's. Selecting the existing text puts
+  // the "Reset to owner" button on screen throughout, so this also covers typing
+  // with that control mounted beside the field.
+  it('replaces a prefilled owner name with a spaced handler name', async () => {
+    const field = renderDialog(() => {}, ZIVA_WITH_OWNER, {
+      'dog-1': { handlerId: 'person-1', handlerName: 'Reese Owner', isOwner: true },
+    });
+    expect(field).toHaveValue('Reese Owner');
+
+    const user = userEvent.setup();
+    await user.click(field);
+    await user.keyboard('{Control>}a{/Control}');
+    await user.keyboard('Mariana Alexander');
+
+    expect(field).toHaveValue('Mariana Alexander');
+    expect(screen.getByRole('button', { name: 'Reset to owner' })).toBeInTheDocument();
   }, 20000);
 
   it('hands the spaced name to the caller on Confirm Handler', async () => {

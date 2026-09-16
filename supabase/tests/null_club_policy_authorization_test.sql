@@ -52,7 +52,13 @@ VALUES
   ('00000000-0000-0000-0000-000000585013', 'MYK9-585', 'Site Admin',
    'myk9-585-site-admin@example.test', NULL),
   ('00000000-0000-0000-0000-000000585014', 'MYK9-585', 'Exhibitor',
-   'myk9-585-exhibitor@example.test', NULL);
+   'myk9-585-exhibitor@example.test', NULL),
+  -- A SECOND exhibitor, solely so case 9.0 can open a new thread.
+  -- show_message_threads carries UNIQUE (show_id, participant_id), so reusing
+  -- the first exhibitor collides on the club A show and the file dies at the
+  -- constraint before any 9.x assertion runs.
+  ('00000000-0000-0000-0000-000000585015', 'MYK9-585', 'Exhibitor Two',
+   'myk9-585-exhibitor-two@example.test', NULL);
 
 -- show_message_threads.participant_id and show_messages.sender_id are FKs to
 -- auth.users, so these identities must exist before any thread or message.
@@ -66,7 +72,9 @@ VALUES
   ('00000000-0000-0000-0000-000000585103','00000000-0000-0000-0000-000000000000','authenticated',
    'authenticated','myk9-585-site-admin@example.test','', now(), now(), now(), '{}','{}', false, false, false),
   ('00000000-0000-0000-0000-000000585104','00000000-0000-0000-0000-000000000000','authenticated',
-   'authenticated','myk9-585-exhibitor@example.test','', now(), now(), now(), '{}','{}', false, false, false);
+   'authenticated','myk9-585-exhibitor@example.test','', now(), now(), now(), '{}','{}', false, false, false),
+  ('00000000-0000-0000-0000-000000585105','00000000-0000-0000-0000-000000000000','authenticated',
+   'authenticated','myk9-585-exhibitor-two@example.test','', now(), now(), now(), '{}','{}', false, false, false);
 
 -- Guard the assumption every identity below rests on.
 DO $adopt$
@@ -438,18 +446,19 @@ BEGIN
   END IF;
   RAISE NOTICE 'PASS 8.x the three *_visibility_update policies are club-scoped';
 
-  -- threads_insert. participant_id is the EXHIBITOR, never the caller: with the
+  -- threads_insert. participant_id is the SECOND exhibitor, never the caller:
+  -- with the
   -- caller as participant the `participant_id = auth.uid()` arm admits the row
   -- on its own and the staff arm — the one this migration changed — is never
   -- consulted.
   INSERT INTO public.show_message_threads (id, show_id, participant_id)
   VALUES ('00000000-0000-0000-0000-000000585053', '00000000-0000-0000-0000-000000585021',
-          '00000000-0000-0000-0000-000000585104');
+          '00000000-0000-0000-0000-000000585105');
   refused := false;
   BEGIN
     INSERT INTO public.show_message_threads (id, show_id, participant_id)
     VALUES ('00000000-0000-0000-0000-000000585054', '00000000-0000-0000-0000-000000585022',
-            '00000000-0000-0000-0000-000000585104');
+            '00000000-0000-0000-0000-000000585105');
   EXCEPTION WHEN insufficient_privilege THEN refused := true;
   END;
   IF NOT refused THEN
@@ -476,18 +485,21 @@ BEGIN
   END IF;
   RAISE NOTICE 'PASS 9.1 messages_insert is club-scoped';
 
-  -- messages_update_read. Its USING clause is textually the same predicate as
+  -- messages_update_read. read_at is the ONLY column it may touch:
+  -- restrict_message_update_columns() raises on any other change, which is also
+  -- why this case sets a column to itself rather than editing a body.
+  -- Its USING clause is textually the same predicate as
   -- messages_select, so 9.3's zero row count is not INDEPENDENT evidence about
   -- this policy — it would be zero if either one denied. 9.2 is what makes the
   -- case worth running: it proves this policy admits the caller where it should,
   -- which case 4's read-only assertions cannot show.
-  UPDATE public.show_messages SET body = body
+  UPDATE public.show_messages SET read_at = read_at
    WHERE id = '00000000-0000-0000-0000-000000585061';
   GET DIAGNOSTICS n = ROW_COUNT;
   IF n <> 1 THEN
     RAISE EXCEPTION 'FAIL 9.2 club admin lost messages_update_read on their own club''s message';
   END IF;
-  UPDATE public.show_messages SET body = body
+  UPDATE public.show_messages SET read_at = read_at
    WHERE id = '00000000-0000-0000-0000-000000585062';
   GET DIAGNOSTICS n = ROW_COUNT;
   IF n <> 0 THEN

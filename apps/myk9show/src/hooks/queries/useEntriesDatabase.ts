@@ -166,12 +166,23 @@ export const useDogActiveEntryCountQuery = (dogId: string, enabled = true) => {
 // Count the dog's entries that would make soft_delete_dog refuse (MK002), so the
 // confirmation can say so up front instead of letting the user click Delete into
 // a server error. Gated by `enabled` like the active count beside it.
+//
+// MYK9-600: NOT `cacheStrategies.moderate`. This count is a money-and-results
+// fact — a refund issued a minute ago, or a score just cleared, flips it — and
+// the dialog it feeds decides whether a destructive button is pressable. A
+// five-minute stale window let the dialog confidently describe a state the
+// database had already left, in either direction. `staleTime: 0` plus
+// `refetchOnMount: 'always'` makes every open of the dialog re-measure; the key
+// still extends `queryKeys.dogEntries`, so every entry write that routes
+// through `entryInvalidationKeys` reaches it by prefix as well.
 export const useDogBlockingEntryCountQuery = (dogId: string, enabled = true) => {
   return useQuery({
     queryKey: [...queryKeys.dogEntries(dogId), 'blocking-count'],
     queryFn: () => countBlockingEntriesByDog(dogId),
     enabled: !!dogId && enabled,
-    ...cacheStrategies.moderate,
+    staleTime: 0,
+    gcTime: 0,
+    refetchOnMount: 'always',
   });
 };
 

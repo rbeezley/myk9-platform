@@ -3,6 +3,7 @@ import { toast } from 'sonner';
 import { logger } from '@/services/LoggingService';
 import { DogEditPanelSkeleton, PhotoDialogSkeleton } from './Skeletons';
 import { DeleteDogDialog } from '@/components/dogs/common/DeleteDogDialog';
+import { toBlockingEntryCountState } from '@/components/dogs/common/blockingEntryCount';
 import {
   useDogActiveEntryCountQuery,
   useDogBlockingEntryCountQuery,
@@ -61,7 +62,11 @@ const DogDialogs: React.FC<DogDialogsProps> = ({
   // Separate count, not a filter over the one above: the delete-blocking
   // predicate is the server's (MK002), and the two must be able to disagree —
   // "3 entries, 1 of them paid" is the case the dialog has to describe.
-  const { data: blockingEntryCount } = useDogBlockingEntryCountQuery(dog.id, isDeleteDialogOpen);
+  // MYK9-600: the whole query result, not just `data`. A failed or in-flight
+  // count is NOT zero — discarding `isError` here is what let a count that
+  // never arrived render as "nothing blocks this delete".
+  const blockingCountQuery = useDogBlockingEntryCountQuery(dog.id, isDeleteDialogOpen);
+  const blockingEntryCount = toBlockingEntryCountState(blockingCountQuery);
 
   useEffect(() => {
     return () => {
@@ -161,6 +166,7 @@ const DogDialogs: React.FC<DogDialogsProps> = ({
           isSubmitting={isDeleting ?? false}
           activeEntryCount={activeEntryCount}
           blockingEntryCount={blockingEntryCount}
+          onRetryBlockingCount={() => void blockingCountQuery.refetch?.()}
           canRestore={canRestore ?? false}
           canForceDelete={canForceDelete ?? false}
           onForceDelete={

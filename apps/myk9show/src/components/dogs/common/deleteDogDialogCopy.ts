@@ -48,3 +48,16 @@ export function buildWarningText(
   const what = !activeEntryCount || activeEntryCount <= 0 ? 'The dog' : 'The dog and its entries';
   return `${what} can be restored by an administrator from Admin → Deleted Items.`;
 }
+
+/**
+ * The two "we do not know yet" lines (MYK9-600).
+ *
+ * Both sit where `buildBlockedText` would, and both accompany a disabled
+ * Delete. They are deliberately not softened into "loading…": the reason the
+ * button is unpressable is a fact about this dog's money and results, and the
+ * user is entitled to read it rather than infer it from a spinner.
+ */
+export const blockingCountPendingText = 'Checking whether this dog has paid or scored entries…';
+
+export const blockingCountErrorText =
+  'We could not check whether this dog has paid or scored entries. Deleting now could strand a paid entry, so try again before deleting.';

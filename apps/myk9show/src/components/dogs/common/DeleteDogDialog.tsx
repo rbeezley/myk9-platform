@@ -1,8 +1,17 @@
 import React, { useState } from 'react';
 import { DeleteConfirmationDialog } from '@/components/base';
+import { Button } from '@/components/ui/button';
+import { RefreshCw } from 'lucide-react';
 import type { Dog } from '@/types/dog-types';
-import { buildImpactSuffix, buildWarningText, deleteDogSubtitle } from './deleteDogDialogCopy';
+import {
+  blockingCountErrorText,
+  blockingCountPendingText,
+  buildImpactSuffix,
+  buildWarningText,
+  deleteDogSubtitle,
+} from './deleteDogDialogCopy';
 import { ForceDeleteOverride } from './ForceDeleteOverride';
+import { NOT_BLOCKED, type BlockingEntryCountState } from './blockingEntryCount';
 
 interface DeleteDogDialogProps {
   open: boolean;
@@ -23,12 +32,19 @@ interface DeleteDogDialogProps {
    */
   canRestore?: boolean;
   /**
-   * Live entries that make the server refuse the delete (paid or scored). When
-   * > 0 the dialog explains the refusal and blocks Delete. Pass undefined while
-   * loading — an unknown count must not read as zero and enable a delete the
-   * server will reject.
+   * Live entries that make the server refuse the delete (paid or scored), as a
+   * three-state value — see `blockingEntryCount.ts`. An unknown count must not
+   * read as zero and enable a delete the server will reject, so `pending` and
+   * `error` both hold the destructive button closed and say why. Defaults to
+   * `{ status: 'ready', count: 0 }`: a caller that does not track blocking
+   * entries is asserting "not blocked", which is not the same as not knowing.
    */
-  blockingEntryCount?: number | undefined;
+  blockingEntryCount?: BlockingEntryCountState;
+  /**
+   * Re-runs the blocking count. Required for the `error` state to be
+   * recoverable — without it the dialog can only be cancelled.
+   */
+  onRetryBlockingCount?: (() => void) | undefined;
   /**
    * Whether the current user may override the refusal above (platform admin).
    * When true AND the delete is blocked, the dialog offers an explicit opt-in
@@ -49,17 +65,42 @@ const DeleteDogDialog: React.FC<DeleteDogDialogProps> = ({
   isSubmitting,
   activeEntryCount,
   canRestore = false,
-  blockingEntryCount,
+  blockingEntryCount = NOT_BLOCKED,
+  onRetryBlockingCount,
   canForceDelete = false,
   onForceDelete,
 }) => {
-  const isBlocked = (blockingEntryCount ?? 0) > 0;
+  const isKnown = blockingEntryCount.status === 'ready';
+  // MYK9-600: three states, three behaviours. `isBlocked` is a KNOWN refusal —
+  // the only thing an admin override applies to. `isUnknown` is its own reason
+  // to hold the button, and it must never borrow the override affordance: that
+  // would invite a force delete on a dog that may have nothing wrong with it.
+  const isBlocked = blockingEntryCount.status === 'ready' && blockingEntryCount.count > 0;
+  const isUnknown = !isKnown;
   const canOverride = isBlocked && canForceDelete && !!onForceDelete;
   // The opt-in re-arms by MOUNTING, not by an effect that resets it on close:
   // callers render this dialog only while it is open, so a fresh open gets a
   // fresh `false`. A checkbox that stayed ticked from a previous dog would turn
   // the next delete into one click on a dialog the user has not read.
   const [overrideAcknowledged, setOverrideAcknowledged] = useState(false);
+
+  const warningText =
+    blockingEntryCount.status === 'pending'
+      ? blockingCountPendingText
+      : blockingEntryCount.status === 'error'
+        ? blockingCountErrorText
+        : buildWarningText(activeEntryCount, canRestore, blockingEntryCount.count);
+
+  const retryControl =
+    blockingEntryCount.status === 'error' && onRetryBlockingCount ? (
+      // Full-size, not `sm`: this is the only route back to a usable Delete, and
+      // docs/INTENT.md keeps the 44px floor for any control that is the sole way
+      // to reach a primary or destructive action.
+      <Button type="button" variant="outline" onClick={onRetryBlockingCount}>
+        <RefreshCw className="w-4 h-4 mr-2" />
+        Try again
+      </Button>
+    ) : undefined;
 
   return (
     <DeleteConfirmationDialog
@@ -70,9 +111,9 @@ const DeleteDogDialog: React.FC<DeleteDogDialogProps> = ({
       entityType="Dog"
       description={deleteDogSubtitle}
       impactSuffix={buildImpactSuffix(activeEntryCount)}
-      warningText={buildWarningText(activeEntryCount, canRestore, blockingEntryCount)}
+      warningText={warningText}
       confirmLabel={canOverride && overrideAcknowledged ? 'Delete anyway' : 'Delete'}
-      confirmDisabled={isBlocked && !(canOverride && overrideAcknowledged)}
+      confirmDisabled={isUnknown || (isBlocked && !(canOverride && overrideAcknowledged))}
       isDeleting={isSubmitting}
       additionalContent={
         canOverride ? (
@@ -81,7 +122,9 @@ const DeleteDogDialog: React.FC<DeleteDogDialogProps> = ({
             onCheckedChange={setOverrideAcknowledged}
             disabled={isSubmitting ?? false}
           />
-        ) : undefined
+        ) : (
+          retryControl
+        )
       }
     />
   );

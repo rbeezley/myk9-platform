@@ -69,7 +69,7 @@ describe('BlockedDogDeleteDialog override', () => {
     forceDeleteMutateAsync.mockReset().mockResolvedValue(undefined);
   });
 
-  it('offers no override to a non-admin and keeps the confirm disabled', async () => {
+  it('shows a non-admin no override and no dead Delete anyway button (MYK9-600)', async () => {
     const report = renderDialog(false);
     await act(async () => {
       report.click();
@@ -79,7 +79,13 @@ describe('BlockedDogDeleteDialog override', () => {
     expect(
       within(dialog).queryByRole('checkbox', { name: /I understand/i })
     ).not.toBeInTheDocument();
-    expect(within(dialog).getByRole('button', { name: /delete anyway/i })).toBeDisabled();
+    // A permanently disabled destructive button with no explanation is a dead
+    // control. INTENT (docs/INTENT.md) asks for calm surfaces: for a viewer who
+    // can never take the action, the dialog is a report, so it offers only Close.
+    expect(
+      within(dialog).queryByRole('button', { name: /delete anyway/i })
+    ).not.toBeInTheDocument();
+    expect(within(dialog).getByRole('button', { name: 'Close' })).toBeEnabled();
   });
 
   it('keeps Delete anyway disabled for an admin until the acknowledgement is ticked', async () => {

@@ -316,7 +316,20 @@ describe('Dog Queries', () => {
 
       expect(mockSupabase.rpc).toHaveBeenCalledWith('force_delete_dog', { p_dog_id: '1' });
       expect(mockSupabase.rpc).not.toHaveBeenCalledWith('soft_delete_dog', expect.anything());
-      expect(result.data).toEqual(expect.objectContaining({ id: '1' }));
+      expect(result.error).toBeNull();
+    });
+
+    // MYK9-600. `force_delete_dog` returns void: the SERVER stamps deleted_at
+    // and deleted_by. Synthesising `{ deleted_at: new Date() }` from the client
+    // clock here handed every consumer a timestamp that is not the one in the
+    // row, and `restore_dog` keys on the exact `deleted_at` — so a value that
+    // merely looks right is worse than no value at all.
+    it('returns no row — the RPC is void and the server owns deleted_at/deleted_by', async () => {
+      mockSupabase.rpc.mockReturnValue(createChainableQuery({ data: null, error: null }));
+
+      const result = await forceDeleteDog('1');
+
+      expect(result.data).toBeNull();
       expect(result.error).toBeNull();
     });
 

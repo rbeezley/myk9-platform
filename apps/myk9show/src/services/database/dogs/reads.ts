@@ -697,14 +697,17 @@ export const deleteDog = async (id: string, deletedBy?: string) => {
  * This issues no refund: a force-deleted paid entry leaves its Stripe charge
  * captured. Callers must say so before offering it.
  */
-export const forceDeleteDog = async (id: string) => {
+export const forceDeleteDog = async (
+  id: string
+): Promise<{
+  data: null;
+  error: DatabaseError | null;
+}> => {
   const startTime = Date.now();
 
   logger.debug('🗑️ Database forceDeleteDog called:', 'database', { data: { id } });
 
   try {
-    const deletedAt = new Date().toISOString();
-
     // Typed: a typo'd argument key or a future signature change fails the
     // typecheck instead of 404-ing at runtime on a destructive admin path.
     const { error } = await supabase.rpc('force_delete_dog', { p_dog_id: id });
@@ -724,9 +727,16 @@ export const forceDeleteDog = async (id: string) => {
       throw createDatabaseError(error, 'dog', 'force_delete');
     }
 
-    const data = { id, deleted_at: deletedAt, deleted_by: null };
-    logger.debug('📊 Force delete succeeded:', 'database', { data });
-    return { data, error: null };
+    // MYK9-600: no synthesised row. `force_delete_dog` returns void and the
+    // SERVER stamps `deleted_at` (and `deleted_by`, from `auth.uid()`). This
+    // used to return `{ id, deleted_at: <client clock>, deleted_by: null }`,
+    // which is wrong twice over: the timestamp is the browser's, not the row's,
+    // and `restore_dog` keys on the exact `deleted_at`. A value that merely
+    // looks right is worse than none — nothing typechecks it against the row.
+    // No consumer reads it: `useDogDeleteMutation` ignores the resolved value
+    // in `onSuccess`.
+    logger.debug('📊 Force delete succeeded:', 'database', { data: { id } });
+    return { data: null, error: null };
   } catch (error) {
     const duration = Date.now() - startTime;
     const dbError = createDatabaseError(error, 'dog', 'force_delete');

@@ -59,13 +59,24 @@ export function BlockedDogDeleteDialog({
   const count = dogs.length;
   const noun = count === 1 ? 'dog' : 'dogs';
 
+  // MYK9-600: for a viewer who cannot override, this dialog is a REPORT, not a
+  // confirmation. It used to render "Delete anyway" permanently disabled with
+  // nothing saying why — a dead destructive control, which docs/INTENT.md rules
+  // out. There is no way to suppress the confirm slot in
+  // DeleteConfirmationDialog, so the slot is repurposed: the single remaining
+  // action is Close, and the cancel slot is dropped (an empty `cancelLabel` is
+  // how DialogFooterButtons omits it) so there are not two buttons that do the
+  // same thing. The list and the reason are untouched — hiding the button must
+  // not hide the explanation.
+  const reportOnly = !canForceDelete;
+
   return (
     <DeleteConfirmationDialog
       open={open}
       onOpenChange={next => {
         if (!next) onClose();
       }}
-      onConfirm={onForceDelete}
+      onConfirm={reportOnly ? onClose : onForceDelete}
       title={`${count} ${noun} could not be deleted`}
       description={
         reason === 'override-failed'
@@ -74,9 +85,9 @@ export function BlockedDogDeleteDialog({
       }
       entityName={`${count} ${noun}`}
       entityType="Dog"
-      confirmLabel="Delete anyway"
-      cancelLabel="Close"
-      confirmDisabled={!canForceDelete || !overrideAcknowledged}
+      confirmLabel={reportOnly ? 'Close' : 'Delete anyway'}
+      cancelLabel={reportOnly ? '' : 'Close'}
+      confirmDisabled={reportOnly ? false : !overrideAcknowledged}
       isDeleting={isSubmitting}
       warningText={
         <>

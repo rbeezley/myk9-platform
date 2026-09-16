@@ -2006,6 +2006,25 @@ describe('the workflow’s crash-fallback step', () => {
     expect(Number(jobTimeout[1])).toBeGreaterThan(sum);
   });
 
+  it('declares `shell: bash` on both run steps, the options the harness replays', () => {
+    // The harness runs the extracted script under
+    // `bash --noprofile --norc -eo pipefail`. GitHub uses those options only
+    // when the step says `shell: bash`; the default is `bash -e {0}`, no
+    // pipefail. Without this, the harness tests a shell CI does not run.
+    //
+    // Matched as a LINE, not a substring: the comment above each step
+    // explains the choice and itself contains the literal `shell: bash`, so a
+    // `toContain` stayed green with the real key deleted (LESSONS
+    // `comment-satisfies-grep`).
+    const yaml = readFileSync(workflowPath, 'utf8');
+    for (const step of ['Post Review gate status for the PR head', STEP_NAME]) {
+      const at = yaml.indexOf(`- name: ${step}`);
+      expect(at, `no step named "${step}"`).toBeGreaterThan(-1);
+      const body = yaml.slice(at, yaml.indexOf('\n        run:', at));
+      expect(body, `step "${step}" does not declare shell: bash`).toMatch(/^ {8}shell: bash$/m);
+    }
+  });
+
   it('runs only when the job has already failed', () => {
     const yaml = readFileSync(workflowPath, 'utf8');
     const stepAt = yaml.indexOf(`- name: ${STEP_NAME}`);

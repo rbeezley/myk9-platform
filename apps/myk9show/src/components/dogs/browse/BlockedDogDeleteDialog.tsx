@@ -92,8 +92,14 @@ export function BlockedDogDeleteDialog({
       warningText={
         <>
           <span className="block">
+            {/* The override-failed line must not offer a retry the footer does
+                not render. In reportOnly the only action is Close — which is
+                exactly how an admin ARRIVES here after losing access
+                mid-session, the commonest cause of an override failure. */}
             {reason === 'override-failed'
-              ? 'Nothing was deleted. You can try the override again, or close and investigate.'
+              ? reportOnly
+                ? 'Nothing was deleted, and you can no longer override this. Close and investigate — confirm you still have site-admin access.'
+                : 'Nothing was deleted. You can try the override again, or close and investigate.'
               : `Scratch or refund their entries to delete them normally${
                   canForceDelete ? ', or override below' : ''
                 }.`}

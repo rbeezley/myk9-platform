@@ -6,6 +6,7 @@ import { queryKeys } from '@/lib/queryClient';
 import { entryInvalidationKeys } from '@/services/database/entries/invalidation';
 
 const countBlockingEntriesByDog = vi.fn<(dogId: string) => Promise<number>>();
+const countActiveEntriesByDog = vi.fn<(dogId: string) => Promise<number>>();
 
 vi.mock('@/services/database/entries', () => ({
   getAllEntries: vi.fn(),
@@ -15,7 +16,7 @@ vi.mock('@/services/database/entries', () => ({
   getEntriesByClass: vi.fn(),
   getPublicEntriesByClass: vi.fn(),
   getEntriesByDog: vi.fn(),
-  countActiveEntriesByDog: vi.fn(),
+  countActiveEntriesByDog: (dogId: string) => countActiveEntriesByDog(dogId),
   countBlockingEntriesByDog: (dogId: string) => countBlockingEntriesByDog(dogId),
   getEntriesByStatus: vi.fn(),
   getEntriesForShow: vi.fn(),
@@ -32,7 +33,12 @@ vi.mock('@/hooks/useAuthContext', () => ({
   useAuthContext: () => ({ user: { id: 'u1', is_anonymous: false }, loading: false }),
 }));
 
-const { useDogBlockingEntryCountQuery } = await import('@/hooks/queries/useEntriesDatabase');
+const {
+  useDogBlockingEntryCountQuery,
+  useDogActiveEntryCountQuery,
+  dogBlockingEntryCountKey,
+  dogActiveEntryCountKey,
+} = await import('@/hooks/queries/useEntriesDatabase');
 
 /**
  * MYK9-600. The count that decides whether a delete is blocked is a money and
@@ -68,21 +74,111 @@ describe('useDogBlockingEntryCountQuery freshness', () => {
     await waitFor(() => expect(countBlockingEntriesByDog).toHaveBeenCalledTimes(2));
     second.unmount();
   });
+
+  it("re-reads on the app's actual path: close and re-open without unmounting", async () => {
+    // This is the case that matters. `DogDialogs` calls the hook
+    // unconditionally and toggles `enabled` with the dialog, so the observer
+    // never unmounts and `refetchOnMount` never fires — a second open is an
+    // ENABLE transition. `staleTime: 0` is what makes React Query refetch here,
+    // and the remount test above cannot see that.
+    const { wrapper } = makeWrapper();
+
+    const view = renderHook(
+      ({ open }: { open: boolean }) => useDogBlockingEntryCountQuery('dog-1', open),
+      { wrapper, initialProps: { open: true } }
+    );
+    await waitFor(() => expect(countBlockingEntriesByDog).toHaveBeenCalledTimes(1));
+
+    view.rerender({ open: false });
+    view.rerender({ open: true });
+
+    await waitFor(() => expect(countBlockingEntriesByDog).toHaveBeenCalledTimes(2));
+    view.unmount();
+  });
 });
 
-describe('blocking-count cache key reachability', () => {
-  it('is invalidated by the shared entry-write key set', () => {
-    // Every entry write — payment, refund, scratch, score — that uses React
-    // Query routes through `entryInvalidationKeys`. React Query invalidates by
-    // key PREFIX, so the blocking count is only reached if its key extends one
-    // of these. Pin it: renaming the key or re-rooting it elsewhere would
-    // silently strand the count behind every one of those mutations.
-    const blockingCountKey = [...queryKeys.dogEntries('dog-1'), 'blocking-count'];
-    const keys = entryInvalidationKeys({ dogId: 'dog-1' });
+describe('delete-dialog count cache keys', () => {
+  // These assert the EXACT key the hooks use, read from the builders the hooks
+  // themselves call — not from a literal retyped here. The earlier version of
+  // this test rebuilt the key locally and then checked it against
+  // `entryInvalidationKeys`, which always emits the bare `['entries']` root:
+  // that prefix-matches anything entry-rooted, so re-rooting the hook's key to
+  // `['entries', 'blocking-count', dogId]` left the test green while stranding
+  // the count behind every per-dog invalidation. It also never varied `dogId`.
+  //
+  // Mutation-checked: changing `dogBlockingEntryCountKey` to
+  // `['entries', 'blocking-count', dogId]` turns the first two cases below red,
+  // and changing the hook's `queryKey` away from the builder turns the third red.
+  it('is exactly the dogEntries key plus a discriminator', () => {
+    expect(dogBlockingEntryCountKey('dog-1')).toEqual([
+      ...queryKeys.dogEntries('dog-1'),
+      'blocking-count',
+    ]);
+    expect(dogActiveEntryCountKey('dog-1')).toEqual([
+      ...queryKeys.dogEntries('dog-1'),
+      'active-count',
+    ]);
+  });
 
+  it('is invalidated by a per-dog entry write, and only for that dog', () => {
     const isPrefixOf = (prefix: readonly unknown[], full: readonly unknown[]) =>
       prefix.length <= full.length && prefix.every((part, i) => part === full[i]);
 
-    expect(keys.some(k => isPrefixOf(k, blockingCountKey))).toBe(true);
+    // The bare `['entries']` root matches everything entry-rooted, so it proves
+    // nothing about this key. Ask the question that can actually fail: does a
+    // write to THIS dog reach it, and does a write to another dog not?
+    const perDogKeys = entryInvalidationKeys({ dogId: 'dog-1' }).filter(k => k.length > 1);
+    const otherDogKeys = entryInvalidationKeys({ dogId: 'dog-2' }).filter(k => k.length > 1);
+
+    expect(perDogKeys.some(k => isPrefixOf(k, dogBlockingEntryCountKey('dog-1')))).toBe(true);
+    expect(perDogKeys.some(k => isPrefixOf(k, dogActiveEntryCountKey('dog-1')))).toBe(true);
+    expect(otherDogKeys.some(k => isPrefixOf(k, dogBlockingEntryCountKey('dog-1')))).toBe(false);
+  });
+
+  it('is the key the hook actually registers in the cache', async () => {
+    // The builder could be correct and the hook could still spell its own key
+    // inline. Look the query up in the real cache by the builder's key.
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    const wrapper = ({ children }: { children: React.ReactNode }) =>
+      React.createElement(QueryClientProvider, { client }, children);
+
+    const view = renderHook(() => useDogBlockingEntryCountQuery('dog-1', true), { wrapper });
+    await waitFor(() => expect(countBlockingEntriesByDog).toHaveBeenCalled());
+
+    expect(
+      client.getQueryCache().find({ queryKey: dogBlockingEntryCountKey('dog-1') })
+    ).toBeDefined();
+    view.unmount();
+  });
+});
+
+/**
+ * The active count feeds the SAME dialog's "…and N entries." sentence — the
+ * user's only statement of what the delete destroys — so it gets the same
+ * freshness as the blocking count (MYK9-600 round-1 review).
+ */
+describe('useDogActiveEntryCountQuery freshness', () => {
+  beforeEach(() => {
+    countActiveEntriesByDog.mockReset().mockResolvedValue(0);
+  });
+
+  it('re-reads on a re-open without an unmount', async () => {
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    const wrapper = ({ children }: { children: React.ReactNode }) =>
+      React.createElement(QueryClientProvider, { client }, children);
+
+    const view = renderHook(
+      ({ open }: { open: boolean }) => useDogActiveEntryCountQuery('dog-1', open),
+      {
+        wrapper,
+        initialProps: { open: true },
+      }
+    );
+    await waitFor(() => expect(countActiveEntriesByDog).toHaveBeenCalledTimes(1));
+
+    view.rerender({ open: false });
+    view.rerender({ open: true });
+    await waitFor(() => expect(countActiveEntriesByDog).toHaveBeenCalledTimes(2));
+    view.unmount();
   });
 });

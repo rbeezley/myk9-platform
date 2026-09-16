@@ -151,38 +151,65 @@ export const useEntriesByDogQuery = (dogId: string, enabled = true) => {
   });
 };
 
+/**
+ * Cache keys for the two delete-dialog counts (MYK9-600).
+ *
+ * Exported and used by the hooks below rather than spelled inline, so a test
+ * can pin the SHAPE. Both must stay rooted at `queryKeys.dogEntries(dogId)`:
+ * React Query invalidates by key prefix, and `entryInvalidationKeys({ dogId })`
+ * emits exactly that prefix, so re-rooting either key anywhere else silently
+ * strands the count behind every entry write that routes through it. Nothing
+ * else in the app would notice.
+ */
+export const dogActiveEntryCountKey = (dogId: string) =>
+  [...queryKeys.dogEntries(dogId), 'active-count'] as const;
+
+export const dogBlockingEntryCountKey = (dogId: string) =>
+  [...queryKeys.dogEntries(dogId), 'blocking-count'] as const;
+
+/**
+ * Freshness for both counts (MYK9-600).
+ *
+ * NOT `cacheStrategies.moderate`. These are money-and-results facts — a refund
+ * issued a minute ago, or a score just cleared, flips them — and they feed a
+ * dialog that decides whether a destructive button is pressable and what it
+ * claims will be destroyed. A five-minute stale window let the dialog
+ * confidently describe a state the database had already left.
+ *
+ * `staleTime: 0` is what actually does the work in the app's flow: `DogDialogs`
+ * keeps the observer mounted and toggles `enabled`, so a second open of the
+ * dialog is an ENABLE transition, not a remount, and React Query refetches an
+ * enabled-and-stale query. `refetchOnMount: 'always'` covers the remount path a
+ * different caller might take; `gcTime: 0` keeps no number around to be shown
+ * before the refetch resolves.
+ */
+const DELETE_DIALOG_COUNT_FRESHNESS = {
+  staleTime: 0,
+  gcTime: 0,
+  refetchOnMount: 'always',
+} as const;
+
 // Count a dog's live entries — drives the delete-dog confirmation warning.
 // Direct count (see countActiveEntriesByDog), gated by `enabled` so it only
 // fires when the confirmation dialog is open.
 export const useDogActiveEntryCountQuery = (dogId: string, enabled = true) => {
   return useQuery({
-    queryKey: [...queryKeys.dogEntries(dogId), 'active-count'],
+    queryKey: dogActiveEntryCountKey(dogId),
     queryFn: () => countActiveEntriesByDog(dogId),
     enabled: !!dogId && enabled,
-    ...cacheStrategies.moderate,
+    ...DELETE_DIALOG_COUNT_FRESHNESS,
   });
 };
 
 // Count the dog's entries that would make soft_delete_dog refuse (MK002), so the
 // confirmation can say so up front instead of letting the user click Delete into
 // a server error. Gated by `enabled` like the active count beside it.
-//
-// MYK9-600: NOT `cacheStrategies.moderate`. This count is a money-and-results
-// fact — a refund issued a minute ago, or a score just cleared, flips it — and
-// the dialog it feeds decides whether a destructive button is pressable. A
-// five-minute stale window let the dialog confidently describe a state the
-// database had already left, in either direction. `staleTime: 0` plus
-// `refetchOnMount: 'always'` makes every open of the dialog re-measure; the key
-// still extends `queryKeys.dogEntries`, so every entry write that routes
-// through `entryInvalidationKeys` reaches it by prefix as well.
 export const useDogBlockingEntryCountQuery = (dogId: string, enabled = true) => {
   return useQuery({
-    queryKey: [...queryKeys.dogEntries(dogId), 'blocking-count'],
+    queryKey: dogBlockingEntryCountKey(dogId),
     queryFn: () => countBlockingEntriesByDog(dogId),
     enabled: !!dogId && enabled,
-    staleTime: 0,
-    gcTime: 0,
-    refetchOnMount: 'always',
+    ...DELETE_DIALOG_COUNT_FRESHNESS,
   });
 };
 

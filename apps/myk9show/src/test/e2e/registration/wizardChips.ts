@@ -134,9 +134,6 @@ export async function releaseSelectedClass(
  */
 const STICKY_WIZARD_OVERLAYS = ['registration-wizard-header', 'entries-panel-bar'] as const;
 
-/** Keep this much clear air between the target and an overlay edge. */
-const UNCOVERED_BAND_MARGIN = 8;
-
 type Box = { x: number; y: number; width: number; height: number };
 
 function boxesOverlap(a: Box, b: Box): boolean {
@@ -177,6 +174,25 @@ async function stickyOverlayBoxes(
   }
 }
 
+/**
+ * The band the sticky chrome leaves uncovered: below every top-anchored overlay
+ * and above every bottom-anchored one. At 393x727 the wizard's 366px header and
+ * its 155px entries bar leave roughly 157px.
+ */
+function uncoveredBand(
+  overlays: Array<{ name: string; box: Box }>,
+  viewportHeight: number
+): { top: number; bottom: number } {
+  let top = 0;
+  let bottom = viewportHeight;
+  for (const { box } of overlays) {
+    const spaceBelow = viewportHeight - (box.y + box.height);
+    if (box.y <= spaceBelow) top = Math.max(top, box.y + box.height);
+    else bottom = Math.min(bottom, box.y);
+  }
+  return { top, bottom };
+}
+
 /** Scroll the target's own scroll container so the target moves `delta` px DOWN the screen. */
 async function scrollTargetBy(target: Locator, delta: number): Promise<void> {
   await target.evaluate((el, amount) => {
@@ -194,40 +210,59 @@ async function scrollTargetBy(target: Locator, delta: number): Promise<void> {
 }
 
 /**
- * Put `target` in the band the sticky wizard chrome leaves uncovered, then
- * ASSERT it is clear of both overlays before the caller clicks (MYK9-543).
+ * The target's box once it has stopped moving.
  *
- * `scrollIntoViewIfNeeded` — and `scrollIntoView({block:'center'})` — are what
+ * The dog list re-renders while the cart and availability load, so a box read
+ * mid-settle is a measurement of a moving target: the helper positions it
+ * correctly and Playwright's own hit test, a beat later, finds the sticky
+ * header over it again.
+ */
+async function settledBox(page: Page, target: Locator): Promise<Box | null> {
+  let previous = '';
+  let box: Box | null = null;
+  for (let sample = 0; sample < 20; sample += 1) {
+    box = await target.boundingBox();
+    const key = box ? `${Math.round(box.x)},${Math.round(box.y)}` : 'none';
+    if (key === previous) return box;
+    previous = key;
+    await page.waitForTimeout(150);
+  }
+  return box;
+}
+
+/**
+ * Put `target` in the MIDDLE of the band the sticky wizard chrome leaves
+ * uncovered, then ASSERT it is clear of every overlay before the caller clicks
+ * (MYK9-543).
+ *
+ * `scrollIntoViewIfNeeded` and `scrollIntoView({block:'center'})` are what
  * already fail here: both are blind to `position: sticky`, so on a phone they
- * park the row under the 366px header and the click is intercepted. A
- * `force: true` click would pass on the very overlap it hides, so this scrolls
- * for real and keeps the non-intersection assertion: if the shell ever shrinks
- * the band below the control, the failure names both boxes instead of reading
- * as "the click did nothing".
+ * park the row under the 366px header and the click is intercepted. Centring in
+ * the band rather than nudging just past the header edge is deliberate: the
+ * wizard is still settling while the cart loads, and a target sitting a few px
+ * below the header drifts back under it between the measurement and
+ * Playwright's own hit test. A `force: true` click would pass on the very
+ * overlap this exists to catch, so this scrolls for real and keeps the
+ * non-intersection assertion: if the shell ever shrinks the band below the
+ * control, the failure names both boxes instead of reading as "the click did
+ * nothing".
  */
 export async function scrollClearOfStickyChrome(page: Page, target: Locator): Promise<void> {
   await target.scrollIntoViewIfNeeded();
   const viewportHeight = page.viewportSize()?.height ?? 0;
 
   for (let attempt = 0; attempt < 6; attempt += 1) {
-    const box = await target.boundingBox();
+    const box = await settledBox(page, target);
     if (!box) break;
-    const covering = (await stickyOverlayBoxes(page, target)).find(overlay =>
-      boxesOverlap(box, overlay.box)
-    );
-    if (!covering) break;
-    // Top-anchored chrome is cleared by moving the target DOWN, bottom-anchored
-    // chrome by moving it UP.
-    const spaceBelowOverlay = viewportHeight - (covering.box.y + covering.box.height);
-    const delta =
-      covering.box.y <= spaceBelowOverlay
-        ? covering.box.y + covering.box.height + UNCOVERED_BAND_MARGIN - box.y
-        : covering.box.y - UNCOVERED_BAND_MARGIN - (box.y + box.height);
+    const overlays = await stickyOverlayBoxes(page, target);
+    const band = uncoveredBand(overlays, viewportHeight);
+    const delta = (band.top + band.bottom) / 2 - (box.y + box.height / 2);
+    if (Math.abs(delta) < 2 && !overlays.some(overlay => boxesOverlap(box, overlay.box))) break;
     await scrollTargetBy(target, delta);
     await page.waitForTimeout(100);
   }
 
-  const finalBox = await target.boundingBox();
+  const finalBox = await settledBox(page, target);
   const overlays = await stickyOverlayBoxes(page, target);
   const blocked = overlays
     .filter(overlay => finalBox && boxesOverlap(finalBox, overlay.box))
@@ -240,10 +275,30 @@ export async function scrollClearOfStickyChrome(page: Page, target: Locator): Pr
   ).toEqual([]);
 }
 
-/** Click `target` only after it is clear of the sticky wizard chrome. */
+/**
+ * Click `target` only after it is clear of the sticky wizard chrome.
+ *
+ * Positioning once is not enough: Playwright runs its OWN `scrollIntoViewIfNeeded`
+ * as part of the click's actionability check, and the page keeps settling while
+ * the cart and the dog list load, so a row parked in the band can drift back
+ * under the header between the measurement and the hit test. Re-position and
+ * retry rather than forcing the click -- a `force: true` click would pass on
+ * the very overlap this exists to catch. The last attempt re-runs the
+ * measurement so a genuine structural overlap fails with both boxes named.
+ */
 export async function clickClearOfStickyChrome(page: Page, target: Locator): Promise<void> {
+  let lastError: unknown;
+  for (let attempt = 0; attempt < 4; attempt += 1) {
+    await scrollClearOfStickyChrome(page, target);
+    try {
+      await target.click({ timeout: 7000 });
+      return;
+    } catch (error) {
+      lastError = error;
+    }
+  }
   await scrollClearOfStickyChrome(page, target);
-  await target.click();
+  throw lastError;
 }
 
 export async function selectFirstDogAndContinue(page: Page): Promise<void> {
@@ -255,10 +310,8 @@ export async function selectFirstDogAndContinue(page: Page): Promise<void> {
     (await namedDogOptions.count()) > 0
       ? namedDogOptions.first()
       : page.getByRole('checkbox').first();
-  await scrollClearOfStickyChrome(page, dogOption);
-  await dogOption.click();
+  await clickClearOfStickyChrome(page, dogOption);
   const next = page.getByRole('button', { name: /^Next$/ });
   await expect(next).toBeEnabled();
-  await scrollClearOfStickyChrome(page, next);
-  await next.click();
+  await clickClearOfStickyChrome(page, next);
 }

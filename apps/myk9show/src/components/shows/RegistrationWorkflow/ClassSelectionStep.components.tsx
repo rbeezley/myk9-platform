@@ -7,6 +7,7 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
+import { formatWeekdayLongMonthDay } from '@/lib/format/dates';
 import type { Dog } from '@/types/dog-types';
 import { formatTrialTypeLabel } from '@/types/template.types';
 import type { LevelInfo } from './ClassSelectionStep.types';
@@ -79,6 +80,12 @@ export const DogTabTrigger: React.FC<DogTabTriggerProps> = ({
 
 interface TrialSectionProps {
   trialName: string;
+  /**
+   * The trial's calendar day (`trials.date`, a bare `YYYY-MM-DD` or its
+   * midnight-UTC round-trip). Rendered beside the name so a multi-day show
+   * can be entered by day — see MYK9-564.
+   */
+  trialDate?: string | null | undefined;
   trialType?: string | undefined;
   selectedCount: number;
   isExpanded: boolean;
@@ -88,45 +95,66 @@ interface TrialSectionProps {
 
 export const TrialSection: React.FC<TrialSectionProps> = ({
   trialName,
+  trialDate,
   trialType,
   selectedCount,
   isExpanded,
   onToggle,
   children,
-}) => (
-  <div className="mb-4">
-    <button
-      type="button"
-      onClick={onToggle}
-      aria-expanded={isExpanded}
-      className="flex items-center justify-between w-full pb-2 border-b cursor-pointer hover:bg-muted/30 -mx-1 px-1 rounded-sm transition-colors"
-    >
-      <div className="flex items-center gap-2">
-        <ChevronRight
-          className={cn(
-            'h-4 w-4 text-muted-foreground transition-transform duration-200',
-            isExpanded && 'rotate-90'
-          )}
-        />
-        <h4 className="font-medium text-sm">{trialName || 'Unnamed Trial'}</h4>
-        {trialType && (
-          <Badge variant="outline" className="text-xs">
-            {formatTrialTypeLabel(trialType)}
-          </Badge>
-        )}
-      </div>
-      <span
-        className={cn(
-          'text-xs font-medium',
-          selectedCount > 0 ? 'text-primary' : 'text-muted-foreground'
-        )}
+}) => {
+  // INTENT: exhibitors choose by DAY ("I can only come Saturday"); the trial
+  // number is the secretary's vocabulary. Every trial row carries its own day
+  // rather than hoisting a shared date into the step header, so a one-day show
+  // and a three-day show read the same way and the label cannot drift from the
+  // row it describes when a secretary adds another day (MYK9-564).
+  const dayLabel = formatWeekdayLongMonthDay(trialDate);
+
+  return (
+    <div className="mb-4">
+      <button
+        type="button"
+        onClick={onToggle}
+        aria-expanded={isExpanded}
+        className="flex items-center justify-between gap-2 w-full pb-2 border-b cursor-pointer hover:bg-muted/30 -mx-1 px-1 rounded-sm transition-colors"
       >
-        {selectedCount} selected
-      </span>
-    </button>
-    {isExpanded && <div className="mt-3 space-y-2 pl-6">{children}</div>}
-  </div>
-);
+        <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-left">
+          <ChevronRight
+            className={cn(
+              'h-4 w-4 shrink-0 text-muted-foreground transition-transform duration-200',
+              isExpanded && 'rotate-90'
+            )}
+          />
+          <h4 className="font-medium text-sm">{trialName || 'Unnamed Trial'}</h4>
+          {dayLabel && (
+            <span data-testid="trial-day-label" className="text-sm text-muted-foreground">
+              {/* The separator is part of the text node, not a `gap` or a
+                  `::before`: under `flex-wrap` the name and the day can land on
+                  separate lines, where proximity alone stops carrying the
+                  relationship — and a CSS-only separator is invisible to the
+                  button's accessible name, which would read "Trial 1 Friday,
+                  Oct 30" as one run-on phrase. */}
+              {`\u00b7 ${dayLabel}`}
+            </span>
+          )}
+          {trialType && (
+            <Badge variant="outline" className="text-xs">
+              {formatTrialTypeLabel(trialType)}
+            </Badge>
+          )}
+        </div>
+        <span
+          className={cn(
+            'text-xs font-medium whitespace-nowrap',
+            selectedCount > 0 ? 'text-primary' : 'text-muted-foreground'
+          )}
+        >
+          {selectedCount} selected
+        </span>
+      </button>
+      {isExpanded && <div className="mt-3 space-y-2 pl-6">{children}</div>}
+    </div>
+  );
+};
 
 // ─── Element Card ───────────────────────────────────────────────────────────────
 

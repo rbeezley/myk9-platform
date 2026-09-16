@@ -13,6 +13,10 @@
  * - Date-only supporting text, no weekday: "August 1, 2026" via
  *   {@link formatLongDate}, "Aug 1" via {@link formatMonthDay}, or
  *   "Sat, Aug 1" via {@link formatWeekdayMonthDay}.
+ * - Day-of-the-weekend label where the DAY is what the reader chooses by
+ *   (the registration wizard's trial rows, My Entries' day groups):
+ *   "Friday, Oct 30" — via {@link formatWeekdayLongMonthDay}, or the weekday
+ *   alone — "Friday" — via {@link formatWeekdayLong}.
  * - Compact CALENDAR date (a DATE-typed column with no weekday: entry
  *   open/close, a show's start day in a list): "Jan 2, 2027" — via
  *   {@link formatShortCalendarDate}.
@@ -125,6 +129,46 @@ export function formatWeekdayMonthDay(value?: string | Date | null): string {
     month: 'short',
     day: 'numeric',
   });
+}
+
+/**
+ * Weekday in full with a compact month and day, no year: "Friday, Oct 30".
+ *
+ * For a list where the exhibitor decides by DAY rather than by the
+ * organiser's numbering — the registration wizard's trial rows, where
+ * "Trial 1" / "Trial 2" is the secretary's vocabulary and "Friday" is the
+ * exhibitor's (MYK9-564). The weekday is spelled out because it is the
+ * load-bearing token; the year is dropped because the show is already in
+ * view.
+ *
+ * Calendar-safe like the rest of this module: a DATE-typed `trials.date`
+ * parses as LOCAL midnight, so the weekday is the trial's own day in every
+ * browser zone. A calendar date carries no timezone of its own, so nothing
+ * is converted into the trial's zone here — doing so would reintroduce the
+ * MYK9-384 shift rather than prevent it.
+ */
+export function formatWeekdayLongMonthDay(value?: string | Date | null): string {
+  if (!value || !isRenderableCalendarDate(value)) return '';
+  return resolveCalendarDate(value).toLocaleDateString('en-US', {
+    weekday: 'long',
+    month: 'short',
+    day: 'numeric',
+  });
+}
+
+/**
+ * The weekday in full, alone: "Friday".
+ *
+ * For prose that names the day inside a sentence — the registration wizard's
+ * class-full explanation ("The judge's Saturday is full. Sunday's Interior
+ * Advanced still has space."). Calendar-safe like the rest of this module,
+ * and pinned to `en-US` like every other export here: the locale-default
+ * variant this replaced rendered the sentence's weekday in the browser's
+ * language while the sentence around it stayed English.
+ */
+export function formatWeekdayLong(value?: string | Date | null): string {
+  if (!value || !isRenderableCalendarDate(value)) return '';
+  return resolveCalendarDate(value).toLocaleDateString('en-US', { weekday: 'long' });
 }
 
 /**

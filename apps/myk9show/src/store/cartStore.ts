@@ -50,6 +50,21 @@ export type {
 
 const recoveryCartInFlight = new Map<string, Promise<CartWithDetails | null>>();
 
+/** `create unique index … on entry_carts (show_id, exhibitor_id) where status = 'active'`. */
+const ACTIVE_CART_UNIQUE_INDEX = 'entry_carts_active_show_exhibitor_unique_idx';
+
+/**
+ * MYK9-581: `createCart`'s conflict handling is written for ONE conflict -- a
+ * second active cart for the same show and exhibitor. Matching on `23505`
+ * alone would absorb a unique violation on any other index `entry_carts` ever
+ * gains and report it as a reclaimed cart, so match the index by name.
+ */
+const isActiveCartUniqueViolation = (
+  error: { code?: string; message?: string; details?: string | null } | null
+): boolean =>
+  error?.code === '23505' &&
+  `${error.message ?? ''} ${error.details ?? ''}`.includes(ACTIVE_CART_UNIQUE_INDEX);
+
 export const useCartStore = create<CartState>()(
   devtools(
     persist(
@@ -350,6 +365,31 @@ export const useCartStore = create<CartState>()(
               total_cents: 0,
             };
 
+            // MYK9-581: `loadCart` only returns a cart whose `expires_at` is
+            // still ahead of now, but `entry_carts_active_show_exhibitor_unique_idx`
+            // is scoped to `status = 'active'` alone. A lapsed active row is
+            // therefore invisible to the read and still fatal to the insert, so
+            // every wizard open after a cart timed out fired a POST that could
+            // only 409 -- the conflict branch below then cleaned up after it and
+            // the exhibitor saw nothing but the console did. Retire the lapsed
+            // row first so the insert is not doomed before it is sent. A failure
+            // here is not fatal: the conflict branch still covers it.
+            const { error: staleCartError } = await supabase
+              .from('entry_carts')
+              .update({ status: 'expired', stripe_checkout_session_id: null })
+              .eq('show_id', showId)
+              .eq('exhibitor_id', exhibitorId)
+              .eq('status', 'active')
+              .or(`expires_at.is.null,expires_at.lte.${new Date().toISOString()}`);
+
+            if (staleCartError) {
+              logger.warn(
+                'Could not retire a lapsed active cart before creating a new one',
+                'cartStore',
+                { showId, exhibitorId, error: staleCartError.message }
+              );
+            }
+
             const { data: cartData, error: cartError } = await supabase
               .from('entry_carts')
               .insert(cartInsert)
@@ -357,7 +397,7 @@ export const useCartStore = create<CartState>()(
               .single();
 
             if (cartError) {
-              if (cartError.code === '23505') {
+              if (isActiveCartUniqueViolation(cartError)) {
                 const { data: existingCart, error: existingCartError } = await supabase
                   .from('entry_carts')
                   .select(`*, show:shows(id, name, start_date, entry_close_date)`)
@@ -410,7 +450,7 @@ export const useCartStore = create<CartState>()(
                       return cartWithDetails;
                     }
 
-                    if (recreateError?.code !== '23505') {
+                    if (!isActiveCartUniqueViolation(recreateError ?? null)) {
                       throw recreateError ?? new Error('Failed to recreate cart');
                     }
                   }

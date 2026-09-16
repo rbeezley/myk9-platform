@@ -1,6 +1,7 @@
 import { execFileSync } from 'node:child_process';
-import { readFileSync } from 'node:fs';
-import { resolve } from 'node:path';
+import { chmodSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join, resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import {
   clampDescription,
@@ -14,6 +15,7 @@ import {
   parseFileNameList,
   parseGateComments,
   runCli,
+  REVIEW_GATE_CONTEXT,
   REVIEW_GATE_LINE,
   REST_FILE_PAGE_CAP,
   REVIEWER_TOKENS,
@@ -1659,6 +1661,126 @@ describe('a crash cannot read as a standing pass', () => {
     const { run, posted } = runnerThatFailsOnFiles();
     runCli(env, [], run);
     expect(posted.length).toBeGreaterThan(0);
+  });
+});
+
+/**
+ * MYK9-555 / MYK9-560 item 3. The `if: failure()` step is the last hop: it
+ * covers a throw from the first `gh pr view` (before the script has a SHA to
+ * post against) and a throw from the POST at the end of the script. Its logic
+ * lives in the workflow's shell, so asserting the YAML text would only prove
+ * someone typed it (LESSONS `comment-satisfies-grep`). These tests EXTRACT the
+ * step's `run:` block and execute it against a stub `gh` on PATH.
+ */
+describe('the workflow’s crash-fallback step', () => {
+  const workflowPath = resolve(import.meta.dirname, '../../.github/workflows/review-gate.yml');
+  const STEP_NAME = 'Post a failure status when the gate itself crashed';
+
+  /** Pull the step's `run: |` body out of the YAML and dedent it. */
+  function extractFallbackScript(): string {
+    const yaml = readFileSync(workflowPath, 'utf8');
+    const stepAt = yaml.indexOf(`- name: ${STEP_NAME}`);
+    if (stepAt < 0) throw new Error(`workflow has no step named "${STEP_NAME}"`);
+    const runAt = yaml.indexOf('run: |\n', stepAt);
+    if (runAt < 0) throw new Error('the crash-fallback step has no `run: |` block');
+    const lines = yaml.slice(runAt + 'run: |\n'.length).split('\n');
+    const body: string[] = [];
+    for (const line of lines) {
+      if (line.trim() !== '' && !line.startsWith('          ')) break;
+      body.push(line.slice(10));
+    }
+    const script = body.join('\n').trimEnd();
+    if (script === '') throw new Error('the crash-fallback step’s run block is empty');
+    return script;
+  }
+
+  /**
+   * Run that script with a stub `gh` first on PATH. The stub appends every
+   * invocation to a log and honours `STUB_GH_VIEW_EXIT` so the
+   * `gh pr view` fallback can be made to fail.
+   */
+  function runFallback(env: Record<string, string>): { stdout: string; ghCalls: string[] } {
+    const dir = mkdtempSync(join(tmpdir(), 'review-gate-fallback-'));
+    const log = join(dir, 'gh-calls.log');
+    const stub = join(dir, 'gh');
+    writeFileSync(
+      stub,
+      [
+        '#!/bin/sh',
+        `printf '%s\\n' "$*" >> ${JSON.stringify(log)}`,
+        'if [ "$1" = "pr" ]; then',
+        '  if [ "${STUB_GH_VIEW_EXIT:-0}" != "0" ]; then',
+        '    echo "gh: could not resolve the pull request" >&2',
+        '    exit "${STUB_GH_VIEW_EXIT}"',
+        '  fi',
+        '  printf \'%s\\n\' "${STUB_GH_VIEW_SHA:-}"',
+        'fi',
+        'exit 0',
+        '',
+      ].join('\n')
+    );
+    chmodSync(stub, 0o755);
+    writeFileSync(log, '');
+    const scriptPath = join(dir, 'fallback.sh');
+    writeFileSync(scriptPath, extractFallbackScript());
+    const stdout = execFileSync('bash', ['-e', '-o', 'pipefail', scriptPath], {
+      encoding: 'utf8',
+      env: { PATH: `${dir}:${process.env.PATH ?? ''}`, ...env },
+    });
+    const ghCalls = readFileSync(log, 'utf8')
+      .split('\n')
+      .filter(line => line.trim() !== '');
+    return { stdout, ghCalls };
+  }
+
+  const base = { REPO: FAKE_REPO, PR_NUMBER: '2121', RUN_URL: 'https://example.invalid/run/1' };
+
+  it('posts a failure status to the head SHA the pull_request_target payload carries', () => {
+    const { ghCalls } = runFallback({ ...base, HEAD_SHA: HEAD });
+    const post = ghCalls.find(c => c.includes('--method POST'));
+    if (!post) throw new Error(`no POST in: ${ghCalls.join(' | ')}`);
+    expect(post).toContain(`repos/${FAKE_REPO}/statuses/${HEAD}`);
+    expect(post).toContain('state=failure');
+    expect(post).toContain(`context=${REVIEW_GATE_CONTEXT}`);
+    expect(ghCalls.some(c => c.startsWith('pr view'))).toBe(false);
+  });
+
+  it('resolves the SHA with one `gh pr view` when the payload has none (issue_comment)', () => {
+    const { ghCalls } = runFallback({ ...base, HEAD_SHA: '', STUB_GH_VIEW_SHA: OLD_HEAD });
+    const views = ghCalls.filter(c => c.startsWith('pr view'));
+    expect(views).toHaveLength(1);
+    expect(views[0]).toContain('--json headRefOid');
+    const post = ghCalls.find(c => c.includes('--method POST'));
+    if (!post) throw new Error(`no POST in: ${ghCalls.join(' | ')}`);
+    expect(post).toContain(`repos/${FAKE_REPO}/statuses/${OLD_HEAD}`);
+    expect(post).toContain('state=failure');
+  });
+
+  it('posts nothing, and says so, when `gh pr view` fails too', () => {
+    const { stdout, ghCalls } = runFallback({
+      ...base,
+      HEAD_SHA: '',
+      STUB_GH_VIEW_EXIT: '1',
+    });
+    expect(ghCalls.some(c => c.includes('--method POST'))).toBe(false);
+    expect(stdout).toContain('posting no status');
+  });
+
+  it('never posts a status to a target that is not a hex SHA', () => {
+    // `gh` writes its diagnostics to the captured output on failure; a status
+    // posted to `gh: could not resolve...` would be a wild POST.
+    const { ghCalls } = runFallback({
+      ...base,
+      HEAD_SHA: '',
+      STUB_GH_VIEW_SHA: 'not a sha',
+    });
+    expect(ghCalls.some(c => c.includes('--method POST'))).toBe(false);
+  });
+
+  it('runs only when the job has already failed', () => {
+    const yaml = readFileSync(workflowPath, 'utf8');
+    const stepAt = yaml.indexOf(`- name: ${STEP_NAME}`);
+    expect(yaml.slice(stepAt, stepAt + 200)).toContain('if: failure()');
   });
 });
 

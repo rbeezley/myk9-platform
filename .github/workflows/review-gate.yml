@@ -68,3 +68,45 @@ jobs:
           PR_NUMBER: ${{ github.event.pull_request.number || github.event.issue.number }}
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
         run: node --experimental-strip-types --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/qa/review-gate.ts
+
+      # Last hop. The required `Review gate` context is a commit STATUS pinned
+      # to the SHA, and a status persists until something overwrites it — so a
+      # crash on an `issue_comment: edited` event that WITHDREW an attestation
+      # used to leave the older green standing. The script's own try/catch
+      # covers everything after the first `gh pr view`; a throw from that call
+      # itself, or from the POST at the very end, happens where the script can
+      # write nothing (MYK9-555, MYK9-560 item 3). This step is outside the
+      # script entirely, so it covers those too.
+      #
+      # Chosen over a retry inside the script on purpose: a retry cannot cover
+      # a crash before the SHA is known, nor a failure of the POST it is part
+      # of, and the workflow already carries the head SHA in its own payload.
+      #
+      # `pull_request_target` payloads carry the head SHA directly.
+      # `issue_comment` payloads do not, so resolve it with one `gh pr view`.
+      # If even that fails there is no SHA to write to: post nothing and say
+      # so, rather than guessing a target.
+      - name: Post a failure status when the gate itself crashed
+        if: failure()
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          PR_NUMBER: ${{ github.event.pull_request.number || github.event.issue.number }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          sha="${HEAD_SHA:-}"
+          if [ -z "$sha" ]; then
+            sha="$(gh pr view "$PR_NUMBER" --repo "$REPO" --json headRefOid --jq .headRefOid 2>&1 || true)"
+            case "$sha" in *[!0-9a-f]* | '') sha='' ;; esac
+          fi
+          if [ -z "$sha" ]; then
+            echo "review-gate: no head SHA in the event payload and \`gh pr view\` failed too — posting no status"
+            exit 0
+          fi
+          echo "review-gate: gate crashed; posting a failure status to $sha"
+          gh api --method POST "repos/$REPO/statuses/$sha" \
+            -f state=failure \
+            -f context='Review gate' \
+            -f description='review gate crashed before it could record a verdict' \
+            -f target_url="$RUN_URL"

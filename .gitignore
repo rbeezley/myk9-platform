@@ -97,8 +97,14 @@ tmpclaude-*-cwd
 # past the rule above, and a new one would go untracked silently.
 !.agents/skills/
 !.agents/skills/**
-# Local-only skill; stays out of the repo despite the re-include above.
-.agents/skills/impeccable/
+# Local-only vendored skill (pbakaus/impeccable, reinstallable from
+# skills-lock.json); stays out of the repo despite the re-includes above.
+# No trailing slash, so the SYMLINK form is ignored too: the house layout is
+# one real dir plus symlinks in the sibling trees, and a slash matches only
+# directories. All three trees, so normalizing the layout cannot commit it.
+.agents/skills/impeccable
+.claude/skills/impeccable
+.codex/skills/impeccable
 
 # Local support-triage pass state (regenerated every run; safe to delete)
 .support-triage/

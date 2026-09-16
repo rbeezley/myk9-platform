@@ -42,6 +42,10 @@ const STATE_WORDS: Partial<Record<ClassRowKind, { text: string; status: string }
   'come-to-gate': { text: 'come to gate', status: 'come-to-gate' },
   conflict: { text: 'conflict', status: 'conflict' },
   pulled: { text: 'pulled', status: 'pulled' },
+  // Capitalised, because this is the Edit Entry dialog's `Pulled` BADGE for the
+  // same fact — the lowercase `pulled` above is the day-of check-in state, and
+  // a row must never read as both.
+  withdrawn: { text: 'Pulled', status: 'pulled' },
   'checked-in': { text: 'checked in', status: 'checked-in' },
 };
 

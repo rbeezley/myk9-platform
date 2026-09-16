@@ -34,6 +34,7 @@ export type ClassRowKind =
   | 'come-to-gate'
   | 'conflict'
   | 'pulled'
+  | 'withdrawn'
   | 'checked-in'
   | 'check-in-available'
   | 'opens-later'
@@ -56,16 +57,38 @@ function isAbsentClass(cls: MyShowClass): boolean {
 }
 
 /**
+ * A class the exhibitor (or the secretary) took out of the show.
+ *
+ * Exactly the predicate the Edit Entry dialog already uses to render its
+ * `Pulled` badge: `mapClassEntryStatus` folds both `withdrawn` and `scratched`
+ * entry statuses onto the row's `'scratched'` participation value, and the
+ * canonical `entryStatus` is checked too because a row can arrive with only
+ * the lossy UI enum populated. This is a LIFECYCLE fact, distinct from the
+ * day-of `check_in_status = 'pulled'` the rows above read.
+ */
+function isWithdrawnClass(cls: MyShowClass): boolean {
+  return (
+    cls.status === 'scratched' ||
+    cls.entryStatus === EntryStatus.CANCELLED ||
+    cls.entryStatus === EntryStatus.SCRATCHED
+  );
+}
+
+/**
  * Derive one class row's state.
  *
- * Precedence: a recorded outcome (result, then a settled absence) outranks any
- * check-in state, which outranks the controls. With no state and no outcome the
+ * Precedence: a recorded outcome (result, then a settled absence, then a
+ * withdrawal) outranks any check-in state, which outranks the controls. With no state and no outcome the
  * row either offers check-in (today, eligible, toggle open), announces the day
  * it opens, or — once its day has passed — reports that it never ran.
  */
 export function deriveClassRowState(cls: MyShowClass, ctx: DayCheckInContext): ClassRowState {
   if (cls.isScored === true) return { kind: 'result' };
   if (isAbsentClass(cls)) return { kind: 'absent' };
+  // A withdrawn class is settled before any check-in state can speak for it,
+  // and before the day math below — which otherwise offered it "check in with
+  // the secretary" on the trial day and nothing at all before it (MYK9-582).
+  if (isWithdrawnClass(cls)) return { kind: 'withdrawn' };
 
   // The check-in column is read FIRST and in full. `entryStatusKind` is only a
   // fallback for a row that has no check-in column of its own, because

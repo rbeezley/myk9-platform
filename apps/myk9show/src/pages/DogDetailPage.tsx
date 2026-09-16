@@ -40,25 +40,41 @@ const DogDetailPage: React.FC = () => {
   const fromPersonId = searchParams.get('fromPerson');
   const fromPerson = fromPersonId ? people.find(p => p.id === fromPersonId) : undefined;
 
-  const dog = useMemo(() => {
+  // MYK9-595: the dog a delete started from this page is held here for as long
+  // as the delete is in flight. Both delete mutations optimistically strip the
+  // dog from every `queryKeys.dogs` list in `onMutate`, so from the moment the
+  // RPC leaves until it settles the roster this page reads says the dog does
+  // not exist. Without this latch the page blanks (unmounting the confirmation
+  // dialog) and the redirect effect below throws the user to /dogs with a false
+  // `accessDenied`. It is cleared only in the handlers' `catch`, which runs
+  // after the mutation's `onError` has already restored the dog — so there is
+  // no frame in which the delete is neither in flight nor rolled back.
+  const [dogBeingDeleted, setDogBeingDeleted] = useState<Dog | null>(null);
+  const isDeleteInFlight = dogBeingDeleted !== null;
+
+  const resolvedDog = useMemo(() => {
     if (!id) return null;
     return dogs.find(d => d.id === id) || createdDog || null;
   }, [dogs, id, createdDog]);
 
+  const dog = resolvedDog ?? dogBeingDeleted;
+
   // Redirect to /dogs if dog not found or no access after loading.
   // Skip while isFetching — post-create refetch may not have resolved yet.
   // Skip while createdDog is available — it was just created and is valid.
+  // Skip while a delete this page started is in flight — see above.
   useEffect(() => {
-    if (createdDog || isLoading || isFetching) return;
+    if (createdDog || isLoading || isFetching || isDeleteInFlight) return;
     if (dogs.length > 0 && id) {
       if (!canAccessDog || !dogs.find(d => d.id === id)) {
         navigate('/dogs', { replace: true, state: { accessDenied: true } });
       }
     }
-  }, [createdDog, isLoading, isFetching, dogs, id, canAccessDog, navigate]);
+  }, [createdDog, isLoading, isFetching, isDeleteInFlight, dogs, id, canAccessDog, navigate]);
 
   async function handleDeleteDog() {
     if (!dog) return;
+    setDogBeingDeleted(dog);
     try {
       // callName is optional; fall back to the registered name so a dog
       // without a nickname never yields "undefined was deleted."
@@ -67,6 +83,7 @@ const DogDetailPage: React.FC = () => {
       notifications.success(`${dogName} was deleted.`);
       navigate('/dogs', { replace: true });
     } catch (err) {
+      setDogBeingDeleted(null);
       logger.error(
         'Failed to delete dog',
         'dogs',
@@ -93,12 +110,14 @@ const DogDetailPage: React.FC = () => {
    */
   async function handleForceDeleteDog() {
     if (!dog) return;
+    setDogBeingDeleted(dog);
     try {
       const dogName = getDogDisplayName(dog);
       await forceDeleteMutation.mutateAsync({ id: dog.id });
       notifications.success(`${dogName} and its entries were deleted. No refund was issued.`);
       navigate('/dogs', { replace: true });
     } catch (err) {
+      setDogBeingDeleted(null);
       logger.error(
         'Failed to force delete dog',
         'dogs',
@@ -110,12 +129,18 @@ const DogDetailPage: React.FC = () => {
           ? err.message
           : 'Failed to delete dog. Please try again.'
       );
-      // Same contract as handleDeleteDog: keep the dialog open on failure.
+      // Same contract as handleDeleteDog: the page stays mounted (the redirect
+      // effect and the skeleton both stand down while `isDeleteInFlight`) and
+      // the rejection is re-thrown, so DogDialogs leaves the confirmation
+      // dialog open with the error toast beside it.
       throw err;
     }
   }
 
-  if (isLoading || (!dog && dogs.length === 0 && !createdDog)) {
+  // `isLoading` folds in the ordinary delete's `isPending`, which would swap
+  // the page for the skeleton — and unmount the dialog — the moment a delete
+  // starts. While a delete this page started is in flight the loaded page stays.
+  if ((isLoading && !isDeleteInFlight) || (!dog && dogs.length === 0 && !createdDog)) {
     return (
       <div className="max-w-4xl mx-auto px-4 py-8 space-y-6">
         <div className="h-8 w-48 bg-muted/50 rounded-lg animate-pulse" />

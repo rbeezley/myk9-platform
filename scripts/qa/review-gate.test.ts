@@ -1685,13 +1685,19 @@ describe('a crash cannot read as a standing pass', () => {
     expect(fields.join(' ')).toContain('rate limited');
   });
 
-  it('posts a failure status when `pr view` came back without a headRefOid', () => {
+  it('attempts no POST and exits non-zero when `pr view` came back without a headRefOid', () => {
     // A well-formed payload MISSING `headRefOid` throws inside
     // evaluateReviewGate (`input.headSha.toLowerCase()`), enters the catch —
     // and the catch used to build its own description from
     // `view.headRefOid.slice(0, 9)`, throwing a second TypeError and posting
-    // NOTHING. That is the exact fail-open the try/catch exists to close
-    // (MYK9-560 item 2).
+    // NOTHING (MYK9-560 item 2).
+    //
+    // The catch no longer throws, but there is still no SHA to pin a status
+    // to: POSTing anyway hits `statuses/undefined` and GitHub answers 422, so
+    // the improved description never lands (round-1 review, P3). Instead the
+    // script logs the verdict and exits NON-ZERO, which fails the step and
+    // hands the job to the workflow's `if: failure()` fallback — the one
+    // place that can resolve a SHA from the event payload.
     const posted: string[][] = [];
     const run = (args: string[]): string => {
       if (args[0] === 'pr' && args[1] === 'view') {
@@ -1705,10 +1711,8 @@ describe('a crash cannot read as a standing pass', () => {
       }
       throw new Error(`unexpected gh call: ${args.join(' ')}`);
     };
-    expect(runCli(env, [], run)).toBe(0);
-    expect(posted).toHaveLength(1);
-    expect((posted[0] ?? []).join(' ')).toContain('state=failure');
-    expect((posted[0] ?? []).join(' ')).toContain('the head');
+    expect(runCli(env, [], run)).not.toBe(0);
+    expect(posted).toHaveLength(0);
   });
 
   it('posts through the injected runner, never a real gh', () => {

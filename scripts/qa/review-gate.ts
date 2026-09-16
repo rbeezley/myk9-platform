@@ -612,6 +612,16 @@ export function evaluateReviewGate(input: EvaluateReviewGateInput): GateResult {
   };
 }
 
+/**
+ * A commit status can only be pinned to a full 40-character SHA. The same
+ * rule is enforced in `.github/workflows/review-gate.yml`, on the SHA its
+ * crash-fallback step resolves — a fragment or a contaminated string there
+ * would POST to `repos/<repo>/statuses/abc`, which is not a commit.
+ */
+export function isFullSha(value: unknown): value is string {
+  return typeof value === 'string' && /^[0-9a-f]{40}$/.test(value);
+}
+
 /** GitHub caps a status description at 140 characters. */
 export function clampDescription(text: string): string {
   return text.length <= 140 ? text : `${text.slice(0, 137)}...`;
@@ -842,6 +852,19 @@ function postStatus(
   run: GhRunner
 ): number {
   const description = clampDescription(result.description);
+  // No SHA, nothing to pin a status to. POSTing anyway targets
+  // `statuses/undefined` and GitHub answers 422, so the verdict never lands
+  // and the failure reads as a network error rather than as itself. Log the
+  // verdict and exit NON-ZERO instead: that fails the workflow step, and the
+  // `if: failure()` fallback in review-gate.yml resolves a SHA from the event
+  // payload — the only place a SHA still exists in this case (MYK9-555).
+  if (!isFullSha(headRefOid)) {
+    console.error(
+      `review-gate: no usable head SHA (got ${JSON.stringify(headRefOid)}) — ` +
+        `cannot post "${description}". The workflow's if:failure() step posts it instead.`
+    );
+    return 1;
+  }
   console.log(`review-gate: ${headRefOid} -> ${result.state}: ${description}`);
   if (argv.includes('--dry-run')) return result.state === 'success' ? 0 : 1;
   const fields = [

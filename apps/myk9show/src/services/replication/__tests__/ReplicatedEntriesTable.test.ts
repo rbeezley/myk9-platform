@@ -50,6 +50,24 @@ const TEST_LICENSE_KEY = 'show-123';
 describe('ReplicatedEntriesTable', () => {
   let table: ReplicatedEntriesTable;
 
+  /**
+   * MYK9-575: `entries` is show-scoped, so a bare `set()` that would INSERT is
+   * refused — one stray row makes the store non-empty and an account-level read
+   * stops falling through to PostgREST. These fixtures stand in for the sync
+   * download (which writes through `batchSet`), so they name that reason.
+   * Refusal itself is pinned in ReplicatedEntriesTable.coldInsertGuard.test.ts.
+   */
+  const seedSet = (
+    id: string,
+    data: ReplicatedEntry,
+    isDirty = false,
+    expectedVersion?: number,
+    incomingServerVersion?: number
+  ) =>
+    table.set(id, data, isDirty, expectedVersion, incomingServerVersion, {
+      allowColdInsert: 'test fixture standing in for the sync download',
+    });
+
   beforeEach(async () => {
     const { databaseManager } = await import('@myk9/replication');
     await databaseManager.reset();
@@ -165,7 +183,7 @@ describe('ReplicatedEntriesTable', () => {
           entryStatus: 'pending',
         };
 
-        await table.set('entry-1', entry);
+        await seedSet('entry-1', entry);
 
         const result = await table.get('entry-1');
 
@@ -251,8 +269,8 @@ describe('ReplicatedEntriesTable', () => {
           status: 'registered',
         };
 
-        await table.set('entry-1', entry);
-        await table.set('entry-1', { ...entry, status: 'checked-in' });
+        await seedSet('entry-1', entry);
+        await seedSet('entry-1', { ...entry, status: 'checked-in' });
 
         const result = await table.get('entry-1');
         expect(result?.status).toBe('checked-in');
@@ -275,7 +293,7 @@ describe('ReplicatedEntriesTable', () => {
           final_placement: '1',
         };
 
-        await table.set('entry-1', entry);
+        await seedSet('entry-1', entry);
 
         const result = await table.get('entry-1');
         expect(result?.isScored).toBe(true);
@@ -298,7 +316,7 @@ describe('ReplicatedEntriesTable', () => {
           handler_name: 'John Doe',
         };
 
-        await table.set('entry-1', entry);
+        await seedSet('entry-1', entry);
 
         const result = await table.get('entry-1');
         expect(result?.dogCallName).toBe('Rex');
@@ -321,7 +339,7 @@ describe('ReplicatedEntriesTable', () => {
         ];
 
         for (const entry of entries) {
-          await table.set(entry.id, entry);
+          await seedSet(entry.id, entry);
         }
 
         const results = await table.getAll();
@@ -337,7 +355,7 @@ describe('ReplicatedEntriesTable', () => {
           armband: '101',
         };
 
-        await table.set('entry-1', entry);
+        await seedSet('entry-1', entry);
         await table.delete('entry-1');
 
         const result = await table.get('entry-1');
@@ -359,7 +377,7 @@ describe('ReplicatedEntriesTable', () => {
         status: 'registered',
       };
 
-      await table.set('entry-1', entry);
+      await seedSet('entry-1', entry);
       await table.updateEntryStatus('entry-1', 'checked-in');
 
       const result = await table.get('entry-1');
@@ -374,7 +392,7 @@ describe('ReplicatedEntriesTable', () => {
         status: 'registered',
       };
 
-      await table.set('entry-1', entry);
+      await seedSet('entry-1', entry);
       await table.updateEntryStatus('entry-1', 'checked-in');
 
       const result = await table.get('entry-1');
@@ -394,7 +412,7 @@ describe('ReplicatedEntriesTable', () => {
         'queueMutation'
       );
 
-      await table.set('entry-1', {
+      await seedSet('entry-1', {
         id: 'entry-1',
         classId: 'class-1',
         showId: 'show-1',
@@ -507,26 +525,26 @@ describe('ReplicatedEntriesTable', () => {
         'queueMutation'
       );
 
-      await table.set('entry-1', {
+      await seedSet('entry-1', {
         id: 'entry-1',
         showId: 'show-1',
         dogId: 'dog-1',
         classId: 'class-1',
         handler: 'Jane Handler',
       });
-      await table.set('entry-2', {
+      await seedSet('entry-2', {
         id: 'entry-2',
         showId: 'show-1',
         dogId: 'dog-1',
         classId: 'class-2',
       });
-      await table.set('entry-3', {
+      await seedSet('entry-3', {
         id: 'entry-3',
         showId: 'show-1',
         dogId: 'dog-2',
         classId: 'class-1',
       });
-      await table.set('entry-4', {
+      await seedSet('entry-4', {
         id: 'entry-4',
         showId: 'show-1',
         dogId: 'dog-1',
@@ -612,13 +630,13 @@ describe('ReplicatedEntriesTable', () => {
         .mockResolvedValueOnce('mutation-1')
         .mockResolvedValueOnce(null);
 
-      await table.set('entry-1', {
+      await seedSet('entry-1', {
         id: 'entry-1',
         showId: 'show-1',
         dogId: 'dog-1',
         classId: 'class-1',
       });
-      await table.set('entry-2', {
+      await seedSet('entry-2', {
         id: 'entry-2',
         showId: 'show-1',
         dogId: 'dog-1',
@@ -645,7 +663,7 @@ describe('ReplicatedEntriesTable', () => {
         status: 'registered',
       };
 
-      await table.set('entry-1', entry);
+      await seedSet('entry-1', entry);
 
       // Check in
       await table.updateEntryStatus('entry-1', 'checked-in');
@@ -674,7 +692,7 @@ describe('ReplicatedEntriesTable', () => {
         dogCallName: 'Rex',
       };
 
-      await table.set('entry-1', entry);
+      await seedSet('entry-1', entry);
       await table.updateEntry('entry-1', { dogCallName: 'Max', status: 'checked-in' });
 
       const result = await table.get('entry-1');
@@ -696,7 +714,7 @@ describe('ReplicatedEntriesTable', () => {
         'queueMutation'
       );
 
-      await table.set('entry-1', {
+      await seedSet('entry-1', {
         id: 'entry-1',
         classId: 'class-1',
         resultStatus: 'qualified',
@@ -737,7 +755,7 @@ describe('ReplicatedEntriesTable', () => {
         armband: '101',
       };
 
-      await table.set('entry-1', entry);
+      await seedSet('entry-1', entry);
       await table.updateEntry('entry-1', { armband: '102' });
 
       const result = await table.get('entry-1');
@@ -757,7 +775,7 @@ describe('ReplicatedEntriesTable', () => {
         'queueMutation'
       );
 
-      await table.set('entry-1', {
+      await seedSet('entry-1', {
         id: 'entry-1',
         classId: 'class-1',
         armband: '101',
@@ -800,7 +818,7 @@ describe('ReplicatedEntriesTable', () => {
       );
       const deletedAt = '2026-06-05T18:00:00.000Z';
 
-      await table.set('entry-1', {
+      await seedSet('entry-1', {
         id: 'entry-1',
         classId: 'class-1',
         armband: '101',
@@ -837,7 +855,7 @@ describe('ReplicatedEntriesTable', () => {
         armband: '101',
       };
 
-      await table.set('entry-1', entry);
+      await seedSet('entry-1', entry);
       const before = await table.get('entry-1');
 
       // Wait a bit to ensure timestamp difference
@@ -862,7 +880,7 @@ describe('ReplicatedEntriesTable', () => {
       ];
 
       for (const entry of entries) {
-        await table.set(entry.id, entry);
+        await seedSet(entry.id, entry);
       }
     });
 
@@ -1056,7 +1074,7 @@ describe('ReplicatedEntriesTable', () => {
         armband: '101',
         status: 'checked-in',
       };
-      await table.set('entry-1', localEntry);
+      await seedSet('entry-1', localEntry);
 
       // Mock remote entry with different data
       const remoteEntries = [
@@ -1174,7 +1192,7 @@ describe('ReplicatedEntriesTable', () => {
     it('should perform incremental sync based on lastSyncedAt', async () => {
       // Set last sync time
       const lastIncrementalSyncAt = Date.now() - 60000;
-      await table.set('entry-1', {
+      await seedSet('entry-1', {
         id: 'entry-1',
         showId: TEST_LICENSE_KEY,
         classId: 'class-1',
@@ -1216,7 +1234,7 @@ describe('ReplicatedEntriesTable', () => {
     });
 
     it('should preserve dirty local entries when remote has the same entry', async () => {
-      await table.set(
+      await seedSet(
         'entry-1',
         {
           id: 'entry-1',
@@ -1264,7 +1282,7 @@ describe('ReplicatedEntriesTable', () => {
     });
 
     it('should not resurrect an entry deleted locally during the same session', async () => {
-      await table.set('entry-1', {
+      await seedSet('entry-1', {
         id: 'entry-1',
         classId: 'class-1',
         armband: '101',
@@ -1301,7 +1319,7 @@ describe('ReplicatedEntriesTable', () => {
     });
 
     it('should remove orphan local-only entries when no mutations are pending', async () => {
-      await table.set('entry-1', {
+      await seedSet('entry-1', {
         id: 'entry-1',
         showId: TEST_LICENSE_KEY,
         classId: 'class-1',
@@ -1329,7 +1347,7 @@ describe('ReplicatedEntriesTable', () => {
     });
 
     it('should keep orphan local-only entries outside the current show scope', async () => {
-      await table.set('entry-1', {
+      await seedSet('entry-1', {
         id: 'entry-1',
         showId: 'other-show',
         classId: 'class-1',
@@ -1563,7 +1581,7 @@ describe('ReplicatedEntriesTable', () => {
       ];
 
       for (const entry of entries) {
-        await table.set(entry.id, entry);
+        await seedSet(entry.id, entry);
       }
 
       const stats = await table.getCacheStats();
@@ -1580,7 +1598,7 @@ describe('ReplicatedEntriesTable', () => {
       ];
 
       for (const entry of entries) {
-        await table.set(entry.id, entry);
+        await seedSet(entry.id, entry);
       }
 
       await table.clearCache();
@@ -1596,7 +1614,7 @@ describe('ReplicatedEntriesTable', () => {
         armband: '101',
       };
 
-      await table.set('entry-1', entry);
+      await seedSet('entry-1', entry);
       await table.updateEntry('entry-1', { armband: '102' });
 
       const stats = await table.getCacheStats();
@@ -1615,7 +1633,7 @@ describe('ReplicatedEntriesTable', () => {
       callback.mockClear();
 
       // Add entry
-      await table.set('entry-1', { id: 'entry-1', classId: 'class-1' });
+      await seedSet('entry-1', { id: 'entry-1', classId: 'class-1' });
 
       // Wait for debounced notification
       await new Promise(resolve => setTimeout(resolve, 200));
@@ -1634,7 +1652,7 @@ describe('ReplicatedEntriesTable', () => {
       callback.mockClear();
 
       // Add entry after unsubscribe
-      await table.set('entry-1', { id: 'entry-1', classId: 'class-1' });
+      await seedSet('entry-1', { id: 'entry-1', classId: 'class-1' });
 
       // Wait for potential notification
       await new Promise(resolve => setTimeout(resolve, 200));
@@ -1649,7 +1667,7 @@ describe('ReplicatedEntriesTable', () => {
         id: 'entry-1',
       };
 
-      await table.set('entry-1', minimalEntry);
+      await seedSet('entry-1', minimalEntry);
 
       const result = await table.get('entry-1');
       expect(result).not.toBeNull();
@@ -1663,7 +1681,7 @@ describe('ReplicatedEntriesTable', () => {
         armband: '101',
       };
 
-      await table.set('entry-1', entry);
+      await seedSet('entry-1', entry);
 
       // Perform concurrent updates
       const updates = [
@@ -1684,7 +1702,7 @@ describe('ReplicatedEntriesTable', () => {
         classId: 'class-1',
       };
 
-      await table.set('', entry);
+      await seedSet('', entry);
 
       const result = await table.get('');
       expect(result).not.toBeNull();
@@ -1697,7 +1715,7 @@ describe('ReplicatedEntriesTable', () => {
         armband: '999999999',
       };
 
-      await table.set('entry-1', entry);
+      await seedSet('entry-1', entry);
 
       const result = await table.get('entry-1');
       expect(result?.armband).toBe('999999999');
@@ -1710,7 +1728,7 @@ describe('ReplicatedEntriesTable', () => {
         specialRequests: 'Need "special" treatment & care',
       };
 
-      await table.set('entry-1', entry);
+      await seedSet('entry-1', entry);
 
       const result = await table.get('entry-1');
       expect(result?.dogCallName).toBe("Rex's Dog <script>");
@@ -1732,7 +1750,7 @@ describe('ReplicatedEntriesTable', () => {
         entryStatus: 'pending',
       };
 
-      await table.set('entry-1', entry);
+      await seedSet('entry-1', entry);
 
       // 2. Entry is checked in
       await table.updateEntryStatus('entry-1', 'checked-in');
@@ -1771,7 +1789,7 @@ describe('ReplicatedEntriesTable', () => {
       }));
 
       for (const entry of entries) {
-        await table.set(entry.id, entry);
+        await seedSet(entry.id, entry);
       }
 
       // Bulk update all entries to checked-in
@@ -1818,7 +1836,7 @@ describe('ReplicatedEntriesTable', () => {
       ];
 
       for (const entry of entries) {
-        await table.set(entry.id, entry);
+        await seedSet(entry.id, entry);
       }
 
       // Get all class-1 entries
@@ -1913,7 +1931,7 @@ describe('ReplicatedEntriesTable', () => {
     });
 
     it('does not resurrect an entry deleted locally this session', async () => {
-      await table.set('entry-del', { id: 'entry-del', classId: 'class-1' });
+      await seedSet('entry-del', { id: 'entry-del', classId: 'class-1' });
       await table.deleteEntry('entry-del');
       const { maybeSingle } = mockViewSingleRowFetch({ data: serverRow, error: null });
 

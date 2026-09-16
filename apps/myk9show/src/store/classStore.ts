@@ -210,6 +210,10 @@ export const useClassStore = create<ClassStoreState>()((set, get): ClassStoreSta
         _localOnly: true,
       };
 
+      // Reachable only via useClassStoreCompat, which nothing consumes; MYK9-614
+      // deletes this path. Deliberately NOT opted into the MYK9-575 cold-insert
+      // guard, so reviving it throws loudly in dev instead of seeding the
+      // show-scoped replica from an account-level surface.
       await replicatedEntriesTable.set(id, replicatedEntry, true);
 
       // Create full entry with local-only fields

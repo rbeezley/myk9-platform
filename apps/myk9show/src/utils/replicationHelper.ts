@@ -12,6 +12,7 @@ import type { ReplicatedTrial } from '@/services/replication/ReplicatedTrialsTab
 import type { ReplicatedShow } from '@/services/replication/ReplicatedShowsTable';
 import type { ReplicatedDog } from '@/services/replication/ReplicatedDogsTable';
 import type { ReplicatedClub } from '@/services/replication/ReplicatedClubsTable';
+import type { ReplicatedSetResult } from '@myk9/replication';
 
 type SyncResult = { success: boolean; error?: string; rowsAffected?: number };
 
@@ -21,7 +22,8 @@ type SyncResult = { success: boolean; error?: string; rowsAffected?: number };
 interface IReplicatedTable<T> {
   get(id: string): Promise<T | undefined>;
   getAll(): Promise<T[]>;
-  set(id: string, item: T): Promise<void>;
+  /** MYK9-575: `set` reports whether the local row was actually written. */
+  set(id: string, item: T): Promise<ReplicatedSetResult>;
   sync(syncScopeId: string): Promise<SyncResult>;
 }
 

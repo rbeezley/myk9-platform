@@ -35,17 +35,35 @@ interface DogsTableViewProps {
 function buildSelectColumn(selection: DogsTableSelection): DisplayColumnDef<Dog, unknown> {
   return {
     id: '_select',
+    // Both cells' checkbox is wrapped at a fixed `w-10` (matching
+    // STICKY_LEFT_LEAD_WIDTH_CLASS exactly) so the column's own min-content
+    // and max-content agree at 40px — see the width doc on
+    // STICKY_LEFT_LEAD_WIDTH_CLASS in `data-table/types.ts`.
     header: () => (
-      <Checkbox
-        className="relative before:absolute before:-inset-3.5 before:content-['']"
-        checked={selection.isAllSelected}
-        indeterminate={selection.isPartiallySelected}
-        onCheckedChange={() => selection.toggleAll()}
-        aria-label="Select all dogs"
-      />
+      <span className="flex w-10 items-center justify-center">
+        <Checkbox
+          // Asymmetric on purpose, header only: a uniform -inset-3.5 (like the
+          // row checkbox below) grows the 16px control to 44x44, but the
+          // header row is only h-10 (40px) tall, so the vertical half
+          // overhangs ~2px into row 1 and can steal its first click.
+          // -inset-x-3.5 (14px) keeps the 44px-wide horizontal overhang
+          // (unchanged — it's what lets the tap target reach into the Name
+          // cell); -inset-y-3 (12px) gives a 40px-tall target that exactly
+          // fills the header row's own height, so nothing spills into row 1.
+          className="relative before:absolute before:-inset-x-3.5 before:-inset-y-3 before:content-['']"
+          checked={selection.isAllSelected}
+          indeterminate={selection.isPartiallySelected}
+          onCheckedChange={() => selection.toggleAll()}
+          aria-label="Select all dogs"
+        />
+      </span>
     ),
     cell: ({ row }) => (
-      <span className="flex items-center" onClick={e => e.stopPropagation()} role="presentation">
+      <span
+        className="flex w-10 items-center justify-center"
+        onClick={e => e.stopPropagation()}
+        role="presentation"
+      >
         <Checkbox
           className="relative before:absolute before:-inset-3.5 before:content-['']"
           checked={selection.isSelected(row.original)}

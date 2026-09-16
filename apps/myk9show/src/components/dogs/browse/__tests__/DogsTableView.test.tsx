@@ -140,8 +140,17 @@ describe('DogsTableView', () => {
       render(<DogsTableView dogs={dogs} selection={makeSelection()} />);
       const headerCheckbox = screen.getByRole('checkbox', { name: /select all dogs/i });
       const rowCheckbox = screen.getByRole('checkbox', { name: /select rex/i });
-      expect(headerCheckbox.className).toContain('before:-inset-3.5');
+      // Row checkbox: uniform 14px overhang on all four sides (44x44).
       expect(rowCheckbox.className).toContain('before:-inset-3.5');
+      // Header checkbox: asymmetric on purpose (round-2 review) — a uniform
+      // -inset-3.5 overhangs ~2px into row 1, since the header row is only
+      // h-10 (40px) tall against a 44px-tall target. -inset-x-3.5 (14px)
+      // keeps the 44px horizontal reach into the Name cell; -inset-y-3
+      // (12px) makes the target exactly 40px tall, filling the header row
+      // with no vertical spillover.
+      expect(headerCheckbox.className).toContain('before:-inset-x-3.5');
+      expect(headerCheckbox.className).toContain('before:-inset-y-3');
+      expect(headerCheckbox.className).not.toContain('before:-inset-3.5');
     });
 
     it('reflects indeterminate state on the header checkbox', () => {
@@ -176,14 +185,34 @@ describe('DogsTableView', () => {
       };
     }
 
-    it('pins the select column at left-0, above Name, at a fixed width', () => {
+    it('pins the select column at left-0, above Name, at a fixed width in both directions', () => {
       const { selectHeader, selectCell } = renderPinnedCells();
       for (const el of [selectHeader, selectCell]) {
         const classes = el.className.split(/\s+/);
-        expect(classes).toEqual(expect.arrayContaining(['sticky', 'left-0', 'w-10', 'bg-card']));
+        // `w-10` alone is only a hint under table-layout: auto; `min-w-10`
+        // and `max-w-10` are what actually pin the rendered width so the
+        // trailing `left-10` offset on Name holds (round-2 review — see the
+        // doc on STICKY_LEFT_LEAD_WIDTH_CLASS). Real rendered-geometry
+        // evidence lives in
+        // `src/test/e2e/dogs-table-pinned-select.spec.ts`, not here.
+        expect(classes).toEqual(
+          expect.arrayContaining(['sticky', 'left-0', 'w-10', 'min-w-10', 'max-w-10', 'bg-card'])
+        );
       }
       expect(selectHeader.className).toContain('z-30');
       expect(selectCell.className).toContain('z-20');
+    });
+
+    it('draws no hairline of its own on the lead (select) column', () => {
+      // Round-2 review: the lead cell used to draw a second `::after`
+      // hairline at x=40, between the checkbox and Name — redundant with
+      // the one hairline the trailing (afterLead) Name column already
+      // draws at ITS right edge, which now marks the outer boundary of the
+      // whole pinned block.
+      const { selectHeader, selectCell } = renderPinnedCells();
+      for (const el of [selectHeader, selectCell]) {
+        expect(el.className).not.toContain("after:content-['']");
+      }
     });
 
     it('pins Name after the select column instead of at left-0', () => {
@@ -201,8 +230,12 @@ describe('DogsTableView', () => {
     it('still pins Name at left-0 when there is no select column', () => {
       render(<DogsTableView dogs={dogs} />);
       const nameHeader = document.querySelectorAll('thead th')[0] as HTMLElement;
-      expect(nameHeader.className.split(/\s+/)).toContain('left-0');
-      expect(nameHeader.className).not.toContain('left-10');
+      const rexRow = screen.getByText('Rex').closest('tr') as HTMLTableRowElement;
+      const nameCell = rexRow.querySelectorAll('td')[0] as HTMLElement;
+      for (const el of [nameHeader, nameCell]) {
+        expect(el.className.split(/\s+/)).toContain('left-0');
+        expect(el.className).not.toContain('left-10');
+      }
     });
   });
 

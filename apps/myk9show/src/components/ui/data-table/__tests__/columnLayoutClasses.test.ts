@@ -81,9 +81,25 @@ describe('getColumnLayoutClasses', () => {
       expect(header).toBe(STICKY_LEFT_LEAD_HEADER_CLASSES);
       expect(body).toBe(STICKY_LEFT_LEAD_BODY_CLASSES);
       for (const classes of [header, body]) {
+        // `w-10` alone is only a width HINT under table-layout: auto —
+        // `min-w-10`/`max-w-10` are what actually pins it, since a wider
+        // cell elsewhere in the column could otherwise grow it and silently
+        // break the trailing column's hardcoded offset (round-2 review).
         expect(classes.split(' ')).toEqual(
-          expect.arrayContaining(['sticky', 'left-0', STICKY_LEFT_LEAD_WIDTH_CLASS, 'bg-card'])
+          expect.arrayContaining([
+            'sticky',
+            'left-0',
+            STICKY_LEFT_LEAD_WIDTH_CLASS,
+            'min-w-10',
+            'max-w-10',
+            'bg-card',
+          ])
         );
+        // No hairline of its own — the trailing (afterLead) column draws the
+        // one hairline for the whole pinned block, at ITS right edge; a
+        // second one here would be a spurious divider between the checkbox
+        // and Name (round-2 review).
+        expect(classes).not.toContain("after:content-['']");
       }
       // Above the trailing column's z-20 header / z-10 body (asserted below),
       // or the lead checkbox's enlarged tap-target pseudo-element would paint
@@ -106,6 +122,18 @@ describe('getColumnLayoutClasses', () => {
       }
       expect(header).toContain('z-20');
       expect(body).toContain('z-10');
+    });
+
+    // Round-2 review: `stickyLeftLead` and `stickyLeft` had no runtime or
+    // compile-time guard against being set on the same column, which would
+    // silently pick whichever branch's `if` ran first rather than fail loud.
+    it('throws when a column sets both stickyLeftLead and stickyLeft', () => {
+      expect(() =>
+        getColumnLayoutClasses({ stickyLeftLead: true, stickyLeft: true }, 'header')
+      ).toThrow(/mutually exclusive/);
+      expect(() =>
+        getColumnLayoutClasses({ stickyLeftLead: true, stickyLeft: { afterLead: true } }, 'body')
+      ).toThrow(/mutually exclusive/);
     });
   });
 });

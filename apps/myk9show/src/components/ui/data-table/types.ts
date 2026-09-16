@@ -37,7 +37,11 @@ export interface DataTableColumnMeta {
    * `stickyLeft: { afterLead: true }` column pins after (MYK9-592). Pins at
    * `left-0` with a z-index above that trailing column's, and forces the
    * cell to `STICKY_LEFT_LEAD_WIDTH_CLASS` so the trailing offset is
-   * guaranteed to line up. At most one column should set this.
+   * guaranteed to line up.
+   *
+   * Mutually exclusive with `stickyLeft` on the SAME column —
+   * `getColumnLayoutClasses` throws if both are set, since a column cannot
+   * both lead the pin and pin after itself.
    */
   stickyLeftLead?: boolean;
   /** Label to use when exporting this column to CSV. */
@@ -136,23 +140,48 @@ export const STICKY_LEFT_BODY_CLASSES = `${STICKY_LEFT_BASE} z-10 group-data-[st
 
 /**
  * The lead column's forced width and the trailing column's matching left
- * offset (MYK9-592). Both are literal Tailwind scale classes (2.5rem / 40px),
- * not arbitrary values built from a runtime number — see the `stickyLeft` doc
+ * offset (MYK9-592).
+ *
+ * `w-10` ALONE is only a hint under the table's default `table-layout: auto`
+ * — the browser is free to widen the column if a cell wants more room, which
+ * would silently break the hardcoded `left-10` offset below with nothing in
+ * the unit suite able to catch it (jsdom performs no layout). `min-w-10` and
+ * `max-w-10` pin both ends of the range to the same value, and the rendered
+ * cell content is wrapped at a matching fixed `w-10` too (see
+ * `DogsTableView.tsx`), so the cell's own min-content and max-content agree
+ * at 40px and table-layout has nothing left to negotiate. This is a
+ * hypothesis about the auto-layout algorithm, not a CSS guarantee the spec
+ * makes — real evidence lives in
+ * `src/test/e2e/dogs-table-pinned-select.spec.ts`, which measures the
+ * rendered column width, the Name offset, and elementFromPoint hit-testing
+ * in a real browser at the 768px tablet viewport.
+ *
+ * Both classes are literal Tailwind scale values (2.5rem / 40px), not
+ * arbitrary values built from a runtime number — see the `stickyLeft` doc
  * above for why that matters. Keep these two in step: the offset is only
  * correct if it equals the width.
  */
 export const STICKY_LEFT_LEAD_WIDTH_CLASS = 'w-10';
+const STICKY_LEFT_LEAD_WIDTH_BOUNDS_CLASSES = 'min-w-10 max-w-10';
 const STICKY_LEFT_AFTER_LEAD_OFFSET_CLASS = 'left-10';
 
-/** Left-pin classes for the LEADING column's header cell — above the
- * trailing (`afterLead`) column's z-20 header. */
-export const STICKY_LEFT_LEAD_HEADER_CLASSES = `sticky left-0 ${STICKY_LEFT_LEAD_WIDTH_CLASS} bg-card z-30 ${STICKY_LEFT_HAIRLINE}`;
+/**
+ * Left-pin classes for the LEADING column's header cell — above the trailing
+ * (`afterLead`) column's z-20 header. Deliberately carries no `::after`
+ * hairline of its own: that would draw a second divider between the
+ * checkbox and Name, when the trailing (afterLead) classes already draw the
+ * one hairline that marks the outer edge of the whole pinned block.
+ */
+export const STICKY_LEFT_LEAD_HEADER_CLASSES = `sticky left-0 ${STICKY_LEFT_LEAD_WIDTH_CLASS} ${STICKY_LEFT_LEAD_WIDTH_BOUNDS_CLASSES} bg-card z-30`;
 
 /** Left-pin classes for the LEADING column's body cell — above the trailing
- * (`afterLead`) column's z-10 body. */
-export const STICKY_LEFT_LEAD_BODY_CLASSES = `sticky left-0 ${STICKY_LEFT_LEAD_WIDTH_CLASS} bg-card z-20 group-data-[state=selected]/row:bg-muted ${STICKY_LEFT_HAIRLINE}`;
+ * (`afterLead`) column's z-10 body. See the header variant above for why
+ * this carries no hairline of its own. */
+export const STICKY_LEFT_LEAD_BODY_CLASSES = `sticky left-0 ${STICKY_LEFT_LEAD_WIDTH_CLASS} ${STICKY_LEFT_LEAD_WIDTH_BOUNDS_CLASSES} bg-card z-20 group-data-[state=selected]/row:bg-muted`;
 
-/** Left-pin classes for a header cell pinned after a `stickyLeftLead` column. */
+/** Left-pin classes for a header cell pinned after a `stickyLeftLead`
+ * column — the sole hairline for the pinned block sits here, at its outer
+ * (right) edge. */
 export const STICKY_LEFT_AFTER_LEAD_HEADER_CLASSES = `sticky ${STICKY_LEFT_AFTER_LEAD_OFFSET_CLASS} bg-card z-20 ${STICKY_LEFT_HAIRLINE}`;
 
 /** Left-pin classes for a body cell pinned after a `stickyLeftLead` column. */
@@ -166,6 +195,13 @@ export function getColumnLayoutClasses(
   meta: DataTableColumnMeta | undefined,
   cell: 'header' | 'body'
 ): string {
+  if (meta?.stickyLeftLead && meta?.stickyLeft) {
+    throw new Error(
+      'DataTableColumnMeta: stickyLeftLead and stickyLeft are mutually exclusive on the same ' +
+        'column — a column cannot both lead the pin (at left-0, above the trailing column) and ' +
+        'pin after itself.'
+    );
+  }
   const classes: string[] = [];
   if (meta?.responsiveHide) classes.push(RESPONSIVE_CLASSES[meta.responsiveHide]);
   if (meta?.stickyLeftLead) {

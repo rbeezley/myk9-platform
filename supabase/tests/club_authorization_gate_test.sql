@@ -51,17 +51,42 @@ DO $$
 DECLARE
   v_auth_user_id uuid := gen_random_uuid();
   v_person_id uuid := gen_random_uuid();
+  v_adopted_auth_user_id uuid;
   v_role_id uuid;
 BEGIN
+  -- The people row goes in FIRST with auth_user_id NULL and the auth.users
+  -- row SECOND with the SAME address: handle_new_user() (latest definition in
+  -- 20260805120000) adopts the unlinked person by LOWER(email) and sets
+  -- auth_user_id itself. Writing people.auth_user_id directly with no matching
+  -- auth.users row is refused by people_enforce_sign_in_email (MYK9-136), which
+  -- aborts the whole script. Same pattern, and same adoption assertion, as
+  -- show_publish_gate_trigger_test.sql.
   INSERT INTO public.people (id, auth_user_id, first_name, last_name, email)
-  VALUES (v_person_id, v_auth_user_id, 'MYK9-572', 'ClubAdmin', 'myk9572-admin@example.test');
+  VALUES (v_person_id, NULL, 'MYK9-572', 'ClubAdmin', 'myk9572-admin@example.test');
+
+  INSERT INTO auth.users (
+    id, instance_id, aud, role, email, encrypted_password, email_confirmed_at,
+    created_at, updated_at, raw_app_meta_data, raw_user_meta_data,
+    is_super_admin, is_sso_user, is_anonymous
+  )
+  VALUES (
+    v_auth_user_id, '00000000-0000-0000-0000-000000000000',
+    'authenticated', 'authenticated', 'myk9572-admin@example.test', '', now(),
+    now(), now(), '{}', '{}', false, false, false
+  );
+
+  SELECT auth_user_id INTO v_adopted_auth_user_id
+    FROM public.people WHERE id = v_person_id;
+  IF v_adopted_auth_user_id IS DISTINCT FROM v_auth_user_id THEN
+    RAISE EXCEPTION 'FAIL wiring: handle_new_user() did not adopt the club-admin fixture by email';
+  END IF;
 
   SELECT id INTO v_role_id FROM public.roles WHERE name = 'club_admin';
 
   INSERT INTO public.user_roles (user_id, role_id, club_id, show_id, is_active, granted_at, granted_by, auth_user_id)
-  VALUES (v_person_id, v_role_id, '00000000-0000-0000-0000-000000572002', NULL, true, now(), v_person_id, v_auth_user_id);
+  VALUES (v_person_id, v_role_id, '00000000-0000-0000-0000-000000572002', NULL, true, now(), v_person_id, v_adopted_auth_user_id);
 
-  PERFORM set_config('myk9572.admin_auth_user_id', v_auth_user_id::text, false);
+  PERFORM set_config('myk9572.admin_auth_user_id', v_adopted_auth_user_id::text, false);
   PERFORM set_config('myk9572.admin_person_id', v_person_id::text, false);
 END;
 $$;
@@ -157,17 +182,42 @@ DO $$
 DECLARE
   v_auth_user_id uuid := gen_random_uuid();
   v_person_id uuid := gen_random_uuid();
+  v_adopted_auth_user_id uuid;
   v_role_id uuid;
 BEGIN
+  -- The people row goes in FIRST with auth_user_id NULL and the auth.users
+  -- row SECOND with the SAME address: handle_new_user() (latest definition in
+  -- 20260805120000) adopts the unlinked person by LOWER(email) and sets
+  -- auth_user_id itself. Writing people.auth_user_id directly with no matching
+  -- auth.users row is refused by people_enforce_sign_in_email (MYK9-136), which
+  -- aborts the whole script. Same pattern, and same adoption assertion, as
+  -- show_publish_gate_trigger_test.sql.
   INSERT INTO public.people (id, auth_user_id, first_name, last_name, email)
-  VALUES (v_person_id, v_auth_user_id, 'MYK9-572', 'OtherClubAdmin', 'myk9572-otheradmin@example.test');
+  VALUES (v_person_id, NULL, 'MYK9-572', 'OtherClubAdmin', 'myk9572-otheradmin@example.test');
+
+  INSERT INTO auth.users (
+    id, instance_id, aud, role, email, encrypted_password, email_confirmed_at,
+    created_at, updated_at, raw_app_meta_data, raw_user_meta_data,
+    is_super_admin, is_sso_user, is_anonymous
+  )
+  VALUES (
+    v_auth_user_id, '00000000-0000-0000-0000-000000000000',
+    'authenticated', 'authenticated', 'myk9572-otheradmin@example.test', '', now(),
+    now(), now(), '{}', '{}', false, false, false
+  );
+
+  SELECT auth_user_id INTO v_adopted_auth_user_id
+    FROM public.people WHERE id = v_person_id;
+  IF v_adopted_auth_user_id IS DISTINCT FROM v_auth_user_id THEN
+    RAISE EXCEPTION 'FAIL wiring: handle_new_user() did not adopt the other-club-admin fixture by email';
+  END IF;
 
   SELECT id INTO v_role_id FROM public.roles WHERE name = 'club_admin';
 
   INSERT INTO public.user_roles (user_id, role_id, club_id, show_id, is_active, granted_at, granted_by, auth_user_id)
-  VALUES (v_person_id, v_role_id, '00000000-0000-0000-0000-000000572003', NULL, true, now(), v_person_id, v_auth_user_id);
+  VALUES (v_person_id, v_role_id, '00000000-0000-0000-0000-000000572003', NULL, true, now(), v_person_id, v_adopted_auth_user_id);
 
-  PERFORM set_config('myk9572.otheradmin_auth_user_id', v_auth_user_id::text, false);
+  PERFORM set_config('myk9572.otheradmin_auth_user_id', v_adopted_auth_user_id::text, false);
 END;
 $$;
 
@@ -194,11 +244,36 @@ DO $$
 DECLARE
   v_auth_user_id uuid := gen_random_uuid();
   v_person_id uuid := gen_random_uuid();
+  v_adopted_auth_user_id uuid;
 BEGIN
+  -- The people row goes in FIRST with auth_user_id NULL and the auth.users
+  -- row SECOND with the SAME address: handle_new_user() (latest definition in
+  -- 20260805120000) adopts the unlinked person by LOWER(email) and sets
+  -- auth_user_id itself. Writing people.auth_user_id directly with no matching
+  -- auth.users row is refused by people_enforce_sign_in_email (MYK9-136), which
+  -- aborts the whole script. Same pattern, and same adoption assertion, as
+  -- show_publish_gate_trigger_test.sql.
   INSERT INTO public.people (id, auth_user_id, first_name, last_name, email)
-  VALUES (v_person_id, v_auth_user_id, 'MYK9-572', 'Exhibitor', 'myk9572-exhibitor@example.test');
+  VALUES (v_person_id, NULL, 'MYK9-572', 'Exhibitor', 'myk9572-exhibitor@example.test');
 
-  PERFORM set_config('myk9572.exhibitor_auth_user_id', v_auth_user_id::text, false);
+  INSERT INTO auth.users (
+    id, instance_id, aud, role, email, encrypted_password, email_confirmed_at,
+    created_at, updated_at, raw_app_meta_data, raw_user_meta_data,
+    is_super_admin, is_sso_user, is_anonymous
+  )
+  VALUES (
+    v_auth_user_id, '00000000-0000-0000-0000-000000000000',
+    'authenticated', 'authenticated', 'myk9572-exhibitor@example.test', '', now(),
+    now(), now(), '{}', '{}', false, false, false
+  );
+
+  SELECT auth_user_id INTO v_adopted_auth_user_id
+    FROM public.people WHERE id = v_person_id;
+  IF v_adopted_auth_user_id IS DISTINCT FROM v_auth_user_id THEN
+    RAISE EXCEPTION 'FAIL wiring: handle_new_user() did not adopt the exhibitor fixture by email';
+  END IF;
+
+  PERFORM set_config('myk9572.exhibitor_auth_user_id', v_adopted_auth_user_id::text, false);
 END;
 $$;
 
@@ -229,21 +304,64 @@ DO $$
 DECLARE
   v_active_auth_user_id uuid := gen_random_uuid();
   v_active_person_id uuid := gen_random_uuid();
+  v_active_adopted_auth_user_id uuid;
   v_resigned_auth_user_id uuid := gen_random_uuid();
   v_resigned_person_id uuid := gen_random_uuid();
+  v_resigned_adopted_auth_user_id uuid;
 BEGIN
+  -- The people row goes in FIRST with auth_user_id NULL and the auth.users
+  -- row SECOND with the SAME address: handle_new_user() (latest definition in
+  -- 20260805120000) adopts the unlinked person by LOWER(email) and sets
+  -- auth_user_id itself. Writing people.auth_user_id directly with no matching
+  -- auth.users row is refused by people_enforce_sign_in_email (MYK9-136), which
+  -- aborts the whole script. Same pattern, and same adoption assertion, as
+  -- show_publish_gate_trigger_test.sql.
   INSERT INTO public.people (id, auth_user_id, first_name, last_name, email)
   VALUES
-    (v_active_person_id, v_active_auth_user_id, 'MYK9-572', 'ActiveMember', 'myk9572-activemember@example.test'),
-    (v_resigned_person_id, v_resigned_auth_user_id, 'MYK9-572', 'ResignedMember', 'myk9572-resignedmember@example.test');
+    (v_active_person_id, NULL, 'MYK9-572', 'ActiveMember', 'myk9572-activemember@example.test'),
+    (v_resigned_person_id, NULL, 'MYK9-572', 'ResignedMember', 'myk9572-resignedmember@example.test');
+
+  INSERT INTO auth.users (
+    id, instance_id, aud, role, email, encrypted_password, email_confirmed_at,
+    created_at, updated_at, raw_app_meta_data, raw_user_meta_data,
+    is_super_admin, is_sso_user, is_anonymous
+  )
+  VALUES (
+    v_active_auth_user_id, '00000000-0000-0000-0000-000000000000',
+    'authenticated', 'authenticated', 'myk9572-activemember@example.test', '', now(),
+    now(), now(), '{}', '{}', false, false, false
+  );
+
+  SELECT auth_user_id INTO v_active_adopted_auth_user_id
+    FROM public.people WHERE id = v_active_person_id;
+  IF v_active_adopted_auth_user_id IS DISTINCT FROM v_active_auth_user_id THEN
+    RAISE EXCEPTION 'FAIL wiring: handle_new_user() did not adopt the active-member fixture by email';
+  END IF;
+
+  INSERT INTO auth.users (
+    id, instance_id, aud, role, email, encrypted_password, email_confirmed_at,
+    created_at, updated_at, raw_app_meta_data, raw_user_meta_data,
+    is_super_admin, is_sso_user, is_anonymous
+  )
+  VALUES (
+    v_resigned_auth_user_id, '00000000-0000-0000-0000-000000000000',
+    'authenticated', 'authenticated', 'myk9572-resignedmember@example.test', '', now(),
+    now(), now(), '{}', '{}', false, false, false
+  );
+
+  SELECT auth_user_id INTO v_resigned_adopted_auth_user_id
+    FROM public.people WHERE id = v_resigned_person_id;
+  IF v_resigned_adopted_auth_user_id IS DISTINCT FROM v_resigned_auth_user_id THEN
+    RAISE EXCEPTION 'FAIL wiring: handle_new_user() did not adopt the resigned-member fixture by email';
+  END IF;
 
   INSERT INTO public.club_members (club_id, person_id, membership_status)
   VALUES
     ('00000000-0000-0000-0000-000000572002', v_active_person_id, 'active'),
     ('00000000-0000-0000-0000-000000572002', v_resigned_person_id, 'resigned');
 
-  PERFORM set_config('myk9572.active_member_auth_user_id', v_active_auth_user_id::text, false);
-  PERFORM set_config('myk9572.resigned_member_auth_user_id', v_resigned_auth_user_id::text, false);
+  PERFORM set_config('myk9572.active_member_auth_user_id', v_active_adopted_auth_user_id::text, false);
+  PERFORM set_config('myk9572.resigned_member_auth_user_id', v_resigned_adopted_auth_user_id::text, false);
 END;
 $$;
 
@@ -453,11 +571,36 @@ DO $$
 DECLARE
   v_auth_user_id uuid := gen_random_uuid();
   v_person_id uuid := gen_random_uuid();
+  v_adopted_auth_user_id uuid;
 BEGIN
+  -- The people row goes in FIRST with auth_user_id NULL and the auth.users
+  -- row SECOND with the SAME address: handle_new_user() (latest definition in
+  -- 20260805120000) adopts the unlinked person by LOWER(email) and sets
+  -- auth_user_id itself. Writing people.auth_user_id directly with no matching
+  -- auth.users row is refused by people_enforce_sign_in_email (MYK9-136), which
+  -- aborts the whole script. Same pattern, and same adoption assertion, as
+  -- show_publish_gate_trigger_test.sql.
   INSERT INTO public.people (id, auth_user_id, first_name, last_name, email)
-  VALUES (v_person_id, v_auth_user_id, 'MYK9-572', 'NonAdmin', 'myk9572-nonadmin@example.test');
+  VALUES (v_person_id, NULL, 'MYK9-572', 'NonAdmin', 'myk9572-nonadmin@example.test');
 
-  PERFORM set_config('myk9572.nonadmin_auth_user_id', v_auth_user_id::text, false);
+  INSERT INTO auth.users (
+    id, instance_id, aud, role, email, encrypted_password, email_confirmed_at,
+    created_at, updated_at, raw_app_meta_data, raw_user_meta_data,
+    is_super_admin, is_sso_user, is_anonymous
+  )
+  VALUES (
+    v_auth_user_id, '00000000-0000-0000-0000-000000000000',
+    'authenticated', 'authenticated', 'myk9572-nonadmin@example.test', '', now(),
+    now(), now(), '{}', '{}', false, false, false
+  );
+
+  SELECT auth_user_id INTO v_adopted_auth_user_id
+    FROM public.people WHERE id = v_person_id;
+  IF v_adopted_auth_user_id IS DISTINCT FROM v_auth_user_id THEN
+    RAISE EXCEPTION 'FAIL wiring: handle_new_user() did not adopt the non-admin fixture by email';
+  END IF;
+
+  PERFORM set_config('myk9572.nonadmin_auth_user_id', v_adopted_auth_user_id::text, false);
 END;
 $$;
 
@@ -485,17 +628,42 @@ DO $$
 DECLARE
   v_auth_user_id uuid := gen_random_uuid();
   v_person_id uuid := gen_random_uuid();
+  v_adopted_auth_user_id uuid;
   v_role_id uuid;
 BEGIN
+  -- The people row goes in FIRST with auth_user_id NULL and the auth.users
+  -- row SECOND with the SAME address: handle_new_user() (latest definition in
+  -- 20260805120000) adopts the unlinked person by LOWER(email) and sets
+  -- auth_user_id itself. Writing people.auth_user_id directly with no matching
+  -- auth.users row is refused by people_enforce_sign_in_email (MYK9-136), which
+  -- aborts the whole script. Same pattern, and same adoption assertion, as
+  -- show_publish_gate_trigger_test.sql.
   INSERT INTO public.people (id, auth_user_id, first_name, last_name, email)
-  VALUES (v_person_id, v_auth_user_id, 'MYK9-572', 'SiteAdmin', 'myk9572-siteadmin@example.test');
+  VALUES (v_person_id, NULL, 'MYK9-572', 'SiteAdmin', 'myk9572-siteadmin@example.test');
+
+  INSERT INTO auth.users (
+    id, instance_id, aud, role, email, encrypted_password, email_confirmed_at,
+    created_at, updated_at, raw_app_meta_data, raw_user_meta_data,
+    is_super_admin, is_sso_user, is_anonymous
+  )
+  VALUES (
+    v_auth_user_id, '00000000-0000-0000-0000-000000000000',
+    'authenticated', 'authenticated', 'myk9572-siteadmin@example.test', '', now(),
+    now(), now(), '{}', '{}', false, false, false
+  );
+
+  SELECT auth_user_id INTO v_adopted_auth_user_id
+    FROM public.people WHERE id = v_person_id;
+  IF v_adopted_auth_user_id IS DISTINCT FROM v_auth_user_id THEN
+    RAISE EXCEPTION 'FAIL wiring: handle_new_user() did not adopt the site-admin fixture by email';
+  END IF;
 
   SELECT id INTO v_role_id FROM public.roles WHERE name = 'site_admin';
 
   INSERT INTO public.user_roles (user_id, role_id, club_id, show_id, is_active, granted_at, granted_by, auth_user_id)
-  VALUES (v_person_id, v_role_id, NULL, NULL, true, now(), v_person_id, v_auth_user_id);
+  VALUES (v_person_id, v_role_id, NULL, NULL, true, now(), v_person_id, v_adopted_auth_user_id);
 
-  PERFORM set_config('myk9572.siteadmin_auth_user_id', v_auth_user_id::text, false);
+  PERFORM set_config('myk9572.siteadmin_auth_user_id', v_adopted_auth_user_id::text, false);
 END;
 $$;
 

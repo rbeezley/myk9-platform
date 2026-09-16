@@ -23,7 +23,13 @@ describe('useAccountEnteredShowIds', () => {
 
     const { result } = renderHook(() => useAccountEnteredShowIds('person-1'));
 
-    expect(result.current).toEqual({ all: [], active: [], isLoading: true, isError: false });
+    expect(result.current).toEqual({
+      all: [],
+      active: [],
+      isLoading: true,
+      isError: false,
+      degraded: false,
+    });
   });
 
   it('exposes a failed account-level read instead of presenting an empty entry list', () => {
@@ -31,7 +37,13 @@ describe('useAccountEnteredShowIds', () => {
 
     const { result } = renderHook(() => useAccountEnteredShowIds('person-1'));
 
-    expect(result.current).toEqual({ all: [], active: [], isLoading: false, isError: true });
+    expect(result.current).toEqual({
+      all: [],
+      active: [],
+      isLoading: false,
+      isError: true,
+      degraded: false,
+    });
   });
 
   it('throws account-level service errors so React Query can expose the failure state', async () => {
@@ -51,6 +63,12 @@ describe('useAccountEnteredShowIds', () => {
 
     const { result } = renderHook(() => useAccountEnteredShowIds(undefined));
 
-    expect(result.current).toEqual({ all: [], active: [], isLoading: false, isError: false });
+    expect(result.current).toEqual({
+      all: [],
+      active: [],
+      isLoading: false,
+      isError: false,
+      degraded: false,
+    });
   });
 });

@@ -9,35 +9,52 @@
  * has no signal to tell "an entered exhibitor visiting early" apart from "a
  * stranger with no relationship to this show," so it always spoke in
  * worker-passcode language. This hook supplies that missing signal from the
- * same account-level entry source already used by My Shows. Since MYK9-536
- * that source is NETWORK-FIRST (authoritative view, per-show replica as the
- * failure/timeout fallback), so this query sets `networkMode: 'always'`.
+ * same account-level entry source already used by My Shows.
+ *
+ * Reads through `useAccountEntries`, which owns the shared key, the retry and
+ * the `networkMode` (MYK9-563 item 3); `showId` is a projection parameter, not
+ * a cache dimension, so it lives in `select` rather than in the key.
  */
-import { useQuery } from '@tanstack/react-query';
+import { useCallback } from 'react';
 import { useCurrentUserPersonId } from '@/hooks/useRoleBasedData';
-import { getUserEntries } from '@/services/database/entries';
+import { useAccountEntries, type AccountEntriesRead } from '@/hooks/queries/useAccountEntries';
 
-export function useHasAnyEntryForShow(showId: string | undefined): {
+export interface HasAnyEntryForShow {
   hasAnyEntryForShow: boolean;
   isLoading: boolean;
-} {
+  /**
+   * The read failed and nobody could answer. `hasAnyEntryForShow` is `false`
+   * here because a boolean has to be something — it is NOT a finding. Before
+   * MYK9-563 this hook discarded `error` entirely and carried no retry, so a
+   * non-offline view failure over an unreadable replica rendered as a confident
+   * "you are not entered in this show" at ringside.
+   */
+  isError: boolean;
+  /** Rows the authoritative view never confirmed — see `AccountEntriesRead`. */
+  degraded: boolean;
+}
+
+export function useHasAnyEntryForShow(showId: string | undefined): HasAnyEntryForShow {
   const personId = useCurrentUserPersonId();
 
-  const { data, isLoading } = useQuery({
-    queryKey: ['at-show', 'has-any-entry', personId, showId],
-    queryFn: async () => {
-      if (!personId) return false;
-      const { data } = await getUserEntries(personId);
-      return (data ?? []).some(row => (row as { show_id?: string }).show_id === showId);
-    },
-    enabled: !!personId && !!showId,
-    // `getUserEntries` carries its own offline fallback (the replicated
-    // snapshot), but React Query's default `networkMode: 'online'` parks
-    // this query at `fetchStatus: 'paused'` while offline and never calls
-    // it, so the fallback is unreachable exactly when it matters. Same
-    // reason as `useAtShowClassList` / `RingsideShowBoundary`.
-    networkMode: 'always' as const,
+  const select = useCallback(
+    (read: AccountEntriesRead) => ({
+      hasAnyEntryForShow: read.rows.some(row => (row as { show_id?: string }).show_id === showId),
+      degraded: read.degraded,
+    }),
+    [showId]
+  );
+
+  const { data, isLoading, isError } = useAccountEntries(personId, select, {
+    enabled: !!showId,
   });
 
-  return { hasAnyEntryForShow: data ?? false, isLoading };
+  return {
+    hasAnyEntryForShow: data?.hasAnyEntryForShow ?? false,
+    // Never loading without an identity and a show to load for; a disabled
+    // query reports isLoading:true forever and would hang the access gate.
+    isLoading: !!personId && !!showId && isLoading,
+    isError,
+    degraded: data?.degraded ?? false,
+  };
 }

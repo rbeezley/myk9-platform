@@ -390,7 +390,8 @@ END $case4$;
 -- insufficient_privilege both look identical to "the policy is broken for
 -- everyone".
 --
--- The own-club rows these UPDATEs aim at were created by case 5 as this very
+-- The own-club rows these UPDATEs aim at were created by the visibility-INSERT
+-- block above (the `$case4$` block, whose notices are numbered 5.x) as this very
 -- caller, so reaching here at all already proves the insert side works.
 -- ---------------------------------------------------------------------------
 DO $case8$

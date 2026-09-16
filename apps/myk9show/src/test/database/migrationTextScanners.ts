@@ -231,12 +231,23 @@ export function isCallGuarded(
   // is the policy's own table's column, since a bare `club_id` in a policy body
   // is that table's row. Accepting bare for an aliased argument would let
   // another table's guard vouch for this call.
+  //
+  // The `(?<![.\w])` lookbehind is the whole point of the bare form being safe.
+  // Without it, `t.club_id IS NOT NULL AND is_club_admin(club_id)` reads as
+  // guarded: the unanchored `club_id IS NOT NULL` matches inside `t.club_id IS
+  // NOT NULL`, so ANOTHER alias's column vouches for the bare one. That is the
+  // same "a guarded thing satisfies the check on behalf of an unguarded thing"
+  // failure this function exists to close, one level finer. No policy in the
+  // current set reaches it — all 16 pass `s.club_id` or `shows.club_id` — which
+  // is exactly why it needed a unit case rather than a live example. The
+  // lookbehind applies to the qualified form too, so `s.club_id IS NOT NULL`
+  // cannot be matched inside `os.club_id IS NOT NULL`.
   const column = argument.includes('.') ? argument.slice(argument.indexOf('.') + 1) : argument;
   const qualifier = argument.includes('.') ? argument.slice(0, argument.indexOf('.')) : '';
   const ownTable = qualifier === '' || qualifier.toLowerCase() === table.toLowerCase();
   const forms = ownTable ? [argument, column] : [argument];
   const guard = new RegExp(
-    `(?:${forms.map(f => f.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|')})\\s+IS\\s+NOT\\s+NULL`,
+    `(?<![.\\w])(?:${forms.map(f => f.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|')})\\s+IS\\s+NOT\\s+NULL`,
     'i'
   );
 

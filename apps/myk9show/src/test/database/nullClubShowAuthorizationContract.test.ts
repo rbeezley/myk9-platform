@@ -382,6 +382,35 @@ describe('club-scoped authorization helpers are never handed a bare club_id colu
     expect(verdicts(halfGuarded)).toEqual([true, false]);
   });
 
+  it("does not let another alias's guard vouch for a bare club_id (MYK9-585 round 2)", () => {
+    // Review round 2's probe. The bare-form guard is accepted only when the call
+    // passes the policy's OWN table's column — but an unanchored
+    // `club_id IS NOT NULL` also matches INSIDE `t.club_id IS NOT NULL`, so a
+    // joined table's guard read as this call's. No live policy reaches it (all
+    // 16 pass `s.club_id` or `shows.club_id`), which is why it can only be
+    // pinned here: nothing in the migration set would go red if the lookbehind
+    // were dropped.
+    const borrowed = `create policy p on public.classes using (
+      exists (
+        select 1 from public.trials t
+        where t.id = classes.trial_id
+          and t.club_id is not null
+          and (select public.is_club_admin(club_id))
+      )
+    );`;
+    const [borrowedCall] = [...borrowed.matchAll(CLUB_HELPER_CALL)];
+    expect(borrowedCall).toBeDefined();
+    expect(borrowedCall![2]).toBe('club_id');
+    expect(isCallGuarded(borrowed, borrowedCall!.index, 'club_id', 'classes')).toBe(false);
+
+    // ...while the genuine bare guard on the policy's own column still counts,
+    // so the anchor did not simply turn the bare form off (show_templates_select
+    // and shows_select are live policies written this way).
+    const own = borrowed.replace('t.club_id is not null', 'club_id is not null');
+    const [ownCall] = [...own.matchAll(CLUB_HELPER_CALL)];
+    expect(isCallGuarded(own, ownCall!.index, 'club_id', 'classes')).toBe(true);
+  });
+
   it('would notice a guard that disappeared from a live policy', () => {
     // Pins one policy whose guard is load-bearing. Asserted on the guard TEXT
     // and on the call-level verdict, never on which FILE last defined it — a

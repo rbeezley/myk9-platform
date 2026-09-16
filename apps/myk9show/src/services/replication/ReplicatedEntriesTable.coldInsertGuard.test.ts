@@ -19,12 +19,8 @@ import { ReplicatedEntriesTable, type ReplicatedEntry } from './ReplicatedEntrie
 import { readWithReplicationFallback } from '@/services/database/_shared/read-shape';
 import { supabase } from '@/services/database/supabaseClient';
 
-vi.mock('@/services/database/supabaseClient', () => ({
-  supabase: { from: vi.fn(), rpc: vi.fn() },
-  logQuery: vi.fn(),
-  createDatabaseError: (error: unknown) => error,
-}));
-
+// The Supabase client comes from the GLOBAL test mock (src/test/setup.ts), which
+// keeps the real `createDatabaseError`; a file-local factory would shadow it.
 vi.mock('@myk9/core', () => ({
   logger: { log: vi.fn(), error: vi.fn(), warn: vi.fn(), debug: vi.fn() },
 }));

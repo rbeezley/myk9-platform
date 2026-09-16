@@ -1,5 +1,4 @@
 import { createDatabaseError } from '@/services/database/databaseError';
-import { DEFAULT_TIMEOUT_MS } from '@myk9/core';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const mocks = vi.hoisted(() => ({
@@ -68,26 +67,6 @@ vi.mock('@/services/mappers/entryMappers', () => ({
 
 import { isEntryCloseDayPast, searchEntries } from './search';
 
-function makeViewEntriesQuery(
-  data: Array<Record<string, unknown>>,
-  error: Error | null = null,
-  pages?: Array<Array<Record<string, unknown>>>
-) {
-  let selectedData = data;
-  const query = {
-    select: vi.fn(() => query),
-    is: vi.fn(() => query),
-    eq: vi.fn(() => query),
-    order: vi.fn(() => query),
-    abortSignal: vi.fn(() => query),
-    range: vi.fn((from: number) => {
-      if (pages) selectedData = pages[Math.floor(from / 1000)] ?? [];
-      return Promise.resolve({ data: selectedData, error });
-    }),
-  };
-  return query;
-}
-
 function makeSearchEntriesQuery(data: Array<Record<string, unknown>>, error: Error | null = null) {
   const query = {
     select: vi.fn(() => query),
@@ -97,37 +76,6 @@ function makeSearchEntriesQuery(data: Array<Record<string, unknown>>, error: Err
     limit: vi.fn(() => Promise.resolve({ data, error })),
   };
   return query;
-}
-
-function makeEnrollmentsQuery(data: Array<Record<string, unknown>>) {
-  const query = {
-    select: vi.fn(() => query),
-    in: vi.fn(() => query),
-    abortSignal: vi.fn(() => Promise.resolve({ data, error: null })),
-  };
-  return query;
-}
-
-function mockSupabaseTables(options: {
-  viewEntryRows?: Array<Record<string, unknown>>;
-  viewEntryPages?: Array<Array<Record<string, unknown>>>;
-  viewEntriesError?: Error | null;
-  enrollmentRows?: Array<Record<string, unknown>>;
-}) {
-  const viewQuery = makeViewEntriesQuery(
-    options.viewEntryRows ?? [],
-    options.viewEntriesError ?? null,
-    options.viewEntryPages
-  );
-  const enrollmentsQuery = makeEnrollmentsQuery(options.enrollmentRows ?? []);
-
-  mocks.supabaseFrom.mockImplementation((table: string) => {
-    if (table === 'view_authenticated_entry_results') return viewQuery;
-    if (table === 'enrollments') return enrollmentsQuery;
-    throw new Error(`Unexpected table: ${table}`);
-  });
-
-  return { viewQuery, enrollmentsQuery };
 }
 
 beforeEach(() => {

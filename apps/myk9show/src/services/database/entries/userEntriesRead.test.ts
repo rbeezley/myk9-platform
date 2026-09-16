@@ -98,17 +98,6 @@ function makeViewEntriesQuery(
   return query;
 }
 
-function makeSearchEntriesQuery(data: Array<Record<string, unknown>>, error: Error | null = null) {
-  const query = {
-    select: vi.fn(() => query),
-    or: vi.fn(() => query),
-    is: vi.fn(() => query),
-    order: vi.fn(() => query),
-    limit: vi.fn(() => Promise.resolve({ data, error })),
-  };
-  return query;
-}
-
 function makeEnrollmentsQuery(data: Array<Record<string, unknown>>) {
   const query = {
     select: vi.fn(() => query),

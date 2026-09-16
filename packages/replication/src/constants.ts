@@ -16,14 +16,6 @@ export const DB_VERSION = 7;
 /** Total number of tables managed by replication system */
 export const TOTAL_REPLICATED_TABLES = 16;
 
-// ==================== Query Performance ====================
-
-/** Maximum query execution time before timeout (milliseconds) */
-export const QUERY_TIMEOUT_MS = 500;
-
-/** Threshold for slow query warning (milliseconds) */
-export const SLOW_QUERY_THRESHOLD_MS = 100;
-
 // ==================== Batch Operations ====================
 
 /** Default chunk size for batch operations */

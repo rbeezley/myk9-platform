@@ -50,8 +50,11 @@ export async function buildReplicatedUserEntryRows(
     // i.e. on the same dead network. Without its own deadline a captive portal
     // hangs here instead, and `getUserEntries` never settles at all, which is
     // exactly the failure the view's timeout was added to end. On expiry we
-    // carry on with an empty map: the rows still render, they just fall back to
-    // the id-derived confirmation number and their own `payment_status`.
+    // carry on with an empty map: the rows still render, they just carry no
+    // confirmation number at all (MYK9-563 item 6 removed the id-derived
+    // stand-in) and fall back to their own `payment_status`. The result is
+    // flagged `enrichmentMissing`, which the account read folds into the
+    // degraded signal every money surface reads.
     try {
       const { data: enrollments } = await withTimeout(
         supabase

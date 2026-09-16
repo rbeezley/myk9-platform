@@ -12,6 +12,13 @@ vi.mock('@tanstack/react-query', async importOriginal => {
 
 vi.mock('@/services/database/entries', () => ({ getUserEntries: vi.fn() }));
 
+// `useAccountEntries` reads the auth user id for the viewer-scoped key
+// (MYK9-563); this file renders the hook in isolation with `useQuery` stubbed,
+// so it needs an auth context of its own rather than the real provider.
+vi.mock('@/hooks/useAuthContext', () => ({
+  useAuthContext: () => ({ user: { id: 'auth-user-1' } }),
+}));
+
 describe('useAccountEnteredShowIds', () => {
   beforeEach(() => {
     useQueryMock.mockReset();

@@ -54,7 +54,8 @@ export function useHasAnyEntryForShow(showId: string | undefined): HasAnyEntryFo
     // Never loading without an identity and a show to load for; a disabled
     // query reports isLoading:true forever and would hang the access gate.
     isLoading: !!personId && !!showId && isLoading,
-    isError,
+    // Same gate as isLoading: a query that was never enabled has not failed.
+    isError: !!personId && !!showId && isError,
     degraded: data?.degraded ?? false,
   };
 }

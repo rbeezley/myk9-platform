@@ -17,7 +17,11 @@ import { Skeleton } from '@/components/ui/skeleton';
 import type { EntryBalanceSummary } from '@/features/payments/entryBalanceSummary';
 import { formatPaymentCents } from '@/features/payments/moneyPresentation';
 import { formatShowWithEntryCloseDeadline } from '@/features/payments/entryCloseDeadline';
-import { UNCONFIRMED_BALANCE_NOTE } from '@/features/payments/unconfirmedBalanceCopy';
+import {
+  UNCONFIRMED_AMOUNT_EXPLANATION,
+  UNCONFIRMED_AMOUNT_LABEL,
+  UNCONFIRMED_BALANCE_NOTE,
+} from '@/features/payments/unconfirmedBalanceCopy';
 import { useNow } from '@/hooks/useNow';
 
 export function AmountDueSection({
@@ -72,16 +76,37 @@ export function AmountDueSection({
   // owed nothing: a flicker on a warm load, and permanent on a cold offline
   // boot where the person record never resolves (the MYK9-200 pattern).
   // A summary the authoritative read never confirmed (MYK9-536): served from
-  // the replicated per-show snapshot offline, on a timeout, or when the view
-  // came back empty against a populated snapshot. At ZERO it is
-  // indistinguishable from "paid up" by its numbers alone, and rendering it as
-  // such is the same false reassurance the `!summary` branch below exists to
-  // prevent, arriving by another route — so it borrows that branch's copy. A
-  // non-zero figure is still the best the exhibitor has and is kept; only its
-  // standing changes, which the note below the figure says outright.
+  // the replicated per-show snapshot offline, on a timeout, when the view came
+  // back empty against a populated snapshot, or when the enrollment enrichment
+  // could not be read.
+  //
+  // MYK9-563 P1: the figure is withheld at EVERY value, not only at zero.
+  // At zero it is indistinguishable from "paid up"; above zero it is worse —
+  // a hard-deleted entry still in the snapshot renders a real-looking debt
+  // beside a working checkout link, which is how an exhibitor pays for an
+  // entry that no longer exists. Withholding the claim does not withhold the
+  // exhibitor's data: their payment history is still below, and their entries
+  // are still on My Shows.
   const unconfirmed = Boolean(summary?.stale);
 
-  if (!summary || (unconfirmed && summary.amountDueCents <= 0)) {
+  if (unconfirmed) {
+    return (
+      <Card>
+        <CardContent className="py-5">
+          <h2 className="text-sm font-medium text-muted-foreground">Amount due</h2>
+          <p className="mt-1 text-base font-semibold text-muted-foreground">
+            {UNCONFIRMED_AMOUNT_LABEL}
+          </p>
+          <p className="mt-1 text-sm text-muted-foreground">{UNCONFIRMED_BALANCE_NOTE}</p>
+          <p className="mt-1 text-sm text-muted-foreground">{UNCONFIRMED_AMOUNT_EXPLANATION}</p>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  // "We don't know yet" is its own state and must never be drawn as "$0.00,
+  // paid up" — see the note above the `unconfirmed` branch.
+  if (!summary) {
     return (
       <Card>
         <CardContent className="py-5">
@@ -135,9 +160,6 @@ export function AmountDueSection({
             <p className="text-3xl font-semibold tabular-nums text-warning">
               {formatPaymentCents(summary.amountDueCents, 'usd')}
             </p>
-            {unconfirmed && (
-              <p className="mt-1 text-sm text-muted-foreground">{UNCONFIRMED_BALANCE_NOTE}</p>
-            )}
             {/* Name the show in the single-show case too: the name used to
                 appear only in the multi-show breakdown, so the common case
                 showed a total and a button with nothing saying what the money

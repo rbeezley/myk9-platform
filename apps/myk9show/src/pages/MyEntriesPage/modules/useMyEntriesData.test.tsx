@@ -1,5 +1,7 @@
 import { afterEach, describe, it, expect, vi, beforeEach } from 'vitest';
+import type { ReactNode } from 'react';
 import { renderHook, waitFor, act } from '@testing-library/react';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { shouldRenderOwnEntry, useMyEntriesData } from './useMyEntriesData';
 import { getUserEntries } from '@/services/database/entries';
 import { useAuthContext } from '@/hooks/useAuthContext';
@@ -61,9 +63,23 @@ const entryRow = () => ({
   registration: { id: 'reg-1', confirmation_number: 'ABC123' },
 });
 
+/**
+ * `useMyEntriesData` projects the SHARED account-entries cache entry
+ * (MYK9-563 item 3), so every render needs a client. A fresh one per render
+ * keeps the cases independent — `retry: 1` otherwise leaves a retry scheduled
+ * that the next test would inherit.
+ */
+function withQueryClient() {
+  const client = new QueryClient();
+  return function Wrapper({ children }: { children: ReactNode }) {
+    return <QueryClientProvider client={client}>{children}</QueryClientProvider>;
+  };
+}
+
 const renderData = () =>
-  renderHook(() =>
-    useMyEntriesData({ persistCheckInStatus: vi.fn().mockResolvedValue(undefined) })
+  renderHook(
+    () => useMyEntriesData({ persistCheckInStatus: vi.fn().mockResolvedValue(undefined) }),
+    { wrapper: withQueryClient() }
   );
 
 describe('shouldRenderOwnEntry', () => {
@@ -242,7 +258,7 @@ describe('useMyEntriesData — a failed reload must not discard loaded entries',
     await waitFor(() => expect(result.current.entries).toHaveLength(1));
     expect(result.current.isError).toBe(false);
 
-    (getUserEntries as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
+    (getUserEntries as ReturnType<typeof vi.fn>).mockResolvedValue({
       data: null,
       error: new Error('network down'),
     });
@@ -251,7 +267,10 @@ describe('useMyEntriesData — a failed reload must not discard loaded entries',
       await result.current.refreshEntries();
     });
 
-    expect(result.current.isError).toBe(true);
+    // The shared account read carries `retry: 1` (each attempt pays the full
+    // view deadline), so a failure is only final one retry delay later — past
+    // waitFor's 1s default.
+    await waitFor(() => expect(result.current.isError).toBe(true), { timeout: 5000 });
     expect(result.current.entries).toHaveLength(1);
     expect(result.current.entries[0]?.showName).toBe('Spring Trial');
   });
@@ -266,13 +285,13 @@ describe('useMyEntriesData — a failed reload must not discard loaded entries',
     await waitFor(() => expect(result.current.entries).toHaveLength(1));
     const balanceBefore = result.current.balanceSummary;
 
-    (getUserEntries as ReturnType<typeof vi.fn>).mockRejectedValueOnce(new Error('offline'));
+    (getUserEntries as ReturnType<typeof vi.fn>).mockRejectedValue(new Error('offline'));
 
     await act(async () => {
       await result.current.refreshEntries();
     });
 
-    expect(result.current.isError).toBe(true);
+    await waitFor(() => expect(result.current.isError).toBe(true), { timeout: 5000 });
     expect(result.current.entries).toHaveLength(1);
     // The money summary must not silently zero out either — a $0 amount due is
     // a claim about the exhibitor's balance, not an absence of data.
@@ -280,14 +299,14 @@ describe('useMyEntriesData — a failed reload must not discard loaded entries',
   });
 
   it('still reports an empty list when the very first load fails', async () => {
-    (getUserEntries as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
+    (getUserEntries as ReturnType<typeof vi.fn>).mockResolvedValue({
       data: null,
       error: new Error('network down'),
     });
 
     const { result } = renderData();
 
-    await waitFor(() => expect(result.current.isError).toBe(true));
+    await waitFor(() => expect(result.current.isError).toBe(true), { timeout: 5000 });
     expect(result.current.entries).toHaveLength(0);
   });
 });
@@ -331,7 +350,7 @@ describe('useMyEntriesData — preserved entries must not cross an identity chan
 
     rerender();
 
-    await waitFor(() => expect(result.current.isError).toBe(true));
+    await waitFor(() => expect(result.current.isError).toBe(true), { timeout: 5000 });
     expect(result.current.entries).toEqual([]);
     expect(result.current.balanceSummary.amountDueCents).toBe(0);
   });
@@ -345,7 +364,7 @@ describe('useMyEntriesData — preserved entries must not cross an identity chan
     const { result } = renderData();
     await waitFor(() => expect(result.current.entries).toHaveLength(1));
 
-    (getUserEntries as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
+    (getUserEntries as ReturnType<typeof vi.fn>).mockResolvedValue({
       data: null,
       error: new Error('network down'),
     });
@@ -354,7 +373,7 @@ describe('useMyEntriesData — preserved entries must not cross an identity chan
       await result.current.refreshEntries();
     });
 
-    expect(result.current.isError).toBe(true);
+    await waitFor(() => expect(result.current.isError).toBe(true), { timeout: 5000 });
     expect(result.current.entries).toHaveLength(1);
   });
 });

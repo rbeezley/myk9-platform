@@ -72,11 +72,8 @@ vi.mock('@/services/mappers/entryMappers', () => ({
   mapReplicatedEntryToDbRow: mocks.mapReplicatedEntryToDbRow,
 }));
 
-import {
-  USER_ENTRIES_SELECT,
-  __resetDegradedReadWarnings,
-  getUserEntries,
-} from './userEntriesRead';
+import { USER_ENTRIES_SELECT, getUserEntries } from './userEntriesRead';
+import { resetDegradedReadWarningsForTests } from './userEntriesRead.testing';
 
 function makeViewEntriesQuery(
   data: Array<Record<string, unknown>>,
@@ -133,7 +130,7 @@ beforeEach(() => {
   vi.clearAllMocks();
   // Module-scope memo: without this the first test to warn silences every
   // later one, and CI's shuffled order decides which.
-  __resetDegradedReadWarnings();
+  resetDegradedReadWarningsForTests();
   mocks.mapReplicatedEntryToDbRow.mockImplementation(
     (entry: Record<string, unknown>, options: Record<string, unknown>) => ({
       id: entry.id,

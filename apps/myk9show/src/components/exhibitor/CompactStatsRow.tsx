@@ -32,8 +32,8 @@
 import { cn, formatCurrency } from '@/lib/utils';
 import { CircleCheckBig, CreditCard, CloudOff } from 'lucide-react';
 import {
+  UNCONFIRMED_AMOUNT_LABEL,
   UNCONFIRMED_BALANCE_NOTE,
-  UNCONFIRMED_ZERO_BALANCE_LABEL,
 } from '@/features/payments/unconfirmedBalanceCopy';
 
 interface CompactStatsRowProps {
@@ -47,9 +47,10 @@ interface CompactStatsRowProps {
   currentFeesHref?: string;
   /**
    * The figures came from rows the authoritative account read never confirmed
-   * (MYK9-563 item 2). Mirrors `AmountDueSection` on My Payments: a non-zero
-   * figure is kept and labelled saved data, a ZERO one is withheld entirely
-   * rather than drawn as "Paid in full".
+   * (MYK9-563). Mirrors `AmountDueSection` on My Payments: NO amount and no
+   * pay affordance render, at any value. A non-zero unconfirmed total is a
+   * debt the server may no longer have, and a "Finish Payment" button beside
+   * it is how an exhibitor pays for a deleted entry.
    */
   unconfirmed?: boolean;
   onNavigate: (path: string) => void;
@@ -65,10 +66,10 @@ export function CompactStatsRow({
   onNavigate,
   className,
 }: CompactStatsRowProps) {
-  // "We could not ask" is not "you owe nothing". At zero the two are the same
-  // pixels, so the claim is withheld; above zero the figure still helps and
-  // only its standing changes.
-  const balanceUnknown = unconfirmed && amountDue <= 0;
+  // "We could not ask" is neither "you owe nothing" nor "you owe $30". The
+  // figure is withheld at every value while the read is degraded — see
+  // UNCONFIRMED_AMOUNT_LABEL for why the non-zero case is the worse one.
+  const balanceUnknown = unconfirmed;
   const paidInFull = !balanceUnknown && amountDue <= 0;
   const includesPastBalance = hasPastBalance;
   const feeHref =
@@ -82,7 +83,7 @@ export function CompactStatsRow({
         onClick={() => onNavigate(feeHref)}
         aria-label={
           balanceUnknown
-            ? `Entry fees: ${UNCONFIRMED_ZERO_BALANCE_LABEL}. ${UNCONFIRMED_BALANCE_NOTE} View your payments.`
+            ? `Entry fees: ${UNCONFIRMED_AMOUNT_LABEL}. ${UNCONFIRMED_BALANCE_NOTE} View your payments.`
             : paidInFull
               ? 'Entry fees: paid in full. View your payments.'
               : includesPastBalance
@@ -122,7 +123,7 @@ export function CompactStatsRow({
             {balanceUnknown ? (
               <span className="flex flex-col gap-1">
                 <span className="text-base font-semibold leading-none text-muted-foreground">
-                  {UNCONFIRMED_ZERO_BALANCE_LABEL}
+                  {UNCONFIRMED_AMOUNT_LABEL}
                 </span>
                 <span className="text-sm text-muted-foreground">{UNCONFIRMED_BALANCE_NOTE}</span>
               </span>
@@ -143,11 +144,6 @@ export function CompactStatsRow({
                 ) : (
                   <span className="text-sm text-muted-foreground tabular-nums">
                     due of {formatCurrency(currentFees)} entered
-                  </span>
-                )}
-                {unconfirmed && (
-                  <span className="basis-full text-sm text-muted-foreground">
-                    {UNCONFIRMED_BALANCE_NOTE}
                   </span>
                 )}
               </span>

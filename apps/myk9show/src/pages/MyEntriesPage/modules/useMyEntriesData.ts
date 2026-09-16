@@ -4,16 +4,21 @@
  * @module MyEntriesPage/hooks
  */
 
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useEffect, useCallback } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import { useAuthContext } from '@/hooks/useAuthContext';
 import { useCurrentUserPersonId } from '@/hooks/useRoleBasedData';
+import {
+  accountEntriesQueryKey,
+  useAccountEntries,
+  type AccountEntriesRead,
+} from '@/hooks/queries/useAccountEntries';
 import { deriveEntriesIdentityState, type EntriesIdentityState } from './entriesIdentityState';
 import { auditService } from '@/services/AuditService';
 import { AuditAction } from '@/types/audit-types';
 import { CheckInStatus } from '@/types/check-in-types';
 import { EntryStatus, PaymentStatus } from '@/types/show-registration-types';
 import { logger } from '@/services/LoggingService';
-import { getUserEntries } from '@/services/database/entries';
 import {
   mapEntryStatus,
   mapPaymentStatus,
@@ -150,12 +155,202 @@ function getOwnEntryPaymentStatus(
  * Hook for managing user entries data
  * Handles loading, real-time updates, and check-in status changes
  */
+/** Stable empty values, so a re-render never hands the page a new array. */
+const EMPTY_ENTRIES: MyEntry[] = [];
+const EMPTY_BALANCE_SUMMARY: EntryBalanceSummary = summarizeEntryBalances([]);
+
+/**
+ * Project the shared account read into what My Shows renders.
+ *
+ * Module-level and therefore stable, which is what React Query needs of a
+ * `select` — an inline one re-runs on every render and re-projects every row.
+ */
+function selectMyEntriesData(read: AccountEntriesRead): {
+  entries: MyEntry[];
+  balanceSummary: EntryBalanceSummary;
+  degraded: boolean;
+} {
+  const rawRows = (read.rows as OwnEntryResultRow[]).filter(shouldRenderOwnEntry);
+  return {
+    entries: groupEntriesByOrder(rawRows.map(transformEntry)),
+    // Money math runs on the same raw, ungrouped rows My Payments uses —
+    // see the `balanceSummary` doc comment on the return type.
+    balanceSummary: summarizeEntryBalances(
+      rawRows.map(row => mapEntryRowToBalanceSource(row as EntryBalanceRawRow))
+    ),
+    degraded: read.degraded,
+  };
+}
+
+/**
+ * One raw account-read row -> one MyEntry card row.
+ *
+ * Module-level and pure. It used to be a `useCallback` with `[]` deps inside
+ * the hook, which is the same thing said less clearly; lifting it lets the
+ * shared account read project through it in a stable React Query `select`.
+ */
+function transformEntry(entry: OwnEntryResultRow): MyEntry {
+  // Type assertions for nested objects
+  const dog = entry.dog as { id: string; name: string; call_name?: string } | null;
+  const show = entry.show as {
+    id: string;
+    name: string;
+    start_date: string;
+    end_date?: string | null;
+    deleted_at?: string | null;
+    entry_close_date?: string | null;
+    venue_name?: string;
+    city?: string;
+    state?: string;
+  } | null;
+  // Each entry row from getUserEntries represents one dog in one class.
+  // The class data is available via the `class` join (class:class_id).
+  const classData = entry.class as {
+    id: string;
+    name: string;
+    class_number?: string;
+    trial?: EntryRowTrial | null;
+  } | null;
+  // Discipline gates the jump-height field. Prefer entries.trial_id, but fall
+  // back through class.trial_id so legacy entries with NULL trial_id still work.
+  const trialData = entry.trial as EntryRowTrial | null;
+  const armband = entry.armband ? String(entry.armband) : undefined;
+  // Per-ROW payment facts, carried onto the class row so the grouped card can
+  // reconcile money across rows instead of inheriting the first row's status
+  // (exhibitor-money-clarity). Mirrors mapEntryRowToBalanceSource's
+  // registration-overrides-row precedence.
+  const rowRegistration = entry.registration as {
+    id?: string;
+    confirmation_number?: string;
+    payment_status?: string | null;
+  } | null;
+  const rowPaymentMethod = (entry.payment_method as string | null) ?? null;
+  const trialDate = parseShowDate(trialData?.date ?? classData?.trial?.date);
+  const trialNumber = trialData?.trial_number ?? classData?.trial?.trial_number ?? undefined;
+  const trialTimezone = resolveTrialTimezone(trialData, classData?.trial);
+  const rawEntryStatus = entry.entry_status as string | null | undefined;
+  const isShowCancelled = Boolean(show?.deleted_at);
+  const rowPaymentStatus = getOwnEntryPaymentStatus(
+    entry,
+    rowRegistration?.payment_status,
+    isShowCancelled
+  );
+  const entryStatusKind = getOwnEntryStatusKind(
+    rawEntryStatus,
+    entry.check_in_status as string | null | undefined,
+    isShowCancelled
+  );
+
+  // Build a single-element classes array from this entry row's own data.
+  // The `class:class_id` join can be unresolved during the partial-
+  // replication window (the entry row synced before its class relation),
+  // but the row's own fee/status/payment fields are still real — dropping
+  // the row here (an empty `classes` array) is what let a mixed order's
+  // balance undercount the raw-row `balanceSummary` used elsewhere on this
+  // page. Emit the row with placeholder class-identity fields instead so
+  // its money still flows into `groupEntriesByOrder` / `buildOrderBalance`.
+  const classes: EntryClass[] = [
+    {
+      id: entry.id as string,
+      entryStatus: mapEntryStatus(entry.entry_status as string),
+      entryStatusKind,
+      classId: classData?.id,
+      // Money flows through even when the class join hasn't replicated yet,
+      // but class-scoped actions (check-in) must not — see EntryClass.unresolved.
+      unresolved: !classData,
+      name: classData?.name || 'Unknown Class',
+      number: classData?.class_number || '',
+      fee: (entry.entry_fee as number) || 0,
+      trialDate,
+      trialNumber,
+      trialTimezone,
+      jumpHeight: (entry.jump_height as string) || undefined,
+      trialType: trialData?.trial_type || classData?.trial?.trial_type || undefined,
+      runOrder: (entry.run_order as number) || undefined,
+      status: mapClassEntryStatus(entry.entry_status as string),
+      handler: (entry.handler as string) || undefined,
+      paymentStatus: rowPaymentStatus,
+      paymentMethod: rowPaymentMethod,
+      // Read the persisted check-in status instead of hardcoding undefined,
+      // or the card always shows "Not Checked In" even after a check-in.
+      checkInStatus: normalizeCheckInStatus(entry.check_in_status),
+      // Written only by the optimistic check-in (the view carries no such
+      // column), so this stays undefined on every server-sourced row — exactly
+      // as it was when the card was local state.
+      ...(entry.check_in_time ? { checkInTime: new Date(entry.check_in_time as string) } : {}),
+      isScored: (entry.is_scored as boolean) || false,
+      resultStatus: (entry.result_status as EntryClass['resultStatus']) ?? undefined,
+      searchTimeSeconds: (entry.search_time_seconds as number) ?? undefined,
+      totalFaults: (entry.total_faults as number) ?? undefined,
+      finalPlacement: (entry.final_placement as number) ?? undefined,
+      resultsReleasedAt: (entry.class_results_released_at as string | null) ?? undefined,
+      dogImageUrl: (entry.dog_image_url as string | null) ?? undefined,
+    },
+  ];
+
+  const entryStatus = isShowCancelled
+    ? EntryStatus.CANCELLED
+    : mapEntryStatus(entry.entry_status as string);
+  // The joined registration's number, or nothing. The id-slice stand-in that
+  // used to fill this gap looks exactly like a confirmation number, matches
+  // no order the club can look up, and is not what the exhibitor was emailed
+  // — and because it was applied HERE, the `?? slice` guards downstream could
+  // never fire (MYK9-563 item 6). Secretary and mail-in entries legitimately
+  // have no online registration; so does a replica read that lost the
+  // enrichment.
+  const confirmationNumber = rowRegistration?.confirmation_number;
+
+  return {
+    id: entry.id as string,
+    // Preserve genuine nullness (secretary/mail-in entries have no online
+    // registration) — groupEntriesByOrder falls back to a show+dog key for
+    // these instead of merging them under a synthetic per-row id.
+    registrationId: (entry.registration_id as string | null) ?? null,
+    // The show RELATION can be unresolved during the partial-replication
+    // window while the row's own `show_id` is already present — prefer it, or
+    // every show-scoped action (payment cart, show link) loses its target.
+    showId: show?.id || entry.show_id || '',
+    showName: show?.name || 'Unknown Show',
+    isShowCancelled,
+    // Date-only DB columns ("YYYY-MM-DD") must be read as local days, not UTC,
+    // or a show ending today is misread as yesterday (see parseShowDate).
+    showDate: parseShowDate(show?.start_date) ?? new Date(),
+    showEndDate: parseShowDate(show?.end_date),
+    location: {
+      venue: show?.venue_name || '',
+      city: show?.city || '',
+      state: show?.state || '',
+    },
+    dogName: dog?.call_name || dog?.name || 'Unknown Dog',
+    dogId: dog?.id || '',
+    armband,
+    classes,
+    // Rebuilt by groupEntriesByOrder from the top-level dog fields above —
+    // this raw per-class-row shape never renders directly.
+    dogs: [],
+    totalFee: (entry.entry_fee as number) || 0,
+    entryStatus,
+    entryStatusKind,
+    paymentStatus: rowPaymentStatus,
+    paymentMethod: rowPaymentMethod,
+    refundAmount: entry.refund_amount == null ? null : Number(entry.refund_amount),
+    refundedAt: entry.refunded_at ? new Date(entry.refunded_at) : undefined,
+    confirmationNumber,
+    // A DATE column, not an instant: `new Date()` here read the midnight-UTC
+    // round-trip as the previous evening (MYK9-384 / E28).
+    entryCloseDate: parseShowDate(show?.entry_close_date),
+    submittedAt: new Date((entry.submitted_at as string) || (entry.created_at as string)),
+    lastUpdated: new Date(entry.updated_at as string),
+  };
+}
+
 export function useMyEntriesData({
   persistCheckInStatus,
 }: UseMyEntriesDataOptions): UseMyEntriesDataReturn {
   const { user, userWithRoles, loading: authLoading } = useAuthContext();
   const legacyPersonId = useCurrentUserPersonId();
   const personId = legacyPersonId ?? userWithRoles?.databaseUserId ?? null;
+  const queryClient = useQueryClient();
   // Whether we know WHO these entries belong to. The page gates its first-run
   // claim on this: `entries: []` from an unresolved identity is an absence of
   // knowledge, not an absence of entries (see entriesIdentityState).
@@ -164,243 +359,30 @@ export function useMyEntriesData({
     hasUser: Boolean(user?.id),
     personId,
   });
-  const [entries, setEntries] = useState<MyEntry[]>([]);
-  const [balanceSummary, setBalanceSummary] = useState<EntryBalanceSummary>(() =>
-    summarizeEntryBalances([])
+
+  // The SAME cache entry the ringside chooser, the Browse Shows "entered" tab
+  // and My Payments read (MYK9-563 item 3). This hook used to call
+  // `getUserEntries` itself, which meant My Shows paid a second full paged read
+  // of `view_authenticated_entry_results` and carried its own `degraded` flag
+  // that could disagree with the one My Payments was showing for the same rows.
+  //
+  // Identity changes are handled by the key rather than by hand: `personId` is
+  // part of it, so signing in as someone else reads a different cache entry and
+  // can never render the previous account's dogs, shows or balance. A FAILED
+  // refetch of the same key keeps the last successful data, which is the
+  // INTENT the old manual machinery existed to preserve — "Your saved
+  // information is still here" has to stay literally true.
+  const { data, isLoading, isError, isRefetching, refetch } = useAccountEntries(
+    personId,
+    selectMyEntriesData,
+    { enabled: Boolean(user?.id) }
   );
-  const [isLoading, setIsLoading] = useState(true);
-  const [isError, setIsError] = useState(false);
-  const [degraded, setDegraded] = useState(false);
-  const [refreshing, setRefreshing] = useState(false);
-  /** The `user.id::personId` the rows in `entries` were loaded for. */
-  const loadedIdentityRef = useRef<string | null>(null);
 
-  /**
-   * Transforms database entry to MyEntry format
-   */
-  const transformEntry = useCallback((entry: OwnEntryResultRow): MyEntry => {
-    // Type assertions for nested objects
-    const dog = entry.dog as { id: string; name: string; call_name?: string } | null;
-    const show = entry.show as {
-      id: string;
-      name: string;
-      start_date: string;
-      end_date?: string | null;
-      deleted_at?: string | null;
-      entry_close_date?: string | null;
-      venue_name?: string;
-      city?: string;
-      state?: string;
-    } | null;
-    // Each entry row from getUserEntries represents one dog in one class.
-    // The class data is available via the `class` join (class:class_id).
-    const classData = entry.class as {
-      id: string;
-      name: string;
-      class_number?: string;
-      trial?: EntryRowTrial | null;
-    } | null;
-    // Discipline gates the jump-height field. Prefer entries.trial_id, but fall
-    // back through class.trial_id so legacy entries with NULL trial_id still work.
-    const trialData = entry.trial as EntryRowTrial | null;
-    const armband = entry.armband ? String(entry.armband) : undefined;
-    // Per-ROW payment facts, carried onto the class row so the grouped card can
-    // reconcile money across rows instead of inheriting the first row's status
-    // (exhibitor-money-clarity). Mirrors mapEntryRowToBalanceSource's
-    // registration-overrides-row precedence.
-    const rowRegistration = entry.registration as {
-      id?: string;
-      confirmation_number?: string;
-      payment_status?: string | null;
-    } | null;
-    const rowPaymentMethod = (entry.payment_method as string | null) ?? null;
-    const trialDate = parseShowDate(trialData?.date ?? classData?.trial?.date);
-    const trialNumber = trialData?.trial_number ?? classData?.trial?.trial_number ?? undefined;
-    const trialTimezone = resolveTrialTimezone(trialData, classData?.trial);
-    const rawEntryStatus = entry.entry_status as string | null | undefined;
-    const isShowCancelled = Boolean(show?.deleted_at);
-    const rowPaymentStatus = getOwnEntryPaymentStatus(
-      entry,
-      rowRegistration?.payment_status,
-      isShowCancelled
-    );
-    const entryStatusKind = getOwnEntryStatusKind(
-      rawEntryStatus,
-      entry.check_in_status as string | null | undefined,
-      isShowCancelled
-    );
+  const entries = data?.entries ?? EMPTY_ENTRIES;
+  const balanceSummary = data?.balanceSummary ?? EMPTY_BALANCE_SUMMARY;
+  const degraded = data?.degraded ?? false;
 
-    // Build a single-element classes array from this entry row's own data.
-    // The `class:class_id` join can be unresolved during the partial-
-    // replication window (the entry row synced before its class relation),
-    // but the row's own fee/status/payment fields are still real — dropping
-    // the row here (an empty `classes` array) is what let a mixed order's
-    // balance undercount the raw-row `balanceSummary` used elsewhere on this
-    // page. Emit the row with placeholder class-identity fields instead so
-    // its money still flows into `groupEntriesByOrder` / `buildOrderBalance`.
-    const classes: EntryClass[] = [
-      {
-        id: entry.id as string,
-        entryStatus: mapEntryStatus(entry.entry_status as string),
-        entryStatusKind,
-        classId: classData?.id,
-        // Money flows through even when the class join hasn't replicated yet,
-        // but class-scoped actions (check-in) must not — see EntryClass.unresolved.
-        unresolved: !classData,
-        name: classData?.name || 'Unknown Class',
-        number: classData?.class_number || '',
-        fee: (entry.entry_fee as number) || 0,
-        trialDate,
-        trialNumber,
-        trialTimezone,
-        jumpHeight: (entry.jump_height as string) || undefined,
-        trialType: trialData?.trial_type || classData?.trial?.trial_type || undefined,
-        runOrder: (entry.run_order as number) || undefined,
-        status: mapClassEntryStatus(entry.entry_status as string),
-        handler: (entry.handler as string) || undefined,
-        paymentStatus: rowPaymentStatus,
-        paymentMethod: rowPaymentMethod,
-        // Read the persisted check-in status instead of hardcoding undefined,
-        // or the card always shows "Not Checked In" even after a check-in.
-        checkInStatus: normalizeCheckInStatus(entry.check_in_status),
-        isScored: (entry.is_scored as boolean) || false,
-        resultStatus: (entry.result_status as EntryClass['resultStatus']) ?? undefined,
-        searchTimeSeconds: (entry.search_time_seconds as number) ?? undefined,
-        totalFaults: (entry.total_faults as number) ?? undefined,
-        finalPlacement: (entry.final_placement as number) ?? undefined,
-        resultsReleasedAt: (entry.class_results_released_at as string | null) ?? undefined,
-        dogImageUrl: (entry.dog_image_url as string | null) ?? undefined,
-      },
-    ];
-
-    const entryStatus = isShowCancelled
-      ? EntryStatus.CANCELLED
-      : mapEntryStatus(entry.entry_status as string);
-    // The joined registration's number, or nothing. The id-slice stand-in that
-    // used to fill this gap looks exactly like a confirmation number, matches
-    // no order the club can look up, and is not what the exhibitor was emailed
-    // — and because it was applied HERE, the `?? slice` guards downstream could
-    // never fire (MYK9-563 item 6). Secretary and mail-in entries legitimately
-    // have no online registration; so does a replica read that lost the
-    // enrichment.
-    const confirmationNumber = rowRegistration?.confirmation_number;
-
-    return {
-      id: entry.id as string,
-      // Preserve genuine nullness (secretary/mail-in entries have no online
-      // registration) — groupEntriesByOrder falls back to a show+dog key for
-      // these instead of merging them under a synthetic per-row id.
-      registrationId: (entry.registration_id as string | null) ?? null,
-      // The show RELATION can be unresolved during the partial-replication
-      // window while the row's own `show_id` is already present — prefer it, or
-      // every show-scoped action (payment cart, show link) loses its target.
-      showId: show?.id || entry.show_id || '',
-      showName: show?.name || 'Unknown Show',
-      isShowCancelled,
-      // Date-only DB columns ("YYYY-MM-DD") must be read as local days, not UTC,
-      // or a show ending today is misread as yesterday (see parseShowDate).
-      showDate: parseShowDate(show?.start_date) ?? new Date(),
-      showEndDate: parseShowDate(show?.end_date),
-      location: {
-        venue: show?.venue_name || '',
-        city: show?.city || '',
-        state: show?.state || '',
-      },
-      dogName: dog?.call_name || dog?.name || 'Unknown Dog',
-      dogId: dog?.id || '',
-      armband,
-      classes,
-      // Rebuilt by groupEntriesByOrder from the top-level dog fields above —
-      // this raw per-class-row shape never renders directly.
-      dogs: [],
-      totalFee: (entry.entry_fee as number) || 0,
-      entryStatus,
-      entryStatusKind,
-      paymentStatus: rowPaymentStatus,
-      paymentMethod: rowPaymentMethod,
-      refundAmount: entry.refund_amount == null ? null : Number(entry.refund_amount),
-      refundedAt: entry.refunded_at ? new Date(entry.refunded_at) : undefined,
-      confirmationNumber,
-      // A DATE column, not an instant: `new Date()` here read the midnight-UTC
-      // round-trip as the previous evening (MYK9-384 / E28).
-      entryCloseDate: parseShowDate(show?.entry_close_date),
-      submittedAt: new Date((entry.submitted_at as string) || (entry.created_at as string)),
-      lastUpdated: new Date(entry.updated_at as string),
-    };
-  }, []);
-
-  /**
-   * Loads user entries from the database
-   */
-  const loadMyEntries = useCallback(async () => {
-    // Which account the rows currently in state belong to. Preserving entries
-    // across a failed reload is only correct for a RETRY BY THE SAME PERSON.
-    // If the identity changed, the rows on screen are someone else's: without
-    // this, a signed-in-as-B fetch that fails would leave A's dogs, shows and
-    // balance rendered on B's page. Clearing happens BEFORE the fetch, so a
-    // rejection cannot leave the previous exhibitor's data behind.
-    const identity = user?.id && personId ? `${user.id}::${personId}` : null;
-
-    if (identity !== loadedIdentityRef.current) {
-      loadedIdentityRef.current = null;
-      setEntries([]);
-      setBalanceSummary(summarizeEntryBalances([]));
-      setIsError(false);
-      setDegraded(false);
-    }
-
-    // `user?.id` and `personId` are restated rather than inferred from
-    // `identity`: TypeScript cannot narrow them through the template literal
-    // above, and `getUserEntries` takes a non-null id.
-    if (!identity || !user?.id || !personId) {
-      setIsLoading(false);
-      return;
-    }
-
-    try {
-      const { data, error, stale } = await getUserEntries(personId);
-
-      if (error) {
-        logger.error('Failed to load entries:', 'pages', {}, error as Error);
-        // INTENT: keep whatever we already loaded. The error surface tells the
-        // exhibitor "Your saved information is still here" — clearing `entries`
-        // here made that sentence false and emptied the page on a transient
-        // reload failure, which is exactly the "poor connectivity feels like
-        // user failure" state PRODUCT.md forbids. Only the flag changes.
-        setIsError(true);
-        return;
-      }
-
-      const rawRows = (data as OwnEntryResultRow[]).filter(shouldRenderOwnEntry);
-      const userEntries = groupEntriesByOrder(rawRows.map(entry => transformEntry(entry)));
-      setEntries(userEntries);
-      // Money math runs on the same raw, ungrouped rows My Payments uses —
-      // see the `balanceSummary` doc comment above.
-      setBalanceSummary(
-        summarizeEntryBalances(
-          rawRows.map(row => mapEntryRowToBalanceSource(row as EntryBalanceRawRow))
-        )
-      );
-      loadedIdentityRef.current = identity;
-      setIsError(false);
-      // Set from THIS read, every time: a reload that the view does confirm has
-      // to be able to clear the mark, or the page stays hedged for the rest of
-      // the session after one flaky read.
-      setDegraded(Boolean(stale));
-    } catch (error) {
-      logger.error('Failed to load entries:', 'pages', {}, error as Error);
-      // Same contract as the `error` branch above: preserve the last good read.
-      // Zeroing `balanceSummary` was the worse half — a $0 amount due is a
-      // positive claim about what the exhibitor owes, not an absence of data.
-      setIsError(true);
-    } finally {
-      setIsLoading(false);
-    }
-  }, [user?.id, personId, transformEntry]);
-
-  // Initial load
   useEffect(() => {
-    loadMyEntries();
     auditService.log({
       action: AuditAction.READ,
       entityType: 'my_entries',
@@ -410,20 +392,47 @@ export function useMyEntriesData({
         loadTime: new Date().toISOString(),
       },
     });
-  }, [loadMyEntries, user?.id]);
+  }, [user?.id]);
 
   /**
-   * Refreshes entries data
+   * Refreshes entries data.
    */
   const refreshEntries = useCallback(async () => {
-    setRefreshing(true);
-    await loadMyEntries();
-    setRefreshing(false);
-  }, [loadMyEntries]);
+    await refetch();
+  }, [refetch]);
 
   /**
-   * Updates check-in status for a class entry
+   * Rewrite the shared cache entry's RAW rows in place.
+   *
+   * The optimistic check-in edits the row the account read returned, not the
+   * projected card, so every consumer of the shared key sees the same value and
+   * `select` recomputes the card from it. Returns the rows as they were, for
+   * the revert.
    */
+  const patchCachedRow = useCallback(
+    (rowId: string, patch: Record<string, unknown>): Record<string, unknown> | null => {
+      let previousValues: Record<string, unknown> | null = null;
+      queryClient.setQueryData<AccountEntriesRead>(
+        accountEntriesQueryKey(user?.id, personId),
+        previous => {
+          if (!previous) return previous;
+          return {
+            ...previous,
+            rows: previous.rows.map(row => {
+              if ((row as { id?: string }).id !== rowId) return row;
+              previousValues = Object.fromEntries(
+                Object.keys(patch).map(key => [key, (row as Record<string, unknown>)[key]])
+              );
+              return { ...row, ...patch };
+            }),
+          };
+        }
+      );
+      return previousValues;
+    },
+    [queryClient, user?.id, personId]
+  );
+
   const updateEntryCheckIn = useCallback(
     async (entryId: string, classId: string, status: CheckInStatus, notes?: string) => {
       // After grouping, entry.id is the first class row's id and may differ from
@@ -434,31 +443,17 @@ export function useMyEntriesData({
       if (!entry || !classEntry) return;
 
       const previousStatus = classEntry.checkInStatus;
-      const previousTime = classEntry.checkInTime;
+      let previousRowValues: Record<string, unknown> | null = null;
 
       try {
-        // Optimistic update
-        setEntries(prev =>
-          prev.map((e): MyEntry => {
-            if (e.id === entryId) {
-              return {
-                ...e,
-                classes: e.classes.map((c): EntryClass =>
-                  c.id === classId ? { ...c, checkInStatus: status, checkInTime: new Date() } : c
-                ),
-                // Keep the per-dog nested classes (rendered in the dogs grid
-                // for multi-dog orders) in lockstep with the flattened list.
-                dogs: e.dogs.map(dog => ({
-                  ...dog,
-                  classes: dog.classes.map((c): EntryClass =>
-                    c.id === classId ? { ...c, checkInStatus: status, checkInTime: new Date() } : c
-                  ),
-                })),
-              };
-            }
-            return e;
-          })
-        );
+        // Optimistic update, written to the RAW row in the shared cache entry
+        // rather than to this hook's projection, so every consumer of the
+        // account read sees it and `select` recomputes the card from it.
+        // `classId` IS the individual entry row's id (see the DB target below).
+        previousRowValues = patchCachedRow(classId, {
+          check_in_status: status,
+          check_in_time: new Date().toISOString(),
+        });
 
         // classId is the individual entry row id — use it as the DB target so
         // grouped cards with multiple classes update the right row.
@@ -483,34 +478,14 @@ export function useMyEntriesData({
         });
       } catch (error) {
         logger.error('Failed to update check-in status:', 'pages', {}, error as Error);
-        // Revert optimistic update
-        setEntries(prev =>
-          prev.map((e): MyEntry => {
-            if (e.id === entryId) {
-              return {
-                ...e,
-                classes: e.classes.map((c): EntryClass =>
-                  c.id === classId
-                    ? { ...c, checkInStatus: previousStatus, checkInTime: previousTime }
-                    : c
-                ),
-                dogs: e.dogs.map(dog => ({
-                  ...dog,
-                  classes: dog.classes.map((c): EntryClass =>
-                    c.id === classId
-                      ? { ...c, checkInStatus: previousStatus, checkInTime: previousTime }
-                      : c
-                  ),
-                })),
-              };
-            }
-            return e;
-          })
-        );
+        // Revert to the ROW's own values, captured by the patch above.
+        // Reverting to the card's `checkInStatus` would write a normalized
+        // display enum back onto a raw row.
+        if (previousRowValues) patchCachedRow(classId, previousRowValues);
         throw error;
       }
     },
-    [entries, persistCheckInStatus, user?.id]
+    [entries, patchCachedRow, persistCheckInStatus, user?.id]
   );
 
   return {
@@ -518,9 +493,12 @@ export function useMyEntriesData({
     balanceSummary,
     degraded,
     identityState,
-    isLoading,
-    isError,
-    refreshing,
+    // Never loading without an identity to load for: a disabled query reports
+    // isLoading forever, and the page would spin instead of showing its
+    // identity-pending card.
+    isLoading: Boolean(user?.id) && isLoading,
+    isError: Boolean(user?.id) && isError,
+    refreshing: isRefetching,
     refreshEntries,
     updateEntryCheckIn,
   };

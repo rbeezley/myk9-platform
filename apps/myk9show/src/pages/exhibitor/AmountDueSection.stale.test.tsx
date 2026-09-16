@@ -36,7 +36,8 @@ describe('AmountDueSection — an unconfirmed balance', () => {
 
     expect(screen.queryByText('Current entries are paid up.')).not.toBeInTheDocument();
     expect(screen.queryByText('$0.00')).not.toBeInTheDocument();
-    expect(screen.getByText(/can't show your balance right now/i)).toBeInTheDocument();
+    expect(screen.getByText('Amount unavailable')).toBeInTheDocument();
+    expect(screen.getByText(/showing saved data/i)).toBeInTheDocument();
   });
 
   it('still claims "paid up" for a CONFIRMED zero balance', () => {
@@ -46,22 +47,40 @@ describe('AmountDueSection — an unconfirmed balance', () => {
     expect(screen.getByText('$0.00')).toBeInTheDocument();
   });
 
-  it('keeps a stale non-zero figure but says it is saved data', () => {
+  it('withholds a stale NON-zero figure and every way to pay it', () => {
     render(
       <AmountDueSection
         summary={summary({
           stale: true,
           amountDueCents: 3000,
           currentFeesCents: 6000,
+          onlineDueCents: 3000,
+          onlineShowBalances: [
+            {
+              showId: 'show-1',
+              showName: 'Heartland',
+              entryCloseDay: null,
+              showTimezone: 'America/New_York',
+              isPastShow: false,
+              amountDueCents: 3000,
+              onlineDueCents: 3000,
+              payAtShowDueCents: 0,
+              entryIds: ['entry-1'],
+              paymentHref: '/cart?show=show-1',
+            },
+          ],
         })}
         isLoading={false}
         isError={false}
       />
     );
 
-    // The figure is the best available and the exhibitor still needs it; what
-    // changes is its standing.
-    expect(screen.getByText('$30.00')).toBeInTheDocument();
+    // MYK9-563 P1: an amount the server never confirmed can be a debt that no
+    // longer exists. Rendering it beside a working checkout button is how an
+    // exhibitor pays for an entry that was deleted.
+    expect(screen.queryByText(/\$/)).not.toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: /pay|finish payment/i })).not.toBeInTheDocument();
+    expect(screen.getByText('Amount unavailable')).toBeInTheDocument();
     expect(screen.getByText(/showing saved data/i)).toBeInTheDocument();
   });
 

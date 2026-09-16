@@ -14,7 +14,7 @@
  * the green "Paid in full".
  */
 import { describe, expect, it, vi } from 'vitest';
-import { render, screen } from '@/test/utils/testUtils';
+import { fireEvent, render, screen } from '@/test/utils/testUtils';
 import { CompactStatsRow } from './CompactStatsRow';
 
 describe('CompactStatsRow — an unconfirmed balance', () => {
@@ -22,7 +22,7 @@ describe('CompactStatsRow — an unconfirmed balance', () => {
     render(<CompactStatsRow currentFees={0} amountDue={0} unconfirmed onNavigate={vi.fn()} />);
 
     expect(screen.queryByText('Paid in full')).not.toBeInTheDocument();
-    expect(screen.getByText('Balance unavailable')).toBeInTheDocument();
+    expect(screen.getByText('Amount unavailable')).toBeInTheDocument();
     expect(screen.getByText(/showing saved data/i)).toBeInTheDocument();
     // No money figure at all: at zero there is nothing to hedge, only a claim
     // to withhold.
@@ -36,13 +36,33 @@ describe('CompactStatsRow — an unconfirmed balance', () => {
     expect(screen.queryByText(/showing saved data/i)).not.toBeInTheDocument();
   });
 
-  it('keeps an unconfirmed non-zero figure but says it is saved data', () => {
+  it('withholds a NON-zero unconfirmed figure and its pay affordance', () => {
     render(<CompactStatsRow currentFees={60} amountDue={30} unconfirmed onNavigate={vi.fn()} />);
 
-    // The figure is the best the exhibitor has and they still need it; what
-    // changes is its standing.
-    expect(screen.getByText('$30.00')).toBeInTheDocument();
+    // The dangerous case, and the one MYK9-563 P1 is about: a hard-deleted
+    // entry still sitting in the per-show snapshot renders a real-looking
+    // "$30.00 due" for a debt the server no longer has — beside a button
+    // offering to pay it.
+    expect(screen.queryByText(/\$/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/finish payment/i)).not.toBeInTheDocument();
+    expect(screen.getByText('Amount unavailable')).toBeInTheDocument();
     expect(screen.getByText(/showing saved data/i)).toBeInTheDocument();
+  });
+
+  it('routes an unconfirmed strip to payments rather than the cart', () => {
+    const onNavigate = vi.fn();
+    render(
+      <CompactStatsRow
+        currentFees={60}
+        amountDue={30}
+        unconfirmed
+        currentFeesHref="/cart?show=show-1"
+        onNavigate={onNavigate}
+      />
+    );
+
+    fireEvent.click(screen.getByRole('button'));
+    expect(onNavigate).toHaveBeenCalledWith('/exhibitor/payments');
   });
 
   it('says nothing about saved data for a confirmed non-zero figure', () => {

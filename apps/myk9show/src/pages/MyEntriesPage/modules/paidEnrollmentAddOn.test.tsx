@@ -29,6 +29,7 @@
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { renderHook, screen, waitFor } from '@testing-library/react';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { MemoryRouter } from 'react-router-dom';
 // The project's custom render (QueryClient + Auth + Router providers), never
 // raw `render` — see CLAUDE.md § Testing.
@@ -140,11 +141,29 @@ const pendingAddOnRow = () => ({
   },
 });
 
+/**
+ * `useMyEntriesData` projects the SHARED account-entries cache entry
+ * (MYK9-563 item 3), so every render needs a client. A fresh one per render
+ * keeps the cases independent.
+ */
+function withQueryClient(inner?: (children: React.ReactNode) => React.ReactNode) {
+  const client = new QueryClient();
+  return function Wrapper({ children }: { children: React.ReactNode }) {
+    return (
+      <QueryClientProvider client={client}>
+        {inner ? inner(children) : children}
+      </QueryClientProvider>
+    );
+  };
+}
+
 const renderData = () =>
-  renderHook(() =>
-    useMyEntriesData({
-      persistCheckInStatus: vi.fn().mockResolvedValue(undefined),
-    })
+  renderHook(
+    () =>
+      useMyEntriesData({
+        persistCheckInStatus: vi.fn().mockResolvedValue(undefined),
+      }),
+    { wrapper: withQueryClient() }
   );
 
 describe('MyEntries — a pending class added to a paid enrollment (MYK9-536)', () => {
@@ -219,9 +238,13 @@ describe('MyEntries — a pending class added to a paid enrollment (MYK9-536)', 
    */
   // `useMyEntriesFilters` keeps the active tab in the URL, so the hook needs a
   // router exactly as the page gives it one.
-  const RouterWrapper = ({ children }: { children: React.ReactNode }) => (
-    <MemoryRouter>{children}</MemoryRouter>
-  );
+  /**
+   * Built PER RENDER, not once for the describe. `useMyEntriesData` now reads
+   * the shared account-entries cache entry (MYK9-563 item 3), so a client
+   * hoisted to describe scope would serve the previous case's rows to the next
+   * one before its own mock is ever called.
+   */
+  const routerWrapper = () => withQueryClient(children => <MemoryRouter>{children}</MemoryRouter>);
 
   function useDashboardStrip() {
     const data = useMyEntriesData({
@@ -235,7 +258,7 @@ describe('MyEntries — a pending class added to a paid enrollment (MYK9-536)', 
   }
 
   it('shows the outstanding balance on the dashboard strip the page actually renders', async () => {
-    const { result } = renderHook(() => useDashboardStrip(), { wrapper: RouterWrapper });
+    const { result } = renderHook(() => useDashboardStrip(), { wrapper: routerWrapper() });
 
     await waitFor(() => expect(result.current.data.entries).toHaveLength(1));
 
@@ -264,7 +287,7 @@ describe('MyEntries — a pending class added to a paid enrollment (MYK9-536)', 
       error: null,
     });
 
-    const { result } = renderHook(() => useDashboardStrip(), { wrapper: RouterWrapper });
+    const { result } = renderHook(() => useDashboardStrip(), { wrapper: routerWrapper() });
 
     await waitFor(() => expect(result.current.data.entries).toHaveLength(1));
 

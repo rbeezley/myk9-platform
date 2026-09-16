@@ -226,13 +226,14 @@ function warnDegradedReadOnce(message: string, reason: string, context: Record<s
 }
 
 /**
- * Test-only: clear the per-session warning memo.
+ * Clear the per-session warning memo.
  *
- * This module's memo is module-scope mutable state, which makes test ORDER
- * observable (CI shuffles). Every test that asserts on these warnings resets it
- * in `beforeEach`.
+ * Test-only, and deliberately NOT exported from `entries/index.ts` — the
+ * barrel re-exports with `export *`, so a name declared here is a name every
+ * production importer of the entries module can reach. Tests import it from
+ * `./userEntriesRead.testing`.
  */
-export function __resetDegradedReadWarnings(): void {
+export function resetDegradedReadWarningsForTests(): void {
   warnedDegradedReads.clear();
 }
 

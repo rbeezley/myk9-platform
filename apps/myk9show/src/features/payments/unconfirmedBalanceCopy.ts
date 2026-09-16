@@ -17,8 +17,26 @@ export const UNCONFIRMED_BALANCE_NOTE =
   "Showing saved data — we couldn't reach the server to confirm it.";
 
 /**
- * Replaces the figure entirely when it is ZERO and unconfirmed. At zero,
- * "saved data" and "paid up" are the same pixels, so the number has to go:
- * "we could not ask" must never be drawn as "you owe nothing".
+ * Replaces the figure entirely whenever the read is degraded — at any amount,
+ * not only at zero.
+ *
+ * Zero is the obvious case: "we could not ask" drawn as "$0.00, paid up" is a
+ * positive claim about what the exhibitor owes. But a NON-zero unconfirmed
+ * total is the worse one. A hard-deleted entry still sitting in the per-show
+ * snapshot produces a real-looking "$60.00 due" for a debt the server no longer
+ * has, and — before MYK9-563 — a live "Pay $60.00 online" button beside it.
+ * Charging someone for an entry that does not exist is not a display bug.
+ *
+ * So no amount renders and no pay affordance renders while degraded. The
+ * entries themselves stay on screen: it is the CLAIM that is withheld, never
+ * the exhibitor's own data.
  */
-export const UNCONFIRMED_ZERO_BALANCE_LABEL = 'Balance unavailable';
+export const UNCONFIRMED_AMOUNT_LABEL = 'Amount unavailable';
+
+/**
+ * The calm next step under a withheld figure. INTENT.md's error-state test is
+ * "would this stress someone out on show day" — so it says what is missing,
+ * that it is temporary, and that nothing of theirs is gone.
+ */
+export const UNCONFIRMED_AMOUNT_EXPLANATION =
+  "We'll show what you owe as soon as we can reach the server. Your entries below are the ones we last saved.";

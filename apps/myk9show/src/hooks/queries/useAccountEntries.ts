@@ -17,21 +17,31 @@
  * same cache entry is not a second policy, it is a race.
  */
 import { useQuery, type UseQueryResult } from '@tanstack/react-query';
+import { useAuthContext } from '@/hooks/useAuthContext';
 import { viewerScope } from '@/lib/viewerScopedQueryKey';
 import { getUserEntries } from '@/services/database/entries';
 
 /**
  * What the shared read hands its consumers.
  *
- * `degraded` is `UserEntriesResult.stale` under the name the consuming surfaces
- * use: the rows came from the per-show replication snapshot without the
- * authoritative view confirming them (it failed, timed out, or came back empty
- * against a populated snapshot). They are real rows, but they may describe a
- * world the server no longer agrees with — a hard-deleted entry, a reassigned
- * dog — so any surface making a CLAIM from them, above all a money figure, has
- * to say it is showing saved data rather than state it as fact. `error` is
- * `null` on that path by design, which is exactly why this flag has to travel
- * separately.
+ * `degraded` is the one flag surfaces read, and it is the OR of the two
+ * distinct reasons `getUserEntries` has to distrust its own answer:
+ *
+ *  - `stale` — the rows came from the per-show replication snapshot without the
+ *    authoritative view confirming them (it failed, timed out, or came back
+ *    empty against a populated snapshot). They are real rows, but they may
+ *    describe a world the server no longer agrees with: a hard-deleted entry, a
+ *    reassigned dog.
+ *  - `enrichmentMissing` — the replica path could not read the `enrollments`
+ *    enrichment. With no order `payment_status`,
+ *    `resolveEffectivePaymentStatus` falls back to "the entry row stands", so a
+ *    pending order over a paid-looking row UNDER-claims the amount due, and the
+ *    rows carry no confirmation number at all.
+ *
+ * Both end in the same place for a consumer — a figure that must not be stated
+ * as fact — so both are folded here rather than asking every surface to
+ * remember the second one. `error` is `null` on both paths by design, which is
+ * exactly why this flag has to travel separately.
  */
 export interface AccountEntriesRead {
   rows: Record<string, unknown>[];
@@ -46,9 +56,19 @@ export const EMPTY_ACCOUNT_ENTRIES: AccountEntriesRead = { rows: [], degraded: f
  * `viewerScopeGuard` can see the scoping (MYK9-429): the cache is a module
  * singleton, and a key naming only WHAT was read would serve one account's
  * entries to the next person signing in on the same tab.
+ *
+ * `viewerScope()` takes the AUTH user id, per its own contract
+ * (`lib/viewerScopedQueryKey.ts`) — `people.id` is never `auth.uid()` in this
+ * project, so passing the person id there would have put a non-auth value in
+ * the slot the guard reads as "who fetched this". The person id is the read's
+ * actual parameter and rides alongside as a plain segment, so a change of
+ * either one is a different cache entry.
  */
-export function accountEntriesQueryKey(personId: string | null | undefined) {
-  return ['exhibitor', 'account-entries', viewerScope(personId ?? null)] as const;
+export function accountEntriesQueryKey(
+  authUserId: string | null | undefined,
+  personId: string | null | undefined
+) {
+  return ['exhibitor', 'account-entries', viewerScope(authUserId ?? null), personId] as const;
 }
 
 export interface UseAccountEntriesOptions {
@@ -74,18 +94,20 @@ export function useAccountEntries<TSelected>(
   select: (read: AccountEntriesRead) => TSelected,
   options: UseAccountEntriesOptions = {}
 ): UseQueryResult<TSelected, Error> {
+  const { user } = useAuthContext();
+
   return useQuery({
-    queryKey: accountEntriesQueryKey(personId),
+    queryKey: accountEntriesQueryKey(user?.id, personId),
     queryFn: async (): Promise<AccountEntriesRead> => {
       // Unreachable while `enabled` holds, but `getUserEntries` takes a
       // non-null id and TypeScript cannot see the gate from here.
       if (!personId) return EMPTY_ACCOUNT_ENTRIES;
-      const { data, error, stale } = await getUserEntries(personId);
+      const { data, error, stale, enrichmentMissing } = await getUserEntries(personId);
       // Thrown, never swallowed: a read that failed must not reach a consumer
       // as an empty list. "You have no entries", "you owe nothing" and "you are
       // not entered in this show" are all positive claims.
       if (error) throw error;
-      return { rows: data ?? [], degraded: Boolean(stale) };
+      return { rows: data ?? [], degraded: Boolean(stale || enrichmentMissing) };
     },
     enabled: !!personId && (options.enabled ?? true),
     staleTime: 60_000,

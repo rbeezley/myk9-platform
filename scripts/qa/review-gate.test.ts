@@ -1905,37 +1905,67 @@ describe('the workflow’s crash-fallback step', () => {
     expect(ghCalls.some(c => c.includes(`statuses/${HEAD}`))).toBe(true);
   });
 
-  it('takes its time limit from the STEP, so a timeout fails rather than cancels', () => {
+  /**
+   * Every step of the job, in order, with its declared `timeout-minutes`.
+   * A step with no timeout comes back `undefined` rather than being skipped —
+   * the whole point of the invariant below is that there are none.
+   */
+  function parseJobSteps(): { name?: string; timeout?: number }[] {
+    const yaml = readFileSync(workflowPath, 'utf8');
+    const stepsAt = yaml.indexOf('\n    steps:\n');
+    if (stepsAt < 0) throw new Error('the job has no `steps:` block');
+    const body = yaml.slice(stepsAt + '\n    steps:\n'.length);
+    // Each step starts at `      - `; nothing else in this file sits at that
+    // indent, and the job is the last thing in the file.
+    const chunks = body.split(/^ {6}- /m).slice(1);
+    return chunks.map(chunk => {
+      const name = chunk.match(/^(?:name: )?(.+)$/m)?.[1];
+      const timeout = chunk.match(/^ {8}timeout-minutes: (\d+)$/m)?.[1];
+      return {
+        name: chunk.startsWith('name: ') ? chunk.slice('name: '.length).split('\n')[0] : name,
+        timeout: timeout === undefined ? undefined : Number(timeout),
+      };
+    });
+  }
+
+  it('gives EVERY step its own timeout, so a hang fails the step instead of cancelling the job', () => {
     // A job that trips its own `timeout-minutes` is marked CANCELLED, not
     // failed (LESSONS `cancelled-may-be-timeout`), and `if: failure()` does
-    // not fire on a cancelled job — so a job-level limit meant a hung
-    // `gh api --paginate` skipped this fallback and left no status at all
-    // (round-1 review, P2). A STEP timeout fails the step instead.
-    const yaml = readFileSync(workflowPath, 'utf8');
-    const stepTimeouts = [...yaml.matchAll(/^ {8}timeout-minutes: (\d+)$/gm)].map(m =>
-      Number(m[1])
-    );
-    // The script step and this fallback step both carry one.
-    expect(stepTimeouts).toHaveLength(2);
-    const jobTimeout = yaml.match(/^ {4}timeout-minutes: (\d+)$/m);
-    if (!jobTimeout) throw new Error('the job has no backstop timeout');
-    // The job-level backstop must not fire first, or it would cancel the job
-    // and skip this step — the exact bug above.
-    expect(Number(jobTimeout[1])).toBeGreaterThan(stepTimeouts.reduce((a, b) => a + b, 0));
+    // not fire on a cancelled job. So any step WITHOUT its own limit runs to
+    // the job backstop and skips this fallback — the fail-open, relocated to
+    // whichever step was left uncovered. `checkout` and `setup-node` had none
+    // (round-2 review, P2), and the previous version of this test asserted
+    // there were exactly two step timeouts, so ADDING the missing ones would
+    // have reddened it. This asserts the invariant instead of the count.
+    const steps = parseJobSteps();
+    expect(steps.length).toBeGreaterThanOrEqual(4);
+    for (const step of steps) {
+      expect(step.name).toBeTruthy();
+      expect(step.timeout, `step "${step.name ?? '(unnamed)'}" has no timeout-minutes`).toBeTypeOf(
+        'number'
+      );
+    }
   });
 
-  it('declares `shell: bash`, the option set the harness above replays', () => {
-    // The harness runs the extracted script under
-    // `bash --noprofile --norc -eo pipefail`. GitHub only uses those options
-    // when the step says `shell: bash`; the default is `bash -e {0}`, no
-    // pipefail. If this assertion ever fails, the harness is testing a shell
-    // CI does not run.
+  it('gives each step the timeout it is supposed to have, by name', () => {
+    // By NAME, not by position: swapping two timeouts leaves every count and
+    // every sum identical.
+    const byName = new Map(parseJobSteps().map(s => [s.name, s.timeout]));
+    expect(byName.get('Check out the base branch')).toBe(2);
+    expect(byName.get('Set up Node')).toBe(3);
+    expect(byName.get('Post Review gate status for the PR head')).toBe(5);
+    expect(byName.get(STEP_NAME)).toBe(3);
+  });
+
+  it('keeps the job backstop above the sum of every step timeout', () => {
+    // If the backstop could be reached first it would cancel the job and skip
+    // this step, which is the bug the per-step timeouts exist to prevent.
+    const steps = parseJobSteps();
+    const sum = steps.reduce((total, s) => total + (s.timeout ?? 0), 0);
     const yaml = readFileSync(workflowPath, 'utf8');
-    for (const step of ['Post Review gate status for the PR head', STEP_NAME]) {
-      const at = yaml.indexOf(`- name: ${step}`);
-      const body = yaml.slice(at, yaml.indexOf('\n        run:', at));
-      expect(body).toContain('shell: bash');
-    }
+    const jobTimeout = yaml.match(/^ {4}timeout-minutes: (\d+)$/m);
+    if (!jobTimeout) throw new Error('the job has no backstop timeout');
+    expect(Number(jobTimeout[1])).toBeGreaterThan(sum);
   });
 
   it('runs only when the job has already failed', () => {

@@ -41,12 +41,13 @@ jobs:
   evaluate:
     name: Evaluate review evidence
     runs-on: ubuntu-latest
-    # A backstop only, deliberately far larger than the two step timeouts
-    # below (5 + 3) so a STEP always hits its limit first. A job that trips its
-    # own `timeout-minutes` is marked CANCELLED, not failed (LESSONS
-    # `cancelled-may-be-timeout`), and `if: failure()` does not fire on a
-    # cancelled job — so a 5-minute job timeout meant a hung `gh api
-    # --paginate` skipped the fallback step entirely and left no status at all.
+    # A backstop only, deliberately larger than the sum of every step timeout
+    # below (2 + 3 + 5 + 3 = 13) so a STEP always hits its limit first. A job
+    # that trips its own `timeout-minutes` is marked CANCELLED, not failed
+    # (LESSONS `cancelled-may-be-timeout`), and `if: failure()` does not fire
+    # on a cancelled job — so a job limit reached first would skip the fallback
+    # step and leave no status at all. Raise this whenever a step timeout goes
+    # up; the unit test fails if the sum ever catches it.
     timeout-minutes: 20
     if: github.event_name == 'pull_request_target' || (github.event.issue.pull_request && (startsWith(github.event.comment.body, 'Review gate:') || startsWith(github.event.changes.body.from, 'Review gate:')))
     # Concurrency lives on the JOB, not the workflow: a workflow-level group
@@ -58,10 +59,20 @@ jobs:
       group: review-gate-${{ github.event.pull_request.number || github.event.issue.number }}
       cancel-in-progress: true
 
+    # EVERY step carries its own `timeout-minutes`, including these two. A hang
+    # in `checkout` or `setup-node` with no step limit runs to the JOB backstop
+    # below, and a job that trips its own limit is marked CANCELLED, not failed
+    # (LESSONS `cancelled-may-be-timeout`) — `if: failure()` would be skipped
+    # and no status posted, which is this workflow's fail-open relocated one
+    # step earlier. A step timeout FAILS the step, so the fallback still runs.
     steps:
-      - uses: actions/checkout@v7
+      - name: Check out the base branch
+        uses: actions/checkout@v7
+        timeout-minutes: 2
 
-      - uses: actions/setup-node@v7
+      - name: Set up Node
+        uses: actions/setup-node@v7
+        timeout-minutes: 3
         with:
           node-version: '22.12.0'
 

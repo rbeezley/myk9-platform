@@ -79,6 +79,12 @@ jobs:
           REPO: ${{ github.repository }}
           PR_NUMBER: ${{ github.event.pull_request.number || github.event.issue.number }}
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        # Declared, not defaulted. Without `shell:` GitHub runs `bash -e {0}`
+        # — no `pipefail` — while `shell: bash` runs
+        # `bash --noprofile --norc -eo pipefail {0}`. The unit test executes
+        # the extracted script under the SECOND set, so leaving the shell
+        # implicit would mean the test passes on options CI does not have.
+        shell: bash
         run: node --experimental-strip-types --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/qa/review-gate.ts
 
       # Last hop. The required `Review gate` context is a commit STATUS pinned
@@ -116,6 +122,9 @@ jobs:
           PR_NUMBER: ${{ github.event.pull_request.number || github.event.issue.number }}
           HEAD_SHA: ${{ github.event.pull_request.head.sha }}
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        # See the note on the step above: declared so the unit test and CI run
+        # this script under the same shell options.
+        shell: bash
         run: |
           sha="${HEAD_SHA:-}"
           if [ -z "$sha" ]; then

@@ -1786,7 +1786,11 @@ describe('the workflow’s crash-fallback step', () => {
     writeFileSync(log, '');
     const scriptPath = join(dir, 'fallback.sh');
     writeFileSync(scriptPath, extractFallbackScript());
-    const stdout = execFileSync('bash', ['-e', '-o', 'pipefail', scriptPath], {
+    // EXACTLY the options `shell: bash` gives this step on GitHub. Without a
+    // `shell:` declaration GitHub would run `bash -e {0}` with no `pipefail`,
+    // and a test running richer options than CI can pass on behaviour CI does
+    // not have (round-2 review, P3). The assertion below pins the pairing.
+    const stdout = execFileSync('bash', ['--noprofile', '--norc', '-eo', 'pipefail', scriptPath], {
       encoding: 'utf8',
       env: { PATH: `${dir}:${process.env.PATH ?? ''}`, ...env },
     });
@@ -1886,6 +1890,20 @@ describe('the workflow’s crash-fallback step', () => {
     // The job-level backstop must not fire first, or it would cancel the job
     // and skip this step — the exact bug above.
     expect(Number(jobTimeout[1])).toBeGreaterThan(stepTimeouts.reduce((a, b) => a + b, 0));
+  });
+
+  it('declares `shell: bash`, the option set the harness above replays', () => {
+    // The harness runs the extracted script under
+    // `bash --noprofile --norc -eo pipefail`. GitHub only uses those options
+    // when the step says `shell: bash`; the default is `bash -e {0}`, no
+    // pipefail. If this assertion ever fails, the harness is testing a shell
+    // CI does not run.
+    const yaml = readFileSync(workflowPath, 'utf8');
+    for (const step of ['Post Review gate status for the PR head', STEP_NAME]) {
+      const at = yaml.indexOf(`- name: ${step}`);
+      const body = yaml.slice(at, yaml.indexOf('\n        run:', at));
+      expect(body).toContain('shell: bash');
+    }
   });
 
   it('runs only when the job has already failed', () => {

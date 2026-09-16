@@ -191,9 +191,11 @@ export async function getPostgrestTVDisplayResults(
     fetchJudgeNamesByClass(showId),
   ]);
   // INTENT: The TV display is a public surface. Read results through
-  // view_public_entry_results so the result-visibility cascade is enforced by
-  // the database — placements/times/quals for classes whose results have not
-  // been released arrive NULL and are naturally filtered out below.
+  // view_public_entry_results so the release gate and the result-visibility
+  // cascade are enforced by the database — a class whose results have not been
+  // released yields no rows at all (MYK9-466, MYK9-552), and within a released
+  // class withheld placements/times/quals arrive NULL and are naturally
+  // filtered out below.
   const { data: placementRows, error: placementError } = await supabase
     .from('view_public_entry_results')
     .select(

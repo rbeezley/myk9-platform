@@ -5,10 +5,12 @@
  * `/shows/.../classes/:classId`, `/tv/:showId`). They must NOT be able to read
  * withheld scored columns or PII. Migration 20260616120000 revokes anon's broad
  * SELECT on `entries` and exposes a safe, cascade-aware view instead:
- * `view_public_entry_results`. Scored columns (final_placement, result_status,
- * search_time_seconds, total_score, total_faults, result_text) arrive already
- * NULLed by the database when the per-field visibility cascade hides them, and
- * payment/PII columns are simply absent.
+ * `view_public_entry_results`. Since 20260913131500 (MYK9-466) the view's WHERE
+ * requires `classes.results_released_at IS NOT NULL`, so an unreleased class
+ * yields NO ROWS at all rather than rows with NULLed fields (MYK9-552). Within a
+ * released class the per-field visibility cascade still decides which scored
+ * columns (final_placement, result_status, search_time_seconds, total_score,
+ * total_faults, result_text) arrive NULLed; payment/PII columns are simply absent.
  *
  * These functions are the anon counterpart of the `getEntriesBy*` reads in
  * `reads.ts`. Authenticated callers keep using `reads.ts` (full table access,
@@ -17,7 +19,10 @@
 
 import { supabase, createDatabaseError } from '../supabaseClient';
 
-/** A row from `view_public_entry_results`. Scored columns are NULL when withheld. */
+/**
+ * A row from `view_public_entry_results`. Only released classes appear at all;
+ * within one, scored columns are NULL when the visibility cascade withholds them.
+ */
 export interface PublicEntryRow {
   id: string;
   class_id: string | null;

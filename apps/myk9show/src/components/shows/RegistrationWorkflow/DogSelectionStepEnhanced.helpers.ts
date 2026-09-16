@@ -78,23 +78,28 @@ export function isDogSelectable(dog: Dog): boolean {
 }
 
 /**
- * Dogs the secretary/admin search panel may offer: selectable, and — for
- * anyone but a site admin — matching `userId`.
+ * Dogs the secretary/admin search panel may offer from the locally replicated
+ * roster: selectable, and nothing else.
  *
- * NOTE: the ownership branch predates MYK9-519 and compares `dog.ownerId`
- * (a `people.id`) against the auth user id, so it matches nothing for an
- * ordinary exhibitor. Left as-is here because only the advanced-search roles
- * reach this component; filed separately rather than changed under this issue.
+ * MYK9-537: this deliberately applies NO client-side ownership filter.
+ *
+ * 1. The comparison it replaces (`dog.ownerId === userId`) compared a
+ *    `people.id` with an `auth.users` id. Those are separate id spaces that
+ *    never coincide, so the branch emptied the roster for every viewer who
+ *    was not a site admin.
+ * 2. Filtering by ownership here would be wrong even if the ids matched. The
+ *    roster is already scoped server-side: `useDogsQuery` calls
+ *    `getAllDogs(personId, showAll)` with `showAll = !rosterIsOwnDogsOnly()`,
+ *    on top of the dogs/people RLS that lets `is_show_manager()` read all
+ *    dogs. The server has already decided what this viewer may see.
+ * 3. This component renders only under `features.advancedSearch`, i.e. exactly
+ *    the `secretary_new | club_admin | site_admin` workflow modes — the same
+ *    set as `ROLES_WITH_FULL_DOG_ROSTER`. Every viewer here is staff entering
+ *    on someone else's behalf, so "not mine" is never a reason to hide a dog.
+ *
+ * Same rule the MYK9-519 handoff already applies in `useEntryDogHandoff`,
+ * which narrows the roster with `isDogSelectable` alone.
  */
-export function filterAccessibleDogs(
-  dogs: Dog[],
-  userId: string | null | undefined,
-  isSiteAdmin: boolean
-): Dog[] {
-  if (!userId) return [];
-  return dogs.filter(dog => {
-    if (!isDogSelectable(dog)) return false;
-    if (isSiteAdmin) return true;
-    return dog.ownerId === userId;
-  });
+export function filterAccessibleDogs(dogs: Dog[]): Dog[] {
+  return dogs.filter(isDogSelectable);
 }

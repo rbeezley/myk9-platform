@@ -67,7 +67,7 @@ Both `stripe_orders` scope FKs are ON DELETE RESTRICT since migration `202609151
 - **If it stays detached,** the row joins the class `docs/operations/stripe-ledger-orphans.md` keeps deliberately. That record was written for orphans an earlier bug created and migration `20260915191700` exists to stop reseeds making more, so append the id and amount to that document; it carries a dated count and total that your row would silently falsify.
 - **Delete the row** only as a reviewed step, which for a solo operator means reconciling it against Stripe first. `stripe_order_refunds.order_id` is RESTRICT too: the refund rows go first.
 
-That decision record's prune SQL requires both scope columns to be NULL already and will match nothing here; do not copy it for these rows. The seed also carries a narrower twin, `Stripe order(s) point at the demo exhibitor's enrollment or show ...010`, that is subsumed by this guard and cannot fire first; treat it as the same case.
+That decision record's prune SQL requires both scope columns to be NULL already and will match nothing here; do not copy it for these rows. The seed used to carry a narrower twin scoped to the demo exhibitor's enrollment on show `...010`; it was deleted (MYK9-562), not merely disabled, because `order_stray` above already covers that same scope and always raised first — it could never fire.
 
 ### WARNING: `stripe_orders row(s) already have BOTH show_id and enrollment_id nulled by an earlier reseed`
 

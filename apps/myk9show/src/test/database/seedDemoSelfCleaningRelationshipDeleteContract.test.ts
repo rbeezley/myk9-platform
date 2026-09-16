@@ -122,7 +122,7 @@ describe('seed-demo self-cleaning relationship deletes (MYK9-490 follow-up)', ()
     expect(statement).toContain("lower(email)='exhibitor@myk9t.com'");
   });
 
-  it('refuses, loudly, to delete a paid or Stripe-backed stray before the relationship delete', () => {
+  it('refuses, loudly, to delete a paid stray before the relationship delete, printing ids', () => {
     const relationshipDelete = seed.indexOf(
       `DELETE FROM public.entries\nWHERE registration_id = '${ENROLLMENT_ID}'`
     );
@@ -130,16 +130,29 @@ describe('seed-demo self-cleaning relationship deletes (MYK9-490 follow-up)', ()
     expect(guard, 'no fail-loud guard precedes the relationship delete').toBeGreaterThan(-1);
 
     const guardBlockStart = seed.lastIndexOf('DO $$', guard);
-    const guardBlock = seed.slice(guardBlockStart, relationshipDelete);
+    // Only this DO block, not everything up to the relationship delete: a
+    // later DO block (the stripe_orders orphan REPORT, MYK9-527) legitimately
+    // mentions public.stripe_orders and would otherwise poison the
+    // stripe-orders-absence check below.
+    const guardBlockEnd = seed.indexOf('END $$;', guardBlockStart) + 'END $$;'.length;
+    const guardBlock = seed.slice(guardBlockStart, guardBlockEnd);
     expect(guardBlock).toContain("e.payment_status IN ('paid', 'refunded')");
     expect(guardBlock).toContain(`en.id = '${ENROLLMENT_ID}'`);
-    // MYK9-527: the Stripe check must be keyed directly on stripe_orders' OWN
-    // scope columns (show_id / enrollment_id), not only reached through an
-    // enrollment join — once either FK is already null (true of every row on
-    // staging, from a past reseed) a join-only guard can never match again.
-    expect(guardBlock).toContain('FROM public.stripe_orders so');
-    expect(guardBlock).toContain("so.show_id = 'dededede-0000-0000-0000-000000000010'");
-    expect(guardBlock).toContain(`so.enrollment_id = '${ENROLLMENT_ID}'`);
+    // MYK9-562: the RAISE must print the offending ids, not only a count, like
+    // the extracted guard's three RAISEs do.
+    expect(guardBlock).toContain('string_agg(e.id::text');
+    expect(guardBlock).toContain("Ids: %', v_paid, v_ids;");
+
+    // MYK9-562: this narrow guard's Stripe-orders twin was DELETED, not merely
+    // disabled — order_stray in public.seed_demo_assert_no_paid_strays()
+    // (called earlier in section 0, MYK9-538) already covers every order on
+    // show ...010 or an enrollment of it, and that call always raises first,
+    // so the twin could never fire. Pin its absence so it cannot come back
+    // unreachable.
+    expect(
+      guardBlock,
+      'the unreachable narrow Stripe-orders guard was reintroduced — it can never fire because order_stray already covers this scope first (MYK9-562)'
+    ).not.toContain('public.stripe_orders');
   });
 
   it('never DELETEs from stripe_orders, and reports rows a past reseed already orphaned (MYK9-527)', () => {

@@ -21,6 +21,26 @@ import type { Logger } from '../dependencies';
  */
 export type ColdInsertGuardMode = 'throw' | 'skip';
 
+/** Why a `set()` wrote nothing. Never returned for a write that succeeded. */
+export type ReplicatedSetSkipReason = 'cold-insert-refused' | 'dirty-row-preserved';
+
+/**
+ * The outcome of a `set()`. `written: false` means the local cache row was NOT
+ * changed — callers must not report the new value as stored.
+ */
+export type ReplicatedSetResult =
+  | { written: true }
+  | { written: false; reason: ReplicatedSetSkipReason };
+
+/**
+ * The reason the quota-eviction retry carries. `relieveQuota()` evicts CLEAN
+ * rows, so the retry of a legitimate UPDATE can find its own row gone; the
+ * first attempt already proved the row existed, and the guard decision belongs
+ * to the logical write, not to each attempt.
+ */
+export const QUOTA_EVICTION_RETRY_REASON =
+  'quota-eviction retry (the row existed before relieveQuota)';
+
 export interface ReplicatedSetOptions {
   /**
    * Opt in to INSERTing a row the local store does not hold yet. Required on a

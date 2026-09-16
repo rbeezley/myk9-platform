@@ -13,7 +13,7 @@ vi.mock('@myk9/core', () => ({
 describe('ReplicatedShowDeskPeopleTable', () => {
   it('stores a local pending person and queues a people insert with the supplied id', async () => {
     const table = new ReplicatedShowDeskPeopleTable();
-    const setSpy = vi.spyOn(table, 'set').mockResolvedValue();
+    const setSpy = vi.spyOn(table, 'set').mockResolvedValue({ written: true });
     const queueMutationSpy = vi
       .spyOn(
         table as unknown as {

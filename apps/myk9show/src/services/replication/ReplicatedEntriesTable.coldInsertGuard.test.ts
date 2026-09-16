@@ -15,6 +15,7 @@
  * untouched.
  */
 import { beforeEach, afterEach, describe, expect, it, vi } from 'vitest';
+import type { MutationManager } from '@myk9/replication';
 import { ReplicatedEntriesTable, type ReplicatedEntry } from './ReplicatedEntriesTable';
 import { readWithReplicationFallback } from '@/services/database/_shared/read-shape';
 import { supabase } from '@/services/database/supabaseClient';
@@ -50,6 +51,10 @@ function mockReadBack(result: { data: unknown; error: unknown }) {
   node.select = vi.fn(() => node);
   node.eq = vi.fn(() => node);
   node.maybeSingle = vi.fn(() => Promise.resolve(result));
+  // The batch eligibility read terminates on `.in(...)` and returns a LIST.
+  node.in = vi.fn(() =>
+    Promise.resolve({ data: result.data == null ? [] : [result.data], error: result.error })
+  );
   vi.mocked(supabase.from).mockReturnValue(node as never);
   return node;
 }
@@ -62,6 +67,10 @@ describe('ReplicatedEntriesTable cold-insert guard (MYK9-575)', () => {
     await databaseManager.reset();
     vi.mocked(supabase.from).mockReset();
     table = new ReplicatedEntriesTable();
+    // databaseManager.reset() closes the connection but keeps the DATA, so an
+    // empty store has to be asked for explicitly or a shuffled run inherits the
+    // previous test's rows.
+    await table.clearCache();
   });
 
   afterEach(async () => {
@@ -116,14 +125,6 @@ describe('ReplicatedEntriesTable cold-insert guard (MYK9-575)', () => {
       expect(await table.get('entry-new')).not.toBeNull();
     });
 
-    it('updateSecretaryLifecycleStatus seeds from the already-loaded secretary row', async () => {
-      await table.updateSecretaryLifecycleStatus('entry-1', { entry_status: 'withdrawn' }, {
-        showId: 'show-1',
-      } as Partial<ReplicatedEntry>);
-
-      expect(await table.get('entry-1')).not.toBeNull();
-    });
-
     it('a write-path hydration (secretary check-in on a cold replica) still hydrates', async () => {
       mockReadBack({ data: COLD_ROW, error: null });
 
@@ -133,15 +134,66 @@ describe('ReplicatedEntriesTable cold-insert guard (MYK9-575)', () => {
     });
   });
 
-  it('refuses the MYK9-573 read-back shape even with the call-site gate removed', async () => {
-    // `hydrateConfirmedRow` (post-withdrawal) and `getOrHydrateEntry` (the Edit
-    // Entry eligibility hook) both wrote a freshly-fetched server row back with
-    // `set(id, row, false, undefined, serverVersion)`. Each is gated at its call
-    // site; this asserts the gate is no longer the only thing holding.
+  it('refuses an ANONYMOUS server-row write-back (the shape MYK9-573 used)', async () => {
+    // What this proves and what it does NOT: `hydrateConfirmedRow` and the Edit
+    // Entry eligibility hook wrote a freshly-fetched server row back with
+    // `set(id, row, false, undefined, serverVersion)`. Those specific call sites
+    // are closed by the #2266 / #2264 fixes and by `getWithdrawEligibility`
+    // writing nothing (asserted below) — this test does not re-prove that.
+    // It proves the narrower, structural thing: that exact `set()` SHAPE, with
+    // no stated reason, is now refused, so the next writer to reach for it
+    // cannot re-open the hole silently.
     await expect(table.set('entry-1', entry('entry-1'), false, undefined, 7)).rejects.toThrow(
       /cold single-row INSERT/i
     );
 
     expect(await table.getAll()).toHaveLength(0);
+  });
+
+  it('the withdrawal eligibility read writes nothing into a cold store', async () => {
+    // The read path must not be able to reach the opted-in write-path hydration
+    // (`getOrHydrateEntryForWrite`). EntryEditDialog runs this for every class
+    // row on open, on the account-level page.
+    mockReadBack({ data: COLD_ROW, error: null });
+
+    await table.getWithdrawEligibility('entry-1');
+
+    expect(await table.getAll()).toHaveLength(0);
+  });
+
+  describe('updateSecretaryLifecycleStatus on a cold replica', () => {
+    function wireMutationManager() {
+      const queueMutation = vi.fn(async () => 'mutation-1');
+      table.setMutationManager({
+        queueMutation,
+        acquireMutationWriteLock: vi.fn(async () => vi.fn()),
+        getPendingCount: vi.fn(async () => 0),
+      } as unknown as MutationManager);
+      return queueMutation;
+    }
+
+    it('writes NO partial row when there is no cached row and no seed', async () => {
+      // `bulkUpdateEntryStatus` (services/database/entries/secretary.ts) passes
+      // no seed, so the only thing available to store would be
+      // `{ id, entry_status }` — a partial row, written dirty and then uploaded.
+      const queueMutation = wireMutationManager();
+
+      await table.updateSecretaryLifecycleStatus('entry-1', { entry_status: 'withdrawn' });
+
+      expect(await table.getAll()).toHaveLength(0);
+      expect(queueMutation).toHaveBeenCalledTimes(1);
+    });
+
+    it('seeds the row when the caller supplies one', async () => {
+      wireMutationManager();
+
+      await table.updateSecretaryLifecycleStatus(
+        'entry-1',
+        { entry_status: 'withdrawn' },
+        entry('entry-1')
+      );
+
+      expect((await table.get('entry-1'))?.showId).toBe('show-1');
+    });
   });
 });

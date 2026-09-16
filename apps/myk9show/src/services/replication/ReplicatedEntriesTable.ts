@@ -17,6 +17,7 @@ import {
   REPLICATION_INCREMENTAL_BUFFER_MS_HIGH_CHURN,
   REPLICATION_STORES,
   type ColdInsertGuardMode,
+  type ReplicatedSetResult,
   type SyncReplicatedTableAdapter,
   type SyncResult,
 } from '@myk9/replication';
@@ -135,6 +136,24 @@ export class ReplicatedEntriesTable extends ReplicatedTable<ReplicatedEntry> {
    */
   protected override coldInsertGuardMode(): ColdInsertGuardMode | null {
     return import.meta.env.DEV || import.meta.env.MODE === 'test' ? 'throw' : 'skip';
+  }
+
+  /**
+   * `set()` can legitimately store NOTHING — a refused cold INSERT in
+   * production `skip` mode (MYK9-575), or a dirty row preserved against a clean
+   * server value. Never let a caller report such a write as stored. The queued
+   * server mutation is the authoritative half and still uploads; only the
+   * optimistic local row is missing, and the next per-show sync restores it.
+   *
+   * @returns true when the local cache row was actually written.
+   */
+  private reportSetResult(entryId: string, result: ReplicatedSetResult): boolean {
+    if (result.written) return true;
+    logger.warn(
+      `[${this.getTableName()}] Local cache write skipped for ${entryId} (${result.reason}); ` +
+        'any queued server mutation still applies'
+    );
+    return false;
   }
 
   async sync(syncScopeId: string): Promise<SyncResult> {
@@ -318,8 +337,13 @@ export class ReplicatedEntriesTable extends ReplicatedTable<ReplicatedEntry> {
   }
 
   /**
-   * Load an entry for a write, hydrating the local replica from the server on
+   * Load an entry FOR A WRITE, hydrating the local replica from the server on
    * a cache miss.
+   *
+   * The name carries the only justification for the hydration: `entries` is
+   * show-scoped, so the INSERT it performs is opted out of the MYK9-575 guard
+   * and must never be reachable from a read path. Reads use `get` /
+   * `readEntryForWithdrawal`, which write nothing.
    *
    * Pages like secretary Entry Management read their lists via PostgREST and
    * never run a per-show entries sync (only /at-show and scoring surfaces call
@@ -331,7 +355,7 @@ export class ReplicatedEntriesTable extends ReplicatedTable<ReplicatedEntry> {
    * still throw the canonical not-found error: there is nothing to write
    * against, and the caller's retry UX handles it.
    */
-  private async getOrHydrateEntry(entryId: string): Promise<ReplicatedEntry> {
+  private async getOrHydrateEntryForWrite(entryId: string): Promise<ReplicatedEntry> {
     const cached = await this.get(entryId);
     if (cached) return cached;
 
@@ -350,9 +374,12 @@ export class ReplicatedEntriesTable extends ReplicatedTable<ReplicatedEntry> {
           const row = data as unknown as EntryRow;
           const hydrated = rowToEntry(row);
           const serverVersion = (row as Record<string, unknown>).version as number | undefined;
-          await this.set(entryId, hydrated, false, undefined, serverVersion, {
-            allowColdInsert: 'write-path hydration of a cold show-scoped replica',
-          });
+          this.reportSetResult(
+            entryId,
+            await this.set(entryId, hydrated, false, undefined, serverVersion, {
+              allowColdInsert: 'write-path hydration of a cold show-scoped replica',
+            })
+          );
           logger.log(`[${this.getTableName()}] Hydrated cold-replica entry ${entryId} for write`);
           return hydrated;
         }
@@ -369,7 +396,7 @@ export class ReplicatedEntriesTable extends ReplicatedTable<ReplicatedEntry> {
    * @returns mutation ID if queued, null if no MutationManager
    */
   async updateEntryStatus(entryId: string, status: string): Promise<string | null> {
-    const entry = await this.getOrHydrateEntry(entryId);
+    const entry = await this.getOrHydrateEntryForWrite(entryId);
 
     const updated: ReplicatedEntry = {
       ...entry,
@@ -380,7 +407,7 @@ export class ReplicatedEntriesTable extends ReplicatedTable<ReplicatedEntry> {
       _syncStatus: 'pending',
     };
 
-    await this.set(entryId, updated, true);
+    this.reportSetResult(entryId, await this.set(entryId, updated, true));
     const mutationId = await this.queueMutation('UPDATE', entryId, entryToSupabaseRow(updated));
     this._lastMutationId = mutationId;
     logger.log(`[${this.getTableName()}] Updated entry ${entryId} status to ${status}`);
@@ -394,7 +421,7 @@ export class ReplicatedEntriesTable extends ReplicatedTable<ReplicatedEntry> {
    * policies allow `check_in_status` changes without granting broad row writes.
    */
   async updateCheckInStatus(entryId: string, status: CheckInStatus): Promise<string | null> {
-    const entry = await this.getOrHydrateEntry(entryId);
+    const entry = await this.getOrHydrateEntryForWrite(entryId);
 
     const updated: ReplicatedEntry = {
       ...entry,
@@ -404,7 +431,7 @@ export class ReplicatedEntriesTable extends ReplicatedTable<ReplicatedEntry> {
       _syncStatus: 'pending',
     };
 
-    await this.set(entryId, updated, true);
+    this.reportSetResult(entryId, await this.set(entryId, updated, true));
     const mutationId = await this.queueMutation(
       'UPDATE',
       entryId,
@@ -428,7 +455,7 @@ export class ReplicatedEntriesTable extends ReplicatedTable<ReplicatedEntry> {
    * @returns mutation ID if queued, null if no MutationManager
    */
   async updateEntry(entryId: string, updates: Partial<ReplicatedEntry>): Promise<string | null> {
-    const entry = await this.getOrHydrateEntry(entryId);
+    const entry = await this.getOrHydrateEntryForWrite(entryId);
 
     const updated: ReplicatedEntry = {
       ...entry,
@@ -471,7 +498,7 @@ export class ReplicatedEntriesTable extends ReplicatedTable<ReplicatedEntry> {
       /* deferUpload */ true
     );
 
-    await this.set(entryId, updated, true);
+    this.reportSetResult(entryId, await this.set(entryId, updated, true));
     this.requestUpload();
     this._lastMutationId = mutationId;
     logger.log(`[${this.getTableName()}] Updated entry ${entryId}`);
@@ -492,24 +519,43 @@ export class ReplicatedEntriesTable extends ReplicatedTable<ReplicatedEntry> {
     seed: Partial<ReplicatedEntry> = {}
   ): Promise<string | null> {
     const cached = await this.get(entryId);
-    const entry = cached ?? ({ id: entryId, ...seed } as ReplicatedEntry);
-    const updated: ReplicatedEntry = {
-      ...entry,
-      ...updates,
-      _lastModified: new Date(),
-      _syncStatus: 'pending',
-    };
+    // MYK9-575: with no cached row AND no seed there is nothing to store but a
+    // stub `{ id, entry_status }` — `bulkUpdateEntryStatus` passes no seed, so a
+    // cold bulk status change would otherwise INSERT a partial row as dirty and
+    // then upload it. Queue the server mutation and write nothing locally; the
+    // next per-show sync brings the real row back.
+    const seededRow =
+      Object.keys(seed).length > 0 ? ({ id: entryId, ...seed } as ReplicatedEntry) : null;
+    const entry = cached ?? seededRow;
 
-    await this.set(
-      entryId,
-      updated,
-      true,
-      undefined,
-      undefined,
-      cached
-        ? undefined
-        : { allowColdInsert: 'secretary lifecycle write seeded from the loaded row' }
-    );
+    if (entry) {
+      const updated: ReplicatedEntry = {
+        ...entry,
+        ...updates,
+        _lastModified: new Date(),
+        _syncStatus: 'pending',
+      };
+
+      const result = await this.set(
+        entryId,
+        updated,
+        true,
+        undefined,
+        undefined,
+        cached
+          ? undefined
+          : { allowColdInsert: 'secretary lifecycle write seeded from the loaded row' }
+      );
+      if (!result.written) {
+        logger.warn(
+          `[${this.getTableName()}] Local cache write skipped for ${entryId} (${result.reason}); the server mutation is still queued`
+        );
+      }
+    } else {
+      logger.log(
+        `[${this.getTableName()}] No cached row and no seed for ${entryId}; queueing the status mutation without a local write`
+      );
+    }
 
     const payload: Record<string, unknown> = {
       id: entryId,
@@ -537,7 +583,7 @@ export class ReplicatedEntriesTable extends ReplicatedTable<ReplicatedEntry> {
    *
    * MYK9-573: goes through the NON-CACHING read. This runs on open for every
    * class row in `EntryEditDialog`, which is mounted on the account-level
-   * `/my-entries`; the previous `getOrHydrateEntry` seeded one row per class
+   * `/my-entries`; the previous `getOrHydrateEntryForWrite` seeded one row per class
    * into an otherwise-empty show-scoped store before Pull was ever clicked.
    */
   async getWithdrawEligibility(entryId: string): Promise<WithdrawEligibility> {
@@ -635,12 +681,12 @@ export class ReplicatedEntriesTable extends ReplicatedTable<ReplicatedEntry> {
   /**
    * The row the guards run against.
    *
-   * `getOrHydrateEntry` throws the same "not found" for a row that is ABSENT and
+   * `getOrHydrateEntryForWrite` throws the same "not found" for a row that is ABSENT and
    * for a read that FAILED, and those need different sentences, so the cold-cache
    * case is resolved here: a read error means "no connection", an empty result
    * means "this entry is gone".
    *
-   * NEVER WRITES TO THE STORE (MYK9-573) — unlike `getOrHydrateEntry`, which
+   * NEVER WRITES TO THE STORE (MYK9-573) — unlike `getOrHydrateEntryForWrite`, which
    * seeds a clean row on a cache miss because the secretary check-in/scratch
    * path needs an OCC token to write against. Both withdrawal-path readers (the
    * Pull affordance's eligibility check and the withdrawal itself) come through
@@ -829,7 +875,10 @@ export class ReplicatedEntriesTable extends ReplicatedTable<ReplicatedEntry> {
         const row = data as unknown as EntryRow;
         const serverVersion =
           ((row as Record<string, unknown>).version as number | undefined) ?? newVersion;
-        await this.set(entryId, rowToEntry(row), false, undefined, serverVersion);
+        this.reportSetResult(
+          entryId,
+          await this.set(entryId, rowToEntry(row), false, undefined, serverVersion)
+        );
         return;
       }
     } catch (readBackError) {
@@ -840,13 +889,27 @@ export class ReplicatedEntriesTable extends ReplicatedTable<ReplicatedEntry> {
     }
 
     const cached = await this.get(entryId);
-    if (cached) {
-      await this.set(
+    if (!cached) return;
+    try {
+      this.reportSetResult(
         entryId,
-        { ...cached, entryStatus: 'withdrawn', entry_status: 'withdrawn', status: 'withdrawn' },
-        false,
-        undefined,
-        newVersion
+        await this.set(
+          entryId,
+          { ...cached, entryStatus: 'withdrawn', entry_status: 'withdrawn', status: 'withdrawn' },
+          false,
+          undefined,
+          newVersion
+        )
+      );
+    } catch (writeError) {
+      // The server change is already COMMITTED; this is only a cache refresh.
+      // An eviction between the `get` above and the transaction turns the write
+      // into a cold INSERT, which the MYK9-575 guard refuses (loudly in dev) —
+      // and refusing is correct here, so swallow it rather than fail a
+      // withdrawal that succeeded.
+      logger.warn(
+        `[${this.getTableName()}] Post-withdrawal cache write skipped for ${entryId}`,
+        writeError
       );
     }
   }
@@ -879,7 +942,7 @@ export class ReplicatedEntriesTable extends ReplicatedTable<ReplicatedEntry> {
           _syncStatus: 'pending',
         };
 
-        await this.set(entryId, updated, true);
+        this.reportSetResult(entryId, await this.set(entryId, updated, true));
       }
 
       const mutationId = await this.queueMutation('UPDATE', entryId, {
@@ -917,9 +980,12 @@ export class ReplicatedEntriesTable extends ReplicatedTable<ReplicatedEntry> {
       _localOnly: true,
     };
 
-    await this.set(entry.id, newEntry, true, undefined, undefined, {
-      allowColdInsert: 'local create of a new entry',
-    });
+    this.reportSetResult(
+      entry.id,
+      await this.set(entry.id, newEntry, true, undefined, undefined, {
+        allowColdInsert: 'local create of a new entry',
+      })
+    );
     const mutationId = await this.queueMutation(
       'INSERT',
       entry.id,
@@ -963,7 +1029,10 @@ export class ReplicatedEntriesTable extends ReplicatedTable<ReplicatedEntry> {
     // during the RPC must not let this INSERT the row back.
     const stillCached = cached ? await this.get(entryId) : null;
     if (stillCached) {
-      await this.set(entryId, { ...stillCached, jumpHeight }, false, undefined, version);
+      this.reportSetResult(
+        entryId,
+        await this.set(entryId, { ...stillCached, jumpHeight }, false, undefined, version)
+      );
     }
 
     logger.log(

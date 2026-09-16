@@ -210,7 +210,11 @@ export const useClassStore = create<ClassStoreState>()((set, get): ClassStoreSta
         _localOnly: true,
       };
 
-      await replicatedEntriesTable.set(id, replicatedEntry, true);
+      // MYK9-575: `entries` is show-scoped, so `set()` refuses an INSERT it was
+      // not told about. A brand-new local entry is a legitimate one.
+      await replicatedEntriesTable.set(id, replicatedEntry, true, undefined, undefined, {
+        allowColdInsert: 'local create of a new entry',
+      });
 
       // Create full entry with local-only fields
       const newEntry: SyncableEntryData = {

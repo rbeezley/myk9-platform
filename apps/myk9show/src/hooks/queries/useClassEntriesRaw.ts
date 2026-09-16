@@ -100,9 +100,10 @@ export function publicRowToRawEntryRow(row: PublicEntryRow): RawEntryRow {
  * which drops scoring fields.
  *
  * Anonymous visitors read through `view_public_entry_results`, which the
- * database has already gated per the result-visibility cascade — withheld
- * scored columns arrive NULL. Authenticated callers use the full table read
- * (still governed by RLS).
+ * database has already gated: a class whose results have not been released
+ * yields no rows at all (MYK9-466, MYK9-552), and within a released class the
+ * visibility cascade makes withheld scored columns arrive NULL. Authenticated
+ * callers use the full table read (still governed by RLS).
  */
 export function useClassEntriesRaw(classId: string | undefined, enabled = true) {
   const { user, loading } = useAuthContext();

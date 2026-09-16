@@ -34,9 +34,11 @@ export interface ResultsFilters {
 
 async function fetchShowResults(showId: string): Promise<ClassResult[]> {
   // Fetch scored entries with placements 1–4 for this show. Read through
-  // view_public_entry_results so the result-visibility cascade is enforced by
-  // the database: placements for classes whose results have not been released
-  // arrive NULL and are filtered out by the placement range below.
+  // view_public_entry_results so the release gate and the result-visibility
+  // cascade are enforced by the database: a class whose results have not been
+  // released yields no rows at all (MYK9-466, MYK9-552), and within a released
+  // class a withheld placement arrives NULL and is filtered out by the placement
+  // range below.
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const { data, error } = (await (supabase as any)
     .from('view_public_entry_results')

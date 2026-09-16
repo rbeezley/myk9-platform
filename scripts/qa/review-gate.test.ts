@@ -1765,6 +1765,9 @@ describe('the workflow’s crash-fallback step', () => {
         '#!/bin/sh',
         `printf '%s\\n' "$*" >> ${JSON.stringify(log)}`,
         'if [ "$1" = "pr" ]; then',
+        '  if [ -n "${STUB_GH_VIEW_STDERR:-}" ]; then',
+        '    echo "${STUB_GH_VIEW_STDERR}" >&2',
+        '  fi',
         '  if [ "${STUB_GH_VIEW_EXIT:-0}" != "0" ]; then',
         '    echo "gh: could not resolve the pull request" >&2',
         '    exit "${STUB_GH_VIEW_EXIT}"',
@@ -1806,6 +1809,23 @@ describe('the workflow’s crash-fallback step', () => {
     const views = ghCalls.filter(c => c.startsWith('pr view'));
     expect(views).toHaveLength(1);
     expect(views[0]).toContain('--json headRefOid');
+    const post = ghCalls.find(c => c.includes('--method POST'));
+    if (!post) throw new Error(`no POST in: ${ghCalls.join(' | ')}`);
+    expect(post).toContain(`repos/${FAKE_REPO}/statuses/${OLD_HEAD}`);
+    expect(post).toContain('state=failure');
+  });
+
+  it('posts the SHA even when `gh pr view` also writes a warning to stderr', () => {
+    // `2>&1` merged gh's diagnostics into the captured SHA, so ONE ordinary
+    // deprecation or scope warning contaminated an otherwise valid answer, the
+    // hex guard rejected it, and the step posted nothing — reinstating the
+    // stale-green fail-open this step exists to close (round-1 review, P2).
+    const { ghCalls } = runFallback({
+      ...base,
+      HEAD_SHA: '',
+      STUB_GH_VIEW_SHA: OLD_HEAD,
+      STUB_GH_VIEW_STDERR: 'gh: warning: this command is deprecated',
+    });
     const post = ghCalls.find(c => c.includes('--method POST'));
     if (!post) throw new Error(`no POST in: ${ghCalls.join(' | ')}`);
     expect(post).toContain(`repos/${FAKE_REPO}/statuses/${OLD_HEAD}`);

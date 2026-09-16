@@ -43,6 +43,13 @@ export interface PrimaryCheckoutStatus {
   behind: number | null;
   /** Upstream ref the behind-count was measured against. */
   upstream: string | null;
+  /** Commits behind origin/main, measured regardless of the checked-out branch.
+   *  `behind` alone is not enough: a primary sitting on some feature branch can
+   *  be 0 behind ITS upstream while arbitrarily far behind main, and distance
+   *  from main is what drives stale migrations, deps and dist. */
+  behindMain: number | null;
+  /** False when the primary is parked on something other than main. */
+  onMain: boolean;
 }
 
 export interface Verdict {
@@ -135,7 +142,25 @@ export function readStatus(cwd: string = process.cwd()): PrimaryCheckoutStatus {
     }
   }
 
-  return { primaryPath, branch, dirtyFiles, behind, upstream };
+  let behindMain: number | null = null;
+  try {
+    const counts = git(['rev-list', '--left-right', '--count', 'HEAD...origin/main'], primaryPath);
+    const right = counts.split(/\s+/)[1];
+    behindMain = right === undefined ? null : Number.parseInt(right, 10);
+    if (Number.isNaN(behindMain)) behindMain = null;
+  } catch {
+    behindMain = null;
+  }
+
+  return {
+    primaryPath,
+    branch,
+    dirtyFiles,
+    behind,
+    upstream,
+    behindMain,
+    onMain: branch === 'main',
+  };
 }
 
 export function evaluate(
@@ -152,9 +177,20 @@ export function evaluate(
     );
   }
 
-  if (status.behind !== null && status.behind >= behindLimit) {
+  if (!status.onMain) {
     reasons.push(
-      `primary checkout is ${status.behind} commits behind ${status.upstream} ` +
+      `primary checkout is on '${status.branch ?? 'a detached HEAD'}', not main — ` +
+        `\`git pull\` there advances that branch, so main can fall arbitrarily far ` +
+        `behind while every check still looks clean`
+    );
+  }
+
+  // Judge against origin/main, not the current branch's upstream: see behindMain.
+  const distance = status.behindMain ?? status.behind;
+  const ref = status.behindMain !== null ? 'origin/main' : status.upstream;
+  if (distance !== null && distance >= behindLimit) {
+    reasons.push(
+      `primary checkout is ${distance} commits behind ${ref} ` +
         `(limit ${behindLimit}) — stale deps, stale package dist, and false ` +
         `\`supabase db push --dry-run\` drift follow from this`
     );
@@ -167,7 +203,11 @@ export function render(verdict: Verdict): string {
   const { status } = verdict;
   if (verdict.ok) {
     const behind =
-      status.behind === null ? 'no upstream' : `${status.behind} behind ${status.upstream}`;
+      status.behindMain === null
+        ? status.behind === null
+          ? 'no upstream'
+          : `${status.behind} behind ${status.upstream}`
+        : `${status.behindMain} behind origin/main`;
     return `primary-checkout: clean (${status.primaryPath}, ${status.branch ?? 'detached'}, ${behind})`;
   }
 
@@ -177,8 +217,13 @@ export function render(verdict: Verdict): string {
     '',
     '  The primary checkout is not a workspace — work in a worktree (CLAUDE.md',
     '  § Worktree & Merge Workflow). To clear it:',
-    `    git -C "${status.primaryPath}" diff > /tmp/keep.patch   # keep a copy first`,
-    `    git -C "${status.primaryPath}" restore <files>`,
+    // `diff HEAD`, not `diff`: dirtyFiles includes STAGED-only files, which a
+    // plain `git diff` omits -- the backup would be empty while `restore`
+    // (without --staged) is a no-op, so the pull keeps aborting.
+    // Not /tmp: it is shared by every session on this Mac and a concurrent run
+    // can clobber the user's only copy of the draft (LESSONS shared-tmp-log).
+    `    git -C "${status.primaryPath}" diff HEAD > "${status.primaryPath}/.primary-checkout-keep.patch"  # keep a copy first`,
+    `    git -C "${status.primaryPath}" restore --staged --worktree <files>`,
     `    git -C "${status.primaryPath}" pull --ff-only`,
   ];
   return lines.join('\n');

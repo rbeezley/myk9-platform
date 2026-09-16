@@ -10,45 +10,97 @@
 # commits piled up on origin/main. The damage surfaced later as false
 # `supabase db push --dry-run` drift, stale node_modules and stale package dist.
 #
-# A hook that cannot fail is not a guard. This one still never blocks a session
-# (it always exits 0) but it reports the problem into the session transcript.
+# A hook that cannot fail is not a guard. This one never blocks a session (it
+# always exits 0) but it reports into the transcript, and it distinguishes
+# "the guard found a problem" from "the guard could not run" -- a banner that
+# fires on a clean tree trains you to ignore it, which ends where silence does.
+#
+# ORDER MATTERS: the local guard runs FIRST, then the network pull. The pull can
+# hang on a bad network until the hook's timeout kills the whole script; running
+# it second means a killed pull still leaves the guard's verdict reported.
 #
 # Paths are quoted throughout: this repo lives under "AI Projects", and an
 # unquoted path splits on the space (LESSONS guard-word-split).
 
 set -uo pipefail
 
-PRIMARY="${MYK9_PRIMARY_CHECKOUT:-/Users/richardbeezley/AI Projects/myk9-platform}"
+# Derive the repo rather than hardcoding it: a hardcoded path goes permanently
+# and silently inert the moment the checkout is renamed, moved, or cloned by
+# anyone else -- which is itself a swallowed failure.
+SELF_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+SEARCH_FROM="${CLAUDE_PROJECT_DIR:-$SELF_DIR}"
 
-if [ ! -d "$PRIMARY/.git" ]; then
+resolve_primary() {
+  local common
+  common="$(git -C "$1" rev-parse --git-common-dir 2>/dev/null)" || return 1
+  case "$common" in
+    /*) ;;
+    *) common="$(cd "$1" && cd "$(dirname "$common")" && pwd)/$(basename "$common")" ;;
+  esac
+  ( cd "$(dirname "$common")" && pwd )
+}
+
+PRIMARY="${MYK9_PRIMARY_CHECKOUT:-}"
+if [ -z "$PRIMARY" ]; then
+  PRIMARY="$(resolve_primary "$SEARCH_FROM" || true)"
+  if [ -z "$PRIMARY" ]; then
+    PRIMARY="$(resolve_primary "$SELF_DIR" || true)"
+  fi
+fi
+
+if [ -z "$PRIMARY" ] || [ ! -d "$PRIMARY/.git" ]; then
+  # Could not resolve a primary checkout. Report it -- going quiet here is
+  # exactly the failure mode this script exists to end.
+  printf 'PRIMARY CHECKOUT GUARD could not resolve a checkout (searched from %s). It is not guarding anything.\n' "$SEARCH_FROM"
   exit 0
 fi
 
-pull_output="$(git -C "$PRIMARY" pull --ff-only 2>&1)"
-pull_rc=$?
-
-# The guard may legitimately be absent: an older primary checkout, or one that
-# predates this script landing on main. A missing guard is "nothing to add",
-# never a failure -- otherwise the hook cries wolf on a perfectly clean repo.
+# --- local guard first -------------------------------------------------------
 guard_output=""
 guard_rc=0
-if [ -f "$PRIMARY/scripts/qa/primary-checkout.ts" ]; then
-  guard_output="$(cd "$PRIMARY" && node --experimental-strip-types --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/qa/primary-checkout.ts 2>&1)"
+guard_ran=0
+GUARD="$PRIMARY/scripts/qa/primary-checkout.ts"
+if [ -f "$GUARD" ]; then
+  guard_output="$(cd "$PRIMARY" && node --experimental-strip-types --disable-warning=MODULE_TYPELESS_PACKAGE_JSON "$GUARD" 2>&1)"
   guard_rc=$?
+  guard_ran=1
 fi
 
-if [ "$pull_rc" -eq 0 ] && [ "$guard_rc" -eq 0 ]; then
+# --- then the network pull, bounded ------------------------------------------
+# Without these a dead remote hangs until the hook timeout kills everything.
+pull_output="$(GIT_HTTP_LOW_SPEED_LIMIT=1000 GIT_HTTP_LOW_SPEED_TIME=10 git -C "$PRIMARY" pull --ff-only 2>&1)"
+pull_rc=$?
+
+# guard_rc 1 == found a problem. Anything else (127 node missing, 2 undecidable)
+# means the guard could not run: a different statement, reported differently.
+guard_found_problem=0
+guard_broken=0
+if [ "$guard_ran" -eq 1 ]; then
+  if [ "$guard_rc" -eq 1 ]; then
+    guard_found_problem=1
+  elif [ "$guard_rc" -ne 0 ]; then
+    guard_broken=1
+  fi
+fi
+
+if [ "$pull_rc" -eq 0 ] && [ "$guard_found_problem" -eq 0 ] && [ "$guard_broken" -eq 0 ]; then
   exit 0
 fi
 
-report="PRIMARY CHECKOUT NEEDS ATTENTION"
+if [ "$guard_broken" -eq 1 ]; then
+  report="PRIMARY CHECKOUT GUARD COULD NOT RUN (exit ${guard_rc}) -- this is a broken guard, NOT a finding about the repo:
+${guard_output}"
+else
+  report="PRIMARY CHECKOUT NEEDS ATTENTION"
+fi
+
 if [ "$pull_rc" -ne 0 ]; then
   report="${report}
 
 git pull --ff-only FAILED in the primary checkout (exit ${pull_rc}):
 ${pull_output}"
 fi
-if [ "$guard_rc" -ne 0 ]; then
+if [ "$guard_found_problem" -eq 1 ]; then
   report="${report}
 
 ${guard_output}"
@@ -59,12 +111,13 @@ Until this is cleared the primary checkout falls further behind origin/main,
 which produces false supabase db push --dry-run drift, stale node_modules, and
 stale package dist. Agent worktrees are unaffected."
 
-# jq -Rs handles the JSON string escaping; without jq, degrade to plain stderr
-# rather than emitting malformed JSON.
+# jq -Rs handles the JSON escaping. Without jq, fall back to PLAIN STDOUT: a
+# SessionStart hook that exits 0 surfaces stdout as context, so writing the
+# message to stderr would hide it -- swallowing again, one `command -v` away.
 if command -v jq > /dev/null 2>&1; then
   printf '{"hookSpecificOutput":{"hookEventName":"SessionStart","additionalContext":%s}}' "$(printf '%s' "$report" | jq -Rs .)"
 else
-  printf '%s\n' "$report" >&2
+  printf '%s\n' "$report"
 fi
 
 # Never block a session on this.

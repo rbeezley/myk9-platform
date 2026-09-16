@@ -65,6 +65,7 @@
     "qa:inflight": "node --experimental-strip-types --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/qa/inflight.ts",
     "qa:primary-checkout": "node --experimental-strip-types --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/qa/primary-checkout.ts",
     "qa:inflight:test": "vitest run scripts/qa/inflight.test.ts",
+    "qa:primary-checkout:test": "vitest run scripts/qa/primary-checkout.test.ts",
     "qa:ci-concurrency:test": "vitest run scripts/qa/ci-concurrency.test.ts",
     "qa:shared-rules": "node --experimental-strip-types --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/qa/sync-shared-rules.ts",
     "qa:shared-rules:write": "node --experimental-strip-types --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/qa/sync-shared-rules.ts --write",

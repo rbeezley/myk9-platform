@@ -617,16 +617,6 @@ export function runCli(argv = process.argv.slice(2), cwd = process.cwd()): numbe
 function runCliInner(argv: string[], cwd: string): number {
   const warn = argv.includes('--warn');
   const verbose = argv.includes('--verbose');
-  // The primary checkout is shared by every worktree on this machine. An
-  // uncommitted edit there aborts every `git pull` that touches those files,
-  // silently, until someone notices — on 2026-09-10 that froze main for 5 days
-  // and 105 commits. Check it before any work starts, not at commit time: these
-  // edits are never committed, so .githooks/pre-commit never sees them.
-  const primary = checkPrimaryCheckout(cwd);
-  if (!primary.ok) {
-    console.error(renderPrimaryCheckout(primary));
-    if (!warn) return 1;
-  }
   const base = argv.find(a => a.startsWith('--base='))?.slice('--base='.length) ?? 'origin/main';
   const explicit = argv.filter(a => !a.startsWith('--'));
   run('git', ['fetch', '-q', 'origin', 'main'], { cwd, allowFail: true });
@@ -654,6 +644,29 @@ function runCliInner(argv: string[], cwd: string): number {
     );
     return 2;
   }
+  // The primary checkout is shared by every worktree on this machine. An
+  // uncommitted edit there aborts every `git pull` that touches those files,
+  // silently, until someone notices -- on 2026-09-10 that froze main for 5 days
+  // and 105 commits. Checked before work starts, not at commit time: these edits
+  // are never committed, so .githooks/pre-commit never sees them.
+  //
+  // Placed AFTER the no-paths / --allow-empty handling above so it cannot change
+  // that documented contract, and after the fetch so the behind-count is fresh.
+  //
+  // Exempt when cwd IS the primary: then the edits are the caller's own live
+  // work, not someone's abandoned draft. CLAUDE.md sanctions the docs-only
+  // direct-to-main flow there, and /commit runs this gate unconditionally --
+  // without this, the guard would tell an author to discard what they just wrote.
+  const primary = checkPrimaryCheckout(cwd);
+  // realpath both sides: primaryPath is canonicalised, and on macOS a cwd under
+  // /var resolves to /private/var -- comparing raw strings would never match and
+  // the exemption would silently never apply.
+  const here = realpathSync(resolve(cwd));
+  if (here !== primary.status.primaryPath && !primary.ok) {
+    console.error(renderPrimaryCheckout(primary));
+    if (!warn) return 1;
+  }
+
   const worktrees = otherWorktrees(base, cwd, merged);
   const wtBranches = new Set(worktrees.map(w => w.branch).filter((b): b is string => !!b));
   wtBranches.add(branch);

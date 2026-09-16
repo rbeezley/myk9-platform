@@ -32,9 +32,12 @@ import { expect, type Page } from '@playwright/test';
 import { resolveFixtureEmail } from '../../fixtures/fixtureEmail';
 import { assertAddressIsLive } from '../../fixtures/retiredFixtureDomain';
 import {
+  classifySignInFailure,
   describeSignInFailure,
   SUPABASE_AUTH_TOKEN_KEY_PATTERN,
+  type SignInFailureVerdict,
 } from '../../e2e-helpers/signInDiagnostics';
+import { decideSignInRetry, describeSignInRetry } from '../../e2e-helpers/signInRetryPolicy';
 
 export interface TestUser {
   email: string;
@@ -207,37 +210,34 @@ async function gotoSignIn(page: Page, signInPath: string): Promise<void> {
   }
 }
 
+/** A failed pass over the sign-in form, described and classified but not yet thrown. */
+interface SignInAttemptFailure {
+  verdict: SignInFailureVerdict;
+  message: string;
+  cause: unknown;
+}
+
 /**
- * Drive the real SmartSignInPage (Phase 1b "single email-or-passcode front
- * door") two-step flow:
+ * One pass over the real SmartSignInPage (Phase 1b "single email-or-passcode
+ * front door") two-step flow:
  *   1. fill the single credential field (`credential-input`) with the email
  *   2. Continue — this reveals the password step *in place* (the password field
  *      does not exist in the DOM until this transition)
  *   3. fill `password-input` and submit (`sign-in-button`)
  *   4. wait for navigation off `/sign-in`
  *
- * This is the one canonical sign-in helper; every spec's local `signIn` and the
- * role wrappers below delegate here so the flow lives in exactly one place.
+ * Returns `null` on success and the classified failure otherwise, so `signIn`
+ * can decide whether another attempt could help (MYK9-541). A credential
+ * REJECTION still throws from here: no retry fixes a wrong password, and the
+ * caller must see that verdict unchanged.
  */
-export async function signIn(
+async function attemptSignIn(
   page: Page,
   email: string,
   password: string,
-  returnTo = '/',
-  options: SignInOptions = {}
-): Promise<void> {
-  if (!email || !password) {
-    throw new Error(`Missing E2E credentials for ${email || 'unknown test user'}`);
-  }
-
-  assertAddressIsLive(email);
-
-  // Default unchanged for the E2E suite; the load harness passes its own budget
-  // because 16 shards authenticate at once and this literal was the only 15s
-  // cliff in a preparation phase whose neighbours already allow 30-90s
-  // (MYK9-463).
-  const navigationTimeoutMs = options.navigationTimeoutMs ?? DEFAULT_SIGN_IN_NAVIGATION_TIMEOUT_MS;
-
+  returnTo: string,
+  navigationTimeoutMs: number
+): Promise<SignInAttemptFailure | null> {
   const params = new URLSearchParams({ returnTo });
   await gotoSignIn(page, `/sign-in?${params.toString()}`);
 
@@ -250,16 +250,16 @@ export async function signIn(
   try {
     await expect(page.getByTestId('password-input')).toBeVisible({ timeout: navigationTimeoutMs });
   } catch (error) {
-    throw new Error(
-      describeSignInFailure({
+    return failureFrom(
+      {
         email,
         budgetMs: navigationTimeoutMs,
         elapsedMs: Date.now() - passwordStepStartedAt,
         finalUrl: page.url(),
         passwordStepReached: false,
         authTokenPresent: await hasSupabaseSession(page),
-      }),
-      { cause: error }
+      },
+      error
     );
   }
   await page.getByTestId('password-input').fill(password);
@@ -288,8 +288,8 @@ export async function signIn(
   // never returned or returned and left the app slow — opposite fixes. Ask the
   // page which it was before giving up.
   if (typeof signInResult === 'object' && 'error' in signInResult) {
-    throw new Error(
-      describeSignInFailure({
+    return failureFrom(
+      {
         email,
         budgetMs: navigationTimeoutMs,
         elapsedMs: Date.now() - submittedAt,
@@ -302,13 +302,76 @@ export async function signIn(
         authErrorText:
           (await authErrorBanner.textContent({ timeout: 1000 }).catch(() => null))?.trim() ||
           undefined,
-      }),
-      { cause: signInResult.error }
+      },
+      signInResult.error
     );
   }
 
   await page.waitForLoadState('domcontentloaded');
   await expect(page).not.toHaveURL(/\/sign-in/);
+  return null;
+}
+
+function failureFrom(
+  snapshot: Parameters<typeof describeSignInFailure>[0],
+  cause: unknown
+): SignInAttemptFailure {
+  return {
+    verdict: classifySignInFailure(snapshot),
+    message: describeSignInFailure(snapshot),
+    cause,
+  };
+}
+
+/**
+ * This is the one canonical sign-in helper; every spec's local `signIn` and the
+ * role wrappers below delegate here so the flow lives in exactly one place.
+ *
+ * A sign-in that ran out of time with no session token (`auth-never-returned`)
+ * is GoTrue latency under concurrent load, not a verdict on the diff, so it is
+ * retried inside a bounded, logged ladder — see `signInRetryPolicy` for which
+ * verdicts qualify and why the load harness's own budget excludes it.
+ */
+export async function signIn(
+  page: Page,
+  email: string,
+  password: string,
+  returnTo = '/',
+  options: SignInOptions = {}
+): Promise<void> {
+  if (!email || !password) {
+    throw new Error(`Missing E2E credentials for ${email || 'unknown test user'}`);
+  }
+
+  assertAddressIsLive(email);
+
+  // Default unchanged for the E2E suite; the load harness passes its own budget
+  // because 16 shards authenticate at once and this literal was the only 15s
+  // cliff in a preparation phase whose neighbours already allow 30-90s
+  // (MYK9-463).
+  const navigationTimeoutMs = options.navigationTimeoutMs ?? DEFAULT_SIGN_IN_NAVIGATION_TIMEOUT_MS;
+  const ladderStartedAt = Date.now();
+
+  for (let attemptsMade = 1; ; attemptsMade += 1) {
+    const failure = await attemptSignIn(page, email, password, returnTo, navigationTimeoutMs);
+    if (!failure) return;
+
+    const state = {
+      attemptsMade,
+      elapsedMs: Date.now() - ladderStartedAt,
+      attemptBudgetMs: navigationTimeoutMs,
+    };
+    const decision = decideSignInRetry(failure.verdict, state);
+
+    if (!decision.retry) {
+      const ladder =
+        attemptsMade > 1 ? ` Gave up after ${attemptsMade} attempts: ${decision.reason}.` : '';
+      throw new Error(`${failure.message}${ladder}`, { cause: failure.cause });
+    }
+
+    console.warn(describeSignInRetry(email, failure.verdict, { ...state, ...decision }));
+    await page.waitForTimeout(decision.delayMs);
+  }
 }
 
 /**

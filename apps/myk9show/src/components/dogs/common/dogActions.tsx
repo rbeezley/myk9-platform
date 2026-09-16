@@ -3,7 +3,7 @@
  *
  * Bulk-only: the only consumer is `DogsBulkActionsBar`, mounted by
  * `BrowseDogsPage` in table view only (gated on
- * `canBulkManageDogs && viewMode === 'table'`) via `toBulkActions`.
+ * `canBulkManageDogs && viewMode === 'table' && selectedCount > 0`) via `toBulkActions`.
  * `DogsGridView` has no selection props and never renders it. There is no
  * per-row menu on /dogs (MYK9-587 decided against one); `DogListRow`, the
  * catalog's former row consumer, was deleted as dead code (MYK9-588). Status

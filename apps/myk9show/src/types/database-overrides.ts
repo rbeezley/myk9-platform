@@ -12,6 +12,14 @@
  * overwritten by the next regeneration. This overlay is applied on top instead,
  * so regenerating the package file keeps the correction.
  *
+ * CONSUMING IT. App code must import `Database` from `@/types/supabase`, which
+ * re-exports the overlaid type. A direct `import type { Database } from
+ * '@myk9/supabase'` inside `apps/myk9show` bypasses this file and sees the
+ * un-widened generated type — it will compile, and then reject the very NULL the
+ * server expects. (Two direct imports exist today, `store/cartStore.types.ts:7`
+ * and `test/database/classesJudgeNameRetired.source.test.ts:5`; both use only
+ * `Tables<…>` off it, which no correction touches, so they are harmless.)
+ *
  * ADDING ONE. Widen only the specific field whose real contract the generator
  * cannot see, never a whole `Args`, and say in a comment what NULL MEANS in the
  * SQL and which migration establishes it. A widening is safe for existing

@@ -1,5 +1,5 @@
 import React, { ReactNode } from 'react';
-import StandardDialog from '@/components/common/StandardDialog';
+import { CommonDialog } from '@/components/common/CommonDialog';
 import DialogFooterButtons from '@/components/common/DialogFooterButtons';
 
 export interface BaseEntityDialogProps {
@@ -56,36 +56,43 @@ export function BaseEntityDialog({
   };
 
   return (
-    <StandardDialog
+    // CommonDialog directly, NOT StandardDialog: the actions must go in
+    // CommonDialog's `footer` slot, which sits OUTSIDE the scrolling body and is
+    // `shrink-0`. StandardDialog builds its own footer from its own props and
+    // only offers `hideSave` to suppress it, so reaching the slot through it
+    // meant rendering the buttons inside `children` instead — i.e. inside the
+    // scroll region.
+    //
+    // MYK9-584: that is why a tall delete dialog hid its own primary action. On
+    // a 720px-high viewport the blocked-delete dialog capped at 90vh (648px)
+    // while "Delete anyway" landed at y=737 — below the viewport AND below the
+    // dialog's own bottom edge, with no scroll affordance. Measured in
+    // dogsBulkDeleteBlocked.spec.ts, which now asserts the button is in view.
+    <CommonDialog
       open={open}
       onClose={() => onOpenChange(false)}
-      onSave={handleSubmit}
       title={title}
       titleIcon={titleIcon}
       description={description}
       {...(maxWidth !== undefined && { maxWidth })}
-      hideSave={true}
+      footer={
+        showFooter ? (
+          <DialogFooterButtons
+            onCancel={handleCancel}
+            onSubmit={handleSubmit}
+            cancelLabel={cancelLabel}
+            saveLabel={submitLabel}
+            isSubmitting={isSubmitting}
+            {...(submitDisabled && { saveButtonProps: { disabled: true } })}
+            showIcons={
+              submitLabel !== 'Delete' && !submitLabel?.toString().toLowerCase().includes('delete')
+            }
+            {...(destructive !== undefined && { destructive })}
+          />
+        ) : null
+      }
     >
-      <div className="space-y-4">
-        {children}
-        {showFooter && (
-          <div className="mt-6">
-            <DialogFooterButtons
-              onCancel={handleCancel}
-              onSubmit={handleSubmit}
-              cancelLabel={cancelLabel}
-              saveLabel={submitLabel}
-              isSubmitting={isSubmitting}
-              {...(submitDisabled && { saveButtonProps: { disabled: true } })}
-              showIcons={
-                submitLabel !== 'Delete' &&
-                !submitLabel?.toString().toLowerCase().includes('delete')
-              }
-              {...(destructive !== undefined && { destructive })}
-            />
-          </div>
-        )}
-      </div>
-    </StandardDialog>
+      <div className="space-y-4">{children}</div>
+    </CommonDialog>
   );
 }

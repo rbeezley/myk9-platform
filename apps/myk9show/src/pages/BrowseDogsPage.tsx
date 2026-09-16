@@ -9,6 +9,8 @@ import { useBrowseDogsData, type DogFilters } from '@/hooks/useBrowseDogsData';
 import { useBulkSelection } from '@/hooks/useBulkSelection';
 import { DogsGridView, DogsTableView } from '@/components/dogs/browse';
 import { DogsBulkActionsBar } from '@/components/dogs/browse/DogsBulkActionsBar';
+import { BlockedDogDeleteDialog } from '@/components/dogs/browse/BlockedDogDeleteDialog';
+import { useBlockedDogDeletes } from '@/components/dogs/browse/useBlockedDogDeletes';
 import { BrowseDogsSkeleton } from '@/components/common/SkeletonLoaders';
 import { AddDogPanel } from '@/components/panels/edit';
 import type { Dog as DogType } from '@/types/dog-types';
@@ -104,6 +106,11 @@ const BrowseDogsPage: React.FC = () => {
     getItemId: (dog: DogType) => dog.id,
     pruneToItems: true,
   });
+
+  // Owned by the PAGE, not the bulk bar. The optimistic delete prunes the
+  // selection, which unmounts the bar — a dialog owned there never rendered
+  // (MYK9-584). See useBlockedDogDeletes for the full reasoning.
+  const blockedDeletes = useBlockedDogDeletes(dogSelection.clearSelection);
 
   // FilterChips definitions
   const chipFilters: ChipFilterDefinition[] = useMemo(
@@ -357,13 +364,36 @@ const BrowseDogsPage: React.FC = () => {
               selectedDogs={dogSelection.selectedItems}
               onClear={dogSelection.clearSelection}
               canDelete={canDeleteDogs}
-              canForceDelete={canForceDeleteDogs}
+              onBlockedDogs={blockedDeletes.reportBlocked}
             />
           )}
         </>
       )}
 
       {/* Create Dog Panel */}
+      {/* Gated ONLY on its own state, and deliberately outside the
+          loading/error fragment above. Anchoring it there was still wrong: a
+          failed delete now invalidates the dogs query, and if that refetch
+          errors, `hasError` flips and would unmount the very report explaining
+          the failure. This is the report of last resort — nothing about the
+          list's health may take it away (MYK9-584). */}
+      {blockedDeletes.blockedDogs.length > 0 && (
+        <BlockedDogDeleteDialog
+          // Keyed by reason so the acknowledgement RE-ARMS when a failed
+          // override re-seeds the list. Without the remount the checkbox stays
+          // ticked and "Delete anyway" is one click, repeatable, with no new
+          // information (MYK9-584 review).
+          key={blockedDeletes.reason}
+          dogs={blockedDeletes.blockedDogs}
+          reason={blockedDeletes.reason}
+          open
+          onClose={blockedDeletes.dismiss}
+          onForceDelete={blockedDeletes.forceDelete}
+          isSubmitting={blockedDeletes.isSubmitting}
+          canForceDelete={canForceDeleteDogs}
+        />
+      )}
+
       <AddDogPanel
         open={showCreateDogPanel}
         onClose={closeCreateDogPanel}

@@ -12,17 +12,12 @@ import { Button } from '@/components/ui/button';
 import { DeleteConfirmationDialog } from '@/components/base';
 import { RowActionMenu, toBulkActions } from '@/components/ui/RowActionMenu';
 import { useAuthContext } from '@/hooks/useAuthContext';
-import {
-  useUpdateDogMutation,
-  useDeleteDogMutation,
-  useForceDeleteDogMutation,
-} from '@/hooks/queries/useDogsDatabase';
+import { useUpdateDogMutation, useDeleteDogMutation } from '@/hooks/queries/useDogsDatabase';
 import { useBulkDispatch } from '@/hooks/useBulkDispatch';
 import { getDogDisplayName, type Dog, type DogStatus } from '@/types/dog-types';
 import { dogActions } from '@/components/dogs/common/dogActions';
 import { useRegisterActionBar } from '@/hooks/useRegisterActionBar';
 import { isBlockedByPaidOrScoredEntries } from '@/components/dogs/common/blockedDogDelete';
-import { BlockedDogDeleteDialog } from './BlockedDogDeleteDialog';
 
 interface DogsBulkActionsBarProps {
   selectedDogs: Dog[];
@@ -34,29 +29,24 @@ interface DogsBulkActionsBarProps {
    */
   canDelete?: boolean;
   /**
-   * Whether the viewer may override the server's paid/scored refusal (platform
-   * admin). Only decides whether the override is OFFERED — `force_delete_dog`
-   * enforces `is_platform_admin()` itself.
+   * Reports the dogs the server refused over paid/scored entries, so the PAGE
+   * can show them. This bar must not own that dialog: the optimistic delete
+   * prunes the selection, the page unmounts this component, and a dialog owned
+   * here would vanish before it rendered (MYK9-584).
    */
-  canForceDelete?: boolean;
+  onBlockedDogs?: (dogs: Dog[]) => void;
 }
 
 export function DogsBulkActionsBar({
   selectedDogs,
   onClear,
   canDelete = false,
-  canForceDelete = false,
+  onBlockedDogs,
 }: DogsBulkActionsBarProps) {
   const { user } = useAuthContext();
   const updateDogMutation = useUpdateDogMutation();
   const deleteDogMutation = useDeleteDogMutation();
-  const forceDeleteDogMutation = useForceDeleteDogMutation();
   const [pendingDelete, setPendingDelete] = useState<Dog[] | null>(null);
-  // Dogs the server refused over paid/scored entries. A bulk delete only learns
-  // this AFTER attempting them, so this is populated from the dispatch outcome
-  // and shown in a persistent dialog rather than a toast that disappears
-  // before the names can be read.
-  const [blockedDogs, setBlockedDogs] = useState<Dog[]>([]);
   // The bar is `fixed`, so it takes no room in flow and lands on top of the
   // last thing on the page — the pagination controls. Reserve its measured
   // height back in normal flow instead of hard-coding a `pb-*`: the bar wraps
@@ -76,12 +66,12 @@ export function DogsBulkActionsBar({
     selectedDogsRef.current = selectedDogs;
   }, [selectedDogs]);
 
-  // The bar chrome is pointless with nothing selected, but the blocked-delete
-  // dialog must outlive the selection: a delete that clears every selected dog
-  // except the blocked ones would otherwise take the only path to the override
-  // with it. So this renders conditionally INSIDE the tree rather than as an
-  // early return.
-  const hasSelection = selectedDogs.length > 0;
+  // Nothing selected means nothing to act on. This is a plain early return
+  // again: the blocked-delete dialog that once had to outlive the selection now
+  // lives on the page (MYK9-584), so this component owns no state that must
+  // survive its own unmount.
+  if (selectedDogs.length === 0) return null;
+
   const count = selectedDogs.length;
 
   const handleBulkSetStatus = (dogs: Dog[], status: DogStatus) => {
@@ -122,26 +112,19 @@ export function DogsBulkActionsBar({
       },
       {
         onFullSuccess: onClear,
-        // Claim the paid/scored refusals so they leave the toast entirely —
-        // BlockedDogDeleteDialog below reports them instead, persistently and
-        // with the override in reach. Every other failure keeps its toast.
-        claimFailure: (_dog, error) => isBlockedByPaidOrScoredEntries(error),
-        // Fed by retries too, so a retried failure that comes back blocked
-        // still reaches the dialog rather than vanishing.
-        onClaimedFailures: setBlockedDogs,
+        // Both halves or neither. Claiming strips the dog names and the reason
+        // from the toast's detail lines because the page's dialog carries them —
+        // so without a listener the user would get a bare count and no recourse.
+        // The two options are wired together, never one-sided (MYK9-584).
+        ...(onBlockedDogs
+          ? {
+              claimFailure: (_dog: Dog, error: unknown) => isBlockedByPaidOrScoredEntries(error),
+              // Fires on retries too, so a retried failure that comes back
+              // blocked still reaches the page rather than vanishing.
+              onClaimedFailures: onBlockedDogs,
+            }
+          : {}),
       }
-    );
-  };
-
-  const confirmForceDelete = async () => {
-    const dogs = blockedDogs;
-    setBlockedDogs([]);
-    await deleteDispatch.run(
-      dogs,
-      async d => {
-        await forceDeleteDogMutation.mutateAsync({ id: d.id });
-      },
-      { onFullSuccess: onClear }
     );
   };
 
@@ -159,35 +142,26 @@ export function DogsBulkActionsBar({
 
   return (
     <>
-      {hasSelection && (
-        <>
-          <div aria-hidden="true" style={{ height: barHeight }} />
+      <div aria-hidden="true" style={{ height: barHeight }} />
 
-          <div
-            ref={actionBarRef}
-            className="fixed bottom-0 left-0 right-0 z-50 border-t bg-background p-3 shadow-lg"
-            role="region"
-            aria-label="Bulk dog actions"
-          >
-            <div className="container mx-auto flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
-              <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
-                <span className="text-sm font-medium">
-                  {count} dog{count === 1 ? '' : 's'} selected
-                </span>
-                <Button variant="ghost" size="sm" onClick={onClear} disabled={isBusy}>
-                  Clear
-                </Button>
-              </div>
-              <RowActionMenu
-                actions={actions}
-                size="touch"
-                label="Bulk actions"
-                disabled={isBusy}
-              />
-            </div>
+      <div
+        ref={actionBarRef}
+        className="fixed bottom-0 left-0 right-0 z-50 border-t bg-background p-3 shadow-lg"
+        role="region"
+        aria-label="Bulk dog actions"
+      >
+        <div className="container mx-auto flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+            <span className="text-sm font-medium">
+              {count} dog{count === 1 ? '' : 's'} selected
+            </span>
+            <Button variant="ghost" size="sm" onClick={onClear} disabled={isBusy}>
+              Clear
+            </Button>
           </div>
-        </>
-      )}
+          <RowActionMenu actions={actions} size="touch" label="Bulk actions" disabled={isBusy} />
+        </div>
+      </div>
 
       <DeleteConfirmationDialog
         open={pendingDelete !== null}
@@ -202,19 +176,6 @@ export function DogsBulkActionsBar({
         isDeleting={deleteDispatch.isBusy}
         warningText="Deleting these dogs also removes their show entries, cart items and waitlist spots. This action cannot be undone."
       />
-
-      {/* Mounted only while there are blocked dogs, so its acknowledgement
-          checkbox re-arms on every new batch without a reset effect. */}
-      {blockedDogs.length > 0 && (
-        <BlockedDogDeleteDialog
-          dogs={blockedDogs}
-          open
-          onClose={() => setBlockedDogs([])}
-          onForceDelete={() => void confirmForceDelete()}
-          isSubmitting={deleteDispatch.isBusy}
-          canForceDelete={canForceDelete}
-        />
-      )}
     </>
   );
 }

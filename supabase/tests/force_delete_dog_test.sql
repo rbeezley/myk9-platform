@@ -141,16 +141,31 @@ VALUES
   ('00000000-0000-0000-0000-0000000fd052', 'Runner Up', 'Border Collie', '00000000-0000-0000-0000-0000000fd011'),
   ('00000000-0000-0000-0000-0000000fd053', 'Third In Line', 'Border Collie', '00000000-0000-0000-0000-0000000fd011');
 
+-- EVERY dog that gets an entry needs a registration number matching the trial's
+-- registry: trg_entries_require_dog_registration (BEFORE INSERT on entries)
+-- raises 23514 otherwise, and the trial here has no registry_id so it defaults
+-- to AKC. fd053 is registered too even though it only ever sits on a waitlist,
+-- so a later arm can give it an entry without re-learning this.
 INSERT INTO public.dog_registrations (dog_id, organization, registration_number, registered_name)
-VALUES (
-  '00000000-0000-0000-0000-0000000fd051',
-  'AKC',
-  'SW999101',
-  'Paid Up Formally'
-);
+VALUES
+  ('00000000-0000-0000-0000-0000000fd051', 'AKC', 'SW999101', 'Paid Up Formally'),
+  ('00000000-0000-0000-0000-0000000fd052', 'AKC', 'SW999102', 'Runner Up Formally'),
+  ('00000000-0000-0000-0000-0000000fd053', 'AKC', 'SW999103', 'Third In Line Formally');
 
 -- The ONLINE-paid entry: a real Stripe payment intent that the override strands
 -- captured. The audit row has to name it, because nothing else will.
+--
+-- Seeded AS service_role, because that is the only caller allowed to create
+-- this row. trg_entries_protect_payment_fields_insert
+-- (20260611270000_entries_protect_payment_fields_insert.sql) refuses BOTH
+-- halves of this shape for anyone else — `payment_method='online'` with
+-- `payment_status='paid'` (rule A), and a non-null `stripe_payment_intent_id`
+-- (rule B) — and its only escape is `current_setting('role') = 'service_role'`.
+-- Seeding it any other way would mean weakening a guard that exists to stop a
+-- forged paid-online row inflating the next payout. The role is dropped again
+-- immediately; every other fixture below runs as the test runner.
+SET LOCAL ROLE service_role;
+
 INSERT INTO public.entries (
   id, class_id, trial_id, show_id, dog_id, payment_status, payment_method,
   stripe_payment_intent_id, entry_fee
@@ -162,10 +177,27 @@ VALUES (
   '00000000-0000-0000-0000-0000000fd021',
   '00000000-0000-0000-0000-0000000fd051',
   'paid',
-  'card',
+  'online',
   'pi_myk9596_forcedelete',
   35.00
 );
+
+RESET ROLE;
+
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM public.entries
+    WHERE id = '00000000-0000-0000-0000-0000000fd081'
+      AND payment_status = 'paid'
+      AND payment_method = 'online'
+      AND stripe_payment_intent_id = 'pi_myk9596_forcedelete'
+  ) THEN
+    RAISE EXCEPTION
+      'FIXTURE the online-paid entry was not seeded with its payment intent — the audit assertion would pass vacuously';
+  END IF;
+END;
+$$;
 
 -- The SCORED half. fd083/fd084 are the MANUAL class: placements are written by
 -- hand, exactly as a secretary who pinned the class would have left them, and

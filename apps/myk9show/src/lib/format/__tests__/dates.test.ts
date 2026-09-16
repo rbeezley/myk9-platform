@@ -6,6 +6,7 @@ import {
   formatLongDate,
   formatMonthDay,
   formatWeekdayMonthDay,
+  formatWeekdayLongMonthDay,
   formatShortCalendarDate,
   formatShortDate,
   formatEntryDateTime,
@@ -101,6 +102,7 @@ describe('date-only supporting styles', () => {
       expect(formatLongDate('2026-08-01')).toBe('August 1, 2026');
       expect(formatMonthDay('2026-08-01')).toBe('Aug 1');
       expect(formatWeekdayMonthDay('2026-08-01')).toBe('Sat, Aug 1');
+      expect(formatWeekdayLongMonthDay('2026-08-01')).toBe('Saturday, Aug 1');
     }
   );
 
@@ -110,6 +112,7 @@ describe('date-only supporting styles', () => {
     expect(formatLongDate(value)).toBe('August 1, 2026');
     expect(formatMonthDay(value)).toBe('Aug 1');
     expect(formatWeekdayMonthDay(value)).toBe('Sat, Aug 1');
+    expect(formatWeekdayLongMonthDay(value)).toBe('Saturday, Aug 1');
   });
 
   it('returns an empty string for missing or unparseable input', () => {
@@ -119,6 +122,11 @@ describe('date-only supporting styles', () => {
     expect(formatLongDate('not-a-date')).toBe('');
     expect(formatMonthDay('not-a-date')).toBe('');
     expect(formatWeekdayMonthDay('not-a-date')).toBe('');
+    expect(formatWeekdayLongMonthDay('not-a-date')).toBe('');
+    expect(formatWeekdayLongMonthDay(undefined)).toBe('');
+    expect(formatWeekdayLongMonthDay(null)).toBe('');
+    expect(formatWeekdayLongMonthDay('')).toBe('');
+    expect(formatWeekdayLongMonthDay('2026-13-45')).toBe('');
   });
 });
 

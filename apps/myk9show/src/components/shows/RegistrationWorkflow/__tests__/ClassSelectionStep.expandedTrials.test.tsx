@@ -170,6 +170,29 @@ describe('ClassSelectionStep — expandedTrials delayed hydration', () => {
     expect(await screen.findByText('Container')).toBeInTheDocument();
   });
 
+  /**
+   * MYK9-564 — the step must hand each TrialSection its OWN day, so a
+   * multi-day show can be entered by day. Asserted at the STEP, not on the
+   * component: a unit test that passes `trialDate` by hand stays green even
+   * if the one line wiring `trial.trialDate` through is deleted (the
+   * `last-hop-drop` lesson). The fixtures are 2026-05-01 (Friday) and
+   * 2026-05-02 (Saturday) — two different days, which is the whole point.
+   */
+  it('gives each trial row its own day of the week', async () => {
+    setupBaseMocks([TRIAL_ID_A, TRIAL_ID_B]);
+    render(
+      <ClassSelectionStep
+        selectedDogs={[DOG_ID]}
+        classSelections={[]}
+        onSelectionChange={vi.fn()}
+        showId={SHOW_ID}
+      />
+    );
+
+    expect(await screen.findByText('Friday, May 1')).toBeInTheDocument();
+    expect(screen.getByText('Saturday, May 2')).toBeInTheDocument();
+  });
+
   it('does not collapse already-expanded trials when new trials are added', async () => {
     // Mount with one trial already loaded
     setupBaseMocks([TRIAL_ID_A]);

@@ -120,7 +120,7 @@ export const TrialSection: React.FC<TrialSectionProps> = ({
         <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-left">
           <ChevronRight
             className={cn(
-              'h-4 w-4 text-muted-foreground transition-transform duration-200',
+              'h-4 w-4 shrink-0 text-muted-foreground transition-transform duration-200',
               isExpanded && 'rotate-90'
             )}
           />

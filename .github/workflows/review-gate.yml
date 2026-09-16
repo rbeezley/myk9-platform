@@ -151,10 +151,11 @@ jobs:
           # from the event payload reached the POST unvalidated — a value like
           # `../../../evil` became `POST repos/<repo>/statuses/../../../evil`.
           #
-          # Exactly 40 lowercase hex, charset AND length: the charset test
-          # alone passes a 40-char non-hex string, and the length test alone
-          # passes a FRAGMENT such as `abc` (which would POST to
-          # `statuses/abc`). Both halves are load-bearing.
+          # Exactly 40 lowercase hex, charset AND length. Both halves are
+          # load-bearing, and each passes what the other catches: a
+          # charset-only check accepts a FRAGMENT such as `abc` (hex, but 3
+          # characters, and would POST to `statuses/abc`), while a length-only
+          # check accepts 40 characters of `g`, or a 40-character traversal.
           case "$sha" in *[!0-9a-f]* | '') sha='' ;; esac
           [ "${#sha}" -eq 40 ] || sha=''
           if [ -z "$sha" ]; then

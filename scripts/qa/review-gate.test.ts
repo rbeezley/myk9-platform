@@ -1853,8 +1853,10 @@ describe('the workflow’s crash-fallback step', () => {
     const { ghCalls } = runFallback({ ...base, HEAD_SHA: '', STUB_GH_VIEW_SHA: OLD_HEAD });
     const views = ghCalls.filter(isPrView);
     expect(views).toHaveLength(1);
-    expect(views[0]).toContain('--json');
-    expect(views[0]).toContain('headRefOid');
+    // ADJACENCY, not mere presence: `--json a,b --jq headRefOid` contains both
+    // tokens and asks for the wrong thing (round-3 review, P3).
+    const viewArgs = views[0] ?? [];
+    expect(viewArgs[viewArgs.indexOf('--json') + 1]).toBe('headRefOid');
     const post = ghCalls.find(isPost);
     if (!post) throw new Error(`no POST in: ${JSON.stringify(ghCalls)}`);
     expect(post).toContain(`repos/${FAKE_REPO}/statuses/${OLD_HEAD}`);
@@ -1957,10 +1959,13 @@ describe('the workflow’s crash-fallback step', () => {
     // indent, and the job is the last thing in the file.
     const chunks = body.split(/^ {6}- /m).slice(1);
     return chunks.map(chunk => {
-      const name = chunk.match(/^(?:name: )?(.+)$/m)?.[1];
+      // ONLY a real `name:` key counts. Falling back to the chunk's first line
+      // made every step look named — an unnamed `- uses: actions/cache@v4`
+      // yielded the name "uses: actions/cache@v4", truthy, so the "every step
+      // is named" assertion could never fire (round-3 review, P3).
       const timeout = chunk.match(/^ {8}timeout-minutes: (\d+)$/m)?.[1];
       return {
-        name: chunk.startsWith('name: ') ? chunk.slice('name: '.length).split('\n')[0] : name,
+        name: chunk.startsWith('name: ') ? chunk.slice('name: '.length).split('\n')[0] : undefined,
         timeout: timeout === undefined ? undefined : Number(timeout),
       };
     });
@@ -1977,12 +1982,22 @@ describe('the workflow’s crash-fallback step', () => {
     // have reddened it. This asserts the invariant instead of the count.
     const steps = parseJobSteps();
     expect(steps.length).toBeGreaterThanOrEqual(4);
-    for (const step of steps) {
-      expect(step.name).toBeTruthy();
-      expect(step.timeout, `step "${step.name ?? '(unnamed)'}" has no timeout-minutes`).toBeTypeOf(
+    steps.forEach((step, i) => {
+      // Named, so the by-name assertion below actually covers it: an unnamed
+      // step is invisible to that test and could carry any timeout at all.
+      expect(step.name, `step ${i} has no \`name:\` key`).toBeTypeOf('string');
+      expect(step.timeout, `step "${step.name ?? `#${i}`}" has no timeout-minutes`).toBeTypeOf(
         'number'
       );
-    }
+    });
+    // Every step the job declares is one this file knows about, so a step
+    // added without a by-name expectation below cannot slip through.
+    expect(steps.map(step => step.name)).toEqual([
+      'Check out the base branch',
+      'Set up Node',
+      'Post Review gate status for the PR head',
+      STEP_NAME,
+    ]);
   });
 
   it('gives each step the timeout it is supposed to have, by name', () => {

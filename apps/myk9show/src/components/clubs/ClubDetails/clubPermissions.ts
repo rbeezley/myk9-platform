@@ -40,6 +40,22 @@ export function hasClubAdminScope(scopes: RoleScope[] | undefined, clubId: strin
 }
 
 /**
+ * True when the signed-in user already holds an ACTIVE club-scoped
+ * `secretary` grant for this club — i.e. appointment, mirroring
+ * `is_trial_secretary(check_club_id)` (migration 20260830210000). Used to
+ * hide the "Request show access" affordance for someone who already has it;
+ * do not use this for authorization decisions, which stay server-side.
+ */
+export function hasClubSecretaryScope(scopes: RoleScope[] | undefined, clubId: string): boolean {
+  return (scopes ?? []).some(
+    scope =>
+      scope.scopeType === ScopeType.CLUB &&
+      scope.scopeId === clubId &&
+      scope.roleId === UserRole.SECRETARY
+  );
+}
+
+/**
  * Pure permission helper — extracted so it can be unit-tested without mocking
  * the auth context, club store, etc. Mirrors the RLS policies in
  * supabase/migrations/016_fix_permissive_rls_policies.sql.

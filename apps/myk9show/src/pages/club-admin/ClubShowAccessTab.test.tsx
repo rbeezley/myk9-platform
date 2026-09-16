@@ -15,6 +15,7 @@ import { render } from '@/test/utils/testUtils';
 import { ClubShowAccessTab, AppointSecretaryDialog } from './ClubShowAccessTab';
 import type { ClubShowManager } from '@/services/database/club-memberships';
 import type { User } from '@/types/user-types';
+import type { RoleRequest } from '@/services/database/role-requests';
 
 const memberSecretary: ClubShowManager = {
   personId: 'p-member',
@@ -40,6 +41,28 @@ const lapsedSecretary: ClubShowManager = {
   membershipStatus: 'lapsed',
 };
 
+const pendingRequest: RoleRequest = {
+  id: 'request-1',
+  authUserId: 'auth-1',
+  personId: 'person-1',
+  requestedRole: 'secretary',
+  requestedScope: 'club',
+  clubId: 'club-1',
+  clubName: 'Heartland Scent Work Club',
+  showId: null,
+  status: 'pending',
+  requesterNote: 'I run entries for this club at in-person shows.',
+  reviewerNote: null,
+  reviewedBy: null,
+  reviewerName: null,
+  reviewerEmail: null,
+  reviewedAt: null,
+  createdAt: new Date().toISOString(),
+  updatedAt: new Date().toISOString(),
+  requesterName: 'Grace Hopper',
+  requesterEmail: 'grace@example.com',
+};
+
 function renderTab(overrides: Partial<React.ComponentProps<typeof ClubShowAccessTab>> = {}) {
   return render(
     <ClubShowAccessTab
@@ -49,6 +72,12 @@ function renderTab(overrides: Partial<React.ComponentProps<typeof ClubShowAccess
       onAppoint={() => {}}
       onRevoke={() => {}}
       upcomingShowCount={0}
+      pendingRequests={[]}
+      requestsUnavailable={false}
+      onRetryRequests={() => {}}
+      onApproveRequest={() => {}}
+      onDenyRequest={() => {}}
+      isSavingRequest={false}
       {...overrides}
     />
   );
@@ -99,6 +128,17 @@ describe('ClubShowAccessTab', () => {
 
     expect(screen.getByRole('status')).toHaveTextContent(/isn't the same as nobody having it/i);
     expect(screen.queryByText(/Nobody is appointed/)).toBeNull();
+  });
+
+  it('still shows pending requests when the SEPARATE managers fetch failed (MYK9-571 round 2, P2-1)', async () => {
+    // The pending-requests section has its own unavailable/retry handling and is fed
+    // by a different query than managers — a managers-fetch failure must not hide it,
+    // or the tab's own pending-count badge would be advertising a section that never
+    // renders.
+    renderTab({ unavailable: true, managers: [], pendingRequests: [pendingRequest] });
+
+    expect(screen.getByRole('status')).toHaveTextContent(/isn't the same as nobody having it/i);
+    expect(screen.getByText('Grace Hopper')).toBeInTheDocument();
   });
 
   it('warns when a club with upcoming shows has nobody appointed', async () => {

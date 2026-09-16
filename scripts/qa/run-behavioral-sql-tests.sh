@@ -47,6 +47,7 @@ TEST_FILES=(
   "$TEST_DIR/stripe_ledger_fks_restrict_test.sql"
   "$TEST_DIR/create_show_with_children_tenant_isolation_test.sql"
   "$TEST_DIR/entries_insert_show_scope_test.sql"
+  "$TEST_DIR/club_routed_role_requests_test.sql"
   "$TEST_DIR/entries_manager_policy_hashable_test.sql"
   "$TEST_DIR/entry_requires_dog_registration_test.sql"
   "$TEST_DIR/anon_tv_entry_soft_delete_test.sql"

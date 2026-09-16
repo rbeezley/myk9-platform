@@ -10,6 +10,7 @@ import type { DbEntryInsert, DbEntryUpdate } from '../../../types/database-mappi
 import type { EntryStatus } from '@/types/entry-lifecycle';
 import { rejectEntry, setEntryLifecycleStatus } from './lifecycle';
 import { withdrawOwnEntry } from './withdrawOwnEntry';
+import { updateOwnEntryJumpHeight } from './updateOwnEntryJumpHeight';
 import {
   AUTHENTICATED_ENTRY_READ_COLUMNS,
   ENTRY_WITH_STANDARD_RELATIONS_SELECT,
@@ -172,44 +173,26 @@ export const createMultipleEntries = async (entriesData: DbEntryInsert[]) => {
   }
 };
 
-// Update entry details (jump height, handler, etc.)
-export const updateEntryDetails = async (params: {
-  entryId: string;
-  updates: {
-    entry_status?: string;
-    jump_height?: string;
-    handler?: string;
-  };
-}) => {
-  const startTime = Date.now();
-  const { entryId, updates } = params;
-
-  try {
-    const { data, error } = await supabase
-      .from('entries')
-      .update({
-        ...updates,
-        updated_at: new Date().toISOString(),
-      })
-      .eq('id', entryId)
-      .select(AUTHENTICATED_ENTRY_READ_COLUMNS)
-      .single();
-
-    const duration = Date.now() - startTime;
-    logQuery('entries', 'update_details', duration, error?.message);
-
-    if (error) {
-      throw createDatabaseError(error, 'entries', 'update_details');
-    }
-
-    return { data, error: null };
-  } catch (error) {
-    const duration = Date.now() - startTime;
-    const dbError = createDatabaseError(error, 'entries', 'update_details');
-    logQuery('entries', 'update_details', duration, dbError.message);
-    return { data: null, error: dbError };
-  }
-};
+/**
+ * Update the jump height on an entry — MYK9-561.
+ *
+ * NOT a direct UPDATE any more. `entries` has one UPDATE policy,
+ * `entries_update`, whose USING and WITH CHECK are both
+ * `can_manage_show(show_id)`, so an exhibitor's UPDATE matched zero rows and
+ * `.single()` reported PGRST116 as "Failed to update jump height". The write now
+ * goes through the `update_own_entry_jump_height` SECURITY DEFINER RPC, which
+ * admits BOTH the show manager (restating `entries_update`) and the entry's own
+ * exhibitor — the same shape as `updateEntryHandler` below, called by the same
+ * Save Changes handler.
+ *
+ * The `updates` bag is gone deliberately: the RPC's column allow-list is its
+ * signature, so a general-purpose `{ entry_status?, handler?, jump_height? }`
+ * parameter would promise writes it cannot perform. `entry_status` transitions
+ * belong to `setEntryLifecycleStatus` / `withdrawOwnEntry`, and `handler` to
+ * `updateEntryHandler`.
+ */
+export const updateEntryDetails = async (params: { entryId: string; jumpHeight: string }) =>
+  updateOwnEntryJumpHeight(params.entryId, params.jumpHeight);
 
 // Update entry handler through an RPC because entries_update RLS only permits
 // show managers. The RPC preserves exhibitor owner/co-owner/handler scope, and

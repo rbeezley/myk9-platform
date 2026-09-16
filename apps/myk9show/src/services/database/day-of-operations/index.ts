@@ -19,7 +19,6 @@ export {
   pullEntry,
   getPullableEntries,
   getPulledEntries,
-  requestPull,
   getPendingPullRequests,
   approvePullRequest,
   denyPullRequest,

@@ -10,9 +10,11 @@ import { Checkbox } from './checkbox';
  * <Check /> icon, so "some selected" was visually indistinguishable from "all
  * selected" (MYK9-590) even though aria-checked correctly reported "mixed".
  *
- * These assertions read the RENDERED svg (its lucide icon class), never a grep over
+ * These assertions read the RENDERED svg (its lucide icon class AND its path's `d`
+ * geometry, both pulled from the live DOM rather than hardcoded), never a grep over
  * the component's source string (CLAUDE.md LESSONS source-text-tests): a class-string
- * assertion would certify a no-op fix.
+ * assertion alone would certify a no-op fix, and a class name is one lucide rename
+ * away from flipping the test for a non-defect — the path geometry cannot.
  */
 describe('Checkbox indeterminate state', () => {
   it('renders a distinct glyph for indeterminate vs. checked, and reports aria-checked="mixed"', () => {
@@ -24,6 +26,8 @@ describe('Checkbox indeterminate state', () => {
     expect(checkedIcon).toHaveClass('lucide-check');
     expect(checkedIcon).not.toHaveClass('lucide-minus');
     expect(checkedBox).toHaveAttribute('aria-checked', 'true');
+    const checkedPathD = checkedIcon?.querySelector('path')?.getAttribute('d');
+    expect(checkedPathD).toBeTruthy();
 
     rerender(<Checkbox checked={false} indeterminate onChange={() => {}} />);
 
@@ -33,9 +37,14 @@ describe('Checkbox indeterminate state', () => {
     expect(indeterminateIcon).toHaveClass('lucide-minus');
     expect(indeterminateIcon).not.toHaveClass('lucide-check');
     expect(indeterminateBox).toHaveAttribute('aria-checked', 'mixed');
+    const indeterminatePathD = indeterminateIcon?.querySelector('path')?.getAttribute('d');
+    expect(indeterminatePathD).toBeTruthy();
 
-    // The two states must never draw the same glyph.
+    // The two states must never draw the same glyph — by class name, which a lucide
+    // rename could accidentally leave unchanged on both branches, AND by the actual
+    // path geometry, which a class-only regression cannot fake.
     expect(indeterminateIcon?.getAttribute('class')).not.toBe(checkedIcon?.getAttribute('class'));
+    expect(indeterminatePathD).not.toBe(checkedPathD);
   });
 
   it('still renders the completed check glyph when fully checked (no indeterminate prop)', () => {

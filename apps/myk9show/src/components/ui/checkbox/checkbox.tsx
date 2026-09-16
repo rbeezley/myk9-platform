@@ -47,21 +47,30 @@ const Checkbox = React.forwardRef<React.ElementRef<typeof CheckboxPrimitive.Root
         <CheckboxPrimitive.Indicator
           className={cn('inline-flex h-full w-full items-center justify-center text-current')}
           keepMounted={false}
-        >
-          {/* Sized from the root's content box, never a literal: box-sizing is
-              border-box, so a caller that shrinks the root (ClassSelectionStep
-              passes h-3.5) leaves a content box 2px smaller than the declared
-              size, and any hardcoded icon overflows it on all four sides.
-              Base UI mounts this indicator on `checked || indeterminate`
-              (CheckboxIndicator.rendered), so a partial selection needs its
-              own glyph — a dash, not the completed-check tick — or it reads
-              as fully selected. */}
-          {indeterminate ? (
-            <Minus className="h-full w-full" />
-          ) : (
-            <Check className="h-full w-full" />
+          // Reads Base UI's own computed `state.indeterminate` (CheckboxIndicatorState,
+          // sourced from the shared root context) rather than this wrapper's raw
+          // `indeterminate` prop: a future CheckboxGroup parent folds in
+          // `groupIndeterminate || indeterminate` at the Root
+          // (checkbox/root/CheckboxRoot.js), so the prop alone would miss a
+          // group-driven indeterminate state and still draw a completed tick.
+          render={(renderProps, state) => (
+            <span {...renderProps}>
+              {/* Sized from the root's content box, never a literal: box-sizing is
+                  border-box, so a caller that shrinks the root (ClassSelectionStep
+                  passes h-3.5) leaves a content box 2px smaller than the declared
+                  size, and any hardcoded icon overflows it on all four sides.
+                  Base UI mounts this indicator on `checked || indeterminate`
+                  (CheckboxIndicator.rendered), so a partial selection needs its
+                  own glyph — a dash, not the completed-check tick — or it reads
+                  as fully selected. */}
+              {state.indeterminate ? (
+                <Minus className="h-full w-full" />
+              ) : (
+                <Check className="h-full w-full" />
+              )}
+            </span>
           )}
-        </CheckboxPrimitive.Indicator>
+        />
       </CheckboxPrimitive.Root>
     );
   }

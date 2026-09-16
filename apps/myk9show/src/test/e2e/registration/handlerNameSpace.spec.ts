@@ -156,12 +156,17 @@ test('the handler name field accepts spaces, hyphens and apostrophes', async ({ 
 
   await expect(field).toHaveValue(HANDLER_NAME);
 
-  // The typeahead list is open on the last typed character and anchors directly
-  // under the field, inside the dialog — it can sit over "Confirm Handler" and
-  // swallow the click. Dismiss it and prove it is gone before confirming.
+  // The typeahead list is usually open on the last typed character and anchors
+  // directly under the field, inside the dialog — it can sit over "Confirm
+  // Handler" and swallow the click. Dismiss it only if it is actually there:
+  // an unconditional Escape reaches the modal dialog instead and closes the
+  // whole thing, and `toBeHidden()` would pass on a listbox that never
+  // rendered, so the guard has to be gated on seeing it first.
   const suggestions = dialog.getByRole('listbox');
-  await field.press('Escape');
-  await expect(suggestions).toBeHidden();
+  if (await suggestions.isVisible()) {
+    await field.press('Escape');
+    await expect(suggestions).toBeHidden();
+  }
 
   await dialog.getByRole('button', { name: 'Confirm Handler' }).click();
   await expect(page.getByText(HANDLER_NAME, { exact: false }).first()).toBeVisible({

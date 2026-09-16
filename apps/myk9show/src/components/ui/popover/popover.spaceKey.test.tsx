@@ -1,7 +1,7 @@
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { Popover, PopoverTrigger, isTextEntryElement } from './popover';
+import { Popover, PopoverTrigger, PopoverContent, isTextEntryElement } from './popover';
 
 /**
  * MYK9-567: Base UI's popover trigger emulates button activation on a
@@ -25,6 +25,33 @@ describe('PopoverTrigger — Space on a text-entry trigger (MYK9-567)', () => {
     const input = screen.getByLabelText('Handler') as HTMLInputElement;
     await userEvent.setup().type(input, 'Mariana Alexander');
     expect(input.value).toBe('Mariana Alexander');
+  }, 20000);
+
+  /**
+   * A native <button> is activated by the browser, not by `useButton`, so that
+   * case alone stays green even if the guard is broadened to swallow Space on
+   * EVERY trigger. This non-native trigger is the one that actually depends on
+   * Base UI's emulation, so it is what fails if the predicate stops
+   * discriminating.
+   */
+  it('still opens the popover from a non-native trigger with Space', async () => {
+    render(
+      <Popover>
+        <PopoverTrigger asChild nativeButton={false}>
+          <div tabIndex={0}>Open</div>
+        </PopoverTrigger>
+        <PopoverContent>
+          <span>Panel</span>
+        </PopoverContent>
+      </Popover>
+    );
+
+    const user = userEvent.setup();
+    await user.tab();
+    expect(screen.getByRole('button', { name: 'Open' })).toHaveFocus();
+    await user.keyboard(' ');
+
+    expect(await screen.findByText('Panel')).toBeVisible();
   }, 20000);
 
   it('still activates a real button trigger with Space', async () => {

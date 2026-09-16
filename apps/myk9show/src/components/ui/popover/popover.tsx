@@ -26,13 +26,7 @@ const TEXT_ENTRY_INPUT_TYPES = new Set([
   'time',
 ]);
 
-/**
- * True when the element is something a person types characters into.
- *
- * Callers pass the event's `target` AND `currentTarget`: the predicate tests the
- * element handed to it, so a trigger that merely CONTAINS an input (rather than
- * being one) is only covered because `target` is checked too.
- */
+/** True when the element is something a person types characters into. */
 export function isTextEntryElement(element: EventTarget | null): boolean {
   if (element === null || typeof HTMLElement === 'undefined') return false;
   if (!(element instanceof HTMLElement)) return false;
@@ -51,12 +45,13 @@ type PreventableKeyboardEvent = React.KeyboardEvent<HTMLElement> & {
 
 /**
  * Space on a text-entry trigger must type a space and nothing else — no
- * activation, no popover toggle. Checks `target` as well as `currentTarget` so a
- * trigger that wraps an input is covered, not only one that IS an input.
+ * activation, no popover toggle. `currentTarget` is the only element worth
+ * testing: every `useButton` activation branch is itself gated on
+ * `event.target === event.currentTarget`, so a trigger that merely WRAPS an
+ * input never activates in the first place.
  */
 function isSpaceOnTextEntry(event: PreventableKeyboardEvent): boolean {
-  if (event.key !== ' ') return false;
-  return isTextEntryElement(event.target) || isTextEntryElement(event.currentTarget);
+  return event.key === ' ' && isTextEntryElement(event.currentTarget);
 }
 
 interface PopoverTriggerProps extends React.ComponentPropsWithoutRef<

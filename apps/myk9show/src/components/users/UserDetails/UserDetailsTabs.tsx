@@ -11,7 +11,7 @@ import type { User, Dog } from '@/types/dog-types';
 import { useDogStoreCompat } from '@/hooks/useDogStoreCompat';
 import { useAuthContext, getPrimaryRole } from '@/hooks/useAuthContext';
 import { mapDogToDogInput } from '@/services/mappers/dogMappers';
-import { saveDogPhoto } from '@/components/dogs/DogDetailsMain/utils';
+import { saveDogPhoto, formatDisplayDate } from '@/components/dogs/DogDetailsMain/utils';
 import { selectOwnedDogs } from '@/utils/dogOwnership';
 
 interface PeopleDetailsTabsProps {
@@ -149,6 +149,10 @@ const PeopleDetailsTabs: React.FC<PeopleDetailsTabsProps> = ({ selectedUser }) =
         dogId={dogToEdit?.id || ''}
         dogName={dogToEdit?.callName || dogToEdit?.name || 'Dog'}
         initialDogData={dogToEdit || {}}
+        dogStatus={dogToEdit?.status}
+        dogDeceasedDate={
+          dogToEdit?.deceasedDate ? formatDisplayDate(dogToEdit.deceasedDate) : undefined
+        }
         onSave={handleSaveDogEdit}
         enableAutoSave={false}
       />

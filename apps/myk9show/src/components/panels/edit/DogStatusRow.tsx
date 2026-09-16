@@ -1,4 +1,4 @@
-import React, { useContext } from 'react';
+import React, { useContext, useId } from 'react';
 import { Activity } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -19,8 +19,16 @@ import { DogEditContext } from './DogEditPanel';
  */
 export const DogStatusRow: React.FC = () => {
   const { dogStatus, dogDeceasedDate, onChangeStatus } = useContext(DogEditContext);
+  const labelId = useId();
 
-  const badge = DOG_STATUS_BADGES[dogStatus || 'active'];
+  // A known key falls through to DOG_STATUS_BADGES; an out-of-union value
+  // (bad data, a status this build doesn't know about yet) still gets a
+  // visible, neutral badge rather than an empty one now that there is no
+  // button to keep the row from reading as blank.
+  const badge = DOG_STATUS_BADGES[dogStatus || 'active'] ?? {
+    label: dogStatus || 'Unknown',
+    className: 'text-xs bg-muted text-muted-foreground',
+  };
   const deceasedSuffix = dogStatus === 'deceased' && dogDeceasedDate ? ` — ${dogDeceasedDate}` : '';
 
   return (
@@ -28,17 +36,20 @@ export const DogStatusRow: React.FC = () => {
       <div className="space-y-1">
         {/* A <span>, not the shared <Label>: there is no form control here for a
             label to name -- the value is a badge, and the edit happens in the
-            dialog the button raises. */}
-        <span className="block text-xs font-medium text-muted-foreground tracking-wide uppercase">
+            dialog the button raises. `aria-labelledby` still ties the badge to
+            it, so the read-only row (no button, MYK9-594) exposes the pair as
+            one named group instead of two unrelated pieces of text. */}
+        <span
+          id={labelId}
+          className="block text-xs font-medium text-muted-foreground tracking-wide uppercase"
+        >
           Status
         </span>
-        <div>
-          {badge && (
-            <Badge variant="secondary" className={badge.className}>
-              {badge.label}
-              {deceasedSuffix}
-            </Badge>
-          )}
+        <div role="group" aria-labelledby={labelId}>
+          <Badge variant="secondary" className={badge.className}>
+            {badge.label}
+            {deceasedSuffix}
+          </Badge>
         </div>
       </div>
       {onChangeStatus && (

@@ -47,24 +47,37 @@ describe('DogStatusRow', () => {
 
   // The person-detail Dogs tab mounts the edit panel with no status dialog
   // behind it (MYK9-594). The value should still be visible there — just not
-  // changeable from a surface with nothing to open.
+  // changeable from a surface with nothing to open. Queried by accessible
+  // name (round-1 review P3): the badge's wrapper carries role="group" and
+  // aria-labelledby the "Status" span, so the pair reads as one named group
+  // rather than two disconnected pieces of text.
   it('renders a read-only badge, with no change button, when no handler is supplied', () => {
     renderRow({ dogStatus: 'retired' });
 
-    expect(screen.getByText('Status')).toBeInTheDocument();
-    expect(screen.getByText('Retired')).toBeInTheDocument();
+    const group = screen.getByRole('group', { name: 'Status' });
+    expect(group).toHaveTextContent('Retired');
     expect(screen.queryByRole('button', { name: /change status/i })).not.toBeInTheDocument();
   });
 
   it('defaults an unset status to Active in the read-only shape too', () => {
     renderRow({});
-    expect(screen.getByText('Active')).toBeInTheDocument();
+    expect(screen.getByRole('group', { name: 'Status' })).toHaveTextContent('Active');
     expect(screen.queryByRole('button')).not.toBeInTheDocument();
   });
 
   it('carries the date of passing in the read-only badge', () => {
     renderRow({ dogStatus: 'deceased', dogDeceasedDate: 'Mar 3, 2026' });
     expect(screen.getByText(/Deceased — Mar 3, 2026/)).toBeInTheDocument();
+    expect(screen.queryByRole('button')).not.toBeInTheDocument();
+  });
+
+  // Round-1 review (P3): DogStatus is a closed union in the type system, but
+  // the value on screen ultimately comes from a DB column -- an out-of-union
+  // string must not silently render an empty badge now that there is no
+  // button left to carry the row's visible content.
+  it('falls back to a neutral badge with the raw value for an out-of-union status', () => {
+    renderRow({ dogStatus: 'archived' as DogEditContextType['dogStatus'] });
+    expect(screen.getByRole('group', { name: 'Status' })).toHaveTextContent('archived');
     expect(screen.queryByRole('button')).not.toBeInTheDocument();
   });
 });

@@ -168,7 +168,11 @@ const DogDialogs: React.FC<DogDialogsProps> = ({
               ? async () => {
                   // Mirrors onDelete above: the page owns the toast and the
                   // navigate-away, and a rejection leaves the dialog open so a
-                  // failed override stays correctable.
+                  // failed override stays correctable. That only holds because
+                  // DogDetailPage keeps itself (and therefore this dialog)
+                  // mounted while a delete it started is in flight — the delete
+                  // mutations strip the dog from the cache optimistically
+                  // (MYK9-595).
                   await onForceDelete();
                   onDeleteDialogClose();
                 }

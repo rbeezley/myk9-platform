@@ -2287,7 +2287,7 @@ SELECT
   format('a1090000-0000-0000-0010-%s%s', s, lpad('1', 11, '0'))::uuid,
   show_name,
   'AKC',
-  'A weekend AKC Scent Work trial featuring Novice through Master classes across all four elements.',
+  show_description,
   ((CURRENT_DATE + 45)::timestamp AT TIME ZONE 'UTC'), ((CURRENT_DATE + 47)::timestamp AT TIME ZONE 'UTC'),
   ((CURRENT_DATE - 16)::timestamp AT TIME ZONE 'UTC'), ((CURRENT_DATE + 76)::timestamp AT TIME ZONE 'UTC'),
   format('%s00 Fairgrounds Road, Tulsa, OK 74101', s),
@@ -2304,10 +2304,17 @@ SELECT
   'headline', false, '{}'::jsonb,
   '#0d4d4f', 1, false
 FROM (VALUES
-  (1, 'Green Country Scent Work Trial'),
-  (2, 'Redbud Ridge Scent Work Classic'),
-  (3, 'Blue Sky Scent Work Weekend')
-) AS load_shows(s, show_name);
+  -- Description text names the four seeded classes (all level Advanced) and
+  -- avoids "weekend" (the entry window is CURRENT_DATE+45..+47, which lands
+  -- mid-week on most reseed days) -- MYK9-566 round 2. Worded slightly
+  -- differently per show so the three cards are not identical text.
+  (1, 'Green Country Scent Work Trial',
+   'An AKC Scent Work trial with Advanced Container, Interior, Exterior, and Buried classes.'),
+  (2, 'Redbud Ridge Scent Work Classic',
+   'An AKC Scent Work trial offering Advanced-level Container, Interior, Exterior, and Buried searches.'),
+  (3, 'Blue Sky Scent Work Weekend',
+   'An AKC Scent Work trial featuring Advanced classes in Container, Interior, Exterior, and Buried.')
+) AS load_shows(s, show_name, show_description);
 
 -- Explicit visibility rows so self-check-in is enabled by a stated setting, not
 -- by the cascade's absent-row default. The exhibitor self-check-in workload
@@ -2326,7 +2333,11 @@ FROM generate_series(1, 3) AS load_shows(s);
 -- e.g. 'Saturday Trial') instead of repeating `name` -- several surfaces render
 -- `Trial ${trialNumber}`, and a `trial_number` of 'Trial 1' would print as
 -- "Trial Trial 1" (MYK9-566). Computed from the trial's own date so it is
--- correct regardless of which weekday the reseed lands on.
+-- correct regardless of which weekday the reseed lands on. Section 3's
+-- Heartland trials hardcode 'Saturday Trial'/'Sunday Trial' for the SAME
+-- CURRENT_DATE+45/+46 dates, so on a reseed day where +45 is not actually a
+-- Saturday, the two shows disagree on one date's label -- that is a
+-- pre-existing hardcoded value in section 3, out of this PR's scope.
 INSERT INTO public.trials (
   id, show_id, name, date, trial_number, status,
   planned_start_time, allow_self_checkin, trial_type, pipeline_stage,
@@ -2375,17 +2386,25 @@ FROM generate_series(1, 3) AS load_shows(s)
 CROSS JOIN generate_series(1, 4) AS load_classes(c);
 
 -- Call names come from a plausible-name pool (MYK9-566, see header note
--- above), one PER SHOW (s), so no two of these 189 dogs share a name --
--- with the same array index used for every s, dog N on all three shows
--- would otherwise get the identical name (MYK9-566 round-1 review). Also
--- disjoint from section 17's pool above.
+-- above), one PER SHOW (s), so no two of these 189 dogs share a `name`
+-- (registered name) -- with the same array index used for every s, dog N on
+-- all three shows would otherwise get the identical registered name
+-- (MYK9-566 round-1 review). Also disjoint from section 17's pool above.
+-- Each 21-name pool repeats 3x across a show's 63 dogs, so `call_name`
+-- additionally gets a II/III suffix on its 2nd/3rd occurrence -- ringside and
+-- check-in lead with the call name, so those need to be unique too, not just
+-- the registered name (MYK9-566 round-2 review).
 INSERT INTO public.dogs (
   id, name, call_name, breed, sex, date_of_birth, color, status, owner_id, version
 )
 SELECT
   format('a1090000-0000-0000-0001-%s%s', s, lpad(dog_number::text, 11, '0'))::uuid,
   format('%s %s', dog_name, lpad(dog_number::text, 2, '0')),
-  dog_name,
+  CASE (dog_number - 1) / 21
+    WHEN 0 THEN dog_name
+    WHEN 1 THEN dog_name || ' II'
+    ELSE dog_name || ' III'
+  END,
   'Mixed Breed',
   CASE WHEN dog_number % 2 = 0 THEN 'female' ELSE 'male' END,
   DATE '2021-01-01' + dog_number,

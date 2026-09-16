@@ -86,19 +86,23 @@ describe('entryStatusUtils', () => {
         const result = getEntryStatus(show, false);
 
         // MYK9-568: a bare "Opens ..." reads as ambiguous ("what opens?") to
-        // an exhibitor who already submitted; name the thing that opens.
-        // formatShortCalendarDate keeps the DATE column calendar-safe
-        // (no day-shift west of UTC) instead of a raw toLocaleDateString().
+        // an exhibitor who already submitted; name the thing that opens. The
+        // old code already parsed via toLocalDate, so there was no day-shift
+        // bug — shows.entry_open_date is TIMESTAMPTZ at midnight UTC, and
+        // formatShortCalendarDate is the right shared formatter for that
+        // value; the real change here is the label wording and swapping the
+        // ad-hoc `openDate.toLocaleDateString()` (locale/browser-dependent,
+        // "1/1/2024") for the app's pinned-format helper ("Jan 1, 2024").
         expect(result.label).toBe('Entries open Jan 1, 2024');
       });
 
-      it('names entries as the thing opening even when the entry window cannot be resolved yet', async () => {
-        // The first branch in getEntryStatus fires when currentEntryWindowDate
-        // cannot determine "today" in the show's timezone — reached BEFORE the
-        // userHasEntries check, so it can surface even for a show whose entries
-        // a user has already submitted (an already-submitted exhibitor seeing
-        // "opens" was the exact MYK9-568 report). Mocked here since the real
-        // currentEntryWindowDate always resolves a date in practice.
+      it('stays neutral when the entry window cannot be resolved at all', async () => {
+        // currentEntryWindowDate always resolves a date in practice
+        // (entryWindowDate.ts:61-67) — this branch is effectively dead and is
+        // reached here only via a module mock, for a theoretical case (e.g. a
+        // bad IANA zone). It runs BEFORE the userHasEntries check, so if it
+        // ever fired for a show the exhibitor already entered, "Entries open
+        // <date>" would be false; the label stays neutral instead.
         vi.resetModules();
         vi.doMock('@/utils/entryWindowDate', () => ({
           currentEntryWindowDate: () => undefined,
@@ -111,7 +115,7 @@ describe('entryStatusUtils', () => {
         const result = getEntryStatusWithMockedWindow(show, true);
 
         expect(result.status).toBe('not_yet_open');
-        expect(result.label).toBe('Entries open Jan 1, 2024');
+        expect(result.label).toBe('Entry status unavailable');
         expect(result.description).toBe('Entry window is not available yet');
 
         vi.doUnmock('@/utils/entryWindowDate');

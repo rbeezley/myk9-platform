@@ -275,3 +275,39 @@ describe('EntryStatusBadge', () => {
     });
   });
 });
+
+describe('EntryStatusBadge — against the real getEntryStatus (MYK9-568)', () => {
+  it('renders "Entries open <date>" for a real not-yet-open show', async () => {
+    // Every other test in this file mocks getEntryStatus/getEntryStatusBadgeStyle;
+    // this one renders against the REAL entryStatusUtils implementation so the
+    // wording fix is proven end to end, not just on a hand-picked mock label.
+    vi.doUnmock('@/utils/entryStatusUtils');
+    vi.resetModules();
+
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date(2023, 11, 15, 12));
+
+    const { EntryStatusBadge: RealEntryStatusBadge } =
+      await import('@/components/shows/EntryStatusBadge');
+
+    const futureShow: Show = {
+      id: 'show-future',
+      name: 'Future Show',
+      entryOpenDate: '2024-01-01',
+      entryCloseDate: '2024-02-01',
+      startDate: '2024-02-15',
+      endDate: '2024-02-16',
+    } as Show;
+
+    render(<RealEntryStatusBadge show={futureShow} />);
+
+    expect(screen.getByText('Entries open Jan 1, 2024')).toBeInTheDocument();
+
+    vi.useRealTimers();
+    vi.doMock('@/utils/entryStatusUtils', () => ({
+      getEntryStatus: vi.fn(),
+      getEntryStatusBadgeStyle: vi.fn(),
+    }));
+    vi.resetModules();
+  });
+});

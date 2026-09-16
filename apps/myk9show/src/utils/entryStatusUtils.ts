@@ -48,9 +48,14 @@ export function getEntryStatus(
   const closeDate = toLocalDate(show.entryCloseDate);
   const today = currentEntryWindowDate(undefined, getEntryWindowTimezone(show.trials));
   if (!today) {
+    // currentEntryWindowDate always resolves a date in practice (see
+    // entryWindowDate.ts); this guards a theoretical unresolved case (e.g. a
+    // bad IANA zone). Never say "Entries open <date>" here — this path runs
+    // before the userHasEntries check, so the show may already be entered,
+    // and this branch has no evidence either way about the entry window.
     return {
       status: 'not_yet_open',
-      label: `Entries open ${formatShortCalendarDate(show.entryOpenDate)}`,
+      label: 'Entry status unavailable',
       description: 'Entry window is not available yet',
       canEnter: false,
     };

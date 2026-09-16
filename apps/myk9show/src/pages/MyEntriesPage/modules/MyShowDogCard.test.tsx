@@ -12,7 +12,7 @@ import { screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { EntryStatus, PaymentStatus } from '@/types/show-registration-types';
 import { render } from '@/test/utils/testUtils';
-import { makeClass, makeRow, NOW, toOrders } from '@/test/fixtures/myShowsFixtures';
+import { day, makeClass, makeRow, NOW, toOrders } from '@/test/fixtures/myShowsFixtures';
 import { MyShowsList, type MyShowsListProps } from './MyShowsList';
 import type { EntryClass, MyEntry } from './my-entries-types';
 import { PENDING_REVIEW_REASSURANCE } from './myShowsCopy';
@@ -322,5 +322,28 @@ describe('MyShowDogCard — the pending-review reassurance', () => {
     );
 
     expect(screen.queryByText(PENDING_REVIEW_REASSURANCE)).not.toBeInTheDocument();
+  });
+});
+
+describe('MyShowDogCard — the opens-later row names what opens (MYK9-568)', () => {
+  it('names check-in as the thing that opens, without repeating the trial name', () => {
+    renderRows(
+      rexWith([
+        makeClass({
+          id: 'c-rex-open-later',
+          name: 'Load 2 Class 4',
+          trialDate: day('2026-10-25'), // Sunday — one day ahead of NOW (Sat)
+        }),
+      ])
+    );
+
+    // MYK9-568: a bare "opens Sunday" reads as ambiguous to an exhibitor who
+    // has already entered ("opens what?"); name self check-in explicitly.
+    expect(screen.getByText('Check-in opens Sunday')).toBeInTheDocument();
+    expect(screen.queryByText('opens Sunday')).not.toBeInTheDocument();
+
+    // The row's "when" column already names the class; the state column must
+    // not restate it.
+    expect(screen.getAllByText('Load 2 Class 4')).toHaveLength(1);
   });
 });

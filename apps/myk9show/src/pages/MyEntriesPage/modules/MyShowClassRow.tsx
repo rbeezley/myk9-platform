@@ -130,7 +130,7 @@ export const MyShowClassRow: React.FC<MyShowClassRowProps> = ({
         )}
         {state.kind === 'opens-later' && (
           <span className="text-muted-foreground">
-            {state.weekday ? `opens ${state.weekday}` : 'not yet open'}
+            {state.weekday ? `Check-in opens ${state.weekday}` : 'Check-in not open yet'}
           </span>
         )}
         {/* The trial day, but no control for this row: self check-in closed by

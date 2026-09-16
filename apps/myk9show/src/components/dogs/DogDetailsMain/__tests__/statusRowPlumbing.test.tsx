@@ -99,10 +99,9 @@ describe('Edit Dog panel Status row plumbing', () => {
     expect(screen.getByText('Deceased — 3/3/2026')).toBeInTheDocument();
   });
 
-  it('hides the row when the page passes no handler, rather than showing a dead control', async () => {
-    renderDialogs();
-
-    await waitFor(() => expect(screen.getByLabelText(/call name/i)).toBeInTheDocument());
-    expect(screen.queryByRole('button', { name: /change status/i })).not.toBeInTheDocument();
-  });
+  // MYK9-594 round-1 review (P2): DogDetailsMain always passes
+  // `onStatusDialogOpen` to this hop (index.tsx:294,342) -- there is no real
+  // "DogDialogs with no handler" case to plumb through here. The read-only
+  // fallback this issue introduced is exercised by the actual no-dialog
+  // surface instead: UserDetailsTabs.test.tsx (person-detail Dogs tab).
 });

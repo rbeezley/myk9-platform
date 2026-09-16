@@ -39,6 +39,7 @@ import { describe, expect, it } from 'vitest';
 
 const repoRoot = resolve(__dirname, '../../../../..');
 const ENROLLMENT_ID = 'dededede-0000-0000-0000-000000000070';
+const SHOW_010_ID = 'dededede-0000-0000-0000-000000000010';
 const LOAD_DOG_RANGE_LOW = 'a1090000-0000-0000-0001-000000000000';
 
 const rawSeed = readFileSync(join(repoRoot, 'supabase/seed-demo.sql'), 'utf8');
@@ -122,7 +123,7 @@ describe('seed-demo self-cleaning relationship deletes (MYK9-490 follow-up)', ()
     expect(statement).toContain("lower(email)='exhibitor@myk9t.com'");
   });
 
-  it('refuses, loudly, to delete a paid or Stripe-backed stray before the relationship delete', () => {
+  it('refuses, loudly, to delete a paid stray before the relationship delete, printing ids', () => {
     const relationshipDelete = seed.indexOf(
       `DELETE FROM public.entries\nWHERE registration_id = '${ENROLLMENT_ID}'`
     );
@@ -130,16 +131,53 @@ describe('seed-demo self-cleaning relationship deletes (MYK9-490 follow-up)', ()
     expect(guard, 'no fail-loud guard precedes the relationship delete').toBeGreaterThan(-1);
 
     const guardBlockStart = seed.lastIndexOf('DO $$', guard);
-    const guardBlock = seed.slice(guardBlockStart, relationshipDelete);
+    // Only this DO block, not everything up to the relationship delete: a
+    // later DO block (the stripe_orders orphan REPORT, MYK9-527) legitimately
+    // mentions public.stripe_orders and would otherwise poison the
+    // stripe-orders-absence check below.
+    const guardBlockEnd = seed.indexOf('END $$;', guardBlockStart) + 'END $$;'.length;
+    const guardBlock = seed.slice(guardBlockStart, guardBlockEnd);
     expect(guardBlock).toContain("e.payment_status IN ('paid', 'refunded')");
     expect(guardBlock).toContain(`en.id = '${ENROLLMENT_ID}'`);
-    // MYK9-527: the Stripe check must be keyed directly on stripe_orders' OWN
-    // scope columns (show_id / enrollment_id), not only reached through an
-    // enrollment join — once either FK is already null (true of every row on
-    // staging, from a past reseed) a join-only guard can never match again.
-    expect(guardBlock).toContain('FROM public.stripe_orders so');
-    expect(guardBlock).toContain("so.show_id = 'dededede-0000-0000-0000-000000000010'");
-    expect(guardBlock).toContain(`so.enrollment_id = '${ENROLLMENT_ID}'`);
+    // MYK9-562: the RAISE must print the offending ids, not only a count, like
+    // the extracted guard's four id-printing RAISEs do — capped at 10 the same way, and
+    // with the same "First ids: %" grammar the runbook (seed-reset/SKILL.md)
+    // assumes for every other guard.
+    expect(guardBlock).toContain('string_agg(t.id::text');
+    expect(guardBlock).toContain('FROM (SELECT id FROM strays ORDER BY id LIMIT 10) t');
+    expect(guardBlock).toContain("First ids: %', v_paid, v_ids;");
+  });
+
+  it('has no DO block outside the orphan-report guard that scopes public.stripe_orders to show ...010 (MYK9-562)', () => {
+    // The seed used to carry a second, narrower Stripe-orders guard right next
+    // to the entries one above, scoped to the demo exhibitor's enrollment /
+    // show ...010. It was deleted (not merely disabled): order_stray in
+    // public.seed_demo_assert_no_paid_strays() (called earlier in section 0,
+    // MYK9-538) already covers that exact scope, and that call always raises
+    // first, so the narrower guard could never fire. Unlike the single-block
+    // check this replaces, this scans every DO block in the file — not just
+    // the one sitting next to the entries guard — so a reintroduced guard
+    // placed ANYWHERE would still be caught. The one legitimate DO block that
+    // both mentions stripe_orders and this file's stripe_orders section is the
+    // orphan-report WARNING (MYK9-527); it is excluded by its own marker
+    // (the show_id/enrollment_id IS NULL predicate no live guard would use).
+    const ORPHAN_REPORT_MARKER = 'show_id IS NULL AND enrollment_id IS NULL';
+    const doBlocks = [...seed.matchAll(/DO \$\$[\s\S]*?END \$\$;/g)].map(m => m[0]);
+    expect(doBlocks.length, 'no DO $$ ... END $$; blocks found in seed-demo.sql').toBeGreaterThan(
+      0
+    );
+
+    const suspect = doBlocks.filter(
+      block =>
+        !block.includes(ORPHAN_REPORT_MARKER) &&
+        block.includes('public.stripe_orders') &&
+        block.includes(`'${SHOW_010_ID}'`)
+    );
+
+    expect(
+      suspect,
+      'a DO block outside the orphan-report guard references public.stripe_orders scoped to show ...010 — the narrow Stripe-orders guard deleted under MYK9-562 may have been reintroduced, and it can never fire because order_stray in the extracted guard already covers this exact scope first'
+    ).toHaveLength(0);
   });
 
   it('never DELETEs from stripe_orders, and reports rows a past reseed already orphaned (MYK9-527)', () => {

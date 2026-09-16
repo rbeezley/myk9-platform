@@ -93,6 +93,7 @@ BEGIN;
 DO $$
 DECLARE
   v_email text;
+  v_role text;
   v_count int;
 BEGIN
   FOREACH v_email IN ARRAY ARRAY[
@@ -112,11 +113,14 @@ BEGIN
   END LOOP;
 
   -- Section 10 grants by role NAME; a renamed/absent role would also silently
-  -- grant nothing. Require every granted role to exist exactly once.
-  FOREACH v_email IN ARRAY ARRAY['secretary', 'club_admin', 'judge', 'steward', 'chairman'] LOOP
-    SELECT count(*) INTO v_count FROM public.roles WHERE name = v_email;
+  -- grant nothing. Require every granted role to exist exactly once. Uses its
+  -- own loop variable (v_role, not v_email) so the RAISE below is unambiguous
+  -- about what it is naming -- the array holds role names, not emails
+  -- (MYK9-562).
+  FOREACH v_role IN ARRAY ARRAY['secretary', 'club_admin', 'judge', 'steward', 'chairman'] LOOP
+    SELECT count(*) INTO v_count FROM public.roles WHERE name = v_role;
     IF v_count <> 1 THEN
-      RAISE EXCEPTION 'seed-demo preflight: expected exactly 1 role named %, found %', v_email, v_count;
+      RAISE EXCEPTION 'seed-demo preflight: expected exactly 1 role named %, found %', v_role, v_count;
     END IF;
   END LOOP;
 
@@ -326,60 +330,60 @@ WHERE id >= 'a1090000-0000-0000-0013-000000000000'::uuid
 --
 -- But never silently. On main the same stray row made the reseed ABORT and roll
 -- back, which is the right outcome when the stray is a real payment: deleting it
--- would cascade its entry_status_history away and the enrollment delete below
--- would leave its stripe_orders row orphaned (enrollment_id is ON DELETE SET
--- NULL). So refuse, loudly, if anything under this enrollment is paid or has a
--- Stripe order; an operator then deletes it deliberately. Unpaid wizard strays
--- (the 2026-09-12 case) are still cleared without ceremony.
+-- would cascade its entry_status_history away. So refuse, loudly, if anything
+-- under this enrollment is paid or refunded; an operator then deletes it
+-- deliberately. Unpaid wizard strays (the 2026-09-12 case) are still cleared
+-- without ceremony.
+--
+-- MYK9-562: this is belt-and-braces alongside public.seed_demo_assert_no_paid_strays()
+-- (called above, MYK9-538), NOT redundant with it. That function's
+-- `substantiated` arm only aborts a paid/refunded entry that also carries a
+-- payment trail; a bare `payment_status='paid'` with no trail is a QA-walk
+-- artifact it WARNS on and lets cascade. This narrower check fires on the
+-- payment_status label alone, so a bare paid entry under the demo exhibitor's
+-- enrollment on show ...010 still aborts here even though the broad guard
+-- would only warn about it. The Stripe-orders half of this same check used to
+-- live here too; it is deleted (not merely disabled) because it could never
+-- fire — order_stray in the broad guard already covers every order on show
+-- ...010 or an enrollment of it, and the broad guard call above always raises
+-- first.
 DO $$
-DECLARE v_paid integer; v_orders integer;
+DECLARE v_paid integer; v_ids text;
 BEGIN
   -- Money that moved in either direction: 'paid' and 'refunded' both carry an
   -- audit trail in entry_status_history that the cascade would erase.
-  SELECT count(*) INTO v_paid
-  FROM public.entries e
-  JOIN public.enrollments en ON en.id = e.registration_id
-  WHERE (en.id = 'dededede-0000-0000-0000-000000000070'
-         OR (en.show_id = 'dededede-0000-0000-0000-000000000010'
-             AND en.handler_id = (SELECT id FROM public.people WHERE lower(email)='exhibitor@myk9t.com')))
-    AND e.payment_status IN ('paid', 'refunded');
+  -- Capped the same way the extracted guard's four id-printing RAISEs are (MYK9-562): an
+  -- unbounded id list once put 756 ids on one error line.
+  WITH strays AS (
+    SELECT e.id
+    FROM public.entries e
+    JOIN public.enrollments en ON en.id = e.registration_id
+    WHERE (en.id = 'dededede-0000-0000-0000-000000000070'
+           OR (en.show_id = 'dededede-0000-0000-0000-000000000010'
+               AND en.handler_id = (SELECT id FROM public.people WHERE lower(email)='exhibitor@myk9t.com')))
+      AND e.payment_status IN ('paid', 'refunded')
+  )
+  SELECT count(*),
+         (SELECT string_agg(t.id::text, ', ' ORDER BY t.id)
+          FROM (SELECT id FROM strays ORDER BY id LIMIT 10) t)
+    INTO v_paid, v_ids
+  FROM strays;
   IF v_paid > 0 THEN
-    RAISE EXCEPTION 'seed-demo: % paid or refunded entr(ies) hang off the demo exhibitor''s enrollment on show ...010 — refusing to delete them; remove them deliberately, then rerun', v_paid;
-  END IF;
-  -- Checked directly on stripe_orders' OWN scope columns, not only through
-  -- the enrollment join: an order whose entries never materialised (or were
-  -- removed by hand) still points here via enrollment_id OR show_id, and the
-  -- enrollment delete below would null either column silently. MYK9-527:
-  -- every stripe_orders row on staging (22/22, spanning 2026-06..2026-09) was
-  -- found with BOTH columns already nulled by a past reseed — a guard that
-  -- only joins through enrollment_id can never match a row once that FK is
-  -- null, so it was structurally blind to every order that already existed,
-  -- not just ones created since the last reseed. Checking so.show_id
-  -- directly closes that gap for any order still holding a live scope.
-  SELECT count(*) INTO v_orders
-  FROM public.stripe_orders so
-  WHERE so.show_id = 'dededede-0000-0000-0000-000000000010'
-     OR so.enrollment_id = 'dededede-0000-0000-0000-000000000070'
-     OR so.enrollment_id IN (
-          SELECT id FROM public.enrollments
-          WHERE show_id = 'dededede-0000-0000-0000-000000000010'
-            AND handler_id = (SELECT id FROM public.people WHERE lower(email)='exhibitor@myk9t.com')
-        );
-  IF v_orders > 0 THEN
-    RAISE EXCEPTION 'seed-demo: % Stripe order(s) point at the demo exhibitor''s enrollment or show ...010 — refusing to orphan them; remove them deliberately, then rerun', v_orders;
+    RAISE EXCEPTION 'seed-demo: % paid or refunded entr(ies) hang off the demo exhibitor''s enrollment on show ...010 — refusing to delete them; remove them deliberately, then rerun. First ids: %', v_paid, v_ids;
   END IF;
 END $$;
--- MYK9-527: REPORT the stripe_orders rows a PAST reseed already orphaned (both
--- show_id and enrollment_id nulled by their ON DELETE SET NULL) — never delete
--- them here. The row is the only local record of a real test-mode charge: it
--- still carries stripe_payment_intent_id, stripe_checkout_session_id,
--- customer_id and the fee split, all of which the webhook and reconciliation
--- key on. Deleting it is strictly worse than leaving it:
---   * public.stripe_order_refunds.order_id is itself ON DELETE SET NULL
---     (pg_constraint confdeltype='n'), so deleting an order silently orphans
---     its refund rows one level down — the same disease this issue files, with
---     no guard anywhere that can see it. All 4 refund rows on staging hang off
---     orders in the already-orphaned set.
+-- MYK9-527: REPORT the stripe_orders rows a PAST reseed orphaned before
+-- migration 20260915191700 moved stripe_orders.show_id/enrollment_id from ON
+-- DELETE SET NULL to ON DELETE RESTRICT — never delete them here. The row is
+-- the only local record of a real test-mode charge: it still carries
+-- stripe_payment_intent_id, stripe_checkout_session_id, customer_id and the fee
+-- split, all of which the webhook and reconciliation key on. Deleting it is
+-- strictly worse than leaving it:
+--   * public.stripe_order_refunds.order_id is ON DELETE RESTRICT as of the
+--     same migration, so deleting one of these already-orphaned orders would
+--     now fail outright on its refund rows rather than silently orphaning them
+--     one level down — no better, since the delete still cannot complete. All
+--     4 refund rows on staging hang off orders in the already-orphaned set.
 --   * stripe-webhook's record_order_refund_cents matches on payment intent; a
 --     later charge.refunded for a deleted order matches nothing, raising the
 --     MP-12 "Unmatched refund — no order found" admin alert and losing the
@@ -387,9 +391,10 @@ END $$;
 --   * Deletion cannot be scoped to the demo data — the rows have no scope left
 --     — so the statement would reach every tenant's orders, not the seed's.
 -- Pruning, if the project wants it, is a deliberate operator step against a
--- reviewed list, not a side effect of a reseed. Making a reseed stop CREATING
--- orphans needs a schema change (an immutable denormalised scope column, or
--- moving these FKs off ON DELETE SET NULL) — tracked on MYK9-527.
+-- reviewed list, not a side effect of a reseed. A reseed can no longer CREATE a
+-- new orphan of this shape: migration 20260915191700 already moved all three
+-- FKs off ON DELETE SET NULL to RESTRICT, so this report only ever reflects
+-- rows orphaned before that migration shipped (MYK9-527).
 DO $$
 DECLARE v_orphans integer;
 BEGIN

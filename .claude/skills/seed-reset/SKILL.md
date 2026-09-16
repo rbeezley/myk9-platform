@@ -25,7 +25,7 @@ Sign-in-capable accounts are the `@myk9t.com` set (exhibitor, secretary, judge, 
 
 **Precondition (MYK9-538):** the entries/enrollments/Stripe guard is now the function `public.seed_demo_assert_no_paid_strays()`, added by migration `20260916213500`. Push that migration before the next reseed. Without it the seed aborts on `ERROR: 42883: function public.seed_demo_assert_no_paid_strays() does not exist` — before any parent delete, with the whole transaction rolled back, so the database is untouched. `supabase migration list` tells you whether the target database has it.
 
-Section 0 of `seed-demo.sql` refuses, on purpose, to delete rows that carry real money. Every message below is quoted from the seed, so search this file for the sentence you saw. Each one names the count; four of them also print the first 10 ids, and the two `...010` guards print a count only. The whole file runs inside one `BEGIN`/`COMMIT` under `psql -v ON_ERROR_STOP=1 -f` (see the seed's header), which is why an abort leaves the database untouched rather than half-reseeded. The guards raise one at a time, so clearing one and rerunning can surface the next; that is expected, not a regression.
+Section 0 of `seed-demo.sql` refuses, on purpose, to delete rows that carry real money. Every message below is quoted from the seed, so search this file for the sentence you saw. Each one names the count; five of them also print the first 10 ids — the exception is the already-orphaned-order WARNING further down, which reports a count only (MYK9-562: the seed used to carry a second, narrower `...010`-scoped Stripe-orders guard that also printed a count only; it was deleted because `order_stray` already covered its scope and always raised first). The whole file runs inside one `BEGIN`/`COMMIT` under `psql -v ON_ERROR_STOP=1 -f` (see the seed's header), which is why an abort leaves the database untouched rather than half-reseeded. The guards raise one at a time, so clearing one and rerunning can surface the next; that is expected, not a regression.
 
 **Before you delete anything the guard named:** decide whether it is real. If it is, record what you are about to lose first. Hard-deleting an entry cascades its `entry_status_history` away, and a `stripe_orders` row that lists that entry in `entry_ids` keeps pointing at the deleted id with no error, because that column has no foreign key. Soft-deleting never clears any of these guards: none of them look at `deleted_at`, deliberately, because a soft-deleted row still cascades. Never widen a guard to get past it.
 
@@ -67,7 +67,7 @@ Both `stripe_orders` scope FKs are ON DELETE RESTRICT since migration `202609151
 - **If it stays detached,** the row joins the class `docs/operations/stripe-ledger-orphans.md` keeps deliberately. That record was written for orphans an earlier bug created and migration `20260915191700` exists to stop reseeds making more, so append the id and amount to that document; it carries a dated count and total that your row would silently falsify.
 - **Delete the row** only as a reviewed step, which for a solo operator means reconciling it against Stripe first. `stripe_order_refunds.order_id` is RESTRICT too: the refund rows go first.
 
-That decision record's prune SQL requires both scope columns to be NULL already and will match nothing here; do not copy it for these rows. The seed also carries a narrower twin, `Stripe order(s) point at the demo exhibitor's enrollment or show ...010`, that is subsumed by this guard and cannot fire first; treat it as the same case.
+That decision record's prune SQL requires both scope columns to be NULL already and will match nothing here; do not copy it for these rows. The seed used to carry a narrower twin scoped to the demo exhibitor's enrollment on show `...010`; it was deleted (MYK9-562), not merely disabled, because `order_stray` above already covers that same scope and always raised first — it could never fire.
 
 ### WARNING: `stripe_orders row(s) already have BOTH show_id and enrollment_id nulled by an earlier reseed`
 
@@ -75,7 +75,7 @@ Fires on every reseed while any fully-orphaned order exists (22 on staging as of
 
 ### ABORT: `paid or refunded entr(ies) hang off the demo exhibitor's enrollment on show ...010`
 
-The older, narrower guard on the demo exhibitor's own enrollment, reached through `entries.registration_id`. It prints a count only, no ids, and fires on the `paid`/`refunded` label alone, trail or not. Find them with:
+The older, narrower guard on the demo exhibitor's own enrollment, reached through `entries.registration_id`. It prints its first 10 ids, like the other guards (MYK9-562), and fires on the `paid`/`refunded` label alone, trail or not. Find them with:
 
 ```sql
 SELECT e.* FROM public.entries e

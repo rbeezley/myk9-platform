@@ -30,6 +30,7 @@ import {
   AKCScentWorkFormatter,
   countUnscoredAKCEntries,
   selectSubmittableAKCEntries,
+  collectUnmappableAKCClasses,
 } from '@myk9/secretary';
 import { useAKCSubmissionData } from '@/hooks/queries/useAKCSubmissionData';
 import { useResultSubmission, useResultSubmissions } from '@/hooks/mutations/useResultSubmission';
@@ -141,8 +142,6 @@ export default function ResultsSubmissionPage() {
    */
   const akcDataUnavailable = isAKCScentWork && !isAKCLoading && !akcData;
 
-  const xmlPreview = isAKCScentWork && akcData ? AKCScentWorkFormatter.formatXml(akcData) : '';
-
   /**
    * The entries that actually go to AKC. `useAKCSubmissionData` reads every row
    * for the show with no lifecycle filter, so drafts, unpaid entries and rows
@@ -160,15 +159,40 @@ export default function ResultsSubmissionPage() {
    * dog. Block sending, the same way a missing registration number does.
    */
   const unscoredAKCCount = countUnscoredAKCEntries(submittableAKCEntries);
+  /**
+   * Classes AKC has no code for (MYK9-547). The formatter now refuses to build
+   * a file for one rather than reporting it as Novice A, so this blocks the
+   * draft download too — there is no honest draft to produce.
+   */
+  const unmappableAKCClasses = collectUnmappableAKCClasses(submittableAKCEntries);
   /** Nothing to send. An empty XML is still valid XML, so this must be its own gate. */
   const hasNoAKCEntries = isAKCScentWork && Boolean(akcData) && submittableAKCEntries.length === 0;
   const hasBlockingAKCPreflightIssue =
-    isAKCScentWork && (missingAKCCount > 0 || unscoredAKCCount > 0 || hasNoAKCEntries);
+    isAKCScentWork &&
+    (missingAKCCount > 0 ||
+      unscoredAKCCount > 0 ||
+      hasNoAKCEntries ||
+      unmappableAKCClasses.length > 0);
+  // Guarded, not try/caught: `formatXml` throws on an unmappable class, and
+  // this runs during render.
+  const xmlPreview =
+    isAKCScentWork && akcData && unmappableAKCClasses.length === 0
+      ? AKCScentWorkFormatter.formatXml(akcData)
+      : '';
+  /**
+   * The AKC data loaded but produced no file. Only an unmappable class does
+   * this: every other blocker still yields a draft the secretary can inspect.
+   * Keyed on `xmlPreview`, not on the blocker, so a regression that lets the
+   * formatter run anyway surfaces here instead of silently offering a file
+   * built from a class AKC would misread.
+   */
+  const akcDraftUnavailable = isAKCScentWork && Boolean(akcData) && xmlPreview === '';
   const akcReadiness = akcData
     ? buildAKCSubmissionReadiness({
         entryCount: submittableAKCEntries.length,
         missingRegistrationNumberCount: missingAKCCount,
         unscoredEntryCount: unscoredAKCCount,
+        unmappableClasses: unmappableAKCClasses,
       })
     : null;
   const sendBlockedReason =
@@ -218,19 +242,26 @@ export default function ResultsSubmissionPage() {
   };
 
   const handleSend = async () => {
-    if (!xmlPreview || !activeFormatter || !showId || !akcData) return;
+    if (!activeFormatter || !showId) return;
+    // The blocker check runs BEFORE the empty-preview return. An unmappable
+    // class is the one blocker that leaves `xmlPreview` empty, so testing the
+    // preview first swallowed it and the secretary got silence instead of a
+    // reason.
     if (hasBlockingAKCPreflightIssue) {
       // The blocker is no longer always a missing registration number, so name
       // the one that actually fired rather than sending the secretary to fix
       // data that is already correct (MYK9-323).
       setSendError(
-        unscoredAKCCount > 0
-          ? 'Record a result for every entry before sending results.'
-          : 'Add AKC registration numbers before sending results.'
+        unmappableAKCClasses.length > 0
+          ? 'One or more classes are not set up as AKC classes, so no file can be prepared. See the checklist below.'
+          : unscoredAKCCount > 0
+            ? 'Record a result for every entry before sending results.'
+            : 'Add AKC registration numbers before sending results.'
       );
       setShowConfirm(false);
       return;
     }
+    if (!xmlPreview || !akcData) return;
 
     setSendError(null);
     setSendSuccess(false);
@@ -428,7 +459,10 @@ export default function ResultsSubmissionPage() {
               </AlertDialog>
             </>
           )}
-          {isElectronicSubmission && (
+          {/* No button when there is no file at all (MYK9-547). A disabled
+              control labelled "Download draft XML" promised a draft that the
+              formatter refused to build. */}
+          {isElectronicSubmission && !akcDraftUnavailable && (
             <Button
               variant="outline"
               className="min-h-[44px]"
@@ -640,6 +674,28 @@ export default function ResultsSubmissionPage() {
             <li className="flex items-center gap-2">
               {submittableAKCEntries.length === 0 ? (
                 <>
+                  <AlertTriangle className="h-4 w-4 text-warning" aria-hidden="true" />
+                  <span>No entries to check class setup against</span>
+                </>
+              ) : unmappableAKCClasses.length === 0 ? (
+                <>
+                  <CheckCircle2 className="h-4 w-4 text-success" aria-hidden="true" />
+                  <span>Every class is set up as an AKC class</span>
+                </>
+              ) : (
+                <>
+                  {/* The one place the remedy lives. The verdict row above
+                      already states the blocker and names the classes, and the
+                      details row below is suppressed for this blocker, so the
+                      secretary reads the fact once and the fix once. */}
+                  <AlertTriangle className="h-4 w-4 text-warning" aria-hidden="true" />
+                  <span>{akcReadiness?.details}</span>
+                </>
+              )}
+            </li>
+            <li className="flex items-center gap-2">
+              {submittableAKCEntries.length === 0 ? (
+                <>
                   {/* Vacuous truth is not a green check. "All entries have AKC
                       registration numbers" was rendered as satisfied for a show
                       with no entries at all. */}
@@ -683,19 +739,25 @@ export default function ResultsSubmissionPage() {
                 </>
               )}
             </li>
-            <li className="flex items-center gap-2">
-              {hasBlockingAKCPreflightIssue || submittableAKCEntries.length === 0 ? (
-                <>
-                  <AlertTriangle className="h-4 w-4 text-warning" aria-hidden="true" />
-                  <span>{akcReadiness?.details}</span>
-                </>
-              ) : (
-                <>
-                  <CheckCircle2 className="h-4 w-4 text-success" aria-hidden="true" />
-                  <span>{akcReadiness?.details}</span>
-                </>
-              )}
-            </li>
+            {/* Suppressed when a class has no AKC class code: the class-setup
+                row above already carries these exact words, and repeating them
+                fills three of five rows with one fact (docs/INTENT.md § Trial
+                Secretary — green checks, not a wall of data). */}
+            {unmappableAKCClasses.length === 0 && (
+              <li className="flex items-center gap-2">
+                {hasBlockingAKCPreflightIssue || submittableAKCEntries.length === 0 ? (
+                  <>
+                    <AlertTriangle className="h-4 w-4 text-warning" aria-hidden="true" />
+                    <span>{akcReadiness?.details}</span>
+                  </>
+                ) : (
+                  <>
+                    <CheckCircle2 className="h-4 w-4 text-success" aria-hidden="true" />
+                    <span>{akcReadiness?.details}</span>
+                  </>
+                )}
+              </li>
+            )}
           </ul>
         )}
 
@@ -714,7 +776,13 @@ export default function ResultsSubmissionPage() {
                 readOnly
                 aria-labelledby="xml-preview-label"
                 value={isAKCLoading ? 'Fetching show data...' : xmlPreview}
-                placeholder="Select a show and organization to preview the XML."
+                // No file was built, so "preview the XML" is not what is
+                // waiting on the secretary. Say what is (MYK9-547).
+                placeholder={
+                  akcDraftUnavailable
+                    ? 'No file can be prepared while a class is not set up as an AKC class. See the checklist above.'
+                    : 'Select a show and organization to preview the XML.'
+                }
                 className="font-mono text-xs min-h-[220px] resize-y"
                 data-testid="xml-preview"
               />

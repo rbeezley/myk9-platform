@@ -222,6 +222,99 @@ describe('ResultsSubmissionPage', () => {
     expect(screen.getByTestId('download-btn')).toHaveTextContent('Download draft XML');
   });
 
+  // MYK9-547 — a class AKC has no code for (here: a Detective class whose
+  // element/level were written as the literal 'Unknown' by the show wizard)
+  // used to be submitted as Novice A. It now blocks, and unlike every other
+  // blocker there is no draft either, because the formatter refuses to build
+  // one. Deleting `unmappableAKCClasses.length === 0` from the `xmlPreview`
+  // guard makes the Download button reappear and turns this test red.
+  it('blocks sending, offers no draft, and names the class when a class has no AKC class code', async () => {
+    mockAKCData.data = makeAKCSubmissionData({
+      entries: [{ className: 'Detective', element: 'Unknown', level: 'Unknown', section: null }],
+    });
+
+    renderPage();
+
+    const reason = await screen.findByTestId('send-disabled-reason');
+    // Names the class AND the values stored on it — the secretary cannot see
+    // element/level/section anywhere else, they are read-only on the class form.
+    expect(reason).toHaveTextContent(
+      'One class is not set up as an AKC class: Detective (element "Unknown", level "Unknown").'
+    );
+    expect(screen.getByTestId('send-btn')).toBeDisabled();
+    fireEvent.click(screen.getByTestId('send-btn'));
+    expect(screen.queryByTestId('send-confirm-dialog')).not.toBeInTheDocument();
+    expect(mockInvoke).not.toHaveBeenCalled();
+
+    // THE mutation guard: no file was built, so no download is offered. A
+    // disabled "Download draft XML" would promise a draft that does not exist.
+    expect(screen.queryByTestId('download-btn')).not.toBeInTheDocument();
+
+    // The checklist says what to do next, naming the real surfaces.
+    const checklist = screen.getByTestId('submission-checklist');
+    expect(checklist).toHaveTextContent(
+      /Delete this class, then add it again: go to Classes, choose Add Classes, then on Create Classes pick the AKC template under Select Template and tick the class under Choose Classes/
+    );
+    // Stated once. The verdict row names the blocker, the class-setup row
+    // carries the remedy, and the details row is suppressed so one fact does
+    // not fill three of five rows.
+    expect(checklist.textContent?.match(/Delete this class/g)).toHaveLength(1);
+
+    // The XML disclosure must not invite a preview of a file that was never built.
+    expect(screen.getByTestId('xml-preview')).toHaveAttribute(
+      'placeholder',
+      'No file can be prepared while a class is not set up as an AKC class. See the checklist above.'
+    );
+  });
+
+  // MYK9-547 round 2 — `handleSend` guarded on `!xmlPreview` before checking
+  // the blocker, and an unmappable class is the one blocker that empties the
+  // preview, so the branch was dead: the secretary got silence. Reachable when
+  // the query refetches behind an already-open confirm dialog.
+  it('names the unmappable class in the send error when the data changes behind an open dialog', async () => {
+    mockAKCData.data = makeAKCSubmissionData();
+    // A FRESH element each time: React bails out of re-rendering a subtree
+    // handed back the referentially identical element, so reusing one would
+    // leave the page showing the old data and pass for the wrong reason.
+    const routes = () => (
+      <Routes>
+        <Route path="/shows/:id/*" element={<ResultsSubmissionPage />} />
+      </Routes>
+    );
+    const { rerender } = render(routes(), { initialRoute: '/shows/show-1/submit-results' });
+
+    fireEvent.click(await screen.findByTestId('send-btn'));
+    expect(await screen.findByTestId('send-confirm-dialog')).toBeInTheDocument();
+
+    mockAKCData.data = makeAKCSubmissionData({
+      entries: [{ className: 'Detective', element: 'Unknown', level: 'Unknown', section: null }],
+    });
+    rerender(routes());
+
+    fireEvent.click(screen.getByTestId('send-confirm-btn'));
+
+    expect(await screen.findByTestId('send-error')).toHaveTextContent(
+      'One or more classes are not set up as AKC classes, so no file can be prepared.'
+    );
+    expect(mockInvoke).not.toHaveBeenCalled();
+  });
+
+  it('keeps every class-setup check green for a well-formed Detective class', async () => {
+    // The real shape: standalone element, level NULL coalesced to ''.
+    mockAKCData.data = makeAKCSubmissionData({
+      entries: [{ className: 'Detective', element: 'Detective', level: '', section: null }],
+    });
+
+    renderPage();
+
+    await waitFor(() => expect(screen.getByTestId('submission-checklist')).toBeInTheDocument());
+    expect(screen.getByTestId('submission-checklist')).toHaveTextContent(
+      'Every class is set up as an AKC class'
+    );
+    expect(screen.getByTestId('download-btn')).toBeInTheDocument();
+    expect(screen.getByTestId('send-btn')).not.toBeDisabled();
+  });
+
   // Found by Codex review on this change. `useAKCSubmissionData` applies no
   // lifecycle filter, so drafts and moved-away rows reach the page. They go in
   // no AKC file, so they must not block a submission they were never part of.

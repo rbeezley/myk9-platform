@@ -49,6 +49,7 @@ export type {
   AKCEntryOutcome,
   AKCClassTallies,
   AKCResultStatus,
+  UnmappableAKCClass,
 } from './results';
 export {
   registerFormatter,
@@ -60,4 +61,6 @@ export {
   countUnscoredAKCEntries,
   selectSubmittableAKCEntries,
   parseAKCResultStatus,
+  mapAKCClassCodes,
+  collectUnmappableAKCClasses,
 } from './results';

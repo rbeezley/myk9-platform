@@ -4,6 +4,7 @@
 // sibling module to keep index.tsx under the 500-line ceiling.
 
 import type { ResultSubmissionRow } from '@/hooks/mutations/useResultSubmission';
+import type { UnmappableAKCClass } from '@myk9/secretary';
 
 export function buildFilename(showName: string): string {
   const rawSlug = showName.replace(/\s+/g, '_').replace(/[^a-zA-Z0-9_-]/g, '');
@@ -68,11 +69,60 @@ export interface AKCSubmissionReadiness {
   canSend: boolean;
 }
 
+/**
+ * "Detective (element "Unknown", level "Unknown")" — the class as the secretary
+ * sees it, plus the three values actually stored on it. Without the stored
+ * triple the secretary cannot tell which of several similarly named classes is
+ * the broken one, and those columns are not shown anywhere else in the app.
+ */
+function describeStoredClass(cls: UnmappableAKCClass): string {
+  const parts = [
+    cls.element ? `element "${cls.element}"` : 'no element',
+    cls.level ? `level "${cls.level}"` : 'no level',
+  ];
+  if (cls.section) parts.push(`section "${cls.section}"`);
+  return `${cls.className} (${parts.join(', ')})`;
+}
+
 export function buildAKCSubmissionReadiness(input: {
   entryCount: number;
   missingRegistrationNumberCount: number;
   unscoredEntryCount?: number;
+  /** Classes with no AKC class code — see `collectUnmappableAKCClasses`. */
+  unmappableClasses?: UnmappableAKCClass[];
 }): AKCSubmissionReadiness {
+  // MYK9-547 — first, because this one blocks the FILE, not just the send. A
+  // class AKC has no code for used to be reported as Novice A; now no XML is
+  // produced at all, so there is not even a draft to download.
+  //
+  // The copy names the stored element/level/section and the concrete fix,
+  // because the secretary has no other way to see either: the class edit form
+  // renders those three fields read-only, so "check the class setup" would
+  // point at a screen that cannot change anything (docs/INTENT.md § Trial
+  // Secretary — no technical error messages, name the next action).
+  const unmappable = input.unmappableClasses ?? [];
+  if (unmappable.length > 0) {
+    const named = unmappable.map(describeStoredClass).join('; ');
+    return {
+      verdict:
+        unmappable.length === 1
+          ? `One class is not set up as an AKC class: ${named}.`
+          : `${unmappable.length} classes are not set up as AKC classes: ${named}.`,
+      details:
+        // The exact gesture, named after the buttons and steps the secretary
+        // will actually read: ClassManagementPage's "Add Classes" leads to
+        // ClassCreationPage's "Create Classes", whose steps are "Select
+        // Template" then "Choose Classes".
+        `Delete ${unmappable.length === 1 ? 'this class' : 'these classes'}, then add ` +
+        `${unmappable.length === 1 ? 'it' : 'them'} again: go to Classes, choose Add Classes, ` +
+        `then on Create Classes pick the AKC template under Select Template and tick ` +
+        `${unmappable.length === 1 ? 'the class' : 'each class'} under Choose Classes. If a ` +
+        `class already has entries, move those entries to another class first. Results for this ` +
+        `show cannot be sent to AKC, and no file can be prepared, until then.`,
+      canSend: false,
+    };
+  }
+
   if (input.entryCount === 0) {
     return {
       verdict: 'No entries are ready to send yet.',

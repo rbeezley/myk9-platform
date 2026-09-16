@@ -35,12 +35,19 @@ interface DogsTableViewProps {
 function buildSelectColumn(selection: DogsTableSelection): DisplayColumnDef<Dog, unknown> {
   return {
     id: '_select',
-    // Both cells' checkbox is wrapped at a fixed `w-10` (matching
-    // STICKY_LEFT_LEAD_WIDTH_CLASS exactly) so the column's own min-content
-    // and max-content agree at 40px — see the width doc on
-    // STICKY_LEFT_LEAD_WIDTH_CLASS in `data-table/types.ts`.
+    // The 40px cell width is guaranteed entirely by `min-w-10 max-w-10` on
+    // the TH/TD itself (STICKY_LEFT_LEAD_WIDTH_CLASS in `data-table/types.ts`)
+    // — NOT by this wrapper. A `w-10` here was tried and measured wrong
+    // (round-3 delta review, Chromium): it makes the TD's own min-content 48px
+    // (16px padding + 40px wrapper), so min-content and max-content disagree,
+    // the rendered 40px comes only from `max-w-10` winning the auto-layout
+    // negotiation, and the wrapper itself overflows the cell to x=48 — pushing
+    // the checkbox 4px right of the cell's true centre. Dropping the width
+    // and keeping only `flex items-center justify-center` centres the
+    // checkbox within whatever the cell renders at, still measured at exactly
+    // 40px in `dogs-table-pinned-select.spec.ts`.
     header: () => (
-      <span className="flex w-10 items-center justify-center">
+      <span className="flex items-center justify-center">
         <Checkbox
           // Asymmetric on purpose, header only: a uniform -inset-3.5 (like the
           // row checkbox below) grows the 16px control to 44x44, but the
@@ -49,7 +56,14 @@ function buildSelectColumn(selection: DogsTableSelection): DisplayColumnDef<Dog,
           // -inset-x-3.5 (14px) keeps the 44px-wide horizontal overhang
           // (unchanged — it's what lets the tap target reach into the Name
           // cell); -inset-y-3 (12px) gives a 40px-tall target that exactly
-          // fills the header row's own height, so nothing spills into row 1.
+          // fills the header row's own height, so nothing spills into row 1
+          // — but that 40px arithmetic depends on staying wrapped in the
+          // `<span>` above: TableHead's `[&>[role=checkbox]]:translate-y-[2px]`
+          // is a direct-child selector that only matches a checkbox that IS
+          // the `<th>`'s child, so it silently stops applying once the
+          // checkbox is wrapped. Unwrap this span and that 2px shift comes
+          // back, which would put `-inset-y-3`'s 40px-tall target 2px low —
+          // right back to overhanging into row 1.
           className="relative before:absolute before:-inset-x-3.5 before:-inset-y-3 before:content-['']"
           checked={selection.isAllSelected}
           indeterminate={selection.isPartiallySelected}
@@ -60,7 +74,7 @@ function buildSelectColumn(selection: DogsTableSelection): DisplayColumnDef<Dog,
     ),
     cell: ({ row }) => (
       <span
-        className="flex w-10 items-center justify-center"
+        className="flex items-center justify-center"
         onClick={e => e.stopPropagation()}
         role="presentation"
       >

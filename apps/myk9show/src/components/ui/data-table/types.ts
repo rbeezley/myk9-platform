@@ -146,12 +146,21 @@ export const STICKY_LEFT_BODY_CLASSES = `${STICKY_LEFT_BASE} z-10 group-data-[st
  * — the browser is free to widen the column if a cell wants more room, which
  * would silently break the hardcoded `left-10` offset below with nothing in
  * the unit suite able to catch it (jsdom performs no layout). `min-w-10` and
- * `max-w-10` pin both ends of the range to the same value, and the rendered
- * cell content is wrapped at a matching fixed `w-10` too (see
- * `DogsTableView.tsx`), so the cell's own min-content and max-content agree
- * at 40px and table-layout has nothing left to negotiate. This is a
- * hypothesis about the auto-layout algorithm, not a CSS guarantee the spec
- * makes — real evidence lives in
+ * `max-w-10` are what actually pin the rendered width to 40px, on the TD/TH
+ * itself — they are the whole guarantee.
+ *
+ * The checkbox INSIDE the cell (`DogsTableView.tsx`) is deliberately NOT also
+ * wrapped at a fixed `w-10`: that was tried and measured wrong (round-3 delta
+ * review, Chromium). Giving the inner wrapper its own `w-10` makes the cell's
+ * own min-content 48px (16px padding + 40px wrapper) while max-content stays
+ * 40px, so the two DISAGREE — the rendered 40px then comes from `max-w-10`
+ * alone winning the negotiation, and the wrapper itself overflows the cell,
+ * landing the checkbox ~4px right of the cell's true centre. The inner
+ * wrapper's only job is `flex items-center justify-center`, to centre the
+ * checkbox in whatever width the cell actually renders at.
+ *
+ * This is a hypothesis about the auto-layout algorithm, not a CSS guarantee
+ * the spec makes — real evidence lives in
  * `src/test/e2e/dogs-table-pinned-select.spec.ts`, which measures the
  * rendered column width, the Name offset, and elementFromPoint hit-testing
  * in a real browser at the 768px tablet viewport.

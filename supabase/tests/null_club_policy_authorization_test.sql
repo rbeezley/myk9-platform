@@ -600,7 +600,21 @@ END $case6$;
 DO $case10$
 DECLARE n integer;
 BEGIN
+  -- `SET LOCAL ROLE anon` does NOT make the session anonymous. The Postgres role
+  -- and the request JWT are independent, both transaction-local, and case 7 left
+  -- the SITE ADMIN's `sub` in place — so the first run of this case read every
+  -- draft show and reported it as a policy finding. is_platform_admin() is
+  -- SECURITY DEFINER over the claim, not over the role, which is why nothing
+  -- about the role switch cleared it. Clear both settings, then PROVE the
+  -- session is anonymous before asserting anything with it.
   SET LOCAL ROLE anon;
+  PERFORM set_config('request.jwt.claim.sub', '', true);
+  PERFORM set_config('request.jwt.claims', '', true);
+
+  IF public.is_site_admin() THEN
+    RAISE EXCEPTION
+      'FAIL 10.setup the anon session still carries an admin JWT — 10.x would pass for the wrong reason';
+  END IF;
 
   SELECT count(t.id) INTO n FROM public.trials t
    WHERE t.id IN ('00000000-0000-0000-0000-000000585031',

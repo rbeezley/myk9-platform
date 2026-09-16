@@ -1850,6 +1850,24 @@ describe('the workflow’s crash-fallback step', () => {
     expect(stdout).toContain('posting no status');
   });
 
+  it('rejects a 40-char string that is the right LENGTH but not hex', () => {
+    // Both halves of the guard must be load-bearing. Every other fixture here
+    // is hex, so only the length test was firing and deleting the `case` line
+    // left the suite green (round-2 review, P3). These are exactly 40 chars.
+    const fortyNonHex = [
+      'g'.repeat(40), // out of the hex alphabet
+      HEAD.slice(0, 39).toUpperCase() + 'A', // uppercase hex is not accepted
+      `${HEAD.slice(0, 37)}../`, // 40 chars, still a traversal
+    ];
+    for (const value of fortyNonHex) {
+      expect(value).toHaveLength(40);
+      const fromPayload = runFallback({ ...base, HEAD_SHA: value });
+      expect(fromPayload.ghCalls.some(c => c.includes('--method POST'))).toBe(false);
+      const fromView = runFallback({ ...base, HEAD_SHA: '', STUB_GH_VIEW_SHA: value });
+      expect(fromView.ghCalls.some(c => c.includes('--method POST'))).toBe(false);
+    }
+  });
+
   it('validates the EVENT payload’s SHA too, not just the one it resolves', () => {
     // The guard sat inside the `if [ -z "$sha" ]` branch, so it only ever saw
     // the `gh pr view` answer; `HEAD_SHA` from the event payload went to the

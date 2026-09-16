@@ -34,14 +34,19 @@ supabase migration list   # what the linked DB has actually applied
 # fork PR has no origin/<branch> ref at all — `git ls-tree origin/<head>` would
 # fail silently and the sweep would report a clean miss.
 pnpm qa:inflight --verbose supabase/migrations
-# `gh pr view --json files` asks GraphQL for one page and stops at 100 files
-# per PR with no warning — a migration sitting past entry 100 reads as a clean
-# miss. Page the REST endpoint instead, the same way scripts/qa/inflight.ts does.
+# `gh pr list --limit` and `gh pr view --json files` each silently truncate —
+# the PR list past 200, the file list past 100 files per PR — so page both
+# REST endpoints instead, the same way scripts/qa/inflight.ts does (including
+# both sides of a rename). `set -o pipefail` (bash/zsh) makes a failed `gh`
+# call end the pipeline non-zero instead of reading as "no collision": empty
+# output means no collision ONLY if no `gh:` error line appeared and the exit
+# status was 0; on any error, re-run before trusting it.
+set -o pipefail
 SLUG=$(gh repo view --json nameWithOwner --jq .nameWithOwner)
-gh pr list --state open --limit 200 --json number --jq '.[].number' \
+gh api --paginate "repos/$SLUG/pulls?state=open&per_page=100" --jq '.[].number' \
   | xargs -I{} gh api --paginate "repos/$SLUG/pulls/{}/files?per_page=100" \
-      --jq '.[].filename' \
-  | grep '^supabase/migrations/' | sort -u
+      --jq '.[] | .filename, (.previous_filename // empty)' \
+  | { grep '^supabase/migrations/' || true; } | sort -u
 ```
 
 Then choose today's date with a **specific odd time** — `174500`, `142300`,

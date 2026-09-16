@@ -12,7 +12,7 @@
  *
  * Instead, the host injects a small set of capability bags into a
  * React context. Page code inside ringside reads from that context
- * via `useRingside()` (and derived hooks like `useRingsidePermission()`).
+ * via `useRingside()`.
  *
  * Empirically scoped
  * ------------------

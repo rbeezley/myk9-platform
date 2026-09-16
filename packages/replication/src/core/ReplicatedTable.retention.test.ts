@@ -62,8 +62,6 @@ describe('replica retention through public reads and subscriptions', () => {
     expect(await table.getAll('other-show')).toEqual([]);
     expect(await table.getAllWithStatus()).toMatchObject({ ok: true, error: null });
     expect((await table.getAllWithStatus()).rows).toContainEqual(oldEntry);
-    expect(await table.queryByField('class_id', 'class-a')).toContainEqual(oldEntry);
-    expect(await table.queryIndex('name', 'Cooper')).toEqual([oldEntry]);
     expect(await table.getAllLocalIds()).toEqual(new Set(['old', 'new']));
 
     const callback = vi.fn();

@@ -69,9 +69,6 @@ export {
   DB_NAME,
   DB_VERSION,
   TOTAL_REPLICATED_TABLES,
-  // Query Performance
-  QUERY_TIMEOUT_MS,
-  SLOW_QUERY_THRESHOLD_MS,
   // Batch Operations
   DEFAULT_CHUNK_SIZE,
   MAX_CHUNK_SIZE,

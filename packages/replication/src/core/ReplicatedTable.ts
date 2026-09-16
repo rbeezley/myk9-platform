@@ -113,11 +113,8 @@ export abstract class ReplicatedTable<T extends { id: string }> {
       () => this.relieveQuota()
     );
 
-    this.queryManager = new ReplicatedTableQueryManager<T>(
-      tableName,
-      this.logger,
-      () => this.init(),
-      licenseKey => this.getAll(licenseKey)
+    this.queryManager = new ReplicatedTableQueryManager<T>(tableName, this.logger, () =>
+      this.init()
     );
 
     this.rowLocks = new RowLockRegistry();
@@ -828,27 +825,6 @@ export abstract class ReplicatedTable<T extends { id: string }> {
     this.logger.log(`[${this.tableName}] Deleted row: ${normalizedId}`);
 
     this.notifyListeners();
-  }
-
-  // ========================================
-  // QUERY OPERATIONS
-  // ========================================
-
-  /**
-   * Query rows by index (uses IndexedDB indexes for O(log n) performance)
-   */
-  async queryByField(
-    fieldName: 'class_id' | 'trial_id' | 'show_id' | 'armband_number',
-    value: string
-  ): Promise<T[]> {
-    return this.queryManager.queryByField(fieldName, value);
-  }
-
-  /**
-   * Query rows by index (alias for queryByField)
-   */
-  async queryIndex(indexName: keyof T, value: string | number): Promise<T[]> {
-    return this.queryManager.queryIndex(indexName, value);
   }
 
   /**

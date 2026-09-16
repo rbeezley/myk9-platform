@@ -1,12 +1,10 @@
 /**
- * Tests for RingsideContext + the typed sub-hooks + derived hooks.
+ * Tests for RingsideContext + the typed sub-hooks.
  *
  * Behavior contracts under test:
  *   1. `useRingside()` outside a provider throws (not silently undefined).
  *   2. `useRingside()` inside a provider returns the exact value passed.
  *   3. Typed sub-hooks read their slice.
- *   4. `useRingsidePermission()` correctly derives role/permission helpers
- *      from the auth slice — mirrors apps/myk9q's `usePermission` surface.
  *   6. Replication + prefetch invocations forward to the host functions
  *      (call-through verification, not real I/O).
  */
@@ -16,9 +14,7 @@ import { renderHook } from '@testing-library/react';
 import type { ReactNode } from 'react';
 
 import { RingsideProvider, useRingside, useRingsideAuth } from './RingsideContext';
-import { useRingsidePermission } from './useRingsidePermission';
 import type { RingsideContextValue, RingsideShowContext } from './types';
-import type { UserPermissions } from '../auth/passcodes';
 
 // ── Helpers ──────────────────────────────────────────────────────────────
 
@@ -98,61 +94,6 @@ describe('typed sub-hooks', () => {
     const { result } = renderHook(() => useRingsideAuth(), { wrapper: wrap(value) });
 
     expect(result.current).toBe(value.auth);
-  });
-});
-
-// ── 4. Derived permission hook ───────────────────────────────────────────
-
-describe('useRingsidePermission', () => {
-  it('hasPermission delegates to auth.canAccess', () => {
-    const canAccess = vi.fn((perm: keyof UserPermissions) => perm === 'canScore');
-    const value = makeContextValue({}, { canAccess });
-
-    const { result } = renderHook(() => useRingsidePermission(), { wrapper: wrap(value) });
-
-    expect(result.current.hasPermission('canScore')).toBe(true);
-    expect(result.current.hasPermission('canManageClasses')).toBe(false);
-    expect(canAccess).toHaveBeenCalledWith('canScore');
-    expect(canAccess).toHaveBeenCalledWith('canManageClasses');
-  });
-
-  it('hasRole accepts both single role and role array', () => {
-    const value = makeContextValue({}, { role: 'judge' });
-
-    const { result } = renderHook(() => useRingsidePermission(), { wrapper: wrap(value) });
-
-    expect(result.current.hasRole('judge')).toBe(true);
-    expect(result.current.hasRole('admin')).toBe(false);
-    expect(result.current.hasRole(['judge', 'admin'])).toBe(true);
-    expect(result.current.hasRole(['steward', 'exhibitor'])).toBe(false);
-  });
-
-  it('hasRole returns false when role is null', () => {
-    const value = makeContextValue({}, { role: null });
-
-    const { result } = renderHook(() => useRingsidePermission(), { wrapper: wrap(value) });
-
-    expect(result.current.hasRole('admin')).toBe(false);
-    expect(result.current.hasRole(['admin', 'judge'])).toBe(false);
-  });
-
-  it.each([
-    ['admin', 'isAdmin'],
-    ['judge', 'isJudge'],
-    ['steward', 'isSteward'],
-    ['exhibitor', 'isExhibitor'],
-  ] as const)('role-predicate %s flips %s on', (role, predicate) => {
-    const value = makeContextValue({}, { role });
-    const { result } = renderHook(() => useRingsidePermission(), { wrapper: wrap(value) });
-
-    expect(result.current[predicate]()).toBe(true);
-  });
-
-  it('exposes currentRole verbatim', () => {
-    const value = makeContextValue({}, { role: 'steward' });
-    const { result } = renderHook(() => useRingsidePermission(), { wrapper: wrap(value) });
-
-    expect(result.current.currentRole).toBe('steward');
   });
 });
 

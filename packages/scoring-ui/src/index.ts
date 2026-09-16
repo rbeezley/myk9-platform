@@ -57,7 +57,6 @@ export {
   formatTimeInputToMMSS,
 } from './utils/timeUtils';
 export { buildResolvedClassRules } from './utils/buildResolvedClassRules';
-export { parseSmartTime } from './utils/parseSmartTime';
 export {
   getScoresheetComponent,
   registerScoresheet,

@@ -6,7 +6,7 @@
  * extraction plan and PR sequencing.
  *
  * Public surface — keep this file as the single barrel re-export.
- * Subpath imports (e.g. `from '@myk9/ringside/utils/timeInputParsing'`)
+ * Subpath imports (e.g. `from '@myk9/ringside/utils/classStatus'`)
  * are intentionally NOT supported; consumers always import from the
  * package root so internal layout can change without breaking them.
  */
@@ -26,11 +26,9 @@ export type {
   ClassStatusUpdateFields,
   ClassStatusValue,
 } from './context';
-export { RingsideProvider, useRingside, useRingsideAuth, useRingsidePermission } from './context';
+export { RingsideProvider, useRingside, useRingsideAuth } from './context';
 
 // ── Utils ────────────────────────────────────────────────────────────────
-export { parseSmartTime, isValidTimeFormat } from './utils/timeInputParsing';
-
 // Class-status detection + display (moved from apps/myk9q statusUtils in PR E1a)
 export type {
   ClassStatus,

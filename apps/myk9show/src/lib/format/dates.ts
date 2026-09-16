@@ -13,6 +13,9 @@
  * - Date-only supporting text, no weekday: "August 1, 2026" via
  *   {@link formatLongDate}, "Aug 1" via {@link formatMonthDay}, or
  *   "Sat, Aug 1" via {@link formatWeekdayMonthDay}.
+ * - Day-of-the-weekend label where the DAY is what the reader chooses by
+ *   (the registration wizard's trial rows): "Friday, Oct 30" — via
+ *   {@link formatWeekdayLongMonthDay}.
  * - Compact CALENDAR date (a DATE-typed column with no weekday: entry
  *   open/close, a show's start day in a list): "Jan 2, 2027" — via
  *   {@link formatShortCalendarDate}.
@@ -122,6 +125,31 @@ export function formatWeekdayMonthDay(value?: string | Date | null): string {
   if (!value || !isRenderableCalendarDate(value)) return '';
   return resolveCalendarDate(value).toLocaleDateString('en-US', {
     weekday: 'short',
+    month: 'short',
+    day: 'numeric',
+  });
+}
+
+/**
+ * Weekday in full with a compact month and day, no year: "Friday, Oct 30".
+ *
+ * For a list where the exhibitor decides by DAY rather than by the
+ * organiser's numbering — the registration wizard's trial rows, where
+ * "Trial 1" / "Trial 2" is the secretary's vocabulary and "Friday" is the
+ * exhibitor's (MYK9-564). The weekday is spelled out because it is the
+ * load-bearing token; the year is dropped because the show is already in
+ * view.
+ *
+ * Calendar-safe like the rest of this module: a DATE-typed `trials.date`
+ * parses as LOCAL midnight, so the weekday is the trial's own day in every
+ * browser zone. A calendar date carries no timezone of its own, so nothing
+ * is converted into the trial's zone here — doing so would reintroduce the
+ * MYK9-384 shift rather than prevent it.
+ */
+export function formatWeekdayLongMonthDay(value?: string | Date | null): string {
+  if (!value || !isRenderableCalendarDate(value)) return '';
+  return resolveCalendarDate(value).toLocaleDateString('en-US', {
+    weekday: 'long',
     month: 'short',
     day: 'numeric',
   });

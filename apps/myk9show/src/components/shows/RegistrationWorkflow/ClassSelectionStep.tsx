@@ -500,6 +500,7 @@ export const ClassSelectionStep: React.FC<ClassSelectionStepProps> = ({
                           <TrialSection
                             key={`${trial.id}-${dogId}`}
                             trialName={trial.name || 'Unnamed Trial'}
+                            trialDate={trial.trialDate}
                             trialType={trial.trialType}
                             selectedCount={selectedCount}
                             isExpanded={expandedTrials.has(trial.id)}

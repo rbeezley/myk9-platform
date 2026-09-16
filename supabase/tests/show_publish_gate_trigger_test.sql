@@ -94,11 +94,17 @@ $$;
 -- club_stripe_accounts state. A fifth club (loses-readiness) is added later,
 -- immediately before the section that needs it.
 -- ---------------------------------------------------------------------------
-INSERT INTO public.clubs (id, name) VALUES
-  ('00000000-0000-0000-0000-000000579001', 'MYK9-579 No Account Club'),
-  ('00000000-0000-0000-0000-000000579002', 'MYK9-579 Payouts Disabled Club'),
-  ('00000000-0000-0000-0000-000000579003', 'MYK9-579 Test-Mode Ready Club'),
-  ('00000000-0000-0000-0000-000000579004', 'MYK9-579 Live-Mode Ready Club');
+-- Every club here is myK9-authorized (MYK9-572): this matrix isolates the
+-- Stripe gate, and trg_enforce_show_club_authorization fires first (it sorts
+-- before trg_enforce_show_publish_gate), so an unauthorized club would fail
+-- every publish with MK004 before the Stripe check ran. The superuser session
+-- may set authorized_at directly; guard_club_authorization_write carves out
+-- non-API roles.
+INSERT INTO public.clubs (id, name, authorized_at) VALUES
+  ('00000000-0000-0000-0000-000000579001', 'MYK9-579 No Account Club', now()),
+  ('00000000-0000-0000-0000-000000579002', 'MYK9-579 Payouts Disabled Club', now()),
+  ('00000000-0000-0000-0000-000000579003', 'MYK9-579 Test-Mode Ready Club', now()),
+  ('00000000-0000-0000-0000-000000579004', 'MYK9-579 Live-Mode Ready Club', now());
 
 -- Pin the platform to test mode for the first half of this test.
 -- trg_guard_platform_settings_write (20260615180000) is a BEFORE UPDATE/DELETE

@@ -31,6 +31,21 @@ const REGRESSION_SPECS = [
   // exhibitorSelfRegistration depends on a separately seeded show whose entry
   // window is open; the default Heartland fixture is currently closed. Keep it
   // in the maintained inventory, but not in Nightly until that fixture exists.
+  //
+  // handlerNameSpace.spec.ts is here because MYK9-567 is a keyboard-level bug —
+  // Base UI's popover trigger swallowed the Space keydown, so a handler name
+  // typed as "Mariana Alexander" was stored as "MarianaAlexander". Whether the
+  // character survives a real browser's key handling is exactly the thing under
+  // test, and jsdom can only approximate it, so this needs a real browser
+  // somewhere in CI. Verified BOTH directions before promotion: green at head,
+  // and red with the guard reverted (`Received: "Mary-JaneO'Brien"`).
+  // Secretary-authed, ~13s, every cart/entry write mocked and nothing
+  // submitted. Nightly rather than PR smoke on cost grounds.
+  // SEED DEPENDENCY: walks LIVE_REGISTRATION_SHOW_ID (QA_REGISTRATION_SHOW_ID,
+  // else the Heartland secretary show) and needs a dog whose name matches
+  // "Ranger" enterable in a Container / Novice A class. It fails at dog
+  // selection if that seed drifts.
+  '**/registration/handlerNameSpace.spec.ts',
   '**/authentication-validation.spec.ts',
   '**/slice2-dog-workspace-evidence.spec.ts',
   // The former entities/entriesUI suite targets the deleted table/card

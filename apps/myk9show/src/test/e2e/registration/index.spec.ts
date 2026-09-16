@@ -21,6 +21,10 @@ const maintainedRegistrationSpecs = [
     file: 'singleDogSingleClass.spec.ts',
     purpose: 'covers the narrow single-dog secretary registration path',
   },
+  {
+    file: 'handlerNameSpace.spec.ts',
+    purpose: 'proves the handler-name field accepts spaces in a real browser (MYK9-567)',
+  },
 ];
 
 test.describe('Registration E2E inventory', () => {

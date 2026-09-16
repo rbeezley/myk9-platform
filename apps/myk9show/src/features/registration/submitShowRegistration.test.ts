@@ -61,6 +61,30 @@ function makeParams(
 }
 
 describe('submitShowRegistration', () => {
+  // MYK9-567: the handler name the exhibitor typed is printed on the check-in
+  // sheet, the running order, the catalog and the registry entry form. Pin the
+  // value at the RPC boundary so a future "normalise the name" helper cannot
+  // quietly collapse the space the input fix restored.
+  it('passes the handler name to submitShowEntries with its spaces intact', async () => {
+    const params = makeParams({
+      handlerAssignments: {
+        'dog-1|class-1': {
+          handlerId: 'handler-1',
+          handlerName: "Mary-Jane O'Brien",
+          isOwner: false,
+        },
+      },
+    });
+
+    await submitShowRegistration(params);
+
+    expect(params.deps.submitShowEntries).toHaveBeenCalledWith(
+      expect.objectContaining({
+        entries: [expect.objectContaining({ handlerName: "Mary-Jane O'Brien" })],
+      })
+    );
+  });
+
   it('throws when called without a payment method', async () => {
     const params = makeParams({ paymentMethod: undefined });
 

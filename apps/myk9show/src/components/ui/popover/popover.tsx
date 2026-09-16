@@ -6,6 +6,54 @@ import { getNativeButtonProp } from '@/components/ui/base-ui-native-button';
 
 const Popover = PopoverPrimitive.Root;
 
+/**
+ * Input types that accept typed text. `button`/`checkbox`/`radio`/`submit`/
+ * `reset`/`file`/`image`/`range`/`color` are deliberately absent: those DO want
+ * Space-as-activation.
+ */
+const TEXT_ENTRY_INPUT_TYPES = new Set([
+  'text',
+  'search',
+  'email',
+  'url',
+  'tel',
+  'password',
+  'number',
+  'date',
+  'datetime-local',
+  'month',
+  'week',
+  'time',
+]);
+
+/** True when the element is something a person types characters into. */
+export function isTextEntryElement(element: EventTarget | null): boolean {
+  if (element === null || typeof HTMLElement === 'undefined') return false;
+  if (!(element instanceof HTMLElement)) return false;
+  if (element instanceof HTMLTextAreaElement) return true;
+  if (element instanceof HTMLInputElement) return TEXT_ENTRY_INPUT_TYPES.has(element.type);
+  // `isContentEditable` is undefined in jsdom, so fall back to the attribute.
+  if (element.isContentEditable === true) return true;
+  const editable = element.getAttribute('contenteditable');
+  return editable === '' || editable === 'true' || editable === 'plaintext-only';
+}
+
+/** Base UI adds `preventBaseUIHandler` to synthetic events it merges handlers onto. */
+type PreventableKeyboardEvent = React.KeyboardEvent<HTMLElement> & {
+  preventBaseUIHandler?: () => void;
+};
+
+/**
+ * Space on a text-entry trigger must type a space and nothing else — no
+ * activation, no popover toggle. `currentTarget` is the only element worth
+ * testing: every `useButton` activation branch is itself gated on
+ * `event.target === event.currentTarget`, so a trigger that merely WRAPS an
+ * input never activates in the first place.
+ */
+function isSpaceOnTextEntry(event: PreventableKeyboardEvent): boolean {
+  return event.key === ' ' && isTextEntryElement(event.currentTarget);
+}
+
 interface PopoverTriggerProps extends React.ComponentPropsWithoutRef<
   typeof PopoverPrimitive.Trigger
 > {
@@ -14,18 +62,51 @@ interface PopoverTriggerProps extends React.ComponentPropsWithoutRef<
 }
 
 const PopoverTrigger = React.forwardRef<HTMLButtonElement, PopoverTriggerProps>(
-  ({ asChild, children, nativeButton, ...props }, ref) => {
+  ({ asChild, children, nativeButton, onKeyDown, onKeyUp, ...props }, ref) => {
+    // MYK9-567: a combobox renders its text input AS the popover trigger. For a
+    // non-native trigger Base UI emulates button activation, and it does so on
+    // BOTH halves of the keystroke:
+    //   keydown — `preventDefault()`, so the space character never reaches the
+    //     field and "Mariana Alexander" is stored as "MarianaAlexander";
+    //   keyup   — `dispatchClickWithModifiers()`, a synthetic click that
+    //     `useClick` turns into a popover toggle, so the typeahead list blinked
+    //     shut on every space even once the character came through.
+    // A text field never wants Space-as-activation, so stop Base UI's handler
+    // for one on both. Non-text triggers keep Space-as-activation untouched.
+    const handleKeyDown = React.useCallback(
+      (event: PreventableKeyboardEvent) => {
+        (onKeyDown as ((e: PreventableKeyboardEvent) => void) | undefined)?.(event);
+        if (isSpaceOnTextEntry(event)) event.preventBaseUIHandler?.();
+      },
+      [onKeyDown]
+    );
+
+    const handleKeyUp = React.useCallback(
+      (event: PreventableKeyboardEvent) => {
+        (onKeyUp as ((e: PreventableKeyboardEvent) => void) | undefined)?.(event);
+        if (isSpaceOnTextEntry(event)) event.preventBaseUIHandler?.();
+      },
+      [onKeyUp]
+    );
+
     if (asChild && React.isValidElement(children)) {
       return (
         <PopoverPrimitive.Trigger
           render={children}
           nativeButton={getNativeButtonProp(children, nativeButton)}
+          onKeyDown={handleKeyDown}
+          onKeyUp={handleKeyUp}
           {...props}
         />
       );
     }
     return (
-      <PopoverPrimitive.Trigger ref={ref} {...props}>
+      <PopoverPrimitive.Trigger
+        ref={ref}
+        onKeyDown={handleKeyDown}
+        onKeyUp={handleKeyUp}
+        {...props}
+      >
         {children}
       </PopoverPrimitive.Trigger>
     );

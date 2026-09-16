@@ -1850,6 +1850,20 @@ describe('the workflow’s crash-fallback step', () => {
     expect(stdout).toContain('posting no status');
   });
 
+  it('validates the EVENT payload’s SHA too, not just the one it resolves', () => {
+    // The guard sat inside the `if [ -z "$sha" ]` branch, so it only ever saw
+    // the `gh pr view` answer; `HEAD_SHA` from the event payload went to the
+    // POST unvalidated. A reviewer drove `HEAD_SHA=../../../evil` straight
+    // into `POST repos/<repo>/statuses/../../../evil` (round-2 review, P3).
+    for (const bogus of ['../../../evil', 'abc', `${HEAD}a`, 'not a sha']) {
+      const { ghCalls } = runFallback({ ...base, HEAD_SHA: bogus });
+      expect(ghCalls.some(c => c.includes('--method POST'))).toBe(false);
+    }
+    // Control: a real 40-char SHA from the payload still posts.
+    const { ghCalls } = runFallback({ ...base, HEAD_SHA: HEAD });
+    expect(ghCalls.some(c => c.includes(`statuses/${HEAD}`))).toBe(true);
+  });
+
   it('never posts a status to a target that is not a hex SHA', () => {
     // A status posted to `gh: could not resolve...` would be a wild POST.
     const { ghCalls } = runFallback({

@@ -134,14 +134,20 @@ jobs:
             # then rejected it, and the step posted nothing: the stale-green
             # fail-open this step exists to close, reinstated by a warning.
             sha="$(gh pr view "$PR_NUMBER" --repo "$REPO" --json headRefOid --jq .headRefOid || true)"
-            # Exactly 40 lowercase hex, charset AND length. A charset-only
-            # check passes a FRAGMENT such as `abc`, and would then POST to
-            # `statuses/abc`.
-            case "$sha" in *[!0-9a-f]* | '') sha='' ;; esac
-            [ "${#sha}" -eq 40 ] || sha=''
           fi
+          # BELOW the `if`, so it guards BOTH sources. While it sat inside the
+          # branch it only ever saw the `gh pr view` answer, and `HEAD_SHA`
+          # from the event payload reached the POST unvalidated — a value like
+          # `../../../evil` became `POST repos/<repo>/statuses/../../../evil`.
+          #
+          # Exactly 40 lowercase hex, charset AND length: the charset test
+          # alone passes a 40-char non-hex string, and the length test alone
+          # passes a FRAGMENT such as `abc` (which would POST to
+          # `statuses/abc`). Both halves are load-bearing.
+          case "$sha" in *[!0-9a-f]* | '') sha='' ;; esac
+          [ "${#sha}" -eq 40 ] || sha=''
           if [ -z "$sha" ]; then
-            echo "review-gate: no head SHA in the event payload and \`gh pr view\` failed too — posting no status"
+            echo "review-gate: no usable 40-hex head SHA from the event payload or \`gh pr view\` — posting no status"
             exit 0
           fi
           echo "review-gate: gate crashed; posting a failure status to $sha"

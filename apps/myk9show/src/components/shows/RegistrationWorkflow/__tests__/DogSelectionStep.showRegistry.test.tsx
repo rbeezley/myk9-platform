@@ -29,7 +29,7 @@ const AKC = registration({ id: 'reg-akc' });
 const UKC = registration({ id: 'reg-ukc', organization: 'UKC', registrationNumber: 'P987-654' });
 const ASCA = registration({ id: 'reg-asca', organization: 'ASCA', registrationNumber: 'E123456' });
 
-const mockDog = (registrations: Registration[]): Dog =>
+const mockDog = (registrations: Registration[], registrationsReadComplete = true): Dog =>
   fromPartial<Dog>({
     id: 'dog-1',
     name: 'Champion Maple',
@@ -40,11 +40,16 @@ const mockDog = (registrations: Registration[]): Dog =>
     dateOfBirth: '2020-01-01',
     status: 'active',
     registrations,
+    registrationsReadComplete,
   });
 
-const mountWith = (registrations: Registration[], showRegistryId?: string) => {
+const mountWith = (
+  registrations: Registration[],
+  showRegistryId?: string,
+  registrationsReadComplete = true
+) => {
   vi.mocked(useDogStoreCompat).mockReturnValue(
-    fromPartial({ dogs: [mockDog(registrations)], isLoading: false })
+    fromPartial({ dogs: [mockDog(registrations, registrationsReadComplete)], isLoading: false })
   );
   const onSelectionChange = vi.fn();
   return {
@@ -91,24 +96,54 @@ describe('DogSelectionStep — the registration this show will use', () => {
     expect(screen.getAllByTestId('registration-other')).toHaveLength(2);
   });
 
-  it('names the fix and blocks selection when no registration matches the show registry', async () => {
+  it('names the fix when no registration matches, and still lets her select the dog', async () => {
     const { onSelectionChange, user } = mountWith([UKC, ASCA], 'AKC');
 
     expect(screen.getByText(/Add an AKC registration to enter this show/)).toBeInTheDocument();
     expect(screen.queryByTestId('registration-used')).not.toBeInTheDocument();
-    expect(screen.getByRole('checkbox', { name: /Select Maple/ })).toHaveAttribute(
+    // The fix is one tap away, not a dead end.
+    expect(screen.getByRole('button', { name: /Add registration/ })).toBeInTheDocument();
+
+    // Selection is deliberately NOT blocked here. The per-trial registry — and
+    // the conformation-puppy carve-out the DB trigger honours — are known at
+    // class selection, which already refuses the class. Blocking show-wide at
+    // step 1 stranded a dog selected before the registry resolved.
+    expect(screen.getByRole('checkbox', { name: /Select Maple/ })).not.toHaveAttribute(
       'aria-disabled',
       'true'
     );
-    // Not merely styled as blocked — clicking the card must not select the dog,
-    // because the entry would die on trg_entries_require_dog_registration.
     await user.click(screen.getByText(/Golden Retriever/));
-    expect(onSelectionChange).not.toHaveBeenCalled();
-    // The fix is one tap away, not a dead end.
-    expect(screen.getByRole('button', { name: /Add registration/ })).toBeInTheDocument();
+    expect(onSelectionChange).toHaveBeenCalledWith(['dog-1']);
   });
 
-  it('marks nothing and blocks nobody when the show registry is not known yet', async () => {
+  it('renders a blank-numbered registration as the label alone, with no dangling colon', () => {
+    const blank = registration({ id: 'reg-blank', organization: 'ASCA', registrationNumber: '  ' });
+    mountWith([AKC, blank], 'AKC');
+
+    const other = screen.getByTestId('registration-other');
+    expect(other.textContent).toBe('ASCA');
+  });
+
+  it('says nothing about this show when the registration read did not complete', () => {
+    mountWith([], 'AKC', false);
+
+    expect(screen.queryByTestId('registration-used')).not.toBeInTheDocument();
+    expect(screen.queryByText(/registration to enter this show/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/No registration on file/)).not.toBeInTheDocument();
+  });
+
+  it("leaves an incomplete read's surviving registrations unmuted and unmarked", () => {
+    mountWith([AKC, UKC], 'AKC', false);
+
+    expect(screen.queryByTestId('registration-used')).not.toBeInTheDocument();
+    const others = screen.getAllByTestId('registration-other');
+    expect(others).toHaveLength(2);
+    for (const other of others) {
+      expect(other.className).not.toMatch(/opacity-/);
+    }
+  });
+
+  it('marks nothing and says nothing when the show registry is not known yet', async () => {
     const { onSelectionChange, user } = mountWith([AKC, UKC], undefined);
 
     expect(screen.queryByTestId('registration-used')).not.toBeInTheDocument();

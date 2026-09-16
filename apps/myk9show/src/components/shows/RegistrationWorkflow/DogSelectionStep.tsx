@@ -12,6 +12,7 @@ import {
   getDogBreedLabel,
   getDogDistinctRegisteredName,
   Dog,
+  type Registration,
 } from '@/types/dog-types';
 import { formatDateMMDDYYYY } from '@/utils/dateFormat';
 import { cn } from '@/lib/utils';
@@ -22,6 +23,12 @@ import { AddEditRegistrationDialog } from '@/components/dogs/AddEditRegistration
 import { useInlineDogRegistration } from './useInlineDogRegistration';
 import { resolveRegistrationForShow, type RegistrationForShow } from './dogRegistrationForShow';
 import '@/styles/myk9-registration-workflow.css';
+
+/** "AKC: SR12345601", or just "AKC" when the number is missing — never "AKC: ". */
+function registrationLabel(registration: Registration): string {
+  const number = registration.registrationNumber?.trim();
+  return number ? `${registration.organization}: ${number}` : registration.organization;
+}
 
 interface DogSelectionStepProps {
   selectedDogs: string[];
@@ -80,15 +87,22 @@ export const DogSelectionStep: React.FC<DogSelectionStepProps> = ({
       issues.push('Too young (must be 6+ months)');
     }
 
-    // A dog with no registration for THIS show's registry cannot be entered —
-    // `trg_entries_require_dog_registration` rejects it, and the exhibitor should
-    // never meet that rejection at the payment step (MYK9-569). The helper fails
-    // OPEN when either the registry or the registrations are unknown, so the old
-    // "registrations may not be loaded on every data path" caveat still holds.
-    if (forShow.missingRegistration && forShow.missingRegistrationMessage) {
-      issues.push(forShow.missingRegistrationMessage);
-    } else if (dog.registrations && dog.registrations.length === 0) {
-      // No registry in context: the generic warning, unchanged.
+    // INTENT: a missing registration is SAID here, never enforced here. The
+    // registry that decides eligibility is per-trial, and `ClassSelectionStep`
+    // already refuses the class through `getRegistrationPrerequisite` — which
+    // carries the conformation-puppy carve-out the DB trigger honours. A
+    // show-wide block at step 1 would both lose that carve-out and strand a dog
+    // selected before the registry resolved: once trials hydrated the checkbox
+    // went disabled with the dog still in the cart (MYK9-569 review round 1).
+    //
+    // Registration stays a warning only. `[]` is proof of absence ONLY when the
+    // read completed: `mapDatabaseToDog` emits `registrations: []` for a failed
+    // read too, so an offline exhibitor must not be told her dogs are
+    // unregistered. Suppressed when the registry-specific message below already
+    // says the same thing more usefully.
+    const registrationsKnownEmpty =
+      dog.registrations?.length === 0 && dog.registrationsReadComplete !== false;
+    if (registrationsKnownEmpty && !forShow.missingRegistration) {
       warnings.push('No registration on file — verify before submitting');
     }
 
@@ -227,7 +241,7 @@ export const DogSelectionStep: React.FC<DogSelectionStepProps> = ({
                               variant="outline"
                               className="max-w-full whitespace-normal break-all border-primary bg-primary/10 text-xs font-semibold text-foreground"
                             >
-                              {forShow.used.organization}: {forShow.used.registrationNumber}
+                              {registrationLabel(forShow.used)}
                               <span className="ml-1.5 font-normal text-muted-foreground">
                                 Used for this show
                               </span>
@@ -238,12 +252,21 @@ export const DogSelectionStep: React.FC<DogSelectionStepProps> = ({
                               key={reg.id}
                               data-testid="registration-other"
                               variant="outline"
-                              className="max-w-full whitespace-normal break-all text-xs text-muted-foreground opacity-60"
+                              className={cn(
+                                'max-w-full whitespace-normal break-all text-xs',
+                                forShow.resolved && 'text-muted-foreground opacity-60'
+                              )}
                             >
-                              {reg.organization}: {reg.registrationNumber}
+                              {registrationLabel(reg)}
                             </Badge>
                           ))}
                         </div>
+                      )}
+
+                      {forShow.missingRegistrationMessage && (
+                        <p className="mt-2 text-xs text-destructive">
+                          • {forShow.missingRegistrationMessage}
+                        </p>
                       )}
 
                       {!eligible && issues.length > 0 && (

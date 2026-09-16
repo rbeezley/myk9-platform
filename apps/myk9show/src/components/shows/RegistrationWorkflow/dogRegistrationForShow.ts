@@ -21,18 +21,32 @@ import { normalizeOrganization, resolveDogIdentityForOrganization } from '@/feat
 export interface DogRegistrationsLike {
   /** `undefined`/`null` means "not loaded on this data path", NOT "the dog has none". */
   registrations?: readonly Registration[] | null | undefined;
+  /**
+   * False when the registration read did not complete; `[]` is then not
+   * authoritative. `mapDatabaseToDog` always emits `registrations: []` when none
+   * arrived, and `loadDogRegistrations` returns an empty map with this flag false
+   * on a PostgREST error (the registrations replica's `sync()` is a no-op, so it
+   * cannot cover for the server). Undefined = the mapper left it unset = complete.
+   */
+  registrationsReadComplete?: boolean | undefined;
 }
 
 export interface RegistrationForShow {
+  /**
+   * True only when BOTH facts are known: the show's registry, and the dog's
+   * full registration list. Everything the card says about "this show" is
+   * conditioned on it — when false the card marks nothing, mutes nothing and
+   * claims nothing, because a wrong answer here reads as "your dog's paperwork
+   * is missing".
+   */
+  resolved: boolean;
   /** The registration this show will use, or null when the dog holds none for it. */
   used: Registration | null;
   /** Every other registration the dog carries. Shown, de-emphasized — never hidden. */
   others: readonly Registration[];
   /**
-   * True only when we can prove the entry would be rejected: the show names a
-   * registry AND the dog's registrations are loaded AND none of them is usable
-   * for that registry. Fails OPEN when either fact is unknown — a data path
-   * that has not loaded registrations must not block an exhibitor.
+   * `resolved && used === null` — we can prove this dog holds no usable
+   * registration for the show's registry. Fails OPEN whenever we cannot.
    */
   missingRegistration: boolean;
   /** The fix, in the exhibitor's words, when `missingRegistration`. Else null. */
@@ -53,10 +67,12 @@ export function resolveRegistrationForShow(
   const registrations = dog?.registrations;
   const all: readonly Registration[] = registrations ?? [];
   const registry = normalizeOrganization(showRegistryId);
+  const readComplete = registrations != null && dog?.registrationsReadComplete !== false;
 
-  if (registry == null) {
-    // No registry in context: mark nothing, de-emphasize nothing, block nobody.
+  if (registry == null || !readComplete) {
+    // Either fact unknown: mark nothing, de-emphasize nothing, say nothing.
     return {
+      resolved: false,
       used: null,
       others: all,
       missingRegistration: false,
@@ -78,9 +94,10 @@ export function resolveRegistrationForShow(
         ) ?? null);
 
   const others = all.filter(registration => registration !== used);
-  const missingRegistration = used === null && registrations != null;
+  const missingRegistration = used === null;
 
   return {
+    resolved: true,
     used,
     others,
     missingRegistration,

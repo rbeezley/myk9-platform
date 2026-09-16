@@ -155,21 +155,30 @@ export function WorkflowStepContent({
   // expensive .find() lookups are memoized and only compute during confirmation step.
   const shows = useShowStore(s => s.shows);
   const allTrials = useTrialStore(s => s.trials);
+  const trialsReadStatus = useTrialStore(s => s.trialsReadStatus);
   const people = useUserStore(s => s.people);
   const { dogs } = useDogStoreCompat();
   const { classes } = useClassStoreCompat();
   const currentShow = shows.find(show => show.id === showId);
 
-  // One registry per show (MYK9-490): every trial of a show carries the same
-  // `registry_id`, a projection of the show's organization. Read it through the
-  // registries helpers, never off the column — the trial when one is loaded,
-  // else the same derivation the server applies. Undefined show = unknown, and
-  // the dog card then marks nothing rather than guessing (MYK9-569).
+  // One registry per show (MYK9-490), so ANY loaded trial of this show answers
+  // for the whole show — the first is enough, no scan needed. Read through the
+  // registries helpers, never off the column.
+  //
+  // A trial row is only trusted once `trialsReadStatus` says the read finished:
+  // mid-hydration `trials` is [] or partial, and no marker is better than a
+  // wrong one. The organization fallback is NOT a guess — `trials.registry_id`
+  // is a projection of `shows.organization` through the same derivation the
+  // server applies (`derive_registry_id`), so the two cannot disagree; it is
+  // what keeps the marker alive on this route, which never calls `loadTrials`
+  // and can therefore sit at `trialsReadStatus: 'idle'` indefinitely. Null only
+  // when we have neither, and the dog card then claims nothing (MYK9-569).
   const showRegistryId = useMemo(() => {
-    const trial = allTrials.find(t => t.showId === showId);
+    const trial =
+      trialsReadStatus === 'ready' ? allTrials.find(t => t.showId === showId) : undefined;
     if (trial) return getTrialRegistry(trial).id;
     return currentShow ? deriveRegistryId(currentShow.organization) : null;
-  }, [allTrials, showId, currentShow]);
+  }, [trialsReadStatus, allTrials, showId, currentShow]);
 
   const styledReceipt = useMemo(() => {
     if (currentStepId !== 'confirmation') return null;

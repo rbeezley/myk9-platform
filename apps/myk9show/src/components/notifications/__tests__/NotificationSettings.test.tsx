@@ -354,12 +354,40 @@ describe('NotificationSettings', () => {
     fireEvent.click(pushSwitch);
 
     await waitFor(() =>
-      expect(notifications.error).toHaveBeenCalledWith('Failed to enable push notifications.')
+      expect(notifications.error).toHaveBeenCalledWith(
+        'We could not turn on push notifications. Try again, or leave private browsing — alerts cannot be delivered in a private window.'
+      )
     );
     // pushEnabled was never flipped on, so the switch renders unchecked again —
     // not stuck mid-toggle or falsely showing "on".
     expect(pushSwitch).toHaveAttribute('data-state', 'unchecked');
     expect(useNotificationStore.getState().preferences.pushEnabled).toBe(false);
+  });
+
+  // MYK9-549 round 2: the subscribe path can now take up to 15s
+  // (SUBSCRIBE_READY_TIMEOUT_MS) before it settles, and while it is pending the
+  // only feedback used to be the Switch dimming — identical to "not supported".
+  // Pin that a "Turning on…" affordance appears while the promise is pending
+  // and disappears once it resolves.
+  it('shows a "Turning on…" affordance while the push subscribe call is pending', async () => {
+    let resolveSubscribe: (value: { ok: true }) => void = () => {};
+    mockSubscribe.mockImplementationOnce(
+      () =>
+        new Promise(resolve => {
+          resolveSubscribe = resolve;
+        })
+    );
+    render(<NotificationSettings />);
+
+    const pushSwitch = screen.getByRole('switch', { name: /push notifications/i });
+    fireEvent.click(pushSwitch);
+
+    expect(await screen.findByText('Turning on…')).toBeInTheDocument();
+    expect(pushSwitch).toHaveAttribute('aria-disabled', 'true');
+
+    resolveSubscribe({ ok: true });
+
+    await waitFor(() => expect(screen.queryByText('Turning on…')).not.toBeInTheDocument());
   });
 
   // --- Voice Announcements ---

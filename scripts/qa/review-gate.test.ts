@@ -8,6 +8,7 @@ import {
   evaluateReviewGate,
   fileListIsUnusable,
   GH_MAX_BUFFER_BYTES,
+  isFullSha,
   runGh,
   flattenPages,
   overrideAccepted,
@@ -1715,6 +1716,28 @@ describe('a crash cannot read as a standing pass', () => {
     expect(posted).toHaveLength(0);
   });
 
+  it('attempts no POST and exits non-zero on a short-SHA `headRefOid`', () => {
+    // Not just a MISSING headRefOid: a present-but-unusable one must be
+    // refused too, or the POST targets `statuses/abc1234`, which is not a
+    // commit. This is the fixture that makes isFullSha's 40-char requirement
+    // load-bearing from the CLI's side (round-2 review, P2).
+    const posted: string[][] = [];
+    const run = (args: string[]): string => {
+      if (args[0] === 'pr' && args[1] === 'view') {
+        return JSON.stringify({ headRefOid: 'abc1234', isDraft: false, changedFiles: 1 });
+      }
+      if (args.some(a => a.includes('/pulls/'))) return 'docs/notes/n0.md\n';
+      if (args.some(a => a.includes('/issues/'))) return JSON.stringify([[]]);
+      if (args.includes('--method')) {
+        posted.push(args);
+        return '';
+      }
+      throw new Error(`unexpected gh call: ${args.join(' ')}`);
+    };
+    expect(runCli(env, [], run)).toBe(1);
+    expect(posted).toHaveLength(0);
+  });
+
   it('posts through the injected runner, never a real gh', () => {
     // Without this the unit suite is one forgotten --dry-run away from
     // POSTing a commit status to a real SHA in the real repository.
@@ -1987,6 +2010,36 @@ describe('the workflow’s crash-fallback step', () => {
     const yaml = readFileSync(workflowPath, 'utf8');
     const stepAt = yaml.indexOf(`- name: ${STEP_NAME}`);
     expect(yaml.slice(stepAt, stepAt + 200)).toContain('if: failure()');
+  });
+});
+
+describe('isFullSha', () => {
+  // A commit status can only be pinned to a full 40-character SHA, and this
+  // is the script-side half of the same rule the workflow's fallback step
+  // applies in shell. It was reachable from only ONE test, which passed
+  // `undefined` — so relaxing the pattern to `/^[0-9a-f]+$/` left all 162
+  // tests green (round-2 review, P2).
+  it('accepts exactly 40 lowercase hex characters', () => {
+    expect(isFullSha('a'.repeat(40))).toBe(true);
+    expect(isFullSha('0123456789abcdef0123456789abcdef01234567')).toBe(true);
+  });
+
+  it('rejects anything else', () => {
+    for (const value of [
+      'a'.repeat(39), // one short
+      'a'.repeat(41), // one long
+      'A'.repeat(40), // uppercase hex
+      'g'.repeat(40), // 40 chars, outside the hex alphabet
+      `${'a'.repeat(37)}../`, // 40 chars, a traversal
+      'abc1234', // a short-SHA fragment
+      '',
+      undefined,
+      null,
+      42,
+      { toString: () => 'a'.repeat(40) },
+    ]) {
+      expect(isFullSha(value), `expected ${JSON.stringify(value)} to be rejected`).toBe(false);
+    }
   });
 });
 

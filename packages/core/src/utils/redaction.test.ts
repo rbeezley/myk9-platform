@@ -43,6 +43,43 @@ describe('redactSecretLikeString', () => {
   it('leaves ordinary strings untouched', () => {
     expect(redactSecretLikeString('open support ticket')).toBe('open support ticket');
   });
+
+  // MYK9-550: KEY_VALUE_SECRET_RE ran before BEARER_RE and its value class ([^&#\s]+)
+  // stopped at whitespace, so `token=Bearer <token>` matched only `token=Bearer`,
+  // deleting the literal "Bearer" that BEARER_RE needed as its anchor -- leaving the
+  // token itself un-redacted downstream.
+  it('redacts the full value when a key=value pair carries a Bearer-scheme token (MYK9-550)', () => {
+    expect(redactSecretLikeString('token=Bearer opaque-token-value-1234')).toBe('token=[redacted]');
+  });
+
+  it('redacts a Bearer-scheme value on the authorization key= param (MYK9-550)', () => {
+    expect(redactSecretLikeString('authorization=Bearer sb_publishable_abc123defghijklmnop')).toBe(
+      'authorization=[redacted]'
+    );
+  });
+
+  it('redacts a Bearer-scheme value on the apikey= param (MYK9-550)', () => {
+    expect(redactSecretLikeString('apikey=Bearer rk_live_0123456789abcdef')).toBe(
+      'apikey=[redacted]'
+    );
+  });
+
+  it('redacts an Authorization header Bearer token with no = sign (MYK9-550, already correct)', () => {
+    expect(redactSecretLikeString('Authorization: Bearer sbp_0123456789abcdef0123456789')).toBe(
+      'Authorization: Bearer [redacted]'
+    );
+  });
+
+  it('redacts an Authorization header Bearer JWT with no = sign (MYK9-550, already correct)', () => {
+    expect(redactSecretLikeString('Authorization: Bearer eyJhbGciOi.eyJzdWIiOi.SflKxwRJSM')).toBe(
+      'Authorization: Bearer [redacted]'
+    );
+  });
+
+  it('redacts Stripe restricted keys rk_live_ and rk_test_ (MYK9-550)', () => {
+    expect(redactSecretLikeString('rk_live_abcdefgh12345678')).toBe('[redacted-secret]');
+    expect(redactSecretLikeString('rk_test_abcdefgh12345678')).toBe('[redacted-secret]');
+  });
 });
 
 describe('redactSecretLikeValue', () => {

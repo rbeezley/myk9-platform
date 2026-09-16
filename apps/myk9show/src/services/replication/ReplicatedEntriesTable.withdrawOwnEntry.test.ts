@@ -12,6 +12,32 @@
  */
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { ReplicatedEntriesTable, WITHDRAW_OWN_ENTRY_RPC } from './ReplicatedEntriesTable';
+import type { Database } from '@/types/supabase';
+
+/**
+ * MYK9-583, compile-level half of the null-version guard. `pnpm typecheck` runs
+ * this file (`typecheck:tests`), so these are real assertions, not decoration.
+ *
+ * Without the `database-overrides.ts` widening, the first declaration is
+ * TS2322 ("Type 'null' is not assignable to type 'number'") — which is exactly
+ * the pressure that makes `?? 0` look like the fix. It is not: 0 is a valid
+ * version. The second pins the widening as NULL specifically, so nobody
+ * "fixes" a future generator mismatch by loosening the field to `any`.
+ */
+type WithdrawArgs = Database['public']['Functions']['withdraw_own_entry']['Args'];
+
+const COLD_ROW_ARGS: WithdrawArgs = {
+  p_entry_id: 'entry-1',
+  p_fields: { entry_status: 'withdrawn' },
+  p_expected_version: null,
+};
+
+const WIDENED_TO_NULL_ONLY: WithdrawArgs = {
+  p_entry_id: 'entry-1',
+  p_fields: { entry_status: 'withdrawn' },
+  // @ts-expect-error a version is a number or null — never a string, and never `any`.
+  p_expected_version: '7',
+};
 
 const supabaseMocks = vi.hoisted(() => ({ rpc: vi.fn(), from: vi.fn() }));
 
@@ -35,6 +61,13 @@ function mockReadBack(result: { data: unknown; error: unknown }) {
   supabaseMocks.from.mockReturnValue(node);
   return node;
 }
+
+describe('withdraw_own_entry RPC arg types (MYK9-583)', () => {
+  it('accepts a null p_expected_version without a cast', () => {
+    expect(COLD_ROW_ARGS.p_expected_version).toBeNull();
+    expect(WIDENED_TO_NULL_ONLY.p_entry_id).toBe('entry-1');
+  });
+});
 
 describe('ReplicatedEntriesTable.withdrawOwnEntry — online-only', () => {
   const withdrawableEntry = {
@@ -310,6 +343,25 @@ describe('ReplicatedEntriesTable.withdrawOwnEntry — online-only', () => {
       await table.withdrawOwnEntry('entry-1');
 
       expect(supabaseMocks.rpc.mock.calls[0]?.[1]).toMatchObject({ p_expected_version: 7 });
+    });
+
+    it('sends p_expected_version: null when the cold row carries NO version', async () => {
+      // MYK9-583: the view can answer without a `version` (an older projection,
+      // or a column the caller cannot read). NULL is the contract for "skip the
+      // OCC check" in 20260915203300_withdraw_own_entry_rpc.sql; `?? 0` here
+      // would raise a spurious 40001 on every such withdrawal, because entries
+      // default to version 1 — and burn the single retry.
+      get.mockResolvedValue(undefined);
+      const { version: _omitted, ...noVersionRow } = { ...COLD_ROW, version: 7 };
+      mockReadBack({ data: noVersionRow, error: null });
+      supabaseMocks.rpc.mockResolvedValue({ data: 3, error: null });
+
+      await table.withdrawOwnEntry('entry-1');
+
+      expect(supabaseMocks.rpc).toHaveBeenCalledWith(
+        WITHDRAW_OWN_ENTRY_RPC,
+        expect.objectContaining({ p_expected_version: null })
+      );
     });
 
     it('the eligibility check does not cache a cold row (the dialog-open seed)', async () => {

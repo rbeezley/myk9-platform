@@ -663,20 +663,23 @@ export class ReplicatedEntriesTable extends ReplicatedTable<ReplicatedEntry> {
    * authoritative version in DETAIL (the same contract `ringside_update_entry`
    * uses), so the retry uses that. A second conflict is a real race with another
    * writer and becomes an error the exhibitor can act on.
+   *
+   * Typed, not cast (MYK9-583). `p_expected_version` is `number | null` because
+   * NULL means "no OCC precondition" in the SQL; the generated type says
+   * `number` only because `pg_proc` records no argument nullability, and
+   * `src/types/database-overrides.ts` corrects it. Never coalesce the null to 0
+   * to satisfy the generated type — 0 is a real version.
    */
   private async callWithdrawRpc(
     entryId: string,
     expectedVersion: number | null
   ): Promise<number | undefined> {
     const attempt = async (version: number | null) =>
-      supabase.rpc(
-        WITHDRAW_OWN_ENTRY_RPC as never,
-        {
-          p_entry_id: entryId,
-          p_fields: { entry_status: 'withdrawn' },
-          p_expected_version: version,
-        } as never
-      );
+      supabase.rpc(WITHDRAW_OWN_ENTRY_RPC, {
+        p_entry_id: entryId,
+        p_fields: { entry_status: 'withdrawn' },
+        p_expected_version: version,
+      });
 
     let { data, error } = await attempt(expectedVersion);
 
@@ -969,11 +972,12 @@ export class ReplicatedEntriesTable extends ReplicatedTable<ReplicatedEntry> {
    * The RPC call itself, with the retry-once-on-40001 contract the server's
    * `detail` payload exists for.
    *
-   * Deliberately a SIBLING of `callWithdrawRpc` rather than a shared helper: the
-   * withdrawal call's `as never` casts are owned by MYK9-583 and its argument
-   * shape is jsonb, not a scalar column. The arg type is hand-declared here so
-   * the version stays `number | null` — `null` means "no precondition" and is
-   * never coalesced to 0, which is a real version.
+   * Deliberately a SIBLING of `callWithdrawRpc` rather than a shared helper: its
+   * argument shape is jsonb, not a scalar column. The `as never` casts here stay
+   * only until this RPC reaches the generated types (its migration has not been
+   * pushed yet); the withdrawal call is typed through
+   * `src/types/database-overrides.ts`. Either way `null` means "no precondition"
+   * and is never coalesced to 0, which is a real version.
    */
   private async callUpdateOwnEntryRpc(
     entryId: string,

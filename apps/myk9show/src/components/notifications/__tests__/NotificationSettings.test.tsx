@@ -338,6 +338,12 @@ describe('NotificationSettings', () => {
   // rejection and returns { ok: false, reason: 'subscribe-failed' }; pin that
   // the toggle reports the failure and springs back to off rather than
   // spinning or silently staying "on".
+  // This is the component half only — usePushSubscription is mocked here, so
+  // "returned to off" and "never went on" look identical (the Switch is
+  // store-controlled). The hook half, which actually calls the real
+  // subscribeToPush and asserts it rejects into 'subscribe-failed', is covered
+  // separately by usePushSubscription.test.ts's "should return reason when
+  // subscribeToPush throws".
   it('shows an error toast and returns the toggle to off when subscribeToPush fails', async () => {
     mockSubscribe.mockResolvedValueOnce({ ok: false, reason: 'subscribe-failed' });
     render(<NotificationSettings />);

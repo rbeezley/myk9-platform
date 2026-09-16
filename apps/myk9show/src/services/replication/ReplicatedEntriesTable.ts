@@ -911,7 +911,17 @@ export class ReplicatedEntriesTable extends ReplicatedTable<ReplicatedEntry> {
    */
   async updateOwnEntryJumpHeight(entryId: string, jumpHeight: string): Promise<void> {
     const cached = await this.get(entryId);
-    const expectedVersion = cached ? await this.getServerVersion(entryId) : null;
+    // A cached row's OCC token lives in the replica; a cold row's has to be READ,
+    // exactly as `readEntryForWithdrawal` does. The account-scoped
+    // /exhibitor/entries surface — the exhibitor's PRIMARY one for this edit —
+    // has no show-scoped replica, so without the cold read every save from it
+    // would send `p_expected_version: null` (no precondition, last-write-wins):
+    // a secretary's concurrent height change would be silently overwritten and
+    // the retry-once-on-40001 contract would be unreachable precisely where it
+    // is needed.
+    const expectedVersion = cached
+      ? await this.getServerVersion(entryId)
+      : await this.readColdEntryVersion(entryId);
     const version = await this.callUpdateOwnEntryRpc(entryId, jumpHeight, expectedVersion);
 
     // Re-read at the moment of writing: a sign-out, scope change or store clear
@@ -924,6 +934,35 @@ export class ReplicatedEntriesTable extends ReplicatedTable<ReplicatedEntry> {
     logger.log(
       `[${this.getTableName()}] Updated jump height for ${entryId} via ${UPDATE_OWN_ENTRY_JUMP_HEIGHT_RPC}`
     );
+  }
+
+  /**
+   * The authoritative `version` for a row the show-scoped replica does not hold.
+   *
+   * Reads `view_authenticated_entry_results`, the same view the withdrawal path
+   * reads its cold row from, and NEVER writes to the store (MYK9-573) — seeding
+   * one row into an otherwise empty replica makes an account-scope read report
+   * that single row as the user's whole entry list.
+   *
+   * Returns null only when the version is genuinely UNKNOWN: the read failed
+   * (offline), the row is gone, or the view returned no `version` column. The
+   * RPC treats null as "no precondition", so in those cases the save is
+   * last-write-wins — but the two of those that are real (offline, deleted row)
+   * are about to fail inside the RPC anyway.
+   */
+  private async readColdEntryVersion(entryId: string): Promise<number | null> {
+    try {
+      const { data, error } = await supabase
+        .from('view_authenticated_entry_results')
+        .select('id, version')
+        .eq('id', entryId)
+        .maybeSingle();
+      if (error || !data) return null;
+      const version = (data as unknown as Record<string, unknown>).version;
+      return typeof version === 'number' ? version : null;
+    } catch {
+      return null;
+    }
   }
 
   /**
@@ -941,15 +980,25 @@ export class ReplicatedEntriesTable extends ReplicatedTable<ReplicatedEntry> {
     jumpHeight: string,
     expectedVersion: number | null
   ): Promise<number | undefined> {
-    const attempt = async (version: number | null) =>
-      supabase.rpc(
-        UPDATE_OWN_ENTRY_JUMP_HEIGHT_RPC as never,
-        {
-          p_entry_id: entryId,
-          p_jump_height: jumpHeight,
-          p_expected_version: version,
-        } as never
-      );
+    // The try/catch matters: an `rpc` that THROWS (a fetch that never reached
+    // Postgres) would otherwise skip the SQLSTATE classification below and leak
+    // a transport string into the dialog. `callWithdrawRpc` has the same gap —
+    // it is not shared code, so it is left to MYK9-535's owner rather than
+    // edited from here.
+    const attempt = async (version: number | null) => {
+      try {
+        return await supabase.rpc(
+          UPDATE_OWN_ENTRY_JUMP_HEIGHT_RPC as never,
+          {
+            p_entry_id: entryId,
+            p_jump_height: jumpHeight,
+            p_expected_version: version,
+          } as never
+        );
+      } catch (thrown) {
+        return { data: null, error: (thrown ?? {}) as { code?: string } };
+      }
+    };
 
     let { data, error } = await attempt(expectedVersion);
 

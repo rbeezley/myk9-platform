@@ -24,6 +24,16 @@ vi.mock('@/services/database/supabaseClient', () => ({
   supabase: { rpc: supabaseMocks.rpc, from: supabaseMocks.from },
 }));
 
+/** The cold OCC read: .from(view).select(...).eq('id', x).maybeSingle() */
+function mockColdRead(result: { data: unknown; error: unknown }) {
+  const node: Record<string, unknown> = {};
+  node.select = vi.fn(() => node);
+  node.eq = vi.fn(() => node);
+  node.maybeSingle = vi.fn(() => Promise.resolve(result));
+  supabaseMocks.from.mockReturnValue(node);
+  return node;
+}
+
 describe('ReplicatedEntriesTable.updateOwnEntryJumpHeight', () => {
   const cachedEntry = {
     id: 'entry-1',
@@ -81,18 +91,36 @@ describe('ReplicatedEntriesTable.updateOwnEntryJumpHeight', () => {
     );
   });
 
-  it('sends a NULL precondition for an uncached row, never 0', async () => {
+  it('reads the OCC token for a COLD row instead of sending no precondition', async () => {
+    // The account-scoped /exhibitor/entries surface — the exhibitor's primary
+    // one for this edit — has no show-scoped replica. Sending null there would
+    // make every save last-write-wins and leave the 40001 retry unreachable.
     get.mockResolvedValue(undefined);
+    mockColdRead({ data: { id: 'entry-1', version: 4 }, error: null });
 
     await table.updateOwnEntryJumpHeight('entry-1', '12"');
 
     expect(supabaseMocks.rpc).toHaveBeenCalledWith('update_own_entry_jump_height', {
       p_entry_id: 'entry-1',
       p_jump_height: '12"',
-      p_expected_version: null,
+      p_expected_version: 4,
     });
     // MYK9-573: a row absent from the show-scoped replica is never written back.
     expect(set).not.toHaveBeenCalled();
+  });
+
+  it('falls back to a NULL precondition only when the version is unknowable', async () => {
+    get.mockResolvedValue(undefined);
+    mockColdRead({ data: null, error: { message: 'Failed to fetch' } });
+
+    await table.updateOwnEntryJumpHeight('entry-1', '12"');
+
+    expect(supabaseMocks.rpc).toHaveBeenCalledWith('update_own_entry_jump_height', {
+      p_entry_id: 'entry-1',
+      p_jump_height: '12"',
+      // null, never 0 — 0 is a real version (MYK9-583).
+      p_expected_version: null,
+    });
   });
 
   it('retries once at the server version carried in a 40001 DETAIL', async () => {
@@ -129,6 +157,15 @@ describe('ReplicatedEntriesTable.updateOwnEntryJumpHeight', () => {
     await expect(table.updateOwnEntryJumpHeight('entry-1', '12"')).rejects.toBeInstanceOf(
       JumpHeightUnavailableError
     );
+  });
+
+  it('classifies a THROWN rpc as unavailable rather than leaking a transport error', async () => {
+    supabaseMocks.rpc.mockRejectedValue(new TypeError('Failed to fetch'));
+
+    await expect(table.updateOwnEntryJumpHeight('entry-1', '12"')).rejects.toBeInstanceOf(
+      JumpHeightUnavailableError
+    );
+    expect(set).not.toHaveBeenCalled();
   });
 
   it('leaves the local row untouched when the server refuses', async () => {

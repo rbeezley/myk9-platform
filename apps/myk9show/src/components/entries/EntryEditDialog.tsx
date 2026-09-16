@@ -29,16 +29,11 @@ import { Badge } from '@/components/ui/badge';
 import { Label } from '@/components/ui/label';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { AlertCircle, Loader2, X, Save, Dog, Trophy } from 'lucide-react';
-import {
-  updateEntryDetails,
-  updateEntryHandler,
-  withdrawEntry,
-  canModifyEntry,
-} from '@/services/database/entries';
+import { withdrawEntry, canModifyEntry } from '@/services/database/entries';
 import { withdrawErrorMessage } from '@/services/database/entries/withdrawEligibility';
 import { useWithdrawEligibility } from './useWithdrawEligibility';
 import { PullConfirmDialog } from './PullConfirmDialog';
-import { jumpHeightErrorMessage } from '@/services/database/entries/jumpHeightErrors';
+import { saveEntryEdits } from './saveEntryEdits';
 import { logger } from '@/services/LoggingService';
 import { disciplineUsesJumpHeight } from '@/types/template.types';
 import { useEditingPresence } from '@/features/show-presence/useEditingPresence';
@@ -228,41 +223,16 @@ export function EntryEditDialog({
     setError(null);
 
     try {
-      // Save handler changes per class row. A grouped dog card can contain
-      // multiple entry rows, and each row may need a different handler.
-      for (const classEntry of entry.classes) {
-        const editedHandler = classEdits[classEntry.id]?.handler;
-        const originalHandler = classEntry.handler ?? entry.handler ?? '';
-        if (editedHandler !== undefined && editedHandler !== originalHandler) {
-          const { error } = await updateEntryHandler({
-            entryId: classEntry.id,
-            handler: editedHandler,
-            handlerId: null,
-            clearHandlerId: ignoreModificationDeadline,
-          });
-          if (error) {
-            setError('Failed to update handler. Please try again.');
-            setIsSaving(false);
-            return;
-          }
-        }
-      }
-
-      // Save class entry changes (jump height)
-      for (const [classId, edits] of Object.entries(classEdits)) {
-        if (edits.jumpHeight && edits.status !== 'withdrawn') {
-          const { error } = await updateEntryDetails({
-            entryId: classId,
-            jumpHeight: edits.jumpHeight,
-          });
-          if (error) {
-            // MYK9-561: say WHY. The RPC's owner-tier refusals arrive as
-            // SQLSTATEs carrying the row UUID — wrong for a person to read.
-            setError(jumpHeightErrorMessage(error));
-            setIsSaving(false);
-            return;
-          }
-        }
+      const { error } = await saveEntryEdits({
+        classes: entry.classes,
+        classEdits,
+        fallbackHandler: entry.handler,
+        clearHandlerId: ignoreModificationDeadline,
+      });
+      if (error) {
+        setError(error);
+        setIsSaving(false);
+        return;
       }
 
       onUpdate();

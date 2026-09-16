@@ -9,6 +9,58 @@ import { logger } from '@/services/LoggingService';
 import DogDetailsMain from '@/components/dogs/DogDetailsMain';
 import { useForceDeleteDogMutation } from '@/hooks/queries/useDogsDatabase';
 import { getDogDisplayName, type Dog } from '@/types/dog-types';
+import { translateDogDbError } from '@/hooks/translateDogDbError';
+
+/** `force_delete_dog` (migration 20260915214500) raises exactly these. */
+const PG_INSUFFICIENT_PRIVILEGE = '42501';
+const PG_NO_DATA_FOUND = 'P0002';
+
+/**
+ * `forceDeleteDog` rejects with `createDatabaseError(...)` — a plain object
+ * literal CAST to `DatabaseError`, never an `Error` instance (see
+ * `services/database/databaseError.ts`). So `err instanceof Error` is false on
+ * this path: the toast fell back to "Failed to delete dog. Please try again."
+ * and Sentry received `Error("[object Object]")`, leaving a refused override
+ * with no reason at all. The ordinary delete escapes this only because
+ * `useDogStoreCompat.deleteDog` runs inside `runDogMutation`, which calls
+ * `translateDogDbError`; `forceDeleteMutation.mutateAsync` is called directly
+ * and has no such seam, so this supplies one.
+ *
+ * The two codes the RPC raises are handled here rather than in
+ * `translateDogDbError` because its wording is create/update-shaped ("permission
+ * to save this dog"), which is the wrong sentence for a refused delete.
+ * Anything else is handed to the shared translator, normalised to a real
+ * `Error` first so its `base` carries the server's message instead of
+ * `String(object)`.
+ */
+function toForceDeleteError(err: unknown): Error {
+  if (err instanceof Error) return translateDogDbError(err);
+
+  const raw = (err ?? {}) as { code?: unknown; message?: unknown };
+  const code = typeof raw.code === 'string' ? raw.code : '';
+  const message = typeof raw.message === 'string' && raw.message ? raw.message : '';
+
+  if (code === PG_INSUFFICIENT_PRIVILEGE) {
+    return Object.assign(
+      new Error('You no longer have permission to delete this dog and its entries.'),
+      { cause: err }
+    );
+  }
+  if (code === PG_NO_DATA_FOUND) {
+    return Object.assign(new Error('This dog has already been deleted. Refresh to see the list.'), {
+      cause: err,
+    });
+  }
+
+  const normalised = Object.assign(
+    new Error(message || 'Failed to delete dog. Please try again.'),
+    {
+      code,
+      cause: err,
+    }
+  );
+  return translateDogDbError(normalised);
+}
 
 /**
  * DogDetailPage is a thin wrapper around DogDetailsMain for the /dogs/:id route.
@@ -49,15 +101,20 @@ const DogDetailPage: React.FC = () => {
   // `accessDenied`. It is cleared only in the handlers' `catch`, which runs
   // after the mutation's `onError` has already restored the dog — so there is
   // no frame in which the delete is neither in flight nor rolled back.
+  //
+  // Scoped to `id`: the route renders this page without a `key`, so navigating
+  // from dog-1 to dog-2 mid-delete REUSES this component. An unscoped latch
+  // would keep dog-2's guard disabled and then yank the user to /dogs when
+  // dog-1's RPC settled.
   const [dogBeingDeleted, setDogBeingDeleted] = useState<Dog | null>(null);
-  const isDeleteInFlight = dogBeingDeleted !== null;
+  const isDeleteInFlight = !!id && dogBeingDeleted?.id === id;
 
   const resolvedDog = useMemo(() => {
     if (!id) return null;
     return dogs.find(d => d.id === id) || createdDog || null;
   }, [dogs, id, createdDog]);
 
-  const dog = resolvedDog ?? dogBeingDeleted;
+  const dog = resolvedDog ?? (isDeleteInFlight ? dogBeingDeleted : null);
 
   // Redirect to /dogs if dog not found or no access after loading.
   // Skip while isFetching — post-create refetch may not have resolved yet.
@@ -118,17 +175,9 @@ const DogDetailPage: React.FC = () => {
       navigate('/dogs', { replace: true });
     } catch (err) {
       setDogBeingDeleted(null);
-      logger.error(
-        'Failed to force delete dog',
-        'dogs',
-        { dogId: dog.id },
-        err instanceof Error ? err : new Error(String(err))
-      );
-      notifications.error(
-        err instanceof Error && err.message
-          ? err.message
-          : 'Failed to delete dog. Please try again.'
-      );
+      const error = toForceDeleteError(err);
+      logger.error('Failed to force delete dog', 'dogs', { dogId: dog.id }, error);
+      notifications.error(error.message);
       // Same contract as handleDeleteDog: the page stays mounted (the redirect
       // effect and the skeleton both stand down while `isDeleteInFlight`) and
       // the rejection is re-thrown, so DogDialogs leaves the confirmation

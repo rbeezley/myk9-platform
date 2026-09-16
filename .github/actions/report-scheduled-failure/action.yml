@@ -64,20 +64,39 @@ runs:
         MATCHES="$(gh issue list --repo "$REPO" --label "$LABEL" --state open \
           --json number,title --limit 100 \
           --jq "[.[] | select(.title == \"${TITLE}\") | .number] | sort | .[]")"
-        EXISTING="$(printf '%s' "$MATCHES" | head -n 1)"
+
+        # Split MATCHES with a here-string, never a pipe.
+        #
+        # MYK9-578: the previous `printf '%s' "$MATCHES" | head -n 1` and
+        # `printf '%s' "$MATCHES" | tail -n +2 | while read` both hand a
+        # short-lived reader the writer's stdout. Under `set -o pipefail` a
+        # reader that exits while the writer still has bytes to push kills the
+        # writer with SIGPIPE and the whole step with 141 -- which is how a
+        # green merge went red on `main` run 34999619898 with no other test
+        # failing. A here-string is a temp file, not a pipe, so there is no
+        # reader to race and no pipeline status to inherit.
+        #
+        # Reading line by line rather than word-splitting also keeps the
+        # property `|| [ -n "$dup" ]` used to buy: a here-string terminates
+        # the final line, so `read` returns 0 on it and the last duplicate is
+        # not silently dropped. Caught by a dry run with three duplicates,
+        # where only the middle one was closed.
+        NUMBERS=()
+        while IFS= read -r line; do
+          if [ -n "$line" ]; then NUMBERS+=("$line"); fi
+        done <<< "$MATCHES"
+
+        EXISTING=""
+        if [ ${#NUMBERS[@]} -gt 0 ]; then EXISTING="${NUMBERS[0]}"; fi
 
         # Collapse any duplicate a past race left behind.
-        #
-        # `|| [ -n "$dup" ]` is required, not defensive noise: MATCHES has no
-        # trailing newline, so `read` returns non-zero on the final line and a
-        # plain `while read` silently drops it. Caught by a dry run with three
-        # duplicates, where only the middle one was closed.
-        printf '%s' "$MATCHES" | tail -n +2 | while read -r dup || [ -n "$dup" ]; do
-          [ -n "$dup" ] || continue
-          gh issue close "$dup" --repo "$REPO" \
-            --comment "Duplicate of #${EXISTING}, which tracks this workflow."
-          echo "Closed duplicate #${dup}."
-        done
+        if [ ${#NUMBERS[@]} -gt 1 ]; then
+          for dup in "${NUMBERS[@]:1}"; do
+            gh issue close "$dup" --repo "$REPO" \
+              --comment "Duplicate of #${EXISTING}, which tracks this workflow."
+            echo "Closed duplicate #${dup}."
+          done
+        fi
 
         if [ "$OUTCOME" = "success" ]; then
           if [ -n "$EXISTING" ]; then

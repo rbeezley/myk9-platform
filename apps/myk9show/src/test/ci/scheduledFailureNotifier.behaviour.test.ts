@@ -192,6 +192,24 @@ describe('scheduled-failure notifier', () => {
     expect(closed).toEqual(['42', '77']);
   });
 
+  it('survives a match list too large for one pipe buffer (MYK9-578 SIGPIPE shape)', () => {
+    // MYK9-578: `printf '%s' "$MATCHES" | head -n 1` under `set -o pipefail`
+    // dies with 141 (128 + SIGPIPE) whenever `head` leaves while the writer
+    // still has bytes to push. On CI that is a scheduling race under coverage
+    // load, seen once on the main coverage job and never in 20 local replays.
+    // Here it is forced deterministically by making the payload larger than a
+    // pipe buffer, so the writer is guaranteed to still be writing when the
+    // reader exits.
+    //
+    // Same defect, not a synthetic one: the fix is to stop piping to `head`.
+    // Before the fix this throws `status=141`.
+    const oversized = '9'.repeat(200_000);
+    const { calls } = run('failure', ['42', oversized]);
+    expect(calls.find(c => c.startsWith('issue edit'))).toContain('issue edit 42 ');
+    const closed = calls.filter(c => c.startsWith('issue close')).map(c => c.split(' ')[2]);
+    expect(closed).toEqual([oversized]);
+  });
+
   it('collapses duplicates on the recovery path too', () => {
     const closed = run('success', ['42', '77'])
       .calls.filter(c => c.startsWith('issue close'))

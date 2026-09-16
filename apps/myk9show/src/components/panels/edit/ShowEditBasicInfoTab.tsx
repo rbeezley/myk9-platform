@@ -100,7 +100,11 @@ export const ShowEditBasicInfoTab: React.FC<ShowEditBasicInfoTabProps> = ({
               </Select>
             </FormField>
 
-            <FormField label="Status" fieldId="status">
+            <FormField
+              label="Status"
+              fieldId="status"
+              hint="Publish from the status badge on the show page."
+            >
               <Select value={data.status} onValueChange={handleSelectChange('status')}>
                 <SelectTrigger>
                   <SelectValue placeholder="Select status" />
@@ -114,14 +118,24 @@ export const ShowEditBasicInfoTab: React.FC<ShowEditBasicInfoTabProps> = ({
                       </div>
                     </div>
                   </SelectItem>
-                  <SelectItem value="published">
-                    <div>
-                      <div className="font-medium">Published</div>
-                      <div className="text-xs text-muted-foreground">
-                        Live and accepting entries
+                  {/* MYK9-579 round 4: publishing happens in exactly one
+                      place -- the status pill on the show page
+                      (ShowStatusPill.tsx), which alone runs the DB publish
+                      gate. This option is only offered when the show is
+                      ALREADY published, so an existing published show can be
+                      saved unchanged (never re-gated, never force-downgraded
+                      by omission) -- but a draft can no longer be published
+                      from this panel. */}
+                  {data.status === 'published' && (
+                    <SelectItem value="published">
+                      <div>
+                        <div className="font-medium">Published</div>
+                        <div className="text-xs text-muted-foreground">
+                          Live and accepting entries
+                        </div>
                       </div>
-                    </div>
-                  </SelectItem>
+                    </SelectItem>
+                  )}
                   <SelectItem value="upcoming">
                     <div>
                       <div className="font-medium">Upcoming</div>

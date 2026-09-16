@@ -6,8 +6,26 @@ import { getErrorMessage } from '@myk9/core';
 // row without payouts_enabled, blocks NEWLY publishing. Shows that are
 // already published are never un-published by this gate.
 
+// MYK9-579 round 4 (P2-3): 'accepting_entries' is also an entry-open status --
+// stripe-checkout/index.ts admits ['published', 'accepting_entries'] when
+// deciding whether a show can take an online payment -- so a transition INTO
+// either one must clear the same Stripe-payouts gate as a plain publish. A
+// move BETWEEN two gated statuses (e.g. published -> accepting_entries) is
+// exempt, same as the DB trigger's OLD.status check
+// (enforce_show_publish_gate, supabase/migrations/20260915221500). Keep the
+// DB trigger's gated set and this one in sync by hand -- there is no shared
+// source of truth between SQL and TypeScript.
+export const ONLINE_ENTRY_OPEN_STATUSES = ['published', 'accepting_entries'] as const;
+
 export const PUBLISH_BLOCKED_MESSAGE =
   "Connect your club's payment account before publishing — online entry fees need somewhere to go. Find it under My Club → Payments.";
+
+/** Mirrors enforce_show_publish_gate()'s club_id IS NULL refusal verbatim
+ * (supabase/migrations/20260915221500). Distinct from PUBLISH_BLOCKED_MESSAGE
+ * so callers can decide whether a "connect Stripe" action makes sense --
+ * it never does for this refusal. */
+export const CLUB_REQUIRED_MESSAGE =
+  'Assign a club to this show before publishing — entry fees are paid out to the club.';
 
 export function canEnableOnlineEntries(
   account: { payouts_enabled: boolean } | null | undefined
@@ -16,15 +34,17 @@ export function canEnableOnlineEntries(
 }
 
 // MYK9-579: the client-side checks above are a UX convenience, not the
-// enforcement boundary — enforce_show_publish_gate() (a BEFORE UPDATE OF
-// status trigger on public.shows, supabase/migrations/20260915195500) is the
-// backstop that actually blocks a stale-cache or hand-crafted publish. It
-// raises with this SQLSTATE for BOTH of its refusals (missing club, and no
-// payouts-enabled Stripe account), and its RAISE EXCEPTION text is already
-// this module's own friendly copy — see the trigger's own comment — so the
-// client never needs a second static message table keyed by code the way
-// MK001/MK002 (apps/myk9show/src/utils/errorMessages.ts) are: it can just
-// trust `error.message` once the code confirms the refusal came from here.
+// enforcement boundary — enforce_show_publish_gate() (a BEFORE INSERT OR
+// UPDATE OF status trigger on public.shows,
+// supabase/migrations/20260915221500) is the backstop that actually blocks a
+// stale-cache or hand-crafted publish, on both a status UPDATE and an INSERT
+// that creates an already-published row. It raises with this SQLSTATE for
+// BOTH of its refusals (missing club, and no payouts-enabled Stripe
+// account), and its RAISE EXCEPTION text is already this module's own
+// friendly copy — see the trigger's own comment — so the client never needs
+// a second static message table keyed by code the way MK001/MK002
+// (apps/myk9show/src/utils/errorMessages.ts) are: it can just trust
+// `error.message` once the code confirms the refusal came from here.
 export const PUBLISH_GATE_ERRCODE = 'MK003';
 
 // MYK9-572: a club must be authorized by a site admin before it can open

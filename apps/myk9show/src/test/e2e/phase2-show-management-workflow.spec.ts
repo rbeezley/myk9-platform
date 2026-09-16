@@ -727,7 +727,28 @@ test.describe('Phase 2: Show Management Workflow', () => {
       // Get the show ID from URL
       const showId = showTestHelper.page.url().split('/shows/')[1];
 
-      // Publish the show
+      // MYK9-579 round-3 review (P3-K): enforce_show_publish_gate() now
+      // refuses this publish -- the club this spec creates through
+      // ShowTestDataFactory has no club_stripe_accounts row, and the e2e
+      // client can't self-seed one (only SELECT is granted to
+      // `authenticated`; writing that table needs the service role, which
+      // stripe-connect-onboard alone uses). showCRUD.spec.ts's UPDATE test
+      // sidesteps this the same way (avoids 'published' entirely) rather
+      // than depend on a seed club's Stripe fixture staying payouts-enabled.
+      //
+      // This spec is NOT wired into playwright.ci.config.ts (neither
+      // PR_SMOKE_SPECS nor REGRESSION_SPECS name it) and was ALREADY
+      // non-functional before this trigger existed: showTestHelper.publishShow()
+      // clicks `[data-testid="publish-show-button"]` /
+      // `[data-testid="confirm-publish-button"]` and asserts
+      // `[data-testid="accepting-entries-indicator"]`, none of which exist
+      // anywhere in the current app (ShowStatusPill's publish control has no
+      // confirm step and no such testids). Flipping this assertion to expect
+      // the MK003 refusal would not make the test runnable -- it would still
+      // fail on the first missing selector. Fixing that is a pre-existing,
+      // unrelated UI-selector staleness problem outside MYK9-579's scope;
+      // left as-is here rather than papering over it with an assertion this
+      // spec still can't reach.
       await showTestHelper.publishShow(showId);
 
       // Verify show is now published

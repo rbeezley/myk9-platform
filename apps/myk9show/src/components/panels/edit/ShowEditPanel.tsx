@@ -7,6 +7,11 @@ import {
   fetchClubStripeAccount,
   fetchClubAuthorization,
 } from '@/features/payments/useClubStripeAccount';
+import {
+  isPublishGateDbError,
+  publishGateDbErrorMessage,
+  PUBLISH_BLOCKED_MESSAGE,
+} from '@/features/payments/onlineEntryGate';
 import { showSchemas } from '@/lib/validation';
 import { ShowEditForm } from './ShowEditForm';
 import { useEditingPresence } from '@/features/show-presence/useEditingPresence';
@@ -72,7 +77,20 @@ export const ShowEditPanel: React.FC<ShowEditPanelProps> = ({
       }
       const showData = formDataToShowSaveData(formData);
       if (onSave) {
-        await onSave(showData);
+        try {
+          await onSave(showData);
+        } catch (error) {
+          // MYK9-579: wire the DB gate's refusal (enforce_show_publish_gate,
+          // SQLSTATE MK003) EXPLICITLY rather than relying on the raw DB
+          // error object happening to have a `.message` string that
+          // EditPanelWrapper's getErrorMessage can read -- that worked by
+          // accident, not by contract, and would silently stop working the
+          // moment the error shape crossing this boundary changed.
+          if (isPublishGateDbError(error)) {
+            throw new Error(publishGateDbErrorMessage(error) ?? PUBLISH_BLOCKED_MESSAGE);
+          }
+          throw error;
+        }
       }
     },
     [onSave, initialShowData?.status]

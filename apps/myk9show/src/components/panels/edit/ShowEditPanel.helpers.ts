@@ -8,6 +8,7 @@
 import {
   CLUB_UNAUTHORIZED_MESSAGE,
   PUBLISH_BLOCKED_MESSAGE,
+  CLUB_REQUIRED_MESSAGE,
 } from '@/features/payments/onlineEntryGate';
 import type { Show } from '@/types/show-types';
 import type { ShowStyle } from '@/features/registries';
@@ -32,7 +33,7 @@ export function publishGateError(
 ): string | null {
   if (nextStatus !== 'published' || originalStatus === 'published') return null;
   if (!clubId) {
-    return 'Assign a club to this show before publishing — entry fees are paid out to the club.';
+    return CLUB_REQUIRED_MESSAGE;
   }
   if (club && club.authorized_at === null) {
     return CLUB_UNAUTHORIZED_MESSAGE;

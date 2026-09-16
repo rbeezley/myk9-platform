@@ -363,7 +363,7 @@ BEGIN
     ('entries','stripe_payment_intent_id'), ('entries','refund_amount'),
     ('entries','handler_id'),
     ('platform_settings','updated_by'), ('platform_settings','updated_at'),
-    ('platform_settings','id')
+    ('platform_settings','id'), ('platform_settings','stripe_livemode')
   ) AS t(tbl, col)
   WHERE EXISTS (
       SELECT 1 FROM pg_attribute a

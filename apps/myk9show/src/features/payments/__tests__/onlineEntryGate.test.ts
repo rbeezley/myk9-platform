@@ -7,6 +7,7 @@ import {
   PUBLISH_GATE_ERRCODE,
   PUBLISH_GATE_ERRCODE_UNAUTHORIZED,
   CLUB_UNAUTHORIZED_MESSAGE,
+  CLUB_REQUIRED_MESSAGE,
 } from '../onlineEntryGate';
 
 describe('canEnableOnlineEntries', () => {
@@ -24,7 +25,7 @@ describe('canEnableOnlineEntries', () => {
   });
 });
 
-// MYK9-579: enforce_show_publish_gate() (supabase/migrations/20260915195500)
+// MYK9-579: enforce_show_publish_gate() (supabase/migrations/20260915221500)
 // is the DB-side backstop for this same gate. It raises SQLSTATE MK003 for
 // BOTH of its refusals (missing club, and no payouts-enabled Stripe account),
 // with its own RAISE EXCEPTION text already equal to this module's friendly
@@ -77,12 +78,8 @@ describe('publishGateDbErrorMessage', () => {
   });
 
   it('trusts the DB text verbatim for the missing-club refusal — a DIFFERENT message under the SAME code', () => {
-    const dbError = {
-      code: PUBLISH_GATE_ERRCODE,
-      message:
-        'Assign a club to this show before publishing — entry fees are paid out to the club.',
-    };
-    expect(publishGateDbErrorMessage(dbError)).toMatch(/assign a club/i);
+    const dbError = { code: PUBLISH_GATE_ERRCODE, message: CLUB_REQUIRED_MESSAGE };
+    expect(publishGateDbErrorMessage(dbError)).toBe(CLUB_REQUIRED_MESSAGE);
   });
 
   it('returns null for any error that is not the publish-gate refusal', () => {

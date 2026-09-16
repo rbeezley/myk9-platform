@@ -12,6 +12,7 @@ import {
   getDogBreedLabel,
   getDogDistinctRegisteredName,
   Dog,
+  type Registration,
 } from '@/types/dog-types';
 import { formatDateMMDDYYYY } from '@/utils/dateFormat';
 import { cn } from '@/lib/utils';
@@ -20,16 +21,43 @@ import { SearchBar } from '@/components/common/SearchBar';
 import { Button } from '@/components/ui/button';
 import { AddEditRegistrationDialog } from '@/components/dogs/AddEditRegistrationDialog';
 import { useInlineDogRegistration } from './useInlineDogRegistration';
+import { resolveRegistrationForShow, type RegistrationForShow } from './dogRegistrationForShow';
+import { normalizeOrganization } from '@/features/dogs/identity';
 import '@/styles/myk9-registration-workflow.css';
+
+/**
+ * "AKC: SR12345601", or just "AKC" when the number is missing — never "AKC: ".
+ *
+ * The organization is NORMALIZED for display. Every live
+ * `dog_registrations.organization` row holds the long form
+ * ("AKC (American Kennel Club)"), which rendered raw makes a 50-character pill
+ * that wraps to two lines on a 375px phone. `normalizeOrganization` is the same
+ * function the matching uses, so the chip can never name a registry the resolver
+ * would not have matched. Falls back to the raw value if it normalizes to
+ * nothing — showing something odd beats showing an empty chip.
+ */
+function registrationLabel(registration: Registration): string {
+  const organization =
+    normalizeOrganization(registration.organization) ?? registration.organization;
+  const number = registration.registrationNumber?.trim();
+  return number ? `${organization}: ${number}` : organization;
+}
 
 interface DogSelectionStepProps {
   selectedDogs: string[];
   onSelectionChange: (dogIds: string[]) => void;
+  /**
+   * The show's sanctioning registry, already resolved through
+   * `@/features/registries` by the caller (never a raw column read).
+   * Undefined = not known yet; the card then marks nothing and blocks nobody.
+   */
+  showRegistryId?: string | null | undefined;
 }
 
 export const DogSelectionStep: React.FC<DogSelectionStepProps> = ({
   selectedDogs,
   onSelectionChange,
+  showRegistryId,
 }) => {
   const [searchQuery, setSearchQuery] = React.useState('');
   const { dogs, isLoading, error, refetch } = useDogStoreCompat();
@@ -64,7 +92,7 @@ export const DogSelectionStep: React.FC<DogSelectionStepProps> = ({
     }
   };
 
-  const getDogEligibilityStatus = (dog: Dog) => {
+  const getDogEligibilityStatus = (dog: Dog, forShow: RegistrationForShow) => {
     const issues: string[] = [];
     const warnings: string[] = [];
 
@@ -72,10 +100,22 @@ export const DogSelectionStep: React.FC<DogSelectionStepProps> = ({
       issues.push('Too young (must be 6+ months)');
     }
 
-    // Registration is a warning only — registrations may not be loaded in all data paths
-    // and lack of a registration does not prevent selecting a dog for entry.
-    // Class-level eligibility (including registration requirements) is validated later.
-    if (dog.registrations && dog.registrations.length === 0) {
+    // INTENT: a missing registration is SAID here, never enforced here. The
+    // registry that decides eligibility is per-trial, and `ClassSelectionStep`
+    // already refuses the class through `getRegistrationPrerequisite` — which
+    // carries the conformation-puppy carve-out the DB trigger honours. A
+    // show-wide block at step 1 would both lose that carve-out and strand a dog
+    // selected before the registry resolved: once trials hydrated the checkbox
+    // went disabled with the dog still in the cart (MYK9-569 review round 1).
+    //
+    // Registration stays a warning only. `[]` is proof of absence ONLY when the
+    // read completed: `mapDatabaseToDog` emits `registrations: []` for a failed
+    // read too, so an offline exhibitor must not be told her dogs are
+    // unregistered. Suppressed when the registry-specific message below already
+    // says the same thing more usefully.
+    const registrationsKnownEmpty =
+      dog.registrations?.length === 0 && dog.registrationsReadComplete !== false;
+    if (registrationsKnownEmpty && !forShow.missingRegistration) {
       warnings.push('No registration on file — verify before submitting');
     }
 
@@ -150,8 +190,13 @@ export const DogSelectionStep: React.FC<DogSelectionStepProps> = ({
       <ScrollArea className="h-auto pr-0 md:h-[400px] md:pr-4">
         <div className="space-y-3">
           {visibleDogs.map(dog => {
-            const { eligible, issues, warnings } = getDogEligibilityStatus(dog);
+            const forShow = resolveRegistrationForShow(dog, showRegistryId);
+            const { eligible, issues, warnings } = getDogEligibilityStatus(dog, forShow);
             const isSelected = selectedDogs.includes(dog.id);
+            // Same visibility rule as before this change: the fix affordance rides with
+            // the warning, and an already-ineligible dog does not get one.
+            const showAddRegistration =
+              eligible && (warnings.length > 0 || forShow.missingRegistration);
 
             return (
               <Card
@@ -198,18 +243,56 @@ export const DogSelectionStep: React.FC<DogSelectionStepProps> = ({
                         </p>
                       </div>
 
-                      {dog.registrations && dog.registrations.length > 0 && (
-                        <div className="mt-2 flex flex-wrap gap-2">
-                          {dog.registrations.map((reg, idx) => (
+                      {/* INTENT: the registry the show uses is decided by the show,
+                        not by the exhibitor (MYK9-490). The other registrations stay
+                        VISIBLE but de-emphasized — a tester read three equal chips as
+                        an unmade choice, and hiding them would instead read as her
+                        dog's other numbers having been lost (MYK9-569). Text size
+                        stays at text-xs: do not shrink it further (MYK9-368). */}
+                      {(forShow.used || forShow.others.length > 0) && (
+                        <div className="mt-2 flex flex-wrap items-center gap-2">
+                          {forShow.used && (
                             <Badge
-                              key={idx}
+                              data-registration-role="used"
                               variant="outline"
-                              className="max-w-full whitespace-normal break-all text-xs"
+                              className="max-w-full whitespace-normal break-words border-primary bg-primary/10 text-xs font-semibold text-foreground"
                             >
-                              {reg.organization}: {reg.registrationNumber}
+                              {registrationLabel(forShow.used)}
+                              {/* Without a separator the accessible name runs the
+                                number into the marker: "SR12345601Used for this
+                                show". */}
+                              <span className="sr-only">, </span>
+                              <span className="ml-1.5 font-normal text-muted-foreground">
+                                Used for this show
+                              </span>
+                            </Badge>
+                          )}
+                          {forShow.others.map(reg => (
+                            <Badge
+                              key={reg.id}
+                              data-registration-role="other"
+                              variant="outline"
+                              className={cn(
+                                'max-w-full whitespace-normal break-words text-xs',
+                                // De-emphasis is the TOKEN COLOUR only. Never
+                                // opacity on text: muted-foreground at 60%
+                                // composites to ~2.5:1 at 12px, under the 4.5:1
+                                // AA floor the token itself was fixed to meet.
+                                forShow.resolved && 'border-border/60 text-muted-foreground'
+                              )}
+                            >
+                              {registrationLabel(reg)}
                             </Badge>
                           ))}
                         </div>
+                      )}
+
+                      {forShow.missingRegistrationMessage && (
+                        // role="status": the registry resolves after the first
+                        // paint, so this appears while she is already reading.
+                        <p role="status" className="mt-2 text-xs text-destructive">
+                          • {forShow.missingRegistrationMessage}
+                        </p>
                       )}
 
                       {!eligible && issues.length > 0 && (
@@ -229,6 +312,11 @@ export const DogSelectionStep: React.FC<DogSelectionStepProps> = ({
                               • {warning}
                             </p>
                           ))}
+                        </div>
+                      )}
+
+                      {showAddRegistration && (
+                        <div className="mt-2">
                           <Button
                             type="button"
                             variant="outline"

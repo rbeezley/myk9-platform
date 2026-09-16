@@ -12,14 +12,19 @@ describe('isBlockedByPaidOrScoredEntries', () => {
     ).toBe(true);
   });
 
-  it('detects the refusal from the message when the code was dropped', () => {
-    // translateDogDbError returns a plain Error and does NOT carry `code`
-    // forward. Anything that routes the failure through it would otherwise
-    // read as an ordinary error and lose the override affordance.
+  it('does not claim a code-less error is the MK002 refusal (MYK9-600)', () => {
+    // The only caller is the bulk bar, whose failures come from
+    // `useDeleteDogMutation` -> `deleteDog` -> `createDatabaseError`, which DOES
+    // carry `code`. `translateDogDbError` — the function that drops `code` — is
+    // never on that path. A message-shape fallback therefore bought nothing and
+    // cost accuracy: any error whose text happens to mention paid or scored
+    // entries (a wrapped log line, a future copy change, a server message about
+    // a DIFFERENT dog) would have been offered an admin override it has no
+    // business offering.
     const translated = new Error(
       'This dog has paid or scored entries. Scratch or refund them before deleting.'
     );
-    expect(isBlockedByPaidOrScoredEntries(translated)).toBe(true);
+    expect(isBlockedByPaidOrScoredEntries(translated)).toBe(false);
   });
 
   it('does not treat a permission denial as a blocked delete', () => {
@@ -47,7 +52,7 @@ describe('partitionBlockedDogs', () => {
   it('splits blocked dogs from genuinely failed ones', () => {
     const { blocked, otherFailures } = partitionBlockedDogs([
       { item: dogA, error: { code: 'MK002', message: 'paid or scored' } },
-      { item: dogB, error: { code: '42501', message: 'Permission denied' } },
+      { item: dogB, error: { message: 'paid or scored entries', code: '42501' } },
       { item: dogC, error: { code: 'MK002', message: 'paid or scored' } },
     ]);
 

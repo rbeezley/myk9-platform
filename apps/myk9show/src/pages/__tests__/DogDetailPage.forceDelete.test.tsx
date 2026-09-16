@@ -243,7 +243,7 @@ describe('DogDetailPage delete failures (MYK9-595)', () => {
   });
 
   it('navigates to /dogs exactly once, with no accessDenied, when the force delete succeeds', async () => {
-    mockForceDeleteDog.mockResolvedValue({ data: { id: 'dog-1' }, error: null });
+    mockForceDeleteDog.mockResolvedValue({ data: null, error: null });
 
     const { user } = await renderDogPage();
 
@@ -313,7 +313,7 @@ describe('DogDetailPage delete failures (MYK9-595)', () => {
     expect(await screen.findByText('Dog page for Bella')).toBeInTheDocument();
 
     await act(async () => {
-      rpc.settle({ resolve: { data: { id: 'dog-1' }, error: null } });
+      rpc.settle({ resolve: { data: null, error: null } });
       await Promise.resolve();
     });
 

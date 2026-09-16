@@ -1,6 +1,6 @@
 import React from 'react';
 import { BaseEntityDialog } from './BaseEntityDialog';
-import { AlertTriangle, Trash2 } from 'lucide-react';
+import { AlertTriangle, Info, Trash2 } from 'lucide-react';
 
 export interface DeleteConfirmationDialogProps {
   open: boolean;
@@ -37,6 +37,21 @@ export interface DeleteConfirmationDialogProps {
    * to a single control; this is a confirmation dialog, not a form.
    */
   additionalContent?: React.ReactNode | undefined;
+  /**
+   * Report mode: nothing is about to be deleted (MYK9-600).
+   *
+   * The primary sentence — "You are about to delete <b>X</b>." — is an
+   * assertion about what happens next, and the destructive triangle beside it
+   * says how it will feel. Some callers reach this component to report that a
+   * delete did NOT happen: `BlockedDogDeleteDialog` lists dogs the server
+   * refused, under a title saying exactly that, with Close as the only action.
+   * There the sentence is simply false, and it is the largest text on screen.
+   *
+   * `reportOnly` drops that sentence and swaps the triangle for a neutral
+   * icon. It deliberately does NOT touch `warningText` or `additionalContent`:
+   * removing a false claim must never remove the explanation that replaces it.
+   */
+  reportOnly?: boolean | undefined;
 }
 
 export function DeleteConfirmationDialog({
@@ -55,9 +70,14 @@ export function DeleteConfirmationDialog({
   warningText = 'This action cannot be undone.',
   confirmDisabled = false,
   additionalContent,
+  reportOnly = false,
 }: DeleteConfirmationDialogProps) {
   const defaultTitle = title || `Delete ${entityType}`;
-  const defaultTitleIcon = titleIcon || <Trash2 className="w-5 h-5" />;
+  // No trash can, and therefore none of CommonDialog's destructive red on the
+  // title, when nothing is being deleted. CommonDialog wraps any titleIcon in
+  // `text-destructive` unconditionally, so passing none is the only way to keep
+  // a report from reading as a destructive confirmation.
+  const defaultTitleIcon = titleIcon || (reportOnly ? undefined : <Trash2 className="w-5 h-5" />);
   const defaultDescription =
     description || `Are you sure you want to delete this ${entityType.toLowerCase()}?`;
 
@@ -77,13 +97,21 @@ export function DeleteConfirmationDialog({
     >
       <div className="space-y-4">
         <div className="flex items-start gap-3">
-          <AlertTriangle className="h-5 w-5 text-destructive mt-0.5" />
+          {reportOnly ? (
+            <Info className="h-5 w-5 text-muted-foreground mt-0.5" />
+          ) : (
+            <AlertTriangle className="h-5 w-5 text-destructive mt-0.5" />
+          )}
           <div className="flex-1">
-            <p className="text-sm text-muted-foreground">
-              You are about to delete <strong className="text-foreground">{entityName}</strong>
-              {impactSuffix}.
+            {reportOnly ? null : (
+              <p className="text-sm text-muted-foreground">
+                You are about to delete <strong className="text-foreground">{entityName}</strong>
+                {impactSuffix}.
+              </p>
+            )}
+            <p className={`text-sm text-muted-foreground${reportOnly ? '' : ' mt-2'}`}>
+              {warningText}
             </p>
-            <p className="text-sm text-muted-foreground mt-2">{warningText}</p>
             {additionalContent ? <div className="mt-3">{additionalContent}</div> : null}
           </div>
         </div>

@@ -13,19 +13,22 @@
 export const MK_DOG_HAS_SETTLED_ENTRIES = 'MK002';
 
 /**
- * Matches the refusal's message. Needed as well as the code because
- * `translateDogDbError` rewrites MK002 into a plain `Error` and does NOT carry
- * `code` forward — a failure routed through it would otherwise read as an
- * ordinary error and silently lose the override.
+ * The SQLSTATE is the whole test (MYK9-600).
+ *
+ * A message-shape fallback used to sit here, justified by a claim that
+ * `translateDogDbError` drops `code`. It does drop it — but it is not on this
+ * path. The only caller is the dogs bulk-delete bar, whose failures come from
+ * `useDeleteDogMutation` -> `deleteDog` -> `createDatabaseError`, and that
+ * carries `code` through verbatim. So the regex never fired on a real refusal
+ * and could only ever fire on something else: an error whose text happens to
+ * mention paid or scored entries would have been handed an admin force-delete
+ * affordance it has no business being offered.
  */
-const BLOCKED_MESSAGE = /paid or scored entr(?:y|ies)/i;
-
 export function isBlockedByPaidOrScoredEntries(error: unknown): boolean {
   if (!error || typeof error !== 'object') return false;
 
-  const { code, message } = error as { code?: unknown; message?: unknown };
-  if (code === MK_DOG_HAS_SETTLED_ENTRIES) return true;
-  return typeof message === 'string' && BLOCKED_MESSAGE.test(message);
+  const { code } = error as { code?: unknown };
+  return code === MK_DOG_HAS_SETTLED_ENTRIES;
 }
 
 export interface BulkFailure<T> {

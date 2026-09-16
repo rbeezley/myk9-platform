@@ -90,6 +90,30 @@ END;
 $$;
 DELETE FROM public.enrollments WHERE id = '00000000-0000-0000-0000-000000538201';
 
+-- The mirror of F538.22, for enrollments: a paid enrollment on a show the seed
+-- never deletes is not this guard's business. Without this control, widening
+-- the arm to every paid enrollment in the table would leave F538.17 green.
+INSERT INTO public.enrollments (id, show_id, handler_id, payment_status)
+VALUES ('00000000-0000-0000-0000-000000538203', '00000000-0000-0000-0000-000000538503',
+        '00000000-0000-0000-0000-000000538002', 'paid_by_check');
+
+DO $$
+DECLARE err text := pg_temp.guard_error();
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM public.enrollments
+                 WHERE id = '00000000-0000-0000-0000-000000538203'
+                   AND payment_status = 'paid_by_check'
+                   AND show_id = '00000000-0000-0000-0000-000000538503') THEN
+    RAISE EXCEPTION 'FAIL F538.25 the fixture is not a paid enrollment on the unrelated show, so a quiet guard proves nothing';
+  END IF;
+  IF err IS NOT NULL THEN
+    RAISE EXCEPTION 'FAIL F538.25 the enrollments arm reached past scope_shows: %', err;
+  END IF;
+  RAISE NOTICE 'PASS F538.25 a paid enrollment on an unrelated show is left alone';
+END;
+$$;
+DELETE FROM public.enrollments WHERE id = '00000000-0000-0000-0000-000000538203';
+
 -- The seed's OWN multi-dog enrollment is paid by fixture and is still present
 -- when the guard runs (its delete depends on a later registration_id clear), so
 -- it is excluded by id. Without that exclusion every rerun refuses itself.

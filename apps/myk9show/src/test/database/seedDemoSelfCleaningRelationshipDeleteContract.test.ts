@@ -43,11 +43,15 @@ const LOAD_DOG_RANGE_LOW = 'a1090000-0000-0000-0001-000000000000';
 
 const rawSeed = readFileSync(join(repoRoot, 'supabase/seed-demo.sql'), 'utf8');
 
+/** Strip `--` line comments and block comments from SQL text. */
+const stripSqlComments = (text: string): string =>
+  text.replace(/\/\*[\s\S]*?\*\//g, '').replace(/--[^\n]*/g, '');
+
 // A commented-out statement satisfies a raw substring search (LESSONS
-// comment-satisfies-grep), so strip `--` line comments and `/* */` blocks
-// before indexing. Offsets below are into this stripped text; the only thing
-// asserted about them is relative order, which stripping preserves.
-const seed = rawSeed.replace(/\/\*[\s\S]*?\*\//g, '').replace(/--[^\n]*/g, '');
+// comment-satisfies-grep), so strip comments before indexing. Offsets below are
+// into this stripped text; the only thing asserted about them is relative
+// order, which stripping preserves.
+const seed = stripSqlComments(rawSeed);
 
 /** Every top-level statement matching `pattern`, with its offset. */
 function statements(pattern: RegExp): Array<{ text: string; index: number }> {
@@ -63,13 +67,19 @@ function statements(pattern: RegExp): Array<{ text: string; index: number }> {
  * id-space this seed deletes?
  */
 const migrationsDir = join(repoRoot, 'supabase/migrations');
+
 const guardFunctionSource = ((): string => {
+  // Anchored on CREATE OR REPLACE, not on the bare signature: `COMMENT ON
+  // FUNCTION` and the three `REVOKE ALL ON FUNCTION` lines carry the signature
+  // too, so a later grant-only or comment-only migration would be picked as
+  // "the definition", hold none of the scope ids, and fail the drift check
+  // below with a message blaming the seed.
   const defining = readdirSync(migrationsDir)
     .filter(f => f.endsWith('.sql'))
     .sort()
     .filter(f =>
       readFileSync(join(migrationsDir, f), 'utf8').includes(
-        'FUNCTION public.seed_demo_assert_no_paid_strays()'
+        'CREATE OR REPLACE FUNCTION public.seed_demo_assert_no_paid_strays()'
       )
     );
   if (defining.length === 0) {
@@ -77,7 +87,9 @@ const guardFunctionSource = ((): string => {
       'no migration defines public.seed_demo_assert_no_paid_strays() — the paid-stray guard has no body'
     );
   }
-  return readFileSync(join(migrationsDir, defining[defining.length - 1]), 'utf8');
+  // Comments stripped: an id kept only in prose after being dropped from
+  // `scope_shows` must NOT read as covered (LESSONS comment-satisfies-grep).
+  return stripSqlComments(readFileSync(join(migrationsDir, defining[defining.length - 1]), 'utf8'));
 })();
 
 const uuidsIn = (text: string): string[] => [...text.matchAll(/'([0-9a-f-]{36})'/g)].map(m => m[1]);
@@ -244,13 +256,16 @@ describe('seed-demo self-cleaning relationship deletes (MYK9-490 follow-up)', ()
   it("runs the hard-coded entries delete before the guard, so the seed's own paid rows never trip it", () => {
     // Entries ...051/052/055/056 are seeded paid under the enrollment. The guard
     // must see only strays, which means the id-list delete has to come first;
-    // reordering them would make every rerun refuse itself.
+    // reordering them would make every rerun refuse itself. Anchored on the
+    // consolidated guard's CALL: this used to resolve `guard` to the unrelated
+    // narrower `DO $$ DECLARE v_paid integer;` block further down section 0,
+    // which sits after almost everything and made the ordering trivially true.
     const hardCodedDelete = seed.indexOf(
       "DELETE FROM public.entries WHERE id IN (\n  'dededede-0000-0000-0000-000000000051'"
     );
-    const guard = seed.indexOf('DO $$\nDECLARE v_paid integer;');
+    const guard = seed.indexOf('SELECT public.seed_demo_assert_no_paid_strays();');
     expect(hardCodedDelete, 'hard-coded seed entries delete not found').toBeGreaterThan(-1);
-    expect(guard, 'fail-loud guard not found').toBeGreaterThan(-1);
+    expect(guard, 'the paid-stray guard call was not found').toBeGreaterThan(-1);
     expect(hardCodedDelete).toBeLessThan(guard);
   });
 

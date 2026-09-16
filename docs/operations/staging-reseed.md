@@ -6,6 +6,21 @@ truth is [`supabase/seed-demo.sql`](../../supabase/seed-demo.sql) — read its
 header for the full dataset description and section map. This runbook covers how
 to run it and, critically, **what to verify afterward**.
 
+## Precondition: migrations first
+
+Since MYK9-538 the seed's money guard is the database function
+`public.seed_demo_assert_no_paid_strays()`, added by migration
+`20260916213500`. **Push migrations to the target database before reseeding it.**
+If that migration is missing, `seed-demo.sql` aborts on
+
+```
+ERROR:  42883: function public.seed_demo_assert_no_paid_strays() does not exist
+```
+
+before any parent delete. The whole file runs in one transaction, so the
+database is left untouched — but the reseed has not happened either. Check with
+`supabase migration list` from a linked checkout.
+
 ## What a reseed is
 
 1. **Hard wipe** — clears all shows/trials/classes/entries/dogs/clubs and all

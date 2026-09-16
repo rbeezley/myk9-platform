@@ -16,9 +16,9 @@ import { EntryStatus } from '@/types/show-registration-types';
 import { getEntryStatusStateLabel } from '@/components/entries/management/reviewStateLabels';
 import {
   isClassCheckInAvailableToday,
+  isClassCheckInEligibleAnyDay,
   isTrialDayAhead,
   isTrialDayToday,
-  weekdayLabel,
   type DayCheckInContext,
 } from './dayCheckIn';
 import type { MyShowClass, MyShowDog } from './groupEntriesByShow';
@@ -37,14 +37,13 @@ export type ClassRowKind =
   | 'checked-in'
   | 'check-in-available'
   | 'opens-later'
+  | 'not-yet-eligible'
   | 'closed-today'
   | 'not-run'
   | 'absent';
 
 export interface ClassRowState {
   kind: ClassRowKind;
-  /** Only on `opens-later`: the weekday the class's check-in opens. */
-  weekday?: string | undefined;
 }
 
 /**
@@ -94,7 +93,15 @@ export function deriveClassRowState(cls: MyShowClass, ctx: DayCheckInContext): C
   const dayPast = cls.trialDate ? !dayAhead && !dayToday : false;
   if (!ctx.isPastShow && dayToday) return { kind: 'closed-today' };
   if (!ctx.isPastShow && !dayPast) {
-    return { kind: 'opens-later', weekday: weekdayLabel(cls.trialDate, cls.trialTimezone) };
+    // A day still ahead may promise check-in ONLY when the same eligibility
+    // the day-of predicate applies would pass (entry accepted, class entered,
+    // not unresolved, self check-in enabled) — otherwise a pending, disabled,
+    // or unresolved row would claim check-in "opens" on a day it never will
+    // (MYK9-568 round 3). The ineligible case renders nothing in that slot;
+    // the dog-level status and the row's own date already tell the truth.
+    return isClassCheckInEligibleAnyDay(cls, ctx)
+      ? { kind: 'opens-later' }
+      : { kind: 'not-yet-eligible' };
   }
 
   return { kind: 'not-run' };

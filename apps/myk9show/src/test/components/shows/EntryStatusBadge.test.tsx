@@ -277,6 +277,18 @@ describe('EntryStatusBadge', () => {
 });
 
 describe('EntryStatusBadge — against the real getEntryStatus (MYK9-568)', () => {
+  // Cleanup lives in afterEach (not at the end of the `it`) so a failing
+  // assertion above can never skip it and leave setSystemTime/the unmocked
+  // module armed for every test that runs after this one in the file.
+  afterEach(() => {
+    vi.useRealTimers();
+    vi.doMock('@/utils/entryStatusUtils', () => ({
+      getEntryStatus: vi.fn(),
+      getEntryStatusBadgeStyle: vi.fn(),
+    }));
+    vi.resetModules();
+  });
+
   it('renders "Entries open <date>" for a real not-yet-open show', async () => {
     // Every other test in this file mocks getEntryStatus/getEntryStatusBadgeStyle;
     // this one renders against the REAL entryStatusUtils implementation so the
@@ -302,12 +314,5 @@ describe('EntryStatusBadge — against the real getEntryStatus (MYK9-568)', () =
     render(<RealEntryStatusBadge show={futureShow} />);
 
     expect(screen.getByText('Entries open Jan 1, 2024')).toBeInTheDocument();
-
-    vi.useRealTimers();
-    vi.doMock('@/utils/entryStatusUtils', () => ({
-      getEntryStatus: vi.fn(),
-      getEntryStatusBadgeStyle: vi.fn(),
-    }));
-    vi.resetModules();
   });
 });

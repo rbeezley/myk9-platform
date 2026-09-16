@@ -129,10 +129,14 @@ export const MyShowClassRow: React.FC<MyShowClassRowProps> = ({
           </button>
         )}
         {state.kind === 'opens-later' && (
-          <span className="text-muted-foreground">
-            {state.weekday ? `Check-in opens ${state.weekday}` : 'Check-in not open yet'}
-          </span>
+          <span className="text-muted-foreground">Check in on the day</span>
         )}
+        {/* Ahead of the trial day AND not eligible for check-in that day
+            either way (pending review, self check-in disabled, unresolved
+            class) — no control to offer and no promise to make. The
+            dog-level status and the row's own date already say what is
+            true. */}
+        {state.kind === 'not-yet-eligible' && null}
         {/* The trial day, but no control for this row: self check-in closed by
             the secretary, entry not accepted yet, or an unresolved class. The
             secretary owns check-in in every one of those cases. */}

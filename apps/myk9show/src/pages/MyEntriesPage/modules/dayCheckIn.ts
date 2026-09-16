@@ -144,6 +144,24 @@ export function isSelfCheckinEnabled(
 }
 
 /**
+ * Would this class be eligible for self check-in AT ALL — entry accepted,
+ * class entered, not unresolved, self check-in toggle open — regardless of
+ * whether its trial day has arrived yet?
+ *
+ * The non-day-specific half of `isClassCheckInAvailableToday`'s gate, split
+ * out so a row that is still AHEAD of its trial day can tell the difference
+ * between "check-in will be available" and "check-in never will be, no
+ * matter what day it is" (a pending entry, a disabled self-check-in toggle,
+ * an unresolved class) — MYK9-568 round 3: promising check-in from the wrong
+ * one is a false promise a paid, still-pending exhibitor sees every day.
+ */
+export function isClassCheckInEligibleAnyDay(cls: MyShowClass, ctx: DayCheckInContext): boolean {
+  const order = ctx.ordersById[cls.orderId];
+  if (!order || !isClassCheckInEligible(order, cls)) return false;
+  return isSelfCheckinEnabled(cls, ctx.selfCheckinByClassId);
+}
+
+/**
  * Can this one class be checked in right now from My Shows?
  *
  * Every clause of the spec's gate, in one place, so the day button and the row
@@ -153,10 +171,8 @@ export function isSelfCheckinEnabled(
 export function isClassCheckInAvailableToday(cls: MyShowClass, ctx: DayCheckInContext): boolean {
   if (ctx.isPastShow) return false;
   if (!isTrialDayToday(cls.trialDate, cls.trialTimezone, ctx.now)) return false;
-  const order = ctx.ordersById[cls.orderId];
-  if (!order || !isClassCheckInEligible(order, cls)) return false;
-  if (!hasNoCheckInState(cls)) return false;
-  return isSelfCheckinEnabled(cls, ctx.selfCheckinByClassId);
+  if (!isClassCheckInEligibleAnyDay(cls, ctx)) return false;
+  return hasNoCheckInState(cls);
 }
 
 export interface DayCheckInTargets {

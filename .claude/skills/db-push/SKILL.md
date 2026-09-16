@@ -34,8 +34,13 @@ supabase migration list   # what the linked DB has actually applied
 # fork PR has no origin/<branch> ref at all — `git ls-tree origin/<head>` would
 # fail silently and the sweep would report a clean miss.
 pnpm qa:inflight --verbose supabase/migrations
+# `gh pr view --json files` asks GraphQL for one page and stops at 100 files
+# per PR with no warning — a migration sitting past entry 100 reads as a clean
+# miss. Page the REST endpoint instead, the same way scripts/qa/inflight.ts does.
+SLUG=$(gh repo view --json nameWithOwner --jq .nameWithOwner)
 gh pr list --state open --limit 200 --json number --jq '.[].number' \
-  | xargs -I{} gh pr view {} --json files --jq '.files[].path' \
+  | xargs -I{} gh api --paginate "repos/$SLUG/pulls/{}/files?per_page=100" \
+      --jq '.[].filename' \
   | grep '^supabase/migrations/' | sort -u
 ```
 

@@ -8,7 +8,8 @@
  * skipped. This makes it a program the commit and ship-pr skills run.
  *
  * Sources of in-flight change:
- *   - open pull requests (files from `gh pr list --json files`)
+ *   - open pull requests (files paged from `GET /repos/<slug>/pulls/<n>/files`,
+ *     via `gh api --paginate`)
  *   - other git worktrees on this machine: their branch's commits past
  *     origin/main PLUS their uncommitted and untracked files — work that has
  *     no PR yet is exactly the work a PR list cannot show

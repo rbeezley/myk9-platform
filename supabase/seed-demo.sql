@@ -2051,21 +2051,31 @@ WHERE id = 'dededede-0000-0000-0000-000000000052';
 --     excludes finalized class dec1a55e-0000-0000-0000-000000000031 so load
 --     rehearsal writes cannot corrupt the released-results golden path.
 -- ---------------------------------------------------------------------------
+-- Call names come from a plausible-name pool, disjoint from section 17b's
+-- pools below (MYK9-566); the padded suffix on `name` (the registered name)
+-- keeps every row distinct.
 INSERT INTO public.dogs (
   id, name, call_name, breed, sex, date_of_birth, color, status, owner_id, version
 )
 SELECT
   format('a1090000-0000-0000-0001-%s', lpad(dog_number::text, 12, '0'))::uuid,
-  format('MYK9-109 Load Dog %s', lpad(dog_number::text, 2, '0')),
-  format('Load %s', lpad(dog_number::text, 2, '0')),
+  format('%s %s', dog_name, lpad(dog_number::text, 2, '0')),
+  dog_name,
   'Mixed Breed',
   CASE WHEN dog_number % 2 = 0 THEN 'female' ELSE 'male' END,
   DATE '2021-01-01' + dog_number,
-  'Load Fixture',
+  (ARRAY['Black', 'Brown', 'Black and White', 'Sable'])[((dog_number - 1) % 4) + 1],
   'active',
   (SELECT id FROM public.people WHERE lower(email) = 'exhibitor@myk9t.com'),
   1
-FROM generate_series(1, 63) AS load_dogs(dog_number);
+FROM generate_series(1, 63) AS load_dogs(dog_number)
+CROSS JOIN LATERAL (
+  SELECT (ARRAY[
+    'Aspen', 'Birch', 'Blaze', 'Boone', 'Briar', 'Cedar', 'Clover', 'Comet',
+    'Dash', 'Echo', 'Ember', 'Frost', 'Gus', 'Hazel', 'Indigo', 'Jasper',
+    'Koda', 'Luna', 'Nova', 'Onyx', 'Piper'
+  ])[((dog_number - 1) % 21) + 1] AS dog_name
+) AS names;
 
 -- Every seeded dog needs a registration number: `trg_entries_require_dog_registration`
 -- (20260828210000) rejects an entry whose dog has none for the TRIAL'S registry, so a
@@ -2189,22 +2199,32 @@ FROM generate_series(1, 63) AS load_armbands(dog_number);
 -- what show-scoped grants exist. Per-show credential scoping is impossible on a
 -- shared club — and concurrent shows are run by different clubs anyway.
 -- Real-looking club name/description below (MYK9-566, see header note above).
+-- `description` renders on ClubsListView and the club's About tab, so it
+-- carries plausible public copy, not the per-show-secretary rationale
+-- explained in the comment above -- that stays engineering-only. Mapping
+-- from the (now renamed) club to its original "Load Club N" identity, since
+-- the club_number below no longer spells it out: club 1 = Green Country
+-- Scent Work Club (GCSW), club 2 = Redbud Ridge Canine Sports Club (RRCS),
+-- club 3 = Blue Sky K9 Trial Club (BSKT).
 INSERT INTO public.clubs (id, name, city, state, email, description, club_number, version)
 SELECT
   format('a1090000-0000-0000-0013-%s%s', s, lpad('1', 11, '0'))::uuid,
   club_name,
   'Tulsa', 'Oklahoma',
   'testadmin@myk9t.com',
-  format('%s. Separate club so a per-show secretary can be scoped to one show.', club_name),
+  club_description,
   format('%s-%s', club_code, lpad(s::text, 3, '0')),
   1
 FROM (VALUES
-  (1, 'Green Country Scent Work Club', 'GCSW'),
-  (2, 'Redbud Ridge Canine Sports Club', 'RRCS'),
-  (3, 'Blue Sky K9 Trial Club', 'BSKT')
-) AS load_clubs(s, club_name, club_code);
+  (1, 'Green Country Scent Work Club', 'GCSW',
+   'A Tulsa-based club hosting AKC Scent Work trials for local and regional competitors.'),
+  (2, 'Redbud Ridge Canine Sports Club', 'RRCS',
+   'Serving scent work handlers across northeast Oklahoma with well-run, competitor-friendly trials.'),
+  (3, 'Blue Sky K9 Trial Club', 'BSKT',
+   'A growing scent work club focused on approachable, well-organized trials for handlers of every level.')
+) AS load_clubs(s, club_name, club_code, club_description);
 
--- Stripe Connect sandbox account for Load Club 1 ONLY.
+-- Stripe Connect sandbox account for Load Club 1 (Green Country Scent Work Club) ONLY.
 --
 -- Why club 1 and not all three: the load shows' entry window is open
 -- (CURRENT_DATE + 76), so this is the only show in the fixture set that an
@@ -2258,11 +2278,16 @@ INSERT INTO public.shows (
   style, experience_is_published, experience_published_content,
   brand_color, version, is_nationals
 )
+-- `description` renders on the show card and the club's shows tab, so it
+-- carries plausible public copy. This IS one of three concurrent demo shows
+-- so multi-show replication and cross-show delta volume are measurable
+-- (show s of 3, s = 1/2/3) -- that rationale stays here, in the comment, not
+-- in the rendered text.
 SELECT
   format('a1090000-0000-0000-0010-%s%s', s, lpad('1', 11, '0'))::uuid,
   show_name,
   'AKC',
-  format('A weekend AKC Scent Work trial. One of three concurrent demo shows so multi-show replication and cross-show delta volume are measurable (show %s of 3).', s),
+  'A weekend AKC Scent Work trial featuring Novice through Master classes across all four elements.',
   ((CURRENT_DATE + 45)::timestamp AT TIME ZONE 'UTC'), ((CURRENT_DATE + 47)::timestamp AT TIME ZONE 'UTC'),
   ((CURRENT_DATE - 16)::timestamp AT TIME ZONE 'UTC'), ((CURRENT_DATE + 76)::timestamp AT TIME ZONE 'UTC'),
   format('%s00 Fairgrounds Road, Tulsa, OK 74101', s),
@@ -2280,7 +2305,7 @@ SELECT
   '#0d4d4f', 1, false
 FROM (VALUES
   (1, 'Green Country Scent Work Trial'),
-  (2, 'Redbud Ridge Fall Classic'),
+  (2, 'Redbud Ridge Scent Work Classic'),
   (3, 'Blue Sky Scent Work Weekend')
 ) AS load_shows(s, show_name);
 
@@ -2296,6 +2321,12 @@ SELECT
   'open', 'class_complete', 'immediate', 'immediate', 'immediate', true
 FROM generate_series(1, 3) AS load_shows(s);
 
+-- `name` is the ordinal "Trial 1"/"Trial 2" shown in the trial picker.
+-- `trial_number`/`category` follow the section-3 precedent (day name + " Trial",
+-- e.g. 'Saturday Trial') instead of repeating `name` -- several surfaces render
+-- `Trial ${trialNumber}`, and a `trial_number` of 'Trial 1' would print as
+-- "Trial Trial 1" (MYK9-566). Computed from the trial's own date so it is
+-- correct regardless of which weekday the reseed lands on.
 INSERT INTO public.trials (
   id, show_id, name, date, trial_number, status,
   planned_start_time, allow_self_checkin, trial_type, pipeline_stage,
@@ -2306,10 +2337,10 @@ SELECT
   format('a1090000-0000-0000-0010-%s%s', s, lpad('1', 11, '0'))::uuid,
   format('Trial %s', t),
   ((CURRENT_DATE + 45) + (t - 1)),
-  format('Trial %s', t),
+  trim(to_char(((CURRENT_DATE + 45) + (t - 1)), 'Day')) || ' Trial',
   'upcoming',
   '8:00 AM', true, 'scent_work', 1, t,
-  format('Trial %s', t),
+  trim(to_char(((CURRENT_DATE + 45) + (t - 1)), 'Day')) || ' Trial',
   'AKC', 'America/Chicago', 1
 FROM generate_series(1, 3) AS load_shows(s)
 CROSS JOIN generate_series(1, 2) AS load_trials(t);
@@ -2343,7 +2374,11 @@ SELECT
 FROM generate_series(1, 3) AS load_shows(s)
 CROSS JOIN generate_series(1, 4) AS load_classes(c);
 
--- Call names come from a plausible-name pool (MYK9-566, see header note above).
+-- Call names come from a plausible-name pool (MYK9-566, see header note
+-- above), one PER SHOW (s), so no two of these 189 dogs share a name --
+-- with the same array index used for every s, dog N on all three shows
+-- would otherwise get the identical name (MYK9-566 round-1 review). Also
+-- disjoint from section 17's pool above.
 INSERT INTO public.dogs (
   id, name, call_name, breed, sex, date_of_birth, color, status, owner_id, version
 )
@@ -2361,11 +2396,23 @@ SELECT
 FROM generate_series(1, 3) AS load_shows(s)
 CROSS JOIN generate_series(1, 63) AS load_dogs(dog_number)
 CROSS JOIN LATERAL (
-  SELECT (ARRAY[
-    'Aspen', 'Birch', 'Blaze', 'Boone', 'Briar', 'Cedar', 'Clover', 'Comet',
-    'Dash', 'Echo', 'Ember', 'Frost', 'Gus', 'Hazel', 'Indigo', 'Jasper',
-    'Koda', 'Luna', 'Maple', 'Nova', 'Onyx'
-  ])[((dog_number - 1) % 21) + 1] AS dog_name
+  SELECT (CASE s
+    WHEN 1 THEN ARRAY[
+      'Rowan', 'Sage', 'Talon', 'Wren', 'Zephyr', 'Ash', 'Bramble', 'Cove',
+      'Dune', 'Ellery', 'Fern', 'Grove', 'Heath', 'Ivy', 'Juno', 'Kestrel',
+      'Larkin', 'Moss', 'Nimbus', 'Opal', 'Pepper'
+    ]
+    WHEN 2 THEN ARRAY[
+      'Quill', 'Reed', 'Sable', 'Thistle', 'Umber', 'Vale', 'Wilder', 'Yara',
+      'Zinnia', 'Alder', 'Bristle', 'Canyon', 'Drift', 'Elm', 'Flint', 'Gale',
+      'Holler', 'Iris', 'Jetty', 'Knox', 'Lichen'
+    ]
+    ELSE ARRAY[
+      'Marlowe', 'Nutmeg', 'Ozzy', 'Pixel', 'Quincy', 'Ripple', 'Sparrow',
+      'Tundra', 'Ursa', 'Violet', 'Wisp', 'Xander', 'Yukon', 'Zeal', 'Acorn',
+      'Blossom', 'Cricket', 'Dusty', 'Flurry', 'Garnet', 'Hollow'
+    ]
+  END)[((dog_number - 1) % 21) + 1] AS dog_name
 ) AS names;
 
 -- Every seeded dog needs a registration number: `trg_entries_require_dog_registration`

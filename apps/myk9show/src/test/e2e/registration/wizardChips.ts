@@ -127,17 +127,32 @@ export async function releaseSelectedClass(
 }
 
 /**
- * The wizard's two sticky overlays. At 393x727 (Pixel 5) they leave a band of
- * roughly 157px between them, so every control the helpers click has to land
- * inside that band or Playwright's actionability check reports one of these
- * subtrees as the interceptor.
+ * The wizard's persistent sticky overlays. At 393x727 (Pixel 5) they leave a
+ * band of roughly 157px between them, so every control the helpers click has to
+ * land inside that band or Playwright's actionability check reports one of
+ * these subtrees as the interceptor.
  */
 const STICKY_WIZARD_OVERLAYS = ['registration-wizard-header', 'entries-panel-bar'] as const;
+
+/**
+ * Sonner docks its toasts directly above `entries-panel-bar` -- INSIDE the band
+ * this helper aims for -- so a toast is an interceptor exactly like the sticky
+ * chrome (MYK9-517). Unlike the chrome it is transient, so the helper waits it
+ * out first and only treats a surviving toast as an overlay.
+ */
+const TRANSIENT_TOAST_SELECTOR = '[data-sonner-toast][data-visible="true"]';
+
+/** How long to let a toast auto-dismiss before treating it as a fixed overlay. */
+const TOAST_DISMISS_TIMEOUT_MS = 8000;
 
 type Box = { x: number; y: number; width: number; height: number };
 
 function boxesOverlap(a: Box, b: Box): boolean {
   return a.x < b.x + b.width && b.x < a.x + a.width && a.y < b.y + b.height && b.y < a.y + a.height;
+}
+
+function overlapsHorizontally(a: Box, b: Box): boolean {
+  return a.x < b.x + b.width && b.x < a.x + a.width;
 }
 
 function describeBox(box: Box | null): string {
@@ -147,21 +162,48 @@ function describeBox(box: Box | null): string {
 }
 
 /**
- * The sticky overlays that could cover `target`. An overlay that CONTAINS the
- * target is not an obstruction: the wizard's Back/Next bar lives inside the
- * "Your entries" bar, and no scroll position moves a control out of its own
- * container (MYK9-517).
+ * Let any visible toast auto-dismiss before measuring. Bounded: a toast that
+ * outlives this stays in the overlay list, so the assertion names it rather
+ * than the helper waiting forever or pretending it is not there.
+ */
+async function waitOutToasts(page: Page): Promise<void> {
+  const deadline = Date.now() + TOAST_DISMISS_TIMEOUT_MS;
+  while (Date.now() < deadline) {
+    if ((await page.locator(TRANSIENT_TOAST_SELECTOR).count()) === 0) return;
+    await page.waitForTimeout(250);
+  }
+}
+
+/**
+ * Every overlay that could cover `target`: the persistent sticky chrome plus
+ * any toast still on screen.
+ *
+ * An overlay that CONTAINS the target is not an obstruction -- the wizard's
+ * Back/Next bar lives inside the "Your entries" bar, and no scroll position
+ * moves a control out of its own container (MYK9-517).
  */
 async function stickyOverlayBoxes(
   page: Page,
-  target: Locator
+  target: Locator,
+  { includeToasts = true }: { includeToasts?: boolean } = {}
 ): Promise<Array<{ name: string; box: Box }>> {
   const handle = await target.elementHandle();
   try {
+    const candidates: Array<{ name: string; locator: Locator }> = STICKY_WIZARD_OVERLAYS.map(
+      name => ({ name, locator: page.getByTestId(name) })
+    );
+    if (includeToasts) {
+      const toasts = page.locator(TRANSIENT_TOAST_SELECTOR);
+      const toastCount = await toasts.count();
+      for (let index = 0; index < toastCount; index += 1) {
+        candidates.push({ name: `sonner-toast[${index}]`, locator: toasts.nth(index) });
+      }
+    }
+
     const found: Array<{ name: string; box: Box }> = [];
-    for (const name of STICKY_WIZARD_OVERLAYS) {
-      const overlay = page.getByTestId(name).first();
-      if ((await page.getByTestId(name).count()) === 0) continue;
+    for (const { name, locator } of candidates) {
+      if ((await locator.count()) === 0) continue;
+      const overlay = locator.first();
       if (handle && (await overlay.evaluate((el, node) => el.contains(node as Node), handle))) {
         continue;
       }
@@ -175,22 +217,41 @@ async function stickyOverlayBoxes(
 }
 
 /**
- * The band the sticky chrome leaves uncovered: below every top-anchored overlay
- * and above every bottom-anchored one. At 393x727 the wizard's 366px header and
- * its 155px entries bar leave roughly 157px.
+ * The largest vertical gap the overlays leave inside the viewport, measured
+ * only against overlays that actually sit over the target's own column.
+ *
+ * Deliberately a gap sweep rather than a "top-anchored vs bottom-anchored"
+ * guess: a header taller than half the viewport would fool that heuristic into
+ * reporting the band as the strip ABOVE it and scrolling the target into the
+ * header.
  */
 function uncoveredBand(
   overlays: Array<{ name: string; box: Box }>,
+  targetBox: Box,
   viewportHeight: number
 ): { top: number; bottom: number } {
-  let top = 0;
-  let bottom = viewportHeight;
-  for (const { box } of overlays) {
-    const spaceBelow = viewportHeight - (box.y + box.height);
-    if (box.y <= spaceBelow) top = Math.max(top, box.y + box.height);
-    else bottom = Math.min(bottom, box.y);
+  const spans = overlays
+    .filter(({ box }) => overlapsHorizontally(targetBox, box))
+    .map(({ box }) => ({
+      top: Math.max(0, box.y),
+      bottom: Math.min(viewportHeight, box.y + box.height),
+    }))
+    .filter(span => span.bottom > span.top)
+    .sort((a, b) => a.top - b.top);
+
+  // Seeded EMPTY, not as the whole viewport: seeding it with {0, viewportHeight}
+  // makes every real gap smaller than the seed, so the "band" stays the whole
+  // viewport and the helper centres the target behind the sticky header.
+  let best = { top: 0, bottom: 0 };
+  let cursor = 0;
+  for (const span of spans) {
+    if (span.top - cursor > best.bottom - best.top) best = { top: cursor, bottom: span.top };
+    cursor = Math.max(cursor, span.bottom);
   }
-  return { top, bottom };
+  if (viewportHeight - cursor > best.bottom - best.top) {
+    best = { top: cursor, bottom: viewportHeight };
+  }
+  return best;
 }
 
 /** Scroll the target's own scroll container so the target moves `delta` px DOWN the screen. */
@@ -210,24 +271,31 @@ async function scrollTargetBy(target: Locator, delta: number): Promise<void> {
 }
 
 /**
- * The target's box once it has stopped moving.
+ * The target's box once it has stopped moving, or a throw naming the target.
  *
  * The dog list re-renders while the cart and availability load, so a box read
  * mid-settle is a measurement of a moving target: the helper positions it
  * correctly and Playwright's own hit test, a beat later, finds the sticky
- * header over it again.
+ * header over it again. Returning the last unsettled box would be
+ * indistinguishable from a settled one, so a target still moving after three
+ * seconds is reported rather than measured.
  */
 async function settledBox(page: Page, target: Locator): Promise<Box | null> {
   let previous = '';
   let box: Box | null = null;
   for (let sample = 0; sample < 20; sample += 1) {
     box = await target.boundingBox();
-    const key = box ? `${Math.round(box.x)},${Math.round(box.y)}` : 'none';
+    const key = box
+      ? `${Math.round(box.x)},${Math.round(box.y)},${Math.round(box.width)},${Math.round(box.height)}`
+      : 'none';
     if (key === previous) return box;
     previous = key;
     await page.waitForTimeout(150);
   }
-  return box;
+  throw new Error(
+    `${target} never stopped moving: its box was still changing after 20 samples ` +
+      `(last: ${describeBox(box)})`
+  );
 }
 
 /**
@@ -244,34 +312,57 @@ async function settledBox(page: Page, target: Locator): Promise<Box | null> {
  * Playwright's own hit test. A `force: true` click would pass on the very
  * overlap this exists to catch, so this scrolls for real and keeps the
  * non-intersection assertion: if the shell ever shrinks the band below the
- * control, the failure names both boxes instead of reading as "the click did
+ * control, the failure names every box instead of reading as "the click did
  * nothing".
  */
-export async function scrollClearOfStickyChrome(page: Page, target: Locator): Promise<void> {
+async function scrollClearOfStickyChrome(page: Page, target: Locator): Promise<void> {
+  await waitOutToasts(page);
   await target.scrollIntoViewIfNeeded();
   const viewportHeight = page.viewportSize()?.height ?? 0;
+  let previousY: number | null = null;
 
   for (let attempt = 0; attempt < 6; attempt += 1) {
     const box = await settledBox(page, target);
     if (!box) break;
     const overlays = await stickyOverlayBoxes(page, target);
-    const band = uncoveredBand(overlays, viewportHeight);
+    const clear = !overlays.some(overlay => boxesOverlap(box, overlay.box));
+    // The band is defined by the PERSISTENT chrome only. A toast is fixed to
+    // the viewport, so scrolling cannot move the target out from under it --
+    // the answer to a toast is to wait it out, and to name it in the assertion
+    // if it outlives that. Letting one shrink the band instead makes the
+    // largest remaining gap the 48px strip ABOVE the header, and the helper
+    // then scrolls the target INTO the header.
+    const band = uncoveredBand(
+      await stickyOverlayBoxes(page, target, { includeToasts: false }),
+      box,
+      viewportHeight
+    );
     const delta = (band.top + band.bottom) / 2 - (box.y + box.height / 2);
-    if (Math.abs(delta) < 2 && !overlays.some(overlay => boxesOverlap(box, overlay.box))) break;
+    // Clear and centred, or clear and immovable: the Next button is pinned
+    // inside the entries bar, so no amount of scrolling recentres it and
+    // looping on would pay six `settledBox` waits for nothing.
+    if (clear && Math.abs(delta) < 2) break;
+    if (clear && previousY !== null && Math.abs(box.y - previousY) < 1) break;
+    previousY = box.y;
     await scrollTargetBy(target, delta);
     await page.waitForTimeout(100);
   }
 
   const finalBox = await settledBox(page, target);
   const overlays = await stickyOverlayBoxes(page, target);
+  const overlayList = overlays
+    .map(overlay => `${overlay.name} [${describeBox(overlay.box)}]`)
+    .join(', ');
+  // A target with no box is not "clear" -- it is detached, hidden or zero-sized,
+  // and filtering it away would let the assertion pass vacuously.
+  expect(finalBox, `${target} has no bounding box, so it cannot be clicked`).not.toBeNull();
   const blocked = overlays
     .filter(overlay => finalBox && boxesOverlap(finalBox, overlay.box))
     .map(overlay => `${overlay.name} [${describeBox(overlay.box)}]`);
   expect(
     blocked,
     `the target [${describeBox(finalBox)}] must sit in the band the sticky wizard chrome leaves ` +
-      `uncovered at ${page.viewportSize()?.width ?? '?'}px; overlays: ` +
-      overlays.map(overlay => `${overlay.name} [${describeBox(overlay.box)}]`).join(', ')
+      `uncovered at ${page.viewportSize()?.width ?? '?'}x${viewportHeight}; overlays: ${overlayList}`
   ).toEqual([]);
 }
 
@@ -283,18 +374,24 @@ export async function scrollClearOfStickyChrome(page: Page, target: Locator): Pr
  * the cart and the dog list load, so a row parked in the band can drift back
  * under the header between the measurement and the hit test. Re-position and
  * retry rather than forcing the click -- a `force: true` click would pass on
- * the very overlap this exists to catch. The last attempt re-runs the
- * measurement so a genuine structural overlap fails with both boxes named.
+ * the very overlap this exists to catch.
+ *
+ * The positioning is INSIDE the retry: a transient overlap on the first attempt
+ * is exactly what the retry exists for, and hard-failing there would abort
+ * `releaseSelectedClass` and leave this test's row selected on shared staging.
+ * The last attempt runs outside it so a genuine structural overlap fails with
+ * every box named rather than as Playwright's raw intercept error.
  */
 export async function clickClearOfStickyChrome(page: Page, target: Locator): Promise<void> {
   let lastError: unknown;
   for (let attempt = 0; attempt < 4; attempt += 1) {
-    await scrollClearOfStickyChrome(page, target);
     try {
+      await scrollClearOfStickyChrome(page, target);
       await target.click({ timeout: 7000 });
       return;
     } catch (error) {
       lastError = error;
+      await waitOutToasts(page);
     }
   }
   await scrollClearOfStickyChrome(page, target);

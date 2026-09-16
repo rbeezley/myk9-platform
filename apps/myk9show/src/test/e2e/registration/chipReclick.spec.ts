@@ -20,8 +20,8 @@ import { expect, test } from '@playwright/test';
 import { signInAsExhibitor } from '../helpers/testUsers';
 import {
   chipById,
-  clickClearOfStickyChrome,
   chipClassId,
+  clickClearOfStickyChrome,
   enabledClassChips,
   selectFirstDogAndContinue,
   waitForChipsToSettle,

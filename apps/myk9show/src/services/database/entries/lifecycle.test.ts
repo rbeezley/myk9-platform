@@ -6,7 +6,6 @@ import {
   denyMoveUpRequest,
   denyPullRequest,
   rejectEntry,
-  requestPull,
   restoreEntryStatus,
   pullEntry,
   pullEntryDayOf,
@@ -178,25 +177,6 @@ describe('Entry lifecycle transitions', () => {
         expect.objectContaining({
           withdrawal_reason: 'Pulled day-of',
           special_requests: 'Pulled day-of',
-        })
-      );
-    });
-
-    it('requestPull sets scratch-requested status and stores reason in special_requests', async () => {
-      await requestPull('entry-1', 'Dog injured');
-
-      expect(supabaseUpdates[0]!.payload).toEqual(
-        expect.objectContaining({
-          entry_status: 'scratch-requested',
-          special_requests: 'Dog injured',
-        })
-      );
-      expect(auditLog).toHaveBeenCalledWith(
-        expect.objectContaining({
-          metadata: expect.objectContaining({
-            action: 'request_scratch',
-            reason: 'Dog injured',
-          }),
         })
       );
     });

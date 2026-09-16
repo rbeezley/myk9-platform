@@ -77,7 +77,7 @@ describe('Seam 1: scratch / pull request', () => {
     const audit: AuditEntry[] = [];
     const id = PHASE4_IDS.entryScratch;
 
-    // Exhibitor requests a pull (requestPull uses `.single()`).
+    // Exhibitor requests a pull (the PATCH seam uses `.single()`).
     const reqResp = run(state, audit, {
       method: 'PATCH',
       url: `${REST}/entries?id=eq.${id}`,

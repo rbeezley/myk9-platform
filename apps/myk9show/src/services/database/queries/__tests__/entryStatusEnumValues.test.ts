@@ -16,7 +16,6 @@ import {
   denyMoveUpRequest,
   getPullableEntries,
   pullEntry,
-  requestPull,
   approvePullRequest,
   denyPullRequest,
 } from '../../day-of-operations';
@@ -207,19 +206,6 @@ describe('entry_status enum values used by query layer', () => {
 
       expect(chain.update).toHaveBeenCalledWith(
         expect.objectContaining({ entry_status: 'scratched', check_in_status: 'pulled' })
-      );
-    });
-
-    it('requestPull writes entry_status = "scratch-requested"', async () => {
-      const chain = chainMock({
-        single: vi.fn().mockResolvedValue({ data: { id: 'e1' }, error: null }),
-      });
-      mockFrom.mockReturnValue(chain);
-
-      await requestPull('entry-1', 'sick dog');
-
-      expect(chain.update).toHaveBeenCalledWith(
-        expect.objectContaining({ entry_status: 'scratch-requested' })
       );
     });
 

@@ -67,13 +67,6 @@ export const getPulledEntries = async (showId: string) => {
 };
 
 /**
- * Exhibitor-initiated pull request — re-exported from the lifecycle seam.
- * Writes `entry_status='scratch-requested'` and stores the reason in
- * `special_requests` so it's visible in the secretary's pull queue UI.
- */
-export { requestPull } from '../entries/lifecycle';
-
-/**
  * Get pending pull requests (entries requesting to be pulled)
  */
 export const getPendingPullRequests = async (showId: string) => {

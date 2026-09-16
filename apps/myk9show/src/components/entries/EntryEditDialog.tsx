@@ -38,6 +38,7 @@ import {
 import { withdrawErrorMessage } from '@/services/database/entries/withdrawEligibility';
 import { useWithdrawEligibility } from './useWithdrawEligibility';
 import { PullConfirmDialog } from './PullConfirmDialog';
+import { jumpHeightErrorMessage } from '@/services/database/entries/jumpHeightErrors';
 import { logger } from '@/services/LoggingService';
 import { disciplineUsesJumpHeight } from '@/types/template.types';
 import { useEditingPresence } from '@/features/show-presence/useEditingPresence';
@@ -252,10 +253,12 @@ export function EntryEditDialog({
         if (edits.jumpHeight && edits.status !== 'withdrawn') {
           const { error } = await updateEntryDetails({
             entryId: classId,
-            updates: { jump_height: edits.jumpHeight },
+            jumpHeight: edits.jumpHeight,
           });
           if (error) {
-            setError(`Failed to update jump height for class. Please try again.`);
+            // MYK9-561: say WHY. The RPC's owner-tier refusals arrive as
+            // SQLSTATEs carrying the row UUID — wrong for a person to read.
+            setError(jumpHeightErrorMessage(error));
             setIsSaving(false);
             return;
           }

@@ -31,6 +31,12 @@ import {
 } from './ReplicatedEntriesTable.mapper';
 import { buildRingsideRpcFields, RINGSIDE_RPC_FUNCTION } from './ringsideEntryRpc';
 import {
+  JumpHeightConflictError,
+  JumpHeightNotFoundError,
+  JumpHeightUnavailableError,
+  UPDATE_OWN_ENTRY_JUMP_HEIGHT_RPC,
+} from '@/services/database/entries/jumpHeightErrors';
+import {
   evaluateWithdrawEligibility,
   WITHDRAW_MISSING,
   WithdrawConflictError,
@@ -888,6 +894,91 @@ export class ReplicatedEntriesTable extends ReplicatedTable<ReplicatedEntry> {
     this._lastMutationId = mutationId;
     logger.log(`[${this.getTableName()}] Created new entry ${entry.id}`);
     return newEntry;
+  }
+
+  /**
+   * MYK9-561: change the jump height on an entry the caller owns.
+   *
+   * ONLINE-ONLY and NOT queued through the MutationManager, for the same reason
+   * `withdrawOwnEntry` is not: the write is denied by `entries_update` for an
+   * exhibitor, so an optimistic local write would display a height the server
+   * refused and `setOnce` could never revert a locally-dirty row. The call
+   * awaits the server, then patches the CONFIRMED value into the replica.
+   *
+   * The replica is SHOW-SCOPED (MYK9-573): a row that was not already cached is
+   * never written back, so an account-scope read still falls through to
+   * PostgREST instead of treating one seeded row as the user's whole entry list.
+   */
+  async updateOwnEntryJumpHeight(entryId: string, jumpHeight: string): Promise<void> {
+    const cached = await this.get(entryId);
+    const expectedVersion = cached ? await this.getServerVersion(entryId) : null;
+    const version = await this.callUpdateOwnEntryRpc(entryId, jumpHeight, expectedVersion);
+
+    // Re-read at the moment of writing: a sign-out, scope change or store clear
+    // during the RPC must not let this INSERT the row back.
+    const stillCached = cached ? await this.get(entryId) : null;
+    if (stillCached) {
+      await this.set(entryId, { ...stillCached, jumpHeight }, false, undefined, version);
+    }
+
+    logger.log(
+      `[${this.getTableName()}] Updated jump height for ${entryId} via ${UPDATE_OWN_ENTRY_JUMP_HEIGHT_RPC}`
+    );
+  }
+
+  /**
+   * The RPC call itself, with the retry-once-on-40001 contract the server's
+   * `detail` payload exists for.
+   *
+   * Deliberately a SIBLING of `callWithdrawRpc` rather than a shared helper: the
+   * withdrawal call's `as never` casts are owned by MYK9-583 and its argument
+   * shape is jsonb, not a scalar column. The arg type is hand-declared here so
+   * the version stays `number | null` — `null` means "no precondition" and is
+   * never coalesced to 0, which is a real version.
+   */
+  private async callUpdateOwnEntryRpc(
+    entryId: string,
+    jumpHeight: string,
+    expectedVersion: number | null
+  ): Promise<number | undefined> {
+    const attempt = async (version: number | null) =>
+      supabase.rpc(
+        UPDATE_OWN_ENTRY_JUMP_HEIGHT_RPC as never,
+        {
+          p_entry_id: entryId,
+          p_jump_height: jumpHeight,
+          p_expected_version: version,
+        } as never
+      );
+
+    let { data, error } = await attempt(expectedVersion);
+
+    if (error && (error as { code?: string }).code === '40001') {
+      // `Number(null)` and `Number('')` are both 0, which is a perfectly valid
+      // version — an EMPTY detail must be rejected BEFORE the conversion, or a
+      // conflict with no version retries at version 0 forever.
+      const detail = (error as { details?: string | null }).details;
+      const serverVersion = detail == null || detail === '' ? Number.NaN : Number(detail);
+      if (!Number.isFinite(serverVersion)) throw new JumpHeightConflictError();
+      logger.warn(
+        `[${this.getTableName()}] Jump-height save for ${entryId} hit a version conflict; retrying at ${serverVersion}`
+      );
+      ({ data, error } = await attempt(serverVersion));
+      if (error && (error as { code?: string }).code === '40001') {
+        throw new JumpHeightConflictError();
+      }
+    }
+
+    if (error) {
+      const code = (error as { code?: string } | null)?.code;
+      // A fetch that never reached Postgres carries no SQLSTATE — report that as
+      // "you appear to be offline" rather than leaking a transport string.
+      const offline = typeof navigator !== 'undefined' && navigator.onLine === false;
+      if (offline || !code) throw new JumpHeightUnavailableError();
+      if (code === 'P0002') throw new JumpHeightNotFoundError();
+      throw error;
+    }
+    return typeof data === 'number' ? data : undefined;
   }
 
   /**

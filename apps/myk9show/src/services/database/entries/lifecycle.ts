@@ -232,69 +232,6 @@ export const pullEntryDayOf = async (entryId: string, reason?: string) => {
 };
 
 /**
- * Exhibitor-initiated pull request — sets `entry_status='scratch-requested'`
- * so the secretary can approve or deny. Stores the reason in
- * `special_requests` so it's visible in the queue UI.
- */
-export const requestPull = async (entryId: string, reason?: string) => {
-  const startTime = Date.now();
-
-  try {
-    const { data, error } = await supabase
-      .from('entries')
-      .update({
-        entry_status: 'scratch-requested',
-        special_requests: reason || null,
-        updated_at: new Date().toISOString(),
-      })
-      .eq('id', entryId)
-      .select(
-        `
-        id,
-        entry_status,
-        entry_fee,
-        handler,
-        armband,
-        payment_status,
-        dog:dog_id (
-          id,
-          name,
-          call_name
-        ),
-        class:class_id (
-          id,
-          name,
-          class_number
-        )
-      `
-      )
-      .single();
-
-    const duration = Date.now() - startTime;
-    logQuery('entries', 'request_pull', duration, error?.message);
-
-    if (error) {
-      throw createDatabaseError(error, 'entries', 'request_scratch');
-    }
-
-    await logEntryStatusChange({
-      entryId,
-      fromStatus: undefined,
-      toStatus: 'scratch-requested',
-      action: 'request_scratch',
-      reason,
-    });
-
-    return { data, error: null };
-  } catch (error) {
-    const duration = Date.now() - startTime;
-    const dbError = createDatabaseError(error, 'entries', 'request_scratch');
-    logQuery('entries', 'request_pull', duration, dbError.message);
-    return { data: null, error: dbError };
-  }
-};
-
-/**
  * Secretary approves a pending pull request — guarded by
  * `entry_status='scratch-requested'` so a race that already approved or denied
  * the request returns no row instead of stomping a different state.

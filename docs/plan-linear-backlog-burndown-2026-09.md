@@ -93,6 +93,8 @@ Filled in as batches complete; the final report to Richard is generated from thi
 | MYK9-566 | 2     | merged; In Progress until reseed                                         | #2282 → 0ff63ca10 | reseed staging (`seed-reset`), confirm guards; MYK9-606 filed             |
 | MYK9-596 | 2     | merged; In Progress until db push                                        | #2283 → 73231fac4 | `supabase db push` (20260916181700) + readbacks; MYK9-607, MYK9-608 filed |
 | MYK9-585 | 2     | merged (owner override, ledgered on MYK9-544); In Progress until db push | #2284 → 9f9d3ccca | `supabase db push` (20260916015300) + `pg_policies` readback              |
+| MYK9-549 | 3     | merged                                                                   | #2285 → d379a1128 | none                                                                      |
+| MYK9-609 | new   | filed (Backlog)                                                          | —                 | decide: pull-request queue has no producer                                |
 | MYK9-608 | new   | filed (Backlog)                                                          | —                 | triage: audit row and deleted_by invisible in Deleted Items               |
 | MYK9-606 | new   | filed (Backlog)                                                          | —                 | triage: load-secretary e2e users still named Load Secretary               |
 | MYK9-607 | new   | filed (Backlog)                                                          | —                 | triage: restore_dog snapshot edges                                        |

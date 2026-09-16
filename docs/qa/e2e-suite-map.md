@@ -357,14 +357,13 @@ labelling, Distance/miles, remembered Anywhere, and no automatic geolocation pro
 
 ## Candidate Delete
 
-| Spec                                                                 | Review Question                                                                        |
-| -------------------------------------------------------------------- | -------------------------------------------------------------------------------------- |
-| `apps/myk9show/src/test/e2e/phase2-quick-test.spec.ts`               | Superseded by maintained secretary/show wizard and entity UI specs?                    |
-| `apps/myk9show/src/test/e2e/phase2-show-management-workflow.spec.ts` | Superseded by current show wizard, shows UI, and secretary UAT specs?                  |
-| `apps/myk9show/src/test/e2e/phase2-validation-smoke.spec.ts`         | Superseded by focused validation/unit tests and current wizard specs?                  |
-| `apps/myk9show/src/test/e2e/show-details-issue.spec.ts`              | If issue is fixed, move any assertion into show details/navigation specs.              |
-| `apps/myk9show/src/test/e2e/show-details-performance.spec.ts`        | Keep only if it has a maintained performance threshold.                                |
-| `apps/myk9show/src/test/e2e/cross-browser-compatibility.spec.ts`     | Likely duplicated by `src/test/e2e/cross-browser/*`; preserve unique assertions first. |
+| Spec                                                             | Review Question                                                                        |
+| ---------------------------------------------------------------- | -------------------------------------------------------------------------------------- |
+| `apps/myk9show/src/test/e2e/phase2-quick-test.spec.ts`           | Superseded by maintained secretary/show wizard and entity UI specs?                    |
+| `apps/myk9show/src/test/e2e/phase2-validation-smoke.spec.ts`     | Superseded by focused validation/unit tests and current wizard specs?                  |
+| `apps/myk9show/src/test/e2e/show-details-issue.spec.ts`          | If issue is fixed, move any assertion into show details/navigation specs.              |
+| `apps/myk9show/src/test/e2e/show-details-performance.spec.ts`    | Keep only if it has a maintained performance threshold.                                |
+| `apps/myk9show/src/test/e2e/cross-browser-compatibility.spec.ts` | Likely duplicated by `src/test/e2e/cross-browser/*`; preserve unique assertions first. |
 
 Suite-map reconciliation on 2026-08-02 removed the stale admin
 templateManagement entry: the file no longer exists and its maintained

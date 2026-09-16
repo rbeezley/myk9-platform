@@ -9,6 +9,7 @@ import {
   CLUB_UNAUTHORIZED_MESSAGE,
   CLUB_REQUIRED_MESSAGE,
 } from '../onlineEntryGate';
+import { createDatabaseError } from '@/services/database/databaseError';
 
 describe('canEnableOnlineEntries', () => {
   it('allows publishing when payouts are enabled', () => {
@@ -85,5 +86,21 @@ describe('publishGateDbErrorMessage', () => {
   it('returns null for any error that is not the publish-gate refusal', () => {
     expect(publishGateDbErrorMessage(new Error('Network error'))).toBeNull();
     expect(publishGateDbErrorMessage({ code: '23503', message: 'nope' })).toBeNull();
+  });
+
+  // Nothing pinned the plain-object shape createDatabaseError actually
+  // produces -- the tests above hand-build { code, message } literals, but
+  // the real pill catch block (ShowStatusPill.tsx) receives whatever
+  // createDatabaseError() (services/database/databaseError.ts) returns for
+  // the DB trigger's rejection. Prove the friendly copy survives that shape
+  // too, not just the hand-built one.
+  it('survives the real createDatabaseError() shape the pill actually catches', () => {
+    const dbError = createDatabaseError({
+      code: PUBLISH_GATE_ERRCODE,
+      message: PUBLISH_BLOCKED_MESSAGE,
+    });
+
+    expect(isPublishGateDbError(dbError)).toBe(true);
+    expect(publishGateDbErrorMessage(dbError)).toBe(PUBLISH_BLOCKED_MESSAGE);
   });
 });

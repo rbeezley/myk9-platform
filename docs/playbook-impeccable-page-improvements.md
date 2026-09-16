@@ -148,11 +148,11 @@ could have measured.
 2. Invoke the skill via the **Skill tool / `$impeccable`** — the harness
    resolves it from any cwd, so this works inside a worktree. The skill runs
    its own context loader; you do not call the script by path. (Note: the
-   skill's files live in the MAIN repo's untracked `.claude/skills/impeccable/`
+   skill's files live in the MAIN repo's untracked `.agents/skills/impeccable/`
    — they are NOT copied into worktrees, so a worktree-relative
-   `node .claude/skills/...` path will fail. If you must run the loader
+   `node .agents/skills/...` path will fail. If you must run the loader
    directly, use the absolute main-repo path:
-   `/Users/richardbeezley/AI Projects/myk9-platform/.claude/skills/impeccable/scripts/load-context.mjs`.)
+   `/Users/richardbeezley/AI Projects/myk9-platform/.agents/skills/impeccable/scripts/load-context.mjs`.)
    PRODUCT.md and DESIGN.md must both load; if either fails, stop and report —
    do not synthesize context.
 3. Read **docs/INTENT.md**, the section for this page's role. Write down the

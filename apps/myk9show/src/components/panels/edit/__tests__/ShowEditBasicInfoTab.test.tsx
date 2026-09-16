@@ -107,4 +107,14 @@ describe('ShowEditBasicInfoTab status dropdown (MYK9-579)', () => {
     renderTab('draft');
     expect(screen.getByText(/publish from the status badge on the show page/i)).toBeInTheDocument();
   });
+
+  it('omits the publish hint once the show opened already published', () => {
+    // MYK9-579 round 6: the hint tells the user where to publish -- once the
+    // show is already published there is nothing left to publish, so the
+    // hint would be stale advice.
+    renderTab('published');
+    expect(
+      screen.queryByText(/publish from the status badge on the show page/i)
+    ).not.toBeInTheDocument();
+  });
 });

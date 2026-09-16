@@ -1,190 +1,478 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { screen, fireEvent, waitFor } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { render } from '@/test/utils/testUtils';
 import { ShowStatusPill } from '../ShowStatusPill';
+import {
+  useClubStripeAccount,
+  useClubAuthorization,
+} from '@/features/payments/useClubStripeAccount';
+import { useUpdateShowMutation } from '@/hooks/queries/useShowsDatabase';
+import { toast } from 'sonner';
 
-const mockMutateAsync = vi.fn();
-const mockIsPending = { value: false };
-
-vi.mock('@/hooks/queries/useShowsDatabase', () => ({
-  useUpdateShowMutation: () => ({
-    mutateAsync: mockMutateAsync,
-    get isPending() {
-      return mockIsPending.value;
-    },
-  }),
-}));
-
-vi.mock('sonner', () => ({
-  toast: {
-    success: vi.fn(),
-    error: vi.fn(),
-  },
-}));
-
-// Publish fails closed without a payout-enabled club (round-8 review), so the
-// publish-path tests below pass clubId and this mock reports payouts enabled.
-// Gate behavior itself is covered in ../ShowStatusPill.test.tsx.
 vi.mock('@/features/payments/useClubStripeAccount', () => ({
-  useClubStripeAccount: () => ({
-    data: {
-      id: 'csa-1',
-      club_id: 'club-1',
-      stripe_account_id: 'acct_x',
-      onboarding_complete: true,
-      payouts_enabled: true,
-    },
-    isLoading: false,
-  }),
-  // MYK9-572: club authorization is a second, independent publish-gate
-  // check — authorized here so these baseline tests keep publishing.
-  useClubAuthorization: () => ({
-    data: { authorized_at: '2026-01-01T00:00:00Z' },
-    isLoading: false,
-  }),
+  useClubStripeAccount: vi.fn(),
+  useClubAuthorization: vi.fn(),
 }));
+vi.mock('@/hooks/queries/useShowsDatabase', () => ({
+  useUpdateShowMutation: vi.fn(),
+}));
+vi.mock('sonner', () => ({
+  toast: { success: vi.fn(), error: vi.fn(), info: vi.fn() },
+}));
+
+const mockedUseAccount = vi.mocked(useClubStripeAccount);
+const mockedUseAuth = vi.mocked(useClubAuthorization);
+const mockedUseMutation = vi.mocked(useUpdateShowMutation);
+
+function mockAccount(payoutsEnabled: boolean | null) {
+  mockedUseAccount.mockReturnValue({
+    data:
+      payoutsEnabled === null
+        ? null
+        : {
+            id: 'csa-1',
+            club_id: 'club-1',
+            stripe_account_id: 'acct_x',
+            onboarding_complete: payoutsEnabled,
+            payouts_enabled: payoutsEnabled,
+          },
+    isLoading: false,
+    isError: false,
+    refetch: vi.fn(),
+  } as unknown as ReturnType<typeof useClubStripeAccount>);
+}
+
+// MYK9-572: defaults every test to an authorized club so the pre-existing
+// Stripe-only gate tests below are unaffected; the dedicated describe block
+// further down overrides this per-test to exercise the new branch.
+function mockAuthorization(authorizedAt: string | null) {
+  mockedUseAuth.mockReturnValue({
+    data: { authorized_at: authorizedAt },
+    isLoading: false,
+    isError: false,
+    refetch: vi.fn(),
+  } as unknown as ReturnType<typeof useClubAuthorization>);
+}
 
 describe('ShowStatusPill', () => {
+  let mutateAsync: ReturnType<typeof vi.fn>;
+
   beforeEach(() => {
     vi.clearAllMocks();
-    mockMutateAsync.mockResolvedValue({});
-    mockIsPending.value = false;
+    mutateAsync = vi.fn().mockResolvedValue({});
+    mockedUseMutation.mockReturnValue({
+      mutateAsync,
+      isPending: false,
+    } as unknown as ReturnType<typeof useUpdateShowMutation>);
+    // Default: payouts enabled so tests that don't care about the gate
+    // (labels, non-publish transitions) don't have to mock it themselves.
+    mockAccount(true);
+    mockAuthorization('2026-01-01T00:00:00Z');
   });
 
-  it('renders "Draft" label for draft status', () => {
-    render(<ShowStatusPill showId="show-1" status="draft" />);
-    expect(screen.getByText('Draft')).toBeInTheDocument();
+  describe('labels', () => {
+    it('renders "Draft" label for draft status', () => {
+      render(<ShowStatusPill showId="show-1" status="draft" />);
+      expect(screen.getByText('Draft')).toBeInTheDocument();
+    });
+
+    it('renders a qualified label for published status', () => {
+      render(<ShowStatusPill showId="show-1" status="published" />);
+      expect(screen.getByText('Published show')).toBeInTheDocument();
+    });
+
+    it('renders "Upcoming" label for upcoming status', () => {
+      render(<ShowStatusPill showId="show-1" status="upcoming" />);
+      expect(screen.getByText('Upcoming')).toBeInTheDocument();
+    });
+
+    it('renders "In Progress" label for in_progress status', () => {
+      render(<ShowStatusPill showId="show-1" status="in_progress" />);
+      expect(screen.getByText('In Progress')).toBeInTheDocument();
+    });
+
+    it('renders "Completed" label for completed status', () => {
+      render(<ShowStatusPill showId="show-1" status="completed" />);
+      expect(screen.getByText('Completed')).toBeInTheDocument();
+    });
+
+    it('renders "Cancelled" label for cancelled status', () => {
+      render(<ShowStatusPill showId="show-1" status="cancelled" />);
+      expect(screen.getByText('Cancelled')).toBeInTheDocument();
+    });
+
+    it('renders unknown status string as label with muted styling', () => {
+      render(<ShowStatusPill showId="show-1" status="unknown_future_status" />);
+      expect(screen.getByText('unknown_future_status')).toBeInTheDocument();
+      expect(screen.queryByRole('button')).not.toBeInTheDocument();
+    });
   });
 
-  it('renders a qualified label for published status', () => {
-    render(<ShowStatusPill showId="show-1" status="published" />);
-    expect(screen.getByText('Published show')).toBeInTheDocument();
+  describe('available transitions', () => {
+    it('renders a button (dropdown trigger) for draft status', () => {
+      render(<ShowStatusPill showId="show-1" status="draft" />);
+      expect(screen.getByRole('button', { name: /draft/i })).toBeInTheDocument();
+    });
+
+    it('renders a button (dropdown trigger) for published status', () => {
+      render(<ShowStatusPill showId="show-1" status="published" />);
+      expect(screen.getByRole('button', { name: /published/i })).toBeInTheDocument();
+    });
+
+    it('renders a button (dropdown trigger) for upcoming status', () => {
+      render(<ShowStatusPill showId="show-1" status="upcoming" />);
+      expect(screen.getByRole('button', { name: /upcoming/i })).toBeInTheDocument();
+    });
+
+    it('renders a button (dropdown trigger) for in_progress status', () => {
+      render(<ShowStatusPill showId="show-1" status="in_progress" />);
+      expect(screen.getByRole('button', { name: /in progress/i })).toBeInTheDocument();
+    });
+
+    // MYK9-579 round 6: completed and cancelled are terminal from the pill --
+    // re-opening public entry on a completed or cancelled show is not a
+    // one-click action here, so neither offers a transition (no dropdown at
+    // all, just the static pill).
+    it('renders completed status with no dropdown trigger (no transitions)', () => {
+      render(<ShowStatusPill showId="show-1" status="completed" />);
+      expect(screen.getByText('Completed')).toBeInTheDocument();
+      expect(screen.queryByRole('button')).not.toBeInTheDocument();
+    });
+
+    it('cancelled renders no publish action', () => {
+      render(<ShowStatusPill showId="show-1" status="cancelled" />);
+      expect(screen.getByText('Cancelled')).toBeInTheDocument();
+      expect(screen.queryByRole('button')).not.toBeInTheDocument();
+      expect(screen.queryByText('Publish Show')).not.toBeInTheDocument();
+    });
+
+    it('shows "Publish Show" option when status is draft', async () => {
+      render(<ShowStatusPill showId="show-1" status="draft" />);
+      fireEvent.click(screen.getByRole('button', { name: /draft/i }));
+      expect(await screen.findByText('Publish Show')).toBeInTheDocument();
+    });
+
+    it('shows "Move to Draft" option when status is published', async () => {
+      render(<ShowStatusPill showId="show-1" status="published" />);
+      fireEvent.click(screen.getByRole('button', { name: /published/i }));
+      expect(await screen.findByText('Move to Draft')).toBeInTheDocument();
+    });
+
+    it('disables the trigger button while mutation is pending', () => {
+      mockedUseMutation.mockReturnValue({
+        mutateAsync,
+        isPending: true,
+      } as unknown as ReturnType<typeof useUpdateShowMutation>);
+      render(<ShowStatusPill showId="show-1" status="draft" />);
+      expect(screen.getByRole('button', { name: /draft/i })).toBeDisabled();
+    });
   });
 
-  it('renders "Upcoming" label for upcoming status', () => {
-    render(<ShowStatusPill showId="show-1" status="upcoming" />);
-    expect(screen.getByText('Upcoming')).toBeInTheDocument();
+  describe('publish gate', () => {
+    it('blocks publishing when the club has no payout-enabled account', async () => {
+      mockAccount(null);
+      const user = userEvent.setup();
+      render(<ShowStatusPill showId="show-1" status="draft" clubId="club-1" />);
+
+      await user.click(screen.getByRole('button', { name: /draft/i }));
+      await user.click(await screen.findByText(/publish show/i));
+
+      expect(mutateAsync).not.toHaveBeenCalled();
+      expect(toast.error).toHaveBeenCalledWith(
+        expect.stringMatching(/payment account/i),
+        expect.objectContaining({ action: expect.anything() })
+      );
+    });
+
+    it('publishes when payouts are enabled', async () => {
+      mockAccount(true);
+      const user = userEvent.setup();
+      render(<ShowStatusPill showId="show-1" status="draft" clubId="club-1" />);
+
+      await user.click(screen.getByRole('button', { name: /draft/i }));
+      await user.click(await screen.findByText(/publish show/i));
+
+      expect(mutateAsync).toHaveBeenCalledWith({ id: 'show-1', updates: { status: 'published' } });
+    });
+
+    it('calls updateShow with published when "Publish Show" is clicked', async () => {
+      render(<ShowStatusPill showId="show-1" status="draft" clubId="club-1" />);
+      fireEvent.click(screen.getByRole('button', { name: /draft/i }));
+      fireEvent.click(await screen.findByText('Publish Show'));
+      await waitFor(() =>
+        expect(mutateAsync).toHaveBeenCalledWith({
+          id: 'show-1',
+          updates: { status: 'published' },
+        })
+      );
+    });
+
+    it('an upcoming show publishes when Stripe-ready', async () => {
+      mockAccount(true);
+      const user = userEvent.setup();
+      render(<ShowStatusPill showId="show-1" status="upcoming" clubId="club-1" />);
+
+      await user.click(screen.getByRole('button', { name: /upcoming/i }));
+      await user.click(await screen.findByText(/publish show/i));
+
+      expect(mutateAsync).toHaveBeenCalledWith({ id: 'show-1', updates: { status: 'published' } });
+    });
+
+    it('without a clubId the gate fails CLOSED (clubless shows cannot be paid out)', async () => {
+      // Round-8 review: fail-open here meant a lost clubId prop (it happened
+      // in the #615 merge) silently disabled the gate. A clubless show also
+      // cannot receive payouts, so publishing it would collect money with
+      // nowhere to go.
+      mockAccount(null);
+      const user = userEvent.setup();
+      render(<ShowStatusPill showId="show-1" status="draft" />);
+
+      await user.click(screen.getByRole('button', { name: /draft/i }));
+      await user.click(await screen.findByText(/publish show/i));
+
+      expect(mutateAsync).not.toHaveBeenCalled();
+      expect(toast.error).toHaveBeenCalledWith(expect.stringMatching(/assign a club/i));
+    });
+
+    it('moving a published show back to draft is never gated', async () => {
+      mockAccount(null);
+      const user = userEvent.setup();
+      render(<ShowStatusPill showId="show-1" status="published" clubId="club-1" />);
+
+      await user.click(screen.getByRole('button', { name: /published/i }));
+      await user.click(await screen.findByText(/move to draft/i));
+
+      expect(mutateAsync).toHaveBeenCalledWith({ id: 'show-1', updates: { status: 'draft' } });
+    });
+
+    it('calls updateShow with draft when "Move to Draft" is clicked', async () => {
+      render(<ShowStatusPill showId="show-1" status="published" />);
+      fireEvent.click(screen.getByRole('button', { name: /published/i }));
+      fireEvent.click(await screen.findByText('Move to Draft'));
+      await waitFor(() =>
+        expect(mutateAsync).toHaveBeenCalledWith({ id: 'show-1', updates: { status: 'draft' } })
+      );
+    });
+
+    it('surfaces the DB publish-gate trigger refusal (MYK9-579 backstop) with its own copy', async () => {
+      // The client-side check above passed (payouts enabled here), but a
+      // stale cache or race let the write reach enforce_show_publish_gate()
+      // anyway. Its SQLSTATE (MK003) must map to the trigger's own friendly
+      // text, not the generic "Failed to update show status" fallback.
+      mockAccount(true);
+      mutateAsync.mockRejectedValueOnce({
+        code: 'MK003',
+        message:
+          "Connect your club's payment account before publishing — online entry fees need somewhere to go. Find it under My Club → Payments.",
+      });
+      const user = userEvent.setup();
+      render(<ShowStatusPill showId="show-1" status="draft" clubId="club-1" />);
+
+      await user.click(screen.getByRole('button', { name: /draft/i }));
+      await user.click(await screen.findByText(/publish show/i));
+
+      expect(toast.error).toHaveBeenCalledWith(
+        "Connect your club's payment account before publishing — online entry fees need somewhere to go. Find it under My Club → Payments.",
+        expect.objectContaining({ action: expect.anything() })
+      );
+    });
+
+    it('surfaces the DB missing-club refusal WITHOUT an "Open Payments" action (MYK9-579)', async () => {
+      // Same SQLSTATE (MK003) as the Stripe-readiness refusal, but a trip to
+      // /club-admin/payments does not fix a clubless show -- only assigning a
+      // club does. Only the message text tells the two refusals apart.
+      mockAccount(true);
+      mutateAsync.mockRejectedValueOnce({
+        code: 'MK003',
+        message:
+          'Assign a club to this show before publishing — entry fees are paid out to the club.',
+      });
+      const user = userEvent.setup();
+      render(<ShowStatusPill showId="show-1" status="draft" clubId="club-1" />);
+
+      await user.click(screen.getByRole('button', { name: /draft/i }));
+      await user.click(await screen.findByText(/publish show/i));
+
+      expect(toast.error).toHaveBeenCalledWith(
+        'Assign a club to this show before publishing — entry fees are paid out to the club.'
+      );
+      const call = (toast.error as ReturnType<typeof vi.fn>).mock.calls[0];
+      expect(call).toHaveLength(1);
+    });
+
+    it('an unrelated mutation failure still shows the generic fallback, not the gate copy', async () => {
+      mockAccount(true);
+      mutateAsync.mockRejectedValueOnce(new Error('Network error'));
+      const user = userEvent.setup();
+      render(<ShowStatusPill showId="show-1" status="draft" clubId="club-1" />);
+
+      await user.click(screen.getByRole('button', { name: /draft/i }));
+      await user.click(await screen.findByText(/publish show/i));
+
+      expect(toast.error).toHaveBeenCalledWith('Failed to update show status. Please try again.');
+    });
+
+    it('shows error toast when mutation fails', async () => {
+      mutateAsync.mockRejectedValueOnce(new Error('Network error'));
+      render(<ShowStatusPill showId="show-1" status="draft" clubId="club-1" />);
+      fireEvent.click(screen.getByRole('button', { name: /draft/i }));
+      fireEvent.click(await screen.findByText('Publish Show'));
+      await waitFor(() =>
+        expect(toast.error).toHaveBeenCalledWith('Failed to update show status. Please try again.')
+      );
+    });
+  });
+});
+
+describe('ShowStatusPill club-authorization gate (MYK9-572)', () => {
+  let mutateAsync: ReturnType<typeof vi.fn>;
+  let refetchAuth: ReturnType<typeof vi.fn>;
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mutateAsync = vi.fn().mockResolvedValue({});
+    mockedUseMutation.mockReturnValue({
+      mutateAsync,
+      isPending: false,
+    } as unknown as ReturnType<typeof useUpdateShowMutation>);
+    mockAccount(true);
+    refetchAuth = vi.fn();
   });
 
-  it('renders "In Progress" label for in_progress status', () => {
-    render(<ShowStatusPill showId="show-1" status="in_progress" />);
-    expect(screen.getByText('In Progress')).toBeInTheDocument();
-  });
-
-  it('renders "Completed" label for completed status', () => {
-    render(<ShowStatusPill showId="show-1" status="completed" />);
-    expect(screen.getByText('Completed')).toBeInTheDocument();
-  });
-
-  it('renders "Cancelled" label for cancelled status', () => {
-    render(<ShowStatusPill showId="show-1" status="cancelled" />);
-    expect(screen.getByText('Cancelled')).toBeInTheDocument();
-  });
-
-  it('renders a button (dropdown trigger) for draft status', () => {
-    render(<ShowStatusPill showId="show-1" status="draft" />);
-    expect(screen.getByRole('button', { name: /draft/i })).toBeInTheDocument();
-  });
-
-  it('renders a button (dropdown trigger) for published status', () => {
-    render(<ShowStatusPill showId="show-1" status="published" />);
-    expect(screen.getByRole('button', { name: /published/i })).toBeInTheDocument();
-  });
-
-  // MYK9-579 round 5: publishing must not be a one-way door -- a show that
-  // moved to upcoming/in_progress/completed/cancelled can still be published
-  // again from the pill.
-  it('renders a button (dropdown trigger) for upcoming status', () => {
-    render(<ShowStatusPill showId="show-1" status="upcoming" />);
-    expect(screen.getByRole('button', { name: /upcoming/i })).toBeInTheDocument();
-  });
-
-  it('renders a button (dropdown trigger) for in_progress status', () => {
-    render(<ShowStatusPill showId="show-1" status="in_progress" />);
-    expect(screen.getByRole('button', { name: /in progress/i })).toBeInTheDocument();
-  });
-
-  it('renders a button (dropdown trigger) for completed status', () => {
-    render(<ShowStatusPill showId="show-1" status="completed" />);
-    expect(screen.getByRole('button', { name: /completed/i })).toBeInTheDocument();
-  });
-
-  it('renders a button (dropdown trigger) for cancelled status', () => {
-    render(<ShowStatusPill showId="show-1" status="cancelled" />);
-    expect(screen.getByRole('button', { name: /cancelled/i })).toBeInTheDocument();
-  });
-
-  it('shows "Publish Show" option when status is cancelled', async () => {
-    render(<ShowStatusPill showId="show-1" status="cancelled" />);
-    fireEvent.click(screen.getByRole('button', { name: /cancelled/i }));
-    expect(await screen.findByText('Publish Show')).toBeInTheDocument();
-  });
-
-  it('calls updateShow with published when publishing an upcoming show', async () => {
-    render(<ShowStatusPill showId="show-1" status="upcoming" clubId="club-1" />);
-    fireEvent.click(screen.getByRole('button', { name: /upcoming/i }));
-    fireEvent.click(await screen.findByText('Publish Show'));
-    await waitFor(() =>
-      expect(mockMutateAsync).toHaveBeenCalledWith({
-        id: 'show-1',
-        updates: { status: 'published' },
-      })
-    );
-  });
-
-  it('shows "Publish Show" option when status is draft', async () => {
-    render(<ShowStatusPill showId="show-1" status="draft" />);
-    fireEvent.click(screen.getByRole('button', { name: /draft/i }));
-    expect(await screen.findByText('Publish Show')).toBeInTheDocument();
-  });
-
-  it('shows "Move to Draft" option when status is published', async () => {
-    render(<ShowStatusPill showId="show-1" status="published" />);
-    fireEvent.click(screen.getByRole('button', { name: /published/i }));
-    expect(await screen.findByText('Move to Draft')).toBeInTheDocument();
-  });
-
-  it('calls updateShow with published when "Publish Show" is clicked', async () => {
+  it('blocks publishing an unauthorized club before checking Stripe readiness', async () => {
+    mockAuthorization(null);
+    const user = userEvent.setup();
     render(<ShowStatusPill showId="show-1" status="draft" clubId="club-1" />);
-    fireEvent.click(screen.getByRole('button', { name: /draft/i }));
-    fireEvent.click(await screen.findByText('Publish Show'));
-    await waitFor(() =>
-      expect(mockMutateAsync).toHaveBeenCalledWith({
-        id: 'show-1',
-        updates: { status: 'published' },
-      })
-    );
+
+    await user.click(screen.getByRole('button', { name: /draft/i }));
+    await user.click(await screen.findByText(/publish show/i));
+
+    expect(mutateAsync).not.toHaveBeenCalled();
+    expect(toast.error).toHaveBeenCalledWith(expect.stringMatching(/hasn't been authorized/i));
   });
 
-  it('calls updateShow with draft when "Move to Draft" is clicked', async () => {
-    render(<ShowStatusPill showId="show-1" status="published" />);
-    fireEvent.click(screen.getByRole('button', { name: /published/i }));
-    fireEvent.click(await screen.findByText('Move to Draft'));
-    await waitFor(() =>
-      expect(mockMutateAsync).toHaveBeenCalledWith({ id: 'show-1', updates: { status: 'draft' } })
-    );
-  });
-
-  it('shows error toast when mutation fails', async () => {
-    const { toast } = await import('sonner');
-    mockMutateAsync.mockRejectedValueOnce(new Error('Network error'));
+  // P3-1: the case above pairs "unauthorized" with mockAccount(true) (Stripe
+  // READY, set in this describe's beforeEach), so it cannot actually prove
+  // ordering — a client that checked Stripe FIRST would also pass, since
+  // Stripe readiness is satisfied either way. Pair unauthorized with Stripe
+  // DISABLED so only a real "authorization wins" implementation can pass.
+  it('shows the authorization message, not the Stripe one, when the club is both unauthorized and not Stripe-ready', async () => {
+    mockAccount(false);
+    mockAuthorization(null);
+    const user = userEvent.setup();
     render(<ShowStatusPill showId="show-1" status="draft" clubId="club-1" />);
-    fireEvent.click(screen.getByRole('button', { name: /draft/i }));
-    fireEvent.click(await screen.findByText('Publish Show'));
-    await waitFor(() =>
-      expect(toast.error).toHaveBeenCalledWith('Failed to update show status. Please try again.')
+
+    await user.click(screen.getByRole('button', { name: /draft/i }));
+    await user.click(await screen.findByText(/publish show/i));
+
+    expect(mutateAsync).not.toHaveBeenCalled();
+    expect(toast.error).toHaveBeenCalledWith(expect.stringMatching(/hasn't been authorized/i));
+    expect(toast.error).not.toHaveBeenCalledWith(expect.stringMatching(/payment account/i));
+  });
+
+  // P2-5/P3-A: fail CLOSED when the club row is unreadable (RLS-hidden,
+  // undefined data despite a "successful" query) — not just when
+  // authorized_at is explicitly null — and kick off a refetch so a retry
+  // right after a site admin authorizes the club can succeed.
+  it('fails closed and refetches when the authorization query has no data', async () => {
+    mockedUseAuth.mockReturnValue({
+      data: undefined,
+      isLoading: false,
+      isError: false,
+      refetch: refetchAuth,
+    } as unknown as ReturnType<typeof useClubAuthorization>);
+    const user = userEvent.setup();
+    render(<ShowStatusPill showId="show-1" status="draft" clubId="club-1" />);
+
+    await user.click(screen.getByRole('button', { name: /draft/i }));
+    await user.click(await screen.findByText(/publish show/i));
+
+    expect(mutateAsync).not.toHaveBeenCalled();
+    expect(toast.error).toHaveBeenCalledWith(expect.stringMatching(/hasn't been authorized/i));
+    expect(refetchAuth).toHaveBeenCalled();
+  });
+
+  // P3-5: pin the exact loading/error copy strings — a future edit could
+  // change the wording without anything else catching it.
+  it('shows the exact "checking" copy while either query is still loading', async () => {
+    mockedUseAuth.mockReturnValue({
+      data: { authorized_at: '2026-01-01T00:00:00Z' },
+      isLoading: true,
+      isError: false,
+      refetch: refetchAuth,
+    } as unknown as ReturnType<typeof useClubAuthorization>);
+    const user = userEvent.setup();
+    render(<ShowStatusPill showId="show-1" status="draft" clubId="club-1" />);
+
+    await user.click(screen.getByRole('button', { name: /draft/i }));
+    await user.click(await screen.findByText(/publish show/i));
+
+    expect(mutateAsync).not.toHaveBeenCalled();
+    expect(toast.info).toHaveBeenCalledWith('Checking the club’s status — try again in a moment.');
+  });
+
+  it('shows the exact error copy and refetches both queries when either query errors', async () => {
+    const refetchAccount = vi.fn();
+    mockedUseAccount.mockReturnValue({
+      data: null,
+      isLoading: false,
+      isError: true,
+      refetch: refetchAccount,
+    } as unknown as ReturnType<typeof useClubStripeAccount>);
+    mockedUseAuth.mockReturnValue({
+      data: { authorized_at: '2026-01-01T00:00:00Z' },
+      isLoading: false,
+      isError: false,
+      refetch: refetchAuth,
+    } as unknown as ReturnType<typeof useClubAuthorization>);
+    const user = userEvent.setup();
+    render(<ShowStatusPill showId="show-1" status="draft" clubId="club-1" />);
+
+    await user.click(screen.getByRole('button', { name: /draft/i }));
+    await user.click(await screen.findByText(/publish show/i));
+
+    expect(mutateAsync).not.toHaveBeenCalled();
+    expect(toast.error).toHaveBeenCalledWith(
+      'Could not check the club’s status. Please try again.'
     );
+    expect(refetchAccount).toHaveBeenCalled();
+    expect(refetchAuth).toHaveBeenCalled();
   });
 
-  it('disables the trigger button while mutation is pending', () => {
-    mockIsPending.value = true;
-    render(<ShowStatusPill showId="show-1" status="draft" />);
-    expect(screen.getByRole('button', { name: /draft/i })).toBeDisabled();
+  it('publishes once the club is authorized and Stripe-ready', async () => {
+    mockAuthorization('2026-01-01T00:00:00Z');
+    const user = userEvent.setup();
+    render(<ShowStatusPill showId="show-1" status="draft" clubId="club-1" />);
+
+    await user.click(screen.getByRole('button', { name: /draft/i }));
+    await user.click(await screen.findByText(/publish show/i));
+
+    expect(mutateAsync).toHaveBeenCalledWith({ id: 'show-1', updates: { status: 'published' } });
   });
 
-  it('renders unknown status string as label with muted styling', () => {
-    render(<ShowStatusPill showId="show-1" status="unknown_future_status" />);
-    expect(screen.getByText('unknown_future_status')).toBeInTheDocument();
-    expect(screen.queryByRole('button')).not.toBeInTheDocument();
+  it('surfaces the DB publish-gate trigger MK004 refusal with its own copy', async () => {
+    mockAuthorization('2026-01-01T00:00:00Z');
+    mutateAsync.mockRejectedValueOnce({
+      code: 'MK004',
+      message:
+        "This club hasn't been authorized by myK9 yet. Shows can be built now and published once the club is approved.",
+    });
+    const user = userEvent.setup();
+    render(<ShowStatusPill showId="show-1" status="draft" clubId="club-1" />);
+
+    await user.click(screen.getByRole('button', { name: /draft/i }));
+    await user.click(await screen.findByText(/publish show/i));
+
+    // P2-D: MK004 (club not authorized) has no Stripe setup to send the
+    // admin to, so the toast must NOT carry the "Open Payments" action —
+    // unlike MK003 (payment-account gate), which still does.
+    expect(toast.error).toHaveBeenCalledWith(
+      "This club hasn't been authorized by myK9 yet. Shows can be built now and published once the club is approved."
+    );
+    expect(toast.error).not.toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({ action: expect.anything() })
+    );
   });
 });

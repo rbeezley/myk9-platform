@@ -108,7 +108,11 @@ export const ShowEditBasicInfoTab: React.FC<ShowEditBasicInfoTabProps> = ({
             <FormField
               label="Status"
               fieldId="status"
-              hint="Publish from the status badge on the show page."
+              hint={
+                initialStatus !== 'published'
+                  ? 'Publish from the status badge on the show page.'
+                  : undefined
+              }
             >
               <Select value={data.status} onValueChange={handleSelectChange('status')}>
                 <SelectTrigger>

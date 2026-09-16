@@ -411,23 +411,25 @@ export function useMyEntriesData({
    */
   const patchCachedRow = useCallback(
     (rowId: string, patch: Record<string, unknown>): Record<string, unknown> | null => {
-      let previousValues: Record<string, unknown> | null = null;
-      queryClient.setQueryData<AccountEntriesRead>(
-        accountEntriesQueryKey(user?.id, personId),
-        previous => {
-          if (!previous) return previous;
-          return {
-            ...previous,
-            rows: previous.rows.map(row => {
-              if ((row as { id?: string }).id !== rowId) return row;
-              previousValues = Object.fromEntries(
-                Object.keys(patch).map(key => [key, (row as Record<string, unknown>)[key]])
-              );
-              return { ...row, ...patch };
-            }),
-          };
-        }
+      const key = accountEntriesQueryKey(user?.id, personId);
+      const current = queryClient.getQueryData<AccountEntriesRead>(key);
+      const target = current?.rows.find(row => (row as { id?: string }).id === rowId) as
+        Record<string, unknown> | undefined;
+      if (!current || !target) return null;
+
+      // Captured from the ROW, not from the projected card: reverting to the
+      // card's normalized enum would write a display value back onto a raw row
+      // and change what the next projection reads.
+      const previousValues = Object.fromEntries(
+        Object.keys(patch).map(field => [field, target[field]])
       );
+
+      queryClient.setQueryData<AccountEntriesRead>(key, {
+        ...current,
+        rows: current.rows.map(row =>
+          (row as { id?: string }).id === rowId ? { ...row, ...patch } : row
+        ),
+      });
       return previousValues;
     },
     [queryClient, user?.id, personId]
@@ -443,47 +445,55 @@ export function useMyEntriesData({
       if (!entry || !classEntry) return;
 
       const previousStatus = classEntry.checkInStatus;
-      let previousRowValues: Record<string, unknown> | null = null;
 
-      try {
-        // Optimistic update, written to the RAW row in the shared cache entry
-        // rather than to this hook's projection, so every consumer of the
-        // account read sees it and `select` recomputes the card from it.
-        // `classId` IS the individual entry row's id (see the DB target below).
-        previousRowValues = patchCachedRow(classId, {
-          check_in_status: status,
-          check_in_time: new Date().toISOString(),
-        });
+      // Optimistic update, written to the RAW row in the shared cache entry
+      // rather than to this hook's projection, so every consumer of the account
+      // read sees it and `select` recomputes the card from it. `classId` IS the
+      // individual entry row's id (see the DB target below).
+      //
+      // Outside the `try` on purpose: the revert needs this return value, and a
+      // `let` reassigned across try/catch is what the React Compiler cannot
+      // memoize through.
+      const previousRowValues = patchCachedRow(classId, {
+        check_in_status: status,
+        check_in_time: new Date().toISOString(),
+      });
 
-        // classId is the individual entry row id — use it as the DB target so
-        // grouped cards with multiple classes update the right row.
-        await persistCheckInStatus({ entryId: classId, classId, newStatus: status });
+      // `.catch()` rather than try/catch: the React Compiler cannot preserve a
+      // `useCallback`'s memoization across a try block that calls into the
+      // query cache, and an unmemoized handler here would change identity on
+      // every render of the card list.
+      //
+      // classId is the individual entry row id — use it as the DB target so
+      // grouped cards with multiple classes update the right row.
+      await persistCheckInStatus({ entryId: classId, classId, newStatus: status }).catch(
+        (error: unknown) => {
+          logger.error('Failed to update check-in status:', 'pages', {}, error as Error);
+          // Revert to the ROW's own values, captured by the patch above.
+          // Reverting to the card's `checkInStatus` would write a normalized
+          // display enum back onto a raw row.
+          if (previousRowValues) patchCachedRow(classId, previousRowValues);
+          throw error;
+        }
+      );
 
-        // Log the check-in status change
-        auditService.log({
-          action: AuditAction.UPDATE,
-          entityType: 'class_entry',
-          entityId: classId,
-          changes: {
-            checkInStatus: { from: previousStatus || 'no-status', to: status },
-          },
-          metadata: {
-            action: 'exhibitor_check_in',
-            userId: user?.id,
-            entryId,
-            dogName: entry.dogName,
-            className: classEntry.name,
-            notes,
-          },
-        });
-      } catch (error) {
-        logger.error('Failed to update check-in status:', 'pages', {}, error as Error);
-        // Revert to the ROW's own values, captured by the patch above.
-        // Reverting to the card's `checkInStatus` would write a normalized
-        // display enum back onto a raw row.
-        if (previousRowValues) patchCachedRow(classId, previousRowValues);
-        throw error;
-      }
+      // Log the check-in status change
+      auditService.log({
+        action: AuditAction.UPDATE,
+        entityType: 'class_entry',
+        entityId: classId,
+        changes: {
+          checkInStatus: { from: previousStatus || 'no-status', to: status },
+        },
+        metadata: {
+          action: 'exhibitor_check_in',
+          userId: user?.id,
+          entryId,
+          dogName: entry.dogName,
+          className: classEntry.name,
+          notes,
+        },
+      });
     },
     [entries, patchCachedRow, persistCheckInStatus, user?.id]
   );

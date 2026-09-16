@@ -153,6 +153,12 @@ export interface OrdersPickerDialogProps {
   orders: MyEntry[];
   onSelect: (order: MyEntry) => void;
   onClose: () => void;
+  /**
+   * Said above the list when its amounts came from a degraded account read
+   * (MYK9-563). The receipt mode states money per order, so it has to carry
+   * the same "we could not confirm this" the balance surfaces do.
+   */
+  notice?: string | undefined;
 }
 
 /** The list stage as a standalone dialog, for a picker that opens on its own. */
@@ -162,6 +168,7 @@ export const OrdersPickerDialog: React.FC<OrdersPickerDialogProps> = ({
   orders,
   onSelect,
   onClose,
+  notice,
 }) => (
   <Dialog open={open} onOpenChange={next => !next && onClose()}>
     <DialogContent>
@@ -175,6 +182,7 @@ export const OrdersPickerDialog: React.FC<OrdersPickerDialogProps> = ({
             : 'You placed more than one order for this show. Choose the one you want to change.'}
         </DialogDescription>
       </DialogHeader>
+      {notice && <p className="text-sm text-muted-foreground">{notice}</p>}
       {/* A show entered through dozens of orders (the seeded exhibitor has 63
           at one show) must scroll inside the dialog, not past its bottom edge. */}
       <div className="max-h-[60vh] overflow-y-auto pr-1">

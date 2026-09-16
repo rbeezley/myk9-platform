@@ -10,9 +10,15 @@
  * finds no order. An absent line is honest; a fabricated one is not.
  *
  * The root is `transformEntry`, which filled the gap before any of the three
- * call sites could see it — so these tests pin the absence end to end rather
- * than at the call sites alone, where a `?? slice` would have been unreachable
- * code that a passing test certified as a fix.
+ * call sites could see it — fixing only those would have been unreachable code
+ * that a passing test certified as a fix.
+ *
+ * TWO LEVELS, deliberately. The component cases below hand-build a `MyEntry`,
+ * so on their own they would stay green if `transformEntry` started
+ * substituting again. `useMyEntriesData.confirmationNumber.test.tsx` covers
+ * that root by running a real enrollment-less ROW through the page's data
+ * hook; restoring the id slice turns it red. Neither level is sufficient
+ * alone.
  */
 import { describe, expect, it, vi } from 'vitest';
 import { render, screen } from '@/test/utils/testUtils';

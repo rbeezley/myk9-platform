@@ -40,3 +40,16 @@ export const UNCONFIRMED_AMOUNT_LABEL = 'Amount unavailable';
  */
 export const UNCONFIRMED_AMOUNT_EXPLANATION =
   "We'll show what you owe as soon as we can reach the server. Your entries below are the ones we last saved.";
+
+/**
+ * Shown on any receipt or order list still rendering amounts while the account
+ * read is degraded.
+ *
+ * The card-level "Receipt" affordance is withheld outright
+ * (`deriveMyEntryCardState`), but the same dialogs are reachable from a show
+ * header's orders list and from a `?orderId=` deep link. A receipt is a
+ * financial document; if it must render at all, it has to say the figures on
+ * it were never confirmed.
+ */
+export const UNCONFIRMED_RECEIPT_NOTICE =
+  "We couldn't reach the server to confirm these amounts, so this shows your saved entry fees rather than what was charged.";

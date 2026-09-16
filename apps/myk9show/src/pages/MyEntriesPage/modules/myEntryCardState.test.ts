@@ -115,6 +115,47 @@ describe('deriveMyEntryCardState', () => {
     expect(state.canShowReceipt).toBe(true);
   });
 
+  // MYK9-563 item 6: the receipt is gated on PAYMENT, not on having a
+  // confirmation number. Requiring the number would withdraw the receipt from
+  // exactly the paid cash/check and secretary-recorded entries that never have
+  // one — the document `CardDerivedReceipt` exists to print — now that the
+  // id-slice stand-in is gone.
+  it('offers the receipt for a paid entry with no confirmation number', () => {
+    const state = deriveMyEntryCardState(
+      makeEntry({ confirmationNumber: undefined, classes: [makeClass()] }),
+      NOW
+    );
+
+    expect(state.canShowReceipt).toBe(true);
+  });
+
+  it('withholds the receipt for an UNPAID entry, number or not', () => {
+    const state = deriveMyEntryCardState(
+      makeEntry({
+        confirmationNumber: 'CONF-1',
+        paymentStatus: PaymentStatus.PENDING,
+        classes: [makeClass()],
+      }),
+      NOW
+    );
+
+    expect(state.canShowReceipt).toBe(false);
+  });
+
+  // A receipt is a financial document — "Paid", an amount, a confirmation
+  // number. Printing one from rows the authoritative read never confirmed is
+  // the same claim the balance surfaces withhold (MYK9-563 P1).
+  it('withholds the receipt while the account read is degraded', () => {
+    const state = deriveMyEntryCardState(
+      makeEntry({ confirmationNumber: 'CONF-1', classes: [makeClass()] }),
+      NOW,
+      {},
+      true
+    );
+
+    expect(state.canShowReceipt).toBe(false);
+  });
+
   it('scopes a check-in next action to the dog that owns its class', () => {
     const entryClass = makeClass();
     const state = deriveMyEntryCardState(

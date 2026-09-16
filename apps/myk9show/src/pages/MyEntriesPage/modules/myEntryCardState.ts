@@ -47,7 +47,15 @@ export interface MyEntryCardDerivedState {
 export function deriveMyEntryCardState(
   entry: MyEntry,
   currentTime: Date,
-  selfCheckinByClassId: Record<string, boolean> = {}
+  selfCheckinByClassId: Record<string, boolean> = {},
+  /**
+   * The account read that produced `entry` was degraded (MYK9-563): its rows
+   * came from the per-show snapshot unconfirmed, or without their enrollment
+   * enrichment. A receipt is a financial DOCUMENT — "Paid", an amount, a
+   * confirmation number — so it is withheld rather than printed from figures
+   * nobody could confirm.
+   */
+  accountReadDegraded = false
 ): MyEntryCardDerivedState {
   const statusMessage = getContextualStatusMessage(
     entry,
@@ -112,12 +120,14 @@ export function deriveMyEntryCardState(
       EntryStatus.REJECTED,
       EntryStatus.MOVED,
     ].includes(entry.entryStatus);
-  // Payment is the whole gate. Requiring a confirmation number as well would
+  // Payment is the gate, not the confirmation number. Requiring a number would
   // withdraw the receipt from exactly the paid cash/check and secretary-recorded
   // entries that have never had one — the document `CardDerivedReceipt` exists
   // to print — now that the id-slice stand-in is gone (MYK9-563 item 6). The
   // receipt simply omits the confirmation line when there is none.
-  const canShowReceipt = isPaid;
+  //
+  // A degraded read is the other gate: see `accountReadDegraded`.
+  const canShowReceipt = isPaid && !accountReadDegraded;
   const isPendingReview =
     entry.entryStatus === EntryStatus.PENDING &&
     (entry.entryStatusKind ?? 'pending') === 'pending' &&

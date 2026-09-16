@@ -40,6 +40,8 @@ export interface MyShowGroupProps {
   /** Captured once per render pass by the list; never `new Date()` inline. */
   now: Date;
   selfCheckinByClassId?: Record<string, boolean> | undefined;
+  /** The account read behind these rows was degraded — see MYK9-563. */
+  degraded?: boolean | undefined;
   seenResultReleaseKeys: Set<string>;
   onCheckInDay: (dog: MyShowDog, classes: MyShowClass[]) => void;
   onOpenCheckIn: (order: MyEntry, cls: MyShowClass) => void;
@@ -53,6 +55,7 @@ export const MyShowGroupCard: React.FC<MyShowGroupProps> = ({
   group,
   now,
   selfCheckinByClassId,
+  degraded = false,
   seenResultReleaseKeys,
   onCheckInDay,
   onOpenCheckIn,
@@ -78,7 +81,7 @@ export const MyShowGroupCard: React.FC<MyShowGroupProps> = ({
 
   const orderStates = group.orders.map(order => ({
     order,
-    state: deriveMyEntryCardState(order, now, selfCheckinByClassId ?? {}),
+    state: deriveMyEntryCardState(order, now, selfCheckinByClassId ?? {}, degraded),
   }));
   const editableOrders = orderStates.filter(({ state }) => state.canEdit).map(({ order }) => order);
   // INTENT: an exhibitor whose editing window has closed must not face a

@@ -418,6 +418,7 @@ const MyEntriesPage: React.FC = () => {
                         filteredEntries={filteredEntries}
                         selectedStatus={selectedStatus}
                         selfCheckinByClassId={selfCheckinByClassId}
+                        degraded={degraded}
                         seenResultReleaseKeys={reveal.seenResultReleaseKeys}
                         onCheckInDay={dialogs.checkInClassesForDay}
                         onOpenCheckIn={dialogs.openCheckIn}
@@ -486,6 +487,7 @@ const MyEntriesPage: React.FC = () => {
         onEntryUpdated={dialogs.entryUpdated}
         receiptDialog={dialogs.receiptDialog}
         onCloseReceipt={dialogs.closeReceipt}
+        degraded={degraded}
         resultRevealModel={reveal.resultRevealModel}
         onCloseResultReveal={reveal.closeResultReveal}
         onResultRevealSeen={reveal.markSeen}

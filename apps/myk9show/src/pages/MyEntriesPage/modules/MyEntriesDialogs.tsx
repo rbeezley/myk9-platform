@@ -29,6 +29,7 @@ import {
 import { Loader2 } from 'lucide-react';
 import type { CheckInDialogState, EditDialogState, ReceiptDialogState } from './my-entries-types';
 import { CardDerivedReceipt } from './CardDerivedReceipt';
+import { UNCONFIRMED_RECEIPT_NOTICE } from '@/features/payments/unconfirmedBalanceCopy';
 import { buildOrderScopedReceipt } from './orderScopedReceipt';
 import { OrdersPickerDialog, StripeOrderChooserDialog } from './OrdersReceiptsList';
 
@@ -149,12 +150,20 @@ interface ReceiptEntryDialogProps {
   dialog: ReceiptDialogState;
   user: { email?: string; user_metadata?: Record<string, string> } | null;
   onClose: () => void;
+  /**
+   * The account read behind these rows was degraded (MYK9-563). The card
+   * affordance is already withheld (`canShowReceipt`), but this dialog is also
+   * reachable from the show header's orders list and from a `?orderId=` deep
+   * link, so every amount it prints still has to say it could not be confirmed.
+   */
+  degraded?: boolean | undefined;
 }
 
 export const ReceiptEntryDialog: React.FC<ReceiptEntryDialogProps> = ({
   dialog,
   user,
   onClose,
+  degraded = false,
 }) => {
   // This dialog reads its own deep-link param rather than having the page pass
   // it down. The receipt is the only consumer of `orderId`, and a prop threaded
@@ -234,6 +243,7 @@ export const ReceiptEntryDialog: React.FC<ReceiptEntryDialogProps> = ({
         orders={candidates}
         onSelect={order => setPickedCardId(order.id)}
         onClose={closeReceipt}
+        {...(degraded && { notice: UNCONFIRMED_RECEIPT_NOTICE })}
       />
     );
   }
@@ -266,7 +276,11 @@ export const ReceiptEntryDialog: React.FC<ReceiptEntryDialogProps> = ({
         user={user}
         onClose={closeReceipt}
         onBack={onBack}
-        notice="We could not reach the payment record, so this shows your entry fees rather than the exact amount charged."
+        notice={
+          degraded
+            ? UNCONFIRMED_RECEIPT_NOTICE
+            : 'We could not reach the payment record, so this shows your entry fees rather than the exact amount charged.'
+        }
         onRetry={() => void receiptOrders.refetch()}
       />
     );
@@ -284,6 +298,7 @@ export const ReceiptEntryDialog: React.FC<ReceiptEntryDialogProps> = ({
         user={user}
         onClose={closeReceipt}
         onBack={onBack}
+        {...(degraded && { notice: UNCONFIRMED_RECEIPT_NOTICE })}
       />
     );
   }
@@ -313,7 +328,11 @@ export const ReceiptEntryDialog: React.FC<ReceiptEntryDialogProps> = ({
         user={user}
         onClose={closeReceipt}
         onBack={onBack}
-        notice="Some class details for this payment are still syncing, so this shows your entry fees rather than the exact amount charged."
+        notice={
+          degraded
+            ? UNCONFIRMED_RECEIPT_NOTICE
+            : 'Some class details for this payment are still syncing, so this shows your entry fees rather than the exact amount charged.'
+        }
         onRetry={() => void receiptOrders.refetch()}
       />
     );
@@ -361,6 +380,7 @@ export const ReceiptEntryDialog: React.FC<ReceiptEntryDialogProps> = ({
         paymentStatus: orderRefundStatusLabel(selectedOrder),
       }}
       {...(onBack && { onBack })}
+      {...(degraded && { notice: UNCONFIRMED_RECEIPT_NOTICE })}
       {...(exhibitorName && { exhibitorName })}
       {...(exhibitorEmail && { exhibitorEmail })}
     />
@@ -377,6 +397,8 @@ interface MyEntriesDialogGroupProps {
   onEntryUpdated: () => void;
   receiptDialog: ReceiptDialogState;
   onCloseReceipt: () => void;
+  /** The account read behind these rows was degraded — see MYK9-563. */
+  degraded?: boolean | undefined;
   resultRevealModel: ResultCardModel | null;
   onCloseResultReveal: () => void;
   /** Receives the model's release key so the "already seen" marker is per-release. */
@@ -411,6 +433,7 @@ export const MyEntriesDialogGroup: React.FC<MyEntriesDialogGroupProps> = ({
   onEntryUpdated,
   receiptDialog,
   onCloseReceipt,
+  degraded = false,
   resultRevealModel,
   onCloseResultReveal,
   onResultRevealSeen,
@@ -428,7 +451,12 @@ export const MyEntriesDialogGroup: React.FC<MyEntriesDialogGroupProps> = ({
 
     <EditEntryDialog dialog={editDialog} onClose={onCloseEdit} onUpdate={onEntryUpdated} />
 
-    <ReceiptEntryDialog dialog={receiptDialog} user={user} onClose={onCloseReceipt} />
+    <ReceiptEntryDialog
+      dialog={receiptDialog}
+      user={user}
+      onClose={onCloseReceipt}
+      degraded={degraded}
+    />
 
     <ResultRevealDialog
       open={resultRevealModel != null}

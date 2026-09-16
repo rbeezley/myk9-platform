@@ -41,6 +41,8 @@ export interface MyShowsListProps {
   /** The strip's status axis, re-applied per dog (see `narrowDogsToStatus`). */
   selectedStatus?: EntryStatusFilter | undefined;
   selfCheckinByClassId?: Record<string, boolean> | undefined;
+  /** The account read behind these rows was degraded — see MYK9-563. */
+  degraded?: boolean | undefined;
   seenResultReleaseKeys: Set<string>;
   onCheckInDay: (dog: MyShowDog, classes: MyShowClass[]) => void;
   onOpenCheckIn: (order: MyEntry, cls: MyShowClass) => void;
@@ -59,6 +61,7 @@ export const MyShowsList: React.FC<MyShowsListProps> = ({
   filteredEntries,
   selectedStatus = 'any',
   selfCheckinByClassId,
+  degraded = false,
   seenResultReleaseKeys,
   onCheckInDay,
   onOpenCheckIn,
@@ -83,6 +86,7 @@ export const MyShowsList: React.FC<MyShowsListProps> = ({
             group={group}
             now={now}
             selfCheckinByClassId={selfCheckinByClassId}
+            degraded={degraded}
             seenResultReleaseKeys={seenResultReleaseKeys}
             onCheckInDay={onCheckInDay}
             onOpenCheckIn={onOpenCheckIn}

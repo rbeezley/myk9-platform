@@ -17,6 +17,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import type { EntryBalanceSummary } from '@/features/payments/entryBalanceSummary';
 import { formatPaymentCents } from '@/features/payments/moneyPresentation';
 import { formatShowWithEntryCloseDeadline } from '@/features/payments/entryCloseDeadline';
+import { UNCONFIRMED_BALANCE_NOTE } from '@/features/payments/unconfirmedBalanceCopy';
 import { useNow } from '@/hooks/useNow';
 
 export function AmountDueSection({
@@ -135,9 +136,7 @@ export function AmountDueSection({
               {formatPaymentCents(summary.amountDueCents, 'usd')}
             </p>
             {unconfirmed && (
-              <p className="mt-1 text-sm text-muted-foreground">
-                Showing saved data — we couldn&apos;t reach the server to confirm it.
-              </p>
+              <p className="mt-1 text-sm text-muted-foreground">{UNCONFIRMED_BALANCE_NOTE}</p>
             )}
             {/* Name the show in the single-show case too: the name used to
                 appear only in the multi-show breakdown, so the common case

@@ -27,6 +27,12 @@ interface MyEntriesOverviewProps {
   currentFees: number;
   amountDue: number;
   hasPastBalance: boolean;
+  /**
+   * The figures came from rows the authoritative account read never confirmed
+   * (MYK9-563 item 2) — passed straight through to the fee strip, which
+   * withholds a zero figure and labels a non-zero one.
+   */
+  unconfirmed?: boolean;
   /** Targets the SAME debt `amountDue` describes — see the page's derivation. */
   currentFeesHref: string;
   onNavigate: NavigateFunction;
@@ -39,6 +45,7 @@ export const MyEntriesOverview: React.FC<MyEntriesOverviewProps> = ({
   currentFees,
   amountDue,
   hasPastBalance,
+  unconfirmed = false,
   currentFeesHref,
   onNavigate,
   dogs,
@@ -51,6 +58,7 @@ export const MyEntriesOverview: React.FC<MyEntriesOverviewProps> = ({
         currentFees={currentFees}
         amountDue={amountDue}
         hasPastBalance={hasPastBalance}
+        unconfirmed={unconfirmed}
         currentFeesHref={currentFeesHref}
         onNavigate={onNavigate}
       />

@@ -202,6 +202,41 @@ function errorMessageOf(error: unknown): string {
 const USER_ENTRIES_VIEW_TIMEOUT_MS = DEFAULT_TIMEOUT_MS;
 
 /**
+ * Degraded-read warnings, once per distinct reason per session (MYK9-563
+ * item 2).
+ *
+ * All four account-level consumers set `refetchOnReconnect`, so a venue wifi
+ * flap replays this whole cascade; without a memo one bad afternoon writes the
+ * same line hundreds of times and buries everything else in the log. The key is
+ * the warning plus the error MESSAGE, not the error object, so a genuinely new
+ * failure still gets its own line. `MAX` bounds it: a pathological stream of
+ * unique messages stops adding to the set rather than growing it without limit,
+ * and past that point the warnings simply flow again — noisy beats a leak.
+ */
+const warnedDegradedReads = new Set<string>();
+const MAX_WARNED_DEGRADED_READS = 50;
+
+function warnDegradedReadOnce(message: string, reason: string, context: Record<string, unknown>) {
+  const key = `${message}::${reason}`;
+  if (warnedDegradedReads.has(key)) return;
+  if (warnedDegradedReads.size < MAX_WARNED_DEGRADED_READS) {
+    warnedDegradedReads.add(key);
+  }
+  logger.warn(message, 'database', context);
+}
+
+/**
+ * Test-only: clear the per-session warning memo.
+ *
+ * This module's memo is module-scope mutable state, which makes test ORDER
+ * observable (CI shuffles). Every test that asserts on these warnings resets it
+ * in `beforeEach`.
+ */
+export function __resetDegradedReadWarnings(): void {
+  warnedDegradedReads.clear();
+}
+
+/**
  * The account-level read's result.
  *
  * `stale` marks rows served from the per-show replication snapshot after the
@@ -283,9 +318,9 @@ export const getUserEntries = async (userId: string): Promise<UserEntriesResult>
         // cascade, on a handler/owner reassignment, or on an identity mismatch.
         // In the first two the server is RIGHT and the replica is a ghost, so
         // serving it silently would state a phantom amount due as fact.
-        logger.warn(
+        warnDegradedReadOnce(
           'My Entries kept replica rows the authoritative view did not return',
-          'database',
+          'empty-view',
           { rows: replica.data.length }
         );
         logQuery('entries', 'select_user_entries_empty_view_replica_kept', Date.now() - startTime);
@@ -379,9 +414,9 @@ async function readUserEntriesFromReplica(
   // in the logs to say so. Warn, and give the state its own query label.
   const offline = isOfflineFetchError(viewError);
   if (!offline) {
-    logger.warn(
+    warnDegradedReadOnce(
       'My Entries served a possibly-stale replica after a non-offline view error',
-      'database',
+      errorMessageOf(viewError),
       {
         rows: replica.data.length,
         error: errorMessageOf(viewError),

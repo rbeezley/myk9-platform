@@ -30,7 +30,11 @@
  */
 
 import { cn, formatCurrency } from '@/lib/utils';
-import { CircleCheckBig, CreditCard } from 'lucide-react';
+import { CircleCheckBig, CreditCard, CloudOff } from 'lucide-react';
+import {
+  UNCONFIRMED_BALANCE_NOTE,
+  UNCONFIRMED_ZERO_BALANCE_LABEL,
+} from '@/features/payments/unconfirmedBalanceCopy';
 
 interface CompactStatsRowProps {
   /** Total fees across the exhibitor's current entries. */
@@ -41,6 +45,13 @@ interface CompactStatsRowProps {
   hasPastBalance?: boolean;
   /** Cart/payment target for the owed balance; falls back to the cart. */
   currentFeesHref?: string;
+  /**
+   * The figures came from rows the authoritative account read never confirmed
+   * (MYK9-563 item 2). Mirrors `AmountDueSection` on My Payments: a non-zero
+   * figure is kept and labelled saved data, a ZERO one is withheld entirely
+   * rather than drawn as "Paid in full".
+   */
+  unconfirmed?: boolean;
   onNavigate: (path: string) => void;
   className?: string | undefined;
 }
@@ -50,13 +61,19 @@ export function CompactStatsRow({
   amountDue,
   hasPastBalance = false,
   currentFeesHref,
+  unconfirmed = false,
   onNavigate,
   className,
 }: CompactStatsRowProps) {
-  const paidInFull = amountDue <= 0;
+  // "We could not ask" is not "you owe nothing". At zero the two are the same
+  // pixels, so the claim is withheld; above zero the figure still helps and
+  // only its standing changes.
+  const balanceUnknown = unconfirmed && amountDue <= 0;
+  const paidInFull = !balanceUnknown && amountDue <= 0;
   const includesPastBalance = hasPastBalance;
-  const feeHref = paidInFull ? '/exhibitor/payments' : (currentFeesHref ?? '/cart');
-  const hasActionableOnlinePayment = !paidInFull && feeHref.startsWith('/cart');
+  const feeHref =
+    paidInFull || balanceUnknown ? '/exhibitor/payments' : (currentFeesHref ?? '/cart');
+  const hasActionableOnlinePayment = !paidInFull && !balanceUnknown && feeHref.startsWith('/cart');
 
   return (
     <div className={className}>
@@ -64,11 +81,13 @@ export function CompactStatsRow({
         type="button"
         onClick={() => onNavigate(feeHref)}
         aria-label={
-          paidInFull
-            ? 'Entry fees: paid in full. View your payments.'
-            : includesPastBalance
-              ? `Entry fees: ${formatCurrency(amountDue)} outstanding. View payment details.`
-              : `Entry fees: ${formatCurrency(amountDue)} due of ${formatCurrency(currentFees)}. Finish payment.`
+          balanceUnknown
+            ? `Entry fees: ${UNCONFIRMED_ZERO_BALANCE_LABEL}. ${UNCONFIRMED_BALANCE_NOTE} View your payments.`
+            : paidInFull
+              ? 'Entry fees: paid in full. View your payments.'
+              : includesPastBalance
+                ? `Entry fees: ${formatCurrency(amountDue)} outstanding. View payment details.`
+                : `Entry fees: ${formatCurrency(amountDue)} due of ${formatCurrency(currentFees)}. Finish payment.`
         }
         className={cn(
           'group flex w-full flex-wrap items-center justify-between gap-4 rounded-xl border border-border bg-card p-4 text-left shadow-sm',
@@ -81,12 +100,16 @@ export function CompactStatsRow({
             data-slot="icon"
             className={cn(
               'flex size-9 shrink-0 items-center justify-center rounded-lg border shadow-sm',
-              paidInFull
-                ? 'border-success/25 bg-success/10 text-success'
-                : 'border-warning/30 bg-warning/10 text-warning'
+              balanceUnknown
+                ? 'border-border bg-muted text-muted-foreground'
+                : paidInFull
+                  ? 'border-success/25 bg-success/10 text-success'
+                  : 'border-warning/30 bg-warning/10 text-warning'
             )}
           >
-            {paidInFull ? (
+            {balanceUnknown ? (
+              <CloudOff className="h-5 w-5" />
+            ) : paidInFull ? (
               <CircleCheckBig className="h-5 w-5" />
             ) : (
               <CreditCard className="h-5 w-5" />
@@ -96,7 +119,14 @@ export function CompactStatsRow({
             <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
               Entry fees
             </span>
-            {paidInFull ? (
+            {balanceUnknown ? (
+              <span className="flex flex-col gap-1">
+                <span className="text-base font-semibold leading-none text-muted-foreground">
+                  {UNCONFIRMED_ZERO_BALANCE_LABEL}
+                </span>
+                <span className="text-sm text-muted-foreground">{UNCONFIRMED_BALANCE_NOTE}</span>
+              </span>
+            ) : paidInFull ? (
               <span className="text-base font-semibold leading-none text-success">
                 Paid in full
               </span>
@@ -113,6 +143,11 @@ export function CompactStatsRow({
                 ) : (
                   <span className="text-sm text-muted-foreground tabular-nums">
                     due of {formatCurrency(currentFees)} entered
+                  </span>
+                )}
+                {unconfirmed && (
+                  <span className="basis-full text-sm text-muted-foreground">
+                    {UNCONFIRMED_BALANCE_NOTE}
                   </span>
                 )}
               </span>

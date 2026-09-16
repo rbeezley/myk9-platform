@@ -50,6 +50,16 @@ interface UseMyEntriesDataReturn {
    */
   balanceSummary: EntryBalanceSummary;
   /**
+   * The rows on screen came from the per-show replication snapshot without the
+   * authoritative account view confirming them — it failed, timed out, or came
+   * back empty against a populated snapshot (MYK9-563 item 2). `getUserEntries`
+   * returns `error: null` on those paths because the rows ARE real, so this is
+   * the only signal the page has that a hard-deleted entry may still be sitting
+   * in the list and its fee in the amount due. The fee strip withholds a zero
+   * figure and labels a non-zero one; see `CompactStatsRow`.
+   */
+  degraded: boolean;
+  /**
    * Whether we know which person these entries belong to. `unresolved` is a
    * real state, distinct from "no entries": the `people` lookup pauses
    * offline, so an empty list under an unresolved identity proves nothing.
@@ -160,6 +170,7 @@ export function useMyEntriesData({
   );
   const [isLoading, setIsLoading] = useState(true);
   const [isError, setIsError] = useState(false);
+  const [degraded, setDegraded] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   /** The `user.id::personId` the rows in `entries` were loaded for. */
   const loadedIdentityRef = useRef<string | null>(null);
@@ -330,6 +341,7 @@ export function useMyEntriesData({
       setEntries([]);
       setBalanceSummary(summarizeEntryBalances([]));
       setIsError(false);
+      setDegraded(false);
     }
 
     // `user?.id` and `personId` are restated rather than inferred from
@@ -341,7 +353,7 @@ export function useMyEntriesData({
     }
 
     try {
-      const { data, error } = await getUserEntries(personId);
+      const { data, error, stale } = await getUserEntries(personId);
 
       if (error) {
         logger.error('Failed to load entries:', 'pages', {}, error as Error);
@@ -366,6 +378,10 @@ export function useMyEntriesData({
       );
       loadedIdentityRef.current = identity;
       setIsError(false);
+      // Set from THIS read, every time: a reload that the view does confirm has
+      // to be able to clear the mark, or the page stays hedged for the rest of
+      // the session after one flaky read.
+      setDegraded(Boolean(stale));
     } catch (error) {
       logger.error('Failed to load entries:', 'pages', {}, error as Error);
       // Same contract as the `error` branch above: preserve the last good read.
@@ -495,6 +511,7 @@ export function useMyEntriesData({
   return {
     entries,
     balanceSummary,
+    degraded,
     identityState,
     isLoading,
     isError,

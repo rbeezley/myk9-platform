@@ -56,6 +56,7 @@ const MyEntriesPage: React.FC = () => {
   const {
     entries,
     balanceSummary,
+    degraded,
     identityState,
     isLoading,
     isError,
@@ -337,6 +338,7 @@ const MyEntriesPage: React.FC = () => {
                     currentFees={entryStats.currentFees}
                     amountDue={entryStats.currentAmountDue}
                     hasPastBalance={balanceSummary.onlineShowBalances.some(show => show.isPastShow)}
+                    unconfirmed={degraded}
                     currentFeesHref={currentFeesHref}
                     onNavigate={navigate}
                     dogs={(dogs ?? []) as OverviewDog[]}

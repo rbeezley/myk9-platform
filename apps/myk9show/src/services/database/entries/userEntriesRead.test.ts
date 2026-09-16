@@ -72,7 +72,11 @@ vi.mock('@/services/mappers/entryMappers', () => ({
   mapReplicatedEntryToDbRow: mocks.mapReplicatedEntryToDbRow,
 }));
 
-import { USER_ENTRIES_SELECT, getUserEntries } from './userEntriesRead';
+import {
+  USER_ENTRIES_SELECT,
+  __resetDegradedReadWarnings,
+  getUserEntries,
+} from './userEntriesRead';
 
 function makeViewEntriesQuery(
   data: Array<Record<string, unknown>>,
@@ -138,6 +142,9 @@ function mockSupabaseTables(options: {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  // Module-scope memo: without this the first test to warn silences every
+  // later one, and CI's shuffled order decides which.
+  __resetDegradedReadWarnings();
   mocks.mapReplicatedEntryToDbRow.mockImplementation(
     (entry: Record<string, unknown>, options: Record<string, unknown>) => ({
       id: entry.id,
@@ -622,5 +629,66 @@ describe('getUserEntries account-scope read', () => {
       expect.any(Number),
       'RLS policy denied'
     );
+  });
+});
+
+/**
+ * MYK9-563 item 2: a degraded read warns once per reason, not once per refetch.
+ *
+ * All four account-level consumers carry `refetchOnReconnect`, so one venue
+ * wifi flap replays the whole cascade. The warning has to survive as a signal,
+ * which means it cannot be written on every attempt.
+ */
+describe('degraded-read warning dedupe', () => {
+  const replicatedEntry = {
+    id: 'entry-1',
+    classId: 'class-1',
+    dogId: 'dog-1',
+    showId: 'show-1',
+    handlerId: 'person-1',
+    registrationId: null,
+  };
+
+  function replicaHasRows() {
+    mocks.replicatedEntriesGetAll.mockResolvedValue([replicatedEntry]);
+    mocks.replicatedDogsGetAllDogs.mockResolvedValue([{ id: 'dog-1', ownerId: 'person-1' }]);
+    mocks.replicatedClassesGetAll.mockResolvedValue([{ id: 'class-1' }]);
+    mocks.replicatedShowsGetAllShows.mockResolvedValue([{ id: 'show-1' }]);
+    mocks.replicatedTrialsGetAll.mockResolvedValue([]);
+  }
+
+  it('warns once for repeated failures with the same message', async () => {
+    replicaHasRows();
+    mockSupabaseTables({ viewEntriesError: new Error('RLS policy denied') });
+
+    await getUserEntries('person-1');
+    await getUserEntries('person-1');
+    await getUserEntries('person-1');
+
+    expect(mocks.loggerWarn).toHaveBeenCalledTimes(1);
+  });
+
+  it('warns again for a genuinely different failure', async () => {
+    replicaHasRows();
+    mockSupabaseTables({ viewEntriesError: new Error('RLS policy denied') });
+    await getUserEntries('person-1');
+
+    mockSupabaseTables({ viewEntriesError: new Error('relation does not exist') });
+    await getUserEntries('person-1');
+
+    expect(mocks.loggerWarn).toHaveBeenCalledTimes(2);
+  });
+
+  it('warns once for the empty-view-over-a-populated-replica branch', async () => {
+    replicaHasRows();
+    mockSupabaseTables({ viewEntryRows: [] });
+
+    const first = await getUserEntries('person-1');
+    await getUserEntries('person-1');
+
+    // The rows are still served and still marked unconfirmed every time; it is
+    // only the LOG line that is deduped.
+    expect(first.stale).toBe(true);
+    expect(mocks.loggerWarn).toHaveBeenCalledTimes(1);
   });
 });

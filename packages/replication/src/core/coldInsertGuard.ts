@@ -29,8 +29,7 @@ export type ReplicatedSetSkipReason = 'cold-insert-refused' | 'dirty-row-preserv
  * changed — callers must not report the new value as stored.
  */
 export type ReplicatedSetResult =
-  | { written: true }
-  | { written: false; reason: ReplicatedSetSkipReason };
+  { written: true } | { written: false; reason: ReplicatedSetSkipReason };
 
 /**
  * The reason the quota-eviction retry carries. `relieveQuota()` evicts CLEAN

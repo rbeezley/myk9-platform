@@ -112,7 +112,12 @@ export function deriveMyEntryCardState(
       EntryStatus.REJECTED,
       EntryStatus.MOVED,
     ].includes(entry.entryStatus);
-  const canShowReceipt = Boolean(entry.confirmationNumber && isPaid);
+  // Payment is the whole gate. Requiring a confirmation number as well would
+  // withdraw the receipt from exactly the paid cash/check and secretary-recorded
+  // entries that have never had one — the document `CardDerivedReceipt` exists
+  // to print — now that the id-slice stand-in is gone (MYK9-563 item 6). The
+  // receipt simply omits the confirmation line when there is none.
+  const canShowReceipt = isPaid;
   const isPendingReview =
     entry.entryStatus === EntryStatus.PENDING &&
     (entry.entryStatusKind ?? 'pending') === 'pending' &&

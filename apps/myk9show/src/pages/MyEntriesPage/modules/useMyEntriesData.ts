@@ -276,9 +276,14 @@ export function useMyEntriesData({
     const entryStatus = isShowCancelled
       ? EntryStatus.CANCELLED
       : mapEntryStatus(entry.entry_status as string);
-    // Use real confirmation number from joined registration, fall back to UUID slice for legacy entries
-    const confirmationNumber =
-      rowRegistration?.confirmation_number ?? (entry.id as string).slice(0, 8).toUpperCase();
+    // The joined registration's number, or nothing. The id-slice stand-in that
+    // used to fill this gap looks exactly like a confirmation number, matches
+    // no order the club can look up, and is not what the exhibitor was emailed
+    // — and because it was applied HERE, the `?? slice` guards downstream could
+    // never fire (MYK9-563 item 6). Secretary and mail-in entries legitimately
+    // have no online registration; so does a replica read that lost the
+    // enrichment.
+    const confirmationNumber = rowRegistration?.confirmation_number;
 
     return {
       id: entry.id as string,

@@ -53,7 +53,7 @@ export const CardDerivedReceipt: React.FC<CardDerivedReceiptProps> = ({
       onOpenChange={open => !open && onClose()}
       entry={{
         id: entry.id,
-        confirmationNumber: entry.confirmationNumber ?? entry.id.slice(0, 8).toUpperCase(),
+        confirmationNumber: entry.confirmationNumber,
         showName: entry.showName,
         showDate: entry.showDate,
         location: entry.location,

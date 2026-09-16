@@ -84,9 +84,18 @@ function describeOrderRefund(order: MyEntry): string | null {
     : `Refunded ${money} on ${on}`;
 }
 
-/** The confirmation number the exhibitor was given, or the id's stand-in. */
-function confirmationOf(order: MyEntry): string {
-  return order.confirmationNumber ?? order.id.slice(0, 8).toUpperCase();
+/**
+ * The confirmation number the exhibitor was given, or `null` when there is
+ * none.
+ *
+ * Never an id slice. An order with no enrollment — a secretary or mail-in
+ * entry, or a replica read that lost the enrichment — used to render
+ * `id.slice(0,8).toUpperCase()` here, which reads as a confirmation number,
+ * matches nothing the club can look up, and is not the one that was emailed
+ * (MYK9-563 item 6). The row still identifies itself by date and dogs.
+ */
+function confirmationOf(order: MyEntry): string | null {
+  return order.confirmationNumber ?? null;
 }
 
 export interface OrdersReceiptsListProps {
@@ -116,13 +125,13 @@ export const OrdersReceiptsList: React.FC<OrdersReceiptsListProps> = ({
             className="min-h-11 w-full justify-between gap-3 text-left"
             aria-label={
               mode === 'receipt'
-                ? `Receipt for order ${confirmation} — ${dogs}, ${money}`
-                : `Edit order ${confirmation} — ${dogs}`
+                ? `Receipt for order ${confirmation ? `${confirmation} — ` : ''}${dogs}, ${money}`
+                : `Edit order ${confirmation ? `${confirmation} — ` : ''}${dogs}`
             }
             onClick={() => onSelect(order)}
           >
             <span className="min-w-0 truncate">
-              {submitted} · {confirmation} · {dogs}
+              {[submitted, confirmation, dogs].filter(Boolean).join(' · ')}
             </span>
             {money && (
               <span className="shrink-0 text-right">

@@ -32,7 +32,15 @@ interface EntryClass {
 
 interface EntryReceiptData {
   id: string;
-  confirmationNumber: string;
+  /**
+   * The number the exhibitor was actually given, from the joined enrollment.
+   * ABSENT is a real state (MYK9-563 item 6): a secretary or mail-in entry has
+   * no online registration, and the replica path can lose the enrichment. The
+   * block below is then omitted — it used to be filled with an id slice, which
+   * looks like a confirmation number, matches nothing the club can look up, and
+   * is not what was emailed.
+   */
+  confirmationNumber?: string | undefined;
   showName: string;
   showDate: Date;
   location: {
@@ -280,7 +288,7 @@ export function EntryReceipt({
       <!DOCTYPE html>
       <html>
         <head>
-          <title>Entry Receipt - ${entry.confirmationNumber}</title>
+          <title>${entry.confirmationNumber ? `Entry Receipt - ${entry.confirmationNumber}` : 'Entry Receipt'}</title>
           ${styles}
         </head>
         <body>
@@ -355,15 +363,17 @@ export function EntryReceipt({
             <p className="receipt-subtitle text-sm text-muted-foreground">myK9Show</p>
           </div>
 
-          {/* Confirmation # */}
-          <div className="confirmation-box bg-muted/50 rounded-lg p-4 mb-6 text-center">
-            <div className="confirmation-label text-xs text-muted-foreground tracking-wider">
-              {CONFIRMATION_NUMBER_LABEL}
+          {/* Confirmation # — omitted entirely when there is none to state. */}
+          {entry.confirmationNumber && (
+            <div className="confirmation-box bg-muted/50 rounded-lg p-4 mb-6 text-center">
+              <div className="confirmation-label text-xs text-muted-foreground tracking-wider">
+                {CONFIRMATION_NUMBER_LABEL}
+              </div>
+              <div className="confirmation-number text-2xl font-bold font-mono">
+                {entry.confirmationNumber}
+              </div>
             </div>
-            <div className="confirmation-number text-2xl font-bold font-mono">
-              {entry.confirmationNumber}
-            </div>
-          </div>
+          )}
 
           {/* Show Information */}
           <div className="section mb-6">

@@ -339,7 +339,7 @@ export const ReceiptEntryDialog: React.FC<ReceiptEntryDialogProps> = ({
       onOpenChange={open => !open && closeReceipt()}
       entry={{
         id: entry.id,
-        confirmationNumber: entry.confirmationNumber ?? entry.id.slice(0, 8).toUpperCase(),
+        confirmationNumber: entry.confirmationNumber,
         showName: entry.showName,
         showDate: entry.showDate,
         location: entry.location,

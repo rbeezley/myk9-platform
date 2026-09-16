@@ -26,11 +26,9 @@ export type {
   ClassStatusUpdateFields,
   ClassStatusValue,
 } from './context';
-export { RingsideProvider, useRingside, useRingsideAuth, useRingsidePermission } from './context';
+export { RingsideProvider, useRingside, useRingsideAuth } from './context';
 
 // ── Utils ────────────────────────────────────────────────────────────────
-export { parseSmartTime, isValidTimeFormat } from './utils/timeInputParsing';
-
 // Class-status detection + display (moved from apps/myk9q statusUtils in PR E1a)
 export type {
   ClassStatus,

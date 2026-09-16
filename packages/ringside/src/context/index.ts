@@ -22,5 +22,3 @@ export {
   useRingsideAuth,
   type RingsideProviderProps,
 } from './RingsideContext';
-
-export { useRingsidePermission } from './useRingsidePermission';

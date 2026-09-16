@@ -352,16 +352,24 @@ DECLARE v_paid integer; v_ids text;
 BEGIN
   -- Money that moved in either direction: 'paid' and 'refunded' both carry an
   -- audit trail in entry_status_history that the cascade would erase.
-  SELECT count(*), string_agg(e.id::text, ', ' ORDER BY e.id)
+  -- Capped the same way the extracted guard's three RAISEs are (MYK9-562): an
+  -- unbounded id list once put 756 ids on one error line.
+  WITH strays AS (
+    SELECT e.id
+    FROM public.entries e
+    JOIN public.enrollments en ON en.id = e.registration_id
+    WHERE (en.id = 'dededede-0000-0000-0000-000000000070'
+           OR (en.show_id = 'dededede-0000-0000-0000-000000000010'
+               AND en.handler_id = (SELECT id FROM public.people WHERE lower(email)='exhibitor@myk9t.com')))
+      AND e.payment_status IN ('paid', 'refunded')
+  )
+  SELECT count(*),
+         (SELECT string_agg(t.id::text, ', ' ORDER BY t.id)
+          FROM (SELECT id FROM strays ORDER BY id LIMIT 10) t)
     INTO v_paid, v_ids
-  FROM public.entries e
-  JOIN public.enrollments en ON en.id = e.registration_id
-  WHERE (en.id = 'dededede-0000-0000-0000-000000000070'
-         OR (en.show_id = 'dededede-0000-0000-0000-000000000010'
-             AND en.handler_id = (SELECT id FROM public.people WHERE lower(email)='exhibitor@myk9t.com')))
-    AND e.payment_status IN ('paid', 'refunded');
+  FROM strays;
   IF v_paid > 0 THEN
-    RAISE EXCEPTION 'seed-demo: % paid or refunded entr(ies) hang off the demo exhibitor''s enrollment on show ...010 — refusing to delete them; remove them deliberately, then rerun. Ids: %', v_paid, v_ids;
+    RAISE EXCEPTION 'seed-demo: % paid or refunded entr(ies) hang off the demo exhibitor''s enrollment on show ...010 — refusing to delete them; remove them deliberately, then rerun. First ids: %', v_paid, v_ids;
   END IF;
 END $$;
 -- MYK9-527: REPORT the stripe_orders rows a PAST reseed orphaned before

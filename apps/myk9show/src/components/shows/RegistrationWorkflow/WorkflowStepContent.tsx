@@ -13,7 +13,7 @@ import { useTrialStore } from '@/store/trialStore';
 import { useUserStore } from '@/store/userStore';
 import { useDogStoreCompat } from '@/hooks/useDogStoreCompat';
 import { useClassStoreCompat } from '@/hooks/useClassStoreCompat';
-import { getShowStyle } from '@/features/registries';
+import { deriveRegistryId, getShowStyle, getTrialRegistry } from '@/features/registries';
 import { STYLED_RECEIPT_BY_STYLE } from '@/features/_shared/styledReceiptRegistry';
 import { STYLED_ENTRY_BLANK_BY_STYLE } from '@/features/_shared/styledEntryBlankRegistry';
 import {
@@ -159,6 +159,17 @@ export function WorkflowStepContent({
   const { dogs } = useDogStoreCompat();
   const { classes } = useClassStoreCompat();
   const currentShow = shows.find(show => show.id === showId);
+
+  // One registry per show (MYK9-490): every trial of a show carries the same
+  // `registry_id`, a projection of the show's organization. Read it through the
+  // registries helpers, never off the column — the trial when one is loaded,
+  // else the same derivation the server applies. Undefined show = unknown, and
+  // the dog card then marks nothing rather than guessing (MYK9-569).
+  const showRegistryId = useMemo(() => {
+    const trial = allTrials.find(t => t.showId === showId);
+    if (trial) return getTrialRegistry(trial).id;
+    return currentShow ? deriveRegistryId(currentShow.organization) : null;
+  }, [allTrials, showId, currentShow]);
 
   const styledReceipt = useMemo(() => {
     if (currentStepId !== 'confirmation') return null;
@@ -329,6 +340,7 @@ export function WorkflowStepContent({
             <DogSelectionStep
               selectedDogs={registrationData.selectedDogs}
               onSelectionChange={onDogSelectionChange}
+              showRegistryId={showRegistryId}
             />
           )}
         </SearchErrorBoundary>

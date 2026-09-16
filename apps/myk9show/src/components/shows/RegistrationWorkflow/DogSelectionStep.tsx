@@ -20,16 +20,24 @@ import { SearchBar } from '@/components/common/SearchBar';
 import { Button } from '@/components/ui/button';
 import { AddEditRegistrationDialog } from '@/components/dogs/AddEditRegistrationDialog';
 import { useInlineDogRegistration } from './useInlineDogRegistration';
+import { resolveRegistrationForShow, type RegistrationForShow } from './dogRegistrationForShow';
 import '@/styles/myk9-registration-workflow.css';
 
 interface DogSelectionStepProps {
   selectedDogs: string[];
   onSelectionChange: (dogIds: string[]) => void;
+  /**
+   * The show's sanctioning registry, already resolved through
+   * `@/features/registries` by the caller (never a raw column read).
+   * Undefined = not known yet; the card then marks nothing and blocks nobody.
+   */
+  showRegistryId?: string | null | undefined;
 }
 
 export const DogSelectionStep: React.FC<DogSelectionStepProps> = ({
   selectedDogs,
   onSelectionChange,
+  showRegistryId,
 }) => {
   const [searchQuery, setSearchQuery] = React.useState('');
   const { dogs, isLoading, error, refetch } = useDogStoreCompat();
@@ -64,7 +72,7 @@ export const DogSelectionStep: React.FC<DogSelectionStepProps> = ({
     }
   };
 
-  const getDogEligibilityStatus = (dog: Dog) => {
+  const getDogEligibilityStatus = (dog: Dog, forShow: RegistrationForShow) => {
     const issues: string[] = [];
     const warnings: string[] = [];
 
@@ -72,10 +80,15 @@ export const DogSelectionStep: React.FC<DogSelectionStepProps> = ({
       issues.push('Too young (must be 6+ months)');
     }
 
-    // Registration is a warning only — registrations may not be loaded in all data paths
-    // and lack of a registration does not prevent selecting a dog for entry.
-    // Class-level eligibility (including registration requirements) is validated later.
-    if (dog.registrations && dog.registrations.length === 0) {
+    // A dog with no registration for THIS show's registry cannot be entered —
+    // `trg_entries_require_dog_registration` rejects it, and the exhibitor should
+    // never meet that rejection at the payment step (MYK9-569). The helper fails
+    // OPEN when either the registry or the registrations are unknown, so the old
+    // "registrations may not be loaded on every data path" caveat still holds.
+    if (forShow.missingRegistration && forShow.missingRegistrationMessage) {
+      issues.push(forShow.missingRegistrationMessage);
+    } else if (dog.registrations && dog.registrations.length === 0) {
+      // No registry in context: the generic warning, unchanged.
       warnings.push('No registration on file — verify before submitting');
     }
 
@@ -150,8 +163,10 @@ export const DogSelectionStep: React.FC<DogSelectionStepProps> = ({
       <ScrollArea className="h-auto pr-0 md:h-[400px] md:pr-4">
         <div className="space-y-3">
           {visibleDogs.map(dog => {
-            const { eligible, issues, warnings } = getDogEligibilityStatus(dog);
+            const forShow = resolveRegistrationForShow(dog, showRegistryId);
+            const { eligible, issues, warnings } = getDogEligibilityStatus(dog, forShow);
             const isSelected = selectedDogs.includes(dog.id);
+            const showAddRegistration = warnings.length > 0 || forShow.missingRegistration;
 
             return (
               <Card
@@ -198,13 +213,32 @@ export const DogSelectionStep: React.FC<DogSelectionStepProps> = ({
                         </p>
                       </div>
 
-                      {dog.registrations && dog.registrations.length > 0 && (
-                        <div className="mt-2 flex flex-wrap gap-2">
-                          {dog.registrations.map((reg, idx) => (
+                      {/* INTENT: the registry the show uses is decided by the show,
+                        not by the exhibitor (MYK9-490). The other registrations stay
+                        VISIBLE but de-emphasized — a tester read three equal chips as
+                        an unmade choice, and hiding them would instead read as her
+                        dog's other numbers having been lost (MYK9-569). Text size
+                        stays at text-xs: do not shrink it further (MYK9-368). */}
+                      {(forShow.used || forShow.others.length > 0) && (
+                        <div className="mt-2 flex flex-wrap items-center gap-2">
+                          {forShow.used && (
                             <Badge
-                              key={idx}
+                              data-testid="registration-used"
                               variant="outline"
-                              className="max-w-full whitespace-normal break-all text-xs"
+                              className="max-w-full whitespace-normal break-all border-primary bg-primary/10 text-xs font-semibold text-foreground"
+                            >
+                              {forShow.used.organization}: {forShow.used.registrationNumber}
+                              <span className="ml-1.5 font-normal text-muted-foreground">
+                                Used for this show
+                              </span>
+                            </Badge>
+                          )}
+                          {forShow.others.map(reg => (
+                            <Badge
+                              key={reg.id}
+                              data-testid="registration-other"
+                              variant="outline"
+                              className="max-w-full whitespace-normal break-all text-xs text-muted-foreground opacity-60"
                             >
                               {reg.organization}: {reg.registrationNumber}
                             </Badge>
@@ -222,13 +256,18 @@ export const DogSelectionStep: React.FC<DogSelectionStepProps> = ({
                         </div>
                       )}
 
-                      {eligible && warnings.length > 0 && (
+                      {warnings.length > 0 && (
                         <div className="mt-2 space-y-2">
                           {warnings.map((warning, idx) => (
                             <p key={idx} className="text-xs text-warning ">
                               • {warning}
                             </p>
                           ))}
+                        </div>
+                      )}
+
+                      {showAddRegistration && (
+                        <div className="mt-2">
                           <Button
                             type="button"
                             variant="outline"

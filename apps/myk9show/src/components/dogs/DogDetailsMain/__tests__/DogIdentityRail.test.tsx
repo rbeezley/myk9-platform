@@ -1,11 +1,42 @@
-import { describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { fireEvent, render, screen } from '@/test/utils/testUtils';
 import type { Dog, Owner } from '@/types/dog-types';
 import DogIdentityRail from '../DogIdentityRail';
 
+/**
+ * Captures the props the rail hands the menu. Deliberately does NOT re-render
+ * the menu's item list: doing that made the mock a second implementation of
+ * ThreeDotMenu's own ordering and `hideEdit` logic, which could drift from the
+ * real one while these tests stayed green. Item order and labels belong to
+ * `ThreeDotMenu.test.tsx`; what belongs HERE is the rail's contract -- which
+ * handlers it supplies, and whether it suppresses Edit for this role.
+ */
+const menuProps: ThreeDotMenuProps[] = [];
 vi.mock('@/components/common/ThreeDotMenu', () => ({
-  default: ({ onEdit }: { onEdit: () => void }) => <button onClick={onEdit}>Edit Dog</button>,
+  default: (props: ThreeDotMenuProps) => {
+    menuProps.push(props);
+    return <div data-testid="three-dot-menu" />;
+  },
 }));
+
+interface ThreeDotMenuProps {
+  onView?: (() => void) | undefined;
+  onEdit?: (() => void) | undefined;
+  onEditPhoto?: (() => void) | undefined;
+  onChangeStatus?: (() => void) | undefined;
+  onDelete?: (() => void) | undefined;
+  viewLabel?: string | undefined;
+  editLabel?: string | undefined;
+  changeStatusLabel?: string | undefined;
+  hideEdit?: boolean | undefined;
+  triggerClassName?: string | undefined;
+}
+
+/** The single menu the card rendered. */
+function menu(): ThreeDotMenuProps {
+  expect(menuProps).toHaveLength(1);
+  return menuProps[0] as ThreeDotMenuProps;
+}
 
 const owner: Owner = { id: 'owner-1', name: 'Jane Smith', email: 'jane@example.com', phone: '' };
 const base = {
@@ -25,6 +56,7 @@ function renderRail(dog: Dog, props: Partial<React.ComponentProps<typeof DogIden
       onEditPanelOpen={() => {}}
       onPhotoDialogOpen={() => {}}
       onDeleteDialogOpen={() => {}}
+      onStatusDialogOpen={() => {}}
       {...props}
     />
   );
@@ -37,6 +69,10 @@ function daysAgo(days: number): string {
     d.getDate()
   ).padStart(2, '0')}`;
 }
+
+beforeEach(() => {
+  menuProps.length = 0;
+});
 
 describe('DogIdentityRail', () => {
   it('hides invalid measurements instead of showing NaN', () => {
@@ -115,6 +151,73 @@ describe('DogIdentityRail', () => {
     expect(screen.getByText('Female')).toBeInTheDocument();
     expect(screen.getByText('Retired')).toBeInTheDocument();
   });
+
+  // The badge is what announces the lifecycle state, so it has to be what
+  // changes it: before this, status was reachable ONLY from the overflow menu
+  // and the badge beside it was inert, which is where people looked first.
+  it('opens the status dialog from the status badge itself', () => {
+    const onStatusDialogOpen = vi.fn();
+    renderRail({ ...base, status: 'retired' }, { onStatusDialogOpen });
+    const badgeButton = screen.getByRole('button', { name: /retired.*change status/i });
+    fireEvent.click(badgeButton);
+    expect(onStatusDialogOpen).toHaveBeenCalledTimes(1);
+  });
+
+  // The badge carries `badgeVariants`, whose BASE ring is on `:focus` — written
+  // for a <div> that can never match it. On a real <button> that means a ring
+  // left behind after a mouse click, so the resolved class list must keep only
+  // the `focus-visible` ring. Asserted on tailwind-merge's OUTPUT, which is the
+  // thing that actually decides the conflict.
+  it('rings the status badge on keyboard focus only, not after a mouse click', () => {
+    renderRail({ ...base, status: 'retired' }, { onStatusDialogOpen: vi.fn() });
+    const badge = screen.getByRole('button', { name: /retired.*change status/i });
+    const classes = badge.className.split(/\s+/);
+    expect(classes).toContain('focus:ring-0');
+    expect(classes).toContain('focus-visible:ring-2');
+    expect(classes).not.toContain('focus:ring-2');
+  });
+
+  // The ⋮ is the card's ONLY Delete affordance and its only menu route to
+  // status, so the rail's contract with it is pinned per role. Asserted as the
+  // prop object, which cannot drift from the real menu the way a mock item list
+  // could: identity checks are also stronger than clicking a stand-in.
+  it('hands the exhibitor menu Edit Dog plus photo, status and delete handlers', () => {
+    const onEditPanelOpen = vi.fn();
+    const onPhotoDialogOpen = vi.fn();
+    const onStatusDialogOpen = vi.fn();
+    const onDeleteDialogOpen = vi.fn();
+    renderRail(base, {
+      role: 'exhibitor',
+      onEditPanelOpen,
+      onPhotoDialogOpen,
+      onStatusDialogOpen,
+      onDeleteDialogOpen,
+    });
+
+    expect(menu().editLabel).toBe('Edit Dog');
+    expect(menu().hideEdit).toBeUndefined();
+    expect(menu().onEdit).toBe(onEditPanelOpen);
+    expect(menu().onEditPhoto).toBe(onPhotoDialogOpen);
+    expect(menu().onChangeStatus).toBe(onStatusDialogOpen);
+    expect(menu().onDelete).toBe(onDeleteDialogOpen);
+  });
+
+  // The secretary already has a dedicated Edit button on the card, so the menu
+  // suppresses its own Edit item — the `hideEdit` that the two per-role menus
+  // carried before they were collapsed into one, and which the collapse dropped.
+  it('suppresses the menu Edit item for a secretary, who has a dedicated button', () => {
+    renderRail(base, { role: 'secretary' });
+    expect(menu().hideEdit).toBe(true);
+    expect(screen.getByRole('button', { name: /^Edit$/ })).toBeInTheDocument();
+  });
+
+  it.each([['exhibitor'], ['secretary']] as const)(
+    'withholds the delete handler from a %s who cannot delete',
+    role => {
+      renderRail(base, { role, canDelete: false });
+      expect(menu().onDelete).toBeUndefined();
+    }
+  );
 
   // The old sidebar card held the ONLY ordinary path into the add panel;
   // RegistrationsSection's empty state deliberately carries no action, so

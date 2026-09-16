@@ -295,25 +295,51 @@ const useDogDeleteMutation = (
       // Cancel any outgoing refetches
       await queryClient.cancelQueries({ queryKey: queryKeys.dogs });
 
-      // Snapshot the previous value
-      const previousDogs = queryClient.getQueriesData({ queryKey: queryKeys.dogs });
+      // Optimistically remove the dog from every role-scoped list, recording
+      // WHERE it sat in each so a failure can restore exactly this dog.
+      const removed: Array<{ queryKey: readonly unknown[]; index: number; dog: unknown }> = [];
+      for (const [queryKey, data] of queryClient.getQueriesData({ queryKey: queryKeys.dogs })) {
+        if (!Array.isArray(data)) continue;
+        const dogs = data as Array<{ id: string }>;
+        const index = dogs.findIndex(dog => dog.id === deletedId);
+        if (index === -1) continue;
+        removed.push({ queryKey, index, dog: dogs[index] });
+        queryClient.setQueryData(
+          queryKey,
+          dogs.filter(dog => dog.id !== deletedId)
+        );
+      }
 
-      // Optimistically update all role-scoped dog lists by removing the dog.
-      queryClient.setQueriesData({ queryKey: queryKeys.dogs }, (old: unknown) => {
-        if (Array.isArray(old)) {
-          const dogs = old as Array<{ id: string }>;
-          return dogs.filter(dog => dog.id !== deletedId);
-        }
-        return old;
-      });
-
-      return { previousDogs };
+      return { removed };
     },
     onError: (_err, _variables, context) => {
-      // If the mutation fails, use the context to roll back
-      context?.previousDogs?.forEach(([queryKey, data]) => {
-        queryClient.setQueryData(queryKey, data);
+      // MYK9-584: put back only THIS dog, never a whole-cache snapshot.
+      //
+      // This used to snapshot every dogs query in `onMutate` and restore those
+      // snapshots here. A bulk delete runs up to BULK_DISPATCH_CONCURRENCY of
+      // these at once, so the second mutation snapshotted a cache the first had
+      // already edited; when both failed, the two restores disagreed and the
+      // last writer won, leaving a refused dog missing from the list until the
+      // next refetch. Snapshot-and-restore is only correct for a mutation that
+      // runs alone, and this one never does.
+      //
+      // Re-inserting a single dog at its recorded index commutes: two failing
+      // mutations each put back their own dog and neither can undo the other.
+      context?.removed?.forEach(({ queryKey, index, dog }) => {
+        queryClient.setQueryData(queryKey, (current: unknown) => {
+          if (!Array.isArray(current)) return current;
+          const dogs = current as Array<{ id: string }>;
+          const id = (dog as { id: string }).id;
+          if (dogs.some(d => d.id === id)) return dogs;
+          const next = dogs.slice();
+          next.splice(Math.min(index, next.length), 0, dog as { id: string });
+          return next;
+        });
       });
+
+      // Belt and braces: the list is also marked stale so the next render
+      // reconciles against the server rather than trusting the patched cache.
+      queryClient.invalidateQueries({ queryKey: queryKeys.dogs });
     },
     onSuccess: (_data, { id: deletedId }) => {
       // Remove from cache completely

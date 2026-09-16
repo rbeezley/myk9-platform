@@ -79,6 +79,11 @@ const REGRESSION_SPECS = [
   // restores the shared e2e-admin's persisted user_preferences.mode — Nightly
   // runs are serialized, so no concurrent spec observes the flipped theme.
   '**/theme-mode-selection-border.spec.ts',
+  // Exhibitor-authed, read-only: opens the Edit Dog panel and reads real
+  // computed style (MYK9-612) to pin the primitive's own selected-tab
+  // treatment, same pattern as theme-mode-selection-border and
+  // dogPanelAccessibleNames — jsdom cannot compute Tailwind styles.
+  '**/tabsTriggerSelectedStyleGuard.spec.ts',
   // Admin-authed for the same reason (Nightly supplies E2E_ADMIN_*, PR smoke
   // does not). MYK9-592 round 2: rendered geometry proof that the dogs-table
   // select column renders at a fixed 40px, Name pins beside it (not under

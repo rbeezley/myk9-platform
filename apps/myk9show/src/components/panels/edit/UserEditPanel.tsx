@@ -28,8 +28,7 @@ import { ComplimentaryPremiumSection } from './ComplimentaryPremiumSection';
 // Re-export types for consumers that may need them
 export type { UserEditPanelProps, UserFormData } from './UserEditPanel.types';
 
-const TAB_TRIGGER_CLASS =
-  'gap-2 data-[state=active]:bg-gradient-to-r data-[state=active]:from-primary/10 data-[state=active]:to-primary/5 data-[state=active]:text-primary data-[state=active]:shadow-sm rounded-lg transition-all duration-300';
+const TAB_TRIGGER_CLASS = 'gap-2 rounded-lg transition-all duration-300';
 
 // Form content component
 const UserEditForm: React.FC<{ userId: string }> = ({ userId }) => {

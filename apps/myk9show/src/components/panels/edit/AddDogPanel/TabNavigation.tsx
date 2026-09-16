@@ -14,8 +14,6 @@ interface TabNavigationProps {
 
 const TAB_TRIGGER_BASE = cn(
   'flex items-center justify-center gap-2 rounded-lg transition-all duration-300 ease-apple',
-  'data-[state=active]:bg-gradient-to-r data-[state=active]:from-primary/10 data-[state=active]:to-primary/5',
-  'data-[state=active]:text-primary data-[state=active]:shadow-sm data-[state=active]:scale-[1.02]',
   'hover:bg-muted/20 hover:scale-[1.01] active:scale-[0.98]'
 );
 
@@ -35,10 +33,7 @@ export const TabNavigation: React.FC<TabNavigationProps> = ({
     <TabsList className="grid w-full grid-cols-3 bg-gradient-to-r from-muted/50 to-muted/30 border border-border/30 rounded-xl p-1 backdrop-blur-xl">
       <TabsTrigger
         value="basic"
-        className={cn(
-          TAB_TRIGGER_BASE,
-          !isBasicValid && 'text-destructive/80 data-[state=active]:text-destructive'
-        )}
+        className={cn(TAB_TRIGGER_BASE, !isBasicValid && 'text-destructive/80')}
       >
         <Heart className="h-4 w-4" />
         <span className="font-medium">Essential</span>
@@ -48,10 +43,7 @@ export const TabNavigation: React.FC<TabNavigationProps> = ({
       </TabsTrigger>
       <TabsTrigger
         value="registration"
-        className={cn(
-          TAB_TRIGGER_BASE,
-          showRegistrationError && 'text-destructive/80 data-[state=active]:text-destructive'
-        )}
+        className={cn(TAB_TRIGGER_BASE, showRegistrationError && 'text-destructive/80')}
       >
         <FileText className="h-4 w-4" />
         <span className="font-medium">Registration</span>

@@ -214,10 +214,7 @@ const TrialEditForm: React.FC<TrialEditFormProps> = ({ activeTab, onTabChange })
     <div className="space-y-6 p-6">
       <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full">
         <TabsList className="grid w-full grid-cols-3 bg-gradient-to-r from-muted/50 to-muted/30 border border-border/30 rounded-xl p-1 transition-all duration-300 ease-out">
-          <TabsTrigger
-            value="basic"
-            className="gap-2 data-[state=active]:bg-gradient-to-r data-[state=active]:from-primary/10 data-[state=active]:to-primary/5 data-[state=active]:text-primary data-[state=active]:shadow-sm rounded-lg transition-all duration-300"
-          >
+          <TabsTrigger value="basic" className="gap-2 rounded-lg transition-all duration-300">
             <Info className="h-4 w-4" />
             Basic Info
             {tabErrorCounts.basic > 0 && (
@@ -226,10 +223,7 @@ const TrialEditForm: React.FC<TrialEditFormProps> = ({ activeTab, onTabChange })
               </span>
             )}
           </TabsTrigger>
-          <TabsTrigger
-            value="scheduling"
-            className="gap-2 data-[state=active]:bg-gradient-to-r data-[state=active]:from-primary/10 data-[state=active]:to-primary/5 data-[state=active]:text-primary data-[state=active]:shadow-sm rounded-lg transition-all duration-300"
-          >
+          <TabsTrigger value="scheduling" className="gap-2 rounded-lg transition-all duration-300">
             <Clock className="h-4 w-4" />
             Scheduling
             {tabErrorCounts.scheduling > 0 && (
@@ -238,10 +232,7 @@ const TrialEditForm: React.FC<TrialEditFormProps> = ({ activeTab, onTabChange })
               </span>
             )}
           </TabsTrigger>
-          <TabsTrigger
-            value="advanced"
-            className="gap-2 data-[state=active]:bg-gradient-to-r data-[state=active]:from-primary/10 data-[state=active]:to-primary/5 data-[state=active]:text-primary data-[state=active]:shadow-sm rounded-lg transition-all duration-300"
-          >
+          <TabsTrigger value="advanced" className="gap-2 rounded-lg transition-all duration-300">
             <Settings className="h-4 w-4" />
             Advanced
             {tabErrorCounts.advanced > 0 && (

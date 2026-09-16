@@ -1,4 +1,4 @@
-import { readFileSync } from 'node:fs';
+import { readdirSync, readFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
@@ -25,6 +25,16 @@ import { describe, expect, it } from 'vitest';
  * source text. It cannot prove a subquery resolves, that a DELETE reaches the
  * right rows, or that the seed survives a stray on staging. That proof is a
  * reseed log, or a supabase/tests/ case, which run only against a database.
+ *
+ * MYK9-538 acted on exactly that limit for the consolidated paid-stray guard:
+ * its body moved into public.seed_demo_assert_no_paid_strays() (migration
+ * 20260916213500) and is now exercised by
+ * supabase/tests/seed_demo_paid_stray_guard_test.sql and
+ * …_scopes_test.sql, which call it against real rows and kill every
+ * arm-neutering mutation that used to pass here. The assertions that tried to
+ * prove that guard LIVE from its text are gone; what is left about it is what
+ * only this file can see — where the call sits relative to the deletes it
+ * protects, and whether the guard still names every id-space the seed grew.
  */
 
 const repoRoot = resolve(__dirname, '../../../../..');
@@ -33,16 +43,54 @@ const LOAD_DOG_RANGE_LOW = 'a1090000-0000-0000-0001-000000000000';
 
 const rawSeed = readFileSync(join(repoRoot, 'supabase/seed-demo.sql'), 'utf8');
 
+/** Strip `--` line comments and block comments from SQL text. */
+const stripSqlComments = (text: string): string =>
+  text.replace(/\/\*[\s\S]*?\*\//g, '').replace(/--[^\n]*/g, '');
+
 // A commented-out statement satisfies a raw substring search (LESSONS
-// comment-satisfies-grep), so strip `--` line comments and `/* */` blocks
-// before indexing. Offsets below are into this stripped text; the only thing
-// asserted about them is relative order, which stripping preserves.
-const seed = rawSeed.replace(/\/\*[\s\S]*?\*\//g, '').replace(/--[^\n]*/g, '');
+// comment-satisfies-grep), so strip comments before indexing. Offsets below are
+// into this stripped text; the only thing asserted about them is relative
+// order, which stripping preserves.
+const seed = stripSqlComments(rawSeed);
 
 /** Every top-level statement matching `pattern`, with its offset. */
 function statements(pattern: RegExp): Array<{ text: string; index: number }> {
   return [...seed.matchAll(pattern)].map(m => ({ text: m[0], index: m.index as number }));
 }
+
+/**
+ * The paid-stray guard's BODY now lives in a migration, not in the seed
+ * (MYK9-538). Read it from the LATEST migration that defines the function —
+ * rebuilding it from an older file silently reverts later shape changes
+ * (LESSONS replace-function-latest) — so the drift check below still asks the
+ * question only source text can answer: does the guard name every show and dog
+ * id-space this seed deletes?
+ */
+const migrationsDir = join(repoRoot, 'supabase/migrations');
+
+const guardFunctionSource = ((): string => {
+  // Anchored on CREATE OR REPLACE, not on the bare signature: `COMMENT ON
+  // FUNCTION` and the three `REVOKE ALL ON FUNCTION` lines carry the signature
+  // too, so a later grant-only or comment-only migration would be picked as
+  // "the definition", hold none of the scope ids, and fail the drift check
+  // below with a message blaming the seed.
+  const defining = readdirSync(migrationsDir)
+    .filter(f => f.endsWith('.sql'))
+    .sort()
+    .filter(f =>
+      readFileSync(join(migrationsDir, f), 'utf8').includes(
+        'CREATE OR REPLACE FUNCTION public.seed_demo_assert_no_paid_strays()'
+      )
+    );
+  if (defining.length === 0) {
+    throw new Error(
+      'no migration defines public.seed_demo_assert_no_paid_strays() — the paid-stray guard has no body'
+    );
+  }
+  // Comments stripped: an id kept only in prose after being dropped from
+  // `scope_shows` must NOT read as covered (LESSONS comment-satisfies-grep).
+  return stripSqlComments(readFileSync(join(migrationsDir, defining[defining.length - 1]), 'utf8'));
+})();
 
 const uuidsIn = (text: string): string[] => [...text.matchAll(/'([0-9a-f-]{36})'/g)].map(m => m[1]);
 
@@ -116,94 +164,25 @@ describe('seed-demo self-cleaning relationship deletes (MYK9-490 follow-up)', ()
     ).toContain('RAISE WARNING');
   });
 
-  it('guards paid strays against every parent that cascades an entry, before any of them is deleted', () => {
-    // entries cascades from four parents — classes, dogs, shows, trials — so a
-    // paid row reached by ANY of them is destroyed silently. This went wrong
-    // twice before it was one guard: a per-show guard placed after the load
-    // classes could never fire, and a show-scoped guard missed demo-show
-    // entries whose DOG is a load-range fixture. Both assertions below encode
-    // that: the guard exists once, and it precedes every cascading delete.
-    const guard = seed.indexOf('v_real');
-    expect(guard, 'no consolidated paid-stray guard').toBeGreaterThan(-1);
-    const block = seed.slice(guard, seed.indexOf('END $$;', guard));
+  it('calls the extracted paid-stray guard before every parent that cascades a money row (MYK9-538)', () => {
+    // The guard used to be an anonymous DO $$ block here, and this file was its
+    // only automated coverage — which is how ten arm-neutering mutations run
+    // inside it left eight of them green (MYK9-538). The logic now lives in
+    // public.seed_demo_assert_no_paid_strays() (migration 20260916213500) and
+    // is exercised by supabase/tests/seed_demo_paid_stray_guard*.sql, which
+    // call it against real rows. What those cannot see, and what stays here, is
+    // WHERE in this file the call sits: a live guard invoked after the first
+    // cascading delete protects nothing, and that is exactly how this went
+    // wrong twice before it was one guard.
+    const calls = statements(/SELECT public\.seed_demo_assert_no_paid_strays\(\);/g);
+    expect(calls.length, 'the seed does not call the paid-stray guard exactly once').toBe(1);
+    const guard = calls[0].index;
 
-    expect(block).toContain("e.payment_status IN ('paid', 'refunded')");
-    // One arm per cascade parent: all four columns are nullable and nothing
-    // constrains an entry's show_id to agree with its class's show.
-    expect(block, 'no show_id arm').toContain('e.show_id IN');
-    expect(block, 'no trial_id arm — a seeded trial delete would cascade unguarded').toContain(
-      'e.trial_id IN'
-    );
-    expect(block, 'no class_id arm — a seeded class delete would cascade unguarded').toContain(
-      'e.class_id IN'
-    );
-    expect(block, 'no dog range arm').toContain('e.dog_id >=');
-    expect(block, 'no demo-dog arm').toContain('e.dog_id IN');
-    expect(block).toMatch(/RAISE EXCEPTION[^;]*show, trial, class or dog this reseed deletes/);
-
-    // The arms must be a DISJUNCTION. Rewriting the ORs to ANDs leaves every
-    // assertion above satisfied while the guard matches nothing — an inert
-    // guard that reads as a live one, which is the failure this file exists
-    // to prevent one level up.
-    expect(block, 'trial arm is not OR-joined').toMatch(/OR e\.trial_id IN/);
-    expect(block, 'class arm is not OR-joined').toMatch(/OR e\.class_id IN/);
-    expect(block, 'dog range arm is not OR-joined').toMatch(/OR \(e\.dog_id >=/);
-    expect(block, 'demo dog arm is not OR-joined').toMatch(/OR e\.dog_id IN/);
-    expect(block, 'the abort threshold was moved off zero').toContain('IF v_real > 0 THEN');
-
-    // The guard must distinguish a row with a payment trail (abort) from a bare
-    // paid flag with none (warn). Collapsing the two puts a manual DELETE in
-    // front of the reseed for QA-walk artifacts that carry nothing.
-    expect(block, 'no substantiated/bare split').toContain('substantiated AS (');
-    expect(block, 'bare rows must warn, not be silent').toMatch(
-      /RAISE WARNING[^;]*carry no payment trail/
-    );
-    for (const trail of [
-      's.stripe_payment_intent_id IS NOT NULL',
-      's.payment_reference IS NOT NULL',
-      's.refunded_at IS NOT NULL',
-      // A decided refund may be recorded without refunded_at being set.
-      's.refund_amount IS NOT NULL',
-      's.refund_decided_at IS NOT NULL',
-      // Check and cash payments a secretary records have no Stripe trail by
-      // design. Without these three the guard reads a recorded $30 check as a
-      // worthless artifact and deletes it with a warning — which is how it
-      // came to classify money as disposable to keep the script green.
-      "s.payment_method IS NOT NULL AND s.payment_method <> 'waived'",
-      's.payment_received_on IS NOT NULL',
-      's.payment_notes IS NOT NULL',
-      'public.entry_status_history',
-      'public.stripe_orders',
-    ]) {
-      expect(block, `substantiation drops ${trail}`).toContain(trail);
-    }
-    // The warning has to carry the facts an operator judges on. Ids alone
-    // cannot tell them whether the row they are about to lose was money.
-    expect(block, 'the bare-row warning does not print payment_method / entry_fee').toMatch(
-      /method=.*fee=/s
-    );
-
-    // Each derived arm must actually resolve against scope_shows. Emptying a
-    // subquery (`... WHERE false`) leaves every structural assertion green
-    // while that arm matches nothing.
-    expect(block, 'an arm was neutered with a constant-false predicate').not.toMatch(
-      /WHERE\s+false|WHERE\s+1\s*=\s*0|AND\s+false/i
-    );
-    const scopeRefs = (block.match(/SELECT id FROM scope_shows/g) ?? []).length;
-    expect(
-      scopeRefs,
-      'the show, trial and class arms no longer all derive from scope_shows'
-    ).toBeGreaterThanOrEqual(3);
-    // deleted_at is ignored on purpose: a soft-deleted row still cascades, so
-    // the PREDICATE must not filter on it. The message may still mention it —
-    // it tells the operator why soft-deleting does not clear the abort — so
-    // this matches the filter forms, not the word.
-    expect(block, 'a deleted_at filter would let a soft-deleted paid row through').not.toMatch(
-      /e\.deleted_at|deleted_at\s+IS\s+(NOT\s+)?NULL/i
-    );
-
-    // Placement: ahead of EVERY delete of a parent that cascades entries.
-    for (const parent of ['classes', 'dogs', 'shows', 'trials']) {
+    // entries cascades from classes, dogs, shows and trials; enrollments and
+    // the RESTRICT-ed stripe_orders scope columns hang off shows and off the
+    // direct enrollments delete. Every one of those statements must come after
+    // the call.
+    for (const parent of ['classes', 'dogs', 'shows', 'trials', 'enrollments']) {
       const dels = statements(new RegExp(`DELETE FROM public\\.${parent}\\b[^;]*;`, 'g'));
       expect(dels.length, `no ${parent} delete found`).toBeGreaterThan(0);
       for (const del of dels) {
@@ -213,167 +192,19 @@ describe('seed-demo self-cleaning relationship deletes (MYK9-490 follow-up)', ()
         ).toBeLessThan(del.index);
       }
     }
-  });
-
-  it('guards stripe_orders against EVERY show in scope_shows, before the first parent delete (MYK9-527)', () => {
-    // Migration 20260915191700 moves stripe_orders.show_id, .enrollment_id and
-    // stripe_order_refunds.order_id to ON DELETE RESTRICT. Once that lands, an
-    // order pointing at any show this section deletes — or at an enrollment on
-    // one of those shows, which cascades from shows — aborts the reseed with a
-    // bare 23503 deep in the delete sequence. The narrower guard further down
-    // section 0 (#2248) covers only show ...010 and the demo exhibitor's
-    // enrollment, so it could not see an order on ...011, ...012 or any
-    // a1090000... load show. This arm must be scoped from the SAME scope_shows
-    // CTE as the other two, in the SAME block, before the first parent delete.
-    const guard = seed.indexOf('v_real');
-    const block = seed.slice(guard, seed.indexOf('END $$;', guard));
-
-    expect(block, 'no stripe_orders arm in the consolidated guard').toMatch(
-      /order_stray AS \(\s*SELECT[^)]*FROM public\.stripe_orders so/
-    );
-    expect(block, 'the orders arm is not scoped from scope_shows by show_id').toContain(
-      'so.show_id IN (SELECT id FROM scope_shows)'
-    );
-    expect(
-      block,
-      'the orders arm misses the shows -> enrollments cascade route, which nulls enrollment_id'
-    ).toContain('WHERE en.show_id IN (SELECT id FROM scope_shows)');
-    expect(block, 'the orders arm does not abort').toMatch(
-      /RAISE EXCEPTION[^;]*Stripe order\(s\) point at a show this reseed deletes/
-    );
-    expect(
-      block,
-      'the abort count must come straight from order_stray, not a narrowed subset'
-    ).toContain('(SELECT count(*) FROM order_stray)');
-
-    // No warn-then-cascade for a money ledger, and no constant-false neutering.
-    expect(
-      block,
-      'an in-scope Stripe order must ABORT the reseed, never warn and cascade'
-    ).not.toMatch(/RAISE WARNING[^;]*order_stray/i);
-    expect(block, 'the orders arm was neutered with a constant-false predicate').not.toMatch(
-      /order_stray AS[\s\S]*?WHERE\s+false|order_stray AS[\s\S]*?AND\s+false/i
-    );
-
-    // Already-orphaned rows (both columns null) must NOT be matched here: they
-    // reference no parent, RESTRICT cannot fire on them, and matching them
-    // would wedge every reseed on the 22 rows already on staging. They are
-    // reported by the separate RAISE WARNING instead.
-    expect(
-      block,
-      'the orders arm matches already-orphaned rows, which would wedge every reseed'
-    ).not.toMatch(/order_stray AS[\s\S]*?show_id IS NULL/i);
-
-    // Placement: before every delete of `shows`, the cascade parent.
-    const showsDeletes = statements(/DELETE FROM public\.shows\b[^;]*;/g);
-    expect(showsDeletes.length).toBeGreaterThan(0);
-    for (const del of showsDeletes) {
-      expect(
-        guard,
-        'the stripe_orders guard runs after a shows delete it is supposed to protect'
-      ).toBeLessThan(del.index);
-    }
-
-    // …and before the DIRECT enrollments delete, which is a second route to the
-    // same 23503: `stripe_orders.enrollment_id` is ON DELETE RESTRICT, and the
-    // demo-enrollment delete removes the enrollment row itself rather than
-    // reaching it through the shows cascade. A guard placed between the two
-    // would still let that statement abort the reseed.
-    const enrollmentDeletes = statements(/DELETE FROM public\.enrollments\b[^;]*;/g);
-    expect(enrollmentDeletes.length).toBeGreaterThan(0);
-    for (const del of enrollmentDeletes) {
-      expect(
-        guard,
-        'the stripe_orders guard runs after the direct enrollments delete it is supposed to protect'
-      ).toBeLessThan(del.index);
-    }
-  });
-
-  it('extends the consolidated guard to enrollments, scoped from scope_shows, before the first parent delete (MYK9-528)', () => {
-    // enrollments.show_id is ALSO ON DELETE CASCADE from shows, and this
-    // section deletes every show in scope_shows — so a paid enrollment on any
-    // of them (not only the demo show, and not only the demo exhibitor) is
-    // destroyed silently unless this arm catches it too. Unlike entries,
-    // enrollments has no trial_id / class_id / dog_id, so one arm — scoped by
-    // show_id alone — covers the whole cascade.
-    const guard = seed.indexOf('v_real');
-    const block = seed.slice(guard, seed.indexOf('END $$;', guard));
-
-    expect(block, 'no enrollments arm').toContain('FROM public.enrollments en');
-    expect(
-      block,
-      "enrollments' payment_status vocabulary (migration 168) is not covered"
-    ).toContain(
-      "en.payment_status IN\n            ('paid', 'paid_online', 'paid_by_cash', 'paid_by_check', 'refunded', 'partial_refund')"
-    );
-    expect(block, 'no show_id scoping on the enrollments arm').toContain(
-      'en.show_id IN (SELECT id FROM scope_shows)'
-    );
-    expect(block, 'the enrollments arm no longer derives from scope_shows').toMatch(
-      /enrollment_stray AS \(\s*SELECT[^)]*FROM public\.enrollments en/
-    );
-    expect(block).toMatch(/RAISE EXCEPTION[^;]*paid or refunded enrollment\(s\)/);
-
-    // MYK9-528 review round 1 (design simplification, decided): NO
-    // trail-substantiated/bare split for enrollments — ANY in-scope
-    // paid/refunded enrollment aborts the reseed. A trail requirement (the
-    // entries arm's shape, mirrored here in round 0) missed the secretary's
-    // "Mark Paid Online" action (EnrollmentCard.tsx ->
-    // updateEnrollmentPaymentStatus), which writes payment_status='paid_online'
-    // with no payment_reference, no paid_amount, and no linked stripe_orders
-    // row — a real paid enrollment with nothing a trail check could see, so it
-    // would cascade away silently. Assert both the WARN branch and the
-    // substantiation CTE stay gone: this must go red if either is
-    // reintroduced, or if the enrollments arm is removed outright.
-    expect(
-      block,
-      'enrollments must not warn-then-cascade — every in-scope paid enrollment must ABORT, not just a trail-substantiated subset'
-    ).not.toMatch(/RAISE WARNING[^;]*enrollment/i);
-    expect(
-      block,
-      'an enrollment_substantiated CTE reintroduces the trail requirement this round removed'
-    ).not.toMatch(/enrollment_substantiated/);
-    expect(
-      block,
-      'the abort count must come straight from enrollment_stray, not a narrowed substantiated-only count'
-    ).toContain('(SELECT count(*) FROM enrollment_stray)');
-
-    // Self-trip freedom: the seed's own multi-dog order (section 6b) is paid
-    // by fixture and is NOT yet deleted at this point in the file (its DELETE
-    // depends on the registration_id-scoped entries clear further down), so it
-    // must be excluded by id, not merely relied on to have already been removed.
-    expect(
-      block,
-      "the seed's own enrollment (...070) is not excluded from the new arm — every rerun would refuse itself"
-    ).toContain("en.id <> 'dededede-0000-0000-0000-000000000070'");
-
-    // No constant-false neutering, same failure mode as the entries arms.
-    expect(block, 'the enrollments arm was neutered with a constant-false predicate').not.toMatch(
-      /enrollment_stray AS[\s\S]*?WHERE\s+false|enrollment_stray AS[\s\S]*?AND\s+false/i
-    );
 
     // enrollments has TWO ON DELETE CASCADE parents, not one: show_id AND
     // handler_id (pg_constraint confdeltype='c' on registrations_show_id_fkey
-    // and registrations_handler_id_fkey). The arm above is scoped by show_id
-    // alone, which is sound only because this seed deletes no people at all —
-    // add a `DELETE FROM public.people` later and every enrollment that
-    // handler owns, on ANY show, cascades away with this guard blind to it.
+    // and registrations_handler_id_fkey). The function's enrollments arm is
+    // scoped by show_id alone, which is sound only because this seed deletes no
+    // people at all — add a `DELETE FROM public.people` later and every
+    // enrollment that handler owns, on ANY show, cascades away with the guard
+    // blind to it. Only this file can see that the seed gained such a delete.
     expect(
       /DELETE\s+FROM\s+public\.people\b/i.test(seed),
-      'the seed now deletes people, but the enrollments arm is scoped by show_id only — ' +
+      "the seed now deletes people, but the guard's enrollments arm is scoped by show_id only — " +
         'enrollments cascade from handler_id too, so that arm must be widened first'
     ).toBe(false);
-
-    // Placement: before the first delete of `shows` (the only cascade parent
-    // enrollments has), same as the entries arms.
-    const showsDeletes = statements(/DELETE FROM public\.shows\b[^;]*;/g);
-    expect(showsDeletes.length).toBeGreaterThan(0);
-    for (const del of showsDeletes) {
-      expect(
-        guard,
-        `the enrollments arm runs after a shows delete at offset ${del.index}, so those rows cascade unguarded`
-      ).toBeLessThan(del.index);
-    }
   });
 
   it("lets no entries delete widen past the seed's own ids before the guard", () => {
@@ -382,7 +213,7 @@ describe('seed-demo self-cleaning relationship deletes (MYK9-490 follow-up)', ()
     // removes the strays the guard exists to catch, and every placement
     // assertion stays green — the same shape as the two defects already found.
     // So pin what may precede it: exactly the two id-scoped deletes.
-    const guard = seed.indexOf('v_real');
+    const guard = seed.indexOf('SELECT public.seed_demo_assert_no_paid_strays();');
     const before = statements(/DELETE FROM public\.entries\b[^;]*;/g).filter(d => d.index < guard);
 
     expect(before.length, 'an entries delete was added before the paid-stray guard').toBe(2);
@@ -405,10 +236,10 @@ describe('seed-demo self-cleaning relationship deletes (MYK9-490 follow-up)', ()
   it('names every show and dog id-space the seed deletes, so a new fixture cannot drift past the guard', () => {
     // Deriving the expectation from the DELETE statements rather than
     // restating the same literals: add a sibling show or a dog range later,
-    // forget the guard, and its paid entries cascade away silently.
-    const guard = seed.indexOf('v_real');
-    const block = seed.slice(guard, seed.indexOf('END $$;', guard));
-    const covered = (literal: string) => block.includes(`'${literal}'`);
+    // forget the guard, and its paid entries cascade away silently. The
+    // behavioural tests cannot see this — they exercise the ids the guard
+    // already names, not the ids the seed grew since.
+    const covered = (literal: string) => guardFunctionSource.includes(`'${literal}'`);
 
     for (const parent of ['shows', 'dogs']) {
       for (const del of statements(new RegExp(`DELETE FROM public\\.${parent}\\b[^;]*;`, 'g'))) {
@@ -425,13 +256,16 @@ describe('seed-demo self-cleaning relationship deletes (MYK9-490 follow-up)', ()
   it("runs the hard-coded entries delete before the guard, so the seed's own paid rows never trip it", () => {
     // Entries ...051/052/055/056 are seeded paid under the enrollment. The guard
     // must see only strays, which means the id-list delete has to come first;
-    // reordering them would make every rerun refuse itself.
+    // reordering them would make every rerun refuse itself. Anchored on the
+    // consolidated guard's CALL: this used to resolve `guard` to the unrelated
+    // narrower `DO $$ DECLARE v_paid integer;` block further down section 0,
+    // which sits after almost everything and made the ordering trivially true.
     const hardCodedDelete = seed.indexOf(
       "DELETE FROM public.entries WHERE id IN (\n  'dededede-0000-0000-0000-000000000051'"
     );
-    const guard = seed.indexOf('DO $$\nDECLARE v_paid integer;');
+    const guard = seed.indexOf('SELECT public.seed_demo_assert_no_paid_strays();');
     expect(hardCodedDelete, 'hard-coded seed entries delete not found').toBeGreaterThan(-1);
-    expect(guard, 'fail-loud guard not found').toBeGreaterThan(-1);
+    expect(guard, 'the paid-stray guard call was not found').toBeGreaterThan(-1);
     expect(hardCodedDelete).toBeLessThan(guard);
   });
 

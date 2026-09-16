@@ -86,6 +86,8 @@ const launchCriticalSqlTests = [
   'user_roles_show_manager_read_test.sql',
   'withdraw_own_entry_test.sql',
   'update_own_entry_jump_height_test.sql',
+  'seed_demo_paid_stray_guard_test.sql',
+  'seed_demo_paid_stray_guard_scopes_test.sql',
 ];
 
 describe('behavioral SQL test harness', () => {

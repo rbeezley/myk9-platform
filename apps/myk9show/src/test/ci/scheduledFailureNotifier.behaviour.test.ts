@@ -1,5 +1,14 @@
 import { execFileSync } from 'node:child_process';
-import { chmodSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import {
+  chmodSync,
+  closeSync,
+  mkdirSync,
+  mkdtempSync,
+  openSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+} from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
@@ -89,10 +98,44 @@ function run(outcome: string, openIssues: string[], fail = false, silent = false
   writeFileSync(ghPath, stub);
   chmodSync(ghPath, 0o755);
   writeFileSync(logPath, '');
+
+  // MYK9-578: stdout and stderr go to FILES, never pipes.
+  //
+  // `stdio: ['ignore', 'pipe', 'pipe']` puts a reader between node and the
+  // script, and a reader that leaves while the script is still writing kills
+  // the writer with SIGPIPE. That is the only surface left that can produce
+  // the incident's `status=141 signal=none`: `maxBuffer` reports
+  // `signal=SIGTERM code=ENOBUFS` instead, and the script's own `head`
+  // pipeline needs a payload far larger than `gh issue list --limit 100` can
+  // return. Measured in `.logs/578-exp.mjs` — destroying the reader early made
+  // the pre-fix script exit exactly `141` with no signal, and these file
+  // descriptors make the same run exit 0.
+  //
+  // Only the harness ever puts a closable reader there. A workflow step's
+  // stdout is held open by the runner for the step's lifetime, so this is a
+  // fixture defect, not a notifier one.
+  const stdoutPath = join(dir, 'stdout.txt');
+  const stderrPath = join(dir, 'stderr.txt');
+  const outFd = openSync(stdoutPath, 'w');
+  const errFd = openSync(stderrPath, 'w');
+  let closed = false;
+  const closeFds = () => {
+    if (closed) return;
+    closed = true;
+    closeSync(outFd);
+    closeSync(errFd);
+  };
+  const readCaptured = (path: string) => {
+    try {
+      return readFileSync(path, 'utf8');
+    } catch {
+      return '';
+    }
+  };
+
   try {
-    const stdout = execFileSync('bash', [scriptPath], {
-      encoding: 'utf8',
-      stdio: ['ignore', 'pipe', 'pipe'],
+    execFileSync('bash', [scriptPath], {
+      stdio: ['ignore', outFd, errFd],
       env: {
         PATH: `${binDir}:/usr/bin:/bin`,
         STUB_LOG: logPath,
@@ -106,19 +149,19 @@ function run(outcome: string, openIssues: string[], fail = false, silent = false
         REPO: 'o/r',
       },
     });
+    closeFds();
     const calls = readFileSync(logPath, 'utf8').split('\n').filter(Boolean);
-    return { stdout, calls };
+    return { stdout: readCaptured(stdoutPath), calls };
   } catch (error: unknown) {
+    closeFds();
     const failure = error as Error & {
       status?: number | null;
       signal?: string | null;
-      stderr?: string | Buffer;
-      stdout?: string | Buffer;
     };
     throw new Error(
       `Notifier failed: status=${failure.status ?? 'unknown'} signal=${failure.signal ?? 'none'}\n` +
-        `stderr: ${String(failure.stderr ?? '').slice(-4000)}\n` +
-        `stdout: ${String(failure.stdout ?? '').slice(-4000)}\n` +
+        `stderr: ${readCaptured(stderrPath).slice(-4000)}\n` +
+        `stdout: ${readCaptured(stdoutPath).slice(-4000)}\n` +
         `script: ${scriptPath}\n${script
           .split('\n')
           .map((line, index) => `${index + 1}: ${line}`)
@@ -126,6 +169,7 @@ function run(outcome: string, openIssues: string[], fail = false, silent = false
       { cause: error }
     );
   } finally {
+    closeFds();
     rmSync(dir, { recursive: true, force: true });
   }
 }
@@ -192,17 +236,20 @@ describe('scheduled-failure notifier', () => {
     expect(closed).toEqual(['42', '77']);
   });
 
-  it('survives a match list too large for one pipe buffer (MYK9-578 SIGPIPE shape)', () => {
-    // MYK9-578: `printf '%s' "$MATCHES" | head -n 1` under `set -o pipefail`
-    // dies with 141 (128 + SIGPIPE) whenever `head` leaves while the writer
-    // still has bytes to push. On CI that is a scheduling race under coverage
-    // load, seen once on the main coverage job and never in 20 local replays.
-    // Here it is forced deterministically by making the payload larger than a
-    // pipe buffer, so the writer is guaranteed to still be writing when the
-    // reader exits.
+  it('survives a MATCHES list larger than a pipe buffer (latent bug, not the incident)', () => {
+    // A LATENT bug, deliberately labelled as one. Round 1 diagnosed this
+    // pipeline as the cause of the MYK9-578 incident; it was not. A
+    // shell-semantics review ran the pre-fix block against the failing test's
+    // own payload 1000 times under load with 0 failures: MATCHES was 8 bytes,
+    // the whole write lands in the pipe buffer before `head` can leave, and
+    // `gh issue list --limit 100` caps MATCHES near 800 bytes. The incident
+    // cannot have come from here.
     //
-    // Same defect, not a synthetic one: the fix is to stop piping to `head`.
-    // Before the fix this throws `status=141`.
+    // It is still a real defect: give it more than one pipe buffer after the
+    // first newline and `printf | head -n 1` under `set -o pipefail` exits
+    // 141. This guards the array lookup that replaced it. It asserts an
+    // unreachable input on purpose — that is what makes it a latent-bug guard
+    // rather than a reproduction of the incident.
     const oversized = '9'.repeat(200_000);
     const { calls } = run('failure', ['42', oversized]);
     expect(calls.find(c => c.startsWith('issue edit'))).toContain('issue edit 42 ');

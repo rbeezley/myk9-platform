@@ -29,7 +29,10 @@
  * doc comment to claim RLS-hidden entries are handled.
  */
 export type BlockingEntryCountState =
-  { status: 'pending' } | { status: 'error' } | { status: 'ready'; count: number };
+  | { status: 'pending' }
+  /** `isRetrying` drives the Try again control's own busy state. */
+  | { status: 'error'; isRetrying: boolean }
+  | { status: 'ready'; count: number };
 
 /**
  * A count nobody asked for. The dialog's default: a caller that does not track
@@ -42,19 +45,33 @@ export const NOT_BLOCKED: BlockingEntryCountState = { status: 'ready', count: 0 
 export interface BlockingEntryCountQueryLike {
   data?: number | undefined;
   isError?: boolean | undefined;
+  isFetching?: boolean | undefined;
+  isStale?: boolean | undefined;
 }
 
 /**
  * Maps a React Query result onto the state above.
  *
- * `isError` wins over `data` on purpose: React Query keeps the last successful
- * value on a failed refetch, and a stale count is exactly the thing that must
- * not be presented as current on a destructive, money-adjacent path.
+ * `isError` wins over `data`: React Query keeps the last successful value on a
+ * failed refetch, and a stale count is exactly the thing that must not be
+ * presented as current on a destructive, money-adjacent path.
+ *
+ * `isFetching && isStale` is the same rule applied to the case that actually
+ * bit (MYK9-600 round-2 review). React Query retains `data` through
+ * `enabled: false` — `gcTime` collects only at ZERO observers, and `DogDialogs`
+ * keeps this observer mounted and merely toggles `enabled` with the dialog. So
+ * a re-opened dialog holds the PREVIOUS open's number, and a mapper reading
+ * only `isError`/`data` reported a confident `ready` for the whole refetch
+ * window: an enabled Delete and "This action cannot be undone." over a count
+ * that may have become 1 in between, with a fast click earning an MK002 toast.
+ * A number with a fetch in flight over it is not a fact about now; it is the
+ * same "unknown" as never having had one.
  */
 export function toBlockingEntryCountState(
   query: BlockingEntryCountQueryLike
 ): BlockingEntryCountState {
-  if (query.isError) return { status: 'error' };
+  if (query.isError) return { status: 'error', isRetrying: query.isFetching === true };
   if (typeof query.data !== 'number') return { status: 'pending' };
+  if (query.isFetching && query.isStale) return { status: 'pending' };
   return { status: 'ready', count: query.data };
 }

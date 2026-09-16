@@ -88,6 +88,9 @@ export function BlockedDogDeleteDialog({
       confirmLabel={reportOnly ? 'Close' : 'Delete anyway'}
       cancelLabel={reportOnly ? '' : 'Close'}
       confirmDisabled={reportOnly ? false : !overrideAcknowledged}
+      // Nothing is about to be deleted in this mode: the title says they could
+      // not be, and Close is the only action (MYK9-600 round-2 review).
+      reportOnly={reportOnly}
       isDeleting={isSubmitting}
       warningText={
         <>

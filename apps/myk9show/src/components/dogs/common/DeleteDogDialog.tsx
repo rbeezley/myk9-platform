@@ -89,15 +89,26 @@ const DeleteDogDialog: React.FC<DeleteDogDialogProps> = ({
       ? blockingCountPendingText
       : blockingEntryCount.status === 'error'
         ? blockingCountErrorText
-        : buildWarningText(activeEntryCount, canRestore, blockingEntryCount.count);
+        : buildWarningText(activeEntryCount, canRestore, blockingEntryCount.count, canForceDelete);
 
   const retryControl =
     blockingEntryCount.status === 'error' && onRetryBlockingCount ? (
       // Full-size, not `sm`: this is the only route back to a usable Delete, and
       // docs/INTENT.md keeps the 44px floor for any control that is the sole way
       // to reach a primary or destructive action.
-      <Button type="button" variant="outline" onClick={onRetryBlockingCount}>
-        <RefreshCw className="w-4 h-4 mr-2" />
+      //
+      // `loading` is not decoration here: `isError` stays true for the whole
+      // retry, so without it the button sits live and motionless through the
+      // round trip and the only available reading is "my click did nothing"
+      // (MYK9-600 round-2 review). Button's `loading` disables it, shows the
+      // spinner and keeps the accessible name.
+      <Button
+        type="button"
+        variant="outline"
+        loading={blockingEntryCount.isRetrying}
+        onClick={onRetryBlockingCount}
+      >
+        {!blockingEntryCount.isRetrying && <RefreshCw className="w-4 h-4 mr-2" />}
         Try again
       </Button>
     ) : undefined;

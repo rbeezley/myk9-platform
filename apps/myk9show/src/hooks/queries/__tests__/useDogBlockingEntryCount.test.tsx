@@ -4,6 +4,7 @@ import { renderHook, waitFor } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { queryKeys } from '@/lib/queryClient';
 import { entryInvalidationKeys } from '@/services/database/entries/invalidation';
+import { toBlockingEntryCountState } from '@/components/dogs/common/blockingEntryCount';
 
 const countBlockingEntriesByDog = vi.fn<(dogId: string) => Promise<number>>();
 const countActiveEntriesByDog = vi.fn<(dogId: string) => Promise<number>>();
@@ -93,6 +94,56 @@ describe('useDogBlockingEntryCountQuery freshness', () => {
     view.rerender({ open: true });
 
     await waitFor(() => expect(countBlockingEntriesByDog).toHaveBeenCalledTimes(2));
+    view.unmount();
+  });
+});
+
+/**
+ * The composed defect (MYK9-600 round-2 review): the real observer feeding the
+ * real mapper. Neither half is wrong on its own, which is why a unit test on
+ * either alone missed it. `DogDialogs` keeps the observer mounted and toggles
+ * `enabled`, and React Query RETAINS `data` through `enabled: false` — `gcTime`
+ * collects only at zero observers. So on re-open the mapper saw
+ * `isError: false, data: <the previous dog-open's number>` and reported a
+ * confident `ready` for the whole refetch window: an enabled Delete and "This
+ * action cannot be undone." over a count that may already be 1.
+ */
+describe('blocking count across a close/re-open, mapped', () => {
+  beforeEach(() => {
+    countBlockingEntriesByDog.mockReset().mockResolvedValue(0);
+  });
+
+  it('reports pending, not a stale ready, until the re-open refetch lands', async () => {
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    const wrapper = ({ children }: { children: React.ReactNode }) =>
+      React.createElement(QueryClientProvider, { client }, children);
+
+    const view = renderHook(
+      ({ open }: { open: boolean }) => useDogBlockingEntryCountQuery('dog-1', open),
+      { wrapper, initialProps: { open: true } }
+    );
+
+    await waitFor(() =>
+      expect(toBlockingEntryCountState(view.result.current)).toEqual({
+        status: 'ready',
+        count: 0,
+      })
+    );
+
+    // The dialog closes; the entry is paid meanwhile; the dialog re-opens.
+    view.rerender({ open: false });
+    countBlockingEntriesByDog.mockResolvedValue(1);
+    view.rerender({ open: true });
+
+    // THE moment that mattered: a refetch is in flight over a retained 0.
+    expect(toBlockingEntryCountState(view.result.current)).toEqual({ status: 'pending' });
+
+    await waitFor(() =>
+      expect(toBlockingEntryCountState(view.result.current)).toEqual({
+        status: 'ready',
+        count: 1,
+      })
+    );
     view.unmount();
   });
 });

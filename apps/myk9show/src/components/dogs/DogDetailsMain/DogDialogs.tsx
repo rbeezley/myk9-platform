@@ -58,7 +58,15 @@ const DogDialogs: React.FC<DogDialogsProps> = ({
 
   // Fetch the dog's live entry count only while the delete dialog is open, so the
   // confirmation can warn that those entries will be removed by the cascade.
-  const { data: activeEntryCount } = useDogActiveEntryCountQuery(dog.id, isDeleteDialogOpen);
+  // MYK9-600 round-2 review: mapped, not read raw, for the same reason as the
+  // blocking count below. This one writes the "…and N entries." clause — the
+  // dialog's only statement of what the delete destroys — and React Query
+  // retains `data` through `enabled: false`, so reading `.data` directly
+  // reprinted the PREVIOUS open's N over an in-flight refetch. An omitted
+  // clause (undefined) claims nothing; a wrong N claims something false.
+  const activeCountQuery = useDogActiveEntryCountQuery(dog.id, isDeleteDialogOpen);
+  const activeCountState = toBlockingEntryCountState(activeCountQuery);
+  const activeEntryCount = activeCountState.status === 'ready' ? activeCountState.count : undefined;
   // Separate count, not a filter over the one above: the delete-blocking
   // predicate is the server's (MK002), and the two must be able to disagree —
   // "3 entries, 1 of them paid" is the case the dialog has to describe.

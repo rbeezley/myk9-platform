@@ -54,12 +54,22 @@ describe('DeleteDogDialog buildBlockedText', () => {
     expect(buildBlockedText(undefined)).toBeNull();
   });
 
-  it('names the count and agrees the pronoun', () => {
+  it('names the count, agrees the pronoun, and names the escalation that exists', () => {
+    // A secretary who cannot scratch or refund (the entry is scored, the show
+    // is closed out) was left with no next step at all. A site admin CAN delete
+    // the dog, so say so rather than leaving them to discover it.
     expect(buildBlockedText(1)).toBe(
-      'This dog has 1 paid or scored entry. Scratch or refund it before deleting.'
+      'This dog has 1 paid or scored entry. Scratch or refund it before deleting, or ask a site admin to delete the dog.'
     );
     expect(buildBlockedText(2)).toBe(
-      'This dog has 2 paid or scored entries. Scratch or refund them before deleting.'
+      'This dog has 2 paid or scored entries. Scratch or refund them before deleting, or ask a site admin to delete the dog.'
+    );
+  });
+
+  it('does not tell a site admin to ask a site admin', () => {
+    // The override checkbox is directly below this sentence for them.
+    expect(buildBlockedText(1, true)).toBe(
+      'This dog has 1 paid or scored entry. Scratch or refund it before deleting.'
     );
   });
 
@@ -68,7 +78,7 @@ describe('DeleteDogDialog buildBlockedText', () => {
     // the worst of both: it reads as reassurance about an action that will not
     // happen at all.
     expect(buildWarningText(3, true, 1)).toBe(
-      'This dog has 1 paid or scored entry. Scratch or refund it before deleting.'
+      'This dog has 1 paid or scored entry. Scratch or refund it before deleting, or ask a site admin to delete the dog.'
     );
   });
 });
@@ -144,7 +154,7 @@ describe('DeleteDogDialog unknown blocking count', () => {
         onClose={() => {}}
         onDelete={onDelete}
         dog={dog}
-        blockingEntryCount={{ status: 'error' }}
+        blockingEntryCount={{ status: 'error', isRetrying: false }}
         onRetryBlockingCount={onRetryBlockingCount}
       />
     );
@@ -157,6 +167,24 @@ describe('DeleteDogDialog unknown blocking count', () => {
     expect(onDelete).not.toHaveBeenCalled();
   });
 
+  it('disables Try again while the retry is in flight, so it cannot be double-fired', () => {
+    // `isError` stays true through the refetch, so without this the button
+    // stays live and un-spinning for the whole round trip — the user's only
+    // reading is that their click did nothing.
+    render(
+      <DeleteDogDialog
+        open
+        onClose={() => {}}
+        onDelete={() => {}}
+        dog={dog}
+        blockingEntryCount={{ status: 'error', isRetrying: true }}
+        onRetryBlockingCount={() => {}}
+      />
+    );
+
+    expect(screen.getByRole('button', { name: /checking|try again/i })).toBeDisabled();
+  });
+
   it('offers no admin override while the count is unknown', () => {
     // The override exists to push past a KNOWN refusal. Showing it on an
     // unknown count would invite an admin to force-delete a dog that may have
@@ -167,7 +195,7 @@ describe('DeleteDogDialog unknown blocking count', () => {
         onClose={() => {}}
         onDelete={() => {}}
         dog={dog}
-        blockingEntryCount={{ status: 'error' }}
+        blockingEntryCount={{ status: 'error', isRetrying: false }}
         canForceDelete
         onForceDelete={() => {}}
       />
@@ -181,17 +209,43 @@ describe('toBlockingEntryCountState', () => {
   it('maps a failed query to error, not to zero', () => {
     expect(toBlockingEntryCountState({ isError: true, data: undefined })).toEqual({
       status: 'error',
+      isRetrying: false,
     });
   });
 
   it('maps a failed query to error even when a stale count is still cached', () => {
-    expect(toBlockingEntryCountState({ isError: true, data: 0 })).toEqual({ status: 'error' });
+    expect(toBlockingEntryCountState({ isError: true, data: 0 })).toEqual({
+      status: 'error',
+      isRetrying: false,
+    });
+    expect(toBlockingEntryCountState({ isError: true, data: 0, isFetching: true })).toEqual({
+      status: 'error',
+      isRetrying: true,
+    });
   });
 
   it('maps an unresolved query to pending, not to zero', () => {
     expect(toBlockingEntryCountState({ isError: false, data: undefined })).toEqual({
       status: 'pending',
     });
+  });
+
+  it('maps a retained count with a refetch in flight to pending, not ready', () => {
+    // React Query keeps `data` through `enabled: false`, so a re-opened dialog
+    // holds the PREVIOUS open's number while the fresh read is in flight. That
+    // number is not a fact about now.
+    expect(
+      toBlockingEntryCountState({ isError: false, data: 0, isFetching: true, isStale: true })
+    ).toEqual({ status: 'pending' });
+    expect(
+      toBlockingEntryCountState({ isError: false, data: 3, isFetching: true, isStale: true })
+    ).toEqual({ status: 'pending' });
+  });
+
+  it('still reports a settled count as ready', () => {
+    expect(
+      toBlockingEntryCountState({ isError: false, data: 2, isFetching: false, isStale: true })
+    ).toEqual({ status: 'ready', count: 2 });
   });
 
   it('maps a resolved count through, including a real zero', () => {

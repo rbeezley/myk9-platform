@@ -86,6 +86,12 @@ describe('BlockedDogDeleteDialog override', () => {
       within(dialog).queryByRole('button', { name: /delete anyway/i })
     ).not.toBeInTheDocument();
     expect(within(dialog).getByRole('button', { name: 'Close' })).toBeEnabled();
+    // Nothing is about to be deleted: the title says they could not be, and the
+    // only action is Close. The confirming dialog's primary sentence has no
+    // business being here (MYK9-600 round-2 review).
+    expect(within(dialog).queryByText(/you are about to delete/i)).not.toBeInTheDocument();
+    // The list and the reason still have to be readable.
+    expect(within(dialog).getByText('Dog a')).toBeInTheDocument();
   });
 
   it('keeps Delete anyway disabled for an admin until the acknowledgement is ticked', async () => {

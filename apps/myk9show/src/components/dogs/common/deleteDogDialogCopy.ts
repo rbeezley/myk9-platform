@@ -13,9 +13,22 @@ const entryNoun = (count: number): string => (count === 1 ? 'entry' : 'entries')
  * would recompute placements behind a scored one. The dialog says so up front
  * rather than letting the user click Delete into an error.
  */
-export function buildBlockedText(blockingEntryCount: number | undefined): string | null {
+export function buildBlockedText(
+  blockingEntryCount: number | undefined,
+  canForceDelete = false
+): string | null {
   if (!blockingEntryCount || blockingEntryCount <= 0) return null;
-  return `This dog has ${blockingEntryCount} paid or scored ${entryNoun(blockingEntryCount)}. Scratch or refund ${blockingEntryCount === 1 ? 'it' : 'them'} before deleting.`;
+  const pronoun = blockingEntryCount === 1 ? 'it' : 'them';
+  // MYK9-600: name the escalation that exists. A secretary whose blocking entry
+  // is SCORED cannot scratch or refund it — "scratch or refund them" was the
+  // whole of their next step, and for them it was not available. A site admin
+  // can delete the dog outright, so point at that rather than leave a dead end.
+  //
+  // Not shown to someone who already holds the override: the checkbox that does
+  // it renders directly below this sentence, and telling a site admin to ask a
+  // site admin reads as the app not knowing who it is talking to.
+  const escalation = canForceDelete ? '' : ', or ask a site admin to delete the dog';
+  return `This dog has ${blockingEntryCount} paid or scored ${entryNoun(blockingEntryCount)}. Scratch or refund ${pronoun} before deleting${escalation}.`;
 }
 
 /**
@@ -40,9 +53,10 @@ export function buildImpactSuffix(activeEntryCount?: number): string {
 export function buildWarningText(
   activeEntryCount: number | undefined,
   canRestore: boolean,
-  blockingEntryCount?: number
+  blockingEntryCount?: number,
+  canForceDelete = false
 ): string {
-  const blocked = buildBlockedText(blockingEntryCount);
+  const blocked = buildBlockedText(blockingEntryCount, canForceDelete);
   if (blocked) return blocked;
   if (!canRestore) return 'This action cannot be undone.';
   const what = !activeEntryCount || activeEntryCount <= 0 ? 'The dog' : 'The dog and its entries';

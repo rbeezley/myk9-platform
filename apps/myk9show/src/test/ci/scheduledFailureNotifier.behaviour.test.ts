@@ -70,8 +70,42 @@ function extractScript(): string {
 }
 
 interface RunResult {
-  stdout: string;
   calls: string[];
+}
+
+/**
+ * Describe a failed notifier run.
+ *
+ * `code` and `errno` are printed, not just `status` and `signal`. Those are
+ * the fields that tell an internal `spawnSync` failure (ENOBUFS from
+ * `maxBuffer`, ETIMEDOUT from `timeout`) apart from the script exiting on its
+ * own, and MYK9-578 spent two review rounds arguing over a
+ * `status=141 signal=none` line that could not say which it was — because the
+ * diagnostic had never printed them. A child killed by the closed read end
+ * before an ENOBUFS SIGTERM lands is reported with its own status, so the
+ * status alone genuinely cannot distinguish the two.
+ */
+function describeFailure(
+  error: unknown,
+  context: { stderr: string; stdout: string; scriptPath: string; script: string }
+): string {
+  const failure = error as Error & {
+    status?: number | null;
+    signal?: string | null;
+    code?: string | number | null;
+    errno?: number | null;
+  };
+  return (
+    `Notifier failed: status=${failure.status ?? 'unknown'} ` +
+    `signal=${failure.signal ?? 'none'} ` +
+    `code=${failure.code ?? 'none'} errno=${failure.errno ?? 'none'}\n` +
+    `stderr: ${context.stderr.slice(-4000)}\n` +
+    `stdout: ${context.stdout.slice(-4000)}\n` +
+    `script: ${context.scriptPath}\n${context.script
+      .split('\n')
+      .map((line, index) => `${index + 1}: ${line}`)
+      .join('\n')}`
+  );
 }
 
 function run(outcome: string, openIssues: string[], fail = false, silent = false): RunResult {
@@ -102,18 +136,25 @@ function run(outcome: string, openIssues: string[], fail = false, silent = false
   // MYK9-578: stdout and stderr go to FILES, never pipes.
   //
   // `stdio: ['ignore', 'pipe', 'pipe']` puts a reader between node and the
-  // script, and a reader that leaves while the script is still writing kills
-  // the writer with SIGPIPE. That is the only surface left that can produce
-  // the incident's `status=141 signal=none`: `maxBuffer` reports
-  // `signal=SIGTERM code=ENOBUFS` instead, and the script's own `head`
-  // pipeline needs a payload far larger than `gh issue list --limit 100` can
-  // return. Measured in `.logs/578-exp.mjs` — destroying the reader early made
-  // the pre-fix script exit exactly `141` with no signal, and these file
-  // descriptors make the same run exit 0.
+  // script. A reader that leaves while the script is still writing kills the
+  // writer with SIGPIPE, and because the notifier's progress lines used to run
+  // inside a pipeline subshell, `pipefail` turned that into the incident's
+  // `status=141 signal=none` — measured in `.logs/578-exp.mjs`: destroy the
+  // reader early and the pre-fix script exits exactly 141 with no signal,
+  // while these file descriptors make the same run exit 0.
   //
-  // Only the harness ever puts a closable reader there. A workflow step's
-  // stdout is held open by the runner for the step's lifetime, so this is a
-  // fixture defect, not a notifier one.
+  // What that does NOT establish is which early close fired in CI. `maxBuffer`
+  // is not excluded: its ENOBUFS path reports `signal=SIGTERM` only when the
+  // SIGTERM lands first, and a child that dies of the closed read end before
+  // then is reported with its own status instead — `status=141 signal=none`,
+  // ENOBUFS hidden, 5/5 in review's replay. Read the shape as "the read end
+  // closed early", not as a named cause. The trigger is still unidentified.
+  //
+  // File descriptors remove the reader and the buffer accounting together, so
+  // they cover every branch of that ambiguity at once. Only the harness ever
+  // put a closable reader there: a workflow step's stdout is held open by the
+  // runner for the step's lifetime, so this is a fixture defect, not a
+  // notifier one.
   const stdoutPath = join(dir, 'stdout.txt');
   const stderrPath = join(dir, 'stderr.txt');
   const outFd = openSync(stdoutPath, 'w');
@@ -151,21 +192,16 @@ function run(outcome: string, openIssues: string[], fail = false, silent = false
     });
     closeFds();
     const calls = readFileSync(logPath, 'utf8').split('\n').filter(Boolean);
-    return { stdout: readCaptured(stdoutPath), calls };
+    return { calls };
   } catch (error: unknown) {
     closeFds();
-    const failure = error as Error & {
-      status?: number | null;
-      signal?: string | null;
-    };
     throw new Error(
-      `Notifier failed: status=${failure.status ?? 'unknown'} signal=${failure.signal ?? 'none'}\n` +
-        `stderr: ${readCaptured(stderrPath).slice(-4000)}\n` +
-        `stdout: ${readCaptured(stdoutPath).slice(-4000)}\n` +
-        `script: ${scriptPath}\n${script
-          .split('\n')
-          .map((line, index) => `${index + 1}: ${line}`)
-          .join('\n')}`,
+      describeFailure(error, {
+        stderr: readCaptured(stderrPath),
+        stdout: readCaptured(stdoutPath),
+        scriptPath,
+        script,
+      }),
       { cause: error }
     );
   } finally {
@@ -178,6 +214,30 @@ const verbs = (calls: string[]) =>
   calls.filter(c => c.startsWith('issue ')).map(c => c.split(' ').slice(0, 2).join(' '));
 
 describe('scheduled-failure notifier', () => {
+  it('surfaces a spawn error code and errno, not just the exit status', () => {
+    // MYK9-578 round 3. The incident line read `status=141 signal=none` and
+    // could not say whether the script had exited 141 or `spawnSync` had
+    // failed internally (ENOBUFS from `maxBuffer`, ETIMEDOUT from `timeout`),
+    // because a child that dies before the SIGTERM lands is reported with its
+    // own status and the ENOBUFS stays hidden on `code`. Two review rounds
+    // went on that ambiguity. Print the fields that resolve it.
+    const spawnError = Object.assign(new Error('spawnSync bash ENOBUFS'), {
+      status: 141,
+      signal: null,
+      code: 'ENOBUFS',
+      errno: -55,
+    });
+
+    const message = describeFailure(spawnError, {
+      stderr: 'fixture stderr',
+      stdout: 'fixture stdout',
+      scriptPath: '/tmp/notify.sh',
+      script: 'set -euo pipefail',
+    });
+
+    expect(message).toContain('status=141 signal=none code=ENOBUFS errno=-55');
+  });
+
   it('reports a shell line when the failed stub produces no stderr', () => {
     expect(() => run('failure', [], true, true)).toThrow(/status=23[\s\S]*notify.sh line \d+/);
   });

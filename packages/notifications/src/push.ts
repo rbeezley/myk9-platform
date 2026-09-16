@@ -79,7 +79,10 @@ function urlBase64ToUint8Array(base64String: string): Uint8Array {
  * Returns subscription data to be saved server-side, or existing subscription.
  */
 export async function subscribeToPush(vapidPublicKey: string): Promise<PushSubscriptionData> {
-  const registration = await navigator.serviceWorker.ready;
+  const registration = await getReadyRegistration();
+  if (!registration) {
+    throw new Error('Push is unavailable on this device');
+  }
 
   // Check for existing subscription
   const existing = await registration.pushManager.getSubscription();

@@ -28,7 +28,7 @@ vi.mock('@myk9/scoring-ui', () => ({
 import { testSound, speakWithConfig } from '@myk9/notifications';
 
 const mockSubscribe = vi.fn<
-  () => Promise<{ ok: true } | { ok: false; reason: 'permission-denied' }>
+  () => Promise<{ ok: true } | { ok: false; reason: 'permission-denied' | 'subscribe-failed' }>
 >(() => Promise.resolve({ ok: true }));
 const mockUnsubscribe = vi.fn(() => Promise.resolve({ ok: true as const }));
 
@@ -329,6 +329,31 @@ describe('NotificationSettings', () => {
         'Push notifications blocked. Check browser settings.'
       )
     );
+  });
+
+  // MYK9-549: subscribeToPush used to await the unguarded
+  // `navigator.serviceWorker.ready`, which never settles when the registration
+  // fails, is policy-blocked, or the browser is in private mode — the toggle
+  // spun forever with no toast. usePushSubscription.subscribe() catches that
+  // rejection and returns { ok: false, reason: 'subscribe-failed' }; pin that
+  // the toggle reports the failure and springs back to off rather than
+  // spinning or silently staying "on".
+  it('shows an error toast and returns the toggle to off when subscribeToPush fails', async () => {
+    mockSubscribe.mockResolvedValueOnce({ ok: false, reason: 'subscribe-failed' });
+    render(<NotificationSettings />);
+
+    const pushSwitch = screen.getByRole('switch', { name: /push notifications/i });
+    expect(pushSwitch).toHaveAttribute('data-state', 'unchecked');
+
+    fireEvent.click(pushSwitch);
+
+    await waitFor(() =>
+      expect(notifications.error).toHaveBeenCalledWith('Failed to enable push notifications.')
+    );
+    // pushEnabled was never flipped on, so the switch renders unchecked again —
+    // not stuck mid-toggle or falsely showing "on".
+    expect(pushSwitch).toHaveAttribute('data-state', 'unchecked');
+    expect(useNotificationStore.getState().preferences.pushEnabled).toBe(false);
   });
 
   // --- Voice Announcements ---

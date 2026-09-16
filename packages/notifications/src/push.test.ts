@@ -57,6 +57,23 @@ describe('isPushSupported', () => {
 });
 
 describe('subscribeToPush', () => {
+  it('rejects within SERVICE_WORKER_READY_TIMEOUT_MS when .ready never settles', async () => {
+    vi.useFakeTimers();
+    try {
+      vi.stubGlobal('navigator', { serviceWorker: { ready: new Promise(() => {}) } });
+
+      const pending = subscribeToPush('test-vapid-key');
+      // Attach a rejection handler immediately so vitest does not flag this as
+      // an unhandled rejection while fake timers are advanced below.
+      const assertion = expect(pending).rejects.toThrow('Push is unavailable on this device');
+      await vi.advanceTimersByTimeAsync(SERVICE_WORKER_READY_TIMEOUT_MS);
+
+      await assertion;
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it('subscribes with VAPID key and returns subscription data', async () => {
     const result = await subscribeToPush('test-vapid-key');
 

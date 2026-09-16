@@ -126,6 +126,18 @@ export {
 } from './core/ReplicatedTableCache';
 export { ReplicatedTableBatchManager } from './core/ReplicatedTableBatch';
 export { ReplicatedTable } from './core/ReplicatedTable';
+export {
+  ShowScopedColdInsertError,
+  composeRetrySetOptions,
+  isColdInsertAllowed,
+  QUOTA_EVICTION_RETRY_REASON,
+} from './core/coldInsertGuard';
+export type {
+  ColdInsertGuardMode,
+  ReplicatedSetOptions,
+  ReplicatedSetResult,
+  ReplicatedSetSkipReason,
+} from './core/coldInsertGuard';
 export { isQuotaExceededError, withQuotaEviction } from './quota-eviction';
 export { syncReplicatedTable, configureConflictSurfacing } from './syncReplicatedTable';
 export type {

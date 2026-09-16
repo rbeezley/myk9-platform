@@ -359,7 +359,7 @@ describe('ReplicatedDogsTable', () => {
           breed: 'Border Collie',
           ownerId: 'person-local-1',
         });
-        const setSpy = vi.spyOn(dogsTable, 'set').mockResolvedValue();
+        const setSpy = vi.spyOn(dogsTable, 'set').mockResolvedValue({ written: true });
         const queueMutation = vi
           .spyOn(
             dogsTable as unknown as {
@@ -422,7 +422,7 @@ describe('ReplicatedDogsTable', () => {
           });
           newDog.callName = callName;
 
-          const setSpy = vi.spyOn(dogsTable, 'set').mockResolvedValue();
+          const setSpy = vi.spyOn(dogsTable, 'set').mockResolvedValue({ written: true });
           const queueMutation = vi
             .spyOn(
               dogsTable as unknown as {
@@ -450,7 +450,7 @@ describe('ReplicatedDogsTable', () => {
           breed: 'Border Collie',
           ownerId: 'person-local-1',
         });
-        const setSpy = vi.spyOn(dogsTable, 'set').mockResolvedValue();
+        const setSpy = vi.spyOn(dogsTable, 'set').mockResolvedValue({ written: true });
         const queueMutation = vi
           .spyOn(
             dogsTable as unknown as {
@@ -532,7 +532,7 @@ describe('ReplicatedDogsTable', () => {
           ownerId: 'owner-456',
         };
 
-        const setSpy = vi.spyOn(dogsTable, 'set').mockResolvedValue();
+        const setSpy = vi.spyOn(dogsTable, 'set').mockResolvedValue({ written: true });
 
         const result = await dogsTable.createDog(newDogData);
 

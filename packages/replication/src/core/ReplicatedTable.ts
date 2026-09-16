@@ -51,6 +51,13 @@ import {
 import { mergeNonConflictingServerFields } from '../conflict/detectDirtyRowConflict';
 import { isConflictSurfacingEnabled } from '../conflictConfig';
 import { withQuotaEviction } from '../quota-eviction';
+import {
+  composeRetrySetOptions,
+  isColdInsertAllowed,
+  type ColdInsertGuardMode,
+  type ReplicatedSetOptions,
+  type ReplicatedSetResult,
+} from './coldInsertGuard';
 
 /**
  * Fraction of a table's current footprint to retain when relieving storage
@@ -383,6 +390,14 @@ export abstract class ReplicatedTable<T extends { id: string }> {
   }
 
   /**
+   * Show-scoped tables override this so `set()` refuses a cold INSERT that the
+   * caller did not opt into (MYK9-575). `null` = account-scoped, no guard.
+   */
+  protected coldInsertGuardMode(): ColdInsertGuardMode | null {
+    return null;
+  }
+
+  /**
    * Set (upsert) a row in local cache
    *
    * @param incomingServerVersion - The server's `version` column value from the
@@ -394,8 +409,9 @@ export abstract class ReplicatedTable<T extends { id: string }> {
     data: T,
     isDirty = false,
     expectedVersion?: number,
-    incomingServerVersion?: number
-  ): Promise<void> {
+    incomingServerVersion?: number,
+    options?: ReplicatedSetOptions
+  ): Promise<ReplicatedSetResult> {
     const lockKey = String(id);
     const deferredCount = this.deferredMutationRows.get(lockKey) ?? 0;
     const deferred = isDirty && deferredCount > 0;
@@ -411,19 +427,41 @@ export abstract class ReplicatedTable<T extends { id: string }> {
       (isDirty && !deferred ? await this.mutationManager?.acquireMutationWriteLock?.() : undefined);
     // Wrap the write so a storage-quota abort triggers eviction + one retry
     // rather than escaping as an unhandled "AbortError: QuotaExceededError".
+    //
+    // The cold-insert decision (MYK9-575) belongs to the LOGICAL write, not to
+    // each attempt: `relieveQuota()` evicts CLEAN rows, so the retry of a
+    // legitimate UPDATE can find its own row gone and would otherwise be
+    // refused as an INSERT. `attempt.rowExisted`, recorded inside the first
+    // transaction, carries that fact into the retry.
+    const attempt = { rowExisted: false };
     try {
-      await withQuotaEviction(
-        () => this.setOnce(id, data, isDirty, expectedVersion, incomingServerVersion),
+      const result = await withQuotaEviction(
+        () =>
+          this.setOnce(
+            id,
+            data,
+            isDirty,
+            expectedVersion,
+            incomingServerVersion,
+            composeRetrySetOptions(options, attempt.rowExisted),
+            attempt
+          ),
         () => this.relieveQuota(),
         this.logger
       );
       if (deferredWriteLock) {
         deferredWriteLock();
       } else if (releaseWriteLock) {
-        const locks = this.pendingWriteLocks.get(lockKey) ?? [];
-        locks.push(releaseWriteLock);
-        this.pendingWriteLocks.set(lockKey, locks);
+        if (!result.written) {
+          // Nothing was stored, so no later markAsSynced will release this lock.
+          releaseWriteLock();
+        } else {
+          const locks = this.pendingWriteLocks.get(lockKey) ?? [];
+          locks.push(releaseWriteLock);
+          this.pendingWriteLocks.set(lockKey, locks);
+        }
       }
+      return result;
     } catch (error) {
       releaseWriteLock?.();
       throw error;
@@ -436,14 +474,38 @@ export abstract class ReplicatedTable<T extends { id: string }> {
     data: T,
     isDirty: boolean,
     expectedVersion?: number,
-    incomingServerVersion?: number
-  ): Promise<void> {
+    incomingServerVersion?: number,
+    options?: ReplicatedSetOptions,
+    attempt?: { rowExisted: boolean }
+  ): Promise<ReplicatedSetResult> {
     const db = await this.init();
     const tx = db.transaction(REPLICATION_STORES.REPLICATED_TABLES, 'readwrite');
 
     const normalizedId = String(id);
     const existingRow = (await tx.store.get([this.tableName, normalizedId])) as
       ReplicatedRow<T> | undefined;
+
+    if (existingRow) {
+      if (attempt) attempt.rowExisted = true;
+    }
+
+    // MYK9-575: a show-scoped table refuses a single-row INSERT unless the
+    // caller names its reason. Decided INSIDE this transaction, on the same
+    // `existingRow` read the write uses, so no sync landing mid-call can
+    // re-open the seeding hole.
+    if (
+      !existingRow &&
+      !isColdInsertAllowed({
+        mode: this.coldInsertGuardMode(),
+        tableName: this.tableName,
+        rowId: normalizedId,
+        options,
+        logger: this.logger,
+      })
+    ) {
+      await tx.done;
+      return { written: false, reason: 'cold-insert-refused' };
+    }
 
     // Optimistic locking - verify version hasn't changed
     if (expectedVersion !== undefined && existingRow && existingRow.version !== expectedVersion) {
@@ -463,7 +525,7 @@ export abstract class ReplicatedTable<T extends { id: string }> {
       this.logger.log(
         `[${this.tableName}] Skipped server push for row ${normalizedId} — local mutation pending`
       );
-      return;
+      return { written: false, reason: 'dirty-row-preserved' };
     }
 
     const row = buildReplicatedRowForSet({
@@ -484,6 +546,7 @@ export abstract class ReplicatedTable<T extends { id: string }> {
     );
 
     this.notifyListeners();
+    return { written: true };
   }
 
   /** Returns true when the conflict was written; false if the version changed
@@ -859,6 +922,9 @@ export abstract class ReplicatedTable<T extends { id: string }> {
 
   /**
    * Optimistic update with automatic retry on version conflicts
+   *
+   * Note: this has no production callers today, so its `written: false` branch
+   * (MYK9-575) is exercised only by tests.
    */
   async optimisticUpdate(
     id: string,
@@ -880,7 +946,16 @@ export abstract class ReplicatedTable<T extends { id: string }> {
       const currentData = existingRow.data;
 
       const updatedData = await updateFn(currentData);
-      await this.set(id, updatedData, true, currentVersion);
+      const result = await this.set(id, updatedData, true, currentVersion);
+      if (!result.written) {
+        // The pre-check above proves the row existed, so this is an anomaly —
+        // report what the store actually holds rather than the value we failed
+        // to write (MYK9-575).
+        this.logger.warn(
+          `[${this.tableName}] Optimistic update for ${id} stored nothing (${result.reason})`
+        );
+        return currentData;
+      }
 
       this.logger.log(`[${this.tableName}] Optimistic update succeeded for ${id}`);
       return updatedData;

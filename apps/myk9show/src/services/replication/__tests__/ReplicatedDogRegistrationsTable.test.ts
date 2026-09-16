@@ -13,7 +13,7 @@ vi.mock('@myk9/core', () => ({
 describe('ReplicatedDogRegistrationsTable', () => {
   it('queues dog registration inserts behind the dog mutation', async () => {
     const table = new ReplicatedDogRegistrationsTable();
-    const setSpy = vi.spyOn(table, 'set').mockResolvedValue();
+    const setSpy = vi.spyOn(table, 'set').mockResolvedValue({ written: true });
     const queueMutationSpy = vi
       .spyOn(
         table as unknown as {
@@ -75,7 +75,7 @@ describe('ReplicatedDogRegistrationsTable', () => {
 
   it('can create local registration rows without queueing separate uploads', async () => {
     const table = new ReplicatedDogRegistrationsTable();
-    const setSpy = vi.spyOn(table, 'set').mockResolvedValue();
+    const setSpy = vi.spyOn(table, 'set').mockResolvedValue({ written: true });
     const queueMutationSpy = vi.spyOn(
       table as unknown as {
         queueMutation: (

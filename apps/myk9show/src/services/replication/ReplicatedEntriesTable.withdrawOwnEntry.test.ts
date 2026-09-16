@@ -89,7 +89,9 @@ describe('ReplicatedEntriesTable.withdrawOwnEntry — online-only', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     table = new ReplicatedEntriesTable();
-    set = vi.fn().mockResolvedValue(undefined);
+    // `set` resolves with the real ReplicatedSetResult shape (MYK9-575): the
+    // callers now read `written` to avoid reporting a write that did not happen.
+    set = vi.fn().mockResolvedValue({ written: true });
     queueMutation = vi.fn().mockResolvedValue('mutation-1');
     get = vi.fn().mockResolvedValue(withdrawableEntry);
     const internals = table as unknown as Record<string, unknown>;

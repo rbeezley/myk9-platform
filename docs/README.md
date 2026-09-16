@@ -67,6 +67,7 @@ retired to [`archive/`](archive/) (kept for history, not maintained).
 | [plan-exhibitor-elderly-ux-remediation.md](plan-exhibitor-elderly-ux-remediation.md)                             | Active    | Exhibitor Elderly UX Remediation Plan                                              |
 | [plan-exhibitor-onboarding-remediation.md](plan-exhibitor-onboarding-remediation.md)                             | Active    | Exhibitor Onboarding Remediation Plan                                              |
 | [plan-fix-nightly-review-2026-07-20.md](plan-fix-nightly-review-2026-07-20.md)                                   | Active    | Plan: Fix nightly review findings                                                  |
+| [plan-linear-backlog-burndown-2026-09.md](plan-linear-backlog-burndown-2026-09.md)                               | Active    | Linear backlog burndown 2026-09 — orchestrated clearance of Todo/In Progress       |
 | [plan-linear-todo-2026-09-05.md](plan-linear-todo-2026-09-05.md)                                                 | Active    | Current Linear Todo implementation plan — 2026-09-05                               |
 | [plan-myk9-110-recovery-rehearsal-2026-09-07.md](plan-myk9-110-recovery-rehearsal-2026-09-07.md)                 | Complete  | MYK9-110 — cross-project recovery rehearsal                                        |
 | [plan-myk9-17-role-journey-visual-qa.md](plan-myk9-17-role-journey-visual-qa.md)                                 | Active    | Plan: MYK9-17 Role-Journey Visual QA Matrix                                        |

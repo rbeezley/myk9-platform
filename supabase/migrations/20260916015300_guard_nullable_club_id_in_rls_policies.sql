@@ -59,6 +59,14 @@
 -- Behavioural coverage: supabase/tests/null_club_policy_authorization_test.sql
 -- (registered in scripts/qa/run-behavioral-sql-tests.sh; runs in CI only).
 
+-- ONE TRANSACTION, NOT SIXTEEN STATEMENTS. Without the wrapper a failure on,
+-- say, the ninth ALTER leaves `shows_*` guarded and the message and visibility
+-- policies not — a half-applied authorization change, and the migration version
+-- row never lands, so the next `db push` replays the first eight against the
+-- state they already produced. 20260611090000 and 20260823190000 use the same
+-- begin/commit wrapper for the same reason.
+begin;
+
 -- ---------------------------------------------------------------------------
 -- shows -- the table that owns the nullable column. Both write policies here
 -- were cross-tenant writes for a club-less row.
@@ -344,3 +352,5 @@ ALTER POLICY class_visibility_update ON public.class_visibility_overrides
         )
     )
   );
+
+commit;

@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import {
   CLUB_HELPER_CALL,
+  isCallGuarded,
   latestDefinitions,
   latestPolicyDefinitions,
   latestViewDefinition,
@@ -262,13 +263,39 @@ const NOT_NULL_CLUB_ID_TABLES: readonly string[] = [
 describe('club-scoped authorization helpers are never handed a bare club_id column in an RLS policy', () => {
   const policies = latestPolicyDefinitions();
 
-  it('parses the migration set and finds exactly the live policies (MYK9-585)', () => {
-    // An exact count, not a floor: `toBeGreaterThan` let the quoted-only /
-    // ALTER-blind parser silently under-count for months (MYK9-585) while
-    // still passing. This number must be updated DELIBERATELY — recompute it
-    // (log `policies.size`) whenever a migration adds, drops, or renames a
-    // policy, and explain the change in the same PR that touches this line.
-    expect(policies.size).toBe(373);
+  it('parses every declaration form in the migration set (MYK9-585)', () => {
+    // This was `expect(policies.size).toBe(373)`. An exact count is a brittle
+    // proxy for what it was standing in for: any PR that adds or drops a policy
+    // turns it red for a reason unrelated to this contract, and the reviewer
+    // then updates the number without re-deriving it — which is the moment a
+    // magic number stops being evidence of anything.
+    //
+    // What the count actually guarded was the three parser blind spots MYK9-585
+    // fixed (quoted-only names, ALTER POLICY, comment-truncated bodies). So
+    // assert those directly, by name, plus a floor that a silently
+    // under-counting parser cannot clear.
+    expect(policies.size).toBeGreaterThan(300);
+
+    // Unquoted CREATE POLICY — the majority form, and the one the quoted-only
+    // parser dropped on the floor.
+    expect(policies.get('shows::shows_select')?.body).toMatch(/create\s+policy\s+shows_select/i);
+    // Quoted CREATE POLICY.
+    expect(policies.get('entry_status_history::entry_status_history_select')?.body).toMatch(
+      /create\s+policy\s+"entry_status_history_select"/i
+    );
+    // ALTER POLICY tracked as a full redefinition, not ignored in favour of the
+    // original CREATE.
+    expect(policies.get('show_messages::messages_select')?.body).toMatch(/alter\s+policy/i);
+
+    // Every policy the registry names must resolve, or the registry is
+    // asserting against a map that no longer contains it.
+    const registered = new Set(
+      REVIEWED_CLUB_HELPER_POLICY_SITES.map(entry =>
+        entry.slice(0, entry.indexOf(' ->')).toLowerCase()
+      )
+    );
+    const parsed = new Set([...policies.values()].map(policy => policy.name.toLowerCase()));
+    expect([...registered].filter(name => !parsed.has(name))).toEqual([]);
   });
 
   it('surfaces any NEW policy call site for review', () => {
@@ -290,51 +317,88 @@ describe('club-scoped authorization helpers are never handed a bare club_id colu
     expect([...found].sort()).toEqual([...REVIEWED_CLUB_HELPER_POLICY_SITES].sort());
   });
 
-  it('every registered policy site carries the club_id IS NOT NULL guard (MYK9-585)', () => {
-    // The registry above asserts WHICH call sites exist; this asserts that each
-    // one is guarded. Before 20260916015300 the registry's own comment carried
-    // that verdict in prose, which is a comment claiming a property rather than
-    // a test proving it — and two entries (entry_status_history_select,
-    // show_templates_select) were annotated UNGUARDED while the SQL had the
-    // guard, in exactly the direction prose gets things wrong.
+  it('every registered policy CALL carries a club_id IS NOT NULL guard (MYK9-585)', () => {
+    // Per CALL, not per policy. The first cut of this case asked whether the
+    // policy BODY mentioned `club_id IS NOT NULL` anywhere, and review round 1
+    // broke it in two lines: keep the guard on trials_select's
+    // is_club_admin(s.club_id) arm, drop it from the is_trial_secretary(s.club_id)
+    // arm beside it, and the body still matches while half the policy is
+    // exploitable. isCallGuarded() answers the narrower question — does some
+    // enclosing parenthesis group AND this guard onto THIS call — and its own
+    // header explains why that is decidable when "is this predicate correct" is
+    // not.
     //
-    // This is a TEXT check and it knows it: it asks whether the policy body
-    // mentions `club_id IS NOT NULL` at all, not whether the guard sits in the
-    // right boolean branch. The file's header explains why a regex cannot
-    // decide SQL boolean structure, and a half-right parser on an authorization
-    // check is worse than none. So the division of labour is: this case catches
-    // a site with no guard anywhere (the MYK9-585 shape), the registry above
-    // catches a NEW site, and
-    // supabase/tests/null_club_policy_authorization_test.sql proves the guards
-    // actually deny a club admin of another club — the only one of the three
-    // that executes SQL.
+    // Division of labour, unchanged: the registry above catches a NEW call site,
+    // this catches a listed site that is not actually guarded, and
+    // supabase/tests/null_club_policy_authorization_test.sql is the only one of
+    // the three that executes SQL against the real schema.
     const unguarded: string[] = [];
 
     for (const [key, { body, name, file }] of policies) {
       const table = key.slice(0, key.indexOf('::'));
       if (NOT_NULL_CLUB_ID_TABLES.includes(table)) continue;
 
-      const passesColumn = [...body.matchAll(CLUB_HELPER_CALL)].some(call =>
-        /^(?:[a-z_][a-z0-9_]*\.)?club_id$/i.test(call[2])
-      );
-      if (!passesColumn) continue;
-
-      if (!/club_id\s+is\s+not\s+null/i.test(body)) {
-        unguarded.push(`${table}.${name} (${file})`);
+      for (const call of body.matchAll(CLUB_HELPER_CALL)) {
+        const argument = call[2];
+        if (!/^(?:[a-z_][a-z0-9_]*\.)?club_id$/i.test(argument)) continue;
+        if (isCallGuarded(body, call.index, argument, table)) continue;
+        unguarded.push(`${table}.${name} -> ${call[1]}(${argument}) (${file})`);
       }
     }
 
     expect(unguarded).toEqual([]);
   });
 
-  it('would notice a guard that disappeared', () => {
-    // Guards the guard: the assertion above is an absence check, so it passes
-    // trivially if `policies` were empty or the body text stopped being
-    // captured. Pin one policy whose guard is load-bearing and whose latest
-    // definition is this PR's migration.
+  it('the per-call guard detector is not vacuous', () => {
+    // Guards the guard twice over. The assertion above is an absence check, so
+    // it would pass against a detector that returned true unconditionally, or
+    // against an empty `policies` map.
+    //
+    // A real guarded body and a real unguarded one, both in trials_select's
+    // exact shape (sibling OR arms inside an IN-subquery) — which is the shape
+    // that defeated the body-level heuristic.
+    const guarded = `create policy p on public.trials using (
+      trials.show_id in (
+        select s.id from public.shows s
+        where s.status = 'published'
+          or (s.club_id is not null and (select public.is_club_admin(s.club_id)))
+          or (s.club_id is not null and (select public.is_trial_secretary(s.club_id)))
+      )
+    );`;
+    const halfGuarded = guarded.replace(
+      'or (s.club_id is not null and (select public.is_trial_secretary(s.club_id)))',
+      'or (select public.is_trial_secretary(s.club_id))'
+    );
+
+    const verdicts = (body: string) =>
+      [...body.matchAll(CLUB_HELPER_CALL)].map(call =>
+        isCallGuarded(body, call.index, call[2], 'trials')
+      );
+
+    expect(verdicts(guarded)).toEqual([true, true]);
+    // The half-guarded body is what a whole-body `/club_id is not null/` test
+    // called clean: the surviving arm's guard is a sibling, not this call's.
+    expect(halfGuarded).toMatch(/club_id is not null/i);
+    expect(verdicts(halfGuarded)).toEqual([true, false]);
+  });
+
+  it('would notice a guard that disappeared from a live policy', () => {
+    // Pins one policy whose guard is load-bearing. Asserted on the guard TEXT
+    // and on the call-level verdict, never on which FILE last defined it — a
+    // later legitimate re-ALTER of shows_update would fail a filename pin for a
+    // reason that has nothing to do with this contract.
     const showsUpdate = policies.get('shows::shows_update');
-    expect(showsUpdate?.file).toBe('20260916015300_guard_nullable_club_id_in_rls_policies.sql');
+    expect(showsUpdate, 'shows_update should exist in the migration set').toBeDefined();
     expect(showsUpdate?.body.toLowerCase()).toContain('club_id is not null');
+
+    const calls = [...showsUpdate!.body.matchAll(CLUB_HELPER_CALL)];
+    expect(calls.length).toBeGreaterThan(0);
+    for (const call of calls) {
+      expect(
+        isCallGuarded(showsUpdate!.body, call.index, call[2], 'shows'),
+        `shows_update -> ${call[1]}(${call[2]}) must be guarded`
+      ).toBe(true);
+    }
   });
 });
 

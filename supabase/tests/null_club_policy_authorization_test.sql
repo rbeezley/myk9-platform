@@ -112,7 +112,11 @@ VALUES
   ('00000000-0000-0000-0000-000000585023', 'MYK9-585 Club-less Draft Show', 'AKC',
    current_date, current_date + 1, 'draft', NULL),
   ('00000000-0000-0000-0000-000000585024', 'MYK9-585 Club-less Delete Target', 'AKC',
-   current_date, current_date + 1, 'published', NULL);
+   current_date, current_date + 1, 'published', NULL),
+  -- Case 1.2's positive control. A DELETE target of its own, because the shows
+  -- the other cases read must survive to the end of the file.
+  ('00000000-0000-0000-0000-000000585027', 'MYK9-585 Club A Delete Target', 'AKC',
+   current_date, current_date + 1, 'published', '00000000-0000-0000-0000-000000585001');
 
 INSERT INTO public.trials (id, show_id, name, date)
 VALUES
@@ -148,6 +152,18 @@ VALUES
   ('00000000-0000-0000-0000-000000585062', '00000000-0000-0000-0000-000000585022',
    '00000000-0000-0000-0000-000000585052', '00000000-0000-0000-0000-000000585104',
    'MYK9-585 CLUB-LESS BODY');
+
+-- The club-less show's visibility rows, seeded here rather than in a case: the
+-- *_visibility_update policies need a row to aim at, and after 20260916015300 no
+-- club admin can create one (that is cases 5.0-5.2). All three tables' SELECT
+-- policies are `using (true)`, so the UPDATE row counts in case 8 are governed
+-- by the *_update policy alone and cannot pass for lack of visibility.
+INSERT INTO public.show_visibility_settings (show_id)
+VALUES ('00000000-0000-0000-0000-000000585022');
+INSERT INTO public.trial_visibility_overrides (trial_id)
+VALUES ('00000000-0000-0000-0000-000000585033');
+INSERT INTO public.class_visibility_overrides (class_id)
+VALUES ('00000000-0000-0000-0000-000000585043');
 
 -- ---------------------------------------------------------------------------
 -- 1. The club admin of club A. Every assertion below reached the club-less row
@@ -187,6 +203,17 @@ BEGIN
     RAISE EXCEPTION 'FAIL 1.2 shows_delete reached a club-less show (MYK9-585)';
   END IF;
   RAISE NOTICE 'PASS 1.2 shows_delete refuses a club-less show';
+
+  -- Positive control for 1.2, in the same role and the same statement shape: a
+  -- zero row count means "the policy refused" only if the SAME caller's DELETE
+  -- on their OWN club's show returns one. Without this, a shows_delete that
+  -- denied everybody would pass 1.2.
+  DELETE FROM public.shows WHERE id = '00000000-0000-0000-0000-000000585027';
+  GET DIAGNOSTICS n = ROW_COUNT;
+  IF n <> 1 THEN
+    RAISE EXCEPTION 'FAIL 1.2b club admin lost DELETE on their own club''s show';
+  END IF;
+  RAISE NOTICE 'PASS 1.2b shows_delete still accepts the admin''s own club''s show';
 
   refused := false;
   BEGIN
@@ -346,6 +373,132 @@ BEGIN
 END $case4$;
 
 -- ---------------------------------------------------------------------------
+-- 8 / 9. The six policies the first cut of this file never reached:
+--    show_visibility_update, trial_visibility_update, class_visibility_update,
+--    threads_insert, messages_insert, messages_update_read.
+--
+-- Every one pairs a refusal with a positive control in the SAME role and the
+-- SAME statement shape, because a zero row count and a raised
+-- insufficient_privilege both look identical to "the policy is broken for
+-- everyone".
+--
+-- The own-club rows these UPDATEs aim at were created by case 5 as this very
+-- caller, so reaching here at all already proves the insert side works.
+-- ---------------------------------------------------------------------------
+DO $case8$
+DECLARE
+  n integer;
+  refused boolean;
+BEGIN
+  SET LOCAL ROLE authenticated;
+  PERFORM set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-000000585101', true);
+  PERFORM set_config(
+    'request.jwt.claims',
+    jsonb_build_object('sub', '00000000-0000-0000-0000-000000585101', 'role', 'authenticated')::text,
+    true
+  );
+
+  UPDATE public.show_visibility_settings SET preset = preset
+   WHERE show_id = '00000000-0000-0000-0000-000000585021';
+  GET DIAGNOSTICS n = ROW_COUNT;
+  IF n <> 1 THEN
+    RAISE EXCEPTION 'FAIL 8.0 club admin lost show_visibility_update on their own club''s show';
+  END IF;
+  UPDATE public.show_visibility_settings SET preset = preset
+   WHERE show_id = '00000000-0000-0000-0000-000000585022';
+  GET DIAGNOSTICS n = ROW_COUNT;
+  IF n <> 0 THEN
+    RAISE EXCEPTION 'FAIL 8.1 show_visibility_update reached a club-less show (MYK9-585)';
+  END IF;
+
+  UPDATE public.trial_visibility_overrides SET preset = preset
+   WHERE trial_id = '00000000-0000-0000-0000-000000585031';
+  GET DIAGNOSTICS n = ROW_COUNT;
+  IF n <> 1 THEN
+    RAISE EXCEPTION 'FAIL 8.2 club admin lost trial_visibility_update on their own club''s trial';
+  END IF;
+  UPDATE public.trial_visibility_overrides SET preset = preset
+   WHERE trial_id = '00000000-0000-0000-0000-000000585033';
+  GET DIAGNOSTICS n = ROW_COUNT;
+  IF n <> 0 THEN
+    RAISE EXCEPTION 'FAIL 8.3 trial_visibility_update reached a club-less show (MYK9-585)';
+  END IF;
+
+  UPDATE public.class_visibility_overrides SET preset = preset
+   WHERE class_id = '00000000-0000-0000-0000-000000585041';
+  GET DIAGNOSTICS n = ROW_COUNT;
+  IF n <> 1 THEN
+    RAISE EXCEPTION 'FAIL 8.4 club admin lost class_visibility_update on their own club''s class';
+  END IF;
+  UPDATE public.class_visibility_overrides SET preset = preset
+   WHERE class_id = '00000000-0000-0000-0000-000000585043';
+  GET DIAGNOSTICS n = ROW_COUNT;
+  IF n <> 0 THEN
+    RAISE EXCEPTION 'FAIL 8.5 class_visibility_update reached a club-less show (MYK9-585)';
+  END IF;
+  RAISE NOTICE 'PASS 8.x the three *_visibility_update policies are club-scoped';
+
+  -- threads_insert. participant_id is the EXHIBITOR, never the caller: with the
+  -- caller as participant the `participant_id = auth.uid()` arm admits the row
+  -- on its own and the staff arm — the one this migration changed — is never
+  -- consulted.
+  INSERT INTO public.show_message_threads (id, show_id, participant_id)
+  VALUES ('00000000-0000-0000-0000-000000585053', '00000000-0000-0000-0000-000000585021',
+          '00000000-0000-0000-0000-000000585104');
+  refused := false;
+  BEGIN
+    INSERT INTO public.show_message_threads (id, show_id, participant_id)
+    VALUES ('00000000-0000-0000-0000-000000585054', '00000000-0000-0000-0000-000000585022',
+            '00000000-0000-0000-0000-000000585104');
+  EXCEPTION WHEN insufficient_privilege THEN refused := true;
+  END;
+  IF NOT refused THEN
+    RAISE EXCEPTION 'FAIL 9.0 threads_insert accepted a thread on a club-less show (MYK9-585)';
+  END IF;
+  RAISE NOTICE 'PASS 9.0 threads_insert is club-scoped';
+
+  -- messages_insert. sender_id must be the caller (its own first conjunct), so
+  -- the club admin sends into a thread they do not participate in.
+  INSERT INTO public.show_messages (id, show_id, thread_id, sender_id, body)
+  VALUES ('00000000-0000-0000-0000-000000585063', '00000000-0000-0000-0000-000000585021',
+          '00000000-0000-0000-0000-000000585051', '00000000-0000-0000-0000-000000585101',
+          'MYK9-585 staff reply, club A');
+  refused := false;
+  BEGIN
+    INSERT INTO public.show_messages (id, show_id, thread_id, sender_id, body)
+    VALUES ('00000000-0000-0000-0000-000000585064', '00000000-0000-0000-0000-000000585022',
+            '00000000-0000-0000-0000-000000585052', '00000000-0000-0000-0000-000000585101',
+            'MYK9-585 staff reply, club-less');
+  EXCEPTION WHEN insufficient_privilege THEN refused := true;
+  END;
+  IF NOT refused THEN
+    RAISE EXCEPTION 'FAIL 9.1 messages_insert accepted a message on a club-less show (MYK9-585)';
+  END IF;
+  RAISE NOTICE 'PASS 9.1 messages_insert is club-scoped';
+
+  -- messages_update_read. Its USING clause is textually the same predicate as
+  -- messages_select, so 9.3's zero row count is not INDEPENDENT evidence about
+  -- this policy — it would be zero if either one denied. 9.2 is what makes the
+  -- case worth running: it proves this policy admits the caller where it should,
+  -- which case 4's read-only assertions cannot show.
+  UPDATE public.show_messages SET body = body
+   WHERE id = '00000000-0000-0000-0000-000000585061';
+  GET DIAGNOSTICS n = ROW_COUNT;
+  IF n <> 1 THEN
+    RAISE EXCEPTION 'FAIL 9.2 club admin lost messages_update_read on their own club''s message';
+  END IF;
+  UPDATE public.show_messages SET body = body
+   WHERE id = '00000000-0000-0000-0000-000000585062';
+  GET DIAGNOSTICS n = ROW_COUNT;
+  IF n <> 0 THEN
+    RAISE EXCEPTION 'FAIL 9.3 messages_update_read reached a club-less show''s message (MYK9-585)';
+  END IF;
+  RAISE NOTICE 'PASS 9.x threads_insert / messages_insert / messages_update_read are club-scoped';
+
+  RESET ROLE;
+END $case8$;
+
+-- ---------------------------------------------------------------------------
 -- 5. The club SECRETARY — the second arm, a separate helper with the same
 --    NULL-wildcard collapse.
 -- ---------------------------------------------------------------------------
@@ -417,5 +570,53 @@ BEGIN
 
   RESET ROLE;
 END $case6$;
+
+-- ---------------------------------------------------------------------------
+-- 10. The PUBLIC arm is untouched.
+--
+-- Every other case asserts that something got narrower, and a change that
+-- narrowed too much would pass all of them. trials_select and classes_select are
+-- granted to PUBLIC, and their `status IN ('published', ...)` arm is what a
+-- prospective exhibitor, a TV display and a search engine read a premium list
+-- through. 20260916015300 guarded the CLUB arm beside it and must not have
+-- touched that one — including for the club-LESS published show, whose schedule
+-- stays public precisely because the public arm never looked at club_id.
+--
+-- anon holds column-level SELECT on classes (no table-level grant), so the count
+-- names a column rather than *.
+-- ---------------------------------------------------------------------------
+DO $case10$
+DECLARE n integer;
+BEGIN
+  SET LOCAL ROLE anon;
+
+  SELECT count(t.id) INTO n FROM public.trials t
+   WHERE t.id IN ('00000000-0000-0000-0000-000000585031',
+                  '00000000-0000-0000-0000-000000585033');
+  IF n <> 2 THEN
+    RAISE EXCEPTION
+      'FAIL 10.0 anon lost the published shows'' trials (got %) — the public arm was narrowed', n;
+  END IF;
+
+  SELECT count(c.id) INTO n FROM public.classes c
+   WHERE c.id IN ('00000000-0000-0000-0000-000000585041',
+                  '00000000-0000-0000-0000-000000585043');
+  IF n <> 2 THEN
+    RAISE EXCEPTION
+      'FAIL 10.1 anon lost the published shows'' classes (got %) — the public arm was narrowed', n;
+  END IF;
+  RAISE NOTICE 'PASS 10.x anon still reads published shows'' trials and classes, club-less included';
+
+  -- ...and the draft show is still not public, so 10.0/10.1 are not simply
+  -- "anon sees everything".
+  SELECT count(t.id) INTO n FROM public.trials t
+   WHERE t.id = '00000000-0000-0000-0000-000000585032';
+  IF n <> 0 THEN
+    RAISE EXCEPTION 'FAIL 10.2 anon reads a DRAFT show''s trial';
+  END IF;
+  RAISE NOTICE 'PASS 10.2 anon still cannot read a draft show''s trial';
+
+  RESET ROLE;
+END $case10$;
 
 ROLLBACK;

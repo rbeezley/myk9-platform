@@ -186,3 +186,93 @@ export function latestViewDefinition(viewName: string): { file: string; body: st
   if (!latest) throw new Error(`no migration defines ${viewName}`);
   return latest;
 }
+
+/**
+ * Is THIS helper call guarded — not "does the policy body mention a guard
+ * somewhere".
+ *
+ * MYK9-585 review round 1 killed the whole-body version of this check with a
+ * two-line probe: re-ALTER `trials_select` keeping
+ * `s.club_id IS NOT NULL AND is_club_admin(s.club_id)` and dropping the guard
+ * from the `is_trial_secretary(s.club_id)` arm beside it, and a body-level
+ * `/club_id is not null/` test stays green while half the policy is exploitable
+ * again. That is the same "a guarded call satisfies the check on behalf of an
+ * unguarded one" failure the function-scanner header rejects three heuristics
+ * for, reappearing one abstraction down.
+ *
+ * So this decides the ONE question a regex can actually answer about SQL
+ * boolean structure: walking from the call outward through its enclosing
+ * parenthesis groups, does some group AND the guard onto this call?
+ *
+ *   1. Take the text from a group's opening paren to the call.
+ *   2. Mask every NESTED parenthesis group in it. What survives is that
+ *      group's own top level — a guard sitting inside a sibling `(... AND ...)`
+ *      arm is masked out, which is exactly what defeats the probe above.
+ *   3. Keep only what follows the LAST top-level `OR`. That is the conjunct the
+ *      call belongs to; anything before an `OR` is a different arm and cannot
+ *      guard it.
+ *   4. The guard must name the SAME column the call passes.
+ *
+ * Deliberately NOT a SQL parser, and it does not need to be: it can be fooled
+ * only into calling a guarded call unguarded (a guard expressed some way this
+ * does not recognise), which fails loud and a human reads the SQL — never the
+ * other way, which is the direction that ships a hole. The REGISTRY above is
+ * still what catches a call site nobody has looked at; this is what catches a
+ * site that is listed but not actually guarded.
+ */
+export function isCallGuarded(
+  body: string,
+  callIndex: number,
+  argument: string,
+  table: string
+): boolean {
+  // The guard may name the column exactly as the call does (`s.club_id IS NOT
+  // NULL`), or bare (`club_id IS NOT NULL`) — but bare ONLY when the argument
+  // is the policy's own table's column, since a bare `club_id` in a policy body
+  // is that table's row. Accepting bare for an aliased argument would let
+  // another table's guard vouch for this call.
+  const column = argument.includes('.') ? argument.slice(argument.indexOf('.') + 1) : argument;
+  const qualifier = argument.includes('.') ? argument.slice(0, argument.indexOf('.')) : '';
+  const ownTable = qualifier === '' || qualifier.toLowerCase() === table.toLowerCase();
+  const forms = ownTable ? [argument, column] : [argument];
+  const guard = new RegExp(
+    `(?:${forms.map(f => f.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|')})\\s+IS\\s+NOT\\s+NULL`,
+    'i'
+  );
+
+  // Every parenthesis group still open at the call, innermost last, plus the
+  // whole body as the outermost scope.
+  const openings: number[] = [];
+  for (let i = 0; i < callIndex; i += 1) {
+    if (body[i] === '(') openings.push(i);
+    else if (body[i] === ')') openings.pop();
+  }
+  const scopes = [...openings].reverse();
+  scopes.push(-1);
+
+  for (const start of scopes) {
+    const inner = body.slice(start + 1, callIndex);
+
+    let depth = 0;
+    let topLevel = '';
+    for (const character of inner) {
+      if (character === '(') {
+        depth += 1;
+        topLevel += ' ';
+      } else if (character === ')') {
+        depth = Math.max(0, depth - 1);
+        topLevel += ' ';
+      } else {
+        topLevel += depth > 0 ? ' ' : character;
+      }
+    }
+
+    const orSplits = [...topLevel.matchAll(/\bOR\b/gi)];
+    const lastOr = orSplits.length > 0 ? orSplits[orSplits.length - 1]! : undefined;
+    const conjunct = lastOr ? topLevel.slice(lastOr.index + lastOr[0].length) : topLevel;
+
+    if (guard.test(conjunct)) return true;
+  }
+
+  return false;
+}

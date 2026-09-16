@@ -4,18 +4,15 @@
 -- an entry.
 --
 -- Why this file exists: the guard used to be an anonymous DO $$ block inside
--- seed-demo.sql, so its only automated coverage was a source-text test that
--- read the file. A reviewer ran ten arm-neutering mutations inside the guard
--- (AND 1=0, LIMIT 0, v_real := 0;, an emptied `substantiated` CTE) and eight
--- passed with every assertion green. The cases below run the guard and read its
--- disposition instead.
+-- seed-demo.sql, so its only automated coverage was a source-text test. Ten
+-- arm-neutering mutations run inside the guard left eight of them green. The
+-- cases below run the guard and read its disposition instead.
 --
--- What is asserted, and what is not. The guard has two dispositions: ABORT
--- (RAISE EXCEPTION) and WARN-then-cascade (RAISE WARNING). A RAISE WARNING
--- cannot be trapped from inside SQL, so "the bare row warns" is asserted here
--- as "the bare row does NOT abort" — the disposition that decides whether the
--- reseed destroys the row. The warning TEXT is a source-text claim and is
--- pinned in apps/myk9show/src/test/database/
+-- The guard has two dispositions: ABORT (RAISE EXCEPTION) and WARN-then-cascade
+-- (RAISE WARNING). A RAISE WARNING cannot be trapped from inside SQL, so "the
+-- bare row warns" is asserted here as "the bare row does NOT abort" — the
+-- disposition that decides whether the reseed destroys the row. The warning TEXT
+-- is a source-text claim, pinned in apps/myk9show/src/test/database/
 -- seedDemoSelfCleaningRelationshipDeleteContract.test.ts.
 --
 -- Scope of THIS file: the entries arms and the substantiated/bare split. The
@@ -38,6 +35,24 @@ BEGIN
 EXCEPTION WHEN OTHERS THEN
   RETURN SQLERRM;
 END;
+$$;
+
+-- Vacuity control for every "does NOT abort" case below. A lenient verdict is
+-- only meaningful if the row is still THERE, still paid, and still inside the
+-- guard's scope: if a future change dropped zero-fee paid rows out of the
+-- `stray` CTE entirely, `err IS NULL` would go on passing while the guard had
+-- stopped looking. The show ids are restated as literals on purpose — deriving
+-- them from the guard would make this control agree with the bug.
+CREATE FUNCTION pg_temp.paid_row_in_scope(p_id uuid) RETURNS boolean
+LANGUAGE sql AS $$
+  SELECT EXISTS (
+    SELECT 1 FROM public.entries e
+    WHERE e.id = p_id
+      AND e.payment_status IN ('paid', 'refunded')
+      AND e.show_id IN ('dededede-0000-0000-0000-000000000010',
+                        'dededede-0000-0000-0000-000000000011',
+                        'dededede-0000-0000-0000-000000000012')
+  );
 $$;
 
 -- --- F538.0 the guard is a seed-maintenance function, not a client RPC -------
@@ -128,17 +143,15 @@ BEGIN
 END;
 $$;
 
--- --- the four entry cascade arms, one corroboration column each --------------
+-- --- the entry cascade arms, one corroboration column each ------------------
 -- entries cascades from classes, dogs, shows and trials (confdeltype='c' on all
 -- four) and the seed deletes all four, so every arm below is a live route to a
--- destroyed money row. Neutering any ONE of them is the mutation this file
--- exists to catch: each case is in scope through exactly one column.
+-- destroyed money row. Each case is in scope through exactly ONE column, so
+-- neutering any single arm turns exactly one case red.
 
--- A. show_id + stripe_payment_intent_id. Both the intent column and the
---    refund-decision column below are service-role-only on INSERT
---    (trg_entries_protect_payment_fields_insert,
---    trg_restrict_entry_refund_decision_columns_insert), so those two fixtures
---    are written as service_role and the role is reset before the guard runs.
+-- A. show_id + stripe_payment_intent_id. The intent column is service-role-only
+--    on INSERT (trg_entries_protect_payment_fields_insert), so this fixture is
+--    written as service_role and the role is reset before the guard runs.
 SET LOCAL ROLE service_role;
 INSERT INTO public.entries (id, show_id, payment_status, entry_fee, stripe_payment_intent_id)
 VALUES ('00000000-0000-0000-0000-000000538101', 'dededede-0000-0000-0000-000000000010',
@@ -160,8 +173,7 @@ $$;
 DELETE FROM public.entries WHERE id = '00000000-0000-0000-0000-000000538101';
 
 -- B. trial_id + payment_reference. show_id is NULL on purpose: nothing
---    constrains an entry's show_id to agree with its trial's show, which is
---    why the arms are a disjunction rather than one scope column.
+--    constrains an entry's show_id to agree with its trial's show.
 INSERT INTO public.entries (id, trial_id, payment_status, entry_fee, payment_reference)
 VALUES ('00000000-0000-0000-0000-000000538102', 'dededede-0000-0000-0000-000000000021',
         'paid', 30.00, 'CHK-4417');
@@ -214,9 +226,8 @@ $$;
 DELETE FROM public.entries WHERE id = '00000000-0000-0000-0000-000000538104';
 
 -- E. the hand-authored demo dog LIST + a recorded cheque at a ZERO fee.
---    MYK9-539 narrows payment_method as corroboration, but only for
---    'secretary_paid' (the wizard's zero-fee default). A cheque is a recorded
---    payment at any fee and must still abort.
+--    MYK9-539 narrows payment_method as corroboration for 'secretary_paid'
+--    alone; a cheque is a recorded payment at any fee and must still abort.
 INSERT INTO public.entries (id, dog_id, payment_status, entry_fee, payment_method)
 VALUES ('00000000-0000-0000-0000-000000538105', 'dededede-0000-0000-0000-000000000041',
         'paid', 0.00, 'check');
@@ -235,12 +246,19 @@ DELETE FROM public.entries WHERE id = '00000000-0000-0000-0000-000000538105';
 
 -- --- the remaining corroboration columns ------------------------------------
 -- refunded_at, refund_amount, refund_decided_at, entry_status_history and a
--- stripe_orders row naming the entry. Each is the ONLY trail on its row, so
--- dropping any one of them from the substantiated CTE turns that case red.
+-- stripe_orders row naming the entry. Each is the ONLY trail on its row.
 
+-- refund_amount / refund_notes / refunded_at are reserved for
+-- stripe-refund-entry by trg_restrict_entry_refund_columns_insert, and
+-- refund_decided_at for set_entry_refund_decision by
+-- trg_restrict_entry_refund_decision_columns_insert. All three fixtures are
+-- therefore written as service_role, the role the ops runbook uses for a manual
+-- fix, and the role is reset before the guard runs.
+SET LOCAL ROLE service_role;
 INSERT INTO public.entries (id, show_id, payment_status, entry_fee, refunded_at)
 VALUES ('00000000-0000-0000-0000-000000538106', 'dededede-0000-0000-0000-000000000011',
         'refunded', 30.00, TIMESTAMPTZ '2026-10-31 12:00:00+00');
+RESET ROLE;
 
 DO $$
 DECLARE err text := pg_temp.guard_error();
@@ -254,9 +272,11 @@ END;
 $$;
 DELETE FROM public.entries WHERE id = '00000000-0000-0000-0000-000000538106';
 
+SET LOCAL ROLE service_role;
 INSERT INTO public.entries (id, show_id, payment_status, entry_fee, refund_amount)
 VALUES ('00000000-0000-0000-0000-000000538107', 'dededede-0000-0000-0000-000000000012',
         'paid', 30.00, 15.00);
+RESET ROLE;
 
 DO $$
 DECLARE err text := pg_temp.guard_error();
@@ -289,7 +309,9 @@ $$;
 DELETE FROM public.entries WHERE id = '00000000-0000-0000-0000-000000538108';
 
 -- entry_status_history is append-only through the status trigger, so the row is
--- created bare and then moved through a status change.
+-- created bare and then moved through a status change. dog_id stays NULL, which
+-- is also what makes auto_assign_armband_on_accept step aside on the move into
+-- 'confirmed' instead of minting an armband.
 INSERT INTO public.entries (id, show_id, payment_status, entry_fee, entry_status)
 VALUES ('00000000-0000-0000-0000-000000538109', 'dededede-0000-0000-0000-000000000010',
         'paid', 30.00, 'submitted');
@@ -337,7 +359,8 @@ DELETE FROM public.entries WHERE id = '00000000-0000-0000-0000-000000538110';
 
 -- --- the bare / lenient side ------------------------------------------------
 -- The split is the whole design: aborting on QA-walk artifacts put a mandatory
--- manual DELETE in front of the reseed, which is the recovery tool.
+-- manual DELETE in front of the reseed, the tool used when staging is broken.
+-- Every case here carries a vacuity control (pg_temp.paid_row_in_scope).
 
 INSERT INTO public.entries (id, show_id, payment_status, entry_fee)
 VALUES ('00000000-0000-0000-0000-000000538112', 'dededede-0000-0000-0000-000000000010',
@@ -346,6 +369,9 @@ VALUES ('00000000-0000-0000-0000-000000538112', 'dededede-0000-0000-0000-0000000
 DO $$
 DECLARE err text := pg_temp.guard_error();
 BEGIN
+  IF NOT pg_temp.paid_row_in_scope('00000000-0000-0000-0000-000000538112') THEN
+    RAISE EXCEPTION 'FAIL F538.12 the fixture is not a paid row inside the guard''s scope, so a quiet guard proves nothing';
+  END IF;
   IF err IS NOT NULL THEN
     RAISE EXCEPTION 'FAIL F538.12 a paid entry with no trail at all aborted the reseed: %', err;
   END IF;
@@ -354,9 +380,8 @@ END;
 $$;
 DELETE FROM public.entries WHERE id = '00000000-0000-0000-0000-000000538112';
 
--- MYK9-539: 'secretary_paid' is the secretary wizard's DEFAULT method and is
--- routinely written on a zero-fee entry, where no money moved. It used to abort
--- the reseed over that artifact.
+-- MYK9-539: 'secretary_paid' is the wizard's DEFAULT method and is routinely
+-- written on a zero-fee entry, where no money moved. It used to abort here.
 INSERT INTO public.entries (id, show_id, payment_status, entry_fee, payment_method)
 VALUES ('00000000-0000-0000-0000-000000538113', 'dededede-0000-0000-0000-000000000010',
         'paid', 0.00, 'secretary_paid');
@@ -364,6 +389,9 @@ VALUES ('00000000-0000-0000-0000-000000538113', 'dededede-0000-0000-0000-0000000
 DO $$
 DECLARE err text := pg_temp.guard_error();
 BEGIN
+  IF NOT pg_temp.paid_row_in_scope('00000000-0000-0000-0000-000000538113') THEN
+    RAISE EXCEPTION 'FAIL F538.13 the fixture is not a paid row inside the guard''s scope, so a quiet guard proves nothing';
+  END IF;
   IF err IS NOT NULL THEN
     RAISE EXCEPTION 'FAIL F538.13 a zero-fee secretary_paid entry still aborts the reseed (MYK9-539): %', err;
   END IF;
@@ -372,7 +400,10 @@ END;
 $$;
 DELETE FROM public.entries WHERE id = '00000000-0000-0000-0000-000000538113';
 
--- …and the same method on a row that DID carry a fee is money again.
+-- …and the same method on a row that DID carry a fee is money again. The two
+-- further lenient-branch cases — a NULL entry_fee, and payment_method='waived'
+-- — live in seed_demo_paid_stray_guard_scopes_test.sql, which holds the rest of
+-- the disposition split.
 INSERT INTO public.entries (id, show_id, payment_status, entry_fee, payment_method)
 VALUES ('00000000-0000-0000-0000-000000538114', 'dededede-0000-0000-0000-000000000010',
         'paid', 30.00, 'secretary_paid');
@@ -403,6 +434,18 @@ VALUES ('00000000-0000-0000-0000-000000538116', '00000000-0000-0000-0000-0000005
 DO $$
 DECLARE err text := pg_temp.guard_error();
 BEGIN
+  IF NOT EXISTS (SELECT 1 FROM public.entries
+                 WHERE id = '00000000-0000-0000-0000-000000538115'
+                   AND payment_status = 'pending'
+                   AND show_id = 'dededede-0000-0000-0000-000000000010') THEN
+    RAISE EXCEPTION 'FAIL F538.15 the pending fixture is not a pending row on a deleted show, so a quiet guard proves nothing';
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM public.entries
+                 WHERE id = '00000000-0000-0000-0000-000000538116'
+                   AND payment_status = 'paid'
+                   AND show_id = '00000000-0000-0000-0000-000000538003') THEN
+    RAISE EXCEPTION 'FAIL F538.15 the out-of-scope fixture is not a paid row on the unrelated show, so a quiet guard proves nothing';
+  END IF;
   IF err IS NOT NULL THEN
     RAISE EXCEPTION 'FAIL F538.15 the guard reached past its scope, or aborted on a pending entry: %', err;
   END IF;

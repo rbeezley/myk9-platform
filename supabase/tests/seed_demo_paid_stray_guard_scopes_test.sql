@@ -1,9 +1,11 @@
--- MYK9-538 behavioral contract, part 2: the enrollments (MYK9-528) and
--- stripe_orders (MYK9-527) arms of public.seed_demo_assert_no_paid_strays()
--- (migration 20260916213500). Part 1, covering the entries arms and the
--- substantiated/bare split, is supabase/tests/seed_demo_paid_stray_guard_test.sql;
--- split only to keep each file under the repo's 500-line ceiling. Both files
--- are registered in scripts/qa/run-behavioral-sql-tests.sh.
+-- MYK9-538 behavioral contract, part 2 of public.seed_demo_assert_no_paid_strays()
+-- (migration 20260916213500): the enrollments (MYK9-528) and stripe_orders
+-- (MYK9-527) arms, plus the two remaining lenient-branch entry cases that did
+-- not fit part 1. Part 1 — the entry cascade arms and the rest of the
+-- substantiated/bare split — is
+-- supabase/tests/seed_demo_paid_stray_guard_test.sql; the split exists only to
+-- keep each file under the repo's 500-line ceiling. Both files are registered
+-- in scripts/qa/run-behavioral-sql-tests.sh and in launchCriticalSqlTests.
 --
 -- All fixtures roll back.
 
@@ -18,6 +20,22 @@ BEGIN
 EXCEPTION WHEN OTHERS THEN
   RETURN SQLERRM;
 END;
+$$;
+
+-- Vacuity control for the "does NOT abort" cases: a lenient verdict only means
+-- something if the row is still there, still paid, and still in scope. The show
+-- ids are restated as literals rather than derived from the guard, so this
+-- control cannot agree with a bug in the guard.
+CREATE FUNCTION pg_temp.paid_row_in_scope(p_id uuid) RETURNS boolean
+LANGUAGE sql AS $$
+  SELECT EXISTS (
+    SELECT 1 FROM public.entries e
+    WHERE e.id = p_id
+      AND e.payment_status IN ('paid', 'refunded')
+      AND e.show_id IN ('dededede-0000-0000-0000-000000000010',
+                        'dededede-0000-0000-0000-000000000011',
+                        'dededede-0000-0000-0000-000000000012')
+  );
 $$;
 
 -- --- fixtures ---------------------------------------------------------------
@@ -163,5 +181,48 @@ BEGIN
   RAISE NOTICE 'PASS F538.22 an order on an unrelated show is left alone';
 END;
 $$;
+
+-- --- the remaining lenient-branch entry cases (MYK9-539) --------------------
+-- entry_fee IS NULL folds to the LENIENT branch, because the corroboration test
+-- is `coalesce(entry_fee, 0) > 0`. Defensible — an unpriced entry is not a
+-- payment — but pin it, so it is a decision and not an accident of coalesce.
+INSERT INTO public.entries (id, show_id, payment_status, entry_fee, payment_method)
+VALUES ('00000000-0000-0000-0000-000000538118', 'dededede-0000-0000-0000-000000000010',
+        'paid', NULL, 'secretary_paid');
+
+DO $$
+DECLARE err text := pg_temp.guard_error();
+BEGIN
+  IF NOT pg_temp.paid_row_in_scope('00000000-0000-0000-0000-000000538118') THEN
+    RAISE EXCEPTION 'FAIL F538.23 the fixture is not a paid row inside the guard''s scope, so a quiet guard proves nothing';
+  END IF;
+  IF err IS NOT NULL THEN
+    RAISE EXCEPTION 'FAIL F538.23 a secretary_paid entry with a NULL entry_fee aborts the reseed; decide it deliberately if that is wanted: %', err;
+  END IF;
+  RAISE NOTICE 'PASS F538.23 secretary_paid with a NULL entry_fee is treated as unpriced, not as money (MYK9-539)';
+END;
+$$;
+DELETE FROM public.entries WHERE id = '00000000-0000-0000-0000-000000538118';
+
+-- 'waived' is excluded by name, at any fee: a waived entry is the one method
+-- that asserts NO money changed hands. Without this case the method arm could
+-- be rewritten to match every non-null method and stay green.
+INSERT INTO public.entries (id, show_id, payment_status, entry_fee, payment_method)
+VALUES ('00000000-0000-0000-0000-000000538119', 'dededede-0000-0000-0000-000000000010',
+        'paid', 30.00, 'waived');
+
+DO $$
+DECLARE err text := pg_temp.guard_error();
+BEGIN
+  IF NOT pg_temp.paid_row_in_scope('00000000-0000-0000-0000-000000538119') THEN
+    RAISE EXCEPTION 'FAIL F538.24 the fixture is not a paid row inside the guard''s scope, so a quiet guard proves nothing';
+  END IF;
+  IF err IS NOT NULL THEN
+    RAISE EXCEPTION 'FAIL F538.24 a waived entry carrying a fee aborts the reseed: %', err;
+  END IF;
+  RAISE NOTICE 'PASS F538.24 payment_method = waived is not corroboration, even at a non-zero fee';
+END;
+$$;
+DELETE FROM public.entries WHERE id = '00000000-0000-0000-0000-000000538119';
 
 ROLLBACK;

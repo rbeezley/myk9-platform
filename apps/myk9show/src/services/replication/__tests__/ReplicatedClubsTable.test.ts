@@ -893,18 +893,48 @@ describe('ReplicatedClubsTable', () => {
 
         expect(reconcileSpy).toHaveBeenCalledTimes(1);
       });
+
+      // MYK9-572 round 4 (P1-2): a Supabase ANONYMOUS session (the at-show
+      // passcode flow) carries a real `session.user`, so `!!session` alone
+      // treated it as authenticated — this must be excluded the same as a
+      // null session, not just a missing user.
+      it('does not prune when the session is anonymous (is_anonymous: true)', async () => {
+        const { supabase } = await import('@/services/database/supabaseClient');
+        vi.mocked(supabase.auth.getSession).mockResolvedValueOnce({
+          data: { session: { user: { id: 'anon-device-1', is_anonymous: true } } },
+        } as never);
+        mockRemoteRows();
+
+        const reconcileSpy = vi.spyOn(table, 'reconcileVisibility');
+
+        const result = await table.sync();
+
+        expect(result.success).toBe(true);
+        expect(reconcileSpy).not.toHaveBeenCalled();
+      });
     });
 
     // MYK9-572 round 2 (P1-1): a visibility EXPANSION (a pruned club becomes
     // visible again) has no incremental-sync signal, so a prune — or a
     // sign-in transition — must force the NEXT sync to be a full re-fetch.
     describe('forces a full resync after a prune, and on sign-in', () => {
+      // Round 4 (P3-3): reconcileVisibility now makes a `count: 'exact',
+      // head: true` probe before its id fetch, as a THIRD distinct query
+      // shape sharing this same mocked `from()` alongside fetchRemoteRows'
+      // `.select('*').is().gt().order()` and the id fetch's
+      // `.select('id').is().limit()`. Dispatch on the presence of the
+      // `head` option so all three keep working through one mock.
       function mockSyncAndReconcile(remoteRows: unknown[], liveIds: { id: string }[]) {
         const mockOrder = vi.fn().mockResolvedValue({ data: remoteRows, error: null });
-        const mockLimit = vi.fn().mockResolvedValue({ data: liveIds, error: null });
         const mockGt = vi.fn().mockReturnValue({ order: mockOrder });
-        const mockIs = vi.fn().mockReturnValue({ gt: mockGt, limit: mockLimit });
-        const mockSelect = vi.fn().mockReturnValue({ is: mockIs });
+        const mockLimit = vi.fn().mockResolvedValue({ data: liveIds, error: null });
+        const countIs = vi.fn().mockResolvedValue({ count: liveIds.length, error: null });
+        const fetchIs = vi.fn().mockReturnValue({ gt: mockGt, limit: mockLimit });
+        const mockSelect = vi
+          .fn()
+          .mockImplementation((_col: string, opts?: { head?: boolean }) =>
+            opts?.head ? { is: countIs } : { is: fetchIs }
+          );
         vi.mocked(supabaseMock.from).mockReturnValue({ select: mockSelect });
         return { mockGt };
       }
@@ -971,6 +1001,117 @@ describe('ReplicatedClubsTable', () => {
         await table.sync();
 
         expect(mockGt).toHaveBeenCalledWith('updated_at', new Date(0).toISOString());
+      });
+
+      // MYK9-572 round 4 (P1-2): an anonymous session (is_anonymous: true) is
+      // principal null, same as no session — signing in for real afterwards
+      // must still be treated as a null->user transition and force a full
+      // resync, not be masked by the anon session's truthy `session.user`.
+      it('passes forceFullSync on the first sync after an anonymous->authenticated transition', async () => {
+        const { supabase } = await import('@/services/database/supabaseClient');
+        await table.set('club-kept', {
+          id: 'club-kept',
+          name: 'Kept Club',
+          email: 'kept@club.com',
+          phone: '555-1111',
+        });
+        await table.updateSyncMetadata({ lastIncrementalSyncAt: Date.now() - 60000 });
+
+        // Call 1: anonymous session (at-show passcode flow).
+        vi.mocked(supabase.auth.getSession).mockResolvedValueOnce({
+          data: { session: { user: { id: 'anon-device-1', is_anonymous: true } } },
+        } as never);
+        mockSyncAndReconcile([], []);
+        await table.sync();
+
+        // Call 2: now signed in for real — this is the transition.
+        vi.mocked(supabase.auth.getSession).mockResolvedValueOnce({
+          data: { session: { user: { id: 'u1' } } },
+        } as never);
+        const { mockGt } = mockSyncAndReconcile([], [{ id: 'club-kept' }]);
+        await table.sync();
+
+        expect(mockGt).toHaveBeenCalledWith('updated_at', new Date(0).toISOString());
+      });
+
+      // MYK9-572 round 4 (P1-2): a device shared between two signed-in
+      // accounts (userA signs out, userB signs in) must heal exactly like a
+      // sign-in from anon — the incremental path has no signal for a club
+      // newly visible only to userB.
+      it('passes forceFullSync on the first sync after a userA->userB transition', async () => {
+        const { supabase } = await import('@/services/database/supabaseClient');
+        await table.set('club-kept', {
+          id: 'club-kept',
+          name: 'Kept Club',
+          email: 'kept@club.com',
+          phone: '555-1111',
+        });
+        await table.updateSyncMetadata({ lastIncrementalSyncAt: Date.now() - 60000 });
+
+        // Call 1: userA.
+        vi.mocked(supabase.auth.getSession).mockResolvedValueOnce({
+          data: { session: { user: { id: 'userA' } } },
+        } as never);
+        mockSyncAndReconcile([], [{ id: 'club-kept' }]);
+        await table.sync();
+
+        // Call 2: userB signs in on the same device — this is the transition.
+        vi.mocked(supabase.auth.getSession).mockResolvedValueOnce({
+          data: { session: { user: { id: 'userB' } } },
+        } as never);
+        const { mockGt } = mockSyncAndReconcile([], [{ id: 'club-kept' }]);
+        await table.sync();
+
+        expect(mockGt).toHaveBeenCalledWith('updated_at', new Date(0).toISOString());
+      });
+
+      // MYK9-572 round 4 (P3-4): a failed sync must not consume the pending
+      // force flag — the next attempt should still force a full resync
+      // rather than silently reverting to incremental.
+      it('keeps _forceFullSyncNext pending across a failed sync', async () => {
+        const { supabase } = await import('@/services/database/supabaseClient');
+        vi.mocked(supabase.auth.getSession).mockResolvedValue({
+          data: { session: { user: { id: 'u1' } } },
+        } as never);
+
+        await table.set('club-revoked', {
+          id: 'club-revoked',
+          name: 'Revoked Club',
+          email: 'revoked@club.com',
+          phone: '555-0000',
+        });
+        await table.set('club-kept', {
+          id: 'club-kept',
+          name: 'Kept Club',
+          email: 'kept@club.com',
+          phone: '555-1111',
+        });
+        await table.updateSyncMetadata({ lastIncrementalSyncAt: Date.now() - 60000 });
+
+        // Call 1: prunes club-revoked, setting _forceFullSyncNext.
+        mockSyncAndReconcile([], [{ id: 'club-kept' }]);
+        await table.sync();
+        expect(await table.get('club-revoked')).toBeNull();
+
+        // Call 2: the remote fetch itself fails.
+        const mockOrder = vi.fn().mockResolvedValue({
+          data: null,
+          error: { message: 'Network error' },
+        });
+        const mockGt = vi.fn().mockReturnValue({ order: mockOrder });
+        const mockIs = vi.fn().mockReturnValue({ gt: mockGt });
+        const mockSelect = vi.fn().mockReturnValue({ is: mockIs });
+        vi.mocked(supabase.from).mockReturnValue({ select: mockSelect } as never);
+
+        const failedResult = await table.sync();
+        expect(failedResult.success).toBe(false);
+
+        // Call 3: succeeds — the pending force from call 1 must still apply,
+        // since call 2 never consumed it.
+        const { mockGt: mockGtCall3 } = mockSyncAndReconcile([], [{ id: 'club-kept' }]);
+        await table.sync();
+
+        expect(mockGtCall3).toHaveBeenCalledWith('updated_at', new Date(0).toISOString());
       });
     });
 
@@ -1594,6 +1735,25 @@ describe('ReplicatedClubsTable', () => {
   // live/visible id set, the same pattern ReplicatedDogsTable.
   // reconcileDeleted() already uses.
   describe('reconcileVisibility (MYK9-572)', () => {
+    // Round 4 (P3-3): reconcileVisibility now makes TWO calls — a
+    // `count: 'exact', head: true` probe for the true total (PostgREST's
+    // own max_rows=1000 caps the row-fetch response regardless of
+    // `.limit()`, so the row count alone can never prove truncation), then
+    // the actual id fetch. Build a two-call `from()` mock accordingly.
+    function mockCountAndFetch(count: number, rows: { id: string }[] | null, fetchError?: unknown) {
+      const countIs = vi.fn().mockResolvedValue({ count, error: null });
+      const countSelect = vi.fn().mockReturnValue({ is: countIs });
+
+      const mockLimit = vi.fn().mockResolvedValue({
+        data: rows,
+        error: fetchError ?? null,
+      });
+      const dataIs = vi.fn().mockReturnValue({ limit: mockLimit });
+      const dataSelect = vi.fn().mockReturnValue({ is: dataIs });
+
+      return { countSelect, countIs, dataSelect, mockLimit };
+    }
+
     it('removes a locally-cached club that is absent from the live id list', async () => {
       await table.set('club-visible', {
         id: 'club-visible',
@@ -1608,35 +1768,49 @@ describe('ReplicatedClubsTable', () => {
         phone: '555-2222',
       });
 
-      const mockLimit = vi.fn().mockResolvedValue({
-        data: [{ id: 'club-visible' }],
-        error: null,
-      });
-      const mockIs = vi.fn().mockReturnValue({ limit: mockLimit });
-      const mockSelect = vi.fn().mockReturnValue({ is: mockIs });
+      const { countSelect, dataSelect } = mockCountAndFetch(1, [{ id: 'club-visible' }]);
 
       const { supabase } = await import('@/services/database/supabaseClient');
-      vi.mocked(supabase.from).mockReturnValue(fromAny({ select: mockSelect }));
+      vi.mocked(supabase.from)
+        .mockReturnValueOnce(fromAny({ select: countSelect }))
+        .mockReturnValueOnce(fromAny({ select: dataSelect }));
 
       const removed = await table.reconcileVisibility();
 
       expect(removed).toBe(1);
       expect(await table.get('club-visible')).not.toBeNull();
       expect(await table.get('club-revoked')).toBeNull();
+      // Count-column LESSON: name the column, never '*', on an
+      // allowlisted table (docs/lessons/README.md#postgrest-count-column).
+      expect(countSelect).toHaveBeenCalledWith('id', { count: 'exact', head: true });
+    });
+
+    it('removes nothing when the count probe fails (never prune against a partial set)', async () => {
+      await table.set('club-a', { id: 'club-a', name: 'Club A', email: 'a@club.com', phone: '1' });
+
+      const countIs = vi
+        .fn()
+        .mockResolvedValue({ count: null, error: { message: 'network error' } });
+      const countSelect = vi.fn().mockReturnValue({ is: countIs });
+
+      const { supabase } = await import('@/services/database/supabaseClient');
+      vi.mocked(supabase.from).mockReturnValue(fromAny({ select: countSelect }));
+
+      const removed = await table.reconcileVisibility();
+
+      expect(removed).toBe(0);
+      expect(await table.get('club-a')).not.toBeNull();
     });
 
     it('removes nothing when the id fetch fails (never prune against a partial set)', async () => {
       await table.set('club-a', { id: 'club-a', name: 'Club A', email: 'a@club.com', phone: '1' });
 
-      const mockLimit = vi.fn().mockResolvedValue({
-        data: null,
-        error: { message: 'network error' },
-      });
-      const mockIs = vi.fn().mockReturnValue({ limit: mockLimit });
-      const mockSelect = vi.fn().mockReturnValue({ is: mockIs });
+      const { countSelect, dataSelect } = mockCountAndFetch(1, null, { message: 'network error' });
 
       const { supabase } = await import('@/services/database/supabaseClient');
-      vi.mocked(supabase.from).mockReturnValue(fromAny({ select: mockSelect }));
+      vi.mocked(supabase.from)
+        .mockReturnValueOnce(fromAny({ select: countSelect }))
+        .mockReturnValueOnce(fromAny({ select: dataSelect }));
 
       const removed = await table.reconcileVisibility();
 
@@ -1644,27 +1818,40 @@ describe('ReplicatedClubsTable', () => {
       expect(await table.get('club-a')).not.toBeNull();
     });
 
-    // P2-2: a full page (> 1000 ids) means the fetch was truncated — pruning
-    // against it would wipe every still-visible club beyond the first page.
-    it('removes nothing when the id fetch returns more than 1000 rows (truncation guard)', async () => {
+    // P2-2 / P3-3: a true count > 1000 means the id fetch would be
+    // truncated — pruning against it would wipe every still-visible club
+    // beyond the first page. Round 4: the count comes from the exact-count
+    // probe, NOT from data.length, since max_rows caps the row fetch at
+    // 1000 regardless of the true total (a real total of 1001 would
+    // otherwise silently read as "exactly 1000, not truncated").
+    it('removes nothing when the true count exceeds 1000 rows (truncation guard)', async () => {
       await table.set('club-a', { id: 'club-a', name: 'Club A', email: 'a@club.com', phone: '1' });
 
-      const truncatedIds = Array.from({ length: 1001 }, (_, i) => ({ id: `club-${i}` }));
-      const mockLimit = vi.fn().mockResolvedValue({
-        data: truncatedIds,
-        error: null,
-      });
-      const mockIs = vi.fn().mockReturnValue({ limit: mockLimit });
-      const mockSelect = vi.fn().mockReturnValue({ is: mockIs });
+      const countIs = vi.fn().mockResolvedValue({ count: 1001, error: null });
+      const countSelect = vi.fn().mockReturnValue({ is: countIs });
 
       const { supabase } = await import('@/services/database/supabaseClient');
-      vi.mocked(supabase.from).mockReturnValue(fromAny({ select: mockSelect }));
+      vi.mocked(supabase.from).mockReturnValue(fromAny({ select: countSelect }));
 
       const removed = await table.reconcileVisibility();
 
-      expect(mockLimit).toHaveBeenCalledWith(1001);
       expect(removed).toBe(0);
       expect(await table.get('club-a')).not.toBeNull();
+    });
+
+    it('fetches at most 1000 ids once the count probe confirms no truncation', async () => {
+      await table.set('club-a', { id: 'club-a', name: 'Club A', email: 'a@club.com', phone: '1' });
+
+      const { countSelect, dataSelect, mockLimit } = mockCountAndFetch(1, [{ id: 'club-a' }]);
+
+      const { supabase } = await import('@/services/database/supabaseClient');
+      vi.mocked(supabase.from)
+        .mockReturnValueOnce(fromAny({ select: countSelect }))
+        .mockReturnValueOnce(fromAny({ select: dataSelect }));
+
+      await table.reconcileVisibility();
+
+      expect(mockLimit).toHaveBeenCalledWith(1000);
     });
   });
 

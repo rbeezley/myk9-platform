@@ -109,6 +109,13 @@ describe('club authorization control', () => {
     // dropdown item.
     expect(onRevokeAuthorization).not.toHaveBeenCalled();
     const dialog = await screen.findByRole('alertdialog');
+    // MYK9-572 round 4 (P2-3): the confirm copy must describe what actually
+    // happens (stops NEW publishes; already-published shows stay visible),
+    // not the earlier "hidden from the directory" claim.
+    expect(within(dialog).getByText(/stop .* from publishing new shows/i)).toBeInTheDocument();
+    expect(
+      within(dialog).getByText(/stays visible wherever it already has a published show/i)
+    ).toBeInTheDocument();
     await user.click(within(dialog).getByRole('button', { name: 'Revoke Authorization' }));
 
     expect(onRevokeAuthorization).toHaveBeenCalledTimes(1);

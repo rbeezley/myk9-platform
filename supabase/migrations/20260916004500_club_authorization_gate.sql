@@ -139,6 +139,15 @@ UPDATE public.clubs SET authorized_at = now() WHERE authorized_at IS NULL;
 --           (myk9.club_authorization_write = 'on') that function sets
 --           immediately before its UPDATE and clears immediately after —
 --           the one sanctioned path through this trigger.
+--       (c) round 4 (P3-1): the `authorized_by` FK's ON DELETE SET NULL
+--           action — deleting the site admin who authorized a club fires
+--           this trigger as a referential-integrity side effect, under
+--           whatever role GUC the DELETE's caller happens to hold (not
+--           necessarily carve-out (a)'s API roles). That is not a
+--           disguised authorization write: it only ever NULLs
+--           authorized_by while leaving authorized_at untouched, so it is
+--           permitted when NEW.authorized_by IS NULL and authorized_at is
+--           unchanged.
 --     Everything else: an INSERT silently drops any client-supplied
 --     authorized_at/authorized_by (a new club is never authorized on
 --     creation — this does NOT raise, since clubs_insert is meant to keep
@@ -169,6 +178,12 @@ BEGIN
 
   IF NEW.authorized_at IS DISTINCT FROM OLD.authorized_at
      OR NEW.authorized_by IS DISTINCT FROM OLD.authorized_by THEN
+    -- (c) ON DELETE SET NULL carve-out: see header. Only a bare
+    -- authorized_by -> NULL with authorized_at untouched qualifies.
+    IF NEW.authorized_by IS NULL AND NEW.authorized_at IS NOT DISTINCT FROM OLD.authorized_at THEN
+      RETURN NEW;
+    END IF;
+
     RAISE EXCEPTION 'Club authorization is set only by a site admin'
       USING ERRCODE = '42501';
   END IF;
@@ -178,7 +193,7 @@ END;
 $$;
 
 COMMENT ON FUNCTION public.guard_club_authorization_write() IS
-  'MYK9-572: authorized_at/authorized_by are writable only through set_club_authorization(). clubs_update (is_platform_admin() OR is_club_admin(clubs.id), no WITH CHECK) and clubs_insert (any active secretary/club_admin) would otherwise let those roles set either column directly. Carve-outs: API-roles-only (mirrors enforce_show_publish_gate, 20260915221500) for direct superuser/service_role sessions, and the myk9.club_authorization_write transaction-local GUC that set_club_authorization() sets immediately before its UPDATE. Otherwise: INSERT silently nulls both columns (a new club is never pre-authorized); UPDATE changing either column raises 42501.';
+  'MYK9-572: authorized_at/authorized_by are writable only through set_club_authorization(). clubs_update (is_platform_admin() OR is_club_admin(clubs.id), no WITH CHECK) and clubs_insert (any active secretary/club_admin) would otherwise let those roles set either column directly. Carve-outs: API-roles-only (mirrors enforce_show_publish_gate, 20260915221500) for direct superuser/service_role sessions, the myk9.club_authorization_write transaction-local GUC that set_club_authorization() sets immediately before its UPDATE, and (round 4) the authorized_by FK''s ON DELETE SET NULL action (permitted only when authorized_at is unchanged). Otherwise: INSERT silently nulls both columns (a new club is never pre-authorized); UPDATE changing either column raises 42501.';
 
 DROP TRIGGER IF EXISTS trg_guard_club_authorization_write ON public.clubs;
 CREATE TRIGGER trg_guard_club_authorization_write
@@ -404,7 +419,12 @@ CREATE OR REPLACE FUNCTION public.set_club_authorization(
 RETURNS void
 LANGUAGE plpgsql
 SECURITY DEFINER
-SET search_path = public
+-- Round 4 (P3-2): every reference inside is already schema-qualified
+-- (public.*, auth.uid()) or a pg_catalog builtin (now(), set_config(),
+-- jsonb_build_object()) that resolves regardless of search_path, so the
+-- looser `SET search_path = public` bought no convenience here and only
+-- widened the surface for a search-path-hijack. Locked to ''.
+SET search_path = ''
 AS $$
 DECLARE
   v_actor_person_id uuid;

@@ -370,8 +370,8 @@ export const ClubHeader: React.FC<ClubHeaderProps> = ({
           <AlertDialogHeader>
             <AlertDialogTitle>Revoke this club&apos;s authorization?</AlertDialogTitle>
             <AlertDialogDescription>
-              Hide {club.name} from the public club directory. Its published shows stay published;
-              new shows cannot be published until it is authorized again.
+              Stop {club.name} from publishing new shows. It stays visible wherever it already has a
+              published show.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

@@ -74,7 +74,11 @@ export function useClubAuthorizationControl(club: Club | null | undefined, isSit
     // states distinct so the UI can render an actual loading/unknown state
     // instead of a false negative.
     isClubAuthorized: club?.authorizedAt === undefined ? undefined : club.authorizedAt != null,
-    isAuthorizationLoading: false,
+    // Round 4 (P3-5): derive from the same undefined-vs-null distinction
+    // above instead of a hard-coded `false` — the field hasn't synced to
+    // this device yet, so ClubHeader can show a loading state instead of
+    // rendering isClubAuthorized === undefined as a false "authorized".
+    isAuthorizationLoading: club?.authorizedAt === undefined,
     isAuthorizationUpdating: isUpdating,
     handleAuthorizeClub: () => void setAuthorization(true),
     handleRevokeAuthorization: () => void setAuthorization(false),

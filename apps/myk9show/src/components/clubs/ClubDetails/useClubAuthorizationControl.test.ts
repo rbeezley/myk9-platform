@@ -92,6 +92,47 @@ describe('useClubAuthorizationControl', () => {
     });
   });
 
+  // Round 4 (P3-5): isAuthorizationLoading must derive from the same
+  // undefined-vs-null distinction as isClubAuthorized, not a hard-coded
+  // false — the field hasn't synced to this device yet.
+  describe('isAuthorizationLoading derivation', () => {
+    it('is true when club.authorizedAt has never synced (field absent)', () => {
+      const { wrapper } = createWrapper();
+      const { result } = renderHook(() => useClubAuthorizationControl(makeClub(undefined), true), {
+        wrapper,
+      });
+      expect(result.current.isAuthorizationLoading).toBe(true);
+    });
+
+    it('is false when authorizedAt is explicitly null (revoked/never authorized)', () => {
+      const { wrapper } = createWrapper();
+      const { result } = renderHook(() => useClubAuthorizationControl(makeClub(null), true), {
+        wrapper,
+      });
+      expect(result.current.isAuthorizationLoading).toBe(false);
+    });
+
+    it('is false when authorizedAt is a timestamp', () => {
+      const { wrapper } = createWrapper();
+      const { result } = renderHook(
+        () => useClubAuthorizationControl(makeClub('2026-01-01T00:00:00Z'), true),
+        { wrapper }
+      );
+      expect(result.current.isAuthorizationLoading).toBe(false);
+    });
+
+    // club?.authorizedAt is undefined both when the field hasn't synced AND
+    // when there is no club object at all (optional chaining short-circuits
+    // the same way) — this mirrors isClubAuthorized's own undefined result
+    // for a null club, so a null club correctly reads as "unknown" rather
+    // than a hard false.
+    it('is true when there is no club at all', () => {
+      const { wrapper } = createWrapper();
+      const { result } = renderHook(() => useClubAuthorizationControl(null, true), { wrapper });
+      expect(result.current.isAuthorizationLoading).toBe(true);
+    });
+  });
+
   it('gates canAuthorizeClub on the isSiteAdmin argument, independent of club state', () => {
     const { wrapper } = createWrapper();
     const { result } = renderHook(() => useClubAuthorizationControl(makeClub(null), false), {

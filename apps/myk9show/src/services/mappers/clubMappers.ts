@@ -119,7 +119,12 @@ export const mapDatabaseToClub = (
     address,
     upcomingShows,
     pastShows,
-    authorizedAt: dbClub.authorized_at ?? null,
+    // MYK9-572 round 4 (P2-2): keep UNDEFINED (field absent from the query
+    // result) distinct from NULL (explicitly unauthorized) — matches
+    // clubStore's rcToClub, which made the same fix for the same reason: a
+    // pre-deploy cached row with no authorizedAt at all must not render as
+    // "Unauthorized" to its own admins.
+    authorizedAt: dbClub.authorized_at,
 
     // Sync metadata for Local-First architecture
     _version: 1,

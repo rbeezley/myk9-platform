@@ -118,13 +118,16 @@ export class ReplicatedClubsTable extends ReplicatedTable<ReplicatedClub> {
   // since`), so without this a pruned club would not come back until a
   // background full sync happened to run anyway (up to 24h later).
   private _forceFullSyncNext = false;
-  // Tracks whether the LAST sync() call observed an authenticated session,
-  // so a null->authenticated transition (sign-in) can force a full re-sync
-  // too — a device that pruned clubs while a prior bug let anon reads prune
-  // (or that simply cached a narrow anon view before sign-in) needs the same
-  // healing as a fresh prune. `null` = unknown (first call), which never
-  // counts as "just signed in".
-  private _wasAuthenticated: boolean | null = null;
+  // Tracks the LAST sync() call's principal (the non-anonymous user id, or
+  // null for anon/signed-out), so ANY principal change — null->user
+  // (sign-in), or userA->userB (a device shared between accounts) — can
+  // force a full re-sync too. A device that pruned clubs while a prior bug
+  // let anon reads prune (or that simply cached a narrow anon view before
+  // sign-in) needs the same healing as a fresh prune. `_principalKnown`
+  // guards the first-ever call, which never counts as a "change" even
+  // though `_lastPrincipalId` starts at null (a legitimate anon value).
+  private _lastPrincipalId: string | null = null;
+  private _principalKnown = false;
 
   constructor() {
     super('clubs', { logger });
@@ -177,12 +180,21 @@ export class ReplicatedClubsTable extends ReplicatedTable<ReplicatedClub> {
     const {
       data: { session },
     } = await supabase.auth.getSession();
-    const isAuthenticated = !!session;
-    const justSignedIn = this._wasAuthenticated === false && isAuthenticated;
-    this._wasAuthenticated = isAuthenticated;
+    // MYK9-572 round 4 (P1-2): a Supabase ANONYMOUS session (the at-show
+    // passcode flow — see features/at-show/useOfflineReadiness.ts,
+    // dogFavoritesSync.ts) is not a signed-in principal. Treating it as one
+    // let reconcileVisibility prune this device's cached clubs down to
+    // anon-level visibility (deleting a secretary's own unauthorized club),
+    // and the boolean-only `_wasAuthenticated` this replaced never flipped
+    // back to heal on the way OUT of it either.
+    const principalId =
+      session?.user && session.user.is_anonymous !== true ? session.user.id : null;
+    const isAuthenticated = principalId !== null;
+    // Any principal change forces a full resync — see the field comment
+    // above for why, and why `_principalKnown` gates the first-ever call.
+    const principalChanged = this._principalKnown && this._lastPrincipalId !== principalId;
 
-    const forceFullSync = this._forceFullSyncNext || justSignedIn;
-    this._forceFullSyncNext = false;
+    const forceFullSync = this._forceFullSyncNext || principalChanged;
 
     const adapter: SyncReplicatedTableAdapter<ClubRow, ReplicatedClub> = {
       fetchRemoteRows: async ({ since }) => {
@@ -219,6 +231,17 @@ export class ReplicatedClubsTable extends ReplicatedTable<ReplicatedClub> {
     if (!result.success && result.error && !isAbortSyncError(result.error)) {
       logger.error(`[${this.getTableName()}] Sync failed:`, result.error);
       return { ...result, error: getSyncErrorMessage(result.error) };
+    }
+
+    // MYK9-572 round 4 (P3-4): only consume the pending-force flag and
+    // update the principal marker once the sync has actually SUCCEEDED — a
+    // failed sync must leave both exactly as they were, so the next attempt
+    // still forces a full resync instead of silently reverting to
+    // incremental against a principal change (or prune) it never healed.
+    if (result.success) {
+      this._forceFullSyncNext = false;
+      this._lastPrincipalId = principalId;
+      this._principalKnown = true;
     }
 
     // MYK9-572: reconcile against RLS visibility. The incremental pull above
@@ -268,32 +291,49 @@ export class ReplicatedClubsTable extends ReplicatedTable<ReplicatedClub> {
    * (removeStaleEntries preserves dirty rows, so a pending local edit is
    * never wiped). Unlike dogs, this is a single unpaginated `select('id')` —
    * the clubs table is small, well under PostgREST's page cap — but it still
-   * guards against truncation (round 2, P2-2): `.limit(1001)` fetches one
-   * more row than the assumed-safe 1000, and a full page bails with no prune
-   * rather than reconciling against a partial id set, mirroring
-   * ReplicatedDogsTable.reconcileDeleted's own truncation guard.
+   * guards against truncation (round 2, P2-2).
+   *
+   * Round 4 (P3-3): the truncation guard cannot be a `.limit(PAGE_SIZE + 1)`
+   * probe the way ReplicatedDogsTable's is — this project's PostgREST
+   * `max_rows` is 1000 (supabase/config.toml `[api] max_rows`), so a
+   * response can never exceed 1000 rows regardless of what `.limit()` asks
+   * for; `data.length > PAGE_SIZE` could then never fire even when the real
+   * visible set is larger, silently pruning every still-visible club past
+   * row 1000. A separate `count: 'exact', head: true` probe (same filter,
+   * no row body) gets the TRUE total instead — see the count-column LESSON
+   * (docs/lessons/README.md#postgrest-count-column): the column must be
+   * named, never `*`, or an allowlisted table 403s.
    *
    * @returns number of stale rows removed.
    */
   async reconcileVisibility(): Promise<number> {
     const PAGE_SIZE = 1000;
-    const { data, error } = await supabase
+
+    const { count, error: countError } = await supabase
       .from('clubs')
-      .select('id')
-      .is('deleted_at', null)
-      .limit(PAGE_SIZE + 1);
-    if (error || !data) {
+      .select('id', { count: 'exact', head: true })
+      .is('deleted_at', null);
+    if (countError || count == null) {
       // Any fetch failure → prune nothing. Pruning against a partial/absent
       // set could wipe rows that are still perfectly visible.
       return 0;
     }
-    if (data.length > PAGE_SIZE) {
-      // Truncated: the clubs table has grown past what this single-page
-      // fetch can see. Pruning against a partial set would wipe every
-      // still-visible club beyond the first page — bail instead.
+    if (count > PAGE_SIZE) {
+      // Truncated: the clubs table has grown past what a single page can
+      // see. Pruning against a partial set would wipe every still-visible
+      // club beyond the first page — bail instead.
       logger.warn(
         `[${this.getTableName()}] reconcileVisibility: id set exceeds ${PAGE_SIZE}, skipping prune`
       );
+      return 0;
+    }
+
+    const { data, error } = await supabase
+      .from('clubs')
+      .select('id')
+      .is('deleted_at', null)
+      .limit(PAGE_SIZE);
+    if (error || !data) {
       return 0;
     }
 

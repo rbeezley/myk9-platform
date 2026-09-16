@@ -796,12 +796,62 @@ BEGIN
   IF v_publish_name IS NULL THEN
     RAISE EXCEPTION 'FAIL trigger-ordering-wiring: trg_enforce_show_publish_gate not found on public.shows';
   END IF;
-  IF v_authz_name >= v_publish_name THEN
+  -- P3-7 (round 4): compare with a deterministic collation. The database's
+  -- default collation is whatever the OS/locale provides, which is not
+  -- guaranteed to sort ASCII the same way Postgres's own trigger-firing
+  -- order does (byte order); `collate "C"` pins this comparison to that
+  -- byte order regardless of the connected database's default.
+  IF v_authz_name COLLATE "C" >= v_publish_name COLLATE "C" THEN
     RAISE EXCEPTION 'FAIL trigger-ordering-wiring: % does not sort before % (MK004 would no longer win over MK003)',
       v_authz_name, v_publish_name;
   END IF;
   RAISE NOTICE 'PASS trigger-ordering-wiring: % sorts before % (alphabetical trigger firing order)',
     v_authz_name, v_publish_name;
+END;
+$$;
+
+-- ---------------------------------------------------------------------------
+-- 15. Round 4 (P3-1): the authorized_by FK's ON DELETE SET NULL carve-out
+--     in guard_club_authorization_write(). Person deletion in this app goes
+--     through the delete-person edge function (service_role — see the
+--     person-delete owns-dogs guard), which already bypasses this trigger
+--     entirely via carve-out (a); actually deleting a person as a plain
+--     `authenticated` caller here would also fight every OTHER FK that
+--     references people(id) (user_roles, permission_audit_log, ...), which
+--     is out of scope for this test. Assert the carve-out's PREDICATE
+--     directly instead: an `authenticated` UPDATE that changes ONLY
+--     authorized_by to NULL — exactly the shape ON DELETE SET NULL
+--     produces — must succeed (case 10 above already proves the paired
+--     authorized_at change still raises).
+-- ---------------------------------------------------------------------------
+SET LOCAL ROLE authenticated;
+SELECT set_config('request.jwt.claim.sub', current_setting('myk9572.siteadmin_auth_user_id'), true);
+
+DO $$
+BEGIN
+  UPDATE public.clubs SET authorized_by = NULL
+   WHERE id = '00000000-0000-0000-0000-000000572002';
+END;
+$$;
+
+RESET ROLE;
+SELECT set_config('request.jwt.claim.sub', '', true);
+
+DO $$
+DECLARE
+  v_authorized_by uuid;
+  v_authorized_at timestamptz;
+BEGIN
+  SELECT authorized_by, authorized_at INTO v_authorized_by, v_authorized_at
+  FROM public.clubs WHERE id = '00000000-0000-0000-0000-000000572002';
+
+  IF v_authorized_by IS NOT NULL THEN
+    RAISE EXCEPTION 'FAIL authorized-by-set-null-carveout: authorized_by was not nulled';
+  END IF;
+  IF v_authorized_at IS NULL THEN
+    RAISE EXCEPTION 'FAIL authorized-by-set-null-carveout: authorized_at was unexpectedly cleared too';
+  END IF;
+  RAISE NOTICE 'PASS authorized-by-set-null-carveout: a bare authorized_by -> NULL (mirroring ON DELETE SET NULL) is permitted';
 END;
 $$;
 

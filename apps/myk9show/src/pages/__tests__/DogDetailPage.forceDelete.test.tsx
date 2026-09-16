@@ -143,6 +143,7 @@ const renderDogPage = async (initialRoute = '/dogs/dog-1') => {
       {/* `Link` navigates through the router itself, so it does not pollute
           `navigateSpy` — only the page's own redirects land there. */}
       <Link to="/dogs/dog-404">Go to an unknown dog</Link>
+      <Link to="/dogs/dog-2">Go to Bella</Link>
       <Routes>
         <Route path="/dogs/:id" element={<DogDetailPage />} />
         <Route path="/dogs" element={<div>dogs-list-page</div>} />
@@ -294,5 +295,34 @@ describe('DogDetailPage delete failures (MYK9-595)', () => {
       rpc.settle({ reject: permissionDenied() });
       await Promise.resolve();
     });
+  });
+
+  it('does not yank the admin off ANOTHER dog when the delete succeeds late', async () => {
+    const rpc = deferred();
+    mockForceDeleteDog.mockImplementation(() => rpc.promise);
+
+    const { user } = await renderDogPage();
+
+    await screen.findByText('Dog page for Max');
+    await user.click(screen.getByRole('button', { name: 'Open delete dialog' }));
+    await user.click(await screen.findByRole('button', { name: 'Confirm force delete' }));
+    await waitFor(() => expect(mockForceDeleteDog).toHaveBeenCalledWith('dog-1'));
+
+    // The admin moves on while dog-1's RPC is still open.
+    await user.click(screen.getByRole('link', { name: 'Go to Bella' }));
+    expect(await screen.findByText('Dog page for Bella')).toBeInTheDocument();
+
+    await act(async () => {
+      rpc.settle({ resolve: { data: { id: 'dog-1' }, error: null } });
+      await Promise.resolve();
+    });
+
+    // The success toast still reports dog-1...
+    await waitFor(() => expect(notifications.success).toHaveBeenCalled());
+    expect(vi.mocked(notifications.success).mock.calls[0]?.[0]).toMatch(/Max/);
+    // ...but the admin stays on the dog they navigated to.
+    expect(navigateSpy).not.toHaveBeenCalled();
+    expect(screen.getByText('Dog page for Bella')).toBeInTheDocument();
+    expect(screen.queryByText('dogs-list-page')).not.toBeInTheDocument();
   });
 });

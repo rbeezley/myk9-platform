@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useParams, useNavigate, useSearchParams, useLocation } from 'react-router-dom';
 import { useUserStore } from '@/store/userStore';
 import { useRoleBasedDogs, useCanAccessDog } from '@/hooks/useRoleBasedData';
@@ -11,55 +11,86 @@ import { useForceDeleteDogMutation } from '@/hooks/queries/useDogsDatabase';
 import { getDogDisplayName, type Dog } from '@/types/dog-types';
 import { translateDogDbError } from '@/hooks/translateDogDbError';
 
-/** `force_delete_dog` (migration 20260915214500) raises exactly these. */
+/** The two codes `force_delete_dog` raises itself (migration 20260915214500). */
 const PG_INSUFFICIENT_PRIVILEGE = '42501';
 const PG_NO_DATA_FOUND = 'P0002';
+
+/** A real SQLSTATE is five chars; PostgREST codes ("PGRST202") and none are not. */
+const SQLSTATE = /^[0-9A-Z]{5}$/;
+
+const GENERIC_DELETE_FAILURE = 'Failed to delete dog. Please try again.';
+
+interface ForceDeleteFailure {
+  /** What the user is told. */
+  error: Error;
+  /** SQLSTATE if the server sent one, for the log metadata. */
+  code: string;
+  /** The untranslated server text, for the log metadata only. */
+  serverMessage: string;
+}
 
 /**
  * `forceDeleteDog` rejects with `createDatabaseError(...)` — a plain object
  * literal CAST to `DatabaseError`, never an `Error` instance (see
  * `services/database/databaseError.ts`). So `err instanceof Error` is false on
- * this path: the toast fell back to "Failed to delete dog. Please try again."
- * and Sentry received `Error("[object Object]")`, leaving a refused override
- * with no reason at all. The ordinary delete escapes this only because
- * `useDogStoreCompat.deleteDog` runs inside `runDogMutation`, which calls
- * `translateDogDbError`; `forceDeleteMutation.mutateAsync` is called directly
- * and has no such seam, so this supplies one.
+ * this path: the toast fell back to the generic sentence and Sentry received
+ * `Error("[object Object]")`, leaving a refused override with no reason at all.
+ * The ordinary delete escapes this only because `useDogStoreCompat.deleteDog`
+ * runs inside `runDogMutation`, which calls `translateDogDbError`;
+ * `forceDeleteMutation.mutateAsync` is called directly and has no such seam, so
+ * this supplies one.
  *
- * The two codes the RPC raises are handled here rather than in
- * `translateDogDbError` because its wording is create/update-shaped ("permission
- * to save this dog"), which is the wrong sentence for a refused delete.
- * Anything else is handed to the shared translator, normalised to a real
- * `Error` first so its `base` carries the server's message instead of
- * `String(object)`.
+ * The two codes the FUNCTION ITSELF raises are answered here rather than by
+ * `translateDogDbError`, whose wording is create/update-shaped ("permission to
+ * save this dog") and wrong for a refused delete. Anything else is normalised
+ * to a real `Error` and handed to the shared translator — the RPC also writes
+ * `dogs` and `entries`, so a trigger or constraint SQLSTATE can propagate, and
+ * some of those branches still answer in save-shaped wording. That is a known
+ * rough edge, not a silent one: the raw text always reaches the log metadata.
+ *
+ * A failure carrying no SQLSTATE at all (a network fetch failure, a PostgREST
+ * `PGRST202`) keeps the generic user-facing sentence — "Failed to fetch" is not
+ * something to show an admin — and its raw text goes to the logger instead.
  */
-function toForceDeleteError(err: unknown): Error {
-  if (err instanceof Error) return translateDogDbError(err);
-
+function toForceDeleteError(err: unknown): ForceDeleteFailure {
   const raw = (err ?? {}) as { code?: unknown; message?: unknown };
   const code = typeof raw.code === 'string' ? raw.code : '';
-  const message = typeof raw.message === 'string' && raw.message ? raw.message : '';
+  const serverMessage = typeof raw.message === 'string' ? raw.message : '';
 
   if (code === PG_INSUFFICIENT_PRIVILEGE) {
-    return Object.assign(
-      new Error('You no longer have permission to delete this dog and its entries.'),
-      { cause: err }
-    );
+    return {
+      error: Object.assign(
+        new Error('You no longer have permission to delete this dog and its entries.'),
+        { code, cause: err }
+      ),
+      code,
+      serverMessage,
+    };
   }
   if (code === PG_NO_DATA_FOUND) {
-    return Object.assign(new Error('This dog has already been deleted. Refresh to see the list.'), {
-      cause: err,
-    });
+    return {
+      error: Object.assign(
+        new Error('This dog has already been deleted. Refresh to see the list.'),
+        { code, cause: err }
+      ),
+      code,
+      serverMessage,
+    };
   }
 
-  const normalised = Object.assign(
-    new Error(message || 'Failed to delete dog. Please try again.'),
-    {
+  if (!SQLSTATE.test(code)) {
+    return {
+      error: Object.assign(new Error(GENERIC_DELETE_FAILURE), { code, cause: err }),
       code,
-      cause: err,
-    }
-  );
-  return translateDogDbError(normalised);
+      serverMessage,
+    };
+  }
+
+  const normalised = Object.assign(new Error(serverMessage || GENERIC_DELETE_FAILURE), {
+    code,
+    cause: err,
+  });
+  return { error: translateDogDbError(normalised), code, serverMessage };
 }
 
 /**
@@ -103,9 +134,12 @@ const DogDetailPage: React.FC = () => {
   // no frame in which the delete is neither in flight nor rolled back.
   //
   // Scoped to `id`: the route renders this page without a `key`, so navigating
-  // from dog-1 to dog-2 mid-delete REUSES this component. An unscoped latch
-  // would keep dog-2's guard disabled and then yank the user to /dogs when
-  // dog-1's RPC settled.
+  // away mid-delete REUSES this component. Unscoped, the latch would render the
+  // deleting dog at the new id and suppress a redirect that id had genuinely
+  // earned. The handlers' SUCCESS navigate is scoped the same way, against
+  // `currentIdRef` (the id as of settle time, not the stale one the handler
+  // closed over), so a delete that finishes after the admin has moved on
+  // reports itself in a toast without moving their page.
   const [dogBeingDeleted, setDogBeingDeleted] = useState<Dog | null>(null);
   const isDeleteInFlight = !!id && dogBeingDeleted?.id === id;
 
@@ -129,6 +163,26 @@ const DogDetailPage: React.FC = () => {
     }
   }, [createdDog, isLoading, isFetching, isDeleteInFlight, dogs, id, canAccessDog, navigate]);
 
+  // The id as of NOW. A handler closes over the `id` of the render that created
+  // it, which is exactly the wrong one once the admin has navigated mid-delete.
+  const currentIdRef = useRef(id);
+  useEffect(() => {
+    currentIdRef.current = id;
+  }, [id]);
+
+  /**
+   * After a delete resolves: leave for /dogs only if the admin is still looking
+   * at the dog that was deleted. Otherwise just drop the latch — they moved on,
+   * and the success toast is the whole report they need.
+   */
+  function leaveAfterDelete(deletedId: string) {
+    if (currentIdRef.current === deletedId) {
+      navigate('/dogs', { replace: true });
+    } else {
+      setDogBeingDeleted(null);
+    }
+  }
+
   async function handleDeleteDog() {
     if (!dog) return;
     setDogBeingDeleted(dog);
@@ -138,7 +192,7 @@ const DogDetailPage: React.FC = () => {
       const dogName = getDogDisplayName(dog);
       await deleteDog(dog.id, userWithRoles?.id);
       notifications.success(`${dogName} was deleted.`);
-      navigate('/dogs', { replace: true });
+      leaveAfterDelete(dog.id);
     } catch (err) {
       setDogBeingDeleted(null);
       logger.error(
@@ -172,11 +226,18 @@ const DogDetailPage: React.FC = () => {
       const dogName = getDogDisplayName(dog);
       await forceDeleteMutation.mutateAsync({ id: dog.id });
       notifications.success(`${dogName} and its entries were deleted. No refund was issued.`);
-      navigate('/dogs', { replace: true });
+      leaveAfterDelete(dog.id);
     } catch (err) {
       setDogBeingDeleted(null);
-      const error = toForceDeleteError(err);
-      logger.error('Failed to force delete dog', 'dogs', { dogId: dog.id }, error);
+      const { error, code, serverMessage } = toForceDeleteError(err);
+      // The fourth argument contributes only a stack, so the SQLSTATE and the
+      // untranslated server text have to travel in the metadata to reach Sentry.
+      logger.error(
+        'Failed to force delete dog',
+        'dogs',
+        { dogId: dog.id, code, serverMessage },
+        error
+      );
       notifications.error(error.message);
       // Same contract as handleDeleteDog: the page stays mounted (the redirect
       // effect and the skeleton both stand down while `isDeleteInFlight`) and

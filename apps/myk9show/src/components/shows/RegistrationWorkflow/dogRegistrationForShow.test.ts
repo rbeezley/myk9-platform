@@ -2,9 +2,13 @@ import { describe, it, expect } from 'vitest';
 import { resolveRegistrationForShow } from './dogRegistrationForShow';
 import type { Registration } from '@/types/dog-types';
 
+// The live `dog_registrations.organization` column holds the LONG form for
+// every row (271 each of AKC/UKC/ASCA, zero bare abbreviations), so the
+// fixtures use it — a rule measured only against invented short values is a
+// rule measured against nothing (LESSONS label-rule-vs-real-columns).
 const registration = (overrides: Partial<Registration> = {}): Registration => ({
   id: 'reg-akc',
-  organization: 'AKC',
+  organization: 'AKC (American Kennel Club)',
   registeredName: 'Champion Maple',
   breed: 'Golden Retriever',
   registrationNumber: 'SR12345601',
@@ -13,7 +17,11 @@ const registration = (overrides: Partial<Registration> = {}): Registration => ({
 });
 
 const akc = registration();
-const ukc = registration({ id: 'reg-ukc', organization: 'UKC', registrationNumber: 'P987-654' });
+const ukc = registration({
+  id: 'reg-ukc',
+  organization: 'UKC (United Kennel Club)',
+  registrationNumber: 'P987-654',
+});
 const asca = registration({
   id: 'reg-asca',
   organization: 'ASCA (Australian Shepherd Club of America)',
@@ -38,9 +46,9 @@ describe('resolveRegistrationForShow', () => {
     }
   );
 
-  it('tolerates the live organization drift ("AKC (American Kennel Club)")', () => {
-    const drifted = registration({ organization: 'AKC (American Kennel Club)' });
-    expect(resolveRegistrationForShow({ registrations: [drifted, ukc] }, 'AKC').used).toBe(drifted);
+  it('matches a bare abbreviation too, in case the column is ever cleaned up', () => {
+    const bare = registration({ organization: 'AKC' });
+    expect(resolveRegistrationForShow({ registrations: [bare, ukc] }, 'AKC').used).toBe(bare);
   });
 
   it('reports the missing registration, with the fix, when none matches the show registry', () => {

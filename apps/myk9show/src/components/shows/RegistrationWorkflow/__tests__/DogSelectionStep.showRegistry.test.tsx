@@ -3,7 +3,7 @@
  * must not let an exhibitor walk into `trg_entries_require_dog_registration`.
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { screen, within } from '@testing-library/react';
+import { screen } from '@testing-library/react';
 import { render } from '@/test/utils/testUtils';
 import { DogSelectionStep } from '@/components/shows/RegistrationWorkflow/DogSelectionStep';
 import type { Dog, Registration } from '@/types/dog-types';
@@ -15,9 +15,12 @@ vi.mock('@/hooks/useDogStoreCompat', () => ({
 
 import { useDogStoreCompat } from '@/hooks/useDogStoreCompat';
 
+// Live shape: `dog_registrations.organization` holds the LONG form on every row
+// (271 each of AKC/UKC/ASCA, zero bare). The card must not render it raw
+// (LESSONS label-rule-vs-real-columns).
 const registration = (overrides: Partial<Registration>): Registration => ({
   id: 'reg',
-  organization: 'AKC',
+  organization: 'AKC (American Kennel Club)',
   registeredName: 'Champion Maple',
   breed: 'Golden Retriever',
   registrationNumber: 'SR12345601',
@@ -26,8 +29,16 @@ const registration = (overrides: Partial<Registration>): Registration => ({
 });
 
 const AKC = registration({ id: 'reg-akc' });
-const UKC = registration({ id: 'reg-ukc', organization: 'UKC', registrationNumber: 'P987-654' });
-const ASCA = registration({ id: 'reg-asca', organization: 'ASCA', registrationNumber: 'E123456' });
+const UKC = registration({
+  id: 'reg-ukc',
+  organization: 'UKC (United Kennel Club)',
+  registrationNumber: 'P987-654',
+});
+const ASCA = registration({
+  id: 'reg-asca',
+  organization: 'ASCA (Australian Shepherd Club of America)',
+  registrationNumber: 'E123456',
+});
 
 const mockDog = (registrations: Registration[], registrationsReadComplete = true): Dog =>
   fromPartial<Dog>({
@@ -64,6 +75,27 @@ const mountWith = (
   };
 };
 
+/**
+ * Queried by ROLE, not by styling. A reviewer turned `opacity-60` into
+ * `opacity-0` — hiding every badge — and the whole suite stayed green, because
+ * nothing asserted what the de-emphasis was allowed to be.
+ */
+const usedBadge = () => document.querySelector('[data-registration-role="used"]');
+const otherBadges = () => Array.from(document.querySelectorAll('[data-registration-role="other"]'));
+
+/**
+ * Opacity on text is banned here: `text-muted-foreground` at 60% opacity
+ * composites to roughly 2.5:1 at 12px, under the 4.5:1 AA floor. The token
+ * colour alone carries the de-emphasis.
+ */
+const expectNoOpacityOnAnyBadge = () => {
+  const badges = Array.from(document.querySelectorAll('[data-registration-role]'));
+  expect(badges.length).toBeGreaterThan(0);
+  for (const badge of badges) {
+    expect(badge.className).not.toMatch(/\bopacity-/);
+  }
+};
+
 beforeEach(() => {
   vi.clearAllMocks();
 });
@@ -72,35 +104,40 @@ describe('DogSelectionStep — the registration this show will use', () => {
   it('marks the matching registration and de-emphasizes the others', () => {
     mountWith([AKC, UKC, ASCA], 'AKC');
 
-    const used = screen.getByTestId('registration-used');
-    expect(within(used).getByText(/SR12345601/)).toBeInTheDocument();
-    expect(within(used).getByText('Used for this show')).toBeInTheDocument();
+    // The whole point of the label rule: the long form is normalized for
+    // display, and the accessible name reads as a sentence, not a run-on.
+    expect(usedBadge()!.textContent).toBe('AKC: SR12345601, Used for this show');
 
-    const others = screen.getAllByTestId('registration-other');
+    const others = otherBadges();
     expect(others).toHaveLength(2);
-    expect(others.map(node => node.textContent).join(' ')).toContain('P987-654');
-    expect(others.map(node => node.textContent).join(' ')).toContain('E123456');
+    expect(others.map(node => node.textContent)).toEqual(['UKC: P987-654', 'ASCA: E123456']);
     // Shown, not hidden — she still needs to see her dog's other numbers exist.
     for (const other of others) {
       expect(other).toBeVisible();
-      expect(other.className).toMatch(/opacity-/);
     }
+    expectNoOpacityOnAnyBadge();
     expect(screen.queryByText(/registration to enter this show/)).not.toBeInTheDocument();
   });
 
-  it.each(['UKC', 'ASCA'])('marks the %s registration for that show', registry => {
+  it.each([
+    ['UKC', 'P987-654'],
+    ['ASCA', 'E123456'],
+  ])('marks the %s registration for that show', (registry, expectedNumber) => {
     mountWith([AKC, UKC, ASCA], registry);
 
-    const used = screen.getByTestId('registration-used');
-    expect(used.textContent).toContain(registry);
-    expect(screen.getAllByTestId('registration-other')).toHaveLength(2);
+    expect(usedBadge()!.textContent).toBe(`${registry}: ${expectedNumber}, Used for this show`);
+    expect(otherBadges()).toHaveLength(2);
+    expectNoOpacityOnAnyBadge();
   });
 
   it('names the fix when no registration matches, and still lets her select the dog', async () => {
     const { onSelectionChange, user } = mountWith([UKC, ASCA], 'AKC');
 
-    expect(screen.getByText(/Add an AKC registration to enter this show/)).toBeInTheDocument();
-    expect(screen.queryByTestId('registration-used')).not.toBeInTheDocument();
+    // Announced when the registry resolves mid-view, not merely rendered.
+    // (`status` is not a name-from-content role, so assert the element itself.)
+    const message = screen.getByText(/Add an AKC registration to enter this show/);
+    expect(message).toHaveAttribute('role', 'status');
+    expect(usedBadge()).toBeNull();
     // The fix is one tap away, not a dead end.
     expect(screen.getByRole('button', { name: /Add registration/ })).toBeInTheDocument();
 
@@ -117,17 +154,21 @@ describe('DogSelectionStep — the registration this show will use', () => {
   });
 
   it('renders a blank-numbered registration as the label alone, with no dangling colon', () => {
-    const blank = registration({ id: 'reg-blank', organization: 'ASCA', registrationNumber: '  ' });
+    const blank = registration({
+      id: 'reg-blank',
+      organization: 'ASCA (Australian Shepherd Club of America)',
+      registrationNumber: '  ',
+    });
     mountWith([AKC, blank], 'AKC');
 
-    const other = screen.getByTestId('registration-other');
-    expect(other.textContent).toBe('ASCA');
+    const other = otherBadges()[0];
+    expect(other!.textContent).toBe('ASCA');
   });
 
   it('says nothing about this show when the registration read did not complete', () => {
     mountWith([], 'AKC', false);
 
-    expect(screen.queryByTestId('registration-used')).not.toBeInTheDocument();
+    expect(usedBadge()).toBeNull();
     expect(screen.queryByText(/registration to enter this show/)).not.toBeInTheDocument();
     expect(screen.queryByText(/No registration on file/)).not.toBeInTheDocument();
   });
@@ -135,18 +176,15 @@ describe('DogSelectionStep — the registration this show will use', () => {
   it("leaves an incomplete read's surviving registrations unmuted and unmarked", () => {
     mountWith([AKC, UKC], 'AKC', false);
 
-    expect(screen.queryByTestId('registration-used')).not.toBeInTheDocument();
-    const others = screen.getAllByTestId('registration-other');
-    expect(others).toHaveLength(2);
-    for (const other of others) {
-      expect(other.className).not.toMatch(/opacity-/);
-    }
+    expect(usedBadge()).toBeNull();
+    expect(otherBadges()).toHaveLength(2);
+    expectNoOpacityOnAnyBadge();
   });
 
   it('marks nothing and says nothing when the show registry is not known yet', async () => {
     const { onSelectionChange, user } = mountWith([AKC, UKC], undefined);
 
-    expect(screen.queryByTestId('registration-used')).not.toBeInTheDocument();
+    expect(usedBadge()).toBeNull();
     expect(screen.queryByText(/registration to enter this show/)).not.toBeInTheDocument();
     expect(screen.getByRole('checkbox', { name: /Select Maple/ })).not.toHaveAttribute(
       'aria-disabled',

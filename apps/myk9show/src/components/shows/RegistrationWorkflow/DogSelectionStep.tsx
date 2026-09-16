@@ -22,12 +22,25 @@ import { Button } from '@/components/ui/button';
 import { AddEditRegistrationDialog } from '@/components/dogs/AddEditRegistrationDialog';
 import { useInlineDogRegistration } from './useInlineDogRegistration';
 import { resolveRegistrationForShow, type RegistrationForShow } from './dogRegistrationForShow';
+import { normalizeOrganization } from '@/features/dogs/identity';
 import '@/styles/myk9-registration-workflow.css';
 
-/** "AKC: SR12345601", or just "AKC" when the number is missing — never "AKC: ". */
+/**
+ * "AKC: SR12345601", or just "AKC" when the number is missing — never "AKC: ".
+ *
+ * The organization is NORMALIZED for display. Every live
+ * `dog_registrations.organization` row holds the long form
+ * ("AKC (American Kennel Club)"), which rendered raw makes a 50-character pill
+ * that wraps to two lines on a 375px phone. `normalizeOrganization` is the same
+ * function the matching uses, so the chip can never name a registry the resolver
+ * would not have matched. Falls back to the raw value if it normalizes to
+ * nothing — showing something odd beats showing an empty chip.
+ */
 function registrationLabel(registration: Registration): string {
+  const organization =
+    normalizeOrganization(registration.organization) ?? registration.organization;
   const number = registration.registrationNumber?.trim();
-  return number ? `${registration.organization}: ${number}` : registration.organization;
+  return number ? `${organization}: ${number}` : organization;
 }
 
 interface DogSelectionStepProps {
@@ -180,7 +193,10 @@ export const DogSelectionStep: React.FC<DogSelectionStepProps> = ({
             const forShow = resolveRegistrationForShow(dog, showRegistryId);
             const { eligible, issues, warnings } = getDogEligibilityStatus(dog, forShow);
             const isSelected = selectedDogs.includes(dog.id);
-            const showAddRegistration = warnings.length > 0 || forShow.missingRegistration;
+            // Same visibility rule as before this change: the fix affordance rides with
+            // the warning, and an already-ineligible dog does not get one.
+            const showAddRegistration =
+              eligible && (warnings.length > 0 || forShow.missingRegistration);
 
             return (
               <Card
@@ -237,11 +253,15 @@ export const DogSelectionStep: React.FC<DogSelectionStepProps> = ({
                         <div className="mt-2 flex flex-wrap items-center gap-2">
                           {forShow.used && (
                             <Badge
-                              data-testid="registration-used"
+                              data-registration-role="used"
                               variant="outline"
-                              className="max-w-full whitespace-normal break-all border-primary bg-primary/10 text-xs font-semibold text-foreground"
+                              className="max-w-full whitespace-normal break-words border-primary bg-primary/10 text-xs font-semibold text-foreground"
                             >
                               {registrationLabel(forShow.used)}
+                              {/* Without a separator the accessible name runs the
+                                number into the marker: "SR12345601Used for this
+                                show". */}
+                              <span className="sr-only">, </span>
                               <span className="ml-1.5 font-normal text-muted-foreground">
                                 Used for this show
                               </span>
@@ -250,11 +270,15 @@ export const DogSelectionStep: React.FC<DogSelectionStepProps> = ({
                           {forShow.others.map(reg => (
                             <Badge
                               key={reg.id}
-                              data-testid="registration-other"
+                              data-registration-role="other"
                               variant="outline"
                               className={cn(
-                                'max-w-full whitespace-normal break-all text-xs',
-                                forShow.resolved && 'text-muted-foreground opacity-60'
+                                'max-w-full whitespace-normal break-words text-xs',
+                                // De-emphasis is the TOKEN COLOUR only. Never
+                                // opacity on text: muted-foreground at 60%
+                                // composites to ~2.5:1 at 12px, under the 4.5:1
+                                // AA floor the token itself was fixed to meet.
+                                forShow.resolved && 'border-border/60 text-muted-foreground'
                               )}
                             >
                               {registrationLabel(reg)}
@@ -264,7 +288,9 @@ export const DogSelectionStep: React.FC<DogSelectionStepProps> = ({
                       )}
 
                       {forShow.missingRegistrationMessage && (
-                        <p className="mt-2 text-xs text-destructive">
+                        // role="status": the registry resolves after the first
+                        // paint, so this appears while she is already reading.
+                        <p role="status" className="mt-2 text-xs text-destructive">
                           • {forShow.missingRegistrationMessage}
                         </p>
                       )}
@@ -279,7 +305,7 @@ export const DogSelectionStep: React.FC<DogSelectionStepProps> = ({
                         </div>
                       )}
 
-                      {warnings.length > 0 && (
+                      {eligible && warnings.length > 0 && (
                         <div className="mt-2 space-y-2">
                           {warnings.map((warning, idx) => (
                             <p key={idx} className="text-xs text-warning ">

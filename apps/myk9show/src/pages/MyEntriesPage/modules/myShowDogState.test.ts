@@ -151,34 +151,54 @@ describe('deriveClassRowState', () => {
     expect(stateOf([makeRow([makeClass()])])).toEqual({ kind: 'check-in-available' });
   });
 
-  it("names the weekday a later day's class opens", () => {
+  // MYK9-568 round 3: "opens-later" promises self check-in on the trial day.
+  // That promise may only be made when the SAME eligibility the day-of gate
+  // uses would already pass — otherwise a paid-but-still-pending exhibitor
+  // (the common post-payment state), a class with self check-in disabled, or
+  // an unresolved class all see a check-in claim that flips to "check in with
+  // the secretary" the moment the day arrives, never having been true.
+  it('offers the check-in copy for an accepted, entered, self-check-in-enabled class whose day is ahead', () => {
     expect(stateOf([makeRow([makeClass({ trialDate: SUNDAY })])])).toEqual({
       kind: 'opens-later',
-      weekday: 'Sunday',
     });
   });
 
-  it("names the trial's own weekday the night before, in the trial's zone", () => {
-    // 11pm Friday in Los Angeles — Saturday's classes have not opened yet.
+  it("treats the trial day as still ahead the night before, in the trial's zone", () => {
+    // 11pm Friday in Los Angeles — Saturday's class has not opened yet.
     expect(stateOf([makeRow([makeClass()])], { now: new Date('2026-10-24T06:00:00Z') })).toEqual({
       kind: 'opens-later',
-      weekday: 'Saturday',
     });
   });
 
-  it('sends the exhibitor to the secretary when self-check-in is closed on the trial day', () => {
-    // NOT "opens Saturday" — it is Saturday. The secretary owns check-in now.
+  it('withholds the check-in copy for a PENDING entry whose day is ahead — the common post-payment state', () => {
     expect(
-      stateOf([makeRow([makeClass()])], { selfCheckinByClassId: { 'class-1': false } })
-    ).toEqual({ kind: 'closed-today' });
+      stateOf([
+        makeRow([makeClass({ trialDate: SUNDAY, entryStatus: EntryStatus.PENDING })], {
+          entryStatus: EntryStatus.PENDING,
+        }),
+      ])
+    ).toEqual({ kind: 'not-yet-eligible' });
   });
 
-  it('keeps "opens <weekday>" for a closed class whose day is still ahead', () => {
+  it('withholds the check-in copy when self check-in is disabled for the class, even with the day ahead', () => {
     expect(
       stateOf([makeRow([makeClass({ trialDate: SUNDAY })])], {
         selfCheckinByClassId: { 'class-1': false },
       })
-    ).toEqual({ kind: 'opens-later', weekday: 'Sunday' });
+    ).toEqual({ kind: 'not-yet-eligible' });
+  });
+
+  it('withholds the check-in copy for an unresolved class, even with the day ahead', () => {
+    expect(stateOf([makeRow([makeClass({ trialDate: SUNDAY, unresolved: true })])])).toEqual({
+      kind: 'not-yet-eligible',
+    });
+  });
+
+  it('sends the exhibitor to the secretary when self-check-in is closed on the trial day', () => {
+    // NOT check-in copy — it is the trial day. The secretary owns check-in now.
+    expect(
+      stateOf([makeRow([makeClass()])], { selfCheckinByClassId: { 'class-1': false } })
+    ).toEqual({ kind: 'closed-today' });
   });
 
   it('reads not-run once the show is past with no result and no state', () => {

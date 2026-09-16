@@ -4,6 +4,7 @@
 
 import type { Show } from '@/types/show-types';
 import { toLocalDate } from './date-format';
+import { formatShortCalendarDate } from '@/lib/format/dates';
 import { isActiveSubmittedEntryStatus } from '@/services/entryDisplay/entryDisplaySelectors';
 import { currentEntryWindowDate, getEntryWindowTimezone } from './entryWindowDate';
 
@@ -47,9 +48,14 @@ export function getEntryStatus(
   const closeDate = toLocalDate(show.entryCloseDate);
   const today = currentEntryWindowDate(undefined, getEntryWindowTimezone(show.trials));
   if (!today) {
+    // currentEntryWindowDate always resolves a date in practice (see
+    // entryWindowDate.ts); this guards a theoretical unresolved case (e.g. a
+    // bad IANA zone). Never say "Entries open <date>" here — this path runs
+    // before the userHasEntries check, so the show may already be entered,
+    // and this branch has no evidence either way about the entry window.
     return {
       status: 'not_yet_open',
-      label: `Opens ${openDate.toLocaleDateString()}`,
+      label: 'Entry status unavailable',
       description: 'Entry window is not available yet',
       canEnter: false,
     };
@@ -62,7 +68,7 @@ export function getEntryStatus(
     const daysUntilOpen = dayDiff(openDate);
     return {
       status: 'not_yet_open',
-      label: `Opens ${openDate.toLocaleDateString()}`,
+      label: `Entries open ${formatShortCalendarDate(show.entryOpenDate)}`,
       description: `Entries open in ${daysUntilOpen} day${daysUntilOpen !== 1 ? 's' : ''}`,
       daysUntilOpen,
       canEnter: false,

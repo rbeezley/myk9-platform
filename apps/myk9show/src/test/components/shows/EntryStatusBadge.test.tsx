@@ -232,7 +232,8 @@ describe('EntryStatusBadge', () => {
     it('should render not_yet_open status correctly', () => {
       mockGetEntryStatus.mockReturnValue({
         status: 'not_yet_open',
-        label: 'Opens 1/1/2024',
+        // MYK9-568: name the thing that opens ("entries"), calendar-safe date.
+        label: 'Entries open Jan 1, 2024',
         description: 'Entries open in 5 days',
         canEnter: false,
         daysUntilOpen: 5,
@@ -245,7 +246,7 @@ describe('EntryStatusBadge', () => {
 
       render(<EntryStatusBadge show={createMockShow()} />);
 
-      expect(screen.getByText('Opens 1/1/2024')).toBeInTheDocument();
+      expect(screen.getByText('Entries open Jan 1, 2024')).toBeInTheDocument();
     });
   });
 
@@ -272,5 +273,46 @@ describe('EntryStatusBadge', () => {
       expect(badge).toHaveClass('items-center');
       expect(badge).toHaveClass('gap-1');
     });
+  });
+});
+
+describe('EntryStatusBadge — against the real getEntryStatus (MYK9-568)', () => {
+  // Cleanup lives in afterEach (not at the end of the `it`) so a failing
+  // assertion above can never skip it and leave setSystemTime/the unmocked
+  // module armed for every test that runs after this one in the file.
+  afterEach(() => {
+    vi.useRealTimers();
+    vi.doMock('@/utils/entryStatusUtils', () => ({
+      getEntryStatus: vi.fn(),
+      getEntryStatusBadgeStyle: vi.fn(),
+    }));
+    vi.resetModules();
+  });
+
+  it('renders "Entries open <date>" for a real not-yet-open show', async () => {
+    // Every other test in this file mocks getEntryStatus/getEntryStatusBadgeStyle;
+    // this one renders against the REAL entryStatusUtils implementation so the
+    // wording fix is proven end to end, not just on a hand-picked mock label.
+    vi.doUnmock('@/utils/entryStatusUtils');
+    vi.resetModules();
+
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date(2023, 11, 15, 12));
+
+    const { EntryStatusBadge: RealEntryStatusBadge } =
+      await import('@/components/shows/EntryStatusBadge');
+
+    const futureShow: Show = {
+      id: 'show-future',
+      name: 'Future Show',
+      entryOpenDate: '2024-01-01',
+      entryCloseDate: '2024-02-01',
+      startDate: '2024-02-15',
+      endDate: '2024-02-16',
+    } as Show;
+
+    render(<RealEntryStatusBadge show={futureShow} />);
+
+    expect(screen.getByText('Entries open Jan 1, 2024')).toBeInTheDocument();
   });
 });

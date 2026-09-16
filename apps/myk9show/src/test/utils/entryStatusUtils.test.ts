@@ -76,6 +76,52 @@ describe('entryStatusUtils', () => {
         expect(result.daysUntilOpen).toBeGreaterThan(0);
       });
 
+      it('names entries as the thing opening, with a calendar-safe date', () => {
+        const now = new Date(2023, 11, 15, 12); // Before open date
+        vi.setSystemTime(now);
+
+        const show = createMockShow({
+          entryOpenDate: '2024-01-01',
+        });
+        const result = getEntryStatus(show, false);
+
+        // MYK9-568: a bare "Opens ..." reads as ambiguous ("what opens?") to
+        // an exhibitor who already submitted; name the thing that opens. The
+        // old code already parsed via toLocalDate, so there was no day-shift
+        // bug — shows.entry_open_date is TIMESTAMPTZ at midnight UTC, and
+        // formatShortCalendarDate is the right shared formatter for that
+        // value; the real change here is the label wording and swapping the
+        // ad-hoc `openDate.toLocaleDateString()` (locale/browser-dependent,
+        // "1/1/2024") for the app's pinned-format helper ("Jan 1, 2024").
+        expect(result.label).toBe('Entries open Jan 1, 2024');
+      });
+
+      it('stays neutral when the entry window cannot be resolved at all', async () => {
+        // currentEntryWindowDate always resolves a date in practice
+        // (entryWindowDate.ts:61-67) — this branch is effectively dead and is
+        // reached here only via a module mock, for a theoretical case (e.g. a
+        // bad IANA zone). It runs BEFORE the userHasEntries check, so if it
+        // ever fired for a show the exhibitor already entered, "Entries open
+        // <date>" would be false; the label stays neutral instead.
+        vi.resetModules();
+        vi.doMock('@/utils/entryWindowDate', () => ({
+          currentEntryWindowDate: () => undefined,
+          getEntryWindowTimezone: () => 'America/Los_Angeles',
+        }));
+        const { getEntryStatus: getEntryStatusWithMockedWindow } =
+          await import('@/utils/entryStatusUtils');
+
+        const show = createMockShow({ entryOpenDate: '2024-01-01' });
+        const result = getEntryStatusWithMockedWindow(show, true);
+
+        expect(result.status).toBe('not_yet_open');
+        expect(result.label).toBe('Entry status unavailable');
+        expect(result.description).toBe('Entry window is not available yet');
+
+        vi.doUnmock('@/utils/entryWindowDate');
+        vi.resetModules();
+      });
+
       it('should calculate days until open correctly', () => {
         const now = new Date(2023, 11, 25, 12); // 7 days before open
         vi.setSystemTime(now);

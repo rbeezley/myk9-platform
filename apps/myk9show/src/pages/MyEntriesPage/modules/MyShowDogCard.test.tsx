@@ -8,11 +8,11 @@
  * and a test can never assert against a group production would not build.
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { screen } from '@testing-library/react';
+import { screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { EntryStatus, PaymentStatus } from '@/types/show-registration-types';
 import { render } from '@/test/utils/testUtils';
-import { makeClass, makeRow, NOW, toOrders } from '@/test/fixtures/myShowsFixtures';
+import { day, makeClass, makeRow, NOW, toOrders } from '@/test/fixtures/myShowsFixtures';
 import { MyShowsList, type MyShowsListProps } from './MyShowsList';
 import type { EntryClass, MyEntry } from './my-entries-types';
 import { PENDING_REVIEW_REASSURANCE } from './myShowsCopy';
@@ -322,5 +322,54 @@ describe('MyShowDogCard — the pending-review reassurance', () => {
     );
 
     expect(screen.queryByText(PENDING_REVIEW_REASSURANCE)).not.toBeInTheDocument();
+  });
+});
+
+describe('MyShowDogCard — the opens-later row promises check-in only when eligible (MYK9-568 round 3)', () => {
+  function classForOpensLater(overrides: Partial<EntryClass> = {}): EntryClass {
+    return makeClass({
+      id: 'c-rex-open-later',
+      name: 'Load 2 Class 4',
+      trialDate: day('2026-10-25'), // Sunday — one day ahead of NOW (Sat)
+      ...overrides,
+    });
+  }
+
+  it('offers fixed "Check in on the day" copy for an eligible entry, naming the weekday only once in the row', () => {
+    renderRows(rexWith([classForOpensLater()]));
+
+    // Fixed copy, no interpolated weekday — the row's own date column already
+    // names the day ("Sun, Oct 25"); repeating it as "Check-in opens Sunday"
+    // made the tester read the same weekday twice.
+    expect(screen.getByText('Check in on the day')).toBeInTheDocument();
+    expect(screen.queryByText(/opens Sunday/i)).not.toBeInTheDocument();
+
+    const row = screen.getByText('Load 2 Class 4').closest('.myk9-entries-class-row');
+    expect(row).not.toBeNull();
+    expect(within(row as HTMLElement).getAllByText(/Sun/)).toHaveLength(1);
+
+    // The row's "when" column names the date and trial number; the state
+    // column must not restate them.
+    expect(screen.getAllByText('Load 2 Class 4')).toHaveLength(1);
+  });
+
+  it('renders no check-in claim for a PENDING entry whose day is still ahead — the common post-payment state', () => {
+    renderRows(
+      rexWith([classForOpensLater({ entryStatus: EntryStatus.PENDING })], {
+        entryStatus: EntryStatus.PENDING,
+      })
+    );
+
+    expect(screen.queryByText('Check in on the day')).not.toBeInTheDocument();
+    expect(screen.queryByText(/opens/i)).not.toBeInTheDocument();
+  });
+
+  it('renders no check-in claim when self check-in is disabled for the class', () => {
+    renderRows(rexWith([classForOpensLater({ classId: 'class-open-later' })]), {
+      selfCheckinByClassId: { 'class-open-later': false },
+    });
+
+    expect(screen.queryByText('Check in on the day')).not.toBeInTheDocument();
+    expect(screen.queryByText(/opens/i)).not.toBeInTheDocument();
   });
 });

@@ -37,6 +37,7 @@ function buildSelectColumn(selection: DogsTableSelection): DisplayColumnDef<Dog,
     id: '_select',
     header: () => (
       <Checkbox
+        className="relative before:absolute before:-inset-3.5 before:content-['']"
         checked={selection.isAllSelected}
         indeterminate={selection.isPartiallySelected}
         onCheckedChange={() => selection.toggleAll()}
@@ -46,6 +47,7 @@ function buildSelectColumn(selection: DogsTableSelection): DisplayColumnDef<Dog,
     cell: ({ row }) => (
       <span className="flex items-center" onClick={e => e.stopPropagation()} role="presentation">
         <Checkbox
+          className="relative before:absolute before:-inset-3.5 before:content-['']"
           checked={selection.isSelected(row.original)}
           onCheckedChange={() => selection.toggleItem(row.original)}
           aria-label={`Select ${getDogDisplayName(row.original)}`}

@@ -5,6 +5,16 @@ import type { Dog } from '@/types/dog-types';
 import { RESPONSIVE_CLASSES, type ResponsiveBreakpoint } from '@/components/ui/data-table/types';
 import { DogsTableView, type DogsTableSelection } from '../DogsTableView';
 
+// MYK9-592: the row and header checkboxes sit inside a clickable row / header
+// cell; the navigation handler is asserted directly (not just inferred from
+// toggleItem firing) so a regression that lets a click bubble to the row is
+// caught even if the selection callback also happens to fire.
+const mockNavigate = vi.fn();
+vi.mock('react-router-dom', async importOriginal => {
+  const actual = await importOriginal<typeof import('react-router-dom')>();
+  return { ...actual, useNavigate: () => mockNavigate };
+});
+
 const dogs: Dog[] = [
   { id: '1', name: 'Rex', callName: 'Rex', breed: 'Labrador', sex: 'male', status: 'active' },
   { id: '2', name: 'Bella', callName: 'Bella', breed: 'Poodle', sex: 'female', status: 'active' },
@@ -57,7 +67,10 @@ async function exportCsv(user: UserEvent): Promise<string> {
 }
 
 describe('DogsTableView', () => {
-  beforeEach(() => localStorage.clear());
+  beforeEach(() => {
+    localStorage.clear();
+    mockNavigate.mockClear();
+  });
 
   // The page-level ListControls owns the only search box; the table must not
   // render a second, redundant global-filter search of its own.
@@ -101,6 +114,25 @@ describe('DogsTableView', () => {
       await user.click(screen.getByRole('checkbox', { name: /select rex/i }));
       expect(toggleItem).toHaveBeenCalledTimes(1);
       expect(toggleItem).toHaveBeenCalledWith(dogs[0]);
+      // The stopPropagation wrapper around the row checkbox is what this
+      // guards: a click landing on the checkbox (or its enlarged tap-target
+      // pseudo-element, still a DOM descendant of that wrapper) must never
+      // reach the row's onRowClick navigate() call.
+      expect(mockNavigate).not.toHaveBeenCalled();
+    });
+
+    // MYK9-592: bare 16px checkboxes inside a clickable row are a mis-tap
+    // trap on a tablet. jsdom performs no layout/paint, so a coordinate-based
+    // click cannot exercise the pseudo-element's enlarged hit area the way a
+    // real touch would — the class contract is what the codebase's existing
+    // precedent (EntryRegistrationQueue.test.tsx:153) asserts instead, and
+    // this follows it exactly.
+    it('gives the header and row checkboxes an enlarged tap target', () => {
+      render(<DogsTableView dogs={dogs} selection={makeSelection()} />);
+      const headerCheckbox = screen.getByRole('checkbox', { name: /select all dogs/i });
+      const rowCheckbox = screen.getByRole('checkbox', { name: /select rex/i });
+      expect(headerCheckbox.className).toContain('before:-inset-3.5');
+      expect(rowCheckbox.className).toContain('before:-inset-3.5');
     });
 
     it('reflects indeterminate state on the header checkbox', () => {

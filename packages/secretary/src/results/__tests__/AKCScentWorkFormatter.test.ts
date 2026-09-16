@@ -2,6 +2,7 @@
 
 import { describe, it, expect } from 'vitest';
 import { AKCScentWorkFormatter } from '../formatters/AKCScentWorkFormatter';
+import { AKCUnmappableClassError, collectUnmappableAKCClasses } from '../formatters/akcClassCodes';
 import type { AKCSubmissionData, AKCSubmissionEntry } from '../types';
 
 // ---------------------------------------------------------------------------
@@ -272,25 +273,105 @@ describe('AKCScentWorkFormatter', () => {
   });
 
   describe('primaryClass mapping', () => {
-    const cases: Array<[string, string, string]> = [
-      ['Novice', 'A', 'SWNOVA'],
-      ['Novice', 'B', 'SWNOVB'],
-      ['Advanced', '', 'SWADV'],
-      ['Excellent', '', 'SWEXC'],
-      ['Master', '', 'SWMAST'],
-      ['Detective', '', 'SWDC'],
+    // (element, level, section, expected). MYK9-547: the Detective row carries
+    // the real shape — a standalone ELEMENT with an empty level, which is what
+    // `sport_class_rules` stores and what the adapter coalesces NULL into.
+    // Keyed on `level` alone it fell through to the old 'SWNOVA' fallback.
+    const cases: Array<[string, string, string, string]> = [
+      ['Container', 'Novice', 'A', 'SWNOVA'],
+      ['Container', 'Novice', 'B', 'SWNOVB'],
+      ['Container', 'Advanced', '', 'SWADV'],
+      ['Container', 'Excellent', '', 'SWEXC'],
+      ['Container', 'Master', '', 'SWMAST'],
+      ['Detective', '', '', 'SWDC'],
     ];
 
-    for (const [level, section, expected] of cases) {
-      it(`maps ${level} ${section} to ${expected}`, () => {
+    for (const [element, level, section, expected] of cases) {
+      it(`maps ${element} ${level} ${section} to ${expected}`.replace(/\s+/g, ' '), () => {
         const xml = AKCScentWorkFormatter.formatXml(
           makeData({
-            entries: [makeEntry({ level, section: section || null, element: 'Container' })],
+            entries: [makeEntry({ element, level, section: section || null })],
           })
         );
         expect(xml).toContain(`primaryClass="${expected}"`);
       });
     }
+
+    it('never reports a Detective run as Novice A', () => {
+      const xml = AKCScentWorkFormatter.formatXml(
+        makeData({
+          entries: [
+            makeEntry({ element: 'Detective', level: '', section: null, className: 'Detective' }),
+          ],
+        })
+      );
+      expect(xml).not.toContain('primaryClass="SWNOVA"');
+    });
+  });
+
+  describe('fail-closed class mapping (MYK9-547)', () => {
+    // The old mapper ended in `return 'SWNOVA'`, so anything it did not
+    // recognise shipped to AKC as Scent Work Novice A. Nothing may map by
+    // accident now: an unknown class produces no file at all.
+    const unmappable: Array<[string, Partial<AKCSubmissionEntry>]> = [
+      ['an unknown element', { element: 'Vehicle', level: 'Novice', section: 'A' }],
+      ['an unknown level', { element: 'Container', level: 'Championship', section: null }],
+      ['Novice with no A/B section', { element: 'Container', level: 'Novice', section: null }],
+      ['Detective carrying a level', { element: 'Detective', level: 'Master', section: null }],
+      ['Detective carrying a section', { element: 'Detective', level: '', section: 'A' }],
+      ['a class with no element at all', { element: '', level: '', section: null }],
+    ];
+
+    for (const [label, overrides] of unmappable) {
+      it(`refuses to build a file for ${label}`, () => {
+        expect(() =>
+          AKCScentWorkFormatter.formatXml(makeData({ entries: [makeEntry(overrides)] }))
+        ).toThrow(AKCUnmappableClassError);
+      });
+    }
+
+    it('names the offending class in the error', () => {
+      expect(() =>
+        AKCScentWorkFormatter.formatXml(
+          makeData({
+            entries: [
+              makeEntry({ element: 'Vehicle', level: 'Novice', className: 'Vehicle Novice A' }),
+            ],
+          })
+        )
+      ).toThrow(/Vehicle Novice A/);
+    });
+
+    it('collects the unmappable class names for the secretary, de-duplicated', () => {
+      const entries = [
+        makeEntry({
+          element: 'Vehicle',
+          level: 'Novice',
+          section: 'A',
+          className: 'Vehicle Novice A',
+        }),
+        makeEntry({
+          element: 'Vehicle',
+          level: 'Novice',
+          section: 'A',
+          className: 'Vehicle Novice A',
+        }),
+        makeEntry({ element: 'Detective', level: '', section: null, className: 'Detective' }),
+        makeEntry({
+          element: 'Container',
+          level: 'Master',
+          section: null,
+          className: 'Container Master',
+        }),
+      ];
+      expect(collectUnmappableAKCClasses(entries)).toEqual(['Vehicle Novice A']);
+    });
+
+    it('reports no unmappable classes for a Detective entry', () => {
+      expect(
+        collectUnmappableAKCClasses([makeEntry({ element: 'Detective', level: '', section: null })])
+      ).toEqual([]);
+    });
   });
 
   describe('secondaryClass mapping', () => {
@@ -312,12 +393,15 @@ describe('AKCScentWorkFormatter', () => {
     }
 
     it('omits secondaryClass for Detective', () => {
+      // MYK9-547 — `level: ''` is the real shape: Detective is a standalone
+      // element and `sport_class_rules.level` is NULL for it.
       const xml = AKCScentWorkFormatter.formatXml(
         makeData({
-          entries: [makeEntry({ level: 'Detective', element: 'Detective', section: null })],
+          entries: [makeEntry({ level: '', element: 'Detective', section: null })],
         })
       );
       expect(xml).not.toContain('secondaryClass=');
+      expect(xml).toContain('primaryClass="SWDC"');
     });
   });
 

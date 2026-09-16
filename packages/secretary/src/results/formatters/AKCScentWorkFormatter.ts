@@ -7,6 +7,7 @@ import {
   selectSubmittableAKCEntries,
   tallyAKCClass,
 } from './akcEntryOutcome';
+import { AKCUnmappableClassError, describeAKCClass, mapAKCClassCodes } from './akcClassCodes';
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -37,34 +38,6 @@ function groupBy<T>(items: T[], keyFn: (item: T) => string): Map<string, T[]> {
     map.set(key, arr);
   }
   return map;
-}
-
-function mapPrimaryClass(level: string, section: string | null): string {
-  const combined = section ? `${level} ${section}` : level;
-  if (combined === 'Novice A') return 'SWNOVA';
-  if (combined === 'Novice B') return 'SWNOVB';
-  if (level.startsWith('Advanced')) return 'SWADV';
-  if (level.startsWith('Excellent')) return 'SWEXC';
-  if (level.startsWith('Master')) return 'SWMAST';
-  if (level.startsWith('Detective')) return 'SWDC';
-  return 'SWNOVA'; // safe fallback
-}
-
-function mapSecondaryClass(element: string): string {
-  switch (element) {
-    case 'Container':
-      return 'CONTAINR';
-    case 'Interior':
-      return 'INTERIOR';
-    case 'Exterior':
-      return 'EXTERIOR';
-    case 'Buried':
-      return 'BURIED';
-    case 'Handler Discrimination':
-      return 'HANDDISC';
-    default:
-      return '';
-  }
 }
 
 // ---------------------------------------------------------------------------
@@ -101,8 +74,14 @@ function generateAKCXml(data: AKCSubmissionData): string {
     for (const [, classEntries] of byClass) {
       if (classEntries.length === 0) continue;
       const first = classEntries[0]!;
-      const primaryClass = mapPrimaryClass(first.level, first.section);
-      const secondaryClass = mapSecondaryClass(first.element);
+      // Fail-closed (MYK9-547). The page pre-flights with
+      // `collectUnmappableAKCClasses` and blocks before getting here; if an
+      // unknown class reaches the formatter anyway, no file is produced. The
+      // old code returned 'SWNOVA' for anything it did not recognise, which is
+      // how every Detective run was reported as Scent Work Novice A.
+      const codes = mapAKCClassCodes(first.element, first.level, first.section);
+      if (!codes) throw new AKCUnmappableClassError(describeAKCClass(first));
+      const { primaryClass, secondaryClass } = codes;
       const courseTime = first.timeLimitSeconds != null ? `${first.timeLimitSeconds}.0` : '0.0';
 
       const { numEntries, numStarters, numQualifying, numWithdrawals } =

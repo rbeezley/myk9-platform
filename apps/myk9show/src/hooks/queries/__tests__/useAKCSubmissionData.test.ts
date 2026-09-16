@@ -5,6 +5,7 @@ import { renderHook, waitFor } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import React from 'react';
 import { useAKCSubmissionData } from '../useAKCSubmissionData';
+import { AKCScentWorkFormatter, mapAKCClassCodes } from '@myk9/secretary';
 
 // ---------------------------------------------------------------------------
 // Mocks
@@ -552,5 +553,137 @@ describe('useAKCSubmissionData', () => {
     expect(entry?.dogRegisteredName).toBeNull();
     // Empty, never 'Unknown' or any other substitute.
     expect(entry?.breed).toBe('');
+  });
+  it('carries a Detective class through with element set and level empty (MYK9-547)', async () => {
+    // `classes.level` is NULL for Detective — it is a standalone element. The
+    // adapter coalesces that to '', so anything downstream that classifies on
+    // `level` alone sees a blank. This pins the SHAPE the formatter receives
+    // and then runs the real formatter over it, because a unit test on the
+    // mapper alone cannot see a field dropped at the last hop.
+    mockSupabase.from.mockImplementation((table: string) => {
+      if (table === 'shows')
+        return {
+          select: vi.fn().mockReturnThis(),
+          eq: vi.fn().mockReturnThis(),
+          single: vi.fn().mockResolvedValue({
+            data: { id: 'show-1', name: 'T', club_id: null, clubs: null },
+            error: null,
+          }),
+        };
+      if (table === 'people')
+        return {
+          select: vi.fn().mockReturnThis(),
+          eq: vi.fn().mockReturnThis(),
+          maybeSingle: vi.fn().mockResolvedValue({ data: null, error: null }),
+          in: vi.fn().mockReturnThis(),
+        };
+      if (table === 'trials')
+        return {
+          select: vi.fn().mockReturnThis(),
+          eq: vi.fn().mockReturnThis(),
+          is: vi.fn().mockReturnThis(),
+          order: vi.fn().mockResolvedValue({
+            data: [
+              {
+                id: 't1',
+                event_number: '2026193001',
+                date: '2026-05-10',
+                trial_number: '1',
+                name: 'T1',
+              },
+            ],
+            error: null,
+          }),
+        };
+      if (table === 'classes')
+        return {
+          select: vi.fn().mockReturnThis(),
+          in: vi.fn().mockReturnThis(),
+          is: vi.fn().mockResolvedValue({
+            // The live `sport_class_rules` / `classes` shape for Detective.
+            data: [
+              {
+                id: 'c1',
+                element: 'Detective',
+                level: null,
+                section: null,
+                time_limit_seconds: 600,
+                trial_id: 't1',
+                name: 'Detective',
+              },
+            ],
+            error: null,
+          }),
+        };
+      if (table === 'view_authenticated_entry_results')
+        return {
+          select: vi.fn().mockReturnThis(),
+          eq: vi.fn().mockReturnThis(),
+          is: vi.fn().mockResolvedValue({
+            data: [
+              {
+                id: 'e1',
+                dog_id: 'd1',
+                class_id: 'c1',
+                trial_id: 't1',
+                armband: '101',
+                search_time_seconds: 300,
+                final_placement: 1,
+                result_status: 'qualified',
+                entry_status: 'completed',
+                check_in_status: 'completed',
+                run_order: 1,
+              },
+            ],
+            error: null,
+          }),
+        };
+      if (table === 'dogs')
+        return {
+          select: vi.fn().mockReturnThis(),
+          in: vi.fn().mockResolvedValue({
+            data: [{ id: 'd1', sex: 'Male', owner_id: null, name: 'Rex', call_name: 'Rex' }],
+            error: null,
+          }),
+        };
+      if (table === 'dog_registrations')
+        return {
+          select: vi.fn().mockReturnThis(),
+          in: vi.fn().mockResolvedValue({
+            data: [
+              {
+                dog_id: 'd1',
+                organization: 'AKC (American Kennel Club)',
+                registration_number: 'HP12345601',
+                registered_name: 'Rex Of Somewhere',
+                breed: 'Retriever (Labrador)',
+                variety: null,
+              },
+            ],
+            error: null,
+          }),
+        };
+      return {
+        select: vi.fn().mockReturnThis(),
+        in: vi.fn().mockResolvedValue({ data: [], error: null }),
+      };
+    });
+
+    const { result } = renderHook(() => useAKCSubmissionData('show-1'), { wrapper });
+    await waitFor(() => expect(result.current.isSuccess).toBe(true));
+
+    const entry = result.current.data?.entries[0];
+    expect(entry?.element).toBe('Detective');
+    expect(entry?.level).toBe('');
+    expect(entry?.section).toBeNull();
+    expect(mapAKCClassCodes(entry!.element, entry!.level, entry!.section)).toEqual({
+      primaryClass: 'SWDC',
+      secondaryClass: null,
+    });
+
+    const xml = AKCScentWorkFormatter.formatXml(result.current.data!);
+    expect(xml).toContain('primaryClass="SWDC"');
+    expect(xml).not.toContain('primaryClass="SWNOVA"');
+    expect(xml).not.toContain('secondaryClass=');
   });
 });

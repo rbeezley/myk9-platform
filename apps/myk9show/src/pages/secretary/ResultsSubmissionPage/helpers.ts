@@ -72,7 +72,22 @@ export function buildAKCSubmissionReadiness(input: {
   entryCount: number;
   missingRegistrationNumberCount: number;
   unscoredEntryCount?: number;
+  /** Class names with no AKC class code — see `collectUnmappableAKCClasses`. */
+  unmappableClassNames?: string[];
 }): AKCSubmissionReadiness {
+  // MYK9-547 — first, because this one blocks the FILE, not just the send. A
+  // class AKC has no code for used to be reported as Novice A; now no XML is
+  // produced at all, so there is not even a draft to download.
+  const unmappable = input.unmappableClassNames ?? [];
+  if (unmappable.length > 0) {
+    return {
+      verdict: `${unmappable.length === 1 ? 'A class has' : `${unmappable.length} classes have`} no AKC class code: ${unmappable.join(', ')}.`,
+      details:
+        'The AKC file cannot be built while a class is unrecognised — submitting it would record these runs under the wrong class. Check the class setup for this show, or contact support.',
+      canSend: false,
+    };
+  }
+
   if (input.entryCount === 0) {
     return {
       verdict: 'No entries are ready to send yet.',

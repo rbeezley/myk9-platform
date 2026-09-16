@@ -27,6 +27,13 @@ export {
   parseAKCResultStatus,
 } from './formatters/akcEntryOutcome';
 export type { AKCEntryOutcome, AKCClassTallies } from './formatters/akcEntryOutcome';
+export {
+  mapAKCClassCodes,
+  describeAKCClass,
+  collectUnmappableAKCClasses,
+  AKCUnmappableClassError,
+} from './formatters/akcClassCodes';
+export type { AKCClassCodes } from './formatters/akcClassCodes';
 
 // Auto-register built-in formatters on import
 import { registerFormatter } from './registry';

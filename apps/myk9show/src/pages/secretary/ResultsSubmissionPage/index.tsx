@@ -30,6 +30,7 @@ import {
   AKCScentWorkFormatter,
   countUnscoredAKCEntries,
   selectSubmittableAKCEntries,
+  collectUnmappableAKCClasses,
 } from '@myk9/secretary';
 import { useAKCSubmissionData } from '@/hooks/queries/useAKCSubmissionData';
 import { useResultSubmission, useResultSubmissions } from '@/hooks/mutations/useResultSubmission';
@@ -141,8 +142,6 @@ export default function ResultsSubmissionPage() {
    */
   const akcDataUnavailable = isAKCScentWork && !isAKCLoading && !akcData;
 
-  const xmlPreview = isAKCScentWork && akcData ? AKCScentWorkFormatter.formatXml(akcData) : '';
-
   /**
    * The entries that actually go to AKC. `useAKCSubmissionData` reads every row
    * for the show with no lifecycle filter, so drafts, unpaid entries and rows
@@ -160,15 +159,32 @@ export default function ResultsSubmissionPage() {
    * dog. Block sending, the same way a missing registration number does.
    */
   const unscoredAKCCount = countUnscoredAKCEntries(submittableAKCEntries);
+  /**
+   * Classes AKC has no code for (MYK9-547). The formatter now refuses to build
+   * a file for one rather than reporting it as Novice A, so this blocks the
+   * draft download too — there is no honest draft to produce.
+   */
+  const unmappableAKCClasses = collectUnmappableAKCClasses(submittableAKCEntries);
   /** Nothing to send. An empty XML is still valid XML, so this must be its own gate. */
   const hasNoAKCEntries = isAKCScentWork && Boolean(akcData) && submittableAKCEntries.length === 0;
   const hasBlockingAKCPreflightIssue =
-    isAKCScentWork && (missingAKCCount > 0 || unscoredAKCCount > 0 || hasNoAKCEntries);
+    isAKCScentWork &&
+    (missingAKCCount > 0 ||
+      unscoredAKCCount > 0 ||
+      hasNoAKCEntries ||
+      unmappableAKCClasses.length > 0);
+  // Guarded, not try/caught: `formatXml` throws on an unmappable class, and
+  // this runs during render.
+  const xmlPreview =
+    isAKCScentWork && akcData && unmappableAKCClasses.length === 0
+      ? AKCScentWorkFormatter.formatXml(akcData)
+      : '';
   const akcReadiness = akcData
     ? buildAKCSubmissionReadiness({
         entryCount: submittableAKCEntries.length,
         missingRegistrationNumberCount: missingAKCCount,
         unscoredEntryCount: unscoredAKCCount,
+        unmappableClassNames: unmappableAKCClasses,
       })
     : null;
   const sendBlockedReason =

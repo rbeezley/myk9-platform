@@ -91,27 +91,6 @@ BEGIN
 END;
 $$;
 
--- Already-published fixture on the unauthorized club. The trigger is
--- UPDATE-only (mirrors 20260915195500), so this cannot be INSERTed straight
--- into 'published' for a club that is unauthorized right now. Insert as
--- draft, authorize the club, publish it (as the real club_admin, so the
--- gate actually runs instead of being bypassed), then revoke authorization
--- again — this exercises the never-retroactive rule for real instead of
--- assuming an already-published row can be inserted directly.
-INSERT INTO public.shows (id, name, organization, start_date, end_date, club_id, status) VALUES
-  ('00000000-0000-0000-0000-000000572012', 'MYK9-572 Already Published (unauthorized club)', 'AKC',
-   current_date, current_date + 1, '00000000-0000-0000-0000-000000572002', 'draft');
-
-UPDATE public.clubs SET authorized_at = now() WHERE id = '00000000-0000-0000-0000-000000572002';
-
-SET LOCAL ROLE authenticated;
-SELECT set_config('request.jwt.claim.sub', current_setting('myk9572.admin_auth_user_id'), true);
-UPDATE public.shows SET status = 'published' WHERE id = '00000000-0000-0000-0000-000000572012';
-RESET ROLE;
-SELECT set_config('request.jwt.claim.sub', '', true);
-
-UPDATE public.clubs SET authorized_at = NULL WHERE id = '00000000-0000-0000-0000-000000572002';
-
 -- ---------------------------------------------------------------------------
 -- 1. anon SELECT excludes the unauthorized club, includes the authorized
 --    one, and does not error (the P0 regression: a clubs_select predicate
@@ -525,14 +504,68 @@ $$;
 RESET ROLE;
 SELECT set_config('request.jwt.claim.sub', '', true);
 
+-- ---------------------------------------------------------------------------
+-- Already-published fixture on the unauthorized club, built HERE rather than
+-- up with the other fixtures. The trigger is UPDATE-only (mirrors
+-- 20260915195500), so 572012 cannot be INSERTed straight into 'published'
+-- for a club that is unauthorized right now: it has to be inserted as draft,
+-- published while the club is authorized, and then left behind when
+-- authorization is revoked. Building it early would have published a show on
+-- club 572002 before the visibility cases ran, and clubs_select's
+-- club_has_public_show(id) arm (20260916004500) keeps a club visible to
+-- everyone for as long as it hosts a publicly-visible show — which would have
+-- made cases 1, 2b and 2c assert the opposite of the designed behavior.
+-- So it is built inside case 4's authorize/revoke window instead, after every
+-- visibility case has already run, and the revoke below serves both.
+-- Published as the real club_admin, so the gate actually runs instead of
+-- being bypassed by the API-roles-only carve-out.
+-- ---------------------------------------------------------------------------
+INSERT INTO public.shows (id, name, organization, start_date, end_date, club_id, status) VALUES
+  ('00000000-0000-0000-0000-000000572012', 'MYK9-572 Already Published (unauthorized club)', 'AKC',
+   current_date, current_date + 1, '00000000-0000-0000-0000-000000572002', 'draft');
+
+SET LOCAL ROLE authenticated;
+SELECT set_config('request.jwt.claim.sub', current_setting('myk9572.admin_auth_user_id'), true);
+UPDATE public.shows SET status = 'published' WHERE id = '00000000-0000-0000-0000-000000572012';
+RESET ROLE;
+SELECT set_config('request.jwt.claim.sub', '', true);
+
 -- Revert back to unauthorized for the remaining cases.
 UPDATE public.clubs SET authorized_at = NULL WHERE id = '00000000-0000-0000-0000-000000572002';
 
 -- ---------------------------------------------------------------------------
+-- 4b. Revocation is never retroactive for the DIRECTORY either: club 572002
+--     is unauthorized again as of the revoke above, but it still hosts
+--     publicly-visible shows (572011 and 572012), so clubs_select's
+--     club_has_public_show(id) arm must keep it visible to anon. This pins
+--     the designed behavior that the visibility cases above deliberately run
+--     BEFORE any publish on this club.
+-- ---------------------------------------------------------------------------
+DO $$
+DECLARE
+  v_count integer;
+BEGIN
+  SET LOCAL ROLE anon;
+
+  SELECT count(*) INTO v_count FROM public.clubs
+   WHERE id = '00000000-0000-0000-0000-000000572002';
+
+  RESET ROLE;
+
+  IF v_count <> 1 THEN
+    RAISE EXCEPTION 'FAIL revoked-club-with-public-show-stays-visible: anon could not see a revoked club that still hosts a published show';
+  END IF;
+  RAISE NOTICE 'PASS revoked-club-with-public-show-stays-visible: club_has_public_show keeps a revoked club visible while its show is public';
+END;
+$$;
+RESET ROLE;
+
+-- ---------------------------------------------------------------------------
 -- 5. An already-published show on a club that becomes/stays unauthorized
 --    still accepts an unrelated edit (never retroactive). Fixture 572012 was
---    built by authorizing, publishing, then revoking (see Fixtures above),
---    so this exercises the real revoke-after-publish path, not an
+--    built by authorizing, publishing, then revoking (see the fixture block
+--    immediately above case 4b), so this exercises the real
+--    revoke-after-publish path, not an
 --    already-published row inserted directly. Runs as the real club 002
 --    club_admin (authenticated) so the trigger's OLD.status = 'published'
 --    exemption is actually exercised, not just bypassed by role.

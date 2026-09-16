@@ -830,8 +830,8 @@ SELECT set_config('request.jwt.claim.sub', '', true);
 --     the "already-published exempt" branch does not leak into a show that
 --     was moved back to draft. Secretary of a fifth, dedicated club.
 -- ---------------------------------------------------------------------------
-INSERT INTO public.clubs (id, name) VALUES
-  ('00000000-0000-0000-0000-000000579005', 'MYK9-579 Loses Readiness Club');
+INSERT INTO public.clubs (id, name, authorized_at) VALUES
+  ('00000000-0000-0000-0000-000000579005', 'MYK9-579 Loses Readiness Club', now());
 
 INSERT INTO public.club_stripe_accounts (club_id, stripe_account_id, onboarding_complete, payouts_enabled, livemode)
 VALUES ('00000000-0000-0000-0000-000000579005', 'acct_myk9579_loses_readiness', true, true, false);

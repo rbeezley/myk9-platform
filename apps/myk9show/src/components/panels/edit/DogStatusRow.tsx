@@ -12,12 +12,13 @@ import { DogEditContext } from './DogEditPanel';
  * carries the copy and the date-of-passing input that moment needs. A second
  * editor here would be the duplication this phase is meant to remove.
  *
- * Renders nothing without `onChangeStatus` — see `DogEditContextType`.
+ * Without `onChangeStatus` (e.g. the person-detail Dogs tab, which has no
+ * dialog mounted behind it — MYK9-594) the row still renders, read-only: a
+ * badge with no button. The value should be visible on every Edit Dog
+ * surface; it is only changeable where a handler exists.
  */
 export const DogStatusRow: React.FC = () => {
   const { dogStatus, dogDeceasedDate, onChangeStatus } = useContext(DogEditContext);
-
-  if (!onChangeStatus) return null;
 
   const badge = DOG_STATUS_BADGES[dogStatus || 'active'];
   const deceasedSuffix = dogStatus === 'deceased' && dogDeceasedDate ? ` — ${dogDeceasedDate}` : '';
@@ -40,17 +41,19 @@ export const DogStatusRow: React.FC = () => {
           )}
         </div>
       </div>
-      <Button
-        type="button"
-        variant="outline"
-        size="sm"
-        onClick={onChangeStatus}
-        aria-haspopup="dialog"
-        className="gap-2 shrink-0"
-      >
-        <Activity className="h-4 w-4" />
-        Change status
-      </Button>
+      {onChangeStatus && (
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          onClick={onChangeStatus}
+          aria-haspopup="dialog"
+          className="gap-2 shrink-0"
+        >
+          <Activity className="h-4 w-4" />
+          Change status
+        </Button>
+      )}
     </div>
   );
 };

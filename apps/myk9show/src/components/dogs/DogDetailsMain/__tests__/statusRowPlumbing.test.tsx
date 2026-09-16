@@ -99,10 +99,15 @@ describe('Edit Dog panel Status row plumbing', () => {
     expect(screen.getByText('Deceased — 3/3/2026')).toBeInTheDocument();
   });
 
-  it('hides the row when the page passes no handler, rather than showing a dead control', async () => {
+  // MYK9-594: the Status row now renders read-only rather than disappearing
+  // when the page passes no handler -- there is no dialog behind this hop
+  // (DogDialogs called with no `onStatusDialogOpen`) on the person-detail
+  // Dogs tab, but the value should still be visible there.
+  it('shows the status read-only, with no change button, when the page passes no handler', async () => {
     renderDialogs();
 
     await waitFor(() => expect(screen.getByLabelText(/call name/i)).toBeInTheDocument());
+    expect(screen.getByText('Retired')).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /change status/i })).not.toBeInTheDocument();
   });
 });

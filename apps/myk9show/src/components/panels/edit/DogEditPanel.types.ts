@@ -17,9 +17,9 @@ export interface DogEditContextType {
   /** Date of passing, already formatted for display, beside a `deceased` status. */
   dogDeceasedDate?: string | undefined;
   /**
-   * Raises the status dialog. Omit on a surface that has no dialog mounted (the
-   * person-detail Dogs tab) and the Status row hides itself rather than
-   * rendering a control that does nothing.
+   * Raises the status dialog. Omit on a surface that has no dialog mounted
+   * (the person-detail Dogs tab, MYK9-594) and the Status row renders
+   * read-only — badge, no button — rather than a control that does nothing.
    */
   onChangeStatus?: (() => void) | undefined;
 }
@@ -41,7 +41,7 @@ export interface DogEditPanelProps {
   dogStatus?: DogStatus | undefined;
   /** Date of passing, already formatted for display. */
   dogDeceasedDate?: string | undefined;
-  /** Raises the status dialog; omit to hide the Status row entirely. */
+  /** Raises the status dialog; omit to render the Status row read-only. */
   onChangeStatus?: (() => void) | undefined;
 }
 

@@ -29,6 +29,10 @@ import { execFileSync } from 'node:child_process';
 import { existsSync, realpathSync } from 'node:fs';
 import { basename, dirname, isAbsolute, join, relative, resolve, sep } from 'node:path';
 import { pathToFileURL } from 'node:url';
+import {
+  check as checkPrimaryCheckout,
+  render as renderPrimaryCheckout,
+} from './primary-checkout.ts';
 
 export interface ChangeSource {
   kind: 'pr' | 'worktree' | 'branch';
@@ -613,6 +617,16 @@ export function runCli(argv = process.argv.slice(2), cwd = process.cwd()): numbe
 function runCliInner(argv: string[], cwd: string): number {
   const warn = argv.includes('--warn');
   const verbose = argv.includes('--verbose');
+  // The primary checkout is shared by every worktree on this machine. An
+  // uncommitted edit there aborts every `git pull` that touches those files,
+  // silently, until someone notices — on 2026-09-10 that froze main for 5 days
+  // and 105 commits. Check it before any work starts, not at commit time: these
+  // edits are never committed, so .githooks/pre-commit never sees them.
+  const primary = checkPrimaryCheckout(cwd);
+  if (!primary.ok) {
+    console.error(renderPrimaryCheckout(primary));
+    if (!warn) return 1;
+  }
   const base = argv.find(a => a.startsWith('--base='))?.slice('--base='.length) ?? 'origin/main';
   const explicit = argv.filter(a => !a.startsWith('--'));
   run('git', ['fetch', '-q', 'origin', 'main'], { cwd, allowFail: true });

@@ -2188,16 +2188,21 @@ FROM generate_series(1, 63) AS load_armbands(dog_number);
 -- so shows sharing a club are all manageable by that club's secretary no matter
 -- what show-scoped grants exist. Per-show credential scoping is impossible on a
 -- shared club — and concurrent shows are run by different clubs anyway.
+-- Real-looking club name/description below (MYK9-566, see header note above).
 INSERT INTO public.clubs (id, name, city, state, email, description, club_number, version)
 SELECT
   format('a1090000-0000-0000-0013-%s%s', s, lpad('1', 11, '0'))::uuid,
-  format('MYK9-109 Load Club %s', s),
+  club_name,
   'Tulsa', 'Oklahoma',
   'testadmin@myk9t.com',
-  format('Owns load show %s. Separate club so a per-show secretary can be scoped to one show.', s),
-  format('LOAD-%s', lpad(s::text, 3, '0')),
+  format('%s. Separate club so a per-show secretary can be scoped to one show.', club_name),
+  format('%s-%s', club_code, lpad(s::text, 3, '0')),
   1
-FROM generate_series(1, 3) AS load_clubs(s);
+FROM (VALUES
+  (1, 'Green Country Scent Work Club', 'GCSW'),
+  (2, 'Redbud Ridge Canine Sports Club', 'RRCS'),
+  (3, 'Blue Sky K9 Trial Club', 'BSKT')
+) AS load_clubs(s, club_name, club_code);
 
 -- Stripe Connect sandbox account for Load Club 1 ONLY.
 --
@@ -2255,12 +2260,12 @@ INSERT INTO public.shows (
 )
 SELECT
   format('a1090000-0000-0000-0010-%s%s', s, lpad('1', 11, '0'))::uuid,
-  format('MYK9-109 Load Show %s', s),
+  show_name,
   'AKC',
-  format('Concurrent load-rehearsal show %s. Exists so multi-show replication and cross-show delta volume are measurable.', s),
+  format('A weekend AKC Scent Work trial. One of three concurrent demo shows so multi-show replication and cross-show delta volume are measurable (show %s of 3).', s),
   ((CURRENT_DATE + 45)::timestamp AT TIME ZONE 'UTC'), ((CURRENT_DATE + 47)::timestamp AT TIME ZONE 'UTC'),
   ((CURRENT_DATE - 16)::timestamp AT TIME ZONE 'UTC'), ((CURRENT_DATE + 76)::timestamp AT TIME ZONE 'UTC'),
-  format('%s00 Load Fixture Way, Tulsa, OK 74101', s),
+  format('%s00 Fairgrounds Road, Tulsa, OK 74101', s),
   'Tulsa', 'Oklahoma',
   36.15, -95.99,
   'published',
@@ -2273,7 +2278,11 @@ SELECT
   true,
   'headline', false, '{}'::jsonb,
   '#0d4d4f', 1, false
-FROM generate_series(1, 3) AS load_shows(s);
+FROM (VALUES
+  (1, 'Green Country Scent Work Trial'),
+  (2, 'Redbud Ridge Fall Classic'),
+  (3, 'Blue Sky Scent Work Weekend')
+) AS load_shows(s, show_name);
 
 -- Explicit visibility rows so self-check-in is enabled by a stated setting, not
 -- by the cascade's absent-row default. The exhibitor self-check-in workload
@@ -2295,12 +2304,12 @@ INSERT INTO public.trials (
 SELECT
   format('a1090000-0000-0000-0011-%s%s', s, lpad(t::text, 11, '0'))::uuid,
   format('a1090000-0000-0000-0010-%s%s', s, lpad('1', 11, '0'))::uuid,
-  format('Load %s Trial %s', s, t),
+  format('Trial %s', t),
   ((CURRENT_DATE + 45) + (t - 1)),
-  format('Load %s Trial %s', s, t),
+  format('Trial %s', t),
   'upcoming',
   '8:00 AM', true, 'scent_work', 1, t,
-  format('Load %s Trial %s', s, t),
+  format('Trial %s', t),
   'AKC', 'America/Chicago', 1
 FROM generate_series(1, 3) AS load_shows(s)
 CROSS JOIN generate_series(1, 2) AS load_trials(t);
@@ -2315,7 +2324,13 @@ INSERT INTO public.classes (
 SELECT
   format('a1090000-0000-0000-0012-%s%s', s, lpad(c::text, 11, '0'))::uuid,
   format('a1090000-0000-0000-0011-%s%s', s, lpad((((c - 1) / 2) + 1)::text, 11, '0'))::uuid,
-  format('Load %s Class %s', s, c),
+  format('%s Advanced',
+    CASE ((c - 1) % 4)
+      WHEN 0 THEN 'Container'
+      WHEN 1 THEN 'Interior'
+      WHEN 2 THEN 'Exterior'
+      ELSE 'Buried'
+    END),
   'Advanced',
   CASE ((c - 1) % 4)
     WHEN 0 THEN 'Container'
@@ -2328,22 +2343,30 @@ SELECT
 FROM generate_series(1, 3) AS load_shows(s)
 CROSS JOIN generate_series(1, 4) AS load_classes(c);
 
+-- Call names come from a plausible-name pool (MYK9-566, see header note above).
 INSERT INTO public.dogs (
   id, name, call_name, breed, sex, date_of_birth, color, status, owner_id, version
 )
 SELECT
   format('a1090000-0000-0000-0001-%s%s', s, lpad(dog_number::text, 11, '0'))::uuid,
-  format('MYK9-109 Load %s Dog %s', s, lpad(dog_number::text, 2, '0')),
-  format('Load %s-%s', s, lpad(dog_number::text, 2, '0')),
+  format('%s %s', dog_name, lpad(dog_number::text, 2, '0')),
+  dog_name,
   'Mixed Breed',
   CASE WHEN dog_number % 2 = 0 THEN 'female' ELSE 'male' END,
   DATE '2021-01-01' + dog_number,
-  'Load Fixture',
+  'Black and White',
   'active',
   (SELECT id FROM public.people WHERE lower(email) = 'exhibitor@myk9t.com'),
   1
 FROM generate_series(1, 3) AS load_shows(s)
-CROSS JOIN generate_series(1, 63) AS load_dogs(dog_number);
+CROSS JOIN generate_series(1, 63) AS load_dogs(dog_number)
+CROSS JOIN LATERAL (
+  SELECT (ARRAY[
+    'Aspen', 'Birch', 'Blaze', 'Boone', 'Briar', 'Cedar', 'Clover', 'Comet',
+    'Dash', 'Echo', 'Ember', 'Frost', 'Gus', 'Hazel', 'Indigo', 'Jasper',
+    'Koda', 'Luna', 'Maple', 'Nova', 'Onyx'
+  ])[((dog_number - 1) % 21) + 1] AS dog_name
+) AS names;
 
 -- Every seeded dog needs a registration number: `trg_entries_require_dog_registration`
 -- (20260828210000) rejects an entry whose dog has none for the TRIAL'S registry, so a

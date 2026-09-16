@@ -1,6 +1,12 @@
-import { readFileSync, readdirSync } from 'node:fs';
-import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
+
+import {
+  CLUB_HELPER_CALL,
+  isCallGuarded,
+  latestDefinitions,
+  latestPolicyDefinitions,
+  latestViewDefinition,
+} from './migrationTextScanners';
 
 /**
  * MYK9-258: a club-scoped authorization helper must never be handed a nullable
@@ -23,57 +29,6 @@ import { describe, expect, it } from 'vitest';
  * and the defect's whole character is that it is invisible until someone
  * queries for it.
  */
-
-const migrationsDir = resolve(process.cwd(), '../../supabase/migrations');
-
-/** Every `is_club_admin(x)` / `is_trial_secretary(x)` call with an argument. */
-const CLUB_HELPER_CALL = /(is_club_admin|is_trial_secretary)\s*\(\s*([^)\s]+)\s*\)/g;
-
-/**
- * Latest definition wins: several migrations replace these functions, and only
- * the last one to touch a given function describes live behaviour.
- */
-function latestDefinitions(): Map<string, { file: string; body: string }> {
-  const files = readdirSync(migrationsDir)
-    .filter(name => name.endsWith('.sql'))
-    .sort();
-  const latest = new Map<string, { file: string; body: string }>();
-
-  for (const file of files) {
-    const sql = readFileSync(resolve(migrationsDir, file), 'utf8');
-    // Every declaration form in this migration set: 52 omit the `public.`
-    // schema prefix and 12 use CREATE FUNCTION without OR REPLACE. Requiring
-    // both made can_manage_show and can_manage_trial invisible to this check —
-    // exactly the blind spot it exists to close.
-    const pattern = /CREATE\s+(?:OR\s+REPLACE\s+)?FUNCTION\s+(?:public\.)?([a-z0-9_]+)\s*\(/gi;
-    let match: RegExpExecArray | null;
-    while ((match = pattern.exec(sql)) !== null) {
-      const name = match[1];
-      const start = match.index;
-      pattern.lastIndex = match.index + match[0].length;
-
-      // Terminate at the function's own dollar-quoted body, NOT at the next
-      // function declaration. Running to the next declaration swept in whatever
-      // followed — on the first run this attributed a trailing
-      // `entry_status_history_select` POLICY to record_entry_status_history,
-      // which calls no helper at all.
-      const rest = sql.slice(pattern.lastIndex);
-      const tagMatch = /AS\s+(\$[a-zA-Z_]*\$)/.exec(rest);
-      let end: number;
-      if (tagMatch) {
-        const tag = tagMatch[1];
-        const bodyStart = pattern.lastIndex + tagMatch.index + tagMatch[0].length;
-        const closing = sql.indexOf(tag, bodyStart);
-        end = closing === -1 ? sql.length : closing + tag.length;
-      } else {
-        const nextIndex = rest.search(/CREATE\s+(?:OR\s+REPLACE\s+)?FUNCTION\s/i);
-        end = nextIndex === -1 ? sql.length : pattern.lastIndex + nextIndex;
-      }
-      latest.set(name, { file, body: sql.slice(start, end) });
-    }
-  }
-  return latest;
-}
 
 /**
  * Call sites that pass a nullable `club_id` column to a club-scoped helper, and
@@ -175,112 +130,12 @@ describe('club-scoped authorization helpers are never handed a bare club_id colu
 });
 
 /**
- * MYK9-571 round 2 (P1-A/R2): the same trap in RLS-policy form. Round 1 of
- * the 20260915231500 migration dropped and recreated role_requests_select
- * with a third arm, `requested_role = 'secretary' AND is_club_admin(club_id)`
- * — club_id is nullable (insert_signup_role_requests never sets it), and
- * is_club_admin(NULL) answers "club admin anywhere?", so every club admin,
- * anywhere, could read every signup-generated secretary request. Round 2
- * removed the arm rather than guard it inline; this scanner is what stops a
- * future PR from re-adding an unguarded one on ANY policy, not just this
- * table's.
- */
-
-/**
- * Every LIVE policy statement, latest wins: `CREATE`/`ALTER POLICY` (re)sets
- * a policy's tracked body, `DROP POLICY` (this codebase's own
- * drop-and-recreate convention — Postgres has no `CREATE OR REPLACE POLICY`)
- * removes it until a later `CREATE`/`ALTER` brings it back.
- *
- * MYK9-585 fixed two blind spots the first cut of this scanner had:
- *
- *   1. It matched ONLY quoted policy names (`"name"`). Most of this
- *      codebase's policies are declared unquoted (`create policy shows_select
- *      on public.shows ...`) — 74 of this migration set's LIVE policies, by
- *      count. A quoted `DROP POLICY "name"` followed by an unquoted
- *      `CREATE POLICY name` evicted the policy from the map entirely (the
- *      unquoted CREATE was invisible), and an unquoted `CREATE POLICY
- *      role_requests_select ... OR (select is_club_admin(club_id))` would
- *      have passed this scanner GREEN. Both forms are matched now.
- *
- *   2. It never recognised `ALTER POLICY`, which
- *      20260727130000_rls_initplan_wrap_auth_calls.sql uses (deliberately,
- *      per that file's own header, to avoid a drop-then-recreate window) to
- *      rewrite 71 policies' USING/WITH CHECK clauses. Untracked, the map
- *      held each of those policies' body from its ORIGINAL CREATE — stale
- *      text for the "what does this predicate say today" question the
- *      scanner exists to answer, even though that particular migration
- *      happens not to touch any is_club_admin/is_trial_secretary(club_id)
- *      call (its own header says so: column-argument helper calls are left
- *      exactly as-is). `ALTER POLICY ... USING (...) [WITH CHECK (...)]`
- *      fully REPLACES the previous predicate (Postgres semantics, not a
- *      merge), so it is tracked the same way CREATE is: the new span
- *      overwrites the map entry.
- *
- * Keyed on (table, name) — not name alone — so an ALTER or DROP naming a
- * policy on one table cannot evict or overwrite a same-named policy on a
- * different one; the two forms (quoted/bare) are normalised to lower case
- * for the key, matching Postgres's own case-insensitive unquoted-identifier
- * rule.
- */
-/**
- * Strips `--` line comments and block comments before scanning. Without
- * this, a prose comment like "(rolled-back ALTER POLICY experiment on the
- * live Micro project)" (20260730170000_hashable_entries_manager_policy.sql)
- * parses as a real ALTER POLICY statement -- a false policy named
- * "experiment" on a table named "the". A real SQL parser would never see
- * it; this scanner is a regex, so it strips comments first instead of
- * pretending prose cannot look like DDL.
- */
-function stripSqlComments(sql: string): string {
-  return sql.replace(/--[^\n]*/g, '').replace(/\/\*[\s\S]*?\*\//g, '');
-}
-
-function latestPolicyDefinitions(): Map<string, { file: string; body: string; name: string }> {
-  const files = readdirSync(migrationsDir)
-    .filter(name => name.endsWith('.sql'))
-    .sort();
-  const latest = new Map<string, { file: string; body: string; name: string }>();
-
-  const eventPattern =
-    /\b(CREATE|ALTER|DROP)\s+POLICY\s+(?:IF\s+EXISTS\s+)?(?:"([^"]+)"|([A-Za-z_][A-Za-z0-9_]*))\s+ON\s+(?:public\.)?([A-Za-z_][A-Za-z0-9_]*)/gi;
-
-  for (const file of files) {
-    const sql = stripSqlComments(readFileSync(resolve(migrationsDir, file), 'utf8'));
-    eventPattern.lastIndex = 0;
-    let match: RegExpExecArray | null;
-    while ((match = eventPattern.exec(sql)) !== null) {
-      const keyword = match[1]!.toUpperCase();
-      const name = (match[2] ?? match[3])!;
-      const table = match[4]!;
-      const key = `${table.toLowerCase()}::${name.toLowerCase()}`;
-
-      if (keyword === 'DROP') {
-        latest.delete(key);
-        continue;
-      }
-
-      const start = match.index;
-      // Policy bodies are not dollar-quoted, so the statement's own terminating
-      // `;` is a safe boundary (unlike the function scanner above, which must
-      // dodge dollar-quoted bodies that can themselves contain semicolons).
-      const terminator = sql.indexOf(';', eventPattern.lastIndex);
-      const end = terminator === -1 ? sql.length : terminator + 1;
-      // CREATE and ALTER both fully (re)set the tracked body — Postgres's
-      // ALTER POLICY USING/WITH CHECK REPLACES the predicate, it does not
-      // merge into it.
-      latest.set(key, { file, body: sql.slice(start, end), name });
-      eventPattern.lastIndex = end;
-    }
-  }
-  return latest;
-}
-
-/**
  * Call sites that pass a `club_id` column to a club-scoped helper from
- * inside an RLS policy body. Building this scanner for MYK9-571 round 2 (the
+ * inside an RLS policy body.
+ *
+ * HISTORY. Building this scanner for MYK9-571 round 2 (the
  * role_requests_select P0) surfaced PRE-EXISTING sites — none introduced by
- * this PR, and role_requests_select itself is NOT among them (its round-1
+ * that PR, and role_requests_select itself is NOT among them (its round-1
  * arm was removed, not guarded; see the migration header). They predate the
  * MYK9-258 remediation, which only ever covered the FUNCTIONS in
  * REVIEWED_CLUB_HELPER_CALL_SITES above (can_manage_show,
@@ -289,10 +144,15 @@ function latestPolicyDefinitions(): Map<string, { file: string; body: string; na
  * (quoted-only names, ALTER POLICY, and a comment-semicolon truncating a
  * captured body early — see latestPolicyDefinitions() and
  * stripSqlComments()), which surfaced 11 MORE sites the first cut silently
- * missed. Three categories, each annotated below:
+ * missed, and registered all 34 UNGUARDED so the scanner could ship green.
+ *
+ * Registration was not remediation. Migration 20260916015300 (MYK9-585) is.
+ * Every entry below is now in one of two states, and there is no third:
  *
  *   SAFE (NOT NULL) — the column can never be NULL, so the call is safe
- *   regardless of guard text:
+ *   regardless of guard text. Verified against
+ *   `information_schema.columns.is_nullable` on the linked database as well
+ *   as the declaring migration:
  *     - club_premium_templates.club_id / premium_generations.club_id:
  *       `uuid not null` (188_premium_bridge_tables.sql).
  *     - club_members.club_id / club_officers.club_id: `uuid not null`
@@ -300,25 +160,24 @@ function latestPolicyDefinitions(): Map<string, { file: string; body: string; na
  *     - club_stripe_accounts.club_id: `uuid not null unique`
  *       (20260609120000_stripe_connect_payouts.sql).
  *
- *   GUARDED — the predicate already carries a `club_id IS NOT NULL AND`
- *   (or equivalent) guard in the same boolean branch:
- *     - shows_select: `club_id is not null and (select is_club_admin(shows.club_id))`
- *       (latest body: 20260823190000_admin_soft_deleted_show_visibility.sql).
- *     - show_payouts_select: `s.club_id is not null and is_club_admin(s.club_id)`
- *       (20260611090000_pr625_round8_write_guards.sql — this migration's OWN
- *       header names the exact bug this scanner exists to catch).
- *     - entry_payment_links_select: `s.club_id IS NOT NULL AND (SELECT
- *       is_club_admin(s.club_id))` (20260620200000_entry_payment_links.sql).
+ *   GUARDED — the predicate carries `club_id IS NOT NULL AND` in the helper
+ *   call's own boolean branch, so a club-less row reaches nobody but a site
+ *   admin. Three policies always had it (shows_select, show_payouts_select,
+ *   entry_payment_links_select); two more (entry_status_history_select,
+ *   show_templates_select) had it and were mis-annotated as unguarded in the
+ *   MYK9-571 cut of this list; migration 20260916015300 added it to the
+ *   remaining sixteen.
  *
- *   UNGUARDED — genuinely unreviewed, e.g. classes_select
- *   (108_tv_display_anon_access.sql): `... OR (SELECT is_club_admin(s.club_id))
- *   ...` with no NULL check anywhere in the predicate, same shape as the
- *   shows/trials mutation/select policies below. Registered here so this
- *   scanner ships green without silently claiming they were checked;
- *   fixing them is a dedicated follow-up, out of scope for a role_requests
- *   fix. A truly NEW entry — one added by a later PR, not already in this
- *   list — still fails the test and must be guarded (or proven NOT NULL)
- *   before it can be registered.
+ * `shows.club_id` is nullable (`information_schema.columns.is_nullable` =
+ * YES), which is why every shows-derived site needed the guard and why the
+ * NOT-NULL tables did not.
+ *
+ * A NEW entry — one a later PR adds that is not already in this list — still
+ * fails the test and must be guarded (or proven NOT NULL) before it is
+ * registered. What is new in MYK9-585 is that being listed here is no longer
+ * enough: the `every registered policy site carries the guard` case below
+ * reads the migration text, so an entry added WITHOUT a guard fails even if
+ * someone adds the line here.
  */
 const REVIEWED_CLUB_HELPER_POLICY_SITES: readonly string[] = [
   // SAFE: club_id is `uuid not null` (188_premium_bridge_tables.sql).
@@ -339,28 +198,28 @@ const REVIEWED_CLUB_HELPER_POLICY_SITES: readonly string[] = [
   'club_officers_update -> is_club_admin',
   // SAFE: club_id is `uuid not null unique` (20260609120000_stripe_connect_payouts.sql).
   'club_stripe_accounts_select -> is_club_admin',
-  // GUARDED: `club_id is not null and (select is_club_admin(...))`, or the
-  // s.club_id-derived equivalent.
+  // GUARDED before MYK9-585: the idiom's original sites.
   'entry_payment_links_select -> is_club_admin',
   'show_payouts_select -> is_club_admin',
   'shows_select -> is_club_admin',
-  // UNGUARDED, pre-existing, out of scope for MYK9-571. Flagged as a
-  // follow-up security audit, not fixed here.
+  // GUARDED before MYK9-585, but mis-annotated as unguarded by MYK9-571.
+  'entry_status_history_select -> is_club_admin',
+  'show_templates_select -> is_club_admin',
+  'show_templates_select -> is_trial_secretary',
+  // GUARDED by 20260916015300 (MYK9-585). Behavioural coverage:
+  // supabase/tests/null_club_policy_authorization_test.sql.
   'class_visibility_insert -> is_club_admin',
   'class_visibility_insert -> is_trial_secretary',
   'class_visibility_update -> is_club_admin',
   'class_visibility_update -> is_trial_secretary',
   'classes_select -> is_club_admin',
   'classes_select -> is_trial_secretary',
-  'entry_status_history_select -> is_club_admin',
   'messages_insert -> is_club_admin',
   'messages_insert -> is_trial_secretary',
   'messages_select -> is_club_admin',
   'messages_select -> is_trial_secretary',
   'messages_update_read -> is_club_admin',
   'messages_update_read -> is_trial_secretary',
-  'show_templates_select -> is_club_admin',
-  'show_templates_select -> is_trial_secretary',
   'show_visibility_insert -> is_club_admin',
   'show_visibility_insert -> is_trial_secretary',
   'show_visibility_update -> is_club_admin',
@@ -382,16 +241,61 @@ const REVIEWED_CLUB_HELPER_POLICY_SITES: readonly string[] = [
   'trials_select -> is_trial_secretary',
 ];
 
+/**
+ * Tables whose `club_id` is declared `NOT NULL`, so a policy on them can hand
+ * the column to a club-scoped helper with no guard. Verified against
+ * `information_schema.columns.is_nullable` on the linked database
+ * (sojmvhhwsjxmfistvzbe) as well as the declaring migrations, 2026-09-16.
+ *
+ * This is the ONE thing the guard assertion below cannot read out of the
+ * migration set cheaply — column nullability can be set by a CREATE TABLE, an
+ * ALTER TABLE, or a later ALTER ... DROP NOT NULL, in any file. Everything
+ * else it decides from the policy text itself.
+ */
+const NOT_NULL_CLUB_ID_TABLES: readonly string[] = [
+  'club_members',
+  'club_officers',
+  'club_premium_templates',
+  'club_stripe_accounts',
+  'premium_generations',
+];
+
 describe('club-scoped authorization helpers are never handed a bare club_id column in an RLS policy', () => {
   const policies = latestPolicyDefinitions();
 
-  it('parses the migration set and finds exactly the live policies (MYK9-585)', () => {
-    // An exact count, not a floor: `toBeGreaterThan` let the quoted-only /
-    // ALTER-blind parser silently under-count for months (MYK9-585) while
-    // still passing. This number must be updated DELIBERATELY — recompute it
-    // (log `policies.size`) whenever a migration adds, drops, or renames a
-    // policy, and explain the change in the same PR that touches this line.
-    expect(policies.size).toBe(373);
+  it('parses every declaration form in the migration set (MYK9-585)', () => {
+    // This was `expect(policies.size).toBe(373)`. An exact count is a brittle
+    // proxy for what it was standing in for: any PR that adds or drops a policy
+    // turns it red for a reason unrelated to this contract, and the reviewer
+    // then updates the number without re-deriving it — which is the moment a
+    // magic number stops being evidence of anything.
+    //
+    // What the count actually guarded was the three parser blind spots MYK9-585
+    // fixed (quoted-only names, ALTER POLICY, comment-truncated bodies). So
+    // assert those directly, by name, plus a floor that a silently
+    // under-counting parser cannot clear.
+    expect(policies.size).toBeGreaterThan(300);
+
+    // Unquoted CREATE POLICY — the majority form, and the one the quoted-only
+    // parser dropped on the floor.
+    expect(policies.get('shows::shows_select')?.body).toMatch(/create\s+policy\s+shows_select/i);
+    // Quoted CREATE POLICY.
+    expect(policies.get('entry_status_history::entry_status_history_select')?.body).toMatch(
+      /create\s+policy\s+"entry_status_history_select"/i
+    );
+    // ALTER POLICY tracked as a full redefinition, not ignored in favour of the
+    // original CREATE.
+    expect(policies.get('show_messages::messages_select')?.body).toMatch(/alter\s+policy/i);
+
+    // Every policy the registry names must resolve, or the registry is
+    // asserting against a map that no longer contains it.
+    const registered = new Set(
+      REVIEWED_CLUB_HELPER_POLICY_SITES.map(entry =>
+        entry.slice(0, entry.indexOf(' ->')).toLowerCase()
+      )
+    );
+    const parsed = new Set([...policies.values()].map(policy => policy.name.toLowerCase()));
+    expect([...registered].filter(name => !parsed.has(name))).toEqual([]);
   });
 
   it('surfaces any NEW policy call site for review', () => {
@@ -412,29 +316,120 @@ describe('club-scoped authorization helpers are never handed a bare club_id colu
 
     expect([...found].sort()).toEqual([...REVIEWED_CLUB_HELPER_POLICY_SITES].sort());
   });
-});
 
-/**
- * MYK9-329: the owner-run view had the same collapse in prose form. Its
- * `can_manage` flag carried `(sh.club_id IS NULL AND ctx.has_manager_role)`,
- * which no `is_club_admin(x)` scan can see because it never calls the helper.
- * Only the LATEST migration that defines the view describes live behaviour.
- */
-function latestViewDefinition(viewName: string): { file: string; body: string } {
-  const marker = `CREATE OR REPLACE VIEW public.${viewName}`;
-  const files = readdirSync(migrationsDir)
-    .filter(name => name.endsWith('.sql'))
-    .sort();
-  let latest: { file: string; body: string } | undefined;
-  for (const file of files) {
-    const sql = readFileSync(resolve(migrationsDir, file), 'utf8');
-    const start = sql.lastIndexOf(marker);
-    if (start === -1) continue;
-    latest = { file, body: sql.slice(start) };
-  }
-  if (!latest) throw new Error(`no migration defines ${viewName}`);
-  return latest;
-}
+  it('every registered policy CALL carries a club_id IS NOT NULL guard (MYK9-585)', () => {
+    // Per CALL, not per policy. The first cut of this case asked whether the
+    // policy BODY mentioned `club_id IS NOT NULL` anywhere, and review round 1
+    // broke it in two lines: keep the guard on trials_select's
+    // is_club_admin(s.club_id) arm, drop it from the is_trial_secretary(s.club_id)
+    // arm beside it, and the body still matches while half the policy is
+    // exploitable. isCallGuarded() answers the narrower question — does some
+    // enclosing parenthesis group AND this guard onto THIS call — and its own
+    // header explains why that is decidable when "is this predicate correct" is
+    // not.
+    //
+    // Division of labour, unchanged: the registry above catches a NEW call site,
+    // this catches a listed site that is not actually guarded, and
+    // supabase/tests/null_club_policy_authorization_test.sql is the only one of
+    // the three that executes SQL against the real schema.
+    const unguarded: string[] = [];
+
+    for (const [key, { body, name, file }] of policies) {
+      const table = key.slice(0, key.indexOf('::'));
+      if (NOT_NULL_CLUB_ID_TABLES.includes(table)) continue;
+
+      for (const call of body.matchAll(CLUB_HELPER_CALL)) {
+        const argument = call[2];
+        if (!/^(?:[a-z_][a-z0-9_]*\.)?club_id$/i.test(argument)) continue;
+        if (isCallGuarded(body, call.index, argument, table)) continue;
+        unguarded.push(`${table}.${name} -> ${call[1]}(${argument}) (${file})`);
+      }
+    }
+
+    expect(unguarded).toEqual([]);
+  });
+
+  it('the per-call guard detector is not vacuous', () => {
+    // Guards the guard twice over. The assertion above is an absence check, so
+    // it would pass against a detector that returned true unconditionally, or
+    // against an empty `policies` map.
+    //
+    // A real guarded body and a real unguarded one, both in trials_select's
+    // exact shape (sibling OR arms inside an IN-subquery) — which is the shape
+    // that defeated the body-level heuristic.
+    const guarded = `create policy p on public.trials using (
+      trials.show_id in (
+        select s.id from public.shows s
+        where s.status = 'published'
+          or (s.club_id is not null and (select public.is_club_admin(s.club_id)))
+          or (s.club_id is not null and (select public.is_trial_secretary(s.club_id)))
+      )
+    );`;
+    const halfGuarded = guarded.replace(
+      'or (s.club_id is not null and (select public.is_trial_secretary(s.club_id)))',
+      'or (select public.is_trial_secretary(s.club_id))'
+    );
+
+    const verdicts = (body: string) =>
+      [...body.matchAll(CLUB_HELPER_CALL)].map(call =>
+        isCallGuarded(body, call.index, call[2], 'trials')
+      );
+
+    expect(verdicts(guarded)).toEqual([true, true]);
+    // The half-guarded body is what a whole-body `/club_id is not null/` test
+    // called clean: the surviving arm's guard is a sibling, not this call's.
+    expect(halfGuarded).toMatch(/club_id is not null/i);
+    expect(verdicts(halfGuarded)).toEqual([true, false]);
+  });
+
+  it("does not let another alias's guard vouch for a bare club_id (MYK9-585 round 2)", () => {
+    // Review round 2's probe. The bare-form guard is accepted only when the call
+    // passes the policy's OWN table's column — but an unanchored
+    // `club_id IS NOT NULL` also matches INSIDE `t.club_id IS NOT NULL`, so a
+    // joined table's guard read as this call's. No live policy reaches it (all
+    // 16 pass `s.club_id` or `shows.club_id`), which is why it can only be
+    // pinned here: nothing in the migration set would go red if the lookbehind
+    // were dropped.
+    const borrowed = `create policy p on public.classes using (
+      exists (
+        select 1 from public.trials t
+        where t.id = classes.trial_id
+          and t.club_id is not null
+          and (select public.is_club_admin(club_id))
+      )
+    );`;
+    const [borrowedCall] = [...borrowed.matchAll(CLUB_HELPER_CALL)];
+    expect(borrowedCall).toBeDefined();
+    expect(borrowedCall![2]).toBe('club_id');
+    expect(isCallGuarded(borrowed, borrowedCall!.index, 'club_id', 'classes')).toBe(false);
+
+    // ...while the genuine bare guard on the policy's own column still counts,
+    // so the anchor did not simply turn the bare form off (show_templates_select
+    // and shows_select are live policies written this way).
+    const own = borrowed.replace('t.club_id is not null', 'club_id is not null');
+    const [ownCall] = [...own.matchAll(CLUB_HELPER_CALL)];
+    expect(isCallGuarded(own, ownCall!.index, 'club_id', 'classes')).toBe(true);
+  });
+
+  it('would notice a guard that disappeared from a live policy', () => {
+    // Pins one policy whose guard is load-bearing. Asserted on the guard TEXT
+    // and on the call-level verdict, never on which FILE last defined it — a
+    // later legitimate re-ALTER of shows_update would fail a filename pin for a
+    // reason that has nothing to do with this contract.
+    const showsUpdate = policies.get('shows::shows_update');
+    expect(showsUpdate, 'shows_update should exist in the migration set').toBeDefined();
+    expect(showsUpdate?.body.toLowerCase()).toContain('club_id is not null');
+
+    const calls = [...showsUpdate!.body.matchAll(CLUB_HELPER_CALL)];
+    expect(calls.length).toBeGreaterThan(0);
+    for (const call of calls) {
+      expect(
+        isCallGuarded(showsUpdate!.body, call.index, call[2], 'shows'),
+        `shows_update -> ${call[1]}(${call[2]}) must be guarded`
+      ).toBe(true);
+    }
+  });
+});
 
 describe('view_authenticated_entry_results does not admit managers to club-less shows', () => {
   const view = latestViewDefinition('view_authenticated_entry_results');

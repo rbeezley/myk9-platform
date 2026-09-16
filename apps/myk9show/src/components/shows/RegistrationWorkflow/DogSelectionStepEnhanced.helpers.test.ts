@@ -81,11 +81,24 @@ describe('getDogEligibilityStatus', () => {
 });
 
 describe('filterAccessibleDogs', () => {
-  // Real-shaped ids: `dog.ownerId` is a `people.id`, while the value the old
-  // signature compared it against — `useRegistrationPermissions().user?.id` —
-  // is an `auth.users` id. They are different id spaces and never coincide
-  // (0 of 11 on staging), so the old `dog.ownerId === userId` branch emptied
-  // the staff roster. These four cases were red on that code.
+  // What these four cases actually pin, stated precisely (MYK9-537):
+  //
+  // - The two "keeps a dog" cases were RED on the old ownership compare
+  //   (`dog.ownerId === userId`, a `people.id` against an `auth.users` id):
+  //   it returned `[]` for every non-site-admin viewer.
+  // - The two "excludes" cases were GREEN on that old code — it returned `[]`
+  //   for these too, but for the wrong reason (the `!userId` early return).
+  //   They are red when `isDogSelectable` is neutered to `() => true`,
+  //   verified by running that mutation; that pairing is what keeps them from
+  //   being assertions that cannot fail.
+  //
+  // The fixture deliberately carries NO auth id. MYK9-537's acceptance
+  // criterion asked for a two-id-space fixture (`ownerId` a people id,
+  // `userId` an auth id), and that is unexpressible here by construction: the
+  // fix removed the compare and the parameter, so there is no second id space
+  // left to feed in. The criterion is met in substance by the pair above —
+  // a dog owned by a people id, and a dog owned by a DIFFERENT person, are
+  // both kept — not as literally written.
   const PEOPLE_ID = '4c2f1a2e-0b31-4f0a-9b5e-6d2c8a7f1e33';
   const OTHER_PEOPLE_ID = '9a7b6c5d-4e3f-4210-8765-0fedcba98765';
   const dog = (overrides: Partial<Dog> = {}): Dog =>
@@ -96,7 +109,7 @@ describe('filterAccessibleDogs', () => {
       ...overrides,
     }) as Dog;
 
-  it('keeps a dog whose people-id owner is not the viewer auth id', () => {
+  it('keeps a dog owned by a people id, with no ownership compare left to fail', () => {
     expect(filterAccessibleDogs([dog()])).toEqual([dog()]);
   });
 

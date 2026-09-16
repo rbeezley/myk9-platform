@@ -250,12 +250,53 @@ describe('ResultsSubmissionPage', () => {
     // disabled "Download draft XML" would promise a draft that does not exist.
     expect(screen.queryByTestId('download-btn')).not.toBeInTheDocument();
 
-    // The checklist says what to do next, in secretary vocabulary.
+    // The checklist says what to do next, naming the real surfaces.
     const checklist = screen.getByTestId('submission-checklist');
-    expect(checklist).toHaveTextContent('1 class is not set up as an AKC class');
     expect(checklist).toHaveTextContent(
-      /Delete this class and add it again from the AKC class list/
+      /Delete this class, then add it again: go to Classes, choose Add Classes, then on Create Classes pick the AKC template under Select Template and tick the class under Choose Classes/
     );
+    // Stated once. The verdict row names the blocker, the class-setup row
+    // carries the remedy, and the details row is suppressed so one fact does
+    // not fill three of five rows.
+    expect(checklist.textContent?.match(/Delete this class/g)).toHaveLength(1);
+
+    // The XML disclosure must not invite a preview of a file that was never built.
+    expect(screen.getByTestId('xml-preview')).toHaveAttribute(
+      'placeholder',
+      'No file can be prepared while a class is not set up as an AKC class. See the checklist above.'
+    );
+  });
+
+  // MYK9-547 round 2 — `handleSend` guarded on `!xmlPreview` before checking
+  // the blocker, and an unmappable class is the one blocker that empties the
+  // preview, so the branch was dead: the secretary got silence. Reachable when
+  // the query refetches behind an already-open confirm dialog.
+  it('names the unmappable class in the send error when the data changes behind an open dialog', async () => {
+    mockAKCData.data = makeAKCSubmissionData();
+    // A FRESH element each time: React bails out of re-rendering a subtree
+    // handed back the referentially identical element, so reusing one would
+    // leave the page showing the old data and pass for the wrong reason.
+    const routes = () => (
+      <Routes>
+        <Route path="/shows/:id/*" element={<ResultsSubmissionPage />} />
+      </Routes>
+    );
+    const { rerender } = render(routes(), { initialRoute: '/shows/show-1/submit-results' });
+
+    fireEvent.click(await screen.findByTestId('send-btn'));
+    expect(await screen.findByTestId('send-confirm-dialog')).toBeInTheDocument();
+
+    mockAKCData.data = makeAKCSubmissionData({
+      entries: [{ className: 'Detective', element: 'Unknown', level: 'Unknown', section: null }],
+    });
+    rerender(routes());
+
+    fireEvent.click(screen.getByTestId('send-confirm-btn'));
+
+    expect(await screen.findByTestId('send-error')).toHaveTextContent(
+      'One or more classes are not set up as AKC classes, so no file can be prepared.'
+    );
+    expect(mockInvoke).not.toHaveBeenCalled();
   });
 
   it('keeps every class-setup check green for a well-formed Detective class', async () => {

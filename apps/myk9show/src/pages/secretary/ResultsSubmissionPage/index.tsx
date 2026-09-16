@@ -242,7 +242,11 @@ export default function ResultsSubmissionPage() {
   };
 
   const handleSend = async () => {
-    if (!xmlPreview || !activeFormatter || !showId || !akcData) return;
+    if (!activeFormatter || !showId) return;
+    // The blocker check runs BEFORE the empty-preview return. An unmappable
+    // class is the one blocker that leaves `xmlPreview` empty, so testing the
+    // preview first swallowed it and the secretary got silence instead of a
+    // reason.
     if (hasBlockingAKCPreflightIssue) {
       // The blocker is no longer always a missing registration number, so name
       // the one that actually fired rather than sending the secretary to fix
@@ -257,6 +261,7 @@ export default function ResultsSubmissionPage() {
       setShowConfirm(false);
       return;
     }
+    if (!xmlPreview || !akcData) return;
 
     setSendError(null);
     setSendSuccess(false);
@@ -679,12 +684,12 @@ export default function ResultsSubmissionPage() {
                 </>
               ) : (
                 <>
+                  {/* The one place the remedy lives. The verdict row above
+                      already states the blocker and names the classes, and the
+                      details row below is suppressed for this blocker, so the
+                      secretary reads the fact once and the fix once. */}
                   <AlertTriangle className="h-4 w-4 text-warning" aria-hidden="true" />
-                  <span>
-                    <strong>{unmappableAKCClasses.length}</strong>{' '}
-                    {unmappableAKCClasses.length === 1 ? 'class is' : 'classes are'} not set up as
-                    {unmappableAKCClasses.length === 1 ? ' an AKC class' : ' AKC classes'}
-                  </span>
+                  <span>{akcReadiness?.details}</span>
                 </>
               )}
             </li>
@@ -734,19 +739,25 @@ export default function ResultsSubmissionPage() {
                 </>
               )}
             </li>
-            <li className="flex items-center gap-2">
-              {hasBlockingAKCPreflightIssue || submittableAKCEntries.length === 0 ? (
-                <>
-                  <AlertTriangle className="h-4 w-4 text-warning" aria-hidden="true" />
-                  <span>{akcReadiness?.details}</span>
-                </>
-              ) : (
-                <>
-                  <CheckCircle2 className="h-4 w-4 text-success" aria-hidden="true" />
-                  <span>{akcReadiness?.details}</span>
-                </>
-              )}
-            </li>
+            {/* Suppressed when a class has no AKC class code: the class-setup
+                row above already carries these exact words, and repeating them
+                fills three of five rows with one fact (docs/INTENT.md § Trial
+                Secretary — green checks, not a wall of data). */}
+            {unmappableAKCClasses.length === 0 && (
+              <li className="flex items-center gap-2">
+                {hasBlockingAKCPreflightIssue || submittableAKCEntries.length === 0 ? (
+                  <>
+                    <AlertTriangle className="h-4 w-4 text-warning" aria-hidden="true" />
+                    <span>{akcReadiness?.details}</span>
+                  </>
+                ) : (
+                  <>
+                    <CheckCircle2 className="h-4 w-4 text-success" aria-hidden="true" />
+                    <span>{akcReadiness?.details}</span>
+                  </>
+                )}
+              </li>
+            )}
           </ul>
         )}
 
@@ -765,7 +776,13 @@ export default function ResultsSubmissionPage() {
                 readOnly
                 aria-labelledby="xml-preview-label"
                 value={isAKCLoading ? 'Fetching show data...' : xmlPreview}
-                placeholder="Select a show and organization to preview the XML."
+                // No file was built, so "preview the XML" is not what is
+                // waiting on the secretary. Say what is (MYK9-547).
+                placeholder={
+                  akcDraftUnavailable
+                    ? 'No file can be prepared while a class is not set up as an AKC class. See the checklist above.'
+                    : 'Select a show and organization to preview the XML.'
+                }
                 className="font-mono text-xs min-h-[220px] resize-y"
                 data-testid="xml-preview"
               />

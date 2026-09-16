@@ -123,6 +123,8 @@ export class AKCUnmappableClassError extends Error {
  * the class is holding instead.
  */
 export interface UnmappableAKCClass {
+  /** `classes.id` — the identity this list is de-duplicated on. */
+  classId: string;
   /** The class name the secretary sees on the schedule. */
   className: string;
   /** `classes.element` as stored — '' when the column is NULL. */
@@ -134,10 +136,16 @@ export interface UnmappableAKCClass {
 }
 
 /**
- * Classes among `entries` that have no AKC class code, one per distinct
- * (name, element, level, section), in first-seen order. A non-empty result must
- * block the submission: the alternative is a permanent result recorded against
- * a real dog in the wrong class.
+ * Classes among `entries` that have no AKC class code, one per CLASS, in
+ * first-seen order. A non-empty result must block the submission: the
+ * alternative is a permanent result recorded against a real dog in the wrong
+ * class.
+ *
+ * De-duplicated on `classId`, not on the (name, element, level, section)
+ * triple: two different classes can carry identical values — that is exactly
+ * what the show wizard produces when it writes the literal 'Unknown' into
+ * several classes at once — and the secretary has to fix each one, so each one
+ * needs its own row.
  *
  * Mirrors `countUnscoredAKCEntries` — the page pre-flights with this, and the
  * formatter's throw is only the backstop.
@@ -147,17 +155,23 @@ export function collectUnmappableAKCClasses(entries: AKCSubmissionEntry[]): Unma
   for (const entry of entries) {
     if (mapAKCClassCodes(entry.element, entry.level, entry.section)) continue;
     const unmappable: UnmappableAKCClass = {
+      classId: entry.classId,
       className: describeAKCClass(entry),
       element: trimmed(entry.element),
       level: trimmed(entry.level),
       section: entry.section,
     };
-    const key = [
-      unmappable.className,
-      unmappable.element,
-      unmappable.level,
-      unmappable.section ?? '',
-    ].join('|');
+    // Fall back to the triple only when there is no id to key on, so rows with
+    // a blank `class_id` still collapse instead of repeating per entry.
+    const key =
+      unmappable.classId ||
+      [
+        '',
+        unmappable.className,
+        unmappable.element,
+        unmappable.level,
+        unmappable.section ?? '',
+      ].join('|');
     if (!seen.has(key)) seen.set(key, unmappable);
   }
   return [...seen.values()];

@@ -109,10 +109,16 @@ export function buildAKCSubmissionReadiness(input: {
           ? `One class is not set up as an AKC class: ${named}.`
           : `${unmappable.length} classes are not set up as AKC classes: ${named}.`,
       details:
-        `Delete ${unmappable.length === 1 ? 'this class' : 'these classes'} and add ` +
-        `${unmappable.length === 1 ? 'it' : 'them'} again from the AKC class list. If a class ` +
-        `already has entries, move those entries to another class first. Results for this show ` +
-        `cannot be sent to AKC, and no file can be prepared, until every class is on that list.`,
+        // The exact gesture, named after the buttons and steps the secretary
+        // will actually read: ClassManagementPage's "Add Classes" leads to
+        // ClassCreationPage's "Create Classes", whose steps are "Select
+        // Template" then "Choose Classes".
+        `Delete ${unmappable.length === 1 ? 'this class' : 'these classes'}, then add ` +
+        `${unmappable.length === 1 ? 'it' : 'them'} again: go to Classes, choose Add Classes, ` +
+        `then on Create Classes pick the AKC template under Select Template and tick ` +
+        `${unmappable.length === 1 ? 'the class' : 'each class'} under Choose Classes. If a ` +
+        `class already has entries, move those entries to another class first. Results for this ` +
+        `show cannot be sent to AKC, and no file can be prepared, until then.`,
       canSend: false,
     };
   }

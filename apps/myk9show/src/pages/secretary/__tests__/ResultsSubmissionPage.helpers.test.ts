@@ -4,6 +4,7 @@ import type { UnmappableAKCClass } from '@myk9/secretary';
 
 function unmappable(overrides: Partial<UnmappableAKCClass> = {}): UnmappableAKCClass {
   return {
+    classId: 'class-1',
     className: 'Detective',
     element: 'Unknown',
     level: 'Unknown',
@@ -84,9 +85,13 @@ describe('buildAKCSubmissionReadiness', () => {
       );
       // The remedy, in secretary vocabulary — the class edit form shows these
       // three fields read-only, so "check the class setup" would go nowhere.
-      expect(result.details).toContain(
-        'Delete this class and add it again from the AKC class list'
-      );
+      // Names the real gesture, surface by surface: Classes -> Add Classes ->
+      // Create Classes -> Select Template -> Choose Classes.
+      expect(result.details).toContain('Delete this class, then add it again: go to Classes');
+      expect(result.details).toContain('choose Add Classes');
+      expect(result.details).toContain('on Create Classes pick the AKC template');
+      expect(result.details).toContain('under Select Template');
+      expect(result.details).toContain('tick the class under Choose Classes');
       expect(result.details).toContain('move those entries to another class first');
       expect(result.details).not.toMatch(/class code|contact support/i);
     });
@@ -127,6 +132,7 @@ describe('buildAKCSubmissionReadiness', () => {
         unmappableClasses: [
           unmappable(),
           unmappable({
+            classId: 'class-2',
             className: 'Vehicle Novice A',
             element: 'Vehicle',
             level: 'Novice',
@@ -138,7 +144,8 @@ describe('buildAKCSubmissionReadiness', () => {
         '2 classes are not set up as AKC classes: Detective (element "Unknown", level "Unknown"); ' +
           'Vehicle Novice A (element "Vehicle", level "Novice", section "A").'
       );
-      expect(result.details).toContain('Delete these classes and add them again');
+      expect(result.details).toContain('Delete these classes, then add them again: go to Classes');
+      expect(result.details).toContain('tick each class under Choose Classes');
     });
 
     it('outranks the no-entries verdict', () => {

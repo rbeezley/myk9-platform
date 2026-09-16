@@ -342,7 +342,7 @@ describe('AKCScentWorkFormatter', () => {
       ).toThrow(/Vehicle Novice A/);
     });
 
-    it('collects the unmappable class names for the secretary, de-duplicated', () => {
+    it('collects the unmappable class names for the secretary, de-duplicated by class', () => {
       const entries = [
         makeEntry({
           element: 'Vehicle',
@@ -365,8 +365,28 @@ describe('AKCScentWorkFormatter', () => {
         }),
       ];
       expect(collectUnmappableAKCClasses(entries)).toEqual([
-        { className: 'Vehicle Novice A', element: 'Vehicle', level: 'Novice', section: 'A' },
+        {
+          classId: 'class-1',
+          className: 'Vehicle Novice A',
+          element: 'Vehicle',
+          level: 'Novice',
+          section: 'A',
+        },
       ]);
+    });
+
+    it('keeps two distinct classes that happen to hold identical values', () => {
+      // The show wizard writes the literal 'Unknown' into element and level, so
+      // several classes can carry byte-identical triples. The secretary has to
+      // fix each one; collapsing them on the triple would hide all but the first.
+      const broken = { element: 'Unknown', level: 'Unknown', section: null, className: 'Unknown' };
+      const result = collectUnmappableAKCClasses([
+        makeEntry({ ...broken, classId: 'class-1', armbandNumber: 101 }),
+        makeEntry({ ...broken, classId: 'class-1', armbandNumber: 102 }),
+        makeEntry({ ...broken, classId: 'class-2', armbandNumber: 103 }),
+      ]);
+      expect(result).toHaveLength(2);
+      expect(result.map(c => c.classId)).toEqual(['class-1', 'class-2']);
     });
 
     it('reports no unmappable classes for a Detective entry', () => {

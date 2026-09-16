@@ -11,12 +11,9 @@
  * @module MyEntriesPage/modules/myShowDogState
  */
 
-import {
-  isAccountedFor,
-  isExpectedEntry,
-  isNonRunningEntry,
-} from '@/features/_shared/entryAccounting';
+import { isAccountedFor, isExpectedEntry } from '@/features/_shared/entryAccounting';
 import { EntryStatus } from '@/types/show-registration-types';
+import type { EntryStatusKind } from '@/services/entryDisplay/entryDisplaySelectors';
 import { getEntryStatusStateLabel } from '@/components/entries/management/reviewStateLabels';
 import {
   isClassCheckInAvailableToday,
@@ -63,38 +60,63 @@ function isAbsentClass(cls: MyShowClass): boolean {
 }
 
 /**
- * This row's lifecycle value, read exactly as `entryAccounting` reads it: the
- * canonical `entryStatus` first, then the lossy participation value the
- * mappers fold it onto, trimmed and lowercased.
+ * Settled lifecycle kinds, and the row kind each one renders as.
+ *
+ * Keyed on `entryStatusKind` — the LOSSLESS classification `entryDisplay`
+ * emits — and never on `entryStatus`, the UI enum beside it. That enum has no
+ * `absent` member, so `mapEntryStatusKindToUi` folds a terminal
+ * `entry_status='absent'` row onto `PENDING`: a predicate reading it cannot
+ * see the row at all, and the row then fell through to the day math and
+ * offered "check in with the secretary" on the trial day — the very complaint
+ * MYK9-582 was filed against, surviving inside the branch meant to fix it.
+ *
+ * `moved` and `not_accepted` keep their own kinds rather than reading as a
+ * withdrawal: a move-up's source row went somewhere, and a decline is the
+ * secretary's, not the exhibitor's.
+ *
+ * The set matches `entryAccounting`'s non-running lifecycle (its
+ * `NON_RUNNING_ENTRY_STATUSES` plus the two `isExpectedEntry` also excludes);
+ * `myShowDogState.lifecycle.test.ts` drives every one of those raw statuses
+ * through the real mappers and fails if any lands back on the day math.
  */
-function lifecycleStatus(cls: MyShowClass): string {
-  return (cls.entryStatus ?? cls.status ?? '').trim().toLowerCase();
-}
+const SETTLED_ROW_KINDS: Readonly<Partial<Record<EntryStatusKind, ClassRowKind>>> = {
+  withdrawn: 'withdrawn',
+  scratched: 'withdrawn',
+  absent: 'absent',
+  moved: 'moved',
+  not_accepted: 'not-accepted',
+};
 
 /**
  * The row kind for a class the show will never put in the ring, or `undefined`
  * when the row is still live.
  *
- * `entryAccounting` owns the lifecycle list (`NON_RUNNING_ENTRY_STATUSES` plus
- * the two `isExpectedEntry` also excludes), so nothing is re-declared here —
- * only the mapping from a settled status to the word the row shows. `moved`
- * and `not_accepted` get their own kinds rather than reading "Pulled": a
- * move-up source row went somewhere, it was not withdrawn.
+ * Two rows survive a settled KIND and stay live:
+ *
+ *  - `promotion-expired`. It classifies as `not_accepted`, but the owner
+ *    decided (2026-06-18, `entryStatusUiAdapter.mapEntryStatus`) that it stays
+ *    in the review lane rather than reading as a decline. `EntryClass` does not
+ *    carry the raw `entry_status`, so the ONLY record of that override on this
+ *    row is the disagreement it creates: kind `not_accepted` beside
+ *    `EntryStatus.PENDING`. The guard is scoped to that ONE kind on purpose —
+ *    a terminal `absent` row also projects onto PENDING, because the enum has
+ *    no `absent` member, and a blanket check swallowed it. `paid`, the other
+ *    override, classifies as `accepted` and is not settled at all.
+ *  - A row with no `entryStatusKind`. The field is optional on `EntryClass`,
+ *    and while `useMyEntriesData` — this page's only producer, including its
+ *    optimistic check-in path, which spreads the existing row — always
+ *    populates it, an unclassified row must read as live rather than be
+ *    silently settled.
  *
  * Deliberately blind to `check_in_status = 'pulled'`, which `isExpectedEntry`
  * also excludes. That is a DAY-OF state with its own row kind and its own
  * "change" link, and folding it in here would take both away.
  */
 function settledRowKind(cls: MyShowClass): ClassRowKind | undefined {
-  if (isNonRunningEntry(cls)) {
-    // `withdrawn` and `scratched` are the dialog's "Pulled"; an `absent`
-    // lifecycle value is the same fact the absent row already reports.
-    return lifecycleStatus(cls) === 'absent' ? 'absent' : 'withdrawn';
-  }
-  const status = lifecycleStatus(cls);
-  if (status === 'moved') return 'moved';
-  if (status === 'not_accepted') return 'not-accepted';
-  return undefined;
+  const settled = cls.entryStatusKind ? SETTLED_ROW_KINDS[cls.entryStatusKind] : undefined;
+  if (!settled) return undefined;
+  if (settled === 'not-accepted' && cls.entryStatus === EntryStatus.PENDING) return undefined;
+  return settled;
 }
 
 /**
@@ -125,8 +147,15 @@ export function deriveClassRowState(cls: MyShowClass, ctx: DayCheckInContext): C
   // before the day math, which otherwise offered a withdrawn row "check in
   // with the secretary" on the trial day and nothing at all before it
   // (MYK9-582).
-  const settled = settledRowKind(cls);
-  if (settled) return { kind: settled };
+  //
+  // Skipped for a cancelled show, whose mapper stamps kind `withdrawn` on
+  // EVERY class (`useMyEntriesData.getOwnEntryStatusKind`). That is an
+  // order-level fact: the dog chip already says "Cancelled", and letting each
+  // row say "Withdrawn" would blame the exhibitor for the club's decision.
+  if (!ctx.ordersById[cls.orderId]?.isShowCancelled) {
+    const settled = settledRowKind(cls);
+    if (settled) return { kind: settled };
+  }
 
   // The check-in column is read FIRST and in full. `entryStatusKind` is only a
   // fallback for a row that has no check-in column of its own, because

@@ -42,11 +42,14 @@ const STATE_WORDS: Partial<Record<ClassRowKind, { text: string; status: string }
   'come-to-gate': { text: 'come to gate', status: 'come-to-gate' },
   conflict: { text: 'conflict', status: 'conflict' },
   pulled: { text: 'pulled', status: 'pulled' },
-  // The WORD follows MYK9-582 — the Edit Entry dialog's `Pulled` badge for the
-  // same fact — while the DESCRIPTOR is the grammar's own `withdrawn`, so a
-  // lifecycle withdrawal and the day-of `pulled` above stay two distinguishable
-  // states rather than one. Capitalised for the same reason.
-  withdrawn: { text: 'Pulled', status: 'withdrawn' },
+  // MYK9-582 asked for the Edit Entry dialog's word, `Pulled`. It cannot have
+  // it: the day-of `pulled` above is a DIFFERENT state on the same surface, and
+  // the two descriptors are byte-identical (`complete` / `text-muted-foreground`
+  // both), so the rows would have differed by a capital letter and nothing a
+  // screen reader announces. This uses the grammar's own label for the
+  // `withdrawn` descriptor — the word the dog-level chip already shows for an
+  // all-withdrawn card. Deviation recorded on MYK9-582.
+  withdrawn: { text: 'Withdrawn', status: 'withdrawn' },
   // A move-up's source row went somewhere; it was not pulled.
   moved: { text: 'moved', status: 'moved' },
   'not-accepted': { text: 'not accepted', status: 'not_accepted' },

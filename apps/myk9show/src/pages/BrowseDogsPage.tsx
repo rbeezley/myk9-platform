@@ -379,7 +379,13 @@ const BrowseDogsPage: React.FC = () => {
           list's health may take it away (MYK9-584). */}
       {blockedDeletes.blockedDogs.length > 0 && (
         <BlockedDogDeleteDialog
+          // Keyed by reason so the acknowledgement RE-ARMS when a failed
+          // override re-seeds the list. Without the remount the checkbox stays
+          // ticked and "Delete anyway" is one click, repeatable, with no new
+          // information (MYK9-584 review).
+          key={blockedDeletes.reason}
           dogs={blockedDeletes.blockedDogs}
+          reason={blockedDeletes.reason}
           open
           onClose={blockedDeletes.dismiss}
           onForceDelete={blockedDeletes.forceDelete}

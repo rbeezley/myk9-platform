@@ -12,7 +12,7 @@
  * owns, so a consumer unmounting cannot take the report with it.
  */
 import { describe, expect, it, vi, beforeEach } from 'vitest';
-import { renderHook, act } from '@testing-library/react';
+import { renderHook, act, waitFor } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import React, { useState } from 'react';
 import { render, screen } from '@testing-library/react';
@@ -57,6 +57,58 @@ describe('useBlockedDogDeletes', () => {
     act(() => result.current.reportBlocked([dog('a'), dog('b')]));
 
     expect(result.current.blockedDogs.map(d => d.id)).toEqual(['a', 'b']);
+    expect(result.current.reason).toBe('blocked');
+  });
+
+  /**
+   * MYK9-584 review: a FAILED override must stop blaming the entries.
+   *
+   * `forceDelete` re-seeds the list from the dispatch's failures, but those are
+   * override failures — permission revoked mid-session, RLS, network — not
+   * MK002 refusals. Leaving `reason` as 'blocked' told a revoked admin their
+   * dogs had paid or scored entries, which is simply untrue.
+   */
+  it('flips to override-failed when the override itself does not succeed', async () => {
+    forceDeleteMutateAsync.mockRejectedValue(
+      Object.assign(new Error('Permission denied'), { code: '42501' })
+    );
+    const { result } = renderHook(() => useBlockedDogDeletes(), { wrapper });
+
+    act(() => result.current.reportBlocked([dog('a'), dog('b')]));
+    await act(async () => {
+      result.current.forceDelete();
+    });
+
+    await waitFor(() => expect(result.current.reason).toBe('override-failed'));
+    // The dogs stay listed — a failed override must not destroy the record.
+    expect(result.current.blockedDogs.map(d => d.id)).toEqual(['a', 'b']);
+  });
+
+  it('clears the list and stays silent when the override fully succeeds', async () => {
+    forceDeleteMutateAsync.mockResolvedValue(undefined);
+    const { result } = renderHook(() => useBlockedDogDeletes(), { wrapper });
+
+    act(() => result.current.reportBlocked([dog('a')]));
+    await act(async () => {
+      result.current.forceDelete();
+    });
+
+    await waitFor(() => expect(result.current.blockedDogs).toEqual([]));
+  });
+
+  it('returns to blocked when a fresh refusal is reported after a failed override', async () => {
+    forceDeleteMutateAsync.mockRejectedValue(new Error('Network down'));
+    const { result } = renderHook(() => useBlockedDogDeletes(), { wrapper });
+
+    act(() => result.current.reportBlocked([dog('a')]));
+    await act(async () => {
+      result.current.forceDelete();
+    });
+    await waitFor(() => expect(result.current.reason).toBe('override-failed'));
+
+    act(() => result.current.reportBlocked([dog('b')]));
+
+    expect(result.current.reason).toBe('blocked');
   });
 
   // This test previously asserted the OPPOSITE — that a second report REPLACES

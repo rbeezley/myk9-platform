@@ -2,10 +2,17 @@ import { useCallback, useState } from 'react';
 import { useForceDeleteDogMutation } from '@/hooks/queries/useDogsDatabase';
 import { useBulkDispatch } from '@/hooks/useBulkDispatch';
 import { getDogDisplayName, type Dog } from '@/types/dog-types';
+import type { BlockedDogsReason } from './BlockedDogDeleteDialog';
 
 export interface UseBlockedDogDeletesResult {
   /** Dogs the server refused over paid/scored entries. Empty when nothing is pending. */
   blockedDogs: Dog[];
+  /**
+   * Why `blockedDogs` are listed. Flips to 'override-failed' when an override
+   * was attempted and did not succeed, so the dialog stops asserting a reason
+   * (paid/scored entries) that is no longer the true one.
+   */
+  reason: BlockedDogsReason;
   /** Hand the dispatch outcome's blocked subset in. Called on retries too. */
   reportBlocked: (dogs: Dog[]) => void;
   /** Dismiss without overriding. */
@@ -41,6 +48,7 @@ function mergeById(existing: Dog[], incoming: Dog[]): Dog[] {
  */
 export function useBlockedDogDeletes(onResolved?: () => void): UseBlockedDogDeletesResult {
   const [blockedDogs, setBlockedDogs] = useState<Dog[]>([]);
+  const [reason, setReason] = useState<BlockedDogsReason>('blocked');
   const forceDeleteDogMutation = useForceDeleteDogMutation();
   const dispatch = useBulkDispatch<Dog>({ getLabel: getDogDisplayName });
 
@@ -52,6 +60,7 @@ export function useBlockedDogDeletes(onResolved?: () => void): UseBlockedDogDele
     // there by design), leaving them reported nowhere at all. That is the exact
     // silence MYK9-584 exists to prevent, reintroduced one level up.
     setBlockedDogs(current => mergeById(current, dogs));
+    setReason('blocked');
   }, []);
 
   const dismiss = useCallback(() => setBlockedDogs([]), []);
@@ -83,13 +92,18 @@ export function useBlockedDogDeletes(onResolved?: () => void): UseBlockedDogDele
         // so the list must stay exactly as it was.
         if (!outcome) return;
         if (outcome.failed.length > 0) {
+          // These failed the OVERRIDE, so they are no longer "blocked over
+          // paid/scored entries" — saying so would blame the entries for a
+          // permission or network failure.
           setBlockedDogs(outcome.failed.map(({ item }) => item));
+          setReason('override-failed');
         }
       });
   }, [blockedDogs, dispatch, forceDeleteDogMutation, onResolved]);
 
   return {
     blockedDogs,
+    reason,
     reportBlocked,
     dismiss,
     forceDelete,

@@ -14,9 +14,23 @@ import { signInAsAdmin } from './helpers/testUsers';
  * the issue targets, before and after a horizontal scroll — the exact
  * scenario P2a/P2b broke.
  *
+ * At the round-3 head the table happened to overflow horizontally at 768px
+ * by coincidence — the buggy checkbox wrapper (round-4 review) was itself
+ * widening the select column past its intended 40px. With that bug fixed,
+ * the visible columns (select + Name + Owner + Status; Breed/Sex are
+ * `lg`-hidden) legitimately FIT within 768px and there is nothing to
+ * scroll. The P2b invariant — Name must stay glued beside Select under any
+ * horizontal scroll, never slide over it — still needs proof independent of
+ * whether the content happens to overflow today, so this test forces
+ * overflow with a temporary, test-only width constraint on the table's own
+ * scroll region when none occurs naturally (see `forceHorizontalOverflow`).
+ * That changes nothing about the columns' actual CSS; it only guarantees a
+ * `scrollLeft` has somewhere to go.
+ *
  * Read-only: signs in as the shared e2e admin, opens /dogs, measures, and
- * leaves nothing selected or scrolled behind (selection and scroll position
- * are client-side state, not persisted).
+ * leaves nothing selected, scrolled, or resized behind (selection, scroll
+ * position, and the forced width are all client-side state, never
+ * persisted).
  */
 const TABLET_VIEWPORT = { width: 768, height: 1024 };
 const LEAD_WIDTH_PX = 40; // STICKY_LEFT_LEAD_WIDTH_CLASS = 'w-10' = 2.5rem
@@ -56,6 +70,25 @@ async function assertPointHitsCheckbox(page: Page, checkbox: Locator, label: str
     `${label}: elementFromPoint(${point.x}, ${point.y}) did not resolve inside the checkbox — ` +
       'something else is painted on top of the enlarged tap target'
   ).toBe(true);
+}
+
+/**
+ * Guarantees `scrollRegion.scrollLeft = N` has somewhere real to go, without
+ * touching any column's own CSS. If the table already overflows naturally,
+ * this is a no-op. Otherwise it shrinks the scroll region's own rendered
+ * width (not the columns inside it) just enough to force `scrollWidth >
+ * clientWidth` — the region's content, and therefore the pinning CSS under
+ * test, is completely unaffected; only how much of it is visible at once
+ * changes.
+ */
+async function forceHorizontalOverflow(scrollRegion: Locator): Promise<void> {
+  const overflow = await scrollRegion.evaluate(el => el.scrollWidth - el.clientWidth);
+  if (overflow > 0) return;
+  await scrollRegion.evaluate(el => {
+    const target = Math.max(el.clientWidth - 120, 100);
+    el.style.width = `${target}px`;
+    el.style.maxWidth = `${target}px`;
+  });
 }
 
 test.describe('dogs table pinned select column (MYK9-592)', () => {
@@ -98,10 +131,11 @@ test.describe('dogs table pinned select column (MYK9-592)', () => {
     // re-measure. Name must still sit immediately beside the pinned select
     // column, not slide underneath or away from it (the P2b bug).
     const scrollRegion = page.getByRole('region', { name: 'Dogs table' });
+    await forceHorizontalOverflow(scrollRegion);
     const overflow = await scrollRegion.evaluate(el => el.scrollWidth - el.clientWidth);
     expect(
       overflow,
-      'the table must actually overflow horizontally at 768px for this scroll assertion to test anything'
+      'expected scrollWidth > clientWidth on the table scroll region for this scroll assertion to test anything'
     ).toBeGreaterThan(0);
 
     await scrollRegion.evaluate(el => {
@@ -137,9 +171,13 @@ test.describe('dogs table pinned select column (MYK9-592)', () => {
     await assertPointHitsCheckbox(page, headerCheckbox, 'header checkbox (scrolled)');
     await assertPointHitsCheckbox(page, rowCheckbox, 'row checkbox (scrolled)');
 
-    // Leave the shared account's scroll position as found.
+    // Leave the shared account's scroll position (and any forced width) as
+    // found — both are inline style / scroll state on this page instance
+    // only, never persisted, but tidy up anyway.
     await scrollRegion.evaluate(el => {
       el.scrollLeft = 0;
+      el.style.width = '';
+      el.style.maxWidth = '';
     });
   });
 });

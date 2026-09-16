@@ -48,6 +48,25 @@ export interface ReplicatedSetOptions {
   allowColdInsert?: string;
 }
 
+/**
+ * Build the options for the quota-eviction RETRY of a `set()`.
+ *
+ * `relieveQuota()` evicts CLEAN rows, so the retry of a legitimate UPDATE can
+ * find its own row gone and would be refused as an INSERT. The first attempt
+ * already proved the row existed, so the retry carries an opt-in — while
+ * preserving every other field the caller passed, so a future sibling option
+ * is not silently dropped on the retry.
+ *
+ * @param rowExisted Whether an earlier attempt read an existing row.
+ */
+export function composeRetrySetOptions(
+  options: ReplicatedSetOptions | undefined,
+  rowExisted: boolean
+): ReplicatedSetOptions | undefined {
+  if (!rowExisted) return options;
+  return { ...options, allowColdInsert: QUOTA_EVICTION_RETRY_REASON };
+}
+
 export class ShowScopedColdInsertError extends Error {
   readonly tableName: string;
   readonly rowId: string;

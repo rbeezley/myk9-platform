@@ -9,7 +9,13 @@
  */
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { ReplicatedTable } from './ReplicatedTable';
-import { ShowScopedColdInsertError, type ColdInsertGuardMode } from './coldInsertGuard';
+import {
+  composeRetrySetOptions,
+  QUOTA_EVICTION_RETRY_REASON,
+  ShowScopedColdInsertError,
+  type ColdInsertGuardMode,
+  type ReplicatedSetOptions,
+} from './coldInsertGuard';
 import { databaseManager } from './DatabaseManager';
 import type { SyncResult } from '../types';
 import type { MutationManager } from '../MutationManager';
@@ -163,20 +169,53 @@ describe('ReplicatedTable cold-insert guard (MYK9-575)', () => {
     }
   });
 
-  it('still refuses when the row never existed and the first attempt hit quota', async () => {
-    // Same retry path, opposite fact: nothing proved the row existed, so the
-    // retry must not inherit an opt-in.
-    table.evictOnQuotaRelief = 'other-row';
-    await table.batchSet([{ id: 'other-row', name: 'x' }]);
-    const restorePut = failNextPutWithQuotaError();
+  it('preserves a dirty local row against an incoming clean write and says so', async () => {
+    await table.batchSet([{ id: 'row-dirty', name: 'server' }]);
+    await table.set('row-dirty', { id: 'row-dirty', name: 'local edit' }, true);
 
-    try {
-      await expect(table.set('row-1', { id: 'row-1', name: 'a' })).rejects.toThrow(
-        ShowScopedColdInsertError
-      );
-    } finally {
-      restorePut();
-    }
+    const result = await table.set('row-dirty', { id: 'row-dirty', name: 'server again' });
+
+    expect(result).toEqual({ written: false, reason: 'dirty-row-preserved' });
+    expect(await table.get('row-dirty')).toEqual({ id: 'row-dirty', name: 'local edit' });
+  });
+
+  describe('composeRetrySetOptions — what the quota retry inherits', () => {
+    /**
+     * There is no "refused, then retried" path to drive end-to-end: the guard
+     * decides BEFORE any `put`, in both modes — `throw` raises and `skip`
+     * returns — so a refused insert never reaches the write that could hit
+     * quota. The only thing the retry can get wrong is which options it
+     * carries, and that is this pure function. The end-to-end direction that
+     * CAN happen (row existed, quota hit, row evicted, retry writes) is pinned
+     * by the test above.
+     */
+    it('adds no opt-in when nothing proved the row existed', () => {
+      expect(composeRetrySetOptions(undefined, false)).toBeUndefined();
+      expect(composeRetrySetOptions({ allowColdInsert: 'caller reason' }, false)).toEqual({
+        allowColdInsert: 'caller reason',
+      });
+    });
+
+    it('adds the opt-in once the row is known to have existed', () => {
+      expect(composeRetrySetOptions(undefined, true)).toEqual({
+        allowColdInsert: QUOTA_EVICTION_RETRY_REASON,
+      });
+    });
+
+    it('preserves every other field the caller passed', () => {
+      // A sibling option does not exist yet; the point is that adding one must
+      // not require remembering to re-thread it through the retry.
+      const options = {
+        allowColdInsert: 'caller reason',
+        futureSiblingOption: 'keep me',
+      } as ReplicatedSetOptions & { futureSiblingOption: string };
+
+      const retry = composeRetrySetOptions(options, true) as typeof options;
+
+      expect(retry.futureSiblingOption).toBe('keep me');
+      expect(retry.allowColdInsert).toBe(QUOTA_EVICTION_RETRY_REASON);
+      expect(options.allowColdInsert).toBe('caller reason');
+    });
   });
 
   it('leaves an account-scoped table (no guard) inserting freely', async () => {

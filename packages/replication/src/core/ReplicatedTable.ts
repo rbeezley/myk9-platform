@@ -52,8 +52,8 @@ import { mergeNonConflictingServerFields } from '../conflict/detectDirtyRowConfl
 import { isConflictSurfacingEnabled } from '../conflictConfig';
 import { withQuotaEviction } from '../quota-eviction';
 import {
+  composeRetrySetOptions,
   isColdInsertAllowed,
-  QUOTA_EVICTION_RETRY_REASON,
   type ColdInsertGuardMode,
   type ReplicatedSetOptions,
   type ReplicatedSetResult,
@@ -443,7 +443,7 @@ export abstract class ReplicatedTable<T extends { id: string }> {
             isDirty,
             expectedVersion,
             incomingServerVersion,
-            attempt.rowExisted ? { allowColdInsert: QUOTA_EVICTION_RETRY_REASON } : options,
+            composeRetrySetOptions(options, attempt.rowExisted),
             attempt
           ),
         () => this.relieveQuota(),
@@ -922,6 +922,9 @@ export abstract class ReplicatedTable<T extends { id: string }> {
 
   /**
    * Optimistic update with automatic retry on version conflicts
+   *
+   * Note: this has no production callers today, so its `written: false` branch
+   * (MYK9-575) is exercised only by tests.
    */
   async optimisticUpdate(
     id: string,

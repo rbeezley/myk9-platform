@@ -128,6 +128,7 @@ export { ReplicatedTableBatchManager } from './core/ReplicatedTableBatch';
 export { ReplicatedTable } from './core/ReplicatedTable';
 export {
   ShowScopedColdInsertError,
+  composeRetrySetOptions,
   isColdInsertAllowed,
   QUOTA_EVICTION_RETRY_REASON,
 } from './core/coldInsertGuard';

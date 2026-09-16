@@ -1,0 +1,105 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(*)",
+      "mcp__Claude_Preview__preview_screenshot",
+      "mcp__Claude_Preview__preview_console_logs",
+      "mcp__Claude_Preview__preview_list",
+      "mcp__Claude_Preview__preview_snapshot",
+      "mcp__Claude_Preview__preview_network",
+      "mcp__Claude_Preview__preview_logs"
+    ],
+    "deny": [
+      "Bash(rm)",
+      "Bash(rm *)",
+      "Bash(rmdir)",
+      "Bash(rmdir *)",
+      "Bash(dd)",
+      "Bash(dd *)",
+      "Bash(mkfs *)",
+      "Bash(mkfs.ext4 *)",
+      "Bash(mkfs.ext3 *)",
+      "Bash(mkfs.xfs *)",
+      "Bash(mkfs.apfs *)",
+      "Bash(mkfs.hfs *)",
+      "Bash(shred)",
+      "Bash(shred *)",
+      "Bash(chown)",
+      "Bash(chown *)",
+      "Bash(sudo)",
+      "Bash(sudo *)",
+      "Bash(kill -9 *)",
+      "Bash(git push --force)",
+      "Bash(git push --force *)",
+      "Bash(git push -f)",
+      "Bash(git push -f *)",
+      "Bash(git push --force-with-lease)",
+      "Bash(git push --force-with-lease *)",
+      "Bash(git reset --hard)",
+      "Bash(git reset --hard *)",
+      "Bash(git clean -f)",
+      "Bash(git clean -f *)",
+      "Bash(git clean -fd)",
+      "Bash(git clean -fd *)",
+      "Bash(git clean -fx)",
+      "Bash(git clean -fx *)",
+      "Bash(git clean -fdx)",
+      "Bash(git clean -fdx *)",
+      "Bash(git branch -D)",
+      "Bash(git branch -D *)",
+      "Bash(git checkout --)",
+      "Bash(git checkout -- *)",
+      "Bash(git restore .)",
+      "Bash(git restore . *)",
+      "Bash(git commit --amend)",
+      "Bash(git commit --amend *)",
+      "Bash(git rebase)",
+      "Bash(git rebase *)"
+    ]
+  },
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "EnterWorktree",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash scripts/bootstrap-worktree.sh",
+            "timeout": 120
+          }
+        ]
+      },
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "INPUT=$(cat); STDERR=$(echo \"$INPUT\" | jq -r '.tool_response.stderr // \"\"' 2>/dev/null); if echo \"$STDERR\" | grep -qE 'getcwd|cannot open current directory'; then printf '{\"hookSpecificOutput\":{\"hookEventName\":\"PostToolUse\",\"additionalContext\":\"CWD deleted \u2014 worktree was removed. Run immediately before next command: cd \\\"$CLAUDE_PROJECT_DIR\\\"\"}}'; fi",
+            "statusMessage": "Checking cwd..."
+          }
+        ]
+      }
+    ],
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "HOOK=\"$CLAUDE_PROJECT_DIR/scripts/qa/primary-checkout-session-hook.sh\"; if [ -f \"$HOOK\" ]; then bash \"$HOOK\"; else echo \"primary-checkout guard not found at $HOOK - the primary checkout is unguarded this session\"; fi",
+            "timeout": 30
+          }
+        ]
+      }
+    ]
+  },
+  "enabledPlugins": {
+    "frontend-design@claude-plugins-official": true,
+    "superpowers@claude-plugins-official": true,
+    "playground@claude-plugins-official": false,
+    "stripe@claude-plugins-official": false,
+    "skill-creator@claude-plugins-official": true,
+    "context-mode@context-mode": false,
+    "claude-mem@thedotmack": false,
+    "codex@openai-codex": true
+  }
+}

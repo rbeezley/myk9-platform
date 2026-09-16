@@ -52,6 +52,20 @@ const gateMigrationFiles = readdirSync(migrationsDir)
 const latestGateMigrationFile = gateMigrationFiles[gateMigrationFiles.length - 1];
 const gateMigration = readFileSync(resolve(migrationsDir, latestGateMigrationFile), 'utf8');
 
+// The trigger function that CALLS the gate is redefined on its own cadence —
+// 20260916181700 rewrites only refresh_class_scoring_state — so discover it
+// separately rather than assuming both live in the same file.
+const triggerMigrationFiles = readdirSync(migrationsDir)
+  .filter(file => file.endsWith('.sql'))
+  .filter(file =>
+    readFileSync(resolve(migrationsDir, file), 'utf8').includes(
+      'CREATE OR REPLACE FUNCTION public.handle_entry_scoring_state_change()'
+    )
+  )
+  .sort();
+const latestTriggerMigrationFile = triggerMigrationFiles[triggerMigrationFiles.length - 1];
+const triggerMigration = readFileSync(resolve(migrationsDir, latestTriggerMigrationFile), 'utf8');
+
 // Body only — from `AS $$` to its closing `$$;`. The header comment of
 // 20260817140000 quotes SQL while explaining a rejected alternative, so
 // matching over the whole file picks up prose as if it were a statement.
@@ -180,24 +194,56 @@ describe('completion gate — refresh_class_scoring_state (latest definition)', 
   it('asserts against the newest migration that redefines the function', () => {
     // Same rule as the ranking pin above: repoint it at the new file and
     // re-check every assertion below, rather than deleting it.
-    expect(latestGateMigrationFile).toBe(
+    expect(latestGateMigrationFile).toBe('20260916181700_force_delete_dog_audit_and_waitlist.sql');
+    expect(latestTriggerMigrationFile).toBe(
       '20260904160000_exclude_absent_entries_from_class_rollup.sql'
     );
   });
 
   it('excludes absent lifecycle rows from the expected denominator', () => {
     expect(gateBody).toContain("'not_accepted', 'absent'");
-    expect(gateMigration).toContain("COALESCE(NEW.entry_status, '') NOT IN");
-    expect(gateMigration).toContain("'not_accepted', 'absent'");
+    expect(triggerMigration).toContain("COALESCE(NEW.entry_status, '') NOT IN");
+    expect(triggerMigration).toContain("'not_accepted', 'absent'");
   });
 
-  it('computes placements ONLY in the fully-accounted-for branch', () => {
-    const branch = gateBody.indexOf('ELSIF v_accounted_count = v_expected_count THEN');
-    const recalc = gateBody.indexOf('PERFORM public.recalculate_class_placements');
-    const nextBranch = gateBody.indexOf('ELSIF v_accounted_count > 0 THEN');
-    expect(branch).toBeGreaterThanOrEqual(0);
-    expect(recalc).toBeGreaterThan(branch);
-    expect(recalc).toBeLessThan(nextBranch); // recalc lives INSIDE that branch
+  it('computes placements ONLY where every expected entry is accounted for', () => {
+    // TWO call sites since MYK9-596: the manual branch (which used to null a
+    // tombstone's placement and RETURN, so a restored entry stayed unplaced
+    // forever) and the derived fully-accounted branch. Neither PARTIAL branch
+    // may rank — a half-scored class must not hand out placements.
+    const manualBranch = gateBody.indexOf("IF v_status_source = 'manual' THEN");
+    const derivedBranch = gateBody.indexOf('ELSIF v_accounted_count = v_expected_count THEN');
+    const partialBranch = gateBody.indexOf('ELSIF v_accounted_count > 0 THEN');
+    const recalcs = [...gateBody.matchAll(/PERFORM public\.recalculate_class_placements/g)].map(
+      match => match.index as number
+    );
+
+    expect(manualBranch).toBeGreaterThanOrEqual(0);
+    expect(derivedBranch).toBeGreaterThan(manualBranch);
+    expect(partialBranch).toBeGreaterThan(derivedBranch);
+    expect(recalcs).toHaveLength(2);
+
+    const [manualRecalc, derivedRecalc] = recalcs;
+    expect(manualRecalc).toBeGreaterThan(manualBranch);
+    expect(manualRecalc).toBeLessThan(derivedBranch);
+    expect(derivedRecalc).toBeGreaterThan(derivedBranch);
+    expect(derivedRecalc).toBeLessThan(partialBranch);
+  });
+
+  it('gates the manual-branch recalc on the class being fully accounted for', () => {
+    // Without this guard the manual branch would place a half-scored class on
+    // every score write, which is a behaviour change nobody asked for.
+    const manualBranch = gateBody.indexOf("IF v_status_source = 'manual' THEN");
+    const guard = gateBody.indexOf(
+      'IF v_expected_count > 0 AND v_accounted_count = v_expected_count THEN',
+      manualBranch
+    );
+    const manualRecalc = gateBody.indexOf(
+      'PERFORM public.recalculate_class_placements',
+      manualBranch
+    );
+    expect(guard).toBeGreaterThan(manualBranch);
+    expect(manualRecalc).toBeGreaterThan(guard);
   });
 
   it('counts only NON-DELETED entries when deciding completeness', () => {

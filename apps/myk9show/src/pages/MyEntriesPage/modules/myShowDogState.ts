@@ -11,8 +11,9 @@
  * @module MyEntriesPage/modules/myShowDogState
  */
 
-import { isAccountedFor, isExpectedEntry } from '@/features/_shared/entryAccounting';
+import { isAccountedFor } from '@/features/_shared/entryAccounting';
 import { EntryStatus } from '@/types/show-registration-types';
+import type { EntryStatusKind } from '@/services/entryDisplay/entryDisplaySelectors';
 import { getEntryStatusStateLabel } from '@/components/entries/management/reviewStateLabels';
 import {
   isClassCheckInAvailableToday,
@@ -34,6 +35,10 @@ export type ClassRowKind =
   | 'come-to-gate'
   | 'conflict'
   | 'pulled'
+  | 'withdrawn'
+  | 'scratched'
+  | 'moved'
+  | 'not-accepted'
   | 'checked-in'
   | 'check-in-available'
   | 'opens-later'
@@ -56,16 +61,97 @@ function isAbsentClass(cls: MyShowClass): boolean {
 }
 
 /**
+ * Settled lifecycle kinds, and the row kind each one renders as.
+ *
+ * Keyed on `entryStatusKind` — the LOSSLESS classification `entryDisplay`
+ * emits — and never on `entryStatus`, the UI enum beside it. That enum has no
+ * `absent` member, so `mapEntryStatusKindToUi` folds a terminal
+ * `entry_status='absent'` row onto `PENDING`: a predicate reading it cannot
+ * see the row at all, and the row then fell through to the day math and
+ * offered "check in with the secretary" on the trial day — the very complaint
+ * MYK9-582 was filed against, surviving inside the branch meant to fix it.
+ *
+ * `moved` and `not_accepted` keep their own kinds rather than reading as a
+ * withdrawal: a move-up's source row went somewhere, and a decline is the
+ * secretary's, not the exhibitor's.
+ *
+ * The keys are exactly the lifecycle states `isExpectedEntry` excludes —
+ * `entryAccounting.EXCLUDED_ENTRY_STATUSES`, all five of them.
+ * `myShowDogState.lifecycle.test.ts` drives every member of that exported set
+ * through the real mappers and asserts each lands on a settled row kind.
+ */
+const SETTLED_ROW_KINDS: Readonly<Partial<Record<EntryStatusKind, ClassRowKind>>> = {
+  withdrawn: 'withdrawn',
+  scratched: 'scratched',
+  absent: 'absent',
+  moved: 'moved',
+  not_accepted: 'not-accepted',
+};
+
+/**
+ * The row kind for a class the show will never put in the ring, or `undefined`
+ * when the row is still live.
+ *
+ * Two rows survive a settled KIND and stay live:
+ *
+ *  - `promotion-expired`. It classifies as `not_accepted`, but the owner
+ *    decided (2026-06-18, `entryStatusUiAdapter.mapEntryStatus`) that it stays
+ *    in the review lane rather than reading as a decline. `EntryClass` does not
+ *    carry the raw `entry_status`, so the ONLY record of that override on this
+ *    row is the disagreement it creates: kind `not_accepted` beside
+ *    `EntryStatus.PENDING`. The guard is scoped to that ONE kind on purpose —
+ *    a terminal `absent` row also projects onto PENDING, because the enum has
+ *    no `absent` member, and a blanket check swallowed it. `paid`, the other
+ *    override, classifies as `accepted` and is not settled at all.
+ *  - A row with no `entryStatusKind`. The field is optional on `EntryClass`,
+ *    and while `useMyEntriesData` — this page's only producer, including its
+ *    optimistic check-in path, which spreads the existing row — always
+ *    populates it, an unclassified row must read as live rather than be
+ *    silently settled.
+ *
+ * Deliberately blind to `check_in_status = 'pulled'`, which `isExpectedEntry`
+ * also excludes. That is a DAY-OF state with its own row kind and its own
+ * "change" link, and folding it in here would take both away.
+ */
+function settledRowKind(cls: MyShowClass): ClassRowKind | undefined {
+  const settled = cls.entryStatusKind ? SETTLED_ROW_KINDS[cls.entryStatusKind] : undefined;
+  if (!settled) return undefined;
+  if (settled === 'not-accepted' && cls.entryStatus === EntryStatus.PENDING) return undefined;
+  return settled;
+}
+
+/**
+ * A class still live by LIFECYCLE — the filter the dog chip's day-of scans run
+ * over. See `settledRowKind` for why `check_in_status` is not consulted.
+ */
+function isLiveByLifecycle(cls: MyShowClass): boolean {
+  return settledRowKind(cls) === undefined;
+}
+
+/**
  * Derive one class row's state.
  *
- * Precedence: a recorded outcome (result, then a settled absence) outranks any
- * check-in state, which outranks the controls. With no state and no outcome the
- * row either offers check-in (today, eligible, toggle open), announces the day
- * it opens, or — once its day has passed — reports that it never ran.
+ * Precedence: a recorded outcome (a result, then a settled absence, then a
+ * settled lifecycle) outranks any check-in state, which outranks the controls.
+ * With no state and no outcome the row either offers check-in (today, eligible,
+ * toggle open), announces the day it opens, or — once its day has passed —
+ * reports that it never ran.
  */
 export function deriveClassRowState(cls: MyShowClass, ctx: DayCheckInContext): ClassRowState {
   if (cls.isScored === true) return { kind: 'result' };
+  // A RECORDED absence outranks the lifecycle on purpose: a row withdrawn on
+  // paper but marked absent/excused in the ring has an outcome the exhibitor
+  // should see, and `ResultBadge` names it exactly. The lifecycle branch below
+  // only speaks for rows with no outcome at all.
   if (isAbsentClass(cls)) return { kind: 'absent' };
+  // Settled by lifecycle — before any check-in state can speak for it, and
+  // before the day math, which otherwise offered such a row "check in with the
+  // secretary" on the trial day and nothing at all before it (MYK9-582). A
+  // settled row must never reach the day math, with no exceptions: the
+  // cancelled-show carve-out tried in round 2 put every row of a cancelled
+  // show, withdrawn ones included, straight back into that copy.
+  const settled = settledRowKind(cls);
+  if (settled) return { kind: settled };
 
   // The check-in column is read FIRST and in full. `entryStatusKind` is only a
   // fallback for a row that has no check-in column of its own, because
@@ -141,9 +227,22 @@ export interface DogChipContext {
   isShowCancelled: boolean;
 }
 
-/** Classes that could still carry a check-in state — not settled, not excluded. */
+/**
+ * Classes that could still carry a check-in state — not settled, not excluded.
+ *
+ * Lifecycle exclusion runs through `isLiveByLifecycle`, the SAME predicate the
+ * rows use, not `isExpectedEntry`. The shared helper reads the lossy
+ * `entryStatus` enum, which has no `absent` member, so an absent class counted
+ * as live here and held the chip on "Accepted" over a dog already checked in
+ * (MYK9-582 review round 3).
+ */
 function checkInBearingClasses(dog: MyShowDog): MyShowClass[] {
-  return dog.classes.filter(cls => isExpectedEntry(cls) && !isAccountedFor(cls));
+  return liveClasses(dog.classes).filter(cls => !isAccountedFor(cls));
+}
+
+/** The lifecycle filter, in one place for every caller in this module. */
+function liveClasses(classes: MyShowClass[]): MyShowClass[] {
+  return classes.filter(isLiveByLifecycle);
 }
 
 /**
@@ -158,22 +257,27 @@ function checkInBearingClasses(dog: MyShowDog): MyShowClass[] {
 export function deriveDogChip(dog: MyShowDog, ctx: DogChipContext): DogChipState {
   if (ctx.isShowCancelled) return { kind: 'cancelled', label: 'Cancelled', status: 'not_accepted' };
 
-  const classes = dog.classes;
-  if (classes.some(cls => cls.checkInStatus === 'pulled')) {
+  // Day-of signals, scoring progress and the entry-status fallback may only
+  // come from classes the show still expects to run. A withdrawn row keeps
+  // whatever `check_in_status` it had when it was pulled from the running
+  // order, and letting that stale value speak made a mixed card read "Pulled"
+  // at the dog level while its live class was still pending (MYK9-582 round 1).
+  const live = liveClasses(dog.classes);
+  if (live.some(cls => cls.checkInStatus === 'pulled')) {
     return { kind: 'pulled', label: 'Pulled', status: 'pulled' };
   }
-  if (classes.some(cls => cls.checkInStatus === 'conflict')) {
+  if (live.some(cls => cls.checkInStatus === 'conflict')) {
     return { kind: 'conflict', label: 'Conflict', status: 'conflict' };
   }
-  if (classes.some(cls => cls.checkInStatus === 'in-ring')) {
+  if (live.some(cls => cls.checkInStatus === 'in-ring')) {
     return { kind: 'in_ring', label: 'In ring', status: 'in_ring' };
   }
-  if (classes.some(cls => cls.checkInStatus === 'at-gate')) {
+  if (live.some(cls => cls.checkInStatus === 'at-gate')) {
     return { kind: 'at_gate', label: 'At gate', status: 'at_gate' };
   }
   // Same fallback ordering as the row: the collapsed `in_ring` kind only
   // speaks for a class whose own check-in column said nothing.
-  if (classes.some(cls => cls.entryStatusKind === 'in_ring' && !cls.checkInStatus)) {
+  if (live.some(cls => cls.entryStatusKind === 'in_ring' && !cls.checkInStatus)) {
     return { kind: 'in_ring', label: 'In ring', status: 'in_ring' };
   }
 
@@ -194,8 +298,7 @@ export function deriveDogChip(dog: MyShowDog, ctx: DogChipContext): DogChipState
   // on every row would drop a dog whose day finished with one result and one
   // excused run back to its entry status, which reads as "Accepted" long after
   // the dog is done.
-  const expected = classes.filter(isExpectedEntry);
-  if (expected.length > 0 && expected.every(isAccountedFor) && expected.some(cls => cls.isScored)) {
+  if (live.length > 0 && live.every(isAccountedFor) && live.some(cls => cls.isScored)) {
     return { kind: 'scored', label: 'Scored', status: 'completed' };
   }
 

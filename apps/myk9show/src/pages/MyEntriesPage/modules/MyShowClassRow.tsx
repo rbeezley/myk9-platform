@@ -42,6 +42,18 @@ const STATE_WORDS: Partial<Record<ClassRowKind, { text: string; status: string }
   'come-to-gate': { text: 'come to gate', status: 'come-to-gate' },
   conflict: { text: 'conflict', status: 'conflict' },
   pulled: { text: 'pulled', status: 'pulled' },
+  // MYK9-582 asked for the Edit Entry dialog's word, `Pulled`. This column
+  // cannot have it: the day-of `pulled` above is a DIFFERENT state on the same
+  // card, and the two descriptors are byte-identical (`complete` /
+  // `text-muted-foreground`), so the rows would have differed by a capital
+  // letter and nothing a screen reader announces. Each settled state takes the
+  // chip's own word instead, lowercased to match this column. Deviation
+  // recorded on MYK9-582; the dialog's wording is filed separately.
+  withdrawn: { text: 'withdrawn', status: 'withdrawn' },
+  scratched: { text: 'scratched', status: 'scratched' },
+  // A move-up's source row went somewhere; it was not pulled.
+  moved: { text: 'moved', status: 'moved' },
+  'not-accepted': { text: 'not accepted', status: 'not_accepted' },
   'checked-in': { text: 'checked in', status: 'checked-in' },
 };
 

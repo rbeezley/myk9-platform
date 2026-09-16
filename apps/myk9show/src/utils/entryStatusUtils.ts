@@ -4,6 +4,7 @@
 
 import type { Show } from '@/types/show-types';
 import { toLocalDate } from './date-format';
+import { formatShortCalendarDate } from '@/lib/format/dates';
 import { isActiveSubmittedEntryStatus } from '@/services/entryDisplay/entryDisplaySelectors';
 import { currentEntryWindowDate, getEntryWindowTimezone } from './entryWindowDate';
 
@@ -49,7 +50,7 @@ export function getEntryStatus(
   if (!today) {
     return {
       status: 'not_yet_open',
-      label: `Opens ${openDate.toLocaleDateString()}`,
+      label: `Entries open ${formatShortCalendarDate(show.entryOpenDate)}`,
       description: 'Entry window is not available yet',
       canEnter: false,
     };
@@ -62,7 +63,7 @@ export function getEntryStatus(
     const daysUntilOpen = dayDiff(openDate);
     return {
       status: 'not_yet_open',
-      label: `Opens ${openDate.toLocaleDateString()}`,
+      label: `Entries open ${formatShortCalendarDate(show.entryOpenDate)}`,
       description: `Entries open in ${daysUntilOpen} day${daysUntilOpen !== 1 ? 's' : ''}`,
       daysUntilOpen,
       canEnter: false,

@@ -76,6 +76,48 @@ describe('entryStatusUtils', () => {
         expect(result.daysUntilOpen).toBeGreaterThan(0);
       });
 
+      it('names entries as the thing opening, with a calendar-safe date', () => {
+        const now = new Date(2023, 11, 15, 12); // Before open date
+        vi.setSystemTime(now);
+
+        const show = createMockShow({
+          entryOpenDate: '2024-01-01',
+        });
+        const result = getEntryStatus(show, false);
+
+        // MYK9-568: a bare "Opens ..." reads as ambiguous ("what opens?") to
+        // an exhibitor who already submitted; name the thing that opens.
+        // formatShortCalendarDate keeps the DATE column calendar-safe
+        // (no day-shift west of UTC) instead of a raw toLocaleDateString().
+        expect(result.label).toBe('Entries open Jan 1, 2024');
+      });
+
+      it('names entries as the thing opening even when the entry window cannot be resolved yet', async () => {
+        // The first branch in getEntryStatus fires when currentEntryWindowDate
+        // cannot determine "today" in the show's timezone — reached BEFORE the
+        // userHasEntries check, so it can surface even for a show whose entries
+        // a user has already submitted (an already-submitted exhibitor seeing
+        // "opens" was the exact MYK9-568 report). Mocked here since the real
+        // currentEntryWindowDate always resolves a date in practice.
+        vi.resetModules();
+        vi.doMock('@/utils/entryWindowDate', () => ({
+          currentEntryWindowDate: () => undefined,
+          getEntryWindowTimezone: () => 'America/Los_Angeles',
+        }));
+        const { getEntryStatus: getEntryStatusWithMockedWindow } =
+          await import('@/utils/entryStatusUtils');
+
+        const show = createMockShow({ entryOpenDate: '2024-01-01' });
+        const result = getEntryStatusWithMockedWindow(show, true);
+
+        expect(result.status).toBe('not_yet_open');
+        expect(result.label).toBe('Entries open Jan 1, 2024');
+        expect(result.description).toBe('Entry window is not available yet');
+
+        vi.doUnmock('@/utils/entryWindowDate');
+        vi.resetModules();
+      });
+
       it('should calculate days until open correctly', () => {
         const now = new Date(2023, 11, 25, 12); // 7 days before open
         vi.setSystemTime(now);

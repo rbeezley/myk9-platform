@@ -232,7 +232,8 @@ describe('EntryStatusBadge', () => {
     it('should render not_yet_open status correctly', () => {
       mockGetEntryStatus.mockReturnValue({
         status: 'not_yet_open',
-        label: 'Opens 1/1/2024',
+        // MYK9-568: name the thing that opens ("entries"), calendar-safe date.
+        label: 'Entries open Jan 1, 2024',
         description: 'Entries open in 5 days',
         canEnter: false,
         daysUntilOpen: 5,
@@ -245,7 +246,7 @@ describe('EntryStatusBadge', () => {
 
       render(<EntryStatusBadge show={createMockShow()} />);
 
-      expect(screen.getByText('Opens 1/1/2024')).toBeInTheDocument();
+      expect(screen.getByText('Entries open Jan 1, 2024')).toBeInTheDocument();
     });
   });
 

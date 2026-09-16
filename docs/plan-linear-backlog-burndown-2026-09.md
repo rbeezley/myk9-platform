@@ -85,5 +85,10 @@ Per PR: assertion-first tests for value-sensitive fixes, colocated suite, `pnpm 
 
 Filled in as batches complete; the final report to Richard is generated from this table.
 
-| Issue | Batch | Outcome | PR  | Owner action |
-| ----- | ----- | ------- | --- | ------------ |
+| Issue    | Batch | Outcome         | PR                | Owner action                                     |
+| -------- | ----- | --------------- | ----------------- | ------------------------------------------------ |
+| MYK9-595 | 1     | merged          | #2279 → af9a68f5e | none                                             |
+| MYK9-547 | 1     | merged          | #2280 → 70c4977b4 | confirm `SWDC` against `electres.xsd` once       |
+| MYK9-603 | new   | filed (Backlog) | —                 | triage: print templates use the owner as handler |
+| MYK9-604 | new   | filed (Backlog) | —                 | triage: wizard writes `Unknown` class triples    |
+| MYK9-605 | new   | filed (Backlog) | —                 | triage: MyEntriesPage focus flake                |

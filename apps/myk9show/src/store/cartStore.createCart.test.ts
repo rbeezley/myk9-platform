@@ -143,6 +143,18 @@ describe('cartStore.createCart', () => {
     expect(second?.selected).toBe('*, show:shows(id, name, start_date, entry_close_date)');
   });
 
+  it('coalesces two concurrent calls onto one INSERT', async () => {
+    // The class step's cart effect runs twice under StrictMode, and the two
+    // calls landed ~8ms apart on staging: the loser's INSERT could only 409.
+    const [a, b] = await Promise.all([
+      useCartStore.getState().createCart(SHOW_ID, EXHIBITOR_ID),
+      useCartStore.getState().createCart(SHOW_ID, EXHIBITOR_ID),
+    ]);
+
+    expect(cartCalls().filter(call => call.insertPayload !== undefined)).toHaveLength(1);
+    expect(a).toBe(b);
+  });
+
   it('does not treat a unique violation on some other constraint as a reclaimed cart', async () => {
     behaviour.insertError = {
       code: '23505',

@@ -49,6 +49,7 @@ export type {
 } from './cartStore.types';
 
 const recoveryCartInFlight = new Map<string, Promise<CartWithDetails | null>>();
+const createCartInFlight = new Map<string, Promise<CartWithDetails | null>>();
 
 /** `create unique index … on entry_carts (show_id, exhibitor_id) where status = 'active'`. */
 const ACTIVE_CART_UNIQUE_INDEX = 'entry_carts_active_show_exhibitor_unique_idx';
@@ -347,166 +348,188 @@ export const useCartStore = create<CartState>()(
         },
 
         // Create a new cart
-        createCart: async (showId: string, exhibitorId: string) => {
-          set({ isLoading: true, error: null });
+        createCart: (showId: string, exhibitorId: string) => {
+          // MYK9-581: React runs this step's cart effect twice under
+          // StrictMode and the wizard can mount it more than once, so two
+          // `createCart` calls for the same show and exhibitor landed ~8ms
+          // apart and the loser died on the unique index. Coalesce them onto
+          // one promise -- the same shape `recoveryCartInFlight` already uses
+          // -- so only one INSERT is ever in flight per (show, exhibitor).
+          const inFlightKey = `${showId}:${exhibitorId}`;
+          const inFlight = createCartInFlight.get(inFlightKey);
+          if (inFlight) return inFlight;
 
-          try {
-            const expiresAt = new Date(
-              Date.now() + CART_EXPIRATION_MINUTES * 60 * 1000
-            ).toISOString();
+          const pending = (async () => {
+            set({ isLoading: true, error: null });
 
-            const cartInsert: EntryCartInsert = {
-              show_id: showId,
-              exhibitor_id: exhibitorId,
-              status: 'active',
-              expires_at: expiresAt,
-              subtotal_cents: 0,
-              platform_fee_cents: 0,
-              total_cents: 0,
-            };
+            try {
+              const expiresAt = new Date(
+                Date.now() + CART_EXPIRATION_MINUTES * 60 * 1000
+              ).toISOString();
 
-            // MYK9-581: `loadCart` only returns a cart whose `expires_at` is
-            // still ahead of now, but `entry_carts_active_show_exhibitor_unique_idx`
-            // is scoped to `status = 'active'` alone. A lapsed active row is
-            // therefore invisible to the read and still fatal to the insert, so
-            // every wizard open after a cart timed out fired a POST that could
-            // only 409 -- the conflict branch below then cleaned up after it and
-            // the exhibitor saw nothing but the console did. Retire the lapsed
-            // row first so the insert is not doomed before it is sent. A failure
-            // here is not fatal: the conflict branch still covers it.
-            const { error: staleCartError } = await supabase
-              .from('entry_carts')
-              .update({ status: 'expired', stripe_checkout_session_id: null })
-              .eq('show_id', showId)
-              .eq('exhibitor_id', exhibitorId)
-              .eq('status', 'active')
-              .or(`expires_at.is.null,expires_at.lte.${new Date().toISOString()}`);
+              const cartInsert: EntryCartInsert = {
+                show_id: showId,
+                exhibitor_id: exhibitorId,
+                status: 'active',
+                expires_at: expiresAt,
+                subtotal_cents: 0,
+                platform_fee_cents: 0,
+                total_cents: 0,
+              };
 
-            if (staleCartError) {
-              logger.warn(
-                'Could not retire a lapsed active cart before creating a new one',
-                'cartStore',
-                { showId, exhibitorId, error: staleCartError.message }
-              );
-            }
+              // MYK9-581: `loadCart` only returns a cart whose `expires_at` is
+              // still ahead of now, but `entry_carts_active_show_exhibitor_unique_idx`
+              // is scoped to `status = 'active'` alone. A lapsed active row is
+              // therefore invisible to the read and still fatal to the insert, so
+              // every wizard open after a cart timed out fired a POST that could
+              // only 409 -- the conflict branch below then cleaned up after it and
+              // the exhibitor saw nothing but the console did. Retire the lapsed
+              // row first so the insert is not doomed before it is sent. A failure
+              // here is not fatal: the conflict branch still covers it.
+              const { error: staleCartError } = await supabase
+                .from('entry_carts')
+                .update({ status: 'expired', stripe_checkout_session_id: null })
+                .eq('show_id', showId)
+                .eq('exhibitor_id', exhibitorId)
+                .eq('status', 'active')
+                .or(`expires_at.is.null,expires_at.lte.${new Date().toISOString()}`);
 
-            const { data: cartData, error: cartError } = await supabase
-              .from('entry_carts')
-              .insert(cartInsert)
-              .select(`*, show:shows(id, name, start_date, entry_close_date)`)
-              .single();
+              if (staleCartError) {
+                logger.warn(
+                  'Could not retire a lapsed active cart before creating a new one',
+                  'cartStore',
+                  { showId, exhibitorId, error: staleCartError.message }
+                );
+              }
 
-            if (cartError) {
-              if (isActiveCartUniqueViolation(cartError)) {
-                const { data: existingCart, error: existingCartError } = await supabase
-                  .from('entry_carts')
-                  .select(`*, show:shows(id, name, start_date, entry_close_date)`)
-                  .eq('show_id', showId)
-                  .eq('exhibitor_id', exhibitorId)
-                  .eq('status', 'active')
-                  .limit(1)
-                  .maybeSingle();
+              const { data: cartData, error: cartError } = await supabase
+                .from('entry_carts')
+                .insert(cartInsert)
+                .select(`*, show:shows(id, name, start_date, entry_close_date)`)
+                .single();
 
-                if (!existingCartError && existingCart) {
-                  const existingCartExpired =
-                    existingCart.expires_at == null ||
-                    new Date(existingCart.expires_at).getTime() <= Date.now();
+              if (cartError) {
+                if (isActiveCartUniqueViolation(cartError)) {
+                  const { data: existingCart, error: existingCartError } = await supabase
+                    .from('entry_carts')
+                    .select(`*, show:shows(id, name, start_date, entry_close_date)`)
+                    .eq('show_id', showId)
+                    .eq('exhibitor_id', exhibitorId)
+                    .eq('status', 'active')
+                    .limit(1)
+                    .maybeSingle();
 
-                  if (existingCartExpired) {
-                    const { error: expireError } = await supabase
+                  if (!existingCartError && existingCart) {
+                    const existingCartExpired =
+                      existingCart.expires_at == null ||
+                      new Date(existingCart.expires_at).getTime() <= Date.now();
+
+                    if (existingCartExpired) {
+                      const { error: expireError } = await supabase
+                        .from('entry_carts')
+                        .update({ status: 'expired', stripe_checkout_session_id: null })
+                        .eq('id', existingCart.id)
+                        .eq('status', 'active');
+
+                      if (expireError) {
+                        logger.error(
+                          'Error expiring stale cart after unique conflict',
+                          'cartStore',
+                          { showId, exhibitorId, cartId: existingCart.id },
+                          expireError
+                        );
+                        throw expireError;
+                      }
+
+                      const { data: recreatedCart, error: recreateError } = await supabase
+                        .from('entry_carts')
+                        .insert(cartInsert)
+                        .select(`*, show:shows(id, name, start_date, entry_close_date)`)
+                        .single();
+
+                      if (!recreateError && recreatedCart) {
+                        const cartWithDetails: CartWithDetails = {
+                          ...recreatedCart,
+                          items: [],
+                          show: recreatedCart.show as CartWithDetails['show'],
+                        };
+                        set({
+                          cart: cartWithDetails,
+                          isLoading: false,
+                          lastSyncedAt: new Date().toISOString(),
+                          expirationWarning: false,
+                        });
+                        return cartWithDetails;
+                      }
+
+                      if (!isActiveCartUniqueViolation(recreateError ?? null)) {
+                        throw recreateError ?? new Error('Failed to recreate cart');
+                      }
+                    }
+
+                    const { error: reclaimError } = await supabase
                       .from('entry_carts')
-                      .update({ status: 'expired', stripe_checkout_session_id: null })
+                      .update({
+                        expires_at: new Date(
+                          Date.now() + CART_EXPIRATION_MINUTES * 60 * 1000
+                        ).toISOString(),
+                        stripe_checkout_session_id: null,
+                      })
                       .eq('id', existingCart.id)
                       .eq('status', 'active');
 
-                    if (expireError) {
+                    if (reclaimError) {
                       logger.error(
-                        'Error expiring stale cart after unique conflict',
+                        'Error reclaiming stale cart after unique conflict',
                         'cartStore',
                         { showId, exhibitorId, cartId: existingCart.id },
-                        expireError
+                        reclaimError
                       );
-                      throw expireError;
+                      throw reclaimError;
                     }
-
-                    const { data: recreatedCart, error: recreateError } = await supabase
-                      .from('entry_carts')
-                      .insert(cartInsert)
-                      .select(`*, show:shows(id, name, start_date, entry_close_date)`)
-                      .single();
-
-                    if (!recreateError && recreatedCart) {
-                      const cartWithDetails: CartWithDetails = {
-                        ...recreatedCart,
-                        items: [],
-                        show: recreatedCart.show as CartWithDetails['show'],
-                      };
-                      set({
-                        cart: cartWithDetails,
-                        isLoading: false,
-                        lastSyncedAt: new Date().toISOString(),
-                        expirationWarning: false,
-                      });
-                      return cartWithDetails;
-                    }
-
-                    if (!isActiveCartUniqueViolation(recreateError ?? null)) {
-                      throw recreateError ?? new Error('Failed to recreate cart');
-                    }
+                    return get().loadCart(showId, exhibitorId);
                   }
-
-                  const { error: reclaimError } = await supabase
-                    .from('entry_carts')
-                    .update({
-                      expires_at: new Date(
-                        Date.now() + CART_EXPIRATION_MINUTES * 60 * 1000
-                      ).toISOString(),
-                      stripe_checkout_session_id: null,
-                    })
-                    .eq('id', existingCart.id)
-                    .eq('status', 'active');
-
-                  if (reclaimError) {
-                    logger.error(
-                      'Error reclaiming stale cart after unique conflict',
-                      'cartStore',
-                      { showId, exhibitorId, cartId: existingCart.id },
-                      reclaimError
-                    );
-                    throw reclaimError;
-                  }
-                  return get().loadCart(showId, exhibitorId);
                 }
+                logger.error(
+                  'Error creating cart',
+                  'cartStore',
+                  { showId, exhibitorId },
+                  cartError
+                );
+                throw cartError;
               }
-              logger.error('Error creating cart', 'cartStore', { showId, exhibitorId }, cartError);
-              throw cartError;
+
+              const cartWithDetails: CartWithDetails = {
+                ...cartData,
+                items: [],
+                show: cartData.show as CartWithDetails['show'],
+              };
+
+              set({
+                cart: cartWithDetails,
+                isLoading: false,
+                lastSyncedAt: new Date().toISOString(),
+                expirationWarning: false,
+              });
+
+              return cartWithDetails;
+            } catch (error) {
+              const message = error instanceof Error ? error.message : 'Failed to create cart';
+              set({ error: message, isLoading: false });
+              logger.error(
+                'Failed to create cart',
+                'cartStore',
+                { showId, exhibitorId },
+                ensureError(error)
+              );
+              return null;
             }
+          })().finally(() => {
+            createCartInFlight.delete(inFlightKey);
+          });
 
-            const cartWithDetails: CartWithDetails = {
-              ...cartData,
-              items: [],
-              show: cartData.show as CartWithDetails['show'],
-            };
-
-            set({
-              cart: cartWithDetails,
-              isLoading: false,
-              lastSyncedAt: new Date().toISOString(),
-              expirationWarning: false,
-            });
-
-            return cartWithDetails;
-          } catch (error) {
-            const message = error instanceof Error ? error.message : 'Failed to create cart';
-            set({ error: message, isLoading: false });
-            logger.error(
-              'Failed to create cart',
-              'cartStore',
-              { showId, exhibitorId },
-              ensureError(error)
-            );
-            return null;
-          }
+          createCartInFlight.set(inFlightKey, pending);
+          return pending;
         },
 
         // Add item to cart

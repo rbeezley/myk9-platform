@@ -9,6 +9,11 @@ import {
   RESPONSIVE_CLASSES,
   STICKY_LEFT_BODY_CLASSES,
   STICKY_LEFT_HEADER_CLASSES,
+  STICKY_LEFT_LEAD_HEADER_CLASSES,
+  STICKY_LEFT_LEAD_BODY_CLASSES,
+  STICKY_LEFT_LEAD_WIDTH_CLASS,
+  STICKY_LEFT_AFTER_LEAD_HEADER_CLASSES,
+  STICKY_LEFT_AFTER_LEAD_BODY_CLASSES,
 } from '../types';
 
 describe('getColumnLayoutClasses', () => {
@@ -61,6 +66,75 @@ describe('getColumnLayoutClasses', () => {
     const classes = getColumnLayoutClasses({ responsiveHide: 'lg', stickyLeft: true }, 'body');
     expect(classes).toContain(RESPONSIVE_CLASSES.lg);
     expect(classes).toContain(STICKY_LEFT_BODY_CLASSES);
+  });
+
+  // MYK9-592: a stickyLeftLead column (the dogs-table select checkbox) pins at
+  // left-0 with a FIXED width and a z-index above a trailing `afterLead`
+  // column, and that trailing column pins at an offset equal to the lead's
+  // width instead of at left-0 — so the two sit side by side under scroll
+  // rather than the trailing pin sliding on top of the leading one.
+  describe('a leading pinned column plus a trailing afterLead column', () => {
+    it('pins the lead column at left-0 with a fixed width, above the trailing pin', () => {
+      const header = getColumnLayoutClasses({ stickyLeftLead: true }, 'header');
+      const body = getColumnLayoutClasses({ stickyLeftLead: true }, 'body');
+
+      expect(header).toBe(STICKY_LEFT_LEAD_HEADER_CLASSES);
+      expect(body).toBe(STICKY_LEFT_LEAD_BODY_CLASSES);
+      for (const classes of [header, body]) {
+        // `w-10` alone is only a width HINT under table-layout: auto —
+        // `min-w-10`/`max-w-10` are what actually pins it, since a wider
+        // cell elsewhere in the column could otherwise grow it and silently
+        // break the trailing column's hardcoded offset (round-2 review).
+        expect(classes.split(' ')).toEqual(
+          expect.arrayContaining([
+            'sticky',
+            'left-0',
+            STICKY_LEFT_LEAD_WIDTH_CLASS,
+            'min-w-10',
+            'max-w-10',
+            'bg-card',
+          ])
+        );
+        // No hairline of its own — the trailing (afterLead) column draws the
+        // one hairline for the whole pinned block, at ITS right edge; a
+        // second one here would be a spurious divider between the checkbox
+        // and Name (round-2 review).
+        expect(classes).not.toContain("after:content-['']");
+      }
+      // Above the trailing column's z-20 header / z-10 body (asserted below),
+      // or the lead checkbox's enlarged tap-target pseudo-element would paint
+      // underneath the trailing column when it overhangs into it.
+      expect(header).toContain('z-30');
+      expect(body).toContain('z-20');
+    });
+
+    it('pins the trailing column after the lead, not at left-0', () => {
+      const header = getColumnLayoutClasses({ stickyLeft: { afterLead: true } }, 'header');
+      const body = getColumnLayoutClasses({ stickyLeft: { afterLead: true } }, 'body');
+
+      expect(header).toBe(STICKY_LEFT_AFTER_LEAD_HEADER_CLASSES);
+      expect(body).toBe(STICKY_LEFT_AFTER_LEAD_BODY_CLASSES);
+      for (const classes of [header, body]) {
+        expect(classes.split(' ')).not.toContain('left-0');
+        // The offset must equal the lead's own width, or the two would
+        // overlap or leave a gap.
+        expect(classes).toContain(`left-${STICKY_LEFT_LEAD_WIDTH_CLASS.replace('w-', '')}`);
+      }
+      expect(header).toContain('z-20');
+      expect(body).toContain('z-10');
+    });
+
+    // Round-2 review: `stickyLeftLead` and `stickyLeft` had no runtime or
+    // compile-time guard against being set on the same column, which would
+    // silently pick whichever branch's `if` ran first rather than fail loud.
+    it('throws when a column sets both stickyLeftLead and stickyLeft', () => {
+      expect(() =>
+        getColumnLayoutClasses({ stickyLeftLead: true, stickyLeft: true }, 'header')
+      ).toThrow(/mutually exclusive/);
+      expect(() =>
+        getColumnLayoutClasses({ stickyLeftLead: true, stickyLeft: { afterLead: true } }, 'body')
+      ).toThrow(/mutually exclusive/);
+    });
   });
 });
 

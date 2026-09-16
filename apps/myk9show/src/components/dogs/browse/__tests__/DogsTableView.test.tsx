@@ -5,6 +5,16 @@ import type { Dog } from '@/types/dog-types';
 import { RESPONSIVE_CLASSES, type ResponsiveBreakpoint } from '@/components/ui/data-table/types';
 import { DogsTableView, type DogsTableSelection } from '../DogsTableView';
 
+// MYK9-592: the row and header checkboxes sit inside a clickable row / header
+// cell; the navigation handler is asserted directly (not just inferred from
+// toggleItem firing) so a regression that lets a click bubble to the row is
+// caught even if the selection callback also happens to fire.
+const mockNavigate = vi.fn();
+vi.mock('react-router-dom', async importOriginal => {
+  const actual = await importOriginal<typeof import('react-router-dom')>();
+  return { ...actual, useNavigate: () => mockNavigate };
+});
+
 const dogs: Dog[] = [
   { id: '1', name: 'Rex', callName: 'Rex', breed: 'Labrador', sex: 'male', status: 'active' },
   { id: '2', name: 'Bella', callName: 'Bella', breed: 'Poodle', sex: 'female', status: 'active' },
@@ -57,7 +67,10 @@ async function exportCsv(user: UserEvent): Promise<string> {
 }
 
 describe('DogsTableView', () => {
-  beforeEach(() => localStorage.clear());
+  beforeEach(() => {
+    localStorage.clear();
+    mockNavigate.mockClear();
+  });
 
   // The page-level ListControls owns the only search box; the table must not
   // render a second, redundant global-filter search of its own.
@@ -101,6 +114,43 @@ describe('DogsTableView', () => {
       await user.click(screen.getByRole('checkbox', { name: /select rex/i }));
       expect(toggleItem).toHaveBeenCalledTimes(1);
       expect(toggleItem).toHaveBeenCalledWith(dogs[0]);
+      // The stopPropagation wrapper around the row checkbox is what this
+      // guards: a click landing on the checkbox (or its enlarged tap-target
+      // pseudo-element, still a DOM descendant of that wrapper) must never
+      // reach the row's onRowClick navigate() call.
+      expect(mockNavigate).not.toHaveBeenCalled();
+    });
+
+    // Positive control for the assertion above: without it, a mock that never
+    // fires could just as easily mean navigation is broken everywhere, not
+    // that the checkbox correctly stops it from firing.
+    it('a plain row click (not on the checkbox) does navigate to the dog', async () => {
+      const { user } = render(<DogsTableView dogs={dogs} selection={makeSelection()} />);
+      await user.click(screen.getByText('Rex'));
+      expect(mockNavigate).toHaveBeenCalledWith('/dogs/1');
+    });
+
+    // MYK9-592: bare 16px checkboxes inside a clickable row are a mis-tap
+    // trap on a tablet. jsdom performs no layout/paint, so a coordinate-based
+    // click cannot exercise the pseudo-element's enlarged hit area the way a
+    // real touch would — the class contract is what the codebase's existing
+    // precedent (EntryRegistrationQueue.test.tsx:153) asserts instead, and
+    // this follows it exactly.
+    it('gives the header and row checkboxes an enlarged tap target', () => {
+      render(<DogsTableView dogs={dogs} selection={makeSelection()} />);
+      const headerCheckbox = screen.getByRole('checkbox', { name: /select all dogs/i });
+      const rowCheckbox = screen.getByRole('checkbox', { name: /select rex/i });
+      // Row checkbox: uniform 14px overhang on all four sides (44x44).
+      expect(rowCheckbox.className).toContain('before:-inset-3.5');
+      // Header checkbox: asymmetric on purpose (round-2 review) — a uniform
+      // -inset-3.5 overhangs ~2px into row 1, since the header row is only
+      // h-10 (40px) tall against a 44px-tall target. -inset-x-3.5 (14px)
+      // keeps the 44px horizontal reach into the Name cell; -inset-y-3
+      // (12px) makes the target exactly 40px tall, filling the header row
+      // with no vertical spillover.
+      expect(headerCheckbox.className).toContain('before:-inset-x-3.5');
+      expect(headerCheckbox.className).toContain('before:-inset-y-3');
+      expect(headerCheckbox.className).not.toContain('before:-inset-3.5');
     });
 
     it('reflects indeterminate state on the header checkbox', () => {
@@ -109,6 +159,83 @@ describe('DogsTableView', () => {
       );
       const header = screen.getByRole('checkbox', { name: /select all dogs/i });
       expect(header).toHaveAttribute('aria-checked', 'mixed');
+    });
+  });
+
+  // MYK9-592: the select column must sit ABOVE Name in paint order and pin
+  // beside it, not under it, under horizontal scroll — a positioned, opaque,
+  // higher-z Name cell previously painted over the checkbox's enlarged
+  // tap-target pseudo-element, and slid on top of the whole column at any
+  // scroll offset. Class-string checks, the same precedent as the rest of
+  // this file and the pure-function tests in
+  // `data-table/__tests__/columnLayoutClasses.test.ts`.
+  describe('pinned columns (select + Name)', () => {
+    function renderPinnedCells() {
+      render(<DogsTableView dogs={dogs} selection={makeSelection()} />);
+      const headers = Array.from(document.querySelectorAll('thead th'));
+      const rexRow = screen.getByText('Rex').closest('tr') as HTMLTableRowElement;
+      const cells = Array.from(rexRow.querySelectorAll('td'));
+      // Select is column 0 (no accessible header text of its own — just the
+      // "Select all dogs" checkbox), Name is column 1.
+      return {
+        selectHeader: headers[0] as HTMLElement,
+        selectCell: cells[0] as HTMLElement,
+        nameHeader: headers[1] as HTMLElement,
+        nameCell: cells[1] as HTMLElement,
+      };
+    }
+
+    it('pins the select column at left-0, above Name, at a fixed width in both directions', () => {
+      const { selectHeader, selectCell } = renderPinnedCells();
+      for (const el of [selectHeader, selectCell]) {
+        const classes = el.className.split(/\s+/);
+        // `w-10` alone is only a hint under table-layout: auto; `min-w-10`
+        // and `max-w-10` are what actually pin the rendered width so the
+        // trailing `left-10` offset on Name holds (round-2 review — see the
+        // doc on STICKY_LEFT_LEAD_WIDTH_CLASS). Real rendered-geometry
+        // evidence lives in
+        // `src/test/e2e/dogs-table-pinned-select.spec.ts`, not here.
+        expect(classes).toEqual(
+          expect.arrayContaining(['sticky', 'left-0', 'w-10', 'min-w-10', 'max-w-10', 'bg-card'])
+        );
+      }
+      expect(selectHeader.className).toContain('z-30');
+      expect(selectCell.className).toContain('z-20');
+    });
+
+    it('draws no hairline of its own on the lead (select) column', () => {
+      // Round-2 review: the lead cell used to draw a second `::after`
+      // hairline at x=40, between the checkbox and Name — redundant with
+      // the one hairline the trailing (afterLead) Name column already
+      // draws at ITS right edge, which now marks the outer boundary of the
+      // whole pinned block.
+      const { selectHeader, selectCell } = renderPinnedCells();
+      for (const el of [selectHeader, selectCell]) {
+        expect(el.className).not.toContain("after:content-['']");
+      }
+    });
+
+    it('pins Name after the select column instead of at left-0', () => {
+      const { nameHeader, nameCell } = renderPinnedCells();
+      for (const el of [nameHeader, nameCell]) {
+        const classes = el.className.split(/\s+/);
+        expect(classes).toContain('left-10');
+        expect(classes).not.toContain('left-0');
+        expect(classes).toContain('sticky');
+      }
+      expect(nameHeader.className).toContain('z-20');
+      expect(nameCell.className).toContain('z-10');
+    });
+
+    it('still pins Name at left-0 when there is no select column', () => {
+      render(<DogsTableView dogs={dogs} />);
+      const nameHeader = document.querySelectorAll('thead th')[0] as HTMLElement;
+      const rexRow = screen.getByText('Rex').closest('tr') as HTMLTableRowElement;
+      const nameCell = rexRow.querySelectorAll('td')[0] as HTMLElement;
+      for (const el of [nameHeader, nameCell]) {
+        expect(el.className.split(/\s+/)).toContain('left-0');
+        expect(el.className).not.toContain('left-10');
+      }
     });
   });
 

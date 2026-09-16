@@ -140,33 +140,29 @@ describe('ShowEditPanel helpers', () => {
   });
 });
 
-// Round-13 review: the panel's Basic Info tab offers "Published" in its
-// Status dropdown, and the save path wrote formData.status straight through —
-// the one remaining ungated shows.status write surface after rounds 8/11
-// gated the pill, wizard, and bulk bar. Same fail-closed rules as the pill.
+// MYK9-579 round 4: publishing now happens in exactly one place -- the
+// status pill (ShowStatusPill.tsx) -- so the panel's Status dropdown no
+// longer offers "Published" for a draft (see ShowEditBasicInfoTab.test.tsx
+// for the dropdown-option coverage). publishGateError stays only as a
+// minimal guard for the case this dropdown restriction cannot fully cover
+// server-side: an already-published show being saved must never be
+// re-gated, and a draft->published call (now unreachable from the UI, but
+// not impossible to construct) must still fail closed.
 describe('publishGateError', () => {
   const enabled = { payouts_enabled: true };
-  const disabled = { payouts_enabled: false };
-
-  it('allows publishing with a payout-enabled account', () => {
-    expect(publishGateError('draft', 'published', 'club-1', enabled)).toBeNull();
-  });
-
-  it('blocks newly publishing without a payout-enabled account', () => {
-    expect(publishGateError('draft', 'published', 'club-1', null)).toMatch(/payment account/i);
-    expect(publishGateError('draft', 'published', 'club-1', disabled)).toMatch(/payment account/i);
-  });
-
-  it('fails closed when no club is assigned', () => {
-    expect(publishGateError('draft', 'published', '', enabled)).toMatch(/club/i);
-  });
 
   it('never re-gates an already-published show (unrelated edits must save)', () => {
     expect(publishGateError('published', 'published', 'club-1', null)).toBeNull();
+    expect(publishGateError('published', 'published', 'club-1', enabled)).toBeNull();
   });
 
   it('ignores non-publish transitions', () => {
     expect(publishGateError('draft', 'cancelled', 'club-1', null)).toBeNull();
     expect(publishGateError('published', 'draft', '', null)).toBeNull();
+  });
+
+  it('still fails closed on a draft->published call, though the UI can no longer make one', () => {
+    expect(publishGateError('draft', 'published', 'club-1', null)).toMatch(/payment account/i);
+    expect(publishGateError('draft', 'published', '', enabled)).toMatch(/club/i);
   });
 });

@@ -15,6 +15,7 @@ import {
   publishGateDbErrorMessage,
   PUBLISH_BLOCKED_MESSAGE,
   CLUB_REQUIRED_MESSAGE,
+  ONLINE_ENTRY_OPEN_STATUSES,
 } from '@/features/payments/onlineEntryGate';
 
 interface ShowStatusPillProps {
@@ -75,7 +76,7 @@ export function ShowStatusPill({ showId, status, clubId }: ShowStatusPillProps) 
     // (supabase/migrations/20260915221500) is the DB-side backstop that
     // actually refuses the write on both INSERT and UPDATE OF status — see
     // the catch block below.
-    if (next === 'published') {
+    if ((ONLINE_ENTRY_OPEN_STATUSES as readonly string[]).includes(next)) {
       if (!clubId) {
         // Fail CLOSED, not open: a missing clubId is either a wiring bug
         // (lost in the #615 merge once already) or a genuinely clubless show

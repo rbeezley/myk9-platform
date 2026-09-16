@@ -38,20 +38,6 @@ import {
 } from '@/components/shows/showEditRoutes';
 import { useShowStore, type ShowInput } from '@/store/showStore';
 import { showQueryKeys } from '@/hooks/queries/useShowsDatabase';
-import {
-  saveShowEdit,
-  type ShowDirectUpdateResult,
-  type ShowSaveData,
-} from './ShowManagementShell.helpers';
-import { updateShow as updateShowRemote } from '@/services/database/shows/writes';
-import { mapShowInputToUpdate, mapDatabaseToShow } from '@/services/mappers/showMappers';
-import type { DbShow } from '@/types/database-mappings';
-import {
-  replicatedShowsTable,
-  rowToShow,
-  type ReplicatedShow,
-} from '@/services/replication/ReplicatedShowsTable';
-import { useOnlineStatus } from '@/lib/networkUtils';
 import { SHOW_MANAGEMENT_NAV_SECTIONS } from '@/routes/showManagementSections';
 import { SETUP_PUBLISH_ANCHOR } from '@/features/show-workbench/setupReadinessSignals';
 import { SHOW_STATUS_CONTROL_ANCHOR } from '@/features/show-workbench/publishReadiness';
@@ -142,13 +128,6 @@ export function ShowManagementShell({
   const queryClient = useQueryClient();
   const [searchParams, setSearchParams] = useSearchParams();
   const updateShowLocally = useShowStore(s => s.updateShow);
-  // MYK9-579 (round 3 restructure): a draft->published save now performs a
-  // single awaited direct write carrying the save's FULL payload -- see
-  // ShowManagementShell.helpers.ts's saveShowEdit for why a queued
-  // replication write for the same row raced this and why the earlier
-  // {status}-only write missed a same-save club assignment.
-  const isOnline = useOnlineStatus();
-
   const [showEditPanel, setShowEditPanel] = useState(
     () => new URLSearchParams(window.location.search).get('edit') === 'true'
   );
@@ -187,64 +166,6 @@ export function ShowManagementShell({
     setShowDeleteDialog(false);
     queryClient.invalidateQueries({ queryKey: ['shows'] });
     setTimeout(() => navigate('/shows'), 100);
-  };
-
-  const applyShowToCaches = (id: string, updatedShow: Show) => {
-    queryClient.setQueryData<Show>(showQueryKeys.detail(id), updatedShow);
-    queryClient.setQueryData<Show[]>(showQueryKeys.lists(), current =>
-      current?.map(s => (s.id === id ? updatedShow : s))
-    );
-  };
-
-  // MYK9-579 (P1-A / P1-B): the ONE awaited direct write a publish-transition
-  // save performs -- carries the save's full mapped payload (never just
-  // {status}) so a same-save club assignment is evaluated correctly, and its
-  // result feeds BOTH the React Query caches (via applyShowToCaches) and the
-  // local replicated store (via applyServerRowDirect) with no queued
-  // replication write for the same row racing it.
-  const updateShowDirect = async (
-    id: string,
-    showData: ShowSaveData
-  ): Promise<ShowDirectUpdateResult> => {
-    const { data, error } = await updateShowRemote(id, mapShowInputToUpdate(showData));
-    if (error) throw error;
-    const row = data as DbShow;
-    return {
-      show: mapDatabaseToShow(row),
-      replicationPayload: { replicatedShow: rowToShow(row), serverVersion: row.version },
-    };
-  };
-
-  // The "server confirmed via a side channel" apply path (mirrors
-  // markAsSynced's own doc comment in ReplicatedTable.ts): updateShowDirect
-  // already has the server's row, so this writes it straight into the local
-  // replicated store instead of queuing a second write that would race the
-  // direct update's own version bump.
-  const applyServerRowDirect = async (
-    id: string,
-    payload: ShowDirectUpdateResult['replicationPayload']
-  ): Promise<void> => {
-    const { replicatedShow, serverVersion } = payload as {
-      replicatedShow: ReplicatedShow;
-      serverVersion: number | undefined;
-    };
-    await replicatedShowsTable.replaceFromRemote(id, replicatedShow, serverVersion);
-  };
-
-  const maybePublishExperienceForSave = async (
-    id: string,
-    showData: ShowSaveData
-  ): Promise<void> => {
-    if (!(showData.publishExperience && showData.generatedPremium)) return;
-    await publishExperience({
-      showId: id,
-      premium: applyShowFormDataToPremium(showData.generatedPremium, showData),
-      inkSaver: Boolean(showData.inkSaver),
-    });
-    queryClient.invalidateQueries({ queryKey: ['shows', id, 'publish-info'] });
-    queryClient.invalidateQueries({ queryKey: ['shows', id, 'published-experience-content'] });
-    queryClient.invalidateQueries({ queryKey: showQueryKeys.detail(id) });
-    queryClient.invalidateQueries({ queryKey: showQueryKeys.lists() });
   };
 
   return (
@@ -440,27 +361,42 @@ export function ShowManagementShell({
         showName={show.name || ''}
         initialShowData={show || {}}
         onSave={async showData => {
-          if (!show.id) {
-            notifications.success('Show changes saved');
-            setShowEditPanel(false);
-            return;
-          }
-          const id = show.id;
+          if (show.id) {
+            const id = show.id;
+            const publishableShowData = showData as Partial<ShowInput> & {
+              publishExperience?: boolean;
+              generatedPremium?: GeneratedPremium;
+              inkSaver?: boolean;
+            };
+            const localShow = await updateShowLocally(id, showData as Partial<ShowInput>);
+            if (!localShow) {
+              throw new Error('Show was not available in the local store.');
+            }
+            // Persist judge assignments to judge_assignments table
+            await persistShowJudgeAssignments(id, showData.assignedJudges || []);
+            queryClient.setQueryData<Show>(showQueryKeys.detail(id), localShow);
+            queryClient.setQueryData<Show[]>(showQueryKeys.lists(), current =>
+              current?.map(s => (s.id === id ? localShow : s))
+            );
 
-          // MYK9-579 (round 3 restructure): a draft->published transition
-          // performs ONE awaited direct write with the save's full payload;
-          // every other save queues through replication unchanged -- see
-          // saveShowEdit's doc comment in ShowManagementShell.helpers.ts.
-          await saveShowEdit(id, show.status, showData as ShowSaveData, {
-            isOnline: () => isOnline,
-            updateShowDirect,
-            applyServerRow: applyServerRowDirect,
-            updateShowLocally: (showId, updates) => updateShowLocally(showId, updates),
-            persistJudges: (showId, judges) => persistShowJudgeAssignments(showId, judges),
-            maybePublishExperience: maybePublishExperienceForSave,
-            onShowSaved: applyShowToCaches,
-            notifySuccess: message => notifications.success(message),
-          });
+            if (publishableShowData.publishExperience && publishableShowData.generatedPremium) {
+              await publishExperience({
+                showId: id,
+                premium: applyShowFormDataToPremium(
+                  publishableShowData.generatedPremium,
+                  showData as Partial<ShowInput>
+                ),
+                inkSaver: Boolean(publishableShowData.inkSaver),
+              });
+              queryClient.invalidateQueries({ queryKey: ['shows', id, 'publish-info'] });
+              queryClient.invalidateQueries({
+                queryKey: ['shows', id, 'published-experience-content'],
+              });
+              queryClient.invalidateQueries({ queryKey: showQueryKeys.detail(id) });
+              queryClient.invalidateQueries({ queryKey: showQueryKeys.lists() });
+            }
+          }
+          notifications.success('Show changes saved');
           setShowEditPanel(false);
         }}
       />

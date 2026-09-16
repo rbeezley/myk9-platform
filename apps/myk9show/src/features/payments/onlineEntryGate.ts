@@ -6,6 +6,17 @@ import { getErrorMessage } from '@myk9/core';
 // row without payouts_enabled, blocks NEWLY publishing. Shows that are
 // already published are never un-published by this gate.
 
+// MYK9-579 round 4 (P2-3): 'accepting_entries' is also an entry-open status --
+// stripe-checkout/index.ts admits ['published', 'accepting_entries'] when
+// deciding whether a show can take an online payment -- so a transition INTO
+// either one must clear the same Stripe-payouts gate as a plain publish. A
+// move BETWEEN two gated statuses (e.g. published -> accepting_entries) is
+// exempt, same as the DB trigger's OLD.status check
+// (enforce_show_publish_gate, supabase/migrations/20260915221500). Keep the
+// DB trigger's gated set and this one in sync by hand -- there is no shared
+// source of truth between SQL and TypeScript.
+export const ONLINE_ENTRY_OPEN_STATUSES = ['published', 'accepting_entries'] as const;
+
 export const PUBLISH_BLOCKED_MESSAGE =
   "Connect your club's payment account before publishing — online entry fees need somewhere to go. Find it under My Club → Payments.";
 

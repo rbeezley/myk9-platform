@@ -4,6 +4,7 @@
 // sibling module to keep index.tsx under the 500-line ceiling.
 
 import type { ResultSubmissionRow } from '@/hooks/mutations/useResultSubmission';
+import type { UnmappableAKCClass } from '@myk9/secretary';
 
 export function buildFilename(showName: string): string {
   const rawSlug = showName.replace(/\s+/g, '_').replace(/[^a-zA-Z0-9_-]/g, '');
@@ -68,22 +69,50 @@ export interface AKCSubmissionReadiness {
   canSend: boolean;
 }
 
+/**
+ * "Detective (element "Unknown", level "Unknown")" — the class as the secretary
+ * sees it, plus the three values actually stored on it. Without the stored
+ * triple the secretary cannot tell which of several similarly named classes is
+ * the broken one, and those columns are not shown anywhere else in the app.
+ */
+function describeStoredClass(cls: UnmappableAKCClass): string {
+  const parts = [
+    cls.element ? `element "${cls.element}"` : 'no element',
+    cls.level ? `level "${cls.level}"` : 'no level',
+  ];
+  if (cls.section) parts.push(`section "${cls.section}"`);
+  return `${cls.className} (${parts.join(', ')})`;
+}
+
 export function buildAKCSubmissionReadiness(input: {
   entryCount: number;
   missingRegistrationNumberCount: number;
   unscoredEntryCount?: number;
-  /** Class names with no AKC class code — see `collectUnmappableAKCClasses`. */
-  unmappableClassNames?: string[];
+  /** Classes with no AKC class code — see `collectUnmappableAKCClasses`. */
+  unmappableClasses?: UnmappableAKCClass[];
 }): AKCSubmissionReadiness {
   // MYK9-547 — first, because this one blocks the FILE, not just the send. A
   // class AKC has no code for used to be reported as Novice A; now no XML is
   // produced at all, so there is not even a draft to download.
-  const unmappable = input.unmappableClassNames ?? [];
+  //
+  // The copy names the stored element/level/section and the concrete fix,
+  // because the secretary has no other way to see either: the class edit form
+  // renders those three fields read-only, so "check the class setup" would
+  // point at a screen that cannot change anything (docs/INTENT.md § Trial
+  // Secretary — no technical error messages, name the next action).
+  const unmappable = input.unmappableClasses ?? [];
   if (unmappable.length > 0) {
+    const named = unmappable.map(describeStoredClass).join('; ');
     return {
-      verdict: `${unmappable.length === 1 ? 'A class has' : `${unmappable.length} classes have`} no AKC class code: ${unmappable.join(', ')}.`,
+      verdict:
+        unmappable.length === 1
+          ? `One class is not set up as an AKC class: ${named}.`
+          : `${unmappable.length} classes are not set up as AKC classes: ${named}.`,
       details:
-        'The AKC file cannot be built while a class is unrecognised — submitting it would record these runs under the wrong class. Check the class setup for this show, or contact support.',
+        `Delete ${unmappable.length === 1 ? 'this class' : 'these classes'} and add ` +
+        `${unmappable.length === 1 ? 'it' : 'them'} again from the AKC class list. If a class ` +
+        `already has entries, move those entries to another class first. Results for this show ` +
+        `cannot be sent to AKC, and no file can be prepared, until every class is on that list.`,
       canSend: false,
     };
   }

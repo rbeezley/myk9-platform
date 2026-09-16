@@ -364,7 +364,9 @@ describe('AKCScentWorkFormatter', () => {
           className: 'Container Master',
         }),
       ];
-      expect(collectUnmappableAKCClasses(entries)).toEqual(['Vehicle Novice A']);
+      expect(collectUnmappableAKCClasses(entries)).toEqual([
+        { className: 'Vehicle Novice A', element: 'Vehicle', level: 'Novice', section: 'A' },
+      ]);
     });
 
     it('reports no unmappable classes for a Detective entry', () => {

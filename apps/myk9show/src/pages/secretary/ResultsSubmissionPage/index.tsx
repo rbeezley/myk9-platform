@@ -179,12 +179,20 @@ export default function ResultsSubmissionPage() {
     isAKCScentWork && akcData && unmappableAKCClasses.length === 0
       ? AKCScentWorkFormatter.formatXml(akcData)
       : '';
+  /**
+   * The AKC data loaded but produced no file. Only an unmappable class does
+   * this: every other blocker still yields a draft the secretary can inspect.
+   * Keyed on `xmlPreview`, not on the blocker, so a regression that lets the
+   * formatter run anyway surfaces here instead of silently offering a file
+   * built from a class AKC would misread.
+   */
+  const akcDraftUnavailable = isAKCScentWork && Boolean(akcData) && xmlPreview === '';
   const akcReadiness = akcData
     ? buildAKCSubmissionReadiness({
         entryCount: submittableAKCEntries.length,
         missingRegistrationNumberCount: missingAKCCount,
         unscoredEntryCount: unscoredAKCCount,
-        unmappableClassNames: unmappableAKCClasses,
+        unmappableClasses: unmappableAKCClasses,
       })
     : null;
   const sendBlockedReason =
@@ -240,9 +248,11 @@ export default function ResultsSubmissionPage() {
       // the one that actually fired rather than sending the secretary to fix
       // data that is already correct (MYK9-323).
       setSendError(
-        unscoredAKCCount > 0
-          ? 'Record a result for every entry before sending results.'
-          : 'Add AKC registration numbers before sending results.'
+        unmappableAKCClasses.length > 0
+          ? 'One or more classes are not set up as AKC classes, so no file can be prepared. See the checklist below.'
+          : unscoredAKCCount > 0
+            ? 'Record a result for every entry before sending results.'
+            : 'Add AKC registration numbers before sending results.'
       );
       setShowConfirm(false);
       return;
@@ -444,7 +454,10 @@ export default function ResultsSubmissionPage() {
               </AlertDialog>
             </>
           )}
-          {isElectronicSubmission && (
+          {/* No button when there is no file at all (MYK9-547). A disabled
+              control labelled "Download draft XML" promised a draft that the
+              formatter refused to build. */}
+          {isElectronicSubmission && !akcDraftUnavailable && (
             <Button
               variant="outline"
               className="min-h-[44px]"
@@ -652,6 +665,28 @@ export default function ResultsSubmissionPage() {
                 <AlertTriangle className="h-4 w-4 text-warning" aria-hidden="true" />
               )}
               <span>{akcReadiness?.verdict}</span>
+            </li>
+            <li className="flex items-center gap-2">
+              {submittableAKCEntries.length === 0 ? (
+                <>
+                  <AlertTriangle className="h-4 w-4 text-warning" aria-hidden="true" />
+                  <span>No entries to check class setup against</span>
+                </>
+              ) : unmappableAKCClasses.length === 0 ? (
+                <>
+                  <CheckCircle2 className="h-4 w-4 text-success" aria-hidden="true" />
+                  <span>Every class is set up as an AKC class</span>
+                </>
+              ) : (
+                <>
+                  <AlertTriangle className="h-4 w-4 text-warning" aria-hidden="true" />
+                  <span>
+                    <strong>{unmappableAKCClasses.length}</strong>{' '}
+                    {unmappableAKCClasses.length === 1 ? 'class is' : 'classes are'} not set up as
+                    {unmappableAKCClasses.length === 1 ? ' an AKC class' : ' AKC classes'}
+                  </span>
+                </>
+              )}
             </li>
             <li className="flex items-center gap-2">
               {submittableAKCEntries.length === 0 ? (

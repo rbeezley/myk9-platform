@@ -1,5 +1,16 @@
 import { describe, expect, it } from 'vitest';
 import { buildAKCSubmissionReadiness } from '../ResultsSubmissionPage/helpers';
+import type { UnmappableAKCClass } from '@myk9/secretary';
+
+function unmappable(overrides: Partial<UnmappableAKCClass> = {}): UnmappableAKCClass {
+  return {
+    className: 'Detective',
+    element: 'Unknown',
+    level: 'Unknown',
+    section: null,
+    ...overrides,
+  };
+}
 
 describe('buildAKCSubmissionReadiness', () => {
   it('returns one blocked verdict when registration numbers are missing', () => {
@@ -54,6 +65,112 @@ describe('buildAKCSubmissionReadiness', () => {
       verdict: '21 entries are ready to send to AKC.',
       details: 'Submission file is ready to send or download.',
       canSend: true,
+    });
+  });
+  // MYK9-547 — the highest-priority branch. A class AKC has no code for used to
+  // ship as Novice A; now nothing ships, and not even a draft can be built, so
+  // this outranks every other blocker.
+  describe('a class with no AKC class code', () => {
+    it('names the class and its stored element/level/section', () => {
+      const result = buildAKCSubmissionReadiness({
+        entryCount: 4,
+        missingRegistrationNumberCount: 0,
+        unscoredEntryCount: 0,
+        unmappableClasses: [unmappable()],
+      });
+      expect(result.canSend).toBe(false);
+      expect(result.verdict).toBe(
+        'One class is not set up as an AKC class: Detective (element "Unknown", level "Unknown").'
+      );
+      // The remedy, in secretary vocabulary — the class edit form shows these
+      // three fields read-only, so "check the class setup" would go nowhere.
+      expect(result.details).toContain(
+        'Delete this class and add it again from the AKC class list'
+      );
+      expect(result.details).toContain('move those entries to another class first');
+      expect(result.details).not.toMatch(/class code|contact support/i);
+    });
+
+    it('includes the section when the class carries one', () => {
+      expect(
+        buildAKCSubmissionReadiness({
+          entryCount: 4,
+          missingRegistrationNumberCount: 0,
+          unmappableClasses: [
+            unmappable({
+              className: 'Vehicle Novice A',
+              element: 'Vehicle',
+              level: 'Novice',
+              section: 'A',
+            }),
+          ],
+        }).verdict
+      ).toBe(
+        'One class is not set up as an AKC class: Vehicle Novice A (element "Vehicle", level "Novice", section "A").'
+      );
+    });
+
+    it('says "no element" / "no level" rather than printing an empty quote', () => {
+      expect(
+        buildAKCSubmissionReadiness({
+          entryCount: 4,
+          missingRegistrationNumberCount: 0,
+          unmappableClasses: [unmappable({ className: 'Class 1', element: '', level: '' })],
+        }).verdict
+      ).toBe('One class is not set up as an AKC class: Class 1 (no element, no level).');
+    });
+
+    it('pluralises and lists every class', () => {
+      const result = buildAKCSubmissionReadiness({
+        entryCount: 9,
+        missingRegistrationNumberCount: 0,
+        unmappableClasses: [
+          unmappable(),
+          unmappable({
+            className: 'Vehicle Novice A',
+            element: 'Vehicle',
+            level: 'Novice',
+            section: 'A',
+          }),
+        ],
+      });
+      expect(result.verdict).toBe(
+        '2 classes are not set up as AKC classes: Detective (element "Unknown", level "Unknown"); ' +
+          'Vehicle Novice A (element "Vehicle", level "Novice", section "A").'
+      );
+      expect(result.details).toContain('Delete these classes and add them again');
+    });
+
+    it('outranks the no-entries verdict', () => {
+      expect(
+        buildAKCSubmissionReadiness({
+          entryCount: 0,
+          missingRegistrationNumberCount: 0,
+          unmappableClasses: [unmappable()],
+        }).verdict
+      ).toContain('not set up as an AKC class');
+    });
+
+    it('outranks missing registration numbers and unscored entries', () => {
+      expect(
+        buildAKCSubmissionReadiness({
+          entryCount: 21,
+          missingRegistrationNumberCount: 21,
+          unscoredEntryCount: 3,
+          unmappableClasses: [unmappable()],
+        }).verdict
+      ).toContain('not set up as an AKC class');
+    });
+
+    it('does not fire for an empty list', () => {
+      expect(
+        buildAKCSubmissionReadiness({
+          entryCount: 21,
+          missingRegistrationNumberCount: 0,
+          unscoredEntryCount: 0,
+          unmappableClasses: [],
+        }).canSend
+      ).toBe(true);
     });
   });
 });

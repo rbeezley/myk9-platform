@@ -27,13 +27,11 @@ export {
   parseAKCResultStatus,
 } from './formatters/akcEntryOutcome';
 export type { AKCEntryOutcome, AKCClassTallies } from './formatters/akcEntryOutcome';
-export {
-  mapAKCClassCodes,
-  describeAKCClass,
-  collectUnmappableAKCClasses,
-  AKCUnmappableClassError,
-} from './formatters/akcClassCodes';
-export type { AKCClassCodes } from './formatters/akcClassCodes';
+// `describeAKCClass`, `AKCUnmappableClassError` and `AKCClassCodes` are
+// deliberately NOT re-exported: they are internal to the formatter, and the
+// package root should carry only what a consumer actually calls.
+export { mapAKCClassCodes, collectUnmappableAKCClasses } from './formatters/akcClassCodes';
+export type { UnmappableAKCClass } from './formatters/akcClassCodes';
 
 // Auto-register built-in formatters on import
 import { registerFormatter } from './registry';

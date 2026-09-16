@@ -115,19 +115,50 @@ export class AKCUnmappableClassError extends Error {
 }
 
 /**
- * Distinct class names among `entries` that have no AKC class code, in
- * first-seen order. A non-empty result must block the submission: the
- * alternative is a permanent result recorded against a real dog in the wrong
- * class.
+ * One class that has no AKC class code, with the values actually stored on it.
+ *
+ * The stored triple travels with the name because the secretary cannot see it
+ * anywhere else: the class edit form renders element/level/section read-only,
+ * so "this class is not an AKC class" is unactionable without being told what
+ * the class is holding instead.
+ */
+export interface UnmappableAKCClass {
+  /** The class name the secretary sees on the schedule. */
+  className: string;
+  /** `classes.element` as stored — '' when the column is NULL. */
+  element: string;
+  /** `classes.level` as stored — '' when the column is NULL. */
+  level: string;
+  /** `classes.section` as stored. */
+  section: string | null;
+}
+
+/**
+ * Classes among `entries` that have no AKC class code, one per distinct
+ * (name, element, level, section), in first-seen order. A non-empty result must
+ * block the submission: the alternative is a permanent result recorded against
+ * a real dog in the wrong class.
  *
  * Mirrors `countUnscoredAKCEntries` — the page pre-flights with this, and the
  * formatter's throw is only the backstop.
  */
-export function collectUnmappableAKCClasses(entries: AKCSubmissionEntry[]): string[] {
-  const seen = new Set<string>();
+export function collectUnmappableAKCClasses(entries: AKCSubmissionEntry[]): UnmappableAKCClass[] {
+  const seen = new Map<string, UnmappableAKCClass>();
   for (const entry of entries) {
     if (mapAKCClassCodes(entry.element, entry.level, entry.section)) continue;
-    seen.add(describeAKCClass(entry));
+    const unmappable: UnmappableAKCClass = {
+      className: describeAKCClass(entry),
+      element: trimmed(entry.element),
+      level: trimmed(entry.level),
+      section: entry.section,
+    };
+    const key = [
+      unmappable.className,
+      unmappable.element,
+      unmappable.level,
+      unmappable.section ?? '',
+    ].join('|');
+    if (!seen.has(key)) seen.set(key, unmappable);
   }
-  return [...seen];
+  return [...seen.values()];
 }

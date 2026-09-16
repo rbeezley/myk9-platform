@@ -310,7 +310,32 @@ describe('scheduled-failure notifier', () => {
     // 141. This guards the array lookup that replaced it. It asserts an
     // unreachable input on purpose — that is what makes it a latent-bug guard
     // rather than a reproduction of the incident.
-    const oversized = '9'.repeat(200_000);
+    // Sizing this payload is pinched between two platform limits, so the
+    // bounds are asserted rather than commented.
+    //
+    // It reaches the script through the ENVIRONMENT (`STUB_OPEN_ISSUES`,
+    // replayed by the stub `gh`) and leaves again through argv (`gh issue
+    // close "$dup"`). Linux caps any single argv or env string at
+    // MAX_ARG_STRLEN, 128 KiB, so the first version of this test — 200 000
+    // digits — never started bash at all on CI: `status=unknown signal=none
+    // code=E2BIG errno=-7`, shard 1/6, Linux only. (Round 3's `code`/`errno`
+    // fields are what named that; `status=unknown` alone would not have.)
+    //
+    // The floor is one pipe buffer, since that is what makes `printf` block
+    // long enough for `head` to leave. Linux's is 64 KiB, so 96 KiB trips the
+    // pre-fix script there and this guard is live on CI.
+    //
+    // It is NOT live on macOS, and that is measured, not assumed: a local
+    // bisect put the threshold between 126 976 and 131 071 bytes, because
+    // macOS pipes grow to ~128 KiB. That is at or above Linux's cap, so no
+    // single-line payload can both trip macOS and exec on Linux. A green run
+    // of this test on a Mac therefore proves nothing; CI is where it bites.
+    const LINUX_PIPE_BUFFER_BYTES = 64 * 1024;
+    const MAX_ARG_STRLEN = 128 * 1024;
+    const oversized = '9'.repeat(96 * 1024);
+    expect(oversized.length).toBeGreaterThan(LINUX_PIPE_BUFFER_BYTES);
+    expect(oversized.length).toBeLessThan(MAX_ARG_STRLEN);
+
     const { calls } = run('failure', ['42', oversized]);
     expect(calls.find(c => c.startsWith('issue edit'))).toContain('issue edit 42 ');
     const closed = calls.filter(c => c.startsWith('issue close')).map(c => c.split(' ')[2]);

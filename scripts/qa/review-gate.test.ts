@@ -1627,6 +1627,32 @@ describe('a crash cannot read as a standing pass', () => {
     expect(fields.join(' ')).toContain('rate limited');
   });
 
+  it('posts a failure status when `pr view` came back without a headRefOid', () => {
+    // A well-formed payload MISSING `headRefOid` throws inside
+    // evaluateReviewGate (`input.headSha.toLowerCase()`), enters the catch —
+    // and the catch used to build its own description from
+    // `view.headRefOid.slice(0, 9)`, throwing a second TypeError and posting
+    // NOTHING. That is the exact fail-open the try/catch exists to close
+    // (MYK9-560 item 2).
+    const posted: string[][] = [];
+    const run = (args: string[]): string => {
+      if (args[0] === 'pr' && args[1] === 'view') {
+        return JSON.stringify({ isDraft: false, changedFiles: 1 });
+      }
+      if (args.some(a => a.includes('/pulls/'))) return 'docs/notes/n0.md\n';
+      if (args.some(a => a.includes('/issues/'))) return JSON.stringify([[]]);
+      if (args.includes('--method')) {
+        posted.push(args);
+        return '';
+      }
+      throw new Error(`unexpected gh call: ${args.join(' ')}`);
+    };
+    expect(runCli(env, [], run)).toBe(0);
+    expect(posted).toHaveLength(1);
+    expect((posted[0] ?? []).join(' ')).toContain('state=failure');
+    expect((posted[0] ?? []).join(' ')).toContain('the head');
+  });
+
   it('posts through the injected runner, never a real gh', () => {
     // Without this the unit suite is one forgotten --dry-run away from
     // POSTing a commit status to a real SHA in the real repository.

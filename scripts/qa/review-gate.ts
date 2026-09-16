@@ -808,9 +808,14 @@ export function runCli(
   } catch (error) {
     const detail = error instanceof Error ? error.message : String(error);
     console.error(`review-gate: evaluation failed — ${detail}`);
+    // The catch must never throw itself. A well-formed `pr view` payload
+    // missing `headRefOid` is exactly what lands here (evaluateReviewGate
+    // dereferences it), and `view.headRefOid.slice(0, 9)` then raised a second
+    // TypeError and posted NOTHING — reinstating the fail-open this block
+    // exists to close (MYK9-560 item 2).
     result = {
       state: 'failure',
-      description: `could not evaluate ${view.headRefOid.slice(0, 9)}: ${detail}`,
+      description: `could not evaluate ${String(view?.headRefOid ?? '').slice(0, 9) || 'the head'}: ${detail}`,
     };
   }
   return postStatus(view.headRefOid, result, env, argv, run);

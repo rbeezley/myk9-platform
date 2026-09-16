@@ -128,7 +128,6 @@ export function ShowManagementShell({
   const queryClient = useQueryClient();
   const [searchParams, setSearchParams] = useSearchParams();
   const updateShowLocally = useShowStore(s => s.updateShow);
-
   const [showEditPanel, setShowEditPanel] = useState(
     () => new URLSearchParams(window.location.search).get('edit') === 'true'
   );

@@ -31,6 +31,10 @@ interface ShowEditBasicInfoTabProps {
   ) => (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => void;
   handleSelectChange: (field: keyof ShowEditFormData) => (value: string) => void;
   handleDateChange: (field: keyof ShowEditFormData) => (date: Date | undefined) => void;
+  /** The show's status when the panel OPENED (not live form state). Decides
+   * whether "Published" is offered in the Status dropdown -- see the comment
+   * on that option. */
+  initialStatus?: string | undefined;
 }
 
 export const ShowEditBasicInfoTab: React.FC<ShowEditBasicInfoTabProps> = ({
@@ -41,6 +45,7 @@ export const ShowEditBasicInfoTab: React.FC<ShowEditBasicInfoTabProps> = ({
   handleInputChange,
   handleSelectChange,
   handleDateChange,
+  initialStatus,
 }) => {
   const nameError = form?.getError('name');
   const clubError = form?.getError('clubId');
@@ -100,7 +105,15 @@ export const ShowEditBasicInfoTab: React.FC<ShowEditBasicInfoTabProps> = ({
               </Select>
             </FormField>
 
-            <FormField label="Status" fieldId="status">
+            <FormField
+              label="Status"
+              fieldId="status"
+              hint={
+                initialStatus !== 'published'
+                  ? 'Publish from the status badge on the show page.'
+                  : undefined
+              }
+            >
               <Select value={data.status} onValueChange={handleSelectChange('status')}>
                 <SelectTrigger>
                   <SelectValue placeholder="Select status" />
@@ -114,14 +127,26 @@ export const ShowEditBasicInfoTab: React.FC<ShowEditBasicInfoTabProps> = ({
                       </div>
                     </div>
                   </SelectItem>
-                  <SelectItem value="published">
-                    <div>
-                      <div className="font-medium">Published</div>
-                      <div className="text-xs text-muted-foreground">
-                        Live and accepting entries
+                  {/* MYK9-579: publishing happens in exactly one place --
+                      the status pill on the show page (ShowStatusPill.tsx),
+                      which alone runs the DB publish gate. This option is
+                      only offered when the show was ALREADY published when
+                      the panel opened (initialStatus, round 5 -- NOT live
+                      form state), so an existing published show can be saved
+                      unchanged, and a user who picks Draft and then changes
+                      their mind can still pick Published back without
+                      abandoning the panel. A show that opened as a draft can
+                      never be published from here. */}
+                  {initialStatus === 'published' && (
+                    <SelectItem value="published">
+                      <div>
+                        <div className="font-medium">Published</div>
+                        <div className="text-xs text-muted-foreground">
+                          Live and accepting entries
+                        </div>
                       </div>
-                    </div>
-                  </SelectItem>
+                    </SelectItem>
+                  )}
                   <SelectItem value="upcoming">
                     <div>
                       <div className="font-medium">Upcoming</div>

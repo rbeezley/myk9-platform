@@ -120,9 +120,15 @@ test.describe('Show CRUD Operations', () => {
         return { success: false, error: createError?.message || 'Failed to create show' };
       }
 
-      // Update the show
+      // Update the show. MYK9-579: enforce_show_publish_gate() refuses a
+      // draft->published update with no club, or a club with no
+      // payouts-enabled Stripe account -- the e2e client can't self-seed a
+      // club_stripe_accounts row (only SELECT is granted to `authenticated`;
+      // writing it needs the service role). 'upcoming' exercises the same
+      // status-column UPDATE machinery this test cares about without
+      // depending on any seed club's Stripe fixture staying payouts-enabled.
       const updatedLocation = 'Updated Venue, New City';
-      const updatedStatus = 'published'; // Valid status per check constraint
+      const updatedStatus = 'upcoming'; // Valid status per check constraint, not gated
       const { data: updatedShow, error: updateError } = await updateShow(createdShow.id, {
         location: updatedLocation,
         status: updatedStatus,

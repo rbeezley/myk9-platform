@@ -44,6 +44,7 @@ const launchCriticalSqlTests = [
   'show_officials_label_not_permission_test.sql',
   'show_message_tenant_isolation_test.sql',
   'entries_insert_show_scope_test.sql',
+  'show_publish_gate_trigger_test.sql',
   'club_routed_role_requests_test.sql',
   'entries_manager_policy_hashable_test.sql',
   'null_club_show_authorization_test.sql',

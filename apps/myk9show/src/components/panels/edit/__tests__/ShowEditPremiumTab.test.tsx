@@ -94,7 +94,7 @@ describe('ShowEditPremiumTab', () => {
     expect(screen.getByTestId('premium-content-editor')).toBeInTheDocument();
   });
 
-  it('renders a Publish to Exhibitors checkbox for the full experience', () => {
+  it('renders a Generate exhibitor documents on save checkbox for the full experience', () => {
     render(
       <ShowEditPremiumTab
         data={{ ...baseData, publishExperience: false }}
@@ -107,7 +107,9 @@ describe('ShowEditPremiumTab', () => {
       />
     );
 
-    expect(screen.getByRole('checkbox', { name: /publish to exhibitors/i })).toBeInTheDocument();
+    expect(
+      screen.getByRole('checkbox', { name: /generate exhibitor documents on save/i })
+    ).toBeInTheDocument();
     expect(
       screen.getByText(
         /when you save, publish the premium list, landing page, entry form, and confirmation email/i

@@ -2,8 +2,7 @@ import React, { useCallback, useMemo } from 'react';
 import type { z } from 'zod';
 import { EditPanelWrapper } from './EditPanelWrapper';
 import type { ShowEditPanelProps, ShowEditFormData } from './ShowEditPanel.types';
-import { showToFormData, formDataToShowSaveData, publishGateError } from './ShowEditPanel.helpers';
-import { fetchClubStripeAccount } from '@/features/payments/useClubStripeAccount';
+import { showToFormData, formDataToShowSaveData } from './ShowEditPanel.helpers';
 import { showSchemas } from '@/lib/validation';
 import { ShowEditForm } from './ShowEditForm';
 import { useEditingPresence } from '@/features/show-presence/useEditingPresence';
@@ -34,40 +33,21 @@ export const ShowEditPanel: React.FC<ShowEditPanelProps> = ({
   // Convert show data to form data
   const initialFormData = useMemo(() => showToFormData(initialShowData), [initialShowData]);
 
-  // Handle save. Newly publishing runs the Stripe-payouts gate (round-13
-  // review — this dropdown was the last ungated shows.status write surface).
-  // Fetched imperatively so the check always sees the form's CURRENT clubId.
-  // Throwing aborts the save; EditPanelWrapper toasts the message and keeps
-  // the panel open.
+  // Handle save. MYK9-579 round 5: publishing now happens ONLY through the
+  // status pill (ShowStatusPill.tsx), which already runs the Stripe-payouts
+  // gate and surfaces enforce_show_publish_gate()'s DB-side refusal. The
+  // Basic Info tab's Status dropdown never offers "Published" for a
+  // non-published show (ShowEditBasicInfoTab.tsx), so this panel's save path
+  // cannot itself trigger a draft->published transition and needs no gate of
+  // its own.
   const handleSave = useCallback(
     async (formData: ShowEditFormData) => {
-      const newlyPublishing =
-        formData.status === 'published' && initialShowData?.status !== 'published';
-      if (newlyPublishing) {
-        let account: { payouts_enabled: boolean } | null = null;
-        if (formData.clubId) {
-          try {
-            account = await fetchClubStripeAccount(formData.clubId);
-          } catch {
-            throw new Error('Could not check the club’s payment account. Please try again.');
-          }
-        }
-        const gateError = publishGateError(
-          initialShowData?.status,
-          formData.status,
-          formData.clubId,
-          account
-        );
-        if (gateError) {
-          throw new Error(gateError);
-        }
-      }
       const showData = formDataToShowSaveData(formData);
       if (onSave) {
         await onSave(showData);
       }
     },
-    [onSave, initialShowData?.status]
+    [onSave]
   );
 
   return (
@@ -86,7 +66,10 @@ export const ShowEditPanel: React.FC<ShowEditPanelProps> = ({
     >
       {/* Advisory heads-up if another staff member already has this show open. */}
       <EditingBadge entityType="show" entityId={showId} className="mb-3" />
-      <ShowEditForm {...(initialTab ? { initialTab } : {})} />
+      <ShowEditForm
+        {...(initialTab ? { initialTab } : {})}
+        initialStatus={initialShowData?.status}
+      />
     </EditPanelWrapper>
   );
 };

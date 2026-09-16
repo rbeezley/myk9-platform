@@ -4710,6 +4710,7 @@ export type Database = {
           platform_fee_flat_cents: number
           platform_fee_min_cents: number
           platform_fee_percent: number
+          stripe_livemode: boolean
           updated_at: string
           updated_by: string | null
         }
@@ -4718,6 +4719,7 @@ export type Database = {
           platform_fee_flat_cents?: number
           platform_fee_min_cents?: number
           platform_fee_percent?: number
+          stripe_livemode?: boolean
           updated_at?: string
           updated_by?: string | null
         }
@@ -4726,6 +4728,7 @@ export type Database = {
           platform_fee_flat_cents?: number
           platform_fee_min_cents?: number
           platform_fee_percent?: number
+          stripe_livemode?: boolean
           updated_at?: string
           updated_by?: string | null
         }

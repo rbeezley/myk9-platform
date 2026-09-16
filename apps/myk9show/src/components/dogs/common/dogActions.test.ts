@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { toBulkActions, toRowActions } from '@/components/ui/RowActionMenu';
+import { toBulkActions } from '@/components/ui/RowActionMenu';
 import { dogActions, type DogActionHandlers } from './dogActions';
 import type { Dog } from '@/types/dog-types';
 
@@ -15,55 +15,30 @@ function dog(id: string, status: Dog['status'] = 'active'): Dog {
   };
 }
 
-describe('dogActions row menu', () => {
-  it('hides status actions matching the dog current status', () => {
-    const handlers: DogActionHandlers = { onSetStatus: vi.fn() };
-    const result = toRowActions(dog('1', 'active'), handlers, dogActions);
-    expect(result.find(a => a.id === 'set-status-active')?.hidden).toBe(true);
-    expect(result.find(a => a.id === 'set-status-retired')?.hidden).toBe(false);
-    expect(result.find(a => a.id === 'set-status-deceased')?.hidden).toBe(false);
+describe('dogActions row half is unreachable', () => {
+  it('every action supplies bulk.applicableWhen, so toBulkActions never falls back to the top-level applicableWhen stub', () => {
+    for (const action of dogActions) {
+      expect(action.bulk?.applicableWhen).toBeDefined();
+    }
   });
 
-  it('treats a dog with no status as active', () => {
-    const handlers: DogActionHandlers = { onSetStatus: vi.fn() };
-    const result = toRowActions({ ...dog('1'), status: undefined }, handlers, dogActions);
-    expect(result.find(a => a.id === 'set-status-active')?.hidden).toBe(true);
-  });
-
-  it('hides status actions entirely when onSetStatus is not wired', () => {
-    const result = toRowActions(dog('1', 'active'), {}, dogActions);
-    expect(result.find(a => a.id === 'set-status-retired')?.hidden).toBe(true);
-  });
-
-  it('hides delete when onDelete is not wired, shows it otherwise', () => {
-    const hidden = toRowActions(dog('1'), {}, dogActions).find(a => a.id === 'delete');
-    expect(hidden?.hidden).toBe(true);
-
-    const visible = toRowActions(dog('1'), { onDelete: vi.fn() }, dogActions).find(
-      a => a.id === 'delete'
-    );
-    expect(visible?.hidden).toBe(false);
-    expect(visible?.variant).toBe('destructive');
-  });
-
-  it('run calls onSetStatus with the item and target status', () => {
-    const onSetStatus = vi.fn();
-    const target = dog('1', 'active');
-    const result = toRowActions(target, { onSetStatus }, dogActions);
-    result.find(a => a.id === 'set-status-retired')?.onSelect();
-    expect(onSetStatus).toHaveBeenCalledWith(target, 'retired');
-  });
-
-  it('run calls onDelete with the item', () => {
-    const onDelete = vi.fn();
-    const target = dog('1');
-    const result = toRowActions(target, { onDelete }, dogActions);
-    result.find(a => a.id === 'delete')?.onSelect();
-    expect(onDelete).toHaveBeenCalledWith(target);
+  it('the top-level applicableWhen/run stubs throw instead of silently returning false/undefined', () => {
+    for (const action of dogActions) {
+      expect(() => action.applicableWhen(dog('1'), {})).toThrow(/bulk-only/);
+      expect(() => action.run(dog('1'), {})).toThrow(/bulk-only/);
+    }
   });
 });
 
 describe('dogActions bulk menu', () => {
+  it('treats a dog with no status as active: eligible to be marked retired, not eligible to be marked active', () => {
+    const handlers: DogActionHandlers = { onBulkSetStatus: vi.fn() };
+    const dogs = [{ ...dog('1'), status: undefined }];
+    const result = toBulkActions(dogs, handlers, dogActions);
+    expect(result.find(a => a.id === 'set-status-active')?.disabled).toBe(true);
+    expect(result.find(a => a.id === 'set-status-retired')?.disabled).toBe(false);
+  });
+
   it('narrows the eligible subset for a status action and formats the count', () => {
     const handlers: DogActionHandlers = { onBulkSetStatus: vi.fn() };
     const dogs = [dog('1', 'active'), dog('2', 'retired'), dog('3', 'active')];
@@ -101,8 +76,7 @@ describe('dogActions bulk menu', () => {
   });
 
   it('hides bulk status actions when onBulkSetStatus is not wired', () => {
-    // Bulk uses onBulkSetStatus, distinct from the row menu's per-dog onSetStatus.
-    const result = toBulkActions([dog('1', 'active')], { onSetStatus: vi.fn() }, dogActions);
+    const result = toBulkActions([dog('1', 'active')], {}, dogActions);
     expect(result.find(a => a.id === 'set-status-retired')?.disabled).toBe(true);
   });
 

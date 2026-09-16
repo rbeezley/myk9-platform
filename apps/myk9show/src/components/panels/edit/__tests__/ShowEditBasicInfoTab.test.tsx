@@ -82,8 +82,6 @@ describe('ShowEditBasicInfoTab status dropdown (MYK9-579 round 4)', () => {
 
   it('shows helper text pointing to the status pill as the publish surface', () => {
     renderTab('draft');
-    expect(
-      screen.getByText(/publish from the status badge on the show page/i)
-    ).toBeInTheDocument();
+    expect(screen.getByText(/publish from the status badge on the show page/i)).toBeInTheDocument();
   });
 });

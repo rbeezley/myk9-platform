@@ -73,6 +73,12 @@ const REGRESSION_SPECS = [
   // Admin-authed for the same reason. Fixture-backed reads, so it measures a
   // constant string rather than staging's live verdict: ~15s for five cases.
   '**/admin/health-verdict-responsive.spec.ts',
+  // Admin-authed for the same reason (Nightly supplies E2E_ADMIN_*, PR smoke
+  // does not). MYK9-591: asserts the Theme Mode card's computed border-color
+  // in a real browser (jsdom cannot compute Tailwind styles). Mutates and
+  // restores the shared e2e-admin's persisted user_preferences.mode — Nightly
+  // runs are serialized, so no concurrent spec observes the flipped theme.
+  '**/theme-mode-selection-border.spec.ts',
 ];
 
 // PR Smoke: stable specs — connectivity, secretary regression proof, the

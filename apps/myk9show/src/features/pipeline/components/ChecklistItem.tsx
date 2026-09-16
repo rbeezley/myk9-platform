@@ -38,7 +38,7 @@ export const ChecklistItem: React.FC<ChecklistItemProps> = ({
         disabled={disabled || item.autoCompleted}
         className={cn(
           item.autoCompleted &&
-            'data-[state=checked]:bg-green-500 data-[state=checked]:border-green-500'
+            'data-[checked]:bg-success data-[checked]:border-success data-[checked]:text-success-foreground'
         )}
       />
 

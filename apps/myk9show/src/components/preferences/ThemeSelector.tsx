@@ -205,7 +205,7 @@ export function ThemeSelector({ preferences, onUpdate, onReset }: ThemeSelectorP
                 <RadioGroupItem value={option.value} id={option.value} className="peer sr-only" />
                 <Label
                   htmlFor={option.value}
-                  className="flex flex-col items-center justify-between rounded-lg border-2 border-muted p-4 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary [&:has([data-state=checked])]:border-primary cursor-pointer"
+                  className="flex flex-col items-center justify-between rounded-lg border-2 border-muted p-4 hover:bg-accent hover:text-accent-foreground peer-data-[checked]:border-primary peer-focus-visible:ring-2 peer-focus-visible:ring-ring peer-focus-visible:ring-offset-2 peer-focus-visible:ring-offset-background cursor-pointer"
                 >
                   <option.icon className="h-6 w-6 mb-2" />
                   <div className="text-center">

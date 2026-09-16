@@ -17,12 +17,29 @@ export interface DataTableColumnMeta {
    * reader the only thing telling them which row they are looking at
    * (MYK9-222).
    *
-   * Pin exactly one column. Pinning two needs each one's left offset, which
-   * depends on the measured width of the ones before it; a single pin needs no
-   * measurement because `left-0` is correct for whichever column it is. Any
+   * `true` pins at `left-0` — correct whenever exactly one column pins, since
    * columns to its left simply scroll underneath it.
+   *
+   * `{ afterLead: true }` pins immediately after a `stickyLeftLead` column
+   * instead of at `left-0` (MYK9-592: the dogs-table select column sits ahead
+   * of the identity column, and both need to stay visible together — without
+   * an offset the trailing `left-0` pin slides on top of the leading one on
+   * scroll, and even at scroll-left the leading column has no z-index of its
+   * own and paints underneath). The offset is drawn from the shared
+   * `STICKY_LEFT_LEAD_WIDTH_CLASS` / `STICKY_LEFT_AFTER_LEAD_CLASS` pair below
+   * — never computed at runtime, because Tailwind's JIT only ever generates a
+   * class that appears as a literal string in source; a `left-[${n}px]`
+   * built from a runtime number would silently emit no CSS at all.
    */
-  stickyLeft?: boolean;
+  stickyLeft?: boolean | { afterLead: true };
+  /**
+   * Marks this column as the fixed-width LEADING sticky-left column that a
+   * `stickyLeft: { afterLead: true }` column pins after (MYK9-592). Pins at
+   * `left-0` with a z-index above that trailing column's, and forces the
+   * cell to `STICKY_LEFT_LEAD_WIDTH_CLASS` so the trailing offset is
+   * guaranteed to line up. At most one column should set this.
+   */
+  stickyLeftLead?: boolean;
   /** Label to use when exporting this column to CSV. */
   exportHeader?: string;
   /** Return a plain export value for this column. Defaults to the column value. */
@@ -97,9 +114,10 @@ export const RESPONSIVE_CLASSES: Record<ResponsiveBreakpoint, string> = {
  * classes — which are inert for the same reason — would keep looking the way
  * they do today. Matching the surface is both simpler and honest.
  */
-const STICKY_LEFT_BASE =
-  'sticky left-0 bg-card ' +
+const STICKY_LEFT_HAIRLINE =
   "after:pointer-events-none after:absolute after:inset-y-0 after:right-0 after:w-px after:bg-border after:content-['']";
+
+const STICKY_LEFT_BASE = `sticky left-0 bg-card ${STICKY_LEFT_HAIRLINE}`;
 
 /** Left-pin classes for a header cell. */
 export const STICKY_LEFT_HEADER_CLASSES = `${STICKY_LEFT_BASE} z-20`;
@@ -117,6 +135,30 @@ export const STICKY_LEFT_HEADER_CLASSES = `${STICKY_LEFT_BASE} z-20`;
 export const STICKY_LEFT_BODY_CLASSES = `${STICKY_LEFT_BASE} z-10 group-data-[state=selected]/row:bg-muted`;
 
 /**
+ * The lead column's forced width and the trailing column's matching left
+ * offset (MYK9-592). Both are literal Tailwind scale classes (2.5rem / 40px),
+ * not arbitrary values built from a runtime number — see the `stickyLeft` doc
+ * above for why that matters. Keep these two in step: the offset is only
+ * correct if it equals the width.
+ */
+export const STICKY_LEFT_LEAD_WIDTH_CLASS = 'w-10';
+const STICKY_LEFT_AFTER_LEAD_OFFSET_CLASS = 'left-10';
+
+/** Left-pin classes for the LEADING column's header cell — above the
+ * trailing (`afterLead`) column's z-20 header. */
+export const STICKY_LEFT_LEAD_HEADER_CLASSES = `sticky left-0 ${STICKY_LEFT_LEAD_WIDTH_CLASS} bg-card z-30 ${STICKY_LEFT_HAIRLINE}`;
+
+/** Left-pin classes for the LEADING column's body cell — above the trailing
+ * (`afterLead`) column's z-10 body. */
+export const STICKY_LEFT_LEAD_BODY_CLASSES = `sticky left-0 ${STICKY_LEFT_LEAD_WIDTH_CLASS} bg-card z-20 group-data-[state=selected]/row:bg-muted ${STICKY_LEFT_HAIRLINE}`;
+
+/** Left-pin classes for a header cell pinned after a `stickyLeftLead` column. */
+export const STICKY_LEFT_AFTER_LEAD_HEADER_CLASSES = `sticky ${STICKY_LEFT_AFTER_LEAD_OFFSET_CLASS} bg-card z-20 ${STICKY_LEFT_HAIRLINE}`;
+
+/** Left-pin classes for a body cell pinned after a `stickyLeftLead` column. */
+export const STICKY_LEFT_AFTER_LEAD_BODY_CLASSES = `sticky ${STICKY_LEFT_AFTER_LEAD_OFFSET_CLASS} bg-card z-10 group-data-[state=selected]/row:bg-muted ${STICKY_LEFT_HAIRLINE}`;
+
+/**
  * Resolve the layout utilities a DataTable cell gets from its column meta.
  * Pure so the mapping can be asserted without a DOM.
  */
@@ -126,8 +168,19 @@ export function getColumnLayoutClasses(
 ): string {
   const classes: string[] = [];
   if (meta?.responsiveHide) classes.push(RESPONSIVE_CLASSES[meta.responsiveHide]);
-  if (meta?.stickyLeft) {
+  if (meta?.stickyLeftLead) {
+    classes.push(
+      cell === 'header' ? STICKY_LEFT_LEAD_HEADER_CLASSES : STICKY_LEFT_LEAD_BODY_CLASSES
+    );
+  }
+  if (meta?.stickyLeft === true) {
     classes.push(cell === 'header' ? STICKY_LEFT_HEADER_CLASSES : STICKY_LEFT_BODY_CLASSES);
+  } else if (meta?.stickyLeft && meta.stickyLeft.afterLead) {
+    classes.push(
+      cell === 'header'
+        ? STICKY_LEFT_AFTER_LEAD_HEADER_CLASSES
+        : STICKY_LEFT_AFTER_LEAD_BODY_CLASSES
+    );
   }
   return classes.join(' ');
 }

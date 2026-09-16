@@ -56,7 +56,17 @@ function buildSelectColumn(selection: DogsTableSelection): DisplayColumnDef<Dog,
     ),
     enableSorting: false,
     enableHiding: false,
-    meta: { interactive: true, exportDisabled: true } satisfies DataTableColumnMeta,
+    meta: {
+      interactive: true,
+      exportDisabled: true,
+      // MYK9-592: forces this column to STICKY_LEFT_LEAD_WIDTH_CLASS and pins it
+      // at left-0 above the Name column, which pins right after it instead of
+      // at left-0 itself (see `stickyLeft: { afterLead: true }` below) — the
+      // two now sit side by side under horizontal scroll instead of Name
+      // sliding on top of the checkbox, and the checkbox's enlarged tap-target
+      // pseudo-element can overhang into the Name cell without being occluded.
+      stickyLeftLead: true,
+    } satisfies DataTableColumnMeta,
   };
 }
 
@@ -99,95 +109,104 @@ function getSexBadge(sex: string | undefined) {
 
 const OWNER_COLUMN_ID = 'owner';
 
-const columns: ColumnDef<Dog>[] = [
-  {
-    id: 'name',
-    accessorFn: dog => getDogDisplayName(dog),
-    header: 'Name',
-    // Pinned left (MYK9-222). At tablet width the six columns overflow their
-    // wrapper, so reaching Status means scrolling right — and an unpinned Name
-    // column takes the row's identity with it, leaving the reader looking at a
-    // status badge with no idea whose it is.
-    meta: {
-      stickyLeft: true,
-      exportHeader: 'Name',
-      exportValue: (dog: unknown) => getDogDisplayName(dog as Dog),
-    } satisfies DataTableColumnMeta,
-    cell: ({ row }) => {
-      const dog = row.original;
-      return (
-        <div className="flex items-center gap-2.5">
-          {dog.imageUrl ? (
-            <img
-              src={dog.imageUrl}
-              alt={dog.callName || dog.name}
-              className="w-8 h-8 rounded-full object-cover flex-shrink-0"
-            />
-          ) : (
-            <div className="w-8 h-8 rounded-full bg-primary/10 text-primary flex items-center justify-center text-xs font-semibold flex-shrink-0">
-              {(getDogDisplayName(dog) || '?').charAt(0).toUpperCase()}
-            </div>
-          )}
-          <div className="min-w-0">
-            <div className="font-medium truncate">{getDogDisplayName(dog)}</div>
-            {dog.callName && dog.name && dog.callName !== dog.name && (
-              <div className="text-xs text-muted-foreground truncate">{dog.name}</div>
+/**
+ * Name is always the identity column pinned left (MYK9-222): at tablet width
+ * the six columns overflow their wrapper, so reaching Status means scrolling
+ * right, and an unpinned Name column takes the row's identity with it,
+ * leaving the reader looking at a status badge with no idea whose it is.
+ *
+ * Its pin position depends on whether the select column is also rendered
+ * (MYK9-592): with no select column Name is the leftmost column and pins at
+ * `left-0` as normal; with one, Name has to pin AFTER it (`afterLead`) or the
+ * two would overlap under scroll.
+ */
+function buildColumns(hasLeadColumn: boolean): ColumnDef<Dog>[] {
+  return [
+    {
+      id: 'name',
+      accessorFn: dog => getDogDisplayName(dog),
+      header: 'Name',
+      meta: {
+        stickyLeft: hasLeadColumn ? { afterLead: true } : true,
+        exportHeader: 'Name',
+        exportValue: (dog: unknown) => getDogDisplayName(dog as Dog),
+      } satisfies DataTableColumnMeta,
+      cell: ({ row }) => {
+        const dog = row.original;
+        return (
+          <div className="flex items-center gap-2.5">
+            {dog.imageUrl ? (
+              <img
+                src={dog.imageUrl}
+                alt={dog.callName || dog.name}
+                className="w-8 h-8 rounded-full object-cover flex-shrink-0"
+              />
+            ) : (
+              <div className="w-8 h-8 rounded-full bg-primary/10 text-primary flex items-center justify-center text-xs font-semibold flex-shrink-0">
+                {(getDogDisplayName(dog) || '?').charAt(0).toUpperCase()}
+              </div>
             )}
+            <div className="min-w-0">
+              <div className="font-medium truncate">{getDogDisplayName(dog)}</div>
+              {dog.callName && dog.name && dog.callName !== dog.name && (
+                <div className="text-xs text-muted-foreground truncate">{dog.name}</div>
+              )}
+            </div>
           </div>
-        </div>
-      );
+        );
+      },
     },
-  },
-  {
-    accessorKey: 'breed',
-    header: 'Breed',
-    // Breed and Sex both appear on the card view, so dropping them costs the
-    // reader nothing and buys back the width that was pushing Owner and Status
-    // off-screen (MYK9-222).
-    //
-    // `lg` (1024px), NOT `md`. `md` is `min-width: 768px`, so it fires on no
-    // tablet at all — iPad portrait is exactly 768, iPad Air 820, iPad Pro 11"
-    // 834, Surface 912 — and the measurement in MYK9-222 was taken at 768. `md`
-    // would only have dropped these on phones, where an exhibitor gets cards
-    // anyway. A test pins the breakpoint against those device widths.
-    meta: {
-      responsiveHide: 'lg',
-      exportHeader: 'Breed',
-      exportValue: (dog: unknown) => (dog as Dog).breed || '',
-    } satisfies DataTableColumnMeta,
-    cell: ({ row }) => (
-      <span className="text-muted-foreground truncate">{getDogBreedLabel(row.original)}</span>
-    ),
-  },
-  {
-    accessorKey: 'sex',
-    header: 'Sex',
-    meta: {
-      responsiveHide: 'lg',
-      exportHeader: 'Sex',
-      exportValue: (dog: unknown) => (dog as Dog).sex || '',
-    } satisfies DataTableColumnMeta,
-    cell: ({ row }) => getSexBadge(row.original.sex),
-  },
-  {
-    id: OWNER_COLUMN_ID,
-    accessorFn: dog => dog.ownerName || '',
-    header: 'Owner',
-    meta: { exportHeader: 'Owner', exportValue: (dog: unknown) => (dog as Dog).ownerName || '' },
-    cell: ({ row }) => (
-      <span className="text-muted-foreground truncate">{row.original.ownerName || '—'}</span>
-    ),
-  },
-  {
-    accessorKey: 'status',
-    header: 'Status',
-    meta: {
-      exportHeader: 'Status',
-      exportValue: (dog: unknown) => (dog as Dog).status || 'active',
+    {
+      accessorKey: 'breed',
+      header: 'Breed',
+      // Breed and Sex both appear on the card view, so dropping them costs the
+      // reader nothing and buys back the width that was pushing Owner and Status
+      // off-screen (MYK9-222).
+      //
+      // `lg` (1024px), NOT `md`. `md` is `min-width: 768px`, so it fires on no
+      // tablet at all — iPad portrait is exactly 768, iPad Air 820, iPad Pro 11"
+      // 834, Surface 912 — and the measurement in MYK9-222 was taken at 768. `md`
+      // would only have dropped these on phones, where an exhibitor gets cards
+      // anyway. A test pins the breakpoint against those device widths.
+      meta: {
+        responsiveHide: 'lg',
+        exportHeader: 'Breed',
+        exportValue: (dog: unknown) => (dog as Dog).breed || '',
+      } satisfies DataTableColumnMeta,
+      cell: ({ row }) => (
+        <span className="text-muted-foreground truncate">{getDogBreedLabel(row.original)}</span>
+      ),
     },
-    cell: ({ row }) => getStatusBadge(row.original.status),
-  },
-];
+    {
+      accessorKey: 'sex',
+      header: 'Sex',
+      meta: {
+        responsiveHide: 'lg',
+        exportHeader: 'Sex',
+        exportValue: (dog: unknown) => (dog as Dog).sex || '',
+      } satisfies DataTableColumnMeta,
+      cell: ({ row }) => getSexBadge(row.original.sex),
+    },
+    {
+      id: OWNER_COLUMN_ID,
+      accessorFn: dog => dog.ownerName || '',
+      header: 'Owner',
+      meta: { exportHeader: 'Owner', exportValue: (dog: unknown) => (dog as Dog).ownerName || '' },
+      cell: ({ row }) => (
+        <span className="text-muted-foreground truncate">{row.original.ownerName || '—'}</span>
+      ),
+    },
+    {
+      accessorKey: 'status',
+      header: 'Status',
+      meta: {
+        exportHeader: 'Status',
+        exportValue: (dog: unknown) => (dog as Dog).status || 'active',
+      },
+      cell: ({ row }) => getStatusBadge(row.original.status),
+    },
+  ];
+}
 
 export const DogsTableView: React.FC<DogsTableViewProps> = ({
   dogs,
@@ -197,11 +216,12 @@ export const DogsTableView: React.FC<DogsTableViewProps> = ({
   const navigate = useNavigate();
 
   const allColumns = useMemo(() => {
+    const cols = buildColumns(Boolean(selection));
     // Dropped from the column model, not hidden with CSS: unlike the
     // responsive hide, this is not about width. The column carries nothing on
     // this roster, so it should not be in the Columns menu and should not be
     // in the CSV either.
-    const visible = showOwner ? columns : columns.filter(col => col.id !== OWNER_COLUMN_ID);
+    const visible = showOwner ? cols : cols.filter(col => col.id !== OWNER_COLUMN_ID);
     return selection ? [buildSelectColumn(selection), ...visible] : visible;
   }, [selection, showOwner]);
 

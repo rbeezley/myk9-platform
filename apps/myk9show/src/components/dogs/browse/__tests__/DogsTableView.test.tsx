@@ -121,6 +121,15 @@ describe('DogsTableView', () => {
       expect(mockNavigate).not.toHaveBeenCalled();
     });
 
+    // Positive control for the assertion above: without it, a mock that never
+    // fires could just as easily mean navigation is broken everywhere, not
+    // that the checkbox correctly stops it from firing.
+    it('a plain row click (not on the checkbox) does navigate to the dog', async () => {
+      const { user } = render(<DogsTableView dogs={dogs} selection={makeSelection()} />);
+      await user.click(screen.getByText('Rex'));
+      expect(mockNavigate).toHaveBeenCalledWith('/dogs/1');
+    });
+
     // MYK9-592: bare 16px checkboxes inside a clickable row are a mis-tap
     // trap on a tablet. jsdom performs no layout/paint, so a coordinate-based
     // click cannot exercise the pseudo-element's enlarged hit area the way a
@@ -141,6 +150,59 @@ describe('DogsTableView', () => {
       );
       const header = screen.getByRole('checkbox', { name: /select all dogs/i });
       expect(header).toHaveAttribute('aria-checked', 'mixed');
+    });
+  });
+
+  // MYK9-592: the select column must sit ABOVE Name in paint order and pin
+  // beside it, not under it, under horizontal scroll — a positioned, opaque,
+  // higher-z Name cell previously painted over the checkbox's enlarged
+  // tap-target pseudo-element, and slid on top of the whole column at any
+  // scroll offset. Class-string checks, the same precedent as the rest of
+  // this file and the pure-function tests in
+  // `data-table/__tests__/columnLayoutClasses.test.ts`.
+  describe('pinned columns (select + Name)', () => {
+    function renderPinnedCells() {
+      render(<DogsTableView dogs={dogs} selection={makeSelection()} />);
+      const headers = Array.from(document.querySelectorAll('thead th'));
+      const rexRow = screen.getByText('Rex').closest('tr') as HTMLTableRowElement;
+      const cells = Array.from(rexRow.querySelectorAll('td'));
+      // Select is column 0 (no accessible header text of its own — just the
+      // "Select all dogs" checkbox), Name is column 1.
+      return {
+        selectHeader: headers[0] as HTMLElement,
+        selectCell: cells[0] as HTMLElement,
+        nameHeader: headers[1] as HTMLElement,
+        nameCell: cells[1] as HTMLElement,
+      };
+    }
+
+    it('pins the select column at left-0, above Name, at a fixed width', () => {
+      const { selectHeader, selectCell } = renderPinnedCells();
+      for (const el of [selectHeader, selectCell]) {
+        const classes = el.className.split(/\s+/);
+        expect(classes).toEqual(expect.arrayContaining(['sticky', 'left-0', 'w-10', 'bg-card']));
+      }
+      expect(selectHeader.className).toContain('z-30');
+      expect(selectCell.className).toContain('z-20');
+    });
+
+    it('pins Name after the select column instead of at left-0', () => {
+      const { nameHeader, nameCell } = renderPinnedCells();
+      for (const el of [nameHeader, nameCell]) {
+        const classes = el.className.split(/\s+/);
+        expect(classes).toContain('left-10');
+        expect(classes).not.toContain('left-0');
+        expect(classes).toContain('sticky');
+      }
+      expect(nameHeader.className).toContain('z-20');
+      expect(nameCell.className).toContain('z-10');
+    });
+
+    it('still pins Name at left-0 when there is no select column', () => {
+      render(<DogsTableView dogs={dogs} />);
+      const nameHeader = document.querySelectorAll('thead th')[0] as HTMLElement;
+      expect(nameHeader.className.split(/\s+/)).toContain('left-0');
+      expect(nameHeader.className).not.toContain('left-10');
     });
   });
 

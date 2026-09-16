@@ -9,6 +9,11 @@ import {
   RESPONSIVE_CLASSES,
   STICKY_LEFT_BODY_CLASSES,
   STICKY_LEFT_HEADER_CLASSES,
+  STICKY_LEFT_LEAD_HEADER_CLASSES,
+  STICKY_LEFT_LEAD_BODY_CLASSES,
+  STICKY_LEFT_LEAD_WIDTH_CLASS,
+  STICKY_LEFT_AFTER_LEAD_HEADER_CLASSES,
+  STICKY_LEFT_AFTER_LEAD_BODY_CLASSES,
 } from '../types';
 
 describe('getColumnLayoutClasses', () => {
@@ -61,6 +66,47 @@ describe('getColumnLayoutClasses', () => {
     const classes = getColumnLayoutClasses({ responsiveHide: 'lg', stickyLeft: true }, 'body');
     expect(classes).toContain(RESPONSIVE_CLASSES.lg);
     expect(classes).toContain(STICKY_LEFT_BODY_CLASSES);
+  });
+
+  // MYK9-592: a stickyLeftLead column (the dogs-table select checkbox) pins at
+  // left-0 with a FIXED width and a z-index above a trailing `afterLead`
+  // column, and that trailing column pins at an offset equal to the lead's
+  // width instead of at left-0 — so the two sit side by side under scroll
+  // rather than the trailing pin sliding on top of the leading one.
+  describe('a leading pinned column plus a trailing afterLead column', () => {
+    it('pins the lead column at left-0 with a fixed width, above the trailing pin', () => {
+      const header = getColumnLayoutClasses({ stickyLeftLead: true }, 'header');
+      const body = getColumnLayoutClasses({ stickyLeftLead: true }, 'body');
+
+      expect(header).toBe(STICKY_LEFT_LEAD_HEADER_CLASSES);
+      expect(body).toBe(STICKY_LEFT_LEAD_BODY_CLASSES);
+      for (const classes of [header, body]) {
+        expect(classes.split(' ')).toEqual(
+          expect.arrayContaining(['sticky', 'left-0', STICKY_LEFT_LEAD_WIDTH_CLASS, 'bg-card'])
+        );
+      }
+      // Above the trailing column's z-20 header / z-10 body (asserted below),
+      // or the lead checkbox's enlarged tap-target pseudo-element would paint
+      // underneath the trailing column when it overhangs into it.
+      expect(header).toContain('z-30');
+      expect(body).toContain('z-20');
+    });
+
+    it('pins the trailing column after the lead, not at left-0', () => {
+      const header = getColumnLayoutClasses({ stickyLeft: { afterLead: true } }, 'header');
+      const body = getColumnLayoutClasses({ stickyLeft: { afterLead: true } }, 'body');
+
+      expect(header).toBe(STICKY_LEFT_AFTER_LEAD_HEADER_CLASSES);
+      expect(body).toBe(STICKY_LEFT_AFTER_LEAD_BODY_CLASSES);
+      for (const classes of [header, body]) {
+        expect(classes.split(' ')).not.toContain('left-0');
+        // The offset must equal the lead's own width, or the two would
+        // overlap or leave a gap.
+        expect(classes).toContain(`left-${STICKY_LEFT_LEAD_WIDTH_CLASS.replace('w-', '')}`);
+      }
+      expect(header).toContain('z-20');
+      expect(body).toContain('z-10');
+    });
   });
 });
 

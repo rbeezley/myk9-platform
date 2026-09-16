@@ -1,9 +1,5 @@
 import { useEffect, useRef } from 'react';
-import {
-  popOpenOverlay,
-  pushOpenOverlay,
-  releaseBodyScrollIfNoOverlays,
-} from '@/lib/overlayStack';
+import { popOpenOverlay, pushOpenOverlay, releaseBodyScrollIfNoOverlays } from '@/lib/overlayStack';
 
 /**
  * Registers a modal surface in the shared open-overlay stack for as long as it

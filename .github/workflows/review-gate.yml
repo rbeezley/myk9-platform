@@ -103,7 +103,11 @@ jobs:
             # then rejected it, and the step posted nothing: the stale-green
             # fail-open this step exists to close, reinstated by a warning.
             sha="$(gh pr view "$PR_NUMBER" --repo "$REPO" --json headRefOid --jq .headRefOid || true)"
+            # Exactly 40 lowercase hex, charset AND length. A charset-only
+            # check passes a FRAGMENT such as `abc`, and would then POST to
+            # `statuses/abc`.
             case "$sha" in *[!0-9a-f]* | '') sha='' ;; esac
+            [ "${#sha}" -eq 40 ] || sha=''
           fi
           if [ -z "$sha" ]; then
             echo "review-gate: no head SHA in the event payload and \`gh pr view\` failed too — posting no status"

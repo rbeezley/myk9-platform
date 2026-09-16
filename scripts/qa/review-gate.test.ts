@@ -1843,14 +1843,26 @@ describe('the workflow’s crash-fallback step', () => {
   });
 
   it('never posts a status to a target that is not a hex SHA', () => {
-    // `gh` writes its diagnostics to the captured output on failure; a status
-    // posted to `gh: could not resolve...` would be a wild POST.
+    // A status posted to `gh: could not resolve...` would be a wild POST.
     const { ghCalls } = runFallback({
       ...base,
       HEAD_SHA: '',
       STUB_GH_VIEW_SHA: 'not a sha',
     });
     expect(ghCalls.some(c => c.includes('--method POST'))).toBe(false);
+  });
+
+  it('never posts to a hex FRAGMENT — the target must be a full 40-char SHA', () => {
+    // A charset-only guard passes `abc`, which POSTs to `statuses/abc`
+    // (round-1 review, P3). Both a short fragment and an over-long string are
+    // rejected; only exactly 40 lowercase hex is a status target.
+    for (const partial of ['abc', HEAD.slice(0, 39), `${HEAD}a`]) {
+      const { ghCalls } = runFallback({ ...base, HEAD_SHA: '', STUB_GH_VIEW_SHA: partial });
+      expect(ghCalls.some(c => c.includes('--method POST'))).toBe(false);
+    }
+    // The control: exactly 40 still posts, so the guard is not simply inert.
+    const { ghCalls } = runFallback({ ...base, HEAD_SHA: '', STUB_GH_VIEW_SHA: HEAD });
+    expect(ghCalls.some(c => c.includes(`statuses/${HEAD}`))).toBe(true);
   });
 
   it('runs only when the job has already failed', () => {

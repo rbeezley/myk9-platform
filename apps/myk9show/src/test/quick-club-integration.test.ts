@@ -174,6 +174,30 @@ describe('Club Mappers', () => {
       expect(result.upcomingShows[0].name).toBe('Spring Agility Trial');
       expect(result.upcomingShows[0].date).toBe('2030-04-15');
     });
+
+    // MYK9-572 round 4 (P2-2): authorizedAt must stay UNDEFINED (field
+    // absent from the query result) rather than collapsing to null — a
+    // pre-deploy cached row with no authorizedAt at all must not render as
+    // "Unauthorized" to its own admins. Matches clubStore's rcToClub.
+    describe('authorizedAt', () => {
+      it('stays undefined when the field is absent from the row', () => {
+        const result = mapDatabaseToClub(mockDbClub);
+        expect(result.authorizedAt).toBeUndefined();
+      });
+
+      it('passes through null when the club is explicitly unauthorized', () => {
+        const result = mapDatabaseToClub({ ...mockDbClub, authorized_at: null });
+        expect(result.authorizedAt).toBeNull();
+      });
+
+      it('passes through the timestamp when the club is authorized', () => {
+        const result = mapDatabaseToClub({
+          ...mockDbClub,
+          authorized_at: '2026-01-01T00:00:00.000Z',
+        });
+        expect(result.authorizedAt).toBe('2026-01-01T00:00:00.000Z');
+      });
+    });
   });
 
   describe('mapDatabaseClubsArray', () => {

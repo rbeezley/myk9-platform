@@ -45,6 +45,13 @@ export interface Club {
     description: string;
   }>;
 
+  // MYK9-572: null = not yet authorized by a site admin (gates show
+  // publication and the public club directory server-side, clubs_select /
+  // enforce_show_publish_gate); undefined only while the club row itself
+  // hasn't loaded yet. Set/cleared only by set_club_authorization() — the
+  // client never writes this field directly.
+  authorizedAt?: string | null | undefined;
+
   // Sync metadata for Local-First architecture
   _version?: number | undefined;
   _lastModified?: Date | undefined;

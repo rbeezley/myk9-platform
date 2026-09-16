@@ -156,6 +156,35 @@ export function useClubStripePaymentReadiness(clubId: string | undefined) {
 }
 
 /**
+ * MYK9-572: the club-authorization half of the publish gate (a club must be
+ * authorized by a site admin before its shows can open online entries, same
+ * as it must be Stripe-ready). Exported for save-time (imperative) gate
+ * checks — ShowEditPanel fetches this the same way it fetches the Stripe
+ * account, so the check always sees the form's CURRENT clubId.
+ */
+export async function fetchClubAuthorization(
+  clubId: string
+): Promise<{ authorized_at: string | null } | null> {
+  const { data, error } = await supabase
+    .from('clubs')
+    .select('authorized_at')
+    .eq('id', clubId)
+    .maybeSingle();
+
+  if (error) throw error;
+  return data;
+}
+
+export function useClubAuthorization(clubId: string | undefined) {
+  return useQuery({
+    queryKey: ['club-authorization', clubId],
+    queryFn: () => fetchClubAuthorization(clubId!),
+    enabled: !!clubId,
+    ...cacheStrategies.moderate,
+  });
+}
+
+/**
  * One `public.show_payouts` row.
  *
  * Nothing fetches this shape directly any more: the per-show payout list that

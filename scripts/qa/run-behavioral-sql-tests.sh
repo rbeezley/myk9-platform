@@ -48,6 +48,7 @@ TEST_FILES=(
   "$TEST_DIR/create_show_with_children_tenant_isolation_test.sql"
   "$TEST_DIR/entries_insert_show_scope_test.sql"
   "$TEST_DIR/show_publish_gate_trigger_test.sql"
+  "$TEST_DIR/club_authorization_gate_test.sql"
   "$TEST_DIR/club_routed_role_requests_test.sql"
   "$TEST_DIR/entries_manager_policy_hashable_test.sql"
   "$TEST_DIR/entry_requires_dog_registration_test.sql"

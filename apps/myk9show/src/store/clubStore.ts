@@ -52,6 +52,12 @@ function replicatedToClub(rc: ReplicatedClub): Club {
     },
     upcomingShows: [],
     pastShows: [],
+    // MYK9-572: keep UNDEFINED (field absent — a pre-deploy cached row with
+    // no authorizedAt at all) distinct from NULL (explicitly unauthorized).
+    // Collapsing the two here made every cached club show an "Unauthorized"
+    // badge to its own admins right after deploy / while offline, since
+    // there was no way to tell "never synced this field" from "revoked".
+    authorizedAt: rc.authorizedAt,
     _syncStatus: rc._syncStatus,
     _version: rc._version,
     _lastModified: rc._lastModified,
@@ -81,6 +87,13 @@ function clubToReplicated(club: Club): ReplicatedClub {
     state: club.address.state,
     zipCode: club.address.zipCode,
     clubNumber: club.clubNumber || undefined,
+    // MYK9-572: round-trip, not editable here — clubToReplicated feeds a
+    // FULL object into ReplicatedClubsTable.updateClub's `{...current,
+    // ...updates}` merge, so omitting this would overwrite a cached
+    // authorizedAt with undefined on every unrelated club edit (name, logo,
+    // ...). The RPC (set_club_authorization) is the only real write path;
+    // this is purely preservation.
+    authorizedAt: club.authorizedAt,
     _syncStatus: club._syncStatus,
     _version: club._version,
     _lastModified: club._lastModified,

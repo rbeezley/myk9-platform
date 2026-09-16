@@ -19,3 +19,5 @@ export {
   getClubStatistics,
   checkClubNameExists,
 } from './reads';
+
+export { setClubAuthorization } from './authorization';

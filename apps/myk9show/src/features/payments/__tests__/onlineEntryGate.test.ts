@@ -5,6 +5,8 @@ import {
   publishGateDbErrorMessage,
   PUBLISH_BLOCKED_MESSAGE,
   PUBLISH_GATE_ERRCODE,
+  PUBLISH_GATE_ERRCODE_UNAUTHORIZED,
+  CLUB_UNAUTHORIZED_MESSAGE,
   CLUB_REQUIRED_MESSAGE,
 } from '../onlineEntryGate';
 import { createDatabaseError } from '@/services/database/databaseError';
@@ -47,6 +49,26 @@ describe('isPublishGateDbError', () => {
     expect(isPublishGateDbError('some string')).toBe(false);
     expect(isPublishGateDbError(null)).toBe(false);
     expect(isPublishGateDbError(undefined)).toBe(false);
+  });
+});
+
+// MYK9-572: enforce_show_publish_gate() also raises MK004 when the club
+// exists but is not yet authorized by a site admin — a distinct SQLSTATE
+// from the Stripe-readiness refusal (MK003) so the client can show distinct
+// copy, recognized by the same two helpers.
+describe('isPublishGateDbError / publishGateDbErrorMessage — club-authorization refusal (MK004)', () => {
+  it('recognizes the club-authorization SQLSTATE', () => {
+    expect(
+      isPublishGateDbError({
+        code: PUBLISH_GATE_ERRCODE_UNAUTHORIZED,
+        message: CLUB_UNAUTHORIZED_MESSAGE,
+      })
+    ).toBe(true);
+  });
+
+  it('trusts the DB text verbatim for the club-authorization refusal', () => {
+    const dbError = { code: PUBLISH_GATE_ERRCODE_UNAUTHORIZED, message: CLUB_UNAUTHORIZED_MESSAGE };
+    expect(publishGateDbErrorMessage(dbError)).toBe(CLUB_UNAUTHORIZED_MESSAGE);
   });
 });
 

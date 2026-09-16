@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import {
   MapPin,
   Mail,
@@ -9,6 +9,9 @@ import {
   MoreVertical,
   Trash2,
   Camera,
+  ShieldCheck,
+  ShieldOff,
+  ShieldAlert,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
@@ -18,11 +21,22 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { CoverImageUpload } from '@/components/ui/cover-image-upload';
 import { Club } from '@/types/club-types';
 import { generatePalette } from '@/lib/branding';
 import { getClubInitials } from './utils';
 import { normalizeContactDestinations } from './contactDestinations';
+import { CLUB_UNAUTHORIZED_MESSAGE } from '@/features/payments/onlineEntryGate';
 
 interface ClubHeaderProps {
   club: Club;
@@ -36,6 +50,15 @@ interface ClubHeaderProps {
   canEditClub?: boolean;
   canEditBranding?: boolean;
   canDeleteClub?: boolean;
+  // MYK9-572: site-admin-only authorize/revoke control. canAuthorizeClub
+  // gates the affordance (mirrors set_club_authorization's own
+  // is_site_admin() check); isClubAuthorized is undefined while loading.
+  canAuthorizeClub?: boolean;
+  isClubAuthorized?: boolean | undefined;
+  isAuthorizationLoading?: boolean;
+  isAuthorizationUpdating?: boolean;
+  onAuthorizeClub?: () => void;
+  onRevokeAuthorization?: () => void;
 }
 
 export const ClubHeader: React.FC<ClubHeaderProps> = ({
@@ -49,14 +72,37 @@ export const ClubHeader: React.FC<ClubHeaderProps> = ({
   canEditClub = false,
   canEditBranding = false,
   canDeleteClub = false,
+  canAuthorizeClub = false,
+  isClubAuthorized,
+  isAuthorizationLoading = false,
+  isAuthorizationUpdating = false,
+  onAuthorizeClub,
+  onRevokeAuthorization,
 }) => {
+  const handleAuthorizeClub = onAuthorizeClub ?? (() => {});
+  const handleRevokeAuthorization = onRevokeAuthorization ?? (() => {});
+  // P3-C: revoking has no confirm today (unlike Delete Club, right below it
+  // in this same menu) even though it immediately blocks the club from
+  // publishing any NEW show — cheap to fat-finger from a dropdown item.
+  const [showRevokeConfirm, setShowRevokeConfirm] = useState(false);
   const palette = useMemo(
     () => (club.accentColor ? generatePalette(club.accentColor) : null),
     [club.accentColor]
   );
   const contact = useMemo(() => normalizeContactDestinations(club), [club]);
   const hasMenuActions =
-    canEditBranding || canDeleteClub || !!contact.email || !!contact.phone || !!contact.website;
+    canEditBranding ||
+    canDeleteClub ||
+    canAuthorizeClub ||
+    !!contact.email ||
+    !!contact.phone ||
+    !!contact.website;
+  // P3-3: the separator before the Authorize/Revoke item should only render
+  // when something actually precedes it in the menu — otherwise a club with
+  // ONLY the authorize affordance (no branding edit, no contact info) shows
+  // a leading divider with nothing above it.
+  const hasItemsAboveAuthorize =
+    canEditBranding || !!contact.email || !!contact.phone || !!contact.website;
 
   const foundedYear = club.founded
     ? club.founded instanceof Date
@@ -128,6 +174,28 @@ export const ClubHeader: React.FC<ClubHeaderProps> = ({
                   <Globe className="mr-2 h-4 w-4" />
                   Visit Website
                 </DropdownMenuItem>
+              )}
+              {canAuthorizeClub && !isAuthorizationLoading && (
+                <>
+                  {hasItemsAboveAuthorize && <DropdownMenuSeparator />}
+                  {isClubAuthorized ? (
+                    <DropdownMenuItem
+                      onClick={() => setShowRevokeConfirm(true)}
+                      disabled={isAuthorizationUpdating}
+                    >
+                      <ShieldOff className="mr-2 h-4 w-4" />
+                      Revoke Authorization
+                    </DropdownMenuItem>
+                  ) : (
+                    <DropdownMenuItem
+                      onClick={handleAuthorizeClub}
+                      disabled={isAuthorizationUpdating}
+                    >
+                      <ShieldCheck className="mr-2 h-4 w-4" />
+                      Authorize Club
+                    </DropdownMenuItem>
+                  )}
+                </>
               )}
               {canDeleteClub && (
                 <>
@@ -220,7 +288,24 @@ export const ClubHeader: React.FC<ClubHeaderProps> = ({
                 Founded {foundedYear}
               </p>
             )}
-            <h1 className="text-3xl font-bold text-foreground mb-2">{club.name}</h1>
+            <div className="flex flex-wrap items-center gap-2 mb-2">
+              <h1 className="text-3xl font-bold text-foreground min-w-0">{club.name}</h1>
+              {/* P2-B: visible to ANY viewer who can see this club at all
+                  (clubs_select already scopes that) — a club's own
+                  admin/secretary needs to know WHY publish is blocked just
+                  as much as a site admin does. Only the Authorize/Revoke
+                  MENU items above stay site-admin-only. */}
+              {isClubAuthorized === false && (
+                <span
+                  data-testid="club-unauthorized-badge"
+                  title={CLUB_UNAUTHORIZED_MESSAGE}
+                  className="inline-flex shrink-0 items-center gap-1 rounded-full bg-warning/10 border border-warning/30 px-2.5 py-0.5 text-xs font-medium text-warning"
+                >
+                  <ShieldAlert className="h-3 w-3" />
+                  Unauthorized
+                </span>
+              )}
+            </div>
             {(club.address?.city || club.address?.state) && (
               <div className="flex items-center gap-2 text-muted-foreground mb-2">
                 <MapPin className="w-4 h-4" />
@@ -279,6 +364,30 @@ export const ClubHeader: React.FC<ClubHeaderProps> = ({
           </div>
         </div>
       </div>
+
+      <AlertDialog open={showRevokeConfirm} onOpenChange={setShowRevokeConfirm}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Revoke this club&apos;s authorization?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Stop {club.name} from publishing new shows. It stays visible wherever it already has a
+              published show.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                handleRevokeAuthorization();
+                setShowRevokeConfirm(false);
+              }}
+              className="bg-destructive hover:bg-destructive/90 text-destructive-foreground"
+            >
+              Revoke Authorization
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };

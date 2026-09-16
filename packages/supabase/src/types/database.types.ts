@@ -1348,6 +1348,8 @@ export type Database = {
         Row: {
           accent_color: string | null
           address: string | null
+          authorized_at: string | null
+          authorized_by: string | null
           city: string | null
           club_number: string | null
           cover_image_url: string | null
@@ -1373,6 +1375,8 @@ export type Database = {
         Insert: {
           accent_color?: string | null
           address?: string | null
+          authorized_at?: string | null
+          authorized_by?: string | null
           city?: string | null
           club_number?: string | null
           cover_image_url?: string | null
@@ -1398,6 +1402,8 @@ export type Database = {
         Update: {
           accent_color?: string | null
           address?: string | null
+          authorized_at?: string | null
+          authorized_by?: string | null
           city?: string | null
           club_number?: string | null
           cover_image_url?: string | null
@@ -1420,7 +1426,15 @@ export type Database = {
           website?: string | null
           zip_code?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "clubs_authorized_by_fkey"
+            columns: ["authorized_by"]
+            isOneToOne: false
+            referencedRelation: "people"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       dog_favorites: {
         Row: {
@@ -11864,6 +11878,10 @@ export type Database = {
         Args: { p_show_id: string; p_subscription_endpoint: string }
         Returns: undefined
       }
+      club_has_public_show: {
+        Args: { check_club_id: string }
+        Returns: boolean
+      }
       create_dog_with_registrations: {
         Args: { p_dog: Json; p_registrations: Json }
         Returns: string
@@ -12689,6 +12707,7 @@ export type Database = {
         Returns: boolean
       }
       is_club_admin: { Args: { check_club_id?: string }; Returns: boolean }
+      is_club_member: { Args: { check_club_id: string }; Returns: boolean }
       is_platform_admin: { Args: never; Returns: boolean }
       is_real_account: { Args: never; Returns: boolean }
       is_show_manager: { Args: never; Returns: boolean }
@@ -13164,6 +13183,10 @@ export type Database = {
       run_system_health_check_now: { Args: never; Returns: Json }
       self_checkin_entry: {
         Args: { p_entry_id: string; p_new_status: string }
+        Returns: undefined
+      }
+      set_club_authorization: {
+        Args: { p_authorized: boolean; p_club_id: string }
         Returns: undefined
       }
       set_entry_refund_decision: {

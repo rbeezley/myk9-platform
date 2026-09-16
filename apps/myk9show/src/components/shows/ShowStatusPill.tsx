@@ -8,13 +8,18 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { useUpdateShowMutation } from '@/hooks/queries/useShowsDatabase';
-import { useClubStripeAccount } from '@/features/payments/useClubStripeAccount';
+import {
+  useClubStripeAccount,
+  useClubAuthorization,
+} from '@/features/payments/useClubStripeAccount';
 import {
   canEnableOnlineEntries,
   isPublishGateDbError,
   publishGateDbErrorMessage,
   PUBLISH_BLOCKED_MESSAGE,
+  CLUB_UNAUTHORIZED_MESSAGE,
   CLUB_REQUIRED_MESSAGE,
+  PUBLISH_GATE_ERRCODE_UNAUTHORIZED,
 } from '@/features/payments/onlineEntryGate';
 
 interface ShowStatusPillProps {
@@ -65,6 +70,7 @@ export function ShowStatusPill({ showId, status, clubId }: ShowStatusPillProps) 
   const { mutateAsync, isPending } = useUpdateShowMutation();
   const navigate = useNavigate();
   const clubAccountQuery = useClubStripeAccount(clubId);
+  const clubAuthQuery = useClubAuthorization(clubId);
   const config = STATUS_CONFIG[status] ?? {
     label: status,
     className: 'bg-muted border border-border text-muted-foreground',
@@ -90,18 +96,32 @@ export function ShowStatusPill({ showId, status, clubId }: ShowStatusPillProps) 
         toast.error(CLUB_REQUIRED_MESSAGE);
         return;
       }
-      if (clubAccountQuery.isLoading) {
+      if (clubAccountQuery.isLoading || clubAuthQuery.isLoading) {
         // Don't misreport an onboarded club as unconnected on a cold cache.
-        toast.info('Checking the club’s payment account — try again in a moment.');
+        toast.info('Checking the club’s status — try again in a moment.');
         return;
       }
-      if (clubAccountQuery.isError) {
+      if (clubAccountQuery.isError || clubAuthQuery.isError) {
         // A failed lookup is not "not connected" — fail closed with the
         // truthful message instead of blaming the club's setup. Kick off a
         // refetch so "try again" can actually succeed (an errored query
         // inside staleTime would otherwise serve the same error forever).
         void clubAccountQuery.refetch();
-        toast.error('Could not check the club’s payment account. Please try again.');
+        void clubAuthQuery.refetch();
+        toast.error('Could not check the club’s status. Please try again.');
+        return;
+      }
+      // MYK9-572: authorization is checked before Stripe readiness, same
+      // order as the DB trigger (enforce_show_publish_gate). Fail CLOSED —
+      // treat an unreadable/undefined club row the same as an explicitly
+      // unauthorized one, don't rely solely on the isError branch above to
+      // have already caught it.
+      if (clubAuthQuery.data == null || clubAuthQuery.data.authorized_at === null) {
+        // Kick off a refetch so a retry right after a site admin authorizes
+        // the club can actually succeed within the query's staleTime window,
+        // mirroring the isError branch above.
+        void clubAuthQuery.refetch();
+        toast.error(CLUB_UNAUTHORIZED_MESSAGE);
         return;
       }
       if (!canEnableOnlineEntries(clubAccountQuery.data)) {
@@ -122,10 +142,13 @@ export function ShowStatusPill({ showId, status, clubId }: ShowStatusPillProps) 
       // friendly copy, so surface it instead of the generic fallback.
       if (isPublishGateDbError(error)) {
         const message = publishGateDbErrorMessage(error) ?? PUBLISH_BLOCKED_MESSAGE;
-        // "Open Payments" only makes sense for the Stripe-readiness refusal —
-        // the missing-club refusal shares MK003 but needs "assign a club",
-        // not a trip to the payments page, to actually resolve it.
-        if (message === CLUB_REQUIRED_MESSAGE) {
+        const code = (error as { code?: string }).code;
+        // "Open Payments" only makes sense for the Stripe-readiness refusal.
+        // The missing-club refusal shares MK003 but needs "assign a club",
+        // not a trip to the payments page; MK004 (club not authorized) has
+        // no Stripe setup to send the admin to either — both would be dead
+        // ends.
+        if (message === CLUB_REQUIRED_MESSAGE || code === PUBLISH_GATE_ERRCODE_UNAUTHORIZED) {
           toast.error(message);
         } else {
           toast.error(message, {

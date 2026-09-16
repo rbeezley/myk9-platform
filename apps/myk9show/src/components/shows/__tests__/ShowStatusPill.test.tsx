@@ -3,21 +3,26 @@ import { screen, fireEvent, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { render } from '@/test/utils/testUtils';
 import { ShowStatusPill } from '../ShowStatusPill';
-import { useClubStripeAccount } from '@/features/payments/useClubStripeAccount';
+import {
+  useClubStripeAccount,
+  useClubAuthorization,
+} from '@/features/payments/useClubStripeAccount';
 import { useUpdateShowMutation } from '@/hooks/queries/useShowsDatabase';
 import { toast } from 'sonner';
 
 vi.mock('@/features/payments/useClubStripeAccount', () => ({
   useClubStripeAccount: vi.fn(),
+  useClubAuthorization: vi.fn(),
 }));
 vi.mock('@/hooks/queries/useShowsDatabase', () => ({
   useUpdateShowMutation: vi.fn(),
 }));
 vi.mock('sonner', () => ({
-  toast: { success: vi.fn(), error: vi.fn() },
+  toast: { success: vi.fn(), error: vi.fn(), info: vi.fn() },
 }));
 
 const mockedUseAccount = vi.mocked(useClubStripeAccount);
+const mockedUseAuth = vi.mocked(useClubAuthorization);
 const mockedUseMutation = vi.mocked(useUpdateShowMutation);
 
 function mockAccount(payoutsEnabled: boolean | null) {
@@ -38,6 +43,18 @@ function mockAccount(payoutsEnabled: boolean | null) {
   } as unknown as ReturnType<typeof useClubStripeAccount>);
 }
 
+// MYK9-572: defaults every test to an authorized club so the pre-existing
+// Stripe-only gate tests below are unaffected; the dedicated describe block
+// further down overrides this per-test to exercise the new branch.
+function mockAuthorization(authorizedAt: string | null) {
+  mockedUseAuth.mockReturnValue({
+    data: { authorized_at: authorizedAt },
+    isLoading: false,
+    isError: false,
+    refetch: vi.fn(),
+  } as unknown as ReturnType<typeof useClubAuthorization>);
+}
+
 describe('ShowStatusPill', () => {
   let mutateAsync: ReturnType<typeof vi.fn>;
 
@@ -51,6 +68,7 @@ describe('ShowStatusPill', () => {
     // Default: payouts enabled so tests that don't care about the gate
     // (labels, non-publish transitions) don't have to mock it themselves.
     mockAccount(true);
+    mockAuthorization('2026-01-01T00:00:00Z');
   });
 
   describe('labels', () => {
@@ -304,5 +322,157 @@ describe('ShowStatusPill', () => {
         expect(toast.error).toHaveBeenCalledWith('Failed to update show status. Please try again.')
       );
     });
+  });
+});
+
+describe('ShowStatusPill club-authorization gate (MYK9-572)', () => {
+  let mutateAsync: ReturnType<typeof vi.fn>;
+  let refetchAuth: ReturnType<typeof vi.fn>;
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mutateAsync = vi.fn().mockResolvedValue({});
+    mockedUseMutation.mockReturnValue({
+      mutateAsync,
+      isPending: false,
+    } as unknown as ReturnType<typeof useUpdateShowMutation>);
+    mockAccount(true);
+    refetchAuth = vi.fn();
+  });
+
+  it('blocks publishing an unauthorized club before checking Stripe readiness', async () => {
+    mockAuthorization(null);
+    const user = userEvent.setup();
+    render(<ShowStatusPill showId="show-1" status="draft" clubId="club-1" />);
+
+    await user.click(screen.getByRole('button', { name: /draft/i }));
+    await user.click(await screen.findByText(/publish show/i));
+
+    expect(mutateAsync).not.toHaveBeenCalled();
+    expect(toast.error).toHaveBeenCalledWith(expect.stringMatching(/hasn't been authorized/i));
+  });
+
+  // P3-1: the case above pairs "unauthorized" with mockAccount(true) (Stripe
+  // READY, set in this describe's beforeEach), so it cannot actually prove
+  // ordering — a client that checked Stripe FIRST would also pass, since
+  // Stripe readiness is satisfied either way. Pair unauthorized with Stripe
+  // DISABLED so only a real "authorization wins" implementation can pass.
+  it('shows the authorization message, not the Stripe one, when the club is both unauthorized and not Stripe-ready', async () => {
+    mockAccount(false);
+    mockAuthorization(null);
+    const user = userEvent.setup();
+    render(<ShowStatusPill showId="show-1" status="draft" clubId="club-1" />);
+
+    await user.click(screen.getByRole('button', { name: /draft/i }));
+    await user.click(await screen.findByText(/publish show/i));
+
+    expect(mutateAsync).not.toHaveBeenCalled();
+    expect(toast.error).toHaveBeenCalledWith(expect.stringMatching(/hasn't been authorized/i));
+    expect(toast.error).not.toHaveBeenCalledWith(expect.stringMatching(/payment account/i));
+  });
+
+  // P2-5/P3-A: fail CLOSED when the club row is unreadable (RLS-hidden,
+  // undefined data despite a "successful" query) — not just when
+  // authorized_at is explicitly null — and kick off a refetch so a retry
+  // right after a site admin authorizes the club can succeed.
+  it('fails closed and refetches when the authorization query has no data', async () => {
+    mockedUseAuth.mockReturnValue({
+      data: undefined,
+      isLoading: false,
+      isError: false,
+      refetch: refetchAuth,
+    } as unknown as ReturnType<typeof useClubAuthorization>);
+    const user = userEvent.setup();
+    render(<ShowStatusPill showId="show-1" status="draft" clubId="club-1" />);
+
+    await user.click(screen.getByRole('button', { name: /draft/i }));
+    await user.click(await screen.findByText(/publish show/i));
+
+    expect(mutateAsync).not.toHaveBeenCalled();
+    expect(toast.error).toHaveBeenCalledWith(expect.stringMatching(/hasn't been authorized/i));
+    expect(refetchAuth).toHaveBeenCalled();
+  });
+
+  // P3-5: pin the exact loading/error copy strings — a future edit could
+  // change the wording without anything else catching it.
+  it('shows the exact "checking" copy while either query is still loading', async () => {
+    mockedUseAuth.mockReturnValue({
+      data: { authorized_at: '2026-01-01T00:00:00Z' },
+      isLoading: true,
+      isError: false,
+      refetch: refetchAuth,
+    } as unknown as ReturnType<typeof useClubAuthorization>);
+    const user = userEvent.setup();
+    render(<ShowStatusPill showId="show-1" status="draft" clubId="club-1" />);
+
+    await user.click(screen.getByRole('button', { name: /draft/i }));
+    await user.click(await screen.findByText(/publish show/i));
+
+    expect(mutateAsync).not.toHaveBeenCalled();
+    expect(toast.info).toHaveBeenCalledWith('Checking the club’s status — try again in a moment.');
+  });
+
+  it('shows the exact error copy and refetches both queries when either query errors', async () => {
+    const refetchAccount = vi.fn();
+    mockedUseAccount.mockReturnValue({
+      data: null,
+      isLoading: false,
+      isError: true,
+      refetch: refetchAccount,
+    } as unknown as ReturnType<typeof useClubStripeAccount>);
+    mockedUseAuth.mockReturnValue({
+      data: { authorized_at: '2026-01-01T00:00:00Z' },
+      isLoading: false,
+      isError: false,
+      refetch: refetchAuth,
+    } as unknown as ReturnType<typeof useClubAuthorization>);
+    const user = userEvent.setup();
+    render(<ShowStatusPill showId="show-1" status="draft" clubId="club-1" />);
+
+    await user.click(screen.getByRole('button', { name: /draft/i }));
+    await user.click(await screen.findByText(/publish show/i));
+
+    expect(mutateAsync).not.toHaveBeenCalled();
+    expect(toast.error).toHaveBeenCalledWith(
+      'Could not check the club’s status. Please try again.'
+    );
+    expect(refetchAccount).toHaveBeenCalled();
+    expect(refetchAuth).toHaveBeenCalled();
+  });
+
+  it('publishes once the club is authorized and Stripe-ready', async () => {
+    mockAuthorization('2026-01-01T00:00:00Z');
+    const user = userEvent.setup();
+    render(<ShowStatusPill showId="show-1" status="draft" clubId="club-1" />);
+
+    await user.click(screen.getByRole('button', { name: /draft/i }));
+    await user.click(await screen.findByText(/publish show/i));
+
+    expect(mutateAsync).toHaveBeenCalledWith({ id: 'show-1', updates: { status: 'published' } });
+  });
+
+  it('surfaces the DB publish-gate trigger MK004 refusal with its own copy', async () => {
+    mockAuthorization('2026-01-01T00:00:00Z');
+    mutateAsync.mockRejectedValueOnce({
+      code: 'MK004',
+      message:
+        "This club hasn't been authorized by myK9 yet. Shows can be built now and published once the club is approved.",
+    });
+    const user = userEvent.setup();
+    render(<ShowStatusPill showId="show-1" status="draft" clubId="club-1" />);
+
+    await user.click(screen.getByRole('button', { name: /draft/i }));
+    await user.click(await screen.findByText(/publish show/i));
+
+    // P2-D: MK004 (club not authorized) has no Stripe setup to send the
+    // admin to, so the toast must NOT carry the "Open Payments" action —
+    // unlike MK003 (payment-account gate), which still does.
+    expect(toast.error).toHaveBeenCalledWith(
+      "This club hasn't been authorized by myK9 yet. Shows can be built now and published once the club is approved."
+    );
+    expect(toast.error).not.toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({ action: expect.anything() })
+    );
   });
 });

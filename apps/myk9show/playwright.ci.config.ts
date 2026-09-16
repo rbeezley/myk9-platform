@@ -80,9 +80,10 @@ const REGRESSION_SPECS = [
   // runs are serialized, so no concurrent spec observes the flipped theme.
   '**/theme-mode-selection-border.spec.ts',
   // Exhibitor-authed, read-only: opens the Edit Dog panel and reads real
-  // computed style (MYK9-612), same pattern as theme-mode-selection-border
-  // and dogPanelAccessibleNames — jsdom cannot compute Tailwind styles.
-  '**/tabsTriggerAriaSelectedComputedStyle.spec.ts',
+  // computed style (MYK9-612) to pin the primitive's own selected-tab
+  // treatment, same pattern as theme-mode-selection-border and
+  // dogPanelAccessibleNames — jsdom cannot compute Tailwind styles.
+  '**/tabsTriggerSelectedStyleGuard.spec.ts',
 ];
 
 // PR Smoke: stable specs — connectivity, secretary regression proof, the

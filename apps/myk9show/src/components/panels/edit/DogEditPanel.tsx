@@ -102,17 +102,11 @@ const DogEditForm: React.FC = () => {
     <div className="space-y-6 p-6">
       <Tabs defaultValue="basic" className="w-full">
         <TabsList className="grid w-full grid-cols-2 bg-gradient-to-r from-muted/50 to-muted/30 border border-border/30 rounded-xl p-1 transition-all duration-300 ease-out">
-          <TabsTrigger
-            value="basic"
-            className="gap-2 aria-selected:bg-gradient-to-r aria-selected:from-primary/10 aria-selected:to-primary/5 aria-selected:text-primary aria-selected:shadow-sm rounded-lg transition-all duration-300"
-          >
+          <TabsTrigger value="basic" className="gap-2 rounded-lg transition-all duration-300">
             <Dog className="h-4 w-4" />
             Basic Info
           </TabsTrigger>
-          <TabsTrigger
-            value="more"
-            className="gap-2 aria-selected:bg-gradient-to-r aria-selected:from-primary/10 aria-selected:to-primary/5 aria-selected:text-primary aria-selected:shadow-sm rounded-lg transition-all duration-300"
-          >
+          <TabsTrigger value="more" className="gap-2 rounded-lg transition-all duration-300">
             <MoreHorizontal className="h-4 w-4" />
             More for this dog
           </TabsTrigger>

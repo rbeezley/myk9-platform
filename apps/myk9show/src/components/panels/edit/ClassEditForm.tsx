@@ -109,30 +109,21 @@ export const ClassEditForm: React.FC<{ showId?: string }> = ({ showId }) => {
     <div className="space-y-6 p-6">
       <Tabs defaultValue="basic" className="w-full">
         <TabsList className="grid w-full grid-cols-4 bg-gradient-to-r from-muted/50 to-muted/30 border border-border/30 rounded-xl p-1 transition-all duration-300 ease-out">
-          <TabsTrigger
-            value="basic"
-            className="gap-2 aria-selected:bg-gradient-to-r aria-selected:from-primary/10 aria-selected:to-primary/5 aria-selected:text-primary aria-selected:shadow-sm rounded-lg transition-all duration-300"
-          >
+          <TabsTrigger value="basic" className="gap-2 rounded-lg transition-all duration-300">
             <Settings className="h-4 w-4" />
             Basic
           </TabsTrigger>
-          <TabsTrigger
-            value="timing"
-            className="gap-2 aria-selected:bg-gradient-to-r aria-selected:from-primary/10 aria-selected:to-primary/5 aria-selected:text-primary aria-selected:shadow-sm rounded-lg transition-all duration-300"
-          >
+          <TabsTrigger value="timing" className="gap-2 rounded-lg transition-all duration-300">
             <Clock className="h-4 w-4" />
             Timing
           </TabsTrigger>
-          <TabsTrigger
-            value="officials"
-            className="gap-2 aria-selected:bg-gradient-to-r aria-selected:from-primary/10 aria-selected:to-primary/5 aria-selected:text-primary aria-selected:shadow-sm rounded-lg transition-all duration-300"
-          >
+          <TabsTrigger value="officials" className="gap-2 rounded-lg transition-all duration-300">
             <UserCheck className="h-4 w-4" />
             Officials
           </TabsTrigger>
           <TabsTrigger
             value="requirements"
-            className="gap-2 aria-selected:bg-gradient-to-r aria-selected:from-primary/10 aria-selected:to-primary/5 aria-selected:text-primary aria-selected:shadow-sm rounded-lg transition-all duration-300"
+            className="gap-2 rounded-lg transition-all duration-300"
           >
             <ClipboardList className="h-4 w-4" />
             Requirements

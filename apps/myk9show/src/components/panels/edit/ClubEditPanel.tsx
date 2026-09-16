@@ -186,24 +186,15 @@ const ClubEditForm: React.FC<{ clubId: string; mode: 'create' | 'edit'; onClose?
     <div className="space-y-6 p-6">
       <Tabs defaultValue="basic" className="w-full">
         <TabsList className="grid w-full grid-cols-3 bg-gradient-to-r from-muted/50 to-muted/30 border border-border/30 rounded-xl p-1 transition-all duration-300 ease-out">
-          <TabsTrigger
-            value="basic"
-            className="gap-2 aria-selected:bg-gradient-to-r aria-selected:from-primary/10 aria-selected:to-primary/5 aria-selected:text-primary aria-selected:shadow-sm rounded-lg transition-all duration-300"
-          >
+          <TabsTrigger value="basic" className="gap-2 rounded-lg transition-all duration-300">
             <Building className="h-4 w-4" />
             Basic Info
           </TabsTrigger>
-          <TabsTrigger
-            value="contact"
-            className="gap-2 aria-selected:bg-gradient-to-r aria-selected:from-primary/10 aria-selected:to-primary/5 aria-selected:text-primary aria-selected:shadow-sm rounded-lg transition-all duration-300"
-          >
+          <TabsTrigger value="contact" className="gap-2 rounded-lg transition-all duration-300">
             <Phone className="h-4 w-4" />
             Contact
           </TabsTrigger>
-          <TabsTrigger
-            value="premium"
-            className="gap-2 aria-selected:bg-gradient-to-r aria-selected:from-primary/10 aria-selected:to-primary/5 aria-selected:text-primary aria-selected:shadow-sm rounded-lg transition-all duration-300"
-          >
+          <TabsTrigger value="premium" className="gap-2 rounded-lg transition-all duration-300">
             Premium
           </TabsTrigger>
         </TabsList>

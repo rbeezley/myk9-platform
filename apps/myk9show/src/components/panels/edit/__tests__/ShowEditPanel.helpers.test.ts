@@ -1,12 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { GeneratedPremium } from '@/types/premium-types';
 import { showSchemas } from '@/lib/validation';
-import {
-  formDataToShow,
-  formDataToShowSaveData,
-  showToFormData,
-  publishGateError,
-} from '../ShowEditPanel.helpers';
+import { formDataToShow, formDataToShowSaveData, showToFormData } from '../ShowEditPanel.helpers';
 import type { ShowEditFormData } from '../ShowEditPanel.types';
 
 const generatedPremium: GeneratedPremium = {
@@ -137,32 +132,5 @@ describe('ShowEditPanel helpers', () => {
 
     expect(parsed.success).toBe(false);
     expect(parsed.error?.issues[0]?.message).toMatch(/shared show content/i);
-  });
-});
-
-// MYK9-579 round 4: publishing now happens in exactly one place -- the
-// status pill (ShowStatusPill.tsx) -- so the panel's Status dropdown no
-// longer offers "Published" for a draft (see ShowEditBasicInfoTab.test.tsx
-// for the dropdown-option coverage). publishGateError stays only as a
-// minimal guard for the case this dropdown restriction cannot fully cover
-// server-side: an already-published show being saved must never be
-// re-gated, and a draft->published call (now unreachable from the UI, but
-// not impossible to construct) must still fail closed.
-describe('publishGateError', () => {
-  const enabled = { payouts_enabled: true };
-
-  it('never re-gates an already-published show (unrelated edits must save)', () => {
-    expect(publishGateError('published', 'published', 'club-1', null)).toBeNull();
-    expect(publishGateError('published', 'published', 'club-1', enabled)).toBeNull();
-  });
-
-  it('ignores non-publish transitions', () => {
-    expect(publishGateError('draft', 'cancelled', 'club-1', null)).toBeNull();
-    expect(publishGateError('published', 'draft', '', null)).toBeNull();
-  });
-
-  it('still fails closed on a draft->published call, though the UI can no longer make one', () => {
-    expect(publishGateError('draft', 'published', 'club-1', null)).toMatch(/payment account/i);
-    expect(publishGateError('draft', 'published', '', enabled)).toMatch(/club/i);
   });
 });

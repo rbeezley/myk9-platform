@@ -159,4 +159,33 @@ describe('ShowStatusPill publish gate', () => {
 
     expect(toast.error).toHaveBeenCalledWith('Failed to update show status. Please try again.');
   });
+
+  // MYK9-579 round 5: publishing must not be a one-way door -- the pill
+  // offers "Publish Show" from every non-published status, and the same
+  // Stripe-readiness gate applies regardless of which status it starts from.
+  it('a cancelled show offers "Publish Show" and the gate refuses without Stripe', async () => {
+    mockAccount(null);
+    const user = userEvent.setup();
+    render(<ShowStatusPill showId="show-1" status="cancelled" clubId="club-1" />);
+
+    await user.click(screen.getByRole('button', { name: /cancelled/i }));
+    await user.click(await screen.findByText(/publish show/i));
+
+    expect(mutateAsync).not.toHaveBeenCalled();
+    expect(toast.error).toHaveBeenCalledWith(
+      expect.stringMatching(/payment account/i),
+      expect.objectContaining({ action: expect.anything() })
+    );
+  });
+
+  it('an upcoming show publishes when Stripe-ready', async () => {
+    mockAccount(true);
+    const user = userEvent.setup();
+    render(<ShowStatusPill showId="show-1" status="upcoming" clubId="club-1" />);
+
+    await user.click(screen.getByRole('button', { name: /upcoming/i }));
+    await user.click(await screen.findByText(/publish show/i));
+
+    expect(mutateAsync).toHaveBeenCalledWith({ id: 'show-1', updates: { status: 'published' } });
+  });
 });

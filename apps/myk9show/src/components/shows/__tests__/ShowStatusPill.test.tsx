@@ -85,24 +85,45 @@ describe('ShowStatusPill', () => {
     expect(screen.getByRole('button', { name: /published/i })).toBeInTheDocument();
   });
 
-  it('does not render a button for upcoming status', () => {
+  // MYK9-579 round 5: publishing must not be a one-way door -- a show that
+  // moved to upcoming/in_progress/completed/cancelled can still be published
+  // again from the pill.
+  it('renders a button (dropdown trigger) for upcoming status', () => {
     render(<ShowStatusPill showId="show-1" status="upcoming" />);
-    expect(screen.queryByRole('button')).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /upcoming/i })).toBeInTheDocument();
   });
 
-  it('does not render a button for in_progress status', () => {
+  it('renders a button (dropdown trigger) for in_progress status', () => {
     render(<ShowStatusPill showId="show-1" status="in_progress" />);
-    expect(screen.queryByRole('button')).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /in progress/i })).toBeInTheDocument();
   });
 
-  it('does not render a button for completed status', () => {
+  it('renders a button (dropdown trigger) for completed status', () => {
     render(<ShowStatusPill showId="show-1" status="completed" />);
-    expect(screen.queryByRole('button')).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /completed/i })).toBeInTheDocument();
   });
 
-  it('does not render a button for cancelled status', () => {
+  it('renders a button (dropdown trigger) for cancelled status', () => {
     render(<ShowStatusPill showId="show-1" status="cancelled" />);
-    expect(screen.queryByRole('button')).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /cancelled/i })).toBeInTheDocument();
+  });
+
+  it('shows "Publish Show" option when status is cancelled', async () => {
+    render(<ShowStatusPill showId="show-1" status="cancelled" />);
+    fireEvent.click(screen.getByRole('button', { name: /cancelled/i }));
+    expect(await screen.findByText('Publish Show')).toBeInTheDocument();
+  });
+
+  it('calls updateShow with published when publishing an upcoming show', async () => {
+    render(<ShowStatusPill showId="show-1" status="upcoming" clubId="club-1" />);
+    fireEvent.click(screen.getByRole('button', { name: /upcoming/i }));
+    fireEvent.click(await screen.findByText('Publish Show'));
+    await waitFor(() =>
+      expect(mockMutateAsync).toHaveBeenCalledWith({
+        id: 'show-1',
+        updates: { status: 'published' },
+      })
+    );
   });
 
   it('shows "Publish Show" option when status is draft', async () => {

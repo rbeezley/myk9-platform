@@ -85,23 +85,24 @@ Per PR: assertion-first tests for value-sensitive fixes, colocated suite, `pnpm 
 
 Filled in as batches complete; the final report to Richard is generated from this table.
 
-| Issue    | Batch | Outcome                                                                  | PR                | Owner action                                                              |
-| -------- | ----- | ------------------------------------------------------------------------ | ----------------- | ------------------------------------------------------------------------- |
-| MYK9-595 | 1     | merged                                                                   | #2279 → af9a68f5e | none                                                                      |
-| MYK9-547 | 1     | merged                                                                   | #2280 → 70c4977b4 | confirm `SWDC` against `electres.xsd` once                                |
-| MYK9-567 | 1     | merged (owner override, ledgered on MYK9-544)                            | #2281 → 880a20870 | none; MYK9-603 (print templates read the owner) filed from it             |
-| MYK9-566 | 2     | merged; In Progress until reseed                                         | #2282 → 0ff63ca10 | reseed staging (`seed-reset`), confirm guards; MYK9-606 filed             |
-| MYK9-596 | 2     | merged; In Progress until db push                                        | #2283 → 73231fac4 | `supabase db push` (20260916181700) + readbacks; MYK9-607, MYK9-608 filed |
-| MYK9-585 | 2     | merged (owner override, ledgered on MYK9-544); In Progress until db push | #2284 → 9f9d3ccca | `supabase db push` (20260916015300) + `pg_policies` readback              |
-| MYK9-549 | 3     | merged                                                                   | #2285 → d379a1128 | none                                                                      |
-| MYK9-561 | 3     | merged (owner override, ledgered on MYK9-544); In Progress until db push | #2287 → b5675c7b3 | `supabase db push` (20260916194700) + staging replay as exhibitor         |
-| MYK9-564 | 3     | merged                                                                   | #2286 → 2247db33f | none; MYK9-610 (seed trial names) filed                                   |
-| MYK9-568 | 4     | merged                                                                   | #2288 → 687f4d100 | staging screenshot of the My Entries row, optional                        |
-| MYK9-610 | new   | filed (Backlog)                                                          | —                 | seed § 3 trial names contradict their dates                               |
-| MYK9-609 | new   | filed (Backlog)                                                          | —                 | decide: pull-request queue has no producer                                |
-| MYK9-608 | new   | filed (Backlog)                                                          | —                 | triage: audit row and deleted_by invisible in Deleted Items               |
-| MYK9-606 | new   | filed (Backlog)                                                          | —                 | triage: load-secretary e2e users still named Load Secretary               |
-| MYK9-607 | new   | filed (Backlog)                                                          | —                 | triage: restore_dog snapshot edges                                        |
-| MYK9-603 | new   | filed (Backlog)                                                          | —                 | triage: print templates use the owner as handler                          |
-| MYK9-604 | new   | filed (Backlog)                                                          | —                 | triage: wizard writes `Unknown` class triples                             |
-| MYK9-605 | new   | filed (Backlog)                                                          | —                 | triage: MyEntriesPage focus flake                                         |
+| Issue           | Batch | Outcome                                                                           | PR                | Owner action                                                              |
+| --------------- | ----- | --------------------------------------------------------------------------------- | ----------------- | ------------------------------------------------------------------------- |
+| MYK9-595        | 1     | merged                                                                            | #2279 → af9a68f5e | none                                                                      |
+| MYK9-547        | 1     | merged                                                                            | #2280 → 70c4977b4 | confirm `SWDC` against `electres.xsd` once                                |
+| MYK9-567        | 1     | merged (owner override, ledgered on MYK9-544)                                     | #2281 → 880a20870 | none; MYK9-603 (print templates read the owner) filed from it             |
+| MYK9-566        | 2     | merged; In Progress until reseed                                                  | #2282 → 0ff63ca10 | reseed staging (`seed-reset`), confirm guards; MYK9-606 filed             |
+| MYK9-596        | 2     | merged; In Progress until db push                                                 | #2283 → 73231fac4 | `supabase db push` (20260916181700) + readbacks; MYK9-607, MYK9-608 filed |
+| MYK9-585        | 2     | merged (owner override, ledgered on MYK9-544); In Progress until db push          | #2284 → 9f9d3ccca | `supabase db push` (20260916015300) + `pg_policies` readback              |
+| MYK9-549        | 3     | merged                                                                            | #2285 → d379a1128 | none                                                                      |
+| MYK9-561        | 3     | merged (owner override, ledgered on MYK9-544); In Progress until db push          | #2287 → b5675c7b3 | `supabase db push` (20260916194700) + staging replay as exhibitor         |
+| MYK9-564        | 3     | merged                                                                            | #2286 → 2247db33f | none; MYK9-610 (seed trial names) filed                                   |
+| MYK9-568        | 4     | merged                                                                            | #2288 → 687f4d100 | staging screenshot of the My Entries row, optional                        |
+| MYK9-538 (+539) | 4     | merged (owner override, ledgered on MYK9-544); In Progress until db push + reseed | #2290 → 6511965c1 | `supabase db push` (20260916213500) BEFORE the next reseed, then reseed   |
+| MYK9-610        | new   | filed (Backlog)                                                                   | —                 | seed § 3 trial names contradict their dates                               |
+| MYK9-609        | new   | filed (Backlog)                                                                   | —                 | decide: pull-request queue has no producer                                |
+| MYK9-608        | new   | filed (Backlog)                                                                   | —                 | triage: audit row and deleted_by invisible in Deleted Items               |
+| MYK9-606        | new   | filed (Backlog)                                                                   | —                 | triage: load-secretary e2e users still named Load Secretary               |
+| MYK9-607        | new   | filed (Backlog)                                                                   | —                 | triage: restore_dog snapshot edges                                        |
+| MYK9-603        | new   | filed (Backlog)                                                                   | —                 | triage: print templates use the owner as handler                          |
+| MYK9-604        | new   | filed (Backlog)                                                                   | —                 | triage: wizard writes `Unknown` class triples                             |
+| MYK9-605        | new   | filed (Backlog)                                                                   | —                 | triage: MyEntriesPage focus flake                                         |

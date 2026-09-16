@@ -13,6 +13,7 @@ import {
   resolveClassSection,
 } from '@/services/entryDisplay/entryDisplaySelectors';
 import { dogsAheadInClass } from '@/utils/showEntryRunQueue';
+import { formatWeekdayLongMonthDay } from '@/lib/format/dates';
 import { hasScopedClubRole, hasScopedShowRole } from '@/utils/roleScopes';
 import { resolveMoveUpDisplay } from '@/hooks/moveUpDisplay';
 import { selectOwnedDogIds } from '@/utils/dogOwnership';
@@ -213,13 +214,6 @@ export function mergeCanonicalEntry(
   };
 }
 
-function formatDayLabel(isoDate: string): string {
-  const dateOnly = isoDate.split('T')[0];
-  if (!dateOnly) return '';
-  const d = new Date(dateOnly + 'T00:00:00');
-  return d.toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' });
-}
-
 function compareByTime(a: EnrichedShowEntry, b: EnrichedShowEntry): number {
   if (a.trialDate !== b.trialDate) return a.trialDate.localeCompare(b.trialDate);
   return a.startTime.localeCompare(b.startTime);
@@ -392,7 +386,7 @@ export function useShowEntriesForUser(
         section,
         classTitle: cls ? classDisplayName(cls) || fallbackClassTitle : fallbackClassTitle,
         trialDate,
-        dayLabel: trialDate ? formatDayLabel(trialDate) : '',
+        dayLabel: formatWeekdayLongMonthDay(trialDate),
         trialName: cls?.trial ?? '',
         startTime: cls?.startTime ?? '',
         judgeName: cls ? resolveClassJudgeName(cls, currentShow?.assignedJudges ?? []) : '',

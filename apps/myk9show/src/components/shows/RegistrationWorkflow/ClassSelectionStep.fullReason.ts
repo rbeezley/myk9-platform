@@ -15,6 +15,7 @@
  * "is the whole trial full?" question is answered by folding the server's own
  * per-class `isFull` verdicts, never by counting entries.
  */
+import { formatWeekdayLong } from '@/lib/format/dates';
 
 /** The availability fields this module reads. A subset of `ClassAvailability`. */
 export interface FullReasonClass {
@@ -49,18 +50,17 @@ export interface FullReasonInput {
 }
 
 /**
- * Weekday for a `YYYY-MM-DD` trial date.
+ * Weekday for a `YYYY-MM-DD` trial date, or null when there is no usable date.
  *
- * Parsed as a LOCAL date (`T00:00:00`), never `new Date('2026-10-25')`, which
- * JS reads as UTC midnight and renders as the previous day for every exhibitor
- * west of Greenwich — "Saturday's class has space" pointing at Sunday's class
- * is worse than saying nothing.
+ * Delegates to the shared calendar-date family (`@/lib/format/dates`), which
+ * parses as a LOCAL date, never `new Date('2026-10-25')` — JS reads that as
+ * UTC midnight and renders the previous day for every exhibitor west of
+ * Greenwich, and "Saturday's class has space" pointing at Sunday's class is
+ * worse than saying nothing. Only the null contract is local: this module's
+ * sentence builders branch on `null`, where the shared helpers return ''.
  */
 function weekday(date: string | null | undefined): string | null {
-  if (!date) return null;
-  const parsed = new Date(`${date.slice(0, 10)}T00:00:00`);
-  if (Number.isNaN(parsed.getTime())) return null;
-  return parsed.toLocaleDateString(undefined, { weekday: 'long' });
+  return formatWeekdayLong(date) || null;
 }
 
 function sameLabel(a: string | null | undefined, b: string | null | undefined): boolean {

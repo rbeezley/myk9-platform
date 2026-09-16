@@ -269,7 +269,11 @@ describe('useShowEntriesForUser', () => {
     const { result } = renderHook(() => useShowEntriesForUser(SHOW_ID));
     const entry = result.current.allEntries[0];
     expect(entry.trialDate).toBe('2026-05-10');
-    expect(entry.dayLabel).toContain('Sunday');
+    // The WHOLE label, not just the weekday: this call site was consolidated
+    // onto the shared `formatWeekdayLongMonthDay` (MYK9-564), and a
+    // `toContain('Sunday')` assertion would stay green through a change to
+    // the month/day half of the string.
+    expect(entry.dayLabel).toBe('Sunday, May 10');
   });
 
   it('enriches entry with startTime and judgeName', () => {

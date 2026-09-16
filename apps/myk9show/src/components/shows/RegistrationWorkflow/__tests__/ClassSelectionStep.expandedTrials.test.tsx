@@ -189,8 +189,8 @@ describe('ClassSelectionStep — expandedTrials delayed hydration', () => {
       />
     );
 
-    expect(await screen.findByText('Friday, May 1')).toBeInTheDocument();
-    expect(screen.getByText('Saturday, May 2')).toBeInTheDocument();
+    expect(await screen.findByText('· Friday, May 1')).toBeInTheDocument();
+    expect(screen.getByText('· Saturday, May 2')).toBeInTheDocument();
   });
 
   it('does not collapse already-expanded trials when new trials are added', async () => {

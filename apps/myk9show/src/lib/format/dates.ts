@@ -14,8 +14,9 @@
  *   {@link formatLongDate}, "Aug 1" via {@link formatMonthDay}, or
  *   "Sat, Aug 1" via {@link formatWeekdayMonthDay}.
  * - Day-of-the-weekend label where the DAY is what the reader chooses by
- *   (the registration wizard's trial rows): "Friday, Oct 30" — via
- *   {@link formatWeekdayLongMonthDay}.
+ *   (the registration wizard's trial rows, My Entries' day groups):
+ *   "Friday, Oct 30" — via {@link formatWeekdayLongMonthDay}, or the weekday
+ *   alone — "Friday" — via {@link formatWeekdayLong}.
  * - Compact CALENDAR date (a DATE-typed column with no weekday: entry
  *   open/close, a show's start day in a list): "Jan 2, 2027" — via
  *   {@link formatShortCalendarDate}.
@@ -153,6 +154,21 @@ export function formatWeekdayLongMonthDay(value?: string | Date | null): string 
     month: 'short',
     day: 'numeric',
   });
+}
+
+/**
+ * The weekday in full, alone: "Friday".
+ *
+ * For prose that names the day inside a sentence — the registration wizard's
+ * class-full explanation ("The judge's Saturday is full. Sunday's Interior
+ * Advanced still has space."). Calendar-safe like the rest of this module,
+ * and pinned to `en-US` like every other export here: the locale-default
+ * variant this replaced rendered the sentence's weekday in the browser's
+ * language while the sentence around it stayed English.
+ */
+export function formatWeekdayLong(value?: string | Date | null): string {
+  if (!value || !isRenderableCalendarDate(value)) return '';
+  return resolveCalendarDate(value).toLocaleDateString('en-US', { weekday: 'long' });
 }
 
 /**

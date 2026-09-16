@@ -127,7 +127,13 @@ export const TrialSection: React.FC<TrialSectionProps> = ({
           <h4 className="font-medium text-sm">{trialName || 'Unnamed Trial'}</h4>
           {dayLabel && (
             <span data-testid="trial-day-label" className="text-sm text-muted-foreground">
-              {dayLabel}
+              {/* The separator is part of the text node, not a `gap` or a
+                  `::before`: under `flex-wrap` the name and the day can land on
+                  separate lines, where proximity alone stops carrying the
+                  relationship — and a CSS-only separator is invisible to the
+                  button's accessible name, which would read "Trial 1 Friday,
+                  Oct 30" as one run-on phrase. */}
+              {`\u00b7 ${dayLabel}`}
             </span>
           )}
           {trialType && (

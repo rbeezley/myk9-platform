@@ -19,9 +19,12 @@ const SECRET_PARAM_NAMES = [
 ];
 
 const SECRET_PARAM_PATTERN = SECRET_PARAM_NAMES.join('|');
-const URL_TOKEN_PARAM_RE = new RegExp(`([?#&](?:${SECRET_PARAM_PATTERN})=)([^&#\\s]+)`, 'gi');
+const URL_TOKEN_PARAM_RE = new RegExp(
+  `([?#&](?:${SECRET_PARAM_PATTERN})=)((?:Bearer[ \\t]+)?[^&#\\s]+)`,
+  'gi'
+);
 const KEY_VALUE_SECRET_RE = new RegExp(
-  `\\b(?:${SECRET_PARAM_PATTERN}|stripe)=((?:Bearer\\s+)?[^&#\\s]+)`,
+  `\\b(?:${SECRET_PARAM_PATTERN}|stripe)=((?:["']?Bearer[ \\t]+)?[^&#\\s]+)`,
   'gi'
 );
 const BEARER_RE = /\bBearer\s+[-._~+/=A-Za-z0-9]+/g;

@@ -1,6 +1,6 @@
 import { Fragment } from 'react';
 import { Link } from 'react-router-dom';
-import { ChevronDown } from 'lucide-react';
+import { ChevronDown, Zap } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
@@ -11,6 +11,9 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { cn } from '@/lib/utils';
 import { useCurrentActions } from '@/features/actions/useCurrentActions';
+import { useMediaQuery } from '@/hooks/useMediaQuery';
+
+const LABEL_BREAKPOINT_QUERY = '(min-width: 640px)';
 
 /**
  * The one Actions menu, in the app header left of the notifications bell, the
@@ -21,9 +24,17 @@ import { useCurrentActions } from '@/features/actions/useCurrentActions';
  * every page's action list is registry data rather than page-owned chrome. An
  * empty list HIDES the button -- a permanently disabled control would be a
  * promise the app cannot keep.
+ *
+ * Below `sm` the trigger is ICON-ONLY with a screen-reader label. The labelled
+ * button cost the brand wordmark 45px it does not have at 360-414px, so signed
+ * in with actions the wordmark rendered as "myK9S..." on every phone
+ * (`src/test/e2e/header-wordmark-fits.spec.ts` measures it). The label returns
+ * from `sm` up, where the room exists.
  */
 export function HeaderActions() {
   const { actions } = useCurrentActions();
+  // Fail narrow: without matchMedia we render the icon, which always fits.
+  const showsLabel = useMediaQuery(LABEL_BREAKPOINT_QUERY, false);
 
   if (actions.length === 0) return null;
 
@@ -34,11 +45,20 @@ export function HeaderActions() {
           type="button"
           variant="outline"
           size="touch"
-          className="gap-1 px-2 min-[400px]:px-3"
+          className={cn('gap-1', showsLabel ? 'px-3' : 'min-w-11 justify-center px-2')}
           data-testid="header-actions-trigger"
         >
-          Actions
-          <ChevronDown className="h-4 w-4" aria-hidden="true" />
+          {showsLabel ? (
+            <>
+              <span>Actions</span>
+              <ChevronDown className="h-4 w-4" aria-hidden="true" />
+            </>
+          ) : (
+            <>
+              <span className="sr-only">Actions</span>
+              <Zap className="h-4 w-4" aria-hidden="true" />
+            </>
+          )}
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-64">

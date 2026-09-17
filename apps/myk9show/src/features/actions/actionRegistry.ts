@@ -52,6 +52,14 @@ const SHOW_PATH = /^\/shows\/([^/]+)(?:\/|$)/;
 const SECRETARY_REGISTER_PATH = /^\/secretary\/register\/([^/]+)(?:\/|$)/;
 
 /**
+ * Segments that sit where a show id sits but name no show. `/shows/new` is a
+ * real route (`publicRoutes.tsx` redirects it into the create-show wizard), so
+ * without this it parsed as `{ kind: 'show', showId: 'new' }` and the header
+ * offered six actions against a show that does not exist.
+ */
+const NON_SHOW_ID_SEGMENTS = new Set(['new']);
+
+/**
  * The route context a pathname puts the viewer in. Pure, so both doors (header
  * menu and command palette) derive it identically and it is unit-testable
  * without a router.
@@ -60,7 +68,10 @@ export function parseActionRouteContext(pathname: string): ActionRouteContext {
   for (const pattern of [SHOW_PATH, SECRETARY_REGISTER_PATH]) {
     const match = pattern.exec(pathname);
     const raw = match?.[1];
-    if (raw) return { kind: 'show', showId: decodeURIComponent(raw) };
+    if (!raw) continue;
+    const showId = decodeURIComponent(raw);
+    if (NON_SHOW_ID_SEGMENTS.has(showId)) return { kind: 'global' };
+    return { kind: 'show', showId };
   }
   return { kind: 'global' };
 }

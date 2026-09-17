@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { render } from '@/test/utils/testUtils';
@@ -81,10 +81,20 @@ vi.mock('@/components/layout/AccountMenuContent', () => ({
 
 const SHOW_ROUTE = '/shows/show-1';
 
+const originalMatchMedia = window.matchMedia;
+
 beforeEach(() => {
   viewer.canManage = true;
   viewer.canOperate = true;
   viewer.isStaff = true;
+});
+
+afterEach(() => {
+  Object.defineProperty(window, 'matchMedia', {
+    writable: true,
+    configurable: true,
+    value: originalMatchMedia,
+  });
 });
 
 describe('AppHeader Actions menu — secretary on a show route', () => {
@@ -182,5 +192,76 @@ describe('AppHeader Actions menu — off a show route', () => {
         .getAllByRole('menuitem')
         .map(item => item.textContent?.trim())
     ).toEqual(['Create a show', 'Open Show Management']);
+  });
+});
+
+/**
+ * Visible text = what a sighted viewer reads. An `sr-only` span stays in the
+ * DOM and in `textContent`, so `textContent` cannot answer "is this trigger
+ * icon-only?"; jsdom applies no stylesheet, so neither can `getComputedStyle`.
+ * This walks the tree and drops the `sr-only` subtrees, which is the one class
+ * that decides it here — and the control test below proves the walk responds to
+ * both branches rather than always returning the same thing.
+ */
+function visibleText(element: HTMLElement): string {
+  let out = '';
+  for (const node of Array.from(element.childNodes)) {
+    if (node.nodeType === Node.TEXT_NODE) {
+      out += node.textContent ?? '';
+      continue;
+    }
+    if (node instanceof HTMLElement && !node.classList.contains('sr-only')) {
+      out += visibleText(node);
+    }
+  }
+  return out.trim();
+}
+
+function mockLabelBreakpoint(matches: boolean) {
+  Object.defineProperty(window, 'matchMedia', {
+    writable: true,
+    configurable: true,
+    value: vi.fn().mockImplementation((query: string) => ({
+      matches: query === '(min-width: 640px)' ? matches : false,
+      media: query,
+      onchange: null,
+      addListener: vi.fn(),
+      removeListener: vi.fn(),
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn(),
+      dispatchEvent: vi.fn(),
+    })),
+  });
+}
+
+describe('AppHeader Actions trigger — the wordmark has to fit beside it', () => {
+  it('measures visible text correctly on a known fixture (harness control)', () => {
+    const fixture = document.createElement('div');
+    fixture.innerHTML = '<span class="sr-only">Actions</span><span>Visible</span>';
+    expect(visibleText(fixture)).toBe('Visible');
+
+    const bothVisible = document.createElement('div');
+    bothVisible.innerHTML = '<span>Actions</span><span>Visible</span>';
+    expect(visibleText(bothVisible)).toBe('ActionsVisible');
+  });
+
+  it('renders icon-only below the sm breakpoint, keeping the name for assistive tech', () => {
+    mockLabelBreakpoint(false);
+    render(<AppHeader />, { initialRoute: SHOW_ROUTE });
+
+    const trigger = screen.getByTestId('header-actions-trigger');
+    expect(visibleText(trigger)).toBe('');
+    // The control is still a named, expandable button — only its label is visual-free.
+    expect(screen.getByRole('button', { name: /^actions$/i })).toBe(trigger);
+    expect(trigger).toHaveAttribute('aria-expanded', 'false');
+  });
+
+  it('shows the written label from sm up, where the header has the room', () => {
+    mockLabelBreakpoint(true);
+    render(<AppHeader />, { initialRoute: SHOW_ROUTE });
+
+    const trigger = screen.getByTestId('header-actions-trigger');
+    expect(visibleText(trigger)).toBe('Actions');
+    expect(screen.getByRole('button', { name: /^actions$/i })).toBe(trigger);
   });
 });

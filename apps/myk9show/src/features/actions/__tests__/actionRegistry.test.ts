@@ -48,6 +48,19 @@ describe('parseActionRouteContext', () => {
     }
   });
 
+  it('treats /shows/new as global — it is the create-show wizard, not a show', () => {
+    // `/shows/new` is a real route that redirects into the wizard
+    // (`publicRoutes.tsx`). Parsed as a show it offered a secretary six actions
+    // against the show id "new", every one of them a dead link.
+    for (const path of ['/shows/new', '/shows/new/']) {
+      expect(parseActionRouteContext(path)).toEqual({ kind: 'global' });
+    }
+    expect(resolveActions(parseActionRouteContext('/shows/new'), secretary)).toEqual([
+      { id: 'create-show', label: 'Create a show', href: '/?wizard=true' },
+      { id: 'open-show-management', label: 'Open Show Management', href: '/secretary/dashboard' },
+    ]);
+  });
+
   it('decodes an encoded show id and ignores a trailing slash or query-free hash', () => {
     expect(parseActionRouteContext(`/shows/${SHOW_ID}/`)).toEqual({
       kind: 'show',

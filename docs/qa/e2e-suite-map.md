@@ -224,36 +224,67 @@ These specs run on a schedule. Do not add to this table until the relevant promo
 | `apps/myk9show/src/test/e2e/tabsTriggerSelectedStyleGuard.spec.ts`          | MYK9-612: Edit Dog panel active-tab computed style pins the primitive's own opaque `bg-background` pill (the former Radix data-state overrides were dead and are deleted, not repointed). Exhibitor-authed, read-only, never saves; needs the e2e exhibitor to own at least one seeded dog.                                                                                                  |
 | `apps/myk9show/src/test/e2e/dogs-table-pinned-select.spec.ts`               | MYK9-592 round 2: dogs-table select column renders at a fixed 40px and Name pins beside it (not under it) across a horizontal scroll, at the 768px tablet viewport — rendered geometry and `elementFromPoint` hit-testing jsdom cannot see. Admin-authed, read-only (restores scroll position; selection is client-side state).                                                              |
 
+## Shared-staging fixture dependencies
+
+The `src/test/e2e/registration/` sweep runs by hand against shared staging, not
+in CI, so nothing goes red when a spec drifts away from the seed. Two traps cost
+a whole sweep on 2026-09-15 (MYK9-545) and are now guarded in
+`src/test/e2e/registration/seedRoster.ts`:
+
+- **No spec may pin an absolute dog count.** `supabase/seed-demo.sql` resets the
+  demo shows, but its dog delete is id-scoped, so the demo exhibitor's roster
+  only grows — every evidence replay that adds a dog through the UI leaves it
+  behind. `dogPickerSearch.spec.ts` pinned 252 and met 261. Derive the number
+  from the picker's own `"N of M dogs shown"` status line, or assert the floor
+  `SEEDED_EXHIBITOR_DOG_COUNT`, never today's staging total.
+- **No spec may pin an absolute clock date.** The demo show's entry window is
+  `CURRENT_DATE - 16 .. + 76` (`seed-demo.sql` § 2), deliberately relative so
+  today is always inside it. Four specs called
+  `page.clock.setFixedTime(new Date('2026-05-15T12:00:00.000Z'))`, which fell
+  outside the window on every reseed after that date, and the exhibitor wizard
+  rendered "This show is not accepting online entries yet" instead of step 1.
+  Use `applyRegistrationClock(page)`: real time by default, and
+  `QA_REGISTRATION_TIME` when a hand run needs a pinned moment.
+- **Call names are not unique.** The MYK9-109 load fixture repeats them (three
+  dogs answer to "Birch"), so `Select <call name>` is an ambiguous accessible
+  name. Anchor the regex (`^Select Ranger$`) or pick from
+  `SEEDED_EXHIBITOR_DOG_NAMES`.
+
+**Specs that must run only on a freshly reseeded database: none.** After
+MYK9-545 every spec in the directory tolerates an aged roster and leftover walk
+debris. If a new spec cannot, note it here rather than letting the sweep fail
+for whoever runs it next.
+
 ## Nightly Candidates / Repair Queue
 
 These specs may become Nightly coverage, but they are not in the scheduled command yet. Keep the reason current so the queue stays repairable instead of becoming a graveyard.
 
-| Spec                                                                        | Why                                                                                                                                                         |
-| --------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `apps/myk9show/src/test/e2e/auth/signUpUI.spec.ts`                          | Auth UI validation and happy path.                                                                                                                          |
-| `apps/myk9show/src/test/e2e/complete-user-journey.spec.ts`                  | End-to-end user journey, broad and data-dependent.                                                                                                          |
-| `apps/myk9show/src/test/e2e/cross-browser/basic-functionality.spec.ts`      | Compatibility signal, not needed per PR.                                                                                                                    |
-| `apps/myk9show/src/test/e2e/cross-browser/functionality.spec.ts`            | Broad browser workflow matrix.                                                                                                                              |
-| `apps/myk9show/src/test/e2e/cross-browser/performance.spec.ts`              | Performance checks belong outside PR smoke.                                                                                                                 |
-| `apps/myk9show/src/test/e2e/cross-browser/quirks.spec.ts`                   | Browser-specific behavior checks.                                                                                                                           |
-| `apps/myk9show/src/test/e2e/cross-browser-compatibility.spec.ts`            | Legacy all-in-one browser/device matrix.                                                                                                                    |
-| `apps/myk9show/src/test/e2e/database-record-validation.spec.ts`             | DB state validation.                                                                                                                                        |
-| `apps/myk9show/src/test/e2e/payment/paymentFlow.spec.ts`                    | Payment smoke.                                                                                                                                              |
-| `apps/myk9show/src/test/e2e/payment/phase3-5-comprehensive-payment.spec.ts` | Broad payment suite.                                                                                                                                        |
-| `apps/myk9show/src/test/e2e/phase5-complete-integration.spec.ts`            | Broad historical integration suite.                                                                                                                         |
-| `apps/myk9show/src/test/e2e/phase5-simple-integration.spec.ts`              | Integration coverage.                                                                                                                                       |
-| `apps/myk9show/src/test/e2e/registration/exhibitorSelfRegistration.spec.ts` | Needs an isolated fixture with an open entry window; the default Heartland fixture is closed.                                                               |
-| `apps/myk9show/src/test/e2e/dogEntryHandoff.spec.ts`                        | MYK9-519 Dog Details -> show entry handoff and fallback. Same dependency as the row above: it needs a browse page whose first show still accepts entries.   |
-| `apps/myk9show/src/test/e2e/scoring/scoringWorkflow.spec.ts`                | Obsolete myK9Show scoring UI; rewrite myK9Q-first.                                                                                                          |
-| `apps/myk9show/src/test/e2e/show/showManagement.spec.ts`                    | Obsolete all-in-one show workflow; split/rewrite.                                                                                                           |
-| `apps/myk9show/src/test/e2e/basic/registrationSmoke.spec.ts`                | Public registration route/auth/navigation smoke. Listed as Nightly Active until 2026-08-30 but selected by no config array and named by no script.          |
-| `apps/myk9show/src/test/e2e/public-shows-responsive.spec.ts`                | Public Browse Shows mobile layout and touch targets. Listed as Nightly Active until 2026-08-30 but selected by no config array and named by no script.      |
-| `apps/myk9show/src/test/e2e/registration/index.spec.ts`                     | Maintained registration spec inventory guard. Listed as Nightly Active until 2026-08-30 but selected by no config array and named by no script.             |
-| `apps/myk9show/src/test/e2e/registration/secretaryExistingUsers.spec.ts`    | Stable secretary existing-user registration guard. Listed as Nightly Active until 2026-08-30 but selected by no config array and named by no script.        |
-| `apps/myk9show/src/test/e2e/registration/secretaryNewUsers.spec.ts`         | Secretary mail-in person, dog, and dog-registration path. Listed as Nightly Active until 2026-08-30 but selected by no config array and named by no script. |
-| `apps/myk9show/src/test/e2e/registration/singleDogSingleClass.spec.ts`      | Focused one-dog, one-class registration path. Listed as Nightly Active until 2026-08-30 but selected by no config array and named by no script.             |
-| `apps/myk9show/src/test/e2e/secretary-entry-walk.spec.ts`                   | Secretary entry creation. Listed as Nightly Active until 2026-08-30 but selected by no config array and named by no script.                                 |
-| `apps/myk9show/src/test/e2e/secretary/show-wizard-officials.spec.ts`        | Officials and judges picker smoke. Listed as Nightly Active until 2026-08-30 but selected by no config array and named by no script.                        |
+| Spec                                                                        | Why                                                                                                                                                                                                              |
+| --------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `apps/myk9show/src/test/e2e/auth/signUpUI.spec.ts`                          | Auth UI validation and happy path.                                                                                                                                                                               |
+| `apps/myk9show/src/test/e2e/complete-user-journey.spec.ts`                  | End-to-end user journey, broad and data-dependent.                                                                                                                                                               |
+| `apps/myk9show/src/test/e2e/cross-browser/basic-functionality.spec.ts`      | Compatibility signal, not needed per PR.                                                                                                                                                                         |
+| `apps/myk9show/src/test/e2e/cross-browser/functionality.spec.ts`            | Broad browser workflow matrix.                                                                                                                                                                                   |
+| `apps/myk9show/src/test/e2e/cross-browser/performance.spec.ts`              | Performance checks belong outside PR smoke.                                                                                                                                                                      |
+| `apps/myk9show/src/test/e2e/cross-browser/quirks.spec.ts`                   | Browser-specific behavior checks.                                                                                                                                                                                |
+| `apps/myk9show/src/test/e2e/cross-browser-compatibility.spec.ts`            | Legacy all-in-one browser/device matrix.                                                                                                                                                                         |
+| `apps/myk9show/src/test/e2e/database-record-validation.spec.ts`             | DB state validation.                                                                                                                                                                                             |
+| `apps/myk9show/src/test/e2e/payment/paymentFlow.spec.ts`                    | Payment smoke.                                                                                                                                                                                                   |
+| `apps/myk9show/src/test/e2e/payment/phase3-5-comprehensive-payment.spec.ts` | Broad payment suite.                                                                                                                                                                                             |
+| `apps/myk9show/src/test/e2e/phase5-complete-integration.spec.ts`            | Broad historical integration suite.                                                                                                                                                                              |
+| `apps/myk9show/src/test/e2e/phase5-simple-integration.spec.ts`              | Integration coverage.                                                                                                                                                                                            |
+| `apps/myk9show/src/test/e2e/registration/exhibitorSelfRegistration.spec.ts` | Runs green against the Heartland fixture since MYK9-545: the window was never closed, the spec pinned a clock date outside it. Still a candidate rather than Nightly Active because it drives the cart hand-off. |
+| `apps/myk9show/src/test/e2e/dogEntryHandoff.spec.ts`                        | MYK9-519 Dog Details -> show entry handoff and fallback. Same dependency as the row above: it needs a browse page whose first show still accepts entries.                                                        |
+| `apps/myk9show/src/test/e2e/scoring/scoringWorkflow.spec.ts`                | Obsolete myK9Show scoring UI; rewrite myK9Q-first.                                                                                                                                                               |
+| `apps/myk9show/src/test/e2e/show/showManagement.spec.ts`                    | Obsolete all-in-one show workflow; split/rewrite.                                                                                                                                                                |
+| `apps/myk9show/src/test/e2e/basic/registrationSmoke.spec.ts`                | Public registration route/auth/navigation smoke. Listed as Nightly Active until 2026-08-30 but selected by no config array and named by no script.                                                               |
+| `apps/myk9show/src/test/e2e/public-shows-responsive.spec.ts`                | Public Browse Shows mobile layout and touch targets. Listed as Nightly Active until 2026-08-30 but selected by no config array and named by no script.                                                           |
+| `apps/myk9show/src/test/e2e/registration/index.spec.ts`                     | Maintained registration spec inventory guard. Listed as Nightly Active until 2026-08-30 but selected by no config array and named by no script.                                                                  |
+| `apps/myk9show/src/test/e2e/registration/secretaryExistingUsers.spec.ts`    | Stable secretary existing-user registration guard. Listed as Nightly Active until 2026-08-30 but selected by no config array and named by no script.                                                             |
+| `apps/myk9show/src/test/e2e/registration/secretaryNewUsers.spec.ts`         | Secretary mail-in person, dog, and dog-registration path. Listed as Nightly Active until 2026-08-30 but selected by no config array and named by no script.                                                      |
+| `apps/myk9show/src/test/e2e/registration/singleDogSingleClass.spec.ts`      | Focused one-dog, one-class registration path. Listed as Nightly Active until 2026-08-30 but selected by no config array and named by no script.                                                                  |
+| `apps/myk9show/src/test/e2e/secretary-entry-walk.spec.ts`                   | Secretary entry creation. Listed as Nightly Active until 2026-08-30 but selected by no config array and named by no script.                                                                                      |
+| `apps/myk9show/src/test/e2e/secretary/show-wizard-officials.spec.ts`        | Officials and judges picker smoke. Listed as Nightly Active until 2026-08-30 but selected by no config array and named by no script.                                                                             |
 
 ## Feature Audit
 

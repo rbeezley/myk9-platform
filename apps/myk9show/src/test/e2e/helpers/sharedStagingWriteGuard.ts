@@ -115,6 +115,13 @@ export function classifySharedStagingWrite(request: RequestLike): GuardedWrite |
  * Extend only after confirming the function does not write.
  */
 export const AUDIT_READ_ONLY_RPCS: ReadonlySet<string> = new Set([
+  // MYK9-545: `select exists (select 1 from club_stripe_accounts ...)` — a
+  // STABLE SECURITY DEFINER read, verified against the live definition. The
+  // registration wizard's payment step gates the whole card option on it
+  // (`useClubStripePaymentReadiness`), so blocking it did not fail loudly:
+  // the query simply never succeeded, "Credit/Debit Card (Online Payment)"
+  // never rendered, and the spec read as a product failure.
+  'can_accept_online_entry_payment',
   'get_account_today_entries',
   'get_effective_permissions',
   'get_own_entitlement_context',

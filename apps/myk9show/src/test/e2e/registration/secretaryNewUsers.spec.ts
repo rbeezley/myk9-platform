@@ -180,7 +180,11 @@ test('secretary can create a mail-in exhibitor and dog without auth user creatio
   await registrationDialog.getByLabel(/Registered Name/i).fill('Mailbox Special Delivery');
   await registrationDialog.getByLabel(/Registered Breed/i).click();
   await page.getByPlaceholder('Search breeds…').fill('Golden Retriever');
-  await page.getByRole('button', { name: 'Golden Retriever' }).click();
+  // MYK9-545: the breed picker is a combobox + listbox now, not a button list.
+  await page
+    .getByRole('listbox', { name: 'Breeds' })
+    .getByRole('option', { name: 'Golden Retriever' })
+    .click();
   await registrationDialog.getByLabel(/Registration Number/i).fill('DN12345601');
   await registrationDialog.getByRole('button', { name: 'Save Registration' }).click();
 
@@ -204,8 +208,13 @@ test('secretary can create a mail-in exhibitor and dog without auth user creatio
     email: 'molly.mailbox@example.com',
   });
   expect(captured.person).not.toHaveProperty('auth_user_id');
+  // MYK9-90 section 5.3 (migration 20260727110000): `dogs.name` is a legacy
+  // display alias and is deliberately NOT written back — `toSupabaseRow` says so
+  // out loud, because writing it would copy the call name into the legacy column
+  // on every sync. The spec asserted the opposite and had never reached this
+  // line (MYK9-545). Pin the documented shape instead.
   expect(captured.dog).toMatchObject({
-    name: 'Stamp',
+    name: null,
     call_name: 'Stamp',
     owner_id: MAIL_IN_PERSON_ID,
   });

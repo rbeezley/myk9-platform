@@ -46,7 +46,16 @@ for (const viewport of [
     await search.fill(callName);
     const dog = page.getByRole('checkbox', { name: lastLabel!, exact: true });
     await expect(dog).toBeVisible();
-    for (const control of [search, dog, page.getByRole('button', { name: 'Clear search' })]) {
+    // MYK9-485 put the 44px touch floor on the WRAPPER around the checkbox, on
+    // purpose: sizing the control itself painted a 44px square around a 16px
+    // tick. Measure the hit area the exhibitor actually taps, not the tick
+    // (MYK9-545 — this assertion had never run, the count above failed first).
+    const dogHitArea = dog.locator('..');
+    for (const control of [
+      search,
+      dogHitArea,
+      page.getByRole('button', { name: 'Clear search' }),
+    ]) {
       const box = await control.boundingBox();
       expect(box!.height).toBeGreaterThanOrEqual(44);
       expect(box!.width).toBeGreaterThanOrEqual(44);

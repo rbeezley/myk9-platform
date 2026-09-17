@@ -33,42 +33,46 @@ import {
   pendingReplicatedByRunOrder,
 } from '@/features/at-show/replicatedRunQueue';
 
-/** Every value `entries_entry_status_check` permits. */
-const ENTRY_STATUSES = [
-  'no-status',
-  'draft',
-  'submitted',
-  'paid',
-  'confirmed',
-  'checked-in',
-  'at-gate',
-  'in-ring',
-  'competing',
-  'completed',
-  'withdrawn',
-  'scratched',
-  'absent',
-  'moved',
-  'not_accepted',
-  'pending-payment',
-  'promotion-expired',
-  'scratch-requested',
-  'move-up-requested',
-] as const;
+/**
+ * The live CHECK constraints, pasted verbatim so a constraint change shows up
+ * as a diff in this file rather than as a grid that quietly stops covering it.
+ *
+ * Captured 2026-09-17 from the `myk9-platform` project (`sojmvhhwsjxmfistvzbe`):
+ *
+ *   select conname, pg_get_constraintdef(oid)
+ *   from pg_constraint
+ *   where conrelid = 'public.entries'::regclass and contype = 'c';
+ *
+ * Handwritten arrays had already drifted from these by four values --
+ * `scratch_requested` / `move_up_requested` (the underscore twins of the hyphen
+ * forms), `check_in_status: 'completed'` and `result_status: 'withdrawn'` --
+ * which is exactly the drift this grid exists to catch, so they are parsed out
+ * of the constraint text instead of retyped.
+ */
+const ENTRY_STATUS_CHECK = `CHECK ((entry_status = ANY (ARRAY['no-status'::text, 'draft'::text, 'submitted'::text, 'paid'::text, 'confirmed'::text, 'checked-in'::text, 'at-gate'::text, 'in-ring'::text, 'competing'::text, 'completed'::text, 'withdrawn'::text, 'scratched'::text, 'absent'::text, 'moved'::text, 'not_accepted'::text, 'pending-payment'::text, 'promotion-expired'::text, 'scratch-requested'::text, 'scratch_requested'::text, 'move-up-requested'::text, 'move_up_requested'::text])))`;
 
-/** The show-day axis, where `pulled` and `in-ring` actually live. */
-const CHECK_IN_STATUSES = [
+const CHECK_IN_STATUS_CHECK = `CHECK ((check_in_status = ANY (ARRAY['no-status'::text, 'checked-in'::text, 'conflict'::text, 'pulled'::text, 'at-gate'::text, 'come-to-gate'::text, 'in-ring'::text, 'completed'::text])))`;
+
+const RESULT_STATUS_CHECK = `CHECK ((result_status = ANY (ARRAY['pending'::text, 'qualified'::text, 'nq'::text, 'absent'::text, 'excused'::text, 'withdrawn'::text])))`;
+
+/** Every `'value'::text` literal in a CHECK ... = ANY (ARRAY[...]) definition. */
+function allowedValues(constraintDef: string): string[] {
+  return [...constraintDef.matchAll(/'([^']*)'::text/g)].map(match => match[1] as string);
+}
+
+const ENTRY_STATUSES = allowedValues(ENTRY_STATUS_CHECK);
+
+/**
+ * The show-day axis, where `pulled` and `in-ring` actually live. `undefined`
+ * leads: both nullable columns are unset on most real rows, and "unset" is a
+ * case the predicates must handle, not a value the constraint lists.
+ */
+const CHECK_IN_STATUSES: (string | undefined)[] = [
   undefined,
-  'no-status',
-  'checked-in',
-  'at-gate',
-  'come-to-gate',
-  'in-ring',
-  'pulled',
-  'conflict',
-] as const;
+  ...allowedValues(CHECK_IN_STATUS_CHECK),
+];
 
-const RESULT_STATUSES = [undefined, 'pending', 'qualified', 'nq', 'absent', 'excused'] as const;
+const RESULT_STATUSES: (string | undefined)[] = [undefined, ...allowedValues(RESULT_STATUS_CHECK)];
 
 interface Combination {
   label: string;
@@ -106,10 +110,24 @@ function grid(): Combination[] {
 const GRID = grid();
 
 describe('entry accounting — one rule across the whole status grid (MYK9-645)', () => {
+  it('parses the live constraint text rather than a handwritten list', () => {
+    // Known-answer check on the parser itself: an unparsed constraint would
+    // silently shrink the grid to nothing and every invariant below would pass.
+    expect(ENTRY_STATUSES).toHaveLength(21);
+    expect(ENTRY_STATUSES).toEqual(
+      expect.arrayContaining(['scratch_requested', 'move_up_requested'])
+    );
+    expect(CHECK_IN_STATUSES).toHaveLength(9); // 8 permitted values + unset
+    expect(CHECK_IN_STATUSES).toContain('completed');
+    expect(RESULT_STATUSES).toHaveLength(7); // 6 permitted values + unset
+    expect(RESULT_STATUSES).toContain('withdrawn');
+  });
+
   it('covers the real cardinality of the grid', () => {
     expect(GRID).toHaveLength(
       ENTRY_STATUSES.length * CHECK_IN_STATUSES.length * RESULT_STATUSES.length * 2
     );
+    expect(GRID).toHaveLength(2646);
   });
 
   it('classifies pending exactly where the row is runnable', () => {

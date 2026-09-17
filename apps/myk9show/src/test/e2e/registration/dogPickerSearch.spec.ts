@@ -22,7 +22,12 @@ for (const viewport of [
     await applyRegistrationClock(page);
     await signInAsExhibitor(page, `/shows/${REGISTRATION_SHOW_ID}/register`);
     const search = page.getByRole('textbox', { name: 'Search dogs by call name' });
-    await expect(search).toBeVisible();
+    // First-load budget, not a behavioural relaxation: the wizard chunk plus the
+    // exhibitor's 260-odd dog roster took 41s to paint on a cold run, and the
+    // default 5s expect timeout failed two of three viewports at this line under
+    // `--workers=2` while all three passed serially. Every sibling spec already
+    // gives the first wizard assertion 15s.
+    await expect(search).toBeVisible({ timeout: 15000 });
     const dogs = page.getByRole('checkbox', { name: /^Select / });
     // MYK9-545: this used to pin `toHaveCount(252)`. Staging is shared and the
     // demo exhibitor's roster only grows (the seed's dog delete is id-scoped),

@@ -103,7 +103,15 @@ for (const viewport of [
       false
     );
     await page.getByRole('button', { name: 'Next', exact: true }).click();
+    // Assert step 2 actually rendered before going Back. Without this the round
+    // trip proves nothing: a Next that silently did nothing leaves the page on
+    // step 1, Back is a no-op, and the selection is "preserved" only because it
+    // was never navigated away from (MYK9-545).
+    await expect(page.getByRole('heading', { name: 'Select Classes', exact: true })).toBeVisible({
+      timeout: 15000,
+    });
     await page.getByRole('button', { name: 'Back', exact: true }).click();
+    await expect(page.getByRole('heading', { name: 'Select Dogs to Register' })).toBeVisible();
     await search.fill(callName);
     await expect(dog).toBeChecked();
     await page.getByRole('button', { name: 'Save Draft', exact: true }).click();

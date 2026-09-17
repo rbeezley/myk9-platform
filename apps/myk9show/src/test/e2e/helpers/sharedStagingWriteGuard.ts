@@ -112,28 +112,47 @@ export function classifySharedStagingWrite(request: RequestLike): GuardedWrite |
  * staging in silence while the audit still reports "no writes"; enumerating the
  * readers means it is blocked and the run fails loudly instead.
  *
- * Extend only after confirming the function does not write.
+ * ADDING AN ENTRY: read the LATEST `CREATE OR REPLACE FUNCTION` for it in
+ * `supabase/migrations/` (LESSONS `replace-function-latest`) and confirm the
+ * declaration says STABLE or IMMUTABLE — a VOLATILE function may write, and
+ * Postgres treats an omitted keyword as VOLATILE. Record that migration beside
+ * the name below. This is a human read on purpose: a regex over migration text
+ * is not sound enough to automate (a `-- used to be STABLE` comment, a
+ * commented-out or `DO $$ EXECUTE`-wrapped CREATE, a later DROP or
+ * `ALTER FUNCTION ... VOLATILE`, or a STABLE overload masking a VOLATILE one
+ * all read as STABLE to a scanner, and a guard that fails open is worse than
+ * none — MYK9-545 round 3 deleted exactly such a test).
+ *
+ * All nine below were read this way and cross-checked against the live catalog
+ * (`pg_proc.provolatile`): every one is STABLE, with exactly one overload.
  */
 export const AUDIT_READ_ONLY_RPCS: ReadonlySet<string> = new Set([
-  // MYK9-545: `select exists (select 1 from club_stripe_accounts ...)` — a
-  // STABLE SECURITY DEFINER read, verified against the live definition. The
-  // registration wizard's payment step gates the whole card option on it
-  // (`useClubStripePaymentReadiness`), so blocking it did not fail loudly:
-  // the query simply never succeeded, "Credit/Debit Card (Online Payment)"
-  // never rendered, and the spec read as a product failure.
+  // 20260905090000_exhibitor_online_payment_readiness.sql — `select exists
+  // (select 1 from club_stripe_accounts ...)`. The registration wizard's payment
+  // step gates the whole card option on it (`useClubStripePaymentReadiness`), so
+  // blocking it did not fail loudly: the query simply never succeeded,
+  // "Credit/Debit Card (Online Payment)" never rendered, and the spec read as a
+  // product failure (MYK9-545).
   'can_accept_online_entry_payment',
+  // 20260908134500_optimize_account_today_entry_reads.sql
   'get_account_today_entries',
+  // 20260730110000_restrict_rbac_access_lookups.sql
   'get_effective_permissions',
+  // 20260724120000_subscription_entitlement_grants.sql
   'get_own_entitlement_context',
+  // 20260830240000_show_officials_separates_label_from_permission.sql
   'get_show_class_hide_counts',
-  // MYK9-545 round 3: the guard's new abort log printed this 76 times across a
-  // single registration sweep. `LANGUAGE sql STABLE SECURITY DEFINER`
-  // (20260912211500), a pure read of judge_assignments — so the wizard was
-  // running with its judge query permanently failing and no spec noticed,
-  // because none asserts on judges.
+  // 20260912211500_get_show_judges_for_public_surfaces.sql — a pure read of
+  // judge_assignments. MYK9-545 round 3: the guard's new abort log printed this
+  // 76 times across a single registration sweep, so every spec was driving a
+  // wizard whose judge query could never succeed — invisible because no spec
+  // asserts on judges.
   'get_show_judges',
+  // 20260730110000_restrict_rbac_access_lookups.sql
   'get_user_permissions',
+  // 20260730110000_restrict_rbac_access_lookups.sql
   'get_user_roles',
+  // 20260710160000_ringside_passcode_generation_revocation_complete.sql —
   // RingsideSessionHeartbeat's push-independent staleness probe. It returns a
   // boolean and writes nothing. It does NOT appear in a dev-server replay —
   // `getExistingSubscription()` never settles without a registered service

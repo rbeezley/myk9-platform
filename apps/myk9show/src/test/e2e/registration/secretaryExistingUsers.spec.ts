@@ -1,6 +1,7 @@
 import { test, expect, type Page } from '@playwright/test';
 import { signInAsSecretary } from '../uat/shared/auth';
 import { LIVE_REGISTRATION_SHOW_ID } from '../uat/shared/seededShows';
+import { installSharedStagingWriteGuard } from '../helpers/sharedStagingWriteGuard';
 import { applyRegistrationClock } from './seedRoster';
 
 const SHOW_ID = process.env.QA_EXISTING_USER_REGISTRATION_SHOW_ID ?? LIVE_REGISTRATION_SHOW_ID;
@@ -50,7 +51,11 @@ function selectDog(page: Page, name: string) {
 
 test.describe('Secretary registration for existing users', () => {
   test.beforeEach(async ({ page }) => {
-    // MYK9-545: the seed's entry window is relative to the reseed date
+    // MYK9-545: this spec now really selects dogs, where before its text click
+    // silently selected nothing. Its siblings all install the guard; make the
+    // "no shared-staging writes" claim true by construction here too.
+    await installSharedStagingWriteGuard(page, { strictRpcWrites: true });
+    // The seed's entry window is relative to the reseed date
     // (CURRENT_DATE - 16 .. + 76), so a pinned absolute date expires.
     await applyRegistrationClock(page);
     await signInAsSecretary(page, '/secretary/dashboard');

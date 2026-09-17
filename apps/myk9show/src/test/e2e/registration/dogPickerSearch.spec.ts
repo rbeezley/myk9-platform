@@ -1,7 +1,11 @@
 import { expect, test } from '@playwright/test';
 import { signInAsExhibitor } from '../helpers/testUsers';
 import { installSharedStagingWriteGuard } from '../helpers/sharedStagingWriteGuard';
-import { applyRegistrationClock, SEEDED_EXHIBITOR_DOG_COUNT } from './seedRoster';
+import {
+  applyRegistrationClock,
+  SEEDED_EXHIBITOR_DOG_COUNT,
+  SEEDED_EXHIBITOR_DOG_NAMES,
+} from './seedRoster';
 const REGISTRATION_SHOW_ID = 'a1090000-0000-0000-0010-100000000001';
 
 for (const viewport of [
@@ -22,14 +26,32 @@ for (const viewport of [
     const dogs = page.getByRole('checkbox', { name: /^Select / });
     // MYK9-545: this used to pin `toHaveCount(252)`. Staging is shared and the
     // demo exhibitor's roster only grows (the seed's dog delete is id-scoped),
-    // so an absolute count expires on the first walk that creates a dog. Derive
-    // the expectation from the picker's own status line instead, and hold only
-    // the floor the seed actually guarantees.
+    // so an absolute count expires on the first walk that creates a dog.
+    //
+    // The replacement needs an anchor the picker cannot fabricate. Both the
+    // status line and the checkboxes render from the same `eligibleDogs` array
+    // (`DogSelectionStep`), so comparing them to each other only catches a
+    // render bug that drops rows — a `.limit(25)` regression on the dogs read
+    // would report "25 of 25", render 25 checkboxes, and pass. So assert BOTH:
+    // every dog the seed guarantees is addressable by name, AND the rendered
+    // rows agree with the count the picker claims. Read the total while the
+    // list is still unfiltered, before anything is typed into the search.
     const rosterStatus = page.getByText(/^\d+ of \d+ dogs shown$/);
     await expect(rosterStatus).toBeVisible();
-    const rosterTotal = Number(/of (\d+) dogs shown/.exec(await rosterStatus.innerText())?.[1]);
+    const unfiltered = /^(\d+) of (\d+) dogs shown$/.exec((await rosterStatus.innerText()).trim());
+    expect(unfiltered).toBeTruthy();
+    const [shown, rosterTotal] = [Number(unfiltered![1]), Number(unfiltered![2])];
+    expect(shown).toBe(rosterTotal);
     expect(rosterTotal).toBeGreaterThanOrEqual(SEEDED_EXHIBITOR_DOG_COUNT);
     await expect(dogs).toHaveCount(rosterTotal);
+    // `.first()` rather than a strict match: these names are unique in the seed,
+    // but a walk that creates a dog called "Willow" would otherwise turn this
+    // anchor into a strict-mode failure instead of the presence check it is.
+    for (const seededName of SEEDED_EXHIBITOR_DOG_NAMES) {
+      await expect(
+        page.getByRole('checkbox', { name: `Select ${seededName}`, exact: true }).first()
+      ).toBeAttached();
+    }
     // The MYK9-109 load fixture repeats call names (three dogs answer to
     // "Birch"), so the aria-label of `.last()` can resolve to several
     // checkboxes and every later name-based locator would break strict mode.

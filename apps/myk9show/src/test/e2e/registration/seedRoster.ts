@@ -18,10 +18,16 @@
 export const SEEDED_EXHIBITOR_DOG_COUNT = 5;
 
 /**
- * Seeded dogs whose call name is unique across the roster. The load fixture
- * repeats its call names (three dogs answer to "Birch"), so `Select <call name>`
- * is NOT a unique accessible name in general — only these are safe to drive a
- * `getByRole('checkbox', { name })` locator with.
+ * The CALL NAMES of those five dogs, which is what the UI renders:
+ * `getDogDisplayName` returns `callName || name`, so the dog seeded as
+ * "Juniper" appears as **Juni** and a selector written from the registered name
+ * never matches. These are the names the picker labels as `Select <name>`.
+ *
+ * They are unique across the seeded roster, unlike the MYK9-109 load fixture's
+ * (three of its dogs answer to "Birch"), so they are the only safe input to a
+ * `getByRole('checkbox', { name })` locator — but only while no walk debris
+ * shares one. A spec that needs a STRICT single match should say so; a spec
+ * that only needs presence should take `.first()`.
  */
 export const SEEDED_EXHIBITOR_DOG_NAMES = ['Willow', 'Ranger', 'Juni', 'Scout', 'Maple'] as const;
 
@@ -35,11 +41,28 @@ export const SEEDED_EXHIBITOR_DOG_NAMES = ['Willow', 'Ranger', 'Juni', 'Scout', 
  *
  * Returns the override when `QA_REGISTRATION_TIME` is set (a hand run pinning a
  * specific moment), and `null` otherwise, meaning "use real time" — which the
- * seed's relative window guarantees is inside the entry period.
+ * seed's relative window guarantees is inside the entry period *for the first
+ * 76 days after a reseed*. Past that the whole sweep goes red with the same
+ * "not accepting online entries yet" symptom; reseed rather than reaching for
+ * the override, because `page.clock` fakes only the BROWSER clock and the
+ * server's own entry-window guard still sees real time — a spec can then pass
+ * on a show a real exhibitor cannot enter.
+ *
+ * Throws on a malformed value rather than handing `setFixedTime` an
+ * `Invalid Date`, which fails deep inside Playwright with no mention of the
+ * variable.
  */
 export function registrationClockOverride(): Date | null {
   const override = process.env.QA_REGISTRATION_TIME;
-  return override ? new Date(override) : null;
+  if (!override) return null;
+  const parsed = new Date(override);
+  if (Number.isNaN(parsed.getTime())) {
+    throw new Error(
+      `QA_REGISTRATION_TIME is not a parsable date: ${JSON.stringify(override)}. ` +
+        'Use an ISO-8601 instant, e.g. 2026-09-16T12:00:00.000Z.'
+    );
+  }
+  return parsed;
 }
 
 /**

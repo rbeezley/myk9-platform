@@ -152,6 +152,20 @@ async function openEntriesTotals(page: Page, width: number) {
   return bar;
 }
 
+/**
+ * Put the phone/tablet bar back the way an exhibitor first meets it. The
+ * overflow assertion and the attached screenshot must measure the COLLAPSED
+ * bar, not the expanded panel this spec opened to read the totals (MYK9-545).
+ */
+async function collapseEntriesTotals(page: Page, width: number) {
+  if (width >= 1024) return;
+  const details = page.getByTestId('entries-panel-details');
+  if ((await details.getAttribute('aria-expanded')) === 'true') {
+    await details.click();
+  }
+  await expect(page.getByTestId('entries-panel-details-list')).toBeHidden();
+}
+
 async function selectFirstAvailableClass(page: Page) {
   await expect(page.getByRole('heading', { name: 'Select Classes', exact: true })).toBeVisible({
     timeout: 15000,
@@ -250,6 +264,7 @@ test('exhibitor card entry hands off to cart checkout without enrollment writes'
     const feeDollars = Number((await serviceFee.innerText()).match(/\$([\d.]+)\s*$/)?.[1]);
     expect(Number.isFinite(entryDollars) && Number.isFinite(feeDollars)).toBe(true);
     await expect(amountDue).toContainText(`$${(entryDollars + feeDollars).toFixed(2)}`);
+    await collapseEntriesTotals(page, viewport.width);
     expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(
       viewport.width
     );

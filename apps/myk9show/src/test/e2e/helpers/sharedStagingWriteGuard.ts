@@ -310,12 +310,34 @@ export async function installSharedStagingWriteGuard(
   });
 }
 
+/**
+ * MYK9-545: an abort used to be silent. `recordLedgerEntry` no-ops unless the
+ * caller passed a `ledger`, and no spec in the repo does, so a blocked request
+ * left no trace at all — the app's query simply never resolved and the spec
+ * failed somewhere else entirely, reading as a product defect. That is exactly
+ * how `can_accept_online_entry_payment` (a pure read) cost a day: the card
+ * payment option never rendered and nothing said why. Every abort now announces
+ * itself on stdout, ledger or no ledger.
+ */
+function announceBlockedRequest(request: RequestLike) {
+  const url = parseUrl(request.url);
+  const path = url?.pathname ?? request.url;
+  const rpcName = path.startsWith('/rest/v1/rpc/') ? path.slice('/rest/v1/rpc/'.length) : undefined;
+  // Unconditional by design: a blocked request that says nothing is the bug
+  // being fixed.
+  console.warn(
+    `[sharedStagingWriteGuard] BLOCKED ${request.method.toUpperCase()} ${request.url}` +
+      (rpcName ? ` (RPC "${rpcName}" — if it only reads, add it to AUDIT_READ_ONLY_RPCS)` : '')
+  );
+}
+
 function recordLedgerEntry(
   ledger: SharedStagingWriteLedgerEntry[] | undefined,
   request: RequestLike,
   kind: SharedStagingWriteLedgerEntry['kind'],
   disposition: SharedStagingWriteDisposition
 ) {
+  if (disposition === 'blocked') announceBlockedRequest(request);
   if (!ledger) return;
   ledger.push({
     kind,

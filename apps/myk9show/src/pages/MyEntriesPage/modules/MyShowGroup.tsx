@@ -20,6 +20,7 @@ import { formatShortCalendarDate } from '@/lib/format/dates';
 import { buildVenueMapsUrls, formatVenueAddress } from '@/utils/venueMaps';
 import type { ResultCardModel } from '@/features/result-card';
 import { EntryStatus } from '@/types/show-registration-types';
+import type { UserEntriesSource } from '@/services/database/entries';
 import type { DayCheckInContext } from './dayCheckIn';
 import { indexOrdersById, type MyShowClass, type MyShowDog } from './groupEntriesByShow';
 import type { MyShowGroup as MyShowGroupModel } from './groupEntriesByShow';
@@ -37,6 +38,13 @@ const HEADER_LINK_CLASS =
 
 export interface MyShowGroupProps {
   group: MyShowGroupModel;
+  /**
+   * Where the rows came from. Handed straight to `deriveShowMoneyState` and
+   * read for nothing else here: this component renders money from `money.kind`
+   * alone, which is what stops a fourth strip growing its own gate
+   * (MYK9-629 restructure 1).
+   */
+  source: UserEntriesSource;
   /** Captured once per render pass by the list; never `new Date()` inline. */
   now: Date;
   selfCheckinByClassId?: Record<string, boolean> | undefined;
@@ -51,6 +59,7 @@ export interface MyShowGroupProps {
 
 export const MyShowGroupCard: React.FC<MyShowGroupProps> = ({
   group,
+  source,
   now,
   selfCheckinByClassId,
   seenResultReleaseKeys,
@@ -68,13 +77,19 @@ export const MyShowGroupCard: React.FC<MyShowGroupProps> = ({
 
   const ordersById = React.useMemo(() => indexOrdersById(group), [group]);
   const isPastShow = isPastShowEntry(group.orders[0], now);
-  const money = deriveShowMoneyState(group.orders, now);
+  const money = deriveShowMoneyState(group.orders, now, source);
+  const moneyUnknown = money.kind === 'unknown';
   const refunds = refundNotesByDog(group.orders);
-  const paidStrip = derivePaidStrip(
-    group.orders,
-    now,
-    orderId => hasSeenPaidStrip(orderId) || dismissed.has(orderId)
-  );
+  // The paid strip quotes a dollar amount and a date, so it is money under the
+  // same gate — `derivePaidStrip` is skipped outright rather than rendered and
+  // hidden, so there is no figure in the tree to leak.
+  const paidStrip = moneyUnknown
+    ? null
+    : derivePaidStrip(
+        group.orders,
+        now,
+        orderId => hasSeenPaidStrip(orderId) || dismissed.has(orderId)
+      );
 
   const orderStates = group.orders.map(order => ({
     order,
@@ -228,6 +243,24 @@ export const MyShowGroupCard: React.FC<MyShowGroupProps> = ({
           )}
         </div>
       </div>
+
+      {/* INTENT: the exhibitor is not told their entries are gone or wrong —
+          only that we could not confirm them just now. Receipts stay reachable
+          above (decision (a)): a receipt records a payment already taken, and
+          withholding it is the one thing that makes a real payment look lost. */}
+      {moneyUnknown && (
+        <div className="myk9-entries-strip border-border bg-muted/40 text-muted-foreground">
+          <div className="min-w-0">
+            <p className="myk9-entries-strip-head">
+              Showing saved entries — we couldn&apos;t reach the server to confirm them
+            </p>
+            <p className="myk9-entries-strip-body">
+              Payment amounts are hidden until we can confirm them. Orders &amp; receipts above
+              still open.
+            </p>
+          </div>
+        </div>
+      )}
 
       {money.kind === 'balance-due' && (
         <div className="myk9-entries-strip border-warning/20 bg-warning/10 text-warning">

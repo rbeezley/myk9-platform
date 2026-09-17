@@ -12,11 +12,38 @@
  */
 
 import { buildFinishPaymentHref } from '@/features/payments/finishPaymentHref';
+import { isMoneyConfirmed, type UserEntriesSource } from '@/services/database/entries';
 import { getOrderOnlinePrompt, getOrderPayAtShowPrompt } from './myEntryOrderBalance';
 import { isPastShowEntry } from './myEntriesStats.helpers';
 import type { MyEntry } from './my-entries-types';
 
-export type ShowMoneyKind = 'settled' | 'pay-at-show' | 'balance-due' | 'unresolved';
+/**
+ * `unknown` is not "nothing owed" and not an error: it is the state where the
+ * rows these orders came from were never confirmed by the server, so THIS
+ * MODULE refuses to say anything about money. Every strip, meta word, cart link
+ * and pay button on My Shows renders from this kind alone — no surface reads
+ * the row source for money itself (MYK9-629 restructure 1).
+ */
+export type ShowMoneyKind =
+  | 'settled'
+  | 'pay-at-show'
+  | 'balance-due'
+  | 'unresolved'
+  | 'unknown';
+
+/**
+ * The single value a show group renders money from when the rows are
+ * unconfirmed. Every figure is empty, so a surface that forgets to branch on
+ * `kind` shows nothing rather than a wrong number — the failure mode points the
+ * safe way.
+ */
+export const UNKNOWN_SHOW_MONEY_STATE: ShowMoneyState = {
+  kind: 'unknown',
+  amountCents: 0,
+  dueDogNames: [],
+  paymentHref: null,
+  dueOrderIds: [],
+};
 
 export interface ShowMoneyState {
   kind: ShowMoneyKind;
@@ -65,7 +92,16 @@ function dueDogNamesOf(order: MyEntry): string[] {
  * last day: the checkout endpoint rejects a past show, so past debt gets no
  * payment link and the strip tells the exhibitor to contact the club.
  */
-export function deriveShowMoneyState(orders: MyEntry[], now: Date): ShowMoneyState {
+export function deriveShowMoneyState(
+  orders: MyEntry[],
+  now: Date,
+  source: UserEntriesSource
+): ShowMoneyState {
+  // The gate lives HERE, at the one derivation, and nowhere else. A caller that
+  // asked the source itself is how PR #2301's P1 survived two rounds inside a
+  // third strip on the same page.
+  if (!isMoneyConfirmed(source)) return UNKNOWN_SHOW_MONEY_STATE;
+
   const dueOrders = orders.filter(order => onlineDueCentsOf(order) > 0);
   const amountCents = dueOrders.reduce((sum, order) => sum + onlineDueCentsOf(order), 0);
 

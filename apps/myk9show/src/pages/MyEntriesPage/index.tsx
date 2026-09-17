@@ -56,6 +56,7 @@ const MyEntriesPage: React.FC = () => {
   const {
     entries,
     balanceSummary,
+    source: entriesSource,
     identityState,
     isLoading,
     isError,
@@ -332,7 +333,13 @@ const MyEntriesPage: React.FC = () => {
                   filters keep working and every filter that hides their
                   position still explains itself — the alternative was a blank
                   page under `?status=accepted`. */}
-                {entries.length > 0 && (
+                {/* The stat row is two dollar figures. When the balance is
+                  `unknown` they would both render as $0.00 — "paid up" stated
+                  about rows the server never confirmed — so the whole row is
+                  withheld, exactly as the amount-due card on My Payments is
+                  (MYK9-629 restructure 1). The per-show notice inside the list
+                  below is what tells the exhibitor why. */}
+                {entries.length > 0 && balanceSummary.kind === 'known' && (
                   <MyEntriesOverview
                     currentFees={entryStats.currentFees}
                     amountDue={entryStats.currentAmountDue}
@@ -414,6 +421,7 @@ const MyEntriesPage: React.FC = () => {
                       // 500-line cap (MYK9-482, design D10).
                       <MyShowsList
                         filteredEntries={filteredEntries}
+                        source={entriesSource}
                         selectedStatus={selectedStatus}
                         selfCheckinByClassId={selfCheckinByClassId}
                         seenResultReleaseKeys={reveal.seenResultReleaseKeys}

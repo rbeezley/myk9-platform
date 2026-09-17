@@ -29,7 +29,11 @@ export function AtShowAccessGate({ children }: { children: ReactNode }) {
   // early" from "stranger with no relationship to this show" so the no-access
   // gate below can speak to the right audience instead of assuming a worker
   // with a passcode.
-  const { hasAnyEntryForShow, isLoading: hasAnyEntryLoading } = useHasAnyEntryForShow(
+  const {
+    hasAnyEntryForShow,
+    isLoading: hasAnyEntryLoading,
+    isError: hasAnyEntryError,
+  } = useHasAnyEntryForShow(
     user && !grantRole && !hasAccountStaffRole && !accountToday.hasAccountEntryForShow
       ? showId
       : undefined
@@ -72,6 +76,43 @@ export function AtShowAccessGate({ children }: { children: ReactNode }) {
     return (
       <FullScreen>
         <LoadingEmptyState message="Checking ringside access…" />
+      </FullScreen>
+    );
+  }
+
+  // INTENT: `hasAnyEntryForShow === false` after a failed read is an absence of
+  // KNOWLEDGE, not an absence of entries, and the branch below it speaks to a
+  // stranger. Telling an entered exhibitor standing at the ring on bad venue
+  // wifi that they have no relationship to this show is the "poor connectivity
+  // feels like user failure" state PRODUCT.md forbids. Say what actually
+  // happened and keep both doors open (MYK9-629 restructure 3).
+  if (hasAnyEntryError) {
+    return (
+      <FullScreen>
+        <div className="max-w-md rounded-xl border bg-card p-6 text-center shadow-sm">
+          <ShieldAlert className="mx-auto mb-4 h-12 w-12 text-muted-foreground" />
+          <p className="mb-2 text-lg font-medium">We couldn&apos;t confirm your entries.</p>
+          <p className="text-sm text-muted-foreground">
+            We couldn&apos;t reach the server to check whether you&apos;re entered in this show, so
+            we can&apos;t open ringside yet. Try again when you have a signal — or use a show-day
+            passcode if the secretary gave you one.
+          </p>
+          <div className="mt-5 flex flex-col gap-2 sm:flex-row sm:justify-center">
+            <Link
+              to="/exhibitor/entries"
+              className="inline-flex min-h-11 items-center justify-center gap-2 rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+            >
+              <ArrowLeft className="h-4 w-4" aria-hidden />
+              Go to My Shows
+            </Link>
+            <Link
+              to="/at-show?passcode=1"
+              className="inline-flex min-h-11 items-center justify-center gap-2 rounded-md border border-input px-4 text-sm font-medium text-foreground hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+            >
+              <KeyRound className="h-4 w-4" aria-hidden />I have a show-day passcode
+            </Link>
+          </div>
+        </div>
       </FullScreen>
     );
   }

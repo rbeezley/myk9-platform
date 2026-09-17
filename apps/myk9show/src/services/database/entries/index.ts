@@ -28,6 +28,7 @@ export type {
 export * from './lifecycle';
 export * from './moveUpNote';
 export * from './search';
+export * from './userEntriesRead';
 export * from './secretary';
 export * from './secretaryExport';
 export { SECRETARY_ENTRIES_READ_ERROR, SECRETARY_SHOW_READ_ERROR } from './secretaryReadErrors';

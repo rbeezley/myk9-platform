@@ -14,22 +14,42 @@
  * failure/timeout fallback), so this query sets `networkMode: 'always'`.
  */
 import { useQuery } from '@tanstack/react-query';
-import { useCurrentUserPersonId } from '@/hooks/useRoleBasedData';
+import { useEntriesPersonId } from '@/hooks/useEntriesPersonId';
 import { getUserEntries } from '@/services/database/entries';
 
-export function useHasAnyEntryForShow(showId: string | undefined): {
+export interface HasAnyEntryForShow {
   hasAnyEntryForShow: boolean;
   isLoading: boolean;
-} {
-  const personId = useCurrentUserPersonId();
+  /**
+   * The read failed and the replica could not answer either. `false` from this
+   * hook then means "we could not find out", NOT "you are a stranger to this
+   * show" — the gate must say so rather than showing the worker-passcode copy
+   * to an entered exhibitor whose network dropped (MYK9-629 restructure 3).
+   */
+  isError: boolean;
+}
 
-  const { data, isLoading } = useQuery({
+export function useHasAnyEntryForShow(showId: string | undefined): HasAnyEntryForShow {
+  // The one resolver, shared with My Shows and My Payments, so the
+  // `getUserEntries` cache is one key per account (MYK9-629 restructure 4).
+  const personId = useEntriesPersonId();
+
+  const { data, isLoading, isError } = useQuery({
     queryKey: ['at-show', 'has-any-entry', personId, showId],
     queryFn: async () => {
       if (!personId) return false;
-      const { data } = await getUserEntries(personId);
+      // Do NOT swallow this. `getUserEntries` returns `{ data: [], error }`
+      // when the view failed AND the replica had nothing, and reading that as
+      // an empty row set answered "no entry for this show" as if it were a
+      // fact — the stranger copy, shown to an entered exhibitor.
+      const { data, error } = await getUserEntries(personId);
+      if (error) throw error;
       return (data ?? []).some(row => (row as { show_id?: string }).show_id === showId);
     },
+    // One retry, not the global default of two: each attempt pays the full
+    // `getUserEntries` view deadline, so the default turns a dead network into
+    // a ~46s spinner at the ringside front door.
+    retry: 1,
     enabled: !!personId && !!showId,
     // `getUserEntries` carries its own offline fallback (the replicated
     // snapshot), but React Query's default `networkMode: 'online'` parks
@@ -39,5 +59,5 @@ export function useHasAnyEntryForShow(showId: string | undefined): {
     networkMode: 'always' as const,
   });
 
-  return { hasAnyEntryForShow: data ?? false, isLoading };
+  return { hasAnyEntryForShow: data ?? false, isLoading, isError: !!personId && isError };
 }

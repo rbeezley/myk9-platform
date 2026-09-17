@@ -111,14 +111,16 @@ describe('MyShowDogCard — a withdrawn class beside a live one (MYK9-582)', () 
     expect(screen.queryByText('Pending review')).not.toBeInTheDocument();
   });
 
-  // A scratched class is not a withdrawal: the chip says "Scratched", so the
-  // row says `scratched` rather than borrowing the withdrawn word.
-  it('gives a scratched class its own word', () => {
+  // MYK9-632: a stored 'scratched' is a PULL, and the rendered word is Pull —
+  // never "Scratched", anywhere an exhibitor can read it.
+  it('renders a stored scratched class as a pull, and never as "scratched"', () => {
     renderRows([mapleRow('maple-scratched', 'Container Novice', 'scratched'), liveRow()]);
 
     const row = rowFor('Container Novice');
-    expect(row).toHaveTextContent('scratched');
+    expect(row).toHaveTextContent('pulled');
+    expect(row).not.toHaveTextContent(/scratch/i);
     expect(row).not.toHaveTextContent('withdrawn');
+    expect(screen.queryByText(/scratch/i)).not.toBeInTheDocument();
   });
 
   it('control — an all-live card carries no withdrawn marker', () => {

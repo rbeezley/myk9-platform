@@ -99,7 +99,7 @@ describe('deriveEntryPresentation — kind-level lines', () => {
     ['cancelled', 'Withdrawn', 'Withdrawn'],
     ['not_accepted', 'Not accepted', 'Not accepted'],
     ['rejected', 'Not accepted', 'Not accepted'],
-    ['scratched', 'Scratched', 'Scratched'],
+    ['scratched', 'Pulled', 'Pulled'],
     ['absent', 'Absent', 'Absent'],
     ['moved', 'Moved', 'Moved'],
   ];

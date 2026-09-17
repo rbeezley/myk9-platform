@@ -65,6 +65,14 @@ export interface ReplicatedEntry {
   paymentNotes?: string | null | undefined;
   payment_notes?: string | null | undefined;
   withdrawalReason?: string | null | undefined;
+  /**
+   * MYK9-632: 'in_season' | 'judge_change' on a withdrawal, null on a pull.
+   * Deliberately NOT projected by `buildUpdatePayload` — that builds a WHOLE-ROW
+   * payload, and the view this table mirrors does not return the column, so
+   * every full-row upload would write null over a real reason.
+   */
+  withdrawalReasonCode?: string | null | undefined;
+  withdrawal_reason_code?: string | null | undefined;
   withdrawal_reason?: string | null | undefined;
   submittedAt?: string | undefined;
   registrationId?: string | undefined;

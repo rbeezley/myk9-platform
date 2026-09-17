@@ -8,7 +8,6 @@ import {
   WITHDRAWAL_REASON_CODES,
   getWithdrawalPolicy,
   getWithdrawalReason,
-  isPastWithdrawalCutoff,
   isWithdrawalReasonCode,
   withdrawalReasonLabel,
 } from '../withdrawalPolicy';
@@ -20,10 +19,6 @@ const codesFor = (registryId: 'AKC' | 'UKC' | 'ASCA') =>
 describe('withdrawal policy — AKC', () => {
   it('offers both reasons', () => {
     expect(codesFor('AKC')).toEqual(['in_season', 'judge_change']);
-  });
-
-  it('closes withdrawals 30 minutes before the first class of the day', () => {
-    expect(getWithdrawalPolicy('AKC').cutoffMinutesBeforeFirstClass).toBe(30);
   });
 
   it('never promises "no refund" for a pull', () => {
@@ -43,24 +38,12 @@ describe('withdrawal policy — UKC', () => {
       /veterinary certificate/i
     );
   });
-
-  it('states the full-or-50% club option', () => {
-    expect(getWithdrawalReason('UKC', 'in_season')?.refundNote).toMatch(/50%/);
-  });
-
-  it('states no clock cutoff', () => {
-    expect(getWithdrawalPolicy('UKC').cutoffMinutesBeforeFirstClass).toBeNull();
-  });
 });
 
 describe('withdrawal policy — ASCA', () => {
   it('has NO in-season reason: bitches in season may compete', () => {
     expect(codesFor('ASCA')).toEqual(['judge_change']);
     expect(getWithdrawalReason('ASCA', 'in_season')).toBeUndefined();
-  });
-
-  it('states no clock cutoff', () => {
-    expect(getWithdrawalPolicy('ASCA').cutoffMinutesBeforeFirstClass).toBeNull();
   });
 });
 
@@ -79,12 +62,6 @@ describe('withdrawal policy — platform invariants', () => {
     }
   });
 
-  it('no pull copy promises that the fee will not be refunded', () => {
-    for (const registryId of listRegistries()) {
-      expect(getWithdrawalPolicy(registryId).pullRefundNote).not.toMatch(/not be refunded/i);
-    }
-  });
-
   it('labels the stored codes and rejects anything else', () => {
     expect(withdrawalReasonLabel('in_season')).toBe('Dog in season');
     expect(withdrawalReasonLabel('judge_change')).toBe('Judge change');
@@ -95,57 +72,30 @@ describe('withdrawal policy — platform invariants', () => {
   });
 });
 
-describe('isPastWithdrawalCutoff', () => {
-  const start = new Date('2026-10-03T13:00:00Z');
+describe('withdrawal copy states who decides, never an outcome', () => {
+  // The app holds neither the premium nor the club's processing fee, and it
+  // cannot evaluate the AKC 30-minute clock (classes.start_time is populated on
+  // 1 of 35 live classes and there is no class date column). Any sentence naming
+  // an amount is therefore a promise the secretary would have to break.
+  const FORBIDDEN =
+    /fully refunded|refunds in full|full refund|50%|will not be refunded|no refund/i;
 
-  it('is false 31 minutes before an AKC first class', () => {
-    expect(
-      isPastWithdrawalCutoff({
-        registryId: 'AKC',
-        firstClassStartsAt: start,
-        now: new Date('2026-10-03T12:29:00Z'),
-      })
-    ).toBe(false);
+  it('never promises an amount on any registry, for either act', () => {
+    for (const registryId of listRegistries()) {
+      const policy = getWithdrawalPolicy(registryId);
+      expect(policy.withdrawRefundNote).not.toMatch(FORBIDDEN);
+      expect(policy.pullRefundNote).not.toMatch(FORBIDDEN);
+      for (const reason of policy.reasons) {
+        expect(reason.documentationNote ?? '').not.toMatch(FORBIDDEN);
+      }
+    }
   });
 
-  it('is true 29 minutes before an AKC first class', () => {
-    expect(
-      isPastWithdrawalCutoff({
-        registryId: 'AKC',
-        firstClassStartsAt: start,
-        now: new Date('2026-10-03T12:31:00Z'),
-      })
-    ).toBe(true);
-  });
-
-  it('accepts an ISO string', () => {
-    expect(
-      isPastWithdrawalCutoff({
-        registryId: 'AKC',
-        firstClassStartsAt: start.toISOString(),
-        now: new Date('2026-10-03T12:31:00Z'),
-      })
-    ).toBe(true);
-  });
-
-  // Fails OPEN on purpose: the server owns the refusal, and greying Withdraw out
-  // on a guess would state a rule this registry may not have.
-  it('is false for a registry with no cutoff, even after the class started', () => {
-    expect(
-      isPastWithdrawalCutoff({
-        registryId: 'UKC',
-        firstClassStartsAt: start,
-        now: new Date('2026-10-03T18:00:00Z'),
-      })
-    ).toBe(false);
-  });
-
-  it('is false when the first class start time is unknown or unparseable', () => {
-    expect(
-      isPastWithdrawalCutoff({ registryId: 'AKC', firstClassStartsAt: null, now: new Date() })
-    ).toBe(false);
-    expect(isPastWithdrawalCutoff({ registryId: 'AKC', firstClassStartsAt: 'not a date' })).toBe(
-      false
-    );
+  it('says the same thing about a withdrawal refund on every registry', () => {
+    for (const registryId of listRegistries()) {
+      expect(getWithdrawalPolicy(registryId).withdrawRefundNote).toBe(
+        "Refund per the premium's rules; the show secretary confirms it."
+      );
+    }
   });
 });

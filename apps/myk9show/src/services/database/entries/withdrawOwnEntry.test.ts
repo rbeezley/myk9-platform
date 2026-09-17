@@ -18,6 +18,8 @@ const mocks = vi.hoisted(() => ({
   updateSecretaryLifecycleStatus: vi.fn(),
   getEntryById: vi.fn(),
   auditLog: vi.fn(),
+  denyPullRefundDecision: vi.fn(),
+  functionsInvoke: vi.fn(),
 }));
 
 vi.mock('../supabaseClient', () => ({
@@ -37,6 +39,15 @@ vi.mock('@/services/replication/ReplicatedEntriesTable', () => ({
 
 vi.mock('@/services/AuditService', () => ({
   auditService: { log: mocks.auditLog },
+}));
+
+// Spies on the money surfaces, so "the exhibitor's click moved no money" is an
+// assertion rather than a claim.
+vi.mock('@/features/payments/denyPullRefundDecision', () => ({
+  denyPullRefundDecision: mocks.denyPullRefundDecision,
+}));
+vi.mock('@/lib/supabase', () => ({
+  supabase: { functions: { invoke: mocks.functionsInvoke }, rpc: vi.fn(), from: vi.fn() },
 }));
 
 import { withdrawEntry } from './writes';
@@ -96,15 +107,42 @@ describe('withdrawEntry — MYK9-535 exhibitor self-withdrawal', () => {
     );
   });
 
-  it('keeps a SHOW MANAGER on the existing lifecycle transition', async () => {
-    // A manager is admitted by entries_update, so their audit action and
-    // replication payload must not change because of this issue.
-    await withdrawEntry('entry-1', { asShowManager: true });
+  // MYK9-632: a manager stays on the lifecycle / mutation-manager path (they are
+  // admitted by `entries_update`), but they no longer lose the ACT. Routing both
+  // choices to `rejectEntry` stored a manager's Pull as 'withdrawn', badged the
+  // row "Pulled", and kept it out of the Pull tab, so its refund decision was
+  // unreachable from any surface.
+  it('keeps a SHOW MANAGER on the lifecycle path and writes the act they picked', async () => {
+    await withdrawEntry('entry-1', { asShowManager: true, kind: 'pull' });
 
     expect(mocks.withdrawOwnEntry).not.toHaveBeenCalled();
-    expect(mocks.updateSecretaryLifecycleStatus).toHaveBeenCalledTimes(1);
+    expect(mocks.updateSecretaryLifecycleStatus).toHaveBeenCalledWith(
+      'entry-1',
+      expect.objectContaining({ entry_status: 'scratched', withdrawal_reason_code: null }),
+      undefined
+    );
     expect(mocks.auditLog).toHaveBeenCalledWith(
-      expect.objectContaining({ metadata: expect.objectContaining({ action: 'reject_entry' }) })
+      expect.objectContaining({ metadata: expect.objectContaining({ action: 'pull_entry' }) })
+    );
+  });
+
+  it('carries a MANAGER withdrawal reason to the lifecycle write', async () => {
+    await withdrawEntry('entry-1', {
+      asShowManager: true,
+      kind: 'withdraw',
+      reason: 'in_season',
+    });
+
+    expect(mocks.updateSecretaryLifecycleStatus).toHaveBeenCalledWith(
+      'entry-1',
+      expect.objectContaining({
+        entry_status: 'withdrawn',
+        withdrawal_reason_code: 'in_season',
+      }),
+      undefined
+    );
+    expect(mocks.auditLog).toHaveBeenCalledWith(
+      expect.objectContaining({ metadata: expect.objectContaining({ action: 'withdraw_entry' }) })
     );
   });
 
@@ -131,8 +169,8 @@ describe('withdrawEntry — MYK9-535 exhibitor self-withdrawal', () => {
     mocks.withdrawOwnEntry.mockRejectedValue(
       new WithdrawNotAllowedError({
         allowed: false,
-        code: 'paid',
-        reason: 'This entry is paid — request a refund instead of withdrawing.',
+        code: 'at-show',
+        reason: 'This entry is checked in at the show — ask the secretary to pull it.',
       })
     );
 
@@ -142,7 +180,29 @@ describe('withdrawEntry — MYK9-535 exhibitor self-withdrawal', () => {
     });
 
     expect(data).toBeNull();
-    expect(error?.message).toContain('request a refund');
+    expect(error?.message).toContain('checked in at the show');
     expect(mocks.auditLog).not.toHaveBeenCalled();
+  });
+});
+
+/**
+ * MYK9-632, owner decision 2026-09-17: a paid entry can be withdrawn, and that
+ * act must not move a cent. The refund is the secretary's, made afterwards on
+ * the reconciliation surface under the premium's rules.
+ */
+describe('withdrawEntry — the exhibitor act never moves money', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mocks.withdrawOwnEntry.mockResolvedValue({ from: 'confirmed', to: 'withdrawn' });
+  });
+
+  it('calls no refund service for either act, paid or not', async () => {
+    await withdrawEntry('entry-1', { kind: 'withdraw', reason: 'in_season' });
+    await withdrawEntry('entry-2', { kind: 'pull' });
+
+    // The two surfaces that move money for an entry: the deny-decision RPC and
+    // the `stripe-refund-entry` edge function. Neither may be reached from here.
+    expect(mocks.denyPullRefundDecision).not.toHaveBeenCalled();
+    expect(mocks.functionsInvoke).not.toHaveBeenCalled();
   });
 });

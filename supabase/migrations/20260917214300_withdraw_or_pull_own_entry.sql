@@ -16,6 +16,8 @@
 -- `entries_entry_status_check` value):
 --   Withdraw -> entry_status = 'withdrawn' + withdrawal_reason_code
 --   Pull     -> entry_status = 'scratched'
+-- Both are available on a PAID entry and neither moves money (owner decision
+-- 2026-09-17); see the MONEY note in step 5.
 -- 'scratched' is ALREADY the platform's stored word for a pull: the secretary's
 -- pull-reconciliation surface (20260722160000_add_pull_refund_decisions.sql and
 -- `isUnresolvedPullRefundDecision`) keys "an unresolved paid pull" on
@@ -59,12 +61,14 @@ COMMENT ON COLUMN public.entries.withdrawal_reason_code IS
 -- only: the column is written exclusively by the definer RPC below and by the
 -- secretary paths that already hold `entries_update`.
 --
--- The anon decision is stated EXPLICITLY, and it is "no access": omitting it
--- would not keep anon out (this project carries ALTER DEFAULT PRIVILEGES
--- granting anon full CRUD in schema public), and the ringside passcode session
--- has no business reading why an exhibitor withdrew. The REVOKE is a plain
--- statement ordered BEFORE the grant so no splitter can reorder it after
--- (LESSONS: grant-contract-splitter).
+-- The anon decision is stated EXPLICITLY, and it is "no access". anon holds no
+-- grant on `public.entries` today and the ALTER DEFAULT PRIVILEGES trap fires on
+-- CREATE TABLE, not on ADD COLUMN, so this REVOKE changes nothing about the live
+-- ACL — it is kept because the grant-decision contract requires both API-role
+-- decisions in the same file, and because a later broad column grant would
+-- otherwise reach a column the ringside passcode session has no business
+-- reading. Plain statement, ordered BEFORE the grant, so no splitter can reorder
+-- it after (LESSONS: grant-contract-splitter).
 REVOKE ALL (withdrawal_reason_code) ON public.entries FROM anon;
 GRANT SELECT (withdrawal_reason_code) ON public.entries TO authenticated;
 
@@ -96,7 +100,6 @@ DECLARE
   v_dog_id uuid;
   v_handler_id uuid;
   v_entry_status text;
-  v_payment_status text;
   v_deleted_at timestamptz;
   v_check_in_status text;
   v_is_in_ring boolean;
@@ -143,18 +146,21 @@ BEGIN
   -- one, because a pull is by definition "everything else". Enforced here as
   -- well as by entries_withdrawal_reason_code_check so the refusal is a
   -- sentence rather than a constraint violation.
+  -- Both arms normalise the SAME way first, so '' and '   ' mean "no reason" on
+  -- either side. Testing p_reason IS NOT NULL on the pull arm alone made an empty
+  -- string a silent no-op for a withdrawal and a hard 22023 for a pull.
+  v_reason := nullif(btrim(coalesce(p_reason, '')), '');
+
   IF p_kind = 'withdraw' THEN
-    v_reason := nullif(btrim(coalesce(p_reason, '')), '');
     IF v_reason IS NULL OR v_reason NOT IN ('in_season', 'judge_change') THEN
       RAISE EXCEPTION 'withdraw_own_entry: p_reason must be in_season or judge_change'
         USING errcode = '22023';
     END IF;
   ELSE
-    IF p_reason IS NOT NULL THEN
+    IF v_reason IS NOT NULL THEN
       RAISE EXCEPTION 'withdraw_own_entry: a pull carries no withdrawal reason'
         USING errcode = '22023';
     END IF;
-    v_reason := NULL;
   END IF;
 
   -- 1. The only transitions this function performs. `entry_status` must be
@@ -172,10 +178,10 @@ BEGIN
       USING errcode = '22023';
   END IF;
 
-  SELECT e.show_id, e.dog_id, e.handler_id, e.entry_status, e.payment_status,
+  SELECT e.show_id, e.dog_id, e.handler_id, e.entry_status,
          e.deleted_at, e.check_in_status, coalesce(e.is_in_ring, false),
          coalesce(e.is_scored, false), e.version
-    INTO v_show_id, v_dog_id, v_handler_id, v_entry_status, v_payment_status,
+    INTO v_show_id, v_dog_id, v_handler_id, v_entry_status,
          v_deleted_at, v_check_in_status, v_is_in_ring,
          v_is_scored, v_current_version
     FROM public.entries e
@@ -220,25 +226,20 @@ BEGIN
       RAISE EXCEPTION 'Entry % has been removed', p_entry_id USING errcode = '42501';
     END IF;
 
-    -- MONEY ARM, and the one guard the two acts do NOT share.
+    -- MONEY: there is NO payment guard on either act, by owner decision
+    -- (2026-09-17). Neither act moves a cent — this function writes
+    -- entry_status and a reason code and nothing else, and every money column
+    -- (payment_status, refund_amount, refunded_at, refund_decision) is
+    -- untouched on both arms. What the exhibitor's click does is RECORD what
+    -- happened; the secretary confirms the refund afterwards on the
+    -- reconciliation surface, which is exactly where the refund tooling and the
+    -- premium's rules live.
     --
-    -- A WITHDRAWAL of a paid entry stays refused: the withdrawal reasons carry
-    -- a rulebook refund entitlement, and the exhibitor's own click must not be
-    -- what asserts it. They ask the secretary, who has the refund tooling.
-    --
-    -- A PULL of a paid entry is ALLOWED, because the club decides the refund
-    -- and the surface that records that decision
-    -- (`set_entry_refund_decision`, the Pull tab's "Issue refund / Deny refund")
-    -- only ever sees a row once it is `entry_status = 'scratched'` and still
-    -- paid. Refusing here would leave a paid exhibitor with no way to say they
-    -- are not coming, which is the state the pre-MYK9-632 dialog pretended to
-    -- offer. Nothing about the money moves here; only the entry's state does.
-    IF p_kind = 'withdraw'
-       AND v_payment_status IS DISTINCT FROM 'pending'
-       AND v_payment_status IS DISTINCT FROM 'waived' THEN
-      RAISE EXCEPTION 'Entry % is paid; request a refund instead of withdrawing', p_entry_id
-        USING errcode = '42501';
-    END IF;
+    -- The removed guard ('Entry % is paid; request a refund instead of
+    -- withdrawing') read as caution and behaved as a trap: it left a paid
+    -- exhibitor with no honest way to say they were not coming, and it kept
+    -- their row out of the queue where the refund decision is made. A
+    -- behavioural case pins that a paid withdrawal writes no money columns.
 
     IF NOT (v_entry_status = ANY (v_withdrawable_statuses)) THEN
       RAISE EXCEPTION 'Entry % cannot be withdrawn from status %', p_entry_id, v_entry_status
@@ -302,10 +303,11 @@ $$;
 COMMENT ON FUNCTION public.withdraw_own_entry(uuid, jsonb, integer, text, text) IS
   'MYK9-535 / MYK9-632: owner-scoped removal of an entry from a class. p_kind '
   'withdraw writes entry_status=withdrawn plus one of the two recognised reason '
-  'codes and stays refused on a paid entry; p_kind pull writes '
-  'entry_status=scratched, carries no reason, and IS allowed on a paid entry '
-  'because the club decides that refund on the secretary''s pull-reconciliation '
-  'surface. Restates entries_update for managers and (exceeding) entries_select '
+  'codes; p_kind pull writes entry_status=scratched and carries no reason. '
+  'NEITHER act has a payment guard and neither writes a money column (owner '
+  'decision 2026-09-17): the exhibitor records what happened, the secretary '
+  'confirms the refund on the reconciliation surface. Restates entries_update '
+  'for managers and (exceeding) entries_select '
   'scope for owners; definer, so every filter is explicit. Called directly by the '
   'client and awaited: online-only, not queued through the MutationManager.';
 

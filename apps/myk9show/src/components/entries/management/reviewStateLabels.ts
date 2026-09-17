@@ -52,7 +52,8 @@ export const REGISTRATION_REVIEW_STATE_LABELS: Record<
   not_accepted: { label: 'Not accepted', exhibitorLabel: 'Declined', tone: 'destructive' },
   waitlisted: { label: 'Waitlisted', exhibitorLabel: 'Waitlisted', tone: 'warning' },
   withdrawn: { label: 'Withdrawn', exhibitorLabel: 'Withdrawn', tone: 'neutral' },
-  scratched: { label: 'Scratched', exhibitorLabel: 'Scratched', tone: 'neutral' },
+  // MYK9-632: stored 'scratched', rendered "Pulled".
+  scratched: { label: 'Pulled', exhibitorLabel: 'Pulled', tone: 'neutral' },
   moved: { label: 'Moved', exhibitorLabel: 'Moved', tone: 'neutral' },
   complete: { label: 'Complete', exhibitorLabel: 'Complete', tone: 'accepted' },
   move_up_requested: {

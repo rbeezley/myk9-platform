@@ -447,6 +447,76 @@ describe('ReplicatedEntriesTable', () => {
       expect(result?._syncStatus).toBe('pending');
     });
 
+    // MYK9-632: a manager's Withdraw carries the recognised reason CODE and a
+    // manager's Pull carries an explicit null that CLEARS one a previous
+    // withdrawal left. This is the LAST HOP — the payload that actually reaches
+    // the mutation manager — so a field dropped here is a field that never lands.
+    it('queues withdrawal_reason_code on a manager WITHDRAW', async () => {
+      const queueMutation = vi.spyOn(
+        table as unknown as {
+          queueMutation: (
+            operation: string,
+            rowId: string,
+            payload: Record<string, unknown>
+          ) => Promise<string | null>;
+        },
+        'queueMutation'
+      );
+
+      await table.updateSecretaryLifecycleStatus(
+        'entry-1',
+        {
+          entryStatus: 'withdrawn',
+          entry_status: 'withdrawn',
+          status: 'withdrawn',
+          withdrawalReasonCode: 'in_season',
+          withdrawal_reason_code: 'in_season',
+        },
+        { showId: 'show-1', classId: 'class-1', dogId: 'dog-1' }
+      );
+
+      expect(queueMutation).toHaveBeenCalledWith(
+        'UPDATE',
+        'entry-1',
+        expect.objectContaining({
+          entry_status: 'withdrawn',
+          withdrawal_reason_code: 'in_season',
+        })
+      );
+    });
+
+    it('queues an explicit NULL withdrawal_reason_code on a manager PULL', async () => {
+      const queueMutation = vi.spyOn(
+        table as unknown as {
+          queueMutation: (
+            operation: string,
+            rowId: string,
+            payload: Record<string, unknown>
+          ) => Promise<string | null>;
+        },
+        'queueMutation'
+      );
+
+      await table.updateSecretaryLifecycleStatus(
+        'entry-1',
+        {
+          entryStatus: 'scratched',
+          entry_status: 'scratched',
+          status: 'scratched',
+          checkInStatus: 'pulled',
+          check_in_status: 'pulled',
+          withdrawalReasonCode: null,
+          withdrawal_reason_code: null,
+        },
+        { showId: 'show-1', classId: 'class-1', dogId: 'dog-1' }
+      );
+
+      const payload = queueMutation.mock.calls[0]?.[2] as Record<string, unknown>;
+      expect(payload.entry_status).toBe('scratched');
+      // `??` would swallow the null and leave a stale reason on a pulled row.
+      expect(payload).toHaveProperty('withdrawal_reason_code', null);
+    });
+
     it('should seed missing secretary rows and queue only lifecycle status fields', async () => {
       const queueMutation = vi.spyOn(
         table as unknown as {

@@ -70,8 +70,20 @@ const EntryManagementPage: React.FC = () => {
     refreshEmailLog,
   } = useEntryManagementData(urlShowId);
   const registrationGroups = useMemo(() => groupEntriesByShowRegistration(entries), [entries]);
+  // MYK9-632: the tab lists BOTH acts an exhibitor can leave behind. A pull
+  // ('scratched') is the club's call; a withdrawal carrying one of the two
+  // recognised reason codes is the premium's, and the secretary confirms it on
+  // the same surface. A 'withdrawn' row with NO code is a secretary removal, not
+  // an exhibitor act, and stays out.
   const pulledEntries = useMemo(
-    () => entries.filter(entry => entry.rawEntryStatus === 'scratched'),
+    () =>
+      entries.filter(
+        entry =>
+          entry.rawEntryStatus === 'scratched' ||
+          (entry.rawEntryStatus === 'withdrawn' &&
+            (entry.withdrawalReasonCode === 'in_season' ||
+              entry.withdrawalReasonCode === 'judge_change'))
+      ),
     [entries]
   );
   const canValidateFocus =

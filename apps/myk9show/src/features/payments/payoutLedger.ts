@@ -8,7 +8,7 @@
  * colocated test pins the two identical — change both together.
  */
 
-import { isUnresolvedPullRefundDecision } from './pullReconciliation';
+import { isUnresolvedRemovalRefundDecision } from './pullReconciliation';
 
 /** entries row shape needed to compute a club's online liability for a show. */
 export interface LedgerEntryRow {
@@ -29,6 +29,13 @@ export interface LedgerEntryRow {
   refund_amount: number | null;
   /** Explicit secretary decision; refunded rows are also resolved by refund_amount. */
   refund_decision: string | null;
+  /**
+   * MYK9-632: set only on an exhibitor's WITHDRAWAL, to one of the two recognised
+   * codes. Optional because the column rides its own rung of the select ladder —
+   * absent means "we could not read it", which reads as "not a withdrawal" and so
+   * never INVENTS an unresolved decision.
+   */
+  withdrawal_reason_code?: string | null;
 }
 
 /**
@@ -286,7 +293,7 @@ export function buildLedgerRows(
       refundedCents: sumRefundedCents(entries),
       uncollectedRefundCents: sumUncollectedRefundCents(entries),
       uncollectedRefundCount: countUncollectedRefunds(entries),
-      unresolvedRefundDecisionCount: entries.filter(isUnresolvedPullRefundDecision).length,
+      unresolvedRefundDecisionCount: entries.filter(isUnresolvedRemovalRefundDecision).length,
       netOwedCents: useStoredAmount ? payout.amount_cents : computedNet,
       netOwedSource: useStoredAmount ? 'transfer' : 'computed',
       settleDate: computeSettleDate(show.endDate),
@@ -315,7 +322,7 @@ export function buildLedgerRows(
       refundedCents: sumRefundedCents(entries),
       uncollectedRefundCents: sumUncollectedRefundCents(entries),
       uncollectedRefundCount: countUncollectedRefunds(entries),
-      unresolvedRefundDecisionCount: entries.filter(isUnresolvedPullRefundDecision).length,
+      unresolvedRefundDecisionCount: entries.filter(isUnresolvedRemovalRefundDecision).length,
       netOwedCents: useStoredAmount ? payout.amount_cents : calculateShowPayoutCents(entries),
       netOwedSource: useStoredAmount ? 'transfer' : 'computed',
       // No show row means no end_date, so no settle date can be derived.

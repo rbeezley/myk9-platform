@@ -39,6 +39,8 @@ export interface SetEntryLifecycleStatusParams {
   status: EntryStatus;
   reason?: string | undefined;
   sourceEntry?: SecretaryStatusEntrySeed | undefined;
+  /** MYK9-632: the recognised withdrawal reason code; explicit null clears it. */
+  reasonCode?: string | null | undefined;
 }
 
 export interface EntryLifecycleArmbandPatch {
@@ -74,7 +76,13 @@ const ENTRY_LIFECYCLE_STATUS: Record<EntryLifecycleAction, EntryStatus> = {
 };
 
 export async function setEntryLifecycleStatus(params: SetEntryLifecycleStatusParams) {
-  return updateEntryStatus(params.entryId, params.status, params.reason, params.sourceEntry);
+  return updateEntryStatus(
+    params.entryId,
+    params.status,
+    params.reason,
+    params.sourceEntry,
+    params.reasonCode
+  );
 }
 
 export async function transitionEntryLifecycle(params: EntryLifecycleTransitionParams) {
@@ -148,6 +156,37 @@ export const pullEntry = async (entryId: string, reason?: string) => {
     toStatus: 'scratched',
     action: 'scratch_entry',
     reason,
+  });
+  return result;
+};
+
+/**
+ * MYK9-632: a SHOW MANAGER leaving a class on someone's behalf, as the two acts.
+ *
+ * The manager tier is admitted by `entries_update`, so it keeps the lifecycle /
+ * mutation-manager path rather than the exhibitor's definer RPC. What it must
+ * NOT keep is the old collapse: `rejectEntry` wrote `entry_status='withdrawn'`
+ * and audited `reject_entry` for BOTH choices, so a secretary who picked Pull
+ * got a withdrawal that the Pull tab (`rawEntryStatus === 'scratched'`) never
+ * listed — the refund decision for that pull was unreachable from any surface.
+ *
+ * A Pull writes 'scratched' with the reason code explicitly NULLED; a Withdraw
+ * writes 'withdrawn' plus the code. The audit action names the act.
+ */
+export const removeEntryAsManager = async (
+  entryId: string,
+  kind: 'withdraw' | 'pull',
+  reasonCode?: string | null
+) => {
+  const status: EntryStatus = kind === 'pull' ? 'scratched' : 'withdrawn';
+  const code = kind === 'pull' ? null : (reasonCode ?? null);
+  const result = await setEntryLifecycleStatus({ entryId, status, reasonCode: code });
+  await logEntryStatusChange({
+    entryId,
+    fromStatus: undefined,
+    toStatus: status,
+    action: kind === 'pull' ? 'pull_entry' : 'withdraw_entry',
+    ...(code ? { metadata: { withdrawalReasonCode: code } } : {}),
   });
   return result;
 };

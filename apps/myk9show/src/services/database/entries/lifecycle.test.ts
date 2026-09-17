@@ -6,6 +6,7 @@ import {
   denyMoveUpRequest,
   denyPullRequest,
   rejectEntry,
+  removeEntryAsManager,
   restoreEntryStatus,
   pullEntry,
   pullEntryDayOf,
@@ -75,6 +76,7 @@ describe('Entry lifecycle transitions', () => {
       'entry-1',
       'withdrawn',
       'Handler conflict',
+      undefined,
       undefined
     );
   });
@@ -82,7 +84,13 @@ describe('Entry lifecycle transitions', () => {
   it('accepts an Entry by writing confirmed and logs the transition', async () => {
     await acceptEntry('entry-1');
 
-    expect(updateEntryStatus).toHaveBeenCalledWith('entry-1', 'confirmed', undefined, undefined);
+    expect(updateEntryStatus).toHaveBeenCalledWith(
+      'entry-1',
+      'confirmed',
+      undefined,
+      undefined,
+      undefined
+    );
     expect(auditLog).toHaveBeenCalledWith(
       expect.objectContaining({
         entityType: 'entry',
@@ -100,6 +108,7 @@ describe('Entry lifecycle transitions', () => {
       'entry-1',
       'withdrawn',
       'Class limit reached',
+      undefined,
       undefined
     );
     expect(auditLog).toHaveBeenCalledWith(
@@ -119,6 +128,7 @@ describe('Entry lifecycle transitions', () => {
       'entry-1',
       'scratched',
       'Dog is absent',
+      undefined,
       undefined
     );
     expect(auditLog).toHaveBeenCalledWith(
@@ -131,7 +141,13 @@ describe('Entry lifecycle transitions', () => {
   it('keeps current wait-list decision behavior behind a named transition', async () => {
     await waitlistEntry('entry-1');
 
-    expect(updateEntryStatus).toHaveBeenCalledWith('entry-1', 'confirmed', undefined, undefined);
+    expect(updateEntryStatus).toHaveBeenCalledWith(
+      'entry-1',
+      'confirmed',
+      undefined,
+      undefined,
+      undefined
+    );
     expect(auditLog).toHaveBeenCalledWith(
       expect.objectContaining({
         metadata: expect.objectContaining({ action: 'waitlist_entry' }),
@@ -142,7 +158,37 @@ describe('Entry lifecycle transitions', () => {
   it('routes transition actions through the same explicit status seam', async () => {
     await transitionEntryLifecycle({ entryId: 'entry-1', action: 'pull', reason: 'Absent' });
 
-    expect(updateEntryStatus).toHaveBeenCalledWith('entry-1', 'scratched', 'Absent', undefined);
+    expect(updateEntryStatus).toHaveBeenCalledWith(
+      'entry-1',
+      'scratched',
+      'Absent',
+      undefined,
+      undefined
+    );
+  });
+
+  // MYK9-632: the manager chooser's two acts. `removeEntryAsManager` is what
+  // `withdrawEntry({ asShowManager: true })` routes to; before it, both choices
+  // went to `rejectEntry` and stored 'withdrawn'.
+  it('removeEntryAsManager writes the act the manager picked', async () => {
+    await removeEntryAsManager('entry-1', 'pull');
+    expect(updateEntryStatus).toHaveBeenCalledWith(
+      'entry-1',
+      'scratched',
+      undefined,
+      undefined,
+      null
+    );
+
+    updateEntryStatus.mockClear();
+    await removeEntryAsManager('entry-1', 'withdraw', 'in_season');
+    expect(updateEntryStatus).toHaveBeenCalledWith(
+      'entry-1',
+      'withdrawn',
+      undefined,
+      undefined,
+      'in_season'
+    );
   });
 
   describe('scratch-request workflow', () => {

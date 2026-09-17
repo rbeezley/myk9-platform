@@ -42,7 +42,7 @@ import type { EntryManagementEntry } from '@/types/entry-management-types';
 import { EmailStatusIcon } from '@/components/entries/EmailStatusIcon';
 import { CHECKIN_STATUSES } from '@myk9/core';
 import { WithdrawalReasonDialog } from './WithdrawalReasonDialog';
-import { withdrawalReasonLabel } from '@/features/registries';
+import { removalSummaryLine } from './removalSummaryLine';
 import { RefundEntryDialog } from './RefundEntryDialog';
 import { isStripeRefundable } from './refundEligibility';
 import { RequestPaymentDialog } from './RequestPaymentDialog';
@@ -338,21 +338,10 @@ export const EntryListCard: React.FC<EntryListCardProps> = ({
                         the Pull tab. Telling them apart is the point of the
                         issue — the secretary used to see "withdrawn" for an
                         entry the exhibitor was told would not be refunded. */}
-                    {entry.entryStatus === EntryStatus.CANCELLED && (
+                    {(entry.entryStatus === EntryStatus.CANCELLED ||
+                      entry.entryStatus === EntryStatus.SCRATCHED) && (
                       <span className="text-xs text-muted-foreground pl-0.5">
-                        {[
-                          'Withdrawn',
-                          withdrawalReasonLabel(entry.withdrawalReasonCode),
-                          entry.withdrawalReason,
-                        ]
-                          .filter(Boolean)
-                          .join(' · ')}
-                      </span>
-                    )}
-                    {entry.entryStatus === EntryStatus.SCRATCHED && (
-                      <span className="text-xs text-muted-foreground pl-0.5">
-                        {['Pulled', entry.withdrawalReason].filter(Boolean).join(' · ')} — refund at
-                        the club&apos;s discretion
+                        {removalSummaryLine(entry)}
                       </span>
                     )}
                   </div>

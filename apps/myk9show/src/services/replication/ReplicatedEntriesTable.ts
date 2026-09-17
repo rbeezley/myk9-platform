@@ -580,6 +580,20 @@ export class ReplicatedEntriesTable extends ReplicatedTable<ReplicatedEntry> {
       payload.withdrawal_reason = updates.withdrawal_reason ?? updates.withdrawalReason;
     }
 
+    // MYK9-632: the manager's Withdraw carries the recognised reason CODE, and
+    // their Pull carries an explicit null that CLEARS a code a previous
+    // withdrawal left. `??` would swallow that null, so both keys are read for
+    // presence and the value is taken from whichever was supplied.
+    if (
+      updates.withdrawal_reason_code !== undefined ||
+      updates.withdrawalReasonCode !== undefined
+    ) {
+      payload.withdrawal_reason_code =
+        updates.withdrawal_reason_code !== undefined
+          ? updates.withdrawal_reason_code
+          : updates.withdrawalReasonCode;
+    }
+
     const mutationId = await this.queueMutation('UPDATE', entryId, payload);
     this._lastMutationId = mutationId;
     logger.log(`[${this.getTableName()}] Updated entry ${entryId} secretary lifecycle status`);

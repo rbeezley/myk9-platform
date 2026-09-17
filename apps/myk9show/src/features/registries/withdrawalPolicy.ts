@@ -9,8 +9,8 @@
  *  - **Pull** — everything else. Refund at the CLUB's discretion; the copy must
  *    never promise "no refund". Available until the class runs.
  *
- * The reasons and the cutoff are RULEBOOK facts, not app constants, so they live
- * here beside `getShowStyle` / `getTrialRegistry` rather than in a component.
+ * Which reasons exist is a RULEBOOK fact, not an app constant, so it lives here
+ * beside `getShowStyle` / `getTrialRegistry` rather than in a component.
  * Sources (verified against `docs/rulebooks/*.txt`, recorded on the issue):
  *
  *  - AKC Scent Work: glossary "Withdrawn Entry" (p.71) names exactly the two
@@ -18,16 +18,17 @@
  *    than half an hour before the first class of the day, club may retain a
  *    processing fee. Judge change (Ch.3 §24) is a full refund on a written
  *    request submitted at least 30 minutes before the start of the exhibitor's
- *    first entered day. So: BOTH reasons, cutoff 30 minutes.
+ *    first entered day. So: BOTH reasons. The 30-minute clock is NOT modelled —
+ *    see WITHDRAW_REFUND_NOTE for why the app cannot evaluate it.
  *  - UKC Nosework: in season needs a vet certificate and the club may refund in
  *    full or retain 50%. Judge change is refunded on written request. No stated
  *    clock cutoff.
  *  - ASCA Scent Detection: bitches in season MAY compete, so there is NO
  *    in-season withdrawal at all — judge change only, refund per the premium.
  *
- * Nothing here decides money. It decides which reasons the exhibitor may pick and
- * what the app tells them to expect; the secretary's refund surface carries the
- * actual decision.
+ * Nothing here decides money, and nothing here states an AMOUNT. It decides which
+ * reasons the exhibitor may pick and who confirms the refund; the secretary's
+ * reconciliation surface carries the actual decision.
  */
 import type { RegistryId } from './types';
 
@@ -47,8 +48,6 @@ export interface WithdrawalReasonSpec {
   code: WithdrawalReasonCode;
   /** Exhibitor-facing label. Registry-independent on purpose — the words are the act. */
   label: string;
-  /** What this registry's rulebook says the refund is. Shown under the choice. */
-  refundNote: string;
   /** Anything the exhibitor must supply for this registry (e.g. a vet certificate). */
   documentationNote?: string;
 }
@@ -58,13 +57,11 @@ export interface RegistryWithdrawalPolicy {
   /** The reasons THIS registry recognises, in display order. Never empty. */
   reasons: readonly WithdrawalReasonSpec[];
   /**
-   * Minutes before the exhibitor's first class of the day after which the
-   * registry no longer guarantees a withdrawal refund, or `null` when the
-   * rulebook states none.
+   * Withdraw copy. It says who decides and never states an OUTCOME — the app
+   * holds neither the premium nor the club's processing fee, so any sentence
+   * naming an amount would be a promise nothing here can keep.
    */
-  cutoffMinutesBeforeFirstClass: number | null;
-  /** Shown once the cutoff has passed, in place of the Withdraw action. */
-  cutoffNote: string;
+  withdrawRefundNote: string;
   /** Pull copy. Must never promise "no refund" (owner ruling 2026-09-17). */
   pullRefundNote: string;
 }
@@ -72,7 +69,21 @@ export interface RegistryWithdrawalPolicy {
 const IN_SEASON_LABEL = 'Dog in season';
 const JUDGE_CHANGE_LABEL = 'Judge change';
 const PULL_REFUND_NOTE = "Refunds for a pull are at the club's discretion.";
-const NO_CUTOFF_NOTE = 'This class has started, so it can no longer be withdrawn.';
+
+/**
+ * The ONE sentence the app is entitled to say about a withdrawal refund.
+ *
+ * The rulebooks do promise amounts — AKC is a full refund minus an optional
+ * processing fee when the withdrawal reaches the secretary at least 30 minutes
+ * before the first class of the day; UKC is full or 50% at the club's option.
+ * The app states none of it, because it can enforce none of it: `classes.
+ * start_time` is populated on 1 of 35 live classes and there is no class date
+ * column at all, so the 30-minute clock cannot be evaluated, and the premium's
+ * fee is not data this app holds. A sentence like "fully refunded" would be a
+ * promise the exhibitor could hold us to and the secretary would have to break.
+ * See docs/INTENT.md for the rule and the open question.
+ */
+const WITHDRAW_REFUND_NOTE = "Refund per the premium's rules; the show secretary confirms it.";
 
 const AKC_POLICY: RegistryWithdrawalPolicy = {
   registryId: 'AKC',
@@ -80,20 +91,12 @@ const AKC_POLICY: RegistryWithdrawalPolicy = {
     {
       code: 'in_season',
       label: IN_SEASON_LABEL,
-      refundNote:
-        'AKC: fully refunded when withdrawn at least 30 minutes before the first class of the day. The club may keep a processing fee.',
-      documentationNote: 'The club may ask for documentation — check the premium.',
+      documentationNote:
+        'AKC clubs may ask for documentation, and withdrawals are expected at least 30 minutes before the first class of the day — check the premium.',
     },
-    {
-      code: 'judge_change',
-      label: JUDGE_CHANGE_LABEL,
-      refundNote:
-        'AKC: full refund when the request reaches the trial secretary at least 30 minutes before the start of your first entered day.',
-    },
+    { code: 'judge_change', label: JUDGE_CHANGE_LABEL },
   ],
-  cutoffMinutesBeforeFirstClass: 30,
-  cutoffNote:
-    'AKC withdrawals close 30 minutes before the first class of the day. Pull this entry instead and ask the club about a refund.',
+  withdrawRefundNote: WITHDRAW_REFUND_NOTE,
   pullRefundNote: PULL_REFUND_NOTE,
 };
 
@@ -103,19 +106,12 @@ const UKC_POLICY: RegistryWithdrawalPolicy = {
     {
       code: 'in_season',
       label: IN_SEASON_LABEL,
-      refundNote:
-        'UKC: the club refunds in full or keeps up to 50% as a processing fee, at its option.',
       documentationNote:
         'UKC requires a veterinary certificate showing the female came into season after the entry deadline.',
     },
-    {
-      code: 'judge_change',
-      label: JUDGE_CHANGE_LABEL,
-      refundNote: 'UKC: the club must offer a refund on a written request from a pre-entered dog.',
-    },
+    { code: 'judge_change', label: JUDGE_CHANGE_LABEL },
   ],
-  cutoffMinutesBeforeFirstClass: null,
-  cutoffNote: NO_CUTOFF_NOTE,
+  withdrawRefundNote: WITHDRAW_REFUND_NOTE,
   pullRefundNote: PULL_REFUND_NOTE,
 };
 
@@ -126,15 +122,8 @@ const UKC_POLICY: RegistryWithdrawalPolicy = {
  */
 const ASCA_POLICY: RegistryWithdrawalPolicy = {
   registryId: 'ASCA',
-  reasons: [
-    {
-      code: 'judge_change',
-      label: JUDGE_CHANGE_LABEL,
-      refundNote: "ASCA: refunds follow the club's published premium.",
-    },
-  ],
-  cutoffMinutesBeforeFirstClass: null,
-  cutoffNote: NO_CUTOFF_NOTE,
+  reasons: [{ code: 'judge_change', label: JUDGE_CHANGE_LABEL }],
+  withdrawRefundNote: WITHDRAW_REFUND_NOTE,
   pullRefundNote: PULL_REFUND_NOTE,
 };
 
@@ -173,36 +162,4 @@ export function withdrawalReasonLabel(code: string | null | undefined): string |
 /** Whether a raw string is one of the two stored reason codes. */
 export function isWithdrawalReasonCode(value: unknown): value is WithdrawalReasonCode {
   return (WITHDRAWAL_REASON_CODES as readonly unknown[]).includes(value);
-}
-
-export interface WithdrawalCutoffInput {
-  registryId: RegistryId;
-  /** When the exhibitor's first class of the day starts. `null` = not known. */
-  firstClassStartsAt: Date | string | null | undefined;
-  now?: Date;
-}
-
-/**
- * Has this registry's withdrawal cutoff passed?
- *
- * Returns `false` — Withdraw stays offered — whenever the answer is not known:
- * the registry states no cutoff, or we do not hold the first class's start time.
- * Failing OPEN is deliberate, and is the opposite of the eligibility predicate's
- * fail-closed stance: the server decides whether the WRITE is allowed, while this
- * only decides whether to grey out a choice, and greying it out on a guess would
- * tell the exhibitor a rule that may not exist.
- */
-export function isPastWithdrawalCutoff({
-  registryId,
-  firstClassStartsAt,
-  now = new Date(),
-}: WithdrawalCutoffInput): boolean {
-  const minutes = getWithdrawalPolicy(registryId).cutoffMinutesBeforeFirstClass;
-  if (minutes == null || firstClassStartsAt == null) return false;
-
-  const start =
-    firstClassStartsAt instanceof Date ? firstClassStartsAt : new Date(firstClassStartsAt);
-  if (Number.isNaN(start.getTime())) return false;
-
-  return now.getTime() > start.getTime() - minutes * 60_000;
 }

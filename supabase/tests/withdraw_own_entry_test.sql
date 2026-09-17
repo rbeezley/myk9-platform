@@ -219,10 +219,16 @@ select pg_temp.assert_withdraw('anonymous', null,
 select pg_temp.assert_withdraw('nonexistent entry', '00000000-0000-0000-0000-000000535101',
   '00000000-0000-0000-0000-000000535099', 'Entry % not found');
 
+-- MYK9-632, owner decision 2026-09-17: the PAID guard is GONE. A paid entry is
+-- withdrawable by its own exhibitor, because the act records what happened and
+-- moves no money; the secretary confirms the refund afterwards. 535032 is the
+-- paid row, and it now succeeds where this file used to assert a 42501.
+-- (`git log -S` on the old assertion lands on 20260915203300, the migration that
+-- introduced the guard — it was never a rulebook rule, only a cautious default.)
+select pg_temp.assert_withdraw('owner CAN withdraw a paid entry (MYK9-632)',
+  '00000000-0000-0000-0000-000000535101', '00000000-0000-0000-0000-000000535032');
+
 -- Owner-only guards. Each must leave every row of the show untouched.
-select pg_temp.assert_withdraw('owner cannot withdraw a PAID entry',
-  '00000000-0000-0000-0000-000000535101', '00000000-0000-0000-0000-000000535032',
-  'Entry % is paid; request a refund instead of withdrawing');
 select pg_temp.assert_withdraw('owner cannot re-withdraw a withdrawn entry',
   '00000000-0000-0000-0000-000000535101', '00000000-0000-0000-0000-000000535033',
   'Entry % cannot be withdrawn from status %');
@@ -295,9 +301,10 @@ end;
 $$;
 
 -- Manager parity: the club secretary keeps the reach `entries_update` already
--- gives them, including on a PAID entry the owner tier refuses.
-select pg_temp.assert_withdraw('club secretary withdraws a paid entry',
-  '00000000-0000-0000-0000-000000535106', '00000000-0000-0000-0000-000000535032');
+-- gives them. 535036 has absorbed every denied case above and is still
+-- 'confirmed', so a successful withdrawal here is unambiguous.
+select pg_temp.assert_withdraw('club secretary withdraws an entry',
+  '00000000-0000-0000-0000-000000535106', '00000000-0000-0000-0000-000000535036');
 
 -- Negative control for the ORIGINAL bug: the exhibitor's DIRECT UPDATE is still
 -- denied by `entries_update`. If this ever starts succeeding, the RPC has been

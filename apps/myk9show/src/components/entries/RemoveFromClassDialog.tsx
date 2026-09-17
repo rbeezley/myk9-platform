@@ -28,11 +28,13 @@ import {
 } from '@/components/ui/alert-dialog';
 import { Button } from '@/components/ui/button';
 import { Loader2 } from 'lucide-react';
-import { getWithdrawalPolicy, isPastWithdrawalCutoff } from '@/features/registries';
+import { getWithdrawalPolicy } from '@/features/registries';
 import type { RegistryId, RemoveFromClassKind, WithdrawalReasonCode } from '@/features/registries';
 
 export interface RemoveFromClassDialogProps {
   open: boolean;
+  /** The class row's `entries.id`. Identity for the chooser's state, not display. */
+  classId: string | null;
   /** The class the exhibitor is leaving. */
   className: string | null;
   registryId: RegistryId;
@@ -43,12 +45,6 @@ export interface RemoveFromClassDialogProps {
    */
   withdrawDisabledReason?: string | null;
   pullDisabledReason?: string | null;
-  /**
-   * When the exhibitor's first class of the day starts, for the registry cutoff.
-   * `null`/omitted = not known, and the cutoff is then NOT applied — see
-   * `isPastWithdrawalCutoff`, which fails open on purpose.
-   */
-  firstClassStartsAt?: Date | string | null;
   onOpenChange: (open: boolean) => void;
   onConfirm: (choice: { kind: RemoveFromClassKind; reason: WithdrawalReasonCode | null }) => void;
 }
@@ -59,11 +55,14 @@ export function RemoveFromClassDialog({ open, onOpenChange, ...rest }: RemoveFro
   return (
     <AlertDialog open={open} onOpenChange={onOpenChange}>
       <AlertDialogContent>
-        {/* Keyed on the class, and unmounted while closed, so the half-made
-            choice can never be carried into a DIFFERENT class's dialog. That is
-            a remount, not a reset-in-an-effect (LESSONS: no setState in an
-            effect body). */}
-        <RemoveFromClassBody key={rest.className ?? ''} {...rest} />
+        {/* Keyed on the class ID, and unmounted while closed, so the half-made
+            choice can never be carried into a DIFFERENT class's dialog. The ID,
+            not the name: two classes in one show can share a display name
+            ("Container Novice A" in two trials), and a name-keyed chooser would
+            hand the second one the first one's half-made choice. That is a
+            remount, not a reset-in-an-effect (LESSONS: no setState in an effect
+            body). */}
+        <RemoveFromClassBody key={rest.classId ?? ''} {...rest} />
       </AlertDialogContent>
     </AlertDialog>
   );
@@ -77,7 +76,6 @@ function RemoveFromClassBody({
   isSaving,
   withdrawDisabledReason = null,
   pullDisabledReason = null,
-  firstClassStartsAt = null,
   onConfirm,
 }: RemoveFromClassBodyProps) {
   const policy = getWithdrawalPolicy(registryId);
@@ -85,8 +83,7 @@ function RemoveFromClassBody({
   const [kind, setKind] = useState<RemoveFromClassKind>('pull');
   const [reason, setReason] = useState<WithdrawalReasonCode | null>(null);
 
-  const pastCutoff = isPastWithdrawalCutoff({ registryId, firstClassStartsAt });
-  const withdrawBlockedBecause = pastCutoff ? policy.cutoffNote : withdrawDisabledReason;
+  const withdrawBlockedBecause = withdrawDisabledReason;
   const selectedReason = policy.reasons.find(candidate => candidate.code === reason);
 
   const chooseWithdraw = () => {
@@ -138,8 +135,8 @@ function RemoveFromClassBody({
           ) : kind === 'withdraw' ? (
             <>
               You are withdrawing <strong>{className}</strong>
-              {selectedReason ? ` because of: ${selectedReason.label}.` : '.'}{' '}
-              {selectedReason?.refundNote}
+              {selectedReason ? ` because of: ${selectedReason.label}.` : '.'} Your withdrawal is
+              recorded. The show secretary confirms the refund under the premium&apos;s rules.
             </>
           ) : (
             <>
@@ -162,8 +159,8 @@ function RemoveFromClassBody({
               Withdraw
             </Button>
             <p className="mt-2 text-sm text-muted-foreground">
-              For a recognised reason — {policy.reasons.map(entry => entry.label).join(' or ')}.
-              Refunded per the premium&apos;s rules.
+              For a recognised reason — {policy.reasons.map(entry => entry.label).join(' or ')}.{' '}
+              {policy.withdrawRefundNote}
             </p>
             {withdrawBlockedBecause && (
               <p className="mt-2 text-sm text-muted-foreground">{withdrawBlockedBecause}</p>
@@ -202,9 +199,8 @@ function RemoveFromClassBody({
               >
                 {entry.label}
               </Button>
-              <p className="mt-2 text-sm text-muted-foreground">{entry.refundNote}</p>
               {entry.documentationNote && (
-                <p className="mt-1 text-sm text-muted-foreground">{entry.documentationNote}</p>
+                <p className="mt-2 text-sm text-muted-foreground">{entry.documentationNote}</p>
               )}
             </div>
           ))}

@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   derivePullTiming,
   getSuggestedPullRefundDecision,
-  isUnresolvedPullRefundDecision,
+  isUnresolvedRemovalRefundDecision,
 } from './pullReconciliation';
 
 describe('derivePullTiming', () => {
@@ -43,7 +43,7 @@ describe('getSuggestedPullRefundDecision', () => {
   });
 });
 
-describe('isUnresolvedPullRefundDecision', () => {
+describe('isUnresolvedRemovalRefundDecision', () => {
   const pulledPaidEntry = {
     entry_status: 'scratched',
     payment_method: 'online',
@@ -53,13 +53,70 @@ describe('isUnresolvedPullRefundDecision', () => {
   };
 
   it('flags only paid online pulls with neither a refund nor an explicit denial', () => {
-    expect(isUnresolvedPullRefundDecision(pulledPaidEntry)).toBe(true);
-    expect(isUnresolvedPullRefundDecision({ ...pulledPaidEntry, refund_decision: 'denied' })).toBe(
+    expect(isUnresolvedRemovalRefundDecision(pulledPaidEntry)).toBe(true);
+    expect(
+      isUnresolvedRemovalRefundDecision({ ...pulledPaidEntry, refund_decision: 'denied' })
+    ).toBe(false);
+    expect(isUnresolvedRemovalRefundDecision({ ...pulledPaidEntry, refund_amount: 25 })).toBe(
       false
     );
-    expect(isUnresolvedPullRefundDecision({ ...pulledPaidEntry, refund_amount: 25 })).toBe(false);
-    expect(isUnresolvedPullRefundDecision({ ...pulledPaidEntry, entry_status: 'confirmed' })).toBe(
+    expect(
+      isUnresolvedRemovalRefundDecision({ ...pulledPaidEntry, entry_status: 'confirmed' })
+    ).toBe(false);
+  });
+
+  // MYK9-632: a paid entry can now be WITHDRAWN, and that withdrawal owes the
+  // secretary a decision under the premium's rules. If it does not reach this
+  // queue there is no surface anywhere that can resolve it.
+  it('flags a paid online WITHDRAWAL that carries a recognised reason code', () => {
+    for (const withdrawal_reason_code of ['in_season', 'judge_change']) {
+      expect(
+        isUnresolvedRemovalRefundDecision({
+          ...pulledPaidEntry,
+          entry_status: 'withdrawn',
+          withdrawal_reason_code,
+        }),
+        withdrawal_reason_code
+      ).toBe(true);
+    }
+  });
+
+  // The discriminator matters: every secretary removal lands in 'withdrawn' too
+  // (rejectEntry, bulk status changes, every pre-MYK9-632 row). Sweeping those
+  // in would invent a refund obligation nobody agreed to.
+  it('ignores a withdrawn row with no reason code, or an unrecognised one', () => {
+    expect(
+      isUnresolvedRemovalRefundDecision({ ...pulledPaidEntry, entry_status: 'withdrawn' })
+    ).toBe(false);
+    expect(
+      isUnresolvedRemovalRefundDecision({
+        ...pulledPaidEntry,
+        entry_status: 'withdrawn',
+        withdrawal_reason_code: null,
+      })
+    ).toBe(false);
+    expect(
+      isUnresolvedRemovalRefundDecision({
+        ...pulledPaidEntry,
+        entry_status: 'withdrawn',
+        withdrawal_reason_code: 'other',
+      })
+    ).toBe(false);
+  });
+
+  it('still requires paid-online and an unresolved decision for a withdrawal', () => {
+    const withdrawn = {
+      ...pulledPaidEntry,
+      entry_status: 'withdrawn',
+      withdrawal_reason_code: 'in_season',
+    };
+    expect(isUnresolvedRemovalRefundDecision({ ...withdrawn, payment_method: null })).toBe(false);
+    expect(isUnresolvedRemovalRefundDecision({ ...withdrawn, payment_status: 'pending' })).toBe(
       false
     );
+    expect(isUnresolvedRemovalRefundDecision({ ...withdrawn, refund_decision: 'denied' })).toBe(
+      false
+    );
+    expect(isUnresolvedRemovalRefundDecision({ ...withdrawn, refund_amount: 25 })).toBe(false);
   });
 });

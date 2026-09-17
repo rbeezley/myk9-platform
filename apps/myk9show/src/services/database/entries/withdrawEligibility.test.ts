@@ -33,32 +33,36 @@ describe('evaluateWithdrawEligibility', () => {
     }
   });
 
-  it('refuses a paid entry and names the refund path', () => {
-    const result = evaluateWithdrawEligibility({ ...pending, paymentStatus: 'paid' });
-    expect(result.allowed).toBe(false);
-    expect(result.code).toBe('paid');
-    expect(result.reason).toContain('refund');
+  // MYK9-632, owner decision 2026-09-17: there is NO money guard on either act.
+  // The old 'This entry is paid — request a refund instead of withdrawing.'
+  // refusal left a paid exhibitor with no honest way to say they were not
+  // coming, and it kept their row out of the queue where the refund decision is
+  // actually made. `git log -S` on that sentence lands on the MYK9-535
+  // implementation commit (7e01892cb) — it was a cautious default, never a
+  // rulebook rule. Neither act writes a money column; the RPC's behavioural
+  // test pins that.
+  it('allows BOTH acts on a paid entry — no money guard on either', () => {
+    for (const kind of ['withdraw', 'pull'] as const) {
+      for (const paymentStatus of ['paid', 'refunded', 'waived', 'pending']) {
+        expect(
+          evaluateWithdrawEligibility({ ...pending, kind, paymentStatus }).allowed,
+          `${kind} / ${paymentStatus}`
+        ).toBe(true);
+      }
+    }
   });
 
-  it('refuses a refunded entry', () => {
-    expect(evaluateWithdrawEligibility({ ...pending, paymentStatus: 'refunded' }).code).toBe(
-      'paid'
-    );
-  });
-
-  it('treats a waived entry as unpaid, matching the RPC', () => {
-    expect(evaluateWithdrawEligibility({ ...pending, paymentStatus: 'waived' }).allowed).toBe(true);
-  });
-
-  it('keeps an unpaid entry withdrawable when only the ORDER reads paid (MYK9-495)', () => {
-    // The order row is reused per (show, handler), so its `paid` cannot vouch
-    // for THIS entry. resolveEffectivePaymentStatus resolves the pair to pending.
-    const result = evaluateWithdrawEligibility({
-      ...pending,
-      paymentStatus: 'pending',
-      enrollmentPaymentStatus: 'paid',
-    });
-    expect(result.allowed).toBe(true);
+  it('allows a withdrawal when the payment status cannot be determined at all', () => {
+    // Nothing downstream reads it any more, so an unknown status is not a reason
+    // to refuse — it was only ever a proxy for the guard that is now gone.
+    expect(evaluateWithdrawEligibility({ ...pending, paymentStatus: null }).allowed).toBe(true);
+    expect(
+      evaluateWithdrawEligibility({
+        ...pending,
+        paymentStatus: 'pending',
+        enrollmentPaymentStatus: 'paid',
+      }).allowed
+    ).toBe(true);
   });
 
   it('refuses a checked-in or in-ring entry — the day-of self-withdrawal hole', () => {
@@ -79,15 +83,6 @@ describe('evaluateWithdrawEligibility', () => {
     expect(evaluateWithdrawEligibility({ ...pending, checkInStatus: 'a-new-value' }).code).toBe(
       'at-show'
     );
-  });
-
-  it('refuses when the payment status cannot be determined — FAIL CLOSED', () => {
-    // The RPC refuses unless payment_status IS 'pending' or 'waived', so an
-    // unknown status must refuse here too rather than offering a withdrawal the
-    // server will reject.
-    const result = evaluateWithdrawEligibility({ ...pending, paymentStatus: null });
-    expect(result.allowed).toBe(false);
-    expect(result.code).toBe('unknown-payment');
   });
 
   it('allows a secretary-decision request status, in BOTH DB spellings', () => {
@@ -118,29 +113,36 @@ describe('evaluateWithdrawEligibility', () => {
     }
   });
 
-  it('checks in the same order as the RPC — removed, then paid, then status', () => {
-    // A soft-deleted, paid, already-withdrawn row must report "removed" here and
-    // in Postgres, or the two surfaces tell the exhibitor different stories.
+  it('checks in the same order as the RPC — removed, then status', () => {
+    // A soft-deleted, already-withdrawn row must report "removed" here and in
+    // Postgres, or the two surfaces tell the exhibitor different stories.
     expect(
       evaluateWithdrawEligibility({
         ...pending,
         deletedAt: '2026-09-15',
-        paymentStatus: 'paid',
         entryStatus: 'withdrawn',
       }).code
     ).toBe('removed');
+    expect(evaluateWithdrawEligibility({ ...pending, entryStatus: 'withdrawn' }).code).toBe(
+      'status'
+    );
+  });
+
+  it('names the ACT in the refusal, so the chooser greys the right half', () => {
     expect(
-      evaluateWithdrawEligibility({ ...pending, paymentStatus: 'paid', entryStatus: 'withdrawn' })
-        .code
-    ).toBe('paid');
+      evaluateWithdrawEligibility({ ...pending, kind: 'pull', entryStatus: 'completed' }).reason
+    ).toContain('pulled');
+    expect(
+      evaluateWithdrawEligibility({ ...pending, kind: 'withdraw', entryStatus: 'completed' }).reason
+    ).toContain('withdrawn');
   });
 
   it('carries the refusal reason onto the thrown error', () => {
     const error = new WithdrawNotAllowedError(
-      evaluateWithdrawEligibility({ ...pending, paymentStatus: 'paid' })
+      evaluateWithdrawEligibility({ ...pending, entryStatus: 'completed' })
     );
-    expect(error.code).toBe('paid');
-    expect(error.message).toContain('refund');
+    expect(error.code).toBe('status');
+    expect(error.message).toContain('withdrawn');
   });
 });
 
@@ -154,12 +156,12 @@ describe('withdrawErrorMessage', () => {
     const message = withdrawErrorMessage({
       code: '42501',
       message:
-        'Entry 22eb47a9-ce86-4906-8053-a224d37d1602 is paid; request a refund instead of withdrawing',
+        'Entry 22eb47a9-ce86-4906-8053-a224d37d1602 is checked in at the show and cannot be withdrawn',
     });
 
     expect(message).not.toContain('22eb47a9');
     expect(message).not.toMatch(/Entry [0-9a-f]{8}-/);
-    expect(message).toMatch(/ask the secretary/i);
+    expect(message).toMatch(/show secretary/i);
   });
 
   it('maps each SQLSTATE the RPC raises to its own sentence', () => {
@@ -174,7 +176,7 @@ describe('withdrawErrorMessage', () => {
   });
 
   it('passes our own pre-check refusals through, since they already read well', () => {
-    const eligibility = evaluateWithdrawEligibility({ ...pending, paymentStatus: 'paid' });
+    const eligibility = evaluateWithdrawEligibility({ ...pending, entryStatus: 'completed' });
     expect(withdrawErrorMessage({ code: eligibility.code, message: eligibility.reason })).toBe(
       eligibility.reason
     );

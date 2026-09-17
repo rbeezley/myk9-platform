@@ -37,7 +37,6 @@ export {
   WITHDRAWAL_REASON_CODES,
   getWithdrawalPolicy,
   getWithdrawalReason,
-  isPastWithdrawalCutoff,
   isWithdrawalReasonCode,
   withdrawalReasonLabel,
 } from './withdrawalPolicy';

@@ -368,6 +368,7 @@ export function EntryEditDialog({
 
       <RemoveFromClassDialog
         open={pullDialog.open}
+        classId={pullDialog.classId}
         className={pullDialog.className}
         registryId={registryId}
         isSaving={isSaving}

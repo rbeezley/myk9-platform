@@ -125,8 +125,11 @@ begin
   if new_status is distinct from expected_status then
     raise exception 'FAIL %: entry_status is %, expected %', label, new_status, expected_status;
   end if;
-  if new_code is distinct from p_reason then
-    raise exception 'FAIL %: withdrawal_reason_code is %, expected %', label, new_code, p_reason;
+  -- The stored code is the NORMALISED reason: '' and '   ' are no reason at all,
+  -- on either arm.
+  if new_code is distinct from nullif(btrim(coalesce(p_reason, '')), '') then
+    raise exception 'FAIL %: withdrawal_reason_code is %, expected %',
+      label, new_code, nullif(btrim(coalesce(p_reason, '')), '');
   end if;
   -- Both acts are "the dog is not running", so both stamp the give-up time.
   if new_withdrawn_at is null then
@@ -163,6 +166,12 @@ select pg_temp.assert_leave('rejects a withdrawal with NO reason',
 select pg_temp.assert_leave('rejects a PULL that carries a reason',
   '00000000-0000-0000-0000-000000632101', '00000000-0000-0000-0000-000000632035',
   'pull', 'in_season', 'withdraw_own_entry: a pull carries no withdrawal reason');
+-- The two arms must agree on what an EMPTY reason is. A withdrawal normalises
+-- '' and '   ' to NULL and then refuses for the missing reason; a pull must
+-- treat the same input as "no reason", not as a contradiction.
+select pg_temp.assert_leave('a PULL accepts an empty-string reason as no reason',
+  '00000000-0000-0000-0000-000000632101', '00000000-0000-0000-0000-000000632035',
+  'pull', '   ', null, 'scratched');
 select pg_temp.assert_leave('rejects an unknown kind',
   '00000000-0000-0000-0000-000000632101', '00000000-0000-0000-0000-000000632035',
   'scratch', null, 'withdraw_own_entry: p_kind must be withdraw or pull, got %');
@@ -178,16 +187,40 @@ select pg_temp.assert_leave('a withdrawal cannot smuggle entry_status=scratched'
   'withdraw', 'in_season', 'withdraw_own_entry only writes entry_status = withdrawn',
   null, '{"entry_status": "scratched"}'::jsonb);
 
--- THE MONEY ARM, and the only guard the two acts do not share. A withdrawal
--- carries a rulebook refund entitlement, so a paid entry still refuses; a pull
--- says only "I am not coming" and must go through, or the paid exhibitor has no
--- way to leave and the secretary's reconciliation queue never sees the row.
-select pg_temp.assert_leave('a PAID entry still cannot be WITHDRAWN',
+-- MONEY. Owner decision 2026-09-17: BOTH acts are available on a paid entry.
+-- Neither moves money — the exhibitor's click records what happened and the
+-- secretary confirms the refund afterwards on the reconciliation surface. The
+-- previous "Entry % is paid; request a refund instead of withdrawing" refusal is
+-- GONE; it left a paid exhibitor with no honest way to say they were not coming.
+select pg_temp.assert_leave('a PAID entry CAN be WITHDRAWN with a reason',
   '00000000-0000-0000-0000-000000632101', '00000000-0000-0000-0000-000000632032',
-  'withdraw', 'in_season', 'Entry % is paid; request a refund instead of withdrawing');
+  'withdraw', 'judge_change', null, 'withdrawn');
 select pg_temp.assert_leave('a PAID entry CAN be pulled',
-  '00000000-0000-0000-0000-000000632101', '00000000-0000-0000-0000-000000632032',
+  '00000000-0000-0000-0000-000000632101', '00000000-0000-0000-0000-000000632039',
   'pull', null, null, 'scratched');
+
+-- ...and neither act touches a single money column. The exhibitor's own click
+-- must never assert a refund; it only records the act.
+do $$
+declare
+  v_payment text;
+  v_amount numeric;
+  v_refunded timestamptz;
+  v_decision text;
+  v_fee numeric;
+begin
+  select e.payment_status, e.refund_amount, e.refunded_at, e.refund_decision, e.entry_fee
+    into v_payment, v_amount, v_refunded, v_decision, v_fee
+    from public.entries e where e.id = '00000000-0000-0000-0000-000000632032';
+  if v_payment <> 'paid' or v_amount is not null or v_refunded is not null
+     or v_decision is not null or v_fee is distinct from 25 then
+    raise exception
+      'FAIL paid withdrawal wrote money: payment=% refund_amount=% refunded_at=% decision=% fee=%',
+      v_payment, v_amount, v_refunded, v_decision, v_fee;
+  end if;
+  raise notice 'PASS a paid WITHDRAWAL writes no refund columns and moves no money';
+end;
+$$;
 
 -- A pull of a paid, online entry is exactly the row
 -- set_entry_refund_decision / isUnresolvedPullRefundDecision look for. If this
@@ -252,7 +285,7 @@ begin
     jsonb_build_object('role', 'anon')::text, true);
   perform set_config('role', 'anon', true);
   begin
-    perform public.withdraw_own_entry('00000000-0000-0000-0000-000000632039',
+    perform public.withdraw_own_entry('00000000-0000-0000-0000-000000632036',
       '{"entry_status": "scratched"}'::jsonb, null, 'pull', null);
     reset role;
     raise exception 'FAIL anon: the 5-argument withdraw_own_entry is executable by anon';

@@ -122,9 +122,10 @@ describe('EntryEditDialog — MYK9-535 withdraw guard', () => {
     expect(await screen.findByRole('button', { name: /withdraw or pull/i })).toBeEnabled();
   });
 
-  // MYK9-632 — the money arm is the WITHDRAWAL's alone. A paid entry keeps its
-  // pull (the club decides that refund afterwards) and loses only Withdraw.
-  it('disables WITHDRAW for a paid entry while Pull stays live', async () => {
+  // MYK9-632: the chooser greys ONE act when only that one is refused. The money
+  // arm no longer does that (a paid entry is both withdrawable and pullable), so
+  // this pins the mechanism on a refusal that still splits them.
+  it('greys only the act the verdict refuses', async () => {
     mocks.getRemoveFromClassEligibilityForEntries.mockImplementation(async (ids: string[]) =>
       Object.fromEntries(
         ids.map(id => [
@@ -132,8 +133,8 @@ describe('EntryEditDialog — MYK9-535 withdraw guard', () => {
           {
             withdraw: {
               allowed: false,
-              code: 'paid',
-              reason: 'This entry is paid — request a refund instead of withdrawing.',
+              code: 'status',
+              reason: 'This entry can no longer be withdrawn (status: completed).',
             },
             pull: { allowed: true },
           },
@@ -151,7 +152,7 @@ describe('EntryEditDialog — MYK9-535 withdraw guard', () => {
     expect(within(chooser).getByRole('button', { name: /^withdraw$/i })).toBeDisabled();
     expect(within(chooser).getByRole('button', { name: /^pull$/i })).toBeEnabled();
     expect(
-      within(chooser).getByText(/request a refund instead of withdrawing/i)
+      within(chooser).getByText(/can no longer be withdrawn \(status: completed\)/i)
     ).toBeInTheDocument();
   });
 
@@ -191,22 +192,22 @@ describe('EntryEditDialog — MYK9-535 withdraw guard', () => {
   }
 
   it('never shows the raw Postgres text or the row UUID on a server refusal', async () => {
-    // The race the pre-check cannot close: a secretary marks the entry paid
-    // between render and click, so the RPC refuses with its own message — which
-    // names the row and is not a sentence for a person.
+    // The race the pre-check cannot close: someone checks the dog in between
+    // render and click, so the RPC refuses with its own message — which names
+    // the row and is not a sentence for a person.
     mocks.withdrawEntry.mockResolvedValue({
       data: null,
       error: {
         code: '42501',
         message:
-          'Entry 22eb47a9-ce86-4906-8053-a224d37d1602 is paid; request a refund instead of withdrawing',
+          'Entry 22eb47a9-ce86-4906-8053-a224d37d1602 is checked in at the show and cannot be withdrawn',
       },
     });
 
     render(<EntryEditDialog open entry={entry} onOpenChange={noop} onUpdate={noop} />);
     await confirmPull();
 
-    expect(await screen.findByText(/ask the secretary to pull it/i)).toBeInTheDocument();
+    expect(await screen.findByText(/show secretary/i)).toBeInTheDocument();
     expect(screen.queryByText(/22eb47a9/)).not.toBeInTheDocument();
   });
 
@@ -336,5 +337,33 @@ describe('EntryEditDialog — MYK9-535 withdraw guard', () => {
     const chooser = await screen.findByRole('alertdialog');
     expect(within(chooser).queryByText(/will not be refunded/i)).not.toBeInTheDocument();
     expect(within(chooser).getAllByText(/club's discretion/i).length).toBeGreaterThan(0);
+  });
+
+  // MYK9-632 P2: the confirm step used to assert an entitlement nothing checks
+  // ("fully refunded", "the club refunds in full"). The app holds neither the
+  // premium nor the AKC 30-minute clock, so it says who decides, not what.
+  it('never states a refund AMOUNT on any step, and names who confirms it', async () => {
+    render(<EntryEditDialog open entry={entry} onOpenChange={noop} onUpdate={noop} />);
+    await userEvent.click(await screen.findByRole('button', { name: /withdraw or pull/i }));
+
+    const chooser = await screen.findByRole('alertdialog');
+    const forbidden = /fully refunded|refunds in full|full refund|50%/i;
+    expect(chooser.textContent ?? '').not.toMatch(forbidden);
+    expect(
+      within(chooser).getAllByText(
+        /refund per the premium's rules; the show secretary confirms it/i
+      ).length
+    ).toBeGreaterThan(0);
+
+    await userEvent.click(within(chooser).getByRole('button', { name: /^withdraw$/i }));
+    expect(chooser.textContent ?? '').not.toMatch(forbidden);
+
+    await userEvent.click(within(chooser).getByRole('button', { name: /judge change/i }));
+    expect(chooser.textContent ?? '').not.toMatch(forbidden);
+    expect(
+      within(chooser).getByText(
+        /your withdrawal is recorded\. the show secretary confirms the refund under the premium's rules/i
+      )
+    ).toBeInTheDocument();
   });
 });

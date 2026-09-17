@@ -208,12 +208,26 @@ describe('ReplicatedEntriesTable.withdrawOwnEntry — online-only', () => {
     expect(queueMutation).not.toHaveBeenCalled();
   });
 
-  it('refuses a paid entry locally and never reaches the server', async () => {
+  // MYK9-632, owner decision 2026-09-17: a PAID entry is withdrawable and
+  // pullable. Neither act moves money — the click records what happened and the
+  // secretary confirms the refund on the reconciliation surface — so the client
+  // must not hold the exhibitor back where the server no longer does.
+  it('lets a PAID entry through for both acts, and asks no refund service', async () => {
     get.mockResolvedValue({ ...withdrawableEntry, paymentStatus: 'paid' });
 
-    await expect(table.withdrawOwnEntry('entry-1', WITHDRAW)).rejects.toThrow(/refund/);
-    expect(supabaseMocks.rpc).not.toHaveBeenCalled();
-    expect(set).not.toHaveBeenCalled();
+    await expect(table.withdrawOwnEntry('entry-1', WITHDRAW)).resolves.toMatchObject({
+      to: 'withdrawn',
+    });
+    await expect(table.withdrawOwnEntry('entry-1', { kind: 'pull' })).resolves.toMatchObject({
+      to: 'scratched',
+    });
+
+    // `withdraw_own_entry` is the ONLY server call either act makes. A refund
+    // RPC appearing here would mean the exhibitor's click moved money.
+    for (const call of supabaseMocks.rpc.mock.calls) {
+      expect(call[0]).toBe(WITHDRAW_OWN_ENTRY_RPC);
+    }
+    expect(supabaseMocks.rpc).toHaveBeenCalledTimes(2);
   });
 
   it('refuses a checked-in entry locally — the day-of self-withdrawal hole', async () => {

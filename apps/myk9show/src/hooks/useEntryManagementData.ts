@@ -204,7 +204,12 @@ export function mapSecretaryEntryToEntryManagementEntry(
     refundAmount: entry.refund_amount ?? null,
     refundedAt: entry.refunded_at ?? null,
     stripePaymentIntentId: entry.stripe_payment_intent_id ?? null,
-    pullReason: entry.entry_status === 'scratched' ? (entry.withdrawal_reason ?? null) : null,
+    // MYK9-632: the free-text note belongs to either act. `withdrawalReasonCode`
+    // above carries the enumerated WITHDRAWAL reason; this is the note beside it.
+    pullReason:
+      entry.entry_status === 'scratched' || entry.entry_status === 'withdrawn'
+        ? (entry.withdrawal_reason ?? null)
+        : null,
     pulledAt: entry.withdrawn_at ?? null,
     pullTiming:
       entry.entry_status === 'scratched'

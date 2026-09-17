@@ -14,8 +14,6 @@
  * This predicate governs the OWNER tier only. A show manager is bound by
  * `entries_update` alone and keeps the existing secretary lifecycle path.
  */
-import { resolveEffectivePaymentStatus } from '@/utils/effectivePaymentStatus';
-import { PaymentStatus } from '@/types/show-registration-types';
 import type { RemoveFromClassKind } from '@/features/registries/withdrawalPolicy';
 
 /**
@@ -50,23 +48,12 @@ export const OWNER_WITHDRAWABLE_ENTRY_STATUSES: readonly string[] = [
 export const PRE_SHOW_CHECK_IN_STATUSES: readonly string[] = ['no-status', 'pulled'];
 
 export type WithdrawRefusalCode =
-  | 'removed'
-  | 'paid'
-  | 'unknown-payment'
-  | 'status'
-  | 'scored'
-  | 'at-show'
-  | 'unavailable'
-  | 'missing'
-  | 'conflict';
+  'removed' | 'status' | 'scored' | 'at-show' | 'unavailable' | 'missing' | 'conflict';
 
 export interface WithdrawEligibilityInput {
   /**
-   * MYK9-632: which act is being offered. The two share every guard EXCEPT the
-   * money arm — a WITHDRAWAL of a paid entry is refused (its rulebook refund
-   * entitlement is the secretary's to assert), while a PULL of a paid entry is
-   * allowed, because the club decides that refund afterwards and the
-   * reconciliation surface only ever sees the row once it is pulled. Defaults to
+   * MYK9-632: which act is being offered. It selects the VERB in the refusal
+   * sentences; the guards themselves are identical for both acts. Defaults to
    * 'withdraw', which is what every pre-MYK9-632 caller meant.
    */
   kind?: RemoveFromClassKind | undefined;
@@ -93,22 +80,6 @@ function refuse(code: WithdrawRefusalCode, reason: string): WithdrawEligibility 
   return { allowed: false, code, reason };
 }
 
-/**
- * The money arm, FAIL-CLOSED. The RPC refuses unless `payment_status` is
- * literally 'pending' or 'waived' (`IS DISTINCT FROM` both), so an unknown or
- * missing status must refuse here too — otherwise the client offers a
- * withdrawal the server rejects, which is the whole class of bug this predicate
- * exists to prevent. Returns null when the status could not be determined.
- */
-function moneyAllowsWithdrawal(input: WithdrawEligibilityInput): boolean | null {
-  const effective = resolveEffectivePaymentStatus(
-    (input.paymentStatus ?? null) as PaymentStatus | null,
-    (input.enrollmentPaymentStatus ?? null) as PaymentStatus | null
-  );
-  if (effective == null) return null;
-  return effective === PaymentStatus.PENDING || effective === PaymentStatus.WAIVED;
-}
-
 export function evaluateWithdrawEligibility(input: WithdrawEligibilityInput): WithdrawEligibility {
   const kind: RemoveFromClassKind = input.kind ?? 'withdraw';
 
@@ -116,20 +87,14 @@ export function evaluateWithdrawEligibility(input: WithdrawEligibilityInput): Wi
     return refuse('removed', 'This entry has been removed.');
   }
 
-  // The money arm is the WITHDRAWAL's alone (MYK9-632). A pull reads no payment
-  // state at all, here or in the RPC, so there is nothing to fail closed on.
-  if (kind === 'withdraw') {
-    const moneyAllows = moneyAllowsWithdrawal(input);
-    if (moneyAllows === null) {
-      return refuse(
-        'unknown-payment',
-        "We couldn't confirm this entry's payment status — ask the secretary to pull it."
-      );
-    }
-    if (!moneyAllows) {
-      return refuse('paid', 'This entry is paid — request a refund instead of withdrawing.');
-    }
-  }
+  // NO MONEY ARM (MYK9-632, owner decision 2026-09-17). Neither act moves a
+  // cent: the exhibitor records what happened and the secretary confirms the
+  // refund afterwards on the reconciliation surface. The old
+  // 'This entry is paid — request a refund instead of withdrawing.' refusal
+  // matched a guard the RPC no longer has, and it left a paid exhibitor with no
+  // honest way to say they were not coming. `paymentStatus` /
+  // `enrollmentPaymentStatus` stay on the input so callers that already project
+  // them keep compiling and so a future money rule has one place to land.
 
   const verb = kind === 'pull' ? 'pulled' : 'withdrawn';
 
@@ -214,7 +179,7 @@ export class WithdrawNotAllowedError extends Error {
  * Turn any withdrawal failure into a sentence an exhibitor can act on.
  *
  * Server refusals arrive as raw Postgres text carrying the row UUID
- * ("Entry 22eb47a9-… is paid; request a refund instead of withdrawing"). That is
+ * ("Entry 22eb47a9-… is checked in at the show and cannot be withdrawn"). That is
  * exactly right for the logger and wrong for a person, so the UI switches on the
  * CODE and reuses the sentences this module already owns.
  *
@@ -225,8 +190,8 @@ export class WithdrawNotAllowedError extends Error {
  */
 const SERVER_MESSAGES: Record<string, string> = {
   // The RPC's own owner-tier guards. Reaching one means the entry changed
-  // between the pre-check and the call — e.g. a secretary marked it paid.
-  '42501': 'This entry can no longer be withdrawn — ask the secretary to pull it.',
+  // between the pre-check and the call — e.g. someone checked the dog in.
+  '42501': 'This entry can no longer be removed — ask the show secretary.',
   // invalid_parameter_value: the payload was wrong. Not the exhibitor's doing.
   '22023': "Something went wrong preparing this withdrawal — we've logged it.",
   P0002: 'This entry no longer exists — refresh the page and try again.',
@@ -235,8 +200,6 @@ const SERVER_MESSAGES: Record<string, string> = {
 
 const OWN_REFUSAL_CODES = new Set<string>([
   'removed',
-  'paid',
-  'unknown-payment',
   'status',
   'scored',
   'at-show',
@@ -258,8 +221,9 @@ export function withdrawErrorMessage(
 /**
  * MYK9-632: both answers for one row. The exhibitor is offered two acts, and
  * only the money arm differs between them, so a single verdict cannot drive the
- * dialog — a paid entry must show Withdraw greyed out with its reason WHILE Pull
- * stays live.
+ * dialog. The two verdicts agree on every guard today (the money arm that once
+ * split them is gone), but they carry DIFFERENT SENTENCES, and the chooser shows
+ * each act its own — so the pair survives rather than collapsing back to one.
  */
 export interface RemoveFromClassEligibility {
   withdraw: WithdrawEligibility;

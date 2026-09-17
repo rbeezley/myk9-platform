@@ -130,9 +130,12 @@ const KIND_WORDING: Record<EntryStatusKind, VoicedWording> = {
     secretary: { line: 'Not accepted' },
     exhibitor: { line: 'Not accepted' },
   },
+  // MYK9-632: stored 'scratched', rendered "Pulled" on BOTH sides — same act,
+  // one word. Only the label moves; the stored value is what the secretary's
+  // refund-reconciliation surface keys on.
   scratched: {
-    secretary: { line: 'Scratched' },
-    exhibitor: { line: 'Scratched' },
+    secretary: { line: 'Pulled' },
+    exhibitor: { line: 'Pulled' },
   },
   absent: {
     secretary: { line: 'Absent' },

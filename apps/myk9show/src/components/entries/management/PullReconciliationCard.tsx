@@ -2,6 +2,7 @@ import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
 import { StatusIcon } from '@/components/status';
 import { formatEntryDateTime } from '@/lib/format/dates';
+import { withdrawalReasonLabel } from '@/features/registries';
 import type { EntryManagementEntry } from '@/types/entry-management-types';
 import { PullReconciliationActions } from './PullReconciliationActions';
 
@@ -42,12 +43,27 @@ function PullTimingBadge({ pullTiming }: { pullTiming: EntryManagementEntry['pul
   );
 }
 
+/**
+ * MYK9-632: WHICH act the row records, and whose rules decide its refund.
+ * A pull is the club's call; a withdrawal carrying a recognised reason is the
+ * premium's. Same queue, same refund controls, different sentence — the
+ * secretary must not have to guess which one they are looking at.
+ */
+function removalSummary(entry: EntryManagementEntry): string {
+  const reason = withdrawalReasonLabel(entry.withdrawalReasonCode);
+  if (entry.rawEntryStatus === 'withdrawn' && reason) {
+    return `Withdrawn · ${reason} · refund per the premium`;
+  }
+  return "Pulled — refund at the club's discretion";
+}
+
 export function PullReconciliationCard({
   entry,
   onOpenRefund,
   onResolved,
 }: PullReconciliationCardProps) {
   const entryClass = entry.classes[0];
+  const isWithdrawal = entry.rawEntryStatus === 'withdrawn';
   return (
     <Card className="transition-colors hover:bg-muted/50">
       <CardContent className="p-4">
@@ -65,6 +81,7 @@ export function PullReconciliationCard({
                 {entryClass?.number && `#${entryClass.number} - `}
                 {entryClass?.name}
               </div>
+              <div className="text-xs text-muted-foreground">{removalSummary(entry)}</div>
               {entry.pullReason && (
                 <div className="text-xs italic text-muted-foreground">{entry.pullReason}</div>
               )}
@@ -72,9 +89,14 @@ export function PullReconciliationCard({
           </div>
 
           <div className="flex flex-wrap items-center gap-4">
-            <PullTimingBadge pullTiming={entry.pullTiming} />
+            {/* Pull timing drives the club-discretion default. A withdrawal's
+                refund follows the premium, not the entry-close date, so the
+                before/after-close chip would be answering a question nobody
+                asked of it. */}
+            {!isWithdrawal && <PullTimingBadge pullTiming={entry.pullTiming} />}
             <div className="text-sm text-muted-foreground">
-              Pulled: {formatEntryDateTime(entry.pulledAt) || 'N/A'}
+              {isWithdrawal ? 'Withdrawn' : 'Pulled'}:{' '}
+              {formatEntryDateTime(entry.pulledAt) || 'N/A'}
             </div>
             <PullReconciliationActions
               entry={entry}

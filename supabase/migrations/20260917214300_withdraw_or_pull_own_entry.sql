@@ -58,6 +58,14 @@ COMMENT ON COLUMN public.entries.withdrawal_reason_code IS
 -- migrations), so a new column is invisible to PostgREST without this. READ
 -- only: the column is written exclusively by the definer RPC below and by the
 -- secretary paths that already hold `entries_update`.
+--
+-- The anon decision is stated EXPLICITLY, and it is "no access": omitting it
+-- would not keep anon out (this project carries ALTER DEFAULT PRIVILEGES
+-- granting anon full CRUD in schema public), and the ringside passcode session
+-- has no business reading why an exhibitor withdrew. The REVOKE is a plain
+-- statement ordered BEFORE the grant so no splitter can reorder it after
+-- (LESSONS: grant-contract-splitter).
+REVOKE ALL (withdrawal_reason_code) ON public.entries FROM anon;
 GRANT SELECT (withdrawal_reason_code) ON public.entries TO authenticated;
 
 -- The 3-argument signature is DROPPED rather than left beside the new one:

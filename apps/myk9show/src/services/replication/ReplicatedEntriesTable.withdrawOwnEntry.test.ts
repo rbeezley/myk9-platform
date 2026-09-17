@@ -199,7 +199,9 @@ describe('ReplicatedEntriesTable.withdrawOwnEntry — online-only', () => {
       error: { code: '42501', message: 'Entry entry-1 is paid; request a refund' },
     });
 
-    await expect(table.withdrawOwnEntry('entry-1', WITHDRAW)).rejects.toMatchObject({ code: '42501' });
+    await expect(table.withdrawOwnEntry('entry-1', WITHDRAW)).rejects.toMatchObject({
+      code: '42501',
+    });
     // The whole point of dropping the optimistic write: nothing local changed,
     // so there is no dirty row for a revert to fail to clear.
     expect(set).not.toHaveBeenCalled();
@@ -270,7 +272,9 @@ describe('ReplicatedEntriesTable.withdrawOwnEntry — online-only', () => {
       .mockResolvedValueOnce({ data: null, error: { code: '40001', details: '9' } })
       .mockResolvedValueOnce({ data: null, error: { code: '40001', details: '11' } });
 
-    await expect(table.withdrawOwnEntry('entry-1', WITHDRAW)).rejects.toThrow(/reopen it and try again/);
+    await expect(table.withdrawOwnEntry('entry-1', WITHDRAW)).rejects.toThrow(
+      /reopen it and try again/
+    );
     expect(supabaseMocks.rpc).toHaveBeenCalledTimes(2);
     expect(set).not.toHaveBeenCalled();
   });
@@ -278,7 +282,9 @@ describe('ReplicatedEntriesTable.withdrawOwnEntry — online-only', () => {
   it('does not retry a conflict whose DETAIL carries no usable version', async () => {
     supabaseMocks.rpc.mockResolvedValue({ data: null, error: { code: '40001', details: null } });
 
-    await expect(table.withdrawOwnEntry('entry-1', WITHDRAW)).rejects.toThrow(/reopen it and try again/);
+    await expect(table.withdrawOwnEntry('entry-1', WITHDRAW)).rejects.toThrow(
+      /reopen it and try again/
+    );
     expect(supabaseMocks.rpc).toHaveBeenCalledTimes(1);
   });
 

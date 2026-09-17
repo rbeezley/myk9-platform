@@ -74,6 +74,7 @@ function mockLegacyEntryUpdate() {
     update: vi.fn(() => query),
     eq: vi.fn(() => query),
     in: vi.fn(() => query),
+    in: vi.fn(() => query),
     select: vi.fn(() => query),
     single: vi.fn(() => Promise.resolve({ data: { id: 'entry-1' }, error: null })),
     then: (resolve: (value: { data: unknown[]; error: null }) => unknown) =>
@@ -133,6 +134,7 @@ function mockMetadataLookups(pullMetadata: unknown[] = []) {
       const query = {
         select: vi.fn(() => query),
         eq: vi.fn(() => query),
+        in: vi.fn(() => query),
         then: (resolve: (value: { data: unknown[]; error: null }) => unknown) =>
           Promise.resolve(resolve({ data: pullMetadata, error: null })),
       };
@@ -147,6 +149,7 @@ function mockPostgrestEntriesRead(data: unknown[]) {
   const query = {
     select: vi.fn(() => query),
     eq: vi.fn(() => query),
+    in: vi.fn(() => query),
     is: vi.fn(() => query),
     order: vi.fn(() =>
       Promise.resolve({ data: data as unknown[] | null, error: null as unknown | null })
@@ -585,6 +588,7 @@ describe('secretary entry read replication', () => {
             return query;
           }),
           eq: vi.fn(() => query),
+          in: vi.fn(() => query),
           is: vi.fn(() => query),
           order: vi.fn(() => Promise.resolve(respond())),
           // The pull-metadata chain ends at .eq(), so it awaits the query itself.

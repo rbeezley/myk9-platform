@@ -184,6 +184,7 @@ export function mapSecretaryEntryToEntryManagementEntry(
     enrollmentPaidAmount: entry.registration?.paid_amount ?? null,
     // withdrawal_reason and refund fields populated after migration 175/176 pushed
     ...(entry.withdrawal_reason ? { withdrawalReason: entry.withdrawal_reason } : {}),
+    withdrawalReasonCode: entry.withdrawal_reason_code ?? null,
     ...(entry.registration?.refund_amount != null
       ? { enrollmentRefundAmount: entry.registration.refund_amount }
       : {}),

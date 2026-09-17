@@ -236,6 +236,9 @@ function toSecretaryEntry(
     ),
     check_in_status: entry.checkInStatus ?? entry.check_in_status ?? null,
     withdrawal_reason: entry.withdrawalReason ?? entry.withdrawal_reason ?? null,
+    // MYK9-632: from the side-read, not the replica — the column lives on
+    // `entries` and the view the replica mirrors does not carry it.
+    withdrawal_reason_code: pullMetadata?.withdrawal_reason_code ?? null,
     withdrawn_at: pullMetadata?.withdrawn_at ?? null,
     payment_method: entry.paymentMethod ?? null,
     refund_amount: numberFrom(replicatedField(entry, 'refundAmount', 'refund_amount')),

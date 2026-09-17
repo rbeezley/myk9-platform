@@ -72,13 +72,15 @@ beforeEach(() => {
   // The hook now asks for the whole card in one call; answer every id it asks
   // for, with BOTH verdicts (MYK9-632).
   mocks.getRemoveFromClassEligibilityForEntries.mockImplementation(async (ids: string[]) =>
-    Object.fromEntries(ids.map(id => [id, { withdraw: { allowed: true }, pull: { allowed: true } }]))
+    Object.fromEntries(
+      ids.map(id => [id, { withdraw: { allowed: true }, pull: { allowed: true } }])
+    )
   );
 });
 
 /** Both verdicts set to the same refusal — the pre-MYK9-632 "nothing is possible" case. */
-const bothRefused = (verdict: { allowed: boolean; code?: string; reason?: string }) =>
-  async (ids: string[]) =>
+const bothRefused =
+  (verdict: { allowed: boolean; code?: string; reason?: string }) => async (ids: string[]) =>
     Object.fromEntries(ids.map(id => [id, { withdraw: verdict, pull: verdict }]));
 
 describe('EntryEditDialog — MYK9-535 withdraw guard', () => {
@@ -269,7 +271,9 @@ describe('EntryEditDialog — MYK9-535 withdraw guard', () => {
   });
 
   it('refuses rather than re-enabling the affordance when the check itself fails', async () => {
-    mocks.getRemoveFromClassEligibilityForEntries.mockRejectedValue(new Error('replica unavailable'));
+    mocks.getRemoveFromClassEligibilityForEntries.mockRejectedValue(
+      new Error('replica unavailable')
+    );
 
     render(<EntryEditDialog open entry={entry} onOpenChange={noop} onUpdate={noop} />);
 

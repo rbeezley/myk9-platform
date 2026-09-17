@@ -31,7 +31,12 @@ import {
   resolveClassSection,
 } from '@/services/entryDisplay/entryDisplaySelectors';
 import type { ShowChangeSignal } from '@/features/show-live-sync/showChangeSignal';
-import { isNonRunningEntry } from '@/features/_shared/entryAccounting';
+import {
+  classifyEntries,
+  countEntryAccounting,
+  isNonRunningEntry,
+  type EntryAccountingFields,
+} from '@/features/_shared/entryAccounting';
 
 const atShowSyncsInFlight = new Map<string, Promise<void>>();
 
@@ -234,12 +239,20 @@ export function transformEntry(re: ReplicatedEntry, cls: ReplicatedClass | null)
 
 /**
  * Build ringside `ClassInfo` from a myK9Show class (+ optional trial join +
- * the already-transformed entries for derived counts). See spec Table 2.
+ * the already-transformed entries for header fallbacks). See spec Table 2.
+ *
+ * MYK9-645: the counts come from `accountingEntries` -- the REPLICATED rows, not
+ * the transformed ringside ones -- because the canonical rule reads
+ * `entry_status`, `check_in_status`, `result_status` and `deleted_at`, and
+ * `transformEntry` collapses those into a single display `status` that cannot
+ * tell `moved` or `not_accepted` from a live runner. Required, not optional, so
+ * a caller cannot silently fall back to raw `entries.length`.
  */
 export function buildClassInfo(
   cls: ReplicatedClass,
   trial: ReplicatedTrial | null,
-  entries: Entry[]
+  entries: Entry[],
+  accountingEntries: (EntryAccountingFields & { id: string })[]
 ): ClassInfo {
   const trialId = cls.trialId ?? cls.trial_id;
   const trialNumber = trial?.trialNumber ?? trial?.trial_number;
@@ -248,6 +261,7 @@ export function buildClassInfo(
   const timeLimit2 = timeLimitString(cls.timeLimitArea2Seconds ?? cls.time_limit_area2_seconds);
   const timeLimit3 = timeLimitString(cls.timeLimitArea3Seconds ?? cls.time_limit_area3_seconds);
   const resultsReleasedAt = cls.resultsReleasedAt ?? cls.results_released_at;
+  const counts = countEntryAccounting(accountingEntries);
 
   return {
     className: buildClassName(cls),
@@ -262,8 +276,20 @@ export function buildClassInfo(
     // 'standard' when a row hasn't been enriched yet (e.g. pre-migration cache).
     selfCheckin: cls.selfCheckinEnabled ?? true,
     classStatus: cls.classStatus ?? 'pending',
-    totalEntries: entries.length,
-    completedEntries: entries.filter(e => e.isScored).length,
+    totalEntries: counts.expected,
+    completedEntries: counts.accounted,
+    // Hand the SAME pair to the ringside Pending/Completed tabs (MYK9-645).
+    // The tabs used to re-derive from the transformed entries array, which has
+    // already lost the lifecycle fields, so one screen showed two answers --
+    // "0 of 65 completed" in the class details beside "Pending 66".
+    statusCounts: {
+      pending: counts.expected - counts.accounted,
+      completed: counts.accounted,
+    },
+    // ...and the per-entry group from the SAME predicates, so the package can
+    // put each ROW in the group its badge counts it in. Without this the badge
+    // said 65 over 66 rows (MYK9-645).
+    entryClassification: classifyEntries(accountingEntries),
     visibilityPreset: (cls.visibilityPreset as ClassInfo['visibilityPreset']) ?? 'standard',
 
     ...(cls.isScoringFinalized !== undefined && {
@@ -287,6 +313,7 @@ async function fetchClassData(classId: string): Promise<{
   cls: ReplicatedClass | null;
   trial: ReplicatedTrial | null;
   entries: Entry[];
+  rawEntries: ReplicatedEntry[];
 }> {
   const cls = await replicatedClassesTable.getClassById(classId);
   const rawEntries = await replicatedEntriesTable.getEntriesByClass(classId);
@@ -295,7 +322,7 @@ async function fetchClassData(classId: string): Promise<{
     (cls?.trialId ?? cls?.trial_id)
       ? await replicatedTrialsTable.getTrialById((cls?.trialId ?? cls?.trial_id) as string)
       : null;
-  return { cls, trial, entries };
+  return { cls, trial, entries, rawEntries };
 }
 
 /**
@@ -311,10 +338,10 @@ export function createAtShowDataDependencies(): Pick<
 > {
   return {
     fetchSingleClass: async (classId): Promise<EntryListData> => {
-      const { cls, trial, entries } = await fetchClassData(classId);
+      const { cls, trial, entries, rawEntries } = await fetchClassData(classId);
       return {
         entries,
-        classInfo: cls ? buildClassInfo(cls, trial, entries) : null,
+        classInfo: cls ? buildClassInfo(cls, trial, entries, rawEntries) : null,
       };
     },
 
@@ -322,6 +349,7 @@ export function createAtShowDataDependencies(): Pick<
       const a = await fetchClassData(classIdA);
       const b = await fetchClassData(classIdB);
       const entries = [...a.entries, ...b.entries];
+      const rawEntries = [...a.rawEntries, ...b.rawEntries];
       // Combined view uses class A as the header source (mirrors myK9Q).
       //
       // COMPLETION is the exception, and it has to be, because this one
@@ -340,7 +368,7 @@ export function createAtShowDataDependencies(): Pick<
 
       const classInfo = a.cls
         ? {
-            ...buildClassInfo(a.cls, a.trial, entries),
+            ...buildClassInfo(a.cls, a.trial, entries, rawEntries),
             actualClassIdA: classIdA,
             actualClassIdB: classIdB,
             judgeNameB: b.cls?.judgeName ?? 'No Judge Assigned',

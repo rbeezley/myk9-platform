@@ -15,11 +15,8 @@
 
 import type { EffectiveClassStatus } from '@myk9/ringside';
 import type { ReplicatedEntry } from '@/services/replication/ReplicatedEntriesTable';
-import {
-  inRingReplicated,
-  nextPendingReplicated,
-  pendingReplicatedByRunOrder,
-} from './replicatedRunQueue';
+import { countEntryAccounting } from '@/features/_shared/entryAccounting';
+import { inRingReplicated, nextPendingReplicated } from './replicatedRunQueue';
 
 /** How many waiting armbands the row previews (myK9Q showed 3). */
 export const NEXT_UP_PREVIEW_LIMIT = 3;
@@ -31,7 +28,7 @@ export interface AtShowNextUpPreview {
   nextArmbands: string[];
   /** Dogs still to run, including the one in the ring. */
   remaining: number;
-  /** Dogs accounted for in this class (scratched/pulled excluded). */
+  /** Dogs the show expects to run (withdrawn / pulled / moved excluded). */
   total: number;
 }
 
@@ -55,21 +52,30 @@ function armbandOf(entry: ReplicatedEntry): string | null {
 /** Build the row preview for one class from its replicated entries. */
 export function buildNextUpPreview(entries: ReplicatedEntry[]): AtShowNextUpPreview {
   const inRing = inRingReplicated(entries);
-  const pending = pendingReplicatedByRunOrder(entries);
   const nextArmbands = nextPendingReplicated(entries, NEXT_UP_PREVIEW_LIMIT)
     .map(armbandOf)
     .filter((armband): armband is string => armband !== null);
 
-  // `remaining` counts the in-ring dog too — an exhibitor deciding whether to
+  // ONE membership rule, one ordering rule. `entryAccounting` answers who the
+  // show expects to run -- for the counts here AND, since MYK9-645 round 4, for
+  // `replicatedRunQueue`'s own `queueStatus`. The queue then answers only the
+  // ORDER: who is in the ring, who is next.
+  //
+  // Both halves of that were separately wrong. Deriving `total` from the
+  // queue's exclusions made this line a third counting rule (a 9-runner class
+  // read "10 of 10 remaining" above "0 / 9"); and while the queue kept its own
+  // status list, a `moved` entry stayed in the ORDER, so the card announced a
+  // dog as next up that the counts had already excluded.
+  //
+  // `remaining` still counts the in-ring dog: an exhibitor deciding whether to
   // walk to the ring cares about dogs still to run, not dogs still queued.
-  const remaining = pending.length + (inRing ? 1 : 0);
-  const scored = entries.filter(entry => entry.isScored ?? entry.is_scored ?? false).length;
+  const counts = countEntryAccounting(entries);
 
   return {
     inRingArmband: inRing ? armbandOf(inRing) : null,
     nextArmbands,
-    remaining,
-    total: remaining + scored,
+    remaining: counts.expected - counts.accounted,
+    total: counts.expected,
   };
 }
 

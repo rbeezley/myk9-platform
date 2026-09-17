@@ -159,7 +159,7 @@ export type {
 } from './pages/EntryList';
 
 export { useEntryListFilters } from './pages/EntryList';
-export type { TabType, SortType, SectionFilter } from './pages/EntryList';
+export type { TabType, EntryGroup, SortType, SectionFilter } from './pages/EntryList';
 
 // Exhibitor ownership annotations — own-dog highlight + dogs-ahead pills.
 // `buildEntryListOwnership` is the bag builder host shims call with their

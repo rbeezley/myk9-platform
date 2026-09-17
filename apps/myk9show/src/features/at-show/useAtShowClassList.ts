@@ -161,7 +161,10 @@ export function useAtShowClassList(showId: string | undefined): UseAtShowClassLi
     networkMode: 'always',
   });
   // A class that already reports entries proves the read succeeded, whatever
-  // the metadata says.
+  // the metadata says. Since MYK9-645 `entry_count` is the EXPECTED count, not
+  // row presence, so a show whose every entry is withdrawn or pulled falls
+  // through to the `areAtShowEntryCountsKnown` metadata query above -- which is
+  // the primary discriminator this fallback backs up, not the other way round.
   const hasAnyCountedEntries = groups.some(group =>
     group.classes.some(classEntry => classEntry.entry_count > 0)
   );

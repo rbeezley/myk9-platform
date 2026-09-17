@@ -39,8 +39,11 @@ describe('toRunQueueEntry', () => {
     expect(toRunQueueEntry(row({ id: 'e2', is_in_ring: true })).inRing).toBe(true);
   });
 
+  // `pulled` is NOT a legal `entry_status` (`entries_entry_status_check`), so
+  // the fallback is exercised with a lifecycle value the database can actually
+  // store (MYK9-645). The `pulled` axis is pinned by the check-in cases below.
   it('falls back to entryStatus when status is absent', () => {
-    expect(toRunQueueEntry(row({ id: 'e1', entryStatus: 'pulled' })).status).toBe('pulled');
+    expect(toRunQueueEntry(row({ id: 'e1', entryStatus: 'confirmed' })).status).toBe('confirmed');
   });
 
   // Replicated rows carry two status axes. `pulled` and `in-ring` only ever
@@ -83,7 +86,8 @@ describe('pendingReplicatedByRunOrder / nextPendingReplicated', () => {
     row({ id: 'e1', armband: '1', is_in_ring: true }),
     row({ id: 'e2', armband: '2' }),
     row({ id: 'e3', armband: '3', is_scored: true }),
-    row({ id: 'e4', armband: '4', entryStatus: 'pulled' }),
+    // Pulled lives on the CHECK-IN axis; the lifecycle stays a legal value.
+    row({ id: 'e4', armband: '4', entryStatus: 'confirmed', checkInStatus: 'pulled' }),
     row({ id: 'e5', armband: '5' }),
     row({ id: 'e6', armband: '6' }),
   ];

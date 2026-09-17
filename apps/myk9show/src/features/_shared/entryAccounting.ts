@@ -106,6 +106,27 @@ export function isAccountedFor(entry: EntryAccountingFields): boolean {
   );
 }
 
+/**
+ * THE membership predicate: is this dog still going to appear in the ring?
+ *
+ * Every queue-membership question answers to this one function (MYK9-645 round
+ * 5). Three rounds of this issue each fixed one branch and left a sibling:
+ * `moved` stayed in the run order after the counts excluded it, then an
+ * unscored `absent`-RESULT row stayed in the order after being counted as
+ * accounted, then a withdrawn row carrying a stale `check_in_status: 'in-ring'`
+ * was announced as the dog in the ring while listed under Not running. A
+ * predicate with three call sites and three spellings will keep producing those
+ * (LESSONS `discriminator-branches`).
+ *
+ * The `check_in_status !== 'pulled'` clause is redundant with `isExpectedEntry`
+ * and kept deliberately: it states the show-day axis explicitly so a future
+ * reader does not re-add it somewhere else.
+ */
+export function isRunnableEntry(entry: EntryAccountingFields): boolean {
+  const checkInStatus = normalized(entry.checkInStatus ?? entry.check_in_status);
+  return isExpectedEntry(entry) && !isAccountedFor(entry) && checkInStatus !== 'pulled';
+}
+
 /** Entries the show expects to run, in input order. */
 export function expectedEntries<T extends EntryAccountingFields>(entries: T[]): T[] {
   return entries.filter(isExpectedEntry);
@@ -114,4 +135,69 @@ export function expectedEntries<T extends EntryAccountingFields>(entries: T[]): 
 /** Expected entries that still need a result. */
 export function outstandingEntries<T extends EntryAccountingFields>(entries: T[]): T[] {
   return expectedEntries(entries).filter(entry => !isAccountedFor(entry));
+}
+
+/** The expected / accounted pair every "n of m scored" counter must report. */
+export interface EntryAccountingCounts {
+  /** Entries the show still expects to put in the ring (the denominator). */
+  expected: number;
+  /** Expected entries that no longer represent outstanding scoring work. */
+  accounted: number;
+  /** The server's `complete` predicate: `expected > 0 && accounted === expected`. */
+  isComplete: boolean;
+}
+
+/**
+ * Count a class's entries the way the server's auto-derivation does.
+ *
+ * One call site per counter, so a surface can never grow its own variant: a
+ * withdrawn or pulled entry left in the denominator is how the Ringside class
+ * list came to render a finished 66-entry class as `64 / 66` (MYK9-645) while
+ * the server had it complete.
+ */
+export function countEntryAccounting(entries: EntryAccountingFields[]): EntryAccountingCounts {
+  const expected = expectedEntries(entries);
+  const accounted = expected.filter(isAccountedFor).length;
+  return {
+    expected: expected.length,
+    accounted,
+    isComplete: expected.length > 0 && accounted === expected.length,
+  };
+}
+
+/**
+ * Which of the entry list's three groups a row belongs to.
+ *
+ * `not_running` is NOT a hidden state: the judge and the gate steward still
+ * need to see that a dog was withdrawn or pulled — they just must not be in
+ * either badge's arithmetic (MYK9-645).
+ */
+export type EntryAccountingGroup = 'pending' | 'completed' | 'not_running';
+
+/**
+ * The group one entry belongs to, from the same predicates as the counts and
+ * the run queue. By construction:
+ *   `pending`     === `isRunnableEntry`
+ *   `completed`   === expected AND `isAccountedFor`
+ *   `not_running` === NOT `isExpectedEntry`
+ * `entryAccountingGrid.test.ts` asserts that equivalence over every
+ * status x result_status x check_in_status combination rather than trusting it.
+ */
+export function classifyEntry(entry: EntryAccountingFields): EntryAccountingGroup {
+  if (!isExpectedEntry(entry)) return 'not_running';
+  return isRunnableEntry(entry) ? 'pending' : 'completed';
+}
+
+/**
+ * Classify a class's entries by id, so a surface that cannot import this rule
+ * (the shared ringside package) can still group its ROWS by exactly the rule
+ * its badges count with. A badge that describes a different set than the list
+ * beneath it is the bug this prevents: "Pending 65" over 66 rows.
+ */
+export function classifyEntries(
+  entries: (EntryAccountingFields & { id: string })[]
+): Record<string, EntryAccountingGroup> {
+  const byId: Record<string, EntryAccountingGroup> = {};
+  for (const entry of entries) byId[entry.id] = classifyEntry(entry);
+  return byId;
 }

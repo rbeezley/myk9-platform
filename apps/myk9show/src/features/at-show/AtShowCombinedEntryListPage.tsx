@@ -166,9 +166,13 @@ export const AtShowCombinedEntryListPage: React.FC = () => {
     filteredEntries,
     pendingEntries,
     completedEntries,
+    notRunningEntries,
     entryCounts,
   } = useEntryListFilters({
     entries: localEntries,
+    // The host owns the counting rule; the package groups rows by what it is
+    // handed rather than re-deriving one it cannot see (MYK9-645).
+    entryClassification: classInfo?.entryClassification,
     supportSectionFilter: true,
     // The combined route used to sort itself with `compareEntries`, which only
     // floated in-ring dogs. Sharing the single-class route's options is the
@@ -375,6 +379,7 @@ export const AtShowCombinedEntryListPage: React.FC = () => {
             filteredEntries,
             pendingEntries,
             completedEntries,
+            notRunningEntries,
             currentEntries,
             entryCounts,
           }}

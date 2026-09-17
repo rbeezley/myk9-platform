@@ -115,6 +115,7 @@ export const EntryListPage: React.FC<EntryListPageProps> = ({
     searchTerm,
     filteredEntries,
     completedEntries,
+    notRunningEntries,
     currentEntries,
     entryCounts,
   } = derived;
@@ -126,8 +127,26 @@ export const EntryListPage: React.FC<EntryListPageProps> = ({
   );
 
   const statusTabs = useMemo(
-    () => buildStatusTabs({ pending: entryCounts.pending, completed: entryCounts.completed }),
-    [entryCounts.pending, entryCounts.completed]
+    () =>
+      buildStatusTabs(
+        { pending: entryCounts.pending, completed: entryCounts.completed },
+        // Three sources, in order of how well each can promise that the badge
+        // describes the ROWS under it (MYK9-645):
+        //   1. a per-entry classification -- `entryCounts` is then the host's
+        //      rule applied to the very rows this page renders, so the two
+        //      cannot drift even mid-write, and the aggregate is not consulted;
+        //   2. an aggregate `statusCounts`, for a host that computes the pair
+        //      but not the per-row grouping;
+        //   3. the entries-array `isScored` split, for consumers supplying
+        //      neither.
+        classInfo?.entryClassification ? undefined : classInfo?.statusCounts
+      ),
+    [
+      entryCounts.pending,
+      entryCounts.completed,
+      classInfo?.statusCounts,
+      classInfo?.entryClassification,
+    ]
   );
 
   const sectionTabs = useMemo(
@@ -302,6 +321,55 @@ export const EntryListPage: React.FC<EntryListPageProps> = ({
               {...(ownership ? { ownership } : {})}
               DogCard={layout.DogCard}
             />
+            {/* INTENT: a withdrawn or pulled dog must stay VISIBLE to the judge
+                and the gate steward -- "did #114 scratch, or have I just not
+                got to her?" is a question the ring asks out loud, and an
+                entry that silently disappears is worse than one shown as not
+                running. These rows already sorted last (`deprioritizePulled`);
+                MYK9-645 makes that a LABELLED, collapsed group rather than a
+                silent tail, because the Pending badge no longer counts them
+                and a count that disagrees with the rows under it is its own
+                bug. Collapsed by default so the judge's thumb still lands on
+                the next dog to score. Do not hide this group. */}
+            {activeTab === 'pending' && notRunningEntries && notRunningEntries.length > 0 && (
+              <section className="mt-6">
+                {/* A native <details>: this component owns no useState by
+                    contract, and the disclosure needs none. */}
+                <details>
+                  <summary className="flex min-h-11 cursor-pointer items-center border-t border-border pt-3 text-sm font-medium text-muted-foreground">
+                    Not running ({notRunningEntries.length})
+                  </summary>
+                  <div className="pt-3">
+                    <EntryListContent
+                      entries={notRunningEntries}
+                      activeTab={activeTab}
+                      // No Score button, no scoresheet tap, no reset menu: a
+                      // score saved from inside a collapsed group would move
+                      // neither badge and the judge would never see it again.
+                      // The status chip stays, so the existing check-in flow is
+                      // still the way back (MYK9-645).
+                      scoringDisabled
+                      isDragMode={false}
+                      showContext={showContext}
+                      classInfo={classInfo}
+                      hasPermission={hasPermission}
+                      onEntryClick={handlers.handleEntryClick}
+                      onStatusClick={handlers.handleStatusClick}
+                      onResetMenuClick={handlers.handleResetMenuClick}
+                      onSelfCheckinDisabled={() => setSelfCheckinDisabledDialog(true)}
+                      onPrefetch={handlers.handleEntryPrefetch}
+                      showSectionBadges={isCombined}
+                      sensors={sensors}
+                      onDragStart={handleDragStart}
+                      onDragEnd={handleDragEnd}
+                      {...(favorites ? { favorites } : {})}
+                      {...(ownership ? { ownership } : {})}
+                      DogCard={layout.DogCard}
+                    />
+                  </div>
+                </details>
+              </section>
+            )}
           </div>
         </div>
       </layout.PullToRefresh>

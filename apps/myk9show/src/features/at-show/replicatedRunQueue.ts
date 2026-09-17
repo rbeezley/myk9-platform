@@ -20,7 +20,7 @@ import {
   type RunQueueEntry,
 } from '@myk9/ringside';
 import type { ReplicatedEntry } from '@/services/replication/ReplicatedEntriesTable';
-import { isNonRunningEntry } from '@/features/_shared/entryAccounting';
+import { isRunnableEntry } from '@/features/_shared/entryAccounting';
 
 /** A replicated row plus the normalized fields the run queue sorts on. */
 export interface ReplicatedQueueEntry extends RunQueueEntry {
@@ -39,19 +39,26 @@ function parseArmband(entry: ReplicatedEntry): number {
  * Replicated rows carry TWO status axes: `check_in_status` (the show-day flow —
  * this is where `pulled` and `in-ring` live, see CheckInStatus in @myk9/core)
  * and `entry_status` (the registration lifecycle). `isInQueue` / `isInRingEntry`
- * test for `pulled` / `in-ring`, so the check-in axis must win — reading the
- * lifecycle axis alone would leave a dog pulled at the gate still showing as
- * pending. Lifecycle states that also mean "won't run" are folded onto `pulled`
- * so a single field answers queue membership.
+ * test for `pulled` / `in-ring`, so every state meaning "won't run" is folded
+ * onto `pulled` and a single field answers queue membership.
+ *
+ * MEMBERSHIP IS `isRunnableEntry`, AND NOTHING ELSE DECIDES IT (MYK9-645).
+ * The check-in axis is read only AFTER that predicate says yes, because the
+ * two orderings are not equivalent: a withdrawn row carrying a stale
+ * `check_in_status: 'in-ring'` (`entries.94db1b95` on staging) was announced as
+ * the dog in the ring while listed under Not running, and an unscored row with
+ * `result_status: 'absent'` was offered as "next up" after the counts had
+ * already settled it. An in-ring flag on a row nobody expects to run is stale
+ * data, not a ring state.
+ *
+ * This module holds NO status list of its own; adding one back is how the last
+ * three rounds of this bug happened.
  */
 function queueStatus(entry: ReplicatedEntry): string | undefined {
+  if (!isRunnableEntry(entry)) return 'pulled';
+
   const checkIn = entry.checkInStatus ?? entry.check_in_status;
-  if (checkIn === 'pulled' || checkIn === 'in-ring') return checkIn;
-
-  const lifecycle = entry.status ?? entry.entryStatus;
-  if (isNonRunningEntry({ entryStatus: lifecycle })) return 'pulled';
-
-  return checkIn ?? lifecycle;
+  return checkIn ?? entry.status ?? entry.entryStatus;
 }
 
 export function toRunQueueEntry(entry: ReplicatedEntry): ReplicatedQueueEntry {
@@ -64,10 +71,14 @@ export function toRunQueueEntry(entry: ReplicatedEntry): ReplicatedQueueEntry {
     isScored: entry.isScored ?? entry.is_scored ?? false,
     status: queueStatus(entry),
     // A dog sent into the ring on show day may be flagged only by the check-in
-    // status, with neither boolean alias set.
+    // status, with neither boolean alias set -- but only a RUNNABLE row can be
+    // in the ring at all. `isInRingEntry` ORs this flag with the status, so
+    // leaving it ungated would re-announce exactly the stale row `queueStatus`
+    // just excluded.
     inRing:
-      (entry.isInRing ?? entry.is_in_ring ?? false) ||
-      (entry.checkInStatus ?? entry.check_in_status) === 'in-ring',
+      isRunnableEntry(entry) &&
+      ((entry.isInRing ?? entry.is_in_ring ?? false) ||
+        (entry.checkInStatus ?? entry.check_in_status) === 'in-ring'),
     entry,
   };
 }

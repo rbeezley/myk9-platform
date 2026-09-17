@@ -19,19 +19,30 @@ export type SectionFilter = 'all' | 'A' | 'B';
  * never from `pendingEntries.length` / `completedEntries.length` — those are
  * derived from already tab-filtered entries, so the inactive tab reads 0.
  */
-export function buildStatusTabs(entryCounts: { pending: number; completed: number }): Tab[] {
+export function buildStatusTabs(
+  entryCounts: { pending: number; completed: number },
+  /**
+   * Counts supplied by the host (`ClassInfo.statusCounts`). When present they
+   * WIN outright -- the host has the lifecycle fields (`entry_status`,
+   * `check_in_status`, `result_status`, `deleted_at`) that the transformed
+   * `Entry` no longer carries, so its pair is the authoritative one and the
+   * tabs must not disagree with the header it also feeds (MYK9-645).
+   */
+  passedCounts?: { pending: number; completed: number } | undefined
+): Tab[] {
+  const counts = passedCounts ?? entryCounts;
   return [
     {
       id: 'pending',
       label: 'Pending',
       icon: <StatusIcon family="entry" status="pending" size="sm" decorative />,
-      count: entryCounts.pending,
+      count: counts.pending,
     },
     {
       id: 'completed',
       label: 'Completed',
       icon: <StatusIcon family="entry" status="completed" size="sm" decorative />,
-      count: entryCounts.completed,
+      count: counts.completed,
     },
   ];
 }

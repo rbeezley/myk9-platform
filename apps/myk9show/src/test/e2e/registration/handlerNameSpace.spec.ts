@@ -1,6 +1,7 @@
 import { test, expect, type Page } from '@playwright/test';
 import { signInAsSecretary } from '../uat/shared/auth';
 import { LIVE_REGISTRATION_SHOW_ID } from '../uat/shared/seededShows';
+import { applyRegistrationClock } from './seedRoster';
 
 /**
  * MYK9-567: a human tester could not put a space in the handler name —
@@ -107,7 +108,8 @@ async function waitForDogSearch(page: Page, query: string) {
 }
 
 test('the handler name field accepts spaces, hyphens and apostrophes', async ({ page }) => {
-  await page.clock.setFixedTime(new Date('2026-05-15T12:00:00.000Z'));
+  // MYK9-545: the seed's entry window is relative to the reseed date.
+  await applyRegistrationClock(page);
   await preventSharedWrites(page);
   await signInAsSecretary(page, `/secretary/register/${SHOW_ID}`);
 
@@ -118,9 +120,13 @@ test('the handler name field accepts spaces, hyphens and apostrophes', async ({ 
   const search = page.getByPlaceholder(/Search all dogs/i);
   await search.fill(DOG_SEARCH);
   await waitForDogSearch(page, DOG_SEARCH.toLowerCase());
-  await page
-    .getByRole('checkbox', { name: new RegExp(`Select ${DOG_SEARCH}`, 'i') })
-    .click({ force: true });
+  // MYK9-545: the dogs response landing is not the row landing, and the load
+  // fixture repeats call names, so wait for the exact row to render first.
+  const dogCheckbox = page.getByRole('checkbox', {
+    name: new RegExp(`^Select ${DOG_SEARCH}$`, 'i'),
+  });
+  await expect(dogCheckbox).toBeVisible({ timeout: 15000 });
+  await dogCheckbox.click({ force: true });
   await expect(page.getByRole('button', { name: /^Next/ })).toBeEnabled({ timeout: 10000 });
   await page.getByRole('button', { name: /^Next/ }).click();
 

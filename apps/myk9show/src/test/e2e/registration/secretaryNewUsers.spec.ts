@@ -1,6 +1,7 @@
 import { test, expect, type Page, type Route } from '@playwright/test';
 import { signInAsSecretary } from '../uat/shared/auth';
 import { LIVE_REGISTRATION_SHOW_ID } from '../uat/shared/seededShows';
+import { applyRegistrationClock } from './seedRoster';
 
 const SHOW_ID = LIVE_REGISTRATION_SHOW_ID;
 const MAIL_IN_PERSON_ID = '11111111-1111-4111-8111-111111111111';
@@ -123,7 +124,8 @@ async function captureMailInWrites(page: Page, captured: CapturedMailInWrites) {
 test('secretary can create a mail-in exhibitor and dog without auth user creation', async ({
   page,
 }) => {
-  await page.clock.setFixedTime(new Date('2026-05-15T12:00:00.000Z'));
+  // MYK9-545: the seed's entry window is relative to the reseed date.
+  await applyRegistrationClock(page);
 
   const captured: CapturedMailInWrites = {};
   await captureMailInWrites(page, captured);
@@ -161,6 +163,11 @@ test('secretary can create a mail-in exhibitor and dog without auth user creatio
   await dogDialog.getByRole('combobox').first().click();
   await page.getByRole('option', { name: /Female/i }).click();
   await dogDialog.getByLabel(/Date of Birth/i).fill('2020-01-15');
+  // MYK9-545: Color & Markings is not on the Essential tab. `validation.ts`
+  // says so out loud — it lives on the Optional details tab (AdditionalInfoTab),
+  // and the spec was still filling it from Essential, where the field does not
+  // exist. Switch tabs, fill, then continue on Registration.
+  await dogDialog.getByRole('tab', { name: /Optional details/i }).click();
   await dogDialog.getByLabel(/Color & Markings/i).fill('Black and tan');
 
   await dogDialog.getByRole('tab', { name: /Registration/i }).click();

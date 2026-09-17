@@ -1,5 +1,12 @@
 import { render, screen } from '@/test/utils/testUtils';
-import { describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+
+vi.mock('@/services/LoggingService', () => ({
+  logger: { error: vi.fn(), warn: vi.fn(), info: vi.fn(), debug: vi.fn() },
+}));
+
+import { logger } from '@/services/LoggingService';
+import { createDatabaseError } from '@/services/database/databaseError';
 import { BaseEntityDialog } from './BaseEntityDialog';
 
 // No StandardDialog mock: BaseEntityDialog renders CommonDialog directly now
@@ -7,6 +14,10 @@ import { BaseEntityDialog } from './BaseEntityDialog';
 // a reader about what is in the path. This exercises the real footer.
 
 describe('BaseEntityDialog', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
   it('consumes a rejected async submit handler', async () => {
     const unhandled = vi.fn();
     window.addEventListener('unhandledrejection', unhandled);
@@ -25,5 +36,93 @@ describe('BaseEntityDialog', () => {
     expect(onSubmit).toHaveBeenCalledOnce();
     expect(unhandled).not.toHaveBeenCalled();
     window.removeEventListener('unhandledrejection', unhandled);
+  });
+
+  // MYK9-593: the swallow is deliberate (callers report their own failures),
+  // but it was total — anything the caller does NOT report left the user with a
+  // closed dialog and no message anywhere. Log it so it is at least recoverable
+  // from the console / VITE_LOG_ENDPOINT / localStorage transports.
+  it('logs a rejected submit instead of discarding it', async () => {
+    const unhandled = vi.fn();
+    window.addEventListener('unhandledrejection', unhandled);
+    const failure = new Error('getLabel exploded');
+    const onSubmit = vi.fn(() => Promise.reject(failure));
+
+    render(
+      <BaseEntityDialog open onOpenChange={vi.fn()} title="Delete dog" onSubmit={onSubmit}>
+        <span>Confirmation</span>
+      </BaseEntityDialog>
+    );
+
+    screen.getByRole('button', { name: 'Save' }).click();
+    await Promise.resolve();
+    await Promise.resolve();
+
+    // `reason` matters: LoggingService keeps only the stack off the Error
+    // argument, so without it the message never reaches any transport.
+    expect(logger.error).toHaveBeenCalledWith(
+      'BaseEntityDialog submit rejected',
+      'components',
+      { title: 'Delete dog', reason: 'getLabel exploded' },
+      failure
+    );
+    // Still consumed: logging must not turn a handled refusal into an
+    // unhandledrejection.
+    expect(unhandled).not.toHaveBeenCalled();
+    window.removeEventListener('unhandledrejection', unhandled);
+  });
+
+  // A rejection that is not an Error has no `.stack`, so the Error argument
+  // would log nothing at all — `reason` is the only thing that survives.
+  it('logs a non-Error rejection by stringifying it', async () => {
+    const onSubmit = vi.fn(() => Promise.reject('entry is already paid'));
+
+    render(
+      <BaseEntityDialog open onOpenChange={vi.fn()} title="Delete entry" onSubmit={onSubmit}>
+        <span>Confirmation</span>
+      </BaseEntityDialog>
+    );
+
+    screen.getByRole('button', { name: 'Save' }).click();
+    await Promise.resolve();
+    await Promise.resolve();
+
+    expect(logger.error).toHaveBeenCalledWith(
+      'BaseEntityDialog submit rejected',
+      'components',
+      { title: 'Delete entry', reason: 'entry is already paid' },
+      undefined
+    );
+  });
+
+  // The shape the comment above actually names: createDatabaseError returns an
+  // object literal, not an Error instance, so `String(error)` gives
+  // "[object Object]" and the real reason is lost. errorReason() is the
+  // repository's helper for exactly this.
+  it('logs the message off a DatabaseError-shaped plain object', async () => {
+    const rejection = createDatabaseError(
+      { message: 'permission denied for table dogs', code: '42501' },
+      'dogs',
+      'delete'
+    );
+    expect(rejection).not.toBeInstanceOf(Error);
+    const onSubmit = vi.fn(() => Promise.reject(rejection));
+
+    render(
+      <BaseEntityDialog open onOpenChange={vi.fn()} title="Delete dog" onSubmit={onSubmit}>
+        <span>Confirmation</span>
+      </BaseEntityDialog>
+    );
+
+    screen.getByRole('button', { name: 'Save' }).click();
+    await Promise.resolve();
+    await Promise.resolve();
+
+    expect(logger.error).toHaveBeenCalledWith(
+      'BaseEntityDialog submit rejected',
+      'components',
+      { title: 'Delete dog', reason: 'permission denied for table dogs' },
+      undefined
+    );
   });
 });

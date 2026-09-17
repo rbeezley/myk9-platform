@@ -97,6 +97,22 @@ Copy this block for each new finding.
 - **Proof required:** three consecutive green runs on `chromium` and `mobile-chrome`.
 - **Notes:** Recorded here rather than as a Linear issue (2026-09-17 filing-threshold change: harness hygiene goes to findings, not the backlog). Superseded Linear MYK9-627, cancelled.
 
+### QA-RBAC-ID-SPACE-001
+
+- **Status:** open
+- **Severity:** low (reachability unconfirmed)
+- **Role:** exhibitor (Browse Shows context), judge (assignment/result permissions)
+- **Surface:** `apps/myk9show/src/utils/show-management-tracking.ts:161`; `apps/myk9show/src/utils/permissionValidation.ts:148,165`
+- **Suite category:** unit (fixtures set both sides of the compare equal, so they certify the wrong id space)
+- **Pattern:** people.id compared to auth uid (the MYK9-537 / MYK9-618 family)
+- **Detected by:** dead-code-deletion-safety lens on PR #2320, 2026-09-17 (traced, not executed)
+- **Evidence:** `show-management-tracking.ts` compares `entry.registrationData.handler === user.id` and `entry.dogId.includes(user.id)` where `user.id` is the auth uid, reached from `useBrowseShowsData.ts:264`, so an exhibitor's own entries never match and `enhancedContext` under-reports. `permissionValidation.ts` compares `show.assignedJudges[].judgeId` to `UserWithRoles.id` (auth uid) in `canViewJudgeAssignments` / `canEnterResults`; `permissionValidation.test.ts` fixtures set both ids equal.
+- **User impact:** Unconfirmed. If either path is live, an exhibitor sees a Browse Shows context that omits their own entries, and a judge assigned by people id fails the judge-only permission checks.
+- **Intent check:** No INTENT comment on either site.
+- **Fix owner:** whoever next touches either file: compare against `databaseUserId` (people id) and give the test fixture two distinct id spaces so it goes red on the current compare (the MYK9-618 shape). First confirm reachability: grep callers of `canEnterResults` and read what `enhancedContext` feeds.
+- **Proof required:** a red-first test per site with distinct auth and people ids; one staging look at Browse Shows as `exhibitor@myk9t.com` with an own entry present.
+- **Notes:** Recorded here rather than filed (2026-09-17 filing threshold: user-visible impact not yet shown). Richard decides whether to file. Related: MYK9-537 (Done), MYK9-618 (Done), memory `people.id ≠ auth.uid()`.
+
 ## Closed Findings
 
 ### MYK9-452 / NCR-2026-09-09-01

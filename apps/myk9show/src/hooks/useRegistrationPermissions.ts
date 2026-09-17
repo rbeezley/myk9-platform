@@ -1,4 +1,5 @@
 import { useAuthContext } from '@/hooks/useAuthContext';
+import { selectOwnedDogs } from '@/utils/dogOwnership';
 import {
   Permission,
   PERMISSIONS,
@@ -232,6 +233,23 @@ export function useRegistrationPermissions() {
     );
   };
 
+  const filterAccessibleDogs = <T extends { id: string; ownerId?: string; clubId?: string }>(
+    dogs: T[]
+  ): T[] => {
+    if (!userWithRoles) return [];
+
+    if (hasRole(UserRole.SITE_ADMIN)) return dogs;
+
+    if (hasRole(UserRole.CLUB_ADMIN) || hasRole(UserRole.SECRETARY)) {
+      const scopedClubs = getScopedClubs();
+      return dogs.filter(
+        dog => dog.ownerId === userWithRoles.id || (dog.clubId && scopedClubs.includes(dog.clubId))
+      );
+    }
+
+    return selectOwnedDogs(dogs, userWithRoles.id);
+  };
+
   return {
     // User info
     user: userWithRoles,
@@ -262,6 +280,7 @@ export function useRegistrationPermissions() {
     canUseAdvancedSearch,
     getRegistrationMode,
     getHighestRole,
+    filterAccessibleDogs,
 
     // Context info
     isExhibitor: hasRole(UserRole.EXHIBITOR),

@@ -131,7 +131,7 @@ Not exhibitor-facing on this page, listed so a later grep does not read as a mis
 
 One `⋯ Actions` trigger in the card header, replacing the four-link row. Items in this order, each hidden when it does not apply:
 
-1. **Finish payment — $90.00 due** (only with a balance)
+1. ~~Finish payment~~ — dropped from the menu on 2026-09-17 by the placement rule in `docs/plan-secretary-show-actions.md` (a status banner keeps its own button and the verb is not repeated in the menu); the yellow money strip keeps its Pay button, retitled to the amount
 2. **Add classes** → the registration wizard for this show
 3. **Withdraw a dog from a class** → a dialog listing every class by dog and class name, one button each (AC3; no order picker)
 4. **Change handler or jump height** → today's `EntryEditDialog`, minus its Pull column

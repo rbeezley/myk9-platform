@@ -174,6 +174,14 @@ Richard, 2026-09-17: "one place to go… always visible… if an option is not r
 
 Mockup: https://claude.ai/artifact/NsYZhBFSHNm9qZnDfqa3xU (boards draw the button in the page header; final placement is the app header).
 
+### Settings placement (Richard, 2026-09-17: "630 settings as proposed")
+
+The five housekeeping items in today's `···` menu (Edit show, Copy link, Preview as exhibitor, Show settings, Delete show) land as follows, and the `···` menu is deleted:
+
+- **Show settings** is the last item in the header Actions menu and opens the existing Show Edit panel (`?edit=true`). No separate settings page; `/shows/:id/setup` redirects to `/shows/:id`.
+- **Copy link** and **Preview as exhibitor** sit side by side on the Overview tab's Public Landing Page card, next to the URL they act on.
+- **Delete show** is a red destructive row with confirm at the bottom of the Show Edit panel, never in the Actions menu.
+
 ### Placement rule (Richard, 2026-09-17)
 
 An action lives in the header Actions menu when its target is the whole page (the show, this exhibitor's entries at this show). It stays beside the content when the user must first pick which item it applies to (this class row, this entry row, this dog). The same verb never appears in both places. A status banner with a call to action (money due, waiting on payment) keeps its own button and that verb is NOT repeated in the menu. Consequence for MYK9-631: "Pay" stays on the banner and leaves the exhibitor menu.

@@ -81,6 +81,22 @@ Copy this block for each new finding.
 - **Notes:** optional context, linked PR, migration number, or deferral reason
 ```
 
+### QA-TEST-FLAKE-002
+
+- **Status:** open
+- **Severity:** low
+- **Role:** exhibitor
+- **Surface:** `apps/myk9show/src/test/e2e/registration/wizardVisualQA.spec.ts` / `/register` wizard
+- **Suite category:** manual sweep (not in any CI project)
+- **Pattern:** test-flake
+- **Detected by:** Playwright, MYK9-545 sweep on 2026-09-16 (PR #2315)
+- **Evidence:** A different scenario fails on each sweep with `element is not stable` on the Save Draft dialog's click, then the Sonner toast and the sticky entries bar intercept the pointer. The file runs in serial mode, so the first failure skips the remaining 14 scenarios and one flake hides the whole file's verdict.
+- **User impact:** None directly; the visual-QA sweep cannot prove the wizard's phone layouts end to end.
+- **Intent check:** No product behaviour implicated; the interceptors are MYK9-517 (toast) and MYK9-622 (sticky chrome), both filed.
+- **Fix owner:** whoever next touches `wizardVisualQA.spec.ts`: click through the MYK9-543 hit-test probe (`scrollUntilClickable` in `wizardChips.ts`) instead of raw `click()`, and drop serial mode unless a scenario depends on the previous one.
+- **Proof required:** three consecutive green runs on `chromium` and `mobile-chrome`.
+- **Notes:** Recorded here rather than as a Linear issue (2026-09-17 filing-threshold change: harness hygiene goes to findings, not the backlog). Superseded Linear MYK9-627, cancelled.
+
 ## Closed Findings
 
 ### MYK9-452 / NCR-2026-09-09-01

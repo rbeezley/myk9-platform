@@ -96,7 +96,7 @@ export function FinalCta({
   const countdown = useCountdown(data.entryCloseDate, data.timezone);
 
   return (
-    <section className="hd-final" id="enter">
+    <section className="hd-final">
       <div className="hd-final-inner">
         <div>
           {/* Gate on countdown.closed (not just entryCloseDate presence) so a

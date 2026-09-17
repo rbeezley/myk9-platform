@@ -9,7 +9,6 @@ interface FinalCtaBandProps {
 export function FinalCtaBand({ canEnterOnline = true, entryClosed = false }: FinalCtaBandProps) {
   return (
     <section
-      id="enter"
       className="hl-on-ink px-6 py-20 text-center"
       style={{ background: 'var(--hl-ink)', color: 'var(--hl-paper)' }}
     >

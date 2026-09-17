@@ -1,8 +1,11 @@
 import { BANNER_BODY_FAMILY, BANNER_DISPLAY_FAMILY } from '../../fonts';
 import { bannerColors } from '../../tokens';
+import { formatEntryCount } from '@/features/_shared/landing/entryCount';
 
 interface StickyNavProps {
   entryWizardUrl: string;
+  entryCount: number | null;
+  entryLimit: number | null;
   canEnterOnline?: boolean;
   entryClosed?: boolean;
 }
@@ -17,7 +20,8 @@ const SECTIONS = [
 
 /**
  * The sub-bar — a thin sticky strip directly under the flag masthead.
- * Carries anchor links to each section.
+ * Carries anchor links to each section, the live entry-status readout, and
+ * (MYK9-633 round 2) the page's one desktop entry CTA.
  *
  * MYK9-633 round 2: this is now the page's ONE desktop entry CTA. The
  * masthead's own "Enter this show" link was reachable only while scrolled
@@ -25,12 +29,31 @@ const SECTIONS = [
  * the masthead) had zero entry action once the duplicate final-band CTA
  * was removed. This bar's `position: sticky` keeps it in view at every
  * scroll position, so the CTA lives here instead.
+ *
+ * MYK9-633 round 3: round 2 dropped the entry-count status text and dot
+ * while adding the CTA — the issue asked for one CTA, not removal of
+ * status copy (poster's equivalent StickyNav kept its status line
+ * alongside its CTA). Restored both. The section-anchor list is now
+ * `.bn-subbar-sections`, hidden below 640px (banner.css) — the same
+ * pattern Heritage's StickyNav already uses — because fitting five section
+ * links AND the status line AND the CTA in one row at 375px overflowed
+ * (measured: 481px on origin/main with no CTA, 504px once round 2 added
+ * one). Below 640px only the club-scoped identity, status, and CTA show.
  */
 export function StickyNav({
   entryWizardUrl,
+  entryCount,
+  entryLimit,
   canEnterOnline = true,
   entryClosed = false,
 }: StickyNavProps) {
+  const statusLabel =
+    entryCount == null
+      ? 'Entries open · count unavailable'
+      : entryLimit != null
+        ? `Entries open · ${formatEntryCount(entryCount)} / ${entryLimit}`
+        : `Entries open · ${formatEntryCount(entryCount)}`;
+
   return (
     <nav
       aria-label="Show sections"
@@ -44,13 +67,13 @@ export function StickyNav({
         zIndex: 30,
         background: bannerColors.paper,
         borderBottom: `1px solid ${bannerColors.hair}`,
-        padding: '14px 64px',
         display: 'flex',
         justifyContent: 'space-between',
         alignItems: 'center',
+        gap: 16,
       }}
     >
-      <div style={{ display: 'flex', gap: 28 }}>
+      <div className="bn-subbar-sections" style={{ display: 'flex', gap: 28 }}>
         {SECTIONS.map(s => (
           <a
             key={s.id}
@@ -77,41 +100,64 @@ export function StickyNav({
           </a>
         ))}
       </div>
-      {canEnterOnline ? (
-        <a
-          href={entryWizardUrl}
+
+      <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+        <div
           style={{
-            display: 'inline-flex',
+            display: 'flex',
             alignItems: 'center',
-            justifyContent: 'center',
-            minHeight: 44,
-            padding: '8px 18px',
-            border: `1.5px solid ${bannerColors.ink}`,
-            fontFamily: BANNER_BODY_FAMILY,
-            fontWeight: 500,
-            fontSize: 11,
-            letterSpacing: '0.16em',
-            textTransform: 'uppercase',
-            color: bannerColors.ink,
-            textDecoration: 'none',
-          }}
-        >
-          Enter this show
-        </a>
-      ) : (
-        <span
-          style={{
+            gap: 10,
             fontFamily: BANNER_DISPLAY_FAMILY,
             fontWeight: 700,
-            fontSize: 11,
-            letterSpacing: '0.16em',
-            textTransform: 'uppercase',
-            color: bannerColors.mute,
+            fontSize: 12,
+            letterSpacing: '0.04em',
+            color: bannerColors.flag,
+            whiteSpace: 'nowrap',
           }}
+          aria-label={statusLabel}
         >
-          {entryClosed ? 'Entries closed' : 'Classes pending'}
-        </span>
-      )}
+          <span className="bn-status-dot" aria-hidden />
+          {statusLabel}
+        </div>
+
+        {canEnterOnline ? (
+          <a
+            href={entryWizardUrl}
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              minHeight: 44,
+              padding: '8px 18px',
+              border: `1.5px solid ${bannerColors.ink}`,
+              fontFamily: BANNER_BODY_FAMILY,
+              fontWeight: 500,
+              fontSize: 11,
+              letterSpacing: '0.16em',
+              textTransform: 'uppercase',
+              color: bannerColors.ink,
+              textDecoration: 'none',
+              whiteSpace: 'nowrap',
+            }}
+          >
+            Enter this show
+          </a>
+        ) : (
+          <span
+            style={{
+              fontFamily: BANNER_DISPLAY_FAMILY,
+              fontWeight: 700,
+              fontSize: 11,
+              letterSpacing: '0.16em',
+              textTransform: 'uppercase',
+              color: bannerColors.mute,
+              whiteSpace: 'nowrap',
+            }}
+          >
+            {entryClosed ? 'Entries closed' : 'Classes pending'}
+          </span>
+        )}
+      </div>
     </nav>
   );
 }

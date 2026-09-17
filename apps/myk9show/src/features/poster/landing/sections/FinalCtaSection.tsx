@@ -46,7 +46,6 @@ export function FinalCtaSection({
 
   return (
     <section
-      id="enter"
       style={{
         background: posterColors.cream,
         position: 'relative',

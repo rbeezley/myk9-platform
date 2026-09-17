@@ -33,7 +33,6 @@ export function FinalCtaSection({
 
   return (
     <section
-      id="enter"
       className="px-6 py-24 md:px-12 md:py-24"
       style={{
         background: 'var(--gz-deep)',

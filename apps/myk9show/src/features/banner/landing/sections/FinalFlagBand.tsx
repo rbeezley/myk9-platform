@@ -35,7 +35,7 @@ export function FinalFlagBand({
       : null;
 
   return (
-    <div id="enter">
+    <div>
       <BannerFlagBar
         variant="final"
         color={brandColors.flag}

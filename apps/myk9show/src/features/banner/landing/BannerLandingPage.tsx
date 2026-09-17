@@ -107,6 +107,8 @@ export function BannerLandingPage({
 
       <StickyNav
         entryWizardUrl={data.entryWizardUrl}
+        entryCount={data.entryCount}
+        entryLimit={data.entryLimit}
         canEnterOnline={canEnterOnline}
         entryClosed={entryClosed}
       />

@@ -14,28 +14,21 @@
  * (spacer removed, `useRegisterActionBar` call removed, safe-area
  * `calc(...)` replaced with a bare `10px`) to confirm it goes red for the
  * mechanic it claims to cover — see the mutation log in the PR description.
+ *
+ * MYK9-633 round 3: this file originally used a local `mockViewport(bool)`
+ * that forced every `matchMedia` query to one answer — the round-1 defect
+ * that made other styles' "exactly one CTA at desktop" assertions vacuous.
+ * Uses the shared, query-aware `mockViewportWidth` instead. Verified by
+ * inverting the component's own breakpoint (`(max-width: 639px)` ->
+ * negated) and confirming 8 of these 9 tests go red (the ninth, "renders
+ * nothing at mobile width when unavailable", is independent of the
+ * breakpoint and correctly stays green).
  */
 import { afterEach, describe, expect, it } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import { StickyEntryCtaBar } from '../StickyEntryCtaBar';
 import { useActionBarStore } from '@/store/actionBarStore';
-
-function mockViewport(matches: boolean) {
-  Object.defineProperty(window, 'matchMedia', {
-    writable: true,
-    configurable: true,
-    value: (query: string) => ({
-      matches,
-      media: query,
-      onchange: null,
-      addListener: () => {},
-      removeListener: () => {},
-      addEventListener: () => {},
-      removeEventListener: () => {},
-      dispatchEvent: () => false,
-    }),
-  });
-}
+import { mockViewportWidth } from '@/test/utils/mockViewportWidth';
 
 function stubHeight(px: number) {
   Object.defineProperty(HTMLElement.prototype, 'getBoundingClientRect', {
@@ -61,7 +54,7 @@ const SURFACE = {
 
 describe('StickyEntryCtaBar', () => {
   afterEach(() => {
-    mockViewport(false);
+    mockViewportWidth(1280);
     // Reset the shared action-bar registry between tests — it is a module
     // singleton and would otherwise leak a mounted height into the next
     // test's assertions.
@@ -70,7 +63,7 @@ describe('StickyEntryCtaBar', () => {
 
   it('sizes the in-flow spacer to the measured bar height', () => {
     stubHeight(65);
-    mockViewport(true);
+    mockViewportWidth(375);
     render(
       <StickyEntryCtaBar
         entryWizardUrl="/shows/show-1/register"
@@ -88,7 +81,7 @@ describe('StickyEntryCtaBar', () => {
 
   it('removes the spacer (and the bar) when the component unmounts', () => {
     stubHeight(65);
-    mockViewport(true);
+    mockViewportWidth(375);
     const { container, unmount } = render(
       <StickyEntryCtaBar
         entryWizardUrl="/shows/show-1/register"
@@ -107,7 +100,7 @@ describe('StickyEntryCtaBar', () => {
 
   it('writes the measured height into the shared action-bar registry while mounted, and withdraws it on unmount', () => {
     stubHeight(65);
-    mockViewport(true);
+    mockViewportWidth(375);
 
     expect(Object.values(useActionBarStore.getState().heights)).toEqual([]);
 
@@ -130,7 +123,7 @@ describe('StickyEntryCtaBar', () => {
 
   it('pads the bar for the home-indicator safe area on notched phones', () => {
     stubHeight(65);
-    mockViewport(true);
+    mockViewportWidth(375);
     render(
       <StickyEntryCtaBar
         entryWizardUrl="/shows/show-1/register"
@@ -150,7 +143,7 @@ describe('StickyEntryCtaBar', () => {
 
   it('keeps the link at or above the 44px touch-target floor', () => {
     stubHeight(65);
-    mockViewport(true);
+    mockViewportWidth(375);
     render(
       <StickyEntryCtaBar
         entryWizardUrl="/shows/show-1/register"
@@ -165,7 +158,7 @@ describe('StickyEntryCtaBar', () => {
 
   it('renders nothing at desktop width even when the entry action is available', () => {
     stubHeight(65);
-    mockViewport(false);
+    mockViewportWidth(1280);
     render(
       <StickyEntryCtaBar
         entryWizardUrl="/shows/show-1/register"
@@ -179,7 +172,7 @@ describe('StickyEntryCtaBar', () => {
 
   it('renders nothing at mobile width when the entry action is unavailable', () => {
     stubHeight(65);
-    mockViewport(true);
+    mockViewportWidth(375);
     render(
       <StickyEntryCtaBar
         entryWizardUrl="/shows/show-1/register"
@@ -194,7 +187,7 @@ describe('StickyEntryCtaBar', () => {
   describe('accessible name (MYK9-633 round 2)', () => {
     it('strips a trailing arrow from the visible label into an aria-hidden span', () => {
       stubHeight(65);
-      mockViewport(true);
+      mockViewportWidth(375);
       render(
         <StickyEntryCtaBar
           entryWizardUrl="/shows/show-1/register"
@@ -213,7 +206,7 @@ describe('StickyEntryCtaBar', () => {
 
     it('uses an explicit ariaLabel override when the visible label does not match the header CTA', () => {
       stubHeight(65);
-      mockViewport(true);
+      mockViewportWidth(375);
       render(
         <StickyEntryCtaBar
           entryWizardUrl="/shows/show-1/register"

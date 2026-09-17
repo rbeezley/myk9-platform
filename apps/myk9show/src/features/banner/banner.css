@@ -87,6 +87,33 @@
   animation: bn-status-pulse 2400ms ease-in-out infinite;
 }
 
+/* MYK9-633 round 2/3: the sticky sub-bar's own layout, previously inlined
+   as a JS style prop. Pulled into CSS so the narrow-viewport override below
+   can win over it -- five section links plus the status line plus the CTA
+   overflowed 375px (measured: 481px on origin/main with no CTA, 504px once
+   round 2 added one). */
+[data-banner] .bn-subbar {
+  padding: 14px 64px !important;
+  flex-wrap: wrap;
+}
+
+/* Below 640px, the section-anchor list steps aside (same pattern as
+   Heritage's StickyNav) -- only the club-scoped identity, live status, and
+   the one entry CTA need to fit. Narrower padding recovers more width for
+   what's left. */
+@media (max-width: 639px) {
+  [data-banner] .bn-subbar {
+    padding: 10px 16px !important;
+  }
+  /* !important: StickyNav sets `display: flex` inline (matches the
+     wrapper's own layout needs on wider screens); a plain class rule
+     cannot win against an element's own inline style, only !important
+     can (verified: without it this rule was silently no-op at 375px). */
+  [data-banner] .bn-subbar-sections {
+    display: none !important;
+  }
+}
+
 /* Section reveal — children get `.in` once the IntersectionObserver fires;
    we transition opacity 0 → 1 over 600ms. Mirrors Monogram's pattern. */
 [data-banner] .bn-reveal {

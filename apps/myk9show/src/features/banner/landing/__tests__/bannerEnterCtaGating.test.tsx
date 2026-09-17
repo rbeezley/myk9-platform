@@ -25,6 +25,8 @@ const mastheadProps = {
 
 const stickyNavProps = {
   entryWizardUrl: '/shows/abc/register',
+  entryCount: 42,
+  entryLimit: 100,
 };
 
 const finalBandProps = {
@@ -63,6 +65,20 @@ describe('Banner Enter CTA gating', () => {
   });
 
   describe('StickyNav', () => {
+    // MYK9-633 round 3: round 2 dropped the live entry-count status while
+    // adding the CTA -- the issue asked for one CTA, not the removal of
+    // status copy (poster's equivalent StickyNav kept its own). Restored.
+    it('shows the live entry-count status alongside the CTA', () => {
+      render(<StickyNav {...stickyNavProps} />);
+      expect(screen.getByText('Entries open · 42 / 100')).toBeInTheDocument();
+      expect(screen.getByRole('link', { name: 'Enter this show' })).toBeInTheDocument();
+    });
+
+    it('falls back to a count-unavailable status when entryCount is null', () => {
+      render(<StickyNav {...stickyNavProps} entryCount={null} />);
+      expect(screen.getByText('Entries open · count unavailable')).toBeInTheDocument();
+    });
+
     it('renders the Enter link when canEnterOnline is omitted (default true)', () => {
       render(<StickyNav {...stickyNavProps} />);
       const link = screen.getByRole('link', { name: 'Enter this show' });

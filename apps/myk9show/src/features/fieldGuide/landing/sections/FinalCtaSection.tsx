@@ -51,7 +51,6 @@ export function FinalCtaSection({
       style={{ fontFamily: FIELD_GUIDE_BODY_FAMILY }}
     >
       <div
-        id="enter"
         style={{
           maxWidth: fieldGuideSpacing.contentMax,
           margin: '0 auto',

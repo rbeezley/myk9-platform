@@ -41,7 +41,6 @@ export function FinalEditorialBand({
 
   return (
     <section
-      id="enter"
       className="px-6 py-24 text-center md:px-16 md:py-32"
       style={{
         background: 'var(--mz-final-band)',

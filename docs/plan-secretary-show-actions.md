@@ -128,3 +128,35 @@ Moved, not rebuilt: New Trial / New Class stay one navigation away (the existing
 4. **Setup:** re-add it to the nav (the sidebar still links there), or redirect `/shows/:id/setup` → `/shows/:id`?
 5. **"All registrations 514" vs 517** — is that the entry-status bucketing behaving as designed, or a relabel ("All _pending_ registrations")?
 6. **Finding #3** (deep-link `?tab=my-entries` fails) — file separately, or fold into MYK9-630's AC 3 since that tab is being rewritten anyway?
+
+## Decisions (Richard, 2026-09-17)
+
+1. Five menu items plus a separator and "Show settings" (edit, copy link, preview, delete live on the setup page, not in the menu).
+2. Publish row stays on Overview only.
+3. New Trial / New Class stay on their tabs.
+4. `/shows/:id/setup` redirects to `/shows/:id`; sidebar link fixed.
+5. "All registrations" must mean all (MYK9-635).
+6. Deep-link failure filed as MYK9-634.
+
+Mockup of the result: https://claude.ai/artifact/NsYZhBFSHNm9qZnDfqa3xU (secretary "after" board).
+
+## Phase 2 — one row of six tabs
+
+Richard, 2026-09-17: "we still need to simplify all the tabs for the secretary. Seems like there are 11 or more and difficult to tell if they are tabs or links or buttons." Today the show page carries two rows built separately: five page links (Show Desk, Entry Management, Reports, Results, Submit Results) above six tabs (Overview, Show Map, Trials, Classes, Entries, Results). Results is in both rows, the Entries tab is a stub pointing at Entry Management, Submit Results is a step inside Results, and links and tabs are styled alike.
+
+Target: **one row, six tabs, each a real page**, in this order.
+
+| Tab      | Absorbs                                                                                                                                                                                                                                    |
+| -------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Overview | Overview, publish state, premium                                                                                                                                                                                                           |
+| Setup    | Trials, Classes, Show Map                                                                                                                                                                                                                  |
+| Entries  | Entry Management itself (the stub tab and its two buttons are deleted)                                                                                                                                                                     |
+| Show Day | Show Desk                                                                                                                                                                                                                                  |
+| Results  | Results, Submit Results                                                                                                                                                                                                                    |
+| Reports  | Reports, grouped by when a secretary uses them: **before** (armband labels, check-in sheets, score sheets), **during** (preliminary results, result labels), **after** (organization reports: secretary and trial reports to AKC/UKC/ASCA) |
+
+Reports is its own tab because it is used in all three phases (Richard), so it does not belong under Results.
+
+Rules: tabs are the only horizontal row on the page; buttons are filled and carry verbs (the Actions button from Phase 1); links are inline text inside content; nothing is an orange word floating in a row. Every old page URL (`/show-desk`, `/entry-management`, `/reports`, `/results`, `/submit-results`, `/setup`) redirects into its tab so bookmarks and the sidebar keep working. Per-tab badges keep their current sources; the Entries badge and body read one source (Phase 1 AC3).
+
+Acceptance for Phase 2: the six tabs render for a manager; the five-link row is gone; each old URL redirects and lands on the right tab; Reports shows the before/during/after grouping; a render test asserts exactly six tab triggers and zero standalone page links in the header region, red on main; staging walk as `secretary@myk9t.com` across all six tabs at desktop and 375px.

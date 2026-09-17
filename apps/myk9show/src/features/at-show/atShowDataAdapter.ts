@@ -32,6 +32,7 @@ import {
 } from '@/services/entryDisplay/entryDisplaySelectors';
 import type { ShowChangeSignal } from '@/features/show-live-sync/showChangeSignal';
 import {
+  classifyEntries,
   countEntryAccounting,
   isNonRunningEntry,
   type EntryAccountingFields,
@@ -251,7 +252,7 @@ export function buildClassInfo(
   cls: ReplicatedClass,
   trial: ReplicatedTrial | null,
   entries: Entry[],
-  accountingEntries: EntryAccountingFields[]
+  accountingEntries: (EntryAccountingFields & { id: string })[]
 ): ClassInfo {
   const trialId = cls.trialId ?? cls.trial_id;
   const trialNumber = trial?.trialNumber ?? trial?.trial_number;
@@ -285,6 +286,10 @@ export function buildClassInfo(
       pending: counts.expected - counts.accounted,
       completed: counts.accounted,
     },
+    // ...and the per-entry group from the SAME predicates, so the package can
+    // put each ROW in the group its badge counts it in. Without this the badge
+    // said 65 over 66 rows (MYK9-645).
+    entryClassification: classifyEntries(accountingEntries),
     visibilityPreset: (cls.visibilityPreset as ClassInfo['visibilityPreset']) ?? 'standard',
 
     ...(cls.isScoringFinalized !== undefined && {

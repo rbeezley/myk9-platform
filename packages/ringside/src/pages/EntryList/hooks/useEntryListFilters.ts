@@ -12,6 +12,13 @@ import { gateRank } from '../quickAdvanceCandidates';
  */
 
 export type TabType = 'pending' | 'completed';
+
+/**
+ * The three groups an entry row can fall into. `not_running` has no tab of its
+ * own: it renders under a labelled divider at the bottom of the Pending tab
+ * and is excluded from both badges (MYK9-645).
+ */
+export type EntryGroup = TabType | 'not_running';
 /**
  * `'section-armband'` groups a combined Novice A/B list by section before
  * armband. It is meaningless on a single-class list, which has one section --
@@ -150,6 +157,13 @@ interface UseEntryListFiltersOptions {
    * No-op when no entry carries a gate status.
    */
   prioritizeAtGate?: boolean;
+  /**
+   * Per-entry group supplied by the host (`ClassInfo.entryClassification`).
+   * When present it decides BOTH badges and BOTH lists, so the numbers and the
+   * rows can never describe different sets (MYK9-645). Absent, every entry
+   * falls back to the `isScored` split and no entry is `not_running`.
+   */
+  entryClassification?: Record<string, EntryGroup> | undefined;
   /** External manual order array (for drag-and-drop state) */
   manualOrder?: Entry[];
   /** Default sort type (default: 'armband') */
@@ -198,6 +212,7 @@ export const useEntryListFilters = ({
   prioritizeInRing = false,
   deprioritizePulled = false,
   prioritizeAtGate = prioritizeInRing,
+  entryClassification,
   manualOrder,
   defaultSort = 'armband',
 }: UseEntryListFiltersOptions) => {
@@ -230,10 +245,31 @@ export const useEntryListFilters = ({
   // FILTER FUNCTIONS
   // ==========================================================================
 
+  /**
+   * The group one entry belongs to. The host's map wins; without it the legacy
+   * `isScored` split is reproduced exactly, and nothing is ever `not_running`.
+   */
+  const classify = useCallback(
+    (entry: Entry): EntryGroup =>
+      entryClassification?.[entry.id] ?? (entry.isScored ? 'completed' : 'pending'),
+    [entryClassification]
+  );
+
   /** Filter entries by tab (pending/completed) */
-  const filterByTab = useCallback((entry: Entry, tab: TabType): boolean => {
-    return tab === 'completed' ? entry.isScored : !entry.isScored;
-  }, []);
+  const filterByTab = useCallback(
+    (entry: Entry, tab: TabType): boolean => classify(entry) === tab,
+    [classify]
+  );
+
+  /**
+   * Rows the tab SHOWS, which is not the same as rows the tab COUNTS: the
+   * Pending tab also carries the `not_running` group, below its own divider.
+   */
+  const isVisibleOnTab = useCallback(
+    (entry: Entry, tab: TabType): boolean =>
+      tab === 'completed' ? classify(entry) === 'completed' : classify(entry) !== 'completed',
+    [classify]
+  );
 
   /** Filter entries by section (for combined view) */
   const filterBySection = useCallback(
@@ -291,7 +327,7 @@ export const useEntryListFilters = ({
   const filteredEntries = useMemo(() => {
     const filtered = entries.filter(
       entry =>
-        filterByTab(entry, activeTab) &&
+        isVisibleOnTab(entry, activeTab) &&
         filterBySection(entry, sectionFilter) &&
         filterBySearch(entry, searchTerm)
     );
@@ -304,7 +340,7 @@ export const useEntryListFilters = ({
     sectionFilter,
     searchTerm,
     sortBy,
-    filterByTab,
+    isVisibleOnTab,
     filterBySection,
     filterBySearch,
     sortEntries,
@@ -320,12 +356,26 @@ export const useEntryListFilters = ({
   }, [entries, filterByTab]);
 
   /**
-   * Pending and completed entries (filtered by tab, search, section)
+   * Pending, completed and not-running entries (filtered by tab, search,
+   * section). Grouped by the SAME `classify` the badges count with, so the
+   * Pending badge always equals the number of rows above the divider.
    */
-  const pendingEntries = useMemo(() => filteredEntries.filter(e => !e.isScored), [filteredEntries]);
+  const pendingEntries = useMemo(
+    () => filteredEntries.filter(e => classify(e) === 'pending'),
+    [filteredEntries, classify]
+  );
   const completedEntries = useMemo(
-    () => filteredEntries.filter(e => e.isScored),
-    [filteredEntries]
+    () => filteredEntries.filter(e => classify(e) === 'completed'),
+    [filteredEntries, classify]
+  );
+  // INTENT: a withdrawn or pulled dog stays VISIBLE to the judge and the gate
+  // steward -- "did #114 scratch, or have I just not got to her?" is a question
+  // the ring asks out loud. These rows already sorted last via
+  // `deprioritizePulled`; they are now a LABELLED group rather than a silent
+  // tail, and they are in neither badge. Do not hide them.
+  const notRunningEntries = useMemo(
+    () => filteredEntries.filter(e => classify(e) === 'not_running'),
+    [filteredEntries, classify]
   );
 
   /**
@@ -366,6 +416,7 @@ export const useEntryListFilters = ({
     filteredEntries,
     pendingEntries,
     completedEntries,
+    notRunningEntries,
     entryCounts,
     sectionCounts,
 

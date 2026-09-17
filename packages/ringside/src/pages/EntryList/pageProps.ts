@@ -512,6 +512,13 @@ export interface EntryListDerived {
   pendingEntries: Entry[];
   /** Filtered entries with `isScored === true`. */
   completedEntries: Entry[];
+  /**
+   * Entries the show no longer expects to run (withdrawn / scratched / moved /
+   * not_accepted / pulled at check-in), for the labelled group at the bottom of
+   * the Pending tab. Omitted by consumers that pass no classification, in which
+   * case no group renders (MYK9-645).
+   */
+  notRunningEntries?: Entry[];
   /** Pending or completed depending on `activeTab`. */
   currentEntries: Entry[];
   /**

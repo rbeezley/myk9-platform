@@ -51,11 +51,15 @@ describe('buildNextUpPreview', () => {
     const preview = buildNextUpPreview([
       entry({ id: 'a', armband: '10', runOrder: 1 }),
       // `pulled` lives on the CHECK-IN axis: `entries_entry_status_check` has
-      // never permitted it as an `entry_status`, so a row carrying it only on
-      // the lifecycle field is not a shape the database can produce. The
-      // check-in field is added so the fixture is real (MYK9-645); the queue
-      // assertion below is unchanged and still reads the same row.
-      entry({ id: 'b', armband: '20', runOrder: 2, status: 'pulled', checkInStatus: 'pulled' }),
+      // never permitted it as an `entry_status`, so a row carrying it on the
+      // lifecycle field is not a shape the database can produce (MYK9-645).
+      entry({
+        id: 'b',
+        armband: '20',
+        runOrder: 2,
+        entryStatus: 'confirmed',
+        checkInStatus: 'pulled',
+      }),
     ]);
 
     expect(preview.nextArmbands).toEqual(['10']);

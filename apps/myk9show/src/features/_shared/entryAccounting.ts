@@ -143,3 +143,32 @@ export function countEntryAccounting(entries: EntryAccountingFields[]): EntryAcc
     isComplete: expected.length > 0 && accounted === expected.length,
   };
 }
+
+/**
+ * Which of the entry list's three groups a row belongs to.
+ *
+ * `not_running` is NOT a hidden state: the judge and the gate steward still
+ * need to see that a dog was withdrawn or pulled — they just must not be in
+ * either badge's arithmetic (MYK9-645).
+ */
+export type EntryAccountingGroup = 'pending' | 'completed' | 'not_running';
+
+/** The group one entry belongs to, from the same predicates as the counts. */
+export function classifyEntry(entry: EntryAccountingFields): EntryAccountingGroup {
+  if (!isExpectedEntry(entry)) return 'not_running';
+  return isAccountedFor(entry) ? 'completed' : 'pending';
+}
+
+/**
+ * Classify a class's entries by id, so a surface that cannot import this rule
+ * (the shared ringside package) can still group its ROWS by exactly the rule
+ * its badges count with. A badge that describes a different set than the list
+ * beneath it is the bug this prevents: "Pending 65" over 66 rows.
+ */
+export function classifyEntries(
+  entries: (EntryAccountingFields & { id: string })[]
+): Record<string, EntryAccountingGroup> {
+  const byId: Record<string, EntryAccountingGroup> = {};
+  for (const entry of entries) byId[entry.id] = classifyEntry(entry);
+  return byId;
+}

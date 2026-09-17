@@ -77,6 +77,24 @@ export interface ClassInfo {
    * (MYK9-646 covers the remaining ringside counters).
    */
   statusCounts?: { pending: number; completed: number };
+  /**
+   * Per-entry group, keyed by entry id, computed by the HOST from the same
+   * predicates as `statusCounts` (MYK9-645).
+   *
+   * A badge must describe the rows beneath it. `statusCounts` alone fixed the
+   * numbers and left the LISTS on `!isScored`, so "Pending 65" sat above 66
+   * rows and an unscored `result_status: 'absent'` row counted as Completed in
+   * the badge while rendering in the Pending list. The package groups its rows
+   * by this map instead of re-deriving a rule it cannot see.
+   *
+   * `not_running` rows (withdrawn, scratched, moved, not_accepted, pulled at
+   * check-in) stay VISIBLE under a labelled group at the bottom of the Pending
+   * tab and are in neither badge.
+   *
+   * Optional: consumers that supply nothing keep the `isScored` derivation and
+   * get no `not_running` group.
+   */
+  entryClassification?: Record<string, 'pending' | 'completed' | 'not_running'>;
   timeLimit?: string;
   timeLimit2?: string;
   timeLimit3?: string;

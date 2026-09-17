@@ -14,11 +14,13 @@ import {
   replicatedTrialsTable,
 } from '@/services/replication';
 import {
+  areAtShowEntryCountsKnown,
   fetchAtShowClassList,
   isAtShowClassDataHydrated,
   refreshAtShowClassListEntries,
   type AtShowClassGroup,
 } from './atShowClassListAdapter';
+import { syncAtShowData } from './atShowDataAdapter';
 import type { AtShowNextUpPreview } from './atShowNextUpPreview';
 
 export interface UseAtShowClassListResult {
@@ -31,6 +33,12 @@ export interface UseAtShowClassListResult {
   clubId: string | undefined;
   isLoading: boolean;
   error: Error | null;
+  /**
+   * False while this show's entry replica has never been read on this device.
+   * Callers MUST render the per-class counters as unknown, not as zero
+   * (MYK9-637).
+   */
+  entryCountsAvailable: boolean;
   /** Persisted proof for truthful offline zero-class copy. */
   classDataHydration: 'not-needed' | 'checking' | 'hydrated' | 'incomplete';
   refresh: () => void;
@@ -62,6 +70,12 @@ export function useAtShowClassList(showId: string | undefined): UseAtShowClassLi
       // A leading notification can race the initial query. In that one case,
       // preserve the old refetch behavior instead of dropping the update.
       if (!hadCachedGroups) invalidate();
+      // The snapshot that lands from the show-scoped sync is also what makes
+      // the counts knowable; re-ask, so a cold list stops reading as unknown
+      // without waiting for a remount.
+      void queryClient.invalidateQueries({
+        queryKey: ['at-show', 'classlist-entry-counts', showId],
+      });
     };
     const unsubscribe = [
       replicatedClassesTable.subscribe(invalidateStructure, { emitCurrent: false }),
@@ -69,6 +83,37 @@ export function useAtShowClassList(showId: string | undefined): UseAtShowClassLi
       replicatedEntriesTable.subscribe(applyEntriesSnapshot, { emitCurrent: false }),
     ];
     return () => unsubscribe.forEach(stop => stop());
+  }, [queryClient, showId]);
+
+  // MYK9-637: nothing else on this route hydrates the show's entries. The
+  // app-wide ReplicationSyncProvider syncs `entries` with an EMPTY scope, which
+  // the table treats as a no-op, so the class list read a permanently cold
+  // store and rendered `0 / 0` for every class -- while the class DETAIL page
+  // looked correct purely because ringside's EntryList calls
+  // `forceSyncEntriesAndClasses` -> `syncAtShowData` on mount. Both surfaces
+  // now hydrate through that one canonical call; it de-dupes in-flight work,
+  // and the subscription above re-projects the counts when rows land.
+  //
+  // Deliberately fire-and-forget and defensively wrapped: this is offline-first
+  // and a hydration failure must never break the local read.
+  useEffect(() => {
+    if (!showId) return;
+    void Promise.resolve()
+      .then(() => syncAtShowData(showId))
+      .catch(() => {})
+      .finally(() => {
+        // Re-ask whether the counts are knowable the moment the sync settles,
+        // NOT only when a replication notify arrives. A sync that writes zero
+        // rows never notifies -- `batchSet` is skipped with nothing to cache
+        // and `removeStaleEntries` notifies only when it removed something --
+        // so a genuinely empty show would otherwise sit on the unknown dash
+        // for the page's whole lifetime. Fires on failure too: the answer is
+        // then still "unknown", and re-asking costs one IndexedDB metadata
+        // read.
+        void queryClient.invalidateQueries({
+          queryKey: ['at-show', 'classlist-entry-counts', showId],
+        });
+      });
   }, [queryClient, showId]);
 
   const groupsQuery = useQuery({
@@ -106,6 +151,21 @@ export function useAtShowClassList(showId: string | undefined): UseAtShowClassLi
     enabled: shouldCheckClassHydration,
     networkMode: 'always',
   });
+  // Entry counts are a per-show fact, so this asks the entries replica once for
+  // the show rather than per class. No sync happens here -- the queryFn must
+  // stay read-only, because the entries subscription invalidates this key.
+  const entryCountsQuery = useQuery({
+    queryKey: ['at-show', 'classlist-entry-counts', showId],
+    queryFn: () => areAtShowEntryCountsKnown(showId as string),
+    enabled: !!showId,
+    networkMode: 'always',
+  });
+  // A class that already reports entries proves the read succeeded, whatever
+  // the metadata says.
+  const hasAnyCountedEntries = groups.some(group =>
+    group.classes.some(classEntry => classEntry.entry_count > 0)
+  );
+
   const nextUpByClassId = useMemo(() => {
     const merged = new Map<string, AtShowNextUpPreview>();
     for (const group of groups) {
@@ -122,6 +182,7 @@ export function useAtShowClassList(showId: string | undefined): UseAtShowClassLi
     clubId: showQuery.data?.clubId ?? undefined,
     // Gate on BOTH queries: `organization` drives A/B pairing, so the page must
     // not group/render with the default ('') before the show metadata lands.
+    entryCountsAvailable: hasAnyCountedEntries || entryCountsQuery.data === true,
     isLoading: groupsQuery.isLoading || showQuery.isLoading,
     error: (groupsQuery.error as Error | null) ?? (showQuery.error as Error | null) ?? null,
     classDataHydration: !shouldCheckClassHydration
@@ -137,6 +198,7 @@ export function useAtShowClassList(showId: string | undefined): UseAtShowClassLi
     refresh: () => {
       void groupsQuery.refetch();
       void showQuery.refetch();
+      void entryCountsQuery.refetch();
       if (shouldCheckClassHydration) void classHydrationQuery.refetch();
     },
   };

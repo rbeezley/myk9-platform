@@ -87,30 +87,45 @@
   animation: bn-status-pulse 2400ms ease-in-out infinite;
 }
 
-/* MYK9-633 round 2/3: the sticky sub-bar's own layout, previously inlined
-   as a JS style prop. Pulled into CSS so the narrow-viewport override below
-   can win over it -- five section links plus the status line plus the CTA
-   overflowed 375px (measured: 481px on origin/main with no CTA, 504px once
-   round 2 added one). */
+/* MYK9-633 round 2/3/4: the sticky sub-bar's own layout, previously
+   inlined as a JS style prop. Pulled into CSS so the narrow-viewport
+   overrides below can win over it -- five section links plus the status
+   line plus the CTA overflowed 375px (measured: 481px on origin/main with
+   no CTA, 504px once round 2 added one).
+   round 4: `flex-wrap: wrap` (round 3) let the row wrap to a SECOND line
+   from 640px up to the point the row naturally fits -- 133px tall at
+   640/700/768/800/830 vs 73px on origin/main at any of those widths (iPad
+   portrait is 768). Measured the row's natural (unwrapped) content width
+   at 851.59px and the exact single-row threshold by bisection: 850px still
+   wraps (133px), 852px does not (73px). No wrap ever needed once the
+   section-anchor list is hidden below that threshold too -- the remaining
+   status+CTA group's natural width measured 293.5px, nowhere near even the
+   375px phone width -- so `flex-wrap` itself is removed. */
 [data-banner] .bn-subbar {
   padding: 14px 64px !important;
-  flex-wrap: wrap;
 }
 
-/* Below 640px, the section-anchor list steps aside (same pattern as
-   Heritage's StickyNav) -- only the club-scoped identity, live status, and
-   the one entry CTA need to fit. Narrower padding recovers more width for
-   what's left. */
-@media (max-width: 639px) {
-  [data-banner] .bn-subbar {
-    padding: 10px 16px !important;
-  }
+/* Below 852px (the measured single-row threshold), the section-anchor list
+   steps aside (same pattern as Heritage's StickyNav) so the row never
+   wraps -- only the live status and the one entry CTA need to fit; no
+   club-scoped identity element exists in this bar to fit alongside them
+   (round 4: the comment here previously claimed one). */
+@media (max-width: 851px) {
   /* !important: StickyNav sets `display: flex` inline (matches the
      wrapper's own layout needs on wider screens); a plain class rule
      cannot win against an element's own inline style, only !important
      can (verified: without it this rule was silently no-op at 375px). */
   [data-banner] .bn-subbar-sections {
     display: none !important;
+  }
+}
+
+/* Phones only: narrower padding recovers width for the status+CTA group
+   (still comfortably under its 293.5px natural width at 375px, but the
+   default 64px side padding leaves little room to spare). */
+@media (max-width: 639px) {
+  [data-banner] .bn-subbar {
+    padding: 10px 16px !important;
   }
 }
 

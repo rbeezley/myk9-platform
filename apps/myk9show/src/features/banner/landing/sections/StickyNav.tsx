@@ -34,11 +34,24 @@ const SECTIONS = [
  * while adding the CTA — the issue asked for one CTA, not removal of
  * status copy (poster's equivalent StickyNav kept its status line
  * alongside its CTA). Restored both. The section-anchor list is now
- * `.bn-subbar-sections`, hidden below 640px (banner.css) — the same
- * pattern Heritage's StickyNav already uses — because fitting five section
- * links AND the status line AND the CTA in one row at 375px overflowed
- * (measured: 481px on origin/main with no CTA, 504px once round 2 added
- * one). Below 640px only the club-scoped identity, status, and CTA show.
+ * `.bn-subbar-sections`, hidden below a breakpoint (banner.css) — the
+ * same pattern Heritage's StickyNav already uses — because fitting five
+ * section links AND the status line AND the CTA in one row at narrow
+ * widths overflowed (measured: 481px on origin/main with no CTA, 504px
+ * once round 2 added one).
+ *
+ * MYK9-633 round 4: the section-anchor list is hidden below 852px, not
+ * 640px — round 3's `flex-wrap: wrap` let the row silently grow to two
+ * lines (133px tall) from 640px up to 851px, the row's measured natural
+ * (unwrapped) content width; only at 852px+ does it fit on one line
+ * unwrapped. `flex-wrap` itself is now removed: with the section list
+ * hidden, the remaining status+CTA group's natural width (293.5px) never
+ * approaches even the narrowest supported viewport, so no wrap is ever
+ * needed. This is a real width range with no compact affordance replacing
+ * the hidden section links (a future improvement, not this issue) — so
+ * the `<nav>` landmark's label was changed from "Show sections" to the
+ * always-true "Show navigation" rather than leave an aria-label that lies
+ * about the landmark's contents at 6 out of 8 measured widths.
  */
 export function StickyNav({
   entryWizardUrl,
@@ -56,7 +69,7 @@ export function StickyNav({
 
   return (
     <nav
-      aria-label="Show sections"
+      aria-label="Show navigation"
       className="bn-subbar"
       style={{
         position: 'sticky',
@@ -114,8 +127,11 @@ export function StickyNav({
             color: bannerColors.flag,
             whiteSpace: 'nowrap',
           }}
-          aria-label={statusLabel}
         >
+          {/* MYK9-633 round 4: aria-label on a plain <div> (no ARIA role)
+              is inert -- assistive tech ignores it and falls back to the
+              element's own text content, which already reads identically
+              to statusLabel. Dropped the redundant attribute. */}
           <span className="bn-status-dot" aria-hidden />
           {statusLabel}
         </div>

@@ -85,9 +85,11 @@ export function FinalFlagBand({
           )}
         </h2>
         {/* MYK9-633: the button here duplicated the masthead's "Enter this
-            show" CTA — the masthead CTA is the page's one entry action at
-            640px+; below that it's joined by the mobile-only sticky bar at
-            the end of the page. */}
+            show" CTA. MYK9-633 round 2 moved that CTA into StickyNav (the
+            masthead is not sticky, so it was unreachable once scrolled
+            past) — StickyNav's CTA is the page's one entry action at
+            desktop width; below that it's joined by the mobile-only sticky
+            bar at the end of the page. */}
         {!canEnterOnline && (
           <p
             style={{

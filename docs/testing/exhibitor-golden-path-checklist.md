@@ -87,8 +87,11 @@ Clean test data before real-user testing.
 
 ## Part 4 — Show Detail + Entry Form ✅ 🐞
 
-- [x] Detail page renders (premium "Headline" style); "Enter" → `#enter` section
-- [x] `#enter` section: closing date, "Submit Entry" → `/shows/:id/register`
+- [x] Detail page renders (premium "Headline" style); header "Enter this show" CTA
+      → `/shows/:id/register` directly (MYK9-633 round 2 removed the `#enter`
+      section-anchor this line used to describe — it scrolled to a
+      final-band section that no longer carries its own entry action)
+- [x] Final band: closing date shown, informational only (no CTA — see above)
 
 **🐞 BUG-EX-04 [P2] — premium landing date off-by-one (open).** Detail page (and
 footer) show **Jun 11–13**, but the browse card and the confirmation receipt show

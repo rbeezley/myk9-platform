@@ -49,7 +49,11 @@ function filesUnder(dir: string, exts: string[]): string[] {
  * this test failed against unrelated code (MYK9-633 round 2). */
 function relativeToSrc(absolutePath: string): string {
   const marker = '/src/';
-  const index = absolutePath.indexOf(marker);
+  // lastIndexOf, not indexOf (MYK9-633 round 4): an ancestor directory
+  // literally named "src" anywhere above the repo root -- plausible on a
+  // machine with its own workspace conventions -- would make indexOf cut
+  // at that EARLIER occurrence instead of the repo's actual src root.
+  const index = absolutePath.lastIndexOf(marker);
   return index === -1 ? absolutePath : absolutePath.slice(index + marker.length);
 }
 

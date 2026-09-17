@@ -1,8 +1,13 @@
 /**
  * MYK9-633: Banner repeated the entry CTA twice (FlagMasthead /
  * FinalFlagBand) — the same shape MYK9-565 fixed on Monogram. Exactly one
- * entry CTA at desktop width (the masthead), plus exactly one more — a
- * mobile-only sticky bottom bar reusing the same copy — below 640px.
+ * entry CTA at desktop width, plus exactly one more — a mobile-only sticky
+ * bottom bar reusing the same copy — below 640px.
+ *
+ * MYK9-633 round 2: the desktop CTA lives in StickyNav, not FlagMasthead —
+ * the masthead is not sticky, so its own CTA was unreachable once scrolled
+ * past (StickyNav's `position: sticky` keeps it in view at every scroll
+ * position).
  */
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { screen } from '@testing-library/react';

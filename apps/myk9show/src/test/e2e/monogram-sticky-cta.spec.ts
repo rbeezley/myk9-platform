@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test';
+import { createClient } from '@supabase/supabase-js';
 
 /**
  * MYK9-565, round 3 restructure.
@@ -18,20 +19,49 @@ import { expect, test } from '@playwright/test';
  * This spec proves the actual on-screen geometry that document order is
  * supposed to guarantee.
  *
- * "ZZ Audit - Rewalk" is a real published Monogram-style show with classes
- * assigned, but its entry window (like every currently-published Monogram
- * show) is already closed, so its sticky bar would not render at all. This
- * test does not write to the shared database to force one open; it rewrites
- * the PostgREST response for this one show's `entry_close_date` in-flight,
- * for this browser context only, leaving every other field (and every other
- * show) untouched.
+ * No fixture dependency (round-3 review, second pass): this used to pin one
+ * ad-hoc staging show by id, an assumption a reseed can silently break --
+ * the row disappearing, or simply not being Monogram-styled any more, both
+ * read as a 15s "bar never appeared" timeout that looks exactly like a
+ * geometry regression. Instead: pick ANY published show with at least one
+ * class at runtime (Supabase anon read, same credentials the app itself
+ * uses), then force its style to Monogram and its entry window open by
+ * rewriting the PostgREST response in-flight, for this browser context
+ * only -- no database write, and no dependency on the picked show's real
+ * style or entry dates.
  */
-const SHOW_ID = '75e078e9-81c3-46f0-aedd-94acfe15d353';
+const SUPABASE_URL = process.env.VITE_SUPABASE_URL ?? '';
+const SUPABASE_ANON_KEY = process.env.VITE_SUPABASE_ANON_KEY ?? '';
 
 test.describe('Monogram sticky CTA bar — footer clears it at page end', () => {
   test.use({ viewport: { width: 375, height: 812 } });
 
   test('at 375x812 scrolled to the end, the footer sits above the sticky bar', async ({ page }) => {
+    test.skip(
+      !SUPABASE_URL || !SUPABASE_ANON_KEY,
+      'Needs VITE_SUPABASE_URL + VITE_SUPABASE_ANON_KEY (apps/myk9show/.env).'
+    );
+
+    const anon = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, { auth: { persistSession: false } });
+
+    // `!inner` on both embeds turns them into filters: only a show with at
+    // least one trial that has at least one class survives. Any such show
+    // works -- its actual style/status/dates are irrelevant, all three are
+    // forced below.
+    const { data: candidates, error } = await anon
+      .from('shows')
+      .select('id, trials!inner(id, classes!inner(id))')
+      .eq('status', 'published')
+      .is('deleted_at', null)
+      .limit(1);
+
+    expect(error, 'reading a published show with classes must not error').toBeNull();
+    expect(
+      candidates?.length,
+      'staging must have at least one published show with an assigned class for this spec to pick from'
+    ).toBeGreaterThan(0);
+    const showId = candidates![0].id as string;
+
     await page.route('**/rest/v1/shows*', async route => {
       const response = await route.fetch();
       let body: unknown;
@@ -42,24 +72,36 @@ test.describe('Monogram sticky CTA bar — footer clears it at page end', () => 
         return;
       }
 
-      const forceOpen = (row: unknown) => {
-        if (row && typeof row === 'object' && (row as { id?: unknown }).id === SHOW_ID) {
-          (row as { entry_close_date?: unknown }).entry_close_date = '2099-01-01T00:00:00+00:00';
-        }
+      const forceMonogramOpen = (row: unknown) => {
+        if (!row || typeof row !== 'object' || (row as { id?: unknown }).id !== showId) return;
+        const r = row as Record<string, unknown>;
+        r.entry_close_date = '2099-01-01T00:00:00+00:00';
+        // getShowStyle() (features/registries/helpers.ts) falls back to
+        // 'monogram' for any null/unrecognized value, but a published
+        // EXPERIENCE style takes precedence over `style` when set -- clear
+        // both so this show renders Monogram regardless of its real values.
+        r.style = 'monogram';
+        r.experience_is_published = false;
+        r.experience_published_style = null;
       };
       if (Array.isArray(body)) {
-        body.forEach(forceOpen);
+        body.forEach(forceMonogramOpen);
       } else {
-        forceOpen(body);
+        forceMonogramOpen(body);
       }
 
       await route.fulfill({ response, json: body });
     });
 
-    await page.goto(`/shows/${SHOW_ID}`, { waitUntil: 'domcontentloaded' });
+    await page.goto(`/shows/${showId}`, { waitUntil: 'domcontentloaded' });
 
     const bar = page.getByRole('region', { name: /enter this show/i });
-    await expect(bar).toBeVisible({ timeout: 15000 });
+    await expect(
+      bar,
+      'sticky bar did not render -- forced style/entry-window rewrite may not have taken'
+    ).toBeVisible({
+      timeout: 15000,
+    });
 
     const footerMeta = page.locator('.mg-footer__meta');
     await expect(footerMeta).toBeVisible();

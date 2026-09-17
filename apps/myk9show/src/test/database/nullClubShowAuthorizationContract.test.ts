@@ -206,6 +206,18 @@ const REVIEWED_CLUB_HELPER_POLICY_SITES: readonly string[] = [
   'entry_status_history_select -> is_club_admin',
   'show_templates_select -> is_club_admin',
   'show_templates_select -> is_trial_secretary',
+  // GUARDED by 20260917163900 (MYK9-636). show_announcements' three mutation
+  // policies had NO show or club predicate at all until then -- any
+  // authenticated account could post a show-wide announcement onto any club's
+  // show, and the show's own secretary could not delete it. The predicate is
+  // copied from messages_insert above. Behavioural coverage:
+  // supabase/tests/show_announcements_scope_test.sql.
+  'Authenticated users can create announcements -> is_club_admin',
+  'Authenticated users can create announcements -> is_trial_secretary',
+  'Author or admin can delete announcements -> is_club_admin',
+  'Author or admin can delete announcements -> is_trial_secretary',
+  'Author or admin can update announcements -> is_club_admin',
+  'Author or admin can update announcements -> is_trial_secretary',
   // GUARDED by 20260916015300 (MYK9-585). Behavioural coverage:
   // supabase/tests/null_club_policy_authorization_test.sql.
   'class_visibility_insert -> is_club_admin',

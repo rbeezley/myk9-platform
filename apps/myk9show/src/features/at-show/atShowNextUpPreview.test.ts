@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import type { ReplicatedEntry } from '@/services/replication/ReplicatedEntriesTable';
 import { classifyEntries } from '@/features/_shared/entryAccounting';
+import { toQuickAdvanceChips } from './quickAdvanceReplicated';
 import {
   buildNextUpPreview,
   isEmptyNextUpPreview,
@@ -130,6 +131,65 @@ describe('buildNextUpPreview', () => {
 
     expect(preview.nextArmbands).toEqual(['201']);
     expect(preview.total).toBe(1);
+  });
+
+  // MYK9-645 round 5, sibling branch (a): an unscored row with an `absent`
+  // RESULT is ACCOUNTED -- out of remaining and out of the numerator's work --
+  // yet it stayed in the ORDER, so the card offered #7 as next up in a class
+  // the counts already called finished.
+  it('leaves an unscored absent-result row out of the order, as the counts already do', () => {
+    const rows: ReplicatedEntry[] = [
+      entry({ id: 'scored', armband: '1', runOrder: 1, entryStatus: 'confirmed', isScored: true }),
+      entry({
+        id: 'absent',
+        armband: '7',
+        runOrder: 2,
+        entryStatus: 'confirmed',
+        isScored: false,
+        resultStatus: 'absent',
+      }),
+    ];
+    const preview = buildNextUpPreview(rows);
+
+    expect(preview.nextArmbands).toEqual([]);
+    // Both rows are expected and both are accounted: 2 of 2 done, 0 remaining.
+    expect(preview.total).toBe(2);
+    expect(preview.remaining).toBe(0);
+    expect(classifyEntries(rows)['absent']).toBe('completed');
+    // The chip row a judge taps after a save must not offer it either.
+    expect(toQuickAdvanceChips(rows, { excludeEntryId: 'scored' })).toEqual([]);
+  });
+
+  // Sibling branch (b): a stale `check_in_status: 'in-ring'` on a row the show
+  // no longer expects (staging `entries.94db1b95`) announced it as the dog in
+  // the ring while it was listed under Not running. It escaped the browser walk
+  // only because its armband is NULL.
+  it('never announces a withdrawn row as in the ring, however its check-in reads', () => {
+    const rows: ReplicatedEntry[] = [
+      entry({
+        id: 'stale-in-ring',
+        armband: '50',
+        runOrder: 1,
+        entryStatus: 'withdrawn',
+        checkInStatus: 'in-ring',
+        isScored: false,
+      }),
+      entry({
+        id: 'live',
+        armband: '51',
+        runOrder: 2,
+        entryStatus: 'confirmed',
+        checkInStatus: 'checked-in',
+        isScored: false,
+      }),
+    ];
+    const preview = buildNextUpPreview(rows);
+
+    expect(preview.inRingArmband).toBeNull();
+    expect(preview.nextArmbands).toEqual(['51']);
+    expect(preview.total).toBe(1);
+    expect(preview.remaining).toBe(1);
+    expect(classifyEntries(rows)['stale-in-ring']).toBe('not_running');
   });
 
   it('returns an empty preview for a class with no entries', () => {

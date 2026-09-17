@@ -106,6 +106,27 @@ export function isAccountedFor(entry: EntryAccountingFields): boolean {
   );
 }
 
+/**
+ * THE membership predicate: is this dog still going to appear in the ring?
+ *
+ * Every queue-membership question answers to this one function (MYK9-645 round
+ * 5). Three rounds of this issue each fixed one branch and left a sibling:
+ * `moved` stayed in the run order after the counts excluded it, then an
+ * unscored `absent`-RESULT row stayed in the order after being counted as
+ * accounted, then a withdrawn row carrying a stale `check_in_status: 'in-ring'`
+ * was announced as the dog in the ring while listed under Not running. A
+ * predicate with three call sites and three spellings will keep producing those
+ * (LESSONS `discriminator-branches`).
+ *
+ * The `check_in_status !== 'pulled'` clause is redundant with `isExpectedEntry`
+ * and kept deliberately: it states the show-day axis explicitly so a future
+ * reader does not re-add it somewhere else.
+ */
+export function isRunnableEntry(entry: EntryAccountingFields): boolean {
+  const checkInStatus = normalized(entry.checkInStatus ?? entry.check_in_status);
+  return isExpectedEntry(entry) && !isAccountedFor(entry) && checkInStatus !== 'pulled';
+}
+
 /** Entries the show expects to run, in input order. */
 export function expectedEntries<T extends EntryAccountingFields>(entries: T[]): T[] {
   return entries.filter(isExpectedEntry);
@@ -153,10 +174,18 @@ export function countEntryAccounting(entries: EntryAccountingFields[]): EntryAcc
  */
 export type EntryAccountingGroup = 'pending' | 'completed' | 'not_running';
 
-/** The group one entry belongs to, from the same predicates as the counts. */
+/**
+ * The group one entry belongs to, from the same predicates as the counts and
+ * the run queue. By construction:
+ *   `pending`     === `isRunnableEntry`
+ *   `completed`   === expected AND `isAccountedFor`
+ *   `not_running` === NOT `isExpectedEntry`
+ * `entryAccountingGrid.test.ts` asserts that equivalence over every
+ * status x result_status x check_in_status combination rather than trusting it.
+ */
 export function classifyEntry(entry: EntryAccountingFields): EntryAccountingGroup {
   if (!isExpectedEntry(entry)) return 'not_running';
-  return isAccountedFor(entry) ? 'completed' : 'pending';
+  return isRunnableEntry(entry) ? 'pending' : 'completed';
 }
 
 /**

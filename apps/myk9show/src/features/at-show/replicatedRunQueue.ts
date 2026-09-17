@@ -20,7 +20,7 @@ import {
   type RunQueueEntry,
 } from '@myk9/ringside';
 import type { ReplicatedEntry } from '@/services/replication/ReplicatedEntriesTable';
-import { isExpectedEntry } from '@/features/_shared/entryAccounting';
+import { isRunnableEntry } from '@/features/_shared/entryAccounting';
 
 /** A replicated row plus the normalized fields the run queue sorts on. */
 export interface ReplicatedQueueEntry extends RunQueueEntry {
@@ -42,18 +42,22 @@ function parseArmband(entry: ReplicatedEntry): number {
  * test for `pulled` / `in-ring`, so every state meaning "won't run" is folded
  * onto `pulled` and a single field answers queue membership.
  *
- * MEMBERSHIP is `isExpectedEntry` — the SAME predicate the counts use — not a
- * status list of this module's own (MYK9-645). The two lists had drifted by
- * exactly `moved` and `not_accepted`: a class with an unscored `moved` #114
- * beside a live #115 announced "Next up 114, 115" and "1 of 1 remaining", with
- * #114 simultaneously listed under Not running. The queue still owns the
- * ORDER; `entryAccounting` owns who is in it.
+ * MEMBERSHIP IS `isRunnableEntry`, AND NOTHING ELSE DECIDES IT (MYK9-645).
+ * The check-in axis is read only AFTER that predicate says yes, because the
+ * two orderings are not equivalent: a withdrawn row carrying a stale
+ * `check_in_status: 'in-ring'` (`entries.94db1b95` on staging) was announced as
+ * the dog in the ring while listed under Not running, and an unscored row with
+ * `result_status: 'absent'` was offered as "next up" after the counts had
+ * already settled it. An in-ring flag on a row nobody expects to run is stale
+ * data, not a ring state.
+ *
+ * This module holds NO status list of its own; adding one back is how the last
+ * three rounds of this bug happened.
  */
 function queueStatus(entry: ReplicatedEntry): string | undefined {
-  const checkIn = entry.checkInStatus ?? entry.check_in_status;
-  if (checkIn === 'in-ring') return checkIn;
-  if (!isExpectedEntry(entry)) return 'pulled';
+  if (!isRunnableEntry(entry)) return 'pulled';
 
+  const checkIn = entry.checkInStatus ?? entry.check_in_status;
   return checkIn ?? entry.status ?? entry.entryStatus;
 }
 
@@ -67,10 +71,14 @@ export function toRunQueueEntry(entry: ReplicatedEntry): ReplicatedQueueEntry {
     isScored: entry.isScored ?? entry.is_scored ?? false,
     status: queueStatus(entry),
     // A dog sent into the ring on show day may be flagged only by the check-in
-    // status, with neither boolean alias set.
+    // status, with neither boolean alias set -- but only a RUNNABLE row can be
+    // in the ring at all. `isInRingEntry` ORs this flag with the status, so
+    // leaving it ungated would re-announce exactly the stale row `queueStatus`
+    // just excluded.
     inRing:
-      (entry.isInRing ?? entry.is_in_ring ?? false) ||
-      (entry.checkInStatus ?? entry.check_in_status) === 'in-ring',
+      isRunnableEntry(entry) &&
+      ((entry.isInRing ?? entry.is_in_ring ?? false) ||
+        (entry.checkInStatus ?? entry.check_in_status) === 'in-ring'),
     entry,
   };
 }

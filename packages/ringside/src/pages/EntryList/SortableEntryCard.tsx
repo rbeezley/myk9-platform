@@ -318,7 +318,10 @@ export const SortableEntryCard: React.FC<SortableEntryCardProps> = ({
           ) : undefined
         }
         actionButton={
-          !entry.isScored ? (
+          // A row in the "Not running" group ALWAYS shows its chip, scored or
+          // not: a dog scored and then withdrawn would otherwise get neither
+          // the chip nor Reset, leaving no way back at all (MYK9-645).
+          !entry.isScored || scoringDisabled ? (
             <StatusBadge
               entry={entry}
               isDisabled={isCheckInDisabled}

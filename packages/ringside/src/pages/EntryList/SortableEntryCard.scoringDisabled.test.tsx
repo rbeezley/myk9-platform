@@ -69,10 +69,14 @@ function entry(overrides: Partial<Entry> = {}): Entry {
   } as Entry;
 }
 
-function renderCard(scoringDisabled: boolean, handleEntryClick = vi.fn()) {
+function renderCard(
+  scoringDisabled: boolean,
+  handleEntryClick = vi.fn(),
+  overrides: Partial<Entry> = {}
+) {
   render(
     <SortableEntryCard
-      entry={entry()}
+      entry={entry(overrides)}
       scoringDisabled={scoringDisabled}
       isDragMode={false}
       hasPermission={() => true}
@@ -106,6 +110,23 @@ describe('SortableEntryCard — scoringDisabled (MYK9-645)', () => {
   it('keeps the status chip, so the existing check-in flow is still reachable', () => {
     renderCard(true);
     expect(screen.getByTitle('Tap to change status')).toBeInTheDocument();
+  });
+
+  // MYK9-645 round 5: a dog SCORED and then withdrawn lands in the group with
+  // `isScored` true. It used to get neither the chip (gated on `!isScored`) nor
+  // Reset (gated on scoring), so there was no way back out of the group at all.
+  it('keeps the chip for a SCORED row inside the group, so there is still a way back', () => {
+    renderCard(true, vi.fn(), { isScored: true });
+
+    expect(screen.getByTitle('Tap to change status')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /Score options/i })).not.toBeInTheDocument();
+  });
+
+  it('still shows Reset rather than the chip for a scored row that IS scorable', () => {
+    renderCard(false, vi.fn(), { isScored: true });
+
+    expect(screen.getByRole('button', { name: /Score options/i })).toBeInTheDocument();
+    expect(screen.queryByTitle('Tap to change status')).not.toBeInTheDocument();
   });
 
   it('drops the clickable affordance class', () => {

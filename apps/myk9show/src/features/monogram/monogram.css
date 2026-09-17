@@ -100,6 +100,13 @@
   outline-offset: 3px;
   border-radius: 1px;
 }
+/* The mobile sticky CTA bar (FinalCtaBand, MYK9-565) sits on the same dark
+   ink surface the old full-page final band used — the bronze ring drops to
+   ~2.8:1 against it, under the 3:1 minimum. Same override that band's link
+   carried before it was replaced. */
+[data-monogram] .mg-final-sticky a:focus-visible {
+  outline-color: var(--mg-paper);
+}
 [data-monogram] .mg-nav__cta:hover {
   background: var(--mg-ink);
   color: var(--mg-paper);

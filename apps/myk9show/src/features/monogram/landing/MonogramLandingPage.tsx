@@ -97,6 +97,7 @@ export function MonogramLandingPage({
           venueAddress={data.venueAddress}
           timezone={data.timezone}
           classesHref={classesHref}
+          canEnterOnline={canEnterOnline}
         />
 
         <WelcomeSection

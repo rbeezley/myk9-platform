@@ -1,5 +1,7 @@
+import { useState } from 'react';
 import { useCountdown } from '@/features/_shared/hooks/useCountdown';
 import { useMediaQuery } from '@/hooks/useMediaQuery';
+import { useRegisterActionBar } from '@/hooks/useRegisterActionBar';
 import { MONOGRAM_DISPLAY_FAMILY } from '../../fonts';
 import { monogramColors } from '../../tokens';
 
@@ -23,7 +25,19 @@ interface FinalCtaBandProps {
  * MYK9-565. It carries the header's exact copy ("Enter this show") and
  * renders nothing when there's no action to take: a persistently-visible
  * disabled bar has nothing to invite the visitor toward, and closed/pending
- * state is already surfaced by StickyNav's badge.
+ * state is already surfaced by HeroBlock's own restored copy.
+ *
+ * Two things a `position: fixed` bar breaks if left unhandled (round-1
+ * review, MYK9-565):
+ *  - It sits on top of whatever is normally last on the page (the footer),
+ *    so an in-flow spacer matching the bar's measured height reserves the
+ *    same space in the document, exactly like every other bottom-docked bar
+ *    in this app (ClassBulkActionsBar, DogsBulkActionsBar, ...).
+ *  - `useRegisterActionBar` also publishes that height to the shared
+ *    action-bar registry (`actionBarStore.ts`) so `AppToaster`'s
+ *    `selectReservedBottom` lifts bottom-docked toasts above it — the
+ *    2026-07-24 incident this registry exists to prevent was a toast
+ *    covering exactly this kind of bar's CTA.
  */
 export function FinalCtaBand({
   entryWizardUrl,
@@ -34,45 +48,57 @@ export function FinalCtaBand({
   const isMobile = useMediaQuery('(max-width: 639px)');
   const countdown = useCountdown(entryCloseDate, timezone);
   const canShowEntryCta = canEnterOnline && !countdown.closed;
+  const [barHeight, setBarHeight] = useState(0);
+  const actionBarRef = useRegisterActionBar<HTMLDivElement>({ onHeightChange: setBarHeight });
 
-  if (!isMobile || !canShowEntryCta) return null;
+  const shouldRender = isMobile && canShowEntryCta;
+
+  if (!shouldRender) return null;
 
   return (
-    <div
-      role="region"
-      aria-label="Enter this show"
-      style={{
-        position: 'fixed',
-        left: 0,
-        right: 0,
-        bottom: 0,
-        zIndex: 40,
-        padding: '10px 16px',
-        background: monogramColors.ink,
-        borderTop: `1px solid ${monogramColors.bronze}`,
-        // Respect the home-indicator safe area on notched phones.
-        paddingBottom: 'calc(10px + env(safe-area-inset-bottom, 0px))',
-      }}
-    >
-      <a
-        href={entryWizardUrl}
+    <>
+      {/* In-flow spacer: without it the fixed bar below covers whatever the
+          page normally ends with (MonogramFooter's last block). */}
+      <div aria-hidden="true" style={{ height: barHeight }} />
+
+      <div
+        ref={actionBarRef}
+        className="mg-final-sticky"
+        role="region"
+        aria-label="Enter this show"
         style={{
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          minHeight: 44,
-          width: '100%',
-          background: monogramColors.paper,
-          color: monogramColors.ink,
-          fontFamily: MONOGRAM_DISPLAY_FAMILY,
-          fontStyle: 'italic',
-          fontSize: 16,
-          letterSpacing: '0.02em',
-          textDecoration: 'none',
+          position: 'fixed',
+          left: 0,
+          right: 0,
+          bottom: 0,
+          zIndex: 40,
+          padding: '10px 16px',
+          background: monogramColors.ink,
+          borderTop: `1px solid ${monogramColors.bronze}`,
+          // Respect the home-indicator safe area on notched phones.
+          paddingBottom: 'calc(10px + env(safe-area-inset-bottom, 0px))',
         }}
       >
-        Enter this show
-      </a>
-    </div>
+        <a
+          href={entryWizardUrl}
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            minHeight: 44,
+            width: '100%',
+            background: monogramColors.paper,
+            color: monogramColors.ink,
+            fontFamily: MONOGRAM_DISPLAY_FAMILY,
+            fontStyle: 'italic',
+            fontSize: 16,
+            letterSpacing: '0.02em',
+            textDecoration: 'none',
+          }}
+        >
+          Enter this show
+        </a>
+      </div>
+    </>
   );
 }

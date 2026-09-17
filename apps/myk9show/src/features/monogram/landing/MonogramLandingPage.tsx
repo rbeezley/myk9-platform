@@ -96,7 +96,6 @@ export function MonogramLandingPage({
           venueCity={data.venueCity}
           venueAddress={data.venueAddress}
           timezone={data.timezone}
-          entryWizardUrl={data.entryWizardUrl}
           classesHref={classesHref}
           canEnterOnline={canEnterOnline}
         />
@@ -136,14 +135,6 @@ export function MonogramLandingPage({
         />
 
         <OfferedClassesSection show={show} className="mg-section" />
-
-        <FinalCtaBand
-          monogramLetters={data.monogramLetters}
-          entryWizardUrl={data.entryWizardUrl}
-          entryCloseDate={data.entryCloseDate}
-          timezone={data.timezone}
-          canEnterOnline={canEnterOnline}
-        />
       </main>
 
       <MonogramFooter
@@ -152,6 +143,20 @@ export function MonogramLandingPage({
         memberClubLanguage={data.memberClubLanguage}
         licenseLanguage={data.licenseLanguage}
         venueAddress={data.venueAddress}
+      />
+
+      {/* Rendered AFTER the footer, not inside <main> above (round-3 review,
+          MYK9-565): FinalCtaBand's in-flow spacer reserves its fixed bar's
+          height by sitting right before it in document order. Placed mid-page
+          (its old position, next to the CTA it repeats) that spacer opened a
+          blank gap THERE while the footer — now the true last element — was
+          still left uncovered under the bar. As the last child here, the
+          spacer instead reserves space at the actual end of the document. */}
+      <FinalCtaBand
+        entryWizardUrl={data.entryWizardUrl}
+        entryCloseDate={data.entryCloseDate}
+        timezone={data.timezone}
+        canEnterOnline={canEnterOnline}
       />
     </div>
   );

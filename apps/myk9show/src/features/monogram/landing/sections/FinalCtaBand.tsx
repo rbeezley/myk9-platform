@@ -1,16 +1,11 @@
-import { MonogramEmboss } from '../../components/MonogramEmboss';
-import { useRevealOnScroll } from '@/features/_shared/hooks/useRevealOnScroll';
+import { useState } from 'react';
 import { useCountdown } from '@/features/_shared/hooks/useCountdown';
-import {
-  MONOGRAM_BODY_FAMILY,
-  MONOGRAM_DISPLAY_FAMILY,
-  MONOGRAM_MONOGRAM_FAMILY,
-} from '../../fonts';
-import { monogramColors, monogramSpacing } from '../../tokens';
-import { formatDateInTimezone } from '../utils/dateFormat';
+import { useMediaQuery } from '@/hooks/useMediaQuery';
+import { useRegisterActionBar } from '@/hooks/useRegisterActionBar';
+import { MONOGRAM_DISPLAY_FAMILY } from '../../fonts';
+import { monogramColors } from '../../tokens';
 
 interface FinalCtaBandProps {
-  monogramLetters: string;
   entryWizardUrl: string;
   entryCloseDate: string | null;
   timezone: string;
@@ -18,155 +13,92 @@ interface FinalCtaBandProps {
 }
 
 /**
- * Final CTA band — dark ink background with a 580px embossed-dark monogram
- * filling the negative space behind a centered "Enter your dog in confidence."
- * title and a paper-on-ink CTA.
+ * Mobile-only sticky repeat of the header CTA (MYK9-565).
  *
- * The dark embossed monogram uses the same `MonogramEmboss` primitive shipped
- * in PR #182 with `surface="dark"`. On browsers without `background-clip:text`
- * the primitive falls back to solid color so the letters remain visible.
+ * The full-page "Enter your dog in confidence" band used to be its own,
+ * third repeat of the entry CTA (top: StickyNav, middle: HeroBlock, bottom:
+ * this band) — the exact duplication a human tester called out unprompted.
+ * The header nav's CTA (`StickyNav`, `position: sticky`) is the page's one
+ * entry action on desktop; below 640px it is joined by this fixed bottom
+ * bar, which is the closest existing "bottom CTA" component and is reused
+ * rather than adding a new one, per the product owner's decision on
+ * MYK9-565. It carries the header's exact copy ("Enter this show") and
+ * renders nothing when there's no action to take: a persistently-visible
+ * disabled bar has nothing to invite the visitor toward, and closed/pending
+ * state is already surfaced by HeroBlock's own restored copy.
+ *
+ * Two things a `position: fixed` bar breaks if left unhandled (round-1
+ * review, MYK9-565):
+ *  - It sits on top of whatever is normally last on the page (the footer),
+ *    so an in-flow spacer matching the bar's measured height reserves the
+ *    same space in the document, exactly like every other bottom-docked bar
+ *    in this app (ClassBulkActionsBar, DogsBulkActionsBar, ...).
+ *  - `useRegisterActionBar` also publishes that height to the shared
+ *    action-bar registry (`actionBarStore.ts`) so `AppToaster`'s
+ *    `selectReservedBottom` lifts bottom-docked toasts above it — the
+ *    2026-07-24 incident this registry exists to prevent was a toast
+ *    covering exactly this kind of bar's CTA.
  */
 export function FinalCtaBand({
-  monogramLetters,
   entryWizardUrl,
   entryCloseDate,
   timezone,
   canEnterOnline = true,
 }: FinalCtaBandProps) {
-  const { ref, revealed } = useRevealOnScroll<HTMLElement>();
+  const isMobile = useMediaQuery('(max-width: 639px)');
   const countdown = useCountdown(entryCloseDate, timezone);
-  const entryClosed = countdown.closed;
-  const canShowEntryCta = canEnterOnline && !entryClosed;
-  // Gate on countdown.closed (not just entryCloseDate presence) so a past close
-  // date doesn't keep reading as still-pending after registration has closed.
-  const closesLabel =
-    entryCloseDate && !entryClosed ? formatDateInTimezone(entryCloseDate, timezone, 'long') : null;
+  const canShowEntryCta = canEnterOnline && !countdown.closed;
+  const [barHeight, setBarHeight] = useState(0);
+  const actionBarRef = useRegisterActionBar<HTMLDivElement>({ onHeightChange: setBarHeight });
+
+  const shouldRender = isMobile && canShowEntryCta;
+
+  if (!shouldRender) return null;
 
   return (
-    <section
-      ref={ref}
-      className={`mg-final ${revealed ? 'in' : ''}`}
-      id="enter"
-      style={{
-        position: 'relative',
-        padding: '120px 56px',
-        textAlign: 'center',
-        background: monogramColors.ink,
-        color: monogramColors.paper,
-        overflow: 'hidden',
-      }}
-    >
+    <>
+      {/* In-flow spacer: without it the fixed bar below covers whatever the
+          page normally ends with (MonogramFooter's last block). */}
+      <div aria-hidden="true" style={{ height: barHeight }} />
+
       <div
-        aria-hidden
+        ref={actionBarRef}
+        className="mg-final-sticky"
+        role="region"
+        aria-label="Enter this show"
         style={{
-          position: 'absolute',
-          top: '50%',
-          left: '50%',
-          transform: 'translate(-50%, -50%)',
-          pointerEvents: 'none',
+          position: 'fixed',
+          left: 0,
+          right: 0,
+          bottom: 0,
+          zIndex: 40,
+          padding: '10px 16px',
+          background: monogramColors.ink,
+          borderTop: `1px solid ${monogramColors.bronze}`,
+          // Respect the home-indicator safe area on notched phones.
+          paddingBottom: 'calc(10px + env(safe-area-inset-bottom, 0px))',
         }}
       >
-        <MonogramEmboss
-          letters={monogramLetters}
-          size={monogramSpacing.finalCtaMonogramSize}
-          variant="embossed"
-          surface="dark"
-          solidColor={monogramColors.soft}
-        />
-      </div>
-
-      <div style={{ position: 'relative', zIndex: 2, maxWidth: 720, margin: '0 auto' }}>
-        {closesLabel && (
-          <div
-            style={{
-              fontFamily: MONOGRAM_BODY_FAMILY,
-              fontSize: 11,
-              fontWeight: 500,
-              letterSpacing: '0.32em',
-              textTransform: 'uppercase',
-              color: monogramColors.leaf,
-              marginBottom: 20,
-            }}
-          >
-            Closes {closesLabel}
-          </div>
-        )}
-        <h2
+        <a
+          href={entryWizardUrl}
           style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            minHeight: 44,
+            width: '100%',
+            background: monogramColors.paper,
+            color: monogramColors.ink,
             fontFamily: MONOGRAM_DISPLAY_FAMILY,
-            fontSize: 64,
-            letterSpacing: '-0.025em',
-            lineHeight: 1.05,
-            color: monogramColors.paper,
-            margin: '0 0 28px',
-            fontWeight: 400,
+            fontStyle: 'italic',
+            fontSize: 16,
+            letterSpacing: '0.02em',
+            textDecoration: 'none',
           }}
         >
-          {canShowEntryCta ? (
-            <>
-              Enter your dog{' '}
-              <span style={{ fontStyle: 'italic', color: monogramColors.leaf }}>in confidence</span>
-              .
-            </>
-          ) : entryClosed ? (
-            <>
-              Entries are{' '}
-              <span style={{ fontStyle: 'italic', color: monogramColors.leaf }}>closed</span>.
-            </>
-          ) : (
-            <>
-              Entries open when{' '}
-              <span style={{ fontStyle: 'italic', color: monogramColors.leaf }}>
-                classes are assigned
-              </span>
-              .
-            </>
-          )}
-        </h2>
-        {canShowEntryCta ? (
-          <a
-            href={entryWizardUrl}
-            style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              minHeight: 44,
-              gap: 14,
-              padding: '18px 44px',
-              background: monogramColors.paper,
-              color: monogramColors.ink,
-              fontFamily: MONOGRAM_DISPLAY_FAMILY,
-              fontStyle: 'italic',
-              fontSize: 18,
-              letterSpacing: '0.02em',
-              textDecoration: 'none',
-              transition: 'all 280ms ease',
-            }}
-          >
-            Enter this show
-            <span aria-hidden style={{ fontFamily: MONOGRAM_MONOGRAM_FAMILY, fontSize: 22 }}>
-              →
-            </span>
-          </a>
-        ) : (
-          <p
-            style={{
-              // On the dark ink band, `soft` (#3a342c) is 1.43:1 — unreadable.
-              // `paper` matches the band's body color (15.25:1).
-              color: monogramColors.paper,
-              fontFamily: MONOGRAM_BODY_FAMILY,
-              fontSize: 15,
-              lineHeight: 1.6,
-              margin: '0 auto',
-              maxWidth: 520,
-            }}
-          >
-            {entryClosed
-              ? 'Contact the trial secretary for late-entry help.'
-              : 'The secretary still needs to assign classes before online entry is available.'}
-          </p>
-        )}
+          Enter this show
+        </a>
       </div>
-    </section>
+    </>
   );
 }

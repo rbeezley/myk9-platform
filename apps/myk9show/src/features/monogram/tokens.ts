@@ -52,8 +52,6 @@ export const monogramSpacing = {
   heroMonogramSize: 640,
   /** Welcome aside card monogram size (px). */
   cardMonogramSize: 280,
-  /** Final-CTA band monogram size (px) — embossed in dark tones. */
-  finalCtaMonogramSize: 580,
   /** Footer monogram size (px) — solid, not embossed. */
   footerMonogramSize: 96,
   /** Judge card monogram size (px) — solid bronze. */

@@ -1,11 +1,10 @@
 import { BANNER_BODY_FAMILY, BANNER_DISPLAY_FAMILY } from '../../fonts';
 import { bannerColors } from '../../tokens';
-import { formatEntryCount } from '@/features/_shared/landing/entryCount';
 
 interface StickyNavProps {
-  flag: string;
-  entryCount: number | null;
-  entryLimit: number | null;
+  entryWizardUrl: string;
+  canEnterOnline?: boolean;
+  entryClosed?: boolean;
 }
 
 const SECTIONS = [
@@ -18,17 +17,20 @@ const SECTIONS = [
 
 /**
  * The sub-bar — a thin sticky strip directly under the flag masthead.
- * Carries anchor links to each section and a live-status pulsing dot
- * (the only animated colored element on the page per the design system).
+ * Carries anchor links to each section.
+ *
+ * MYK9-633 round 2: this is now the page's ONE desktop entry CTA. The
+ * masthead's own "Enter this show" link was reachable only while scrolled
+ * to the very top — everywhere else on the page (any scroll position past
+ * the masthead) had zero entry action once the duplicate final-band CTA
+ * was removed. This bar's `position: sticky` keeps it in view at every
+ * scroll position, so the CTA lives here instead.
  */
-export function StickyNav({ flag, entryCount, entryLimit }: StickyNavProps) {
-  const statusLabel =
-    entryCount == null
-      ? 'Entries open · count unavailable'
-      : entryLimit != null
-        ? `Entries open · ${formatEntryCount(entryCount)} / ${entryLimit}`
-        : `Entries open · ${formatEntryCount(entryCount)}`;
-
+export function StickyNav({
+  entryWizardUrl,
+  canEnterOnline = true,
+  entryClosed = false,
+}: StickyNavProps) {
   return (
     <nav
       aria-label="Show sections"
@@ -75,22 +77,41 @@ export function StickyNav({ flag, entryCount, entryLimit }: StickyNavProps) {
           </a>
         ))}
       </div>
-      <div
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          gap: 10,
-          fontFamily: BANNER_DISPLAY_FAMILY,
-          fontWeight: 700,
-          fontSize: 12,
-          letterSpacing: '0.04em',
-          color: flag,
-        }}
-        aria-label={statusLabel}
-      >
-        <span className="bn-status-dot" aria-hidden />
-        {statusLabel}
-      </div>
+      {canEnterOnline ? (
+        <a
+          href={entryWizardUrl}
+          style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            minHeight: 44,
+            padding: '8px 18px',
+            border: `1.5px solid ${bannerColors.ink}`,
+            fontFamily: BANNER_BODY_FAMILY,
+            fontWeight: 500,
+            fontSize: 11,
+            letterSpacing: '0.16em',
+            textTransform: 'uppercase',
+            color: bannerColors.ink,
+            textDecoration: 'none',
+          }}
+        >
+          Enter this show
+        </a>
+      ) : (
+        <span
+          style={{
+            fontFamily: BANNER_DISPLAY_FAMILY,
+            fontWeight: 700,
+            fontSize: 11,
+            letterSpacing: '0.16em',
+            textTransform: 'uppercase',
+            color: bannerColors.mute,
+          }}
+        >
+          {entryClosed ? 'Entries closed' : 'Classes pending'}
+        </span>
+      )}
     </nav>
   );
 }

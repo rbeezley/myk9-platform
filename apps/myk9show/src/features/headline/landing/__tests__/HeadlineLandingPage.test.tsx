@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { screen } from '@testing-library/react';
 import { render } from '@/test/utils/testUtils';
 import { HeadlineLandingPage } from '../HeadlineLandingPage';
+import { mockViewportWidth } from '@/test/utils/mockViewportWidth';
 
 const landingDataState = vi.hoisted(() => ({
   showName: 'Spring Scent Work Trial',
@@ -215,44 +216,27 @@ describe('HeadlineLandingPage', () => {
   });
 });
 
-function mockViewport(matches: boolean) {
-  Object.defineProperty(window, 'matchMedia', {
-    writable: true,
-    configurable: true,
-    value: vi.fn().mockImplementation((query: string) => ({
-      matches,
-      media: query,
-      onchange: null,
-      addListener: vi.fn(),
-      removeListener: vi.fn(),
-      addEventListener: vi.fn(),
-      removeEventListener: vi.fn(),
-      dispatchEvent: vi.fn(),
-    })),
-  });
-}
-
 describe('HeadlineLandingPage — entry CTA count (MYK9-633)', () => {
   afterEach(() => {
-    mockViewport(false);
+    mockViewportWidth(1280);
   });
 
   it('renders exactly one entry CTA at desktop width', () => {
-    mockViewport(false);
+    mockViewportWidth(1280);
     render(<HeadlineLandingPage show={null} trial={null} allTrials={[]} />);
 
     expect(screen.getAllByRole('link', { name: /enter this show/i })).toHaveLength(1);
   });
 
   it('renders exactly two entry CTAs (header + sticky bar) at 375px', () => {
-    mockViewport(true);
+    mockViewportWidth(375);
     render(<HeadlineLandingPage show={null} trial={null} allTrials={[]} />);
 
     expect(screen.getAllByRole('link', { name: /enter this show/i })).toHaveLength(2);
   });
 
   it('uses identical copy and href for the header and mobile sticky CTAs', () => {
-    mockViewport(true);
+    mockViewportWidth(375);
     render(<HeadlineLandingPage show={null} trial={null} allTrials={[]} />);
 
     const links = screen.getAllByRole('link', { name: /enter this show/i });

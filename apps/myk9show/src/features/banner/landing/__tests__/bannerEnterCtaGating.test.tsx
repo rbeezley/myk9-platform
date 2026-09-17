@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { screen } from '@testing-library/react';
 import { render } from '@/test/utils/testUtils';
 import { FlagMasthead } from '../sections/FlagMasthead';
+import { StickyNav } from '../sections/StickyNav';
 import { FinalFlagBand } from '../sections/FinalFlagBand';
 import { deriveBannerBrandColors } from '../../hooks/useBannerBrandColor';
 
@@ -19,8 +20,11 @@ const mastheadProps = {
   venueName: 'Riverbend Fairgrounds',
   venueCity: 'Springfield',
   timezone: 'America/New_York',
-  entryWizardUrl: '/shows/abc/register',
   classesHref: null,
+};
+
+const stickyNavProps = {
+  entryWizardUrl: '/shows/abc/register',
 };
 
 const finalBandProps = {
@@ -32,18 +36,17 @@ const finalBandProps = {
 
 describe('Banner Enter CTA gating', () => {
   describe('FlagMasthead', () => {
-    it('renders the Enter link when canEnterOnline is omitted (default true)', () => {
-      render(<FlagMasthead {...mastheadProps} />);
-      const link = screen.getByRole('link', { name: 'Enter this show' });
-      expect(link).toHaveAttribute('href', '/shows/abc/register');
-    });
-
-    it('renders the Enter link when canEnterOnline is true', () => {
+    // MYK9-633 round 2: the masthead is not sticky, so a visitor scrolled
+    // past it had zero reachable entry action once the duplicate
+    // final-band CTA was removed. The CTA moved to StickyNav (below),
+    // which persists at every scroll position; the masthead keeps only
+    // the fallback prose.
+    it('never renders an entry link, regardless of canEnterOnline', () => {
       render(<FlagMasthead {...mastheadProps} canEnterOnline />);
-      expect(screen.getByRole('link', { name: 'Enter this show' })).toBeInTheDocument();
+      expect(screen.queryByRole('link', { name: 'Enter this show' })).not.toBeInTheDocument();
     });
 
-    it('hides the Enter link and shows the fallback when canEnterOnline is false', () => {
+    it('shows the pending-classes fallback when canEnterOnline is false', () => {
       render(<FlagMasthead {...mastheadProps} canEnterOnline={false} />);
       expect(screen.queryByRole('link', { name: 'Enter this show' })).not.toBeInTheDocument();
       expect(
@@ -56,6 +59,32 @@ describe('Banner Enter CTA gating', () => {
       expect(screen.queryByRole('link', { name: 'Enter this show' })).not.toBeInTheDocument();
       expect(screen.getByText(/late-entry help/i)).toBeInTheDocument();
       expect(screen.queryByText(/classes are assigned/i)).not.toBeInTheDocument();
+    });
+  });
+
+  describe('StickyNav', () => {
+    it('renders the Enter link when canEnterOnline is omitted (default true)', () => {
+      render(<StickyNav {...stickyNavProps} />);
+      const link = screen.getByRole('link', { name: 'Enter this show' });
+      expect(link).toHaveAttribute('href', '/shows/abc/register');
+    });
+
+    it('renders the Enter link when canEnterOnline is true', () => {
+      render(<StickyNav {...stickyNavProps} canEnterOnline />);
+      expect(screen.getByRole('link', { name: 'Enter this show' })).toBeInTheDocument();
+    });
+
+    it('replaces the Enter link with a "Classes pending" fallback when canEnterOnline is false', () => {
+      render(<StickyNav {...stickyNavProps} canEnterOnline={false} />);
+      expect(screen.queryByRole('link', { name: 'Enter this show' })).not.toBeInTheDocument();
+      expect(screen.getByText('Classes pending')).toBeInTheDocument();
+    });
+
+    it('shows closed-entry copy when entries are closed', () => {
+      render(<StickyNav {...stickyNavProps} canEnterOnline={false} entryClosed />);
+      expect(screen.queryByRole('link', { name: 'Enter this show' })).not.toBeInTheDocument();
+      expect(screen.getByText('Entries closed')).toBeInTheDocument();
+      expect(screen.queryByText('Classes pending')).not.toBeInTheDocument();
     });
   });
 

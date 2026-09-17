@@ -10,6 +10,7 @@ import { screen } from '@testing-library/react';
 import { render } from '@/test/utils/testUtils';
 import { HeritageLandingPage } from '../HeritageLandingPage';
 import type { HeritageLandingData } from '../types';
+import { mockViewportWidth } from '@/test/utils/mockViewportWidth';
 
 vi.mock('../../fonts', () => ({ ensureHeritageFontsLoaded: vi.fn() }));
 
@@ -54,30 +55,13 @@ vi.mock('../useHeritageLandingData', () => ({
   useHeritageLandingData: () => baseData,
 }));
 
-function mockViewport(matches: boolean) {
-  Object.defineProperty(window, 'matchMedia', {
-    writable: true,
-    configurable: true,
-    value: vi.fn().mockImplementation((query: string) => ({
-      matches,
-      media: query,
-      onchange: null,
-      addListener: vi.fn(),
-      removeListener: vi.fn(),
-      addEventListener: vi.fn(),
-      removeEventListener: vi.fn(),
-      dispatchEvent: vi.fn(),
-    })),
-  });
-}
-
 describe('HeritageLandingPage — entry CTA count (MYK9-633)', () => {
   afterEach(() => {
-    mockViewport(false);
+    mockViewportWidth(1280);
   });
 
   it('renders exactly one entry CTA at desktop width', () => {
-    mockViewport(false);
+    mockViewportWidth(1280);
     render(
       <HeritageLandingPage
         show={{ id: 'show-1', name: baseData.showName } as never}
@@ -92,7 +76,7 @@ describe('HeritageLandingPage — entry CTA count (MYK9-633)', () => {
   });
 
   it('renders exactly two entry CTAs (header + sticky bar) at 375px', () => {
-    mockViewport(true);
+    mockViewportWidth(375);
     render(
       <HeritageLandingPage
         show={{ id: 'show-1', name: baseData.showName } as never}
@@ -107,7 +91,7 @@ describe('HeritageLandingPage — entry CTA count (MYK9-633)', () => {
   });
 
   it('uses identical copy and href for the header and mobile sticky CTAs', () => {
-    mockViewport(true);
+    mockViewportWidth(375);
     render(
       <HeritageLandingPage
         show={{ id: 'show-1', name: baseData.showName } as never}

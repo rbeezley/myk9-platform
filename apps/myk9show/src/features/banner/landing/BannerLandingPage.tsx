@@ -100,16 +100,15 @@ export function BannerLandingPage({
         venueName={data.venueName}
         venueCity={data.venueCity}
         timezone={data.timezone}
-        entryWizardUrl={data.entryWizardUrl}
         classesHref={classesHref}
         canEnterOnline={canEnterOnline}
         entryClosed={entryClosed}
       />
 
       <StickyNav
-        flag={brandColors.flag}
-        entryCount={data.entryCount}
-        entryLimit={data.entryLimit}
+        entryWizardUrl={data.entryWizardUrl}
+        canEnterOnline={canEnterOnline}
+        entryClosed={entryClosed}
       />
 
       <main>

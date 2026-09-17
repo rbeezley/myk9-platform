@@ -161,6 +161,7 @@ export function FieldGuideLandingPage({
         entryWizardUrl={data.entryWizardUrl}
         canShowEntryCta={canEnterOnline}
         label="ENTER →"
+        ariaLabel="Enter show"
         surface={{
           background: fieldGuideColors.ink,
           buttonBackground: fieldGuideColors.orange,

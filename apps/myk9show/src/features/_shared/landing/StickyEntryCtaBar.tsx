@@ -26,12 +26,23 @@ interface StickyEntryCtaBarProps {
    * page's header CTA uses). */
   canShowEntryCta: boolean;
   surface: StickyEntryCtaBarSurface;
+  /** Visible button text. A trailing "→" is decorative and rendered
+   * inside an `aria-hidden` span (MYK9-633 round 2) so it never becomes
+   * part of the link's accessible name. */
   label?: string;
+  /** Overrides the link's accessible name when it must differ from the
+   * visible `label` — e.g. when the header CTA uses an `aria-label` of
+   * its own. Must equal the header CTA's accessible name so the two links
+   * read identically to assistive tech (MYK9-633 round 2). Defaults to
+   * `label` with any trailing arrow stripped. */
+  ariaLabel?: string;
   /** Extra class(es) on the outer bar, e.g. a style's own dark-surface
    * focus-visible utility class (`hl-on-ink`) so the bar reuses existing
    * CSS instead of a bespoke override. */
   className?: string;
 }
+
+const TRAILING_ARROW = /\s*\u2192$/;
 
 /**
  * Mobile-only sticky repeat of a styled landing's header entry CTA
@@ -72,6 +83,7 @@ export function StickyEntryCtaBar({
   canShowEntryCta,
   surface,
   label = 'Enter this show',
+  ariaLabel,
   className,
 }: StickyEntryCtaBarProps) {
   const isMobile = useMediaQuery('(max-width: 639px)');
@@ -81,6 +93,10 @@ export function StickyEntryCtaBar({
   const shouldRender = isMobile && canShowEntryCta;
 
   if (!shouldRender) return null;
+
+  const hasTrailingArrow = TRAILING_ARROW.test(label);
+  const visibleLabel = hasTrailingArrow ? label.replace(TRAILING_ARROW, '') : label;
+  const accessibleName = ariaLabel ?? visibleLabel;
 
   return (
     <>
@@ -92,7 +108,7 @@ export function StickyEntryCtaBar({
         ref={actionBarRef}
         className={['landing-sticky-cta', className].filter(Boolean).join(' ')}
         role="region"
-        aria-label={label}
+        aria-label={accessibleName}
         style={{
           position: 'fixed',
           left: 0,
@@ -109,6 +125,7 @@ export function StickyEntryCtaBar({
         <a
           href={entryWizardUrl}
           className="landing-sticky-cta__link"
+          {...(ariaLabel ? { 'aria-label': ariaLabel } : {})}
           style={{
             display: 'flex',
             alignItems: 'center',
@@ -126,7 +143,8 @@ export function StickyEntryCtaBar({
             textDecoration: 'none',
           }}
         >
-          {label}
+          {visibleLabel}
+          {hasTrailingArrow && <span aria-hidden="true"> →</span>}
         </a>
       </div>
     </>

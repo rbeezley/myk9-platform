@@ -187,9 +187,12 @@ export function PosterLandingPage({
         canShowEntryCta={canEnterOnline}
         label="ENTER →"
         surface={{
+          // MYK9-633 round 2: red-on-cream measured 4.39:1, under the 4.5:1
+          // text floor. Ink-on-cream is the pair the deleted desktop CTA
+          // used (14.3:1) and reads clearly against the dark ink bar too.
           background: posterColors.ink,
-          buttonBackground: posterColors.red,
-          buttonColor: posterColors.textOnInk,
+          buttonBackground: posterColors.cream,
+          buttonColor: posterColors.ink,
           fontFamily: POSTER_DISPLAY_FAMILY,
           fontSize: 16,
           letterSpacing: '-0.015em',

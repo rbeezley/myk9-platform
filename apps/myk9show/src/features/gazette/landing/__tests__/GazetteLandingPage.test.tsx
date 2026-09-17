@@ -9,6 +9,7 @@ import { screen } from '@testing-library/react';
 import { render } from '@/test/utils/testUtils';
 import { GazetteLandingPage } from '../GazetteLandingPage';
 import type { GazetteLandingData } from '../types';
+import { mockViewportWidth } from '@/test/utils/mockViewportWidth';
 
 vi.mock('../../fonts', () => ({ ensureGazetteFontsLoaded: vi.fn() }));
 
@@ -61,31 +62,14 @@ vi.mock('../useGazetteLandingData', () => ({
   useGazetteLandingData: () => baseData,
 }));
 
-function mockViewport(matches: boolean) {
-  Object.defineProperty(window, 'matchMedia', {
-    writable: true,
-    configurable: true,
-    value: vi.fn().mockImplementation((query: string) => ({
-      matches,
-      media: query,
-      onchange: null,
-      addListener: vi.fn(),
-      removeListener: vi.fn(),
-      addEventListener: vi.fn(),
-      removeEventListener: vi.fn(),
-      dispatchEvent: vi.fn(),
-    })),
-  });
-}
-
 describe('GazetteLandingPage — entry CTA count (MYK9-633)', () => {
   afterEach(() => {
-    mockViewport(false);
+    mockViewportWidth(1280);
   });
 
   it('renders exactly one entry CTA at desktop width', () => {
-    mockViewport(false);
-    render(
+    mockViewportWidth(1280);
+    const { container } = render(
       <GazetteLandingPage
         show={{ id: 'show-1', name: baseData.showName } as never}
         trial={null}
@@ -95,12 +79,12 @@ describe('GazetteLandingPage — entry CTA count (MYK9-633)', () => {
       />
     );
 
-    expect(screen.getAllByRole('link', { name: /^enter$/i })).toHaveLength(1);
+    expect(container.querySelectorAll(`a[href="${baseData.entryWizardUrl}"]`)).toHaveLength(1);
   });
 
   it('renders exactly two entry CTAs (header + sticky bar) at 375px', () => {
-    mockViewport(true);
-    render(
+    mockViewportWidth(375);
+    const { container } = render(
       <GazetteLandingPage
         show={{ id: 'show-1', name: baseData.showName } as never}
         trial={null}
@@ -110,12 +94,12 @@ describe('GazetteLandingPage — entry CTA count (MYK9-633)', () => {
       />
     );
 
-    expect(screen.getAllByRole('link', { name: /^enter$/i })).toHaveLength(2);
+    expect(container.querySelectorAll(`a[href="${baseData.entryWizardUrl}"]`)).toHaveLength(2);
   });
 
-  it('uses identical copy and href for the header and mobile sticky CTAs', () => {
-    mockViewport(true);
-    render(
+  it('uses identical accessible name for the header and mobile sticky CTAs', () => {
+    mockViewportWidth(375);
+    const { container } = render(
       <GazetteLandingPage
         show={{ id: 'show-1', name: baseData.showName } as never}
         trial={null}
@@ -130,5 +114,9 @@ describe('GazetteLandingPage — entry CTA count (MYK9-633)', () => {
     for (const link of links) {
       expect(link).toHaveAttribute('href', baseData.entryWizardUrl);
     }
+    // Every entry-wizard-href link found by href must ALSO be one of the
+    // two accessibly-named "Enter" links — otherwise a stray, differently
+    // named link to the same URL would pass the count above undetected.
+    expect(container.querySelectorAll(`a[href="${baseData.entryWizardUrl}"]`)).toHaveLength(2);
   });
 });

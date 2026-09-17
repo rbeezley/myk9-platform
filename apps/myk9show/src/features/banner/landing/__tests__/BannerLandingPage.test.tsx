@@ -10,6 +10,7 @@ import { render } from '@/test/utils/testUtils';
 import { BannerLandingPage } from '../BannerLandingPage';
 import { deriveBannerBrandColors } from '../../hooks/useBannerBrandColor';
 import type { BannerLandingData } from '../types';
+import { mockViewportWidth } from '@/test/utils/mockViewportWidth';
 
 vi.mock('../../fonts', () => ({
   ensureBannerFontsLoaded: vi.fn(),
@@ -60,30 +61,13 @@ vi.mock('../useBannerLandingData', () => ({
   useBannerLandingData: () => baseData,
 }));
 
-function mockViewport(matches: boolean) {
-  Object.defineProperty(window, 'matchMedia', {
-    writable: true,
-    configurable: true,
-    value: vi.fn().mockImplementation((query: string) => ({
-      matches,
-      media: query,
-      onchange: null,
-      addListener: vi.fn(),
-      removeListener: vi.fn(),
-      addEventListener: vi.fn(),
-      removeEventListener: vi.fn(),
-      dispatchEvent: vi.fn(),
-    })),
-  });
-}
-
 describe('BannerLandingPage — entry CTA count (MYK9-633)', () => {
   afterEach(() => {
-    mockViewport(false);
+    mockViewportWidth(1280);
   });
 
   it('renders exactly one entry CTA at desktop width', () => {
-    mockViewport(false);
+    mockViewportWidth(1280);
     render(
       <BannerLandingPage
         show={{ id: 'show-1', name: baseData.showName } as never}
@@ -98,7 +82,7 @@ describe('BannerLandingPage — entry CTA count (MYK9-633)', () => {
   });
 
   it('renders exactly two entry CTAs (header + sticky bar) at 375px', () => {
-    mockViewport(true);
+    mockViewportWidth(375);
     render(
       <BannerLandingPage
         show={{ id: 'show-1', name: baseData.showName } as never}
@@ -113,7 +97,7 @@ describe('BannerLandingPage — entry CTA count (MYK9-633)', () => {
   });
 
   it('uses identical copy and href for the header and mobile sticky CTAs', () => {
-    mockViewport(true);
+    mockViewportWidth(375);
     render(
       <BannerLandingPage
         show={{ id: 'show-1', name: baseData.showName } as never}

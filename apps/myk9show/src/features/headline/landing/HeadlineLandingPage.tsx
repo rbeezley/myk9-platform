@@ -74,12 +74,16 @@ function HeadlineNav({
             {data.clubName || 'myK9Show'}
             <span className="mono">{data.showName}</span>
           </a>
+          {/* MYK9-633 round 2: dropped the "Enter" section-anchor — it
+              scrolled to the final band, which is now informational-only
+              (its CTA button was the duplicate this issue removed), so the
+              link sat right next to the real "Enter this show" CTA and
+              promised an action the target no longer has. */}
           <div className="hd-nav-links">
             <a href="#judges">Judges</a>
             <a href="#particulars">Details</a>
             <a href="#roster">Entry status</a>
             <a href="#schedule">Schedule</a>
-            <a href="#enter">Enter</a>
           </div>
           {canEnterOnline ? (
             <a className="hd-nav-cta" href={data.entryWizardUrl}>

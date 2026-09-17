@@ -9,6 +9,7 @@ import { screen } from '@testing-library/react';
 import { render } from '@/test/utils/testUtils';
 import { MagazineLandingPage } from '../MagazineLandingPage';
 import type { MagazineLandingData } from '../types';
+import { mockViewportWidth } from '@/test/utils/mockViewportWidth';
 
 vi.mock('../../fonts', () => ({ ensureMagazineFontsLoaded: vi.fn() }));
 
@@ -55,31 +56,14 @@ vi.mock('../useMagazineLandingData', () => ({
   useMagazineLandingData: () => baseData,
 }));
 
-function mockViewport(matches: boolean) {
-  Object.defineProperty(window, 'matchMedia', {
-    writable: true,
-    configurable: true,
-    value: vi.fn().mockImplementation((query: string) => ({
-      matches,
-      media: query,
-      onchange: null,
-      addListener: vi.fn(),
-      removeListener: vi.fn(),
-      addEventListener: vi.fn(),
-      removeEventListener: vi.fn(),
-      dispatchEvent: vi.fn(),
-    })),
-  });
-}
-
 describe('MagazineLandingPage — entry CTA count (MYK9-633)', () => {
   afterEach(() => {
-    mockViewport(false);
+    mockViewportWidth(1280);
   });
 
   it('renders exactly one entry CTA at desktop width', () => {
-    mockViewport(false);
-    render(
+    mockViewportWidth(1280);
+    const { container } = render(
       <MagazineLandingPage
         show={{ id: 'show-1', name: baseData.showName } as never}
         trial={null}
@@ -89,12 +73,12 @@ describe('MagazineLandingPage — entry CTA count (MYK9-633)', () => {
       />
     );
 
-    expect(screen.getAllByRole('link', { name: /enter the trial/i })).toHaveLength(1);
+    expect(container.querySelectorAll(`a[href="${baseData.entryWizardUrl}"]`)).toHaveLength(1);
   });
 
   it('renders exactly two entry CTAs (header + sticky bar) at 375px', () => {
-    mockViewport(true);
-    render(
+    mockViewportWidth(375);
+    const { container } = render(
       <MagazineLandingPage
         show={{ id: 'show-1', name: baseData.showName } as never}
         trial={null}
@@ -104,12 +88,12 @@ describe('MagazineLandingPage — entry CTA count (MYK9-633)', () => {
       />
     );
 
-    expect(screen.getAllByRole('link', { name: /enter the trial/i })).toHaveLength(2);
+    expect(container.querySelectorAll(`a[href="${baseData.entryWizardUrl}"]`)).toHaveLength(2);
   });
 
-  it('uses identical copy and href for the header and mobile sticky CTAs', () => {
-    mockViewport(true);
-    render(
+  it('uses identical accessible name for the header and mobile sticky CTAs', () => {
+    mockViewportWidth(375);
+    const { container } = render(
       <MagazineLandingPage
         show={{ id: 'show-1', name: baseData.showName } as never}
         trial={null}
@@ -124,5 +108,6 @@ describe('MagazineLandingPage — entry CTA count (MYK9-633)', () => {
     for (const link of links) {
       expect(link).toHaveAttribute('href', baseData.entryWizardUrl);
     }
+    expect(container.querySelectorAll(`a[href="${baseData.entryWizardUrl}"]`)).toHaveLength(2);
   });
 });

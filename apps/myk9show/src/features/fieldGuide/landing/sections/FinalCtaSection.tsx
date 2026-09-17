@@ -121,11 +121,14 @@ export function FinalCtaSection({
           </p>
         </div>
         {canEnterOnline && (
+          // MYK9-633 round 2: tightened (was sized around the now-removed
+          // button — padding 24 -> 18, the 16px gap under the URL line
+          // dropped) so the card doesn't leave ~120px of dead space.
           <div
             style={{
               background: fieldGuideColors.paper,
               color: fieldGuideColors.ink,
-              padding: 24,
+              padding: 18,
             }}
           >
             <div
@@ -148,7 +151,7 @@ export function FinalCtaSection({
                 fontSize: 16,
                 letterSpacing: '-0.005em',
                 color: fieldGuideColors.ink,
-                marginBottom: 16,
+                marginBottom: 10,
                 wordBreak: 'break-all',
               }}
             >
@@ -161,14 +164,32 @@ export function FinalCtaSection({
                 "ENTER" CTA — that header CTA is the page's one entry action
                 at 640px+; below that it's joined by the mobile-only sticky
                 bar at the end of the page. */}
-            <div style={{ marginTop: 10, textAlign: 'center' }}>
+            <div style={{ textAlign: 'center' }}>
+              {/* MYK9-633 round 2: this was fieldGuideColors.paper on the
+                  card's own paper background — 1.00:1, invisible. The card
+                  was always light (paper bg / ink text); orangeDeep is the
+                  accent already used for "ONLINE ENTRY URL" above and
+                  clears 4.5:1 on paper. */}
               <SeeClassesLink
                 href={classesHref}
                 style={{
-                  color: fieldGuideColors.paper,
+                  color: fieldGuideColors.orangeDeep,
                   fontFamily: FIELD_GUIDE_BODY_FAMILY,
                 }}
               />
+            </div>
+            <div
+              style={{
+                fontFamily: FIELD_GUIDE_MONO_FAMILY,
+                fontWeight: 500,
+                fontSize: 10.5,
+                letterSpacing: '0.04em',
+                color: fieldGuideColors.mute,
+                marginTop: 10,
+                textAlign: 'center',
+              }}
+            >
+              ~3 MIN · SAVES &amp; RESUMES
             </div>
           </div>
         )}

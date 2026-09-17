@@ -8,6 +8,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { render } from '@/test/utils/testUtils';
 import { PosterLandingPage } from '../PosterLandingPage';
 import type { PosterLandingData } from '../types';
+import { mockViewportWidth } from '@/test/utils/mockViewportWidth';
 
 vi.mock('../../fonts', async importOriginal => {
   const actual = await importOriginal<typeof import('../../fonts')>();
@@ -56,30 +57,13 @@ vi.mock('../usePosterLandingData', () => ({
   usePosterLandingData: () => baseData,
 }));
 
-function mockViewport(matches: boolean) {
-  Object.defineProperty(window, 'matchMedia', {
-    writable: true,
-    configurable: true,
-    value: vi.fn().mockImplementation((query: string) => ({
-      matches,
-      media: query,
-      onchange: null,
-      addListener: vi.fn(),
-      removeListener: vi.fn(),
-      addEventListener: vi.fn(),
-      removeEventListener: vi.fn(),
-      dispatchEvent: vi.fn(),
-    })),
-  });
-}
-
 describe('PosterLandingPage — entry CTA count (MYK9-633)', () => {
   afterEach(() => {
-    mockViewport(false);
+    mockViewportWidth(1280);
   });
 
   it('renders exactly one entry CTA at desktop width', () => {
-    mockViewport(false);
+    mockViewportWidth(1280);
     const { container } = render(
       <PosterLandingPage
         show={{ id: 'show-1', name: baseData.showName } as never}
@@ -94,7 +78,7 @@ describe('PosterLandingPage — entry CTA count (MYK9-633)', () => {
   });
 
   it('renders exactly two entry CTAs (header + sticky bar) at 375px', () => {
-    mockViewport(true);
+    mockViewportWidth(375);
     const { container } = render(
       <PosterLandingPage
         show={{ id: 'show-1', name: baseData.showName } as never}
@@ -109,7 +93,7 @@ describe('PosterLandingPage — entry CTA count (MYK9-633)', () => {
   });
 
   it('uses identical copy for the header and mobile sticky CTAs', () => {
-    mockViewport(true);
+    mockViewportWidth(375);
     const { container } = render(
       <PosterLandingPage
         show={{ id: 'show-1', name: baseData.showName } as never}

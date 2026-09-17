@@ -144,9 +144,13 @@ describe('useAtShowClassList entry refresh', () => {
     expect(replicatedClassesTable.getClassesByTrial).toHaveBeenCalledTimes(
       readsBeforeSnapshot.classes
     );
-    // And the initial read really did happen exactly once from the query.
+    // And the initial reads really were the expected ones: one entries read and
+    // one classes read from `fetchAtShowClassList`, and TWO trials reads --
+    // that same fetch plus the show-scoped hydration, which needs the trial
+    // list to scope its per-trial class sync.
     expect(readsBeforeSnapshot.entries).toBe(1);
     expect(readsBeforeSnapshot.classes).toBe(1);
+    expect(readsBeforeSnapshot.trials).toBe(2);
 
     unmount();
     expect(stops.entries).toHaveBeenCalledTimes(1);

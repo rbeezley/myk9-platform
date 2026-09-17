@@ -17,10 +17,14 @@ interface AtShowClassRowProps {
   /** In-ring / next-up preview for this card; omitted when unknown. */
   nextUp?: AtShowNextUpPreview | undefined;
   /**
-   * Whether this show's entry replica has actually been read (MYK9-637).
+   * Whether this class's entry rows have actually been read (MYK9-637).
    * `false` means the counts are UNKNOWN, not zero -- see the counter below.
+   *
+   * REQUIRED, with no default, on purpose: a defaulted `true` let both call
+   * sites be deleted while everything still compiled and stayed green, which
+   * silently reinstated `0 / 0` (LESSONS last-hop-drop).
    */
-  entryCountsAvailable?: boolean;
+  entryCountsAvailable: boolean;
 }
 
 /**
@@ -72,7 +76,7 @@ export function AtShowClassRow({
   onClick,
   trialTimeZone,
   nextUp,
-  entryCountsAvailable = true,
+  entryCountsAvailable,
 }: AtShowClassRowProps) {
   const status = getEffectiveClassStatus(entry);
   const showNextUp = isLiveNextUpStatus(status) && !isEmptyNextUpPreview(nextUp);

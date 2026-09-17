@@ -19,11 +19,22 @@ const LIVE_CLASS_STATUSES = new Set<ClassEntry['class_status']>([
   'offline-scoring',
 ]);
 
+/**
+ * Deliberately built from STATIC facts only -- favorite, then live status.
+ *
+ * `entry_count > 0` used to rank a class above an empty one. That was harmless
+ * only while the counts never arrived at all: before MYK9-637 the entries
+ * replica on this route was permanently cold, so every class scored the same
+ * and the order was fixed at first paint by accident. Now that the show's
+ * entries land a second or two after paint, the same rule would re-sort the
+ * picker under a judge's finger on venue wifi. A list that reorders itself
+ * while it is being tapped is worse than a list ordered slightly less usefully,
+ * so the count is not an input here.
+ */
 export function classScanPriority(entry: ClassEntry): number {
   if (entry.is_favorite) return 0;
   if (LIVE_CLASS_STATUSES.has(entry.class_status)) return 1;
-  if (entry.entry_count > 0) return 2;
-  return 3;
+  return 2;
 }
 
 export function sortClassesForAtShowScan(classes: ClassEntry[]): ClassEntry[] {
@@ -36,6 +47,7 @@ export function sortClassesForAtShowScan(classes: ClassEntry[]): ClassEntry[] {
   });
 }
 
+/** Static-only for the same reason as `classScanPriority` above. */
 export function yourRingScanPriority(entry: ClassEntry): number {
   const effectiveStatus = getEffectiveClassStatus(entry);
   if (
@@ -46,8 +58,7 @@ export function yourRingScanPriority(entry: ClassEntry): number {
   ) {
     return 0;
   }
-  if (entry.entry_count > 0) return 1;
-  return 2;
+  return 1;
 }
 
 export interface YourRingClass {

@@ -100,8 +100,21 @@ export function useAtShowClassList(showId: string | undefined): UseAtShowClassLi
     if (!showId) return;
     void Promise.resolve()
       .then(() => syncAtShowData(showId))
-      .catch(() => {});
-  }, [showId]);
+      .catch(() => {})
+      .finally(() => {
+        // Re-ask whether the counts are knowable the moment the sync settles,
+        // NOT only when a replication notify arrives. A sync that writes zero
+        // rows never notifies -- `batchSet` is skipped with nothing to cache
+        // and `removeStaleEntries` notifies only when it removed something --
+        // so a genuinely empty show would otherwise sit on the unknown dash
+        // for the page's whole lifetime. Fires on failure too: the answer is
+        // then still "unknown", and re-asking costs one IndexedDB metadata
+        // read.
+        void queryClient.invalidateQueries({
+          queryKey: ['at-show', 'classlist-entry-counts', showId],
+        });
+      });
+  }, [queryClient, showId]);
 
   const groupsQuery = useQuery({
     queryKey: ['at-show', 'classlist', showId],

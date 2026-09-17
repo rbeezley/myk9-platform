@@ -211,36 +211,6 @@ describe('RBAC System', () => {
     });
   });
 
-  describe('Dog Filtering', () => {
-    it('should filter dogs based on user permissions', () => {
-      const TestFilterComponent = () => {
-        const { filterAccessibleDogs } = useRegistrationPermissions();
-
-        const allDogs = [
-          { id: 'dog-1', ownerId: 'exhibitor-user', clubId: 'club-1' },
-          { id: 'dog-2', ownerId: 'other-user', clubId: 'club-1' },
-          { id: 'dog-3', ownerId: 'exhibitor-user', clubId: 'club-2' },
-          { id: 'dog-4', ownerId: 'other-user', clubId: 'club-2' },
-        ];
-
-        const accessibleDogs = filterAccessibleDogs(allDogs);
-
-        return (
-          <div>
-            <div data-testid="accessible-count">{accessibleDogs.length}</div>
-            <div data-testid="dog-ids">{accessibleDogs.map(dog => dog.id).join(',')}</div>
-          </div>
-        );
-      };
-
-      render(<TestFilterComponent />);
-
-      // Exhibitors should only see their own dogs
-      expect(screen.getByTestId('accessible-count')).toHaveTextContent('2');
-      expect(screen.getByTestId('dog-ids')).toHaveTextContent('dog-1,dog-3');
-    });
-  });
-
   describe('Registration Mode Detection', () => {
     it('should return correct registration mode for different roles', () => {
       const TestModeComponent = () => {

@@ -96,9 +96,7 @@ export function MonogramLandingPage({
           venueCity={data.venueCity}
           venueAddress={data.venueAddress}
           timezone={data.timezone}
-          entryWizardUrl={data.entryWizardUrl}
           classesHref={classesHref}
-          canEnterOnline={canEnterOnline}
         />
 
         <WelcomeSection
@@ -138,7 +136,6 @@ export function MonogramLandingPage({
         <OfferedClassesSection show={show} className="mg-section" />
 
         <FinalCtaBand
-          monogramLetters={data.monogramLetters}
           entryWizardUrl={data.entryWizardUrl}
           entryCloseDate={data.entryCloseDate}
           timezone={data.timezone}

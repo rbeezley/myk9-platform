@@ -25,9 +25,7 @@ interface HeroBlockProps {
    * elsewhere on this same page (MonogramFooter). */
   venueAddress?: string | null;
   timezone: string;
-  entryWizardUrl: string;
   classesHref: string | null;
-  canEnterOnline?: boolean;
 }
 
 const SMALLCAPS_MUTE: React.CSSProperties = {
@@ -76,13 +74,10 @@ export function HeroBlock({
   venueCity,
   venueAddress = null,
   timezone,
-  entryWizardUrl,
   classesHref,
-  canEnterOnline = true,
 }: HeroBlockProps) {
   const countdown = useCountdown(entryCloseDate, timezone);
   const entryClosed = countdown.closed;
-  const canShowEntryCta = canEnterOnline && !entryClosed;
   const dateRangeLabel = formatDateRange(trialStartDate, trialEndDate, timezone);
   // Gate on countdown.closed (not just entryCloseDate presence) so a past close
   // date doesn't keep reading as still-pending after registration has closed.
@@ -258,58 +253,14 @@ export function HeroBlock({
           </p>
         )}
 
-        {canShowEntryCta ? (
-          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12 }}>
-            <a
-              href={entryWizardUrl}
-              className="mg-hero__cta"
-              style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                minHeight: 44,
-                gap: 14,
-                padding: '18px 36px',
-                background: monogramColors.ink,
-                color: monogramColors.paper,
-                fontFamily: MONOGRAM_DISPLAY_FAMILY,
-                fontStyle: 'italic',
-                fontSize: 18,
-                letterSpacing: '0.02em',
-                textDecoration: 'none',
-                transition: 'all 280ms ease',
-              }}
-            >
-              Enter this show
-              <span aria-hidden style={{ fontFamily: MONOGRAM_MONOGRAM_FAMILY, fontSize: 22 }}>
-                →
-              </span>
-            </a>
-            <SeeClassesLink
-              href={classesHref}
-              style={{ color: monogramColors.quill, fontFamily: MONOGRAM_BODY_FAMILY }}
-            />
-          </div>
-        ) : (
-          <p
-            className="mg-hero__cta"
-            style={{
-              display: 'inline-flex',
-              maxWidth: 520,
-              padding: '16px 28px',
-              border: `1px solid ${monogramColors.bronze}`,
-              color: monogramColors.quill,
-              fontFamily: MONOGRAM_BODY_FAMILY,
-              fontSize: 15,
-              lineHeight: 1.5,
-              margin: 0,
-            }}
-          >
-            {entryClosed
-              ? 'Entries are closed for this show. Contact the trial secretary for late-entry help.'
-              : 'Entries are not available yet because no classes are assigned yet.'}
-          </p>
-        )}
+        {/* MYK9-565: the hero used to repeat the sticky nav's "Enter this
+            show" CTA — the middle of the three the reporter counted (top /
+            middle / bottom). The nav CTA is the page's one entry action;
+            this section keeps only the passive "see classes" link. */}
+        <SeeClassesLink
+          href={classesHref}
+          style={{ color: monogramColors.quill, fontFamily: MONOGRAM_BODY_FAMILY }}
+        />
       </div>
     </header>
   );

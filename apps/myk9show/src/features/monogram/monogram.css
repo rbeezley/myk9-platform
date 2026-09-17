@@ -100,25 +100,9 @@
   outline-offset: 3px;
   border-radius: 1px;
 }
-/* On the dark final band the bronze ring lacks contrast; use paper there. */
-[data-monogram] .mg-final a:focus-visible {
-  outline-color: var(--mg-paper);
-}
-
 [data-monogram] .mg-nav__cta:hover {
   background: var(--mg-ink);
   color: var(--mg-paper);
-}
-
-[data-monogram] .mg-hero__cta:hover {
-  background: var(--mg-bronze);
-  color: var(--mg-paper);
-  transform: translateY(-1px);
-}
-
-[data-monogram] .mg-final a:hover {
-  background: var(--mg-leaf);
-  color: var(--mg-ink);
 }
 
 /* Section reveal — set opacity on the parent reveal wrapper. Components add
@@ -128,8 +112,7 @@
 [data-monogram] .mg-judges,
 [data-monogram] .mg-roster,
 [data-monogram] .mg-twocol,
-[data-monogram] .mg-officers,
-[data-monogram] .mg-final {
+[data-monogram] .mg-officers {
   opacity: 0;
   transition: opacity 720ms cubic-bezier(0.2, 0, 0, 1);
 }
@@ -139,8 +122,7 @@
 [data-monogram] .mg-judges.in,
 [data-monogram] .mg-roster.in,
 [data-monogram] .mg-twocol.in,
-[data-monogram] .mg-officers.in,
-[data-monogram] .mg-final.in {
+[data-monogram] .mg-officers.in {
   opacity: 1;
 }
 
@@ -162,9 +144,6 @@
   [data-monogram] .mg-particulars,
   [data-monogram] .mg-officers {
     grid-template-columns: 1fr !important;
-  }
-  [data-monogram] .mg-final {
-    padding: 72px 24px !important;
   }
   [data-monogram] .mg-footer {
     grid-template-columns: 1fr !important;
@@ -228,8 +207,7 @@
   [data-monogram] .mg-judges,
   [data-monogram] .mg-roster,
   [data-monogram] .mg-twocol,
-  [data-monogram] .mg-officers,
-  [data-monogram] .mg-final {
+  [data-monogram] .mg-officers {
     opacity: 1 !important;
     transition: none !important;
   }

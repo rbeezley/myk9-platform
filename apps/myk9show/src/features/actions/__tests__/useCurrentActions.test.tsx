@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react';
 import { renderHook } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { useCurrentActions } from '@/features/actions/useCurrentActions';
 import type { ShowManageScope, ShowManageScopeStatus } from '@/hooks/useShowManageScope';
@@ -31,7 +32,14 @@ vi.mock('@/hooks/useShowManageScope', () => ({
 }));
 
 function wrapper({ children }: { children: ReactNode }) {
-  return <MemoryRouter initialEntries={[`/shows/${SHOW_ID}`]}>{children}</MemoryRouter>;
+  // A QueryClient too: the hook composes the premium publish flow, which the
+  // app always renders inside a provider.
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  return (
+    <QueryClientProvider client={client}>
+      <MemoryRouter initialEntries={[`/shows/${SHOW_ID}`]}>{children}</MemoryRouter>
+    </QueryClientProvider>
+  );
 }
 
 beforeEach(() => {

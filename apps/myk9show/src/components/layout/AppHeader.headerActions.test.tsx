@@ -1,8 +1,10 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { screen, waitFor, within } from '@testing-library/react';
+import { useLocation } from 'react-router-dom';
 import userEvent from '@testing-library/user-event';
 import { render } from '@/test/utils/testUtils';
 import AppHeader from './AppHeader';
+import { usePremiumPublishStore } from '@/features/premium/useGenerateAndPublishPremium';
 
 const viewer = vi.hoisted(() => ({
   canManage: true,
@@ -79,7 +81,44 @@ vi.mock('@/components/layout/AccountMenuContent', () => ({
   AccountMenuContent: () => null,
 }));
 
+// The premium flow's two edges, so the REAL `useGenerateAndPublishPremium` runs
+// and the test measures the binding rather than a stub of it.
+const premiumEdges = vi.hoisted(() => ({
+  generate: vi.fn(async (showId: string) => ({ showId, pdfUrl: 'blob:premium' })),
+  publishExperience: vi.fn(async () => undefined),
+}));
+
+vi.mock('@/features/premium/useGeneratePremium', () => ({
+  useGeneratePremium: () => ({
+    generate: premiumEdges.generate,
+    isLoading: false,
+    error: null,
+    reset: vi.fn(),
+  }),
+}));
+
+vi.mock('@/features/experience/publishExperience', () => ({
+  publishExperience: premiumEdges.publishExperience,
+}));
+
+vi.mock('@/lib/notifications', () => ({
+  notifications: { success: vi.fn(), error: vi.fn(), info: vi.fn(), warning: vi.fn() },
+}));
+
+function LocationProbe() {
+  const location = useLocation();
+  return (
+    <>
+      <span data-testid="probe-pathname">{location.pathname}</span>
+      <span data-testid="probe-search">{location.search}</span>
+    </>
+  );
+}
+
 const SHOW_ROUTE = '/shows/show-1';
+// A NON-Overview section: both round-3 findings only show up away from Overview.
+const SECTION_ROUTE = '/shows/show-1/results-control';
+const ENTRY_MANAGEMENT_ROUTE = '/shows/show-1/entry-management';
 
 const originalMatchMedia = window.matchMedia;
 
@@ -87,6 +126,11 @@ beforeEach(() => {
   viewer.canManage = true;
   viewer.canOperate = true;
   viewer.isStaff = true;
+  premiumEdges.generate.mockClear();
+  premiumEdges.publishExperience.mockClear();
+  // The publish store is module scope; a leaked in-flight id would latch the
+  // next test's click into a silent no-op.
+  usePremiumPublishStore.setState({ publishingShowId: null, failedShowId: null });
 });
 
 afterEach(() => {
@@ -263,5 +307,67 @@ describe('AppHeader Actions trigger — the wordmark has to fit beside it', () =
     const trigger = screen.getByTestId('header-actions-trigger');
     expect(visibleText(trigger)).toBe('Actions');
     expect(screen.getByRole('button', { name: /^actions$/i })).toBe(trigger);
+  });
+});
+
+describe('AppHeader Actions menu — the two items that are not plain destinations', () => {
+  it('runs the premium flow from a non-Overview section, without navigating', async () => {
+    // Round-3 review: this was a link to `/shows/:id#setup-publish-premium`.
+    // The router pushes a hash without fragment navigation, so at 375x812
+    // nothing scrolled (scrollY stayed 159 with the card at top 924) and from
+    // another section the card arrived unhighlighted. It runs the card's own
+    // flow now, from wherever the secretary is standing.
+    const user = userEvent.setup();
+    render(
+      <>
+        <AppHeader />
+        <LocationProbe />
+      </>,
+      { initialRoute: SECTION_ROUTE }
+    );
+
+    await user.click(screen.getByRole('button', { name: /^actions$/i }));
+    const menu = await screen.findByRole('menu');
+    await user.click(within(menu).getByTestId('header-action-show-generate-publish-premium'));
+
+    await waitFor(() => expect(premiumEdges.generate).toHaveBeenCalledWith('show-1'));
+    await waitFor(() =>
+      expect(premiumEdges.publishExperience).toHaveBeenCalledWith(
+        expect.objectContaining({ showId: 'show-1' })
+      )
+    );
+    // And it did NOT move the secretary off the section they were working on.
+    expect(screen.getByTestId('probe-pathname')).toHaveTextContent(SECTION_ROUTE);
+  });
+
+  it('is not a link at all, so there is no hash for the router to drop', async () => {
+    const user = userEvent.setup();
+    render(<AppHeader />, { initialRoute: SECTION_ROUTE });
+
+    await user.click(screen.getByRole('button', { name: /^actions$/i }));
+    const menu = await screen.findByRole('menu');
+    const item = within(menu).getByTestId('header-action-show-generate-publish-premium');
+    expect(item.closest('a')).toBeNull();
+  });
+
+  it('opens Show settings on the CURRENT section, not on Overview', async () => {
+    // Round-3 review: an absolute `/shows/:id?edit=true` walked a secretary off
+    // Entry Management to Overview, and closing the panel stranded them there.
+    // The deleted `...` menu opened the panel in place on every section.
+    const user = userEvent.setup();
+    render(
+      <>
+        <AppHeader />
+        <LocationProbe />
+      </>,
+      { initialRoute: ENTRY_MANAGEMENT_ROUTE }
+    );
+
+    await user.click(screen.getByRole('button', { name: /^actions$/i }));
+    const menu = await screen.findByRole('menu');
+    await user.click(within(menu).getByTestId('header-action-show-settings'));
+
+    await waitFor(() => expect(screen.getByTestId('probe-search')).toHaveTextContent('?edit=true'));
+    expect(screen.getByTestId('probe-pathname')).toHaveTextContent(ENTRY_MANAGEMENT_ROUTE);
   });
 });

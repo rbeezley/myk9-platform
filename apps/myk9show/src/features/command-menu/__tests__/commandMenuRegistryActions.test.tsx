@@ -1,6 +1,7 @@
 import { beforeEach, describe, it, expect, vi } from 'vitest';
 import { renderHook } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import type { ReactNode } from 'react';
 import { useCommandMenuCommands } from '../useCommandMenuCommands';
 import { resolveActions } from '@/features/actions/actionRegistry';
@@ -30,9 +31,16 @@ beforeEach(() => {
   viewer.canOperate = true;
 });
 
+// `useCurrentActions` composes the premium publish flow now, so it needs a
+// QueryClient as well as a router. In the app it only ever renders inside both.
 function wrapperAt(route: string) {
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   return function Wrapper({ children }: { children: ReactNode }) {
-    return <MemoryRouter initialEntries={[route]}>{children}</MemoryRouter>;
+    return (
+      <QueryClientProvider client={client}>
+        <MemoryRouter initialEntries={[route]}>{children}</MemoryRouter>
+      </QueryClientProvider>
+    );
   };
 }
 
@@ -54,6 +62,13 @@ describe('command palette show actions come from the action registry', () => {
 
     expect(result.current.actionCommands.map(c => c.label)).toEqual(expected.map(a => a.label));
     expect(result.current.actionCommands.map(c => c.href)).toEqual(expected.map(a => a.href));
+    // The premium item is a command, so it reaches the palette as a `run`, not
+    // an href -- the adapter already prefers href and falls back to run.
+    const premium = result.current.actionCommands.find(
+      c => c.label === 'Generate & publish premium'
+    );
+    expect(premium?.href).toBeUndefined();
+    expect(typeof premium?.run).toBe('function');
     expect(result.current.actionCommands.every(c => c.showScope === 'show-1')).toBe(true);
   });
 

@@ -1,6 +1,6 @@
 import { render, screen, fireEvent } from '@testing-library/react';
 import { describe, it, expect, vi } from 'vitest';
-import { MemoryRouter, Routes, Route, useNavigate } from 'react-router-dom';
+import { MemoryRouter, Routes, Route, useLocation, useNavigate } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { ShowManagementShell, type ShowManagementShellProps } from '../ShowManagementShell';
 import type { ShowDetailTabsProps } from '../ShowDetailTabs';
@@ -50,9 +50,20 @@ vi.mock('../ShowDeskCompactContext', () => ({
   ShowDeskCompactContext: () => <div data-testid="show-desk-compact-context" />,
 }));
 vi.mock('@/components/panels/edit/ShowEditPanel', () => ({
-  ShowEditPanel: ({ open, onRequestDelete }: { open: boolean; onRequestDelete?: () => void }) =>
+  ShowEditPanel: ({
+    open,
+    onClose,
+    onRequestDelete,
+  }: {
+    open: boolean;
+    onClose: () => void;
+    onRequestDelete?: () => void;
+  }) =>
     open ? (
       <div data-testid="edit-panel-open">
+        <button type="button" data-testid="edit-panel-close" onClick={onClose}>
+          Close
+        </button>
         {onRequestDelete && (
           <button type="button" data-testid="edit-panel-delete-row" onClick={onRequestDelete}>
             Delete show
@@ -123,6 +134,10 @@ function renderShell(
         <Routes>
           <Route path="/shows/:id" element={<ShowManagementShell {...props} />}>
             <Route index element={<div data-testid="outlet-child">section</div>} />
+            <Route
+              path="entry-management"
+              element={<div data-testid="outlet-child">entries</div>}
+            />
           </Route>
         </Routes>
       </MemoryRouter>
@@ -136,6 +151,11 @@ function renderShell(
  * link does. Re-rendering a fresh MemoryRouter would remount the shell and let a
  * mount-time param read pass a test the real app fails.
  */
+function LocationProbe() {
+  const location = useLocation();
+  return <span data-testid="probe-url">{`${location.pathname}${location.search}`}</span>;
+}
+
 function InPageNavigator({ to }: { to: string }) {
   const navigate = useNavigate();
   return (
@@ -243,6 +263,29 @@ describe('ShowManagementShell', () => {
     expect(screen.queryByTestId('edit-panel-open')).toBeNull();
     fireEvent.click(screen.getByTestId('in-page-nav'));
     expect(screen.getByTestId('edit-panel-open')).toBeInTheDocument();
+  });
+
+  it('opens settings ON the section the secretary is working in, and leaves them there', () => {
+    // Round-3 review: the Actions item used to be an ABSOLUTE
+    // `/shows/:id?edit=true`, so from Entry Management it walked the secretary
+    // to Overview and closing the panel stranded them there. Search-only now,
+    // and the shell strips the param, so the URL is unchanged either side.
+    renderShell(
+      { activeManagementSection: 'entry-management', isManagementSection: true },
+      '/shows/show-1/entry-management',
+      <>
+        <InPageNavigator to="?edit=true" />
+        <LocationProbe />
+      </>
+    );
+
+    expect(screen.getByTestId('probe-url')).toHaveTextContent('/shows/show-1/entry-management');
+    fireEvent.click(screen.getByTestId('in-page-nav'));
+    expect(screen.getByTestId('edit-panel-open')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByTestId('edit-panel-close'));
+    expect(screen.queryByTestId('edit-panel-open')).toBeNull();
+    expect(screen.getByTestId('probe-url').textContent).toBe('/shows/show-1/entry-management');
   });
 
   it('hands the edit panel the delete row, the only home Delete show has left', () => {

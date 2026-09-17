@@ -1,22 +1,19 @@
-import { useRef, useState } from 'react';
 import { FileText, AlertTriangle, Upload } from 'lucide-react';
-import { useQueryClient } from '@tanstack/react-query';
 import { Card } from '@/components/ui/card';
 import { Button, buttonVariants } from '@/components/ui/button';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { cn } from '@/lib/utils';
-import { publishExperience } from '@/features/experience/publishExperience';
 import { classifyPremiumPublishState } from '@/features/show-workbench/premiumPublishState';
-import { notifications } from '@/lib/notifications';
-import { publishInfoQueryKey, usePublishInfo } from './usePublishInfo';
-import { useGeneratePremium } from './useGeneratePremium';
+import { usePublishInfo } from './usePublishInfo';
+import { useGenerateAndPublishPremium } from './useGenerateAndPublishPremium';
 import { PREMIUM_CARD_ANCHOR } from '@/features/show-workbench/publishReadiness';
 
-// Target ring so a "Finish setup" checklist jump (`#setup-publish-premium`)
-// visibly lands here, matching the #setup-publish row's pattern.
-const ANCHOR_CLASS =
-  'scroll-mt-20 target:ring-2 target:ring-ring target:ring-offset-2 target:ring-offset-background';
-const PUBLISH_FAILURE_MESSAGE = "We couldn't publish the premium list. Please try again.";
+// `scroll-mt-20` only. The `target:ring-*` classes that used to live here could
+// never fire: the one link that carried `#setup-publish-premium` was a router
+// `<Link>`, and a `pushState` is not fragment navigation, so `:target` never
+// matched. That link is gone -- the header Actions item runs this card's own
+// flow directly now -- so the dead styling goes with it (MYK9-630 round 4).
+const ANCHOR_CLASS = 'scroll-mt-20';
 
 interface PremiumDownloadCardProps {
   showId: string;
@@ -28,10 +25,18 @@ interface PremiumDownloadCardProps {
   showStaleBadge?: boolean;
 }
 
-function PublishFailureNotice({ onRetry, disabled }: { onRetry: () => void; disabled: boolean }) {
+function PublishFailureNotice({
+  message,
+  onRetry,
+  disabled,
+}: {
+  message: string;
+  onRetry: () => void;
+  disabled: boolean;
+}) {
   return (
     <Alert variant="destructive" className="w-full flex items-center justify-between gap-3">
-      <AlertDescription>{PUBLISH_FAILURE_MESSAGE}</AlertDescription>
+      <AlertDescription>{message}</AlertDescription>
       {/* `touch` rather than sm plus a min-h-[44px] override: same floor, but it
           also grows to 48px on tablet as docs/INTENT.md 3 prefers, and the size
           lives in the variant where the rule can see it. */}
@@ -50,44 +55,19 @@ function PublishFailureNotice({ onRetry, disabled }: { onRetry: () => void; disa
 }
 
 export function PremiumDownloadCard({ showId, showStaleBadge = false }: PremiumDownloadCardProps) {
-  const queryClient = useQueryClient();
-  const { generate, isLoading: isGenerating } = useGeneratePremium();
-  const [isPublishing, setIsPublishing] = useState(false);
   const { data } = usePublishInfo(showId);
-  const [publishFailed, setPublishFailed] = useState(false);
-  const publishLatchRef = useRef(false);
+  // The flow itself lives in a shared hook because the header Actions menu runs
+  // the SAME publish from every section. Keeping it here would mean two
+  // implementations and two in-flight latches that cannot see each other.
+  const {
+    run: handleGenerateAndPublish,
+    isBusy,
+    publishFailed,
+    failureMessage,
+  } = useGenerateAndPublishPremium(showId);
   const publishedUrl = data?.publishedUrl;
   const publishedAt = data?.publishedAt;
   const showUpdatedAt = data?.updatedAt;
-  const isBusy = isGenerating || isPublishing;
-
-  const handleGenerateAndPublish = async () => {
-    if (publishLatchRef.current) return;
-    publishLatchRef.current = true;
-    setPublishFailed(false);
-    setIsPublishing(true);
-    try {
-      const premium = await generate(showId);
-      await publishExperience({ showId, premium, inkSaver: false });
-      await Promise.all([
-        queryClient.refetchQueries({ queryKey: publishInfoQueryKey(showId), type: 'active' }),
-        queryClient.invalidateQueries({
-          queryKey: ['shows', showId, 'published-experience-content'],
-        }),
-        queryClient.invalidateQueries({
-          queryKey: ['shows'],
-          predicate: query => query.queryKey[2] !== 'publish-info',
-        }),
-      ]);
-      notifications.success('Premium list published');
-    } catch {
-      setPublishFailed(true);
-      notifications.error('Could not publish the premium list');
-    } finally {
-      setIsPublishing(false);
-      publishLatchRef.current = false;
-    }
-  };
 
   const hasPublishedPremium = Boolean(publishedUrl && publishedAt);
   const publishedLabel = publishedAt
@@ -120,7 +100,11 @@ export function PremiumDownloadCard({ showId, showStaleBadge = false }: PremiumD
       className={cn('p-4 flex flex-wrap items-center gap-4', ANCHOR_CLASS)}
     >
       {publishFailed && (
-        <PublishFailureNotice onRetry={handleGenerateAndPublish} disabled={isBusy} />
+        <PublishFailureNotice
+          message={failureMessage}
+          onRetry={handleGenerateAndPublish}
+          disabled={isBusy}
+        />
       )}
       {!hasPublishedPremium ? (
         <>

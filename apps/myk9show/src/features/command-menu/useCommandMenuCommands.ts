@@ -39,7 +39,12 @@ export function useCommandMenuCommands(): CommandMenuCommands {
         label: action.label,
         sublabel: 'Current show',
         showScope: route.showId,
-        href: action.href,
+        // A registry item is either a destination or a side effect, and the
+        // palette adapter already honours both. Spreading conditionally keeps
+        // `href: undefined` out of the object, which `exactOptionalPropertyTypes`
+        // rejects and which would also make the adapter prefer a missing href.
+        ...(action.href !== undefined ? { href: action.href } : {}),
+        ...(action.run ? { run: action.run } : {}),
       }));
   }, [actions, route]);
 

@@ -2,7 +2,6 @@ import {
   buildExhibitorRegistrationPath,
   buildSecretaryRegistrationPath,
 } from '@/pages/RegistrationWizardPage.routes';
-import { PREMIUM_CARD_ANCHOR } from '@/features/show-workbench/publishReadiness';
 
 /**
  * THE registry of "what can I do from here" (MYK9-630).
@@ -19,11 +18,31 @@ import { PREMIUM_CARD_ANCHOR } from '@/features/show-workbench/publishReadiness'
  * - Every item is a LINK into the canonical surface, never a second
  *   implementation of it (CLAUDE.md, consolidate don't duplicate).
  */
+/**
+ * A named side effect the registry cannot perform itself, because it needs
+ * React state the pure resolver has no access to. `useCurrentActions` binds
+ * each one to a real callback; nothing else may invent a command.
+ */
+export type ActionCommand = 'publish-premium';
+
 export interface AppAction {
   id: string;
   label: string;
-  /** Where this action lives. Registry items are links by design. */
-  href: string;
+  /**
+   * Where this action lives, for the items that ARE a destination. A
+   * search-only value (`?edit=true`) is deliberate and resolves against the
+   * viewer's current path, so the action happens where they are standing.
+   */
+  href?: string;
+  /**
+   * Set instead of `href` when the action is a side effect rather than a
+   * place. A hash link is NOT an acceptable stand-in: the router pushes a hash
+   * without fragment navigation, so nothing scrolls and `:target` never
+   * matches (MYK9-630 round 3 review).
+   */
+  command?: ActionCommand;
+  /** Bound by `useCurrentActions` for `command` items; absent in the pure layer. */
+  run?: () => void;
   /** Present when the item belongs here but the viewer cannot use it. */
   disabledReason?: string;
   /** Renders a divider above this item. */
@@ -52,12 +71,17 @@ const SHOW_PATH = /^\/shows\/([^/]+)(?:\/|$)/;
 const SECRETARY_REGISTER_PATH = /^\/secretary\/register\/([^/]+)(?:\/|$)/;
 
 /**
- * Segments that sit where a show id sits but name no show. `/shows/new` is a
- * real route (`publicRoutes.tsx` redirects it into the create-show wizard), so
- * without this it parsed as `{ kind: 'show', showId: 'new' }` and the header
- * offered six actions against a show that does not exist.
+ * Segments that sit where a show id sits but name no show. `/shows/new` and
+ * `/shows/browse` are both real routes (`publicRoutes.tsx` redirects them into
+ * the create-show wizard and the browse list), so without this they parsed as
+ * `{ kind: 'show', showId: 'new' | 'browse' }` and the header offered six
+ * actions against a show that does not exist.
+ *
+ * Exported so `actionRegistry.routeSegments.test.ts` can check this list
+ * against the REAL route tree and fail loudly when a new literal is added --
+ * importing the route tree here would make the resolver anything but pure.
  */
-const NON_SHOW_ID_SEGMENTS = new Set(['new']);
+export const NON_SHOW_ID_SEGMENTS = new Set(['new', 'browse']);
 
 /**
  * The route context a pathname puts the viewer in. Pure, so both doors (header
@@ -105,18 +129,24 @@ function buildShowActions(showId: string, viewer: ActionViewer): AppAction[] {
       href: `/shows/${encoded}/show-desk`,
     },
     {
-      // A link to the publish row that stays on Overview, matching how the
-      // setup-readiness checklist already jumps there -- not a second
-      // generate/publish button.
+      // Runs the Premium List card's OWN flow, from whatever section the
+      // secretary is on. It was a link to the card's anchor, which the router
+      // could not honour: a pushed hash is not fragment navigation, so at
+      // 375px nothing scrolled at all and from another section the card
+      // arrived unhighlighted.
       id: 'show-generate-publish-premium',
       label: 'Generate & publish premium',
-      href: `/shows/${encoded}#${PREMIUM_CARD_ANCHOR}`,
+      command: 'publish-premium',
       separatorBefore: true,
     },
     {
+      // SEARCH-ONLY, so the panel opens on the section the secretary is
+      // already on. An absolute `/shows/:id?edit=true` walked them off
+      // Entry Management to Overview and stranded them there when they closed
+      // it -- the deleted `...` menu opened the panel in place.
       id: 'show-settings',
       label: 'Show settings…',
-      href: `/shows/${encoded}?edit=true`,
+      href: '?edit=true',
     },
   ];
 }

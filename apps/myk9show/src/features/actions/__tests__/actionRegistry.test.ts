@@ -48,11 +48,12 @@ describe('parseActionRouteContext', () => {
     }
   });
 
-  it('treats /shows/new as global — it is the create-show wizard, not a show', () => {
-    // `/shows/new` is a real route that redirects into the wizard
-    // (`publicRoutes.tsx`). Parsed as a show it offered a secretary six actions
-    // against the show id "new", every one of them a dead link.
-    for (const path of ['/shows/new', '/shows/new/']) {
+  it('treats the literal /shows/ segments as global — they are not shows', () => {
+    // `/shows/new` and `/shows/browse` are real routes that redirect into the
+    // wizard and the browse list (`publicRoutes.tsx`). Parsed as shows they
+    // offered a secretary six actions against the show id "new" or "browse",
+    // every one of them a dead link.
+    for (const path of ['/shows/new', '/shows/new/', '/shows/browse', '/shows/browse/']) {
       expect(parseActionRouteContext(path)).toEqual({ kind: 'global' });
     }
     expect(resolveActions(parseActionRouteContext('/shows/new'), secretary)).toEqual([
@@ -72,14 +73,30 @@ describe('parseActionRouteContext', () => {
 describe('resolveActions — secretary on a show', () => {
   const actions = resolveActions({ kind: 'show', showId: SHOW_ID }, secretary);
 
-  it('puts Show settings last and opens the Show Edit panel, not a settings page', () => {
+  it('puts Show settings last and opens the panel WHERE THE VIEWER IS', () => {
     // Richard, 2026-09-17: "Show settings is the last item in the header Actions
     // menu and opens the existing Show Edit panel (`?edit=true`). No separate
     // settings page; /shows/:id/setup redirects to /shows/:id."
+    //
+    // Search-only, so it resolves against the current path. An ABSOLUTE
+    // `/shows/:id?edit=true` walked a secretary off Entry Management to
+    // Overview and stranded them there when they closed the panel; the deleted
+    // `...` menu opened it in place on every section.
     const last = actions[actions.length - 1];
     expect(last?.id).toBe('show-settings');
-    expect(last?.href).toBe(`/shows/${SHOW_ID}?edit=true`);
-    expect(actions.some(action => action.href.endsWith('/setup'))).toBe(false);
+    expect(last?.href).toBe('?edit=true');
+    expect(last?.href?.startsWith('/')).toBe(false);
+    expect(actions.some(action => action.href?.endsWith('/setup'))).toBe(false);
+  });
+
+  it('runs the premium flow as a command, never as a hash link', () => {
+    // A pushed hash is not fragment navigation: at 375x812 nothing scrolled at
+    // all, and from another section the card arrived unhighlighted. The item is
+    // a side effect now, bound to the card's own flow by `useCurrentActions`.
+    const premium = actions.find(action => action.id === 'show-generate-publish-premium');
+    expect(premium?.command).toBe('publish-premium');
+    expect(premium?.href).toBeUndefined();
+    expect(actions.some(action => action.href?.includes('#'))).toBe(false);
   });
 
   it('returns the six decided items in order', () => {
@@ -99,9 +116,18 @@ describe('resolveActions — secretary on a show', () => {
       `/shows/${SHOW_ID}/register`,
       `/shows/${SHOW_ID}/entry-management`,
       `/shows/${SHOW_ID}/show-desk`,
-      `/shows/${SHOW_ID}#setup-publish-premium`,
-      `/shows/${SHOW_ID}?edit=true`,
+      undefined, // the premium flow is a command, not a place
+      '?edit=true',
     ]);
+  });
+
+  it('gives every item exactly one of href or command', () => {
+    for (const action of actions) {
+      expect(
+        (action.href !== undefined) !== (action.command !== undefined),
+        `${action.id} must be a destination or a side effect, not both or neither`
+      ).toBe(true);
+    }
   });
 
   it('separates the daily work from the setup verbs', () => {

@@ -75,7 +75,7 @@ export function HeaderActions() {
                 <span>{action.label}</span>
                 <span className="text-xs text-muted-foreground">{action.disabledReason}</span>
               </DropdownMenuItem>
-            ) : (
+            ) : action.href !== undefined ? (
               <DropdownMenuItem
                 asChild
                 className={cn(action.destructive && 'text-destructive focus:text-destructive')}
@@ -84,6 +84,19 @@ export function HeaderActions() {
                   {action.label}
                 </Link>
               </DropdownMenuItem>
+            ) : (
+              // A side effect, not a destination. `useCurrentActions` bound the
+              // callback; a registry item with neither `href` nor `run` is a
+              // bug, so it renders nothing rather than a dead row.
+              action.run && (
+                <DropdownMenuItem
+                  onClick={action.run}
+                  data-testid={`header-action-${action.id}`}
+                  className={cn(action.destructive && 'text-destructive focus:text-destructive')}
+                >
+                  {action.label}
+                </DropdownMenuItem>
+              )
             )}
           </Fragment>
         ))}

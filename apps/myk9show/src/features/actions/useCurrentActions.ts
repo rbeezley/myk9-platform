@@ -3,6 +3,7 @@ import { useLocation } from 'react-router-dom';
 import { useAuthContext } from '@/hooks/useAuthContext';
 import { useShowManageScope } from '@/hooks/useShowManageScope';
 import { PERMISSIONS, UserRole } from '@/types/auth-types';
+import { useGenerateAndPublishPremium } from '@/features/premium/useGenerateAndPublishPremium';
 import {
   parseActionRouteContext,
   resolveActions,
@@ -35,7 +36,12 @@ export function useCurrentActions(): CurrentActions {
   const canCreateShows = hasPermission(PERMISSIONS.SHOW_CREATE);
   const isShowManagementStaff = hasRole(UserRole.SECRETARY) || hasRole(UserRole.SITE_ADMIN);
 
-  const actions = useMemo(
+  // The one flow behind the `publish-premium` command. Called unconditionally
+  // (hooks rules) with an empty id off a show route, where it reports not-busy
+  // and its `run` is a no-op.
+  const premium = useGenerateAndPublishPremium(showId ?? '');
+
+  const resolved = useMemo(
     () =>
       resolveActions(route, {
         // Fail closed while ownership is still resolving: an empty list hides
@@ -47,6 +53,25 @@ export function useCurrentActions(): CurrentActions {
         isShowManagementStaff,
       }),
     [route, scope.status, scope.canManage, scope.canOperate, canCreateShows, isShowManagementStaff]
+  );
+
+  // Bind each `command` to its real callback. THE one place that may: the
+  // registry stays pure and every other consumer reads `run` without knowing
+  // what is behind it.
+  const actions = useMemo(
+    () =>
+      resolved.map(action => {
+        if (action.command !== 'publish-premium') return action;
+        return {
+          ...action,
+          label: premium.isBusy ? 'Publishing…' : action.label,
+          run: premium.run,
+          // Not a permission -- a "wait", and it reads the SAME in-flight state
+          // the Premium List card shows, so the two triggers cannot disagree.
+          ...(premium.isBusy ? { disabledReason: 'Already publishing' } : {}),
+        };
+      }),
+    [resolved, premium.isBusy, premium.run]
   );
 
   return { route, actions };

@@ -235,18 +235,20 @@ test('exhibitor card entry hands off to cart checkout without enrollment writes'
   // the desktop aside above 1024px, and a collapsed bar below it whose totals
   // only mount once Details is expanded. The labels moved with it
   // ("Entry fee total" -> "Entry fees", "Amount Due:" -> "Total due").
-  const entryDollars = Number(
-    (
-      await entriesTotals(page).getByText('Entry fees', { exact: true }).locator('..').innerText()
-    ).match(/\$([\d.]+)/)?.[1]
-  );
   for (const viewport of VIEWPORTS) {
     await page.setViewportSize(viewport);
     const totals = await openEntriesTotals(page, viewport.width);
     const amountDue = totals.getByText('Total due', { exact: true }).locator('..');
+    const entryFees = totals.getByText('Entry fees', { exact: true }).locator('..');
     const serviceFee = totals.getByText(/^Service fee \(/).locator('..');
+    // Read each figure from the region that is actually mounted at this width,
+    // and only once it carries a price — a read taken before the totals settle
+    // yields NaN and the comparison then asserts "$NaN" against real money.
+    await expect(entryFees).toContainText(/\$\d+\.\d{2}/);
     await expect(serviceFee).toBeVisible();
+    const entryDollars = Number((await entryFees.innerText()).match(/\$([\d.]+)/)?.[1]);
     const feeDollars = Number((await serviceFee.innerText()).match(/\$([\d.]+)\s*$/)?.[1]);
+    expect(Number.isFinite(entryDollars) && Number.isFinite(feeDollars)).toBe(true);
     await expect(amountDue).toContainText(`$${(entryDollars + feeDollars).toFixed(2)}`);
     expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(
       viewport.width
@@ -256,7 +258,12 @@ test('exhibitor card entry hands off to cart checkout without enrollment writes'
       contentType: 'image/png',
     });
   }
-  const finalTotals = await openEntriesTotals(page, VIEWPORTS[VIEWPORTS.length - 1].width);
+  // The width loop leaves the page on the narrowest viewport, where the
+  // entries-panel bar is sticky to the bottom of the wizard and intercepts the
+  // pointer on everything underneath it — including the agreement label. Go
+  // back to the widest audited width before driving the rest of the journey.
+  await page.setViewportSize(VIEWPORTS[0]!);
+  const finalTotals = await openEntriesTotals(page, VIEWPORTS[0]!.width);
   const quotedTotal = (
     await finalTotals.getByText('Total due', { exact: true }).locator('..').innerText()
   ).match(/\$[\d.]+/)?.[0];

@@ -42,6 +42,7 @@ const launchCriticalSqlTests = [
   'stripe_ledger_fks_restrict_test.sql',
   'create_show_with_children_tenant_isolation_test.sql',
   'show_officials_label_not_permission_test.sql',
+  'show_announcements_scope_test.sql',
   'show_message_tenant_isolation_test.sql',
   'entries_insert_show_scope_test.sql',
   'show_publish_gate_trigger_test.sql',

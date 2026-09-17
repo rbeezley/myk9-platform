@@ -86,6 +86,14 @@ vi.mock('@/components/layout/AccountMenuContent', () => ({
 const premiumEdges = vi.hoisted(() => ({
   generate: vi.fn(async (showId: string) => ({ showId, pdfUrl: 'blob:premium' })),
   publishExperience: vi.fn(async () => undefined),
+  // The publish read the Premium List card renders from. The menu item now
+  // reads the SAME one, so these fixtures drive both.
+  publishInfo: {
+    publishedUrl: null as string | null,
+    publishedAt: null as string | null,
+    updatedAt: null as string | null,
+    experienceIsPublished: true as boolean | null,
+  },
 }));
 
 vi.mock('@/features/premium/useGeneratePremium', () => ({
@@ -100,6 +108,16 @@ vi.mock('@/features/premium/useGeneratePremium', () => ({
 vi.mock('@/features/experience/publishExperience', () => ({
   publishExperience: premiumEdges.publishExperience,
 }));
+
+vi.mock('@/features/premium/usePublishInfo', async () => {
+  const actual = await vi.importActual<typeof import('@/features/premium/usePublishInfo')>(
+    '@/features/premium/usePublishInfo'
+  );
+  return {
+    ...actual,
+    usePublishInfo: () => ({ data: premiumEdges.publishInfo, isError: false }),
+  };
+});
 
 vi.mock('@/lib/notifications', () => ({
   notifications: { success: vi.fn(), error: vi.fn(), info: vi.fn(), warning: vi.fn() },
@@ -128,9 +146,15 @@ beforeEach(() => {
   viewer.isStaff = true;
   premiumEdges.generate.mockClear();
   premiumEdges.publishExperience.mockClear();
+  premiumEdges.publishInfo = {
+    publishedUrl: null,
+    publishedAt: null,
+    updatedAt: null,
+    experienceIsPublished: true,
+  };
   // The publish store is module scope; a leaked in-flight id would latch the
   // next test's click into a silent no-op.
-  usePremiumPublishStore.setState({ publishingShowId: null, failedShowId: null });
+  usePremiumPublishStore.setState({ byShowId: {} });
 });
 
 afterEach(() => {
@@ -369,5 +393,57 @@ describe('AppHeader Actions menu — the two items that are not plain destinatio
 
     await waitFor(() => expect(screen.getByTestId('probe-search')).toHaveTextContent('?edit=true'));
     expect(screen.getByTestId('probe-pathname')).toHaveTextContent(ENTRY_MANAGEMENT_ROUTE);
+  });
+});
+
+describe('the premium item says what the Premium List card says', () => {
+  async function openMenu() {
+    const user = userEvent.setup();
+    render(<AppHeader />, { initialRoute: SECTION_ROUTE });
+    await user.click(screen.getByRole('button', { name: /^actions$/i }));
+    const menu = await screen.findByRole('menu');
+    return {
+      user,
+      item: within(menu).getByTestId('header-action-show-generate-publish-premium'),
+    };
+  }
+
+  it('is GREYED when the premium is published and up to date', async () => {
+    // The card renders no publish button at all in this state. The menu used to
+    // offer an enabled item that would regenerate a live PDF.
+    premiumEdges.publishInfo = {
+      publishedUrl: 'https://example.test/premium.pdf',
+      publishedAt: '2026-09-01T10:00:00Z',
+      updatedAt: '2026-09-01T10:00:00Z',
+      experienceIsPublished: true,
+    };
+
+    const { item } = await openMenu();
+    expect(item).toHaveAttribute('data-disabled');
+    expect(item).toHaveTextContent('Premium is published and up to date');
+  });
+
+  it('is GREYED while the publish read has not resolved', async () => {
+    premiumEdges.publishInfo = undefined as never;
+
+    const { item } = await openMenu();
+    expect(item).toHaveAttribute('data-disabled');
+    expect(item).toHaveTextContent('Checking the premium');
+  });
+
+  it('is enabled and says "Republish premium" when the show data moved on', async () => {
+    premiumEdges.publishInfo = {
+      publishedUrl: 'https://example.test/premium.pdf',
+      publishedAt: '2026-09-01T10:00:00Z',
+      updatedAt: '2026-09-02T10:00:00Z',
+      experienceIsPublished: true,
+    };
+
+    const { user, item } = await openMenu();
+    expect(item).not.toHaveAttribute('data-disabled');
+    expect(item).toHaveTextContent('Republish premium');
+
+    await user.click(item);
+    await waitFor(() => expect(premiumEdges.generate).toHaveBeenCalledWith('show-1'));
   });
 });

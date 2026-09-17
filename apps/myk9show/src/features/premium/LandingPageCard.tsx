@@ -11,10 +11,11 @@ import { LANDING_CARD_ANCHOR } from '@/features/show-workbench/publishReadiness'
 
 const STYLE_LABELS: Record<ShowStyle, string> = PREMIUM_STYLE_LABELS;
 
-// Target ring so a "Finish setup" checklist jump (`#setup-publish-landing`)
-// visibly lands here, matching the #setup-publish row's pattern.
-const ANCHOR_CLASS =
-  'scroll-mt-20 target:ring-2 target:ring-ring target:ring-offset-2 target:ring-offset-background';
+// `scroll-mt-20` only. The `target:ring-*` classes here could never fire: every
+// link that carried this anchor was a router `<Link>`, and a `pushState` is not
+// fragment navigation, so `:target` never matched. Nothing links here at all
+// today (MYK9-630 round 5).
+const ANCHOR_CLASS = 'scroll-mt-20';
 
 interface LandingPageCardProps {
   showId: string;

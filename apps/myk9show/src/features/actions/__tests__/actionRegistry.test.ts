@@ -38,7 +38,32 @@ describe('parseActionRouteContext', () => {
       `/shows/${SHOW_ID}/register`,
       `/secretary/register/${SHOW_ID}`,
     ]) {
-      expect(parseActionRouteContext(path)).toEqual({ kind: 'show', showId: SHOW_ID });
+      expect(parseActionRouteContext(path)).toMatchObject({ kind: 'show', showId: SHOW_ID });
+    }
+  });
+
+  it('knows where the management shell is mounted and where it is not', () => {
+    // `?edit=true` has exactly one consumer, `ShowManagementShell`, and it is
+    // the element at `/shows/:id`. Its nested children get it; its SIBLING
+    // routes do not, so a relative param there would sit in the URL with
+    // nothing to open it.
+    for (const mounted of [
+      `/shows/${SHOW_ID}`,
+      `/shows/${SHOW_ID}/`,
+      `/shows/${SHOW_ID}/entry-management`,
+      `/shows/${SHOW_ID}/show-desk`,
+      `/shows/${SHOW_ID}/results-control`,
+      `/shows/${SHOW_ID}/classes/trial-1`,
+    ]) {
+      expect(parseActionRouteContext(mounted), mounted).toMatchObject({ shellMounted: true });
+    }
+    for (const sibling of [
+      `/shows/${SHOW_ID}/register`,
+      `/shows/${SHOW_ID}/trials/trial-1`,
+      `/shows/${SHOW_ID}/trials/trial-1/classes/class-1`,
+      `/shows/${SHOW_ID}/trials/trial-1/classes/class-1/results`,
+    ]) {
+      expect(parseActionRouteContext(sibling), sibling).toMatchObject({ shellMounted: false });
     }
   });
 
@@ -63,15 +88,18 @@ describe('parseActionRouteContext', () => {
   });
 
   it('decodes an encoded show id and ignores a trailing slash or query-free hash', () => {
-    expect(parseActionRouteContext(`/shows/${SHOW_ID}/`)).toEqual({
+    expect(parseActionRouteContext(`/shows/${SHOW_ID}/`)).toMatchObject({
       kind: 'show',
       showId: SHOW_ID,
     });
   });
 });
 
+const SHOW_CONTEXT = { kind: 'show', showId: SHOW_ID, shellMounted: true } as const;
+const SIBLING_CONTEXT = { kind: 'show', showId: SHOW_ID, shellMounted: false } as const;
+
 describe('resolveActions — secretary on a show', () => {
-  const actions = resolveActions({ kind: 'show', showId: SHOW_ID }, secretary);
+  const actions = resolveActions(SHOW_CONTEXT, secretary);
 
   it('puts Show settings last and opens the panel WHERE THE VIEWER IS', () => {
     // Richard, 2026-09-17: "Show settings is the last item in the header Actions
@@ -87,6 +115,15 @@ describe('resolveActions — secretary on a show', () => {
     expect(last?.href).toBe('?edit=true');
     expect(last?.href?.startsWith('/')).toBe(false);
     expect(actions.some(action => action.href?.endsWith('/setup'))).toBe(false);
+  });
+
+  it('sends Show settings to Overview on a route with no shell to open it', () => {
+    // `/shows/:id/register` and `/shows/:id/trials/...` are SIBLINGS of
+    // `/shows/:id`, so no `ShowManagementShell` is mounted and a relative
+    // `?edit=true` would be a stray param that opens nothing.
+    const siblingActions = resolveActions(SIBLING_CONTEXT, secretary);
+    const settings = siblingActions.find(action => action.id === 'show-settings');
+    expect(settings?.href).toBe(`/shows/${SHOW_ID}?edit=true`);
   });
 
   it('runs the premium flow as a command, never as a hash link', () => {
@@ -147,7 +184,7 @@ describe('resolveActions — secretary on a show', () => {
 });
 
 describe('resolveActions — club admin on a show', () => {
-  const actions = resolveActions({ kind: 'show', showId: SHOW_ID }, clubAdmin);
+  const actions = resolveActions(SHOW_CONTEXT, clubAdmin);
 
   it('keeps the same six items', () => {
     expect(actions).toHaveLength(6);
@@ -167,7 +204,7 @@ describe('resolveActions — club admin on a show', () => {
 
 describe('resolveActions — a viewer who cannot manage the show', () => {
   it('returns no show actions (the exhibitor list is MYK9-631)', () => {
-    expect(resolveActions({ kind: 'show', showId: SHOW_ID }, exhibitor)).toEqual([]);
+    expect(resolveActions(SHOW_CONTEXT, exhibitor)).toEqual([]);
   });
 
   it('falls back to nothing at all for an exhibitor off a show route', () => {

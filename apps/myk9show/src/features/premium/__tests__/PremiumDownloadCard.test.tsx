@@ -1,6 +1,7 @@
 import { act, fireEvent, screen, waitFor } from '@/test/utils/testUtils';
 import { createTestQueryClient, render } from '@/test/utils/testUtils';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { usePremiumPublishStore } from '../useGenerateAndPublishPremium';
 import { PremiumDownloadCard } from '../PremiumDownloadCard';
 
 const maybeSingleMock = vi.hoisted(() => vi.fn());
@@ -48,6 +49,10 @@ function renderCard(showStaleBadge = false) {
 
 describe('PremiumDownloadCard', () => {
   beforeEach(() => {
+    // The publish flow's in-flight/failed state is a module-scope store now
+    // (two triggers in two subtrees share it), so it has to be reset like any
+    // other global between tests.
+    usePremiumPublishStore.setState({ byShowId: {} });
     maybeSingleMock.mockReset();
     generateMock.mockReset();
     publishExperienceMock.mockReset();
@@ -203,6 +208,11 @@ describe('PremiumDownloadCard', () => {
 
     renderCard();
     const button = await screen.findByRole('button', { name: /generate & publish premium/i });
+    // The button is disabled until the publish read resolves: until then the
+    // card cannot tell "not published" from "published and current", and
+    // clicking would regenerate a live PDF. The double-submit latch this test
+    // is about only applies once the control is genuinely usable.
+    await waitFor(() => expect(button).toBeEnabled());
 
     await act(async () => {
       fireEvent.click(button);

@@ -66,7 +66,7 @@ describe('useCurrentActions — ownership must be resolved before anything is of
     status => {
       scope.status = status;
       const { result } = renderHook(() => useCurrentActions(), { wrapper });
-      expect(result.current.route).toEqual({ kind: 'show', showId: SHOW_ID });
+      expect(result.current.route).toMatchObject({ kind: 'show', showId: SHOW_ID });
       expect(result.current.actions).toEqual([]);
     }
   );

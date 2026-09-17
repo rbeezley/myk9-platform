@@ -264,7 +264,11 @@ export function ShowManagementShell({
         {!activeManagementSection && (
           <div
             id={SETUP_PUBLISH_ANCHOR}
-            className="mt-4 grid scroll-mt-20 grid-cols-1 gap-3 rounded-md sm:grid-cols-2 target:ring-2 target:ring-ring target:ring-offset-2 target:ring-offset-background"
+            // `scroll-mt-20` only: the `target:ring-*` classes could never
+            // fire, because the one link carrying `#setup-publish` is a router
+            // `<Link>` and a `pushState` is not fragment navigation
+            // (MYK9-630 round 5). Scrolling still works; the ring never did.
+            className="mt-4 grid scroll-mt-20 grid-cols-1 gap-3 rounded-md sm:grid-cols-2"
           >
             <PremiumDownloadCard showId={show.id} showStaleBadge={true} />
             <LandingPageCard showId={show.id} showStyle={getShowStyle(show)} />

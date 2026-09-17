@@ -2,6 +2,7 @@ import {
   buildExhibitorRegistrationPath,
   buildSecretaryRegistrationPath,
 } from '@/pages/RegistrationWizardPage.routes';
+import { SHOW_MANAGEMENT_SECTIONS } from '@/routes/showManagementSections';
 
 /**
  * THE registry of "what can I do from here" (MYK9-630).
@@ -50,7 +51,19 @@ export interface AppAction {
   destructive?: boolean;
 }
 
-export type ActionRouteContext = { kind: 'show'; showId: string } | { kind: 'global' };
+export type ActionRouteContext =
+  | {
+      kind: 'show';
+      showId: string;
+      /**
+       * Whether `ShowManagementShell` — the only thing that consumes
+       * `?edit=true` — is mounted at this path. False on the show's SIBLING
+       * routes (`/register`, `/trials/...`), which are not nested under
+       * `/shows/:id` and so render no shell at all.
+       */
+      shellMounted: boolean;
+    }
+  | { kind: 'global' };
 
 export interface ActionViewer {
   /** May manage THIS show -- the same gate the management routes use. */
@@ -84,6 +97,35 @@ const SECRETARY_REGISTER_PATH = /^\/secretary\/register\/([^/]+)(?:\/|$)/;
 export const NON_SHOW_ID_SEGMENTS = new Set(['new', 'browse']);
 
 /**
+ * The child segments of `/shows/:id`, i.e. the paths where
+ * `ShowManagementShell` is mounted and can honour a `?edit=true` the viewer
+ * arrives with. `classes` covers `classes/:trialId[/create]`, which
+ * `publicRoutes.tsx` declares inline rather than in the section list.
+ *
+ * Fail CLOSED: anything not listed is treated as shell-less and gets the
+ * absolute link, which always works. `actionRegistry.routeSegments.test.tsx`
+ * checks both halves against the real `PublicRoutes()` tree.
+ */
+export const SHELL_MOUNTED_CHILD_SEGMENTS = new Set<string>([
+  ...SHOW_MANAGEMENT_SECTIONS.map(section => section.path),
+  'classes',
+]);
+
+const SHOW_CHILD_PATH = /^\/shows\/[^/]+(?:\/([^/]+))?/;
+
+/**
+ * Is the show management shell mounted at this path? `/shows/:id` itself and
+ * its nested children yes; its siblings no.
+ */
+export function isShowShellMountedPath(pathname: string): boolean {
+  const match = SHOW_CHILD_PATH.exec(pathname);
+  if (!match) return false;
+  const child = match[1];
+  if (child === undefined || child === '') return true;
+  return SHELL_MOUNTED_CHILD_SEGMENTS.has(child);
+}
+
+/**
  * The route context a pathname puts the viewer in. Pure, so both doors (header
  * menu and command palette) derive it identically and it is unit-testable
  * without a router.
@@ -95,12 +137,16 @@ export function parseActionRouteContext(pathname: string): ActionRouteContext {
     if (!raw) continue;
     const showId = decodeURIComponent(raw);
     if (NON_SHOW_ID_SEGMENTS.has(showId)) return { kind: 'global' };
-    return { kind: 'show', showId };
+    return { kind: 'show', showId, shellMounted: isShowShellMountedPath(pathname) };
   }
   return { kind: 'global' };
 }
 
-function buildShowActions(showId: string, viewer: ActionViewer): AppAction[] {
+function buildShowActions(
+  showId: string,
+  shellMounted: boolean,
+  viewer: ActionViewer
+): AppAction[] {
   if (!viewer.canManageShow) return [];
 
   const encoded = encodeURIComponent(showId);
@@ -140,13 +186,17 @@ function buildShowActions(showId: string, viewer: ActionViewer): AppAction[] {
       separatorBefore: true,
     },
     {
-      // SEARCH-ONLY, so the panel opens on the section the secretary is
-      // already on. An absolute `/shows/:id?edit=true` walked them off
-      // Entry Management to Overview and stranded them there when they closed
-      // it -- the deleted `...` menu opened the panel in place.
+      // SEARCH-ONLY where the shell is mounted, so the panel opens on the
+      // section the secretary is already on: an absolute `/shows/:id?edit=true`
+      // walked them off Entry Management to Overview and stranded them there
+      // when they closed it, which the deleted `...` menu never did.
+      //
+      // On a SIBLING route (`/register`, `/trials/...`) no shell is mounted, so
+      // a relative param would sit in the URL with nothing to consume it. There
+      // the item goes to Overview, where the panel actually lives.
       id: 'show-settings',
       label: 'Show settings…',
-      href: '?edit=true',
+      href: shellMounted ? '?edit=true' : `/shows/${encoded}?edit=true`,
     },
   ];
 }
@@ -171,6 +221,6 @@ function buildRoleWideActions(viewer: ActionViewer): AppAction[] {
  * button is HIDDEN, not disabled.
  */
 export function resolveActions(route: ActionRouteContext, viewer: ActionViewer): AppAction[] {
-  if (route.kind === 'show') return buildShowActions(route.showId, viewer);
+  if (route.kind === 'show') return buildShowActions(route.showId, route.shellMounted, viewer);
   return buildRoleWideActions(viewer);
 }

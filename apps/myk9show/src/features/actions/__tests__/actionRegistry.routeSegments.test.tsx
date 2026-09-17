@@ -1,6 +1,6 @@
 import { createRoutesFromChildren, type RouteObject } from 'react-router-dom';
 import { describe, expect, it } from 'vitest';
-import { NON_SHOW_ID_SEGMENTS } from '@/features/actions/actionRegistry';
+import { isShowShellMountedPath, NON_SHOW_ID_SEGMENTS } from '@/features/actions/actionRegistry';
 import { PublicRoutes } from '@/routes/publicRoutes';
 
 /**
@@ -50,6 +50,61 @@ describe('NON_SHOW_ID_SEGMENTS vs the real route tree', () => {
     const real = new Set(literalShowChildSegments());
     for (const segment of NON_SHOW_ID_SEGMENTS) {
       expect(real.has(segment), `${segment} is no longer a route and can be dropped`).toBe(true);
+    }
+  });
+});
+
+/**
+ * `ShowManagementShell` is the ELEMENT at `/shows/:id`, and it is the only
+ * consumer of `?edit=true`. So "is the shell mounted here" is answerable from
+ * the route tree itself: every route nested under `/shows/:id` has it, every
+ * sibling `/shows/...` route does not. This reads that, rather than trusting
+ * `SHELL_MOUNTED_CHILD_SEGMENTS` to have kept up.
+ */
+function showRouteShape() {
+  const roots = createRoutesFromChildren(PublicRoutes());
+  const showRoute = roots.find(route => route.path === '/shows/:id');
+  const nested: string[] = [];
+  const walk = (routes: RouteObject[], prefix: string) => {
+    for (const route of routes) {
+      const path = `${prefix}/${route.path ?? ''}`.replace(/\/+$/, '');
+      if (route.path) nested.push(path);
+      if (route.children) walk(route.children, path);
+    }
+  };
+  if (showRoute?.children) walk(showRoute.children, '/shows/:id');
+
+  const siblings = roots
+    .map(route => route.path ?? '')
+    .filter(path => /^\/shows\/:[^/]+\/.+/.test(path));
+
+  return { nested, siblings };
+}
+
+const withIds = (path: string) =>
+  path.replace(/:[A-Za-z]+/g, segment =>
+    segment === ':id' || segment === ':showId' ? 'show-1' : 'x1'
+  );
+
+describe('isShowShellMountedPath vs the real route tree', () => {
+  it('finds both nested children and siblings (harness control)', () => {
+    const { nested, siblings } = showRouteShape();
+    expect(nested.length).toBeGreaterThan(0);
+    expect(siblings.length).toBeGreaterThan(0);
+  });
+
+  it('says mounted for /shows/:id and every route nested under it', () => {
+    const { nested } = showRouteShape();
+    expect(isShowShellMountedPath('/shows/show-1')).toBe(true);
+    for (const path of nested) {
+      expect(isShowShellMountedPath(withIds(path)), path).toBe(true);
+    }
+  });
+
+  it('says NOT mounted for every sibling /shows route', () => {
+    const { siblings } = showRouteShape();
+    for (const path of siblings) {
+      expect(isShowShellMountedPath(withIds(path)), path).toBe(false);
     }
   });
 });

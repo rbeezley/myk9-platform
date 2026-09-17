@@ -8,30 +8,53 @@ import { useGeneratePremium } from './useGeneratePremium';
 
 const PUBLISH_FAILURE_MESSAGE = "We couldn't publish the premium list. Please try again.";
 
-interface PremiumPublishState {
-  /** The show whose premium is being generated/published right now, if any. */
-  publishingShowId: string | null;
-  /** The show whose last attempt failed, so the card can offer "Try again". */
-  failedShowId: string | null;
+export interface PremiumPublishShowState {
+  inFlight: boolean;
+  failed: boolean;
+}
+
+interface PremiumPublishStore {
+  /** Per SHOW. A secretary can hold two shows open in two tabs of one app. */
+  byShowId: Record<string, PremiumPublishShowState>;
   begin: (showId: string) => void;
-  succeed: () => void;
+  succeed: (showId: string) => void;
   fail: (showId: string) => void;
 }
 
+const IDLE: PremiumPublishShowState = { inFlight: false, failed: false };
+
+function patch(
+  state: PremiumPublishStore,
+  showId: string,
+  next: PremiumPublishShowState
+): Pick<PremiumPublishStore, 'byShowId'> {
+  return { byShowId: { ...state.byShowId, [showId]: next } };
+}
+
 /**
- * Publish state lives in a STORE, not in the card, because the flow now has two
+ * Publish state lives in a STORE, not in the card, because the flow has two
  * triggers in different subtrees: the Premium List card on Overview and the
  * header Actions menu, which offers it from every section (MYK9-630). Component
  * state would let the header fire a second publish while the card was already
  * mid-flight, and would show "Publishing…" on only one of them.
+ *
+ * Keyed BY SHOW, not global. A single in-flight id made show A's publish
+ * silently no-op show B's button, and `begin` cleared the failure flag for
+ * every show at once, wiping A's "Try again" notice the moment B started.
  */
-export const usePremiumPublishStore = create<PremiumPublishState>()(set => ({
-  publishingShowId: null,
-  failedShowId: null,
-  begin: showId => set({ publishingShowId: showId, failedShowId: null }),
-  succeed: () => set({ publishingShowId: null, failedShowId: null }),
-  fail: showId => set({ publishingShowId: null, failedShowId: showId }),
+export const usePremiumPublishStore = create<PremiumPublishStore>()(set => ({
+  byShowId: {},
+  begin: showId => set(state => patch(state, showId, { inFlight: true, failed: false })),
+  succeed: showId => set(state => patch(state, showId, IDLE)),
+  fail: showId => set(state => patch(state, showId, { inFlight: false, failed: true })),
 }));
+
+export function premiumPublishStateFor(
+  byShowId: Record<string, PremiumPublishShowState>,
+  showId: string
+): PremiumPublishShowState {
+  return byShowId[showId] ?? IDLE;
+}
 
 export interface GenerateAndPublishPremium {
   /** Generate the premium PDF and publish it with the landing snapshot. */
@@ -54,18 +77,21 @@ export interface GenerateAndPublishPremium {
 export function useGenerateAndPublishPremium(showId: string): GenerateAndPublishPremium {
   const queryClient = useQueryClient();
   const { generate } = useGeneratePremium();
-  const publishingShowId = usePremiumPublishStore(state => state.publishingShowId);
-  const failedShowId = usePremiumPublishStore(state => state.failedShowId);
+  const byShowId = usePremiumPublishStore(state => state.byShowId);
   const begin = usePremiumPublishStore(state => state.begin);
   const succeed = usePremiumPublishStore(state => state.succeed);
   const fail = usePremiumPublishStore(state => state.fail);
+  const showState = premiumPublishStateFor(byShowId, showId);
 
   const run = useCallback(async () => {
     if (!showId) return;
     // Read through `getState` rather than the subscribed value: two triggers can
     // be clicked within one render, and the latch has to see the write the
-    // other one just made.
-    if (usePremiumPublishStore.getState().publishingShowId) return;
+    // other one just made. Scoped to THIS show -- another show's publish is
+    // none of this one's business.
+    if (premiumPublishStateFor(usePremiumPublishStore.getState().byShowId, showId).inFlight) {
+      return;
+    }
     begin(showId);
     try {
       const premium = await generate(showId);
@@ -80,7 +106,7 @@ export function useGenerateAndPublishPremium(showId: string): GenerateAndPublish
           predicate: query => query.queryKey[2] !== 'publish-info',
         }),
       ]);
-      succeed();
+      succeed(showId);
       notifications.success('Premium list published');
     } catch {
       fail(showId);
@@ -90,8 +116,8 @@ export function useGenerateAndPublishPremium(showId: string): GenerateAndPublish
 
   return {
     run,
-    isBusy: publishingShowId === showId && showId !== '',
-    publishFailed: failedShowId === showId && showId !== '',
+    isBusy: showState.inFlight,
+    publishFailed: showState.failed,
     failureMessage: PUBLISH_FAILURE_MESSAGE,
   };
 }

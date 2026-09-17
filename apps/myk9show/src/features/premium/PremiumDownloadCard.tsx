@@ -3,9 +3,7 @@ import { Card } from '@/components/ui/card';
 import { Button, buttonVariants } from '@/components/ui/button';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { cn } from '@/lib/utils';
-import { classifyPremiumPublishState } from '@/features/show-workbench/premiumPublishState';
-import { usePublishInfo } from './usePublishInfo';
-import { useGenerateAndPublishPremium } from './useGenerateAndPublishPremium';
+import { usePremiumPublishControl } from './usePremiumPublishControl';
 import { PREMIUM_CARD_ANCHOR } from '@/features/show-workbench/publishReadiness';
 
 // `scroll-mt-20` only. The `target:ring-*` classes that used to live here could
@@ -55,21 +53,24 @@ function PublishFailureNotice({
 }
 
 export function PremiumDownloadCard({ showId, showStaleBadge = false }: PremiumDownloadCardProps) {
-  const { data } = usePublishInfo(showId);
-  // The flow itself lives in a shared hook because the header Actions menu runs
-  // the SAME publish from every section. Keeping it here would mean two
-  // implementations and two in-flight latches that cannot see each other.
+  // Read, derivation and flow all come from one hook, because the header
+  // Actions menu offers the SAME publish from every section and the two must
+  // never disagree about whether it is on offer or what it is called.
   const {
     run: handleGenerateAndPublish,
     isBusy,
     publishFailed,
     failureMessage,
-  } = useGenerateAndPublishPremium(showId);
-  const publishedUrl = data?.publishedUrl;
-  const publishedAt = data?.publishedAt;
-  const showUpdatedAt = data?.updatedAt;
+    info,
+    hasPublishedPremium,
+    stale,
+    landingUnpublished,
+    needsRepublish,
+    action,
+  } = usePremiumPublishControl(showId, showStaleBadge);
+  const publishedUrl = info?.publishedUrl;
+  const publishedAt = info?.publishedAt;
 
-  const hasPublishedPremium = Boolean(publishedUrl && publishedAt);
   const publishedLabel = publishedAt
     ? new Date(publishedAt).toLocaleDateString('en-US', {
         year: 'numeric',
@@ -77,22 +78,6 @@ export function PremiumDownloadCard({ showId, showStaleBadge = false }: PremiumD
         day: 'numeric',
       })
     : '';
-
-  const stale =
-    showStaleBadge &&
-    classifyPremiumPublishState({
-      publishedPremiumUrl: publishedUrl,
-      publishedPremiumAt: publishedAt,
-      updatedAt: showUpdatedAt,
-    }) === 'published-stale';
-
-  // Publishing the premium also snapshots the landing-page content
-  // (publishExperience), so if that second write failed the PDF can be
-  // current while the landing page is still unpublished. Surface the same
-  // republish action so the secretary has a way to finish the job — the
-  // Setup tab's "Landing page not published" chip lands here.
-  const landingUnpublished = showStaleBadge && data?.experienceIsPublished === false;
-  const needsRepublish = stale || landingUnpublished;
 
   return (
     <Card
@@ -121,10 +106,11 @@ export function PremiumDownloadCard({ showId, showStaleBadge = false }: PremiumD
             size="touch"
             className="shrink-0 whitespace-nowrap"
             onClick={handleGenerateAndPublish}
-            disabled={isBusy}
+            disabled={action.disabledReason !== undefined}
+            {...(action.disabledReason ? { title: action.disabledReason } : {})}
           >
             <Upload className="h-4 w-4 mr-2" />
-            {isBusy ? 'Publishing…' : 'Generate & publish premium'}
+            {action.label}
           </Button>
         </>
       ) : (
@@ -156,10 +142,11 @@ export function PremiumDownloadCard({ showId, showStaleBadge = false }: PremiumD
               size="touch"
               className="shrink-0 whitespace-nowrap"
               onClick={handleGenerateAndPublish}
-              disabled={isBusy}
+              disabled={action.disabledReason !== undefined}
+              {...(action.disabledReason ? { title: action.disabledReason } : {})}
             >
               <Upload className="h-4 w-4 mr-2" />
-              {isBusy ? 'Publishing…' : stale ? 'Republish premium' : 'Publish landing page'}
+              {action.label}
             </Button>
           )}
           <a

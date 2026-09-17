@@ -3,7 +3,7 @@ import { useLocation } from 'react-router-dom';
 import { useAuthContext } from '@/hooks/useAuthContext';
 import { useShowManageScope } from '@/hooks/useShowManageScope';
 import { PERMISSIONS, UserRole } from '@/types/auth-types';
-import { useGenerateAndPublishPremium } from '@/features/premium/useGenerateAndPublishPremium';
+import { usePremiumPublishControl } from '@/features/premium/usePremiumPublishControl';
 import {
   parseActionRouteContext,
   resolveActions,
@@ -36,10 +36,13 @@ export function useCurrentActions(): CurrentActions {
   const canCreateShows = hasPermission(PERMISSIONS.SHOW_CREATE);
   const isShowManagementStaff = hasRole(UserRole.SECRETARY) || hasRole(UserRole.SITE_ADMIN);
 
-  // The one flow behind the `publish-premium` command. Called unconditionally
-  // (hooks rules) with an empty id off a show route, where it reports not-busy
-  // and its `run` is a no-op.
-  const premium = useGenerateAndPublishPremium(showId ?? '');
+  // The one control behind the `publish-premium` command -- the same read,
+  // derivation and flow the Premium List card renders, so the menu can never
+  // offer a publish the card has withdrawn. Called unconditionally (hooks
+  // rules) with an empty id off a show route, where the read is disabled and
+  // `run` is a no-op. `true`: this menu is manager-only, so staleness is
+  // always the viewer's business here.
+  const premium = usePremiumPublishControl(showId ?? '', true);
 
   const resolved = useMemo(
     () =>
@@ -64,14 +67,17 @@ export function useCurrentActions(): CurrentActions {
         if (action.command !== 'publish-premium') return action;
         return {
           ...action,
-          label: premium.isBusy ? 'Publishing…' : action.label,
+          // Label AND availability come from the shared derivation, not from
+          // the registry's static text: "Republish premium" when the show data
+          // moved on, greyed with a reason when there is nothing to publish.
+          label: premium.action.label,
           run: premium.run,
-          // Not a permission -- a "wait", and it reads the SAME in-flight state
-          // the Premium List card shows, so the two triggers cannot disagree.
-          ...(premium.isBusy ? { disabledReason: 'Already publishing' } : {}),
+          ...(premium.action.disabledReason
+            ? { disabledReason: premium.action.disabledReason }
+            : {}),
         };
       }),
-    [resolved, premium.isBusy, premium.run]
+    [resolved, premium.action.label, premium.action.disabledReason, premium.run]
   );
 
   return { route, actions };

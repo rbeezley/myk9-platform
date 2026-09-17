@@ -51,7 +51,7 @@ describe('command palette show actions come from the action registry', () => {
     });
 
     const expected = resolveActions(
-      { kind: 'show', showId: 'show-1' },
+      { kind: 'show', showId: 'show-1', shellMounted: true },
       {
         canManageShow: true,
         canOperateShow: true,
@@ -60,15 +60,18 @@ describe('command palette show actions come from the action registry', () => {
       }
     );
 
-    expect(result.current.actionCommands.map(c => c.label)).toEqual(expected.map(a => a.label));
-    expect(result.current.actionCommands.map(c => c.href)).toEqual(expected.map(a => a.href));
-    // The premium item is a command, so it reaches the palette as a `run`, not
-    // an href -- the adapter already prefers href and falls back to run.
-    const premium = result.current.actionCommands.find(
-      c => c.label === 'Generate & publish premium'
+    // The premium item is ABSENT here, and deliberately: with no publish read
+    // resolved its state is unknown, `useCurrentActions` greys it rather than
+    // guess, and the palette drops greyed items because it has no disabled row
+    // and nowhere to put the reason. The header menu is where the reason shows.
+    const expectedInPalette = expected.filter(a => a.command !== 'publish-premium');
+    expect(result.current.actionCommands.map(c => c.label)).toEqual(
+      expectedInPalette.map(a => a.label)
     );
-    expect(premium?.href).toBeUndefined();
-    expect(typeof premium?.run).toBe('function');
+    expect(result.current.actionCommands.map(c => c.href)).toEqual(
+      expectedInPalette.map(a => a.href)
+    );
+    expect(result.current.actionCommands.some(c => /publish premium/i.test(c.label))).toBe(false);
     expect(result.current.actionCommands.every(c => c.showScope === 'show-1')).toBe(true);
   });
 

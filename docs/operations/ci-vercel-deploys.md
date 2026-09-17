@@ -7,6 +7,16 @@ every push to `main` is built by Vercel and served at `myk9show.com` — the
 build starts before CI finishes and is not gated by it. Pull requests still
 receive preview deployments for review.
 
+**Probe the custom domain, never only the default alias.** On 2026-09-15
+`myk9show.com` served a bundle four days behind `main` while
+`myk9-platform-myk9show.vercel.app` was current (MYK9-546); the domain had
+caught up by 2026-09-17 with no Vercel setting touched, and the cause was not
+established. So a "is my fix live?" check must fetch `https://myk9show.com/`
+and crawl its chunk graph for a string that exists only in the change
+(LESSONS `deploy-probe-unique-string`), and if the two hosts ever serve
+different `index-*.js` hashes, that divergence is the finding to record on
+MYK9-546 before closing anything else.
+
 The CI-gated process below is **dormant**. `STAGING_RELEASE_ENABLED` is unset,
 so `deploy-staging.yml` is skipped on every run, and the protected
 `staging-release` / `guides-release` refs are frozen at `5975adadb`

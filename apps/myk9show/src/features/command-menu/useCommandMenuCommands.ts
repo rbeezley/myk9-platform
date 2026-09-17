@@ -1,12 +1,19 @@
 import { useMemo } from 'react';
 import { useCommandMenuContext } from './commandMenuContextStore';
 import { buildContextualNavigationCommands } from './contextualCommands';
+import { useCurrentActions } from '@/features/actions/useCurrentActions';
 import type { CommandMenuCommand } from './commandMenuTypes';
 
 export interface CommandMenuCommands {
   /** Static, show-scoped navigation commands (task 2.1/2.3) — empty when no
    * context is registered. */
   navigationCommands: CommandMenuCommand[];
+  /** The SAME per-route action list the header Actions menu renders
+   * (`features/actions`), so the two doors can never disagree (MYK9-630).
+   * Empty off a show route. Items the registry returns greyed are omitted:
+   * the palette has no disabled row, and a dead row is worse than an absent
+   * one — the header menu is where the reason is shown. */
+  actionCommands: CommandMenuCommand[];
 }
 
 /**
@@ -18,8 +25,23 @@ export interface CommandMenuCommands {
  */
 export function useCommandMenuCommands(): CommandMenuCommands {
   const context = useCommandMenuContext();
+  const { route, actions } = useCurrentActions();
 
   const navigationCommands = useMemo(() => buildContextualNavigationCommands(context), [context]);
 
-  return { navigationCommands };
+  const actionCommands = useMemo<CommandMenuCommand[]>(() => {
+    if (route.kind !== 'show') return [];
+    return actions
+      .filter(action => !action.disabledReason)
+      .map(action => ({
+        id: `command-menu-action-${action.id}`,
+        group: 'actions' as const,
+        label: action.label,
+        sublabel: 'Current show',
+        showScope: route.showId,
+        href: action.href,
+      }));
+  }, [actions, route]);
+
+  return { navigationCommands, actionCommands };
 }

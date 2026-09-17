@@ -25,6 +25,12 @@ export function buildContextualNavigationCommands(
   const commands: CommandMenuCommand[] = [];
 
   for (const preset of Object.values(ENTRY_MANAGEMENT_PRESETS)) {
+    // "All entries" is now the action registry's "Open Entry Management"
+    // (MYK9-630) -- the palette and the header Actions menu read one list, so
+    // the unfiltered preset would be a second row for the same destination.
+    // The three genuinely FILTERED presets have no registry equivalent and
+    // stay (plan-secretary-show-actions.md marks them keep).
+    if (preset.id === 'all-entries') continue;
     const { filters } = preset.build();
     commands.push({
       id: `command-menu-entry-management-${preset.id}`,

@@ -62,7 +62,8 @@ export function CommandPalette({ open, onOpenChange, onShowShortcuts }: CommandP
   const { userWithRoles, hasPermission } = useAuthContext();
 
   const { addSearch, getSuggestions } = useRecentSearches({ context: 'command-palette' });
-  const { navigationCommands: contextualNavCommands } = useCommandMenuCommands();
+  const { navigationCommands: contextualNavCommands, actionCommands: registryActionCommands } =
+    useCommandMenuCommands();
 
   const dogs = useDogStore(state => state.dogs);
   const people = useUserStore(state => state.people);
@@ -286,7 +287,10 @@ export function CommandPalette({ open, onOpenChange, onShowShortcuts }: CommandP
   // owner surface has registered a command-menu context (commandMenuContextStore).
   const contextualCommands: CommandAction[] = useMemo(
     () =>
-      contextualNavCommands.map(command =>
+      // The action registry's list first (MYK9-630: the palette and the header
+      // Actions menu render ONE list), then the filtered Entry Management /
+      // Class Management presets an owner surface registered.
+      [...registryActionCommands, ...contextualNavCommands].map(command =>
         adaptCommandMenuCommand(
           command,
           navigate,
@@ -295,7 +299,7 @@ export function CommandPalette({ open, onOpenChange, onShowShortcuts }: CommandP
           'navigation'
         )
       ),
-    [contextualNavCommands, navigate, onOpenChange]
+    [registryActionCommands, contextualNavCommands, navigate, onOpenChange]
   );
 
   const allCommands = useMemo(

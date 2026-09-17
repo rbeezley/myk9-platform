@@ -11,6 +11,14 @@ import {
 import type { CommandMenuContext } from '@/features/command-menu/commandMenuTypes';
 import { getShortcutKeysForCommand } from '@/components/layout/appShortcuts';
 
+vi.mock('@/features/actions/useCurrentActions', () => ({
+  // The registry -> palette contract has its own test
+  // (features/command-menu/__tests__/commandMenuRegistryActions.test.tsx).
+  // Stubbed here so this file's per-test useAuthContext mocks do not each have
+  // to carry the show-management RBAC the registry reads.
+  useCurrentActions: () => ({ route: { kind: 'global' }, actions: [] }),
+}));
+
 vi.mock('@/hooks/useAuthContext', () => ({
   useAuthContext: vi.fn(),
 }));
@@ -133,7 +141,10 @@ describe('CommandPalette contextual commands', () => {
     expect(screen.getByText('Open Entry Management — needs review')).toBeInTheDocument();
     expect(screen.getByText('Open Entry Management — payment due')).toBeInTheDocument();
     expect(screen.getByText('Open Entry Management — needs check-in')).toBeInTheDocument();
-    expect(screen.getByText('Open Entry Management — all entries')).toBeInTheDocument();
+    // MYK9-630: the unfiltered "all entries" preset was replaced by the
+    // action registry's "Open Entry Management", which the header Actions
+    // menu and the palette both render from one list.
+    expect(screen.queryByText('Open Entry Management — all entries')).not.toBeInTheDocument();
   });
 
   it('omits Class Management commands when the registered context has no trialId', () => {

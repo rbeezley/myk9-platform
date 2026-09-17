@@ -43,12 +43,22 @@ type SnapshotRow = {
   checks?: unknown;
 };
 
-const supabaseUrl = process.env.VITE_SUPABASE_URL;
-const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+// Read and check the pair inside a function so the guard's narrowing survives
+// into `readJson`'s closure: a module-scope `const` checked at module scope is
+// still `string | undefined` when captured by a function (MYK9-540). Same
+// message, same throw, same module-initialisation moment.
+function requireEnv(): { supabaseUrl: string; serviceRoleKey: string } {
+  const supabaseUrl = process.env.VITE_SUPABASE_URL;
+  const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
-if (!supabaseUrl || !serviceRoleKey) {
-  throw new Error('VITE_SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY are required');
+  if (!supabaseUrl || !serviceRoleKey) {
+    throw new Error('VITE_SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY are required');
+  }
+
+  return { supabaseUrl, serviceRoleKey };
 }
+
+const { supabaseUrl, serviceRoleKey } = requireEnv();
 
 function assert(condition: unknown, message: string): asserts condition {
   if (!condition) throw new Error(message);

@@ -101,7 +101,12 @@ describe('findOverlaps', () => {
   });
 
   it('finds work in another worktree that has no PR yet', () => {
-    expect(findOverlaps(['apps/myk9show/src/x.ts'], [pr, wt])[0].source.kind).toBe('worktree');
+    // Assert the whole mapped list rather than indexing: an empty result would
+    // make `[0]` throw instead of failing the assertion, and the index read is
+    // `| undefined` under `noUncheckedIndexedAccess` (MYK9-540).
+    expect(findOverlaps(['apps/myk9show/src/x.ts'], [pr, wt]).map(o => o.source.kind)).toEqual([
+      'worktree',
+    ]);
   });
 
   it('is empty when nothing overlaps', () => {

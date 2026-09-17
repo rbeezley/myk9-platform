@@ -17,6 +17,7 @@ import type { MyEntry } from './my-entries-types';
 function renderRows(rows: MyEntry[], overrides: Partial<MyShowsListProps> = {}) {
   const props: MyShowsListProps = {
     filteredEntries: toOrders(rows),
+    source: 'confirmed',
     seenResultReleaseKeys: new Set<string>(),
     now: NOW,
     onCheckInDay: vi.fn(),

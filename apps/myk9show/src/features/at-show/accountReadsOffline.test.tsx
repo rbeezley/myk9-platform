@@ -83,7 +83,7 @@ beforeEach(() => {
   (getUserEntries as ReturnType<typeof vi.fn>).mockResolvedValue({
     data: replicaRows,
     error: null,
-    stale: true,
+    source: 'replica-offline',
   });
   // The browser says offline; `getUserEntries` still answers, from the replica.
   onlineManager.setOnline(false);
@@ -122,24 +122,26 @@ describe('account reads while offline, with identity resolved (MYK9-536)', () =>
     expect(result.current.all).toContain(SHOW_ID);
   });
 
-  it('useMyEntryBalanceSummary still calls the entry read and marks the figure unconfirmed', async () => {
+  it('useMyEntryBalanceSummary calls the entry read and withholds the unconfirmed figure', async () => {
     const { result } = renderHook(() => useMyEntryBalanceSummary(), {
       wrapper,
     });
 
     await waitFor(() => expect(result.current.data).toBeDefined());
     expect(getUserEntries).toHaveBeenCalledWith('person-1');
-    // The money surface must be able to tell that this $30 came from rows the
-    // server never confirmed — otherwise a hard-deleted entry reads as a real
-    // debt for as long as the device stays offline.
-    expect(result.current.data?.amountDueCents).toBe(3000);
-    expect(result.current.data?.stale).toBe(true);
+    // $30 derived from rows the server never confirmed is a figure the page is
+    // not entitled to state — a hard-deleted entry still in the per-show
+    // snapshot reads as a real debt for as long as the device stays offline.
+    // Decision (a): the figure is withheld, the receipt stays reachable.
+    expect(result.current.data?.kind).toBe('unknown');
+    expect(result.current.data?.amountDueCents).toBe(0);
   });
 
-  it('drops the stale mark once the authoritative read confirms the rows', async () => {
+  it('states the figure once the authoritative read confirms the rows', async () => {
     (getUserEntries as ReturnType<typeof vi.fn>).mockResolvedValue({
       data: replicaRows,
       error: null,
+      source: 'confirmed',
     });
 
     const { result } = renderHook(() => useMyEntryBalanceSummary(), {
@@ -147,7 +149,8 @@ describe('account reads while offline, with identity resolved (MYK9-536)', () =>
     });
 
     await waitFor(() => expect(result.current.data).toBeDefined());
-    expect(result.current.data?.stale).toBeUndefined();
+    expect(result.current.data?.kind).toBe('known');
+    expect(result.current.data?.amountDueCents).toBe(3000);
   });
 });
 

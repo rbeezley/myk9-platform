@@ -113,6 +113,7 @@ describe('useMyEntriesData — entry_close_date is a calendar date, not an insta
       const row = entryRow();
       row.show.entry_close_date = '2027-01-02T00:00:00+00:00';
       (getUserEntries as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
+        source: 'confirmed',
         data: [row],
         error: null,
       });
@@ -147,6 +148,7 @@ describe('useMyEntriesData — trial timezone lands on the class row', () => {
     const row = entryRow();
     row.trial.timezone = 'America/Los_Angeles';
     (getUserEntries as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
+      source: 'confirmed',
       data: [row],
       error: null,
     });
@@ -163,6 +165,7 @@ describe('useMyEntriesData — trial timezone lands on the class row', () => {
   // behaviour is unchanged; deadline decisions now see the unknown.
   it('leaves the zone undefined when the trial carries none', async () => {
     (getUserEntries as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
+      source: 'confirmed',
       data: [entryRow()],
       error: null,
     });
@@ -198,6 +201,7 @@ describe('useMyEntriesData — a failed reload must not discard loaded entries',
     ['refunded', 'refunded'],
   ])('keeps a %s entry settled under a pending order', async (rowStatus, expected) => {
     (getUserEntries as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
+      source: 'confirmed',
       data: [
         {
           ...entryRow(),
@@ -216,6 +220,7 @@ describe('useMyEntriesData — a failed reload must not discard loaded entries',
 
   it('badges a pending entry as pending even when its order reads paid', async () => {
     (getUserEntries as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
+      source: 'confirmed',
       data: [
         {
           ...entryRow(),
@@ -234,6 +239,7 @@ describe('useMyEntriesData — a failed reload must not discard loaded entries',
 
   it('keeps the previously loaded entries when a reload returns an error', async () => {
     (getUserEntries as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
+      source: 'confirmed',
       data: [entryRow()],
       error: null,
     });
@@ -243,6 +249,7 @@ describe('useMyEntriesData — a failed reload must not discard loaded entries',
     expect(result.current.isError).toBe(false);
 
     (getUserEntries as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
+      source: 'confirmed',
       data: null,
       error: new Error('network down'),
     });
@@ -258,6 +265,7 @@ describe('useMyEntriesData — a failed reload must not discard loaded entries',
 
   it('keeps the previously loaded entries when a reload throws', async () => {
     (getUserEntries as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
+      source: 'confirmed',
       data: [entryRow()],
       error: null,
     });
@@ -281,6 +289,7 @@ describe('useMyEntriesData — a failed reload must not discard loaded entries',
 
   it('still reports an empty list when the very first load fails', async () => {
     (getUserEntries as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
+      source: 'confirmed',
       data: null,
       error: new Error('network down'),
     });
@@ -310,6 +319,7 @@ describe('useMyEntriesData — preserved entries must not cross an identity chan
   // dogs, shows and balance to another.
   it('drops the previous account rows when the identity changes and the new fetch fails', async () => {
     (getUserEntries as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
+      source: 'confirmed',
       data: [entryRow()],
       error: null,
     });
@@ -325,6 +335,7 @@ describe('useMyEntriesData — preserved entries must not cross an identity chan
     });
     (useCurrentUserPersonId as ReturnType<typeof vi.fn>).mockReturnValue('person-B');
     (getUserEntries as ReturnType<typeof vi.fn>).mockResolvedValue({
+      source: 'confirmed',
       data: null,
       error: new Error('network down'),
     });
@@ -338,6 +349,7 @@ describe('useMyEntriesData — preserved entries must not cross an identity chan
 
   it('still preserves entries across a failed retry by the SAME identity', async () => {
     (getUserEntries as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
+      source: 'confirmed',
       data: [entryRow()],
       error: null,
     });
@@ -346,6 +358,7 @@ describe('useMyEntriesData — preserved entries must not cross an identity chan
     await waitFor(() => expect(result.current.entries).toHaveLength(1));
 
     (getUserEntries as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
+      source: 'confirmed',
       data: null,
       error: new Error('network down'),
     });

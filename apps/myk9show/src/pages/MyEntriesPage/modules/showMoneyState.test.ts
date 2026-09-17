@@ -89,7 +89,9 @@ describe('deriveShowMoneyState', () => {
         paidOrder('e2', 'd2', 'Juno'),
         unpaidOrder('e3', 'd3', 'Scout'),
       ]),
-      NOW
+      NOW,
+
+      'confirmed'
     );
 
     expect(state.kind).toBe('balance-due');
@@ -102,7 +104,9 @@ describe('deriveShowMoneyState', () => {
   it('sums only the owing orders when two are unpaid', () => {
     const state = deriveShowMoneyState(
       orders([unpaidOrder('e1', 'd1', 'Rex', 45), unpaidOrder('e2', 'd2', 'Scout', 30)]),
-      NOW
+      NOW,
+
+      'confirmed'
     );
 
     expect(state.amountCents).toBe(7500);
@@ -119,7 +123,9 @@ describe('deriveShowMoneyState', () => {
           classes: [makeClass({ paymentStatus: PaymentStatus.PENDING, paymentMethod: 'check' })],
         }),
       ]),
-      NOW
+      NOW,
+
+      'confirmed'
     );
 
     expect(state.kind).toBe('pay-at-show');
@@ -136,7 +142,9 @@ describe('deriveShowMoneyState', () => {
           classes: [makeClass({ paymentStatus: PaymentStatus.WAIVED, paymentMethod: 'waived' })],
         }),
       ]),
-      NOW
+      NOW,
+
+      'confirmed'
     );
 
     expect(state.kind).toBe('settled');
@@ -144,7 +152,9 @@ describe('deriveShowMoneyState', () => {
   });
 
   it('reports settled for a fully paid show', () => {
-    expect(deriveShowMoneyState(orders([paidOrder('e1', 'd1', 'Rex')]), NOW).kind).toBe('settled');
+    expect(
+      deriveShowMoneyState(orders([paidOrder('e1', 'd1', 'Rex')]), NOW, 'confirmed').kind
+    ).toBe('settled');
   });
 
   it('reports unresolved with no payment link once the show is past', () => {
@@ -152,7 +162,7 @@ describe('deriveShowMoneyState', () => {
     past.showDate = PAST_SHOW_DATE;
     past.showEndDate = PAST_SHOW_DATE;
 
-    const state = deriveShowMoneyState(orders([past]), NOW);
+    const state = deriveShowMoneyState(orders([past]), NOW, 'confirmed');
 
     expect(state.kind).toBe('unresolved');
     expect(state.amountCents).toBe(4500);
@@ -165,7 +175,7 @@ describe('deriveShowMoneyState', () => {
       { ...unpaidOrder('e2', 'd2', 'Scout'), registrationId: 'reg-e1' },
     ];
 
-    const state = deriveShowMoneyState(orders(multiDog), NOW);
+    const state = deriveShowMoneyState(orders(multiDog), NOW, 'confirmed');
 
     expect(state.dueDogNames).toEqual(['Rex', 'Scout']);
     expect(state.dueOrderIds).toEqual(['e1']);
@@ -293,7 +303,7 @@ describe('deriveShowMoneyState — names only the dogs whose rows owe (Codex, PR
       },
     };
 
-    const state = deriveShowMoneyState([twoDog], NOW);
+    const state = deriveShowMoneyState([twoDog], NOW, 'confirmed');
 
     expect(state.kind).toBe('balance-due');
     expect(state.dueDogNames).toEqual(['Scout']);

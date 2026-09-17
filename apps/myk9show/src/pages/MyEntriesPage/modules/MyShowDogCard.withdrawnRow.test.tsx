@@ -20,6 +20,7 @@ import type { EntryClass, MyEntry } from './my-entries-types';
 function renderRows(rows: MyEntry[]) {
   const props: MyShowsListProps = {
     filteredEntries: toOrders(rows),
+    source: 'confirmed',
     seenResultReleaseKeys: new Set<string>(),
     now: NOW,
     onCheckInDay: vi.fn(),

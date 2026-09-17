@@ -40,6 +40,7 @@ import ExhibitorPaymentsPage from './ExhibitorPaymentsPage';
 describe('ExhibitorPaymentsPage balance states', () => {
   beforeEach(() => {
     balanceState.data = {
+      kind: 'known',
       currentFeesCents: 0,
       amountDueCents: 0,
       onlineDueCents: 0,
@@ -56,7 +57,7 @@ describe('ExhibitorPaymentsPage balance states', () => {
     render(<ExhibitorPaymentsPage />);
 
     expect(screen.queryByText('Current entries are paid up.')).not.toBeInTheDocument();
-    expect(screen.getByText(/can.t show your balance right now/i)).toBeInTheDocument();
+    expect(screen.getByText(/haven't been able to confirm your balance/i)).toBeInTheDocument();
     expect(
       document.querySelector('.text-success.tabular-nums, .tabular-nums.text-success')
     ).toBeNull();
@@ -78,6 +79,7 @@ describe('ExhibitorPaymentsPage balance states', () => {
 
   it('names the show in the single-show amount-due case', () => {
     balanceState.data = {
+      kind: 'known',
       currentFeesCents: 5500,
       amountDueCents: 5500,
       onlineDueCents: 5500,
@@ -106,6 +108,7 @@ describe('ExhibitorPaymentsPage balance states', () => {
 
   it('does not attribute a mixed balance to the single online show', () => {
     balanceState.data = {
+      kind: 'known',
       currentFeesCents: 8500,
       amountDueCents: 8500,
       onlineDueCents: 5500,
@@ -134,6 +137,7 @@ describe('ExhibitorPaymentsPage balance states', () => {
 
   it('keeps a past-show balance visible without offering a dead cart action', () => {
     balanceState.data = {
+      kind: 'known',
       currentFeesCents: 0,
       amountDueCents: 9000,
       onlineDueCents: 9000,
@@ -167,6 +171,7 @@ describe('ExhibitorPaymentsPage balance states', () => {
 
   it('always offers a way to act on a positive balance with no payable breakdown', () => {
     balanceState.data = {
+      kind: 'known',
       currentFeesCents: 4000,
       amountDueCents: 4000,
       onlineDueCents: 4000,
@@ -195,6 +200,7 @@ describe('ExhibitorPaymentsPage balance states', () => {
 
     it('names the entry-close date beside the show on a single-show balance', () => {
       balanceState.data = {
+        kind: 'known',
         currentFeesCents: 5500,
         amountDueCents: 5500,
         onlineDueCents: 5500,
@@ -221,6 +227,7 @@ describe('ExhibitorPaymentsPage balance states', () => {
 
     it('names the entry-close date in the qualified single-show line when other money is also due', () => {
       balanceState.data = {
+        kind: 'known',
         currentFeesCents: 5500,
         amountDueCents: 5500,
         onlineDueCents: 2500,
@@ -249,6 +256,7 @@ describe('ExhibitorPaymentsPage balance states', () => {
 
     it('names each show its own entry-close date in the multi-show breakdown', () => {
       balanceState.data = {
+        kind: 'known',
         currentFeesCents: 5500,
         amountDueCents: 5500,
         onlineDueCents: 5500,
@@ -287,6 +295,7 @@ describe('ExhibitorPaymentsPage balance states', () => {
 
     it('shows the bare show name when the close date is unknown or already past', () => {
       balanceState.data = {
+        kind: 'known',
         currentFeesCents: 5500,
         amountDueCents: 5500,
         onlineDueCents: 5500,
@@ -327,6 +336,7 @@ describe('ExhibitorPaymentsPage balance states', () => {
     it('drops the deadline once the show timezone rolls past it on a tab left open', async () => {
       vi.setSystemTime(new Date('2026-09-14T20:00:00Z'));
       balanceState.data = {
+        kind: 'known',
         currentFeesCents: 5500,
         amountDueCents: 5500,
         onlineDueCents: 5500,

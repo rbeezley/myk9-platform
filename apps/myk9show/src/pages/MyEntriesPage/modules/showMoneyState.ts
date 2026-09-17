@@ -12,7 +12,13 @@
  */
 
 import { buildFinishPaymentHref } from '@/features/payments/finishPaymentHref';
-import { isMoneyConfirmed, type UserEntriesSource } from '@/services/database/entries';
+// The gate is a PURE predicate, so it is imported from its own module rather
+// than the `entries` barrel: a unit test that mocks the barrel's data-access
+// functions must not thereby stub out the rule that withholds money.
+import {
+  isMoneyConfirmed,
+  type UserEntriesSource,
+} from '@/services/database/entries/userEntriesRead';
 import { getOrderOnlinePrompt, getOrderPayAtShowPrompt } from './myEntryOrderBalance';
 import { isPastShowEntry } from './myEntriesStats.helpers';
 import type { MyEntry } from './my-entries-types';
@@ -24,12 +30,7 @@ import type { MyEntry } from './my-entries-types';
  * and pay button on My Shows renders from this kind alone — no surface reads
  * the row source for money itself (MYK9-629 restructure 1).
  */
-export type ShowMoneyKind =
-  | 'settled'
-  | 'pay-at-show'
-  | 'balance-due'
-  | 'unresolved'
-  | 'unknown';
+export type ShowMoneyKind = 'settled' | 'pay-at-show' | 'balance-due' | 'unresolved' | 'unknown';
 
 /**
  * The single value a show group renders money from when the rows are

@@ -7,7 +7,13 @@ import { getTrialTimezone } from '@/features/registries';
 import { getEntryWindowTimezone, type EntryWindowTrial } from '@/utils/entryWindowDate';
 import { DEFAULT_SHOW_TIMEZONE, toEntryCloseDay } from './entryCloseDeadline';
 import { getEntryPaymentPrompt } from './entryPaymentPrompt';
-import { isMoneyConfirmed, type UserEntriesSource } from '@/services/database/entries';
+// The gate is a PURE predicate, so it is imported from its own module rather
+// than the `entries` barrel: a unit test that mocks the barrel's data-access
+// functions must not thereby stub out the rule that withholds money.
+import {
+  isMoneyConfirmed,
+  type UserEntriesSource,
+} from '@/services/database/entries/userEntriesRead';
 
 export interface EntryBalanceClassSource {
   id: string;

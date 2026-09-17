@@ -35,6 +35,7 @@ const balanceState: {
   isError: boolean;
 } = {
   data: {
+    kind: 'known',
     currentFeesCents: 0,
     amountDueCents: 0,
     onlineDueCents: 0,
@@ -81,6 +82,7 @@ describe('ExhibitorPaymentsPage on a 390px phone', () => {
     paymentYearsState.isFetching = false;
     paymentYearsState.refetch = vi.fn();
     balanceState.data = {
+      kind: 'known',
       currentFeesCents: 0,
       amountDueCents: 0,
       onlineDueCents: 0,

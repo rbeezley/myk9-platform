@@ -19,6 +19,7 @@ import { MyShowsList, useMyShowGroups, type MyShowsListProps } from './MyShowsLi
 function renderList(overrides: Partial<MyShowsListProps> = {}) {
   const props: MyShowsListProps = {
     filteredEntries: toOrders(heartlandRows()),
+    source: 'confirmed',
     seenResultReleaseKeys: new Set<string>(),
     now: NOW,
     onCheckInDay: vi.fn(),

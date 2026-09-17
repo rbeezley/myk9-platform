@@ -157,6 +157,7 @@ describe('MyEntries — a pending class added to a paid enrollment (MYK9-536)', 
     });
     (useCurrentUserPersonId as ReturnType<typeof vi.fn>).mockReturnValue('person-exhibitor');
     (getUserEntries as ReturnType<typeof vi.fn>).mockResolvedValue({
+      source: 'confirmed',
       data: [paidEntryRow(), pendingAddOnRow()],
       error: null,
     });
@@ -260,6 +261,7 @@ describe('MyEntries — a pending class added to a paid enrollment (MYK9-536)', 
     const settled = pendingAddOnRow();
     settled.payment_status = 'paid_by_check';
     (getUserEntries as ReturnType<typeof vi.fn>).mockResolvedValue({
+      source: 'confirmed',
       data: [paidEntryRow(), settled],
       error: null,
     });

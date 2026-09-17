@@ -66,7 +66,11 @@ vi.mock('@/services/mappers/entryMappers', () => ({
   mapReplicatedEntryToDbRow: mocks.mapReplicatedEntryToDbRow,
 }));
 
-import { USER_ENTRIES_SELECT, getUserEntries, isEntryCloseDayPast, searchEntries } from './search';
+import { isEntryCloseDayPast, searchEntries } from './search';
+// The account-level read moved to its own module (MYK9-629 / MYK9-563 item
+// 7). Its tests stay here because they share this file's replication and
+// PostgREST scaffolding with `searchEntries`.
+import { USER_ENTRIES_SELECT, getUserEntries } from './userEntriesRead';
 
 function makeViewEntriesQuery(
   data: Array<Record<string, unknown>>,
@@ -300,7 +304,7 @@ describe('getUserEntries account-scope read', () => {
 
     const result = await getUserEntries('user-1');
 
-    expect(result).toEqual({ data: onlineRows, error: null });
+    expect(result).toEqual({ data: onlineRows, error: null, source: 'confirmed' });
     expect(mocks.supabaseFrom).toHaveBeenCalledWith('view_authenticated_entry_results');
     expect(viewQuery.eq).toHaveBeenCalledWith('is_own_entry', true);
     // The authenticated view retains the caller's own tombstoned entries so My
@@ -380,9 +384,9 @@ describe('getUserEntries account-scope read', () => {
 
     expect(result.error).toBeNull();
     expect(result.data.map(row => row.id)).toEqual(['entry-1']);
-    // Kept, but NOT confirmed: a caller that states an amount due from these
-    // rows must be able to tell that it is showing saved data.
-    expect(result.stale).toBe(true);
+    // Kept, but NOT confirmed. The server was reachable and declined to
+    // return these rows, which is `replica-after-error`, not `replica-offline`.
+    expect(result.source).toBe('replica-after-error');
     expect(mocks.loggerWarn).toHaveBeenCalledWith(
       expect.stringContaining('the authoritative view did not return'),
       'database',
@@ -401,7 +405,7 @@ describe('getUserEntries account-scope read', () => {
   // payment_status, resolveEffectivePaymentStatus falls to "the entry row
   // stands", so a pending order over a paid-looking row under-claims the
   // amount due. The result must say so.
-  it('marks the read stale when the enrollment enrichment times out', async () => {
+  it('reports a replica source when the enrollment enrichment times out', async () => {
     vi.useFakeTimers();
     try {
       mockReplicatedStores();
@@ -429,8 +433,10 @@ describe('getUserEntries account-scope read', () => {
       const result = await pending;
 
       expect(result.data.map(row => row.id)).toEqual(['entry-1']);
-      expect(result.stale).toBe(true);
-      expect(result.enrichmentMissing).toBe(true);
+      // The enrichment's own failure needs no second flag: this read is
+      // already on the replica, and the source alone withholds every figure
+      // the missing `payment_status` could have skewed (MYK9-629).
+      expect(result.source).toBe('replica-after-error');
     } finally {
       vi.useRealTimers();
     }
@@ -535,9 +541,9 @@ describe('getUserEntries account-scope read', () => {
     expect(result.data).toEqual([]);
     expect(result.error).toBeNull();
     // Empty AND unconfirmed. Offline with nothing cached we do not know that
-    // the account owes nothing — we know we could not ask. `stale` keeps a
+    // the account owes nothing — we know we could not ask. The source keeps a
     // money surface from reading this absence as "paid in full".
-    expect(result.stale).toBe(true);
+    expect(result.source).toBe('replica-offline');
     expect(mocks.supabaseFrom).toHaveBeenCalledWith('view_authenticated_entry_results');
     expect(mocks.mapReplicatedEntryToDbRow).not.toHaveBeenCalled();
   });
@@ -627,7 +633,7 @@ describe('getUserEntries account-scope read', () => {
       'select_user_entries_stale_replica_after_error',
       expect.any(Number)
     );
-    expect(result.stale).toBe(true);
+    expect(result.source).toBe('replica-after-error');
   });
 
   it('surfaces the online error when the replica is also unreadable', async () => {

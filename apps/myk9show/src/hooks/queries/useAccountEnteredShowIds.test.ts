@@ -36,7 +36,11 @@ describe('useAccountEnteredShowIds', () => {
 
   it('throws account-level service errors so React Query can expose the failure state', async () => {
     const readError = new Error('entries unavailable');
-    vi.mocked(getUserEntries).mockResolvedValue({ data: [], error: readError });
+    vi.mocked(getUserEntries).mockResolvedValue({
+      data: [],
+      error: readError,
+      source: 'replica-after-error',
+    });
     useQueryMock.mockReturnValue({ data: undefined, isLoading: true, isError: false });
 
     renderHook(() => useAccountEnteredShowIds('person-1'));

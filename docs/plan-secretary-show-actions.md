@@ -173,3 +173,9 @@ Richard, 2026-09-17: "one place to go… always visible… if an option is not r
 - Build order: registry + header component + the secretary list here (MYK9-630); MYK9-631 adds the exhibitor list.
 
 Mockup: https://claude.ai/artifact/NsYZhBFSHNm9qZnDfqa3xU (boards draw the button in the page header; final placement is the app header).
+
+### Placement rule (Richard, 2026-09-17)
+
+An action lives in the header Actions menu when its target is the whole page (the show, this exhibitor's entries at this show). It stays beside the content when the user must first pick which item it applies to (this class row, this entry row, this dog). The same verb never appears in both places. A status banner with a call to action (money due, waiting on payment) keeps its own button and that verb is NOT repeated in the menu. Consequence for MYK9-631: "Pay" stays on the banner and leaves the exhibitor menu.
+
+Cost of the header placement, found in the phase 1 review: the button squeezes the brand wordmark at 360 to 414px, so below the `sm` breakpoint the trigger is icon-only with a screen-reader label, and the wordmark guard e2e signs in as a secretary on a show route, not only as an exhibitor on a page with no actions.

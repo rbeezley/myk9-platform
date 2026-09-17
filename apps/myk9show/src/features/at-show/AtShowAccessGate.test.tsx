@@ -20,6 +20,7 @@ const mockAccountToday = vi.hoisted(() => ({
 const mockHasAnyEntry = vi.hoisted(() => ({
   hasAnyEntryForShow: false,
   isLoading: false,
+  isError: false,
 }));
 
 vi.mock('@/hooks/useAuthContext', () => ({
@@ -65,6 +66,7 @@ describe('AtShowAccessGate', () => {
     mockAccountToday.error = null;
     mockHasAnyEntry.hasAnyEntryForShow = false;
     mockHasAnyEntry.isLoading = false;
+    mockHasAnyEntry.isError = false;
     useRingsideGrantStore.getState().clearGrant();
     useRingsideGrantStore.getState().setSuppressRehydration(false);
   });
@@ -236,6 +238,30 @@ describe('AtShowAccessGate', () => {
       screen.queryByText("You don't have ringside access for this show.")
     ).not.toBeInTheDocument();
     expect(screen.queryByText("Ringside isn't open for this show yet.")).not.toBeInTheDocument();
+  });
+
+  // MYK9-629 restructure 3. `hasAnyEntryForShow: false` after a FAILED read is
+  // an absence of knowledge, and the branch it used to fall into speaks to a
+  // stranger: "You don't have ringside access for this show." An entered
+  // exhibitor standing at the ring on dead venue wifi was being told they had no
+  // relationship to the show they had paid to enter.
+  it('says the entry check FAILED instead of calling an entered exhibitor a stranger', () => {
+    mockUser = { id: 'user-1' };
+    mockRoles = [UserRole.EXHIBITOR];
+    mockHasAnyEntry.hasAnyEntryForShow = false;
+    mockHasAnyEntry.isLoading = false;
+    mockHasAnyEntry.isError = true;
+
+    renderGate();
+
+    expect(screen.getByText(/couldn't confirm your entries/i)).toBeInTheDocument();
+    // The claim the old copy made about this exhibitor, which it could not back.
+    expect(
+      screen.queryByText("You don't have ringside access for this show.")
+    ).not.toBeInTheDocument();
+    // Both doors stay open: retry via My Shows, or a passcode if they have one.
+    expect(screen.getByRole('link', { name: /go to my shows/i })).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: /show-day passcode/i })).toBeInTheDocument();
   });
 
   // exhibitor-show-day-access (D9): the passcode form is reserved for anonymous

@@ -6,14 +6,14 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useAuthContext } from '@/hooks/useAuthContext';
-import { useCurrentUserPersonId } from '@/hooks/useRoleBasedData';
+import { useEntriesPersonId } from '@/hooks/useEntriesPersonId';
 import { deriveEntriesIdentityState, type EntriesIdentityState } from './entriesIdentityState';
 import { auditService } from '@/services/AuditService';
 import { AuditAction } from '@/types/audit-types';
 import { CheckInStatus } from '@/types/check-in-types';
 import { EntryStatus, PaymentStatus } from '@/types/show-registration-types';
 import { logger } from '@/services/LoggingService';
-import { getUserEntries } from '@/services/database/entries';
+import { getUserEntries, type UserEntriesSource } from '@/services/database/entries';
 import {
   mapEntryStatus,
   mapPaymentStatus,
@@ -22,7 +22,8 @@ import {
 import { resolveEffectivePaymentStatus } from '@/utils/effectivePaymentStatus';
 import {
   mapEntryRowToBalanceSource,
-  summarizeEntryBalances,
+  summarizeEntryBalancesFromSource,
+  UNKNOWN_ENTRY_BALANCE_SUMMARY,
   type EntryBalanceRawRow,
   type EntryBalanceSummary,
 } from '@/features/payments/entryBalanceSummary';
@@ -49,6 +50,12 @@ interface UseMyEntriesDataReturn {
    * Payments. See `exhibitor-money-clarity` spec + `crossSurfaceAmountDue.test.ts`.
    */
   balanceSummary: EntryBalanceSummary;
+  /**
+   * Where the rows came from. The page passes it to `MyShowsList`, which is the
+   * only way any money on My Shows is derived; nothing else may branch on it
+   * for money (MYK9-629 restructure 1-2).
+   */
+  source: UserEntriesSource;
   /**
    * Whether we know which person these entries belong to. `unresolved` is a
    * real state, distinct from "no entries": the `people` lookup pauses
@@ -143,9 +150,10 @@ function getOwnEntryPaymentStatus(
 export function useMyEntriesData({
   persistCheckInStatus,
 }: UseMyEntriesDataOptions): UseMyEntriesDataReturn {
-  const { user, userWithRoles, loading: authLoading } = useAuthContext();
-  const legacyPersonId = useCurrentUserPersonId();
-  const personId = legacyPersonId ?? userWithRoles?.databaseUserId ?? null;
+  const { user, loading: authLoading } = useAuthContext();
+  // The one resolver, shared with My Payments and both ringside hooks, so the
+  // `getUserEntries` cache is one key per account (MYK9-629 restructure 4).
+  const personId = useEntriesPersonId();
   // Whether we know WHO these entries belong to. The page gates its first-run
   // claim on this: `entries: []` from an unresolved identity is an absence of
   // knowledge, not an absence of entries (see entriesIdentityState).
@@ -155,9 +163,13 @@ export function useMyEntriesData({
     personId,
   });
   const [entries, setEntries] = useState<MyEntry[]>([]);
-  const [balanceSummary, setBalanceSummary] = useState<EntryBalanceSummary>(() =>
-    summarizeEntryBalances([])
+  // Before the first read lands, the balance is UNKNOWN, not zero: a zeroed
+  // `known` summary is the "$0.00, paid up" claim this page is not entitled to
+  // make about an account it has not read yet.
+  const [balanceSummary, setBalanceSummary] = useState<EntryBalanceSummary>(
+    UNKNOWN_ENTRY_BALANCE_SUMMARY
   );
+  const [source, setSource] = useState<UserEntriesSource>('replica-after-error');
   const [isLoading, setIsLoading] = useState(true);
   const [isError, setIsError] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
@@ -328,7 +340,8 @@ export function useMyEntriesData({
     if (identity !== loadedIdentityRef.current) {
       loadedIdentityRef.current = null;
       setEntries([]);
-      setBalanceSummary(summarizeEntryBalances([]));
+      setBalanceSummary(UNKNOWN_ENTRY_BALANCE_SUMMARY);
+      setSource('replica-after-error');
       setIsError(false);
     }
 
@@ -341,7 +354,7 @@ export function useMyEntriesData({
     }
 
     try {
-      const { data, error } = await getUserEntries(personId);
+      const { data, error, source: rowSource } = await getUserEntries(personId);
 
       if (error) {
         logger.error('Failed to load entries:', 'pages', {}, error as Error);
@@ -357,11 +370,15 @@ export function useMyEntriesData({
       const rawRows = (data as OwnEntryResultRow[]).filter(shouldRenderOwnEntry);
       const userEntries = groupEntriesByOrder(rawRows.map(entry => transformEntry(entry)));
       setEntries(userEntries);
+      setSource(rowSource);
       // Money math runs on the same raw, ungrouped rows My Payments uses —
-      // see the `balanceSummary` doc comment above.
+      // see the `balanceSummary` doc comment above — and through the same one
+      // gate, so an unconfirmed read yields `kind: 'unknown'` here exactly as
+      // it does on My Payments.
       setBalanceSummary(
-        summarizeEntryBalances(
-          rawRows.map(row => mapEntryRowToBalanceSource(row as EntryBalanceRawRow))
+        summarizeEntryBalancesFromSource(
+          rawRows.map(row => mapEntryRowToBalanceSource(row as EntryBalanceRawRow)),
+          rowSource
         )
       );
       loadedIdentityRef.current = identity;
@@ -396,8 +413,15 @@ export function useMyEntriesData({
    */
   const refreshEntries = useCallback(async () => {
     setRefreshing(true);
-    await loadMyEntries();
-    setRefreshing(false);
+    try {
+      await loadMyEntries();
+    } finally {
+      // `loadMyEntries` swallows its own failures, but a future edit that lets
+      // one escape would otherwise leave the retry button spinning and disabled
+      // beside the error card — the one state the exhibitor needs it working in
+      // (PR #2301 P3).
+      setRefreshing(false);
+    }
   }, [loadMyEntries]);
 
   /**
@@ -442,24 +466,6 @@ export function useMyEntriesData({
         // classId is the individual entry row id — use it as the DB target so
         // grouped cards with multiple classes update the right row.
         await persistCheckInStatus({ entryId: classId, classId, newStatus: status });
-
-        // Log the check-in status change
-        auditService.log({
-          action: AuditAction.UPDATE,
-          entityType: 'class_entry',
-          entityId: classId,
-          changes: {
-            checkInStatus: { from: previousStatus || 'no-status', to: status },
-          },
-          metadata: {
-            action: 'exhibitor_check_in',
-            userId: user?.id,
-            entryId,
-            dogName: entry.dogName,
-            className: classEntry.name,
-            notes,
-          },
-        });
       } catch (error) {
         logger.error('Failed to update check-in status:', 'pages', {}, error as Error);
         // Revert optimistic update
@@ -488,6 +494,27 @@ export function useMyEntriesData({
         );
         throw error;
       }
+
+      // Bookkeeping, OUTSIDE the try. Inside it, a throw from the audit write
+      // reverted a check-in the database had already accepted and re-threw, so
+      // the exhibitor saw their check-in undone by a logging failure (PR #2301
+      // P3). The persisted write above is the thing that must succeed.
+      auditService.log({
+        action: AuditAction.UPDATE,
+        entityType: 'class_entry',
+        entityId: classId,
+        changes: {
+          checkInStatus: { from: previousStatus || 'no-status', to: status },
+        },
+        metadata: {
+          action: 'exhibitor_check_in',
+          userId: user?.id,
+          entryId,
+          dogName: entry.dogName,
+          className: classEntry.name,
+          notes,
+        },
+      });
     },
     [entries, persistCheckInStatus, user?.id]
   );
@@ -495,6 +522,7 @@ export function useMyEntriesData({
   return {
     entries,
     balanceSummary,
+    source,
     identityState,
     isLoading,
     isError,

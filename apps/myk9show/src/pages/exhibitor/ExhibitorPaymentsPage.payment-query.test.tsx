@@ -36,6 +36,7 @@ const balanceState: {
   isError: boolean;
 } = {
   data: {
+    kind: 'known',
     currentFeesCents: 0,
     amountDueCents: 0,
     onlineDueCents: 0,

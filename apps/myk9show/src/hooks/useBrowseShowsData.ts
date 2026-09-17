@@ -23,7 +23,7 @@ import { ShowPermissionValidator } from '@/utils/permissionValidation';
 import { userHasEntriesForShow } from '@/utils/entryStatusUtils';
 import { mergeAccountEnteredShowStubs } from '@/utils/browseShowsUtils';
 import { useAccountEnteredShowIds } from '@/hooks/queries/useAccountEnteredShowIds';
-import { useCurrentUserPersonId } from '@/hooks/useRoleBasedData';
+import { useEntriesPersonId } from '@/hooks/useEntriesPersonId';
 
 /**
  * Enhanced show with relationship metadata
@@ -118,7 +118,9 @@ export function useBrowseShowsData({
   // authoritative account-level entered show ids (same source as My Shows) as
   // additive stubs. Membership filters key on show id + the caller's user id,
   // so this corrects the tab count/list without swapping the shared store.
-  const personId = useCurrentUserPersonId();
+  // The SAME resolver the other three `getUserEntries` consumers use, so
+  // restructure 4 is 4/4 rather than 3/4 (MYK9-629 round 1).
+  const personId = useEntriesPersonId();
   const accountEnteredShowIds = useAccountEnteredShowIds(personId);
   const { active: activeAccountEnteredShowIds, all: allAccountEnteredShowIds } =
     accountEnteredShowIds;

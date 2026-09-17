@@ -7,6 +7,7 @@ import { EntryStatus, PaymentStatus } from '@/types/show-registration-types';
 import { CheckInStatus } from '@/types/check-in-types';
 import type { ResultStatus } from '@/components/common/ResultBadge';
 import type { EntryStatusKind } from '@/services/entryDisplay/entryDisplaySelectors';
+import type { ShowMoneyKind } from './showMoneyState';
 
 /**
  * Represents a class entry within a show registration
@@ -253,6 +254,15 @@ export interface ReceiptDialogState {
   open: boolean;
   entry: MyEntry | null;
   orders?: MyEntry[] | undefined;
+  /**
+   * The show group's money state at the moment the dialog was opened, carried
+   * so the orders CHOOSER states amounts from the one derivation rather than
+   * re-reading the rows. Without it the exhibitor followed the "amounts are
+   * hidden" notice into a list that printed the exact figure it withheld
+   * (MYK9-629 round 1). The RECEIPT document itself is not gated — decision
+   * (a) — only the money words and figures around it.
+   */
+  moneyKind?: ShowMoneyKind | undefined;
 }
 
 /**

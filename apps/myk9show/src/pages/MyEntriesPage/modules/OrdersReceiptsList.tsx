@@ -31,6 +31,7 @@ import { formatPaymentCents, formatPaymentDate } from '@/features/payments/money
 import { formatShortCalendarDate } from '@/lib/format/dates';
 import { PaymentStatus } from '@/types/show-registration-types';
 import { getOrderOnlinePrompt } from './myEntryOrderBalance';
+import type { ShowMoneyKind } from './showMoneyState';
 import type { MyEntry } from './my-entries-types';
 
 /**
@@ -92,12 +93,21 @@ function confirmationOf(order: MyEntry): string {
 export interface OrdersReceiptsListProps {
   orders: MyEntry[];
   mode: OrdersPickerMode;
+  /**
+   * The show group's one money state. `'unknown'` withholds every figure and
+   * money word in this chooser: it is reached from the very notice that says
+   * amounts are hidden, and it was printing "$45.00 · $45.00 due" underneath it
+   * (MYK9-629 round 1). Defaults to `'unknown'` so a caller that forgets it
+   * withholds rather than leaks.
+   */
+  moneyKind?: ShowMoneyKind | undefined;
   onSelect: (order: MyEntry) => void;
 }
 
 export const OrdersReceiptsList: React.FC<OrdersReceiptsListProps> = ({
   orders,
   mode,
+  moneyKind = 'unknown',
   onSelect,
 }) => (
   <ul className="space-y-2">
@@ -105,9 +115,12 @@ export const OrdersReceiptsList: React.FC<OrdersReceiptsListProps> = ({
       const dogs = orderDogNames(order).join(', ');
       const confirmation = confirmationOf(order);
       const submitted = formatShortCalendarDate(order.submittedAt);
-      const money = mode === 'receipt' ? describeOrderMoney(order) : null;
-      const amount = formatPaymentCents(Math.round(order.totalFee * 100), 'USD');
-      const refund = mode === 'receipt' ? describeOrderRefund(order) : null;
+      const statesMoney = mode === 'receipt' && moneyKind !== 'unknown';
+      const money = statesMoney ? describeOrderMoney(order) : null;
+      const amount = statesMoney
+        ? formatPaymentCents(Math.round(order.totalFee * 100), 'USD')
+        : null;
+      const refund = statesMoney ? describeOrderRefund(order) : null;
       return (
         <li key={order.id}>
           <Button
@@ -116,7 +129,9 @@ export const OrdersReceiptsList: React.FC<OrdersReceiptsListProps> = ({
             className="min-h-11 w-full justify-between gap-3 text-left"
             aria-label={
               mode === 'receipt'
-                ? `Receipt for order ${confirmation} — ${dogs}, ${money}`
+                ? money
+                  ? `Receipt for order ${confirmation} — ${dogs}, ${money}`
+                  : `Receipt for order ${confirmation} — ${dogs}`
                 : `Edit order ${confirmation} — ${dogs}`
             }
             onClick={() => onSelect(order)}
@@ -124,7 +139,7 @@ export const OrdersReceiptsList: React.FC<OrdersReceiptsListProps> = ({
             <span className="min-w-0 truncate">
               {submitted} · {confirmation} · {dogs}
             </span>
-            {money && (
+            {money && amount && (
               <span className="shrink-0 text-right">
                 <span className="block font-medium">{amount}</span>
                 <span className="block text-xs font-normal text-muted-foreground">{money}</span>
@@ -142,6 +157,8 @@ export interface OrdersPickerDialogProps {
   open: boolean;
   mode: OrdersPickerMode;
   orders: MyEntry[];
+  /** See `OrdersReceiptsListProps.moneyKind`. */
+  moneyKind?: ShowMoneyKind | undefined;
   onSelect: (order: MyEntry) => void;
   onClose: () => void;
 }
@@ -151,6 +168,7 @@ export const OrdersPickerDialog: React.FC<OrdersPickerDialogProps> = ({
   open,
   mode,
   orders,
+  moneyKind,
   onSelect,
   onClose,
 }) => (
@@ -169,7 +187,7 @@ export const OrdersPickerDialog: React.FC<OrdersPickerDialogProps> = ({
       {/* A show entered through dozens of orders (the seeded exhibitor has 63
           at one show) must scroll inside the dialog, not past its bottom edge. */}
       <div className="max-h-[60vh] overflow-y-auto pr-1">
-        <OrdersReceiptsList orders={orders} mode={mode} onSelect={onSelect} />
+        <OrdersReceiptsList orders={orders} mode={mode} moneyKind={moneyKind} onSelect={onSelect} />
       </div>
       <div className="flex justify-end">
         <Button type="button" variant="outline" className="min-h-11" onClick={onClose}>

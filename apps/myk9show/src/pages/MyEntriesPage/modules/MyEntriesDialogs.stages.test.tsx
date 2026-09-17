@@ -69,7 +69,7 @@ describe('ReceiptEntryDialog — the orders list stage (task 4.1)', () => {
 
     render(
       <ReceiptEntryDialog
-        dialog={{ open: true, entry: null, orders: [scoutOrder] }}
+        dialog={{ open: true, entry: null, orders: [scoutOrder], moneyKind: 'balance-due' }}
         user={null}
         onClose={vi.fn()}
       />
@@ -83,7 +83,7 @@ describe('ReceiptEntryDialog — the orders list stage (task 4.1)', () => {
   it('lists every order, with its date, confirmation, dogs, amount and refund', () => {
     render(
       <ReceiptEntryDialog
-        dialog={{ open: true, entry: null, orders }}
+        dialog={{ open: true, entry: null, orders: orders, moneyKind: 'balance-due' }}
         user={null}
         onClose={vi.fn()}
       />
@@ -116,7 +116,7 @@ describe('ReceiptEntryDialog — the orders list stage (task 4.1)', () => {
 
     render(
       <ReceiptEntryDialog
-        dialog={{ open: true, entry: null, orders }}
+        dialog={{ open: true, entry: null, orders: orders, moneyKind: 'balance-due' }}
         user={null}
         onClose={vi.fn()}
       />
@@ -161,7 +161,7 @@ describe('ReceiptEntryDialog — the orders list stage (task 4.1)', () => {
 
     render(
       <ReceiptEntryDialog
-        dialog={{ open: true, entry: null, orders }}
+        dialog={{ open: true, entry: null, orders: orders, moneyKind: 'balance-due' }}
         user={null}
         onClose={vi.fn()}
       />,
@@ -194,7 +194,7 @@ describe('EditEntryDialog — one editable order opens directly (task 4.2)', () 
 
     render(
       <EditEntryDialog
-        dialog={{ open: true, entry: null, orders }}
+        dialog={{ open: true, entry: null, orders: orders }}
         onClose={vi.fn()}
         onUpdate={vi.fn()}
       />
@@ -221,14 +221,23 @@ describe('useMyEntriesDialogs — a list of one is just that one', () => {
       })
     );
 
-    act(() => result.current.openReceipt([scoutOrder]));
-    expect(result.current.receiptDialog).toEqual({ open: true, entry: scoutOrder });
+    act(() => result.current.openReceipt([scoutOrder], 'settled'));
+    expect(result.current.receiptDialog).toEqual({
+      open: true,
+      entry: scoutOrder,
+      moneyKind: 'settled',
+    });
 
     act(() => result.current.openEdit([scoutOrder]));
     expect(result.current.editDialog).toEqual({ open: true, entry: scoutOrder });
 
-    act(() => result.current.openReceipt(orders));
-    expect(result.current.receiptDialog).toEqual({ open: true, entry: null, orders });
+    act(() => result.current.openReceipt(orders, 'settled'));
+    expect(result.current.receiptDialog).toEqual({
+      open: true,
+      entry: null,
+      orders,
+      moneyKind: 'settled',
+    });
 
     act(() => result.current.openEdit(orders));
     expect(result.current.editDialog).toEqual({ open: true, entry: null, orders });
@@ -242,7 +251,7 @@ describe('useMyEntriesDialogs — a list of one is just that one', () => {
       })
     );
 
-    act(() => result.current.openReceipt([]));
+    act(() => result.current.openReceipt([], 'settled'));
     expect(result.current.receiptDialog.open).toBe(false);
   });
 });

@@ -113,9 +113,11 @@ const MyShowDogCardComponent: React.FC<MyShowDogCardProps> = ({
           exhibitor has to do, and the show's money word stays "Paid". */}
       {refundNote && (
         <p className="myk9-entries-dog-note">
-          {refundNote.kind === 'partial'
-            ? `Partial refund of ${formatPaymentCents(refundNote.amountCents, 'USD')} issued ${formatMonthDay(refundNote.date)}.`
-            : `Refunded ${formatPaymentCents(refundNote.amountCents, 'USD')} on ${formatMonthDay(refundNote.date)}.`}
+          {refundNote.kind === 'unknown' || refundNote.amountCents === null
+            ? `A refund was issued ${formatMonthDay(refundNote.date)}. The amount is shown once we can confirm it.`
+            : refundNote.kind === 'partial'
+              ? `Partial refund of ${formatPaymentCents(refundNote.amountCents, 'USD')} issued ${formatMonthDay(refundNote.date)}.`
+              : `Refunded ${formatPaymentCents(refundNote.amountCents, 'USD')} on ${formatMonthDay(refundNote.date)}.`}
         </p>
       )}
 

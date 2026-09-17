@@ -24,6 +24,13 @@ import { DogStrip, type DogStripDog } from '@/components/exhibitor/DogStrip';
 export type OverviewDog = DogStripDog;
 
 interface MyEntriesOverviewProps {
+  /**
+   * False when the balance summary is `unknown`. It hides the STAT ROW only.
+   * Gating the whole component also removed the dog strip and its "Add a dog"
+   * entry point — neither of which is money — from an exhibitor whose read
+   * happened to be unconfirmed (MYK9-629 round 1).
+   */
+  showMoney: boolean;
   currentFees: number;
   amountDue: number;
   hasPastBalance: boolean;
@@ -36,6 +43,7 @@ interface MyEntriesOverviewProps {
 }
 
 export const MyEntriesOverview: React.FC<MyEntriesOverviewProps> = ({
+  showMoney,
   currentFees,
   amountDue,
   hasPastBalance,
@@ -46,15 +54,17 @@ export const MyEntriesOverview: React.FC<MyEntriesOverviewProps> = ({
   onAddDog,
 }) => (
   <>
-    <div data-testid="entry-fee-balance" className="max-[720px]:order-2">
-      <CompactStatsRow
-        currentFees={currentFees}
-        amountDue={amountDue}
-        hasPastBalance={hasPastBalance}
-        currentFeesHref={currentFeesHref}
-        onNavigate={onNavigate}
-      />
-    </div>
+    {showMoney && (
+      <div data-testid="entry-fee-balance" className="max-[720px]:order-2">
+        <CompactStatsRow
+          currentFees={currentFees}
+          amountDue={amountDue}
+          hasPastBalance={hasPastBalance}
+          currentFeesHref={currentFeesHref}
+          onNavigate={onNavigate}
+        />
+      </div>
+    )}
 
     {/* order-3 on mobile keeps the dog strip below the primary entry workflow.
       On desktop every sibling is order-0, so source order keeps the balance and

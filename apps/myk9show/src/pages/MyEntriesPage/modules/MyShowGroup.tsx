@@ -20,6 +20,7 @@ import { formatShortCalendarDate } from '@/lib/format/dates';
 import { buildVenueMapsUrls, formatVenueAddress } from '@/utils/venueMaps';
 import type { ResultCardModel } from '@/features/result-card';
 import { EntryStatus } from '@/types/show-registration-types';
+import type { UserEntriesSource } from '@/services/database/entries';
 import type { DayCheckInContext } from './dayCheckIn';
 import { indexOrdersById, type MyShowClass, type MyShowDog } from './groupEntriesByShow';
 import type { MyShowGroup as MyShowGroupModel } from './groupEntriesByShow';
@@ -29,7 +30,8 @@ import { deriveMyEntryCardState } from './myEntryCardState';
 import { isPastShowEntry } from './myEntriesStats.helpers';
 import { formatDogNamesPossessive, formatShowHeaderDateRange } from './myShowHeaderFormat';
 import { derivePaidStrip, hasSeenPaidStrip, markPaidStripSeen } from './paidStripSeen';
-import { deriveShowMoneyState, refundNotesByDog } from './showMoneyState';
+import { deriveShowMoneyState, refundNotesByDog, type ShowMoneyKind } from './showMoneyState';
+import { UnconfirmedReadNotice } from './UnconfirmedReadNotice';
 
 const HEADER_LINK_CLASS =
   'inline-flex min-h-[44px] items-center gap-1 whitespace-nowrap rounded font-medium text-primary ' +
@@ -37,6 +39,13 @@ const HEADER_LINK_CLASS =
 
 export interface MyShowGroupProps {
   group: MyShowGroupModel;
+  /**
+   * Where the rows came from. Handed straight to `deriveShowMoneyState` and
+   * read for nothing else here: this component renders money from `money.kind`
+   * alone, which is what stops a fourth strip growing its own gate
+   * (MYK9-629 restructure 1).
+   */
+  source: UserEntriesSource;
   /** Captured once per render pass by the list; never `new Date()` inline. */
   now: Date;
   selfCheckinByClassId?: Record<string, boolean> | undefined;
@@ -45,12 +54,15 @@ export interface MyShowGroupProps {
   onOpenCheckIn: (order: MyEntry, cls: MyShowClass) => void;
   /** One editable order opens directly; several open the picker (design D9). */
   onOpenEdit: (orders: MyEntry[]) => void;
-  onOpenReceipts: (group: MyShowGroupModel) => void;
+  /** The group's money state travels with the open, so the orders chooser
+   * states amounts from the same one derivation this card does. */
+  onOpenReceipts: (group: MyShowGroupModel, moneyKind: ShowMoneyKind) => void;
   onResultRevealClick?: ((model: ResultCardModel) => void) | undefined;
 }
 
 export const MyShowGroupCard: React.FC<MyShowGroupProps> = ({
   group,
+  source,
   now,
   selfCheckinByClassId,
   seenResultReleaseKeys,
@@ -68,13 +80,19 @@ export const MyShowGroupCard: React.FC<MyShowGroupProps> = ({
 
   const ordersById = React.useMemo(() => indexOrdersById(group), [group]);
   const isPastShow = isPastShowEntry(group.orders[0], now);
-  const money = deriveShowMoneyState(group.orders, now);
-  const refunds = refundNotesByDog(group.orders);
-  const paidStrip = derivePaidStrip(
-    group.orders,
-    now,
-    orderId => hasSeenPaidStrip(orderId) || dismissed.has(orderId)
-  );
+  const money = deriveShowMoneyState(group.orders, now, source);
+  const moneyUnknown = money.kind === 'unknown';
+  const refunds = refundNotesByDog(group.orders, source);
+  // The paid strip quotes a dollar amount and a date, so it is money under the
+  // same gate — `derivePaidStrip` is skipped outright rather than rendered and
+  // hidden, so there is no figure in the tree to leak.
+  const paidStrip = moneyUnknown
+    ? null
+    : derivePaidStrip(
+        group.orders,
+        now,
+        orderId => hasSeenPaidStrip(orderId) || dismissed.has(orderId)
+      );
 
   const orderStates = group.orders.map(order => ({
     order,
@@ -179,7 +197,7 @@ export const MyShowGroupCard: React.FC<MyShowGroupProps> = ({
           {group.orders.length > 0 && (
             <button
               type="button"
-              onClick={() => onOpenReceipts(group)}
+              onClick={() => onOpenReceipts(group, money.kind)}
               className={HEADER_LINK_CLASS}
             >
               Orders &amp; receipts
@@ -228,6 +246,14 @@ export const MyShowGroupCard: React.FC<MyShowGroupProps> = ({
           )}
         </div>
       </div>
+
+      {/* INTENT: the exhibitor is not told their entries are gone or wrong —
+          only that we could not confirm them just now. Receipts stay reachable
+          above (decision (a)): a receipt records a payment already taken, and
+          withholding it is the one thing that makes a real payment look lost. */}
+      {moneyUnknown && (
+        <UnconfirmedReadNotice detail="Payment amounts are hidden until we can confirm them. Orders & receipts above still open." />
+      )}
 
       {money.kind === 'balance-due' && (
         <div className="myk9-entries-strip border-warning/20 bg-warning/10 text-warning">

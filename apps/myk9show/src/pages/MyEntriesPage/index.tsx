@@ -13,10 +13,7 @@ import { useDogsByOwnerQuery } from '@/hooks/queries/useDogsDatabase';
 import { useReplicationSync } from '@/hooks/useReplicationSync';
 import { ShowTodayBanner } from '@/features/show-today/ShowTodayBanner';
 import { FirstRunZeroState } from '@/components/exhibitor/FirstRunZeroState';
-import {
-  buildEntryBalanceRecoveryHref,
-  summarizeEntryBalances,
-} from '@/features/payments/entryBalanceSummary';
+import { buildEntryBalanceRecoveryHref } from '@/features/payments/entryBalanceSummary';
 import { areReplicationTablesPendingFirstSync } from '@/utils/replicationSyncEmptyState';
 import { useCurrentUserPersonId } from '@/hooks/useRoleBasedData';
 import { useCheckInMutation } from '@/hooks/mutations/useCheckInMutation';
@@ -36,6 +33,9 @@ import {
   EntriesEmptyState,
   EntriesLoadErrorCard,
   EntriesIdentityPendingCard,
+  UnconfirmedReadNotice,
+  UNCONFIRMED_EMPTY_HEADLINE,
+  UNCONFIRMED_EMPTY_DETAIL,
   EntryScopeBanner,
   ScopedPaymentSummary,
   MyEntriesDialogGroup,
@@ -56,6 +56,7 @@ const MyEntriesPage: React.FC = () => {
   const {
     entries,
     balanceSummary,
+    source: entriesSource,
     identityState,
     isLoading,
     isError,
@@ -160,10 +161,13 @@ const MyEntriesPage: React.FC = () => {
   // The pay link must target the SAME debt the amount-due figure describes.
   // `balanceSummary` comes from the raw ungrouped rows (exhibitor-money-clarity);
   // deriving the href from the grouped entries instead could send the exhibitor
-  // to a cart that disagrees with the amount they were just shown.
+  // to a cart that disagrees with the amount they were just shown. The
+  // `?? summarizeEntryBalances(entries)` arm that used to sit here was dead
+  // (`balanceSummary` is non-null) and would have re-derived an UNGATED summary
+  // on the one page whose rule is one derivation, one gate (MYK9-629 round 2).
   const currentFeesHref = useMemo(
-    () => buildEntryBalanceRecoveryHref(balanceSummary ?? summarizeEntryBalances(entries)),
-    [balanceSummary, entries]
+    () => buildEntryBalanceRecoveryHref(balanceSummary),
+    [balanceSummary]
   );
 
   // Dialog state and the result-reveal cluster live in modules/ (MYK9-217).
@@ -316,6 +320,31 @@ const MyEntriesPage: React.FC = () => {
                  exhibitor on a cold offline boot that they had never entered a
                  show, with their entries sitting in IndexedDB. */
               <EntriesIdentityPendingCard onRetry={refreshEntries} refreshing={refreshing} />
+            ) : entries.length === 0 &&
+              !waitlistSurface.hasPositions &&
+              !isLoading &&
+              entriesSource !== 'confirmed' ? (
+              /* `!isLoading` matters: `source` starts unconfirmed because a read
+                 that has not happened has confirmed nothing, so without it the
+                 first paint of every load claims we could not reach the
+                 server. */
+              /* An EMPTY read the server never confirmed. `FirstRunZeroState`
+                 below says "Welcome! Let's get you set up" — a claim about this
+                 exhibitor's whole standing, made from rows nobody confirmed.
+                 The per-show notice cannot cover it, because there is no show
+                 group to hang it on (MYK9-629 round 1). */
+              /* NOT `EntriesLoadErrorCard`: its copy promises "Your saved
+                 information is still here", which over an empty list is false,
+                 and this is not an error state at all — `isError` is false and
+                 `error` is null, because a successful offline read that
+                 returned zero rows is a success (MYK9-629 round 2). The notice
+                 carries the same Retry without the claim. */
+              <UnconfirmedReadNotice
+                headline={UNCONFIRMED_EMPTY_HEADLINE}
+                detail={UNCONFIRMED_EMPTY_DETAIL}
+                onRetry={refreshEntries}
+                refreshing={refreshing}
+              />
             ) : entries.length === 0 && !waitlistSurface.hasPositions ? (
               /* `entries.length === 0` is not the same as "no standing". An
                  exhibitor can hold a `waitlist_entries` row with no entry row
@@ -332,8 +361,16 @@ const MyEntriesPage: React.FC = () => {
                   filters keep working and every filter that hides their
                   position still explains itself — the alternative was a blank
                   page under `?status=accepted`. */}
+                {/* The stat row is two dollar figures. When the balance is
+                  `unknown` they would both render as $0.00 — "paid up" stated
+                  about rows the server never confirmed — so the ROW is withheld
+                  (`showMoney`), exactly as the amount-due card on My Payments
+                  is. The dog strip beside it is not money and stays: gating the
+                  whole component took "Add a dog" away from an exhibitor whose
+                  read happened to be unconfirmed (MYK9-629 round 1). */}
                 {entries.length > 0 && (
                   <MyEntriesOverview
+                    showMoney={balanceSummary.kind === 'known'}
                     currentFees={entryStats.currentFees}
                     amountDue={entryStats.currentAmountDue}
                     hasPastBalance={balanceSummary.onlineShowBalances.some(show => show.isPastShow)}
@@ -414,13 +451,16 @@ const MyEntriesPage: React.FC = () => {
                       // 500-line cap (MYK9-482, design D10).
                       <MyShowsList
                         filteredEntries={filteredEntries}
+                        source={entriesSource}
                         selectedStatus={selectedStatus}
                         selfCheckinByClassId={selfCheckinByClassId}
                         seenResultReleaseKeys={reveal.seenResultReleaseKeys}
                         onCheckInDay={dialogs.checkInClassesForDay}
                         onOpenCheckIn={dialogs.openCheckIn}
                         onOpenEdit={dialogs.openEdit}
-                        onOpenReceipts={group => dialogs.openReceipt(group.orders)}
+                        onOpenReceipts={(group, moneyKind) =>
+                          dialogs.openReceipt(group.orders, moneyKind)
+                        }
                         onResultRevealClick={reveal.openResultReveal}
                       />
                     ) : null}

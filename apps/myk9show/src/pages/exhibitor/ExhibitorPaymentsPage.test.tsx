@@ -26,6 +26,7 @@ const balanceState: {
   isError: boolean;
 } = {
   data: {
+    kind: 'known',
     currentFeesCents: 0,
     amountDueCents: 0,
     onlineDueCents: 0,
@@ -85,6 +86,7 @@ describe('ExhibitorPaymentsPage', () => {
     paymentYearsState.isFetching = false;
     paymentYearsState.refetch = vi.fn();
     balanceState.data = {
+      kind: 'known',
       currentFeesCents: 0,
       amountDueCents: 0,
       onlineDueCents: 0,
@@ -279,6 +281,7 @@ describe('ExhibitorPaymentsPage', () => {
 
   it('shows current amount due from the same entry balance summary as My Shows', () => {
     balanceState.data = {
+      kind: 'known',
       currentFeesCents: 5500,
       amountDueCents: 5500,
       onlineDueCents: 5500,
@@ -311,6 +314,7 @@ describe('ExhibitorPaymentsPage', () => {
 
   it('labels the single-show payment action with the online amount when pay-at-show money is also due', () => {
     balanceState.data = {
+      kind: 'known',
       currentFeesCents: 5500,
       amountDueCents: 5500,
       onlineDueCents: 2500,
@@ -344,6 +348,7 @@ describe('ExhibitorPaymentsPage', () => {
 
   it('lists separate checkout links when multiple shows have online balances', () => {
     balanceState.data = {
+      kind: 'known',
       currentFeesCents: 5500,
       amountDueCents: 5500,
       onlineDueCents: 5500,

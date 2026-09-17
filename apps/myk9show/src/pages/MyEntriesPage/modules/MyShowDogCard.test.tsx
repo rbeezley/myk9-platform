@@ -20,6 +20,7 @@ import { PENDING_REVIEW_REASSURANCE } from './myShowsCopy';
 function renderRows(rows: MyEntry[], overrides: Partial<MyShowsListProps> = {}) {
   const props: MyShowsListProps = {
     filteredEntries: toOrders(rows),
+    source: 'confirmed',
     seenResultReleaseKeys: new Set<string>(),
     now: NOW,
     onCheckInDay: vi.fn(),

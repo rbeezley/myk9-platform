@@ -581,7 +581,7 @@ export const getEntryById = async (id: string) => {
 // "0 Entries received" on the styled landing page (which counts `entries.length`
 // from this hook) while the exhibitor genuinely had entries. Mirrors the
 // empty-local-replica-verifies-online pattern used by getEntriesByDog above and
-// getUserEntries in search.ts.
+// getUserEntries in userEntriesRead.ts.
 export const getEntriesByShow = async (showId: string) => {
   // A populated replica may contain only individually hydrated entries. Refresh
   // this show through the conflict-aware sync path before treating it as complete.

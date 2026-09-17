@@ -72,22 +72,22 @@ export function AmountDueSection({
   // boot where the person record never resolves (the MYK9-200 pattern).
   // A summary the authoritative read never confirmed (MYK9-536): served from
   // the replicated per-show snapshot offline, on a timeout, or when the view
-  // came back empty against a populated snapshot. At ZERO it is
-  // indistinguishable from "paid up" by its numbers alone, and rendering it as
-  // such is the same false reassurance the `!summary` branch below exists to
-  // prevent, arriving by another route — so it borrows that branch's copy. A
-  // non-zero figure is still the best the exhibitor has and is kept; only its
-  // standing changes, which the note below the figure says outright.
-  const unconfirmed = Boolean(summary?.stale);
-
-  if (!summary || (unconfirmed && summary.amountDueCents <= 0)) {
+  // came back empty against a populated snapshot. It arrives here already
+  // zeroed by `summarizeEntryBalancesFromSource`, and it takes the same branch
+  // as no summary at all. PR #2301 kept the figure with a caption beside it,
+  // and a live "Finish payment" link for a balance nobody had confirmed went
+  // out with it twice (MYK9-629, decision (a)).
+  if (!summary || summary.kind === 'unknown') {
     return (
       <Card>
         <CardContent className="py-5">
           <h2 className="text-sm font-medium text-muted-foreground">Amount due</h2>
+          {/* Do NOT send them to My Shows for the figure: that page withholds
+              the same money from the same unconfirmed rows (MYK9-629), so the
+              old copy pointed at a second blank. Say what is true instead. */}
           <p className="mt-1 text-sm text-muted-foreground">
-            We can&apos;t show your balance right now. Check Current Fees on My Shows for what you
-            owe.
+            We haven&apos;t been able to confirm your balance with the server, so we&apos;re not
+            showing a figure. Your payment history is still below.
           </p>
         </CardContent>
       </Card>
@@ -134,11 +134,6 @@ export function AmountDueSection({
             <p className="text-3xl font-semibold tabular-nums text-warning">
               {formatPaymentCents(summary.amountDueCents, 'usd')}
             </p>
-            {unconfirmed && (
-              <p className="mt-1 text-sm text-muted-foreground">
-                Showing saved data — we couldn&apos;t reach the server to confirm it.
-              </p>
-            )}
             {/* Name the show in the single-show case too: the name used to
                 appear only in the multi-show breakdown, so the common case
                 showed a total and a button with nothing saying what the money

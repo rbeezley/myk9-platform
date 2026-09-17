@@ -232,6 +232,11 @@ export const ReceiptEntryDialog: React.FC<ReceiptEntryDialogProps> = ({
         open={dialog.open}
         mode="receipt"
         orders={candidates}
+        // Carried from the show group that opened this dialog. The RECEIPT
+        // document below stays reachable on every source (decision (a)); this
+        // chooser's amounts do not — it is reached from the notice that says
+        // they are hidden (MYK9-629 round 1).
+        moneyKind={dialog.moneyKind}
         onSelect={order => setPickedCardId(order.id)}
         onClose={closeReceipt}
       />

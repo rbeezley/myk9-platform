@@ -22,6 +22,7 @@ import type {
   MyEntry,
   ReceiptDialogState,
 } from './my-entries-types';
+import type { ShowMoneyKind } from './showMoneyState';
 
 const CLOSED_CHECK_IN: CheckInDialogState = { open: false, entry: null, classEntry: null };
 const CLOSED_EDIT: EditDialogState = { open: false, entry: null };
@@ -57,7 +58,7 @@ export interface UseMyEntriesDialogsResult {
    */
   openEdit: (target: MyEntry | MyEntry[]) => void;
   /** Same two shapes as `openEdit`: one order opens its receipt directly. */
-  openReceipt: (target: MyEntry | MyEntry[]) => void;
+  openReceipt: (target: MyEntry | MyEntry[], moneyKind: ShowMoneyKind) => void;
   openAddDog: () => void;
   closeCheckIn: () => void;
   closeEdit: () => void;
@@ -75,18 +76,22 @@ export interface UseMyEntriesDialogsResult {
  */
 function applyOpen<T extends { open: boolean; entry: MyEntry | null; orders?: MyEntry[] }>(
   target: MyEntry | MyEntry[],
-  setState: (next: T) => void
+  setState: (next: T) => void,
+  // Extra state this dialog carries beyond the shared shape (the receipt
+  // dialog's money kind). Typed loosely because `T`'s own fields are what the
+  // caller's `setState` validates.
+  extra?: Record<string, unknown>
 ): void {
   if (!Array.isArray(target)) {
-    setState({ open: true, entry: target } as T);
+    setState({ open: true, entry: target, ...extra } as T);
     return;
   }
   if (target.length === 0) return;
   if (target.length === 1) {
-    setState({ open: true, entry: target[0] } as T);
+    setState({ open: true, entry: target[0], ...extra } as T);
     return;
   }
-  setState({ open: true, entry: null, orders: target } as T);
+  setState({ open: true, entry: null, orders: target, ...extra } as T);
 }
 
 export function useMyEntriesDialogs({
@@ -106,7 +111,8 @@ export function useMyEntriesDialogs({
     []
   );
   const openReceipt = useCallback(
-    (target: MyEntry | MyEntry[]) => applyOpen(target, setReceiptDialog),
+    (target: MyEntry | MyEntry[], moneyKind: ShowMoneyKind) =>
+      applyOpen(target, setReceiptDialog, { moneyKind }),
     []
   );
   const openAddDog = useCallback(() => setAddDogOpen(true), []);

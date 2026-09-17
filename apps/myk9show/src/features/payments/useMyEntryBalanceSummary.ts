@@ -1,12 +1,13 @@
 import { useQuery } from '@tanstack/react-query';
 import { useAuthContext } from '@/hooks/useAuthContext';
-import { useCurrentUserPersonId } from '@/hooks/useRoleBasedData';
+import { useEntriesPersonId } from '@/hooks/useEntriesPersonId';
 import { cacheStrategies } from '@/lib/queryClient';
 import { viewerScope } from '@/lib/viewerScopedQueryKey';
 import { getUserEntries } from '@/services/database/entries';
 import {
   mapEntryRowToBalanceSource,
-  summarizeEntryBalances,
+  summarizeEntryBalancesFromSource,
+  UNKNOWN_ENTRY_BALANCE_SUMMARY,
   type EntryBalanceRawRow,
   type EntryBalanceSummary,
 } from './entryBalanceSummary';
@@ -16,9 +17,10 @@ type OwnEntryBalanceRow = EntryBalanceRawRow & {
 };
 
 export function useMyEntryBalanceSummary() {
-  const { user, userWithRoles } = useAuthContext();
-  const legacyPersonId = useCurrentUserPersonId();
-  const personId = legacyPersonId ?? userWithRoles?.databaseUserId ?? null;
+  const { user } = useAuthContext();
+  // The one resolver, shared with My Shows and both ringside hooks, so the
+  // `getUserEntries` cache is one key per account (MYK9-629 restructure 4).
+  const personId = useEntriesPersonId();
 
   return useQuery({
     // `personId` already varies by account, but only incidentally — it is a
@@ -37,20 +39,23 @@ export function useMyEntryBalanceSummary() {
     // a spinner forever rather than the last known balance.
     networkMode: 'always' as const,
     queryFn: async (): Promise<EntryBalanceSummary> => {
-      if (!personId) return summarizeEntryBalances([]);
+      // No identity is not "nothing owed": an empty-row summary reads as $0.00
+      // paid up. The query is gated on `personId`, so this is only the type
+      // narrowing, but it answers `unknown` rather than a zeroed `known`.
+      if (!personId) return UNKNOWN_ENTRY_BALANCE_SUMMARY;
 
-      const { data, error, stale } = await getUserEntries(personId);
+      const { data, error, source } = await getUserEntries(personId);
       if (error) throw error;
 
-      const summary = summarizeEntryBalances(
-        (data ?? []).map(row => mapEntryRowToBalanceSource(row as OwnEntryBalanceRow))
+      // The gate lives in the derivation, not in this hook and not in the card.
+      // An amount due computed from rows the server never confirmed - a
+      // hard-deleted entry still sitting in the per-show snapshot - is a phantom
+      // debt, and the surface is no longer trusted to caption it instead of
+      // stating it (MYK9-629 restructure 1).
+      return summarizeEntryBalancesFromSource(
+        (data ?? []).map(row => mapEntryRowToBalanceSource(row as OwnEntryBalanceRow)),
+        source
       );
-      // Carry the provenance, do not bury it. This is the exhibitor's money
-      // surface: an amount due computed from rows the server never confirmed —
-      // a hard-deleted entry still sitting in the per-show snapshot, say — is a
-      // phantom debt, and the page needs to be able to tell that it is showing
-      // saved data rather than stating a figure as fact.
-      return stale ? { ...summary, stale: true } : summary;
     },
     ...cacheStrategies.moderate,
   });

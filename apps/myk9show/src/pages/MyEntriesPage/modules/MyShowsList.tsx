@@ -12,6 +12,8 @@
 
 import React from 'react';
 import type { ResultCardModel } from '@/features/result-card';
+import type { UserEntriesSource } from '@/services/database/entries';
+import type { ShowMoneyKind } from './showMoneyState';
 import { groupEntriesByShow } from './groupEntriesByShow';
 import type { MyShowClass, MyShowDog, MyShowGroup } from './groupEntriesByShow';
 import { MyShowGroupCard } from './MyShowGroup';
@@ -38,6 +40,11 @@ export function useMyShowGroups(
 
 export interface MyShowsListProps {
   filteredEntries: MyEntry[];
+  /**
+   * Where the rows came from. Passed straight through to each show group, which
+   * hands it to the one money derivation. This list reads it for nothing.
+   */
+  source: UserEntriesSource;
   /** The strip's status axis, re-applied per dog (see `narrowDogsToStatus`). */
   selectedStatus?: EntryStatusFilter | undefined;
   selfCheckinByClassId?: Record<string, boolean> | undefined;
@@ -45,7 +52,7 @@ export interface MyShowsListProps {
   onCheckInDay: (dog: MyShowDog, classes: MyShowClass[]) => void;
   onOpenCheckIn: (order: MyEntry, cls: MyShowClass) => void;
   onOpenEdit: (orders: MyEntry[]) => void;
-  onOpenReceipts: (group: MyShowGroup) => void;
+  onOpenReceipts: (group: MyShowGroup, moneyKind: ShowMoneyKind) => void;
   onResultRevealClick?: ((model: ResultCardModel) => void) | undefined;
   /**
    * The instant the whole list reckons against. Injectable so tests can place
@@ -57,6 +64,7 @@ export interface MyShowsListProps {
 
 export const MyShowsList: React.FC<MyShowsListProps> = ({
   filteredEntries,
+  source,
   selectedStatus = 'any',
   selfCheckinByClassId,
   seenResultReleaseKeys,
@@ -81,6 +89,7 @@ export const MyShowsList: React.FC<MyShowsListProps> = ({
         <li key={group.key}>
           <MyShowGroupCard
             group={group}
+            source={source}
             now={now}
             selfCheckinByClassId={selfCheckinByClassId}
             seenResultReleaseKeys={seenResultReleaseKeys}

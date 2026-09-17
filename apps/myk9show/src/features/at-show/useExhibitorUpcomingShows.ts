@@ -7,12 +7,14 @@
  * Since MYK9-536 that source is NETWORK-FIRST: the authoritative view, with the
  * per-show replica as the fallback when the view fails or times out. This hook
  * sets `networkMode: 'always'` so the fallback stays reachable offline — though
- * only once identity has resolved, since the query is gated on `personId`.
- * and `useHasAnyEntryForShow` already use, so this adds no new network path;
- * the bucketing itself lives in the pure `selectExhibitorUpcomingShows`.
+ * only once identity has resolved, since the query is gated on `personId`. It
+ * is the same read My Shows and `useHasAnyEntryForShow` already make, so this
+ * adds no new network path; the bucketing itself lives in the pure
+ * `selectExhibitorUpcomingShows`.
  *
- * Identity note: `personId` resolves from `userWithRoles.databaseUserId`, which
- * comes from the `people` lookup and PAUSES offline — so it can stay null
+ * Identity note: `personId` resolves through `useEntriesPersonId`, which reads
+ * the AuthContext `people` lookup — a plain network query that PAUSES
+ * offline — so it can stay null
  * indefinitely on a cold offline boot. This hook deliberately does NOT report
  * that as `isLoading`: `useRingsideEntryShows` folds every source's flag into
  * one, and a never-resolving flag would park the whole entry point on "Finding
@@ -28,7 +30,7 @@
  */
 
 import { useQuery } from '@tanstack/react-query';
-import { useCurrentUserPersonId } from '@/hooks/useRoleBasedData';
+import { useEntriesPersonId } from '@/hooks/useEntriesPersonId';
 import { getUserEntries } from '@/services/database/entries';
 import { selectExhibitorUpcomingShows, type ExhibitorEntryRow } from './exhibitorRingsideShows';
 import type { NamedShowSource } from './ringsideEntryResolver';
@@ -41,7 +43,10 @@ export interface ExhibitorUpcomingShows {
 }
 
 export function useExhibitorUpcomingShows(): ExhibitorUpcomingShows {
-  const personId = useCurrentUserPersonId();
+  // The one resolver, shared with My Shows, My Payments and the access gate,
+  // so the `getUserEntries` cache is one key per account (MYK9-629
+  // restructure 4).
+  const personId = useEntriesPersonId();
 
   const { data, isLoading } = useQuery({
     queryKey: ['at-show', 'exhibitor-upcoming-shows', personId],

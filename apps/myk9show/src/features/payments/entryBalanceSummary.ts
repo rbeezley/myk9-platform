@@ -7,6 +7,13 @@ import { getTrialTimezone } from '@/features/registries';
 import { getEntryWindowTimezone, type EntryWindowTrial } from '@/utils/entryWindowDate';
 import { DEFAULT_SHOW_TIMEZONE, toEntryCloseDay } from './entryCloseDeadline';
 import { getEntryPaymentPrompt } from './entryPaymentPrompt';
+// The gate is a PURE predicate, so it is imported from its own module rather
+// than the `entries` barrel: a unit test that mocks the barrel's data-access
+// functions must not thereby stub out the rule that withholds money.
+import {
+  isMoneyConfirmed,
+  type UserEntriesSource,
+} from '@/services/database/entries/userEntriesRead';
 
 export interface EntryBalanceClassSource {
   id: string;
@@ -58,19 +65,36 @@ export interface EntryBalanceShowSummary {
   paymentHref: string;
 }
 
+export type EntryBalanceSummaryKind = 'known' | 'unknown';
+
+/**
+ * What every surface renders when the rows behind the money were never
+ * confirmed. Zeroed rather than merely flagged, so a surface that forgets to
+ * branch shows nothing instead of a wrong number.
+ */
+export const UNKNOWN_ENTRY_BALANCE_SUMMARY: EntryBalanceSummary = {
+  kind: 'unknown',
+  currentFeesCents: 0,
+  amountDueCents: 0,
+  onlineDueCents: 0,
+  payAtShowDueCents: 0,
+  onlineShowBalances: [],
+};
+
 export interface EntryBalanceSummary {
   /**
-   * True when this summary was computed from rows the authoritative server read
-   * did not confirm — an offline/timed-out read served from the replicated
-   * snapshot, or a snapshot the server no longer agrees with (MYK9-536).
+   * `unknown` means this summary was computed from rows the authoritative
+   * server read did not confirm — an offline/timed-out read served from the
+   * replicated snapshot, or a snapshot the server no longer agrees with
+   * (MYK9-536). Its figures are all ZERO and its `onlineShowBalances` empty:
+   * PR #2301 kept the numbers and asked each surface to caption them, and the
+   * caption was missed on a third strip two rounds running (MYK9-629). A
+   * surface must branch on `kind` BEFORE reading any figure below.
    *
-   * The figures are still the best available; what changes is their STANDING. A
-   * surface that states money as fact ("$30.00 due", "Paid in full") should say
-   * it is showing saved data instead. Optional, and absent on every
-   * `summarizeEntryBalances` result: only a reader that knows the rows'
-   * provenance can set it.
+   * Required, not optional: an optional flag is one a new surface can forget,
+   * and forgetting it here means quoting an unconfirmed dollar figure.
    */
-  stale?: boolean;
+  kind: EntryBalanceSummaryKind;
   currentFeesCents: number;
   amountDueCents: number;
   onlineDueCents: number;
@@ -283,12 +307,27 @@ export function summarizeEntryBalances(
     .sort((a, b) => a.showName.localeCompare(b.showName));
 
   return {
+    kind: 'known',
     currentFeesCents,
     amountDueCents,
     onlineDueCents,
     payAtShowDueCents,
     onlineShowBalances,
   };
+}
+
+/**
+ * The account-level entry point: summarize these rows, or refuse to, from the
+ * one rule. Every `getUserEntries` consumer that renders money calls THIS, not
+ * `summarizeEntryBalances` — see `isMoneyConfirmed`.
+ */
+export function summarizeEntryBalancesFromSource(
+  entries: EntryBalanceSource[],
+  source: UserEntriesSource,
+  now: Date = new Date()
+): EntryBalanceSummary {
+  if (!isMoneyConfirmed(source)) return UNKNOWN_ENTRY_BALANCE_SUMMARY;
+  return summarizeEntryBalances(entries, now);
 }
 
 export function buildEntryBalanceRecoveryHref(summary: EntryBalanceSummary): string {

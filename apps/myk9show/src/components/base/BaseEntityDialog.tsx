@@ -1,5 +1,6 @@
 import React, { ReactNode } from 'react';
 import { CommonDialog } from '@/components/common/CommonDialog';
+import { logger } from '@/services/LoggingService';
 import DialogFooterButtons from '@/components/common/DialogFooterButtons';
 
 export interface BaseEntityDialogProps {
@@ -52,7 +53,14 @@ export function BaseEntityDialog({
   const handleSubmit = () => {
     // Callers report their own failures; consume rejected async handlers so a
     // handled refusal does not become an unhandledrejection.
-    void Promise.resolve(onSubmit?.()).catch(() => {});
+    //
+    // MYK9-593: consume, but never discard. The swallow used to be total, so a
+    // throw the caller does not report itself — getLabel, claimFailure, or
+    // toast.error — left the user with a closed dialog and no message anywhere.
+    // Logging keeps it recoverable from Sentry.
+    void Promise.resolve(onSubmit?.()).catch((error: unknown) => {
+      logger.error('BaseEntityDialog submit rejected', 'components', { title }, error as Error);
+    });
   };
 
   return (

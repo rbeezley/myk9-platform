@@ -4,7 +4,9 @@ import { describe, expect, it, vi, beforeEach } from 'vitest';
 vi.mock('sonner', () => ({
   toast: {
     success: vi.fn(),
-    error: vi.fn(),
+    // Sonner returns the toast id; the partial-failure toast re-uses it so a
+    // re-show replaces the same toast instead of stacking a second one.
+    error: vi.fn(() => 'failure-toast'),
     info: vi.fn(),
   },
 }));
@@ -418,5 +420,87 @@ describe('useBulkDispatch onClaimedFailures', () => {
 
     await waitFor(() => expect(onClaimedFailures).toHaveBeenCalledTimes(1));
     expect(onClaimedFailures.mock.calls[0]?.[0]).toEqual([item('a')]);
+  });
+});
+
+describe('useBulkDispatch retry while another batch is in flight', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  // MYK9-593. Sonner dismisses a toast when its action is clicked, and `retry`
+  // is a latched no-op while another dispatch is running. Clicking "Retry
+  // failed" on a still-visible partial-failure toast therefore used to take the
+  // failure report away and put nothing in its place.
+  it('re-shows the same failure report instead of swallowing the retry', async () => {
+    let releaseSecond!: () => void;
+    const second = new Promise<void>(resolve => {
+      releaseSecond = resolve;
+    });
+    const { result } = renderHook(() => useBulkDispatch<Item>({ getLabel: i => i.id }));
+
+    // Batch #1 partially fails and leaves a toast with a Retry action.
+    await act(async () => {
+      await result.current.run([item('a'), item('b')], async i => {
+        if (i.id === 'b') throw new Error('network down');
+      });
+    });
+    const retry = retryActionFromCall();
+    expect(toast.error).toHaveBeenCalledTimes(1);
+
+    // Batch #2 starts and holds the in-flight latch.
+    let inFlight!: Promise<unknown>;
+    await act(async () => {
+      inFlight = result.current.run([item('c')], async () => {
+        await second;
+      });
+      await Promise.resolve();
+    });
+
+    // Clicking Retry on the first toast while the latch is held.
+    await act(async () => {
+      retry.onClick();
+    });
+
+    // The failure report survives: same title, same detail line, same Retry
+    // action, same toast id, plus a note saying why nothing ran.
+    expect(toast.error).toHaveBeenCalledTimes(2);
+    const [title, options] = vi.mocked(toast.error).mock.calls[1] as [
+      string,
+      { id?: string | number; description?: string; action?: { label: string } },
+    ];
+    expect(title).toContain('1 failed');
+    expect(options.description).toContain('network down');
+    expect(options.description).toContain('Still working on the previous batch');
+    expect(options.action?.label).toBe('Retry failed');
+    expect(options.id).toBe('failure-toast');
+
+    await act(async () => {
+      releaseSecond();
+      await inFlight;
+    });
+  });
+
+  // Control: with the latch free the same action dispatches the retry.
+  it('dispatches the retry when no batch is in flight', async () => {
+    const { result } = renderHook(() => useBulkDispatch<Item>({ getLabel: i => i.id }));
+    const runItem = vi.fn(async (i: Item) => {
+      if (i.id === 'b') throw new Error('network down');
+    });
+
+    await act(async () => {
+      await result.current.run([item('a'), item('b')], runItem);
+    });
+
+    const retry = retryActionFromCall();
+    runItem.mockClear();
+    runItem.mockImplementation(async () => undefined);
+
+    await act(async () => {
+      retry.onClick();
+    });
+
+    await waitFor(() => expect(runItem).toHaveBeenCalledTimes(1));
+    expect(runItem).toHaveBeenCalledWith(expect.objectContaining({ id: 'b' }));
   });
 });

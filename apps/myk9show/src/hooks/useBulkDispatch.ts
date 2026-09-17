@@ -8,6 +8,12 @@ import {
   type BulkDispatchOutcome,
 } from './bulkDispatch';
 
+/**
+ * Shown in place of a swallowed retry. The latch is held for the length of one
+ * batch, so "in a moment" is honest — the same toast keeps its Retry action.
+ */
+const BUSY_RETRY_NOTE = 'Still working on the previous batch; retry once it finishes.';
+
 export interface UseBulkDispatchOptions<T> {
   /** Human-readable label for a single item, used in per-item failure detail lines. */
   getLabel: (item: T) => string;
@@ -138,29 +144,48 @@ export function useBulkDispatch<T>({
       const details = unclaimed.map(
         ({ item, error }) => `${getLabel(item)}: ${errorReason(error)}`
       );
-      toast.error(summary.title, {
-        ...(details.length > 0 ? { description: details.join('\n') } : {}),
-        // No retry when every failure was claimed: retrying them is the
-        // caller's affordance, not a generic re-run of the same rejection.
-        ...(unclaimed.length > 0
-          ? {
-              action: {
-                label: 'Retry failed',
-                onClick: () => {
-                  void retry(
-                    unclaimed.map(({ item }) => item),
-                    runItem,
-                    runApplicableWhen,
-                    buildUndo,
-                    onFullSuccess,
-                    claimFailure,
-                    onClaimedFailures
-                  );
+      const retryable = unclaimed.map(({ item }) => item);
+
+      // Sonner dismisses a toast when its action is clicked, and `retry` is a
+      // latched no-op while another batch is in flight. MYK9-593: clicking
+      // "Retry failed" during a second batch therefore took the failure report
+      // away and put nothing in its place. Re-show the SAME toast (same id, so
+      // it replaces rather than stacks; same details, same action) with a line
+      // saying why nothing ran — a note in a fresh info toast would lose the
+      // list of what actually failed.
+      let toastId: string | number | undefined;
+      const showFailureToast = (note?: string) => {
+        const description = (note ? [note, ...details] : details).join('\n');
+        toastId = toast.error(summary.title, {
+          ...(toastId !== undefined ? { id: toastId } : {}),
+          ...(description.length > 0 ? { description } : {}),
+          // No retry when every failure was claimed: retrying them is the
+          // caller's affordance, not a generic re-run of the same rejection.
+          ...(retryable.length > 0
+            ? {
+                action: {
+                  label: 'Retry failed',
+                  onClick: () => {
+                    if (inFlightRef.current) {
+                      showFailureToast(BUSY_RETRY_NOTE);
+                      return;
+                    }
+                    void retry(
+                      retryable,
+                      runItem,
+                      runApplicableWhen,
+                      buildUndo,
+                      onFullSuccess,
+                      claimFailure,
+                      onClaimedFailures
+                    );
+                  },
                 },
-              },
-            }
-          : {}),
-      });
+              }
+            : {}),
+        });
+      };
+      showFailureToast();
     },
     // eslint-disable-next-line react-hooks/exhaustive-deps -- `retry` is declared below and stable per-render via useCallback closure
     [getLabel]

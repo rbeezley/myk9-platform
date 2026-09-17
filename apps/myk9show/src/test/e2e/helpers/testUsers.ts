@@ -28,16 +28,11 @@
  * a rolled-back transaction and runs on every CI push.
  */
 
-import { expect, type Page } from '@playwright/test';
+import { type Page } from '@playwright/test';
 import { resolveFixtureEmail } from '../../fixtures/fixtureEmail';
 import { assertAddressIsLive } from '../../fixtures/retiredFixtureDomain';
-import {
-  classifySignInFailure,
-  describeSignInFailure,
-  SUPABASE_AUTH_TOKEN_KEY_PATTERN,
-  type SignInFailureVerdict,
-} from '../../e2e-helpers/signInDiagnostics';
-import { decideSignInRetry, describeSignInRetry } from '../../e2e-helpers/signInRetryPolicy';
+import { runSignInLadder } from '../../e2e-helpers/signInRetryPolicy';
+import { attemptSignIn } from './signInFlow';
 
 export interface TestUser {
   email: string;
@@ -165,162 +160,15 @@ export interface SignInOptions {
    * harness) pass their own budget; specs leave it alone.
    */
   navigationTimeoutMs?: number;
-}
-
-/**
- * Whether supabase-js has written a session token for this origin. The key
- * pattern is passed in from `signInDiagnostics` rather than retyped, so the
- * in-page test and `isSupabaseAuthTokenKey` cannot drift apart.
- */
-async function hasSupabaseSession(page: Page): Promise<boolean> {
-  return page
-    .evaluate(
-      pattern => Object.keys(localStorage).some(key => new RegExp(pattern).test(key)),
-      SUPABASE_AUTH_TOKEN_KEY_PATTERN
-    )
-    .catch(() => false);
-}
-
-/**
- * Navigate to `/sign-in` and wait for the credential field to render, retrying
- * once if the SPA shell is still booting (the dev server's first paint can lag
- * past the goto, leaving a "Loading…" body with no form yet).
- */
-async function gotoSignIn(page: Page, signInPath: string): Promise<void> {
-  const input = credentialInput(page);
-
-  for (let attempt = 0; attempt < 2; attempt += 1) {
-    await page.goto(signInPath, { waitUntil: 'commit' });
-
-    try {
-      await expect(input).toBeVisible({ timeout: 30000 });
-      return;
-    } catch (error) {
-      const bodyText = await page
-        .locator('body')
-        .innerText({ timeout: 1000 })
-        .catch(() => '');
-      const shellStillBooting =
-        bodyText.trim().length === 0 || /Loading page|Loading\.\.\./i.test(bodyText);
-
-      if (attempt === 1 || !shellStillBooting) {
-        throw error;
-      }
-    }
-  }
-}
-
-/** A failed pass over the sign-in form, described and classified but not yet thrown. */
-interface SignInAttemptFailure {
-  verdict: SignInFailureVerdict;
-  message: string;
-  cause: unknown;
-}
-
-/**
- * One pass over the real SmartSignInPage (Phase 1b "single email-or-passcode
- * front door") two-step flow:
- *   1. fill the single credential field (`credential-input`) with the email
- *   2. Continue — this reveals the password step *in place* (the password field
- *      does not exist in the DOM until this transition)
- *   3. fill `password-input` and submit (`sign-in-button`)
- *   4. wait for navigation off `/sign-in`
- *
- * Returns `null` on success and the classified failure otherwise, so `signIn`
- * can decide whether another attempt could help (MYK9-541). A credential
- * REJECTION still throws from here: no retry fixes a wrong password, and the
- * caller must see that verdict unchanged.
- */
-async function attemptSignIn(
-  page: Page,
-  email: string,
-  password: string,
-  returnTo: string,
-  navigationTimeoutMs: number
-): Promise<SignInAttemptFailure | null> {
-  const params = new URLSearchParams({ returnTo });
-  await gotoSignIn(page, `/sign-in?${params.toString()}`);
-
-  await credentialInput(page).fill(email);
-  await continueButton(page).click();
-
-  // The email branch reveals the password sub-form ("we'll ask for your
-  // password next"); wait for it before filling.
-  const passwordStepStartedAt = Date.now();
-  try {
-    await expect(page.getByTestId('password-input')).toBeVisible({ timeout: navigationTimeoutMs });
-  } catch (error) {
-    return failureFrom(
-      {
-        email,
-        budgetMs: navigationTimeoutMs,
-        elapsedMs: Date.now() - passwordStepStartedAt,
-        finalUrl: page.url(),
-        passwordStepReached: false,
-        authTokenPresent: await hasSupabaseSession(page),
-      },
-      error
-    );
-  }
-  await page.getByTestId('password-input').fill(password);
-
-  const submittedAt = Date.now();
-  await page.getByTestId('sign-in-button').click();
-  const authErrorBanner = page.getByText(/invalid login credentials|user is banned/i).first();
-  const signInResult = await Promise.race([
-    page
-      .waitForURL(url => !url.pathname.includes('/sign-in'), { timeout: navigationTimeoutMs })
-      .then(() => 'signed-in' as const)
-      .catch((error: unknown) => ({ error })),
-    authErrorBanner
-      .waitFor({ state: 'visible', timeout: navigationTimeoutMs })
-      .then(async () => ({
-        authError: (await authErrorBanner.textContent())?.trim() ?? 'auth rejected',
-      }))
-      .catch(() => new Promise<never>(() => undefined)),
-  ]);
-
-  if (typeof signInResult === 'object' && 'authError' in signInResult) {
-    throw new Error(`E2E sign-in rejected ${email}: ${signInResult.authError}`);
-  }
-
-  // A bare `TimeoutError: page.waitForURL` cannot say whether authentication
-  // never returned or returned and left the app slow — opposite fixes. Ask the
-  // page which it was before giving up.
-  if (typeof signInResult === 'object' && 'error' in signInResult) {
-    return failureFrom(
-      {
-        email,
-        budgetMs: navigationTimeoutMs,
-        elapsedMs: Date.now() - submittedAt,
-        finalUrl: page.url(),
-        passwordStepReached: true,
-        authTokenPresent: await hasSupabaseSession(page),
-        // Bounded: this runs only after the budget already expired, and
-        // `textContent` on an absent banner would otherwise burn its own 30s
-        // default before the failure is reported.
-        authErrorText:
-          (await authErrorBanner.textContent({ timeout: 1000 }).catch(() => null))?.trim() ||
-          undefined,
-      },
-      signInResult.error
-    );
-  }
-
-  await page.waitForLoadState('domcontentloaded');
-  await expect(page).not.toHaveURL(/\/sign-in/);
-  return null;
-}
-
-function failureFrom(
-  snapshot: Parameters<typeof describeSignInFailure>[0],
-  cause: unknown
-): SignInAttemptFailure {
-  return {
-    verdict: classifySignInFailure(snapshot),
-    message: describeSignInFailure(snapshot),
-    cause,
-  };
+  /**
+   * Whether an `auth-never-returned` timeout may be retried (MYK9-541).
+   * Defaults to true. The G9 load harness passes `false` EXPLICITLY rather
+   * than relying on its 45s budget to overflow the ladder's total budget:
+   * that arithmetic silently re-enables retries at any per-attempt budget
+   * under ~21s, and 16 shards retrying in lockstep would amplify exactly the
+   * load the policy exists to survive. See `LOAD_HARNESS_SIGN_IN_OPTIONS`.
+   */
+  retry?: boolean;
 }
 
 /**
@@ -328,9 +176,10 @@ function failureFrom(
  * role wrappers below delegate here so the flow lives in exactly one place.
  *
  * A sign-in that ran out of time with no session token (`auth-never-returned`)
- * is GoTrue latency under concurrent load, not a verdict on the diff, so it is
- * retried inside a bounded, logged ladder — see `signInRetryPolicy` for which
- * verdicts qualify and why the load harness's own budget excludes it.
+ * is auth-service latency, not a verdict on the diff, so it is retried inside a
+ * bounded, logged, circuit-broken ladder — `signInRetryPolicy` owns which
+ * verdicts qualify, how the next attempt is projected from the measured cost of
+ * the last one, and when the worker stops retrying altogether.
  */
 export async function signIn(
   page: Page,
@@ -350,28 +199,14 @@ export async function signIn(
   // cliff in a preparation phase whose neighbours already allow 30-90s
   // (MYK9-463).
   const navigationTimeoutMs = options.navigationTimeoutMs ?? DEFAULT_SIGN_IN_NAVIGATION_TIMEOUT_MS;
-  const ladderStartedAt = Date.now();
 
-  for (let attemptsMade = 1; ; attemptsMade += 1) {
-    const failure = await attemptSignIn(page, email, password, returnTo, navigationTimeoutMs);
-    if (!failure) return;
-
-    const state = {
-      attemptsMade,
-      elapsedMs: Date.now() - ladderStartedAt,
-      attemptBudgetMs: navigationTimeoutMs,
-    };
-    const decision = decideSignInRetry(failure.verdict, state);
-
-    if (!decision.retry) {
-      const ladder =
-        attemptsMade > 1 ? ` Gave up after ${attemptsMade} attempts: ${decision.reason}.` : '';
-      throw new Error(`${failure.message}${ladder}`, { cause: failure.cause });
-    }
-
-    console.warn(describeSignInRetry(email, failure.verdict, { ...state, ...decision }));
-    await page.waitForTimeout(decision.delayMs);
-  }
+  await runSignInLadder(email, {
+    attempt: () => attemptSignIn(page, email, password, returnTo, navigationTimeoutMs),
+    wait: ms => page.waitForTimeout(ms),
+    now: () => performance.now(),
+    log: line => console.warn(line),
+    retriesEnabled: options.retry !== false,
+  });
 }
 
 /**
@@ -414,20 +249,6 @@ export const signInAsExhibitor = (page: Page, returnTo = '/', options?: SignInOp
     returnTo,
     options
   );
-
-function credentialInput(page: Page) {
-  return page
-    .getByTestId('credential-input')
-    .or(page.getByRole('textbox', { name: /Email or show passcode/i }))
-    .first();
-}
-
-function continueButton(page: Page) {
-  return page
-    .getByTestId('continue-button')
-    .or(page.getByRole('button', { name: 'Continue', exact: true }))
-    .first();
-}
 
 /**
  * Sign out the current user.

@@ -21,7 +21,7 @@ import { disciplineUsesJumpHeight } from '@/types/template.types';
 import { EditingBadge } from '@/features/show-presence/EditingBadge';
 import type { RemoveFromClassEligibility } from '@/services/database/entries/withdrawEligibility';
 
-export const JUMP_HEIGHTS = ['4"', '8"', '12"', '16"', '20"', '24"', '26"'];
+const JUMP_HEIGHTS = ['4"', '8"', '12"', '16"', '20"', '24"', '26"'];
 
 export interface EntryClass {
   id: string;

@@ -74,7 +74,6 @@ function mockLegacyEntryUpdate() {
     update: vi.fn(() => query),
     eq: vi.fn(() => query),
     in: vi.fn(() => query),
-    in: vi.fn(() => query),
     select: vi.fn(() => query),
     single: vi.fn(() => Promise.resolve({ data: { id: 'entry-1' }, error: null })),
     then: (resolve: (value: { data: unknown[]; error: null }) => unknown) =>

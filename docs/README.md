@@ -77,6 +77,7 @@ retired to [`archive/`](archive/) (kept for history, not maintained).
 | [plan-sidebar-account-footer.md](plan-sidebar-account-footer.md)                                                 | Active    | Sidebar Account Footer Plan                                                        |
 | [plan-wave2-cross-role-seam-recovery.md](plan-wave2-cross-role-seam-recovery.md)                                 | Active    | Wave 2 Cross-Role Seam Recovery Implementation Plan                                |
 | [plan-secretary-walk-remediation.md](plan-secretary-walk-remediation.md)                                         | Active    | Secretary task-walk findings — remediation + task-card guide                       |
+| [plan-secretary-show-actions.md](plan-secretary-show-actions.md)                                                 | Active    | Secretary Show Actions — inventory and collapse plan (MYK9-630)                    |
 | [plan-f29b-operational-actions-home.md](plan-f29b-operational-actions-home.md)                                   | Active    | F29b — move-up and run order have no reachable surface                             |
 | [plan-ai-support-triage.md](plan-ai-support-triage.md)                                                           | Active    | AI Support Triage — external scheduled agent (design spec)                         |
 | [plan-ai-support-triage-implementation.md](plan-ai-support-triage-implementation.md)                             | Active    | AI Support Triage — implementation plan (9 tasks)                                  |

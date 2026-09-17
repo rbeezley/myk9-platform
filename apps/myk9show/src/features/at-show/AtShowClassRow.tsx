@@ -16,6 +16,15 @@ interface AtShowClassRowProps {
   trialTimeZone: string;
   /** In-ring / next-up preview for this card; omitted when unknown. */
   nextUp?: AtShowNextUpPreview | undefined;
+  /**
+   * Whether this class's entry rows have actually been read (MYK9-637).
+   * `false` means the counts are UNKNOWN, not zero -- see the counter below.
+   *
+   * REQUIRED, with no default, on purpose: a defaulted `true` let both call
+   * sites be deleted while everything still compiled and stayed green, which
+   * silently reinstated `0 / 0` (LESSONS last-hop-drop).
+   */
+  entryCountsAvailable: boolean;
 }
 
 /**
@@ -67,6 +76,7 @@ export function AtShowClassRow({
   onClick,
   trialTimeZone,
   nextUp,
+  entryCountsAvailable,
 }: AtShowClassRowProps) {
   const status = getEffectiveClassStatus(entry);
   const showNextUp = isLiveNextUpStatus(status) && !isEmptyNextUpPreview(nextUp);
@@ -117,13 +127,28 @@ export function AtShowClassRow({
         </div>
         <div className="flex shrink-0 flex-col items-end gap-1">
           <StatusBadge family="class" status={status} className="px-2 py-0.5 text-xs font-medium" />
+          {/*
+            INTENT: an unknown count must never be spelled as a zero. On the
+            judge's landing screen "0 of 0 scored" is a claim that the class is
+            empty and finished; before the show's entry replica has been read
+            that claim is simply unfounded (MYK9-637).
+          */}
           <span className="text-xs text-muted-foreground">
-            <span aria-hidden>
-              {entry.completed_count} / {entry.entry_count}
-            </span>
-            <span className="sr-only">
-              {entry.completed_count} of {entry.entry_count} scored
-            </span>
+            {entryCountsAvailable ? (
+              <>
+                <span aria-hidden>
+                  {entry.completed_count} / {entry.entry_count}
+                </span>
+                <span className="sr-only">
+                  {entry.completed_count} of {entry.entry_count} scored
+                </span>
+              </>
+            ) : (
+              <>
+                <span aria-hidden>—</span>
+                <span className="sr-only">Entry count not loaded yet</span>
+              </>
+            )}
           </span>
         </div>
         <ChevronRight size={18} className="shrink-0 text-muted-foreground" />

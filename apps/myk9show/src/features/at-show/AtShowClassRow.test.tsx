@@ -30,7 +30,7 @@ const preview: AtShowNextUpPreview = {
   total: 4,
 };
 
-function renderRow(entry: ClassEntry, nextUp?: AtShowNextUpPreview) {
+function renderRow(entry: ClassEntry, nextUp?: AtShowNextUpPreview, entryCountsAvailable = true) {
   return render(
     <ul>
       <AtShowClassRow
@@ -39,10 +39,32 @@ function renderRow(entry: ClassEntry, nextUp?: AtShowNextUpPreview) {
         onClick={() => {}}
         trialTimeZone="America/New_York"
         nextUp={nextUp}
+        entryCountsAvailable={entryCountsAvailable}
       />
     </ul>
   );
 }
+
+describe('AtShowClassRow entry counter', () => {
+  it('renders the scored-of-total counter from the class entry', () => {
+    renderRow(classEntry({ entry_count: 66, completed_count: 2 }));
+
+    expect(screen.getByText('2 / 66')).toBeInTheDocument();
+    expect(screen.getByText('2 of 66 scored')).toBeInTheDocument();
+  });
+
+  // MYK9-637: a cold, never-synced entries replica made this read `0 of 0
+  // scored` on a 66-entry class -- the judge's landing screen reporting that
+  // there was nothing to run. Unknown is its own state; it must never be
+  // spelled as a zero.
+  it('does not spell an unknown count as zero', () => {
+    renderRow(classEntry({ entry_count: 0, completed_count: 0 }), undefined, false);
+
+    expect(screen.queryByText('0 / 0')).not.toBeInTheDocument();
+    expect(screen.queryByText('0 of 0 scored')).not.toBeInTheDocument();
+    expect(screen.getByText('Entry count not loaded yet')).toBeInTheDocument();
+  });
+});
 
 describe('AtShowClassRow next-up line', () => {
   it('shows the in-ring armband, the next armbands and the remaining count on a live class', () => {

@@ -74,6 +74,7 @@ export const AtShowClassListPage: React.FC = () => {
     isLoading,
     error,
     classDataHydration,
+    entryCountsAvailable,
     refresh,
   } = useAtShowClassList(showId);
   const { status: syncStatus } = useReplicationSync();
@@ -149,6 +150,24 @@ export const AtShowClassListPage: React.FC = () => {
   // Staff accounts — including a secretary who also exhibits — keep the
   // class-first default.
   const isExhibitorOnly = isExhibitorOnlyForAtShow(hasRole);
+
+  // MYK9-637 (round 2): a synced show scope proves the entries READ happened,
+  // not that it returned every class's rows. `view_authenticated_entry_results`
+  // admits a non-manager judge per class (`is_assigned_judge`), and an
+  // exhibitor only to their own entries -- so for those viewers a class outside
+  // the set they can see holds no local rows for a reason that has nothing to
+  // do with how many entries it has. Rendering that as `0 / 0` is the original
+  // bug wearing a different hat, and it lands hardest on exactly the fail-open
+  // path (assignments unknown on an offline cold boot) where the picker
+  // deliberately widens to every class.
+  const seesEveryEntryInShow = !isJudgeOnly && !isExhibitorOnly;
+  const hasTrustedEntryCount = useCallback(
+    (entry: ClassEntry) =>
+      entryCountsAvailable &&
+      (seesEveryEntryInShow || getClassIds(entry).every(id => assignedClassIds.has(id))),
+    [assignedClassIds, entryCountsAvailable, seesEveryEntryInShow]
+  );
+
   const {
     ownEntryIds,
     isLoading: ownershipLoading,
@@ -423,6 +442,7 @@ export const AtShowClassListPage: React.FC = () => {
                 onClick={handleClassClick}
                 trialTimeZone={trialTimeZone}
                 nextUp={selectNextUpForCard(getClassIds(entry), nextUpByClassId)}
+                entryCountsAvailable={hasTrustedEntryCount(entry)}
               />
             ))}
           </ul>
@@ -479,6 +499,7 @@ export const AtShowClassListPage: React.FC = () => {
                       onClick={handleClassClick}
                       trialTimeZone={trialTimeZone}
                       nextUp={selectNextUpForCard(getClassIds(entry), nextUpByClassId)}
+                      entryCountsAvailable={hasTrustedEntryCount(entry)}
                     />
                   ))}
                 </ul>

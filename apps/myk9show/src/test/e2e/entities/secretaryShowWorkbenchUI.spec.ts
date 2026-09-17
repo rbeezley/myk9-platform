@@ -47,7 +47,10 @@ test.describe('Secretary show management UI', () => {
     await expect(page.getByTestId('canonical-show-management-nav')).toBeVisible();
     await expect(page.getByRole('link', { name: 'Setup' })).toHaveCount(0);
     await expect(page.getByRole('link', { name: 'Show Desk' })).toBeVisible();
-    await expect(page.getByRole('button', { name: 'More show actions' }).first()).toBeVisible();
+    // The header `...` menu is deleted (MYK9-630); its verbs moved to the app
+    // header Actions menu, the Overview landing card and the Show Edit panel.
+    await expect(page.getByRole('button', { name: 'More show actions' })).toHaveCount(0);
+    await expect(page.getByTestId('header-actions-trigger')).toBeVisible();
 
     await expect(page.getByRole('heading', { name: 'Show schedule' })).toBeVisible();
     await expect(page.getByRole('heading', { name: 'Premium List' }).first()).toBeVisible();

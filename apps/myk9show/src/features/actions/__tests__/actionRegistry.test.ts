@@ -72,6 +72,16 @@ describe('parseActionRouteContext', () => {
 describe('resolveActions — secretary on a show', () => {
   const actions = resolveActions({ kind: 'show', showId: SHOW_ID }, secretary);
 
+  it('puts Show settings last and opens the Show Edit panel, not a settings page', () => {
+    // Richard, 2026-09-17: "Show settings is the last item in the header Actions
+    // menu and opens the existing Show Edit panel (`?edit=true`). No separate
+    // settings page; /shows/:id/setup redirects to /shows/:id."
+    const last = actions[actions.length - 1];
+    expect(last?.id).toBe('show-settings');
+    expect(last?.href).toBe(`/shows/${SHOW_ID}?edit=true`);
+    expect(actions.some(action => action.href.endsWith('/setup'))).toBe(false);
+  });
+
   it('returns the six decided items in order', () => {
     expect(actions.map(a => a.id)).toEqual([
       'show-add-mail-in-entry',

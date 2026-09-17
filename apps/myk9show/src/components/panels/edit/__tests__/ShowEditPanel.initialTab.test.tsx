@@ -45,6 +45,27 @@ describe('the Judges tab when no qualified judges exist', () => {
   });
 });
 
+describe('the delete row at the bottom of the panel', () => {
+  // MYK9-630 decision: Delete show left the header `...` menu (deleted) and is a
+  // red destructive row here, last, behind the caller's existing confirm dialog.
+  it('calls the caller back so the existing confirm dialog runs', async () => {
+    const onRequestDelete = vi.fn();
+    const { user } = render(
+      <ShowEditPanel open onClose={vi.fn()} onRequestDelete={onRequestDelete} {...baseProps} />
+    );
+
+    await user.click(screen.getByRole('button', { name: /delete show/i }));
+    expect(onRequestDelete).toHaveBeenCalledTimes(1);
+  });
+
+  it('shows no delete row where the caller offers no delete', () => {
+    // The panel is reused outside a show-management shell (ClubDetails), where
+    // deleting the show is not on offer; a dead red button would be a lie.
+    render(<ShowEditPanel open onClose={vi.fn()} {...baseProps} />);
+    expect(screen.queryByRole('button', { name: /delete show/i })).toBeNull();
+  });
+});
+
 describe('ShowEditPanel initialTab', () => {
   it('opens on the deep-linked tab', () => {
     render(<ShowEditPanel open onClose={vi.fn()} initialTab="judges" {...baseProps} />);

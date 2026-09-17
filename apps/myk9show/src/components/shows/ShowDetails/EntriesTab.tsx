@@ -2,14 +2,12 @@ import React from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { cacheStrategies } from '@/lib/queryClient';
 import { Card, CardContent } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
 import { ClipboardList } from 'lucide-react';
 import { getEntriesByShow } from '@/services/database/entries';
 import { TableSkeleton } from '@/components/common/SkeletonLoaders';
 
 interface EntriesTabProps {
   showId: string;
-  onManageEntries?: (() => void) | undefined;
 }
 
 /**
@@ -18,10 +16,12 @@ interface EntriesTabProps {
  * (the authenticated read) — there is no anonymous/public consumer of this
  * component; see ShowDetailTabs, its sole caller.
  *
- * Renders a slim total-entries count plus a single primary action that opens
- * the full Entry Management cockpit — no duplicate table (design D5).
+ * Renders a slim total-entries count and nothing else. Its two "Open Entry
+ * Management" buttons were a third and fourth copy of a link that already sits
+ * in the section nav row two inches above, and now also in the header Actions
+ * menu (MYK9-630); the count is the only thing this tab said that they did not.
  */
-export const EntriesTab: React.FC<EntriesTabProps> = ({ showId, onManageEntries }) => {
+export const EntriesTab: React.FC<EntriesTabProps> = ({ showId }) => {
   const {
     data: entryResult,
     isLoading: loading,
@@ -83,7 +83,6 @@ export const EntriesTab: React.FC<EntriesTabProps> = ({ showId, onManageEntries 
                 Entries will appear here once exhibitors register for this show.
               </p>
             </div>
-            {onManageEntries && <Button onClick={onManageEntries}>Open Entry Management</Button>}
           </div>
         </CardContent>
       </Card>
@@ -106,7 +105,6 @@ export const EntriesTab: React.FC<EntriesTabProps> = ({ showId, onManageEntries 
               {entries.length === 1 ? 'entry' : 'entries'} across this show
             </div>
           </div>
-          {onManageEntries && <Button onClick={onManageEntries}>Open Entry Management</Button>}
         </div>
       </CardContent>
     </Card>

@@ -54,12 +54,21 @@ describe('EntriesTab summary', () => {
     expect(screen.queryByPlaceholderText(/search/i)).not.toBeInTheDocument();
   });
 
-  it('renders one primary "Open Entry Management" button that calls onManageEntries', async () => {
-    const onManageEntries = vi.fn();
-    const { user } = render(<EntriesTab showId="s1" onManageEntries={onManageEntries} />);
-    const button = await screen.findByRole('button', { name: /open entry management/i });
-    await user.click(button);
-    expect(onManageEntries).toHaveBeenCalledTimes(1);
-    expect(screen.getAllByRole('button', { name: /open entry management/i })).toHaveLength(1);
+  it('offers no "Open Entry Management" button, even handed the old callback', async () => {
+    // MYK9-630: this was the third and fourth copy of a link that already sits
+    // in the section nav row two inches above, and now also in the header
+    // Actions menu. The tab keeps the count, which is the only thing it said
+    // that the link did not.
+    //
+    // The retired `onManageEntries` prop is passed on PURPOSE. Rendering
+    // without it would prove nothing: the deleted buttons were themselves
+    // conditional on that prop, so the assertion would pass against the old
+    // component too.
+    const retiredProps = { showId: 's1', onManageEntries: vi.fn() } as unknown as {
+      showId: string;
+    };
+    render(<EntriesTab {...retiredProps} />);
+    await waitFor(() => expect(screen.getByText('2')).toBeInTheDocument());
+    expect(screen.queryByRole('button', { name: /open entry management/i })).toBeNull();
   });
 });

@@ -1,5 +1,6 @@
 import { useState, useCallback } from 'react';
-import { Globe, Copy, Check } from 'lucide-react';
+import { Globe, Copy, Check, Eye } from 'lucide-react';
+import { Link } from 'react-router-dom';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
@@ -76,24 +77,34 @@ export function LandingPageCard({ showId, showStyle }: LandingPageCardProps) {
         </div>
         <p className="text-xs text-muted-foreground mt-0.5 truncate">{url}</p>
       </div>
-      <Button
-        size="sm"
-        variant="outline"
-        onClick={handleCopy}
-        className="min-h-[44px] w-full shrink-0 sm:w-auto"
-      >
-        {copied ? (
-          <>
-            <Check className="h-3.5 w-3.5 mr-1.5 text-green-600" />
-            Copied
-          </>
-        ) : (
-          <>
-            <Copy className="h-3.5 w-3.5 mr-1.5" />
-            Copy Link
-          </>
-        )}
-      </Button>
+      <div className="flex w-full shrink-0 gap-2 sm:w-auto">
+        <Button
+          size="sm"
+          variant="outline"
+          onClick={handleCopy}
+          className="min-h-[44px] flex-1 sm:flex-none"
+        >
+          {copied ? (
+            <>
+              <Check className="h-3.5 w-3.5 mr-1.5 text-green-600" />
+              Copied
+            </>
+          ) : (
+            <>
+              <Copy className="h-3.5 w-3.5 mr-1.5" />
+              Copy Link
+            </>
+          )}
+        </Button>
+        {/* Same route the deleted header `...` menu used; this is the link
+            moving next to the URL it previews, not a second implementation. */}
+        <Button size="sm" variant="outline" asChild className="min-h-[44px] flex-1 sm:flex-none">
+          <Link to={`/shows/${showId}?preview=public`}>
+            <Eye className="h-3.5 w-3.5 mr-1.5" />
+            Preview
+          </Link>
+        </Button>
+      </div>
     </Card>
   );
 }

@@ -1,26 +1,8 @@
-import {
-  AlertCircle,
-  AlertTriangle,
-  CheckCircle2,
-  Eye,
-  MoreHorizontal,
-  Pencil,
-  RefreshCw,
-  Trash2,
-  WifiOff,
-} from 'lucide-react';
+import { AlertCircle, AlertTriangle, CheckCircle2, RefreshCw, WifiOff } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
 import { ArmbandLookup } from '@/components/shows/ArmbandLookup';
 import { ShowStatusPill } from '@/components/shows/ShowStatusPill';
-import { Button } from '@/components/ui/button';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
 import { LiveUpdateIndicator } from '@/features/show-live-sync/LiveUpdateIndicator';
 import { ShowPresenceStack } from '@/features/show-presence/ShowPresenceStack';
 import { classifyPremiumPublishState } from '@/features/show-workbench/premiumPublishState';
@@ -67,14 +49,10 @@ export function ShowDeskCompactContext({
   show,
   canonicalShowHref,
   armbandCount,
-  onEdit,
-  onDelete,
 }: {
   show: Show;
   canonicalShowHref: string;
   armbandCount: number | undefined;
-  onEdit: () => void;
-  onDelete: () => void;
 }) {
   const { data: publishInfo } = usePublishInfo(show.id);
   /**
@@ -144,34 +122,6 @@ export function ShowDeskCompactContext({
           <span id={SHOW_STATUS_CONTROL_ANCHOR} className="scroll-mt-20">
             <ShowStatusPill showId={show.id} status={show.status} clubId={show.clubId} />
           </span>
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="outline" size="icon-lg" aria-label="More show actions">
-                <MoreHorizontal className="h-4 w-4" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              <DropdownMenuItem asChild>
-                <Link to={`${canonicalShowHref}?preview=public`}>
-                  <Eye className="mr-2 h-4 w-4" />
-                  Preview as exhibitor
-                </Link>
-              </DropdownMenuItem>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem onClick={onEdit}>
-                <Pencil className="mr-2 h-4 w-4" />
-                Edit
-              </DropdownMenuItem>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem
-                className="text-destructive focus:text-destructive"
-                onClick={onDelete}
-              >
-                <Trash2 className="mr-2 h-4 w-4" />
-                Delete
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
         </div>
       </div>
 

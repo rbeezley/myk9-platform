@@ -1,15 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Link, Outlet, useNavigate, useSearchParams } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
-import { Trash2, Pencil, MoreHorizontal, Eye } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
 import { PageShell } from '@/components/common/PageShell';
 import { PageHeader } from '@/components/common/PageHeader';
 import { DetailHero } from '@/components/common/DetailHero';
@@ -128,18 +120,22 @@ export function ShowManagementShell({
   const queryClient = useQueryClient();
   const [searchParams, setSearchParams] = useSearchParams();
   const updateShowLocally = useShowStore(s => s.updateShow);
-  const [showEditPanel, setShowEditPanel] = useState(
-    () => new URLSearchParams(window.location.search).get('edit') === 'true'
-  );
-  // Which tab the deep link asked for. Captured once, from the same initial URL read as
-  // `edit` above, because the effect below strips both params immediately -- reading it
-  // from `searchParams` during render would come back null on the second pass and snap
-  // the panel back to Basic Info while the secretary was looking at Judges (F4/F12).
+  // Read from the ROUTER's params, not `window.location`: this shell is mounted
+  // by the router, and an in-app navigation that never touches `window.location`
+  // (the header Actions "Show settings" link) must be seen the same way a cold
+  // load is. Captured in a `useState` INITIALIZER, which runs once on the first
+  // render -- the effect below strips both params straight after, and reading
+  // them during a later render would come back null and snap the panel back to
+  // Basic Info while the secretary was looking at Judges (F4/F12).
+  const [showEditPanel, setShowEditPanel] = useState(() => searchParams.get('edit') === 'true');
   const [editPanelTab] = useState<ShowEditTab>(() =>
-    normalizeShowEditTab(new URLSearchParams(window.location.search).get(SHOW_EDIT_TAB_PARAM))
+    normalizeShowEditTab(searchParams.get(SHOW_EDIT_TAB_PARAM))
   );
+  const editParam = searchParams.get('edit');
   useEffect(() => {
-    // Strip both so a refresh or a shared URL does not reopen the editor.
+    // Strip both so a refresh or a shared URL does not reopen the editor. Keyed
+    // on `editParam` rather than mount, because the header Actions "Show
+    // settings" link puts it back on a page that is already mounted.
     const hadEdit = searchParams.get('edit') === 'true';
     const hadTab = searchParams.get(SHOW_EDIT_TAB_PARAM) !== null;
     if (hadEdit || hadTab) {
@@ -147,17 +143,32 @@ export function ShowManagementShell({
       searchParams.delete(SHOW_EDIT_TAB_PARAM);
       setSearchParams(searchParams, { replace: true });
     }
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [editParam]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Reopening from the menu should start on Basic Info, not on whatever tab a deep link
   // once asked for -- the deep link is a one-shot instruction, not a preference.
   const [editPanelOpenedByLink, setEditPanelOpenedByLink] = useState(
-    () => new URLSearchParams(window.location.search).get('edit') === 'true'
+    () => searchParams.get('edit') === 'true'
   );
   const openEditPanel = () => {
     setEditPanelOpenedByLink(false);
     setShowEditPanel(true);
   };
+
+  // The header Actions menu's "Show settings" is a LINK to `?edit=true` on the
+  // page the secretary is already standing on, so React Router replaces the
+  // search without remounting this shell and the initializer above can never
+  // see it. This is React's "adjust state when an input changes" pattern,
+  // during render on purpose: the same thing in an effect costs a second render
+  // pass with the panel shut and trips the cascading-renders lint.
+  const [seenEditParam, setSeenEditParam] = useState(editParam);
+  if (editParam !== seenEditParam) {
+    setSeenEditParam(editParam);
+    // A later arrival opens on Basic Info: the deep link's tab was a one-shot
+    // instruction for the load that carried it, not a standing preference.
+    if (editParam === 'true') openEditPanel();
+  }
+
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const entryDataUnavailable = entryDataState !== 'ready';
   const isShowDesk = activeManagementSection === 'show-desk';
@@ -176,8 +187,6 @@ export function ShowManagementShell({
             show={show}
             canonicalShowHref={canonicalShowHref}
             armbandCount={armbandCount}
-            onEdit={openEditPanel}
-            onDelete={() => setShowDeleteDialog(true)}
           />
         ) : (
           <>
@@ -208,41 +217,6 @@ export function ShowManagementShell({
                   <span id={SHOW_STATUS_CONTROL_ANCHOR} className="scroll-mt-20">
                     <ShowStatusPill showId={show.id} status={show.status} clubId={show.clubId} />
                   </span>
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      {/* size="icon-lg" (44px), and the responsive override is
-                          gone. It read `h-10 w-10 sm:h-9 sm:w-9` — 40px on a
-                          phone, SHRINKING to 36px from the `sm` breakpoint up.
-                          Whatever that was meant to do, a control does not get
-                          harder to hit as the screen gets bigger, and it put
-                          this one under the 44px floor on every width
-                          (MYK9-277). */}
-                      <Button variant="outline" size="icon-lg" aria-label="More show actions">
-                        <MoreHorizontal className="h-4 w-4" />
-                      </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end">
-                      <DropdownMenuItem asChild>
-                        <Link to={`${canonicalShowHref}?preview=public`}>
-                          <Eye className="h-4 w-4 mr-2" />
-                          Preview as exhibitor
-                        </Link>
-                      </DropdownMenuItem>
-                      <DropdownMenuSeparator />
-                      <DropdownMenuItem onClick={openEditPanel}>
-                        <Pencil className="h-4 w-4 mr-2" />
-                        Edit
-                      </DropdownMenuItem>
-                      <DropdownMenuSeparator />
-                      <DropdownMenuItem
-                        className="text-destructive focus:text-destructive"
-                        onClick={() => setShowDeleteDialog(true)}
-                      >
-                        <Trash2 className="h-4 w-4 mr-2" />
-                        Delete
-                      </DropdownMenuItem>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
                 </>
               }
               footer={
@@ -281,10 +255,13 @@ export function ShowManagementShell({
           </div>
         )}
 
-        {/* INTENT: Overview and management sections retain full publishing context.
-            Show Desk uses compact operational chrome and surfaces only a
-            publishing exception, so urgent Class work stays in the viewport. */}
-        {!isShowDesk && (
+        {/* INTENT: the publish row lives on Overview ONLY (Richard, decision 2).
+            It was an always-on row on every section except Show Desk, which put
+            the same two cards in front of a secretary who had navigated to
+            Reports or Results to do something else; the header Actions menu's
+            "Generate & publish premium" is the way back to it from anywhere.
+            Show Desk keeps its compact publishing exception instead. */}
+        {!activeManagementSection && (
           <div
             id={SETUP_PUBLISH_ANCHOR}
             className="mt-4 grid scroll-mt-20 grid-cols-1 gap-3 rounded-md sm:grid-cols-2 target:ring-2 target:ring-ring target:ring-offset-2 target:ring-offset-background"
@@ -360,6 +337,7 @@ export function ShowManagementShell({
         showId={show.id || ''}
         showName={show.name || ''}
         initialShowData={show || {}}
+        onRequestDelete={() => setShowDeleteDialog(true)}
         onSave={async showData => {
           if (show.id) {
             const id = show.id;

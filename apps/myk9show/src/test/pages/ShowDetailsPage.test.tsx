@@ -1,4 +1,4 @@
-import { render, screen, waitFor, fireEvent, within } from '@testing-library/react';
+import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
@@ -678,20 +678,23 @@ describe('ShowDetailsPage', () => {
 
     renderPage();
 
-    expect(screen.getByRole('button', { name: /more show actions/i })).toBeInTheDocument();
+    // Positive control that the MANAGER shell rendered at all -- otherwise the
+    // absence below would pass on any page. It used to be the `...` trigger,
+    // which MYK9-630 deletes.
+    expect(screen.getByTestId('canonical-show-management-nav')).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /premium list/i })).toBeNull();
   });
 
-  it('keeps show manager status and overflow actions in the hero header slot', () => {
+  it('keeps show manager status in the hero header slot, with no overflow menu beside it', () => {
     mockAuthContext.isSecretary = true;
 
     renderPage();
 
     const heroActions = screen.getByTestId('hero-header-actions');
     expect(heroActions).toHaveTextContent('Upcoming');
-    expect(heroActions).toContainElement(
-      screen.getByRole('button', { name: /more show actions/i })
-    );
+    // MYK9-630 deleted the `...` menu that used to share this slot; the one
+    // actions surface is the app header's Actions button.
+    expect(screen.queryByRole('button', { name: /more show actions/i })).toBeNull();
     expect(screen.getByTestId('hero-secondary-actions')).toBeEmptyDOMElement();
   });
 
@@ -752,9 +755,10 @@ describe('ShowDetailsPage', () => {
 
     renderPage();
 
-    fireEvent.click(screen.getByRole('button', { name: /more show actions/i }));
-    expect(screen.getByRole('menuitem', { name: /edit/i })).toBeInTheDocument();
-    expect(screen.getByRole('menuitem', { name: /delete/i })).toBeInTheDocument();
+    // There is no menu left to open: Edit and Delete moved into the Show Edit
+    // panel's own surface, Preview moved to the Overview landing card.
+    expect(screen.queryByRole('button', { name: /more show actions/i })).toBeNull();
+    expect(screen.getByTestId('canonical-show-management-nav')).toBeInTheDocument();
     expect(screen.queryByRole('link', { name: /preview public page/i })).not.toBeInTheDocument();
     expect(
       screen.queryByRole('menuitem', { name: /manage in workbench/i })

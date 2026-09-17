@@ -19,6 +19,12 @@ export interface ShowEditPanelProps {
   showAdvancedFields?: boolean;
   /** Tab the panel opens on; set by the `editTab` deep link (F4/F12). */
   initialTab?: ShowEditTab;
+  /**
+   * Opens the caller's delete confirmation. When omitted the panel shows no
+   * delete row at all -- this panel is reused outside a show-management shell
+   * (ClubDetails), where deleting the show is not on offer.
+   */
+  onRequestDelete?: () => void;
 }
 
 export interface ShowEditSaveData extends Partial<Show> {

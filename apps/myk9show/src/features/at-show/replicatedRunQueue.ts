@@ -20,7 +20,7 @@ import {
   type RunQueueEntry,
 } from '@myk9/ringside';
 import type { ReplicatedEntry } from '@/services/replication/ReplicatedEntriesTable';
-import { isNonRunningEntry } from '@/features/_shared/entryAccounting';
+import { isExpectedEntry } from '@/features/_shared/entryAccounting';
 
 /** A replicated row plus the normalized fields the run queue sorts on. */
 export interface ReplicatedQueueEntry extends RunQueueEntry {
@@ -39,19 +39,22 @@ function parseArmband(entry: ReplicatedEntry): number {
  * Replicated rows carry TWO status axes: `check_in_status` (the show-day flow —
  * this is where `pulled` and `in-ring` live, see CheckInStatus in @myk9/core)
  * and `entry_status` (the registration lifecycle). `isInQueue` / `isInRingEntry`
- * test for `pulled` / `in-ring`, so the check-in axis must win — reading the
- * lifecycle axis alone would leave a dog pulled at the gate still showing as
- * pending. Lifecycle states that also mean "won't run" are folded onto `pulled`
- * so a single field answers queue membership.
+ * test for `pulled` / `in-ring`, so every state meaning "won't run" is folded
+ * onto `pulled` and a single field answers queue membership.
+ *
+ * MEMBERSHIP is `isExpectedEntry` — the SAME predicate the counts use — not a
+ * status list of this module's own (MYK9-645). The two lists had drifted by
+ * exactly `moved` and `not_accepted`: a class with an unscored `moved` #114
+ * beside a live #115 announced "Next up 114, 115" and "1 of 1 remaining", with
+ * #114 simultaneously listed under Not running. The queue still owns the
+ * ORDER; `entryAccounting` owns who is in it.
  */
 function queueStatus(entry: ReplicatedEntry): string | undefined {
   const checkIn = entry.checkInStatus ?? entry.check_in_status;
-  if (checkIn === 'pulled' || checkIn === 'in-ring') return checkIn;
+  if (checkIn === 'in-ring') return checkIn;
+  if (!isExpectedEntry(entry)) return 'pulled';
 
-  const lifecycle = entry.status ?? entry.entryStatus;
-  if (isNonRunningEntry({ entryStatus: lifecycle })) return 'pulled';
-
-  return checkIn ?? lifecycle;
+  return checkIn ?? entry.status ?? entry.entryStatus;
 }
 
 export function toRunQueueEntry(entry: ReplicatedEntry): ReplicatedQueueEntry {

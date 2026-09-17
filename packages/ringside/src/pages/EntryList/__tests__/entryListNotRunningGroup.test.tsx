@@ -20,9 +20,18 @@ import type { EntryListPageProps } from '../pageProps';
 import { useEntryListFilters, type EntryGroup } from '../hooks/useEntryListFilters';
 import { makeSingleClassProps } from './entryListParity.fixtures';
 
+// The mock stands in for the real grid but keeps the ONE prop under test here
+// visible: `scoringDisabled` is what suppresses the Score button per row, and
+// `SortableEntryCard.scoringDisabled.test.tsx` proves it actually does.
 vi.mock('../components/EntryListContent', () => ({
-  EntryListContent: ({ entries }: { entries: { id: string }[] }) => (
-    <div data-testid="entry-list-content">
+  EntryListContent: ({
+    entries,
+    scoringDisabled = false,
+  }: {
+    entries: { id: string }[];
+    scoringDisabled?: boolean;
+  }) => (
+    <div data-testid="entry-list-content" data-scoring-disabled={String(scoringDisabled)}>
       {entries.map(entry => (
         <div key={entry.id} data-testid="entry-row" data-entry-id={entry.id} />
       ))}
@@ -178,6 +187,20 @@ describe('EntryListPage — Pending badge describes the rows beneath it (MYK9-64
   // The middle rung of the three-source ladder in `EntryListPage`: a host that
   // computes the aggregate pair but not the per-row grouping. Deleting the
   // `statusCounts` argument at the call site reds this.
+  it('renders the group collapsed, and with scoring suppressed', () => {
+    const { container } = renderHarness(CLASSIFICATION);
+
+    const details = container.querySelector('details') as HTMLDetailsElement;
+    expect(details).not.toBeNull();
+    // Collapsed on FIRST render: the judge's thumb must still land on the next
+    // dog to score, not on a list of dogs that are not running.
+    expect(details.hasAttribute('open')).toBe(false);
+
+    const lists = screen.getAllByTestId('entry-list-content');
+    expect(lists[0]).toHaveAttribute('data-scoring-disabled', 'false');
+    expect(lists[1]).toHaveAttribute('data-scoring-disabled', 'true');
+  });
+
   it('takes an aggregate statusCounts over the entries-array derivation when no classification is given', () => {
     renderHarness(undefined, { pending: 65, completed: 1 });
 

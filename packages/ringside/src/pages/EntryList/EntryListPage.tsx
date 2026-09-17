@@ -343,6 +343,12 @@ export const EntryListPage: React.FC<EntryListPageProps> = ({
                     <EntryListContent
                       entries={notRunningEntries}
                       activeTab={activeTab}
+                      // No Score button, no scoresheet tap, no reset menu: a
+                      // score saved from inside a collapsed group would move
+                      // neither badge and the judge would never see it again.
+                      // The status chip stays, so the existing check-in flow is
+                      // still the way back (MYK9-645).
+                      scoringDisabled
                       isDragMode={false}
                       showContext={showContext}
                       classInfo={classInfo}

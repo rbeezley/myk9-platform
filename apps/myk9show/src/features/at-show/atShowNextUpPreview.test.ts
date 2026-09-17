@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import type { ReplicatedEntry } from '@/services/replication/ReplicatedEntriesTable';
+import { classifyEntries } from '@/features/_shared/entryAccounting';
 import {
   buildNextUpPreview,
   isEmptyNextUpPreview,
@@ -86,6 +87,49 @@ describe('buildNextUpPreview', () => {
     expect(preview.nextArmbands).toEqual(['20']);
     // Still counted as remaining — it is a real dog, just missing an armband.
     expect(preview.remaining).toBe(2);
+  });
+
+  // MYK9-645 round 4: the queue's membership list had drifted from the counting
+  // rule by exactly `moved` and `not_accepted`, so a class with an unscored
+  // `moved` #114 beside a live #115 announced "Next up 114, 115" and
+  // "1 of 1 remaining" -- while #114 was simultaneously listed under Not
+  // running. Both now answer to `isExpectedEntry`.
+  it('leaves a moved entry out of the order as well as the counts', () => {
+    const rows: ReplicatedEntry[] = [
+      entry({
+        id: 'moved',
+        armband: '114',
+        runOrder: 1,
+        entryStatus: 'moved',
+        checkInStatus: 'no-status',
+        isScored: false,
+      }),
+      entry({
+        id: 'live',
+        armband: '115',
+        runOrder: 2,
+        entryStatus: 'confirmed',
+        checkInStatus: 'no-status',
+        isScored: false,
+      }),
+    ];
+    const preview = buildNextUpPreview(rows);
+
+    expect(preview.nextArmbands).toEqual(['115']);
+    expect(preview.remaining).toBe(1);
+    expect(preview.total).toBe(1);
+    // The same row the order now skips is the one the grouping calls not_running.
+    expect(classifyEntries(rows)['moved']).toBe('not_running');
+  });
+
+  it('leaves a not_accepted entry out of the order as well as the counts', () => {
+    const preview = buildNextUpPreview([
+      entry({ id: 'na', armband: '200', runOrder: 1, entryStatus: 'not_accepted' }),
+      entry({ id: 'live', armband: '201', runOrder: 2, entryStatus: 'confirmed' }),
+    ]);
+
+    expect(preview.nextArmbands).toEqual(['201']);
+    expect(preview.total).toBe(1);
   });
 
   it('returns an empty preview for a class with no entries', () => {

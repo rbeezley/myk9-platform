@@ -69,6 +69,11 @@ export interface EntryListContentProps {
   favorites?: EntryListFavorites;
   /** Optional ownership annotations (own-dog highlight + dogs-ahead pills). */
   ownership?: EntryListOwnership;
+  /**
+   * Render every card with its scoring affordances suppressed (MYK9-645).
+   * Used for the "Not running" group: those dogs are visible, not scorable.
+   */
+  scoringDisabled?: boolean;
   /** Host-injected card primitive — passed through to SortableEntryCard. */
   DogCard: ComponentType<DogCardProps>;
 }
@@ -96,6 +101,7 @@ export const EntryListContent: React.FC<EntryListContentProps> = ({
   onOpenDragMode,
   favorites,
   ownership,
+  scoringDisabled = false,
   DogCard,
 }) => {
   // Track when entries first load to trigger stagger animation
@@ -160,6 +166,7 @@ export const EntryListContent: React.FC<EntryListContentProps> = ({
             <SortableEntryCard
               key={`${entry.id}-${entry.status}-${entry.isScored}`}
               entry={entry}
+              scoringDisabled={scoringDisabled}
               isDragMode={isDragMode}
               showContext={showContext}
               classInfo={classInfo}

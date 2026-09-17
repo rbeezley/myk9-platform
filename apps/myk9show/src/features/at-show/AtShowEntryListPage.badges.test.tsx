@@ -11,7 +11,7 @@
  */
 import { Routes, Route } from 'react-router-dom';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen } from '@/test/utils/testUtils';
+import { render, screen, within } from '@/test/utils/testUtils';
 import { ReplicationSyncContext } from '@/context/ReplicationSyncContext';
 import type { ReplicationSyncContextValue } from '@/context/ReplicationSyncContext';
 import { AtShowEntryListPage } from './AtShowEntryListPage';
@@ -182,8 +182,29 @@ describe('AtShowEntryListPage — tab badges follow the canonical rule (MYK9-645
   it('does not render the withdrawn or absent dog among the pending runners', async () => {
     renderPage();
 
-    expect(await screen.findByText('Runner 1')).toBeInTheDocument();
+    const pendingGrid = (await screen.findByText('Runner 1')).closest('div.grid') as HTMLElement;
+
+    // The withdrawn dog IS on the page -- under the Not running group, not in
+    // the pending grid. Asserting only that the group exists would pass with
+    // the dog ALSO rendered among the runners.
+    expect(within(pendingGrid).queryByText('Withdrawn Dog')).not.toBeInTheDocument();
+    expect(screen.getByText('Withdrawn Dog')).toBeInTheDocument();
+
     // The absent-result dog is accounted for, so it belongs to Completed.
     expect(screen.queryByText('Absent Dog')).not.toBeInTheDocument();
+  });
+
+  it('offers no Score control inside the Not running group', async () => {
+    renderPage();
+    await screen.findByText('Not running (1)');
+
+    const withdrawnCard = screen.getByText('Withdrawn Dog').closest('div.grid') as HTMLElement;
+    expect(
+      within(withdrawnCard).queryByRole('button', { name: /^Score /i })
+    ).not.toBeInTheDocument();
+
+    // ...while a pending runner still has one.
+    const pendingGrid = screen.getByText('Runner 1').closest('div.grid') as HTMLElement;
+    expect(within(pendingGrid).getByRole('button', { name: 'Score Runner 1' })).toBeInTheDocument();
   });
 });

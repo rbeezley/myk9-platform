@@ -67,6 +67,15 @@ export interface SortableEntryCardProps {
   /** Ring-conflict annotation for an own entry ("Also 2 away in ..."). */
   conflictLabel?: string | null;
   /**
+   * Suppress every scoring affordance on this card (MYK9-645).
+   *
+   * Set for rows in the "Not running" group: a withdrawn or pulled dog still
+   * offered a live Score button, and a score saved from there vanished into a
+   * collapsed group and moved neither badge. The status chip stays, so the
+   * existing check-in flow remains the one way back — no new action is added.
+   */
+  scoringDisabled?: boolean;
+  /**
    * Host-injected card primitive. The host renders this with the
    * armband / dog details / badges; ringside controls only what's
    * passed in.
@@ -107,6 +116,7 @@ const PrimaryEntryAction: React.FC<PrimaryEntryActionProps> = ({
 
 export const SortableEntryCard: React.FC<SortableEntryCardProps> = ({
   entry,
+  scoringDisabled = false,
   isDragMode,
   showContext,
   classInfo,
@@ -146,11 +156,15 @@ export const SortableEntryCard: React.FC<SortableEntryCardProps> = ({
   const isSelfCheckinEnabled = classInfo?.selfCheckin ?? true;
   const isCheckInDisabled = !canCheckIn && !isSelfCheckinEnabled;
 
+  // Scoring is a permission AND a property of the row: a dog the show no longer
+  // expects to run has nothing to score (MYK9-645).
+  const scoringAllowed = hasPermission('canScore') && !scoringDisabled;
+
   // Handle card click
   const handleCardClick = () => {
     if (isDragMode) return; // Disable navigation in drag mode
     if (isLongPressRef.current) return; // Ignore click if it was a long press
-    if (hasPermission('canScore')) {
+    if (scoringAllowed) {
       haptic.medium();
       handleEntryClick(entry);
     }
@@ -239,7 +253,7 @@ export const SortableEntryCard: React.FC<SortableEntryCardProps> = ({
         onClick={handleCardClick}
         onPrefetch={() => onPrefetch?.(entry)}
         className={cn(
-          hasPermission('canScore') && !entry.isScored && 'clickable',
+          scoringAllowed && !entry.isScored && 'clickable',
           entry.status === 'in-ring' && 'in-ring',
           // Own-dog highlight: calm primary ring + faint tint. Layered via
           // className so the DogCard primitive's API stays untouched.
@@ -254,7 +268,7 @@ export const SortableEntryCard: React.FC<SortableEntryCardProps> = ({
           </>
         }
         primaryAction={
-          hasPermission('canScore') ? (
+          scoringAllowed ? (
             <PrimaryEntryAction
               entry={entry}
               onActivate={handlePrimaryActionClick}
@@ -310,7 +324,7 @@ export const SortableEntryCard: React.FC<SortableEntryCardProps> = ({
               isDisabled={isCheckInDisabled}
               onClick={handleStatusBadgeClick}
             />
-          ) : hasPermission('canScore') ? (
+          ) : scoringAllowed ? (
             <ResetButton onClick={handleResetClick} callName={entry.callName} />
           ) : undefined
         }

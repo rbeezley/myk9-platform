@@ -56,12 +56,16 @@ export function buildNextUpPreview(entries: ReplicatedEntry[]): AtShowNextUpPrev
     .map(armbandOf)
     .filter((armband): armband is string => armband !== null);
 
-  // Two rules, deliberately: `replicatedRunQueue` owns the ORDER (who is in the
-  // ring, who is next), `entryAccounting` owns the COUNTS. Deriving `total`
-  // from the queue's own exclusions made this line a third counting rule -- it
-  // kept `moved` / `not_accepted` entries in the total and ignored `absent` /
-  // `excused` results -- so a 9-runner class read "10 of 10 remaining" directly
-  // above "0 / 9" on the same card (MYK9-645).
+  // ONE membership rule, one ordering rule. `entryAccounting` answers who the
+  // show expects to run -- for the counts here AND, since MYK9-645 round 4, for
+  // `replicatedRunQueue`'s own `queueStatus`. The queue then answers only the
+  // ORDER: who is in the ring, who is next.
+  //
+  // Both halves of that were separately wrong. Deriving `total` from the
+  // queue's exclusions made this line a third counting rule (a 9-runner class
+  // read "10 of 10 remaining" above "0 / 9"); and while the queue kept its own
+  // status list, a `moved` entry stayed in the ORDER, so the card announced a
+  // dog as next up that the counts had already excluded.
   //
   // `remaining` still counts the in-ring dog: an exhibitor deciding whether to
   // walk to the ring cares about dogs still to run, not dogs still queued.

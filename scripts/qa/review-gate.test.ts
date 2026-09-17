@@ -60,6 +60,30 @@ function adversarialBody(
   ].join('\n');
 }
 
+/**
+ * Index into a list an assertion has already pinned. Under
+ * `noUncheckedIndexedAccess` an index read is `T | undefined`; an optional
+ * chain would turn a missing element into a SKIPPED expectation, which in this
+ * file would silently stop pinning the gate's contract. Throwing keeps the
+ * test red and says what was missing (MYK9-540).
+ */
+function at<T>(items: readonly T[], index: number, what: string): T {
+  const item = items[index];
+  if (item === undefined) {
+    throw new Error(`expected ${what} at index ${index}; got ${items.length} item(s)`);
+  }
+  return item;
+}
+
+/** The same rule for a mandatory regex capture group. */
+function captured(match: RegExpMatchArray | null, index: number, what: string): string {
+  const value = match?.[index];
+  if (value === undefined) {
+    throw new Error(`expected ${what} (capture group ${index})`);
+  }
+  return value;
+}
+
 function comment(
   body: string,
   createdAt = '2026-09-05T16:00:00Z',
@@ -357,7 +381,7 @@ describe('evaluateReviewGate', () => {
       comment(`Review gate: codex reviewed ${OLD_HEAD}..${HEAD} – 3 findings, all fixed`),
     ]);
     expect(evidence.map(e => e.reviewer)).toEqual(['claude', 'codex']);
-    expect(evidence[1].head).toBe(HEAD);
+    expect(at(evidence, 1, 'the codex gate evidence').head).toBe(HEAD);
   });
 });
 
@@ -377,7 +401,7 @@ describe('contract with the ship-pr skill', () => {
     ).toBeGreaterThan(0);
     for (const ex of examples) {
       const r = evaluateReviewGate({
-        headSha: ex[3].padEnd(40, '0'),
+        headSha: captured(ex, 3, 'the head sha in the documented line').padEnd(40, '0'),
         changedFiles: [],
         comments: [comment(ex[0])],
       });
@@ -424,7 +448,9 @@ describe('workflow wiring', () => {
     // deletes the string.
     const issueComment = workflow.match(/issue_comment:\n\s+types: \[([^\]]+)\]/);
     expect(issueComment, 'issue_comment trigger missing').not.toBeNull();
-    const types = issueComment![1].split(',').map(t => t.trim());
+    const types = captured(issueComment, 1, 'the issue_comment types list')
+      .split(',')
+      .map(t => t.trim());
     expect(types).toEqual(expect.arrayContaining(['created', 'edited', 'deleted']));
   });
 
@@ -551,26 +577,36 @@ describe('clampDescription', () => {
 
 describe('tier parsing', () => {
   it('maps the legacy codex line to the independent tier', () => {
-    const [evidence] = parseGateComments([
-      comment(`Review gate: codex reviewed abc1234..${HEAD} — no findings`),
-    ]);
+    const evidence = at(
+      parseGateComments([comment(`Review gate: codex reviewed abc1234..${HEAD} — no findings`)]),
+      0,
+      'the parsed legacy codex evidence'
+    );
     expect(evidence.tier).toBe('independent');
     expect(evidence.reviewer).toBe('codex');
   });
 
   it('parses an explicit tier token', () => {
-    const [evidence] = parseGateComments([
-      comment(
-        `Review gate: adversarial reviewed abc1234..${HEAD} — 2 lenses, all findings addressed`
-      ),
-    ]);
+    const evidence = at(
+      parseGateComments([
+        comment(
+          `Review gate: adversarial reviewed abc1234..${HEAD} — 2 lenses, all findings addressed`
+        ),
+      ]),
+      0,
+      'the parsed adversarial evidence'
+    );
     expect(evidence.tier).toBe('adversarial');
   });
 
   it('parses the none tier', () => {
-    const [evidence] = parseGateComments([
-      comment(`Review gate: none reviewed abc1234..${HEAD} — low-risk paths, CI green`),
-    ]);
+    const evidence = at(
+      parseGateComments([
+        comment(`Review gate: none reviewed abc1234..${HEAD} — low-risk paths, CI green`),
+      ]),
+      0,
+      'the parsed none-tier evidence'
+    );
     expect(evidence.tier).toBe('none');
   });
 });

@@ -1,5 +1,6 @@
 import React, { ReactNode } from 'react';
 import { CommonDialog } from '@/components/common/CommonDialog';
+import { errorReason } from '@/hooks/bulkDispatch';
 import { logger } from '@/services/LoggingService';
 import DialogFooterButtons from '@/components/common/DialogFooterButtons';
 
@@ -64,6 +65,12 @@ export function BaseEntityDialog({
     // `.stack` at all and would log nothing usable. The Error argument is passed
     // only when it really is one.
     //
+    // errorReason, not String(error): this layer's DatabaseError is an object
+    // LITERAL (createDatabaseError), so String() renders it "[object Object]"
+    // and loses the one field worth having. The helper reads `message` off any
+    // error-like object. It does not carry a DatabaseError `code`; the message
+    // is what identifies the failure here.
+    //
     // Where this lands: the console in dev, `VITE_LOG_ENDPOINT` when one is
     // configured, and localStorage in the browser (see LoggingService
     // setupTransports). No transport routes it to Sentry today.
@@ -71,7 +78,7 @@ export function BaseEntityDialog({
       logger.error(
         'BaseEntityDialog submit rejected',
         'components',
-        { title, reason: error instanceof Error ? error.message : String(error) },
+        { title, reason: errorReason(error) },
         error instanceof Error ? error : undefined
       );
     });

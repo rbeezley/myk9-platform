@@ -6,6 +6,7 @@ vi.mock('@/services/LoggingService', () => ({
 }));
 
 import { logger } from '@/services/LoggingService';
+import { createDatabaseError } from '@/services/database/databaseError';
 import { BaseEntityDialog } from './BaseEntityDialog';
 
 // No StandardDialog mock: BaseEntityDialog renders CommonDialog directly now
@@ -90,6 +91,37 @@ describe('BaseEntityDialog', () => {
       'BaseEntityDialog submit rejected',
       'components',
       { title: 'Delete entry', reason: 'entry is already paid' },
+      undefined
+    );
+  });
+
+  // The shape the comment above actually names: createDatabaseError returns an
+  // object literal, not an Error instance, so `String(error)` gives
+  // "[object Object]" and the real reason is lost. errorReason() is the
+  // repository's helper for exactly this.
+  it('logs the message off a DatabaseError-shaped plain object', async () => {
+    const rejection = createDatabaseError(
+      { message: 'permission denied for table dogs', code: '42501' },
+      'dogs',
+      'delete'
+    );
+    expect(rejection).not.toBeInstanceOf(Error);
+    const onSubmit = vi.fn(() => Promise.reject(rejection));
+
+    render(
+      <BaseEntityDialog open onOpenChange={vi.fn()} title="Delete dog" onSubmit={onSubmit}>
+        <span>Confirmation</span>
+      </BaseEntityDialog>
+    );
+
+    screen.getByRole('button', { name: 'Save' }).click();
+    await Promise.resolve();
+    await Promise.resolve();
+
+    expect(logger.error).toHaveBeenCalledWith(
+      'BaseEntityDialog submit rejected',
+      'components',
+      { title: 'Delete dog', reason: 'permission denied for table dogs' },
       undefined
     );
   });

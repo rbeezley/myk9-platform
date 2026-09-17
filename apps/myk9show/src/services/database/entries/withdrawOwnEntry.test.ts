@@ -44,18 +44,56 @@ import { withdrawEntry } from './writes';
 describe('withdrawEntry — MYK9-535 exhibitor self-withdrawal', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    mocks.withdrawOwnEntry.mockResolvedValue({ from: 'confirmed' });
+    mocks.withdrawOwnEntry.mockResolvedValue({ from: 'confirmed', to: 'withdrawn' });
     mocks.getEntryById.mockResolvedValue({ id: 'entry-1', showId: 'show-1', classId: 'class-1' });
     mocks.updateSecretaryLifecycleStatus.mockResolvedValue('mutation-secretary');
   });
 
   it('routes an exhibitor withdrawal through the withdraw_own_entry RPC seam', async () => {
-    const { error } = await withdrawEntry('entry-1');
+    const { error } = await withdrawEntry('entry-1', { kind: 'withdraw', reason: 'in_season' });
 
     expect(error).toBeNull();
-    expect(mocks.withdrawOwnEntry).toHaveBeenCalledWith('entry-1');
+    expect(mocks.withdrawOwnEntry).toHaveBeenCalledWith('entry-1', {
+      kind: 'withdraw',
+      reason: 'in_season',
+    });
     // The direct-UPDATE lifecycle path is what RLS denies — it must not be used.
     expect(mocks.updateSecretaryLifecycleStatus).not.toHaveBeenCalled();
+  });
+
+  // MYK9-632: Withdraw and Pull are different acts. The kind and the reason must
+  // reach the seam verbatim — collapsing them is the whole defect.
+  it('carries the PULL kind through with no reason attached', async () => {
+    mocks.withdrawOwnEntry.mockResolvedValue({ from: 'confirmed', to: 'scratched' });
+
+    await withdrawEntry('entry-1', { kind: 'pull' });
+
+    expect(mocks.withdrawOwnEntry).toHaveBeenCalledWith('entry-1', {
+      kind: 'pull',
+      reason: null,
+    });
+  });
+
+  it('carries the judge-change reason through verbatim', async () => {
+    await withdrawEntry('entry-1', { kind: 'withdraw', reason: 'judge_change' });
+
+    expect(mocks.withdrawOwnEntry).toHaveBeenCalledWith('entry-1', {
+      kind: 'withdraw',
+      reason: 'judge_change',
+    });
+  });
+
+  it('audits a PULL as scratched, not as a withdrawal', async () => {
+    mocks.withdrawOwnEntry.mockResolvedValue({ from: 'confirmed', to: 'scratched' });
+
+    await withdrawEntry('entry-1', { kind: 'pull' });
+
+    expect(mocks.auditLog).toHaveBeenCalledWith(
+      expect.objectContaining({
+        changes: { entryStatus: { from: 'confirmed', to: 'scratched' } },
+        metadata: expect.objectContaining({ action: 'withdraw_own_entry', kind: 'pull' }),
+      })
+    );
   });
 
   it('keeps a SHOW MANAGER on the existing lifecycle transition', async () => {
@@ -71,14 +109,18 @@ describe('withdrawEntry — MYK9-535 exhibitor self-withdrawal', () => {
   });
 
   it('audit-logs the withdrawn transition with the REAL from-status', async () => {
-    await withdrawEntry('entry-1');
+    await withdrawEntry('entry-1', { kind: 'withdraw', reason: 'in_season' });
 
     expect(mocks.auditLog).toHaveBeenCalledWith(
       expect.objectContaining({
         entityType: 'entry',
         entityId: 'entry-1',
         changes: { entryStatus: { from: 'confirmed', to: 'withdrawn' } },
-        metadata: expect.objectContaining({ action: 'withdraw_own_entry' }),
+        metadata: expect.objectContaining({
+          action: 'withdraw_own_entry',
+          kind: 'withdraw',
+          withdrawalReasonCode: 'in_season',
+        }),
       })
     );
   });
@@ -94,7 +136,10 @@ describe('withdrawEntry — MYK9-535 exhibitor self-withdrawal', () => {
       })
     );
 
-    const { data, error } = await withdrawEntry('entry-1');
+    const { data, error } = await withdrawEntry('entry-1', {
+      kind: 'withdraw',
+      reason: 'in_season',
+    });
 
     expect(data).toBeNull();
     expect(error?.message).toContain('request a refund');

@@ -62,6 +62,12 @@ function mockReadBack(result: { data: unknown; error: unknown }) {
   return node;
 }
 
+/**
+ * MYK9-632: the default act is no longer implied. Every case below that means
+ * "the exhibitor WITHDREW" says so, with one of the two recognised reasons.
+ */
+const WITHDRAW = { kind: 'withdraw', reason: 'in_season' } as const;
+
 describe('withdraw_own_entry RPC arg types (MYK9-583)', () => {
   it('accepts a null p_expected_version without a cast', () => {
     expect(COLD_ROW_ARGS.p_expected_version).toBeNull();
@@ -106,25 +112,69 @@ describe('ReplicatedEntriesTable.withdrawOwnEntry — online-only', () => {
     });
   });
 
-  it('calls the RPC with the three named parameters', async () => {
-    await table.withdrawOwnEntry('entry-1');
+  // MYK9-632: the two acts are told apart by p_kind and only a WITHDRAWAL
+  // carries a reason. Getting either wrong stores the opposite act.
+  it('calls the RPC with the five named parameters for a WITHDRAWAL', async () => {
+    await table.withdrawOwnEntry('entry-1', WITHDRAW);
 
     expect(supabaseMocks.rpc).toHaveBeenCalledWith(WITHDRAW_OWN_ENTRY_RPC, {
       p_entry_id: 'entry-1',
       p_fields: { entry_status: 'withdrawn' },
       p_expected_version: 6,
+      p_kind: 'withdraw',
+      p_reason: 'in_season',
     });
     expect(WITHDRAW_OWN_ENTRY_RPC).toBe('withdraw_own_entry');
   });
 
+  it('calls the RPC with entry_status=scratched and NO reason for a PULL', async () => {
+    await table.withdrawOwnEntry('entry-1', { kind: 'pull' });
+
+    expect(supabaseMocks.rpc).toHaveBeenCalledWith(WITHDRAW_OWN_ENTRY_RPC, {
+      p_entry_id: 'entry-1',
+      p_fields: { entry_status: 'scratched' },
+      p_expected_version: 6,
+      p_kind: 'pull',
+      p_reason: null,
+    });
+  });
+
+  it('drops a reason handed to a PULL rather than storing a contradiction', async () => {
+    await table.withdrawOwnEntry('entry-1', {
+      kind: 'pull',
+      reason: 'judge_change',
+    });
+
+    expect(supabaseMocks.rpc).toHaveBeenCalledWith(
+      WITHDRAW_OWN_ENTRY_RPC,
+      expect.objectContaining({ p_kind: 'pull', p_reason: null })
+    );
+  });
+
+  it('refuses a WITHDRAWAL with no reason before it reaches the server', async () => {
+    await expect(table.withdrawOwnEntry('entry-1', { kind: 'withdraw' })).rejects.toThrow(
+      /withdrawal reason/i
+    );
+    expect(supabaseMocks.rpc).not.toHaveBeenCalled();
+  });
+
+  it('reports the status it actually committed, per act', async () => {
+    await expect(table.withdrawOwnEntry('entry-1', WITHDRAW)).resolves.toMatchObject({
+      to: 'withdrawn',
+    });
+    await expect(table.withdrawOwnEntry('entry-1', { kind: 'pull' })).resolves.toMatchObject({
+      to: 'scratched',
+    });
+  });
+
   it('never queues a mutation — the write is not offline-durable by design', async () => {
-    await table.withdrawOwnEntry('entry-1');
+    await table.withdrawOwnEntry('entry-1', WITHDRAW);
 
     expect(queueMutation).not.toHaveBeenCalled();
   });
 
   it('stores the CONFIRMED server row clean, with the server version', async () => {
-    await table.withdrawOwnEntry('entry-1');
+    await table.withdrawOwnEntry('entry-1', WITHDRAW);
 
     const [id, row, isDirty, expectedVersion, serverVersion] = set.mock.calls.at(-1) ?? [];
     expect(id).toBe('entry-1');
@@ -137,7 +187,10 @@ describe('ReplicatedEntriesTable.withdrawOwnEntry — online-only', () => {
   });
 
   it('reports the real from-status for the audit record', async () => {
-    await expect(table.withdrawOwnEntry('entry-1')).resolves.toEqual({ from: 'confirmed' });
+    await expect(table.withdrawOwnEntry('entry-1', WITHDRAW)).resolves.toEqual({
+      from: 'confirmed',
+      to: 'withdrawn',
+    });
   });
 
   it('leaves the local row UNTOUCHED when the server refuses with 42501', async () => {
@@ -146,7 +199,7 @@ describe('ReplicatedEntriesTable.withdrawOwnEntry — online-only', () => {
       error: { code: '42501', message: 'Entry entry-1 is paid; request a refund' },
     });
 
-    await expect(table.withdrawOwnEntry('entry-1')).rejects.toMatchObject({ code: '42501' });
+    await expect(table.withdrawOwnEntry('entry-1', WITHDRAW)).rejects.toMatchObject({ code: '42501' });
     // The whole point of dropping the optimistic write: nothing local changed,
     // so there is no dirty row for a revert to fail to clear.
     expect(set).not.toHaveBeenCalled();
@@ -156,7 +209,7 @@ describe('ReplicatedEntriesTable.withdrawOwnEntry — online-only', () => {
   it('refuses a paid entry locally and never reaches the server', async () => {
     get.mockResolvedValue({ ...withdrawableEntry, paymentStatus: 'paid' });
 
-    await expect(table.withdrawOwnEntry('entry-1')).rejects.toThrow(/refund/);
+    await expect(table.withdrawOwnEntry('entry-1', WITHDRAW)).rejects.toThrow(/refund/);
     expect(supabaseMocks.rpc).not.toHaveBeenCalled();
     expect(set).not.toHaveBeenCalled();
   });
@@ -164,7 +217,7 @@ describe('ReplicatedEntriesTable.withdrawOwnEntry — online-only', () => {
   it('refuses a checked-in entry locally — the day-of self-withdrawal hole', async () => {
     get.mockResolvedValue({ ...withdrawableEntry, checkInStatus: 'at-gate' });
 
-    await expect(table.withdrawOwnEntry('entry-1')).rejects.toThrow(/checked in/);
+    await expect(table.withdrawOwnEntry('entry-1', WITHDRAW)).rejects.toThrow(/checked in/);
     expect(supabaseMocks.rpc).not.toHaveBeenCalled();
   });
 
@@ -172,7 +225,7 @@ describe('ReplicatedEntriesTable.withdrawOwnEntry — online-only', () => {
     get.mockResolvedValue(undefined);
     mockReadBack({ data: null, error: { message: 'network unreachable' } });
 
-    await expect(table.withdrawOwnEntry('entry-1')).rejects.toThrow(/connected/);
+    await expect(table.withdrawOwnEntry('entry-1', WITHDRAW)).rejects.toThrow(/connected/);
     expect(supabaseMocks.rpc).not.toHaveBeenCalled();
   });
 
@@ -182,7 +235,7 @@ describe('ReplicatedEntriesTable.withdrawOwnEntry — online-only', () => {
     get.mockResolvedValue(undefined);
     mockReadBack({ data: null, error: null });
 
-    await expect(table.withdrawOwnEntry('entry-1')).rejects.toThrow(/no longer exists/);
+    await expect(table.withdrawOwnEntry('entry-1', WITHDRAW)).rejects.toThrow(/no longer exists/);
     expect(supabaseMocks.rpc).not.toHaveBeenCalled();
   });
 
@@ -194,7 +247,7 @@ describe('ReplicatedEntriesTable.withdrawOwnEntry — online-only', () => {
       error: { message: 'TypeError: Failed to fetch' },
     });
 
-    await expect(table.withdrawOwnEntry('entry-1')).rejects.toThrow(/connected/);
+    await expect(table.withdrawOwnEntry('entry-1', WITHDRAW)).rejects.toThrow(/connected/);
     expect(set).not.toHaveBeenCalled();
   });
 
@@ -205,7 +258,7 @@ describe('ReplicatedEntriesTable.withdrawOwnEntry — online-only', () => {
       .mockResolvedValueOnce({ data: null, error: { code: '40001', details: '9' } })
       .mockResolvedValueOnce({ data: 10, error: null });
 
-    await table.withdrawOwnEntry('entry-1');
+    await table.withdrawOwnEntry('entry-1', WITHDRAW);
 
     expect(supabaseMocks.rpc).toHaveBeenCalledTimes(2);
     expect(supabaseMocks.rpc.mock.calls[0]?.[1]).toMatchObject({ p_expected_version: 6 });
@@ -217,7 +270,7 @@ describe('ReplicatedEntriesTable.withdrawOwnEntry — online-only', () => {
       .mockResolvedValueOnce({ data: null, error: { code: '40001', details: '9' } })
       .mockResolvedValueOnce({ data: null, error: { code: '40001', details: '11' } });
 
-    await expect(table.withdrawOwnEntry('entry-1')).rejects.toThrow(/reopen it and try again/);
+    await expect(table.withdrawOwnEntry('entry-1', WITHDRAW)).rejects.toThrow(/reopen it and try again/);
     expect(supabaseMocks.rpc).toHaveBeenCalledTimes(2);
     expect(set).not.toHaveBeenCalled();
   });
@@ -225,14 +278,14 @@ describe('ReplicatedEntriesTable.withdrawOwnEntry — online-only', () => {
   it('does not retry a conflict whose DETAIL carries no usable version', async () => {
     supabaseMocks.rpc.mockResolvedValue({ data: null, error: { code: '40001', details: null } });
 
-    await expect(table.withdrawOwnEntry('entry-1')).rejects.toThrow(/reopen it and try again/);
+    await expect(table.withdrawOwnEntry('entry-1', WITHDRAW)).rejects.toThrow(/reopen it and try again/);
     expect(supabaseMocks.rpc).toHaveBeenCalledTimes(1);
   });
 
   it('still marks the row withdrawn locally when only the read-back fails', async () => {
     mockReadBack({ data: null, error: { message: 'view unavailable' } });
 
-    await table.withdrawOwnEntry('entry-1');
+    await table.withdrawOwnEntry('entry-1', WITHDRAW);
 
     const [, row, isDirty] = set.mock.calls.at(-1) ?? [];
     expect(row).toMatchObject({ entryStatus: 'withdrawn' });
@@ -330,7 +383,7 @@ describe('ReplicatedEntriesTable.withdrawOwnEntry — online-only', () => {
       (table as unknown as { _deletedIds: Set<string> })._deletedIds.add('entry-1');
       mockReadBack({ data: COLD_ROW, error: null });
 
-      await expect(table.withdrawOwnEntry('entry-1')).rejects.toThrow(/no longer exists/);
+      await expect(table.withdrawOwnEntry('entry-1', WITHDRAW)).rejects.toThrow(/no longer exists/);
       expect(supabaseMocks.rpc).not.toHaveBeenCalled();
     });
 
@@ -342,7 +395,7 @@ describe('ReplicatedEntriesTable.withdrawOwnEntry — online-only', () => {
       mockReadBack({ data: { ...COLD_ROW, version: 7 }, error: null });
       supabaseMocks.rpc.mockResolvedValue({ data: 8, error: null });
 
-      await table.withdrawOwnEntry('entry-1');
+      await table.withdrawOwnEntry('entry-1', WITHDRAW);
 
       expect(supabaseMocks.rpc.mock.calls[0]?.[1]).toMatchObject({ p_expected_version: 7 });
     });
@@ -358,7 +411,7 @@ describe('ReplicatedEntriesTable.withdrawOwnEntry — online-only', () => {
       mockReadBack({ data: noVersionRow, error: null });
       supabaseMocks.rpc.mockResolvedValue({ data: 3, error: null });
 
-      await table.withdrawOwnEntry('entry-1');
+      await table.withdrawOwnEntry('entry-1', WITHDRAW);
 
       expect(supabaseMocks.rpc).toHaveBeenCalledWith(
         WITHDRAW_OWN_ENTRY_RPC,
@@ -385,7 +438,7 @@ describe('ReplicatedEntriesTable.withdrawOwnEntry — online-only', () => {
       mockReadBack({ data: COLD_ROW, error: null });
       supabaseMocks.rpc.mockResolvedValue({ data: 2, error: null });
 
-      await table.withdrawOwnEntry('entry-1');
+      await table.withdrawOwnEntry('entry-1', WITHDRAW);
 
       expect(supabaseMocks.rpc).toHaveBeenCalledTimes(1);
       expect(set).not.toHaveBeenCalled();
@@ -404,7 +457,7 @@ describe('ReplicatedEntriesTable.withdrawOwnEntry — online-only', () => {
       mockReadBack({ data: COLD_ROW, error: null });
       supabaseMocks.rpc.mockResolvedValue({ data: 2, error: null });
 
-      await table.withdrawOwnEntry('entry-1');
+      await table.withdrawOwnEntry('entry-1', WITHDRAW);
 
       expect(set).not.toHaveBeenCalled();
     });
@@ -420,7 +473,7 @@ describe('ReplicatedEntriesTable.withdrawOwnEntry — online-only', () => {
         error: null,
       });
 
-      await table.withdrawOwnEntry('entry-1');
+      await table.withdrawOwnEntry('entry-1', WITHDRAW);
 
       expect(set).not.toHaveBeenCalled();
     });
@@ -432,7 +485,7 @@ describe('ReplicatedEntriesTable.withdrawOwnEntry — online-only', () => {
       supabaseMocks.rpc.mockResolvedValue({ data: 7, error: null });
       mockReadBack({ data: null, error: { message: 'view unavailable' } });
 
-      await table.withdrawOwnEntry('entry-1');
+      await table.withdrawOwnEntry('entry-1', WITHDRAW);
 
       expect(set).not.toHaveBeenCalled();
     });
@@ -446,7 +499,7 @@ describe('ReplicatedEntriesTable.withdrawOwnEntry — online-only', () => {
         error: null,
       });
 
-      await table.withdrawOwnEntry('entry-1');
+      await table.withdrawOwnEntry('entry-1', WITHDRAW);
 
       const [id, row, isDirty] = set.mock.calls.at(-1) ?? [];
       expect(id).toBe('entry-1');

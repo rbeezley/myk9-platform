@@ -1,4 +1,5 @@
 import { act, renderHook, waitFor } from '@testing-library/react';
+import type { MouseEvent } from 'react';
 import { describe, expect, it, vi, beforeEach } from 'vitest';
 
 vi.mock('sonner', () => ({
@@ -23,13 +24,29 @@ function item(id: string, eligible = true): Item {
   return { id, eligible };
 }
 
+type RetryAction = { label: string; onClick: (event: MouseEvent<HTMLButtonElement>) => void };
+
 /** Pulls the `{ label, onClick }` retry action out of a mocked toast.error() call. */
-function retryActionFromCall(callIndex = 0): { label: string; onClick: () => void } {
+function retryActionFromCall(callIndex = 0): RetryAction {
   const call = vi.mocked(toast.error).mock.calls[callIndex];
-  const options = call?.[1] as { action?: { label: string; onClick: () => void } } | undefined;
+  const options = call?.[1] as { action?: RetryAction } | undefined;
   const action = options?.action;
   if (!action) throw new Error('toast.error was not called with a retry action');
   return action;
+}
+
+/**
+ * Sonner hands the action button its click event and dismisses the toast unless
+ * `defaultPrevented` — see useBulkDispatch.toaster.test.tsx, which exercises the
+ * real component. Here the event is a stub so the call is well-formed and the
+ * busy branch's preventDefault is observable.
+ */
+function mouseEvent(): MouseEvent<HTMLButtonElement> & {
+  preventDefault: ReturnType<typeof vi.fn>;
+} {
+  return { preventDefault: vi.fn() } as unknown as MouseEvent<HTMLButtonElement> & {
+    preventDefault: ReturnType<typeof vi.fn>;
+  };
 }
 
 describe('useBulkDispatch', () => {
@@ -78,7 +95,7 @@ describe('useBulkDispatch', () => {
     runItem.mockImplementation(async () => undefined);
 
     await act(async () => {
-      retry.onClick();
+      retry.onClick(mouseEvent());
     });
 
     await waitFor(() => expect(runItem).toHaveBeenCalledTimes(1));
@@ -105,7 +122,7 @@ describe('useBulkDispatch', () => {
     runItem.mockClear();
 
     await act(async () => {
-      retry.onClick();
+      retry.onClick(mouseEvent());
     });
 
     await waitFor(() => expect(toast.info).toHaveBeenCalled());
@@ -171,7 +188,7 @@ describe('useBulkDispatch', () => {
     // First pass partially failed → retry action, no success toast yet.
     const retry = retryActionFromCall();
     await act(async () => {
-      retry.onClick();
+      retry.onClick(mouseEvent());
     });
 
     // The retry fully succeeded → success toast WITH an Undo for the retried item.
@@ -328,7 +345,7 @@ describe('useBulkDispatch claimFailure', () => {
 
     attempted.length = 0;
     await act(async () => {
-      retryActionFromCall().onClick();
+      retryActionFromCall().onClick(mouseEvent());
     });
 
     await waitFor(() => expect(attempted).toEqual(['b']));
@@ -415,7 +432,7 @@ describe('useBulkDispatch onClaimedFailures', () => {
     expect(onClaimedFailures).not.toHaveBeenCalled();
 
     await act(async () => {
-      retryActionFromCall().onClick();
+      retryActionFromCall().onClick(mouseEvent());
     });
 
     await waitFor(() => expect(onClaimedFailures).toHaveBeenCalledTimes(1));
@@ -432,6 +449,11 @@ describe('useBulkDispatch retry while another batch is in flight', () => {
   // is a latched no-op while another dispatch is running. Clicking "Retry
   // failed" on a still-visible partial-failure toast therefore used to take the
   // failure report away and put nothing in its place.
+  //
+  // These assertions are against the MOCKED sonner, so they pin the payload and
+  // the preventDefault call, not what the user ends up seeing. The test that can
+  // fail on a toast that is dismissed anyway lives in
+  // useBulkDispatch.toaster.test.tsx, which renders the real <Toaster/>.
   it('re-shows the same failure report instead of swallowing the retry', async () => {
     let releaseSecond!: () => void;
     const second = new Promise<void>(resolve => {
@@ -458,9 +480,13 @@ describe('useBulkDispatch retry while another batch is in flight', () => {
     });
 
     // Clicking Retry on the first toast while the latch is held.
+    const event = mouseEvent();
     await act(async () => {
-      retry.onClick();
+      retry.onClick(event);
     });
+
+    // Sonner dismisses the toast after onClick unless the handler prevents it.
+    expect(event.preventDefault).toHaveBeenCalledTimes(1);
 
     // The failure report survives: same title, same detail line, same Retry
     // action, same toast id, plus a note saying why nothing ran.
@@ -496,11 +522,14 @@ describe('useBulkDispatch retry while another batch is in flight', () => {
     runItem.mockClear();
     runItem.mockImplementation(async () => undefined);
 
+    const event = mouseEvent();
     await act(async () => {
-      retry.onClick();
+      retry.onClick(event);
     });
 
     await waitFor(() => expect(runItem).toHaveBeenCalledTimes(1));
     expect(runItem).toHaveBeenCalledWith(expect.objectContaining({ id: 'b' }));
+    // A real retry keeps sonner's default dismissal — only the busy branch opts out.
+    expect(event.preventDefault).not.toHaveBeenCalled();
   });
 });

@@ -1,4 +1,4 @@
-import { useCallback, useRef, useState } from 'react';
+import { useCallback, useRef, useState, type MouseEvent } from 'react';
 import { toast } from 'sonner';
 import {
   dispatchBulk,
@@ -153,6 +153,9 @@ export function useBulkDispatch<T>({
       // it replaces rather than stacks; same details, same action) with a line
       // saying why nothing ran — a note in a fresh info toast would lose the
       // list of what actually failed.
+      //
+      // `toastId` is per-`showSummary` call, so each batch owns its own toast
+      // and a second batch's failure report cannot clobber the first's.
       let toastId: string | number | undefined;
       const showFailureToast = (note?: string) => {
         const description = (note ? [note, ...details] : details).join('\n');
@@ -165,8 +168,16 @@ export function useBulkDispatch<T>({
             ? {
                 action: {
                   label: 'Retry failed',
-                  onClick: () => {
+                  onClick: (event: MouseEvent<HTMLButtonElement>) => {
                     if (inFlightRef.current) {
+                      // sonner 2.0.8 runs the action as
+                      // `onClick(event); if (event.defaultPrevented) return; deleteToast();`
+                      // (verified in node_modules/sonner/dist/index.mjs). Without
+                      // this the re-shown toast is the SAME component instance and
+                      // gets removed straight after we refresh it, so the busy note
+                      // never reaches the screen. Only the busy branch opts out —
+                      // a real retry still dismisses on click, as before.
+                      event.preventDefault();
                       showFailureToast(BUSY_RETRY_NOTE);
                       return;
                     }

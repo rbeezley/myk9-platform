@@ -57,9 +57,23 @@ export function BaseEntityDialog({
     // MYK9-593: consume, but never discard. The swallow used to be total, so a
     // throw the caller does not report itself — getLabel, claimFailure, or
     // toast.error — left the user with a closed dialog and no message anywhere.
-    // Logging keeps it recoverable from Sentry.
+    //
+    // `reason` carries the message: LoggingService.error records only
+    // `{ ...metadata, stack: error?.stack }`, so the message itself is dropped,
+    // and a non-Error rejection (a string, a Supabase error object) has no
+    // `.stack` at all and would log nothing usable. The Error argument is passed
+    // only when it really is one.
+    //
+    // Where this lands: the console in dev, `VITE_LOG_ENDPOINT` when one is
+    // configured, and localStorage in the browser (see LoggingService
+    // setupTransports). No transport routes it to Sentry today.
     void Promise.resolve(onSubmit?.()).catch((error: unknown) => {
-      logger.error('BaseEntityDialog submit rejected', 'components', { title }, error as Error);
+      logger.error(
+        'BaseEntityDialog submit rejected',
+        'components',
+        { title, reason: error instanceof Error ? error.message : String(error) },
+        error instanceof Error ? error : undefined
+      );
     });
   };
 

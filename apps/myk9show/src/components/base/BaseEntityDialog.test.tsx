@@ -39,7 +39,8 @@ describe('BaseEntityDialog', () => {
 
   // MYK9-593: the swallow is deliberate (callers report their own failures),
   // but it was total — anything the caller does NOT report left the user with a
-  // closed dialog and no message anywhere. Log it so it is at least recoverable.
+  // closed dialog and no message anywhere. Log it so it is at least recoverable
+  // from the console / VITE_LOG_ENDPOINT / localStorage transports.
   it('logs a rejected submit instead of discarding it', async () => {
     const unhandled = vi.fn();
     window.addEventListener('unhandledrejection', unhandled);
@@ -56,15 +57,40 @@ describe('BaseEntityDialog', () => {
     await Promise.resolve();
     await Promise.resolve();
 
+    // `reason` matters: LoggingService keeps only the stack off the Error
+    // argument, so without it the message never reaches any transport.
     expect(logger.error).toHaveBeenCalledWith(
       'BaseEntityDialog submit rejected',
       'components',
-      { title: 'Delete dog' },
+      { title: 'Delete dog', reason: 'getLabel exploded' },
       failure
     );
     // Still consumed: logging must not turn a handled refusal into an
     // unhandledrejection.
     expect(unhandled).not.toHaveBeenCalled();
     window.removeEventListener('unhandledrejection', unhandled);
+  });
+
+  // A rejection that is not an Error has no `.stack`, so the Error argument
+  // would log nothing at all — `reason` is the only thing that survives.
+  it('logs a non-Error rejection by stringifying it', async () => {
+    const onSubmit = vi.fn(() => Promise.reject('entry is already paid'));
+
+    render(
+      <BaseEntityDialog open onOpenChange={vi.fn()} title="Delete entry" onSubmit={onSubmit}>
+        <span>Confirmation</span>
+      </BaseEntityDialog>
+    );
+
+    screen.getByRole('button', { name: 'Save' }).click();
+    await Promise.resolve();
+    await Promise.resolve();
+
+    expect(logger.error).toHaveBeenCalledWith(
+      'BaseEntityDialog submit rejected',
+      'components',
+      { title: 'Delete entry', reason: 'entry is already paid' },
+      undefined
+    );
   });
 });

@@ -9,7 +9,7 @@
  */
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen } from '@/test/utils/testUtils';
+import { render, screen, waitFor } from '@/test/utils/testUtils';
 import { ElementCard } from '@/components/shows/RegistrationWorkflow/ClassSelectionStep.components';
 import type { LevelInfo } from '@/components/shows/RegistrationWorkflow/ClassSelectionStep.types';
 
@@ -912,14 +912,17 @@ describe('ClassSelectionStep — add-only entry actions (6.4)', () => {
   const mockCartStore = (opts: {
     cart: { show_id: string; exhibitor_id: string } | null;
     isLoading?: boolean;
+    error?: string | null;
     addItem?: ReturnType<typeof vi.fn>;
+    ensureCart?: ReturnType<typeof vi.fn>;
   }) => {
     const addItem = opts.addItem ?? vi.fn().mockResolvedValue(true);
     mockUseCartStore.mockImplementation((selector: (s: unknown) => unknown) =>
       selector({
         cart: opts.cart ? { id: 'cart-1', items: [], ...opts.cart } : null,
         isLoading: opts.isLoading ?? false,
-        ensureCart: vi.fn().mockResolvedValue(null),
+        error: opts.error ?? null,
+        ensureCart: opts.ensureCart ?? vi.fn().mockResolvedValue(null),
         addItem,
         removeItem: vi.fn().mockResolvedValue(true),
       })
@@ -927,6 +930,31 @@ describe('ClassSelectionStep — add-only entry actions (6.4)', () => {
     mockUseExhibitorProfile.mockReturnValue({ profile: { id: EXHIBITOR_ID } });
     return addItem;
   };
+
+  it('(i) a cart that failed to open says so and offers a retry, instead of inert chips (MYK9-581)', async () => {
+    // The opener can fail for a reason the exhibitor can act on (offline, a
+    // denied entries read). Before this, `isLoading` simply never cleared and
+    // every chip stayed disabled behind "Loading your cart…" with nothing said.
+    const ensureCart = vi.fn().mockResolvedValue(null);
+    mockCartStore({ cart: null, error: 'entries reconcile read failed', ensureCart });
+
+    const { user } = render(
+      <ClassSelectionStep
+        selectedDogs={[DOG_ID]}
+        classSelections={[]}
+        onSelectionChange={vi.fn()}
+        showId={SHOW_ID}
+      />
+    );
+
+    expect(await screen.findByText(/couldn’t open your cart/i)).toBeInTheDocument();
+    const retry = screen.getByRole('button', { name: /try again/i });
+
+    await waitFor(() => expect(ensureCart).toHaveBeenCalledTimes(1));
+    await user.click(retry);
+    await waitFor(() => expect(ensureCart).toHaveBeenCalledTimes(2));
+    expect(ensureCart).toHaveBeenLastCalledWith(SHOW_ID, EXHIBITOR_ID);
+  });
 
   it('(f) a failed add-to-cart mutation surfaces an error and preserves the prior selection', async () => {
     const failingAddItem = vi.fn().mockResolvedValue(false);

@@ -38,6 +38,16 @@ export interface EnsureCartDeps {
     options?: { showId?: string }
   ) => Promise<CartWithDetails | null>;
   createCart: (showId: string, exhibitorId: string) => Promise<CartWithDetails | null>;
+  /**
+   * Called instead of rejecting. `loadActiveCart` runs
+   * `reconcileCartItemsAgainstExistingEntries` outside any try/catch, so a
+   * 403, an RLS denial or an offline blip on the entries read REJECTS it. The
+   * opener must absorb that the way `loadCart` always did — set the error,
+   * clear `isLoading`, resolve null — or the step is left with
+   * `isLoading: true` forever and every class chip stays inert with no message
+   * (round-2 review, P2).
+   */
+  onFailure: (error: unknown) => void;
 }
 
 const ensureCartInFlight = new Map<string, Promise<CartWithDetails | null>>();
@@ -62,12 +72,20 @@ export function ensureCartOnce(
   if (inFlight) return inFlight;
 
   const pending: Promise<CartWithDetails | null> = (async () => {
-    // Recovers a lapsed cart WITH its items and extends the hold, exactly as
-    // /cart does; returns null only when this exhibitor has no cart for the
-    // show at all.
-    const recovered = await deps.loadActiveCart(exhibitorId, { showId });
-    if (recovered) return recovered;
-    return deps.createCart(showId, exhibitorId);
+    try {
+      // Recovers a lapsed cart WITH its items and extends the hold, exactly as
+      // /cart does; returns null only when this exhibitor has no cart for the
+      // show at all.
+      const recovered = await deps.loadActiveCart(exhibitorId, { showId });
+      if (recovered) return recovered;
+      return await deps.createCart(showId, exhibitorId);
+    } catch (error) {
+      // NEVER rejects: callers hold this promise for a mounted step, and a
+      // rejection there is an unhandled rejection that leaves the cart stuck
+      // loading.
+      deps.onFailure(error);
+      return null;
+    }
   })().finally(() => {
     if (ensureCartInFlight.get(key) === pending) ensureCartInFlight.delete(key);
   });

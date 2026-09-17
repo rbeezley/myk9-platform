@@ -204,6 +204,66 @@ describe('cartStore.ensureCart', () => {
     expect(insertCalls()).toEqual([]);
   });
 
+  it('resolves null with an error state when the opener rejects, instead of hanging', async () => {
+    // `loadActiveCart` runs `reconcileCartItemsAgainstExistingEntries` outside
+    // any try/catch, so a 403 / RLS denial / offline blip on that entries read
+    // rejects it. The step holds this promise; a rejection there left
+    // `isLoading: true` forever and every class chip inert with nothing said.
+    const loadActiveCart = vi.fn().mockRejectedValue(new Error('entries reconcile read failed'));
+    useCartStore.setState({ loadActiveCart, isLoading: true, error: null });
+
+    const result = await useCartStore.getState().ensureCart(SHOW_ID, EXHIBITOR_ID);
+
+    expect(result).toBeNull();
+    expect(useCartStore.getState().isLoading).toBe(false);
+    expect(useCartStore.getState().error).toBe('entries reconcile read failed');
+    expect(insertCalls()).toEqual([]);
+  });
+
+  it('clears the in-flight entry after a failure so a retry actually re-runs', async () => {
+    const loadActiveCart = vi
+      .fn()
+      .mockRejectedValueOnce(new Error('entries reconcile read failed'))
+      .mockResolvedValueOnce({ id: 'cart-existing', items: [] });
+    useCartStore.setState({ loadActiveCart });
+
+    const failed = await useCartStore.getState().ensureCart(SHOW_ID, EXHIBITOR_ID);
+    const retried = await useCartStore.getState().ensureCart(SHOW_ID, EXHIBITOR_ID);
+
+    expect(failed).toBeNull();
+    expect(retried).toEqual({ id: 'cart-existing', items: [] });
+    expect(loadActiveCart).toHaveBeenCalledTimes(2);
+  });
+
+  it('returns null when nothing exists to recover and the create itself fails', async () => {
+    behaviour.insertError = { code: '42501', message: 'permission denied for table entry_carts' };
+    const loadActiveCart = vi.fn().mockResolvedValue(null);
+    useCartStore.setState({ loadActiveCart });
+
+    const result = await useCartStore.getState().ensureCart(SHOW_ID, EXHIBITOR_ID);
+
+    expect(result).toBeNull();
+    expect(insertCalls()).toHaveLength(1);
+    expect(useCartStore.getState().isLoading).toBe(false);
+  });
+
+  it('returns null when the conflict branch finds nothing to recover', async () => {
+    behaviour.insertError = {
+      code: '23505',
+      message:
+        'duplicate key value violates unique constraint "entry_carts_active_show_exhibitor_unique_idx"',
+    };
+    // The winner's row was claimed (submitted) between the INSERT and the read,
+    // so the recovery read matches nothing.
+    const loadActiveCart = vi.fn().mockResolvedValue(null);
+    useCartStore.setState({ loadActiveCart });
+
+    const result = await useCartStore.getState().createCart(SHOW_ID, EXHIBITOR_ID);
+
+    expect(result).toBeNull();
+    expect(loadActiveCart).toHaveBeenCalledWith(EXHIBITOR_ID, { showId: SHOW_ID });
+  });
+
   it('coalesces the WHOLE load-then-create opener, not just the create', async () => {
     // The first caller's load resolves slowly; the second caller must join it
     // rather than run its own load and reach a second INSERT.

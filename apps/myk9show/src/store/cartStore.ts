@@ -341,6 +341,20 @@ export const useCartStore = create<CartState>()(
             loadActiveCart: (exhibitorIdArg, options) =>
               get().loadActiveCart(exhibitorIdArg, options),
             createCart: (showIdArg, exhibitorIdArg) => get().createCart(showIdArg, exhibitorIdArg),
+            // The contract `loadCart` always had, which the opener now owns:
+            // a failure is an ERROR STATE, not a hang. Without this a rejected
+            // entries-reconcile read left `isLoading: true` forever and every
+            // class chip inert with nothing said (round-2 review, P2).
+            onFailure: (error: unknown) => {
+              const message = error instanceof Error ? error.message : 'Failed to open cart';
+              set({ error: message, isLoading: false });
+              logger.error(
+                'Failed to open cart',
+                'cartStore',
+                { showId, exhibitorId },
+                ensureError(error)
+              );
+            },
           }),
 
         // Create a new cart

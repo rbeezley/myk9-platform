@@ -9,6 +9,11 @@ import type { ReplicationSyncContextValue } from '@/context/ReplicationSyncConte
 import { useAuthContext } from '@/hooks/useAuthContext';
 import { getUserEntries, updateCheckInStatus } from '@/services/database/entries';
 import { EntryStatus, PaymentStatus } from '@/types/show-registration-types';
+import {
+  UNCONFIRMED_EMPTY_HEADLINE,
+  UNCONFIRMED_EMPTY_DETAIL,
+} from '@/pages/MyEntriesPage/modules/UnconfirmedReadNotice';
+import { ENTRIES_LOAD_ERROR } from '@/pages/MyEntriesPage/modules/myShowsCopy';
 import { UserRole, type UserWithRoles } from '@/types/auth-types';
 import { fromAny } from '@total-typescript/shoehorn';
 import { mockSupabase, createChainableQuery } from '@/test/mocks/supabase';
@@ -136,6 +141,8 @@ const mockUseMyWaitlistEntries = vi.hoisted(() =>
     refetchWaitlistOffers: vi.fn(),
   }))
 );
+/** The hoisted mock's own default, reusable by any describe that needs it back. */
+const WAITLIST_NONE = mockUseMyWaitlistEntries();
 vi.mock('@/hooks/queries/useMyWaitlistEntries', () => ({
   useMyWaitlistEntries: () => mockUseMyWaitlistEntries(),
 }));
@@ -504,6 +511,66 @@ describe('MyEntriesPage UI Improvements', () => {
         child.className.includes('max-[720px]:order-2')
       );
       expect(dogWrapper).toBeTruthy();
+    });
+  });
+
+  // MYK9-629 round 2. An unconfirmed read that returns ZERO rows is a SUCCESS —
+  // `isError` false, `error` null — so the page must not borrow the load-error
+  // card. That card promises "Your saved information is still here", which over
+  // an empty list is false, and its own docblock says the `inline` variant exists
+  // so that promise stays literally true when there IS something on screen.
+  describe('an EMPTY read the server never confirmed', () => {
+    beforeEach(() => {
+      seedAuthWithPerson();
+      // The file's own `beforeEach` restores every other default but not this
+      // one, and a later describe sets held wait-list positions on it. Under
+      // `--sequence.shuffle` that describe can run FIRST, and a held position
+      // sends this page down a different branch entirely — so restore the
+      // no-positions default here rather than depend on declaration order.
+      mockUseMyWaitlistEntries.mockReturnValue(WAITLIST_NONE);
+      // `mockReset`, not just `mockResolvedValue`: several tests in this file
+      // queue `mockResolvedValueOnce` values, and `vi.clearAllMocks()` clears
+      // call history WITHOUT draining that queue. Under `--sequence.shuffle` a
+      // leftover error result then answers THIS test's first read, and the page
+      // renders its load-error branch long before reaching the empty one.
+      (getUserEntries as ReturnType<typeof vi.fn>).mockReset();
+      (getUserEntries as ReturnType<typeof vi.fn>).mockResolvedValue({
+        data: [],
+        error: null,
+        source: 'replica-offline',
+      });
+    });
+
+    it('says we could not confirm, claims nothing about saved data, and offers Retry', async () => {
+      renderWithProviders(<MyEntriesPage />);
+
+      expect(await screen.findByText(UNCONFIRMED_EMPTY_HEADLINE)).toBeInTheDocument();
+      expect(screen.getByText(UNCONFIRMED_EMPTY_DETAIL)).toBeInTheDocument();
+      // The false promise, in the exact words the card would have used.
+      expect(screen.queryByText(/saved information is still here/i)).not.toBeInTheDocument();
+      expect(screen.queryByText(ENTRIES_LOAD_ERROR)).not.toBeInTheDocument();
+      // ...and not the first-run claim either: "you have never entered a show" is
+      // a statement about this exhibitor's whole standing, from a read that never
+      // reached the server.
+      expect(screen.queryByText(/add your first dog/i)).not.toBeInTheDocument();
+      expect(screen.queryByText(/let's get you set up/i)).not.toBeInTheDocument();
+      // The exhibitor still gets the action.
+      expect(screen.getByRole('button', { name: /retry/i })).toBeEnabled();
+    });
+
+    it('DOES make the first-run claim once the same empty read is confirmed', async () => {
+      // The positive control: without it the assertions above would pass on a
+      // page that simply rendered nothing.
+      (getUserEntries as ReturnType<typeof vi.fn>).mockResolvedValue({
+        data: [],
+        error: null,
+        source: 'confirmed',
+      });
+
+      renderWithProviders(<MyEntriesPage />);
+
+      expect(await screen.findByText(/Welcome!/i)).toBeInTheDocument();
+      expect(screen.queryByText(UNCONFIRMED_EMPTY_HEADLINE)).not.toBeInTheDocument();
     });
   });
 

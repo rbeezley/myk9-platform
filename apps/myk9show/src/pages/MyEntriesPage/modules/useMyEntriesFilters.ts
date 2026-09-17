@@ -8,10 +8,7 @@ import { useCallback, useMemo, useRef } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { EntryStatus, PaymentStatus } from '@/types/show-registration-types';
 import { isPendingEntry } from '@/utils/entryPredicates';
-import {
-  summarizeEntryBalances,
-  type EntryBalanceSummary,
-} from '@/features/payments/entryBalanceSummary';
+import { type EntryBalanceSummary } from '@/features/payments/entryBalanceSummary';
 import { computeMyEntriesShowProgressStats, isCompletedEntry } from './myEntriesStats.helpers';
 import {
   ENTRY_TAB_DEFS,
@@ -62,12 +59,15 @@ interface UseMyEntriesFiltersProps {
   /**
    * Amount-due summary computed from the RAW ungrouped rows (see
    * `useMyEntriesData`'s `balanceSummary`) — the same money math My Payments
-   * uses. When omitted (e.g. existing unit tests that construct `MyEntry[]`
-   * directly with no raw-row source), falls back to summarizing the grouped
-   * `entries` passed in, which is accurate as long as every row in an order
-   * shares one payment status.
+   * uses, and already carrying its `kind` from the one gate.
+   *
+   * REQUIRED. It used to be optional, falling back to `summarizeEntryBalances`
+   * over the grouped `entries`: an ungated summary, born `kind: 'known'`, on a
+   * page whose rule is one derivation and one gate. The page has always passed
+   * it, so the arm was dead — but a second caller would have silently got
+   * unconfirmed money stated as fact (MYK9-629 round 2).
    */
-  balanceSummary?: EntryBalanceSummary;
+  balanceSummary: EntryBalanceSummary;
   /**
    * Wait-list positions the exhibitor HOLDS (`waitlist_entries` at `waiting` or
    * `offered`). A SECOND source of waitlist truth that the `entries` table
@@ -119,7 +119,7 @@ interface UseMyEntriesFiltersReturn {
  */
 export function useMyEntriesFilters({
   entries,
-  balanceSummary: externalBalanceSummary,
+  balanceSummary,
   activeWaitlistPositionCount = 0,
   displayedWaitlistPositionCount = activeWaitlistPositionCount,
   waitlistPositionsLoading = false,
@@ -296,12 +296,11 @@ export function useMyEntriesFilters({
     const totalFees = entries.reduce((sum, entry) => sum + entry.totalFee, 0);
     const paidFees = paidEntries.reduce((sum, e) => sum + e.totalFee, 0);
     const unpaidFees = unpaidEntries.reduce((sum, e) => sum + e.totalFee, 0);
-    // Prefer the caller-supplied summary (derived from raw, ungrouped rows —
-    // matches My Payments exactly). Fall back to summarizing the grouped
-    // `entries` themselves only when no raw-row summary was provided.
-    const resolvedBalanceSummary = externalBalanceSummary ?? summarizeEntryBalances(entries, now);
-    const currentFees = resolvedBalanceSummary.currentFeesCents / 100;
-    const currentAmountDue = resolvedBalanceSummary.amountDueCents / 100;
+    // The caller's summary, always: it is derived from the raw ungrouped rows
+    // (matching My Payments exactly) and it already carries its `kind` from the
+    // one gate. There is no local fallback to re-derive money without one.
+    const currentFees = balanceSummary.currentFeesCents / 100;
+    const currentAmountDue = balanceSummary.amountDueCents / 100;
 
     return {
       total: entries.length,
@@ -326,7 +325,7 @@ export function useMyEntriesFilters({
       needsActionPercent:
         entries.length > 0 ? Math.round((needsAction.length / entries.length) * 100) : 0,
     };
-  }, [entries, externalBalanceSummary]);
+  }, [entries, balanceSummary]);
 
   // Counts for the tab strip. Derived from the SCOPED set, unlike entryStats
   // above: a tab label is a promise about what clicking it will show, and the

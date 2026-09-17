@@ -7,6 +7,10 @@ import { groupEntriesByShow } from './groupEntriesByShow';
 import { narrowDogsToStatus } from './statusFilterPredicate';
 import { useMyEntriesFilters } from './useMyEntriesFilters';
 import type { EntryClass, MyEntry } from './my-entries-types';
+import {
+  summarizeEntryBalances,
+  type EntryBalanceSummary,
+} from '@/features/payments/entryBalanceSummary';
 
 // The hook reads `new Date()` internally; pin the clock so the test is
 // deterministic regardless of when it runs.
@@ -63,10 +67,22 @@ const endedShow = makeEntry({
  * it. Renamed from a bare `renderHook` call so every test goes through one place.
  */
 function renderFilters(
-  props: Parameters<typeof useMyEntriesFilters>[0],
+  props: Omit<Parameters<typeof useMyEntriesFilters>[0], 'balanceSummary'> & {
+    balanceSummary?: EntryBalanceSummary;
+  },
   at = '/exhibitor/entries'
 ) {
-  return renderHook(() => useMyEntriesFilters(props), {
+  // `balanceSummary` is REQUIRED of the hook now (MYK9-629 round 2): the page
+  // always passes one, and the old optional fallback re-derived an UNGATED
+  // summary. These tests construct `MyEntry[]` with no raw-row source, so the
+  // helper derives the same summary the hook used to derive internally — the
+  // arithmetic every case below asserts is unchanged, only its provenance is
+  // now explicit and in one place.
+  const resolved = {
+    ...props,
+    balanceSummary: props.balanceSummary ?? summarizeEntryBalances(props.entries),
+  };
+  return renderHook(() => useMyEntriesFilters(resolved), {
     wrapper: ({ children }: { children: ReactNode }) =>
       createElement(MemoryRouter, { initialEntries: [at] }, children),
   });

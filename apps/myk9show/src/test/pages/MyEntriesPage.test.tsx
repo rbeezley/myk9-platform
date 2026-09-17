@@ -56,7 +56,7 @@ vi.mock('@/services/LoggingService', () => ({
   },
 }));
 vi.mock('@/services/database/entries', () => ({
-  getUserEntries: vi.fn().mockResolvedValue({ data: [], error: null }),
+  getUserEntries: vi.fn().mockResolvedValue({ data: [], error: null, source: 'confirmed' }),
   updateCheckInStatus: vi.fn().mockResolvedValue({ data: null, error: null }),
 }));
 vi.mock('@/hooks/mutations/useCheckInMutation', () => ({
@@ -261,6 +261,7 @@ const seedAuthWithPerson = () =>
 const seedLoadedEntry = () => {
   seedAuthWithPerson();
   (getUserEntries as ReturnType<typeof vi.fn>).mockResolvedValue({
+    source: 'confirmed',
     data: [
       makeResultRow({
         is_scored: false,
@@ -346,7 +347,11 @@ describe('MyEntriesPage UI Improvements', () => {
     // prior seedLoadedEntry() leaks its resolved entry into later zero-state tests.
     mockUseDogsByOwnerQuery.mockReturnValue({ data: [], isLoading: false });
     mockUseCurrentUserPersonId.mockReturnValue(null);
-    (getUserEntries as ReturnType<typeof vi.fn>).mockResolvedValue({ data: [], error: null });
+    (getUserEntries as ReturnType<typeof vi.fn>).mockResolvedValue({
+      data: [],
+      error: null,
+      source: 'confirmed',
+    });
     (useAuthContext as ReturnType<typeof vi.fn>).mockReturnValue({
       user: mockUser,
       userWithRoles: null,
@@ -616,6 +621,7 @@ describe('MyEntriesPage UI Improvements', () => {
         isAuthenticated: true,
       });
       (getUserEntries as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
+        source: 'confirmed',
         data: [buildSelfCheckinEntryRow()],
         error: null,
       });
@@ -656,6 +662,7 @@ describe('MyEntriesPage UI Improvements', () => {
         isAuthenticated: true,
       });
       (getUserEntries as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
+        source: 'confirmed',
         data: [buildSelfCheckinEntryRow()],
         error: null,
       });
@@ -680,6 +687,7 @@ describe('MyEntriesPage UI Improvements', () => {
         isAuthenticated: true,
       });
       (getUserEntries as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
+        source: 'confirmed',
         data: [
           {
             id: 'entry-1',
@@ -747,6 +755,7 @@ describe('MyEntriesPage UI Improvements', () => {
         isAuthenticated: true,
       });
       (getUserEntries as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
+        source: 'confirmed',
         data: [makeResultRow()],
         error: null,
       });
@@ -766,6 +775,7 @@ describe('MyEntriesPage UI Improvements', () => {
         isAuthenticated: true,
       });
       (getUserEntries as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
+        source: 'confirmed',
         data: [makeResultRow()],
         error: null,
       });
@@ -800,6 +810,7 @@ describe('MyEntriesPage UI Improvements', () => {
         isAuthenticated: true,
       });
       (getUserEntries as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
+        source: 'confirmed',
         data: [
           makeResultRow({
             id: 'entry-1',
@@ -929,6 +940,7 @@ describe('Receipt deep-link scope from My Payments', () => {
     mockUseCurrentUserPersonId.mockReturnValue(null);
     seedAuthWithPerson();
     (getUserEntries as ReturnType<typeof vi.fn>).mockResolvedValue({
+      source: 'confirmed',
       data: [
         makeResultRow(unscored),
         makeResultRow({
@@ -1064,7 +1076,11 @@ describe('Receipt deep-link scope from My Payments', () => {
     // would be invisible in exactly the case the deep-linked read exists for —
     // and the exhibitor would be told they have never entered a show, over a
     // payment they just made.
-    (getUserEntries as ReturnType<typeof vi.fn>).mockResolvedValue({ data: [], error: null });
+    (getUserEntries as ReturnType<typeof vi.fn>).mockResolvedValue({
+      data: [],
+      error: null,
+      source: 'confirmed',
+    });
     seedStripeOrder(stripeOrderRow);
     renderWithProviders(
       <MyEntriesPage />,
@@ -1279,7 +1295,11 @@ describe('Wait list positions with no waitlisted entry row (MYK9-417)', () => {
     // `add_to_waitlist` needs no entry row, so a position can be an
     // exhibitor's ONLY standing. "Welcome! Let's get you set up" printed above
     // a live #1 is the same contradiction, one branch up.
-    (getUserEntries as ReturnType<typeof vi.fn>).mockResolvedValue({ data: [], error: null });
+    (getUserEntries as ReturnType<typeof vi.fn>).mockResolvedValue({
+      data: [],
+      error: null,
+      source: 'confirmed',
+    });
     renderWithProviders(<MyEntriesPage />);
 
     expect(await screen.findByText('My Wait List Positions')).toBeInTheDocument();
@@ -1289,7 +1309,11 @@ describe('Wait list positions with no waitlisted entry row (MYK9-417)', () => {
   });
 
   it('announces the held position in All and Upcoming, even with no entry row', async () => {
-    (getUserEntries as ReturnType<typeof vi.fn>).mockResolvedValue({ data: [], error: null });
+    (getUserEntries as ReturnType<typeof vi.fn>).mockResolvedValue({
+      data: [],
+      error: null,
+      source: 'confirmed',
+    });
     const user = userEvent.setup();
     renderWithProviders(<MyEntriesPage />);
 
@@ -1323,7 +1347,11 @@ describe('Wait list positions with no waitlisted entry row (MYK9-417)', () => {
   });
 
   it('still greets a genuinely brand-new exhibitor as brand new', async () => {
-    (getUserEntries as ReturnType<typeof vi.fn>).mockResolvedValue({ data: [], error: null });
+    (getUserEntries as ReturnType<typeof vi.fn>).mockResolvedValue({
+      data: [],
+      error: null,
+      source: 'confirmed',
+    });
     seedPosition([]);
     renderWithProviders(<MyEntriesPage />);
 
@@ -1335,7 +1363,11 @@ describe('Wait list positions with no waitlisted entry row (MYK9-417)', () => {
     // Suppressing the first-run state for a wait-list-only exhibitor must not
     // leave them with nothing: under `?status=accepted` the section is hidden
     // by design, so the filters and the matching empty state have to be there.
-    (getUserEntries as ReturnType<typeof vi.fn>).mockResolvedValue({ data: [], error: null });
+    (getUserEntries as ReturnType<typeof vi.fn>).mockResolvedValue({
+      data: [],
+      error: null,
+      source: 'confirmed',
+    });
     renderWithProviders(<MyEntriesPage />, '/exhibitor/entries?status=accepted');
 
     expect(await screen.findByText('No accepted entries yet')).toBeInTheDocument();

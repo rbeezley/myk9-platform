@@ -66,18 +66,22 @@ describe('isSyntheticAddress', () => {
 });
 
 describe('scanForBulkPii', () => {
+  // Read the entry once and check the value rather than `file in files`: an
+  // index read is `string | undefined` under `noUncheckedIndexedAccess`, and
+  // the fixture maps never hold an undefined value, so the two tests are the
+  // same test (MYK9-540).
   const read = (files: Record<string, string>) => (file: string) => {
-    if (!(file in files)) throw new Error(`no such file: ${file}`);
-    return files[file];
+    const content = files[file];
+    if (content === undefined) throw new Error(`no such file: ${file}`);
+    return content;
   };
 
   it('flags a file at export scale', () => {
     const files = { 'docs/qa/findings.md': exportOf(BULK_PII_THRESHOLD) };
     const { findings } = scanForBulkPii(Object.keys(files), read(files));
 
-    expect(findings).toHaveLength(1);
-    expect(findings[0].file).toBe('docs/qa/findings.md');
-    expect(findings[0].distinctAddresses).toBe(BULK_PII_THRESHOLD);
+    expect(findings.map(f => f.file)).toEqual(['docs/qa/findings.md']);
+    expect(findings.map(f => f.distinctAddresses)).toEqual([BULK_PII_THRESHOLD]);
   });
 
   it('leaves a file one address below the threshold alone', () => {

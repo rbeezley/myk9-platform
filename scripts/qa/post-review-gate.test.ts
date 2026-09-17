@@ -235,7 +235,10 @@ describe('post-review-gate.sh', () => {
     // [P*] bullets is accepted.
     // owner also needs its env-var contract even to withdraw (the withdrawal
     // body still carries the Override reason / Deferred re-review lines).
-    const withdrawEnv = (reviewer: string) =>
+    // Annotate the return type: the two ternary arms have different keys, so
+    // the inferred union carries optional-`undefined` properties that no longer
+    // satisfy `Record<string, string>` (MYK9-540).
+    const withdrawEnv = (reviewer: string): Record<string, string> =>
       reviewer === 'owner'
         ? { OVERRIDE_REASON: 'Codex unavailable — usage limit', DEFERRED_REVIEW: 'MYK9-523' }
         : {};
@@ -576,7 +579,7 @@ describe('post-review-gate.sh', () => {
     // allowed to WRITE.
     it('accepts every reviewer token the poster is allowed to write', () => {
       for (const [reviewer, verdict] of Object.entries(VERDICT_BY_REVIEWER)) {
-        const env =
+        const env: Record<string, string> =
           reviewer === 'owner'
             ? { OVERRIDE_REASON: 'Codex unavailable — usage limit', DEFERRED_REVIEW: 'MYK9-523' }
             : reviewer === 'adversarial'

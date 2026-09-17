@@ -40,7 +40,7 @@ export function parseSupabaseFunctionList(output: string): string[] {
         .map(line => line.split('|').map(cell => cell.trim()))
         .filter(cells => !/^id$/i.test(cells[0] ?? ''))
         .map(cells => cells[2] ?? cells[1] ?? cells[0])
-        .filter(name => /^[a-z0-9][a-z0-9-]*$/i.test(name))
+        .filter((name): name is string => name !== undefined && /^[a-z0-9][a-z0-9-]*$/i.test(name))
     );
   }
 
@@ -50,7 +50,7 @@ export function parseSupabaseFunctionList(output: string): string[] {
       .map(line => line.trim())
       .filter(line => line && !/^name\s+/i.test(line))
       .map(line => line.split(/\s+/)[0])
-      .filter(name => /^[a-z0-9][a-z0-9-]*$/i.test(name))
+      .filter((name): name is string => name !== undefined && /^[a-z0-9][a-z0-9-]*$/i.test(name))
   );
 }
 
@@ -120,7 +120,14 @@ function uniqueInOrder(items: string[]): string[] {
 function readDeployedFunctions(): string[] {
   const outputPathArg = process.argv.find(arg => arg.startsWith('--cli-output='));
   if (outputPathArg) {
-    return parseSupabaseFunctionList(readFileSync(outputPathArg.split('=')[1], 'utf8'));
+    // Same `split('=')` as before, including its truncation at a second `=`;
+    // only the `| undefined` element is now handled instead of reaching
+    // `readFileSync` (MYK9-540).
+    const [, outputPath] = outputPathArg.split('=');
+    if (outputPath === undefined) {
+      throw new Error(`--cli-output= has no path: ${outputPathArg}`);
+    }
+    return parseSupabaseFunctionList(readFileSync(outputPath, 'utf8'));
   }
 
   const projectRef = process.env.SUPABASE_PROJECT_REF;

@@ -71,22 +71,27 @@ export function extractPromptBlock(markdown: string, taskId: string): string {
   const lines = markdown.split('\n');
   const needle = '`' + taskId + '`';
   const headingIndex = lines.findIndex(line => /^#{2,4} /.test(line) && line.includes(needle));
-  if (headingIndex === -1) {
+  // `heading` is undefined only when `findIndex` returned -1, so this is the
+  // same condition read twice, not a new failure mode (MYK9-540).
+  const heading = lines[headingIndex];
+  if (headingIndex === -1 || heading === undefined) {
     throw new Error(`no heading naming \`${taskId}\``);
   }
 
   let openIndex = -1;
   let fence = '';
   for (let i = headingIndex + 1; i < lines.length; i += 1) {
-    const match = /^(`{3,})\s*$/.exec(lines[i]);
-    if (match) {
+    const line = lines[i];
+    if (line === undefined) continue; // `i` is always in range: the index signature's arm
+    const fenceMatch = /^(`{3,})\s*$/.exec(line)?.[1];
+    if (fenceMatch !== undefined) {
       openIndex = i;
-      fence = match[1];
+      fence = fenceMatch;
       break;
     }
     // A following heading of the same or higher level means this task's section
     // ended without a prompt block.
-    if (/^#{1,4} /.test(lines[i]) && headingLevel(lines[i]) <= headingLevel(lines[headingIndex])) {
+    if (/^#{1,4} /.test(line) && headingLevel(line) <= headingLevel(heading)) {
       break;
     }
   }
@@ -106,7 +111,10 @@ export function extractPromptBlock(markdown: string, taskId: string): string {
 }
 
 function headingLevel(line: string): number {
-  return (/^(#+) /.exec(line)?.[1].length as number) ?? 99;
+  // Optional-chain the capture group's own read instead of casting the result:
+  // group 1 always exists on a match, and `?? 99` still covers a non-match
+  // exactly as before (MYK9-540).
+  return /^(#+) /.exec(line)?.[1]?.length ?? 99;
 }
 
 /** Drop the leading YAML frontmatter — the one part an installed file adds. */

@@ -35,10 +35,12 @@ function extractJobs(source: string): Map<string, string> {
     // A non-indented, non-blank line ends the jobs block entirely.
     if (/^\S/.test(line)) break;
 
-    const jobHeader = line.match(/^ {2}([A-Za-z0-9_-]+):\s*$/);
-    if (jobHeader) {
+    // Read group 1 through the optional chain: it is mandatory on a match, so
+    // `!== undefined` is the same condition as `if (jobHeader)` (MYK9-540).
+    const jobHeader = line.match(/^ {2}([A-Za-z0-9_-]+):\s*$/)?.[1];
+    if (jobHeader !== undefined) {
       if (currentJob) jobs.set(currentJob, buffer.join('\n'));
-      currentJob = jobHeader[1];
+      currentJob = jobHeader;
       buffer = [];
       continue;
     }

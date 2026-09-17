@@ -41,8 +41,14 @@ export function parseSupabaseStatusEnv(output: string): Record<string, string> {
     const match = line.match(/^([A-Z][A-Z0-9_]*)=(.*)$/);
     if (!match) continue;
 
-    const value = match[2].trim();
-    values[match[1]] =
+    // Both groups are mandatory on a match; this narrows the index signature's
+    // `string | undefined` without `!` or `as` (MYK9-540).
+    const key = match[1];
+    const raw = match[2];
+    if (key === undefined || raw === undefined) continue;
+
+    const value = raw.trim();
+    values[key] =
       value.length >= 2 &&
       ((value.startsWith('"') && value.endsWith('"')) ||
         (value.startsWith("'") && value.endsWith("'")))
@@ -60,11 +66,22 @@ export function localSupabaseEnvironmentFromStatus(output: string): LocalSupabas
     throw new Error(`Supabase local status is missing: ${missing.join(', ')}`);
   }
 
+  // `missing` above already proves every required key is present and non-empty;
+  // `required` restates that for `tsc`, which cannot carry the filter's result
+  // into the reads. Its throw is unreachable after that check (MYK9-540).
+  const required = (key: (typeof REQUIRED_STATUS_KEYS)[number]): string => {
+    const value = values[key];
+    if (value === undefined) {
+      throw new Error(`Supabase local status is missing: ${key}`);
+    }
+    return value;
+  };
+
   return {
-    apiUrl: values.API_URL,
-    anonKey: values.ANON_KEY,
-    serviceRoleKey: values.SERVICE_ROLE_KEY,
-    dbUrl: values.DB_URL,
+    apiUrl: required('API_URL'),
+    anonKey: required('ANON_KEY'),
+    serviceRoleKey: required('SERVICE_ROLE_KEY'),
+    dbUrl: required('DB_URL'),
   };
 }
 

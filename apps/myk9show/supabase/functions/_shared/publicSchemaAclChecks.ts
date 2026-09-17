@@ -45,9 +45,12 @@ export function publicSchemaCreateAclCheck(rawFacts: unknown, probedAt: string):
 
   for (const role of API_ROLES) {
     const matching = rows.filter(row => row.role === role);
-    if (matching.length !== 1) {
+    // `single` is undefined exactly when the length check already fails, so the
+    // added clause is the same condition, not a new one (MYK9-540).
+    const [single] = matching;
+    if (matching.length !== 1 || single === undefined) {
       problems.push(`missing or duplicate ${role} CREATE fact`);
-    } else if (matching[0].canCreate) {
+    } else if (single.canCreate) {
       problems.push(`${role} can CREATE in public`);
     }
   }

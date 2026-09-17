@@ -174,7 +174,7 @@ describe('classifyAdvisorEntries', () => {
       config
     );
 
-    expect(entry.classification).toBe('repository-owned');
+    expect(entry?.classification).toBe('repository-owned');
   });
 
   it('classifies an extensions-schema object as extension-owned', () => {
@@ -191,7 +191,7 @@ describe('classifyAdvisorEntries', () => {
       config
     );
 
-    expect(entry.classification).toBe('extension-owned');
+    expect(entry?.classification).toBe('extension-owned');
   });
 
   it('classifies a configured extension-owned object name in a repo schema as extension-owned', () => {
@@ -208,7 +208,7 @@ describe('classifyAdvisorEntries', () => {
       config
     );
 
-    expect(entry.classification).toBe('extension-owned');
+    expect(entry?.classification).toBe('extension-owned');
   });
 
   it('classifies a project-level advisory with no object identity as repository-owned', () => {
@@ -219,7 +219,7 @@ describe('classifyAdvisorEntries', () => {
       config
     );
 
-    expect(entry.classification).toBe('repository-owned');
+    expect(entry?.classification).toBe('repository-owned');
   });
 
   it('classifies an unrecognized non-repo schema object as unclassified', () => {
@@ -236,7 +236,7 @@ describe('classifyAdvisorEntries', () => {
       config
     );
 
-    expect(entry.classification).toBe('unclassified');
+    expect(entry?.classification).toBe('unclassified');
   });
 });
 

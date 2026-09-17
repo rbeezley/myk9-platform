@@ -16,6 +16,7 @@
  */
 import { resolveEffectivePaymentStatus } from '@/utils/effectivePaymentStatus';
 import { PaymentStatus } from '@/types/show-registration-types';
+import type { RemoveFromClassKind } from '@/features/registries/withdrawalPolicy';
 
 /**
  * `entry_status` values an owner may still withdraw FROM. Mirrors
@@ -60,6 +61,15 @@ export type WithdrawRefusalCode =
   | 'conflict';
 
 export interface WithdrawEligibilityInput {
+  /**
+   * MYK9-632: which act is being offered. The two share every guard EXCEPT the
+   * money arm — a WITHDRAWAL of a paid entry is refused (its rulebook refund
+   * entitlement is the secretary's to assert), while a PULL of a paid entry is
+   * allowed, because the club decides that refund afterwards and the
+   * reconciliation surface only ever sees the row once it is pulled. Defaults to
+   * 'withdraw', which is what every pre-MYK9-632 caller meant.
+   */
+  kind?: RemoveFromClassKind | undefined;
   entryStatus?: string | null | undefined;
   paymentStatus?: string | null | undefined;
   /** The order's status, so MYK9-495's entry-vs-order disagreement is resolved once. */
@@ -100,28 +110,36 @@ function moneyAllowsWithdrawal(input: WithdrawEligibilityInput): boolean | null 
 }
 
 export function evaluateWithdrawEligibility(input: WithdrawEligibilityInput): WithdrawEligibility {
+  const kind: RemoveFromClassKind = input.kind ?? 'withdraw';
+
   if (input.deletedAt != null) {
     return refuse('removed', 'This entry has been removed.');
   }
 
-  const moneyAllows = moneyAllowsWithdrawal(input);
-  if (moneyAllows === null) {
-    return refuse(
-      'unknown-payment',
-      "We couldn't confirm this entry's payment status — ask the secretary to pull it."
-    );
+  // The money arm is the WITHDRAWAL's alone (MYK9-632). A pull reads no payment
+  // state at all, here or in the RPC, so there is nothing to fail closed on.
+  if (kind === 'withdraw') {
+    const moneyAllows = moneyAllowsWithdrawal(input);
+    if (moneyAllows === null) {
+      return refuse(
+        'unknown-payment',
+        "We couldn't confirm this entry's payment status — ask the secretary to pull it."
+      );
+    }
+    if (!moneyAllows) {
+      return refuse('paid', 'This entry is paid — request a refund instead of withdrawing.');
+    }
   }
-  if (!moneyAllows) {
-    return refuse('paid', 'This entry is paid — request a refund instead of withdrawing.');
-  }
+
+  const verb = kind === 'pull' ? 'pulled' : 'withdrawn';
 
   const entryStatus = input.entryStatus ?? undefined;
   if (entryStatus !== undefined && !OWNER_WITHDRAWABLE_ENTRY_STATUSES.includes(entryStatus)) {
-    return refuse('status', `This entry can no longer be withdrawn (status: ${entryStatus}).`);
+    return refuse('status', `This entry can no longer be ${verb} (status: ${entryStatus}).`);
   }
 
   if (input.isScored === true) {
-    return refuse('scored', 'This entry has been scored and can no longer be withdrawn.');
+    return refuse('scored', `This entry has been scored and can no longer be ${verb}.`);
   }
 
   const checkInStatus = input.checkInStatus ?? undefined;
@@ -235,4 +253,15 @@ export function withdrawErrorMessage(
   if (code && OWN_REFUSAL_CODES.has(code) && error?.message) return error.message;
   if (code && SERVER_MESSAGES[code]) return SERVER_MESSAGES[code] as string;
   return "We couldn't withdraw this entry. Please try again.";
+}
+
+/**
+ * MYK9-632: both answers for one row. The exhibitor is offered two acts, and
+ * only the money arm differs between them, so a single verdict cannot drive the
+ * dialog — a paid entry must show Withdraw greyed out with its reason WHILE Pull
+ * stays live.
+ */
+export interface RemoveFromClassEligibility {
+  withdraw: WithdrawEligibility;
+  pull: WithdrawEligibility;
 }

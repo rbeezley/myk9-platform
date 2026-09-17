@@ -10,6 +10,10 @@ import type { DbEntryInsert, DbEntryUpdate } from '../../../types/database-mappi
 import type { EntryStatus } from '@/types/entry-lifecycle';
 import { rejectEntry, setEntryLifecycleStatus } from './lifecycle';
 import { withdrawOwnEntry } from './withdrawOwnEntry';
+import type {
+  RemoveFromClassKind,
+  WithdrawalReasonCode,
+} from '@/features/registries/withdrawalPolicy';
 import { updateOwnEntryJumpHeight } from './updateOwnEntryJumpHeight';
 import {
   AUTHENTICATED_ENTRY_READ_COLUMNS,
@@ -243,8 +247,23 @@ export const updateEntryHandler = async (params: {
 // `can_manage_show(show_id)`), so their direct UPDATE matched zero rows and
 // failed with failureKind "authorization"; the owner tier therefore goes
 // through the `withdraw_own_entry` SECURITY DEFINER RPC, pre-checked locally.
-export const withdrawEntry = async (entryId: string, options: { asShowManager?: boolean } = {}) => {
-  return options.asShowManager ? rejectEntry(entryId) : withdrawOwnEntry(entryId);
+// MYK9-632: `kind` and `reason` describe WHICH act the exhibitor chose.
+// 'withdraw' + a recognised reason writes entry_status='withdrawn'; 'pull'
+// writes 'scratched'. A show manager keeps the existing `rejectEntry`
+// transition regardless — MYK9-631 owns bringing the two acts to that surface.
+export const withdrawEntry = async (
+  entryId: string,
+  options: {
+    asShowManager?: boolean;
+    kind?: RemoveFromClassKind;
+    reason?: WithdrawalReasonCode | null;
+  } = {}
+) => {
+  if (options.asShowManager) return rejectEntry(entryId);
+  return withdrawOwnEntry(entryId, {
+    kind: options.kind ?? 'withdraw',
+    reason: options.reason ?? null,
+  });
 };
 
 // Comp an entry (mark as comped with reason, set payment_status to waived)

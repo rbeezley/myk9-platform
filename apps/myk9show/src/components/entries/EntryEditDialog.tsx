@@ -2,7 +2,8 @@
  * Entry Edit Dialog
  *
  * Allows exhibitors to modify their entries before the show's entry deadline.
- * Supports: pulling from a class, handler change, jump height change.
+ * Supports: leaving a class (MYK9-632 — Withdraw with a recognised reason, or
+ * Pull for anything else), handler change, jump height change.
  */
 
 import { useState, useEffect } from 'react';
@@ -17,42 +18,19 @@ import {
 } from '@myk9/ui';
 import { Button } from '@/components/ui/button';
 import { FormSkeleton } from '@/components/common/SkeletonLoaders';
-import { Input } from '@/components/ui/input';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
-import { Badge } from '@/components/ui/badge';
-import { Label } from '@/components/ui/label';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { AlertCircle, Loader2, X, Save, Dog, Trophy } from 'lucide-react';
+import { AlertCircle, Loader2, Save, Dog, Trophy } from 'lucide-react';
 import { withdrawEntry, canModifyEntry } from '@/services/database/entries';
 import { withdrawErrorMessage } from '@/services/database/entries/withdrawEligibility';
 import { useWithdrawEligibility } from './useWithdrawEligibility';
-import { PullConfirmDialog } from './PullConfirmDialog';
+import { RemoveFromClassDialog } from './RemoveFromClassDialog';
+import { EntryEditClassRow, type EntryClass } from './EntryEditClassRow';
+import { useShowRegistryId } from './useShowRegistryId';
+import type { RemoveFromClassKind, WithdrawalReasonCode } from '@/features/registries';
 import { saveEntryEdits } from './saveEntryEdits';
 import { logger } from '@/services/LoggingService';
-import { disciplineUsesJumpHeight } from '@/types/template.types';
 import { useEditingPresence } from '@/features/show-presence/useEditingPresence';
-import { EditingBadge } from '@/features/show-presence/EditingBadge';
 import { EntryStatusHistory } from './EntryStatusHistory';
-
-interface EntryClass {
-  id: string;
-  name: string;
-  number: string;
-  fee: number;
-  jumpHeight?: string;
-  /** Trial discipline; gates the jump-height field (scent work has no jump height). */
-  trialType?: string;
-  handlerId?: string | null;
-  handler?: string;
-  runOrder?: number;
-  status: 'entered' | 'scratched' | 'moved' | 'absent';
-}
 
 interface EntryData {
   id: string;
@@ -79,8 +57,6 @@ interface EntryEditDialogProps {
   asShowManager?: boolean;
 }
 
-const JUMP_HEIGHTS = ['4"', '8"', '12"', '16"', '20"', '24"', '26"'];
-
 export function EntryEditDialog({
   open,
   onOpenChange,
@@ -100,16 +76,20 @@ export function EntryEditDialog({
     Record<string, { handler?: string; jumpHeight?: string; status?: string }>
   >({});
 
-  // MYK9-535: the Pull affordance is DISABLED with the reason when the server
-  // would refuse, so the exhibitor is told up front instead of seeing an
-  // optimistic "withdrawn" the RPC later rejects. See ./useWithdrawEligibility.
+  // MYK9-535: the affordance is DISABLED with the reason when the server would
+  // refuse, so the exhibitor is told up front instead of seeing an optimistic
+  // state the RPC later rejects. MYK9-632: the map now carries BOTH verdicts —
+  // a paid entry may be pulled but not withdrawn. See ./useWithdrawEligibility.
   const withdrawEligibility = useWithdrawEligibility(
     open,
     asShowManager,
     entry.classes.map(classEntry => classEntry.id)
   );
 
-  // Confirm pull dialog
+  // Which rulebook's withdrawal reasons this show offers (MYK9-632).
+  const registryId = useShowRegistryId(entry.showId, open);
+
+  // Leave-this-class dialog (Withdraw vs Pull).
   const [pullDialog, setPullDialog] = useState<{
     open: boolean;
     classId: string | null;
@@ -122,7 +102,7 @@ export function EntryEditDialog({
   // carries a single `editing` slot, but this card groups MULTIPLE class rows
   // (each EntryClass.id is its own entries.id). We can only broadcast one, so we
   // advertise the group's primary id (entry.id === classes[0].id, a real
-  // entries.id). The READ side is per-row (see EditingBadge below) and so covers
+  // entries.id). The READ side is per-row (see EditingBadge in EntryEditClassRow) and covers
   // every class exactly; only this WRITE side is limited to the primary class for
   // multi-class groups — a graceful, advisory-only gap (never a wrong-entity
   // badge). No-op unless mounted under a ShowPresenceProvider (MyEntriesPage wraps
@@ -183,14 +163,21 @@ export function EntryEditDialog({
     setPullDialog({ open: true, classId, className });
   };
 
-  const handleConfirmPull = async () => {
+  const handleConfirmPull = async (choice: {
+    kind: RemoveFromClassKind;
+    reason: WithdrawalReasonCode | null;
+  }) => {
     if (!pullDialog.classId) return;
 
     setIsSaving(true);
     setError(null);
 
     try {
-      const { error } = await withdrawEntry(pullDialog.classId, { asShowManager });
+      const { error } = await withdrawEntry(pullDialog.classId, {
+        asShowManager,
+        kind: choice.kind,
+        reason: choice.reason,
+      });
 
       if (error) {
         // Map the CODE to a sentence a person can act on. A server refusal
@@ -200,18 +187,28 @@ export function EntryEditDialog({
         // spaces: our own pre-check refusals (which already carry a sentence)
         // and the SQLSTATEs the RPC raises.
         setError(withdrawErrorMessage(error));
-        logger.error('Failed to withdraw class entry:', 'entries', {}, error as Error);
+        logger.error(
+          `Failed to ${choice.kind === 'pull' ? 'pull' : 'withdraw'} class entry:`,
+          'entries',
+          {},
+          error as Error
+        );
       } else {
-        // Mark as pulled locally.
+        // Mark locally with the status the server just committed — a pull is
+        // 'scratched', a withdrawal is 'withdrawn'. Collapsing the two here is
+        // exactly the bug MYK9-632 is about.
         setClassEdits(prev => ({
           ...prev,
-          [pullDialog.classId!]: { ...prev[pullDialog.classId!], status: 'withdrawn' },
+          [pullDialog.classId!]: {
+            ...prev[pullDialog.classId!],
+            status: choice.kind === 'pull' ? 'scratched' : 'withdrawn',
+          },
         }));
         onUpdate();
       }
     } catch (err) {
       setError('An unexpected error occurred.');
-      logger.error('Error withdrawing class entry:', 'entries', {}, err as Error);
+      logger.error('Error leaving class:', 'entries', {}, err as Error);
     } finally {
       setIsSaving(false);
       setPullDialog({ open: false, classId: null, className: null });
@@ -261,7 +258,11 @@ export function EntryEditDialog({
 
   const getClassStatus = (classEntry: EntryClass) => {
     const edit = classEdits[classEntry.id];
-    if (edit?.status === 'withdrawn') return 'scratched';
+    // MYK9-632: 'withdrawn' no longer collapses to 'scratched'. The two acts are
+    // different, and the badge below says which one happened.
+    if (edit?.status === 'withdrawn' || edit?.status === 'scratched') {
+      return edit.status as EntryClass['status'] | 'withdrawn';
+    }
     return classEntry.status;
   };
 
@@ -311,116 +312,26 @@ export function EntryEditDialog({
                     Classes Entered
                   </div>
 
-                  {entry.classes.map(classEntry => {
-                    const status = getClassStatus(classEntry);
-                    const isPulled = status === 'scratched';
-                    const currentJumpHeight =
-                      classEdits[classEntry.id]?.jumpHeight || classEntry.jumpHeight;
-                    const currentHandler =
-                      classEdits[classEntry.id]?.handler ??
-                      classEntry.handler ??
-                      entry.handler ??
-                      '';
-
-                    return (
-                      <div
-                        key={classEntry.id}
-                        className={`p-3 rounded-lg border ${
-                          isPulled ? 'bg-muted/50 border-muted' : 'bg-card border-border'
-                        }`}
-                      >
-                        <div className="flex items-center justify-between">
-                          <div>
-                            <div
-                              className={`font-medium ${
-                                isPulled ? 'line-through text-muted-foreground' : ''
-                              }`}
-                            >
-                              {classEntry.name}
-                              {classEntry.number && ` #${classEntry.number}`}
-                            </div>
-                            <div className="text-sm text-muted-foreground">
-                              ${classEntry.fee.toFixed(2)}
-                            </div>
-                          </div>
-                          {isPulled ? (
-                            <Badge variant="secondary">Pulled</Badge>
-                          ) : (
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => handlePullRequest(classEntry.id, classEntry.name)}
-                              disabled={withdrawEligibility[classEntry.id]?.allowed === false}
-                              title={withdrawEligibility[classEntry.id]?.reason}
-                              className="text-destructive hover:text-destructive hover:bg-destructive/10"
-                            >
-                              <X className="h-4 w-4 mr-1" />
-                              Pull
-                            </Button>
-                          )}
-                        </div>
-
-                        {!isPulled && withdrawEligibility[classEntry.id]?.allowed === false && (
-                          <p className="mt-2 text-sm text-muted-foreground">
-                            {withdrawEligibility[classEntry.id]?.reason}
-                          </p>
-                        )}
-
-                        {/* Advisory heads-up if a secretary already has THIS class
-                          row's entry open on ClassDetailsPage. Keyed on the per-class
-                          entries.id (not the grouped card id) so it matches the
-                          secretary's surface exactly, for every class in the group. */}
-                        <EditingBadge
-                          entityType="entry"
-                          entityId={classEntry.id}
-                          className="mt-2"
-                        />
-
-                        <div className="mt-3 space-y-1.5">
-                          <Label htmlFor={`handler-${classEntry.id}`} className="text-sm">
-                            Handler
-                          </Label>
-                          <Input
-                            id={`handler-${classEntry.id}`}
-                            aria-label={`Handler for ${classEntry.name}`}
-                            value={currentHandler}
-                            onChange={e => handleHandlerChange(classEntry.id, e.target.value)}
-                            placeholder="Enter handler name"
-                            disabled={isPulled}
-                          />
-                        </div>
-
-                        {/* Jump height only applies to jumping disciplines
-                          (agility, obedience, rally). Scent work has none, so
-                          hide the field rather than show an irrelevant select. */}
-                        {!isPulled && disciplineUsesJumpHeight(classEntry.trialType) && (
-                          <div className="mt-3 flex items-center gap-2">
-                            <Label
-                              htmlFor={`jump-height-${classEntry.id}`}
-                              className="text-sm whitespace-nowrap"
-                            >
-                              Jump Height:
-                            </Label>
-                            <Select
-                              value={currentJumpHeight || ''}
-                              onValueChange={value => handleJumpHeightChange(classEntry.id, value)}
-                            >
-                              <SelectTrigger id={`jump-height-${classEntry.id}`} className="w-24">
-                                <SelectValue placeholder="Select" />
-                              </SelectTrigger>
-                              <SelectContent>
-                                {JUMP_HEIGHTS.map(height => (
-                                  <SelectItem key={height} value={height}>
-                                    {height}
-                                  </SelectItem>
-                                ))}
-                              </SelectContent>
-                            </Select>
-                          </div>
-                        )}
-                      </div>
-                    );
-                  })}
+                  {entry.classes.map(classEntry => (
+                    <EntryEditClassRow
+                      key={classEntry.id}
+                      classEntry={classEntry}
+                      status={getClassStatus(classEntry)}
+                      rowEligibility={withdrawEligibility[classEntry.id]}
+                      currentHandler={
+                        classEdits[classEntry.id]?.handler ??
+                        classEntry.handler ??
+                        entry.handler ??
+                        ''
+                      }
+                      currentJumpHeight={
+                        classEdits[classEntry.id]?.jumpHeight || classEntry.jumpHeight
+                      }
+                      onLeaveClass={handlePullRequest}
+                      onHandlerChange={handleHandlerChange}
+                      onJumpHeightChange={handleJumpHeightChange}
+                    />
+                  ))}
                 </div>
 
                 <EntryStatusHistory
@@ -455,10 +366,19 @@ export function EntryEditDialog({
         </SheetContent>
       </Sheet>
 
-      <PullConfirmDialog
+      <RemoveFromClassDialog
         open={pullDialog.open}
         className={pullDialog.className}
+        registryId={registryId}
         isSaving={isSaving}
+        withdrawDisabledReason={
+          pullDialog.classId
+            ? (withdrawEligibility[pullDialog.classId]?.withdraw.reason ?? null)
+            : null
+        }
+        pullDisabledReason={
+          pullDialog.classId ? (withdrawEligibility[pullDialog.classId]?.pull.reason ?? null) : null
+        }
         onOpenChange={open =>
           !open && setPullDialog({ open: false, classId: null, className: null })
         }

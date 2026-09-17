@@ -31,3 +31,19 @@ export {
   resolveConfiguredRegistryId,
 } from './helpers';
 export type { ShowStyle } from './helpers';
+
+// MYK9-632: Withdraw vs Pull. Rulebook facts, per registry.
+export {
+  WITHDRAWAL_REASON_CODES,
+  getWithdrawalPolicy,
+  getWithdrawalReason,
+  isPastWithdrawalCutoff,
+  isWithdrawalReasonCode,
+  withdrawalReasonLabel,
+} from './withdrawalPolicy';
+export type {
+  RegistryWithdrawalPolicy,
+  RemoveFromClassKind,
+  WithdrawalReasonCode,
+  WithdrawalReasonSpec,
+} from './withdrawalPolicy';

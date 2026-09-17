@@ -25,12 +25,30 @@ import { AuditAction } from '@/types/audit-types';
 import { logger } from '@/services/LoggingService';
 import { replicatedEntriesTable } from '@/services/replication/ReplicatedEntriesTable';
 import { createDatabaseError, logQuery } from '../supabaseClient';
+import type {
+  RemoveFromClassKind,
+  WithdrawalReasonCode,
+} from '@/features/registries/withdrawalPolicy';
 
-export const withdrawOwnEntry = async (entryId: string) => {
+/**
+ * MYK9-632: `kind` picks the act. 'withdraw' needs one of the two recognised
+ * reason codes and writes `entry_status='withdrawn'`; 'pull' takes no reason and
+ * writes `'scratched'`, the platform's stored word for a pull.
+ */
+export interface RemoveOwnEntryOptions {
+  kind?: RemoveFromClassKind;
+  reason?: WithdrawalReasonCode | null;
+}
+
+export const withdrawOwnEntry = async (entryId: string, options: RemoveOwnEntryOptions = {}) => {
   const startTime = Date.now();
+  const kind: RemoveFromClassKind = options.kind ?? 'withdraw';
 
   try {
-    const { from } = await replicatedEntriesTable.withdrawOwnEntry(entryId);
+    const { from, to } = await replicatedEntriesTable.withdrawOwnEntry(entryId, {
+      kind,
+      reason: options.reason ?? null,
+    });
 
     logQuery('entries', 'withdraw_own_entry', Date.now() - startTime);
 
@@ -42,14 +60,21 @@ export const withdrawOwnEntry = async (entryId: string) => {
         action: AuditAction.UPDATE,
         entityType: 'entry',
         entityId: entryId,
-        changes: { entryStatus: { from: from ?? null, to: 'withdrawn' } },
-        metadata: { action: 'withdraw_own_entry' },
+        changes: { entryStatus: { from: from ?? null, to } },
+        metadata: {
+          action: 'withdraw_own_entry',
+          kind,
+          ...(kind === 'withdraw' && options.reason
+            ? { withdrawalReasonCode: options.reason }
+            : {}),
+        },
       });
     } catch (auditError) {
-      logger.warn('Withdrawal succeeded but its audit record could not be written', 'entries', {
-        entryId,
-        auditError,
-      });
+      logger.warn(
+        `${kind === 'pull' ? 'Pull' : 'Withdrawal'} succeeded but its audit record could not be written`,
+        'entries',
+        { entryId, auditError }
+      );
     }
 
     return { data: { id: entryId }, error: null };
@@ -75,3 +100,10 @@ export const getWithdrawEligibility = async (entryId: string) =>
  */
 export const getWithdrawEligibilityForEntries = async (entryIds: string[]) =>
   replicatedEntriesTable.getWithdrawEligibilityForEntries(entryIds);
+
+/**
+ * MYK9-632: both verdicts per row, so a paid entry can show Withdraw greyed out
+ * with its reason while Pull stays live. One round trip for the whole card.
+ */
+export const getRemoveFromClassEligibilityForEntries = async (entryIds: string[]) =>
+  replicatedEntriesTable.getRemoveFromClassEligibilityForEntries(entryIds);

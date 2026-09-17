@@ -115,3 +115,31 @@ export function expectedEntries<T extends EntryAccountingFields>(entries: T[]): 
 export function outstandingEntries<T extends EntryAccountingFields>(entries: T[]): T[] {
   return expectedEntries(entries).filter(entry => !isAccountedFor(entry));
 }
+
+/** The expected / accounted pair every "n of m scored" counter must report. */
+export interface EntryAccountingCounts {
+  /** Entries the show still expects to put in the ring (the denominator). */
+  expected: number;
+  /** Expected entries that no longer represent outstanding scoring work. */
+  accounted: number;
+  /** The server's `complete` predicate: `expected > 0 && accounted === expected`. */
+  isComplete: boolean;
+}
+
+/**
+ * Count a class's entries the way the server's auto-derivation does.
+ *
+ * One call site per counter, so a surface can never grow its own variant: a
+ * withdrawn or pulled entry left in the denominator is how the Ringside class
+ * list came to render a finished 66-entry class as `64 / 66` (MYK9-645) while
+ * the server had it complete.
+ */
+export function countEntryAccounting(entries: EntryAccountingFields[]): EntryAccountingCounts {
+  const expected = expectedEntries(entries);
+  const accounted = expected.filter(isAccountedFor).length;
+  return {
+    expected: expected.length,
+    accounted,
+    isComplete: expected.length > 0 && accounted === expected.length,
+  };
+}

@@ -24,6 +24,7 @@ import { toRingsideClassStatus } from './ringsideClassStatusMap';
 import { getFavoriteClassIdsForTrial } from '@/features/show-today/accountTodayEntries.helpers';
 import { composeClassTitle } from '@/services/entryDisplay/entryDisplaySelectors';
 import { buildNextUpPreview, type AtShowNextUpPreview } from './atShowNextUpPreview';
+import { countEntryAccounting } from '@/features/_shared/entryAccounting';
 
 /** A trial and its classes (mapped to ringside `ClassEntry`), for grouped display. */
 export interface AtShowClassGroup {
@@ -52,7 +53,10 @@ export function toClassEntry(
   entries: ReplicatedEntry[],
   favoriteClassIds: Set<string>
 ): ClassEntry {
-  const completed = countCompletedEntries(entries);
+  // MYK9-645: the counter is the canonical accounting pair, not raw rows --
+  // a withdrawn or pulled entry left in the denominator makes a finished class
+  // read as unfinished on the judge's landing screen.
+  const counts = countEntryAccounting(entries);
 
   return {
     id: cls.id,
@@ -62,8 +66,8 @@ export function toClassEntry(
     class_name: buildClassName(cls),
     class_order: cls.classOrder ?? 0,
     judge_name: cls.judgeName ?? 'No Judge Assigned',
-    entry_count: entries.length,
-    completed_count: completed,
+    entry_count: counts.expected,
+    completed_count: counts.accounted,
     class_status: toRingsideClassStatus(cls.classStatus),
     is_favorite: favoriteClassIds.has(cls.id),
     ...(cls.startTime ? { planned_start_time: cls.startTime } : {}),
@@ -80,10 +84,6 @@ export function toClassEntry(
     // The card navigates by counts + identity; per-dog detail isn't needed here.
     dogs: [],
   };
-}
-
-function countCompletedEntries(entries: ReplicatedEntry[]): number {
-  return entries.filter(entry => entry.isScored ?? entry.is_scored ?? false).length;
 }
 
 function groupEntriesByClass(entries: ReplicatedEntry[]): Map<string, ReplicatedEntry[]> {
@@ -115,10 +115,11 @@ export function refreshAtShowClassListEntries(
     const classes = group.classes.map(classEntry => {
       const entries = entriesByClass.get(classEntry.id) ?? [];
       nextUpByClassId.set(classEntry.id, buildNextUpPreview(entries));
+      const counts = countEntryAccounting(entries);
       return {
         ...classEntry,
-        entry_count: entries.length,
-        completed_count: countCompletedEntries(entries),
+        entry_count: counts.expected,
+        completed_count: counts.accounted,
       };
     });
     return { ...group, classes, nextUpByClassId };

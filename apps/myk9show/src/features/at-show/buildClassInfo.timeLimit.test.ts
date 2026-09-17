@@ -44,6 +44,7 @@ describe('buildClassInfo — timeLimit hygiene', () => {
         timeLimitArea3Seconds: 90,
       }),
       null,
+      [],
       []
     );
     expect(info.timeLimit).toBe('180s');
@@ -52,7 +53,7 @@ describe('buildClassInfo — timeLimit hygiene', () => {
   });
 
   it('omits timeLimit entirely when no limit is set', () => {
-    const info = buildClassInfo(makeClass(), null, []);
+    const info = buildClassInfo(makeClass(), null, [], []);
     expect(info.timeLimit).toBeUndefined();
     expect(info.timeLimit2).toBeUndefined();
     expect(info.timeLimit3).toBeUndefined();
@@ -66,6 +67,7 @@ describe('buildClassInfo — timeLimit hygiene', () => {
         timeLimitSeconds: 'TBD' as never,
       }),
       null,
+      [],
       []
     );
     expect(info.timeLimit).toBeUndefined();
@@ -74,13 +76,13 @@ describe('buildClassInfo — timeLimit hygiene', () => {
 
   it('drops NaN / non-finite / non-positive limits', () => {
     for (const junk of [NaN, Infinity, -Infinity, 0, -30]) {
-      const info = buildClassInfo(makeClass({ timeLimitSeconds: junk }), null, []);
+      const info = buildClassInfo(makeClass({ timeLimitSeconds: junk }), null, [], []);
       expect(info.timeLimit).toBeUndefined();
     }
   });
 
   it('never emits a non-numeric timeLimit across the snake_case source too', () => {
-    const info = buildClassInfo(makeClass({ time_limit_seconds: 'TBD' as never }), null, []);
+    const info = buildClassInfo(makeClass({ time_limit_seconds: 'TBD' as never }), null, [], []);
     expectNumericOrUndefined(info.timeLimit);
     expect(info.timeLimit).toBeUndefined();
   });

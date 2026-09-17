@@ -31,7 +31,9 @@ const ERROR_CODE_MAP: Record<string, string> = {
 
   // myK9 custom SQLSTATEs (class MK)
   MK001: 'This person still owns dogs. Delete those dogs first.',
-  MK002: 'This dog has paid or scored entries. Scratch or refund them before deleting.',
+  // MYK9-632: the word is Pull everywhere a person reads it. The SQLSTATE and
+  // the stored `entry_status` keep their spellings.
+  MK002: 'This dog has paid or scored entries. Pull or refund them before deleting.',
 
   // Application-level refusals (MYK9-136). These carry copy that is the whole
   // point of the refusal, so they must be mapped — this function discards the

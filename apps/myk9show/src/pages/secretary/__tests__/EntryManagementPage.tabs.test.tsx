@@ -99,11 +99,11 @@ describe('EntryManagementPage tab consolidation', () => {
     );
   });
 
-  it('normalizes legacy pulled exception links to Pulls / scratches', async () => {
+  it('normalizes legacy pulled exception links to the Pulls queue', async () => {
     render(<EntryManagementPage />, {
       initialRoute: '/secretary/entries?tab=exceptions&queue=pulled',
     });
-    expect(await screen.findByRole('button', { name: 'Pulls / scratches' })).toHaveAttribute(
+    expect(await screen.findByRole('button', { name: 'Pulls' })).toHaveAttribute(
       'aria-pressed',
       'true'
     );

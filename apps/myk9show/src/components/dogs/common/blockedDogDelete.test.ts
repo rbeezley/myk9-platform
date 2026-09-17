@@ -7,7 +7,7 @@ describe('isBlockedByPaidOrScoredEntries', () => {
       isBlockedByPaidOrScoredEntries({
         name: 'DatabaseError',
         code: 'MK002',
-        message: 'This dog has paid or scored entries. Scratch or refund them before deleting.',
+        message: 'This dog has paid or scored entries. Pull or refund them before deleting.',
       })
     ).toBe(true);
   });
@@ -22,7 +22,7 @@ describe('isBlockedByPaidOrScoredEntries', () => {
     // a DIFFERENT dog) would have been offered an admin override it has no
     // business offering.
     const translated = new Error(
-      'This dog has paid or scored entries. Scratch or refund them before deleting.'
+      'This dog has paid or scored entries. Pull or refund them before deleting.'
     );
     expect(isBlockedByPaidOrScoredEntries(translated)).toBe(false);
   });

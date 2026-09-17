@@ -156,11 +156,23 @@ export class WithdrawConflictError extends Error {
   }
 }
 
+/**
+ * MYK9-632: the verb for the act being attempted. An exhibitor who clicked Pull
+ * and is told "try withdrawing again" is being told about a different action
+ * than the one they took — the same collapse this issue exists to undo, three
+ * screens later on the failure path.
+ */
+export function removalVerb(kind: RemoveFromClassKind | undefined): 'pull' | 'withdraw' {
+  return kind === 'pull' ? 'pull' : 'withdraw';
+}
+
 export class WithdrawUnavailableError extends Error {
   readonly code: WithdrawRefusalCode = 'unavailable';
 
-  constructor() {
-    super("We couldn't reach the server — try withdrawing again when you're connected.");
+  constructor(kind?: RemoveFromClassKind) {
+    super(
+      `We couldn't reach the server — try ${removalVerb(kind) === 'pull' ? 'pulling' : 'withdrawing'} again when you're connected.`
+    );
     this.name = 'WithdrawUnavailableError';
   }
 }
@@ -168,15 +180,20 @@ export class WithdrawUnavailableError extends Error {
 export class WithdrawNotAllowedError extends Error {
   readonly code: WithdrawRefusalCode;
 
-  constructor(eligibility: WithdrawEligibility) {
-    super(eligibility.reason ?? 'This entry cannot be withdrawn.');
+  constructor(eligibility: WithdrawEligibility, kind?: RemoveFromClassKind) {
+    super(
+      eligibility.reason ??
+        `This entry cannot be ${removalVerb(kind) === 'pull' ? 'pulled' : 'withdrawn'}.`
+    );
     this.name = 'WithdrawNotAllowedError';
     this.code = eligibility.code ?? 'status';
   }
 }
 
 /**
- * Turn any withdrawal failure into a sentence an exhibitor can act on.
+ * Turn any failure into a sentence an exhibitor can act on, IN THE VERB OF THE
+ * ACT THEY CHOSE. Telling someone who clicked Pull to "try withdrawing again" is
+ * the same word-swap this issue exists to undo, moved onto the failure path.
  *
  * Server refusals arrive as raw Postgres text carrying the row UUID
  * ("Entry 22eb47a9-… is checked in at the show and cannot be withdrawn"). That is
@@ -188,15 +205,20 @@ export class WithdrawNotAllowedError extends Error {
  * `withdraw_own_entry` RPC raises. The pre-check covers the common refusals, so
  * a 42501 that still arrives means the row changed under us.
  */
-const SERVER_MESSAGES: Record<string, string> = {
-  // The RPC's own owner-tier guards. Reaching one means the entry changed
-  // between the pre-check and the call — e.g. someone checked the dog in.
-  '42501': 'This entry can no longer be removed — ask the show secretary.',
-  // invalid_parameter_value: the payload was wrong. Not the exhibitor's doing.
-  '22023': "Something went wrong preparing this withdrawal — we've logged it.",
-  P0002: 'This entry no longer exists — refresh the page and try again.',
-  '40001': 'Someone else changed this entry — reopen it and try again.',
-};
+function serverMessages(kind: RemoveFromClassKind | undefined): Record<string, string> {
+  const verb = removalVerb(kind);
+  const past = verb === 'pull' ? 'pulled' : 'withdrawn';
+  const noun = verb === 'pull' ? 'pull' : 'withdrawal';
+  return {
+    // The RPC's own owner-tier guards. Reaching one means the entry changed
+    // between the pre-check and the call — e.g. someone checked the dog in.
+    '42501': `This entry can no longer be ${past} — ask the show secretary.`,
+    // invalid_parameter_value: the payload was wrong. Not the exhibitor's doing.
+    '22023': `Something went wrong preparing this ${noun} — we've logged it.`,
+    P0002: 'This entry no longer exists — refresh the page and try again.',
+    '40001': 'Someone else changed this entry — reopen it and try again.',
+  };
+}
 
 const OWN_REFUSAL_CODES = new Set<string>([
   'removed',
@@ -209,13 +231,15 @@ const OWN_REFUSAL_CODES = new Set<string>([
 ]);
 
 export function withdrawErrorMessage(
-  error: { code?: string | undefined; message?: string | undefined } | null | undefined
+  error: { code?: string | undefined; message?: string | undefined } | null | undefined,
+  kind?: RemoveFromClassKind
 ): string {
   const code = error?.code;
   // Our own errors already carry a written sentence — pass it through.
   if (code && OWN_REFUSAL_CODES.has(code) && error?.message) return error.message;
-  if (code && SERVER_MESSAGES[code]) return SERVER_MESSAGES[code] as string;
-  return "We couldn't withdraw this entry. Please try again.";
+  const mapped = code ? serverMessages(kind)[code] : undefined;
+  if (mapped) return mapped;
+  return `We couldn't ${removalVerb(kind)} this entry. Please try again.`;
 }
 
 /**

@@ -72,6 +72,25 @@ describe('withdrawal policy — platform invariants', () => {
   });
 });
 
+// RECORDED, NOT ENFORCED. The rulebook research is worth keeping even though
+// the app cannot evaluate the clock (classes.start_time is on 1 of 35 live
+// classes and there is no class-date column), and keeping it as DATA means
+// wiring it later is a call site rather than a schema change.
+describe('cutoff minutes are recorded per registry', () => {
+  it('records the AKC 30-minute rule and no cutoff elsewhere', () => {
+    expect(getWithdrawalPolicy('AKC').cutoffMinutesBeforeFirstClass).toBe(30);
+    expect(getWithdrawalPolicy('UKC').cutoffMinutesBeforeFirstClass).toBeNull();
+    expect(getWithdrawalPolicy('ASCA').cutoffMinutesBeforeFirstClass).toBeNull();
+  });
+
+  it('declares the field on every configured registry', () => {
+    for (const registryId of listRegistries()) {
+      const minutes = getWithdrawalPolicy(registryId).cutoffMinutesBeforeFirstClass;
+      expect(minutes === null || typeof minutes === 'number', registryId).toBe(true);
+    }
+  });
+});
+
 describe('withdrawal copy states who decides, never an outcome', () => {
   // The app holds neither the premium nor the club's processing fee, and it
   // cannot evaluate the AKC 30-minute clock (classes.start_time is populated on

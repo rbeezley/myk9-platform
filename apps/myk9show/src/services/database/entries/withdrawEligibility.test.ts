@@ -11,6 +11,7 @@ import {
   OWNER_WITHDRAWABLE_ENTRY_STATUSES,
   PRE_SHOW_CHECK_IN_STATUSES,
   WithdrawNotAllowedError,
+  WithdrawUnavailableError,
 } from './withdrawEligibility';
 
 const pending = {
@@ -187,5 +188,39 @@ describe('withdrawErrorMessage', () => {
       /couldn't withdraw this entry/i
     );
     expect(withdrawErrorMessage(null)).toMatch(/couldn't withdraw this entry/i);
+  });
+
+  // MYK9-632: an exhibitor who clicked Pull and is told "try withdrawing again"
+  // is being told about a different action than the one they took — the same
+  // word-swap this issue exists to undo, moved onto the failure path.
+  it('speaks in the verb of the act that failed', () => {
+    for (const [kind, fails, succeeds] of [
+      ['pull', /withdraw/i, /pull/i],
+      ['withdraw', /\bpull/i, /withdraw/i],
+    ] as const) {
+      for (const error of [
+        null,
+        { message: 'TypeError: Failed to fetch' },
+        { code: '42501' },
+        { code: '22023' },
+      ]) {
+        const message = withdrawErrorMessage(error, kind);
+        expect(message, `${kind} / ${JSON.stringify(error)}`).toMatch(succeeds);
+        expect(message, `${kind} / ${JSON.stringify(error)}`).not.toMatch(fails);
+      }
+    }
+  });
+
+  it('carries the verb onto the typed errors the replication layer throws', () => {
+    expect(new WithdrawUnavailableError('pull').message).toMatch(/try pulling again/i);
+    expect(new WithdrawUnavailableError('withdraw').message).toMatch(/try withdrawing again/i);
+    // Default stays 'withdraw', which is what every pre-MYK9-632 caller meant.
+    expect(new WithdrawUnavailableError().message).toMatch(/try withdrawing again/i);
+
+    const noReason = { allowed: false } as const;
+    expect(new WithdrawNotAllowedError(noReason, 'pull').message).toMatch(/cannot be pulled/i);
+    expect(new WithdrawNotAllowedError(noReason, 'withdraw').message).toMatch(
+      /cannot be withdrawn/i
+    );
   });
 });

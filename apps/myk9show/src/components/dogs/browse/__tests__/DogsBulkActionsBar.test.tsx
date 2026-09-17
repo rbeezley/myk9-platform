@@ -54,7 +54,7 @@ function blockedError() {
   return {
     name: 'DatabaseError',
     code: 'MK002',
-    message: 'This dog has paid or scored entries. Scratch or refund them before deleting.',
+    message: 'This dog has paid or scored entries. Pull or refund them before deleting.',
   };
 }
 

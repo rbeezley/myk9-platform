@@ -151,7 +151,8 @@ describe('useShowMapActionExecutor — scratch/no-show undo', () => {
         previousWithdrawalReason: null,
       })
     );
-    expect(toastSuccessMock).toHaveBeenCalledWith('Scratch undone');
+    // MYK9-632: the word is Pull everywhere a person reads it.
+    expect(toastSuccessMock).toHaveBeenCalledWith('Pull undone');
   });
 
   it('surfaces an error toast when undo fails', async () => {

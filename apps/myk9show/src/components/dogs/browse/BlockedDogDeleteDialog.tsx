@@ -103,7 +103,7 @@ export function BlockedDogDeleteDialog({
               ? reportOnly
                 ? 'Nothing was deleted, and you can no longer override this. Close and investigate — confirm you still have site-admin access.'
                 : 'Nothing was deleted. You can try the override again, or close and investigate.'
-              : `Scratch or refund their entries to delete them normally${
+              : `Pull or refund their entries to delete them normally${
                   canForceDelete ? ', or override below' : ''
                 }.`}
           </span>

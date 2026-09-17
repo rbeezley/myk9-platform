@@ -9,8 +9,9 @@
 --
 -- Sibling of withdraw_own_entry_test.sql, which pins the MYK9-535 authorization
 -- tiers. This file pins only what MYK9-632 added: p_kind, the two-value reason
--- allow-list, the status each act writes, and the ONE guard that differs (a paid
--- entry may be pulled, never withdrawn).
+-- allow-list, the status each act writes, and — after the owner's 2026-09-17
+-- decision — that BOTH acts are available on a paid entry while NEITHER writes a
+-- money column. There is no longer a payment guard on either arm.
 
 begin;
 
@@ -249,6 +250,54 @@ begin
       v_status, v_method, v_payment, v_decision;
   end if;
   raise notice 'PASS a pulled paid-online entry is an UNRESOLVED refund decision';
+end;
+$$;
+
+-- The row shape the SECRETARY'S QUEUE depends on. `isUnresolvedRemovalRefundDecision`
+-- admits a withdrawal only when it is paid ONLINE, still unresolved, and carries
+-- one of the two reason codes. If a paid-online withdrawal ever stops looking
+-- exactly like this, the exhibitor has paid, is not running, and no surface in
+-- the app can resolve their refund.
+update public.entries set payment_status = 'paid', payment_method = 'online', entry_fee = 40
+ where id = '00000000-0000-0000-0000-000000632033';
+update public.entries set entry_status = 'confirmed', withdrawal_reason_code = null
+ where id = '00000000-0000-0000-0000-000000632033';
+
+select pg_temp.assert_leave('a paid-online entry withdraws with a reason',
+  '00000000-0000-0000-0000-000000632101', '00000000-0000-0000-0000-000000632033',
+  'withdraw', 'in_season', null, 'withdrawn');
+
+do $$
+declare
+  r record;
+begin
+  select e.entry_status, e.withdrawal_reason_code, e.payment_status, e.payment_method,
+         e.entry_fee, e.refund_amount, e.refunded_at, e.refund_decision,
+         e.refund_decided_at, e.withdrawn_at
+    into r
+    from public.entries e where e.id = '00000000-0000-0000-0000-000000632033';
+
+  if r.entry_status <> 'withdrawn' or r.withdrawal_reason_code <> 'in_season' then
+    raise exception 'FAIL paid-online withdrawal: status=% code=%',
+      r.entry_status, r.withdrawal_reason_code;
+  end if;
+  -- Payment fields untouched: the act records, it does not settle.
+  if r.payment_status <> 'paid' or r.payment_method <> 'online' or r.entry_fee is distinct from 40 then
+    raise exception 'FAIL paid-online withdrawal moved the payment: status=% method=% fee=%',
+      r.payment_status, r.payment_method, r.entry_fee;
+  end if;
+  -- Every refund column NULL: that is what "unresolved" means to the queue.
+  if r.refund_amount is not null or r.refunded_at is not null
+     or r.refund_decision is not null or r.refund_decided_at is not null then
+    raise exception
+      'FAIL paid-online withdrawal wrote a refund column: amount=% at=% decision=% decided=%',
+      r.refund_amount, r.refunded_at, r.refund_decision, r.refund_decided_at;
+  end if;
+  if r.withdrawn_at is null then
+    raise exception 'FAIL paid-online withdrawal: withdrawn_at was not stamped';
+  end if;
+  raise notice
+    'PASS a paid-online WITHDRAWAL is an unresolved refund decision with no money written';
 end;
 $$;
 

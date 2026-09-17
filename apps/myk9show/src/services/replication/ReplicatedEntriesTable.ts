@@ -719,17 +719,20 @@ export class ReplicatedEntriesTable extends ReplicatedTable<ReplicatedEntry> {
     const targetStatus = kind === 'pull' ? 'scratched' : 'withdrawn';
 
     if (kind === 'withdraw' && reason == null) {
-      throw new WithdrawNotAllowedError({
-        allowed: false,
-        code: 'status',
-        reason: 'Choose a withdrawal reason before withdrawing this entry.',
-      });
+      throw new WithdrawNotAllowedError(
+        {
+          allowed: false,
+          code: 'status',
+          reason: 'Choose a withdrawal reason before withdrawing this entry.',
+        },
+        kind
+      );
     }
 
-    const { entry, wasCached, coldVersion } = await this.readEntryForWithdrawal(entryId);
+    const { entry, wasCached, coldVersion } = await this.readEntryForWithdrawal(entryId, kind);
 
     const eligibility = withdrawEligibilityOf(entry, kind);
-    if (!eligibility.allowed) throw new WithdrawNotAllowedError(eligibility);
+    if (!eligibility.allowed) throw new WithdrawNotAllowedError(eligibility, kind);
 
     // A cached row's OCC token lives in the replica; a cold row's came back with
     // the read that answered the guards.
@@ -767,7 +770,10 @@ export class ReplicatedEntriesTable extends ReplicatedTable<ReplicatedEntry> {
    * FRESH `get` at the moment of writing (see `hydrateConfirmedRow`).
    */
   private async readEntryForWithdrawal(
-    entryId: string
+    entryId: string,
+    // MYK9-632: carried only so an "offline" refusal names the act the exhibitor
+    // actually chose.
+    kind: RemoveFromClassKind = 'withdraw'
   ): Promise<{ entry: ReplicatedEntry; wasCached: boolean; coldVersion: number | null }> {
     const cached = await this.get(entryId);
     if (cached) return { entry: cached, wasCached: true, coldVersion: null };
@@ -784,9 +790,9 @@ export class ReplicatedEntriesTable extends ReplicatedTable<ReplicatedEntry> {
         .eq('id', entryId)
         .maybeSingle();
     } catch {
-      throw new WithdrawUnavailableError();
+      throw new WithdrawUnavailableError(kind);
     }
-    if (result.error) throw new WithdrawUnavailableError();
+    if (result.error) throw new WithdrawUnavailableError(kind);
     if (!result.data) throw new WithdrawNotFoundError();
     const row = result.data as unknown as EntryRow;
     // Carried out so the RPC still gets an OCC precondition on a cold row. The
@@ -850,7 +856,7 @@ export class ReplicatedEntriesTable extends ReplicatedTable<ReplicatedEntry> {
       }
     }
 
-    if (error) throw this.classifyWithdrawTransportError(error);
+    if (error) throw this.classifyWithdrawTransportError(error, kind);
     return typeof data === 'number' ? data : undefined;
   }
 
@@ -860,10 +866,13 @@ export class ReplicatedEntriesTable extends ReplicatedTable<ReplicatedEntry> {
    * dialog — a warm cached row reaches the RPC without ever touching the
    * cold-cache path that would otherwise have caught this.
    */
-  private classifyWithdrawTransportError(error: unknown): unknown {
+  private classifyWithdrawTransportError(
+    error: unknown,
+    kind: RemoveFromClassKind = 'withdraw'
+  ): unknown {
     const code = (error as { code?: string } | null)?.code;
     const offline = typeof navigator !== 'undefined' && navigator.onLine === false;
-    if (offline || !code) return new WithdrawUnavailableError();
+    if (offline || !code) return new WithdrawUnavailableError(kind);
     return error;
   }
 

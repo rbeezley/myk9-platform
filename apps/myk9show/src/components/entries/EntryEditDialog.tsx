@@ -186,7 +186,7 @@ export function EntryEditDialog({
         // log, wrong for the dialog. `withdrawErrorMessage` owns both code
         // spaces: our own pre-check refusals (which already carry a sentence)
         // and the SQLSTATEs the RPC raises.
-        setError(withdrawErrorMessage(error));
+        setError(withdrawErrorMessage(error, choice.kind));
         logger.error(
           `Failed to ${choice.kind === 'pull' ? 'pull' : 'withdraw'} class entry:`,
           'entries',

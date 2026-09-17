@@ -154,7 +154,13 @@ export const pullEntry = async (entryId: string, reason?: string) => {
     entryId,
     fromStatus: undefined,
     toStatus: 'scratched',
-    action: 'scratch_entry',
+    // MYK9-632: one act, one audit action. This transition and
+    // `removeEntryAsManager`'s Pull write the same state for the same reason, so
+    // they must not be two names in the audit trail. Grepped repo-wide before
+    // renaming: nothing READS 'scratch_entry' — only this emitter and its test.
+    // The day-of sibling keeps 'scratch_entry_day_of'; the at-show pull is out
+    // of scope for this issue (`check_in_status = 'pulled'` is untouched).
+    action: 'pull_entry',
     reason,
   });
   return result;

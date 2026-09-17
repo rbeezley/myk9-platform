@@ -160,7 +160,8 @@ describe('show page entry counts reconcile (MYK9-387)', () => {
     ).toBeInTheDocument();
     // The gap between the two figures is stated, not left to be inferred.
     expect(
-      screen.getByText(/2 other entries \(withdrawn, scratched, moved up, or expired\)/)
+      // MYK9-632: "scratched" is the stored value, "pulled" is the word.
+      screen.getByText(/2 other entries \(withdrawn, pulled, moved up, or expired\)/)
     ).toBeInTheDocument();
     // The old wording called these "classes", which read as a contradiction of
     // the tab badge. It must not come back.

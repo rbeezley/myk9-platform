@@ -20,7 +20,7 @@ export function buildBlockedText(
   if (!blockingEntryCount || blockingEntryCount <= 0) return null;
   const pronoun = blockingEntryCount === 1 ? 'it' : 'them';
   // MYK9-600: name the escalation that exists. A secretary whose blocking entry
-  // is SCORED cannot scratch or refund it — "scratch or refund them" was the
+  // is SCORED cannot pull or refund it — "pull or refund them" was the
   // whole of their next step, and for them it was not available. A site admin
   // can delete the dog outright, so point at that rather than leave a dead end.
   //
@@ -28,7 +28,7 @@ export function buildBlockedText(
   // it renders directly below this sentence, and telling a site admin to ask a
   // site admin reads as the app not knowing who it is talking to.
   const escalation = canForceDelete ? '' : ', or ask a site admin to delete the dog';
-  return `This dog has ${blockingEntryCount} paid or scored ${entryNoun(blockingEntryCount)}. Scratch or refund ${pronoun} before deleting${escalation}.`;
+  return `This dog has ${blockingEntryCount} paid or scored ${entryNoun(blockingEntryCount)}. Pull or refund ${pronoun} before deleting${escalation}.`;
 }
 
 /**

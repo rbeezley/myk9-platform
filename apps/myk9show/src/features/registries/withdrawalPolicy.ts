@@ -18,8 +18,9 @@
  *    than half an hour before the first class of the day, club may retain a
  *    processing fee. Judge change (Ch.3 §24) is a full refund on a written
  *    request submitted at least 30 minutes before the start of the exhibitor's
- *    first entered day. So: BOTH reasons. The 30-minute clock is NOT modelled —
- *    see WITHDRAW_REFUND_NOTE for why the app cannot evaluate it.
+ *    first entered day. So: BOTH reasons, and a 30-minute cutoff recorded on
+ *    `cutoffMinutesBeforeFirstClass` — recorded only; see that field and
+ *    WITHDRAW_REFUND_NOTE for why nothing evaluates it.
  *  - UKC Nosework: in season needs a vet certificate and the club may refund in
  *    full or retain 50%. Judge change is refunded on written request. No stated
  *    clock cutoff.
@@ -62,6 +63,20 @@ export interface RegistryWithdrawalPolicy {
    * naming an amount would be a promise nothing here can keep.
    */
   withdrawRefundNote: string;
+  /**
+   * Minutes before the exhibitor's first class of the day after which the
+   * registry no longer guarantees a withdrawal refund, or `null` when the
+   * rulebook states none.
+   *
+   * RECORDED, NOT ENFORCED — nothing reads this today, deliberately. The rule is
+   * real (AKC Ch.3 §15 and §24) but the app cannot evaluate it: `classes
+   * .start_time` is populated on 1 of 35 live classes and there is no class-date
+   * column at all, so the instant to compare `now` against does not exist. It
+   * lives here as DATA so that wiring it later is a call site, not a schema
+   * change — and so the rulebook research is not lost to a `git log` search.
+   * Open question for the owner, recorded in docs/INTENT.md.
+   */
+  cutoffMinutesBeforeFirstClass: number | null;
   /** Pull copy. Must never promise "no refund" (owner ruling 2026-09-17). */
   pullRefundNote: string;
 }
@@ -97,6 +112,7 @@ const AKC_POLICY: RegistryWithdrawalPolicy = {
     { code: 'judge_change', label: JUDGE_CHANGE_LABEL },
   ],
   withdrawRefundNote: WITHDRAW_REFUND_NOTE,
+  cutoffMinutesBeforeFirstClass: 30,
   pullRefundNote: PULL_REFUND_NOTE,
 };
 
@@ -112,6 +128,7 @@ const UKC_POLICY: RegistryWithdrawalPolicy = {
     { code: 'judge_change', label: JUDGE_CHANGE_LABEL },
   ],
   withdrawRefundNote: WITHDRAW_REFUND_NOTE,
+  cutoffMinutesBeforeFirstClass: null,
   pullRefundNote: PULL_REFUND_NOTE,
 };
 
@@ -124,6 +141,7 @@ const ASCA_POLICY: RegistryWithdrawalPolicy = {
   registryId: 'ASCA',
   reasons: [{ code: 'judge_change', label: JUDGE_CHANGE_LABEL }],
   withdrawRefundNote: WITHDRAW_REFUND_NOTE,
+  cutoffMinutesBeforeFirstClass: null,
   pullRefundNote: PULL_REFUND_NOTE,
 };
 

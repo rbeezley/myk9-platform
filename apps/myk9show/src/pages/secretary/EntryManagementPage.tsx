@@ -456,7 +456,10 @@ const EntryManagementPage: React.FC = () => {
                 {(
                   [
                     ['move-ups', 'Move-ups'],
-                    ['pulls', 'Pulls / scratches'],
+                    // MYK9-632: one act, one word. The URL key `pulls` and the
+                    // legacy `?tab=scratches` alias are unchanged — this is the
+                    // label only.
+                    ['pulls', 'Pulls'],
                     ['waitlist', 'Waitlist'],
                   ] as const
                 ).map(([exception, label]) => (

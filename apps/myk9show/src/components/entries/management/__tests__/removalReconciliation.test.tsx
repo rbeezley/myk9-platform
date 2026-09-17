@@ -152,6 +152,38 @@ describe('removalSummaryLine — what is true about the money RIGHT NOW', () => 
     ).toBe('Withdrawn · Dog in season · vet certificate on file · refund per the premium');
   });
 
+  // A 'withdrawn' row with NO reason code is a SECRETARY removal (Decline /
+  // Reject -> rejectEntry) or a pre-MYK9-632 row, not an exhibitor's act. The
+  // reconciliation queue excludes it, so a line promising "refund per the
+  // premium" would advertise an obligation nobody agreed to and that no surface
+  // can resolve.
+  it('says nothing about money for a withdrawn row with NO reason code', () => {
+    expect(removalSummaryLine({ rawEntryStatus: 'withdrawn' })).toBe('Withdrawn');
+    expect(removalSummaryLine({ rawEntryStatus: 'withdrawn' })).not.toMatch(/refund/i);
+    expect(removalSummaryLine({ rawEntryStatus: 'withdrawn', withdrawalReasonCode: null })).toBe(
+      'Withdrawn'
+    );
+    expect(removalSummaryLine({ rawEntryStatus: 'withdrawn', withdrawalReasonCode: 'other' })).toBe(
+      'Withdrawn'
+    );
+  });
+
+  it('keeps the secretary note on a codeless withdrawal, still without a refund claim', () => {
+    const line = removalSummaryLine({
+      rawEntryStatus: 'withdrawn',
+      withdrawalReason: 'Class limit reached',
+    });
+    expect(line).toBe('Withdrawn · Class limit reached');
+    expect(line).not.toMatch(/refund/i);
+  });
+
+  // ...but once a decision EXISTS it is still reported, whatever wrote the row.
+  it('still reports a decision on a codeless withdrawal', () => {
+    expect(removalSummaryLine({ rawEntryStatus: 'withdrawn', refundDecision: 'denied' })).toBe(
+      'Withdrawn · refund denied'
+    );
+  });
+
   it('falls back to the reason code when the raw status is not projected', () => {
     expect(removalSummaryLine({ withdrawalReasonCode: 'judge_change' })).toContain('Withdrawn');
     expect(removalSummaryLine({})).toContain('Pulled');

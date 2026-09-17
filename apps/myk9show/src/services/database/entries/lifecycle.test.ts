@@ -133,7 +133,7 @@ describe('Entry lifecycle transitions', () => {
     );
     expect(auditLog).toHaveBeenCalledWith(
       expect.objectContaining({
-        metadata: expect.objectContaining({ action: 'scratch_entry', reason: 'Dog is absent' }),
+        metadata: expect.objectContaining({ action: 'pull_entry', reason: 'Dog is absent' }),
       })
     );
   });

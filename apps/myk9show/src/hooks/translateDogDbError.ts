@@ -28,7 +28,7 @@ export function translateDogDbError(err: unknown): Error {
   // permission error.
   if (code === MK_DOG_HAS_SETTLED_ENTRIES) {
     return withCause(
-      'This dog has paid or scored entries. Scratch or refund them before deleting.',
+      'This dog has paid or scored entries. Pull or refund them before deleting.',
       err
     );
   }

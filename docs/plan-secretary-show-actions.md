@@ -160,3 +160,16 @@ Reports is its own tab because it is used in all three phases (Richard), so it d
 Rules: tabs are the only horizontal row on the page; buttons are filled and carry verbs (the Actions button from Phase 1); links are inline text inside content; nothing is an orange word floating in a row. Every old page URL (`/show-desk`, `/entry-management`, `/reports`, `/results`, `/submit-results`, `/setup`) redirects into its tab so bookmarks and the sidebar keep working. Per-tab badges keep their current sources; the Entries badge and body read one source (Phase 1 AC3).
 
 Acceptance for Phase 2: the six tabs render for a manager; the five-link row is gone; each old URL redirects and lands on the right tab; Reports shows the before/during/after grouping; a render test asserts exactly six tab triggers and zero standalone page links in the header region, red on main; staging walk as `secretary@myk9t.com` across all six tabs at desktop and 375px.
+
+## Cross-cutting decision — the Actions button lives in the app header
+
+Richard, 2026-09-17: "one place to go… always visible… if an option is not relevant it would be grayed out."
+
+- One shared `HeaderActions` component in the app header, left of the notifications bell, the same spot on every page and at 375px. Not a per-page button; page headers lose their scattered buttons.
+- Contents are a per-page action list resolved from route context (show, dog, entry, role) through one registry. Off a context page the list is the role-wide actions only.
+- Greyed with a one-line reason (hover/focus) when an item belongs to the page but is unavailable; absent when it does not belong. Five to seven items per page.
+- The command palette reads the same registry, so the two never disagree.
+- The sidebar stays navigation; the bottom action-bar registry stays for one primary action on long pages.
+- Build order: registry + header component + the secretary list here (MYK9-630); MYK9-631 adds the exhibitor list.
+
+Mockup: https://claude.ai/artifact/NsYZhBFSHNm9qZnDfqa3xU (boards draw the button in the page header; final placement is the app header).

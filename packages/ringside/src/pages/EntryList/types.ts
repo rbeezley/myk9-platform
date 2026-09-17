@@ -62,6 +62,21 @@ export interface ClassInfo {
   classStatus?: string;
   totalEntries?: number;
   completedEntries?: number;
+  /**
+   * Pending / completed counts computed by the HOST, handed in rather than
+   * re-derived from the entries array (MYK9-645).
+   *
+   * The tab counter and the class-details header were two different rules on
+   * one screen: the header reported the host's expected/accounted pair while
+   * the tabs counted raw rows, so a class with one withdrawn entry read
+   * "0 of 65" beside "Pending 66". `pending` is expected minus accounted and
+   * `completed` is accounted, per the host's canonical entry-accounting rule.
+   *
+   * Optional: other ringside consumers that do not supply it keep the
+   * entries-array derivation. The rule itself deliberately stays host-side
+   * (MYK9-646 covers the remaining ringside counters).
+   */
+  statusCounts?: { pending: number; completed: number };
   timeLimit?: string;
   timeLimit2?: string;
   timeLimit3?: string;

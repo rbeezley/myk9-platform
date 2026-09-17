@@ -277,6 +277,14 @@ export function buildClassInfo(
     classStatus: cls.classStatus ?? 'pending',
     totalEntries: counts.expected,
     completedEntries: counts.accounted,
+    // Hand the SAME pair to the ringside Pending/Completed tabs (MYK9-645).
+    // The tabs used to re-derive from the transformed entries array, which has
+    // already lost the lifecycle fields, so one screen showed two answers --
+    // "0 of 65 completed" in the class details beside "Pending 66".
+    statusCounts: {
+      pending: counts.expected - counts.accounted,
+      completed: counts.accounted,
+    },
     visibilityPreset: (cls.visibilityPreset as ClassInfo['visibilityPreset']) ?? 'standard',
 
     ...(cls.isScoringFinalized !== undefined && {

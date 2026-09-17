@@ -126,8 +126,12 @@ export const EntryListPage: React.FC<EntryListPageProps> = ({
   );
 
   const statusTabs = useMemo(
-    () => buildStatusTabs({ pending: entryCounts.pending, completed: entryCounts.completed }),
-    [entryCounts.pending, entryCounts.completed]
+    () =>
+      buildStatusTabs(
+        { pending: entryCounts.pending, completed: entryCounts.completed },
+        classInfo?.statusCounts
+      ),
+    [entryCounts.pending, entryCounts.completed, classInfo?.statusCounts]
   );
 
   const sectionTabs = useMemo(

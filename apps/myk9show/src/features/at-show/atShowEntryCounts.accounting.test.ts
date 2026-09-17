@@ -67,6 +67,28 @@ function realShapedEntries(): ReplicatedEntry[] {
 
 const SERVER = countEntryAccounting(realShapedEntries());
 
+/**
+ * A class where expected !== accounted, so numerator and denominator can be
+ * told apart. 5 rows: 1 scored, 1 unscored, 1 `absent` RESULT (accounted
+ * without a score), 1 `withdrawn`, 1 `pulled` at check-in.
+ *
+ * Server rule: expected 3, accounted 2. Every assertion below this point pins
+ * those LITERALS -- not `countEntryAccounting(...)` -- because a fixture whose
+ * two numbers are equal cannot catch a numerator/denominator swap.
+ */
+function asymmetricEntries(): ReplicatedEntry[] {
+  return [
+    entry({ id: 'a1', armband: '1', isScored: true, resultStatus: 'qualified', runOrder: 1 }),
+    entry({ id: 'a2', armband: '2', isScored: false, runOrder: 2 }),
+    entry({ id: 'a3', armband: '3', isScored: false, resultStatus: 'absent', runOrder: 3 }),
+    entry({ id: 'a4', armband: '4', entryStatus: 'withdrawn', isScored: false, runOrder: 4 }),
+    entry({ id: 'a5', armband: '5', checkInStatus: 'pulled', isScored: false, runOrder: 5 }),
+  ];
+}
+
+const ASYMMETRIC_EXPECTED = 3;
+const ASYMMETRIC_ACCOUNTED = 2;
+
 describe('MYK9-645 — at-show entry counters follow the canonical accounting rule', () => {
   it('the fixture is the documented server shape (7 expected, 7 accounted, complete)', () => {
     expect(SERVER).toEqual({ expected: 7, accounted: 7, isComplete: true });
@@ -108,6 +130,69 @@ describe('MYK9-645 — at-show entry counters follow the canonical accounting ru
 
     expect(info.totalEntries).toBe(SERVER.expected);
     expect(info.completedEntries).toBe(SERVER.accounted);
+  });
+
+  it('the asymmetric fixture is 3 expected / 2 accounted by the server rule', () => {
+    expect(countEntryAccounting(asymmetricEntries())).toEqual({
+      expected: ASYMMETRIC_EXPECTED,
+      accounted: ASYMMETRIC_ACCOUNTED,
+      isComplete: false,
+    });
+  });
+
+  it('the class list card puts accounted in the numerator and expected in the denominator', () => {
+    const card = toClassEntry(makeClass(), asymmetricEntries(), new Set());
+
+    expect(card.completed_count).toBe(2);
+    expect(card.entry_count).toBe(3);
+  });
+
+  it('the class list refresh path puts accounted in the numerator and expected in the denominator', () => {
+    const groups: AtShowClassGroup[] = [
+      {
+        trial: { id: 'trial-1' } as never,
+        classes: [toClassEntry(makeClass(), [], new Set())],
+        nextUpByClassId: new Map(),
+      },
+    ];
+
+    const [group] = refreshAtShowClassListEntries(groups, asymmetricEntries(), 'show-1');
+    const card = group?.classes[0];
+
+    expect(card?.completed_count).toBe(2);
+    expect(card?.entry_count).toBe(3);
+  });
+
+  it('the class page puts accounted in the numerator and expected in the denominator', () => {
+    const rawEntries = asymmetricEntries();
+    const cls = makeClass();
+    const info = buildClassInfo(
+      cls,
+      null,
+      rawEntries.map(re => transformEntry(re, cls)),
+      rawEntries
+    );
+
+    expect(info.completedEntries).toBe(2);
+    expect(info.totalEntries).toBe(3);
+  });
+
+  it('hands the ringside Pending / Completed tabs the same pair as the header', () => {
+    const rawEntries = asymmetricEntries();
+    const cls = makeClass();
+    const info = buildClassInfo(
+      cls,
+      null,
+      rawEntries.map(re => transformEntry(re, cls)),
+      rawEntries
+    );
+
+    // pending = expected - accounted, completed = accounted. One screen, one pair.
+    expect(info.statusCounts).toEqual({ pending: 1, completed: 2 });
+    expect((info.statusCounts?.pending ?? 0) + (info.statusCounts?.completed ?? 0)).toBe(
+      info.totalEntries
+    );
+    expect(info.statusCounts?.completed).toBe(info.completedEntries);
   });
 
   it('a soft-deleted row is out of both numbers', () => {

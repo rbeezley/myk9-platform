@@ -33,6 +33,21 @@ type ExtractSourceInput = {
 
 const SOURCE_EXTENSIONS = new Set(['.ts', '.tsx']);
 
+/**
+ * Read a capture group the pattern makes mandatory. None of the patterns in
+ * this file have optional groups, so a successful match always captures every
+ * one of them; this narrows `noUncheckedIndexedAccess`'s `string | undefined`
+ * element type back to `string` by construction rather than with `!` or `as`,
+ * and names what was expected if a future pattern edit breaks that (MYK9-540).
+ */
+function group(match: RegExpMatchArray | RegExpExecArray, index: number, what: string): string {
+  const value = match[index];
+  if (value === undefined) {
+    throw new Error(`enum-check-drift: expected ${what} (group ${index}) in: ${match[0]}`);
+  }
+  return value;
+}
+
 export function extractCheckConstraints(sql: string): CheckConstraint[] {
   const constraints = new Map<string, CheckConstraint>();
 
@@ -42,8 +57,8 @@ export function extractCheckConstraints(sql: string): CheckConstraint[] {
     );
 
     if (createTable) {
-      const table = normalizeIdentifier(createTable[1]);
-      for (const definition of splitTopLevelCommas(createTable[2])) {
+      const table = normalizeIdentifier(group(createTable, 1, 'table name'));
+      for (const definition of splitTopLevelCommas(group(createTable, 2, 'column definitions'))) {
         const columnMatch = definition.trim().match(/^("?[\w]+"?)\s+/);
         if (!columnMatch) continue;
 
@@ -65,8 +80,8 @@ export function extractCheckConstraints(sql: string): CheckConstraint[] {
     );
 
     if (dropConstraint) {
-      const table = normalizeIdentifier(dropConstraint[1]);
-      const name = normalizeIdentifier(dropConstraint[2]);
+      const table = normalizeIdentifier(group(dropConstraint, 1, 'table name'));
+      const name = normalizeIdentifier(group(dropConstraint, 2, 'constraint name'));
       constraints.delete(`${table}.${name}`);
       continue;
     }
@@ -76,9 +91,9 @@ export function extractCheckConstraints(sql: string): CheckConstraint[] {
     );
 
     if (addConstraint) {
-      const table = normalizeIdentifier(addConstraint[1]);
-      const source = normalizeIdentifier(addConstraint[2]);
-      const parsed = parseCheckExpression(addConstraint[3]);
+      const table = normalizeIdentifier(group(addConstraint, 1, 'table name'));
+      const source = normalizeIdentifier(group(addConstraint, 2, 'constraint name'));
+      const parsed = parseCheckExpression(group(addConstraint, 3, 'check expression'));
       if (parsed) {
         constraints.set(`${table}.${source}`, {
           table,
@@ -105,16 +120,16 @@ export function extractEnumWritesFromSource({
   let fromMatch: RegExpExecArray | null;
 
   while ((fromMatch = fromCallPattern.exec(source))) {
-    const table = fromMatch[1];
+    const table = group(fromMatch, 1, 'table name');
     const columns = trackedColumns.get(table);
     if (!columns) continue;
 
-    const chain = fromMatch[2];
+    const chain = group(fromMatch, 2, 'call chain');
     const mutationPattern = /\.(?:insert|update|upsert)\(\s*({[\s\S]*?}|\w+)/g;
     let mutationMatch: RegExpExecArray | null;
 
     while ((mutationMatch = mutationPattern.exec(chain))) {
-      const argument = mutationMatch[1].trim();
+      const argument = group(mutationMatch, 1, 'mutation argument').trim();
       const objectLiteral = argument.startsWith('{') ? argument : localObjects.get(argument);
 
       if (!objectLiteral) continue;
@@ -136,23 +151,31 @@ export function compareEnumWritesToChecks({
   const constraintsByColumn = new Map(
     constraints.map(constraint => [`${constraint.table}.${constraint.column}`, constraint])
   );
-  const findingFiles = new Map<string, Map<string, Set<string>>>();
+  // Keep the table and column on the group rather than splitting them back
+  // out of the key: `columnKey.split('.')` returns `string | undefined`
+  // elements, and the pair is already known here (MYK9-540). Same grouping,
+  // same keys.
+  type ColumnGroup = { table: string; column: string; values: Map<string, Set<string>> };
+  const findingFiles = new Map<string, ColumnGroup>();
 
   for (const write of writes) {
     const constraint = constraintsByColumn.get(`${write.table}.${write.column}`);
     if (!constraint || constraint.allowedValues.includes(write.value)) continue;
 
     const columnKey = `${write.table}.${write.column}`;
-    const values = findingFiles.get(columnKey) ?? new Map<string, Set<string>>();
-    const files = values.get(write.value) ?? new Set<string>();
+    const group = findingFiles.get(columnKey) ?? {
+      table: write.table,
+      column: write.column,
+      values: new Map<string, Set<string>>(),
+    };
+    const files = group.values.get(write.value) ?? new Set<string>();
     files.add(write.file);
-    values.set(write.value, files);
-    findingFiles.set(columnKey, values);
+    group.values.set(write.value, files);
+    findingFiles.set(columnKey, group);
   }
 
   return [...findingFiles.entries()]
-    .flatMap(([columnKey, values]) => {
-      const [table, column] = columnKey.split('.');
+    .flatMap(([columnKey, { table, column, values }]) => {
       const constraint = constraintsByColumn.get(`${table}.${column}`);
       if (!constraint) {
         throw new Error(`Missing constraint for finding ${columnKey}`);
@@ -251,14 +274,14 @@ function parseCheckExpression(
     expression.match(/\(?\s*("?[\w]+"?)\s*=\s*any\s*\(\s*array\s*\[([\s\S]*?)\]\s*\)\s*\)?/i);
   if (!match) return null;
 
-  const allowedValues = [...match[2].matchAll(/'((?:''|[^'])*)'/g)].map(valueMatch =>
-    valueMatch[1].replaceAll("''", "'")
+  const allowedValues = [...group(match, 2, 'value list').matchAll(/'((?:''|[^'])*)'/g)].map(
+    valueMatch => group(valueMatch, 1, 'quoted value').replaceAll("''", "'")
   );
 
   if (allowedValues.length === 0) return null;
 
   return {
-    column: normalizeIdentifier(match[1]),
+    column: normalizeIdentifier(group(match, 1, 'column name')),
     allowedValues,
   };
 }
@@ -269,7 +292,7 @@ function collectLocalObjectLiterals(source: string): Map<string, string> {
   let match: RegExpExecArray | null;
 
   while ((match = objectPattern.exec(source))) {
-    objects.set(match[1], match[2]);
+    objects.set(group(match, 1, 'binding name'), group(match, 2, 'object literal'));
   }
 
   return objects;
@@ -286,13 +309,14 @@ function extractObjectEnumWrites(
   let match: RegExpExecArray | null;
 
   while ((match = propertyPattern.exec(objectLiteral))) {
-    if (!columns.has(match[1])) continue;
+    const column = group(match, 1, 'property name');
+    if (!columns.has(column)) continue;
 
     writes.push({
       file,
       table,
-      column: match[1],
-      value: match[2],
+      column,
+      value: group(match, 2, 'property value'),
     });
   }
 

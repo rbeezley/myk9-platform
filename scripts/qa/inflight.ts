@@ -143,10 +143,17 @@ export function renderOverlaps(
 ): string {
   if (overlaps.length === 0)
     return 'inflight: no open PR, other worktree, or unmerged branch touches these paths.';
-  const bySource = new Map<string, Overlap[]>();
+  // Carry each group's source alongside its overlaps instead of reading it
+  // back off `list[0]`: every group is non-empty by construction here, but
+  // only the explicit field makes that visible to `tsc` under
+  // `noUncheckedIndexedAccess` (MYK9-540). Same source, same grouping.
+  type SourceGroup = { source: ChangeSource; items: Overlap[] };
+  const bySource = new Map<string, SourceGroup>();
   for (const o of overlaps) {
     const key = `${o.source.kind} ${o.source.id}`;
-    bySource.set(key, [...(bySource.get(key) ?? []), o]);
+    const group = bySource.get(key);
+    if (group) group.items.push(o);
+    else bySource.set(key, { source: o.source, items: [o] });
   }
   const actionableOverlaps = overlaps.filter(isActionableOverlap);
   const actionable = actionableOverlaps.length > 0;
@@ -157,25 +164,24 @@ export function renderOverlaps(
       ? `inflight: ${actionableOverlaps.length} actionable overlap(s) with work already in flight${staleNote} — coordinate before continuing:`
       : `inflight: no actionable overlaps; ${overlaps.length} stale inventory match(es) found, gate can continue:`,
   ];
-  const ordered = [...bySource].sort(([, listA], [, listB]) => {
-    const priority = (list: Overlap[]) => {
-      const source = list[0].source;
+  const ordered = [...bySource].sort(([, groupA], [, groupB]) => {
+    const priority = ({ source }: SourceGroup) => {
       if (source.kind === 'pr') return 0;
       if (source.kind === 'worktree') return 1;
       if (source.stale) return 3;
       return 2;
     };
-    return priority(listA) - priority(listB);
+    return priority(groupA) - priority(groupB);
   });
-  const isStaleBranch = (list: Overlap[]) =>
-    list[0].source.kind === 'branch' && list[0].source.stale;
-  const staleGroups = ordered.filter(([, list]) => isStaleBranch(list));
+  const isStaleBranch = ({ source }: SourceGroup) =>
+    source.kind === 'branch' && source.stale === true;
+  const staleGroups = ordered.filter(([, group]) => isStaleBranch(group));
   // Keep the individual stale groups out of the default report, but retain
   // their exact counts in the summary below. `--verbose` shows the same
   // groups as the original report for branch cleanup work.
-  const displayed = opts.verbose ? ordered : ordered.filter(([, list]) => !isStaleBranch(list));
-  for (const [key, list] of displayed) {
-    const s = list[0].source;
+  const displayed = opts.verbose ? ordered : ordered.filter(([, group]) => !isStaleBranch(group));
+  for (const [key, group] of displayed) {
+    const s = group.source;
     const meta = [
       s.kind !== 'branch' && s.branch && `branch ${s.branch}`,
       s.stale && 'stale local branch',
@@ -185,11 +191,11 @@ export function renderOverlaps(
       .filter(Boolean)
       .join(', ');
     lines.push(`  ${key}${meta ? ` (${meta})` : ''}`);
-    for (const o of list.slice(0, 8)) lines.push(`    ${o.path}  ~  ${o.matched}`);
-    if (list.length > 8) lines.push(`    … and ${list.length - 8} more`);
+    for (const o of group.items.slice(0, 8)) lines.push(`    ${o.path}  ~  ${o.matched}`);
+    if (group.items.length > 8) lines.push(`    … and ${group.items.length - 8} more`);
   }
   if (!opts.verbose && staleGroups.length) {
-    const staleFiles = new Set(staleGroups.flatMap(([, list]) => list.map(o => o.matched)));
+    const staleFiles = new Set(staleGroups.flatMap(([, group]) => group.items.map(o => o.matched)));
     lines.push(
       `  and ${staleGroups.length} stale local branch(es) covering ${staleFiles.size} matched path(s) (older than ${STALE_BRANCH_DAYS} days; run with --verbose)`
     );
@@ -262,7 +268,9 @@ export function statusPaths(cwd?: string): string[] {
   const out: string[] = [];
   for (let i = 0; i < records.length; i += 1) {
     const rec = records[i];
-    if (rec.length < 4) continue;
+    // `i` is always in range, so this is the index signature's `| undefined`,
+    // not a reachable branch (MYK9-540).
+    if (rec === undefined || rec.length < 4) continue;
     out.push(rec.slice(3));
     if (rec[0] === 'R' || rec[0] === 'C') {
       const old = records[i + 1];
@@ -308,7 +316,9 @@ export function committedPaths(ref: string, excludes: readonly string[], cwd?: s
   for (let i = 0; i < tokens.length; i += 1) {
     const tok = tokens[i];
     // One letter per parent for a merge under `-c` (`AA`, `MM`), a rename score after R/C.
-    if (!/^[ACDMRTUXB]+\d*$/.test(tok)) continue; // not a status record
+    // `i` is always in range; the undefined arm is the index signature's, not
+    // a reachable branch (MYK9-540).
+    if (tok === undefined || !/^[ACDMRTUXB]+\d*$/.test(tok)) continue; // not a status record
     const path = tokens[i + 1];
     if (path === undefined || path === '') continue;
     out.push(path);
@@ -564,8 +574,16 @@ export function unmergedLocalBranches(
       cwd,
     })
   ).map(line => {
-    const [name, committedAt] = line.split('\t');
-    return { name, committedAt: Number(committedAt) };
+    // Split on the first tab by index rather than destructuring `split`, whose
+    // elements are `string | undefined` under `noUncheckedIndexedAccess`. The
+    // format always emits a tab; a hypothetical tab-less line keeps its old
+    // reading — whole line as the name, NaN as the date, which
+    // `isStaleCommit` rejects as non-finite and so reports as not stale
+    // (MYK9-540).
+    const tab = line.indexOf('\t');
+    return tab === -1
+      ? { name: line, committedAt: Number.NaN }
+      : { name: line.slice(0, tab), committedAt: Number(line.slice(tab + 1)) };
   });
   // Every branch already contained in the base, in ONE call. Asking per branch
   // cost a subprocess apiece — 45 of them made the enumeration test a timeout

@@ -216,50 +216,15 @@ describe('Monogram entry CTAs', () => {
     });
 
     /**
-     * Round-1 review, geometry finding: measured in real Chrome at 375x812,
-     * the fixed bar (65px tall) permanently covered the footer's last block —
-     * `elementFromPoint` on the footer's coordinates returned the bar.
-     *
-     * jsdom has no layout engine, so it cannot reproduce that pixel
-     * measurement directly; what it CAN prove is the mechanism that makes the
-     * fix hold in a real browser: the in-flow spacer this component renders
-     * immediately before the fixed bar is sized to the bar's OWN measured
-     * height (via `useRegisterActionBar`'s `onHeightChange`, the same
-     * mechanism `ClassBulkActionsBar`/`DogsBulkActionsBar` use). As long as
-     * spacer height === bar height, whatever sits right before the spacer in
-     * the document (the footer's last block) is pushed up by exactly the
-     * bar's height, clearing it at the end of the page.
+     * Round-2 review caught that the geometry test above certified the
+     * BROKEN layout: it rendered <footer> before <FinalCtaBand>, the
+     * opposite of the real page (FinalCtaBand used to sit mid-<main>, before
+     * <MonogramFooter>). Deleted rather than patched — the real-tree
+     * assertion now lives in MonogramLandingPage.test.tsx, which exercises
+     * the actual component order, plus a Playwright assertion at 375x812
+     * (src/test/e2e/monogram-sticky-cta.spec.ts) for the pixel geometry
+     * jsdom cannot compute.
      */
-    it("reserves an in-flow spacer equal to the bar's own measured height", () => {
-      stubHeight(65);
-      mockViewport(true);
-      const { container } = render(
-        <>
-          <footer>
-            <div data-testid="footer-last-block">A member club of the American Kennel Club.</div>
-          </footer>
-          <FinalCtaBand
-            entryWizardUrl="/shows/show-1/register"
-            entryCloseDate={null}
-            timezone="America/Chicago"
-          />
-        </>
-      );
-
-      const bar = screen.getByRole('region', { name: /enter this show/i });
-      const spacer = bar.previousElementSibling as HTMLElement;
-      expect(spacer).not.toBeNull();
-      expect(spacer).toHaveAttribute('aria-hidden', 'true');
-      expect(spacer.style.height).toBe('65px');
-
-      // The footer sits before the spacer in document order; with the spacer
-      // reserving the bar's own height, the footer's last block is not
-      // beneath the fixed bar once scrolled to the end of the page.
-      const footerLast = container.querySelector('[data-testid="footer-last-block"]');
-      expect(footerLast).not.toBeNull();
-      expect(footerLast?.compareDocumentPosition(spacer)).toBe(Node.DOCUMENT_POSITION_FOLLOWING);
-    });
-
     it('publishes its measured height to the shared action-bar registry while mounted', () => {
       stubHeight(65);
       mockViewport(true);

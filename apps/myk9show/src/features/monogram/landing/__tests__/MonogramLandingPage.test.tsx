@@ -134,3 +134,81 @@ describe('MonogramLandingPage — entry CTA count (MYK9-565)', () => {
     }
   });
 });
+
+/**
+ * Round-3 restructure (MYK9-565): round 2's spacer test rendered a fixture
+ * with <footer> BEFORE <FinalCtaBand> and asserted spacer-after-footer --
+ * the INVERSE of the real page, where FinalCtaBand sat mid-<main>, before
+ * <MonogramFooter>. That fixture certified a layout where the fixed bar
+ * covered the footer's last block (measured in real Chrome at 375x812:
+ * `.mg-footer__meta` at y 756-800 under the bar at y 771-836).
+ *
+ * This exercises the REAL component tree instead. jsdom has no layout
+ * engine, so it can't reproduce the pixel overlap directly -- it proves the
+ * structural fix: FinalCtaBand now renders after <MonogramFooter>, so its
+ * in-flow spacer is the last element under the page root, reserving space
+ * at the actual end of the document rather than opening a gap mid-page. The
+ * pixel geometry itself is covered by a Playwright assertion at 375x812
+ * (src/test/e2e/monogram-sticky-cta.spec.ts).
+ */
+describe('MonogramLandingPage — sticky-bar spacer sits at the end of the document', () => {
+  function stubHeight(px: number) {
+    Object.defineProperty(HTMLElement.prototype, 'getBoundingClientRect', {
+      configurable: true,
+      value: () => ({
+        height: px,
+        width: 375,
+        top: 0,
+        left: 0,
+        right: 375,
+        bottom: px,
+        x: 0,
+        y: 0,
+      }),
+    });
+  }
+
+  afterEach(() => {
+    mockViewport(false);
+  });
+
+  it('reserves the bar height AFTER the footer, not mid-page', () => {
+    stubHeight(65);
+    mockViewport(true);
+    const { container } = render(
+      <MonogramLandingPage
+        show={{ id: 'show-1', name: baseData.showName } as never}
+        trial={null}
+        allTrials={[]}
+        hasEntryClassInventory
+        entryNotYetOpen={false}
+      />
+    );
+
+    const bar = screen.getByRole('region', { name: /enter this show/i });
+    const root = container.firstElementChild as HTMLElement;
+    const spacer = bar.previousElementSibling as HTMLElement;
+
+    // The spacer is the reserved-space element FinalCtaBand renders right
+    // before its fixed bar (aria-hidden, sized to the bar's measured
+    // height). It must be the SECOND-TO-LAST child under the page root --
+    // i.e. immediately after <MonogramFooter> and immediately before the
+    // bar itself -- not sitting mid-page next to the hero.
+    expect(spacer).toHaveAttribute('aria-hidden', 'true');
+    expect(spacer.style.height).toBe('65px');
+    expect(root.lastElementChild).toBe(bar);
+    expect(root.lastElementChild?.previousElementSibling).toBe(spacer);
+    expect(spacer.previousElementSibling?.tagName).toBe('FOOTER');
+
+    // No OTHER bare "just a height" aria-hidden spacer exists earlier in
+    // the tree (i.e. it did not also/instead render mid-<main>, next to the
+    // CTA it repeats -- the exact bug round 2 shipped). Matched on the exact
+    // style signature `height: 65px;` alone, not a substring match, since
+    // the page's decorative monogram glyphs are also `aria-hidden` and
+    // happen to carry other height-related styling.
+    const bareHeightSpacers = Array.from(
+      container.querySelectorAll<HTMLElement>('[aria-hidden="true"]')
+    ).filter(el => el.getAttribute('style')?.trim() === 'height: 65px;');
+    expect(bareHeightSpacers).toEqual([spacer]);
+  });
+});

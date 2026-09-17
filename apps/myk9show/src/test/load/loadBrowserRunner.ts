@@ -58,6 +58,21 @@ const SESSION_PREPARATION_CONCURRENCY = 10;
  * whether authentication returned at all.
  */
 export const AUTH_STATE_SIGN_IN_TIMEOUT_MS = 45_000;
+
+/**
+ * How the rehearsal signs in (MYK9-541).
+ *
+ * `retry: false` is EXPLICIT, not inferred. The sign-in ladder's total-budget
+ * rule happens to exclude a 45s per-attempt budget today, but that is
+ * arithmetic: it silently re-enables retries at any per-attempt budget under
+ * ~21s, and 16 shards retrying in lockstep would amplify exactly the auth load
+ * this rehearsal exists to measure. Exported so a unit test can pin it against
+ * the real constant rather than a hardcoded 45000.
+ */
+export const LOAD_HARNESS_SIGN_IN_OPTIONS = {
+  navigationTimeoutMs: AUTH_STATE_SIGN_IN_TIMEOUT_MS,
+  retry: false,
+} as const;
 const BROWSER_CONTEXT_CLOSE_TIMEOUT_MS = 2_000;
 /** Kinds that score. They finish when their dogs are scored rather than holding open. */
 const SCORING_WORKLOAD_KINDS: readonly string[] = ['ringside-scoring', 'scoring-correction'];
@@ -421,7 +436,7 @@ async function createAuthState(browser: Browser, baseURL: string, role: 'secreta
   try {
     const warmFixture = loadEntryFixture(1);
     const warmPath = `/at-show/${LOAD_SHOW_ID}/class/${warmFixture.classId}`;
-    const signInOptions = { navigationTimeoutMs: AUTH_STATE_SIGN_IN_TIMEOUT_MS };
+    const signInOptions = LOAD_HARNESS_SIGN_IN_OPTIONS;
     if (role === 'secretary') await signInAsSecretary(page, '/shows', signInOptions);
     else await signInAsExhibitor(page, '/shows', signInOptions);
     await page.waitForFunction(

@@ -8,6 +8,7 @@ import {
   AUTH_STATE_SIGN_IN_TIMEOUT_MS,
   closeBrowserContexts,
   connectedSessionHoldMs,
+  LOAD_HARNESS_SIGN_IN_OPTIONS,
   mapWithConcurrency,
 } from './loadBrowserRunner';
 import { DEFAULT_SIGN_IN_NAVIGATION_TIMEOUT_MS } from '../e2e/helpers/testUsers';
@@ -127,5 +128,19 @@ describe('AUTH_STATE_SIGN_IN_TIMEOUT_MS', () => {
     // Not a looser threshold invented for this fix — the same 45s the load
     // config sets for navigation and that createAuthState's own page.goto uses.
     expect(AUTH_STATE_SIGN_IN_TIMEOUT_MS).toBe(45_000);
+  });
+});
+
+describe('LOAD_HARNESS_SIGN_IN_OPTIONS', () => {
+  it('opts out of sign-in retries explicitly rather than by arithmetic (MYK9-541)', () => {
+    // The ladder's total-budget rule happens to exclude a 45s per-attempt
+    // budget, but that is a coincidence of two numbers: lower this budget below
+    // ~21s and retries silently switch back on, and 16 shards retrying in
+    // lockstep would amplify the auth load the rehearsal exists to measure.
+    expect(LOAD_HARNESS_SIGN_IN_OPTIONS.retry).toBe(false);
+  });
+
+  it('still carries the harness budget, read from the constant and not retyped', () => {
+    expect(LOAD_HARNESS_SIGN_IN_OPTIONS.navigationTimeoutMs).toBe(AUTH_STATE_SIGN_IN_TIMEOUT_MS);
   });
 });

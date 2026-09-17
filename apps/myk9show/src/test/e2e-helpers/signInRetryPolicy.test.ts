@@ -4,12 +4,18 @@ import {
   MAX_SIGN_IN_ATTEMPTS,
   SIGN_IN_LESSON_POINTER,
   SIGN_IN_RETRY_BACKOFF_MS,
+  SIGN_IN_BREAKER_REARM_MS,
   SIGN_IN_TOTAL_BUDGET_MS,
+  authGrantType,
   closeSignInBreaker,
+  describeAuthTokenRefusal,
+  findAuthTokenRefusal,
   decideSignInRetry,
   describeSignInRetry,
   isSignInBreakerOpen,
+  openSignInBreaker,
   runSignInLadder,
+  type AuthTokenResponse,
   type SignInAttemptFailure,
   type SignInRetryState,
 } from './signInRetryPolicy';
@@ -114,6 +120,25 @@ describe('decideSignInRetry — bounds, asserted with the REAL constants', () =>
     expect(decision.reason).toContain('budget');
   });
 
+  it('projects the next attempt from the MEASURED cost, not the configured budget', () => {
+    // The distinguishing case, and the only one that can fail if `lastAttemptMs`
+    // is swapped back for the 15000 navigation budget: the two formulas
+    // disagree here and agree everywhere else.
+    //   measured: 20000 + 1500 + 30000 = 51500 > 45000  -> refuse
+    //   budget:   20000 + 1500 + 15000 = 36500 <= 45000 -> retry, and the test
+    //             then runs past its 60s timeout and the log shows a bare
+    //             `Test timeout` with no [auth-never-returned] in it.
+    const decision = decideSignInRetry('auth-never-returned', {
+      attemptsMade: 1,
+      elapsedMs: 20_000,
+      lastAttemptMs: 30_000,
+      retriesEnabled: true,
+    });
+    expect(decision.retry).toBe(false);
+    expect(decision.reason).toContain('30000ms');
+    expect(decision.reason).toContain('51500ms');
+  });
+
   it('leaves the CI per-test timeout room for the assertions after the sign-in', () => {
     expect(SIGN_IN_TOTAL_BUDGET_MS).toBeLessThan(60_000);
   });
@@ -168,7 +193,7 @@ describe('runSignInLadder', () => {
 
     expect(attempt).toHaveBeenCalledTimes(1);
     expect(wait).not.toHaveBeenCalled();
-    expect(isSignInBreakerOpen()).toBe(false);
+    expect(isSignInBreakerOpen(0)).toBe(false);
   });
 
   it('retries once, logs the retry, and succeeds', async () => {
@@ -255,7 +280,7 @@ describe('runSignInLadder', () => {
       })
     ).rejects.toThrow();
     expect(firstAttempt).toHaveBeenCalledTimes(MAX_SIGN_IN_ATTEMPTS);
-    expect(isSignInBreakerOpen()).toBe(true);
+    expect(isSignInBreakerOpen(first.at())).toBe(true);
 
     // During the degradation window every concurrent test would otherwise
     // double its grants against the one shared account.
@@ -294,5 +319,90 @@ describe('runSignInLadder', () => {
     ).rejects.toThrow();
 
     expect(attempt).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('findAuthTokenRefusal', () => {
+  const at = (url: string, status: number, time: number): AuthTokenResponse => ({
+    url,
+    status,
+    at: time,
+  });
+  const PASSWORD = '/auth/v1/token?grant_type=password';
+  const REFRESH = '/auth/v1/token?grant_type=refresh_token';
+
+  it('ignores a stale refresh-token 400 that lands before a successful password grant', () => {
+    // supabase-js fires a refresh grant from a session an earlier test left
+    // behind, and it 400s routinely. Reading it as the answer would report
+    // auth-rejected for a sign-in that authenticated and was merely slow to
+    // navigate -- unretryable, and it would latch the worker breaker for free.
+    expect(findAuthTokenRefusal([at(REFRESH, 400, 10), at(PASSWORD, 200, 20)], 0)).toBeNull();
+  });
+
+  it('ignores a refresh-token 400 even when no password grant follows', () => {
+    expect(findAuthTokenRefusal([at(REFRESH, 400, 10)], 0)).toBeNull();
+  });
+
+  it('reports the LAST password grant, so an early 400 followed by a 200 is a success', () => {
+    expect(findAuthTokenRefusal([at(PASSWORD, 400, 10), at(PASSWORD, 200, 20)], 0)).toBeNull();
+  });
+
+  it('reports a refusal when the last password grant failed', () => {
+    expect(findAuthTokenRefusal([at(PASSWORD, 200, 10), at(PASSWORD, 429, 20)], 0)).toEqual({
+      status: 429,
+      grantType: 'password',
+      url: PASSWORD,
+    });
+  });
+
+  it('ignores a refusal recorded before the submit: it belongs to the previous attempt', () => {
+    expect(findAuthTokenRefusal([at(PASSWORD, 429, 10)], 50)).toBeNull();
+  });
+
+  it('returns null on silence, which is the auth-never-returned case worth retrying', () => {
+    expect(findAuthTokenRefusal([], 0)).toBeNull();
+  });
+
+  it('reads the grant type out of the query, and copes with a URL that has none', () => {
+    expect(authGrantType(PASSWORD)).toBe('password');
+    expect(authGrantType(REFRESH)).toBe('refresh_token');
+    expect(authGrantType('/auth/v1/token')).toBe('');
+  });
+
+  it('names the grant type and the status in the message', () => {
+    const line = describeAuthTokenRefusal(
+      'exhibitor@myk9t.com',
+      { status: 429, grantType: 'password', url: PASSWORD },
+      15_000
+    );
+    expect(line).toContain('auth-rejected');
+    expect(line).toContain('grant_type=password');
+    expect(line).toContain('429');
+  });
+});
+
+describe('the worker circuit breaker', () => {
+  it('re-arms itself after SIGN_IN_BREAKER_REARM_MS', () => {
+    // A latch with no way back would let one blip in a worker's first minute
+    // disable retries for its whole run -- a worse trade than the breaker makes.
+    openSignInBreaker(1000);
+    expect(isSignInBreakerOpen(1000 + SIGN_IN_BREAKER_REARM_MS - 1)).toBe(true);
+    expect(isSignInBreakerOpen(1000 + SIGN_IN_BREAKER_REARM_MS)).toBe(false);
+  });
+
+  it('is not opened by auth-rejected: a 4xx is a fact about one credential', async () => {
+    const attempt = vi.fn(async () =>
+      failure({ verdict: 'auth-rejected', message: 'auth returned 400', cause: undefined })
+    );
+    await expect(
+      runSignInLadder('exhibitor@myk9t.com', {
+        attempt,
+        wait: async () => undefined,
+        now: () => 0,
+        log: vi.fn(),
+        retriesEnabled: true,
+      })
+    ).rejects.toThrow();
+    expect(isSignInBreakerOpen(0)).toBe(false);
   });
 });

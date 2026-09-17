@@ -178,33 +178,57 @@ export interface SignInLadderDeps {
 }
 
 /**
- * Per-worker circuit breaker.
+ * How long the breaker stays open before it re-arms on its own.
+ *
+ * The observed degradations last ~74 seconds (job 34928991476); a smoke job
+ * runs for ~6 minutes and a Nightly worker far longer. A latch with no way back
+ * would let one blip in the first minute disable retries for that worker's
+ * entire run, which is a worse trade than the one the breaker was added to
+ * make. Five minutes is comfortably longer than any window measured and
+ * comfortably shorter than a worker's life.
+ */
+export const SIGN_IN_BREAKER_REARM_MS = 5 * 60_000;
+
+/**
+ * Per-worker circuit breaker, half-open after `SIGN_IN_BREAKER_REARM_MS`.
  *
  * Module scope is the point: a Playwright worker imports this module once, so
- * the flag is per worker and per process, which is the blast radius that
+ * the state is per worker and per process, which is the blast radius that
  * matters. During the degradation window EVERY test's sign-in fails, and
  * without the breaker every one of them would issue up to `MAX_SIGN_IN_ATTEMPTS`
  * grants against the one shared account — a mitigation that doubles the load it
- * was added to survive. Once one ladder has given up on an auth-service
- * verdict, later sign-ins in that worker take a single shot.
+ * was added to survive. Once one ladder has given up, later sign-ins in that
+ * worker take a single shot until the re-arm elapses.
+ *
+ * `auth-rejected` deliberately does NOT open it. A 4xx is the service's own
+ * answer about one credential — a rotation, a typo, a banned user — and it is
+ * already unretryable on its own; letting it degrade every later sign-in in the
+ * worker would punish the whole run for a fact about one account.
  */
-let breakerOpen = false;
+let breakerOpenedAt: number | null = null;
 
-export function isSignInBreakerOpen(): boolean {
-  return breakerOpen;
+/**
+ * Reads the clock, and CLOSES the breaker when the re-arm has elapsed — the
+ * half-open transition has to happen somewhere, and there is no timer in a
+ * Playwright worker to hang it on.
+ */
+export function isSignInBreakerOpen(now: number): boolean {
+  if (breakerOpenedAt === null) return false;
+  if (now - breakerOpenedAt >= SIGN_IN_BREAKER_REARM_MS) {
+    breakerOpenedAt = null;
+    return false;
+  }
+  return true;
 }
 
-export function openSignInBreaker(): void {
-  breakerOpen = true;
+export function openSignInBreaker(now: number): void {
+  breakerOpenedAt = now;
 }
 
 /** O(1) reset for `beforeEach`, and for a caller that knows the window has passed. */
 export function closeSignInBreaker(): void {
-  breakerOpen = false;
+  breakerOpenedAt = null;
 }
-
-/** Verdicts that mean the auth service is refusing this worker's load, not that the credential is wrong. */
-const BREAKER_VERDICTS: readonly SignInRetryVerdict[] = ['auth-never-returned', 'auth-rejected'];
 
 /**
  * Run `attempt` until it succeeds or the policy says stop, logging each retry
@@ -215,8 +239,8 @@ const BREAKER_VERDICTS: readonly SignInRetryVerdict[] = ['auth-never-returned', 
  * converted to a `SignInAttemptFailure` before it gets here.
  */
 export async function runSignInLadder(email: string, deps: SignInLadderDeps): Promise<void> {
-  const retriesEnabled = deps.retriesEnabled && !isSignInBreakerOpen();
   const ladderStartedAt = deps.now();
+  const retriesEnabled = deps.retriesEnabled && !isSignInBreakerOpen(ladderStartedAt);
 
   for (let attemptsMade = 1; ; attemptsMade += 1) {
     const attemptStartedAt = deps.now();
@@ -232,7 +256,8 @@ export async function runSignInLadder(email: string, deps: SignInLadderDeps): Pr
     const decision = decideSignInRetry(failure.verdict, state);
 
     if (!decision.retry) {
-      if (BREAKER_VERDICTS.includes(failure.verdict)) openSignInBreaker();
+      // Only the load signature latches; see the breaker docblock.
+      if (failure.verdict === 'auth-never-returned') openSignInBreaker(deps.now());
       throw new Error(finalSignInMessage(failure, state, decision), {
         cause: failure.cause,
       });
@@ -258,4 +283,74 @@ function finalSignInMessage(
     failure.verdict === 'auth-never-returned' ? ` See ${SIGN_IN_LESSON_POINTER}.` : '';
 
   return `${failure.message}${ladder}${pointer}`;
+}
+/** A `/auth/v1/token` response observed during one sign-in attempt. */
+export interface AuthTokenResponse {
+  /** Path AND query as observed, e.g. `/auth/v1/token?grant_type=password`. The query is the whole point. */
+  url: string;
+  status: number;
+  /** When the response arrived, on the same clock as the submit timestamp. */
+  at: number;
+}
+
+export interface AuthTokenRefusal {
+  status: number;
+  grantType: string;
+  url: string;
+}
+
+/** `grant_type` from a token URL, or `''` when the URL carries none. */
+export function authGrantType(url: string): string {
+  const query = url.slice(url.indexOf('?') + 1);
+  if (!url.includes('?')) return '';
+  return new URLSearchParams(query).get('grant_type') ?? '';
+}
+
+/**
+ * The auth service's own answer to THIS attempt's password grant, when that
+ * answer was an error.
+ *
+ * Three filters, each closing a way of reading the wrong response:
+ *
+ * - **`grant_type=password` only.** supabase-js also fires `grant_type=refresh_token`
+ *   from a stale session left by an earlier test, and that one 400s routinely.
+ *   Counting it would report `auth-rejected` for a sign-in that actually
+ *   authenticated and was merely slow to navigate — unretryable, and it would
+ *   latch the worker's breaker on a non-event.
+ * - **After the submit.** A refusal recorded while the form was still being
+ *   filled belongs to the previous attempt, not this one.
+ * - **The LAST one wins.** An early 400 followed by a 200 means the service
+ *   ultimately said yes; `find(status >= 400)` would return the 400 and read
+ *   a success as a refusal.
+ *
+ * Returns `null` when the last password grant succeeded, when none was seen at
+ * all (the `auth-never-returned` case — silence, which IS worth a retry), or
+ * when only other grant types were observed.
+ */
+export function findAuthTokenRefusal(
+  responses: readonly AuthTokenResponse[],
+  submittedAt: number
+): AuthTokenRefusal | null {
+  const passwordGrants = responses.filter(
+    response => response.at >= submittedAt && authGrantType(response.url) === 'password'
+  );
+
+  const last = passwordGrants[passwordGrants.length - 1];
+  if (!last || last.status < 400) return null;
+
+  return { status: last.status, grantType: 'password', url: last.url };
+}
+
+/** The message for a refusal, naming the grant type so the query is not lost. */
+export function describeAuthTokenRefusal(
+  email: string,
+  refusal: AuthTokenRefusal,
+  budgetMs: number
+): string {
+  return (
+    `Sign-in for ${email} was REFUSED by the auth service [auth-rejected]: ` +
+    `${refusal.url} (grant_type=${refusal.grantType}) returned ${refusal.status} ` +
+    `within the ${budgetMs}ms budget. A 429 is a rate limit on this shared account and a ` +
+    `retry makes it worse; any other 4xx/5xx is the service's own verdict, not latency.`
+  );
 }

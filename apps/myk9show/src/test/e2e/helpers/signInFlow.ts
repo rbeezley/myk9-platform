@@ -19,7 +19,12 @@ import {
   describeSignInFailure,
   SUPABASE_AUTH_TOKEN_KEY_PATTERN,
 } from '../../e2e-helpers/signInDiagnostics';
-import type { SignInAttemptFailure } from '../../e2e-helpers/signInRetryPolicy';
+import {
+  describeAuthTokenRefusal,
+  findAuthTokenRefusal,
+  type AuthTokenResponse,
+  type SignInAttemptFailure,
+} from '../../e2e-helpers/signInRetryPolicy';
 
 /**
  * Whether supabase-js has written a session token for this origin. The key
@@ -64,12 +69,6 @@ async function gotoSignIn(page: Page, signInPath: string): Promise<void> {
   }
 }
 
-/** A `/auth/v1/token` response observed during one attempt. */
-interface AuthTokenResponse {
-  status: number;
-  path: string;
-}
-
 /**
  * One pass over the real SmartSignInPage (Phase 1b "single email-or-passcode
  * front door") two-step flow:
@@ -101,9 +100,15 @@ export async function attemptSignIn(
   const authResponses: AuthTokenResponse[] = [];
   const onResponse = (response: { url(): string; status(): number }) => {
     const url = response.url();
-    if (url.includes('/auth/v1/token')) {
-      authResponses.push({ status: response.status(), path: new URL(url).pathname });
-    }
+    if (!url.includes('/auth/v1/token')) return;
+    const parsed = new URL(url);
+    // pathname + search, not pathname: the grant type lives in the query, and
+    // telling a password grant from a stale refresh grant is the whole job.
+    authResponses.push({
+      url: `${parsed.pathname}${parsed.search}`,
+      status: response.status(),
+      at: performance.now(),
+    });
   };
   page.on('response', onResponse);
 
@@ -133,7 +138,11 @@ export async function attemptSignIn(
           authTokenPresent: await hasSupabaseSession(page),
         },
         error,
-        authResponses
+        authResponses,
+        // Nothing was submitted, so no password grant can belong to this
+        // attempt; an infinite cutoff makes that explicit rather than relying
+        // on the recorded timestamps to happen to be earlier.
+        Number.POSITIVE_INFINITY
       );
     }
 
@@ -155,7 +164,11 @@ export async function attemptSignIn(
           authTokenPresent: await hasSupabaseSession(page),
         },
         error,
-        authResponses
+        authResponses,
+        // Nothing was submitted, so no password grant can belong to this
+        // attempt; an infinite cutoff makes that explicit rather than relying
+        // on the recorded timestamps to happen to be earlier.
+        Number.POSITIVE_INFINITY
       );
     }
     await page.getByTestId('password-input').fill(password);
@@ -200,7 +213,8 @@ export async function attemptSignIn(
             undefined,
         },
         signInResult.error,
-        authResponses
+        authResponses,
+        submittedAt
       );
     }
 
@@ -220,17 +234,14 @@ export async function attemptSignIn(
 function failureFrom(
   snapshot: Parameters<typeof describeSignInFailure>[0],
   cause: unknown,
-  authResponses: readonly AuthTokenResponse[]
+  authResponses: readonly AuthTokenResponse[],
+  submittedAt: number
 ): SignInAttemptFailure {
-  const refused = authResponses.find(response => response.status >= 400);
-  if (refused) {
+  const refusal = findAuthTokenRefusal(authResponses, submittedAt);
+  if (refusal) {
     return {
       verdict: 'auth-rejected',
-      message:
-        `Sign-in for ${snapshot.email} was REFUSED by the auth service: ` +
-        `${refused.path} returned ${refused.status} within the ${snapshot.budgetMs}ms budget. ` +
-        `A 429 is a rate limit on this shared account and a retry makes it worse; ` +
-        `a 4xx/5xx is the service's own verdict, not latency.`,
+      message: describeAuthTokenRefusal(snapshot.email, refusal, snapshot.budgetMs),
       cause,
     };
   }

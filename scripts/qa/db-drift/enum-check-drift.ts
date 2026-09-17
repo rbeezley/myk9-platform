@@ -163,15 +163,15 @@ export function compareEnumWritesToChecks({
     if (!constraint || constraint.allowedValues.includes(write.value)) continue;
 
     const columnKey = `${write.table}.${write.column}`;
-    const group = findingFiles.get(columnKey) ?? {
+    const columnGroup = findingFiles.get(columnKey) ?? {
       table: write.table,
       column: write.column,
       values: new Map<string, Set<string>>(),
     };
-    const files = group.values.get(write.value) ?? new Set<string>();
+    const files = columnGroup.values.get(write.value) ?? new Set<string>();
     files.add(write.file);
-    group.values.set(write.value, files);
-    findingFiles.set(columnKey, group);
+    columnGroup.values.set(write.value, files);
+    findingFiles.set(columnKey, columnGroup);
   }
 
   return [...findingFiles.entries()]

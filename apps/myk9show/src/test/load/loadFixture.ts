@@ -133,7 +133,10 @@ function midShow(index: number, trialCount: number): LoadShowFixture {
   );
 }
 
-export const LOAD_SHOWS: readonly LoadShowFixture[] = [
+// A non-empty tuple type, not `readonly LoadShowFixture[]`: `LOAD_SHOWS[0]` is
+// the primary show by construction, and only the tuple makes that visible to
+// `tsc` under `noUncheckedIndexedAccess` (MYK9-540).
+export const LOAD_SHOWS: readonly [LoadShowFixture, ...LoadShowFixture[]] = [
   buildShow(0, 'dededede-0000-0000-0000-000000000010', LARGE_SHOW_TRIALS),
   midShow(1, 2),
   midShow(2, 2),
@@ -198,6 +201,12 @@ export function loadEntryFixtureFor(showIndex: number, entryNumber: number): Loa
   const dogNumber = Math.floor((entryNumber - 1) / show.ringCount) + 1;
   const ring = (entryNumber - 1) % show.ringCount;
   const classId = show.classIds[ring];
+  // `ringCount` IS `classIds.length` (see `buildShow`) and `ring` is taken
+  // modulo it, so this never fires; without it an undefined class id used to
+  // flow silently into a field typed `string` (MYK9-540).
+  if (classId === undefined) {
+    throw new Error(`Load show ${showIndex} has no class for ring ${ring}.`);
+  }
   return {
     entryId: `a1090000-0000-0000-0002-${scopedPad(showIndex, entryNumber)}`,
     dogId: `a1090000-0000-0000-0001-${scopedPad(showIndex, dogNumber)}`,
@@ -238,6 +247,10 @@ export function loadRingAssignment(ringOrdinal: number): LoadRingAssignment {
   for (const show of LOAD_SHOWS) {
     if (remaining < show.ringCount) {
       const classId = show.classIds[remaining];
+      // Same invariant as above: `remaining < show.ringCount === classIds.length`.
+      if (classId === undefined) {
+        throw new Error(`Load show ${show.index} has no class for ring ${remaining}.`);
+      }
       return {
         showIndex: show.index,
         showId: show.showId,

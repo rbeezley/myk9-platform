@@ -7,14 +7,19 @@ export async function runBrowserSession(
   command: string[],
   options: { cli?: string; closeTimeoutMs?: number; graceMs?: number } = {}
 ): Promise<number> {
-  if (!command.length) throw new Error('Usage: browser-session <command> [args...]');
+  // Destructure instead of indexing: `command[0]` is `string | undefined`, which
+  // matched no `spawn` overload and collapsed `child` to `never`, taking
+  // `.pid`/`.once` and their callback parameters down with it. An empty
+  // `command` throws exactly as `!command.length` did (MYK9-540).
+  const [executable, ...args] = command;
+  if (executable === undefined) throw new Error('Usage: browser-session <command> [args...]');
   const session = `myk9-${process.pid}-${randomUUID().slice(0, 8)}`;
   const env = { ...process.env, PLAYWRIGHT_CLI_SESSION: session };
   console.error(`[browser-session] Owned session: ${session}`);
   let interrupted = 0;
   let workFinished = false;
   let cancellation: Promise<void> | undefined;
-  const child = spawn(command[0], command.slice(1), {
+  const child = spawn(executable, args, {
     env,
     stdio: 'inherit',
     detached: true,

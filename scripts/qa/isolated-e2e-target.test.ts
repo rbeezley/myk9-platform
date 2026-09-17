@@ -47,7 +47,10 @@ describe('resolveIsolatedE2eTarget', () => {
   });
 
   it('rejects missing and malformed target configuration', () => {
-    const missing = { ...localConfig };
+    // `NodeJS.ProcessEnv` (what `resolveIsolatedE2eTarget` takes) has optional
+    // properties, which is what `delete` requires; the spread's inferred type
+    // does not (MYK9-540).
+    const missing: NodeJS.ProcessEnv = { ...localConfig };
     delete missing.MYK9_E2E_SUPABASE_PROJECT_REF;
     expect(() => resolveIsolatedE2eTarget(missing)).toThrow('MYK9_E2E_SUPABASE_PROJECT_REF');
 

@@ -181,7 +181,9 @@ function isoNow(now: number): string {
 
 /** Trim a (possibly multi-line) Postgres error message to a single short line. */
 function firstLine(message: string): string {
-  const line = message.split('\n')[0].trim();
+  // `split` always yields at least one element, so the fallback never runs;
+  // it narrows the index read without `!` or `as` (MYK9-540).
+  const line = (message.split('\n')[0] ?? message).trim();
   return line.length > 200 ? `${line.slice(0, 197)}...` : line;
 }
 
@@ -760,8 +762,15 @@ export function buildProbeFailureSnapshot(
   opts: { now: number; runDurationMs: number | null }
 ): HealthSnapshotInsert {
   const snapshot = buildSnapshot(null, opts);
-  const checkedAt = snapshot.checks[0]?.checked_at ?? new Date(opts.now).toISOString();
-  snapshot.checks[0].detail = probeError
+  // `buildSnapshot(null, …)` takes its `!facts` branch, which always returns
+  // exactly the one `probe` check. Assigning through `checks[0]` threw a
+  // TypeError if that ever stopped being true; this says so instead (MYK9-540).
+  const probeCheck = snapshot.checks[0];
+  if (probeCheck === undefined) {
+    throw new Error('buildSnapshot(null, …) must produce the probe check');
+  }
+  const checkedAt = probeCheck.checked_at ?? new Date(opts.now).toISOString();
+  probeCheck.detail = probeError
     ? `system_health_probe failed: ${probeError}`
     : 'system_health_probe returned no facts';
 

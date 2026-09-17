@@ -122,7 +122,7 @@ describe('checkPromptParity', () => {
       installRoot,
       tasks: [{ taskId: 'demo-task', doc: 'docs/tasks.md' }],
     });
-    expect(result.status).toBe('match');
+    expect(result?.status).toBe('match');
   });
 
   it('reports drift when one line of the installed body changed', () => {
@@ -131,8 +131,8 @@ describe('checkPromptParity', () => {
       installRoot,
       tasks: [{ taskId: 'other-task', doc: 'docs/tasks.md' }],
     });
-    expect(result.status).toBe('drift');
-    expect(result.detail).toContain('line 1');
+    expect(result?.status).toBe('drift');
+    expect(result?.detail).toContain('line 1');
   });
 
   it('reports not-installed instead of a silent pass', () => {
@@ -141,7 +141,7 @@ describe('checkPromptParity', () => {
       installRoot,
       tasks: [{ taskId: 'fenced-task', doc: 'docs/tasks.md' }],
     });
-    expect(result.status).toBe('not-installed');
+    expect(result?.status).toBe('not-installed');
   });
 
   it('throws when a registered task has no documented block', () => {
@@ -176,6 +176,7 @@ describe('the real registry', () => {
         const match = /^#{2,4} .*`([a-z0-9-]+)`/.exec(line);
         if (!match) continue;
         const taskId = match[1];
+        if (taskId === undefined) continue; // group 1 is mandatory; this is the index arm
         try {
           extractPromptBlock(markdown, taskId);
         } catch {

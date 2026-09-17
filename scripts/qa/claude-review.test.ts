@@ -199,7 +199,7 @@ describe('claude-review.sh', () => {
     const r = run(stub, gh);
     expect(r.code).toBe(1);
     const posted = bodies(gh.calls);
-    expect(posted[0].split('\n')[0]).toMatch(
+    expect(posted[0]?.split('\n')[0]).toMatch(
       /^Claude findings for [0-9a-f]{9} \(not gate evidence\):$/
     );
     expect(posted[0]).toContain('[P1] Something is broken');
@@ -211,7 +211,7 @@ describe('claude-review.sh', () => {
     expect(run(stub, gh).code).toBe(1);
     const posted = bodies(gh.calls);
     expect(posted).toHaveLength(2);
-    expect(posted[1].split('\n')[0]).toMatch(
+    expect(posted[1]?.split('\n')[0]).toMatch(
       /^Review gate: claude reviewed [0-9a-f]{9}\.\.[0-9a-f]{9} — 2 findings, not addressed$/
     );
   });
@@ -224,7 +224,7 @@ describe('claude-review.sh', () => {
     expect(r.code).toBe(1);
     const posted = bodies(gh.calls);
     expect(posted).toHaveLength(2);
-    expect(posted[1].split('\n')[0]).toMatch(/— 1 findings, not addressed$/);
+    expect(posted[1]?.split('\n')[0]).toMatch(/— 1 findings, not addressed$/);
   });
 
   it('exits 2 when the withdrawal could not be posted, even though the findings were', () => {

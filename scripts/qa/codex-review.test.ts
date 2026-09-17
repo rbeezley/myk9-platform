@@ -360,7 +360,7 @@ describe('codex-review.sh', () => {
     const posted = bodies(gh.calls);
     expect(posted[0]).toMatch(/^Codex findings for [0-9a-f]{9} \(not gate evidence\):/);
     // review-gate.ts only reads a comment whose FIRST line is the evidence line.
-    expect(posted[0].split('\n')[0]).not.toMatch(/^Review gate:/);
+    expect(posted[0]?.split('\n')[0]).not.toMatch(/^Review gate:/);
     expect(posted[0]).toContain('[P2] Something is wrong');
   });
 
@@ -373,7 +373,7 @@ describe('codex-review.sh', () => {
     expect(runPost(stub, gh).code).toBe(1);
     const posted = bodies(gh.calls);
     expect(posted).toHaveLength(2);
-    expect(posted[1].split('\n')[0]).toMatch(
+    expect(posted[1]?.split('\n')[0]).toMatch(
       /^Review gate: codex reviewed [0-9a-f]{9}\.\.[0-9a-f]{9} — 2 findings, not addressed$/
     );
   });
@@ -392,7 +392,7 @@ describe('codex-review.sh', () => {
     const posted = bodies(gh.calls);
     expect(posted).toHaveLength(2);
     expect(posted[0]).toMatch(/^Codex findings for /);
-    expect(posted[1].split('\n')[0]).toMatch(/— 1 findings, not addressed$/);
+    expect(posted[1]?.split('\n')[0]).toMatch(/— 1 findings, not addressed$/);
   });
 
   it('still exits 2 on an interrupted review that reported NO findings', () => {

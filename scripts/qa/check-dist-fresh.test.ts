@@ -66,14 +66,14 @@ describe('findStalePackages', () => {
     pkg(root, 'edited', { dist: true, srcAge: 10, distAge: 100 });
     const stale = findStalePackages(root);
     expect(stale.map(s => s.name)).toEqual(['edited']);
-    expect(stale[0].reason).toMatch(/src\/ is newer/);
+    expect(stale[0]?.reason).toMatch(/src\/ is newer/);
   });
 
   it('flags a package that was never built', () => {
     const root = repo();
     pkg(root, 'unbuilt', { dist: false, srcAge: 10 });
     expect(findStalePackages(root)[0]).toMatchObject({ name: 'unbuilt' });
-    expect(findStalePackages(root)[0].reason).toMatch(/never built/);
+    expect(findStalePackages(root)[0]?.reason).toMatch(/never built/);
   });
 
   it('skips packages consumed from src (no build step)', () => {

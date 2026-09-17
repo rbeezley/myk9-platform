@@ -466,7 +466,6 @@ export function useMyEntriesData({
         // classId is the individual entry row id — use it as the DB target so
         // grouped cards with multiple classes update the right row.
         await persistCheckInStatus({ entryId: classId, classId, newStatus: status });
-
       } catch (error) {
         logger.error('Failed to update check-in status:', 'pages', {}, error as Error);
         // Revert optimistic update

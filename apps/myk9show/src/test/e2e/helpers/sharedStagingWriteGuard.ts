@@ -126,6 +126,12 @@ export const AUDIT_READ_ONLY_RPCS: ReadonlySet<string> = new Set([
   'get_effective_permissions',
   'get_own_entitlement_context',
   'get_show_class_hide_counts',
+  // MYK9-545 round 3: the guard's new abort log printed this 76 times across a
+  // single registration sweep. `LANGUAGE sql STABLE SECURITY DEFINER`
+  // (20260912211500), a pure read of judge_assignments — so the wizard was
+  // running with its judge query permanently failing and no spec noticed,
+  // because none asserts on judges.
+  'get_show_judges',
   'get_user_permissions',
   'get_user_roles',
   // RingsideSessionHeartbeat's push-independent staleness probe. It returns a
@@ -324,9 +330,12 @@ function announceBlockedRequest(request: RequestLike) {
   const path = url?.pathname ?? request.url;
   const rpcName = path.startsWith('/rest/v1/rpc/') ? path.slice('/rest/v1/rpc/'.length) : undefined;
   // Unconditional by design: a blocked request that says nothing is the bug
-  // being fixed.
+  // being fixed. PATH ONLY, never the full URL — the same rule the ledger keeps,
+  // for the same reason: a query string carries row ids and filter values
+  // (`PATCH /rest/v1/entries?id=eq.<uuid>`), and this line lands in Playwright
+  // artifacts.
   console.warn(
-    `[sharedStagingWriteGuard] BLOCKED ${request.method.toUpperCase()} ${request.url}` +
+    `[sharedStagingWriteGuard] BLOCKED ${request.method.toUpperCase()} ${path}` +
       (rpcName ? ` (RPC "${rpcName}" — if it only reads, add it to AUDIT_READ_ONLY_RPCS)` : '')
   );
 }

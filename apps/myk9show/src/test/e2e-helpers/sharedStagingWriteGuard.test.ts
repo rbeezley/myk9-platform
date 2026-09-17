@@ -203,6 +203,9 @@ describe('isUnambiguousSharedStagingRestWrite', () => {
     // registration payment step via `useClubStripePaymentReadiness`; blocking it
     // hid the option with no diagnostic and read as a product failure.
     'can_accept_online_entry_payment',
+    // Blocked on every registration route until MYK9-545 round 3; the wizard's
+    // judge query failed silently because no spec asserts on judges.
+    'get_show_judges',
     'get_user_roles',
     'get_effective_permissions',
   ])('names %s explicitly so removing it from the allowlist fails here', rpc => {

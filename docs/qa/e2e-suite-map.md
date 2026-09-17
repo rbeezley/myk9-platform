@@ -267,6 +267,12 @@ first one is a clock bomb:
   real time, so a spec pinned with it can pass against a show a real exhibitor
   cannot enter — a green that means nothing. Use it to pin a moment inside a
   window that is genuinely open, never to reopen a closed one.
+- **The seeded five must stay `status='active'` and unarchived.**
+  `DogSelectionStep`'s `eligibleDogs` drops any dog with `deletedAt` set or a
+  `status` other than `active`, so retiring, marking deceased, or soft-deleting
+  Willow, Ranger, Juni, Scout or Maple removes it from the picker and fails
+  `dogPickerSearch`'s seeded-name anchor. "Tolerates walk debris" means the
+  sweep survives EXTRA rows, not edits to the seeded ones.
 - **Strict-mode locators hold only while no debris collides.** `^Select Willow$`
   and friends are unique in the seed, not in the database. A walk that creates a
   second "Willow" turns a strict locator into a hard failure. Specs that need

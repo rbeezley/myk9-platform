@@ -1,26 +1,27 @@
 /**
  * The ONE person id every account-level `getUserEntries` consumer reads.
  *
- * There used to be two resolvers. My Shows and My Payments took
- * `useCurrentUserPersonId() ?? userWithRoles.databaseUserId`; the two ringside
- * hooks took `useCurrentUserPersonId()` alone. Since `getUserEntries` keys its
- * React Query cache on the id, an exhibitor whose id came from the auth record
- * rather than the legacy lookup got a DIFFERENT key on each pair — the "one
- * shared query" of MYK9-563 item 3 was one query shape over two keys, so the
- * same rows were fetched twice and could disagree while one half refetched.
+ * There used to be two expressions. My Shows and My Payments took
+ * `useCurrentUserPersonId() ?? userWithRoles.databaseUserId`; the ringside and
+ * Browse Shows callers took `useCurrentUserPersonId()` alone.
  *
- * Resolution order is the surviving one: the legacy `people` lookup first,
- * then the auth record. Dropping the fallback would disable the query for
- * every exhibitor whose id only exists in the legacy lookup.
+ * THE `??` ARM WAS DEAD, and is deliberately not carried here.
+ * `useCurrentUserPersonId` already returns `userWithRoles.databaseUserId` first
+ * (`useRoleBasedData.ts:187`) and only consults the people store when it is
+ * falsy, so the second operand could never be reached with a value. The two
+ * expressions were extensionally equal: MYK9-629's premise that this was two
+ * React Query keys for one account is wrong, and repeating the dead arm here
+ * would have preserved a fiction in the one place meant to end it.
+ *
+ * What this hook is, then, is a named seam: five call sites that each re-typed
+ * an identity expression now share one, so the next consumer copies a name
+ * instead of re-deciding what "the exhibitor" means.
  *
  * @module hooks/useEntriesPersonId
  */
 
-import { useAuthContext } from '@/hooks/useAuthContext';
 import { useCurrentUserPersonId } from '@/hooks/useRoleBasedData';
 
 export function useEntriesPersonId(): string | null {
-  const legacyPersonId = useCurrentUserPersonId();
-  const { userWithRoles } = useAuthContext();
-  return legacyPersonId ?? userWithRoles?.databaseUserId ?? null;
+  return useCurrentUserPersonId();
 }

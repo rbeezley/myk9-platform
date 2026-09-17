@@ -133,11 +133,20 @@ export function deriveShowMoneyState(
   return { kind, amountCents: 0, dueDogNames: [], paymentHref: null, dueOrderIds: [] };
 }
 
-export type RefundKind = 'partial' | 'full';
+/**
+ * `unknown` is the unconfirmed source's refund kind. Both `partial` and `full`
+ * are CLAIMS derived from the dog's own class fees, and this module is no more
+ * entitled to make them from unconfirmed rows than it is to state an amount.
+ */
+export type RefundKind = 'partial' | 'full' | 'unknown';
 
 export interface RefundNote {
-  /** Refunded amount in cents. */
-  amountCents: number;
+  /**
+   * Refunded amount in cents, or `null` when the rows were never confirmed.
+   * Nullable rather than zero: a refund of $0.00 is a different sentence from
+   * a refund whose amount we cannot vouch for, and only one of them is true.
+   */
+  amountCents: number | null;
   date: Date;
   kind: RefundKind;
 }
@@ -151,7 +160,15 @@ export interface RefundNote {
  * `refundAmount` is in DOLLARS (it is compared against the entry fee in
  * `useMyEntriesData`), so it is converted here.
  */
-export function refundNotesByDog(orders: MyEntry[]): Record<string, RefundNote> {
+export function refundNotesByDog(
+  orders: MyEntry[],
+  source: UserEntriesSource
+): Record<string, RefundNote> {
+  // A refund note prints a dollar figure on the dog card, directly beneath the
+  // strip that says amounts are hidden. Decision (a) exempts the RECEIPT — a
+  // document of a payment already taken — not every figure derived from an
+  // unconfirmed row, so this goes through the same gate as every other amount.
+  const confirmed = isMoneyConfirmed(source);
   // Aggregate first, classify last: a dog refunded on two orders is "fully"
   // refunded only against the fees of BOTH orders (Codex review on PR #2198).
   const totals: Record<string, { amountCents: number; feeCents: number; date: Date }> = {};
@@ -170,11 +187,16 @@ export function refundNotesByDog(orders: MyEntry[]): Record<string, RefundNote> 
   }
   const notes: Record<string, RefundNote> = {};
   for (const [dogId, total] of Object.entries(totals)) {
-    notes[dogId] = {
-      amountCents: total.amountCents,
-      date: total.date,
-      kind: total.feeCents > 0 && total.amountCents >= total.feeCents ? 'full' : 'partial',
-    };
+    notes[dogId] = confirmed
+      ? {
+          amountCents: total.amountCents,
+          date: total.date,
+          kind: total.feeCents > 0 && total.amountCents >= total.feeCents ? 'full' : 'partial',
+        }
+      : // The note survives — "a refund happened" is not a money claim and is
+        // the fact the exhibitor most needs — but its amount and its
+        // partial/full classification do not.
+        { amountCents: null, date: total.date, kind: 'unknown' };
   }
   return notes;
 }

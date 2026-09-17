@@ -30,7 +30,8 @@ import { deriveMyEntryCardState } from './myEntryCardState';
 import { isPastShowEntry } from './myEntriesStats.helpers';
 import { formatDogNamesPossessive, formatShowHeaderDateRange } from './myShowHeaderFormat';
 import { derivePaidStrip, hasSeenPaidStrip, markPaidStripSeen } from './paidStripSeen';
-import { deriveShowMoneyState, refundNotesByDog } from './showMoneyState';
+import { deriveShowMoneyState, refundNotesByDog, type ShowMoneyKind } from './showMoneyState';
+import { UnconfirmedReadNotice } from './UnconfirmedReadNotice';
 
 const HEADER_LINK_CLASS =
   'inline-flex min-h-[44px] items-center gap-1 whitespace-nowrap rounded font-medium text-primary ' +
@@ -53,7 +54,9 @@ export interface MyShowGroupProps {
   onOpenCheckIn: (order: MyEntry, cls: MyShowClass) => void;
   /** One editable order opens directly; several open the picker (design D9). */
   onOpenEdit: (orders: MyEntry[]) => void;
-  onOpenReceipts: (group: MyShowGroupModel) => void;
+  /** The group's money state travels with the open, so the orders chooser
+   * states amounts from the same one derivation this card does. */
+  onOpenReceipts: (group: MyShowGroupModel, moneyKind: ShowMoneyKind) => void;
   onResultRevealClick?: ((model: ResultCardModel) => void) | undefined;
 }
 
@@ -79,7 +82,7 @@ export const MyShowGroupCard: React.FC<MyShowGroupProps> = ({
   const isPastShow = isPastShowEntry(group.orders[0], now);
   const money = deriveShowMoneyState(group.orders, now, source);
   const moneyUnknown = money.kind === 'unknown';
-  const refunds = refundNotesByDog(group.orders);
+  const refunds = refundNotesByDog(group.orders, source);
   // The paid strip quotes a dollar amount and a date, so it is money under the
   // same gate — `derivePaidStrip` is skipped outright rather than rendered and
   // hidden, so there is no figure in the tree to leak.
@@ -194,7 +197,7 @@ export const MyShowGroupCard: React.FC<MyShowGroupProps> = ({
           {group.orders.length > 0 && (
             <button
               type="button"
-              onClick={() => onOpenReceipts(group)}
+              onClick={() => onOpenReceipts(group, money.kind)}
               className={HEADER_LINK_CLASS}
             >
               Orders &amp; receipts
@@ -249,17 +252,7 @@ export const MyShowGroupCard: React.FC<MyShowGroupProps> = ({
           above (decision (a)): a receipt records a payment already taken, and
           withholding it is the one thing that makes a real payment look lost. */}
       {moneyUnknown && (
-        <div className="myk9-entries-strip border-border bg-muted/40 text-muted-foreground">
-          <div className="min-w-0">
-            <p className="myk9-entries-strip-head">
-              Showing saved entries — we couldn&apos;t reach the server to confirm them
-            </p>
-            <p className="myk9-entries-strip-body">
-              Payment amounts are hidden until we can confirm them. Orders &amp; receipts above
-              still open.
-            </p>
-          </div>
-        </div>
+        <UnconfirmedReadNotice detail="Payment amounts are hidden until we can confirm them. Orders & receipts above still open." />
       )}
 
       {money.kind === 'balance-due' && (

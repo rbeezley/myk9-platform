@@ -74,8 +74,14 @@ describe('useMyEntriesDialogs', () => {
     act(() => result.current.openEdit(ENTRY));
     expect(result.current.editDialog).toEqual({ open: true, entry: ENTRY });
 
-    act(() => result.current.openReceipt(ENTRY));
-    expect(result.current.receiptDialog).toEqual({ open: true, entry: ENTRY });
+    act(() => result.current.openReceipt(ENTRY, 'settled'));
+    // The receipt dialog carries the show group's money kind, so the orders
+    // chooser states amounts from the one derivation (MYK9-629 round 1).
+    expect(result.current.receiptDialog).toEqual({
+      open: true,
+      entry: ENTRY,
+      moneyKind: 'settled',
+    });
 
     act(() => result.current.openAddDog());
     expect(result.current.addDogOpen).toBe(true);
@@ -118,7 +124,7 @@ describe('useMyEntriesDialogs', () => {
     act(() => result.current.closeEdit());
     expect(result.current.editDialog).toEqual({ open: false, entry: null });
 
-    act(() => result.current.openReceipt(ENTRY));
+    act(() => result.current.openReceipt(ENTRY, 'settled'));
     act(() => result.current.closeReceipt());
     expect(result.current.receiptDialog).toEqual({ open: false, entry: null });
 

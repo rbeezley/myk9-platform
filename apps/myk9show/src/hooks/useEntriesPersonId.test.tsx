@@ -45,13 +45,16 @@ describe('useEntriesPersonId', () => {
     expect(renderHook(() => useEntriesPersonId()).result.current).toBe('person-1');
   });
 
-  // Kept from the My Shows resolver even though `useCurrentUserPersonId` makes
-  // it unreachable today: it is the arm that would matter if that hook ever
-  // stopped preferring `databaseUserId`, and dropping it silently is how a
-  // consumer starts resolving `null` for a real account.
-  it('falls back to the auth record if the resolver ever answers null with one present', () => {
+  // The `?? userWithRoles.databaseUserId` arm the two original expressions
+  // carried is deliberately NOT here, and this pins its absence: with the
+  // resolver answering null, a `databaseUserId` on the auth record must NOT
+  // resurrect an id. Carrying that arm forward would have preserved, in the one
+  // place meant to end the duplication, a fallback that could never fire —
+  // `useCurrentUserPersonId` returns `databaseUserId` first (round-1 review
+  // confirmed this independently).
+  it('does not re-derive an id from the auth record behind the resolver', () => {
     mockIdentity(null, 'person-db');
-    expect(renderHook(() => useEntriesPersonId()).result.current).toBe('person-db');
+    expect(renderHook(() => useEntriesPersonId()).result.current).toBeNull();
   });
 
   it('answers null — never undefined — when neither source knows', () => {

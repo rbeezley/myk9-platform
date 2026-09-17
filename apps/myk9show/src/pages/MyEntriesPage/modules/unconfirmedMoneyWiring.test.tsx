@@ -14,9 +14,11 @@
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { renderHook, screen, waitFor } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { render } from '@/test/utils/testUtils';
 import { useMyEntriesData } from './useMyEntriesData';
 import { MyShowsList } from './MyShowsList';
+import { UnconfirmedReadNotice, UNCONFIRMED_READ_HEADLINE } from './UnconfirmedReadNotice';
 import { getUserEntries } from '@/services/database/entries';
 import type { UserEntriesSource } from '@/services/database/entries/userEntriesRead';
 import { useAuthContext } from '@/hooks/useAuthContext';
@@ -81,13 +83,20 @@ function baseRow() {
   };
 }
 
-/** Paid online. This is the row whose RECEIPT must stay reachable. */
+/**
+ * Paid online, and partly refunded. The RECEIPT must stay reachable (decision
+ * (a)); the refund note's DOLLAR FIGURE must not — it printed "Partial refund
+ * of $15.00" on the dog card directly beneath the strip that says amounts are
+ * hidden (MYK9-629 round 1).
+ */
 const paidRow = () => ({
   ...baseRow(),
   id: 'entry-interior-advanced',
   class_id: 'class-interior-advanced',
   payment_status: 'paid',
   payment_method: 'card',
+  refund_amount: 15,
+  refunded_at: '2026-09-20T00:00:00.000Z',
   registration: {
     id: ENROLLMENT_ID,
     confirmation_number: 'MK9-RANGER',
@@ -151,6 +160,51 @@ afterEach(() => {
 });
 
 describe('My Shows money under an UNCONFIRMED account read (MYK9-629 AC1)', () => {
+  // The chooser behind "Orders & receipts" is reached FROM the notice that says
+  // amounts are hidden. Its money must come from the same derivation, so the
+  // show group hands its money KIND to the open, not the raw rows.
+  it('hands the withheld money kind to the receipts dialog it opens', async () => {
+    const hook = renderMyShows('replica-after-error');
+    await waitFor(() => expect(hook.result.current.entries.length).toBeGreaterThan(0));
+    const onOpenReceipts = vi.fn();
+
+    render(
+      <MyShowsList
+        filteredEntries={hook.result.current.entries}
+        source={hook.result.current.source}
+        seenResultReleaseKeys={new Set<string>()}
+        onCheckInDay={vi.fn()}
+        onOpenCheckIn={vi.fn()}
+        onOpenEdit={vi.fn()}
+        onOpenReceipts={onOpenReceipts}
+      />
+    );
+    await userEvent.click(screen.getByRole('button', { name: /orders & receipts/i }));
+
+    expect(onOpenReceipts).toHaveBeenCalledWith(expect.anything(), 'unknown');
+  });
+
+  it('hands the real money kind through on a confirmed read', async () => {
+    const hook = renderMyShows('confirmed');
+    await waitFor(() => expect(hook.result.current.entries.length).toBeGreaterThan(0));
+    const onOpenReceipts = vi.fn();
+
+    render(
+      <MyShowsList
+        filteredEntries={hook.result.current.entries}
+        source={hook.result.current.source}
+        seenResultReleaseKeys={new Set<string>()}
+        onCheckInDay={vi.fn()}
+        onOpenCheckIn={vi.fn()}
+        onOpenEdit={vi.fn()}
+        onOpenReceipts={onOpenReceipts}
+      />
+    );
+    await userEvent.click(screen.getByRole('button', { name: /orders & receipts/i }));
+
+    expect(onOpenReceipts).toHaveBeenCalledWith(expect.anything(), 'balance-due');
+  });
+
   it('shows no figure, no cart link and no pay button — but keeps the receipt', async () => {
     const hook = renderMyShows('replica-after-error');
     await waitFor(() => expect(hook.result.current.entries.length).toBeGreaterThan(0));
@@ -173,6 +227,12 @@ describe('My Shows money under an UNCONFIRMED account read (MYK9-629 AC1)', () =
 
     // Decision (a): the receipt for a payment already taken stays REACHABLE.
     expect(screen.getByRole('button', { name: /orders & receipts/i })).toBeEnabled();
+
+    // ...and the refund note survives WITHOUT its amount. "A refund happened"
+    // is the fact the exhibitor needs; "$15.00" is a claim from unconfirmed
+    // rows, printed right under the strip that says amounts are hidden.
+    expect(screen.getByText(/A refund was issued/i)).toBeInTheDocument();
+    expect(screen.queryByText(/Partial refund of/i)).not.toBeInTheDocument();
   });
 
   it('withholds money on a plain offline read too, not only after an error', async () => {
@@ -196,9 +256,36 @@ describe('My Shows money under an UNCONFIRMED account read (MYK9-629 AC1)', () =
     // list that rendered nothing at all.
     expect(screen.getByText(/\$30\.00 due/)).toBeInTheDocument();
     expect(screen.getByRole('link', { name: /finish payment/i })).toBeInTheDocument();
+    // The refund figure the unconfirmed cases withhold IS stated here.
+    expect(screen.getByText(/Partial refund of \$15\.00/i)).toBeInTheDocument();
     expect(
       screen.queryByText(/couldn't reach the server to confirm them/i)
     ).not.toBeInTheDocument();
     expect(screen.getByRole('button', { name: /orders & receipts/i })).toBeEnabled();
+  });
+});
+
+// MYK9-629 round 1: an unconfirmed read that returns NO rows had no notice at
+// all. The per-show notice lives inside `MyShowGroup`, and with no rows there
+// is no group to hang it on — so the page fell through to `FirstRunZeroState`
+// and told the exhibitor "Welcome! Let's get you set up", a claim about their
+// whole standing made from a read that never happened.
+describe('the unconfirmed notice on the EMPTY path', () => {
+  it('is the same sentence the show group uses', () => {
+    render(<UnconfirmedReadNotice detail="anything" />);
+
+    expect(screen.getByText(UNCONFIRMED_READ_HEADLINE)).toBeInTheDocument();
+    // Identical to the copy the group renders — the wiring tests above match
+    // this same phrase, so the two cannot drift apart silently.
+    expect(UNCONFIRMED_READ_HEADLINE).toMatch(/couldn't reach the server to confirm them/i);
+  });
+
+  it('renders its detail, and nothing extra when there is none', () => {
+    const { rerender } = render(<UnconfirmedReadNotice detail="Payment amounts are hidden." />);
+    expect(screen.getByText('Payment amounts are hidden.')).toBeInTheDocument();
+
+    rerender(<UnconfirmedReadNotice />);
+    expect(screen.queryByText('Payment amounts are hidden.')).not.toBeInTheDocument();
+    expect(screen.getByText(UNCONFIRMED_READ_HEADLINE)).toBeInTheDocument();
   });
 });

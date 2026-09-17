@@ -13,6 +13,7 @@
 import React from 'react';
 import type { ResultCardModel } from '@/features/result-card';
 import type { UserEntriesSource } from '@/services/database/entries';
+import type { ShowMoneyKind } from './showMoneyState';
 import { groupEntriesByShow } from './groupEntriesByShow';
 import type { MyShowClass, MyShowDog, MyShowGroup } from './groupEntriesByShow';
 import { MyShowGroupCard } from './MyShowGroup';
@@ -51,7 +52,7 @@ export interface MyShowsListProps {
   onCheckInDay: (dog: MyShowDog, classes: MyShowClass[]) => void;
   onOpenCheckIn: (order: MyEntry, cls: MyShowClass) => void;
   onOpenEdit: (orders: MyEntry[]) => void;
-  onOpenReceipts: (group: MyShowGroup) => void;
+  onOpenReceipts: (group: MyShowGroup, moneyKind: ShowMoneyKind) => void;
   onResultRevealClick?: ((model: ResultCardModel) => void) | undefined;
   /**
    * The instant the whole list reckons against. Injectable so tests can place

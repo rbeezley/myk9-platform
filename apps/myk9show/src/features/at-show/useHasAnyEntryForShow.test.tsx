@@ -23,7 +23,9 @@ beforeEach(() => {
 
 function queryFn() {
   renderHook(() => useHasAnyEntryForShow('show-1'));
-  const config = useQueryMock.mock.calls[0]?.[0] as { queryFn: () => Promise<boolean> };
+  const config = useQueryMock.mock.calls[0]?.[0] as {
+    queryFn: () => Promise<{ entered: boolean; confirmed: boolean }>;
+  };
   return config.queryFn;
 }
 
@@ -39,7 +41,7 @@ describe('useHasAnyEntryForShow', () => {
     await expect(queryFn()()).rejects.toBe(readError);
   });
 
-  it('still answers true from replica rows when the read SUCCEEDS unconfirmed', async () => {
+  it('still answers ENTERED from replica rows when the read SUCCEEDS unconfirmed', async () => {
     vi.mocked(getUserEntries).mockResolvedValue({
       data: [{ show_id: 'show-1' }],
       error: null,
@@ -49,7 +51,55 @@ describe('useHasAnyEntryForShow', () => {
     // Ringside access is not money: an unconfirmed row is still the best
     // evidence the exhibitor is entered, and refusing it would lock them out of
     // the ring for being offline. Only MONEY is withheld on a replica source.
-    await expect(queryFn()()).resolves.toBe(true);
+    await expect(queryFn()()).resolves.toEqual({ entered: true, confirmed: true });
+  });
+
+  // MYK9-629 round 1. The dangerous asymmetry: a row FOUND in the replica is
+  // evidence, a row NOT FOUND in it is not. The per-show snapshot is incomplete
+  // by construction for an account-level query, so "no row for this show" from
+  // an unconfirmed read is an absence of knowledge — and the gate was spending
+  // it as "you are a stranger to this show", to an entered exhibitor at the ring.
+  it('reports "could not confirm" when an UNCONFIRMED read finds no row', async () => {
+    vi.mocked(getUserEntries).mockResolvedValue({
+      data: [{ show_id: 'some-other-show' }],
+      error: null,
+      source: 'replica-offline',
+    });
+
+    await expect(queryFn()()).resolves.toEqual({ entered: false, confirmed: false });
+  });
+
+  it('reports a real "not entered" when a CONFIRMED read finds no row', async () => {
+    vi.mocked(getUserEntries).mockResolvedValue({
+      data: [{ show_id: 'some-other-show' }],
+      error: null,
+      source: 'confirmed',
+    });
+
+    await expect(queryFn()()).resolves.toEqual({ entered: false, confirmed: true });
+  });
+
+  it('surfaces the unconfirmed miss to the gate as isError', () => {
+    useQueryMock.mockReturnValue({
+      data: { entered: false, confirmed: false },
+      isLoading: false,
+      isError: false,
+    });
+    const { result } = renderHook(() => useHasAnyEntryForShow('show-1'));
+
+    expect(result.current.isError).toBe(true);
+    expect(result.current.hasAnyEntryForShow).toBe(false);
+  });
+
+  it('does not report isError for a confirmed "not entered"', () => {
+    useQueryMock.mockReturnValue({
+      data: { entered: false, confirmed: true },
+      isLoading: false,
+      isError: false,
+    });
+    const { result } = renderHook(() => useHasAnyEntryForShow('show-1'));
+
+    expect(result.current.isError).toBe(false);
   });
 
   it('reports the failure to the gate rather than swallowing it', () => {

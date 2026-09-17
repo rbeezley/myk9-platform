@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { EntryStatus, PaymentStatus } from '@/types/show-registration-types';
 import { groupEntriesByOrder } from './groupEntriesByOrder';
-import { deriveShowMoneyState, refundNotesByDog } from './showMoneyState';
+import { deriveShowMoneyState, refundNotesByDog, UNKNOWN_SHOW_MONEY_STATE } from './showMoneyState';
 import type { EntryClass, MyEntry } from './my-entries-types';
 
 const NOW = new Date('2026-10-01T12:00:00Z');
@@ -196,7 +196,10 @@ describe('refundNotesByDog', () => {
       classes: [makeClass({ id: 'cls-e1', paymentStatus: PaymentStatus.PARTIAL_REFUND })],
     };
 
-    const notes = refundNotesByDog(orders([refundedRow, paidOrder('e2', 'd2', 'Scout')]));
+    const notes = refundNotesByDog(
+      orders([refundedRow, paidOrder('e2', 'd2', 'Scout')]),
+      'confirmed'
+    );
 
     expect(Object.keys(notes)).toEqual(['d1']);
     expect(notes['d1']).toEqual({
@@ -216,19 +219,19 @@ describe('refundNotesByDog', () => {
       paymentStatus: PaymentStatus.REFUNDED,
       classes: [makeClass({ id: 'cls-e1', fee: 45, paymentStatus: PaymentStatus.REFUNDED })],
     };
-    const notes = refundNotesByDog(orders([refundedRow]));
+    const notes = refundNotesByDog(orders([refundedRow]), 'confirmed');
 
     expect(notes['d1'].kind).toBe('full');
     expect(notes['d1'].amountCents).toBe(4500);
   });
 
   it('ignores an order with no refund', () => {
-    expect(refundNotesByDog(orders([paidOrder('e1', 'd1', 'Rex')]))).toEqual({});
+    expect(refundNotesByDog(orders([paidOrder('e1', 'd1', 'Rex')]), 'confirmed')).toEqual({});
   });
 
   it('ignores a refund amount with no date', () => {
     const [order] = orders([paidOrder('e1', 'd1', 'Rex')]);
-    expect(refundNotesByDog([{ ...order, refundAmount: 15 }])).toEqual({});
+    expect(refundNotesByDog([{ ...order, refundAmount: 15 }], 'confirmed')).toEqual({});
   });
 });
 
@@ -259,7 +262,7 @@ describe('refundNotesByDog — one order, two dogs, one refund (Codex, PR #2198)
     );
     expect(orders).toHaveLength(1);
 
-    const notes = refundNotesByDog(orders);
+    const notes = refundNotesByDog(orders, 'confirmed');
 
     expect(notes['dog-a']).toEqual({ amountCents: 1500, date: refundedAt, kind: 'partial' });
     expect(notes['dog-b']).toBeUndefined();
@@ -336,11 +339,88 @@ describe('refundNotesByDog — a dog refunded on two orders (Codex, PR #2198)', 
           }),
         ],
         NOW
-      )
+      ),
+      'confirmed'
     );
 
     // $20 back against $30 of fees: partial, even though the second order alone
     // was refunded in full.
     expect(notes['d1']).toEqual({ amountCents: 2000, date: refundedAt, kind: 'partial' });
+  });
+});
+
+// MYK9-629 round 1: the gate was UNPINNED here. Every call in this file named
+// `'confirmed'`, so deleting the early return from `deriveShowMoneyState` left
+// all of them green — the one line that withholds money had no test of its own.
+describe('deriveShowMoneyState — an unconfirmed source (the gate itself)', () => {
+  const owing = () => orders([unpaidOrder('e1', 'd1', 'Rex', 45)]);
+
+  it.each(['replica-offline', 'replica-after-error'] as const)(
+    'answers `unknown` with every figure emptied under %s',
+    source => {
+      const state = deriveShowMoneyState(owing(), NOW, source);
+
+      expect(state.kind).toBe('unknown');
+      // Not merely flagged — EMPTIED. A surface that forgets to branch on
+      // `kind` must have no number to print, no dogs to name and no cart to
+      // link. That is what makes the failure mode point the safe way.
+      expect(state).toEqual(UNKNOWN_SHOW_MONEY_STATE);
+      expect(state.amountCents).toBe(0);
+      expect(state.paymentHref).toBeNull();
+      expect(state.dueDogNames).toEqual([]);
+      expect(state.dueOrderIds).toEqual([]);
+    }
+  );
+
+  it('would have said `balance-due` with $45 and a cart link on the same rows', () => {
+    // The positive control. Without it the assertions above would pass on a
+    // fixture that simply owed nothing.
+    const state = deriveShowMoneyState(owing(), NOW, 'confirmed');
+
+    expect(state.kind).toBe('balance-due');
+    expect(state.amountCents).toBe(4500);
+    expect(state.paymentHref).toContain('/cart');
+  });
+
+  it('withholds `settled` too — "Paid" is a money claim like any other', () => {
+    const state = deriveShowMoneyState(
+      orders([paidOrder('e1', 'd1', 'Rex')]),
+      NOW,
+      'replica-offline'
+    );
+
+    expect(state.kind).toBe('unknown');
+    expect(
+      deriveShowMoneyState(orders([paidOrder('e1', 'd1', 'Rex')]), NOW, 'confirmed').kind
+    ).toBe('settled');
+  });
+});
+
+describe('refundNotesByDog — an unconfirmed source', () => {
+  const refundedAt = new Date('2026-09-20T00:00:00');
+  const refunded = () =>
+    orders([
+      {
+        ...unpaidOrder('e1', 'd1', 'Rex', 45),
+        paymentStatus: PaymentStatus.REFUNDED,
+        classes: [makeClass({ id: 'c1', fee: 45, paymentStatus: PaymentStatus.REFUNDED })],
+        refundAmount: 15,
+        refundedAt,
+      },
+    ]);
+
+  // The note prints "Partial refund of $15.00 issued Sep 20." on the dog card,
+  // directly beneath the strip that says amounts are hidden (MYK9-629 round 1).
+  it('keeps the note but drops the amount and the partial/full classification', () => {
+    const notes = refundNotesByDog(refunded(), 'replica-after-error');
+
+    expect(notes['d1']).toEqual({ amountCents: null, date: refundedAt, kind: 'unknown' });
+  });
+
+  it('states both on a confirmed read', () => {
+    const notes = refundNotesByDog(refunded(), 'confirmed');
+
+    expect(notes['d1']?.amountCents).toBe(1500);
+    expect(notes['d1']?.kind).toBe('partial');
   });
 });

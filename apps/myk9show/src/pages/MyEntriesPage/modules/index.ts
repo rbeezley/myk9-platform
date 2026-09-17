@@ -47,6 +47,7 @@ export { EntryScopeBanner } from './EntryScopeBanner';
 export { ScopedPaymentSummary } from './ScopedPaymentSummary';
 export { EntriesLoadErrorCard } from './EntriesLoadErrorCard';
 export { EntriesIdentityPendingCard } from './EntriesIdentityPendingCard';
+export { UnconfirmedReadNotice, UNCONFIRMED_READ_HEADLINE } from './UnconfirmedReadNotice';
 export {
   CheckInDialog,
   EditEntryDialog,

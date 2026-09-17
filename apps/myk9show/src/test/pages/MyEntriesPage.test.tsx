@@ -84,9 +84,27 @@ vi.mock('@/components/exhibitor/DogStrip', () => ({
   DogStrip: () => null,
 }));
 const mockUseCurrentUserPersonId = vi.hoisted(() => vi.fn((): string | null => null));
-vi.mock('@/hooks/useRoleBasedData', () => ({
-  useCurrentUserPersonId: () => mockUseCurrentUserPersonId(),
-}));
+vi.mock('@/hooks/useRoleBasedData', async () => {
+  // MIRRORS THE REAL HOOK, and must keep doing so. `useCurrentUserPersonId`
+  // returns `userWithRoles.databaseUserId` FIRST and consults the people-store
+  // lookup only when it is falsy (`useRoleBasedData.ts:187`). This file used to
+  // stub it as the people lookup alone, returning null while the auth mock
+  // carried a `databaseUserId` — a world the real hook cannot produce. The page
+  // survived it only because `useMyEntriesData` re-applied the same fallback
+  // itself, so these cases were really testing the duplicate, not the resolver.
+  // MYK9-629 removed the duplicate; the mock had to stop lying rather than the
+  // dead fallback be preserved. `mockUseCurrentUserPersonId` still drives the
+  // legacy half, which is what every caller of it sets.
+  const { useAuthContext } = await import('@/hooks/useAuthContext');
+  return {
+    useCurrentUserPersonId: () => {
+      const auth = (
+        useAuthContext as unknown as () => { userWithRoles?: { databaseUserId?: string } }
+      )();
+      return auth?.userWithRoles?.databaseUserId ?? mockUseCurrentUserPersonId();
+    },
+  };
+});
 vi.mock('@/components/panels/edit', () => ({
   AddDogPanel: () => <div data-testid="add-dog-panel" />,
 }));

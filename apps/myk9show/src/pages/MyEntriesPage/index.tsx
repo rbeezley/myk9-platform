@@ -36,6 +36,7 @@ import {
   EntriesEmptyState,
   EntriesLoadErrorCard,
   EntriesIdentityPendingCard,
+  UnconfirmedReadNotice,
   EntryScopeBanner,
   ScopedPaymentSummary,
   MyEntriesDialogGroup,
@@ -317,6 +318,23 @@ const MyEntriesPage: React.FC = () => {
                  exhibitor on a cold offline boot that they had never entered a
                  show, with their entries sitting in IndexedDB. */
               <EntriesIdentityPendingCard onRetry={refreshEntries} refreshing={refreshing} />
+            ) : entries.length === 0 &&
+              !waitlistSurface.hasPositions &&
+              !isLoading &&
+              entriesSource !== 'confirmed' ? (
+              /* `!isLoading` matters: `source` starts unconfirmed because a read
+                 that has not happened has confirmed nothing, so without it the
+                 first paint of every load claims we could not reach the
+                 server. */
+              /* An EMPTY read the server never confirmed. `FirstRunZeroState`
+                 below says "Welcome! Let's get you set up" — a claim about this
+                 exhibitor's whole standing, made from rows nobody confirmed.
+                 The per-show notice cannot cover it, because there is no show
+                 group to hang it on (MYK9-629 round 1). */
+              <>
+                <UnconfirmedReadNotice detail="We'll show your entries as soon as we can reach the server." />
+                <EntriesLoadErrorCard refreshing={refreshing} onRetry={refreshEntries} />
+              </>
             ) : entries.length === 0 && !waitlistSurface.hasPositions ? (
               /* `entries.length === 0` is not the same as "no standing". An
                  exhibitor can hold a `waitlist_entries` row with no entry row
@@ -335,12 +353,14 @@ const MyEntriesPage: React.FC = () => {
                   page under `?status=accepted`. */}
                 {/* The stat row is two dollar figures. When the balance is
                   `unknown` they would both render as $0.00 — "paid up" stated
-                  about rows the server never confirmed — so the whole row is
-                  withheld, exactly as the amount-due card on My Payments is
-                  (MYK9-629 restructure 1). The per-show notice inside the list
-                  below is what tells the exhibitor why. */}
-                {entries.length > 0 && balanceSummary.kind === 'known' && (
+                  about rows the server never confirmed — so the ROW is withheld
+                  (`showMoney`), exactly as the amount-due card on My Payments
+                  is. The dog strip beside it is not money and stays: gating the
+                  whole component took "Add a dog" away from an exhibitor whose
+                  read happened to be unconfirmed (MYK9-629 round 1). */}
+                {entries.length > 0 && (
                   <MyEntriesOverview
+                    showMoney={balanceSummary.kind === 'known'}
                     currentFees={entryStats.currentFees}
                     amountDue={entryStats.currentAmountDue}
                     hasPastBalance={balanceSummary.onlineShowBalances.some(show => show.isPastShow)}
@@ -428,7 +448,9 @@ const MyEntriesPage: React.FC = () => {
                         onCheckInDay={dialogs.checkInClassesForDay}
                         onOpenCheckIn={dialogs.openCheckIn}
                         onOpenEdit={dialogs.openEdit}
-                        onOpenReceipts={group => dialogs.openReceipt(group.orders)}
+                        onOpenReceipts={(group, moneyKind) =>
+                          dialogs.openReceipt(group.orders, moneyKind)
+                        }
                         onResultRevealClick={reveal.openResultReveal}
                       />
                     ) : null}

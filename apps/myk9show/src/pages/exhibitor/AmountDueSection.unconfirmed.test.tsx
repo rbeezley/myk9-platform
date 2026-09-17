@@ -19,9 +19,12 @@ import { describe, it, expect } from 'vitest';
 import { render, screen } from '@/test/utils/testUtils';
 import { AmountDueSection } from './AmountDueSection';
 import {
+  summarizeEntryBalancesFromSource,
   UNKNOWN_ENTRY_BALANCE_SUMMARY,
+  type EntryBalanceSource,
   type EntryBalanceSummary,
 } from '@/features/payments/entryBalanceSummary';
+import { EntryStatus, PaymentStatus } from '@/types/show-registration-types';
 
 function summary(overrides: Partial<EntryBalanceSummary> = {}): EntryBalanceSummary {
   return {
@@ -83,5 +86,59 @@ describe('AmountDueSection — an unconfirmed balance', () => {
     expect(
       screen.queryByText(/haven't been able to confirm your balance/i)
     ).not.toBeInTheDocument();
+  });
+});
+
+// MYK9-629 round 1: every case above hands the component a summary OBJECT, so
+// none of them exercises the early return in `summarizeEntryBalancesFromSource`
+// — deleting that line left them all green. These drive the REAL derivation
+// over REAL rows, which is the only shape that can fail when the gate is gone.
+describe('AmountDueSection driven through the real derivation', () => {
+  const owingRow = (): EntryBalanceSource => ({
+    id: 'entry-1',
+    showId: 'show-1',
+    showName: 'Heartland Classic',
+    // Far future, so the balance is never reclassified as past-show debt.
+    showDate: new Date('2099-10-10T00:00:00'),
+    showEndDate: new Date('2099-10-11T00:00:00'),
+    entryCloseDay: '2099-10-01',
+    showTimezone: 'America/Chicago',
+    entryStatus: EntryStatus.ACCEPTED,
+    paymentStatus: PaymentStatus.PENDING,
+    paymentMethod: null,
+    totalFee: 30,
+    classes: [{ id: 'entry-1' }],
+  });
+
+  it.each(['replica-offline', 'replica-after-error'] as const)(
+    'shows no figure and no pay link when the rows came from %s',
+    source => {
+      render(
+        <AmountDueSection
+          summary={summarizeEntryBalancesFromSource([owingRow()], source)}
+          isLoading={false}
+          isError={false}
+        />
+      );
+
+      expect(screen.queryByText(/\$\d/)).not.toBeInTheDocument();
+      expect(screen.queryByRole('link', { name: /finish payment/i })).not.toBeInTheDocument();
+      expect(screen.getByText(/haven't been able to confirm your balance/i)).toBeInTheDocument();
+    }
+  );
+
+  it('states the same $30 and offers the cart once the view CONFIRMS the rows', () => {
+    // The positive control: without it the two cases above would pass on a
+    // fixture that simply owed nothing.
+    render(
+      <AmountDueSection
+        summary={summarizeEntryBalancesFromSource([owingRow()], 'confirmed')}
+        isLoading={false}
+        isError={false}
+      />
+    );
+
+    expect(screen.getByText('$30.00')).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: /finish payment/i })).toBeInTheDocument();
   });
 });

@@ -63,8 +63,11 @@ GRANT SELECT (withdrawal_reason_code) ON public.entries TO authenticated;
 -- The 3-argument signature is DROPPED rather than left beside the new one:
 -- PostgREST resolves by named arguments, and two candidates that both accept
 -- (p_entry_id, p_fields, p_expected_version) are ambiguous. The new arguments
--- carry defaults, so an un-updated client's 3-argument call still resolves here
--- and still performs a withdrawal — exactly what it did before.
+-- carry defaults, so an un-updated client's 3-argument call still RESOLVES here
+-- — but it is then a withdrawal with no reason, which this function refuses
+-- (22023). That is the intended failure mode for the deploy window: a reasonless
+-- withdrawal is not one of the two acts, and refusing it is better than storing
+-- one. The exhibitor sees "Something went wrong preparing this withdrawal".
 DROP FUNCTION IF EXISTS public.withdraw_own_entry(uuid, jsonb, integer);
 
 CREATE OR REPLACE FUNCTION public.withdraw_own_entry(

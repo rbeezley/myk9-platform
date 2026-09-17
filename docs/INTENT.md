@@ -162,6 +162,21 @@ Our users are not 25-year-old engineers. Many are retired, with varying levels o
 - **No dead ends** — every screen has an obvious next step or way back
 - **Readiness chips land on the fix** — a readiness chip may only ship if its destination contains the affordance that clears it. If the destination only explains the problem, keep narrowing the route or add the clearing action to the existing destination surface.
 
+### Say Which Act Happened: Withdraw vs Pull
+
+An exhibitor leaving a class does one of exactly two things, and the app must never tell them one and store the other (MYK9-632).
+
+| Act          | When                                                 | Stored `entry_status` | Reason                                                        | Refund                                                                            |
+| ------------ | ---------------------------------------------------- | --------------------- | ------------------------------------------------------------- | --------------------------------------------------------------------------------- |
+| **Withdraw** | A recognised reason the rulebook names               | `withdrawn`           | `withdrawal_reason_code` — `in_season` or `judge_change` ONLY | Per the premium's rules, which differ by registry (`@/features/registries`)       |
+| **Pull**     | Anything else — the exhibitor has decided not to run | `scratched`           | none, by definition                                           | **The club's decision**, recorded on the secretary's Pull tab. Never "no refund". |
+
+- **The reason list is a rulebook fact, not an app constant.** AKC offers both reasons with a 30-minute-before-the-first-class cutoff; UKC offers both, with a vet certificate for in season; ASCA offers judge change only, because bitches in season may compete. It lives in `@/features/registries/withdrawalPolicy.ts`.
+- **"Scratch" and "Pull" are the same act, and the word is Pull.** The stored value keeps its `scratched` spelling — the secretary's whole pull-reconciliation surface keys on it — but no copy says "scratch" to an exhibitor or a secretary.
+- **A pull is never promised as unrefundable.** The copy says refunds for a pull are at the club's discretion, and the secretary's Issue refund / Deny refund is what makes that true.
+- **A paid entry can be pulled but not withdrawn.** A withdrawal reason carries a rulebook refund entitlement, and the exhibitor's own click must not assert it; a pull only says "I am not coming" and leaves the money to the club.
+- **Day-of ringside pull is a different column.** `check_in_status = 'pulled'` at `/at-show` is untouched by this rule.
+
 ### Offline Is Normal, Not Broken
 
 - **Never show "No internet" as an error** — show it as a quiet status indicator

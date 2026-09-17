@@ -116,7 +116,11 @@ create function pg_temp.assert_withdraw(
   expected_error text default null,
   p_fields jsonb default '{"entry_status": "withdrawn"}'::jsonb,
   expected_version integer default null,
-  caller_role text default 'authenticated'
+  caller_role text default 'authenticated',
+  -- MYK9-632: a withdrawal now names one of the two recognised reasons. Every
+  -- case in THIS file is a withdrawal, so one default covers them all; the
+  -- allow-list itself is pinned in withdraw_or_pull_own_entry_test.sql.
+  p_reason text default 'in_season'
 ) returns void language plpgsql as $$
 declare
   before_rows jsonb;
@@ -134,7 +138,7 @@ begin
     jsonb_build_object('sub', caller, 'role', caller_role)::text, true);
   perform set_config('role', caller_role, true);
   begin
-    perform public.withdraw_own_entry(target_id, p_fields, expected_version);
+    perform public.withdraw_own_entry(target_id, p_fields, expected_version, 'withdraw', p_reason);
   exception when others then
     actual_error := sqlerrm;
     actual_state := sqlstate;

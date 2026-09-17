@@ -157,6 +157,23 @@ export async function isAtShowClassDataHydrated(
 }
 
 /**
+ * Has this show's entry scope ever completed a sync on this device?
+ *
+ * MYK9-637: `entries` replicates PER SHOW, and the app-wide
+ * ReplicationSyncProvider runs with an empty scope -- which
+ * `ReplicatedEntriesTable.sync('')` treats as a documented no-op. So a cold
+ * `/at-show/:showId` had a genuinely empty entries store and every class row
+ * read `0 / 0` forever. An empty read is therefore only meaningful once the
+ * show scope has synced; `totalRows` is dropped entirely for a scope that has
+ * never synced (see `projectScopedMetadata`), which makes it the discriminator.
+ * Row counts alone cannot serve: a real 0-entry class is also empty.
+ */
+export async function areAtShowEntryCountsKnown(showId: string): Promise<boolean> {
+  const metadata = (await replicatedEntriesTable.getSyncMetadata(showId)) as SyncMetadata | null;
+  return metadata?.totalRows !== undefined;
+}
+
+/**
  * Fetch a show's trials and their classes (as ringside `ClassEntry`s), sorted
  * by class order within each trial.
  *

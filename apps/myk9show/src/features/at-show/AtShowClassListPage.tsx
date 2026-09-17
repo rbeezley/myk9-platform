@@ -74,6 +74,7 @@ export const AtShowClassListPage: React.FC = () => {
     isLoading,
     error,
     classDataHydration,
+    entryCountsAvailable,
     refresh,
   } = useAtShowClassList(showId);
   const { status: syncStatus } = useReplicationSync();
@@ -423,6 +424,7 @@ export const AtShowClassListPage: React.FC = () => {
                 onClick={handleClassClick}
                 trialTimeZone={trialTimeZone}
                 nextUp={selectNextUpForCard(getClassIds(entry), nextUpByClassId)}
+                entryCountsAvailable={entryCountsAvailable}
               />
             ))}
           </ul>
@@ -479,6 +481,7 @@ export const AtShowClassListPage: React.FC = () => {
                       onClick={handleClassClick}
                       trialTimeZone={trialTimeZone}
                       nextUp={selectNextUpForCard(getClassIds(entry), nextUpByClassId)}
+                      entryCountsAvailable={entryCountsAvailable}
                     />
                   ))}
                 </ul>

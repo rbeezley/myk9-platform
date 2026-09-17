@@ -164,7 +164,7 @@ function makeContext(overrides: Partial<SubmitPaymentStepContext> = {}): SubmitP
     cart: {
       loadCart: vi.fn(),
       clearCart: vi.fn(async () => true),
-      createCart: vi.fn(),
+      ensureCart: vi.fn(),
       addItem: vi.fn(),
       abandonCart: vi.fn(),
     },

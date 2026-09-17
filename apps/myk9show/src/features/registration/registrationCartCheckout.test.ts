@@ -3,9 +3,8 @@ import { submitRegistrationCartCheckout } from './registrationCartCheckout';
 
 function makeDeps() {
   return {
-    loadCart: vi.fn().mockResolvedValue(null),
     clearCart: vi.fn().mockResolvedValue(true),
-    createCart: vi.fn().mockResolvedValue({ id: 'cart-1' }),
+    ensureCart: vi.fn().mockResolvedValue({ id: 'cart-1', items: [] }),
     addItem: vi.fn().mockResolvedValue(true),
     abandonCart: vi.fn().mockResolvedValue(true),
     navigate: vi.fn(),
@@ -40,8 +39,9 @@ describe('submitRegistrationCartCheckout', () => {
     });
 
     // Cart operations must use exhibitorProfileId, not ownerResolution.ownerId
-    expect(deps.loadCart).toHaveBeenCalledWith('show-1', 'profile-1');
-    expect(deps.createCart).toHaveBeenCalledWith('show-1', 'profile-1');
+    expect(deps.ensureCart).toHaveBeenCalledWith('show-1', 'profile-1');
+    // A cart that came back empty has nothing to clear.
+    expect(deps.clearCart).not.toHaveBeenCalled();
     expect(deps.addItem).toHaveBeenCalledWith({
       dogId: 'dog-1',
       classId: 'class-1',
@@ -84,7 +84,7 @@ describe('submitRegistrationCartCheckout', () => {
 
   it('reuses and clears an existing cart before adding registration items', async () => {
     const deps = makeDeps();
-    deps.loadCart.mockResolvedValue({ id: 'cart-existing' });
+    deps.ensureCart.mockResolvedValue({ id: 'cart-existing', items: [{ id: 'item-1' }] });
 
     await submitRegistrationCartCheckout({
       showId: 'show-1',
@@ -107,14 +107,14 @@ describe('submitRegistrationCartCheckout', () => {
     });
 
     expect(deps.clearCart).toHaveBeenCalledTimes(1);
-    expect(deps.createCart).not.toHaveBeenCalled();
+    expect(deps.ensureCart).toHaveBeenCalledTimes(1);
     expect(deps.addItem).toHaveBeenCalledTimes(1);
     expect(deps.navigate).toHaveBeenCalledWith('/cart');
   });
 
   it('stops before adding items when clearing an existing cart fails', async () => {
     const deps = makeDeps();
-    deps.loadCart.mockResolvedValue({ id: 'cart-existing' });
+    deps.ensureCart.mockResolvedValue({ id: 'cart-existing', items: [{ id: 'item-1' }] });
     deps.clearCart.mockResolvedValue(false);
 
     await expect(
@@ -189,6 +189,6 @@ describe('submitRegistrationCartCheckout', () => {
       })
     ).rejects.toThrow('Cannot determine exhibitor profile');
 
-    expect(deps.createCart).not.toHaveBeenCalled();
+    expect(deps.ensureCart).not.toHaveBeenCalled();
   });
 });

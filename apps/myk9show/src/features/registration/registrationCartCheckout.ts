@@ -10,9 +10,8 @@ interface ClassLike {
 }
 
 interface RegistrationCartCheckoutDeps {
-  loadCart: (showId: string, exhibitorId: string) => Promise<CartWithDetails | null>;
+  ensureCart: (showId: string, exhibitorId: string) => Promise<CartWithDetails | null>;
   clearCart: () => Promise<boolean>;
-  createCart: (showId: string, exhibitorId: string) => Promise<CartWithDetails | null>;
   addItem: (item: NewCartItem) => Promise<boolean>;
   abandonCart: () => Promise<boolean>;
   navigate: (path: string) => void;
@@ -48,16 +47,17 @@ export async function submitRegistrationCartCheckout({
   }
 
   const exhibitorId = exhibitorProfileId;
-  const existingCart = await deps.loadCart(showId, exhibitorId);
-  if (existingCart) {
+  // MYK9-581: one recover-or-create call. The old load-then-create pair read
+  // `expires_at` while the unique index does not, so a lapsed cart read as "no
+  // cart" and the follow-on INSERT could only 409.
+  const cart = await deps.ensureCart(showId, exhibitorId);
+  if (!cart) {
+    throw new Error('Failed to create cart');
+  }
+  if (cart.items.length > 0) {
     const cleared = await deps.clearCart();
     if (!cleared) {
       throw new Error('Failed to clear existing cart. Please try again.');
-    }
-  } else {
-    const createdCart = await deps.createCart(showId, exhibitorId);
-    if (!createdCart) {
-      throw new Error('Failed to create cart');
     }
   }
 

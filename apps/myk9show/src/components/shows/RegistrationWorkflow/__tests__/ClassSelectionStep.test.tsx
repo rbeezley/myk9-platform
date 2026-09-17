@@ -308,8 +308,7 @@ function setupDefaultMocks(overrides: { judgeDayFull?: boolean; waitlistCount?: 
   mockUseCartStore.mockImplementation((selector: (s: unknown) => unknown) => {
     const state = {
       cart: null,
-      loadCart: vi.fn().mockResolvedValue(null),
-      createCart: vi.fn().mockResolvedValue(null),
+      ensureCart: vi.fn().mockResolvedValue(null),
       addItem: vi.fn().mockResolvedValue(true),
       removeItem: vi.fn().mockResolvedValue(true),
     };
@@ -792,8 +791,7 @@ describe('ClassSelectionStep — add-only entry actions (6.4)', () => {
     mockUseCartStore.mockImplementation((selector: (s: unknown) => unknown) => {
       const state = {
         cart: null,
-        loadCart: vi.fn().mockResolvedValue(null),
-        createCart: vi.fn().mockResolvedValue(null),
+        ensureCart: vi.fn().mockResolvedValue(null),
         addItem: vi.fn().mockResolvedValue(true),
         removeItem: vi.fn().mockResolvedValue(true),
       };
@@ -921,8 +919,7 @@ describe('ClassSelectionStep — add-only entry actions (6.4)', () => {
       selector({
         cart: opts.cart ? { id: 'cart-1', items: [], ...opts.cart } : null,
         isLoading: opts.isLoading ?? false,
-        loadCart: vi.fn().mockResolvedValue(null),
-        createCart: vi.fn().mockResolvedValue(null),
+        ensureCart: vi.fn().mockResolvedValue(null),
         addItem,
         removeItem: vi.fn().mockResolvedValue(true),
       })

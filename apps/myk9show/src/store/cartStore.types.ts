@@ -130,6 +130,12 @@ export interface CartState {
     exhibitorId: string,
     options?: { showId?: string; recoveryEntryIds?: string[] }
   ) => Promise<CartWithDetails | null>;
+  /**
+   * Recover-or-create this exhibitor's cart for a show as ONE coalesced unit.
+   * The registration wizard's opener; never inserts while an active row exists
+   * (MYK9-581).
+   */
+  ensureCart: (showId: string, exhibitorId: string) => Promise<CartWithDetails | null>;
   createCart: (showId: string, exhibitorId: string) => Promise<CartWithDetails | null>;
   addItem: (item: NewCartItem) => Promise<boolean>;
   removeItem: (itemId: string) => Promise<boolean>;

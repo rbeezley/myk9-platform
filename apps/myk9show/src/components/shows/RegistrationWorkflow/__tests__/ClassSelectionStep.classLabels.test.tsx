@@ -154,8 +154,7 @@ function setupMocks(classes: SeedClass[], opts: { isStaff?: boolean } = {}) {
     selector({
       cart: null,
       isLoading: false,
-      loadCart: vi.fn().mockResolvedValue(null),
-      createCart: vi.fn().mockResolvedValue(null),
+      ensureCart: vi.fn().mockResolvedValue(null),
       addItem: vi.fn().mockResolvedValue(true),
       removeItem: vi.fn().mockResolvedValue(true),
     })

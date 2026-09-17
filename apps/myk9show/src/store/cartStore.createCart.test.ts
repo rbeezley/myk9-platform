@@ -1,19 +1,19 @@
 /**
- * createCart must not fire a doomed INSERT (MYK9-581).
+ * The wizard's cart opener must never insert while an active row exists, and
+ * must never replace a lapsed cart with an empty one (MYK9-581).
  *
- * `loadCart` only returns a cart whose `expires_at` is still in the future, but
  * `entry_carts_active_show_exhibitor_unique_idx` is scoped to `status =
- * 'active'` alone. A lapsed active row is therefore invisible to the read and
- * still fatal to the insert, so the wizard's load-then-create opener POSTed a
- * row that could only 409. The lapsed row is retired first, and the 23505
- * tolerance that cleans up after a genuine race matches the index BY NAME so a
- * violation of some other constraint is not reported as a reclaimed cart.
+ * 'active'` and knows nothing about `expires_at`, so a read that filters on
+ * expiry reports "no cart" for a row the index still rejects an insert against
+ * — that is the 409 this pins. The recovery, not a retire, is the fix: `/cart`
+ * and the header badge both read `status IN ('active','expired')` with no
+ * expiry filter and RECOVER the drafted cart with its items.
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 interface Call {
   table: string;
-  insertPayload?: unknown;
+  insertPayload?: Record<string, unknown>;
   updatePayload?: Record<string, unknown>;
   selected?: string | boolean;
   eqs: Array<{ column: string; value: unknown }>;
@@ -24,7 +24,6 @@ const calls = vi.hoisted(() => [] as Call[]);
 const mockFrom = vi.hoisted(() => vi.fn());
 const behaviour = vi.hoisted(() => ({
   insertError: null as { code?: string; message?: string; details?: string } | null,
-  existingCart: null as Record<string, unknown> | null,
 }));
 
 class MockBuilder {
@@ -41,6 +40,10 @@ class MockBuilder {
     this.call.eqs.push({ column, value });
     return this;
   }
+  in(column: string, value: unknown) {
+    this.call.eqs.push({ column: `in:${column}`, value });
+    return this;
+  }
   gt(column: string, value: unknown) {
     this.call.eqs.push({ column: `gt:${column}`, value });
     return this;
@@ -55,7 +58,7 @@ class MockBuilder {
   limit() {
     return this;
   }
-  insert(payload: unknown) {
+  insert(payload: Record<string, unknown>) {
     this.call.insertPayload = payload;
     return this;
   }
@@ -67,14 +70,12 @@ class MockBuilder {
     if (this.call.insertPayload !== undefined) {
       if (behaviour.insertError) return { data: null, error: behaviour.insertError };
       return {
-        data: { ...(this.call.insertPayload as object), id: 'cart-new', show: { id: 'show-1' } },
+        data: { ...this.call.insertPayload, id: 'cart-new', show: { id: SHOW_ID } },
         error: null,
       };
     }
-    if (this.call.updatePayload !== undefined) {
-      return { data: null, error: null };
-    }
-    return { data: behaviour.existingCart, error: null };
+    if (this.call.updatePayload !== undefined) return { data: null, error: null };
+    return { data: null, error: null };
   }
   single() {
     return Promise.resolve(this.result());
@@ -94,17 +95,21 @@ vi.mock('@/services/LoggingService', () => ({
 
 import { logger } from '@/services/LoggingService';
 import { useCartStore } from './cartStore';
+import { resetEnsureCartInFlight } from './cartStore.ensureCart';
 
 const SHOW_ID = 'show-1';
 const EXHIBITOR_ID = 'exhibitor-1';
 
 const cartCalls = () => calls.filter(call => call.table === 'entry_carts');
+const insertCalls = () => cartCalls().filter(call => call.insertPayload !== undefined);
 
 beforeEach(() => {
   calls.length = 0;
   behaviour.insertError = null;
-  behaviour.existingCart = null;
   mockFrom.mockImplementation((table: string) => new MockBuilder(table));
+  // Module-scope state: an in-flight entry that outlived its test would make
+  // the next test's call return the previous cart and assert nothing.
+  resetEnsureCartInFlight();
   useCartStore.setState({ cart: null, isLoading: false, error: null });
 });
 
@@ -113,26 +118,17 @@ afterEach(() => {
 });
 
 describe('cartStore.createCart', () => {
-  it('retires a lapsed active cart before inserting, so the INSERT cannot 409', async () => {
+  it('inserts an active cart with a fresh hold and no expiry-filtered pre-write', async () => {
+    const before = Date.now();
     await useCartStore.getState().createCart(SHOW_ID, EXHIBITOR_ID);
 
     expect(mockFrom).toHaveBeenCalledWith('entry_carts');
+    // Exactly one write, and it is the INSERT: nothing retires or rewrites a
+    // row on the way in.
+    expect(cartCalls()).toHaveLength(1);
 
-    const [first, second] = cartCalls();
-
-    // The retire must come FIRST: after the insert it is already too late, the
-    // 409 has been logged.
-    expect(first?.updatePayload).toEqual({ status: 'expired', stripe_checkout_session_id: null });
-    expect(first?.eqs).toEqual([
-      { column: 'show_id', value: SHOW_ID },
-      { column: 'exhibitor_id', value: EXHIBITOR_ID },
-      { column: 'status', value: 'active' },
-    ]);
-    // Scoped to rows `loadCart` cannot see: lapsed, or with no expiry at all.
-    expect(first?.ors).toHaveLength(1);
-    expect(first?.ors[0]).toMatch(/^expires_at\.is\.null,expires_at\.lte\./);
-
-    expect(second?.insertPayload).toMatchObject({
+    const [insert] = insertCalls();
+    expect(insert?.insertPayload).toMatchObject({
       show_id: SHOW_ID,
       exhibitor_id: EXHIBITOR_ID,
       status: 'active',
@@ -140,76 +136,92 @@ describe('cartStore.createCart', () => {
       platform_fee_cents: 0,
       total_cents: 0,
     });
-    expect(second?.selected).toBe('*, show:shows(id, name, start_date, entry_close_date)');
+    // The hold is a real future timestamp, not an inherited or absent one.
+    const expiresAt = new Date(insert?.insertPayload?.expires_at as string).getTime();
+    expect(expiresAt).toBeGreaterThan(before);
+    expect(expiresAt).toBeLessThanOrEqual(before + 30 * 60 * 1000 + 5_000);
+    expect(insert?.selected).toBe('*, show:shows(id, name, start_date, entry_close_date)');
+
+    // `.or('expires_at…')` on entry_carts is banned: a raw ISO timestamp inside
+    // PostgREST's or() mini-language misparses (2026-06-20 incident).
+    expect(cartCalls().flatMap(call => call.ors)).toEqual([]);
   });
 
-  it('coalesces two concurrent calls onto one INSERT', async () => {
-    // The class step's cart effect runs twice under StrictMode, and the two
-    // calls landed ~8ms apart on staging: the loser's INSERT could only 409.
-    const [a, b] = await Promise.all([
-      useCartStore.getState().createCart(SHOW_ID, EXHIBITOR_ID),
-      useCartStore.getState().createCart(SHOW_ID, EXHIBITOR_ID),
-    ]);
+  it('recovers the existing cart instead of expiring it when the active-cart index is violated', async () => {
+    behaviour.insertError = {
+      code: '23505',
+      message:
+        'duplicate key value violates unique constraint "entry_carts_active_show_exhibitor_unique_idx"',
+      details: undefined,
+    };
+    const loadActiveCart = vi
+      .fn()
+      .mockResolvedValue({ id: 'cart-existing', items: [{ id: 'item-1' }] });
+    useCartStore.setState({ loadActiveCart });
 
-    expect(cartCalls().filter(call => call.insertPayload !== undefined)).toHaveLength(1);
-    expect(a).toBe(b);
+    const result = await useCartStore.getState().createCart(SHOW_ID, EXHIBITOR_ID);
+
+    expect(loadActiveCart).toHaveBeenCalledWith(EXHIBITOR_ID, { showId: SHOW_ID });
+    expect(result).toEqual({ id: 'cart-existing', items: [{ id: 'item-1' }] });
+    // The drafted cart is never expired, and no second shell is inserted in
+    // its place: that is what orphaned an exhibitor's items.
+    expect(cartCalls().filter(call => call.updatePayload !== undefined)).toEqual([]);
+    expect(insertCalls()).toHaveLength(1);
   });
 
-  it('does not treat a unique violation on some other constraint as a reclaimed cart', async () => {
+  it('does not treat a unique violation on some other constraint as a recovered cart', async () => {
     behaviour.insertError = {
       code: '23505',
       message: 'duplicate key value violates unique constraint "entry_carts_some_future_idx"',
       details: 'Key (stripe_checkout_session_id)=(cs_test_1) already exists.',
     };
-    behaviour.existingCart = {
-      id: 'cart-existing',
-      show_id: SHOW_ID,
-      exhibitor_id: EXHIBITOR_ID,
-      status: 'active',
-      expires_at: new Date(Date.now() + 60_000).toISOString(),
-      show: { id: SHOW_ID },
-    };
+    const loadActiveCart = vi.fn();
+    useCartStore.setState({ loadActiveCart });
 
     const result = await useCartStore.getState().createCart(SHOW_ID, EXHIBITOR_ID);
 
     expect(result).toBeNull();
-    // The foreign conflict stays legible instead of being reported as a
-    // reclaimed cart.
+    expect(loadActiveCart).not.toHaveBeenCalled();
     expect(vi.mocked(logger.error)).toHaveBeenCalledWith(
       'Error creating cart',
       'cartStore',
       { showId: SHOW_ID, exhibitorId: EXHIBITOR_ID },
       behaviour.insertError
     );
-    // No reclaim: nothing after the insert may touch the cart the conflict was
-    // never about.
-    const afterInsert = cartCalls().slice(
-      cartCalls().findIndex(call => call.insertPayload !== undefined) + 1
-    );
-    expect(afterInsert).toEqual([]);
+  });
+});
+
+describe('cartStore.ensureCart', () => {
+  it('returns the recovered cart and never inserts when one already exists', async () => {
+    const recovered = { id: 'cart-existing', items: [{ id: 'item-1' }] };
+    const loadActiveCart = vi.fn().mockResolvedValue(recovered);
+    useCartStore.setState({ loadActiveCart });
+
+    const result = await useCartStore.getState().ensureCart(SHOW_ID, EXHIBITOR_ID);
+
+    expect(loadActiveCart).toHaveBeenCalledWith(EXHIBITOR_ID, { showId: SHOW_ID });
+    expect(result).toBe(recovered);
+    expect(insertCalls()).toEqual([]);
   });
 
-  it('still reclaims a live cart when the active-cart index is the one violated', async () => {
-    behaviour.insertError = {
-      code: '23505',
-      message:
-        'duplicate key value violates unique constraint "entry_carts_active_show_exhibitor_unique_idx"',
-      details: `Key (show_id, exhibitor_id)=(${SHOW_ID}, ${EXHIBITOR_ID}) already exists.`,
-    };
-    behaviour.existingCart = {
-      id: 'cart-existing',
-      show_id: SHOW_ID,
-      exhibitor_id: EXHIBITOR_ID,
-      status: 'active',
-      expires_at: new Date(Date.now() + 60_000).toISOString(),
-      show: { id: SHOW_ID },
-    };
-
-    await useCartStore.getState().createCart(SHOW_ID, EXHIBITOR_ID);
-
-    const reclaim = cartCalls().find(
-      call => call.updatePayload !== undefined && 'expires_at' in call.updatePayload
+  it('coalesces the WHOLE load-then-create opener, not just the create', async () => {
+    // The first caller's load resolves slowly; the second caller must join it
+    // rather than run its own load and reach a second INSERT.
+    const loadActiveCart = vi.fn().mockImplementation(
+      () =>
+        new Promise(resolve => {
+          setTimeout(() => resolve(null), 0);
+        })
     );
-    expect(reclaim?.eqs).toContainEqual({ column: 'id', value: 'cart-existing' });
+    useCartStore.setState({ loadActiveCart });
+
+    const [a, b] = await Promise.all([
+      useCartStore.getState().ensureCart(SHOW_ID, EXHIBITOR_ID),
+      useCartStore.getState().ensureCart(SHOW_ID, EXHIBITOR_ID),
+    ]);
+
+    expect(loadActiveCart).toHaveBeenCalledTimes(1);
+    expect(insertCalls()).toHaveLength(1);
+    expect(a).toBe(b);
   });
 });

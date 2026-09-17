@@ -40,7 +40,7 @@ import { getEntrySubmitBlocker } from './entryCloseGuard';
 export interface PaymentStepCartDeps {
   loadCart: (showId: string, exhibitorId: string) => Promise<CartWithDetails | null>;
   clearCart: () => Promise<boolean>;
-  createCart: (showId: string, exhibitorId: string) => Promise<CartWithDetails | null>;
+  ensureCart: (showId: string, exhibitorId: string) => Promise<CartWithDetails | null>;
   addItem: (item: NewCartItem) => Promise<boolean>;
   abandonCart: () => Promise<boolean>;
 }
@@ -164,9 +164,8 @@ export async function submitPaymentStep(ctx: SubmitPaymentStepContext): Promise<
         classes: ctx.classes,
         showFeeInfo: ctx.showFeeInfo,
         deps: {
-          loadCart: ctx.cart.loadCart,
           clearCart: ctx.cart.clearCart,
-          createCart: ctx.cart.createCart,
+          ensureCart: ctx.cart.ensureCart,
           addItem: ctx.cart.addItem,
           abandonCart: ctx.cart.abandonCart,
           navigate: path => ctx.navigate(path),

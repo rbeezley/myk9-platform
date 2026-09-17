@@ -102,8 +102,7 @@ export const ClassSelectionStep: React.FC<ClassSelectionStepProps> = ({
   const cartShowId = useCartStore(state => state.cart?.show_id ?? null);
   const cartExhibitorId = useCartStore(state => state.cart?.exhibitor_id ?? null);
   const cartIsLoading = useCartStore(state => state.isLoading);
-  const loadCart = useCartStore(state => state.loadCart);
-  const createCart = useCartStore(state => state.createCart);
+  const ensureCart = useCartStore(state => state.ensureCart);
   const addItem = useCartStore(state => state.addItem);
   const removeItem = useCartStore(state => state.removeItem);
 
@@ -323,15 +322,13 @@ export const ClassSelectionStep: React.FC<ClassSelectionStepProps> = ({
 
   const exhibitorId = exhibitorProfile?.id;
   useEffect(() => {
-    const initializeCart = async () => {
-      if (!exhibitorId || !showId) return;
-      const existingCart = await loadCart(showId, exhibitorId);
-      if (!existingCart) {
-        await createCart(showId, exhibitorId);
-      }
-    };
-    initializeCart();
-  }, [showId, exhibitorId, loadCart, createCart]);
+    // One call, not load-then-create: the two-step opener raced itself and the
+    // loser's INSERT died on the active-cart unique index (MYK9-581).
+    // `ensureCart` also RECOVERS a cart whose hold has lapsed, with its items,
+    // rather than replacing it with an empty one.
+    if (!exhibitorId || !showId) return;
+    void ensureCart(showId, exhibitorId);
+  }, [showId, exhibitorId, ensureCart]);
 
   const availabilityUnreadable = isAvailabilityUnreadable({
     isLoading: availabilityLoading,

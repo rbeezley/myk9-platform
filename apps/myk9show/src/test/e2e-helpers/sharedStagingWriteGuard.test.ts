@@ -193,6 +193,31 @@ describe('isUnambiguousSharedStagingRestWrite', () => {
     ).toBe(false);
   });
 
+  // The `it.each` above makes the allowlist the CODE UNDER TEST: delete an entry
+  // and the case for it disappears with it, so the suite stays green. These name
+  // their RPC literally, so removing one turns a spec-wide outage into a red
+  // unit test. Add a case here whenever a wizard or ringside path starts
+  // depending on a read RPC (MYK9-545).
+  it.each([
+    // Gates the whole "Credit/Debit Card (Online Payment)" option on the
+    // registration payment step via `useClubStripePaymentReadiness`; blocking it
+    // hid the option with no diagnostic and read as a product failure.
+    'can_accept_online_entry_payment',
+    // Blocked on every registration route until MYK9-545 round 3; the wizard's
+    // judge query failed silently because no spec asserts on judges.
+    'get_show_judges',
+    'get_user_roles',
+    'get_effective_permissions',
+  ])('names %s explicitly so removing it from the allowlist fails here', rpc => {
+    expect(AUDIT_READ_ONLY_RPCS.has(rpc)).toBe(true);
+    expect(
+      isUnambiguousSharedStagingRestWrite(
+        { method: 'POST', url: `${sharedBaseUrl}/rest/v1/rpc/${rpc}` },
+        { strictRpc: true }
+      )
+    ).toBe(false);
+  });
+
   it('leaves ringside_update_entry to its own dedicated handler', () => {
     expect(
       isUnambiguousSharedStagingRestWrite(

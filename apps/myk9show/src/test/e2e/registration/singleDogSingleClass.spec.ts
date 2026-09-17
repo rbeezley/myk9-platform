@@ -1,6 +1,7 @@
 import { test, expect, type Page } from '@playwright/test';
 import { signInAsSecretary } from '../uat/shared/auth';
 import { LIVE_REGISTRATION_SHOW_ID } from '../uat/shared/seededShows';
+import { applyRegistrationClock } from './seedRoster';
 
 test.describe.configure({ mode: 'serial', timeout: 90000 });
 
@@ -163,7 +164,11 @@ async function searchAndSelectDog(page: Page) {
   await search.fill(DOG_SEARCH);
   await waitForDogSearch(page, DOG_SEARCH.toLowerCase());
 
-  const dogCheckbox = page.getByRole('checkbox', { name: new RegExp(`Select ${DOG_SEARCH}`, 'i') });
+  // Anchor on the exact call name: the MYK9-109 load fixture repeats call names,
+  // so an unanchored /Select Ranger/i can resolve to more than one row.
+  const dogCheckbox = page.getByRole('checkbox', {
+    name: new RegExp(`^Select ${DOG_SEARCH}$`, 'i'),
+  });
   await expect(dogCheckbox).toBeVisible({ timeout: 10000 });
   await dogCheckbox.click({ force: true });
   await expect(page.getByText(/1(?: dog)? selected/).first()).toBeVisible({ timeout: 5000 });
@@ -188,7 +193,8 @@ async function selectFirstContainerClass(page: Page) {
 }
 
 test('reaches payment with one selected dog and one selected class', async ({ page }) => {
-  await page.clock.setFixedTime(new Date('2026-05-15T12:00:00.000Z'));
+  // MYK9-545: the seed's entry window is relative to the reseed date.
+  await applyRegistrationClock(page);
 
   await preventSharedWrites(page);
   await signInAsSecretary(page, `/secretary/register/${SHOW_ID}`);
@@ -208,7 +214,13 @@ test('reaches payment with one selected dog and one selected class', async ({ pa
 
   await expect(page.getByRole('heading', { name: 'Payment Information' })).toBeVisible();
   await page.getByRole('button', { name: /Secretary Payment \(Already Received\)/i }).click();
-  await expect(page.getByText('Entry fee total').locator('..')).toContainText(/\$\d+\.\d{2}/);
+  // MYK9-483 (#2210) folded the payment step's fee summary into the one running
+  // entries panel and renamed the label; 'Entry fee total' has not existed in
+  // the app since. The desktop aside is the one that renders at this spec's
+  // 1280px viewport (MYK9-545).
+  await expect(
+    page.getByTestId('entries-panel').getByText('Entry fees', { exact: true }).locator('..')
+  ).toContainText(/\$\d+\.\d{2}/);
   await expect(page.getByText(new RegExp(DOG_SEARCH, 'i')).first()).toBeVisible();
   await expect(page.locator('body')).toContainText(CLASS_ELEMENT);
   await expect(page.locator('body')).toContainText(CLASS_LEVEL);

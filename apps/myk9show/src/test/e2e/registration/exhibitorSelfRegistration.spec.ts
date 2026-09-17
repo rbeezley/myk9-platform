@@ -2,6 +2,7 @@ import { expect, test, type Page } from '@playwright/test';
 import { signInAsExhibitor } from '../helpers/testUsers';
 import { LIVE_REGISTRATION_SHOW_ID } from '../uat/shared/seededShows';
 import { installSharedStagingWriteGuard } from '../helpers/sharedStagingWriteGuard';
+import { applyRegistrationClock } from './seedRoster';
 
 test.describe.configure({ mode: 'serial', timeout: 90000 });
 
@@ -123,6 +124,48 @@ async function preventSharedEntryWrites(page: Page, captured: CapturedWrites) {
   await page.route('**/functions/v1/send-registration-email', route => route.abort());
 }
 
+/**
+ * The one running entries panel (MYK9-483 / #2210). Above 1024px it is the
+ * sticky aside; below it the aside is `display:none` and the same totals live
+ * inside the collapsed bottom bar, mounted only while Details is expanded.
+ * Both carry `aria-label="Your entries"`, so a page-level `getByText` on a
+ * total is ambiguous — always scope to one of them.
+ */
+function entriesTotals(page: Page) {
+  return page.getByTestId('entries-panel');
+}
+
+/**
+ * Returns the entries-panel region that actually renders the totals at `width`,
+ * expanding the phone/tablet bar's Details disclosure when that is the one.
+ */
+async function openEntriesTotals(page: Page, width: number) {
+  if (width >= 1024) return entriesTotals(page);
+
+  const bar = page.getByTestId('entries-panel-bar');
+  const details = page.getByTestId('entries-panel-details');
+  await expect(details).toBeVisible();
+  if ((await details.getAttribute('aria-expanded')) !== 'true') {
+    await details.click();
+  }
+  await expect(page.getByTestId('entries-panel-details-list')).toBeVisible();
+  return bar;
+}
+
+/**
+ * Put the phone/tablet bar back the way an exhibitor first meets it. The
+ * overflow assertion and the attached screenshot must measure the COLLAPSED
+ * bar, not the expanded panel this spec opened to read the totals (MYK9-545).
+ */
+async function collapseEntriesTotals(page: Page, width: number) {
+  if (width >= 1024) return;
+  const details = page.getByTestId('entries-panel-details');
+  if ((await details.getAttribute('aria-expanded')) === 'true') {
+    await details.click();
+  }
+  await expect(page.getByTestId('entries-panel-details-list')).toBeHidden();
+}
+
 async function selectFirstAvailableClass(page: Page) {
   await expect(page.getByRole('heading', { name: 'Select Classes', exact: true })).toBeVisible({
     timeout: 15000,
@@ -166,9 +209,12 @@ async function selectFirstAvailableDog(page: Page) {
 test('exhibitor card entry hands off to cart checkout without enrollment writes', async ({
   page,
 }) => {
-  await page.clock.setFixedTime(
-    new Date(process.env.QA_REGISTRATION_TIME ?? '2026-05-15T12:00:00.000Z')
-  );
+  // MYK9-545: the fallback used to be a fixed '2026-05-15'. The seed's entry
+  // window is relative (CURRENT_DATE - 16 .. + 76), so after any reseed past
+  // that date the wizard rendered "This show is not accepting online entries
+  // yet" and step 1 never appeared. Real time is always inside the window;
+  // QA_REGISTRATION_TIME still pins a moment for a hand run.
+  await applyRegistrationClock(page);
 
   const captured: CapturedWrites = {};
   await preventSharedEntryWrites(page, captured);
@@ -188,7 +234,9 @@ test('exhibitor card entry hands off to cart checkout without enrollment writes'
   await expect(page.getByRole('heading', { name: 'Payment Information' })).toBeVisible({
     timeout: 15000,
   });
-  await expect(page.getByText('Entry fee total').locator('..')).toContainText(/\$\d+\.\d{2}/);
+  await expect(
+    entriesTotals(page).getByText('Entry fees', { exact: true }).locator('..')
+  ).toContainText(/\$\d+\.\d{2}/);
   const cardPayment = page.getByRole('button', {
     name: /Credit\/Debit Card \(Online Payment\)/i,
   });
@@ -197,15 +245,26 @@ test('exhibitor card entry hands off to cart checkout without enrollment writes'
   await expect(page.getByText(/secure checkout to complete payment/i).first()).toBeVisible();
 
   // The payment review must disclose the same service fee at every audited width.
-  const entryTotal = page.getByText('Entry fee total').locator('..');
-  const amountDue = page.getByText('Amount Due:').locator('..');
-  const entryDollars = Number((await entryTotal.innerText()).match(/\$([\d.]+)/)?.[1]);
+  // MYK9-483 (#2210) moved the fee summary into the one running entries panel:
+  // the desktop aside above 1024px, and a collapsed bar below it whose totals
+  // only mount once Details is expanded. The labels moved with it
+  // ("Entry fee total" -> "Entry fees", "Amount Due:" -> "Total due").
   for (const viewport of VIEWPORTS) {
     await page.setViewportSize(viewport);
-    const serviceFee = page.getByText(/^Service fee \(/).locator('..');
+    const totals = await openEntriesTotals(page, viewport.width);
+    const amountDue = totals.getByText('Total due', { exact: true }).locator('..');
+    const entryFees = totals.getByText('Entry fees', { exact: true }).locator('..');
+    const serviceFee = totals.getByText(/^Service fee \(/).locator('..');
+    // Read each figure from the region that is actually mounted at this width,
+    // and only once it carries a price — a read taken before the totals settle
+    // yields NaN and the comparison then asserts "$NaN" against real money.
+    await expect(entryFees).toContainText(/\$\d+\.\d{2}/);
     await expect(serviceFee).toBeVisible();
+    const entryDollars = Number((await entryFees.innerText()).match(/\$([\d.]+)/)?.[1]);
     const feeDollars = Number((await serviceFee.innerText()).match(/\$([\d.]+)\s*$/)?.[1]);
+    expect(Number.isFinite(entryDollars) && Number.isFinite(feeDollars)).toBe(true);
     await expect(amountDue).toContainText(`$${(entryDollars + feeDollars).toFixed(2)}`);
+    await collapseEntriesTotals(page, viewport.width);
     expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(
       viewport.width
     );
@@ -214,7 +273,15 @@ test('exhibitor card entry hands off to cart checkout without enrollment writes'
       contentType: 'image/png',
     });
   }
-  const quotedTotal = (await amountDue.innerText()).match(/\$[\d.]+/)?.[0];
+  // The width loop leaves the page on the narrowest viewport, where the
+  // entries-panel bar is sticky to the bottom of the wizard and intercepts the
+  // pointer on everything underneath it — including the agreement label. Go
+  // back to the widest audited width before driving the rest of the journey.
+  await page.setViewportSize(VIEWPORTS[0]!);
+  const finalTotals = await openEntriesTotals(page, VIEWPORTS[0]!.width);
+  const quotedTotal = (
+    await finalTotals.getByText('Total due', { exact: true }).locator('..').innerText()
+  ).match(/\$[\d.]+/)?.[0];
   expect(quotedTotal).toBeTruthy();
 
   const agreement = page.getByText(/I have read and agree to the .* entry agreement/i);

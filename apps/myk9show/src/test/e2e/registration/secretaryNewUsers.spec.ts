@@ -1,6 +1,7 @@
 import { test, expect, type Page, type Route } from '@playwright/test';
 import { signInAsSecretary } from '../uat/shared/auth';
 import { LIVE_REGISTRATION_SHOW_ID } from '../uat/shared/seededShows';
+import { applyRegistrationClock } from './seedRoster';
 
 const SHOW_ID = LIVE_REGISTRATION_SHOW_ID;
 const MAIL_IN_PERSON_ID = '11111111-1111-4111-8111-111111111111';
@@ -123,7 +124,8 @@ async function captureMailInWrites(page: Page, captured: CapturedMailInWrites) {
 test('secretary can create a mail-in exhibitor and dog without auth user creation', async ({
   page,
 }) => {
-  await page.clock.setFixedTime(new Date('2026-05-15T12:00:00.000Z'));
+  // MYK9-545: the seed's entry window is relative to the reseed date.
+  await applyRegistrationClock(page);
 
   const captured: CapturedMailInWrites = {};
   await captureMailInWrites(page, captured);
@@ -161,6 +163,11 @@ test('secretary can create a mail-in exhibitor and dog without auth user creatio
   await dogDialog.getByRole('combobox').first().click();
   await page.getByRole('option', { name: /Female/i }).click();
   await dogDialog.getByLabel(/Date of Birth/i).fill('2020-01-15');
+  // MYK9-545: Color & Markings is not on the Essential tab. `validation.ts`
+  // says so out loud — it lives on the Optional details tab (AdditionalInfoTab),
+  // and the spec was still filling it from Essential, where the field does not
+  // exist. Switch tabs, fill, then continue on Registration.
+  await dogDialog.getByRole('tab', { name: /Optional details/i }).click();
   await dogDialog.getByLabel(/Color & Markings/i).fill('Black and tan');
 
   await dogDialog.getByRole('tab', { name: /Registration/i }).click();
@@ -173,7 +180,11 @@ test('secretary can create a mail-in exhibitor and dog without auth user creatio
   await registrationDialog.getByLabel(/Registered Name/i).fill('Mailbox Special Delivery');
   await registrationDialog.getByLabel(/Registered Breed/i).click();
   await page.getByPlaceholder('Search breeds…').fill('Golden Retriever');
-  await page.getByRole('button', { name: 'Golden Retriever' }).click();
+  // MYK9-545: the breed picker is a combobox + listbox now, not a button list.
+  await page
+    .getByRole('listbox', { name: 'Breeds' })
+    .getByRole('option', { name: 'Golden Retriever' })
+    .click();
   await registrationDialog.getByLabel(/Registration Number/i).fill('DN12345601');
   await registrationDialog.getByRole('button', { name: 'Save Registration' }).click();
 
@@ -197,8 +208,13 @@ test('secretary can create a mail-in exhibitor and dog without auth user creatio
     email: 'molly.mailbox@example.com',
   });
   expect(captured.person).not.toHaveProperty('auth_user_id');
+  // MYK9-90 section 5.3 (migration 20260727110000): `dogs.name` is a legacy
+  // display alias and is deliberately NOT written back — `toSupabaseRow` says so
+  // out loud, because writing it would copy the call name into the legacy column
+  // on every sync. The spec asserted the opposite and had never reached this
+  // line (MYK9-545). Pin the documented shape instead.
   expect(captured.dog).toMatchObject({
-    name: 'Stamp',
+    name: null,
     call_name: 'Stamp',
     owner_id: MAIL_IN_PERSON_ID,
   });

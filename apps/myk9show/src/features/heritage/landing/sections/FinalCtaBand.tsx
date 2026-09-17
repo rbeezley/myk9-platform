@@ -2,16 +2,11 @@ import { HeritageOrnamentRule } from '../../components/HeritageOrnamentRule';
 import { heritageOrnaments } from '../../tokens';
 
 interface FinalCtaBandProps {
-  entryWizardUrl: string;
   canEnterOnline?: boolean;
   entryClosed?: boolean;
 }
 
-export function FinalCtaBand({
-  entryWizardUrl,
-  canEnterOnline = true,
-  entryClosed = false,
-}: FinalCtaBandProps) {
+export function FinalCtaBand({ canEnterOnline = true, entryClosed = false }: FinalCtaBandProps) {
   return (
     <section
       id="enter"
@@ -65,17 +60,10 @@ export function FinalCtaBand({
               work standards.
             </p>
 
-            <a
-              href={entryWizardUrl}
-              className="inline-flex min-h-[44px] items-center justify-center border px-10 py-4 text-sm uppercase tracking-widest transition-colors text-[var(--hl-paper)] hover:bg-[var(--hl-paper)] hover:text-[var(--hl-ink)]"
-              style={{
-                borderColor: 'var(--hl-paper)',
-                fontFamily: "'EB Garamond', Georgia, serif",
-              }}
-            >
-              Enter this show
-            </a>
-
+            {/* MYK9-633: the "Enter this show" link here duplicated the
+                header (StickyNav) CTA — the header nav's CTA is the page's
+                one entry action at 640px+; below that it is joined by the
+                mobile-only sticky bar rendered at the end of the page. */}
             <HeritageOrnamentRule variant="gold" className="w-48" />
 
             {/* Entry method cards */}

@@ -11,7 +11,6 @@ import { useCountdown } from '@/features/_shared/hooks/useCountdown';
 import { formatDateInTimezone } from '../utils/dateFormat';
 
 interface FinalCtaSectionProps {
-  entryWizardUrl: string;
   classesHref: string | null;
   entryCloseDate: string | null;
   timezone: string;
@@ -27,7 +26,6 @@ interface FinalCtaSectionProps {
  * 168px headline, and the primary CTA button in ink.
  */
 export function FinalCtaSection({
-  entryWizardUrl,
   classesHref,
   entryCloseDate,
   timezone,
@@ -137,28 +135,10 @@ export function FinalCtaSection({
             >
               First-received until the limit is hit. Refunds for written withdrawals before close.
             </p>
-            <a
-              href={entryWizardUrl}
-              style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                minHeight: 44,
-                gap: 14,
-                padding: '22px 44px',
-                background: posterColors.ink,
-                color: posterColors.cream,
-                fontFamily: POSTER_DISPLAY_FAMILY,
-                fontSize: 20,
-                letterSpacing: '-0.015em',
-                transition: 'all 200ms ease',
-                position: 'relative',
-                zIndex: 3,
-                textDecoration: 'none',
-              }}
-            >
-              OPEN ENTRY WIZARD <span aria-hidden="true">→</span>
-            </a>
+            {/* MYK9-633: the button here duplicated the top strip's
+                "ENTER" CTA — that header CTA is the page's one entry action
+                at 640px+; below that it's joined by the mobile-only sticky
+                bar at the end of the page. */}
           </>
         ) : (
           <p

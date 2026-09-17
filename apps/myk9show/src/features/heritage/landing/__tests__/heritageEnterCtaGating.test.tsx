@@ -47,7 +47,11 @@ describe('Heritage entry CTAs', () => {
   });
 
   describe('HeroBlock', () => {
-    it('renders the enter link when classes are ready', () => {
+    // MYK9-633: HeroBlock no longer renders its own "Enter this show" link
+    // — it duplicated the header (StickyNav) CTA. The header CTA is the
+    // page's one entry action, so this section only ever shows the "why
+    // entry isn't available yet" copy.
+    it('never renders an enter link, regardless of canEnterOnline', () => {
       render(
         <HeroBlock
           clubName="Heritage Kennel Club"
@@ -59,17 +63,15 @@ describe('Heritage entry CTAs', () => {
           venueName="Show Grounds"
           venueCity="Austin"
           timezone="America/Chicago"
-          entryWizardUrl={WIZARD_URL}
           classesHref={null}
         />
       );
 
-      const link = screen.getByRole('link', { name: /enter this show/i });
-      expect(link).toHaveAttribute('href', WIZARD_URL);
+      expect(screen.queryByRole('link', { name: /enter this show/i })).not.toBeInTheDocument();
       expect(screen.queryByText(/no classes are assigned yet/i)).not.toBeInTheDocument();
     });
 
-    it('replaces the enter link with a fallback when classes are not ready', () => {
+    it('shows the pending-classes fallback when classes are not ready', () => {
       render(
         <HeroBlock
           clubName="Heritage Kennel Club"
@@ -81,7 +83,6 @@ describe('Heritage entry CTAs', () => {
           venueName="Show Grounds"
           venueCity="Austin"
           timezone="America/Chicago"
-          entryWizardUrl={WIZARD_URL}
           classesHref={null}
           canEnterOnline={false}
         />
@@ -103,7 +104,6 @@ describe('Heritage entry CTAs', () => {
           venueName="Show Grounds"
           venueCity="Austin"
           timezone="America/Chicago"
-          entryWizardUrl={WIZARD_URL}
           classesHref={null}
           canEnterOnline={false}
           entryClosed
@@ -117,25 +117,27 @@ describe('Heritage entry CTAs', () => {
   });
 
   describe('FinalCtaBand', () => {
-    it('renders the enter link when classes are ready', () => {
-      render(<FinalCtaBand entryWizardUrl={WIZARD_URL} />);
+    // MYK9-633: FinalCtaBand no longer renders an "Enter this show" link —
+    // it duplicated the header (StickyNav) CTA. The header CTA is the
+    // page's one entry action at 640px+; below that it's joined by the
+    // mobile-only StickyEntryCtaBar rendered at the end of the page
+    // (covered by HeritageLandingPage.test.tsx, not this component in
+    // isolation).
+    it('never renders an enter link, regardless of canEnterOnline', () => {
+      render(<FinalCtaBand canEnterOnline />);
 
-      const link = screen.getByRole('link', { name: /enter this show/i });
-      expect(link).toHaveAttribute('href', WIZARD_URL);
-      expect(
-        screen.queryByText(/secretary still needs to assign classes/i)
-      ).not.toBeInTheDocument();
+      expect(screen.queryByRole('link', { name: /enter this show/i })).not.toBeInTheDocument();
     });
 
-    it('replaces the enter link with a fallback when classes are not ready', () => {
-      render(<FinalCtaBand entryWizardUrl={WIZARD_URL} canEnterOnline={false} />);
+    it('shows the pending-classes fallback when classes are not ready', () => {
+      render(<FinalCtaBand canEnterOnline={false} />);
 
       expect(screen.queryByRole('link', { name: /enter this show/i })).not.toBeInTheDocument();
       expect(screen.getByText(/secretary still needs to assign classes/i)).toBeInTheDocument();
     });
 
     it('shows closed-entry guidance when entries are closed', () => {
-      render(<FinalCtaBand entryWizardUrl={WIZARD_URL} canEnterOnline={false} entryClosed />);
+      render(<FinalCtaBand canEnterOnline={false} entryClosed />);
 
       expect(screen.queryByRole('link', { name: /enter this show/i })).not.toBeInTheDocument();
       expect(screen.getByText(/Contact the trial secretary/i)).toBeInTheDocument();

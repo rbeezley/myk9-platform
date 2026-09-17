@@ -157,28 +157,10 @@ export function FinalCtaSection({
                 the relative path during SSR / tests where `window` is undef. */}
               {(typeof window !== 'undefined' ? window.location.host : '') + entryWizardUrl}
             </div>
-            <a
-              href={entryWizardUrl}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                minHeight: 44,
-                width: '100%',
-                textAlign: 'center',
-                padding: 14,
-                background: fieldGuideColors.orange,
-                color: fieldGuideColors.paper,
-                fontFamily: FIELD_GUIDE_DISPLAY_FAMILY,
-                fontWeight: 700,
-                fontSize: 14,
-                letterSpacing: '0.04em',
-                textTransform: 'uppercase',
-                textDecoration: 'none',
-              }}
-            >
-              SUBMIT ENTRY <span aria-hidden="true">→</span>
-            </a>
+            {/* MYK9-633: the button here duplicated the top strip's
+                "ENTER" CTA — that header CTA is the page's one entry action
+                at 640px+; below that it's joined by the mobile-only sticky
+                bar at the end of the page. */}
             <div style={{ marginTop: 10, textAlign: 'center' }}>
               <SeeClassesLink
                 href={classesHref}
@@ -187,19 +169,6 @@ export function FinalCtaSection({
                   fontFamily: FIELD_GUIDE_BODY_FAMILY,
                 }}
               />
-            </div>
-            <div
-              style={{
-                fontFamily: FIELD_GUIDE_MONO_FAMILY,
-                fontWeight: 500,
-                fontSize: 10.5,
-                letterSpacing: '0.04em',
-                color: fieldGuideColors.mute,
-                marginTop: 10,
-                textAlign: 'center',
-              }}
-            >
-              ~3 MIN · SAVES &amp; RESUMES
             </div>
           </div>
         )}

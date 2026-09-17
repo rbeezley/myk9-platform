@@ -58,16 +58,15 @@ describe('FieldGuide Enter CTA gating', () => {
       entryLimit: 360,
     };
 
-    it('renders the Submit Entry link when canEnterOnline is omitted (default true)', () => {
-      render(<FinalCtaSection {...baseProps} />);
-      const link = screen.getByRole('link', { name: /submit entry/i });
-      expect(link).toHaveAttribute('href', ENTRY_URL);
-    });
-
-    it('renders the Submit Entry link when canEnterOnline is true', () => {
+    // MYK9-633: FinalCtaSection no longer renders its own "Submit Entry"
+    // button — it duplicated the top strip's "ENTER" CTA. That header CTA
+    // is the page's one entry action at 640px+; below that it's joined by
+    // the mobile-only StickyEntryCtaBar rendered at the end of the page
+    // (covered by FieldGuideLandingPage.test.tsx, not this component in
+    // isolation). The URL-display card and "See classes" link stay.
+    it('never renders a Submit Entry link, regardless of canEnterOnline', () => {
       render(<FinalCtaSection {...baseProps} canEnterOnline />);
-      const link = screen.getByRole('link', { name: /submit entry/i });
-      expect(link).toHaveAttribute('href', ENTRY_URL);
+      expect(screen.queryByRole('link', { name: /submit entry/i })).toBeNull();
     });
 
     it('hides the link and shows fallback copy when canEnterOnline is false', () => {

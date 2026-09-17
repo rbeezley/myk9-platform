@@ -4,7 +4,8 @@ import type { Trial } from '@/components/trials/types/trial.types';
 import { publicClassesHref } from '@/features/_shared/publicClassesHref';
 import { OfferedClassesSection } from '@/features/_shared/landing/OfferedClassesSection';
 import { useCountdown } from '@/features/_shared/hooks/useCountdown';
-import { ensurePosterFontsLoaded } from '../fonts';
+import { ensurePosterFontsLoaded, POSTER_DISPLAY_FAMILY } from '../fonts';
+import { StickyEntryCtaBar } from '@/features/_shared/landing/StickyEntryCtaBar';
 import { posterColors } from '../tokens';
 import { usePosterLandingData } from './usePosterLandingData';
 import { StickyNav } from './sections/StickyNav';
@@ -162,7 +163,6 @@ export function PosterLandingPage({
         <OfferedClassesSection show={show} className="po-section" />
 
         <FinalCtaSection
-          entryWizardUrl={data.entryWizardUrl}
           classesHref={classesHref}
           entryCloseDate={data.entryCloseDate}
           timezone={data.timezone}
@@ -178,6 +178,22 @@ export function PosterLandingPage({
         venueAddress={data.venueAddress}
         secretaryName={data.secretaryName}
         secretaryEmail={data.secretaryEmail}
+      />
+
+      {/* MYK9-633: last child, after the footer — see StickyEntryCtaBar's
+          doc comment for why placement matters. */}
+      <StickyEntryCtaBar
+        entryWizardUrl={data.entryWizardUrl}
+        canShowEntryCta={canEnterOnline}
+        label="ENTER →"
+        surface={{
+          background: posterColors.ink,
+          buttonBackground: posterColors.red,
+          buttonColor: posterColors.textOnInk,
+          fontFamily: POSTER_DISPLAY_FAMILY,
+          fontSize: 16,
+          letterSpacing: '-0.015em',
+        }}
       />
     </div>
   );

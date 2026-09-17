@@ -1,0 +1,133 @@
+/**
+ * MYK9-633: Banner repeated the entry CTA twice (FlagMasthead /
+ * FinalFlagBand) — the same shape MYK9-565 fixed on Monogram. Exactly one
+ * entry CTA at desktop width (the masthead), plus exactly one more — a
+ * mobile-only sticky bottom bar reusing the same copy — below 640px.
+ */
+import { afterEach, describe, expect, it, vi } from 'vitest';
+import { screen } from '@testing-library/react';
+import { render } from '@/test/utils/testUtils';
+import { BannerLandingPage } from '../BannerLandingPage';
+import { deriveBannerBrandColors } from '../../hooks/useBannerBrandColor';
+import type { BannerLandingData } from '../types';
+
+vi.mock('../../fonts', () => ({
+  ensureBannerFontsLoaded: vi.fn(),
+  BANNER_DISPLAY_FAMILY: "'Inter Tight', system-ui, sans-serif",
+  BANNER_BODY_FAMILY: "'Inter', system-ui, sans-serif",
+}));
+
+const baseData: BannerLandingData = {
+  clubName: 'Banner Kennel Club',
+  showName: 'Heartland Scent Work Classic',
+  showSubtitle: 'AKC Licensed Trial',
+  welcomeText: null,
+  trialChairName: null,
+  entryOpenDate: '2026-04-01',
+  entryCloseDate: '2099-01-01',
+  confirmationDate: null,
+  trialStartDate: '2026-08-01',
+  trialEndDate: '2026-08-03',
+  timezone: 'America/Chicago',
+  venueName: 'Expo Hall',
+  venueAddress: '100 Dog Show Lane',
+  venueCity: 'Tulsa, OK',
+  trials: [],
+  judges: [],
+  entryCount: 12,
+  entryLimit: null,
+  fees: [],
+  accommodations: [],
+  vetClinic: null,
+  coverImageUrl: null,
+  pullQuote: null,
+  pullQuoteAttribution: null,
+  hospitalityNotes: null,
+  awardsDescription: null,
+  houseRulesNotes: null,
+  secretaryName: null,
+  secretaryEmail: null,
+  licenseLanguage: 'AKC Licensed Trial',
+  memberClubLanguage: 'A member club of the American Kennel Club.',
+  journeySteps: [],
+  entryWizardUrl: '/shows/show-1/register',
+  brandColors: deriveBannerBrandColors('#1a5fb4'),
+  officers: [],
+  onTheDay: [],
+};
+
+vi.mock('../useBannerLandingData', () => ({
+  useBannerLandingData: () => baseData,
+}));
+
+function mockViewport(matches: boolean) {
+  Object.defineProperty(window, 'matchMedia', {
+    writable: true,
+    configurable: true,
+    value: vi.fn().mockImplementation((query: string) => ({
+      matches,
+      media: query,
+      onchange: null,
+      addListener: vi.fn(),
+      removeListener: vi.fn(),
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn(),
+      dispatchEvent: vi.fn(),
+    })),
+  });
+}
+
+describe('BannerLandingPage — entry CTA count (MYK9-633)', () => {
+  afterEach(() => {
+    mockViewport(false);
+  });
+
+  it('renders exactly one entry CTA at desktop width', () => {
+    mockViewport(false);
+    render(
+      <BannerLandingPage
+        show={{ id: 'show-1', name: baseData.showName } as never}
+        trial={null}
+        allTrials={[]}
+        hasEntryClassInventory
+        entryNotYetOpen={false}
+      />
+    );
+
+    expect(screen.getAllByRole('link', { name: /enter this show/i })).toHaveLength(1);
+  });
+
+  it('renders exactly two entry CTAs (header + sticky bar) at 375px', () => {
+    mockViewport(true);
+    render(
+      <BannerLandingPage
+        show={{ id: 'show-1', name: baseData.showName } as never}
+        trial={null}
+        allTrials={[]}
+        hasEntryClassInventory
+        entryNotYetOpen={false}
+      />
+    );
+
+    expect(screen.getAllByRole('link', { name: /enter this show/i })).toHaveLength(2);
+  });
+
+  it('uses identical copy and href for the header and mobile sticky CTAs', () => {
+    mockViewport(true);
+    render(
+      <BannerLandingPage
+        show={{ id: 'show-1', name: baseData.showName } as never}
+        trial={null}
+        allTrials={[]}
+        hasEntryClassInventory
+        entryNotYetOpen={false}
+      />
+    );
+
+    const links = screen.getAllByRole('link', { name: /enter this show/i });
+    expect(links).toHaveLength(2);
+    for (const link of links) {
+      expect(link).toHaveAttribute('href', baseData.entryWizardUrl);
+    }
+  });
+});

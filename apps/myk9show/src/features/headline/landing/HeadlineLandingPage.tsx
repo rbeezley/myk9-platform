@@ -9,6 +9,7 @@ import { SeeClassesLink } from '@/features/_shared/SeeClassesLink';
 import { publicClassesHref } from '@/features/_shared/publicClassesHref';
 import { OfferedClassesSection } from '@/features/_shared/landing/OfferedClassesSection';
 import { entryCapacityPercent, formatEntryCount } from '@/features/_shared/landing/entryCount';
+import { StickyEntryCtaBar } from '@/features/_shared/landing/StickyEntryCtaBar';
 import { ensureHeadlineFontsLoaded } from '../fonts';
 import { FinalCta, Footer, Officers, ScheduleAndPlan } from './HeadlineLandingLowerSections';
 import { SectionHead } from './HeadlineLandingPrimitives';
@@ -148,11 +149,11 @@ function Hero({
 
       <div className="hd-hero-bottom">
         <div className="hd-cta-stack">
-          {canEnterOnline ? (
-            <a className="hd-cta" href={data.entryWizardUrl}>
-              Enter this show
-            </a>
-          ) : (
+          {/* MYK9-633: this hero used to repeat the header nav's "Enter this
+              show" CTA. The header CTA is the page's one entry action, so
+              this section never renders one — the copy explaining WHY entry
+              isn't available yet still belongs here. */}
+          {!canEnterOnline && (
             <span className="hd-cta hd-cta-disabled">
               {entryClosed
                 ? 'Entries are closed for this show. Contact the trial secretary for late-entry help.'
@@ -440,6 +441,20 @@ export function HeadlineLandingPage({
         <FinalCta data={data} canEnterOnline={canEnterOnline} entryClosed={entryClosed} />
       </main>
       <Footer data={data} />
+
+      {/* MYK9-633: last child, after the footer — see StickyEntryCtaBar's
+          doc comment for why placement matters. */}
+      <StickyEntryCtaBar
+        entryWizardUrl={data.entryWizardUrl}
+        canShowEntryCta={canEnterOnline}
+        surface={{
+          background: 'var(--hd-ink)',
+          buttonBackground: 'var(--hd-accent)',
+          buttonColor: 'var(--hd-paper)',
+          fontWeight: 700,
+          fontSize: 15,
+        }}
+      />
     </div>
   );
 }

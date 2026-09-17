@@ -66,29 +66,15 @@ describe('Magazine landing Enter CTA gating', () => {
   });
 
   describe('FinalEditorialBand', () => {
-    it('renders the Enter link when canEnterOnline is omitted (default true)', () => {
-      const { getByRole, queryByText } = render(
+    // MYK9-633: FinalEditorialBand no longer renders its own "Open the
+    // entry wizard" link — it duplicated the header nav's "Enter the
+    // trial" CTA. That header CTA is the page's one entry action at
+    // 640px+; below that it's joined by the mobile-only
+    // StickyEntryCtaBar rendered at the end of the page (covered by
+    // MagazineLandingPage.test.tsx, not this component in isolation).
+    it('never renders an entry-wizard link, regardless of canEnterOnline', () => {
+      const { queryByRole } = render(
         <FinalEditorialBand
-          entryWizardUrl={ENTRY_URL}
-          classesHref={null}
-          entryCloseDate={null}
-          timezone="America/New_York"
-        />
-      );
-
-      const link = getByRole('link', { name: /open the entry wizard/i });
-      expect(link).toHaveAttribute('href', ENTRY_URL);
-      expect(
-        queryByText(
-          /the secretary still needs to assign classes before online entry is available\./i
-        )
-      ).toBeNull();
-    });
-
-    it('renders the Enter link when canEnterOnline is true', () => {
-      const { getByRole } = render(
-        <FinalEditorialBand
-          entryWizardUrl={ENTRY_URL}
           classesHref={null}
           entryCloseDate={null}
           timezone="America/New_York"
@@ -96,16 +82,12 @@ describe('Magazine landing Enter CTA gating', () => {
         />
       );
 
-      expect(getByRole('link', { name: /open the entry wizard/i })).toHaveAttribute(
-        'href',
-        ENTRY_URL
-      );
+      expect(queryByRole('link', { name: /open the entry wizard/i })).toBeNull();
     });
 
     it('hides the Enter link and shows the fallback copy when canEnterOnline is false', () => {
       const { queryByRole, getByText } = render(
         <FinalEditorialBand
-          entryWizardUrl={ENTRY_URL}
           classesHref={null}
           entryCloseDate={null}
           timezone="America/New_York"
@@ -123,7 +105,6 @@ describe('Magazine landing Enter CTA gating', () => {
     it('shows closed-entry guidance when entries are closed', () => {
       const { queryByRole, getByText, queryByText } = render(
         <FinalEditorialBand
-          entryWizardUrl={ENTRY_URL}
           classesHref={null}
           entryCloseDate={null}
           timezone="America/New_York"

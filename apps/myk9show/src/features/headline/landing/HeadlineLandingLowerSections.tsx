@@ -144,20 +144,17 @@ export function FinalCta({
         <div className="hd-final-side">
           <div className="l">Online entry</div>
           <div className="v">{data.showName}</div>
-          {canEnterOnline ? (
-            <>
-              <a className="cta" href={data.entryWizardUrl}>
-                Enter this show
-              </a>
-              <div className="helper">Review before submitting</div>
-            </>
-          ) : (
-            <div className="helper">
-              {entryClosed
+          {/* MYK9-633: the button here duplicated the header nav's "Enter
+              this show" CTA — the header CTA is the page's one entry action
+              at 640px+; below that it's joined by the mobile-only sticky bar
+              at the end of the page. */}
+          <div className="helper">
+            {canEnterOnline
+              ? 'Review before submitting'
+              : entryClosed
                 ? 'Contact the trial secretary for late-entry help.'
                 : 'The secretary still needs to assign classes before online entry is available.'}
-            </div>
-          )}
+          </div>
         </div>
       </div>
     </section>

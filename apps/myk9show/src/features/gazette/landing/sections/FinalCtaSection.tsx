@@ -3,7 +3,6 @@ import { useCountdown } from '@/features/_shared/hooks/useCountdown';
 import { formatDateInTimezone } from '../utils/dateFormat';
 
 interface FinalCtaSectionProps {
-  entryWizardUrl: string;
   classesHref: string | null;
   entryCloseDate: string | null;
   timezone: string;
@@ -18,7 +17,6 @@ interface FinalCtaSectionProps {
  * below for the "final notice" feel.
  */
 export function FinalCtaSection({
-  entryWizardUrl,
   classesHref,
   entryCloseDate,
   timezone,
@@ -114,24 +112,10 @@ export function FinalCtaSection({
               ? 'Contact the trial secretary for late-entry help.'
               : 'The secretary still needs to assign classes before online entry is available.'}
         </p>
-        {canEnterOnline && (
-          <a
-            href={entryWizardUrl}
-            className="inline-flex min-h-[44px] items-center justify-center gap-3.5 px-9 py-4 transition-colors"
-            style={{
-              background: 'var(--gz-paper)',
-              color: 'var(--gz-ink)',
-              fontFamily: "'Playfair Display', Georgia, serif",
-              fontWeight: 700,
-              fontSize: 16,
-              letterSpacing: '0.04em',
-              textTransform: 'uppercase',
-              textDecoration: 'none',
-            }}
-          >
-            Open the entry wizard ▸
-          </a>
-        )}
+        {/* MYK9-633: the button here duplicated the header nav's "Enter"
+            CTA — the header CTA is the page's one entry action at 640px+;
+            below that it's joined by the mobile-only sticky bar at the end
+            of the page. */}
         <SeeClassesLink
           href={classesHref}
           className="mt-3 block"

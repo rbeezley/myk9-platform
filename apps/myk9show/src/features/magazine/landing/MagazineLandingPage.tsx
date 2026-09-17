@@ -5,6 +5,7 @@ import { publicClassesHref } from '@/features/_shared/publicClassesHref';
 import { OfferedClassesSection } from '@/features/_shared/landing/OfferedClassesSection';
 import { useCountdown } from '@/features/_shared/hooks/useCountdown';
 import { ensureMagazineFontsLoaded } from '../fonts';
+import { StickyEntryCtaBar } from '@/features/_shared/landing/StickyEntryCtaBar';
 import { useMagazineLandingData } from './useMagazineLandingData';
 import { StickyNav } from './sections/StickyNav';
 import { HeroSpread } from './sections/HeroSpread';
@@ -167,7 +168,6 @@ export function MagazineLandingPage({
         <OfferedClassesSection show={show} className="mz-section" />
 
         <FinalEditorialBand
-          entryWizardUrl={data.entryWizardUrl}
           classesHref={classesHref}
           entryCloseDate={data.entryCloseDate}
           timezone={data.timezone}
@@ -182,6 +182,23 @@ export function MagazineLandingPage({
         secretaryName={data.secretaryName}
         secretaryEmail={data.secretaryEmail}
         editionLabel={editionLabel}
+      />
+
+      {/* MYK9-633: last child, after the footer — see StickyEntryCtaBar's
+          doc comment for why placement matters. */}
+      <StickyEntryCtaBar
+        entryWizardUrl={data.entryWizardUrl}
+        canShowEntryCta={canEnterOnline}
+        label="Enter the trial"
+        surface={{
+          background: 'var(--mz-ink)',
+          buttonBackground: 'var(--mz-paper)',
+          buttonColor: 'var(--mz-ink)',
+          fontFamily: 'var(--mz-display)',
+          fontStyle: 'italic',
+          fontWeight: 500,
+          fontSize: 16,
+        }}
       />
     </div>
   );

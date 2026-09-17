@@ -51,6 +51,13 @@
   outline-offset: 3px;
 }
 
+/* MYK9-633: the sticky mobile CTA bar sits on --bn-ink, not the page's
+   paper surface, so the default flag-bright outline needs a paper override
+   to keep 3:1 contrast against that dark background. */
+[data-banner] .landing-sticky-cta a:focus-visible {
+  outline-color: var(--bn-paper);
+}
+
 [data-banner] .landing-table-scroll {
   max-width: 100%;
   overflow-x: auto;

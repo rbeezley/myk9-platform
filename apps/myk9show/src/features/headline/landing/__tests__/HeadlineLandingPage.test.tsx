@@ -214,3 +214,51 @@ describe('HeadlineLandingPage', () => {
     expect(screen.queryByText('0% full')).toBeNull();
   });
 });
+
+function mockViewport(matches: boolean) {
+  Object.defineProperty(window, 'matchMedia', {
+    writable: true,
+    configurable: true,
+    value: vi.fn().mockImplementation((query: string) => ({
+      matches,
+      media: query,
+      onchange: null,
+      addListener: vi.fn(),
+      removeListener: vi.fn(),
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn(),
+      dispatchEvent: vi.fn(),
+    })),
+  });
+}
+
+describe('HeadlineLandingPage — entry CTA count (MYK9-633)', () => {
+  afterEach(() => {
+    mockViewport(false);
+  });
+
+  it('renders exactly one entry CTA at desktop width', () => {
+    mockViewport(false);
+    render(<HeadlineLandingPage show={null} trial={null} allTrials={[]} />);
+
+    expect(screen.getAllByRole('link', { name: /enter this show/i })).toHaveLength(1);
+  });
+
+  it('renders exactly two entry CTAs (header + sticky bar) at 375px', () => {
+    mockViewport(true);
+    render(<HeadlineLandingPage show={null} trial={null} allTrials={[]} />);
+
+    expect(screen.getAllByRole('link', { name: /enter this show/i })).toHaveLength(2);
+  });
+
+  it('uses identical copy and href for the header and mobile sticky CTAs', () => {
+    mockViewport(true);
+    render(<HeadlineLandingPage show={null} trial={null} allTrials={[]} />);
+
+    const links = screen.getAllByRole('link', { name: /enter this show/i });
+    expect(links).toHaveLength(2);
+    for (const link of links) {
+      expect(link).toHaveAttribute('href', '/shows/show-1/register');
+    }
+  });
+});

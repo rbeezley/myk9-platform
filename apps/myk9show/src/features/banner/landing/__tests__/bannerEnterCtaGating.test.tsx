@@ -25,7 +25,6 @@ const mastheadProps = {
 
 const finalBandProps = {
   brandColors,
-  entryWizardUrl: '/shows/abc/register',
   classesHref: null,
   entryCloseDate: '2026-06-20',
   timezone: 'America/New_York',
@@ -61,15 +60,15 @@ describe('Banner Enter CTA gating', () => {
   });
 
   describe('FinalFlagBand', () => {
-    it('renders the Enter link when canEnterOnline is omitted (default true)', () => {
-      render(<FinalFlagBand {...finalBandProps} />);
-      const link = screen.getByRole('link', { name: 'Enter this show' });
-      expect(link).toHaveAttribute('href', '/shows/abc/register');
-    });
-
-    it('renders the Enter link when canEnterOnline is true', () => {
+    // MYK9-633: FinalFlagBand no longer renders its own "Enter this show"
+    // link at all — it duplicated the masthead's CTA. The header/masthead
+    // CTA is the page's one entry action at 640px+; below that it's joined
+    // by the mobile-only StickyEntryCtaBar rendered at the end of the page
+    // (covered by BannerLandingPage.test.tsx, not this component in
+    // isolation).
+    it('never renders an entry link, regardless of canEnterOnline', () => {
       render(<FinalFlagBand {...finalBandProps} canEnterOnline />);
-      expect(screen.getByRole('link', { name: 'Enter this show' })).toBeInTheDocument();
+      expect(screen.queryByRole('link', { name: 'Enter this show' })).not.toBeInTheDocument();
     });
 
     it('hides the Enter link and shows the fallback when canEnterOnline is false', () => {

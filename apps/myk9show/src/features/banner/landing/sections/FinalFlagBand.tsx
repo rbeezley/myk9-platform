@@ -7,7 +7,6 @@ import type { BannerBrandColors } from '../../hooks/useBannerBrandColor';
 
 interface FinalFlagBandProps {
   brandColors: BannerBrandColors;
-  entryWizardUrl: string;
   entryCloseDate: string | null;
   timezone: string;
   canEnterOnline?: boolean;
@@ -20,7 +19,6 @@ interface FinalFlagBandProps {
 
 export function FinalFlagBand({
   brandColors,
-  entryWizardUrl,
   entryCloseDate,
   timezone,
   canEnterOnline = true,
@@ -86,28 +84,11 @@ export function FinalFlagBand({
             </>
           )}
         </h2>
-        {canEnterOnline ? (
-          <a
-            href={entryWizardUrl}
-            style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              minHeight: 44,
-              padding: '18px 36px',
-              background: bannerColors.paper,
-              color: bannerColors.ink,
-              fontFamily: BANNER_DISPLAY_FAMILY,
-              fontWeight: 800,
-              fontSize: 14,
-              letterSpacing: '-0.005em',
-              textDecoration: 'none',
-              border: 'none',
-            }}
-          >
-            Enter this show
-          </a>
-        ) : (
+        {/* MYK9-633: the button here duplicated the masthead's "Enter this
+            show" CTA — the masthead CTA is the page's one entry action at
+            640px+; below that it's joined by the mobile-only sticky bar at
+            the end of the page. */}
+        {!canEnterOnline && (
           <p
             style={{
               maxWidth: 520,

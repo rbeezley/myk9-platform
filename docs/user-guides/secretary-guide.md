@@ -98,7 +98,7 @@ The chips across the top are queues — _Needs review_, _Missing information_, _
 > **One exception:** conformation puppy classes. AKC allows a puppy to be entered while
 > its registration is still processing, and those entries are allowed through.
 
-> The payment reference you enter shows on the registration's card in Entry Management,
+> The payment reference you enter shows on the registration's card in **Entries**,
 > so you can look a cheque number up later.
 
 ## 5 · Take a late or walk-in entry on show day
@@ -142,7 +142,7 @@ Pending and pulled queues sit together. On each pulled entry, record what you de
 
 ## 9 · Payments and refunds
 
-Payment status shows on every registration row in **Entry Management**, and refunds are reconciled in the **Pulls / scratches** queue.
+Payment status shows on every registration row in **Entries**, and refunds are reconciled in the **Pulls / scratches** queue.
 
 > **The label tells you how it was paid, when the app knows.** An entry recorded as a cheque reads **Paid by check**, cash reads **Paid by cash**, and one you marked paid yourself reads **Paid — recorded by secretary**.
 >
@@ -160,7 +160,7 @@ Payment status shows on every registration row in **Entry Management**, and refu
 
 Choose **Armband ↑**, **Armband ↓**, or **Random**. The order applies immediately and appears on check-in sheets and at ringside.
 
-> You can also reach this from a class's page — **Set run order** takes you straight to that class on Show Desk.
+> You can also reach this from a class's page — **Set run order** takes you straight to that class on **Show Day**.
 
 > **Known limitation:** there's no drag-and-drop yet, so you can't hand-place one dog into a specific slot. The three presets above are all that's available.
 
@@ -232,7 +232,7 @@ Each class can release its results **Immediately**, **After Class**, **After Rev
 
 ## 20 · Submit results to the registry
 
-**Show Day → Submit Results.** What you see here depends on the registry.
+**Results → Submit to registry.** Submitting is the second step of the Results tab, not a page of its own. What you see here depends on the registry.
 
 ![Submit Results with Send to AKC, Download XML and Mark as submitted](../screenshots/S-22.png)
 

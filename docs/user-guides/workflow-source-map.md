@@ -32,6 +32,18 @@ These routes exist in `pageDirectory.ts` but should not appear in customer-facin
 | `/judge/assignments`   | `classification: park`, parked for fall        |
 | `/tv/:showId`          | Staff/venue internal tool                      |
 
+The five secretary show URLs that MYK9-630 phase 2 renamed are redirects now, kept
+routable so old bookmarks, emailed links and the sidebar keep working. Document the
+tab they land on, never the redirect:
+
+| Retired route                     | Redirects to                                                                  |
+| --------------------------------- | ----------------------------------------------------------------------------- |
+| `/shows/:showId/show-desk`        | `/shows/:showId/show-day`                                                     |
+| `/shows/:showId/entry-management` | `/shows/:showId/entries`                                                      |
+| `/shows/:showId/results-control`  | `/shows/:showId/results`                                                      |
+| `/shows/:showId/submit-results`   | `/shows/:showId/results?step=submit`                                          |
+| `/submit-results`                 | `/shows/:showId/results?step=submit` (via the legacy secretary show redirect) |
+
 ---
 
 ## Exhibitor Workflows
@@ -39,9 +51,10 @@ These routes exist in `pageDirectory.ts` but should not appear in customer-facin
 ### 1. Discover and browse shows
 
 **Outcome:** Exhibitor finds an upcoming show with an open entry window.
-**Canonical routes:** `/shows` → `/shows/:id` → `/shows/:showId/trials/:trialId` _(source-map re-verified 2026-09-13)_
+**Canonical routes:** `/shows` → `/shows/:id` → `/shows/:showId/trials/:trialId` _(source-map re-verified 2026-09-18)_
 **Source-map note:** Re-verified 2026-09-02 after a legacy results bookmark was consolidated to the canonical show list; the guide-facing discovery flow is unchanged.
 **Source-map note:** Re-verified 2026-09-13 after public class previews changed their anonymous data boundary; the guide-facing discovery flow is unchanged.
+**Source-map note:** Re-verified 2026-09-18 (MYK9-630 phase 2). The six-tab collapse is a MANAGER surface: `resolveShowAudience` sends an exhibitor or anonymous visitor to the same landing and `?tab=` strip as before, so Exhibitor Guide § Discovery — browse, the show card badges, and clicking through to a show's detail page — is unchanged and was re-read against this head.
 **Docs target:** Exhibitor Guide § Discovery
 
 ### 2. Create an account and add a dog
@@ -74,7 +87,8 @@ These routes exist in `pageDirectory.ts` but should not appear in customer-facin
 ### 5. View the run order before show day
 
 **Outcome:** Exhibitor knows when their class runs, their ring, and their armband number.
-**Canonical routes:** `/shows/:id` (Classes tab) → `/shows/:showId/trials/:trialId`
+**Canonical routes:** `/shows/:id` (Classes tab) → `/shows/:showId/trials/:trialId` _(source-map re-verified 2026-09-18)_
+**Source-map note:** Re-verified 2026-09-18 (MYK9-630 phase 2). The manager's Classes tab moved into Setup, but the EXHIBITOR's `?tab=classes` strip is untouched, so Exhibitor Guide § Pre-Show ("The Classes tab opens. Tap your class to see the run order.") is still literally true and was re-read against this head.
 **Docs target:** Exhibitor Guide § Pre-Show
 
 ### 6. Check in on show day
@@ -136,6 +150,7 @@ These routes exist in `pageDirectory.ts` but should not appear in customer-facin
 **Outcome:** Secretary sees all active shows and which needs attention.
 **Canonical route:** `/secretary/dashboard` (re-verified 2026-07-04 for #1114 route/catalog changes)
 **Note:** This remains the cross-show home, while single-show operations stay under `/shows/:showId/*`.
+**Source-map note:** Re-verified 2026-09-18 (MYK9-630 phase 2). The dashboard itself is unchanged; its per-show cards now link at `/shows/:id/show-day` instead of `/show-desk`. Secretary Guide § Dashboard ("Before you start") was rewritten against this head to name the six tabs and carries a dated rename note for readers with old bookmarks. The `/shows/:id` token appears here because the cards build that link.
 **Docs target:** Secretary Guide § Dashboard
 
 ### 14. Manage a specific show (setup and configuration)
@@ -262,12 +277,13 @@ These exist in `pageDirectory.ts` for the Help page and are documented here for 
 
 Workflows where the same user outcome appears at more than one route. Document only the **canonical** route; note the alternative.
 
-| Outcome                | Canonical route                                   | Alternative                             | Note                                                                          |
-| ---------------------- | ------------------------------------------------- | --------------------------------------- | ----------------------------------------------------------------------------- |
-| Browse shows           | `/shows`                                          | `/browse-shows`                         | `/browse-shows` is a redirect; the calendar view is on `/shows`               |
-| Show detail            | `/shows/:id`                                      | `/trials/:trialId`, `/classes/:classId` | Legacy paths are redirects — document `/shows/:id` nested paths only          |
-| Trial details          | `/shows/:showId/trials/:trialId`                  | `/trials/:trialId`                      | Document the nested path only                                                 |
-| Class details          | `/shows/:showId/trials/:trialId/classes/:classId` | `/classes/:classId`                     | Document the nested path only                                                 |
-| Entry list (exhibitor) | `/exhibitor/entries`                              | `/my-entries`                           | `/my-entries` is a redirect — document `/exhibitor/entries` only              |
-| Show day entry point   | ShowTodayBanner on `/exhibitor/entries`           | _(none)_                                | `/exhibitor/show-day` was deleted (MYK9-476) — document the banner CTA only   |
-| Profile/settings       | `/account`                                        | `/profile`, `/settings`, `/preferences` | `/account` is the consolidated surface — document the single destination only |
+| Outcome                 | Canonical route                                                                   | Alternative                                                              | Note                                                                          |
+| ----------------------- | --------------------------------------------------------------------------------- | ------------------------------------------------------------------------ | ----------------------------------------------------------------------------- |
+| Browse shows            | `/shows`                                                                          | `/browse-shows`                                                          | `/browse-shows` is a redirect; the calendar view is on `/shows`               |
+| Show detail             | `/shows/:id`                                                                      | `/trials/:trialId`, `/classes/:classId`                                  | Legacy paths are redirects — document `/shows/:id` nested paths only          |
+| Trial details           | `/shows/:showId/trials/:trialId`                                                  | `/trials/:trialId`                                                       | Document the nested path only                                                 |
+| Class details           | `/shows/:showId/trials/:trialId/classes/:classId`                                 | `/classes/:classId`                                                      | Document the nested path only                                                 |
+| Entry list (exhibitor)  | `/exhibitor/entries`                                                              | `/my-entries`                                                            | `/my-entries` is a redirect — document `/exhibitor/entries` only              |
+| Show day entry point    | ShowTodayBanner on `/exhibitor/entries`                                           | _(none)_                                                                 | `/exhibitor/show-day` was deleted (MYK9-476) — document the banner CTA only   |
+| Profile/settings        | `/account`                                                                        | `/profile`, `/settings`, `/preferences`                                  | `/account` is the consolidated surface — document the single destination only |
+| Secretary show sections | `/shows/:id` six tabs (`/setup`, `/entries`, `/show-day`, `/results`, `/reports`) | `/show-desk`, `/entry-management`, `/results-control`, `/submit-results` | Renamed by MYK9-630 phase 2; the old URLs redirect. Document the tabs only    |

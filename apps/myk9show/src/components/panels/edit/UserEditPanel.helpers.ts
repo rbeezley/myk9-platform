@@ -145,20 +145,27 @@ export const userToFormData = (user: Partial<UserType>): UserFormData => {
 };
 
 /**
- * The junior handler half of a save, or nothing at all.
+ * The junior handler half of a save — each field included on its own merits.
  *
- * Trimmed, blanks dropped, every registry key preserved — including ones this
- * form renders no input for. Omitted entirely when the form neither loaded the
- * fields nor was given a value, which is what stops `/admin/users` writing
- * `null` / `{}` over data it never read (round-2 P1).
+ * Numbers are trimmed, blanks dropped, every registry key preserved, including
+ * ones this form renders no input for.
+ *
+ * A field is emitted when the row this form was seeded from CARRIED it, or when
+ * this form now holds a value for THAT field. Gated per field, not per block: a
+ * single flag over both meant that filling one of them on a surface that loaded
+ * neither wrote the other back as blank (round-3 P2), and a null date of birth
+ * makes `deriveJuniorStatus` return 'unknown' — so entering a junior number on
+ * `/admin/users` destroyed the very thing that makes it print.
  */
 function juniorHandlerFieldsToSave(
   formData: UserFormData
 ): Pick<Partial<UserType>, 'dateOfBirth' | 'juniorHandlerNumbers'> {
+  const loaded = formData.juniorHandlerFieldsLoaded;
   const numbers = juniorHandlerNumbersForSave(formData.juniorHandlerNumbers);
-  const hasTypedValue = Boolean(formData.dateOfBirth) || Object.keys(numbers).length > 0;
-  if (!formData.juniorHandlerFieldsLoaded && !hasTypedValue) return {};
-  return { dateOfBirth: formData.dateOfBirth, juniorHandlerNumbers: numbers };
+  return {
+    ...(loaded || formData.dateOfBirth ? { dateOfBirth: formData.dateOfBirth } : {}),
+    ...(loaded || Object.keys(numbers).length > 0 ? { juniorHandlerNumbers: numbers } : {}),
+  };
 }
 
 // Convert form data back to UserType

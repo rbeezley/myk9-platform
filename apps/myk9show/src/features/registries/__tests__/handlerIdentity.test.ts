@@ -97,6 +97,28 @@ describe('handlerNameMatchesPerson', () => {
     expect(handlerNameMatchesPerson('Kid Chris', KID)).toBe(false);
   });
 
+  it('reads a comma POSITIONALLY: "Morgan, Riley" is Riley Morgan and nobody else', () => {
+    // Round 3: treating the comma as a boolean admitted the reversed reading in
+    // ADDITION to the forward one, and normalisation had already flattened the
+    // comma to a space — so "Morgan, Riley" (meaning the handler Riley Morgan)
+    // also matched a different person actually named Morgan Riley, and printed
+    // their date of birth and AKC number on paperwork naming Riley Morgan.
+    const rileyMorgan = { first_name: 'Riley', last_name: 'Morgan' };
+    const morganRiley = { first_name: 'Morgan', last_name: 'Riley' };
+
+    expect(handlerNameMatchesPerson('Morgan, Riley', rileyMorgan)).toBe(true);
+    expect(handlerNameMatchesPerson('Morgan, Riley', morganRiley)).toBe(false);
+  });
+
+  it('a trailing comma is a typo, not a reversal', () => {
+    expect(
+      handlerNameMatchesPerson('Riley Morgan,', { first_name: 'Riley', last_name: 'Morgan' })
+    ).toBe(true);
+    expect(
+      handlerNameMatchesPerson('Riley Morgan,', { first_name: 'Morgan', last_name: 'Riley' })
+    ).toBe(false);
+  });
+
   it('does NOT match a swapped-name pair — the round-2 false positive', () => {
     // Printed "Riley Morgan"; a stale handler_id points at a person whose first
     // name is Morgan and last name is Riley. Accepting a bare reversed reading

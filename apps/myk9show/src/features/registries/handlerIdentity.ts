@@ -73,28 +73,44 @@ export function normalizeHandlerName(value: string | null | undefined): string {
 /**
  * Does the printed handler text name this person?
  *
- * Accepts `First Last`, and `Last, First` **only when the printed text actually
- * carried a comma**. A bare `Last First` is rejected: round 2 showed that
- * accepting it makes a printed "Riley Morgan" match a stale person whose first
- * name is Morgan and last name is Riley — a false positive, which is the
- * direction that costs. The comma is the secretary's own signal that they typed
- * it backwards, so it is the only evidence used for that reading.
+ * Two readings, and exactly one applies to any given string:
+ *
+ *  - `Surname, Forename` — used when the text has a comma with something on
+ *    both sides of it. The comma is the secretary's own statement of which half
+ *    is which, so it is read POSITIONALLY: the part before it is the surname.
+ *  - `Forename Surname` — everything else, including a stray trailing comma,
+ *    which says nothing about order.
+ *
+ * A bare `Surname Forename` is never accepted, and the comma form never falls
+ * back to the forward reading. Round 2 showed that accepting a bare reversal
+ * makes a printed "Riley Morgan" match a person named Morgan Riley; round 3
+ * showed that testing BOTH readings whenever a comma appears re-opened exactly
+ * the same hole, because normalisation had already flattened the comma to a
+ * space. One string, one reading.
  */
 export function handlerNameMatchesPerson(
   printedHandlerName: string | null | undefined,
   person: HandlerPersonLike | null | undefined
 ): boolean {
   const raw = printedHandlerName ?? '';
-  const printed = normalizeHandlerName(raw);
-  if (!printed || !person) return false;
+  if (!person) return false;
 
   const first = normalizeHandlerName(person.first_name);
   const last = normalizeHandlerName(person.last_name);
   if (!first || !last) return false;
 
-  if (printed === normalizeHandlerName(`${first} ${last}`)) return true;
-  // `Last, First` — comma required.
-  return raw.includes(',') && printed === normalizeHandlerName(`${last} ${first}`);
+  // `Surname, Forename` — only when both sides of the comma carry a name.
+  const comma = raw.indexOf(',');
+  if (comma !== -1) {
+    const beforeComma = normalizeHandlerName(raw.slice(0, comma));
+    const afterComma = normalizeHandlerName(raw.slice(comma + 1));
+    if (beforeComma && afterComma) {
+      return beforeComma === last && afterComma === first;
+    }
+  }
+
+  const printed = normalizeHandlerName(raw);
+  return printed !== '' && printed === normalizeHandlerName(`${first} ${last}`);
 }
 
 export interface ResolveHandlerPersonInput<TPerson extends HandlerPersonLike> {

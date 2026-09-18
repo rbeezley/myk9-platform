@@ -44,8 +44,11 @@ export interface UserFormData extends Record<string, unknown> {
    * (see `MappableDbUser`), so the form has to remember which half it got.
    *
    * False means "blank because it was never loaded" — do not write it back.
-   * It flips to true the moment someone types a value, so this never blocks an
-   * admin from FILLING the fields in, only from silently emptying them.
+   * Nothing flips this flag: it records what the SOURCE ROW carried and does not
+   * change as the form is edited. Typing is handled separately, per field, at
+   * save time (`juniorHandlerFieldsToSave`), so an admin can still FILL either
+   * field in on a surface that loaded neither — and filling one does not write
+   * the other back as blank.
    */
   juniorHandlerFieldsLoaded: boolean;
   profileImage?: string;

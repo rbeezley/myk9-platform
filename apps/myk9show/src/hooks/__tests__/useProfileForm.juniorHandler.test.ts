@@ -127,6 +127,37 @@ describe('useProfileForm junior handler fields', () => {
     );
   });
 
+  it('setValue takes an updater, and stores the result rather than the function', async () => {
+    // MYK9-570: the account page's junior-number inputs derive the next map from
+    // the current one. Without updater support they store the FUNCTION, and
+    // `juniorHandlerNumbersForSave` then reads undefined off it and emits `{}` —
+    // every stored registry number wiped, suite green.
+    const result = await loaded();
+
+    act(() =>
+      result.current.setValue('juniorHandlerNumbers', previous => ({ ...previous, UKC: 'U-1' }))
+    );
+    act(() =>
+      result.current.setValue('juniorHandlerNumbers', previous => ({ ...previous, ASCA: 'A-1' }))
+    );
+
+    expect(typeof result.current.values.juniorHandlerNumbers).toBe('object');
+    expect(result.current.values.juniorHandlerNumbers).toEqual({
+      AKC: '7654321',
+      UKC: 'U-1',
+      ASCA: 'A-1',
+    });
+
+    await act(async () => {
+      await result.current.save();
+    });
+    expect(mockMutateAsync).toHaveBeenCalledWith(
+      expect.objectContaining({
+        juniorHandlerNumbers: { AKC: '7654321', UKC: 'U-1', ASCA: 'A-1' },
+      })
+    );
+  });
+
   it('refuses a date of birth in the future and does not save', async () => {
     const result = await loaded();
     act(() => result.current.setValue('dateOfBirth', '2999-01-01'));

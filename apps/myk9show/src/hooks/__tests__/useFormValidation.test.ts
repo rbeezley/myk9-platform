@@ -222,3 +222,57 @@ describe('useFormValidation', () => {
     });
   });
 });
+
+/**
+ * MYK9-570: `setValue` accepts an UPDATER — `(previous) => next` — for a field
+ * derived from its own current value.
+ *
+ * Pinned because the contract is load-bearing and invisible: without it the
+ * junior-number inputs store the FUNCTION itself in `juniorHandlerNumbers`,
+ * `juniorHandlerNumbersForSave` reads `undefined` off it and emits `{}` — every
+ * stored registry number silently wiped, with the suite still green.
+ */
+describe('setValue updater form', () => {
+  const mapSchema = z.object({ numbers: z.record(z.string(), z.string()) });
+  const mapInitial = { numbers: { AKC: '111' } };
+
+  it('stores the RESULT of the updater, never the function', () => {
+    const { result } = renderHook(() => useFormValidation(mapSchema, mapInitial));
+
+    act(() => {
+      result.current.setValue('numbers', (previous: unknown) => ({
+        ...(previous as Record<string, string>),
+        UKC: '222',
+      }));
+    });
+
+    expect(typeof result.current.data.numbers).toBe('object');
+    expect(result.current.data.numbers).toEqual({ AKC: '111', UKC: '222' });
+  });
+
+  it('keeps BOTH updates when two keys change in one tick', () => {
+    // The scenario the updater exists for: autofill or a paste into both inputs
+    // fires two onChanges before a re-render, so a spread of the render closure
+    // loses the first.
+    const { result } = renderHook(() => useFormValidation(mapSchema, { numbers: {} }));
+
+    act(() => {
+      result.current.setValue('numbers', (previous: unknown) => ({
+        ...(previous as Record<string, string>),
+        AKC: '111',
+      }));
+      result.current.setValue('numbers', (previous: unknown) => ({
+        ...(previous as Record<string, string>),
+        UKC: '222',
+      }));
+    });
+
+    expect(result.current.data.numbers).toEqual({ AKC: '111', UKC: '222' });
+  });
+
+  it('still takes a plain value', () => {
+    const { result } = renderHook(() => useFormValidation(mapSchema, mapInitial));
+    act(() => result.current.setValue('numbers', { ASCA: '333' }));
+    expect(result.current.data.numbers).toEqual({ ASCA: '333' });
+  });
+});

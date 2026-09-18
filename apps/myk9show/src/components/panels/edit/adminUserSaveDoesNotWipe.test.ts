@@ -89,6 +89,30 @@ describe('a save from /admin/users does not wipe what it never loaded', () => {
     expect(update.junior_handler_numbers).toEqual({ AKC: '7654321' });
   });
 
+  it('typing ONLY the AKC number does not drag the date of birth in with it', () => {
+    // The two fields are gated independently. A single all-or-nothing flag over
+    // both meant that filling one on a surface that loaded neither wrote the
+    // other back as blank — and a null date of birth makes `deriveJuniorStatus`
+    // return 'unknown', so the number just entered would never print. The
+    // feature would have destroyed its own precondition on its own admin screen.
+    const update = saveThrough(ADMIN_LIST_ROW, form => ({
+      ...form,
+      juniorHandlerNumbers: { AKC: '1234567' },
+    }));
+
+    expect(update.junior_handler_numbers).toEqual({ AKC: '1234567' });
+    expect('date_of_birth' in update, 'the untouched date of birth must not be emitted').toBe(
+      false
+    );
+  });
+
+  it('typing ONLY the date of birth does not drag the number map in with it', () => {
+    const update = saveThrough(ADMIN_LIST_ROW, form => ({ ...form, dateOfBirth: '2011-03-04' }));
+
+    expect(update.date_of_birth).toBe('2011-03-04');
+    expect('junior_handler_numbers' in update, 'the untouched map must not be emitted').toBe(false);
+  });
+
   it('lets a surface that loaded them CLEAR them', () => {
     const update = saveThrough(DIRECTORY_ROW, form => ({
       ...form,

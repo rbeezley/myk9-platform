@@ -33,25 +33,38 @@ const SECTIONS = [
  * MYK9-633 round 3: round 2 dropped the entry-count status text and dot
  * while adding the CTA — the issue asked for one CTA, not removal of
  * status copy (poster's equivalent StickyNav kept its status line
- * alongside its CTA). Restored both. The section-anchor list is now
- * `.bn-subbar-sections`, hidden below a breakpoint (banner.css) — the
- * same pattern Heritage's StickyNav already uses — because fitting five
- * section links AND the status line AND the CTA in one row at narrow
- * widths overflowed (measured: 481px on origin/main with no CTA, 504px
- * once round 2 added one).
+ * alongside its CTA). Restored both.
  *
- * MYK9-633 round 4: the section-anchor list is hidden below 852px, not
- * 640px — round 3's `flex-wrap: wrap` let the row silently grow to two
- * lines (133px tall) from 640px up to 851px, the row's measured natural
- * (unwrapped) content width; only at 852px+ does it fit on one line
- * unwrapped. `flex-wrap` itself is now removed: with the section list
- * hidden, the remaining status+CTA group's natural width (293.5px) never
- * approaches even the narrowest supported viewport, so no wrap is ever
- * needed. This is a real width range with no compact affordance replacing
- * the hidden section links (a future improvement, not this issue) — so
- * the `<nav>` landmark's label was changed from "Show sections" to the
- * always-true "Show navigation" rather than leave an aria-label that lies
- * about the landmark's contents at 6 out of 8 measured widths.
+ * MYK9-633 round 5 (restructure — rounds 3 and 4 both picked a SINGLE
+ * pixel breakpoint bisected against one status string, "Entries open ·
+ * 42 / 100"; a different status string breaks a fixed threshold no
+ * matter where it's drawn: "· count unavailable" is wider and crushed the
+ * section links to 27px at round 4's 852px threshold, and a 4-digit
+ * count/limit ("· 1247 / 2000") needs more room still. That's the
+ * discriminator-branches trap — a new branch (which status string is
+ * live) can carry the original bug (illegible section links) right back
+ * in. Restructured so layout no longer depends on knowing the longest
+ * possible string ahead of time:
+ *  - The CTA (or its closed/pending fallback) is `flex: none` — fixed to
+ *    its own content size, never shrinks, never wraps, and is always the
+ *    LAST flex child so it can never be pushed past the viewport's right
+ *    edge by anything to its left.
+ *  - The status text is the only flexible item (`.bn-subbar-status`):
+ *    `flex: 1 1 auto; min-width: 0` lets it shrink below its content
+ *    width, `overflow: hidden; text-overflow: ellipsis; white-space:
+ *    nowrap` truncates instead of pushing the CTA or wrapping the row.
+ *  - The section-anchor list is a `container-type: inline-size` query
+ *    against `.bn-subbar` itself (banner.css) rather than a plain media
+ *    query on the viewport: this app already uses `@container` elsewhere
+ *    (styles/manager-responsive.css), and container queries are the
+ *    right primitive here regardless — they ask "is there room in THIS
+ *    bar", the actual question, not "is the viewport wide enough" (which
+ *    happens to be equivalent only because this bar is full-bleed). The
+ *    threshold itself is still a measured number (banner.css has it and
+ *    how it was derived) — no layout here depends on getting that number
+ *    exactly right the way round 3/4's did, because hiding the sections
+ *    too late only means the status text truncates a little more, never
+ *    a second row or a clipped CTA.
  */
 export function StickyNav({
   entryWizardUrl,
@@ -80,13 +93,9 @@ export function StickyNav({
         zIndex: 30,
         background: bannerColors.paper,
         borderBottom: `1px solid ${bannerColors.hair}`,
-        display: 'flex',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        gap: 16,
       }}
     >
-      <div className="bn-subbar-sections" style={{ display: 'flex', gap: 28 }}>
+      <div className="bn-subbar-sections">
         {SECTIONS.map(s => (
           <a
             key={s.id}
@@ -103,6 +112,7 @@ export function StickyNav({
               textTransform: 'uppercase',
               color: bannerColors.mute,
               textDecoration: 'none',
+              whiteSpace: 'nowrap',
             }}
             onClick={e => {
               e.preventDefault();
@@ -114,66 +124,60 @@ export function StickyNav({
         ))}
       </div>
 
-      <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
-        <div
+      <div
+        className="bn-subbar-status"
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: 10,
+          fontFamily: BANNER_DISPLAY_FAMILY,
+          fontWeight: 700,
+          fontSize: 12,
+          letterSpacing: '0.04em',
+          color: bannerColors.flag,
+        }}
+      >
+        <span className="bn-status-dot" aria-hidden style={{ flexShrink: 0 }} />
+        <span className="bn-subbar-status__text">{statusLabel}</span>
+      </div>
+
+      {canEnterOnline ? (
+        <a
+          href={entryWizardUrl}
+          className="bn-subbar-cta"
           style={{
-            display: 'flex',
+            display: 'inline-flex',
             alignItems: 'center',
-            gap: 10,
-            fontFamily: BANNER_DISPLAY_FAMILY,
-            fontWeight: 700,
-            fontSize: 12,
-            letterSpacing: '0.04em',
-            color: bannerColors.flag,
-            whiteSpace: 'nowrap',
+            justifyContent: 'center',
+            minHeight: 44,
+            padding: '8px 18px',
+            border: `1.5px solid ${bannerColors.ink}`,
+            fontFamily: BANNER_BODY_FAMILY,
+            fontWeight: 500,
+            fontSize: 11,
+            letterSpacing: '0.16em',
+            textTransform: 'uppercase',
+            color: bannerColors.ink,
+            textDecoration: 'none',
           }}
         >
-          {/* MYK9-633 round 4: aria-label on a plain <div> (no ARIA role)
-              is inert -- assistive tech ignores it and falls back to the
-              element's own text content, which already reads identically
-              to statusLabel. Dropped the redundant attribute. */}
-          <span className="bn-status-dot" aria-hidden />
-          {statusLabel}
-        </div>
-
-        {canEnterOnline ? (
-          <a
-            href={entryWizardUrl}
-            style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              minHeight: 44,
-              padding: '8px 18px',
-              border: `1.5px solid ${bannerColors.ink}`,
-              fontFamily: BANNER_BODY_FAMILY,
-              fontWeight: 500,
-              fontSize: 11,
-              letterSpacing: '0.16em',
-              textTransform: 'uppercase',
-              color: bannerColors.ink,
-              textDecoration: 'none',
-              whiteSpace: 'nowrap',
-            }}
-          >
-            Enter this show
-          </a>
-        ) : (
-          <span
-            style={{
-              fontFamily: BANNER_DISPLAY_FAMILY,
-              fontWeight: 700,
-              fontSize: 11,
-              letterSpacing: '0.16em',
-              textTransform: 'uppercase',
-              color: bannerColors.mute,
-              whiteSpace: 'nowrap',
-            }}
-          >
-            {entryClosed ? 'Entries closed' : 'Classes pending'}
-          </span>
-        )}
-      </div>
+          Enter this show
+        </a>
+      ) : (
+        <span
+          className="bn-subbar-cta"
+          style={{
+            fontFamily: BANNER_DISPLAY_FAMILY,
+            fontWeight: 700,
+            fontSize: 11,
+            letterSpacing: '0.16em',
+            textTransform: 'uppercase',
+            color: bannerColors.mute,
+          }}
+        >
+          {entryClosed ? 'Entries closed' : 'Classes pending'}
+        </span>
+      )}
     </nav>
   );
 }

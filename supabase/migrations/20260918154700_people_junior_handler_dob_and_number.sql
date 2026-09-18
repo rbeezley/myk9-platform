@@ -79,6 +79,14 @@ REVOKE ALL (date_of_birth, junior_handler_numbers) ON public.people FROM anon;
 -- 20260725180000 (email), 20260730220000 (codified). Nothing is added here.
 GRANT SELECT (id, first_name, last_name, email) ON public.people TO anon;
 
+-- The `authenticated` half of the same decision, unchanged: `authenticated` has
+-- held table-wide arwd on `people` since 111_restrict_people_select_to_authenticated,
+-- and RLS (four TO authenticated policies; people_select admits the person's own
+-- row plus show managers) is what scopes it. Restated because a migration that
+-- grants on an EXISTING table must say where both API roles stand — see
+-- apps/myk9show/src/test/database/migrationGrantDecisionContract.test.ts.
+GRANT SELECT, INSERT, UPDATE, DELETE ON public.people TO authenticated;
+
 -- Existing RLS is the row guard and is unchanged: every policy on `people` is
 -- TO authenticated (people_select admits the person's own row plus show managers via
 -- is_show_manager()), so a secretary building paperwork can read a handler's date of birth

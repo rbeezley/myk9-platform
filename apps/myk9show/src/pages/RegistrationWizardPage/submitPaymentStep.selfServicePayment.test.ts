@@ -162,7 +162,6 @@ function makeContext(overrides: Partial<SubmitPaymentStepContext> = {}): SubmitP
     showFeeInfo: { preEntryFee: '25', startDate: '2099-08-01' },
     currentStep: 2,
     cart: {
-      loadCart: vi.fn(),
       clearCart: vi.fn(async () => true),
       ensureCart: vi.fn(),
       addItem: vi.fn(),

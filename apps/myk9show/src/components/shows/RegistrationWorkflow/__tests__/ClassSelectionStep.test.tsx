@@ -263,6 +263,7 @@ vi.mock('@/hooks/useReplicationSync', () => ({
 import { ClassSelectionStep } from '@/components/shows/RegistrationWorkflow/ClassSelectionStep';
 
 const SHOW_ID = 'show-1';
+const DEFAULT_EXHIBITOR_ID = 'exhibitor-1';
 const TRIAL_ID = 'trial-1';
 const DOG_ID = 'dog-1';
 const CLASS_ID = 'class-full';
@@ -305,15 +306,28 @@ function setupDefaultMocks(overrides: { judgeDayFull?: boolean; waitlistCount?: 
     return selector(state);
   });
   mockUseCartItems.mockReturnValue([]);
-  mockUseCartStore.mockImplementation((selector: (s: unknown) => unknown) => {
-    const state = {
-      cart: null,
-      ensureCart: vi.fn().mockResolvedValue({ kind: 'ready', cart: { id: 'cart-1', items: [] } }),
-      addItem: vi.fn().mockResolvedValue(true),
-      removeItem: vi.fn().mockResolvedValue(true),
-    };
-    return selector(state);
-  });
+  // ONE state object, built once: `ensureCart` is in the opener effect's
+  // dependency array, so a fresh `vi.fn()` per hook call re-fired the effect on
+  // every render and no fixture could ever have caught an "opener called
+  // repeatedly" regression. The result also has to describe the cart the store
+  // hands out, or the chips and the opener disagree by construction (review D5).
+  const defaultCart = {
+    id: 'cart-1',
+    show_id: SHOW_ID,
+    exhibitor_id: DEFAULT_EXHIBITOR_ID,
+    items: [],
+  };
+  const defaultCartState = {
+    cart: defaultCart,
+    isLoading: false,
+    error: null,
+    ensureCart: vi.fn().mockResolvedValue({ kind: 'ready', cart: defaultCart }),
+    addItem: vi.fn().mockResolvedValue(true),
+    removeItem: vi.fn().mockResolvedValue(true),
+  };
+  mockUseCartStore.mockImplementation((selector: (s: unknown) => unknown) =>
+    selector(defaultCartState)
+  );
   mockUseClassStoreCompat.mockReturnValue({
     classes: [
       {
@@ -728,7 +742,7 @@ describe('ClassSelectionStep — empty class inventory', () => {
 
 describe('ClassSelectionStep — add-only entry actions (6.4)', () => {
   const NEW_CLASS_ID = 'class-new';
-  const EXHIBITOR_ID = 'exhibitor-1';
+  const EXHIBITOR_ID = DEFAULT_EXHIBITOR_ID;
 
   function setupAddOnlyMocks() {
     mockUseDogStoreCompat.mockReturnValue({
@@ -917,16 +931,26 @@ describe('ClassSelectionStep — add-only entry actions (6.4)', () => {
     ensureCart?: ReturnType<typeof vi.fn>;
   }) => {
     const addItem = opts.addItem ?? vi.fn().mockResolvedValue(true);
-    mockUseCartStore.mockImplementation((selector: (s: unknown) => unknown) =>
-      selector({
-        cart: opts.cart ? { id: 'cart-1', items: [], ...opts.cart } : null,
-        isLoading: opts.isLoading ?? false,
-        error: opts.error ?? null,
-        ensureCart: opts.ensureCart ?? vi.fn().mockResolvedValue(null),
-        addItem,
-        removeItem: vi.fn().mockResolvedValue(true),
-      })
-    );
+    const cart = opts.cart ? { id: 'cart-1', items: [], ...opts.cart } : null;
+    // `null` is not an `EnsureCartResult`; a fixture that returns one drives the
+    // step through a state the type forbids and passes for the wrong reason. The
+    // honest default is the result that MATCHES the cart being supplied — and a
+    // never-settling opener when there is no cart, which is what "still loading"
+    // actually looks like (review D5 / C P3-3).
+    const ensureCart =
+      opts.ensureCart ??
+      (cart
+        ? vi.fn().mockResolvedValue({ kind: 'ready', cart })
+        : vi.fn().mockReturnValue(new Promise(() => {})));
+    const state = {
+      cart,
+      isLoading: opts.isLoading ?? false,
+      error: opts.error ?? null,
+      ensureCart,
+      addItem,
+      removeItem: vi.fn().mockResolvedValue(true),
+    };
+    mockUseCartStore.mockImplementation((selector: (s: unknown) => unknown) => selector(state));
     mockUseExhibitorProfile.mockReturnValue({ profile: { id: EXHIBITOR_ID } });
     return addItem;
   };
@@ -961,6 +985,51 @@ describe('ClassSelectionStep — add-only entry actions (6.4)', () => {
     await user.click(retry);
     await waitFor(() => expect(ensureCart).toHaveBeenCalledTimes(2));
     expect(ensureCart).toHaveBeenLastCalledWith(SHOW_ID, EXHIBITOR_ID);
+  });
+
+  it('(i2) a failed open stops the chips claiming to be loading, and a pending one does not (MYK9-581)', async () => {
+    // The round-3 restructure had two halves; shipping only the alert left every
+    // chip captioned "Loading your cart…" forever underneath it, including as
+    // the accessible description a screen reader reads (review D1). Nothing is
+    // loading once the opener has answered.
+    mockCartStore({
+      cart: null,
+      error: null,
+      ensureCart: vi.fn().mockResolvedValue({ kind: 'failed', error: 'entries read failed' }),
+    });
+
+    render(
+      <ClassSelectionStep
+        selectedDogs={[DOG_ID]}
+        classSelections={[]}
+        onSelectionChange={vi.fn()}
+        showId={SHOW_ID}
+      />
+    );
+
+    const chip = await screen.findByRole('checkbox', { name: /select novice a/i });
+    expect(chip).toHaveAttribute('aria-disabled', 'true');
+    await waitFor(() => expect(screen.queryAllByText(/loading your cart/i)).toEqual([]));
+    // ...and it still says WHY, so the chip is not silently inert either.
+    expect(screen.getAllByText(/could not be opened/i).length).toBeGreaterThan(0);
+  });
+
+  it('(i3) while the opener is still in flight the chips do say "Loading your cart…"', async () => {
+    // Positive control for (i2): the caption is not simply gone.
+    mockCartStore({ cart: null, ensureCart: vi.fn().mockReturnValue(new Promise(() => {})) });
+
+    render(
+      <ClassSelectionStep
+        selectedDogs={[DOG_ID]}
+        classSelections={[]}
+        onSelectionChange={vi.fn()}
+        showId={SHOW_ID}
+      />
+    );
+
+    await screen.findByRole('checkbox', { name: /select novice a/i });
+    expect(screen.getAllByText(/loading your cart/i).length).toBeGreaterThan(0);
+    expect(screen.queryAllByText(/could not be opened/i)).toEqual([]);
   });
 
   it('(f) a failed add-to-cart mutation surfaces an error and preserves the prior selection', async () => {

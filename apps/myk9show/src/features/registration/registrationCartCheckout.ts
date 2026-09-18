@@ -56,12 +56,14 @@ export async function submitRegistrationCartCheckout({
   if (opened.kind === 'failed') {
     throw new Error(opened.error);
   }
-  const cart = opened.cart;
-  if (cart.items.length > 0) {
-    const cleared = await deps.clearCart();
-    if (!cleared) {
-      throw new Error('Failed to clear existing cart. Please try again.');
-    }
+  // Unconditionally, as `main` did. `cart.items` is a CLIENT snapshot taken
+  // before these adds; anything inserted into the row since (a second tab, the
+  // /cart page) is invisible to it, and `stripe-checkout` prices whatever the
+  // row actually holds. A money guarantee may not rest on client state
+  // (review C P2-2) — on an empty cart this is a zero-row DELETE.
+  const cleared = await deps.clearCart();
+  if (!cleared) {
+    throw new Error('Failed to clear existing cart. Please try again.');
   }
 
   const items = registrationToCartItems(classSelections, handlerAssignments, classes, showFeeInfo);

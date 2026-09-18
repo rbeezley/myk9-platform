@@ -20,6 +20,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 interface SupabaseCall {
   table: string;
   op: 'lookup' | 'reread' | 'write' | 'insert';
+  payload?: Record<string, unknown>;
 }
 
 const calls = vi.hoisted(() => [] as SupabaseCall[]);
@@ -75,12 +76,14 @@ class MockBuilder {
   limit() {
     return this;
   }
-  update() {
+  update(payload: Record<string, unknown>) {
     this.setOp('write');
+    this.call.payload = payload;
     return this;
   }
-  insert() {
+  insert(payload: Record<string, unknown>) {
     this.setOp('insert');
+    this.call.payload = payload;
     return this;
   }
   private result() {
@@ -114,7 +117,11 @@ vi.mock('./cartStore.reconciliation', () => ({
 import { loadCartItemsByCartId } from './cartStore.recovery';
 import { reconcileCartItemsAgainstExistingEntries } from './cartStore.reconciliation';
 import { useCartStore } from './cartStore';
-import { resetEnsureCartInFlight } from './cartStore.ensureCart';
+import {
+  CART_OPEN_TIMED_OUT_MESSAGE,
+  CART_OPEN_TIMEOUT_MS,
+  resetEnsureCartInFlight,
+} from './cartStore.ensureCart';
 
 const SHOW_ID = 'show-1';
 const EXHIBITOR_ID = 'exhibitor-1';
@@ -251,5 +258,87 @@ describe('ensureCart never resolves without a cart or an error', () => {
 
     expect(result).toMatchObject({ kind: 'ready' });
     if (result.kind === 'ready') expect(result.cart.id).toBe('cart-1');
+  });
+});
+
+describe('recovering a lapsed cart puts it back under the active-cart index', () => {
+  it("reactivates the row, not just its hold, when it is 'expired'", async () => {
+    // `entry_carts_active_show_exhibitor_unique_idx` is `WHERE status =
+    // 'active'`, so a row recovered as 'expired' is unprotected: a second
+    // createCart inserts a rival empty cart, every `created_at desc` read then
+    // returns the empty one, and stripe-checkout marks the real draft
+    // 'abandoned' (review C P2-1).
+    script.lookup = { data: LAPSED_ROW, error: null };
+    script.reread = { data: FULL_ROW, error: null };
+
+    const cart = await useCartStore.getState().loadActiveCart(EXHIBITOR_ID, { showId: SHOW_ID });
+
+    expect(cart?.id).toBe('cart-1');
+    const write = calls.find(call => call.op === 'write');
+    expect(write, 'the lapsed row must be written at all').toBeDefined();
+    expect(write?.payload).toMatchObject({ status: 'active' });
+    expect(write?.payload?.stripe_checkout_session_id).toBeNull();
+    expect(new Date(write?.payload?.expires_at as string).getTime()).toBeGreaterThan(Date.now());
+  });
+
+  it('does not rewrite a row whose hold is still live', async () => {
+    script.lookup = { data: LIVE_ROW, error: null };
+    script.reread = { data: FULL_ROW, error: null };
+
+    await useCartStore.getState().loadActiveCart(EXHIBITOR_ID, { showId: SHOW_ID });
+
+    expect(calls.filter(call => call.op === 'write')).toEqual([]);
+  });
+});
+
+describe('the opener is bounded in time, not only in its result type', () => {
+  it('reports failed when the request never settles, so the alert and Try again appear', async () => {
+    // The union makes "resolved with nothing and no reason" unrepresentable. It
+    // says nothing about a request that never resolves — and the supabase client
+    // carries no timeout — so a stalled fetch reproduced the original screen
+    // exactly: inert chips, nothing said, nothing to retry (review D2).
+    vi.useFakeTimers();
+    try {
+      const loadActiveCart = vi.fn().mockReturnValue(new Promise(() => {}));
+      useCartStore.setState({ loadActiveCart, isLoading: true, error: null });
+
+      const pending = useCartStore.getState().ensureCart(SHOW_ID, EXHIBITOR_ID);
+      await vi.advanceTimersByTimeAsync(CART_OPEN_TIMEOUT_MS - 1);
+      let settled: unknown = null;
+      void pending.then(value => {
+        settled = value;
+      });
+      await Promise.resolve();
+      expect(settled, 'must not give up before the bound').toBeNull();
+
+      await vi.advanceTimersByTimeAsync(2);
+      expect(await pending).toEqual({ kind: 'failed', error: CART_OPEN_TIMED_OUT_MESSAGE });
+      // The spinner the step renders from must stop too.
+      expect(useCartStore.getState().isLoading).toBe(false);
+      expect(useCartStore.getState().error).toBe(CART_OPEN_TIMED_OUT_MESSAGE);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('clears the in-flight entry on a timeout so Try again re-runs rather than joining the stall', async () => {
+    vi.useFakeTimers();
+    try {
+      const loadActiveCart = vi
+        .fn()
+        .mockReturnValueOnce(new Promise(() => {}))
+        .mockResolvedValueOnce({ id: 'cart-1', items: [] });
+      useCartStore.setState({ loadActiveCart });
+
+      const stalled = useCartStore.getState().ensureCart(SHOW_ID, EXHIBITOR_ID);
+      await vi.advanceTimersByTimeAsync(CART_OPEN_TIMEOUT_MS + 1);
+      expect(await stalled).toMatchObject({ kind: 'failed' });
+
+      const retried = await useCartStore.getState().ensureCart(SHOW_ID, EXHIBITOR_ID);
+      expect(retried).toEqual({ kind: 'ready', cart: { id: 'cart-1', items: [] } });
+      expect(loadActiveCart).toHaveBeenCalledTimes(2);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });

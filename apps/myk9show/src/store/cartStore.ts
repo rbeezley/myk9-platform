@@ -38,6 +38,7 @@ import {
 import type { RecoverableEntryRow } from './cartStore.recovery';
 import { reconcileCartItemsAgainstExistingEntries } from './cartStore.reconciliation';
 import { ensureCartOnce, isActiveCartUniqueViolation } from './cartStore.ensureCart';
+import { recoverCartHold } from './cartStore.recoverHold';
 
 // Re-export types so existing imports continue to work
 export type {
@@ -234,25 +235,18 @@ export const useCartStore = create<CartState>()(
             data.status === 'expired' || (expiresAtMs !== null && expiresAtMs <= Date.now());
 
           if (needsRecovery) {
-            recoveredExpiresAt = new Date(
-              Date.now() + CART_EXPIRATION_MINUTES * 60 * 1000
-            ).toISOString();
-            recoveredSessionId = null;
-
-            const { error: recoverError } = await supabase
-              .from('entry_carts')
-              .update({
-                expires_at: recoveredExpiresAt,
-                stripe_checkout_session_id: null,
-              })
-              .eq('id', data.id)
-              .in('status', ['active', 'expired']);
-
-            if (recoverError) {
-              logger.error('Error recovering cart', 'cartStore', { exhibitorId }, recoverError);
+            // Reactivates the row as well as extending the hold: an 'expired'
+            // row is outside the partial unique index, so leaving it there lets
+            // a second createCart insert a rival empty cart that then wins every
+            // `created_at desc` read (review C P2-1).
+            const recovered = await recoverCartHold(data, exhibitorId);
+            if (recovered.kind === 'failed') {
               set({ cart: null, isLoading: false });
               return null;
             }
+            data = recovered.row;
+            recoveredExpiresAt = recovered.expiresAt;
+            recoveredSessionId = null;
           }
 
           const { data: cartData, error: cartError } = await supabase
@@ -342,6 +336,10 @@ export const useCartStore = create<CartState>()(
             loadActiveCart: (exhibitorIdArg, options) =>
               get().loadActiveCart(exhibitorIdArg, options),
             createCart: (showIdArg, exhibitorIdArg) => get().createCart(showIdArg, exhibitorIdArg),
+            // `createCart` logs and swallows its PostgREST error, leaving the
+            // message on the store; reading it back is the only way the opener's
+            // own log line can name the real failure (review C P3-1).
+            lastError: () => get().error,
             // The store's own record of the same failure the caller is handed.
             // `loadActiveCart` clears `isLoading` on every exit it owns, but a
             // throw escapes before that, so clearing it here is what keeps a

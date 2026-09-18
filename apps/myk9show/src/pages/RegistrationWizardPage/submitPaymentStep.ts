@@ -33,12 +33,11 @@ import type {
 } from '@/types/show-registration-types';
 import type { EntrySubmissionOutcome } from '@/services/database/entries';
 import type { HandledDraftClass } from '@/hooks/pruneFiledDogsFromDraft';
-import type { CartWithDetails, EnsureCartResult, NewCartItem } from '@/store/cartStore';
+import type { EnsureCartResult, NewCartItem } from '@/store/cartStore';
 import { getEntrySubmitBlocker } from './entryCloseGuard';
 
 /** Subset of the cart store actions the checkout handoff needs. */
 export interface PaymentStepCartDeps {
-  loadCart: (showId: string, exhibitorId: string) => Promise<CartWithDetails | null>;
   clearCart: () => Promise<boolean>;
   ensureCart: (showId: string, exhibitorId: string) => Promise<EnsureCartResult>;
   addItem: (item: NewCartItem) => Promise<boolean>;

@@ -325,10 +325,12 @@ export const ClassSelectionStep: React.FC<ClassSelectionStepProps> = ({
   const exhibitorId = exhibitorProfile?.id;
   const [cartOpenAttempt, setCartOpenAttempt] = useState(0);
   // What the opener said, which is the ONLY thing this step renders its cart
-  // state from. `null` means "not asked yet / in flight"; everything else is a
-  // `ready` cart or a `failed` message. There is no fourth state to leak
-  // through as a silent "Loading your cart…" forever (MYK9-581).
+  // state from — the alert AND the chips. `null` means "not asked yet / in
+  // flight"; everything else is a `ready` cart or a `failed` message, and the
+  // opener is bounded in time, so "in flight" cannot be permanent (MYK9-581).
   const [cartOpen, setCartOpen] = useState<EnsureCartResult | null>(null);
+  const [cartReopening, setCartReopening] = useState(false);
+  const openedKeyRef = useRef<string | null>(null);
   useEffect(() => {
     // One call, not load-then-create: the two-step opener raced itself and the
     // loser's INSERT died on the active-cart unique index (MYK9-581).
@@ -338,10 +340,21 @@ export const ClassSelectionStep: React.FC<ClassSelectionStepProps> = ({
     // No `.catch`: `ensureCart` resolves `{ kind: 'failed' }` instead of
     // rejecting, pinned by `cartStore.ensureCart.test.ts`.
     if (!exhibitorId || !showId) return;
+    const key = `${showId}:${exhibitorId}`;
     let cancelled = false;
-    setCartOpen(null);
+    if (openedKeyRef.current === key) {
+      // A retry of the SAME cart: keep the alert and the button on screen and
+      // say the retry is running, rather than blanking both back to the silent
+      // state the exhibitor just clicked to escape (review D4).
+      setCartReopening(true);
+    } else {
+      openedKeyRef.current = key;
+      setCartOpen(null);
+    }
     void ensureCart(showId, exhibitorId).then(result => {
-      if (!cancelled) setCartOpen(result);
+      if (cancelled) return;
+      setCartOpen(result);
+      setCartReopening(false);
     });
     return () => {
       cancelled = true;
@@ -372,8 +385,9 @@ export const ClassSelectionStep: React.FC<ClassSelectionStepProps> = ({
   // One predicate for "the held cart is this show's and this exhibitor's, and
   // has settled": the reconcile reads it, `handleClassToggle` writes through
   // it, and the chips render disabled while it is false (MYK9-542).
-  const { cartReady, onBlockedByCart } = useCartToggleGate({
+  const { cartReady, blockedReason, onBlockedByCart } = useCartToggleGate({
     useCartFlow,
+    cartOpen,
     cartIsLoading,
     cartShowId,
     cartExhibitorId,
@@ -453,9 +467,10 @@ export const ClassSelectionStep: React.FC<ClassSelectionStepProps> = ({
               type="button"
               size="sm"
               variant="outline"
+              disabled={cartReopening}
               onClick={() => setCartOpenAttempt(attempt => attempt + 1)}
             >
-              Try again
+              {cartReopening ? 'Retrying…' : 'Try again'}
             </Button>
           </AlertDescription>
         </Alert>
@@ -586,7 +601,7 @@ export const ClassSelectionStep: React.FC<ClassSelectionStepProps> = ({
                                     }),
                                   };
                                 })}
-                                isCartPending={!cartReady}
+                                cartBlockedReason={blockedReason}
                                 onToggle={classId =>
                                   handleClassToggle(dogId, trial.id, classId, group.fee)
                                 }

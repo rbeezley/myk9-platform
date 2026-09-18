@@ -1,5 +1,11 @@
 import { useCallback, useRef } from 'react';
 import { logger } from '@/services/LoggingService';
+import type { EnsureCartResult } from '@/store/cartStore.types';
+
+/** Caption on a chip whose cart has not opened YET. */
+export const CART_PENDING_REASON = 'Loading your cart…';
+/** Caption on a chip whose cart will not open at all, until Try again. */
+export const CART_UNAVAILABLE_REASON = 'Your cart could not be opened';
 
 /**
  * Is the cart this step is about to mutate the cart for THIS show and
@@ -28,6 +34,13 @@ import { logger } from '@/services/LoggingService';
  */
 export interface CartReadinessInput {
   useCartFlow: boolean;
+  /**
+   * What the opener said. This is the step's OWN source of truth: a `failed`
+   * or still-pending open is never ready, whatever the global store happens to
+   * hold. Reading only the store is how a permanently failed open still
+   * rendered every chip as "Loading your cart…" (review D1).
+   */
+  cartOpen: EnsureCartResult | null;
   cartIsLoading: boolean;
   cartShowId: string | null;
   cartExhibitorId: string | null;
@@ -37,6 +50,7 @@ export interface CartReadinessInput {
 
 export function isCartReady({
   useCartFlow,
+  cartOpen,
   cartIsLoading,
   cartShowId,
   cartExhibitorId,
@@ -44,11 +58,30 @@ export function isCartReady({
   exhibitorId,
 }: CartReadinessInput): boolean {
   if (!useCartFlow) return true;
-  if (cartIsLoading) return false;
-  // No exhibitor resolved yet: `loadCart` has not even been given the ids it
+  // No exhibitor resolved yet: the opener has not even been given the ids it
   // needs, so nothing about the held cart can be trusted to belong here.
   if (!exhibitorId) return false;
+  // The opener's own answer, for THIS show and exhibitor.
+  if (cartOpen?.kind !== 'ready') return false;
+  if (cartOpen.cart.show_id !== showId) return false;
+  if (cartOpen.cart.exhibitor_id !== exhibitorId) return false;
+  // ...and the global store must still hold that same cart, because every
+  // mutation in `toggleClassSelection` is computed against `get().cart` when the
+  // click lands, not against this result (MYK9-542).
+  if (cartIsLoading) return false;
   return cartShowId === showId && cartExhibitorId === exhibitorId;
+}
+
+/**
+ * Why a chip is not actionable, as the caption the exhibitor reads — or `null`
+ * when it is. "Loading your cart…" is only honest while the opener is still in
+ * flight; once it has failed, saying it forever is the original bug wearing a
+ * new alert (review D1).
+ */
+export function cartBlockedReason(input: CartReadinessInput): string | null {
+  if (isCartReady(input)) return null;
+  if (!input.useCartFlow) return null;
+  return input.cartOpen?.kind === 'failed' ? CART_UNAVAILABLE_REASON : CART_PENDING_REASON;
 }
 
 /**
@@ -61,9 +94,11 @@ export function isCartReady({
  */
 export function useCartToggleGate(input: CartReadinessInput): {
   cartReady: boolean;
+  blockedReason: string | null;
   onBlockedByCart: () => void;
 } {
   const cartReady = isCartReady(input);
+  const blockedReason = cartBlockedReason(input);
   const logged = useRef(false);
   const onBlockedByCart = useCallback(() => {
     if (logged.current) return;
@@ -74,5 +109,5 @@ export function useCartToggleGate(input: CartReadinessInput): {
       { ...input }
     );
   }, [input]);
-  return { cartReady, onBlockedByCart };
+  return { cartReady, blockedReason, onBlockedByCart };
 }

@@ -12,7 +12,7 @@ function makeDeps() {
 }
 
 describe('submitRegistrationCartCheckout', () => {
-  it('creates a cart using exhibitorProfileId (not ownerId), adds items, keeps the draft, navigates', async () => {
+  it('creates a cart using exhibitorProfileId (not ownerId), clears it, adds items, navigates', async () => {
     const deps = makeDeps();
 
     await submitRegistrationCartCheckout({
@@ -41,7 +41,10 @@ describe('submitRegistrationCartCheckout', () => {
     // Cart operations must use exhibitorProfileId, not ownerResolution.ownerId
     expect(deps.ensureCart).toHaveBeenCalledWith('show-1', 'profile-1');
     // A cart that came back empty has nothing to clear.
-    expect(deps.clearCart).not.toHaveBeenCalled();
+    // Unconditional, even on a cart the client believes is empty: the snapshot
+    // predates these adds, and stripe-checkout prices whatever the ROW holds
+    // (review C P2-2).
+    expect(deps.clearCart).toHaveBeenCalledTimes(1);
     expect(deps.addItem).toHaveBeenCalledWith({
       dogId: 'dog-1',
       classId: 'class-1',

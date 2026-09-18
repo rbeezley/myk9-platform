@@ -35,6 +35,26 @@ export const ACTIVE_CART_UNIQUE_INDEX = 'entry_carts_active_show_exhibitor_uniqu
  */
 export const CART_OPEN_FAILED_MESSAGE = 'We could not open your cart.';
 
+/** Shown when the opener never settled at all, rather than failing. */
+export const CART_OPEN_TIMED_OUT_MESSAGE = 'Your cart is taking too long to open.';
+
+/**
+ * How long the opener may stay in flight before it is reported as `failed`.
+ *
+ * The result type makes "resolved with nothing and no reason" unrepresentable;
+ * it says nothing about a request that never resolves. `supabaseClient.ts`
+ * builds the client with no custom fetch and no AbortSignal, so a stalled
+ * PostgREST request (captive portal, TCP black hole, a sleeping radio) leaves
+ * this promise pending forever, and the class step then renders the original
+ * bug: inert chips, nothing said, nothing to retry (review D2).
+ *
+ * 20s is well past any observed round trip for this opener — the staging replay
+ * settles it in under a second, and the e2e suite's own first-paint waits are
+ * 15s — while still being short enough that an exhibitor who has lost
+ * connectivity gets an alert and a Try again instead of an indefinite spinner.
+ */
+export const CART_OPEN_TIMEOUT_MS = 20_000;
+
 /**
  * `createCart`'s conflict handling is written for ONE conflict — a second
  * active cart for the same show and exhibitor. Matching on `23505` alone would
@@ -54,6 +74,13 @@ export interface EnsureCartDeps {
     options?: { showId?: string }
   ) => Promise<CartWithDetails | null>;
   createCart: (showId: string, exhibitorId: string) => Promise<CartWithDetails | null>;
+  /**
+   * The message the store recorded for the most recent cart failure, used as the
+   * CAUSE handed to `onFailure`. `createCart` swallows its PostgREST error and
+   * returns null, so without this the logger only ever sees the generic
+   * user-facing sentence and the real code / constraint is lost (review C P3-1).
+   */
+  lastError: () => string | null;
   /**
    * Called with the message that is about to be returned as `failed`, so the
    * store can log it and leave `isLoading: false`. It does not decide the
@@ -89,7 +116,7 @@ export function ensureCartOnce(
     return { kind: 'failed', error: message };
   };
 
-  const pending: Promise<EnsureCartResult> = (async (): Promise<EnsureCartResult> => {
+  const work: Promise<EnsureCartResult> = (async (): Promise<EnsureCartResult> => {
     try {
       // Recovers a lapsed cart WITH its items and extends the hold, exactly as
       // /cart does. It resolves null both when this exhibitor genuinely has no
@@ -104,8 +131,10 @@ export function ensureCartOnce(
 
       // `createCart` returns null on its own catch AND on the conflict branch
       // when the row it went to recover is unreadable. Both are failures with
-      // no cart; neither may reach a caller as silence.
-      return fail(CART_OPEN_FAILED_MESSAGE);
+      // no cart; neither may reach a caller as silence. The message it recorded
+      // on the store is the only surviving trace of the PostgREST error, so it
+      // travels as the cause even though the caller is shown the generic line.
+      return fail(CART_OPEN_FAILED_MESSAGE, deps.lastError() ?? undefined);
     } catch (error) {
       // NEVER rejects: callers hold this promise for a mounted step, and a
       // rejection there is an unhandled rejection that leaves the cart stuck
@@ -114,7 +143,19 @@ export function ensureCartOnce(
         error instanceof Error && error.message ? error.message : CART_OPEN_FAILED_MESSAGE;
       return fail(message, error);
     }
-  })().finally(() => {
+  })();
+
+  // Bounded, not merely typed: whichever of the two settles first decides the
+  // result, so a request that never comes back still produces `failed`.
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const timedOut = new Promise<EnsureCartResult>(resolve => {
+    timer = setTimeout(() => resolve(fail(CART_OPEN_TIMED_OUT_MESSAGE)), CART_OPEN_TIMEOUT_MS);
+  });
+
+  const pending: Promise<EnsureCartResult> = Promise.race([work, timedOut]).finally(() => {
+    if (timer !== undefined) clearTimeout(timer);
+    // Cleared on the timeout too, so Try again re-runs the opener rather than
+    // joining the stalled one.
     if (ensureCartInFlight.get(key) === pending) ensureCartInFlight.delete(key);
   });
 

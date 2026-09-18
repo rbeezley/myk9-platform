@@ -367,10 +367,7 @@ export function rowToEntry(row: EntryRow): ReplicatedEntry {
     // type cannot know it. Absent reads as `undefined`, and the offline
     // receipt then prints no reference at all rather than a raw UUID.
     registrationConfirmationNumber: optionalColumn(row, 'registration_confirmation_number'),
-    registration_confirmation_number: optionalColumn(
-      row,
-      'registration_confirmation_number'
-    ),
+    registration_confirmation_number: optionalColumn(row, 'registration_confirmation_number'),
     trialId: row.trial_id ?? undefined,
     trial_id: row.trial_id ?? undefined,
     refundAmount: row.refund_amount ?? undefined,

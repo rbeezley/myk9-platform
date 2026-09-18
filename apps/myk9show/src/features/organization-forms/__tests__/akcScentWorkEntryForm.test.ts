@@ -207,7 +207,10 @@ describe('junior handler number (MYK9-570)', () => {
 
   it('is a real field on the blank, so the fill cannot be a no-op', async () => {
     const pdf = await PDFDocument.load(new Uint8Array(await readFile(templatePath)));
-    const names = pdf.getForm().getFields().map(field => field.getName());
+    const names = pdf
+      .getForm()
+      .getFields()
+      .map(field => field.getName());
     expect(names).toContain(AKC_SCENT_WORK_ENTRY_FORM_FIELDS.juniorHandlerNumber);
   });
 
@@ -242,10 +245,7 @@ describe('junior handler number (MYK9-570)', () => {
     });
     const filled = await PDFDocument.load(bytes);
     expect(
-      filled
-        .getForm()
-        .getTextField(AKC_SCENT_WORK_ENTRY_FORM_FIELDS.juniorHandlerNumber)
-        .getText()
+      filled.getForm().getTextField(AKC_SCENT_WORK_ENTRY_FORM_FIELDS.juniorHandlerNumber).getText()
     ).toBe('7654321');
   });
 });

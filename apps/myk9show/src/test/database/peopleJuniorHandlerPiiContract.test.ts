@@ -68,7 +68,9 @@ describe('the migration that adds the columns', () => {
     // on the public show pages resolving. Order matters: revoke, then grant.
     const sql = sqlWithoutProse(readFileSync(resolve(MIGRATIONS_DIR, file!), 'utf8'));
     const revokeAt = sql.search(/REVOKE ALL \(date_of_birth/i);
-    const grantAt = sql.search(/GRANT SELECT \(id, first_name, last_name, email\) ON public\.people/i);
+    const grantAt = sql.search(
+      /GRANT SELECT \(id, first_name, last_name, email\) ON public\.people/i
+    );
     expect(revokeAt).toBeGreaterThan(-1);
     expect(grantAt).toBeGreaterThan(revokeAt);
   });

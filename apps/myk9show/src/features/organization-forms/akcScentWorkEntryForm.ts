@@ -243,10 +243,7 @@ const GRID_LEVELS: readonly EntryGridLevel[] = ['Novice', 'Advanced', 'Excellent
  * birthday falls mid-weekend is a junior on this form because they were one on
  * the first day; a secretary correcting that edits the printed PDF.
  */
-function resolveAkcJuniorHandlerNumber(
-  dog: EntryFormDog,
-  trials: EntryFormTrial[]
-): string | null {
+function resolveAkcJuniorHandlerNumber(dog: EntryFormDog, trials: EntryFormTrial[]): string | null {
   const number = getJuniorHandlerNumber(dog.handlerJuniorHandlerNumbers, 'AKC');
   if (!number) return null;
 

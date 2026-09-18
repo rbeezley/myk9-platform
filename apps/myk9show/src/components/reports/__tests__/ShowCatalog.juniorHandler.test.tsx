@@ -63,9 +63,7 @@ describe('ShowCatalog junior handler mark', () => {
     // birth, or a hydration read that did not complete. It must not print a mark
     // and it must not print anything else either.
     render(
-      <ShowCatalog
-        {...propsWith([{ ...BASE_ENTRY, id: 'e3', handler: 'Unknown Age Person' }])}
-      />
+      <ShowCatalog {...propsWith([{ ...BASE_ENTRY, id: 'e3', handler: 'Unknown Age Person' }])} />
     );
     expect(screen.getByText('Unknown Age Person')).toBeInTheDocument();
   });

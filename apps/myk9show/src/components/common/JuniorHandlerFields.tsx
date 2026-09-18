@@ -74,8 +74,8 @@ export function JuniorHandlerFields({
           </p>
         ) : (
           <p id={hintId} className="text-xs text-muted-foreground">
-            Only used to work out junior handler status on the day of each trial, and to fill
-            in registry paperwork. Never shown on public pages or results.
+            Only used to work out junior handler status on the day of each trial, and to fill in
+            registry paperwork. Never shown on public pages or results.
           </p>
         )}
       </div>

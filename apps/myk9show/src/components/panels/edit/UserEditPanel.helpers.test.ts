@@ -63,9 +63,7 @@ describe('junior handler fields round-trip', () => {
 
   it('rejects a future date of birth and accepts a blank one', () => {
     const base = userToFormData(user);
-    expect(
-      userFormSchema.safeParse({ ...base, dateOfBirth: '2999-01-01' }).success
-    ).toBe(false);
+    expect(userFormSchema.safeParse({ ...base, dateOfBirth: '2999-01-01' }).success).toBe(false);
     expect(userFormSchema.safeParse({ ...base, dateOfBirth: '' }).success).toBe(true);
     expect(userFormSchema.safeParse({ ...base, dateOfBirth: '04/03/2011' }).success).toBe(false);
   });

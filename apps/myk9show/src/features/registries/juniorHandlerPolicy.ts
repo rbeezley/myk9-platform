@@ -190,8 +190,7 @@ function parseCalendarDate(value: string | null | undefined): CalendarDate | nul
  */
 export function completedYearsBetween(birth: CalendarDate, on: CalendarDate): number {
   let years = on.year - birth.year;
-  const hadBirthday =
-    on.month > birth.month || (on.month === birth.month && on.day >= birth.day);
+  const hadBirthday = on.month > birth.month || (on.month === birth.month && on.day >= birth.day);
   if (!hadBirthday) years -= 1;
   return years;
 }
@@ -286,9 +285,7 @@ export function getJuniorHandlerNumber(
  * there is nothing to carry, so a `Partial<User>` update never writes `{}` over
  * an existing value by accident.
  */
-export function normalizeJuniorHandlerNumbers(
-  raw: unknown
-): Record<string, string> | undefined {
+export function normalizeJuniorHandlerNumbers(raw: unknown): Record<string, string> | undefined {
   if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return undefined;
   const out: Record<string, string> = {};
   for (const registryId of Object.keys(RULES) as RegistryId[]) {
@@ -300,7 +297,5 @@ export function normalizeJuniorHandlerNumbers(
 
 /** The registries the app offers a junior handler number input for. */
 export function registriesIssuingJuniorHandlerNumbers(): readonly RegistryId[] {
-  return (Object.keys(RULES) as RegistryId[]).filter(
-    id => RULES[id].issuesJuniorHandlerNumber
-  );
+  return (Object.keys(RULES) as RegistryId[]).filter(id => RULES[id].issuesJuniorHandlerNumber);
 }

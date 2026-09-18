@@ -186,3 +186,21 @@ Filled in as batches complete; the final report to Richard is generated from thi
 ### Process changes applied (owner-approved 2026-09-17)
 
 Round cap of three; one execution lens on delta rounds; queue kept at four agents; fix-round messages carry only P2s plus one P3; a review finding becomes a Linear issue only when a user sees it or money or data is at risk, one issue per root cause. Merged since the changes: #2313, #2315, #2316, #2318, #2319, #2317; blocked at the cap: #2314.
+
+## Oct 10 test show queue (Richard moved 22 issues to To Do, 2026-09-18 16:40 UTC)
+
+Order: money/show-day correctness → RLS → show-day surfaces → secretary tooling → staging data → copy. Cap 3 implementers; adversarial floor unless review-tier says otherwise; migrations get `migration-auditor`; merge is not deploy (Richard authorized Fable to push the 570 migration, 2026-09-18).
+
+| Batch     | Issues                                                                                                                                      | State                                                                  |
+| --------- | ------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------- |
+| 1         | MYK9-639 + MYK9-640 (move-up: no phantom waived entry, check-in travels, way back)                                                          | dispatched 2026-09-18 (opus, `myk9-639-move-up`, BRIEF-639-640.md)     |
+| 1         | MYK9-663 (enrollments_select club scoping + sibling sweep)                                                                                  | dispatched 2026-09-18 (opus, `myk9-663-enrollments-rls`, BRIEF-663.md) |
+| 2         | MYK9-642 (is_day_of_show stored false on a day-of mail-in)                                                                                  | next slot                                                              |
+| 2         | MYK9-603 (check-in sheet / run order print owner as handler)                                                                                | after #2342 merges (shares handlerIdentity.ts)                         |
+| 2         | MYK9-659 (mail-in receipt with no reference)                                                                                                | queued                                                                 |
+| 3         | MYK9-646 (ringside Pending/Completed counters), MYK9-647 (premium publish offline), MYK9-648 (placeholderData across shows)                 | queued                                                                 |
+| 4         | MYK9-641 (composer show inheritance), MYK9-626 (dog search chip), MYK9-619 (dog picker chips), MYK9-604 (wizard 'Unknown' element/level)    | queued                                                                 |
+| 5         | MYK9-558 Part B + MYK9-606 + MYK9-615 (seed/e2e fixture hygiene, one PR)                                                                    | queued; Part A is Richard's dashboard deletions                        |
+| 6         | MYK9-644, MYK9-643, MYK9-638 (copy, zoom, walk P2/P3s)                                                                                      | queued                                                                 |
+| decisions | MYK9-664 (people PII breadth: options 1–4), MYK9-665 (handler rename vs handler_id: options 1–3), MYK9-558 richardbeezley1@gmail.com stays? | asked Richard 2026-09-18                                               |
+| Richard   | MYK9-557 (manual two-trial UKC test), MYK9-558 Part A                                                                                       | owner                                                                  |

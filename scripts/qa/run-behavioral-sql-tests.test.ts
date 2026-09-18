@@ -77,6 +77,7 @@ const launchCriticalSqlTests = [
   'ringside_containment_test.sql',
   'self_checkin_entry_test.sql',
   'submit_entries_started_class_test.sql',
+  'submit_entries_day_of_show_flag_test.sql',
   'sign_in_email_invariant_test.sql',
   'subscription_entitlement_grants_test.sql',
   'support_triage_atomic_send_test.sql',

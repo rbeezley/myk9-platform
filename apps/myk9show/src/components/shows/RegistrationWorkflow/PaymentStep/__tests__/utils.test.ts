@@ -261,3 +261,50 @@ describe('getEffectivePaymentMethod', () => {
     ).toBe('');
   });
 });
+
+describe('getShowEntryFee — the day-of-show tier is the registry bucket (MYK9-642)', () => {
+  // The exact show from the MYK9-642 reproduction: pre-entry $30, day-of $35,
+  // entries closed 2026-09-10, show ran 2026-09-17.
+  const SHOW: ShowFeeInfo = {
+    preEntryFee: '30.00',
+    dayOfShowFee: '35.00',
+    startDate: '2026-09-17T00:00:00+00:00',
+    entryCloseDate: '2026-09-10T00:00:00+00:00',
+    entryWindowTimezone: 'America/New_York',
+  };
+
+  /** Noon in New York, so no zone flips the calendar day under the test. */
+  const noonEastern = (isoDate: string) => new Date(`${isoDate}T16:00:00Z`);
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  function at(isoDate: string): void {
+    vi.useFakeTimers();
+    vi.setSystemTime(noonEastern(isoDate));
+  }
+
+  it('charges the day-of fee on show day', () => {
+    at('2026-09-17');
+    expect(getShowEntryFee(SHOW)).toBe(35);
+  });
+
+  it('charges the day-of fee once the pre-entry deadline has passed', () => {
+    // UKC: "Pre-entries must be submitted by a specific date." An entry the
+    // secretary takes after that date is not a pre-entry, so it is not priced
+    // as one either. This is the case that was $30 before MYK9-642.
+    at('2026-09-11');
+    expect(getShowEntryFee(SHOW)).toBe(35);
+  });
+
+  it('still charges the pre-entry fee on the close date itself', () => {
+    at('2026-09-10');
+    expect(getShowEntryFee(SHOW)).toBe(30);
+  });
+
+  it('still charges the pre-entry fee while entries are open', () => {
+    at('2026-09-01');
+    expect(getShowEntryFee(SHOW)).toBe(30);
+  });
+});

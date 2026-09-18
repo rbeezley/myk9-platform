@@ -415,6 +415,13 @@ export function useRegistrationWizardState() {
               preEntryFee: currentShow.preEntryFee || '0',
               dayOfShowFee: currentShow.dayOfShowFee,
               startDate: currentShow.startDate,
+              // The running total on screen must be the tier the submission
+              // will actually charge. Without the close date and the show's
+              // timezone this hook applied the OLD start-date-only rule while
+              // `submit_show_entries` applied the shared one, so an entry taken
+              // after entries closed showed $30 and committed $35 (MYK9-642).
+              entryCloseDate: currentShow.entryCloseDate,
+              entryWindowTimezone: getEntryWindowTimezone(currentShow.trials),
             }
           : undefined,
         capacityReady ? registrationCapacity.waitlistClassIds : new Set()

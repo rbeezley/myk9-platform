@@ -164,7 +164,7 @@ describe('ShowSettingsPage', () => {
 
       fireEvent.click(screen.getAllByRole('button', { name: /manage/i })[1]);
 
-      expect(mockNavigate).toHaveBeenCalledWith('/shows/show-1/show-desk?tool=self-checkin');
+      expect(mockNavigate).toHaveBeenCalledWith('/shows/show-1/show-day?tool=self-checkin');
     });
   });
 

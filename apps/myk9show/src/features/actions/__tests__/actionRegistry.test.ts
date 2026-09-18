@@ -32,8 +32,8 @@ describe('parseActionRouteContext', () => {
   it('reads the show id from every show-scoped route', () => {
     for (const path of [
       `/shows/${SHOW_ID}`,
-      `/shows/${SHOW_ID}/show-desk`,
-      `/shows/${SHOW_ID}/entry-management`,
+      `/shows/${SHOW_ID}/show-day`,
+      `/shows/${SHOW_ID}/entries`,
       `/shows/${SHOW_ID}/trials/t1/classes/c1`,
       `/shows/${SHOW_ID}/register`,
       `/secretary/register/${SHOW_ID}`,
@@ -50,9 +50,9 @@ describe('parseActionRouteContext', () => {
     for (const mounted of [
       `/shows/${SHOW_ID}`,
       `/shows/${SHOW_ID}/`,
-      `/shows/${SHOW_ID}/entry-management`,
-      `/shows/${SHOW_ID}/show-desk`,
-      `/shows/${SHOW_ID}/results-control`,
+      `/shows/${SHOW_ID}/entries`,
+      `/shows/${SHOW_ID}/show-day`,
+      `/shows/${SHOW_ID}/results`,
       `/shows/${SHOW_ID}/classes/trial-1`,
     ]) {
       expect(parseActionRouteContext(mounted), mounted).toMatchObject({ shellMounted: true });
@@ -151,8 +151,8 @@ describe('resolveActions — secretary on a show', () => {
     expect(actions.map(a => a.href)).toEqual([
       `/secretary/register/${SHOW_ID}`,
       `/shows/${SHOW_ID}/register`,
-      `/shows/${SHOW_ID}/entry-management`,
-      `/shows/${SHOW_ID}/show-desk`,
+      `/shows/${SHOW_ID}/entries`,
+      `/shows/${SHOW_ID}/show-day`,
       undefined, // the premium flow is a command, not a place
       '?edit=true',
     ]);

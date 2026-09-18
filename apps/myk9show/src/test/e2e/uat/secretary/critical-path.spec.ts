@@ -103,7 +103,7 @@ test.describe('Phase 1 UAT - Secretary critical path', () => {
 
   test('entry management exposes review, waitlist, and export controls', async ({ page }) => {
     test.setTimeout(60_000);
-    await signInAsSecretary(page, `/shows/${SHOW_ID}/entry-management`);
+    await signInAsSecretary(page, `/shows/${SHOW_ID}/entries`);
 
     await expect(page.getByRole('heading', { name: 'Entry Management' })).toBeVisible({
       timeout: 15000,

@@ -174,7 +174,7 @@ describe('SecretaryDashboardPage', () => {
     expect(screen.getByText('2 pending entries')).toBeInTheDocument();
     expect(screen.getByRole('link', { name: /2 pending entries/i })).toHaveAttribute(
       'href',
-      '/shows/managed-show/entry-management?mode=review&attention=pending'
+      '/shows/managed-show/entries?mode=review&attention=pending'
     );
     expect(screen.getAllByText('Managed Show').length).toBeGreaterThan(0);
     expect(screen.queryByText('Other Club Show')).not.toBeInTheDocument();

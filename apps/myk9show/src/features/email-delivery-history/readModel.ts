@@ -86,13 +86,13 @@ export function getEmailRecoveryHref(sourceKind: string, showId: string): string
     case 'registration_confirmation':
     case 'heritage_confirmation':
     case 'entry_decision':
-      return `/shows/${showId}/entry-management`;
+      return `/shows/${showId}/entries`;
     case 'lifecycle':
       return `/secretary/messages?showId=${showId}&view=email#scheduled-emails`;
     case 'waitlist_notification':
-      return `/shows/${showId}/entry-management?tab=waitlist`;
+      return `/shows/${showId}/entries?tab=waitlist`;
     case 'registry_results_submission':
-      return `/shows/${showId}/submit-results`;
+      return `/shows/${showId}/results?step=submit`;
     default:
       return null;
   }

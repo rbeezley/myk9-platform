@@ -26,12 +26,23 @@
 
 ![Secretary dashboard listing managed shows with a needs-attention summary](../screenshots/S-01.png)
 
-Two words appear throughout the app and are worth knowing up front:
+Open a show and you get **one row of six tabs**. Everything in this guide lives on one of them:
 
-- **Entry Management** — everything to do with entries: who's in, who's paid, who's waiting, who pulled out.
-- **Show Desk** — everything to do with running the show: classes, run order, check-in, volunteers, closeout. Open a show and choose **Show Desk**.
+| Tab          | What it is                                                                                  |
+| ------------ | ------------------------------------------------------------------------------------------- |
+| **Overview** | The show at a glance, plus publishing the premium and the public landing page.              |
+| **Setup**    | Trials, Classes and the Show Map.                                                           |
+| **Entries**  | Everything to do with entries: who's in, who's paid, who's waiting, who pulled out.         |
+| **Show Day** | Everything to do with running the show: classes, run order, check-in, volunteers, closeout. |
+| **Results**  | Reviewing and releasing results, then submitting them to the organization.                  |
+| **Reports**  | Printing: labels, check-in sheets, score sheets, catalogs and organization reports.         |
 
-Most day-of jobs live behind **Show Desk → Tools**.
+Most day-of jobs live behind **Show Day → Tools**.
+
+> **Renamed, September 2026.** Entry Management is now the **Entries** tab and Show Desk is now
+> **Show Day**; Submit Results is a step inside **Results**. Old bookmarks still work — they
+> redirect to the matching tab. Screenshots below still show the previous names and are being
+> regenerated.
 
 ---
 
@@ -67,7 +78,7 @@ The wizard creates all three in one pass. **Dashboard → Create Show.**
 
 ## 3 · Approve or accept online entries
 
-**Entry Management → Needs review.** Each registration shows the dog, the entry count, and payment status. Choose **Review registration** to accept, decline, or ask for a correction.
+**Entries → Needs review.** Each registration shows the dog, the entry count, and payment status. Choose **Review registration** to accept, decline, or ask for a correction.
 
 ![Entry Management with the Needs review queue selected and Review registration on each row](../screenshots/S-07.png)
 
@@ -75,7 +86,7 @@ The chips across the top are queues — _Needs review_, _Missing information_, _
 
 ## 4 · Enter a mail-in or paper entry
 
-**Entry Management → Add mail-in entry.** Pick the dog and handler (or create them), choose classes, and record payment.
+**Entries → Add mail-in entry.** Pick the dog and handler (or create them), choose classes, and record payment.
 
 > This works **after entries close** — you're the trial secretary, so the deadline doesn't block you.
 
@@ -87,16 +98,16 @@ The chips across the top are queues — _Needs review_, _Missing information_, _
 > **One exception:** conformation puppy classes. AKC allows a puppy to be entered while
 > its registration is still processing, and those entries are allowed through.
 
-> The payment reference you enter shows on the registration's card in Entry Management,
+> The payment reference you enter shows on the registration's card in **Entries**,
 > so you can look a cheque number up later.
 
 ## 5 · Take a late or walk-in entry on show day
 
-**Show Desk → Tools → Late entry.** Same flow as a mail-in entry.
+**Show Day → Tools → Late entry.** Same flow as a mail-in entry.
 
 ## 6 · Manage the wait list
 
-**Entry Management → Exceptions → Waitlist.**
+**Entries → Exceptions → Waitlist.**
 
 ![Entry Management Exceptions tab with the waitlist selected](../screenshots/S-10.png)
 
@@ -108,7 +119,7 @@ The chips across the top are queues — _Needs review_, _Missing information_, _
 
 ## 7 · Handle scratches, pulls, and no-shows
 
-**Entry Management → Exceptions → Pulls / scratches.**
+**Entries → Exceptions → Pulls / scratches.**
 
 Pending and pulled queues sit together. On each pulled entry, record what you decided:
 
@@ -131,7 +142,7 @@ Pending and pulled queues sit together. On each pulled entry, record what you de
 
 ## 9 · Payments and refunds
 
-Payment status shows on every registration row in **Entry Management**, and refunds are reconciled in the **Pulls / scratches** queue.
+Payment status shows on every registration row in **Entries**, and refunds are reconciled in the **Pulls / scratches** queue.
 
 > **The label tells you how it was paid, when the app knows.** An entry recorded as a cheque reads **Paid by check**, cash reads **Paid by cash**, and one you marked paid yourself reads **Paid — recorded by secretary**.
 >
@@ -143,13 +154,13 @@ Payment status shows on every registration row in **Entry Management**, and refu
 
 ## 10 · Set the run order
 
-**Show Desk → click the class → Run order.**
+**Show Day → click the class → Run order.**
 
 ![Show Desk focused class showing the Run order control and Move up on each entry](../screenshots/S-15.png)
 
 Choose **Armband ↑**, **Armband ↓**, or **Random**. The order applies immediately and appears on check-in sheets and at ringside.
 
-> You can also reach this from a class's page — **Set run order** takes you straight to that class on Show Desk.
+> You can also reach this from a class's page — **Set run order** takes you straight to that class on **Show Day**.
 
 > **Known limitation:** there's no drag-and-drop yet, so you can't hand-place one dog into a specific slot. The three presets above are all that's available.
 
@@ -167,11 +178,11 @@ Choose **Armband ↑**, **Armband ↓**, or **Random**. The order applies immedi
 
 ## 13 · Ringside access codes
 
-**Show Desk → Tools → access codes.** Separate codes for Admin, Judge, Steward, and Exhibitor. Copy a code, copy a share link, print a slip, or regenerate if a code gets out.
+**Show Day → Tools → access codes.** Separate codes for Admin, Judge, Steward, and Exhibitor. Copy a code, copy a share link, print a slip, or regenerate if a code gets out.
 
 ## 14 · Volunteer scheduling
 
-**Show Desk → Tools → Volunteers.** Add volunteers and assign them to per-class slots grouped by trial.
+**Show Day → Tools → Volunteers.** Add volunteers and assign them to per-class slots grouped by trial.
 
 ---
 
@@ -179,21 +190,21 @@ Choose **Armband ↑**, **Armband ↓**, or **Random**. The order applies immedi
 
 ## 15 · Move a dog up
 
-**Show Desk → click the class → Entries → Move up** on that dog's row.
+**Show Day → click the class → Entries → Move up** on that dog's row.
 
 Choose the target class and give a reason. Targets are restricted to the same element at a strictly higher level, so you can't move a dog somewhere ineligible.
 
 > The original entry stays on the books as _moved_ and keeps its fee; the new entry is created at no extra charge.
 
-> An exhibitor can also _request_ a move-up before the show. Those arrive in **Entry Management → Exceptions → Move-ups** for you to approve, deny, or waitlist.
+> An exhibitor can also _request_ a move-up before the show. Those arrive in **Entries → Exceptions → Move-ups** for you to approve, deny, or waitlist.
 
 ## 16 · Check dogs in
 
-**Show Desk → click the class → Enter paper scores** shows the run sheet, with a check-in control on every dog's row.
+**Show Day → click the class → Enter paper scores** shows the run sheet, with a check-in control on every dog's row.
 
 ## 17 · Enter results from paper scoresheets
 
-Same run sheet: **Show Desk → click the class → Enter paper scores.**
+Same run sheet: **Show Day → click the class → Enter paper scores.**
 
 Per dog, record Q / NQ / ABS / EX, the search time, and any faults. Search time is digit-masked — type `4520` for 45.20 seconds.
 
@@ -209,7 +220,7 @@ Per dog, record Q / NQ / ABS / EX, the search time, and any faults. Search time 
 
 ## 19 · Release results to exhibitors
 
-**Show Desk → Results** (the show's Results control).
+**Show Day → Results** (the show's Results control).
 
 ![Results page showing readiness and the Immediately, After Class and After Review presets](../screenshots/S-20.png)
 
@@ -221,7 +232,7 @@ Each class can release its results **Immediately**, **After Class**, **After Rev
 
 ## 20 · Submit results to the registry
 
-**Show Desk → Submit Results.** What you see here depends on the registry.
+**Results → Submit to registry.** Submitting is the second step of the Results tab, not a page of its own. What you see here depends on the registry.
 
 ![Submit Results with Send to AKC, Download XML and Mark as submitted](../screenshots/S-22.png)
 
@@ -254,7 +265,7 @@ Each renders the registry's own instructions and layout.
 
 ## 22 · Close out the show
 
-**Show Desk → Closeout.**
+**Show Day → Closeout.**
 
 1. Read the reconciliation — entries, day-of entries, collected at the show, waived, and pulled or no-show — and check the totals match what you took.
 2. Choose **Close Out Show** and confirm.

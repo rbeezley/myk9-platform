@@ -130,7 +130,7 @@ async function assertSecretaryStates(page: Page) {
   await expect(page.getByText('Total Entries', { exact: true })).toBeVisible();
   expect(await page.locator(':disabled').count(), 'secretary disabled controls').toBeGreaterThan(0);
 
-  await page.goto(`/shows/${LIVE_SECRETARY_SHOW_ID}/show-desk`, {
+  await page.goto(`/shows/${LIVE_SECRETARY_SHOW_ID}/show-day`, {
     waitUntil: 'domcontentloaded',
   });
   const toolsPanelTrigger = page.getByRole('button', { name: /open tools panel/i });

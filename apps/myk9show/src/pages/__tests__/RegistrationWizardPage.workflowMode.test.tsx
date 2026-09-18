@@ -318,11 +318,11 @@ describe('RegistrationWizardPage — workflowMode derivation', () => {
 
   it('returns to Show Desk sub-route after late-entry completion', () => {
     expect(resolveRegistrationExitPath('show 1/late', true)).toBe(
-      '/shows/show%201%2Flate/show-desk'
+      '/shows/show%201%2Flate/show-day'
     );
     expect(resolveRegistrationExitPath('show 1/late', false)).toBeNull();
     expect(resolveRegistrationCompletionPath('show 1/late', true)).toBe(
-      '/shows/show%201%2Flate/show-desk'
+      '/shows/show%201%2Flate/show-day'
     );
     expect(resolveRegistrationCompletionPath('show 1/late', false)).toBe('/shows/show%201%2Flate');
   });

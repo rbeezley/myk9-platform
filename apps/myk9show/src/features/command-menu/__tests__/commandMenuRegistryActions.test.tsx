@@ -82,7 +82,7 @@ describe('command palette show actions come from the action registry', () => {
     });
 
     expect(result.current.actionCommands.some(c => c.label === 'Add mail-in entry')).toBe(false);
-    expect(result.current.actionCommands.some(c => c.label === 'Open Show Desk')).toBe(true);
+    expect(result.current.actionCommands.some(c => c.label === 'Open Show Day')).toBe(true);
   });
 
   it('is empty off a show route', () => {

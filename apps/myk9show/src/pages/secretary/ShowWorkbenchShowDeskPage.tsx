@@ -377,7 +377,7 @@ export function ShowWorkbenchShowDeskPage() {
             <ShowCloseoutSummary showId={currentShow.id} entries={reconciliationEntries} />
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
               <Button asChild variant="outline" className="h-auto justify-start gap-3 p-4">
-                <Link to={`/shows/${currentShow.id}/results-control`}>
+                <Link to={`/shows/${currentShow.id}/results`}>
                   <ListChecks className="h-5 w-5" />
                   <span className="text-left">Results</span>
                 </Link>
@@ -389,7 +389,7 @@ export function ShowWorkbenchShowDeskPage() {
                 </Link>
               </Button>
               <Button asChild variant="outline" className="h-auto justify-start gap-3 p-4">
-                <Link to={`/shows/${currentShow.id}/submit-results`}>
+                <Link to={`/shows/${currentShow.id}/results?step=submit`}>
                   <Send className="h-5 w-5" />
                   <span className="text-left">Submit results</span>
                 </Link>

@@ -116,7 +116,7 @@ beforeEach(() => {
 describe('EntryManagementPage — unresolved show (audit A2)', () => {
   it('renders an error card with retry when show resolution failed', () => {
     dataState.showError = "We couldn't open this show. Please retry.";
-    render(<EntryManagementPage />, { initialRoute: '/shows/show-1/entry-management' });
+    render(<EntryManagementPage />, { initialRoute: '/shows/show-1/entries' });
 
     expect(screen.getByText(/couldn't open this show/i)).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /retry/i })).toBeInTheDocument();
@@ -124,7 +124,7 @@ describe('EntryManagementPage — unresolved show (audit A2)', () => {
 
   it('never claims the show is empty when the show itself could not be read', () => {
     dataState.showError = "We couldn't open this show. Please retry.";
-    render(<EntryManagementPage />, { initialRoute: '/shows/show-1/entry-management' });
+    render(<EntryManagementPage />, { initialRoute: '/shows/show-1/entries' });
 
     // The failure mode this replaces: silence, which reads as "no entries".
     expect(screen.queryByText(/no entries/i)).not.toBeInTheDocument();
@@ -134,7 +134,7 @@ describe('EntryManagementPage — unresolved show (audit A2)', () => {
   it('retry re-runs the FULL resolution, including the deep-link lookup', async () => {
     dataState.showError = "We couldn't open this show. Please retry.";
     const { user } = render(<EntryManagementPage />, {
-      initialRoute: '/shows/show-1/entry-management',
+      initialRoute: '/shows/show-1/entries',
     });
 
     await user.click(screen.getByRole('button', { name: /retry/i }));
@@ -146,7 +146,7 @@ describe('EntryManagementPage — unresolved show (audit A2)', () => {
 
   it('shows pending, not a verdict, while resolution is still running', () => {
     dataState.didResolveShow = false;
-    render(<EntryManagementPage />, { initialRoute: '/shows/show-1/entry-management' });
+    render(<EntryManagementPage />, { initialRoute: '/shows/show-1/entries' });
 
     // The regression this replaces: "No show selected" rendered confidently
     // during the deep-link await, for a show that was about to resolve.
@@ -155,7 +155,7 @@ describe('EntryManagementPage — unresolved show (audit A2)', () => {
   });
 
   it('offers a way forward, not a blank tab, when no show was ever selected', () => {
-    render(<EntryManagementPage />, { initialRoute: '/shows//entry-management' });
+    render(<EntryManagementPage />, { initialRoute: '/shows//entries' });
 
     expect(screen.getByText(/no show selected/i)).toBeInTheDocument();
     expect(screen.getByRole('link', { name: /go to your shows/i })).toBeInTheDocument();
@@ -171,7 +171,7 @@ describe('EntryManagementPage — every tab, not just Registrations', () => {
   // the tabs, because without a show neither tab means anything.
   it('does not render the tab bar at all when there is no show', () => {
     dataState.showError = "We couldn't open this show. Please retry.";
-    render(<EntryManagementPage />, { initialRoute: '/shows/show-1/entry-management' });
+    render(<EntryManagementPage />, { initialRoute: '/shows/show-1/entries' });
 
     expect(screen.queryByRole('tab', { name: /exceptions/i })).not.toBeInTheDocument();
     expect(screen.queryByRole('tab', { name: /registrations/i })).not.toBeInTheDocument();
@@ -180,7 +180,7 @@ describe('EntryManagementPage — every tab, not just Registrations', () => {
   it('states the problem once, wherever the secretary was headed', () => {
     dataState.showError = "We couldn't open this show. Please retry.";
     render(<EntryManagementPage />, {
-      initialRoute: '/shows/show-1/entry-management?tab=exceptions&exception=pulls',
+      initialRoute: '/shows/show-1/entries?tab=exceptions&exception=pulls',
     });
 
     // Deep-linked straight at the Pulls exception, which previously rendered
@@ -197,13 +197,13 @@ describe('EntryManagementPage — names the show it edits (audit C1)', () => {
       { id: 'show-1', name: 'Cascade Cluster Trial', start_date: null, end_date: null },
     ];
     dataState.selectedShowId = 'show-1';
-    render(<EntryManagementPage />, { initialRoute: '/shows/show-1/entry-management' });
+    render(<EntryManagementPage />, { initialRoute: '/shows/show-1/entries' });
 
     expect(screen.getByText('Cascade Cluster Trial')).toBeInTheDocument();
   });
 
   it('does not describe an unresolved show as if it were a named one', () => {
-    render(<EntryManagementPage />, { initialRoute: '/shows//entry-management' });
+    render(<EntryManagementPage />, { initialRoute: '/shows//entries' });
 
     expect(
       screen.getByText(/manage entries, payments, and exhibitor email for one show/i)

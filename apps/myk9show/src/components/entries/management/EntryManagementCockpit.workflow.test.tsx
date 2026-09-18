@@ -89,22 +89,29 @@ type StatusChangeHandler = (
   withdrawalReason?: string
 ) => void | boolean | Promise<boolean | void>;
 
-function renderCockpit(onStatusChange: StatusChangeHandler) {
-  const entry = makeEntry();
-  const registrationGroups = groupEntriesByShowRegistration([entry]);
+interface RenderCockpitOptions {
+  entries?: EntryManagementEntry[];
+  search?: string;
+  classId?: string | null;
+  trialId?: string | null;
+}
+
+function renderCockpit(onStatusChange: StatusChangeHandler, options: RenderCockpitOptions = {}) {
+  const entries = options.entries ?? [makeEntry()];
+  const registrationGroups = groupEntriesByShowRegistration(entries);
 
   return render(
     <EntryManagementCockpit
-      entries={[entry]}
+      entries={entries}
       registrationGroups={registrationGroups}
       cockpitState={{
         tab: 'registrations',
         exception: 'move-ups',
         queue: 'needs-review',
-        search: '',
+        search: options.search ?? '',
         density: 'comfortable',
-        trialId: null,
-        classId: null,
+        trialId: options.trialId ?? null,
+        classId: options.classId ?? null,
         registrationKey: null,
       }}
       trials={[]}
@@ -164,5 +171,120 @@ describe('EntryManagementCockpit queue chips (F19)', () => {
     renderCockpit(vi.fn<StatusChangeHandler>(async () => true));
 
     expect(screen.getByRole('group', { name: 'Registration queues' })).toBeInTheDocument();
+  });
+});
+
+describe('EntryManagementCockpit whole-show totals line (MYK9-635)', () => {
+  // One registration holding two entries in two different classes, plus a
+  // second standalone registration: 2 registrations, 3 entries. The numbers
+  // differ, which is the whole point -- "All registrations 514" beside a show
+  // page saying 517 entries was read as a bucket that excluded Needs review,
+  // and it never was: the two count different things.
+  const SPLIT_CLASS_ENTRIES: EntryManagementEntry[] = [
+    makeEntry({
+      id: 'e1',
+      dogId: 'dog-1',
+      registrationId: 'reg-shared',
+      classes: [
+        {
+          id: 'class-a',
+          classId: 'class-a',
+          name: 'Novice A',
+          number: '1',
+          fee: 25,
+          status: 'entered',
+        },
+      ],
+    }),
+    makeEntry({
+      id: 'e2',
+      dogId: 'dog-2',
+      registrationId: 'reg-shared',
+      classes: [
+        {
+          id: 'class-b',
+          classId: 'class-b',
+          name: 'Novice B',
+          number: '2',
+          fee: 25,
+          status: 'entered',
+        },
+      ],
+    }),
+    makeEntry({
+      id: 'e3',
+      dogId: 'dog-3',
+      registrationId: 'reg-solo',
+      classes: [
+        {
+          id: 'class-b',
+          classId: 'class-b',
+          name: 'Novice B',
+          number: '2',
+          fee: 25,
+          status: 'entered',
+        },
+      ],
+    }),
+  ];
+
+  it('states both numbers when nothing is filtered', () => {
+    renderCockpit(
+      vi.fn<StatusChangeHandler>(async () => true),
+      { entries: SPLIT_CLASS_ENTRIES }
+    );
+
+    expect(screen.getByTestId('registration-totals')).toHaveTextContent(
+      '2 registrations · 3 entries. All registrations includes Needs review.'
+    );
+  });
+
+  it('says "registration" and "entry" in the singular for a one-entry show', () => {
+    renderCockpit(vi.fn<StatusChangeHandler>(async () => true));
+
+    expect(screen.getByTestId('registration-totals')).toHaveTextContent(
+      '1 registration · 1 entry.'
+    );
+  });
+
+  it('withholds the line under a class scope rather than printing a wrong entry count', () => {
+    // `scopeShowRegistrationGroups` keeps whole REGISTRATIONS whose entries
+    // touch the class, so summing their entry counts would report 2 entries for
+    // a class holding exactly one (e1 in class-a; e2 is in class-b under the
+    // same registration). A number that is wrong for the current view is the
+    // bug this line exists to fix, so it is not printed at all.
+    renderCockpit(
+      vi.fn<StatusChangeHandler>(async () => true),
+      {
+        entries: SPLIT_CLASS_ENTRIES,
+        classId: 'class-a',
+      }
+    );
+
+    expect(screen.queryByTestId('registration-totals')).toBeNull();
+  });
+
+  it('withholds the line under a trial scope', () => {
+    renderCockpit(
+      vi.fn<StatusChangeHandler>(async () => true),
+      {
+        entries: SPLIT_CLASS_ENTRIES,
+        trialId: 'trial-1',
+      }
+    );
+
+    expect(screen.queryByTestId('registration-totals')).toBeNull();
+  });
+
+  it('withholds the line under a search, where it would describe the whole show', () => {
+    renderCockpit(
+      vi.fn<StatusChangeHandler>(async () => true),
+      {
+        entries: SPLIT_CLASS_ENTRIES,
+        search: 'fido',
+      }
+    );
+
+    expect(screen.queryByTestId('registration-totals')).toBeNull();
   });
 });

@@ -38,7 +38,7 @@ describe('ShowPhaseCard — today', () => {
     const show = makeShow({ id: 'show-42', startDate: TODAY, status: 'in_progress' });
     renderCard({ show, phase: 'today' });
     const link = screen.getByRole('link', { name: /go to show/i });
-    expect(link).toHaveAttribute('href', '/shows/show-42/show-desk');
+    expect(link).toHaveAttribute('href', '/shows/show-42/show-day');
   });
 });
 
@@ -134,6 +134,6 @@ describe('ShowPhaseCard — past', () => {
     const show = makeShow({ id: 'past-7', startDate: PAST, status: 'completed' });
     renderCard({ show, phase: 'past' });
     const link = screen.getByRole('link', { name: /view/i });
-    expect(link).toHaveAttribute('href', '/shows/past-7/show-desk');
+    expect(link).toHaveAttribute('href', '/shows/past-7/show-day');
   });
 });

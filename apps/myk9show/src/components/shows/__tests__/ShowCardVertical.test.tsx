@@ -195,3 +195,24 @@ describe('ShowCardVerticalSkeleton', () => {
     expect(card?.className).toContain('w-[280px]');
   });
 });
+
+describe('a show with no entry window at all', () => {
+  // `getEntryStatus` called `toLocalDate` on the absent dates and threw
+  // `Cannot read properties of undefined (reading 'split')`. This card is one of
+  // eight browse-surface call sites, so on Find Shows / Browse Shows a single
+  // windowless show (1 of 11 live shows has one) took out the whole list, not
+  // just the card. The guard lives in `getEntryStatus`; this pins the browse
+  // half of its blast radius, which no show-page test can see.
+  it.each([
+    ['both dates missing', { entryOpenDate: undefined, entryCloseDate: undefined }],
+    ['no open date', { entryOpenDate: undefined }],
+    ['no close date', { entryCloseDate: undefined }],
+  ])('still renders the card when %s', (_case, overrides) => {
+    expect(() =>
+      render(<ShowCardVertical show={createMockShow(overrides as Partial<Show>)} />)
+    ).not.toThrow();
+
+    expect(screen.getByTestId('show-card-vertical')).toBeInTheDocument();
+    expect(screen.getByText('Spring Agility Trial')).toBeInTheDocument();
+  });
+});

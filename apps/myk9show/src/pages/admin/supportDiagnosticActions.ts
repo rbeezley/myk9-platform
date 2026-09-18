@@ -110,7 +110,7 @@ export function buildSupportInvestigationModel(ticket: SupportTicket): SupportIn
       id: 'show-workbench',
       label: 'Open show desk',
       description: showId,
-      href: `/shows/${encodeId(showId)}/show-desk`,
+      href: `/shows/${encodeId(showId)}/show-day`,
     });
   }
 
@@ -128,7 +128,7 @@ export function buildSupportInvestigationModel(ticket: SupportTicket): SupportIn
       id: 'entry-management',
       label: 'Open entries',
       description: entryId,
-      href: `/shows/${encodeId(showId)}/entry-management`,
+      href: `/shows/${encodeId(showId)}/entries`,
     });
   }
 
@@ -161,7 +161,7 @@ export function buildSupportInvestigationModel(ticket: SupportTicket): SupportIn
       addUnique(nextChecks, {
         id: 'show-workbench',
         label: 'Review the show',
-        href: `/shows/${encodeId(showId)}/show-desk`,
+        href: `/shows/${encodeId(showId)}/show-day`,
       });
     }
     addUnique(nextChecks, {

@@ -23,7 +23,12 @@ import { ComingSoonPage, type ComingSoonPageProps } from '@/components/common/Co
 import { features } from '@/config/features';
 import DogDetailPage from '@/pages/DogDetailPage';
 import ShowDetailsPrototype from '@/pages/ShowDetailsPrototype';
-import { SHOW_MANAGEMENT_SECTIONS, type ShowManagementSectionPath } from './showManagementSections';
+import {
+  SHOW_MANAGEMENT_SECTIONS,
+  LEGACY_SHOW_SECTION_REDIRECTS,
+  type ShowManagementSectionPath,
+} from './showManagementSections';
+import { LegacyShowSectionRedirect } from './LegacyShowSectionRedirect';
 import { useShowManageScope } from '@/hooks/useShowManageScope';
 
 function featurePage(enabled: boolean, page: ReactNode, coming: ComingSoonPageProps): ReactNode {
@@ -59,8 +64,7 @@ const ClassCreationPage = lazy(() =>
 );
 const EntryManagementPage = lazy(() => import('@/pages/secretary/EntryManagementPage'));
 const ReportsPage = lazy(() => import('@/pages/secretary/ReportsPage'));
-const ResultsControlPage = lazy(() => import('@/pages/secretary/ResultsControlPage'));
-const ResultsSubmissionPage = lazy(() => import('@/pages/secretary/ResultsSubmissionPage'));
+const ShowResultsSection = lazy(() => import('@/pages/secretary/ShowResultsSection'));
 const TrialDetailsPage = lazy(() => import('@/pages/TrialDetailsPage'));
 const ClassDetailsPage = lazy(() => import('@/pages/ClassDetailsPage'));
 const RegistrationWizardPage = lazy(() => import('@/pages/RegistrationWizardPage'));
@@ -94,11 +98,10 @@ const CheckoutCancelPage = lazy(() => import('@/pages/CheckoutCancelPage'));
 
 const SHOW_MANAGEMENT_SECTION_ELEMENTS: Record<ShowManagementSectionPath, ReactNode> = {
   setup: <ShowWorkbenchSetupPage />,
-  'show-desk': <ShowWorkbenchShowDeskPage />,
-  'entry-management': <EntryManagementPage />,
+  entries: <EntryManagementPage />,
+  'show-day': <ShowWorkbenchShowDeskPage />,
+  results: <ShowResultsSection />,
   reports: <ReportsPage />,
-  'results-control': <ResultsControlPage />,
-  'submit-results': <ResultsSubmissionPage />,
 };
 
 function ShowManagementSectionRoute({ children }: { children: ReactNode }) {
@@ -109,7 +112,7 @@ function ShowManagementSectionRoute({ children }: { children: ReactNode }) {
   // never disagree about who manages this show.
   const manageScope = useShowManageScope(id);
 
-  if (authLoading || rbacLoading) return null;
+  if (authLoading) return null;
   if (!user) return <Navigate to={canonicalShowPath} replace />;
 
   // Hold — never redirect — while ownership is still resolving. Redirecting on a
@@ -117,10 +120,38 @@ function ShowManagementSectionRoute({ children }: { children: ReactNode }) {
   // cold deep link.
   if (manageScope.status === 'resolving') return null;
 
-  // Fail closed: both `resolved && !canManage` and `unavailable` (show missing,
-  // soft-deleted, or unreadable) land on the canonical show page rather than a
-  // blank screen.
-  if (!manageScope.canManage) return <Navigate to={canonicalShowPath} replace />;
+  // Two different transient states used to be collapsed into one `rbacLoading`
+  // check here, and each way of writing that check broke the other:
+  //
+  // - `if (rbacLoading) return null` UNMOUNTS the section on every warm refresh.
+  //   `useRbacLifecycle` re-runs `load()` on a 5-minute interval and on every
+  //   `online` event, and `load()` sets `isLoading: true` while PRESERVING the
+  //   roles it already holds. A secretary on Entries lost their bulk selection,
+  //   search, page index, open detail pane and scroll position every five
+  //   minutes, and at a venue on every reconnect. Since MYK9-630 phase 2 these
+  //   routes are the only door to the six tabs, so it covered all of them.
+  // - Narrowing it to `rbacLoading && !userWithRoles` let the COLD auth window
+  //   through instead. `useShowManageScope` computes `couldManageSomeShow` from
+  //   `isSecretary` / `hasRole(CLUB_ADMIN)`, which are false until RBAC lands
+  //   even though `userWithRoles` is already non-null, and answers a confident
+  //   `status: 'resolved', canManage: false`. The redirect below then bounced a
+  //   real secretary off their own show. Seen in a browser walk: every tab
+  //   landed back on `/shows/:id`.
+  //
+  // So the check moved to where the damage is. `canManage === true` is never
+  // wrong (it needs a real club-scoped grant), so an admitted viewer is NEVER
+  // unmounted. A *negative* verdict is only acted on once RBAC has settled;
+  // until then we hold, which is the honest answer while identity is in flight.
+  //
+  // `rbacLoading` alone, and deliberately: a `!userWithRoles` conjunct here
+  // would never terminate. `AuthContext`'s composite `loading` already carries
+  // `(rbacIsLoading && !userWithRoles)`, so by this line a null `userWithRoles`
+  // means RBAC has SETTLED with zero roles — an RPC error, or a cold offline
+  // boot with no cache. That is terminal, not transient, and holding on it left
+  // all seven management URLs showing a hero and nothing else, forever.
+  if (!manageScope.canManage) {
+    return rbacLoading ? null : <Navigate to={canonicalShowPath} replace />;
+  }
 
   // Show-management URLs live in the public show route tree, but once authorized
   // this surface is secretary work and should report with secretary context.
@@ -162,6 +193,16 @@ export const PublicRoutes = () => (
               <SuspenseWrapper>{SHOW_MANAGEMENT_SECTION_ELEMENTS[path]}</SuspenseWrapper>
             </ShowManagementSectionRoute>
           }
+        />
+      ))}
+      {/* Every URL the deleted five-link row and the old section nav emitted is
+          still a real route; it redirects into the tab that absorbed it, search
+          and hash intact, so bookmarks and the sidebar keep working. */}
+      {Object.entries(LEGACY_SHOW_SECTION_REDIRECTS).map(([legacyPath, target]) => (
+        <Route
+          key={legacyPath}
+          path={legacyPath}
+          element={<LegacyShowSectionRedirect target={target} />}
         />
       ))}
       <Route

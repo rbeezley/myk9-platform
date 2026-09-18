@@ -215,9 +215,7 @@ export function buildUnifiedSidebarConfig(
           // (decision 4, docs/plan-secretary-show-actions.md), so linking there
           // made the sidebar's own destination a bounce.
           href:
-            nextShow.phase === 'today'
-              ? `/shows/${nextShow.id}/show-desk`
-              : `/shows/${nextShow.id}`,
+            nextShow.phase === 'today' ? `/shows/${nextShow.id}/show-day` : `/shows/${nextShow.id}`,
           icon: nextShow.phase === 'today' ? ClipboardCheck : List,
           description: nextShowDescription(nextShow.phase),
         });

@@ -44,13 +44,22 @@ export function getEntryStatus(
   userHasEntries: boolean = false,
   options: EntryStatusOptions = {}
 ): EntryStatusInfo {
-  const openDate = toLocalDate(show.entryOpenDate);
-  const closeDate = toLocalDate(show.entryCloseDate);
+  // `entryOpenDate` / `entryCloseDate` are typed `string` but are genuinely
+  // absent on a show whose entry window was never set, and `toLocalDate` calls
+  // `.split` on them. That threw here for EVERY audience -- this line runs
+  // before the public / exhibitor / management branch in `ShowDetailsPage` --
+  // so one such show rendered the lazy-route error boundary's "Failed to load
+  // component" over the whole page. Found while pinning MYK9-634.
+  const entryWindowKnown = Boolean(show.entryOpenDate && show.entryCloseDate);
+  const openDate = entryWindowKnown ? toLocalDate(show.entryOpenDate) : null;
+  const closeDate = entryWindowKnown ? toLocalDate(show.entryCloseDate) : null;
   const today = currentEntryWindowDate(undefined, getEntryWindowTimezone(show.trials));
-  if (!today) {
+  if (!today || !openDate || !closeDate) {
     // currentEntryWindowDate always resolves a date in practice (see
-    // entryWindowDate.ts); this guards a theoretical unresolved case (e.g. a
-    // bad IANA zone). Never say "Entries open <date>" here — this path runs
+    // entryWindowDate.ts); this guards that theoretical case (e.g. a bad IANA
+    // zone) AND the real one above, a show with no entry window at all. The
+    // same copy is right for both: the window is not available. Never say
+    // "Entries open <date>" here — this path runs
     // before the userHasEntries check, so the show may already be entered,
     // and this branch has no evidence either way about the entry window.
     return {

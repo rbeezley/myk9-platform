@@ -123,7 +123,7 @@ const SecretaryEntriesRedirect = () => {
   }
 
   if (resolvedShowId) {
-    return <Navigate to={`/shows/${resolvedShowId}/entry-management${search}`} replace />;
+    return <Navigate to={`/shows/${resolvedShowId}/entries${search}`} replace />;
   }
 
   return <Navigate to="/secretary/dashboard" replace />;
@@ -195,7 +195,7 @@ const SecretaryWaitlistRedirect = () => {
   );
 };
 
-const SecretaryShowRedirect = ({ subPath }: { subPath: 'show-desk' | '' }) => {
+const SecretaryShowRedirect = ({ subPath }: { subPath: 'show-day' | '' }) => {
   const { showId, isResolving } = useSecretaryRedirectShowId();
 
   if (isResolving) {
@@ -328,7 +328,7 @@ export const SecretaryRoutes = () => (
       path="/secretary/day-of"
       element={
         <ProtectedRoute requiredRole={[UserRole.SECRETARY, UserRole.SITE_ADMIN]}>
-          <SecretaryShowRedirect subPath="show-desk" />
+          <SecretaryShowRedirect subPath="show-day" />
         </ProtectedRoute>
       }
     />
@@ -336,7 +336,7 @@ export const SecretaryRoutes = () => (
       path="/secretary/check-in"
       element={
         <ProtectedRoute requiredRole={[UserRole.SECRETARY, UserRole.SITE_ADMIN]}>
-          <SecretaryShowRedirect subPath="show-desk" />
+          <SecretaryShowRedirect subPath="show-day" />
         </ProtectedRoute>
       }
     />

@@ -56,14 +56,15 @@ const publicRouteComponents: Record<string, ImportFunction> = {
     import('@/pages/secretary/ShowWorkbenchSetupPage').then(m => ({
       default: m.ShowWorkbenchSetupPage,
     })),
-  '/shows/:showId/show-desk': () =>
+  '/shows/:showId/show-day': () =>
     import('@/pages/secretary/ShowWorkbenchShowDeskPage').then(m => ({
       default: m.ShowWorkbenchShowDeskPage,
     })),
-  '/shows/:showId/entry-management': () => import('@/pages/secretary/EntryManagementPage'),
+  '/shows/:showId/entries': () => import('@/pages/secretary/EntryManagementPage'),
   '/shows/:showId/reports': () => import('@/pages/secretary/ReportsPage'),
-  '/shows/:showId/results-control': () => import('@/pages/secretary/ResultsControlPage'),
-  '/shows/:showId/submit-results': () => import('@/pages/secretary/ResultsSubmissionPage'),
+  // Results owns both steps now; Submit Results is `?step=submit` inside it and
+  // no longer has a route of its own (MYK9-630 phase 2).
+  '/shows/:showId/results': () => import('@/pages/secretary/ShowResultsSection'),
   '/shows/:showId/trials/:trialId': () => import('@/pages/TrialDetailsPage'),
   '/trials/:trialId': () => import('@/pages/TrialDetailsPage'),
   '/shows/:showId/trials/:trialId/classes/:classId': () => import('@/pages/ClassDetailsPage'),

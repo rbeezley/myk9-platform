@@ -41,12 +41,15 @@ test.describe('Secretary show management UI', () => {
     healthByTest.delete(testInfo.testId);
   });
 
-  test('renders Overview and Show Desk phases for a managed show', async ({ page }, testInfo) => {
+  test('renders Overview and Show Day tabs for a managed show', async ({ page }, testInfo) => {
     await openShowSetup(page);
 
-    await expect(page.getByTestId('canonical-show-management-nav')).toBeVisible();
-    await expect(page.getByRole('link', { name: 'Setup' })).toHaveCount(0);
-    await expect(page.getByRole('link', { name: 'Show Desk' })).toBeVisible();
+    // MYK9-630 phase 2: one row of six tabs, and the five standalone page links
+    // above it are gone. Setup is a tab now, not an unlinked route.
+    await expect(page.getByTestId('canonical-show-management-nav')).toHaveCount(0);
+    await expect(page.getByRole('link', { name: 'Show Desk' })).toHaveCount(0);
+    await expect(page.getByRole('tab', { name: /^Setup/ })).toBeVisible();
+    await expect(page.getByRole('tab', { name: /^Show Day/ })).toBeVisible();
     // The header `...` menu is deleted (MYK9-630); its verbs moved to the app
     // header Actions menu, the Overview landing card and the Show Edit panel.
     await expect(page.getByRole('button', { name: 'More show actions' })).toHaveCount(0);
@@ -55,8 +58,8 @@ test.describe('Secretary show management UI', () => {
     await expect(page.getByRole('heading', { name: 'Show schedule' })).toBeVisible();
     await expect(page.getByRole('heading', { name: 'Premium List' }).first()).toBeVisible();
 
-    await page.getByRole('link', { name: 'Show Desk' }).click();
-    await expect(page).toHaveURL(new RegExp(`/shows/${SHOW_ID}/show-desk`));
+    await page.getByRole('tab', { name: /^Show Day/ }).click();
+    await expect(page).toHaveURL(new RegExp(`/shows/${SHOW_ID}/show-day`));
     const toolsPanel = await openToolsPanel(page);
     await expect(toolsPanel.getByRole('button', { name: /Message Show/i })).toHaveCount(0);
     await expect(toolsPanel.getByRole('button', { name: /Add entries/i })).toBeVisible();
@@ -109,8 +112,8 @@ async function openShowSetup(page: Page) {
 }
 
 async function openShowDesk(page: Page) {
-  await signInAsSecretary(page, `/shows/${SHOW_ID}/show-desk`);
-  await expect(page).toHaveURL(new RegExp(`/shows/${SHOW_ID}/show-desk`));
+  await signInAsSecretary(page, `/shows/${SHOW_ID}/show-day`);
+  await expect(page).toHaveURL(new RegExp(`/shows/${SHOW_ID}/show-day`));
   await expect(page.getByRole('button', { name: /open tools panel/i })).toBeVisible({
     timeout: 15000,
   });

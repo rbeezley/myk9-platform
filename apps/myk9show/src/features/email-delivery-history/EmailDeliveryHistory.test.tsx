@@ -40,7 +40,7 @@ describe('EmailDeliveryHistory', () => {
     expect(screen.getByText('Jamie Handler (jamie@example.com)')).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Review this email' })).toHaveAttribute(
       'href',
-      '/shows/show-1/entry-management'
+      '/shows/show-1/entries'
     );
   });
 

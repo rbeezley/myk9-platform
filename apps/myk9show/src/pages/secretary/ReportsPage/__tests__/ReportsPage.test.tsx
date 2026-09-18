@@ -303,7 +303,7 @@ describe('ReportsPage', () => {
     expect(screen.queryByRole('heading', { name: 'Emergency Trial Packet' })).toBeNull();
     expect(screen.getByRole('link', { name: /open it in show desk tools/i })).toHaveAttribute(
       'href',
-      '/shows/show-1/show-desk?tool=emergency-trial-packet'
+      '/shows/show-1/show-day?tool=emergency-trial-packet'
     );
   });
 

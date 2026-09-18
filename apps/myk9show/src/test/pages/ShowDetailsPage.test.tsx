@@ -1,14 +1,16 @@
 import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { MemoryRouter, Route, Routes } from 'react-router-dom';
+import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import ShowDetailsPage from '@/pages/ShowDetailsPage';
+import { ShowWorkbenchSetupPage } from '@/pages/secretary/ShowWorkbenchSetupPage';
 
 const publishExperienceMock = vi.hoisted(() => vi.fn());
 const updateShowLocallyMock = vi.hoisted(() => vi.fn());
 const notificationsSuccessMock = vi.hoisted(() => vi.fn());
 const getEntriesForShowMock = vi.hoisted(() => vi.fn());
+const getEntriesByShowMock = vi.hoisted(() => vi.fn());
 const showEditPanelMock = vi.hoisted<{
   impl: (props: { onSave: (data: Record<string, unknown>) => Promise<void> }) => React.ReactNode;
 }>(() => ({
@@ -109,6 +111,9 @@ vi.mock('@/services/database/entries', async () => {
   return {
     ...actual,
     getEntriesForShow: getEntriesForShowMock,
+    // The manager Entries tab's own private read (MYK9-630 AC3). Nothing on
+    // this page may call it any more; the tests below assert that.
+    getEntriesByShow: getEntriesByShowMock,
   };
 });
 
@@ -264,21 +269,31 @@ vi.mock('@/components/common/LoadingSkeleton', () => ({
   LoadingSkeleton: () => <div data-testid="loading-skeleton" className="animate-pulse" />,
 }));
 
+/** The live URL, for the redirect assertions — outside <Routes> so it survives every hop. */
+function PageLocationProbe() {
+  const location = useLocation();
+  return (
+    <span data-testid="page-location">{`${location.pathname}${location.search}${location.hash}`}</span>
+  );
+}
+
 function renderPage(showId = 'show-1', subPath = '', query = '') {
   const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   return render(
     <QueryClientProvider client={qc}>
       <MemoryRouter initialEntries={[`/shows/${showId}${subPath}${query}`]}>
+        <PageLocationProbe />
         <Routes>
           <Route path="/shows/:id" element={<ShowDetailsPage />}>
             <Route
-              path="show-desk"
+              path="show-day"
               element={<div data-testid="canonical-child">Show Desk child</div>}
             />
-            <Route
-              path="setup"
-              element={<div data-testid="canonical-setup-child">Setup child</div>}
-            />
+            {/* The REAL Setup page: `?tab=map|trials|classes` redirects here
+                now (MYK9-630 phase 2), and a placeholder would let the redirect
+                land somewhere that renders none of the three views. */}
+            <Route path="setup" element={<ShowWorkbenchSetupPage />} />
+            <Route path="entries" element={<div data-testid="canonical-entries-child" />} />
           </Route>
         </Routes>
       </MemoryRouter>
@@ -366,6 +381,9 @@ describe('ShowDetailsPage', () => {
     mockShowEntriesError = false;
     refetchShowEntriesMock.mockReset();
     getEntriesForShowMock.mockResolvedValue({ data: [], error: null });
+    getEntriesByShowMock.mockReset();
+    getEntriesByShowMock.mockResolvedValue({ data: [], error: null, resultsReadComplete: true });
+    mockAuthContext.rbacLoading = false;
     mockDogs = [];
     mockTrials = [];
     mockTrialClasses = {};
@@ -680,8 +698,8 @@ describe('ShowDetailsPage', () => {
 
     // Positive control that the MANAGER shell rendered at all -- otherwise the
     // absence below would pass on any page. It used to be the `...` trigger,
-    // which MYK9-630 deletes.
-    expect(screen.getByTestId('canonical-show-management-nav')).toBeInTheDocument();
+    // which MYK9-630 phase 1 deleted, then the section nav, which phase 2 did.
+    expect(screen.getByRole('tab', { name: /^Setup$/ })).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /premium list/i })).toBeNull();
   });
 
@@ -698,56 +716,45 @@ describe('ShowDetailsPage', () => {
     expect(screen.getByTestId('hero-secondary-actions')).toBeEmptyDOMElement();
   });
 
-  it('shows canonical management nav for show managers', () => {
+  it('gives a manager ONE row of six tabs and no standalone page links', () => {
+    // MYK9-630 phase 2 (Richard: "there are 11 or more and difficult to tell if
+    // they are tabs or links or buttons"). The five-link row above the old
+    // six-tab strip is deleted: Show Desk, Entry Management, Reports, Results
+    // and Submit Results are tabs now, not links beside tabs.
     mockAuthContext.isSecretary = true;
 
     renderPage();
 
-    const nav = screen.getByTestId('canonical-show-management-nav');
-    expect(nav).toBeInTheDocument();
-    expect(screen.getByRole('combobox', { name: /show management section/i })).toBeInTheDocument();
-    expect(screen.queryByRole('link', { name: 'Setup' })).not.toBeInTheDocument();
-    expect(screen.getByRole('link', { name: 'Show Desk' })).toHaveAttribute(
-      'href',
-      '/shows/show-1/show-desk'
-    );
-    expect(screen.getByRole('link', { name: 'Entry Management' })).toHaveAttribute(
-      'href',
-      '/shows/show-1/entry-management'
-    );
-    expect(screen.getByRole('link', { name: 'Reports' })).toHaveAttribute(
-      'href',
-      '/shows/show-1/reports'
-    );
-    expect(screen.getByRole('link', { name: 'Results' })).toHaveAttribute(
-      'href',
-      '/shows/show-1/results-control'
-    );
-    expect(screen.getByRole('link', { name: 'Submit Results' })).toHaveAttribute(
-      'href',
-      '/shows/show-1/submit-results'
-    );
+    expect(
+      screen.getAllByRole('tab').map(tab => tab.textContent?.replace(/\d+$/, '').trim())
+    ).toEqual(['Overview', 'Setup', 'Entries', 'Show Day', 'Results', 'Reports']);
+    expect(screen.queryByTestId('canonical-show-management-nav')).not.toBeInTheDocument();
+    expect(screen.queryByRole('combobox', { name: /show management section/i })).toBeNull();
+    for (const label of ['Show Desk', 'Entry Management', 'Reports', 'Results', 'Submit Results']) {
+      expect(screen.queryByRole('link', { name: label })).toBeNull();
+    }
   });
 
-  it('management nav tab container is horizontally scrollable and has no fixed minimum width', () => {
+  it('keeps the one tab row scrollable at phone widths with no fixed minimum width', () => {
     mockAuthContext.isSecretary = true;
 
     renderPage();
 
-    const nav = screen.getByTestId('canonical-show-management-nav');
-    const container = nav.querySelector('[class*="overflow-x-auto"]');
-    expect(container?.className).toContain('overflow-x-auto');
-    expect(container?.className).toContain('max-w-full');
+    const list = screen.getAllByRole('tab')[0].closest('[class*="overflow-x-auto"]');
+    expect(list?.className).toContain('overflow-x-auto');
+    expect(list?.className).toContain('max-w-full');
     // No min-w-* or fixed pixel widths that force desktop layout on phones
-    expect(container?.className).not.toMatch(/min-w-\[/);
-    expect(container?.className).not.toMatch(/w-\[\d/);
+    expect(list?.className).not.toMatch(/min-w-\[/);
+    expect(list?.className).not.toMatch(/w-\[\d/);
   });
 
-  it('hides canonical management nav from exhibitors with entries', () => {
+  it('hides the six management tabs from exhibitors with entries', () => {
     seedOwnedEntry();
     renderPage();
 
     expect(screen.queryByTestId('canonical-show-management-nav')).not.toBeInTheDocument();
+    expect(screen.queryByRole('tab', { name: /^Show Day$/ })).toBeNull();
+    expect(screen.getByRole('tab', { name: /^My Entries/ })).toBeInTheDocument();
   });
 
   it('does not expose preview public page or manage in workbench destinations for managers', () => {
@@ -758,7 +765,7 @@ describe('ShowDetailsPage', () => {
     // There is no menu left to open: Edit and Delete moved into the Show Edit
     // panel's own surface, Preview moved to the Overview landing card.
     expect(screen.queryByRole('button', { name: /more show actions/i })).toBeNull();
-    expect(screen.getByTestId('canonical-show-management-nav')).toBeInTheDocument();
+    expect(screen.getByRole('tab', { name: /^Setup$/ })).toBeInTheDocument();
     expect(screen.queryByRole('link', { name: /preview public page/i })).not.toBeInTheDocument();
     expect(
       screen.queryByRole('menuitem', { name: /manage in workbench/i })
@@ -769,12 +776,15 @@ describe('ShowDetailsPage', () => {
   it('renders Show Desk below its compact context instead of the full hero', () => {
     mockAuthContext.isSecretary = true;
 
-    renderPage('show-1', '/show-desk');
+    renderPage('show-1', '/show-day');
 
     expect(screen.queryByTestId('detail-hero')).not.toBeInTheDocument();
     expect(screen.getByRole('region', { name: 'Show Desk context' })).toBeInTheDocument();
     expect(screen.getByTestId('canonical-child')).toHaveTextContent('Show Desk child');
-    expect(screen.getByRole('link', { name: 'Show Desk' })).toHaveAttribute('aria-current', 'page');
+    expect(screen.getByRole('tab', { name: /^Show Day$/ })).toHaveAttribute(
+      'aria-selected',
+      'true'
+    );
   });
 
   // Regression: the Show Desk publish exception links to #setup-publish on the
@@ -809,7 +819,7 @@ describe('ShowDetailsPage', () => {
       style: 'headline',
     };
 
-    renderPage('show-1', '/show-desk');
+    renderPage('show-1', '/show-day');
 
     expect(screen.queryByTestId('headline-landing')).not.toBeInTheDocument();
     expect(screen.getByTestId('canonical-child')).toHaveTextContent('Show Desk child');
@@ -818,6 +828,9 @@ describe('ShowDetailsPage', () => {
   it('renders the public Show Map as read-only for show managers', async () => {
     mockAuthContext.isSecretary = true;
     getEntriesForShowMock.mockResolvedValue({ data: [], error: null });
+    getEntriesByShowMock.mockReset();
+    getEntriesByShowMock.mockResolvedValue({ data: [], error: null, resultsReadComplete: true });
+    mockAuthContext.rbacLoading = false;
     mockTrials = [
       {
         id: 'trial-1',
@@ -1138,5 +1151,159 @@ describe('ShowDetailsPage', () => {
       return el?.tagName === 'STRONG' && content === '3';
     });
     expect(strong.closest('span')?.parentElement).toHaveTextContent('entries');
+  });
+
+  describe('a club admin, who is admitted to the section routes but not to the shell', () => {
+    // `ShowManagementSectionRoute` admits anyone `canManageShowSurface` allows,
+    // which includes a club-scoped CLUB ADMIN. The management shell renders only
+    // for a site admin or a scoped secretary -- #2180 put club admins on the
+    // exhibitor view deliberately. So a club admin reaches the section routes on
+    // the EXHIBITOR surface, and both surfaces must hand the section pages the
+    // same outlet context or the Setup page renders nothing at all.
+    beforeEach(() => {
+      mockAuthContext.isSecretary = false;
+      mockAuthContext.isAdmin = false;
+      // The fixture types `hasRole` as `() => boolean`; the rest arguments keep
+      // that assignable while still reading the role the caller passes.
+      mockAuthContext.hasRole.mockImplementation((...args: unknown[]) => args[0] === 'club_admin');
+      mockAuthContext.userWithRoles = {
+        databaseUserId: 'person-1',
+        scopes: [
+          {
+            userId: 'user-1',
+            roleId: 'club_admin',
+            scopeType: 'club',
+            scopeId: 'club-1',
+            createdAt: new Date(),
+          },
+        ],
+      };
+    });
+
+    it('renders the Setup page, not a blank body, at /shows/:id/setup', async () => {
+      renderPage('show-1', '/setup');
+
+      expect(await screen.findByRole('group', { name: /setup section/i })).toBeInTheDocument();
+    });
+
+    it('still has a Show Map — theirs lives on this strip, not in Setup', () => {
+      renderPage();
+
+      expect(screen.getByRole('tab', { name: /^Show Map/ })).toBeInTheDocument();
+    });
+
+    it('is not given the secretary six-tab strip', () => {
+      renderPage();
+
+      expect(screen.queryByRole('tab', { name: /^Show Day/ })).toBeNull();
+    });
+  });
+
+  describe('manager deep links into the six tabs (MYK9-634, MYK9-630 AC3)', () => {
+    beforeEach(() => {
+      mockAuthContext.isSecretary = true;
+    });
+
+    // PIN, not a fix: this one also passes before the change, because the
+    // `pending` audience already held the page while RBAC was cold. It is here
+    // so the property cannot be lost, NOT as evidence of the reported crash.
+    it('never mounts the exhibitor entries body for a manager whose roles are still cold', () => {
+      // A cold load: RBAC loading AND no roles yet. That is the only state in
+      // which nothing is known about the viewer.
+      mockAuthContext.rbacLoading = true;
+      mockAuthContext.userWithRoles = null;
+
+      renderPage('show-1', '', '?tab=my-entries');
+
+      expect(screen.queryByTestId('my-entries-tab')).toBeNull();
+      expect(screen.queryByText('Failed to load component')).toBeNull();
+    });
+
+    // The tab strip is not built at all while roles are cold -- the audience is
+    // `pending` and the page early-returns a skeleton. Round 1 added a second
+    // filter on `allowedTabs` for this; round 2 proved it unreachable (mutating
+    // it open red nothing) and deleted it. This case pins the PROPERTY, and
+    // says plainly which gate delivers it rather than claiming a mutation that
+    // no longer reds.
+    it('builds no tab strip at all while roles are cold', () => {
+      mockAuthContext.isSecretary = false;
+      mockAuthContext.rbacLoading = true;
+      mockAuthContext.userWithRoles = null;
+      seedOwnedEntry();
+
+      renderPage('show-1', '', '?tab=my-entries');
+
+      expect(screen.queryAllByRole('tab')).toHaveLength(0);
+      expect(screen.queryByTestId('my-entries-tab')).toBeNull();
+    });
+
+    // Mutation-proven: `viewerRolesUnresolved` -> `rbacLoading` reds this.
+    it('keeps the exhibitor entries tab through a WARM rbac refresh', () => {
+      // `useRbacLifecycle` re-runs `load()` on a 5-minute interval and on every
+      // `online` event, and `load()` sets `isLoading: true` while PRESERVING the
+      // roles it already has. Treating that as "not resolved" made an
+      // exhibitor's My Entries tab vanish and the body flip back to Overview
+      // every five minutes, mid-session, for as long as the round trip took.
+      mockAuthContext.isSecretary = false;
+      mockAuthContext.rbacLoading = true; // refreshing...
+      // ...but the roles from the last load are still here.
+      seedOwnedEntry();
+
+      renderPage('show-1', '', '?tab=my-entries');
+
+      expect(screen.getByRole('tab', { name: /^My Entries/ })).toBeInTheDocument();
+      expect(screen.getByTestId('my-entries-tab')).toBeInTheDocument();
+    });
+
+    it('carries a bookmark hash through the ?tab= hop, as the path redirect does', async () => {
+      renderPage('show-1', '', '?tab=my-entries#focus-entry-7');
+
+      expect(await screen.findByTestId('canonical-entries-child')).toBeInTheDocument();
+      expect(screen.getByTestId('page-location')).toHaveTextContent(
+        '/shows/show-1/entries#focus-entry-7'
+      );
+    });
+
+    it('sends a resolved manager from ?tab=my-entries to the Entries page', async () => {
+      renderPage('show-1', '', '?tab=my-entries');
+
+      expect(await screen.findByTestId('canonical-entries-child')).toBeInTheDocument();
+      expect(screen.queryByTestId('my-entries-tab')).toBeNull();
+    });
+
+    it.each([
+      ['?tab=trials', 'section=trials'],
+      ['?tab=classes', 'section=classes'],
+      ['?tab=map', 'section=map'],
+    ])('sends a manager from %s into Setup', async (query, _section) => {
+      renderPage('show-1', '', query);
+
+      expect(await screen.findByRole('group', { name: /setup section/i })).toBeInTheDocument();
+    });
+
+    it("leaves an exhibitor's own ?tab=my-entries alone", async () => {
+      mockAuthContext.isSecretary = false;
+      seedOwnedEntry();
+
+      renderPage('show-1', '', '?tab=my-entries');
+
+      expect(await screen.findByTestId('my-entries-tab')).toBeInTheDocument();
+      expect(screen.queryByTestId('canonical-entries-child')).toBeNull();
+    });
+
+    it("badges Entries from the page's own read, with no second entries query (AC3)", () => {
+      mockShowEntries = [
+        { id: 'e1', show_id: 'show-1', class_id: 'class-a' },
+        { id: 'e2', show_id: 'show-1', class_id: 'class-a' },
+        { id: 'e3', show_id: 'show-1', class_id: 'class-b' },
+      ];
+
+      renderPage();
+
+      expect(screen.getByRole('tab', { name: /^Entries/ }).textContent).toContain('3');
+      // The stub tab's private `getEntriesByShow` read is deleted, so the badge
+      // and the body can no longer disagree (517 beside "No Entries Yet").
+      expect(getEntriesByShowMock).not.toHaveBeenCalled();
+    });
   });
 });

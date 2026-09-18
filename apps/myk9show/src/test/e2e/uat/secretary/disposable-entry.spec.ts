@@ -76,7 +76,7 @@ test.describe('Phase 1 UAT - Secretary disposable entry management', () => {
         });
     });
 
-    await page.goto(`/shows/${seed.showId}/entry-management`, { waitUntil: 'domcontentloaded' });
+    await page.goto(`/shows/${seed.showId}/entries`, { waitUntil: 'domcontentloaded' });
     await expect(page.getByRole('heading', { name: 'Entry Management' })).toBeVisible({
       timeout: 15000,
     });
@@ -124,7 +124,7 @@ test.describe('Phase 1 UAT - Secretary disposable entry management', () => {
     await page.getByRole('button', { name: 'More', exact: true }).click();
     await page.getByRole('link', { name: 'Open Check-in desk' }).click();
     await expect(page).toHaveURL(
-      new RegExp(`/shows/${seed.showId}/show-desk\\?tool=people-at-show`)
+      new RegExp(`/shows/${seed.showId}/show-day\\?tool=people-at-show`)
     );
 
     const toolsDialog = page.getByRole('dialog', { name: 'Show Desk tools' });

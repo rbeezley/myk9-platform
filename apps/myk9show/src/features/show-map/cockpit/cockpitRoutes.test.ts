@@ -25,7 +25,7 @@ describe('Show Desk context routes', () => {
   it('builds and normalizes URL-backed day, filter, focus, and anchor state', () => {
     const href = getShowDeskHref({ showId: 'show 1', state: context });
     expect(href).toBe(
-      '/shows/show%201/show-desk?day=2026-07-20&filter=needs-attention&focus=class%2F1&anchor=trial-1'
+      '/shows/show%201/show-day?day=2026-07-20&filter=needs-attention&focus=class%2F1&anchor=trial-1'
     );
 
     expect(
@@ -60,7 +60,7 @@ describe('Show Desk context routes', () => {
         returnTo,
       })
     ).toBe(
-      `/shows/show-1/entry-management?tab=move-ups&trial=trial-1&class=class%2F1&returnTo=${encodeURIComponent(returnTo)}`
+      `/shows/show-1/entries?tab=move-ups&trial=trial-1&class=class%2F1&returnTo=${encodeURIComponent(returnTo)}`
     );
 
     expect(
@@ -101,11 +101,11 @@ describe('Show Desk context routes', () => {
         returnTo,
       })
     ).toBe(
-      `/shows/show-1/results-control?trialId=trial-1&classId=class%2F1&returnTo=${encodeURIComponent(returnTo)}`
+      `/shows/show-1/results?trialId=trial-1&classId=class%2F1&returnTo=${encodeURIComponent(returnTo)}`
     );
 
     expect(getCockpitSubmitResultsHref({ showId: 'show-1', trialId: 'trial-1', returnTo })).toBe(
-      `/shows/show-1/submit-results?trialId=trial-1&returnTo=${encodeURIComponent(returnTo)}`
+      `/shows/show-1/results?step=submit&trialId=trial-1&returnTo=${encodeURIComponent(returnTo)}`
     );
 
     expect(
@@ -122,13 +122,31 @@ describe('Show Desk context routes', () => {
 
   it('accepts only a same-Show internal Show Desk return and canonicalizes its state', () => {
     const valid =
-      '/shows/show-1/show-desk?focus=class-1&filter=in-progress&day=2026-07-20&anchor=row-2';
+      '/shows/show-1/show-day?focus=class-1&filter=in-progress&day=2026-07-20&anchor=row-2';
     expect(resolveShowDeskReturnHref(valid, 'show-1')).toBe(
-      '/shows/show-1/show-desk?day=2026-07-20&filter=in-progress&focus=class-1&anchor=row-2'
+      '/shows/show-1/show-day?day=2026-07-20&filter=in-progress&focus=class-1&anchor=row-2'
     );
     expect(resolveShowDeskReturnHref('https://evil.example', 'show-1')).toBeNull();
-    expect(resolveShowDeskReturnHref('//evil.example/shows/show-1/show-desk', 'show-1')).toBeNull();
-    expect(resolveShowDeskReturnHref('/shows/show-2/show-desk', 'show-1')).toBeNull();
+    expect(resolveShowDeskReturnHref('//evil.example/shows/show-1/show-day', 'show-1')).toBeNull();
+    expect(resolveShowDeskReturnHref('/shows/show-2/show-day', 'show-1')).toBeNull();
     expect(resolveShowDeskReturnHref('/shows/show-1/reports', 'show-1')).toBeNull();
+  });
+
+  it('still accepts the LEGACY /show-desk spelling and canonicalizes it forward', () => {
+    // MYK9-630 phase 2 renamed the route. A `returnTo` captured before it
+    // shipped is still sitting in an open tab, and rejecting it silently drops
+    // the secretary's way back. The output is rebuilt from the allowlist, so it
+    // comes back as `/show-day`, not as the URL that went in.
+    expect(
+      resolveShowDeskReturnHref('/shows/show-1/show-desk?filter=needs-attention', 'show-1')
+    ).toBe('/shows/show-1/show-day?filter=needs-attention');
+  });
+
+  it('gives the legacy spelling no more trust than the current one', () => {
+    expect(resolveShowDeskReturnHref('//evil.example/shows/show-1/show-desk', 'show-1')).toBeNull();
+    expect(
+      resolveShowDeskReturnHref('https://evil.example/shows/show-1/show-desk', 'show-1')
+    ).toBeNull();
+    expect(resolveShowDeskReturnHref('/shows/show-2/show-desk', 'show-1')).toBeNull();
   });
 });

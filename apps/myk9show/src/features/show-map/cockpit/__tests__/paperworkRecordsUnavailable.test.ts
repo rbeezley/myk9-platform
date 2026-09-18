@@ -37,7 +37,7 @@ function build(recordsUnavailable: boolean) {
     entries: ENTRIES,
     records: [],
     recordsUnavailable,
-    returnTo: '/shows/show-1/show-desk',
+    returnTo: '/shows/show-1/show-day',
   });
 }
 

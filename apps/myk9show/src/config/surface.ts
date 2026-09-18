@@ -7,6 +7,7 @@
 // not a half-built app with broken menu items. Hide aggressively.
 
 import { matchPath } from 'react-router-dom';
+import { SHOW_MANAGEMENT_CHILD_ROUTE_PATHS } from '@/routes/showManagementSections';
 
 export type Surface = 'wizard' | 'full';
 
@@ -37,14 +38,14 @@ export const WIZARD_SURFACE_PATHS = [
   '/shows/:id/*',
 ] as const;
 
-const WIZARD_SURFACE_BLOCKED_PATHS = [
-  '/shows/:id/setup',
-  '/shows/:id/show-desk',
-  '/shows/:id/entry-management',
-  '/shows/:id/reports',
-  '/shows/:id/results-control',
-  '/shows/:id/submit-results',
-] as const;
+// Every management child route under `/shows/:id` is blocked, derived from the
+// route model rather than re-typed: the allowlist carries a blanket
+// `/shows/:id/*`, so anything MISSING from this list is wide open, and a
+// hand-kept copy went stale twice -- once when MYK9-630 phase 2 renamed the
+// sections, and once on `classes/:trialId`, which was never in it at all.
+const WIZARD_SURFACE_BLOCKED_PATHS = SHOW_MANAGEMENT_CHILD_ROUTE_PATHS.map(
+  path => `/shows/:id/${path}`
+);
 
 // Pure check — does this path match the wizard-surface allowlist? Useful
 // in tests and in any code that needs to ask the question independently of

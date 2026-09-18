@@ -1,15 +1,16 @@
 import React, { Suspense } from 'react';
 import { TabsContent } from '@/components/ui/tabs';
 import { PrimaryTabs, type PrimaryTabDef } from '@/components/common/PrimaryTabs';
-import { LoadingSkeleton } from '@/components/common/LoadingSkeleton';
-import { Button } from '@/components/ui/button';
 import { ShowOverviewTab } from '@/components/shows/tabs/ShowOverviewTab';
 import { TrialsTab, type TrialStats } from '@/components/shows/tabs/TrialsTab';
 import { ClassesTab, type ClassInfo } from '@/components/shows/tabs/ClassesTab';
 import { MyEntriesTab } from '@/components/shows/tabs/MyEntriesTab';
-import { EntriesTab } from '@/components/shows/ShowDetails/EntriesTab';
+import { EntryDataUnavailablePanel } from '@/components/shows/ShowDetails/EntryDataUnavailablePanel';
 import { ShowResultsTab } from '@/components/results/ShowResultsTab';
+import { LoadingSkeleton } from '@/components/common/LoadingSkeleton';
 import type { Show } from '@/types/show-types';
+
+const ShowMapTab = React.lazy(() => import('@/features/show-map/ShowMapTab'));
 import type { Trial } from '@/components/trials/types/trial.types';
 import type { ShowJudgeAssignment } from '@/types/judge-types';
 import type {
@@ -21,8 +22,6 @@ import type {
   SubmittedEntryDbRow,
   SubmittedEntryReadState,
 } from '@/features/exhibitor-entry/submittedEntryProjection';
-
-const ShowMapTab = React.lazy(() => import('@/features/show-map/ShowMapTab'));
 
 export interface ShowDetailTabsProps {
   show: Show;
@@ -51,36 +50,21 @@ export interface ShowDetailTabsProps {
   exhibitorEntryDataState?: SubmittedEntryReadState;
 }
 
-function EntryDataUnavailablePanel({
-  state,
-  onRetry,
-}: {
-  state: 'loading' | 'error';
-  onRetry?: (() => void) | undefined;
-}) {
-  return (
-    <div className="rounded-md border border-dashed bg-muted/20 px-4 py-6 text-sm">
-      <div className="font-medium text-foreground">
-        {state === 'loading' ? 'Entry counts are loading.' : "Couldn't load entry counts."}
-      </div>
-      <p className="mt-1 text-muted-foreground">
-        Entry-derived counts and Show Map are paused so this page does not show a false zero-entry
-        state.
-      </p>
-      {state === 'error' && onRetry && (
-        <Button type="button" variant="outline" size="sm" className="mt-3" onClick={onRetry}>
-          Retry
-        </Button>
-      )}
-    </div>
-  );
-}
-
 /**
- * The tabbed body shared by the exhibitor and management surfaces. Which tabs
- * appear is governed entirely by `tabs` + the role flags, exactly as before —
- * the management surface passes `canShowMap`/`canManageShow` true to light up the
- * Show Map and manager Entries tab; the exhibitor surface does not.
+ * The `?tab=` body for the PUBLIC and EXHIBITOR surfaces.
+ *
+ * It keeps the Show Map panel because a club-scoped CLUB ADMIN lands here
+ * (#2180) and this is the map their chrome offers -- a site admin or scoped
+ * secretary sees the management surface, where Show Map is a view inside Setup.
+ * A club admin can additionally reach the Setup copy by URL; see the
+ * `canShowMap` note on `ShowDetailTabDefsInput` for why that is accepted.
+ *
+ * The secretary no longer has a `?tab=` strip: since MYK9-630 phase 2 their
+ * show page is one row of six tabs, each a real route, rendered by
+ * `ShowManagementShell`. The manager-only Entries and Show Map panels that used
+ * to live here went with it — Entries IS Entry Management now (AC3: the stub
+ * tab and its private `getEntriesByShow` read are deleted), and Show Map is a
+ * view inside Setup.
  */
 export function ShowDetailTabs({
   show,
@@ -146,22 +130,17 @@ export function ShowDetailTabs({
 
       {isAuthenticated && (
         <TabsContent value="my-entries">
-          {canManageShow ? (
-            <EntriesTab showId={show.id} />
-          ) : (
-            <MyEntriesTab
-              showId={show.id}
-              canonicalEntries={exhibitorEntryRows}
-              entryDataState={exhibitorEntryDataState}
-            />
-          )}
+          <MyEntriesTab
+            showId={show.id}
+            canonicalEntries={exhibitorEntryRows}
+            entryDataState={exhibitorEntryDataState}
+          />
         </TabsContent>
       )}
 
       <TabsContent value="results">
         <ShowResultsTab showId={show.id} />
       </TabsContent>
-
       {canShowMap && (
         <TabsContent value="map">
           {managerEntryDataUnavailable ? (
@@ -174,19 +153,10 @@ export function ShowDetailTabs({
                 classes={mapClasses}
                 entries={mapEntries}
                 // INTENT: the public show page's map is view-only for EVERYONE,
-                // managers included. This is not inherited drift -- #291
-                // ("feat(show-map): make public map read-only") decided it, and
-                // docs/archive/plan-show-map-workbench-collapse.md carries
-                // "view-only public map" in its list of architectural commitments
-                // that the workbench collapse had to respect.
-                //
-                // The manager action layer (run order / Move up / Pull-no-show /
-                // Mark checked in / Edit score) lives on Show Desk --
-                // /shows/:showId/show-desk -> ShowDeskPanel, which is passed
-                // canManageShow and owns ShowMapMoveUpDialog. Forwarding the prop
-                // here does NOT unlock a missing capability; it duplicates that
-                // surface on a page whose job is browsing, which is the opposite
-                // of the consolidation this phase is doing.
+                // managers included. #291 decided it and
+                // docs/archive/plan-show-map-workbench-collapse.md carries it as
+                // an architectural commitment. The manager action layer lives on
+                // Show Day. Do not "fix" this to true.
                 canManageShow={false}
               />
             </Suspense>

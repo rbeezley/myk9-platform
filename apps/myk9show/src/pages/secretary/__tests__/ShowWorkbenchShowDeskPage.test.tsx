@@ -154,9 +154,9 @@ function renderPage(initialEntries?: unknown[]) {
 
   const result = render(
     <QueryClientProvider client={queryClient}>
-      <MemoryRouter initialEntries={['/shows/show-1/show-desk']}>
+      <MemoryRouter initialEntries={['/shows/show-1/show-day']}>
         <Routes>
-          <Route path="/shows/:id/show-desk" element={<ShowWorkbenchShowDeskPage />} />
+          <Route path="/shows/:id/show-day" element={<ShowWorkbenchShowDeskPage />} />
         </Routes>
       </MemoryRouter>
     </QueryClientProvider>
@@ -231,7 +231,7 @@ describe('ShowWorkbenchShowDeskPage', () => {
     expect(screen.getByTestId('self-checkin-tool')).toHaveTextContent('Self check-in for show-1');
     expect(screen.getByRole('link', { name: 'Results' })).toHaveAttribute(
       'href',
-      '/shows/show-1/results-control'
+      '/shows/show-1/results'
     );
   });
 

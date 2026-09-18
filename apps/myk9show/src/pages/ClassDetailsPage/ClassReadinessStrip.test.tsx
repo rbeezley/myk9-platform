@@ -62,15 +62,15 @@ describe('ClassReadinessStrip', () => {
 
     expect(screen.getByRole('link', { name: /needs review/i })).toHaveAttribute(
       'href',
-      '/shows/show-1/entry-management?mode=review&attention=pending&trial=trial-1&class=class-1'
+      '/shows/show-1/entries?mode=review&attention=pending&trial=trial-1&class=class-1'
     );
     expect(screen.getByRole('link', { name: /payment due/i })).toHaveAttribute(
       'href',
-      '/shows/show-1/entry-management?mode=review&attention=accepted&payment=pending&trial=trial-1&class=class-1'
+      '/shows/show-1/entries?mode=review&attention=accepted&payment=pending&trial=trial-1&class=class-1'
     );
     expect(screen.getByRole('link', { name: /checked in/i })).toHaveAttribute(
       'href',
-      '/shows/show-1/entry-management?mode=day-of&attention=accepted&trial=trial-1&class=class-1'
+      '/shows/show-1/entries?mode=day-of&attention=accepted&trial=trial-1&class=class-1'
     );
     expect(screen.getByRole('link', { name: /scored/i })).toHaveAttribute(
       'href',

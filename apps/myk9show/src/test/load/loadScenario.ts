@@ -84,7 +84,7 @@ export interface LoadScenario {
 const AT_SHOW_ROUTE = '/at-show/{showId}';
 const CLASS_ROUTE = `${AT_SHOW_ROUTE}/class/{classId}`;
 const EXHIBITOR_ENTRIES_ROUTE = '/shows/{showId}?tab=my-entries';
-const SHOW_DESK_ROUTE = '/shows/{showId}/show-desk';
+const SHOW_DESK_ROUTE = '/shows/{showId}/show-day';
 
 /** Connected exhibitors at peak, as a share of entrants. The softest number here. */
 const CONNECTED_EXHIBITOR_SHARE = 0.6;

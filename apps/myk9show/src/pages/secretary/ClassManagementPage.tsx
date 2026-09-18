@@ -233,7 +233,7 @@ export const ClassManagementPage: React.FC = () => {
   const trialDisplayName = trial?.name || (trialId ? 'Trial' : 'No trial selected');
   const setupHref = showId ? `/shows/${showId}/setup` : '/secretary/dashboard';
   const waitlistHref = showId
-    ? `/shows/${showId}/entry-management?tab=waitlist${trialId ? `&trial=${trialId}` : ''}`
+    ? `/shows/${showId}/entries?tab=waitlist${trialId ? `&trial=${trialId}` : ''}`
     : '/secretary/entries?tab=waitlist';
   const createHref =
     showId && trialId

@@ -42,8 +42,8 @@ const SECRETARY_ROUTES: RouteCheck[] = [
     label: 'manage classes',
     path: `/shows/${LIVE_SECRETARY_SHOW_ID}/classes/${SEEDED_TRIAL_ID}`,
   },
-  { label: 'results control', path: `/shows/${LIVE_SECRETARY_SHOW_ID}/results-control` },
-  { label: 'show desk', path: `/shows/${LIVE_SECRETARY_SHOW_ID}/show-desk` },
+  { label: 'results control', path: `/shows/${LIVE_SECRETARY_SHOW_ID}/results` },
+  { label: 'show desk', path: `/shows/${LIVE_SECRETARY_SHOW_ID}/show-day` },
   { label: 'ringside class list', path: `/at-show/${LIVE_SECRETARY_SHOW_ID}` },
 ];
 
@@ -167,7 +167,7 @@ test.describe('shell integrity responsive runtime matrix', () => {
     await page.goto(`/at-show/${LIVE_SECRETARY_SHOW_ID}`, { waitUntil: 'commit' });
     await waitForAppShell(page);
     await page.getByRole('button', { name: 'Back to Show Desk' }).click();
-    await expect(page).toHaveURL(new RegExp(`/shows/${LIVE_SECRETARY_SHOW_ID}/show-desk`));
+    await expect(page).toHaveURL(new RegExp(`/shows/${LIVE_SECRETARY_SHOW_ID}/show-day`));
 
     const scorePath = `/at-show/${LIVE_SECRETARY_SHOW_ID}/class/${SEEDED_CLASS_ID}/score/${SEEDED_ENTRY_ID}`;
     const classPath = `/at-show/${LIVE_SECRETARY_SHOW_ID}/class/${SEEDED_CLASS_ID}`;

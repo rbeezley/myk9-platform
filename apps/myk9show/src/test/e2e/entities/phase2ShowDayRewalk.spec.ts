@@ -53,7 +53,7 @@ test.describe('Phase 2 secretary show-day re-walk', () => {
     await expect(page.getByRole('heading', { name: 'Premium List' })).toBeVisible();
 
     await page.getByRole('link', { name: 'Show Desk' }).click();
-    await expect(page).toHaveURL(new RegExp(`/shows/${SHOW_ID}/show-desk`));
+    await expect(page).toHaveURL(new RegExp(`/shows/${SHOW_ID}/show-day`));
     await page.getByRole('button', { name: /open tools panel/i }).click();
     const toolsPanel = page.getByRole('dialog', { name: /show desk tools/i });
     await expect(toolsPanel).toBeVisible({ timeout: 10000 });

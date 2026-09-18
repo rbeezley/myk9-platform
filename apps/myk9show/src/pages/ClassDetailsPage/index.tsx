@@ -272,7 +272,7 @@ const ClassDetailsPage: React.FC = () => {
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end">
             {canManageClass && parentShow?.id && (
-              <DropdownMenuItem onClick={() => navigate(`/shows/${parentShow.id}/show-desk`)}>
+              <DropdownMenuItem onClick={() => navigate(`/shows/${parentShow.id}/show-day`)}>
                 <LayoutDashboard className="mr-2 h-4 w-4" />
                 Open in Workbench
               </DropdownMenuItem>

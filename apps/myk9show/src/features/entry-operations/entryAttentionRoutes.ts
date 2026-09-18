@@ -20,7 +20,7 @@ export function getEntryManagementHref(input: EntryManagementHrefInput): string 
   if (input.trialId) params.set('trial', input.trialId);
   if (input.classId) params.set('class', input.classId);
   const query = params.toString();
-  return `/shows/${encodeURIComponent(input.showId)}/entry-management${query ? `?${query}` : ''}`;
+  return `/shows/${encodeURIComponent(input.showId)}/entries${query ? `?${query}` : ''}`;
 }
 
 export function getClassReviewHref(input: {

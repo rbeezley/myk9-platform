@@ -256,6 +256,23 @@ export function EntryManagementCockpit({
         </Popover>
       </div>
 
+      {/* MYK9-635: "All registrations 514" beside a show page saying 517 entries
+          read as a bucket that excluded Needs review. It never was — All is
+          every queue — the two numbers count registrations and entries. Both
+          come from one pass over the groups the list itself is built from, so
+          the page states the pair rather than showing one and implying the
+          other. Withheld under a scope or a search, where neither number would
+          be true of the rows below -- see `useEntryManagementCockpit`. */}
+      {!trialScopePending && cockpit.queueTotalsDescribeWholeShow && (
+        <p className="text-sm text-muted-foreground" data-testid="registration-totals">
+          {cockpit.queueTotals.registrationCount}{' '}
+          {cockpit.queueTotals.registrationCount === 1 ? 'registration' : 'registrations'} &middot;{' '}
+          {cockpit.queueTotals.entryCount}{' '}
+          {cockpit.queueTotals.entryCount === 1 ? 'entry' : 'entries'}. All registrations includes
+          Needs review.
+        </p>
+      )}
+
       <div className="grid gap-2 lg:grid-cols-[minmax(18rem,1fr)_auto]">
         <div className="relative">
           <Search

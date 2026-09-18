@@ -12,7 +12,7 @@ const context = { showId: 'show/1', trialId: 'trial-1', classId: 'class-1' };
 describe('entry attention routes', () => {
   it('preserves show, trial, class, and pending-review context', () => {
     expect(getClassReviewHref(context)).toBe(
-      '/shows/show%2F1/entry-management?mode=review&attention=pending&trial=trial-1&class=class-1'
+      '/shows/show%2F1/entries?mode=review&attention=pending&trial=trial-1&class=class-1'
     );
   });
 
@@ -22,7 +22,7 @@ describe('entry attention routes', () => {
 
   it('stacks accepted and payment-due filters so pending review rows do not leak in', () => {
     expect(getClassPaymentDueHref(context)).toBe(
-      '/shows/show%2F1/entry-management?mode=review&attention=accepted&payment=pending&trial=trial-1&class=class-1'
+      '/shows/show%2F1/entries?mode=review&attention=accepted&payment=pending&trial=trial-1&class=class-1'
     );
   });
 

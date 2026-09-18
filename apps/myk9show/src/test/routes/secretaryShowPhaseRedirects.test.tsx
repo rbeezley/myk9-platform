@@ -150,15 +150,15 @@ describe('secretary show phase redirects', () => {
     renderSecretaryRoutes('/secretary/shows/show-1?phase=show-desk&from=email');
 
     expect(await screen.findByTestId('canonical-show-route')).toHaveTextContent(
-      '/shows/show-1/show-desk?from=email'
+      '/shows/show-1/show-day?from=email'
     );
   });
 
   it('redirects legacy secretary show-desk to the canonical show-desk route', async () => {
-    renderSecretaryRoutes('/secretary/shows/show-1/show-desk');
+    renderSecretaryRoutes('/secretary/shows/show-1/show-day');
 
     expect(await screen.findByTestId('canonical-show-route')).toHaveTextContent(
-      '/shows/show-1/show-desk'
+      '/shows/show-1/show-day'
     );
   });
 
@@ -171,10 +171,10 @@ describe('secretary show phase redirects', () => {
   });
 
   it('preserves query string through legacy secretary entry management redirects', async () => {
-    renderSecretaryRoutes('/secretary/shows/show-1/entry-management?entryTab=pending');
+    renderSecretaryRoutes('/secretary/shows/show-1/entries?entryTab=pending');
 
     expect(await screen.findByTestId('canonical-show-route')).toHaveTextContent(
-      '/shows/show-1/entry-management?entryTab=pending'
+      '/shows/show-1/entries?entryTab=pending'
     );
   });
 
@@ -206,7 +206,7 @@ describe('secretary show phase redirects', () => {
     renderSecretaryRoutes('/secretary/day-of');
 
     expect(await screen.findByTestId('canonical-show-route')).toHaveTextContent(
-      '/shows/show-1/show-desk'
+      '/shows/show-1/show-day'
     );
   });
 
@@ -222,7 +222,7 @@ describe('secretary show phase redirects', () => {
     renderSecretaryRoutes('/secretary/check-in');
 
     expect(await screen.findByTestId('canonical-show-route')).toHaveTextContent(
-      '/shows/show-1/show-desk'
+      '/shows/show-1/show-day'
     );
   });
 
@@ -249,7 +249,7 @@ describe('secretary show phase redirects', () => {
     renderSecretaryRoutes('/secretary/waitlist');
 
     expect(await screen.findByTestId('canonical-show-route')).toHaveTextContent(
-      '/shows/show-1/entry-management?tab=waitlist'
+      '/shows/show-1/entries?tab=waitlist'
     );
     expect(useToastStore.getState().toasts[0]?.payload).toMatchObject({
       id: 'waitlist-moved',
@@ -333,7 +333,7 @@ describe('secretary show phase redirects', () => {
     renderSecretaryRoutes('/secretary/day-of');
 
     expect(await screen.findByTestId('canonical-show-route')).toHaveTextContent(
-      '/shows/stored-show/show-desk'
+      '/shows/stored-show/show-day'
     );
   });
 
@@ -366,7 +366,7 @@ describe('secretary show phase redirects', () => {
     renderSecretaryRoutes('/secretary/entries/show-1?entryTab=pending');
 
     expect(await screen.findByTestId('canonical-show-route')).toHaveTextContent(
-      '/shows/show-1/entry-management?entryTab=pending'
+      '/shows/show-1/entries?entryTab=pending'
     );
   });
 });

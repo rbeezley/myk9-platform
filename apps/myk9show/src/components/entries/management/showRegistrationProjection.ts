@@ -127,6 +127,34 @@ export function selectShowRegistrationQueue(
     .sort((left, right) => left.submittedAt.getTime() - right.submittedAt.getTime());
 }
 
+export interface ShowRegistrationTotals {
+  /** Rows the queue lists. One registration can carry several entries. */
+  registrationCount: number;
+  /** Entries those registrations hold — the number the show page calls "Entries". */
+  entryCount: number;
+}
+
+/**
+ * The two totals Entry Management is asked about, from ONE pass over the same
+ * groups the chips and the list are built from (MYK9-635).
+ *
+ * The bug report read "All registrations 514" against a show page saying 517
+ * entries and concluded that "All" excluded the 3 in Needs review. It does not:
+ * `groupMatchesQueue(group, 'all')` is `true` for every group, so All is every
+ * queue including Needs review. The two numbers differ because they count
+ * different THINGS — on `dededede-…010` the database has 517 live entries in
+ * 514 registrations, and 514 + 3 was a coincidence. So the surface states both,
+ * derived together, instead of showing one and implying the other.
+ */
+export function summarizeShowRegistrationTotals(
+  groups: ShowRegistrationGroup[]
+): ShowRegistrationTotals {
+  return {
+    registrationCount: groups.length,
+    entryCount: groups.reduce((total, group) => total + group.entryCount, 0),
+  };
+}
+
 export function getShowRegistrationQueueCounts(
   groups: ShowRegistrationGroup[]
 ): ShowRegistrationQueueCounts {

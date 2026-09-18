@@ -10,7 +10,7 @@ import {
   Routes,
   useLocation,
 } from 'react-router-dom';
-import { describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { LegacySecretaryShowRedirect } from '@/routes/showRouteRedirects';
 import { PublicRoutes } from '@/routes/publicRoutes';
 import {
@@ -20,18 +20,72 @@ import {
 import { ScopeType, UserRole } from '@/types/auth-types';
 
 // ── Hoisted control objects ────────────────────────────────────────────────
-const mockAuth = vi.hoisted(() => ({
-  user: { id: 'user-1' } as object | null,
-  loading: false,
-  rbacLoading: false,
-  hasRole: (_role: string) => false as boolean,
-  userWithRoles: null as object | null,
-}));
+/**
+ * Both module-scope mutable fixtures, and the ONE reset that restores them.
+ *
+ * This file had NO `beforeEach` and no `afterEach` at all: eight tests wrote
+ * `hasRole`, `userWithRoles`, `user`, `mockShows.data` and `mockShows.isLoading`
+ * and left them for whatever ran next, while the suites that read the defaults
+ * (`canonical show route redirects`, `notification routes`) set nothing. CI runs
+ * vitest with `--sequence.shuffle`, which shuffles the tests inside a file as
+ * well as the files, so the order was never fixed.
+ *
+ * It was latent rather than live — the tests reading the defaults do not route
+ * through `ShowManagementSectionRoute`, so nothing had a victim yet — but it is
+ * the identical shape that reddened `main` in the sibling
+ * `showSectionRedirects.test.tsx` (MYK9-666), one directory over, and one new
+ * test here that DOES route through that guard is all it would take.
+ *
+ * Worse, `mockAuth.user = null` was undone by the LAST LINE of its own test
+ * body, after two assertions that can throw. Either one failing left
+ * `user === null` for every test after it, and `ProtectedRoute` redirects on
+ * `!user` — so one real failure cascaded into a file-wide red whose top failure
+ * named something unrelated. That restore is gone; the hook owns it now.
+ *
+ * The defaults are a FACTORY and the reset is `Object.assign` over it, so a
+ * field added to either fixture is reset by construction rather than by
+ * remembering. A hand-maintained field list is exactly what drifted in the
+ * sibling file.
+ */
+const fixtures = vi.hoisted(() => {
+  const authDefaults = (): {
+    user: object | null;
+    loading: boolean;
+    rbacLoading: boolean;
+    hasRole: (role: string) => boolean;
+    userWithRoles: object | null;
+  } => ({
+    user: { id: 'user-1' },
+    loading: false,
+    rbacLoading: false,
+    hasRole: (_role: string) => false,
+    userWithRoles: null,
+  });
 
-const mockShows = vi.hoisted(() => ({
-  data: [] as { id: string; clubId: string }[],
-  isLoading: false,
-}));
+  const showsDefaults = (): {
+    data: { id: string; clubId: string }[];
+    isLoading: boolean;
+  } => ({
+    data: [],
+    isLoading: false,
+  });
+
+  const mockAuth = authDefaults();
+  const mockShows = showsDefaults();
+
+  return {
+    mockAuth,
+    mockShows,
+    reset: (): void => {
+      Object.assign(mockAuth, authDefaults());
+      Object.assign(mockShows, showsDefaults());
+    },
+  };
+});
+
+const { mockAuth, mockShows } = fixtures;
+
+beforeEach(fixtures.reset);
 
 // ── Module mocks ───────────────────────────────────────────────────────────
 vi.mock('@/hooks/useAuthContext', () => ({
@@ -287,8 +341,9 @@ describe('canonical show management routes', () => {
       '/shows/show-1'
     );
     expect(screen.queryByTestId('production-show-desk')).not.toBeInTheDocument();
-
-    mockAuth.user = { id: 'user-1' };
+    // No manual restore: `beforeEach(fixtures.reset)` owns it. Restoring on the
+    // last line meant either assertion above throwing left `user === null` for
+    // every test after this one.
   });
 
   it('redirects a non-manager direct management URL back to the canonical overview', async () => {

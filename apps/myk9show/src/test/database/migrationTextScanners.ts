@@ -179,12 +179,29 @@ export function latestViewDefinition(viewName: string): { file: string; body: st
   let latest: { file: string; body: string } | undefined;
   for (const file of files) {
     const sql = readFileSync(resolve(migrationsDir, file), 'utf8');
-    const start = sql.lastIndexOf(marker);
+    // The marker is a PREFIX match, so `view_authenticated_entry_results` also
+    // hits `view_authenticated_entry_results_replication`. While the two lived
+    // in different files the later one won by filename and the bug stayed
+    // invisible; 20260918041700 replaces both in ONE file, wrapper last, and a
+    // bare `lastIndexOf` then hands back the wrapper — which carries none of
+    // the authorization arms the callers assert on, so the guard would have
+    // gone quietly vacuous. Require the name to END at the marker.
+    const start = lastDefinitionIndex(sql, marker);
     if (start === -1) continue;
     latest = { file, body: sql.slice(start) };
   }
   if (!latest) throw new Error(`no migration defines ${viewName}`);
   return latest;
+}
+
+/** The last occurrence of `marker` NOT followed by another identifier char. */
+function lastDefinitionIndex(sql: string, marker: string): number {
+  for (let at = sql.lastIndexOf(marker); at !== -1; at = sql.lastIndexOf(marker, at - 1)) {
+    const next = sql[at + marker.length];
+    if (next === undefined || !/[A-Za-z0-9_]/.test(next)) return at;
+    if (at === 0) break;
+  }
+  return -1;
 }
 
 /**

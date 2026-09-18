@@ -145,6 +145,10 @@ export function mapSecretaryEntryToEntryManagementEntry(
             ...(entry.trial?.trial_type ? { trialType: entry.trial.trial_type } : {}),
             handlerId: entry.handler_id,
             status: mapClassEntryStatus(entry.entry_status),
+            // MYK9-632: WHICH withdrawal. Already loaded on the entry below;
+            // the class row carries it so the Edit Entry sheet needs no read of
+            // its own to say what the card behind it already says.
+            withdrawalReasonCode: entry.withdrawal_reason_code ?? null,
             checkInStatus: (entry.check_in_status as CheckInStatus) ?? 'no-status',
           },
         ]

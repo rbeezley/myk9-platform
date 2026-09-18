@@ -114,6 +114,9 @@ export const EditEntryDialog: React.FC<EditEntryDialogProps> = ({ dialog, onClos
     number: c.number,
     fee: c.fee,
     status: c.status,
+    // MYK9-632: WHICH withdrawal. A hand-picked projection is exactly where a
+    // field plumbed through the data layer gets dropped at the last hop.
+    withdrawalReasonCode: c.withdrawalReasonCode,
     ...(c.jumpHeight !== undefined && { jumpHeight: c.jumpHeight }),
     ...(c.trialType !== undefined && { trialType: c.trialType }),
     ...(c.handler !== undefined && { handler: c.handler }),

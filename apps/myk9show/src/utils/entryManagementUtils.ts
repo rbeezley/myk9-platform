@@ -107,12 +107,19 @@ export function getEntryPaidAmount(
  * Map database class entry status to the participation chip shown on a class row.
  * Derives from the single classifier KIND (no parallel raw switch) so the chip
  * agrees with every other entry-status surface.
+ *
+ * MYK9-632: 'withdrawn' keeps its OWN value and never folds onto 'scratched'.
+ * The two are different acts with different refund consequences, and folding
+ * them here is what made a reloaded Edit Entry sheet call a withdrawal
+ * "Pulled" while the database, My Shows and Entry Management all said
+ * withdrawn. The word "Pulled" may only ever render for 'scratched'.
  */
 export const mapClassEntryStatus = (
   status?: string | null
-): 'entered' | 'scratched' | 'moved' | 'absent' => {
+): 'entered' | 'withdrawn' | 'scratched' | 'moved' | 'absent' => {
   switch (getEntryStatusKind(status)) {
     case 'withdrawn':
+      return 'withdrawn';
     case 'scratched':
       return 'scratched';
     case 'moved':

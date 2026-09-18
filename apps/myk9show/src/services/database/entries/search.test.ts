@@ -79,7 +79,10 @@ function makeViewEntriesQuery(
 ) {
   let selectedData = data;
   const query = {
-    select: vi.fn(() => query),
+    // Typed with its argument so a test can assert WHICH columns were asked for
+    // (MYK9-632's optional `withdrawal_reason_code`), not merely that a select
+    // happened.
+    select: vi.fn((_columns: string) => query),
     is: vi.fn(() => query),
     eq: vi.fn(() => query),
     order: vi.fn(() => query),
@@ -296,6 +299,74 @@ describe('getUserEntries account-scope read', () => {
     mocks.replicatedShowsGetAllShows.mockResolvedValue([replicatedShow]);
     mocks.replicatedTrialsGetAll.mockResolvedValue([replicatedTrial]);
   }
+
+  /**
+   * MYK9-632: the read ASKS for `withdrawal_reason_code`, and survives a
+   * database that has not got it yet.
+   *
+   * This is not a nicety. Naming a column PostgREST cannot resolve fails the
+   * WHOLE query with 42703, `getUserEntries` reads that as "the view is
+   * unavailable" and falls back to the per-show replica — and `/my-entries` is
+   * a cross-show route that never syncs one. So the window between merging this
+   * branch and running `supabase db push` would have emptied My Shows, My
+   * Payments and the exhibitor dashboard, not merely dropped a badge suffix.
+   */
+  describe('withdrawal_reason_code (MYK9-632) — asked for, and optional', () => {
+    const schemaError = Object.assign(
+      new Error('column view_authenticated_entry_results.withdrawal_reason_code does not exist'),
+      { code: '42703' }
+    );
+
+    it('names the column in the select', async () => {
+      mockReplicatedStores();
+      const { viewQuery } = mockSupabaseTables({ viewEntryRows: [{ id: 'entry-1' }] });
+
+      await getUserEntries('user-1');
+
+      expect(viewQuery.select).toHaveBeenCalledWith(
+        expect.stringContaining('withdrawal_reason_code')
+      );
+    });
+
+    it('drops the column and re-asks when the view has not got it yet', async () => {
+      mockReplicatedStores();
+      const rows = [{ id: 'entry-1' }];
+      const viewQuery = makeViewEntriesQuery(rows);
+      // Fail ONLY the select that names the column; the retry without it
+      // succeeds, exactly as a pre-20260918041700 database behaves.
+      viewQuery.range.mockImplementation(() =>
+        Promise.resolve(
+          viewQuery.select.mock.calls.at(-1)?.[0]?.includes('withdrawal_reason_code')
+            ? { data: [] as Array<Record<string, unknown>>, error: schemaError }
+            : { data: rows, error: null }
+        )
+      );
+      mocks.supabaseFrom.mockImplementation((table: string) => {
+        if (table === 'view_authenticated_entry_results') return viewQuery;
+        throw new Error(`Unexpected table: ${table}`);
+      });
+
+      const result = await getUserEntries('user-1');
+
+      // The rows still arrive, from the VIEW — not from the replica, which on
+      // this route would have been empty or stale.
+      expect(result.source).toBe('confirmed');
+      expect(result.data).toEqual(rows);
+      expect(mocks.mapReplicatedEntryToDbRow).not.toHaveBeenCalled();
+      const selects = viewQuery.select.mock.calls.map(call => call[0]);
+      expect(selects).toHaveLength(2);
+      expect(selects[0]).toContain('withdrawal_reason_code');
+      expect(selects[1]).not.toContain('withdrawal_reason_code');
+      // The degraded window must not be silent: this warning is the only
+      // evidence anywhere that the migration has not been pushed, and later
+      // that the compat arm is safe to delete (MYK9-654).
+      expect(mocks.loggerWarn).toHaveBeenCalledWith(
+        expect.stringContaining('20260918041700'),
+        'database',
+        expect.objectContaining({ column: 'withdrawal_reason_code' })
+      );
+    });
+  });
 
   it('reads the authoritative view even when the local replica looks fully hydrated', async () => {
     mockReplicatedStores();

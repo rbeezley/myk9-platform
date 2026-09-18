@@ -27,7 +27,8 @@ interface EntryClass {
   fee: number;
   jumpHeight?: string;
   runOrder?: number;
-  status: 'entered' | 'scratched' | 'moved' | 'absent';
+  /** MYK9-632: 'withdrawn' and 'scratched' (a pull) are DIFFERENT acts. */
+  status: 'entered' | 'withdrawn' | 'scratched' | 'moved' | 'absent';
 }
 
 interface EntryReceiptData {
@@ -319,8 +320,14 @@ export function EntryReceipt({
     return parts.join(', ') || 'Location TBD';
   };
 
-  const activeClasses = entry.classes.filter(c => c.status !== 'scratched');
-  const pulledClasses = entry.classes.filter(c => c.status === 'scratched');
+  // MYK9-632: a WITHDRAWAL leaves the receipt's running classes exactly as a
+  // PULL does — it is only the WORD that differs. Reading the removed bucket as
+  // 'scratched' alone would put a withdrawn class back among the active rows and
+  // back into the total below.
+  const isRemovedClass = (status: EntryClass['status']) =>
+    status === 'scratched' || status === 'withdrawn';
+  const activeClasses = entry.classes.filter(c => !isRemovedClass(c.status));
+  const removedClasses = entry.classes.filter(c => isRemovedClass(c.status));
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -449,12 +456,14 @@ export function EntryReceipt({
                     <td className="py-3 text-right font-mono">{formatCurrency(cls.fee)}</td>
                   </tr>
                 ))}
-                {pulledClasses.map(cls => (
+                {removedClasses.map(cls => (
                   <tr key={cls.id} className="border-b text-muted-foreground line-through">
                     <td className="py-3">
                       {cls.name}
                       {cls.number && <span> #{cls.number}</span>}
-                      <span className="ml-2 text-xs">(Pulled)</span>
+                      <span className="ml-2 text-xs">
+                        ({cls.status === 'withdrawn' ? 'Withdrawn' : 'Pulled'})
+                      </span>
                     </td>
                     <td className="py-3">{cls.jumpHeight || '-'}</td>
                     <td className="py-3 text-right font-mono">{formatCurrency(cls.fee)}</td>

@@ -21,6 +21,7 @@ import { buildMapFromArray } from '../_shared/maps';
 import { withTimeout, DEFAULT_TIMEOUT_MS } from '@myk9/core';
 import { buildReplicatedUserEntryRows } from './userEntriesReplication';
 import { selectOwnedDogIds } from '@/utils/dogOwnership';
+import { isWithdrawalReasonCodeSchemaUnavailable } from '@/features/payments/pullRefundSchemaCompatibility';
 
 /**
  * Where an account-level entry read's rows came from.
@@ -140,6 +141,28 @@ export const USER_ENTRIES_SELECT = `
       )
     `;
 
+/**
+ * The same select PLUS MYK9-632's `withdrawal_reason_code`, spelled out rather
+ * than spliced: supabase-js parses the select string at the TYPE level, and it
+ * only parses a literal.
+ *
+ * Two selects exist because migration 20260918041700 is what puts the column on
+ * the view, and until that is pushed naming it fails the WHOLE query with
+ * 42703. That would not merely drop a badge suffix: `getUserEntries` reads a
+ * failed view read as "fall back to the per-show replica", and `/my-entries` is
+ * a cross-show route that never syncs one — so My Shows, My Payments and the
+ * exhibitor dashboard would all go empty for the window between this branch
+ * merging and the push. The read therefore asks for the column and drops it for
+ * the rest of the read if the server says it is not there, through the same
+ * `isWithdrawalReasonCodeSchemaUnavailable` seam
+ * `postgrestGetSecretaryPullMetadataMap` already uses for it.
+ *
+ * `search.test.ts` pins BOTH: that the column is asked for, and that the rows
+ * still arrive from the VIEW when the server refuses it.
+ */
+const USER_ENTRIES_SELECT_WITH_REASON_CODE = `${USER_ENTRIES_SELECT},
+      withdrawal_reason_code`;
+
 // Routes own-entry reads through the cascade-aware authenticated view so scored
 // columns (final_placement, result_status, etc.) are nulled until the
 // visibility cascade releases them. The view is owner-run and embeds the same
@@ -150,6 +173,10 @@ const USER_ENTRIES_MAX_PAGES = 100;
 
 async function postgrestGetUserEntries() {
   const rows: Record<string, unknown>[] = [];
+  // Local to THIS read, never module state: a flag at module scope would leak
+  // one page's schema verdict into every later read (and into the next test in
+  // a shuffled run).
+  let includeReasonCode = true;
   // ONE deadline for the whole paged read, not one per page. `withTimeout`
   // only races the promise it is given, so when it wins, the loop below is
   // still in flight — a per-page signal would let each SUBSEQUENT page start a
@@ -161,25 +188,52 @@ async function postgrestGetUserEntries() {
   for (let page = 0; page < USER_ENTRIES_MAX_PAGES; page++) {
     const from = page * USER_ENTRIES_PAGE_SIZE;
     const to = from + USER_ENTRIES_PAGE_SIZE - 1;
-    const { data, error } = await supabase
-      .from('view_authenticated_entry_results')
-      .select(USER_ENTRIES_SELECT)
-      // My Entries is OWN entries only. The view returns can_manage OR
-      // is_own_entry rows, so without this filter a secretary/admin would receive
-      // every manageable show entry here. is_own_entry is a SQL-resolved column
-      // (handler is me OR I own the dog), so this scopes every read path —
-      // including the replication-failure fallback — at the source.
-      .eq('is_own_entry', true)
-      .order('created_at', { ascending: false })
-      .order('id', { ascending: false })
-      .abortSignal(deadline)
-      .range(from, to);
+    const runPage = () =>
+      supabase
+        .from('view_authenticated_entry_results')
+        .select(includeReasonCode ? USER_ENTRIES_SELECT_WITH_REASON_CODE : USER_ENTRIES_SELECT)
+        // My Entries is OWN entries only. The view returns can_manage OR
+        // is_own_entry rows, so without this filter a secretary/admin would receive
+        // every manageable show entry here. is_own_entry is a SQL-resolved column
+        // (handler is me OR I own the dog), so this scopes every read path —
+        // including the replication-failure fallback — at the source.
+        .eq('is_own_entry', true)
+        .order('created_at', { ascending: false })
+        .order('id', { ascending: false })
+        .abortSignal(deadline)
+        .range(from, to);
+
+    let response = await runPage();
+    if (includeReasonCode && isWithdrawalReasonCodeSchemaUnavailable(response.error)) {
+      // Pre-20260918041700 database. Drop the column and re-ask for this page;
+      // every later page goes without it too.
+      includeReasonCode = false;
+      // SAY SO. This branch is the only evidence anywhere that the migration has
+      // not been pushed: without it the page renders correctly, silently pays a
+      // doubled first-page round trip, and nothing tells anyone that the push is
+      // outstanding — or, later, that the compat arm is safe to delete
+      // (MYK9-654). The file's other degraded states warn the same way.
+      logger.warn(
+        'My Entries read without withdrawal_reason_code: migration 20260918041700 is not applied',
+        'database',
+        { column: 'withdrawal_reason_code', migration: '20260918041700' }
+      );
+      response = await runPage();
+    }
+    const { data, error } = response;
 
     if (error) {
       throw createDatabaseError(error, 'view_authenticated_entry_results', 'select_user_entries');
     }
 
-    const pageRows = (data || []) as Record<string, unknown>[];
+    // `as unknown as` rather than a direct cast: supabase-js resolves the select
+    // string at the TYPE level, and it cannot parse this one (the constant's
+    // trailing whitespace already defeated it before MYK9-632 added a second
+    // variant), so `data` arrives as a ParserError union that no longer
+    // overlaps the row shape. Every consumer reads this as an untyped row bag
+    // anyway — `transformEntry` casts each field — so nothing is lost here that
+    // was ever enforced; `search.test.ts` is what pins the column list.
+    const pageRows = (data || []) as unknown as Record<string, unknown>[];
     rows.push(...pageRows);
     if (pageRows.length < USER_ENTRIES_PAGE_SIZE) {
       return { data: rows, error: null };

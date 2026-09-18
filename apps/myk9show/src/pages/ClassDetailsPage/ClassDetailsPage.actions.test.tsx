@@ -227,7 +227,7 @@ describe('ClassDetailsPage header actions', () => {
 
     await user.click(screen.getByRole('menuitem', { name: /open in workbench/i }));
 
-    expect(screen.getByTestId('location')).toHaveTextContent('/shows/show-1/show-desk');
+    expect(screen.getByTestId('location')).toHaveTextContent('/shows/show-1/show-day');
   });
 
   it('does not duplicate show messaging from the class header', () => {
@@ -244,7 +244,7 @@ describe('ClassDetailsPage header actions', () => {
     await user.click(screen.getByRole('button', { name: /manage entries/i }));
 
     expect(screen.getByTestId('location')).toHaveTextContent(
-      '/shows/show-1/entry-management?trial=trial-1&class=class-1'
+      '/shows/show-1/entries?trial=trial-1&class=class-1'
     );
   });
 

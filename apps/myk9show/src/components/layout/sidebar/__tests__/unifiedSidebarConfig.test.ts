@@ -194,7 +194,7 @@ describe('buildUnifiedSidebarConfig — Phase 1 nav pruning', () => {
     const config = buildUnifiedSidebarConfig([UserRole.SECRETARY], undefined, nextShow);
     const group = config.groups.find(g => g.title === 'Manage');
     const item = group?.items.find(i => i.title === 'Spring Classic');
-    expect(item?.href).toBe('/shows/show-1/show-desk');
+    expect(item?.href).toBe('/shows/show-1/show-day');
     expect(item?.description).toBe('Live today');
   });
 

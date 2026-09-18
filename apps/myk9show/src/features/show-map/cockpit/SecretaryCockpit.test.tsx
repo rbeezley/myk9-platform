@@ -37,7 +37,7 @@ describe('SecretaryCockpit attention remainder', () => {
   it('expands every ranked issue instead of leaving the remainder unreachable', async () => {
     const { user } = render(
       <SecretaryCockpit snapshot={snapshot} canManageShow onCommand={vi.fn()} />,
-      { initialRoute: '/shows/show-1/show-desk' }
+      { initialRoute: '/shows/show-1/show-day' }
     );
 
     const focusedClass = screen.getByRole('button', { name: 'Container Novice' });

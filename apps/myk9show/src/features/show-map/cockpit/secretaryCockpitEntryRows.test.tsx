@@ -91,7 +91,7 @@ function buildSnapshot() {
       classes: CLASSES,
       tree,
       pendingSignals: [],
-      returnTo: '/shows/show-1/show-desk',
+      returnTo: '/shows/show-1/show-day',
       now: new Date('2026-07-20T14:00:00.000Z'),
     } as unknown as Parameters<typeof buildSecretaryCockpitSnapshot>[0]),
   };

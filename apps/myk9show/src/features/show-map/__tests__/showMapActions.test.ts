@@ -1127,7 +1127,7 @@ describe('showMapActions', () => {
       expect.objectContaining({
         id: 'submit-final-results',
         nodeId: 'trial:trial-1',
-        href: '/shows/show-1/submit-results',
+        href: '/shows/show-1/results?step=submit',
       }),
     ]);
   });

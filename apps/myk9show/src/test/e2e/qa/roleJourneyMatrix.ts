@@ -88,12 +88,12 @@ export const ROLE_JOURNEY_MATRIX = [
       {
         id: 'show-desk',
         label: 'Show-day workbench',
-        pathTemplate: '/shows/{secretaryShowId}/show-desk',
+        pathTemplate: '/shows/{secretaryShowId}/show-day',
       },
       {
         id: 'entry-management',
         label: 'Entry Management',
-        pathTemplate: '/shows/{secretaryShowId}/entry-management',
+        pathTemplate: '/shows/{secretaryShowId}/entries',
       },
     ],
     checks: [

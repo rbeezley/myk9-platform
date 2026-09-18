@@ -1,7 +1,7 @@
 import { render, screen, waitFor } from '@testing-library/react';
 import type { ReactNode } from 'react';
 import { MemoryRouter, Routes } from 'react-router-dom';
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { PublicRoutes } from '@/routes/publicRoutes';
 import { ScopeType, UserRole } from '@/types/auth-types';
 
@@ -98,10 +98,10 @@ vi.mock('@/pages/secretary/ShowResultsSection', () => ({
   default: () => <div data-testid="section-results" />,
 }));
 
-function renderAt(path: string) {
-  mockAuth.userWithRoles = {
-    scopes: [{ scopeType: ScopeType.CLUB, scopeId: 'club-a', roleId: UserRole.SECRETARY }],
-  };
+function renderAt(path: string, { rolesKnown = true }: { rolesKnown?: boolean } = {}) {
+  mockAuth.userWithRoles = rolesKnown
+    ? { scopes: [{ scopeType: ScopeType.CLUB, scopeId: 'club-a', roleId: UserRole.SECRETARY }] }
+    : null;
   return render(
     <MemoryRouter initialEntries={[path]}>
       <Routes>{PublicRoutes()}</Routes>
@@ -155,5 +155,39 @@ describe('legacy show section URLs land on the tab that absorbed them', () => {
   ])('mounts %s as a real page', async (path, testId) => {
     renderAt(path);
     expect(await screen.findByTestId(testId)).toBeInTheDocument();
+  });
+});
+
+describe('a warm RBAC refresh does not blank the tab a secretary is standing on', () => {
+  // `useRbacLifecycle` re-runs `load()` every 5 minutes and on every `online`
+  // event, and `load()` sets `isLoading: true` while PRESERVING the roles it
+  // already has. `ShowManagementSectionRoute` returned null on raw
+  // `rbacLoading`, which UNMOUNTS the section element -- bulk selection, search,
+  // page index, open detail pane and scroll position are component state and
+  // went with it. Since MYK9-630 phase 2 these routes are the only door to the
+  // secretary's show-day surfaces, so this covered all five of them.
+  afterEach(() => {
+    mockAuth.rbacLoading = false;
+  });
+
+  it('keeps the Entries page mounted while roles refresh in the background', async () => {
+    // Warm: loading again, but the roles from the last load are still here.
+    mockAuth.rbacLoading = true;
+    renderAt('/shows/show-1/entries');
+
+    expect(await screen.findByTestId('section-entries')).toBeInTheDocument();
+  });
+
+  it('still holds while the roles are genuinely unknown', async () => {
+    mockAuth.rbacLoading = true;
+    renderAt('/shows/show-1/entries', { rolesKnown: false });
+
+    await waitFor(() => expect(screen.queryByTestId('section-entries')).not.toBeInTheDocument());
+  });
+
+  it('positive control: with roles known and no refresh, the page is there', async () => {
+    renderAt('/shows/show-1/entries');
+
+    expect(await screen.findByTestId('section-entries')).toBeInTheDocument();
   });
 });

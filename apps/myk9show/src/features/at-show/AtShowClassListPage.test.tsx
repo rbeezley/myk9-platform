@@ -141,7 +141,7 @@ const renderPage = (syncStatus: ReplicationSyncContextValue['status'] = settledS
           element={<div>COMBINED PAGE</div>}
         />
         <Route path="/at-show" element={<div>RINGSIDE HOME</div>} />
-        <Route path="/shows/:showId/show-desk" element={<div>SHOW DESK</div>} />
+        <Route path="/shows/:showId/show-day" element={<div>SHOW DESK</div>} />
       </Routes>
     </ReplicationSyncContext.Provider>,
     { initialRoute: '/at-show/show-1' }

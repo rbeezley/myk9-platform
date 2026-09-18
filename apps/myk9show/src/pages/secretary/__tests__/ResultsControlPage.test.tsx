@@ -160,10 +160,10 @@ vi.mock('@/hooks/useAuth', () => ({
 import ResultsControlPage from '../ResultsControlPage';
 import { Routes, Route } from 'react-router-dom';
 
-function renderPage(initialRoute = '/shows/show-1/results-control') {
+function renderPage(initialRoute = '/shows/show-1/results') {
   return render(
     <Routes>
-      <Route path="/shows/:id/results-control" element={<ResultsControlPage />} />
+      <Route path="/shows/:id/results" element={<ResultsControlPage />} />
     </Routes>,
     { initialRoute }
   );
@@ -244,7 +244,7 @@ describe('ResultsControlPage', () => {
     // telling the truth about results was the wrong place to be loose.
     expect(screen.getByRole('link', { name: 'Go to Submit Results' })).toHaveAttribute(
       'href',
-      '/shows/show-1/submit-results'
+      '/shows/show-1/results?step=submit'
     );
   });
 

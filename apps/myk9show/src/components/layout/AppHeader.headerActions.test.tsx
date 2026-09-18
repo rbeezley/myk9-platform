@@ -135,7 +135,7 @@ function LocationProbe() {
 
 const SHOW_ROUTE = '/shows/show-1';
 // A NON-Overview section: both round-3 findings only show up away from Overview.
-const SECTION_ROUTE = '/shows/show-1/results-control';
+const SECTION_ROUTE = '/shows/show-1/results';
 const ENTRY_MANAGEMENT_ROUTE = '/shows/show-1/entries';
 
 const originalMatchMedia = window.matchMedia;

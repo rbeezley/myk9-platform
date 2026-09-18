@@ -72,8 +72,14 @@ export interface ShowDetailTabDefsInput {
    * `canManageShow`, which on THIS strip means a club-scoped club admin: a site
    * admin or scoped secretary gets the management surface and its Setup tab
    * instead (#2180 put club admins on the exhibitor view deliberately). Their
-   * map lived here before MYK9-630 phase 2 and still does -- one map per
-   * audience, never two for the same viewer.
+   * map lived here before MYK9-630 phase 2 and still does.
+   *
+   * KNOWN DUPLICATION, accepted for now: a club admin can also reach the same
+   * map at `/shows/:id/setup?section=map`, because the section routes admit
+   * them and Setup derives from this same flag. Nothing in their chrome links
+   * there, so it is URL-only. It resolves either way once Richard answers the
+   * open question on MYK9-630 -- whether a club admin gets the six tabs -- and
+   * is deliberately not pre-empted here.
    */
   canShowMap: boolean;
   trialCount: number;

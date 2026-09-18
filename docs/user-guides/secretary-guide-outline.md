@@ -12,20 +12,20 @@
 
 ## Readiness Summary
 
-| Section             | Route                             | Screenshot needed | Stable?       | Notes                                                                                                                                                                                                                           |
-| ------------------- | --------------------------------- | ----------------- | ------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Dashboard           | `/secretary/dashboard`            | yes               | stable        | Golden path § 2.1                                                                                                                                                                                                               |
-| Create a Show       | `/secretary/create-show/wizard`   | yes (4 steps)     | stable        | Golden path § 2.2–2.5                                                                                                                                                                                                           |
-| Show Setup (edit)   | `/shows/:showId` → Setup tab      | yes               | stable        | Golden path § 2.6–2.7                                                                                                                                                                                                           |
-| Entry Management    | `/shows/:showId/entry-management` | yes               | stable        | Golden path § 3                                                                                                                                                                                                                 |
-| Waitlist Management | `/secretary/waitlist/:showId`     | yes               | stable        | Golden path § 3.5–3.6                                                                                                                                                                                                           |
-| Communications      | `/secretary/messages`             | yes               | mostly stable | Email delivery P-01 gap                                                                                                                                                                                                         |
-| Reports (pre-show)  | `/shows/:showId/reports`          | yes               | stable        | Golden path § 4.3                                                                                                                                                                                                               |
-| Show Desk           | `/shows/:showId?phase=show-desk`  | yes               | stable        | Golden path § 4.1–4.11                                                                                                                                                                                                          |
-| Results & Check-In  | `/shows/:showId/results-control`  | yes               | stable        | Golden path § 5.3–5.4                                                                                                                                                                                                           |
-| Submit to AKC       | `/shows/:showId/submit-results`   | yes               | stable        | Golden path § 5.6                                                                                                                                                                                                               |
-| Closeout            | Show Desk → Closeout section      | yes               | **partial**   | Close Out Show action not yet built                                                                                                                                                                                             |
-| At-Show / Ringside  | `/at-show/:showId`                | yes               | stable        | Open to all shows; access gated by `AtShowAccessGate`. (Updated 2026-06-23: `unified_ringside_enabled` flag removed — see [`../archive/plan-remove-unified-ringside-flag.md`](../archive/plan-remove-unified-ringside-flag.md)) |
+| Section             | Route                                | Screenshot needed | Stable?       | Notes                                                                                                                                                                                                                           |
+| ------------------- | ------------------------------------ | ----------------- | ------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Dashboard           | `/secretary/dashboard`               | yes               | stable        | Golden path § 2.1                                                                                                                                                                                                               |
+| Create a Show       | `/secretary/create-show/wizard`      | yes (4 steps)     | stable        | Golden path § 2.2–2.5                                                                                                                                                                                                           |
+| Show Setup (edit)   | `/shows/:showId` → Setup tab         | yes               | stable        | Golden path § 2.6–2.7                                                                                                                                                                                                           |
+| Entry Management    | `/shows/:showId/entries`             | yes               | stable        | Golden path § 3                                                                                                                                                                                                                 |
+| Waitlist Management | `/secretary/waitlist/:showId`        | yes               | stable        | Golden path § 3.5–3.6                                                                                                                                                                                                           |
+| Communications      | `/secretary/messages`                | yes               | mostly stable | Email delivery P-01 gap                                                                                                                                                                                                         |
+| Reports (pre-show)  | `/shows/:showId/reports`             | yes               | stable        | Golden path § 4.3                                                                                                                                                                                                               |
+| Show Desk           | `/shows/:showId/show-day`            | yes               | stable        | Golden path § 4.1–4.11                                                                                                                                                                                                          |
+| Results & Check-In  | `/shows/:showId/results`             | yes               | stable        | Golden path § 5.3–5.4                                                                                                                                                                                                           |
+| Submit to AKC       | `/shows/:showId/results?step=submit` | yes               | stable        | Golden path § 5.6                                                                                                                                                                                                               |
+| Closeout            | Show Desk → Closeout section         | yes               | **partial**   | Close Out Show action not yet built                                                                                                                                                                                             |
+| At-Show / Ringside  | `/at-show/:showId`                   | yes               | stable        | Open to all shows; access gated by `AtShowAccessGate`. (Updated 2026-06-23: `unified_ringside_enabled` flag removed — see [`../archive/plan-remove-unified-ringside-flag.md`](../archive/plan-remove-unified-ringside-flag.md)) |
 
 ---
 
@@ -110,7 +110,7 @@
 
 **User outcome:** Secretary approves, rejects, or waitlists pending entries; records mail-in payment.
 
-**Canonical route:** `/shows/:showId/entry-management`
+**Canonical route:** `/shows/:showId/entries`
 
 **Rough steps (qa-draft):**
 
@@ -209,7 +209,7 @@
 
 **User outcome:** Secretary handles check-in, scratches, move-ups, and late entries from one page.
 
-**Canonical route:** `/shows/:showId?phase=show-desk`
+**Canonical route:** `/shows/:showId/show-day`
 
 **Entry point:** Show Workbench → **Show Desk** tab. From the Dashboard, a show running today will deep-link here automatically.
 
@@ -262,7 +262,7 @@ Available from the Tools panel: Quick Broadcast, Class Broadcast, Schedule Slip 
 
 **User outcome:** Secretary verifies all results are complete and releases them to exhibitors.
 
-**Canonical route:** `/shows/:showId/results-control`
+**Canonical route:** `/shows/:showId/results`
 
 **Entry point:** Show Desk → Closeout section → **Results & Check-In** button
 
@@ -289,7 +289,7 @@ Available from the Tools panel: Quick Broadcast, Class Broadcast, Schedule Slip 
 
 **User outcome:** Secretary downloads the electronic submission file and emails it to the registry.
 
-**Canonical route:** `/shows/:showId/submit-results`
+**Canonical route:** `/shows/:showId/results?step=submit`
 
 **Rough steps (qa-draft):**
 

@@ -19,10 +19,10 @@ function renderLink(returnTo: string) {
 
 describe('ShowDeskReturnLink', () => {
   it('renders a validated Back to Show Desk destination', () => {
-    renderLink('/shows/show-1/show-desk?focus=class-1&filter=in-progress');
+    renderLink('/shows/show-1/show-day?focus=class-1&filter=in-progress');
     expect(screen.getByRole('link', { name: 'Back to Show Desk' })).toHaveAttribute(
       'href',
-      '/shows/show-1/show-desk?filter=in-progress&focus=class-1'
+      '/shows/show-1/show-day?filter=in-progress&focus=class-1'
     );
   });
 

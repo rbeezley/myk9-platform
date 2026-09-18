@@ -15,7 +15,7 @@ const SHOW_ID = 'dededede-0000-0000-0000-000000000010';
 const CLASS_ID = 'dec1a55e-0000-0000-0000-000000000033';
 const TRIAL_ID = 'dededede-0000-0000-0000-000000000021';
 const CLASS_NAME = 'Exterior Excellent';
-const SHOW_DESK_PATH = `/shows/${SHOW_ID}/show-desk?focus=${CLASS_ID}`;
+const SHOW_DESK_PATH = `/shows/${SHOW_ID}/show-day?focus=${CLASS_ID}`;
 const AT_SHOW_PATH = `/at-show/${SHOW_ID}`;
 const SUPABASE_URL = process.env.VITE_SUPABASE_URL ?? '';
 const SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY ?? '';

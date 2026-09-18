@@ -186,20 +186,19 @@ describe('canonical show route redirects', () => {
     expect(await screen.findByTestId('location')).toHaveTextContent('/shows/show-1/setup');
   });
 
-  it('redirects the legacy show-desk phase query to canonical Show Desk', async () => {
+  it('redirects the legacy show-desk phase query to the Show Day tab', async () => {
+    // `?phase=show-desk` is still honoured as a query; it lands directly on the
+    // tab that absorbed Show Desk rather than hopping through the legacy path
+    // (MYK9-630 phase 2).
     renderRedirect('/secretary/shows/show-1?phase=show-desk&from=email');
     expect(await screen.findByTestId('location')).toHaveTextContent(
-      '/shows/show-1/show-desk?from=email'
+      '/shows/show-1/show-day?from=email'
     );
   });
 
-  // `/shows/:id/show-desk` is itself a redirect into the Show Day tab now
-  // (MYK9-630 phase 2); the hop above lands on it, and the production tree
-  // carries it the rest of the way — see "legacy show section URLs" below.
-
   it('redirects a legacy secretary show subroute to the matching canonical subroute', async () => {
-    renderRedirect('/secretary/shows/show-1/show-desk', 'show-desk');
-    expect(await screen.findByTestId('location')).toHaveTextContent('/shows/show-1/show-desk');
+    renderRedirect('/secretary/shows/show-1/show-day', 'show-day');
+    expect(await screen.findByTestId('location')).toHaveTextContent('/shows/show-1/show-day');
   });
 
   it('preserves query strings on legacy secretary show redirects', async () => {

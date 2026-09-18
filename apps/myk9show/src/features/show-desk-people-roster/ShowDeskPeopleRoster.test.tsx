@@ -149,7 +149,7 @@ function renderRoster(
       />
       <LocationProbe />
     </>,
-    { initialRoute: '/shows/show-1/show-desk' }
+    { initialRoute: '/shows/show-1/show-day' }
   );
 }
 
@@ -302,7 +302,7 @@ describe('ShowDeskPeopleRoster', () => {
     await second.user.click(screen.getByRole('button', { name: /manage entries/i }));
 
     expect(screen.getByTestId('location')).toHaveTextContent(
-      '/shows/show-1/entry-management?person=Casey%20Handler'
+      '/shows/show-1/entries?person=Casey%20Handler'
     );
   });
 
@@ -368,7 +368,7 @@ describe('ShowDeskPeopleRoster', () => {
     await second.user.click(screen.getByRole('button', { name: /manage entries/i }));
 
     expect(screen.getByTestId('location')).toHaveTextContent(
-      '/shows/show-1/entry-management?person=Alice%20Martin'
+      '/shows/show-1/entries?person=Alice%20Martin'
     );
   });
 

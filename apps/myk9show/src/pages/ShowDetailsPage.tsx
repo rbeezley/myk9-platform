@@ -217,7 +217,6 @@ const ShowDetailsPage: React.FC = () => {
   // to Overview) mid-session, every five minutes. Same predicate the audience
   // gate uses, and the same shape as `areRolesResolved` in App.tsx.
   const viewerRolesUnresolved = rbacLoading && !userWithRoles;
-  const viewerRolesResolved = !viewerRolesUnresolved;
 
   // Decide which surface this visitor sees. Staff (secretary / admin / club_admin)
   // and management-section URLs reach the tabbed/management UI; non-staff visitors
@@ -257,30 +256,23 @@ const ShowDetailsPage: React.FC = () => {
   // the `pending` audience already held the page while roles were cold, and no
   // test reproduces that failure. See the PR body and MYK9-634.
   //
-  // The guard below is its own, narrower point: a tab whose BODY depends on who
-  // the viewer is must not render before that is known. No hold and no
-  // skeleton -- the strip is one tab shorter for the moment it takes, and
-  // `useUrlTab` falls back to Overview meanwhile.
+  // There is deliberately NO second "roles resolved" filter on this list. Round
+  // 1 added one and round 2 found it unreachable: `viewerRolesUnresolved` is
+  // exactly what makes the audience `'pending'`, and the page early-returns a
+  // skeleton on `'pending'` before a tab is ever built. One gate, one place.
   const allowedTabs = useMemo(() => {
     if (!isAuthenticated) return ['overview', 'trials', 'classes', 'results'];
     return [
       'overview',
       ...(canShowMap ? ['map'] : []),
       'trials',
-      ...(viewerRolesResolved ? ['my-entries'] : []),
+      'my-entries',
       'classes',
       'results',
     ];
-  }, [isAuthenticated, canShowMap, viewerRolesResolved]);
-  // `useUrlTab` does NOT validate `defaultTab` against `allowedTabs`, so this
-  // has to carry the same roles-resolved guard or the default would mount the
-  // very body the guard above exists to keep off the page.
+  }, [isAuthenticated, canShowMap]);
   const defaultTab =
-    isAuthenticated &&
-    viewerRolesResolved &&
-    !canManageShow &&
-    !isWaitingForExhibitorEntryDefault &&
-    hasUserEntries
+    isAuthenticated && !canManageShow && !isWaitingForExhibitorEntryDefault && hasUserEntries
       ? 'my-entries'
       : 'overview';
   const [activeTab, setTab] = useUrlTab(allowedTabs, defaultTab);
@@ -440,7 +432,7 @@ const ShowDetailsPage: React.FC = () => {
   const tabDefs: PrimaryTabDef[] = useMemo(
     () =>
       buildShowDetailTabDefs({
-        isAuthenticated: isAuthenticated && viewerRolesResolved,
+        isAuthenticated,
         canShowMap,
         trialCount: effectiveTrials.length,
         classCount: effectiveShowClasses.length,
@@ -450,7 +442,6 @@ const ShowDetailsPage: React.FC = () => {
       }),
     [
       isAuthenticated,
-      viewerRolesResolved,
       canShowMap,
       effectiveTrials.length,
       effectiveShowClasses.length,

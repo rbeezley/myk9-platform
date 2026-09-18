@@ -52,7 +52,7 @@ describe('parseActionRouteContext', () => {
       `/shows/${SHOW_ID}/`,
       `/shows/${SHOW_ID}/entries`,
       `/shows/${SHOW_ID}/show-day`,
-      `/shows/${SHOW_ID}/results-control`,
+      `/shows/${SHOW_ID}/results`,
       `/shows/${SHOW_ID}/classes/trial-1`,
     ]) {
       expect(parseActionRouteContext(mounted), mounted).toMatchObject({ shellMounted: true });

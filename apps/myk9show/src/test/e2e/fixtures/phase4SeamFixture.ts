@@ -47,7 +47,7 @@ export const PHASE4_ROUTES = {
   secretaryPullManagement: `/secretary/shows/${PHASE4_IDS.show}/entries?entryTab=scratches`,
   secretaryWaitlist: `/secretary/shows/${PHASE4_IDS.show}/waitlist`,
   secretaryMessages: `/secretary/messages?showId=${PHASE4_IDS.show}`,
-  secretaryResultsControl: `/secretary/shows/${PHASE4_IDS.show}/results-control`,
+  secretaryResultsControl: `/secretary/shows/${PHASE4_IDS.show}/results`,
 } as const;
 
 export type EntryStatus =

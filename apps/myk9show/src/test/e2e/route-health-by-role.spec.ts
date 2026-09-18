@@ -81,7 +81,7 @@ const EXHIBITOR_ROUTES: RouteSpec[] = [
 const SECRETARY_ROUTES: RouteSpec[] = [
   { label: 'dashboard', path: '/secretary/dashboard' },
   { label: 'wizard', path: '/secretary/create-show/wizard' },
-  { label: 'entries', path: `/shows/${SEEDED_SHOW}/entry-management` },
+  { label: 'entries', path: `/shows/${SEEDED_SHOW}/entries` },
   { label: 'reports', path: `/shows/${SEEDED_SHOW}/reports` },
   { label: 'settings', path: '/secretary/settings' },
   { label: 'people', path: '/people' },

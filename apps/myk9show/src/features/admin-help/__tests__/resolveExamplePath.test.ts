@@ -38,17 +38,10 @@ describe('resolveExamplePath', () => {
 
   it('resolves canonical show management patterns', () => {
     expect(resolveExamplePath('/shows/:showId/setup', fullIds)).toBe('/shows/SHOW_1/setup');
-    expect(resolveExamplePath('/shows/:showId/show-desk', fullIds)).toBe('/shows/SHOW_1/show-desk');
-    expect(resolveExamplePath('/shows/:showId/entry-management', fullIds)).toBe(
-      '/shows/SHOW_1/entry-management'
-    );
+    expect(resolveExamplePath('/shows/:showId/show-day', fullIds)).toBe('/shows/SHOW_1/show-day');
+    expect(resolveExamplePath('/shows/:showId/entries', fullIds)).toBe('/shows/SHOW_1/entries');
     expect(resolveExamplePath('/shows/:showId/reports', fullIds)).toBe('/shows/SHOW_1/reports');
-    expect(resolveExamplePath('/shows/:showId/results-control', fullIds)).toBe(
-      '/shows/SHOW_1/results-control'
-    );
-    expect(resolveExamplePath('/shows/:showId/submit-results', fullIds)).toBe(
-      '/shows/SHOW_1/submit-results'
-    );
+    expect(resolveExamplePath('/shows/:showId/results', fullIds)).toBe('/shows/SHOW_1/results');
   });
 
   it('resolves multi-param chains with consistent parent ids', () => {
@@ -86,7 +79,7 @@ describe('resolveExamplePath', () => {
     const partial: ExampleIds = { showId: 'SHOW_1' };
     expect(resolveExamplePath('/dogs/:id', partial)).toBeNull();
     expect(resolveExamplePath('/shows/:showId/trials/:trialId', partial)).toBeNull();
-    expect(resolveExamplePath('/shows/:showId/results-control', {})).toBeNull();
+    expect(resolveExamplePath('/shows/:showId/results', {})).toBeNull();
   });
 
   it('returns null for an unknown parameterized pattern', () => {

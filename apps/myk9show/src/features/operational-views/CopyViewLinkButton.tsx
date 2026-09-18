@@ -17,7 +17,7 @@ import { Popover, PopoverAnchor, PopoverContent } from '@/components/ui/popover/
 import { notifications } from '@/lib/notifications';
 
 export interface CopyViewLinkButtonProps {
-  /** Path portion of the URL to copy (e.g. `/shows/:id/entry-management?attention=pending`). */
+  /** Path portion of the URL to copy (e.g. `/shows/:id/entries?attention=pending`). */
   href: string;
   /** Accessible/visible label for the trigger button's screen-reader text. */
   label?: string;

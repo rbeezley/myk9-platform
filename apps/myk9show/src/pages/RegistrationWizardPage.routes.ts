@@ -19,7 +19,7 @@ export function resolveRegistrationExitPath(
   isLateEntryMode: boolean
 ): string | null {
   if (!isLateEntryMode) return null;
-  return `/shows/${encodeURIComponent(showId)}/show-desk`;
+  return `/shows/${encodeURIComponent(showId)}/show-day`;
 }
 
 /**
@@ -42,7 +42,7 @@ export function resolveRegistrationExit(
   // Secretary show-desk late-entry: return to the Show Desk it launched from.
   if (opts.isLateEntryMode) {
     return {
-      path: `/shows/${encodeURIComponent(showId)}/show-desk`,
+      path: `/shows/${encodeURIComponent(showId)}/show-day`,
       label: 'Back to Show Desk',
     };
   }
@@ -66,6 +66,6 @@ export function resolveRegistrationCompletionPath(
   isInsideSidebar = false
 ): string {
   if (isLateEntryMode) return resolveRegistrationExitPath(showId, true)!;
-  if (isInsideSidebar) return `/shows/${encodeURIComponent(showId)}/entry-management`;
+  if (isInsideSidebar) return `/shows/${encodeURIComponent(showId)}/entries`;
   return `/shows/${encodeURIComponent(showId)}`;
 }

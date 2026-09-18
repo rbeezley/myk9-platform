@@ -53,7 +53,7 @@ describe('buildClassPaperworkMap', () => {
           printedAt: '2026-07-20T14:42:00.000Z',
         },
       ],
-      returnTo: '/shows/show-1/show-desk',
+      returnTo: '/shows/show-1/show-day',
     });
 
     expect(map.get('class-1')?.find(item => item.reportId === 'check-in-sheet')).toMatchObject({
@@ -74,7 +74,7 @@ describe('buildClassPaperworkMap', () => {
       trials: [{ id: 'trial-1', trialDate: '2026-07-20' }],
       entries: [],
       records: [],
-      returnTo: '/shows/show-1/show-desk',
+      returnTo: '/shows/show-1/show-day',
     });
 
     expect(map.get('class-1')).toEqual([]);
@@ -118,7 +118,7 @@ describe('buildClassPaperworkMap', () => {
       trials: [{ id: 'trial-1', trialDate: '2026-07-20' }],
       entries,
       records: [record],
-      returnTo: '/shows/show-1/show-desk',
+      returnTo: '/shows/show-1/show-day',
     });
     expect(current.get('class-1')?.find(item => item.reportId === 'armband-labels')).toMatchObject({
       state: 'current',
@@ -131,7 +131,7 @@ describe('buildClassPaperworkMap', () => {
       trials: [{ id: 'trial-1', trialDate: '2026-07-20' }],
       entries: [{ ...entries[0], armband: '202' } as DbEntry],
       records: [record],
-      returnTo: '/shows/show-1/show-desk',
+      returnTo: '/shows/show-1/show-day',
     });
     expect(stale.get('class-1')?.find(item => item.reportId === 'armband-labels')).toMatchObject({
       state: 'stale',

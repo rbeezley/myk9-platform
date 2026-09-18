@@ -95,11 +95,11 @@ describe('AttentionNeededStrip', () => {
         showName: 'Spring Trial',
         kind: 'urgent',
         text: 'Check-in open',
-        href: '/shows/s1/show-desk',
+        href: '/shows/s1/show-day',
       },
     ]);
     const link = screen.getByRole('link');
-    expect(link).toHaveAttribute('href', '/shows/s1/show-desk');
+    expect(link).toHaveAttribute('href', '/shows/s1/show-day');
   });
 
   it('renders multiple items as separate links', () => {

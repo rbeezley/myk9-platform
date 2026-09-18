@@ -70,26 +70,28 @@ test.describe('Show management workflow', () => {
     await expect(page.getByRole('menuitem', { name: 'Show settings…' })).toBeVisible();
     await page.keyboard.press('Escape');
 
-    const managementNav = page.locator('[data-testid="canonical-show-management-nav"]');
-    await expect(managementNav).toBeVisible();
-
-    // Setup is deliberately NOT a peer link (`SHOW_MANAGEMENT_NAV_SECTIONS`
-    // filters it out and `/shows/:id/setup` redirects to Overview). This spec
-    // still listed it and had been failing on that line before MYK9-630
-    // touched it.
-    await expect(managementNav.getByRole('link', { name: 'Setup', exact: true })).toHaveCount(0);
-
-    for (const section of [
-      ['Show Desk', 'show-desk'],
-      ['Entry Management', 'entry-management'],
-      ['Reports', 'reports'],
-      ['Results', 'results-control'],
-      ['Submit Results', 'submit-results'],
-    ] as const) {
-      await expect(
-        managementNav.getByRole('link', { name: section[0], exact: true })
-      ).toHaveAttribute('href', `/shows/${showId}/${section[1]}`);
+    // MYK9-630 phase 2: the five standalone page links above the tab strip are
+    // deleted -- every one of those pages IS a tab now, and the tabs are the
+    // only horizontal row on the page.
+    await expect(page.locator('[data-testid="canonical-show-management-nav"]')).toHaveCount(0);
+    for (const label of ['Show Desk', 'Entry Management', 'Reports', 'Submit Results']) {
+      await expect(page.getByRole('link', { name: label, exact: true })).toHaveCount(0);
     }
+
+    const tabs = page.getByRole('tab');
+    await expect(tabs).toHaveCount(6);
+    await expect(tabs).toHaveText([
+      /^Overview/,
+      /^Setup/,
+      /^Entries/,
+      /^Show Day/,
+      /^Results/,
+      /^Reports/,
+    ]);
+
+    // Each tab is a real page: selecting one changes the URL.
+    await page.getByRole('tab', { name: /^Show Day/ }).click();
+    await expect(page).toHaveURL(new RegExp(`/shows/${showId}/show-day`));
 
     await expect(page.locator('[data-testid="show-trials-tab"]')).toHaveCount(0);
   });

@@ -19,7 +19,7 @@ describe('route-health path contract', () => {
     const route = { path: '/shows/show-1?tab=entries' };
 
     expect(expectedRoutePath(route)).toBe('/shows/show-1');
-    expect(routePathMatches(route, '/shows/show-1/entry-management')).toBe(true);
+    expect(routePathMatches(route, '/shows/show-1/entries')).toBe(true);
     expect(routePathMatches(route, '/shows/show-10')).toBe(false);
   });
 

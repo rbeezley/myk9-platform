@@ -62,7 +62,7 @@ export function getShowDeskHref({
 }): string {
   const params = writeCockpitUrlState(new URLSearchParams(), state);
   const query = params.toString();
-  return `/shows/${encodeURIComponent(showId)}/show-desk${query ? `?${query}` : ''}`;
+  return `/shows/${encodeURIComponent(showId)}/show-day${query ? `?${query}` : ''}`;
 }
 
 function withReturnTo(href: string, returnTo: string): string {
@@ -127,7 +127,7 @@ export function getCockpitResultsControlHref(input: {
   if (input.classId) params.set('classId', input.classId);
   const query = params.toString();
   return withReturnTo(
-    `/shows/${encodeURIComponent(input.showId)}/results-control${query ? `?${query}` : ''}`,
+    `/shows/${encodeURIComponent(input.showId)}/results${query ? `?${query}` : ''}`,
     input.returnTo
   );
 }
@@ -137,11 +137,13 @@ export function getCockpitSubmitResultsHref(input: {
   trialId?: string;
   returnTo: string;
 }): string {
+  // Submit Results is a STEP inside the Results tab now (MYK9-630 phase 2), not
+  // a route of its own, so `step` rides in the query with everything else.
   const params = new URLSearchParams();
+  params.set('step', 'submit');
   if (input.trialId) params.set('trialId', input.trialId);
-  const query = params.toString();
   return withReturnTo(
-    `/shows/${encodeURIComponent(input.showId)}/submit-results${query ? `?${query}` : ''}`,
+    `/shows/${encodeURIComponent(input.showId)}/results?${params.toString()}`,
     input.returnTo
   );
 }
@@ -172,7 +174,10 @@ export function resolveShowDeskReturnHref(
     return null;
   }
   if (url.origin !== 'https://myk9.internal') return null;
-  const match = url.pathname.match(/^\/shows\/([^/]+)\/show-desk$/);
+  // Accept the legacy `/show-desk` as well as the current `/show-day`: a
+  // `returnTo` captured before MYK9-630 phase 2 shipped is still in someone's
+  // open tab, and rejecting it silently drops their way back.
+  const match = url.pathname.match(/^\/shows\/([^/]+)\/(?:show-day|show-desk)$/);
   if (!match?.[1]) return null;
   const showId = decodeURIComponent(match[1]);
   if (expectedShowId && showId !== expectedShowId) return null;

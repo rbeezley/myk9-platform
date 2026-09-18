@@ -82,9 +82,24 @@ export const LEGACY_SHOW_TAB_PARAM_REDIRECTS: Readonly<
   results: { path: 'results' },
 };
 
-/** Segments under `/shows/:id` that render inside the management shell. */
-export const SHOW_SHELL_CHILD_SEGMENTS: readonly string[] = [
+/**
+ * Every child route path `publicRoutes.tsx` mounts under `/shows/:id` behind
+ * `ShowManagementSectionRoute` — the five tabs, the legacy URLs that redirect
+ * into them, and Class Management, which is reached FROM Setup and has no tab
+ * of its own.
+ *
+ * It is the list, not a summary of it: the wizard-surface blocklist and the
+ * actions registry's shell predicate both read it, and both were wrong about
+ * `classes/:trialId` when they carried their own copies.
+ */
+export const SHOW_MANAGEMENT_CHILD_ROUTE_PATHS: readonly string[] = [
   ...SHOW_MANAGEMENT_SECTIONS.map(section => section.path),
   ...Object.keys(LEGACY_SHOW_SECTION_REDIRECTS),
-  'classes',
+  'classes/:trialId',
+  'classes/:trialId/create',
+];
+
+/** First segment of each of those, for predicates that match on the segment. */
+export const SHOW_SHELL_CHILD_SEGMENTS: readonly string[] = [
+  ...new Set(SHOW_MANAGEMENT_CHILD_ROUTE_PATHS.map(path => path.split('/')[0]!)),
 ];

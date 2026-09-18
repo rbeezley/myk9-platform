@@ -54,8 +54,10 @@ export interface ShowDetailTabsProps {
  * The `?tab=` body for the PUBLIC and EXHIBITOR surfaces.
  *
  * It keeps the Show Map panel because a club-scoped CLUB ADMIN lands here
- * (#2180) and this is their only map -- a site admin or scoped secretary sees
- * the management surface, where Show Map is a view inside Setup.
+ * (#2180) and this is the map their chrome offers -- a site admin or scoped
+ * secretary sees the management surface, where Show Map is a view inside Setup.
+ * A club admin can additionally reach the Setup copy by URL; see the
+ * `canShowMap` note on `ShowDetailTabDefsInput` for why that is accepted.
  *
  * The secretary no longer has a `?tab=` strip: since MYK9-630 phase 2 their
  * show page is one row of six tabs, each a real route, rendered by

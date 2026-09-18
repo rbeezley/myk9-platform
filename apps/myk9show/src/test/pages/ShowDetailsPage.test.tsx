@@ -1219,8 +1219,13 @@ describe('ShowDetailsPage', () => {
       expect(screen.queryByText('Failed to load component')).toBeNull();
     });
 
-    // Mutation-proven: forcing `viewerRolesResolved` to `true` reds this case.
-    it('does not offer the entries tab at all while roles are cold', () => {
+    // The tab strip is not built at all while roles are cold -- the audience is
+    // `pending` and the page early-returns a skeleton. Round 1 added a second
+    // filter on `allowedTabs` for this; round 2 proved it unreachable (mutating
+    // it open red nothing) and deleted it. This case pins the PROPERTY, and
+    // says plainly which gate delivers it rather than claiming a mutation that
+    // no longer reds.
+    it('builds no tab strip at all while roles are cold', () => {
       mockAuthContext.isSecretary = false;
       mockAuthContext.rbacLoading = true;
       mockAuthContext.userWithRoles = null;
@@ -1228,11 +1233,11 @@ describe('ShowDetailsPage', () => {
 
       renderPage('show-1', '', '?tab=my-entries');
 
-      expect(screen.queryByRole('tab', { name: /entries/i })).toBeNull();
+      expect(screen.queryAllByRole('tab')).toHaveLength(0);
       expect(screen.queryByTestId('my-entries-tab')).toBeNull();
     });
 
-    // Mutation-proven: restoring `viewerRolesResolved = !rbacLoading` reds this.
+    // Mutation-proven: `viewerRolesUnresolved` -> `rbacLoading` reds this.
     it('keeps the exhibitor entries tab through a WARM rbac refresh', () => {
       // `useRbacLifecycle` re-runs `load()` on a 5-minute interval and on every
       // `online` event, and `load()` sets `isLoading: true` while PRESERVING the

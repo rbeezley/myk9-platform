@@ -15,7 +15,7 @@ describe('buildClassDetailsRelatedLinks', () => {
       {
         key: 'entry-management',
         label: 'Entry Management',
-        href: '/shows/show-1/entry-management?trial=trial-1&class=class-1',
+        href: '/shows/show-1/entries?trial=trial-1&class=class-1',
       },
     ]);
   });
@@ -54,7 +54,7 @@ describe('buildClassDetailsRelatedLinks', () => {
       {
         key: 'entry-management',
         label: 'Entry Management',
-        href: '/shows/show-1/entry-management?class=class-1',
+        href: '/shows/show-1/entries?class=class-1',
       },
     ]);
   });

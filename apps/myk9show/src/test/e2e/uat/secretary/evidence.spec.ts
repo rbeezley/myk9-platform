@@ -43,7 +43,7 @@ test.describe('Phase 1 UAT - Secretary evidence pass', () => {
       page.getByRole('link', { name: 'Add Show' })
     );
 
-    await page.goto(`/shows/${SHOW_ID}/entry-management`, { waitUntil: 'domcontentloaded' });
+    await page.goto(`/shows/${SHOW_ID}/entries`, { waitUntil: 'domcontentloaded' });
     await expect(page.getByRole('heading', { name: 'Entry Management' })).toBeVisible({
       timeout: 15000,
     });

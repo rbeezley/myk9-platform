@@ -107,12 +107,24 @@ const SHOW_MANAGEMENT_SECTION_ELEMENTS: Record<ShowManagementSectionPath, ReactN
 function ShowManagementSectionRoute({ children }: { children: ReactNode }) {
   const { id } = useParams<{ id?: string }>();
   const canonicalShowPath = id ? `/shows/${id}` : '/shows';
-  const { user, loading: authLoading, rbacLoading } = useAuthContext();
+  const { user, userWithRoles, loading: authLoading, rbacLoading } = useAuthContext();
   // Same gate the page bodies use, so the route and the surface it admits can
   // never disagree about who manages this show.
   const manageScope = useShowManageScope(id);
 
-  if (authLoading || rbacLoading) return null;
+  // Hold only while the viewer's roles are genuinely UNKNOWN. `rbacLoading`
+  // alone is not that: `useRbacLifecycle` re-runs `load()` on a 5-minute
+  // interval and on every `online` event, and `load()` sets `isLoading: true`
+  // while PRESERVING the roles it already has. Returning null there unmounts
+  // the section element, so a secretary on Entries lost their bulk selection,
+  // search, page index, open detail pane and scroll position every five
+  // minutes -- and at a venue, on every reconnect. Since MYK9-630 phase 2 these
+  // five routes are the ONLY door to Setup / Entries / Show Day / Results /
+  // Reports, so every show-day surface sat behind it.
+  //
+  // Same predicate `ShowDetailsPage` uses for its audience gate and `App.tsx`
+  // uses via `areRolesResolved`.
+  if (authLoading || (rbacLoading && !userWithRoles)) return null;
   if (!user) return <Navigate to={canonicalShowPath} replace />;
 
   // Hold — never redirect — while ownership is still resolving. Redirecting on a

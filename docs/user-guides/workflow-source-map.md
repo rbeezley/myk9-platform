@@ -147,7 +147,7 @@ These routes exist in `pageDirectory.ts` but should not appear in customer-facin
 ### 15. Review and approve entries
 
 **Outcome:** Secretary approves, rejects, or waitlists pending entries; records mail-in payment.
-**Canonical route:** `/shows/:showId/entry-management`
+**Canonical route:** `/shows/:showId/entries`
 **Docs target:** Secretary Guide § Entry Management, KB: `approve-entries.md`
 
 ### 16. Communicate with exhibitors
@@ -160,7 +160,7 @@ These routes exist in `pageDirectory.ts` but should not appear in customer-facin
 ### 17. Run the show desk on show day
 
 **Outcome:** Secretary handles check-in, scratches, move-ups, and late entries from one page.
-**Canonical route:** `/shows/:showId/show-desk`
+**Canonical route:** `/shows/:showId/show-day`
 **Entry point:** Show workbench Today tab, or Secretary Dashboard when show is live today
 **Docs target:** Secretary Guide § Show Day, KB: `handle-a-scratch.md`, `handle-move-up.md`
 
@@ -173,13 +173,13 @@ These routes exist in `pageDirectory.ts` but should not appear in customer-facin
 ### 19. Verify and release results
 
 **Outcome:** Secretary confirms all class results are complete and releases them to exhibitors.
-**Canonical route:** `/shows/:showId/results-control`
+**Canonical route:** `/shows/:showId/results`
 **Docs target:** Secretary Guide § Closeout
 
 ### 20. Submit results to AKC/UKC
 
 **Outcome:** Secretary downloads the electronic submission file and emails it to the registry.
-**Canonical route:** `/shows/:showId/submit-results`
+**Canonical route:** `/shows/:showId/results?step=submit`
 **Docs target:** Secretary Guide § Closeout, KB: `submit-akc-results.md`
 
 ---
@@ -189,13 +189,13 @@ These routes exist in `pageDirectory.ts` but should not appear in customer-facin
 ### Tasks
 
 **Decision:** Personal task work belongs on the secretary dashboard; per-show task work belongs in each show's Tools sheet, not a standalone `/secretary/tasks` page.
-**Canonical routes:** `/secretary/dashboard`, `/shows/:showId/show-desk`
+**Canonical routes:** `/secretary/dashboard`, `/shows/:showId/show-day`
 **Why this does not duplicate another page:** The dashboard and Show Desk already own the two distinct task scopes, so the legacy route is only a compatibility redirect.
 
 ### Waitlist
 
 **Decision:** Waitlist work belongs in Entry Management, not a standalone `/secretary/waitlist/:showId` page.
-**Canonical route:** `/shows/:showId/entry-management`
+**Canonical route:** `/shows/:showId/entries`
 **Why this does not duplicate another page:** Entry Management already owns entry review states and exception queues.
 
 ### Volunteers

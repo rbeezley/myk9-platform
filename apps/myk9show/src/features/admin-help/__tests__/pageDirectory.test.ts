@@ -34,18 +34,17 @@ describe('pageDirectory (invariant)', () => {
   it('catalogs canonical show management paths instead of legacy secretary show pages', () => {
     const paths = pageDirectory.map(e => e.path);
     expect(paths).toContain('/shows/:showId/setup');
-    expect(paths).toContain('/shows/:showId/show-desk');
-    expect(paths).toContain('/shows/:showId/entry-management');
+    expect(paths).toContain('/shows/:showId/show-day');
+    expect(paths).toContain('/shows/:showId/entries');
     expect(paths).toContain('/shows/:showId/reports');
-    expect(paths).toContain('/shows/:showId/results-control');
-    expect(paths).toContain('/shows/:showId/submit-results');
+    expect(paths).toContain('/shows/:showId/results');
     expect(paths).not.toContain('/secretary/shows/:showId');
-    expect(paths).not.toContain('/secretary/shows/:showId/results-control');
+    expect(paths).not.toContain('/secretary/shows/:showId/results');
     expect(paths).not.toContain('/secretary/run-order');
   });
 
   it('catalogs Results without assigning self check-in to the closeout page', () => {
-    const results = pageDirectory.find(e => e.path === '/shows/:showId/results-control');
+    const results = pageDirectory.find(e => e.path === '/shows/:showId/results');
     expect(results?.title).toBe('Results');
     expect(`${results?.title} ${results?.description}`).not.toMatch(/check-in/i);
   });
@@ -53,11 +52,10 @@ describe('pageDirectory (invariant)', () => {
   it('matches canonical show management roles to the route guard', () => {
     const managementPaths = [
       '/shows/:showId/setup',
-      '/shows/:showId/show-desk',
-      '/shows/:showId/entry-management',
+      '/shows/:showId/show-day',
+      '/shows/:showId/entries',
       '/shows/:showId/reports',
-      '/shows/:showId/results-control',
-      '/shows/:showId/submit-results',
+      '/shows/:showId/results',
     ];
 
     for (const path of managementPaths) {

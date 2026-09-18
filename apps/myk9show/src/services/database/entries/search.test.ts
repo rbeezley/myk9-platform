@@ -357,6 +357,14 @@ describe('getUserEntries account-scope read', () => {
       expect(selects).toHaveLength(2);
       expect(selects[0]).toContain('withdrawal_reason_code');
       expect(selects[1]).not.toContain('withdrawal_reason_code');
+      // The degraded window must not be silent: this warning is the only
+      // evidence anywhere that the migration has not been pushed, and later
+      // that the compat arm is safe to delete (MYK9-654).
+      expect(mocks.loggerWarn).toHaveBeenCalledWith(
+        expect.stringContaining('20260918041700'),
+        'database',
+        expect.objectContaining({ column: 'withdrawal_reason_code' })
+      );
     });
   });
 

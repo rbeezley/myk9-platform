@@ -71,8 +71,8 @@ The shared packages follow a strict directed acyclic graph (DAG) to prevent circ
 | `@myk9/replication`   | Offline-first data layer with IndexedDB caching and sync | `ReplicatedTable`, `DatabaseManager`, `ConflictResolver`, sync utilities         |
 | `@myk9/ui`            | Accessible UI components built on Base UI + Tailwind     | `Button`, `Dialog`, `Select`, tailwind preset, `cn()` utility                    |
 | `@myk9/scoring`       | Scoring domain stores and types (pure logic, no UI)      | `useScoringStore`, `useTimerStore`, score types, scoring configs                 |
-| `@myk9/scoring-ui`    | Shared behavioral hooks for scoring UIs                  | `useStopwatch`, `useEntryListFilters`, scoresheet components                     |
-| `@myk9/ringside`      | The `/at-show` ringside scoring UI and feature package   | Ringside screens, gates, and show-day scoring flows                              |
+| `@myk9/scoring-ui`    | Shared behavioral hooks for scoring UIs                  | `useStopwatch`, `useDebounce`, `useHapticFeedback`, scoresheet components        |
+| `@myk9/ringside`      | The `/at-show` ringside scoring UI and feature package   | Ringside screens, gates, show-day scoring flows, `useEntryListFilters`           |
 | `@myk9/secretary`     | Secretary show-management feature package                | Show setup, entry management, and secretary workflow surfaces                    |
 | `@myk9/email`         | Email templates and sending helpers                      | Transactional email templates and send utilities                                 |
 | `@myk9/notifications` | Push and notification helpers                            | Notification dispatch and subscription helpers                                   |

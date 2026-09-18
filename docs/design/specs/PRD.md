@@ -465,7 +465,7 @@ import { ReplicatedTable, replicatedClassesTable } from '@myk9/replication';
 import { useScoringStore, useTimerStore, QualifyingResult } from '@myk9/scoring';
 
 // @myk9/scoring-ui - Scoring UI hooks
-import { useStopwatch, useEntryListFilters } from '@myk9/scoring-ui';
+import { useStopwatch, useDebounce } from '@myk9/scoring-ui';
 
 // @myk9/ui - Shared components
 import { Button, Card, Dialog } from '@myk9/ui';

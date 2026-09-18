@@ -1230,8 +1230,16 @@ describe('ShowDetailsPage', () => {
       expect(screen.getByTestId('page-location').textContent).not.toContain('edit=true');
     });
 
-    it('never renders the exhibitor body', () => {
+    it('never renders the exhibitor body — and IS on the management one', () => {
       renderPage();
+
+      // The positive control has to be on the same render, or the assertion
+      // below cannot tell "management surface" from "no surface at all": under
+      // the mutation that removes the club-admin arm from `canManageShowSurface`
+      // this fixture has no entries, the audience resolves to 'public', no tab
+      // strip is built, and a bare absence check stays green while the rule it
+      // guards is broken (REV-2341 lens P, P6).
+      expect(screen.getByRole('tab', { name: /^Show Day/ })).toBeInTheDocument();
 
       expect(screen.queryByRole('tab', { name: /^My Entries/ })).toBeNull();
       expect(screen.queryByRole('tab', { name: /^Trials/ })).toBeNull();

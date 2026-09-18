@@ -155,15 +155,15 @@ tab they land on, never the redirect:
 
 ### 14. Manage a specific show (setup and configuration)
 
-**Outcome:** Secretary configures trials, classes, officials, and rings after initial creation.
+**Outcome:** Secretary or club admin configures trials, classes, officials, and rings after initial creation.
 **Canonical route:** `/shows/:showId/setup`
-**Docs target:** Secretary Guide § Setup
+**Docs target:** Secretary Guide § Setup, Club Admin Guide § 2 — Your Club's Shows
 
 ### 15. Review and approve entries
 
-**Outcome:** Secretary approves, rejects, or waitlists pending entries; records mail-in payment.
+**Outcome:** Secretary or club admin approves, rejects, or waitlists pending entries; records mail-in payment.
 **Canonical route:** `/shows/:showId/entries`
-**Docs target:** Secretary Guide § Entry Management, KB: `approve-entries.md`
+**Docs target:** Secretary Guide § Entry Management, Club Admin Guide § 2 — Your Club's Shows, KB: `approve-entries.md`
 
 ### 16. Communicate with exhibitors
 
@@ -174,28 +174,28 @@ tab they land on, never the redirect:
 
 ### 17. Run the show desk on show day
 
-**Outcome:** Secretary handles check-in, scratches, move-ups, and late entries from one page.
+**Outcome:** Secretary or club admin handles check-in, scratches, and move-ups from one page; late entry is secretary-only.
 **Canonical route:** `/shows/:showId/show-day`
 **Entry point:** Show workbench Today tab, or Secretary Dashboard when show is live today
-**Docs target:** Secretary Guide § Show Day, KB: `handle-a-scratch.md`, `handle-move-up.md`
+**Docs target:** Secretary Guide § Show Day, Club Admin Guide § 2 — Your Club's Shows, KB: `handle-a-scratch.md`, `handle-move-up.md`
 
 ### 18. Generate reports
 
-**Outcome:** Secretary prints scoresheets, check-in sheets, result labels, and run orders.
+**Outcome:** Secretary or club admin prints scoresheets, check-in sheets, result labels, and run orders.
 **Canonical route:** `/shows/:showId/reports`
-**Docs target:** Secretary Guide § Reports
+**Docs target:** Secretary Guide § Reports, Club Admin Guide § 2 — Your Club's Shows
 
 ### 19. Verify and release results
 
-**Outcome:** Secretary confirms all class results are complete and releases them to exhibitors.
+**Outcome:** Secretary or club admin confirms all class results are complete and releases them to exhibitors.
 **Canonical route:** `/shows/:showId/results`
-**Docs target:** Secretary Guide § Closeout
+**Docs target:** Secretary Guide § Closeout, Club Admin Guide § 2 — Your Club's Shows
 
 ### 20. Submit results to AKC/UKC
 
-**Outcome:** Secretary downloads the electronic submission file and emails it to the registry.
+**Outcome:** Secretary or club admin downloads the electronic submission file and emails it to the registry.
 **Canonical route:** `/shows/:showId/results?step=submit`
-**Docs target:** Secretary Guide § Closeout, KB: `submit-akc-results.md`
+**Docs target:** Secretary Guide § Closeout, Club Admin Guide § 2 — Your Club's Shows, KB: `submit-akc-results.md`
 
 ---
 
@@ -277,13 +277,13 @@ These exist in `pageDirectory.ts` for the Help page and are documented here for 
 
 Workflows where the same user outcome appears at more than one route. Document only the **canonical** route; note the alternative.
 
-| Outcome                 | Canonical route                                                                   | Alternative                                                              | Note                                                                          |
-| ----------------------- | --------------------------------------------------------------------------------- | ------------------------------------------------------------------------ | ----------------------------------------------------------------------------- |
-| Browse shows            | `/shows`                                                                          | `/browse-shows`                                                          | `/browse-shows` is a redirect; the calendar view is on `/shows`               |
-| Show detail             | `/shows/:id`                                                                      | `/trials/:trialId`, `/classes/:classId`                                  | Legacy paths are redirects — document `/shows/:id` nested paths only          |
-| Trial details           | `/shows/:showId/trials/:trialId`                                                  | `/trials/:trialId`                                                       | Document the nested path only                                                 |
-| Class details           | `/shows/:showId/trials/:trialId/classes/:classId`                                 | `/classes/:classId`                                                      | Document the nested path only                                                 |
-| Entry list (exhibitor)  | `/exhibitor/entries`                                                              | `/my-entries`                                                            | `/my-entries` is a redirect — document `/exhibitor/entries` only              |
-| Show day entry point    | ShowTodayBanner on `/exhibitor/entries`                                           | _(none)_                                                                 | `/exhibitor/show-day` was deleted (MYK9-476) — document the banner CTA only   |
-| Profile/settings        | `/account`                                                                        | `/profile`, `/settings`, `/preferences`                                  | `/account` is the consolidated surface — document the single destination only |
-| Secretary show sections | `/shows/:id` six tabs (`/setup`, `/entries`, `/show-day`, `/results`, `/reports`) | `/show-desk`, `/entry-management`, `/results-control`, `/submit-results` | Renamed by MYK9-630 phase 2; the old URLs redirect. Document the tabs only    |
+| Outcome                                  | Canonical route                                                                   | Alternative                                                              | Note                                                                          |
+| ---------------------------------------- | --------------------------------------------------------------------------------- | ------------------------------------------------------------------------ | ----------------------------------------------------------------------------- |
+| Browse shows                             | `/shows`                                                                          | `/browse-shows`                                                          | `/browse-shows` is a redirect; the calendar view is on `/shows`               |
+| Show detail                              | `/shows/:id`                                                                      | `/trials/:trialId`, `/classes/:classId`                                  | Legacy paths are redirects — document `/shows/:id` nested paths only          |
+| Trial details                            | `/shows/:showId/trials/:trialId`                                                  | `/trials/:trialId`                                                       | Document the nested path only                                                 |
+| Class details                            | `/shows/:showId/trials/:trialId/classes/:classId`                                 | `/classes/:classId`                                                      | Document the nested path only                                                 |
+| Entry list (exhibitor)                   | `/exhibitor/entries`                                                              | `/my-entries`                                                            | `/my-entries` is a redirect — document `/exhibitor/entries` only              |
+| Show day entry point                     | ShowTodayBanner on `/exhibitor/entries`                                           | _(none)_                                                                 | `/exhibitor/show-day` was deleted (MYK9-476) — document the banner CTA only   |
+| Profile/settings                         | `/account`                                                                        | `/profile`, `/settings`, `/preferences`                                  | `/account` is the consolidated surface — document the single destination only |
+| Show sections (secretary and club admin) | `/shows/:id` six tabs (`/setup`, `/entries`, `/show-day`, `/results`, `/reports`) | `/show-desk`, `/entry-management`, `/results-control`, `/submit-results` | Renamed by MYK9-630 phase 2; the old URLs redirect. Document the tabs only    |

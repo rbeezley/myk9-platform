@@ -4,6 +4,7 @@ import userEvent from '@testing-library/user-event';
 import { ReportControlsBar } from '../ReportControlsBar';
 import { getReportsForRegistries, reportRegistry } from '@/lib/reports/reportRegistry';
 import type { ReportPhase } from '@/lib/reports/types';
+import type { ShowTimePhase } from '@/lib/reports/reportPhaseOrder';
 
 // Partial mock: every test uses the REAL registry scoping. Only the
 // empty-phase-group test swaps the return value for one render, to reach a
@@ -442,6 +443,21 @@ describe('ReportControlsBar', () => {
       expect(orphans).toEqual([]);
     });
 
+    it('has exactly 37 reports, in the buckets the phase table on MYK9-630 states', () => {
+      // Pins the COUNT, which the sum-equals-length assertion never did: that
+      // one is an identity over a total partition and is true of any
+      // assignment. Richard corrects this table on the issue; these numbers and
+      // that comment must agree, so a silent re-bucketing reds here.
+      expect(reportRegistry).toHaveLength(37);
+      const sizes = Object.fromEntries(
+        (Object.keys(PHASE_LABELS) as ReportPhase[]).map(phase => [
+          phase,
+          reportRegistry.filter(r => r.phase === phase).length,
+        ])
+      );
+      expect(sizes).toEqual({ before: 13, during: 10, after: 13, anytime: 1 });
+    });
+
     it('lists all 37 reports exactly once across the four phase groups', async () => {
       render(<ReportControlsBar {...defaultProps} />);
       const optionNames = await openReportDropdown();
@@ -455,22 +471,62 @@ describe('ReportControlsBar', () => {
       }
     });
 
-    it('renders the four phase headings in show order', async () => {
-      render(<ReportControlsBar {...defaultProps} />);
+    async function renderedHeadingOrder(showPhase?: ShowTimePhase): Promise<string[]> {
+      render(
+        <ReportControlsBar {...defaultProps} {...(showPhase === undefined ? {} : { showPhase })} />
+      );
       await openReportDropdown();
+      // Read the ORDER off the DOM, never off the constant that produced it:
+      // find each heading by its own text, then sort by document position.
+      const headings = Object.values(PHASE_LABELS).map(label => screen.getByText(label));
+      return [...headings]
+        .sort((a, b) => (a.compareDocumentPosition(b) & Node.DOCUMENT_POSITION_FOLLOWING ? -1 : 1))
+        .map(el => el.textContent ?? '');
+    }
 
-      const headings = [
-        screen.getByText(PHASE_LABELS.before),
-        screen.getByText(PHASE_LABELS.during),
-        screen.getByText(PHASE_LABELS.after),
-        screen.getByText(PHASE_LABELS.anytime),
-      ];
-      for (let i = 0; i < headings.length - 1; i++) {
-        const relation = headings[i].compareDocumentPosition(headings[i + 1]);
-        expect(
-          relation & Node.DOCUMENT_POSITION_FOLLOWING,
-          `${headings[i].textContent} should precede ${headings[i + 1].textContent}`
-        ).toBeTruthy();
+    it('defaults to plain show order when the show phase is not supplied', async () => {
+      expect(await renderedHeadingOrder()).toEqual([
+        PHASE_LABELS.before,
+        PHASE_LABELS.during,
+        PHASE_LABELS.after,
+        PHASE_LABELS.anytime,
+      ]);
+    });
+
+    it('leads with During the show while the show is running', async () => {
+      // The show-day cost the regroup would otherwise have shipped silently:
+      // `before` is the largest bucket, so a fixed order pushed Check-in Sheet
+      // and Score Sheet from positions 1-2 to 12-13 (REV-2341 P2-Q2).
+      expect(await renderedHeadingOrder('during')).toEqual([
+        PHASE_LABELS.during,
+        PHASE_LABELS.after,
+        PHASE_LABELS.before,
+        PHASE_LABELS.anytime,
+      ]);
+    });
+
+    it('leads with After the show once it is over', async () => {
+      expect(await renderedHeadingOrder('after')).toEqual([
+        PHASE_LABELS.after,
+        PHASE_LABELS.during,
+        PHASE_LABELS.before,
+        PHASE_LABELS.anytime,
+      ]);
+    });
+
+    it('puts Check-in Sheet and Score Sheet first on show day', async () => {
+      render(<ReportControlsBar {...defaultProps} showPhase="during" />);
+      const optionNames = await openReportDropdown();
+
+      expect(optionNames.slice(0, 2)).toEqual(['Check-in Sheet', 'Score Sheet']);
+    });
+
+    it('reorders without gating: all 37 are still listed in every phase state', async () => {
+      for (const phase of ['before', 'during', 'after', 'unknown'] as const) {
+        const { unmount } = render(<ReportControlsBar {...defaultProps} showPhase={phase} />);
+        const optionNames = await openReportDropdown();
+        expect(optionNames, `phase ${phase}`).toHaveLength(reportRegistry.length);
+        unmount();
       }
     });
 

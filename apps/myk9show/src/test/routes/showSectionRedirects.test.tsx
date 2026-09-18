@@ -334,11 +334,6 @@ describe('ShowManagementSectionRoute over every reachable auth state', () => {
       'mounted',
     ],
     [
-      'offline cold boot, roles hydrated from cache',
-      { authLoading: false, rbacBelongs: true, rbacIsLoading: false, scopes: SCOPED },
-      'mounted',
-    ],
-    [
       'exhibitor, loaded, no management scope',
       { authLoading: false, rbacBelongs: true, rbacIsLoading: false, scopes: [] },
       'redirected',
@@ -352,6 +347,16 @@ describe('ShowManagementSectionRoute over every reachable auth state', () => {
     // rows above. Before phase 3 these rows had no meaning, because a club
     // admin was admitted to the section route and then handed the exhibitor
     // body; now the route and the surface are one decision.
+    //
+    // There is deliberately NO "offline cold boot" row, for either role.
+    // `GateState` models auth loading, RBAC belonging, RBAC loading and the
+    // scope set — nothing in it, or in `deriveAuth`, distinguishes roles
+    // hydrated from a cache from roles hydrated from the network. Such a row is
+    // field-identical to "fully loaded", exercises the same code path and can
+    // never fail independently (REV-2341 lens P, P5). One was added here and a
+    // second already existed on the secretary side; both are gone rather than
+    // left to read as coverage they are not. The offline-boot property is a
+    // claim about the RBAC cache, and belongs to a test of that cache.
     [
       'club admin of this club, fully loaded',
       {
@@ -369,17 +374,6 @@ describe('ShowManagementSectionRoute over every reachable auth state', () => {
         authLoading: false,
         rbacBelongs: true,
         rbacIsLoading: true,
-        scopes: SCOPED_CLUB_ADMIN,
-        role: UserRole.CLUB_ADMIN,
-      },
-      'mounted',
-    ],
-    [
-      'club admin, offline cold boot with roles hydrated from cache',
-      {
-        authLoading: false,
-        rbacBelongs: true,
-        rbacIsLoading: false,
         scopes: SCOPED_CLUB_ADMIN,
         role: UserRole.CLUB_ADMIN,
       },

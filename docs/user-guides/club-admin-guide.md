@@ -54,23 +54,43 @@ Changes take effect immediately on all future shows. Existing shows that have al
 
 ---
 
-## Section 2 — View Your Club's Shows
+## Section 2 — Your Club's Shows
 
-The **Shows** page lists every show your club is hosting or has hosted. It is a read-only list — shows are created by secretaries or site admins.
+The **Shows** page lists every show your club is hosting or has hosted. Shows are created by a secretary or a site admin — you do not create one from this list.
 
 1. In the sidebar, open **Shows**.
 2. Each show card displays the show name, dates, and entry status.
-3. Click a show to open its workbench.
+3. Click a show to open it.
 
 ![Shows list filtered to your club — cards for past and upcoming shows](../screenshots/C-02.png)
 
-From the show workbench you can see entry counts, the assigned secretary, and show status. You do not manage entries or run day-of operations from here — that is the secretary's job.
+**You manage your club's shows.** Opening one of your club's shows gives you the same six tabs a secretary gets, and each tab is a real page with its own address, not a panel:
+
+| Tab          | What you do there                                                                                                         |
+| ------------ | ------------------------------------------------------------------------------------------------------------------------- |
+| **Overview** | Show details, publish state, the premium list, and the public landing page link                                           |
+| **Setup**    | Trials, classes, and the show map                                                                                         |
+| **Entries**  | Review, accept, reject, and comp entries; record payments; work the exception queues                                      |
+| **Show Day** | Check-in, class operations, the show-day tools, and closeout                                                              |
+| **Results**  | Verify and release results, then submit them to the registry                                                              |
+| **Reports**  | Print any of the show's reports, grouped by **Before the show**, **During the show**, **After the show**, and **Anytime** |
+
+The **Actions** menu in the top bar and **Show settings…** work the same for you as they do for the secretary.
+
+**Two jobs stay with the trial secretary:**
+
+- **Typing in entries on someone's behalf.** **Add mail-in entry** (Actions menu) and **Add late entry** (Show Day) are shown to you greyed out, with the reason **"Trial secretary access only"** — visible, so you can see they exist, but not yours to use.
+- **Volunteer scheduling.** **Open volunteer scheduling** on the Show Day tab is greyed out for the same reason; the scheduling page itself is the secretary's.
+
+If your club needs either of those done, ask your secretary — or grant secretary access to the person who will do them (see [Section 3](#section-3--grant-show-access-to-a-secretary)).
 
 ---
 
 ## Section 3 — Grant Show Access to a Secretary
 
-Show access is managed from the **Members** page, not from the show itself. When you grant an active member show access, they can manage any of your club's shows: entries, run order, show-day operations, and AKC results submission.
+Show access is managed from the **Members** page, not from the show itself. This is how you give **someone else** the operational role — you do not grant it to yourself. Your own club admin role already covers your club's shows (see [Section 2](#section-2--your-clubs-shows)).
+
+When you grant an active member show access, they can manage any of your club's shows, and they get the two things your own role does not carry: entering mail-in and late entries on an exhibitor's behalf, and volunteer scheduling. Everything else — entries, run order, show-day operations, results, and registry submission — they share with you.
 
 **The person must already be an active club member before you can grant club-wide show access.** If they are not yet in the members list, add them first (see Section 6). Lapsed, suspended, and resigned members cannot receive or retain effective club-wide show access.
 
@@ -152,7 +172,7 @@ Three days after the show's end date, myK9Show sends the transfer. Your bank typ
 | **Waiting for account** | Stripe onboarding is not yet complete                            |
 | **Retrying**            | A transfer attempt failed; Stripe will retry automatically       |
 
-**Need itemized records?** The per-entry breakdown lives in the show's Entry Management page. Ask your secretary to export a report from there for your treasurer's records.
+**Need itemized records?** Open the show, go to the **Entries** tab, and export from there — you do not need to ask the secretary. The **Reports** tab also carries the Financial Report, which sits under the **Anytime** heading because it is as useful while entries are open as it is at reconciliation.
 
 ---
 

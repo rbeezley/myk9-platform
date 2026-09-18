@@ -7,7 +7,8 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { auditService } from '@/services/AuditService';
-import { UserRole } from '@/types/auth-types';
+import { useShowManageScope } from '@/hooks/useShowManageScope';
+import { trialSecretaryOnlyReason } from '@/features/actions/trialSecretaryAccess';
 import { AuditAction } from '@/types/audit-types';
 import { AlertCircle, Download, MoreHorizontal, Plus, UserCheck } from 'lucide-react';
 import { SecretaryAddEntriesDecision } from '@/features/registration/SecretaryAddEntriesDecision';
@@ -51,7 +52,6 @@ const EntryManagementPage: React.FC = () => {
 
   const {
     user,
-    hasRole,
     shows,
     selectedShowId,
     isLoadingShows,
@@ -69,6 +69,13 @@ const EntryManagementPage: React.FC = () => {
     lastEmailedMap,
     refreshEmailLog,
   } = useEntryManagementData(urlShowId);
+  // Same two gates the Show Day tab uses: `canManage` decides the page,
+  // `canOperate` decides the handful of controls that route into
+  // `ProtectedRoute(SECRETARY | SITE_ADMIN)`. "Add mail-in entry" is one of
+  // them, so a club admin gets it greyed with a reason rather than a click that
+  // dead-ends on a permission wall.
+  const manageScope = useShowManageScope(urlShowId);
+  const secretaryOnlyReason = trialSecretaryOnlyReason(manageScope);
   const registrationGroups = useMemo(() => groupEntriesByShowRegistration(entries), [entries]);
   // MYK9-632: the tab lists BOTH acts an exhibitor can leave behind. A pull
   // ('scratched') is the club's call; a withdrawal carrying one of the two
@@ -220,11 +227,20 @@ const EntryManagementPage: React.FC = () => {
     });
   }, [user?.id]);
 
-  if (
-    !hasRole(UserRole.SECRETARY) &&
-    !hasRole(UserRole.CLUB_ADMIN) &&
-    !hasRole(UserRole.SITE_ADMIN)
-  ) {
+  // THE manage gate, not a second copy of it. This was
+  // `!hasRole(SECRETARY) && !hasRole(CLUB_ADMIN) && !hasRole(SITE_ADMIN)` — a
+  // GLOBAL, unscoped role list, so it answered "is this person staff anywhere"
+  // while `ShowManagementSectionRoute` (the page's only mount) answered "do they
+  // manage THIS show". Broader, so it never leaked, but it is exactly the copy
+  // that goes stale silently: add a role to one list and the other reads
+  // "Access Restricted" (REV-2341 lens P, P4).
+  //
+  // Only a RESOLVED negative on a KNOWN show denies. Two reasons: while
+  // ownership is still settling the body renders and the route holds, so a
+  // legitimate manager never sees a denial flash on a cold deep link; and with
+  // no show in the URL there is no show to scope against, so the honest answer
+  // is "not this gate's question" rather than a confident no.
+  if (urlShowId && manageScope.status === 'resolved' && !manageScope.canManage) {
     return (
       <div className="container mx-auto p-6">
         <Card>
@@ -303,7 +319,10 @@ const EntryManagementPage: React.FC = () => {
             </PopoverTrigger>
             <PopoverContent align="end" className="w-auto">
               <p className="mb-3 text-sm font-semibold">Who are you entering?</p>
-              <SecretaryAddEntriesDecision showId={selectedShowId} />
+              <SecretaryAddEntriesDecision
+                showId={selectedShowId}
+                mailInDisabledReason={secretaryOnlyReason}
+              />
             </PopoverContent>
           </Popover>
         </div>

@@ -37,6 +37,20 @@ type WithArg<Fn extends { Args: object }, K extends keyof Fn['Args'], T> = Omit<
 };
 
 /**
+ * Replace fields of a `RETURNS TABLE` function's row shape, keeping `Args`.
+ * `pg_proc` (what `supabase gen types` builds `Returns` from) has no concept
+ * of a query's own WHERE/JOIN shape, so every declared output column comes
+ * out non-null even when the SQL body guarantees some of them are always
+ * NULL for any row the function can return.
+ */
+type WithReturnFields<
+  Fn extends { Returns: readonly unknown[] },
+  Overrides extends Partial<Record<keyof Fn['Returns'][number], unknown>>,
+> = Omit<Fn, 'Returns'> & {
+  Returns: (Omit<Fn['Returns'][number], keyof Overrides> & Overrides)[];
+};
+
+/**
  * `withdraw_own_entry(p_entry_id uuid, p_fields jsonb, p_expected_version integer)`
  *
  * A NULL `p_expected_version` means "skip the optimistic-concurrency check" —
@@ -55,11 +69,47 @@ type WithdrawOwnEntry = WithArg<
   number | null
 >;
 
+/**
+ * `list_club_role_requests(p_club_id uuid)` —
+ * `supabase/migrations/20260915231500_club_routed_role_requests.sql`.
+ *
+ * The RETURNS TABLE query hard-filters `rr.status = 'pending'` and
+ * `rr.requested_scope = 'club'`, and reaches several columns through a
+ * LEFT JOIN, so for any row this function can ever return:
+ *  - `reviewed_by`, `reviewed_at`, `reviewer_note`: columns on
+ *    `role_requests` itself, only ever set once a request is approved or
+ *    denied — impossible while `status = 'pending'`.
+ *  - `reviewer_name`, `reviewer_email`: sourced from
+ *    `LEFT JOIN public.people rev ON rev.id = rr.reviewed_by` — always
+ *    unmatched while `reviewed_by` is NULL.
+ *  - `show_id`: `role_requests.show_id`, only ever set for a show-scoped
+ *    request — excluded outright by `rr.requested_scope = 'club'`.
+ *  - `club_name`: sourced from `LEFT JOIN public.clubs c ON c.id =
+ *    rr.club_id` — a left join, so a request whose club has since been
+ *    deleted still returns a row, with `club_name` NULL.
+ *  - `requester_email`: `p.email` off the (inner-joined) requester —
+ *    `people.email` is itself a nullable column, independent of the join.
+ */
+type ListClubRoleRequests = WithReturnFields<
+  GeneratedFunctions['list_club_role_requests'],
+  {
+    reviewed_by: string | null;
+    reviewer_name: string | null;
+    reviewer_email: string | null;
+    reviewed_at: string | null;
+    reviewer_note: string | null;
+    club_name: string | null;
+    show_id: string | null;
+    requester_email: string | null;
+  }
+>;
+
 /** The generated `Database` with the corrections above applied. */
 export type Database = Omit<GeneratedDatabase, 'public'> & {
   public: Omit<GeneratedPublic, 'Functions'> & {
-    Functions: Omit<GeneratedFunctions, 'withdraw_own_entry'> & {
+    Functions: Omit<GeneratedFunctions, 'withdraw_own_entry' | 'list_club_role_requests'> & {
       withdraw_own_entry: WithdrawOwnEntry;
+      list_club_role_requests: ListClubRoleRequests;
     };
   };
 };

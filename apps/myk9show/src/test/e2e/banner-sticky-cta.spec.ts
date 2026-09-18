@@ -154,15 +154,28 @@ test.describe('Banner sticky sub-bar CTA — reachable at any scroll position', 
  *     narrower padding kicks in there);
  *   - the CTA is always fully inside the viewport (it is `flex: none`,
  *     the last flex child, and never shrinks or wraps);
- *   - the status text is present (it may be visually truncated — that's
- *     the flexible item, `flex: 1 1 auto; min-width: 0` with an
- *     ellipsis, by design);
+ *   - the status text is EXACTLY the injected variant (it may be visually
+ *     truncated — that's the flexible item, `flex: 1 1 auto; min-width: 0`
+ *     with an ellipsis, by design — but the underlying text node must not
+ *     silently differ from what was injected; round 6 switched this from
+ *     `toBeTruthy()` to an exact `toBe()` after finding the real fix
+ *     necessary to make that assertion meaningful: the entry-count is a
+ *     separate async fetch from the `shows` response this spec already
+ *     intercepts, and injecting before it settles is a genuine race —
+ *     the later resolve re-renders and clobbers the injected override
+ *     back to the real (usually "· 0") count. Waited out below);
  *   - the section anchors render only once the bar's content-box is wide
  *     enough for all three pieces (banner.css's `@container` threshold);
  *   - the page carries no MORE horizontal overflow than FlagMasthead's
  *     own pre-existing, out-of-scope 4-column stat grid already causes
  *     on its own (measured separately below, not attributed to the
  *     sub-bar this issue actually touches).
+ *
+ * MYK9-633 round 6: promoted into `REGRESSION_SPECS`
+ * (`playwright.ci.config.ts`, Nightly, chromium only — the only project
+ * that config runs) so a future edit to `.bn-subbar-*` or the 820px
+ * threshold cannot ship with every CI check green, the way rounds 3-5's
+ * pixel-tuned fixes each did in turn.
  */
 const WIDTHS = [375, 640, 768, 852, 900, 1280] as const;
 const STATUS_VARIANTS = [
@@ -192,6 +205,16 @@ test.describe('Banner sub-bar — one row at every width, for every status strin
         await openBannerShow(page);
 
         await page.waitForSelector('[data-banner]', { timeout: 30000 });
+
+        // The real entry count is a SEPARATE async fetch from the `shows`
+        // response this spec already intercepts (useLandingShowData's
+        // publicCountsQuery) -- injecting the status-string override before
+        // that settles is a real race: it resolves and re-renders AFTER the
+        // injection, silently clobbering it back to "Entries open · 0" (or
+        // similar), and the window is wide enough to flake under CI/local
+        // load (round 6 caught this in local runs). Wait for the network to
+        // go quiet first so nothing is left to overwrite the override.
+        await page.waitForLoadState('networkidle', { timeout: 10000 }).catch(() => {});
 
         // Simulate the variant directly -- this spec is about layout
         // robustness to the STRING, not about reproducing the exact
@@ -226,8 +249,15 @@ test.describe('Banner sub-bar — one row at every width, for every status strin
           `CTA right edge at ${width}px ("${variant.label}") must stay inside the viewport`
         ).toBeLessThanOrEqual(width);
 
+        // Exact match, not just truthy (round 6): a React re-render that
+        // silently overwrote the injected text with the component's own
+        // default status string would still pass a `toBeTruthy()` check --
+        // the node has SOME text either way. `.toBe(variant.text)` proves
+        // the injected variant is actually what's on screen for this case.
         const statusText = await page.locator('.bn-subbar-status__text').textContent();
-        expect(statusText, 'status text node must be present').toBeTruthy();
+        expect(statusText, 'status text must be the injected variant, not overwritten').toBe(
+          variant.text
+        );
 
         const sectionsDisplay = await page
           .locator('.bn-subbar-sections')

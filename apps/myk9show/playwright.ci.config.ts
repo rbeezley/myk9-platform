@@ -91,6 +91,25 @@ const REGRESSION_SPECS = [
   // pseudo-element is actually hit-testable — none of which jsdom's
   // unit-suite coverage can see (no layout).
   '**/dogs-table-pinned-select.spec.ts',
+  // Unauthenticated, no fixture dependency beyond ANY published show with a
+  // class (picked at runtime via an anon Supabase read, same technique
+  // monogram-sticky-cta.spec.ts uses; the isolated regression target's
+  // Heartland demo show, dededede-...-010, is published with four trials of
+  // classes, so it always qualifies). MYK9-633 rounds 3-5: this bar's
+  // layout was fixed three times against a single status string each time,
+  // and broke again under a different one every time (round 4's 852px
+  // breakpoint crushed the section links under "count unavailable"; round 5
+  // restructured it to be robust BY CONSTRUCTION instead). The 18-case
+  // width x status-string matrix this spec runs is the only thing that
+  // proves that property continues to hold — jsdom has no layout engine and
+  // cannot compute real `@container` / flex geometry, so nothing in the
+  // unit suite would catch a regression here. Without this in CI, an edit
+  // to `.bn-subbar-*` or the measured 820px container-query threshold could
+  // reopen any of rounds 3-5's bugs and every automated check would stay
+  // green. Chromium only (this config runs no other project); the matrix
+  // sets each case's own viewport via `page.setViewportSize`, so it does
+  // not depend on which project runs it.
+  '**/banner-sticky-cta.spec.ts',
 ];
 
 // PR Smoke: stable specs — connectivity, secretary regression proof, the

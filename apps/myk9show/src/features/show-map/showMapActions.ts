@@ -223,7 +223,7 @@ function wrapUpActionsForNode(node: ShowMapNode, tree: ShowMapTree): ShowMapActi
         label: 'Submit final results',
         why: 'Completed trial is ready for closeout submission',
         priority: 50,
-        ...(showId ? { href: `/shows/${showId}/submit-results` } : {}),
+        ...(showId ? { href: `/shows/${showId}/results?step=submit` } : {}),
         icon: Send,
         recommended: true,
         createsAttention: true,

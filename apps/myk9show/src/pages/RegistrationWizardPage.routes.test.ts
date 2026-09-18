@@ -19,7 +19,7 @@ describe('resolveRegistrationExit (UX walk 4.D — labels tell the truth)', () =
       isLateEntryMode: true,
       isInsideSidebar: true,
     });
-    expect(target).toEqual({ path: '/shows/show-1/show-desk', label: 'Back to Show Desk' });
+    expect(target).toEqual({ path: '/shows/show-1/show-day', label: 'Back to Show Desk' });
   });
 
   it('secretary "Add entries" falls back to history with a generic label', () => {
@@ -53,15 +53,15 @@ describe('resolveRegistrationExit (UX walk 4.D — labels tell the truth)', () =
 describe('resolveRegistrationExitPath / CompletionPath', () => {
   it('exit path is null for non-late entry, show-desk for late entry', () => {
     expect(resolveRegistrationExitPath('s1', false)).toBeNull();
-    expect(resolveRegistrationExitPath('s1', true)).toBe('/shows/s1/show-desk');
+    expect(resolveRegistrationExitPath('s1', true)).toBe('/shows/s1/show-day');
   });
 
   it('completion lands on the show page normally, show-desk for late entry', () => {
     expect(resolveRegistrationCompletionPath('s1', false)).toBe('/shows/s1');
-    expect(resolveRegistrationCompletionPath('s1', true)).toBe('/shows/s1/show-desk');
+    expect(resolveRegistrationCompletionPath('s1', true)).toBe('/shows/s1/show-day');
   });
 
   it('completion returns secretary mail-in entries to Entry Management', () => {
-    expect(resolveRegistrationCompletionPath('s1', false, true)).toBe('/shows/s1/entry-management');
+    expect(resolveRegistrationCompletionPath('s1', false, true)).toBe('/shows/s1/entries');
   });
 });

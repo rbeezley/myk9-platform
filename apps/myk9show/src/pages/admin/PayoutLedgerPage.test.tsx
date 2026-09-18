@@ -240,7 +240,7 @@ describe('PayoutLedgerPage', () => {
     ).toBeInTheDocument();
     expect(
       screen.getByRole('link', { name: /review pulled entries for spring trial/i })
-    ).toHaveAttribute('href', '/shows/s1/entry-management?tab=exceptions&exception=pulls');
+    ).toHaveAttribute('href', '/shows/s1/entries?tab=exceptions&exception=pulls');
   });
 
   it('renders one responsive row once with explicit column associations', () => {
@@ -483,7 +483,7 @@ describe('PayoutLedgerPage — never reports an unknown as a fact', () => {
 
     expect(
       screen.getByRole('link', { name: /review pulled entries for spring trial/i })
-    ).toHaveAttribute('href', '/shows/s1/entry-management?tab=exceptions&exception=pulls');
+    ).toHaveAttribute('href', '/shows/s1/entries?tab=exceptions&exception=pulls');
   });
 
   it('never offers a CACHED rate for editing after a failed refetch', () => {

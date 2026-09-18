@@ -256,7 +256,7 @@ export default function ResultsControlPage() {
                   the file lives on Submit Results, and labelling a Link as a
                   file action on the page whose job is telling the truth about
                   results was the wrong place to be loose. */}
-              <Link to={`/shows/${showId}/submit-results`}>Go to Submit Results</Link>
+              <Link to={`/shows/${showId}/results?step=submit`}>Go to Submit Results</Link>
             </Button>
             <p className="text-muted-foreground">
               To release results, select classes below and use the sticky{' '}

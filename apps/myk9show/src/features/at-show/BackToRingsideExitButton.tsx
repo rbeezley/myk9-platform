@@ -32,7 +32,7 @@ export function BackToRingsideExitButton({
     hasRole(UserRole.SITE_ADMIN) ||
     (hasRole(UserRole.CLUB_ADMIN) && hasScopedClubRole(userWithRoles, UserRole.CLUB_ADMIN, clubId));
   const label = canUseShowDesk ? 'Back to Show Desk' : 'Back to Ringside';
-  const target = canUseShowDesk && showId ? `/shows/${showId}/show-desk` : '/at-show';
+  const target = canUseShowDesk && showId ? `/shows/${showId}/show-day` : '/at-show';
 
   return (
     <Button variant="ghost" className="min-h-11 gap-2 px-3" onClick={() => navigate(target)}>

@@ -89,13 +89,13 @@ test.describe('Phase 4 cross-role seams — render-only (secretary)', () => {
     await page.goto(`/shows/${showId}`);
     await shoot(page, 'phase4-dynamic-show-detail');
 
-    await page.goto(`/shows/${showId}/entry-management`);
+    await page.goto(`/shows/${showId}/entries`);
     await shoot(page, 'phase4-dynamic-entry-management');
 
-    await page.goto(`/shows/${showId}/entry-management?entryTab=scratches`);
+    await page.goto(`/shows/${showId}/entries?entryTab=scratches`);
     await shoot(page, 'phase4-dynamic-scratch-pull');
 
-    await page.goto(`/shows/${showId}/results-control`);
+    await page.goto(`/shows/${showId}/results`);
     await shoot(page, 'phase4-dynamic-results-control');
 
     routes.assertSafe();

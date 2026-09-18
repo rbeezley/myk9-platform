@@ -48,7 +48,7 @@ export const AlreadyEnteredNotice: React.FC<AlreadyEnteredNoticeProps> = ({
           <>
             To change or withdraw an existing entry, use{' '}
             <Link
-              to={`/shows/${showId}/entry-management`}
+              to={`/shows/${showId}/entries`}
               className="font-medium underline underline-offset-2"
             >
               Entry Management

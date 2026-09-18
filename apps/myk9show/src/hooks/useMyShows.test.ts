@@ -125,7 +125,7 @@ describe('useMyShows', () => {
     const { result } = renderHook(() => useMyShows([show]));
     expect(result.current.attentionNeeded).toHaveLength(1);
     expect(result.current.attentionNeeded[0].kind).toBe('urgent');
-    expect(result.current.attentionNeeded[0].href).toBe('/shows/multi-day-attn/show-desk');
+    expect(result.current.attentionNeeded[0].href).toBe('/shows/multi-day-attn/show-day');
   });
 
   it('places a published future show in the upcoming bucket', () => {
@@ -294,7 +294,7 @@ describe('useMyShows', () => {
   it('today attention href points to the show-desk sub-route', () => {
     const show = makeShow({ id: 'show-today', startDate: TODAY, status: 'in_progress' });
     const { result } = renderHook(() => useMyShows([show]));
-    expect(result.current.attentionNeeded[0].href).toBe('/shows/show-today/show-desk');
+    expect(result.current.attentionNeeded[0].href).toBe('/shows/show-today/show-day');
   });
 
   it('draft attention href points to the show setup sub-route', () => {

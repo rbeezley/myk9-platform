@@ -53,7 +53,7 @@ function buildAttentionItems(
   for (const show of shows) {
     const phase = phases.get(show.id);
     const setupHref = `/shows/${show.id}/setup`;
-    const showDeskHref = `/shows/${show.id}/show-desk`;
+    const showDeskHref = `/shows/${show.id}/show-day`;
 
     if (show.status === 'draft') {
       items.push({

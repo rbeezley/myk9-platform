@@ -240,7 +240,7 @@ test.describe('Secretary Entry Walk', () => {
     });
 
     await page.getByRole('button', { name: 'Return to Entry Management' }).click();
-    await expect(page).toHaveURL(new RegExp(`/shows/${TEST_SHOW_ID}/entry-management`));
+    await expect(page).toHaveURL(new RegExp(`/shows/${TEST_SHOW_ID}/entries`));
     await expect(page.getByRole('heading', { name: 'Entry Management' })).toBeVisible();
     expect(errors).toHaveLength(0);
   });

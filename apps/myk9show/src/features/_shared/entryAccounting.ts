@@ -14,7 +14,7 @@
  * Any surface that reports outstanding scoring work must use these, not its own
  * variant. A second, subtly different rule is how a page ends up disagreeing
  * with the server about whether a class is finished — the readiness block on
- * `/shows/:showId/results-control` did exactly that (MYK9-118).
+ * `/shows/:showId/results` did exactly that (MYK9-118).
  *
  * The parameter type is structural so both the replicated row shape and the
  * class store's `SyncableEntryData` satisfy it without conversion.

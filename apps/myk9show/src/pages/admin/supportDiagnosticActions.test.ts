@@ -14,7 +14,7 @@ function ticket(overrides: Partial<SupportTicket> = {}): SupportTicket {
     updatedAt: '2026-07-06T12:00:00.000Z',
     diagnostics: {
       user: { authUserId: 'auth-1', databaseUserId: 'db-1', role: 'secretary' },
-      route: '/shows/show-1/show-desk',
+      route: '/shows/show-1/show-day',
       context: { showId: 'show-1', trialId: 'trial-1', entryId: 'entry-1' },
       app: { version: '1.0.0', capturedAt: '2026-07-06T12:00:00.000Z' },
       connectivity: {
@@ -40,10 +40,10 @@ describe('buildSupportInvestigationModel', () => {
 
     expect(model.actions).toEqual(
       expect.arrayContaining([
-        expect.objectContaining({ id: 'reported-route', href: '/shows/show-1/show-desk' }),
-        expect.objectContaining({ id: 'show-workbench', href: '/shows/show-1/show-desk' }),
+        expect.objectContaining({ id: 'reported-route', href: '/shows/show-1/show-day' }),
+        expect.objectContaining({ id: 'show-workbench', href: '/shows/show-1/show-day' }),
         expect.objectContaining({ id: 'trial-detail', href: '/shows/show-1/trials/trial-1' }),
-        expect.objectContaining({ id: 'entry-management', href: '/shows/show-1/entry-management' }),
+        expect.objectContaining({ id: 'entry-management', href: '/shows/show-1/entries' }),
         expect.objectContaining({
           id: 'user-roles',
           href: '/admin/users?userId=db-1',

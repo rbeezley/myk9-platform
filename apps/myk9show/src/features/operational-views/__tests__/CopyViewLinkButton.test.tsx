@@ -16,23 +16,21 @@ function setClipboard(value: { writeText: (text: string) => Promise<void> } | un
 
 describe('CopyViewLinkButton', () => {
   it('copies the absolute normalized URL and shows a success toast', async () => {
-    const { user } = render(
-      <CopyViewLinkButton href="/shows/show-1/entry-management?attention=pending" />
-    );
+    const { user } = render(<CopyViewLinkButton href="/shows/show-1/entries?attention=pending" />);
     const writeText = vi.fn().mockResolvedValue(undefined);
     setClipboard({ writeText });
 
     await user.click(screen.getByRole('button', { name: /copy view link/i }));
 
     expect(writeText).toHaveBeenCalledWith(
-      `${window.location.origin}/shows/show-1/entry-management?attention=pending`
+      `${window.location.origin}/shows/show-1/entries?attention=pending`
     );
     expect(await screen.findByText(/copied/i)).toBeInTheDocument();
   });
 
   describe('clipboard-failure fallback', () => {
     it('offers a selectable URL and never throws when the write rejects', async () => {
-      const href = '/shows/show-1/entry-management?attention=pending';
+      const href = '/shows/show-1/entries?attention=pending';
       const { user } = render(<CopyViewLinkButton href={href} />);
       setClipboard({ writeText: vi.fn().mockRejectedValue(new Error('denied')) });
 

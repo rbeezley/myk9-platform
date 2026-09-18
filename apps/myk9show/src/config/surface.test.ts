@@ -1,4 +1,7 @@
 import { describe, expect, it } from 'vitest';
+import { createRoutesFromChildren } from 'react-router-dom';
+import { SHOW_MANAGEMENT_CHILD_ROUTE_PATHS } from '@/routes/showManagementSections';
+import { PublicRoutes } from '@/routes/publicRoutes';
 import {
   currentSurface,
   isWizardSurface,
@@ -57,5 +60,36 @@ describe('isPathInWizardAllowlist', () => {
     expect(isPathInWizardAllowlist('/shows/abc-123/reports')).toBe(false);
     expect(isPathInWizardAllowlist('/shows/abc-123/results-control')).toBe(false);
     expect(isPathInWizardAllowlist('/shows/abc-123/submit-results')).toBe(false);
+  });
+});
+
+describe('the wizard surface blocks every management route under /shows/:id', () => {
+  // The allowlist carries a blanket `/shows/:id/*`, so a management route
+  // MISSING from the blocklist is wide open under the gated early-access
+  // surface. A hand-kept copy went stale twice: once when MYK9-630 phase 2
+  // renamed the sections, and once on `classes/:trialId`, which was never in it.
+  // So the blocklist is derived from the route model and the test walks the
+  // REAL route tree to prove that model is the whole list.
+  it.each(SHOW_MANAGEMENT_CHILD_ROUTE_PATHS)('blocks /shows/:id/%s', path => {
+    const concrete = path.replace(/:[^/]+/g, 'x');
+    expect(isPathInWizardAllowlist(`/shows/abc/${concrete}`)).toBe(false);
+  });
+
+  it('covers every child route the production tree actually mounts', () => {
+    const showRoute = createRoutesFromChildren(PublicRoutes()).find(
+      route => route.path === '/shows/:id'
+    );
+    const childPaths = (showRoute?.children ?? [])
+      .map(child => child.path)
+      .filter((path): path is string => typeof path === 'string');
+
+    // Known-answer control: a walker that silently returned [] would pass the
+    // equality below forever.
+    expect(childPaths.length).toBeGreaterThan(5);
+    expect([...childPaths].sort()).toEqual([...SHOW_MANAGEMENT_CHILD_ROUTE_PATHS].sort());
+  });
+
+  it('still allows the show page itself', () => {
+    expect(isPathInWizardAllowlist('/shows/abc')).toBe(true);
   });
 });

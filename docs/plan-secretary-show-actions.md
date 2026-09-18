@@ -161,6 +161,30 @@ Rules: tabs are the only horizontal row on the page; buttons are filled and carr
 
 Acceptance for Phase 2: the six tabs render for a manager; the five-link row is gone; each old URL redirects and lands on the right tab; Reports shows the before/during/after grouping; a render test asserts exactly six tab triggers and zero standalone page links in the header region, red on main; staging walk as `secretary@myk9t.com` across all six tabs at desktop and 375px.
 
+### Phase 2 status (PR #2331)
+
+Built: the six tabs and their routes, Setup's segmented control (Trials · Classes · Show Map),
+Entries as Entry Management with the stub tab's private read deleted, Show Day, Results with Submit
+Results as a `?step=submit` step, the redirects for every old URL and `?tab=` form, and the in-app
+links, sidebar, route registry, page directory and wizard-surface blocklist repointed.
+
+**Still open, and why:**
+
+- **Reports before/during/after grouping — NOT built, deliberately.** This section names 7 of the
+  registry's 37 reports (armband labels, check-in sheets, score sheets; preliminary results, result
+  labels; secretary and trial reports). The other 30 have no stated phase, and assigning them is a
+  judgement about a secretary's workflow — is a judge's book "before" or "during"? is a gross-receipts
+  form "after" or financial-anytime? Guessing a taxonomy and shipping it onto the print surface is
+  the trap in LESSONS `label-rule-vs-real-columns`. **Richard: name the phase for each report, or
+  confirm the rule (e.g. "operational → before/during by whether it is printed blank, organization →
+  after"), and it goes in as one mechanical change.**
+- **Screenshots of all six tabs at desktop and 375px** as `secretary@myk9t.com` — owed.
+- **Should a club admin get the six tabs?** They are admitted to the section routes by
+  `canManageShowSurface` but get the exhibitor surface by `isManagementStaff` (#2180, deliberate).
+  Two findings have already come out of that split: the blank Setup page (fixed) and MYK9-653.
+- **MYK9-635's unit question** — the queue chips count registrations while the show page counts
+  entries. Both are stated; whether the chips should switch to entries is Richard's call.
+
 ## Cross-cutting decision — the Actions button lives in the app header
 
 Richard, 2026-09-17: "one place to go… always visible… if an option is not relevant it would be grayed out."

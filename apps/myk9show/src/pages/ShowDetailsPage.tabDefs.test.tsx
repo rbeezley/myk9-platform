@@ -3,10 +3,12 @@ import { render, screen } from '@/test/utils/testUtils';
 import { PrimaryTabs } from '@/components/common/PrimaryTabs';
 import {
   buildShowDetailTabDefs,
+  buildShowManagementTabDefs,
   countPlacedResultGroups,
   resolveResultsTabCount,
   type ShowDetailTabDefsInput,
 } from './ShowDetailsPage.tabDefs';
+import { SHOW_TABS } from '@/routes/showManagementSections';
 import type { ClassResult } from '@/hooks/queries/useShowResults';
 
 function classResult(classId: string, placementCount: number): ClassResult {
@@ -31,11 +33,8 @@ function classResult(classId: string, placementCount: number): ClassResult {
 const baseInput: ShowDetailTabDefsInput = {
   isAuthenticated: true,
   canShowMap: false,
-  canManageShow: false,
   trialCount: 4,
   classCount: 10,
-  catalogEntryCount: 0,
-  managerEntryDataUnavailable: true,
   submittedEntryHistoryCount: 0,
   submittedEntryProjectionIsReady: false,
   resultsCount: undefined,
@@ -111,5 +110,81 @@ describe('resolveResultsTabCount', () => {
 
   it('withholds the badge when a failed read still holds stale-free empty data', () => {
     expect(resolveResultsTabCount({ data: [], isLoading: false, isError: true })).toBeUndefined();
+  });
+});
+
+describe("buildShowManagementTabDefs — the secretary's one row of six", () => {
+  it('is exactly the six decided tabs, in order', () => {
+    expect(
+      buildShowManagementTabDefs({
+        catalogEntryCount: 517,
+        managerEntryDataUnavailable: false,
+        resultsCount: 2,
+      }).map(tab => tab.label)
+    ).toEqual(['Overview', 'Setup', 'Entries', 'Show Day', 'Results', 'Reports']);
+  });
+
+  it('carries the six tab ids the route model declares', () => {
+    expect(
+      buildShowManagementTabDefs({
+        catalogEntryCount: 0,
+        managerEntryDataUnavailable: false,
+        resultsCount: undefined,
+      }).map(tab => tab.id)
+    ).toEqual(SHOW_TABS.map(tab => tab.id));
+  });
+
+  it('badges Entries with the show entry count the page already read', () => {
+    const entries = buildShowManagementTabDefs({
+      catalogEntryCount: 517,
+      managerEntryDataUnavailable: false,
+      resultsCount: undefined,
+    }).find(tab => tab.id === 'entries');
+    expect(entries?.count).toBe(517);
+  });
+
+  it('omits the Entries badge rather than showing 0 while that read is unavailable', () => {
+    const entries = buildShowManagementTabDefs({
+      catalogEntryCount: 0,
+      managerEntryDataUnavailable: true,
+      resultsCount: undefined,
+    }).find(tab => tab.id === 'entries');
+    expect(entries?.count).toBeUndefined();
+  });
+
+  it('gives Setup no badge — its three views carry three different counts', () => {
+    const setup = buildShowManagementTabDefs({
+      catalogEntryCount: 5,
+      managerEntryDataUnavailable: false,
+      resultsCount: 2,
+    }).find(tab => tab.id === 'setup');
+    expect(setup?.count).toBeUndefined();
+  });
+});
+
+describe('the Show Map tab on the exhibitor strip', () => {
+  // #2180 put club admins on the EXHIBITOR surface deliberately, and
+  // `canShowMap = features.showMap && canManageShow` is true for them. Before
+  // MYK9-630 phase 2 that strip carried their Show Map; a site admin or scoped
+  // secretary now gets it inside the Setup tab instead. Dropping it here took
+  // the map away from club admins entirely.
+  it('offers a Show Map to a viewer who may see one', () => {
+    expect(buildShowDetailTabDefs({ ...baseInput, canShowMap: true }).map(tab => tab.id)).toContain(
+      'map'
+    );
+  });
+
+  it('offers none to a viewer who may not', () => {
+    expect(
+      buildShowDetailTabDefs({ ...baseInput, canShowMap: false }).map(tab => tab.id)
+    ).not.toContain('map');
+  });
+
+  it('puts it directly after Overview, where it has always been', () => {
+    expect(
+      buildShowDetailTabDefs({ ...baseInput, canShowMap: true })
+        .slice(0, 2)
+        .map(tab => tab.id)
+    ).toEqual(['overview', 'map']);
   });
 });

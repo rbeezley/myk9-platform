@@ -739,7 +739,7 @@ function RefundDecisionAdvisory({
               <Link
                 key={row.showId}
                 className="font-medium text-primary underline underline-offset-4"
-                to={`/shows/${encodeURIComponent(row.showId)}/entry-management?tab=exceptions&exception=pulls`}
+                to={`/shows/${encodeURIComponent(row.showId)}/entries?tab=exceptions&exception=pulls`}
                 aria-label={`Review pulled entries for ${showLabel(row)}`}
               >
                 {showLabel(row)} ({row.unresolvedRefundDecisionCount})

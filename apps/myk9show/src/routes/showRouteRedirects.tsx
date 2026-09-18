@@ -15,9 +15,11 @@ export function LegacySecretaryShowRedirect({ subPath }: LegacySecretaryShowRedi
 
   const searchParams = new URLSearchParams(search);
   const legacyPhase = searchParams.get('phase');
+  // `?phase=show-desk` is a legacy query we still honour; it lands on the tab
+  // that absorbed Show Desk (MYK9-630 phase 2).
   const shouldHonorLegacyShowDeskPhase = !subPath && !params['*'] && legacyPhase === 'show-desk';
   const redirectSubPath = shouldHonorLegacyShowDeskPhase
-    ? 'show-desk'
+    ? 'show-day'
     : (subPath ?? params['*'] ?? 'setup');
   if (shouldHonorLegacyShowDeskPhase) {
     searchParams.delete('phase');

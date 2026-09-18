@@ -1,6 +1,13 @@
 /**
- * Tab strip for `/shows/:id` — extracted from ShowDetailsPage so the page file
+ * Tab strips for `/shows/:id` — extracted from ShowDetailsPage so the page file
  * stays under the 500-line ceiling and the counts are unit-testable.
+ *
+ * TWO strips live here, for two different audiences:
+ * - `buildShowDetailTabDefs` — the public / exhibitor `?tab=` strip.
+ * - `buildShowManagementTabDefs` — the secretary's ONE row of six tabs, each
+ *   of which is a real page (MYK9-630 phase 2). The manager no longer has a
+ *   `?tab=` strip at all, so the manager-only Entries and Show Map tabs are
+ *   gone from the first builder.
  *
  * Every badge here is derived from the same data its panel renders. The
  * Results badge in particular must agree with the Podium panel: both count the
@@ -8,7 +15,19 @@
  * `view_public_entry_results` so unreleased placements never arrive (MYK9-419).
  */
 
-import { LayoutDashboard, Trophy, ListChecks, ClipboardList, Medal, ListTree } from 'lucide-react';
+import {
+  LayoutDashboard,
+  Trophy,
+  ListChecks,
+  ListTree,
+  ClipboardList,
+  Medal,
+  SlidersHorizontal,
+  CalendarClock,
+  FileText,
+} from 'lucide-react';
+import type { LucideIcon } from 'lucide-react';
+import { SHOW_TABS, type ShowTabId } from '@/routes/showManagementSections';
 import { type PrimaryTabDef } from '@/components/common/PrimaryTabs';
 import type { ClassResult } from '@/hooks/queries/useShowResults';
 
@@ -37,14 +56,34 @@ export function resolveResultsTabCount(query: {
   return countPlacedResultGroups(query.data);
 }
 
+const SHOW_TAB_ICONS: Record<ShowTabId, LucideIcon> = {
+  overview: LayoutDashboard,
+  setup: SlidersHorizontal,
+  entries: ClipboardList,
+  'show-day': CalendarClock,
+  results: Medal,
+  reports: FileText,
+};
+
 export interface ShowDetailTabDefsInput {
   isAuthenticated: boolean;
+  /**
+   * This viewer may see the show map. True only for someone with
+   * `canManageShow`, which on THIS strip means a club-scoped club admin: a site
+   * admin or scoped secretary gets the management surface and its Setup tab
+   * instead (#2180 put club admins on the exhibitor view deliberately). Their
+   * map lived here before MYK9-630 phase 2 and still does.
+   *
+   * KNOWN DUPLICATION, accepted for now: a club admin can also reach the same
+   * map at `/shows/:id/setup?section=map`, because the section routes admit
+   * them and Setup derives from this same flag. Nothing in their chrome links
+   * there, so it is URL-only. It resolves either way once Richard answers the
+   * open question on MYK9-630 -- whether a club admin gets the six tabs -- and
+   * is deliberately not pre-empted here.
+   */
   canShowMap: boolean;
-  canManageShow: boolean;
   trialCount: number;
   classCount: number;
-  catalogEntryCount: number;
-  managerEntryDataUnavailable: boolean;
   submittedEntryHistoryCount: number;
   submittedEntryProjectionIsReady: boolean;
   /** `undefined` while the results read is unresolved — the badge is omitted. */
@@ -56,7 +95,7 @@ export function buildShowDetailTabDefs(input: ShowDetailTabDefsInput): PrimaryTa
     { id: 'overview', label: 'Overview', icon: LayoutDashboard },
     ...(input.canShowMap ? [{ id: 'map', label: 'Show Map', icon: ListTree }] : []),
     { id: 'trials', label: 'Trials', icon: Trophy, count: input.trialCount },
-    ...(!input.canManageShow && input.isAuthenticated
+    ...(input.isAuthenticated
       ? [
           {
             id: 'my-entries',
@@ -69,16 +108,6 @@ export function buildShowDetailTabDefs(input: ShowDetailTabDefsInput): PrimaryTa
         ]
       : []),
     { id: 'classes', label: 'Classes', icon: ListChecks, count: input.classCount },
-    ...(input.canManageShow && input.isAuthenticated
-      ? [
-          {
-            id: 'my-entries',
-            label: 'Entries',
-            icon: ClipboardList,
-            ...(input.managerEntryDataUnavailable ? {} : { count: input.catalogEntryCount }),
-          },
-        ]
-      : []),
     {
       id: 'results',
       label: 'Results',
@@ -86,4 +115,42 @@ export function buildShowDetailTabDefs(input: ShowDetailTabDefsInput): PrimaryTa
       ...(input.resultsCount === undefined ? {} : { count: input.resultsCount }),
     },
   ];
+}
+
+export interface ShowManagementTabDefsInput {
+  /** Entries this show has, from the ONE manager read (`secretaryEntries`). */
+  catalogEntryCount: number;
+  /** That read is loading or failed — the badge is omitted, never shown as 0. */
+  managerEntryDataUnavailable: boolean;
+  /** `undefined` while the results read is unresolved — the badge is omitted. */
+  resultsCount: number | undefined;
+}
+
+/**
+ * The secretary's six tabs. Badges keep the sources they had: Entries counts
+ * the manager entry read the page already performed (so the badge and the body
+ * below it cannot disagree — MYK9-630 AC3), Results counts released result
+ * groups. Setup carries no badge: it absorbs three views with three different
+ * counts, and those counts live on its own segmented control.
+ */
+export function buildShowManagementTabDefs(input: ShowManagementTabDefsInput): PrimaryTabDef[] {
+  return SHOW_TABS.map(tab => {
+    if (tab.id === 'entries') {
+      return {
+        id: tab.id,
+        label: tab.label,
+        icon: ClipboardList,
+        ...(input.managerEntryDataUnavailable ? {} : { count: input.catalogEntryCount }),
+      };
+    }
+    if (tab.id === 'results') {
+      return {
+        id: tab.id,
+        label: tab.label,
+        icon: Medal,
+        ...(input.resultsCount === undefined ? {} : { count: input.resultsCount }),
+      };
+    }
+    return { id: tab.id, label: tab.label, icon: SHOW_TAB_ICONS[tab.id] };
+  });
 }

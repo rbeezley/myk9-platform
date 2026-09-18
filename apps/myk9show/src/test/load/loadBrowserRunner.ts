@@ -496,7 +496,7 @@ async function runPrimaryWorkflow(
       return emptySessionResult();
 
     case 'operations-read':
-      await timedGoto(page, `/shows/${target.showId}/show-desk`, metrics);
+      await timedGoto(page, `/shows/${target.showId}/show-day`, metrics);
       await page.getByRole('heading', { name: 'Show Desk', exact: true }).waitFor();
       return emptySessionResult();
   }

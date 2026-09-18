@@ -5,7 +5,7 @@ import { LIVE_SECRETARY_SHOW_ID } from '../uat/shared/seededShows';
 /**
  * UI tests for the Entry Management page (secretary role).
  *
- * Walks the canonical `/shows/:showId/entry-management` surface as the
+ * Walks the canonical `/shows/:showId/entries` surface as the
  * secretary role against the maintained Heartland seed. Card-only assertions
  * explicitly switch to Cards view; table-only row-action and selection coverage
  * stays on desktop projects; mobile-chrome and tablet skip those tests because
@@ -17,7 +17,7 @@ test.describe.configure({ mode: 'serial' });
 // The maintained seeded secretary show (Heartland Scent Work Classic). Use the
 // shared constant so the spec tracks reseeds instead of a hardcoded show id.
 const SHOW_ID = LIVE_SECRETARY_SHOW_ID;
-const ENTRIES_URL = `/shows/${SHOW_ID}/entry-management`;
+const ENTRIES_URL = `/shows/${SHOW_ID}/entries`;
 
 /** Navigate to entries page and wait for the entries list to render. */
 async function gotoEntries(page: Page) {

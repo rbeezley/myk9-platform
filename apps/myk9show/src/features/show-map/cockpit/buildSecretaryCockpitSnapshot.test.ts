@@ -71,7 +71,7 @@ describe('buildSecretaryCockpitSnapshot', () => {
       ],
       tree,
       pendingSignals: [],
-      returnTo: '/shows/show-1/show-desk',
+      returnTo: '/shows/show-1/show-day',
       now: new Date('2026-07-20T15:10:00.000Z'),
     });
 
@@ -112,7 +112,7 @@ describe('buildSecretaryCockpitSnapshot', () => {
       ],
       tree,
       pendingSignals: [],
-      returnTo: '/shows/show-1/show-desk',
+      returnTo: '/shows/show-1/show-day',
       now: new Date('2026-07-20T15:10:00.000Z'),
     });
 
@@ -154,7 +154,7 @@ describe('buildSecretaryCockpitSnapshot', () => {
       ],
       tree,
       pendingSignals: [],
-      returnTo: '/shows/show-1/show-desk?focus=class-1',
+      returnTo: '/shows/show-1/show-day?focus=class-1',
       now: new Date('2026-07-20T15:10:00.000Z'),
     });
 

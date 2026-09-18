@@ -28,7 +28,7 @@ export const ScoringDaySummary: React.FC<ScoringDaySummaryProps> = ({ classes, s
               variant="outline"
               size="sm"
               className="gap-1"
-              onClick={() => navigate(`/shows/${showId}/show-desk`)}
+              onClick={() => navigate(`/shows/${showId}/show-day`)}
             >
               Open Scoring View
               <ExternalLink className="h-3 w-3" />

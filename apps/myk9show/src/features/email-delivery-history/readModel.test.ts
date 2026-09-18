@@ -45,16 +45,16 @@ describe('email delivery history read model', () => {
 
   it('routes failures to the existing owner surface', () => {
     expect(getEmailRecoveryHref('registration_confirmation', 'show-1')).toBe(
-      '/shows/show-1/entry-management'
+      '/shows/show-1/entries'
     );
     expect(getEmailRecoveryHref('lifecycle', 'show-1')).toBe(
       '/secretary/messages?showId=show-1&view=email#scheduled-emails'
     );
     expect(getEmailRecoveryHref('waitlist_notification', 'show-1')).toBe(
-      '/shows/show-1/entry-management?tab=waitlist'
+      '/shows/show-1/entries?tab=waitlist'
     );
     expect(getEmailRecoveryHref('registry_results_submission', 'show-1')).toBe(
-      '/shows/show-1/submit-results'
+      '/shows/show-1/results?step=submit'
     );
   });
 });

@@ -135,8 +135,8 @@ function LocationProbe() {
 
 const SHOW_ROUTE = '/shows/show-1';
 // A NON-Overview section: both round-3 findings only show up away from Overview.
-const SECTION_ROUTE = '/shows/show-1/results-control';
-const ENTRY_MANAGEMENT_ROUTE = '/shows/show-1/entry-management';
+const SECTION_ROUTE = '/shows/show-1/results';
+const ENTRY_MANAGEMENT_ROUTE = '/shows/show-1/entries';
 
 const originalMatchMedia = window.matchMedia;
 
@@ -193,8 +193,8 @@ describe('AppHeader Actions menu — secretary on a show route', () => {
     expect(labels).toEqual([
       'Add mail-in entry',
       'Enter my own dogs',
-      'Open Entry Management',
-      'Open Show Desk',
+      'Open Entries',
+      'Open Show Day',
       'Generate & publish premium',
       'Show settings…',
     ]);
@@ -211,9 +211,9 @@ describe('AppHeader Actions menu — secretary on a show route', () => {
       'href',
       '/secretary/register/show-1'
     );
-    expect(within(menu).getByText('Open Entry Management').closest('a')).toHaveAttribute(
+    expect(within(menu).getByText('Open Entries').closest('a')).toHaveAttribute(
       'href',
-      '/shows/show-1/entry-management'
+      '/shows/show-1/entries'
     );
   });
 });
@@ -243,7 +243,7 @@ describe('AppHeader Actions menu — exhibitor on the same route', () => {
 
     expect(screen.queryByRole('button', { name: /^actions$/i })).toBeNull();
     expect(screen.queryByText('Add mail-in entry')).toBeNull();
-    expect(screen.queryByText('Open Show Desk')).toBeNull();
+    expect(screen.queryByText('Open Show Day')).toBeNull();
   });
 });
 

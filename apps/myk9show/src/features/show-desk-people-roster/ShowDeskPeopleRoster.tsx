@@ -163,7 +163,7 @@ export function ShowDeskPeopleRoster({
   }
 
   function handleManageEntries(person: PeopleRosterPerson) {
-    navigate(`/shows/${showId}/entry-management?person=${encodeURIComponent(person.name)}`);
+    navigate(`/shows/${showId}/entries?person=${encodeURIComponent(person.name)}`);
   }
 
   if (isLoading) {

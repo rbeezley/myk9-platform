@@ -431,7 +431,7 @@ describe('computeShowDeskPendingSignals', () => {
       for (const signal of signals) {
         expect(signal.scope).toEqual({ kind: 'show', showId: 'show-42' });
       }
-      expect(signals[0]?.href).toContain('/shows/show-42/entry-management');
+      expect(signals[0]?.href).toContain('/shows/show-42/entries');
     });
   });
 });

@@ -2,7 +2,7 @@ import {
   buildExhibitorRegistrationPath,
   buildSecretaryRegistrationPath,
 } from '@/pages/RegistrationWizardPage.routes';
-import { SHOW_MANAGEMENT_SECTIONS } from '@/routes/showManagementSections';
+import { SHOW_SHELL_CHILD_SEGMENTS } from '@/routes/showManagementSections';
 
 /**
  * THE registry of "what can I do from here" (MYK9-630).
@@ -99,17 +99,15 @@ export const NON_SHOW_ID_SEGMENTS = new Set(['new', 'browse']);
 /**
  * The child segments of `/shows/:id`, i.e. the paths where
  * `ShowManagementShell` is mounted and can honour a `?edit=true` the viewer
- * arrives with. `classes` covers `classes/:trialId[/create]`, which
- * `publicRoutes.tsx` declares inline rather than in the section list.
+ * arrives with. Read straight off the route model, so the six tabs, their
+ * legacy redirect paths and `classes/:trialId[/create]` are all covered and a
+ * seventh tab cannot be added to one list and not the other.
  *
  * Fail CLOSED: anything not listed is treated as shell-less and gets the
  * absolute link, which always works. `actionRegistry.routeSegments.test.tsx`
  * checks both halves against the real `PublicRoutes()` tree.
  */
-export const SHELL_MOUNTED_CHILD_SEGMENTS = new Set<string>([
-  ...SHOW_MANAGEMENT_SECTIONS.map(section => section.path),
-  'classes',
-]);
+export const SHELL_MOUNTED_CHILD_SEGMENTS = new Set<string>(SHOW_SHELL_CHILD_SEGMENTS);
 
 const SHOW_CHILD_PATH = /^\/shows\/[^/]+(?:\/([^/]+))?/;
 
@@ -166,13 +164,13 @@ function buildShowActions(
     },
     {
       id: 'show-open-entry-management',
-      label: 'Open Entry Management',
-      href: `/shows/${encoded}/entry-management`,
+      label: 'Open Entries',
+      href: `/shows/${encoded}/entries`,
     },
     {
       id: 'show-open-show-desk',
-      label: 'Open Show Desk',
-      href: `/shows/${encoded}/show-desk`,
+      label: 'Open Show Day',
+      href: `/shows/${encoded}/show-day`,
     },
     {
       // Runs the Premium List card's OWN flow, from whatever section the

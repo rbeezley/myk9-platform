@@ -281,7 +281,7 @@ describe('ClassManagementPage judge assignment', () => {
     );
     expect(screen.getByRole('link', { name: 'Manage Waitlist' })).toHaveAttribute(
       'href',
-      '/shows/show-1/entry-management?tab=waitlist&trial=trial-1'
+      '/shows/show-1/entries?tab=waitlist&trial=trial-1'
     );
     expect(screen.getByRole('link', { name: 'Manage Waitlist' })).toHaveClass(
       'min-h-[44px]',

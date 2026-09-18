@@ -5,7 +5,7 @@ import { LIVE_SECRETARY_SHOW_ID } from '../shared/seededShows';
 test('registration focus remains clear across desktop, history, and narrow layouts', async ({
   page,
 }) => {
-  await signInAsSecretary(page, `/shows/${LIVE_SECRETARY_SHOW_ID}/entry-management`);
+  await signInAsSecretary(page, `/shows/${LIVE_SECRETARY_SHOW_ID}/entries`);
   await expect(page.getByRole('searchbox', { name: 'Search all show registrations' })).toBeVisible({
     timeout: 30_000,
   });
@@ -56,7 +56,7 @@ test('the registration queue keeps every row inside a 768px tablet viewport (MYK
   page,
 }) => {
   await page.setViewportSize({ width: 768, height: 1024 });
-  await signInAsSecretary(page, `/shows/${LIVE_SECRETARY_SHOW_ID}/entry-management`);
+  await signInAsSecretary(page, `/shows/${LIVE_SECRETARY_SHOW_ID}/entries`);
   await expect(page.getByRole('searchbox', { name: 'Search all show registrations' })).toBeVisible({
     timeout: 30_000,
   });
@@ -83,12 +83,12 @@ test('the registration queue keeps every row inside a 768px tablet viewport (MYK
 });
 
 test('Entry Management deep-links to the existing Check-in desk', async ({ page }) => {
-  await signInAsSecretary(page, `/shows/${LIVE_SECRETARY_SHOW_ID}/entry-management`);
+  await signInAsSecretary(page, `/shows/${LIVE_SECRETARY_SHOW_ID}/entries`);
   await page.getByRole('button', { name: 'More', exact: true }).click();
   await page.getByRole('link', { name: 'Open Check-in desk' }).click();
 
   await expect(page).toHaveURL(
-    new RegExp(`/shows/${LIVE_SECRETARY_SHOW_ID}/show-desk\\?tool=people-at-show`)
+    new RegExp(`/shows/${LIVE_SECRETARY_SHOW_ID}/show-day\\?tool=people-at-show`)
   );
   const toolsDialog = page.getByRole('dialog', { name: 'Show Desk tools' });
   await expect(toolsDialog).toBeVisible();

@@ -40,13 +40,18 @@ describe('routeRegistry', () => {
 
   it('registers canonical show management route patterns', () => {
     expect(fullRouteRegistry['/shows/:showId/setup']).toBeDefined();
-    expect(fullRouteRegistry['/shows/:showId/show-desk']).toBeDefined();
-    expect(fullRouteRegistry['/shows/:showId/results-control']).toBeDefined();
+    expect(fullRouteRegistry['/shows/:showId/show-day']).toBeDefined();
+    expect(fullRouteRegistry['/shows/:showId/results']).toBeDefined();
   });
 
   it('registers legacy secretary show redirect patterns without retired subroutes', () => {
     expect(fullRouteRegistry['/secretary/shows/:showId']).toBeDefined();
     expect(fullRouteRegistry['/secretary/shows/:showId/*']).toBeDefined();
+    // The RETIRED spelling, on purpose: this asserts a subroute that once
+    // existed is gone. MYK9-630 phase 2's mass repoint rewrote it to
+    // `/results`, a path that never existed under `/secretary/shows/`, turning
+    // a retirement guard into a vacuous assertion. Both are checked now.
     expect(fullRouteRegistry['/secretary/shows/:showId/results-control']).toBeUndefined();
+    expect(fullRouteRegistry['/secretary/shows/:showId/results']).toBeUndefined();
   });
 });

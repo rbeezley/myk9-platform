@@ -93,7 +93,7 @@ describe('ShowDeskPanel cockpit', () => {
         canManageShow
         scopeNow={now}
       />,
-      { initialRoute: '/shows/show-1/show-desk' }
+      { initialRoute: '/shows/show-1/show-day' }
     );
 
     const filters = screen.getByLabelText('Schedule filters');
@@ -119,12 +119,12 @@ describe('ShowDeskPanel cockpit', () => {
         canManageShow
         scopeNow={now}
       />,
-      { initialRoute: '/shows/show-1/show-desk' }
+      { initialRoute: '/shows/show-1/show-day' }
     );
 
     const entriesLink = await screen.findAllByRole('link', { name: /view entries and results/i });
     expect(decodeURIComponent(entriesLink[0]?.getAttribute('href') ?? '')).toContain(
-      'returnTo=/shows/show-1/show-desk?day=2026-06-12&focus=class-2&anchor=class-2'
+      'returnTo=/shows/show-1/show-day?day=2026-06-12&focus=class-2&anchor=class-2'
     );
   });
 
@@ -153,7 +153,7 @@ describe('ShowDeskPanel cockpit', () => {
         canManageShow
         scopeNow={now}
       />,
-      { initialRoute: '/shows/show-1/show-desk?focus=class-1' }
+      { initialRoute: '/shows/show-1/show-day?focus=class-1' }
     );
 
     const trialTrigger = screen.getByRole('button', { name: /Trial 1 · June 12/i });
@@ -184,7 +184,7 @@ describe('ShowDeskPanel cockpit', () => {
         canManageShow
         scopeNow={now}
       />,
-      { initialRoute: '/shows/show-1/show-desk?focus=class-1' }
+      { initialRoute: '/shows/show-1/show-day?focus=class-1' }
     );
 
     expect(
@@ -230,7 +230,7 @@ describe('ShowDeskPanel cockpit', () => {
           canManageShow
           scopeNow={now}
         />,
-        { initialRoute: '/shows/show-1/show-desk?focus=class-1' }
+        { initialRoute: '/shows/show-1/show-day?focus=class-1' }
       );
 
       expect(
@@ -261,7 +261,7 @@ describe('ShowDeskPanel cockpit', () => {
         canManageShow
         scopeNow={now}
       />,
-      { initialRoute: '/shows/show-1/show-desk?focus=class-2&anchor=class-1' }
+      { initialRoute: '/shows/show-1/show-day?focus=class-2&anchor=class-1' }
     );
 
     await waitFor(() => expect(scrollIntoView).toHaveBeenCalledOnce());
@@ -280,7 +280,7 @@ describe('ShowDeskPanel cockpit', () => {
         canManageShow
         scopeNow={now}
       />,
-      { initialRoute: '/shows/show-1/show-desk?focus=class-1' }
+      { initialRoute: '/shows/show-1/show-day?focus=class-1' }
     );
 
     expect(screen.getAllByRole('link', { name: /view entries and results/i })[0]).toHaveAttribute(
@@ -313,13 +313,13 @@ describe('ShowDeskPanel cockpit', () => {
         canManageShow
         scopeNow={now}
       />,
-      { initialRoute: '/shows/show-1/show-desk?focus=class-1&filter=all' }
+      { initialRoute: '/shows/show-1/show-day?focus=class-1&filter=all' }
     );
 
     const reviewLink = screen
       .getAllByRole('link')
       .find(link => link.getAttribute('href')?.includes('attention=pending'));
-    expect(reviewLink).toHaveAttribute('href', expect.stringContaining('/entry-management'));
+    expect(reviewLink).toHaveAttribute('href', expect.stringContaining('/entries'));
     expect(reviewLink).toHaveAttribute('href', expect.stringContaining('returnTo='));
     expect(decodeURIComponent(reviewLink?.getAttribute('href') ?? '')).toContain(
       'focus=class-1&anchor=class-1'
@@ -345,7 +345,7 @@ describe('ShowDeskPanel cockpit', () => {
         canManageShow
         scopeNow={now}
       />,
-      { initialRoute: '/shows/show-1/show-desk' }
+      { initialRoute: '/shows/show-1/show-day' }
     );
 
     expect(screen.getAllByText('Close out 1 result')).not.toHaveLength(0);

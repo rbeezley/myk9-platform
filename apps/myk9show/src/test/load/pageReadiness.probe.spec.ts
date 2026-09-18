@@ -36,7 +36,7 @@ const PROBES: ReadinessProbe[] = [
   {
     name: 'operations-read / Show Desk',
     role: 'secretary',
-    route: `/shows/${LOAD_SHOW_ID}/show-desk`,
+    route: `/shows/${LOAD_SHOW_ID}/show-day`,
     locate: page => page.getByRole('heading', { name: 'Show Desk', exact: true }),
   },
   {

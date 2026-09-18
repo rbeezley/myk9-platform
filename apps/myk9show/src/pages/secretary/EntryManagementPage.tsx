@@ -275,7 +275,7 @@ const EntryManagementPage: React.FC = () => {
               <p className="text-sm font-semibold">Entry tools</p>
               <Button asChild variant="outline" size="sm" className="h-8 gap-2">
                 <Link
-                  to={`/shows/${encodeURIComponent(selectedShowId || urlShowId || '')}/show-desk?tool=people-at-show`}
+                  to={`/shows/${encodeURIComponent(selectedShowId || urlShowId || '')}/show-day?tool=people-at-show`}
                 >
                   <UserCheck className="h-4 w-4" aria-hidden />
                   Open Check-in desk

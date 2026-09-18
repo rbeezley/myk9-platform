@@ -51,7 +51,7 @@ describe('run-order deep link', () => {
   it('carries the class day so Show Desk focuses the right class', () => {
     const href = renderSheet('2026-08-02').getAttribute('href') ?? '';
 
-    expect(href).toContain('/shows/show-1/show-desk');
+    expect(href).toContain('/shows/show-1/show-day');
     expect(href).toContain('focus=class-1');
     // Without this, a Sunday class opens on Saturday and the run-order menu
     // would act on whatever class Show Desk fell back to.
@@ -67,7 +67,7 @@ describe('run-order deep link', () => {
 
     expect(href).not.toContain('day=');
     expect(href).not.toContain('focus=');
-    expect(href).toContain('/shows/show-1/show-desk');
+    expect(href).toContain('/shows/show-1/show-day');
   });
 
   it('normalizes a datetime trial date to the day Show Desk accepts', () => {

@@ -26,7 +26,7 @@ describe('AlreadyEnteredNotice', () => {
 
       expect(screen.queryByRole('link', { name: /message the show team/i })).toBeNull();
       const link = screen.getByRole('link', { name: /entry management/i });
-      expect(link).toHaveAttribute('href', '/shows/show-1/entry-management');
+      expect(link).toHaveAttribute('href', '/shows/show-1/entries');
     }
   );
 

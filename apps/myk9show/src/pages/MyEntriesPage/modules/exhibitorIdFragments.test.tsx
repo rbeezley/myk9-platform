@@ -124,13 +124,15 @@ describe('MYK9-631 AC4/Q7 — the receipt carries one identifier or none', () =>
     // Round 2: the Reference is the ORDER's token, handed in by the caller.
     // Round 1 printed `entry.id`, which on a MyEntry is `dogs[0].classes[0].id`
     // — one class row of a multi-dog order, and not even stably chosen, since
-    // the PostgREST read sorts and the replica read does not.
-    const registrationId = 'reg-7c1f4a90-2b6e-4a11-9d33-55aa0c1d77e2';
+    // the PostgREST read sorts and the replica read does not. Since MYK9-659
+    // the only caller that still supplies one is the Stripe-order path, with
+    // the order id; this test exercises the component's own contract.
+    const orderReference = 'ord-7c1f4a90-2b6e-4a11-9d33-55aa0c1d77e2';
     render(
       <EntryReceipt
         open
         onOpenChange={vi.fn()}
-        entry={{ ...receiptEntry, reference: registrationId }}
+        entry={{ ...receiptEntry, reference: orderReference }}
       />
     );
 
@@ -144,15 +146,17 @@ describe('MYK9-631 AC4/Q7 — the receipt carries one identifier or none', () =>
     expect(screen.queryByText('Order ID')).not.toBeInTheDocument();
 
     // The document IS identifiable — by the order, not by a class row.
-    expect(screen.getByText(`Reference: ${registrationId}`)).toBeInTheDocument();
+    expect(screen.getByText(`Reference: ${orderReference}`)).toBeInTheDocument();
     expect(readableText()).not.toContain(receiptEntry.id);
   });
 
-  // The narrow case the round-2 rule leaves without a token: a legacy
-  // secretary/mail-in row with no confirmation number AND no linked
-  // registration. Printing a class row's id there would be the wrong grain, so
-  // nothing prints. Pinned so the choice is visible rather than incidental —
-  // MYK9-659 tracks giving that path a real order-level reference.
+  // MYK9-659 answered what the order-level reference IS: the enrollment's
+  // confirmation number, which `submit_show_entries` guarantees for every order
+  // the app creates and migration 20260918193700 replicates so the offline
+  // receipt prints the same string as the online one. Nothing is minted, so
+  // this branch survives — it is now reached only by a legacy pre-link row, or
+  // by a replica cached before that push. Printing a class row's id, or the
+  // enrollment's UUID, would be the wrong grain either way, so nothing prints.
   it('prints no Reference at all when the order has no order-level token', () => {
     render(<EntryReceipt open onOpenChange={vi.fn()} entry={receiptEntry} />);
 
@@ -166,7 +170,7 @@ describe('MYK9-631 AC4/Q7 — the receipt carries one identifier or none', () =>
       <EntryReceipt
         open
         onOpenChange={vi.fn()}
-        entry={{ ...receiptEntry, confirmationNumber: 'MK9-000145', reference: 'reg-abc' }}
+        entry={{ ...receiptEntry, confirmationNumber: 'MK9-000145', reference: 'ord-abc' }}
       />
     );
 

@@ -81,6 +81,19 @@ export interface ReplicatedEntry {
   withdrawal_reason?: string | null | undefined;
   submittedAt?: string | undefined;
   registrationId?: string | undefined;
+  /**
+   * MYK9-659: the ORDER's human reference (`MK9-000146`), replicated so the
+   * offline receipt prints the same token as the online one.
+   *
+   * It lives on `enrollments`, which is NOT in replication scope, and reached
+   * the client only through the account read's PostgREST embed. Migration
+   * 20260918193700 projects it onto the entry-results views; read with
+   * `optionalColumn` because a row cached before that push simply lacks it,
+   * and never projected back in `entryToSupabaseRow` — it is not an `entries`
+   * column, so a whole-row upload must not try to write it.
+   */
+  registrationConfirmationNumber?: string | undefined;
+  registration_confirmation_number?: string | undefined;
   trialId?: string | undefined;
   trial_id?: string | undefined;
 
@@ -349,6 +362,15 @@ export function rowToEntry(row: EntryRow): ReplicatedEntry {
     withdrawal_reason_code: optionalColumn(row, 'withdrawal_reason_code'),
     submittedAt: row.submitted_at ?? undefined,
     registrationId: row.registration_id ?? undefined,
+    // MYK9-659. `optionalColumn` on purpose: until migration 20260918193700
+    // is pushed the view does not return this column, and the generated row
+    // type cannot know it. Absent reads as `undefined`, and the offline
+    // receipt then prints no reference at all rather than a raw UUID.
+    registrationConfirmationNumber: optionalColumn(row, 'registration_confirmation_number'),
+    registration_confirmation_number: optionalColumn(
+      row,
+      'registration_confirmation_number'
+    ),
     trialId: row.trial_id ?? undefined,
     trial_id: row.trial_id ?? undefined,
     refundAmount: row.refund_amount ?? undefined,

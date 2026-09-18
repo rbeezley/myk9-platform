@@ -59,10 +59,16 @@ export const CardDerivedReceipt: React.FC<CardDerivedReceiptProps> = ({
         ...(entry.confirmationNumber !== undefined && {
           confirmationNumber: entry.confirmationNumber,
         }),
-        // The ORDER's own id. Null for a secretary/mail-in row with no linked
-        // online registration — in which case the receipt prints no Reference
-        // rather than a class row's id standing in for the order (round 2).
-        ...(entry.registrationId ? { reference: entry.registrationId } : {}),
+        // MYK9-659: no `reference` on this path at all. The ORDER's reference
+        // IS its confirmation number above — `enrollments.confirmation_number`
+        // is NOT NULL and `submit_show_entries` always links an enrollment, so
+        // every order the app creates has one, and migration 20260918193700
+        // replicates it so the offline receipt prints the same string as the
+        // online one. `entry.registrationId` used to stand in here; it is the
+        // enrollment's UUID, which is not a reference anyone can quote and
+        // differed from what the same order showed online. An order whose
+        // confirmation number has not replicated yet prints nothing, which is
+        // the behaviour MYK9-631 Q7 pinned.
         showName: entry.showName,
         showDate: entry.showDate,
         location: entry.location,

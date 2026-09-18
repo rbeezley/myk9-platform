@@ -363,11 +363,12 @@ export const ReceiptEntryDialog: React.FC<ReceiptEntryDialogProps> = ({
         ...(entry.confirmationNumber !== undefined && {
           confirmationNumber: entry.confirmationNumber,
         }),
-        // Registration first, then the Stripe order — both identify the ORDER.
-        // Never `entry.id`, which on this shape is one class row of it.
-        ...((entry.registrationId ?? entry.orderId)
-          ? { reference: entry.registrationId ?? entry.orderId }
-          : {}),
+        // The Stripe order id, and nothing else. Never `entry.id`, which on this
+        // shape is one class row of the order — and, since MYK9-659, never
+        // `entry.registrationId` either: the enrollment's UUID is not a
+        // reference anyone can quote, and the ORDER's real reference is its
+        // confirmation number above, which `enrollments` always carries.
+        ...(entry.orderId ? { reference: entry.orderId } : {}),
         showName: entry.showName,
         showDate: entry.showDate,
         location: entry.location,

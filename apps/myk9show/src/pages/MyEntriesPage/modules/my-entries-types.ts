@@ -274,6 +274,36 @@ export interface ReceiptDialogState {
 }
 
 /**
+ * The one class the exhibitor asked to leave, from the row that owns it
+ * (MYK9-631 AC3). Identified by `entries.id`, never by an order — the order
+ * picker that used to stand between the card and this act is what MYK9-631
+ * deletes.
+ */
+export interface LeaveClassTarget {
+  /** The class row's `entries.id` — the row `withdrawEntry` writes. */
+  classId: string;
+  className: string;
+  /**
+   * The row's own "when" column (trial date, and trial number when the show ran
+   * more than one). Display only. Two trials of one show can run a class with
+   * the SAME display name, so without this the chooser's three steps — and the
+   * row control's accessible name — cannot tell them apart.
+   */
+  classWhen?: string | undefined;
+  dogName: string;
+  /** Focus goes back to this dog's card heading once the write lands. */
+  dogId: string;
+  /** Resolves the show's withdrawal rulebook. */
+  showId: string;
+}
+
+/** Dialog state for leaving one class. */
+export interface LeaveClassDialogState {
+  open: boolean;
+  target: LeaveClassTarget | null;
+}
+
+/**
  * Tab filter options
  */
 /**

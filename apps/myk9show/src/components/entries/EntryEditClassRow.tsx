@@ -58,6 +58,16 @@ interface EntryEditClassRowProps {
   reasonCode?: string | null | undefined;
   /** Both verdicts for this row, or undefined while the lookup has not answered. */
   rowEligibility: RemoveFromClassEligibility | undefined;
+  /**
+   * MYK9-631 Q4: whether THIS surface offers the leave control at all.
+   *
+   * On My Shows it does not — the class row on the show card carries it now,
+   * one step from the card instead of three, and repeating it inside the sheet
+   * would be the same verb in two places. The secretary surfaces, which have
+   * no such row, keep it. The removed BADGE is unaffected either way: a row
+   * already withdrawn or pulled still says so here.
+   */
+  canOfferLeaveClass?: boolean;
   currentHandler: string;
   currentJumpHeight: string | undefined;
   onLeaveClass: (classId: string, className: string) => void;
@@ -70,6 +80,7 @@ export function EntryEditClassRow({
   status,
   reasonCode,
   rowEligibility,
+  canOfferLeaveClass = true,
   currentHandler,
   currentJumpHeight,
   onLeaveClass,
@@ -113,7 +124,7 @@ export function EntryEditClassRow({
         </div>
         {isRemoved ? (
           <Badge variant="secondary">{removedLabel}</Badge>
-        ) : (
+        ) : !canOfferLeaveClass ? null : (
           <Button
             variant="ghost"
             size="sm"
@@ -128,7 +139,7 @@ export function EntryEditClassRow({
         )}
       </div>
 
-      {!isRemoved && blockedReason && (
+      {!isRemoved && canOfferLeaveClass && blockedReason && (
         <p className="mt-2 text-sm text-muted-foreground">{blockedReason}</p>
       )}
 

@@ -18,6 +18,7 @@ import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
 import { Printer, X } from 'lucide-react';
 import { CONFIRMATION_NUMBER_LABEL } from '@/features/registration/confirmationNumberDisplay';
+import { escapeHtml } from '@/utils/escapeHtml';
 import { formatEntryDate, formatRecordDateTime } from '@/lib/format/dates';
 
 interface EntryClass {
@@ -33,7 +34,29 @@ interface EntryClass {
 
 interface EntryReceiptData {
   id: string;
-  confirmationNumber: string;
+  /**
+   * MYK9-631 AC4 / Q7: the confirmation number the exhibitor was actually
+   * given, or absent. It is the ONE identifier this document still prints —
+   * the raw `Entry ID` UUID footer and the monospace `Order ID` row are gone,
+   * because three unexplained identifiers on a page an exhibitor prints and
+   * files is two too many. Optional, because nothing mints a stand-in for it
+   * any more: an order with no confirmation number omits the block.
+   */
+  confirmationNumber?: string | undefined;
+  /**
+   * The ORDER-level token to print when there is no confirmation number, or
+   * absent when the order has none.
+   *
+   * Supplied by the caller, never derived from `id` here. Round 1 printed
+   * `entry.id`, and round 2 showed that is `dogs[0].classes[0].id` — the
+   * `entries.id` of whichever raw row happened to arrive first for the first
+   * dog. That is the wrong grain for a document listing the whole order's fees,
+   * and it is not even stable: the PostgREST read sorts deterministically while
+   * the replica read applies no sort at all, so the same cash order could print
+   * a different reference online and offline. A registration id (or the Stripe
+   * order id) identifies the order itself and does not move.
+   */
+  reference?: string | undefined;
   showName: string;
   showDate: Date;
   location: {
@@ -69,7 +92,6 @@ interface EntryReceiptData {
   };
   currency?: string;
   paymentReference?: string | null;
-  orderId?: string;
   submittedAt: Date;
   paymentStatus: string;
 }
@@ -281,7 +303,7 @@ export function EntryReceipt({
       <!DOCTYPE html>
       <html>
         <head>
-          <title>Entry Receipt - ${entry.confirmationNumber}</title>
+          <title>Entry Receipt - ${escapeHtml(entry.dogName)}, ${escapeHtml(entry.showName)}</title>
           ${styles}
         </head>
         <body>
@@ -362,15 +384,18 @@ export function EntryReceipt({
             <p className="receipt-subtitle text-sm text-muted-foreground">myK9Show</p>
           </div>
 
-          {/* Confirmation # */}
-          <div className="confirmation-box bg-muted/50 rounded-lg p-4 mb-6 text-center">
-            <div className="confirmation-label text-xs text-muted-foreground tracking-wider">
-              {CONFIRMATION_NUMBER_LABEL}
+          {/* Confirmation # — the receipt is the one place it is defensible,
+              and the only identifier this document now carries. */}
+          {entry.confirmationNumber && (
+            <div className="confirmation-box bg-muted/50 rounded-lg p-4 mb-6 text-center">
+              <div className="confirmation-label text-xs text-muted-foreground tracking-wider">
+                {CONFIRMATION_NUMBER_LABEL}
+              </div>
+              <div className="confirmation-number text-2xl font-bold font-mono">
+                {entry.confirmationNumber}
+              </div>
             </div>
-            <div className="confirmation-number text-2xl font-bold font-mono">
-              {entry.confirmationNumber}
-            </div>
-          </div>
+          )}
 
           {/* Show Information */}
           <div className="section mb-6">
@@ -557,18 +582,27 @@ export function EntryReceipt({
                 </div>
               </div>
             )}
-            {entry.orderId && (
-              <div className="info-item mt-3">
-                <div className="info-label text-xs text-muted-foreground">Order ID</div>
-                <div className="info-value break-all font-mono text-sm">{entry.orderId}</div>
-              </div>
-            )}
+            {/* MYK9-631 Q7: the monospace order id used to print here. It was
+                a second unexplained identifier beside the confirmation number,
+                on the document exhibitors print and file. `paymentReference`
+                above stays: a payment processor's reference is what a bank or
+                a club actually asks for. */}
           </div>
 
           {/* Footer */}
           <div className="footer mt-8 pt-4 border-t text-center text-xs text-muted-foreground">
+            {/* MYK9-631 Q7 put the ONE identifier in the confirmation block
+                above and deleted the `Entry ID: <uuid>` line. But a cash, check
+                or secretary-recorded registration has no confirmation number at
+                all, and round 1 caught what that left: a printed receipt with
+                nothing unique on it, for exactly the path that gets reconciled
+                by hand. A receipt is the one surface AC4 allows an id on, so
+                when there is no confirmation number the entry id prints here as
+                a labelled Reference — never in a picker, never on a card. */}
             <p>Thank you for your entry!</p>
-            <p className="mt-1">Entry ID: {entry.id}</p>
+            {!entry.confirmationNumber && entry.reference && (
+              <p className="mt-1">Reference: {entry.reference}</p>
+            )}
             <p className="mt-1">Generated on {formatRecordDateTime(new Date())}</p>
           </div>
         </div>

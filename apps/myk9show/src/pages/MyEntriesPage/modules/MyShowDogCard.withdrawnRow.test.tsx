@@ -27,6 +27,7 @@ function renderRows(rows: MyEntry[]) {
     onOpenCheckIn: vi.fn(),
     onOpenEdit: vi.fn(),
     onOpenReceipts: vi.fn(),
+    onLeaveClass: vi.fn(),
   };
   return render(<MyShowsList {...props} />);
 }

@@ -26,6 +26,7 @@ import {
 } from '@/features/result-card';
 import { formatWeekdayMonthDay } from '@/lib/format/dates';
 import { formatTrialLabel } from './myEntriesUtils';
+import { canLeaveClass } from './leaveClassRow';
 import { deriveClassRowState, type ClassRowKind } from './myShowDogState';
 import type { DayCheckInContext } from './dayCheckIn';
 import type { MyShowClass } from './groupEntriesByShow';
@@ -79,9 +80,20 @@ export interface MyShowClassRowProps {
   checkInContext: DayCheckInContext;
   /** Drop the trial number when the show only ever had one trial. */
   showTrialNumber: boolean;
+  /**
+   * The show this row belongs to. Empty during the partial-replication window,
+   * which is a guard the leave control needs — see `canLeaveClass`.
+   */
+  showId: string;
   seenResultReleaseKeys: Set<string>;
   onCheckInClass: (cls: MyShowClass) => void;
   onOpenCheckIn: (order: MyEntry, cls: MyShowClass) => void;
+  /**
+   * MYK9-631 AC3: open the Withdraw-or-Pull chooser for THIS class. A row verb
+   * rather than a menu item, because leaving a class is per class — and the
+   * order picker that used to stand in front of it is what AC3 deletes.
+   */
+  onLeaveClass: (cls: MyShowClass, classWhen: string) => void;
   onResultRevealClick?: ((model: ResultCardModel) => void) | undefined;
 }
 
@@ -91,9 +103,11 @@ export const MyShowClassRow: React.FC<MyShowClassRowProps> = ({
   order,
   checkInContext,
   showTrialNumber,
+  showId,
   seenResultReleaseKeys,
   onCheckInClass,
   onOpenCheckIn,
+  onLeaveClass,
   onResultRevealClick,
 }) => {
   const state = deriveClassRowState(cls, checkInContext);
@@ -103,6 +117,22 @@ export const MyShowClassRow: React.FC<MyShowClassRowProps> = ({
     cls.trialDate ? formatWeekdayMonthDay(cls.trialDate) : null,
     showTrialNumber && cls.trialNumber ? formatTrialLabel(cls.trialNumber) : null,
   ].filter((part): part is string => Boolean(part));
+
+  // All four terms live in `leaveClassRow.ts` so the rule is drivable without a
+  // render. Deliberately NOT gated on the entry-close deadline — see that
+  // module and `docs/plan-exhibitor-show-actions.md` §4 Q9.
+  const canLeave = canLeaveClass({
+    kind: state.kind,
+    isPastShow: checkInContext.isPastShow,
+    unresolved: Boolean(cls.unresolved),
+    hasShowId: showId !== '',
+  });
+  // The same discriminator the row already shows. Two trials of one show can
+  // run a class with the SAME display name, which is why RemoveFromClassDialog
+  // keys its body on the class id — but the destructive control and all three
+  // of the chooser's steps were naming the class by that ambiguous string
+  // alone, so a screen-reader user got two identical buttons.
+  const classWhen = when.join(' · ');
 
   return (
     <div className="myk9-entries-class-row">
@@ -165,6 +195,34 @@ export const MyShowClassRow: React.FC<MyShowClassRowProps> = ({
           ) : (
             <span className="text-muted-foreground">absent</span>
           ))}
+        {/* The one destructive verb on this page, anchored to the row that
+            owns it. Muted rather than `text-destructive`: it sits beside a
+            check-in control the exhibitor uses far more often, and the
+            chooser it opens is where the consequences are stated. */}
+        {canLeave && (
+          <>
+            <span aria-hidden="true" className="text-muted-foreground">
+              ·
+            </span>
+            <button
+              type="button"
+              onClick={() => onLeaveClass(cls, classWhen)}
+              // WCAG 2.5.3 Label in Name: the accessible name has to START with
+              // the visible words, or a voice-control user saying "click Leave
+              // class" does not reach the one destructive control on the page.
+              // The two sibling controls this file renders already satisfy it
+              // ("Check in …", "Change …"); this one did not.
+              aria-label={
+                classWhen
+                  ? `Leave class: withdraw or pull ${dogName} from ${cls.name}, ${classWhen}`
+                  : `Leave class: withdraw or pull ${dogName} from ${cls.name}`
+              }
+              className={`${LINK_CLASS} text-muted-foreground`}
+            >
+              Leave class…
+            </button>
+          </>
+        )}
       </span>
     </div>
   );

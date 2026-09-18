@@ -38,6 +38,8 @@ export interface MyShowDogCardProps {
   isShowCancelled: boolean;
   /** Suppress the trial number when the show only ever ran one trial. */
   showTrialNumber: boolean;
+  /** The show these classes belong to; empty during the replication window. */
+  showId: string;
   /** Refund recorded against this dog's order, if any. */
   refundNote?: RefundNote | undefined;
   /** The dog's entry is still awaiting the secretary. */
@@ -45,6 +47,8 @@ export interface MyShowDogCardProps {
   seenResultReleaseKeys: Set<string>;
   onCheckInDay: (dog: MyShowDog, classes: MyShowClass[]) => void;
   onOpenCheckIn: (order: MyEntry, cls: MyShowClass) => void;
+  /** MYK9-631 AC3: withdrawing or pulling one class, from the row that owns it. */
+  onLeaveClass: (dog: MyShowDog, cls: MyShowClass, classWhen: string) => void;
   onResultRevealClick?: ((model: ResultCardModel) => void) | undefined;
 }
 
@@ -54,11 +58,13 @@ const MyShowDogCardComponent: React.FC<MyShowDogCardProps> = ({
   checkInContext,
   isShowCancelled,
   showTrialNumber,
+  showId,
   refundNote,
   isPendingReview,
   seenResultReleaseKeys,
   onCheckInDay,
   onOpenCheckIn,
+  onLeaveClass,
   onResultRevealClick,
 }) => {
   const chip = deriveDogChip(dog, {
@@ -101,9 +107,11 @@ const MyShowDogCardComponent: React.FC<MyShowDogCardProps> = ({
             order={ordersById[cls.orderId]}
             checkInContext={checkInContext}
             showTrialNumber={showTrialNumber}
+            showId={showId}
             seenResultReleaseKeys={seenResultReleaseKeys}
             onCheckInClass={one => onCheckInDay(dog, [one])}
             onOpenCheckIn={onOpenCheckIn}
+            onLeaveClass={(one, classWhen) => onLeaveClass(dog, one, classWhen)}
             onResultRevealClick={onResultRevealClick}
           />
         ))}

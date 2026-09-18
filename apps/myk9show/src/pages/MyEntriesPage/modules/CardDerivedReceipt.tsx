@@ -53,7 +53,16 @@ export const CardDerivedReceipt: React.FC<CardDerivedReceiptProps> = ({
       onOpenChange={open => !open && onClose()}
       entry={{
         id: entry.id,
-        confirmationNumber: entry.confirmationNumber ?? entry.id.slice(0, 8).toUpperCase(),
+        // MYK9-631 AC4: no minted stand-in. An order with no confirmation
+        // number simply has none, and the receipt omits the block rather than
+        // printing 8 hex characters of a UUID as if they meant something.
+        ...(entry.confirmationNumber !== undefined && {
+          confirmationNumber: entry.confirmationNumber,
+        }),
+        // The ORDER's own id. Null for a secretary/mail-in row with no linked
+        // online registration — in which case the receipt prints no Reference
+        // rather than a class row's id standing in for the order (round 2).
+        ...(entry.registrationId ? { reference: entry.registrationId } : {}),
         showName: entry.showName,
         showDate: entry.showDate,
         location: entry.location,

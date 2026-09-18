@@ -37,19 +37,21 @@ import {
 } from './cartStore.recovery';
 import type { RecoverableEntryRow } from './cartStore.recovery';
 import { reconcileCartItemsAgainstExistingEntries } from './cartStore.reconciliation';
+import { ensureCartOnce, isActiveCartUniqueViolation } from './cartStore.ensureCart';
+import { recoverCartHold } from './cartStore.recoverHold';
 
 // Re-export types so existing imports continue to work
 export type {
   CartStatus,
   CartItemWithDetails,
   CartWithDetails,
+  EnsureCartResult,
   NewCartItem,
   WaitlistEntryResult,
   CheckoutResult,
 } from './cartStore.types';
 
 const recoveryCartInFlight = new Map<string, Promise<CartWithDetails | null>>();
-
 export const useCartStore = create<CartState>()(
   devtools(
     persist(
@@ -233,25 +235,18 @@ export const useCartStore = create<CartState>()(
             data.status === 'expired' || (expiresAtMs !== null && expiresAtMs <= Date.now());
 
           if (needsRecovery) {
-            recoveredExpiresAt = new Date(
-              Date.now() + CART_EXPIRATION_MINUTES * 60 * 1000
-            ).toISOString();
-            recoveredSessionId = null;
-
-            const { error: recoverError } = await supabase
-              .from('entry_carts')
-              .update({
-                expires_at: recoveredExpiresAt,
-                stripe_checkout_session_id: null,
-              })
-              .eq('id', data.id)
-              .in('status', ['active', 'expired']);
-
-            if (recoverError) {
-              logger.error('Error recovering cart', 'cartStore', { exhibitorId }, recoverError);
+            // Reactivates the row as well as extending the hold: an 'expired'
+            // row is outside the partial unique index, so leaving it there lets
+            // a second createCart insert a rival empty cart that then wins every
+            // `created_at desc` read (review C P2-1).
+            const recovered = await recoverCartHold(data, exhibitorId);
+            if (recovered.kind === 'failed') {
               set({ cart: null, isLoading: false });
               return null;
             }
+            data = recovered.row;
+            recoveredExpiresAt = recovered.expiresAt;
+            recoveredSessionId = null;
           }
 
           const { data: cartData, error: cartError } = await supabase
@@ -331,6 +326,35 @@ export const useCartStore = create<CartState>()(
           return cartWithDetails;
         },
 
+        /**
+         * The wizard's opener: recover this exhibitor's cart for the show, or
+         * create one — as a single coalesced unit, resolving `ready` or
+         * `failed` and never nothing-with-no-reason (MYK9-581).
+         */
+        ensureCart: (showId: string, exhibitorId: string) =>
+          ensureCartOnce(showId, exhibitorId, {
+            loadActiveCart: (exhibitorIdArg, options) =>
+              get().loadActiveCart(exhibitorIdArg, options),
+            createCart: (showIdArg, exhibitorIdArg) => get().createCart(showIdArg, exhibitorIdArg),
+            // `createCart` logs and swallows its PostgREST error, leaving the
+            // message on the store; reading it back is the only way the opener's
+            // own log line can name the real failure (review C P3-1).
+            lastError: () => get().error,
+            // The store's own record of the same failure the caller is handed.
+            // `loadActiveCart` clears `isLoading` on every exit it owns, but a
+            // throw escapes before that, so clearing it here is what keeps a
+            // rejected entries-reconcile read from leaving the step mid-load.
+            onFailure: (message: string, cause?: unknown) => {
+              set({ error: message, isLoading: false });
+              logger.error(
+                'Failed to open cart',
+                'cartStore',
+                { showId, exhibitorId },
+                ensureError(cause ?? new Error(message))
+              );
+            },
+          }),
+
         // Create a new cart
         createCart: async (showId: string, exhibitorId: string) => {
           set({ isLoading: true, error: null });
@@ -357,86 +381,20 @@ export const useCartStore = create<CartState>()(
               .single();
 
             if (cartError) {
-              if (cartError.code === '23505') {
-                const { data: existingCart, error: existingCartError } = await supabase
-                  .from('entry_carts')
-                  .select(`*, show:shows(id, name, start_date, entry_close_date)`)
-                  .eq('show_id', showId)
-                  .eq('exhibitor_id', exhibitorId)
-                  .eq('status', 'active')
-                  .limit(1)
-                  .maybeSingle();
-
-                if (!existingCartError && existingCart) {
-                  const existingCartExpired =
-                    existingCart.expires_at == null ||
-                    new Date(existingCart.expires_at).getTime() <= Date.now();
-
-                  if (existingCartExpired) {
-                    const { error: expireError } = await supabase
-                      .from('entry_carts')
-                      .update({ status: 'expired', stripe_checkout_session_id: null })
-                      .eq('id', existingCart.id)
-                      .eq('status', 'active');
-
-                    if (expireError) {
-                      logger.error(
-                        'Error expiring stale cart after unique conflict',
-                        'cartStore',
-                        { showId, exhibitorId, cartId: existingCart.id },
-                        expireError
-                      );
-                      throw expireError;
-                    }
-
-                    const { data: recreatedCart, error: recreateError } = await supabase
-                      .from('entry_carts')
-                      .insert(cartInsert)
-                      .select(`*, show:shows(id, name, start_date, entry_close_date)`)
-                      .single();
-
-                    if (!recreateError && recreatedCart) {
-                      const cartWithDetails: CartWithDetails = {
-                        ...recreatedCart,
-                        items: [],
-                        show: recreatedCart.show as CartWithDetails['show'],
-                      };
-                      set({
-                        cart: cartWithDetails,
-                        isLoading: false,
-                        lastSyncedAt: new Date().toISOString(),
-                        expirationWarning: false,
-                      });
-                      return cartWithDetails;
-                    }
-
-                    if (recreateError?.code !== '23505') {
-                      throw recreateError ?? new Error('Failed to recreate cart');
-                    }
-                  }
-
-                  const { error: reclaimError } = await supabase
-                    .from('entry_carts')
-                    .update({
-                      expires_at: new Date(
-                        Date.now() + CART_EXPIRATION_MINUTES * 60 * 1000
-                      ).toISOString(),
-                      stripe_checkout_session_id: null,
-                    })
-                    .eq('id', existingCart.id)
-                    .eq('status', 'active');
-
-                  if (reclaimError) {
-                    logger.error(
-                      'Error reclaiming stale cart after unique conflict',
-                      'cartStore',
-                      { showId, exhibitorId, cartId: existingCart.id },
-                      reclaimError
-                    );
-                    throw reclaimError;
-                  }
-                  return get().loadCart(showId, exhibitorId);
-                }
+              // Another tab won the race for this (show, exhibitor): the row
+              // the index is protecting is this exhibitor's own cart. RECOVER
+              // it — `loadActiveCart` reads `status IN ('active','expired')`
+              // with no expiry filter, extends a lapsed hold by id and keeps
+              // the items. Expiring it and inserting a fresh empty shell in its
+              // place is what orphaned a drafted cart. Matched by index NAME so
+              // a violation of some other constraint still surfaces.
+              if (isActiveCartUniqueViolation(cartError)) {
+                logger.warn(
+                  'Active cart already exists for this show; recovering it instead',
+                  'cartStore',
+                  { showId, exhibitorId }
+                );
+                return get().loadActiveCart(exhibitorId, { showId });
               }
               logger.error('Error creating cart', 'cartStore', { showId, exhibitorId }, cartError);
               throw cartError;

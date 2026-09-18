@@ -106,8 +106,7 @@ function setupBaseMocks(trialIds: string[]) {
   mockUseCartStore.mockImplementation((selector: (s: unknown) => unknown) => {
     const s = {
       cart: null,
-      loadCart: vi.fn().mockResolvedValue(null),
-      createCart: vi.fn().mockResolvedValue(null),
+      ensureCart: vi.fn().mockResolvedValue({ kind: 'ready', cart: { id: 'cart-1', items: [] } }),
       addItem: vi.fn().mockResolvedValue(true),
       removeItem: vi.fn().mockResolvedValue(true),
     };

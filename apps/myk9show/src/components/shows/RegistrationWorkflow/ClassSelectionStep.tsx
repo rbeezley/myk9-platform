@@ -3,6 +3,7 @@ import { Info } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList } from '@/components/ui/tabs';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Button } from '@/components/ui/button';
 import { buildClassDisambiguator } from '@/features/_shared/classLabel';
 import { useDogStoreCompat } from '@/hooks/useDogStoreCompat';
 import { useShowStore } from '@/store/showStore';
@@ -11,6 +12,7 @@ import { useClassStoreCompat } from '@/hooks/useClassStoreCompat';
 import { useExistingEntries } from '@/hooks/useExistingEntries';
 import { compareLevels } from '@/utils/schedule-summary';
 import { useCartStore, useCartItems } from '@/store/cartStore';
+import type { EnsureCartResult } from '@/store/cartStore.types';
 import { useAuthContext } from '@/hooks/useAuthContext';
 import { useExhibitorProfile } from '@/hooks/useExhibitorProfile';
 import { useClassAvailability } from '@/hooks/useClassAvailability';
@@ -102,8 +104,7 @@ export const ClassSelectionStep: React.FC<ClassSelectionStepProps> = ({
   const cartShowId = useCartStore(state => state.cart?.show_id ?? null);
   const cartExhibitorId = useCartStore(state => state.cart?.exhibitor_id ?? null);
   const cartIsLoading = useCartStore(state => state.isLoading);
-  const loadCart = useCartStore(state => state.loadCart);
-  const createCart = useCartStore(state => state.createCart);
+  const ensureCart = useCartStore(state => state.ensureCart);
   const addItem = useCartStore(state => state.addItem);
   const removeItem = useCartStore(state => state.removeItem);
 
@@ -322,16 +323,43 @@ export const ClassSelectionStep: React.FC<ClassSelectionStepProps> = ({
   );
 
   const exhibitorId = exhibitorProfile?.id;
+  const [cartOpenAttempt, setCartOpenAttempt] = useState(0);
+  // What the opener said, which is the ONLY thing this step renders its cart
+  // state from — the alert AND the chips. `null` means "not asked yet / in
+  // flight"; everything else is a `ready` cart or a `failed` message, and the
+  // opener is bounded in time, so "in flight" cannot be permanent (MYK9-581).
+  const [cartOpen, setCartOpen] = useState<EnsureCartResult | null>(null);
+  const [cartReopening, setCartReopening] = useState(false);
+  const openedKeyRef = useRef<string | null>(null);
   useEffect(() => {
-    const initializeCart = async () => {
-      if (!exhibitorId || !showId) return;
-      const existingCart = await loadCart(showId, exhibitorId);
-      if (!existingCart) {
-        await createCart(showId, exhibitorId);
-      }
+    // One call, not load-then-create: the two-step opener raced itself and the
+    // loser's INSERT died on the active-cart unique index (MYK9-581).
+    // `ensureCart` also RECOVERS a cart whose hold has lapsed, with its items,
+    // rather than replacing it with an empty one.
+    //
+    // No `.catch`: `ensureCart` resolves `{ kind: 'failed' }` instead of
+    // rejecting, pinned by `cartStore.ensureCart.test.ts`.
+    if (!exhibitorId || !showId) return;
+    const key = `${showId}:${exhibitorId}`;
+    let cancelled = false;
+    if (openedKeyRef.current === key) {
+      // A retry of the SAME cart: keep the alert and the button on screen and
+      // say the retry is running, rather than blanking both back to the silent
+      // state the exhibitor just clicked to escape (review D4).
+      setCartReopening(true);
+    } else {
+      openedKeyRef.current = key;
+      setCartOpen(null);
+    }
+    void ensureCart(showId, exhibitorId).then(result => {
+      if (cancelled) return;
+      setCartOpen(result);
+      setCartReopening(false);
+    });
+    return () => {
+      cancelled = true;
     };
-    initializeCart();
-  }, [showId, exhibitorId, loadCart, createCart]);
+  }, [showId, exhibitorId, ensureCart, cartOpenAttempt]);
 
   const availabilityUnreadable = isAvailabilityUnreadable({
     isLoading: availabilityLoading,
@@ -357,8 +385,9 @@ export const ClassSelectionStep: React.FC<ClassSelectionStepProps> = ({
   // One predicate for "the held cart is this show's and this exhibitor's, and
   // has settled": the reconcile reads it, `handleClassToggle` writes through
   // it, and the chips render disabled while it is false (MYK9-542).
-  const { cartReady, onBlockedByCart } = useCartToggleGate({
+  const { cartReady, blockedReason, onBlockedByCart } = useCartToggleGate({
     useCartFlow,
+    cartOpen,
     cartIsLoading,
     cartShowId,
     cartExhibitorId,
@@ -424,6 +453,28 @@ export const ClassSelectionStep: React.FC<ClassSelectionStepProps> = ({
           Choose which classes each dog will enter. Select all that apply.
         </p>
       </div>
+
+      {useCartFlow && cartOpen?.kind === 'failed' && (
+        // Rendered from the opener's own result, not from a separate error flag
+        // that some failure path might forget to set: without this the chips
+        // simply stayed disabled behind "Loading your cart…" and nothing ever
+        // said why (rounds 2 and 3).
+        <Alert variant="destructive">
+          <Info className="h-4 w-4" />
+          <AlertDescription className="flex flex-wrap items-center gap-3">
+            <span>We couldn’t open your cart, so classes can’t be selected yet.</span>
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              disabled={cartReopening}
+              onClick={() => setCartOpenAttempt(attempt => attempt + 1)}
+            >
+              {cartReopening ? 'Retrying…' : 'Try again'}
+            </Button>
+          </AlertDescription>
+        </Alert>
+      )}
 
       <Alert>
         <Info className="h-4 w-4" />
@@ -550,7 +601,7 @@ export const ClassSelectionStep: React.FC<ClassSelectionStepProps> = ({
                                     }),
                                   };
                                 })}
-                                isCartPending={!cartReady}
+                                cartBlockedReason={blockedReason}
                                 onToggle={classId =>
                                   handleClassToggle(dogId, trial.id, classId, group.fee)
                                 }

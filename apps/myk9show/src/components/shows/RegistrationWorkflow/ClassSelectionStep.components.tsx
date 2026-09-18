@@ -157,28 +157,32 @@ interface ElementCardProps {
   levels: LevelInfo[];
   fee: number;
   isSingleClass: boolean;
-  /** The cart is still loading, so no chip may be toggled — see `isCartReady` (MYK9-542). */
-  isCartPending?: boolean | undefined;
+  /**
+   * Why no chip here may be toggled, as the caption the exhibitor reads, or
+   * null when they may (MYK9-542). A string, not a boolean, because "still
+   * opening" and "could not be opened" are different sentences and only the
+   * first may say "Loading your cart…" (review D1).
+   */
+  cartBlockedReason?: string | null | undefined;
   onToggle: (classId: string) => void;
   onAddRegistration?: (() => void) | undefined;
 }
-
-const CART_PENDING_REASON = 'Loading your cart…';
 
 export const ElementCard: React.FC<ElementCardProps> = ({
   element,
   levels,
   fee,
   isSingleClass,
-  isCartPending = false,
+  cartBlockedReason = null,
   onToggle,
   onAddRegistration,
 }) => {
+  const isCartPending = Boolean(cartBlockedReason);
   if (isSingleClass) {
     const cls = levels[0];
     if (!cls) return null;
-    const singleDescription = isCartPending
-      ? CART_PENDING_REASON
+    const singleDescription = cartBlockedReason
+      ? cartBlockedReason
       : cls.isClassClosed
         ? cls.classClosedReason
         : cls.isFull && !cls.isAlreadyEntered
@@ -299,7 +303,7 @@ export const ElementCard: React.FC<ElementCardProps> = ({
             isClassClosed={cls.isClassClosed}
             classClosedReason={cls.classClosedReason}
             fullReason={cls.fullReason}
-            isCartPending={isCartPending}
+            cartBlockedReason={cartBlockedReason}
             onToggle={onToggle}
           />
         ))}
@@ -352,7 +356,7 @@ interface LevelChipProps {
   isClassClosed?: boolean | undefined;
   classClosedReason?: string | null | undefined;
   fullReason?: string | null | undefined;
-  isCartPending?: boolean | undefined;
+  cartBlockedReason?: string | null | undefined;
   onToggle: (classId: string) => void;
 }
 
@@ -370,17 +374,18 @@ const LevelChip: React.FC<LevelChipProps> = ({
   isClassClosed = false,
   classClosedReason,
   fullReason,
-  isCartPending = false,
+  cartBlockedReason = null,
   onToggle,
 }) => {
+  const isCartPending = Boolean(cartBlockedReason);
   const isChecked = isSelected || isAlreadyEntered;
   const descriptionId = `chip-reason-${classId}`;
   // A started class outranks a full one: it takes nothing at all, so offering a
   // wait list or another day would be wrong, not merely redundant.
-  // Cart-pending outranks both: nothing here is actionable while the cart
-  // loads, and saying so beats a chip that silently refuses.
-  const description = isCartPending
-    ? CART_PENDING_REASON
+  // A blocked cart outranks both: nothing here is actionable while the cart is
+  // unavailable, and saying WHY beats a chip that silently refuses.
+  const description = cartBlockedReason
+    ? cartBlockedReason
     : isClassClosed
       ? classClosedReason
       : isFull && !isAlreadyEntered

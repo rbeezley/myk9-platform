@@ -60,25 +60,35 @@ test.describe('Show management workflow', () => {
     await signInAsSecretary(page, '/shows');
     const showId = await openFirstShowFromBrowse(page);
 
-    await expect(page.getByRole('button', { name: 'More show actions' })).toBeVisible({
-      timeout: 15000,
-    });
+    // The show header's `...` overflow menu is deleted (MYK9-630). The one
+    // actions surface is the app header's Actions button, which is icon-only
+    // below `sm` and keeps its accessible name there.
+    await expect(page.getByRole('button', { name: 'More show actions' })).toHaveCount(0);
+    await expect(page.getByTestId('header-actions-trigger')).toBeVisible({ timeout: 15000 });
+    await page.getByTestId('header-actions-trigger').click();
+    await expect(page.getByRole('menuitem', { name: 'Open Entry Management' })).toBeVisible();
+    await expect(page.getByRole('menuitem', { name: 'Show settings…' })).toBeVisible();
+    await page.keyboard.press('Escape');
 
     const managementNav = page.locator('[data-testid="canonical-show-management-nav"]');
     await expect(managementNav).toBeVisible();
 
+    // Setup is deliberately NOT a peer link (`SHOW_MANAGEMENT_NAV_SECTIONS`
+    // filters it out and `/shows/:id/setup` redirects to Overview). This spec
+    // still listed it and had been failing on that line before MYK9-630
+    // touched it.
+    await expect(managementNav.getByRole('link', { name: 'Setup', exact: true })).toHaveCount(0);
+
     for (const section of [
-      ['Setup', 'setup'],
       ['Show Desk', 'show-desk'],
       ['Entry Management', 'entry-management'],
       ['Reports', 'reports'],
       ['Results', 'results-control'],
       ['Submit Results', 'submit-results'],
     ] as const) {
-      await expect(managementNav.getByRole('link', { name: section[0] })).toHaveAttribute(
-        'href',
-        `/shows/${showId}/${section[1]}`
-      );
+      await expect(
+        managementNav.getByRole('link', { name: section[0], exact: true })
+      ).toHaveAttribute('href', `/shows/${showId}/${section[1]}`);
     }
 
     await expect(page.locator('[data-testid="show-trials-tab"]')).toHaveCount(0);

@@ -50,13 +50,7 @@ const show = {
 
 function renderContext() {
   return render(
-    <ShowDeskCompactContext
-      show={show}
-      canonicalShowHref="/shows/show-1"
-      armbandCount={0}
-      onEdit={vi.fn()}
-      onDelete={vi.fn()}
-    />
+    <ShowDeskCompactContext show={show} canonicalShowHref="/shows/show-1" armbandCount={0} />
   );
 }
 
@@ -68,6 +62,13 @@ describe('ShowDeskCompactContext', () => {
     mocks.sync.status = 'synced';
     mocks.sync.queueSize = 0;
     mocks.sync.isOnline = true;
+  });
+
+  it('no longer carries its own overflow menu', () => {
+    // The Show Desk twin of the show header's `...` menu is deleted with it
+    // (MYK9-630); the header Actions menu is the one place now.
+    renderContext();
+    expect(screen.queryByRole('button', { name: /more show actions/i })).toBeNull();
   });
 
   it('keeps the canonical Overview reachable from Show Desk context', () => {
@@ -105,13 +106,7 @@ describe('ShowDeskCompactContext', () => {
     mocks.sync.isOnline = true;
     mocks.sync.queueSize = 2;
     rerender(
-      <ShowDeskCompactContext
-        show={show}
-        canonicalShowHref="/shows/show-1"
-        armbandCount={0}
-        onEdit={vi.fn()}
-        onDelete={vi.fn()}
-      />
+      <ShowDeskCompactContext show={show} canonicalShowHref="/shows/show-1" armbandCount={0} />
     );
 
     expect(screen.getByRole('status')).toHaveTextContent('2 changes saved on this device');

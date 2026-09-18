@@ -1,4 +1,6 @@
 import React, { useCallback, useMemo } from 'react';
+import { Trash2 } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 import type { z } from 'zod';
 import { EditPanelWrapper } from './EditPanelWrapper';
 import type { ShowEditPanelProps, ShowEditFormData } from './ShowEditPanel.types';
@@ -22,6 +24,7 @@ export const ShowEditPanel: React.FC<ShowEditPanelProps> = ({
   initialShowData,
   initialTab,
   onSave,
+  onRequestDelete,
   enableAutoSave = false,
 }) => {
   // Phase 3 soft edit-awareness: advertise that this user has the show's edit
@@ -70,6 +73,29 @@ export const ShowEditPanel: React.FC<ShowEditPanelProps> = ({
         {...(initialTab ? { initialTab } : {})}
         initialStatus={initialShowData?.status}
       />
+      {/* Deleting a show is settings, not a daily action (Richard, 2026-09-17:
+          "Delete show is a red destructive row with confirm at the bottom of the
+          Show Edit panel, never in the Actions menu"). Below the form, and last,
+          so it is never the thing a hurried secretary reaches first; the confirm
+          dialog is the caller's existing DeleteShowDialog. */}
+      {onRequestDelete && (
+        <div className="mt-8 rounded-md border border-destructive/40 bg-destructive/5 p-4">
+          <h3 className="text-sm font-semibold text-destructive">Delete this show</h3>
+          <p className="mt-1 text-xs text-muted-foreground">
+            Removes the show and everything under it. You will be asked to confirm.
+          </p>
+          <Button
+            type="button"
+            variant="destructive"
+            size="touch"
+            className="mt-3"
+            onClick={onRequestDelete}
+          >
+            <Trash2 className="mr-2 h-4 w-4" aria-hidden="true" />
+            Delete show
+          </Button>
+        </div>
+      )}
     </EditPanelWrapper>
   );
 };

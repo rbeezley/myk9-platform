@@ -17,7 +17,7 @@ describe('buildContextualNavigationCommands', () => {
     expect(buildContextualNavigationCommands(null)).toEqual([]);
   });
 
-  it('emits the four Entry Management preset links with exact canonical hrefs', () => {
+  it('emits the filtered Entry Management preset links with exact canonical hrefs', () => {
     const commands = buildContextualNavigationCommands(baseCtx());
 
     const byId = new Map(commands.map(cmd => [cmd.id, cmd]));
@@ -35,9 +35,15 @@ describe('buildContextualNavigationCommands', () => {
     expect(byId.get('command-menu-entry-management-needs-check-in')?.href).toBe(
       getEntryManagementHref({ showId: 'show-1', attention: 'accepted', mode: 'day-of' })
     );
-    expect(byId.get('command-menu-entry-management-all-entries')?.href).toBe(
-      getEntryManagementHref({ showId: 'show-1', mode: 'review' })
-    );
+  });
+
+  // MYK9-630: the unfiltered "All entries" preset is now the action registry's
+  // "Open Entry Management", which the palette renders from
+  // `useCommandMenuCommands().actionCommands`. Two rows for one destination is
+  // exactly the duplication this issue exists to collapse.
+  it('no longer emits the unfiltered All entries preset', () => {
+    const commands = buildContextualNavigationCommands(baseCtx({ trialId: 'trial-1' }));
+    expect(commands.some(cmd => cmd.id.includes('all-entries'))).toBe(false);
   });
 
   it('carries the trial scope into Entry Management hrefs when a trial is selected', () => {

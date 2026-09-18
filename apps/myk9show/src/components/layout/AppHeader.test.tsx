@@ -51,6 +51,12 @@ vi.mock('@/hooks/useKeyboardShortcuts', () => ({
   getShortcutDisplays: () => [],
 }));
 
+vi.mock('@/components/layout/HeaderActions', () => ({
+  // Covered by AppHeader.headerActions.test.tsx; stubbed here so this file's
+  // narrow useAuthContext mock does not have to carry RBAC.
+  HeaderActions: () => null,
+}));
+
 vi.mock('@/components/notifications/NotificationBell', () => ({
   NotificationBell: () => <button type="button">Notifications</button>,
 }));

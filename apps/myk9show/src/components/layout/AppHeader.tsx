@@ -16,6 +16,7 @@ import { AccountMenu } from '@/components/layout/AccountMenu';
 import { AskQIcon } from '@/components/layout/AskQIcon';
 import { AskQPanel } from '@/components/askq/AskQPanel';
 import { NotificationBell } from '@/components/notifications/NotificationBell';
+import { HeaderActions } from '@/components/layout/HeaderActions';
 import { useAskQPanelStore } from '@/store/useAskQPanelStore';
 import { useAppShellMobileNav } from './useAppShellMobileNav';
 
@@ -196,6 +197,10 @@ const AppHeader: React.FC = () => {
                     <Search className="h-4 w-4" />
                   </Button>
                 )}
+
+                {/* Actions — the one per-page action menu (MYK9-630), always
+                    immediately left of the bell, at every width. */}
+                {!isOnboardingRoute && <HeaderActions />}
 
                 {/* Notifications */}
                 {!isOnboardingRoute && <NotificationBell />}

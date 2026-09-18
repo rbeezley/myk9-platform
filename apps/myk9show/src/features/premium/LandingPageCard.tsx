@@ -1,5 +1,6 @@
 import { useState, useCallback } from 'react';
-import { Globe, Copy, Check } from 'lucide-react';
+import { Globe, Copy, Check, Eye } from 'lucide-react';
+import { Link } from 'react-router-dom';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
@@ -10,10 +11,11 @@ import { LANDING_CARD_ANCHOR } from '@/features/show-workbench/publishReadiness'
 
 const STYLE_LABELS: Record<ShowStyle, string> = PREMIUM_STYLE_LABELS;
 
-// Target ring so a "Finish setup" checklist jump (`#setup-publish-landing`)
-// visibly lands here, matching the #setup-publish row's pattern.
-const ANCHOR_CLASS =
-  'scroll-mt-20 target:ring-2 target:ring-ring target:ring-offset-2 target:ring-offset-background';
+// `scroll-mt-20` only. The `target:ring-*` classes here could never fire: every
+// link that carried this anchor was a router `<Link>`, and a `pushState` is not
+// fragment navigation, so `:target` never matched. Nothing links here at all
+// today (MYK9-630 round 5).
+const ANCHOR_CLASS = 'scroll-mt-20';
 
 interface LandingPageCardProps {
   showId: string;
@@ -76,24 +78,34 @@ export function LandingPageCard({ showId, showStyle }: LandingPageCardProps) {
         </div>
         <p className="text-xs text-muted-foreground mt-0.5 truncate">{url}</p>
       </div>
-      <Button
-        size="sm"
-        variant="outline"
-        onClick={handleCopy}
-        className="min-h-[44px] w-full shrink-0 sm:w-auto"
-      >
-        {copied ? (
-          <>
-            <Check className="h-3.5 w-3.5 mr-1.5 text-green-600" />
-            Copied
-          </>
-        ) : (
-          <>
-            <Copy className="h-3.5 w-3.5 mr-1.5" />
-            Copy Link
-          </>
-        )}
-      </Button>
+      <div className="flex w-full shrink-0 gap-2 sm:w-auto">
+        <Button
+          size="sm"
+          variant="outline"
+          onClick={handleCopy}
+          className="min-h-[44px] flex-1 sm:flex-none"
+        >
+          {copied ? (
+            <>
+              <Check className="h-3.5 w-3.5 mr-1.5 text-green-600" />
+              Copied
+            </>
+          ) : (
+            <>
+              <Copy className="h-3.5 w-3.5 mr-1.5" />
+              Copy Link
+            </>
+          )}
+        </Button>
+        {/* Same route the deleted header `...` menu used; this is the link
+            moving next to the URL it previews, not a second implementation. */}
+        <Button size="sm" variant="outline" asChild className="min-h-[44px] flex-1 sm:flex-none">
+          <Link to={`/shows/${showId}?preview=public`}>
+            <Eye className="h-3.5 w-3.5 mr-1.5" />
+            Preview
+          </Link>
+        </Button>
+      </div>
     </Card>
   );
 }

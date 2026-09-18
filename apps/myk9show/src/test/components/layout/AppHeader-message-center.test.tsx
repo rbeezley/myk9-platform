@@ -3,6 +3,12 @@ import { render } from '@/test/utils/testUtils';
 import AppHeader from '@/components/layout/AppHeader';
 import { useNotificationStore } from '@/store/notificationStore';
 
+vi.mock('@/components/layout/HeaderActions', () => ({
+  // Covered by AppHeader.headerActions.test.tsx; stubbed here so this file's
+  // narrow useAuthContext mock does not have to carry RBAC.
+  HeaderActions: () => null,
+}));
+
 vi.mock('@/hooks/useTheme', () => ({
   useTheme: () => ({ theme: 'light', toggleTheme: vi.fn() }),
 }));

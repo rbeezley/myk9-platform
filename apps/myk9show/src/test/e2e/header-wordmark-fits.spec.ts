@@ -1,5 +1,5 @@
-import { test, expect, type Page } from '@playwright/test';
-import { signInAsExhibitor } from './helpers/testUsers';
+import { test, expect, type Locator, type Page } from '@playwright/test';
+import { signInAsExhibitor, signInAsSecretary } from './helpers/testUsers';
 
 /**
  * The header brand must never render as "myK9S…".
@@ -12,6 +12,12 @@ import { signInAsExhibitor } from './helpers/testUsers';
 const PHONE_WIDTHS = [360, 375, 390, 414] as const;
 // Below 360 the wordmark is deliberately hidden and the mark carries the brand.
 const NARROW_WIDTH = 320;
+
+// A show the seeded secretary manages. The exhibitor cases above are BLIND to
+// the header Actions button (MYK9-630): it never renders on
+// `/exhibitor/entries`, so the labelled trigger shipped having squeezed the
+// wordmark to "myK9S..." at every phone width with nothing red.
+const SECRETARY_SHOW_ID = 'dededede-0000-0000-0000-000000000010';
 
 /**
  * Intrinsic width of the wordmark, measured by cloning the live node so every
@@ -60,6 +66,30 @@ async function measureWordmark(page: Page) {
       control,
     };
   });
+}
+
+/**
+ * Resolve once the Actions trigger has reported the same width twice running,
+ * i.e. the header has stopped reflowing.
+ */
+async function waitForSettledTriggerWidth(trigger: Locator, viewportWidth: number) {
+  let previous = -1;
+  await expect
+    .poll(
+      async () => {
+        const box = await trigger.boundingBox();
+        const current = box ? Math.round(box.width) : -1;
+        const settled = current > 0 && current === previous;
+        previous = current;
+        return settled;
+      },
+      {
+        intervals: [250, 250, 250, 250, 250, 250, 500, 500],
+        timeout: 10000,
+        message: `@ ${viewportWidth}px: the header never stopped reflowing`,
+      }
+    )
+    .toBe(true);
 }
 
 function assertWordmarkFits(m: Awaited<ReturnType<typeof measureWordmark>>, where: string) {
@@ -196,6 +226,65 @@ test.describe('header wordmark fits', () => {
       }
     });
   }
+
+  test('signed in as a secretary on a show — the Actions button must not squeeze the wordmark', async ({
+    page,
+  }) => {
+    await signInAsSecretary(page, `/shows/${SECRETARY_SHOW_ID}`);
+
+    const trigger = page.getByTestId('header-actions-trigger');
+    // Positive control: without this the whole test passes on a page where the
+    // button never rendered, which is exactly how the bug got through.
+    await expect(trigger, 'a secretary on a show must get the Actions button').toBeVisible();
+
+    for (const width of PHONE_WIDTHS) {
+      await page.setViewportSize({ width, height: 812 });
+      await page.evaluate(() => document.fonts.ready);
+      // The header keeps reflowing for about a second after a viewport change:
+      // the hamburger appears, the show scope resolves and the Actions button
+      // takes its final width. Measured before that settles, the wordmark
+      // reports its FULL width and the truncation never shows -- on the pre-fix
+      // build an unsettled read gave 105/114/114 where the settled one gives
+      // 69/84/87. So wait for two agreeing widths and then assert once. Never
+      // `expect.poll` toward "it fits": that passes on the first frame, and so
+      // passes on the very regression it is there to catch.
+      await waitForSettledTriggerWidth(trigger, width);
+      assertWordmarkFits(await measureWordmark(page), `secretary on a show @ ${width}`);
+
+      const bounds = await trigger.boundingBox();
+      expect(bounds, `Actions trigger @ ${width}`).not.toBeNull();
+      expect(bounds!.width, `Actions touch width @ ${width}`).toBeGreaterThanOrEqual(44);
+      expect(bounds!.height, `Actions touch height @ ${width}`).toBeGreaterThanOrEqual(44);
+      expect(bounds!.x, `Actions left edge @ ${width}`).toBeGreaterThanOrEqual(0);
+      expect(bounds!.x + bounds!.width, `Actions right edge @ ${width}`).toBeLessThanOrEqual(width);
+      // Icon-only below `sm`, measured as WIDTH rather than as text: an
+      // `sr-only` label is still in the DOM and still in `innerText`.
+      expect(
+        bounds!.width,
+        `@ ${width}px the trigger must be icon-only — a written label costs the wordmark 45px it does not have`
+      ).toBeLessThanOrEqual(56);
+
+      if (width === 375) {
+        await test.info().attach('header-375-secretary-actions', {
+          body: await page.locator('nav').first().screenshot(),
+          contentType: 'image/png',
+        });
+      }
+    }
+
+    // From `sm` up the written label comes back, where the header has the room.
+    await page.setViewportSize({ width: 1280, height: 900 });
+    await expect(trigger).toHaveText(/Actions/);
+    assertWordmarkFits(await measureWordmark(page), 'secretary on a show @ 1280');
+    const desktop = await trigger.boundingBox();
+    expect(desktop!.width, 'the labelled desktop trigger is wider than the icon').toBeGreaterThan(
+      56
+    );
+    await test.info().attach('header-desktop-secretary-actions', {
+      body: await page.locator('nav').first().screenshot(),
+      contentType: 'image/png',
+    });
+  });
 
   test(`below ${NARROW_WIDTH + 40}px the mark carries the brand instead`, async ({ page }) => {
     await page.setViewportSize({ width: NARROW_WIDTH, height: 812 });

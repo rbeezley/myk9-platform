@@ -1,5 +1,4 @@
 import React, { Suspense } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { TabsContent } from '@/components/ui/tabs';
 import { PrimaryTabs, type PrimaryTabDef } from '@/components/common/PrimaryTabs';
 import { LoadingSkeleton } from '@/components/common/LoadingSkeleton';
@@ -104,7 +103,6 @@ export function ShowDetailTabs({
   exhibitorEntryRows,
   exhibitorEntryDataState = 'ready',
 }: ShowDetailTabsProps) {
-  const navigate = useNavigate();
   const managerEntryDataUnavailable = canManageShow && entryDataState !== 'ready';
 
   return (
@@ -149,10 +147,7 @@ export function ShowDetailTabs({
       {isAuthenticated && (
         <TabsContent value="my-entries">
           {canManageShow ? (
-            <EntriesTab
-              showId={show.id}
-              onManageEntries={() => navigate(`/shows/${show.id}/entry-management`)}
-            />
+            <EntriesTab showId={show.id} />
           ) : (
             <MyEntriesTab
               showId={show.id}

@@ -23,7 +23,12 @@ import { ComingSoonPage, type ComingSoonPageProps } from '@/components/common/Co
 import { features } from '@/config/features';
 import DogDetailPage from '@/pages/DogDetailPage';
 import ShowDetailsPrototype from '@/pages/ShowDetailsPrototype';
-import { SHOW_MANAGEMENT_SECTIONS, type ShowManagementSectionPath } from './showManagementSections';
+import {
+  SHOW_MANAGEMENT_SECTIONS,
+  LEGACY_SHOW_SECTION_REDIRECTS,
+  type ShowManagementSectionPath,
+} from './showManagementSections';
+import { LegacyShowSectionRedirect } from './LegacyShowSectionRedirect';
 import { useShowManageScope } from '@/hooks/useShowManageScope';
 
 function featurePage(enabled: boolean, page: ReactNode, coming: ComingSoonPageProps): ReactNode {
@@ -59,8 +64,7 @@ const ClassCreationPage = lazy(() =>
 );
 const EntryManagementPage = lazy(() => import('@/pages/secretary/EntryManagementPage'));
 const ReportsPage = lazy(() => import('@/pages/secretary/ReportsPage'));
-const ResultsControlPage = lazy(() => import('@/pages/secretary/ResultsControlPage'));
-const ResultsSubmissionPage = lazy(() => import('@/pages/secretary/ResultsSubmissionPage'));
+const ShowResultsSection = lazy(() => import('@/pages/secretary/ShowResultsSection'));
 const TrialDetailsPage = lazy(() => import('@/pages/TrialDetailsPage'));
 const ClassDetailsPage = lazy(() => import('@/pages/ClassDetailsPage'));
 const RegistrationWizardPage = lazy(() => import('@/pages/RegistrationWizardPage'));
@@ -94,11 +98,10 @@ const CheckoutCancelPage = lazy(() => import('@/pages/CheckoutCancelPage'));
 
 const SHOW_MANAGEMENT_SECTION_ELEMENTS: Record<ShowManagementSectionPath, ReactNode> = {
   setup: <ShowWorkbenchSetupPage />,
-  'show-desk': <ShowWorkbenchShowDeskPage />,
-  'entry-management': <EntryManagementPage />,
+  entries: <EntryManagementPage />,
+  'show-day': <ShowWorkbenchShowDeskPage />,
+  results: <ShowResultsSection />,
   reports: <ReportsPage />,
-  'results-control': <ResultsControlPage />,
-  'submit-results': <ResultsSubmissionPage />,
 };
 
 function ShowManagementSectionRoute({ children }: { children: ReactNode }) {
@@ -162,6 +165,16 @@ export const PublicRoutes = () => (
               <SuspenseWrapper>{SHOW_MANAGEMENT_SECTION_ELEMENTS[path]}</SuspenseWrapper>
             </ShowManagementSectionRoute>
           }
+        />
+      ))}
+      {/* Every URL the deleted five-link row and the old section nav emitted is
+          still a real route; it redirects into the tab that absorbed it, search
+          and hash intact, so bookmarks and the sidebar keep working. */}
+      {Object.entries(LEGACY_SHOW_SECTION_REDIRECTS).map(([legacyPath, target]) => (
+        <Route
+          key={legacyPath}
+          path={legacyPath}
+          element={<LegacyShowSectionRedirect target={target} />}
         />
       ))}
       <Route

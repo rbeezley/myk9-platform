@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Link, Outlet, useNavigate, useSearchParams } from 'react-router-dom';
+import { Outlet, useNavigate, useSearchParams } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
 import { PageShell } from '@/components/common/PageShell';
@@ -15,10 +15,10 @@ import { PremiumDownloadCard } from '@/features/premium/PremiumDownloadCard';
 import { LandingPageCard } from '@/features/premium/LandingPageCard';
 import { ShowEditPanel } from '@/components/panels/edit/ShowEditPanel';
 import DeleteShowDialog from '@/components/shows/ShowDetails/dialogs/DeleteShowDialog';
-import {
-  ShowDetailTabs,
-  type ShowDetailTabsProps,
-} from '@/components/shows/ShowDetails/ShowDetailTabs';
+import { type ShowDetailTabsProps } from '@/components/shows/ShowDetails/ShowDetailTabs';
+import { PrimaryTabs, type PrimaryTabDef } from '@/components/common/PrimaryTabs';
+import { TabsContent } from '@/components/ui/tabs';
+import { ShowOverviewTab } from '@/components/shows/tabs/ShowOverviewTab';
 import { getShowStyle } from '@/features/registries';
 import { publishExperience } from '@/features/experience/publishExperience';
 import { persistShowJudgeAssignments } from '@/services/database/judges';
@@ -30,11 +30,10 @@ import {
 } from '@/components/shows/showEditRoutes';
 import { useShowStore, type ShowInput } from '@/store/showStore';
 import { showQueryKeys } from '@/hooks/queries/useShowsDatabase';
-import { SHOW_MANAGEMENT_NAV_SECTIONS } from '@/routes/showManagementSections';
+import { SHOW_TABS, type ShowTabId } from '@/routes/showManagementSections';
 import { SETUP_PUBLISH_ANCHOR } from '@/features/show-workbench/setupReadinessSignals';
 import { SHOW_STATUS_CONTROL_ANCHOR } from '@/features/show-workbench/publishReadiness';
 import { notifications } from '@/lib/notifications';
-import { cn } from '@/lib/utils';
 import type { Show } from '@/types/show-types';
 import type { GeneratedPremium } from '@/types/premium-types';
 import { ShowDeskCompactContext } from './ShowDeskCompactContext';
@@ -89,9 +88,10 @@ export interface ShowManagementShellProps {
   catalogEntryCount: number;
   canonicalShowHref: string;
   activeManagementSection: string | undefined;
-  isManagementSection: boolean;
-  /** The fully-built tab props (shared with the exhibitor view). */
+  /** The fully-built tab data, handed to every tab page through the outlet. */
   tabs: ShowDetailTabsProps;
+  /** The six show tabs with their badges (`buildShowManagementTabDefs`). */
+  sectionTabs: PrimaryTabDef[];
   entryDataState?: 'ready' | 'loading' | 'error';
   onRetryEntryData?: (() => void) | undefined;
 }
@@ -111,8 +111,8 @@ export function ShowManagementShell({
   catalogEntryCount,
   canonicalShowHref,
   activeManagementSection,
-  isManagementSection,
   tabs,
+  sectionTabs,
   entryDataState = 'ready',
   onRetryEntryData,
 }: ShowManagementShellProps) {
@@ -171,7 +171,17 @@ export function ShowManagementShell({
 
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const entryDataUnavailable = entryDataState !== 'ready';
-  const isShowDesk = activeManagementSection === 'show-desk';
+  const isShowDesk = activeManagementSection === 'show-day';
+  // `classes/:trialId` is Class Management, reached FROM Setup and not a tab of
+  // its own, so it keeps Setup lit rather than lighting nothing.
+  const activeTabId: ShowTabId =
+    (SHOW_TABS.find(tab => tab.path === activeManagementSection)?.id ??
+      (activeManagementSection === 'classes' ? 'setup' : 'overview'));
+  const goToTab = (id: string) => {
+    const tab = SHOW_TABS.find(item => item.id === id);
+    if (!tab) return;
+    navigate(tab.path ? `${canonicalShowHref}/${tab.path}` : canonicalShowHref);
+  };
 
   const handleConfirmDelete = () => {
     setShowDeleteDialog(false);
@@ -275,62 +285,35 @@ export function ShowManagementShell({
           </div>
         )}
 
+        {/* INTENT: ONE horizontal row on this page, and it is the tabs
+            (MYK9-630 phase 2). The five standalone page links that used to sit
+            above a six-tab strip are gone: every tab below IS one of those
+            pages. Anything else that navigates from here is an inline link
+            inside the body, or a verb in the header Actions menu. */}
         {show?.id && (
-          <nav
-            className="border-b border-border bg-background"
-            aria-label="Show management sections"
-            data-testid="canonical-show-management-nav"
+          <PrimaryTabs
+            tabs={sectionTabs}
+            value={activeTabId}
+            onValueChange={goToTab}
+            className="mt-4"
           >
-            <div className="px-4 py-3 lg:hidden">
-              <label htmlFor="show-management-section" className="sr-only">
-                Show management section
-              </label>
-              <select
-                id="show-management-section"
-                value={activeManagementSection ?? ''}
-                onChange={event => navigate(`${canonicalShowHref}/${event.target.value}`)}
-                className="min-h-11 w-full rounded-md border border-input bg-background px-3 text-sm font-medium text-foreground shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-              >
-                <option value="" disabled>
-                  Choose section
-                </option>
-                {activeManagementSection === 'classes' && (
-                  <option value="classes" disabled>
-                    Class Management
-                  </option>
-                )}
-                {SHOW_MANAGEMENT_NAV_SECTIONS.map(({ label, path }) => (
-                  <option key={path} value={path}>
-                    {label}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div className="hidden max-w-full overflow-x-auto no-scrollbar px-4 lg:flex lg:px-6">
-              {SHOW_MANAGEMENT_NAV_SECTIONS.map(({ label, path }) => {
-                const href = `${canonicalShowHref}/${path}`;
-                const isActive = activeManagementSection === path;
-                return (
-                  <Link
-                    key={path}
-                    to={href}
-                    aria-current={isActive ? 'page' : undefined}
-                    className={cn(
-                      'min-h-11 shrink-0 whitespace-nowrap border-b-2 px-4 py-3 text-sm font-medium transition-colors',
-                      isActive
-                        ? 'border-primary text-foreground'
-                        : 'border-transparent text-muted-foreground hover:text-foreground'
-                    )}
-                  >
-                    {label}
-                  </Link>
-                );
-              })}
-            </div>
-          </nav>
+            <TabsContent value={activeTabId}>
+              {activeManagementSection ? (
+                <Outlet context={tabs} />
+              ) : (
+                <ShowOverviewTab
+                  show={show}
+                  isAuthenticated={true}
+                  canManageShow={true}
+                  judges={tabs.judges}
+                  classes={tabs.classes}
+                  onViewClasses={() => navigate(`${canonicalShowHref}/setup?section=classes`)}
+                />
+              )}
+            </TabsContent>
+          </PrimaryTabs>
         )}
 
-        {isManagementSection ? <Outlet /> : <ShowDetailTabs {...tabs} />}
       </PageShell>
 
       {/* Dialogs */}

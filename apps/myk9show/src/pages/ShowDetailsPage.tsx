@@ -29,7 +29,11 @@ import { ShowManagementShell } from '@/components/shows/ShowDetails/ShowManageme
 import { ShowExhibitorView } from '@/components/shows/ShowDetails/ShowExhibitorView';
 import { type ShowDetailTabsProps } from '@/components/shows/ShowDetails/ShowDetailTabs';
 import { resolveShowAudience } from './ShowDetailsPage.audience';
-import { buildShowDetailTabDefs, resolveResultsTabCount } from './ShowDetailsPage.tabDefs';
+import {
+  buildShowDetailTabDefs,
+  buildShowManagementTabDefs,
+  resolveResultsTabCount,
+} from './ShowDetailsPage.tabDefs';
 import { useShowResults } from '@/hooks/queries/useShowResults';
 import { getEntryStatus } from '@/utils/entryStatusUtils';
 import { useArmbandCount } from '@/hooks/queries/useArmbandLookup';
@@ -43,7 +47,11 @@ import { ErrorState } from '@/components/common/ErrorState';
 import { countCatalogEntries } from '@/features/show-map/entryCounts';
 import type { ShowMapEntryInput } from '@/features/show-map/showMapTypes';
 import { ShowPresenceProvider } from '@/features/show-presence/ShowPresenceProvider';
-import { SHOW_MANAGEMENT_SECTIONS } from '@/routes/showManagementSections';
+import {
+  SHOW_MANAGEMENT_SECTIONS,
+  LEGACY_SHOW_SECTION_REDIRECTS,
+  LEGACY_SHOW_TAB_PARAM_REDIRECTS,
+} from '@/routes/showManagementSections';
 import { useSubmittedEntryProjection } from '@/features/exhibitor-entry/useSubmittedEntryProjection';
 import { markCurrentUserEntryClasses } from './ShowDetailsPage.publicClasses';
 import { isValidUUID } from '@/utils/validation';
@@ -134,8 +142,9 @@ const ShowDetailsPage: React.FC = () => {
   const activeManagementSection = managementSectionMatch?.params.section;
   const isManagementSection = Boolean(
     activeManagementSection &&
-    (SHOW_MANAGEMENT_SECTIONS.some(item => item.path === activeManagementSection) ||
-      activeManagementSection === 'classes')
+      (SHOW_MANAGEMENT_SECTIONS.some(item => item.path === activeManagementSection) ||
+        activeManagementSection in LEGACY_SHOW_SECTION_REDIRECTS ||
+        activeManagementSection === 'classes')
   );
   const isScopedSecretary =
     isSecretary && hasScopedClubRole(userWithRoles, UserRole.SECRETARY, actualCurrentShow?.clubId);
@@ -225,22 +234,39 @@ const ShowDetailsPage: React.FC = () => {
 
   // Tab state — URL-synced with dynamic allowed tabs
   const canShowMap = features.showMap && canManageShow;
+  // MYK9-634 root cause: `useShowManageGate` cannot tell "not a manager" from
+  // "not resolved yet", so on a COLD load with `?tab=my-entries` a secretary is
+  // an exhibitor for the first renders -- and because the exhibitor's "My
+  // Entries" tab and the manager's "Entries" tab shared the id `my-entries`,
+  // `useUrlTab` kept that id valid and mounted the EXHIBITOR body, over the
+  // whole show's rows, for a manager. Clicking the tab never did this, because
+  // by then the scope had resolved: that is the deep-link/click asymmetry.
+  //
+  // So the entries tab is not offered at all until the viewer's roles have
+  // resolved. No hold, no skeleton: the strip is simply one tab shorter for the
+  // moment it takes, and `useUrlTab` falls back to Overview meanwhile. A
+  // manager is then redirected to `/shows/:id/entries` (see above) and an
+  // exhibitor gets their own tab back.
+  const viewerRolesResolved = !rbacLoading;
   const allowedTabs = useMemo(() => {
     if (!isAuthenticated) return ['overview', 'trials', 'classes', 'results'];
-    if (canManageShow) {
-      return [
-        'overview',
-        ...(canShowMap ? ['map'] : []),
-        'trials',
-        'classes',
-        'my-entries',
-        'results',
-      ];
-    }
-    return ['overview', 'trials', 'my-entries', 'classes', 'results'];
-  }, [isAuthenticated, canManageShow, canShowMap]);
+    return [
+      'overview',
+      'trials',
+      ...(viewerRolesResolved ? ['my-entries'] : []),
+      'classes',
+      'results',
+    ];
+  }, [isAuthenticated, viewerRolesResolved]);
+  // `useUrlTab` does NOT validate `defaultTab` against `allowedTabs`, so this
+  // has to carry the same roles-resolved guard or the default would mount the
+  // very body the guard above exists to keep off the page.
   const defaultTab =
-    isAuthenticated && !canManageShow && !isWaitingForExhibitorEntryDefault && hasUserEntries
+    isAuthenticated &&
+    viewerRolesResolved &&
+    !canManageShow &&
+    !isWaitingForExhibitorEntryDefault &&
+    hasUserEntries
       ? 'my-entries'
       : 'overview';
   const [activeTab, setTab] = useUrlTab(allowedTabs, defaultTab);
@@ -349,6 +375,33 @@ const ShowDetailsPage: React.FC = () => {
     }
   }, [id, navigate]);
 
+  // A manager's `?tab=` is now a PAGE (MYK9-630 phase 2), so a bookmark, a
+  // shared link or a reload on one lands on the tab it names instead of a
+  // `?tab=` the manager's strip no longer has. This is also the honest fix for
+  // the `?tab=my-entries` cold-load failure (MYK9-634): the manager's tab set
+  // no longer changes shape underneath the URL half-way through the load,
+  // because the manager has no `?tab=` tab set at all.
+  //
+  // Exhibitors keep their `?tab=` strip untouched — the guard is
+  // `audience === 'management'`, which is also false under `?preview=public`.
+  const legacyTabTarget =
+    audience === 'management' && !activeManagementSection && requestedTab
+      ? LEGACY_SHOW_TAB_PARAM_REDIRECTS[requestedTab]
+      : undefined;
+  useEffect(() => {
+    if (!id || !legacyTabTarget) return;
+    const nextParams = new URLSearchParams(searchParams);
+    nextParams.delete('tab');
+    for (const [key, value] of Object.entries(legacyTabTarget.search ?? {})) {
+      nextParams.set(key, value);
+    }
+    const query = nextParams.toString();
+    navigate(
+      `/shows/${id}${legacyTabTarget.path ? `/${legacyTabTarget.path}` : ''}${query ? `?${query}` : ''}`,
+      { replace: true }
+    );
+  }, [id, legacyTabTarget, navigate, searchParams]);
+
   function handleRegisterForShow(): void {
     if (showId) {
       // Preserve any `?dogId=` the exhibitor arrived with so the wizard can
@@ -370,29 +423,35 @@ const ShowDetailsPage: React.FC = () => {
   const tabDefs: PrimaryTabDef[] = useMemo(
     () =>
       buildShowDetailTabDefs({
-        isAuthenticated,
-        canShowMap,
-        canManageShow,
+        isAuthenticated: isAuthenticated && viewerRolesResolved,
         trialCount: effectiveTrials.length,
         classCount: effectiveShowClasses.length,
-        catalogEntryCount,
-        managerEntryDataUnavailable,
         submittedEntryHistoryCount: submittedEntryProjection.historyCount,
         submittedEntryProjectionIsReady: submittedEntryProjection.isReady,
         resultsCount,
       }),
     [
       isAuthenticated,
-      canShowMap,
-      canManageShow,
+      viewerRolesResolved,
       effectiveTrials.length,
       effectiveShowClasses.length,
-      catalogEntryCount,
-      managerEntryDataUnavailable,
       submittedEntryProjection.historyCount,
       submittedEntryProjection.isReady,
       resultsCount,
     ]
+  );
+
+  // The secretary's six tabs. Built here because every badge reads data this
+  // page already loaded -- the Entries badge in particular counts the SAME
+  // `secretaryEntries` read the Entries tab renders from (MYK9-630 AC3).
+  const sectionTabDefs: PrimaryTabDef[] = useMemo(
+    () =>
+      buildShowManagementTabDefs({
+        catalogEntryCount,
+        managerEntryDataUnavailable,
+        resultsCount,
+      }),
+    [catalogEntryCount, managerEntryDataUnavailable, resultsCount]
   );
 
   // Loading state
@@ -490,8 +549,8 @@ const ShowDetailsPage: React.FC = () => {
           catalogEntryCount={catalogEntryCount}
           canonicalShowHref={canonicalShowHref}
           activeManagementSection={activeManagementSection}
-          isManagementSection={isManagementSection}
           tabs={tabsProps}
+          sectionTabs={sectionTabDefs}
           entryDataState={entryDataState}
           onRetryEntryData={() => void refetchSecretaryEntries()}
         />

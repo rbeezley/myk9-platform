@@ -4,6 +4,7 @@ import { MemoryRouter, Routes, Route, useLocation, useNavigate } from 'react-rou
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { ShowManagementShell, type ShowManagementShellProps } from '../ShowManagementShell';
 import type { ShowDetailTabsProps } from '../ShowDetailTabs';
+import { buildShowManagementTabDefs } from '@/pages/ShowDetailsPage.tabDefs';
 import type { Show } from '@/types/show-types';
 
 // Shell primitives mocked to passthroughs; presence/status/premium mocked to
@@ -73,8 +74,8 @@ vi.mock('@/components/panels/edit/ShowEditPanel', () => ({
     ) : null,
 }));
 vi.mock('@/components/shows/ShowDetails/dialogs/DeleteShowDialog', () => ({ default: () => null }));
-vi.mock('../ShowDetailTabs', () => ({
-  ShowDetailTabs: () => <div data-testid="show-detail-tabs" />,
+vi.mock('@/components/shows/tabs/ShowOverviewTab', () => ({
+  ShowOverviewTab: () => <div data-testid="show-overview-tab" />,
 }));
 vi.mock('@/store/showStore', () => ({
   useShowStore: (selector: (s: { updateShow: () => void }) => unknown) =>
@@ -114,8 +115,12 @@ function shellProps(overrides: Partial<ShowManagementShellProps>): ShowManagemen
     catalogEntryCount: 0,
     canonicalShowHref: '/shows/show-1',
     activeManagementSection: undefined,
-    isManagementSection: false,
     tabs: makeTabs(),
+    sectionTabs: buildShowManagementTabDefs({
+      catalogEntryCount: 517,
+      managerEntryDataUnavailable: false,
+      resultsCount: 2,
+    }),
     ...overrides,
   };
 }
@@ -134,10 +139,11 @@ function renderShell(
         <Routes>
           <Route path="/shows/:id" element={<ShowManagementShell {...props} />}>
             <Route index element={<div data-testid="outlet-child">section</div>} />
-            <Route
-              path="entry-management"
-              element={<div data-testid="outlet-child">entries</div>}
-            />
+            <Route path="entries" element={<div data-testid="outlet-child">entries</div>} />
+            <Route path="setup" element={<div data-testid="outlet-child">setup</div>} />
+            <Route path="show-day" element={<div data-testid="outlet-child">show day</div>} />
+            <Route path="results" element={<div data-testid="outlet-child">results</div>} />
+            <Route path="reports" element={<div data-testid="outlet-child">reports</div>} />
           </Route>
         </Routes>
       </MemoryRouter>
@@ -178,23 +184,45 @@ describe('ShowManagementShell', () => {
     expect(screen.getByTestId('status-pill')).toHaveAttribute('data-club-id', 'club-1');
   });
 
-  it('renders the management section nav without Setup as a peer workflow', () => {
+  it('renders exactly six tabs, in the decided order', () => {
     renderShell();
-    const nav = screen.getByTestId('canonical-show-management-nav');
-    expect(nav).toBeInTheDocument();
-    expect(screen.getByRole('combobox', { name: /show management section/i })).toBeInTheDocument();
-    expect(screen.queryByRole('link', { name: 'Setup' })).not.toBeInTheDocument();
-    expect(screen.getByRole('link', { name: 'Show Desk' })).toHaveAttribute(
-      'href',
-      '/shows/show-1/show-desk'
-    );
+    expect(screen.getAllByRole('tab').map(tab => tab.textContent?.replace(/\\d+$/, '').trim())).toEqual([
+      'Overview',
+      'Setup',
+      'Entries',
+      'Show Day',
+      'Results',
+      'Reports',
+    ]);
   });
 
-  it('labels class management routes in the narrow section selector', () => {
-    renderShell({ activeManagementSection: 'classes', isManagementSection: true });
-    const selector = screen.getByRole('combobox', { name: /show management section/i });
-    expect(selector).toHaveValue('classes');
-    expect(screen.getByRole('option', { name: 'Class Management' })).toBeDisabled();
+  it('carries NO standalone page links above the tabs — the tabs are the only row', () => {
+    // MYK9-630 phase 2: the five-link row (Show Desk, Entry Management,
+    // Reports, Results, Submit Results) and the narrow <select> that mirrored
+    // it are deleted, because every one of those pages IS a tab now. This is
+    // the "difficult to tell if they are tabs or links or buttons" complaint.
+    renderShell();
+    expect(screen.queryByTestId('canonical-show-management-nav')).toBeNull();
+    expect(screen.queryByRole('combobox', { name: /show management section/i })).toBeNull();
+    for (const label of ['Show Desk', 'Entry Management', 'Reports', 'Results', 'Submit Results']) {
+      expect(screen.queryByRole('link', { name: label })).toBeNull();
+    }
+  });
+
+  it('navigates to a tab\'s own page when that tab is selected', () => {
+    renderShell({}, '/shows/show-1', <LocationProbe />);
+    fireEvent.click(screen.getByRole('tab', { name: /^Show Day/ }));
+    expect(screen.getByTestId('probe-url')).toHaveTextContent('/shows/show-1/show-day');
+  });
+
+  it('keeps Setup lit on Class Management, which is reached from it', () => {
+    renderShell({ activeManagementSection: 'classes' }, '/shows/show-1/classes/trial-1');
+    expect(screen.getByRole('tab', { name: /^Setup/ })).toHaveAttribute('aria-selected', 'true');
+  });
+
+  it('badges Entries with the show entry count the page already read', () => {
+    renderShell();
+    expect(screen.getByRole('tab', { name: /^Entries/ }).textContent).toContain('517');
   });
 
   it('renders the staff armband lookup only when armbands exist', () => {
@@ -215,18 +243,18 @@ describe('ShowManagementShell', () => {
     expect(screen.getByTestId('landing-page-card')).toBeInTheDocument();
   });
 
-  it.each(['reports', 'results-control', 'submit-results', 'entry-management'] as const)(
+  it.each(['reports', 'results', 'entries', 'setup'] as const)(
     'keeps the publish row OFF the %s section (Overview only, decision 2)',
     section => {
-      renderShell({ activeManagementSection: section, isManagementSection: true });
+      renderShell({ activeManagementSection: section }, `/shows/show-1/${section}`);
       expect(document.getElementById('setup-publish')).toBeNull();
       expect(screen.queryByTestId('premium-download-card')).toBeNull();
       expect(screen.queryByTestId('landing-page-card')).toBeNull();
     }
   );
 
-  it('uses compact operational chrome on Show Desk without the hero or routine publish cards', () => {
-    renderShell({ activeManagementSection: 'show-desk', isManagementSection: true });
+  it('uses compact operational chrome on Show Day without the hero or routine publish cards', () => {
+    renderShell({ activeManagementSection: 'show-day' }, '/shows/show-1/show-day');
 
     expect(screen.getByTestId('show-desk-compact-context')).toBeInTheDocument();
     expect(screen.queryByTestId('detail-hero')).not.toBeInTheDocument();
@@ -234,16 +262,15 @@ describe('ShowManagementShell', () => {
     expect(screen.queryByTestId('landing-page-card')).not.toBeInTheDocument();
   });
 
-  it('renders the shared tabs when not on a management section', () => {
-    renderShell({ isManagementSection: false });
-    expect(screen.getByTestId('show-detail-tabs')).toBeInTheDocument();
-    expect(screen.queryByTestId('outlet-child')).toBeNull();
+  it('renders Overview itself at /shows/:id — Overview is a tab, not a redirect', () => {
+    renderShell();
+    expect(screen.getByTestId('show-overview-tab')).toBeInTheDocument();
   });
 
-  it('renders the section Outlet (not the tabs) when on a management section', () => {
-    renderShell({ isManagementSection: true });
+  it('renders the tab page in the Outlet on every other tab', () => {
+    renderShell({ activeManagementSection: 'entries' }, '/shows/show-1/entries');
     expect(screen.getByTestId('outlet-child')).toBeInTheDocument();
-    expect(screen.queryByTestId('show-detail-tabs')).toBeNull();
+    expect(screen.queryByTestId('show-overview-tab')).toBeNull();
   });
 
   it('no longer carries its own overflow menu', () => {
@@ -271,21 +298,21 @@ describe('ShowManagementShell', () => {
     // to Overview and closing the panel stranded them there. Search-only now,
     // and the shell strips the param, so the URL is unchanged either side.
     renderShell(
-      { activeManagementSection: 'entry-management', isManagementSection: true },
-      '/shows/show-1/entry-management',
+      { activeManagementSection: 'entries' },
+      '/shows/show-1/entries',
       <>
         <InPageNavigator to="?edit=true" />
         <LocationProbe />
       </>
     );
 
-    expect(screen.getByTestId('probe-url')).toHaveTextContent('/shows/show-1/entry-management');
+    expect(screen.getByTestId('probe-url')).toHaveTextContent('/shows/show-1/entries');
     fireEvent.click(screen.getByTestId('in-page-nav'));
     expect(screen.getByTestId('edit-panel-open')).toBeInTheDocument();
 
     fireEvent.click(screen.getByTestId('edit-panel-close'));
     expect(screen.queryByTestId('edit-panel-open')).toBeNull();
-    expect(screen.getByTestId('probe-url').textContent).toBe('/shows/show-1/entry-management');
+    expect(screen.getByTestId('probe-url').textContent).toBe('/shows/show-1/entries');
   });
 
   it('hands the edit panel the delete row, the only home Delete show has left', () => {

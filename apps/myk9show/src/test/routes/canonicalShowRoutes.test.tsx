@@ -92,11 +92,8 @@ vi.mock('@/pages/secretary/EntryManagementPage', () => ({
 vi.mock('@/pages/secretary/ReportsPage', () => ({
   default: () => <div data-testid="production-reports">Reports</div>,
 }));
-vi.mock('@/pages/secretary/ResultsControlPage', () => ({
-  default: () => <div data-testid="production-results-control">Results Control</div>,
-}));
-vi.mock('@/pages/secretary/ResultsSubmissionPage', () => ({
-  default: () => <div data-testid="production-submit-results">Submit Results</div>,
+vi.mock('@/pages/secretary/ShowResultsSection', () => ({
+  default: () => <div data-testid="production-results">Results</div>,
 }));
 vi.mock('@/pages/AccountPage', () => ({
   default: () => <div data-testid="production-account-page">Account</div>,
@@ -106,20 +103,18 @@ vi.mock('@/pages/AccountPage', () => ({
 
 const PRODUCTION_SECTION_TEST_IDS: Record<ShowManagementSectionPath, string> = {
   setup: 'production-setup',
-  'show-desk': 'production-show-desk',
-  'entry-management': 'production-entry-management',
+  entries: 'production-entry-management',
+  'show-day': 'production-show-desk',
+  results: 'production-results',
   reports: 'production-reports',
-  'results-control': 'production-results-control',
-  'submit-results': 'production-submit-results',
 };
 
 const HARNESS_SECTION_TEST_IDS: Record<ShowManagementSectionPath, string> = {
   setup: 'setup-section',
-  'show-desk': 'show-desk-section',
-  'entry-management': 'entries-section',
+  entries: 'entries-section',
+  'show-day': 'show-day-section',
+  results: 'results-section',
   reports: 'reports-section',
-  'results-control': 'results-control-section',
-  'submit-results': 'submit-results-section',
 };
 
 function LocationProbe() {
@@ -159,17 +154,10 @@ function CanonicalShowRouteHarness() {
         }
       >
         <Route path="setup" element={<div data-testid="setup-section">Setup</div>} />
-        <Route path="show-desk" element={<div data-testid="show-desk-section">Show Desk</div>} />
-        <Route path="entry-management" element={<div data-testid="entries-section">Entries</div>} />
+        <Route path="entries" element={<div data-testid="entries-section">Entries</div>} />
+        <Route path="show-day" element={<div data-testid="show-day-section">Show Day</div>} />
+        <Route path="results" element={<div data-testid="results-section">Results</div>} />
         <Route path="reports" element={<div data-testid="reports-section">Reports</div>} />
-        <Route
-          path="results-control"
-          element={<div data-testid="results-control-section">Results Control</div>}
-        />
-        <Route
-          path="submit-results"
-          element={<div data-testid="submit-results-section">Submit Results</div>}
-        />
       </Route>
     </Routes>
   );
@@ -204,6 +192,10 @@ describe('canonical show route redirects', () => {
       '/shows/show-1/show-desk?from=email'
     );
   });
+
+  // `/shows/:id/show-desk` is itself a redirect into the Show Day tab now
+  // (MYK9-630 phase 2); the hop above lands on it, and the production tree
+  // carries it the rest of the way — see "legacy show section URLs" below.
 
   it('redirects a legacy secretary show subroute to the matching canonical subroute', async () => {
     renderRedirect('/secretary/shows/show-1/show-desk', 'show-desk');
@@ -287,7 +279,7 @@ describe('canonical show management routes', () => {
     mockAuth.hasRole = () => false;
 
     render(
-      <MemoryRouter initialEntries={['/shows/show-1/show-desk']}>
+      <MemoryRouter initialEntries={['/shows/show-1/show-day']}>
         <Routes>{PublicRoutes()}</Routes>
       </MemoryRouter>
     );
@@ -320,7 +312,7 @@ describe('canonical show management routes', () => {
     mockShows.isLoading = false;
 
     render(
-      <MemoryRouter initialEntries={['/shows/show-1/show-desk']}>
+      <MemoryRouter initialEntries={['/shows/show-1/show-day']}>
         <Routes>{PublicRoutes()}</Routes>
       </MemoryRouter>
     );

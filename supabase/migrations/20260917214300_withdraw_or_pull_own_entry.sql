@@ -18,7 +18,7 @@
 --   Pull     -> entry_status = 'scratched'
 -- Which reason codes a withdrawal may carry is the SHOW'S REGISTRY's business,
 -- not the platform's: ASCA recognises judge_change only. Checked here as well as
--- in the client — see step 1b.
+-- in the client — see step 4b.
 -- Both are available on a PAID entry and neither moves money (owner decision
 -- 2026-09-17); see the MONEY note in step 5.
 -- 'scratched' is ALREADY the platform's stored word for a pull: the secretary's
@@ -197,7 +197,40 @@ BEGIN
     RAISE EXCEPTION 'Entry % not found', p_entry_id USING errcode = 'P0002';
   END IF;
 
-  -- 1b. WHICH REASONS THIS SHOW'S REGISTRY RECOGNISES.
+  -- 2. Resolve the caller. NULL for an anon / ringside-passcode session, which
+  -- can never own an entry — the EXECUTE grant already excludes anon.
+  SELECT p.id
+    INTO v_caller_person_id
+    FROM public.people p
+   WHERE p.auth_user_id = (SELECT auth.uid())
+   LIMIT 1;
+
+  -- 3. Restate the `entries_update` policy verbatim for the manager tier, so
+  -- the secretary use of EntryEditDialog behaves exactly as it does today.
+  v_is_manager := coalesce(public.can_manage_show(v_show_id), false);
+
+  -- 4. Owner tier: the same scope `entries_select` grants an exhibitor over
+  -- their own row (listed handler, dog owner, dog co-owner).
+  v_is_owner := v_caller_person_id IS NOT NULL AND (
+    v_handler_id = v_caller_person_id
+    OR EXISTS (
+      SELECT 1 FROM public.dogs d
+       WHERE d.id = v_dog_id
+         AND (d.owner_id = v_caller_person_id OR d.co_owner_id = v_caller_person_id)
+    )
+  );
+
+  IF NOT (v_is_manager OR v_is_owner) THEN
+    RAISE EXCEPTION 'Not authorized to withdraw entry %', p_entry_id
+      USING errcode = '42501';
+  END IF;
+
+  -- 4b. WHICH REASONS THIS SHOW'S REGISTRY RECOGNISES.
+  --
+  -- Placed AFTER the authorization raise on purpose. Its refusal names the
+  -- registry ('ASCA does not recognise…'), and a caller who may not touch this
+  -- entry must not be able to read a fact about the show off an error message —
+  -- an unauthorized probe has to fail at 42501 and learn nothing else.
   --
   -- The two-value allow-list above is the platform's; this is the rulebook's,
   -- and they are not the same set. ASCA has NO in-season withdrawal at all —
@@ -210,12 +243,19 @@ BEGIN
   -- the same reason every other filter in this function is: the server is the
   -- only place this is guaranteed.
   --
-  -- Resolution mirrors `getTrialRegistry`: a blank or missing `registry_id` is
-  -- AKC (the column's own default), and an id we have no rulebook for admits
-  -- both reasons rather than blocking a legitimate withdrawal — failing OPEN is
-  -- right here, because refusing would be this function inventing a rule for a
+  -- Resolution mirrors `getTrialRegistry`: a blank or missing `registry_id` on a
+  -- trial that EXISTS is AKC, and an id we have no rulebook for admits both
+  -- reasons rather than blocking a legitimate withdrawal — failing OPEN is right
+  -- there, because refusing would be this function inventing a rule for a
   -- registry it knows nothing about, and the client greys Withdraw out for an
   -- unrecognised registry anyway.
+  --
+  -- That is DELIBERATELY not the same answer as "no trial found" below, and the
+  -- asymmetry is the point: a trial row that exists is a trial whose registry
+  -- DEFAULTED (`registry_id` is NOT NULL DEFAULT 'AKC'), which is a fact about
+  -- the show. No trial row at all is the absence of the fact, so there is
+  -- nothing to default to and the reason that only some registries have is
+  -- refused.
   IF p_kind = 'withdraw' THEN
     -- Resolved through `classes`, NOT through `entries.trial_id`. That column is
     -- a nullable denormalisation, and a NULL there would have resolved to AKC
@@ -254,34 +294,6 @@ BEGIN
           USING errcode = '22023';
       END IF;
     END IF;
-  END IF;
-
-  -- 2. Resolve the caller. NULL for an anon / ringside-passcode session, which
-  -- can never own an entry — the EXECUTE grant already excludes anon.
-  SELECT p.id
-    INTO v_caller_person_id
-    FROM public.people p
-   WHERE p.auth_user_id = (SELECT auth.uid())
-   LIMIT 1;
-
-  -- 3. Restate the `entries_update` policy verbatim for the manager tier, so
-  -- the secretary use of EntryEditDialog behaves exactly as it does today.
-  v_is_manager := coalesce(public.can_manage_show(v_show_id), false);
-
-  -- 4. Owner tier: the same scope `entries_select` grants an exhibitor over
-  -- their own row (listed handler, dog owner, dog co-owner).
-  v_is_owner := v_caller_person_id IS NOT NULL AND (
-    v_handler_id = v_caller_person_id
-    OR EXISTS (
-      SELECT 1 FROM public.dogs d
-       WHERE d.id = v_dog_id
-         AND (d.owner_id = v_caller_person_id OR d.co_owner_id = v_caller_person_id)
-    )
-  );
-
-  IF NOT (v_is_manager OR v_is_owner) THEN
-    RAISE EXCEPTION 'Not authorized to withdraw entry %', p_entry_id
-      USING errcode = '42501';
   END IF;
 
   -- 5. Owner-only limits. A manager is bound only by the policy restated in
@@ -477,12 +489,16 @@ BEGIN
   -- A 'withdrawn' row must carry a recognised reason code — without one it is a
   -- secretary Decline/Reject or a pre-MYK9-632 row, which the queue excludes and
   -- which therefore must not be deniable here either.
+  -- Every arm COALESCEs, exactly as the original did, because three-valued logic
+  -- fails OPEN here: with a NULL `entry_status`, `NOT (NULL OR FALSE)` is NULL,
+  -- the IF falls through, and a denial gets recorded on a row this guard was
+  -- supposed to refuse.
   IF COALESCE(v_payment_method, '') <> 'online'
      OR COALESCE(v_payment_status, '') <> 'paid'
      OR COALESCE(v_refund_amount, 0) > 0
      OR NOT (
-          v_entry_status = 'scratched'
-          OR (v_entry_status = 'withdrawn'
+          COALESCE(v_entry_status, '') = 'scratched'
+          OR (COALESCE(v_entry_status, '') = 'withdrawn'
               AND COALESCE(v_withdrawal_reason_code, '') IN ('in_season', 'judge_change'))
         ) THEN
     RAISE EXCEPTION 'entry % is not an unresolved paid-online pull or withdrawal', p_entry_id
@@ -569,11 +585,13 @@ $$;
 
 -- Both API-role decisions stated explicitly, and both are "no access". This is a
 -- TRIGGER function: it runs as part of the DML that fires it and is never called
--- by a caller, so nothing needs EXECUTE on it. The original (20260722160000)
--- predates the grant-decision contract and said nothing, which left PUBLIC's
--- default EXECUTE in place; re-creating it here is the moment to decide.
+-- by a caller, so nothing needs EXECUTE on it — `service_role` included, which
+-- is why it is named here too rather than left with PUBLIC's default. (The
+-- trigger still fires for service-role DML: a trigger runs on the table's own
+-- authority, not the writer's EXECUTE privilege.) The original (20260722160000)
+-- predates the grant-decision contract and said nothing at all.
 REVOKE EXECUTE ON FUNCTION public.restrict_entry_refund_decision_columns()
-  FROM PUBLIC, anon, authenticated;
+  FROM PUBLIC, anon, authenticated, service_role;
 
 COMMIT;
 

@@ -9,13 +9,12 @@
  */
 import { screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { render } from '@/test/utils/testUtils';
 import { EntryStatus, PaymentStatus } from '@/types/show-registration-types';
 import type { EntryManagementEntry } from '@/types/entry-management-types';
 import { PullReconciliationCard } from '../PullReconciliationCard';
 import { removalSummaryLine } from '../removalSummaryLine';
-import { isUnresolvedRemovalRefundDecision } from '@/features/payments/pullReconciliation';
 import { buildLedgerRows } from '@/features/payments/payoutLedger';
 
 const rpc = vi.hoisted(() => vi.fn());
@@ -218,15 +217,63 @@ describe('removalSummaryLine — what is true about the money RIGHT NOW', () => 
  * rows. A Deny control that always raises is worse than no control — the row
  * never leaves the queue and the admin's unresolved count carries it forever.
  */
-describe('Deny refund reaches the server for a coded withdrawal', () => {
-  beforeEach(() => {
+
+/** The shape `set_entry_refund_decision` reads off the row. */
+interface ServerRow {
+  entry_status: string | null;
+  payment_method: string | null;
+  payment_status: string | null;
+  refund_amount: number | null;
+  refund_decision: string | null;
+  withdrawal_reason_code: string | null;
+}
+
+/**
+ * The SQL guard, TRANSCRIBED — deliberately not the TS predicate.
+ *
+ * `isUnresolvedRemovalRefundDecision` is the READ half. Driving the fake with it
+ * would assert that half against itself: the test would stay green if the
+ * migration's widening were reverted and the Deny click started raising 22023
+ * again, which is the exact defect round 5 found. This mirrors the guard in
+ * `supabase/migrations/20260917214300_withdraw_or_pull_own_entry.sql` statement
+ * for statement, including the COALESCEs that stop a NULL `entry_status` falling
+ * through it.
+ *
+ * KEPT IN STEP BY HAND. Nothing links the two, so a change to that guard must be
+ * copied here in the same commit. The behavioural proof that the REAL function
+ * agrees lives in `supabase/tests/withdraw_or_pull_own_entry_test.sql`; this only
+ * proves the client reaches a server that would accept it.
+ */
+function sqlGuardAdmits(row: ServerRow): boolean {
+  const status = row.entry_status ?? '';
+  const reasonCode = row.withdrawal_reason_code ?? '';
+  return (
+    (row.payment_method ?? '') === 'online' &&
+    (row.payment_status ?? '') === 'paid' &&
+    (row.refund_amount ?? 0) <= 0 &&
+    (status === 'scratched' ||
+      (status === 'withdrawn' && ['in_season', 'judge_change'].includes(reasonCode)))
+  );
+}
+
+const CODED_WITHDRAWAL: ServerRow = {
+  entry_status: 'withdrawn',
+  payment_method: 'online',
+  payment_status: 'paid',
+  refund_amount: null,
+  refund_decision: null,
+  withdrawal_reason_code: 'in_season',
+};
+
+const CODELESS_WITHDRAWAL: ServerRow = { ...CODED_WITHDRAWAL, withdrawal_reason_code: null };
+
+describe('Deny refund reaches a server that accepts it', () => {
+  /** Point the fake RPC at one row, applying the transcribed SQL guard. */
+  function serveRow(row: ServerRow) {
     rpc.mockReset();
-    // Stands in for `set_entry_refund_decision` AFTER this issue's widening:
-    // a paid-online pull, or a paid-online withdrawal carrying a reason code.
     rpc.mockImplementation((name: string, args: { p_entry_id: string }) => {
       if (name !== 'set_entry_refund_decision') return Promise.resolve({ error: null });
-      const row = ROWS[args.p_entry_id];
-      if (!row || !isUnresolvedRemovalRefundDecision(row)) {
+      if (!sqlGuardAdmits(row)) {
         return Promise.resolve({
           error: {
             code: '22023',
@@ -236,20 +283,10 @@ describe('Deny refund reaches the server for a coded withdrawal', () => {
       }
       return Promise.resolve({ error: null });
     });
-  });
-
-  const ROWS: Record<string, Parameters<typeof isUnresolvedRemovalRefundDecision>[0]> = {
-    'entry-1': {
-      entry_status: 'withdrawn',
-      payment_method: 'online',
-      payment_status: 'paid',
-      refund_amount: null,
-      refund_decision: null,
-      withdrawal_reason_code: 'in_season',
-    },
-  };
+  }
 
   it('saves the denial instead of erroring forever', async () => {
+    serveRow(CODED_WITHDRAWAL);
     const onResolved = vi.fn();
     render(
       <PullReconciliationCard
@@ -266,6 +303,40 @@ describe('Deny refund reaches the server for a coded withdrawal', () => {
       p_entry_id: 'entry-1',
       p_decision: 'denied',
     });
+  });
+
+  // The other half of the contract. If the transcribed guard ever stops refusing
+  // this, it has drifted from the migration and the case above is worthless.
+  it('is refused by that same guard for a CODELESS withdrawn row', async () => {
+    serveRow(CODELESS_WITHDRAWAL);
+    const onResolved = vi.fn();
+    render(
+      <PullReconciliationCard
+        entry={withdrawnEntry('in_season')}
+        onOpenRefund={vi.fn()}
+        onResolved={onResolved}
+      />
+    );
+
+    await userEvent.click(screen.getByRole('button', { name: /deny refund/i }));
+
+    await waitFor(() => expect(rpc).toHaveBeenCalled());
+    expect(onResolved).not.toHaveBeenCalled();
+  });
+
+  it('transcribes the guard, and the transcription still refuses what it should', () => {
+    expect(sqlGuardAdmits(CODED_WITHDRAWAL)).toBe(true);
+    expect(sqlGuardAdmits({ ...CODED_WITHDRAWAL, withdrawal_reason_code: 'judge_change' })).toBe(
+      true
+    );
+    expect(sqlGuardAdmits({ ...CODED_WITHDRAWAL, entry_status: 'scratched' })).toBe(true);
+    expect(sqlGuardAdmits(CODELESS_WITHDRAWAL)).toBe(false);
+    expect(sqlGuardAdmits({ ...CODED_WITHDRAWAL, withdrawal_reason_code: 'other' })).toBe(false);
+    expect(sqlGuardAdmits({ ...CODED_WITHDRAWAL, payment_method: null })).toBe(false);
+    expect(sqlGuardAdmits({ ...CODED_WITHDRAWAL, payment_status: 'pending' })).toBe(false);
+    expect(sqlGuardAdmits({ ...CODED_WITHDRAWAL, refund_amount: 25 })).toBe(false);
+    // The COALESCE the migration carries: a NULL status must not fall through.
+    expect(sqlGuardAdmits({ ...CODED_WITHDRAWAL, entry_status: null })).toBe(false);
   });
 });
 

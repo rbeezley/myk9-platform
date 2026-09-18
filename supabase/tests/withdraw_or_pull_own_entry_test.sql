@@ -419,6 +419,31 @@ exception when others then
 end;
 $$;
 
+-- REINSTATEMENT clears the decision. The trigger that does this only knew about
+-- 'scratched', so a reinstated WITHDRAWAL kept its stale 'denied' and never
+-- re-entered the queue — the secretary would have seen a resolved row for an
+-- entry that was live again. 632033 was just denied above.
+do $$
+declare
+  r record;
+begin
+  update public.entries set entry_status = 'confirmed'
+   where id = '00000000-0000-0000-0000-000000632033';
+
+  select e.refund_decision, e.refund_decided_at, e.refund_decided_by into r
+    from public.entries e where e.id = '00000000-0000-0000-0000-000000632033';
+
+  if r.refund_decision is not null
+     or r.refund_decided_at is not null
+     or r.refund_decided_by is not null then
+    raise exception
+      'FAIL reinstate: a withdrawal kept its decision (decision=% at=% by=%)',
+      r.refund_decision, r.refund_decided_at, r.refund_decided_by;
+  end if;
+  raise notice 'PASS reinstating a denied WITHDRAWAL clears the decision';
+end;
+$$;
+
 -- ...and a CODELESS withdrawn row must NOT be deniable, because the queue does
 -- not offer it: that state is a secretary Decline/Reject, not an exhibitor act.
 update public.entries

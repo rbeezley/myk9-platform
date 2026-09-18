@@ -233,6 +233,19 @@ export function deriveJuniorStatus({
 
   const age = completedYearsBetween(birth, measureOn);
 
+  // A date of birth AFTER the measuring date is bad data, not a very young handler.
+  // Left unguarded it is the worst possible failure: a negative age is less than every
+  // registry's ceiling, so a typo'd future date of birth would print "Jr." on an adult's
+  // catalog line and their junior number on an entry form. Both edit surfaces and the
+  // column's CHECK reject it; this is the third line of defence.
+  if (age < 0) {
+    return {
+      kind: 'unknown',
+      ruleSource:
+        'The date of birth is after the trial date, so it cannot be right; junior status is not derived.',
+    };
+  }
+
   if (rule.minAgeYearsInclusive !== null && age < rule.minAgeYearsInclusive) {
     return {
       kind: 'ineligible',

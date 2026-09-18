@@ -125,6 +125,20 @@ describe('missing or unusable data', () => {
     }
   );
 
+  it('returns unknown, never junior, for a date of birth after the trial date', () => {
+    // A negative age is below every registry's ceiling, so an unguarded typo would
+    // print "Jr." on an adult's catalog line. It must read as bad data.
+    for (const registryId of ['AKC', 'UKC'] as const) {
+      const status = deriveJuniorStatus({
+        dateOfBirth: '2099-01-01',
+        trialDate: '2026-09-18',
+        registryId,
+      });
+      expect(status.kind).toBe('unknown');
+      expect(status.ageOnTrialDate).toBeUndefined();
+    }
+  });
+
   it('returns unknown when the trial has no date', () => {
     const status = deriveJuniorStatus({
       dateOfBirth: '2012-09-18',

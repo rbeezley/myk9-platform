@@ -36,13 +36,18 @@ COMMENT ON COLUMN public.people.junior_handler_numbers IS
   '(AKC | UKC | ASCA), values are text. Empty object when the person has none. '
   'Keys mirror RegistryId in features/registries/types.ts.';
 
--- A date of birth before 1900 is a typo, not a handler. `current_date` is not IMMUTABLE so
--- the upper bound cannot be expressed here; the UI rejects a future date.
+-- A date of birth outside this window is a typo, not a handler. `current_date` is not
+-- IMMUTABLE so "not in the future" cannot be expressed here; both edit surfaces reject a
+-- future date, and `deriveJuniorStatus` returns 'unknown' rather than 'junior' for a date of
+-- birth after the trial date, so a typo that slips past cannot mark an adult as a junior.
 ALTER TABLE public.people
   DROP CONSTRAINT IF EXISTS people_date_of_birth_plausible;
 ALTER TABLE public.people
   ADD CONSTRAINT people_date_of_birth_plausible
-  CHECK (date_of_birth IS NULL OR date_of_birth > DATE '1900-01-01');
+  CHECK (
+    date_of_birth IS NULL
+    OR (date_of_birth > DATE '1900-01-01' AND date_of_birth < DATE '2100-01-01')
+  );
 
 -- Keys ⊆ {AKC, UKC, ASCA} and every value is a JSON string.
 -- `v - array[...]` removes those keys; an empty remainder proves the key set is a subset.
@@ -90,7 +95,8 @@ GRANT SELECT, INSERT, UPDATE, DELETE ON public.people TO authenticated;
 -- Existing RLS is the row guard and is unchanged: every policy on `people` is
 -- TO authenticated (people_select admits the person's own row plus show managers via
 -- is_show_manager()), so a secretary building paperwork can read a handler's date of birth
--- and nobody else can. No new policy, no new grant to authenticated (it already holds arwd).
+-- and nobody else can. No new policy is created here, and the GRANT above conveys nothing
+-- that `authenticated` did not already hold.
 
 -- Fail the push rather than silently publish a minor's date of birth to the public web.
 DO $$

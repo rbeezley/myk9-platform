@@ -104,15 +104,29 @@ const CASES: DialogCase[] = [
     selector: '[role="dialog"]',
     dataDependency:
       'the demo exhibitor (E2E_DEMO_EXHIBITOR_*) must have at least one entry on ' +
-      '/exhibitor/entries whose row renders an "Add to calendar" button',
+      '/exhibitor/entries, whose show card renders an "Actions" menu holding ' +
+      '"Add to calendar"',
     async open(page) {
       await signInAsExhibitor(page, '/exhibitor/entries');
-      const trigger = page.getByRole('button', { name: 'Add to calendar', exact: true }).first();
+      // MYK9-631 moved "Add to calendar" from a bare header link into the show
+      // card's one Actions menu, so the trigger is now two clicks: the menu,
+      // then the item. The Dialog this case needs is the same one.
+      const actions = page.getByRole('button', { name: /^Actions for / }).first();
       await expect(
-        trigger,
-        'MISSING SEED DATA, not a dialog regression: no "Add to calendar" button on ' +
+        actions,
+        'MISSING SEED DATA, not a dialog regression: no show card on ' +
           '/exhibitor/entries. This spec needs an entry row to obtain an open Dialog; ' +
           'reseed the demo exhibitor or repoint this case at another Dialog trigger.'
+      ).toBeVisible();
+      await actions.click();
+      const trigger = page
+        .getByRole('menu')
+        .getByRole('menuitem', { name: 'Add to calendar', exact: true });
+      await expect(
+        trigger,
+        'No "Add to calendar" item in the show card Actions menu. It is withheld while ' +
+          'the show relation is still replicating (empty showId), so this is seed/replication ' +
+          'state rather than a dialog regression.'
       ).toBeVisible();
       await trigger.click();
     },

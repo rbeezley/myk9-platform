@@ -269,7 +269,19 @@ function RemoveFromClassBody({
               type="button"
               variant="ghost"
               disabled={isSaving}
-              onClick={() => setStep(effectiveStep === 'reason' ? 'choose' : 'reason')}
+              // Back from a CONFIRM belongs on the reason list only when there
+              // is a reason list to go back to: a withdrawal, under a resolved
+              // registry. A pull has no reason step, and while the registry is
+              // resolving or unavailable `policy` is null — round 4's
+              // `effectiveStep === 'reason' ? 'choose' : 'reason'` sent both of
+              // those to a step that renders "undefined recognises these
+              // reasons" with no buttons, which is a dead end, under a title
+              // asking why you are withdrawing when you are not.
+              onClick={() =>
+                setStep(
+                  effectiveStep === 'confirm' && kind === 'withdraw' && policy ? 'reason' : 'choose'
+                )
+              }
             >
               Back
             </Button>

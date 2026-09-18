@@ -211,6 +211,28 @@ describe('withdrawErrorMessage', () => {
     }
   });
 
+  // MYK9-632 round 5: the RPC's registry guard raises 22023, the SAME SQLSTATE
+  // it uses for a malformed payload. "Something went wrong preparing this
+  // withdrawal" is true of the payload case and useless here — the exhibitor
+  // picked a reason their registry does not recognise, which is a fact about the
+  // show, not a bug they can do nothing about.
+  it('names the registry refusal instead of blaming the app', () => {
+    for (const message of [
+      'withdraw_own_entry: ASCA does not recognise the withdrawal reason in_season',
+      "withdraw_own_entry: cannot confirm the show's registry for entry 22eb47a9, so only judge_change is accepted",
+    ]) {
+      const text = withdrawErrorMessage({ code: '22023', message }, 'withdraw');
+      expect(text).toBe("The show's registry doesn't recognise that reason.");
+      expect(text).not.toMatch(/something went wrong/i);
+      expect(text).not.toMatch(/22eb47a9/);
+    }
+
+    // A 22023 that is NOT the registry guard keeps the payload sentence.
+    expect(withdrawErrorMessage({ code: '22023', message: 'malformed jsonb' })).toMatch(
+      /something went wrong/i
+    );
+  });
+
   it('carries the verb onto the typed errors the replication layer throws', () => {
     expect(new WithdrawUnavailableError('pull').message).toMatch(/try pulling again/i);
     expect(new WithdrawUnavailableError('withdraw').message).toMatch(/try withdrawing again/i);

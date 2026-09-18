@@ -114,8 +114,8 @@ DECLARE
   v_new_version integer;
   v_target_status text;
   v_reason text;
-  v_trial_id uuid;
   v_registry text;
+  v_registry_known boolean;
   v_allowed_reasons text[];
   -- Statuses an entry may still be withdrawn or pulled FROM by its own
   -- exhibitor. Day-of and terminal states are excluded: those go through the
@@ -186,10 +186,10 @@ BEGIN
 
   SELECT e.show_id, e.dog_id, e.handler_id, e.entry_status,
          e.deleted_at, e.check_in_status, coalesce(e.is_in_ring, false),
-         coalesce(e.is_scored, false), e.version, e.trial_id
+         coalesce(e.is_scored, false), e.version
     INTO v_show_id, v_dog_id, v_handler_id, v_entry_status,
          v_deleted_at, v_check_in_status, v_is_in_ring,
-         v_is_scored, v_current_version, v_trial_id
+         v_is_scored, v_current_version
     FROM public.entries e
    WHERE e.id = p_entry_id;
 
@@ -217,21 +217,42 @@ BEGIN
   -- registry it knows nothing about, and the client greys Withdraw out for an
   -- unrecognised registry anyway.
   IF p_kind = 'withdraw' THEN
+    -- Resolved through `classes`, NOT through `entries.trial_id`. That column is
+    -- a nullable denormalisation, and a NULL there would have resolved to AKC
+    -- and quietly admitted `in_season` on an ASCA show — the exact hole this
+    -- guard exists to close. `entries.class_id -> classes.trial_id -> trials` is
+    -- the join the other entry RPCs use (20260908134900, 20260909174329).
     SELECT nullif(btrim(coalesce(t.registry_id, '')), '')
       INTO v_registry
-      FROM public.trials t
-     WHERE t.id = v_trial_id;
+      FROM public.entries e
+      JOIN public.classes c ON c.id = e.class_id
+      JOIN public.trials t ON t.id = c.trial_id
+     WHERE e.id = p_entry_id;
+    v_registry_known := FOUND;
 
-    v_allowed_reasons := CASE coalesce(v_registry, 'AKC')
-      WHEN 'ASCA' THEN ARRAY['judge_change']
-      ELSE ARRAY['in_season', 'judge_change']
-    END;
+    IF NOT v_registry_known THEN
+      -- No trial reachable, so no rulebook. Refuse the reason that only SOME
+      -- registries have rather than guessing the permissive one: `judge_change`
+      -- exists in all three, `in_season` does not exist in ASCA at all.
+      IF v_reason <> 'judge_change' THEN
+        RAISE EXCEPTION
+          'withdraw_own_entry: cannot confirm the show''s registry for entry %, so only judge_change is accepted',
+          p_entry_id
+          USING errcode = '22023';
+      END IF;
+    ELSE
+      -- Case-insensitive: `registry_id` is free text, and 'asca' is ASCA.
+      v_allowed_reasons := CASE upper(coalesce(v_registry, 'AKC'))
+        WHEN 'ASCA' THEN ARRAY['judge_change']
+        ELSE ARRAY['in_season', 'judge_change']
+      END;
 
-    IF NOT (v_reason = ANY (v_allowed_reasons)) THEN
-      RAISE EXCEPTION
-        'withdraw_own_entry: % does not recognise the withdrawal reason %',
-        coalesce(v_registry, 'AKC'), v_reason
-        USING errcode = '22023';
+      IF NOT (v_reason = ANY (v_allowed_reasons)) THEN
+        RAISE EXCEPTION
+          'withdraw_own_entry: % does not recognise the withdrawal reason %',
+          upper(coalesce(v_registry, 'AKC')), v_reason
+          USING errcode = '22023';
+      END IF;
     END IF;
   END IF;
 
@@ -276,8 +297,14 @@ BEGIN
     -- (payment_status, refund_amount, refunded_at, refund_decision) is
     -- untouched on both arms. What the exhibitor's click does is RECORD what
     -- happened; the secretary confirms the refund afterwards on the
-    -- reconciliation surface, which is exactly where the refund tooling and the
-    -- premium's rules live.
+    -- reconciliation surface.
+    --
+    -- That surface is reachable for BOTH acts as of this file: the
+    -- `set_entry_refund_decision` replacement at the bottom widens its own guard
+    -- to accept a paid-online `withdrawn` row carrying a reason code, so the
+    -- Deny control the queue renders for such a row actually saves. Before that
+    -- widening the read half admitted the row and the write half refused it, and
+    -- the secretary got 'We couldn't save that refund decision' forever.
     --
     -- The removed guard ('Entry % is paid; request a refund instead of
     -- withdrawing') read as caution and behaved as a trap: it left a paid
@@ -352,7 +379,8 @@ COMMENT ON FUNCTION public.withdraw_own_entry(uuid, jsonb, integer, text, text) 
   'reason. '
   'NEITHER act has a payment guard and neither writes a money column (owner '
   'decision 2026-09-17): the exhibitor records what happened, the secretary '
-  'confirms the refund on the reconciliation surface. Restates entries_update '
+  'confirms the refund through set_entry_refund_decision, which accepts both '
+  'acts. Restates entries_update '
   'for managers and (exceeding) entries_select '
   'scope for owners; definer, so every filter is explicit. Called directly by the '
   'client and awaited: online-only, not queued through the MutationManager.';
@@ -360,6 +388,192 @@ COMMENT ON FUNCTION public.withdraw_own_entry(uuid, jsonb, integer, text, text) 
 REVOKE ALL ON FUNCTION public.withdraw_own_entry(uuid, jsonb, integer, text, text) FROM public;
 REVOKE ALL ON FUNCTION public.withdraw_own_entry(uuid, jsonb, integer, text, text) FROM anon;
 GRANT EXECUTE ON FUNCTION public.withdraw_own_entry(uuid, jsonb, integer, text, text) TO authenticated;
+
+-- ---------------------------------------------------------------------------
+-- The WRITE half of the reconciliation queue.
+--
+-- MYK9-632 widened the READ half — `isUnresolvedRemovalRefundDecision` and the
+-- Pull tab now admit a paid-online `withdrawn` row that carries a reason code,
+-- because the owner's decision made a paid entry withdrawable and that
+-- withdrawal owes the secretary a decision under the premium's rules.
+--
+-- `set_entry_refund_decision` was not widened with it, and its guard is
+-- `entry_status = 'scratched'`. So the queue rendered a Deny control for those
+-- rows, the click raised 22023 'entry % is not an unresolved paid-online pull',
+-- `isPullRefundSchemaUnavailable` did not match that message (it looks for a
+-- missing COLUMN), and the secretary got "We couldn't save that refund decision.
+-- Try again." for as long as they kept clicking. The row never left the queue
+-- and `payoutLedger`'s unresolvedRefundDecisionCount counted it forever.
+--
+-- COPIED FROM THE LATEST DEFINITION (20260722160000 is the only file that
+-- defines it; 20260728120000 only re-grants it — verified against the live
+-- pg_get_functiondef before editing, LESSONS replace-function-latest). Every
+-- other guard, the SECURITY DEFINER hygiene and the search_path are byte-
+-- identical; exactly two things change — the status arm of the eligibility
+-- guard, and the sentence it raises.
+CREATE OR REPLACE FUNCTION public.set_entry_refund_decision(
+  p_entry_id uuid,
+  p_decision text
+)
+RETURNS void
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = ''
+AS $$
+DECLARE
+  v_show_id uuid;
+  v_club_id uuid;
+  v_entry_status text;
+  v_payment_method text;
+  v_payment_status text;
+  v_refund_amount numeric;
+  v_refund_decision text;
+  v_withdrawal_reason_code text;
+BEGIN
+  IF p_decision <> 'denied' THEN
+    RAISE EXCEPTION 'unsupported refund decision: %', p_decision
+      USING ERRCODE = '22023';
+  END IF;
+
+  SELECT e.show_id,
+         s.club_id,
+         e.entry_status,
+         e.payment_method,
+         e.payment_status,
+         e.refund_amount,
+         e.refund_decision,
+         e.withdrawal_reason_code
+    INTO v_show_id,
+         v_club_id,
+         v_entry_status,
+         v_payment_method,
+         v_payment_status,
+         v_refund_amount,
+         v_refund_decision,
+         v_withdrawal_reason_code
+    FROM public.entries e
+    JOIN public.shows s ON s.id = e.show_id
+   WHERE e.id = p_entry_id
+     AND e.deleted_at IS NULL
+     FOR UPDATE OF e;
+
+  IF NOT FOUND THEN
+    RAISE EXCEPTION 'entry % not found', p_entry_id
+      USING ERRCODE = '22023';
+  END IF;
+
+  IF NOT (
+    public.is_site_admin()
+    OR public.is_show_secretary(v_show_id)
+    OR (v_club_id IS NOT NULL AND public.is_club_admin(v_club_id))
+  ) THEN
+    RAISE EXCEPTION 'not authorized to decide refund for entry %', p_entry_id
+      USING ERRCODE = '42501';
+  END IF;
+
+  -- The status arm now mirrors `isUnresolvedRemovalRefundDecision` EXACTLY, and
+  -- that is the whole point: the surface that offers the decision and the
+  -- function that records it must admit the same rows, or one of them is lying.
+  -- A 'withdrawn' row must carry a recognised reason code — without one it is a
+  -- secretary Decline/Reject or a pre-MYK9-632 row, which the queue excludes and
+  -- which therefore must not be deniable here either.
+  IF COALESCE(v_payment_method, '') <> 'online'
+     OR COALESCE(v_payment_status, '') <> 'paid'
+     OR COALESCE(v_refund_amount, 0) > 0
+     OR NOT (
+          v_entry_status = 'scratched'
+          OR (v_entry_status = 'withdrawn'
+              AND COALESCE(v_withdrawal_reason_code, '') IN ('in_season', 'judge_change'))
+        ) THEN
+    RAISE EXCEPTION 'entry % is not an unresolved paid-online pull or withdrawal', p_entry_id
+      USING ERRCODE = '22023';
+  END IF;
+
+  IF v_refund_decision = 'denied' THEN
+    RETURN;
+  END IF;
+
+  UPDATE public.entries
+     SET refund_decision = 'denied',
+         refund_decided_at = now(),
+         refund_decided_by = auth.uid(),
+         updated_at = now()
+   WHERE id = p_entry_id;
+END;
+$$;
+
+COMMENT ON FUNCTION public.set_entry_refund_decision(uuid, text) IS
+  'MYK9-632: records the secretary''s explicit "Deny refund" for a removal an '
+  'exhibitor left behind. Accepts a paid-online pull (entry_status=scratched) '
+  'and a paid-online withdrawal carrying one of the two recognised reason codes '
+  '— the same row set isUnresolvedRemovalRefundDecision offers the control for. '
+  'A successful Stripe refund is already authoritative via refund_amount / '
+  'refunded_at, so only the denial needs a durable decision.';
+
+-- Restated, not assumed. CREATE OR REPLACE preserves the existing ACL, but
+-- naming it keeps this file honest about who may call the function it just
+-- rewrote: 20260728120000 added service_role to the original grant.
+REVOKE EXECUTE ON FUNCTION public.set_entry_refund_decision(uuid, text) FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.set_entry_refund_decision(uuid, text)
+  TO authenticated, service_role;
+
+-- The reinstate trigger clears a decision when the row leaves the state it was
+-- decided in, so that a row pulled again later needs a fresh decision. It only
+-- knew about 'scratched'; a reinstated WITHDRAWN row would have kept a stale
+-- 'denied' and never re-entered the queue. Copied from the live definition;
+-- only the first condition changes.
+CREATE OR REPLACE FUNCTION public.restrict_entry_refund_decision_columns()
+RETURNS trigger
+LANGUAGE plpgsql
+SET search_path = ''
+AS $$
+BEGIN
+  -- A reinstated entry needs a fresh decision if it is removed again later.
+  -- This runs for every role, including service-role lifecycle mutations.
+  -- MYK9-632: both removal states, and any move BETWEEN them — a pull that
+  -- becomes a withdrawal is a different act and inherits nothing.
+  IF TG_OP = 'UPDATE'
+     AND old.entry_status IN ('scratched', 'withdrawn')
+     AND new.entry_status IS DISTINCT FROM old.entry_status THEN
+    new.refund_decision := NULL;
+    new.refund_decided_at := NULL;
+    new.refund_decided_by := NULL;
+    RETURN new;
+  END IF;
+
+  IF current_user IN ('postgres', 'service_role') THEN
+    RETURN new;
+  END IF;
+
+  IF TG_OP = 'INSERT' THEN
+    IF new.refund_decision IS NOT NULL
+       OR new.refund_decided_at IS NOT NULL
+       OR new.refund_decided_by IS NOT NULL THEN
+      RAISE EXCEPTION 'refund decisions are written only through set_entry_refund_decision'
+        USING ERRCODE = '42501';
+    END IF;
+
+    RETURN new;
+  END IF;
+
+  IF new.refund_decision IS DISTINCT FROM old.refund_decision
+     OR new.refund_decided_at IS DISTINCT FROM old.refund_decided_at
+     OR new.refund_decided_by IS DISTINCT FROM old.refund_decided_by THEN
+    RAISE EXCEPTION 'refund decisions are written only through set_entry_refund_decision'
+      USING ERRCODE = '42501';
+  END IF;
+
+  RETURN new;
+END;
+$$;
+
+-- Both API-role decisions stated explicitly, and both are "no access". This is a
+-- TRIGGER function: it runs as part of the DML that fires it and is never called
+-- by a caller, so nothing needs EXECUTE on it. The original (20260722160000)
+-- predates the grant-decision contract and said nothing, which left PUBLIC's
+-- default EXECUTE in place; re-creating it here is the moment to decide.
+REVOKE EXECUTE ON FUNCTION public.restrict_entry_refund_decision_columns()
+  FROM PUBLIC, anon, authenticated;
 
 COMMIT;
 

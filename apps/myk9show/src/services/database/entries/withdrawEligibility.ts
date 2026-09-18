@@ -205,6 +205,17 @@ export class WithdrawNotAllowedError extends Error {
  * `withdraw_own_entry` RPC raises. The pre-check covers the common refusals, so
  * a 42501 that still arrives means the row changed under us.
  */
+/**
+ * MYK9-632 round 5: the RPC's registry guard (step 1b) refuses with 22023, the
+ * same SQLSTATE it uses for a malformed payload. "Something went wrong preparing
+ * this withdrawal" is true of the payload case and useless here — the exhibitor
+ * picked a reason their registry does not recognise, which is a fact about the
+ * show, not a bug. Matched on the message because the code alone cannot tell the
+ * two apart.
+ */
+const REGISTRY_REFUSAL =
+  /does not recognise the withdrawal reason|cannot confirm the show's registry/i;
+
 function serverMessages(kind: RemoveFromClassKind | undefined): Record<string, string> {
   const verb = removalVerb(kind);
   const past = verb === 'pull' ? 'pulled' : 'withdrawn';
@@ -237,6 +248,9 @@ export function withdrawErrorMessage(
   const code = error?.code;
   // Our own errors already carry a written sentence — pass it through.
   if (code && OWN_REFUSAL_CODES.has(code) && error?.message) return error.message;
+  if (error?.message && REGISTRY_REFUSAL.test(error.message)) {
+    return "The show's registry doesn't recognise that reason.";
+  }
   const mapped = code ? serverMessages(kind)[code] : undefined;
   if (mapped) return mapped;
   return `We couldn't ${removalVerb(kind)} this entry. Please try again.`;

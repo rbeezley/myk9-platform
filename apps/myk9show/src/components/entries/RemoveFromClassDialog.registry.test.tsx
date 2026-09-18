@@ -185,6 +185,64 @@ describe('RemoveFromClassDialog — the registry is not guessed', () => {
 
   // The confirm sentence used to fall back to a bare full stop when the reason
   // went missing, so a withdrawal could be confirmed with no reason on screen.
+  // Round 4 made Back from ANY confirm go to the reason step, so Back from a
+  // PULL confirm landed on "Why are you withdrawing?" with the reason list — and
+  // with the registry resolving or unavailable, `policy` is null, so that step
+  // rendered "undefined recognises these reasons" with no buttons at all.
+  it('takes Back from a PULL confirm to the chooser, not the reason list', async () => {
+    mocks.getTrialsByShow.mockResolvedValue([{ id: 'trial-1', registryId: 'AKC' }]);
+
+    const chooser = await openChooser();
+    await userEvent.click(within(chooser).getByRole('button', { name: /^pull$/i }));
+    expect(within(chooser).getByRole('button', { name: /pull entry/i })).toBeInTheDocument();
+
+    await userEvent.click(within(chooser).getByRole('button', { name: /^back$/i }));
+
+    expect(within(chooser).getByRole('button', { name: /^withdraw$/i })).toBeInTheDocument();
+    expect(within(chooser).getByRole('button', { name: /^pull$/i })).toBeInTheDocument();
+    expect(within(chooser).queryByText(/why are you withdrawing/i)).not.toBeInTheDocument();
+    expect(within(chooser).queryByText(/undefined/i)).not.toBeInTheDocument();
+  });
+
+  it('takes Back from a WITHDRAW confirm to the reason list', async () => {
+    mocks.getTrialsByShow.mockResolvedValue([{ id: 'trial-1', registryId: 'AKC' }]);
+
+    const chooser = await openChooser();
+    await waitFor(() =>
+      expect(within(chooser).getByRole('button', { name: /^withdraw$/i })).toBeEnabled()
+    );
+    await userEvent.click(within(chooser).getByRole('button', { name: /^withdraw$/i }));
+    await userEvent.click(within(chooser).getByRole('button', { name: /dog in season/i }));
+    expect(within(chooser).getByRole('button', { name: /withdraw entry/i })).toBeInTheDocument();
+
+    await userEvent.click(within(chooser).getByRole('button', { name: /^back$/i }));
+
+    expect(within(chooser).getByRole('button', { name: /dog in season/i })).toBeInTheDocument();
+    expect(within(chooser).getByRole('button', { name: /judge change/i })).toBeInTheDocument();
+  });
+
+  it.each([
+    ['resolving', () => mocks.getTrialsByShow.mockReturnValue(new Promise(() => {}))],
+    ['unavailable', () => mocks.getTrialsByShow.mockRejectedValue(new Error('cold'))],
+  ])('never renders a reason step while %s, even via Back', async (_label, arrange) => {
+    arrange();
+
+    const chooser = await openChooser();
+    await userEvent.click(within(chooser).getByRole('button', { name: /^pull$/i }));
+    await userEvent.click(within(chooser).getByRole('button', { name: /^back$/i }));
+
+    // The chooser, never the dead-end reason step. (The chooser's own Withdraw
+    // blurb says "a reason this show's registry recognises", so the absence is
+    // asserted on the reason step's TITLE and its buttons, not on that word.)
+    expect(within(chooser).getByRole('button', { name: /^pull$/i })).toBeEnabled();
+    expect(within(chooser).getByRole('button', { name: /^withdraw$/i })).toBeInTheDocument();
+    expect(within(chooser).queryByText(/why are you withdrawing/i)).not.toBeInTheDocument();
+    expect(
+      within(chooser).queryByRole('button', { name: /judge change/i })
+    ).not.toBeInTheDocument();
+    expect(chooser.textContent ?? '').not.toMatch(/undefined/i);
+  });
+
   it('always names the chosen reason on the confirm step', async () => {
     mocks.getTrialsByShow.mockResolvedValue([{ id: 'trial-1', registryId: 'AKC' }]);
 

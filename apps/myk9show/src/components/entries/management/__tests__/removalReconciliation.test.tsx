@@ -7,16 +7,39 @@
  * afterwards — an unreachable decision is an entry the exhibitor paid for, did
  * not run, and nobody can resolve.
  */
-import { screen } from '@testing-library/react';
-import { describe, expect, it, vi } from 'vitest';
+import { screen, waitFor } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { render } from '@/test/utils/testUtils';
 import { EntryStatus, PaymentStatus } from '@/types/show-registration-types';
 import type { EntryManagementEntry } from '@/types/entry-management-types';
 import { PullReconciliationCard } from '../PullReconciliationCard';
 import { removalSummaryLine } from '../removalSummaryLine';
+import { isUnresolvedRemovalRefundDecision } from '@/features/payments/pullReconciliation';
+import { buildLedgerRows } from '@/features/payments/payoutLedger';
 
-vi.mock('@/features/payments/denyPullRefundDecision', () => ({
-  denyPullRefundDecision: vi.fn().mockResolvedValue('saved'),
+const rpc = vi.hoisted(() => vi.fn());
+
+// Mocked at the RPC BOUNDARY, with the real `denyPullRefundDecision` and the
+// real server predicate above it: the round-4 defect was that the queue offered
+// a Deny control whose RPC call could only ever raise, and a mocked
+// `denyPullRefundDecision` would have hidden exactly that.
+vi.mock('@/lib/supabase', () => ({
+  supabase: {
+    rpc: (...args: unknown[]) => rpc(...args),
+    // The render tree's providers touch these; only `rpc` is under test.
+    auth: {
+      getSession: () => Promise.resolve({ data: { session: null }, error: null }),
+      onAuthStateChange: () => ({ data: { subscription: { unsubscribe: () => {} } } }),
+    },
+    from: () => ({
+      select: () => ({
+        eq: () => ({ maybeSingle: () => Promise.resolve({ data: null, error: null }) }),
+      }),
+    }),
+    channel: () => ({ on: () => ({ subscribe: () => ({}) }), subscribe: () => ({}) }),
+    removeChannel: () => {},
+  },
 }));
 
 function makeEntry(overrides: Partial<EntryManagementEntry> = {}): EntryManagementEntry {
@@ -187,5 +210,93 @@ describe('removalSummaryLine — what is true about the money RIGHT NOW', () => 
   it('falls back to the reason code when the raw status is not projected', () => {
     expect(removalSummaryLine({ withdrawalReasonCode: 'judge_change' })).toContain('Withdrawn');
     expect(removalSummaryLine({})).toContain('Pulled');
+  });
+});
+
+/**
+ * MYK9-632 round 5: the queue's READ half and its WRITE half must admit the same
+ * rows. A Deny control that always raises is worse than no control — the row
+ * never leaves the queue and the admin's unresolved count carries it forever.
+ */
+describe('Deny refund reaches the server for a coded withdrawal', () => {
+  beforeEach(() => {
+    rpc.mockReset();
+    // Stands in for `set_entry_refund_decision` AFTER this issue's widening:
+    // a paid-online pull, or a paid-online withdrawal carrying a reason code.
+    rpc.mockImplementation((name: string, args: { p_entry_id: string }) => {
+      if (name !== 'set_entry_refund_decision') return Promise.resolve({ error: null });
+      const row = ROWS[args.p_entry_id];
+      if (!row || !isUnresolvedRemovalRefundDecision(row)) {
+        return Promise.resolve({
+          error: {
+            code: '22023',
+            message: `entry ${args.p_entry_id} is not an unresolved paid-online pull or withdrawal`,
+          },
+        });
+      }
+      return Promise.resolve({ error: null });
+    });
+  });
+
+  const ROWS: Record<string, Parameters<typeof isUnresolvedRemovalRefundDecision>[0]> = {
+    'entry-1': {
+      entry_status: 'withdrawn',
+      payment_method: 'online',
+      payment_status: 'paid',
+      refund_amount: null,
+      refund_decision: null,
+      withdrawal_reason_code: 'in_season',
+    },
+  };
+
+  it('saves the denial instead of erroring forever', async () => {
+    const onResolved = vi.fn();
+    render(
+      <PullReconciliationCard
+        entry={withdrawnEntry('in_season')}
+        onOpenRefund={vi.fn()}
+        onResolved={onResolved}
+      />
+    );
+
+    await userEvent.click(screen.getByRole('button', { name: /deny refund/i }));
+
+    await waitFor(() => expect(onResolved).toHaveBeenCalled());
+    expect(rpc).toHaveBeenCalledWith('set_entry_refund_decision', {
+      p_entry_id: 'entry-1',
+      p_decision: 'denied',
+    });
+  });
+});
+
+describe('the unresolved count drops once the decision is recorded', () => {
+  const ledgerRow = (overrides: Record<string, unknown> = {}) => ({
+    id: 'entry-1',
+    show_id: 'show-1',
+    entry_status: 'withdrawn',
+    entry_fee: 25,
+    payment_method: 'online',
+    payment_status: 'paid',
+    refund_amount: null,
+    refund_decision: null,
+    withdrawal_reason_code: 'in_season',
+    ...overrides,
+  });
+
+  it('counts a coded paid-online withdrawal, then stops once it is denied', () => {
+    const shows = [{ id: 'show-1', name: 'Spring Trial', club_id: 'club-1' }];
+    const before = buildLedgerRows(
+      shows as never,
+      new Map([['show-1', [ledgerRow()]]]) as never,
+      new Map()
+    );
+    const after = buildLedgerRows(
+      shows as never,
+      new Map([['show-1', [ledgerRow({ refund_decision: 'denied' })]]]) as never,
+      new Map()
+    );
+
+    expect(before[0]?.unresolvedRefundDecisionCount).toBe(1);
+    expect(after[0]?.unresolvedRefundDecisionCount).toBe(0);
   });
 });

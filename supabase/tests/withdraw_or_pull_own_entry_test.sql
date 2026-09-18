@@ -34,10 +34,20 @@ select ('00000000-0000-0000-0000-00000063204' || n)::uuid,
   '00000000-0000-0000-0000-000000632003', 'Container Novice ' || n, 'upcoming'
 from generate_series(1, 9) n;
 
--- 1 owner.
+-- 1 owner, 6 club secretary (the tier `set_entry_refund_decision` authorises).
 insert into public.people (id, first_name, last_name, auth_user_id)
 values ('00000000-0000-0000-0000-000000632011', 'MYK9-632', 'Owner',
-  '00000000-0000-0000-0000-000000632101');
+  '00000000-0000-0000-0000-000000632101'),
+  ('00000000-0000-0000-0000-000000632016', 'MYK9-632', 'Secretary',
+  '00000000-0000-0000-0000-000000632106');
+
+-- Club-scoped appointment: since the label/permission split a show-scoped
+-- user_roles row grants nothing, so the secretary is appointed at the club.
+insert into public.user_roles (user_id, role_id, club_id, is_active, auth_user_id)
+select '00000000-0000-0000-0000-000000632016', id,
+  '00000000-0000-0000-0000-000000632001', true,
+  '00000000-0000-0000-0000-000000632106'
+from public.roles where name = 'secretary';
 
 insert into public.dogs (id, name, call_name, breed, owner_id)
 values ('00000000-0000-0000-0000-000000632021', 'MYK9-632 Dog', 'Dog', 'Beagle',
@@ -297,8 +307,34 @@ select pg_temp.assert_leave('a blank registry_id resolves to AKC and admits in_s
   '00000000-0000-0000-0000-000000632101', '00000000-0000-0000-0000-000000632035',
   'withdraw', 'in_season', null, 'withdrawn');
 
+-- Case-insensitive: `registry_id` is free text and 'asca' is ASCA.
+update public.entries set entry_status = 'confirmed', withdrawal_reason_code = null
+ where id = '00000000-0000-0000-0000-000000632035';
+update public.trials set registry_id = 'asca'
+ where id = '00000000-0000-0000-0000-000000632003';
+select pg_temp.assert_leave('a lower-case asca still refuses in_season',
+  '00000000-0000-0000-0000-000000632101', '00000000-0000-0000-0000-000000632035',
+  'withdraw', 'in_season',
+  'withdraw_own_entry: ASCA does not recognise the withdrawal reason in_season');
+
+-- NO TRIAL REACHABLE. The registry is resolved through
+-- entries.class_id -> classes.trial_id, so a class with a null trial_id leaves
+-- the rulebook unknown — and unknown must refuse the reason that only SOME
+-- registries have, not fall back to the permissive one.
 update public.trials set registry_id = 'AKC'
  where id = '00000000-0000-0000-0000-000000632003';
+update public.classes set trial_id = null
+ where id = '00000000-0000-0000-0000-000000632045';
+select pg_temp.assert_leave('an unreachable trial refuses in_season',
+  '00000000-0000-0000-0000-000000632101', '00000000-0000-0000-0000-000000632035',
+  'withdraw', 'in_season',
+  'withdraw_own_entry: cannot confirm the show''s registry for entry %, so only judge_change is accepted');
+select pg_temp.assert_leave('an unreachable trial still allows judge_change',
+  '00000000-0000-0000-0000-000000632101', '00000000-0000-0000-0000-000000632035',
+  'withdraw', 'judge_change', null, 'withdrawn');
+update public.classes set trial_id = '00000000-0000-0000-0000-000000632003'
+ where id = '00000000-0000-0000-0000-000000632045';
+
 update public.entries set entry_status = 'confirmed', withdrawal_reason_code = null
  where id = '00000000-0000-0000-0000-000000632035';
 
@@ -347,6 +383,75 @@ begin
   end if;
   raise notice
     'PASS a paid-online WITHDRAWAL is an unresolved refund decision with no money written';
+end;
+$$;
+
+-- THE WRITE HALF OF THE QUEUE. The read predicate
+-- (`isUnresolvedRemovalRefundDecision`) and `set_entry_refund_decision` must
+-- admit the SAME rows, or the tab renders a Deny control whose click raises
+-- 22023 and the row never leaves the queue. 632033 is the paid-online
+-- withdrawal with a reason code, left by the case above.
+--
+-- Executed as the club secretary: this function is authorised, not owner-scoped.
+do $$
+declare
+  v_decision text;
+  v_decided_at timestamptz;
+begin
+  perform set_config('request.jwt.claim.sub',
+    '00000000-0000-0000-0000-000000632106', true);
+  perform set_config('request.jwt.claims', jsonb_build_object(
+    'sub', '00000000-0000-0000-0000-000000632106', 'role', 'authenticated')::text, true);
+  perform set_config('role', 'authenticated', true);
+  perform public.set_entry_refund_decision('00000000-0000-0000-0000-000000632033', 'denied');
+  reset role;
+
+  select e.refund_decision, e.refund_decided_at into v_decision, v_decided_at
+    from public.entries e where e.id = '00000000-0000-0000-0000-000000632033';
+  if v_decision is distinct from 'denied' or v_decided_at is null then
+    raise exception 'FAIL deny on a withdrawal: decision=% at=%', v_decision, v_decided_at;
+  end if;
+  raise notice 'PASS a paid-online WITHDRAWAL with a reason can be marked denied';
+exception when others then
+  reset role;
+  if sqlstate = 'P0001' and sqlerrm like 'FAIL%' then raise; end if;
+  raise exception 'FAIL deny on a withdrawal: unexpected SQLSTATE %: %', sqlstate, sqlerrm;
+end;
+$$;
+
+-- ...and a CODELESS withdrawn row must NOT be deniable, because the queue does
+-- not offer it: that state is a secretary Decline/Reject, not an exhibitor act.
+update public.entries
+   set entry_status = 'withdrawn', withdrawal_reason_code = null,
+       payment_status = 'paid', payment_method = 'online'
+ where id = '00000000-0000-0000-0000-000000632034';
+
+do $$
+declare
+  v_decision text;
+begin
+  perform set_config('request.jwt.claim.sub',
+    '00000000-0000-0000-0000-000000632106', true);
+  perform set_config('request.jwt.claims', jsonb_build_object(
+    'sub', '00000000-0000-0000-0000-000000632106', 'role', 'authenticated')::text, true);
+  perform set_config('role', 'authenticated', true);
+  begin
+    perform public.set_entry_refund_decision('00000000-0000-0000-0000-000000632034', 'denied');
+    reset role;
+    raise exception 'FAIL: a codeless withdrawn row was accepted for a refund decision';
+  exception when invalid_parameter_value then
+    reset role;
+    if sqlerrm not like 'entry % is not an unresolved paid-online pull or withdrawal' then
+      raise exception 'FAIL codeless deny: wrong message %', sqlerrm;
+    end if;
+  end;
+
+  select e.refund_decision into v_decision
+    from public.entries e where e.id = '00000000-0000-0000-0000-000000632034';
+  if v_decision is not null then
+    raise exception 'FAIL codeless deny: a decision was written anyway (%)', v_decision;
+  end if;
+  raise notice 'PASS a codeless withdrawn row cannot be marked denied';
 end;
 $$;
 

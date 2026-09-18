@@ -68,6 +68,36 @@ describe('EntryReceipt', () => {
     expect(screen.getByText('Entry ID: entry-1')).toBeInTheDocument();
   });
 
+  // MYK9-632: `mapClassEntryStatus` now returns 'withdrawn' for a withdrawal
+  // instead of folding it onto 'scratched'. A receipt that only knew the word
+  // 'scratched' would put a withdrawn class back among the RUNNING rows and
+  // back into the total — a money claim, not a wording slip.
+  it('keeps a withdrawn class out of the running rows and out of the total', () => {
+    render(
+      <EntryReceipt
+        open
+        onOpenChange={vi.fn()}
+        entry={{
+          ...entry,
+          classes: [
+            entry.classes[0]!,
+            { id: 'class-2', name: 'Excellent B', number: '202', fee: 45, status: 'withdrawn' },
+            { id: 'class-3', name: 'Open A', number: '303', fee: 55, status: 'scratched' },
+          ],
+          totalFee: 130,
+        }}
+      />
+    );
+
+    // Each removed act keeps its OWN word; only a pull ever says "Pulled".
+    expect(screen.getByText('(Withdrawn)')).toBeInTheDocument();
+    expect(screen.getByText('(Pulled)')).toBeInTheDocument();
+    // Only the one entered class reaches the total. Anchored to the total node,
+    // not a bare text match — the entered row prints $30.00 as well.
+    const total = screen.getByText('Total').parentElement?.querySelector('.total-amount');
+    expect(total).toHaveTextContent('$30.00');
+  });
+
   it('prints the entry-fee total and claims no charge without a breakdown', () => {
     // The card-derived receipt: cash, check, or a Stripe order we could not
     // read. It must not label anything "Amount charged".

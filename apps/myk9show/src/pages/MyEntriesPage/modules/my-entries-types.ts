@@ -48,7 +48,8 @@ export interface EntryClass {
   /** Trial discipline (e.g. "Scent Work", "Agility"); gates the jump-height field. */
   trialType?: string | undefined;
   runOrder?: number | undefined;
-  status: 'entered' | 'scratched' | 'moved' | 'absent';
+  /** MYK9-632: 'withdrawn' and 'scratched' (a pull) are DIFFERENT acts. */
+  status: 'entered' | 'withdrawn' | 'scratched' | 'moved' | 'absent';
   /** Denormalized handler display name; may differ from the dog owner when a proxy handles the dog. */
   handler?: string | undefined;
   /**

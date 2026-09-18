@@ -209,6 +209,44 @@ describe('peopleRoster', () => {
     );
   });
 
+  // MYK9-632: 'withdrawn' became its own class status instead of folding onto
+  // 'scratched'. The roster's terminal set is spelled as class statuses, so a
+  // new member that was not added there would put a withdrawn dog back on the
+  // show desk's check-in list.
+  it('keeps a withdrawn class row ineligible, exactly as a pulled one', () => {
+    const roster = buildPeopleRoster({
+      entries: [
+        entry({
+          classes: [
+            {
+              id: 'class-1',
+              name: 'Container Novice A',
+              number: '1',
+              fee: 25,
+              status: 'withdrawn',
+              checkInStatus: 'no-status',
+            },
+            {
+              id: 'class-2',
+              name: 'Interior Novice A',
+              number: '2',
+              fee: 25,
+              status: 'scratched',
+              checkInStatus: 'no-status',
+            },
+          ],
+        }),
+      ],
+      presence: [],
+    });
+
+    expect(roster[0]?.eligibleCount).toBe(0);
+    expect(roster[0]?.classRows).toHaveLength(2);
+    for (const row of roster[0]?.classRows ?? []) {
+      expect(row.eligibleForCheckIn).toBe(false);
+    }
+  });
+
   it('keeps future-day classes ineligible when a current show day is supplied', () => {
     const roster = buildPeopleRoster({
       entries: [entry()],

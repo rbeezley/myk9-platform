@@ -23,6 +23,7 @@ import { AlertCircle, Loader2, Save, Dog, Trophy } from 'lucide-react';
 import { withdrawEntry, canModifyEntry } from '@/services/database/entries';
 import { withdrawErrorMessage } from '@/services/database/entries/withdrawEligibility';
 import { useWithdrawEligibility } from './useWithdrawEligibility';
+import { useWithdrawalReasonCodes } from './useWithdrawalReasonCodes';
 import { RemoveFromClassDialog } from './RemoveFromClassDialog';
 import { EntryEditClassRow, type EntryClass } from './EntryEditClassRow';
 import { useShowRegistryId } from './useShowRegistryId';
@@ -73,7 +74,10 @@ export function EntryEditDialog({
 
   // Local state for edits
   const [classEdits, setClassEdits] = useState<
-    Record<string, { handler?: string; jumpHeight?: string; status?: string }>
+    Record<
+      string,
+      { handler?: string; jumpHeight?: string; status?: string; reasonCode?: string | null }
+    >
   >({});
 
   // MYK9-535: the affordance is DISABLED with the reason when the server would
@@ -90,6 +94,14 @@ export function EntryEditDialog({
   // not know yet (MYK9-632). No default: "still looking" must never render as
   // "this is an AKC show".
   const registry = useShowRegistryId(entry.showId, open);
+
+  // MYK9-632 follow-up: the STORED reason for each row. Without it a reloaded
+  // sheet could say "Withdrawn" but not why, while the session that performed
+  // the withdrawal said both — the same act reading two ways.
+  const storedReasonCodes = useWithdrawalReasonCodes(
+    open,
+    entry.classes.map(classEntry => classEntry.id)
+  );
 
   // Leave-this-class dialog (Withdraw vs Pull).
   const [pullDialog, setPullDialog] = useState<{
@@ -204,6 +216,9 @@ export function EntryEditDialog({
           [pullDialog.classId!]: {
             ...prev[pullDialog.classId!],
             status: choice.kind === 'pull' ? 'scratched' : 'withdrawn',
+            // A pull NULLs the reason code server-side, so mirror that here
+            // rather than leaving a previous row's reason standing.
+            reasonCode: choice.kind === 'pull' ? null : choice.reason,
           },
         }));
         onUpdate();
@@ -258,14 +273,27 @@ export function EntryEditDialog({
     return false;
   };
 
-  const getClassStatus = (classEntry: EntryClass) => {
+  const getClassStatus = (classEntry: EntryClass): EntryClass['status'] => {
     const edit = classEdits[classEntry.id];
     // MYK9-632: 'withdrawn' no longer collapses to 'scratched'. The two acts are
-    // different, and the badge below says which one happened.
+    // different, and the badge below says which one happened — on a fresh load
+    // (`classEntry.status`, straight from `mapClassEntryStatus`) exactly as in
+    // the session that performed it.
     if (edit?.status === 'withdrawn' || edit?.status === 'scratched') {
-      return edit.status as EntryClass['status'] | 'withdrawn';
+      return edit.status;
     }
     return classEntry.status;
+  };
+
+  /**
+   * The reason to show beside a Withdrawn badge: this session's choice when the
+   * exhibitor just made one, otherwise the stored code. `undefined` means "we
+   * have no reason to show", which is also what a pull renders.
+   */
+  const getClassReasonCode = (classEntry: EntryClass): string | null | undefined => {
+    const edit = classEdits[classEntry.id];
+    if (edit?.reasonCode !== undefined) return edit.reasonCode;
+    return storedReasonCodes[classEntry.id];
   };
 
   return (
@@ -319,6 +347,7 @@ export function EntryEditDialog({
                       key={classEntry.id}
                       classEntry={classEntry}
                       status={getClassStatus(classEntry)}
+                      reasonCode={getClassReasonCode(classEntry)}
                       rowEligibility={withdrawEligibility[classEntry.id]}
                       currentHandler={
                         classEdits[classEntry.id]?.handler ??

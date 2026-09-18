@@ -19,7 +19,8 @@ export interface EntryClass {
   jumpHeight?: string;
   trialType?: string;
   handlerId?: string | null;
-  status: 'entered' | 'scratched' | 'moved' | 'absent';
+  /** MYK9-632: 'withdrawn' and 'scratched' (a pull) are DIFFERENT acts. */
+  status: 'entered' | 'withdrawn' | 'scratched' | 'moved' | 'absent';
   checkInStatus?: CheckInStatus;
   checkInTime?: Date;
 }

@@ -25,7 +25,7 @@ function order(id: string): MyEntry {
     dogName: 'Rex',
     dogId: 'dog-1',
     armband: undefined,
-    classes: [],
+    classes: [{ id: `c-${id}`, name: 'Interior Advanced' } as MyEntry['classes'][number]],
     dogs: [],
     totalFee: 45,
     entryStatus: EntryStatus.ACCEPTED,
@@ -50,8 +50,9 @@ describe('OrdersReceiptsList — money under the one gate', () => {
     expect(screen.queryByText(/\$\d/)).not.toBeInTheDocument();
     expect(screen.queryByText(/due/i)).not.toBeInTheDocument();
     // The order itself is still listed and still selectable — the receipt is
-    // reachable, only its money is withheld.
-    expect(screen.getByRole('button', { name: /MK9-RANGER/ })).toBeEnabled();
+    // reachable, only its money is withheld. MYK9-631 AC4: the row is named by
+    // its dog and class, never by an id fragment or a confirmation number.
+    expect(screen.getByRole('button', { name: /Rex · Interior Advanced/ })).toBeEnabled();
   });
 
   it('prints the figure and the money word on a confirmed balance', () => {

@@ -122,7 +122,7 @@ describe('ReceiptEntryDialog order resolution', () => {
     expect(screen.queryByText('Amount charged')).not.toBeInTheDocument();
   });
 
-  it('renders only the selected order entries, amount, status, and identifiers', async () => {
+  it('renders only the selected order entries, amount and status', async () => {
     useEntryReceiptOrdersMock.mockReturnValue({
       data: receiptOrders,
       isPending: false,
@@ -155,11 +155,14 @@ describe('ReceiptEntryDialog order resolution', () => {
     expect(totals.getByText('Amount charged')).toBeInTheDocument();
     expect(totals.getByText('$65.00')).toBeInTheDocument();
     expect(screen.getByText('Paid')).toBeInTheDocument();
-    expect(screen.getByText('Order ID')).toBeInTheDocument();
-    expect(screen.getByText('order-1')).toBeInTheDocument();
+    // MYK9-631 Q7: the payment reference survives — a processor reference is
+    // what a bank or a club actually asks for. The order id and the raw entry
+    // UUID do not.
     expect(screen.getByText('Payment reference')).toBeInTheDocument();
     expect(screen.getByText('pi_order_1')).toBeInTheDocument();
-    expect(screen.getByText('Entry ID: entry-a')).toBeInTheDocument();
+    expect(screen.queryByText('Order ID')).not.toBeInTheDocument();
+    expect(screen.queryByText('order-1')).not.toBeInTheDocument();
+    expect(screen.queryByText(/Entry ID:/)).not.toBeInTheDocument();
   });
 
   it('preserves the direct single-order receipt path without a chooser', () => {

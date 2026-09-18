@@ -2,7 +2,23 @@ import { describe, it, expect, vi } from 'vitest';
 import { render, screen } from '@/test/utils/testUtils';
 import userEvent from '@testing-library/user-event';
 import { ReportControlsBar } from '../ReportControlsBar';
-import { reportRegistry } from '@/lib/reports/reportRegistry';
+import { getReportsForRegistries, reportRegistry } from '@/lib/reports/reportRegistry';
+import type { ReportPhase } from '@/lib/reports/types';
+
+// Partial mock: every test uses the REAL registry scoping. Only the
+// empty-phase-group test swaps the return value for one render, to reach a
+// state the live 37-entry registry cannot produce on its own.
+vi.mock('@/lib/reports/reportRegistry', async importOriginal => {
+  const actual = await importOriginal<typeof import('@/lib/reports/reportRegistry')>();
+  return { ...actual, getReportsForRegistries: vi.fn(actual.getReportsForRegistries) };
+});
+
+const PHASE_LABELS: Record<ReportPhase, string> = {
+  before: 'Before the show',
+  during: 'During the show',
+  after: 'After the show',
+  anytime: 'Anytime',
+};
 
 const mockTrials = [
   { id: 'trial-1', name: 'Friday Trial 1', trial_number: 1, date: '2026-04-12' },
@@ -404,30 +420,80 @@ describe('ReportControlsBar', () => {
     });
   });
 
-  describe('Registry coverage — every enabled report is reachable from the dropdown', () => {
-    // Regression guard: the dropdown previously rendered only Operational and
-    // Organization groups, silently hiding the Financial Report and the four
-    // entry-counts statistics reports even though they were enabled in the
-    // registry. (Found during /qa-feature shows-as-secretary walk 2026-04-26.)
-    // Pure-logic check: the e2e in reportsUI.spec.ts covers actual DOM rendering;
-    // here we just guard the registry → dropdown-grouping invariant so a future
-    // category gets a CI failure before it ships silently hidden again.
-    const RENDERED_CATEGORIES = ['operational', 'organization', 'financial', 'statistics'];
+  describe('Show-phase grouping — every enabled report is reachable from the dropdown', () => {
+    // Regression guard (rewritten from the category-group version): the dropdown
+    // previously rendered only Operational and Organization groups, silently
+    // hiding the Financial Report and the four entry-counts statistics reports
+    // even though they were enabled in the registry. (Found during /qa-feature
+    // shows-as-secretary walk 2026-04-26.) The grouping key is now the show
+    // phase, so the same omission would drop a whole phase's reports.
+    const RENDERED_PHASES: readonly ReportPhase[] = ['before', 'during', 'after', 'anytime'];
 
-    it('every enabled report has a category that the dropdown renders', () => {
+    async function openReportDropdown() {
+      const user = userEvent.setup();
+      await user.click(screen.getByRole('combobox', { name: /^report$/i }));
+      const options = await screen.findAllByRole('option');
+      return options.map(o => (o.textContent ?? '').trim());
+    }
+
+    it('every enabled report has a phase that the dropdown renders', () => {
       const enabled = reportRegistry.filter(r => r.enabled);
-      const orphans = enabled.filter(r => !RENDERED_CATEGORIES.includes(r.category));
+      const orphans = enabled.filter(r => !RENDERED_PHASES.includes(r.phase));
       expect(orphans).toEqual([]);
     });
 
-    it('Financial Report is registered, enabled, and in the financial group', () => {
+    it('lists all 37 reports exactly once across the four phase groups', async () => {
+      render(<ReportControlsBar {...defaultProps} />);
+      const optionNames = await openReportDropdown();
+
+      expect(optionNames).toHaveLength(reportRegistry.length);
+      for (const report of reportRegistry) {
+        expect(
+          optionNames.filter(name => name === report.name),
+          `${report.id} should be listed exactly once`
+        ).toHaveLength(1);
+      }
+    });
+
+    it('renders the four phase headings in show order', async () => {
+      render(<ReportControlsBar {...defaultProps} />);
+      await openReportDropdown();
+
+      const headings = [
+        screen.getByText(PHASE_LABELS.before),
+        screen.getByText(PHASE_LABELS.during),
+        screen.getByText(PHASE_LABELS.after),
+        screen.getByText(PHASE_LABELS.anytime),
+      ];
+      for (let i = 0; i < headings.length - 1; i++) {
+        const relation = headings[i].compareDocumentPosition(headings[i + 1]);
+        expect(
+          relation & Node.DOCUMENT_POSITION_FOLLOWING,
+          `${headings[i].textContent} should precede ${headings[i + 1].textContent}`
+        ).toBeTruthy();
+      }
+    });
+
+    it('lists before-the-show reports with no show-status input at all', async () => {
+      // There is no status prop to pass: grouping is headings only, so a
+      // completed show still offers the pre-show paperwork.
+      expect(Object.keys(defaultProps)).not.toContain('showStatus');
+      render(<ReportControlsBar {...defaultProps} />);
+      const optionNames = await openReportDropdown();
+
+      expect(optionNames).toContain('Show Flyer');
+      expect(optionNames).toContain('Waitlist Report');
+      expect(optionNames).toContain("Judge's Schedule");
+    });
+
+    it('Financial Report is registered, enabled, and grouped as anytime', () => {
       const fin = reportRegistry.find(r => r.id === 'financial-report');
       expect(fin).toBeDefined();
       expect(fin?.enabled).toBe(true);
-      expect(fin?.category).toBe('financial');
+      expect(fin?.phase).toBe('anytime');
     });
 
-    it('all four entry-counts reports are registered, enabled, and statistics', () => {
+    it('all four entry-counts reports are registered, enabled, and before-the-show', () => {
       const ids = [
         'show-entry-counts',
         'trial-entry-counts',
@@ -438,7 +504,105 @@ describe('ReportControlsBar', () => {
         const r = reportRegistry.find(x => x.id === id);
         expect(r, `report ${id}`).toBeDefined();
         expect(r?.enabled, `report ${id} enabled`).toBe(true);
-        expect(r?.category, `report ${id} category`).toBe('statistics');
+        expect(r?.phase, `report ${id} phase`).toBe('before');
+      }
+    });
+  });
+
+  describe('Registry scoping survives the phase grouping', () => {
+    const akcTrials = [
+      {
+        id: 'trial-1',
+        name: 'Friday Trial 1',
+        trial_number: 1,
+        date: '2026-04-12',
+        registry_id: 'AKC',
+      },
+      {
+        id: 'trial-2',
+        name: 'Friday Trial 2',
+        trial_number: 2,
+        date: '2026-04-12',
+        registry_id: 'AKC',
+      },
+    ];
+
+    async function openReportDropdown() {
+      const user = userEvent.setup();
+      await user.click(screen.getByRole('combobox', { name: /^report$/i }));
+      const options = await screen.findAllByRole('option');
+      return options.map(o => (o.textContent ?? '').trim());
+    }
+
+    it('shows no UKC or ASCA report under any heading for an AKC-only show', async () => {
+      render(<ReportControlsBar {...defaultProps} trials={akcTrials} />);
+      const optionNames = await openReportDropdown();
+
+      const foreign = reportRegistry.filter(r => r.registryId === 'UKC' || r.registryId === 'ASCA');
+      expect(foreign.length).toBeGreaterThan(0);
+      for (const report of foreign) {
+        expect(optionNames, `${report.id} must not appear for an AKC-only show`).not.toContain(
+          report.name
+        );
+      }
+      expect(optionNames).toContain('AKC Scent Work Entry Form');
+      expect(optionNames).toContain('Check-in Sheet');
+    });
+
+    it('fails open to the full catalog when no trials are loaded', async () => {
+      render(<ReportControlsBar {...defaultProps} trials={[]} />);
+      const optionNames = await openReportDropdown();
+
+      expect(optionNames).toHaveLength(reportRegistry.length);
+      expect(optionNames).toContain('UKC Nosework Entry Form');
+      expect(optionNames).toContain('ASCA Scent Detection Entry Form');
+    });
+
+    it('fails open to the full catalog when a trial carries an unknown registry value', async () => {
+      render(
+        <ReportControlsBar
+          {...defaultProps}
+          trials={[{ ...akcTrials[0], registry_id: 'NOT-A-REGISTRY' }]}
+        />
+      );
+      const optionNames = await openReportDropdown();
+
+      expect(optionNames).toHaveLength(reportRegistry.length);
+      expect(optionNames).toContain('UKC Nosework Entry Form');
+    });
+
+    it('keeps a deep-linked out-of-scope report listed', async () => {
+      render(
+        <ReportControlsBar
+          {...defaultProps}
+          reportType="ukc-nosework-entry-form"
+          trials={akcTrials}
+        />
+      );
+      const optionNames = await openReportDropdown();
+
+      expect(optionNames).toContain('UKC Nosework Entry Form');
+      expect(optionNames).not.toContain('ASCA Scent Detection Entry Form');
+    });
+
+    it('renders no heading for a phase left empty after registry scoping', async () => {
+      const mocked = vi.mocked(getReportsForRegistries);
+      const realImplementation = mocked.getMockImplementation();
+      const beforeOnly = reportRegistry.filter(r => r.phase === 'before');
+      expect(beforeOnly.length).toBeGreaterThan(0);
+      mocked.mockImplementation(() => beforeOnly);
+
+      try {
+        const user = userEvent.setup();
+        render(<ReportControlsBar {...defaultProps} />);
+        await user.click(screen.getByRole('combobox', { name: /^report$/i }));
+
+        expect(await screen.findByText(PHASE_LABELS.before)).toBeInTheDocument();
+        expect(screen.queryByText(PHASE_LABELS.during)).not.toBeInTheDocument();
+        expect(screen.queryByText(PHASE_LABELS.after)).not.toBeInTheDocument();
+        expect(screen.queryByText(PHASE_LABELS.anytime)).not.toBeInTheDocument();
+      } finally {
+        if (realImplementation) mocked.mockImplementation(realImplementation);
       }
     });
   });

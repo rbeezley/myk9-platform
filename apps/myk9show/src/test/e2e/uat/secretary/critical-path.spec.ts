@@ -134,7 +134,7 @@ test.describe('Phase 1 UAT - Secretary critical path', () => {
     const picker = page.locator('label:has-text("Report")').locator('..').getByRole('combobox');
     await picker.click();
 
-    for (const label of ['Operational', 'Organization', 'Financial', 'Statistics']) {
+    for (const label of ['Before the show', 'During the show', 'After the show', 'Anytime']) {
       await expect(page.getByRole('group').filter({ hasText: label }).first()).toBeVisible();
     }
 

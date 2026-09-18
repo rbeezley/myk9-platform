@@ -32,7 +32,6 @@ function classResult(classId: string, placementCount: number): ClassResult {
 
 const baseInput: ShowDetailTabDefsInput = {
   isAuthenticated: true,
-  canShowMap: false,
   trialCount: 4,
   classCount: 10,
   submittedEntryHistoryCount: 0,
@@ -163,28 +162,24 @@ describe("buildShowManagementTabDefs — the secretary's one row of six", () => 
 });
 
 describe('the Show Map tab on the exhibitor strip', () => {
-  // #2180 put club admins on the EXHIBITOR surface deliberately, and
-  // `canShowMap = features.showMap && canManageShow` is true for them. Before
-  // MYK9-630 phase 2 that strip carried their Show Map; a site admin or scoped
-  // secretary now gets it inside the Setup tab instead. Dropping it here took
-  // the map away from club admins entirely.
-  it('offers a Show Map to a viewer who may see one', () => {
-    expect(buildShowDetailTabDefs({ ...baseInput, canShowMap: true }).map(tab => tab.id)).toContain(
-      'map'
-    );
-  });
-
-  it('offers none to a viewer who may not', () => {
+  // REWRITTEN. #2180 put club admins on the EXHIBITOR surface, so phase 2 kept
+  // their Show Map on this strip while secretaries got it inside Setup — two
+  // maps, one of them reachable only by a role that had no tabs. MYK9-630
+  // phase 3 gives club admins the six tabs, so every viewer with
+  // `canManageShow` now renders `ShowManagementShell` and NOBODY can reach a
+  // `?tab=map` on this strip. The tab is gone, and so is the duplication.
+  it('offers no Show Map to anyone — a manager is on the six-tab surface', () => {
+    expect(buildShowDetailTabDefs(baseInput).map(tab => tab.id)).not.toContain('map');
     expect(
-      buildShowDetailTabDefs({ ...baseInput, canShowMap: false }).map(tab => tab.id)
+      buildShowDetailTabDefs({ ...baseInput, isAuthenticated: false }).map(tab => tab.id)
     ).not.toContain('map');
   });
 
-  it('puts it directly after Overview, where it has always been', () => {
+  it('starts at Overview and goes straight to Trials', () => {
     expect(
-      buildShowDetailTabDefs({ ...baseInput, canShowMap: true })
+      buildShowDetailTabDefs(baseInput)
         .slice(0, 2)
         .map(tab => tab.id)
-    ).toEqual(['overview', 'map']);
+    ).toEqual(['overview', 'trials']);
   });
 });

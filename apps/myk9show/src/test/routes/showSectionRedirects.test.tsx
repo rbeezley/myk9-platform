@@ -239,6 +239,14 @@ interface GateState {
   rbacIsLoading: boolean;
   /** null = RBAC settled with zero roles; [] = roles, no club scope; scoped = manager. */
   scopes: null | Array<{ scopeType: ScopeType; scopeId: string; roleId: UserRole }>;
+  /**
+   * The GLOBAL role `hasRole()` reports. Defaults to secretary. Club-admin rows
+   * pass `UserRole.CLUB_ADMIN`: since MYK9-630 phase 3 a club-scoped club admin
+   * manages the show, so every transient state below must treat them exactly as
+   * it treats a secretary — a club admin must never be bounced off a tab by a
+   * warm RBAC refresh or a cold auth window.
+   */
+  role?: UserRole;
 }
 
 type GateOutcome = 'mounted' | 'held' | 'redirected';
@@ -257,6 +265,14 @@ function deriveAuth(state: GateState) {
 }
 
 const SCOPED = [{ scopeType: ScopeType.CLUB, scopeId: 'club-a', roleId: UserRole.SECRETARY }];
+/** A club admin of `club-a` — the club that owns `show-1`. */
+const SCOPED_CLUB_ADMIN = [
+  { scopeType: ScopeType.CLUB, scopeId: 'club-a', roleId: UserRole.CLUB_ADMIN },
+];
+/** The positive control: a club admin of a DIFFERENT club. */
+const SCOPED_OTHER_CLUB_ADMIN = [
+  { scopeType: ScopeType.CLUB, scopeId: 'club-b', roleId: UserRole.CLUB_ADMIN },
+];
 
 describe('ShowManagementSectionRoute over every reachable auth state', () => {
   afterEach(() => {
@@ -268,8 +284,8 @@ describe('ShowManagementSectionRoute over every reachable auth state', () => {
     const derived = deriveAuth(state);
     mockAuth.loading = derived.loading;
     mockAuth.rbacLoading = derived.rbacLoading;
-    mockAuth.hasRole = (role: string) =>
-      derived.userWithRoles !== null && role === UserRole.SECRETARY;
+    const globalRole = state.role ?? UserRole.SECRETARY;
+    mockAuth.hasRole = (role: string) => derived.userWithRoles !== null && role === globalRole;
     mockAuth.userWithRoles = derived.userWithRoles;
 
     render(
@@ -330,6 +346,76 @@ describe('ShowManagementSectionRoute over every reachable auth state', () => {
     [
       'RBAC load FAILED: settled with zero roles',
       { authLoading: false, rbacBelongs: true, rbacIsLoading: false, scopes: null },
+      'redirected',
+    ],
+    // ---- club admin (MYK9-630 phase 3): identical verdicts to the secretary
+    // rows above. Before phase 3 these rows had no meaning, because a club
+    // admin was admitted to the section route and then handed the exhibitor
+    // body; now the route and the surface are one decision.
+    [
+      'club admin of this club, fully loaded',
+      {
+        authLoading: false,
+        rbacBelongs: true,
+        rbacIsLoading: false,
+        scopes: SCOPED_CLUB_ADMIN,
+        role: UserRole.CLUB_ADMIN,
+      },
+      'mounted',
+    ],
+    [
+      'club admin, WARM refresh (5-minute interval / online event)',
+      {
+        authLoading: false,
+        rbacBelongs: true,
+        rbacIsLoading: true,
+        scopes: SCOPED_CLUB_ADMIN,
+        role: UserRole.CLUB_ADMIN,
+      },
+      'mounted',
+    ],
+    [
+      'club admin, offline cold boot with roles hydrated from cache',
+      {
+        authLoading: false,
+        rbacBelongs: true,
+        rbacIsLoading: false,
+        scopes: SCOPED_CLUB_ADMIN,
+        role: UserRole.CLUB_ADMIN,
+      },
+      'mounted',
+    ],
+    [
+      'club admin, COLD auth window: roles present, club scopes not landed',
+      {
+        authLoading: false,
+        rbacBelongs: true,
+        rbacIsLoading: true,
+        scopes: [],
+        role: UserRole.CLUB_ADMIN,
+      },
+      'held',
+    ],
+    [
+      'club admin, RBAC load FAILED: settled with zero roles',
+      {
+        authLoading: false,
+        rbacBelongs: true,
+        rbacIsLoading: false,
+        scopes: null,
+        role: UserRole.CLUB_ADMIN,
+      },
+      'redirected',
+    ],
+    [
+      'club admin of ANOTHER club, fully loaded',
+      {
+        authLoading: false,
+        rbacBelongs: true,
+        rbacIsLoading: false,
+        scopes: SCOPED_OTHER_CLUB_ADMIN,
+        role: UserRole.CLUB_ADMIN,
+      },
       'redirected',
     ],
   ])('%s -> %s', async (_label, state, expected) => {

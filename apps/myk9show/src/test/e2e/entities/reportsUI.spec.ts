@@ -6,13 +6,16 @@ import { signInAsSecretary } from '../helpers/testUsers';
  *
  * Strategy:
  *   - Sign in as the secretary fixture, land on /secretary/reports.
- *   - Open the report-type dropdown and verify the four category groups
- *     render (Operational / Organization / Financial / Statistics).
+ *   - Open the report-type dropdown and verify the four SHOW-PHASE groups
+ *     render (Before / During / After the show, Anytime). MYK9-630 phase 3
+ *     replaced the old category headings (Operational / Organization /
+ *     Financial / Statistics) with these; the reports themselves are
+ *     unchanged and none is gated by show status.
  *   - Pick "Financial Report" and verify it renders the report header (with
  *     either fee-bearing rows or the empty-state — either path proves
  *     reachability).
  *   - Regression guard for the /qa-feature shows-as-secretary walk
- *     (2026-04-26): financial + statistics categories were silently hidden
+ *     (2026-04-26): financial + statistics reports were silently hidden
  *     by the dropdown's category filter.
  *
  * Auth: TEST_USERS.SECRETARY (`secretary@myk9t.com`, password in env).
@@ -40,10 +43,12 @@ test.describe('Reports UI — secretary', () => {
     await page.goto(REPORTS_PATH);
     await getReportPicker(page).click();
 
-    // INTENT (regression guard): all four group labels must be present in the
-    // listbox. Previously only Operational + Organization rendered, hiding
-    // Financial Report and the four entry-counts statistics reports.
-    for (const label of ['Operational', 'Organization', 'Financial', 'Statistics']) {
+    // INTENT (regression guard, carried across the MYK9-630 phase-3 regroup):
+    // all four group labels must be present in the listbox. The guard exists
+    // because a grouping map that omits a bucket silently hides every report in
+    // it — that is how Financial Report and the four entry-counts reports
+    // disappeared for weeks under the old category headings.
+    for (const label of ['Before the show', 'During the show', 'After the show', 'Anytime']) {
       await expect(page.getByRole('group').filter({ hasText: label }).first()).toBeVisible();
     }
 

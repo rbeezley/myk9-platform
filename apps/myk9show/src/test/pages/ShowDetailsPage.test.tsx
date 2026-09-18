@@ -12,7 +12,10 @@ const notificationsSuccessMock = vi.hoisted(() => vi.fn());
 const getEntriesForShowMock = vi.hoisted(() => vi.fn());
 const getEntriesByShowMock = vi.hoisted(() => vi.fn());
 const showEditPanelMock = vi.hoisted<{
-  impl: (props: { onSave: (data: Record<string, unknown>) => Promise<void> }) => React.ReactNode;
+  impl: (props: {
+    open?: boolean;
+    onSave: (data: Record<string, unknown>) => Promise<void>;
+  }) => React.ReactNode;
 }>(() => ({
   impl: () => null,
 }));
@@ -1153,13 +1156,15 @@ describe('ShowDetailsPage', () => {
     expect(strong.closest('span')?.parentElement).toHaveTextContent('entries');
   });
 
-  describe('a club admin, who is admitted to the section routes but not to the shell', () => {
-    // `ShowManagementSectionRoute` admits anyone `canManageShowSurface` allows,
-    // which includes a club-scoped CLUB ADMIN. The management shell renders only
-    // for a site admin or a scoped secretary -- #2180 put club admins on the
-    // exhibitor view deliberately. So a club admin reaches the section routes on
-    // the EXHIBITOR surface, and both surfaces must hand the section pages the
-    // same outlet context or the Setup page renders nothing at all.
+  describe('a club admin, who manages this show (MYK9-630 phase 3)', () => {
+    // REWRITTEN. #2180 admitted a club-scoped CLUB ADMIN to the section routes
+    // (`canManageShowSurface`) but held them on the exhibitor surface with a
+    // second, narrower predicate. Every finding since came out of that gap — a
+    // blank `/shows/:id/setup` (#2331) and an inert "Show settings…" that left
+    // `?edit=true` in their URL (MYK9-653). Richard's ruling on 2026-09-18:
+    // club admins are managers and get the same six tabs as a secretary. One
+    // predicate now decides the surface, the section routes, the header Actions
+    // menu and the Show settings panel.
     beforeEach(() => {
       mockAuthContext.isSecretary = false;
       mockAuthContext.isAdmin = false;
@@ -1186,16 +1191,81 @@ describe('ShowDetailsPage', () => {
       expect(await screen.findByRole('group', { name: /setup section/i })).toBeInTheDocument();
     });
 
-    it('still has a Show Map — theirs lives on this strip, not in Setup', () => {
+    it('gets the six-tab management strip, like a secretary', () => {
       renderPage();
 
-      expect(screen.getByRole('tab', { name: /^Show Map/ })).toBeInTheDocument();
+      for (const label of [
+        /^Overview/,
+        /^Setup/,
+        /^Entries/,
+        /^Show Day/,
+        /^Results/,
+        /^Reports/,
+      ]) {
+        expect(screen.getByRole('tab', { name: label })).toBeInTheDocument();
+      }
     });
 
-    it('is not given the secretary six-tab strip', () => {
+    it('has ONE Show Map — inside Setup, not a second tab on the exhibitor strip', () => {
+      renderPage();
+
+      expect(screen.queryByRole('tab', { name: /^Show Map/ })).toBeNull();
+    });
+
+    // MYK9-653, absorbed by this change. The bug was that "Show settings…" in
+    // the header Actions menu appended `?edit=true` for a club admin, nothing
+    // opened (only `ShowManagementShell` mounts `ShowEditPanel`), and the param
+    // was never stripped, so it rode along into every later in-page navigation.
+    // Now the shell IS their surface, so the same link opens the panel and the
+    // shell's own effect cleans the URL.
+    it('opens Show settings in place on ?edit=true and strips the param (MYK9-653)', async () => {
+      showEditPanelMock.impl = ({ open }) => (open ? <div data-testid="show-edit-panel" /> : null);
+
+      renderPage('show-1', '', '?edit=true');
+
+      expect(await screen.findByTestId('show-edit-panel')).toBeInTheDocument();
+      await waitFor(() =>
+        expect(screen.getByTestId('page-location')).toHaveTextContent('/shows/show-1')
+      );
+      expect(screen.getByTestId('page-location').textContent).not.toContain('edit=true');
+    });
+
+    it('never renders the exhibitor body', () => {
+      renderPage();
+
+      expect(screen.queryByRole('tab', { name: /^My Entries/ })).toBeNull();
+      expect(screen.queryByRole('tab', { name: /^Trials/ })).toBeNull();
+    });
+  });
+
+  describe('a club admin of ANOTHER club — the positive control', () => {
+    // The gate is club-scoped. Widening the surface must not widen the role:
+    // scoping this fixture to `club-2` while the show belongs to `club-1` is
+    // the only difference from the block above.
+    beforeEach(() => {
+      mockAuthContext.isSecretary = false;
+      mockAuthContext.isAdmin = false;
+      mockAuthContext.hasRole.mockImplementation((...args: unknown[]) => args[0] === 'club_admin');
+      mockAuthContext.userWithRoles = {
+        databaseUserId: 'person-1',
+        scopes: [
+          {
+            userId: 'user-1',
+            roleId: 'club_admin',
+            scopeType: 'club',
+            scopeId: 'club-2',
+            createdAt: new Date(),
+          },
+        ],
+      };
+    });
+
+    it('gets no management tabs', () => {
       renderPage();
 
       expect(screen.queryByRole('tab', { name: /^Show Day/ })).toBeNull();
+      expect(screen.queryByRole('tab', { name: /^Setup/ })).toBeNull();
+      expect(screen.queryByRole('tab', { name: /^Reports/ })).toBeNull();
     });
   });
 

@@ -10,7 +10,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { getReportById, getReportsForRegistries } from '@/lib/reports/reportRegistry';
-import type { ReportCategory, ReportDefinition } from '@/lib/reports/types';
+import type { ReportDefinition, ReportPhase } from '@/lib/reports/types';
 import { resolveConfiguredRegistryId, type RegistryId } from '@/features/registries';
 import { formatClassLabel } from '@/lib/utils';
 import { AlertTriangle, Download } from 'lucide-react';
@@ -124,16 +124,19 @@ interface ReportControlsBarProps {
   officialPdfAction?: OfficialPdfAction | undefined;
 }
 
-// Order chosen so the most-used categories stay at the top of the dropdown.
-// Adding a category to the `ReportCategory` union without extending this map
-// fails TypeScript here, which prevents the kind of silent omission that
-// hid Financial + Statistics for several weeks (fixed 2026-04-26).
-const REPORT_GROUP_ORDER: ReadonlyArray<{ category: ReportCategory; label: string }> = [
-  { category: 'operational', label: 'Operational' },
-  { category: 'organization', label: 'Organization' },
-  { category: 'financial', label: 'Financial' },
-  { category: 'statistics', label: 'Statistics' },
-];
+// Ordered as the show itself runs, so the secretary scans the phase she is in.
+// The `Record<ReportPhase, string>` below is the guard the old category map
+// carried: adding a phase to the `ReportPhase` union without extending it fails
+// TypeScript here, which prevents the kind of silent omission that hid Financial
+// + Statistics for several weeks (fixed 2026-04-26).
+const PHASE_LABELS: Record<ReportPhase, string> = {
+  before: 'Before the show',
+  during: 'During the show',
+  after: 'After the show',
+  anytime: 'Anytime',
+};
+
+const REPORT_PHASE_ORDER: readonly ReportPhase[] = ['before', 'during', 'after', 'anytime'];
 
 export function ReportControlsBar({
   reportType,
@@ -155,11 +158,14 @@ export function ReportControlsBar({
 }: ReportControlsBarProps) {
   const selectedReport = getReportById(reportType);
   const visibleReports = getReportsForRegistries(getScopedRegistryIds(trials, trialId), reportType);
-  const reportsByCategory: Record<ReportCategory, ReportDefinition[]> = {
-    operational: visibleReports.filter(r => r.category === 'operational'),
-    organization: visibleReports.filter(r => r.category === 'organization'),
-    financial: visibleReports.filter(r => r.category === 'financial'),
-    statistics: visibleReports.filter(r => r.category === 'statistics'),
+  // Grouped from the ALREADY registry-scoped `visibleReports`, never from the
+  // whole registry: scope first, then group, so a UKC-only show never sees an
+  // AKC form under any heading.
+  const reportsByPhase: Record<ReportPhase, ReportDefinition[]> = {
+    before: visibleReports.filter(r => r.phase === 'before'),
+    during: visibleReports.filter(r => r.phase === 'during'),
+    after: visibleReports.filter(r => r.phase === 'after'),
+    anytime: visibleReports.filter(r => r.phase === 'anytime'),
   };
 
   const hasTrialScope = selectedReport?.scopes.includes('trial') ?? false;
@@ -221,10 +227,10 @@ export function ReportControlsBar({
             <SelectValue placeholder="Select report">{selectedReportLabel}</SelectValue>
           </SelectTrigger>
           <SelectContent>
-            {REPORT_GROUP_ORDER.map(({ category, label }) => (
-              <SelectGroup key={category}>
-                <SelectLabel>{label}</SelectLabel>
-                {reportsByCategory[category].map(report => (
+            {REPORT_PHASE_ORDER.filter(phase => reportsByPhase[phase].length > 0).map(phase => (
+              <SelectGroup key={phase}>
+                <SelectLabel>{PHASE_LABELS[phase]}</SelectLabel>
+                {reportsByPhase[phase].map(report => (
                   <SelectItem key={report.id} value={report.id} disabled={!report.enabled}>
                     {report.name}
                     {!report.enabled ? ' (Coming Soon)' : ''}

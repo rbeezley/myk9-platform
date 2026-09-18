@@ -170,18 +170,25 @@ links, sidebar, route registry, page directory and wizard-surface blocklist repo
 
 **Still open, and why:**
 
-- **Reports before/during/after grouping — NOT built, deliberately.** This section names 7 of the
-  registry's 37 reports (armband labels, check-in sheets, score sheets; preliminary results, result
-  labels; secretary and trial reports). The other 30 have no stated phase, and assigning them is a
-  judgement about a secretary's workflow — is a judge's book "before" or "during"? is a gross-receipts
-  form "after" or financial-anytime? Guessing a taxonomy and shipping it onto the print surface is
-  the trap in LESSONS `label-rule-vs-real-columns`. **Richard: name the phase for each report, or
-  confirm the rule (e.g. "operational → before/during by whether it is printed blank, organization →
-  after"), and it goes in as one mechanical change.**
+- ~~**Reports before/during/after grouping**~~ — **ANSWERED and built (phase 3).** Richard,
+  2026-09-18: group under before / during / after show headings **plus an "Anytime" group** for
+  reports that straddle phases, and the grouping is **headings only** — every report stays listed
+  and printable in every phase, nothing is gated by show status. A `phase` field now lives on each
+  of the 37 registry entries (`lib/reports/reportRegistry.ts`), replacing the unrendered `category`
+  field; the four headings are built from the already registry-scoped list, so an AKC show never
+  lists a UKC form under any heading. The proposed phase for each report is posted on MYK9-630 for
+  Richard to correct — a wrong phase costs a scroll, not access, which is what took this out of the
+  `label-rule-vs-real-columns` trap.
 - **Screenshots of all six tabs at desktop and 375px** as `secretary@myk9t.com` — owed.
-- **Should a club admin get the six tabs?** They are admitted to the section routes by
-  `canManageShowSurface` but get the exhibitor surface by `isManagementStaff` (#2180, deliberate).
-  Two findings have already come out of that split: the blank Setup page (fixed) and MYK9-653.
+- ~~**Should a club admin get the six tabs?**~~ — **ANSWERED: yes (phase 3).** Richard,
+  2026-09-18: club admins are managers. They get the same six-tab management surface as a
+  secretary, the header Actions menu and Show settings. This supersedes #2180's ruling. The second,
+  narrower `isManagementStaff` predicate is deleted: `canManageShow` (`canManageShowSurface`) alone
+  now decides the surface, the section routes, the Actions list and the Show settings panel, so no
+  two of them can disagree again. MYK9-653 is absorbed. The club-admin-only "Show Map" tab phase 2
+  left on the exhibitor strip is deleted with it — there is one Show Map again, inside Setup.
+  Mail-in entry stays secretary-only (`/secretary/register/:showId` is gated on SECRETARY /
+  SITE_ADMIN) and keeps its greyed "Trial secretary access only" reason.
 - **MYK9-635's unit question** — the queue chips count registrations while the show page counts
   entries. Both are stated; whether the chips should switch to entries is Richard's call.
 

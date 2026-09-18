@@ -19,6 +19,7 @@ import {
   LayoutDashboard,
   Trophy,
   ListChecks,
+  ListTree,
   ClipboardList,
   Medal,
   SlidersHorizontal,
@@ -66,6 +67,15 @@ const SHOW_TAB_ICONS: Record<ShowTabId, LucideIcon> = {
 
 export interface ShowDetailTabDefsInput {
   isAuthenticated: boolean;
+  /**
+   * This viewer may see the show map. True only for someone with
+   * `canManageShow`, which on THIS strip means a club-scoped club admin: a site
+   * admin or scoped secretary gets the management surface and its Setup tab
+   * instead (#2180 put club admins on the exhibitor view deliberately). Their
+   * map lived here before MYK9-630 phase 2 and still does -- one map per
+   * audience, never two for the same viewer.
+   */
+  canShowMap: boolean;
   trialCount: number;
   classCount: number;
   submittedEntryHistoryCount: number;
@@ -77,6 +87,7 @@ export interface ShowDetailTabDefsInput {
 export function buildShowDetailTabDefs(input: ShowDetailTabDefsInput): PrimaryTabDef[] {
   return [
     { id: 'overview', label: 'Overview', icon: LayoutDashboard },
+    ...(input.canShowMap ? [{ id: 'map', label: 'Show Map', icon: ListTree }] : []),
     { id: 'trials', label: 'Trials', icon: Trophy, count: input.trialCount },
     ...(input.isAuthenticated
       ? [

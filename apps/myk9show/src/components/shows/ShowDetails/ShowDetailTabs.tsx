@@ -1,3 +1,4 @@
+import React, { Suspense } from 'react';
 import { TabsContent } from '@/components/ui/tabs';
 import { PrimaryTabs, type PrimaryTabDef } from '@/components/common/PrimaryTabs';
 import { ShowOverviewTab } from '@/components/shows/tabs/ShowOverviewTab';
@@ -6,7 +7,10 @@ import { ClassesTab, type ClassInfo } from '@/components/shows/tabs/ClassesTab';
 import { MyEntriesTab } from '@/components/shows/tabs/MyEntriesTab';
 import { EntryDataUnavailablePanel } from '@/components/shows/ShowDetails/EntryDataUnavailablePanel';
 import { ShowResultsTab } from '@/components/results/ShowResultsTab';
+import { LoadingSkeleton } from '@/components/common/LoadingSkeleton';
 import type { Show } from '@/types/show-types';
+
+const ShowMapTab = React.lazy(() => import('@/features/show-map/ShowMapTab'));
 import type { Trial } from '@/components/trials/types/trial.types';
 import type { ShowJudgeAssignment } from '@/types/judge-types';
 import type {
@@ -49,6 +53,10 @@ export interface ShowDetailTabsProps {
 /**
  * The `?tab=` body for the PUBLIC and EXHIBITOR surfaces.
  *
+ * It keeps the Show Map panel because a club-scoped CLUB ADMIN lands here
+ * (#2180) and this is their only map -- a site admin or scoped secretary sees
+ * the management surface, where Show Map is a view inside Setup.
+ *
  * The secretary no longer has a `?tab=` strip: since MYK9-630 phase 2 their
  * show page is one row of six tabs, each a real route, rendered by
  * `ShowManagementShell`. The manager-only Entries and Show Map panels that used
@@ -62,12 +70,16 @@ export function ShowDetailTabs({
   activeTab,
   onTabChange,
   canManageShow,
+  canShowMap,
   isAuthenticated,
   hasUserEntries,
   judges,
   classes,
   trials,
   trialStats,
+  mapTrials,
+  mapClasses,
+  mapEntries,
   entryDataState = 'ready',
   onRetryEntryData,
   exhibitorEntryRows,
@@ -127,6 +139,28 @@ export function ShowDetailTabs({
       <TabsContent value="results">
         <ShowResultsTab showId={show.id} />
       </TabsContent>
+      {canShowMap && (
+        <TabsContent value="map">
+          {managerEntryDataUnavailable ? (
+            <EntryDataUnavailablePanel state={entryDataState} onRetry={onRetryEntryData} />
+          ) : (
+            <Suspense fallback={<LoadingSkeleton variant="cards" count={2} />}>
+              <ShowMapTab
+                show={show}
+                trials={mapTrials}
+                classes={mapClasses}
+                entries={mapEntries}
+                // INTENT: the public show page's map is view-only for EVERYONE,
+                // managers included. #291 decided it and
+                // docs/archive/plan-show-map-workbench-collapse.md carries it as
+                // an architectural commitment. The manager action layer lives on
+                // Show Day. Do not "fix" this to true.
+                canManageShow={false}
+              />
+            </Suspense>
+          )}
+        </TabsContent>
+      )}
     </PrimaryTabs>
   );
 }

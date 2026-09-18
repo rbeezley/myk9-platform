@@ -1,5 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import {
+  SHOW_MANAGEMENT_SECTIONS,
+  LEGACY_SHOW_SECTION_REDIRECTS,
+} from '@/routes/showManagementSections';
+import {
   currentSurface,
   isWizardSurface,
   isPathInWizardAllowlist,
@@ -57,5 +61,28 @@ describe('isPathInWizardAllowlist', () => {
     expect(isPathInWizardAllowlist('/shows/abc-123/reports')).toBe(false);
     expect(isPathInWizardAllowlist('/shows/abc-123/results-control')).toBe(false);
     expect(isPathInWizardAllowlist('/shows/abc-123/submit-results')).toBe(false);
+  });
+});
+
+describe('the wizard surface blocks every show-management tab', () => {
+  // The allowlist carries a blanket `/shows/:id/*`, so a tab MISSING from the
+  // blocklist is wide open under the gated early-access surface. When MYK9-630
+  // phase 2 renamed the sections, a stale blocklist left Entries, Show Day and
+  // Results reachable while Setup and Reports stayed blocked — the exact
+  // inverse of this file's "hide aggressively" intent. Driven off the route
+  // model so the next rename cannot pass.
+  it.each(SHOW_MANAGEMENT_SECTIONS.map(section => section.path))('blocks /shows/:id/%s', path => {
+    expect(isPathInWizardAllowlist(`/shows/abc/${path}`)).toBe(false);
+  });
+
+  it.each(Object.keys(LEGACY_SHOW_SECTION_REDIRECTS))(
+    'blocks the legacy /shows/:id/%s, which redirects into a blocked tab',
+    path => {
+      expect(isPathInWizardAllowlist(`/shows/abc/${path}`)).toBe(false);
+    }
+  );
+
+  it('still allows the show page itself', () => {
+    expect(isPathInWizardAllowlist('/shows/abc')).toBe(true);
   });
 });

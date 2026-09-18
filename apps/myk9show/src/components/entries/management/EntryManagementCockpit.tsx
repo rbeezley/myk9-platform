@@ -261,8 +261,9 @@ export function EntryManagementCockpit({
           every queue — the two numbers count registrations and entries. Both
           come from one pass over the groups the list itself is built from, so
           the page states the pair rather than showing one and implying the
-          other. */}
-      {!trialScopePending && (
+          other. Withheld under a scope or a search, where neither number would
+          be true of the rows below -- see `useEntryManagementCockpit`. */}
+      {!trialScopePending && cockpit.queueTotalsDescribeWholeShow && (
         <p className="text-sm text-muted-foreground" data-testid="registration-totals">
           {cockpit.queueTotals.registrationCount}{' '}
           {cockpit.queueTotals.registrationCount === 1 ? 'registration' : 'registrations'} &middot;{' '}

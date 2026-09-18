@@ -155,16 +155,6 @@ export function summarizeShowRegistrationTotals(
   };
 }
 
-export function getScopedShowRegistrationTotals(
-  groups: ShowRegistrationGroup[],
-  classId: string | null | undefined,
-  trialClassIds: readonly string[] | undefined
-): ShowRegistrationTotals {
-  return summarizeShowRegistrationTotals(
-    scopeShowRegistrationGroups(groups, classId, trialClassIds)
-  );
-}
-
 export function getShowRegistrationQueueCounts(
   groups: ShowRegistrationGroup[]
 ): ShowRegistrationQueueCounts {

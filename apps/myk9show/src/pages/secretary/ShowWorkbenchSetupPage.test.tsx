@@ -2,7 +2,8 @@ import { describe, expect, it, vi } from 'vitest';
 import { render, screen } from '@/test/utils/testUtils';
 import userEvent from '@testing-library/user-event';
 import { Route, Routes, Outlet, useLocation } from 'react-router-dom';
-import { ShowWorkbenchSetupPage, resolveSetupSection } from './ShowWorkbenchSetupPage';
+import { ShowWorkbenchSetupPage } from './ShowWorkbenchSetupPage';
+import { resolveSetupSection } from './showSetupSections';
 import type { ShowDetailTabsProps } from '@/components/shows/ShowDetails/ShowDetailTabs';
 
 vi.mock('@/components/shows/tabs/TrialsTab', () => ({

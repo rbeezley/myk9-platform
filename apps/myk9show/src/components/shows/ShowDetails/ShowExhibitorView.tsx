@@ -133,7 +133,14 @@ export function ShowExhibitorView({
       />
 
       {isManagementSection ? (
-        <Outlet />
+        // The SAME context the management shell supplies. `ShowManagementSectionRoute`
+        // admits anyone `canManageShowSurface` allows -- which includes a
+        // club-scoped CLUB ADMIN -- while the management shell only renders for
+        // a site admin or a scoped secretary (#2180, deliberate). So a club
+        // admin reaches `/shows/:id/setup` on THIS surface, and without the
+        // context the Setup page renders nothing at all. One context object,
+        // both surfaces; a section page can never depend on which one mounted it.
+        <Outlet context={tabs} />
       ) : isWaitingForEntryDefault ? (
         <div className="mt-6">
           <LoadingSkeleton variant="cards" count={2} />

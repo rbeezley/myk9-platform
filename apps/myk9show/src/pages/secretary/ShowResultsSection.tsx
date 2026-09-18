@@ -7,14 +7,14 @@ import { LoadingSkeleton } from '@/components/common/LoadingSkeleton';
 const ResultsControlPage = lazy(() => import('@/pages/secretary/ResultsControlPage'));
 const ResultsSubmissionPage = lazy(() => import('@/pages/secretary/ResultsSubmissionPage'));
 
-export const RESULTS_STEPS = [
+const RESULTS_STEPS = [
   { id: 'release', label: 'Review & release' },
   { id: 'submit', label: 'Submit to registry' },
 ] as const;
 
-export type ResultsStepId = (typeof RESULTS_STEPS)[number]['id'];
+type ResultsStepId = (typeof RESULTS_STEPS)[number]['id'];
 
-export function resolveResultsStep(raw: string | null): ResultsStepId {
+function resolveResultsStep(raw: string | null): ResultsStepId {
   return raw === 'submit' ? 'submit' : 'release';
 }
 

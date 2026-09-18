@@ -4,7 +4,6 @@ import { useBulkSelection } from '@/hooks/useBulkSelection';
 import {
   buildShowRegistrationPage,
   getScopedShowRegistrationQueueCounts,
-  getScopedShowRegistrationTotals,
   getShowRegistrationQueueCounts,
   summarizeShowRegistrationTotals,
   getVisiblePageSelectionState,
@@ -89,19 +88,18 @@ export function useEntryManagementCockpit({
           ),
     [groups, state.classId, state.search, state.trialId, trialClassIds]
   );
-  // The same groups, the same scope, one pass: the chips, the list and the
-  // totals line can never report three different shows (MYK9-635).
-  const queueTotals = useMemo(
-    () =>
-      state.search
-        ? summarizeShowRegistrationTotals(groups)
-        : getScopedShowRegistrationTotals(
-            groups,
-            state.classId,
-            state.trialId && trialClassIds ? trialClassIds : undefined
-          ),
-    [groups, state.classId, state.search, state.trialId, trialClassIds]
-  );
+  // WHOLE-SHOW totals, and said so only when they are true of what is on
+  // screen (MYK9-635). A scope cannot be applied to them honestly: the class
+  // filter keeps whole REGISTRATIONS whose entries touch the class, so summing
+  // `entryCount` over them counts entries in other classes too -- one
+  // registration with e1 in class-a and e2 in class-b, scoped to class-a, reads
+  // "1 registration, 2 entries". Search is worse: the chip counts already fall
+  // back to the whole show. Rather than print a number that is wrong for the
+  // current view -- which IS the bug this line exists to fix -- the line is
+  // withheld while a scope or a search is active. The chips and the queue's own
+  // "Showing X-Y of N" describe the filtered view.
+  const queueTotals = useMemo(() => summarizeShowRegistrationTotals(groups), [groups]);
+  const queueTotalsDescribeWholeShow = !state.search && !state.classId && !state.trialId;
   const focusedGroup =
     builtPage.effectiveGroups.find(group => group.groupKey === state.registrationKey) ??
     builtPage.page.items[0] ??
@@ -130,6 +128,7 @@ export function useEntryManagementCockpit({
     groups,
     queueCounts,
     queueTotals,
+    queueTotalsDescribeWholeShow,
     page: builtPage.page,
     effectiveGroups: builtPage.effectiveGroups,
     matchingEntryIdsByGroup: builtPage.matchingEntryIdsByGroup,

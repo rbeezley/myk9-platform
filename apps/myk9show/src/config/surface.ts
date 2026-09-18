@@ -37,11 +37,20 @@ export const WIZARD_SURFACE_PATHS = [
   '/shows/:id/*',
 ] as const;
 
+// The six show tabs are all management surfaces, so all five child routes are
+// blocked -- and so are the legacy URLs that redirect into them, or the
+// redirect would be the way around the block. The allowlist carries a blanket
+// `/shows/:id/*`, so anything missing from this list is WIDE OPEN; when a tab
+// is renamed, rename it here in the same commit (MYK9-630 phase 2).
 const WIZARD_SURFACE_BLOCKED_PATHS = [
   '/shows/:id/setup',
+  '/shows/:id/entries',
+  '/shows/:id/show-day',
+  '/shows/:id/results',
+  '/shows/:id/reports',
+  // Legacy, still routable because they redirect into the tabs above.
   '/shows/:id/show-desk',
   '/shows/:id/entry-management',
-  '/shows/:id/reports',
   '/shows/:id/results-control',
   '/shows/:id/submit-results',
 ] as const;

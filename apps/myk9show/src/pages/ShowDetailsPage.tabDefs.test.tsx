@@ -32,6 +32,7 @@ function classResult(classId: string, placementCount: number): ClassResult {
 
 const baseInput: ShowDetailTabDefsInput = {
   isAuthenticated: true,
+  canShowMap: false,
   trialCount: 4,
   classCount: 10,
   submittedEntryHistoryCount: 0,
@@ -158,5 +159,32 @@ describe("buildShowManagementTabDefs — the secretary's one row of six", () => 
       resultsCount: 2,
     }).find(tab => tab.id === 'setup');
     expect(setup?.count).toBeUndefined();
+  });
+});
+
+describe('the Show Map tab on the exhibitor strip', () => {
+  // #2180 put club admins on the EXHIBITOR surface deliberately, and
+  // `canShowMap = features.showMap && canManageShow` is true for them. Before
+  // MYK9-630 phase 2 that strip carried their Show Map; a site admin or scoped
+  // secretary now gets it inside the Setup tab instead. Dropping it here took
+  // the map away from club admins entirely.
+  it('offers a Show Map to a viewer who may see one', () => {
+    expect(buildShowDetailTabDefs({ ...baseInput, canShowMap: true }).map(tab => tab.id)).toContain(
+      'map'
+    );
+  });
+
+  it('offers none to a viewer who may not', () => {
+    expect(
+      buildShowDetailTabDefs({ ...baseInput, canShowMap: false }).map(tab => tab.id)
+    ).not.toContain('map');
+  });
+
+  it('puts it directly after Overview, where it has always been', () => {
+    expect(
+      buildShowDetailTabDefs({ ...baseInput, canShowMap: true })
+        .slice(0, 2)
+        .map(tab => tab.id)
+    ).toEqual(['overview', 'map']);
   });
 });

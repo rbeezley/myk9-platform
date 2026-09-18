@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo } from 'react';
-import { useParams, useNavigate, useSearchParams, useMatch } from 'react-router-dom';
+import { useParams, useNavigate, useSearchParams, useMatch, useLocation } from 'react-router-dom';
 import { readEntryDogId, withEntryDogContext } from '@/features/registration/entryDogContext';
 import { type PrimaryTabDef } from '@/components/common/PrimaryTabs';
 import { useUrlTab } from '@/hooks/useUrlTab';
@@ -61,6 +61,7 @@ const ShowDetailsPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
+  const { hash } = useLocation();
   const managementSectionMatch = useMatch('/shows/:id/:section/*');
   const { endNavigation } = useNavigationPerformance();
   const {
@@ -208,6 +209,16 @@ const ShowDetailsPage: React.FC = () => {
   const isWaitingForExhibitorEntryDefault =
     isAuthenticated && !canManageShow && !requestedTab && exhibitorEntryDataState === 'loading';
 
+  // ONE notion of "we do not yet know who this viewer is": RBAC is still
+  // loading AND no roles have arrived. `!rbacLoading` alone is NOT it --
+  // `useRbacLifecycle` flips `isLoading` back to true on its 5-minute refresh
+  // and on every `online` event while PRESERVING `userWithRoles`, so a narrower
+  // predicate would drop an exhibitor's My Entries tab (and flip the body back
+  // to Overview) mid-session, every five minutes. Same predicate the audience
+  // gate uses, and the same shape as `areRolesResolved` in App.tsx.
+  const viewerRolesUnresolved = rbacLoading && !userWithRoles;
+  const viewerRolesResolved = !viewerRolesUnresolved;
+
   // Decide which surface this visitor sees. Staff (secretary / admin / club_admin)
   // and management-section URLs reach the tabbed/management UI; non-staff visitors
   // with no entries get the styled marketing landing; an authenticated visitor whose
@@ -217,7 +228,7 @@ const ShowDetailsPage: React.FC = () => {
     forcePublicPreview: searchParams.get('preview') === 'public',
     canManageShow,
     isManagementStaff: isAdmin || isScopedSecretary,
-    rbacLoading: rbacLoading && !userWithRoles,
+    rbacLoading: viewerRolesUnresolved,
     isAuthenticated,
     userEntriesLoading: exhibitorEntryDataState === 'loading',
     hasUserEntries: hasOwnedEntryHistory,
@@ -234,30 +245,33 @@ const ShowDetailsPage: React.FC = () => {
 
   // Tab state — URL-synced with dynamic allowed tabs
   const canShowMap = features.showMap && canManageShow;
-  // MYK9-634 root cause: `useShowManageGate` cannot tell "not a manager" from
-  // "not resolved yet", so on a COLD load with `?tab=my-entries` a secretary is
-  // an exhibitor for the first renders -- and because the exhibitor's "My
-  // Entries" tab and the manager's "Entries" tab shared the id `my-entries`,
-  // `useUrlTab` kept that id valid and mounted the EXHIBITOR body, over the
-  // whole show's rows, for a manager. Clicking the tab never did this, because
-  // by then the scope had resolved: that is the deep-link/click asymmetry.
+  // MYK9-630 phase 2 removed the hazard MYK9-634 was filed against: the
+  // exhibitor "My Entries" tab and the manager "Entries" tab shared the id
+  // `my-entries`, and `useShowManageGate` cannot tell "not a manager" from "not
+  // resolved yet", so one id could resolve to two different bodies across a
+  // single load. A manager has no `?tab=` strip at all now and
+  // `?tab=my-entries` redirects to `/shows/:id/entries`, so the id is no longer
+  // shared by anyone.
   //
-  // So the entries tab is not offered at all until the viewer's roles have
-  // resolved. No hold, no skeleton: the strip is simply one tab shorter for the
-  // moment it takes, and `useUrlTab` falls back to Overview meanwhile. A
-  // manager is then redirected to `/shows/:id/entries` (see above) and an
-  // exhibitor gets their own tab back.
-  const viewerRolesResolved = !rbacLoading;
+  // NOT a claim that this was the observed production crash: on `origin/main`
+  // the `pending` audience already held the page while roles were cold, and no
+  // test reproduces that failure. See the PR body and MYK9-634.
+  //
+  // The guard below is its own, narrower point: a tab whose BODY depends on who
+  // the viewer is must not render before that is known. No hold and no
+  // skeleton -- the strip is one tab shorter for the moment it takes, and
+  // `useUrlTab` falls back to Overview meanwhile.
   const allowedTabs = useMemo(() => {
     if (!isAuthenticated) return ['overview', 'trials', 'classes', 'results'];
     return [
       'overview',
+      ...(canShowMap ? ['map'] : []),
       'trials',
       ...(viewerRolesResolved ? ['my-entries'] : []),
       'classes',
       'results',
     ];
-  }, [isAuthenticated, viewerRolesResolved]);
+  }, [isAuthenticated, canShowMap, viewerRolesResolved]);
   // `useUrlTab` does NOT validate `defaultTab` against `allowedTabs`, so this
   // has to carry the same roles-resolved guard or the default would mount the
   // very body the guard above exists to keep off the page.
@@ -396,11 +410,14 @@ const ShowDetailsPage: React.FC = () => {
       nextParams.set(key, value);
     }
     const query = nextParams.toString();
+    // The hash rides along, exactly as `LegacyShowSectionRedirect` does it: a
+    // bookmark is as likely to carry `#…` as `?…`, and two redirect paths that
+    // disagree about it is a bug waiting for whichever one is untested.
     navigate(
-      `/shows/${id}${legacyTabTarget.path ? `/${legacyTabTarget.path}` : ''}${query ? `?${query}` : ''}`,
+      `/shows/${id}${legacyTabTarget.path ? `/${legacyTabTarget.path}` : ''}${query ? `?${query}` : ''}${hash}`,
       { replace: true }
     );
-  }, [id, legacyTabTarget, navigate, searchParams]);
+  }, [hash, id, legacyTabTarget, navigate, searchParams]);
 
   function handleRegisterForShow(): void {
     if (showId) {
@@ -424,6 +441,7 @@ const ShowDetailsPage: React.FC = () => {
     () =>
       buildShowDetailTabDefs({
         isAuthenticated: isAuthenticated && viewerRolesResolved,
+        canShowMap,
         trialCount: effectiveTrials.length,
         classCount: effectiveShowClasses.length,
         submittedEntryHistoryCount: submittedEntryProjection.historyCount,
@@ -433,6 +451,7 @@ const ShowDetailsPage: React.FC = () => {
     [
       isAuthenticated,
       viewerRolesResolved,
+      canShowMap,
       effectiveTrials.length,
       effectiveShowClasses.length,
       submittedEntryProjection.historyCount,

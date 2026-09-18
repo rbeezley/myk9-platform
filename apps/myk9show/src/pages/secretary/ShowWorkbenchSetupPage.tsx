@@ -7,22 +7,13 @@ import { TrialsTab } from '@/components/shows/tabs/TrialsTab';
 import { ClassesTab } from '@/components/shows/tabs/ClassesTab';
 import { EntryDataUnavailablePanel } from '@/components/shows/ShowDetails/EntryDataUnavailablePanel';
 import { useShowManagementOutlet } from '@/components/shows/ShowDetails/showManagementOutlet';
+import {
+  SETUP_SECTIONS,
+  resolveSetupSection,
+  type SetupSectionId,
+} from '@/pages/secretary/showSetupSections';
 
 const ShowMapTab = React.lazy(() => import('@/features/show-map/ShowMapTab'));
-
-export const SETUP_SECTIONS = [
-  { id: 'trials', label: 'Trials' },
-  { id: 'classes', label: 'Classes' },
-  { id: 'map', label: 'Show Map' },
-] as const;
-
-export type SetupSectionId = (typeof SETUP_SECTIONS)[number]['id'];
-
-export function resolveSetupSection(raw: string | null, canShowMap: boolean): SetupSectionId {
-  if (raw === 'classes') return 'classes';
-  if (raw === 'map') return canShowMap ? 'map' : 'trials';
-  return 'trials';
-}
 
 /**
  * Setup — one of the six show tabs (MYK9-630 phase 2). It absorbs what used to

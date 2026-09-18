@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import type { User as UserType } from '@/types/user-types';
 import { formDataToUser, userFormSchema, userToFormData } from './UserEditPanel.helpers';
 
 const formData = userToFormData({
@@ -23,7 +24,7 @@ describe('UserEditPanel account lifecycle boundary', () => {
  * are where a value goes missing.
  */
 describe('junior handler fields round-trip', () => {
-  const user = {
+  const user: Partial<UserType> = {
     id: 'person-1',
     firstName: 'Mariana',
     lastName: 'Rivera',
@@ -31,7 +32,7 @@ describe('junior handler fields round-trip', () => {
     roles: [],
     dateOfBirth: '2011-03-04',
     juniorHandlerNumbers: { AKC: '7654321', UKC: 'UKC-42' },
-  } as const;
+  };
 
   it('unpacks the keyed map into one input per registry', () => {
     const form = userToFormData(user);

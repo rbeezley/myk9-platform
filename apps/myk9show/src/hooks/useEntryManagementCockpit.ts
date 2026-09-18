@@ -4,7 +4,9 @@ import { useBulkSelection } from '@/hooks/useBulkSelection';
 import {
   buildShowRegistrationPage,
   getScopedShowRegistrationQueueCounts,
+  getScopedShowRegistrationTotals,
   getShowRegistrationQueueCounts,
+  summarizeShowRegistrationTotals,
   getVisiblePageSelectionState,
   type ShowRegistrationGroup,
   type ShowRegistrationQueue,
@@ -87,6 +89,19 @@ export function useEntryManagementCockpit({
           ),
     [groups, state.classId, state.search, state.trialId, trialClassIds]
   );
+  // The same groups, the same scope, one pass: the chips, the list and the
+  // totals line can never report three different shows (MYK9-635).
+  const queueTotals = useMemo(
+    () =>
+      state.search
+        ? summarizeShowRegistrationTotals(groups)
+        : getScopedShowRegistrationTotals(
+            groups,
+            state.classId,
+            state.trialId && trialClassIds ? trialClassIds : undefined
+          ),
+    [groups, state.classId, state.search, state.trialId, trialClassIds]
+  );
   const focusedGroup =
     builtPage.effectiveGroups.find(group => group.groupKey === state.registrationKey) ??
     builtPage.page.items[0] ??
@@ -114,6 +129,7 @@ export function useEntryManagementCockpit({
     state,
     groups,
     queueCounts,
+    queueTotals,
     page: builtPage.page,
     effectiveGroups: builtPage.effectiveGroups,
     matchingEntryIdsByGroup: builtPage.matchingEntryIdsByGroup,

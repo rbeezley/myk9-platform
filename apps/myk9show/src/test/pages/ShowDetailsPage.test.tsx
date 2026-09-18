@@ -10,6 +10,7 @@ const publishExperienceMock = vi.hoisted(() => vi.fn());
 const updateShowLocallyMock = vi.hoisted(() => vi.fn());
 const notificationsSuccessMock = vi.hoisted(() => vi.fn());
 const getEntriesForShowMock = vi.hoisted(() => vi.fn());
+const getEntriesByShowMock = vi.hoisted(() => vi.fn());
 const showEditPanelMock = vi.hoisted<{
   impl: (props: { onSave: (data: Record<string, unknown>) => Promise<void> }) => React.ReactNode;
 }>(() => ({
@@ -110,6 +111,9 @@ vi.mock('@/services/database/entries', async () => {
   return {
     ...actual,
     getEntriesForShow: getEntriesForShowMock,
+    // The manager Entries tab's own private read (MYK9-630 AC3). Nothing on
+    // this page may call it any more; the tests below assert that.
+    getEntriesByShow: getEntriesByShowMock,
   };
 });
 
@@ -368,6 +372,9 @@ describe('ShowDetailsPage', () => {
     mockShowEntriesError = false;
     refetchShowEntriesMock.mockReset();
     getEntriesForShowMock.mockResolvedValue({ data: [], error: null });
+    getEntriesByShowMock.mockReset();
+    getEntriesByShowMock.mockResolvedValue({ data: [], error: null, resultsReadComplete: true });
+    mockAuthContext.rbacLoading = false;
     mockDogs = [];
     mockTrials = [];
     mockTrialClasses = {};
@@ -709,14 +716,9 @@ describe('ShowDetailsPage', () => {
 
     renderPage();
 
-    expect(screen.getAllByRole('tab').map(tab => tab.textContent?.replace(/\d+$/, '').trim())).toEqual([
-      'Overview',
-      'Setup',
-      'Entries',
-      'Show Day',
-      'Results',
-      'Reports',
-    ]);
+    expect(
+      screen.getAllByRole('tab').map(tab => tab.textContent?.replace(/\d+$/, '').trim())
+    ).toEqual(['Overview', 'Setup', 'Entries', 'Show Day', 'Results', 'Reports']);
     expect(screen.queryByTestId('canonical-show-management-nav')).not.toBeInTheDocument();
     expect(screen.queryByRole('combobox', { name: /show management section/i })).toBeNull();
     for (const label of ['Show Desk', 'Entry Management', 'Reports', 'Results', 'Submit Results']) {
@@ -817,6 +819,9 @@ describe('ShowDetailsPage', () => {
   it('renders the public Show Map as read-only for show managers', async () => {
     mockAuthContext.isSecretary = true;
     getEntriesForShowMock.mockResolvedValue({ data: [], error: null });
+    getEntriesByShowMock.mockReset();
+    getEntriesByShowMock.mockResolvedValue({ data: [], error: null, resultsReadComplete: true });
+    mockAuthContext.rbacLoading = false;
     mockTrials = [
       {
         id: 'trial-1',
@@ -1137,5 +1142,84 @@ describe('ShowDetailsPage', () => {
       return el?.tagName === 'STRONG' && content === '3';
     });
     expect(strong.closest('span')?.parentElement).toHaveTextContent('entries');
+  });
+
+  describe('manager deep links into the six tabs (MYK9-634, MYK9-630 AC3)', () => {
+    beforeEach(() => {
+      mockAuthContext.isSecretary = true;
+    });
+
+    // PIN, not a fix: this one also passes before the change, because the
+    // `pending` audience already held the page while RBAC loaded. It is here so
+    // the property cannot be lost. The mutation-proven guard is the next case.
+    it('never mounts the exhibitor entries body for a manager whose roles are still resolving', () => {
+      // ROOT CAUSE: `useShowManageGate` cannot tell "not a manager" from "not
+      // resolved yet", and the exhibitor "My Entries" tab and the manager
+      // "Entries" tab shared the id `my-entries`, so `useUrlTab` kept a cold
+      // `?tab=my-entries` valid across the flip and mounted the EXHIBITOR body,
+      // over the whole show's rows, for a secretary. Clicking the tab never did
+      // — by then the scope had resolved. That is the deep-link/click asymmetry
+      // the error boundary reported as "Failed to load component".
+      mockAuthContext.rbacLoading = true;
+
+      renderPage('show-1', '', '?tab=my-entries');
+
+      expect(screen.queryByTestId('my-entries-tab')).toBeNull();
+      expect(screen.queryByText('Failed to load component')).toBeNull();
+    });
+
+    // Mutation-proven: forcing `viewerRolesResolved` to `true` reds this case.
+    it('does not offer the entries tab at all until roles have resolved', () => {
+      mockAuthContext.isSecretary = false;
+      mockAuthContext.rbacLoading = true;
+      seedOwnedEntry();
+
+      renderPage('show-1', '', '?tab=my-entries');
+
+      expect(screen.queryByRole('tab', { name: /entries/i })).toBeNull();
+      expect(screen.queryByTestId('my-entries-tab')).toBeNull();
+    });
+
+    it('sends a resolved manager from ?tab=my-entries to the Entries page', async () => {
+      renderPage('show-1', '', '?tab=my-entries');
+
+      expect(await screen.findByTestId('canonical-entries-child')).toBeInTheDocument();
+      expect(screen.queryByTestId('my-entries-tab')).toBeNull();
+    });
+
+    it.each([
+      ['?tab=trials', 'section=trials'],
+      ['?tab=classes', 'section=classes'],
+      ['?tab=map', 'section=map'],
+    ])('sends a manager from %s into Setup', async (query, _section) => {
+      renderPage('show-1', '', query);
+
+      expect(await screen.findByRole('group', { name: /setup section/i })).toBeInTheDocument();
+    });
+
+    it("leaves an exhibitor's own ?tab=my-entries alone", async () => {
+      mockAuthContext.isSecretary = false;
+      seedOwnedEntry();
+
+      renderPage('show-1', '', '?tab=my-entries');
+
+      expect(await screen.findByTestId('my-entries-tab')).toBeInTheDocument();
+      expect(screen.queryByTestId('canonical-entries-child')).toBeNull();
+    });
+
+    it("badges Entries from the page's own read, with no second entries query (AC3)", () => {
+      mockShowEntries = [
+        { id: 'e1', show_id: 'show-1', class_id: 'class-a' },
+        { id: 'e2', show_id: 'show-1', class_id: 'class-a' },
+        { id: 'e3', show_id: 'show-1', class_id: 'class-b' },
+      ];
+
+      renderPage();
+
+      expect(screen.getByRole('tab', { name: /^Entries/ }).textContent).toContain('3');
+      // The stub tab's private `getEntriesByShow` read is deleted, so the badge
+      // and the body can no longer disagree (517 beside "No Entries Yet").
+      expect(getEntriesByShowMock).not.toHaveBeenCalled();
+    });
   });
 });

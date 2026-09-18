@@ -35,6 +35,37 @@ describe('entryStatusUtils', () => {
       vi.useRealTimers();
     });
 
+    describe('when the show has no entry window at all', () => {
+      // `entryOpenDate` / `entryCloseDate` are typed `string` but are genuinely
+      // absent on a show whose window was never set, and `toLocalDate` calls
+      // `.split` on them. `ShowDetailsPage` calls this for EVERY audience
+      // before it branches, so one such show threw straight into the lazy-route
+      // error boundary and rendered "Failed to load component" over the whole
+      // page. Found while pinning MYK9-634.
+      it.each([
+        ['both dates missing', { entryOpenDate: undefined, entryCloseDate: undefined }],
+        ['no open date', { entryOpenDate: undefined }],
+        ['no close date', { entryCloseDate: undefined }],
+      ])('does not throw when %s', (_case, overrides) => {
+        vi.setSystemTime(new Date(2024, 0, 15, 12));
+        const show = createMockShow(overrides as Partial<Show>);
+
+        expect(() => getEntryStatus(show)).not.toThrow();
+        expect(getEntryStatus(show)).toMatchObject({
+          label: 'Entry status unavailable',
+          canEnter: false,
+        });
+      });
+
+      it('still says nothing about the window for a user who already entered', () => {
+        // This branch runs BEFORE the userHasEntries check and has no evidence
+        // either way, so it must not claim "Entries open <date>".
+        vi.setSystemTime(new Date(2024, 0, 15, 12));
+        const show = createMockShow({ entryOpenDate: undefined, entryCloseDate: undefined });
+        expect(getEntryStatus(show, true).label).toBe('Entry status unavailable');
+      });
+    });
+
     describe('when user has submitted entries', () => {
       it('should return submitted status regardless of dates', () => {
         const now = new Date(2024, 0, 15, 12); // During open period

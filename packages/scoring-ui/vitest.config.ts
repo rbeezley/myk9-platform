@@ -18,10 +18,13 @@ export default defineConfig({
         branches: 65,
         // 71 -> 70 (MYK9-646). Deleting `useEntryListFilters` -- an unreferenced
         // duplicate of the @myk9/ringside hook, with its own 331-line suite --
-        // removed a fully covered module, so the RATIO fell to 70.13% while no
-        // remaining function lost a single test. The other three thresholds
-        // were unaffected and stay where they are; raise this one again the
-        // next time a scoresheet gets real coverage.
+        // took a module covered ABOVE the package average out of the ratio:
+        // 28/31 of its functions were covered (90.32%) against a package whole
+        // of 183, so the remaining 155/221 is 70.13%. No surviving function
+        // lost a test. Statements moved 80.55 -> 80.09, still clear of 79;
+        // branches and lines both IMPROVED, so those three thresholds stay
+        // where they are. Raise this one again the next time a scoresheet gets
+        // real coverage.
         functions: 70,
         lines: 81,
       },

@@ -2,55 +2,38 @@
  * MYK9-646 — the class dialogs must report the host's expected/accounted pair.
  *
  * The render-level proof lives in the shim
- * (`AtShowEntryListPage.badges.test.tsx`); these cases pin the two faults that
- * the rendered line cannot show on its own: the tab-filtered `completed_count`,
- * and the fallback a consumer supplying no pair still gets.
+ * (`AtShowEntryListPage.badges.test.tsx`), which is where a regression to the
+ * raw row count would actually show up. These cases pin the two things a
+ * rendered line cannot show on its own: that `completed_count` carries the
+ * host's ACCOUNTED number (not the tab-filtered array the call site used to
+ * hand over), and that the function has no arithmetic of its own to drift.
  */
 import { describe, it, expect } from 'vitest';
 import { classDialogCounts } from './classDialogCounts';
 
-const rows = (n: number) => Array.from({ length: n }, (_, i) => ({ id: String(i) }));
-
 describe('classDialogCounts', () => {
-  it("uses the host's expected count, not every row the page holds", () => {
-    // 66 rows, one of them withdrawn: the host's pair says 65 expected.
-    expect(classDialogCounts({ totalEntries: 65, completedEntries: 0 }, rows(66), rows(0))).toEqual(
-      { entry_count: 65, completed_count: 0 }
-    );
+  it("renames the host's pair without touching either number", () => {
+    // Interior Advanced: 66 rows, one withdrawn -> expected 65, accounted 0.
+    expect(classDialogCounts({ totalEntries: 65, completedEntries: 0 })).toEqual({
+      entry_count: 65,
+      completed_count: 0,
+    });
   });
 
-  it("uses the host's accounted count even when the Pending tab has filtered the completed rows away", () => {
-    // `completedEntries` is derived from the tab-filtered list, so on Pending
-    // it is empty however much of the class is scored. Trusting it reported
-    // "0 completed" for a half-scored class.
-    expect(classDialogCounts({ totalEntries: 65, completedEntries: 30 }, rows(66), [])).toEqual({
+  it('carries the accounted count, which the old call site could not', () => {
+    // The call site passed the already TAB-FILTERED `completedEntries` array,
+    // so on the Pending tab the slot received 0 however much was scored.
+    expect(classDialogCounts({ totalEntries: 65, completedEntries: 30 })).toEqual({
       entry_count: 65,
       completed_count: 30,
     });
   });
 
-  it('honours a host pair that is zero rather than falling back to the raw lengths', () => {
-    expect(classDialogCounts({ totalEntries: 0, completedEntries: 0 }, rows(66), rows(4))).toEqual({
+  it('passes a zero pair straight through rather than treating it as absent', () => {
+    // A `?? <raw length>` fallback would have swallowed this one silently.
+    expect(classDialogCounts({ totalEntries: 0, completedEntries: 0 })).toEqual({
       entry_count: 0,
       completed_count: 0,
-    });
-  });
-
-  it('falls back to the raw lengths for a consumer that supplies no pair', () => {
-    expect(classDialogCounts({}, rows(66), rows(4))).toEqual({
-      entry_count: 66,
-      completed_count: 4,
-    });
-    expect(classDialogCounts(null, rows(66), rows(4))).toEqual({
-      entry_count: 66,
-      completed_count: 4,
-    });
-  });
-
-  it('falls back per half, so a host supplying only the denominator still gets it', () => {
-    expect(classDialogCounts({ totalEntries: 65 }, rows(66), rows(4))).toEqual({
-      entry_count: 65,
-      completed_count: 4,
     });
   });
 });

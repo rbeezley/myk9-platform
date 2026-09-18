@@ -60,8 +60,18 @@ export interface ClassInfo {
   actualClassIdB?: string;
   selfCheckin?: boolean;
   classStatus?: string;
-  totalEntries?: number;
-  completedEntries?: number;
+  /**
+   * The host's canonical expected / accounted pair (`entryAccounting.ts`).
+   *
+   * REQUIRED, not optional (MYK9-646). `buildClassInfo` already describes them
+   * as "required, not optional, so a caller cannot silently fall back to raw
+   * `entries.length`" — but while the TYPE said optional, every consumer could
+   * write a `?? entries.length` arm and stay green, which is how the class
+   * dialogs came to render "66 entries" beside a "Pending 65" badge. A host
+   * that cannot compute the pair must now fail to compile.
+   */
+  totalEntries: number;
+  completedEntries: number;
   /**
    * Pending / completed counts computed by the HOST, handed in rather than
    * re-derived from the entries array (MYK9-645).

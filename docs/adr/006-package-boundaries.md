@@ -64,7 +64,8 @@ We organized shared code into **6 packages** under the `@myk9/*` namespace, with
 | `@myk9/replication` | Offline-first data layer with IndexedDB             | `ReplicatedTable`, `replicatedClassesTable`, sync utilities    |
 | `@myk9/ui`          | Accessible UI components (Base UI + Tailwind)       | `Button`, `Dialog`, `Select`, tailwind preset                  |
 | `@myk9/scoring`     | Scoring domain stores and types                     | `useScoringStore`, `useTimerStore`, score types                |
-| `@myk9/scoring-ui`  | Shared behavioral hooks for scoring UIs             | `useStopwatch`, `useEntryListFilters`, `useDragAndDropEntries` |
+| `@myk9/scoring-ui`  | Shared behavioral hooks for scoring UIs             | `useStopwatch`, `useDragAndDropEntries`, `useScoresheetScoring` |
+| `@myk9/ringside`    | The `/at-show` ringside screens and show-day flows   | `EntryListPage`, `useEntryListFilters`, `useEntryListData`     |
 
 **Boundary rules:**
 

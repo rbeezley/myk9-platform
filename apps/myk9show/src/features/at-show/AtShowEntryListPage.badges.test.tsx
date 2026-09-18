@@ -217,8 +217,14 @@ describe('AtShowEntryListPage — tab badges follow the canonical rule (MYK9-645
  * host's expected/accounted pair. `EntryListDialogs` built `entry_count` from
  * `localEntries.length` — every row the page holds, withdrawn ones included —
  * so the Requirements dialog read "6 entries" beside "Pending 4 / Completed 1".
- * `completed_count` was worse: it came from the already TAB-FILTERED completed
- * list, so it was 0 whenever the judge was on the Pending tab.
+ * `completed_count` was wrong one hop earlier, in the value handed to the
+ * dialog slot: it came from the already TAB-FILTERED completed list, so on the
+ * Pending tab the slot received 0 whatever the class had scored. No myK9Show
+ * dialog renders that field today, so it has no rendered symptom to assert —
+ * `classDialogCounts.test.ts` pins it at the seam instead.
+ *
+ * This case is the mutation guard for the rendered half: it goes red the
+ * moment `entry_count` goes back to a raw row count.
  */
 describe('AtShowEntryListPage — class dialogs use the same pair as the badges (MYK9-646)', () => {
   beforeEach(() => {

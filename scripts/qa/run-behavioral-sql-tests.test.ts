@@ -45,6 +45,7 @@ const launchCriticalSqlTests = [
   'show_announcements_scope_test.sql',
   'show_message_tenant_isolation_test.sql',
   'entries_insert_show_scope_test.sql',
+  'enrollments_select_club_scope_test.sql',
   'show_publish_gate_trigger_test.sql',
   'club_authorization_gate_test.sql',
   'club_routed_role_requests_test.sql',

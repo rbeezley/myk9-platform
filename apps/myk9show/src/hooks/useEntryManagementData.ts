@@ -166,9 +166,7 @@ export function mapSecretaryEntryToEntryManagementEntry(
     // MYK9-639: the supersession link, so every count and total on this page
     // follows a move-up back to the entry that holds the money.
     movedFromEntryId: (entry as unknown as Record<string, unknown>).moved_from_entry_id as
-      | string
-      | null
-      | undefined,
+      string | null | undefined,
     entryStatus: mapEntryStatus(entry.entry_status),
     rawEntryStatus: entry.entry_status ?? null,
     isScored: entry.is_scored ?? null,

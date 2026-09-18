@@ -13,8 +13,20 @@ export interface User {
   state?: string | undefined;
   zipCode?: string | undefined;
   country?: string | undefined;
+  /**
+   * MYK9-570: `people.date_of_birth`, ISO `YYYY-MM-DD`. Junior handler status is
+   * DERIVED from this and the trial date — see
+   * `@/features/registries/juniorHandlerPolicy` — so there is deliberately no
+   * `isJunior` flag anywhere. The former `birthDate` alias was removed with this
+   * change: it was unbacked, and a second spelling for a now-real column is a trap.
+   */
   dateOfBirth?: string | undefined;
-  birthDate?: string | undefined; // Alias for dateOfBirth
+  /**
+   * MYK9-570: `people.junior_handler_numbers` — registry-issued junior handler
+   * numbers keyed by `RegistryId` ('AKC' | 'UKC' | 'ASCA'), e.g. `{ AKC: '1234567' }`.
+   * Read it with `getJuniorHandlerNumber`, never by raw key access.
+   */
+  juniorHandlerNumbers?: Record<string, string> | undefined;
   membershipId?: string | undefined;
   clubAffiliations?: string[] | undefined;
   roles?: UserRole[] | undefined;

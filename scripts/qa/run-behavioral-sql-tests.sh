@@ -47,6 +47,7 @@ TEST_FILES=(
   "$TEST_DIR/stripe_ledger_fks_restrict_test.sql"
   "$TEST_DIR/create_show_with_children_tenant_isolation_test.sql"
   "$TEST_DIR/entries_insert_show_scope_test.sql"
+  "$TEST_DIR/enrollments_select_club_scope_test.sql"
   "$TEST_DIR/show_publish_gate_trigger_test.sql"
   "$TEST_DIR/club_authorization_gate_test.sql"
   "$TEST_DIR/club_routed_role_requests_test.sql"

@@ -6,6 +6,7 @@ import type { UserRole } from '@/types/auth-types';
 import type { DbUserInsert, DbUserUpdate, DbJudgeAvailability } from '@/types/database-mappings';
 import type { UserInput } from '@/store/userStore';
 import { toYYYYMMDD } from '@/utils/dateFormat';
+import { normalizeJuniorHandlerNumbers } from '@/features/registries/juniorHandlerPolicy';
 
 /**
  * Extract roles from DB data. Supports two shapes:
@@ -92,6 +93,12 @@ export const mapDatabaseToUser = (dbUser: Record<string, unknown>): User => {
     zipCode: dbUser.zip_code as string,
     profileImage: dbUser.profile_image as string,
     user_id: dbUser.auth_user_id as string, // Link to auth.users for RBAC
+
+    // MYK9-570: junior handler inputs. `date_of_birth` is the only source of
+    // junior status (derived per trial), so dropping it here would silently
+    // un-junior every handler on the paperwork.
+    dateOfBirth: (dbUser.date_of_birth as string | null) ?? undefined,
+    juniorHandlerNumbers: normalizeJuniorHandlerNumbers(dbUser.junior_handler_numbers),
 
     // Map associated dogs if included in query
     dogs: Array.isArray(dbUser.dog)

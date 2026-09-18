@@ -68,17 +68,49 @@
 --     club
 --   club-scoped club_admin, other   -> DENIED. This is the fix.
 --     club
---   show-scoped secretary /         -> tighter. is_trial_secretary() requires
---     club_admin (ur.show_id set)      show_id IS NULL, so a show-scoped
---                                      secretary row loses the role arm. That
---                                      matches the schema's existing
---                                      convention: is_show_official() already
---                                      admits secretary and chairman ONLY on
---                                      club-scoped rows and reserves the
---                                      show-scoped arm for stewards
+--   show-pinned SECRETARY           -> tighter. is_trial_secretary() requires
+--     (ur.show_id set)                 show_id IS NULL, so the row loses the
+--                                      role arm. That matches the schema's
+--                                      existing convention: is_show_official()
+--                                      already admits secretary and chairman
+--                                      ONLY on club-scoped rows and reserves
+--                                      the show-scoped arm for stewards
 --                                      (show_officials_label_not_permission_
---                                      test.sql, MYK9-114). Zero such rows
---                                      exist on the live database.
+--                                      test.sql, MYK9-114). Pinned by
+--                                      assertion 7 of the behavioural test.
+--   show-pinned CLUB_ADMIN          -> WIDER, not tighter. Stated plainly
+--     (ur.show_id set)                 because it is the one shape in this
+--                                      table that moves the wrong way, and an
+--                                      earlier draft of this header got it
+--                                      wrong by lumping it in with secretary:
+--                                      is_club_admin(check_club_id) has NO
+--                                      show_id predicate at all, so a row
+--                                      {club_admin, club_id C, show_id S1}
+--                                      went from "S1's enrollments only" to
+--                                      "every show of club C". Left as a
+--                                      documented edge rather than guarded,
+--                                      on three grounds: (a) zero user_roles
+--                                      rows of ANY role carry a non-null
+--                                      show_id on the live database; (b) the
+--                                      only writer that could produce one is
+--                                      approve_role_request's ELSE branch --
+--                                      its show-scoped rejection list is
+--                                      ('secretary','trial_secretary',
+--                                      'chairman','steward') and club_admin is
+--                                      absent, while grant_show_official
+--                                      writes user_roles only for steward; no
+--                                      UI caller passes p_show_id for a
+--                                      club_admin request; (c) it stays INSIDE
+--                                      one tenant. approve_role_request raises
+--                                      23514 unless p_show_id's show belongs to
+--                                      p_club_id, so S1 is always a show of C,
+--                                      and the widened set is exactly what a
+--                                      club_admin of C already gets from a
+--                                      plain club-scoped row. It is not a
+--                                      cross-tenant read, which is what
+--                                      MYK9-663 is about. Narrowing is_club_admin() is a
+--                                      change to a predicate 30+ policies
+--                                      share and does not belong in MYK9-663.
 --   show with club_id IS NULL       -> tighter, deliberately:
 --                                      manageable_show_ids() reaches nobody
 --                                      but a site admin on a club-less show
@@ -120,11 +152,20 @@
 -- above depends on anon holding no privilege on this table, and CLAUDE.md
 -- (Database Migrations) is explicit that omitting a GRANT does not keep anon
 -- out -- this project carries ALTER DEFAULT PRIVILEGES granting anon full CRUD
--- in schema public. anon is already absent from pg_class.relacl here, so the
--- REVOKE is a no-op today; it exists so the precondition is enforced by the
--- schema rather than asserted by a comment (LESSON comment-satisfies-grep).
--- Nothing else in the repo pins it: aclRegistryCoverage only asserts the table
--- EXISTS, and anonEntriesGrantContract does not mention enrollments.
+-- in schema public. anon is already absent from pg_class.relacl AND from
+-- pg_attribute.attacl here, so the REVOKE is a no-op today and cannot silently
+-- drop a column grant (there are none).
+--
+-- Being precise about what it does and does not buy: a one-shot REVOKE is a
+-- state change, not an invariant -- it cannot stop a LATER migration granting
+-- anon SELECT. What pins the invariant is already in the repo and is a
+-- program, not a comment: supabase/tests/pre_rule_table_grants_test.sql
+-- section A declares `('enrollments','SELECT,INSERT,UPDATE','',...)` -- the
+-- third column is anon, and it is EMPTY -- and enforces it with
+-- `got IS DISTINCT FROM want`, so any future anon grant on this table fails
+-- that test in CI. (aclRegistryCoverage only asserts the table EXISTS and
+-- anonEntriesGrantContract does not mention enrollments; the grant contract is
+-- the one that matters.) The REVOKE below is belt-and-braces alongside it.
 
 begin;
 
@@ -156,7 +197,8 @@ comment on policy "enrollments_select" on public.enrollments is
   'handler_id arms are unchanged, so show officials and the exhibitor who owns '
   'the enrollment keep their reads.';
 
--- See the GRANTs note above: enforcing, not changing, today's ACL.
+-- See the GRANTs note above: restates today's ACL, which
+-- pre_rule_table_grants_test.sql already enforces. A no-op as written.
 revoke all on public.enrollments from anon;
 
 notify pgrst, 'reload schema';

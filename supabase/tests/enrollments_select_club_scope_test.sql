@@ -17,8 +17,16 @@
 --   5. A show-scoped steward on Club B's show still reads that show's
 --      enrollments via is_show_official(show_id).
 --   6. A site admin reads every club's enrollments.
---   7. A secretary row that ALSO pins ur.show_id grants nothing, even on its
---      own club's show. This is a deliberate tightening, not an accident:
+--   7. A secretary row that ALSO pins ur.show_id grants nothing THROUGH THE
+--      ROLE ARM, even on its own club's show -- while that same persona still
+--      reads the one enrollment they handle themselves. The handler row is the
+--      positive control: a pure "sees 0" assertion would pass vacuously if the
+--      fixture never landed or the impersonation never reached a real identity,
+--      and unlike assertions 1/3/5/6 this one requires no positive count of its
+--      own. It also cannot inherit the usual "it ran red first" defence: psql
+--      stops at the first failing statement, so the red run against the
+--      deployed policy ends at assertion 2 and never reaches here. Run
+--      standalone against the old predicate this persona sees 3 rows, not 1. This is a deliberate tightening, not an accident:
 --      is_trial_secretary() requires ur.show_id IS NULL, and is_show_official()
 --      admits secretary and chairman only on club-scoped rows, reserving its
 --      show-scoped arm for stewards (MYK9-114 /
@@ -133,7 +141,11 @@ values
   ('00000000-0000-0000-0000-000000663063', '00000000-0000-0000-0000-000000663012',
    '00000000-0000-0000-0000-000000663056'),
   ('00000000-0000-0000-0000-000000663064', '00000000-0000-0000-0000-000000663012',
-   '00000000-0000-0000-0000-000000663055');
+   '00000000-0000-0000-0000-000000663055'),
+  -- Assertion 7's positive control: the show-pinned secretary handles this one
+  -- personally, on the club they have NO staff role in.
+  ('00000000-0000-0000-0000-000000663065', '00000000-0000-0000-0000-000000663012',
+   '00000000-0000-0000-0000-000000663057');
 
 -- Positive control: as the table owner, RLS is bypassed and all four rows are
 -- present. Without this, a fixture that silently failed to insert would make
@@ -145,10 +157,10 @@ BEGIN
   SELECT count(*) INTO total FROM public.enrollments
    WHERE show_id IN ('00000000-0000-0000-0000-000000663011',
                      '00000000-0000-0000-0000-000000663012');
-  IF total <> 4 THEN
-    RAISE EXCEPTION 'FAIL fixture did not land: expected 4 enrollments, got %', total;
+  IF total <> 5 THEN
+    RAISE EXCEPTION 'FAIL fixture did not land: expected 5 enrollments, got %', total;
   END IF;
-  RAISE NOTICE 'PASS fixture control: 4 enrollments exist';
+  RAISE NOTICE 'PASS fixture control: 5 enrollments exist';
 END;
 $$;
 
@@ -262,8 +274,8 @@ BEGIN
    WHERE show_id = '00000000-0000-0000-0000-000000663012';
   SELECT count(*) INTO other_show FROM public.enrollments
    WHERE show_id = '00000000-0000-0000-0000-000000663011';
-  IF assigned_show <> 2 THEN
-    RAISE EXCEPTION 'FAIL show-scoped steward sees % of their show''s 2 enrollments', assigned_show;
+  IF assigned_show <> 3 THEN
+    RAISE EXCEPTION 'FAIL show-scoped steward sees % of their show''s 3 enrollments', assigned_show;
   END IF;
   IF other_show <> 0 THEN
     RAISE EXCEPTION 'FAIL show-scoped steward reads % enrollments of another show', other_show;
@@ -290,8 +302,8 @@ BEGIN
   SELECT count(*) INTO total FROM public.enrollments
    WHERE show_id IN ('00000000-0000-0000-0000-000000663011',
                      '00000000-0000-0000-0000-000000663012');
-  IF total <> 4 THEN
-    RAISE EXCEPTION 'FAIL site admin sees % of 4 enrollments', total;
+  IF total <> 5 THEN
+    RAISE EXCEPTION 'FAIL site admin sees % of 5 enrollments', total;
   END IF;
   RAISE NOTICE 'PASS site admin reads every club''s enrollments';
 END;
@@ -311,15 +323,32 @@ SELECT set_config(
 
 DO $$
 DECLARE
+  own_handled integer;
   visible integer;
 BEGIN
+  -- Positive control FIRST: if this is 0 the impersonation never reached a real
+  -- identity, and the zero-role-arm assertion below would be meaningless.
+  SELECT count(*) INTO own_handled FROM public.enrollments
+   WHERE handler_id = '00000000-0000-0000-0000-000000663057';
+  IF own_handled <> 1 THEN
+    RAISE EXCEPTION
+      'FAIL positive control: show-pinned secretary reads % of the 1 enrollment they handle',
+      own_handled;
+  END IF;
+
+  -- Everything they can see must be that one handler row: the show-pinned
+  -- secretary appointment itself grants nothing. Under the pre-MYK9-663
+  -- predicate this persona also read Club A''s 2 rows via
+  -- `ur.show_id = enrollments.show_id`, so this count was 3.
   SELECT count(*) INTO visible FROM public.enrollments
    WHERE show_id IN ('00000000-0000-0000-0000-000000663011',
                      '00000000-0000-0000-0000-000000663012');
-  IF visible <> 0 THEN
-    RAISE EXCEPTION 'FAIL show-pinned secretary row granted % enrollments', visible;
+  IF visible <> 1 THEN
+    RAISE EXCEPTION
+      'FAIL show-pinned secretary sees % enrollments; only their own handler row should be visible',
+      visible;
   END IF;
-  RAISE NOTICE 'PASS show-pinned secretary row grants no enrollment read';
+  RAISE NOTICE 'PASS show-pinned secretary row grants no enrollment read beyond their own handler row';
 END;
 $$;
 

@@ -253,6 +253,55 @@ begin
 end;
 $$;
 
+-- THE SHOW'S REGISTRY narrows the platform allow-list. ASCA has NO in-season
+-- withdrawal — bitches in season may compete — so `in_season` on an ASCA entry
+-- is a wrong answer, not a reason. The client hides it, but the client learns
+-- the registry from an async replica read that can be in flight, empty or
+-- failed, so the server must not depend on the caller having waited.
+--
+-- The TRIAL is flipped rather than a second trial/entry being created: the
+-- registry lives on the trial, `trg_entries_require_dog_registration` fires on
+-- INSERT only, and this keeps the fixture honest without needing an ASCA
+-- dog_registrations row whose organization string this file would be guessing.
+-- 632035 has absorbed the refusal cases above and the empty-string pull, so it
+-- is reset to a live entry before each of the acts below.
+update public.entries set entry_status = 'confirmed', withdrawal_reason_code = null
+ where id = '00000000-0000-0000-0000-000000632035';
+update public.trials set registry_id = 'ASCA'
+ where id = '00000000-0000-0000-0000-000000632003';
+
+select pg_temp.assert_leave('ASCA refuses an in_season withdrawal',
+  '00000000-0000-0000-0000-000000632101', '00000000-0000-0000-0000-000000632035',
+  'withdraw', 'in_season',
+  'withdraw_own_entry: ASCA does not recognise the withdrawal reason in_season');
+
+select pg_temp.assert_leave('ASCA still allows a judge_change withdrawal',
+  '00000000-0000-0000-0000-000000632101', '00000000-0000-0000-0000-000000632035',
+  'withdraw', 'judge_change', null, 'withdrawn');
+
+-- A pull carries no reason, so the registry has nothing to say about it: an ASCA
+-- exhibitor must still be able to leave a class.
+update public.entries set entry_status = 'confirmed', withdrawal_reason_code = null
+ where id = '00000000-0000-0000-0000-000000632035';
+select pg_temp.assert_leave('ASCA allows a pull, which carries no reason',
+  '00000000-0000-0000-0000-000000632101', '00000000-0000-0000-0000-000000632035',
+  'pull', null, null, 'scratched');
+
+-- A registry with no rulebook here fails OPEN rather than inventing a rule; a
+-- blank registry_id resolves to AKC, the column's own default.
+update public.entries set entry_status = 'confirmed', withdrawal_reason_code = null
+ where id = '00000000-0000-0000-0000-000000632035';
+update public.trials set registry_id = '   '
+ where id = '00000000-0000-0000-0000-000000632003';
+select pg_temp.assert_leave('a blank registry_id resolves to AKC and admits in_season',
+  '00000000-0000-0000-0000-000000632101', '00000000-0000-0000-0000-000000632035',
+  'withdraw', 'in_season', null, 'withdrawn');
+
+update public.trials set registry_id = 'AKC'
+ where id = '00000000-0000-0000-0000-000000632003';
+update public.entries set entry_status = 'confirmed', withdrawal_reason_code = null
+ where id = '00000000-0000-0000-0000-000000632035';
+
 -- The row shape the SECRETARY'S QUEUE depends on. `isUnresolvedRemovalRefundDecision`
 -- admits a withdrawal only when it is paid ONLINE, still unresolved, and carries
 -- one of the two reason codes. If a paid-online withdrawal ever stops looking

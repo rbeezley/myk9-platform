@@ -18,7 +18,7 @@ describe('DeleteConfirmationDialog report-only mode', () => {
     onConfirm: () => {},
     entityName: '2 dogs',
     entityType: 'Dog',
-    warningText: 'Scratch or refund their entries.',
+    warningText: 'Pull or refund their entries.',
   };
 
   it('makes the "about to delete" claim in the normal confirming mode', () => {
@@ -33,7 +33,7 @@ describe('DeleteConfirmationDialog report-only mode', () => {
     expect(screen.queryByText(/you are about to delete/i)).not.toBeInTheDocument();
     // The warning and any extra content are the whole point of the dialog and
     // must survive: hiding the false sentence must not hide the explanation.
-    expect(screen.getByText('Scratch or refund their entries.')).toBeInTheDocument();
+    expect(screen.getByText('Pull or refund their entries.')).toBeInTheDocument();
     expect(document.querySelector('.text-destructive')).toBeNull();
   });
 });

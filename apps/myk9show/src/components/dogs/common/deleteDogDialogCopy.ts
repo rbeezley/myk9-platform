@@ -71,6 +71,21 @@ export function buildWarningText(
  * button is unpressable is a fact about this dog's money and results, and the
  * user is entitled to read it rather than infer it from a spinner.
  */
+/**
+ * MYK9-632: the bulk/blocked dialog's next step, shared rather than inlined.
+ *
+ * "Pull or refund" is written in four places (this, `buildBlockedText`, the
+ * MK002 row in `errorMessages`, and `translateDogDbError`) and two of them had
+ * no test, so a vocabulary sweep could reword half of them and leave the other
+ * half saying "Scratch" with nothing red. Lifting this one out of the JSX is
+ * what lets `blockedDogCopy.test.ts` assert all four together.
+ */
+export function blockedDogDeleteHint(canForceDelete: boolean): string {
+  return `Pull or refund their entries to delete them normally${
+    canForceDelete ? ', or override below' : ''
+  }.`;
+}
+
 export const blockingCountPendingText = 'Checking whether this dog has paid or scored entries…';
 
 export const blockingCountErrorText =

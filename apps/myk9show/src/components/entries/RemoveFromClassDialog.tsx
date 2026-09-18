@@ -29,7 +29,23 @@ import {
 import { Button } from '@/components/ui/button';
 import { Loader2 } from 'lucide-react';
 import { getWithdrawalPolicy } from '@/features/registries';
-import type { RegistryId, RemoveFromClassKind, WithdrawalReasonCode } from '@/features/registries';
+import type { RemoveFromClassKind, WithdrawalReasonCode } from '@/features/registries';
+import { registryResolutionKey, type ShowRegistryResolution } from './useShowRegistryId';
+
+/**
+ * Said while the show's rulebook is still being looked up. Withdraw is closed
+ * rather than guessed: the reasons ARE the rulebook, and offering AKC's list to
+ * an ASCA exhibitor invites them to record a reason their registry does not have.
+ */
+const RESOLVING_NOTE = "Checking the show's rules…";
+const UNAVAILABLE_NOTE = "Can't confirm the show's rules right now — Pull is still available";
+
+/**
+ * Pull's refund sentence is the same on every configured registry, so it does
+ * not need the rulebook — which is what lets Pull stay available while the
+ * lookup is in flight or has failed.
+ */
+const PULL_REFUND_FALLBACK = "Refunds for a pull are at the club's discretion.";
 
 export interface RemoveFromClassDialogProps {
   open: boolean;
@@ -37,7 +53,12 @@ export interface RemoveFromClassDialogProps {
   classId: string | null;
   /** The class the exhibitor is leaving. */
   className: string | null;
-  registryId: RegistryId;
+  /**
+   * The show's rulebook, or the fact that we do not know it yet. Not a
+   * RegistryId: "still looking" and "this is an AKC show" must not be the same
+   * value (MYK9-632 round 4).
+   */
+  registry: ShowRegistryResolution;
   isSaving: boolean;
   /**
    * Why Withdraw cannot be offered for this row right now (a paid entry, a
@@ -62,7 +83,15 @@ export function RemoveFromClassDialog({ open, onOpenChange, ...rest }: RemoveFro
             hand the second one the first one's half-made choice. That is a
             remount, not a reset-in-an-effect (LESSONS: no setState in an effect
             body). */}
-        <RemoveFromClassBody key={rest.classId ?? ''} {...rest} />
+        {/* The key carries the RULEBOOK as well as the class. A reason is only
+            meaningful under the registry it was offered by, so when the lookup
+            lands (or fails) after the exhibitor has already picked one, the
+            selection is discarded with the answer it belonged to instead of
+            being carried into a rulebook that may not recognise it. */}
+        <RemoveFromClassBody
+          key={`${rest.classId ?? ''}|${registryResolutionKey(rest.registry)}`}
+          {...rest}
+        />
       </AlertDialogContent>
     </AlertDialog>
   );
@@ -72,19 +101,34 @@ type RemoveFromClassBodyProps = Omit<RemoveFromClassDialogProps, 'open' | 'onOpe
 
 function RemoveFromClassBody({
   className,
-  registryId,
+  registry,
   isSaving,
   withdrawDisabledReason = null,
   pullDisabledReason = null,
   onConfirm,
 }: RemoveFromClassBodyProps) {
-  const policy = getWithdrawalPolicy(registryId);
+  const policy = registry.status === 'resolved' ? getWithdrawalPolicy(registry.registry) : null;
   const [step, setStep] = useState<Step>('choose');
   const [kind, setKind] = useState<RemoveFromClassKind>('pull');
   const [reason, setReason] = useState<WithdrawalReasonCode | null>(null);
 
-  const withdrawBlockedBecause = withdrawDisabledReason;
-  const selectedReason = policy.reasons.find(candidate => candidate.code === reason);
+  // Withdraw needs the rulebook; Pull never does. Its own eligibility refusal
+  // still wins, because that one is about THIS entry rather than the show.
+  const withdrawBlockedBecause =
+    withdrawDisabledReason ??
+    (registry.status === 'resolving'
+      ? RESOLVING_NOTE
+      : registry.status === 'unavailable'
+        ? UNAVAILABLE_NOTE
+        : null);
+
+  const selectedReason = policy?.reasons.find(candidate => candidate.code === reason);
+  // A withdrawal is never confirmable without a reason THIS registry offers.
+  // Derived, not reset in an effect: if the answer changed under us the
+  // exhibitor lands back on the reason list for the rulebook now in force,
+  // rather than on a confirm step whose sentence has quietly lost its clause.
+  const effectiveStep: Step =
+    step === 'confirm' && kind === 'withdraw' && !selectedReason ? 'reason' : step;
 
   const chooseWithdraw = () => {
     setKind('withdraw');
@@ -104,13 +148,17 @@ function RemoveFromClassBody({
   };
 
   const confirm = () => {
-    onConfirm({ kind, reason: kind === 'withdraw' ? reason : null });
+    // Belt and braces: the action is disabled in this state, but a withdrawal
+    // with no reason must never leave this component even if something else
+    // manages to click it.
+    if (kind === 'withdraw' && !selectedReason) return;
+    onConfirm({ kind, reason: kind === 'withdraw' ? (selectedReason?.code ?? null) : null });
   };
 
   const title =
-    step === 'choose'
+    effectiveStep === 'choose'
       ? 'Leave this class?'
-      : step === 'reason'
+      : effectiveStep === 'reason'
         ? 'Why are you withdrawing?'
         : kind === 'withdraw'
           ? 'Withdraw from this class?'
@@ -121,32 +169,34 @@ function RemoveFromClassBody({
       <AlertDialogHeader>
         <AlertDialogTitle>{title}</AlertDialogTitle>
         <AlertDialogDescription>
-          {step === 'choose' ? (
+          {effectiveStep === 'choose' ? (
             <>
               <strong>{className}</strong> — withdrawing and pulling are different, and the club
               handles the fee differently for each.
             </>
-          ) : step === 'reason' ? (
+          ) : effectiveStep === 'reason' ? (
             <>
-              {policy.registryId} recognises{' '}
-              {policy.reasons.length === 1 ? 'one reason' : 'these reasons'} for a withdrawal.
+              {policy?.registryId} recognises{' '}
+              {policy?.reasons.length === 1 ? 'one reason' : 'these reasons'} for a withdrawal.
               Anything else is a pull.
             </>
           ) : kind === 'withdraw' ? (
             <>
-              You are withdrawing <strong>{className}</strong>
-              {selectedReason ? ` because of: ${selectedReason.label}.` : '.'} Your withdrawal is
-              recorded. The show secretary confirms the refund under the premium&apos;s rules.
+              {/* `effectiveStep` guarantees a selected reason here, so the
+                  sentence can never quietly lose its clause. */}
+              You are withdrawing <strong>{className}</strong> because of: {selectedReason?.label}.
+              Your withdrawal is recorded. The show secretary confirms the refund under the
+              premium&apos;s rules.
             </>
           ) : (
             <>
-              You are pulling <strong>{className}</strong>. {policy.pullRefundNote}
+              You are pulling <strong>{className}</strong>. {PULL_REFUND_FALLBACK}
             </>
           )}
         </AlertDialogDescription>
       </AlertDialogHeader>
 
-      {step === 'choose' && (
+      {effectiveStep === 'choose' && (
         <div className="space-y-3">
           <div className="rounded-lg border p-3">
             <Button
@@ -159,8 +209,11 @@ function RemoveFromClassBody({
               Withdraw
             </Button>
             <p className="mt-2 text-sm text-muted-foreground">
-              For a recognised reason — {policy.reasons.map(entry => entry.label).join(' or ')}.{' '}
-              {policy.withdrawRefundNote}
+              {policy
+                ? `For a recognised reason — ${policy.reasons
+                    .map(entry => entry.label)
+                    .join(' or ')}. ${policy.withdrawRefundNote}`
+                : 'For a reason this show\u2019s registry recognises.'}
             </p>
             {withdrawBlockedBecause && (
               <p className="mt-2 text-sm text-muted-foreground">{withdrawBlockedBecause}</p>
@@ -178,7 +231,7 @@ function RemoveFromClassBody({
               Pull
             </Button>
             <p className="mt-2 text-sm text-muted-foreground">
-              Any other reason — you have decided not to run. {policy.pullRefundNote}
+              Any other reason — you have decided not to run. {PULL_REFUND_FALLBACK}
             </p>
             {pullDisabledReason && (
               <p className="mt-2 text-sm text-muted-foreground">{pullDisabledReason}</p>
@@ -187,7 +240,7 @@ function RemoveFromClassBody({
         </div>
       )}
 
-      {step === 'reason' && (
+      {effectiveStep === 'reason' && policy && (
         <div className="space-y-3">
           {policy.reasons.map(entry => (
             <div key={entry.code} className="rounded-lg border p-3">
@@ -208,7 +261,7 @@ function RemoveFromClassBody({
       )}
 
       <AlertDialogFooter>
-        {step === 'choose' ? (
+        {effectiveStep === 'choose' ? (
           <AlertDialogCancel disabled={isSaving}>Keep my entry</AlertDialogCancel>
         ) : (
           <>
@@ -216,19 +269,17 @@ function RemoveFromClassBody({
               type="button"
               variant="ghost"
               disabled={isSaving}
-              onClick={() =>
-                setStep(step === 'confirm' && kind === 'withdraw' ? 'reason' : 'choose')
-              }
+              onClick={() => setStep(effectiveStep === 'reason' ? 'choose' : 'reason')}
             >
               Back
             </Button>
             <AlertDialogCancel disabled={isSaving}>Keep my entry</AlertDialogCancel>
           </>
         )}
-        {step === 'confirm' && (
+        {effectiveStep === 'confirm' && (
           <AlertDialogAction
             onClick={confirm}
-            disabled={isSaving || (kind === 'withdraw' && reason === null)}
+            disabled={isSaving || (kind === 'withdraw' && !selectedReason)}
             className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
           >
             {isSaving ? (

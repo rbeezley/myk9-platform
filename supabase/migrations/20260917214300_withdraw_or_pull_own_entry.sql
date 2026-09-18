@@ -16,6 +16,9 @@
 -- `entries_entry_status_check` value):
 --   Withdraw -> entry_status = 'withdrawn' + withdrawal_reason_code
 --   Pull     -> entry_status = 'scratched'
+-- Which reason codes a withdrawal may carry is the SHOW'S REGISTRY's business,
+-- not the platform's: ASCA recognises judge_change only. Checked here as well as
+-- in the client — see step 1b.
 -- Both are available on a PAID entry and neither moves money (owner decision
 -- 2026-09-17); see the MONEY note in step 5.
 -- 'scratched' is ALREADY the platform's stored word for a pull: the secretary's
@@ -111,6 +114,9 @@ DECLARE
   v_new_version integer;
   v_target_status text;
   v_reason text;
+  v_trial_id uuid;
+  v_registry text;
+  v_allowed_reasons text[];
   -- Statuses an entry may still be withdrawn or pulled FROM by its own
   -- exhibitor. Day-of and terminal states are excluded: those go through the
   -- ringside check-in path, which this function deliberately does not touch.
@@ -180,15 +186,53 @@ BEGIN
 
   SELECT e.show_id, e.dog_id, e.handler_id, e.entry_status,
          e.deleted_at, e.check_in_status, coalesce(e.is_in_ring, false),
-         coalesce(e.is_scored, false), e.version
+         coalesce(e.is_scored, false), e.version, e.trial_id
     INTO v_show_id, v_dog_id, v_handler_id, v_entry_status,
          v_deleted_at, v_check_in_status, v_is_in_ring,
-         v_is_scored, v_current_version
+         v_is_scored, v_current_version, v_trial_id
     FROM public.entries e
    WHERE e.id = p_entry_id;
 
   IF NOT FOUND THEN
     RAISE EXCEPTION 'Entry % not found', p_entry_id USING errcode = 'P0002';
+  END IF;
+
+  -- 1b. WHICH REASONS THIS SHOW'S REGISTRY RECOGNISES.
+  --
+  -- The two-value allow-list above is the platform's; this is the rulebook's,
+  -- and they are not the same set. ASCA has NO in-season withdrawal at all —
+  -- bitches in season may compete (they run last, in pants and a red bandana) —
+  -- so `in_season` on an ASCA entry is not a reason, it is a wrong answer.
+  --
+  -- The client already hides it, but the client learns the registry from an
+  -- asynchronous replica read that can be in flight, empty or failed, and a
+  -- definer function may not depend on a caller having waited. Restated here for
+  -- the same reason every other filter in this function is: the server is the
+  -- only place this is guaranteed.
+  --
+  -- Resolution mirrors `getTrialRegistry`: a blank or missing `registry_id` is
+  -- AKC (the column's own default), and an id we have no rulebook for admits
+  -- both reasons rather than blocking a legitimate withdrawal — failing OPEN is
+  -- right here, because refusing would be this function inventing a rule for a
+  -- registry it knows nothing about, and the client greys Withdraw out for an
+  -- unrecognised registry anyway.
+  IF p_kind = 'withdraw' THEN
+    SELECT nullif(btrim(coalesce(t.registry_id, '')), '')
+      INTO v_registry
+      FROM public.trials t
+     WHERE t.id = v_trial_id;
+
+    v_allowed_reasons := CASE coalesce(v_registry, 'AKC')
+      WHEN 'ASCA' THEN ARRAY['judge_change']
+      ELSE ARRAY['in_season', 'judge_change']
+    END;
+
+    IF NOT (v_reason = ANY (v_allowed_reasons)) THEN
+      RAISE EXCEPTION
+        'withdraw_own_entry: % does not recognise the withdrawal reason %',
+        coalesce(v_registry, 'AKC'), v_reason
+        USING errcode = '22023';
+    END IF;
   END IF;
 
   -- 2. Resolve the caller. NULL for an anon / ringside-passcode session, which
@@ -303,7 +347,9 @@ $$;
 COMMENT ON FUNCTION public.withdraw_own_entry(uuid, jsonb, integer, text, text) IS
   'MYK9-535 / MYK9-632: owner-scoped removal of an entry from a class. p_kind '
   'withdraw writes entry_status=withdrawn plus one of the two recognised reason '
-  'codes; p_kind pull writes entry_status=scratched and carries no reason. '
+  'codes, narrowed to the ones the show''s registry recognises (ASCA: '
+  'judge_change only); p_kind pull writes entry_status=scratched and carries no '
+  'reason. '
   'NEITHER act has a payment guard and neither writes a money column (owner '
   'decision 2026-09-17): the exhibitor records what happened, the secretary '
   'confirms the refund on the reconciliation surface. Restates entries_update '

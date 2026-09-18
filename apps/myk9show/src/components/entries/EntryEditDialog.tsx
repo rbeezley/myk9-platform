@@ -86,8 +86,10 @@ export function EntryEditDialog({
     entry.classes.map(classEntry => classEntry.id)
   );
 
-  // Which rulebook's withdrawal reasons this show offers (MYK9-632).
-  const registryId = useShowRegistryId(entry.showId, open);
+  // Which rulebook's withdrawal reasons this show offers, or the fact that we do
+  // not know yet (MYK9-632). No default: "still looking" must never render as
+  // "this is an AKC show".
+  const registry = useShowRegistryId(entry.showId, open);
 
   // Leave-this-class dialog (Withdraw vs Pull).
   const [pullDialog, setPullDialog] = useState<{
@@ -370,7 +372,7 @@ export function EntryEditDialog({
         open={pullDialog.open}
         classId={pullDialog.classId}
         className={pullDialog.className}
-        registryId={registryId}
+        registry={registry}
         isSaving={isSaving}
         withdrawDisabledReason={
           pullDialog.classId

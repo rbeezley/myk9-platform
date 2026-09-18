@@ -40,11 +40,12 @@ describe('deriveEntryPresentation — context-aware wording', () => {
     expect(exh.actionHint).toBe('Contact the show secretary to re-enter');
   });
 
-  it('surfaces the scratch-request approval queue to the secretary', () => {
+  it('surfaces the pull-request approval queue to the secretary', () => {
     expect(present('scratch-requested', secretary)).toEqual({
       kind: 'pending',
-      statusLine: 'Scratch requested',
-      actionHint: 'Approve or decline the scratch',
+      // MYK9-632: the stored value keeps both spellings; the word is Pull.
+      statusLine: 'Pull requested',
+      actionHint: 'Approve or decline the pull request',
     });
     expect(present('scratch-requested', exhibitor).actionHint).toBe('Awaiting secretary approval');
     // Underscore spelling (still permitted by the CHECK constraint) is identical.
@@ -108,6 +109,27 @@ describe('deriveEntryPresentation — kind-level lines', () => {
     expect(present(raw, secretary).statusLine).toBe(sec);
     expect(present(raw, exhibitor).statusLine).toBe(exh);
   });
+
+  // MYK9-632: RAW_WORDING outranks KIND_WORDING, so these four strings — not the
+  // `scratched` kind entry above — are what a pull REQUEST actually rendered.
+  // Both stored spellings are admitted by entries_entry_status_check and both
+  // reach this table, so both are asserted.
+  it.each(['scratch-requested', 'scratch_requested'])(
+    'renders %s as a PULL request on both sides, never a "scratch"',
+    raw => {
+      const sec = present(raw, secretary);
+      const exh = present(raw, exhibitor);
+
+      expect(sec.statusLine).toBe('Pull requested');
+      expect(sec.actionHint).toBe('Approve or decline the pull request');
+      expect(exh.statusLine).toBe('Pull requested');
+      expect(exh.actionHint).toBe('Awaiting secretary approval');
+
+      for (const text of [sec.statusLine, sec.actionHint, exh.statusLine, exh.actionHint]) {
+        expect(text ?? '').not.toMatch(/scratch/i);
+      }
+    }
+  );
 
   it('offers the waitlisted exhibitor the notify reassurance as its one hint', () => {
     expect(present('waitlisted', exhibitor).actionHint).toBe("You'll be notified if a spot opens");

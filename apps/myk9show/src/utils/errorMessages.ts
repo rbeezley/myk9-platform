@@ -14,7 +14,7 @@ import {
 } from './signInEmailMessages';
 
 /** Known PostgreSQL / PostgREST error code prefixes and their user-facing messages. */
-const ERROR_CODE_MAP: Record<string, string> = {
+export const ERROR_CODE_MESSAGES: Record<string, string> = {
   // PostgreSQL class 23 — integrity constraint violations
   '23505': 'This record already exists.',
   '23503': 'Cannot complete this action — it is referenced by other records.',
@@ -74,7 +74,7 @@ export function getUserFriendlyError(error: unknown, fallback: string = DEFAULT_
 
   if (code) {
     // Exact match
-    if (ERROR_CODE_MAP[code]) return ERROR_CODE_MAP[code];
+    if (ERROR_CODE_MESSAGES[code]) return ERROR_CODE_MESSAGES[code];
 
     // Prefix match
     for (const [prefix, message] of Object.entries(ERROR_PREFIX_MAP)) {

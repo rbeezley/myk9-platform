@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { DeleteConfirmationDialog } from '@/components/base';
 import { ForceDeleteOverride } from '@/components/dogs/common/ForceDeleteOverride';
+import { blockedDogDeleteHint } from '@/components/dogs/common/deleteDogDialogCopy';
 import { getDogDisplayName, type Dog } from '@/types/dog-types';
 
 /**
@@ -103,9 +104,7 @@ export function BlockedDogDeleteDialog({
               ? reportOnly
                 ? 'Nothing was deleted, and you can no longer override this. Close and investigate — confirm you still have site-admin access.'
                 : 'Nothing was deleted. You can try the override again, or close and investigate.'
-              : `Pull or refund their entries to delete them normally${
-                  canForceDelete ? ', or override below' : ''
-                }.`}
+              : blockedDogDeleteHint(canForceDelete)}
           </span>
           <ul className="mt-2 list-disc pl-5 space-y-0.5 max-h-40 overflow-y-auto">
             {dogs.map(dog => (

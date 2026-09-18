@@ -59,7 +59,7 @@ test.describe('Dog Details -> show entry handoff', () => {
     // Labels differ by whether the exhibitor already holds entries here, and a
     // closed show offers none at all.
     const register = page
-      .getByRole('button', { name: /enter this show|add classes|view entry/i })
+      .getByRole('button', { name: /enter this show|add entry|view entry/i })
       .first();
     // waitFor, not isVisible: `isVisible()` resolves immediately and ignores a
     // timeout option, so it reads a still-hydrating page as "no CTA" and skips.

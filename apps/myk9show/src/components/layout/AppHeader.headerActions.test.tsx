@@ -191,8 +191,8 @@ describe('AppHeader Actions menu — secretary on a show route', () => {
       .map(item => item.textContent?.trim());
 
     expect(labels).toEqual([
-      'Add mail-in entry',
-      'Enter my own dogs',
+      'Add entry for someone else',
+      'Add entry for my dog',
       'Open Entries',
       'Open Show Day',
       'Generate & publish premium',
@@ -207,7 +207,7 @@ describe('AppHeader Actions menu — secretary on a show route', () => {
     await user.click(screen.getByRole('button', { name: /^actions$/i }));
     const menu = await screen.findByRole('menu');
 
-    expect(within(menu).getByText('Add mail-in entry').closest('a')).toHaveAttribute(
+    expect(within(menu).getByText('Add entry for someone else').closest('a')).toHaveAttribute(
       'href',
       '/secretary/register/show-1'
     );
@@ -242,7 +242,7 @@ describe('AppHeader Actions menu — exhibitor on the same route', () => {
     render(<AppHeader />, { initialRoute: SHOW_ROUTE });
 
     expect(screen.queryByRole('button', { name: /^actions$/i })).toBeNull();
-    expect(screen.queryByText('Add mail-in entry')).toBeNull();
+    expect(screen.queryByText('Add entry for someone else')).toBeNull();
     expect(screen.queryByText('Open Show Day')).toBeNull();
   });
 });

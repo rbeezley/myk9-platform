@@ -91,7 +91,7 @@ describe('MYK9-631 AC2 — the show card carries ONE actions trigger', () => {
 
     const menu = await openShowActions(userEvent.setup(), SHOW);
     expect(menu.getAllByRole('menuitem').map(item => item.textContent)).toEqual([
-      'Add classes',
+      'Add entry',
       'Change handler or jump height',
       'Receipts',
       'Add to calendar',
@@ -160,15 +160,15 @@ describe('MYK9-631 AC2 — the show card carries ONE actions trigger', () => {
   // `View show page` already had — two labels, one destination, in the menu
   // whose purpose is to stop scattering. It now points at the wizard's own
   // route, so the two items genuinely differ.
-  it('links Add classes at the registration wizard, not the show page', async () => {
+  it('links Add entry at the registration wizard, not the show page', async () => {
     renderRows([liveRow([aheadClass()])]);
 
     const menu = await openShowActions(userEvent.setup(), SHOW);
-    const addClasses = menu.getByRole('menuitem', { name: /Add classes/ });
+    const addEntry = menu.getByRole('menuitem', { name: /Add entry/ });
     const viewShow = menu.getByRole('menuitem', { name: /View the show page/ });
-    expect(addClasses).toHaveAttribute('href', '/shows/show-flint/register');
+    expect(addEntry).toHaveAttribute('href', '/shows/show-flint/register');
     expect(viewShow).toHaveAttribute('href', '/shows/show-flint');
-    expect(addClasses.getAttribute('href')).not.toBe(viewShow.getAttribute('href'));
+    expect(addEntry.getAttribute('href')).not.toBe(viewShow.getAttribute('href'));
   });
 });
 

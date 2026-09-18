@@ -315,8 +315,14 @@ export function CartSummary({
             capacityUnknown ||
             isExpired
           }
-          className="w-full"
-          size="lg"
+          // The label is the longest in the app ("Pay $1,234.50 and confirm
+          // entries", plus a wait-list suffix at its fullest) and it renders in
+          // the narrow order-summary column. `lg` is `h-11 px-8` under a base
+          // `whitespace-nowrap`, so the text ran past the rounded edge.
+          // `touch` is the variant that already grows with its content, and it
+          // carries docs/INTENT.md's preferred 48px tablet target.
+          className="w-full whitespace-normal text-base text-center"
+          size="touch"
         >
           {isCheckingOut ? (
             <>

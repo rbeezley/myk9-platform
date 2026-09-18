@@ -79,7 +79,7 @@ The **Actions** menu in the top bar and **Show settings…** work the same for y
 
 **Three jobs stay with the trial secretary:**
 
-- **Typing in entries on someone's behalf.** **Add mail-in entry** (Actions menu, Show Day and Entries) and **Add late entry** (Show Day) are shown to you greyed out, with the reason **"Trial secretary access only"** — visible, so you can see they exist, but not yours to use.
+- **Typing in entries on someone's behalf.** **Add entry for someone else** (Actions menu, Show Day and Entries) and **Add late entry** (Show Day) are shown to you greyed out, with the reason **"Trial secretary access only"** — visible, so you can see they exist, but not yours to use.
 - **Entering scores from paper.** **Enter paper scores**, on the Show Day class panel, is greyed out for the same reason. Scoring belongs to the judge and the secretary; you can read every score on the Results tab.
 - **Volunteer scheduling.** **Open volunteer scheduling** on the Show Day tab is greyed out for the same reason; the scheduling page itself is the secretary's.
 
@@ -93,7 +93,7 @@ If your club needs any of those done, ask your secretary — or grant secretary 
 
 Show access is managed from the **Members** page, not from the show itself. This is how you give **someone else** the operational role — you do not grant it to yourself. Your own club admin role already covers your club's shows (see [Section 2](#section-2--your-clubs-shows)).
 
-When you grant an active member show access, they can manage any of your club's shows, and they get the two things your own role does not carry: entering mail-in and late entries on an exhibitor's behalf, and volunteer scheduling. Everything else — entries, run order, show-day operations, results, and registry submission — they share with you.
+When you grant an active member show access, they can manage any of your club's shows, and they get the two things your own role does not carry: entering on an exhibitor's behalf (mail-in, phone, walk-up) and late entries, and volunteer scheduling. Everything else — entries, run order, show-day operations, results, and registry submission — they share with you.
 
 **The person must already be an active club member before you can grant club-wide show access.** If they are not yet in the members list, add them first (see Section 6). Lapsed, suspended, and resigned members cannot receive or retain effective club-wide show access.
 

@@ -85,7 +85,10 @@ export function ShowWorkbenchSetupPage() {
               type="button"
               variant={isActive ? 'secondary' : 'ghost'}
               aria-pressed={isActive}
-              className={cn('min-h-11 shrink-0', isActive && 'border border-primary/30 bg-primary/10')}
+              className={cn(
+                'min-h-11 shrink-0',
+                isActive && 'border border-primary/30 bg-primary/10'
+              )}
               onClick={() => setSection(item.id)}
             >
               {item.label}

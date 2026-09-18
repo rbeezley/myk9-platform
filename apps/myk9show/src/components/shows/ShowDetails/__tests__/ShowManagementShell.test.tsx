@@ -190,14 +190,9 @@ describe('ShowManagementShell', () => {
 
   it('renders exactly six tabs, in the decided order', () => {
     renderShell();
-    expect(screen.getAllByRole('tab').map(tab => tab.textContent?.replace(/\d+$/, '').trim())).toEqual([
-      'Overview',
-      'Setup',
-      'Entries',
-      'Show Day',
-      'Results',
-      'Reports',
-    ]);
+    expect(
+      screen.getAllByRole('tab').map(tab => tab.textContent?.replace(/\d+$/, '').trim())
+    ).toEqual(['Overview', 'Setup', 'Entries', 'Show Day', 'Results', 'Reports']);
   });
 
   it('carries NO standalone page links above the tabs — the tabs are the only row', () => {
@@ -213,7 +208,7 @@ describe('ShowManagementShell', () => {
     }
   });
 
-  it('navigates to a tab\'s own page when that tab is selected', () => {
+  it("navigates to a tab's own page when that tab is selected", () => {
     renderShell({}, '/shows/show-1', <LocationProbe />);
     fireEvent.click(screen.getByRole('tab', { name: /^Show Day/ }));
     expect(screen.getByTestId('probe-url')).toHaveTextContent('/shows/show-1/show-day');

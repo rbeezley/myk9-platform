@@ -19,10 +19,7 @@ import {
  * The report's stated cause — "All excludes Needs review" — is NOT what the
  * code does, and this file pins that too.
  */
-function entry(
-  id: string,
-  overrides: Partial<EntryManagementEntry> = {}
-): EntryManagementEntry {
+function entry(id: string, overrides: Partial<EntryManagementEntry> = {}): EntryManagementEntry {
   return {
     id,
     dogId: `dog-${id}`,

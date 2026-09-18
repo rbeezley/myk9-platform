@@ -142,9 +142,9 @@ const ShowDetailsPage: React.FC = () => {
   const activeManagementSection = managementSectionMatch?.params.section;
   const isManagementSection = Boolean(
     activeManagementSection &&
-      (SHOW_MANAGEMENT_SECTIONS.some(item => item.path === activeManagementSection) ||
-        activeManagementSection in LEGACY_SHOW_SECTION_REDIRECTS ||
-        activeManagementSection === 'classes')
+    (SHOW_MANAGEMENT_SECTIONS.some(item => item.path === activeManagementSection) ||
+      activeManagementSection in LEGACY_SHOW_SECTION_REDIRECTS ||
+      activeManagementSection === 'classes')
   );
   const isScopedSecretary =
     isSecretary && hasScopedClubRole(userWithRoles, UserRole.SECRETARY, actualCurrentShow?.clubId);

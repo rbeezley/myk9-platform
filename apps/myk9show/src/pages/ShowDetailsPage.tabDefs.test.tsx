@@ -112,8 +112,7 @@ describe('resolveResultsTabCount', () => {
   });
 });
 
-
-describe('buildShowManagementTabDefs — the secretary\'s one row of six', () => {
+describe("buildShowManagementTabDefs — the secretary's one row of six", () => {
   it('is exactly the six decided tabs, in order', () => {
     expect(
       buildShowManagementTabDefs({

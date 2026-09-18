@@ -127,7 +127,6 @@ export function ShowDetailTabs({
       <TabsContent value="results">
         <ShowResultsTab showId={show.id} />
       </TabsContent>
-
     </PrimaryTabs>
   );
 }

@@ -175,8 +175,8 @@ export function ShowManagementShell({
   // `classes/:trialId` is Class Management, reached FROM Setup and not a tab of
   // its own, so it keeps Setup lit rather than lighting nothing.
   const activeTabId: ShowTabId =
-    (SHOW_TABS.find(tab => tab.path === activeManagementSection)?.id ??
-      (activeManagementSection === 'classes' ? 'setup' : 'overview'));
+    SHOW_TABS.find(tab => tab.path === activeManagementSection)?.id ??
+    (activeManagementSection === 'classes' ? 'setup' : 'overview');
   const goToTab = (id: string) => {
     const tab = SHOW_TABS.find(item => item.id === id);
     if (!tab) return;
@@ -313,7 +313,6 @@ export function ShowManagementShell({
             </TabsContent>
           </PrimaryTabs>
         )}
-
       </PageShell>
 
       {/* Dialogs */}

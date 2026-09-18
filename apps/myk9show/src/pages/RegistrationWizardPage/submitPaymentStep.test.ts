@@ -58,7 +58,7 @@ function makeContextAndOrder(overrides: Partial<SubmitPaymentStepContext> = {}):
         order.push('clearCart');
         return true;
       }),
-      createCart: vi.fn(),
+      ensureCart: vi.fn(),
       addItem: vi.fn(),
       abandonCart: vi.fn(),
     },

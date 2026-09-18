@@ -1,5 +1,5 @@
 import type { ShowFeeInfo } from '@/components/shows/RegistrationWorkflow/PaymentStep/utils';
-import type { CartWithDetails, NewCartItem } from '@/store/cartStore';
+import type { EnsureCartResult, NewCartItem } from '@/store/cartStore';
 import type { ClassSelectionData, HandlerInfo } from '@/types/show-registration-types';
 import { registrationToCartItems } from '@/utils/registrationToCartItems';
 import type { SelectedDogsOwnerResult } from './selectedDogsOwner';
@@ -10,9 +10,8 @@ interface ClassLike {
 }
 
 interface RegistrationCartCheckoutDeps {
-  loadCart: (showId: string, exhibitorId: string) => Promise<CartWithDetails | null>;
+  ensureCart: (showId: string, exhibitorId: string) => Promise<EnsureCartResult>;
   clearCart: () => Promise<boolean>;
-  createCart: (showId: string, exhibitorId: string) => Promise<CartWithDetails | null>;
   addItem: (item: NewCartItem) => Promise<boolean>;
   abandonCart: () => Promise<boolean>;
   navigate: (path: string) => void;
@@ -48,16 +47,20 @@ export async function submitRegistrationCartCheckout({
   }
 
   const exhibitorId = exhibitorProfileId;
-  const existingCart = await deps.loadCart(showId, exhibitorId);
-  if (existingCart) {
+  // MYK9-581: one recover-or-create call. The old load-then-create pair read
+  // `expires_at` while the unique index does not, so a lapsed cart read as "no
+  // cart" and the follow-on INSERT could only 409. The opener answers with
+  // `ready` or `failed`, so there is no "no cart and no reason" case to decide
+  // what to do about here.
+  const opened = await deps.ensureCart(showId, exhibitorId);
+  if (opened.kind === 'failed') {
+    throw new Error(opened.error);
+  }
+  const cart = opened.cart;
+  if (cart.items.length > 0) {
     const cleared = await deps.clearCart();
     if (!cleared) {
       throw new Error('Failed to clear existing cart. Please try again.');
-    }
-  } else {
-    const createdCart = await deps.createCart(showId, exhibitorId);
-    if (!createdCart) {
-      throw new Error('Failed to create cart');
     }
   }
 

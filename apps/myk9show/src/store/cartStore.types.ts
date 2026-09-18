@@ -12,6 +12,15 @@ export type EntryCartInsert = Database['public']['Tables']['entry_carts']['Inser
 export type EntryCartItem = Database['public']['Tables']['entry_cart_items']['Row'];
 export type EntryCartItemInsert = Database['public']['Tables']['entry_cart_items']['Insert'];
 
+/**
+ * The wizard cart opener's outcome (MYK9-581). There is no third case on
+ * purpose: a caller cannot reach a state where it has neither a cart to render
+ * nor a message to show. Lives here rather than beside `ensureCartOnce` so the
+ * opener module and `CartState` do not have to import each other.
+ */
+export type EnsureCartResult =
+  { kind: 'ready'; cart: CartWithDetails } | { kind: 'failed'; error: string };
+
 // Cart status enum
 export type CartStatus = 'active' | 'submitted' | 'abandoned' | 'expired';
 
@@ -130,6 +139,12 @@ export interface CartState {
     exhibitorId: string,
     options?: { showId?: string; recoveryEntryIds?: string[] }
   ) => Promise<CartWithDetails | null>;
+  /**
+   * Recover-or-create this exhibitor's cart for a show as ONE coalesced unit.
+   * The registration wizard's opener; never inserts while an active row exists,
+   * and never resolves without either a cart or a message (MYK9-581).
+   */
+  ensureCart: (showId: string, exhibitorId: string) => Promise<EnsureCartResult>;
   createCart: (showId: string, exhibitorId: string) => Promise<CartWithDetails | null>;
   addItem: (item: NewCartItem) => Promise<boolean>;
   removeItem: (itemId: string) => Promise<boolean>;

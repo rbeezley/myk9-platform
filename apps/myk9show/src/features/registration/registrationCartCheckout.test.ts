@@ -3,9 +3,8 @@ import { submitRegistrationCartCheckout } from './registrationCartCheckout';
 
 function makeDeps() {
   return {
-    loadCart: vi.fn().mockResolvedValue(null),
     clearCart: vi.fn().mockResolvedValue(true),
-    createCart: vi.fn().mockResolvedValue({ id: 'cart-1' }),
+    ensureCart: vi.fn().mockResolvedValue({ kind: 'ready', cart: { id: 'cart-1', items: [] } }),
     addItem: vi.fn().mockResolvedValue(true),
     abandonCart: vi.fn().mockResolvedValue(true),
     navigate: vi.fn(),
@@ -40,8 +39,9 @@ describe('submitRegistrationCartCheckout', () => {
     });
 
     // Cart operations must use exhibitorProfileId, not ownerResolution.ownerId
-    expect(deps.loadCart).toHaveBeenCalledWith('show-1', 'profile-1');
-    expect(deps.createCart).toHaveBeenCalledWith('show-1', 'profile-1');
+    expect(deps.ensureCart).toHaveBeenCalledWith('show-1', 'profile-1');
+    // A cart that came back empty has nothing to clear.
+    expect(deps.clearCart).not.toHaveBeenCalled();
     expect(deps.addItem).toHaveBeenCalledWith({
       dogId: 'dog-1',
       classId: 'class-1',
@@ -84,7 +84,10 @@ describe('submitRegistrationCartCheckout', () => {
 
   it('reuses and clears an existing cart before adding registration items', async () => {
     const deps = makeDeps();
-    deps.loadCart.mockResolvedValue({ id: 'cart-existing' });
+    deps.ensureCart.mockResolvedValue({
+      kind: 'ready',
+      cart: { id: 'cart-existing', items: [{ id: 'item-1' }] },
+    });
 
     await submitRegistrationCartCheckout({
       showId: 'show-1',
@@ -107,14 +110,51 @@ describe('submitRegistrationCartCheckout', () => {
     });
 
     expect(deps.clearCart).toHaveBeenCalledTimes(1);
-    expect(deps.createCart).not.toHaveBeenCalled();
+    expect(deps.ensureCart).toHaveBeenCalledTimes(1);
     expect(deps.addItem).toHaveBeenCalledTimes(1);
     expect(deps.navigate).toHaveBeenCalledWith('/cart');
   });
 
+  it("surfaces the opener's own message when the cart cannot be opened", async () => {
+    // The opener answers `failed` with a reason; checkout must raise THAT
+    // reason rather than a generic "Failed to create cart" that hides which
+    // read actually broke (MYK9-581).
+    const deps = makeDeps();
+    deps.ensureCart.mockResolvedValue({ kind: 'failed', error: 'entries reconcile read failed' });
+
+    await expect(
+      submitRegistrationCartCheckout({
+        showId: 'show-1',
+        ownerResolution: { ok: true, ownerId: 'people-1' },
+        exhibitorProfileId: 'profile-1',
+        classSelections: [
+          {
+            dogId: 'dog-1',
+            trialId: 'trial-1',
+            selectedClasses: [{ classId: 'class-1' }],
+          },
+        ],
+        handlerAssignments: {},
+        classes: [{ id: 'class-1' }],
+        showFeeInfo: {
+          preEntryFee: '25',
+          startDate: '2099-05-01',
+        },
+        deps,
+      })
+    ).rejects.toThrow('entries reconcile read failed');
+
+    expect(deps.clearCart).not.toHaveBeenCalled();
+    expect(deps.addItem).not.toHaveBeenCalled();
+    expect(deps.navigate).not.toHaveBeenCalled();
+  });
+
   it('stops before adding items when clearing an existing cart fails', async () => {
     const deps = makeDeps();
-    deps.loadCart.mockResolvedValue({ id: 'cart-existing' });
+    deps.ensureCart.mockResolvedValue({
+      kind: 'ready',
+      cart: { id: 'cart-existing', items: [{ id: 'item-1' }] },
+    });
     deps.clearCart.mockResolvedValue(false);
 
     await expect(
@@ -189,6 +229,6 @@ describe('submitRegistrationCartCheckout', () => {
       })
     ).rejects.toThrow('Cannot determine exhibitor profile');
 
-    expect(deps.createCart).not.toHaveBeenCalled();
+    expect(deps.ensureCart).not.toHaveBeenCalled();
   });
 });

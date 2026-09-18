@@ -33,14 +33,14 @@ import type {
 } from '@/types/show-registration-types';
 import type { EntrySubmissionOutcome } from '@/services/database/entries';
 import type { HandledDraftClass } from '@/hooks/pruneFiledDogsFromDraft';
-import type { CartWithDetails, NewCartItem } from '@/store/cartStore';
+import type { CartWithDetails, EnsureCartResult, NewCartItem } from '@/store/cartStore';
 import { getEntrySubmitBlocker } from './entryCloseGuard';
 
 /** Subset of the cart store actions the checkout handoff needs. */
 export interface PaymentStepCartDeps {
   loadCart: (showId: string, exhibitorId: string) => Promise<CartWithDetails | null>;
   clearCart: () => Promise<boolean>;
-  createCart: (showId: string, exhibitorId: string) => Promise<CartWithDetails | null>;
+  ensureCart: (showId: string, exhibitorId: string) => Promise<EnsureCartResult>;
   addItem: (item: NewCartItem) => Promise<boolean>;
   abandonCart: () => Promise<boolean>;
 }
@@ -164,9 +164,8 @@ export async function submitPaymentStep(ctx: SubmitPaymentStepContext): Promise<
         classes: ctx.classes,
         showFeeInfo: ctx.showFeeInfo,
         deps: {
-          loadCart: ctx.cart.loadCart,
           clearCart: ctx.cart.clearCart,
-          createCart: ctx.cart.createCart,
+          ensureCart: ctx.cart.ensureCart,
           addItem: ctx.cart.addItem,
           abandonCart: ctx.cart.abandonCart,
           navigate: path => ctx.navigate(path),

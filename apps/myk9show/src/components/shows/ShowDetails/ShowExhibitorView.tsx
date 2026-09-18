@@ -112,10 +112,12 @@ export function ShowExhibitorView({
                     "Add or Change Entries" replaced it, but the wizard is
                     add-only: existing classes render disabled with no
                     withdraw/move-up path. Audit row 11 (exhibitor-elderly-novice
-                    2026-07-23) flagged the promise as false. "Add Classes" now
-                    names the real capability; the wizard itself explains that
-                    existing entries are changed through the show team. */}
-                {hasUserEntries ? 'Add Classes' : 'Enter This Show'}
+                    2026-07-23) flagged the promise as false. "Add Classes"
+                    replaced it but named the secretary's show-building
+                    gesture: picking classes creates an ENTRY, not a class.
+                    Rule and the "Enter This Show" exception:
+                    docs/reference/ui-vocabulary.md. */}
+                {hasUserEntries ? 'Add Entry' : 'Enter This Show'}
               </Button>
             ) : hasUserEntries ? (
               <Button
@@ -133,13 +135,16 @@ export function ShowExhibitorView({
       />
 
       {isManagementSection ? (
-        // The SAME context the management shell supplies. `ShowManagementSectionRoute`
-        // admits anyone `canManageShowSurface` allows -- which includes a
-        // club-scoped CLUB ADMIN -- while the management shell only renders for
-        // a site admin or a scoped secretary (#2180, deliberate). So a club
-        // admin reaches `/shows/:id/setup` on THIS surface, and without the
-        // context the Setup page renders nothing at all. One context object,
-        // both surfaces; a section page can never depend on which one mounted it.
+        // The `<Outlet/>` must exist here even though no manager renders this
+        // surface any more (MYK9-630 phase 3 gave club admins the management
+        // shell too). React Router only mounts a child route when its PARENT
+        // renders an outlet, and the child IS `ShowManagementSectionRoute` --
+        // the thing that redirects a non-manager back to `/shows/:id`. Drop
+        // this branch and a non-manager deep-linking `/shows/:id/setup` would
+        // sit on the exhibitor tabs at a management URL, never bounced.
+        //
+        // It carries the SAME context object the management shell supplies, so
+        // a section page can never depend on which surface mounted it.
         <Outlet context={tabs} />
       ) : isWaitingForEntryDefault ? (
         <div className="mt-6">

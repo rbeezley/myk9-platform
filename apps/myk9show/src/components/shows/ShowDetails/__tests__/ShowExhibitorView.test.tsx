@@ -123,9 +123,9 @@ describe('ShowExhibitorView', () => {
     expect(screen.getByRole('button', { name: 'Enter This Show' })).toBeInTheDocument();
   });
 
-  it('shows "Add Classes" when entries are open and the user already entered', () => {
+  it('shows "Add Entry" when entries are open and the user already entered', () => {
     renderView({ entryStatus: makeEntryStatus({ canEnter: true }), hasUserEntries: true });
-    expect(screen.getByRole('button', { name: 'Add Classes' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Add Entry' })).toBeInTheDocument();
   });
 
   it('shows "View Entry" when entries are closed but the user has entries', () => {

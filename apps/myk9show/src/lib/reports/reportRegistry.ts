@@ -42,7 +42,7 @@ export const reportRegistry: ReportDefinition[] = [
   {
     id: 'check-in-sheet',
     name: 'Check-in Sheet',
-    category: 'operational',
+    phase: 'during',
     scopes: ['trial', 'class'],
     sortOptions: RUN_ORDER_SORT_OPTIONS,
     defaultSort: 'run-order',
@@ -61,7 +61,7 @@ export const reportRegistry: ReportDefinition[] = [
   {
     id: 'scoresheet',
     name: 'Score Sheet',
-    category: 'operational',
+    phase: 'during',
     scopes: ['trial', 'class'],
     sortOptions: RUN_ORDER_SORT_OPTIONS,
     defaultSort: 'run-order',
@@ -78,7 +78,7 @@ export const reportRegistry: ReportDefinition[] = [
   {
     id: 'results-sheet',
     name: 'Results Sheet',
-    category: 'operational',
+    phase: 'after',
     scopes: ['trial', 'class'],
     sortOptions: PLACEMENT_SORT_OPTIONS,
     defaultSort: 'placement',
@@ -89,7 +89,7 @@ export const reportRegistry: ReportDefinition[] = [
   {
     id: 'show-flyer',
     name: 'Show Flyer',
-    category: 'operational',
+    phase: 'before',
     scopes: ['show'],
     sortOptions: [],
     defaultSort: '',
@@ -100,7 +100,7 @@ export const reportRegistry: ReportDefinition[] = [
   {
     id: 'akc-scent-work-entry-form',
     name: 'AKC Scent Work Entry Form',
-    category: 'organization',
+    phase: 'before',
     scopes: ['show', 'trial'],
     sortOptions: [
       { value: 'armband', label: 'Armband Number' },
@@ -116,7 +116,7 @@ export const reportRegistry: ReportDefinition[] = [
   {
     id: 'akc-scent-work-transfer-form',
     name: 'AKC Scent Work Transfer Form',
-    category: 'organization',
+    phase: 'during',
     scopes: ['trial', 'class'],
     sortOptions: [],
     defaultSort: '',
@@ -128,7 +128,7 @@ export const reportRegistry: ReportDefinition[] = [
   {
     id: 'high-in-trial',
     name: 'High in Trial',
-    category: 'operational',
+    phase: 'after',
     // Trial-scoped by rule, not by convenience: Chapter 6 §8 awards HIT per difficulty
     // level across the elements a TRIAL offers, so a class-scoped view cannot compute it.
     scopes: ['trial'],
@@ -146,7 +146,7 @@ export const reportRegistry: ReportDefinition[] = [
   {
     id: 'ukc-nosework-entry-form',
     name: 'UKC Nosework Entry Form',
-    category: 'organization',
+    phase: 'before',
     scopes: ['show', 'trial'],
     sortOptions: [
       { value: 'armband', label: 'Armband Number' },
@@ -163,7 +163,7 @@ export const reportRegistry: ReportDefinition[] = [
   {
     id: 'ukc-nosework-change-entry-form',
     name: 'UKC Nosework Change Entry Form',
-    category: 'organization',
+    phase: 'during',
     scopes: ['trial', 'class'],
     sortOptions: [],
     defaultSort: '',
@@ -176,7 +176,7 @@ export const reportRegistry: ReportDefinition[] = [
   {
     id: 'ukc-nosework-judges-book-element',
     name: 'UKC Nosework Judges Book: Element Trial',
-    category: 'organization',
+    phase: 'during',
     scopes: ['trial'],
     sortOptions: [],
     defaultSort: '',
@@ -188,7 +188,7 @@ export const reportRegistry: ReportDefinition[] = [
   {
     id: 'ukc-nosework-judges-book-handler-discrimination',
     name: 'UKC Nosework Judges Book: Handler Discrimination',
-    category: 'organization',
+    phase: 'during',
     scopes: ['trial'],
     sortOptions: [],
     defaultSort: '',
@@ -200,7 +200,7 @@ export const reportRegistry: ReportDefinition[] = [
   {
     id: 'ukc-nosework-trial-score-sheet',
     name: 'UKC Nosework Trial Score Sheet',
-    category: 'organization',
+    phase: 'during',
     scopes: ['trial', 'class'],
     sortOptions: [],
     defaultSort: '',
@@ -212,7 +212,7 @@ export const reportRegistry: ReportDefinition[] = [
   {
     id: 'ukc-nosework-trial-report',
     name: 'UKC Nosework Trial Report',
-    category: 'organization',
+    phase: 'after',
     scopes: ['trial'],
     sortOptions: [],
     defaultSort: '',
@@ -224,7 +224,7 @@ export const reportRegistry: ReportDefinition[] = [
   {
     id: 'asca-scent-detection-entry-form',
     name: 'ASCA Scent Detection Entry Form',
-    category: 'organization',
+    phase: 'before',
     scopes: ['trial'],
     sortOptions: [],
     defaultSort: '',
@@ -236,7 +236,7 @@ export const reportRegistry: ReportDefinition[] = [
   {
     id: 'asca-scent-detection-trial-report',
     name: 'ASCA Scent Detection Trial Report',
-    category: 'organization',
+    phase: 'after',
     scopes: ['trial'],
     sortOptions: [],
     defaultSort: '',
@@ -248,7 +248,7 @@ export const reportRegistry: ReportDefinition[] = [
   {
     id: 'asca-scent-detection-trial-roster',
     name: 'ASCA Scent Detection Trial Roster',
-    category: 'organization',
+    phase: 'during',
     scopes: ['trial'],
     sortOptions: [],
     defaultSort: '',
@@ -260,7 +260,7 @@ export const reportRegistry: ReportDefinition[] = [
   {
     id: 'asca-scent-detection-score-sheet',
     name: 'ASCA Scent Detection Score Sheet',
-    category: 'organization',
+    phase: 'during',
     scopes: ['trial', 'class'],
     sortOptions: [],
     defaultSort: '',
@@ -272,7 +272,7 @@ export const reportRegistry: ReportDefinition[] = [
   {
     id: 'asca-scent-detection-gross-receipts',
     name: 'ASCA Scent Detection Gross Receipts Report',
-    category: 'organization',
+    phase: 'after',
     scopes: ['trial'],
     sortOptions: [],
     defaultSort: '',
@@ -284,7 +284,7 @@ export const reportRegistry: ReportDefinition[] = [
   {
     id: 'asca-scent-detection-post-event-evaluation',
     name: 'ASCA Scent Detection Post-Event Evaluation',
-    category: 'organization',
+    phase: 'after',
     scopes: ['trial'],
     sortOptions: [],
     defaultSort: '',
@@ -297,7 +297,7 @@ export const reportRegistry: ReportDefinition[] = [
   {
     id: 'armband-labels',
     name: 'Armband Labels',
-    category: 'operational',
+    phase: 'before',
     scopes: ['show', 'trial', 'class'],
     sortOptions: [],
     defaultSort: '',
@@ -309,7 +309,7 @@ export const reportRegistry: ReportDefinition[] = [
   {
     id: 'show-catalog',
     name: 'Show Catalog',
-    category: 'operational',
+    phase: 'before',
     scopes: ['show', 'trial'],
     sortOptions: [
       { value: 'armband', label: 'Armband #' },
@@ -323,7 +323,7 @@ export const reportRegistry: ReportDefinition[] = [
   {
     id: 'result-catalog',
     name: 'Result Catalog',
-    category: 'operational',
+    phase: 'after',
     scopes: ['show', 'trial', 'class'],
     sortOptions: [
       { value: 'placement', label: 'Placement' },
@@ -337,7 +337,7 @@ export const reportRegistry: ReportDefinition[] = [
   {
     id: 'judges-schedule',
     name: "Judge's Schedule",
-    category: 'operational',
+    phase: 'before',
     scopes: ['show'],
     sortOptions: [
       { value: 'trial-date', label: 'Trial Date' },
@@ -350,7 +350,7 @@ export const reportRegistry: ReportDefinition[] = [
   {
     id: 'trial-secretary-report',
     name: 'Trial Secretary Report',
-    category: 'organization',
+    phase: 'after',
     scopes: ['trial'],
     sortOptions: [],
     defaultSort: '',
@@ -361,7 +361,7 @@ export const reportRegistry: ReportDefinition[] = [
   {
     id: 'judges-certification',
     name: "Judge's Certification Report",
-    category: 'organization',
+    phase: 'after',
     scopes: ['trial'],
     sortOptions: [],
     defaultSort: '',
@@ -372,7 +372,7 @@ export const reportRegistry: ReportDefinition[] = [
   {
     id: 'trial-chairman-report',
     name: 'Trial Chairman Report',
-    category: 'organization',
+    phase: 'after',
     scopes: ['trial'],
     sortOptions: [],
     defaultSort: '',
@@ -383,7 +383,7 @@ export const reportRegistry: ReportDefinition[] = [
   {
     id: 'financial-report',
     name: 'Financial Report',
-    category: 'financial',
+    phase: 'anytime',
     scopes: ['show'],
     sortOptions: [
       { value: 'current', label: 'Current Entries' },
@@ -397,7 +397,7 @@ export const reportRegistry: ReportDefinition[] = [
   {
     id: 'show-entry-counts',
     name: 'Show Entry Counts',
-    category: 'statistics',
+    phase: 'before',
     scopes: ['show'],
     sortOptions: [],
     defaultSort: '',
@@ -407,7 +407,7 @@ export const reportRegistry: ReportDefinition[] = [
   {
     id: 'trial-entry-counts',
     name: 'Trial Entry Counts',
-    category: 'statistics',
+    phase: 'before',
     scopes: ['trial'],
     sortOptions: [],
     defaultSort: '',
@@ -417,7 +417,7 @@ export const reportRegistry: ReportDefinition[] = [
   {
     id: 'breed-entry-counts',
     name: 'Breed Entry Counts',
-    category: 'statistics',
+    phase: 'before',
     scopes: ['show'],
     sortOptions: [],
     defaultSort: '',
@@ -427,7 +427,7 @@ export const reportRegistry: ReportDefinition[] = [
   {
     id: 'judge-entry-counts',
     name: 'Judge Entry Counts',
-    category: 'statistics',
+    phase: 'before',
     scopes: ['show'],
     sortOptions: [
       { value: 'standard', label: 'Standard' },
@@ -440,7 +440,7 @@ export const reportRegistry: ReportDefinition[] = [
   {
     id: 'waitlist-report',
     name: 'Waitlist Report',
-    category: 'operational',
+    phase: 'before',
     scopes: ['show'],
     sortOptions: [],
     defaultSort: '',
@@ -450,7 +450,7 @@ export const reportRegistry: ReportDefinition[] = [
   {
     id: 'steward-report',
     name: "Steward's Report",
-    category: 'operational',
+    phase: 'during',
     scopes: ['trial'],
     sortOptions: [],
     defaultSort: '',
@@ -460,7 +460,7 @@ export const reportRegistry: ReportDefinition[] = [
   {
     id: 'result-labels',
     name: 'Result Labels',
-    category: 'operational',
+    phase: 'after',
     scopes: ['trial', 'class'],
     sortOptions: [
       { value: 'placement', label: 'Placement' },
@@ -473,7 +473,7 @@ export const reportRegistry: ReportDefinition[] = [
   {
     id: 'akc-judge-report',
     name: "AKC Judge's Report",
-    category: 'organization',
+    phase: 'after',
     scopes: ['trial'],
     sortOptions: [],
     defaultSort: '',
@@ -484,7 +484,7 @@ export const reportRegistry: ReportDefinition[] = [
   {
     id: 'trial-secretary-certification',
     name: 'Trial Secretary Certification',
-    category: 'organization',
+    phase: 'after',
     scopes: ['trial'],
     sortOptions: [],
     defaultSort: '',
@@ -495,7 +495,7 @@ export const reportRegistry: ReportDefinition[] = [
   {
     id: 'judge-supply-checklist',
     name: 'Judge Supply Checklists',
-    category: 'operational',
+    phase: 'before',
     scopes: ['show'],
     sortOptions: [],
     defaultSort: '',

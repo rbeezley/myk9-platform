@@ -46,6 +46,7 @@ import {
   selectedDogsOwner,
   type SelectedDogsOwnerResult,
 } from '@/features/registration/selectedDogsOwner';
+import { resolveWizardTitles } from './wizardTitles';
 import { isShowDeskLateEntryMode, resolveRegistrationExit } from '../RegistrationWizardPage.routes';
 import { proceedBlockedReason } from './proceedGating';
 import { buildDraftFormData } from './buildDraftFormData';
@@ -69,17 +70,13 @@ export function useRegistrationWizardState() {
   const [searchParams] = useSearchParams();
   const isInsideSidebar = !!useMatch('/secretary/*');
   const isLateEntryMode = isShowDeskLateEntryMode(searchParams);
-  const workflowLabel = isLateEntryMode
-    ? 'Late entry'
-    : isInsideSidebar
-      ? 'Mail-in entry'
-      : 'Register';
-  const sidebarTitle = isLateEntryMode
-    ? 'Add late entry'
-    : isInsideSidebar
-      ? 'Add mail-in entry'
-      : 'Register for Show';
-  const workflowSubtitle = isInsideSidebar ? 'Enter on behalf of an exhibitor.' : undefined;
+  // Pure + pinned by wizardTitles.test.ts; the vocabulary standard
+  // (docs/reference/ui-vocabulary.md) rests on these strings and the e2e
+  // assertions that also cover them only run against staging.
+  const { workflowLabel, sidebarTitle, workflowSubtitle } = resolveWizardTitles({
+    isLateEntryMode,
+    isInsideSidebar,
+  });
   const exitTarget = resolveRegistrationExit(showId, { isLateEntryMode, isInsideSidebar });
 
   // Auth and permissions

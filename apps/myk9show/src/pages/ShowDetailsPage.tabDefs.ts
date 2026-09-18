@@ -4,10 +4,12 @@
  *
  * TWO strips live here, for two different audiences:
  * - `buildShowDetailTabDefs` — the public / exhibitor `?tab=` strip.
- * - `buildShowManagementTabDefs` — the secretary's ONE row of six tabs, each
- *   of which is a real page (MYK9-630 phase 2). The manager no longer has a
- *   `?tab=` strip at all, so the manager-only Entries and Show Map tabs are
- *   gone from the first builder.
+ * - `buildShowManagementTabDefs` — the manager's ONE row of six tabs, each of
+ *   which is a real page (MYK9-630 phase 2). A manager has no `?tab=` strip at
+ *   all, so the manager-only Entries and Show Map tabs are gone from the first
+ *   builder. Phase 3 removed the last of them: club admins are managers now,
+ *   so nobody with `canManageShow` renders the exhibitor strip and its
+ *   club-admin-only "Show Map" tab was unreachable.
  *
  * Every badge here is derived from the same data its panel renders. The
  * Results badge in particular must agree with the Podium panel: both count the
@@ -19,7 +21,6 @@ import {
   LayoutDashboard,
   Trophy,
   ListChecks,
-  ListTree,
   ClipboardList,
   Medal,
   SlidersHorizontal,
@@ -67,21 +68,6 @@ const SHOW_TAB_ICONS: Record<ShowTabId, LucideIcon> = {
 
 export interface ShowDetailTabDefsInput {
   isAuthenticated: boolean;
-  /**
-   * This viewer may see the show map. True only for someone with
-   * `canManageShow`, which on THIS strip means a club-scoped club admin: a site
-   * admin or scoped secretary gets the management surface and its Setup tab
-   * instead (#2180 put club admins on the exhibitor view deliberately). Their
-   * map lived here before MYK9-630 phase 2 and still does.
-   *
-   * KNOWN DUPLICATION, accepted for now: a club admin can also reach the same
-   * map at `/shows/:id/setup?section=map`, because the section routes admit
-   * them and Setup derives from this same flag. Nothing in their chrome links
-   * there, so it is URL-only. It resolves either way once Richard answers the
-   * open question on MYK9-630 -- whether a club admin gets the six tabs -- and
-   * is deliberately not pre-empted here.
-   */
-  canShowMap: boolean;
   trialCount: number;
   classCount: number;
   submittedEntryHistoryCount: number;
@@ -93,7 +79,6 @@ export interface ShowDetailTabDefsInput {
 export function buildShowDetailTabDefs(input: ShowDetailTabDefsInput): PrimaryTabDef[] {
   return [
     { id: 'overview', label: 'Overview', icon: LayoutDashboard },
-    ...(input.canShowMap ? [{ id: 'map', label: 'Show Map', icon: ListTree }] : []),
     { id: 'trials', label: 'Trials', icon: Trophy, count: input.trialCount },
     ...(input.isAuthenticated
       ? [

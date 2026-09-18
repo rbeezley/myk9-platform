@@ -283,7 +283,7 @@ export const OfflineEntryForm: React.FC<OfflineEntryFormProps> = ({
           </div>
           <div>
             <h2 className="text-lg font-semibold text-foreground">
-              {editingEntryId ? 'Edit Entry' : 'New Entry'}
+              {editingEntryId ? 'Edit Entry' : 'Add Entry'}
             </h2>
             <p className="text-sm text-muted-foreground">
               {networkStatus.isOnline

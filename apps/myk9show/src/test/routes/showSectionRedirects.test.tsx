@@ -1,7 +1,7 @@
 import { render, screen, waitFor } from '@testing-library/react';
 import type { ReactNode } from 'react';
 import { MemoryRouter, Routes } from 'react-router-dom';
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { PublicRoutes } from '@/routes/publicRoutes';
 import { ScopeType, UserRole } from '@/types/auth-types';
 
@@ -22,20 +22,77 @@ import { ScopeType, UserRole } from '@/types/auth-types';
  * reads `useParams().id`, so it silently bounces to `/shows` if the route's
  * param is renamed or the route stops being nested under `/shows/:id`.
  */
-const mockAuth = vi.hoisted(() => ({
-  user: { id: 'user-1' } as object | null,
-  loading: false,
-  rbacLoading: false,
-  hasRole: (role: string): boolean => role === UserRole.SECRETARY,
-  userWithRoles: {
-    scopes: [{ scopeType: 'club', scopeId: 'club-a', roleId: 'secretary' }],
-  } as object | null,
-}));
+/**
+ * Both module-scope mutable fixtures, and the ONE reset that restores them.
+ *
+ * `mockAuth` is written by two suites in this file, and CI runs vitest with
+ * `--sequence.shuffle`, which shuffles the tests inside a file as well as the
+ * files themselves. Before this, only some fields were put back, and only by one
+ * suite's `afterEach`: `ShowManagementSectionRoute over every reachable auth
+ * state` reassigns `hasRole`, `loading`, `rbacLoading` and `userWithRoles` per
+ * row and restored just the two booleans — so whichever row ran last left its
+ * `hasRole` closure installed for whatever ran next. A leaked `hasRole` that
+ * answers false for SECRETARY makes `useShowManageScope` resolve a confident
+ * `canManage: false`, and `ShowManagementSectionRoute` then redirects the
+ * secretary off the tab she is standing on — including the warm-refresh suite's
+ * POSITIVE CONTROL, which is how an order-dependent leak announced itself as a
+ * product bug. Reproduced on `origin/main`, this file alone, with
+ * `--sequence.shuffle --sequence.seed=1789747585323`.
+ *
+ * The defaults are a FACTORY and the reset is `Object.assign` over it, so a
+ * field added to the fixture is reset by construction. The thing that failed was
+ * a hand-maintained field list; replacing it with a second hand-maintained field
+ * list would have left the same drift one edit away (REV-2345 P3-3). `mockShows`
+ * is in here for the same reason — nothing writes it today, but the sibling file
+ * writes it per test, so the next edit that does is already covered.
+ *
+ * The role/scope literals are strings, not `UserRole.SECRETARY` / `ScopeType.CLUB`:
+ * a `vi.hoisted` factory runs before this module's imports are initialised, so
+ * referencing an imported enum here is a TDZ error. The values are identical
+ * (`auth-types.ts`), and `authFixtureDefaults` is the only place they are typed
+ * out.
+ */
+const fixtures = vi.hoisted(() => {
+  const authDefaults = (): {
+    user: object | null;
+    loading: boolean;
+    rbacLoading: boolean;
+    hasRole: (role: string) => boolean;
+    userWithRoles: object | null;
+  } => ({
+    user: { id: 'user-1' },
+    loading: false,
+    rbacLoading: false,
+    hasRole: (role: string): boolean => role === 'secretary',
+    userWithRoles: {
+      scopes: [{ scopeType: 'club', scopeId: 'club-a', roleId: 'secretary' }],
+    },
+  });
 
-const mockShows = vi.hoisted(() => ({
-  data: [{ id: 'show-1', clubId: 'club-a' }],
-  isLoading: false,
-}));
+  const showsDefaults = (): {
+    data: Array<{ id: string; clubId: string }>;
+    isLoading: boolean;
+  } => ({
+    data: [{ id: 'show-1', clubId: 'club-a' }],
+    isLoading: false,
+  });
+
+  const mockAuth = authDefaults();
+  const mockShows = showsDefaults();
+
+  return {
+    mockAuth,
+    mockShows,
+    reset: (): void => {
+      Object.assign(mockAuth, authDefaults());
+      Object.assign(mockShows, showsDefaults());
+    },
+  };
+});
+
+const { mockAuth, mockShows } = fixtures;
+
+beforeEach(fixtures.reset);
 
 vi.mock('@/hooks/useAuthContext', () => ({ useAuthContext: () => mockAuth }));
 
@@ -174,9 +231,8 @@ describe('a warm RBAC refresh does not blank the tab a secretary is standing on'
   // page index, open detail pane and scroll position are component state and
   // went with it. Since MYK9-630 phase 2 these routes are the only door to the
   // secretary's show-day surfaces, so this covered all five of them.
-  afterEach(() => {
-    mockAuth.rbacLoading = false;
-  });
+  // No local reset: `beforeEach(resetMockAuth)` above puts EVERY field back
+  // before every test, which is the only form that survives a shuffled order.
 
   it('keeps the Entries page mounted while roles refresh in the background', async () => {
     // Warm: loading again, but the roles from the last load are still here.
@@ -239,6 +295,14 @@ interface GateState {
   rbacIsLoading: boolean;
   /** null = RBAC settled with zero roles; [] = roles, no club scope; scoped = manager. */
   scopes: null | Array<{ scopeType: ScopeType; scopeId: string; roleId: UserRole }>;
+  /**
+   * The GLOBAL role `hasRole()` reports. Defaults to secretary. Club-admin rows
+   * pass `UserRole.CLUB_ADMIN`: since MYK9-630 phase 3 a club-scoped club admin
+   * manages the show, so every transient state below must treat them exactly as
+   * it treats a secretary — a club admin must never be bounced off a tab by a
+   * warm RBAC refresh or a cold auth window.
+   */
+  role?: UserRole;
 }
 
 type GateOutcome = 'mounted' | 'held' | 'redirected';
@@ -257,19 +321,27 @@ function deriveAuth(state: GateState) {
 }
 
 const SCOPED = [{ scopeType: ScopeType.CLUB, scopeId: 'club-a', roleId: UserRole.SECRETARY }];
+/** A club admin of `club-a` — the club that owns `show-1`. */
+const SCOPED_CLUB_ADMIN = [
+  { scopeType: ScopeType.CLUB, scopeId: 'club-a', roleId: UserRole.CLUB_ADMIN },
+];
+/** The positive control: a club admin of a DIFFERENT club. */
+const SCOPED_OTHER_CLUB_ADMIN = [
+  { scopeType: ScopeType.CLUB, scopeId: 'club-b', roleId: UserRole.CLUB_ADMIN },
+];
 
 describe('ShowManagementSectionRoute over every reachable auth state', () => {
-  afterEach(() => {
-    mockAuth.rbacLoading = false;
-    mockAuth.loading = false;
-  });
+  // This suite reassigns `hasRole`, `loading`, `rbacLoading` and `userWithRoles`
+  // per row. It used to restore only the two booleans, which left the last row's
+  // `hasRole` installed for whatever ran next under a shuffled order. The global
+  // `beforeEach(resetMockAuth)` above restores all four.
 
   async function outcomeAt(state: GateState): Promise<GateOutcome> {
     const derived = deriveAuth(state);
     mockAuth.loading = derived.loading;
     mockAuth.rbacLoading = derived.rbacLoading;
-    mockAuth.hasRole = (role: string) =>
-      derived.userWithRoles !== null && role === UserRole.SECRETARY;
+    const globalRole = state.role ?? UserRole.SECRETARY;
+    mockAuth.hasRole = (role: string) => derived.userWithRoles !== null && role === globalRole;
     mockAuth.userWithRoles = derived.userWithRoles;
 
     render(
@@ -318,11 +390,6 @@ describe('ShowManagementSectionRoute over every reachable auth state', () => {
       'mounted',
     ],
     [
-      'offline cold boot, roles hydrated from cache',
-      { authLoading: false, rbacBelongs: true, rbacIsLoading: false, scopes: SCOPED },
-      'mounted',
-    ],
-    [
       'exhibitor, loaded, no management scope',
       { authLoading: false, rbacBelongs: true, rbacIsLoading: false, scopes: [] },
       'redirected',
@@ -330,6 +397,75 @@ describe('ShowManagementSectionRoute over every reachable auth state', () => {
     [
       'RBAC load FAILED: settled with zero roles',
       { authLoading: false, rbacBelongs: true, rbacIsLoading: false, scopes: null },
+      'redirected',
+    ],
+    // ---- club admin (MYK9-630 phase 3): identical verdicts to the secretary
+    // rows above. Before phase 3 these rows had no meaning, because a club
+    // admin was admitted to the section route and then handed the exhibitor
+    // body; now the route and the surface are one decision.
+    //
+    // There is deliberately NO "offline cold boot" row, for either role.
+    // `GateState` models auth loading, RBAC belonging, RBAC loading and the
+    // scope set — nothing in it, or in `deriveAuth`, distinguishes roles
+    // hydrated from a cache from roles hydrated from the network. Such a row is
+    // field-identical to "fully loaded", exercises the same code path and can
+    // never fail independently (REV-2341 lens P, P5). One was added here and a
+    // second already existed on the secretary side; both are gone rather than
+    // left to read as coverage they are not. The offline-boot property is a
+    // claim about the RBAC cache, and belongs to a test of that cache.
+    [
+      'club admin of this club, fully loaded',
+      {
+        authLoading: false,
+        rbacBelongs: true,
+        rbacIsLoading: false,
+        scopes: SCOPED_CLUB_ADMIN,
+        role: UserRole.CLUB_ADMIN,
+      },
+      'mounted',
+    ],
+    [
+      'club admin, WARM refresh (5-minute interval / online event)',
+      {
+        authLoading: false,
+        rbacBelongs: true,
+        rbacIsLoading: true,
+        scopes: SCOPED_CLUB_ADMIN,
+        role: UserRole.CLUB_ADMIN,
+      },
+      'mounted',
+    ],
+    [
+      'club admin, COLD auth window: roles present, club scopes not landed',
+      {
+        authLoading: false,
+        rbacBelongs: true,
+        rbacIsLoading: true,
+        scopes: [],
+        role: UserRole.CLUB_ADMIN,
+      },
+      'held',
+    ],
+    [
+      'club admin, RBAC load FAILED: settled with zero roles',
+      {
+        authLoading: false,
+        rbacBelongs: true,
+        rbacIsLoading: false,
+        scopes: null,
+        role: UserRole.CLUB_ADMIN,
+      },
+      'redirected',
+    ],
+    [
+      'club admin of ANOTHER club, fully loaded',
+      {
+        authLoading: false,
+        rbacBelongs: true,
+        rbacIsLoading: false,
+        scopes: SCOPED_OTHER_CLUB_ADMIN,
+        role: UserRole.CLUB_ADMIN,
+      },
       'redirected',
     ],
   ])('%s -> %s', async (_label, state, expected) => {

@@ -86,7 +86,7 @@ The chips across the top are queues — _Needs review_, _Missing information_, _
 
 ## 4 · Enter a mail-in or paper entry
 
-**Entries → Add mail-in entry.** Pick the dog and handler (or create them), choose classes, and record payment.
+**Entries → Add entry for someone else.** Pick the dog and handler (or create them), choose classes, and record payment.
 
 > This works **after entries close** — you're the trial secretary, so the deadline doesn't block you.
 
@@ -103,7 +103,7 @@ The chips across the top are queues — _Needs review_, _Missing information_, _
 
 ## 5 · Take a late or walk-in entry on show day
 
-**Show Day → Tools → Late entry.** Same flow as a mail-in entry.
+**Show Day → Tools → Late entry.** Same flow as entering for someone else.
 
 ## 6 · Manage the wait list
 
@@ -254,12 +254,12 @@ Each class can release its results **Immediately**, **After Class**, **After Rev
 
 **Reports**, filtered to your registry. The main ones:
 
-| Registry | Reports                                                                                                              |
-| -------- | -------------------------------------------------------------------------------------------------------------------- |
-| All      | Trial Secretary Report · Trial Secretary Certification · Trial Chairman Report · Steward's Report · Financial Report |
-| AKC      | AKC Judge's Report · Judge's Certification Report                                                                    |
-| ASCA     | Trial Report · Trial Roster · Gross Receipts Report · Post-Event Evaluation                                          |
-| UKC      | Judges Book: Element Trial · Judges Book: Handler Discrimination                                                     |
+| Registry | Reports                                                                                                                            |
+| -------- | ---------------------------------------------------------------------------------------------------------------------------------- |
+| All      | Steward's Report · Financial Report                                                                                                |
+| AKC      | Trial Secretary Report · Trial Secretary Certification · Trial Chairman Report · AKC Judge's Report · Judge's Certification Report |
+| ASCA     | Trial Report · Trial Roster · Gross Receipts Report · Post-Event Evaluation                                                        |
+| UKC      | Judges Book: Element Trial · Judges Book: Handler Discrimination                                                                   |
 
 Each renders the registry's own instructions and layout.
 

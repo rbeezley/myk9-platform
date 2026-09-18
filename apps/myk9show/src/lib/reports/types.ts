@@ -205,7 +205,13 @@ export interface ReportProps {
   includeEstimatedTime?: boolean;
 }
 
-export type ReportCategory = 'operational' | 'organization' | 'statistics' | 'financial';
+/**
+ * When in the life of a show a report is useful. The Reports dropdown groups by
+ * this, so a secretary scans the phase she is in rather than an abstract
+ * taxonomy. Nothing is GATED by it: every report stays listed and selectable in
+ * every phase — the phase is a heading, not a permission.
+ */
+export type ReportPhase = 'before' | 'during' | 'after' | 'anytime';
 
 export type ReportScope =
   | { kind: 'show'; showId: string }
@@ -217,7 +223,7 @@ export type ReportScopeKind = ReportScope['kind'];
 export interface ReportDefinition {
   id: string;
   name: string;
-  category: ReportCategory;
+  phase: ReportPhase;
   scopes: ReportScopeKind[];
   sortOptions: ReportSortOption[];
   defaultSort: string;

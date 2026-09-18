@@ -7,7 +7,7 @@ import {
   getEnabledReports,
   getReportsForRegistries,
 } from '@/lib/reports/reportRegistry';
-import type { ReportDefinition, ReportProps } from '@/lib/reports/types';
+import type { ReportDefinition, ReportPhase, ReportProps } from '@/lib/reports/types';
 
 const TEST_PROPS = {
   showName: 'Test',
@@ -130,11 +130,45 @@ describe('reportRegistry', () => {
     });
   });
 
+  describe('show-phase grouping', () => {
+    const PHASES: readonly ReportPhase[] = ['before', 'during', 'after', 'anytime'];
+
+    it('every registry entry declares a show phase from the union', () => {
+      const missing = reportRegistry
+        .filter(report => !PHASES.includes(report.phase))
+        .map(report => report.id);
+      expect(missing).toEqual([]);
+    });
+
+    it('assigns every one of the 37 entries to exactly one phase bucket', () => {
+      const counts = PHASES.map(phase => reportRegistry.filter(r => r.phase === phase).length);
+      expect(counts.reduce((sum, n) => sum + n, 0)).toBe(reportRegistry.length);
+    });
+
+    it('places pre-show paperwork in the before phase', () => {
+      for (const id of ['show-flyer', 'show-catalog', 'waitlist-report', 'judges-schedule']) {
+        expect(getReportById(id)?.phase, `${id} should be a before-the-show report`).toBe('before');
+      }
+    });
+
+    it('places ring-day paperwork in the during phase', () => {
+      for (const id of ['check-in-sheet', 'scoresheet', 'steward-report']) {
+        expect(getReportById(id)?.phase, `${id} should be a during-the-show report`).toBe('during');
+      }
+    });
+
+    it('places post-event paperwork in the after phase', () => {
+      for (const id of ['results-sheet', 'high-in-trial', 'akc-judge-report', 'result-labels']) {
+        expect(getReportById(id)?.phase, `${id} should be an after-the-show report`).toBe('after');
+      }
+    });
+  });
+
   describe('Phase 1 enabled reports', () => {
     it('check-in-sheet is enabled with correct config', () => {
       const report = getReportById('check-in-sheet');
       expect(report?.enabled).toBe(true);
-      expect(report?.category).toBe('operational');
+      expect(report?.phase).toBe('during');
       expect(report?.scopes).toContain('trial');
       expect(report?.scopes).toContain('class');
       expect(report?.defaultSort).toBe('run-order');
@@ -143,7 +177,7 @@ describe('reportRegistry', () => {
     it('scoresheet is enabled with correct config', () => {
       const report = getReportById('scoresheet');
       expect(report?.enabled).toBe(true);
-      expect(report?.category).toBe('operational');
+      expect(report?.phase).toBe('during');
       expect(report?.scopes).toContain('trial');
       expect(report?.scopes).toContain('class');
       expect(report?.defaultSort).toBe('run-order');
@@ -152,7 +186,7 @@ describe('reportRegistry', () => {
     it('results-sheet is enabled with correct config', () => {
       const report = getReportById('results-sheet');
       expect(report?.enabled).toBe(true);
-      expect(report?.category).toBe('operational');
+      expect(report?.phase).toBe('after');
       expect(report?.scopes).toContain('trial');
       expect(report?.scopes).toContain('class');
       expect(report?.defaultSort).toBe('placement');
@@ -187,9 +221,9 @@ describe('reportRegistry', () => {
       }
     });
 
-    it('financial-report has category financial', () => {
+    it('financial-report is an anytime report', () => {
       const report = getReportById('financial-report');
-      expect(report?.category).toBe('financial');
+      expect(report?.phase).toBe('anytime');
     });
 
     it('reports that render directly from ReportsPage (official PDFs and buildPdf-backed reports) are enabled with placeholder components', () => {

@@ -53,7 +53,7 @@ describe('buildMyShowActions', () => {
     ]);
   });
 
-  it('drops Add classes once the show has run, but keeps the edit item', () => {
+  it('drops Add entry once the show has run, but keeps the edit item', () => {
     // An entry can still need a handler change after the show starts; adding
     // classes to a show that has happened cannot mean anything.
     expect(ids({ ...live, isPastShow: true })).not.toContain('add-classes');

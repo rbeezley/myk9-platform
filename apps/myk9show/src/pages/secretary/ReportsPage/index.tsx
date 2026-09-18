@@ -5,6 +5,7 @@ import { useFastShowDetails } from '@/hooks/useFastShowDetails';
 import { useReportData, type ReportDataState } from '@/hooks/queries/useReportData';
 import { getReportById } from '@/lib/reports/reportRegistry';
 import { ReportControlsBar } from './ReportControlsBar';
+import { resolveShowTimePhase } from '@/lib/reports/reportPhaseOrder';
 import { ReportPreview } from './ReportPreview';
 import { printIframe } from './reportPreviewUtils';
 import { ArmbandLabelsReport } from '@/components/reports/labels/ArmbandLabelsReport';
@@ -124,6 +125,11 @@ export default function ReportsPage() {
   const params = useParams<{ showId?: string; id?: string }>();
   const showId = params.showId ?? params.id;
   const { show: currentShow } = useFastShowDetails(showId);
+  // Orders the report picker's four phase groups nearest-in-time first, so on
+  // show day the check-in and score sheets lead instead of sitting under eleven
+  // pre-show planning reports. Headings and membership are unchanged and
+  // nothing is gated — see `orderReportPhases`.
+  const showTimePhase = resolveShowTimePhase(currentShow);
   const linkShowId = showId ?? currentShow?.id;
   const [searchParams] = useSearchParams();
   const [initialScope] = useState(() => resolveInitialReportScope(searchParams));
@@ -395,6 +401,7 @@ export default function ReportsPage() {
         onSortChange={setSortOrder}
         onPrint={handlePrint}
         officialPdfAction={officialPdfAction}
+        showPhase={showTimePhase}
       />
 
       {/* Preview — the report iframe is a fixed 8.5in (letter) page. On viewports

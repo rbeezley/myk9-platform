@@ -8,13 +8,21 @@ interface VolunteersCardProps {
   // instead of whatever the sidebar's last selectedShowId happens to be.
   // Omitted from non-workbench callers.
   showId?: string | undefined;
+  /**
+   * Set when the viewer manages this show but is NOT its trial secretary.
+   * `/secretary/volunteers` is `ProtectedRoute(SECRETARY | SITE_ADMIN)`, so
+   * without this a club admin on the Show Day tab (MYK9-630 phase 3) followed
+   * an enabled link into a bare permission wall. Greyed with the same one-line
+   * reason the header Actions menu uses.
+   */
+  disabledReason?: string | undefined;
 }
 
 // INTENT: Phase B3 — entry-point card for volunteer scheduling. Links to
 // `/secretary/volunteers`, preserving the active show context as a query
 // param when rendered inside a show's workbench so the secretary cannot
 // land on the wrong show's volunteers via a stale sidebar selection.
-export function VolunteersCard({ showId }: VolunteersCardProps = {}) {
+export function VolunteersCard({ showId, disabledReason }: VolunteersCardProps = {}) {
   const href = showId
     ? `/secretary/volunteers?showId=${encodeURIComponent(showId)}`
     : '/secretary/volunteers';
@@ -32,12 +40,31 @@ export function VolunteersCard({ showId }: VolunteersCardProps = {}) {
         <Users className="h-5 w-5 shrink-0 text-muted-foreground" aria-hidden="true" />
       </div>
       <div className="mt-3">
-        <Button asChild variant="outline" size="sm" className="gap-2">
-          <Link to={href}>
-            Open volunteer scheduling
-            <ArrowRight className="h-4 w-4" aria-hidden="true" />
-          </Link>
-        </Button>
+        {disabledReason === undefined ? (
+          <Button asChild variant="outline" size="sm" className="gap-2">
+            <Link to={href}>
+              Open volunteer scheduling
+              <ArrowRight className="h-4 w-4" aria-hidden="true" />
+            </Link>
+          </Button>
+        ) : (
+          <>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="gap-2"
+              disabled
+              aria-describedby="volunteers-card-disabled-reason"
+            >
+              Open volunteer scheduling
+              <ArrowRight className="h-4 w-4" aria-hidden="true" />
+            </Button>
+            <p id="volunteers-card-disabled-reason" className="mt-2 text-xs text-muted-foreground">
+              {disabledReason}
+            </p>
+          </>
+        )}
       </div>
     </section>
   );

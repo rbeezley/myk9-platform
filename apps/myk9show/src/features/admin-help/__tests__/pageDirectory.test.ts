@@ -39,6 +39,8 @@ describe('pageDirectory (invariant)', () => {
     expect(paths).toContain('/shows/:showId/reports');
     expect(paths).toContain('/shows/:showId/results');
     expect(paths).not.toContain('/secretary/shows/:showId');
+    // The RETIRED spelling, on purpose -- see routeRegistry.test.ts.
+    expect(paths).not.toContain('/secretary/shows/:showId/results-control');
     expect(paths).not.toContain('/secretary/shows/:showId/results');
     expect(paths).not.toContain('/secretary/run-order');
   });

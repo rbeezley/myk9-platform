@@ -83,10 +83,10 @@ export const LEGACY_SHOW_TAB_PARAM_REDIRECTS: Readonly<
 };
 
 /**
- * Every child route path `publicRoutes.tsx` mounts under `/shows/:id` behind
- * `ShowManagementSectionRoute` — the five tabs, the legacy URLs that redirect
- * into them, and Class Management, which is reached FROM Setup and has no tab
- * of its own.
+ * Every child route path `publicRoutes.tsx` mounts under `/shows/:id` — the
+ * five tabs and Class Management (reached FROM Setup, no tab of its own), which
+ * render behind `ShowManagementSectionRoute`, plus the legacy URLs that
+ * redirect into them, which render `LegacyShowSectionRedirect` bare.
  *
  * It is the list, not a summary of it: the wizard-surface blocklist and the
  * actions registry's shell predicate both read it, and both were wrong about

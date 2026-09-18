@@ -26,7 +26,7 @@ const mockAuth = vi.hoisted(() => ({
   user: { id: 'user-1' } as object | null,
   loading: false,
   rbacLoading: false,
-  hasRole: (role: string) => role === UserRole.SECRETARY,
+  hasRole: (role: string): boolean => role === UserRole.SECRETARY,
   userWithRoles: {
     scopes: [{ scopeType: 'club', scopeId: 'club-a', roleId: 'secretary' }],
   } as object | null,
@@ -98,10 +98,18 @@ vi.mock('@/pages/secretary/ShowResultsSection', () => ({
   default: () => <div data-testid="section-results" />,
 }));
 
-function renderAt(path: string, { rolesKnown = true }: { rolesKnown?: boolean } = {}) {
-  mockAuth.userWithRoles = rolesKnown
-    ? { scopes: [{ scopeType: ScopeType.CLUB, scopeId: 'club-a', roleId: UserRole.SECRETARY }] }
-    : null;
+type RolesFixture = boolean | 'no-club-scope';
+
+function renderAt(path: string, { rolesKnown = true }: { rolesKnown?: RolesFixture } = {}) {
+  // `no-club-scope` is the real in-flight shape: AuthContext hands back a
+  // non-null `userWithRoles` before the club scopes arrive. `false` is the
+  // terminal "RBAC settled with zero roles" shape.
+  mockAuth.userWithRoles =
+    rolesKnown === true
+      ? { scopes: [{ scopeType: ScopeType.CLUB, scopeId: 'club-a', roleId: UserRole.SECRETARY }] }
+      : rolesKnown === 'no-club-scope'
+        ? { scopes: [] }
+        : null;
   return render(
     <MemoryRouter initialEntries={[path]}>
       <Routes>{PublicRoutes()}</Routes>
@@ -185,15 +193,18 @@ describe('a warm RBAC refresh does not blank the tab a secretary is standing on'
     await waitFor(() => expect(screen.queryByTestId('section-entries')).not.toBeInTheDocument());
   });
 
-  it('does not BOUNCE a secretary off their own show during the cold auth window', async () => {
-    // The cold window is `rbacLoading === false` with no roles yet -- before
-    // AuthContext's RBAC effect runs. `useShowManageScope` reads
-    // `couldManageSomeShow` off the empty role set and answers a confident
-    // `resolved: canManage false`, and the route's redirect fires. Found in a
-    // browser walk at 375px, where `/entries` and `/show-day` landed back on
-    // `/shows/:id`. Holding is the only honest answer while identity is unknown.
-    mockAuth.rbacLoading = false;
-    renderAt('/shows/show-1/entries', { rolesKnown: false });
+  it('does not BOUNCE a secretary whose scopes have not landed yet', async () => {
+    // The state the browser walk actually hit, per the in-page diagnostic:
+    // `userWithRoles` NON-null (AuthContext's default shape) with no club scope
+    // in it yet, so `useShowManageScope` answers a confident
+    // `resolved: canManage false` and the route's redirect fires. At 375px that
+    // sent every one of the six tabs back to `/shows/:id`.
+    //
+    // NOT written as `hasRole -> SECRETARY` with `userWithRoles: null`: the real
+    // `hasRole` opens with `if (!userWithRoles) return false` (AuthContext), so
+    // that pairing cannot occur and a test built on it proves nothing.
+    mockAuth.rbacLoading = true;
+    renderAt('/shows/show-1/entries', { rolesKnown: 'no-club-scope' });
 
     await waitFor(() =>
       expect(screen.getByTestId('production-show-details-location')).toHaveTextContent(
@@ -207,5 +218,121 @@ describe('a warm RBAC refresh does not blank the tab a secretary is standing on'
     renderAt('/shows/show-1/entries');
 
     expect(await screen.findByTestId('section-entries')).toBeInTheDocument();
+  });
+});
+
+/**
+ * The management gate, over every state AuthContext can actually produce.
+ *
+ * `loading` and `rbacLoading` are DERIVED here from AuthContext's own formulas
+ * rather than set by hand, so a fixture cannot invent a combination the real
+ * provider forbids -- which is how the earlier version of this file came to pin
+ * `hasRole -> SECRETARY` alongside `userWithRoles: null`, a pairing
+ * `AuthContext.hasRole` rules out on its first line.
+ *
+ *   loading     = auth.loading || (!!user && !rbacBelongs) || (rbacIsLoading && !userWithRoles)
+ *   rbacLoading = !!user && (!rbacBelongs || rbacIsLoading)
+ */
+interface GateState {
+  authLoading: boolean;
+  rbacBelongs: boolean;
+  rbacIsLoading: boolean;
+  /** null = RBAC settled with zero roles; [] = roles, no club scope; scoped = manager. */
+  scopes: null | Array<{ scopeType: ScopeType; scopeId: string; roleId: UserRole }>;
+}
+
+type GateOutcome = 'mounted' | 'held' | 'redirected';
+
+function deriveAuth(state: GateState) {
+  const hasUser = true;
+  const userWithRoles = state.scopes === null ? null : { scopes: state.scopes };
+  return {
+    loading:
+      state.authLoading ||
+      (hasUser && !state.rbacBelongs) ||
+      (state.rbacIsLoading && !userWithRoles),
+    rbacLoading: hasUser && (!state.rbacBelongs || state.rbacIsLoading),
+    userWithRoles,
+  };
+}
+
+const SCOPED = [{ scopeType: ScopeType.CLUB, scopeId: 'club-a', roleId: UserRole.SECRETARY }];
+
+describe('ShowManagementSectionRoute over every reachable auth state', () => {
+  afterEach(() => {
+    mockAuth.rbacLoading = false;
+    mockAuth.loading = false;
+  });
+
+  async function outcomeAt(state: GateState): Promise<GateOutcome> {
+    const derived = deriveAuth(state);
+    mockAuth.loading = derived.loading;
+    mockAuth.rbacLoading = derived.rbacLoading;
+    mockAuth.hasRole = (role: string) =>
+      derived.userWithRoles !== null && role === UserRole.SECRETARY;
+    mockAuth.userWithRoles = derived.userWithRoles;
+
+    render(
+      <MemoryRouter initialEntries={['/shows/show-1/entries']}>
+        <Routes>{PublicRoutes()}</Routes>
+      </MemoryRouter>
+    );
+
+    await waitFor(() => {
+      const probe = screen.queryByTestId('production-show-details-location');
+      const mounted = screen.queryByTestId('section-entries');
+      expect(probe !== null || mounted !== null).toBe(true);
+    });
+    // Let a redirect settle before reading the verdict.
+    await waitFor(() => expect(screen.queryByTestId('production-show-details')).not.toBeNull());
+
+    if (screen.queryByTestId('section-entries')) return 'mounted';
+    const path = screen.getByTestId('production-show-details-location').textContent ?? '';
+    return path.includes('/entries') ? 'held' : 'redirected';
+  }
+
+  it.each<[string, GateState, GateOutcome]>([
+    [
+      'cold: RBAC effect has not run',
+      { authLoading: false, rbacBelongs: false, rbacIsLoading: false, scopes: null },
+      'held',
+    ],
+    [
+      'cold: RBAC loading, no roles yet',
+      { authLoading: false, rbacBelongs: true, rbacIsLoading: true, scopes: null },
+      'held',
+    ],
+    [
+      'in flight: roles present, club scopes not landed',
+      { authLoading: false, rbacBelongs: true, rbacIsLoading: true, scopes: [] },
+      'held',
+    ],
+    [
+      'secretary, fully loaded',
+      { authLoading: false, rbacBelongs: true, rbacIsLoading: false, scopes: SCOPED },
+      'mounted',
+    ],
+    [
+      'secretary, WARM refresh (5-minute interval / online event)',
+      { authLoading: false, rbacBelongs: true, rbacIsLoading: true, scopes: SCOPED },
+      'mounted',
+    ],
+    [
+      'offline cold boot, roles hydrated from cache',
+      { authLoading: false, rbacBelongs: true, rbacIsLoading: false, scopes: SCOPED },
+      'mounted',
+    ],
+    [
+      'exhibitor, loaded, no management scope',
+      { authLoading: false, rbacBelongs: true, rbacIsLoading: false, scopes: [] },
+      'redirected',
+    ],
+    [
+      'RBAC load FAILED: settled with zero roles',
+      { authLoading: false, rbacBelongs: true, rbacIsLoading: false, scopes: null },
+      'redirected',
+    ],
+  ])('%s -> %s', async (_label, state, expected) => {
+    expect(await outcomeAt(state)).toBe(expected);
   });
 });

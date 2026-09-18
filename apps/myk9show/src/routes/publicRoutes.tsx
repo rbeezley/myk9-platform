@@ -107,7 +107,7 @@ const SHOW_MANAGEMENT_SECTION_ELEMENTS: Record<ShowManagementSectionPath, ReactN
 function ShowManagementSectionRoute({ children }: { children: ReactNode }) {
   const { id } = useParams<{ id?: string }>();
   const canonicalShowPath = id ? `/shows/${id}` : '/shows';
-  const { user, userWithRoles, loading: authLoading, rbacLoading } = useAuthContext();
+  const { user, loading: authLoading, rbacLoading } = useAuthContext();
   // Same gate the page bodies use, so the route and the surface it admits can
   // never disagree about who manages this show.
   const manageScope = useShowManageScope(id);
@@ -140,12 +140,17 @@ function ShowManagementSectionRoute({ children }: { children: ReactNode }) {
   //
   // So the check moved to where the damage is. `canManage === true` is never
   // wrong (it needs a real club-scoped grant), so an admitted viewer is NEVER
-  // unmounted. A *negative* verdict is only acted on once roles have genuinely
-  // resolved — the `areRolesResolved` shape App.tsx uses. Until then we hold,
-  // which is the honest answer while identity is unknown.
+  // unmounted. A *negative* verdict is only acted on once RBAC has settled;
+  // until then we hold, which is the honest answer while identity is in flight.
+  //
+  // `rbacLoading` alone, and deliberately: a `!userWithRoles` conjunct here
+  // would never terminate. `AuthContext`'s composite `loading` already carries
+  // `(rbacIsLoading && !userWithRoles)`, so by this line a null `userWithRoles`
+  // means RBAC has SETTLED with zero roles — an RPC error, or a cold offline
+  // boot with no cache. That is terminal, not transient, and holding on it left
+  // all seven management URLs showing a hero and nothing else, forever.
   if (!manageScope.canManage) {
-    const rolesResolved = !rbacLoading && Boolean(userWithRoles);
-    return rolesResolved ? <Navigate to={canonicalShowPath} replace /> : null;
+    return rbacLoading ? null : <Navigate to={canonicalShowPath} replace />;
   }
 
   // Show-management URLs live in the public show route tree, but once authorized

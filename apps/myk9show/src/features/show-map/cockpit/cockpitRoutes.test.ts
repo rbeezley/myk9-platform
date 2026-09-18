@@ -131,4 +131,22 @@ describe('Show Desk context routes', () => {
     expect(resolveShowDeskReturnHref('/shows/show-2/show-day', 'show-1')).toBeNull();
     expect(resolveShowDeskReturnHref('/shows/show-1/reports', 'show-1')).toBeNull();
   });
+
+  it('still accepts the LEGACY /show-desk spelling and canonicalizes it forward', () => {
+    // MYK9-630 phase 2 renamed the route. A `returnTo` captured before it
+    // shipped is still sitting in an open tab, and rejecting it silently drops
+    // the secretary's way back. The output is rebuilt from the allowlist, so it
+    // comes back as `/show-day`, not as the URL that went in.
+    expect(
+      resolveShowDeskReturnHref('/shows/show-1/show-desk?filter=needs-attention', 'show-1')
+    ).toBe('/shows/show-1/show-day?filter=needs-attention');
+  });
+
+  it('gives the legacy spelling no more trust than the current one', () => {
+    expect(resolveShowDeskReturnHref('//evil.example/shows/show-1/show-desk', 'show-1')).toBeNull();
+    expect(
+      resolveShowDeskReturnHref('https://evil.example/shows/show-1/show-desk', 'show-1')
+    ).toBeNull();
+    expect(resolveShowDeskReturnHref('/shows/show-2/show-desk', 'show-1')).toBeNull();
+  });
 });

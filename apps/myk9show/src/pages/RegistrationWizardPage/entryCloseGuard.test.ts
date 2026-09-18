@@ -40,7 +40,7 @@ describe('getEntryCloseSubmitBlocker', () => {
   });
 
   it('does not block a secretary after close WITHOUT the late-entry URL flag', () => {
-    // The F14 case: Entry Management's "Add mail-in entry" routes the secretary to
+    // The F14 case: Entry Management's "Add entry for someone else" routes the secretary to
     // the wizard with no ?entryMode=late, and they were told to contact the trial
     // secretary -- who is them. Recording a mail-in after the close date is
     // ordinary secretary work.

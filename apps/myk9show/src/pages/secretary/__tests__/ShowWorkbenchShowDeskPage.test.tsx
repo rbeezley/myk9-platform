@@ -396,7 +396,7 @@ describe('ShowWorkbenchShowDeskPage', () => {
   describe('a club admin — manages this show but is not its trial secretary', () => {
     // REV-2341 lens P, P1. MYK9-630 phase 3 puts Show Day in a club admin's
     // primary nav. Three controls in the page BODY route into
-    // `ProtectedRoute(SECRETARY | SITE_ADMIN)` paths — "Add mail-in entry" and
+    // `ProtectedRoute(SECRETARY | SITE_ADMIN)` paths — "Add entry for someone else" and
     // "Add late entry" (`/secretary/register/:showId`) and "Open volunteer
     // scheduling" (`/secretary/volunteers`) — and all three were enabled, so a
     // click landed on a chrome-less "You don't have permission" wall. The header
@@ -425,7 +425,11 @@ describe('ShowWorkbenchShowDeskPage', () => {
         .filter(href => href.startsWith('/secretary/'));
       expect(enabledSecretaryLinks).toEqual([]);
 
-      for (const name of [/add mail-in entry/i, /add late entry/i, /open volunteer scheduling/i]) {
+      for (const name of [
+        /add entry for someone else/i,
+        /add late entry/i,
+        /open volunteer scheduling/i,
+      ]) {
         expect(screen.getByRole('button', { name })).toBeDisabled();
       }
     });
@@ -446,11 +450,11 @@ describe('ShowWorkbenchShowDeskPage', () => {
       expect(screen.getByTestId('tool-add-entries')).toHaveAttribute('data-default-open', 'false');
     });
 
-    it('keeps "Enter my own dogs" live — that wizard has no role requirement', async () => {
+    it('keeps "Add entry for my dog" live — that wizard has no role requirement', async () => {
       renderPage();
       expect(await screen.findByTestId('show-desk-panel')).toBeInTheDocument();
 
-      expect(screen.getByRole('button', { name: /enter my own dogs/i })).toBeEnabled();
+      expect(screen.getByRole('button', { name: /add entry for my dog/i })).toBeEnabled();
     });
   });
 
@@ -463,7 +467,7 @@ describe('ShowWorkbenchShowDeskPage', () => {
       renderPage();
       expect(await screen.findByTestId('show-desk-panel')).toBeInTheDocument();
 
-      expect(screen.getByRole('button', { name: /add mail-in entry/i })).toBeEnabled();
+      expect(screen.getByRole('button', { name: /add entry for someone else/i })).toBeEnabled();
       expect(screen.getByRole('link', { name: /open volunteer scheduling/i })).toHaveAttribute(
         'href',
         expect.stringContaining('/secretary/volunteers')

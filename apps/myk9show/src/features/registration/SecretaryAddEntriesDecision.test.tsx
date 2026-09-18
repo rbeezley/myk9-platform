@@ -21,7 +21,7 @@ describe('SecretaryAddEntriesDecision', () => {
   it('routes secretary-owned dogs to exhibitor self-service registration', async () => {
     const { user } = render(<SecretaryAddEntriesDecision showId="show-1" />);
 
-    await user.click(screen.getByRole('button', { name: 'Enter my own dogs' }));
+    await user.click(screen.getByRole('button', { name: 'Add entry for my dog' }));
 
     expect(navigateMock).toHaveBeenCalledWith('/shows/show-1/register');
   });
@@ -29,7 +29,7 @@ describe('SecretaryAddEntriesDecision', () => {
   it('routes mail-in entries to secretary registration', async () => {
     const { user } = render(<SecretaryAddEntriesDecision showId="show 1/mail" />);
 
-    await user.click(screen.getByRole('button', { name: 'Add mail-in entry' }));
+    await user.click(screen.getByRole('button', { name: 'Add entry for someone else' }));
 
     expect(navigateMock).toHaveBeenCalledWith('/secretary/register/show%201%2Fmail');
   });
@@ -37,7 +37,7 @@ describe('SecretaryAddEntriesDecision', () => {
   it('stays disabled until a show is selected', () => {
     render(<SecretaryAddEntriesDecision showId={null} />);
 
-    expect(screen.getByRole('button', { name: 'Enter my own dogs' })).toBeDisabled();
-    expect(screen.getByRole('button', { name: 'Add mail-in entry' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Add entry for my dog' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Add entry for someone else' })).toBeDisabled();
   });
 });

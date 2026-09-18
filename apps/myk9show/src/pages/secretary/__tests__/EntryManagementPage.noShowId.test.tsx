@@ -13,7 +13,7 @@ import EntryManagementPage from '../EntryManagementPage';
  * `useShowManageScope` returns `status: 'resolving'` forever — there is nothing
  * to scope against and no retry can change that — and the round-1 helper failed
  * closed on every non-`resolved` status. So a REAL trial secretary found
- * "Add mail-in entry" permanently disabled, captioned "Trial secretary access
+ * "Add entry for someone else" permanently disabled, captioned "Trial secretary access
  * only": the app telling the one person it is not about that it is about her.
  *
  * `useShowManageScope` is deliberately NOT mocked here. Mocking it is what let
@@ -137,13 +137,15 @@ describe('EntryManagementPage at /secretary/entries, where the URL names no show
     auth.roles = ['secretary'];
   });
 
-  it('leaves "Add mail-in entry" live for a real trial secretary', async () => {
+  it('leaves "Add entry for someone else" live for a real trial secretary', async () => {
     const user = userEvent.setup();
 
     renderWithoutShowId();
     await user.click(screen.getByRole('button', { name: /add entry/i }));
 
-    expect(await screen.findByRole('button', { name: /add mail-in entry/i })).toBeEnabled();
+    expect(
+      await screen.findByRole('button', { name: /add entry for someone else/i })
+    ).toBeEnabled();
     expect(screen.queryByText('Trial secretary access only')).toBeNull();
     // ...and never the "still asking" caption either: with no show to ask about,
     // the role IS the answer, so there is nothing in flight.
@@ -157,7 +159,9 @@ describe('EntryManagementPage at /secretary/entries, where the URL names no show
     renderWithoutShowId();
     await user.click(screen.getByRole('button', { name: /add entry/i }));
 
-    expect(await screen.findByRole('button', { name: /add mail-in entry/i })).toBeEnabled();
+    expect(
+      await screen.findByRole('button', { name: /add entry for someone else/i })
+    ).toBeEnabled();
   });
 
   it('still greys it for a club admin, who is not an operator anywhere', async () => {
@@ -167,7 +171,9 @@ describe('EntryManagementPage at /secretary/entries, where the URL names no show
     renderWithoutShowId();
     await user.click(screen.getByRole('button', { name: /add entry/i }));
 
-    expect(await screen.findByRole('button', { name: /add mail-in entry/i })).toBeDisabled();
+    expect(
+      await screen.findByRole('button', { name: /add entry for someone else/i })
+    ).toBeDisabled();
     expect(screen.getByText('Trial secretary access only')).toBeInTheDocument();
   });
 });

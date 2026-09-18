@@ -71,7 +71,7 @@ const EntryManagementPage: React.FC = () => {
   } = useEntryManagementData(urlShowId);
   // Same two gates the Show Day tab uses: `canManage` decides the page,
   // `canOperate` decides the handful of controls that route into
-  // `ProtectedRoute(SECRETARY | SITE_ADMIN)`. "Add mail-in entry" is one of
+  // `ProtectedRoute(SECRETARY | SITE_ADMIN)`. "Add entry for someone else" is one of
   // them, so a club admin gets it greyed with a reason rather than a click that
   // dead-ends on a permission wall.
   const manageScope = useShowManageScope(urlShowId);
@@ -79,7 +79,7 @@ const EntryManagementPage: React.FC = () => {
   // as `/shows/:id/entries` (the six-tab surface) and as a bare
   // `/secretary/entries` that resolves its show from localStorage — and on the
   // second there is nothing for `useShowManageScope` to scope against, so it
-  // never leaves `resolving`. Failing closed there disabled "Add mail-in entry"
+  // never leaves `resolving`. Failing closed there disabled "Add entry for someone else"
   // permanently for a real trial secretary (REV-2341 R-2).
   const secretaryOnlyReason = trialSecretaryOnlyReason(manageScope, {
     showIdKnown: Boolean(urlShowId),

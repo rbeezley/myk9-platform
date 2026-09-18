@@ -1,4 +1,4 @@
-import { Dog, FileText } from 'lucide-react';
+import { Dog, Users } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import {
@@ -12,9 +12,9 @@ interface SecretaryAddEntriesDecisionProps {
   /**
    * Set when the viewer manages this show but is NOT its trial secretary, so
    * `/secretary/register/:showId` — `ProtectedRoute(SECRETARY | SITE_ADMIN)` —
-   * would refuse them. Only "Add mail-in entry" is withheld; "Enter my own
-   * dogs" goes to the EXHIBITOR wizard (`/shows/:id/register`), which carries
-   * no role requirement, so a club admin keeps it.
+   * would refuse them. Only "Add entry for someone else" is withheld; "Add
+   * entry for my dog" goes to the EXHIBITOR wizard (`/shows/:id/register`),
+   * which carries no role requirement, so a club admin keeps it.
    *
    * Greyed with a one-line reason rather than hidden: the same treatment the
    * header Actions menu already gives this item (`TRIAL_SECRETARY_ONLY_REASON`),
@@ -24,6 +24,14 @@ interface SecretaryAddEntriesDecisionProps {
   mailInDisabledReason?: string | undefined;
 }
 
+/**
+ * The two paths differ by WHOSE dog is being entered -- the exhibitor route
+ * picks from your own dogs, the secretary route searches or creates any
+ * exhibitor and dog. They do NOT differ by reason: "mail-in" was one cause
+ * among several (a phone call, a walk-up, fixing an exhibitor's mistake) for
+ * the identical action, and naming one of them made the rest look unsupported.
+ * Vocabulary rule: docs/reference/ui-vocabulary.md.
+ */
 export function SecretaryAddEntriesDecision({
   showId,
   disabled = false,
@@ -53,7 +61,7 @@ export function SecretaryAddEntriesDecision({
           onClick={() => handleNavigate(buildExhibitorRegistrationPath)}
         >
           <Dog className="h-4 w-4 mr-2" />
-          Enter my own dogs
+          Add entry for my dog
         </Button>
         <Button
           type="button"
@@ -64,8 +72,8 @@ export function SecretaryAddEntriesDecision({
             : {})}
           onClick={() => handleNavigate(buildSecretaryRegistrationPath)}
         >
-          <FileText className="h-4 w-4 mr-2" />
-          Add mail-in entry
+          <Users className="h-4 w-4 mr-2" />
+          Add entry for someone else
         </Button>
       </div>
       {mailInDisabledReason !== undefined && (

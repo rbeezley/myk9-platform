@@ -29,21 +29,24 @@ test.describe('Secretary Entry Creation', () => {
   // race conditions between tests sharing the same staging DB and auth session.
   test.describe.configure({ mode: 'serial' });
 
-  test('entry management page loads with New Entry button', async ({ page }) => {
+  test('entry management page loads with the add-entry decision point', async ({ page }) => {
     await signInAsSecretary(page);
     await page.goto(`/secretary/entries/${TEST_SHOW_ID}`);
     await page.waitForSelector('text=Entry Management', { timeout: 10000 });
 
-    await expect(page.getByRole('button', { name: /new entry/i })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Add entry', exact: true })).toBeVisible();
     await expect(page.getByRole('button', { name: /refresh/i })).toBeVisible();
   });
 
-  test('New Entry button navigates to registration wizard', async ({ page }) => {
+  test('Add entry for someone else navigates to registration wizard', async ({ page }) => {
     await signInAsSecretary(page);
     await page.goto(`/secretary/entries/${TEST_SHOW_ID}`);
     await page.waitForSelector('text=Entry Management', { timeout: 10000 });
 
-    await page.getByRole('button', { name: /new entry/i }).click();
+    // The decision point is inside the "Add entry" popover, which is not
+    // mounted until the trigger is clicked.
+    await page.getByRole('button', { name: 'Add entry', exact: true }).click();
+    await page.getByRole('button', { name: 'Add entry for someone else' }).click();
     await page.waitForURL(`**/secretary/register/${TEST_SHOW_ID}`, { timeout: 10000 });
     await expect(page).toHaveURL(`/secretary/register/${TEST_SHOW_ID}`);
   });

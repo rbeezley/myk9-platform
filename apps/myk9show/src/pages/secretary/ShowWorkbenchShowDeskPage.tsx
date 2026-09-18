@@ -302,7 +302,7 @@ export function ShowWorkbenchShowDeskPage() {
       {
         id: 'add-entries',
         title: 'Add entries',
-        summary: 'Choose own, paper, or late entries without leaving Show Desk',
+        summary: "Choose your own dog, someone else's, or a late entry without leaving Show Desk",
         // Open on arrival for the trial secretary, whose show day this is.
         // Collapsed for a manager who is not one: two of its three controls are
         // greyed for them, and a section that opens onto mostly-disabled

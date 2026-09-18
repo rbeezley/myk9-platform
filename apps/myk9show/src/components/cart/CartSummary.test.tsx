@@ -71,6 +71,25 @@ describe('CartSummary — entries-closed gating', () => {
     expect(payButton).not.toBeDisabled();
   });
 
+  it('lets the long pay label wrap instead of overflowing the button', () => {
+    const future = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
+    storeState.cart = mockCart({ entry_close_date: future.toISOString().slice(0, 10) });
+    render(<CartSummary onCheckout={() => {}} />);
+
+    // The pay label is the longest in the app and the order-summary column is
+    // narrow, so it must wrap inside the button rather than run past its
+    // rounded edge. twMerge has to drop the shared Button's own
+    // `whitespace-nowrap` and fixed `h-11`; `min-h-11` keeps the 44px floor.
+    const payButton = screen.getByRole('button', { name: /pay \$.* and confirm/i });
+    expect(payButton.className).not.toContain('whitespace-nowrap');
+    expect(payButton.className).toContain('whitespace-normal');
+    // No fixed height may survive, or a wrapped second line overflows it.
+    expect(payButton.className).not.toMatch(/(^|\s)h-\d/);
+    // docs/INTENT.md: 44px floor, 48px preferred on tablet.
+    expect(payButton.className).toContain('min-h-11');
+    expect(payButton.className).toContain('sm:min-h-12');
+  });
+
   // exhibitor-ux-remediation P1 (Codex review): a DATE-only close date must be
   // parsed as a local calendar date, not UTC-midnight — otherwise checkout is
   // wrongly disabled for the ENTIRE final entry day in timezones behind UTC.

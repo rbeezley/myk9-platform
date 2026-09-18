@@ -31,6 +31,12 @@ export interface SecretaryCockpitAction {
   label: string;
   destination: CockpitDestination;
   group: 'primary' | 'prepare' | 'finish' | 'class-work' | 'paperwork';
+  /**
+   * True when this action's destination requires the operational trial-secretary
+   * (or judge / site-admin) role, so a manager who is not one gets it greyed
+   * with a reason rather than a dead end (REV-2341 R-1).
+   */
+  operatorOnly?: boolean;
   priority?: number;
 }
 

@@ -180,5 +180,17 @@ describe('buildSecretaryCockpitSnapshot', () => {
     ).toMatchObject({
       destination: { kind: 'href', href: expect.stringContaining('/classes/class-1') },
     });
+
+    // REV-2341 U-2. "Enter paper scores" goes to `/scoring/classes/:id/entries`,
+    // ProtectedRoute(SECRETARY | JUDGE | SITE_ADMIN), so it is the ONE class-work
+    // action a club admin cannot use and the one the cockpit greys. Deleting this
+    // flag left 394 tests green, which is why it is asserted here — and asserted
+    // as the whole set, so a second operator-only action cannot be added without
+    // a decision.
+    expect(
+      snapshot.classes[0]?.actions
+        .filter(action => action.operatorOnly === true)
+        .map(action => action.label)
+    ).toEqual(['Enter paper scores']);
   });
 });

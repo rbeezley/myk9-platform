@@ -10,8 +10,9 @@ import {
 import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { getReportById, getReportsForRegistries } from '@/lib/reports/reportRegistry';
-import type { ReportCategory, ReportDefinition } from '@/lib/reports/types';
+import type { ReportDefinition, ReportPhase } from '@/lib/reports/types';
 import { resolveConfiguredRegistryId, type RegistryId } from '@/features/registries';
+import { orderReportPhases, type ShowTimePhase } from '@/lib/reports/reportPhaseOrder';
 import { formatClassLabel } from '@/lib/utils';
 import { AlertTriangle, Download } from 'lucide-react';
 
@@ -122,18 +123,49 @@ interface ReportControlsBarProps {
   onSortChange: (value: string) => void;
   onPrint: () => void;
   officialPdfAction?: OfficialPdfAction | undefined;
+  /**
+   * Where the show sits relative to today, which orders the four phase groups
+   * nearest-in-time first. Defaults to `'unknown'` (the plain
+   * before/during/after order) so a caller that has not resolved the show yet
+   * gets a stable list rather than a reshuffle mid-load. NOTHING is gated by it
+   * — every report is listed under its own heading in every state.
+   */
+  showPhase?: ShowTimePhase | undefined;
 }
 
-// Order chosen so the most-used categories stay at the top of the dropdown.
-// Adding a category to the `ReportCategory` union without extending this map
-// fails TypeScript here, which prevents the kind of silent omission that
-// hid Financial + Statistics for several weeks (fixed 2026-04-26).
-const REPORT_GROUP_ORDER: ReadonlyArray<{ category: ReportCategory; label: string }> = [
-  { category: 'operational', label: 'Operational' },
-  { category: 'organization', label: 'Organization' },
-  { category: 'financial', label: 'Financial' },
-  { category: 'statistics', label: 'Statistics' },
-];
+/**
+ * The heading for each phase. `Record<ReportPhase, string>` is the guard the old
+ * category map carried: adding a phase to the `ReportPhase` union without
+ * extending this fails TypeScript, which prevents the kind of silent omission
+ * that hid Financial + Statistics for several weeks (fixed 2026-04-26).
+ *
+ * The RENDER iterates this object's own keys (below), not a hand-written order
+ * array. `REPORT_GROUP_ORDER` on `main` and the first cut of `REPORT_PHASE_ORDER`
+ * were both `readonly T[]`, which is NOT exhaustiveness-checked: a developer who
+ * added `'closeout'`, fixed the two type errors and forgot the order array would
+ * have silently hidden every closeout report — the exact 2026-04-26 bug the
+ * comment above claims to prevent. Ordering is now a pure function over these
+ * same keys, so a phase cannot be rendered-but-unordered or ordered-but-unlisted.
+ */
+export const PHASE_LABELS: Record<ReportPhase, string> = {
+  before: 'Before the show',
+  during: 'During the show',
+  after: 'After the show',
+  anytime: 'Anytime',
+};
+
+/**
+ * Every phase, in the order `orderReportPhases` leaves them for this show.
+ *
+ * Built by intersecting the ordering with `Object.keys(PHASE_LABELS)` so the two
+ * can never drift: a phase the ordering forgets still renders (at the end), and
+ * a phase the ordering names but `PHASE_LABELS` does not cannot render at all.
+ */
+function resolvePhaseOrder(showPhase: ShowTimePhase): ReportPhase[] {
+  const known = Object.keys(PHASE_LABELS) as ReportPhase[];
+  const ordered = orderReportPhases(showPhase).filter(phase => known.includes(phase));
+  return [...ordered, ...known.filter(phase => !ordered.includes(phase))];
+}
 
 export function ReportControlsBar({
   reportType,
@@ -152,14 +184,18 @@ export function ReportControlsBar({
   onSortChange,
   onPrint,
   officialPdfAction,
+  showPhase = 'unknown',
 }: ReportControlsBarProps) {
   const selectedReport = getReportById(reportType);
   const visibleReports = getReportsForRegistries(getScopedRegistryIds(trials, trialId), reportType);
-  const reportsByCategory: Record<ReportCategory, ReportDefinition[]> = {
-    operational: visibleReports.filter(r => r.category === 'operational'),
-    organization: visibleReports.filter(r => r.category === 'organization'),
-    financial: visibleReports.filter(r => r.category === 'financial'),
-    statistics: visibleReports.filter(r => r.category === 'statistics'),
+  // Grouped from the ALREADY registry-scoped `visibleReports`, never from the
+  // whole registry: scope first, then group, so a UKC-only show never sees an
+  // AKC form under any heading.
+  const reportsByPhase: Record<ReportPhase, ReportDefinition[]> = {
+    before: visibleReports.filter(r => r.phase === 'before'),
+    during: visibleReports.filter(r => r.phase === 'during'),
+    after: visibleReports.filter(r => r.phase === 'after'),
+    anytime: visibleReports.filter(r => r.phase === 'anytime'),
   };
 
   const hasTrialScope = selectedReport?.scopes.includes('trial') ?? false;
@@ -221,17 +257,19 @@ export function ReportControlsBar({
             <SelectValue placeholder="Select report">{selectedReportLabel}</SelectValue>
           </SelectTrigger>
           <SelectContent>
-            {REPORT_GROUP_ORDER.map(({ category, label }) => (
-              <SelectGroup key={category}>
-                <SelectLabel>{label}</SelectLabel>
-                {reportsByCategory[category].map(report => (
-                  <SelectItem key={report.id} value={report.id} disabled={!report.enabled}>
-                    {report.name}
-                    {!report.enabled ? ' (Coming Soon)' : ''}
-                  </SelectItem>
-                ))}
-              </SelectGroup>
-            ))}
+            {resolvePhaseOrder(showPhase)
+              .filter(phase => reportsByPhase[phase].length > 0)
+              .map(phase => (
+                <SelectGroup key={phase}>
+                  <SelectLabel>{PHASE_LABELS[phase]}</SelectLabel>
+                  {reportsByPhase[phase].map(report => (
+                    <SelectItem key={report.id} value={report.id} disabled={!report.enabled}>
+                      {report.name}
+                      {!report.enabled ? ' (Coming Soon)' : ''}
+                    </SelectItem>
+                  ))}
+                </SelectGroup>
+              ))}
           </SelectContent>
         </Select>
       </div>

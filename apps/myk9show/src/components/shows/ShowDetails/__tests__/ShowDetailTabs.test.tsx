@@ -44,13 +44,6 @@ vi.mock('@/components/shows/tabs/MyEntriesTab', () => ({
 vi.mock('@/components/results/ShowResultsTab', () => ({
   ShowResultsTab: () => <div data-testid="results-tab">results</div>,
 }));
-vi.mock('@/features/show-map/ShowMapTab', () => ({
-  default: ({ canManageShow }: { canManageShow: boolean }) => (
-    <div data-testid="show-map-tab" data-can-manage={String(canManageShow)}>
-      map
-    </div>
-  ),
-}));
 
 function makeShow(): Show {
   return { id: 'show-1', name: 'Test Show' } as Show;
@@ -67,13 +60,18 @@ function renderTabs(overrides: Partial<ShowDetailTabsProps> = {}) {
     activeTab: 'overview',
     onTabChange: vi.fn(),
     canManageShow: false,
-    canShowMap: false,
     isAuthenticated: true,
     hasUserEntries: false,
     judges: [],
     classes: [],
     trials: [],
     trialStats: {},
+    // `canShowMap`, `mapTrials`, `mapClasses` and `mapEntries` are still on
+    // `ShowDetailTabsProps` because that object IS the outlet context the six
+    // tab pages read (Setup's map view is the only consumer). `ShowDetailTabs`
+    // itself no longer destructures them, so the fixture does not supply them —
+    // carrying them here made the deleted panel look covered.
+    canShowMap: false,
     mapTrials: [],
     mapClasses: [],
     mapEntries: [],
@@ -103,12 +101,21 @@ describe('ShowDetailTabs', () => {
     expect(screen.queryByTestId('entries-tab')).toBeNull();
   });
 
-  it('has no Show Map panel — Show Map is a view inside Setup now', () => {
-    // The read-only INTENT that guarded this panel moved with it; see
-    // `ShowWorkbenchSetupPage.test.tsx` ("renders the Show Map read-only").
-    renderTabs({ activeTab: 'map', canShowMap: true, canManageShow: true });
-    expect(screen.queryByTestId('show-map-tab')).toBeNull();
-  });
+  // DELETED, not kept: 'has no Show Map panel — Show Map is a view inside Setup
+  // now'. It was vacuous and always had been. On `origin/main` the identical
+  // assertion passed WHILE the component still rendered `<TabsContent
+  // value="map">` under `canShowMap`, because the panel's child is
+  // `React.lazy(...)` inside `<Suspense>`: the mocked module resolves on a
+  // microtask and the synchronous `queryByTestId` never sees it either way. A
+  // test that asserted the absence of something present, and was green, cannot
+  // fail (REV-2341 lens Q, P3-Q4; LESSONS `mutation-actually-mutated`).
+  //
+  // The guards that DO red when the Show Map tab comes back are
+  // `ShowDetailsPage.tabDefs.test.tsx` ("offers no Show Map to anyone") and
+  // `ShowDetailsPage.test.tsx` ("has ONE Show Map — inside Setup"), both of
+  // which assert on the tab strip and both of which were mutation-checked. The
+  // panel's own read-only INTENT moved to Setup with it; see
+  // `ShowWorkbenchSetupPage.test.tsx` ("renders the Show Map read-only").
 
   it('passes hideRing=true to ClassesTab when a scent-work trial is present', () => {
     renderTabs({ activeTab: 'classes', trials: [makeTrial({ trialType: 'Scent Work' })] });

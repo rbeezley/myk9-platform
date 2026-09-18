@@ -29,6 +29,7 @@ import { useResetRecentSearchesOnAccountChange } from '@/hooks/useResetRecentSea
 import { ensureError } from '@myk9/core';
 import { notifications } from '@/lib/notifications';
 import { buildSignInPathForRedirect } from '@/pages/SignInPage.helpers';
+import { RoleAccessDeniedState } from '@/components/common/RoleAccessDeniedState';
 import { Skeleton } from '@/components/common/SkeletonLoaders';
 import type { AuthContextType } from './authContextTypes';
 import {
@@ -418,11 +419,12 @@ export function ProtectedRoute({
   requiredRole,
   requiredPermission,
   scope,
-  fallback = (
-    <div className="flex items-center justify-center min-h-screen p-4 text-gray-500">
-      You don't have permission to access this page.
-    </div>
-  ),
+  // No default here: the default refusal state needs to know WHICH role the
+  // route asked for, and only the two refusal sites below know that. See
+  // `RoleAccessDeniedState` for why the fix belongs at the destination
+  // (REV-2341 R-1, second finding on one path -> restructure, not a fourth
+  // control-level patch). No caller overrides this today.
+  fallback,
 }: ProtectedRouteProps) {
   const context = React.useContext(AuthContext);
   const location = useLocation();
@@ -472,13 +474,18 @@ export function ProtectedRoute({
       : hasRole(requiredRole);
 
     if (!hasRequiredRole) {
-      return <>{fallback}</>;
+      // The required role travels into the refusal state, so it can say which
+      // access is missing instead of guessing from the viewer's own roles
+      // (REV-2341 U-1).
+      return <>{fallback ?? <RoleAccessDeniedState requiredRole={requiredRole} />}</>;
     }
   }
 
-  // Check permission requirements
+  // Check permission requirements. Deliberately NO `requiredRole` here even when
+  // the route also declares one: this refusal is about a permission the viewer
+  // lacks, and naming a role would explain it wrongly.
   if (requiredPermission && !hasPermission(requiredPermission, scope)) {
-    return <>{fallback}</>;
+    return <>{fallback ?? <RoleAccessDeniedState />}</>;
   }
 
   return <>{children}</>;

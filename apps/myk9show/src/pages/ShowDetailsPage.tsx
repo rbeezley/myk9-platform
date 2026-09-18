@@ -12,8 +12,6 @@ import { useShowLandingData } from '@/hooks/useShowLandingData';
 import { useNavigationPerformance } from '@/hooks/useNavigationPerformance';
 import { useAuthContext } from '@/hooks/useAuthContext';
 import { useShowManageGate } from './ShowDetailsPage.viewer';
-import { hasScopedClubRole } from '@/utils/roleScopes';
-import { UserRole } from '@/types/auth-types';
 import { useTrialStore } from '@/store/trialStore';
 import { resolveEntryClassInventory } from './ShowDetailsPage.entryInventory';
 import type { SyncableTrialClass } from '@/store/trial-store-types';
@@ -64,14 +62,7 @@ const ShowDetailsPage: React.FC = () => {
   const { hash } = useLocation();
   const managementSectionMatch = useMatch('/shows/:id/:section/*');
   const { endNavigation } = useNavigationPerformance();
-  const {
-    user,
-    loading: authLoading,
-    userWithRoles,
-    isSecretary,
-    isAdmin,
-    rbacLoading,
-  } = useAuthContext();
+  const { user, loading: authLoading, userWithRoles, rbacLoading } = useAuthContext();
   const canReadEntryRows = Boolean(user && user.is_anonymous !== true);
   const trials = useTrialStore(s => s.trials);
   const trialClasses = useTrialStore(s => s.trialClasses);
@@ -147,9 +138,6 @@ const ShowDetailsPage: React.FC = () => {
       activeManagementSection in LEGACY_SHOW_SECTION_REDIRECTS ||
       activeManagementSection === 'classes')
   );
-  const isScopedSecretary =
-    isSecretary && hasScopedClubRole(userWithRoles, UserRole.SECRETARY, actualCurrentShow?.clubId);
-
   useEffect(() => {
     if (!id || !isValidUUID(id)) return;
     void loadTrials();
@@ -218,15 +206,16 @@ const ShowDetailsPage: React.FC = () => {
   // gate uses, and the same shape as `areRolesResolved` in App.tsx.
   const viewerRolesUnresolved = rbacLoading && !userWithRoles;
 
-  // Decide which surface this visitor sees. Staff (secretary / admin / club_admin)
-  // and management-section URLs reach the tabbed/management UI; non-staff visitors
-  // with no entries get the styled marketing landing; an authenticated visitor whose
-  // entries are still loading is held ('pending') to avoid flashing the landing.
+  // Decide which surface this visitor sees, from the ONE manage gate
+  // (`canManageShow`). Managers (site admin, club-scoped secretary, club-scoped
+  // club admin) and management-section URLs reach the tabbed/management UI;
+  // non-staff visitors with no entries get the styled marketing landing; an
+  // authenticated visitor whose entries are still loading is held ('pending')
+  // to avoid flashing the landing.
   const audience = resolveShowAudience({
     isManagementSection,
     forcePublicPreview: searchParams.get('preview') === 'public',
     canManageShow,
-    isManagementStaff: isAdmin || isScopedSecretary,
     rbacLoading: viewerRolesUnresolved,
     isAuthenticated,
     userEntriesLoading: exhibitorEntryDataState === 'loading',
@@ -242,7 +231,14 @@ const ShowDetailsPage: React.FC = () => {
   const showResultsQuery = useShowResults(hasResultsTab && id && isValidUUID(id) ? id : undefined);
   const resultsCount = resolveResultsTabCount(showResultsQuery);
 
-  // Tab state — URL-synced with dynamic allowed tabs
+  // Tab state — URL-synced with dynamic allowed tabs.
+  //
+  // `canShowMap` no longer adds a tab to the `?tab=` strip below: since
+  // MYK9-630 phase 3 every viewer with `canManageShow` renders the management
+  // shell, so a "Show Map" tab on the exhibitor strip is unreachable. It only
+  // travels down the outlet context now, where the Setup tab offers the map as
+  // one of its three views. (Phase 2 kept it here purely because club admins
+  // had no tabs of their own; that state is gone.)
   const canShowMap = features.showMap && canManageShow;
   // MYK9-630 phase 2 removed the hazard MYK9-634 was filed against: the
   // exhibitor "My Entries" tab and the manager "Entries" tab shared the id
@@ -262,15 +258,8 @@ const ShowDetailsPage: React.FC = () => {
   // skeleton on `'pending'` before a tab is ever built. One gate, one place.
   const allowedTabs = useMemo(() => {
     if (!isAuthenticated) return ['overview', 'trials', 'classes', 'results'];
-    return [
-      'overview',
-      ...(canShowMap ? ['map'] : []),
-      'trials',
-      'my-entries',
-      'classes',
-      'results',
-    ];
-  }, [isAuthenticated, canShowMap]);
+    return ['overview', 'trials', 'my-entries', 'classes', 'results'];
+  }, [isAuthenticated]);
   const defaultTab =
     isAuthenticated && !canManageShow && !isWaitingForExhibitorEntryDefault && hasUserEntries
       ? 'my-entries'
@@ -433,7 +422,6 @@ const ShowDetailsPage: React.FC = () => {
     () =>
       buildShowDetailTabDefs({
         isAuthenticated,
-        canShowMap,
         trialCount: effectiveTrials.length,
         classCount: effectiveShowClasses.length,
         submittedEntryHistoryCount: submittedEntryProjection.historyCount,
@@ -442,7 +430,6 @@ const ShowDetailsPage: React.FC = () => {
       }),
     [
       isAuthenticated,
-      canShowMap,
       effectiveTrials.length,
       effectiveShowClasses.length,
       submittedEntryProjection.historyCount,

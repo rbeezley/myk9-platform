@@ -7,7 +7,6 @@ function input(overrides: Partial<ShowAudienceInput> = {}): ShowAudienceInput {
   return {
     isManagementSection: false,
     canManageShow: false,
-    isManagementStaff: false,
     isAuthenticated: false,
     userEntriesLoading: false,
     hasUserEntries: false,
@@ -21,23 +20,17 @@ describe('resolveShowAudience', () => {
   });
 
   it('a secretary sees the management shell', () => {
-    expect(resolveShowAudience(input({ canManageShow: true, isManagementStaff: true }))).toBe(
-      'management'
-    );
+    expect(resolveShowAudience(input({ canManageShow: true }))).toBe('management');
   });
 
   it('public preview forces the public landing on the canonical route', () => {
-    expect(
-      resolveShowAudience(
-        input({ forcePublicPreview: true, canManageShow: true, isManagementStaff: true })
-      )
-    ).toBe('public');
+    expect(resolveShowAudience(input({ forcePublicPreview: true, canManageShow: true }))).toBe(
+      'public'
+    );
   });
 
   it('an admin sees the management shell', () => {
-    expect(resolveShowAudience(input({ canManageShow: true, isManagementStaff: true }))).toBe(
-      'management'
-    );
+    expect(resolveShowAudience(input({ canManageShow: true }))).toBe('management');
   });
 
   it('does not expose management shell to a secretary outside their club', () => {
@@ -47,16 +40,29 @@ describe('resolveShowAudience', () => {
           isAuthenticated: true,
           hasUserEntries: true,
           canManageShow: false,
-          isManagementStaff: false,
         })
       )
     ).toBe('exhibitor');
   });
 
-  it('a club admin sees the exhibitor view, not management or public', () => {
-    expect(resolveShowAudience(input({ canManageShow: true, isManagementStaff: false }))).toBe(
-      'exhibitor'
-    );
+  // REWRITTEN from #2180's "a club admin sees the exhibitor view, not
+  // management or public". That was the deliberate split; MYK9-630 phase 3
+  // (Richard, 2026-09-18) reverses the ruling — a club-scoped club admin IS a
+  // manager and gets the six tabs. `canManageShow` is exactly what
+  // `canManageShowSurface` grants them.
+  it("a club admin of THIS show's club sees the management shell", () => {
+    expect(resolveShowAudience(input({ canManageShow: true }))).toBe('management');
+  });
+
+  // The positive control for the rewrite above: the gate is club-scoped, so a
+  // club admin of ANOTHER club never reaches `canManageShow` and stays an
+  // exhibitor.
+  it('a club admin of another club stays on the exhibitor view', () => {
+    expect(
+      resolveShowAudience(
+        input({ isAuthenticated: true, hasUserEntries: true, canManageShow: false })
+      )
+    ).toBe('exhibitor');
   });
 
   it('holds a signed-in staff viewer while RBAC resolves', () => {
@@ -90,7 +96,6 @@ describe('resolveShowAudience', () => {
       resolveShowAudience(
         input({
           canManageShow: true,
-          isManagementStaff: true,
           isAuthenticated: true,
           userEntriesLoading: true,
         })
@@ -105,11 +110,9 @@ describe('resolveShowAudience', () => {
   });
 
   it('a management-section URL for a secretary resolves to management', () => {
-    expect(
-      resolveShowAudience(
-        input({ isManagementSection: true, canManageShow: true, isManagementStaff: true })
-      )
-    ).toBe('management');
+    expect(resolveShowAudience(input({ isManagementSection: true, canManageShow: true }))).toBe(
+      'management'
+    );
   });
 
   it('pending takes precedence over the public landing while entries load', () => {

@@ -11,6 +11,7 @@ import { classifyRawEntryAttention } from '@/features/entry-operations/attention
 import {
   computeOutstandingAmount,
   isEntryIncludedInFinancialReport,
+  isSupersededMoveUpEntry,
 } from '@/components/reports/financialReportTotals';
 
 export interface EntryManagementBucketCounts {
@@ -57,7 +58,9 @@ export function getEntryManagementCountSummary(
     ) {
       counts.issues++;
     }
-    counts.revenue += entry.paidAmount;
+    // MYK9-639: the destination of a move-up now carries the source's payment,
+    // so counting the superseded source too would report one paid run twice.
+    if (!isSupersededMoveUpEntry(entry)) counts.revenue += entry.paidAmount;
 
     // Match the Financial Report's inclusion rule: waitlisted/withdrawn/
     // scratched/not_accepted entries are never counted as money owed, even

@@ -12,6 +12,12 @@
  *
  * Producers: services/database/day-of-operations/move-up.ts,
  *            features/show-map/showMapActionMutations.ts
+ *
+ * The SOURCE side of the same write gets the mirror note, `"Moved up to
+ * <class>[: reason]"`. It lives here too (MYK9-640): the reverse move has to
+ * recognise that note to clear it without touching anything a human typed into
+ * the same field, and a prefix authored at the clearing site would drift from
+ * the one authored at the writing site the first time either was reworded.
  */
 
 /**
@@ -44,4 +50,19 @@ export function parseMovedUpFromClassId(note: string | null | undefined): string
   if (!note) return null;
   const match = note.match(MOVED_UP_FROM_PATTERN);
   return match ? match[1] : null;
+}
+
+/** Prefix of the note written onto the SOURCE entry of a move-up. */
+export const MOVED_UP_TO_NOTE_PREFIX = 'Moved up to ';
+
+/**
+ * Build the note written onto the superseded source entry's `special_requests`.
+ */
+export function buildMovedUpToNote(targetClassName: string, reason?: string | null): string {
+  return `${MOVED_UP_TO_NOTE_PREFIX}${targetClassName}${reason ? ': ' + reason : ''}`;
+}
+
+/** True when `note` is one this module wrote onto a move-up's source entry. */
+export function isMovedUpToNote(note: string | null | undefined): boolean {
+  return Boolean(note?.startsWith(MOVED_UP_TO_NOTE_PREFIX));
 }

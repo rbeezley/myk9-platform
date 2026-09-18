@@ -61,6 +61,21 @@ const reportProps = {
 } satisfies ReportProps;
 
 describe('countUKCNoseworkEntries', () => {
+  it('counts a move-up once -- the superseded source is not a second run (MYK9-639)', () => {
+    // The finding's own pair: one dog, one $35 pre-entry, moved up. The source
+    // is left `moved` carrying the money it was paid with; the destination
+    // carries the same money into the new class.
+    const counts = countUKCNoseworkEntries([
+      makeEntry({ id: 'source-moved', entryStatus: 'moved', paymentMethod: 'check' }),
+      makeEntry({ id: 'destination', entryStatus: 'confirmed', paymentMethod: 'check' }),
+    ]);
+
+    expect(counts.totalEntries).toBe(1);
+    expect(counts.preEntries).toBe(1);
+    expect(counts.dayOfShowEntries).toBe(0);
+    expect(counts.onlineEntries).toBe(0);
+  });
+
   it('splits entries into UKC online, pre-entry, and day-of-show buckets', () => {
     expect(countUKCNoseworkEntries(reportProps.entries)).toEqual({
       dayOfShowEntries: 2,

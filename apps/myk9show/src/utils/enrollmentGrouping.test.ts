@@ -23,6 +23,38 @@ const base: EntryManagementEntry = {
 };
 
 describe('groupEntriesByEnrollment', () => {
+  it('adds a move-up pair to the group once, not twice (MYK9-639)', () => {
+    // Dollar-unit group (no enrollment total), so both figures come from the
+    // entries themselves. The destination of a move-up now carries the source's
+    // $35 -- one paid run -- so the card must still read $35, and both rows must
+    // still appear on it.
+    const groups = groupEntriesByEnrollment([
+      {
+        ...base,
+        id: 'source-moved',
+        registrationId: '',
+        totalFee: 35,
+        paidAmount: 35,
+        entryStatus: EntryStatus.MOVED,
+        stripePaymentIntentId: 'pi_1',
+      },
+      {
+        ...base,
+        id: 'destination',
+        registrationId: '',
+        totalFee: 35,
+        paidAmount: 35,
+        entryStatus: EntryStatus.ACCEPTED,
+        stripePaymentIntentId: 'pi_1',
+      },
+    ]);
+
+    expect(groups).toHaveLength(1);
+    expect(groups[0]?.totalAmount).toBe(35);
+    expect(groups[0]?.paidAmount).toBe(35);
+    expect(groups[0]?.entries.map(entry => entry.id)).toEqual(['source-moved', 'destination']);
+  });
+
   it('groups entries sharing a registrationId into one group', () => {
     const entries: EntryManagementEntry[] = [
       { ...base, id: 'e1', registrationId: 'reg-1', dogId: 'dog-1', dogName: 'Bravo' },

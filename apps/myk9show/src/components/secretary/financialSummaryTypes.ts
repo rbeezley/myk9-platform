@@ -1,5 +1,11 @@
 export interface TrialFinancialEntryRow {
   id: string;
+  /**
+   * MYK9-639: carried so the superseded half of a move-up can be dropped before
+   * anything is summed. The destination entry now holds the money, so counting
+   * the source too would report one paid run as two entries at twice the fee.
+   */
+  entryStatus: string | null;
   handler: string | null;
   dogName: string;
   ownerName: string;

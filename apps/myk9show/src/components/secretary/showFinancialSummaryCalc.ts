@@ -1,3 +1,4 @@
+import { isSupersededMoveUpEntry } from '@/components/reports/financialReportTotals';
 import type { ShowFinancialEntryRow, TrialSubtotal } from './financialSummaryTypes';
 
 export interface ShowFinancialSummaryTotals {
@@ -21,11 +22,15 @@ export interface ShowFinancialSummaryTotals {
  * binary-float dollars drifts by a penny on large shows (MP-26) — and
  * divides once at the end.
  */
-export function computeShowFinancialSummary(entries: ShowFinancialEntryRow[]): {
+export function computeShowFinancialSummary(allEntries: ShowFinancialEntryRow[]): {
   summary: ShowFinancialSummaryTotals;
   trialSubtotals: TrialSubtotal[];
   trialOptions: [string, string][];
 } {
+  // MYK9-639: the superseded source of a move-up is the SAME paid run as the
+  // destination beside it, which now carries the money. Summing both doubled
+  // every figure on this card and inflated the entry count.
+  const entries = allEntries.filter(entry => !isSupersededMoveUpEntry(entry));
   const acc: ShowFinancialSummaryTotals = {
     totalEntries: entries.length,
     totalFees: 0,

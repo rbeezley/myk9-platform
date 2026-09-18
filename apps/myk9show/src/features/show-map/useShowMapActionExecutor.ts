@@ -14,6 +14,7 @@ import {
   markRowCheckedIn,
   markShowDayDetailsCheckedIn,
 } from './showMapCheckInOptimisticUpdates';
+import { useShowMapMoveUpReversal } from './useShowMapMoveUpReversal';
 import type { ShowMapAction } from './showMapActions';
 import type { ExecutableShowMapActionExecution } from './showMapActionExecution';
 import {
@@ -358,6 +359,19 @@ export function useShowMapActionExecutor({ showId }: UseShowMapActionExecutorInp
     },
   });
 
+  // MYK9-640: the DURABLE way back, on the same Move-up dialog the move was made
+  // from. `lastMoveUp` above is the 8-second undo and restores the state captured
+  // at move time; this one is still there tomorrow, from the live destination row.
+  const moveUpEntryId = moveUpAction
+    ? sourceIdFromShowMapNodeId(moveUpAction.nodeId, 'entry')
+    : null;
+  const moveUpReversal = useShowMapMoveUpReversal({
+    entryId: moveUpEntryId,
+    onClose: () => setMoveUpAction(null),
+    onReversed: classIds =>
+      [moveUpAction?.classId, ...classIds].forEach(id => invalidateShowMapActionQueries(id)),
+  });
+
   const bulkApproveMutation = useMutation({
     mutationFn: async ({ entryIds }: { entryIds: string[]; classId?: string | undefined }) => {
       if (entryIds.length === 0) return [];
@@ -446,6 +460,7 @@ export function useShowMapActionExecutor({ showId }: UseShowMapActionExecutorInp
     confirmMoveUp: ({ targetClassId, reason }: ConfirmShowMapMoveUpInput) => {
       if (moveUpAction) moveUpMutation.mutate({ action: moveUpAction, targetClassId, reason });
     },
+    ...moveUpReversal,
     lastMoveUp,
     undoLastMoveUp: () => {
       if (lastMoveUp) undoMoveUpMutation.mutate(lastMoveUp);

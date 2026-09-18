@@ -79,6 +79,19 @@ export interface ReplicatedEntry {
   withdrawalReasonCode?: string | null | undefined;
   withdrawal_reason_code?: string | null | undefined;
   withdrawal_reason?: string | null | undefined;
+  /**
+   * MYK9-639: on the DESTINATION entry of a move-up, the id of the source entry
+   * it supersedes. The pair is ONE paid run, so the Financial Report skips the
+   * source (`entry_status = 'moved'`) and reads the money off this row.
+   *
+   * Migration 20260918193300 adds the column and projects it through
+   * `view_authenticated_entry_results(_replication)`. Until that lands it is
+   * simply absent from every replicated row, which is why the reverse move
+   * (MYK9-640) also resolves the source from the `special_requests` move-up
+   * note -- see `resolveMoveUpReversal`.
+   */
+  movedFromEntryId?: string | null | undefined;
+  moved_from_entry_id?: string | null | undefined;
   submittedAt?: string | undefined;
   registrationId?: string | undefined;
   trialId?: string | undefined;
@@ -224,6 +237,27 @@ export function entryToSupabaseRow(entry: ReplicatedEntry): Record<string, unkno
       : entry.withdrawal_reason_code !== undefined
         ? { withdrawal_reason_code: entry.withdrawal_reason_code }
         : {}),
+    // MYK9-639: the move-up supersession link, and the money/comp fields the
+    // destination copies from the source it supersedes. All conditional for the
+    // same reason `withdrawal_reason_code` above is: a replica row cached before
+    // these were mapped simply lacks them, and `?? null` would serialize that
+    // absence as a real clear on the next whole-row upload.
+    ...(entry.movedFromEntryId !== undefined
+      ? { moved_from_entry_id: entry.movedFromEntryId }
+      : entry.moved_from_entry_id !== undefined
+        ? { moved_from_entry_id: entry.moved_from_entry_id }
+        : {}),
+    ...(entry.comped !== undefined ? { comped: entry.comped } : {}),
+    ...(entry.compedReason !== undefined
+      ? { comped_reason: entry.compedReason }
+      : entry.comped_reason !== undefined
+        ? { comped_reason: entry.comped_reason }
+        : {}),
+    ...(entry.discountAmount !== undefined
+      ? { discount_amount: entry.discountAmount }
+      : entry.discount_amount !== undefined
+        ? { discount_amount: entry.discount_amount }
+        : {}),
     submitted_at: entry.submittedAt ?? null,
     registration_id: fk(entry.registrationId),
     trial_id: fk(entry.trialId ?? entry.trial_id),
@@ -347,6 +381,10 @@ export function rowToEntry(row: EntryRow): ReplicatedEntry {
     // as the bare word "Withdrawn" — never as "Pulled".
     withdrawalReasonCode: optionalColumn(row, 'withdrawal_reason_code'),
     withdrawal_reason_code: optionalColumn(row, 'withdrawal_reason_code'),
+    // MYK9-639. `optionalColumn` for the same reason: until migration
+    // 20260918193300 is pushed the view does not return this column at all.
+    movedFromEntryId: optionalColumn(row, 'moved_from_entry_id'),
+    moved_from_entry_id: optionalColumn(row, 'moved_from_entry_id'),
     submittedAt: row.submitted_at ?? undefined,
     registrationId: row.registration_id ?? undefined,
     trialId: row.trial_id ?? undefined,

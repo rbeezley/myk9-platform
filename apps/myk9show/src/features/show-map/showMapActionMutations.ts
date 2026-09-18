@@ -1,7 +1,7 @@
 import { CLASS_STATUS, logger, type CheckInStatus } from '@myk9/core';
 
 import { createDatabaseError, supabase } from '@/services/database/supabaseClient';
-import { buildMovedUpFromNote } from '@/services/database/entries/moveUpNote';
+import { buildMovedUpFromNote, buildMovedUpToNote } from '@/services/database/entries/moveUpNote';
 import {
   replicatedClassesTable,
   replicatedEntriesTable,
@@ -15,6 +15,7 @@ import {
 import { logReplicatedEntryStatusChange } from '@/services/show-day/entryStatusAudit';
 import { generateUUID } from '@/utils/idUtils';
 import { isEligibleMoveUpTarget } from '@/utils/moveUpEligibility';
+import { movedUpPaymentCarry } from './moveUpSupersession';
 import { getTrialRegistry } from '@/features/registries';
 
 export interface ShowMapMoveUpInput {
@@ -320,7 +321,7 @@ export async function moveUpShowMapEntry({
   const previousCheckInStatus = currentEntry.checkInStatus ?? currentEntry.check_in_status ?? null;
   const previousSpecialRequests =
     currentEntry.specialRequests ?? currentEntry.special_requests ?? null;
-  const moveNote = `Moved up to ${targetClass.name}${reason ? ': ' + reason : ''}`;
+  const moveNote = buildMovedUpToNote(targetClass.name ?? '', reason);
   const movedUpFromNote = buildMovedUpFromNote(
     currentEntry.classId ?? currentEntry.class_id,
     reason
@@ -339,10 +340,24 @@ export async function moveUpShowMapEntry({
       trial_id: targetClass.trialId ?? targetClass.trial_id,
       entryStatus: 'confirmed',
       entry_status: 'confirmed',
-      paymentStatus: 'waived',
-      entryFee: 0,
+      // MYK9-639: the destination SUPERSEDES the source; it is not a new,
+      // waived entry. The money travels with the dog exactly as recorded --
+      // `paymentStatus: 'waived'` + `entryFee: 0` made the Financial Report
+      // invent a comp nobody granted and count the pair as two entries, while
+      // the registry report counted one. The source stays `moved` and is
+      // excluded from the Financial Report, so the pair nets to ONE entry at
+      // the amount actually paid.
+      ...movedUpPaymentCarry(currentEntry),
+      movedFromEntryId: entryId,
+      moved_from_entry_id: entryId,
+      // MYK9-640: a dog checked in for the trial is checked in. Dropping this
+      // made every class-readiness counter on the destination class read the
+      // dog as unseen while they stood at the gate.
+      checkInStatus: (previousCheckInStatus ?? 'no-status') as CheckInStatus,
+      check_in_status: (previousCheckInStatus ?? 'no-status') as CheckInStatus,
       jumpHeight: currentEntry.jumpHeight,
       handler: currentEntry.handler,
+      handlerId: currentEntry.handlerId,
       armband: currentEntry.armband,
       specialRequests: movedUpFromNote,
       special_requests: movedUpFromNote,

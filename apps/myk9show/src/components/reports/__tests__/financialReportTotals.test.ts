@@ -33,6 +33,47 @@ function entry(overrides: Partial<ReportEntry>): ReportEntry {
 }
 
 describe('financialReportTotals', () => {
+  /**
+   * MYK9-639, from the finding's own measurement: one dog, entered once, $35
+   * paid by check, then moved up. Two rows exist afterwards -- the superseded
+   * source (`moved`, still carrying the money it was paid with) and the
+   * destination that now carries the same money forward.
+   */
+  const MOVED_UP_PAIR: ReportEntry[] = [
+    entry({
+      id: 'source-moved',
+      entryStatus: 'moved',
+      entryFee: 35,
+      paymentStatus: PaymentStatus.PAID_BY_CHECK,
+      paymentMethod: 'check',
+    }),
+    entry({
+      id: 'destination',
+      entryStatus: 'confirmed',
+      entryFee: 35,
+      paymentStatus: PaymentStatus.PAID_BY_CHECK,
+      paymentMethod: 'check',
+    }),
+  ];
+
+  it('counts a move-up as ONE entry at the amount paid, with no Waived/Comped line (MYK9-639)', () => {
+    const totals = calculateFinancialReportTotals(MOVED_UP_PAIR, 'current');
+
+    expect(totals.summary.count).toBe(1);
+    expect(totals.summary.gross).toBe(35);
+    expect(totals.summary.collected).toBe(35);
+    expect(totals.summary.waived).toBe(0);
+    expect(totals.summary.netRetained).toBe(35);
+    expect(totals.lines.map(line => line.entry.id)).toEqual(['destination']);
+    expect(totals.paymentBreakdown.map(bucket => bucket.label)).toEqual(['Check']);
+  });
+
+  it('excludes the superseded source of a move-up from the current report (MYK9-639)', () => {
+    expect(isEntryIncludedInFinancialReport(entry({ entryStatus: 'moved' }), 'current')).toBe(
+      false
+    );
+  });
+
   it('separates current entries from waitlisted and withdrawn entries', () => {
     expect(isEntryIncludedInFinancialReport(entry({ entryStatus: 'accepted' }), 'current')).toBe(
       true

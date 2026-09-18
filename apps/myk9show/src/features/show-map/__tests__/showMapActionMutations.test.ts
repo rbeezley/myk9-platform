@@ -102,6 +102,16 @@ describe('showMapActionMutations', () => {
       trialId: 'trial-1',
       entryStatus: 'checked-in',
       checkInStatus: 'checked-in',
+      // MYK9-639's measured row: one dog, entered once, $35 paid by check.
+      paymentStatus: 'paid',
+      paymentMethod: 'check',
+      entryFee: 35,
+      paymentReference: 'ck 1042',
+      comped: false,
+      compedReason: null,
+      discountAmount: 0,
+      isDayOfShow: false,
+      registrationId: 'enrollment-1',
       specialRequests: 'Bring paper form',
       withdrawalReason: null,
       jumpHeight: '12',
@@ -408,10 +418,30 @@ describe('showMapActionMutations', () => {
         classId: 'class-2',
         trialId: 'trial-2',
         entryStatus: 'confirmed',
-        paymentStatus: 'waived',
-        entryFee: 0,
+        // MYK9-639: the destination SUPERSEDES the source, so it carries the
+        // money the exhibitor actually paid. This assertion previously read
+        // `paymentStatus: 'waived', entryFee: 0` -- it pinned the bug: the
+        // Financial Report counted the pair as two entries and invented a
+        // "Waived/Comped" line for a comp nobody granted.
+        paymentStatus: 'paid',
+        paymentMethod: 'check',
+        entryFee: 35,
+        paymentReference: 'ck 1042',
+        comped: false,
+        compedReason: null,
+        discountAmount: 0,
+        isDayOfShow: false,
+        registrationId: 'enrollment-1',
+        movedFromEntryId: 'entry-1',
+        moved_from_entry_id: 'entry-1',
+        // MYK9-640: the dog is at the venue; the check-in travels with them.
+        checkInStatus: 'checked-in',
+        check_in_status: 'checked-in',
         specialRequests: 'Moved up from class class-1: Qualified today',
       })
+    );
+    expect(mockCreateReplicatedEntry).not.toHaveBeenCalledWith(
+      expect.objectContaining({ paymentStatus: 'waived' })
     );
     expect(mockAuditLog).toHaveBeenCalledWith(
       expect.objectContaining({

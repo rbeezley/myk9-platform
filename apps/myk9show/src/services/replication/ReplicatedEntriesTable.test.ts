@@ -180,3 +180,58 @@ describe('withdrawal_reason_code through the replica (MYK9-632)', () => {
     ).toHaveProperty('withdrawal_reason_code', null);
   });
 });
+
+/**
+ * MYK9-639: the supersession link has to survive the round trip, or the reverse
+ * move (MYK9-640) has nothing durable to read and the Financial Report has no
+ * way to tell a superseded source from a live entry.
+ */
+describe('moved_from_entry_id through the replica (MYK9-639)', () => {
+  const table = new TestableEntriesTable();
+
+  it('carries the link off the replication view onto the replicated row', () => {
+    const entry = rowToEntry({
+      id: 'dest-1',
+      entry_status: 'confirmed',
+      moved_from_entry_id: 'source-1',
+    } as never);
+
+    expect(entry.movedFromEntryId).toBe('source-1');
+    expect(entry.moved_from_entry_id).toBe('source-1');
+  });
+
+  it('reads as undefined while migration 20260918193300 is unpushed', () => {
+    const entry = rowToEntry({ id: 'dest-1', entry_status: 'confirmed' } as never);
+
+    expect(entry.movedFromEntryId).toBeUndefined();
+  });
+
+  it('OMITS the column from a whole-row upload when the cached row lacks it', () => {
+    const row = table.publicToSupabaseRow({ id: 'dest-1', armband: '100' } as ReplicatedEntry);
+
+    expect(row).not.toHaveProperty('moved_from_entry_id');
+    // Same rule for the comp and discount columns the move-up carry writes: a
+    // row cached before they were mapped must not null them out on its next
+    // unrelated upload.
+    expect(row).not.toHaveProperty('comped');
+    expect(row).not.toHaveProperty('comped_reason');
+    expect(row).not.toHaveProperty('discount_amount');
+  });
+
+  it('INCLUDES the link, comp decision and discount the row actually carries', () => {
+    const row = table.publicToSupabaseRow({
+      id: 'dest-1',
+      movedFromEntryId: 'source-1',
+      comped: true,
+      compedReason: 'Club volunteer',
+      discountAmount: 5,
+    } as ReplicatedEntry);
+
+    expect(row).toMatchObject({
+      moved_from_entry_id: 'source-1',
+      comped: true,
+      comped_reason: 'Club volunteer',
+      discount_amount: 5,
+    });
+  });
+});

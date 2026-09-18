@@ -1,6 +1,7 @@
 import type { EntryManagementEntry } from '@/types/entry-management-types';
 import { PaymentStatus } from '@/types/show-registration-types';
 import { getEffectivePaymentStatus } from './entryManagementUtils';
+import { isSupersededMoveUpEntry } from '@/components/reports/financialReportTotals';
 
 export interface EnrollmentGroup {
   /** Unique per group (registrationId | pi:<intent> | entry:<id>) — the React
@@ -76,10 +77,15 @@ export function groupEntriesByEnrollment(entries: EntryManagementEntry[]): Enrol
     const group = map.get(key)!;
     group.entries.push(entry);
 
-    if (group.totalAmountUnit === 'dollars') {
+    if (group.totalAmountUnit === 'dollars' && !isSupersededMoveUpEntry(entry)) {
       // No enrollment record (online/pi-grouped or standalone entries): both
       // figures come from the entries themselves. With an enrollment, its
       // total/paid stay authoritative and are never accumulated.
+      //
+      // MYK9-639: the superseded source of a move-up is skipped. It carries the
+      // same fee and payment as the destination created beside it -- one paid
+      // run -- so accumulating both would show the exhibitor twice the total.
+      // The row still JOINS the group; only its money is not added again.
       group.totalAmount += entry.totalFee;
       group.paidAmount += entry.paidAmount;
     }

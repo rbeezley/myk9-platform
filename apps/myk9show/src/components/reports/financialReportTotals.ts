@@ -42,11 +42,21 @@ export interface FinancialReportTotals {
 }
 
 const WAITLIST_STATUSES = new Set(['waitlist', 'waitlisted']);
+/**
+ * `moved` is the SUPERSEDED half of a move-up (MYK9-639). The destination entry
+ * created alongside it now carries the money -- the same payment status, fee and
+ * method the exhibitor actually paid -- so counting the source as well reported
+ * one paid run as two entries, and (while the destination was written as
+ * `payment_status = 'waived'`) invented a "Waived/Comped" line for a comp nobody
+ * granted. Excluding it nets the pair to ONE entry at the amount paid, which is
+ * what `Total Entries` on the registry report has always counted.
+ */
 const EXCLUDED_CURRENT_STATUSES = new Set([
   'waitlist',
   'waitlisted',
   'withdrawn',
   'scratched',
+  'moved',
   'not_accepted',
   'rejected',
   'missing_info',
@@ -93,6 +103,24 @@ function getEffectivePaymentStatus(entry: ReportEntry): string {
   // Ties (both sides mapping to the same enum member) keep the entry's raw
   // spelling, which is what this function returned before the rule was shared.
   return resolved === mappedEntryStatus ? entryStatus : enrollmentStatus;
+}
+
+/**
+ * The vacated source half of a move-up (MYK9-639).
+ *
+ * `moveUpShowMapEntry` leaves it at `entry_status = 'moved'` and creates a
+ * destination carrying the SAME payment status, fee and method — one paid run,
+ * recorded in a different class. Every surface that SUMS money over entries has
+ * to drop it, or one run is charged twice; `EXCLUDED_CURRENT_STATUSES` above
+ * applies the same rule to the printable report.
+ *
+ * Exported so the Entry Management counters, the enrollment grouping and the
+ * secretary financial summary apply this one rule rather than each re-deriving
+ * it — which is how the Financial Report and the registry report ended up
+ * disagreeing in the first place.
+ */
+export function isSupersededMoveUpEntry(entry: { entryStatus?: string | null }): boolean {
+  return normalize(entry.entryStatus) === 'moved';
 }
 
 export function isEntryIncludedInFinancialReport(

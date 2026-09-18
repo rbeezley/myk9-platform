@@ -48,9 +48,25 @@ export function buildUKCNoseworkTrialReportValues(props: ReportProps): PdfFormFi
   };
 }
 
+/**
+ * The superseded half of a move-up (MYK9-639). The dog runs once; the
+ * destination entry carries the fee, so counting the vacated source too would
+ * bill UKC for a second run that never happened -- and would put this report
+ * back into disagreement with the Financial Report, which excludes the same
+ * state.
+ *
+ * Deliberately just this one status. Whether `withdrawn` / `scratched` /
+ * `absent` belong in a registry report's billable count is MYK9-317 and
+ * MYK9-445, which own that question for the AKC report; nothing here changes
+ * how they are counted.
+ */
+const UKC_SUPERSEDED_ENTRY_STATUS = 'moved';
+
 export function countUKCNoseworkEntries(entries: ReportEntry[]): UKCEntryCounts {
   return entries.reduce<UKCEntryCounts>(
     (counts, entry) => {
+      if (entry.entryStatus?.trim().toLowerCase() === UKC_SUPERSEDED_ENTRY_STATUS) return counts;
+
       counts.totalEntries += 1;
 
       // INTENT: paymentMethod is a myK9 collection method. Only entrySource proves UKC collected it.

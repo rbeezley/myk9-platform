@@ -52,6 +52,29 @@ function entry(overrides: Partial<EntryManagementEntry>): EntryManagementEntry {
 }
 
 describe('entry count selectors', () => {
+  it('counts a move-up once in revenue -- the superseded source is not a second charge (MYK9-639)', () => {
+    // Both rows now carry the same $35 paid by check: the destination
+    // supersedes the source rather than being a fresh waived entry.
+    const { stats } = getEntryManagementCountSummary([
+      entry({
+        id: 'source-moved',
+        entryStatus: EntryStatus.MOVED,
+        totalFee: 35,
+        paidAmount: 35,
+        paymentStatus: PaymentStatus.PAID_BY_CHECK,
+      }),
+      entry({
+        id: 'destination',
+        entryStatus: EntryStatus.ACCEPTED,
+        totalFee: 35,
+        paidAmount: 35,
+        paymentStatus: PaymentStatus.PAID_BY_CHECK,
+      }),
+    ]);
+
+    expect(stats.revenue).toBe(35);
+    expect(stats.outstanding).toBe(0);
+  });
   it('counts raw pending-bucket statuses the same way Entry Management maps them', () => {
     const rawEntries = [
       { entry_status: 'submitted' },

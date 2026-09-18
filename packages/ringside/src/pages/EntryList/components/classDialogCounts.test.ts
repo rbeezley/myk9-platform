@@ -14,9 +14,9 @@ const rows = (n: number) => Array.from({ length: n }, (_, i) => ({ id: String(i)
 describe('classDialogCounts', () => {
   it("uses the host's expected count, not every row the page holds", () => {
     // 66 rows, one of them withdrawn: the host's pair says 65 expected.
-    expect(
-      classDialogCounts({ totalEntries: 65, completedEntries: 0 }, rows(66), rows(0))
-    ).toEqual({ entry_count: 65, completed_count: 0 });
+    expect(classDialogCounts({ totalEntries: 65, completedEntries: 0 }, rows(66), rows(0))).toEqual(
+      { entry_count: 65, completed_count: 0 }
+    );
   });
 
   it("uses the host's accounted count even when the Pending tab has filtered the completed rows away", () => {

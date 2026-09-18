@@ -313,9 +313,7 @@ describe('getUserEntries account-scope read', () => {
    */
   describe('withdrawal_reason_code (MYK9-632) — asked for, and optional', () => {
     const schemaError = Object.assign(
-      new Error(
-        "column view_authenticated_entry_results.withdrawal_reason_code does not exist"
-      ),
+      new Error('column view_authenticated_entry_results.withdrawal_reason_code does not exist'),
       { code: '42703' }
     );
 

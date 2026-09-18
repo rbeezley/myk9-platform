@@ -479,7 +479,10 @@ describe('showMapActionMutations', () => {
         entryId: 'entry-1',
         targetClassId: 'class-2',
       })
-    ).rejects.toThrow('Target class is full');
+      // Names the class, because this sentence now actually reaches the
+      // secretary: a MoveUpRpcError survives getUserFriendlyError'"'"'s production
+      // code-lookup, where a DatabaseError was replaced by "Something went wrong".
+    ).rejects.toThrow('Advanced A is full.');
   });
 
   it('rejects a move-up to a lower/cross-element class (write-path enforcement)', async () => {

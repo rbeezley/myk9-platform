@@ -35,6 +35,7 @@ export const AUTHENTICATED_ENTRY_READ_COLUMNS = `
       entry_source,
       is_day_of_show,
       registration_id,
+      moved_from_entry_id,
       withdrawal_reason,
       refund_amount,
       refund_notes,

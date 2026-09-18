@@ -86,7 +86,17 @@ describe('moveUpSupersession', () => {
       ['an area-1 time', { area1_time_seconds: 12.5 }],
       ['an area-3 time', { area3_time_seconds: 8 }],
       ['check-in showing in-ring', { checkInStatus: 'in-ring' as const }],
-    ])('is true for %s', (_label, patch: Partial<ReplicatedEntry>) => {
+      // Round 3: the client list was three signals behind the SQL it claims to
+      // mirror, and `points_possible` / `scoring_started_at` are real `entries`
+      // columns the replica's mapper does not even name.
+      ['incorrect finds recorded', { total_incorrect_finds: 2 }],
+      ['a no-finish recorded', { no_finish_count: 1 }],
+      ['points possible set', { points_possible: 10 }],
+      ['faults recorded', { total_faults: 3 }],
+      ['correct finds recorded', { total_correct_finds: 1 }],
+      ['a total score', { total_score: 88 }],
+      ['scoring already open', { scoring_started_at: '2026-09-18T12:00:00Z' }],
+    ])('is true for %s', (_label: string, patch: Record<string, unknown>) => {
       // The point of the broadened guard: a dog mid-run has is_scored === false
       // and result_status === 'pending', so a result-only test would offer Move
       // back and soft-delete the row the judge is scoring into.

@@ -54,6 +54,7 @@ const SECRETARY_ENTRIES_BASE_SELECT = `
         refunded_at,
         stripe_payment_intent_id,
         registration_id,
+        moved_from_entry_id,
         handler_person:handler_id (
           id,
           first_name,

@@ -1,7 +1,7 @@
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { toast } from 'sonner';
 
-import { getUserFriendlyError } from '@/utils/errorMessages';
+import { getMoveUpErrorMessage } from '@/services/replication/moveUpEntryRpc';
 import {
   resolveMoveUpReversal,
   reverseShowMapMoveUp,
@@ -56,7 +56,9 @@ export function useShowMapMoveUpReversal({
       onReversed([result.sourceClassId ?? undefined]);
     },
     onError: error => {
-      toast.error(getUserFriendlyError(error));
+      // The RPC's own sentence — "This run has already started…", "The original
+      // entry is no longer there to restore." — not a generic apology.
+      toast.error(getMoveUpErrorMessage(error, 'That move-up could not be reversed.'));
     },
   });
 

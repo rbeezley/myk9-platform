@@ -22,6 +22,7 @@ import {
   mapPaymentStatus,
   mapClassEntryStatus,
 } from '@/utils/entryManagementUtils';
+import { withEntryManagementMoneyRoots } from '@/features/financial/entryManagementMoneyRoots';
 import { getEntryManagementCountSummary } from '@/utils/entryCountSelectors';
 import { derivePullTiming, type PullRefundDecision } from '@/features/payments/pullReconciliation';
 import { getTrialTimezone } from '@/features/registries';
@@ -163,10 +164,11 @@ export function mapSecretaryEntryToEntryManagementEntry(
       totalFee: entry.entry_fee || 0,
       refundAmount: entry.refund_amount ?? null,
     }),
-    // MYK9-639: the supersession link, so every count and total on this page
-    // follows a move-up back to the entry that holds the money.
-    movedFromEntryId: (entry as unknown as Record<string, unknown>).moved_from_entry_id as
-      string | null | undefined,
+    // MYK9-639: the supersession link, so every count, total, badge and gate on
+    // this page follows a move-up back to the entry that holds the money. Typed
+    // on `SecretaryEntry`, not cast off it -- the cast that used to be here is
+    // exactly why nobody noticed that neither read path emitted the column.
+    movedFromEntryId: entry.moved_from_entry_id ?? null,
     entryStatus: mapEntryStatus(entry.entry_status),
     rawEntryStatus: entry.entry_status ?? null,
     isScored: entry.is_scored ?? null,
@@ -312,8 +314,13 @@ export function useEntryManagementData(initialShowId?: string): UseEntryManageme
       // SecretaryEntry is a flat row (one per class entry), not a grouped structure
       const entryCloseDate =
         showsRef.current.find(show => show.id === showId)?.entry_close_date ?? null;
-      const transformedEntries: EntryManagementEntry[] = ((data || []) as SecretaryEntry[]).map(
-        entry => mapSecretaryEntryToEntryManagementEntry(entry, entryCloseDate)
+      // MYK9-639: resolve each run's money root ONCE, here, so every predicate,
+      // badge, gate and total downstream reads the fee and payment the exhibitor
+      // actually made rather than the money-neutral row a move-up created.
+      const transformedEntries: EntryManagementEntry[] = withEntryManagementMoneyRoots(
+        ((data || []) as SecretaryEntry[]).map(entry =>
+          mapSecretaryEntryToEntryManagementEntry(entry, entryCloseDate)
+        )
       );
 
       setEntries(transformedEntries);

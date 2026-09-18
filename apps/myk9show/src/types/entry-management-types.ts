@@ -55,6 +55,20 @@ export interface EntryManagementEntry {
    * count and total here resolves it via `@/features/financial/moneyRoot`.
    */
   movedFromEntryId?: string | null | undefined;
+  /**
+   * MYK9-639: the entry this row's money was read FROM, stamped once by
+   * `withEntryManagementMoneyRoots`. Equal to `id` for everything that was never
+   * moved up. A refund, comp or discount must be issued against THIS id — the
+   * Stripe intent lives there and nowhere else.
+   */
+  moneyRootEntryId?: string | undefined;
+  /**
+   * MYK9-639: true when the money root could not be reached (a source outside
+   * the loaded scope, or a broken chain), so the figures on this row are its own
+   * and are probably wrong. A surface showing money must SAY so rather than
+   * render a confident $0.
+   */
+  moneyRootUnresolved?: boolean | undefined;
   entryStatus: EntryStatus;
   /** Raw DB `entry_status` before UI-enum projection. Needed by
    * `deriveEntryPresentation` for the owner-approved review-lane overrides

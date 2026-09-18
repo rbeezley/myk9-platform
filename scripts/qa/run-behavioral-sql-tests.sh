@@ -62,6 +62,7 @@ TEST_FILES=(
   "$TEST_DIR/null_club_show_authorization_test.sql"
   "$TEST_DIR/null_club_policy_authorization_test.sql"
   "$TEST_DIR/entry_status_history_rls_test.sql"
+  "$TEST_DIR/move_up_supersession_test.sql"
   "$TEST_DIR/entry_views_soft_delete_test.sql"
   "$TEST_DIR/image_storage_upsert_rls_test.sql"
   "$TEST_DIR/myk9_114_entry_access_context_test.sql"

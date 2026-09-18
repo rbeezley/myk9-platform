@@ -15,6 +15,7 @@ import { logReplicatedEntryStatusChange } from '@/services/show-day/entryStatusA
 import { generateUUID } from '@/utils/idUtils';
 import { isEligibleMoveUpTarget } from '@/utils/moveUpEligibility';
 import { reverseShowMapMoveUp } from './moveUpSupersession';
+import { MoveUpRpcError } from '@/services/replication/moveUpEntryRpc';
 import { getTrialRegistry } from '@/features/registries';
 
 export interface ShowMapMoveUpInput {
@@ -266,12 +267,12 @@ export async function moveUpShowMapEntry({
   const currentEntry = await replicatedEntriesTable.getEntryById(entryId);
 
   if (!currentEntry) {
-    throw createDatabaseError(new Error('Entry not found'), 'entries', 'show_map_move_up_fetch');
+    throw new MoveUpRpcError('not-found', 'That entry no longer exists.');
   }
 
   const targetClass = await replicatedClassesTable.getClassById(targetClassId);
   if (!targetClass) {
-    throw createDatabaseError(new Error('Target class not found'), 'classes', 'show_map_move_up');
+    throw new MoveUpRpcError('not-found', 'That class no longer exists.');
   }
 
   // Enforce the move-up rule client-side: the registry level ladder lives in TS
@@ -283,7 +284,7 @@ export async function moveUpShowMapEntry({
     ? await replicatedClassesTable.getClassById(sourceClassId)
     : null;
   if (!sourceClass) {
-    throw createDatabaseError(new Error('Current class not found'), 'classes', 'show_map_move_up');
+    throw new MoveUpRpcError('not-found', 'That entry\u2019s current class no longer exists.');
   }
   // Resolve the registry client-side too, from the source class's trial (a show's
   // trials always share one registry — scoping §7) — defaults to AKC if the trial
@@ -294,13 +295,12 @@ export async function moveUpShowMapEntry({
     : null;
   const registryId = getTrialRegistry(sourceTrial).id;
   if (!isEligibleMoveUpTarget(sourceClass, targetClass, registryId)) {
-    throw createDatabaseError(
-      new Error(
-        `${targetClass.name} is not a valid move-up target for ${sourceClass.name}. ` +
-          'A move-up must be to a higher level within the same element.'
-      ),
-      'entries',
-      'show_map_move_up'
+    // Authored for the secretary, so thrown as a refusal rather than a
+    // DatabaseError — the latter reaches production as "Something went wrong".
+    throw new MoveUpRpcError(
+      'refused',
+      `${targetClass.name} is not a valid move-up target for ${sourceClass.name}. ` +
+        'A move-up must be to a higher level within the same element.'
     );
   }
 
@@ -314,7 +314,7 @@ export async function moveUpShowMapEntry({
   }).length;
   const limit = targetClass.maxEntries ?? 999;
   if (acceptedCount >= limit) {
-    throw createDatabaseError(new Error('Target class is full'), 'entries', 'show_map_move_up');
+    throw new MoveUpRpcError('refused', `${targetClass.name} is full.`);
   }
 
   const previousEntryStatus =

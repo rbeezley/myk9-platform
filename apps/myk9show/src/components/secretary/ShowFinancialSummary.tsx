@@ -28,6 +28,7 @@ import { getEntriesByShowForFinancials } from '@/services/database/entries';
 import { paymentStatusColors } from '@/lib/financial-constants';
 import type { ShowFinancialEntryRow } from './financialSummaryTypes';
 import { computeShowFinancialSummary, resolveShowFinancialRows } from './showFinancialSummaryCalc';
+import { UnresolvedMoneyRootNotice } from './UnresolvedMoneyRootNotice';
 
 interface ShowFinancialSummaryProps {
   showId: string;
@@ -86,7 +87,10 @@ export const ShowFinancialSummary: React.FC<ShowFinancialSummaryProps> = ({ show
   // recorded. The superseded half of a move-up never reaches the card, the
   // subtotals, the table or the CSV; the surviving row shows the fee and
   // payment the exhibitor actually made.
-  const { rows: entries } = useMemo(() => resolveShowFinancialRows(allEntries), [allEntries]);
+  const { rows: entries, unresolvedMoneyRootCount } = useMemo(
+    () => resolveShowFinancialRows(allEntries),
+    [allEntries]
+  );
 
   const { summary, trialSubtotals, trialOptions } = useMemo(
     () => computeShowFinancialSummary(entries),
@@ -147,6 +151,10 @@ export const ShowFinancialSummary: React.FC<ShowFinancialSummaryProps> = ({ show
 
   return (
     <div className="space-y-4">
+      <UnresolvedMoneyRootNotice
+        count={unresolvedMoneyRootCount}
+        remedy="Check the Financial Report at show scope for the full total."
+      />
       <div className="flex items-center justify-between">
         <div>
           <h3 className="text-lg font-semibold">Financial Summary</h3>

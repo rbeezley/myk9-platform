@@ -1005,6 +1005,34 @@ export class ReplicatedEntriesTable extends ReplicatedTable<ReplicatedEntry> {
     }
 
     const sourceId = typeof data === 'string' && data ? data : null;
+
+    // Drop the destination from the LOCAL store before the read-back, because
+    // the read-back structurally cannot deliver its removal:
+    // `view_authenticated_entry_results` admits a soft-deleted row only for its
+    // own exhibitor (`deleted_at IS NULL OR is_own_entry`), so for a secretary
+    // the row is simply not returned and the stale clean copy would sit here
+    // forever — the dog showing live in BOTH classes on the very device that
+    // pressed Move back, with no sync able to remove it (this table sets no
+    // `shouldCleanupStaleRows`, and an incremental fetch can never emit a row
+    // the view hides). `origin/main`'s undo wrote a tombstone through
+    // `updateEntry`; the RPC rewrite dropped it and replaced it with a read-back
+    // that cannot see the row it needs.
+    //
+    // A local `delete` rather than a tombstone `set`, because
+    // `getEntriesByClass` and `getEntriesByShow` filter nothing — a row left in
+    // the store with `deleted_at` set would still be counted by the move-up
+    // capacity guard. The server row keeps its tombstone; this store is a cache.
+    if (destinationWasCached) {
+      try {
+        await this.delete(destinationEntryId);
+      } catch (tombstoneError) {
+        logger.warn(
+          `[${this.getTableName()}] Local removal of the reversed move-up entry ${destinationEntryId} failed`,
+          tombstoneError
+        );
+      }
+    }
+
     await this.hydrateMovedPair(
       sourceId ? [destinationEntryId, sourceId] : [destinationEntryId],
       destinationWasCached

@@ -100,6 +100,36 @@ describe('MYK9-639 — move_up_entry / reverse_move_up_entry', () => {
     expect(moveUpFn).toMatch(/'pending',\s*0,/);
   });
 
+  it('carries the dog\u2019s PROVENANCE, not their money (round 3)', () => {
+    // `entry_source` is the only field that proves a registry collected the fee
+    // ('ukc_online'), `is_day_of_show` is the day-of/pre-entry split, and
+    // `registration_id` is what keeps the run on the exhibitor's order card.
+    // All three are per-BUCKET lines on the registry report, so losing them
+    // bills the club for a run UKC already collected.
+    for (const carried of ['is_day_of_show', 'entry_source', 'registration_id']) {
+      expect(insertColumns).toContain(carried);
+    }
+    expect(moveUpFn).toContain(
+      'v_source.is_day_of_show, v_source.entry_source, v_source.registration_id'
+    );
+  });
+
+  it('carries the APPROVAL state rather than promoting to confirmed (round 3)', () => {
+    // Writing 'confirmed' unconditionally accepted an entry the secretary never
+    // had — a `pending-payment` or `submitted` source landed approved — and the
+    // reverse then restored it as 'confirmed' too, because it restores from the
+    // destination.
+    expect(moveUpFn).toContain('v_source.entry_status,');
+    expect(moveUpFn).not.toMatch(/VALUES[\s\S]*\n\s*'confirmed',/);
+  });
+
+  it('refuses a duplicate class entry in WORDS, before the unique index speaks', () => {
+    expect(moveUpFn).toContain("RAISE EXCEPTION 'This dog is already entered in that class.'");
+    expect(moveUpFn).toMatch(
+      /SELECT 1\s*\n\s*FROM public\.entries e\s*\n\s*WHERE e\.dog_id = v_source\.dog_id/
+    );
+  });
+
   it('carries the check-in ONLY as a check-in', () => {
     // 'pulled' cannot reach the insert (the source is refused), and 'in-ring' /
     // 'at-gate' / 'completed' describe a run in the class being left. Carrying
@@ -144,6 +174,14 @@ describe('MYK9-639 — move_up_entry / reverse_move_up_entry', () => {
       'v_dest.search_time_seconds',
       'v_dest.area1_time_seconds',
       'v_dest.area4_time_seconds',
+      // Round 3: the list read as exhaustive and was not.
+      'v_dest.total_incorrect_finds',
+      'v_dest.no_finish_count',
+      'v_dest.points_possible',
+      'v_dest.total_faults',
+      'v_dest.total_correct_finds',
+      'v_dest.total_score',
+      'v_dest.scoring_completed_at',
     ]) {
       expect(reverseFn).toContain(started);
     }
@@ -183,6 +221,26 @@ describe('MYK9-639 — move_up_entry / reverse_move_up_entry', () => {
 });
 
 describe('MYK9-639 — moved_from_entry_id on the authenticated entry views', () => {
+  it('describes the MONEY-NEUTRAL design in the header and the stored COMMENT', () => {
+    // The COMMENT lands in `pg_description` and is what the next person reads
+    // off the live catalog. Both it and the header described the reverted
+    // copy-the-money design — the exact inverse of what the file does — which is
+    // how the next reconciliation bug gets written.
+    const header = MIGRATION.slice(0, MIGRATION.indexOf('BEGIN;'));
+    const columnComment = sliceBetween(
+      MIGRATION,
+      'COMMENT ON COLUMN public.entries.moved_from_entry_id IS',
+      'GRANT SELECT (moved_from_entry_id)'
+    );
+
+    for (const text of [header, columnComment]) {
+      expect(text).toMatch(/money[- ]neutral|money does not move/i);
+      expect(text).not.toMatch(/the destination carries (the source's )?money/i);
+      expect(text).not.toMatch(/destination carries the money/i);
+    }
+    expect(columnComment).toContain('the SOURCE keeps the settlement');
+  });
+
   it('adds the column with ON DELETE SET NULL, never CASCADE', () => {
     // CASCADE would let a hard-deleted source take the LIVE destination entry
     // with it — the dog would lose the run they were moved into.

@@ -110,6 +110,26 @@ describe('buildMoneyAttribution', () => {
     ]);
   });
 
+  it('FLAGS a superseded row no live entry claims, instead of losing its money', () => {
+    // The one legacy pair on the live database: written by the pre-MYK9-639
+    // code, which left a `waived` $0 destination and no FK. Excluding the source
+    // is right — the dog ran once — but its $35 then had nowhere to go, and the
+    // report printed the "Waived/Comped" row MYK9-639 was filed to remove.
+    const orphan: Row = { id: 'legacy-moved', entryStatus: 'moved', fee: 35 };
+    const legacyDestination: Row = { id: 'legacy-dest', entryStatus: 'confirmed', fee: 0 };
+
+    const attribution = buildMoneyAttribution([orphan, legacyDestination]);
+
+    expect(attribution.live.map(row => row.id)).toEqual(['legacy-dest']);
+    expect(attribution.unresolved).toEqual([
+      { entryId: 'legacy-moved', problem: 'orphaned-supersession' },
+    ]);
+  });
+
+  it('says nothing about a superseded row a live descendant DOES claim', () => {
+    expect(buildMoneyAttribution([SOURCE, DESTINATION]).unresolved).toEqual([]);
+  });
+
   it('reports an unreachable root against the LIVE entry that needs it', () => {
     const attribution = buildMoneyAttribution([DESTINATION]);
 

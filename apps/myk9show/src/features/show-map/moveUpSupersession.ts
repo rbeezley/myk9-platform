@@ -1,4 +1,4 @@
-import { createDatabaseError } from '@/services/database/supabaseClient';
+import { MoveUpRpcError } from '@/services/replication/moveUpEntryRpc';
 import { parseMovedUpFromClassId } from '@/services/database/entries/moveUpNote';
 import { replicatedClassesTable, replicatedEntriesTable } from '@/services/replication';
 import type { ReplicatedEntry } from '@/services/replication/ReplicatedEntriesTable.mapper';
@@ -26,8 +26,42 @@ function readEntryStatusOf(entry: Partial<ReplicatedEntry> | null | undefined): 
   return entry?.entryStatus ?? entry?.entry_status ?? entry?.status ?? null;
 }
 
-function isNonZero(value: number | null | undefined): boolean {
-  return typeof value === 'number' && value !== 0;
+/**
+ * Every numeric scoring column that means a run has begun, with the EXACT names
+ * `reverse_move_up_entry` checks (migration 20260918193300). Kept as data rather
+ * than a chain of `||` so the two lists can be compared at a glance — this copy
+ * silently drifted three columns behind the SQL once already.
+ *
+ * Read off the row BY KEY rather than through `ReplicatedEntry`'s named fields:
+ * `points_possible` and `scoring_started_at` are real `entries` columns that the
+ * replica's mapper does not name, and a guard that quietly skips what it cannot
+ * type is exactly the drift this comment exists to stop.
+ */
+const RUN_STARTED_NUMERIC_COLUMNS = [
+  'points_earned',
+  'search_time_seconds',
+  'area1_time_seconds',
+  'area2_time_seconds',
+  'area3_time_seconds',
+  'area4_time_seconds',
+  'total_faults',
+  'total_correct_finds',
+  'total_score',
+  'total_incorrect_finds',
+  'no_finish_count',
+  'points_possible',
+] as const;
+
+/** Timestamps whose presence means a run has begun. Same source, same rule. */
+const RUN_STARTED_TIMESTAMP_COLUMNS = ['scoring_started_at', 'ring_entry_time'] as const;
+
+function readNumeric(entry: Partial<ReplicatedEntry>, column: string): number {
+  const value = (entry as Record<string, unknown>)[column];
+  return typeof value === 'number' ? value : 0;
+}
+
+function readPresent(entry: Partial<ReplicatedEntry>, column: string): boolean {
+  return Boolean((entry as Record<string, unknown>)[column]);
 }
 
 /**
@@ -40,14 +74,17 @@ function isNonZero(value: number | null | undefined): boolean {
  * scoring into, taking their work with it.
  *
  * `result_status` defaults to `'pending'`, so it is compared rather than tested
- * for presence — otherwise every untouched entry would read as started. This
- * mirrors the SQL guard in `reverse_move_up_entry`, which is the one that
- * actually enforces it; this copy exists so the dialog can explain itself
- * before the secretary presses anything.
+ * for presence — otherwise every untouched entry would read as started.
+ *
+ * The SQL guard in `reverse_move_up_entry` is what actually enforces this; the
+ * copy exists so the dialog can explain itself before the secretary presses
+ * anything, and it mirrors the SQL signal for signal (see the two column lists
+ * above, plus the camelCase aliases the replica also carries).
  */
 export function hasRunStarted(entry: Partial<ReplicatedEntry>): boolean {
   const resultStatus = entry.resultStatus ?? entry.result_status;
   const checkIn = entry.checkInStatus ?? entry.check_in_status;
+
   return (
     entry.isScored === true ||
     entry.is_scored === true ||
@@ -56,16 +93,12 @@ export function hasRunStarted(entry: Partial<ReplicatedEntry>): boolean {
     checkIn === 'in-ring' ||
     checkIn === 'completed' ||
     Boolean(entry.scoringCompletedAt ?? entry.scoring_completed_at) ||
-    Boolean(entry.ring_entry_time) ||
     (typeof resultStatus === 'string' && resultStatus !== 'pending') ||
     entry.finalPlacement != null ||
     entry.final_placement != null ||
-    isNonZero(entry.points_earned) ||
-    isNonZero(entry.searchTimeSeconds ?? entry.search_time_seconds) ||
-    isNonZero(entry.area1_time_seconds) ||
-    isNonZero(entry.area2_time_seconds) ||
-    isNonZero(entry.area3_time_seconds) ||
-    isNonZero(entry.area4_time_seconds)
+    (entry.searchTimeSeconds ?? 0) !== 0 ||
+    RUN_STARTED_TIMESTAMP_COLUMNS.some(column => readPresent(entry, column)) ||
+    RUN_STARTED_NUMERIC_COLUMNS.some(column => readNumeric(entry, column) !== 0)
   );
 }
 
@@ -154,11 +187,11 @@ export async function resolveMoveUpReversal(
 export async function reverseShowMapMoveUp(destinationEntryId: string): Promise<MoveUpReversal> {
   const state = await resolveMoveUpReversal(destinationEntryId);
   if (state.kind !== 'available') {
-    throw createDatabaseError(
-      new Error(MOVE_UP_REVERSAL_REFUSALS[state.reason]),
-      'entries',
-      'show_map_reverse_move_up'
-    );
+    // A `MoveUpRpcError`, not a DatabaseError: nothing failed in the database —
+    // this is a refusal, and its sentence is written for the secretary. The
+    // type is what carries it past `getUserFriendlyError`'s production
+    // code-lookup and onto the screen.
+    throw new MoveUpRpcError('refused', MOVE_UP_REVERSAL_REFUSALS[state.reason]);
   }
 
   await replicatedEntriesTable.reverseMoveUpEntryViaRpc(destinationEntryId);

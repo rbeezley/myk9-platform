@@ -13,14 +13,27 @@
 --
 --   entries.moved_from_entry_id -> entries.id
 --
--- set on the DESTINATION entry, pointing at the source it supersedes. With it,
--- the destination carries the source's money (payment_status, entry_fee,
--- payment method/reference/received-on/notes, comped, discount) and its
--- check-in, the source stays `moved` and is excluded from the Financial
--- Report, and the pair nets to exactly ONE entry at the amount actually paid --
--- agreeing with `Total Entries` on the registry report. No new
--- `payment_status` value is introduced, and `waived` keeps meaning only what a
--- secretary deliberately waived.
+-- set on the DESTINATION entry, pointing at the SOURCE it supersedes.
+--
+-- MONEY DOES NOT MOVE. The destination is created money-neutral --
+-- `payment_status = 'pending'`, `entry_fee = 0`, no method, no reference, no
+-- comp, no discount, no Stripe intent -- and this column is the ONLY link back
+-- to the entry the exhibitor actually paid for. The SOURCE keeps the
+-- settlement and is the row every reader takes dollars from; the source is
+-- excluded from the COUNT (the dog runs once, in the destination class) while
+-- its money still reaches the report through the live descendant.
+--
+-- The client half of that rule is `features/financial/moneyRoot.ts`, which
+-- follows this column back to the paying entry. Copying the money forward was
+-- the first attempt and it was wrong twice over: `payment_method = 'online'` +
+-- `payment_status = 'paid'` on an INSERT is exactly what
+-- `trg_entries_protect_payment_fields_insert` raises 42501 on, so every
+-- Stripe-paid dog would have failed to move at all; and the refund would have
+-- followed the row the report excludes, leaving `stripe-refund-entry` with no
+-- payment intent to refund.
+--
+-- No new `payment_status` value is introduced, and `waived` keeps meaning only
+-- what a secretary deliberately waived.
 --
 -- It is also the durable way back for MYK9-640: `reverse_move_up_entry` reads
 -- this column to find the entry to restore, long after the 8-second undo banner
@@ -67,9 +80,11 @@
 -- longer writes `moved_from_entry_id` through PostgREST at all -- it calls
 -- `public.move_up_entry`, which does not exist until this file is applied. So in
 -- the window between a Vercel deploy and the push, a move-up fails CLEANLY: the
--- RPC 404s (PGRST202), the optimistic local write is reverted, the secretary
--- sees an error, and the dog stays exactly where they were. Nothing half-lands,
--- and no row is written that the schema cannot hold.
+-- RPC 404s (PGRST202), which the client classifies by name and reports as
+-- "not available on this server yet -- nothing was changed". No local write is
+-- made at all (the call awaits the server before touching the replica), so the
+-- dog stays exactly where they were. Nothing half-lands, and no row is written
+-- that the schema cannot hold.
 
 BEGIN;
 
@@ -78,12 +93,16 @@ ALTER TABLE public.entries
     REFERENCES public.entries(id) ON DELETE SET NULL;
 
 COMMENT ON COLUMN public.entries.moved_from_entry_id IS
-  'MYK9-639: set on the DESTINATION entry of a move-up, pointing at the source '
+  'MYK9-639: set on the DESTINATION entry of a move-up, pointing at the SOURCE '
   'entry it supersedes (that source carries entry_status = ''moved''). The pair '
-  'is ONE paid run: the destination carries the money and the check-in, and the '
-  'source is excluded from the Financial Report. Also the durable link the '
-  'reverse move (MYK9-640) reads to restore the source. NULL on every entry that '
-  'is not the product of a move-up.';
+  'is ONE paid run, and the money does NOT move: the destination is created '
+  'money-neutral (payment_status = ''pending'', entry_fee = 0, no method, no '
+  'comp, no discount, no Stripe intent) and the SOURCE keeps the settlement. '
+  'Every money reader follows this column back to the source and counts the '
+  'live descendant once; the source is excluded from the count, never from the '
+  'dollars. Also the durable link reverse_move_up_entry (MYK9-640) reads to '
+  'restore the source. NULL on every entry that is not the product of a '
+  'move-up.';
 
 GRANT SELECT (moved_from_entry_id) ON public.entries TO authenticated;
 -- Stated, not assumed: anon must never read this column (it holds none on this
@@ -600,6 +619,21 @@ BEGIN
   -- What this function owns is what a stale or hostile client cannot be trusted
   -- with -- who may write, that the row is movable, and that both halves land.
 
+  -- A dog already entered in the target class would otherwise die on
+  -- `entries_dog_class_unique_idx` with raw constraint text in the secretary's
+  -- toast. Say it in words instead, in the same 22023 the client already
+  -- renders verbatim.
+  IF EXISTS (
+    SELECT 1
+    FROM public.entries e
+    WHERE e.dog_id = v_source.dog_id
+      AND e.class_id = p_target_class_id
+      AND e.deleted_at IS NULL
+      AND COALESCE(e.entry_status, '') <> ALL (ARRAY['withdrawn', 'scratched'])
+  ) THEN
+    RAISE EXCEPTION 'This dog is already entered in that class.' USING ERRCODE = '22023';
+  END IF;
+
   v_note := 'Moved up from class ' || v_source.class_id::text
             || COALESCE(': ' || NULLIF(btrim(p_reason), ''), '');
 
@@ -608,18 +642,32 @@ BEGIN
     handler_id, handler, armband, jump_height,
     entry_status, check_in_status,
     payment_status, entry_fee,
+    is_day_of_show, entry_source, registration_id,
     special_requests, moved_from_entry_id
   )
   VALUES (
     p_new_entry_id, v_source.dog_id, v_source.show_id, p_target_class_id, v_target_trial_id,
     v_source.handler_id, v_source.handler, v_source.armband, v_source.jump_height,
-    'confirmed',
+    -- The dog's APPROVAL state travels; a move-up is not an acceptance. Writing
+    -- 'confirmed' unconditionally promoted a `pending-payment` or `submitted`
+    -- entry the secretary had never accepted, and a round trip then restored it
+    -- as 'confirmed' -- because the reverse restores from the destination. The
+    -- movability guard above has already refused every status that must not
+    -- move at all.
+    v_source.entry_status,
     -- MYK9-640: a check-in travels, and ONLY as a check-in. 'pulled' cannot
     -- reach here (refused above); 'in-ring', 'at-gate' and 'completed' describe
     -- a run in the class being left, not the one being entered.
     CASE WHEN v_source.check_in_status = 'checked-in' THEN 'checked-in' ELSE 'no-status' END,
     -- Money-neutral. See the header.
     'pending', 0,
+    -- Provenance, NOT money: who collected the entry and under which
+    -- enrollment. `entry_source` is the only field that proves UKC collected a
+    -- fee ('ukc_online'), and `is_day_of_show` is the day-of/pre-entry split --
+    -- both are per-BUCKET lines on the registry report, so losing them bills
+    -- the club for a run a registry already collected, and strands the
+    -- destination off the exhibitor's order card.
+    v_source.is_day_of_show, v_source.entry_source, v_source.registration_id,
     v_note, p_entry_id
   );
 
@@ -703,6 +751,9 @@ BEGIN
      OR COALESCE(v_dest.total_faults, 0) <> 0
      OR COALESCE(v_dest.total_correct_finds, 0) <> 0
      OR COALESCE(v_dest.total_score, 0) <> 0
+     OR COALESCE(v_dest.total_incorrect_finds, 0) <> 0
+     OR COALESCE(v_dest.no_finish_count, 0) <> 0
+     OR COALESCE(v_dest.points_possible, 0) <> 0
      OR v_dest.scoring_completed_at IS NOT NULL
      OR v_dest.check_in_status IN ('in-ring', 'completed') THEN
     RAISE EXCEPTION 'This run has already started, so the move-up can no longer be reversed.'

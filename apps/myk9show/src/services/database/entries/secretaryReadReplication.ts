@@ -47,7 +47,7 @@ interface SecretaryEnrollment {
   refunded_at: string | null;
 }
 
-interface SecretaryEntryRelations {
+export interface SecretaryEntryRelations {
   dogsMap: ReadonlyMap<string, ReplicatedDog>;
   classesMap: ReadonlyMap<string, ReplicatedClass>;
   armbandsByEntryId: ReadonlyMap<string, ReplicatedArmband>;
@@ -164,7 +164,14 @@ async function loadSecretaryPullMetadataMap(
   }
 }
 
-function toSecretaryEntry(
+/**
+ * Exported for the projection test (MYK9-639). This is a hand-written 58-key
+ * row build with no spread, so a column added to `SecretaryEntry` and to the
+ * PostgREST select can still be missing HERE and nothing type-checks it —
+ * exactly how `moved_from_entry_id` came to be `undefined` on every Entry
+ * Management row while the aggregations that consume it looked correct.
+ */
+export function toSecretaryEntry(
   entry: ReplicatedEntry,
   {
     dogsMap,
@@ -245,6 +252,12 @@ function toSecretaryEntry(
     refunded_at: stringFrom(replicatedField(entry, 'refundedAt', 'refunded_at')),
     stripe_payment_intent_id: stringFrom(
       replicatedField(entry, 'stripePaymentIntentId', 'stripe_payment_intent_id')
+    ),
+    // MYK9-639: the supersession link. Without it every money figure on Entry
+    // Management for a moved-up dog reads $0 -- silently, because a MISSING
+    // link resolves the row to itself with no `problem` to surface.
+    moved_from_entry_id: stringFrom(
+      replicatedField(entry, 'movedFromEntryId', 'moved_from_entry_id')
     ),
     comped: booleanFrom(replicatedField(entry, 'comped', 'comped')),
     comped_reason: stringFrom(replicatedField(entry, 'compedReason', 'comped_reason')),

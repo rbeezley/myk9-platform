@@ -26,6 +26,7 @@ import { Download, DollarSign, Users, Tag, Gift, Search } from 'lucide-react';
 import { paymentStatusColors } from '@/lib/financial-constants';
 import type { TrialFinancialEntryRow } from './financialSummaryTypes';
 import { resolveShowFinancialRows } from './showFinancialSummaryCalc';
+import { UnresolvedMoneyRootNotice } from './UnresolvedMoneyRootNotice';
 
 interface FinancialSummaryProps {
   trialId: string;
@@ -72,7 +73,10 @@ export const FinancialSummary: React.FC<FinancialSummaryProps> = ({ trialId }) =
   // recorded. The superseded half of a move-up never reaches the card, the
   // table or the CSV; the surviving row shows the fee and payment the exhibitor
   // actually made.
-  const { rows: entries } = useMemo(() => resolveShowFinancialRows(allEntries), [allEntries]);
+  const { rows: entries, unresolvedMoneyRootCount } = useMemo(
+    () => resolveShowFinancialRows(allEntries),
+    [allEntries]
+  );
 
   // Filtered entries
   const filteredEntries = useMemo(() => {
@@ -177,6 +181,10 @@ export const FinancialSummary: React.FC<FinancialSummaryProps> = ({ trialId }) =
 
   return (
     <div className="space-y-4">
+      <UnresolvedMoneyRootNotice
+        count={unresolvedMoneyRootCount}
+        remedy="The show-level Financial Summary counts them; this trial card cannot."
+      />
       <div className="flex items-center justify-between">
         <div>
           <h3 className="text-lg font-semibold">Financial Summary</h3>

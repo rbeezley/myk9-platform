@@ -32,8 +32,18 @@ export interface MoneyRootLink {
   movedFromEntryId?: string | null | undefined;
 }
 
-/** Why a lookup did not reach a payment-bearing root. */
-export type MoneyRootProblem = 'missing-link' | 'cycle' | 'too-deep';
+/**
+ * Why a row's money cannot be accounted for.
+ *
+ * The first three are a LIVE entry that cannot reach its root.
+ * `orphaned-supersession` is the mirror image: a superseded (`moved`) row that
+ * no live entry claims, so excluding it from the count would drop its money
+ * with nothing to attribute it to. That is the one live legacy pair on this
+ * database — written by the pre-MYK9-639 code, which left a `waived` $0
+ * destination and no FK — and it is the shape a hand-edited or partially
+ * restored row takes too.
+ */
+export type MoneyRootProblem = 'missing-link' | 'cycle' | 'too-deep' | 'orphaned-supersession';
 
 export interface MoneyRootResolution<T> {
   /**
@@ -136,12 +146,15 @@ export function buildMoneyAttribution<T extends MoneyRootLink & { entryStatus?: 
   const rootById = new Map<string, T>();
   const unresolved: MoneyAttribution<T>['unresolved'] = [];
 
+  const claimedRootIds = new Set<string>();
+
   for (const entry of entries) {
     if (isSupersededMoveUpEntry(entry)) continue;
     live.push(entry);
 
     const resolution = resolveMoneyRoot(entry, byId);
     rootById.set(entry.id, resolution.root);
+    claimedRootIds.add(resolution.root.id);
     if (resolution.problem) {
       unresolved.push({
         entryId: entry.id,
@@ -149,6 +162,15 @@ export function buildMoneyAttribution<T extends MoneyRootLink & { entryStatus?: 
         ...(resolution.brokenAt !== undefined ? { brokenAt: resolution.brokenAt } : {}),
       });
     }
+  }
+
+  // A superseded row nobody claims. Dropping it from the count is right — the
+  // dog ran once — but dropping its MONEY is not, and silence here is exactly
+  // the "silently $0" this module exists to prevent.
+  for (const entry of entries) {
+    if (!isSupersededMoveUpEntry(entry)) continue;
+    if (claimedRootIds.has(entry.id)) continue;
+    unresolved.push({ entryId: entry.id, problem: 'orphaned-supersession' });
   }
 
   return { live, rootById, unresolved };
@@ -176,4 +198,50 @@ export function resolveMoneyActionTarget<T extends MoneyRootLink>(
   const entry = byId.get(entryId);
   if (!entry) return null;
   return resolveMoneyRoot(entry, byId).root;
+}
+
+/** Stamped onto every row whose money has been resolved (see {@link withResolvedMoneyRoots}). */
+export interface ResolvedMoneyRoot {
+  /** The entry this row's fee and payment were read from — itself, usually. */
+  moneyRootEntryId: string;
+  /**
+   * True when the chain could not be followed, so the money shown is this
+   * row's own and is probably wrong. A surface that renders money MUST say so.
+   */
+  moneyRootUnresolved: boolean;
+}
+
+/**
+ * Resolve every row's money ONCE, at the mapper, and stamp the answer onto the
+ * row (MYK9-639, round 3).
+ *
+ * The round-2 shape resolved the root inside each AGGREGATION, which left every
+ * per-entry predicate — the attention classifier, the refund gate, the
+ * request-payment gate, the badges — reading the raw row. On a moved-up dog
+ * that raw row is money-neutral by construction, so the secretary was told a
+ * paid exhibitor owed money ("Payment due", in red, on a card whose own total
+ * said paid in full) and the refund the exhibitor was entitled to had no
+ * reachable control at all. Patching the four call sites would have left the
+ * fifth; this resolves once so that nothing downstream has to remember.
+ *
+ * `merge` names the money fields explicitly rather than spreading the root:
+ * the row keeps its OWN identity — its id, its class, its dog, its lifecycle
+ * status, the run it represents — and takes only what the root is authoritative
+ * for. A row that IS its own root is returned untouched apart from the stamp.
+ */
+export function withResolvedMoneyRoots<T extends MoneyRootLink & { entryStatus?: string | null }>(
+  entries: readonly T[],
+  merge: (entry: T, root: T) => T
+): Array<T & ResolvedMoneyRoot> {
+  const byId = indexEntriesById(entries);
+
+  return entries.map(entry => {
+    const { root, problem } = resolveMoneyRoot(entry, byId);
+    const rooted = root.id === entry.id ? entry : merge(entry, root);
+    return {
+      ...rooted,
+      moneyRootEntryId: root.id,
+      moneyRootUnresolved: problem !== undefined,
+    };
+  });
 }

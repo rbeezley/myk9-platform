@@ -7,6 +7,8 @@
  * anywhere, and the dog had no live entry on any other device or on any report.
  * Migration 20260918193300 makes each direction ONE transaction.
  */
+import { getUserFriendlyError } from '@/utils/errorMessages';
+
 export const MOVE_UP_ENTRY_RPC = 'move_up_entry';
 export const REVERSE_MOVE_UP_ENTRY_RPC = 'reverse_move_up_entry';
 
@@ -59,8 +61,35 @@ export function classifyMoveUpRpcError(error: unknown, fallback: string): MoveUp
   if (code === '22023') {
     return new MoveUpRpcError('refused', message || fallback);
   }
+  if (code === '23505') {
+    // The unique index speaking. `move_up_entry` pre-checks this and raises
+    // 22023 with words, so reaching here means a race between the check and the
+    // INSERT -- still a refusal, and still not raw constraint text in a toast.
+    return new MoveUpRpcError('refused', 'This dog is already entered in that class.');
+  }
   if (code === 'P0002') {
     return new MoveUpRpcError('not-found', message || 'That entry no longer exists.');
   }
   return new MoveUpRpcError('unavailable', message || fallback);
+}
+
+/**
+ * The message to SHOW for a failed move-up or move-back.
+ *
+ * `getUserFriendlyError` returns `error.message` only under `import.meta.env.DEV`;
+ * in production it looks for a PostgREST `code`, finds none on a thrown
+ * `MoveUpRpcError`, and falls back to "Something went wrong. Please try again."
+ * Every sentence this module and the two RPCs write — the deploy-window notice,
+ * "This entry is not in a state that can be moved.", "An entry can only move
+ * within its own show.", "This run has already started…" — was therefore
+ * invisible to the only person who needed it.
+ *
+ * These strings are authored FOR the secretary, in the migration and here, and
+ * never carry raw Postgres text: `classifyMoveUpRpcError` maps every SQLSTATE the
+ * functions raise, and anything unrecognised goes back through
+ * `getUserFriendlyError` unchanged.
+ */
+export function getMoveUpErrorMessage(error: unknown, fallback: string): string {
+  if (error instanceof MoveUpRpcError) return error.message;
+  return getUserFriendlyError(error, fallback);
 }

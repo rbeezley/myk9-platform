@@ -58,9 +58,10 @@ export const FinancialReport: React.FC<ReportProps> = ({
       {totals.unresolvedMoneyRoots.length > 0 && (
         <p role="status" className="report-warning">
           {totals.unresolvedMoneyRoots.length === 1
-            ? '1 entry was moved up from a class outside this report, so its fee and payment are not included below.'
-            : `${totals.unresolvedMoneyRoots.length} entries were moved up from classes outside this report, so their fees and payments are not included below.`}{' '}
-          Run this report at show scope to see the full total.
+            ? "1 entry's fee and payment could not be matched to the run that earned them, so they are not included below."
+            : `${totals.unresolvedMoneyRoots.length} entries' fees and payments could not be matched to the runs that earned them, so they are not included below.`}{' '}
+          This happens when a dog was moved up from a class outside this report — run it at show
+          scope — or when a superseded entry has no live entry to carry it.
         </p>
       )}
 

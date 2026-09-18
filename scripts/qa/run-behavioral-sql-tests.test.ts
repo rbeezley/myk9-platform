@@ -53,6 +53,7 @@ const launchCriticalSqlTests = [
   'null_club_show_authorization_test.sql',
   'null_club_policy_authorization_test.sql',
   'anon_tv_entry_soft_delete_test.sql',
+  'move_up_supersession_test.sql',
   'judge_assignment_private_read_test.sql',
   'judge_assignment_touches_class_test.sql',
   'office_admin_rls_test.sql',

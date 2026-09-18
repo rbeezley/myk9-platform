@@ -53,12 +53,11 @@ function makeContextAndOrder(overrides: Partial<SubmitPaymentStepContext> = {}):
     },
     currentStep: 2,
     cart: {
-      loadCart: vi.fn(),
       clearCart: vi.fn(async () => {
         order.push('clearCart');
         return true;
       }),
-      createCart: vi.fn(),
+      ensureCart: vi.fn(),
       addItem: vi.fn(),
       abandonCart: vi.fn(),
     },

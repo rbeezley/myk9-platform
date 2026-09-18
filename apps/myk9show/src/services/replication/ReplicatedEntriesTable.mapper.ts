@@ -67,9 +67,14 @@ export interface ReplicatedEntry {
   withdrawalReason?: string | null | undefined;
   /**
    * MYK9-632: 'in_season' | 'judge_change' on a withdrawal, null on a pull.
-   * Deliberately NOT projected by `buildUpdatePayload` — that builds a WHOLE-ROW
-   * payload, and the view this table mirrors does not return the column, so
-   * every full-row upload would write null over a real reason.
+   *
+   * Migration 20260918041700 adds the column to
+   * `view_authenticated_entry_results(_replication)`, so it now arrives on the
+   * replicated row and the Edit Entry sheet reads it from the replica like
+   * every other field on that sheet. `entryToSupabaseRow` still projects it
+   * only when it is DEFINED: a replica row cached before that migration lands
+   * (or before this build) simply lacks it, and a whole-row upload must leave
+   * the server's real reason alone rather than serialize it as null.
    */
   withdrawalReasonCode?: string | null | undefined;
   withdrawal_reason_code?: string | null | undefined;
@@ -210,6 +215,15 @@ export function entryToSupabaseRow(entry: ReplicatedEntry): Record<string, unkno
         : entry.withdrawal_reason !== undefined
           ? entry.withdrawal_reason
           : null,
+    // MYK9-632: present ONLY when this row actually carries it, for the same
+    // reason the scent-work columns below are conditional — a row cached before
+    // migration 20260918041700 has no reason code, and `?? null` here would
+    // wipe a real one on the next whole-row upload.
+    ...(entry.withdrawalReasonCode !== undefined
+      ? { withdrawal_reason_code: entry.withdrawalReasonCode }
+      : entry.withdrawal_reason_code !== undefined
+        ? { withdrawal_reason_code: entry.withdrawal_reason_code }
+        : {}),
     submitted_at: entry.submittedAt ?? null,
     registration_id: fk(entry.registrationId),
     trial_id: fk(entry.trialId ?? entry.trial_id),
@@ -327,6 +341,12 @@ export function rowToEntry(row: EntryRow): ReplicatedEntry {
     special_requests: row.special_requests ?? undefined,
     withdrawalReason: row.withdrawal_reason ?? undefined,
     withdrawal_reason: row.withdrawal_reason ?? undefined,
+    // MYK9-632. `optionalColumn` on purpose: until migration 20260918041700 is
+    // pushed the view does not return this column at all, and the generated row
+    // type cannot know it. Absent reads as `undefined`, which the badge renders
+    // as the bare word "Withdrawn" — never as "Pulled".
+    withdrawalReasonCode: optionalColumn(row, 'withdrawal_reason_code'),
+    withdrawal_reason_code: optionalColumn(row, 'withdrawal_reason_code'),
     submittedAt: row.submitted_at ?? undefined,
     registrationId: row.registration_id ?? undefined,
     trialId: row.trial_id ?? undefined,

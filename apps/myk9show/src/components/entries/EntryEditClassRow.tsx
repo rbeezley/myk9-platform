@@ -20,6 +20,7 @@ import { X } from 'lucide-react';
 import { disciplineUsesJumpHeight } from '@/types/template.types';
 import { EditingBadge } from '@/features/show-presence/EditingBadge';
 import type { RemoveFromClassEligibility } from '@/services/database/entries/withdrawEligibility';
+import { withdrawalReasonLabel } from '@/features/registries';
 
 const JUMP_HEIGHTS = ['4"', '8"', '12"', '16"', '20"', '24"', '26"'];
 
@@ -34,13 +35,27 @@ export interface EntryClass {
   handlerId?: string | null;
   handler?: string;
   runOrder?: number;
-  status: 'entered' | 'scratched' | 'moved' | 'absent';
+  /** MYK9-632: 'withdrawn' and 'scratched' (a pull) are DIFFERENT acts. */
+  status: 'entered' | 'withdrawn' | 'scratched' | 'moved' | 'absent';
+  /**
+   * MYK9-632: the stored `withdrawal_reason_code` ('in_season' | 'judge_change'),
+   * null on a pull, and `undefined` when the row predates migration
+   * 20260918041700 (which is what puts the column on the view). Only ever
+   * rendered for a withdrawal.
+   */
+  withdrawalReasonCode?: string | null | undefined;
 }
 
 interface EntryEditClassRowProps {
   classEntry: EntryClass;
   /** The row's status after any local edit — 'withdrawn' and 'scratched' are DIFFERENT. */
   status: string;
+  /**
+   * The stored (or just-chosen) `withdrawal_reason_code` for this row, or
+   * null/undefined when there is none. Only ever rendered for a WITHDRAWAL: a
+   * pull is the club's call and carries no enumerated reason.
+   */
+  reasonCode?: string | null | undefined;
   /** Both verdicts for this row, or undefined while the lookup has not answered. */
   rowEligibility: RemoveFromClassEligibility | undefined;
   currentHandler: string;
@@ -53,6 +68,7 @@ interface EntryEditClassRowProps {
 export function EntryEditClassRow({
   classEntry,
   status,
+  reasonCode,
   rowEligibility,
   currentHandler,
   currentJumpHeight,
@@ -63,6 +79,14 @@ export function EntryEditClassRow({
   const isPulled = status === 'scratched';
   const isWithdrawn = status === 'withdrawn';
   const isRemoved = isPulled || isWithdrawn;
+  // `entries_withdrawal_reason_code_check` allows exactly NULL, 'in_season' and
+  // 'judge_change', and `withdrawalReasonLabel` covers both codes — so the null
+  // branch here is not a fallback for some other code, it is the real state of
+  // a withdrawal that carries no reason (what a secretary Decline writes, and
+  // what every row reads as until migration 20260918041700 lands). It renders
+  // the bare word.
+  const reason = isWithdrawn ? withdrawalReasonLabel(reasonCode) : null;
+  const removedLabel = isWithdrawn ? (reason ? `Withdrawn · ${reason}` : 'Withdrawn') : 'Pulled';
   // One affordance opens the chooser; it is offered while EITHER
   // act is available, and the dialog greys out the one that is
   // not. Offering nothing because a paid entry cannot be
@@ -88,7 +112,7 @@ export function EntryEditClassRow({
           <div className="text-sm text-muted-foreground">${classEntry.fee.toFixed(2)}</div>
         </div>
         {isRemoved ? (
-          <Badge variant="secondary">{isWithdrawn ? 'Withdrawn' : 'Pulled'}</Badge>
+          <Badge variant="secondary">{removedLabel}</Badge>
         ) : (
           <Button
             variant="ghost"

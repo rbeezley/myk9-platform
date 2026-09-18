@@ -126,3 +126,57 @@ describe('toSupabaseRow — detailed scoring columns are conditional', () => {
     expect(row).toHaveProperty('area1_time_seconds', null);
   });
 });
+
+/**
+ * MYK9-632: the enumerated withdrawal reason has to survive the round trip
+ * through the replica, or the Edit Entry sheet goes back to a read of its own
+ * and the badge disagrees with the card behind it.
+ */
+describe('withdrawal_reason_code through the replica (MYK9-632)', () => {
+  const table = new TestableEntriesTable();
+
+  it('carries the code off the replication view onto the replicated row', () => {
+    const entry = rowToEntry({
+      id: 'entry-1',
+      entry_status: 'withdrawn',
+      withdrawal_reason_code: 'in_season',
+    } as never);
+
+    expect(entry.withdrawalReasonCode).toBe('in_season');
+    expect(entry.withdrawal_reason_code).toBe('in_season');
+  });
+
+  it('reads as undefined while migration 20260918041700 is unpushed', () => {
+    // The view simply does not return the column yet, so the row arrives
+    // without it. That must read as "no reason to show", never as a crash and
+    // never as some other act.
+    const entry = rowToEntry({ id: 'entry-1', entry_status: 'withdrawn' } as never);
+
+    expect(entry.withdrawalReasonCode).toBeUndefined();
+  });
+
+  it('OMITS the column from a whole-row upload when the cached row lacks it', () => {
+    // The wart this replaces was real: a full-row payload carrying
+    // `withdrawal_reason_code: null` would wipe the server's stored reason on
+    // the next unrelated edit of a row cached before the migration.
+    const row = table.publicToSupabaseRow({ id: 'entry-1', armband: '100' } as ReplicatedEntry);
+
+    expect(row).not.toHaveProperty('withdrawal_reason_code');
+  });
+
+  it('INCLUDES the code the row has, and an explicit null (a pull clearing it)', () => {
+    expect(
+      table.publicToSupabaseRow({
+        id: 'entry-1',
+        withdrawalReasonCode: 'judge_change',
+      } as ReplicatedEntry).withdrawal_reason_code
+    ).toBe('judge_change');
+
+    expect(
+      table.publicToSupabaseRow({
+        id: 'entry-1',
+        withdrawal_reason_code: null,
+      } as ReplicatedEntry)
+    ).toHaveProperty('withdrawal_reason_code', null);
+  });
+});

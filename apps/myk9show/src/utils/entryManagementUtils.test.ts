@@ -80,8 +80,14 @@ describe('mapEntryStatus', () => {
 });
 
 describe('mapClassEntryStatus — participation chip via the shared classifier', () => {
+  // MYK9-632: a WITHDRAWAL and a PULL are different acts, so they may not share
+  // one chip value. Only 'scratched' is ever rendered as the word "Pulled".
+  it('keeps a withdrawal distinct from a pull', () => {
+    expect(mapClassEntryStatus('withdrawn')).toBe('withdrawn');
+    expect(mapClassEntryStatus('scratched')).toBe('scratched');
+  });
+
   it('maps removed/terminal states to their chip', () => {
-    expect(mapClassEntryStatus('withdrawn')).toBe('scratched');
     expect(mapClassEntryStatus('scratched')).toBe('scratched');
     expect(mapClassEntryStatus('moved')).toBe('moved');
     expect(mapClassEntryStatus('absent')).toBe('absent');

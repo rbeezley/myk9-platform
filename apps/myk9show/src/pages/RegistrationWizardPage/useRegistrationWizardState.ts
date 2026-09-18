@@ -126,9 +126,8 @@ export function useRegistrationWizardState() {
   } = useDogStoreCompat();
   const { shows = [] } = useShowStore();
   const { classes = [] } = useClassStoreCompat();
-  const loadCart = useCartStore(state => state.loadCart);
   const clearCart = useCartStore(state => state.clearCart);
-  const createCart = useCartStore(state => state.createCart);
+  const ensureCart = useCartStore(state => state.ensureCart);
   const addItem = useCartStore(state => state.addItem);
   const abandonCart = useCartStore(state => state.abandonCart);
   const currentShow = useMemo(() => shows.find(s => s.id === showId), [shows, showId]);
@@ -550,9 +549,8 @@ export function useRegistrationWizardState() {
     },
     classes,
     currentShow,
-    loadCart,
     clearCart,
-    createCart,
+    ensureCart,
     addItem,
     abandonCart,
     createRegistration,

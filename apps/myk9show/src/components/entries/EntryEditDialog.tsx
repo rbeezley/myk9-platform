@@ -73,7 +73,10 @@ export function EntryEditDialog({
 
   // Local state for edits
   const [classEdits, setClassEdits] = useState<
-    Record<string, { handler?: string; jumpHeight?: string; status?: string }>
+    Record<
+      string,
+      { handler?: string; jumpHeight?: string; status?: string; reasonCode?: string | null }
+    >
   >({});
 
   // MYK9-535: the affordance is DISABLED with the reason when the server would
@@ -204,6 +207,9 @@ export function EntryEditDialog({
           [pullDialog.classId!]: {
             ...prev[pullDialog.classId!],
             status: choice.kind === 'pull' ? 'scratched' : 'withdrawn',
+            // A pull NULLs the reason code server-side, so mirror that here
+            // rather than leaving a previous row's reason standing.
+            reasonCode: choice.kind === 'pull' ? null : choice.reason,
           },
         }));
         onUpdate();
@@ -258,14 +264,29 @@ export function EntryEditDialog({
     return false;
   };
 
-  const getClassStatus = (classEntry: EntryClass) => {
+  const getClassStatus = (classEntry: EntryClass): EntryClass['status'] => {
     const edit = classEdits[classEntry.id];
     // MYK9-632: 'withdrawn' no longer collapses to 'scratched'. The two acts are
-    // different, and the badge below says which one happened.
+    // different, and the badge below says which one happened — on a fresh load
+    // (`classEntry.status`, straight from `mapClassEntryStatus`) exactly as in
+    // the session that performed it.
     if (edit?.status === 'withdrawn' || edit?.status === 'scratched') {
-      return edit.status as EntryClass['status'] | 'withdrawn';
+      return edit.status;
     }
     return classEntry.status;
+  };
+
+  /**
+   * The reason to show beside a Withdrawn badge: this session's choice when the
+   * exhibitor just made one, otherwise the code that came down on the row.
+   * `undefined` means "we have no reason to show", which is also what a pull
+   * renders — and what every row reads as until migration 20260918041700 puts
+   * the column on the view.
+   */
+  const getClassReasonCode = (classEntry: EntryClass): string | null | undefined => {
+    const edit = classEdits[classEntry.id];
+    if (edit?.reasonCode !== undefined) return edit.reasonCode;
+    return classEntry.withdrawalReasonCode;
   };
 
   return (
@@ -319,6 +340,7 @@ export function EntryEditDialog({
                       key={classEntry.id}
                       classEntry={classEntry}
                       status={getClassStatus(classEntry)}
+                      reasonCode={getClassReasonCode(classEntry)}
                       rowEligibility={withdrawEligibility[classEntry.id]}
                       currentHandler={
                         classEdits[classEntry.id]?.handler ??

@@ -134,4 +134,32 @@ describe('summarizeShowDayReconciliation', () => {
     expect(summary.refundReviewAmount).toBe(35);
     expect(summary.collectedAmount).toBe(40);
   });
+  it('counts a wizard entry taken after entries closed, now that the column is populated (MYK9-642)', () => {
+    // Until MYK9-642, `submit_show_entries` never wrote `is_day_of_show`, so
+    // this card only ever saw rows from the offline late-entry dialog — its
+    // source comment said so. Now every entry in the day-of window carries the
+    // flag, including a mail-in the secretary keys WEEKS before the show, after
+    // entries closed. That widens this card, which is meant to reconcile money
+    // taken at the desk.
+    //
+    // Pinned deliberately rather than filtered: `is_day_of_show` means "the
+    // registry counts this as a day-of-show entry", and this card has always
+    // read exactly that column. Whether the Closeout money card should instead
+    // key on "submitted while the show was running" is a product question, and
+    // it is MYK9-677, not decided here. If that decision lands, THIS is the
+    // test that changes.
+    const summary = summarizeShowDayReconciliation([
+      {
+        id: 'mail-in-after-close-weeks-early',
+        is_day_of_show: true,
+        entry_fee: 35,
+        payment_status: 'paid',
+        payment_method: 'check',
+      },
+    ]);
+
+    expect(summary.lateEntryCount).toBe(1);
+    expect(summary.collectedAmount).toBe(35);
+    expect(summary.byMethod.check).toEqual({ count: 1, amount: 35 });
+  });
 });

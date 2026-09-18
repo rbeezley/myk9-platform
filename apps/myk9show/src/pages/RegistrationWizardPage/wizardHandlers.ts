@@ -24,7 +24,6 @@ import type { StepId } from '@/components/shows/RegistrationWorkflow/Registratio
 import { selectedDogsOwner } from '@/features/registration/selectedDogsOwner';
 import { resolveRegistrationCompletionPath } from '../RegistrationWizardPage.routes';
 import { submitPaymentStep } from './submitPaymentStep';
-import { getEntryWindowTimezone } from './entryCloseGuard';
 import { defaultPaymentForMode, type RegistrationWizardState } from './useRegistrationWizardState';
 import type { SavedDraft } from '@/hooks/useDraftPersistence';
 
@@ -57,6 +56,7 @@ export function createWizardHandlers(state: RegistrationWizardState) {
     storeUpdateEntryStatus,
     currentWorkflowMode,
     currentWorkflowConfig,
+    entryWindowTimezone,
     currentStep,
     setCurrentStep,
     setStepCompletionState,
@@ -158,7 +158,12 @@ export function createWizardHandlers(state: RegistrationWizardState) {
             startDate: currentShow.startDate,
             entryOpenDate: currentShow.entryOpenDate,
             entryCloseDate: currentShow.entryCloseDate,
-            entryWindowTimezone: getEntryWindowTimezone(currentShow.trials),
+            // From the trial store, NOT `currentShow.trials` — the show store
+            // never populates that array, so it was always the
+            // America/New_York fallback and the offline desk path wrote the
+            // wrong fee and registry bucket for a non-Eastern show in the hour
+            // before local midnight (MYK9-642 J-F1).
+            entryWindowTimezone,
           },
           currentStep,
           cart: { clearCart, ensureCart, addItem, abandonCart },

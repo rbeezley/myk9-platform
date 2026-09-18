@@ -52,6 +52,7 @@ import { proceedBlockedReason } from './proceedGating';
 import { buildDraftFormData } from './buildDraftFormData';
 import { autoAssignHandlers } from './autoAssignHandlers';
 import { getEntryCloseAvailability, getEntryWindowTimezone } from './entryCloseGuard';
+import { useEntryWindowTimezone } from './useEntryWindowTimezone';
 import { useClassAvailability } from '@/hooks/useClassAvailability';
 import { useOrganizationAgreement } from '@/hooks/queries/useOrganizationAgreement';
 import { getRegistrationCapacityState } from './registrationCapacity';
@@ -128,6 +129,9 @@ export function useRegistrationWizardState() {
   const addItem = useCartStore(state => state.addItem);
   const abandonCart = useCartStore(state => state.abandonCart);
   const currentShow = useMemo(() => shows.find(s => s.id === showId), [shows, showId]);
+  // NOT `currentShow.trials` — the show store never populates that array, so it
+  // resolves to the America/New_York fallback for every show (MYK9-642 J-F1).
+  const entryWindowTimezone = useEntryWindowTimezone(showId);
 
   // Derived from role flags, not RegistrationContext.mode — that value defaults
   // to 'exhibitor' while RBAC loads, which would hide the secretary search UI.
@@ -421,7 +425,7 @@ export function useRegistrationWizardState() {
               // `submit_show_entries` applied the shared one, so an entry taken
               // after entries closed showed $30 and committed $35 (MYK9-642).
               entryCloseDate: currentShow.entryCloseDate,
-              entryWindowTimezone: getEntryWindowTimezone(currentShow.trials),
+              entryWindowTimezone,
             }
           : undefined,
         capacityReady ? registrationCapacity.waitlistClassIds : new Set()
@@ -432,6 +436,7 @@ export function useRegistrationWizardState() {
       dogs,
       classes,
       currentShow,
+      entryWindowTimezone,
       capacityReady,
       registrationCapacity.waitlistClassIds,
     ]
@@ -451,6 +456,11 @@ export function useRegistrationWizardState() {
         startDate: currentShow?.startDate,
         entryOpenDate: currentShow?.entryOpenDate,
         entryCloseDate: currentShow?.entryCloseDate,
+        // Deliberately still the show-store array, i.e. still the
+        // America/New_York fallback. The entry-close GUARD has read it that way
+        // since it was written; correcting it moves who can enter and when,
+        // which is a separate change from the fee/flag rule this PR is about.
+        // Tracked on MYK9-676.
         entryWindowTimezone: getEntryWindowTimezone(currentShow?.trials),
         isLateEntryMode,
         workflowMode: currentWorkflowMode,
@@ -630,6 +640,7 @@ export function useRegistrationWizardState() {
     waitlistClassIds: registrationCapacity.waitlistClassIds,
     blockedClassIds: registrationCapacity.blockedClassIds,
     entryCloseAvailability,
+    entryWindowTimezone,
     ownerResolution,
     proceedBlocked,
     canProceed,

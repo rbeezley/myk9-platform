@@ -90,3 +90,43 @@ describe('isDayOfShowEntry', () => {
     );
   });
 });
+
+describe('isDayOfShowEntry — the show zone, not the fallback (MYK9-642 round 1, J-F1)', () => {
+  // Live show `dededede-0000-0000-0000-000000000011`, "Heartland UKC Nosework
+  // Trial": start_date 2026-11-07T00:00:00+00, entry_close_date
+  // 2026-12-01T00:00:00+00, first trial timezone America/Chicago, $30 / $35.
+  const HEARTLAND = {
+    startDate: '2026-11-07T00:00:00+00:00',
+    entryCloseDate: '2026-12-01T00:00:00+00:00',
+  };
+  // 23:30 CT on Nov 6 — the show has not started in its own zone, but it has in
+  // America/New_York.
+  const LATE_EVENING_BEFORE = new Date('2026-11-07T05:30:00Z');
+
+  it("agrees with the server when fed the show's own zone", () => {
+    // Postgres, same instant and columns:
+    //   (… at time zone 'America/Chicago')::date               = 2026-11-06
+    //   (start_date at time zone 'UTC')::date                  = 2026-11-07
+    //   2026-11-06 > 2026-12-01 OR 2026-11-06 >= 2026-11-07    = false
+    expect(
+      isDayOfShowEntry({
+        ...HEARTLAND,
+        timeZone: 'America/Chicago',
+        now: LATE_EVENING_BEFORE,
+      })
+    ).toBe(false);
+  });
+
+  it('disagrees with the server when fed the America/New_York fallback — the bug', () => {
+    // This is what every caller got while the zone came from `show.trials`,
+    // which the show store never populates. Postgres for the same instant in
+    // America/New_York answers true, so the two rules split.
+    expect(
+      isDayOfShowEntry({
+        ...HEARTLAND,
+        timeZone: 'America/New_York',
+        now: LATE_EVENING_BEFORE,
+      })
+    ).toBe(true);
+  });
+});

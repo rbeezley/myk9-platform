@@ -29,6 +29,14 @@
 --   5. A show with NO entry_close_date, on its start date: the start-date
 --      fallback still fires (true, 35.00), so a show whose secretary never set
 --      a close date is not permanently a pre-entry-only show.
+--   6. The two ordering properties nothing else pins. (a) A trial carrying an
+--      UNRECOGNIZED timezone still commits: the day-of assignment is not gated
+--      on `NOT v_is_official`, so without the pg_timezone_names validation a
+--      secretary's mail-in dies 22023 where the old function reached the INSERT.
+--      (b) Replaying the same submission id returns the cached result and
+--      creates no second row, which is what the assignment sitting below the
+--      replay short-circuit buys. Both would stay green under a regression if
+--      they were left to the migration text.
 --
 -- Run against a database where all migrations are applied:
 --   psql "$DATABASE_URL" -v ON_ERROR_STOP=1 \
@@ -64,7 +72,10 @@ FROM (SELECT (now() AT TIME ZONE 'UTC')::date AS today) AS anchor,
        ('00000000-0000-0000-0000-000000642102'::uuid, 'MYK9-642 Case 2 entries open',     30,  10),
        ('00000000-0000-0000-0000-000000642103'::uuid, 'MYK9-642 Case 3 closes today',     30,   0),
        ('00000000-0000-0000-0000-000000642104'::uuid, 'MYK9-642 Case 4 closed yesterday', 30,  -1),
-       ('00000000-0000-0000-0000-000000642105'::uuid, 'MYK9-642 Case 5 no close date',     0, NULL)
+       ('00000000-0000-0000-0000-000000642105'::uuid, 'MYK9-642 Case 5 no close date',     0, NULL),
+       -- Case 6: same window as case 1, but its trial carries a zone Postgres
+       -- does not recognize.
+       ('00000000-0000-0000-0000-000000642106'::uuid, 'MYK9-642 Case 6 bad timezone',      0,  -7)
      ) AS v(id, name, start_offset, close_offset);
 
 -- The rule reads "today" in the show's entry-window timezone, which this
@@ -76,16 +87,19 @@ SELECT
   ('00000000-0000-0000-0000-0000006421' || suffix)::uuid,
   'MYK9-642 Trial ' || suffix,
   ((now() AT TIME ZONE 'UTC')::date + offset_days),
-  'UKC', 'Nosework', 'UTC'
-FROM (VALUES ('01', 0), ('02', 30), ('03', 30), ('04', 30), ('05', 0))
-  AS t(suffix, offset_days);
+  'UKC', 'Nosework', tz
+FROM (VALUES
+  ('01', 0, 'UTC'), ('02', 30, 'UTC'), ('03', 30, 'UTC'), ('04', 30, 'UTC'), ('05', 0, 'UTC'),
+  -- `public.trials.timezone` is plain text with no CHECK, so this is storable.
+  ('06', 0, 'Not/AZone')
+) AS t(suffix, offset_days, tz);
 
 INSERT INTO public.classes (id, trial_id, name, element, level, status, status_source, entry_fee)
 SELECT
   ('00000000-0000-0000-0000-0000006423' || suffix)::uuid,
   ('00000000-0000-0000-0000-0000006422' || suffix)::uuid,
   'Interior Novice A', 'Interior', 'Novice', 'upcoming', 'manual', 30
-FROM (VALUES ('01'), ('02'), ('03'), ('04'), ('05')) AS c(suffix);
+FROM (VALUES ('01'), ('02'), ('03'), ('04'), ('05'), ('06')) AS c(suffix);
 
 INSERT INTO public.people (id, first_name, last_name, email)
 VALUES
@@ -151,7 +165,7 @@ SELECT
   ('00000000-0000-0000-0000-0000006425' || suffix)::uuid,
   ('00000000-0000-0000-0000-0000006421' || suffix)::uuid,
   '00000000-0000-0000-0000-000000642001'
-FROM (VALUES ('01'), ('02'), ('03'), ('04'), ('05')) AS e(suffix);
+FROM (VALUES ('01'), ('02'), ('03'), ('04'), ('05'), ('06')) AS e(suffix);
 
 SET LOCAL ROLE authenticated;
 
@@ -163,6 +177,8 @@ DECLARE
   entry_id       uuid;
   got_flag       boolean;
   got_fee        numeric;
+  replay         jsonb;
+  entry_count    bigint;
 BEGIN
   PERFORM set_config('request.jwt.claim.sub', secretary_auth::text, true);
   PERFORM set_config('request.jwt.claims',
@@ -208,6 +224,79 @@ BEGIN
         expectation.suffix, expectation.label, got_fee, expectation.want_fee;
     END IF;
   END LOOP;
+
+  ----------------------------------------------------------------------------
+  -- 6. Two ordering properties the rule's placement bought, which nothing else
+  --    pins. A future edit could move the `v_is_day_of_show` assignment back
+  --    above the replay short-circuit, or drop the pg_timezone_names
+  --    validation, and every case above would stay green.
+  --
+  --  6a. A show whose first trial carries an UNRECOGNIZED zone still commits.
+  --      `AT TIME ZONE 'Not/AZone'` raises 22023, and the day-of assignment is
+  --      NOT gated on `NOT v_is_official` — so without the validation where the
+  --      zone is read, a secretary's mail-in on such a show dies with an opaque
+  --      SQLSTATE where the pre-MYK9-642 function reached the INSERT. The row
+  --      must land in the same bucket case 1 does (the fallback zone is the
+  --      documented default, and this fixture's window is case 1's window).
+  ----------------------------------------------------------------------------
+  result := public.submit_show_entries(
+    '00000000-0000-0000-0000-000000642106'::uuid,
+    '00000000-0000-0000-0000-000000642506'::uuid,
+    jsonb_build_array(jsonb_build_object(
+      'dog_id', '00000000-0000-0000-0000-000000642401'::uuid,
+      'class_id', '00000000-0000-0000-0000-000000642306'::uuid,
+      'handler_name', 'MYK9-642 Exhibitor',
+      'client_fee_cents', 3500)),
+    '00000000-0000-0000-0000-000000642806'::uuid,
+    'secretary_paid');
+
+  IF jsonb_array_length(result->'entries') <> 1 THEN
+    RAISE EXCEPTION 'FAIL case 06a (unrecognized trial timezone) committed no entry: %', result;
+  END IF;
+
+  SELECT e.is_day_of_show, e.entry_fee INTO got_flag, got_fee
+  FROM public.entries e WHERE e.id = (result->'entries'->0->>'entry_id')::uuid;
+
+  IF got_flag IS DISTINCT FROM true THEN
+    RAISE EXCEPTION 'FAIL case 06a (unrecognized trial timezone): is_day_of_show = % (expected true)',
+      got_flag;
+  END IF;
+  IF got_fee <> 35 THEN
+    RAISE EXCEPTION 'FAIL case 06a (unrecognized trial timezone): entry_fee = % (expected 35)',
+      got_fee;
+  END IF;
+
+  ----------------------------------------------------------------------------
+  --  6b. Replaying the SAME submission id returns the cached result and
+  --      creates nothing new -- on the same bad-zone show, so it also proves
+  --      the replay path never re-derives the zone. Asserting the entry COUNT
+  --      as well as the returned jsonb: an idempotency check that only compares
+  --      the return value passes for a function that inserted a duplicate and
+  --      then happened to return the cached blob.
+  ----------------------------------------------------------------------------
+  replay := public.submit_show_entries(
+    '00000000-0000-0000-0000-000000642106'::uuid,
+    '00000000-0000-0000-0000-000000642506'::uuid,
+    jsonb_build_array(jsonb_build_object(
+      'dog_id', '00000000-0000-0000-0000-000000642401'::uuid,
+      'class_id', '00000000-0000-0000-0000-000000642306'::uuid,
+      'handler_name', 'MYK9-642 Exhibitor',
+      'client_fee_cents', 3500)),
+    '00000000-0000-0000-0000-000000642806'::uuid,
+    'secretary_paid');
+
+  IF replay IS DISTINCT FROM result THEN
+    RAISE EXCEPTION 'FAIL case 06b replayed submission did not return the cached result: % vs %',
+      replay, result;
+  END IF;
+
+  SELECT count(*) INTO entry_count
+  FROM public.entries e
+  WHERE e.class_id = '00000000-0000-0000-0000-000000642306'::uuid;
+
+  IF entry_count <> 1 THEN
+    RAISE EXCEPTION 'FAIL case 06b replay created a duplicate entry: % rows', entry_count;
+  END IF;
 
   RAISE NOTICE 'PASS submit_entries_day_of_show_flag_test';
 END;

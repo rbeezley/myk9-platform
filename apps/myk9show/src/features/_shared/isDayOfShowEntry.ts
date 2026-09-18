@@ -34,11 +34,16 @@
  *   - Entries are still OPEN on the close date itself, so day-of starts the day
  *     AFTER close (`>`), while the show's own start date counts (`>=`).
  *
- * Deliberately dependency-free: `getShowEntryFee` cannot import
- * `@/utils/dateLocal` (it drags LoggingService into the tree and many
- * registration tests do not mock it), and calendar dates compare correctly as
- * `YYYY-MM-DD` strings without any Date arithmetic.
+ * Calendar dates compare correctly as `YYYY-MM-DD` strings, so there is no Date
+ * arithmetic here. The zone formatting itself is NOT re-implemented: it comes
+ * from `@/utils/calendarDate`, the dependency-free module `entryWindowDate` also
+ * uses, so "today in the show's zone" exists once. (`entryWindowDate` itself is
+ * not importable from here: it drags `@/utils/dateLocal` → `LoggingService` into
+ * `getShowEntryFee`'s chain, which breaks registration tests that mock the
+ * logging module with a factory.)
  */
+
+import { calendarDateInTimeZone, calendarDateLocal } from '@/utils/calendarDate';
 
 export interface DayOfShowEntryContext {
   /** `shows.start_date` — timestamptz at midnight UTC, or a bare `YYYY-MM-DD`. */
@@ -67,32 +72,26 @@ export function utcCalendarDate(value?: string | null | undefined): string | und
   return parsed.toISOString().slice(0, 10);
 }
 
-/** Today's calendar date in `timeZone` (browser zone when absent), `YYYY-MM-DD`. */
+/**
+ * Today's calendar date in `timeZone` (browser zone when absent), `YYYY-MM-DD`.
+ *
+ * An unrecognized zone falls back to the browser's calendar date rather than
+ * taking the fee calculation down. Callers should be passing a zone resolved by
+ * `getTrialTimezone`, which validates it and reports the bad value to Sentry, so
+ * reaching the catch means the zone came from somewhere that does not.
+ */
 export function currentCalendarDate(
   now: Date = new Date(),
   timeZone?: string | null | undefined
 ): string {
   if (timeZone) {
     try {
-      const parts = new Intl.DateTimeFormat('en-US', {
-        timeZone,
-        year: 'numeric',
-        month: '2-digit',
-        day: '2-digit',
-      }).formatToParts(now);
-      const part = (type: Intl.DateTimeFormatPartTypes) =>
-        parts.find(candidate => candidate.type === type)?.value ?? '';
-      const formatted = `${part('year')}-${part('month')}-${part('day')}`;
-      if (/^\d{4}-\d{2}-\d{2}$/.test(formatted)) return formatted;
+      return calendarDateInTimeZone(now, timeZone);
     } catch {
-      // An invalid IANA zone must not take the fee calculation down; fall
-      // through to the browser's own calendar date.
+      // Fall through to the browser's own calendar date.
     }
   }
-  const year = String(now.getFullYear()).padStart(4, '0');
-  const month = String(now.getMonth() + 1).padStart(2, '0');
-  const day = String(now.getDate()).padStart(2, '0');
-  return `${year}-${month}-${day}`;
+  return calendarDateLocal(now);
 }
 
 /**

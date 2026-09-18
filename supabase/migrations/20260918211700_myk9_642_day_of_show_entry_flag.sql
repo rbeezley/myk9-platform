@@ -48,7 +48,12 @@
 -- migration defining this function (`grep -l "CREATE OR REPLACE FUNCTION
 -- public.submit_show_entries" supabase/migrations/`), so no intervening change
 -- is reverted. The only edits are the `v_is_day_of_show` variable and its
--- assignment, the fee CASE now reading it, and `is_day_of_show` in the INSERT.
+-- assignment, the `v_show_tz` validation, the fee CASE now reading the flag, and
+-- `is_day_of_show` in the INSERT.
+--
+-- The trial timezone is also resolved against pg_timezone_names where it is read,
+-- so a malformed `trials.timezone` (the column has no CHECK) degrades to the
+-- documented default instead of aborting a secretary's submission with 22023.
 --
 -- Behavioral coverage: supabase/tests/submit_entries_day_of_show_flag_test.sql
 -- (behavioral SQL tests run only in CI -- no container runtime locally).
@@ -124,6 +129,20 @@ BEGIN
       USING ERRCODE = '22023';
   END IF;
 
+  -- MYK9-642 round 1. `trials.timezone` is plain text with no CHECK, so a bad
+  -- value is storable, and `AT TIME ZONE <bad>` raises 22023 rather than
+  -- degrading. The COALESCE above only covers NULL. Resolve the zone against
+  -- pg_timezone_names ONCE, here, so every expression below -- the entry-open
+  -- and entry-close guards as well as the day-of rule -- is given a zone Postgres
+  -- recognizes. This matches the client, whose `getTrialTimezone` validates the
+  -- IANA name and falls back to the same default (features/registries/helpers.ts);
+  -- without it the two sides disagreed about what a malformed zone means, one
+  -- falling back and the other aborting the whole submission at the desk.
+  v_show_tz := COALESCE(
+    (SELECT n.name FROM pg_catalog.pg_timezone_names n WHERE n.name = v_show_tz),
+    'America/New_York'
+  );
+
   v_is_official := (
     public.is_site_admin()
     OR public.is_show_secretary(p_show_id)
@@ -186,11 +205,14 @@ BEGIN
   -- midnight mid-loop. See the header for the rulebook citations and for why
   -- this is the entry-close deadline rather than the fee's old start-date test.
   --
-  -- Deliberately placed HERE, after the replay short-circuit and after the
-  -- entry-window guards: `AT TIME ZONE v_show_tz` raises invalid_parameter_value
-  -- on a malformed trials.timezone, and evaluating it earlier would make a bad
-  -- zone throw on a REPLAYED submission that previously returned its cached
-  -- result, and throw for an official on a path only exhibitors reached before.
+  -- Placed HERE, after the replay short-circuit, so a submission that was
+  -- already recorded returns its cached result without re-deriving anything.
+  -- It is deliberately NOT relied on for timezone safety: the entry-open and
+  -- entry-close guards above are `NOT v_is_official`-gated, so for an official
+  -- this would be the FIRST `AT TIME ZONE v_show_tz` in the function and moving
+  -- it below them buys nothing. The zone is validated against pg_timezone_names
+  -- where it is read instead, which is what actually makes a bad value safe --
+  -- for the exhibitor guards too, which never had that protection.
   v_is_day_of_show := (
     (
       v_show_close IS NOT NULL

@@ -308,3 +308,33 @@ describe('getShowEntryFee — the day-of-show tier is the registry bucket (MYK9-
     expect(getShowEntryFee(SHOW)).toBe(30);
   });
 });
+
+describe('getShowEntryFee — the show zone decides the tier (MYK9-642 round 1, J-F1)', () => {
+  // The live "Heartland UKC Nosework Trial" shape: a Central-time show whose
+  // start date has arrived in America/New_York but not in America/Chicago.
+  const HEARTLAND: ShowFeeInfo = {
+    preEntryFee: '30.00',
+    dayOfShowFee: '35.00',
+    startDate: '2026-11-07T00:00:00+00:00',
+    entryCloseDate: '2026-12-01T00:00:00+00:00',
+    entryWindowTimezone: 'America/Chicago',
+  };
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it("charges the pre-entry fee at 23:30 the evening before, in the show's own zone", () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-11-07T05:30:00Z'));
+    // `submit_show_entries` computes 30.00 for this instant; quoting 35 here
+    // would put the receipt an entire tier above what the server stores.
+    expect(getShowEntryFee(HEARTLAND)).toBe(30);
+  });
+
+  it('charges the day-of fee with the America/New_York fallback — what the bug produced', () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-11-07T05:30:00Z'));
+    expect(getShowEntryFee({ ...HEARTLAND, entryWindowTimezone: 'America/New_York' })).toBe(35);
+  });
+});

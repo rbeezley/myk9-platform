@@ -185,7 +185,9 @@ describe('MyShowDogCard — check-in is withheld from rows that cannot take one'
     // — and a withdrawal written against a class the app has just told itself
     // it cannot identify is precisely what this flag exists to prevent.
     expect(screen.getByText('Unknown Class')).toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: /Withdraw or pull/ })).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole('button', { name: /Leave class: withdraw or pull/ })
+    ).not.toBeInTheDocument();
   });
 
   it('offers no check-in for a completed-kind class with a legacy accepted status', () => {

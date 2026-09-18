@@ -193,16 +193,13 @@ describe('LeaveClassDialog — round 1 corrections', () => {
     expect(screen.getByRole('alertdialog')).toBeInTheDocument();
   });
 
-  it('closes and hands focus to the dog card on success', async () => {
+  // The round-1 focus restore is GONE (MYK9-658), so what is asserted here is
+  // the part that must hold regardless: the dialog closes itself and the caller
+  // is told to refresh. Nothing asserts where focus lands, because nothing in
+  // the component decides that any more — a test that pinned `document.body`
+  // would be pinning the absence of a feature rather than a behaviour.
+  it('closes and refreshes on success', async () => {
     const user = userEvent.setup();
-    // The node the card renders, present throughout, exactly as MyShowDogCard
-    // renders it — the row's own button unmounts with the row, which is why
-    // the AlertDialog's restore cannot be relied on.
-    const heading = document.createElement('span');
-    heading.id = 'my-show-dog-dog-juni';
-    heading.tabIndex = -1;
-    document.body.appendChild(heading);
-
     const onClose = vi.fn();
     const onUpdate = vi.fn();
     render(
@@ -215,8 +212,5 @@ describe('LeaveClassDialog — round 1 corrections', () => {
 
     await waitFor(() => expect(onClose).toHaveBeenCalled());
     expect(onUpdate).toHaveBeenCalled();
-    await waitFor(() => expect(document.activeElement).toBe(heading));
-
-    heading.remove();
   });
 });

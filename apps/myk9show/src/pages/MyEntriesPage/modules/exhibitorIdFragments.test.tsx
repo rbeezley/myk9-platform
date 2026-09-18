@@ -121,7 +121,18 @@ describe('MYK9-631 AC4/Q7 — the receipt carries one identifier or none', () =>
   // nothing unique on it at all. So the entry id prints here, labelled, on the
   // receipt and nowhere else.
   it('falls back to a labelled Reference when there is no confirmation number', () => {
-    render(<EntryReceipt open onOpenChange={vi.fn()} entry={receiptEntry} />);
+    // Round 2: the Reference is the ORDER's token, handed in by the caller.
+    // Round 1 printed `entry.id`, which on a MyEntry is `dogs[0].classes[0].id`
+    // — one class row of a multi-dog order, and not even stably chosen, since
+    // the PostgREST read sorts and the replica read does not.
+    const registrationId = 'reg-7c1f4a90-2b6e-4a11-9d33-55aa0c1d77e2';
+    render(
+      <EntryReceipt
+        open
+        onOpenChange={vi.fn()}
+        entry={{ ...receiptEntry, reference: registrationId }}
+      />
+    );
 
     // Positive control: the document rendered and names the dog and class.
     expect(readableText()).toContain('Juni');
@@ -132,8 +143,22 @@ describe('MYK9-631 AC4/Q7 — the receipt carries one identifier or none', () =>
     expect(screen.queryByText('Confirmation #')).not.toBeInTheDocument();
     expect(screen.queryByText('Order ID')).not.toBeInTheDocument();
 
-    // But the document IS identifiable.
-    expect(screen.getByText(`Reference: ${receiptEntry.id}`)).toBeInTheDocument();
+    // The document IS identifiable — by the order, not by a class row.
+    expect(screen.getByText(`Reference: ${registrationId}`)).toBeInTheDocument();
+    expect(readableText()).not.toContain(receiptEntry.id);
+  });
+
+  // The narrow case the round-2 rule leaves without a token: a legacy
+  // secretary/mail-in row with no confirmation number AND no linked
+  // registration. Printing a class row's id there would be the wrong grain, so
+  // nothing prints. Pinned so the choice is visible rather than incidental —
+  // MYK9-659 tracks giving that path a real order-level reference.
+  it('prints no Reference at all when the order has no order-level token', () => {
+    render(<EntryReceipt open onOpenChange={vi.fn()} entry={receiptEntry} />);
+
+    expect(readableText()).toContain('Juni');
+    expect(screen.queryByText(/^Reference:/)).not.toBeInTheDocument();
+    expect(readableText()).not.toContain(receiptEntry.id);
   });
 
   it('still prints a REAL confirmation number when the order has one', () => {
@@ -141,7 +166,7 @@ describe('MYK9-631 AC4/Q7 — the receipt carries one identifier or none', () =>
       <EntryReceipt
         open
         onOpenChange={vi.fn()}
-        entry={{ ...receiptEntry, confirmationNumber: 'MK9-000145' }}
+        entry={{ ...receiptEntry, confirmationNumber: 'MK9-000145', reference: 'reg-abc' }}
       />
     );
 
@@ -150,7 +175,8 @@ describe('MYK9-631 AC4/Q7 — the receipt carries one identifier or none', () =>
     // And it is not an id fragment: it is what the exhibitor was actually sent.
     expect(readableText()).not.toMatch(ID_FRAGMENT);
     // One identifier, not two: the Reference is the FALLBACK, so a receipt that
-    // has a real confirmation number does not also print a raw UUID.
+    // has a real confirmation number does not also print an order token — even
+    // when one is supplied.
     expect(screen.queryByText(/^Reference:/)).not.toBeInTheDocument();
     expect(readableText()).not.toContain(receiptEntry.id);
   });

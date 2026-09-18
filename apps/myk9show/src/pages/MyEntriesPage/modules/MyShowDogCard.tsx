@@ -80,16 +80,7 @@ const MyShowDogCardComponent: React.FC<MyShowDogCardProps> = ({
           {/* ArmbandBadge's own unassigned path renders a muted dash, so the
               "not a filled pill yet" rule is one implementation, not two. */}
           <ArmbandBadge armband={dog.armband} className="h-10 min-w-10 text-base" />
-          {/* Focus lands here after a successful leave: the row's control
-              unmounts with the row it belonged to, so the AlertDialog's own
-              restore would target a removed node and drop focus to <body>. */}
-          <span
-            id={`my-show-dog-${dog.dogId}`}
-            tabIndex={-1}
-            className="myk9-entries-dog-card-name outline-none"
-          >
-            {dog.dogName}
-          </span>
+          <span className="myk9-entries-dog-card-name">{dog.dogName}</span>
         </div>
         <div className="myk9-entries-dog-card-actions">
           <StatusBadge family="entry" status={chip.status} label={chip.label} />

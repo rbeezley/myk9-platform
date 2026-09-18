@@ -43,6 +43,20 @@ interface EntryReceiptData {
    * any more: an order with no confirmation number omits the block.
    */
   confirmationNumber?: string | undefined;
+  /**
+   * The ORDER-level token to print when there is no confirmation number, or
+   * absent when the order has none.
+   *
+   * Supplied by the caller, never derived from `id` here. Round 1 printed
+   * `entry.id`, and round 2 showed that is `dogs[0].classes[0].id` — the
+   * `entries.id` of whichever raw row happened to arrive first for the first
+   * dog. That is the wrong grain for a document listing the whole order's fees,
+   * and it is not even stable: the PostgREST read sorts deterministically while
+   * the replica read applies no sort at all, so the same cash order could print
+   * a different reference online and offline. A registration id (or the Stripe
+   * order id) identifies the order itself and does not move.
+   */
+  reference?: string | undefined;
   showName: string;
   showDate: Date;
   location: {
@@ -586,7 +600,9 @@ export function EntryReceipt({
                 when there is no confirmation number the entry id prints here as
                 a labelled Reference — never in a picker, never on a card. */}
             <p>Thank you for your entry!</p>
-            {!entry.confirmationNumber && <p className="mt-1">Reference: {entry.id}</p>}
+            {!entry.confirmationNumber && entry.reference && (
+              <p className="mt-1">Reference: {entry.reference}</p>
+            )}
             <p className="mt-1">Generated on {formatRecordDateTime(new Date())}</p>
           </div>
         </div>

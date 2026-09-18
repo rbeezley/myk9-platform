@@ -207,10 +207,15 @@ export const MyShowClassRow: React.FC<MyShowClassRowProps> = ({
             <button
               type="button"
               onClick={() => onLeaveClass(cls, classWhen)}
+              // WCAG 2.5.3 Label in Name: the accessible name has to START with
+              // the visible words, or a voice-control user saying "click Leave
+              // class" does not reach the one destructive control on the page.
+              // The two sibling controls this file renders already satisfy it
+              // ("Check in …", "Change …"); this one did not.
               aria-label={
                 classWhen
-                  ? `Withdraw or pull ${dogName} from ${cls.name}, ${classWhen}`
-                  : `Withdraw or pull ${dogName} from ${cls.name}`
+                  ? `Leave class: withdraw or pull ${dogName} from ${cls.name}, ${classWhen}`
+                  : `Leave class: withdraw or pull ${dogName} from ${cls.name}`
               }
               className={`${LINK_CLASS} text-muted-foreground`}
             >

@@ -363,6 +363,11 @@ export const ReceiptEntryDialog: React.FC<ReceiptEntryDialogProps> = ({
         ...(entry.confirmationNumber !== undefined && {
           confirmationNumber: entry.confirmationNumber,
         }),
+        // Registration first, then the Stripe order — both identify the ORDER.
+        // Never `entry.id`, which on this shape is one class row of it.
+        ...((entry.registrationId ?? entry.orderId)
+          ? { reference: entry.registrationId ?? entry.orderId }
+          : {}),
         showName: entry.showName,
         showDate: entry.showDate,
         location: entry.location,

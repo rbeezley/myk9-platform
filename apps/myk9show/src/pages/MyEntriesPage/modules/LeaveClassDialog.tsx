@@ -64,25 +64,23 @@ export const LeaveClassDialog: React.FC<LeaveClassDialogProps> = ({
   const eligibility = useWithdrawEligibility(open, false, target ? [target.classId] : []);
   const rowEligibility = target ? eligibility[target.classId] : undefined;
 
-  /**
-   * Where focus goes once the row that owned this dialog disappears.
-   *
-   * On success the entry is withdrawn, the list re-renders, and the row's
-   * "Leave class…" button unmounts — correctly, the row is settled now. The
-   * AlertDialog's own focus restore then targets a removed node and focus falls
-   * to `<body>`, so a keyboard or screen-reader user loses their place on the
-   * page immediately after the one destructive act. The base path did not have
-   * this problem: it happened inside the Edit sheet, which stayed open.
-   */
-  const restoreFocus = React.useCallback((dogId: string) => {
-    // After the refresh has painted, not before — the node exists throughout,
-    // but focusing it while the old row is still mounted lets the dialog's own
-    // restore run afterwards and win.
-    requestAnimationFrame(() => {
-      document.getElementById(`my-show-dog-${dogId}`)?.focus();
-    });
-  }, []);
-
+  // NO focus restore here, deliberately — see MYK9-658.
+  //
+  // Round 1 added one: on success the row's "Leave class…" button unmounts with
+  // the row it belonged to, so the AlertDialog's own restore targets a removed
+  // node and focus falls to `<body>`. The fix anchored focus on the dog card by
+  // a `my-show-dog-${dogId}` id — and round 2 proved that id is DUPLICATED
+  // whenever one dog is entered in two shows, because dogs are merged by dogId
+  // inside a group and the page renders every group at once. `getElementById`
+  // then returns the first in document order, so withdrawing from the second
+  // show moved focus into the FIRST show's card: a silent jump to a different
+  // show, which is worse than the `<body>` drop it was written to cure.
+  //
+  // Two of round 2's four findings were on that mechanism, which is the
+  // stop-and-restructure signal in CLAUDE.md § Gates step 3 rather than a cue
+  // for a third patch. So it is deleted rather than re-scoped: the page returns
+  // to the P3 it had before, and the real fix — which needs a per-card key and
+  // a test that renders the actual card — is filed as its own issue.
   const confirm = async (choice: {
     kind: RemoveFromClassKind;
     reason: WithdrawalReasonCode | null;
@@ -126,7 +124,6 @@ export const LeaveClassDialog: React.FC<LeaveClassDialogProps> = ({
       savingRef.current = false;
       setIsSaving(false);
       onClose();
-      restoreFocus(target.dogId);
       onUpdate();
     } catch (err) {
       // Same reasoning as the refusal branch: an unexpected throw is the case

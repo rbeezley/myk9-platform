@@ -185,7 +185,9 @@ describe('MYK9-631 AC3 — leaving a class is a ROW verb', () => {
     // The accessible name now carries the trial discriminator too, so match on
     // the class rather than the whole string.
     await user.click(
-      screen.getByRole('button', { name: /^Withdraw or pull Juni from Exterior Excellent/ })
+      screen.getByRole('button', {
+        name: /^Leave class: withdraw or pull Juni from Exterior Excellent/,
+      })
     );
 
     expect(props.onLeaveClass).toHaveBeenCalledTimes(1);
@@ -199,10 +201,32 @@ describe('MYK9-631 AC3 — leaving a class is a ROW verb', () => {
     });
   });
 
+  // WCAG 2.5.3 Label in Name. Asserted as a RELATION between the two strings,
+  // not as a hard-coded name: a future rewording of either has to keep them
+  // consistent, which a literal expectation would not enforce.
+  it('has an accessible name that starts with its visible label', () => {
+    renderRows([liveRow([aheadClass()])]);
+
+    const control = screen.getByRole('button', { name: /^Leave class/ });
+    const visible = control.textContent?.replace(/\u2026$/, '').trim() ?? '';
+    const accessible = control.getAttribute('aria-label') ?? '';
+
+    expect(visible).toBe('Leave class');
+    // Voice control matches on the visible words, so they must be present —
+    // and at the front, so "click Leave class" is unambiguous.
+    expect(accessible.toLowerCase()).toContain(visible.toLowerCase());
+    expect(accessible.toLowerCase().startsWith(visible.toLowerCase())).toBe(true);
+    // Still carries the disambiguators the destructive act needs.
+    expect(accessible).toContain('Juni');
+    expect(accessible).toContain('Interior Advanced');
+  });
+
   it('offers the control on every live row, and never in the menu', async () => {
     renderRows([liveRow([aheadClass()])]);
 
-    expect(screen.getByRole('button', { name: /Withdraw or pull Juni/ })).toBeInTheDocument();
+    expect(
+      screen.getByRole('button', { name: /Leave class: withdraw or pull Juni/ })
+    ).toBeInTheDocument();
     const menu = await openShowActions(userEvent.setup(), SHOW);
     expect(menu.queryByRole('menuitem', { name: /Withdraw/i })).not.toBeInTheDocument();
     expect(menu.queryByRole('menuitem', { name: /Leave/i })).not.toBeInTheDocument();
@@ -217,7 +241,9 @@ describe('MYK9-631 AC3 — leaving a class is a ROW verb', () => {
     ]);
 
     expect(screen.getByText('Interior Advanced')).toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: /Withdraw or pull/ })).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole('button', { name: /Leave class: withdraw or pull/ })
+    ).not.toBeInTheDocument();
   });
 
   // The row kind is derived from the LOSSLESS `entryStatusKind`, so the
@@ -243,7 +269,9 @@ describe('MYK9-631 AC3 — leaving a class is a ROW verb', () => {
       // Positive control: the row IS on screen, so the absence above is the
       // control being withheld rather than nothing having rendered.
       expect(screen.getByText('Interior Advanced')).toBeInTheDocument();
-      expect(screen.queryByRole('button', { name: /Withdraw or pull/ })).not.toBeInTheDocument();
+      expect(
+        screen.queryByRole('button', { name: /Leave class: withdraw or pull/ })
+      ).not.toBeInTheDocument();
     }
   );
 
@@ -256,7 +284,9 @@ describe('MYK9-631 AC3 — leaving a class is a ROW verb', () => {
     renderRows([liveRow([aheadClass()], { showId: '' })]);
 
     expect(screen.getByText('Interior Advanced')).toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: /Withdraw or pull/ })).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole('button', { name: /Leave class: withdraw or pull/ })
+    ).not.toBeInTheDocument();
   });
 
   // Round 1, lens K (P3-1). `pulled` is a `check_in_status`, not a lifecycle
@@ -268,7 +298,9 @@ describe('MYK9-631 AC3 — leaving a class is a ROW verb', () => {
     renderRows([liveRow([aheadClass({ checkInStatus: 'pulled' })])]);
 
     expect(
-      screen.getByRole('button', { name: /Withdraw or pull Juni from Interior Advanced/ })
+      screen.getByRole('button', {
+        name: /Leave class: withdraw or pull Juni from Interior Advanced/,
+      })
     ).toBeInTheDocument();
     // And the check-in "change" link is still there — the two do different things.
     expect(screen.getByRole('button', { name: /Change Juni's check-in/ })).toBeInTheDocument();
@@ -290,9 +322,11 @@ describe('MYK9-631 AC3 — leaving a class is a ROW verb', () => {
     ).not.toBeInTheDocument();
 
     // ...but leaving the class is still offered, and still routes to THAT row.
-    await userEvent
-      .setup()
-      .click(screen.getByRole('button', { name: /Withdraw or pull Juni from Interior Advanced/ }));
+    await userEvent.setup().click(
+      screen.getByRole('button', {
+        name: /Leave class: withdraw or pull Juni from Interior Advanced/,
+      })
+    );
     expect(props.onLeaveClass).toHaveBeenCalledWith(
       expect.objectContaining({ classId: 'c-juni-1', className: 'Interior Advanced' })
     );
@@ -315,7 +349,7 @@ describe('MYK9-631 AC3 — leaving a class is a ROW verb', () => {
       ]),
     ]);
 
-    const controls = screen.getAllByRole('button', { name: /^Withdraw or pull Juni/ });
+    const controls = screen.getAllByRole('button', { name: /^Leave class: withdraw or pull Juni/ });
     expect(controls).toHaveLength(2);
     const names = controls.map(c => c.getAttribute('aria-label'));
     // The whole point: the two accessible names differ.
@@ -341,6 +375,8 @@ describe('MYK9-631 AC3 — leaving a class is a ROW verb', () => {
     ]);
 
     expect(screen.getByText('Interior Advanced')).toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: /Withdraw or pull/ })).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole('button', { name: /Leave class: withdraw or pull/ })
+    ).not.toBeInTheDocument();
   });
 });

@@ -59,6 +59,10 @@ export const CardDerivedReceipt: React.FC<CardDerivedReceiptProps> = ({
         ...(entry.confirmationNumber !== undefined && {
           confirmationNumber: entry.confirmationNumber,
         }),
+        // The ORDER's own id. Null for a secretary/mail-in row with no linked
+        // online registration — in which case the receipt prints no Reference
+        // rather than a class row's id standing in for the order (round 2).
+        ...(entry.registrationId ? { reference: entry.registrationId } : {}),
         showName: entry.showName,
         showDate: entry.showDate,
         location: entry.location,

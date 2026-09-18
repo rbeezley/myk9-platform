@@ -168,6 +168,8 @@ Every question below was **decided as an assumption when AC2–AC6 were built**,
 
    This is a money-path policy change and the owner can reverse it. Reversing it means re-adding a `canModifyEntry`-equivalent term to `canLeaveClass`, and accepting that an exhibitor with a vet certificate the day before the show has no way to record it.
 
+**Round 2 (delta lens).** All seven round-1 fixes closed by mutation and the merge verified trivial. Four new findings, two of them on the code round 1's focus fix had just introduced — the stop-and-restructure signal in CLAUDE.md § Gates step 3 — so that mechanism was **deleted** rather than patched again: the `my-show-dog-${dogId}` anchor was a duplicate DOM id whenever one dog is entered in two shows, and its test hand-built the span, so renaming the id in the component left the whole suite green. The original focus drop is filed as **MYK9-658**. The receipt's `Reference` became an order-level token (`registrationId`, then the Stripe order id) rather than `entry.id`, which is one class row of a multi-dog order and not stably chosen across the two read paths; the registration-less residue is **MYK9-659**. The `Leave class…` control's accessible name now leads with its visible label (WCAG 2.5.3).
+
 **Not adopted from round 1.** Lens L suggested `Add classes` and `View show page` be collapsed into one item because both emitted `/shows/:id`. They are two different verbs, so the fix taken was to point `Add classes` at the wizard's own route (`/shows/:id/register`, `publicRoutes.tsx`) rather than to drop an item.
 
 ### What the menu holds, as shipped

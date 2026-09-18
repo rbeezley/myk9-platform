@@ -54,11 +54,10 @@
 
 - `useStopwatch` - Timer hook with max time and warnings
 - `useDragAndDropEntries` - Drag-and-drop reordering
+- `BaseEntry` - Base entry type
 
 > Entry-list filtering/sorting is `useEntryListFilters` from `@myk9/ringside`, not this package. The
 > `@myk9/scoring-ui` copy was an unreferenced duplicate and was deleted (MYK9-646).
-
-- `BaseEntry` - Base entry type
 
 ### @myk9/ui
 

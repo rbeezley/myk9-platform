@@ -86,7 +86,7 @@ The chips across the top are queues — _Needs review_, _Missing information_, _
 
 ## 4 · Enter a mail-in or paper entry
 
-**Entries → Add mail-in entry.** Pick the dog and handler (or create them), choose classes, and record payment.
+**Entries → Add entry for someone else.** Pick the dog and handler (or create them), choose classes, and record payment.
 
 > This works **after entries close** — you're the trial secretary, so the deadline doesn't block you.
 

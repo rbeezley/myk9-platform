@@ -288,7 +288,7 @@ export function ShowWorkbenchShowDeskPage() {
       {
         id: 'add-entries',
         title: 'Add entries',
-        summary: 'Choose own, paper, or late entries without leaving Show Desk',
+        summary: "Choose your own dog, someone else's, or a late entry without leaving Show Desk",
         defaultOpen: true,
         content: (
           <div className="flex flex-col gap-3">

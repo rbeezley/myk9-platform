@@ -41,7 +41,7 @@ export interface MyShowActionsFacts {
   /** True once the show holds any order at all — a receipt needs one. */
   hasOrders: boolean;
   /**
-   * The show has finished. "Add classes" is meaningless afterwards, and the
+   * The show has finished. "Add entry" is meaningless afterwards, and the
    * registration wizard would refuse it anyway.
    */
   isPastShow: boolean;
@@ -66,12 +66,16 @@ export function buildMyShowActions(facts: MyShowActionsFacts): MyShowAction[] {
   // href `View show page` already emits: two labels, one destination, in the
   // menu whose entire purpose is to stop scattering. The wizard owns "which
   // classes are still open"; the show page merely contains a link to it.
+  //
+  // Id is stable on purpose -- it is the action's identity, not its wording, and
+  // myShowActions.test.ts asserts on it. Only the label follows the vocabulary
+  // rule (docs/reference/ui-vocabulary.md).
   if (hasShow && facts.hasEditableOrders && !facts.isPastShow) {
     actions.push({
       id: 'add-classes',
-      label: 'Add classes',
+      label: 'Add entry',
       href: `/shows/${facts.showId}/register`,
-      ariaLabel: `Add classes at ${facts.showName}`,
+      ariaLabel: `Add entry at ${facts.showName}`,
     });
   }
 

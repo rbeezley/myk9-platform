@@ -463,7 +463,7 @@ describe('unresolved show id (Codex, PR #2198)', () => {
     const menu = await flintMenu();
     expect(menu.getByRole('menuitem', { name: /View the show page/ })).toBeInTheDocument();
     expect(menu.getByRole('menuitem', { name: 'Add to calendar' })).toBeInTheDocument();
-    expect(menu.getByRole('menuitem', { name: /Add classes/ })).toBeInTheDocument();
+    expect(menu.getByRole('menuitem', { name: /Add entry/ })).toBeInTheDocument();
   });
 
   it('offers no show-bound item while the show relation is still replicating', async () => {
@@ -472,7 +472,7 @@ describe('unresolved show id (Codex, PR #2198)', () => {
     const menu = await flintMenu();
     expect(menu.queryByRole('menuitem', { name: /View the show page/ })).not.toBeInTheDocument();
     expect(menu.queryByRole('menuitem', { name: 'Add to calendar' })).not.toBeInTheDocument();
-    expect(menu.queryByRole('menuitem', { name: /Add classes/ })).not.toBeInTheDocument();
+    expect(menu.queryByRole('menuitem', { name: /Add entry/ })).not.toBeInTheDocument();
     // Receipts needs only an order, so it survives the replication window —
     // withholding a receipt for a payment already taken is the one thing that
     // makes a real payment look lost.

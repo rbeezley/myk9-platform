@@ -73,7 +73,7 @@ test.describe('Phase 1 UAT - Secretary critical path', () => {
 
     await signInAsSecretary(page, `/secretary/register/${SHOW_ID}`);
 
-    await expect(page.getByRole('heading', { name: 'Add mail-in entry' })).toBeVisible({
+    await expect(page.getByRole('heading', { name: 'Add entry for someone else' })).toBeVisible({
       timeout: 15000,
     });
     await expect(page.getByText('Enter on behalf of an exhibitor.')).toBeVisible();
@@ -108,7 +108,7 @@ test.describe('Phase 1 UAT - Secretary critical path', () => {
     await expect(page.getByRole('heading', { name: 'Entry Management' })).toBeVisible({
       timeout: 15000,
     });
-    await expect(page.getByRole('button', { name: 'Add entry' })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Add entry', exact: true })).toBeVisible();
     await page.getByRole('button', { name: 'More', exact: true }).click();
     await expect(page.getByRole('button', { name: 'Export Full CSV' })).toBeVisible();
     await page.keyboard.press('Escape');

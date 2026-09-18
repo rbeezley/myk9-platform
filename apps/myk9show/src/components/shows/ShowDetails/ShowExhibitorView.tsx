@@ -112,10 +112,12 @@ export function ShowExhibitorView({
                     "Add or Change Entries" replaced it, but the wizard is
                     add-only: existing classes render disabled with no
                     withdraw/move-up path. Audit row 11 (exhibitor-elderly-novice
-                    2026-07-23) flagged the promise as false. "Add Classes" now
-                    names the real capability; the wizard itself explains that
-                    existing entries are changed through the show team. */}
-                {hasUserEntries ? 'Add Classes' : 'Enter This Show'}
+                    2026-07-23) flagged the promise as false. "Add Classes"
+                    replaced it but named the secretary's show-building
+                    gesture: picking classes creates an ENTRY, not a class.
+                    Rule and the "Enter This Show" exception:
+                    docs/reference/ui-vocabulary.md. */}
+                {hasUserEntries ? 'Add Entry' : 'Enter This Show'}
               </Button>
             ) : hasUserEntries ? (
               <Button

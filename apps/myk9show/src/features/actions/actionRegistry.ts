@@ -148,18 +148,20 @@ function buildShowActions(
   if (!viewer.canManageShow) return [];
 
   const encoded = encodeURIComponent(showId);
-  const mailInEntry: AppAction = {
+  // Id is stable on purpose -- it is the action's identity, not its wording.
+  // The label names WHOSE dog, not why (docs/reference/ui-vocabulary.md).
+  const entryForSomeoneElse: AppAction = {
     id: 'show-add-mail-in-entry',
-    label: 'Add mail-in entry',
+    label: 'Add entry for someone else',
     href: buildSecretaryRegistrationPath(showId),
     ...(viewer.canOperateShow ? {} : { disabledReason: 'Trial secretary access only' }),
   };
 
   return [
-    mailInEntry,
+    entryForSomeoneElse,
     {
       id: 'show-enter-own-dogs',
-      label: 'Enter my own dogs',
+      label: 'Add entry for my dog',
       href: buildExhibitorRegistrationPath(showId),
     },
     {

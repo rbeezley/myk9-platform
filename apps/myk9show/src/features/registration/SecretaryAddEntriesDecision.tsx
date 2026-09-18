@@ -1,4 +1,4 @@
-import { Dog, FileText } from 'lucide-react';
+import { Dog, Users } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import {
@@ -11,6 +11,14 @@ interface SecretaryAddEntriesDecisionProps {
   disabled?: boolean | undefined;
 }
 
+/**
+ * The two paths differ by WHOSE dog is being entered -- the exhibitor route
+ * picks from your own dogs, the secretary route searches or creates any
+ * exhibitor and dog. They do NOT differ by reason: "mail-in" was one cause
+ * among several (a phone call, a walk-up, fixing an exhibitor's mistake) for
+ * the identical action, and naming one of them made the rest look unsupported.
+ * Vocabulary rule: docs/reference/ui-vocabulary.md.
+ */
 export function SecretaryAddEntriesDecision({
   showId,
   disabled = false,
@@ -37,7 +45,7 @@ export function SecretaryAddEntriesDecision({
         onClick={() => handleNavigate(buildExhibitorRegistrationPath)}
       >
         <Dog className="h-4 w-4 mr-2" />
-        Enter my own dogs
+        Add entry for my dog
       </Button>
       <Button
         type="button"
@@ -45,8 +53,8 @@ export function SecretaryAddEntriesDecision({
         className="w-full sm:w-auto"
         onClick={() => handleNavigate(buildSecretaryRegistrationPath)}
       >
-        <FileText className="h-4 w-4 mr-2" />
-        Add mail-in entry
+        <Users className="h-4 w-4 mr-2" />
+        Add entry for someone else
       </Button>
     </div>
   );

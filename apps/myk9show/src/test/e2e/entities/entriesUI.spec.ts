@@ -109,9 +109,12 @@ test.describe('Browse entries', () => {
     await page.keyboard.press('Escape');
     await expect(removeEntryItem).not.toBeVisible();
 
+    // The decision point is inside the "Add entry" popover, which Base UI does
+    // not mount until the trigger is clicked.
+    await page.getByRole('button', { name: 'Add entry', exact: true }).click();
     await expect(page.getByRole('group', { name: 'Add entries' })).toBeVisible();
-    await expect(page.getByRole('button', { name: 'Enter my own dogs' })).toBeVisible();
-    await page.getByRole('button', { name: 'Add mail-in entry' }).click();
+    await expect(page.getByRole('button', { name: 'Add entry for my dog' })).toBeVisible();
+    await page.getByRole('button', { name: 'Add entry for someone else' }).click();
     await page.waitForURL(`**/secretary/register/${LIVE_SECRETARY_SHOW_ID}`, { timeout: 10_000 });
     await expect(page.getByRole('heading', { name: 'Select Dogs to Register' })).toBeVisible({
       timeout: 15_000,

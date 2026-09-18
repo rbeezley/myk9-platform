@@ -100,3 +100,55 @@ describe('saveEntryEdits', () => {
     expect(mocks.updateEntryDetails).not.toHaveBeenCalled();
   });
 });
+
+/**
+ * MYK9-570 round-1 review, P1. The printed handler is `entries.handler` (free
+ * text); junior status and the AKC junior handler number are read through
+ * `entries.handler_id`. Renaming the handler without clearing the id makes one
+ * person's junior status and registry number print under another person's name.
+ *
+ * Asserted on the RPC CALL ARGS, because that is the whole fix: the value of
+ * `clearHandlerId` is invisible in the UI and in every rendered output.
+ */
+describe('MYK9-570: a handler rename must not keep the old handler_id', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mocks.updateEntryDetails.mockResolvedValue({ error: null });
+    mocks.updateEntryHandler.mockResolvedValue({ error: null });
+  });
+
+  it.each([true, false])(
+    'passes the caller tier through to the RPC untouched (clearHandlerId %p)',
+    async callerTier => {
+      // MYK9-570 round 2: `handler_id` is load-bearing for the exhibitor's own
+      // self check-in, the at-show queue and the "is this my entry?" predicate,
+      // so this dialog must not decide to null it. Whether a rename should clear
+      // or re-point the link is MYK9-665's question; the stale-link problem is
+      // solved on the READ side by `resolveHandlerPerson`.
+      await saveEntryEdits({
+        classes,
+        classEdits: { 'entry-1': { handler: 'Sam Handler' } },
+        clearHandlerId: callerTier,
+      });
+
+      expect(mocks.updateEntryHandler).toHaveBeenCalledWith({
+        entryId: 'entry-1',
+        handler: 'Sam Handler',
+        handlerId: null,
+        clearHandlerId: callerTier,
+      });
+    }
+  );
+
+  it('does not write at all when the handler did not change', () => {
+    // The guard must not turn "no change" into a clearing write — that would
+    // drop a correct handler_id on every unrelated save.
+    return saveEntryEdits({
+      classes,
+      classEdits: { 'entry-1': { jumpHeight: '12"' } },
+      clearHandlerId: false,
+    }).then(() => {
+      expect(mocks.updateEntryHandler).not.toHaveBeenCalled();
+    });
+  });
+});

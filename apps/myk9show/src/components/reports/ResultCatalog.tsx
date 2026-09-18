@@ -2,6 +2,7 @@ import React from 'react';
 import type { ReportProps, ReportEntry } from '@/lib/reports/types';
 import {
   formatReportTime,
+  formatReportHandlerName,
   sortByPlacement,
   sortByArmband,
   sortByHandler,
@@ -92,7 +93,7 @@ export const ResultCatalog: React.FC<ReportProps> = ({
                           <td>{entry.callName}</td>
                           <td>{entry.breed}</td>
                           <td>{entry.registrationNumber ?? ''}</td>
-                          <td>{entry.handler}</td>
+                          <td>{formatReportHandlerName(entry)}</td>
                           <td className={qualified ? 'qualified-text' : 'nq-text'}>{statusText}</td>
                           <td>{formatReportTime(entry.searchTimeSeconds)}</td>
                         </tr>

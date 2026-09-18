@@ -91,6 +91,8 @@ describe('useProfileForm', () => {
       city: '',
       state: '',
       zipCode: '',
+      dateOfBirth: '',
+      juniorHandlerNumbers: {},
     });
     expect(result.current.isLoading).toBe(true);
   });

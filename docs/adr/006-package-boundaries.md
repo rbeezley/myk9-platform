@@ -57,15 +57,15 @@ We organized shared code into **6 packages** under the `@myk9/*` namespace, with
 
 **Package responsibilities:**
 
-| Package             | Responsibility                                      | Key Exports                                                    |
-| ------------------- | --------------------------------------------------- | -------------------------------------------------------------- |
-| `@myk9/core`        | Utilities, types, constants shared by everything    | `logger`, `BaseEntity`, `SyncableEntity`, network utilities    |
-| `@myk9/supabase`    | Supabase client singleton, generated database types | `supabase` client, `Database` type, query helpers              |
-| `@myk9/replication` | Offline-first data layer with IndexedDB             | `ReplicatedTable`, `replicatedClassesTable`, sync utilities    |
-| `@myk9/ui`          | Accessible UI components (Base UI + Tailwind)       | `Button`, `Dialog`, `Select`, tailwind preset                  |
-| `@myk9/scoring`     | Scoring domain stores and types                     | `useScoringStore`, `useTimerStore`, score types                |
+| Package             | Responsibility                                      | Key Exports                                                     |
+| ------------------- | --------------------------------------------------- | --------------------------------------------------------------- |
+| `@myk9/core`        | Utilities, types, constants shared by everything    | `logger`, `BaseEntity`, `SyncableEntity`, network utilities     |
+| `@myk9/supabase`    | Supabase client singleton, generated database types | `supabase` client, `Database` type, query helpers               |
+| `@myk9/replication` | Offline-first data layer with IndexedDB             | `ReplicatedTable`, `replicatedClassesTable`, sync utilities     |
+| `@myk9/ui`          | Accessible UI components (Base UI + Tailwind)       | `Button`, `Dialog`, `Select`, tailwind preset                   |
+| `@myk9/scoring`     | Scoring domain stores and types                     | `useScoringStore`, `useTimerStore`, score types                 |
 | `@myk9/scoring-ui`  | Shared behavioral hooks for scoring UIs             | `useStopwatch`, `useDragAndDropEntries`, `useScoresheetScoring` |
-| `@myk9/ringside`    | The `/at-show` ringside screens and show-day flows   | `EntryListPage`, `useEntryListFilters`, `useEntryListData`     |
+| `@myk9/ringside`    | The `/at-show` ringside screens and show-day flows  | `EntryListPage`, `useEntryListFilters`, `useEntryListData`      |
 
 **Boundary rules:**
 

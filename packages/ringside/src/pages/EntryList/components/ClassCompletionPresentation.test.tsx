@@ -82,6 +82,12 @@ const releasedClass: ClassInfo = {
   className: 'Container Novice',
   element: 'Container',
   level: 'Novice',
+  // The host's expected/accounted pair, required since MYK9-646. All four
+  // `entries` above are scored, and the class is finalized AND released, so
+  // the pair is 4/4 -- anything else would describe a class that cannot be in
+  // the state the rest of this fixture puts it in.
+  totalEntries: 4,
+  completedEntries: 4,
   resultsReleasedAt: '2026-07-24T16:00:00.000Z',
   isScoringFinalized: true,
   actualStartTime: '2026-07-24T15:15:00.000Z',

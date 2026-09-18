@@ -43,12 +43,12 @@ import type {
   AreaCountRequirements,
 } from '../dialogSlots';
 import { ResetConfirmDialog, ResetMenuPopup, SelfCheckinDisabledDialog } from './index';
+import { classDialogCounts } from './classDialogCounts';
 
 export interface EntryListDialogsProps {
   classId: string | undefined;
   classInfo: ClassInfo | null;
   localEntries: Entry[];
-  completedEntries: Entry[];
 
   // Permission predicate over narrow EntryList union.
   hasPermission: (permission: EntryListPermission) => boolean;
@@ -149,7 +149,6 @@ export const EntryListDialogs: React.FC<EntryListDialogsProps> = ({
   classId,
   classInfo,
   localEntries,
-  completedEntries,
   hasPermission,
   hideMaxTimeOption,
   hideSettingsOption,
@@ -204,6 +203,14 @@ export const EntryListDialogs: React.FC<EntryListDialogsProps> = ({
 }) => {
   const navigate = useNavigate();
 
+  // The dialogs describe the SAME class the badges and the class header do, so
+  // they report the host's expected/accounted pair rather than raw row counts
+  // -- "66 entries" beside "Pending 65" was MYK9-646. `classDialogCounts` is
+  // called inside each `{classInfo && ...}` block rather than hoisted here:
+  // hoisting needs a nullable intermediate, and the only way to spend one at
+  // the call site is a `?? <raw length>` or `?? 0` arm -- which is the silent
+  // fallback this change exists to delete.
+
   return (
     <>
       <CheckinStatusDialog
@@ -240,8 +247,7 @@ export const EntryListDialogs: React.FC<EntryListDialogsProps> = ({
             element: classInfo.element,
             level: classInfo.level,
             class_name: classInfo.className,
-            entry_count: localEntries.length,
-            completed_count: completedEntries.length,
+            ...classDialogCounts(classInfo),
             class_status: classInfo.classStatus,
           }}
           onRequirements={() => {
@@ -286,7 +292,7 @@ export const EntryListDialogs: React.FC<EntryListDialogsProps> = ({
             element: classInfo.element,
             level: classInfo.level,
             class_name: classInfo.className,
-            entry_count: localEntries.length,
+            entry_count: classDialogCounts(classInfo).entry_count,
           }}
         />
       )}
@@ -352,7 +358,7 @@ export const EntryListDialogs: React.FC<EntryListDialogsProps> = ({
             level: classInfo.level,
             class_name: classInfo.className,
             class_status: classInfo.classStatus || 'no-status',
-            entry_count: localEntries.length,
+            entry_count: classDialogCounts(classInfo).entry_count,
           }}
           currentStatus={classInfo.classStatus || 'no-status'}
         />

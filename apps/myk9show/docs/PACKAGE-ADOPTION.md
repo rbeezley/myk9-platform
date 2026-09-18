@@ -10,7 +10,7 @@
 | ------------------- | ----- | ------------------------------------------------------------------- |
 | `@myk9/replication` | 8     | ReplicatedTable, SyncResult, type definitions                       |
 | `@myk9/core`        | 6     | logger                                                              |
-| `@myk9/scoring-ui`  | 8     | useStopwatch, useEntryListFilters, useDragAndDropEntries, BaseEntry |
+| `@myk9/scoring-ui`  | 8     | useStopwatch, useDragAndDropEntries, BaseEntry, scoresheet registry |
 | `@myk9/ui`          | 4     | Button, Card, Badge, ClassCard                                      |
 
 ### Files Using Packages
@@ -53,9 +53,11 @@
 ### @myk9/scoring-ui
 
 - `useStopwatch` - Timer hook with max time and warnings
-- `useEntryListFilters` - Filtering/sorting for entry lists
 - `useDragAndDropEntries` - Drag-and-drop reordering
 - `BaseEntry` - Base entry type
+
+> Entry-list filtering/sorting is `useEntryListFilters` from `@myk9/ringside`, not this package. The
+> `@myk9/scoring-ui` copy was an unreferenced duplicate and was deleted (MYK9-646).
 
 ### @myk9/ui
 

@@ -42,6 +42,13 @@ export function CockpitActionLink({
     </>
   );
   if (disabledReason !== undefined) {
+    // Derived from the action, not a literal: one `operatorOnly` action ships
+    // today, so no duplicate id exists yet, but a second one would have given
+    // two elements the same id and pointed both buttons at the first caption
+    // (REV-2341 U-2).
+    const reasonId = `cockpit-action-disabled-reason-${
+      destination.kind === 'href' ? destination.href : destination.commandId
+    }`;
     return (
       <div className={cn('flex flex-col gap-1', className)}>
         <Button
@@ -49,11 +56,11 @@ export function CockpitActionLink({
           variant={variant}
           className="min-h-11 justify-between"
           disabled
-          aria-describedby="cockpit-action-disabled-reason"
+          aria-describedby={reasonId}
         >
           {content}
         </Button>
-        <p id="cockpit-action-disabled-reason" className="text-xs text-muted-foreground">
+        <p id={reasonId} className="text-xs text-muted-foreground">
           {disabledReason}
         </p>
       </div>

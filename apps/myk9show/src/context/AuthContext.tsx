@@ -419,13 +419,12 @@ export function ProtectedRoute({
   requiredRole,
   requiredPermission,
   scope,
-  // THE default, deliberately: every role-gated route in the app gets the
-  // in-shell explained state rather than a chrome-less grey line, and there is
-  // no list of "the routes that matter" to keep in sync. See
+  // No default here: the default refusal state needs to know WHICH role the
+  // route asked for, and only the two refusal sites below know that. See
   // `RoleAccessDeniedState` for why the fix belongs at the destination
   // (REV-2341 R-1, second finding on one path -> restructure, not a fourth
   // control-level patch). No caller overrides this today.
-  fallback = <RoleAccessDeniedState />,
+  fallback,
 }: ProtectedRouteProps) {
   const context = React.useContext(AuthContext);
   const location = useLocation();
@@ -475,13 +474,18 @@ export function ProtectedRoute({
       : hasRole(requiredRole);
 
     if (!hasRequiredRole) {
-      return <>{fallback}</>;
+      // The required role travels into the refusal state, so it can say which
+      // access is missing instead of guessing from the viewer's own roles
+      // (REV-2341 U-1).
+      return <>{fallback ?? <RoleAccessDeniedState requiredRole={requiredRole} />}</>;
     }
   }
 
-  // Check permission requirements
+  // Check permission requirements. Deliberately NO `requiredRole` here even when
+  // the route also declares one: this refusal is about a permission the viewer
+  // lacks, and naming a role would explain it wrongly.
   if (requiredPermission && !hasPermission(requiredPermission, scope)) {
-    return <>{fallback}</>;
+    return <>{fallback ?? <RoleAccessDeniedState />}</>;
   }
 
   return <>{children}</>;

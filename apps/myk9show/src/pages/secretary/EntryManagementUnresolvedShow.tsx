@@ -1,4 +1,5 @@
 import { Link } from 'react-router-dom';
+import { TRIAL_SECRETARY_ONLY_REASON } from '@/features/actions/trialSecretaryAccess';
 import { AlertCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -12,10 +13,15 @@ interface EntryManagementUnresolvedShowProps {
   onRetry: () => void;
   retryDisabled?: boolean;
   /**
-   * Set when the viewer manages shows but is not a trial secretary. The "go to
-   * your shows" recovery then points at `/shows` instead of
-   * `/secretary/dashboard`, which is ProtectedRoute(SECRETARY | SITE_ADMIN) and
-   * would have refused them (REV-2341 R-1).
+   * The reason this viewer's secretary-only controls are greyed, if any. The
+   * "go to your shows" recovery points at `/shows` instead of
+   * `/secretary/dashboard` — ProtectedRoute(SECRETARY | SITE_ADMIN), which
+   * would refuse them (REV-2341 R-1) — but ONLY for the actual refusal.
+   *
+   * Compared against `TRIAL_SECRETARY_ONLY_REASON` rather than `!== undefined`:
+   * the transient "Checking your access to this show…" is also a non-undefined
+   * string, and treating it as a refusal sent a real trial secretary to the
+   * public browse page during the resolving window (REV-2341 U-3).
    */
   secretaryOnlyReason?: string | undefined;
 }
@@ -73,7 +79,7 @@ export function EntryManagementUnresolvedShow({
           <Button onClick={onRetry} disabled={retryDisabled}>
             Retry
           </Button>
-        ) : secretaryOnlyReason !== undefined ? (
+        ) : secretaryOnlyReason === TRIAL_SECRETARY_ONLY_REASON ? (
           // `/secretary/dashboard` is ProtectedRoute(SECRETARY | SITE_ADMIN),
           // so for a club admin this was one more enabled link into a refusal
           // (REV-2341 R-1). Their shows are on `/shows`, which is theirs.

@@ -25,20 +25,42 @@ import { TRIAL_SECRETARY_ONLY_REASON } from '@/features/actions/trialSecretaryAc
  * rendered the old line — it never admits anyone, and the route's role check is
  * unchanged.
  *
- * The copy splits on what the viewer actually holds, because "Trial secretary
- * access only" is information to a club admin and noise to an exhibitor who
- * mistyped a URL.
+ * The copy splits on BOTH the role the route asked for and the role the viewer
+ * holds. The first cut split on the viewer alone, which made this page tell a
+ * club admin that `/admin/*`, `/judge/*`, `/people/:id` and every
+ * permission-only gate "belongs to the show's trial secretary" and that a club
+ * admin could grant them access — a confident falsehood on ~30 routes that have
+ * nothing to do with MYK9-630, where the line it replaced was vague but true
+ * (REV-2341 U-1). `requiredRole` is information `ProtectedRoute` already holds
+ * at the moment it renders this.
  */
-export function RoleAccessDeniedState() {
+export function RoleAccessDeniedState({
+  requiredRole,
+}: {
+  /**
+   * The role(s) the refusing route asked for. Omitted for a
+   * `requiredPermission`-only refusal, which is never about a role.
+   */
+  requiredRole?: UserRole | UserRole[] | undefined;
+} = {}) {
   const navigate = useNavigate();
   const { hasRole } = useAuthContext();
-  // A manager who is not an operator: the persona phase 3 created. Deliberately
-  // the GLOBAL role, not a club-scoped gate — this component cannot resolve a
-  // show from every route that renders it (`/scoring/classes/:id/entries` names
-  // a class), and since it only ever chooses between two refusal messages, the
-  // coarser question is the right one. Nothing is granted either way.
+  // Only a route that asks for SECRETARY can honestly be explained as the trial
+  // secretary's. A SITE_ADMIN-only or JUDGE route cannot, however the viewer is
+  // rolled.
+  const routeWantsSecretary =
+    requiredRole !== undefined &&
+    (Array.isArray(requiredRole) ? requiredRole : [requiredRole]).includes(UserRole.SECRETARY);
+  // ...and only for a manager who is not an operator: the persona phase 3
+  // created. Deliberately the GLOBAL viewer role, not a club-scoped gate — this
+  // component cannot resolve a show from every route that renders it
+  // (`/scoring/classes/:id/entries` names a class), and it only ever chooses
+  // between two refusal messages. Nothing is granted either way.
   const isManagerWithoutOperatorRole =
-    hasRole(UserRole.CLUB_ADMIN) && !hasRole(UserRole.SECRETARY) && !hasRole(UserRole.SITE_ADMIN);
+    routeWantsSecretary &&
+    hasRole(UserRole.CLUB_ADMIN) &&
+    !hasRole(UserRole.SECRETARY) &&
+    !hasRole(UserRole.SITE_ADMIN);
 
   return (
     <PageShell>

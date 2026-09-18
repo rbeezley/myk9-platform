@@ -54,6 +54,12 @@ export interface RemoveFromClassDialogProps {
   /** The class the exhibitor is leaving. */
   className: string | null;
   /**
+   * The trial date / number that tells this class apart from a same-named one
+   * in another trial (MYK9-631 round 1). Display only, appended after the class
+   * name on every step. Optional: the secretary sheet has no such column.
+   */
+  classWhen?: string | null;
+  /**
    * The show's rulebook, or the fact that we do not know it yet. Not a
    * RegistryId: "still looking" and "this is an AKC show" must not be the same
    * value (MYK9-632 round 4).
@@ -101,12 +107,23 @@ type RemoveFromClassBodyProps = Omit<RemoveFromClassDialogProps, 'open' | 'onOpe
 
 function RemoveFromClassBody({
   className,
+  classWhen = null,
   registry,
   isSaving,
   withdrawDisabledReason = null,
   pullDisabledReason = null,
   onConfirm,
 }: RemoveFromClassBodyProps) {
+  // The class, named unambiguously. The body is keyed on `classId` precisely
+  // because two classes in one show can share a display name; until round 1 the
+  // COPY did not carry that distinction, so all three steps said the same
+  // ambiguous string.
+  const classLabel = (
+    <>
+      <strong>{className}</strong>
+      {classWhen ? ` · ${classWhen}` : ''}
+    </>
+  );
   const policy = registry.status === 'resolved' ? getWithdrawalPolicy(registry.registry) : null;
   const [step, setStep] = useState<Step>('choose');
   const [kind, setKind] = useState<RemoveFromClassKind>('pull');
@@ -171,8 +188,8 @@ function RemoveFromClassBody({
         <AlertDialogDescription>
           {effectiveStep === 'choose' ? (
             <>
-              <strong>{className}</strong> — withdrawing and pulling are different, and the club
-              handles the fee differently for each.
+              {classLabel} — withdrawing and pulling are different, and the club handles the fee
+              differently for each.
             </>
           ) : effectiveStep === 'reason' ? (
             <>
@@ -184,13 +201,12 @@ function RemoveFromClassBody({
             <>
               {/* `effectiveStep` guarantees a selected reason here, so the
                   sentence can never quietly lose its clause. */}
-              You are withdrawing <strong>{className}</strong> because of: {selectedReason?.label}.
-              Your withdrawal is recorded. The show secretary confirms the refund under the
-              premium&apos;s rules.
+              You are withdrawing {classLabel} because of: {selectedReason?.label}. Your withdrawal
+              is recorded. The show secretary confirms the refund under the premium&apos;s rules.
             </>
           ) : (
             <>
-              You are pulling <strong>{className}</strong>. {PULL_REFUND_FALLBACK}
+              You are pulling {classLabel}. {PULL_REFUND_FALLBACK}
             </>
           )}
         </AlertDialogDescription>

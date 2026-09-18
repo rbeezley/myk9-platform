@@ -150,7 +150,13 @@ export const OrdersReceiptsList: React.FC<OrdersReceiptsListProps> = ({
             }
             onClick={() => onSelect(order)}
           >
-            <span className="min-w-0 truncate">{rowLabel}</span>
+            {/* `truncate` hides the tail, and the tail is where two orders
+                placed the same day for the same dog differ. The full string is
+                in the accessible name; `title` puts it within reach of a
+                sighted mouse user too. */}
+            <span className="min-w-0 truncate" title={rowLabel}>
+              {rowLabel}
+            </span>
             {money && amount && (
               <span className="shrink-0 text-right">
                 <span className="block font-medium">{amount}</span>

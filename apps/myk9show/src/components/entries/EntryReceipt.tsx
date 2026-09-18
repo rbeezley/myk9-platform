@@ -18,6 +18,7 @@ import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
 import { Printer, X } from 'lucide-react';
 import { CONFIRMATION_NUMBER_LABEL } from '@/features/registration/confirmationNumberDisplay';
+import { escapeHtml } from '@/utils/escapeHtml';
 import { formatEntryDate, formatRecordDateTime } from '@/lib/format/dates';
 
 interface EntryClass {
@@ -288,7 +289,7 @@ export function EntryReceipt({
       <!DOCTYPE html>
       <html>
         <head>
-          <title>Entry Receipt - ${entry.dogName}, ${entry.showName}</title>
+          <title>Entry Receipt - ${escapeHtml(entry.dogName)}, ${escapeHtml(entry.showName)}</title>
           ${styles}
         </head>
         <body>
@@ -576,8 +577,16 @@ export function EntryReceipt({
 
           {/* Footer */}
           <div className="footer mt-8 pt-4 border-t text-center text-xs text-muted-foreground">
-            {/* MYK9-631 Q7: the raw `Entry ID: <uuid>` line is gone. */}
+            {/* MYK9-631 Q7 put the ONE identifier in the confirmation block
+                above and deleted the `Entry ID: <uuid>` line. But a cash, check
+                or secretary-recorded registration has no confirmation number at
+                all, and round 1 caught what that left: a printed receipt with
+                nothing unique on it, for exactly the path that gets reconciled
+                by hand. A receipt is the one surface AC4 allows an id on, so
+                when there is no confirmation number the entry id prints here as
+                a labelled Reference — never in a picker, never on a card. */}
             <p>Thank you for your entry!</p>
+            {!entry.confirmationNumber && <p className="mt-1">Reference: {entry.id}</p>}
             <p className="mt-1">Generated on {formatRecordDateTime(new Date())}</p>
           </div>
         </div>

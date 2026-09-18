@@ -158,6 +158,17 @@ Every question below was **decided as an assumption when AC2–AC6 were built**,
 6. **Deleted in the same PR** — decided (assumption, PR #2334; re-landed as #2336). `components/shows/overview/EntryCTA.tsx` and `test/components/EntryCTA.test.tsx` are gone; nothing imported the component outside its own test.
 7. **Keep the confirmation number, drop the other two** — decided (assumption, PR #2334; re-landed as #2336). `Confirmation # MK9-000145` is defensible on a receipt and is now the ONLY identifier the document prints. The `Entry ID:` UUID footer and the monospace order id are deleted, `orderId` is off `EntryReceiptData` entirely, and the field is optional because nothing mints a stand-in for it any more.
 8. **Its own issue** — decided (assumption, PR #2334; re-landed as #2336). The When/Status chips narrowing each other silently is out of scope here; filed as **MYK9-657** and linked from MYK9-631.
+9. **The row control is NOT gated on the entry-close deadline** — decided (assumption, PR #2336 round 1). _Raised by review, not by the original inventory._
+
+   The old path reached `RemoveFromClassDialog` only through the Edit sheet, which was double-gated: the header offered it only while `canEdit` (an editable status **and** the close date not passed), and the sheet then ran `canModifyEntry(showId)`, which refuses once the entry-close day is past. So on the base an exhibitor could not self-withdraw at all after entries closed.
+
+   The row control consults `ClassRowKind`, `isPastShow`, `unresolved` and `showId` — **not** the deadline. That is deliberate, and it matches MYK9-632 AC2: _Pull is always available before the class runs; Withdraw is disabled with its reason after the registry's cutoff._ A deadline gate would make the feature nearly unreachable — the cases MYK9-632 was built for (a bitch in season the week of the show, a judge change announced after entries close) all happen **after** the close date, and a withdrawal recorded then is precisely what carries the refund obligation under the premium.
+
+   Withdraw's own cutoff is therefore enforced where it belongs: inside the chooser, by `withdrawalPolicy` and the server's `evaluateWithdrawEligibility`, which disable the arm **and say why** rather than hiding the control. Pull stays available because a club can always exercise its discretion.
+
+   This is a money-path policy change and the owner can reverse it. Reversing it means re-adding a `canModifyEntry`-equivalent term to `canLeaveClass`, and accepting that an exhibitor with a vet certificate the day before the show has no way to record it.
+
+**Not adopted from round 1.** Lens L suggested `Add classes` and `View show page` be collapsed into one item because both emitted `/shows/:id`. They are two different verbs, so the fix taken was to point `Add classes` at the wizard's own route (`/shows/:id/register`, `publicRoutes.tsx`) rather than to drop an item.
 
 ### What the menu holds, as shipped
 

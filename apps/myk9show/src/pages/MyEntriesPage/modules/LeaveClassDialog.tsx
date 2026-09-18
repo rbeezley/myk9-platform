@@ -43,6 +43,18 @@ export const LeaveClassDialog: React.FC<LeaveClassDialogProps> = ({
   onUpdate,
 }) => {
   const [isSaving, setIsSaving] = React.useState(false);
+  /**
+   * The same fact as `isSaving`, readable SYNCHRONOUSLY.
+   *
+   * `AlertDialogAction` closes the dialog itself on click, so `onOpenChange`
+   * fires in the same tick as the confirm handler — before the write has
+   * resolved and before a `setIsSaving(true)` has been committed. A state read
+   * there sees the pre-click value and lets the close through, which is how the
+   * chooser used to vanish on a refusal. The ref is written before the `await`,
+   * so the close request can be refused for exactly as long as a write is in
+   * flight; the dialog is then dismissed deliberately, on success only.
+   */
+  const savingRef = React.useRef(false);
   const target = dialog.target;
   const open = dialog.open && target != null;
 
@@ -52,11 +64,31 @@ export const LeaveClassDialog: React.FC<LeaveClassDialogProps> = ({
   const eligibility = useWithdrawEligibility(open, false, target ? [target.classId] : []);
   const rowEligibility = target ? eligibility[target.classId] : undefined;
 
+  /**
+   * Where focus goes once the row that owned this dialog disappears.
+   *
+   * On success the entry is withdrawn, the list re-renders, and the row's
+   * "Leave class…" button unmounts — correctly, the row is settled now. The
+   * AlertDialog's own focus restore then targets a removed node and focus falls
+   * to `<body>`, so a keyboard or screen-reader user loses their place on the
+   * page immediately after the one destructive act. The base path did not have
+   * this problem: it happened inside the Edit sheet, which stayed open.
+   */
+  const restoreFocus = React.useCallback((dogId: string) => {
+    // After the refresh has painted, not before — the node exists throughout,
+    // but focusing it while the old row is still mounted lets the dialog's own
+    // restore run afterwards and win.
+    requestAnimationFrame(() => {
+      document.getElementById(`my-show-dog-${dogId}`)?.focus();
+    });
+  }, []);
+
   const confirm = async (choice: {
     kind: RemoveFromClassKind;
     reason: WithdrawalReasonCode | null;
   }) => {
     if (!target) return;
+    savingRef.current = true;
     setIsSaving(true);
     try {
       const { error } = await withdrawEntry(target.classId, {
@@ -67,6 +99,11 @@ export const LeaveClassDialog: React.FC<LeaveClassDialogProps> = ({
         // The card has no Alert slot of its own, so the refusal surfaces as a
         // toast — but it is the SAME mapped sentence the sheet shows, never the
         // raw Postgres text that carries the row UUID.
+        //
+        // The dialog STAYS OPEN on a refusal (round 1, lens K): closing it made
+        // the exhibitor re-find the row and re-walk choose → reason → confirm
+        // for a failure that is usually transient. The sheet it replaces keeps
+        // its Alert and stays put; this keeps the chooser and its toast.
         toast.error(withdrawErrorMessage(error, choice.kind));
         logger.error(
           `Failed to ${choice.kind === 'pull' ? 'pull' : 'withdraw'} class entry from the card:`,
@@ -74,20 +111,30 @@ export const LeaveClassDialog: React.FC<LeaveClassDialogProps> = ({
           {},
           error as Error
         );
+        savingRef.current = false;
+        setIsSaving(false);
         return;
       }
+      const where = target.classWhen
+        ? `${target.className} · ${target.classWhen}`
+        : target.className;
       toast.success(
         choice.kind === 'pull'
-          ? `${target.dogName} is pulled from ${target.className}.`
-          : `${target.dogName} is withdrawn from ${target.className}.`
+          ? `${target.dogName} is pulled from ${where}.`
+          : `${target.dogName} is withdrawn from ${where}.`
       );
-      onUpdate();
-    } catch (err) {
-      toast.error('An unexpected error occurred.');
-      logger.error('Error leaving class from the card:', 'entries', {}, err as Error);
-    } finally {
+      savingRef.current = false;
       setIsSaving(false);
       onClose();
+      restoreFocus(target.dogId);
+      onUpdate();
+    } catch (err) {
+      // Same reasoning as the refusal branch: an unexpected throw is the case
+      // where a retry is most likely to help, so the chooser stays open.
+      toast.error('An unexpected error occurred.');
+      logger.error('Error leaving class from the card:', 'entries', {}, err as Error);
+      savingRef.current = false;
+      setIsSaving(false);
     }
   };
 
@@ -96,11 +143,18 @@ export const LeaveClassDialog: React.FC<LeaveClassDialogProps> = ({
       open={open}
       classId={target?.classId ?? null}
       className={target?.className ?? null}
+      classWhen={target?.classWhen ?? null}
       registry={registry}
       isSaving={isSaving}
       withdrawDisabledReason={rowEligibility?.withdraw.reason ?? null}
       pullDisabledReason={rowEligibility?.pull.reason ?? null}
-      onOpenChange={next => !next && onClose()}
+      // A close while a write is in flight is the primitive's own, fired by
+      // AlertDialogAction; it is refused so a refusal can keep the chooser (and
+      // the exhibitor's half-made choice) on screen. Every other close — Escape,
+      // the overlay, "Keep my entry" — passes through untouched.
+      onOpenChange={next => {
+        if (!next && !savingRef.current) onClose();
+      }}
       onConfirm={choice => void confirm(choice)}
     />
   );

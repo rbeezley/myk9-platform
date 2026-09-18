@@ -283,7 +283,16 @@ export interface LeaveClassTarget {
   /** The class row's `entries.id` — the row `withdrawEntry` writes. */
   classId: string;
   className: string;
+  /**
+   * The row's own "when" column (trial date, and trial number when the show ran
+   * more than one). Display only. Two trials of one show can run a class with
+   * the SAME display name, so without this the chooser's three steps — and the
+   * row control's accessible name — cannot tell them apart.
+   */
+  classWhen?: string | undefined;
   dogName: string;
+  /** Focus goes back to this dog's card heading once the write lands. */
+  dogId: string;
   /** Resolves the show's withdrawal rulebook. */
   showId: string;
 }

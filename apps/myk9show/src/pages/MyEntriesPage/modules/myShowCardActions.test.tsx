@@ -156,14 +156,19 @@ describe('MYK9-631 AC2 — the show card carries ONE actions trigger', () => {
     expect(props.onOpenEdit).toHaveBeenCalledWith([expect.objectContaining({ id: 'e-juni' })]);
   });
 
-  it('links Add classes at the show page rather than reimplementing the wizard', async () => {
+  // Round 1 (K P3-2 / L P3): this used to emit `/shows/:id`, the same href
+  // `View show page` already had — two labels, one destination, in the menu
+  // whose purpose is to stop scattering. It now points at the wizard's own
+  // route, so the two items genuinely differ.
+  it('links Add classes at the registration wizard, not the show page', async () => {
     renderRows([liveRow([aheadClass()])]);
 
     const menu = await openShowActions(userEvent.setup(), SHOW);
-    expect(menu.getByRole('menuitem', { name: /Add classes/ })).toHaveAttribute(
-      'href',
-      '/shows/show-flint'
-    );
+    const addClasses = menu.getByRole('menuitem', { name: /Add classes/ });
+    const viewShow = menu.getByRole('menuitem', { name: /View the show page/ });
+    expect(addClasses).toHaveAttribute('href', '/shows/show-flint/register');
+    expect(viewShow).toHaveAttribute('href', '/shows/show-flint');
+    expect(addClasses.getAttribute('href')).not.toBe(viewShow.getAttribute('href'));
   });
 });
 
@@ -177,15 +182,19 @@ describe('MYK9-631 AC3 — leaving a class is a ROW verb', () => {
       ]),
     ]);
 
+    // The accessible name now carries the trial discriminator too, so match on
+    // the class rather than the whole string.
     await user.click(
-      screen.getByRole('button', { name: 'Withdraw or pull Juni from Exterior Excellent' })
+      screen.getByRole('button', { name: /^Withdraw or pull Juni from Exterior Excellent/ })
     );
 
     expect(props.onLeaveClass).toHaveBeenCalledTimes(1);
     expect(props.onLeaveClass).toHaveBeenCalledWith({
       classId: 'c-juni-2',
       className: 'Exterior Excellent',
+      classWhen: expect.any(String),
       dogName: 'Juni',
+      dogId: 'dog-juni',
       showId: 'show-flint',
     });
   });
@@ -237,6 +246,91 @@ describe('MYK9-631 AC3 — leaving a class is a ROW verb', () => {
       expect(screen.queryByRole('button', { name: /Withdraw or pull/ })).not.toBeInTheDocument();
     }
   );
+
+  // Round 1, lens K (P2-1). Every MENU item already carried this guard; the row
+  // control did not, and the failure was worse than a dead link:
+  // `useShowRegistryId('')` never resolves, so the chooser opened with Withdraw
+  // disabled under "Checking the show's rules…" forever while Pull — the arm
+  // with no refund path — stayed clickable.
+  it('withholds it while the show relation is still replicating', () => {
+    renderRows([liveRow([aheadClass()], { showId: '' })]);
+
+    expect(screen.getByText('Interior Advanced')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /Withdraw or pull/ })).not.toBeInTheDocument();
+  });
+
+  // Round 1, lens K (P3-1). `pulled` is a `check_in_status`, not a lifecycle
+  // state: the entry is still entered and the server admits it
+  // (PRE_SHOW_CHECK_IN_STATUSES). Withholding the control meant a dog pulled at
+  // the gate could never be converted into a RECORDED withdrawal, because the
+  // "change" link beside it writes check-in alone.
+  it('still offers it on a pre-show row already pulled at check-in', () => {
+    renderRows([liveRow([aheadClass({ checkInStatus: 'pulled' })])]);
+
+    expect(
+      screen.getByRole('button', { name: /Withdraw or pull Juni from Interior Advanced/ })
+    ).toBeInTheDocument();
+    // And the check-in "change" link is still there — the two do different things.
+    expect(screen.getByRole('button', { name: /Change Juni's check-in/ })).toBeInTheDocument();
+  });
+
+  // Round 1, lens K (P2-2) + the owner rule this PR states in its body and in
+  // docs/plan-exhibitor-show-actions.md §4 Q9: the row control is deliberately
+  // NOT gated on the entry-close deadline, unlike the Edit sheet it replaced.
+  // MYK9-632 built Withdraw/Pull for exactly the post-close and day-of cases;
+  // Withdraw's own cutoff is enforced by the registry policy inside the
+  // chooser, not by hiding the control.
+  it('is offered past entry close, while the class has not yet run', async () => {
+    const { props } = renderRows([liveRow([aheadClass()], { entryCloseDate: day('2026-01-01') })]);
+
+    // The sheet's own item is gone — nothing is editable any more...
+    const menu = await openShowActions(userEvent.setup(), SHOW);
+    expect(
+      menu.queryByRole('menuitem', { name: 'Change handler or jump height' })
+    ).not.toBeInTheDocument();
+
+    // ...but leaving the class is still offered, and still routes to THAT row.
+    await userEvent
+      .setup()
+      .click(screen.getByRole('button', { name: /Withdraw or pull Juni from Interior Advanced/ }));
+    expect(props.onLeaveClass).toHaveBeenCalledWith(
+      expect.objectContaining({ classId: 'c-juni-1', className: 'Interior Advanced' })
+    );
+  });
+
+  // Round 1, lens L (P2). RemoveFromClassDialog keys its body on the class ID
+  // precisely because two trials of one show can run a class with the same
+  // display NAME — but the control and the chooser copy were naming it by that
+  // ambiguous string alone, giving a screen-reader user two identical buttons.
+  it('disambiguates two same-named classes in different trials', async () => {
+    const { props } = renderRows([
+      liveRow([
+        aheadClass({ id: 'c-t1', name: 'Container Novice A', trialNumber: '1' }),
+        aheadClass({
+          id: 'c-t2',
+          name: 'Container Novice A',
+          trialNumber: '2',
+          trialDate: day('2026-11-15'),
+        }),
+      ]),
+    ]);
+
+    const controls = screen.getAllByRole('button', { name: /^Withdraw or pull Juni/ });
+    expect(controls).toHaveLength(2);
+    const names = controls.map(c => c.getAttribute('aria-label'));
+    // The whole point: the two accessible names differ.
+    expect(new Set(names).size).toBe(2);
+    for (const name of names) expect(name).toMatch(/Container Novice A, /);
+
+    await userEvent.setup().click(controls[1]!);
+    expect(props.onLeaveClass).toHaveBeenCalledWith(
+      expect.objectContaining({ classId: 'c-t2', className: 'Container Novice A' })
+    );
+    // The discriminator travels with the target, so the chooser can print it.
+    expect(props.onLeaveClass).toHaveBeenCalledWith(
+      expect.objectContaining({ classWhen: expect.stringMatching(/Trial 2|Nov 15/) })
+    );
+  });
 
   it('withholds it once the show itself is over', () => {
     renderRows([

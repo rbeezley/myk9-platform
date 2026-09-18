@@ -38,7 +38,9 @@ const chooser = () => screen.findByRole('alertdialog');
 const target = {
   classId: 'entry-exterior-excellent',
   className: 'Exterior Excellent',
+  classWhen: 'Sat, Nov 14 · Trial 2',
   dogName: 'Juni',
+  dogId: 'dog-juni',
   showId: 'show-flint',
 };
 
@@ -65,6 +67,9 @@ describe('LeaveClassDialog', () => {
     const dialog = within(await chooser());
     expect(dialog.getByText('Leave this class?')).toBeInTheDocument();
     expect(dialog.getByText('Exterior Excellent')).toBeInTheDocument();
+    // Round 1 (lens L): two trials of one show can run a class with the same
+    // display name, so every step carries the row's own discriminator.
+    expect(dialog.getByText(/Sat, Nov 14 · Trial 2/)).toBeInTheDocument();
     // No order picker: the whole point of AC3.
     expect(screen.queryByText(/Choose an entry/i)).not.toBeInTheDocument();
     expect(screen.queryByText(/more than once/i)).not.toBeInTheDocument();
@@ -140,5 +145,78 @@ describe('LeaveClassDialog', () => {
     );
     expect(dialog.getByRole('button', { name: /^withdraw$/i })).toBeDisabled();
     expect(dialog.getByRole('button', { name: /^pull$/i })).toBeEnabled();
+  });
+});
+
+describe('LeaveClassDialog — round 1 corrections', () => {
+  it('stays OPEN on a server refusal, so the exhibitor can retry', async () => {
+    const user = userEvent.setup();
+    mocks.withdrawEntry.mockResolvedValue({
+      data: null,
+      error: { code: 'entry-paid', message: 'This entry is paid; request a refund instead.' },
+    });
+    const onClose = vi.fn();
+    const onUpdate = vi.fn();
+    render(
+      <LeaveClassDialog dialog={{ open: true, target }} onClose={onClose} onUpdate={onUpdate} />
+    );
+
+    const dialog = within(await chooser());
+    await user.click(dialog.getByRole('button', { name: /^pull$/i }));
+    await user.click(dialog.getByRole('button', { name: /pull entry/i }));
+
+    await waitFor(() => expect(mocks.withdrawEntry).toHaveBeenCalled());
+    // The chooser it replaced (the Edit sheet) keeps its Alert and stays put.
+    // Tearing this one down made the exhibitor re-find the row and re-walk
+    // choose → reason → confirm for a failure that is usually transient.
+    expect(onClose).not.toHaveBeenCalled();
+    expect(onUpdate).not.toHaveBeenCalled();
+    expect(screen.getByRole('alertdialog')).toBeInTheDocument();
+    // And the confirm is live again rather than stuck in its saving state.
+    await waitFor(() => expect(dialog.getByRole('button', { name: /pull entry/i })).toBeEnabled());
+  });
+
+  it('stays open when the call throws, too', async () => {
+    const user = userEvent.setup();
+    mocks.withdrawEntry.mockRejectedValue(new Error('offline'));
+    const onClose = vi.fn();
+    render(
+      <LeaveClassDialog dialog={{ open: true, target }} onClose={onClose} onUpdate={vi.fn()} />
+    );
+
+    const dialog = within(await chooser());
+    await user.click(dialog.getByRole('button', { name: /^pull$/i }));
+    await user.click(dialog.getByRole('button', { name: /pull entry/i }));
+
+    await waitFor(() => expect(mocks.withdrawEntry).toHaveBeenCalled());
+    expect(onClose).not.toHaveBeenCalled();
+    expect(screen.getByRole('alertdialog')).toBeInTheDocument();
+  });
+
+  it('closes and hands focus to the dog card on success', async () => {
+    const user = userEvent.setup();
+    // The node the card renders, present throughout, exactly as MyShowDogCard
+    // renders it — the row's own button unmounts with the row, which is why
+    // the AlertDialog's restore cannot be relied on.
+    const heading = document.createElement('span');
+    heading.id = 'my-show-dog-dog-juni';
+    heading.tabIndex = -1;
+    document.body.appendChild(heading);
+
+    const onClose = vi.fn();
+    const onUpdate = vi.fn();
+    render(
+      <LeaveClassDialog dialog={{ open: true, target }} onClose={onClose} onUpdate={onUpdate} />
+    );
+
+    const dialog = within(await chooser());
+    await user.click(dialog.getByRole('button', { name: /^pull$/i }));
+    await user.click(dialog.getByRole('button', { name: /pull entry/i }));
+
+    await waitFor(() => expect(onClose).toHaveBeenCalled());
+    expect(onUpdate).toHaveBeenCalled();
+    await waitFor(() => expect(document.activeElement).toBe(heading));
+
+    heading.remove();
   });
 });

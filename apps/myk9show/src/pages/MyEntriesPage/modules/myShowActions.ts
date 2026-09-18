@@ -59,13 +59,18 @@ export function buildMyShowActions(facts: MyShowActionsFacts): MyShowAction[] {
   const actions: MyShowAction[] = [];
   const hasShow = facts.showId !== '';
 
-  // A LINK to the wizard's entry point, never a second registration surface
-  // (MYK9-631 Q3). The show page owns "which classes are still open".
+  // A LINK to the wizard, never a second registration surface (MYK9-631 Q3).
+  //
+  // `/shows/:showId/register` (publicRoutes.tsx) — the wizard's OWN route, not
+  // the show page. Round 1 caught this pointing at `/shows/:showId`, the same
+  // href `View show page` already emits: two labels, one destination, in the
+  // menu whose entire purpose is to stop scattering. The wizard owns "which
+  // classes are still open"; the show page merely contains a link to it.
   if (hasShow && facts.hasEditableOrders && !facts.isPastShow) {
     actions.push({
       id: 'add-classes',
       label: 'Add classes',
-      href: `/shows/${facts.showId}`,
+      href: `/shows/${facts.showId}/register`,
       ariaLabel: `Add classes at ${facts.showName}`,
     });
   }

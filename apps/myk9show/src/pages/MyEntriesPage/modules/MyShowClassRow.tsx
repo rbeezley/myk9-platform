@@ -26,7 +26,7 @@ import {
 } from '@/features/result-card';
 import { formatWeekdayMonthDay } from '@/lib/format/dates';
 import { formatTrialLabel } from './myEntriesUtils';
-import { canLeaveClassRow } from './leaveClassRow';
+import { canLeaveClass } from './leaveClassRow';
 import { deriveClassRowState, type ClassRowKind } from './myShowDogState';
 import type { DayCheckInContext } from './dayCheckIn';
 import type { MyShowClass } from './groupEntriesByShow';
@@ -80,6 +80,11 @@ export interface MyShowClassRowProps {
   checkInContext: DayCheckInContext;
   /** Drop the trial number when the show only ever had one trial. */
   showTrialNumber: boolean;
+  /**
+   * The show this row belongs to. Empty during the partial-replication window,
+   * which is a guard the leave control needs — see `canLeaveClass`.
+   */
+  showId: string;
   seenResultReleaseKeys: Set<string>;
   onCheckInClass: (cls: MyShowClass) => void;
   onOpenCheckIn: (order: MyEntry, cls: MyShowClass) => void;
@@ -88,7 +93,7 @@ export interface MyShowClassRowProps {
    * rather than a menu item, because leaving a class is per class — and the
    * order picker that used to stand in front of it is what AC3 deletes.
    */
-  onLeaveClass: (cls: MyShowClass) => void;
+  onLeaveClass: (cls: MyShowClass, classWhen: string) => void;
   onResultRevealClick?: ((model: ResultCardModel) => void) | undefined;
 }
 
@@ -98,6 +103,7 @@ export const MyShowClassRow: React.FC<MyShowClassRowProps> = ({
   order,
   checkInContext,
   showTrialNumber,
+  showId,
   seenResultReleaseKeys,
   onCheckInClass,
   onOpenCheckIn,
@@ -106,14 +112,27 @@ export const MyShowClassRow: React.FC<MyShowClassRowProps> = ({
 }) => {
   const state = deriveClassRowState(cls, checkInContext);
   const word = STATE_WORDS[state.kind];
-  // Which rows may offer it is `leaveClassRow.ts`; a show already over offers
-  // nothing, whatever the row kind reads as.
-  const canLeave = !checkInContext.isPastShow && canLeaveClassRow(state.kind);
 
   const when = [
     cls.trialDate ? formatWeekdayMonthDay(cls.trialDate) : null,
     showTrialNumber && cls.trialNumber ? formatTrialLabel(cls.trialNumber) : null,
   ].filter((part): part is string => Boolean(part));
+
+  // All four terms live in `leaveClassRow.ts` so the rule is drivable without a
+  // render. Deliberately NOT gated on the entry-close deadline — see that
+  // module and `docs/plan-exhibitor-show-actions.md` §4 Q9.
+  const canLeave = canLeaveClass({
+    kind: state.kind,
+    isPastShow: checkInContext.isPastShow,
+    unresolved: Boolean(cls.unresolved),
+    hasShowId: showId !== '',
+  });
+  // The same discriminator the row already shows. Two trials of one show can
+  // run a class with the SAME display name, which is why RemoveFromClassDialog
+  // keys its body on the class id — but the destructive control and all three
+  // of the chooser's steps were naming the class by that ambiguous string
+  // alone, so a screen-reader user got two identical buttons.
+  const classWhen = when.join(' · ');
 
   return (
     <div className="myk9-entries-class-row">
@@ -187,8 +206,12 @@ export const MyShowClassRow: React.FC<MyShowClassRowProps> = ({
             </span>
             <button
               type="button"
-              onClick={() => onLeaveClass(cls)}
-              aria-label={`Withdraw or pull ${dogName} from ${cls.name}`}
+              onClick={() => onLeaveClass(cls, classWhen)}
+              aria-label={
+                classWhen
+                  ? `Withdraw or pull ${dogName} from ${cls.name}, ${classWhen}`
+                  : `Withdraw or pull ${dogName} from ${cls.name}`
+              }
               className={`${LINK_CLASS} text-muted-foreground`}
             >
               Leave class…

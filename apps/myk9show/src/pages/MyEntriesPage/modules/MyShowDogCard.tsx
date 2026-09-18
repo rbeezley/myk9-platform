@@ -38,6 +38,8 @@ export interface MyShowDogCardProps {
   isShowCancelled: boolean;
   /** Suppress the trial number when the show only ever ran one trial. */
   showTrialNumber: boolean;
+  /** The show these classes belong to; empty during the replication window. */
+  showId: string;
   /** Refund recorded against this dog's order, if any. */
   refundNote?: RefundNote | undefined;
   /** The dog's entry is still awaiting the secretary. */
@@ -46,7 +48,7 @@ export interface MyShowDogCardProps {
   onCheckInDay: (dog: MyShowDog, classes: MyShowClass[]) => void;
   onOpenCheckIn: (order: MyEntry, cls: MyShowClass) => void;
   /** MYK9-631 AC3: withdrawing or pulling one class, from the row that owns it. */
-  onLeaveClass: (dog: MyShowDog, cls: MyShowClass) => void;
+  onLeaveClass: (dog: MyShowDog, cls: MyShowClass, classWhen: string) => void;
   onResultRevealClick?: ((model: ResultCardModel) => void) | undefined;
 }
 
@@ -56,6 +58,7 @@ const MyShowDogCardComponent: React.FC<MyShowDogCardProps> = ({
   checkInContext,
   isShowCancelled,
   showTrialNumber,
+  showId,
   refundNote,
   isPendingReview,
   seenResultReleaseKeys,
@@ -77,7 +80,16 @@ const MyShowDogCardComponent: React.FC<MyShowDogCardProps> = ({
           {/* ArmbandBadge's own unassigned path renders a muted dash, so the
               "not a filled pill yet" rule is one implementation, not two. */}
           <ArmbandBadge armband={dog.armband} className="h-10 min-w-10 text-base" />
-          <span className="myk9-entries-dog-card-name">{dog.dogName}</span>
+          {/* Focus lands here after a successful leave: the row's control
+              unmounts with the row it belonged to, so the AlertDialog's own
+              restore would target a removed node and drop focus to <body>. */}
+          <span
+            id={`my-show-dog-${dog.dogId}`}
+            tabIndex={-1}
+            className="myk9-entries-dog-card-name outline-none"
+          >
+            {dog.dogName}
+          </span>
         </div>
         <div className="myk9-entries-dog-card-actions">
           <StatusBadge family="entry" status={chip.status} label={chip.label} />
@@ -104,10 +116,11 @@ const MyShowDogCardComponent: React.FC<MyShowDogCardProps> = ({
             order={ordersById[cls.orderId]}
             checkInContext={checkInContext}
             showTrialNumber={showTrialNumber}
+            showId={showId}
             seenResultReleaseKeys={seenResultReleaseKeys}
             onCheckInClass={one => onCheckInDay(dog, [one])}
             onOpenCheckIn={onOpenCheckIn}
-            onLeaveClass={one => onLeaveClass(dog, one)}
+            onLeaveClass={(one, classWhen) => onLeaveClass(dog, one, classWhen)}
             onResultRevealClick={onResultRevealClick}
           />
         ))}

@@ -113,17 +113,27 @@ describe('MYK9-631 AC4/Q7 — the receipt carries one identifier or none', () =>
     paymentStatus: 'Paid',
   };
 
-  it('prints no minted confirmation number, no order id and no entry UUID', () => {
+  // Round 1 (K P2-3) reversed half of this case. AC4 is about id FRAGMENTS an
+  // exhibitor cannot recognise; it explicitly allows the receipt to carry a
+  // reference, and says the confirmation number "appears on the receipt only".
+  // A cash / check / mail-in order has no confirmation number at all, and the
+  // first version left that receipt — the one path reconciled BY HAND — with
+  // nothing unique on it at all. So the entry id prints here, labelled, on the
+  // receipt and nowhere else.
+  it('falls back to a labelled Reference when there is no confirmation number', () => {
     render(<EntryReceipt open onOpenChange={vi.fn()} entry={receiptEntry} />);
 
     // Positive control: the document rendered and names the dog and class.
     expect(readableText()).toContain('Juni');
     expect(readableText()).toContain('Interior Advanced');
 
+    // No minted 8-hex fragment, and no unexplained second identifier.
     expect(readableText()).not.toMatch(ID_FRAGMENT);
-    expect(readableText()).not.toContain(receiptEntry.id);
     expect(screen.queryByText('Confirmation #')).not.toBeInTheDocument();
     expect(screen.queryByText('Order ID')).not.toBeInTheDocument();
+
+    // But the document IS identifiable.
+    expect(screen.getByText(`Reference: ${receiptEntry.id}`)).toBeInTheDocument();
   });
 
   it('still prints a REAL confirmation number when the order has one', () => {
@@ -139,5 +149,9 @@ describe('MYK9-631 AC4/Q7 — the receipt carries one identifier or none', () =>
     expect(screen.getByText('MK9-000145')).toBeInTheDocument();
     // And it is not an id fragment: it is what the exhibitor was actually sent.
     expect(readableText()).not.toMatch(ID_FRAGMENT);
+    // One identifier, not two: the Reference is the FALLBACK, so a receipt that
+    // has a real confirmation number does not also print a raw UUID.
+    expect(screen.queryByText(/^Reference:/)).not.toBeInTheDocument();
+    expect(readableText()).not.toContain(receiptEntry.id);
   });
 });

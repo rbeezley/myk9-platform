@@ -7,7 +7,7 @@
  */
 import { describe, it, expect } from 'vitest';
 import { buildMyShowActions, type MyShowActionsFacts } from './myShowActions';
-import { canLeaveClassRow } from './leaveClassRow';
+import { canLeaveClass, canLeaveClassRow } from './leaveClassRow';
 import type { ClassRowKind } from './myShowDogState';
 
 const live: MyShowActionsFacts = {
@@ -96,13 +96,17 @@ describe('canLeaveClassRow', () => {
     'opens-later',
     'not-yet-eligible',
     'closed-today',
+    // Round 1 (K P3-1): `pulled` is a check-in state, not a lifecycle one. The
+    // server admits it (PRE_SHOW_CHECK_IN_STATUSES) and the base sheet offered
+    // it; withholding it stranded a gate-pulled dog with no way to record the
+    // refund-bearing withdrawal.
+    'pulled',
   ];
   const WITHHELD: ClassRowKind[] = [
     'result',
     'absent',
     'not-run',
     'in-ring',
-    'pulled',
     'withdrawn',
     'scratched',
     'moved',
@@ -123,5 +127,43 @@ describe('canLeaveClassRow', () => {
     const covered = [...OFFERED, ...WITHHELD];
     expect(new Set(covered).size).toBe(covered.length);
     expect(covered).toHaveLength(17);
+  });
+});
+
+describe('canLeaveClass — the three terms the row kind cannot express', () => {
+  const live = {
+    kind: 'opens-later' as ClassRowKind,
+    isPastShow: false,
+    unresolved: false,
+    hasShowId: true,
+  };
+
+  it('offers the control on a live, resolved row at a known show', () => {
+    expect(canLeaveClass(live)).toBe(true);
+  });
+
+  it.each([
+    ['the show is over', { isPastShow: true }],
+    ['the class is an unresolved placeholder', { unresolved: true }],
+    ['the show relation has not replicated', { hasShowId: false }],
+    ['the row kind is settled', { kind: 'withdrawn' as ClassRowKind }],
+  ])('withholds it when %s', (_why, override) => {
+    expect(canLeaveClass({ ...live, ...override })).toBe(false);
+  });
+
+  it('withholds it when any ONE term fails, not only when all do', () => {
+    // Each term is independently sufficient — a conjunction that had been
+    // written as an `||` would pass the four cases above and fail here.
+    expect(canLeaveClass({ ...live, isPastShow: true, unresolved: true })).toBe(false);
+    expect(canLeaveClass({ ...live, hasShowId: false, unresolved: true })).toBe(false);
+  });
+
+  // The deadline is deliberately NOT a term: MYK9-631 §4 Q9, and MYK9-632 AC2
+  // ("Pull: always available before the class runs"). Withdraw's own cutoff is
+  // the registry policy's, enforced inside the chooser. Stated here so a future
+  // reader meets the decision at the predicate rather than inferring it from an
+  // absence.
+  it('does not consult the entry-close deadline', () => {
+    expect(Object.keys(live)).toEqual(['kind', 'isPastShow', 'unresolved', 'hasShowId']);
   });
 });

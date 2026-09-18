@@ -312,6 +312,7 @@ export const MyShowGroupCard: React.FC<MyShowGroupProps> = ({
               checkInContext={checkInContext}
               isShowCancelled={group.isShowCancelled}
               showTrialNumber={showTrialNumber}
+              showId={group.showId}
               refundNote={refunds[dog.dogId]}
               isPendingReview={
                 !isPastShow &&
@@ -324,11 +325,15 @@ export const MyShowGroupCard: React.FC<MyShowGroupProps> = ({
               // The show id lives on the GROUP, not the class row, so the
               // target is assembled here — one place, rather than a showId
               // prop threaded through every card and row.
-              onLeaveClass={(leavingDog, cls) =>
+              onLeaveClass={(leavingDog, cls, classWhen) =>
                 onLeaveClass({
                   classId: cls.id,
                   className: cls.name,
+                  // The row's own "when" column, carried so the chooser can
+                  // tell two same-named classes apart (round 1, lens L).
+                  classWhen,
                   dogName: leavingDog.dogName,
+                  dogId: leavingDog.dogId,
                   showId: group.showId,
                 })
               }

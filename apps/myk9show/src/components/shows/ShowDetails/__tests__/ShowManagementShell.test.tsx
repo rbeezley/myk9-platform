@@ -144,6 +144,10 @@ function renderShell(
             <Route path="show-day" element={<div data-testid="outlet-child">show day</div>} />
             <Route path="results" element={<div data-testid="outlet-child">results</div>} />
             <Route path="reports" element={<div data-testid="outlet-child">reports</div>} />
+            <Route
+              path="classes/:trialId"
+              element={<div data-testid="outlet-child">class management</div>}
+            />
           </Route>
         </Routes>
       </MemoryRouter>
@@ -186,7 +190,7 @@ describe('ShowManagementShell', () => {
 
   it('renders exactly six tabs, in the decided order', () => {
     renderShell();
-    expect(screen.getAllByRole('tab').map(tab => tab.textContent?.replace(/\\d+$/, '').trim())).toEqual([
+    expect(screen.getAllByRole('tab').map(tab => tab.textContent?.replace(/\d+$/, '').trim())).toEqual([
       'Overview',
       'Setup',
       'Entries',

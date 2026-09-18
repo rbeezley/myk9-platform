@@ -4,6 +4,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import ShowDetailsPage from '@/pages/ShowDetailsPage';
+import { ShowWorkbenchSetupPage } from '@/pages/secretary/ShowWorkbenchSetupPage';
 
 const publishExperienceMock = vi.hoisted(() => vi.fn());
 const updateShowLocallyMock = vi.hoisted(() => vi.fn());
@@ -272,13 +273,14 @@ function renderPage(showId = 'show-1', subPath = '', query = '') {
         <Routes>
           <Route path="/shows/:id" element={<ShowDetailsPage />}>
             <Route
-              path="show-desk"
+              path="show-day"
               element={<div data-testid="canonical-child">Show Desk child</div>}
             />
-            <Route
-              path="setup"
-              element={<div data-testid="canonical-setup-child">Setup child</div>}
-            />
+            {/* The REAL Setup page: `?tab=map|trials|classes` redirects here
+                now (MYK9-630 phase 2), and a placeholder would let the redirect
+                land somewhere that renders none of the three views. */}
+            <Route path="setup" element={<ShowWorkbenchSetupPage />} />
+            <Route path="entries" element={<div data-testid="canonical-entries-child" />} />
           </Route>
         </Routes>
       </MemoryRouter>
@@ -680,8 +682,8 @@ describe('ShowDetailsPage', () => {
 
     // Positive control that the MANAGER shell rendered at all -- otherwise the
     // absence below would pass on any page. It used to be the `...` trigger,
-    // which MYK9-630 deletes.
-    expect(screen.getByTestId('canonical-show-management-nav')).toBeInTheDocument();
+    // which MYK9-630 phase 1 deleted, then the section nav, which phase 2 did.
+    expect(screen.getByRole('tab', { name: /^Setup$/ })).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /premium list/i })).toBeNull();
   });
 
@@ -698,56 +700,50 @@ describe('ShowDetailsPage', () => {
     expect(screen.getByTestId('hero-secondary-actions')).toBeEmptyDOMElement();
   });
 
-  it('shows canonical management nav for show managers', () => {
+  it('gives a manager ONE row of six tabs and no standalone page links', () => {
+    // MYK9-630 phase 2 (Richard: "there are 11 or more and difficult to tell if
+    // they are tabs or links or buttons"). The five-link row above the old
+    // six-tab strip is deleted: Show Desk, Entry Management, Reports, Results
+    // and Submit Results are tabs now, not links beside tabs.
     mockAuthContext.isSecretary = true;
 
     renderPage();
 
-    const nav = screen.getByTestId('canonical-show-management-nav');
-    expect(nav).toBeInTheDocument();
-    expect(screen.getByRole('combobox', { name: /show management section/i })).toBeInTheDocument();
-    expect(screen.queryByRole('link', { name: 'Setup' })).not.toBeInTheDocument();
-    expect(screen.getByRole('link', { name: 'Show Desk' })).toHaveAttribute(
-      'href',
-      '/shows/show-1/show-desk'
-    );
-    expect(screen.getByRole('link', { name: 'Entry Management' })).toHaveAttribute(
-      'href',
-      '/shows/show-1/entry-management'
-    );
-    expect(screen.getByRole('link', { name: 'Reports' })).toHaveAttribute(
-      'href',
-      '/shows/show-1/reports'
-    );
-    expect(screen.getByRole('link', { name: 'Results' })).toHaveAttribute(
-      'href',
-      '/shows/show-1/results-control'
-    );
-    expect(screen.getByRole('link', { name: 'Submit Results' })).toHaveAttribute(
-      'href',
-      '/shows/show-1/submit-results'
-    );
+    expect(screen.getAllByRole('tab').map(tab => tab.textContent?.replace(/\d+$/, '').trim())).toEqual([
+      'Overview',
+      'Setup',
+      'Entries',
+      'Show Day',
+      'Results',
+      'Reports',
+    ]);
+    expect(screen.queryByTestId('canonical-show-management-nav')).not.toBeInTheDocument();
+    expect(screen.queryByRole('combobox', { name: /show management section/i })).toBeNull();
+    for (const label of ['Show Desk', 'Entry Management', 'Reports', 'Results', 'Submit Results']) {
+      expect(screen.queryByRole('link', { name: label })).toBeNull();
+    }
   });
 
-  it('management nav tab container is horizontally scrollable and has no fixed minimum width', () => {
+  it('keeps the one tab row scrollable at phone widths with no fixed minimum width', () => {
     mockAuthContext.isSecretary = true;
 
     renderPage();
 
-    const nav = screen.getByTestId('canonical-show-management-nav');
-    const container = nav.querySelector('[class*="overflow-x-auto"]');
-    expect(container?.className).toContain('overflow-x-auto');
-    expect(container?.className).toContain('max-w-full');
+    const list = screen.getAllByRole('tab')[0].closest('[class*="overflow-x-auto"]');
+    expect(list?.className).toContain('overflow-x-auto');
+    expect(list?.className).toContain('max-w-full');
     // No min-w-* or fixed pixel widths that force desktop layout on phones
-    expect(container?.className).not.toMatch(/min-w-\[/);
-    expect(container?.className).not.toMatch(/w-\[\d/);
+    expect(list?.className).not.toMatch(/min-w-\[/);
+    expect(list?.className).not.toMatch(/w-\[\d/);
   });
 
-  it('hides canonical management nav from exhibitors with entries', () => {
+  it('hides the six management tabs from exhibitors with entries', () => {
     seedOwnedEntry();
     renderPage();
 
     expect(screen.queryByTestId('canonical-show-management-nav')).not.toBeInTheDocument();
+    expect(screen.queryByRole('tab', { name: /^Show Day$/ })).toBeNull();
+    expect(screen.getByRole('tab', { name: /^My Entries/ })).toBeInTheDocument();
   });
 
   it('does not expose preview public page or manage in workbench destinations for managers', () => {
@@ -758,7 +754,7 @@ describe('ShowDetailsPage', () => {
     // There is no menu left to open: Edit and Delete moved into the Show Edit
     // panel's own surface, Preview moved to the Overview landing card.
     expect(screen.queryByRole('button', { name: /more show actions/i })).toBeNull();
-    expect(screen.getByTestId('canonical-show-management-nav')).toBeInTheDocument();
+    expect(screen.getByRole('tab', { name: /^Setup$/ })).toBeInTheDocument();
     expect(screen.queryByRole('link', { name: /preview public page/i })).not.toBeInTheDocument();
     expect(
       screen.queryByRole('menuitem', { name: /manage in workbench/i })
@@ -769,12 +765,15 @@ describe('ShowDetailsPage', () => {
   it('renders Show Desk below its compact context instead of the full hero', () => {
     mockAuthContext.isSecretary = true;
 
-    renderPage('show-1', '/show-desk');
+    renderPage('show-1', '/show-day');
 
     expect(screen.queryByTestId('detail-hero')).not.toBeInTheDocument();
     expect(screen.getByRole('region', { name: 'Show Desk context' })).toBeInTheDocument();
     expect(screen.getByTestId('canonical-child')).toHaveTextContent('Show Desk child');
-    expect(screen.getByRole('link', { name: 'Show Desk' })).toHaveAttribute('aria-current', 'page');
+    expect(screen.getByRole('tab', { name: /^Show Day$/ })).toHaveAttribute(
+      'aria-selected',
+      'true'
+    );
   });
 
   // Regression: the Show Desk publish exception links to #setup-publish on the
@@ -809,7 +808,7 @@ describe('ShowDetailsPage', () => {
       style: 'headline',
     };
 
-    renderPage('show-1', '/show-desk');
+    renderPage('show-1', '/show-day');
 
     expect(screen.queryByTestId('headline-landing')).not.toBeInTheDocument();
     expect(screen.getByTestId('canonical-child')).toHaveTextContent('Show Desk child');

@@ -19,6 +19,8 @@
 --      is_day_of_show, entry_source, registration_id, the armband and the
 --      approval state all travel, and check_in_status travels only as a
 --      check-in.
+--   3b. A source whose run has already STARTED is refused -- moving it would
+--      vacate its result from the class it was earned in.
 --   3. A STRIPE-PAID source moves without tripping
 --      trg_entries_protect_payment_fields_insert (the round-1 P0). This is the
 --      positive control for the money-neutral design: if the INSERT ever names
@@ -236,6 +238,45 @@ BEGIN
     RAISE EXCEPTION 'FAIL the Stripe-paid move-up returned no destination';
   END IF;
   RAISE NOTICE 'PASS a Stripe-paid entry can be moved up';
+END;
+$$;
+
+-- ---------------------------------------------------------------------------
+-- 3b. A run that has already STARTED cannot be moved out of its class: marking
+--     the source `moved` would vacate its result from the class it was earned
+--     in. `completed` passes the approval-dimension guard, so this is a
+--     separate refusal.
+-- ---------------------------------------------------------------------------
+RESET ROLE;
+INSERT INTO public.entries (
+  id, dog_id, class_id, show_id, trial_id, entry_status, payment_status, entry_fee,
+  is_scored, result_status
+)
+VALUES ('00000000-0000-0000-0000-000000639064', '00000000-0000-0000-0000-000000639043',
+  '00000000-0000-0000-0000-000000639031', '00000000-0000-0000-0000-000000639011',
+  '00000000-0000-0000-0000-000000639021', 'completed', 'paid', 35.00,
+  true, 'qualified');
+
+SET LOCAL ROLE authenticated;
+SELECT set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-000000639151', true);
+SELECT set_config(
+  'request.jwt.claims',
+  '{"sub":"00000000-0000-0000-0000-000000639151","role":"authenticated","app_metadata":{}}',
+  true
+);
+
+DO $$
+BEGIN
+  BEGIN
+    PERFORM public.move_up_entry(
+      '00000000-0000-0000-0000-000000639064',
+      '00000000-0000-0000-0000-000000639032',
+      '00000000-0000-0000-0000-000000639076'
+    );
+    RAISE EXCEPTION 'FAIL a scored entry was moved out of the class it ran in';
+  EXCEPTION WHEN invalid_parameter_value THEN
+    RAISE NOTICE 'PASS move_up_entry refuses a run that has already started';
+  END;
 END;
 $$;
 

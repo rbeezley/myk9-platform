@@ -140,6 +140,61 @@ describe('MYK9-639 — move_up_entry / reverse_move_up_entry', () => {
     );
   });
 
+  it('refuses to move a run that has already STARTED out of its class', () => {
+    // The mirror of the reverse's guard, and for the same reason: marking the
+    // source `moved` excludes it from the class rollup, the catalog and every
+    // registry report, so moving a scored entry VACATES a result from the class
+    // it was earned in. `completed` / `in-ring` / `competing` all pass the
+    // approval-dimension guard above.
+    for (const started of [
+      'v_source.is_scored',
+      'v_source.is_in_ring',
+      "('in-ring', 'competing', 'completed')",
+      'v_source.scoring_started_at IS NOT NULL',
+      'v_source.final_placement IS NOT NULL',
+      'v_source.total_incorrect_finds',
+      'v_source.no_finish_count',
+      'v_source.points_possible',
+    ]) {
+      expect(moveUpFn).toContain(started);
+    }
+    expect(moveUpFn).toContain(
+      "RAISE EXCEPTION 'This run has already started, so the entry can no longer be moved.'"
+    );
+    // ...but a dog who is merely PRESENT is still movable, which is the whole
+    // point of a show-day move-up.
+    expect(moveUpFn).not.toMatch(/v_source\.check_in_status IN \('checked-in'/);
+  });
+
+  it('says in the CATALOG what each function actually writes', () => {
+    // `\\df+` text, stored in pg_description. Round 2 shipped a COMMENT that was
+    // the inverse of the code; round 3's listed neither the provenance carry nor
+    // half the run-started signals.
+    const moveUpComment = sliceBetween(
+      MIGRATION,
+      'COMMENT ON FUNCTION public.move_up_entry',
+      'CREATE OR REPLACE FUNCTION public.reverse_move_up_entry'
+    );
+    const reverseComment = MIGRATION.slice(
+      MIGRATION.indexOf('COMMENT ON FUNCTION public.reverse_move_up_entry')
+    );
+
+    expect(moveUpComment).toMatch(/MONEY DOES NOT TRAVEL/);
+    for (const carried of [
+      'entry_status',
+      'check_in_status',
+      'entry_source',
+      'is_day_of_show',
+      'registration_id',
+    ]) {
+      expect(moveUpComment).toContain(carried);
+    }
+    expect(moveUpComment).toMatch(/already STARTED/);
+    for (const signal of ['total_incorrect_finds', 'no_finish_count', 'points_possible']) {
+      expect(reverseComment).toContain(signal);
+    }
+  });
+
   it('refuses a source that is not movable', () => {
     expect(moveUpFn).toMatch(
       /IN\s*\n?\s*\('moved', 'withdrawn', 'scratched', 'absent', 'not_accepted'\)/

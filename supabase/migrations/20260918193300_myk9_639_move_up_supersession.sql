@@ -593,6 +593,41 @@ BEGIN
       USING ERRCODE = '22023';
   END IF;
 
+  -- A run that has STARTED cannot be moved out of the class it started in --
+  -- the same rule `reverse_move_up_entry` applies to the destination, and for
+  -- the same reason. Marking the source `moved` excludes it from the class
+  -- rollup, the catalog and every registry report, so moving a scored entry
+  -- would VACATE a result from the class it was earned in. `completed`,
+  -- `in-ring` and `competing` all passed the movability guard above, which
+  -- refuses only the approval-dimension states.
+  --
+  -- `checked-in` and `at-gate` are deliberately still movable: the dog is
+  -- present and has not run, which is exactly when a secretary moves them.
+  IF COALESCE(v_source.is_scored, false)
+     OR COALESCE(v_source.is_in_ring, false)
+     OR COALESCE(v_source.entry_status, '') IN ('in-ring', 'competing', 'completed')
+     OR v_source.check_in_status IN ('in-ring', 'completed')
+     OR v_source.scoring_started_at IS NOT NULL
+     OR v_source.scoring_completed_at IS NOT NULL
+     OR v_source.ring_entry_time IS NOT NULL
+     OR COALESCE(v_source.result_status, 'pending') <> 'pending'
+     OR v_source.final_placement IS NOT NULL
+     OR COALESCE(v_source.points_earned, 0) <> 0
+     OR COALESCE(v_source.search_time_seconds, 0) <> 0
+     OR COALESCE(v_source.area1_time_seconds, 0) <> 0
+     OR COALESCE(v_source.area2_time_seconds, 0) <> 0
+     OR COALESCE(v_source.area3_time_seconds, 0) <> 0
+     OR COALESCE(v_source.area4_time_seconds, 0) <> 0
+     OR COALESCE(v_source.total_faults, 0) <> 0
+     OR COALESCE(v_source.total_correct_finds, 0) <> 0
+     OR COALESCE(v_source.total_incorrect_finds, 0) <> 0
+     OR COALESCE(v_source.no_finish_count, 0) <> 0
+     OR COALESCE(v_source.total_score, 0) <> 0
+     OR COALESCE(v_source.points_possible, 0) <> 0 THEN
+    RAISE EXCEPTION 'This run has already started, so the entry can no longer be moved.'
+      USING ERRCODE = '22023';
+  END IF;
+
   SELECT t.show_id, c.trial_id
   INTO v_target_show_id, v_target_trial_id
   FROM public.classes c
@@ -689,11 +724,22 @@ GRANT EXECUTE ON FUNCTION public.move_up_entry(uuid, uuid, uuid, text) TO servic
 
 COMMENT ON FUNCTION public.move_up_entry(uuid, uuid, uuid, text) IS
   'MYK9-639/MYK9-640: move an entry to a higher class as ONE transaction -- insert '
-  'the money-neutral destination carrying moved_from_entry_id, and mark the source '
-  'moved. SECURITY DEFINER because the sibling reverse function must read score '
-  'columns that carry no column grant for authenticated; it restates '
-  'can_manage_show(show_id), the exact predicate on entries_insert/entries_update. '
-  'The registry level ladder stays client-side (utils/moveUpEligibility.ts).';
+  'the destination and mark the source moved. MONEY DOES NOT TRAVEL: the '
+  'destination is created payment_status = ''pending'', entry_fee = 0, with no '
+  'method, reference, comp, discount or Stripe intent, and moved_from_entry_id is '
+  'the only link back to the paying entry. What DOES travel from the source: '
+  'entry_status (a move-up is not an acceptance), check_in_status but only when it '
+  'is ''checked-in'', entry_source, is_day_of_show, registration_id, handler, '
+  'armband and jump_height. Refuses a source that is soft-deleted, pulled, '
+  'withdrawn, scratched, absent, already moved, not accepted, or whose run has '
+  'already STARTED (scored, in ring, any area time or count, a result, a '
+  'placement) -- moving a started run would vacate its result from the class it '
+  'was earned in. Also refuses a dog who already holds a live entry in the target '
+  'class, in words rather than a raw 23505. SECURITY DEFINER because the sibling '
+  'reverse function must read score columns that carry no column grant for '
+  'authenticated; it restates can_manage_show(show_id), the exact predicate on '
+  'entries_insert/entries_update. The registry level ladder stays client-side '
+  '(utils/moveUpEligibility.ts).';
 
 -- The same shape in reverse.
 
@@ -816,10 +862,14 @@ GRANT EXECUTE ON FUNCTION public.reverse_move_up_entry(uuid) TO service_role;
 COMMENT ON FUNCTION public.reverse_move_up_entry(uuid) IS
   'MYK9-640: undo a move-up as ONE transaction -- restore the superseded source '
   'from the destination''s live entry_status and check_in_status, then soft-delete '
-  'the destination. Refuses once the run has STARTED (in ring, ring entry, scoring '
-  'started, any area time, points, a result, or a placement). Touches no money: '
-  'after MYK9-639 the destination never held any. Same restated can_manage_show '
-  'guard as move_up_entry.';
+  'the destination. Refuses once the run has STARTED, meaning any of: is_scored, '
+  'is_in_ring, a check-in of in-ring or completed, scoring_started_at, '
+  'scoring_completed_at, ring_entry_time, a non-pending result_status, a '
+  'final_placement, or a non-zero points_earned, points_possible, '
+  'search_time_seconds, area1..4_time_seconds, total_faults, total_correct_finds, '
+  'total_incorrect_finds, no_finish_count or total_score. Touches no money: after '
+  'MYK9-639 the destination never held any. Restates can_manage_show on BOTH the '
+  'destination''s and the source''s show, and requires them to be the same show.';
 
 
 NOTIFY pgrst, 'reload schema';

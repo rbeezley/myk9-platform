@@ -13,6 +13,14 @@
 -- decision — that BOTH acts are available on a paid entry while NEITHER writes a
 -- money column. There is no longer a payment guard on either arm.
 
+-- FIXTURE RULE: every write to entry_fee / payment_method / payment_status /
+-- stripe_payment_intent_id happens under `set local role service_role`, in ONE
+-- statement, because live triggers (entries_protect_payment_fields,
+-- _fields_insert, _payment_status) reserve those columns to the payment service.
+-- A paid-online row cannot be assembled in two steps by anyone else, in either
+-- order: flipping the method afterwards is refused, and so is marking an online
+-- entry paid.
+
 begin;
 
 insert into public.clubs (id, name)
@@ -66,9 +74,17 @@ select ('00000000-0000-0000-0000-00000063203' || n)::uuid,
   'confirmed', 'pending', 25, 'no-status'
 from generate_series(1, 9) n;
 
--- 632032 and 632038 are PAID: the one guard the two acts do not share.
+-- 632032 and 632038 are PAID. Written as `service_role`, because that is the
+-- only role that may create one: `entries_protect_payment_status` refuses a
+-- non-service caller marking an online entry paid, and
+-- `entries_protect_payment_fields` refuses flipping payment_method to 'online'
+-- on an already-paid row. Setting the money fields in ONE statement under the
+-- role that owns them is what the Stripe webhook does; doing it in two, or as
+-- anyone else, is what CI rejected.
+set local role service_role;
 update public.entries set payment_status = 'paid'
  where id in ('00000000-0000-0000-0000-000000632032', '00000000-0000-0000-0000-000000632038');
+reset role;
 
 create function pg_temp.assert_leave(
   label text,
@@ -237,8 +253,10 @@ $$;
 -- set_entry_refund_decision / isUnresolvedPullRefundDecision look for. If this
 -- ever stops holding, the secretary's Issue refund / Deny refund is unreachable
 -- for every entry an exhibitor pulled.
+set local role service_role;
 update public.entries set payment_method = 'online'
  where id = '00000000-0000-0000-0000-000000632038';
+reset role;
 select pg_temp.assert_leave('a pulled paid-online entry reaches the reconciliation queue',
   '00000000-0000-0000-0000-000000632101', '00000000-0000-0000-0000-000000632038',
   'pull', null, null, 'scratched');
@@ -343,8 +361,10 @@ update public.entries set entry_status = 'confirmed', withdrawal_reason_code = n
 -- one of the two reason codes. If a paid-online withdrawal ever stops looking
 -- exactly like this, the exhibitor has paid, is not running, and no surface in
 -- the app can resolve their refund.
+set local role service_role;
 update public.entries set payment_status = 'paid', payment_method = 'online', entry_fee = 40
  where id = '00000000-0000-0000-0000-000000632033';
+reset role;
 update public.entries set entry_status = 'confirmed', withdrawal_reason_code = null
  where id = '00000000-0000-0000-0000-000000632033';
 
@@ -446,10 +466,12 @@ $$;
 
 -- ...and a CODELESS withdrawn row must NOT be deniable, because the queue does
 -- not offer it: that state is a secretary Decline/Reject, not an exhibitor act.
+set local role service_role;
 update public.entries
    set entry_status = 'withdrawn', withdrawal_reason_code = null,
        payment_status = 'paid', payment_method = 'online'
  where id = '00000000-0000-0000-0000-000000632034';
+reset role;
 
 do $$
 declare

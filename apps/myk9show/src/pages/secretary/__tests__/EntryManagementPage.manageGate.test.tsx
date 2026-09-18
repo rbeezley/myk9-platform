@@ -1,4 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
+import userEvent from '@testing-library/user-event';
 import { render, screen } from '@/test/utils/testUtils';
 import { Route, Routes } from 'react-router-dom';
 import EntryManagementPage from '../EntryManagementPage';
@@ -158,6 +159,39 @@ describe('EntryManagementPage derives its gate from the one manage scope', () =>
 
     expect(screen.queryByRole('heading', { name: /access restricted/i })).toBeNull();
     expect(screen.getByRole('heading', { name: 'Entry Management' })).toBeInTheDocument();
+  });
+
+  // REV-2341 R-4. The round-1 commit claimed "Entry Management carried the same
+  // ungated mail-in button and is fixed with it" and had NO test for it: the
+  // mutation `trialSecretaryOnlyReason -> undefined` left this whole file green.
+  // These two open the popover the button actually lives in.
+  it('greys "Add mail-in entry" for a club admin, with the reason', async () => {
+    const user = userEvent.setup();
+    manageScopeState.value = {
+      status: 'resolved',
+      canManage: true,
+      canOperate: false,
+      hasOperationalStaffRole: false,
+      clubId: 'club-1',
+    };
+
+    renderAtShow();
+    await user.click(screen.getByRole('button', { name: /add entry/i }));
+
+    expect(await screen.findByRole('button', { name: /add mail-in entry/i })).toBeDisabled();
+    expect(screen.getByText('Trial secretary access only')).toBeInTheDocument();
+    // The exhibitor wizard carries no role requirement, so this one stays live.
+    expect(screen.getByRole('button', { name: /enter my own dogs/i })).toBeEnabled();
+  });
+
+  it('leaves "Add mail-in entry" live for a trial secretary — positive control', async () => {
+    const user = userEvent.setup();
+
+    renderAtShow();
+    await user.click(screen.getByRole('button', { name: /add entry/i }));
+
+    expect(await screen.findByRole('button', { name: /add mail-in entry/i })).toBeEnabled();
+    expect(screen.queryByText('Trial secretary access only')).toBeNull();
   });
 
   it('never flashes a denial while ownership is still resolving', () => {

@@ -8,6 +8,7 @@ import { useSecretaryShowEntriesQuery } from '@/hooks/queries/useEntriesDatabase
 import { useShowJudges } from '@/hooks/queries/useShowJudges';
 import { useShowManageScope } from '@/hooks/useShowManageScope';
 import { trialSecretaryOnlyReason } from '@/features/actions/trialSecretaryAccess';
+import { TrialSecretaryAccessProvider } from '@/features/actions/TrialSecretaryAccessContext';
 import { ShowAccessCodesCard } from '@/components/secretary/ShowAccessCodesCard';
 import { JudgeHospitalityCard } from '@/features/show-workbench/JudgeHospitalityCard';
 import { IncidentLogCard } from '@/features/show-workbench/IncidentLogCard';
@@ -496,26 +497,31 @@ export function ShowWorkbenchShowDeskPage() {
   }
 
   return (
-    <Suspense fallback={<LoadingSkeleton variant="cards" count={2} />}>
-      <ShowDeskScheduleRefreshWarning
-        hasConfirmedSnapshot={scheduleHasConfirmedSnapshot}
-        readFailed={scheduleReadFailed}
-        onRetry={() => void retrySchedule()}
-      />
-      {entriesUnavailable && (
-        <ShowDeskEntriesUnavailable onRetry={() => void refetchShowEntries()} />
-      )}
-      <ShowDeskPanel
-        show={currentShow}
-        trials={showMapTrials}
-        classes={showClasses}
-        entries={showMapEntries}
-        canManageShow
-        tools={showDeskTools}
-        actionableCount={actionable.count}
-        actionableTone={actionable.tone}
-        actionableIncomplete={actionable.incomplete}
-      />
-    </Suspense>
+    // The whole Show Day surface carries one answer to "may this viewer operate
+    // the show?", so the cockpit body deep inside `ShowDeskPanel` can grey its
+    // one secretary-only action without four layers of prop threading.
+    <TrialSecretaryAccessProvider reason={secretaryOnlyReason}>
+      <Suspense fallback={<LoadingSkeleton variant="cards" count={2} />}>
+        <ShowDeskScheduleRefreshWarning
+          hasConfirmedSnapshot={scheduleHasConfirmedSnapshot}
+          readFailed={scheduleReadFailed}
+          onRetry={() => void retrySchedule()}
+        />
+        {entriesUnavailable && (
+          <ShowDeskEntriesUnavailable onRetry={() => void refetchShowEntries()} />
+        )}
+        <ShowDeskPanel
+          show={currentShow}
+          trials={showMapTrials}
+          classes={showClasses}
+          entries={showMapEntries}
+          canManageShow
+          tools={showDeskTools}
+          actionableCount={actionable.count}
+          actionableTone={actionable.tone}
+          actionableIncomplete={actionable.incomplete}
+        />
+      </Suspense>
+    </TrialSecretaryAccessProvider>
   );
 }

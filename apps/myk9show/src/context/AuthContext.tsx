@@ -29,6 +29,7 @@ import { useResetRecentSearchesOnAccountChange } from '@/hooks/useResetRecentSea
 import { ensureError } from '@myk9/core';
 import { notifications } from '@/lib/notifications';
 import { buildSignInPathForRedirect } from '@/pages/SignInPage.helpers';
+import { RoleAccessDeniedState } from '@/components/common/RoleAccessDeniedState';
 import { Skeleton } from '@/components/common/SkeletonLoaders';
 import type { AuthContextType } from './authContextTypes';
 import {
@@ -418,11 +419,13 @@ export function ProtectedRoute({
   requiredRole,
   requiredPermission,
   scope,
-  fallback = (
-    <div className="flex items-center justify-center min-h-screen p-4 text-gray-500">
-      You don't have permission to access this page.
-    </div>
-  ),
+  // THE default, deliberately: every role-gated route in the app gets the
+  // in-shell explained state rather than a chrome-less grey line, and there is
+  // no list of "the routes that matter" to keep in sync. See
+  // `RoleAccessDeniedState` for why the fix belongs at the destination
+  // (REV-2341 R-1, second finding on one path -> restructure, not a fourth
+  // control-level patch). No caller overrides this today.
+  fallback = <RoleAccessDeniedState />,
 }: ProtectedRouteProps) {
   const context = React.useContext(AuthContext);
   const location = useLocation();

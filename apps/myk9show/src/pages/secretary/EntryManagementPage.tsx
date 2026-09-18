@@ -75,7 +75,15 @@ const EntryManagementPage: React.FC = () => {
   // them, so a club admin gets it greyed with a reason rather than a click that
   // dead-ends on a permission wall.
   const manageScope = useShowManageScope(urlShowId);
-  const secretaryOnlyReason = trialSecretaryOnlyReason(manageScope);
+  // `showIdKnown: false` when the URL names no show. This page is reachable both
+  // as `/shows/:id/entries` (the six-tab surface) and as a bare
+  // `/secretary/entries` that resolves its show from localStorage — and on the
+  // second there is nothing for `useShowManageScope` to scope against, so it
+  // never leaves `resolving`. Failing closed there disabled "Add mail-in entry"
+  // permanently for a real trial secretary (REV-2341 R-2).
+  const secretaryOnlyReason = trialSecretaryOnlyReason(manageScope, {
+    showIdKnown: Boolean(urlShowId),
+  });
   const registrationGroups = useMemo(() => groupEntriesByShowRegistration(entries), [entries]);
   // MYK9-632: the tab lists BOTH acts an exhibitor can leave behind. A pull
   // ('scratched') is the club's call; a withdrawal carrying one of the two
@@ -354,6 +362,7 @@ const EntryManagementPage: React.FC = () => {
       */}
       {!selectedShowId && (
         <EntryManagementUnresolvedShow
+          secretaryOnlyReason={secretaryOnlyReason}
           didResolveShow={didResolveShow}
           showError={showError}
           onRetry={retryShowResolution}

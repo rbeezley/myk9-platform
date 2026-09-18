@@ -132,7 +132,11 @@ describe('AuthContext routes and auth methods', () => {
       );
 
       await waitFor(() => {
-        expect(screen.getByText(/You don't have permission/)).toBeInTheDocument();
+        // REWRITTEN with MYK9-630 phase 3's R-1 restructure: ProtectedRoute's
+        // default fallback is `RoleAccessDeniedState`, an in-shell page, not a
+        // chrome-less grey line. The property under test is unchanged — the
+        // route REFUSES — so it is asserted by the landmark, not by copy.
+        expect(screen.getByTestId('role-access-denied')).toBeInTheDocument();
         expect(screen.queryByTestId('protected-content')).not.toBeInTheDocument();
       });
     });
@@ -157,7 +161,11 @@ describe('AuthContext routes and auth methods', () => {
       );
 
       await waitFor(() => {
-        expect(screen.getByText(/You don't have permission/)).toBeInTheDocument();
+        // REWRITTEN with MYK9-630 phase 3's R-1 restructure: ProtectedRoute's
+        // default fallback is `RoleAccessDeniedState`, an in-shell page, not a
+        // chrome-less grey line. The property under test is unchanged — the
+        // route REFUSES — so it is asserted by the landmark, not by copy.
+        expect(screen.getByTestId('role-access-denied')).toBeInTheDocument();
         expect(screen.queryByTestId('protected-content')).not.toBeInTheDocument();
       });
     });
@@ -199,7 +207,11 @@ describe('AuthContext routes and auth methods', () => {
       );
 
       await waitFor(() => {
-        expect(screen.getByText(/You don't have permission/)).toBeInTheDocument();
+        // REWRITTEN with MYK9-630 phase 3's R-1 restructure: ProtectedRoute's
+        // default fallback is `RoleAccessDeniedState`, an in-shell page, not a
+        // chrome-less grey line. The property under test is unchanged — the
+        // route REFUSES — so it is asserted by the landmark, not by copy.
+        expect(screen.getByTestId('role-access-denied')).toBeInTheDocument();
       });
     });
   });

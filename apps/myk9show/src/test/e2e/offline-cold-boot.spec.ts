@@ -111,9 +111,17 @@ async function goOfflineRestorable(
   return [() => intercepted, restore];
 }
 
-/** True when the page is showing the "no permission" fallback. */
+/**
+ * True when the page is showing `ProtectedRoute`'s role-refusal fallback.
+ *
+ * Matched by its landmark, not by copy: MYK9-630 phase 3 replaced the
+ * chrome-less "You don't have permission to access this page." line with the
+ * in-shell `RoleAccessDeniedState`, whose heading differs by viewer role. The
+ * property this spec cares about — did the cold boot demote a secretary? — is
+ * about whether the refusal rendered at all.
+ */
 async function showsPermissionDenied(page: Page) {
-  return page.getByText(/don't have permission to access this page/i).isVisible();
+  return page.getByTestId('role-access-denied').isVisible();
 }
 
 // The cold-boot path involves a sign-in, a full show hydration, and a reload.

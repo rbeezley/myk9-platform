@@ -77,12 +77,15 @@ The **Shows** page lists every show your club is hosting or has hosted. Shows ar
 
 The **Actions** menu in the top bar and **Show settings…** work the same for you as they do for the secretary.
 
-**Two jobs stay with the trial secretary:**
+**Three jobs stay with the trial secretary:**
 
-- **Typing in entries on someone's behalf.** **Add mail-in entry** (Actions menu) and **Add late entry** (Show Day) are shown to you greyed out, with the reason **"Trial secretary access only"** — visible, so you can see they exist, but not yours to use.
+- **Typing in entries on someone's behalf.** **Add mail-in entry** (Actions menu, Show Day and Entries) and **Add late entry** (Show Day) are shown to you greyed out, with the reason **"Trial secretary access only"** — visible, so you can see they exist, but not yours to use.
+- **Entering scores from paper.** **Enter paper scores**, on the Show Day class panel, is greyed out for the same reason. Scoring belongs to the judge and the secretary; you can read every score on the Results tab.
 - **Volunteer scheduling.** **Open volunteer scheduling** on the Show Day tab is greyed out for the same reason; the scheduling page itself is the secretary's.
 
-If your club needs either of those done, ask your secretary — or grant secretary access to the person who will do them (see [Section 3](#section-3--grant-show-access-to-a-secretary)).
+If you follow a link into one of those pages anyway, you land on a page that says **"Trial secretary access only"** and explains why, with a way back — not a dead end.
+
+If your club needs any of those done, ask your secretary — or grant secretary access to the person who will do them (see [Section 3](#section-3--grant-show-access-to-a-secretary)).
 
 ---
 

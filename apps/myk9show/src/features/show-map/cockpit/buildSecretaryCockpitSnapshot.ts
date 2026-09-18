@@ -167,6 +167,10 @@ function classWorkActions(input: {
       label: 'Enter paper scores',
       destination: { kind: 'href', href: getCockpitPaperScoringHref(input) },
       group: 'class-work',
+      // `/scoring/classes/:id/entries` is ProtectedRoute(SECRETARY | JUDGE |
+      // SITE_ADMIN). A club admin manages this show but is none of those, so
+      // this is the one class-work action that is not theirs (REV-2341 R-1).
+      operatorOnly: true,
     },
     {
       // F29b phase 2a: this used to be labelled "Run order and class setup" and pointed

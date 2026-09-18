@@ -174,7 +174,7 @@ tab they land on, never the redirect:
 
 ### 17. Run the show desk on show day
 
-**Outcome:** Secretary or club admin handles check-in, scratches, and move-ups from one page; late entry is secretary-only.
+**Outcome:** Secretary or club admin handles check-in, scratches, and move-ups from one page; late entry and paper scoring are secretary-only.
 **Canonical route:** `/shows/:showId/show-day`
 **Entry point:** Show workbench Today tab, or Secretary Dashboard when show is live today
 **Docs target:** Secretary Guide § Show Day, Club Admin Guide § 2 — Your Club's Shows, KB: `handle-a-scratch.md`, `handle-move-up.md`

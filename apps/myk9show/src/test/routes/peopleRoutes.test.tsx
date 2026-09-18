@@ -141,7 +141,13 @@ describe('/people route', () => {
   it('shows access-denied fallback for an exhibitor', () => {
     renderPeopleRoutes('/people', EXHIBITOR_EMAIL);
     expect(screen.queryByTestId('people-page')).not.toBeInTheDocument();
-    expect(screen.getByText(/you don't have permission/i)).toBeInTheDocument();
+    // REWRITTEN with MYK9-630 phase 3's R-1 restructure: ProtectedRoute's default
+    // fallback is no longer a chrome-less grey line but `RoleAccessDeniedState`,
+    // an in-shell page with a heading and a way back. What this test pins is
+    // unchanged — the route REFUSES this viewer — so it asserts the refusal by
+    // its landmark instead of by copy that moved.
+    expect(screen.getByTestId('role-access-denied')).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: /don.t have access/i })).toBeInTheDocument();
   });
 
   it('redirects unauthenticated users to /sign-in', () => {
@@ -169,7 +175,13 @@ describe('/people/:id route', () => {
   it('shows access-denied fallback for an exhibitor', () => {
     renderPeopleRoutes('/people/abc-123', EXHIBITOR_EMAIL);
     expect(screen.queryByTestId('person-page')).not.toBeInTheDocument();
-    expect(screen.getByText(/you don't have permission/i)).toBeInTheDocument();
+    // REWRITTEN with MYK9-630 phase 3's R-1 restructure: ProtectedRoute's default
+    // fallback is no longer a chrome-less grey line but `RoleAccessDeniedState`,
+    // an in-shell page with a heading and a way back. What this test pins is
+    // unchanged — the route REFUSES this viewer — so it asserts the refusal by
+    // its landmark instead of by copy that moved.
+    expect(screen.getByTestId('role-access-denied')).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: /don.t have access/i })).toBeInTheDocument();
   });
 
   it('redirects unauthenticated users to /sign-in', () => {

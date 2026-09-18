@@ -11,6 +11,13 @@ interface EntryManagementUnresolvedShowProps {
   showError: string | null;
   onRetry: () => void;
   retryDisabled?: boolean;
+  /**
+   * Set when the viewer manages shows but is not a trial secretary. The "go to
+   * your shows" recovery then points at `/shows` instead of
+   * `/secretary/dashboard`, which is ProtectedRoute(SECRETARY | SITE_ADMIN) and
+   * would have refused them (REV-2341 R-1).
+   */
+  secretaryOnlyReason?: string | undefined;
 }
 
 /**
@@ -37,6 +44,7 @@ export function EntryManagementUnresolvedShow({
   showError,
   onRetry,
   retryDisabled = false,
+  secretaryOnlyReason,
 }: EntryManagementUnresolvedShowProps) {
   if (!didResolveShow) {
     return (
@@ -64,6 +72,13 @@ export function EntryManagementUnresolvedShow({
         {showError ? (
           <Button onClick={onRetry} disabled={retryDisabled}>
             Retry
+          </Button>
+        ) : secretaryOnlyReason !== undefined ? (
+          // `/secretary/dashboard` is ProtectedRoute(SECRETARY | SITE_ADMIN),
+          // so for a club admin this was one more enabled link into a refusal
+          // (REV-2341 R-1). Their shows are on `/shows`, which is theirs.
+          <Button asChild variant="outline">
+            <Link to="/shows">Go to your shows</Link>
           </Button>
         ) : (
           <Button asChild variant="outline">

@@ -23,9 +23,10 @@
  * `PaymentStep/index.tsx` and the not-ready case goes red — the fee-bearing
  * card is rendered.
  *
- * The hook is stubbed with a mutable object rather than a per-test module
- * re-import because three `vi.mock` factories in this file already pin the
- * store layer; the two fields are reset in `beforeEach`.
+ * The hook is stubbed with a small mutable object rather than a per-test module
+ * re-import, because three `vi.mock` factories in this file already pin the
+ * store layer. EVERY test sets both fields explicitly before rendering — not
+ * just `beforeEach` — so no case depends on the order the file runs in.
  */
 
 import React from 'react';
@@ -132,6 +133,7 @@ describe('PaymentStep — no total until the show timezone is known', () => {
   }
 
   it('shows the loading state and NO fee while the trial read is unfinished', () => {
+    entryWindowTimezone.timeZone = 'America/Chicago';
     entryWindowTimezone.isReady = false;
     render(<Harness {...baseProps} />);
 
@@ -147,6 +149,8 @@ describe('PaymentStep — no total until the show timezone is known', () => {
   });
 
   it("totals in the show's own zone once the read finishes", async () => {
+    entryWindowTimezone.timeZone = 'America/Chicago';
+    entryWindowTimezone.isReady = true;
     render(<Harness {...baseProps} />);
 
     expect(screen.queryByText(/Loading show details before totalling this entry/i)).toBeNull();
@@ -158,6 +162,7 @@ describe('PaymentStep — no total until the show timezone is known', () => {
 
   it('would total $35 on the Eastern fallback — the value the zone plumbing removes', async () => {
     entryWindowTimezone.timeZone = 'America/New_York';
+    entryWindowTimezone.isReady = true;
     render(<Harness {...baseProps} />);
     await openReconciliation();
 

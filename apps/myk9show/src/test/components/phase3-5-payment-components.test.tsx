@@ -47,6 +47,15 @@ vi.mock('@/hooks/useClassStoreCompat', () => ({
   }),
 }));
 
+// MYK9-642: PaymentStep and the wizard's Next gate refuse to total an entry
+// until the show's entry-window timezone is resolved from the trial store, so
+// a test that renders them without a hydrated trial store sees the loading
+// state instead of the fees. Nothing here is about the timezone; report it
+// resolved.
+vi.mock('@/hooks/useEntryWindowTimezone', () => ({
+  useEntryWindowTimezone: () => ({ timeZone: 'America/New_York', isReady: true }),
+}));
+
 vi.mock('@/store/showStore', () => ({
   useShowStore: () => ({
     shows: [],

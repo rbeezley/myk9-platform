@@ -134,10 +134,20 @@ BEGIN
   -- degrading. The COALESCE above only covers NULL. Resolve the zone against
   -- pg_timezone_names ONCE, here, so every expression below -- the entry-open
   -- and entry-close guards as well as the day-of rule -- is given a zone Postgres
-  -- recognizes. This matches the client, whose `getTrialTimezone` validates the
-  -- IANA name and falls back to the same default (features/registries/helpers.ts);
-  -- without it the two sides disagreed about what a malformed zone means, one
-  -- falling back and the other aborting the whole submission at the desk.
+  -- recognizes. Without it the two sides disagreed about what a malformed zone
+  -- means: the client's `getTrialTimezone` (features/registries/helpers.ts)
+  -- degrades and reports to Sentry, while this function aborted the whole
+  -- submission at the desk.
+  --
+  -- The two are now closer but NOT identical, deliberately recorded rather than
+  -- over-claimed: this match is case-sensitive and exact, while `AT TIME ZONE`
+  -- and the client's `Intl.DateTimeFormat` both accept a differently-cased name
+  -- (and `AT TIME ZONE` also accepts abbreviations like 'EDT'). So a stored
+  -- 'america/chicago' would work before this line and falls back after it. No
+  -- live row is affected -- `public.trials.timezone` holds only 'America/Chicago'
+  -- (13) and 'America/New_York' (6), both exact -- and an exact IANA name is the
+  -- only thing the app ever writes. Widen to `lower(n.name) = lower(v_show_tz)`
+  -- if that ever stops being true.
   v_show_tz := COALESCE(
     (SELECT n.name FROM pg_catalog.pg_timezone_names n WHERE n.name = v_show_tz),
     'America/New_York'

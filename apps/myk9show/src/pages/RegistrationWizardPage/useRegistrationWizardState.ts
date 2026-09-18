@@ -52,7 +52,7 @@ import { proceedBlockedReason } from './proceedGating';
 import { buildDraftFormData } from './buildDraftFormData';
 import { autoAssignHandlers } from './autoAssignHandlers';
 import { getEntryCloseAvailability, getEntryWindowTimezone } from './entryCloseGuard';
-import { useEntryWindowTimezone } from './useEntryWindowTimezone';
+import { useEntryWindowTimezone } from '@/hooks/useEntryWindowTimezone';
 import { useClassAvailability } from '@/hooks/useClassAvailability';
 import { useOrganizationAgreement } from '@/hooks/queries/useOrganizationAgreement';
 import { getRegistrationCapacityState } from './registrationCapacity';
@@ -131,7 +131,12 @@ export function useRegistrationWizardState() {
   const currentShow = useMemo(() => shows.find(s => s.id === showId), [shows, showId]);
   // NOT `currentShow.trials` — the show store never populates that array, so it
   // resolves to the America/New_York fallback for every show (MYK9-642 J-F1).
-  const entryWindowTimezone = useEntryWindowTimezone(showId);
+  // `isReady` is the second half (L-F1): mid-hydration the hook still answers,
+  // with that same fallback, and this wizard can mount straight onto Payment
+  // with a Submit button (see useWizardDraftRehydration). An unresolved zone is
+  // its own state, never Eastern.
+  const { timeZone: entryWindowTimezone, isReady: entryWindowTimezoneReady } =
+    useEntryWindowTimezone(showId);
 
   // Derived from role flags, not RegistrationContext.mode — that value defaults
   // to 'exhibitor' while RBAC loads, which would hide the secretary search UI.
@@ -414,7 +419,7 @@ export function useRegistrationWizardState() {
         classSelections,
         dogs,
         classes,
-        currentShow
+        currentShow && entryWindowTimezoneReady
           ? {
               preEntryFee: currentShow.preEntryFee || '0',
               dayOfShowFee: currentShow.dayOfShowFee,
@@ -437,6 +442,7 @@ export function useRegistrationWizardState() {
       classes,
       currentShow,
       entryWindowTimezone,
+      entryWindowTimezoneReady,
       capacityReady,
       registrationCapacity.waitlistClassIds,
     ]
@@ -521,6 +527,7 @@ export function useRegistrationWizardState() {
     agreementLoadingNow,
     agreedToEntryAgreement,
     capacityReady,
+    entryWindowTimezoneReady,
     blockedClassCount: registrationCapacity.blockedClassIds.size,
     capacityUnavailable,
   });
@@ -641,6 +648,7 @@ export function useRegistrationWizardState() {
     blockedClassIds: registrationCapacity.blockedClassIds,
     entryCloseAvailability,
     entryWindowTimezone,
+    entryWindowTimezoneReady,
     ownerResolution,
     proceedBlocked,
     canProceed,

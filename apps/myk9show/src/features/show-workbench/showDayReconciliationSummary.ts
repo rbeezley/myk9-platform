@@ -103,9 +103,11 @@ export function summarizeShowDayReconciliation(
     // totals. NOTE (MYK9-642): this column used to be written by the offline
     // late-entry dialog alone; `submit_show_entries` now writes it too, so a
     // mail-in keyed after entries closed — possibly weeks before the show —
-    // counts here where it did not before. Pinned by a test in
-    // __tests__/showDayReconciliation.test.ts; whether this card should key on
-    // "submitted while the show was running" instead is MYK9-677.
+    // counts here where it did not before. No unit test can pin that widening:
+    // this function is pure and never sees which writer produced the row, so a
+    // fixture with the flag set is indistinguishable from the cases above.
+    // Whether this card should key on "submitted while the show was running"
+    // instead of the registry bucket is MYK9-677; THIS LINE is what changes.
     if (entry.is_day_of_show !== true) continue;
 
     const method = normalizeMethod(entry);

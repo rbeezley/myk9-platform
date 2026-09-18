@@ -35,12 +35,20 @@
  *     AFTER close (`>`), while the show's own start date counts (`>=`).
  *
  * Calendar dates compare correctly as `YYYY-MM-DD` strings, so there is no Date
- * arithmetic here. The zone formatting itself is NOT re-implemented: it comes
- * from `@/utils/calendarDate`, the dependency-free module `entryWindowDate` also
+ * arithmetic here. The zone FORMATTER is not re-implemented: it comes from
+ * `@/utils/calendarDate`, the dependency-free module `entryWindowDate` also
  * uses, so "today in the show's zone" exists once. (`entryWindowDate` itself is
  * not importable from here: it drags `@/utils/dateLocal` → `LoggingService` into
  * `getShowEntryFee`'s chain, which breaks registration tests that mock the
  * logging module with a factory.)
+ *
+ * `utcCalendarDate` below is deliberately NOT shared with
+ * `entryWindowDate.parseCalendarDate`, despite both starting at a `'T'`: they
+ * answer different questions. This one reads the UTC calendar date of an
+ * instant, because these columns are timestamptz stored at midnight UTC and the
+ * server reads them the same way; that one parses a bare date as LOCAL midnight
+ * to produce a comparable `Date`. Collapsing them would reintroduce the
+ * timezone shift the two are each avoiding.
  */
 
 import { calendarDateInTimeZone, calendarDateLocal } from '@/utils/calendarDate';

@@ -57,6 +57,7 @@ export function createWizardHandlers(state: RegistrationWizardState) {
     currentWorkflowMode,
     currentWorkflowConfig,
     entryWindowTimezone,
+    entryWindowTimezoneReady,
     currentStep,
     setCurrentStep,
     setStepCompletionState,
@@ -127,6 +128,19 @@ export function createWizardHandlers(state: RegistrationWizardState) {
     }
 
     if (currentStepId === 'payment' && registrationId && currentRegistration) {
+      // Both submit paths run through here — the online RPC submission and the
+      // offline desk writer — so one guard covers both. The Next button is
+      // already disabled by `proceedBlockedReason`, but a rehydrated wizard can
+      // mount straight onto Payment and this handler reads the zone from the
+      // render it was built in, so the click has to be refused too (MYK9-642
+      // L-F1). Never submit a fee derived from the fallback zone.
+      if (!entryWindowTimezoneReady) {
+        notifications.error(
+          'Still loading this show. Wait a moment and try again \u2014 the entry fee depends on the show timezone.'
+        );
+        return;
+      }
+
       if (!currentShow) {
         notifications.error('Show not found. Please go back and try again.');
         return;

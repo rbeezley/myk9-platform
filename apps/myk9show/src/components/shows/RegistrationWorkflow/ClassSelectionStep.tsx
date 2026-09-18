@@ -8,6 +8,7 @@ import { buildClassDisambiguator } from '@/features/_shared/classLabel';
 import { useDogStoreCompat } from '@/hooks/useDogStoreCompat';
 import { useShowStore } from '@/store/showStore';
 import { useTrialStore } from '@/store/trialStore';
+import { useEntryWindowTimezone } from '@/hooks/useEntryWindowTimezone';
 import { useClassStoreCompat } from '@/hooks/useClassStoreCompat';
 import { useExistingEntries } from '@/hooks/useExistingEntries';
 import { compareLevels } from '@/utils/schedule-summary';
@@ -113,6 +114,7 @@ export const ClassSelectionStep: React.FC<ClassSelectionStepProps> = ({
     useClassAvailability(showId);
 
   const show = shows.find(s => s.id === showId);
+  const { timeZone: entryWindowTimezone } = useEntryWindowTimezone(showId);
 
   /**
    * Show officials take late entries at the desk for a class already in the
@@ -177,7 +179,14 @@ export const ClassSelectionStep: React.FC<ClassSelectionStepProps> = ({
 
   const classesByTrialElement = useMemo(() => {
     const result = new Map<string, ElementGroup[]>();
-    const defaultFee = getClassFee(show, { entryFee: undefined });
+    // The fee tier is decided in the SHOW's timezone. `show` comes from the
+    // show store and carries no zone, so this priced every chip in whatever
+    // zone the browser happens to be in while the payment step and the server
+    // used the show's own — a third answer to the one question MYK9-642 exists
+    // to make singular (L-F2).
+    const defaultFee = getClassFee(show ? { ...show, entryWindowTimezone } : undefined, {
+      entryFee: undefined,
+    });
 
     // Keyed by class id, NOT read off the chosen source: the step prefers the
     // replicated class list, and only the availability read knows whether dogs
@@ -316,7 +325,15 @@ export const ClassSelectionStep: React.FC<ClassSelectionStepProps> = ({
     }
 
     return result;
-  }, [showTrials, trialClasses, queryClasses, availabilityClasses, show, isStaff]);
+  }, [
+    showTrials,
+    trialClasses,
+    queryClasses,
+    availabilityClasses,
+    show,
+    entryWindowTimezone,
+    isStaff,
+  ]);
   const hasClassGroups = useMemo(
     () => Array.from(classesByTrialElement.values()).some(groups => groups.length > 0),
     [classesByTrialElement]

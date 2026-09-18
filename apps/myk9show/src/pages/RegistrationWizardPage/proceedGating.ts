@@ -28,6 +28,15 @@ export interface ProceedGatingContext {
   agreementLoadingNow: boolean;
   agreedToEntryAgreement: boolean;
   capacityReady: boolean;
+  /**
+   * False while the show's entry-window timezone is still being read from the
+   * trial store. The day-of-show fee tier is decided in that zone, and until it
+   * resolves the rule answers with the `America/New_York` fallback — so the
+   * amount on screen may be a tier the server will not charge, and the offline
+   * desk path would WRITE that amount with no server to correct it (MYK9-642
+   * L-F1). Distinct from every other gate here: it always resolves on its own.
+   */
+  entryWindowTimezoneReady: boolean;
   blockedClassCount: number;
   /**
    * True when availability could not be read at all (offline, or the query
@@ -62,6 +71,11 @@ export function proceedBlockedReason(ctx: ProceedGatingContext): string | null {
       if (ctx.unassignedHandlerCount > 0) return handlerReason(ctx.unassignedHandlerCount);
       return null;
     case 'payment':
+      // First: without the show's timezone there is no trustworthy total to
+      // agree to, so nothing below this can be decided either.
+      if (!ctx.entryWindowTimezoneReady) {
+        return 'Loading show details. Please wait, then try again.';
+      }
       if (ctx.capacityUnavailable) {
         return 'We could not confirm which classes still have room, so we cannot total this entry yet. Check your connection and try again, or go back and re-pick the classes.';
       }

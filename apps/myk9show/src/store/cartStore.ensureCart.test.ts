@@ -114,10 +114,12 @@ vi.mock('./cartStore.reconciliation', () => ({
   reconcileCartItemsAgainstExistingEntries: vi.fn(async ({ items }: { items: unknown[] }) => items),
 }));
 
+import { logger } from '@/services/LoggingService';
 import { loadCartItemsByCartId } from './cartStore.recovery';
 import { reconcileCartItemsAgainstExistingEntries } from './cartStore.reconciliation';
 import { useCartStore } from './cartStore';
 import {
+  CART_OPEN_FAILED_MESSAGE,
   CART_OPEN_TIMED_OUT_MESSAGE,
   CART_OPEN_TIMEOUT_MS,
   resetEnsureCartInFlight,
@@ -340,5 +342,40 @@ describe('the opener is bounded in time, not only in its result type', () => {
     } finally {
       vi.useRealTimers();
     }
+  });
+});
+
+describe("the opener's log names the real failure, not its own generic sentence", () => {
+  it('threads the message createCart recorded through as the cause', async () => {
+    // `createCart` logs and SWALLOWS its PostgREST error and returns null, so
+    // the message it left on the store is the only surviving trace of what went
+    // wrong. Without threading it, `onFailure` logs a synthetic Error carrying
+    // the user-facing line and every diagnostic detail is gone (review C P3-1,
+    // and the mutation that removed it survived every test — review I6).
+    script.lookup = { data: null, error: null };
+    script.insert = { data: null, error: PG_ERROR };
+
+    const result = await useCartStore.getState().ensureCart(SHOW_ID, EXHIBITOR_ID);
+
+    // The caller — and the store, which `onFailure` then overwrites — see the
+    // plain sentence.
+    expect(result).toEqual({ kind: 'failed', error: CART_OPEN_FAILED_MESSAGE });
+    expect(useCartStore.getState().error).toBe(CART_OPEN_FAILED_MESSAGE);
+
+    // The LOG carries what `createCart` recorded on its way out, read back
+    // before that overwrite. Not the opener's own sentence: that is the whole
+    // point of the `lastError` dep.
+    expect(vi.mocked(logger.error)).toHaveBeenCalledWith(
+      'Failed to open cart',
+      'cartStore',
+      { showId: SHOW_ID, exhibitorId: EXHIBITOR_ID },
+      expect.objectContaining({ message: 'Failed to create cart' })
+    );
+    expect(vi.mocked(logger.error)).not.toHaveBeenCalledWith(
+      'Failed to open cart',
+      'cartStore',
+      expect.anything(),
+      expect.objectContaining({ message: CART_OPEN_FAILED_MESSAGE })
+    );
   });
 });

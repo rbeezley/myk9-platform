@@ -23,7 +23,6 @@ import { AlertCircle, Loader2, Save, Dog, Trophy } from 'lucide-react';
 import { withdrawEntry, canModifyEntry } from '@/services/database/entries';
 import { withdrawErrorMessage } from '@/services/database/entries/withdrawEligibility';
 import { useWithdrawEligibility } from './useWithdrawEligibility';
-import { useWithdrawalReasonCodes } from './useWithdrawalReasonCodes';
 import { RemoveFromClassDialog } from './RemoveFromClassDialog';
 import { EntryEditClassRow, type EntryClass } from './EntryEditClassRow';
 import { useShowRegistryId } from './useShowRegistryId';
@@ -94,14 +93,6 @@ export function EntryEditDialog({
   // not know yet (MYK9-632). No default: "still looking" must never render as
   // "this is an AKC show".
   const registry = useShowRegistryId(entry.showId, open);
-
-  // MYK9-632 follow-up: the STORED reason for each row. Without it a reloaded
-  // sheet could say "Withdrawn" but not why, while the session that performed
-  // the withdrawal said both — the same act reading two ways.
-  const storedReasonCodes = useWithdrawalReasonCodes(
-    open,
-    entry.classes.map(classEntry => classEntry.id)
-  );
 
   // Leave-this-class dialog (Withdraw vs Pull).
   const [pullDialog, setPullDialog] = useState<{
@@ -287,13 +278,15 @@ export function EntryEditDialog({
 
   /**
    * The reason to show beside a Withdrawn badge: this session's choice when the
-   * exhibitor just made one, otherwise the stored code. `undefined` means "we
-   * have no reason to show", which is also what a pull renders.
+   * exhibitor just made one, otherwise the code that came down on the row.
+   * `undefined` means "we have no reason to show", which is also what a pull
+   * renders — and what every row reads as until migration 20260918041700 puts
+   * the column on the view.
    */
   const getClassReasonCode = (classEntry: EntryClass): string | null | undefined => {
     const edit = classEdits[classEntry.id];
     if (edit?.reasonCode !== undefined) return edit.reasonCode;
-    return storedReasonCodes[classEntry.id];
+    return classEntry.withdrawalReasonCode;
   };
 
   return (

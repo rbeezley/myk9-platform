@@ -258,6 +258,8 @@ export function useMyEntriesData({
         trialType: trialData?.trial_type || classData?.trial?.trial_type || undefined,
         runOrder: (entry.run_order as number) || undefined,
         status: mapClassEntryStatus(entry.entry_status as string),
+        // MYK9-632: WHICH withdrawal, for the Edit Entry sheet's badge.
+        withdrawalReasonCode: (entry.withdrawal_reason_code as string | null) ?? undefined,
         handler: (entry.handler as string) || undefined,
         paymentStatus: rowPaymentStatus,
         paymentMethod: rowPaymentMethod,

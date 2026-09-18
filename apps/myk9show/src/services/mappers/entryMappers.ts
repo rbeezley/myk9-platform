@@ -359,6 +359,9 @@ export const mapReplicatedEntryToDbRow = (
       ring_exit_time: 'ring_exit_time',
       deleted_at: 'deletedAt',
       updated_at: 'updated_at',
+      // MYK9-632: the enumerated withdrawal reason, so the offline rebuild of
+      // My Shows carries it exactly as the online view read does.
+      withdrawal_reason_code: 'withdrawalReasonCode',
     }),
     check_in_status: entry.checkInStatus ?? entry.check_in_status ?? null,
     discount_amount: entry.discountAmount ?? entry.discount_amount ?? null,

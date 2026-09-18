@@ -196,6 +196,10 @@ const EntryManagementPage: React.FC = () => {
         number: cls.number,
         fee: cls.fee,
         status: cls.status,
+        // MYK9-632: the card behind this sheet already renders this reason
+        // (`removalSummaryLine`); the sheet must not go back to the wire for a
+        // value the page has in hand, nor read differently from the card.
+        withdrawalReasonCode: cls.withdrawalReasonCode ?? entry.withdrawalReasonCode,
         handler: entry.handlerName,
         handlerId: cls.handlerId ?? entry.handlerId ?? null,
         ...(cls.trialType !== undefined ? { trialType: cls.trialType } : {}),

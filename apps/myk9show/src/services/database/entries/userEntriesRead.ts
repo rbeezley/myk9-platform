@@ -83,6 +83,7 @@ export const USER_ENTRIES_SELECT = `
       class_results_released_at,
       dog_image_url,
       deleted_at,
+      withdrawal_reason_code,
       refund_amount,
       refunded_at,
       submitted_at,

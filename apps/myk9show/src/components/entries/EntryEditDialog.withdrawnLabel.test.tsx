@@ -10,8 +10,8 @@
  *
  * Rendered from the REAL prop shape the two producers build: a class row whose
  * `status` is exactly what `mapClassEntryStatus` returns for the stored value,
- * with the stored `withdrawal_reason_code` reaching the dialog the same way the
- * eligibility verdicts do.
+ * carrying `withdrawalReasonCode` the way both producers now put it there —
+ * straight off the replicated/view row, no read of its own.
  */
 import { beforeEach, describe, it, expect, vi } from 'vitest';
 import { render, screen, waitFor } from '@/test/utils/testUtils';
@@ -19,12 +19,12 @@ import { EntryEditDialog } from './EntryEditDialog';
 import { mapClassEntryStatus } from '@/utils/entryManagementUtils';
 
 const mocks = vi.hoisted(() => ({
+  supabaseFrom: vi.fn(),
   canModifyEntry: vi.fn(),
   updateEntryDetails: vi.fn(),
   updateEntryHandler: vi.fn(),
   withdrawEntry: vi.fn(),
   getRemoveFromClassEligibilityForEntries: vi.fn(),
-  getWithdrawalReasonCodesForEntries: vi.fn(),
   getTrialsByShow: vi.fn(),
 }));
 
@@ -39,18 +39,27 @@ vi.mock('@/services/database/entries/withdrawOwnEntry', () => ({
   getRemoveFromClassEligibilityForEntries: mocks.getRemoveFromClassEligibilityForEntries,
 }));
 
-vi.mock('@/services/database/entries/withdrawalReasonCodes', () => ({
-  getWithdrawalReasonCodesForEntries: mocks.getWithdrawalReasonCodesForEntries,
-}));
-
 vi.mock('@/services/replication/ReplicatedTrialsTable', () => ({
   replicatedTrialsTable: { getTrialsByShow: mocks.getTrialsByShow },
+}));
+
+// The sheet must reach `entries` for the reason NOT AT ALL — the row carries it.
+// A spy on the shared client is the only way to assert the absence of a read
+// that no longer has a module of its own to mock.
+vi.mock('@/services/database/supabaseClient', () => ({
+  supabase: { from: mocks.supabaseFrom },
+  createDatabaseError: (error: unknown) => error,
+  logQuery: () => {},
 }));
 
 const noop = () => {};
 
 /** One class row exactly as the two producers build it from a stored row. */
-function rowFromStoredStatus(storedStatus: string, id = 'class-1') {
+function rowFromStoredStatus(
+  storedStatus: string,
+  id = 'class-1',
+  withdrawalReasonCode: string | null | undefined = undefined
+) {
   return {
     id,
     name: 'Container Novice A',
@@ -58,6 +67,7 @@ function rowFromStoredStatus(storedStatus: string, id = 'class-1') {
     fee: 30,
     trialType: 'Scent Work',
     status: mapClassEntryStatus(storedStatus),
+    withdrawalReasonCode,
   };
 }
 
@@ -83,7 +93,6 @@ beforeEach(() => {
       ids.map(id => [id, { withdraw: { allowed: true }, pull: { allowed: true } }])
     )
   );
-  mocks.getWithdrawalReasonCodesForEntries.mockResolvedValue({});
 });
 
 describe('EntryEditDialog — a stored withdrawal survives a fresh load (MYK9-632)', () => {
@@ -102,12 +111,10 @@ describe('EntryEditDialog — a stored withdrawal survives a fresh load (MYK9-63
   });
 
   it('shows the stored withdrawal reason beside the badge', async () => {
-    mocks.getWithdrawalReasonCodesForEntries.mockResolvedValue({ 'class-1': 'in_season' });
-
     render(
       <EntryEditDialog
         open
-        entry={entryWith(rowFromStoredStatus('withdrawn'))}
+        entry={entryWith(rowFromStoredStatus('withdrawn', 'class-1', 'in_season'))}
         onOpenChange={noop}
         onUpdate={noop}
       />
@@ -131,13 +138,11 @@ describe('EntryEditDialog — a stored withdrawal survives a fresh load (MYK9-63
   });
 
   it('keeps the two acts apart on the same card', async () => {
-    mocks.getWithdrawalReasonCodesForEntries.mockResolvedValue({ 'class-1': 'in_season' });
-
     render(
       <EntryEditDialog
         open
         entry={entryWith(
-          rowFromStoredStatus('withdrawn'),
+          rowFromStoredStatus('withdrawn', 'class-1', 'in_season'),
           rowFromStoredStatus('scratched', 'class-2')
         )}
         onOpenChange={noop}
@@ -149,20 +154,47 @@ describe('EntryEditDialog — a stored withdrawal survives a fresh load (MYK9-63
     expect(screen.getByText('Pulled')).toBeInTheDocument();
   });
 
-  it('asks for the whole card in ONE reason-code call', async () => {
+  // The reason arrives ON THE ROW. A withdrawal whose code has not reached the
+  // client (a replica cached before migration 20260918041700, or a secretary
+  // Decline, which records no reason at all) must still read "Withdrawn" — the
+  // bare word is the honest answer, and it is never "Pulled".
+  it('renders the bare word when the row carries no reason code', async () => {
     render(
       <EntryEditDialog
         open
-        entry={entryWith(
-          rowFromStoredStatus('withdrawn'),
-          rowFromStoredStatus('scratched', 'class-2')
-        )}
+        entry={entryWith(rowFromStoredStatus('withdrawn'))}
         onOpenChange={noop}
         onUpdate={noop}
       />
     );
 
-    await waitFor(() => expect(mocks.getWithdrawalReasonCodesForEntries).toHaveBeenCalledTimes(1));
-    expect(mocks.getWithdrawalReasonCodesForEntries).toHaveBeenCalledWith(['class-1', 'class-2']);
+    expect(await screen.findByText('Withdrawn')).toBeInTheDocument();
+    expect(screen.queryByText(/Withdrawn ·/)).not.toBeInTheDocument();
+    expect(screen.queryByText('Pulled')).not.toBeInTheDocument();
+  });
+
+  // The whole point of reading the reason off the row: the sheet adds no read of
+  // its own. `entries` is where the code lives, and the ONLY thing that may
+  // touch it here is the eligibility batch the sheet already made.
+  it('issues no read of its own for the reason', async () => {
+    render(
+      <EntryEditDialog
+        open
+        entry={entryWith(rowFromStoredStatus('withdrawn', 'class-1', 'in_season'))}
+        onOpenChange={noop}
+        onUpdate={noop}
+      />
+    );
+
+    expect(await screen.findByText('Withdrawn · Dog in season')).toBeInTheDocument();
+    await waitFor(() =>
+      expect(mocks.getRemoveFromClassEligibilityForEntries).toHaveBeenCalledTimes(1)
+    );
+    // Positive control for the negative assertion: prove the spy IS the `from`
+    // the app code would have reached for, so "never called" means "never read",
+    // not "never wired".
+    const { supabase } = await import('@/services/database/supabaseClient');
+    expect(supabase.from).toBe(mocks.supabaseFrom);
+    expect(mocks.supabaseFrom).not.toHaveBeenCalled();
   });
 });

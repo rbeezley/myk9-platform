@@ -50,6 +50,13 @@ export interface EntryClass {
   runOrder?: number | undefined;
   /** MYK9-632: 'withdrawn' and 'scratched' (a pull) are DIFFERENT acts. */
   status: 'entered' | 'withdrawn' | 'scratched' | 'moved' | 'absent';
+  /**
+   * MYK9-632: the stored `withdrawal_reason_code` ('in_season' | 'judge_change'),
+   * null on a pull, and `undefined` when the row predates migration
+   * 20260918041700 (which is what puts the column on the view). Only ever
+   * rendered for a withdrawal.
+   */
+  withdrawalReasonCode?: string | null | undefined;
   /** Denormalized handler display name; may differ from the dog owner when a proxy handles the dog. */
   handler?: string | undefined;
   /**

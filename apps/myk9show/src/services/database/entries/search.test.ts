@@ -205,6 +205,9 @@ describe('USER_ENTRIES_SELECT (getUserEntries PostgREST fallback shape)', () => 
     'search_time_seconds',
     'total_faults',
     'final_placement',
+    // MYK9-632: without it the Edit Entry sheet cannot say WHICH removal happened
+    // and silently falls back to a bare "Withdrawn".
+    'withdrawal_reason_code',
     'start_date',
     'end_date',
     'entry_close_date',

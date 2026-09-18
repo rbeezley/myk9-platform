@@ -10554,6 +10554,11 @@ export type Database = {
           version: number | null
           video_review_notes: string | null
           withdrawal_reason: string | null
+          // MYK9-632: hand-bridged ahead of regeneration. Migration
+          // 20260918041700 adds this column to the view; re-run
+          // `generate_typescript_types` after it is pushed and this line
+          // becomes generated output like every other.
+          withdrawal_reason_code: string | null
         }
         Relationships: [
           {
@@ -10816,6 +10821,11 @@ export type Database = {
           version: number | null
           video_review_notes: string | null
           withdrawal_reason: string | null
+          // MYK9-632: hand-bridged ahead of regeneration. Migration
+          // 20260918041700 adds this column to the view; re-run
+          // `generate_typescript_types` after it is pushed and this line
+          // becomes generated output like every other.
+          withdrawal_reason_code: string | null
         }
         Relationships: [
           {

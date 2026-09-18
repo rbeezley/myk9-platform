@@ -37,6 +37,13 @@ export interface EntryClass {
   runOrder?: number;
   /** MYK9-632: 'withdrawn' and 'scratched' (a pull) are DIFFERENT acts. */
   status: 'entered' | 'withdrawn' | 'scratched' | 'moved' | 'absent';
+  /**
+   * MYK9-632: the stored `withdrawal_reason_code` ('in_season' | 'judge_change'),
+   * null on a pull, and `undefined` when the row predates migration
+   * 20260918041700 (which is what puts the column on the view). Only ever
+   * rendered for a withdrawal.
+   */
+  withdrawalReasonCode?: string | null | undefined;
 }
 
 interface EntryEditClassRowProps {
@@ -72,8 +79,12 @@ export function EntryEditClassRow({
   const isPulled = status === 'scratched';
   const isWithdrawn = status === 'withdrawn';
   const isRemoved = isPulled || isWithdrawn;
-  // Only the two recognised codes have a label; anything else (including the
-  // free-text 'other') renders the bare word rather than a raw column value.
+  // `entries_withdrawal_reason_code_check` allows exactly NULL, 'in_season' and
+  // 'judge_change', and `withdrawalReasonLabel` covers both codes — so the null
+  // branch here is not a fallback for some other code, it is the real state of
+  // a withdrawal that carries no reason (what a secretary Decline writes, and
+  // what every row reads as until migration 20260918041700 lands). It renders
+  // the bare word.
   const reason = isWithdrawn ? withdrawalReasonLabel(reasonCode) : null;
   const removedLabel = isWithdrawn ? (reason ? `Withdrawn · ${reason}` : 'Withdrawn') : 'Pulled';
   // One affordance opens the chooser; it is offered while EITHER

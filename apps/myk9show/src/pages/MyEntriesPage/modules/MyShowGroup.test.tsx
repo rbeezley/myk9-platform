@@ -9,14 +9,7 @@ import { screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { EntryStatus, PaymentStatus } from '@/types/show-registration-types';
 import { render } from '@/test/utils/testUtils';
-import {
-  day,
-  makeClass,
-  makeRow,
-  NOW,
-  openShowActions,
-  toOrders,
-} from '@/test/fixtures/myShowsFixtures';
+import { day, makeClass, makeRow, NOW, toOrders } from '@/test/fixtures/myShowsFixtures';
 import { parseShowDate } from './myEntriesStats.helpers';
 import { MyShowsList, type MyShowsListProps } from './MyShowsList';
 import type { MyEntry } from './my-entries-types';
@@ -31,7 +24,6 @@ function renderRows(rows: MyEntry[], overrides: Partial<MyShowsListProps> = {}) 
     onOpenCheckIn: vi.fn(),
     onOpenEdit: vi.fn(),
     onOpenReceipts: vi.fn(),
-    onLeaveClass: vi.fn(),
     ...overrides,
   };
   return render(<MyShowsList {...props} />);
@@ -49,13 +41,6 @@ function futureShowRow(overrides: Partial<MyEntry> = {}): MyEntry {
 }
 
 beforeEach(() => localStorage.clear());
-
-const FLINT = 'Flint Hills Fall Classic';
-
-/** The card's one Actions menu, opened (MYK9-631 AC2). */
-async function flintMenu() {
-  return openShowActions(userEvent.setup(), FLINT);
-}
 
 describe('balance due', () => {
   const rows = [
@@ -86,10 +71,7 @@ describe('balance due', () => {
       screen.getByText('$45.00 due · the secretary will review it once it is paid.')
     ).toBeInTheDocument();
 
-    // MYK9-631: the strip keeps its own button — a status banner does not
-    // hand its verb to the menu — but it is titled with the amount now, so it
-    // cannot read as a duplicate of the page header's "Finish Payment".
-    const finish = screen.getByRole('link', { name: 'Pay $45.00' });
+    const finish = screen.getByRole('link', { name: /Finish payment/ });
     expect(finish).toHaveAttribute('href', '/cart?showId=show-flint&entryIds=c-scout-1');
   });
 
@@ -123,7 +105,7 @@ describe('pay at show', () => {
 
     expect(screen.getByText('Pay at show')).toBeInTheDocument();
     expect(screen.queryByText(/waiting on payment/)).not.toBeInTheDocument();
-    expect(screen.queryByRole('link', { name: /^Pay \$/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: /Finish payment/ })).not.toBeInTheDocument();
   });
 });
 
@@ -230,26 +212,20 @@ describe('entries-close deadline', () => {
     });
   }
 
-  it('states the deadline in the meta line while editing is still possible', async () => {
+  it('states the deadline in the meta line while editing is still possible', () => {
     renderRows([editableRow(day('2026-11-01'))]);
 
     expect(screen.getByText('Entries close Nov 1, 2026')).toBeInTheDocument();
-    const menu = await flintMenu();
-    expect(
-      menu.getByRole('menuitem', { name: 'Change handler or jump height' })
-    ).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Edit entry' })).toBeInTheDocument();
   });
 
-  it('drops the deadline — and the edit control — once the close date has passed', async () => {
+  it('drops the deadline — and the edit control — once the close date has passed', () => {
     renderRows([editableRow(day('2026-01-01'))]);
 
     // A trailing space keeps this off "Entries closed", the post-deadline
     // state MYK9-502 added; what must be gone is the stated DATE.
     expect(screen.queryByText(/Entries close /)).not.toBeInTheDocument();
-    const menu = await flintMenu();
-    expect(
-      menu.queryByRole('menuitem', { name: 'Change handler or jump height' })
-    ).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Edit entry' })).not.toBeInTheDocument();
   });
 
   it('says nothing about a deadline the show never set', () => {
@@ -298,45 +274,27 @@ describe('post-deadline help (MYK9-502)', () => {
     });
   }
 
-  it('offers the show team once nothing is editable any more', async () => {
+  it('offers the show team once nothing is editable any more', () => {
     renderRows([closedRow()]);
 
     expect(screen.getByText('Entries closed')).toBeInTheDocument();
-    const menu = await flintMenu();
-    const link = menu.getByRole('menuitem', {
+    const link = screen.getByRole('link', {
       name: 'Message the show team about Flint Hills Fall Classic',
     });
     expect(link).toHaveAttribute('href', '/messages/show-flint');
-    expect(
-      menu.queryByRole('menuitem', { name: 'Change handler or jump height' })
-    ).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Edit entry' })).not.toBeInTheDocument();
   });
 
   // Codex, PR #2201: the close date is inclusive. NOW is midday Central on
   // 24 Oct 2026, so a show closing THAT day is still open — reading the
   // instant instead of the calendar day retired the controls a day early.
-  it('offers the edit item through the whole close date', async () => {
+  it('offers Edit entry, not the help link, through the whole close date', () => {
     renderRows([closedRow({ entryCloseDate: day('2026-10-24') })]);
 
     // Codex P1: the exhibitor must never be left with neither control.
-    const menu = await flintMenu();
-    expect(
-      menu.getByRole('menuitem', { name: 'Change handler or jump height' })
-    ).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Edit entry' })).toBeInTheDocument();
     expect(screen.queryByText('Entries closed')).not.toBeInTheDocument();
-  });
-
-  // MYK9-631: "Message the show team" used to appear ONLY after entries
-  // closed, so an exhibitor with a question before the deadline had nowhere to
-  // ask it. It is now offered on every card that knows its show.
-  it('offers the show team BEFORE the deadline too', async () => {
-    renderRows([closedRow({ entryCloseDate: day('2026-10-24') })]);
-
-    const menu = await flintMenu();
-    expect(menu.getByRole('menuitem', { name: /Message the show team/ })).toHaveAttribute(
-      'href',
-      '/messages/show-flint'
-    );
+    expect(screen.queryByRole('link', { name: /Message the show team/ })).not.toBeInTheDocument();
   });
 
   it('speaks the day AFTER the close date', () => {
@@ -345,7 +303,7 @@ describe('post-deadline help (MYK9-502)', () => {
     expect(screen.getByText('Entries closed')).toBeInTheDocument();
   });
 
-  it('stays silent while any order can still be edited', async () => {
+  it('stays silent while any order can still be edited', () => {
     renderRows([
       closedRow(),
       futureShowRow({
@@ -359,10 +317,8 @@ describe('post-deadline help (MYK9-502)', () => {
       }),
     ]);
 
-    const menu = await flintMenu();
-    expect(
-      menu.getByRole('menuitem', { name: 'Change handler or jump height' })
-    ).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Edit entry' })).toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: /Message the show team/ })).not.toBeInTheDocument();
     expect(screen.queryByText('Entries closed')).not.toBeInTheDocument();
   });
 
@@ -375,14 +331,14 @@ describe('post-deadline help (MYK9-502)', () => {
       }),
     ]);
 
+    expect(screen.queryByRole('link', { name: /Message the show team/ })).not.toBeInTheDocument();
     expect(screen.queryByText('Entries closed')).not.toBeInTheDocument();
   });
 
-  it('withholds the link while the show relation is still replicating', async () => {
+  it('withholds the link while the show relation is still replicating', () => {
     renderRows([closedRow({ showId: '' })]);
 
-    const menu = await flintMenu();
-    expect(menu.queryByRole('menuitem', { name: /Message the show team/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: /Message the show team/ })).not.toBeInTheDocument();
   });
 });
 
@@ -435,47 +391,28 @@ describe('add to calendar', () => {
     });
   }
 
-  it('offers the control once the show id is known', async () => {
+  it('offers the control once the show id is known', () => {
     renderRows([calendarRow('show-flint')]);
 
-    const menu = await flintMenu();
-    expect(menu.getByRole('menuitem', { name: 'Add to calendar' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Add to calendar' })).toBeInTheDocument();
   });
 
-  it('withholds it while the show relation is still replicating', async () => {
+  it('withholds it while the show relation is still replicating', () => {
     // The guard travels WITH the control: AddToCalendarDialog issues a
     // subscription for the id the moment it opens, so an empty showId must not
     // be reachable at all.
     renderRows([calendarRow('')]);
 
-    const menu = await flintMenu();
-    expect(menu.queryByRole('menuitem', { name: 'Add to calendar' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Add to calendar' })).not.toBeInTheDocument();
   });
 });
 
 describe('unresolved show id (Codex, PR #2198)', () => {
-  // The positive control for the absence assertions below: the same fixture
-  // WITH a show id offers all three, so a renamed item cannot turn this into a
-  // test that passes on an empty menu.
-  it('offers every show-bound item once the show id is known', async () => {
-    renderRows([futureShowRow({ id: 'e-resolved' })]);
-
-    const menu = await flintMenu();
-    expect(menu.getByRole('menuitem', { name: /View the show page/ })).toBeInTheDocument();
-    expect(menu.getByRole('menuitem', { name: 'Add to calendar' })).toBeInTheDocument();
-    expect(menu.getByRole('menuitem', { name: /Add classes/ })).toBeInTheDocument();
-  });
-
-  it('offers no show-bound item while the show relation is still replicating', async () => {
+  it('offers no View show or Add to calendar link while the show relation is still replicating', () => {
     renderRows([futureShowRow({ id: 'e-unresolved', showId: '' })]);
 
-    const menu = await flintMenu();
-    expect(menu.queryByRole('menuitem', { name: /View the show page/ })).not.toBeInTheDocument();
-    expect(menu.queryByRole('menuitem', { name: 'Add to calendar' })).not.toBeInTheDocument();
-    expect(menu.queryByRole('menuitem', { name: /Add classes/ })).not.toBeInTheDocument();
-    // Receipts needs only an order, so it survives the replication window —
-    // withholding a receipt for a payment already taken is the one thing that
-    // makes a real payment look lost.
-    expect(menu.getByRole('menuitem', { name: 'Receipts' })).toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: /View show/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Add to calendar' })).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Orders & receipts' })).toBeInTheDocument();
   });
 });

@@ -26,7 +26,6 @@ import {
 } from '@/features/result-card';
 import { formatWeekdayMonthDay } from '@/lib/format/dates';
 import { formatTrialLabel } from './myEntriesUtils';
-import { canLeaveClassRow } from './leaveClassRow';
 import { deriveClassRowState, type ClassRowKind } from './myShowDogState';
 import type { DayCheckInContext } from './dayCheckIn';
 import type { MyShowClass } from './groupEntriesByShow';
@@ -83,12 +82,6 @@ export interface MyShowClassRowProps {
   seenResultReleaseKeys: Set<string>;
   onCheckInClass: (cls: MyShowClass) => void;
   onOpenCheckIn: (order: MyEntry, cls: MyShowClass) => void;
-  /**
-   * MYK9-631 AC3: open the Withdraw-or-Pull chooser for THIS class. A row verb
-   * rather than a menu item, because leaving a class is per class — and the
-   * order picker that used to stand in front of it is what AC3 deletes.
-   */
-  onLeaveClass: (cls: MyShowClass) => void;
   onResultRevealClick?: ((model: ResultCardModel) => void) | undefined;
 }
 
@@ -101,14 +94,10 @@ export const MyShowClassRow: React.FC<MyShowClassRowProps> = ({
   seenResultReleaseKeys,
   onCheckInClass,
   onOpenCheckIn,
-  onLeaveClass,
   onResultRevealClick,
 }) => {
   const state = deriveClassRowState(cls, checkInContext);
   const word = STATE_WORDS[state.kind];
-  // Which rows may offer it is `leaveClassRow.ts`; a show already over offers
-  // nothing, whatever the row kind reads as.
-  const canLeave = !checkInContext.isPastShow && canLeaveClassRow(state.kind);
 
   const when = [
     cls.trialDate ? formatWeekdayMonthDay(cls.trialDate) : null,
@@ -176,25 +165,6 @@ export const MyShowClassRow: React.FC<MyShowClassRowProps> = ({
           ) : (
             <span className="text-muted-foreground">absent</span>
           ))}
-        {/* The one destructive verb on this page, anchored to the row that
-            owns it. Muted rather than `text-destructive`: it sits beside a
-            check-in control the exhibitor uses far more often, and the
-            chooser it opens is where the consequences are stated. */}
-        {canLeave && (
-          <>
-            <span aria-hidden="true" className="text-muted-foreground">
-              ·
-            </span>
-            <button
-              type="button"
-              onClick={() => onLeaveClass(cls)}
-              aria-label={`Withdraw or pull ${dogName} from ${cls.name}`}
-              className={`${LINK_CLASS} text-muted-foreground`}
-            >
-              Leave class…
-            </button>
-          </>
-        )}
       </span>
     </div>
   );

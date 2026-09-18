@@ -12,7 +12,7 @@
 
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { Check, CreditCard } from 'lucide-react';
+import { ArrowRight, Check, CreditCard, MessageSquare } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { AddToCalendarDialog } from '@/features/calendar-subscribe';
 import { formatPaymentCents } from '@/features/payments/moneyPresentation';
@@ -24,15 +24,18 @@ import type { UserEntriesSource } from '@/services/database/entries';
 import type { DayCheckInContext } from './dayCheckIn';
 import { indexOrdersById, type MyShowClass, type MyShowDog } from './groupEntriesByShow';
 import type { MyShowGroup as MyShowGroupModel } from './groupEntriesByShow';
-import { MyShowActionsMenu } from './MyShowActionsMenu';
 import { MyShowDogCard } from './MyShowDogCard';
-import type { LeaveClassTarget, MyEntry } from './my-entries-types';
+import type { MyEntry } from './my-entries-types';
 import { deriveMyEntryCardState } from './myEntryCardState';
 import { isPastShowEntry } from './myEntriesStats.helpers';
 import { formatDogNamesPossessive, formatShowHeaderDateRange } from './myShowHeaderFormat';
 import { derivePaidStrip, hasSeenPaidStrip, markPaidStripSeen } from './paidStripSeen';
 import { deriveShowMoneyState, refundNotesByDog, type ShowMoneyKind } from './showMoneyState';
 import { UnconfirmedReadNotice } from './UnconfirmedReadNotice';
+
+const HEADER_LINK_CLASS =
+  'inline-flex min-h-[44px] items-center gap-1 whitespace-nowrap rounded font-medium text-primary ' +
+  'hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2';
 
 export interface MyShowGroupProps {
   group: MyShowGroupModel;
@@ -54,8 +57,6 @@ export interface MyShowGroupProps {
   /** The group's money state travels with the open, so the orders chooser
    * states amounts from the same one derivation this card does. */
   onOpenReceipts: (group: MyShowGroupModel, moneyKind: ShowMoneyKind) => void;
-  /** MYK9-631 AC3: a row verb, so it travels to the class row that owns it. */
-  onLeaveClass: (target: LeaveClassTarget) => void;
   onResultRevealClick?: ((model: ResultCardModel) => void) | undefined;
 }
 
@@ -69,7 +70,6 @@ export const MyShowGroupCard: React.FC<MyShowGroupProps> = ({
   onOpenCheckIn,
   onOpenEdit,
   onOpenReceipts,
-  onLeaveClass,
   onResultRevealClick,
 }) => {
   const [calendarOpen, setCalendarOpen] = React.useState(false);
@@ -191,34 +191,68 @@ export const MyShowGroupCard: React.FC<MyShowGroupProps> = ({
           </p>
         </div>
 
-        {/* MYK9-631 AC2: ONE trigger, where four links used to sit. Every item
-            behind it is a link or a dialog that already existed — the menu
-            collapses the surface, it does not reimplement anything. What is
-            NOT here is deliberate: Finish payment stays on the money strip
-            below (a status banner keeps its own verb), Dismiss stays on the
-            strip it dismisses, and leaving a class is a row verb on the class
-            it acts on. */}
         <div className="myk9-entries-show-actions">
-          <MyShowActionsMenu
-            showId={group.showId}
-            showName={group.showName}
-            hasEditableOrders={editableOrders.length > 0}
-            hasOrders={group.orders.length > 0}
-            isPastShow={isPastShow}
-            onOpenEdit={() => onOpenEdit(editableOrders)}
-            onOpenReceipts={() => onOpenReceipts(group, money.kind)}
-            onAddToCalendar={() => setCalendarOpen(true)}
-          />
+          {/* Always offered: a pending, cash or check order still has an order and a
+              card-derived receipt to show; only a paid one has a Stripe receipt. */}
+          {group.orders.length > 0 && (
+            <button
+              type="button"
+              onClick={() => onOpenReceipts(group, money.kind)}
+              className={HEADER_LINK_CLASS}
+            >
+              Orders &amp; receipts
+            </button>
+          )}
+          {editableOrders.length > 0 && (
+            <button
+              type="button"
+              onClick={() => onOpenEdit(editableOrders)}
+              className={HEADER_LINK_CLASS}
+            >
+              Edit entry
+            </button>
+          )}
+          {/* The showId guard travels with the control, as it does for Add to
+              calendar: `/messages/` with nothing after it is a dead link. */}
+          {needsPostDeadlineHelp && group.showId && (
+            <Link
+              to={`/messages/${group.showId}`}
+              aria-label={`Message the show team about ${group.showName}`}
+              className={HEADER_LINK_CLASS}
+            >
+              <MessageSquare className="h-4 w-4" aria-hidden="true" />
+              Message the show team
+            </Link>
+          )}
+          {/* The showId guard travels with the control: an empty showId is the
+              partial-replication window, and AddToCalendarDialog issues a
+              subscription for the id the moment it opens. */}
+          {group.showId && (
+            <button
+              type="button"
+              onClick={() => setCalendarOpen(true)}
+              className={HEADER_LINK_CLASS}
+            >
+              Add to calendar
+            </button>
+          )}
+          {/* Same guard as Add to calendar: an empty showId is the replication
+              window, and `/shows/` with nothing after it is a dead link. */}
+          {group.showId && (
+            <Link to={`/shows/${group.showId}`} className={HEADER_LINK_CLASS}>
+              View show
+              <ArrowRight className="h-4 w-4" aria-hidden="true" />
+            </Link>
+          )}
         </div>
       </div>
 
       {/* INTENT: the exhibitor is not told their entries are gone or wrong —
           only that we could not confirm them just now. Receipts stay reachable
-          in the Actions menu above (decision (a)): a receipt records a payment
-          already taken, and withholding it is the one thing that makes a real
-          payment look lost. */}
+          above (decision (a)): a receipt records a payment already taken, and
+          withholding it is the one thing that makes a real payment look lost. */}
       {moneyUnknown && (
-        <UnconfirmedReadNotice detail="Payment amounts are hidden until we can confirm them. Receipts, under Actions above, still open." />
+        <UnconfirmedReadNotice detail="Payment amounts are hidden until we can confirm them. Orders & receipts above still open." />
       )}
 
       {money.kind === 'balance-due' && (
@@ -235,13 +269,9 @@ export const MyShowGroupCard: React.FC<MyShowGroupProps> = ({
           </div>
           {money.paymentHref ? (
             <Button asChild className="min-h-[44px]">
-              {/* MYK9-631: titled with the AMOUNT. The page header already
-                  carries a "Finish Payment" button quoting the all-shows
-                  total, and the two sat ~300px apart stating different
-                  numbers. This one names the figure it will actually collect. */}
               <Link to={money.paymentHref}>
                 <CreditCard className="mr-1.5 h-5 w-5" />
-                Pay {formatPaymentCents(money.amountCents, 'USD')}
+                Finish payment
               </Link>
             </Button>
           ) : (
@@ -321,17 +351,6 @@ export const MyShowGroupCard: React.FC<MyShowGroupProps> = ({
               seenResultReleaseKeys={seenResultReleaseKeys}
               onCheckInDay={onCheckInDay}
               onOpenCheckIn={onOpenCheckIn}
-              // The show id lives on the GROUP, not the class row, so the
-              // target is assembled here — one place, rather than a showId
-              // prop threaded through every card and row.
-              onLeaveClass={(leavingDog, cls) =>
-                onLeaveClass({
-                  classId: cls.id,
-                  className: cls.name,
-                  dogName: leavingDog.dogName,
-                  showId: group.showId,
-                })
-              }
               onResultRevealClick={onResultRevealClick}
             />
           </li>

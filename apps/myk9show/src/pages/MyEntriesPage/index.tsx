@@ -458,7 +458,6 @@ const MyEntriesPage: React.FC = () => {
                         onCheckInDay={dialogs.checkInClassesForDay}
                         onOpenCheckIn={dialogs.openCheckIn}
                         onOpenEdit={dialogs.openEdit}
-                        onLeaveClass={dialogs.openLeaveClass}
                         onOpenReceipts={(group, moneyKind) =>
                           dialogs.openReceipt(group.orders, moneyKind)
                         }
@@ -525,8 +524,6 @@ const MyEntriesPage: React.FC = () => {
         onEntryUpdated={dialogs.entryUpdated}
         receiptDialog={dialogs.receiptDialog}
         onCloseReceipt={dialogs.closeReceipt}
-        leaveClassDialog={dialogs.leaveClassDialog}
-        onCloseLeaveClass={dialogs.closeLeaveClass}
         resultRevealModel={reveal.resultRevealModel}
         onCloseResultReveal={reveal.closeResultReveal}
         onResultRevealSeen={reveal.markSeen}

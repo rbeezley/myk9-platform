@@ -26,7 +26,6 @@ function renderList(overrides: Partial<MyShowsListProps> = {}) {
     onOpenCheckIn: vi.fn(),
     onOpenEdit: vi.fn(),
     onOpenReceipts: vi.fn(),
-    onLeaveClass: vi.fn(),
     ...overrides,
   };
   return { props, ...render(<MyShowsList {...props} />) };

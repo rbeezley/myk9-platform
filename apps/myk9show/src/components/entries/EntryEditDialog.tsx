@@ -55,13 +55,6 @@ interface EntryEditDialogProps {
    * transition and is not bound by the exhibitor-only withdraw guards.
    */
   asShowManager?: boolean;
-  /**
-   * MYK9-631 Q4: My Shows passes `false`. Leaving a class is now a control on
-   * the show card's class row, so the sheet is handler and jump height only —
-   * which is also what its menu item is called. Every other caller keeps the
-   * per-row chooser.
-   */
-  allowLeaveClass?: boolean;
 }
 
 export function EntryEditDialog({
@@ -71,7 +64,6 @@ export function EntryEditDialog({
   onUpdate,
   ignoreModificationDeadline = false,
   asShowManager = false,
-  allowLeaveClass = true,
 }: EntryEditDialogProps) {
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
@@ -91,10 +83,8 @@ export function EntryEditDialog({
   // refuse, so the exhibitor is told up front instead of seeing an optimistic
   // state the RPC later rejects. MYK9-632: the map now carries BOTH verdicts —
   // a paid entry may be pulled but not withdrawn. See ./useWithdrawEligibility.
-  // Skipped entirely when this surface does not offer the control: the lookup
-  // exists to decide whether to grey a button out, and there is no button.
   const withdrawEligibility = useWithdrawEligibility(
-    open && allowLeaveClass,
+    open,
     asShowManager,
     entry.classes.map(classEntry => classEntry.id)
   );
@@ -102,7 +92,7 @@ export function EntryEditDialog({
   // Which rulebook's withdrawal reasons this show offers, or the fact that we do
   // not know yet (MYK9-632). No default: "still looking" must never render as
   // "this is an AKC show".
-  const registry = useShowRegistryId(entry.showId, open && allowLeaveClass);
+  const registry = useShowRegistryId(entry.showId, open);
 
   // Leave-this-class dialog (Withdraw vs Pull).
   const [pullDialog, setPullDialog] = useState<{
@@ -352,7 +342,6 @@ export function EntryEditDialog({
                       status={getClassStatus(classEntry)}
                       reasonCode={getClassReasonCode(classEntry)}
                       rowEligibility={withdrawEligibility[classEntry.id]}
-                      canOfferLeaveClass={allowLeaveClass}
                       currentHandler={
                         classEdits[classEntry.id]?.handler ??
                         classEntry.handler ??
@@ -402,7 +391,7 @@ export function EntryEditDialog({
       </Sheet>
 
       <RemoveFromClassDialog
-        open={allowLeaveClass && pullDialog.open}
+        open={pullDialog.open}
         classId={pullDialog.classId}
         className={pullDialog.className}
         registry={registry}

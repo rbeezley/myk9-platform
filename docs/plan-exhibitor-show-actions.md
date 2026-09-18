@@ -133,8 +133,8 @@ One `⋯ Actions` trigger in the card header, replacing the four-link row. Items
 
 1. ~~Finish payment~~ — dropped from the menu on 2026-09-17 by the placement rule in `docs/plan-secretary-show-actions.md` (a status banner keeps its own button and the verb is not repeated in the menu); the yellow money strip keeps its Pay button, retitled to the amount
 2. **Add classes** → the registration wizard for this show
-3. ~~Withdraw a dog from a class~~ — moved OUT of the menu on 2026-09-18 (Q4 below): it is a **Leave class…** control on each class row, opening `RemoveFromClassDialog` for that class id. No order picker either way, which is what AC3 asked for
-4. **Change handler or jump height** → today's `EntryEditDialog`, minus its removal column (which now lives on the row)
+3. **Withdraw a dog from a class** → a dialog listing every class by dog and class name, one button each (AC3; no order picker)
+4. **Change handler or jump height** → today's `EntryEditDialog`, minus its Pull column
 5. **Receipts** → today's receipt path, rows labelled `Juni · Interior Advanced, Exterior Excellent · entered Sep 16`
 6. **Add to calendar**
 7. **Message the show team** (always, not only after entries close)
@@ -144,35 +144,7 @@ One `⋯ Actions` trigger in the card header, replacing the four-link row. Items
 
 ---
 
-## 4. Open questions — answered
-
-Every question below was **decided as an assumption when AC2–AC6 were built**, so the implementation could land without blocking on a round trip. Richard can override any of them; each names the PR that acted on it.
-
-1. **Separate plan doc stays** — decided (assumption, PR #2334). This doc is not folded into [`plan-ia-exhibitor-surface.md`](plan-ia-exhibitor-surface.md). That plan's Phases B–D are route-level; this one is action-level, and merging them would bury the inventory table.
-2. **NOT one verb** — decided (assumption, PR #2334). MYK9-632 settled it the other way: Withdraw (a reason the registry recognises, refund per the premium) and Pull (any other reason, refund at the club's discretion) are two different acts with two different money consequences, and `RemoveFromClassDialog` states both before anything is clicked. The wait-list row's **Withdraw** stays. What PR #2334 removed is the leftover `Pull from class?` / `Pulling…` copy MYK9-632 had not already replaced.
-3. **"Add classes" is a LINK** — decided (assumption, PR #2334). The menu item navigates to `/shows/:id`, the registration wizard's entry point. No second registration surface; the show page owns "which classes are still open".
-4. **A ROW verb, not a menu item** — decided (assumption, PR #2334). Each `MyShowClassRow` carries a **Leave class…** control (screen-reader name `Withdraw or pull <Dog> from <Class>`) that opens `RemoveFromClassDialog` for that class id. No order picker, and no "Withdraw a dog from a class" menu item — that would repeat a row verb in the menu. Which rows offer it is `leaveClassRow.ts`: not once the class has run, and not once the entry is already removed. Whether THIS entry may be withdrawn or pulled stays the server's call, surfaced inside the dialog.
-5. **A labelled `Actions` button** — decided (assumption, PR #2334). One per show card header, built on the same `DropdownMenu` primitive as `features/show-map/ShowMapRowActionsMenu.tsx`. Below `sm` the word is hidden and only the icon shows; the trigger's `aria-label` names the show either way.
-6. **Deleted in the same PR** — decided (assumption, PR #2334). `components/shows/overview/EntryCTA.tsx` and `test/components/EntryCTA.test.tsx` are gone; nothing imported the component outside its own test.
-7. **Keep the confirmation number, drop the other two** — decided (assumption, PR #2334). `Confirmation # MK9-000145` is defensible on a receipt and is now the ONLY identifier the document prints. The `Entry ID:` UUID footer and the monospace order id are deleted, `orderId` is off `EntryReceiptData` entirely, and the field is optional because nothing mints a stand-in for it any more.
-8. **Its own issue** — decided (assumption, PR #2334). The When/Status chips narrowing each other silently is out of scope here; filed as **MYK9-657** and linked from MYK9-631.
-
-### What the menu holds, as shipped
-
-In order, each item hidden when it does not apply:
-
-| Item                          | What it does                                                       | Hidden when                             |
-| ----------------------------- | ------------------------------------------------------------------ | --------------------------------------- |
-| Add classes                   | link to `/shows/:id`                                               | no show id, nothing editable, past show |
-| Change handler or jump height | today's `EntryEditDialog`, **minus** its removal column            | nothing editable                        |
-| Receipts                      | today's receipt path                                               | the show holds no order                 |
-| Add to calendar               | `AddToCalendarDialog`                                              | no show id                              |
-| Message the show team         | link to `/messages/:id` — **always**, not only after entries close | no show id                              |
-| View show page                | link to `/shows/:id`                                               | no show id                              |
-
-**Deliberately outside the menu:** `Finish payment` (the yellow strip keeps its own button, retitled `Pay $45.00` — a status banner does not hand its verb to the menu, and the page header already carries an all-shows total under nearly the same words), `Dismiss` (stays on the green strip it dismisses), the check-in controls (`MyShowClassRow.tsx:5-8` — at the gate, on a phone, an affordance you have to expand is an affordance you do not have), the result reveal, and leaving a class (a row verb, per Q4).
-
-### Original questions, for the record
+## 4. Open questions for Richard
 
 1. Should this become a phase of [`plan-ia-exhibitor-surface.md`](plan-ia-exhibitor-surface.md) (Active, Phases B–D open on this exact surface) rather than a separate plan?
 2. **One verb for stopping an entry**: Withdraw, Pull, or Scratch? The wait-list row already says Withdraw; the code says `scratched`. Picking one changes copy in four components.

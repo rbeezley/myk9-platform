@@ -45,8 +45,6 @@ export interface MyShowDogCardProps {
   seenResultReleaseKeys: Set<string>;
   onCheckInDay: (dog: MyShowDog, classes: MyShowClass[]) => void;
   onOpenCheckIn: (order: MyEntry, cls: MyShowClass) => void;
-  /** MYK9-631 AC3: withdrawing or pulling one class, from the row that owns it. */
-  onLeaveClass: (dog: MyShowDog, cls: MyShowClass) => void;
   onResultRevealClick?: ((model: ResultCardModel) => void) | undefined;
 }
 
@@ -61,7 +59,6 @@ const MyShowDogCardComponent: React.FC<MyShowDogCardProps> = ({
   seenResultReleaseKeys,
   onCheckInDay,
   onOpenCheckIn,
-  onLeaveClass,
   onResultRevealClick,
 }) => {
   const chip = deriveDogChip(dog, {
@@ -107,7 +104,6 @@ const MyShowDogCardComponent: React.FC<MyShowDogCardProps> = ({
             seenResultReleaseKeys={seenResultReleaseKeys}
             onCheckInClass={one => onCheckInDay(dog, [one])}
             onOpenCheckIn={onOpenCheckIn}
-            onLeaveClass={one => onLeaveClass(dog, one)}
             onResultRevealClick={onResultRevealClick}
           />
         ))}

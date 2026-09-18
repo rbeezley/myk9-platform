@@ -42,10 +42,6 @@ export type { ScopedPaymentFacts, ScopedPaymentFactRow } from './scopedPaymentFa
 
 // Components
 export { MyShowsList, useMyShowGroups } from './MyShowsList';
-export { MyShowActionsMenu } from './MyShowActionsMenu';
-export { buildMyShowActions } from './myShowActions';
-export type { MyShowAction, MyShowActionId, MyShowActionsFacts } from './myShowActions';
-export { canLeaveClassRow } from './leaveClassRow';
 export { EntriesEmptyState } from './EntriesEmptyState';
 export { EntryScopeBanner } from './EntryScopeBanner';
 export { ScopedPaymentSummary } from './ScopedPaymentSummary';
@@ -63,7 +59,6 @@ export {
   ReceiptEntryDialog,
   MyEntriesDialogGroup,
 } from './MyEntriesDialogs';
-export { LeaveClassDialog } from './LeaveClassDialog';
 export { WaitListSection } from './WaitListSection';
 export { MyEntriesOverview } from './MyEntriesOverview';
 export type { OverviewDog } from './MyEntriesOverview';

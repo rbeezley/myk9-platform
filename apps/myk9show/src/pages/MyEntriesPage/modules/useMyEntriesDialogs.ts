@@ -19,8 +19,6 @@ import type {
   CheckInDialogState,
   EditDialogState,
   EntryClass,
-  LeaveClassDialogState,
-  LeaveClassTarget,
   MyEntry,
   ReceiptDialogState,
 } from './my-entries-types';
@@ -29,7 +27,6 @@ import type { ShowMoneyKind } from './showMoneyState';
 const CLOSED_CHECK_IN: CheckInDialogState = { open: false, entry: null, classEntry: null };
 const CLOSED_EDIT: EditDialogState = { open: false, entry: null };
 const CLOSED_RECEIPT: ReceiptDialogState = { open: false, entry: null };
-const CLOSED_LEAVE_CLASS: LeaveClassDialogState = { open: false, target: null };
 
 export interface UseMyEntriesDialogsOptions {
   updateEntryCheckIn: (
@@ -45,7 +42,6 @@ export interface UseMyEntriesDialogsResult {
   checkInDialog: CheckInDialogState;
   editDialog: EditDialogState;
   receiptDialog: ReceiptDialogState;
-  leaveClassDialog: LeaveClassDialogState;
   addDogOpen: boolean;
   /** Card handlers — stable identities, so the memoized card list does not
    *  re-render every card when an unrelated dialog opens. */
@@ -63,17 +59,10 @@ export interface UseMyEntriesDialogsResult {
   openEdit: (target: MyEntry | MyEntry[]) => void;
   /** Same two shapes as `openEdit`: one order opens its receipt directly. */
   openReceipt: (target: MyEntry | MyEntry[], moneyKind: ShowMoneyKind) => void;
-  /**
-   * Leave ONE class, from the row that owns it (MYK9-631 AC3). Takes the class
-   * itself, not an order: routing this through an order is what put the order
-   * picker in front of a withdrawal.
-   */
-  openLeaveClass: (target: LeaveClassTarget) => void;
   openAddDog: () => void;
   closeCheckIn: () => void;
   closeEdit: () => void;
   closeReceipt: () => void;
-  closeLeaveClass: () => void;
   closeAddDog: () => void;
   submitCheckInStatus: (status: CheckInStatus, notes?: string) => Promise<void>;
   entryUpdated: () => Promise<void>;
@@ -112,8 +101,6 @@ export function useMyEntriesDialogs({
   const [checkInDialog, setCheckInDialog] = useState<CheckInDialogState>(CLOSED_CHECK_IN);
   const [editDialog, setEditDialog] = useState<EditDialogState>(CLOSED_EDIT);
   const [receiptDialog, setReceiptDialog] = useState<ReceiptDialogState>(CLOSED_RECEIPT);
-  const [leaveClassDialog, setLeaveClassDialog] =
-    useState<LeaveClassDialogState>(CLOSED_LEAVE_CLASS);
   const [addDogOpen, setAddDogOpen] = useState(false);
 
   const openCheckIn = useCallback((entry: MyEntry, classEntry: EntryClass) => {
@@ -128,16 +115,11 @@ export function useMyEntriesDialogs({
       applyOpen(target, setReceiptDialog, { moneyKind }),
     []
   );
-  const openLeaveClass = useCallback(
-    (target: LeaveClassTarget) => setLeaveClassDialog({ open: true, target }),
-    []
-  );
   const openAddDog = useCallback(() => setAddDogOpen(true), []);
 
   const closeCheckIn = useCallback(() => setCheckInDialog(CLOSED_CHECK_IN), []);
   const closeEdit = useCallback(() => setEditDialog(CLOSED_EDIT), []);
   const closeReceipt = useCallback(() => setReceiptDialog(CLOSED_RECEIPT), []);
-  const closeLeaveClass = useCallback(() => setLeaveClassDialog(CLOSED_LEAVE_CLASS), []);
   const closeAddDog = useCallback(() => setAddDogOpen(false), []);
 
   // INTENT: a rejection here must reach CheckInStatusDialog. The dialog awaits
@@ -180,31 +162,24 @@ export function useMyEntriesDialogs({
     [updateEntryCheckIn]
   );
 
-  // Closes BOTH order-scoped writers: the sheet, and the card row's leave
-  // dialog. A row that has just been withdrawn must not still have a dialog
-  // open over the list it just changed.
   const entryUpdated = useCallback(async () => {
     await refreshEntries();
     setEditDialog(CLOSED_EDIT);
-    setLeaveClassDialog(CLOSED_LEAVE_CLASS);
   }, [refreshEntries]);
 
   return {
     checkInDialog,
     editDialog,
     receiptDialog,
-    leaveClassDialog,
     addDogOpen,
     openCheckIn,
     checkInClassesForDay,
     openEdit,
     openReceipt,
-    openLeaveClass,
     openAddDog,
     closeCheckIn,
     closeEdit,
     closeReceipt,
-    closeLeaveClass,
     closeAddDog,
     submitCheckInStatus,
     entryUpdated,

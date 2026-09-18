@@ -279,13 +279,9 @@ export function useMyEntriesData({
     const entryStatus = isShowCancelled
       ? EntryStatus.CANCELLED
       : mapEntryStatus(entry.entry_status as string);
-    // MYK9-631 AC4: the real confirmation number, or none. The old
-    // `entry.id.slice(0, 8).toUpperCase()` fallback minted an id fragment HERE,
-    // before any component saw the row, so deleting it in one component left
-    // three producers behind. A legacy entry with no online registration has no
-    // confirmation number, and the surfaces below now say nothing rather than
-    // inventing one.
-    const confirmationNumber = rowRegistration?.confirmation_number ?? undefined;
+    // Use real confirmation number from joined registration, fall back to UUID slice for legacy entries
+    const confirmationNumber =
+      rowRegistration?.confirmation_number ?? (entry.id as string).slice(0, 8).toUpperCase();
 
     return {
       id: entry.id as string,

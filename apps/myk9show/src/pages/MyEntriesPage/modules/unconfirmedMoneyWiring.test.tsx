@@ -17,7 +17,6 @@ import { renderHook, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { render } from '@/test/utils/testUtils';
 import { useMyEntriesData } from './useMyEntriesData';
-import { openShowActions } from '@/test/fixtures/myShowsFixtures';
 import { MyShowsList } from './MyShowsList';
 import { UnconfirmedReadNotice, UNCONFIRMED_READ_HEADLINE } from './UnconfirmedReadNotice';
 import { getUserEntries } from '@/services/database/entries';
@@ -142,7 +141,6 @@ function ListOf({ hook }: { hook: ReturnType<typeof renderMyShows> }) {
       onOpenCheckIn={vi.fn()}
       onOpenEdit={vi.fn()}
       onOpenReceipts={vi.fn()}
-      onLeaveClass={vi.fn()}
     />
   );
 }
@@ -160,12 +158,6 @@ beforeEach(() => {
 afterEach(() => {
   vi.clearAllMocks();
 });
-
-/** The Receipts item inside a named card's Actions menu (MYK9-631). */
-async function receiptsItem(user: ReturnType<typeof userEvent.setup>, showName: string) {
-  const menu = await openShowActions(user, showName);
-  return menu.getByRole('menuitem', { name: 'Receipts' });
-}
 
 describe('My Shows money under an UNCONFIRMED account read (MYK9-629 AC1)', () => {
   // The chooser behind "Orders & receipts" is reached FROM the notice that says
@@ -185,12 +177,9 @@ describe('My Shows money under an UNCONFIRMED account read (MYK9-629 AC1)', () =
         onOpenCheckIn={vi.fn()}
         onOpenEdit={vi.fn()}
         onOpenReceipts={onOpenReceipts}
-        onLeaveClass={vi.fn()}
       />
     );
-    // MYK9-631: Receipts moved under the card's one Actions menu.
-    const menu = await openShowActions(userEvent.setup(), 'Heartland UKC Nosework Trial');
-    await userEvent.click(menu.getByRole('menuitem', { name: 'Receipts' }));
+    await userEvent.click(screen.getByRole('button', { name: /orders & receipts/i }));
 
     expect(onOpenReceipts).toHaveBeenCalledWith(expect.anything(), 'unknown');
   });
@@ -209,11 +198,9 @@ describe('My Shows money under an UNCONFIRMED account read (MYK9-629 AC1)', () =
         onOpenCheckIn={vi.fn()}
         onOpenEdit={vi.fn()}
         onOpenReceipts={onOpenReceipts}
-        onLeaveClass={vi.fn()}
       />
     );
-    const menu = await openShowActions(userEvent.setup(), 'Heartland UKC Nosework Trial');
-    await userEvent.click(menu.getByRole('menuitem', { name: 'Receipts' }));
+    await userEvent.click(screen.getByRole('button', { name: /orders & receipts/i }));
 
     expect(onOpenReceipts).toHaveBeenCalledWith(expect.anything(), 'balance-due');
   });
@@ -230,7 +217,7 @@ describe('My Shows money under an UNCONFIRMED account read (MYK9-629 AC1)', () =
     expect(screen.queryByText(/\$\d/)).not.toBeInTheDocument();
     // No cart deep link and no pay button.
     expect(document.querySelector('a[href*="/cart?"], a[href^="/cart"]')).not.toBeInTheDocument();
-    expect(screen.queryByRole('link', { name: /^Pay \$/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: /finish payment/i })).not.toBeInTheDocument();
     // No meta word that states a payment state either.
     expect(screen.queryByText('Paid')).not.toBeInTheDocument();
     expect(screen.queryByText('Pay at show')).not.toBeInTheDocument();
@@ -238,11 +225,8 @@ describe('My Shows money under an UNCONFIRMED account read (MYK9-629 AC1)', () =
     // The notice says why, in the exhibitor's terms.
     expect(screen.getByText(/couldn't reach the server to confirm them/i)).toBeInTheDocument();
 
-    // Decision (a): the receipt for a payment already taken stays REACHABLE —
-    // now one click further in, under the card's Actions menu.
-    expect(
-      await receiptsItem(userEvent.setup(), 'Heartland UKC Nosework Trial')
-    ).not.toHaveAttribute('data-disabled');
+    // Decision (a): the receipt for a payment already taken stays REACHABLE.
+    expect(screen.getByRole('button', { name: /orders & receipts/i })).toBeEnabled();
 
     // ...and the refund note survives WITHOUT its amount. "A refund happened"
     // is the fact the exhibitor needs; "$15.00" is a claim from unconfirmed
@@ -259,9 +243,7 @@ describe('My Shows money under an UNCONFIRMED account read (MYK9-629 AC1)', () =
 
     expect(screen.queryByText(/\$\d/)).not.toBeInTheDocument();
     expect(screen.getByText(/couldn't reach the server to confirm them/i)).toBeInTheDocument();
-    expect(
-      await receiptsItem(userEvent.setup(), 'Heartland UKC Nosework Trial')
-    ).not.toHaveAttribute('data-disabled');
+    expect(screen.getByRole('button', { name: /orders & receipts/i })).toBeEnabled();
   });
 
   it('states the figure and offers the cart when the view CONFIRMS the rows', async () => {
@@ -273,17 +255,13 @@ describe('My Shows money under an UNCONFIRMED account read (MYK9-629 AC1)', () =
     // The positive control. Without it, the assertions above would pass on a
     // list that rendered nothing at all.
     expect(screen.getByText(/\$30\.00 due/)).toBeInTheDocument();
-    // MYK9-631: the strip's button is titled with the amount it will collect,
-    // so it can no longer be confused with the page header's all-shows total.
-    expect(screen.getByRole('link', { name: /Pay \$30\.00/ })).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: /finish payment/i })).toBeInTheDocument();
     // The refund figure the unconfirmed cases withhold IS stated here.
     expect(screen.getByText(/Partial refund of \$15\.00/i)).toBeInTheDocument();
     expect(
       screen.queryByText(/couldn't reach the server to confirm them/i)
     ).not.toBeInTheDocument();
-    expect(
-      await receiptsItem(userEvent.setup(), 'Heartland UKC Nosework Trial')
-    ).not.toHaveAttribute('data-disabled');
+    expect(screen.getByRole('button', { name: /orders & receipts/i })).toBeEnabled();
   });
 });
 

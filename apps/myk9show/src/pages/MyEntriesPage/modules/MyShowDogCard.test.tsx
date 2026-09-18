@@ -12,14 +12,7 @@ import { screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { EntryStatus, PaymentStatus } from '@/types/show-registration-types';
 import { render } from '@/test/utils/testUtils';
-import {
-  day,
-  makeClass,
-  makeRow,
-  NOW,
-  openShowActions,
-  toOrders,
-} from '@/test/fixtures/myShowsFixtures';
+import { day, makeClass, makeRow, NOW, toOrders } from '@/test/fixtures/myShowsFixtures';
 import { MyShowsList, type MyShowsListProps } from './MyShowsList';
 import type { EntryClass, MyEntry } from './my-entries-types';
 import { PENDING_REVIEW_REASSURANCE } from './myShowsCopy';
@@ -34,7 +27,6 @@ function renderRows(rows: MyEntry[], overrides: Partial<MyShowsListProps> = {}) 
     onOpenCheckIn: vi.fn(),
     onOpenEdit: vi.fn(),
     onOpenReceipts: vi.fn(),
-    onLeaveClass: vi.fn(),
     ...overrides,
   };
   return render(<MyShowsList {...props} />);
@@ -201,18 +193,17 @@ describe('MyShowDogCard — check-in is withheld from rows that cannot take one'
     expectNoCheckInAnywhere();
   });
 
-  it('offers no check-in once every class carries a result', async () => {
+  it('offers no check-in once every class carries a result', () => {
     // The retired card resolved one "next action" and fell back to View Show
     // here. The dog-first card has no single next action — the equivalent
     // guarantee is that nothing on the card writes a check-in, while the show
-    // header still offers the way out (now the one Actions menu, MYK9-631).
+    // header still offers the way out.
     renderRows(
       rexWith([makeClass({ id: 'scored-entry', isScored: true, resultStatus: 'qualified' })])
     );
 
     expectNoCheckInAnywhere();
-    const menu = await openShowActions(userEvent.setup(), 'Heartland Scent Work Classic');
-    expect(menu.getByRole('menuitem', { name: /View the show page/ })).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: /View show/ })).toBeInTheDocument();
   });
 });
 

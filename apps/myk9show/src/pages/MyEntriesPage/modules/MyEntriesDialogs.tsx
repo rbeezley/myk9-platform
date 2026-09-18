@@ -27,14 +27,8 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { Loader2 } from 'lucide-react';
-import type {
-  CheckInDialogState,
-  EditDialogState,
-  LeaveClassDialogState,
-  ReceiptDialogState,
-} from './my-entries-types';
+import type { CheckInDialogState, EditDialogState, ReceiptDialogState } from './my-entries-types';
 import { CardDerivedReceipt } from './CardDerivedReceipt';
-import { LeaveClassDialog } from './LeaveClassDialog';
 import { buildOrderScopedReceipt } from './orderScopedReceipt';
 import { OrdersPickerDialog, StripeOrderChooserDialog } from './OrdersReceiptsList';
 
@@ -137,13 +131,8 @@ export const EditEntryDialog: React.FC<EditEntryDialogProps> = ({ dialog, onClos
   return (
     <ShowPresenceProvider showId={entry.showId}>
       {/* MYK9-535: no `asShowManager` — /my-entries IS the exhibitor surface, so
-          the owner-tier withdraw guards must apply here.
-          MYK9-631 Q4: `allowLeaveClass={false}` — the show card's class row
-          carries "Leave class…" now, one step from the card. Offering it here
-          too would be the same verb in two places, which is the duplication
-          this issue is about. */}
+          the owner-tier withdraw guards must apply here. */}
       <EntryEditDialog
-        allowLeaveClass={false}
         open={dialog.open}
         onOpenChange={open => !open && close()}
         entry={{
@@ -358,11 +347,7 @@ export const ReceiptEntryDialog: React.FC<ReceiptEntryDialogProps> = ({
       onOpenChange={open => !open && closeReceipt()}
       entry={{
         id: entry.id,
-        // MYK9-631 AC4: see CardDerivedReceipt — the fallback minted an id
-        // fragment and is deleted, not replaced.
-        ...(entry.confirmationNumber !== undefined && {
-          confirmationNumber: entry.confirmationNumber,
-        }),
+        confirmationNumber: entry.confirmationNumber ?? entry.id.slice(0, 8).toUpperCase(),
         showName: entry.showName,
         showDate: entry.showDate,
         location: entry.location,
@@ -379,6 +364,7 @@ export const ReceiptEntryDialog: React.FC<ReceiptEntryDialogProps> = ({
         },
         currency: entry.currency,
         paymentReference: entry.paymentReference,
+        orderId: entry.orderId,
         submittedAt: entry.submittedAt,
         paymentStatus: orderRefundStatusLabel(selectedOrder),
       }}
@@ -399,8 +385,6 @@ interface MyEntriesDialogGroupProps {
   onEntryUpdated: () => void;
   receiptDialog: ReceiptDialogState;
   onCloseReceipt: () => void;
-  leaveClassDialog: LeaveClassDialogState;
-  onCloseLeaveClass: () => void;
   resultRevealModel: ResultCardModel | null;
   onCloseResultReveal: () => void;
   /** Receives the model's release key so the "already seen" marker is per-release. */
@@ -435,8 +419,6 @@ export const MyEntriesDialogGroup: React.FC<MyEntriesDialogGroupProps> = ({
   onEntryUpdated,
   receiptDialog,
   onCloseReceipt,
-  leaveClassDialog,
-  onCloseLeaveClass,
   resultRevealModel,
   onCloseResultReveal,
   onResultRevealSeen,
@@ -455,14 +437,6 @@ export const MyEntriesDialogGroup: React.FC<MyEntriesDialogGroupProps> = ({
     <EditEntryDialog dialog={editDialog} onClose={onCloseEdit} onUpdate={onEntryUpdated} />
 
     <ReceiptEntryDialog dialog={receiptDialog} user={user} onClose={onCloseReceipt} />
-
-    {/* MYK9-631 AC3: opened straight from a class row on the show card — no
-        order picker, no Edit sheet in between. */}
-    <LeaveClassDialog
-      dialog={leaveClassDialog}
-      onClose={onCloseLeaveClass}
-      onUpdate={onEntryUpdated}
-    />
 
     <ResultRevealDialog
       open={resultRevealModel != null}

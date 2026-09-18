@@ -17,7 +17,7 @@ import type { ShowMoneyKind } from './showMoneyState';
 import { groupEntriesByShow } from './groupEntriesByShow';
 import type { MyShowClass, MyShowDog, MyShowGroup } from './groupEntriesByShow';
 import { MyShowGroupCard } from './MyShowGroup';
-import type { EntryStatusFilter, LeaveClassTarget, MyEntry } from './my-entries-types';
+import type { EntryStatusFilter, MyEntry } from './my-entries-types';
 import { narrowDogsToStatus } from './statusFilterPredicate';
 
 /**
@@ -53,8 +53,6 @@ export interface MyShowsListProps {
   onOpenCheckIn: (order: MyEntry, cls: MyShowClass) => void;
   onOpenEdit: (orders: MyEntry[]) => void;
   onOpenReceipts: (group: MyShowGroup, moneyKind: ShowMoneyKind) => void;
-  /** MYK9-631 AC3: leaving one class, threaded to the class row that owns it. */
-  onLeaveClass: (target: LeaveClassTarget) => void;
   onResultRevealClick?: ((model: ResultCardModel) => void) | undefined;
   /**
    * The instant the whole list reckons against. Injectable so tests can place
@@ -74,7 +72,6 @@ export const MyShowsList: React.FC<MyShowsListProps> = ({
   onOpenCheckIn,
   onOpenEdit,
   onOpenReceipts,
-  onLeaveClass,
   onResultRevealClick,
   now: nowProp,
 }) => {
@@ -100,7 +97,6 @@ export const MyShowsList: React.FC<MyShowsListProps> = ({
             onOpenCheckIn={onOpenCheckIn}
             onOpenEdit={onOpenEdit}
             onOpenReceipts={onOpenReceipts}
-            onLeaveClass={onLeaveClass}
             onResultRevealClick={onResultRevealClick}
           />
         </li>

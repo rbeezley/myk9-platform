@@ -51,6 +51,7 @@ describe('EntryReceipt', () => {
           },
           currency: 'usd',
           paymentReference: 'pi_split_order_1',
+          orderId: 'order-split-1',
         }}
       />
     );
@@ -62,12 +63,9 @@ describe('EntryReceipt', () => {
     expect(totals.getByText('Amount charged')).toBeInTheDocument();
     expect(totals.getByText('$65.00')).toBeInTheDocument();
     expect(screen.getByText('pi_split_order_1')).toBeInTheDocument();
-    // MYK9-631 Q7: the receipt keeps ONE identifier, the confirmation number.
-    // The monospace order id and the raw `Entry ID:` UUID footer are gone.
-    // MYK9-631 Q7: `orderId` is no longer even a field on the receipt's data,
-    // so there is nothing for the document to print.
-    expect(screen.queryByText('Order ID')).not.toBeInTheDocument();
-    expect(screen.queryByText(/Entry ID:/)).not.toBeInTheDocument();
+    expect(screen.getByText('Order ID')).toBeInTheDocument();
+    expect(screen.getByText('order-split-1')).toBeInTheDocument();
+    expect(screen.getByText('Entry ID: entry-1')).toBeInTheDocument();
   });
 
   // MYK9-632: `mapClassEntryStatus` now returns 'withdrawn' for a withdrawal

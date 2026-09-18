@@ -85,17 +85,9 @@ function describeOrderRefund(order: MyEntry): string | null {
     : `Refunded ${money} on ${on}`;
 }
 
-/**
- * Every class the order covers, by name, deduplicated and in card order.
- *
- * MYK9-631 AC4: this is what replaced the 8-hex `order.id.slice(0, 8)`
- * fragment that used to label these rows. On the seeded exhibitor 63 of 65
- * rows read `A1090000` — a column that disambiguated nothing and that no
- * exhibitor could be expected to recognise. Dog names plus class names plus
- * the date are what the exhibitor actually chose between.
- */
-function orderClassNames(order: MyEntry): string[] {
-  return [...new Set(order.classes.map(classEntry => classEntry.name).filter(Boolean))];
+/** The confirmation number the exhibitor was given, or the id's stand-in. */
+function confirmationOf(order: MyEntry): string {
+  return order.confirmationNumber ?? order.id.slice(0, 8).toUpperCase();
 }
 
 export interface OrdersReceiptsListProps {
@@ -121,12 +113,8 @@ export const OrdersReceiptsList: React.FC<OrdersReceiptsListProps> = ({
   <ul className="space-y-2">
     {orders.map(order => {
       const dogs = orderDogNames(order).join(', ');
-      const classNames = orderClassNames(order).join(', ');
+      const confirmation = confirmationOf(order);
       const submitted = formatShortCalendarDate(order.submittedAt);
-      // `Juni · Interior Advanced, Exterior Excellent · entered Sep 16`. The
-      // class list is dropped when the order carries none (a replication
-      // window) rather than leaving a stranded separator.
-      const rowLabel = [dogs, classNames, `entered ${submitted}`].filter(Boolean).join(' · ');
       const statesMoney = mode === 'receipt' && moneyKind !== 'unknown';
       const money = statesMoney ? describeOrderMoney(order) : null;
       const amount = statesMoney
@@ -139,18 +127,18 @@ export const OrdersReceiptsList: React.FC<OrdersReceiptsListProps> = ({
             type="button"
             variant="outline"
             className="min-h-11 w-full justify-between gap-3 text-left"
-            // AC4 covers the screen-reader name too: the fragment was read
-            // aloud AHEAD of the dog.
             aria-label={
               mode === 'receipt'
                 ? money
-                  ? `Receipt for ${rowLabel}, ${money}`
-                  : `Receipt for ${rowLabel}`
-                : `Change ${rowLabel}`
+                  ? `Receipt for order ${confirmation} — ${dogs}, ${money}`
+                  : `Receipt for order ${confirmation} — ${dogs}`
+                : `Edit order ${confirmation} — ${dogs}`
             }
             onClick={() => onSelect(order)}
           >
-            <span className="min-w-0 truncate">{rowLabel}</span>
+            <span className="min-w-0 truncate">
+              {submitted} · {confirmation} · {dogs}
+            </span>
             {money && amount && (
               <span className="shrink-0 text-right">
                 <span className="block font-medium">{amount}</span>
@@ -188,12 +176,12 @@ export const OrdersPickerDialog: React.FC<OrdersPickerDialogProps> = ({
     <DialogContent>
       <DialogHeader>
         <DialogTitle>
-          {mode === 'receipt' ? 'Receipts' : 'Which entry do you want to change?'}
+          {mode === 'receipt' ? 'Orders and receipts' : 'Choose an entry to edit'}
         </DialogTitle>
         <DialogDescription>
           {mode === 'receipt'
-            ? 'You entered this show more than once. Choose the entry whose receipt you need.'
-            : 'You entered this show more than once. Choose the one you want to change.'}
+            ? 'You placed more than one order for this show. Choose the one you need.'
+            : 'You placed more than one order for this show. Choose the one you want to change.'}
         </DialogDescription>
       </DialogHeader>
       {/* A show entered through dozens of orders (the seeded exhibitor has 63

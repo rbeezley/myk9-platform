@@ -401,9 +401,13 @@ export class EntryValidator {
       return { errors, warnings };
     }
 
-    // Age restrictions for handlers
-    if (context.handler.birthDate) {
-      const handlerAge = this.calculateAge(context.handler.birthDate, context.show.startDate);
+    // Age restrictions for handlers.
+    // MYK9-570: reads `dateOfBirth`, the field now backed by `people.date_of_birth`.
+    // It used to read a `birthDate` alias that no mapper ever populated, so this
+    // block could not fire; it is still gated on `class.handlerAgeRestrictions`,
+    // which nothing in the app sets today.
+    if (context.handler.dateOfBirth) {
+      const handlerAge = this.calculateAge(context.handler.dateOfBirth, context.show.startDate);
 
       if (
         context.class.handlerAgeRestrictions?.min &&

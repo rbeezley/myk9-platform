@@ -16,6 +16,9 @@ const formData: UserFormData = {
   city: '',
   state: '',
   zipCode: '',
+  dateOfBirth: '',
+  juniorHandlerNumberAKC: '',
+  juniorHandlerNumberUKC: '',
   judgeQualifications: [],
   roles: [],
 };

@@ -61,6 +61,15 @@ export interface ReportEntry {
   trialNumber?: string;
   trialDate?: string;
   judgeName?: string;
+  /**
+   * MYK9-570: true only when the handler's date of birth puts them inside this
+   * trial's registry junior band on this trial's date. Absent for an adult, for
+   * a handler with no date of birth, and for ASCA (whose rulebook states no
+   * upper age bound) — the catalog prints a mark only when this is true.
+   */
+  handlerIsJunior?: boolean;
+  /** MYK9-570: the registry-issued junior handler number, when the trial's registry issues one. */
+  handlerJuniorNumber?: string;
 }
 
 /**
@@ -76,6 +85,16 @@ export type ReportDbEntry = DbEntry & {
   } | null;
   registration?: {
     payment_status?: string | null;
+  } | null;
+  /**
+   * MYK9-570: the handler's junior handler columns, hydrated from `people` by
+   * `loadJuniorHandlerProfiles`. Absent when the hydration read did not run or
+   * did not complete — which is NOT the same as "not a junior", so the mapper
+   * leaves the entry unmarked rather than marking it an adult.
+   */
+  handler_person?: {
+    date_of_birth?: string | null;
+    junior_handler_numbers?: Record<string, string> | undefined;
   } | null;
 };
 

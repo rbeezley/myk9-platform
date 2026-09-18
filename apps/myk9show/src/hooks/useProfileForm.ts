@@ -16,15 +16,37 @@ export interface ProfileFormValues {
   city: string;
   state: string;
   zipCode: string;
+  /** MYK9-570: ISO `YYYY-MM-DD`, or '' when unknown. */
+  dateOfBirth: string;
+  /** MYK9-570: AKC Junior Handler number, or '' when they have none. */
+  juniorHandlerNumberAKC: string;
+  /** MYK9-570: UKC Junior ID, or '' when they have none. */
+  juniorHandlerNumberUKC: string;
 }
 
 interface ProfileFormErrors {
   firstName?: string;
+  dateOfBirth?: string;
   lastName?: string;
   streetAddress?: string;
   city?: string;
   state?: string;
   zipCode?: string;
+}
+
+/**
+ * MYK9-570. Empty is fine (the field is optional); a present value must be a
+ * real calendar date in the past, matching the CHECK the migration adds and the
+ * same rule the secretary's edit panel applies.
+ */
+function validateDateOfBirth(value: string): string | undefined {
+  if (!value) return undefined;
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return 'Please enter a date of birth as YYYY-MM-DD';
+  const parsed = new Date(`${value}T00:00:00Z`);
+  if (Number.isNaN(parsed.getTime())) return 'Please enter a real date of birth';
+  if (Number(value.slice(0, 4)) < 1900) return 'Please enter a date of birth after 1900';
+  if (parsed.getTime() > Date.now()) return 'A date of birth cannot be in the future';
+  return undefined;
 }
 
 /**
@@ -66,6 +88,9 @@ export function useProfileForm() {
     city: '',
     state: '',
     zipCode: '',
+    dateOfBirth: '',
+    juniorHandlerNumberAKC: '',
+    juniorHandlerNumberUKC: '',
   });
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
@@ -82,6 +107,9 @@ export function useProfileForm() {
         city: person.city || '',
         state: person.state || '',
         zipCode: person.zipCode || '',
+        dateOfBirth: person.dateOfBirth || '',
+        juniorHandlerNumberAKC: person.juniorHandlerNumbers?.AKC || '',
+        juniorHandlerNumberUKC: person.juniorHandlerNumbers?.UKC || '',
       });
     }
   }, [person]);
@@ -95,6 +123,10 @@ export function useProfileForm() {
     const e: ProfileFormErrors = {};
     if (!values.firstName.trim()) e.firstName = 'First name is required';
     if (!values.lastName.trim()) e.lastName = 'Last name is required';
+    // MYK9-570: a future date of birth would make every junior derivation
+    // negative, and the migration's CHECK refuses anything before 1900.
+    const dobError = validateDateOfBirth(values.dateOfBirth);
+    if (dobError) e.dateOfBirth = dobError;
     return e;
   }, [values]);
 
@@ -110,7 +142,10 @@ export function useProfileForm() {
       values.streetAddress !== (person.streetAddress || person.address || '') ||
       values.city !== (person.city || '') ||
       values.state !== (person.state || '') ||
-      values.zipCode !== (person.zipCode || '')
+      values.zipCode !== (person.zipCode || '') ||
+      values.dateOfBirth !== (person.dateOfBirth || '') ||
+      values.juniorHandlerNumberAKC !== (person.juniorHandlerNumbers?.AKC || '') ||
+      values.juniorHandlerNumberUKC !== (person.juniorHandlerNumbers?.UKC || '')
     );
   }, [values, person]);
 
@@ -135,6 +170,17 @@ export function useProfileForm() {
         city: values.city.trim(),
         state: values.state.trim(),
         zipCode: values.zipCode.trim(),
+        // MYK9-570. '' clears the date; the numbers are reassembled into the
+        // registry-keyed map the column stores, omitting blanks.
+        dateOfBirth: values.dateOfBirth,
+        juniorHandlerNumbers: {
+          ...(values.juniorHandlerNumberAKC.trim()
+            ? { AKC: values.juniorHandlerNumberAKC.trim() }
+            : {}),
+          ...(values.juniorHandlerNumberUKC.trim()
+            ? { UKC: values.juniorHandlerNumberUKC.trim() }
+            : {}),
+        },
       });
       // Explicit duration at this callsite: the profile save toast previously
       // persisted indefinitely (defaulted to no auto-dismiss) and stuck around
@@ -163,6 +209,9 @@ export function useProfileForm() {
         city: person.city || '',
         state: person.state || '',
         zipCode: person.zipCode || '',
+        dateOfBirth: person.dateOfBirth || '',
+        juniorHandlerNumberAKC: person.juniorHandlerNumbers?.AKC || '',
+        juniorHandlerNumberUKC: person.juniorHandlerNumbers?.UKC || '',
       });
     }
   };

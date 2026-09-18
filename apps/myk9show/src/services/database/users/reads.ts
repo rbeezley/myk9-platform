@@ -25,6 +25,7 @@ const JUDGE_QUALIFICATIONS_SELECT = `judge_qualifications(
 const PEOPLE_DIRECTORY_COLUMNS =
   'id, first_name, last_name, email, phone, street_address, city, state, ' +
   'zip_code, country, profile_image, auth_user_id, status, ' +
+  'date_of_birth, junior_handler_numbers, ' +
   'created_at, updated_at, deleted_at, deleted_by';
 
 interface GetAllUsersOptions {

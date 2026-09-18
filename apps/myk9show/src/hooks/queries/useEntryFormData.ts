@@ -7,6 +7,7 @@ import {
   type DogRegistrationLike,
 } from '@/features/dogs/identity';
 import type { ShowExperienceSnapshot } from '@/features/experience/experienceSnapshot';
+import { normalizeJuniorHandlerNumbers } from '@/features/registries/juniorHandlerPolicy';
 import type {
   EntryFormDog,
   EntryFormSecretary,
@@ -128,7 +129,10 @@ async function fetchEntryFormData(
   // 3. Fetch entries
   let entriesQuery = supabase
     .from('entries')
-    .select('id, dog_id, class_id, trial_id, armband, handler, submitted_at')
+    // MYK9-570: `handler_id` resolves the handler to a person, which is the only
+    // way to reach their date of birth and AKC Junior Handler number. The
+    // denormalized `handler` text stays the printed NAME.
+    .select('id, dog_id, class_id, trial_id, armband, handler, handler_id, submitted_at')
     .eq('show_id', showId)
     .is('deleted_at', null);
 
@@ -154,6 +158,7 @@ async function fetchEntryFormData(
       level: cls?.level ?? '',
       armband: e.armband != null ? Number(e.armband) : null,
       handler: e.handler,
+      handlerId: e.handler_id ?? null,
       submittedAt: e.submitted_at,
     };
   });
@@ -191,11 +196,19 @@ async function fetchEntryFormData(
     if (dog.owner_id) ownerIds.add(dog.owner_id);
     if (dog.breeder_id) breederIds.add(dog.breeder_id);
   }
-  const allPersonIds = [...new Set([...ownerIds, ...breederIds])].filter(Boolean);
+  // MYK9-570: handlers too — their date of birth drives the junior handler
+  // number on the AKC entry form, and a handler is frequently not the owner.
+  const handlerIds = new Set<string>();
+  for (const entry of allEntries) {
+    if (entry.handlerId) handlerIds.add(entry.handlerId);
+  }
+  const allPersonIds = [...new Set([...ownerIds, ...breederIds, ...handlerIds])].filter(Boolean);
 
   const { data: personsRaw } = await supabase
     .from('people')
-    .select('id, first_name, last_name, street_address, city, state, zip_code, phone, email')
+    .select(
+      'id, first_name, last_name, street_address, city, state, zip_code, phone, email, date_of_birth, junior_handler_numbers'
+    )
     .in('id', allPersonIds);
 
   const personMap = new Map((personsRaw ?? []).map(p => [p.id, p]));
@@ -305,6 +318,13 @@ async function fetchEntryFormData(
     });
     const handlerEntry = dogEntries.find(e => e.handler && e.handler !== ownerFullName);
     const handler = handlerEntry?.handler ?? null;
+    // The person behind the printed handler name. Fall back to the first entry
+    // carrying a handler_id when the name matches the owner's — the owner IS the
+    // handler in that case, and their junior number is the one that belongs on
+    // the form.
+    const handlerPersonId =
+      handlerEntry?.handlerId ?? dogEntries.find(e => e.handlerId)?.handlerId ?? null;
+    const handlerRaw = handlerPersonId ? personMap.get(handlerPersonId) : null;
 
     const armband = dogEntries.find(e => e.armband != null)?.armband ?? null;
     const agreementDate = dogEntries.find(e => e.submittedAt)?.submittedAt ?? null;
@@ -321,6 +341,10 @@ async function fetchEntryFormData(
       dam: pedigree?.dam ?? null,
       owner,
       handler,
+      handlerDateOfBirth: handlerRaw?.date_of_birth ?? null,
+      handlerJuniorHandlerNumbers: normalizeJuniorHandlerNumbers(
+        handlerRaw?.junior_handler_numbers
+      ),
       armband,
       entries: dogEntries,
       agreementDate,

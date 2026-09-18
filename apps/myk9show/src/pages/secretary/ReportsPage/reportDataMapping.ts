@@ -17,6 +17,10 @@ import { formatRingLabel } from '@/utils/ringLabel';
 import { formatShowDateRange } from '@/lib/format/dates';
 import { resolveDogIdentityForOrganization } from '@/features/dogs/identity';
 import { resolveConfiguredRegistryId } from '@/features/registries';
+import {
+  deriveJuniorStatus,
+  getJuniorHandlerNumber,
+} from '@/features/registries/juniorHandlerPolicy';
 
 export function mapReportEntries(
   dbEntries: ReportDbEntry[],
@@ -112,8 +116,10 @@ function mapReportEntry(
     handlerName,
     registrationNumber
   );
+  const junior = resolveHandlerJunior(e, trial);
   return {
     ...base,
+    ...junior,
     ...(e.dog_id ? { dogId: e.dog_id } : {}),
     ...(e.entry_status ? { entryStatus: e.entry_status } : {}),
     ...(e.withdrawal_reason ? { withdrawalReason: e.withdrawal_reason } : {}),
@@ -159,6 +165,36 @@ function readEntrySource(entrySource: string | null | undefined): ReportEntry['e
   }
 
   return undefined;
+}
+
+/**
+ * MYK9-570: is this entry's handler a junior at THIS trial?
+ *
+ * Derived per entry, never stored: the same person is a junior at a March trial
+ * and an adult at a November one, and the three registries do not even measure
+ * on the same day (juniorHandlerPolicy.ts). Returns an empty object — not
+ * `handlerIsJunior: false` — whenever the answer is unknown, so a missing
+ * hydration read cannot print as "definitely an adult".
+ */
+function resolveHandlerJunior(
+  e: ReportDbEntry,
+  trial?: DbTrial
+): Pick<ReportEntry, 'handlerIsJunior' | 'handlerJuniorNumber'> {
+  if (!trial) return {};
+  const registryId = resolveConfiguredRegistryId(trial.registry_id);
+  if (!registryId) return {};
+  const person = e.handler_person;
+  if (!person) return {};
+
+  const status = deriveJuniorStatus({
+    dateOfBirth: person.date_of_birth ?? null,
+    trialDate: trial.date ?? null,
+    registryId,
+  });
+  if (status.kind !== 'junior') return {};
+
+  const number = getJuniorHandlerNumber(person.junior_handler_numbers, registryId);
+  return { handlerIsJunior: true, ...(number ? { handlerJuniorNumber: number } : {}) };
 }
 
 export function readTrialRegistryId(trial: DbTrial): string {

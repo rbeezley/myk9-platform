@@ -2,6 +2,23 @@ import { z } from 'zod';
 import type { User as UserType, UserRole, JudgeQualification } from '@/types/user-types';
 import { logger } from '@/services/LoggingService';
 import type { UserFormData } from './UserEditPanel.types';
+import { normalizeJuniorHandlerNumbers } from '@/features/registries/juniorHandlerPolicy';
+
+/**
+ * MYK9-570. A date of birth is optional, but a present one must be a real past
+ * calendar date: the migration's CHECK refuses anything before 1900, and a date
+ * in the future would make every junior derivation negative. Validated here so
+ * the secretary sees a sentence rather than a Postgres constraint error.
+ */
+const dateOfBirthSchema = z.string().refine(value => {
+  if (!value) return true;
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
+  const parsed = new Date(`${value}T00:00:00Z`);
+  if (Number.isNaN(parsed.getTime())) return false;
+  const year = Number(value.slice(0, 4));
+  if (year < 1900) return false;
+  return parsed.getTime() <= Date.now();
+}, 'Please enter a date of birth in the past');
 
 // Zod schema for judge qualification entries
 const judgeQualificationSchema = z.object({
@@ -38,6 +55,9 @@ export const userFormSchema: z.ZodSchema<UserFormData> = z
     city: z.string(),
     state: z.string(),
     zipCode: z.string(),
+    dateOfBirth: dateOfBirthSchema,
+    juniorHandlerNumberAKC: z.string(),
+    juniorHandlerNumberUKC: z.string(),
     profileImage: z.string().optional(),
     judgeQualifications: z.array(judgeQualificationSchema),
     roles: z.array(z.string()),
@@ -83,6 +103,15 @@ export const userToFormData = (user: Partial<UserType>): UserFormData => {
     city: user.city || '',
     state: user.state || '',
     zipCode: user.zipCode || (userRecord.zip_code as string) || '',
+    // MYK9-570. Accept the snake_case row shape too — this panel is fed both a
+    // mapped `User` and, on some callers, a raw people row.
+    dateOfBirth: user.dateOfBirth || (userRecord.date_of_birth as string) || '',
+    juniorHandlerNumberAKC:
+      normalizeJuniorHandlerNumbers(user.juniorHandlerNumbers ?? userRecord.junior_handler_numbers)
+        ?.AKC || '',
+    juniorHandlerNumberUKC:
+      normalizeJuniorHandlerNumbers(user.juniorHandlerNumbers ?? userRecord.junior_handler_numbers)
+        ?.UKC || '',
     profileImage: user.profileImage || (userRecord.profile_image_url as string) || '',
     judgeQualifications: (user.judgeQualifications as JudgeQualification[]) || [],
     roles: (user.roles || []) as unknown as string[], // Handle UserRole[] type
@@ -117,6 +146,19 @@ export const formDataToUser = (formData: UserFormData): Partial<UserType> => ({
   city: formData.city,
   state: formData.state,
   zipCode: formData.zipCode,
+  dateOfBirth: formData.dateOfBirth,
+  // Reassembled into the keyed map the column stores. A blank input means "no
+  // number", so the key is omitted rather than written as an empty string — the
+  // forms treat '' and absent alike, but an empty string is a value a later
+  // reader could print.
+  juniorHandlerNumbers: {
+    ...(formData.juniorHandlerNumberAKC.trim()
+      ? { AKC: formData.juniorHandlerNumberAKC.trim() }
+      : {}),
+    ...(formData.juniorHandlerNumberUKC.trim()
+      ? { UKC: formData.juniorHandlerNumberUKC.trim() }
+      : {}),
+  },
   profileImage: formData.profileImage,
   judgeQualifications: formData.judgeQualifications,
   roles: formData.roles as UserRole[],

@@ -226,6 +226,12 @@ const UserDetailsView: React.FC<UserDetailsViewProps> = ({ person }) => {
         city: userData.city || '',
         state: userData.state || '',
         zipCode: userData.zipCode || '',
+        // MYK9-570: this object is hand-listed, so the junior handler inputs are
+        // dropped on save unless they are named here.
+        ...(userData.dateOfBirth !== undefined && { dateOfBirth: userData.dateOfBirth }),
+        ...(userData.juniorHandlerNumbers !== undefined && {
+          juniorHandlerNumbers: userData.juniorHandlerNumbers,
+        }),
       };
 
       await updateUserMutation.mutateAsync({ id: person.id, updates });

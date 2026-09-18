@@ -41,6 +41,8 @@ const dog: EntryFormDog = {
     email: 'sarah@example.com',
   },
   handler: null,
+  handlerDateOfBirth: null,
+  handlerJuniorHandlerNumbers: undefined,
   armband: 101,
   entries: [],
   agreementDate: null,

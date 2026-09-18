@@ -7,6 +7,7 @@ import {
   sortByBreed,
 } from '@/lib/reports/reportUtils';
 import { formatArmbandDisplay } from '@/utils/armbandUtils';
+import { formatReportHandlerName } from '@/lib/reports/reportUtils';
 
 export const ShowCatalog: React.FC<ReportProps> = ({
   showName,
@@ -83,7 +84,7 @@ export const ShowCatalog: React.FC<ReportProps> = ({
                       <td>{entry.breed}</td>
                       <td>{entry.registrationNumber ?? ''}</td>
                       <td>{[entry.classElement, entry.classLevel].filter(Boolean).join(' ')}</td>
-                      <td>{entry.handler}</td>
+                      <td>{formatReportHandlerName(entry)}</td>
                     </tr>
                   ))}
                 </tbody>

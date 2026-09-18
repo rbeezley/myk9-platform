@@ -21,6 +21,15 @@ export interface UserFormData extends Record<string, unknown> {
   city: string;
   state: string;
   zipCode: string;
+  /**
+   * MYK9-570: ISO `YYYY-MM-DD`, or '' when unknown. Junior handler status is
+   * derived from this per trial; there is no junior checkbox to set.
+   */
+  dateOfBirth: string;
+  /** MYK9-570: AKC Junior Handler number, or '' when the person has none. */
+  juniorHandlerNumberAKC: string;
+  /** MYK9-570: UKC Junior ID, or '' when the person has none. */
+  juniorHandlerNumberUKC: string;
   profileImage?: string;
   judgeQualifications: JudgeQualification[];
   roles: string[];

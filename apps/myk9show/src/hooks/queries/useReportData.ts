@@ -9,6 +9,7 @@ import {
 import { queryKeys, cacheStrategies } from '@/lib/queryClient';
 import type { Show } from '@/types/show-types';
 import { loadDogRegistrations } from '@/services/database/dogs/reads';
+import { loadJuniorHandlerProfiles } from '@/services/database/users/juniorHandlerProfiles';
 import { refreshShowEntriesForRead } from '@/services/database/entries/refreshShowEntriesForRead';
 import type { ReportDbEntry } from '@/lib/reports/types';
 
@@ -36,18 +37,55 @@ interface HydratedReportEntries {
   registrationsReadComplete: boolean;
 }
 
+/**
+ * MYK9-570: hydrate each entry with its handler's junior handler columns.
+ *
+ * The replica carries `entries.handler_id` but nothing from `people`, so the
+ * catalog cannot know a handler's date of birth without asking. Deliberately
+ * ANCILLARY — a failed read leaves `handler_person` undefined, which the mapper
+ * reads as "unknown", so the catalog prints without junior marks instead of
+ * refusing to print.
+ */
+async function hydrateHandlerJuniorProfiles(entries: ReportDbEntry[]): Promise<ReportDbEntry[]> {
+  const handlerIds = [
+    ...new Set(
+      entries
+        .map(entry => (entry as { handler_id?: string | null }).handler_id)
+        .filter((id): id is string => Boolean(id))
+    ),
+  ];
+  if (handlerIds.length === 0) return entries;
+
+  const { byPersonId } = await loadJuniorHandlerProfiles(handlerIds);
+  if (byPersonId.size === 0) return entries;
+
+  return entries.map(entry => {
+    const handlerId = (entry as { handler_id?: string | null }).handler_id;
+    const profile = handlerId ? byPersonId.get(handlerId) : undefined;
+    if (!profile) return entry;
+    return {
+      ...entry,
+      handler_person: {
+        date_of_birth: profile.dateOfBirth,
+        junior_handler_numbers: profile.juniorHandlerNumbers,
+      },
+    };
+  });
+}
+
 async function hydrateEntryRegistrations(entries: ReportDbEntry[]): Promise<HydratedReportEntries> {
+  const withHandlers = await hydrateHandlerJuniorProfiles(entries);
   const dogIds = [
-    ...new Set(entries.map(entry => entry.dog_id).filter((id): id is string => Boolean(id))),
+    ...new Set(withHandlers.map(entry => entry.dog_id).filter((id): id is string => Boolean(id))),
   ];
   if (dogIds.length === 0) {
-    return { entries, registrationsReadComplete: true };
+    return { entries: withHandlers, registrationsReadComplete: true };
   }
 
   const { byDog, registrationsReadComplete } = await loadDogRegistrations(dogIds);
 
   return {
-    entries: entries.map(entry => {
+    entries: withHandlers.map(entry => {
       if (!entry.dog_id) return entry;
       const dog = entry.dog ?? { id: entry.dog_id };
       return {

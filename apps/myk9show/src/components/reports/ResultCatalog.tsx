@@ -10,6 +10,7 @@ import {
   countQualified,
 } from '@/lib/reports/reportUtils';
 import { formatArmbandDisplay } from '@/utils/armbandUtils';
+import { formatReportHandlerName } from '@/lib/reports/reportUtils';
 
 export const ResultCatalog: React.FC<ReportProps> = ({
   showName,
@@ -92,7 +93,7 @@ export const ResultCatalog: React.FC<ReportProps> = ({
                           <td>{entry.callName}</td>
                           <td>{entry.breed}</td>
                           <td>{entry.registrationNumber ?? ''}</td>
-                          <td>{entry.handler}</td>
+                          <td>{formatReportHandlerName(entry)}</td>
                           <td className={qualified ? 'qualified-text' : 'nq-text'}>{statusText}</td>
                           <td>{formatReportTime(entry.searchTimeSeconds)}</td>
                         </tr>

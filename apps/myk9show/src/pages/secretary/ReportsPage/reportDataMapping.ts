@@ -19,7 +19,7 @@ import { resolveDogIdentityForOrganization } from '@/features/dogs/identity';
 import { resolveConfiguredRegistryId } from '@/features/registries';
 import {
   deriveJuniorStatus,
-  getJuniorHandlerNumber,
+  handlerNameMatchesPerson,
 } from '@/features/registries/juniorHandlerPolicy';
 
 export function mapReportEntries(
@@ -179,22 +179,30 @@ function readEntrySource(entrySource: string | null | undefined): ReportEntry['e
 function resolveHandlerJunior(
   e: ReportDbEntry,
   trial?: DbTrial
-): Pick<ReportEntry, 'handlerIsJunior' | 'handlerJuniorNumber'> {
+): Pick<ReportEntry, 'handlerIsJunior'> {
   if (!trial) return {};
   const registryId = resolveConfiguredRegistryId(trial.registry_id);
   if (!registryId) return {};
   const person = e.handler_person;
   if (!person) return {};
 
+  // Round-1 review P1: `entries.handler` is the free text that gets PRINTED and
+  // `entries.handler_id` is what we just read a date of birth from. A rename
+  // leaves the id behind, so unless the two name the same person this entry gets
+  // no mark at all.
+  if (!handlerNameMatchesPerson(e.handler, person)) return {};
+
   const status = deriveJuniorStatus({
     dateOfBirth: person.date_of_birth ?? null,
     trialDate: trial.date ?? null,
     registryId,
   });
+  // Only an affirmative 'junior' marks. 'adult', and every flavour of 'unknown'
+  // (no date of birth — which is EVERY person until the column is populated — an
+  // ASCA trial, a date after the trial), print the plain name.
   if (status.kind !== 'junior') return {};
 
-  const number = getJuniorHandlerNumber(person.junior_handler_numbers, registryId);
-  return { handlerIsJunior: true, ...(number ? { handlerJuniorNumber: number } : {}) };
+  return { handlerIsJunior: true };
 }
 
 export function readTrialRegistryId(trial: DbTrial): string {

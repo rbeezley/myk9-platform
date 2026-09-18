@@ -7,7 +7,10 @@ import {
   type DogRegistrationLike,
 } from '@/features/dogs/identity';
 import type { ShowExperienceSnapshot } from '@/features/experience/experienceSnapshot';
-import { normalizeJuniorHandlerNumbers } from '@/features/registries/juniorHandlerPolicy';
+import {
+  handlerNameMatchesPerson,
+  normalizeJuniorHandlerNumbers,
+} from '@/features/registries/juniorHandlerPolicy';
 import type {
   EntryFormDog,
   EntryFormSecretary,
@@ -318,13 +321,20 @@ async function fetchEntryFormData(
     });
     const handlerEntry = dogEntries.find(e => e.handler && e.handler !== ownerFullName);
     const handler = handlerEntry?.handler ?? null;
-    // The person behind the printed handler name. Fall back to the first entry
-    // carrying a handler_id when the name matches the owner's — the owner IS the
-    // handler in that case, and their junior number is the one that belongs on
-    // the form.
-    const handlerPersonId =
-      handlerEntry?.handlerId ?? dogEntries.find(e => e.handlerId)?.handlerId ?? null;
-    const handlerRaw = handlerPersonId ? personMap.get(handlerPersonId) : null;
+    // MYK9-570 round-1 review, P2: the person behind the printed handler name is
+    // THIS entry's `handler_id` or nobody. There used to be a fallback to the
+    // first entry on the dog that carried any `handler_id`, which fired whenever
+    // `handlerEntry` existed with a NULL id — exactly what a secretary's handler
+    // correction produces — and printed a different person's junior number under
+    // the handler's name.
+    const handlerPersonId = handlerEntry?.handlerId ?? null;
+    const handlerCandidate = handlerPersonId ? personMap.get(handlerPersonId) : null;
+    // And even then, only when that person is the one whose name is printed: a
+    // rename leaves the old id behind (see handlerNameMatchesPerson).
+    const handlerRaw =
+      handlerCandidate && handlerNameMatchesPerson(handler, handlerCandidate)
+        ? handlerCandidate
+        : null;
 
     const armband = dogEntries.find(e => e.armband != null)?.armband ?? null;
     const agreementDate = dogEntries.find(e => e.submittedAt)?.submittedAt ?? null;

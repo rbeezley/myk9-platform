@@ -236,12 +236,17 @@ const GRID_LEVELS: readonly EntryGridLevel[] = ['Novice', 'Advanced', 'Excellent
  * adult's entry form would claim junior eligibility the regulations do not give.
  *
  * Which trial day? An entry form covers every trial the dog is entered in, and
- * the field is single. The EARLIEST entered trial date is used — the day the
- * handler is most likely still to have been a junior — and the AKC glossary's
- * own requirement is that the number be held *prior to the date of the trial*,
- * so the earliest date is also the strictest test of that. A handler whose 18th
- * birthday falls mid-weekend is a junior on this form because they were one on
- * the first day; a secretary correcting that edits the printed PDF.
+ * the field is single, so one day has to be chosen. The EARLIEST entered trial
+ * date is used, and that is the MOST PERMISSIVE choice, not the strictest: the
+ * handler is youngest then. The consequence is explicit — a handler whose 18th
+ * birthday falls mid-weekend gets their junior number printed on the form for
+ * every day of that weekend, including the days they are 18.
+ *
+ * It is chosen anyway because the alternative is worse for the person the rule
+ * protects: this form is produced per DOG, not per trial day, so the strict
+ * reading would drop the number from the days they really were a junior too. If
+ * the form is ever generated per trial day, pass that day's date instead and
+ * delete this paragraph. A secretary who needs the other answer edits the PDF.
  */
 function resolveAkcJuniorHandlerNumber(dog: EntryFormDog, trials: EntryFormTrial[]): string | null {
   const number = getJuniorHandlerNumber(dog.handlerJuniorHandlerNumbers, 'AKC');

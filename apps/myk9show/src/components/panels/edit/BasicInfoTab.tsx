@@ -155,16 +155,15 @@ export const BasicInfoTab: React.FC<BasicInfoTabProps> = ({
         <JuniorHandlerFields
           idPrefix="user-edit"
           dateOfBirth={data.dateOfBirth ?? ''}
-          juniorHandlerNumbers={{
-            AKC: data.juniorHandlerNumberAKC ?? '',
-            UKC: data.juniorHandlerNumberUKC ?? '',
-          }}
+          juniorHandlerNumbers={data.juniorHandlerNumbers ?? {}}
           dateOfBirthError={dateOfBirthError}
           onDateOfBirthChange={value => form?.setValue('dateOfBirth', value)}
-          onJuniorHandlerNumberChange={(registryId: RegistryId, value) => {
-            if (registryId === 'AKC') form?.setValue('juniorHandlerNumberAKC', value);
-            if (registryId === 'UKC') form?.setValue('juniorHandlerNumberUKC', value);
-          }}
+          onJuniorHandlerNumberChange={(registryId: RegistryId, value) =>
+            form?.setValue('juniorHandlerNumbers', {
+              ...(data.juniorHandlerNumbers ?? {}),
+              [registryId]: value,
+            })
+          }
         />
       </div>
 

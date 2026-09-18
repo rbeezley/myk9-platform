@@ -2,12 +2,12 @@ import React from 'react';
 import type { ReportProps, ReportEntry } from '@/lib/reports/types';
 import {
   formatReportDate,
+  formatReportHandlerName,
   sortByArmband,
   sortByHandler,
   sortByBreed,
 } from '@/lib/reports/reportUtils';
 import { formatArmbandDisplay } from '@/utils/armbandUtils';
-import { formatReportHandlerName } from '@/lib/reports/reportUtils';
 
 export const ShowCatalog: React.FC<ReportProps> = ({
   showName,

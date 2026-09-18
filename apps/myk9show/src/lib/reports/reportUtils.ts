@@ -189,28 +189,34 @@ export const UNKNOWN_HANDLER = 'Unknown';
  * falling back to one would print a confidently wrong name on the sheet a gate
  * steward uses to confirm who presented the dog.
  */
+export function resolveReportHandlerName(handler: unknown): string {
+  const name = typeof handler === 'string' ? handler.trim() : '';
+  return name === '' ? UNKNOWN_HANDLER : name;
+}
+
 /**
  * MYK9-570: the handler's name as the catalog prints it, with a junior mark.
  *
- * "Jr." is the mark because that is what a catalog reader is looking for; the
- * registry-issued number does NOT appear here because the catalog has no column
- * for it and appending a seven-digit number to every junior's name would crowd
- * the one line a steward reads at the gate. The number prints on the registry
- * entry form, which has a field for it.
+ * "Jr." is the mark because that is what a catalog reader is looking for. The
+ * registry-issued number does NOT appear here: the catalog has no column for it
+ * and appending a seven-digit number to every junior's name would crowd the one
+ * line a steward reads at the gate. The number prints on the registry entry
+ * form, which has a field for it.
  *
- * Only a derived `handlerIsJunior === true` adds the mark. Unknown (no date of
- * birth, no hydration, a registry with no age rule) prints the plain name.
+ * Known limitation: "Jr." is also the generational name suffix, so a catalog
+ * reader cannot tell "John Smith Jr. (junior handler)" from "John Smith Jr.
+ * (the son)". Recorded on MYK9-570; a distinct mark or its own column is the
+ * fix, and both are layout decisions for the owner rather than code ones.
+ *
+ * Only a derived `handlerIsJunior === true` adds the mark. Every flavour of
+ * unknown — no date of birth, no hydration, an ASCA trial whose rulebook states
+ * no upper age bound — prints the plain name.
  */
 export function formatReportHandlerName(entry: {
   handler: string;
   handlerIsJunior?: boolean | undefined;
 }): string {
   return entry.handlerIsJunior ? `${entry.handler} Jr.` : entry.handler;
-}
-
-export function resolveReportHandlerName(handler: unknown): string {
-  const name = typeof handler === 'string' ? handler.trim() : '';
-  return name === '' ? UNKNOWN_HANDLER : name;
 }
 
 export function sortByHandler(entries: ReportEntry[]): ReportEntry[] {

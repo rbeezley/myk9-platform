@@ -9,24 +9,16 @@ import {
   SIGN_IN_EMAIL_LOCKED_MESSAGE,
 } from './signInEmailGuard';
 import { hydrateVisibleRoles } from './roleLabels';
+import { PEOPLE_DIRECTORY_COLUMNS, PEOPLE_MAPPER_COLUMNS } from './peopleColumns';
+
+// Re-exported so existing importers keep working; the lists live in peopleColumns.ts.
+export { PEOPLE_DIRECTORY_COLUMNS, PEOPLE_MAPPER_COLUMNS } from './peopleColumns';
 
 // Shared select fragment for judge qualifications join
 const JUDGE_QUALIFICATIONS_SELECT = `judge_qualifications(
   id, organization, qualification_level, disciplines, judge_number,
   date_obtained, expiration_date, is_active
 )`;
-
-// SA-008: explicit column allowlist for the people-directory fetch — the union
-// of columns the two consumers of getAllUsers read (`mapDatabaseToUser` in
-// services/mappers/userMappers.ts for the userStore, and `mapDbUserToUser` in
-// hooks/queries/useUsersQuery.ts for React Query). Replaces `select('*')` so an
-// RLS regression can never turn this into a full-table PII dump. Keep in sync
-// with BOTH mappers; the column-shape test in userQueries.test.ts pins it.
-const PEOPLE_DIRECTORY_COLUMNS =
-  'id, first_name, last_name, email, phone, street_address, city, state, ' +
-  'zip_code, country, profile_image, auth_user_id, status, ' +
-  'date_of_birth, junior_handler_numbers, ' +
-  'created_at, updated_at, deleted_at, deleted_by';
 
 interface GetAllUsersOptions {
   includeRoleLabels?: boolean;
@@ -89,7 +81,7 @@ export const getUserById = async (id: string) => {
       .from('people')
       .select(
         `
-        *,
+        ${PEOPLE_DIRECTORY_COLUMNS},
         dogs!dogs_owner_id_fkey(
           id,
           name,
@@ -530,7 +522,8 @@ export const searchUsers = async (searchTerm: string) => {
   try {
     const { data, error } = await supabase
       .from('people')
-      .select('*')
+      // PII-free: an admin name search has no use for a handler's date of birth.
+      .select(PEOPLE_MAPPER_COLUMNS)
       .is('deleted_at', null)
       .or(
         `first_name.ilike.%${searchTerm}%,last_name.ilike.%${searchTerm}%,email.ilike.%${searchTerm}%`
@@ -584,7 +577,8 @@ export const getUsersByRole = async (role: string) => {
       Array.from({ length: Math.ceil(personIds.length / 100) }, (_, page) =>
         supabase
           .from('people')
-          .select('*')
+          // PII-free: a role picker has no use for a handler's date of birth.
+          .select(PEOPLE_MAPPER_COLUMNS)
           .in('id', personIds.slice(page * 100, (page + 1) * 100))
           .is('deleted_at', null)
       )
@@ -628,7 +622,7 @@ const getPeopleWithDogCountsFallback = async () => {
       .from('people')
       .select(
         `
-        *,
+        ${PEOPLE_MAPPER_COLUMNS},
         dogs!dogs_owner_id_fkey(id)
       `
       )

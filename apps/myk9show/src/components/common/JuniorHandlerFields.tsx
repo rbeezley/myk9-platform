@@ -33,12 +33,15 @@ export interface JuniorHandlerFieldsProps {
   disabled?: boolean;
 }
 
-/** Today in the local calendar, as the `max` a date input will accept. */
+/**
+ * Today, as the `max` a date input will accept.
+ *
+ * Computed in UTC because both validators compare `new Date(value + 'T00:00:00Z')`
+ * against `Date.now()`. Using the LOCAL calendar here offered a viewer east of
+ * Greenwich a date their own save would then refuse.
+ */
 function todayIsoDate(): string {
-  const now = new Date();
-  const month = `${now.getMonth() + 1}`.padStart(2, '0');
-  const day = `${now.getDate()}`.padStart(2, '0');
-  return `${now.getFullYear()}-${month}-${day}`;
+  return new Date().toISOString().slice(0, 10);
 }
 
 export function JuniorHandlerFields({

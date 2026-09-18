@@ -2,6 +2,7 @@ import React, { useState, useMemo, useRef, useCallback } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { Mail, MapPin, Settings } from 'lucide-react';
 import { logger } from '@/services/LoggingService';
+import { buildUserEditSavePayload } from './userEditSavePayload';
 import { notifications } from '@/lib/notifications';
 import { uploadProfilePhoto } from '@/services/imageUploadService';
 import { getErrorMessage } from '@myk9/core';
@@ -216,23 +217,7 @@ const UserDetailsView: React.FC<UserDetailsViewProps> = ({ person }) => {
       setFormData(prev => ({ ...prev, ...definedUpdates }));
       logger.debug('Saving user data', 'users', { userId: person.id });
 
-      const updates: Partial<UserType> = {
-        ...(userData.firstName !== undefined && { firstName: userData.firstName }),
-        ...(userData.lastName !== undefined && { lastName: userData.lastName }),
-        ...(userData.email !== undefined && { email: userData.email }),
-        ...(userData.phone !== undefined && { phone: userData.phone }),
-        // Roles are managed via user_roles table (RoleManager), not the people table
-        address: addressValue,
-        city: userData.city || '',
-        state: userData.state || '',
-        zipCode: userData.zipCode || '',
-        // MYK9-570: this object is hand-listed, so the junior handler inputs are
-        // dropped on save unless they are named here.
-        ...(userData.dateOfBirth !== undefined && { dateOfBirth: userData.dateOfBirth }),
-        ...(userData.juniorHandlerNumbers !== undefined && {
-          juniorHandlerNumbers: userData.juniorHandlerNumbers,
-        }),
-      };
+      const updates = buildUserEditSavePayload(userData);
 
       await updateUserMutation.mutateAsync({ id: person.id, updates });
       notifications.success('User updated successfully');

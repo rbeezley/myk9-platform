@@ -32,8 +32,6 @@ export interface SaveEntryEditsParams {
   classEdits: Record<string, EntryClassEdits>;
   /** The card-level handler, used when a class row carries none of its own. */
   fallbackHandler?: string | undefined;
-  /** Secretary surfaces pass true; mirrors `ignoreModificationDeadline`. */
-  clearHandlerId: boolean;
 }
 
 /**
@@ -46,7 +44,7 @@ export interface SaveEntryEditsParams {
 export async function saveEntryEdits(
   params: SaveEntryEditsParams
 ): Promise<{ error: string | null }> {
-  const { classes, classEdits, fallbackHandler, clearHandlerId } = params;
+  const { classes, classEdits, fallbackHandler } = params;
 
   // A grouped dog card can contain multiple entry rows, and each row may need a
   // different handler.
@@ -54,11 +52,27 @@ export async function saveEntryEdits(
     const editedHandler = classEdits[classEntry.id]?.handler;
     const originalHandler = classEntry.handler ?? fallbackHandler ?? '';
     if (editedHandler !== undefined && editedHandler !== originalHandler) {
+      // MYK9-570: `clearHandlerId` is TRUE on every rename, not just the
+      // secretary's. This dialog only ever edits the handler as free TEXT — it
+      // offers no person picker, hence `handlerId: null` — so after a rename the
+      // stored `handler_id` points at whoever used to hold the name. Keeping it
+      // made the catalog and the AKC entry form read one person's date of birth
+      // and registry-issued junior number and print them under another person's
+      // name. Nothing else on an entry is keyed to `handler_id`, so clearing it
+      // costs a re-resolution the app does not currently do anyway.
+      //
+      // This is only half the guard, and deliberately so. The RPC's OFFICIAL
+      // branch honours the flag; its EXHIBITOR branch does
+      // `handler_id = COALESCE(p_handler_id, v_existing_handler_id)` and ignores
+      // it entirely, so an exhibitor's rename still leaves the old id behind
+      // until that function is changed. The read side therefore refuses to
+      // derive junior status at all unless the person behind `handler_id` is
+      // the person whose name is printed — see `handlerNameMatchesPerson`.
       const { error } = await updateEntryHandler({
         entryId: classEntry.id,
         handler: editedHandler,
         handlerId: null,
-        clearHandlerId,
+        clearHandlerId: true,
       });
       if (error) return { error: 'Failed to update handler. Please try again.' };
     }

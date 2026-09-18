@@ -174,7 +174,10 @@ describe('EntryEditDialog — per-class handlers', () => {
         entryId: 'entry-container',
         handler: 'Chris Lee',
         handlerId: null,
-        clearHandlerId: false,
+        // MYK9-570: a rename clears the stale person link on EVERY surface now,
+        // not only the secretary's — this dialog has no person picker, so after
+        // a rename the old id names someone else.
+        clearHandlerId: true,
       });
     });
   });

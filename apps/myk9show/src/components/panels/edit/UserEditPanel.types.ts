@@ -26,10 +26,13 @@ export interface UserFormData extends Record<string, unknown> {
    * derived from this per trial; there is no junior checkbox to set.
    */
   dateOfBirth: string;
-  /** MYK9-570: AKC Junior Handler number, or '' when the person has none. */
-  juniorHandlerNumberAKC: string;
-  /** MYK9-570: UKC Junior ID, or '' when the person has none. */
-  juniorHandlerNumberUKC: string;
+  /**
+   * MYK9-570: registry-issued junior handler numbers keyed by `RegistryId`. The
+   * WHOLE map, not one field per rendered input — the form renders inputs only
+   * for the registries that issue a number, and rebuilding the map from those
+   * dropped any other stored key on save.
+   */
+  juniorHandlerNumbers: Record<string, string>;
   profileImage?: string;
   judgeQualifications: JudgeQualification[];
   roles: string[];

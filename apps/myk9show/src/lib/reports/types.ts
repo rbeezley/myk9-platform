@@ -68,8 +68,6 @@ export interface ReportEntry {
    * upper age bound) — the catalog prints a mark only when this is true.
    */
   handlerIsJunior?: boolean;
-  /** MYK9-570: the registry-issued junior handler number, when the trial's registry issues one. */
-  handlerJuniorNumber?: string;
 }
 
 /**
@@ -93,6 +91,13 @@ export type ReportDbEntry = DbEntry & {
    * leaves the entry unmarked rather than marking it an adult.
    */
   handler_person?: {
+    /**
+     * The person's OWN name. Carried so the mapper can refuse to derive junior
+     * status when `entries.handler_id` names someone other than the free-text
+     * `entries.handler` the paperwork prints — see `handlerNameMatchesPerson`.
+     */
+    first_name?: string | null;
+    last_name?: string | null;
     date_of_birth?: string | null;
     junior_handler_numbers?: Record<string, string> | undefined;
   } | null;

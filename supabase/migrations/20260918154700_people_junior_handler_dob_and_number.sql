@@ -92,11 +92,25 @@ GRANT SELECT (id, first_name, last_name, email) ON public.people TO anon;
 -- apps/myk9show/src/test/database/migrationGrantDecisionContract.test.ts.
 GRANT SELECT, INSERT, UPDATE, DELETE ON public.people TO authenticated;
 
--- Existing RLS is the row guard and is unchanged: every policy on `people` is
--- TO authenticated (people_select admits the person's own row plus show managers via
--- is_show_manager()), so a secretary building paperwork can read a handler's date of birth
--- and nobody else can. No new policy is created here, and the GRANT above conveys nothing
--- that `authenticated` did not already hold.
+-- Existing RLS is the row guard and is unchanged. No new policy is created here, and the
+-- GRANT above conveys nothing `authenticated` did not already hold.
+--
+-- Read that breadth precisely, because it is WIDER than "the secretary of this handler's
+-- show". Live policy:
+--   people_select  TO authenticated
+--   USING (deleted_at IS NULL AND (auth_user_id = auth.uid() OR is_show_manager()))
+-- and `is_show_manager()` is `is_site_admin() OR is_trial_secretary() OR is_club_admin()`,
+-- all three called with NO argument — i.e. unscoped. Holding a secretary or club-admin role
+-- ANYWHERE therefore grants SELECT over EVERY row in `people`, including handlers who have
+-- never entered one of that person's shows. As of this migration those rows include a
+-- possibly-minor handler's date of birth.
+--
+-- This migration does not widen that policy and deliberately does not narrow it either:
+-- re-scoping `people_select` would change who can see names, addresses and phone numbers
+-- across the whole app, which is its own piece of work with its own blast radius. It is
+-- filed as MYK9-664. What this migration DOES do is keep the columns off `anon` entirely
+-- and out of every payload that has no use for them (see PEOPLE_MAPPER_COLUMNS in
+-- apps/myk9show/src/services/database/users/peopleColumns.ts).
 
 -- Fail the push rather than silently publish a minor's date of birth to the public web.
 DO $$

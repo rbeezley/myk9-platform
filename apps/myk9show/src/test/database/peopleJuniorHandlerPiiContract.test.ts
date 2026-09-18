@@ -14,7 +14,7 @@
  */
 import { describe, it, expect } from 'vitest';
 import { readFileSync, readdirSync } from 'node:fs';
-import { resolve } from 'node:path';
+import { resolve, sep } from 'node:path';
 
 const MIGRATIONS_DIR = resolve(process.cwd(), '../../supabase/migrations');
 const SRC_DIR = resolve(process.cwd(), 'src');
@@ -44,6 +44,33 @@ function walk(dir: string, out: string[] = []): string[] {
     else if (/\.(ts|tsx)$/.test(entry.name)) out.push(full);
   }
   return out;
+}
+
+/**
+ * The `.select(...)` argument of every `from('people')` chain in a file.
+ *
+ * Statement-scoped on purpose: a file-wide regex flags a `select('*')` on some
+ * OTHER table that merely happens to live beside a people read, which is six
+ * false positives in this repo.
+ */
+function peopleSelectChains(source: string): string[] {
+  const chains: string[] = [];
+  const marker = "from('people')";
+  let at = source.indexOf(marker);
+  while (at !== -1) {
+    const rest = source.slice(at, at + 800);
+    const end = rest.indexOf(';');
+    chains.push(end === -1 ? rest : rest.slice(0, end));
+    at = source.indexOf(marker, at + marker.length);
+  }
+  return chains;
+}
+
+/** Does this chain's first `.select(` argument begin with a `*`? */
+function selectsStar(chain: string): boolean {
+  const match = /\.\s*select\s*\(\s*(['"`])([\s\S]*?)\1/.exec(chain);
+  if (!match) return false;
+  return /^\s*\*/.test(match[2] ?? '');
 }
 
 describe('the migration that adds the columns', () => {
@@ -152,6 +179,41 @@ describe('no public or anon-facing app read carries the columns', () => {
       PII_COLUMNS.some(column => jsWithoutComments(readFileSync(file, 'utf8')).includes(column))
     );
     expect(offenders).toEqual([]);
+  });
+
+  /**
+   * The hole round 1 found in the assertions above: they look for the COLUMN
+   * NAMES, and `select('*')` contains neither, so a star-select on `people` is
+   * green by construction while shipping the PII. There were six of them.
+   */
+  it('no read of public.people anywhere in the app uses a star select', () => {
+    const offenders: string[] = [];
+    for (const file of walk(SRC_DIR)) {
+      if (/\.test\.tsx?$/.test(file) || file.includes(`${sep}test${sep}`)) continue;
+      const source = jsWithoutComments(readFileSync(file, 'utf8'));
+      for (const chain of peopleSelectChains(source)) {
+        if (selectsStar(chain)) offenders.push(`${file.slice(SRC_DIR.length + 1)}: ${chain}`);
+      }
+    }
+    expect(
+      offenders,
+      'a star select on people ships date_of_birth to every caller AND hides it from this test'
+    ).toEqual([]);
+  });
+
+  it('positive control: the scanner catches both star spellings, and only on people', () => {
+    // Without this, the assertion above passes just as happily on a broken regex
+    // — and a file-wide scan would flag a `select('*')` on some OTHER table.
+    const starOnPeople = (src: string) => peopleSelectChains(src).some(selectsStar);
+    expect(starOnPeople(`supabase.from('people').select('*').eq('id', id);`)).toBe(true);
+    expect(starOnPeople("supabase.from('people').select(`*, dogs(id)`).eq(1);")).toBe(true);
+    expect(
+      starOnPeople(".from('people')\n  .select(`\n    *,\n    dogs(id)\n  `)\n  .is(1);")
+    ).toBe(true);
+    // The explicit lists that replaced them, and a star on a different table.
+    expect(starOnPeople(".from('people').select(PEOPLE_MAPPER_COLUMNS).is(1);")).toBe(false);
+    expect(starOnPeople(".from('people').select('id, first_name').is(1);")).toBe(false);
+    expect(starOnPeople(".from('dogs').select('*').is(1);")).toBe(false);
   });
 
   it('positive control: the app DOES read the columns somewhere', () => {

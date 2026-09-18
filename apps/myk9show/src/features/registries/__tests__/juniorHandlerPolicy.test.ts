@@ -101,13 +101,13 @@ describe('ASCA — a floor of 8 and NO ceiling, so junior status is not derivabl
     }
   });
 
-  it('is ineligible the day before the 8th birthday and eligible on it', () => {
+  it('keeps the stated floor of 8 as DATA, without turning it into a status', () => {
+    // The floor is a rule about who may ENTER, not about who is a junior, so it
+    // lives on the rule and never becomes a JuniorStatusKind of its own.
+    expect(getJuniorHandlerRule('ASCA').minAgeYearsInclusive).toBe(8);
     expect(
       deriveJuniorStatus({ dateOfBirth: '2018-09-19', trialDate: '2026-09-18', registryId: 'ASCA' })
-    ).toMatchObject({ kind: 'ineligible', ageOnTrialDate: 7 });
-    expect(
-      deriveJuniorStatus({ dateOfBirth: '2018-09-18', trialDate: '2026-09-18', registryId: 'ASCA' })
-    ).toMatchObject({ kind: 'unknown', ageOnTrialDate: 8 });
+    ).toMatchObject({ kind: 'unknown', ageOnTrialDate: 7 });
   });
 });
 

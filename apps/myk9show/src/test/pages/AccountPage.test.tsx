@@ -17,8 +17,7 @@ const mockForm = {
     zipCode: '',
     // MYK9-570: the junior handler inputs render from these.
     dateOfBirth: '',
-    juniorHandlerNumberAKC: '',
-    juniorHandlerNumberUKC: '',
+    juniorHandlerNumbers: {},
   },
   errors: {},
   setValue: vi.fn(),

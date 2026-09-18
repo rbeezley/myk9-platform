@@ -13,6 +13,7 @@ import type { ShowEntry, ShowEntryInput, RegistrationData } from '@/store/entryS
 import type { Dog } from '@/types/dog-types';
 import type { Show, Trial, Class } from '@/types/show-types';
 import type { User } from '@/types/user-types';
+import { validateHandlerAge } from './handlerAgeRestrictions';
 
 export interface EntryValidationContext {
   show: Show;
@@ -401,38 +402,13 @@ export class EntryValidator {
       return { errors, warnings };
     }
 
-    // Age restrictions for handlers.
-    // MYK9-570: reads `dateOfBirth`, the field now backed by `people.date_of_birth`.
-    // It used to read a `birthDate` alias that no mapper ever populated, so this
-    // block could not fire; it is still gated on `class.handlerAgeRestrictions`,
-    // which nothing in the app sets today.
-    if (context.handler.dateOfBirth) {
-      const handlerAge = this.calculateAge(context.handler.dateOfBirth, context.show.startDate);
-
-      if (
-        context.class.handlerAgeRestrictions?.min &&
-        handlerAge < context.class.handlerAgeRestrictions.min
-      ) {
-        errors.push({
-          field: 'handlerAge',
-          code: 'HANDLER_TOO_YOUNG',
-          message: `Handler must be at least ${context.class.handlerAgeRestrictions.min} years old`,
-          severity: 'error',
-        });
-      }
-
-      if (
-        context.class.handlerAgeRestrictions?.max &&
-        handlerAge > context.class.handlerAgeRestrictions.max
-      ) {
-        errors.push({
-          field: 'handlerAge',
-          code: 'HANDLER_TOO_OLD',
-          message: `Handler cannot be older than ${context.class.handlerAgeRestrictions.max} years`,
-          severity: 'error',
-        });
-      }
-    }
+    errors.push(
+      ...validateHandlerAge({
+        dateOfBirth: context.handler.dateOfBirth,
+        eventStartDate: context.show.startDate,
+        restrictions: context.class.handlerAgeRestrictions,
+      })
+    );
 
     // Non-owner handler validation
     if (context.handler.id !== context.dog.ownerId) {
@@ -594,19 +570,5 @@ export class EntryValidator {
     const months = event.getMonth() - birth.getMonth();
 
     return years * 12 + months;
-  }
-
-  private static calculateAge(birthDate: string, eventDate: string): number {
-    const birth = new Date(birthDate);
-    const event = new Date(eventDate);
-
-    let age = event.getFullYear() - birth.getFullYear();
-    const monthDiff = event.getMonth() - birth.getMonth();
-
-    if (monthDiff < 0 || (monthDiff === 0 && event.getDate() < birth.getDate())) {
-      age--;
-    }
-
-    return age;
   }
 }

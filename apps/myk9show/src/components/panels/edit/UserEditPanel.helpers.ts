@@ -2,7 +2,10 @@ import { z } from 'zod';
 import type { User as UserType, UserRole, JudgeQualification } from '@/types/user-types';
 import { logger } from '@/services/LoggingService';
 import type { UserFormData } from './UserEditPanel.types';
-import { normalizeJuniorHandlerNumbers } from '@/features/registries/juniorHandlerPolicy';
+import {
+  juniorHandlerNumbersForSave,
+  normalizeJuniorHandlerNumbers,
+} from '@/features/registries/juniorHandlerPolicy';
 
 /**
  * MYK9-570. A date of birth is optional, but a present one must be a real past
@@ -56,8 +59,7 @@ export const userFormSchema: z.ZodSchema<UserFormData> = z
     state: z.string(),
     zipCode: z.string(),
     dateOfBirth: dateOfBirthSchema,
-    juniorHandlerNumberAKC: z.string(),
-    juniorHandlerNumberUKC: z.string(),
+    juniorHandlerNumbers: z.record(z.string(), z.string()),
     profileImage: z.string().optional(),
     judgeQualifications: z.array(judgeQualificationSchema),
     roles: z.array(z.string()),
@@ -106,12 +108,10 @@ export const userToFormData = (user: Partial<UserType>): UserFormData => {
     // MYK9-570. Accept the snake_case row shape too — this panel is fed both a
     // mapped `User` and, on some callers, a raw people row.
     dateOfBirth: user.dateOfBirth || (userRecord.date_of_birth as string) || '',
-    juniorHandlerNumberAKC:
-      normalizeJuniorHandlerNumbers(user.juniorHandlerNumbers ?? userRecord.junior_handler_numbers)
-        ?.AKC || '',
-    juniorHandlerNumberUKC:
-      normalizeJuniorHandlerNumbers(user.juniorHandlerNumbers ?? userRecord.junior_handler_numbers)
-        ?.UKC || '',
+    juniorHandlerNumbers:
+      normalizeJuniorHandlerNumbers(
+        user.juniorHandlerNumbers ?? userRecord.junior_handler_numbers
+      ) ?? {},
     profileImage: user.profileImage || (userRecord.profile_image_url as string) || '',
     judgeQualifications: (user.judgeQualifications as JudgeQualification[]) || [],
     roles: (user.roles || []) as unknown as string[], // Handle UserRole[] type
@@ -147,18 +147,9 @@ export const formDataToUser = (formData: UserFormData): Partial<UserType> => ({
   state: formData.state,
   zipCode: formData.zipCode,
   dateOfBirth: formData.dateOfBirth,
-  // Reassembled into the keyed map the column stores. A blank input means "no
-  // number", so the key is omitted rather than written as an empty string — the
-  // forms treat '' and absent alike, but an empty string is a value a later
-  // reader could print.
-  juniorHandlerNumbers: {
-    ...(formData.juniorHandlerNumberAKC.trim()
-      ? { AKC: formData.juniorHandlerNumberAKC.trim() }
-      : {}),
-    ...(formData.juniorHandlerNumberUKC.trim()
-      ? { UKC: formData.juniorHandlerNumberUKC.trim() }
-      : {}),
-  },
+  // Trimmed, blanks dropped, every registry key preserved — including ones this
+  // form renders no input for.
+  juniorHandlerNumbers: juniorHandlerNumbersForSave(formData.juniorHandlerNumbers),
   profileImage: formData.profileImage,
   judgeQualifications: formData.judgeQualifications,
   roles: formData.roles as UserRole[],

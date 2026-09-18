@@ -36,7 +36,6 @@ describe('saveEntryEdits', () => {
       // A handler edit plus a re-pick of the SAME height: exactly the shape that
       // used to fire a pointless second write.
       classEdits: { 'entry-1': { handler: 'Sam Handler', jumpHeight: '8"' } },
-      clearHandlerId: false,
     });
 
     expect(mocks.updateEntryHandler).toHaveBeenCalledTimes(1);
@@ -48,7 +47,6 @@ describe('saveEntryEdits', () => {
     await saveEntryEdits({
       classes,
       classEdits: { 'entry-1': { jumpHeight: '12"' } },
-      clearHandlerId: false,
     });
 
     expect(mocks.updateEntryDetails).toHaveBeenCalledWith({
@@ -61,7 +59,6 @@ describe('saveEntryEdits', () => {
     await saveEntryEdits({
       classes: [...classes, { id: 'entry-2', jumpHeight: '8"' }],
       classEdits: { 'entry-1': { jumpHeight: '12"', status: 'withdrawn' } },
-      clearHandlerId: false,
     });
 
     expect(mocks.updateEntryDetails).not.toHaveBeenCalled();
@@ -78,7 +75,6 @@ describe('saveEntryEdits', () => {
     const result = await saveEntryEdits({
       classes,
       classEdits: { 'entry-1': { jumpHeight: '12"' } },
-      clearHandlerId: false,
     });
 
     expect(result.error).toBe(
@@ -93,10 +89,51 @@ describe('saveEntryEdits', () => {
     const result = await saveEntryEdits({
       classes,
       classEdits: { 'entry-1': { handler: 'Sam Handler', jumpHeight: '12"' } },
-      clearHandlerId: false,
     });
 
     expect(result.error).toBe('Failed to update handler. Please try again.');
     expect(mocks.updateEntryDetails).not.toHaveBeenCalled();
+  });
+});
+
+/**
+ * MYK9-570 round-1 review, P1. The printed handler is `entries.handler` (free
+ * text); junior status and the AKC junior handler number are read through
+ * `entries.handler_id`. Renaming the handler without clearing the id makes one
+ * person's junior status and registry number print under another person's name.
+ *
+ * Asserted on the RPC CALL ARGS, because that is the whole fix: the value of
+ * `clearHandlerId` is invisible in the UI and in every rendered output.
+ */
+describe('MYK9-570: a handler rename must not keep the old handler_id', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mocks.updateEntryDetails.mockResolvedValue({ error: null });
+    mocks.updateEntryHandler.mockResolvedValue({ error: null });
+  });
+
+  it('clears handler_id on a rename, on the exhibitor surface as much as the secretary one', async () => {
+    await saveEntryEdits({
+      classes,
+      classEdits: { 'entry-1': { handler: 'Sam Handler' } },
+    });
+
+    expect(mocks.updateEntryHandler).toHaveBeenCalledWith({
+      entryId: 'entry-1',
+      handler: 'Sam Handler',
+      handlerId: null,
+      clearHandlerId: true,
+    });
+  });
+
+  it('does not write at all when the handler did not change', () => {
+    // The guard must not turn "no change" into a clearing write — that would
+    // drop a correct handler_id on every unrelated save.
+    return saveEntryEdits({
+      classes,
+      classEdits: { 'entry-1': { jumpHeight: '12"' } },
+    }).then(() => {
+      expect(mocks.updateEntryHandler).not.toHaveBeenCalled();
+    });
   });
 });

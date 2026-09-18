@@ -10,16 +10,27 @@
  * have to re-derive them:
  *
  *  - **AKC Scent Work** — junior is "less than 18 years of age on the day of the trial"
- *    (glossary, cross-referencing pp. 11-12 and 13; Ch.3 §10 repeats it as "on the day
- *    of the event"). No minimum age. AKC issues an **AKC Junior Handler number**; the
+ *    (glossary entry "Junior Handler", akc-scent-work-regulations.txt line 2762, which
+ *    itself cross-references pp. 11-12 and 13). Ch.3 §10 — line 444, the p.13 text —
+ *    repeats it as "on the day of the event". No minimum age. AKC issues an
+ *    **AKC Junior Handler number**; the
  *    glossary is explicit that a junior "need not have" one to compete, but earns no
  *    award credit without one held *prior to the date of the trial*. So the number is
  *    worth printing and must never gate the derived status.
- *  - **UKC Nosework** — Ch.1 §3: "Handlers under the age of 18 may compete as a Junior
- *    Handler", but the measuring instant is a FIXED date, not the trial: a junior "may
- *    not have reached their eighteenth birthday as of January 1st of the competition
- *    year", and stops being a junior after December 31st of the year they turn 18. A
- *    handler who turns 18 in March is therefore still a junior at a November trial.
+ *  - **UKC Nosework** — Ch.1 §3 (ukc-nose-work-rules.txt lines 224-230): "Handlers under
+ *    the age of 18 may compete as a Junior Handler", but the measuring instant is a
+ *    FIXED date, not the trial. A handler who turns 18 in March is therefore still a
+ *    junior at a November trial.
+ *
+ *    §3 states the rule TWICE and the two disagree at exactly one date. Rule A (line
+ *    225): a junior "may not have reached their eighteenth birthday as of January 1st of
+ *    the competition year". Rule B (line 226): they stop after "December 31st of the year
+ *    in which the junior turns 18". For a handler whose eighteenth birthday IS January 1,
+ *    rule A says adult for the whole year and rule B says junior for the whole year.
+ *    This module takes **rule A**, the stricter one, because the cost of the two errors
+ *    is not symmetric: wrongly marking someone a junior is a false eligibility claim on
+ *    registry paperwork, while wrongly omitting the mark prints a plain, correct name.
+ *    Every other date is unaffected — the two rules agree everywhere else.
  *    UKC issues no number — the "UKC Junior program" is an optional membership that
  *    gates awards, not entry — but the UKC change-entry form has a "Junior ID" slot, so
  *    the person may still carry a UKC value.
@@ -29,8 +40,9 @@
  *    bound anywhere (grepped for "under 18" / "18 years" / "eighteen" / "youth": zero
  *    hits) and no measuring date. ASCA therefore has NO derivable junior status, and
  *    this module invents none — `deriveJuniorStatus` returns 'unknown' for ASCA with a
- *    ruleSource that says why. Under-8 handlers are reported as 'ineligible' because
- *    that floor IS stated.
+ *    ruleSource that says why. The stated floor of 8 is kept as data on the rule
+ *    (`minAgeYearsInclusive`) for whoever decides ENTRY eligibility; it is not a
+ *    junior-status answer, so nothing here branches on it.
  *
  * Deliberately NOT here: any fee, discount or price. See MYK9-570 slice 2.
  */
@@ -121,16 +133,22 @@ export function getJuniorHandlerRule(registryId: RegistryId): RegistryJuniorHand
 }
 
 /**
- * The four answers.
+ * The three answers.
  *
- *  - 'junior'      — inside the registry's junior band on the measuring date.
- *  - 'adult'       — outside it, for a registry that HAS an upper bound.
- *  - 'ineligible'  — below a stated minimum handler age (ASCA's floor of 8).
- *  - 'unknown'     — no date of birth, an unparseable date, or a registry whose
- *                    rulebook states no upper bound (ASCA). Never printed as either
- *                    "Jr." or "adult"; the caller shows nothing.
+ *  - 'junior'   — inside the registry's junior band on the measuring date.
+ *  - 'adult'    — outside it, for a registry that HAS an upper bound.
+ *  - 'unknown'  — no date of birth, an unparseable date, a date of birth after the
+ *                 trial, a handler whose identity does not match the printed name,
+ *                 or a registry whose rulebook states no upper bound (ASCA).
+ *                 Never printed as either "Jr." or "adult"; the caller shows nothing.
+ *
+ * There is deliberately no 'ineligible': ASCA's stated FLOOR of 8 is a rule about
+ * who may enter, not about who is a junior, and no surface here decides entry
+ * eligibility. The floor is kept as data on `minAgeYearsInclusive` so the entry
+ * validator can use it without re-reading the rulebook (round-1 review: a kind no
+ * caller consumes is a dead branch).
  */
-export type JuniorStatusKind = 'junior' | 'adult' | 'ineligible' | 'unknown';
+export type JuniorStatusKind = 'junior' | 'adult' | 'unknown';
 
 export interface JuniorStatus {
   kind: JuniorStatusKind;
@@ -246,14 +264,6 @@ export function deriveJuniorStatus({
     };
   }
 
-  if (rule.minAgeYearsInclusive !== null && age < rule.minAgeYearsInclusive) {
-    return {
-      kind: 'ineligible',
-      ageOnTrialDate: age,
-      ruleSource: rule.citation,
-    };
-  }
-
   if (rule.maxAgeYearsExclusive === null) {
     return {
       kind: 'unknown',
@@ -290,6 +300,57 @@ export function getJuniorHandlerNumber(
 }
 
 /**
+ * MYK9-570 round-1 review, P1: does the person behind `entries.handler_id` actually
+ * bear the name the paperwork prints?
+ *
+ * `entries.handler` is free text and `entries.handler_id` is a FK, and nothing in
+ * the schema keeps them in step. The Edit Entry dialog has no person picker, so a
+ * rename leaves the old id behind (the RPC's exhibitor branch COALESCEs it back
+ * even when the client asks to clear it), and one live row already disagrees. Read
+ * naively, that prints a child's date-of-birth-derived junior status and their
+ * registry-issued AKC junior handler number under an adult's name — on official
+ * AKC paperwork.
+ *
+ * So the derivation is gated on the two agreeing. Deliberately STRICT and
+ * deliberately one-directional: a false negative prints a plain name, a false
+ * positive makes a junior-eligibility claim about the wrong person. Anything this
+ * cannot confidently match reads as 'unknown'.
+ *
+ * Matching is on the person's own `first last`, case-insensitively, ignoring
+ * punctuation and repeated spaces. "Last, First" is also accepted because
+ * secretaries type it. Nothing else — no nicknames, no initials, no fuzzy
+ * distance.
+ */
+export function normalizeHandlerName(value: string | null | undefined): string {
+  return (value ?? '')
+    .toLowerCase()
+    .replace(/[.,'`\u2019-]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+export interface HandlerPersonNameLike {
+  first_name?: string | null | undefined;
+  last_name?: string | null | undefined;
+}
+
+export function handlerNameMatchesPerson(
+  printedHandlerName: string | null | undefined,
+  person: HandlerPersonNameLike | null | undefined
+): boolean {
+  const printed = normalizeHandlerName(printedHandlerName);
+  if (!printed || !person) return false;
+
+  const first = normalizeHandlerName(person.first_name);
+  const last = normalizeHandlerName(person.last_name);
+  if (!first && !last) return false;
+
+  const forward = normalizeHandlerName(`${first} ${last}`);
+  const reversed = normalizeHandlerName(`${last} ${first}`);
+  return printed === forward || printed === reversed;
+}
+
+/**
  * Narrow the raw `people.junior_handler_numbers` jsonb to a string map.
  *
  * Every read path that maps a person goes through this, so a malformed column
@@ -306,6 +367,25 @@ export function normalizeJuniorHandlerNumbers(raw: unknown): Record<string, stri
     if (value !== null) out[registryId] = value;
   }
   return Object.keys(out).length > 0 ? out : undefined;
+}
+
+/**
+ * The map to STORE, given whatever the form is holding.
+ *
+ * Trims, drops blanks, and — the point — keeps every key in the registry set,
+ * not just the ones the form renders an input for. Rebuilding the map from the
+ * two rendered inputs deleted a stored ASCA value on every unrelated save.
+ * Returns `{}` rather than undefined because the column is NOT NULL DEFAULT '{}'.
+ */
+export function juniorHandlerNumbersForSave(
+  numbers: Partial<Record<RegistryId, string>> | null | undefined
+): Record<string, string> {
+  const out: Record<string, string> = {};
+  for (const registryId of Object.keys(RULES) as RegistryId[]) {
+    const trimmed = numbers?.[registryId]?.trim();
+    if (trimmed) out[registryId] = trimmed;
+  }
+  return out;
 }
 
 /** The registries the app offers a junior handler number input for. */

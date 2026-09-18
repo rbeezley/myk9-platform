@@ -25,8 +25,19 @@ export interface AdminUser extends User {
   lastSignInAt: string | null;
 }
 
+/**
+ * What this mapper actually requires of a row: an id, and whatever else is
+ * present. MYK9-570 replaced the `select('*')` reads on `people` with explicit
+ * column lists (a star hides PII from the contract test), so the rows reaching
+ * here are legitimately NARROWER than the full Row — a role picker selects no
+ * date of birth on purpose. Typing the parameter as the whole Row would have
+ * forced a cast at each of those call sites, which is exactly how a missing
+ * column stops being visible to the compiler.
+ */
+export type MappableDbUser = Partial<DbUser> & Pick<DbUser, 'id'>;
+
 // Database to UI mapper for User data
-export const mapDbUserToUser = (dbUser: DbUser): User => ({
+export const mapDbUserToUser = (dbUser: MappableDbUser): User => ({
   id: dbUser.id,
   firstName: dbUser.first_name || '',
   lastName: dbUser.last_name || '',

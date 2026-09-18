@@ -37,8 +37,7 @@ describe('junior handler fields round-trip', () => {
   it('unpacks the keyed map into one input per registry', () => {
     const form = userToFormData(user);
     expect(form.dateOfBirth).toBe('2011-03-04');
-    expect(form.juniorHandlerNumberAKC).toBe('7654321');
-    expect(form.juniorHandlerNumberUKC).toBe('UKC-42');
+    expect(form.juniorHandlerNumbers).toEqual({ AKC: '7654321', UKC: 'UKC-42' });
   });
 
   it('reassembles them and survives a full round-trip unchanged', () => {
@@ -59,7 +58,18 @@ describe('junior handler fields round-trip', () => {
       junior_handler_numbers: { AKC: '111' },
     } as unknown as Parameters<typeof userToFormData>[0]);
     expect(form.dateOfBirth).toBe('2012-01-02');
-    expect(form.juniorHandlerNumberAKC).toBe('111');
+    expect(form.juniorHandlerNumbers).toEqual({ AKC: '111' });
+  });
+
+  it('does not drop a registry key the form does not render an input for', () => {
+    // The CHECK admits AKC, UKC and ASCA; the form only offers inputs for the
+    // two registries that issue a number. Rebuilding the map from those two
+    // inputs silently deleted the third on every unrelated save.
+    const withAsca = { ...user, juniorHandlerNumbers: { AKC: '7654321', ASCA: 'ASCA-9' } };
+    expect(formDataToUser(userToFormData(withAsca)).juniorHandlerNumbers).toEqual({
+      AKC: '7654321',
+      ASCA: 'ASCA-9',
+    });
   });
 
   it('rejects a future date of birth and accepts a blank one', () => {

@@ -7,6 +7,8 @@ import { notifications } from '@/lib/notifications';
 import { supabase } from '@/services/database/supabaseClient';
 import { queryKeys } from '@/lib/queryClient';
 import { friendlyDbError } from '@/utils/friendlyDbError';
+import { juniorHandlerNumbersForSave } from '@/features/registries/juniorHandlerPolicy';
+import { PEOPLE_DIRECTORY_COLUMNS } from '@/services/database/users/peopleColumns';
 
 export interface ProfileFormValues {
   firstName: string;
@@ -18,10 +20,12 @@ export interface ProfileFormValues {
   zipCode: string;
   /** MYK9-570: ISO `YYYY-MM-DD`, or '' when unknown. */
   dateOfBirth: string;
-  /** MYK9-570: AKC Junior Handler number, or '' when they have none. */
-  juniorHandlerNumberAKC: string;
-  /** MYK9-570: UKC Junior ID, or '' when they have none. */
-  juniorHandlerNumberUKC: string;
+  /**
+   * MYK9-570: the WHOLE registry-keyed map, not one field per rendered input —
+   * the form renders inputs only for the registries that issue a number, and
+   * rebuilding the map from those dropped any other stored key on save.
+   */
+  juniorHandlerNumbers: Record<string, string>;
 }
 
 interface ProfileFormErrors {
@@ -32,6 +36,20 @@ interface ProfileFormErrors {
   city?: string;
   state?: string;
   zipCode?: string;
+}
+
+/** Two junior-number maps agree once both are shaped the way a save shapes them. */
+function sameJuniorHandlerNumbers(
+  a: Record<string, string>,
+  b: Record<string, string> | undefined
+): boolean {
+  const left = juniorHandlerNumbersForSave(a);
+  const right = juniorHandlerNumbersForSave(b);
+  const keys = new Set([...Object.keys(left), ...Object.keys(right)]);
+  for (const key of keys) {
+    if (left[key] !== right[key]) return false;
+  }
+  return true;
 }
 
 /**
@@ -61,7 +79,10 @@ export function useCurrentUserPerson(authUserId: string | undefined) {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('people')
-        .select('*')
+        // Explicit, not `*`: MYK9-570 put PII on this table, and a star is
+        // invisible to the contract test that keeps it off other surfaces. This
+        // IS the surface that collects it, so it names the junior columns.
+        .select(PEOPLE_DIRECTORY_COLUMNS)
         .eq('auth_user_id', authUserId!)
         .is('deleted_at', null)
         .maybeSingle();
@@ -89,8 +110,7 @@ export function useProfileForm() {
     state: '',
     zipCode: '',
     dateOfBirth: '',
-    juniorHandlerNumberAKC: '',
-    juniorHandlerNumberUKC: '',
+    juniorHandlerNumbers: {},
   });
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
@@ -108,13 +128,15 @@ export function useProfileForm() {
         state: person.state || '',
         zipCode: person.zipCode || '',
         dateOfBirth: person.dateOfBirth || '',
-        juniorHandlerNumberAKC: person.juniorHandlerNumbers?.AKC || '',
-        juniorHandlerNumberUKC: person.juniorHandlerNumbers?.UKC || '',
+        juniorHandlerNumbers: { ...(person.juniorHandlerNumbers ?? {}) },
       });
     }
   }, [person]);
 
-  const setValue = (field: keyof ProfileFormValues, value: string) => {
+  const setValue = <Field extends keyof ProfileFormValues>(
+    field: Field,
+    value: ProfileFormValues[Field]
+  ) => {
     setValues(prev => ({ ...prev, [field]: value }));
   };
 
@@ -144,8 +166,9 @@ export function useProfileForm() {
       values.state !== (person.state || '') ||
       values.zipCode !== (person.zipCode || '') ||
       values.dateOfBirth !== (person.dateOfBirth || '') ||
-      values.juniorHandlerNumberAKC !== (person.juniorHandlerNumbers?.AKC || '') ||
-      values.juniorHandlerNumberUKC !== (person.juniorHandlerNumbers?.UKC || '')
+      // Compared through the same shaping the save applies, so re-typing the
+      // same number with a stray space is not "dirty".
+      !sameJuniorHandlerNumbers(values.juniorHandlerNumbers, person.juniorHandlerNumbers)
     );
   }, [values, person]);
 
@@ -173,14 +196,7 @@ export function useProfileForm() {
         // MYK9-570. '' clears the date; the numbers are reassembled into the
         // registry-keyed map the column stores, omitting blanks.
         dateOfBirth: values.dateOfBirth,
-        juniorHandlerNumbers: {
-          ...(values.juniorHandlerNumberAKC.trim()
-            ? { AKC: values.juniorHandlerNumberAKC.trim() }
-            : {}),
-          ...(values.juniorHandlerNumberUKC.trim()
-            ? { UKC: values.juniorHandlerNumberUKC.trim() }
-            : {}),
-        },
+        juniorHandlerNumbers: juniorHandlerNumbersForSave(values.juniorHandlerNumbers),
       });
       // Explicit duration at this callsite: the profile save toast previously
       // persisted indefinitely (defaulted to no auto-dismiss) and stuck around
@@ -210,8 +226,7 @@ export function useProfileForm() {
         state: person.state || '',
         zipCode: person.zipCode || '',
         dateOfBirth: person.dateOfBirth || '',
-        juniorHandlerNumberAKC: person.juniorHandlerNumbers?.AKC || '',
-        juniorHandlerNumberUKC: person.juniorHandlerNumbers?.UKC || '',
+        juniorHandlerNumbers: { ...(person.juniorHandlerNumbers ?? {}) },
       });
     }
   };

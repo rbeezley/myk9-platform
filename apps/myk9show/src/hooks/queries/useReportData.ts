@@ -56,8 +56,13 @@ async function hydrateHandlerJuniorProfiles(entries: ReportDbEntry[]): Promise<R
   ];
   if (handlerIds.length === 0) return entries;
 
-  const { byPersonId } = await loadJuniorHandlerProfiles(handlerIds);
-  if (byPersonId.size === 0) return entries;
+  const { byPersonId, readComplete } = await loadJuniorHandlerProfiles(handlerIds);
+  // A partial read is NOT a partial answer here. An entry whose handler happened
+  // to fall in a failed batch would come back with no `handler_person` and print
+  // as an ordinary adult, so the catalog would mark some juniors and silently
+  // miss others with nothing on the page to say so. Marking none of them is the
+  // honest outcome, and it is what an offline secretary already gets.
+  if (!readComplete || byPersonId.size === 0) return entries;
 
   return entries.map(entry => {
     const handlerId = (entry as { handler_id?: string | null }).handler_id;
@@ -66,12 +71,22 @@ async function hydrateHandlerJuniorProfiles(entries: ReportDbEntry[]): Promise<R
     return {
       ...entry,
       handler_person: {
+        first_name: profile.firstName,
+        last_name: profile.lastName,
         date_of_birth: profile.dateOfBirth,
         junior_handler_numbers: profile.juniorHandlerNumbers,
       },
     };
   });
 }
+
+/**
+ * The hydration hop, exported for its own test. It is the step that turns
+ * `entries.handler_id` into `handler_person`, and it is invisible to every
+ * catalog test (they all inject `handler_person` directly), so without a handle
+ * on it the feature could go inert with the suite still green.
+ */
+export const hydrateHandlerJuniorProfilesForTest = hydrateHandlerJuniorProfiles;
 
 async function hydrateEntryRegistrations(entries: ReportDbEntry[]): Promise<HydratedReportEntries> {
   const withHandlers = await hydrateHandlerJuniorProfiles(entries);

@@ -18,6 +18,9 @@ import { normalizeJuniorHandlerNumbers } from '@/features/registries/juniorHandl
  * to print. An unmarked junior is a nuisance; a blank roster on show day is not.
  */
 export interface JuniorHandlerProfile {
+  /** The person's own name, used to check they are the handler the paperwork prints. */
+  firstName: string | null;
+  lastName: string | null;
   dateOfBirth: string | null;
   juniorHandlerNumbers: Record<string, string> | undefined;
 }
@@ -43,7 +46,7 @@ export async function loadJuniorHandlerProfiles(
     try {
       const { data, error } = await supabase
         .from('people')
-        .select('id, date_of_birth, junior_handler_numbers')
+        .select('id, first_name, last_name, date_of_birth, junior_handler_numbers')
         .in('id', batch);
       if (error) {
         readComplete = false;
@@ -51,6 +54,8 @@ export async function loadJuniorHandlerProfiles(
       }
       for (const row of data ?? []) {
         byPersonId.set(row.id, {
+          firstName: row.first_name ?? null,
+          lastName: row.last_name ?? null,
           dateOfBirth: row.date_of_birth ?? null,
           juniorHandlerNumbers: normalizeJuniorHandlerNumbers(row.junior_handler_numbers),
         });

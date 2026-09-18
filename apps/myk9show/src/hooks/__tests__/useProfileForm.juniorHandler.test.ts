@@ -80,21 +80,30 @@ describe('useProfileForm junior handler fields', () => {
   it('pre-fills the date of birth and the AKC number from the person row', async () => {
     const result = await loaded();
     expect(result.current.values.dateOfBirth).toBe('2011-03-04');
-    expect(result.current.values.juniorHandlerNumberAKC).toBe('7654321');
-    expect(result.current.values.juniorHandlerNumberUKC).toBe('');
+    expect(result.current.values.juniorHandlerNumbers).toEqual({ AKC: '7654321' });
     expect(result.current.isDirty).toBe(false);
   });
 
   it('is dirty when only the junior number changes', async () => {
     const result = await loaded();
-    act(() => result.current.setValue('juniorHandlerNumberUKC', 'UKC-42'));
+    act(() =>
+      result.current.setValue('juniorHandlerNumbers', {
+        ...result.current.values.juniorHandlerNumbers,
+        UKC: 'UKC-42',
+      })
+    );
     expect(result.current.isDirty).toBe(true);
   });
 
   it('sends the date of birth and the reassembled number map on save', async () => {
     const result = await loaded();
     act(() => result.current.setValue('dateOfBirth', '2011-03-05'));
-    act(() => result.current.setValue('juniorHandlerNumberUKC', '  UKC-42  '));
+    act(() =>
+      result.current.setValue('juniorHandlerNumbers', {
+        ...result.current.values.juniorHandlerNumbers,
+        UKC: '  UKC-42  ',
+      })
+    );
     await act(async () => {
       await result.current.save();
     });
@@ -109,7 +118,7 @@ describe('useProfileForm junior handler fields', () => {
 
   it('omits a cleared number from the map rather than writing an empty string', async () => {
     const result = await loaded();
-    act(() => result.current.setValue('juniorHandlerNumberAKC', ''));
+    act(() => result.current.setValue('juniorHandlerNumbers', { AKC: '' }));
     await act(async () => {
       await result.current.save();
     });

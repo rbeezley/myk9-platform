@@ -206,16 +206,15 @@ export function ProfileSection() {
           <JuniorHandlerFields
             idPrefix="account"
             dateOfBirth={form.values.dateOfBirth}
-            juniorHandlerNumbers={{
-              AKC: form.values.juniorHandlerNumberAKC,
-              UKC: form.values.juniorHandlerNumberUKC,
-            }}
+            juniorHandlerNumbers={form.values.juniorHandlerNumbers}
             dateOfBirthError={form.errors.dateOfBirth}
             onDateOfBirthChange={value => form.setValue('dateOfBirth', value)}
-            onJuniorHandlerNumberChange={(registryId, value) => {
-              if (registryId === 'AKC') form.setValue('juniorHandlerNumberAKC', value);
-              if (registryId === 'UKC') form.setValue('juniorHandlerNumberUKC', value);
-            }}
+            onJuniorHandlerNumberChange={(registryId, value) =>
+              form.setValue('juniorHandlerNumbers', {
+                ...form.values.juniorHandlerNumbers,
+                [registryId]: value,
+              })
+            }
           />
           {form.isDirty && (
             <div className="flex flex-col gap-2 pt-2 sm:flex-row">

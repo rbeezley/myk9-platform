@@ -178,11 +178,29 @@ describe('a warm RBAC refresh does not blank the tab a secretary is standing on'
     expect(await screen.findByTestId('section-entries')).toBeInTheDocument();
   });
 
-  it('still holds while the roles are genuinely unknown', async () => {
+  it('still holds while the roles have never arrived', async () => {
     mockAuth.rbacLoading = true;
     renderAt('/shows/show-1/entries', { rolesKnown: false });
 
     await waitFor(() => expect(screen.queryByTestId('section-entries')).not.toBeInTheDocument());
+  });
+
+  it('does not BOUNCE a secretary off their own show during the cold auth window', async () => {
+    // The cold window is `rbacLoading === false` with no roles yet -- before
+    // AuthContext's RBAC effect runs. `useShowManageScope` reads
+    // `couldManageSomeShow` off the empty role set and answers a confident
+    // `resolved: canManage false`, and the route's redirect fires. Found in a
+    // browser walk at 375px, where `/entries` and `/show-day` landed back on
+    // `/shows/:id`. Holding is the only honest answer while identity is unknown.
+    mockAuth.rbacLoading = false;
+    renderAt('/shows/show-1/entries', { rolesKnown: false });
+
+    await waitFor(() =>
+      expect(screen.getByTestId('production-show-details-location')).toHaveTextContent(
+        '/shows/show-1/entries'
+      )
+    );
+    expect(screen.queryByTestId('section-entries')).not.toBeInTheDocument();
   });
 
   it('positive control: with roles known and no refresh, the page is there', async () => {

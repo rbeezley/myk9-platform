@@ -112,19 +112,7 @@ function ShowManagementSectionRoute({ children }: { children: ReactNode }) {
   // never disagree about who manages this show.
   const manageScope = useShowManageScope(id);
 
-  // Hold only while the viewer's roles are genuinely UNKNOWN. `rbacLoading`
-  // alone is not that: `useRbacLifecycle` re-runs `load()` on a 5-minute
-  // interval and on every `online` event, and `load()` sets `isLoading: true`
-  // while PRESERVING the roles it already has. Returning null there unmounts
-  // the section element, so a secretary on Entries lost their bulk selection,
-  // search, page index, open detail pane and scroll position every five
-  // minutes -- and at a venue, on every reconnect. Since MYK9-630 phase 2 these
-  // five routes are the ONLY door to Setup / Entries / Show Day / Results /
-  // Reports, so every show-day surface sat behind it.
-  //
-  // Same predicate `ShowDetailsPage` uses for its audience gate and `App.tsx`
-  // uses via `areRolesResolved`.
-  if (authLoading || (rbacLoading && !userWithRoles)) return null;
+  if (authLoading) return null;
   if (!user) return <Navigate to={canonicalShowPath} replace />;
 
   // Hold — never redirect — while ownership is still resolving. Redirecting on a
@@ -132,10 +120,33 @@ function ShowManagementSectionRoute({ children }: { children: ReactNode }) {
   // cold deep link.
   if (manageScope.status === 'resolving') return null;
 
-  // Fail closed: both `resolved && !canManage` and `unavailable` (show missing,
-  // soft-deleted, or unreadable) land on the canonical show page rather than a
-  // blank screen.
-  if (!manageScope.canManage) return <Navigate to={canonicalShowPath} replace />;
+  // Two different transient states used to be collapsed into one `rbacLoading`
+  // check here, and each way of writing that check broke the other:
+  //
+  // - `if (rbacLoading) return null` UNMOUNTS the section on every warm refresh.
+  //   `useRbacLifecycle` re-runs `load()` on a 5-minute interval and on every
+  //   `online` event, and `load()` sets `isLoading: true` while PRESERVING the
+  //   roles it already holds. A secretary on Entries lost their bulk selection,
+  //   search, page index, open detail pane and scroll position every five
+  //   minutes, and at a venue on every reconnect. Since MYK9-630 phase 2 these
+  //   routes are the only door to the six tabs, so it covered all of them.
+  // - Narrowing it to `rbacLoading && !userWithRoles` let the COLD auth window
+  //   through instead. `useShowManageScope` computes `couldManageSomeShow` from
+  //   `isSecretary` / `hasRole(CLUB_ADMIN)`, which are false until RBAC lands
+  //   even though `userWithRoles` is already non-null, and answers a confident
+  //   `status: 'resolved', canManage: false`. The redirect below then bounced a
+  //   real secretary off their own show. Seen in a browser walk: every tab
+  //   landed back on `/shows/:id`.
+  //
+  // So the check moved to where the damage is. `canManage === true` is never
+  // wrong (it needs a real club-scoped grant), so an admitted viewer is NEVER
+  // unmounted. A *negative* verdict is only acted on once roles have genuinely
+  // resolved — the `areRolesResolved` shape App.tsx uses. Until then we hold,
+  // which is the honest answer while identity is unknown.
+  if (!manageScope.canManage) {
+    const rolesResolved = !rbacLoading && Boolean(userWithRoles);
+    return rolesResolved ? <Navigate to={canonicalShowPath} replace /> : null;
+  }
 
   // Show-management URLs live in the public show route tree, but once authorized
   // this surface is secretary work and should report with secretary context.

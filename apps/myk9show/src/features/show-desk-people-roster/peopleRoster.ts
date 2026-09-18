@@ -64,11 +64,7 @@ const TERMINAL_ENTRY_STATUSES = new Set<EntryStatus>([
 ]);
 // MYK9-632: 'withdrawn' is its own class status now. It is as terminal as a
 // pull for roster purposes — neither dog is going in the ring.
-const TERMINAL_CLASS_STATUSES = new Set<EntryClass['status']>([
-  'scratched',
-  'withdrawn',
-  'absent',
-]);
+const TERMINAL_CLASS_STATUSES = new Set<EntryClass['status']>(['scratched', 'withdrawn', 'absent']);
 
 function normalize(value: string | null | undefined): string {
   return (value ?? '').trim().toLowerCase();

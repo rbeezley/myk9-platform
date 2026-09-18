@@ -75,11 +75,7 @@ export function EntryEditClassRow({
   // Only the two recognised codes have a label; anything else (including the
   // free-text 'other') renders the bare word rather than a raw column value.
   const reason = isWithdrawn ? withdrawalReasonLabel(reasonCode) : null;
-  const removedLabel = isWithdrawn
-    ? reason
-      ? `Withdrawn · ${reason}`
-      : 'Withdrawn'
-    : 'Pulled';
+  const removedLabel = isWithdrawn ? (reason ? `Withdrawn · ${reason}` : 'Withdrawn') : 'Pulled';
   // One affordance opens the chooser; it is offered while EITHER
   // act is available, and the dialog greys out the one that is
   // not. Offering nothing because a paid entry cannot be

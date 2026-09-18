@@ -79,7 +79,9 @@ beforeEach(() => {
   mocks.withdrawEntry.mockResolvedValue({ error: null });
   mocks.getTrialsByShow.mockResolvedValue([{ id: 'trial-1', registryId: 'AKC' }]);
   mocks.getRemoveFromClassEligibilityForEntries.mockImplementation(async (ids: string[]) =>
-    Object.fromEntries(ids.map(id => [id, { withdraw: { allowed: true }, pull: { allowed: true } }]))
+    Object.fromEntries(
+      ids.map(id => [id, { withdraw: { allowed: true }, pull: { allowed: true } }])
+    )
   );
   mocks.getWithdrawalReasonCodesForEntries.mockResolvedValue({});
 });

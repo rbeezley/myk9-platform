@@ -96,7 +96,7 @@ export function FinalCta({
   const countdown = useCountdown(data.entryCloseDate, data.timezone);
 
   return (
-    <section className="hd-final" id="enter">
+    <section className="hd-final">
       <div className="hd-final-inner">
         <div>
           {/* Gate on countdown.closed (not just entryCloseDate presence) so a
@@ -144,14 +144,15 @@ export function FinalCta({
         <div className="hd-final-side">
           <div className="l">Online entry</div>
           <div className="v">{data.showName}</div>
-          {canEnterOnline ? (
-            <>
-              <a className="cta" href={data.entryWizardUrl}>
-                Enter this show
-              </a>
-              <div className="helper">Review before submitting</div>
-            </>
-          ) : (
+          {/* MYK9-633 round 2: the button here duplicated the header nav's
+              "Enter this show" CTA — the header CTA is the page's one entry
+              action at 640px+; below that it's joined by the mobile-only
+              sticky bar at the end of the page. "Review before submitting"
+              was orphaned by that deletion (nothing left to submit from
+              here), so this card is information-only when entries are
+              open — it still explains why entry isn't available when it
+              isn't. */}
+          {!canEnterOnline && (
             <div className="helper">
               {entryClosed
                 ? 'Contact the trial secretary for late-entry help.'

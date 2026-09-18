@@ -17,6 +17,7 @@ import { OnTheDaySection } from './sections/OnTheDaySection';
 import { OfficersSection } from './sections/OfficersSection';
 import { FinalCtaBand } from './sections/FinalCtaBand';
 import { HeritageFooter } from './sections/HeritageFooter';
+import { StickyEntryCtaBar } from '@/features/_shared/landing/StickyEntryCtaBar';
 import '../heritage.css';
 
 interface HeritageLandingPageProps {
@@ -98,7 +99,6 @@ export function HeritageLandingPage({
           venueName={data.venueName}
           venueCity={data.venueCity}
           timezone={data.timezone}
-          entryWizardUrl={data.entryWizardUrl}
           classesHref={classesHref}
           canEnterOnline={canEnterOnline}
           entryClosed={entryClosed}
@@ -146,11 +146,7 @@ export function HeritageLandingPage({
 
         <OfferedClassesSection show={show} className="mx-auto max-w-4xl px-6 py-16" />
 
-        <FinalCtaBand
-          entryWizardUrl={data.entryWizardUrl}
-          canEnterOnline={canEnterOnline}
-          entryClosed={entryClosed}
-        />
+        <FinalCtaBand canEnterOnline={canEnterOnline} entryClosed={entryClosed} />
       </main>
 
       <HeritageFooter
@@ -158,6 +154,25 @@ export function HeritageLandingPage({
         memberClubLanguage={data.memberClubLanguage}
         secretaryName={data.secretaryName}
         secretaryEmail={data.secretaryEmail}
+      />
+
+      {/* MYK9-633: last child, after the footer — the in-flow spacer this
+          renders reserves space at the true end of the document instead of
+          opening a gap mid-page (see StickyEntryCtaBar's own doc comment). */}
+      <StickyEntryCtaBar
+        entryWizardUrl={data.entryWizardUrl}
+        canShowEntryCta={canEnterOnline}
+        className="hl-on-ink"
+        surface={{
+          background: 'var(--hl-ink)',
+          borderTop: '1px solid var(--hl-claret)',
+          buttonBackground: 'var(--hl-paper)',
+          buttonColor: 'var(--hl-ink)',
+          fontFamily: "'EB Garamond', Georgia, serif",
+          letterSpacing: '0.08em',
+          textTransform: 'uppercase',
+          fontSize: 14,
+        }}
       />
     </div>
   );

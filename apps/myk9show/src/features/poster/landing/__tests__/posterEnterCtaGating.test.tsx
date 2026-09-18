@@ -19,7 +19,6 @@ const stickyNavProps = {
 };
 
 const finalCtaProps = {
-  entryWizardUrl: ENTRY_URL,
   classesHref: null,
   entryCloseDate: '2026-06-10',
   timezone: 'America/New_York',
@@ -57,16 +56,16 @@ describe('Poster StickyNav enter-CTA gating', () => {
 });
 
 describe('Poster FinalCtaSection enter-CTA gating', () => {
-  it('renders the Enter link when canEnterOnline is omitted (default true)', () => {
-    const { container } = render(<FinalCtaSection {...finalCtaProps} />);
-    const link = container.querySelector(`a[href="${ENTRY_URL}"]`);
-    expect(link).not.toBeNull();
-  });
-
-  it('renders the Enter link when canEnterOnline is true', () => {
+  // MYK9-633: FinalCtaSection no longer renders its own "Open entry
+  // wizard" button — it duplicated the top strip's "ENTER" CTA. That
+  // header CTA is the page's one entry action at 640px+; below that it's
+  // joined by the mobile-only StickyEntryCtaBar rendered at the end of
+  // the page (covered by PosterLandingPage.test.tsx, not this component
+  // in isolation).
+  it('never renders an entry link, regardless of canEnterOnline', () => {
     const { container } = render(<FinalCtaSection {...finalCtaProps} canEnterOnline />);
     const link = container.querySelector(`a[href="${ENTRY_URL}"]`);
-    expect(link).not.toBeNull();
+    expect(link).toBeNull();
   });
 
   it('hides the Enter link and shows the fallback copy when canEnterOnline is false', () => {

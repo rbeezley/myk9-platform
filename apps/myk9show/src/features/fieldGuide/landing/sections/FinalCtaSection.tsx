@@ -51,7 +51,6 @@ export function FinalCtaSection({
       style={{ fontFamily: FIELD_GUIDE_BODY_FAMILY }}
     >
       <div
-        id="enter"
         style={{
           maxWidth: fieldGuideSpacing.contentMax,
           margin: '0 auto',
@@ -121,11 +120,14 @@ export function FinalCtaSection({
           </p>
         </div>
         {canEnterOnline && (
+          // MYK9-633 round 2: tightened (was sized around the now-removed
+          // button — padding 24 -> 18, the 16px gap under the URL line
+          // dropped) so the card doesn't leave ~120px of dead space.
           <div
             style={{
               background: fieldGuideColors.paper,
               color: fieldGuideColors.ink,
-              padding: 24,
+              padding: 18,
             }}
           >
             <div
@@ -148,7 +150,7 @@ export function FinalCtaSection({
                 fontSize: 16,
                 letterSpacing: '-0.005em',
                 color: fieldGuideColors.ink,
-                marginBottom: 16,
+                marginBottom: 10,
                 wordBreak: 'break-all',
               }}
             >
@@ -157,33 +159,20 @@ export function FinalCtaSection({
                 the relative path during SSR / tests where `window` is undef. */}
               {(typeof window !== 'undefined' ? window.location.host : '') + entryWizardUrl}
             </div>
-            <a
-              href={entryWizardUrl}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                minHeight: 44,
-                width: '100%',
-                textAlign: 'center',
-                padding: 14,
-                background: fieldGuideColors.orange,
-                color: fieldGuideColors.paper,
-                fontFamily: FIELD_GUIDE_DISPLAY_FAMILY,
-                fontWeight: 700,
-                fontSize: 14,
-                letterSpacing: '0.04em',
-                textTransform: 'uppercase',
-                textDecoration: 'none',
-              }}
-            >
-              SUBMIT ENTRY <span aria-hidden="true">→</span>
-            </a>
-            <div style={{ marginTop: 10, textAlign: 'center' }}>
+            {/* MYK9-633: the button here duplicated the top strip's
+                "ENTER" CTA — that header CTA is the page's one entry action
+                at 640px+; below that it's joined by the mobile-only sticky
+                bar at the end of the page. */}
+            <div style={{ textAlign: 'center' }}>
+              {/* MYK9-633 round 2: this was fieldGuideColors.paper on the
+                  card's own paper background — 1.00:1, invisible. The card
+                  was always light (paper bg / ink text); orangeDeep is the
+                  accent already used for "ONLINE ENTRY URL" above and
+                  clears 4.5:1 on paper. */}
               <SeeClassesLink
                 href={classesHref}
                 style={{
-                  color: fieldGuideColors.paper,
+                  color: fieldGuideColors.orangeDeep,
                   fontFamily: FIELD_GUIDE_BODY_FAMILY,
                 }}
               />

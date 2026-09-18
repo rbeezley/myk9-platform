@@ -4,8 +4,9 @@ import type { Trial } from '@/components/trials/types/trial.types';
 import { publicClassesHref } from '@/features/_shared/publicClassesHref';
 import { OfferedClassesSection } from '@/features/_shared/landing/OfferedClassesSection';
 import { useCountdown } from '@/features/_shared/hooks/useCountdown';
-import { ensureBannerFontsLoaded } from '../fonts';
+import { ensureBannerFontsLoaded, BANNER_DISPLAY_FAMILY } from '../fonts';
 import { useBannerLandingData } from './useBannerLandingData';
+import { bannerColors } from '../tokens';
 import { FlagMasthead } from './sections/FlagMasthead';
 import { StickyNav } from './sections/StickyNav';
 import { WelcomeSection } from './sections/WelcomeSection';
@@ -17,6 +18,7 @@ import { OnTheDaySection } from './sections/OnTheDaySection';
 import { OfficersSection } from './sections/OfficersSection';
 import { FinalFlagBand } from './sections/FinalFlagBand';
 import { BannerFooter } from './sections/BannerFooter';
+import { StickyEntryCtaBar } from '@/features/_shared/landing/StickyEntryCtaBar';
 import '../banner.css';
 
 interface BannerLandingPageProps {
@@ -98,16 +100,17 @@ export function BannerLandingPage({
         venueName={data.venueName}
         venueCity={data.venueCity}
         timezone={data.timezone}
-        entryWizardUrl={data.entryWizardUrl}
         classesHref={classesHref}
         canEnterOnline={canEnterOnline}
         entryClosed={entryClosed}
       />
 
       <StickyNav
-        flag={brandColors.flag}
+        entryWizardUrl={data.entryWizardUrl}
         entryCount={data.entryCount}
         entryLimit={data.entryLimit}
+        canEnterOnline={canEnterOnline}
+        entryClosed={entryClosed}
       />
 
       <main>
@@ -156,7 +159,6 @@ export function BannerLandingPage({
 
         <FinalFlagBand
           brandColors={brandColors}
-          entryWizardUrl={data.entryWizardUrl}
           entryCloseDate={data.entryCloseDate}
           timezone={data.timezone}
           canEnterOnline={canEnterOnline}
@@ -169,6 +171,21 @@ export function BannerLandingPage({
         memberClubLanguage={data.memberClubLanguage}
         licenseLanguage={data.licenseLanguage}
         venueAddress={data.venueAddress}
+      />
+
+      {/* MYK9-633: last child, after the footer — see StickyEntryCtaBar's
+          doc comment for why placement matters. */}
+      <StickyEntryCtaBar
+        entryWizardUrl={data.entryWizardUrl}
+        canShowEntryCta={canEnterOnline}
+        surface={{
+          background: bannerColors.ink,
+          buttonBackground: bannerColors.paper,
+          buttonColor: bannerColors.ink,
+          fontFamily: BANNER_DISPLAY_FAMILY,
+          fontWeight: 800,
+          fontSize: 14,
+        }}
       />
     </div>
   );

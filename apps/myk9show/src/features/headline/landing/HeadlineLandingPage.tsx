@@ -9,6 +9,7 @@ import { SeeClassesLink } from '@/features/_shared/SeeClassesLink';
 import { publicClassesHref } from '@/features/_shared/publicClassesHref';
 import { OfferedClassesSection } from '@/features/_shared/landing/OfferedClassesSection';
 import { entryCapacityPercent, formatEntryCount } from '@/features/_shared/landing/entryCount';
+import { StickyEntryCtaBar } from '@/features/_shared/landing/StickyEntryCtaBar';
 import { ensureHeadlineFontsLoaded } from '../fonts';
 import { FinalCta, Footer, Officers, ScheduleAndPlan } from './HeadlineLandingLowerSections';
 import { SectionHead } from './HeadlineLandingPrimitives';
@@ -73,12 +74,16 @@ function HeadlineNav({
             {data.clubName || 'myK9Show'}
             <span className="mono">{data.showName}</span>
           </a>
+          {/* MYK9-633 round 2: dropped the "Enter" section-anchor — it
+              scrolled to the final band, which is now informational-only
+              (its CTA button was the duplicate this issue removed), so the
+              link sat right next to the real "Enter this show" CTA and
+              promised an action the target no longer has. */}
           <div className="hd-nav-links">
             <a href="#judges">Judges</a>
             <a href="#particulars">Details</a>
             <a href="#roster">Entry status</a>
             <a href="#schedule">Schedule</a>
-            <a href="#enter">Enter</a>
           </div>
           {canEnterOnline ? (
             <a className="hd-nav-cta" href={data.entryWizardUrl}>
@@ -148,11 +153,11 @@ function Hero({
 
       <div className="hd-hero-bottom">
         <div className="hd-cta-stack">
-          {canEnterOnline ? (
-            <a className="hd-cta" href={data.entryWizardUrl}>
-              Enter this show
-            </a>
-          ) : (
+          {/* MYK9-633: this hero used to repeat the header nav's "Enter this
+              show" CTA. The header CTA is the page's one entry action, so
+              this section never renders one — the copy explaining WHY entry
+              isn't available yet still belongs here. */}
+          {!canEnterOnline && (
             <span className="hd-cta hd-cta-disabled">
               {entryClosed
                 ? 'Entries are closed for this show. Contact the trial secretary for late-entry help.'
@@ -440,6 +445,20 @@ export function HeadlineLandingPage({
         <FinalCta data={data} canEnterOnline={canEnterOnline} entryClosed={entryClosed} />
       </main>
       <Footer data={data} />
+
+      {/* MYK9-633: last child, after the footer — see StickyEntryCtaBar's
+          doc comment for why placement matters. */}
+      <StickyEntryCtaBar
+        entryWizardUrl={data.entryWizardUrl}
+        canShowEntryCta={canEnterOnline}
+        surface={{
+          background: 'var(--hd-ink)',
+          buttonBackground: 'var(--hd-accent)',
+          buttonColor: 'var(--hd-paper)',
+          fontWeight: 700,
+          fontSize: 15,
+        }}
+      />
     </div>
   );
 }

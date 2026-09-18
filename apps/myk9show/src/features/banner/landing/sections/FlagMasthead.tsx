@@ -17,7 +17,6 @@ interface FlagMastheadProps {
   venueName: string | null;
   venueCity: string | null;
   timezone: string;
-  entryWizardUrl: string;
   classesHref: string | null;
   canEnterOnline?: boolean;
   entryClosed?: boolean;
@@ -40,7 +39,6 @@ export function FlagMasthead({
   venueName,
   venueCity,
   timezone,
-  entryWizardUrl,
   classesHref,
   canEnterOnline = true,
   entryClosed = false,
@@ -71,28 +69,12 @@ export function FlagMasthead({
         >
           {clubName || 'Kennel Club'}
         </span>
-        {canEnterOnline ? (
-          <a
-            href={entryWizardUrl}
-            style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              minHeight: 44,
-              padding: '10px 22px',
-              border: `1.5px solid ${brandColors.textOnFlag}`,
-              fontFamily: BANNER_BODY_FAMILY,
-              fontWeight: 500,
-              fontSize: 12,
-              letterSpacing: '0.16em',
-              textTransform: 'uppercase',
-              color: brandColors.textOnFlag,
-              textDecoration: 'none',
-            }}
-          >
-            Enter this show
-          </a>
-        ) : (
+        {/* MYK9-633 round 2: the CTA here lived in the non-sticky masthead,
+            so a visitor scrolled past it (or the sticky sub-bar below) had
+            no reachable entry action at any scroll position. Moved to
+            StickyNav, which persists — the fallback prose stays here since
+            it's guidance, not an action. */}
+        {!canEnterOnline && (
           <p
             style={{
               maxWidth: 320,

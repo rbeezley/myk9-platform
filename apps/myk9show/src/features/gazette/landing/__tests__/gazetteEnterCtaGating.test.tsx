@@ -11,7 +11,6 @@ const STICKY_PROPS = {
 };
 
 const FINAL_PROPS = {
-  entryWizardUrl: '/shows/show-1/register',
   classesHref: null,
   entryCloseDate: null,
   timezone: 'America/Chicago',
@@ -46,16 +45,17 @@ describe('Gazette entry CTA gating', () => {
   });
 
   describe('FinalCtaSection', () => {
-    it('renders the entry-wizard link when canEnterOnline is omitted (default true)', () => {
-      render(<FinalCtaSection {...FINAL_PROPS} />);
-      const link = screen.getByRole('link', { name: /open the entry wizard/i });
-      expect(link).toBeInTheDocument();
-      expect(link).toHaveAttribute('href', '/shows/show-1/register');
-    });
-
-    it('renders the entry-wizard link when canEnterOnline is true', () => {
+    // MYK9-633: FinalCtaSection no longer renders its own "Open the entry
+    // wizard" link — it duplicated the header nav's "Enter" CTA. That
+    // header CTA is the page's one entry action at 640px+; below that it's
+    // joined by the mobile-only StickyEntryCtaBar rendered at the end of
+    // the page (covered by GazetteLandingPage.test.tsx, not this component
+    // in isolation).
+    it('never renders an entry-wizard link, regardless of canEnterOnline', () => {
       render(<FinalCtaSection {...FINAL_PROPS} canEnterOnline />);
-      expect(screen.getByRole('link', { name: /open the entry wizard/i })).toBeInTheDocument();
+      expect(
+        screen.queryByRole('link', { name: /open the entry wizard/i })
+      ).not.toBeInTheDocument();
     });
 
     it('replaces the entry-wizard link with the pending-classes copy when canEnterOnline is false', () => {

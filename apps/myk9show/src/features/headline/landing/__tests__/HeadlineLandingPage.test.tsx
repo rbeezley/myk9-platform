@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { screen } from '@testing-library/react';
 import { render } from '@/test/utils/testUtils';
 import { HeadlineLandingPage } from '../HeadlineLandingPage';
+import { mockViewportWidth } from '@/test/utils/mockViewportWidth';
 
 const landingDataState = vi.hoisted(() => ({
   showName: 'Spring Scent Work Trial',
@@ -212,5 +213,36 @@ describe('HeadlineLandingPage', () => {
     expect(screen.getAllByText('Limit not posted yet').length).toBeGreaterThan(0);
     expect(screen.queryByText('/TBD')).toBeNull();
     expect(screen.queryByText('0% full')).toBeNull();
+  });
+});
+
+describe('HeadlineLandingPage — entry CTA count (MYK9-633)', () => {
+  afterEach(() => {
+    mockViewportWidth(1280);
+  });
+
+  it('renders exactly one entry CTA at desktop width', () => {
+    mockViewportWidth(1280);
+    render(<HeadlineLandingPage show={null} trial={null} allTrials={[]} />);
+
+    expect(screen.getAllByRole('link', { name: /enter this show/i })).toHaveLength(1);
+  });
+
+  it('renders exactly two entry CTAs (header + sticky bar) at 375px', () => {
+    mockViewportWidth(375);
+    render(<HeadlineLandingPage show={null} trial={null} allTrials={[]} />);
+
+    expect(screen.getAllByRole('link', { name: /enter this show/i })).toHaveLength(2);
+  });
+
+  it('uses identical copy and href for the header and mobile sticky CTAs', () => {
+    mockViewportWidth(375);
+    render(<HeadlineLandingPage show={null} trial={null} allTrials={[]} />);
+
+    const links = screen.getAllByRole('link', { name: /enter this show/i });
+    expect(links).toHaveLength(2);
+    for (const link of links) {
+      expect(link).toHaveAttribute('href', '/shows/show-1/register');
+    }
   });
 });

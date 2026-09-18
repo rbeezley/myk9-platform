@@ -62,6 +62,13 @@
   outline-offset: 3px;
 }
 
+/* MYK9-633: the sticky mobile CTA bar sits on --gz-deep, not the paper
+   surface most links live on — the default brown outline falls short of
+   3:1 there, so pin paper instead. */
+[data-gazette] .landing-sticky-cta a:focus-visible {
+  outline-color: var(--gz-paper);
+}
+
 /* ─── GazetteHeading ──────────────────────────────────────────────────── */
 
 [data-gazette] .gz-h {

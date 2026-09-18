@@ -51,6 +51,13 @@
   outline-offset: 3px;
 }
 
+/* MYK9-633: the sticky mobile CTA bar sits on --bn-ink, not the page's
+   paper surface, so the default flag-bright outline needs a paper override
+   to keep 3:1 contrast against that dark background. */
+[data-banner] .landing-sticky-cta a:focus-visible {
+  outline-color: var(--bn-paper);
+}
+
 [data-banner] .landing-table-scroll {
   max-width: 100%;
   overflow-x: auto;
@@ -78,6 +85,109 @@
   border-radius: 50%;
   background: var(--bn-warn);
   animation: bn-status-pulse 2400ms ease-in-out infinite;
+}
+
+/* MYK9-633 round 2/3/4/5: the sticky sub-bar's own layout.
+   round 2/3: five section links plus the status line plus the CTA
+   overflowed narrow viewports (measured: 481px on origin/main with no
+   CTA, 504px once round 2 added one).
+   round 4 (SUPERSEDED by round 5 below): hid the section list and
+   removed `flex-wrap` below a single bisected pixel breakpoint (852px),
+   reasoning from one status string ("Entries open · 42 / 100"). Wrong:
+   a longer string ("Entries open · count unavailable", or a 4-digit
+   count/limit) needs more room than that string did, so the same
+   breakpoint that looked exact for one string re-opened a second string
+   at 27px-crushed section links, or worse, the CTA clipped mid-word at
+   375px ("ENTER THIS SHO") -- a NEW branch (which status string a given
+   render happens to carry) reintroducing the ORIGINAL class of bug
+   (illegible controls), the exact discriminator-branches trap.
+   round 5 (this restructure): layout no longer depends on knowing the
+   longest possible status string in advance.
+    - `.bn-subbar` is a `container-type: inline-size` query container
+      (this app already uses `@container` in styles/manager-responsive.css
+      -- consistent primitive, and the right one: the question is "is
+      there room in THIS bar", not "is the viewport wide enough", they
+      only coincide here because the bar is full-bleed).
+    - `.bn-subbar-cta` (the entry CTA or its closed/pending fallback) is
+      `flex: none` -- fixed to its own content size, last flex child, so
+      nothing before it can ever push it past the trailing edge.
+    - `.bn-subbar-status` is the one flexible item (`flex: 1 1 auto;
+      min-width: 0`); its text node truncates with an ellipsis
+      (`.bn-subbar-status__text`) instead of pushing the CTA or wrapping
+      the row, regardless of how long the string is.
+    - The section-anchor list's container-query threshold (below) is
+      still a measured number, but nothing here breaks if that number is
+      imprecise -- hiding the sections a little too late only costs a
+      little more status-text truncation, never a second row or a
+      clipped CTA. See `bn-subbar-sections` below for the measurement. */
+[data-banner] .bn-subbar {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 14px 64px !important;
+  container-type: inline-size;
+  container-name: bn-subbar;
+}
+
+[data-banner] .bn-subbar-cta {
+  flex: none;
+  white-space: nowrap;
+}
+
+[data-banner] .bn-subbar-status {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+[data-banner] .bn-subbar-status__text {
+  display: block;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+/* Section-anchor list: hidden by default (mobile-first), shown once the
+   bar itself has room for the anchors PLUS the longest live status
+   string PLUS the CTA without crushing anything. Measured (throwaway
+   Playwright spec, MYK9-633 round 5, at a wide viewport with truncation
+   disabled so each piece reports its true content width):
+     - five anchors, natural (nowrap) width:               414.09px
+     - "Entries open · 42 / 100":                           133.19px
+     - "Entries open · 1247 / 2000":                        156.08px
+     - "Entries open · count unavailable" (the longest):    190.23px
+     - CTA ("Enter this show"):                             166.31px
+     - two inter-item gaps (16px each):                      32.00px
+   Sum using the longest status string, WITHOUT the bar's side padding:
+   414.09 + 190.23 + 166.31 + 32 = 802.63px. The padding is deliberately
+   excluded from this sum: `container-type: inline-size` queries the
+   container's own CONTENT-BOX size, which already excludes padding and
+   border (confirmed empirically -- a threshold written as "content sum
+   + padding" hid the sections until 128px past where they actually fit,
+   the padding double-counted). 820px leaves a small margin. Verified
+   (same spec) with all three status strings at 900/940/948/1280px: no
+   truncation once anchors are visible, and the anchors stay hidden
+   (status text truncates a little more instead) below the threshold.
+   Nothing here depends on getting this number exactly right -- unlike
+   round 3/4's bisected pixel breakpoints, a few px of drift either way
+   only shifts how much the status text truncates; the CTA and row
+   height are unaffected regardless. */
+[data-banner] .bn-subbar-sections {
+  display: none;
+  flex: none;
+  gap: 28px;
+}
+
+@container bn-subbar (min-width: 820px) {
+  [data-banner] .bn-subbar-sections {
+    display: flex;
+  }
+}
+
+/* Phones only: narrower padding recovers width for the status+CTA row. */
+@media (max-width: 639px) {
+  [data-banner] .bn-subbar {
+    padding: 10px 16px !important;
+  }
 }
 
 /* Section reveal — children get `.in` once the IntersectionObserver fires;

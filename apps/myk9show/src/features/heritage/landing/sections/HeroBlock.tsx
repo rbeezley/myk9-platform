@@ -16,7 +16,6 @@ interface HeroBlockProps {
   venueName: string | null;
   venueCity: string | null;
   timezone: string;
-  entryWizardUrl: string;
   classesHref: string | null;
   canEnterOnline?: boolean;
   entryClosed?: boolean;
@@ -97,7 +96,6 @@ export function HeroBlock({
   venueName,
   venueCity,
   timezone,
-  entryWizardUrl,
   classesHref,
   canEnterOnline = true,
   entryClosed = false,
@@ -211,19 +209,11 @@ export function HeroBlock({
             </div>
           )}
 
-          {/* CTA */}
-          {canEnterOnline ? (
-            <a
-              href={entryWizardUrl}
-              className="mt-4 inline-flex min-h-[44px] items-center justify-center border px-8 py-3 text-sm uppercase tracking-widest transition-colors text-[var(--hl-claret)] hover:bg-[var(--hl-claret)] hover:text-[var(--hl-paper)]"
-              style={{
-                borderColor: 'var(--hl-claret)',
-                fontFamily: "'EB Garamond', Georgia, serif",
-              }}
-            >
-              Enter this show
-            </a>
-          ) : (
+          {/* MYK9-633: this hero used to repeat the header (StickyNav) CTA.
+              The header nav CTA is the page's one entry action, so this
+              section never renders one — but the copy explaining WHY entry
+              isn't available yet still belongs here. */}
+          {!canEnterOnline && (
             <p
               className="mt-4 max-w-md border px-8 py-3 text-sm leading-relaxed"
               style={{

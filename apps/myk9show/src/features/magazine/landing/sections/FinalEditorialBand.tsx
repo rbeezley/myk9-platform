@@ -3,7 +3,6 @@ import { useCountdown } from '@/features/_shared/hooks/useCountdown';
 import { formatDateInTimezone } from '../utils/dateFormat';
 
 interface FinalEditorialBandProps {
-  entryWizardUrl: string;
   classesHref: string | null;
   entryCloseDate: string | null;
   timezone: string;
@@ -26,7 +25,6 @@ interface FinalEditorialBandProps {
  * the dark gold-3.
  */
 export function FinalEditorialBand({
-  entryWizardUrl,
   classesHref,
   entryCloseDate,
   timezone,
@@ -43,7 +41,6 @@ export function FinalEditorialBand({
 
   return (
     <section
-      id="enter"
       className="px-6 py-24 text-center md:px-16 md:py-32"
       style={{
         background: 'var(--mz-final-band)',
@@ -113,20 +110,10 @@ export function FinalEditorialBand({
               written withdrawals received before closing.
             </p>
 
-            <a
-              href={entryWizardUrl}
-              className="mt-4 inline-flex min-h-[44px] items-center justify-center gap-3 px-11 py-4 transition-colors"
-              style={{
-                background: 'var(--mz-paper)',
-                color: 'var(--mz-ink)',
-                fontFamily: 'var(--mz-display)',
-                fontStyle: 'italic',
-                fontWeight: 500,
-                fontSize: '18px',
-              }}
-            >
-              Open the entry wizard <span aria-hidden="true">→</span>
-            </a>
+            {/* MYK9-633: the button here duplicated the header nav's
+                "Enter the trial" CTA — that header CTA is the page's one
+                entry action at 640px+; below that it's joined by the
+                mobile-only sticky bar at the end of the page. */}
           </>
         ) : (
           <p

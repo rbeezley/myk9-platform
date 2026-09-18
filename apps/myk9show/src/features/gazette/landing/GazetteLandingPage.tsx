@@ -5,6 +5,7 @@ import { publicClassesHref } from '@/features/_shared/publicClassesHref';
 import { OfferedClassesSection } from '@/features/_shared/landing/OfferedClassesSection';
 import { useCountdown } from '@/features/_shared/hooks/useCountdown';
 import { ensureGazetteFontsLoaded } from '../fonts';
+import { StickyEntryCtaBar } from '@/features/_shared/landing/StickyEntryCtaBar';
 import { useGazetteLandingData } from './useGazetteLandingData';
 import { StickyNav } from './sections/StickyNav';
 import { MastheadSection } from './sections/MastheadSection';
@@ -150,7 +151,6 @@ export function GazetteLandingPage({
         />
 
         <FinalCtaSection
-          entryWizardUrl={data.entryWizardUrl}
           classesHref={classesHref}
           entryCloseDate={data.entryCloseDate}
           timezone={data.timezone}
@@ -165,6 +165,24 @@ export function GazetteLandingPage({
         secretaryName={data.secretaryName}
         secretaryEmail={data.secretaryEmail}
         secretaryPhone={data.secretaryPhone}
+      />
+
+      {/* MYK9-633: last child, after the footer — see StickyEntryCtaBar's
+          doc comment for why placement matters. */}
+      <StickyEntryCtaBar
+        entryWizardUrl={data.entryWizardUrl}
+        canShowEntryCta={canEnterOnline}
+        label="Enter"
+        surface={{
+          background: 'var(--gz-deep)',
+          borderTop: '1px solid var(--gz-paper)',
+          buttonBackground: 'var(--gz-paper)',
+          buttonColor: 'var(--gz-ink)',
+          fontFamily: "'Playfair Display', Georgia, serif",
+          fontWeight: 700,
+          letterSpacing: '0.04em',
+          textTransform: 'uppercase',
+        }}
       />
     </div>
   );

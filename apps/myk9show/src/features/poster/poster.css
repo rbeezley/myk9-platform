@@ -49,6 +49,13 @@
   outline-offset: 3px;
 }
 
+/* MYK9-633: the sticky mobile CTA bar sits on --po-ink, not the cream
+   surface most links live on — pin the text-on-ink cream for a safe 3:1+
+   outline there instead of the red default. */
+[data-poster] .landing-sticky-cta a:focus-visible {
+  outline-color: var(--po-cream);
+}
+
 [data-poster] .landing-table-scroll {
   max-width: 100%;
   overflow-x: auto;

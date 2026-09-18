@@ -4,8 +4,10 @@ import type { Trial } from '@/components/trials/types/trial.types';
 import { publicClassesHref } from '@/features/_shared/publicClassesHref';
 import { OfferedClassesSection } from '@/features/_shared/landing/OfferedClassesSection';
 import { useCountdown } from '@/features/_shared/hooks/useCountdown';
-import { ensureFieldGuideFontsLoaded } from '../fonts';
+import { ensureFieldGuideFontsLoaded, FIELD_GUIDE_DISPLAY_FAMILY } from '../fonts';
 import { useFieldGuideLandingData } from './useFieldGuideLandingData';
+import { fieldGuideColors } from '../tokens';
+import { StickyEntryCtaBar } from '@/features/_shared/landing/StickyEntryCtaBar';
 import { TopStrip } from './sections/TopStrip';
 import { DataGridHero } from './sections/DataGridHero';
 import { WelcomeSection } from './sections/WelcomeSection';
@@ -151,6 +153,25 @@ export function FieldGuideLandingPage({
         venueAddress={data.venueAddress}
         secretaryName={data.secretaryName}
         secretaryEmail={data.secretaryEmail}
+      />
+
+      {/* MYK9-633: last child, after the footer — see StickyEntryCtaBar's
+          doc comment for why placement matters. */}
+      <StickyEntryCtaBar
+        entryWizardUrl={data.entryWizardUrl}
+        canShowEntryCta={canEnterOnline}
+        label="ENTER →"
+        ariaLabel="Enter show"
+        surface={{
+          background: fieldGuideColors.ink,
+          buttonBackground: fieldGuideColors.orange,
+          buttonColor: fieldGuideColors.paper,
+          fontFamily: FIELD_GUIDE_DISPLAY_FAMILY,
+          fontWeight: 700,
+          fontSize: 14,
+          letterSpacing: '0.04em',
+          textTransform: 'uppercase',
+        }}
       />
     </div>
   );

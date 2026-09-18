@@ -97,7 +97,12 @@ export interface ShowManagementShellProps {
 }
 
 /**
- * The secretary / admin management surface: the show hero with staff actions
+ * The management surface for anyone who manages this show — site admin,
+ * club-scoped secretary, or club-scoped CLUB ADMIN (MYK9-630 phase 3; before it
+ * club admins were held on the exhibitor view by a second, narrower predicate,
+ * which is what made "Show settings…" inert for them, MYK9-653).
+ *
+ * The show hero with staff actions
  * (presence, status, edit/delete), the publish row, the section nav, and either
  * the active management section (`<Outlet/>`) or the shared tabbed body. Owns the
  * edit/delete dialogs and the save pipeline. Presence UI relies on the

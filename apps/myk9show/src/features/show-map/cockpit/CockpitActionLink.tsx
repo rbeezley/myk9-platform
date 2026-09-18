@@ -4,6 +4,8 @@ import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 
+import { useTrialSecretaryOnlyReason } from '@/features/actions/TrialSecretaryAccessContext';
+
 import type { SecretaryCockpitAction, SecretaryCockpitAttention } from './secretaryCockpitTypes';
 
 type Destination =
@@ -15,19 +17,55 @@ export function CockpitActionLink({
   className,
   variant = 'default',
   onCommand,
+  operatorOnly = false,
 }: {
   destination: Destination;
   children: React.ReactNode;
   className?: string;
   variant?: 'default' | 'outline' | 'ghost';
   onCommand: (commandId: string) => void;
+  /**
+   * True when this action's destination is secretary-only
+   * (`ProtectedRoute(SECRETARY | JUDGE | SITE_ADMIN)`), e.g. "Enter paper
+   * scores" -> `/scoring/classes/:id/entries`. Greyed with the surface's reason
+   * for a manager who is not an operator, instead of leading them into a
+   * refusal (REV-2341 R-1).
+   */
+  operatorOnly?: boolean;
 }) {
+  const surfaceReason = useTrialSecretaryOnlyReason();
+  const disabledReason = operatorOnly ? surfaceReason : undefined;
   const content = (
     <>
       <span>{children}</span>
       <ArrowRight className="h-4 w-4 shrink-0" />
     </>
   );
+  if (disabledReason !== undefined) {
+    // Derived from the action, not a literal: one `operatorOnly` action ships
+    // today, so no duplicate id exists yet, but a second one would have given
+    // two elements the same id and pointed both buttons at the first caption
+    // (REV-2341 U-2).
+    const reasonId = `cockpit-action-disabled-reason-${
+      destination.kind === 'href' ? destination.href : destination.commandId
+    }`;
+    return (
+      <div className={cn('flex flex-col gap-1', className)}>
+        <Button
+          type="button"
+          variant={variant}
+          className="min-h-11 justify-between"
+          disabled
+          aria-describedby={reasonId}
+        >
+          {content}
+        </Button>
+        <p id={reasonId} className="text-xs text-muted-foreground">
+          {disabledReason}
+        </p>
+      </div>
+    );
+  }
   if (destination.kind === 'href') {
     return (
       <Button asChild variant={variant} className={cn('min-h-11 justify-between', className)}>

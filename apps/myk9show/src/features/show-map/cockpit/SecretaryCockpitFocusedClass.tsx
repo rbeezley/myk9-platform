@@ -304,6 +304,7 @@ export function SecretaryCockpitFocusedClass({
                 onCommand={onCommand}
                 variant="outline"
                 className="w-full"
+                operatorOnly={action.operatorOnly === true}
               >
                 {action.label}
               </CockpitActionLink>

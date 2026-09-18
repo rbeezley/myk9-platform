@@ -3,6 +3,7 @@ import {
   buildSecretaryRegistrationPath,
 } from '@/pages/RegistrationWizardPage.routes';
 import { SHOW_SHELL_CHILD_SEGMENTS } from '@/routes/showManagementSections';
+import { TRIAL_SECRETARY_ONLY_REASON } from './trialSecretaryAccess';
 
 /**
  * THE registry of "what can I do from here" (MYK9-630).
@@ -154,7 +155,7 @@ function buildShowActions(
     id: 'show-add-mail-in-entry',
     label: 'Add entry for someone else',
     href: buildSecretaryRegistrationPath(showId),
-    ...(viewer.canOperateShow ? {} : { disabledReason: 'Trial secretary access only' }),
+    ...(viewer.canOperateShow ? {} : { disabledReason: TRIAL_SECRETARY_ONLY_REASON }),
   };
 
   return [

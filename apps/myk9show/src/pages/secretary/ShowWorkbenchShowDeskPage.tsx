@@ -6,6 +6,9 @@ import { LoadingSkeleton } from '@/components/common/LoadingSkeleton';
 import { useFastShowDetails } from '@/hooks/useFastShowDetails';
 import { useSecretaryShowEntriesQuery } from '@/hooks/queries/useEntriesDatabase';
 import { useShowJudges } from '@/hooks/queries/useShowJudges';
+import { useShowManageScope } from '@/hooks/useShowManageScope';
+import { trialSecretaryOnlyReason } from '@/features/actions/trialSecretaryAccess';
+import { TrialSecretaryAccessProvider } from '@/features/actions/TrialSecretaryAccessContext';
 import { ShowAccessCodesCard } from '@/components/secretary/ShowAccessCodesCard';
 import { JudgeHospitalityCard } from '@/features/show-workbench/JudgeHospitalityCard';
 import { IncidentLogCard } from '@/features/show-workbench/IncidentLogCard';
@@ -92,6 +95,17 @@ export function ShowWorkbenchShowDeskPage() {
   const showMapEntries = showEntries as unknown as ShowMapEntryInput[];
   const reconciliationEntries = showEntries as unknown as ShowDayReconciliationEntry[];
   const { data: showJudgeRoster = [] } = useShowJudges(showId);
+  // "May this viewer OPERATE this show?" — strictly narrower than "may they
+  // manage it". Three controls on this page route into
+  // `ProtectedRoute(SECRETARY | SITE_ADMIN)` paths (`/secretary/register/:id`
+  // twice, `/secretary/volunteers` once), so for a club admin — whom MYK9-630
+  // phase 3 puts on this tab — they were enabled buttons that dead-ended on a
+  // bare "You don't have permission to access this page." wall. Same gate and
+  // same one-line reason the header Actions menu already uses for the identical
+  // mail-in item, so the two doors to one action cannot disagree.
+  const manageScope = useShowManageScope(showId);
+  const secretaryOnlyReason = trialSecretaryOnlyReason(manageScope);
+  const canOperateShow = secretaryOnlyReason === undefined;
   const { data: resultSubmissions = [] } = useResultSubmissions(showId || '');
 
   const entryTallies = useMemo(() => tallyEntriesByClass(showEntries), [showEntries]);
@@ -289,11 +303,21 @@ export function ShowWorkbenchShowDeskPage() {
         id: 'add-entries',
         title: 'Add entries',
         summary: "Choose your own dog, someone else's, or a late entry without leaving Show Desk",
-        defaultOpen: true,
+        // Open on arrival for the trial secretary, whose show day this is.
+        // Collapsed for a manager who is not one: two of its three controls are
+        // greyed for them, and a section that opens onto mostly-disabled
+        // buttons reads as a broken page rather than as a permission.
+        defaultOpen: canOperateShow,
         content: (
           <div className="flex flex-col gap-3">
-            <SecretaryAddEntriesDecision showId={currentShow.id} />
-            <WorkbenchLateEntryAction showId={currentShow.id} />
+            <SecretaryAddEntriesDecision
+              showId={currentShow.id}
+              mailInDisabledReason={secretaryOnlyReason}
+            />
+            <WorkbenchLateEntryAction
+              showId={currentShow.id}
+              disabledReason={secretaryOnlyReason}
+            />
           </div>
         ),
       },
@@ -359,7 +383,7 @@ export function ShowWorkbenchShowDeskPage() {
         id: 'volunteers',
         title: 'Volunteers',
         summary: 'Track helper assignments and gaps',
-        content: <VolunteersCard showId={currentShow.id} />,
+        content: <VolunteersCard showId={currentShow.id} disabledReason={secretaryOnlyReason} />,
       },
       {
         id: 'tasks-notes',
@@ -409,6 +433,7 @@ export function ShowWorkbenchShowDeskPage() {
     ];
   }, [
     associatedTrials,
+    canOperateShow,
     currentShow,
     closeoutClasses,
     closeoutTrials,
@@ -424,6 +449,7 @@ export function ShowWorkbenchShowDeskPage() {
     showEntries,
     showEntriesError,
     showEntriesLoading,
+    secretaryOnlyReason,
   ]);
 
   if (isLoading || !currentShow) {
@@ -471,26 +497,31 @@ export function ShowWorkbenchShowDeskPage() {
   }
 
   return (
-    <Suspense fallback={<LoadingSkeleton variant="cards" count={2} />}>
-      <ShowDeskScheduleRefreshWarning
-        hasConfirmedSnapshot={scheduleHasConfirmedSnapshot}
-        readFailed={scheduleReadFailed}
-        onRetry={() => void retrySchedule()}
-      />
-      {entriesUnavailable && (
-        <ShowDeskEntriesUnavailable onRetry={() => void refetchShowEntries()} />
-      )}
-      <ShowDeskPanel
-        show={currentShow}
-        trials={showMapTrials}
-        classes={showClasses}
-        entries={showMapEntries}
-        canManageShow
-        tools={showDeskTools}
-        actionableCount={actionable.count}
-        actionableTone={actionable.tone}
-        actionableIncomplete={actionable.incomplete}
-      />
-    </Suspense>
+    // The whole Show Day surface carries one answer to "may this viewer operate
+    // the show?", so the cockpit body deep inside `ShowDeskPanel` can grey its
+    // one secretary-only action without four layers of prop threading.
+    <TrialSecretaryAccessProvider reason={secretaryOnlyReason}>
+      <Suspense fallback={<LoadingSkeleton variant="cards" count={2} />}>
+        <ShowDeskScheduleRefreshWarning
+          hasConfirmedSnapshot={scheduleHasConfirmedSnapshot}
+          readFailed={scheduleReadFailed}
+          onRetry={() => void retrySchedule()}
+        />
+        {entriesUnavailable && (
+          <ShowDeskEntriesUnavailable onRetry={() => void refetchShowEntries()} />
+        )}
+        <ShowDeskPanel
+          show={currentShow}
+          trials={showMapTrials}
+          classes={showClasses}
+          entries={showMapEntries}
+          canManageShow
+          tools={showDeskTools}
+          actionableCount={actionable.count}
+          actionableTone={actionable.tone}
+          actionableIncomplete={actionable.incomplete}
+        />
+      </Suspense>
+    </TrialSecretaryAccessProvider>
   );
 }

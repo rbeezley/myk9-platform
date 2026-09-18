@@ -2,7 +2,7 @@
 
 > **Status:** Active
 
-**Linear:** [MYK9-630](https://linear.app/myk9-platform/issue/MYK9-630) · **Scope:** AC 1 only (inventory, no code) · **Date:** 2026-09-17
+**Linear:** [MYK9-630](https://linear.app/myk9-platform/issue/MYK9-630) · **Scope:** inventory (AC 1) plus the code that followed from it — phase 1 (actions menu, PR #2313), phase 2 (six tabs, PR #2331) and phase 3 (club admins are managers, Reports by phase, PR #2341) · **Date:** 2026-09-17, phases through 2026-09-18
 **Method:** `IA-Review` skill (route audit → task walk → duplication scan → recommendation), plus a read-only
 production walk as `secretary@myk9t.com` on `/shows/dededede-0000-0000-0000-000000000010`
 (Heartland Scent Work Classic, 517 entries). 18 screenshots at 1440px and 375px, one per surface.
@@ -134,7 +134,7 @@ Moved, not rebuilt: New Trial / New Class stay one navigation away (the existing
 1. Five menu items plus a separator and "Show settings" (edit, copy link, preview, delete live on the setup page, not in the menu).
 2. Publish row stays on Overview only.
 3. New Trial / New Class stay on their tabs.
-4. `/shows/:id/setup` redirects to `/shows/:id`; sidebar link fixed.
+4. ~~`/shows/:id/setup` redirects to `/shows/:id`; sidebar link fixed.~~ — **SUPERSEDED by Phase 2.** Setup is one of the six tabs and `/shows/:id/setup` is its own page; nothing redirects away from it. The sidebar link is correct as it stands.
 5. "All registrations" must mean all (MYK9-635).
 6. Deep-link failure filed as MYK9-634.
 
@@ -170,20 +170,54 @@ links, sidebar, route registry, page directory and wizard-surface blocklist repo
 
 **Still open, and why:**
 
-- **Reports before/during/after grouping — NOT built, deliberately.** This section names 7 of the
-  registry's 37 reports (armband labels, check-in sheets, score sheets; preliminary results, result
-  labels; secretary and trial reports). The other 30 have no stated phase, and assigning them is a
-  judgement about a secretary's workflow — is a judge's book "before" or "during"? is a gross-receipts
-  form "after" or financial-anytime? Guessing a taxonomy and shipping it onto the print surface is
-  the trap in LESSONS `label-rule-vs-real-columns`. **Richard: name the phase for each report, or
-  confirm the rule (e.g. "operational → before/during by whether it is printed blank, organization →
-  after"), and it goes in as one mechanical change.**
 - **Screenshots of all six tabs at desktop and 375px** as `secretary@myk9t.com` — owed.
-- **Should a club admin get the six tabs?** They are admitted to the section routes by
-  `canManageShowSurface` but get the exhibitor surface by `isManagementStaff` (#2180, deliberate).
-  Two findings have already come out of that split: the blank Setup page (fixed) and MYK9-653.
 - **MYK9-635's unit question** — the queue chips count registrations while the show page counts
   entries. Both are stated; whether the chips should switch to entries is Richard's call.
+
+## Phase 3 — club admins are managers, Reports by show phase
+
+Two things phase 2 left open, both answered by Richard on 2026-09-18: who gets the six tabs, and
+how the Reports picker groups its list.
+
+### Phase 3 status (PR #2341)
+
+**Club admins are managers** (Richard, 2026-09-18). A club-scoped club admin gets the same six-tab
+management surface as a secretary, the header Actions menu and Show settings. This supersedes
+#2180's ruling. The second, narrower `isManagementStaff` predicate is deleted: `canManageShow`
+(`canManageShowSurface`) alone now decides the surface, the section routes, the Actions list and the
+Show settings panel, so no two of them can disagree again. MYK9-653 is absorbed. The
+club-admin-only **Show Map** tab phase 2 left on the exhibitor strip is deleted with it — there is
+one Show Map again, inside Setup, and nobody with `canManageShow` renders the exhibitor strip at
+all.
+
+Two capabilities stay with the trial secretary and are offered **greyed with a one-line reason**
+rather than hidden: **Add mail-in entry** and **Add late entry** (both target
+`/secretary/register/:showId`, which is `ProtectedRoute(SECRETARY | SITE_ADMIN)`) keep
+"Trial secretary access only", and so does the Show Day tab's **Open volunteer scheduling** card,
+because `/secretary/volunteers` carries the same route guard. The `/secretary/dashboard`
+"Open Show Management" link stays secretary-only.
+
+**Reports regrouped by show phase.** The picker's headings are **Before the show · During the show
+· After the show · Anytime**, replacing the never-rendered Operational / Organization / Financial /
+Statistics categories. A `phase` field lives on each of the 37 registry entries
+(`lib/reports/reportRegistry.ts`) in place of `category`. The grouping is **headings only** — every
+report stays listed and printable in every phase, and nothing is gated by show status. Grouping
+happens on the already registry-scoped list, so an AKC show never lists a UKC form under any
+heading and the existing per-registry scoping is unchanged. The proposed phase for each report is
+posted on MYK9-630 for Richard to correct — a wrong phase costs a scroll, not access, which is what
+took this out of the `label-rule-vs-real-columns` trap.
+
+**The four groups are ordered by the show's own phase relative to today**: _During the show_ first
+while the show is running, _After the show_ first once it is over, _Before the show_ first
+otherwise, so a secretary's show-day reports sit at the top on the day she needs them. Only the
+order of the groups moves — the headings, their membership and the "nothing is gated" rule are
+unchanged.
+
+**Resolved here, carried over from phase 2's open list:**
+
+- **Reports before/during/after grouping** — answered and built, as above: the three phase headings
+  plus an **Anytime** group for reports that straddle phases.
+- **Should a club admin get the six tabs?** — yes, as above.
 
 ## Cross-cutting decision — the Actions button lives in the app header
 

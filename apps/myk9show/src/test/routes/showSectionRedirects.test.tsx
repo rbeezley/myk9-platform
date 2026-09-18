@@ -1,7 +1,7 @@
 import { render, screen, waitFor } from '@testing-library/react';
 import type { ReactNode } from 'react';
 import { MemoryRouter, Routes } from 'react-router-dom';
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { PublicRoutes } from '@/routes/publicRoutes';
 import { ScopeType, UserRole } from '@/types/auth-types';
 
@@ -31,6 +31,41 @@ const mockAuth = vi.hoisted(() => ({
     scopes: [{ scopeType: 'club', scopeId: 'club-a', roleId: 'secretary' }],
   } as object | null,
 }));
+
+/**
+ * The declared default of every mutable field on `mockAuth`: a club-scoped
+ * secretary of `club-a`, which owns `show-1`, with RBAC settled.
+ *
+ * `mockAuth` is module-scope mutable state that TWO suites in this file write
+ * to, and CI runs vitest with `--sequence.shuffle`, which shuffles the tests
+ * inside a file as well as the files. Before this existed only some fields were
+ * put back, and only by one suite's `afterEach`:
+ * `ShowManagementSectionRoute over every reachable auth state` reassigns
+ * `hasRole`, `loading`, `rbacLoading` and `userWithRoles` per row and restored
+ * just the two booleans — so whichever row ran last left its `hasRole` closure
+ * installed for whatever ran next. When that row was one of the club-admin ones,
+ * the leaked `hasRole` answered false for SECRETARY, `useShowManageScope`
+ * resolved a confident `canManage: false`, and `ShowManagementSectionRoute`
+ * redirected the warm-refresh suite's secretary off `/shows/show-1/entries` —
+ * including its POSITIVE CONTROL, which is how an order-dependent leak announced
+ * itself as a product bug. Reproduced on `origin/main` with
+ * `--sequence.shuffle --sequence.seed=1789747585323` on this file alone.
+ *
+ * One reset, every field, before every test. Adding a field to `mockAuth`
+ * without adding it here brings the same class of bug straight back, so the
+ * spread is written out rather than derived.
+ */
+function resetMockAuth(): void {
+  mockAuth.user = { id: 'user-1' };
+  mockAuth.loading = false;
+  mockAuth.rbacLoading = false;
+  mockAuth.hasRole = (role: string): boolean => role === UserRole.SECRETARY;
+  mockAuth.userWithRoles = {
+    scopes: [{ scopeType: 'club', scopeId: 'club-a', roleId: 'secretary' }],
+  };
+}
+
+beforeEach(resetMockAuth);
 
 const mockShows = vi.hoisted(() => ({
   data: [{ id: 'show-1', clubId: 'club-a' }],
@@ -174,9 +209,8 @@ describe('a warm RBAC refresh does not blank the tab a secretary is standing on'
   // page index, open detail pane and scroll position are component state and
   // went with it. Since MYK9-630 phase 2 these routes are the only door to the
   // secretary's show-day surfaces, so this covered all five of them.
-  afterEach(() => {
-    mockAuth.rbacLoading = false;
-  });
+  // No local reset: `beforeEach(resetMockAuth)` above puts EVERY field back
+  // before every test, which is the only form that survives a shuffled order.
 
   it('keeps the Entries page mounted while roles refresh in the background', async () => {
     // Warm: loading again, but the roles from the last load are still here.
@@ -275,10 +309,10 @@ const SCOPED_OTHER_CLUB_ADMIN = [
 ];
 
 describe('ShowManagementSectionRoute over every reachable auth state', () => {
-  afterEach(() => {
-    mockAuth.rbacLoading = false;
-    mockAuth.loading = false;
-  });
+  // This suite reassigns `hasRole`, `loading`, `rbacLoading` and `userWithRoles`
+  // per row. It used to restore only the two booleans, which left the last row's
+  // `hasRole` installed for whatever ran next under a shuffled order. The global
+  // `beforeEach(resetMockAuth)` above restores all four.
 
   async function outcomeAt(state: GateState): Promise<GateOutcome> {
     const derived = deriveAuth(state);

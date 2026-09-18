@@ -53,7 +53,12 @@ export const CardDerivedReceipt: React.FC<CardDerivedReceiptProps> = ({
       onOpenChange={open => !open && onClose()}
       entry={{
         id: entry.id,
-        confirmationNumber: entry.confirmationNumber ?? entry.id.slice(0, 8).toUpperCase(),
+        // MYK9-631 AC4: no minted stand-in. An order with no confirmation
+        // number simply has none, and the receipt omits the block rather than
+        // printing 8 hex characters of a UUID as if they meant something.
+        ...(entry.confirmationNumber !== undefined && {
+          confirmationNumber: entry.confirmationNumber,
+        }),
         showName: entry.showName,
         showDate: entry.showDate,
         location: entry.location,

@@ -7,6 +7,8 @@
  * produced.
  */
 
+import { screen, within } from '@testing-library/react';
+import type { UserEvent } from '@testing-library/user-event';
 import { EntryStatus, PaymentStatus } from '@/types/show-registration-types';
 import { groupEntriesByOrder } from '@/pages/MyEntriesPage/modules/groupEntriesByOrder';
 import type { EntryClass, MyEntry } from '@/pages/MyEntriesPage/modules/my-entries-types';
@@ -174,4 +176,17 @@ export function heartlandRows(): MyEntry[] {
       ],
     }),
   ];
+}
+
+/**
+ * Open a show card's Actions menu and return it (MYK9-631).
+ *
+ * Every card control that used to be a bare link in the header now lives
+ * behind this one trigger, so the tests that assert on those controls have to
+ * go through it. Returned as a scoped query root rather than leaving callers
+ * to `screen`, so an assertion cannot accidentally match a second card's item.
+ */
+export async function openShowActions(user: UserEvent, showName: string) {
+  await user.click(screen.getByRole('button', { name: `Actions for ${showName}` }));
+  return within(await screen.findByRole('menu'));
 }

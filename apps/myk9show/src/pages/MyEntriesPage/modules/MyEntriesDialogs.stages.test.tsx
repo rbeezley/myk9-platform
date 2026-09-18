@@ -76,11 +76,11 @@ describe('ReceiptEntryDialog — the orders list stage (task 4.1)', () => {
     );
 
     expect(screen.getByText('Entry Receipt')).toBeInTheDocument();
-    expect(screen.queryByText('Orders and receipts')).not.toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: 'Receipts' })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Back to orders' })).not.toBeInTheDocument();
   });
 
-  it('lists every order, with its date, confirmation, dogs, amount and refund', () => {
+  it('lists every order by dog, classes and date — never an id fragment', () => {
     render(
       <ReceiptEntryDialog
         dialog={{ open: true, entry: null, orders: orders, moneyKind: 'balance-due' }}
@@ -90,16 +90,23 @@ describe('ReceiptEntryDialog — the orders list stage (task 4.1)', () => {
     );
 
     // The list stage renders without a payment query: nothing here needs Stripe.
-    expect(screen.getByText('Orders and receipts')).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Receipts' })).toBeInTheDocument();
     const rows = screen.getAllByRole('listitem');
     expect(rows).toHaveLength(3);
-    // The row's own text: submitted date, confirmation number, dogs.
+    // MYK9-631 AC4: dogs · classes · date. Never a confirmation number and
+    // never an 8-hex slice of a UUID — 63 of the seeded exhibitor's 65 rows
+    // read the SAME fragment, so it disambiguated nothing.
     // `submittedAt` is an INSTANT, so its calendar day depends on the runner's
     // zone (CI runs in UTC; this Mac in Chicago). Expect what the row's own
     // formatter renders, not a hard-coded day.
     const submitted = formatShortCalendarDate(orders[0].submittedAt);
-    expect(rows[0]).toHaveTextContent(`${submitted} · HSC-1001 · Juni, Willow`);
-    expect(rows[1]).toHaveTextContent(`${submitted} · HSC-1002 · Scout`);
+    expect(rows[0]).toHaveTextContent(
+      `Juni, Willow · Exterior Excellent, Interior Advanced, Container Novice A · entered ${submitted}`
+    );
+    expect(rows[1]).toHaveTextContent(
+      `Scout · Container Novice A, Interior Novice B · entered ${submitted}`
+    );
+    expect(screen.queryByText(/HSC-100/)).not.toBeInTheDocument();
     // Money in words, no chip: exhibitor-money-on-exception.
     expect(within(rows[1]).getByText('$50.00')).toBeInTheDocument();
     expect(within(rows[1]).getByText('Paid')).toBeInTheDocument();
@@ -121,14 +128,14 @@ describe('ReceiptEntryDialog — the orders list stage (task 4.1)', () => {
         onClose={vi.fn()}
       />
     );
-    await user.click(screen.getByRole('button', { name: /Receipt for order HSC-1002/ }));
+    await user.click(screen.getByRole('button', { name: /Receipt for Scout/ }));
 
     expect(screen.getByText('Entry Receipt')).toBeInTheDocument();
     expect(screen.getByText('Container Novice A')).toBeInTheDocument();
     expect(screen.queryByText('Exterior Excellent')).not.toBeInTheDocument();
 
     await user.click(screen.getByRole('button', { name: 'Back to orders' }));
-    expect(screen.getByText('Orders and receipts')).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Receipts' })).toBeInTheDocument();
   });
 
   it('still opens the order the ?orderId= deep link names, skipping the list', () => {
@@ -168,9 +175,11 @@ describe('ReceiptEntryDialog — the orders list stage (task 4.1)', () => {
       { initialRoute: '/exhibitor/entries?orderId=order-scout' }
     );
 
-    expect(screen.queryByText('Orders and receipts')).not.toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: 'Receipts' })).not.toBeInTheDocument();
     expect(screen.getByText('Entry Receipt')).toBeInTheDocument();
-    expect(screen.getByText('order-scout')).toBeInTheDocument();
+    // MYK9-631 Q7: the receipt no longer prints the order id, so the amount is
+    // what proves the deep link resolved to THAT payment.
+    expect(screen.queryByText('order-scout')).not.toBeInTheDocument();
     expect(screen.getByText('$55.00')).toBeInTheDocument();
   });
 });
@@ -186,7 +195,7 @@ describe('EditEntryDialog — one editable order opens directly (task 4.2)', () 
     );
 
     expect(screen.getByTestId('entry-edit-dialog')).toHaveTextContent('Editing e-scout');
-    expect(screen.queryByText('Choose an entry to edit')).not.toBeInTheDocument();
+    expect(screen.queryByText('Which entry do you want to change?')).not.toBeInTheDocument();
   });
 
   it('picks between several editable orders first, stating no money', async () => {
@@ -200,13 +209,13 @@ describe('EditEntryDialog — one editable order opens directly (task 4.2)', () 
       />
     );
 
-    expect(screen.getByText('Choose an entry to edit')).toBeInTheDocument();
+    expect(screen.getByText('Which entry do you want to change?')).toBeInTheDocument();
     // Editing is not a money act, so the edit picker states no amount at all.
     expect(screen.queryByText('$50.00')).not.toBeInTheDocument();
     expect(screen.queryByText(/Partial refund/)).not.toBeInTheDocument();
     expect(screen.queryByTestId('entry-edit-dialog')).not.toBeInTheDocument();
 
-    await user.click(screen.getByRole('button', { name: /Edit order HSC-1003/ }));
+    await user.click(screen.getByRole('button', { name: /Change Ranger/ }));
 
     expect(screen.getByTestId('entry-edit-dialog')).toHaveTextContent('Editing e-ranger');
   });

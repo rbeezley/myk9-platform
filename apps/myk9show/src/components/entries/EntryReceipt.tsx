@@ -33,7 +33,15 @@ interface EntryClass {
 
 interface EntryReceiptData {
   id: string;
-  confirmationNumber: string;
+  /**
+   * MYK9-631 AC4 / Q7: the confirmation number the exhibitor was actually
+   * given, or absent. It is the ONE identifier this document still prints —
+   * the raw `Entry ID` UUID footer and the monospace `Order ID` row are gone,
+   * because three unexplained identifiers on a page an exhibitor prints and
+   * files is two too many. Optional, because nothing mints a stand-in for it
+   * any more: an order with no confirmation number omits the block.
+   */
+  confirmationNumber?: string | undefined;
   showName: string;
   showDate: Date;
   location: {
@@ -69,7 +77,6 @@ interface EntryReceiptData {
   };
   currency?: string;
   paymentReference?: string | null;
-  orderId?: string;
   submittedAt: Date;
   paymentStatus: string;
 }
@@ -281,7 +288,7 @@ export function EntryReceipt({
       <!DOCTYPE html>
       <html>
         <head>
-          <title>Entry Receipt - ${entry.confirmationNumber}</title>
+          <title>Entry Receipt - ${entry.dogName}, ${entry.showName}</title>
           ${styles}
         </head>
         <body>
@@ -362,15 +369,18 @@ export function EntryReceipt({
             <p className="receipt-subtitle text-sm text-muted-foreground">myK9Show</p>
           </div>
 
-          {/* Confirmation # */}
-          <div className="confirmation-box bg-muted/50 rounded-lg p-4 mb-6 text-center">
-            <div className="confirmation-label text-xs text-muted-foreground tracking-wider">
-              {CONFIRMATION_NUMBER_LABEL}
+          {/* Confirmation # — the receipt is the one place it is defensible,
+              and the only identifier this document now carries. */}
+          {entry.confirmationNumber && (
+            <div className="confirmation-box bg-muted/50 rounded-lg p-4 mb-6 text-center">
+              <div className="confirmation-label text-xs text-muted-foreground tracking-wider">
+                {CONFIRMATION_NUMBER_LABEL}
+              </div>
+              <div className="confirmation-number text-2xl font-bold font-mono">
+                {entry.confirmationNumber}
+              </div>
             </div>
-            <div className="confirmation-number text-2xl font-bold font-mono">
-              {entry.confirmationNumber}
-            </div>
-          </div>
+          )}
 
           {/* Show Information */}
           <div className="section mb-6">
@@ -557,18 +567,17 @@ export function EntryReceipt({
                 </div>
               </div>
             )}
-            {entry.orderId && (
-              <div className="info-item mt-3">
-                <div className="info-label text-xs text-muted-foreground">Order ID</div>
-                <div className="info-value break-all font-mono text-sm">{entry.orderId}</div>
-              </div>
-            )}
+            {/* MYK9-631 Q7: the monospace order id used to print here. It was
+                a second unexplained identifier beside the confirmation number,
+                on the document exhibitors print and file. `paymentReference`
+                above stays: a payment processor's reference is what a bank or
+                a club actually asks for. */}
           </div>
 
           {/* Footer */}
           <div className="footer mt-8 pt-4 border-t text-center text-xs text-muted-foreground">
+            {/* MYK9-631 Q7: the raw `Entry ID: <uuid>` line is gone. */}
             <p>Thank you for your entry!</p>
-            <p className="mt-1">Entry ID: {entry.id}</p>
             <p className="mt-1">Generated on {formatRecordDateTime(new Date())}</p>
           </div>
         </div>

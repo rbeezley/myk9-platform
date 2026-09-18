@@ -104,63 +104,6 @@ export interface ElementTimerReturn {
 }
 
 /**
- * Entry list filter types
- */
-export type TabType = 'pending' | 'completed';
-export type SortType = 'armband' | 'name' | 'handler' | 'breed' | 'manual' | 'run' | 'placement';
-export type SectionFilter = 'all' | 'A' | 'B';
-
-/**
- * Entry list filter options
- */
-export interface EntryListFiltersOptions<T extends BaseEntry> {
-  entries: T[];
-  /** Enable manual sort option (default: false) */
-  supportManualSort?: boolean;
-  /** Enable section filter for combined views (default: false) */
-  supportSectionFilter?: boolean;
-  /** Sort in-ring dogs first (default: false) */
-  prioritizeInRing?: boolean;
-  /** Sort pulled dogs last (default: false) */
-  deprioritizePulled?: boolean;
-  /** External manual order array (for drag-and-drop state) */
-  manualOrder?: T[];
-  /** Default sort type (default: 'armband') */
-  defaultSort?: SortType;
-}
-
-/**
- * Entry list filters return type
- */
-export interface EntryListFiltersReturn<T extends BaseEntry> {
-  // State
-  activeTab: TabType;
-  sortBy: SortType;
-  searchTerm: string;
-  sectionFilter: SectionFilter;
-
-  // Setters
-  setActiveTab: React.Dispatch<React.SetStateAction<TabType>>;
-  setSortBy: React.Dispatch<React.SetStateAction<SortType>>;
-  setSearchTerm: React.Dispatch<React.SetStateAction<string>>;
-  setSectionFilter: React.Dispatch<React.SetStateAction<SectionFilter>>;
-
-  // Computed
-  filteredEntries: T[];
-  pendingEntries: T[];
-  completedEntries: T[];
-  entryCounts: { pending: number; completed: number };
-  sectionCounts: { all: number; A: number; B: number } | null;
-
-  // Actions
-  resetFilters: () => void;
-
-  // Helpers
-  supportManualSort: boolean;
-  supportSectionFilter: boolean;
-}
-
-/**
  * Drag and drop options
  */
 export interface DragAndDropOptions<T extends BaseEntry> {

@@ -74,6 +74,10 @@ export function useUpdatePerson() {
         state: person.state || null,
         zip_code: person.zipCode || null,
         profile_image: person.profileImage || null,
+        // MYK9-570: this payload is hand-listed, so a new people column that is
+        // not named here is silently discarded on every save from /people/:id.
+        date_of_birth: person.dateOfBirth || null,
+        junior_handler_numbers: person.juniorHandlerNumbers ?? {},
       });
       if (error || !data) {
         // Keep the code alongside the message — the friendly-error helpers key

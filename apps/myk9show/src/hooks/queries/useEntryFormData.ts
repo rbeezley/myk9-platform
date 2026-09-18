@@ -7,6 +7,8 @@ import {
   type DogRegistrationLike,
 } from '@/features/dogs/identity';
 import type { ShowExperienceSnapshot } from '@/features/experience/experienceSnapshot';
+import { normalizeJuniorHandlerNumbers } from '@/features/registries/juniorHandlerPolicy';
+import { resolveHandlerPerson } from '@/features/registries/handlerIdentity';
 import type {
   EntryFormDog,
   EntryFormSecretary,
@@ -128,7 +130,10 @@ async function fetchEntryFormData(
   // 3. Fetch entries
   let entriesQuery = supabase
     .from('entries')
-    .select('id, dog_id, class_id, trial_id, armband, handler, submitted_at')
+    // MYK9-570: `handler_id` resolves the handler to a person, which is the only
+    // way to reach their date of birth and AKC Junior Handler number. The
+    // denormalized `handler` text stays the printed NAME.
+    .select('id, dog_id, class_id, trial_id, armband, handler, handler_id, submitted_at')
     .eq('show_id', showId)
     .is('deleted_at', null);
 
@@ -154,6 +159,7 @@ async function fetchEntryFormData(
       level: cls?.level ?? '',
       armband: e.armband != null ? Number(e.armband) : null,
       handler: e.handler,
+      handlerId: e.handler_id ?? null,
       submittedAt: e.submitted_at,
     };
   });
@@ -191,11 +197,19 @@ async function fetchEntryFormData(
     if (dog.owner_id) ownerIds.add(dog.owner_id);
     if (dog.breeder_id) breederIds.add(dog.breeder_id);
   }
-  const allPersonIds = [...new Set([...ownerIds, ...breederIds])].filter(Boolean);
+  // MYK9-570: handlers too — their date of birth drives the junior handler
+  // number on the AKC entry form, and a handler is frequently not the owner.
+  const handlerIds = new Set<string>();
+  for (const entry of allEntries) {
+    if (entry.handlerId) handlerIds.add(entry.handlerId);
+  }
+  const allPersonIds = [...new Set([...ownerIds, ...breederIds, ...handlerIds])].filter(Boolean);
 
   const { data: personsRaw } = await supabase
     .from('people')
-    .select('id, first_name, last_name, street_address, city, state, zip_code, phone, email')
+    .select(
+      'id, first_name, last_name, street_address, city, state, zip_code, phone, email, date_of_birth, junior_handler_numbers'
+    )
     .in('id', allPersonIds);
 
   const personMap = new Map((personsRaw ?? []).map(p => [p.id, p]));
@@ -303,8 +317,31 @@ async function fetchEntryFormData(
       first_name: owner.firstName,
       last_name: owner.lastName,
     });
+    // `handler` is the name the AKC form PRINTS. It stays null when the handler
+    // is the owner — that is what the `!== ownerFullName` filter is for; the
+    // form prints the owner block in that case.
     const handlerEntry = dogEntries.find(e => e.handler && e.handler !== ownerFullName);
     const handler = handlerEntry?.handler ?? null;
+
+    // MYK9-570: WHO that handler is, for the junior fields, is decided by the
+    // one resolver in handlerIdentity.ts — never inferred here from whatever is
+    // in scope. Two rounds of review found this block wrong in two different
+    // ways (a person borrowed from another entry; then, after that fallback was
+    // deleted, the owner-handled case lost the number entirely — 1276 of 1281
+    // live entries), so the choice no longer lives at the call site.
+    //
+    // The printed name is `handler` when there IS a separate handler entry, and
+    // the owner's name otherwise. Both candidates are offered; the resolver
+    // admits one only if its name is the one being printed.
+    const printedHandlerName = handler ?? ownerFullName;
+    const handlerIdPerson = handlerEntry?.handlerId
+      ? (personMap.get(handlerEntry.handlerId) ?? null)
+      : null;
+    const handlerRaw = resolveHandlerPerson({
+      printedHandlerName,
+      handlerIdPerson,
+      ownerPerson: ownerRaw ?? null,
+    });
 
     const armband = dogEntries.find(e => e.armband != null)?.armband ?? null;
     const agreementDate = dogEntries.find(e => e.submittedAt)?.submittedAt ?? null;
@@ -321,6 +358,10 @@ async function fetchEntryFormData(
       dam: pedigree?.dam ?? null,
       owner,
       handler,
+      handlerDateOfBirth: handlerRaw?.date_of_birth ?? null,
+      handlerJuniorHandlerNumbers: normalizeJuniorHandlerNumbers(
+        handlerRaw?.junior_handler_numbers
+      ),
       armband,
       entries: dogEntries,
       agreementDate,

@@ -4,6 +4,10 @@ import type { PdfFormFillValues } from './pdfForm';
 import { fillPdfForm } from './pdfForm';
 import { AKC_SCENT_WORK_ENTRY_FORM_FIELDS } from './akcScentWorkEntryFormFields';
 import { PDFDocument } from 'pdf-lib';
+import {
+  deriveJuniorStatus,
+  getJuniorHandlerNumber,
+} from '@/features/registries/juniorHandlerPolicy';
 
 type EntryGridLevel = 'Novice' | 'Advanced' | 'Excellent' | 'Master';
 type EntryGridElement = 'Container' | 'Interior' | 'Exterior' | 'Buried' | 'Handler Discrimination';
@@ -223,6 +227,46 @@ const GRID_ELEMENTS: readonly EntryGridElement[] = [
 
 const GRID_LEVELS: readonly EntryGridLevel[] = ['Novice', 'Advanced', 'Excellent', 'Master'];
 
+/**
+ * MYK9-570: the AKC Junior Handler number to print, or null.
+ *
+ * Printed ONLY when the handler is actually a junior under the AKC rule (less
+ * than 18 on the day of the trial): a number outlives the status, so a person
+ * who competed as a junior at 16 still holds one at 30, and printing it on an
+ * adult's entry form would claim junior eligibility the regulations do not give.
+ *
+ * Which trial day? An entry form covers every trial the dog is entered in, and
+ * the field is single, so one day has to be chosen. The EARLIEST entered trial
+ * date is used, and that is the MOST PERMISSIVE choice, not the strictest: the
+ * handler is youngest then. The consequence is explicit — a handler whose 18th
+ * birthday falls mid-weekend gets their junior number printed on the form for
+ * every day of that weekend, including the days they are 18.
+ *
+ * It is chosen anyway because the alternative is worse for the person the rule
+ * protects: this form is produced per DOG, not per trial day, so the strict
+ * reading would drop the number from the days they really were a junior too. If
+ * the form is ever generated per trial day, pass that day's date instead and
+ * delete this paragraph. A secretary who needs the other answer edits the PDF.
+ */
+function resolveAkcJuniorHandlerNumber(dog: EntryFormDog, trials: EntryFormTrial[]): string | null {
+  const number = getJuniorHandlerNumber(dog.handlerJuniorHandlerNumbers, 'AKC');
+  if (!number) return null;
+
+  const enteredTrialIds = new Set(dog.entries.map(entry => entry.trialId));
+  const earliestTrialDate = trials
+    .filter(trial => enteredTrialIds.has(trial.id) && trial.date)
+    .map(trial => trial.date)
+    .sort()[0];
+  if (!earliestTrialDate) return null;
+
+  const status = deriveJuniorStatus({
+    dateOfBirth: dog.handlerDateOfBirth,
+    trialDate: earliestTrialDate,
+    registryId: 'AKC',
+  });
+  return status.kind === 'junior' ? number : null;
+}
+
 export function buildAKCScentWorkEntryFormValues(input: {
   dog: EntryFormDog;
   trials: EntryFormTrial[];
@@ -255,6 +299,11 @@ export function buildAKCScentWorkEntryFormValues(input: {
   addText(text, AKC_SCENT_WORK_ENTRY_FORM_FIELDS.phoneSignature, dog.owner.phone);
   addText(text, AKC_SCENT_WORK_ENTRY_FORM_FIELDS.emailSignature, dog.owner.email);
   addText(text, AKC_SCENT_WORK_ENTRY_FORM_FIELDS.handlerName, dog.handler);
+  addText(
+    text,
+    AKC_SCENT_WORK_ENTRY_FORM_FIELDS.juniorHandlerNumber,
+    resolveAkcJuniorHandlerNumber(dog, trials)
+  );
 
   const isForeignRegistration =
     dog.registration?.organization?.toLowerCase().includes('foreign') ?? false;

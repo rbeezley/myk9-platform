@@ -21,6 +21,7 @@ import { getUserFriendlyError } from '@/utils/errorMessages';
 import { Award } from 'lucide-react';
 import { SubscriptionManager } from '@/components/subscription/SubscriptionManager';
 import { useSubscriptionGate } from '@/hooks/useSubscriptionGate';
+import { JuniorHandlerFields } from '@/components/common/JuniorHandlerFields';
 
 const DELETE_CONFIRMATION_TEXT = 'DELETE';
 const PENDING_SELF_DELETE_REVOCATION_KEY_PREFIX = 'myk9:pending-self-delete-auth-revocation';
@@ -200,6 +201,21 @@ export function ProfileSection() {
               />
             </div>
           </div>
+          {/* MYK9-570: junior handler inputs. Same component as the secretary's
+              person edit — one set of labels, one set of rules. */}
+          <JuniorHandlerFields
+            idPrefix="account"
+            dateOfBirth={form.values.dateOfBirth}
+            juniorHandlerNumbers={form.values.juniorHandlerNumbers}
+            dateOfBirthError={form.errors.dateOfBirth}
+            onDateOfBirthChange={value => form.setValue('dateOfBirth', value)}
+            onJuniorHandlerNumberChange={(registryId, value) =>
+              form.setValue('juniorHandlerNumbers', previous => ({
+                ...previous,
+                [registryId]: value,
+              }))
+            }
+          />
           {form.isDirty && (
             <div className="flex flex-col gap-2 pt-2 sm:flex-row">
               <Button onClick={form.save} disabled={form.saving} size="touch">

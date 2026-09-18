@@ -11,6 +11,7 @@
  */
 import { Routes, Route } from 'react-router-dom';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
+import userEvent from '@testing-library/user-event';
 import { render, screen, within } from '@/test/utils/testUtils';
 import { ReplicationSyncContext } from '@/context/ReplicationSyncContext';
 import type { ReplicationSyncContextValue } from '@/context/ReplicationSyncContext';
@@ -206,5 +207,49 @@ describe('AtShowEntryListPage — tab badges follow the canonical rule (MYK9-645
     // ...while a pending runner still has one.
     const pendingGrid = screen.getByText('Runner 1').closest('div.grid') as HTMLElement;
     expect(within(pendingGrid).getByRole('button', { name: 'Score Runner 1' })).toBeInTheDocument();
+  });
+});
+
+/**
+ * MYK9-646 — the class dialogs were a FOURTH count on the same screen.
+ *
+ * The badges, the class-details header and the class-list row all report the
+ * host's expected/accounted pair. `EntryListDialogs` built `entry_count` from
+ * `localEntries.length` — every row the page holds, withdrawn ones included —
+ * so the Requirements dialog read "6 entries" beside "Pending 4 / Completed 1".
+ * `completed_count` was wrong one hop earlier, in the value handed to the
+ * dialog slot: it came from the already TAB-FILTERED completed list, so on the
+ * Pending tab the slot received 0 whatever the class had scored. No myK9Show
+ * dialog renders that field today, so it has no rendered symptom to assert —
+ * `classDialogCounts.test.ts` pins it at the seam instead.
+ *
+ * This case is the mutation guard for the rendered half: it goes red the
+ * moment `entry_count` goes back to a raw row count.
+ */
+describe('AtShowEntryListPage — class dialogs use the same pair as the badges (MYK9-646)', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    localStorage.clear();
+    seedReplication();
+  });
+
+  it('reports the expected count, not the raw row count, in the Requirements dialog', async () => {
+    const user = userEvent.setup();
+    renderPage();
+
+    await screen.findByText('Pending');
+    await user.click(screen.getByRole('button', { name: 'Actions menu' }));
+    await user.click(await screen.findByRole('button', { name: 'Class Options' }));
+    await user.click(await screen.findByRole('button', { name: 'Requirements' }));
+
+    const requirements = await screen.findByRole('dialog');
+    // The line is built from four text nodes, so match on the paragraph's own
+    // textContent rather than a regex the DOM never presents as one string.
+    const summary = within(requirements)
+      .getByText(/Requirements/)
+      .closest('div')
+      ?.parentElement?.querySelector('p');
+    // Expected is 5: four runners plus the absent-result one, withdrawn out.
+    expect(summary?.textContent).toBe('Interior Advanced \u00b7 5 entries');
   });
 });

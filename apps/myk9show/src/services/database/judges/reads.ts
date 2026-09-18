@@ -16,6 +16,7 @@ import {
   JudgeQualificationSummary,
 } from '../../../types/judge-management';
 import { untypedFrom } from '../_shared/untyped-from';
+import { PEOPLE_MAPPER_COLUMNS } from '../users/peopleColumns';
 import { createDatabaseError, logQuery, supabase } from '../supabaseClient';
 import type { DbJudgeAvailability } from '@/types/database-mappings';
 import { replicatedClassesTable, replicatedJudgeAssignmentsTable } from '@/services/replication';
@@ -79,7 +80,8 @@ export const getJudgesWithQualifications = async () => {
   try {
     const { data, error } = await supabase
       .from('people')
-      .select(`*, ${JUDGE_QUALIFICATIONS_SELECT}`)
+      // PII-free: the judges directory has no use for a date of birth (MYK9-570).
+      .select(`${PEOPLE_MAPPER_COLUMNS}, ${JUDGE_QUALIFICATIONS_SELECT}`)
       .is('deleted_at', null)
       .order('last_name', { ascending: true });
 

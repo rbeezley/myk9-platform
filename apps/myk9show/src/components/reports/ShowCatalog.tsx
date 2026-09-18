@@ -2,6 +2,7 @@ import React from 'react';
 import type { ReportProps, ReportEntry } from '@/lib/reports/types';
 import {
   formatReportDate,
+  formatReportHandlerName,
   sortByArmband,
   sortByHandler,
   sortByBreed,
@@ -83,7 +84,7 @@ export const ShowCatalog: React.FC<ReportProps> = ({
                       <td>{entry.breed}</td>
                       <td>{entry.registrationNumber ?? ''}</td>
                       <td>{[entry.classElement, entry.classLevel].filter(Boolean).join(' ')}</td>
-                      <td>{entry.handler}</td>
+                      <td>{formatReportHandlerName(entry)}</td>
                     </tr>
                   ))}
                 </tbody>

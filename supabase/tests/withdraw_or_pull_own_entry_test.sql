@@ -43,11 +43,37 @@ select ('00000000-0000-0000-0000-00000063204' || n)::uuid,
 from generate_series(1, 9) n;
 
 -- 1 owner, 6 club secretary (the tier `set_entry_refund_decision` authorises).
-insert into public.people (id, first_name, last_name, auth_user_id)
-values ('00000000-0000-0000-0000-000000632011', 'MYK9-632', 'Owner',
-  '00000000-0000-0000-0000-000000632101'),
+--
+-- The AUTH rows are real, and they have to be: `set_entry_refund_decision`
+-- stamps `refund_decided_by = auth.uid()`, and `entries_refund_decided_by_fkey`
+-- points that column at `auth.users(id)`. A caller who only exists as a JWT
+-- claim passes every authorization check and then dies 23503 on the write.
+--
+-- Pattern copied from pull_refund_decision_rls_test.sql, which is green in CI:
+-- seed the people UNLINKED first, then insert the auth row with the SAME email,
+-- and let handle_new_user() adopt the person. Inserting both halves linked by
+-- hand races that trigger into a duplicate auth_user_id.
+insert into public.people (id, first_name, last_name, email, auth_user_id)
+values
+  ('00000000-0000-0000-0000-000000632011', 'MYK9-632', 'Owner',
+    'myk9-632-owner@example.test', null),
   ('00000000-0000-0000-0000-000000632016', 'MYK9-632', 'Secretary',
-  '00000000-0000-0000-0000-000000632106');
+    'myk9-632-secretary@example.test', null);
+
+insert into auth.users (
+  id, instance_id, aud, role, email, encrypted_password, email_confirmed_at,
+  created_at, updated_at, raw_app_meta_data, raw_user_meta_data,
+  is_super_admin, is_sso_user, is_anonymous
+)
+values
+  ('00000000-0000-0000-0000-000000632101',
+    '00000000-0000-0000-0000-000000000000',
+    'authenticated', 'authenticated', 'myk9-632-owner@example.test', '', now(),
+    now(), now(), '{}', '{}', false, false, false),
+  ('00000000-0000-0000-0000-000000632106',
+    '00000000-0000-0000-0000-000000000000',
+    'authenticated', 'authenticated', 'myk9-632-secretary@example.test', '', now(),
+    now(), now(), '{}', '{}', false, false, false);
 
 -- ONE REGISTRY PER SHOW (MYK9-490) is enforced by
 -- trg_enforce_show_registry_on_trial: a trial's registry_id must equal

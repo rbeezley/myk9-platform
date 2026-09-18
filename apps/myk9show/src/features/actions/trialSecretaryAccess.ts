@@ -30,7 +30,7 @@ export interface TrialSecretaryAccessOptions {
    * `/secretary/entries` is the real case: it resolves its show from
    * localStorage, so `useShowManageScope(undefined)` never leaves `resolving`
    * and no retry can change that. Failing closed there left a REAL trial
-   * secretary with "Add mail-in entry" permanently disabled and captioned
+   * secretary with "Add entry for someone else" permanently disabled and captioned
    * "Trial secretary access only" — a regression this PR introduced and R-2
    * caught. With no show to scope to, the operational ROLE is the whole
    * answer the app can honestly give.

@@ -114,7 +114,7 @@ The system SHALL keep existing secretary surfaces task-specific and avoid confus
 #### Scenario: Empty Entry Management links to mail-in entry
 
 - **WHEN** a secretary opens Entry Management for a show with no visible entries
-- **THEN** the empty state includes an inline `Add mail-in entry` action that starts the existing secretary registration flow
+- **THEN** the empty state includes an inline `Add entry for someone else` action that starts the existing secretary registration flow
 
 #### Scenario: Add Person create mode uses create title
 

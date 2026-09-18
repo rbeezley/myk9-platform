@@ -26,7 +26,7 @@ const SECRETARY_ONLY_DESTINATIONS: ReadonlyArray<{
   {
     path: '/secretary/register/show-1',
     requiredRole: [UserRole.SECRETARY, UserRole.SITE_ADMIN],
-    linkedFrom: 'Show Day + Entries "Add mail-in entry", Show Day "Add late entry"',
+    linkedFrom: 'Show Day + Entries "Add entry for someone else", Show Day "Add late entry"',
   },
   {
     path: '/secretary/volunteers',

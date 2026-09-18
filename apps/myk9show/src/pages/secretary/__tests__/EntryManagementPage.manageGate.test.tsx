@@ -165,7 +165,7 @@ describe('EntryManagementPage derives its gate from the one manage scope', () =>
   // ungated mail-in button and is fixed with it" and had NO test for it: the
   // mutation `trialSecretaryOnlyReason -> undefined` left this whole file green.
   // These two open the popover the button actually lives in.
-  it('greys "Add mail-in entry" for a club admin, with the reason', async () => {
+  it('greys "Add entry for someone else" for a club admin, with the reason', async () => {
     const user = userEvent.setup();
     manageScopeState.value = {
       status: 'resolved',
@@ -178,19 +178,23 @@ describe('EntryManagementPage derives its gate from the one manage scope', () =>
     renderAtShow();
     await user.click(screen.getByRole('button', { name: /add entry/i }));
 
-    expect(await screen.findByRole('button', { name: /add mail-in entry/i })).toBeDisabled();
+    expect(
+      await screen.findByRole('button', { name: /add entry for someone else/i })
+    ).toBeDisabled();
     expect(screen.getByText('Trial secretary access only')).toBeInTheDocument();
     // The exhibitor wizard carries no role requirement, so this one stays live.
-    expect(screen.getByRole('button', { name: /enter my own dogs/i })).toBeEnabled();
+    expect(screen.getByRole('button', { name: /add entry for my dog/i })).toBeEnabled();
   });
 
-  it('leaves "Add mail-in entry" live for a trial secretary — positive control', async () => {
+  it('leaves "Add entry for someone else" live for a trial secretary — positive control', async () => {
     const user = userEvent.setup();
 
     renderAtShow();
     await user.click(screen.getByRole('button', { name: /add entry/i }));
 
-    expect(await screen.findByRole('button', { name: /add mail-in entry/i })).toBeEnabled();
+    expect(
+      await screen.findByRole('button', { name: /add entry for someone else/i })
+    ).toBeEnabled();
     expect(screen.queryByText('Trial secretary access only')).toBeNull();
   });
 

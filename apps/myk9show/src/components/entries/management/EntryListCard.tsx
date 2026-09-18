@@ -44,6 +44,7 @@ import { CHECKIN_STATUSES } from '@myk9/core';
 import { WithdrawalReasonDialog } from './WithdrawalReasonDialog';
 import { removalSummaryLine } from './removalSummaryLine';
 import { RefundEntryDialog } from './RefundEntryDialog';
+import { resolveMoneyActionTarget } from '@/features/financial/moneyRoot';
 import { isStripeRefundable } from './refundEligibility';
 import { RequestPaymentDialog } from './RequestPaymentDialog';
 import { isPaymentRequestable } from './paymentRequestEligibility';
@@ -100,7 +101,10 @@ export const EntryListCard: React.FC<EntryListCardProps> = ({
       onStatusChange(entryId, EntryStatus.CANCELLED, reason);
       // Withdrawn = refund due (April status model): chain straight into the
       // refund dialog when the entry was paid online and not yet refunded.
-      const entry = entries.find(e => e.id === entryId);
+      // MYK9-639: refund the entry that HOLDS the money. On a moved-up dog the
+      // Stripe intent stayed on the superseded source; the destination never had
+      // one, so stripe-refund-entry would refuse it outright.
+      const entry = resolveMoneyActionTarget(entryId, entries) ?? undefined;
       if (entry && isStripeRefundable(entry)) {
         setRefundDialog({ open: true, entry });
       }
@@ -311,7 +315,13 @@ export const EntryListCard: React.FC<EntryListCardProps> = ({
                                   role="menuitem"
                                   data-status-popover-action
                                   className="flex min-h-11 w-full items-center gap-2 rounded-md px-2 text-left text-sm hover:bg-accent focus-visible:bg-accent focus-visible:outline-none"
-                                  onClick={() => setRefundDialog({ open: true, entry })}
+                                  onClick={() =>
+                                    setRefundDialog({
+                                      open: true,
+                                      // MYK9-639: the money row, not the run.
+                                      entry: resolveMoneyActionTarget(entry.id, entries) ?? entry,
+                                    })
+                                  }
                                 >
                                   <CreditCard className="h-4 w-4" aria-hidden />
                                   Refund payment…

@@ -22,11 +22,21 @@
 -- `payment_status` value is introduced, and `waived` keeps meaning only what a
 -- secretary deliberately waived.
 --
--- It is also the durable way back for MYK9-640: the reverse move reads this
--- column to find the entry to restore, long after the 8-second undo banner is
--- gone. (The client additionally falls back to the pre-existing
--- "Moved up from class <id>" note so move-ups recorded BEFORE this migration
--- are reversible too -- see services/database/entries/moveUpNote.ts.)
+-- It is also the durable way back for MYK9-640: `reverse_move_up_entry` reads
+-- this column to find the entry to restore, long after the 8-second undo banner
+-- is gone. (The client additionally falls back to the pre-existing
+-- "Moved up from class <id>" note when READING a legacy pair recorded before
+-- this migration -- 0 such rows exist live today -- see
+-- services/database/entries/moveUpNote.ts.)
+--
+-- Two SECURITY DEFINER functions at the end of this file make the move-up and
+-- its reverse ONE transaction each; see their own header for why DEFINER and
+-- what each restates. They are what the client calls -- there is no longer a
+-- client-side pair of writes that can half-land.
+--
+-- This file also repairs `entries_dog_class_unique_idx`, which reserved a class
+-- seat for soft-deleted rows and so broke the second move-up after an undo. See
+-- the comment above the index.
 --
 -- ON DELETE SET NULL, not CASCADE: a hard-deleted source must not take the live
 -- destination entry with it. The link simply becomes unknown and the reverse
@@ -53,9 +63,13 @@
 -- (20260817190000).
 --
 -- NOT PUSHED by the authoring agent: `supabase db push` on the linked project is
--- Richard's to run. Until it lands, `moved_from_entry_id` is absent from the
--- views, every client read of it is `undefined`, and the reverse move falls back
--- to the note-based lookup, which resolves the same pair.
+-- Richard's to run, and it MUST land before (or with) the merge. The client no
+-- longer writes `moved_from_entry_id` through PostgREST at all -- it calls
+-- `public.move_up_entry`, which does not exist until this file is applied. So in
+-- the window between a Vercel deploy and the push, a move-up fails CLEANLY: the
+-- RPC 404s (PGRST202), the optimistic local write is reverted, the secretary
+-- sees an error, and the dog stays exactly where they were. Nothing half-lands,
+-- and no row is written that the schema cannot hold.
 
 BEGIN;
 
@@ -75,6 +89,38 @@ GRANT SELECT (moved_from_entry_id) ON public.entries TO authenticated;
 -- Stated, not assumed: anon must never read this column (it holds none on this
 -- table today, and omitting a GRANT is not the same as keeping a role out).
 REVOKE ALL (moved_from_entry_id) ON public.entries FROM anon;
+
+-- A soft-deleted entry must not reserve a class seat (MYK9-640, review round 2).
+--
+-- `entries_dog_class_unique_idx` (003_entries_and_scoring.sql, the only file that
+-- has ever defined it — verified by grep and against the live catalog) is
+-- UNIQUE (dog_id, class_id) WHERE entry_status NOT IN ('withdrawn','scratched').
+-- That predicate never learned about `deleted_at`, so a tombstoned row keeps
+-- holding its (dog, class) slot forever.
+--
+-- It becomes reachable the moment the reverse below exists, and on exactly the
+-- round trip MYK9-640 is FOR: move up to Advanced, undo, move up to Advanced
+-- again. The reverse soft-deletes the destination and leaves its
+-- `entry_status = 'confirmed'`, so the second move-up's INSERT collides with an
+-- invisible row and dies 23505 inside the RPC — an opaque failure on show
+-- morning, on the second press of a button that worked the first time.
+--
+-- Fixed at the index rather than by parking the tombstone in some excluded
+-- status: `withdrawn`/`scratched` are meaningful acts (the dog gave up their
+-- run) and writing one to dodge an index would be a lie that also fires
+-- `stamp_entry_withdrawn_at` and nulls the refund decision. A deleted row
+-- constraining a live one was always wrong.
+--
+-- This RELAXES the constraint: re-entering a dog into a class whose previous
+-- entry was soft-deleted is now permitted, which is the intended behaviour and
+-- is what "deleted" has meant everywhere else in this schema. Live rows are
+-- unaffected — nothing today has a soft-deleted entry competing with a live one
+-- for the same (dog, class).
+DROP INDEX IF EXISTS public.entries_dog_class_unique_idx;
+CREATE UNIQUE INDEX entries_dog_class_unique_idx
+  ON public.entries (dog_id, class_id)
+  WHERE deleted_at IS NULL
+    AND entry_status <> ALL (ARRAY['withdrawn'::text, 'scratched'::text]);
 
 CREATE INDEX IF NOT EXISTS entries_moved_from_entry_id_fk_idx
   ON public.entries (moved_from_entry_id)
@@ -454,6 +500,276 @@ REVOKE INSERT, UPDATE, DELETE ON public.view_authenticated_entry_results_replica
 
 COMMENT ON VIEW public.view_authenticated_entry_results_replication IS
   'Replication feed wrapping view_authenticated_entry_results, adding the shows join needed to replicate soft-deleted shows (MYK9-291). Owner-run (security_invoker = false) like the view it wraps; the score/payment gating is inherited from that inner view body, and the shows columns are reachable only for entries the inner view already admitted. Advisor security_definer_view ERROR accepted by design 2026-09-09 (docs/improve-audit-2026-07-11/009-advisor-disposition-sweep.md, Verdict 1). Any rebuild MUST carry WITH (security_invoker = false) inline -- CREATE OR REPLACE VIEW resets reloptions. The select list is explicit (MYK9-632): `entries.*` re-expanded on every rebuild and would have reordered the columns the moment the inner view gained one. moved_from_entry_id (MYK9-639) is appended after it.';
+
+-- ---------------------------------------------------------------------------
+-- The move-up write, as ONE transaction.
+--
+-- Before this, the client did two independent replicated writes: INSERT the
+-- destination, then UPDATE the source to `moved`. Between them the dog could be
+-- entered twice, and if the second upload never landed the source sat `moved`
+-- with no destination anywhere -- no live entry on any other device or report.
+-- The TypeScript rollback could only repair the device that happened to run it.
+--
+-- SECURITY DEFINER, not INVOKER, for one concrete reason: the move-back guard
+-- has to read `result_status`, `final_placement`, `points_earned`,
+-- `search_time_seconds` and the area times, and NONE of those five carries a
+-- column grant for `authenticated` (verified against pg_attribute: 55 of 92
+-- columns are allowlisted and these are outside it). An INVOKER function would
+-- 42501 on the very read the guard exists to make. DEFINER therefore restates
+-- the authorization these tables' policies apply -- `can_manage_show(show_id)`,
+-- byte-for-byte the predicate on `entries_insert` and `entries_update` -- so the
+-- functions admit exactly who the direct writes admit and nobody else. EXECUTE
+-- is revoked from PUBLIC and anon; `search_path` is pinned empty.
+--
+-- MONEY DOES NOT MOVE. The destination is created money-neutral:
+-- `payment_status = 'pending'`, `entry_fee = 0`, no `payment_method`, no
+-- reference, no comp, no discount, no `stripe_payment_intent_id`. The
+-- settlement stays on the entry the exhibitor actually paid for, and
+-- `moved_from_entry_id` is the only link to it. Copying it forward was worse
+-- than untidy: `payment_method = 'online'` + `payment_status = 'paid'` on an
+-- INSERT is exactly what `trg_entries_protect_payment_fields_insert` raises
+-- 42501 on, so every Stripe-paid dog would have failed to move at all.
+
+CREATE OR REPLACE FUNCTION public.move_up_entry(
+  p_entry_id uuid,
+  p_target_class_id uuid,
+  p_new_entry_id uuid,
+  p_reason text DEFAULT NULL
+)
+RETURNS uuid
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path TO ''
+AS $function$
+DECLARE
+  v_source         public.entries%ROWTYPE;
+  v_target_show_id uuid;
+  v_target_trial_id uuid;
+  v_note           text;
+BEGIN
+  SELECT * INTO v_source
+  FROM public.entries
+  WHERE id = p_entry_id
+  FOR UPDATE;
+
+  IF NOT FOUND THEN
+    RAISE EXCEPTION 'That entry no longer exists.' USING ERRCODE = 'P0002';
+  END IF;
+
+  -- Restated authorization (see the header): identical to entries_update.
+  IF NOT public.can_manage_show(v_source.show_id) THEN
+    RAISE EXCEPTION 'You do not have permission to move entries in this show.'
+      USING ERRCODE = '42501';
+  END IF;
+
+  -- A dog who has been pulled, withdrawn, scratched, marked absent, already
+  -- moved, or soft-deleted is not movable. Refusing here is what lets the
+  -- move-back restore an unambiguous source, and what stops a pulled dog being
+  -- carried into a class the readiness counters then drop them from.
+  IF v_source.deleted_at IS NOT NULL
+     OR COALESCE(v_source.entry_status, '') IN
+        ('moved', 'withdrawn', 'scratched', 'absent', 'not_accepted')
+     OR v_source.check_in_status = 'pulled' THEN
+    RAISE EXCEPTION 'This entry is not in a state that can be moved.'
+      USING ERRCODE = '22023';
+  END IF;
+
+  SELECT t.show_id, c.trial_id
+  INTO v_target_show_id, v_target_trial_id
+  FROM public.classes c
+  JOIN public.trials t ON t.id = c.trial_id
+  WHERE c.id = p_target_class_id
+    AND c.deleted_at IS NULL
+    AND t.deleted_at IS NULL;
+
+  IF NOT FOUND THEN
+    RAISE EXCEPTION 'That class no longer exists.' USING ERRCODE = 'P0002';
+  END IF;
+
+  IF v_target_show_id IS DISTINCT FROM v_source.show_id THEN
+    RAISE EXCEPTION 'An entry can only move within its own show.'
+      USING ERRCODE = '22023';
+  END IF;
+
+  IF p_target_class_id = v_source.class_id THEN
+    RAISE EXCEPTION 'That entry is already in this class.' USING ERRCODE = '22023';
+  END IF;
+
+  -- The element/level ladder stays in the client (`utils/moveUpEligibility.ts`):
+  -- it is registry-aware and the registry lives on the trial, not on a CHECK.
+  -- What this function owns is what a stale or hostile client cannot be trusted
+  -- with -- who may write, that the row is movable, and that both halves land.
+
+  v_note := 'Moved up from class ' || v_source.class_id::text
+            || COALESCE(': ' || NULLIF(btrim(p_reason), ''), '');
+
+  INSERT INTO public.entries (
+    id, dog_id, show_id, class_id, trial_id,
+    handler_id, handler, armband, jump_height,
+    entry_status, check_in_status,
+    payment_status, entry_fee,
+    special_requests, moved_from_entry_id
+  )
+  VALUES (
+    p_new_entry_id, v_source.dog_id, v_source.show_id, p_target_class_id, v_target_trial_id,
+    v_source.handler_id, v_source.handler, v_source.armband, v_source.jump_height,
+    'confirmed',
+    -- MYK9-640: a check-in travels, and ONLY as a check-in. 'pulled' cannot
+    -- reach here (refused above); 'in-ring', 'at-gate' and 'completed' describe
+    -- a run in the class being left, not the one being entered.
+    CASE WHEN v_source.check_in_status = 'checked-in' THEN 'checked-in' ELSE 'no-status' END,
+    -- Money-neutral. See the header.
+    'pending', 0,
+    v_note, p_entry_id
+  );
+
+  -- Deliberately does NOT touch the source's `special_requests`: the FK above is
+  -- the lineage, and that column is where a secretary writes "reactive dog,
+  -- needs the ramp".
+  UPDATE public.entries
+  SET entry_status = 'moved'
+  WHERE id = p_entry_id;
+
+  RETURN p_new_entry_id;
+END;
+$function$;
+
+REVOKE ALL ON FUNCTION public.move_up_entry(uuid, uuid, uuid, text) FROM PUBLIC;
+REVOKE ALL ON FUNCTION public.move_up_entry(uuid, uuid, uuid, text) FROM anon;
+GRANT EXECUTE ON FUNCTION public.move_up_entry(uuid, uuid, uuid, text) TO authenticated;
+GRANT EXECUTE ON FUNCTION public.move_up_entry(uuid, uuid, uuid, text) TO service_role;
+
+COMMENT ON FUNCTION public.move_up_entry(uuid, uuid, uuid, text) IS
+  'MYK9-639/MYK9-640: move an entry to a higher class as ONE transaction -- insert '
+  'the money-neutral destination carrying moved_from_entry_id, and mark the source '
+  'moved. SECURITY DEFINER because the sibling reverse function must read score '
+  'columns that carry no column grant for authenticated; it restates '
+  'can_manage_show(show_id), the exact predicate on entries_insert/entries_update. '
+  'The registry level ladder stays client-side (utils/moveUpEligibility.ts).';
+
+-- The same shape in reverse.
+
+CREATE OR REPLACE FUNCTION public.reverse_move_up_entry(
+  p_destination_entry_id uuid
+)
+RETURNS uuid
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path TO ''
+AS $function$
+DECLARE
+  v_dest             public.entries%ROWTYPE;
+  v_source           public.entries%ROWTYPE;
+  v_restored_status  text;
+BEGIN
+  SELECT * INTO v_dest
+  FROM public.entries
+  WHERE id = p_destination_entry_id
+  FOR UPDATE;
+
+  IF NOT FOUND THEN
+    RAISE EXCEPTION 'That entry no longer exists.' USING ERRCODE = 'P0002';
+  END IF;
+
+  IF NOT public.can_manage_show(v_dest.show_id) THEN
+    RAISE EXCEPTION 'You do not have permission to move entries in this show.'
+      USING ERRCODE = '42501';
+  END IF;
+
+  IF v_dest.deleted_at IS NOT NULL THEN
+    RAISE EXCEPTION 'That entry has already been removed.' USING ERRCODE = '22023';
+  END IF;
+
+  IF v_dest.moved_from_entry_id IS NULL THEN
+    RAISE EXCEPTION 'This entry was not created by a move-up, so there is nothing to move back.'
+      USING ERRCODE = '22023';
+  END IF;
+
+  -- A run that has STARTED can never be un-run. Not just "has a result":
+  -- the dog standing in the ring with two area times recorded is mid-run, and
+  -- soft-deleting the row being scored into would take the judge's work with it.
+  IF COALESCE(v_dest.is_scored, false)
+     OR COALESCE(v_dest.is_in_ring, false)
+     OR v_dest.scoring_started_at IS NOT NULL
+     OR v_dest.ring_entry_time IS NOT NULL
+     OR COALESCE(v_dest.result_status, 'pending') <> 'pending'
+     OR v_dest.final_placement IS NOT NULL
+     OR COALESCE(v_dest.points_earned, 0) <> 0
+     OR COALESCE(v_dest.search_time_seconds, 0) <> 0
+     OR COALESCE(v_dest.area1_time_seconds, 0) <> 0
+     OR COALESCE(v_dest.area2_time_seconds, 0) <> 0
+     OR COALESCE(v_dest.area3_time_seconds, 0) <> 0
+     OR COALESCE(v_dest.area4_time_seconds, 0) <> 0
+     OR COALESCE(v_dest.total_faults, 0) <> 0
+     OR COALESCE(v_dest.total_correct_finds, 0) <> 0
+     OR COALESCE(v_dest.total_score, 0) <> 0
+     OR v_dest.scoring_completed_at IS NOT NULL
+     OR v_dest.check_in_status IN ('in-ring', 'completed') THEN
+    RAISE EXCEPTION 'This run has already started, so the move-up can no longer be reversed.'
+      USING ERRCODE = '22023';
+  END IF;
+
+  SELECT * INTO v_source
+  FROM public.entries
+  WHERE id = v_dest.moved_from_entry_id
+  FOR UPDATE;
+
+  IF NOT FOUND
+     OR v_source.deleted_at IS NOT NULL
+     OR COALESCE(v_source.entry_status, '') <> 'moved' THEN
+    RAISE EXCEPTION 'The original entry is no longer there to restore.'
+      USING ERRCODE = '22023';
+  END IF;
+
+  -- The SOURCE is a second row, in a second show potentially, and this function
+  -- is DEFINER — owned by `postgres`, which carries rolbypassrls, so the UPDATE
+  -- below is checked by nothing but this. Authorizing only the destination's
+  -- show was a real hole: `entries.relacl` grants `authenticated` table-wide
+  -- UPDATE with no column restriction and no trigger guards
+  -- `moved_from_entry_id`, so a secretary could point one of their own entries
+  -- at a `moved` entry in a show they do not manage and have this function flip
+  -- it live. `entries_update` would have applied its predicate to BOTH rows;
+  -- restating it here is what makes that true again.
+  IF v_source.show_id IS DISTINCT FROM v_dest.show_id
+     OR NOT public.can_manage_show(v_source.show_id) THEN
+    RAISE EXCEPTION 'The original entry is no longer there to restore.'
+      USING ERRCODE = '22023';
+  END IF;
+
+  -- Restore from the destination's OWN live state, because that is the row that
+  -- has been live since the move: the dog may have been checked in on it hours
+  -- after the move happened.
+  v_restored_status := CASE
+    WHEN COALESCE(v_dest.entry_status, '') IN ('', 'moved') THEN 'confirmed'
+    ELSE v_dest.entry_status
+  END;
+
+  UPDATE public.entries
+  SET entry_status = v_restored_status,
+      check_in_status = v_dest.check_in_status
+  WHERE id = v_source.id;
+
+  UPDATE public.entries
+  SET deleted_at = now()
+  WHERE id = p_destination_entry_id;
+
+  RETURN v_source.id;
+END;
+$function$;
+
+REVOKE ALL ON FUNCTION public.reverse_move_up_entry(uuid) FROM PUBLIC;
+REVOKE ALL ON FUNCTION public.reverse_move_up_entry(uuid) FROM anon;
+GRANT EXECUTE ON FUNCTION public.reverse_move_up_entry(uuid) TO authenticated;
+GRANT EXECUTE ON FUNCTION public.reverse_move_up_entry(uuid) TO service_role;
+
+COMMENT ON FUNCTION public.reverse_move_up_entry(uuid) IS
+  'MYK9-640: undo a move-up as ONE transaction -- restore the superseded source '
+  'from the destination''s live entry_status and check_in_status, then soft-delete '
+  'the destination. Refuses once the run has STARTED (in ring, ring entry, scoring '
+  'started, any area time, points, a result, or a placement). Touches no money: '
+  'after MYK9-639 the destination never held any. Same restated can_manage_show '
+  'guard as move_up_entry.';
+
 
 NOTIFY pgrst, 'reload schema';
 

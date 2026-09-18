@@ -23,6 +23,7 @@ import { CLOSED_STATUSES } from '@/components/entries/management/bulkActionEligi
 import { getNextArmbandForShow, setEntryArmband } from '@/services/database/armbands';
 
 import { supabase } from '@/services/database/supabaseClient';
+import { resolveMoneyActionTarget } from '@/features/financial/moneyRoot';
 import { resolveSecretaryCc } from '@/services/notifications/ccSecretary';
 import { updateEnrollmentPaymentStatus } from '@/services/database/show-registrations';
 import { buildExportRow, type ExportEntry } from '@/utils/entryExportUtils';
@@ -506,8 +507,14 @@ export function useEntryManagementActions({
 
   // Handle comp entry
   const handleCompEntry = useCallback(
-    async (entryId: string, reason: string) => {
+    async (requestedEntryId: string, reason: string) => {
       setIsProcessing(true);
+      // MYK9-639: a comp lands on the entry that holds the money. On a dog who
+      // was moved up that is the superseded source, not the money-neutral
+      // destination the secretary clicked — comping the destination would flag a
+      // $0 row and leave the real fee collected.
+      const entryId =
+        resolveMoneyActionTarget(requestedEntryId, entriesRef.current)?.id ?? requestedEntryId;
       try {
         const { error: dbError } = await compEntry({ entryId, reason });
 
@@ -543,13 +550,16 @@ export function useEntryManagementActions({
         setIsProcessing(false);
       }
     },
-    [setEntries, setError, user]
+    [entriesRef, setEntries, setError, user]
   );
 
   // Handle uncomp entry
   const handleUncompEntry = useCallback(
-    async (entryId: string) => {
+    async (requestedEntryId: string) => {
       setIsProcessing(true);
+      // Same target as the comp it removes (MYK9-639).
+      const entryId =
+        resolveMoneyActionTarget(requestedEntryId, entriesRef.current)?.id ?? requestedEntryId;
       try {
         const { error: dbError } = await uncompEntry(entryId);
 
@@ -580,7 +590,7 @@ export function useEntryManagementActions({
         setIsProcessing(false);
       }
     },
-    [setEntries, setError, user]
+    [entriesRef, setEntries, setError, user]
   );
 
   const handleRemoveEntry = useCallback(

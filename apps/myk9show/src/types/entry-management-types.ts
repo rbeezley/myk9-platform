@@ -49,6 +49,12 @@ export interface EntryManagementEntry {
   classes: EntryClass[];
   totalFee: number;
   paidAmount: number;
+  /**
+   * MYK9-639: set on the DESTINATION of a move-up, pointing at the entry that
+   * holds this run's money. The destination is created money-neutral, so every
+   * count and total here resolves it via `@/features/financial/moneyRoot`.
+   */
+  movedFromEntryId?: string | null | undefined;
   entryStatus: EntryStatus;
   /** Raw DB `entry_status` before UI-enum projection. Needed by
    * `deriveEntryPresentation` for the owner-approved review-lane overrides

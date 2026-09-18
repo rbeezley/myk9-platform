@@ -55,6 +55,15 @@ export const FinancialReport: React.FC<ReportProps> = ({
     <div className="report-page">
       {header}
 
+      {totals.unresolvedMoneyRoots.length > 0 && (
+        <p role="status" className="report-warning">
+          {totals.unresolvedMoneyRoots.length === 1
+            ? '1 entry was moved up from a class outside this report, so its fee and payment are not included below.'
+            : `${totals.unresolvedMoneyRoots.length} entries were moved up from classes outside this report, so their fees and payments are not included below.`}{' '}
+          Run this report at show scope to see the full total.
+        </p>
+      )}
+
       <FinancialSummaryTable summary={totals.summary} />
 
       <BreakdownTable

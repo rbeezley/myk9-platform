@@ -15,6 +15,7 @@
 // (task 2.4) proves that overlap cent-for-cent by an independent line-sum path.
 //
 // Pure TypeScript only: no React, no hooks, no I/O. Money is integer cents.
+import { buildMoneyAttribution } from './moneyRoot';
 import type { ReportEntry } from '@/lib/reports/types';
 import {
   buildFinancialReportLine,
@@ -79,9 +80,12 @@ export interface EntryAccountingProjection {
  *  rules to the printable report's `buildFinancialReportLine`. */
 export function buildEntryAccountingLine(
   entry: ReportEntry,
-  mode: FinancialReportMode = 'current'
+  mode: FinancialReportMode = 'current',
+  // MYK9-639: where this run's money is recorded. Defaults to the entry, which
+  // is the answer for everything that was never moved up.
+  moneyRoot: ReportEntry = entry
 ): EntryAccountingLine {
-  const line = buildFinancialReportLine(entry);
+  const line = buildFinancialReportLine(entry, moneyRoot);
   return {
     entryId: entry.id,
     paymentLabel: line.paymentLabel,
@@ -151,7 +155,13 @@ export function calculateEntryAccounting(
   entries: ReportEntry[],
   mode: FinancialReportMode = 'current'
 ): EntryAccountingProjection {
-  const lines = entries.map(entry => buildEntryAccountingLine(entry, mode));
+  // MYK9-639: one line per RUN, dollars from the root. `totals` is still the
+  // broader figure (it keeps withdrawn/scratched, which the printable report
+  // filters out) — what it no longer does is count a move-up pair twice.
+  const attribution = buildMoneyAttribution(entries);
+  const lines = attribution.live.map(entry =>
+    buildEntryAccountingLine(entry, mode, attribution.rootById.get(entry.id) ?? entry)
+  );
   const totals = sumEntryAccountingLines(lines);
   const printableReportTotals = centifyReportBucket(
     calculateFinancialReportTotals(entries, mode).summary

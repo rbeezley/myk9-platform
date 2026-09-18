@@ -132,6 +132,10 @@ function mapReportEntry(
     ...(e.discount_amount != null ? { discountAmount: Number(e.discount_amount) } : {}),
     ...(e.refund_amount != null ? { refundAmount: Number(e.refund_amount) } : {}),
     ...(e.comped != null ? { comped: Boolean(e.comped) } : {}),
+    // MYK9-639: carried so the report can follow a move-up back to the entry
+    // that holds the money. Read defensively: the column reaches the views only
+    // once migration 20260918193300 is applied.
+    ...(readMovedFromEntryId(e) ? { movedFromEntryId: readMovedFromEntryId(e) } : {}),
     ...(entrySource ? { entrySource } : {}),
     ...(e.is_day_of_show != null ? { isDayOfShow: Boolean(e.is_day_of_show) } : {}),
     ...(trial
@@ -151,6 +155,11 @@ function mapReportEntry(
         }
       : {}),
   };
+}
+
+function readMovedFromEntryId(entry: ReportDbEntry): string | null {
+  const value = (entry as unknown as Record<string, unknown>).moved_from_entry_id;
+  return typeof value === 'string' && value ? value : null;
 }
 
 function readEntrySource(entrySource: string | null | undefined): ReportEntry['entrySource'] {

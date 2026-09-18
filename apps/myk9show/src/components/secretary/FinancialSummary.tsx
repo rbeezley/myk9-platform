@@ -25,7 +25,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/comp
 import { Download, DollarSign, Users, Tag, Gift, Search } from 'lucide-react';
 import { paymentStatusColors } from '@/lib/financial-constants';
 import type { TrialFinancialEntryRow } from './financialSummaryTypes';
-import { isSupersededMoveUpEntry } from '@/components/reports/financialReportTotals';
+import { resolveShowFinancialRows } from './showFinancialSummaryCalc';
 
 interface FinancialSummaryProps {
   trialId: string;
@@ -50,6 +50,7 @@ export const FinancialSummary: React.FC<FinancialSummaryProps> = ({ trialId }) =
         return {
           id: e.id,
           entryStatus: (raw.entry_status as string | null) ?? null,
+          movedFromEntryId: (raw.moved_from_entry_id as string | null) ?? null,
           handler: e.handler,
           dogName: dog?.call_name || dog?.name || 'Unknown',
           ownerName: owner
@@ -67,13 +68,11 @@ export const FinancialSummary: React.FC<FinancialSummaryProps> = ({ trialId }) =
     [rawEntries]
   );
 
-  // MYK9-639: drop the superseded source of a move-up before anything is summed
-  // or listed. The destination row beside it carries the same payment status,
-  // fee and method -- one paid run, not two.
-  const entries = useMemo(
-    () => allEntries.filter(entry => !isSupersededMoveUpEntry(entry)),
-    [allEntries]
-  );
+  // MYK9-639: one row per RUN, each carrying the money from wherever it is
+  // recorded. The superseded half of a move-up never reaches the card, the
+  // table or the CSV; the surviving row shows the fee and payment the exhibitor
+  // actually made.
+  const { rows: entries } = useMemo(() => resolveShowFinancialRows(allEntries), [allEntries]);
 
   // Filtered entries
   const filteredEntries = useMemo(() => {

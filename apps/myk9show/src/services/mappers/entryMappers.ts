@@ -362,6 +362,9 @@ export const mapReplicatedEntryToDbRow = (
       // MYK9-632: the enumerated withdrawal reason, so the offline rebuild of
       // My Shows carries it exactly as the online view read does.
       withdrawal_reason_code: 'withdrawalReasonCode',
+      // MYK9-639: the supersession link, so the offline rebuild of the reports
+      // and summaries can follow a move-up to the row that holds the money.
+      moved_from_entry_id: 'movedFromEntryId',
     }),
     check_in_status: entry.checkInStatus ?? entry.check_in_status ?? null,
     discount_amount: entry.discountAmount ?? entry.discount_amount ?? null,

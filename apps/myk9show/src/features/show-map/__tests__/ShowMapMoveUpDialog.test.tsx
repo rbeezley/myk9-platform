@@ -54,10 +54,17 @@ describe('ShowMapMoveUpDialog move-back (MYK9-640)', () => {
     expect(screen.getByText(/no higher class to move up to/i)).toBeInTheDocument();
   });
 
-  it('says WHY there is no way back once a result is recorded, and offers no control', () => {
-    renderDialog({ reversal: { kind: 'blocked', reason: 'destination-scored' } });
+  it('says WHY there is no way back once the run has started, and offers no control', () => {
+    renderDialog({ reversal: { kind: 'blocked', reason: 'run-started' } });
 
-    expect(screen.getByText(/already has a result recorded/i)).toBeInTheDocument();
+    expect(screen.getByText(/run has already started/i)).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /move back/i })).not.toBeInTheDocument();
+  });
+
+  it('says WHY when the original entry is gone', () => {
+    renderDialog({ reversal: { kind: 'blocked', reason: 'source-missing' } });
+
+    expect(screen.getByText(/no longer has the original entry/i)).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /move back/i })).not.toBeInTheDocument();
   });
 

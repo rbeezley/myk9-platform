@@ -5,7 +5,14 @@ import {
 } from '@/features/payments/paymentChannel';
 import { mapPaymentStatus } from '@/utils/entryManagementUtils';
 import { resolveEffectivePaymentStatus } from '@/utils/effectivePaymentStatus';
+import {
+  buildMoneyAttribution,
+  isSupersededMoveUpEntry,
+  type MoneyRootProblem,
+} from '@/features/financial/moneyRoot';
 import type { ReportEntry } from '@/lib/reports/types';
+
+export { isSupersededMoveUpEntry };
 
 export type FinancialReportMode = 'current' | 'waitlist';
 
@@ -39,17 +46,23 @@ export interface FinancialReportTotals {
   summary: FinancialReportBucket;
   paymentBreakdown: FinancialReportBucket[];
   trialBreakdown: FinancialReportBucket[];
+  /**
+   * Entries whose money row could not be reached — a move-up whose source sits
+   * outside this report's scope, or a broken chain. NEVER silently $0: a
+   * non-empty list means the figures above are incomplete and the report says
+   * so. See `resolveMoneyRoot`.
+   */
+  unresolvedMoneyRoots: Array<{ entryId: string; problem: MoneyRootProblem }>;
 }
 
 const WAITLIST_STATUSES = new Set(['waitlist', 'waitlisted']);
 /**
- * `moved` is the SUPERSEDED half of a move-up (MYK9-639). The destination entry
- * created alongside it now carries the money -- the same payment status, fee and
- * method the exhibitor actually paid -- so counting the source as well reported
- * one paid run as two entries, and (while the destination was written as
- * `payment_status = 'waived'`) invented a "Waived/Comped" line for a comp nobody
- * granted. Excluding it nets the pair to ONE entry at the amount paid, which is
- * what `Total Entries` on the registry report has always counted.
+ * `moved` is the SUPERSEDED half of a move-up (MYK9-639): the dog runs once, in
+ * the destination class. The destination holds no money of its own —
+ * `buildMoneyAttribution` reads its dollars back off this row — so the source is
+ * excluded from the COUNT while its settlement still reaches the report through
+ * the live descendant. That is what makes `entries` here agree with
+ * `Total Entries` on the registry reports.
  */
 const EXCLUDED_CURRENT_STATUSES = new Set([
   'waitlist',
@@ -103,24 +116,6 @@ function getEffectivePaymentStatus(entry: ReportEntry): string {
   // Ties (both sides mapping to the same enum member) keep the entry's raw
   // spelling, which is what this function returned before the rule was shared.
   return resolved === mappedEntryStatus ? entryStatus : enrollmentStatus;
-}
-
-/**
- * The vacated source half of a move-up (MYK9-639).
- *
- * `moveUpShowMapEntry` leaves it at `entry_status = 'moved'` and creates a
- * destination carrying the SAME payment status, fee and method — one paid run,
- * recorded in a different class. Every surface that SUMS money over entries has
- * to drop it, or one run is charged twice; `EXCLUDED_CURRENT_STATUSES` above
- * applies the same rule to the printable report.
- *
- * Exported so the Entry Management counters, the enrollment grouping and the
- * secretary financial summary apply this one rule rather than each re-deriving
- * it — which is how the Financial Report and the registry report ended up
- * disagreeing in the first place.
- */
-export function isSupersededMoveUpEntry(entry: { entryStatus?: string | null }): boolean {
-  return normalize(entry.entryStatus) === 'moved';
 }
 
 export function isEntryIncludedInFinancialReport(
@@ -195,20 +190,34 @@ export function computeOutstandingAmount(
   return !options.isWaived && options.isPending ? netFee : 0;
 }
 
-export function buildFinancialReportLine(entry: ReportEntry): FinancialReportLine {
-  const gross = readMoney(entry.entryFee);
-  const discount = Math.min(readMoney(entry.discountAmount), gross);
+/**
+ * Project one line.
+ *
+ * `entry` is the run — its class, its trial, its dog. `moneyRoot` is where that
+ * run's money is recorded, which after MYK9-639 is a DIFFERENT row whenever the
+ * dog was moved up: the destination is created money-neutral and
+ * `moved_from_entry_id` points back at the entry the exhibitor paid for. The
+ * two arguments are the whole fix — one row per run, dollars read once, from
+ * wherever they actually live. Defaults to the entry itself, which is the
+ * answer for every entry that was never moved.
+ */
+export function buildFinancialReportLine(
+  entry: ReportEntry,
+  moneyRoot: ReportEntry = entry
+): FinancialReportLine {
+  const gross = readMoney(moneyRoot.entryFee);
+  const discount = Math.min(readMoney(moneyRoot.discountAmount), gross);
   const netFee = Math.max(0, gross - discount);
-  const explicitRefund = readMoney(entry.refundAmount);
+  const explicitRefund = readMoney(moneyRoot.refundAmount);
   const refunded =
-    explicitRefund > 0 ? Math.min(explicitRefund, netFee) : isFullyRefunded(entry) ? netFee : 0;
-  const entryIsWaived = isWaived(entry);
+    explicitRefund > 0 ? Math.min(explicitRefund, netFee) : isFullyRefunded(moneyRoot) ? netFee : 0;
+  const entryIsWaived = isWaived(moneyRoot);
   const waived = entryIsWaived ? netFee : 0;
   const outstanding = computeOutstandingAmount(netFee, {
     isWaived: entryIsWaived,
-    isPending: isPending(entry),
+    isPending: isPending(moneyRoot),
   });
-  const collected = !waived && isPaid(entry) ? netFee : 0;
+  const collected = !waived && isPaid(moneyRoot) ? netFee : 0;
   const netRetained = collected - refunded;
 
   return {
@@ -221,7 +230,7 @@ export function buildFinancialReportLine(entry: ReportEntry): FinancialReportLin
     outstanding,
     waived,
     netRetained,
-    paymentLabel: getFinancialPaymentLabel(entry),
+    paymentLabel: getFinancialPaymentLabel(moneyRoot),
   };
 }
 
@@ -263,9 +272,13 @@ export function calculateFinancialReportTotals(
   entries: ReportEntry[],
   mode: FinancialReportMode
 ): FinancialReportTotals {
-  const lines = entries
+  // Attribution first, over EVERY entry in scope — including the `moved` rows,
+  // which are not counted but ARE where the money of a moved-up dog is read
+  // from. Filtering before this would throw away the roots.
+  const attribution = buildMoneyAttribution(entries);
+  const lines = attribution.live
     .filter(entry => isEntryIncludedInFinancialReport(entry, mode))
-    .map(buildFinancialReportLine);
+    .map(entry => buildFinancialReportLine(entry, attribution.rootById.get(entry.id) ?? entry));
   const summary = emptyBucket('Total');
   const paymentMap = new Map<string, FinancialReportBucket>();
   const trialMap = new Map<string, FinancialReportBucket>();
@@ -283,10 +296,14 @@ export function calculateFinancialReportTotals(
     trialMap.set(trialLabel, trialBucket);
   }
 
+  const countedIds = new Set(lines.map(line => line.entry.id));
   return {
     lines,
     summary,
     paymentBreakdown: [...paymentMap.values()].sort(sortBuckets),
     trialBreakdown: [...trialMap.values()].sort(sortBuckets),
+    unresolvedMoneyRoots: attribution.unresolved
+      .filter(item => countedIds.has(item.entryId))
+      .map(({ entryId, problem }) => ({ entryId, problem })),
   };
 }

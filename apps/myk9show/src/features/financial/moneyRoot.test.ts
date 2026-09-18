@@ -1,0 +1,139 @@
+import { describe, expect, it } from 'vitest';
+import {
+  buildMoneyAttribution,
+  indexEntriesById,
+  isSupersededMoveUpEntry,
+  MONEY_ROOT_MAX_DEPTH,
+  resolveMoneyActionTarget,
+  resolveMoneyRoot,
+} from './moneyRoot';
+
+interface Row {
+  id: string;
+  entryStatus?: string | null;
+  movedFromEntryId?: string | null;
+  fee: number;
+}
+
+/** The finding's own show: one dog, $35 by check, Novice A → Advanced A. */
+const SOURCE: Row = { id: 'source', entryStatus: 'moved', fee: 35 };
+const DESTINATION: Row = {
+  id: 'dest',
+  entryStatus: 'confirmed',
+  movedFromEntryId: 'source',
+  fee: 0,
+};
+
+describe('resolveMoneyRoot', () => {
+  it('returns an ordinary entry as its own money root', () => {
+    const plain: Row = { id: 'plain', entryStatus: 'confirmed', fee: 35 };
+    expect(resolveMoneyRoot(plain, indexEntriesById([plain]))).toEqual({ root: plain });
+  });
+
+  it('follows one hop to the entry the exhibitor paid for', () => {
+    const byId = indexEntriesById([SOURCE, DESTINATION]);
+    expect(resolveMoneyRoot(DESTINATION, byId)).toEqual({ root: SOURCE });
+  });
+
+  it('follows a DOUBLE move (Novice → Advanced → Excellent) to the original payment', () => {
+    // The second move-up's destination is money-neutral too, and points at the
+    // first one — which is itself money-neutral. Only the original entry ever
+    // held the $35, and a one-hop resolver would have stopped at $0.
+    const first: Row = { id: 'a', entryStatus: 'moved', fee: 35 };
+    const second: Row = { id: 'b', entryStatus: 'moved', movedFromEntryId: 'a', fee: 0 };
+    const third: Row = { id: 'c', entryStatus: 'confirmed', movedFromEntryId: 'b', fee: 0 };
+
+    const resolution = resolveMoneyRoot(third, indexEntriesById([first, second, third]));
+    expect(resolution.root).toBe(first);
+    expect(resolution.root.fee).toBe(35);
+    expect(resolution.problem).toBeUndefined();
+  });
+
+  it('SURFACES a root outside the scope instead of reporting $0', () => {
+    // A trial-scoped report whose move-up source sits in another trial. The
+    // destination records no money, so a silent fallback would drop a real $35
+    // off a reconciliation report without a word.
+    const resolution = resolveMoneyRoot(DESTINATION, indexEntriesById([DESTINATION]));
+    expect(resolution.root).toBe(DESTINATION);
+    expect(resolution.problem).toBe('missing-link');
+    expect(resolution.brokenAt).toBe('source');
+  });
+
+  it('terminates on a cycle rather than hanging a show-day report', () => {
+    const a: Row = { id: 'a', movedFromEntryId: 'b', fee: 10 };
+    const b: Row = { id: 'b', movedFromEntryId: 'a', fee: 20 };
+
+    const resolution = resolveMoneyRoot(a, indexEntriesById([a, b]));
+    expect(resolution.problem).toBe('cycle');
+    expect(resolution.brokenAt).toBe('a');
+  });
+
+  it('stops at the depth cap on a chain longer than any real ladder', () => {
+    const rows: Row[] = Array.from({ length: MONEY_ROOT_MAX_DEPTH + 3 }, (_, index) => ({
+      id: `e${index}`,
+      fee: 0,
+      ...(index > 0 ? { movedFromEntryId: `e${index - 1}` } : {}),
+    }));
+
+    const last = rows[rows.length - 1] as Row;
+    expect(resolveMoneyRoot(last, indexEntriesById(rows)).problem).toBe('too-deep');
+  });
+});
+
+describe('isSupersededMoveUpEntry', () => {
+  it('recognises only the superseded state, whatever its casing', () => {
+    expect(isSupersededMoveUpEntry({ entryStatus: 'moved' })).toBe(true);
+    expect(isSupersededMoveUpEntry({ entryStatus: ' MOVED ' })).toBe(true);
+    expect(isSupersededMoveUpEntry({ entryStatus: 'move-up-requested' })).toBe(false);
+    expect(isSupersededMoveUpEntry({ entryStatus: 'withdrawn' })).toBe(false);
+    expect(isSupersededMoveUpEntry({ entryStatus: null })).toBe(false);
+    expect(isSupersededMoveUpEntry({})).toBe(false);
+  });
+});
+
+describe('buildMoneyAttribution', () => {
+  it('counts the run once and points it at the money', () => {
+    const attribution = buildMoneyAttribution([SOURCE, DESTINATION]);
+
+    expect(attribution.live.map(row => row.id)).toEqual(['dest']);
+    expect(attribution.rootById.get('dest')).toBe(SOURCE);
+    expect(attribution.unresolved).toEqual([]);
+  });
+
+  it('leaves withdrawn and scratched entries counted — their money is real', () => {
+    const withdrawn: Row = { id: 'w', entryStatus: 'withdrawn', fee: 35 };
+    const scratched: Row = { id: 's', entryStatus: 'scratched', fee: 35 };
+
+    expect(buildMoneyAttribution([withdrawn, scratched]).live.map(row => row.id)).toEqual([
+      'w',
+      's',
+    ]);
+  });
+
+  it('reports an unreachable root against the LIVE entry that needs it', () => {
+    const attribution = buildMoneyAttribution([DESTINATION]);
+
+    expect(attribution.live.map(row => row.id)).toEqual(['dest']);
+    expect(attribution.unresolved).toEqual([
+      { entryId: 'dest', problem: 'missing-link', brokenAt: 'source' },
+    ]);
+  });
+});
+
+describe('resolveMoneyActionTarget', () => {
+  it('sends a refund, comp or discount to the row that holds the payment', () => {
+    // `stripe-refund-entry` needs the payment intent, and that stayed on the
+    // source: the destination never had one and the insert trigger makes sure it
+    // never can.
+    expect(resolveMoneyActionTarget('dest', [SOURCE, DESTINATION])).toBe(SOURCE);
+  });
+
+  it('sends an ordinary entry to itself', () => {
+    const plain: Row = { id: 'plain', fee: 35 };
+    expect(resolveMoneyActionTarget('plain', [plain])).toBe(plain);
+  });
+
+  it('returns null for an entry that is not in the loaded list', () => {
+    expect(resolveMoneyActionTarget('nope', [SOURCE])).toBeNull();
+  });
+});

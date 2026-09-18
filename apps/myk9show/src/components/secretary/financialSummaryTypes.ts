@@ -2,10 +2,15 @@ export interface TrialFinancialEntryRow {
   id: string;
   /**
    * MYK9-639: carried so the superseded half of a move-up can be dropped before
-   * anything is summed. The destination entry now holds the money, so counting
-   * the source too would report one paid run as two entries at twice the fee.
+   * anything is summed — the dog runs once, in the destination class.
    */
   entryStatus: string | null;
+  /**
+   * MYK9-639: set on the DESTINATION of a move-up. The destination holds no
+   * money of its own, so `resolveShowFinancialRows` reads this run's fee and
+   * payment back off the entry it points at.
+   */
+  movedFromEntryId?: string | null | undefined;
   handler: string | null;
   dogName: string;
   ownerName: string;

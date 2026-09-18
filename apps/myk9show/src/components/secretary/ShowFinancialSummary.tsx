@@ -27,8 +27,7 @@ import { Download, DollarSign, Users, Tag, Gift, Search, ChevronDown } from 'luc
 import { getEntriesByShowForFinancials } from '@/services/database/entries';
 import { paymentStatusColors } from '@/lib/financial-constants';
 import type { ShowFinancialEntryRow } from './financialSummaryTypes';
-import { computeShowFinancialSummary } from './showFinancialSummaryCalc';
-import { isSupersededMoveUpEntry } from '@/components/reports/financialReportTotals';
+import { computeShowFinancialSummary, resolveShowFinancialRows } from './showFinancialSummaryCalc';
 
 interface ShowFinancialSummaryProps {
   showId: string;
@@ -63,6 +62,7 @@ export const ShowFinancialSummary: React.FC<ShowFinancialSummaryProps> = ({ show
         return {
           id: e.id as string,
           entryStatus: (e.entry_status as string | null) ?? null,
+          movedFromEntryId: (e.moved_from_entry_id as string | null) ?? null,
           trialId: (trial?.id as string) || '',
           trialName: (trial?.name as string) || 'Unknown Trial',
           handler: e.handler as string | null,
@@ -82,13 +82,11 @@ export const ShowFinancialSummary: React.FC<ShowFinancialSummaryProps> = ({ show
     [rawEntries]
   );
 
-  // MYK9-639: the superseded source of a move-up never reaches the card, the
-  // per-trial subtotals, the table or the CSV. It is the same paid run as the
-  // destination row beside it, which now carries the money.
-  const entries = useMemo(
-    () => allEntries.filter(entry => !isSupersededMoveUpEntry(entry)),
-    [allEntries]
-  );
+  // MYK9-639: one row per RUN, each carrying the money from wherever it is
+  // recorded. The superseded half of a move-up never reaches the card, the
+  // subtotals, the table or the CSV; the surviving row shows the fee and
+  // payment the exhibitor actually made.
+  const { rows: entries } = useMemo(() => resolveShowFinancialRows(allEntries), [allEntries]);
 
   const { summary, trialSubtotals, trialOptions } = useMemo(
     () => computeShowFinancialSummary(entries),

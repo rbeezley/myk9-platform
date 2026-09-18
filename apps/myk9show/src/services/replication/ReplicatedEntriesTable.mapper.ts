@@ -81,14 +81,15 @@ export interface ReplicatedEntry {
   withdrawal_reason?: string | null | undefined;
   /**
    * MYK9-639: on the DESTINATION entry of a move-up, the id of the source entry
-   * it supersedes. The pair is ONE paid run, so the Financial Report skips the
-   * source (`entry_status = 'moved'`) and reads the money off this row.
+   * it supersedes — and the ONLY link between them.
    *
-   * Migration 20260918193300 adds the column and projects it through
-   * `view_authenticated_entry_results(_replication)`. Until that lands it is
-   * simply absent from every replicated row, which is why the reverse move
-   * (MYK9-640) also resolves the source from the `special_requests` move-up
-   * note -- see `resolveMoveUpReversal`.
+   * The destination holds no money: `resolveMoneyRoot` follows this column back
+   * to the entry the exhibitor actually paid for, so the pair is counted once,
+   * at the amount actually paid, wherever the dog now runs.
+   *
+   * Migration 20260918193300 adds the column, projects it through
+   * `view_authenticated_entry_results(_replication)`, and creates the two
+   * functions that write it. The client never writes it directly.
    */
   movedFromEntryId?: string | null | undefined;
   moved_from_entry_id?: string | null | undefined;
@@ -237,26 +238,19 @@ export function entryToSupabaseRow(entry: ReplicatedEntry): Record<string, unkno
       : entry.withdrawal_reason_code !== undefined
         ? { withdrawal_reason_code: entry.withdrawal_reason_code }
         : {}),
-    // MYK9-639: the move-up supersession link, and the money/comp fields the
-    // destination copies from the source it supersedes. All conditional for the
-    // same reason `withdrawal_reason_code` above is: a replica row cached before
-    // these were mapped simply lacks them, and `?? null` would serialize that
-    // absence as a real clear on the next whole-row upload.
-    ...(entry.movedFromEntryId !== undefined
+    // MYK9-639: the supersession link, emitted ONLY when this row actually
+    // carries one. A null would be a real clear, and `updateEntry` rebuilds the
+    // whole row for every unrelated edit — a device holding a row cached before
+    // the column existed would otherwise unlink a move-up someone else made.
+    //
+    // `comped`, `comped_reason` and `discount_amount` are deliberately NOT here.
+    // They were added only to carry money onto a move-up destination; money no
+    // longer moves, and emitting them on every whole-row upload made columns
+    // that were previously never written last-write-wins from any replica.
+    ...(entry.movedFromEntryId != null
       ? { moved_from_entry_id: entry.movedFromEntryId }
-      : entry.moved_from_entry_id !== undefined
+      : entry.moved_from_entry_id != null
         ? { moved_from_entry_id: entry.moved_from_entry_id }
-        : {}),
-    ...(entry.comped !== undefined ? { comped: entry.comped } : {}),
-    ...(entry.compedReason !== undefined
-      ? { comped_reason: entry.compedReason }
-      : entry.comped_reason !== undefined
-        ? { comped_reason: entry.comped_reason }
-        : {}),
-    ...(entry.discountAmount !== undefined
-      ? { discount_amount: entry.discountAmount }
-      : entry.discount_amount !== undefined
-        ? { discount_amount: entry.discount_amount }
         : {}),
     submitted_at: entry.submittedAt ?? null,
     registration_id: fk(entry.registrationId),

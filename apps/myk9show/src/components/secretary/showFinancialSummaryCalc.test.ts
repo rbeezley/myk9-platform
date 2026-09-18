@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { computeShowFinancialSummary } from './showFinancialSummaryCalc';
-import { isSupersededMoveUpEntry } from '@/components/reports/financialReportTotals';
+import { computeShowFinancialSummary, resolveShowFinancialRows } from './showFinancialSummaryCalc';
+import { isSupersededMoveUpEntry } from '@/features/financial/moneyRoot';
 import type { ShowFinancialEntryRow } from './financialSummaryTypes';
 
 function row(overrides: Partial<ShowFinancialEntryRow>): ShowFinancialEntryRow {
@@ -25,14 +25,22 @@ function row(overrides: Partial<ShowFinancialEntryRow>): ShowFinancialEntryRow {
 
 describe('computeShowFinancialSummary — move-up supersession (MYK9-639)', () => {
   /**
-   * The finding's own show: one dog, entered once, $35 paid by check, then moved
-   * up. Both rows now carry `payment_status = 'paid'` and `entry_fee = 35`,
-   * because the destination supersedes the source rather than being a fresh
-   * waived entry — so the source has to be dropped before anything is summed.
+   * The finding's own show: one dog, entered once, $35 paid by check, then
+   * moved up. The money stayed on the source; the destination is money-neutral.
+   * Counting both reports $70, counting only the destination reports $0 — the
+   * card must show the one $35 that was actually paid.
    */
   const MOVED_UP_PAIR = [
     row({ id: 'source-moved', entryStatus: 'moved', className: 'Interior Novice A' }),
-    row({ id: 'destination', entryStatus: 'confirmed', className: 'Interior Advanced A' }),
+    row({
+      id: 'destination',
+      entryStatus: 'confirmed',
+      className: 'Interior Advanced A',
+      // Money-neutral, exactly as `move_up_entry` creates it.
+      entryFee: 0,
+      paymentStatus: 'pending',
+      movedFromEntryId: 'source-moved',
+    }),
   ];
 
   it('counts the pair as ONE entry at the amount actually paid', () => {
@@ -42,7 +50,23 @@ describe('computeShowFinancialSummary — move-up supersession (MYK9-639)', () =
     expect(summary.totalFees).toBe(35);
     expect(summary.paidCount).toBe(1);
     expect(summary.paidAmount).toBe(35);
+    expect(summary.pendingCount).toBe(0);
     expect(summary.netAmount).toBe(35);
+  });
+
+  it('gives the surviving row the ROOT money, for the table and the CSV too', () => {
+    // `resolveShowFinancialRows` is shared by the card, the subtotals, the table
+    // and the export, so a secretary cannot read $35 in one place and $0 in
+    // another.
+    const { rows } = resolveShowFinancialRows(MOVED_UP_PAIR);
+
+    expect(rows).toHaveLength(1);
+    expect(rows[0]).toMatchObject({
+      id: 'destination',
+      className: 'Interior Advanced A',
+      entryFee: 35,
+      paymentStatus: 'paid',
+    });
   });
 
   it('keeps the per-trial subtotal to the one run as well', () => {

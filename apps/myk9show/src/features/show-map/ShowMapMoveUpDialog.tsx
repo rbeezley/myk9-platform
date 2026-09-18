@@ -19,7 +19,7 @@ import {
 } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import type { ShowMapNode } from './showMapTypes';
-import type { MoveUpReversalState } from './moveUpSupersession';
+import { MOVE_UP_REVERSAL_REFUSALS, type MoveUpReversalState } from './moveUpSupersession';
 
 export interface ShowMapMoveUpTarget {
   id: string;
@@ -123,9 +123,7 @@ export function ShowMapMoveUpDialog({
 
           {reversal?.kind === 'blocked' && reversal.reason !== 'not-a-move-up' && (
             <p className="rounded-md border border-dashed p-4 text-sm text-muted-foreground">
-              {reversal.reason === 'destination-scored'
-                ? 'This entry already has a result recorded, so the move-up can no longer be reversed.'
-                : 'The class this entry was moved out of no longer has the original entry, so it cannot be moved back.'}
+              {MOVE_UP_REVERSAL_REFUSALS[reversal.reason]}
             </p>
           )}
 

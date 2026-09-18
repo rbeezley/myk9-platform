@@ -23,36 +23,41 @@ const base: EntryManagementEntry = {
 };
 
 describe('groupEntriesByEnrollment', () => {
-  it('adds a move-up pair to the group once, not twice (MYK9-639)', () => {
-    // Dollar-unit group (no enrollment total), so both figures come from the
-    // entries themselves. The destination of a move-up now carries the source's
-    // $35 -- one paid run -- so the card must still read $35, and both rows must
-    // still appear on it.
+  it('bills a move-up once, from the row that holds the money (MYK9-639)', () => {
+    // Two rows can never share a payment intent in reality: the destination of a
+    // move-up is created money-neutral and `trg_entries_protect_payment_fields_insert`
+    // makes a copied `stripe_payment_intent_id` impossible. So the pair is
+    // grouped by the ENROLLMENT they share, the superseded row is dropped, and
+    // the surviving run takes its $35 from the source it points at.
     const groups = groupEntriesByEnrollment([
       {
         ...base,
         id: 'source-moved',
         registrationId: '',
+        stripePaymentIntentId: 'pi_1',
         totalFee: 35,
         paidAmount: 35,
         entryStatus: EntryStatus.MOVED,
-        stripePaymentIntentId: 'pi_1',
       },
       {
         ...base,
         id: 'destination',
         registrationId: '',
-        totalFee: 35,
-        paidAmount: 35,
-        entryStatus: EntryStatus.ACCEPTED,
         stripePaymentIntentId: 'pi_1',
+        totalFee: 0,
+        paidAmount: 0,
+        entryStatus: EntryStatus.ACCEPTED,
+        movedFromEntryId: 'source-moved',
       },
     ]);
 
     expect(groups).toHaveLength(1);
+    // Not $70 (both halves) and not $0 (the money-neutral destination's own
+    // figures) — the one fee the exhibitor actually paid.
     expect(groups[0]?.totalAmount).toBe(35);
     expect(groups[0]?.paidAmount).toBe(35);
-    expect(groups[0]?.entries.map(entry => entry.id)).toEqual(['source-moved', 'destination']);
+    // One line on the card: the dog runs once.
+    expect(groups[0]?.entries.map(entry => entry.id)).toEqual(['destination']);
   });
 
   it('groups entries sharing a registrationId into one group', () => {

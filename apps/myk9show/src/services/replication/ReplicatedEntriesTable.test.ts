@@ -210,28 +210,38 @@ describe('moved_from_entry_id through the replica (MYK9-639)', () => {
     const row = table.publicToSupabaseRow({ id: 'dest-1', armband: '100' } as ReplicatedEntry);
 
     expect(row).not.toHaveProperty('moved_from_entry_id');
-    // Same rule for the comp and discount columns the move-up carry writes: a
-    // row cached before they were mapped must not null them out on its next
-    // unrelated upload.
-    expect(row).not.toHaveProperty('comped');
-    expect(row).not.toHaveProperty('comped_reason');
-    expect(row).not.toHaveProperty('discount_amount');
   });
 
-  it('INCLUDES the link, comp decision and discount the row actually carries', () => {
+  it('INCLUDES the link when the row carries one', () => {
     const row = table.publicToSupabaseRow({
       id: 'dest-1',
       movedFromEntryId: 'source-1',
+    } as ReplicatedEntry);
+
+    expect(row).toMatchObject({ moved_from_entry_id: 'source-1' });
+  });
+
+  it('never emits comp or discount on a whole-row upload, even when the row has them', () => {
+    // They were only ever added to carry money onto a move-up destination. Money
+    // no longer moves, and emitting them here made columns that were previously
+    // never written last-write-wins from any replica: a device holding a
+    // pre-comp row could silently revert a comp set elsewhere on its next
+    // unrelated check-in.
+    const row = table.publicToSupabaseRow({
+      id: 'dest-1',
       comped: true,
       compedReason: 'Club volunteer',
       discountAmount: 5,
     } as ReplicatedEntry);
 
-    expect(row).toMatchObject({
-      moved_from_entry_id: 'source-1',
-      comped: true,
-      comped_reason: 'Club volunteer',
-      discount_amount: 5,
-    });
+    expect(row).not.toHaveProperty('comped');
+    expect(row).not.toHaveProperty('comped_reason');
+    expect(row).not.toHaveProperty('discount_amount');
+  });
+
+  it('omits an explicitly NULL link rather than unlinking a move-up someone else made', () => {
+    expect(
+      table.publicToSupabaseRow({ id: 'dest-1', movedFromEntryId: null } as ReplicatedEntry)
+    ).not.toHaveProperty('moved_from_entry_id');
   });
 });

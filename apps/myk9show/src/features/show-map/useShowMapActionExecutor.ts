@@ -333,9 +333,6 @@ export function useShowMapActionExecutor({ showId }: UseShowMapActionExecutorInp
       const nextLastMoveUp = {
         originalEntryId: result.originalEntryId,
         newEntryId: result.newEntryId,
-        previousEntryStatus: result.previousEntryStatus,
-        previousCheckInStatus: result.previousCheckInStatus,
-        previousSpecialRequests: result.previousSpecialRequests,
         entryLabel: action.label,
         targetClassName: result.targetClassName,
         targetClassId,

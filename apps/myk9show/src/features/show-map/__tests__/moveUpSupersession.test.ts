@@ -1,17 +1,13 @@
 import { createDatabaseError } from '@/services/database/databaseError';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-import {
-  movedUpPaymentCarry,
-  resolveMoveUpReversal,
-  reverseShowMapMoveUp,
-} from '../moveUpSupersession';
+import { hasRunStarted, resolveMoveUpReversal, reverseShowMapMoveUp } from '../moveUpSupersession';
+import type { ReplicatedEntry } from '@/services/replication/ReplicatedEntriesTable.mapper';
 
 const mockGetEntryById = vi.fn();
-const mockGetEntriesByClass = vi.fn();
-const mockUpdateEntry = vi.fn();
 const mockGetClassById = vi.fn();
-const mockAuditLog = vi.fn((..._args: unknown[]) => Promise.resolve());
+const mockReverseMoveUpEntryViaRpc = vi.fn();
+const mockUpdateEntry = vi.fn();
 
 vi.mock('@/services/database/supabaseClient', () => ({
   supabase: { from: vi.fn() },
@@ -22,33 +18,29 @@ vi.mock('@/services/database/supabaseClient', () => ({
 vi.mock('@/services/replication', () => ({
   replicatedEntriesTable: {
     getEntryById: (...args: unknown[]) => mockGetEntryById(...args),
-    getEntriesByClass: (...args: unknown[]) => mockGetEntriesByClass(...args),
     updateEntry: (...args: unknown[]) => mockUpdateEntry(...args),
+    reverseMoveUpEntryViaRpc: (...args: unknown[]) => mockReverseMoveUpEntryViaRpc(...args),
   },
   replicatedClassesTable: {
     getClassById: (...args: unknown[]) => mockGetClassById(...args),
   },
 }));
 
-vi.mock('@/services/AuditService', () => ({
-  auditService: { log: (...args: unknown[]) => mockAuditLog(...args) },
-}));
-
-vi.mock('@/types/audit-types', () => ({ AuditAction: { UPDATE: 'update' } }));
-
-/** The superseded source left behind in Interior Novice A. */
-const SOURCE = {
+/** The superseded source left behind in Interior Novice A — and the money row. */
+const SOURCE: Partial<ReplicatedEntry> & { id: string } = {
   id: 'source-1',
   dogId: 'dog-1',
   classId: 'class-novice',
   class_id: 'class-novice',
   entryStatus: 'moved',
   checkInStatus: 'no-status',
-  specialRequests: 'Moved up to Interior Advanced A: Qualified today',
+  specialRequests: 'Reactive dog, needs the ramp',
+  paymentStatus: 'paid',
+  entryFee: 35,
 };
 
-/** The live destination in Interior Advanced A. */
-const DESTINATION = {
+/** The live destination in Interior Advanced A — money-neutral by construction. */
+const DESTINATION: Partial<ReplicatedEntry> & { id: string } = {
   id: 'dest-1',
   dogId: 'dog-1',
   classId: 'class-advanced',
@@ -60,9 +52,11 @@ const DESTINATION = {
   movedFromEntryId: 'source-1',
   moved_from_entry_id: 'source-1',
   specialRequests: 'Moved up from class class-novice: Qualified today',
+  paymentStatus: 'pending',
+  entryFee: 0,
 };
 
-function entriesById(rows: Record<string, unknown>[]) {
+function entriesById(rows: Array<Partial<ReplicatedEntry> & { id: string }>) {
   return (id: string) => Promise.resolve(rows.find(row => row.id === id) ?? null);
 }
 
@@ -70,46 +64,33 @@ describe('moveUpSupersession', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockGetEntryById.mockImplementation(entriesById([SOURCE, DESTINATION]));
-    mockGetEntriesByClass.mockResolvedValue([SOURCE]);
-    mockUpdateEntry.mockResolvedValue('mutation-1');
     mockGetClassById.mockResolvedValue({ id: 'class-novice', name: 'Interior Novice A' });
-    mockAuditLog.mockResolvedValue(undefined);
+    mockReverseMoveUpEntryViaRpc.mockResolvedValue('source-1');
+    mockUpdateEntry.mockResolvedValue('mutation-1');
   });
 
-  describe('movedUpPaymentCarry', () => {
-    it('carries the source settlement, including an explicit null comp reason', () => {
-      expect(
-        movedUpPaymentCarry({
-          id: 'source-1',
-          paymentStatus: 'paid',
-          paymentMethod: 'check',
-          entryFee: 35,
-          paymentReference: 'ck 1042',
-          comped: false,
-          comped_reason: null,
-          discountAmount: 0,
-          isDayOfShow: false,
-          registrationId: 'enrollment-1',
-        })
-      ).toEqual({
-        paymentStatus: 'paid',
-        paymentMethod: 'check',
-        entryFee: 35,
-        paymentReference: 'ck 1042',
-        comped: false,
-        compedReason: null,
-        comped_reason: null,
-        discountAmount: 0,
-        discount_amount: 0,
-        isDayOfShow: false,
-        registrationId: 'enrollment-1',
-      });
+  describe('hasRunStarted', () => {
+    it('is false for an untouched destination', () => {
+      expect(hasRunStarted(DESTINATION)).toBe(false);
     });
 
-    it('omits what the replica row does not carry rather than writing null over it', () => {
-      expect(movedUpPaymentCarry({ id: 'source-1', paymentStatus: 'paid' })).toEqual({
-        paymentStatus: 'paid',
-      });
+    it.each([
+      ['a recorded score', { isScored: true }],
+      ['a non-pending result', { resultStatus: 'absent' }],
+      ['a placement', { finalPlacement: '1' }],
+      ['the dog in the ring', { isInRing: true }],
+      ['a ring entry time', { ring_entry_time: '2026-09-18T12:00:00Z' }],
+      ['scoring already open', { scoringCompletedAt: '2026-09-18T12:05:00Z' }],
+      ['points recorded', { points_earned: 3 }],
+      ['a search time', { searchTimeSeconds: 41.2 }],
+      ['an area-1 time', { area1_time_seconds: 12.5 }],
+      ['an area-3 time', { area3_time_seconds: 8 }],
+      ['check-in showing in-ring', { checkInStatus: 'in-ring' as const }],
+    ])('is true for %s', (_label, patch: Partial<ReplicatedEntry>) => {
+      // The point of the broadened guard: a dog mid-run has is_scored === false
+      // and result_status === 'pending', so a result-only test would offer Move
+      // back and soft-delete the row the judge is scoring into.
+      expect(hasRunStarted({ ...DESTINATION, ...patch })).toBe(true);
     });
   });
 
@@ -124,21 +105,6 @@ describe('moveUpSupersession', () => {
       });
     });
 
-    it('falls back to the move-up note when the FK column is not there yet', async () => {
-      const preMigrationDestination = {
-        ...DESTINATION,
-        movedFromEntryId: undefined,
-        moved_from_entry_id: undefined,
-      };
-      mockGetEntryById.mockImplementation(entriesById([SOURCE, preMigrationDestination]));
-
-      await expect(resolveMoveUpReversal('dest-1')).resolves.toMatchObject({
-        kind: 'available',
-        sourceEntryId: 'source-1',
-      });
-      expect(mockGetEntriesByClass).toHaveBeenCalledWith('class-novice');
-    });
-
     it('reports an ordinary entry as not a move-up', async () => {
       mockGetEntryById.mockImplementation(
         entriesById([{ id: 'plain-1', dogId: 'dog-1', entryStatus: 'confirmed' }])
@@ -150,25 +116,32 @@ describe('moveUpSupersession', () => {
       });
     });
 
-    it('refuses once the destination has a result', async () => {
+    it('refuses a legacy pair that has only the note and no FK', async () => {
+      // Recognised (so the dialog can explain), never offered: the server
+      // reverse follows the FK, so it would refuse this pair anyway. There are
+      // zero `entry_status = 'moved'` rows on the live database, so this is
+      // demo/staging data only.
       mockGetEntryById.mockImplementation(
-        entriesById([SOURCE, { ...DESTINATION, isScored: true }])
+        entriesById([
+          SOURCE,
+          { ...DESTINATION, movedFromEntryId: undefined, moved_from_entry_id: undefined },
+        ])
       );
 
       await expect(resolveMoveUpReversal('dest-1')).resolves.toEqual({
         kind: 'blocked',
-        reason: 'destination-scored',
+        reason: 'source-missing',
       });
     });
 
-    it('refuses on a non-pending result status even when is_scored is false', async () => {
+    it('refuses once the run has started, before asking anything else', async () => {
       mockGetEntryById.mockImplementation(
-        entriesById([SOURCE, { ...DESTINATION, resultStatus: 'absent' }])
+        entriesById([SOURCE, { ...DESTINATION, area1_time_seconds: 12.5 }])
       );
 
       await expect(resolveMoveUpReversal('dest-1')).resolves.toEqual({
         kind: 'blocked',
-        reason: 'destination-scored',
+        reason: 'run-started',
       });
     });
 
@@ -196,7 +169,7 @@ describe('moveUpSupersession', () => {
   });
 
   describe('reverseShowMapMoveUp', () => {
-    it('soft-deletes the destination, then restores the source with the LIVE check-in', async () => {
+    it('is ONE server call and writes no entry rows directly', async () => {
       const result = await reverseShowMapMoveUp('dest-1');
 
       expect(result).toEqual({
@@ -206,61 +179,49 @@ describe('moveUpSupersession', () => {
         sourceClassName: 'Interior Novice A',
       });
 
-      expect(mockUpdateEntry).toHaveBeenNthCalledWith(
-        1,
-        'dest-1',
-        expect.objectContaining({ deletedAt: expect.any(String), deleted_at: expect.any(String) })
-      );
-      // The check-in is read off the DESTINATION, which is the row that was live
-      // while the dog was at the gate -- not off a status captured at move time.
-      expect(mockUpdateEntry).toHaveBeenNthCalledWith(2, 'source-1', {
-        entryStatus: 'confirmed',
-        entry_status: 'confirmed',
-        checkInStatus: 'checked-in',
-        check_in_status: 'checked-in',
-        specialRequests: null,
-        special_requests: null,
-      });
+      expect(mockReverseMoveUpEntryViaRpc).toHaveBeenCalledTimes(1);
+      expect(mockReverseMoveUpEntryViaRpc).toHaveBeenCalledWith('dest-1');
+      // The restore and the soft-delete are one transaction inside the function,
+      // so the two-write sequence that could strand the dog with no live entry
+      // is gone.
+      expect(mockUpdateEntry).not.toHaveBeenCalled();
     });
 
-    it('keeps a note a human typed on the source and clears only the generated one', async () => {
-      mockGetEntryById.mockImplementation(
-        entriesById([{ ...SOURCE, specialRequests: 'Needs the ramp' }, DESTINATION])
-      );
-
+    it('touches no money, because the destination never held any (MYK9-639)', async () => {
+      // The money stayed on the source throughout, so restoring it needs no
+      // payment write at all — and cannot lose a refund or comp recorded since
+      // the move, which is what the copy-forward shape would have dropped.
       await reverseShowMapMoveUp('dest-1');
 
-      expect(mockUpdateEntry).toHaveBeenNthCalledWith(
-        2,
-        'source-1',
-        expect.objectContaining({ specialRequests: 'Needs the ramp' })
-      );
+      const [rpcArg] = mockReverseMoveUpEntryViaRpc.mock.calls[0] as [unknown];
+      expect(rpcArg).toBe('dest-1');
+      expect(mockUpdateEntry).not.toHaveBeenCalled();
     });
 
-    it('audit-logs the restore against the source entry', async () => {
-      await reverseShowMapMoveUp('dest-1');
-
-      expect(mockAuditLog).toHaveBeenCalledWith(
-        expect.objectContaining({
-          entityType: 'entry',
-          entityId: 'source-1',
-          changes: { entryStatus: { from: 'moved', to: 'confirmed' } },
-          metadata: expect.objectContaining({
-            action: 'restore_entry_status',
-            checkInStatus: 'checked-in',
-            reversedMoveUpFromEntryId: 'dest-1',
-          }),
-        })
-      );
-    });
-
-    it('writes NOTHING when the destination already has a result', async () => {
+    it('refuses without calling the server when the run has started', async () => {
       mockGetEntryById.mockImplementation(
         entriesById([SOURCE, { ...DESTINATION, isScored: true }])
       );
 
-      await expect(reverseShowMapMoveUp('dest-1')).rejects.toThrow(/result recorded/);
-      expect(mockUpdateEntry).not.toHaveBeenCalled();
+      await expect(reverseShowMapMoveUp('dest-1')).rejects.toThrow(/already started/);
+      expect(mockReverseMoveUpEntryViaRpc).not.toHaveBeenCalled();
+    });
+
+    it('refuses without calling the server when the source is gone', async () => {
+      mockGetEntryById.mockImplementation(
+        entriesById([{ ...SOURCE, entryStatus: 'confirmed' }, DESTINATION])
+      );
+
+      await expect(reverseShowMapMoveUp('dest-1')).rejects.toThrow(/no longer has the original/);
+      expect(mockReverseMoveUpEntryViaRpc).not.toHaveBeenCalled();
+    });
+
+    it('surfaces a server refusal rather than reporting success', async () => {
+      mockReverseMoveUpEntryViaRpc.mockRejectedValue(
+        new Error('This run has already started, so the move-up can no longer be reversed.')
+      );
+
+      await expect(reverseShowMapMoveUp('dest-1')).rejects.toThrow(/already started/);
     });
   });
 });

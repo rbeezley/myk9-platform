@@ -12466,11 +12466,13 @@ export type Database = {
           city: string | null
           country: string | null
           created_at: string | null
+          date_of_birth: string | null
           deleted_at: string | null
           deleted_by: string | null
           email: string | null
           first_name: string
           id: string
+          junior_handler_numbers: Json
           last_name: string
           license_key: string | null
           phone: string | null
@@ -13202,11 +13204,13 @@ export type Database = {
           city: string | null
           country: string | null
           created_at: string | null
+          date_of_birth: string | null
           deleted_at: string | null
           deleted_by: string | null
           email: string | null
           first_name: string
           id: string
+          junior_handler_numbers: Json
           last_name: string
           license_key: string | null
           phone: string | null
@@ -13378,11 +13382,13 @@ export type Database = {
           city: string | null
           country: string | null
           created_at: string | null
+          date_of_birth: string | null
           deleted_at: string | null
           deleted_by: string | null
           email: string | null
           first_name: string
           id: string
+          junior_handler_numbers: Json
           last_name: string
           license_key: string | null
           phone: string | null

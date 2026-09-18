@@ -8,8 +8,12 @@ import { supabase, logQuery, createDatabaseError } from '../supabaseClient';
 import { logger } from '@/services/LoggingService';
 import type { DbEntryInsert, DbEntryUpdate } from '../../../types/database-mappings';
 import type { EntryStatus } from '@/types/entry-lifecycle';
-import { rejectEntry, setEntryLifecycleStatus } from './lifecycle';
+import { removeEntryAsManager, setEntryLifecycleStatus } from './lifecycle';
 import { withdrawOwnEntry } from './withdrawOwnEntry';
+import type {
+  RemoveFromClassKind,
+  WithdrawalReasonCode,
+} from '@/features/registries/withdrawalPolicy';
 import { updateOwnEntryJumpHeight } from './updateOwnEntryJumpHeight';
 import {
   AUTHENTICATED_ENTRY_READ_COLUMNS,
@@ -236,15 +240,31 @@ export const updateEntryHandler = async (params: {
 // Withdraw an entry.
 //
 // MYK9-535: the two tiers take different paths on purpose. A SHOW MANAGER is
-// admitted by the `entries_update` RLS policy, so they keep the existing
-// `rejectEntry` lifecycle transition — same `reject_entry` audit action, same
-// secretary seed, same replication payload as before this issue. An EXHIBITOR
-// is NOT admitted by that policy (its USING and WITH CHECK are both
-// `can_manage_show(show_id)`), so their direct UPDATE matched zero rows and
-// failed with failureKind "authorization"; the owner tier therefore goes
-// through the `withdraw_own_entry` SECURITY DEFINER RPC, pre-checked locally.
-export const withdrawEntry = async (entryId: string, options: { asShowManager?: boolean } = {}) => {
-  return options.asShowManager ? rejectEntry(entryId) : withdrawOwnEntry(entryId);
+// admitted by the `entries_update` RLS policy, so they keep the lifecycle /
+// mutation-manager transition. An EXHIBITOR is NOT admitted by that policy (its
+// USING and WITH CHECK are both `can_manage_show(show_id)`), so their direct
+// UPDATE matched zero rows and failed with failureKind "authorization"; the
+// owner tier therefore goes through the `withdraw_own_entry` SECURITY DEFINER
+// RPC, pre-checked locally.
+// MYK9-632: `kind` and `reason` describe WHICH act was chosen, and BOTH tiers
+// honour them. The tiers still differ in HOW they write — a manager is admitted
+// by `entries_update` and keeps the lifecycle / mutation-manager path, an
+// exhibitor is not and goes through the definer RPC — but they no longer differ
+// in WHAT they write. Routing a manager's Pull to `rejectEntry` stored it as
+// 'withdrawn', badged the row "Pulled", and kept it out of the Pull tab, so the
+// refund decision for that pull could not be reached from anywhere.
+export const withdrawEntry = async (
+  entryId: string,
+  options: {
+    asShowManager?: boolean;
+    kind?: RemoveFromClassKind;
+    reason?: WithdrawalReasonCode | null;
+  } = {}
+) => {
+  const kind: RemoveFromClassKind = options.kind ?? 'withdraw';
+  const reason = kind === 'withdraw' ? (options.reason ?? null) : null;
+  if (options.asShowManager) return removeEntryAsManager(entryId, kind, reason);
+  return withdrawOwnEntry(entryId, { kind, reason });
 };
 
 // Comp an entry (mark as comped with reason, set payment_status to waived)

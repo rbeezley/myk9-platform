@@ -310,7 +310,11 @@ BEGIN
       ('classes','anon',51),
       ('classes','authenticated',53),
       ('entries','anon',0),
-      ('entries','authenticated',54),
+      -- 54 became 55 when entries.withdrawal_reason_code was added and granted
+      -- to authenticated (20260917214300, MYK9-632). anon stays 0: the same
+      -- migration REVOKEs the column from anon, because why an exhibitor
+      -- withdrew is none of a ringside passcode session's business.
+      ('entries','authenticated',55),
       ('judge_assignments','anon',10),
       ('judge_assignments','authenticated',12),
       ('dogs','anon',5),

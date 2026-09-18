@@ -41,16 +41,16 @@ const STATE_WORDS: Partial<Record<ClassRowKind, { text: string; status: string }
   'at-gate': { text: 'at gate', status: 'at-gate' },
   'come-to-gate': { text: 'come to gate', status: 'come-to-gate' },
   conflict: { text: 'conflict', status: 'conflict' },
-  pulled: { text: 'pulled', status: 'pulled' },
-  // MYK9-582 asked for the Edit Entry dialog's word, `Pulled`. This column
-  // cannot have it: the day-of `pulled` above is a DIFFERENT state on the same
-  // card, and the two descriptors are byte-identical (`complete` /
-  // `text-muted-foreground`), so the rows would have differed by a capital
-  // letter and nothing a screen reader announces. Each settled state takes the
-  // chip's own word instead, lowercased to match this column. Deviation
-  // recorded on MYK9-582; the dialog's wording is filed separately.
+  // MYK9-632 resolves the MYK9-582 deviation recorded here. The owner's ruling
+  // is that scratch and pull are the SAME act, so both rows say "pulled" — but
+  // they are that act at different MOMENTS (day-of at the gate vs. before the
+  // show), and the two descriptors are byte-identical (`complete` /
+  // `text-muted-foreground`), so a bare capitalisation difference would leave
+  // nothing for a screen reader to announce. The day-of row therefore says WHEN
+  // rather than taking a second word for the same act.
+  pulled: { text: 'pulled at the show', status: 'pulled' },
   withdrawn: { text: 'withdrawn', status: 'withdrawn' },
-  scratched: { text: 'scratched', status: 'scratched' },
+  scratched: { text: 'pulled', status: 'scratched' },
   // A move-up's source row went somewhere; it was not pulled.
   moved: { text: 'moved', status: 'moved' },
   'not-accepted': { text: 'not accepted', status: 'not_accepted' },

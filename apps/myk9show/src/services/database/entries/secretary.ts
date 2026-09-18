@@ -149,7 +149,8 @@ export const getEntryCountsByStatus = async (showId: string) => {
  */
 function buildReplicatedEntryStatusUpdate(
   status: EntryStatus,
-  withdrawalReason?: string
+  withdrawalReason?: string,
+  withdrawalReasonCode?: string | null
 ): Partial<ReplicatedEntry> {
   const updateData: Partial<ReplicatedEntry> = {
     entryStatus: status,
@@ -165,6 +166,14 @@ function buildReplicatedEntryStatusUpdate(
   if (withdrawalReason !== undefined) {
     updateData.withdrawalReason = withdrawalReason;
     updateData.withdrawal_reason = withdrawalReason;
+  }
+
+  // MYK9-632: an explicit `null` is meaningful — a Pull clears the reason code a
+  // previous Withdraw left on the row, so the stored reason can never disagree
+  // with the stored act. Only `undefined` means "do not touch".
+  if (withdrawalReasonCode !== undefined) {
+    updateData.withdrawalReasonCode = withdrawalReasonCode;
+    updateData.withdrawal_reason_code = withdrawalReasonCode;
   }
 
   return updateData;
@@ -187,14 +196,16 @@ export const updateEntryStatus = async (
   entryId: string,
   status: EntryStatus,
   withdrawalReason?: string,
-  sourceEntry?: SecretaryStatusEntrySeed
+  sourceEntry?: SecretaryStatusEntrySeed,
+  /** MYK9-632: 'in_season' | 'judge_change' on a Withdraw, explicit null on a Pull. */
+  withdrawalReasonCode?: string | null
 ) => {
   const startTime = Date.now();
 
   try {
     const mutationId = await replicatedEntriesTable.updateSecretaryLifecycleStatus(
       entryId,
-      buildReplicatedEntryStatusUpdate(status, withdrawalReason),
+      buildReplicatedEntryStatusUpdate(status, withdrawalReason, withdrawalReasonCode),
       sourceEntry
     );
     const entry = await replicatedEntriesTable.getEntryById(entryId);

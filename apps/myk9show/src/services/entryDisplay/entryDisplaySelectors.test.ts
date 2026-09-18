@@ -94,9 +94,10 @@ describe('isRemovedStatus — terminal classification (the divergence fix)', () 
     expect(isRemovedStatus(getEntryStatusKind('withdrawn'))).toBe(true);
   });
 
-  it('getRemovedStatusLabel matches the prior allowlist text and is null for live', () => {
+  it('getRemovedStatusLabel covers every removed kind and is null for live', () => {
     expect(getRemovedStatusLabel('withdrawn')).toBe('Withdrawn');
-    expect(getRemovedStatusLabel('scratched')).toBe('Scratched');
+    // MYK9-632: the stored value is still 'scratched'; the rendered word is Pull.
+    expect(getRemovedStatusLabel('scratched')).toBe('Pulled');
     expect(getRemovedStatusLabel('not_accepted')).toBe('Not accepted');
     expect(getRemovedStatusLabel('pending')).toBeNull();
     expect(getRemovedStatusLabel('moved')).toBeNull();

@@ -29,7 +29,14 @@ export function PullReconciliationActions({
     return <span className="text-sm text-muted-foreground">No online payment</span>;
   }
 
-  const selected = entry.refundDecision ?? getSuggestedPullRefundDecision(entry.pullTiming ?? null);
+  // MYK9-632: the before/after-close default is a PULL heuristic. A withdrawal's
+  // refund is the premium's rule, which this app does not hold, so it gets no
+  // pre-selected answer — the secretary picks.
+  const selected =
+    entry.refundDecision ??
+    (entry.rawEntryStatus === 'withdrawn'
+      ? null
+      : getSuggestedPullRefundDecision(entry.pullTiming ?? null));
 
   const denyRefund = async () => {
     setIsDenying(true);

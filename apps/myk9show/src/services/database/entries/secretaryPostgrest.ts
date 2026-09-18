@@ -2,6 +2,7 @@ import { createDatabaseError, logQuery, supabase } from '../supabaseClient';
 import {
   isPullRefundSchemaUnavailable,
   isSecretaryPaymentSchemaUnavailable,
+  isWithdrawalReasonCodeSchemaUnavailable,
 } from '@/features/payments/pullRefundSchemaCompatibility';
 import type { SecretaryEntry } from './secretaryTypes';
 
@@ -10,6 +11,13 @@ export interface SecretaryPullMetadata {
   withdrawn_at: string | null;
   refund_decision: string | null;
   refund_decided_at: string | null;
+  /**
+   * MYK9-632: the recognised WITHDRAWAL reason code, null on a pull. It lives on
+   * `entries` (column-allowlisted for `authenticated`) and NOT on
+   * `view_authenticated_entry_results`, so it rides this side-read exactly like
+   * `withdrawn_at` and the refund decision do.
+   */
+  withdrawal_reason_code: string | null;
 }
 
 const SECRETARY_ENTRIES_BASE_SELECT = `
@@ -161,24 +169,44 @@ export async function postgrestGetSecretaryEntriesForShow(
   return { data: entries, error: null };
 }
 
-/** Online-only reconciliation metadata layered over the offline entry replica. */
+/**
+ * Online-only reconciliation metadata layered over the offline entry replica.
+ *
+ * MYK9-632 widened the row scope from `scratched` alone to BOTH terminal exhibitor
+ * states. 'scratched' is a pull and 'withdrawn' is a withdrawal, and the secretary
+ * now has to tell them apart — a withdrawal's reason code arrives here for exactly
+ * the reason `withdrawn_at` always has: it is on `entries`, not on the view.
+ */
 export async function postgrestGetSecretaryPullMetadataMap(
   showId: string
 ): Promise<Map<string, SecretaryPullMetadata>> {
-  const runSelect = (includeRefundDecision: boolean) =>
+  const runSelect = (includeRefundDecision: boolean, includeReasonCode: boolean) =>
     supabase
       .from('entries')
       .select(
-        includeRefundDecision
-          ? 'id, withdrawn_at, refund_decision, refund_decided_at'
-          : 'id, withdrawn_at'
+        [
+          'id, withdrawn_at',
+          includeRefundDecision ? 'refund_decision, refund_decided_at' : null,
+          includeReasonCode ? 'withdrawal_reason_code' : null,
+        ]
+          .filter(Boolean)
+          .join(', ')
       )
       .eq('show_id', showId)
-      .eq('entry_status', 'scratched');
+      .in('entry_status', ['scratched', 'withdrawn']);
 
-  let response = await runSelect(true);
+  // Two INDEPENDENT migration-backed column groups, so each is dropped on its
+  // own rather than taking the other down with it.
+  let includeRefundDecision = true;
+  let includeReasonCode = true;
+  let response = await runSelect(includeRefundDecision, includeReasonCode);
+  if (isWithdrawalReasonCodeSchemaUnavailable(response.error)) {
+    includeReasonCode = false;
+    response = await runSelect(includeRefundDecision, includeReasonCode);
+  }
   if (isPullRefundSchemaUnavailable(response.error)) {
-    response = await runSelect(false);
+    includeRefundDecision = false;
+    response = await runSelect(includeRefundDecision, includeReasonCode);
   }
   const { data, error } = response;
 
@@ -188,7 +216,12 @@ export async function postgrestGetSecretaryPullMetadataMap(
 
   const rows = (data ?? []) as unknown as Array<
     Pick<SecretaryPullMetadata, 'id' | 'withdrawn_at'> &
-      Partial<Pick<SecretaryPullMetadata, 'refund_decision' | 'refund_decided_at'>>
+      Partial<
+        Pick<
+          SecretaryPullMetadata,
+          'refund_decision' | 'refund_decided_at' | 'withdrawal_reason_code'
+        >
+      >
   >;
   return new Map(
     rows.map(metadata => [
@@ -198,6 +231,7 @@ export async function postgrestGetSecretaryPullMetadataMap(
         withdrawn_at: metadata.withdrawn_at,
         refund_decision: metadata.refund_decision ?? null,
         refund_decided_at: metadata.refund_decided_at ?? null,
+        withdrawal_reason_code: metadata.withdrawal_reason_code ?? null,
       },
     ])
   );

@@ -167,7 +167,8 @@ export function getRemovedStatusLabel(kind: EntryStatusKind): string | null {
     case 'withdrawn':
       return 'Withdrawn';
     case 'scratched':
-      return 'Scratched';
+      // MYK9-632: stored 'scratched', rendered "Pulled" — same act, one word.
+      return 'Pulled';
     case 'not_accepted':
       return 'Not accepted';
     default:
@@ -267,7 +268,8 @@ export function getStatusLabel(kind: EntryStatusKind): string {
     case 'not_accepted':
       return 'Not accepted';
     case 'scratched':
-      return 'Scratched';
+      // MYK9-632: stored 'scratched', rendered "Pulled" — same act, one word.
+      return 'Pulled';
     case 'absent':
       return 'Absent';
     case 'moved':

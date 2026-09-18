@@ -10,6 +10,23 @@ const MISSING_SCHEMA_MESSAGE = /does not exist|schema cache|could not find/i;
 
 const SECRETARY_PAYMENT_SCHEMA_TARGET = /payment_reference|payment_received_on|payment_notes/i;
 
+const WITHDRAWAL_REASON_CODE_SCHEMA_TARGET = /withdrawal_reason_code/i;
+
+/**
+ * True only when MYK9-632's `entries.withdrawal_reason_code` is unavailable.
+ * Lets the secretary read keep working against a database where that migration
+ * has not been applied yet — a real window, because Vercel builds `main` before
+ * anyone runs `supabase db push`.
+ */
+export function isWithdrawalReasonCodeSchemaUnavailable(
+  error: PostgrestErrorLike | null | undefined
+): boolean {
+  if (!error) return false;
+  const message = error.message ?? '';
+  if (!WITHDRAWAL_REASON_CODE_SCHEMA_TARGET.test(message)) return false;
+  return MISSING_SCHEMA_CODES.has(error.code ?? '') || MISSING_SCHEMA_MESSAGE.test(message);
+}
+
 /**
  * True only when the migration-backed secretary payment bookkeeping columns are
  * unavailable (20260828200000). Lets the secretary read keep working against a

@@ -126,7 +126,7 @@ export async function scratchShowMapEntry(
 export async function undoShowMapScratch(input: ShowMapScratchUndoInput): Promise<void> {
   if (!input.previousEntryStatus) {
     throw createDatabaseError(
-      new Error('Cannot undo scratch because the original entry status was not captured.'),
+      new Error('Cannot undo this pull because the original entry status was not captured.'),
       'entries',
       'show_map_undo_scratch_restore'
     );

@@ -26,9 +26,11 @@ describe('getRemovedStateLabel', () => {
     );
   });
 
-  it('labels a scratched entry, with refund suffix when refunded', () => {
-    expect(getRemovedStateLabel(entry('scratched', 'paid'))).toBe('Scratched');
-    expect(getRemovedStateLabel(entry('scratched', 'refunded'))).toBe('Scratched · Refunded');
+  // MYK9-632: stored 'scratched', rendered "Pulled" — the owner's ruling is one
+  // word for one act on every surface an exhibitor can read.
+  it('labels a scratched entry as pulled, with refund suffix when refunded', () => {
+    expect(getRemovedStateLabel(entry('scratched', 'paid'))).toBe('Pulled');
+    expect(getRemovedStateLabel(entry('scratched', 'refunded'))).toBe('Pulled · Refunded');
   });
 
   it('uses canonical declined wording with a next step', () => {

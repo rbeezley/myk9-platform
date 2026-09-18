@@ -9,12 +9,19 @@ import {
   type LedgerRow,
   type PayoutStatus,
 } from './payoutLedger';
-import { isPullRefundSchemaUnavailable } from './pullRefundSchemaCompatibility';
+import {
+  isPullRefundSchemaUnavailable,
+  isWithdrawalReasonCodeSchemaUnavailable,
+} from './pullRefundSchemaCompatibility';
 import { chunk } from '@/utils/chunkIds';
 
 const LEDGER_ENTRY_BASE_SELECT =
   'id, show_id, entry_status, entry_fee, payment_method, payment_status, refund_amount';
 const LEDGER_ENTRY_PULL_SELECT = `${LEDGER_ENTRY_BASE_SELECT}, refund_decision`;
+// MYK9-632: a paid WITHDRAWAL with a recognised reason code owes the secretary a
+// decision too, so the count has to be able to see the code. Its own rung on the
+// ladder: dropping it must not also drop `refund_decision`.
+const LEDGER_ENTRY_REMOVAL_SELECT = `${LEDGER_ENTRY_PULL_SELECT}, withdrawal_reason_code`;
 
 type LedgerEntryWithoutDecision = Omit<LedgerEntryRow, 'refund_decision'> & {
   refund_decision?: string | null;
@@ -26,7 +33,7 @@ export interface LedgerEntryPage {
    * False when the `refund_decision` column could not be read and the query fell
    * back to the base select.
    *
-   * Every row is then backfilled with null, and `isUnresolvedPullRefundDecision`
+   * Every row is then backfilled with null, and `isUnresolvedRemovalRefundDecision`
    * requires `refund_decision === null` — so the count INFLATES, not collapses:
    * entries already marked 'denied' are indistinguishable from undecided ones
    * and all of them read as unresolved. Either way the number is fiction, and
@@ -39,10 +46,16 @@ export async function loadPlatformPayoutLedgerEntryPage(
   from: number,
   to: number
 ): Promise<LedgerEntryPage> {
-  const runSelect = (includeRefundDecision: boolean) =>
+  const runSelect = (includeRefundDecision: boolean, includeReasonCode: boolean) =>
     supabase
       .from('entries')
-      .select(includeRefundDecision ? LEDGER_ENTRY_PULL_SELECT : LEDGER_ENTRY_BASE_SELECT)
+      .select(
+        includeRefundDecision
+          ? includeReasonCode
+            ? LEDGER_ENTRY_REMOVAL_SELECT
+            : LEDGER_ENTRY_PULL_SELECT
+          : LEDGER_ENTRY_BASE_SELECT
+      )
       .eq('payment_method', 'online')
       // Same append-stable ordering as the payout pages below, and for the same
       // reason: a random-UUID sort key lets a concurrent insert reorder pages
@@ -54,10 +67,15 @@ export async function loadPlatformPayoutLedgerEntryPage(
       .range(from, to);
 
   let refundDecisionChecked = true;
-  let response = await runSelect(true);
+  let includeReasonCode = true;
+  let response = await runSelect(true, includeReasonCode);
+  if (isWithdrawalReasonCodeSchemaUnavailable(response.error)) {
+    includeReasonCode = false;
+    response = await runSelect(true, includeReasonCode);
+  }
   if (isPullRefundSchemaUnavailable(response.error)) {
     refundDecisionChecked = false;
-    response = await runSelect(false);
+    response = await runSelect(false, false);
   }
   if (response.error) throw response.error;
 

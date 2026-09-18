@@ -476,14 +476,14 @@ describe('useDogStoreCompat.deleteDog — delegates to the shared mutation', () 
   it('preserves the server instruction when paid entries block deletion', async () => {
     mockDeleteMutateAsync.mockRejectedValue({
       code: 'MK002',
-      message: 'This dog has paid or scored entries. Scratch or refund them before deleting.',
+      message: 'This dog has paid or scored entries. Pull or refund them before deleting.',
     });
 
     const { result } = renderHook(() => useDogStoreCompat(), { wrapper: makeWrapper() });
 
     await act(async () => {
       await expect(result.current.deleteDog('dog-123')).rejects.toThrow(
-        'This dog has paid or scored entries. Scratch or refund them before deleting.'
+        'This dog has paid or scored entries. Pull or refund them before deleting.'
       );
     });
   });

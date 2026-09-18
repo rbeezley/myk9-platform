@@ -27,6 +27,8 @@ export interface SecretaryEntry {
   scoring_completed_at: string | null;
   check_in_status: string | null;
   withdrawal_reason: string | null;
+  /** MYK9-632: the recognised withdrawal reason code, or null for a pull. */
+  withdrawal_reason_code?: string | null;
   withdrawn_at?: string | null;
   payment_method: string | null;
   refund_amount: number | null;

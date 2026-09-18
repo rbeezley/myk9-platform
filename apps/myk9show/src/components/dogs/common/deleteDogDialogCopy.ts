@@ -20,7 +20,7 @@ export function buildBlockedText(
   if (!blockingEntryCount || blockingEntryCount <= 0) return null;
   const pronoun = blockingEntryCount === 1 ? 'it' : 'them';
   // MYK9-600: name the escalation that exists. A secretary whose blocking entry
-  // is SCORED cannot scratch or refund it — "scratch or refund them" was the
+  // is SCORED cannot pull or refund it — "pull or refund them" was the
   // whole of their next step, and for them it was not available. A site admin
   // can delete the dog outright, so point at that rather than leave a dead end.
   //
@@ -28,7 +28,7 @@ export function buildBlockedText(
   // it renders directly below this sentence, and telling a site admin to ask a
   // site admin reads as the app not knowing who it is talking to.
   const escalation = canForceDelete ? '' : ', or ask a site admin to delete the dog';
-  return `This dog has ${blockingEntryCount} paid or scored ${entryNoun(blockingEntryCount)}. Scratch or refund ${pronoun} before deleting${escalation}.`;
+  return `This dog has ${blockingEntryCount} paid or scored ${entryNoun(blockingEntryCount)}. Pull or refund ${pronoun} before deleting${escalation}.`;
 }
 
 /**
@@ -71,6 +71,21 @@ export function buildWarningText(
  * button is unpressable is a fact about this dog's money and results, and the
  * user is entitled to read it rather than infer it from a spinner.
  */
+/**
+ * MYK9-632: the bulk/blocked dialog's next step, shared rather than inlined.
+ *
+ * "Pull or refund" is written in four places (this, `buildBlockedText`, the
+ * MK002 row in `errorMessages`, and `translateDogDbError`) and two of them had
+ * no test, so a vocabulary sweep could reword half of them and leave the other
+ * half saying "Scratch" with nothing red. Lifting this one out of the JSX is
+ * what lets `blockedDogCopy.test.ts` assert all four together.
+ */
+export function blockedDogDeleteHint(canForceDelete: boolean): string {
+  return `Pull or refund their entries to delete them normally${
+    canForceDelete ? ', or override below' : ''
+  }.`;
+}
+
 export const blockingCountPendingText = 'Checking whether this dog has paid or scored entries…';
 
 export const blockingCountErrorText =

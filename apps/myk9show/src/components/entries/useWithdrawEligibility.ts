@@ -15,10 +15,18 @@
  * exhibitor-only guards do not apply and every row stays enabled.
  */
 import { useEffect, useState } from 'react';
-import { getWithdrawEligibilityForEntries } from '@/services/database/entries/withdrawOwnEntry';
-import type { WithdrawEligibility } from '@/services/database/entries/withdrawEligibility';
+import { getRemoveFromClassEligibilityForEntries } from '@/services/database/entries/withdrawOwnEntry';
+import type {
+  RemoveFromClassEligibility,
+  WithdrawEligibility,
+} from '@/services/database/entries/withdrawEligibility';
 
-export type WithdrawEligibilityMap = Record<string, WithdrawEligibility>;
+/**
+ * MYK9-632: BOTH verdicts per row. Withdraw and Pull share every guard except
+ * the money arm, so a paid entry must grey Withdraw out with its reason while
+ * Pull stays live — one verdict cannot say that.
+ */
+export type WithdrawEligibilityMap = Record<string, RemoveFromClassEligibility>;
 
 const EMPTY: WithdrawEligibilityMap = {};
 
@@ -33,6 +41,11 @@ const LOOKUP_FAILED: WithdrawEligibility = {
   code: 'unavailable',
   reason: "We couldn't check this entry right now — try again in a moment.",
 };
+
+const both = (verdict: WithdrawEligibility): RemoveFromClassEligibility => ({
+  withdraw: verdict,
+  pull: verdict,
+});
 
 export function useWithdrawEligibility(
   open: boolean,
@@ -57,13 +70,13 @@ export function useWithdrawEligibility(
       // ONE round trip for the whole card. Any id the batch does not answer —
       // because the batch failed, or because that row is gone — falls back to
       // the refusal, so an unchecked row never offers Pull.
-      let batch: Record<string, WithdrawEligibility> = {};
+      let batch: Record<string, RemoveFromClassEligibility> = {};
       try {
-        batch = await getWithdrawEligibilityForEntries(ids);
+        batch = await getRemoveFromClassEligibilityForEntries(ids);
       } catch {
         batch = {};
       }
-      const pairs = ids.map(id => [id, batch[id] ?? LOOKUP_FAILED] as const);
+      const pairs = ids.map(id => [id, batch[id] ?? both(LOOKUP_FAILED)] as const);
       if (!cancelled) setLoaded({ key: classIdKey, map: Object.fromEntries(pairs) });
     })();
 
@@ -78,5 +91,5 @@ export function useWithdrawEligibility(
   // have not checked yet.
   return classIdKey === ''
     ? EMPTY
-    : Object.fromEntries(classIdKey.split(',').map(id => [id, CHECKING]));
+    : Object.fromEntries(classIdKey.split(',').map(id => [id, both(CHECKING)]));
 }

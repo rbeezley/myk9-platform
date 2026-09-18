@@ -42,6 +42,7 @@ import type { EntryManagementEntry } from '@/types/entry-management-types';
 import { EmailStatusIcon } from '@/components/entries/EmailStatusIcon';
 import { CHECKIN_STATUSES } from '@myk9/core';
 import { WithdrawalReasonDialog } from './WithdrawalReasonDialog';
+import { removalSummaryLine } from './removalSummaryLine';
 import { RefundEntryDialog } from './RefundEntryDialog';
 import { isStripeRefundable } from './refundEligibility';
 import { RequestPaymentDialog } from './RequestPaymentDialog';
@@ -331,9 +332,16 @@ export const EntryListCard: React.FC<EntryListCardProps> = ({
                         </>
                       }
                     />
-                    {entry.entryStatus === EntryStatus.CANCELLED && entry.withdrawalReason && (
+                    {/* MYK9-632: WHICH act happened, and why. A withdrawal
+                        carries one of the two recognised reasons; a pull carries
+                        none by definition, and its refund is the club's call on
+                        the Pull tab. Telling them apart is the point of the
+                        issue — the secretary used to see "withdrawn" for an
+                        entry the exhibitor was told would not be refunded. */}
+                    {(entry.entryStatus === EntryStatus.CANCELLED ||
+                      entry.entryStatus === EntryStatus.SCRATCHED) && (
                       <span className="text-xs text-muted-foreground pl-0.5">
-                        {entry.withdrawalReason}
+                        {removalSummaryLine(entry)}
                       </span>
                     )}
                   </div>

@@ -103,9 +103,8 @@ export function MyEntriesTab({
                 <>
                   {' '}
                   {offScheduleCount} other {offScheduleCount === 1 ? 'entry' : 'entries'}{' '}
-                  (withdrawn, scratched, moved up, or expired){' '}
-                  {offScheduleCount === 1 ? 'is' : 'are'} listed below but{' '}
-                  {offScheduleCount === 1 ? 'does' : 'do'} not run.
+                  (withdrawn, pulled, moved up, or expired) {offScheduleCount === 1 ? 'is' : 'are'}{' '}
+                  listed below but {offScheduleCount === 1 ? 'does' : 'do'} not run.
                 </>
               )}
             </p>

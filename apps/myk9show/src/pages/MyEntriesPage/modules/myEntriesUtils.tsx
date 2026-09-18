@@ -307,7 +307,8 @@ export function getContextualStatusMessage(
     }
 
     return {
-      message: entry.entryStatus === EntryStatus.SCRATCHED ? 'Scratched' : 'Withdrawn',
+      // MYK9-632: stored 'scratched', rendered "Pulled".
+      message: entry.entryStatus === EntryStatus.SCRATCHED ? 'Pulled' : 'Withdrawn',
       className: 'text-muted-foreground',
     };
   }

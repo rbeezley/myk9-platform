@@ -55,21 +55,21 @@ describe('DeleteDogDialog buildBlockedText', () => {
   });
 
   it('names the count, agrees the pronoun, and names the escalation that exists', () => {
-    // A secretary who cannot scratch or refund (the entry is scored, the show
+    // A secretary who cannot pull or refund (the entry is scored, the show
     // is closed out) was left with no next step at all. A site admin CAN delete
     // the dog, so say so rather than leaving them to discover it.
     expect(buildBlockedText(1)).toBe(
-      'This dog has 1 paid or scored entry. Scratch or refund it before deleting, or ask a site admin to delete the dog.'
+      'This dog has 1 paid or scored entry. Pull or refund it before deleting, or ask a site admin to delete the dog.'
     );
     expect(buildBlockedText(2)).toBe(
-      'This dog has 2 paid or scored entries. Scratch or refund them before deleting, or ask a site admin to delete the dog.'
+      'This dog has 2 paid or scored entries. Pull or refund them before deleting, or ask a site admin to delete the dog.'
     );
   });
 
   it('does not tell a site admin to ask a site admin', () => {
     // The override checkbox is directly below this sentence for them.
     expect(buildBlockedText(1, true)).toBe(
-      'This dog has 1 paid or scored entry. Scratch or refund it before deleting.'
+      'This dog has 1 paid or scored entry. Pull or refund it before deleting.'
     );
   });
 
@@ -78,7 +78,7 @@ describe('DeleteDogDialog buildBlockedText', () => {
     // the worst of both: it reads as reassurance about an action that will not
     // happen at all.
     expect(buildWarningText(3, true, 1)).toBe(
-      'This dog has 1 paid or scored entry. Scratch or refund it before deleting, or ask a site admin to delete the dog.'
+      'This dog has 1 paid or scored entry. Pull or refund it before deleting, or ask a site admin to delete the dog.'
     );
   });
 });
@@ -101,7 +101,7 @@ describe('DeleteDogDialog blocked state', () => {
     );
 
     expect(screen.getByRole('button', { name: /delete/i })).toBeDisabled();
-    expect(screen.getByText(/scratch or refund it before deleting/i)).toBeInTheDocument();
+    expect(screen.getByText(/pull or refund it before deleting/i)).toBeInTheDocument();
   });
 
   it('leaves Delete enabled when the count is known to be zero', () => {

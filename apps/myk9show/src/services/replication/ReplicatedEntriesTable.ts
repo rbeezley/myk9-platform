@@ -45,8 +45,13 @@ import {
   WithdrawNotAllowedError,
   WithdrawNotFoundError,
   WithdrawUnavailableError,
+  type RemoveFromClassEligibility,
   type WithdrawEligibility,
 } from '@/services/database/entries/withdrawEligibility';
+import type {
+  RemoveFromClassKind,
+  WithdrawalReasonCode,
+} from '@/features/registries/withdrawalPolicy';
 
 export { rowToEntry };
 export type { ReplicatedEntry };
@@ -85,8 +90,12 @@ export const WITHDRAW_OWN_ENTRY_RPC = 'withdraw_own_entry';
  * optional argument for callers that genuinely hold an order (its MYK9-495 unit
  * case pins that behaviour); this path is not one of them.
  */
-function withdrawEligibilityOf(entry: ReplicatedEntry): WithdrawEligibility {
+function withdrawEligibilityOf(
+  entry: ReplicatedEntry,
+  kind: RemoveFromClassKind = 'withdraw'
+): WithdrawEligibility {
   return evaluateWithdrawEligibility({
+    kind,
     entryStatus: entry.entryStatus ?? entry.entry_status,
     paymentStatus: entry.paymentStatus,
     checkInStatus: entry.checkInStatus ?? entry.check_in_status,
@@ -571,6 +580,20 @@ export class ReplicatedEntriesTable extends ReplicatedTable<ReplicatedEntry> {
       payload.withdrawal_reason = updates.withdrawal_reason ?? updates.withdrawalReason;
     }
 
+    // MYK9-632: the manager's Withdraw carries the recognised reason CODE, and
+    // their Pull carries an explicit null that CLEARS a code a previous
+    // withdrawal left. `??` would swallow that null, so both keys are read for
+    // presence and the value is taken from whichever was supplied.
+    if (
+      updates.withdrawal_reason_code !== undefined ||
+      updates.withdrawalReasonCode !== undefined
+    ) {
+      payload.withdrawal_reason_code =
+        updates.withdrawal_reason_code !== undefined
+          ? updates.withdrawal_reason_code
+          : updates.withdrawalReasonCode;
+    }
+
     const mutationId = await this.queueMutation('UPDATE', entryId, payload);
     this._lastMutationId = mutationId;
     logger.log(`[${this.getTableName()}] Updated entry ${entryId} secretary lifecycle status`);
@@ -608,14 +631,41 @@ export class ReplicatedEntriesTable extends ReplicatedTable<ReplicatedEntry> {
   async getWithdrawEligibilityForEntries(
     entryIds: string[]
   ): Promise<Record<string, WithdrawEligibility>> {
+    const both = await this.getRemoveFromClassEligibilityForEntries(entryIds);
+    return Object.fromEntries(
+      Object.entries(both).map(([entryId, pair]) => [entryId, pair.withdraw])
+    );
+  }
+
+  /**
+   * MYK9-632: BOTH verdicts for each row, from the same single round trip.
+   *
+   * The exhibitor is offered two acts and they diverge on exactly one guard (a
+   * paid entry may be pulled but not withdrawn), so one verdict cannot drive the
+   * dialog: a paid row must grey Withdraw out, with its reason, while Pull stays
+   * live. Evaluating twice over the same row costs nothing and keeps the two
+   * answers from ever disagreeing about the row they describe.
+   */
+  async getRemoveFromClassEligibilityForEntries(
+    entryIds: string[]
+  ): Promise<Record<string, RemoveFromClassEligibility>> {
     const unique = [...new Set(entryIds.filter(Boolean))];
-    const result: Record<string, WithdrawEligibility> = {};
+    const result: Record<string, RemoveFromClassEligibility> = {};
     const misses: string[] = [];
+
+    const bothOf = (entry: ReplicatedEntry): RemoveFromClassEligibility => ({
+      withdraw: withdrawEligibilityOf(entry, 'withdraw'),
+      pull: withdrawEligibilityOf(entry, 'pull'),
+    });
+    const missingPair: RemoveFromClassEligibility = {
+      withdraw: WITHDRAW_MISSING,
+      pull: WITHDRAW_MISSING,
+    };
 
     for (const entryId of unique) {
       const cached = await this.get(entryId);
-      if (cached) result[entryId] = withdrawEligibilityOf(cached);
-      else if (this._deletedIds.has(entryId)) result[entryId] = WITHDRAW_MISSING;
+      if (cached) result[entryId] = bothOf(cached);
+      else if (this._deletedIds.has(entryId)) result[entryId] = missingPair;
       else misses.push(entryId);
     }
 
@@ -642,7 +692,7 @@ export class ReplicatedEntriesTable extends ReplicatedTable<ReplicatedEntry> {
     }
     for (const entryId of misses) {
       const row = byId.get(entryId);
-      result[entryId] = row ? withdrawEligibilityOf(rowToEntry(row as EntryRow)) : WITHDRAW_MISSING;
+      result[entryId] = row ? bothOf(rowToEntry(row as EntryRow)) : missingPair;
     }
     return result;
   }
@@ -657,25 +707,48 @@ export class ReplicatedEntriesTable extends ReplicatedTable<ReplicatedEntry> {
    * `WithdrawUnavailableError` (no connection), `WithdrawConflictError` (someone
    * else changed it), or the raw Postgres error for anything unclassified.
    */
-  async withdrawOwnEntry(entryId: string): Promise<{ from: string | undefined }> {
-    const { entry, wasCached, coldVersion } = await this.readEntryForWithdrawal(entryId);
+  async withdrawOwnEntry(
+    entryId: string,
+    options: { kind?: RemoveFromClassKind; reason?: WithdrawalReasonCode | null } = {}
+  ): Promise<{ from: string | undefined; to: string }> {
+    const kind: RemoveFromClassKind = options.kind ?? 'withdraw';
+    const reason = kind === 'withdraw' ? (options.reason ?? null) : null;
+    // MYK9-632: the two acts write DIFFERENT statuses. 'scratched' is the
+    // platform's stored word for a pull — the secretary's pull-reconciliation
+    // surface keys on it — and the user-facing word is "Pull" everywhere.
+    const targetStatus = kind === 'pull' ? 'scratched' : 'withdrawn';
 
-    const eligibility = withdrawEligibilityOf(entry);
-    if (!eligibility.allowed) throw new WithdrawNotAllowedError(eligibility);
+    if (kind === 'withdraw' && reason == null) {
+      throw new WithdrawNotAllowedError(
+        {
+          allowed: false,
+          code: 'status',
+          reason: 'Choose a withdrawal reason before withdrawing this entry.',
+        },
+        kind
+      );
+    }
+
+    const { entry, wasCached, coldVersion } = await this.readEntryForWithdrawal(entryId, kind);
+
+    const eligibility = withdrawEligibilityOf(entry, kind);
+    if (!eligibility.allowed) throw new WithdrawNotAllowedError(eligibility, kind);
 
     // A cached row's OCC token lives in the replica; a cold row's came back with
     // the read that answered the guards.
     const expectedVersion = wasCached ? await this.getServerVersion(entryId) : coldVersion;
-    const version = await this.callWithdrawRpc(entryId, expectedVersion);
+    const version = await this.callWithdrawRpc(entryId, expectedVersion, kind, reason);
 
     // MYK9-573: `wasCached` is probed BEFORE the RPC and is the primary gate —
     // a row that was absent then is never written, even if a sync lands during
     // the call. The write additionally re-checks the store for the OPPOSITE
     // race (present then, evicted during the call).
-    await this.hydrateConfirmedRow(entryId, wasCached, version);
+    await this.hydrateConfirmedRow(entryId, wasCached, version, targetStatus);
 
-    logger.log(`[${this.getTableName()}] Withdrew entry ${entryId} via ${WITHDRAW_OWN_ENTRY_RPC}`);
-    return { from: entry.entryStatus ?? entry.entry_status };
+    logger.log(
+      `[${this.getTableName()}] ${kind === 'pull' ? 'Pulled' : 'Withdrew'} entry ${entryId} via ${WITHDRAW_OWN_ENTRY_RPC}`
+    );
+    return { from: entry.entryStatus ?? entry.entry_status, to: targetStatus };
   }
 
   /**
@@ -697,7 +770,10 @@ export class ReplicatedEntriesTable extends ReplicatedTable<ReplicatedEntry> {
    * FRESH `get` at the moment of writing (see `hydrateConfirmedRow`).
    */
   private async readEntryForWithdrawal(
-    entryId: string
+    entryId: string,
+    // MYK9-632: carried only so an "offline" refusal names the act the exhibitor
+    // actually chose.
+    kind: RemoveFromClassKind = 'withdraw'
   ): Promise<{ entry: ReplicatedEntry; wasCached: boolean; coldVersion: number | null }> {
     const cached = await this.get(entryId);
     if (cached) return { entry: cached, wasCached: true, coldVersion: null };
@@ -714,9 +790,9 @@ export class ReplicatedEntriesTable extends ReplicatedTable<ReplicatedEntry> {
         .eq('id', entryId)
         .maybeSingle();
     } catch {
-      throw new WithdrawUnavailableError();
+      throw new WithdrawUnavailableError(kind);
     }
-    if (result.error) throw new WithdrawUnavailableError();
+    if (result.error) throw new WithdrawUnavailableError(kind);
     if (!result.data) throw new WithdrawNotFoundError();
     const row = result.data as unknown as EntryRow;
     // Carried out so the RPC still gets an OCC precondition on a cold row. The
@@ -748,14 +824,19 @@ export class ReplicatedEntriesTable extends ReplicatedTable<ReplicatedEntry> {
    */
   private async callWithdrawRpc(
     entryId: string,
-    expectedVersion: number | null
+    expectedVersion: number | null,
+    kind: RemoveFromClassKind = 'withdraw',
+    reason: WithdrawalReasonCode | null = null
   ): Promise<number | undefined> {
+    const targetStatus = kind === 'pull' ? 'scratched' : 'withdrawn';
     const attempt = async (version: number | null) =>
       supabase.rpc(WITHDRAW_OWN_ENTRY_RPC, {
         p_entry_id: entryId,
-        p_fields: { entry_status: 'withdrawn' },
+        p_fields: { entry_status: targetStatus },
         p_expected_version: version,
-      });
+        p_kind: kind,
+        p_reason: reason,
+      } as never);
 
     let { data, error } = await attempt(expectedVersion);
 
@@ -775,7 +856,7 @@ export class ReplicatedEntriesTable extends ReplicatedTable<ReplicatedEntry> {
       }
     }
 
-    if (error) throw this.classifyWithdrawTransportError(error);
+    if (error) throw this.classifyWithdrawTransportError(error, kind);
     return typeof data === 'number' ? data : undefined;
   }
 
@@ -785,10 +866,13 @@ export class ReplicatedEntriesTable extends ReplicatedTable<ReplicatedEntry> {
    * dialog — a warm cached row reaches the RPC without ever touching the
    * cold-cache path that would otherwise have caught this.
    */
-  private classifyWithdrawTransportError(error: unknown): unknown {
+  private classifyWithdrawTransportError(
+    error: unknown,
+    kind: RemoveFromClassKind = 'withdraw'
+  ): unknown {
     const code = (error as { code?: string } | null)?.code;
     const offline = typeof navigator !== 'undefined' && navigator.onLine === false;
-    if (offline || !code) return new WithdrawUnavailableError();
+    if (offline || !code) return new WithdrawUnavailableError(kind);
     return error;
   }
 
@@ -852,7 +936,11 @@ export class ReplicatedEntriesTable extends ReplicatedTable<ReplicatedEntry> {
   private async hydrateConfirmedRow(
     entryId: string,
     wasCached: boolean,
-    newVersion?: number
+    newVersion?: number,
+    // MYK9-632: the status the server just committed. The read-back below is the
+    // normal path, but when it fails this is the ONLY thing that keeps a pull
+    // from being cached as a withdrawal.
+    confirmedStatus: string = 'withdrawn'
   ): Promise<void> {
     if (!wasCached) {
       logger.log(
@@ -895,7 +983,12 @@ export class ReplicatedEntriesTable extends ReplicatedTable<ReplicatedEntry> {
         entryId,
         await this.set(
           entryId,
-          { ...cached, entryStatus: 'withdrawn', entry_status: 'withdrawn', status: 'withdrawn' },
+          {
+            ...cached,
+            entryStatus: confirmedStatus,
+            entry_status: confirmedStatus,
+            status: confirmedStatus,
+          },
           false,
           undefined,
           newVersion

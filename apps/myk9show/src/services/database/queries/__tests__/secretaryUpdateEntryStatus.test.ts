@@ -12,6 +12,7 @@ import {
   bulkUpdateEntryStatus,
   rejectEntry,
   pullEntry,
+  removeEntryAsManager,
   updateEntryStatus,
   waitlistEntry,
 } from '../../entries';
@@ -165,6 +166,63 @@ describe('secretaryEntryQueries — entry_status updates', () => {
           check_in_status: 'pulled',
           withdrawal_reason: 'Dog is absent',
         }),
+        undefined
+      );
+    });
+
+    // MYK9-632: a SHOW MANAGER using the exhibitor chooser must write the act
+    // they picked. Before this, both choices went through `rejectEntry` and
+    // stored 'withdrawn', so a manager's Pull was badged "Pulled", stored as a
+    // withdrawal, and never appeared in the Pull tab (which filters
+    // rawEntryStatus === 'scratched') — the refund decision was unreachable.
+    it('removeEntryAsManager PULL writes scratched with no reason code', async () => {
+      await removeEntryAsManager('entry-1', 'pull');
+
+      expect(mocks.updateSecretaryLifecycleStatus).toHaveBeenCalledWith(
+        'entry-1',
+        expect.objectContaining({
+          entry_status: 'scratched',
+          check_in_status: 'pulled',
+          withdrawal_reason_code: null,
+        }),
+        undefined
+      );
+      expect(mocks.auditLog).toHaveBeenCalledWith(
+        expect.objectContaining({
+          changes: { entryStatus: { from: null, to: 'scratched' } },
+          metadata: expect.objectContaining({ action: 'pull_entry' }),
+        })
+      );
+    });
+
+    it('removeEntryAsManager WITHDRAW writes withdrawn plus the reason code', async () => {
+      await removeEntryAsManager('entry-1', 'withdraw', 'judge_change');
+
+      expect(mocks.updateSecretaryLifecycleStatus).toHaveBeenCalledWith(
+        'entry-1',
+        expect.objectContaining({
+          entry_status: 'withdrawn',
+          withdrawal_reason_code: 'judge_change',
+        }),
+        undefined
+      );
+      expect(mocks.auditLog).toHaveBeenCalledWith(
+        expect.objectContaining({
+          changes: { entryStatus: { from: null, to: 'withdrawn' } },
+          metadata: expect.objectContaining({
+            action: 'withdraw_entry',
+            withdrawalReasonCode: 'judge_change',
+          }),
+        })
+      );
+    });
+
+    it('removeEntryAsManager PULL never carries a reason handed to it', async () => {
+      await removeEntryAsManager('entry-1', 'pull', 'in_season');
+
+      expect(mocks.updateSecretaryLifecycleStatus).toHaveBeenCalledWith(
+        'entry-1',
+        expect.objectContaining({ entry_status: 'scratched', withdrawal_reason_code: null }),
         undefined
       );
     });

@@ -116,7 +116,9 @@ describe('MyShowDogCard — check-in is withheld from rows that cannot take one'
     // settled rather than broken.
     expect(screen.getByText('ABS')).toBeInTheDocument();
     expect(screen.getByText('EX')).toBeInTheDocument();
-    expect(screen.getByText('pulled')).toBeInTheDocument();
+    // MYK9-632: the day-of row says WHEN, because the pre-show row now takes
+    // the bare word "pulled" — same act, two moments, two announceable strings.
+    expect(screen.getByText('pulled at the show')).toBeInTheDocument();
   });
 
   it('keeps the live row’s check-in in a mixed settled order', () => {

@@ -14,7 +14,7 @@ import {
 } from './signInEmailMessages';
 
 /** Known PostgreSQL / PostgREST error code prefixes and their user-facing messages. */
-const ERROR_CODE_MAP: Record<string, string> = {
+export const ERROR_CODE_MESSAGES: Record<string, string> = {
   // PostgreSQL class 23 — integrity constraint violations
   '23505': 'This record already exists.',
   '23503': 'Cannot complete this action — it is referenced by other records.',
@@ -31,7 +31,9 @@ const ERROR_CODE_MAP: Record<string, string> = {
 
   // myK9 custom SQLSTATEs (class MK)
   MK001: 'This person still owns dogs. Delete those dogs first.',
-  MK002: 'This dog has paid or scored entries. Scratch or refund them before deleting.',
+  // MYK9-632: the word is Pull everywhere a person reads it. The SQLSTATE and
+  // the stored `entry_status` keep their spellings.
+  MK002: 'This dog has paid or scored entries. Pull or refund them before deleting.',
 
   // Application-level refusals (MYK9-136). These carry copy that is the whole
   // point of the refusal, so they must be mapped — this function discards the
@@ -72,7 +74,7 @@ export function getUserFriendlyError(error: unknown, fallback: string = DEFAULT_
 
   if (code) {
     // Exact match
-    if (ERROR_CODE_MAP[code]) return ERROR_CODE_MAP[code];
+    if (ERROR_CODE_MESSAGES[code]) return ERROR_CODE_MESSAGES[code];
 
     // Prefix match
     for (const [prefix, message] of Object.entries(ERROR_PREFIX_MAP)) {

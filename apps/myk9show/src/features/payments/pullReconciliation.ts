@@ -57,11 +57,33 @@ export interface PullRefundDecisionEntry {
   payment_status: string | null;
   refund_amount: number | null;
   refund_decision: string | null;
+  /** MYK9-632: set only on a WITHDRAWAL, and only to one of the two codes. */
+  withdrawal_reason_code?: string | null;
 }
 
-export function isUnresolvedPullRefundDecision(entry: PullRefundDecisionEntry): boolean {
+/**
+ * MYK9-632: the row states an exhibitor can leave behind that still owe the
+ * secretary a refund decision.
+ *
+ * 'scratched' is a PULL — the club decides. 'withdrawn' WITH a recognised reason
+ * code is a WITHDRAWAL — the premium decides, and the secretary confirms it on
+ * the same surface. Both reach here only while paid online and unresolved.
+ *
+ * A 'withdrawn' row with NO reason code is deliberately excluded: every entry
+ * the secretary declines or removes by hand lands in that state too
+ * (`rejectEntry`, bulk status changes, pre-MYK9-632 rows), and sweeping those
+ * into a refund queue would invent an obligation nobody agreed to. The reason
+ * code is what makes a withdrawal the exhibitor's own act.
+ */
+export function isUnresolvedRemovalRefundDecision(entry: PullRefundDecisionEntry): boolean {
+  const isPull = entry.entry_status === 'scratched';
+  const isExhibitorWithdrawal =
+    entry.entry_status === 'withdrawn' &&
+    (entry.withdrawal_reason_code === 'in_season' ||
+      entry.withdrawal_reason_code === 'judge_change');
+
   return (
-    entry.entry_status === 'scratched' &&
+    (isPull || isExhibitorWithdrawal) &&
     entry.payment_method === 'online' &&
     entry.payment_status === 'paid' &&
     (entry.refund_amount ?? 0) <= 0 &&

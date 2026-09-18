@@ -162,6 +162,27 @@ Our users are not 25-year-old engineers. Many are retired, with varying levels o
 - **No dead ends** — every screen has an obvious next step or way back
 - **Readiness chips land on the fix** — a readiness chip may only ship if its destination contains the affordance that clears it. If the destination only explains the problem, keep narrowing the route or add the clearing action to the existing destination surface.
 
+### Say Which Act Happened: Withdraw vs Pull
+
+An exhibitor leaving a class does one of exactly two things, and the app must never tell them one and store the other (MYK9-632).
+
+| Act          | When                                                 | Stored `entry_status` | Reason                                                        | Who decides the refund                               |
+| ------------ | ---------------------------------------------------- | --------------------- | ------------------------------------------------------------- | ---------------------------------------------------- |
+| **Withdraw** | A recognised reason the rulebook names               | `withdrawn`           | `withdrawal_reason_code` — `in_season` or `judge_change` ONLY | The premium's rules, confirmed by the show secretary |
+| **Pull**     | Anything else — the exhibitor has decided not to run | `scratched`           | none, by definition                                           | The club, on the secretary's reconciliation surface  |
+
+- **Neither act moves money** (owner decision 2026-09-17). Both are available on a **paid** entry, and both write exactly two things: the status and the reason code. No refund column, no Stripe call, no platform-balance movement. The exhibitor's click RECORDS what happened; the secretary confirms the refund afterwards. The old "This entry is paid — request a refund instead of withdrawing" refusal read as caution and behaved as a trap: it left a paid exhibitor with no honest way to say they were not coming, and it kept their row out of the only queue where the decision gets made.
+- **A paid removal must stay REACHABLE.** Both acts land in the secretary's reconciliation queue while paid online and undecided, with the same Issue refund / Deny refund controls. A withdrawal appears there only when it carries a reason code — every secretary-side removal lands in `withdrawn` too, and sweeping those in would invent an obligation nobody agreed to.
+- **The copy says who decides, never how much.** "Refund per the premium's rules; the show secretary confirms it." The app holds neither the premium nor the club's processing fee, so any sentence naming an amount is a promise the secretary would have to break.
+- **The reason list is a rulebook fact, not an app constant.** AKC and UKC recognise both reasons; ASCA recognises judge change only, because bitches in season may compete. UKC also requires a vet certificate. It lives in `@/features/registries/withdrawalPolicy.ts`.
+- **The AKC 30-minute cutoff is real, recorded, and NOT enforced.** AKC expects a withdrawal at least 30 minutes before the first class of the day. The app cannot evaluate that clock: `classes.start_time` is populated on 1 of 35 live classes and there is no class-date column at all, so the instant does not exist to compare against. The minutes live on `cutoffMinutesBeforeFirstClass` in `@/features/registries/withdrawalPolicy.ts` as DATA with no consumer — so wiring it later is a call site, not a schema change — and the expectation is stated as guidance on the In season reason rather than gating an action on a guess. **Open for the owner:** either the schedule gains a reliable per-class start instant, or the cutoff stays advisory.
+- **"Scratch" and "Pull" are the same act, and the word is Pull.** The stored value keeps its `scratched` spelling — the reconciliation surface keys on it — and no rendered surface says "scratch" to anyone. Where a pre-show pull and a day-of pull sit on the same card, the day-of one says **pulled at the show**: one word for one act, two announceable strings for two moments.
+- **A pull is never promised as unrefundable.** The copy says refunds for a pull are at the club's discretion, and the secretary's Issue refund / Deny refund is what makes that true. Once a decision exists, the row reports the DECISION ("refund issued" / "refund denied") instead of still offering one.
+- **A `withdrawn` row with no reason code says nothing about money.** That state is a secretary Decline/Reject, or a row written before this rule existed — not an exhibitor's act. It is excluded from the refund queue, so no surface may advertise a refund for it.
+- **The failure path speaks in the verb of the act.** An exhibitor who clicked Pull is never told to "try withdrawing again".
+- **Both tiers write the act.** A secretary using the same chooser writes `scratched` for a Pull and `withdrawn` + the code for a Withdraw, through the lifecycle path their RLS admits. Routing both to one transition is how a manager's Pull became a withdrawal the Pull tab could not see.
+- **Day-of ringside pull is a different column.** `check_in_status = 'pulled'` at `/at-show` is untouched by this rule.
+
 ### Offline Is Normal, Not Broken
 
 - **Never show "No internet" as an error** — show it as a quiet status indicator

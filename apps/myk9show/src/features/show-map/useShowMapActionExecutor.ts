@@ -253,7 +253,7 @@ export function useShowMapActionExecutor({ showId }: UseShowMapActionExecutorInp
   const undoScratchMutation = useMutation({
     mutationFn: async (input: ShowMapScratchUndoMutationInput) => undoShowMapScratch(input),
     onSuccess: () => {
-      toast.success('Scratch undone');
+      toast.success('Pull undone');
     },
     onError: error => {
       toast.error(getUserFriendlyError(error));

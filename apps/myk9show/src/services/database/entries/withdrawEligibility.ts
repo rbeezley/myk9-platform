@@ -14,8 +14,7 @@
  * This predicate governs the OWNER tier only. A show manager is bound by
  * `entries_update` alone and keeps the existing secretary lifecycle path.
  */
-import { resolveEffectivePaymentStatus } from '@/utils/effectivePaymentStatus';
-import { PaymentStatus } from '@/types/show-registration-types';
+import type { RemoveFromClassKind } from '@/features/registries/withdrawalPolicy';
 
 /**
  * `entry_status` values an owner may still withdraw FROM. Mirrors
@@ -49,17 +48,15 @@ export const OWNER_WITHDRAWABLE_ENTRY_STATUSES: readonly string[] = [
 export const PRE_SHOW_CHECK_IN_STATUSES: readonly string[] = ['no-status', 'pulled'];
 
 export type WithdrawRefusalCode =
-  | 'removed'
-  | 'paid'
-  | 'unknown-payment'
-  | 'status'
-  | 'scored'
-  | 'at-show'
-  | 'unavailable'
-  | 'missing'
-  | 'conflict';
+  'removed' | 'status' | 'scored' | 'at-show' | 'unavailable' | 'missing' | 'conflict';
 
 export interface WithdrawEligibilityInput {
+  /**
+   * MYK9-632: which act is being offered. It selects the VERB in the refusal
+   * sentences; the guards themselves are identical for both acts. Defaults to
+   * 'withdraw', which is what every pre-MYK9-632 caller meant.
+   */
+  kind?: RemoveFromClassKind | undefined;
   entryStatus?: string | null | undefined;
   paymentStatus?: string | null | undefined;
   /** The order's status, so MYK9-495's entry-vs-order disagreement is resolved once. */
@@ -83,45 +80,31 @@ function refuse(code: WithdrawRefusalCode, reason: string): WithdrawEligibility 
   return { allowed: false, code, reason };
 }
 
-/**
- * The money arm, FAIL-CLOSED. The RPC refuses unless `payment_status` is
- * literally 'pending' or 'waived' (`IS DISTINCT FROM` both), so an unknown or
- * missing status must refuse here too — otherwise the client offers a
- * withdrawal the server rejects, which is the whole class of bug this predicate
- * exists to prevent. Returns null when the status could not be determined.
- */
-function moneyAllowsWithdrawal(input: WithdrawEligibilityInput): boolean | null {
-  const effective = resolveEffectivePaymentStatus(
-    (input.paymentStatus ?? null) as PaymentStatus | null,
-    (input.enrollmentPaymentStatus ?? null) as PaymentStatus | null
-  );
-  if (effective == null) return null;
-  return effective === PaymentStatus.PENDING || effective === PaymentStatus.WAIVED;
-}
-
 export function evaluateWithdrawEligibility(input: WithdrawEligibilityInput): WithdrawEligibility {
+  const kind: RemoveFromClassKind = input.kind ?? 'withdraw';
+
   if (input.deletedAt != null) {
     return refuse('removed', 'This entry has been removed.');
   }
 
-  const moneyAllows = moneyAllowsWithdrawal(input);
-  if (moneyAllows === null) {
-    return refuse(
-      'unknown-payment',
-      "We couldn't confirm this entry's payment status — ask the secretary to pull it."
-    );
-  }
-  if (!moneyAllows) {
-    return refuse('paid', 'This entry is paid — request a refund instead of withdrawing.');
-  }
+  // NO MONEY ARM (MYK9-632, owner decision 2026-09-17). Neither act moves a
+  // cent: the exhibitor records what happened and the secretary confirms the
+  // refund afterwards on the reconciliation surface. The old
+  // 'This entry is paid — request a refund instead of withdrawing.' refusal
+  // matched a guard the RPC no longer has, and it left a paid exhibitor with no
+  // honest way to say they were not coming. `paymentStatus` /
+  // `enrollmentPaymentStatus` stay on the input so callers that already project
+  // them keep compiling and so a future money rule has one place to land.
+
+  const verb = kind === 'pull' ? 'pulled' : 'withdrawn';
 
   const entryStatus = input.entryStatus ?? undefined;
   if (entryStatus !== undefined && !OWNER_WITHDRAWABLE_ENTRY_STATUSES.includes(entryStatus)) {
-    return refuse('status', `This entry can no longer be withdrawn (status: ${entryStatus}).`);
+    return refuse('status', `This entry can no longer be ${verb} (status: ${entryStatus}).`);
   }
 
   if (input.isScored === true) {
-    return refuse('scored', 'This entry has been scored and can no longer be withdrawn.');
+    return refuse('scored', `This entry has been scored and can no longer be ${verb}.`);
   }
 
   const checkInStatus = input.checkInStatus ?? undefined;
@@ -173,11 +156,23 @@ export class WithdrawConflictError extends Error {
   }
 }
 
+/**
+ * MYK9-632: the verb for the act being attempted. An exhibitor who clicked Pull
+ * and is told "try withdrawing again" is being told about a different action
+ * than the one they took — the same collapse this issue exists to undo, three
+ * screens later on the failure path.
+ */
+export function removalVerb(kind: RemoveFromClassKind | undefined): 'pull' | 'withdraw' {
+  return kind === 'pull' ? 'pull' : 'withdraw';
+}
+
 export class WithdrawUnavailableError extends Error {
   readonly code: WithdrawRefusalCode = 'unavailable';
 
-  constructor() {
-    super("We couldn't reach the server — try withdrawing again when you're connected.");
+  constructor(kind?: RemoveFromClassKind) {
+    super(
+      `We couldn't reach the server — try ${removalVerb(kind) === 'pull' ? 'pulling' : 'withdrawing'} again when you're connected.`
+    );
     this.name = 'WithdrawUnavailableError';
   }
 }
@@ -185,18 +180,23 @@ export class WithdrawUnavailableError extends Error {
 export class WithdrawNotAllowedError extends Error {
   readonly code: WithdrawRefusalCode;
 
-  constructor(eligibility: WithdrawEligibility) {
-    super(eligibility.reason ?? 'This entry cannot be withdrawn.');
+  constructor(eligibility: WithdrawEligibility, kind?: RemoveFromClassKind) {
+    super(
+      eligibility.reason ??
+        `This entry cannot be ${removalVerb(kind) === 'pull' ? 'pulled' : 'withdrawn'}.`
+    );
     this.name = 'WithdrawNotAllowedError';
     this.code = eligibility.code ?? 'status';
   }
 }
 
 /**
- * Turn any withdrawal failure into a sentence an exhibitor can act on.
+ * Turn any failure into a sentence an exhibitor can act on, IN THE VERB OF THE
+ * ACT THEY CHOSE. Telling someone who clicked Pull to "try withdrawing again" is
+ * the same word-swap this issue exists to undo, moved onto the failure path.
  *
  * Server refusals arrive as raw Postgres text carrying the row UUID
- * ("Entry 22eb47a9-… is paid; request a refund instead of withdrawing"). That is
+ * ("Entry 22eb47a9-… is checked in at the show and cannot be withdrawn"). That is
  * exactly right for the logger and wrong for a person, so the UI switches on the
  * CODE and reuses the sentences this module already owns.
  *
@@ -205,20 +205,34 @@ export class WithdrawNotAllowedError extends Error {
  * `withdraw_own_entry` RPC raises. The pre-check covers the common refusals, so
  * a 42501 that still arrives means the row changed under us.
  */
-const SERVER_MESSAGES: Record<string, string> = {
-  // The RPC's own owner-tier guards. Reaching one means the entry changed
-  // between the pre-check and the call — e.g. a secretary marked it paid.
-  '42501': 'This entry can no longer be withdrawn — ask the secretary to pull it.',
-  // invalid_parameter_value: the payload was wrong. Not the exhibitor's doing.
-  '22023': "Something went wrong preparing this withdrawal — we've logged it.",
-  P0002: 'This entry no longer exists — refresh the page and try again.',
-  '40001': 'Someone else changed this entry — reopen it and try again.',
-};
+/**
+ * MYK9-632 round 5: the RPC's registry guard (step 1b) refuses with 22023, the
+ * same SQLSTATE it uses for a malformed payload. "Something went wrong preparing
+ * this withdrawal" is true of the payload case and useless here — the exhibitor
+ * picked a reason their registry does not recognise, which is a fact about the
+ * show, not a bug. Matched on the message because the code alone cannot tell the
+ * two apart.
+ */
+const REGISTRY_REFUSAL =
+  /does not recognise the withdrawal reason|cannot confirm the show's registry/i;
+
+function serverMessages(kind: RemoveFromClassKind | undefined): Record<string, string> {
+  const verb = removalVerb(kind);
+  const past = verb === 'pull' ? 'pulled' : 'withdrawn';
+  const noun = verb === 'pull' ? 'pull' : 'withdrawal';
+  return {
+    // The RPC's own owner-tier guards. Reaching one means the entry changed
+    // between the pre-check and the call — e.g. someone checked the dog in.
+    '42501': `This entry can no longer be ${past} — ask the show secretary.`,
+    // invalid_parameter_value: the payload was wrong. Not the exhibitor's doing.
+    '22023': `Something went wrong preparing this ${noun} — we've logged it.`,
+    P0002: 'This entry no longer exists — refresh the page and try again.',
+    '40001': 'Someone else changed this entry — reopen it and try again.',
+  };
+}
 
 const OWN_REFUSAL_CODES = new Set<string>([
   'removed',
-  'paid',
-  'unknown-payment',
   'status',
   'scored',
   'at-show',
@@ -228,11 +242,28 @@ const OWN_REFUSAL_CODES = new Set<string>([
 ]);
 
 export function withdrawErrorMessage(
-  error: { code?: string | undefined; message?: string | undefined } | null | undefined
+  error: { code?: string | undefined; message?: string | undefined } | null | undefined,
+  kind?: RemoveFromClassKind
 ): string {
   const code = error?.code;
   // Our own errors already carry a written sentence — pass it through.
   if (code && OWN_REFUSAL_CODES.has(code) && error?.message) return error.message;
-  if (code && SERVER_MESSAGES[code]) return SERVER_MESSAGES[code] as string;
-  return "We couldn't withdraw this entry. Please try again.";
+  if (error?.message && REGISTRY_REFUSAL.test(error.message)) {
+    return "The show's registry doesn't recognise that reason.";
+  }
+  const mapped = code ? serverMessages(kind)[code] : undefined;
+  if (mapped) return mapped;
+  return `We couldn't ${removalVerb(kind)} this entry. Please try again.`;
+}
+
+/**
+ * MYK9-632: both answers for one row. The exhibitor is offered two acts, and
+ * only the money arm differs between them, so a single verdict cannot drive the
+ * dialog. The two verdicts agree on every guard today (the money arm that once
+ * split them is gone), but they carry DIFFERENT SENTENCES, and the chooser shows
+ * each act its own — so the pair survives rather than collapsing back to one.
+ */
+export interface RemoveFromClassEligibility {
+  withdraw: WithdrawEligibility;
+  pull: WithdrawEligibility;
 }

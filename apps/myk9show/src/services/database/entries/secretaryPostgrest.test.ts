@@ -26,21 +26,31 @@ describe('postgrestGetSecretaryPullMetadataMap', () => {
           return query;
         }),
         eq: vi.fn(() => query),
+        // MYK9-632: the row scope is now BOTH terminal exhibitor states.
+        in: vi.fn(() => query),
         then: (resolve: (value: { data: unknown[] | null; error: unknown | null }) => unknown) =>
           Promise.resolve(
             resolve(
-              selectedColumns.includes('refund_decision')
+              selectedColumns.includes('withdrawal_reason_code')
                 ? {
                     data: null,
                     error: {
                       code: '42703',
-                      message: 'column entries.refund_decision does not exist',
+                      message: 'column entries.withdrawal_reason_code does not exist',
                     },
                   }
-                : {
-                    data: [{ id: 'entry-1', withdrawn_at: '2026-06-18T11:00:00Z' }],
-                    error: null,
-                  }
+                : selectedColumns.includes('refund_decision')
+                  ? {
+                      data: null,
+                      error: {
+                        code: '42703',
+                        message: 'column entries.refund_decision does not exist',
+                      },
+                    }
+                  : {
+                      data: [{ id: 'entry-1', withdrawn_at: '2026-06-18T11:00:00Z' }],
+                      error: null,
+                    }
             )
           ),
       };
@@ -48,19 +58,27 @@ describe('postgrestGetSecretaryPullMetadataMap', () => {
     });
   });
 
-  it('preserves withdrawal timestamps when refund-decision columns are not deployed yet', async () => {
+  // MYK9-632 added a SECOND migration-backed column group. Each must be dropped
+  // on its own: folding them together would lose the refund decision on a
+  // database that only lacks the reason code, and re-invite a second refund.
+  it('drops each migration-backed column group independently', async () => {
     const result = await postgrestGetSecretaryPullMetadataMap('show-1');
 
     expect(mocks.select).toHaveBeenNthCalledWith(
       1,
+      'id, withdrawn_at, refund_decision, refund_decided_at, withdrawal_reason_code'
+    );
+    expect(mocks.select).toHaveBeenNthCalledWith(
+      2,
       'id, withdrawn_at, refund_decision, refund_decided_at'
     );
-    expect(mocks.select).toHaveBeenNthCalledWith(2, 'id, withdrawn_at');
+    expect(mocks.select).toHaveBeenNthCalledWith(3, 'id, withdrawn_at');
     expect(result.get('entry-1')).toEqual({
       id: 'entry-1',
       withdrawn_at: '2026-06-18T11:00:00Z',
       refund_decision: null,
       refund_decided_at: null,
+      withdrawal_reason_code: null,
     });
   });
 });

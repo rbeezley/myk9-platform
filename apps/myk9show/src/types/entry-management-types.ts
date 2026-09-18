@@ -68,6 +68,12 @@ export interface EntryManagementEntry {
   comped?: boolean;
   compedReason?: string;
   withdrawalReason?: string;
+  /**
+   * MYK9-632: the recognised WITHDRAWAL reason code ('in_season' | 'judge_change'),
+   * null on a pull and on every row written before that migration. Distinct from
+   * `withdrawalReason`, which is free-text secretary notes.
+   */
+  withdrawalReasonCode?: string | null;
   enrollmentPaymentStatus?: PaymentStatus | null;
   enrollmentPaymentReference?: string | null;
   enrollmentTotalAmount?: number | null;

@@ -46,10 +46,11 @@ vi.mock('@/services/replication/ReplicatedTrialsTable', () => ({
 // The sheet must reach `entries` for the reason NOT AT ALL — the row carries it.
 // A spy on the shared client is the only way to assert the absence of a read
 // that no longer has a module of its own to mock.
-vi.mock('@/services/database/supabaseClient', () => ({
+vi.mock('@/services/database/supabaseClient', async importOriginal => ({
+  // Everything else stays REAL — notably `createDatabaseError`, which no test
+  // may re-implement (MYK9-181, `noLocalDatabaseErrorMocks.test.ts`).
+  ...(await importOriginal<typeof import('@/services/database/supabaseClient')>()),
   supabase: { from: mocks.supabaseFrom },
-  createDatabaseError: (error: unknown) => error,
-  logQuery: () => {},
 }));
 
 const noop = () => {};

@@ -17,10 +17,8 @@ import { formatRingLabel } from '@/utils/ringLabel';
 import { formatShowDateRange } from '@/lib/format/dates';
 import { resolveDogIdentityForOrganization } from '@/features/dogs/identity';
 import { resolveConfiguredRegistryId } from '@/features/registries';
-import {
-  deriveJuniorStatus,
-  handlerNameMatchesPerson,
-} from '@/features/registries/juniorHandlerPolicy';
+import { deriveJuniorStatus } from '@/features/registries/juniorHandlerPolicy';
+import { resolveHandlerPerson } from '@/features/registries/handlerIdentity';
 
 export function mapReportEntries(
   dbEntries: ReportDbEntry[],
@@ -186,14 +184,19 @@ function resolveHandlerJunior(
   const person = e.handler_person;
   if (!person) return {};
 
-  // Round-1 review P1: `entries.handler` is the free text that gets PRINTED and
-  // `entries.handler_id` is what we just read a date of birth from. A rename
-  // leaves the id behind, so unless the two name the same person this entry gets
-  // no mark at all.
-  if (!handlerNameMatchesPerson(e.handler, person)) return {};
+  // Who the paperwork is about is decided in ONE place for every print path —
+  // see handlerIdentity.ts. The catalog has no owner row in hand, so the
+  // handler_id person is its only candidate; the rule still requires that
+  // person to bear the printed name, because a rename leaves the id behind.
+  const handlerPerson = resolveHandlerPerson({
+    printedHandlerName: e.handler,
+    handlerIdPerson: person,
+    ownerPerson: null,
+  });
+  if (!handlerPerson) return {};
 
   const status = deriveJuniorStatus({
-    dateOfBirth: person.date_of_birth ?? null,
+    dateOfBirth: handlerPerson.date_of_birth ?? null,
     trialDate: trial.date ?? null,
     registryId,
   });

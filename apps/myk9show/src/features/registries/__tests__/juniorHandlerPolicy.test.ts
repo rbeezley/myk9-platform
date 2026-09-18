@@ -101,10 +101,10 @@ describe('ASCA — a floor of 8 and NO ceiling, so junior status is not derivabl
     }
   });
 
-  it('keeps the stated floor of 8 as DATA, without turning it into a status', () => {
-    // The floor is a rule about who may ENTER, not about who is a junior, so it
-    // lives on the rule and never becomes a JuniorStatusKind of its own.
-    expect(getJuniorHandlerRule('ASCA').minAgeYearsInclusive).toBe(8);
+  it('never turns the stated floor of 8 into a junior-status answer', () => {
+    // The floor is a rule about who may ENTER, not about who is a junior. It is
+    // recorded in the module's header prose and modelled nowhere, so there is no
+    // field here to assert — only that a handler below it still reads 'unknown'.
     expect(
       deriveJuniorStatus({ dateOfBirth: '2018-09-19', trialDate: '2026-09-18', registryId: 'ASCA' })
     ).toMatchObject({ kind: 'unknown', ageOnTrialDate: 7 });
@@ -190,15 +190,16 @@ describe('junior handler numbers', () => {
 });
 
 describe('the rule table itself', () => {
-  it('never states both a floor and a ceiling — no rulebook does', () => {
+  it('cites a rulebook for every registry, and models only the ceiling', () => {
     for (const registryId of ['AKC', 'UKC', 'ASCA'] as const) {
       const rule = getJuniorHandlerRule(registryId);
-      expect(
-        rule.minAgeYearsInclusive === null || rule.maxAgeYearsExclusive === null,
-        `${registryId} claims both bounds; one of them was invented`
-      ).toBe(true);
       expect(rule.citation.length).toBeGreaterThan(20);
+      expect(Object.keys(rule)).not.toContain('minAgeYearsInclusive');
     }
+    // Only ASCA lacks a ceiling, which is what makes it underivable.
+    expect(getJuniorHandlerRule('ASCA').maxAgeYearsExclusive).toBeNull();
+    expect(getJuniorHandlerRule('AKC').maxAgeYearsExclusive).toBe(18);
+    expect(getJuniorHandlerRule('UKC').maxAgeYearsExclusive).toBe(18);
   });
 
   it('measures UKC on January 1 and the others on the trial date', () => {

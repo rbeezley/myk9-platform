@@ -31,6 +31,32 @@ function peopleRead(rows: unknown[], error: unknown = null) {
   return select;
 }
 
+/**
+ * A `people` read that answers each BATCH differently.
+ *
+ * `loadJuniorHandlerProfiles` chunks its id list by `ID_CHUNK_SIZE` (100), so
+ * the only way to reach a PARTIAL read — some rows, `readComplete: false` — is
+ * more than 100 ids with one batch failing. Round 2 showed the previous test
+ * never reached that state: it failed the read outright, so `byPersonId.size`
+ * was 0 and the second half of the `||` returned first. The guard's own
+ * mutation survived.
+ */
+function peopleReadPerBatch(responses: Array<{ data: unknown[] | null; error: unknown }>) {
+  let call = 0;
+  const inFn = vi.fn().mockImplementation(() => {
+    const response = responses[Math.min(call, responses.length - 1)]!;
+    call += 1;
+    return Promise.resolve(response);
+  });
+  mocks.from.mockReturnValue({ select: vi.fn().mockReturnValue({ in: inFn }) });
+  return inFn;
+}
+
+/** 150 ids: two batches under a chunk size of 100. */
+function manyPersonIds(): string[] {
+  return Array.from({ length: 150 }, (_, index) => `person-${index}`);
+}
+
 function entry(overrides: Partial<Record<string, unknown>> = {}): ReportDbEntry {
   return {
     id: 'e1',
@@ -107,6 +133,42 @@ describe('the report hydration hop', () => {
     ]);
     expect(hydrated[0]?.handler_person).toBeDefined();
     expect(hydrated[1]?.handler_person).toBeUndefined();
+  });
+
+  it('marks NOBODY when only SOME batches answered', async () => {
+    // The state the guard actually exists for, and the one round 2 found
+    // untested: batch 1 returns rows, batch 2 errors. Half a hydration would
+    // mark some juniors and silently miss others, with nothing on the page to
+    // say which — so it marks none.
+    const ids = manyPersonIds();
+    const firstBatchRows = ids.slice(0, 100).map(id => ({ ...PERSON, id }));
+    const inFn = peopleReadPerBatch([
+      { data: firstBatchRows, error: null },
+      { data: null, error: { message: 'offline' } },
+    ]);
+
+    const entries = ids.map(id => entry({ id: `e-${id}`, handler_id: id }));
+    const hydrated = await hydrateHandlerJuniorProfilesForTest(entries);
+
+    expect(inFn, 'the fixture must really produce two batches').toHaveBeenCalledTimes(2);
+    // The first batch DID answer for this person — the guard is what suppresses it.
+    expect(hydrated[0]?.handler_person).toBeUndefined();
+    expect(hydrated.every(e => e.handler_person === undefined)).toBe(true);
+  });
+
+  it('marks everyone when every batch answered', async () => {
+    // Positive control for the test above: same two-batch shape, no failure.
+    const ids = manyPersonIds();
+    const inFn = peopleReadPerBatch([
+      { data: ids.slice(0, 100).map(id => ({ ...PERSON, id })), error: null },
+      { data: ids.slice(100).map(id => ({ ...PERSON, id })), error: null },
+    ]);
+
+    const entries = ids.map(id => entry({ id: `e-${id}`, handler_id: id }));
+    const hydrated = await hydrateHandlerJuniorProfilesForTest(entries);
+
+    expect(inFn).toHaveBeenCalledTimes(2);
+    expect(hydrated.every(e => e.handler_person !== undefined)).toBe(true);
   });
 
   it('marks NOBODY when the people read did not complete', async () => {

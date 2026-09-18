@@ -13,7 +13,7 @@
  * scanner can still see a real occurrence.
  */
 import { describe, it, expect } from 'vitest';
-import { readFileSync, readdirSync } from 'node:fs';
+import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import { resolve, sep } from 'node:path';
 
 const MIGRATIONS_DIR = resolve(process.cwd(), '../../supabase/migrations');
@@ -47,31 +47,55 @@ function walk(dir: string, out: string[] = []): string[] {
 }
 
 /**
- * The `.select(...)` argument of every `from('people')` chain in a file.
+ * Every `from(... 'people' ...)` chain in a file, with its `.select(...)`.
  *
  * Statement-scoped on purpose: a file-wide regex flags a `select('*')` on some
  * OTHER table that merely happens to live beside a people read, which is six
- * false positives in this repo.
+ * false positives in this repo. Matches single, double and backtick quoting, and
+ * the `untypedFrom(client, 'people')` helper — round 2 pointed out the first
+ * version read only the literal `from('people')`.
  */
+const PEOPLE_FROM = /(?:untypedFrom\s*\([^)]*?,\s*|\bfrom\s*\(\s*)['"`]people['"`]/g;
+
 function peopleSelectChains(source: string): string[] {
   const chains: string[] = [];
-  const marker = "from('people')";
-  let at = source.indexOf(marker);
-  while (at !== -1) {
-    const rest = source.slice(at, at + 800);
+  for (const match of source.matchAll(PEOPLE_FROM)) {
+    const rest = source.slice(match.index, match.index + 800);
     const end = rest.indexOf(';');
     chains.push(end === -1 ? rest : rest.slice(0, end));
-    at = source.indexOf(marker, at + marker.length);
   }
   return chains;
 }
 
-/** Does this chain's first `.select(` argument begin with a `*`? */
-function selectsStar(chain: string): boolean {
-  const match = /\.\s*select\s*\(\s*(['"`])([\s\S]*?)\1/.exec(chain);
-  if (!match) return false;
-  return /^\s*\*/.test(match[2] ?? '');
+/**
+ * Column lists this scanner can vouch for by name. A `.select(SOME_CONSTANT)`
+ * is opaque to a text scan, so an unlisted identifier fails rather than passes:
+ * round 2 noted that `.select(VARIABLE)` sailed through regardless of what the
+ * variable held, which is the same blind spot as `select('*')` wearing a hat.
+ */
+const VOUCHED_COLUMN_CONSTANTS = new Set([
+  'PEOPLE_MAPPER_COLUMNS',
+  'PEOPLE_DIRECTORY_COLUMNS',
+  'COUNT_COLUMN',
+]);
+
+/** 'star' | 'opaque' | null — why this chain's select cannot be vouched for. */
+function selectProblem(chain: string): 'star' | 'opaque' | null {
+  const quoted = /\.\s*select\s*\(\s*(['"`])([\s\S]*?)\1/.exec(chain);
+  if (quoted) return /^\s*\*/.test(quoted[2] ?? '') ? 'star' : null;
+
+  const identifier = /\.\s*select\s*\(\s*([A-Za-z_$][\w$]*)\s*[,)]/.exec(chain);
+  if (identifier) return VOUCHED_COLUMN_CONSTANTS.has(identifier[1] ?? '') ? null : 'opaque';
+
+  return null;
 }
+
+/** Every directory holding app or edge-function code that may read `people`. */
+const SCAN_ROOTS = [
+  SRC_DIR,
+  resolve(process.cwd(), '../../supabase/functions'),
+  resolve(process.cwd(), 'supabase/functions'),
+].filter(dir => existsSync(dir));
 
 describe('the migration that adds the columns', () => {
   const file = migrationFiles().find(f => f.startsWith(MIGRATION_VERSION));
@@ -186,34 +210,58 @@ describe('no public or anon-facing app read carries the columns', () => {
    * NAMES, and `select('*')` contains neither, so a star-select on `people` is
    * green by construction while shipping the PII. There were six of them.
    */
-  it('no read of public.people anywhere in the app uses a star select', () => {
+  it('no read of public.people anywhere uses a star or an unvouched column list', () => {
     const offenders: string[] = [];
-    for (const file of walk(SRC_DIR)) {
-      if (/\.test\.tsx?$/.test(file) || file.includes(`${sep}test${sep}`)) continue;
-      const source = jsWithoutComments(readFileSync(file, 'utf8'));
-      for (const chain of peopleSelectChains(source)) {
-        if (selectsStar(chain)) offenders.push(`${file.slice(SRC_DIR.length + 1)}: ${chain}`);
+    for (const root of SCAN_ROOTS) {
+      for (const file of walk(root)) {
+        if (/\.test\.tsx?$/.test(file) || file.includes(`${sep}test${sep}`)) continue;
+        const source = jsWithoutComments(readFileSync(file, 'utf8'));
+        for (const chain of peopleSelectChains(source)) {
+          const problem = selectProblem(chain);
+          if (problem) offenders.push(`${problem}: ${file}: ${chain.slice(0, 120)}`);
+        }
       }
     }
     expect(
       offenders,
-      'a star select on people ships date_of_birth to every caller AND hides it from this test'
+      'a star select on people ships date_of_birth to every caller AND hides it from this ' +
+        'test; an unrecognised column constant is the same blind spot wearing a hat — ' +
+        'inline the columns or add the constant to VOUCHED_COLUMN_CONSTANTS'
     ).toEqual([]);
   });
 
-  it('positive control: the scanner catches both star spellings, and only on people', () => {
+  it('covers the edge functions, which run as service_role with RLS bypassed', () => {
+    // The payloads where a star would matter most. If this stops finding people
+    // reads there, the assertion above has quietly stopped covering them.
+    const functionRoots = SCAN_ROOTS.filter(root => root !== SRC_DIR);
+    expect(
+      functionRoots.length,
+      'no supabase/functions directory was found to scan'
+    ).toBeGreaterThan(0);
+    const peopleReads = functionRoots.flatMap(root =>
+      walk(root).flatMap(file => peopleSelectChains(jsWithoutComments(readFileSync(file, 'utf8'))))
+    );
+    expect(peopleReads.length, 'expected edge functions to read people').toBeGreaterThan(0);
+  });
+
+  it('positive control: the scanner catches both star spellings, quoting styles and opaque lists', () => {
     // Without this, the assertion above passes just as happily on a broken regex
     // — and a file-wide scan would flag a `select('*')` on some OTHER table.
-    const starOnPeople = (src: string) => peopleSelectChains(src).some(selectsStar);
-    expect(starOnPeople(`supabase.from('people').select('*').eq('id', id);`)).toBe(true);
-    expect(starOnPeople("supabase.from('people').select(`*, dogs(id)`).eq(1);")).toBe(true);
-    expect(
-      starOnPeople(".from('people')\n  .select(`\n    *,\n    dogs(id)\n  `)\n  .is(1);")
-    ).toBe(true);
-    // The explicit lists that replaced them, and a star on a different table.
-    expect(starOnPeople(".from('people').select(PEOPLE_MAPPER_COLUMNS).is(1);")).toBe(false);
-    expect(starOnPeople(".from('people').select('id, first_name').is(1);")).toBe(false);
-    expect(starOnPeople(".from('dogs').select('*').is(1);")).toBe(false);
+    const problems = (src: string) => peopleSelectChains(src).map(selectProblem).filter(Boolean);
+    expect(problems(`supabase.from('people').select('*').eq('id', id);`)).toEqual(['star']);
+    expect(problems('supabase.from("people").select("*").eq(1);')).toEqual(['star']);
+    expect(problems('supabase.from(`people`).select(`*, dogs(id)`).eq(1);')).toEqual(['star']);
+    expect(problems(".from('people')\n  .select(`\n    *,\n    dogs(id)\n  `)\n  .is(1);")).toEqual(
+      ['star']
+    );
+    expect(problems("untypedFrom(supabase, 'people').select('*').is(1);")).toEqual(['star']);
+    // An opaque constant is refused; the two vouched ones are not.
+    expect(problems(".from('people').select(SOME_MYSTERY_LIST).is(1);")).toEqual(['opaque']);
+    expect(problems(".from('people').select(PEOPLE_MAPPER_COLUMNS).is(1);")).toEqual([]);
+    expect(problems(".from('people').select(PEOPLE_DIRECTORY_COLUMNS).is(1);")).toEqual([]);
+    expect(problems(".from('people').select('id, first_name').is(1);")).toEqual([]);
+    // A star on a different table is not ours.
+    expect(problems(".from('dogs').select('*').is(1);")).toEqual([]);
   });
 
   it('positive control: the app DOES read the columns somewhere', () => {

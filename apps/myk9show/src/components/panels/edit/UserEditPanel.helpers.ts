@@ -60,6 +60,7 @@ export const userFormSchema: z.ZodSchema<UserFormData> = z
     zipCode: z.string(),
     dateOfBirth: dateOfBirthSchema,
     juniorHandlerNumbers: z.record(z.string(), z.string()),
+    juniorHandlerFieldsLoaded: z.boolean(),
     profileImage: z.string().optional(),
     judgeQualifications: z.array(judgeQualificationSchema),
     roles: z.array(z.string()),
@@ -112,6 +113,13 @@ export const userToFormData = (user: Partial<UserType>): UserFormData => {
       normalizeJuniorHandlerNumbers(
         user.juniorHandlerNumbers ?? userRecord.junior_handler_numbers
       ) ?? {},
+    // Did the SOURCE carry these at all? `undefined` on both means the read did
+    // not select them, not that the person has none.
+    juniorHandlerFieldsLoaded:
+      user.dateOfBirth !== undefined ||
+      user.juniorHandlerNumbers !== undefined ||
+      userRecord.date_of_birth !== undefined ||
+      userRecord.junior_handler_numbers !== undefined,
     profileImage: user.profileImage || (userRecord.profile_image_url as string) || '',
     judgeQualifications: (user.judgeQualifications as JudgeQualification[]) || [],
     roles: (user.roles || []) as unknown as string[], // Handle UserRole[] type
@@ -136,6 +144,23 @@ export const userToFormData = (user: Partial<UserType>): UserFormData => {
   return result;
 };
 
+/**
+ * The junior handler half of a save, or nothing at all.
+ *
+ * Trimmed, blanks dropped, every registry key preserved — including ones this
+ * form renders no input for. Omitted entirely when the form neither loaded the
+ * fields nor was given a value, which is what stops `/admin/users` writing
+ * `null` / `{}` over data it never read (round-2 P1).
+ */
+function juniorHandlerFieldsToSave(
+  formData: UserFormData
+): Pick<Partial<UserType>, 'dateOfBirth' | 'juniorHandlerNumbers'> {
+  const numbers = juniorHandlerNumbersForSave(formData.juniorHandlerNumbers);
+  const hasTypedValue = Boolean(formData.dateOfBirth) || Object.keys(numbers).length > 0;
+  if (!formData.juniorHandlerFieldsLoaded && !hasTypedValue) return {};
+  return { dateOfBirth: formData.dateOfBirth, juniorHandlerNumbers: numbers };
+}
+
 // Convert form data back to UserType
 export const formDataToUser = (formData: UserFormData): Partial<UserType> => ({
   firstName: formData.firstName,
@@ -146,10 +171,11 @@ export const formDataToUser = (formData: UserFormData): Partial<UserType> => ({
   city: formData.city,
   state: formData.state,
   zipCode: formData.zipCode,
-  dateOfBirth: formData.dateOfBirth,
-  // Trimmed, blanks dropped, every registry key preserved — including ones this
-  // form renders no input for.
-  juniorHandlerNumbers: juniorHandlerNumbersForSave(formData.juniorHandlerNumbers),
+  // MYK9-570: emitted only when this form has something to say about them —
+  // either the row it was seeded from carried them, or somebody typed one. A
+  // form that never loaded them emits NOTHING, so a save from a surface with a
+  // narrower read cannot blank a column it never showed.
+  ...juniorHandlerFieldsToSave(formData),
   profileImage: formData.profileImage,
   judgeQualifications: formData.judgeQualifications,
   roles: formData.roles as UserRole[],

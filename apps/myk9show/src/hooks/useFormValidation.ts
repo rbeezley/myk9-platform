@@ -10,7 +10,13 @@ export interface FormFieldInputProps {
 export interface FormValidation<T> {
   data: T;
   errors: Record<string, string>;
-  setValue: (field: keyof T, value: unknown) => void;
+  /**
+   * Set one field. `value` may be an UPDATER — `(previous) => next` — for a
+   * field derived from its own current value: two `setValue` calls for
+   * different keys of the same object in one tick otherwise both read the same
+   * stale render closure and the first is lost (MYK9-570 round 2).
+   */
+  setValue: (field: keyof T, value: unknown | ((previous: unknown) => unknown)) => void;
   setValues: (partial: Partial<T>) => void;
   getError: (field: keyof T) => string | undefined;
   getFieldProps: (field: keyof T) => FormFieldInputProps;
@@ -68,9 +74,16 @@ export function useFormValidation<T extends Record<string, unknown>>(
     [data]
   );
 
-  const setValue = useCallback((field: keyof T, value: unknown) => {
-    setData(prev => ({ ...prev, [field]: value }));
-  }, []);
+  const setValue = useCallback(
+    (field: keyof T, value: unknown | ((previous: unknown) => unknown)) => {
+      setData(prev => ({
+        ...prev,
+        [field]:
+          typeof value === 'function' ? (value as (p: unknown) => unknown)(prev[field]) : value,
+      }));
+    },
+    []
+  );
 
   const setValues = useCallback((partial: Partial<T>) => {
     setData(prev => ({ ...prev, ...partial }));

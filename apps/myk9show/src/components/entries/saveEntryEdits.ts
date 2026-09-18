@@ -32,6 +32,8 @@ export interface SaveEntryEditsParams {
   classEdits: Record<string, EntryClassEdits>;
   /** The card-level handler, used when a class row carries none of its own. */
   fallbackHandler?: string | undefined;
+  /** Secretary surfaces pass true; mirrors `ignoreModificationDeadline`. */
+  clearHandlerId: boolean;
 }
 
 /**
@@ -44,7 +46,7 @@ export interface SaveEntryEditsParams {
 export async function saveEntryEdits(
   params: SaveEntryEditsParams
 ): Promise<{ error: string | null }> {
-  const { classes, classEdits, fallbackHandler } = params;
+  const { classes, classEdits, fallbackHandler, clearHandlerId } = params;
 
   // A grouped dog card can contain multiple entry rows, and each row may need a
   // different handler.
@@ -52,27 +54,30 @@ export async function saveEntryEdits(
     const editedHandler = classEdits[classEntry.id]?.handler;
     const originalHandler = classEntry.handler ?? fallbackHandler ?? '';
     if (editedHandler !== undefined && editedHandler !== originalHandler) {
-      // MYK9-570: `clearHandlerId` is TRUE on every rename, not just the
-      // secretary's. This dialog only ever edits the handler as free TEXT — it
-      // offers no person picker, hence `handlerId: null` — so after a rename the
-      // stored `handler_id` points at whoever used to hold the name. Keeping it
-      // made the catalog and the AKC entry form read one person's date of birth
-      // and registry-issued junior number and print them under another person's
-      // name. Nothing else on an entry is keyed to `handler_id`, so clearing it
-      // costs a re-resolution the app does not currently do anyway.
+      // MYK9-570: `clearHandlerId` stays the CALLER's decision, unchanged.
       //
-      // This is only half the guard, and deliberately so. The RPC's OFFICIAL
-      // branch honours the flag; its EXHIBITOR branch does
-      // `handler_id = COALESCE(p_handler_id, v_existing_handler_id)` and ignores
-      // it entirely, so an exhibitor's rename still leaves the old id behind
-      // until that function is changed. The read side therefore refuses to
-      // derive junior status at all unless the person behind `handler_id` is
-      // the person whose name is printed — see `handlerNameMatchesPerson`.
+      // Round 1 of that issue's review made it unconditional on the theory that
+      // a rename should drop the now-wrong person link. Round 2 showed the
+      // reasoning rested on a false premise — `entries.handler_id` is NOT
+      // incidental. It is keyed by the exhibitor's own self check-in
+      // (`useClassCheckInData` filters `.eq('handler_id', userId)` with no
+      // owner/co-owner fallback), the at-show exhibitor queue view,
+      // `entry_results_caller_context`'s "is this my entry?" predicate,
+      // recoverable show access codes, the announcement push path and the
+      // show-registrations read. Nulling it on a text correction would take an
+      // exhibitor's own check-in page away from them.
+      //
+      // So the stale-link problem is solved on the READ side instead, where it
+      // costs nothing: `resolveHandlerPerson` refuses to derive junior status or
+      // print a registry number unless the person behind `handler_id` bears the
+      // name being printed. Whether the WRITE should also re-point or clear the
+      // id is a real question with real consequences, and it is MYK9-665's to
+      // answer — not this dialog's to assume.
       const { error } = await updateEntryHandler({
         entryId: classEntry.id,
         handler: editedHandler,
         handlerId: null,
-        clearHandlerId: true,
+        clearHandlerId,
       });
       if (error) return { error: 'Failed to update handler. Please try again.' };
     }

@@ -133,11 +133,24 @@ export function useProfileForm() {
     }
   }, [person]);
 
+  /**
+   * `value` may be an UPDATER — `(previous) => next` — for a field derived from
+   * its own current value. Two changes to different keys of the junior-number
+   * map in one tick otherwise both read the same stale render closure and the
+   * first is lost (MYK9-570 round 2).
+   */
   const setValue = <Field extends keyof ProfileFormValues>(
     field: Field,
-    value: ProfileFormValues[Field]
+    value:
+      ProfileFormValues[Field] | ((previous: ProfileFormValues[Field]) => ProfileFormValues[Field])
   ) => {
-    setValues(prev => ({ ...prev, [field]: value }));
+    setValues(prev => ({
+      ...prev,
+      [field]:
+        typeof value === 'function'
+          ? (value as (p: ProfileFormValues[Field]) => ProfileFormValues[Field])(prev[field])
+          : value,
+    }));
   };
 
   // Validation

@@ -158,11 +158,14 @@ export const BasicInfoTab: React.FC<BasicInfoTabProps> = ({
           juniorHandlerNumbers={data.juniorHandlerNumbers ?? {}}
           dateOfBirthError={dateOfBirthError}
           onDateOfBirthChange={value => form?.setValue('dateOfBirth', value)}
+          // Updater, not a spread of the render closure: two registries changed
+          // in one tick (autofill, a paste into both) would otherwise lose the
+          // first.
           onJuniorHandlerNumberChange={(registryId: RegistryId, value) =>
-            form?.setValue('juniorHandlerNumbers', {
-              ...(data.juniorHandlerNumbers ?? {}),
+            form?.setValue('juniorHandlerNumbers', (previous: unknown) => ({
+              ...((previous as Record<string, string>) ?? {}),
               [registryId]: value,
-            })
+            }))
           }
         />
       </div>

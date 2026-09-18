@@ -242,6 +242,7 @@ export function EntryEditDialog({
         classes: entry.classes,
         classEdits,
         fallbackHandler: entry.handler,
+        clearHandlerId: ignoreModificationDeadline,
       });
       if (error) {
         setError(error);

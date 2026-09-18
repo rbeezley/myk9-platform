@@ -36,6 +36,7 @@ describe('saveEntryEdits', () => {
       // A handler edit plus a re-pick of the SAME height: exactly the shape that
       // used to fire a pointless second write.
       classEdits: { 'entry-1': { handler: 'Sam Handler', jumpHeight: '8"' } },
+      clearHandlerId: false,
     });
 
     expect(mocks.updateEntryHandler).toHaveBeenCalledTimes(1);
@@ -47,6 +48,7 @@ describe('saveEntryEdits', () => {
     await saveEntryEdits({
       classes,
       classEdits: { 'entry-1': { jumpHeight: '12"' } },
+      clearHandlerId: false,
     });
 
     expect(mocks.updateEntryDetails).toHaveBeenCalledWith({
@@ -59,6 +61,7 @@ describe('saveEntryEdits', () => {
     await saveEntryEdits({
       classes: [...classes, { id: 'entry-2', jumpHeight: '8"' }],
       classEdits: { 'entry-1': { jumpHeight: '12"', status: 'withdrawn' } },
+      clearHandlerId: false,
     });
 
     expect(mocks.updateEntryDetails).not.toHaveBeenCalled();
@@ -75,6 +78,7 @@ describe('saveEntryEdits', () => {
     const result = await saveEntryEdits({
       classes,
       classEdits: { 'entry-1': { jumpHeight: '12"' } },
+      clearHandlerId: false,
     });
 
     expect(result.error).toBe(
@@ -89,6 +93,7 @@ describe('saveEntryEdits', () => {
     const result = await saveEntryEdits({
       classes,
       classEdits: { 'entry-1': { handler: 'Sam Handler', jumpHeight: '12"' } },
+      clearHandlerId: false,
     });
 
     expect(result.error).toBe('Failed to update handler. Please try again.');
@@ -112,19 +117,28 @@ describe('MYK9-570: a handler rename must not keep the old handler_id', () => {
     mocks.updateEntryHandler.mockResolvedValue({ error: null });
   });
 
-  it('clears handler_id on a rename, on the exhibitor surface as much as the secretary one', async () => {
-    await saveEntryEdits({
-      classes,
-      classEdits: { 'entry-1': { handler: 'Sam Handler' } },
-    });
+  it.each([true, false])(
+    'passes the caller tier through to the RPC untouched (clearHandlerId %p)',
+    async callerTier => {
+      // MYK9-570 round 2: `handler_id` is load-bearing for the exhibitor's own
+      // self check-in, the at-show queue and the "is this my entry?" predicate,
+      // so this dialog must not decide to null it. Whether a rename should clear
+      // or re-point the link is MYK9-665's question; the stale-link problem is
+      // solved on the READ side by `resolveHandlerPerson`.
+      await saveEntryEdits({
+        classes,
+        classEdits: { 'entry-1': { handler: 'Sam Handler' } },
+        clearHandlerId: callerTier,
+      });
 
-    expect(mocks.updateEntryHandler).toHaveBeenCalledWith({
-      entryId: 'entry-1',
-      handler: 'Sam Handler',
-      handlerId: null,
-      clearHandlerId: true,
-    });
-  });
+      expect(mocks.updateEntryHandler).toHaveBeenCalledWith({
+        entryId: 'entry-1',
+        handler: 'Sam Handler',
+        handlerId: null,
+        clearHandlerId: callerTier,
+      });
+    }
+  );
 
   it('does not write at all when the handler did not change', () => {
     // The guard must not turn "no change" into a clearing write — that would
@@ -132,6 +146,7 @@ describe('MYK9-570: a handler rename must not keep the old handler_id', () => {
     return saveEntryEdits({
       classes,
       classEdits: { 'entry-1': { jumpHeight: '12"' } },
+      clearHandlerId: false,
     }).then(() => {
       expect(mocks.updateEntryHandler).not.toHaveBeenCalled();
     });

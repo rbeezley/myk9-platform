@@ -210,10 +210,10 @@ export function ProfileSection() {
             dateOfBirthError={form.errors.dateOfBirth}
             onDateOfBirthChange={value => form.setValue('dateOfBirth', value)}
             onJuniorHandlerNumberChange={(registryId, value) =>
-              form.setValue('juniorHandlerNumbers', {
-                ...form.values.juniorHandlerNumbers,
+              form.setValue('juniorHandlerNumbers', previous => ({
+                ...previous,
                 [registryId]: value,
-              })
+              }))
             }
           />
           {form.isDirty && (

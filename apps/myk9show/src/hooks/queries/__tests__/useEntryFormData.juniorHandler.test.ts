@@ -114,22 +114,27 @@ describe('useEntryFormData resolves the handler person for the junior fields', (
   });
 
   it('does NOT borrow a handler person from another entry on the same dog', async () => {
-    // The round-1 P2. Entry A is the printed handler and carries no handler_id —
-    // exactly what a secretary's handler correction leaves behind. The old code
-    // fell through to entry B and printed Sarah's AKC junior number under Bob's
-    // name.
+    // The round-1 P2, pinned so that RESTORING the cross-entry fallback fails on
+    // its own rather than being caught by the name guard. Round 2 showed the
+    // first version of this test passed either way, because the borrowed person
+    // had a different name from the printed handler.
+    //
+    // Here the borrowed person IS named "Chris Kid" — the same name entry A
+    // prints — so a fallback that reaches entry B would sail through the name
+    // guard and print Chris's AKC number. Only refusing to look at another
+    // entry keeps this null.
     routeTables(
       [
-        { id: 'entry-a', handler: 'Bob Handler', handler_id: null },
-        { id: 'entry-b', handler: 'Sarah Owner', handler_id: SARAH.id },
+        { id: 'entry-a', handler: 'Chris Kid', handler_id: null },
+        { id: 'entry-b', handler: 'Chris Kid', handler_id: KID.id },
       ],
-      [SARAH]
+      [SARAH, KID]
     );
     const { result } = renderEntryFormData();
     await waitFor(() => expect(result.current.dogs).toHaveLength(1));
 
     const dog = result.current.dogs[0]!;
-    expect(dog.handler).toBe('Bob Handler');
+    expect(dog.handler).toBe('Chris Kid');
     expect(dog.handlerDateOfBirth).toBeNull();
     expect(dog.handlerJuniorHandlerNumbers).toBeUndefined();
   });
@@ -143,6 +148,41 @@ describe('useEntryFormData resolves the handler person for the junior fields', (
     expect(dog.handler).toBe('Grandma Smith');
     expect(dog.handlerDateOfBirth).toBeNull();
     expect(dog.handlerJuniorHandlerNumbers).toBeUndefined();
+  });
+
+  it('fills for an OWNER-handled dog — 1276 of 1281 live entries', async () => {
+    // Round 2's P1. The fetch identifies a "handler entry" by `handler !==
+    // ownerFullName`, so when the owner handles their own dog there is no
+    // handler entry and `handler_id` never reaches the resolver as a candidate.
+    // The OWNER is the candidate in that case, and the printed name is theirs.
+    routeTables([{ id: 'entry-a', handler: 'Sarah Owner', handler_id: SARAH.id }], [SARAH]);
+    const { result } = renderEntryFormData();
+    await waitFor(() => expect(result.current.dogs).toHaveLength(1));
+
+    const dog = result.current.dogs[0]!;
+    // `handler` stays null: the form prints the owner block for an owner-handled
+    // dog. The junior fields must still be populated.
+    expect(dog.handler).toBeNull();
+    expect(dog.handlerDateOfBirth).toBe('2009-05-05');
+    expect(dog.handlerJuniorHandlerNumbers).toEqual({ AKC: 'SARAH-NUMBER' });
+  });
+
+  it('fills for an owner-handled dog even with no handler_id on the entry at all', async () => {
+    routeTables([{ id: 'entry-a', handler: 'Sarah Owner', handler_id: null }], [SARAH]);
+    const { result } = renderEntryFormData();
+    await waitFor(() => expect(result.current.dogs).toHaveLength(1));
+    expect(result.current.dogs[0]!.handlerDateOfBirth).toBe('2009-05-05');
+  });
+
+  it('does not treat the owner as the handler when someone else is printed', async () => {
+    // The owner is a CANDIDATE, not a default: only their own name admits them.
+    routeTables([{ id: 'entry-a', handler: 'Bob Handler', handler_id: null }], [SARAH]);
+    const { result } = renderEntryFormData();
+    await waitFor(() => expect(result.current.dogs).toHaveLength(1));
+
+    const dog = result.current.dogs[0]!;
+    expect(dog.handler).toBe('Bob Handler');
+    expect(dog.handlerDateOfBirth).toBeNull();
   });
 
   it('asks the people read for the junior columns at all', async () => {

@@ -7,10 +7,8 @@ import {
   type DogRegistrationLike,
 } from '@/features/dogs/identity';
 import type { ShowExperienceSnapshot } from '@/features/experience/experienceSnapshot';
-import {
-  handlerNameMatchesPerson,
-  normalizeJuniorHandlerNumbers,
-} from '@/features/registries/juniorHandlerPolicy';
+import { normalizeJuniorHandlerNumbers } from '@/features/registries/juniorHandlerPolicy';
+import { resolveHandlerPerson } from '@/features/registries/handlerIdentity';
 import type {
   EntryFormDog,
   EntryFormSecretary,
@@ -319,22 +317,31 @@ async function fetchEntryFormData(
       first_name: owner.firstName,
       last_name: owner.lastName,
     });
+    // `handler` is the name the AKC form PRINTS. It stays null when the handler
+    // is the owner — that is what the `!== ownerFullName` filter is for; the
+    // form prints the owner block in that case.
     const handlerEntry = dogEntries.find(e => e.handler && e.handler !== ownerFullName);
     const handler = handlerEntry?.handler ?? null;
-    // MYK9-570 round-1 review, P2: the person behind the printed handler name is
-    // THIS entry's `handler_id` or nobody. There used to be a fallback to the
-    // first entry on the dog that carried any `handler_id`, which fired whenever
-    // `handlerEntry` existed with a NULL id — exactly what a secretary's handler
-    // correction produces — and printed a different person's junior number under
-    // the handler's name.
-    const handlerPersonId = handlerEntry?.handlerId ?? null;
-    const handlerCandidate = handlerPersonId ? personMap.get(handlerPersonId) : null;
-    // And even then, only when that person is the one whose name is printed: a
-    // rename leaves the old id behind (see handlerNameMatchesPerson).
-    const handlerRaw =
-      handlerCandidate && handlerNameMatchesPerson(handler, handlerCandidate)
-        ? handlerCandidate
-        : null;
+
+    // MYK9-570: WHO that handler is, for the junior fields, is decided by the
+    // one resolver in handlerIdentity.ts — never inferred here from whatever is
+    // in scope. Two rounds of review found this block wrong in two different
+    // ways (a person borrowed from another entry; then, after that fallback was
+    // deleted, the owner-handled case lost the number entirely — 1276 of 1281
+    // live entries), so the choice no longer lives at the call site.
+    //
+    // The printed name is `handler` when there IS a separate handler entry, and
+    // the owner's name otherwise. Both candidates are offered; the resolver
+    // admits one only if its name is the one being printed.
+    const printedHandlerName = handler ?? ownerFullName;
+    const handlerIdPerson = handlerEntry?.handlerId
+      ? (personMap.get(handlerEntry.handlerId) ?? null)
+      : null;
+    const handlerRaw = resolveHandlerPerson({
+      printedHandlerName,
+      handlerIdPerson,
+      ownerPerson: ownerRaw ?? null,
+    });
 
     const armband = dogEntries.find(e => e.armband != null)?.armband ?? null;
     const agreementDate = dogEntries.find(e => e.submittedAt)?.submittedAt ?? null;

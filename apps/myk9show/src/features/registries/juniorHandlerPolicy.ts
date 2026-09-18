@@ -40,9 +40,13 @@
  *    bound anywhere (grepped for "under 18" / "18 years" / "eighteen" / "youth": zero
  *    hits) and no measuring date. ASCA therefore has NO derivable junior status, and
  *    this module invents none — `deriveJuniorStatus` returns 'unknown' for ASCA with a
- *    ruleSource that says why. The stated floor of 8 is kept as data on the rule
- *    (`minAgeYearsInclusive`) for whoever decides ENTRY eligibility; it is not a
- *    junior-status answer, so nothing here branches on it.
+ *    ruleSource that says why. §17 also states a FLOOR ("Minimum age requirement for
+ *    handlers is eight (8) years of age", asca-scent-detection-rules.txt line 2711).
+ *    That is recorded here in prose and nowhere in the data, deliberately: it is a
+ *    rule about who may ENTER, no caller in this app decides entry eligibility by
+ *    registry, and a field no one reads is dead weight that acquires a wrong comment
+ *    (it did — round 2). Whoever needs it should read this paragraph and add the
+ *    field back with its consumer in the same change.
  *
  * Deliberately NOT here: any fee, discount or price. See MYK9-570 slice 2.
  */
@@ -59,8 +63,6 @@ export interface RegistryJuniorHandlerRule {
   registryId: RegistryId;
   /** Exclusive upper bound in years, or null when the rulebook states none. */
   maxAgeYearsExclusive: number | null;
-  /** Inclusive lower bound in years, or null when the rulebook states none. */
-  minAgeYearsInclusive: number | null;
   /**
    * The instant the handler's age is measured at.
    *  - 'trial-date' — the day of the trial (AKC).
@@ -82,7 +84,6 @@ export interface RegistryJuniorHandlerRule {
 const AKC_RULE: RegistryJuniorHandlerRule = {
   registryId: 'AKC',
   maxAgeYearsExclusive: 18,
-  minAgeYearsInclusive: null,
   ageMeasuredOn: 'trial-date',
   issuesJuniorHandlerNumber: true,
   juniorHandlerNumberLabel: 'AKC junior handler number',
@@ -93,7 +94,6 @@ const AKC_RULE: RegistryJuniorHandlerRule = {
 const UKC_RULE: RegistryJuniorHandlerRule = {
   registryId: 'UKC',
   maxAgeYearsExclusive: 18,
-  minAgeYearsInclusive: null,
   ageMeasuredOn: 'january-1-of-trial-year',
   // UKC runs a Junior program membership rather than issuing a number, but its
   // change-entry form carries a "Junior ID" slot, so a stored value has somewhere to go.
@@ -106,12 +106,11 @@ const UKC_RULE: RegistryJuniorHandlerRule = {
 /**
  * ASCA states a floor and no ceiling, so junior status is NOT derivable. Modelled
  * explicitly rather than omitted so that `getJuniorHandlerRule('ASCA')` has an answer
- * and the reason travels with it.
+ * and the reason travels with it, in `citation`.
  */
 const ASCA_RULE: RegistryJuniorHandlerRule = {
   registryId: 'ASCA',
   maxAgeYearsExclusive: null,
-  minAgeYearsInclusive: 8,
   ageMeasuredOn: 'trial-date',
   issuesJuniorHandlerNumber: false,
   juniorHandlerNumberLabel: null,
@@ -144,9 +143,9 @@ export function getJuniorHandlerRule(registryId: RegistryId): RegistryJuniorHand
  *
  * There is deliberately no 'ineligible': ASCA's stated FLOOR of 8 is a rule about
  * who may enter, not about who is a junior, and no surface here decides entry
- * eligibility. The floor is kept as data on `minAgeYearsInclusive` so the entry
- * validator can use it without re-reading the rulebook (round-1 review: a kind no
- * caller consumes is a dead branch).
+ * eligibility by registry. A kind no caller consumes is a dead branch — and so is
+ * a field, which is why the floor lives in this module's header prose rather than
+ * in the rule table (rounds 1 and 2 of the review, in that order).
  */
 export type JuniorStatusKind = 'junior' | 'adult' | 'unknown';
 
@@ -297,57 +296,6 @@ export function getJuniorHandlerNumber(
   if (typeof value !== 'string') return null;
   const trimmed = value.trim();
   return trimmed === '' ? null : trimmed;
-}
-
-/**
- * MYK9-570 round-1 review, P1: does the person behind `entries.handler_id` actually
- * bear the name the paperwork prints?
- *
- * `entries.handler` is free text and `entries.handler_id` is a FK, and nothing in
- * the schema keeps them in step. The Edit Entry dialog has no person picker, so a
- * rename leaves the old id behind (the RPC's exhibitor branch COALESCEs it back
- * even when the client asks to clear it), and one live row already disagrees. Read
- * naively, that prints a child's date-of-birth-derived junior status and their
- * registry-issued AKC junior handler number under an adult's name — on official
- * AKC paperwork.
- *
- * So the derivation is gated on the two agreeing. Deliberately STRICT and
- * deliberately one-directional: a false negative prints a plain name, a false
- * positive makes a junior-eligibility claim about the wrong person. Anything this
- * cannot confidently match reads as 'unknown'.
- *
- * Matching is on the person's own `first last`, case-insensitively, ignoring
- * punctuation and repeated spaces. "Last, First" is also accepted because
- * secretaries type it. Nothing else — no nicknames, no initials, no fuzzy
- * distance.
- */
-export function normalizeHandlerName(value: string | null | undefined): string {
-  return (value ?? '')
-    .toLowerCase()
-    .replace(/[.,'`\u2019-]/g, ' ')
-    .replace(/\s+/g, ' ')
-    .trim();
-}
-
-export interface HandlerPersonNameLike {
-  first_name?: string | null | undefined;
-  last_name?: string | null | undefined;
-}
-
-export function handlerNameMatchesPerson(
-  printedHandlerName: string | null | undefined,
-  person: HandlerPersonNameLike | null | undefined
-): boolean {
-  const printed = normalizeHandlerName(printedHandlerName);
-  if (!printed || !person) return false;
-
-  const first = normalizeHandlerName(person.first_name);
-  const last = normalizeHandlerName(person.last_name);
-  if (!first && !last) return false;
-
-  const forward = normalizeHandlerName(`${first} ${last}`);
-  const reversed = normalizeHandlerName(`${last} ${first}`);
-  return printed === forward || printed === reversed;
 }
 
 /**

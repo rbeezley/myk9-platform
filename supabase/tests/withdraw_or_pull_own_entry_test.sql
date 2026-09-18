@@ -49,6 +49,35 @@ values ('00000000-0000-0000-0000-000000632011', 'MYK9-632', 'Owner',
   ('00000000-0000-0000-0000-000000632016', 'MYK9-632', 'Secretary',
   '00000000-0000-0000-0000-000000632106');
 
+-- ONE REGISTRY PER SHOW (MYK9-490) is enforced by
+-- trg_enforce_show_registry_on_trial: a trial's registry_id must equal
+-- derive_registry_id(show.organization). So the ASCA and UKC cases get their OWN
+-- shows, with their own trial, class and entry. Flipping 632003's registry under
+-- the AKC show is what CI rejected, and rightly — that trigger IS the domain
+-- rule.
+insert into public.shows (id, name, organization, start_date, end_date, club_id, status)
+values
+  ('00000000-0000-0000-0000-000000632202', 'MYK9-632 ASCA Show', 'ASCA',
+    current_date, current_date, '00000000-0000-0000-0000-000000632001', 'published'),
+  ('00000000-0000-0000-0000-000000632302', 'MYK9-632 UKC Show', 'UKC',
+    current_date, current_date, '00000000-0000-0000-0000-000000632001', 'published');
+
+insert into public.trials (id, show_id, name, date, registry_id)
+values
+  ('00000000-0000-0000-0000-000000632203', '00000000-0000-0000-0000-000000632202',
+    'MYK9-632 ASCA Trial', current_date, 'ASCA'),
+  ('00000000-0000-0000-0000-000000632303', '00000000-0000-0000-0000-000000632302',
+    'MYK9-632 UKC Trial', current_date, 'UKC');
+
+insert into public.classes (id, trial_id, name, status)
+values
+  ('00000000-0000-0000-0000-000000632245', '00000000-0000-0000-0000-000000632203',
+    'ASCA Container Novice', 'upcoming'),
+  ('00000000-0000-0000-0000-000000632246', '00000000-0000-0000-0000-000000632203',
+    'ASCA Interior Novice', 'upcoming'),
+  ('00000000-0000-0000-0000-000000632345', '00000000-0000-0000-0000-000000632303',
+    'UKC Container Novice', 'upcoming');
+
 -- Club-scoped appointment: since the label/permission split a show-scoped
 -- user_roles row grants nothing, so the secretary is appointed at the club.
 insert into public.user_roles (user_id, role_id, club_id, is_active, auth_user_id)
@@ -61,8 +90,15 @@ insert into public.dogs (id, name, call_name, breed, owner_id)
 values ('00000000-0000-0000-0000-000000632021', 'MYK9-632 Dog', 'Dog', 'Beagle',
   '00000000-0000-0000-0000-000000632011');
 
+-- One per registry: trg_entries_require_dog_registration compares
+-- normalize_registry_organization(registration.organization) against the trial's
+-- registry, so a dog with only an AKC number cannot enter an ASCA trial.
 insert into public.dog_registrations (dog_id, organization, registration_number, is_primary)
-values ('00000000-0000-0000-0000-000000632021', 'AKC (American Kennel Club)', 'SR632021', true);
+values
+  ('00000000-0000-0000-0000-000000632021', 'AKC (American Kennel Club)', 'SR632021', true),
+  ('00000000-0000-0000-0000-000000632021', 'ASCA (Australian Shepherd Club of America)',
+    'ASCA632021', false),
+  ('00000000-0000-0000-0000-000000632021', 'UKC (United Kennel Club)', 'UKC632021', false);
 
 insert into public.entries (id, dog_id, class_id, show_id, trial_id, handler_id,
   entry_status, payment_status, entry_fee, check_in_status)
@@ -85,6 +121,23 @@ set local role service_role;
 update public.entries set payment_status = 'paid'
  where id in ('00000000-0000-0000-0000-000000632032', '00000000-0000-0000-0000-000000632038');
 reset role;
+
+-- Live entries on the ASCA and UKC shows.
+insert into public.entries (id, dog_id, class_id, show_id, trial_id, handler_id,
+  entry_status, payment_status, entry_fee, check_in_status)
+values
+  ('00000000-0000-0000-0000-000000632235', '00000000-0000-0000-0000-000000632021',
+    '00000000-0000-0000-0000-000000632245', '00000000-0000-0000-0000-000000632202',
+    '00000000-0000-0000-0000-000000632203', '00000000-0000-0000-0000-000000632011',
+    'confirmed', 'pending', 25, 'no-status'),
+  ('00000000-0000-0000-0000-000000632236', '00000000-0000-0000-0000-000000632021',
+    '00000000-0000-0000-0000-000000632246', '00000000-0000-0000-0000-000000632202',
+    '00000000-0000-0000-0000-000000632203', '00000000-0000-0000-0000-000000632011',
+    'confirmed', 'pending', 25, 'no-status'),
+  ('00000000-0000-0000-0000-000000632335', '00000000-0000-0000-0000-000000632021',
+    '00000000-0000-0000-0000-000000632345', '00000000-0000-0000-0000-000000632302',
+    '00000000-0000-0000-0000-000000632303', '00000000-0000-0000-0000-000000632011',
+    'confirmed', 'pending', 25, 'no-status');
 
 create function pg_temp.assert_leave(
   label text,
@@ -287,74 +340,65 @@ $$;
 -- the registry from an async replica read that can be in flight, empty or
 -- failed, so the server must not depend on the caller having waited.
 --
--- The TRIAL is flipped rather than a second trial/entry being created: the
--- registry lives on the trial, `trg_entries_require_dog_registration` fires on
--- INSERT only, and this keeps the fixture honest without needing an ASCA
--- dog_registrations row whose organization string this file would be guessing.
--- 632035 has absorbed the refusal cases above and the empty-string pull, so it
--- is reset to a live entry before each of the acts below.
-update public.entries set entry_status = 'confirmed', withdrawal_reason_code = null
- where id = '00000000-0000-0000-0000-000000632035';
-update public.trials set registry_id = 'ASCA'
- where id = '00000000-0000-0000-0000-000000632003';
-
+-- Each registry has its OWN show. trg_enforce_show_registry_on_trial makes
+-- "one registry per show" (MYK9-490) a schema rule, so a trial cannot be flipped
+-- under an existing show — which is also why three states this function defends
+-- against are asserted as UNREACHABLE at the bottom of this block rather than
+-- manufactured here.
 select pg_temp.assert_leave('ASCA refuses an in_season withdrawal',
-  '00000000-0000-0000-0000-000000632101', '00000000-0000-0000-0000-000000632035',
+  '00000000-0000-0000-0000-000000632101', '00000000-0000-0000-0000-000000632235',
   'withdraw', 'in_season',
   'withdraw_own_entry: ASCA does not recognise the withdrawal reason in_season');
 
 select pg_temp.assert_leave('ASCA still allows a judge_change withdrawal',
-  '00000000-0000-0000-0000-000000632101', '00000000-0000-0000-0000-000000632035',
+  '00000000-0000-0000-0000-000000632101', '00000000-0000-0000-0000-000000632235',
   'withdraw', 'judge_change', null, 'withdrawn');
 
 -- A pull carries no reason, so the registry has nothing to say about it: an ASCA
 -- exhibitor must still be able to leave a class.
-update public.entries set entry_status = 'confirmed', withdrawal_reason_code = null
- where id = '00000000-0000-0000-0000-000000632035';
 select pg_temp.assert_leave('ASCA allows a pull, which carries no reason',
-  '00000000-0000-0000-0000-000000632101', '00000000-0000-0000-0000-000000632035',
+  '00000000-0000-0000-0000-000000632101', '00000000-0000-0000-0000-000000632236',
   'pull', null, null, 'scratched');
 
--- A registry with no rulebook here fails OPEN rather than inventing a rule; a
--- blank registry_id resolves to AKC, the column's own default.
-update public.entries set entry_status = 'confirmed', withdrawal_reason_code = null
- where id = '00000000-0000-0000-0000-000000632035';
-update public.trials set registry_id = '   '
- where id = '00000000-0000-0000-0000-000000632003';
-select pg_temp.assert_leave('a blank registry_id resolves to AKC and admits in_season',
-  '00000000-0000-0000-0000-000000632101', '00000000-0000-0000-0000-000000632035',
+-- UKC recognises BOTH reasons, so the narrowing must not over-reach.
+select pg_temp.assert_leave('UKC allows an in_season withdrawal',
+  '00000000-0000-0000-0000-000000632101', '00000000-0000-0000-0000-000000632335',
   'withdraw', 'in_season', null, 'withdrawn');
 
--- Case-insensitive: `registry_id` is free text and 'asca' is ASCA.
-update public.entries set entry_status = 'confirmed', withdrawal_reason_code = null
- where id = '00000000-0000-0000-0000-000000632035';
-update public.trials set registry_id = 'asca'
- where id = '00000000-0000-0000-0000-000000632003';
-select pg_temp.assert_leave('a lower-case asca still refuses in_season',
-  '00000000-0000-0000-0000-000000632101', '00000000-0000-0000-0000-000000632035',
-  'withdraw', 'in_season',
-  'withdraw_own_entry: ASCA does not recognise the withdrawal reason in_season');
+-- The three states step 4b's COALESCE / upper() / not-found branches defend
+-- against cannot be built: the schema forbids all three. Asserting THAT is
+-- worth more than manufacturing an impossible row, and it is what tells a
+-- future reader why the defensive code is still correct to keep.
+do $$
+BEGIN
+  BEGIN
+    UPDATE public.trials SET registry_id = 'asca'
+     WHERE id = '00000000-0000-0000-0000-000000632203';
+    RAISE EXCEPTION 'FAIL: a lower-case registry_id was accepted on an ASCA show';
+  EXCEPTION WHEN sqlstate 'MK490' THEN
+    NULL;
+  END;
 
--- NO TRIAL REACHABLE. The registry is resolved through
--- entries.class_id -> classes.trial_id, so a class with a null trial_id leaves
--- the rulebook unknown — and unknown must refuse the reason that only SOME
--- registries have, not fall back to the permissive one.
-update public.trials set registry_id = 'AKC'
- where id = '00000000-0000-0000-0000-000000632003';
-update public.classes set trial_id = null
- where id = '00000000-0000-0000-0000-000000632045';
-select pg_temp.assert_leave('an unreachable trial refuses in_season',
-  '00000000-0000-0000-0000-000000632101', '00000000-0000-0000-0000-000000632035',
-  'withdraw', 'in_season',
-  'withdraw_own_entry: cannot confirm the show''s registry for entry %, so only judge_change is accepted');
-select pg_temp.assert_leave('an unreachable trial still allows judge_change',
-  '00000000-0000-0000-0000-000000632101', '00000000-0000-0000-0000-000000632035',
-  'withdraw', 'judge_change', null, 'withdrawn');
-update public.classes set trial_id = '00000000-0000-0000-0000-000000632003'
- where id = '00000000-0000-0000-0000-000000632045';
+  BEGIN
+    UPDATE public.trials SET registry_id = '   '
+     WHERE id = '00000000-0000-0000-0000-000000632003';
+    RAISE EXCEPTION 'FAIL: a blank registry_id was accepted';
+  EXCEPTION WHEN sqlstate 'MK490' THEN
+    NULL;
+  END;
 
-update public.entries set entry_status = 'confirmed', withdrawal_reason_code = null
- where id = '00000000-0000-0000-0000-000000632035';
+  BEGIN
+    UPDATE public.classes SET trial_id = NULL
+     WHERE id = '00000000-0000-0000-0000-000000632045';
+    RAISE EXCEPTION 'FAIL: classes.trial_id accepted NULL';
+  EXCEPTION WHEN not_null_violation THEN
+    NULL;
+  END;
+
+  RAISE NOTICE
+    'PASS the schema forbids a mixed-case, blank or trial-less registry, so step 4b''s fallbacks are defence only';
+END;
+$$;
 
 -- The row shape the SECRETARY'S QUEUE depends on. `isUnresolvedRemovalRefundDecision`
 -- admits a withdrawal only when it is paid ONLINE, still unresolved, and carries

@@ -131,6 +131,11 @@ export function mergeUserMutationResult(
       ...updatedUser,
       dateOfBirth: previousUser.dateOfBirth,
       juniorHandlerNumbers: previousUser.juniorHandlerNumbers,
+      ...(previousUser.roles !== undefined && { roles: previousUser.roles }),
+      ...(previousUser.judgeInfo !== undefined && { judgeInfo: previousUser.judgeInfo }),
+      ...(previousUser.judgeQualifications !== undefined && {
+        judgeQualifications: previousUser.judgeQualifications,
+      }),
       privateFieldsReadComplete: true,
     };
   }

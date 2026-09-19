@@ -14,6 +14,7 @@
  * pipeline feeding it (LESSON last-hop-drop, pointing the other way).
  */
 import { describe, expect, it } from 'vitest';
+import { UserRole } from '@/types/auth-types';
 import {
   mapDbUserToUser,
   mapUserToDbUpdate,
@@ -71,6 +72,8 @@ describe('a save from /admin/users does not wipe what it never loaded', () => {
       {
         ...mapDbUserToUser(DIRECTORY_ROW),
         privateFieldsReadComplete: true,
+        roles: [UserRole.JUDGE],
+        judgeQualifications: [],
       },
       { id: 'person-1', firstName: 'Mariana', lastName: 'Rivera', phone: '555-0200' },
       { phone: '555-0200' }
@@ -79,6 +82,8 @@ describe('a save from /admin/users does not wipe what it never loaded', () => {
     expect(cached.phone).toBe('555-0200');
     expect(cached.dateOfBirth).toBe('2011-03-04');
     expect(cached.juniorHandlerNumbers).toEqual({ AKC: '7654321' });
+    expect(cached.roles).toEqual([UserRole.JUDGE]);
+    expect(cached.judgeQualifications).toEqual([]);
     expect(cached.privateFieldsReadComplete).toBe(true);
   });
 

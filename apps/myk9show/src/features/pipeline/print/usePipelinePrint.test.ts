@@ -32,6 +32,21 @@ describe('mapEntry', () => {
     expect(entry.handlerName).toBe('Jamie Handler');
   });
 
+  it('uses the hydrated handler person for an entry with only handler_id', () => {
+    const entry = mapEntry({
+      id: 'entry-hydrated-handler',
+      handler_id: 'person-handler-3',
+      handler: null,
+      handler_person: { first_name: 'Alex', last_name: 'Assigned' },
+      dog: {
+        call_name: 'Scout',
+        owner: { first_name: 'Pat', last_name: 'Owner' },
+      },
+    });
+
+    expect(entry.handlerName).toBe('Alex Assigned');
+  });
+
   it('falls back to the dog owner when an entry has no assigned handler', () => {
     const entry = mapEntry({
       id: 'entry-2',

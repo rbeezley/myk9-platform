@@ -2,41 +2,44 @@ import { describe, expect, it } from 'vitest';
 import { createClassDataFromWizard, type WizardTrial } from '../showCreationWizardTransformers';
 
 describe('createClassDataFromWizard registry identity preflight', () => {
-  it('refuses an unresolved selected class by name before it can be persisted', () => {
-    const trials: WizardTrial[] = [
-      {
-        id: 'trial-1',
-        name: 'Saturday Trial',
-        dateTime: '2026-10-01T09:00:00',
-        eventNumber: 'EVT-001',
-        trialType: 'Scent Work',
-        classes: [
-          {
-            templateId: 'akc-template',
-            customizations: {
-              className: 'Container Novice A — retained clone',
-              element: 'Unknown',
-              level: 'Novice',
-              section: 'A',
+  it.each(['scent_work', 'SCENT_WORK'])(
+    'normalizes %s and refuses an unresolved selected class by name before it can be persisted',
+    trialType => {
+      const trials: WizardTrial[] = [
+        {
+          id: 'trial-1',
+          name: 'Saturday Trial',
+          dateTime: '2026-10-01T09:00:00',
+          eventNumber: 'EVT-001',
+          trialType,
+          classes: [
+            {
+              templateId: 'akc-template',
+              customizations: {
+                className: 'Container Novice A — retained clone',
+                element: 'Unknown',
+                level: 'Novice',
+                section: 'A',
+              },
             },
-          },
-        ],
-      },
-    ];
+          ],
+        },
+      ];
 
-    expect(() =>
-      createClassDataFromWizard(
-        trials,
-        { 'trial-1': 'trial-real' },
-        {},
-        'show-1',
-        [],
-        undefined,
-        undefined,
-        'AKC'
-      )
-    ).toThrow(/Container Novice A — retained clone/);
-  });
+      expect(() =>
+        createClassDataFromWizard(
+          trials,
+          { 'trial-1': 'trial-real' },
+          {},
+          'show-1',
+          [],
+          undefined,
+          undefined,
+          'AKC'
+        )
+      ).toThrow(/Container Novice A — retained clone/);
+    }
+  );
 
   it('requires registry sections where the registry defines them', () => {
     const trials: WizardTrial[] = [

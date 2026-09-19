@@ -1,6 +1,7 @@
 import { deriveRegistryId } from '@/features/registries';
 import { getScentWorkSport } from '@/features/registries/scentWork';
 import type { ElementSpec, RegistrySport } from '@/features/registries/types';
+import { formatTrialTypeLabel } from '@/types/template.types';
 
 export interface WizardClassSelectionLike {
   customizations: Record<string, unknown>;
@@ -77,9 +78,9 @@ export function assertValidWizardClassSelections(
 }
 
 function isConfiguredScentTrial(trialType: string | undefined): boolean {
-  const normalized = trialType?.trim().toLowerCase();
+  const normalized = formatTrialTypeLabel(trialType);
   return (
-    normalized === 'scent work' || normalized === 'nosework' || normalized === 'scent detection'
+    normalized === 'Scent Work' || normalized === 'Nosework' || normalized === 'Scent Detection'
   );
 }
 

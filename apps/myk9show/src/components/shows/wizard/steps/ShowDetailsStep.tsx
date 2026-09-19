@@ -16,6 +16,7 @@ import {
   isValidDateRange,
   isValidEntryDates,
   canChangeClonedOrganization,
+  reconcileTrialTypeForOrganization,
 } from './ShowDetailsStep.helpers';
 import {
   BasicsSection,
@@ -32,8 +33,9 @@ export const ShowDetailsStep: React.FC<ShowDetailsStepProps> = ({ className }) =
   const location = useLocation();
   const {
     show,
-    trials,
+    trials = [],
     updateShowData,
+    updateTrial,
     addJudgeToShow,
     removeJudgeFromShow,
     judgeDetails,
@@ -92,6 +94,10 @@ export const ShowDetailsStep: React.FC<ShowDetailsStepProps> = ({ className }) =
   const [clubSearchTerm, setClubSearchTerm] = useState('');
   const [showClubSearch, setShowClubSearch] = useState(false);
   const [organizationChangeBlocked, setOrganizationChangeBlocked] = useState(false);
+  const [isClonedShow, setIsClonedShow] = useState(false);
+  const [isCloneHydrating, setIsCloneHydrating] = useState(false);
+
+  const hasSelectedClasses = trials.some(trial => trial.classes.length > 0);
 
   // Auto-select club if user has exactly one
   useEffect(() => {
@@ -127,13 +133,24 @@ export const ShowDetailsStep: React.FC<ShowDetailsStepProps> = ({ className }) =
   const handleShowUpdate = (patch: Partial<typeof show>) => {
     if (
       patch.organization &&
-      !canChangeClonedOrganization(show.organization, patch.organization, trials)
+      !canChangeClonedOrganization(show.organization, patch.organization, trials, {
+        cloneHydrationInProgress: isCloneHydrating,
+      })
     ) {
       setOrganizationChangeBlocked(true);
       return;
     }
 
     setOrganizationChangeBlocked(false);
+    if (patch.organization && patch.organization !== show.organization) {
+      trials.forEach(trial => {
+        const trialType = reconcileTrialTypeForOrganization(
+          patch.organization as string,
+          trial.trialType
+        );
+        if (trialType !== trial.trialType) updateTrial(trial.id, { trialType });
+      });
+    }
     updateShowData(patch);
   };
 
@@ -151,7 +168,11 @@ export const ShowDetailsStep: React.FC<ShowDetailsStepProps> = ({ className }) =
     <div className={className}>
       <div className="space-y-8">
         {/* Clone from previous show — optional, prefills every group below */}
-        <CloneFromShowCombobox clubId={show.clubId || undefined} />
+        <CloneFromShowCombobox
+          clubId={show.clubId || undefined}
+          onCloneStateChange={setIsClonedShow}
+          onHydrationStateChange={setIsCloneHydrating}
+        />
 
         <BasicsSection
           show={show}
@@ -171,11 +192,12 @@ export const ShowDetailsStep: React.FC<ShowDetailsStepProps> = ({ className }) =
           }
         />
 
-        {organizationChangeBlocked && (
+        {organizationChangeBlocked && (hasSelectedClasses || isCloneHydrating) && (
           <Alert role="alert" className="border-warning/40 bg-warning/10">
             <AlertDescription className="flex flex-wrap items-center gap-3 text-warning">
-              This cloned show still has classes from the current organization. Return to Classes to
-              remove or replace them before choosing a different organization.
+              {isClonedShow
+                ? 'This cloned show still has classes from the current organization. Return to Classes to remove or replace them before choosing a different organization.'
+                : 'This show still has classes from the current organization. Return to Classes to remove or replace them before choosing a different organization.'}
               <Button
                 type="button"
                 variant="outline"

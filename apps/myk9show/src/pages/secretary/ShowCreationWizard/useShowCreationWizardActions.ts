@@ -188,7 +188,7 @@ export function useShowCreationWizardActions({
     // show.dayOfShowFee / show.preEntryFee intentionally excluded — fee changes
     // should not invalidate already-built class arrays mid-wizard.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [trials, judgeDetails, existingTrials, editMode, existingDBClasses]
+    [trials, judgeDetails, existingTrials, editMode, existingDBClasses, show.organization]
   );
 
   /**

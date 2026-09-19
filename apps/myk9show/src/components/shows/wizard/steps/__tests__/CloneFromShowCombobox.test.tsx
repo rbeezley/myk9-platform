@@ -307,6 +307,49 @@ describe('CloneFromShowCombobox', () => {
     });
   });
 
+  it('reports clone hydration so organization changes stay blocked until classes arrive', async () => {
+    const sourceTrial = mockShows[0]!.trials[0]!;
+    let resolveClasses: (value: {
+      data: Array<Record<string, unknown>>;
+      error: null;
+    }) => void = () => {};
+    const pendingClasses = new Promise<{ data: Array<Record<string, unknown>>; error: null }>(
+      resolve => {
+        resolveClasses = resolve;
+      }
+    );
+    mockShowsQueryState = {
+      data: [{ ...mockShows[0]!, trials: [{ ...sourceTrial, classes: [] }] } as Show],
+      isLoading: false,
+      isError: false,
+    };
+    mockGetClassesByTrialId.mockReturnValueOnce(pendingClasses);
+    const hydrationState = vi.fn();
+
+    const user = userEvent.setup();
+    render(<CloneFromShowCombobox onHydrationStateChange={hydrationState} />);
+    await user.click(screen.getByRole('button', { name: /select a past show to clone/i }));
+    const list =
+      screen.getByText('Heartland Spring Trial').closest('[data-radix-popper-content-wrapper]') ??
+      document.body;
+    await user.click(within(list as HTMLElement).getByText('Heartland Spring Trial'));
+
+    await waitFor(() => expect(hydrationState).toHaveBeenCalledWith(true));
+    resolveClasses({
+      data: [
+        {
+          id: 'class-1',
+          name: 'Novice Containers',
+          element: 'Containers',
+          level: 'Novice',
+          section: 'B',
+        },
+      ],
+      error: null,
+    });
+    await waitFor(() => expect(hydrationState).toHaveBeenLastCalledWith(false));
+  });
+
   it('does not append hydrated trials after start fresh cancels the selection', async () => {
     const sourceTrial = mockShows[0]!.trials[0]!;
     let resolveClasses: (value: {

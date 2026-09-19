@@ -12,6 +12,36 @@ const alternateTemplate = {
   id: 'alternate-template',
   templateName: 'Alternate AKC template',
 };
+const orderedTemplate = {
+  ...createMockTemplate(),
+  id: 'ordered-template',
+  classDefinitions: [
+    {
+      ...createMockTemplate().classDefinitions[0],
+      element: 'Container',
+      level: 'Novice',
+      section: 'A',
+      className: 'Container Novice A',
+      displayOrder: 1,
+    },
+    {
+      ...createMockTemplate().classDefinitions[0],
+      element: 'Buried',
+      level: 'Advanced',
+      section: 'A',
+      className: 'Buried Advanced A',
+      displayOrder: 2,
+    },
+    {
+      ...createMockTemplate().classDefinitions[0],
+      element: 'Interior',
+      level: 'Excellent',
+      section: 'A',
+      className: 'Interior Excellent A',
+      displayOrder: 3,
+    },
+  ],
+};
 let availableTemplates = [template];
 
 vi.mock('@/hooks/useTemplates', () => ({
@@ -133,5 +163,63 @@ describe('ClassSelectionStep retained cloned classes', () => {
       await screen.findByRole('checkbox', { name: 'Deselect Renamed Container Special' })
     ).toBeChecked();
     expect(useWizardStore.getState().trials[0]?.classes).toHaveLength(2);
+  });
+
+  function renderOrderedTemplate() {
+    availableTemplates = [orderedTemplate];
+    useWizardStore.getState().resetWizard();
+    useWizardStore.setState(state => ({
+      show: {
+        ...state.show,
+        organization: 'AKC',
+      },
+      trials: [
+        {
+          id: 'trial-1',
+          name: 'Saturday Trial',
+          dateTime: '2026-10-01T08:00:00.000Z',
+          eventNumber: 'SW-1',
+          trialType: 'Scent Work',
+          classes: [],
+        },
+      ],
+    }));
+
+    return render(<ClassSelectionStep />);
+  }
+
+  function elementOrder() {
+    return Array.from(document.querySelectorAll('.myk9-class-element-title')).map(
+      element => element.textContent
+    );
+  }
+
+  it('keeps the original element order when one class is selected', async () => {
+    const classes = renderOrderedTemplate();
+
+    await classes.user.click(screen.getByRole('checkbox', { name: 'Select Buried Advanced A' }));
+
+    expect(elementOrder()).toEqual(['Container', 'Buried', 'Interior']);
+  });
+
+  it('keeps the original element order when a selected class is deselected', async () => {
+    const classes = renderOrderedTemplate();
+
+    await classes.user.click(screen.getByRole('checkbox', { name: 'Select Buried Advanced A' }));
+    await classes.user.click(screen.getByRole('checkbox', { name: 'Deselect Buried Advanced A' }));
+
+    expect(elementOrder()).toEqual(['Container', 'Buried', 'Interior']);
+  });
+
+  it('keeps the original element order when multiple elements are selected', async () => {
+    const classes = renderOrderedTemplate();
+
+    await classes.user.click(screen.getByRole('checkbox', { name: 'Select Buried Advanced A' }));
+    await classes.user.click(screen.getByRole('checkbox', { name: 'Select Interior Excellent A' }));
+
+    expect(elementOrder()).toEqual(['Container', 'Buried', 'Interior']);
+    expect(
+      useWizardStore.getState().trials[0]?.classes.map(cls => cls.customizations.element)
+    ).toEqual(['Buried', 'Interior']);
   });
 });

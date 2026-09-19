@@ -157,12 +157,15 @@ export default function ReportsPage() {
       trialId,
       classId,
     });
-  const phaseTrials = trials?.length ? trials : (currentShow?.trials ?? []);
+  // During a paused/loading report-trials query, retain the show detail's
+  // already-loaded trials for timezone and registry scope. A successful empty
+  // query is authoritative, so only `undefined` falls back to the show row.
+  const resolvedTrials = trials === undefined ? (currentShow?.trials ?? []) : trials;
   const showTimePhase = resolveShowTimePhase(
     currentShow,
     new Date(),
     getEntryWindowTimezone(
-      phaseTrials as Array<{
+      resolvedTrials as Array<{
         id?: string | null;
         date?: string | null;
         timezone?: string | null;
@@ -172,14 +175,14 @@ export default function ReportsPage() {
 
   const trialOptions = useMemo(
     () =>
-      ((trials ?? []) as Array<Record<string, unknown>>).map(t => ({
+      (resolvedTrials as Array<Record<string, unknown>>).map(t => ({
         id: t.id as string,
         name: (t.name ?? '') as string,
-        trial_number: Number(t.trial_number ?? 0),
-        date: (t.date ?? '') as string,
-        registry_id: (t.registry_id ?? null) as string | null,
+        trial_number: Number(t.trial_number ?? t.trialNumber ?? 0),
+        date: (t.date ?? t.trialDate ?? '') as string,
+        registry_id: (t.registry_id ?? t.registryId ?? null) as string | null,
       })),
-    [trials]
+    [resolvedTrials]
   );
 
   const classOptions = useMemo(

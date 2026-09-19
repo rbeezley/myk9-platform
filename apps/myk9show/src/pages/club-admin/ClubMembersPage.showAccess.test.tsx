@@ -136,6 +136,20 @@ describe('ClubMembersPage show access', () => {
     await user.click(await screen.findByRole('button', { name: 'Actions for Ada Lovelace' }));
     await user.click(await screen.findByRole('menuitem', { name: 'Revoke Show Access' }));
     expect(setClubShowManagerAccess).not.toHaveBeenCalled();
+
+    const dialog = await screen.findByRole('alertdialog');
+    expect(dialog).toHaveTextContent('Revoke show access from Ada Lovelace?');
+    const footer = dialog.querySelector('[class*="flex-col-reverse"]');
+    expect(footer?.className).toContain('sm:flex-wrap');
+    expect(footer?.className).toContain('sm:space-x-0');
+    expect(screen.getByRole('button', { name: 'Keep show access' })).toHaveClass(
+      'w-full',
+      'sm:w-auto'
+    );
+    expect(screen.getByRole('button', { name: 'Revoke show access' })).toHaveClass(
+      'w-full',
+      'sm:w-auto'
+    );
     await user.click(await screen.findByRole('button', { name: 'Revoke show access' }));
 
     await waitFor(() => {

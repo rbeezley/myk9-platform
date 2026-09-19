@@ -42,7 +42,7 @@ vi.mock('@/lib/notifications', () => ({
 }));
 
 import { notifications } from '@/lib/notifications';
-import { useProfileForm } from '../useProfileForm';
+import { useCurrentUserPerson, useProfileForm } from '../useProfileForm';
 
 const dbPersonData = {
   id: 'person-123',
@@ -81,6 +81,17 @@ describe('useProfileForm', () => {
     mockPrivateRpc.mockResolvedValue({ data: [], error: null });
     // Default: return person data from supabase
     mockMaybeSingle.mockResolvedValue({ data: dbPersonData, error: null });
+  });
+
+  it('does not hydrate private fields for public current-person reads', async () => {
+    const { result } = renderHook(() => useCurrentUserPerson('auth-user-123'), {
+      wrapper: createWrapper(),
+    });
+
+    await waitFor(() => expect(result.current.data?.id).toBe('person-123'));
+
+    expect(mockPrivateRpc).not.toHaveBeenCalled();
+    expect(result.current.data?.privateFieldsReadComplete).toBe(false);
   });
 
   it('returns initial empty form values when loading', () => {

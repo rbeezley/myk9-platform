@@ -43,9 +43,9 @@ FROM (
 ) AS fixture(person_id, club_id, auth_user_id, role_name)
 JOIN public.roles r ON r.name = fixture.role_name;
 
-INSERT INTO public.shows (id, name, type, start_date, end_date, club_id, status)
+INSERT INTO public.shows (id, name, organization, start_date, end_date, club_id, status)
 VALUES (
-  '00000000-0000-0000-0000-000000664003', 'MYK9-664 Related Show', 'All-Breed',
+  '00000000-0000-0000-0000-000000664003', 'MYK9-664 Related Show', 'MYK9-664 Organization',
   current_date, current_date, '00000000-0000-0000-0000-000000664001', 'published'
 );
 

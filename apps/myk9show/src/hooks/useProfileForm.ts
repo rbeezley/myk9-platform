@@ -74,9 +74,19 @@ function validateDateOfBirth(value: string): string | undefined {
  * Exported so other components (e.g. AppHeader) can read profileImage
  * from the same shared React Query cache entry.
  */
-export function useCurrentUserPerson(authUserId: string | undefined) {
+export function useCurrentUserPerson(
+  authUserId: string | undefined,
+  options: { includePrivateFields?: boolean } = {}
+) {
+  const includePrivateFields = options.includePrivateFields === true;
+
   return useQuery({
-    queryKey: [...queryKeys.users.all, 'currentProfile', authUserId],
+    queryKey: [
+      ...queryKeys.users.all,
+      'currentProfile',
+      authUserId,
+      includePrivateFields ? 'private' : 'public',
+    ],
     queryFn: async () => {
       const { data, error } = await supabase
         .from('people')
@@ -88,6 +98,10 @@ export function useCurrentUserPerson(authUserId: string | undefined) {
         .maybeSingle();
 
       if (error || !data) return null;
+
+      if (!includePrivateFields) {
+        return { ...mapDbUserToUser(data), privateFieldsReadComplete: false };
+      }
 
       const { byPersonId, readComplete } = await loadPeoplePrivateProfiles([data.id]);
       const privateProfile = byPersonId.get(data.id);
@@ -113,7 +127,9 @@ export function useCurrentUserPerson(authUserId: string | undefined) {
 
 export function useProfileForm() {
   const { user: authUser } = useAuthContext();
-  const { data: person, isLoading } = useCurrentUserPerson(authUser?.id);
+  const { data: person, isLoading } = useCurrentUserPerson(authUser?.id, {
+    includePrivateFields: true,
+  });
   const personId = person?.id || null;
   const privateFieldsReady = person?.privateFieldsReadComplete === true;
   const updatePerson = useUpdatePerson();

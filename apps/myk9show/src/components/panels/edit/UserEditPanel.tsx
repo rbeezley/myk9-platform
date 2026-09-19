@@ -343,23 +343,13 @@ export const UserEditPanel: React.FC<UserEditPanelProps> = ({
   const subtitle = isCreateMode ? 'Create a person profile' : `Editing profile for ${userName}`;
   // Convert user data to form data
   const initialFormData = useMemo(() => userToFormData(initialUserData), [initialUserData]);
-  const canWritePrivateFields = useMemo(() => {
-    if (hasPermission('admin:manage')) return true;
-
+  const canWritePrivateFields =
+    hasPermission('admin:manage') ||
     // A subject may edit their own private fields. `userId` is the people id;
     // auth_user_id is carried as User.user_id and databaseUserId is the
     // canonical person id from the auth context.
-    return (
-      (currentUser?.id !== undefined && initialUserData.user_id === currentUser.id) ||
-      (userWithRoles?.databaseUserId !== undefined && userWithRoles.databaseUserId === userId)
-    );
-  }, [
-    currentUser?.id,
-    hasPermission,
-    initialUserData.user_id,
-    userId,
-    userWithRoles?.databaseUserId,
-  ]);
+    (currentUser?.id !== undefined && initialUserData.user_id === currentUser.id) ||
+    (userWithRoles?.databaseUserId !== undefined && userWithRoles.databaseUserId === userId);
 
   // Handle save — persist profile data. Role assignments have their own
   // scope-aware surface in User Management.

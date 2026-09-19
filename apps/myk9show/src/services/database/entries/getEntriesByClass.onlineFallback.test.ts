@@ -58,22 +58,26 @@ vi.mock('@/services/replication/ReplicatedTrialsTable', () => ({
 
 const defaultOnlineRow = { id: 'entry-online-1', class: { id: 'c1' } };
 let onlineRows: Array<Record<string, unknown>> = [defaultOnlineRow];
+let peopleRows: Array<Record<string, unknown>> = [];
 let onlineCallCount = 0;
 
 vi.mock('@/services/database/supabaseClient', () => ({
   supabase: {
-    from: () => ({
-      select: () => ({
-        eq: () => ({
-          is: () => ({
-            order: () => {
-              onlineCallCount += 1;
-              return Promise.resolve({ data: onlineRows, error: null });
-            },
-          }),
-        }),
-      }),
-    }),
+    from: (table: string) =>
+      table === 'people'
+        ? { select: () => ({ in: () => Promise.resolve({ data: peopleRows, error: null }) }) }
+        : {
+            select: () => ({
+              eq: () => ({
+                is: () => ({
+                  order: () => {
+                    onlineCallCount += 1;
+                    return Promise.resolve({ data: onlineRows, error: null });
+                  },
+                }),
+              }),
+            }),
+          },
   },
   logQuery: vi.fn(),
   createDatabaseError,
@@ -84,6 +88,7 @@ import { getEntriesByClass, getEntriesByTrial } from '@/services/database/entrie
 describe('getEntriesByClass — cold local replica verifies online', () => {
   beforeEach(() => {
     onlineRows = [defaultOnlineRow];
+    peopleRows = [];
     onlineCallCount = 0;
   });
 
@@ -115,6 +120,30 @@ describe('getEntriesByClass — cold local replica verifies online', () => {
     expect(result.data).toHaveLength(1);
     expect((result.data[0] as Record<string, unknown>).id).toBe('entry-local-1');
     expect(onlineCallCount).toBe(0);
+  });
+
+  it('hydrates a handler person when the replicated entry has only handler_id', async () => {
+    mockEntriesTable.getEntriesByClass.mockResolvedValue([
+      {
+        id: 'entry-handler-only',
+        dogId: null,
+        classId: 'c1',
+        showId: 's1',
+        handlerId: 'handler-1',
+        handler: null,
+        deletedAt: null,
+        entryStatus: 'confirmed',
+        runOrder: 1,
+      },
+    ]);
+    peopleRows = [{ id: 'handler-1', first_name: 'Alex', last_name: 'Assigned' }];
+
+    const result = await getEntriesByClass('c1');
+
+    expect(result.data[0]).toMatchObject({
+      handler_id: 'handler-1',
+      handler_person: { first_name: 'Alex', last_name: 'Assigned' },
+    });
   });
 
   it('does not resurrect a locally-tombstoned entry the server still returns as live', async () => {

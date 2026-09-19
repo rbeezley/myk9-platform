@@ -93,6 +93,71 @@ async function loadEnrollmentFinancialsMap(
   }
 }
 
+interface EntryHandlerPerson {
+  id: string;
+  first_name: string | null;
+  last_name: string | null;
+}
+
+interface HandlerReference {
+  handler?: string | null | undefined;
+  handler_id?: string | null | undefined;
+  handlerId?: string | null | undefined;
+}
+
+interface EntryDbHandlerRow extends Record<string, unknown>, HandlerReference {
+  armband: string | null;
+  show_id: string | null;
+  dog_id: string | null;
+}
+
+/**
+ * Replicated entries carry the handler FK and legacy text, but not the people
+ * row. Hydrate only entries whose text is empty so the persisted entry text
+ * remains authoritative when the two disagree.
+ */
+async function loadMissingHandlerPeopleMap(
+  entries: ReadonlyArray<HandlerReference>
+): Promise<Map<string, EntryHandlerPerson>> {
+  const handlerIds = [
+    ...new Set(
+      entries
+        .filter(entry => !entry.handler?.trim())
+        .map(entry => entry.handlerId ?? entry.handler_id)
+        .filter((id): id is string => Boolean(id))
+    ),
+  ];
+  if (handlerIds.length === 0) return new Map();
+
+  try {
+    const { data, error } = await supabase
+      .from('people')
+      .select('id, first_name, last_name')
+      .in('id', handlerIds);
+    if (error || !data) return new Map();
+    return new Map((data as EntryHandlerPerson[]).map(person => [person.id, person]));
+  } catch {
+    return new Map();
+  }
+}
+
+function attachHandlerPerson(
+  row: Record<string, unknown>,
+  entry: HandlerReference,
+  people: ReadonlyMap<string, EntryHandlerPerson>
+): Record<string, unknown> {
+  const handlerId = entry.handlerId ?? entry.handler_id;
+  const person = handlerId ? people.get(handlerId) : undefined;
+  return person ? { ...row, handler_person: person } : row;
+}
+
+async function hydrateMissingHandlerPeople<T extends Record<string, unknown>>(
+  rows: readonly T[]
+): Promise<T[]> {
+  const people = await loadMissingHandlerPeopleMap(rows);
+  return rows.map(row => attachHandlerPerson(row, row, people) as T);
+}
+
 function getEntryCreatedSortValue(entry: ReplicatedEntry): string | undefined {
   // Replication stores submitted_at as submittedAt; the mapper emits it as
   // created_at for the DB-shaped row, matching the PostgREST order column.
@@ -534,7 +599,10 @@ async function postgrestGetEntriesByTrial(trialId: string) {
   );
 
   if (error) throw createDatabaseError(error, 'entries', 'select_by_trial');
-  return { data: data || [], error: null };
+  return {
+    data: await hydrateMissingHandlerPeople((data || []) as EntryDbHandlerRow[]),
+    error: null,
+  };
 }
 
 async function postgrestGetEntriesByClass(classId: string) {
@@ -575,7 +643,7 @@ async function postgrestGetEntriesByClass(classId: string) {
 
   if (error) throw createDatabaseError(error, 'entries', 'select_by_class');
 
-  const entries = data || [];
+  const entries = await hydrateMissingHandlerPeople((data || []) as EntryDbHandlerRow[]);
 
   // Backfill armbands from the authoritative armbands table
   const armbandMap = await fetchMissingArmbands(entries);
@@ -748,15 +816,17 @@ export const getEntriesByShow = async (showId: string) => {
         compareDateDesc(getEntryCreatedSortValue)
       );
       const enrollmentsMap = await loadEnrollmentFinancialsMap(sortedEntries);
-      const data = sortedEntries.map(entry =>
-        mapReplicatedEntryToDbRow(entry, {
+      const handlerPeopleMap = await loadMissingHandlerPeopleMap(sortedEntries);
+      const data = sortedEntries.map(entry => {
+        const row = mapReplicatedEntryToDbRow(entry, {
           dog: entry.dogId ? (dogsMap.get(entry.dogId) ?? null) : null,
           cls: entry.classId ? (classesMap.get(entry.classId) ?? null) : null,
           registration: entry.registrationId
             ? (enrollmentsMap.get(entry.registrationId) ?? null)
             : null,
-        })
-      );
+        });
+        return attachHandlerPerson(row, entry, handlerPeopleMap);
+      });
       return { data, error: null, locallyDeletedIds };
     },
     postgrest: () => postgrestGetEntriesByShow(showId),
@@ -905,15 +975,17 @@ export const getEntriesByTrial = async (trialId: string) => {
       const locallyDeletedIds = allEntries.filter(e => !isLiveEntry(e)).map(e => e.id);
       const sortedEntries = sortedCopy(filtered, compareDateDesc(getEntryCreatedSortValue));
       const enrollmentsMap = await loadEnrollmentFinancialsMap(sortedEntries);
-      const data = sortedEntries.map(entry =>
-        mapReplicatedEntryToDbRow(entry, {
+      const handlerPeopleMap = await loadMissingHandlerPeopleMap(sortedEntries);
+      const data = sortedEntries.map(entry => {
+        const row = mapReplicatedEntryToDbRow(entry, {
           dog: entry.dogId ? (dogsMap.get(entry.dogId) ?? null) : null,
           cls: entry.classId ? (classesMap.get(entry.classId) ?? null) : null,
           registration: entry.registrationId
             ? (enrollmentsMap.get(entry.registrationId) ?? null)
             : null,
-        })
-      );
+        });
+        return attachHandlerPerson(row, entry, handlerPeopleMap);
+      });
       return { data, error: null, locallyDeletedIds };
     },
     postgrest: () => postgrestGetEntriesByTrial(trialId),
@@ -954,14 +1026,16 @@ export const getEntriesByClass = async (classId: string) => {
         compareNumberAscNullsLast(entry => entry.runOrder)
       );
       const enrollmentsMap = await loadEnrollmentFinancialsMap(sortedEntries);
-      const data = sortedEntries.map(entry =>
-        mapReplicatedEntryToDbRow(entry, {
+      const handlerPeopleMap = await loadMissingHandlerPeopleMap(sortedEntries);
+      const data = sortedEntries.map(entry => {
+        const row = mapReplicatedEntryToDbRow(entry, {
           dog: entry.dogId ? (dogsMap.get(entry.dogId) ?? null) : null,
           registration: entry.registrationId
             ? (enrollmentsMap.get(entry.registrationId) ?? null)
             : null,
-        })
-      );
+        });
+        return attachHandlerPerson(row, entry, handlerPeopleMap);
+      });
       // Backfill armbands from the authoritative armbands table for entries
       // whose replication UPDATE hasn't synced yet
       const armbandMap = await fetchMissingArmbands(

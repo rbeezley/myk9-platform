@@ -45,6 +45,9 @@ as $$
   );
 $$;
 
+revoke all on function public.can_manage_show(uuid) from public, anon;
+grant execute on function public.can_manage_show(uuid) to authenticated, service_role;
+
 create or replace function public.is_show_office_manager(check_show_id uuid)
 returns boolean
 language sql
@@ -76,6 +79,9 @@ as $$
       )
   );
 $$;
+
+revoke all on function public.is_show_office_manager(uuid) from public, anon;
+grant execute on function public.is_show_office_manager(uuid) to authenticated, service_role;
 
 create or replace function public.entry_enrollment_select_show_ids()
 returns setof uuid

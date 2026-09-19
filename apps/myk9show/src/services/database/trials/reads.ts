@@ -173,6 +173,7 @@ export const getTrialsByShow = async (showId: string) => {
     table: 'trial',
     operation: 'select_by_show',
     errorData: [],
+    verifyOnlineWhenEmpty: true,
   });
 };
 

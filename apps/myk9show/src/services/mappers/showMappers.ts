@@ -536,6 +536,7 @@ export const mapReplicatedTrialToRow = (
     trial_number: 'trialNumber',
     status: 'status',
     timezone: 'timezone',
+    registry_id: 'registryId',
     trial_type: 'trialType',
     max_entries_per_dog: 'maxEntriesPerDog',
     max_total_entries: 'maxTotalEntries',

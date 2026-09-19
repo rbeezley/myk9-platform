@@ -36,6 +36,7 @@ import { formatDateMMDDYYYY } from '@/utils/dateFormat';
 import { useRegistrationPermissions } from '@/hooks/useRegistrationPermissions';
 import { getPrimaryRole } from '@/context/authContextHelpers';
 import { useRegistrationContext } from '@/hooks/useRegistrationContext';
+import { useDebounce } from '@myk9/scoring-ui';
 import { searchAllDogs, SEARCH_ALL_DOGS_LIMIT } from '@/services/database/dogs';
 import { mapDatabaseDogsArray } from '@/services/mappers/dogMappers';
 import { DogSearchInterface } from './DogSearchInterface';
@@ -286,6 +287,7 @@ export const DogSelectionStepEnhanced: React.FC<DogSelectionStepProps> = ({
   const [sortColumn, setSortColumn] = useState<SortColumn | null>(null);
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
   const normalizedSearchQuery = searchQuery.trim().toLowerCase();
+  const debouncedSearchQuery = useDebounce(normalizedSearchQuery, 300);
 
   const handleSort = (column: SortColumn) => {
     if (sortColumn === column) {
@@ -311,32 +313,47 @@ export const DogSelectionStepEnhanced: React.FC<DogSelectionStepProps> = ({
   // Server-side dog search for roles that can view all dogs (secretary, admin).
   // The locally replicated roster is capped at what one query returned, so a
   // secretary entering a mail-in registration needs to search the full system.
-  // The normalized term is part of the query identity. React Query cancels and
-  // discards an older key, so a late response can never replace the current
-  // search's rows.
+  // The debounced normalized term is the network query identity. Local rows
+  // still clear immediately from `normalizedSearchQuery` below, while React
+  // Query avoids issuing a request for every keystroke.
   const serverSearchEnabled =
-    workflowConfig.features.advancedSearch && normalizedSearchQuery.length >= 2;
+    workflowConfig.features.advancedSearch && debouncedSearchQuery.length >= 2;
   const serverSearchQuery = useQuery({
-    queryKey: ['registration-dogs', 'search-all', normalizedSearchQuery],
-    queryFn: ({ signal }) => searchAllDogs(normalizedSearchQuery, SEARCH_ALL_DOGS_LIMIT, signal),
+    queryKey: ['registration-dogs', 'search-all', debouncedSearchQuery],
+    queryFn: ({ signal }) => searchAllDogs(debouncedSearchQuery, SEARCH_ALL_DOGS_LIMIT, signal),
     enabled: serverSearchEnabled,
     retry: false,
+    staleTime: 0,
   });
 
-  const serverSearchResult = serverSearchEnabled ? serverSearchQuery.data : undefined;
-  const serverSearchError = serverSearchResult?.error ?? serverSearchQuery.error;
+  // A production QueryClient may provide placeholderData from the previous
+  // key. It is never valid for the current applied search, so discard it until
+  // the debounced key and the result are both current.
+  const serverSearchIsCurrent =
+    serverSearchEnabled && debouncedSearchQuery === normalizedSearchQuery;
+  const serverSearchHasCurrentData = serverSearchIsCurrent && !serverSearchQuery.isPlaceholderData;
+  const serverSearchResult = serverSearchHasCurrentData ? serverSearchQuery.data : undefined;
+  const serverSearchError = serverSearchHasCurrentData ? serverSearchResult?.error : undefined;
+  const currentQueryError = serverSearchHasCurrentData ? serverSearchQuery.error : undefined;
   const serverDogs = useMemo(
-    () => (serverSearchError ? [] : mapDatabaseDogsArray(serverSearchResult?.data ?? [])),
-    [serverSearchError, serverSearchResult]
+    () =>
+      serverSearchError || currentQueryError
+        ? []
+        : mapDatabaseDogsArray(serverSearchResult?.data ?? []),
+    [currentQueryError, serverSearchError, serverSearchResult]
   );
-  const isServerSearching = serverSearchEnabled && serverSearchQuery.isFetching;
+  const isServerSearching =
+    workflowConfig.features.advancedSearch &&
+    (normalizedSearchQuery !== debouncedSearchQuery || serverSearchQuery.isFetching);
   // MYK9-90: true when the system-wide search FAILED, as opposed to succeeding
   // with no matches. `searchAllDogs` resolves with `{ data: [], error }` rather
   // than rejecting, so the failure is invisible unless `error` is read here —
   // and a secretary who cannot tell "backend is down" from "no such dog" will
   // create a duplicate dog record.
-  const serverSearchFailed = serverSearchEnabled && Boolean(serverSearchError);
-  const serverHitLimit = serverSearchError ? false : (serverSearchResult?.hitLimit ?? false);
+  const serverSearchFailed =
+    serverSearchIsCurrent && Boolean(serverSearchError || currentQueryError);
+  const serverHitLimit =
+    serverSearchError || currentQueryError ? false : (serverSearchResult?.hitLimit ?? false);
 
   // Combined dog set passed to DogSearchInterface: locally-accessible dogs
   // (owned / club-scoped) plus any server-search results, de-duplicated by id.

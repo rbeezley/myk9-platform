@@ -110,11 +110,18 @@ begin
 end;
 $$;
 
--- A legacy exhibitor clear fails closed instead of revoking the former
--- handler's access.
+-- A legacy exhibitor clear is ignored instead of revoking the former handler's
+-- access.
 select pg_temp.call_handler_update(
-  '00000000-0000-0000-0000-000000665102', 'MYK9-665 Cleared Handler', true,
-  'Explicit handler identity clearing is not supported%');
+  '00000000-0000-0000-0000-000000665102', 'MYK9-665 Cleared Handler', true);
+do $$
+begin
+  if (select handler_id from public.entries where id = '00000000-0000-0000-0000-000000665031')
+    is distinct from '00000000-0000-0000-0000-000000665012'::uuid then
+    raise exception 'FAIL legacy exhibitor clear changed handler_id';
+  end if;
+end;
+$$;
 
 -- An official text correction with no selected replacement also preserves the
 -- existing handler identity.
@@ -129,10 +136,23 @@ begin
 end;
 $$;
 
--- An official legacy clear also fails closed.
+-- An official legacy clear is likewise ignored.
 select pg_temp.call_handler_update(
-  '00000000-0000-0000-0000-000000665103', 'MYK9-665 Corrected Handler', true,
-  'Explicit handler identity clearing is not supported%');
+  '00000000-0000-0000-0000-000000665103', 'MYK9-665 Corrected Handler', true);
+do $$
+begin
+  if (select handler_id from public.entries where id = '00000000-0000-0000-0000-000000665031')
+    is distinct from '00000000-0000-0000-0000-000000665012'::uuid then
+    raise exception 'FAIL legacy official clear changed handler_id';
+  end if;
+end;
+$$;
+
+-- A handler may not assign an unrelated person id through the exhibitor path.
+select pg_temp.call_handler_update(
+  '00000000-0000-0000-0000-000000665102', 'MYK9-665 Invalid Assignment', false,
+  'Not authorized: caller cannot assign handler %',
+  '00000000-0000-0000-0000-000000665014');
 
 -- A club admin is authorized while the show is linked to that club.
 select pg_temp.call_handler_update(

@@ -260,7 +260,6 @@ export function useMyEntriesData({
         status: mapClassEntryStatus(entry.entry_status as string),
         // MYK9-632: WHICH withdrawal, for the Edit Entry sheet's badge.
         withdrawalReasonCode: (entry.withdrawal_reason_code as string | null) ?? undefined,
-        handlerId: (entry.handler_id as string | null) ?? null,
         handler: (entry.handler as string) || undefined,
         paymentStatus: rowPaymentStatus,
         paymentMethod: rowPaymentMethod,

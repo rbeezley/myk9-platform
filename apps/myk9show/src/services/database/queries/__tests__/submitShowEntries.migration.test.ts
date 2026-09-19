@@ -52,7 +52,7 @@ describe('submit_show_entries migration authorization', () => {
     const migration = readFileSync(
       resolve(
         process.cwd(),
-        '../../supabase/migrations/20260919150000_myk9_665_align_handler_id_clear_behavior.sql'
+        '../../supabase/migrations/20260919150017_myk9_665_align_handler_id_clear_behavior.sql'
       ),
       'utf8'
     );
@@ -60,20 +60,20 @@ describe('submit_show_entries migration authorization', () => {
     expect(migration).not.toContain('concat_ws');
     expect(migration).toContain('v_is_official := public.can_manage_show(v_show_id)');
     expect(migration).toContain('WHEN p_handler_id IS NOT NULL THEN p_handler_id');
-    expect(migration).toContain('IF p_clear_handler_id THEN');
+    expect(migration).toContain('p_clear_handler_id boolean DEFAULT FALSE');
   });
 
   it('aligns the exhibitor handler_id clear behavior with the official branch', () => {
     const migration = readFileSync(
       resolve(
         process.cwd(),
-        '../../supabase/migrations/20260919150000_myk9_665_align_handler_id_clear_behavior.sql'
+        '../../supabase/migrations/20260919150017_myk9_665_align_handler_id_clear_behavior.sql'
       ),
       'utf8'
     );
 
     expect(migration).toContain('MYK9-665');
-    expect(migration).toContain('IF p_clear_handler_id THEN');
+    expect(migration).toContain('p_clear_handler_id boolean DEFAULT FALSE');
     expect(migration).toContain(
       'WHEN v_resolved_handler_id IS NOT NULL THEN v_resolved_handler_id'
     );

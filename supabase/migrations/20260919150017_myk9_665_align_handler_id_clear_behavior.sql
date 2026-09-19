@@ -2,9 +2,9 @@
 --
 -- handler_id remains the load-bearing person link captured for the entry. A
 -- text correction preserves that link for both caller tiers. The legacy clear
--- flag is rejected so stale clients fail closed rather than revoking access;
--- selected p_handler_id is the supported reassignment path. The RPC must not
--- infer a person from free-text names.
+-- flag is ignored for backwards compatibility; selected p_handler_id remains
+-- the explicit reassignment path. The RPC must not infer a person from free
+-- text names.
 
 CREATE OR REPLACE FUNCTION public.update_entry_handler_for_entry_management(
   p_entry_id uuid,
@@ -42,11 +42,6 @@ BEGIN
 
   IF NOT FOUND THEN
     RAISE EXCEPTION 'entry % not found', p_entry_id
-      USING ERRCODE = '22023';
-  END IF;
-
-  IF p_clear_handler_id THEN
-    RAISE EXCEPTION 'Explicit handler identity clearing is not supported; select a replacement handler'
       USING ERRCODE = '22023';
   END IF;
 

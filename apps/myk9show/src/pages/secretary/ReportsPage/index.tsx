@@ -161,7 +161,7 @@ export default function ReportsPage() {
   // show detail's already-loaded trials for timezone and registry scope. The
   // show detail and report query share the same show, so a non-empty detail row
   // is the only useful answer when the scoped query has no rows yet.
-  const resolvedTrials = trials?.length ? trials : (currentShow?.trials ?? trials ?? []);
+  const resolvedTrials = trials ?? currentShow?.trials ?? [];
   const showTimePhase = resolveShowTimePhase(
     currentShow,
     new Date(),

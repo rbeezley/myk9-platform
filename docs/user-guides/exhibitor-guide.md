@@ -235,6 +235,19 @@ Fields you can update: call name, registered name, AKC or UKC registration numbe
 
 ---
 
+## Section 12 — Set Up a New Club
+
+If your club is not already in myK9Show, you can ask the myK9Show team to set it up without creating a second account.
+
+1. Open **Request additional access** from your account or exhibitor home page.
+2. Choose **Set up a new club**.
+3. Enter the club name and send the request.
+4. Wait for a site admin to review the request.
+
+When the request is approved, the person who submitted it becomes an active member, **Club Admin**, and the club's **Secretary/show manager** for that club. Those permissions apply only to the new club. They can then create and run that club's shows using the same account.
+
+---
+
 ## Still need help?
 
 - [KB: enter-a-show](#) — step-by-step for the registration wizard

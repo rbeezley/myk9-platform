@@ -24,4 +24,12 @@ describe('destinationEntryStatusFor', () => {
     expect(destinationEntryStatusFor('confirmed')).toBe('confirmed');
     expect(destinationEntryStatusFor('checked-in')).toBe('checked-in');
   });
+
+  it('preserves null and blank, as the SQL ELSE branch does', () => {
+    // `entries.entry_status` is nullable; coercing to '' would be the one place
+    // the mirror disagreed with what it mirrors.
+    expect(destinationEntryStatusFor(null)).toBeNull();
+    expect(destinationEntryStatusFor(undefined)).toBeUndefined();
+    expect(destinationEntryStatusFor('  ')).toBe('  ');
+  });
 });

@@ -38,8 +38,14 @@
 --   8. EXECUTE is revoked from PUBLIC and anon on both functions.
 --   9. A 'move-up-requested' source does NOT carry that status onto the
 --      destination -- the request is fulfilled by the move, not re-queued.
---  10. A round trip keeps an 'at-gate' check-in and does not renumber the
+--  10. A round trip keeps an 'at-gate' check-in and reuses the dog's existing
 --      armband (the reverse re-arms auto_assign_armband_on_accept).
+--
+-- NOTE on every read below: `authenticated` has NO table-level SELECT on
+-- public.entries (relacl `authenticated=awd`); SELECT is granted column by
+-- column. `SELECT * INTO <rec> public.entries%ROWTYPE` therefore dies 42501
+-- under `SET LOCAL ROLE authenticated`, so each case names the columns it
+-- asserts on -- all of which are in the allowlist.
 --
 -- Run with psql -X -v ON_ERROR_STOP=1 against a migrated local database;
 -- every fixture rolls back.
@@ -96,7 +102,8 @@ values
   ('00000000-0000-0000-0000-000000639042', 'MYK9-639 Online Dog', 'Pip', 'Beagle', 'active'),
   ('00000000-0000-0000-0000-000000639043', 'MYK9-639 Club B Dog', 'Rook', 'Beagle', 'active'),
   ('00000000-0000-0000-0000-000000639044', 'MYK9-639 Request Dog', 'Juno', 'Beagle', 'active'),
-  ('00000000-0000-0000-0000-000000639045', 'MYK9-639 Dupe Dog', 'Wren', 'Beagle', 'active');
+  ('00000000-0000-0000-0000-000000639045', 'MYK9-639 Dupe Dog', 'Wren', 'Beagle', 'active'),
+  ('00000000-0000-0000-0000-000000639046', 'MYK9-639 Gate Dog', 'Teal', 'Beagle', 'active');
 
 -- Every trial is AKC, so one registration each satisfies
 -- trg_entries_require_dog_registration for every INSERT below.
@@ -106,7 +113,8 @@ values
   ('00000000-0000-0000-0000-000000639042', 'AKC', 'SR6390002', true),
   ('00000000-0000-0000-0000-000000639043', 'AKC', 'SR6390003', true),
   ('00000000-0000-0000-0000-000000639044', 'AKC', 'SR6390004', true),
-  ('00000000-0000-0000-0000-000000639045', 'AKC', 'SR6390005', true);
+  ('00000000-0000-0000-0000-000000639045', 'AKC', 'SR6390005', true),
+  ('00000000-0000-0000-0000-000000639046', 'AKC', 'SR6390006', true);
 
 insert into public.people (id, first_name, last_name, auth_user_id)
 values
@@ -205,9 +213,22 @@ $$;
 -- ---------------------------------------------------------------------------
 DO $$
 DECLARE
-  v_new_id uuid;
-  v_dest   public.entries%ROWTYPE;
-  v_source public.entries%ROWTYPE;
+  v_new_id       uuid;
+  d_payment      text;
+  d_fee          numeric;
+  d_method       text;
+  d_intent       text;
+  d_comped       boolean;
+  d_discount     numeric;
+  d_link         uuid;
+  d_checkin      text;
+  d_dayof        boolean;
+  d_source       text;
+  d_armband      text;
+  d_status       text;
+  s_status       text;
+  s_payment      text;
+  s_fee          numeric;
 BEGIN
   v_new_id := public.move_up_entry(
     '00000000-0000-0000-0000-000000639061',
@@ -216,36 +237,41 @@ BEGIN
     'Qualified today'
   );
 
-  SELECT * INTO v_dest FROM public.entries WHERE id = v_new_id;
-  SELECT * INTO v_source FROM public.entries WHERE id = '00000000-0000-0000-0000-000000639061';
+  SELECT payment_status, entry_fee, payment_method, stripe_payment_intent_id, comped,
+         discount_amount, moved_from_entry_id, check_in_status, is_day_of_show,
+         entry_source, armband, entry_status
+    INTO STRICT d_payment, d_fee, d_method, d_intent, d_comped,
+         d_discount, d_link, d_checkin, d_dayof,
+         d_source, d_armband, d_status
+    FROM public.entries WHERE id = v_new_id;
 
-  IF v_dest.payment_status <> 'pending' OR v_dest.entry_fee <> 0 THEN
-    RAISE EXCEPTION 'FAIL destination is not money-neutral: % / %',
-      v_dest.payment_status, v_dest.entry_fee;
+  SELECT entry_status, payment_status, entry_fee
+    INTO STRICT s_status, s_payment, s_fee
+    FROM public.entries WHERE id = '00000000-0000-0000-0000-000000639061';
+
+  IF d_payment <> 'pending' OR d_fee <> 0 THEN
+    RAISE EXCEPTION 'FAIL destination is not money-neutral: % / %', d_payment, d_fee;
   END IF;
-  IF v_dest.payment_method IS NOT NULL OR v_dest.stripe_payment_intent_id IS NOT NULL
-     OR COALESCE(v_dest.comped, false) OR COALESCE(v_dest.discount_amount, 0) <> 0 THEN
+  IF d_method IS NOT NULL OR d_intent IS NOT NULL
+     OR COALESCE(d_comped, false) OR COALESCE(d_discount, 0) <> 0 THEN
     RAISE EXCEPTION 'FAIL destination carried a payment field forward';
   END IF;
-  IF v_dest.moved_from_entry_id <> '00000000-0000-0000-0000-000000639061' THEN
+  IF d_link <> '00000000-0000-0000-0000-000000639061' THEN
     RAISE EXCEPTION 'FAIL destination does not link back to the source';
   END IF;
-  IF v_dest.check_in_status <> 'checked-in' THEN
-    RAISE EXCEPTION 'FAIL the check-in did not travel: %', v_dest.check_in_status;
+  IF d_checkin <> 'checked-in' THEN
+    RAISE EXCEPTION 'FAIL the check-in did not travel: %', d_checkin;
   END IF;
-  IF v_dest.is_day_of_show IS DISTINCT FROM true
-     OR v_dest.entry_source <> 'ukc_online'
-     OR v_dest.armband <> '100' THEN
-    RAISE EXCEPTION 'FAIL provenance did not travel: % / % / %',
-      v_dest.is_day_of_show, v_dest.entry_source, v_dest.armband;
+  IF d_dayof IS DISTINCT FROM true OR d_source <> 'ukc_online' OR d_armband <> '100' THEN
+    RAISE EXCEPTION 'FAIL provenance did not travel: % / % / %', d_dayof, d_source, d_armband;
   END IF;
-  IF v_dest.entry_status <> 'confirmed' THEN
-    RAISE EXCEPTION 'FAIL the approval state did not travel: %', v_dest.entry_status;
+  IF d_status <> 'confirmed' THEN
+    RAISE EXCEPTION 'FAIL the approval state did not travel: %', d_status;
   END IF;
-  IF v_source.entry_status <> 'moved' THEN
-    RAISE EXCEPTION 'FAIL the source was not superseded: %', v_source.entry_status;
+  IF s_status <> 'moved' THEN
+    RAISE EXCEPTION 'FAIL the source was not superseded: %', s_status;
   END IF;
-  IF v_source.payment_status <> 'paid' OR v_source.entry_fee <> 35.00 THEN
+  IF s_payment <> 'paid' OR s_fee <> 35.00 THEN
     RAISE EXCEPTION 'FAIL the money left the source';
   END IF;
 
@@ -352,7 +378,7 @@ $$;
 DO $$
 DECLARE
   v_new_id uuid;
-  v_dest   public.entries%ROWTYPE;
+  d_status text;
 BEGIN
   v_new_id := public.move_up_entry(
     '00000000-0000-0000-0000-000000639065',
@@ -360,9 +386,9 @@ BEGIN
     '00000000-0000-0000-0000-000000639077'
   );
 
-  SELECT * INTO v_dest FROM public.entries WHERE id = v_new_id;
-  IF v_dest.entry_status <> 'confirmed' THEN
-    RAISE EXCEPTION 'FAIL the destination inherited the request status: %', v_dest.entry_status;
+  SELECT entry_status INTO STRICT d_status FROM public.entries WHERE id = v_new_id;
+  IF d_status <> 'confirmed' THEN
+    RAISE EXCEPTION 'FAIL the destination inherited the request status: %', d_status;
   END IF;
   RAISE NOTICE 'PASS a move-up request does not survive onto the destination';
 END;
@@ -434,8 +460,6 @@ SELECT set_config(
 );
 
 DO $$
-DECLARE
-  v_foreign public.entries%ROWTYPE;
 BEGIN
   BEGIN
     PERFORM public.reverse_move_up_entry('00000000-0000-0000-0000-000000639082');
@@ -444,10 +468,22 @@ BEGIN
     RAISE NOTICE 'PASS reverse_move_up_entry refuses a cross-show source';
   END;
 
-  SELECT * INTO v_foreign FROM public.entries
+END;
+$$;
+
+-- The "was the foreign row touched?" half has to run OUTSIDE the authenticated
+-- block: `entries` carries RLS, Club B's row is invisible to Club A's
+-- secretary, and a scalar `SELECT ... INTO` on no row leaves NULL, so
+-- `NULL <> 'moved'` is NULL and the guard could never fire from in there.
+RESET ROLE;
+DO $$
+DECLARE
+  v_foreign_status text;
+BEGIN
+  SELECT entry_status INTO STRICT v_foreign_status FROM public.entries
    WHERE id = '00000000-0000-0000-0000-000000639081';
-  IF v_foreign.entry_status <> 'moved' THEN
-    RAISE EXCEPTION 'FAIL the other club''s entry was modified: %', v_foreign.entry_status;
+  IF v_foreign_status <> 'moved' THEN
+    RAISE EXCEPTION 'FAIL the other club''s entry was modified: %', v_foreign_status;
   END IF;
 END;
 $$;
@@ -458,29 +494,35 @@ $$;
 -- ---------------------------------------------------------------------------
 DO $$
 DECLARE
-  v_restored uuid;
-  v_source   public.entries%ROWTYPE;
-  v_dest     public.entries%ROWTYPE;
-  v_again    uuid;
+  v_restored  uuid;
+  s_status    text;
+  s_checkin   text;
+  s_payment   text;
+  s_fee       numeric;
+  d_deleted   timestamptz;
+  v_again     uuid;
 BEGIN
   v_restored := public.reverse_move_up_entry('00000000-0000-0000-0000-000000639072');
   IF v_restored <> '00000000-0000-0000-0000-000000639061' THEN
     RAISE EXCEPTION 'FAIL the reverse restored the wrong entry: %', v_restored;
   END IF;
 
-  SELECT * INTO v_source FROM public.entries WHERE id = v_restored;
-  SELECT * INTO v_dest FROM public.entries WHERE id = '00000000-0000-0000-0000-000000639072';
+  SELECT entry_status, check_in_status, payment_status, entry_fee
+    INTO STRICT s_status, s_checkin, s_payment, s_fee
+    FROM public.entries WHERE id = v_restored;
+  SELECT deleted_at INTO STRICT d_deleted
+    FROM public.entries WHERE id = '00000000-0000-0000-0000-000000639072';
 
-  IF v_source.entry_status <> 'confirmed' THEN
-    RAISE EXCEPTION 'FAIL the source was not restored: %', v_source.entry_status;
+  IF s_status <> 'confirmed' THEN
+    RAISE EXCEPTION 'FAIL the source was not restored: %', s_status;
   END IF;
-  IF v_source.check_in_status <> 'checked-in' THEN
-    RAISE EXCEPTION 'FAIL the live check-in did not come back: %', v_source.check_in_status;
+  IF s_checkin <> 'checked-in' THEN
+    RAISE EXCEPTION 'FAIL the live check-in did not come back: %', s_checkin;
   END IF;
-  IF v_source.payment_status <> 'paid' OR v_source.entry_fee <> 35.00 THEN
+  IF s_payment <> 'paid' OR s_fee <> 35.00 THEN
     RAISE EXCEPTION 'FAIL the reverse touched the money';
   END IF;
-  IF v_dest.deleted_at IS NULL THEN
+  IF d_deleted IS NULL THEN
     RAISE EXCEPTION 'FAIL the destination was not soft-deleted';
   END IF;
 
@@ -503,9 +545,9 @@ $$;
 -- 10. A round trip must not downgrade the dog's check-in. The forward half
 --     narrows everything but 'checked-in' to 'no-status' on the DESTINATION;
 --     copying that back verbatim used to leave a dog standing at the gate as
---     'no-status', silently out of the gate queue. It must also not renumber
---     the armband: the reverse's 'moved' -> live transition re-arms
---     auto_assign_armband_on_accept.
+--     'no-status', silently out of the gate queue. The reverse's 'moved' -> live
+--     transition also re-arms auto_assign_armband_on_accept, which must REUSE
+--     the dog's existing armbands row rather than allocate a new number.
 -- ---------------------------------------------------------------------------
 RESET ROLE;
 SET LOCAL ROLE service_role;
@@ -513,9 +555,20 @@ INSERT INTO public.entries (
   id, dog_id, class_id, show_id, trial_id, entry_status, check_in_status,
   payment_status, entry_fee, armband
 )
-VALUES ('00000000-0000-0000-0000-000000639068', '00000000-0000-0000-0000-000000639044',
+VALUES ('00000000-0000-0000-0000-000000639068', '00000000-0000-0000-0000-000000639046',
   '00000000-0000-0000-0000-000000639033', '00000000-0000-0000-0000-000000639011',
-  '00000000-0000-0000-0000-000000639021', 'confirmed', 'at-gate', 'paid', 35.00, '103');
+  '00000000-0000-0000-0000-000000639021', 'confirmed', 'at-gate', 'paid', 35.00, '105');
+
+-- P1-C: seed the armband, because the reverse's 'moved' -> live transition
+-- re-arms `auto_assign_armband_on_accept_trigger`. With no `armbands` row the
+-- trigger ALLOCATES a fresh number and overwrites the entry's -- so without
+-- this the armband assertion below would be pinning a property the migration
+-- does not provide. Live, 0 of 1273 entries carrying an armband lack this row,
+-- so seeding it is the faithful fixture, and the assertion then pins what the
+-- trigger really does: reuse the number the dog already has.
+INSERT INTO public.armbands (show_id, dog_id, armband_number, assigned_at, is_available)
+VALUES ('00000000-0000-0000-0000-000000639011', '00000000-0000-0000-0000-000000639046',
+  '105', now(), false);
 RESET ROLE;
 
 SET LOCAL ROLE authenticated;
@@ -528,9 +581,10 @@ SELECT set_config(
 
 DO $$
 DECLARE
-  v_new_id   uuid;
-  v_dest     public.entries%ROWTYPE;
-  v_restored public.entries%ROWTYPE;
+  v_new_id    uuid;
+  d_checkin   text;
+  r_checkin   text;
+  r_armband   text;
 BEGIN
   v_new_id := public.move_up_entry(
     '00000000-0000-0000-0000-000000639068',
@@ -538,21 +592,20 @@ BEGIN
     '00000000-0000-0000-0000-000000639078'
   );
 
-  SELECT * INTO v_dest FROM public.entries WHERE id = v_new_id;
-  IF v_dest.check_in_status <> 'no-status' THEN
-    RAISE EXCEPTION 'FAIL at-gate travelled to the destination: %', v_dest.check_in_status;
+  SELECT check_in_status INTO STRICT d_checkin FROM public.entries WHERE id = v_new_id;
+  IF d_checkin <> 'no-status' THEN
+    RAISE EXCEPTION 'FAIL at-gate travelled to the destination: %', d_checkin;
   END IF;
 
   PERFORM public.reverse_move_up_entry(v_new_id);
 
-  SELECT * INTO v_restored FROM public.entries
-   WHERE id = '00000000-0000-0000-0000-000000639068';
-  IF v_restored.check_in_status <> 'at-gate' THEN
-    RAISE EXCEPTION 'FAIL the round trip downgraded the check-in to %',
-      v_restored.check_in_status;
+  SELECT check_in_status, armband INTO STRICT r_checkin, r_armband
+    FROM public.entries WHERE id = '00000000-0000-0000-0000-000000639068';
+  IF r_checkin <> 'at-gate' THEN
+    RAISE EXCEPTION 'FAIL the round trip downgraded the check-in to %', r_checkin;
   END IF;
-  IF v_restored.armband IS DISTINCT FROM '103' THEN
-    RAISE EXCEPTION 'FAIL the round trip renumbered the armband to %', v_restored.armband;
+  IF r_armband IS DISTINCT FROM '105' THEN
+    RAISE EXCEPTION 'FAIL the round trip renumbered the armband to %', r_armband;
   END IF;
 
   RAISE NOTICE 'PASS a round trip keeps the gate state and the armband';

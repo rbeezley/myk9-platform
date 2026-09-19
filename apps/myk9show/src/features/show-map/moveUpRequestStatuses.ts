@@ -36,9 +36,16 @@ export const MOVE_UP_REQUEST_FULFILLED_STATUS = 'confirmed';
  * acceptance, so a `submitted` or `pending-payment` source must not land
  * approved.
  */
-export function destinationEntryStatusFor(sourceEntryStatus: string | null | undefined): string {
-  const status = sourceEntryStatus?.trim() ?? '';
+export function destinationEntryStatusFor<T extends string | null | undefined>(
+  sourceEntryStatus: T
+): string | T {
+  // Null and blank are PRESERVED, not coerced to '': the SQL `ELSE` branch
+  // writes `v_source.entry_status` unchanged, and `entries.entry_status` is
+  // nullable with a `'no-status'` default — so returning '' here would be the
+  // one place the mirror disagreed with what it mirrors.
+  const status = sourceEntryStatus?.trim();
+  if (!status) return sourceEntryStatus;
   return (MOVE_UP_REQUEST_STATUSES as readonly string[]).includes(status)
     ? MOVE_UP_REQUEST_FULFILLED_STATUS
-    : status;
+    : sourceEntryStatus;
 }

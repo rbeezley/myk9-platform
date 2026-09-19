@@ -109,6 +109,24 @@ describe('resolveShowTimePhase', () => {
     }
   });
 
+  it('uses the configured show timezone when it differs from the browser timezone', () => {
+    const originalTimezone = process.env.TZ;
+    process.env.TZ = 'America/Chicago';
+    try {
+      const afterMidnightInNewYork = new Date('2026-03-23T04:30:00.000Z');
+      expect(
+        resolveShowTimePhase(
+          { startDate: '2026-03-20', endDate: '2026-03-22' },
+          afterMidnightInNewYork,
+          'America/New_York'
+        )
+      ).toBe('after');
+    } finally {
+      if (originalTimezone === undefined) delete process.env.TZ;
+      else process.env.TZ = originalTimezone;
+    }
+  });
+
   it('accepts a timestamptz as well as a date', () => {
     expect(
       resolveShowTimePhase(

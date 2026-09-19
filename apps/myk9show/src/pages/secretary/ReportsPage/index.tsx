@@ -6,6 +6,7 @@ import { useReportData, type ReportDataState } from '@/hooks/queries/useReportDa
 import { getReportById } from '@/lib/reports/reportRegistry';
 import { ReportControlsBar } from './ReportControlsBar';
 import { resolveShowTimePhase } from '@/lib/reports/reportPhaseOrder';
+import { getEntryWindowTimezone } from '@/utils/entryWindowDate';
 import { ReportPreview } from './ReportPreview';
 import { printIframe } from './reportPreviewUtils';
 import { ArmbandLabelsReport } from '@/components/reports/labels/ArmbandLabelsReport';
@@ -129,7 +130,6 @@ export default function ReportsPage() {
   // show day the check-in and score sheets lead instead of sitting under eleven
   // pre-show planning reports. Headings and membership are unchanged and
   // nothing is gated — see `orderReportPhases`.
-  const showTimePhase = resolveShowTimePhase(currentShow);
   const linkShowId = showId ?? currentShow?.id;
   const [searchParams] = useSearchParams();
   const [initialScope] = useState(() => resolveInitialReportScope(searchParams));
@@ -157,6 +157,13 @@ export default function ReportsPage() {
       trialId,
       classId,
     });
+  const showTimePhase = resolveShowTimePhase(
+    currentShow,
+    new Date(),
+    getEntryWindowTimezone(
+      (trials ?? []) as Array<{ id?: string | null; date?: string | null; timezone?: string | null }>
+    )
+  );
 
   const trialOptions = useMemo(
     () =>

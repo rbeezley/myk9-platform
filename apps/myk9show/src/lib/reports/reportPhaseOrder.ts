@@ -1,3 +1,4 @@
+import { calendarDateInTimeZone } from '@/utils/calendarDate';
 import type { ReportPhase } from './types';
 
 /**
@@ -34,14 +35,15 @@ function extractValidDatePrefix(value: string | undefined): string | undefined {
 }
 
 /**
- * `YYYY-MM-DD` for a Date, in LOCAL time.
+ * `YYYY-MM-DD` for a Date, in the configured show timezone when supplied.
  *
  * Deliberately not `toISOString()`, which converts to UTC first: west of
  * Greenwich that turns the evening of show day into the next calendar day, and
  * a secretary closing out at 7pm would watch the During group drop below After.
  * Show dates are stored as plain dates, so the comparison is string-on-string.
  */
-function toLocalDateKey(date: Date): string {
+function toLocalDateKey(date: Date, timeZone?: string): string {
+  if (timeZone) return calendarDateInTimeZone(date, timeZone);
   const year = date.getFullYear();
   const month = `${date.getMonth() + 1}`.padStart(2, '0');
   const day = `${date.getDate()}`.padStart(2, '0');
@@ -54,11 +56,13 @@ function toLocalDateKey(date: Date): string {
  * Both bounds are INCLUSIVE: the first and last day of a show are show days.
  * A missing `endDate` means a one-day show, so the start date is also the end.
  * Only the first 10 characters of each value are compared, so a `date` and a
- * `timestamptz` both read as the calendar day they name.
+ * `timestamptz` both read as the calendar day they name. `timeZone` should be
+ * the primary trial's entry-window timezone when the caller has that context.
  */
 export function resolveShowTimePhase(
   show: { startDate?: string | null; endDate?: string | null } | null | undefined,
-  today: Date = new Date()
+  today: Date = new Date(),
+  timeZone?: string
 ): ShowTimePhase {
   const start = extractValidDatePrefix(show?.startDate ?? undefined);
   if (!start) return 'unknown';
@@ -70,7 +74,7 @@ export function resolveShowTimePhase(
   // `after`, which can put the report picker in the wrong operational order.
   if (end < start) return 'unknown';
   if (Number.isNaN(today.getTime())) return 'unknown';
-  const now = toLocalDateKey(today);
+  const now = toLocalDateKey(today, timeZone);
   if (now < start) return 'before';
   if (now > end) return 'after';
   return 'during';

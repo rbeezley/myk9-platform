@@ -23,11 +23,16 @@
 --
 -- Mechanics this file is obliged to get right:
 --
---  * The body is copied from 20260918041700 (MYK9-632), which is the LATEST
+--  * The body is copied from 20260918193300 (MYK9-639), which is the LATEST
 --    migration defining both views and is applied on the linked project
 --    (`supabase_migrations.schema_migrations`, verified before writing this).
 --    Everything below is byte-identical to that file except the one appended
---    column on each view and the one LEFT JOIN that feeds it.
+--    column on each view, the one LEFT JOIN that feeds it, and the sentence
+--    each COMMENT ON VIEW gains for it. 20260918193300 added a trailing
+--    `moved_from_entry_id` to BOTH views, so this file appends
+--    `registration_confirmation_number` AFTER it -- copying the pre-639 body
+--    would have tried to rename that column, which CREATE OR REPLACE VIEW
+--    cannot do, and the push would have hard-failed.
 --
 --  * `WITH (security_invoker = false)` is restated INLINE on both views.
 --    CREATE OR REPLACE VIEW resets reloptions when the clause is omitted
@@ -61,12 +66,13 @@
 -- after 20260918211700 in a tree where nothing between them touches these views,
 -- buying nothing and rewriting a version another branch may already reference.
 -- Out-of-order application is safe HERE specifically because no migration
--- between 20260918041700 and the current head redefines
+-- between 20260918193300 and the current head redefines
 -- `view_authenticated_entry_results` or its `_replication` wrapper -- verified
--- with `grep -l view_authenticated_entry_results supabase/migrations/*.sql |
--- sort | tail`, whose last entry before this file is 20260918041700. So this
--- file is still the LATEST definition of both views and cannot be silently
--- reverted by a later one.
+-- against `origin/main`, not this branch, with `git grep -l
+-- view_authenticated_entry_results origin/main -- 'supabase/migrations/*.sql'`,
+-- whose last entry before this file is 20260918193300. So this file is still
+-- the LATEST definition of both views and cannot be silently reverted by a
+-- later one.
 --
 -- NOT PUSHED by the authoring agent: `supabase db push` on the linked project
 -- is Richard's to run. Until it lands, `registration_confirmation_number` is
@@ -203,6 +209,12 @@ SELECT
   -- manager, or the entry's own exhibitor). Appended at the END of the select
   -- list because CREATE OR REPLACE VIEW may only add columns there.
   CASE WHEN access.can_view_admin THEN e.withdrawal_reason_code END AS withdrawal_reason_code,
+  -- MYK9-639: the supersession link. Structural, not financial, so it is NOT
+  -- masked by can_view_admin -- it is the same kind of fact as e.class_id, and
+  -- anyone this view already admits to the row may know which entry this one
+  -- replaced. Appended at the END of the select list because CREATE OR REPLACE
+  -- VIEW may only add columns there.
+  e.moved_from_entry_id,
   -- MYK9-659: the ORDER's human reference. `enrollments.confirmation_number`
   -- is NOT NULL and defaulted from generate_confirmation_number(), and
   -- submit_show_entries always writes entries.registration_id, so every
@@ -326,7 +338,7 @@ COMMENT ON VIEW public.view_authenticated_entry_results IS
   '(MYK9-659). A '
   'club-less show is manageable by site admins only (MYK9-258 / MYK9-329). Class '
   'result visibility resolves once per class via private.class_result_visibility '
-  '(MYK9-126). The view remains security_invoker = false.';
+  '(MYK9-126). moved_from_entry_id (MYK9-639) is unmasked: it is structural provenance, like class_id. registration_confirmation_number (MYK9-659) is appended after it and masked by can_view_admin. The view remains security_invoker = false.';
 
 -- MYK9-291's wrapper, re-emitted with the star expanded (see the header).
 CREATE OR REPLACE VIEW public.view_authenticated_entry_results_replication
@@ -438,6 +450,8 @@ SELECT
   -- Appended last: CREATE OR REPLACE VIEW may only add columns at the end, and
   -- the four `shows` columns above already hold ordinals 99-102.
   entries.withdrawal_reason_code,
+  -- MYK9-639, appended last for the same CREATE OR REPLACE reason.
+  entries.moved_from_entry_id,
   -- MYK9-659, appended last for the same CREATE OR REPLACE reason. Already
   -- masked by the inner view; the wrapper only carries it.
   entries.registration_confirmation_number
@@ -458,7 +472,7 @@ REVOKE ALL ON public.view_authenticated_entry_results_replication FROM anon;
 REVOKE INSERT, UPDATE, DELETE ON public.view_authenticated_entry_results_replication FROM authenticated;
 
 COMMENT ON VIEW public.view_authenticated_entry_results_replication IS
-  'Replication feed wrapping view_authenticated_entry_results, adding the shows join needed to replicate soft-deleted shows (MYK9-291). Owner-run (security_invoker = false) like the view it wraps; the score/payment gating is inherited from that inner view body, and the shows columns are reachable only for entries the inner view already admitted. Advisor security_definer_view ERROR accepted by design 2026-09-09 (docs/improve-audit-2026-07-11/009-advisor-disposition-sweep.md, Verdict 1). Any rebuild MUST carry WITH (security_invoker = false) inline -- CREATE OR REPLACE VIEW resets reloptions. The select list is explicit (MYK9-632): `entries.*` re-expanded on every rebuild and would have reordered the columns the moment the inner view gained one. Carries registration_confirmation_number so the offline receipt prints the same order reference as the online one (MYK9-659).';
+  'Replication feed wrapping view_authenticated_entry_results, adding the shows join needed to replicate soft-deleted shows (MYK9-291). Owner-run (security_invoker = false) like the view it wraps; the score/payment gating is inherited from that inner view body, and the shows columns are reachable only for entries the inner view already admitted. Advisor security_definer_view ERROR accepted by design 2026-09-09 (docs/improve-audit-2026-07-11/009-advisor-disposition-sweep.md, Verdict 1). Any rebuild MUST carry WITH (security_invoker = false) inline -- CREATE OR REPLACE VIEW resets reloptions. The select list is explicit (MYK9-632): `entries.*` re-expanded on every rebuild and would have reordered the columns the moment the inner view gained one. moved_from_entry_id (MYK9-639) is appended after it. registration_confirmation_number (MYK9-659) is appended after that, so the offline receipt prints the same order reference as the online one.';
 
 NOTIFY pgrst, 'reload schema';
 

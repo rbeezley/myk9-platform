@@ -85,6 +85,7 @@ TEST_FILES=(
   "$TEST_DIR/ringside_containment_test.sql"
   "$TEST_DIR/self_checkin_entry_test.sql"
   "$TEST_DIR/submit_entries_started_class_test.sql"
+  "$TEST_DIR/submit_entries_day_of_show_flag_test.sql"
   "$TEST_DIR/sign_in_email_invariant_test.sql"
   "$TEST_DIR/subscription_entitlement_grants_test.sql"
   "$TEST_DIR/support_triage_atomic_send_test.sql"

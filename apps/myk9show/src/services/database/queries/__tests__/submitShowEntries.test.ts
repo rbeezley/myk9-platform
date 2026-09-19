@@ -1,6 +1,6 @@
 import { createDatabaseError } from '@/services/database/databaseError';
 import { getErrorMessage } from '@myk9/core';
-import { readFileSync } from 'node:fs';
+import { readdirSync, readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { submitShowEntries, updateEntryHandler } from '../../entries';
@@ -301,13 +301,35 @@ describe('submitShowEntries', () => {
  * (LESSONS `source-text-tests` — a test that proves someone typed the thing
  * proves nothing about what runs).
  */
-const MIGRATION = readFileSync(
-  resolve(
-    import.meta.dirname,
-    '../../../../../../../supabase/migrations/20260914184500_block_entries_into_started_classes.sql'
-  ),
-  'utf8'
-);
+const MIGRATIONS_DIR = resolve(import.meta.dirname, '../../../../../../../supabase/migrations');
+
+/**
+ * The LATEST migration defining `submit_show_entries`, resolved rather than
+ * named. A hardcoded filename is a stale pin the moment the function is rebuilt
+ * — 20260914184500 stopped being the live definition when MYK9-642 replaced the
+ * function, and these assertions kept passing only because that rebuild copied
+ * the RAISE text verbatim. Resolving it is the same `grep -l … | sort | tail -1`
+ * the migration workflow itself mandates (LESSONS `replace-function-latest`).
+ */
+function latestSubmitShowEntriesMigration(): string {
+  const definers = readdirSync(MIGRATIONS_DIR)
+    .filter(name => name.endsWith('.sql'))
+    .filter(name =>
+      readFileSync(resolve(MIGRATIONS_DIR, name), 'utf8').includes(
+        'CREATE OR REPLACE FUNCTION public.submit_show_entries'
+      )
+    )
+    .sort();
+  const latest = definers.at(-1);
+  if (!latest) {
+    throw new Error(
+      'No migration defines public.submit_show_entries — the assertions below would test nothing'
+    );
+  }
+  return readFileSync(resolve(MIGRATIONS_DIR, latest), 'utf8');
+}
+
+const MIGRATION = latestSubmitShowEntriesMigration();
 
 /**
  * The message the RPC RAISEs for a status, exactly as the migration spells it.

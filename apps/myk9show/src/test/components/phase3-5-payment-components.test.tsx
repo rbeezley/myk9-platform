@@ -47,6 +47,41 @@ vi.mock('@/hooks/useClassStoreCompat', () => ({
   }),
 }));
 
+// MYK9-642: PaymentStep and the wizard's Next gate refuse to total an entry
+// until the show's entry-window timezone is resolved from the trial store, so
+// a test that renders them without a hydrated trial store sees the loading
+// state instead of the fees. Nothing here is about the timezone, so it is
+// reported resolved by default — but through a fixture that can be flipped, not
+// a permanent `true`, so at least one case per suite exercises not-ready and a
+// regression in the gate cannot hide behind these mocks (N-F6).
+const entryWindowTimezone = vi.hoisted(() => {
+  // ONE factory for every field, and the live object is seeded from it. A setter
+  // that restored a hand-written subset would leak any field it forgot — and a
+  // reset that lives inside one describe leaks the whole object into the next
+  // one, which under `--sequence.shuffle` is a ~1/13 red on a file CI runs
+  // shuffled and local runs do not (MYK9-642 P-F1, LESSON MYK9-666).
+  const defaults = () => ({
+    timeZone: 'America/New_York',
+    isReady: true,
+    isUnavailable: false,
+  });
+  return { defaults, current: defaults() };
+});
+vi.mock('@/hooks/useEntryWindowTimezone', () => ({
+  useEntryWindowTimezone: () => entryWindowTimezone.current,
+}));
+
+// FILE-WIDE, outside every describe: the reset has to outlive whichever describe
+// the shuffled order happens to end on.
+beforeEach(() => {
+  Object.assign(entryWindowTimezone.current, entryWindowTimezone.defaults());
+});
+
+function withUnresolvedShowTimezone(): void {
+  entryWindowTimezone.current.isReady = false;
+  entryWindowTimezone.current.isUnavailable = false;
+}
+
 vi.mock('@/store/showStore', () => ({
   useShowStore: () => ({
     shows: [],
@@ -97,6 +132,21 @@ describe('Phase 3.5: Payment Component Tests', () => {
 
     beforeEach(() => {
       vi.clearAllMocks();
+    });
+
+    it('renders no fee calculation while the show timezone is unresolved (MYK9-642)', () => {
+      // The fee tier is decided in the show's own timezone; until it resolves
+      // this step must show no total rather than one from the fallback.
+      withUnresolvedShowTimezone();
+      render(
+        <PaymentStep
+          paymentResolution={makePaymentResolution({ paymentMethod: 'credit_card' })}
+          {...defaultProps}
+        />
+      );
+
+      expect(screen.getByText(/Loading show details before totalling this entry/i)).toBeVisible();
+      expect(screen.queryByText('Secretary Payment Management')).toBeNull();
     });
 
     it('should render payment step with fee calculation', () => {

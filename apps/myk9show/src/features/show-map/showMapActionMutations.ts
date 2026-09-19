@@ -333,6 +333,7 @@ export async function moveUpShowMapEntry({
     newEntryId,
     reason,
   });
+  const destinationEntry = await replicatedEntriesTable.getEntryById(destinationEntryId);
 
   await logReplicatedEntryStatusChange({
     entryId,
@@ -343,7 +344,8 @@ export async function moveUpShowMapEntry({
     metadata: {
       targetClassName: targetClass.name,
       destinationEntryId,
-      destinationEntryStatusRequested: destinationEntryStatusFor(previousEntryStatus),
+      destinationEntryStatus:
+        readEntryStatus(destinationEntry) ?? destinationEntryStatusFor(previousEntryStatus),
     },
   });
 

@@ -324,7 +324,7 @@ async function postgrestGetEntriesByShow(showId: string) {
  * before that happens, so for the length of that window PostgREST answers 42703
  * and fails the WHOLE request, not just the column. Only the two reads that are
  * SUMMED as money name the link, so this is the only place the window has to be
- * handled — the other sixteen entry reads use the plain list and are unaffected.
+ * handled; the other entry reads use the plain list and are unaffected.
  *
  * The degraded read simply carries no supersession link, which
  * `resolveMoneyRoot` already treats as "this row is its own root" — the

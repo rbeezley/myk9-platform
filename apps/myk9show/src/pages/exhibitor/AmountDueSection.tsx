@@ -118,11 +118,7 @@ export function AmountDueSection({
             <h2 className="text-sm font-medium text-muted-foreground">Amount due</h2>
             <p className="text-2xl font-semibold tabular-nums text-success">$0.00</p>
           </div>
-          <p className="text-sm text-muted-foreground">
-            {hasUnresolvedShows
-              ? 'Some show balances could not be confirmed yet. Your confirmed balances are paid up.'
-              : 'Current entries are paid up.'}
-          </p>
+          <p className="text-sm text-muted-foreground">Current entries are paid up.</p>
         </CardContent>
       </Card>
     );

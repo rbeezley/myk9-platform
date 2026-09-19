@@ -151,7 +151,7 @@ export const USER_ENTRIES_SELECT = `
  * The base select PLUS whichever migration-backed view columns this database is
  * known to have.
  *
- * Two of them exist — MYK9-632's `withdrawal_reason_code` (20260918041700) and
+ * Two of the view columns already exist — MYK9-632's `withdrawal_reason_code` (20260918041700) and
  * MYK9-659's `registration_confirmation_number` (20260918193700) — and they are
  * INDEPENDENT, so each is dropped on its own rather than taking the other down
  * with it. Same shape as `postgrestGetSecretaryPullMetadataMap`.

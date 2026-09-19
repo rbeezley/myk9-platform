@@ -26,6 +26,13 @@ const MIGRATION = readFileSync(
   ),
   'utf8'
 );
+const REVERSE_MOVE_MIGRATION = readFileSync(
+  resolve(
+    __dirname,
+    '../../../../../supabase/migrations/20260919170000_myk9_639_reverse_move_up_successor_guard.sql'
+  ),
+  'utf8'
+);
 
 function sliceBetween(source: string, start: string, end: string): string {
   const startIndex = source.indexOf(start);
@@ -54,7 +61,7 @@ const moveUpFn = sliceBetween(
 );
 
 const reverseFn = sliceBetween(
-  MIGRATION,
+  REVERSE_MOVE_MIGRATION,
   'CREATE OR REPLACE FUNCTION public.reverse_move_up_entry(',
   'REVOKE ALL ON FUNCTION public.reverse_move_up_entry'
 );

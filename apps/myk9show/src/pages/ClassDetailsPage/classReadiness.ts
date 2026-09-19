@@ -34,10 +34,11 @@ export interface ClassReadinessSummary {
 
 export function buildClassReadinessSummary(
   classData: ClassReadinessClassInput,
-  entries: ReadonlyArray<ClassReadinessEntry>
+  entries: ReadonlyArray<ClassReadinessEntry>,
+  scopeEntries: ReadonlyArray<ClassReadinessEntry> = entries
 ): ClassReadinessSummary {
   const attentionReasons = entries.map(entry =>
-    entry.check_in_status === 'pulled' ? [] : classifyRawEntryAttention(entry, entries)
+    entry.check_in_status === 'pulled' ? [] : classifyRawEntryAttention(entry, scopeEntries)
   );
   const checkInEligibleEntries = entries.filter(
     entry => getOperationalEntryState({ rawEntryStatus: entry.entry_status }) === 'accepted'

@@ -68,10 +68,10 @@ export const MyEntriesOverview: React.FC<MyEntriesOverviewProps> = ({
         />
       </div>
     )}
-    {!showMoney && moneyWarning && (
+    {moneyWarning && (
       <p role="status" className="text-sm text-muted-foreground">
-        Some balances could not be confirmed with the server yet, so My Shows is not showing a
-        total.
+        Some balances could not be confirmed with the server yet; the money total covers
+        confirmed balances only.
       </p>
     )}
 

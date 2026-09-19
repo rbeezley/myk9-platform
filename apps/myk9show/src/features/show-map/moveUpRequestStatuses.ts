@@ -1,7 +1,4 @@
-/**
- * The entry statuses that mean "someone has ASKED for something about this
- * entry", and which therefore must not survive a move-up.
- */
+/** SQL mirror: statuses fulfilled on the move-up destination. */
 export const MOVE_UP_REQUEST_STATUSES = [
   'move-up-requested',
   'move_up_requested',
@@ -11,7 +8,7 @@ export const MOVE_UP_REQUEST_STATUSES = [
 
 export const MOVE_UP_REQUEST_FULFILLED_STATUS = 'confirmed';
 
-/** What a request status becomes on the destination: the request is fulfilled. */
+/** Request statuses become confirmed; all other values pass through unchanged. */
 export function destinationEntryStatusFor<T extends string | null | undefined>(
   sourceEntryStatus: T
 ): string | T {

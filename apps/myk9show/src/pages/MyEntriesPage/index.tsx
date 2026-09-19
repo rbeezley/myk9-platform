@@ -370,10 +370,7 @@ const MyEntriesPage: React.FC = () => {
                   read happened to be unconfirmed (MYK9-629 round 1). */}
                 {entries.length > 0 && (
                   <MyEntriesOverview
-                    showMoney={
-                      balanceSummary.kind === 'known' &&
-                      (balanceSummary.unresolvedShowIds?.length ?? 0) === 0
-                    }
+                    showMoney={balanceSummary.kind === 'known'}
                     moneyWarning={
                       balanceSummary.kind === 'unknown' ||
                       (balanceSummary.unresolvedShowIds?.length ?? 0) > 0

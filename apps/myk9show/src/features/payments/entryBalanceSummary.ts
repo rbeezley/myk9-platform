@@ -104,7 +104,7 @@ export interface EntryBalanceSummary {
   onlineDueCents: number;
   payAtShowDueCents: number;
   onlineShowBalances: EntryBalanceShowSummary[];
-  /** Shows withheld because at least one of their money roots was unresolved. */
+  /** Shows with at least one entry withheld because its money root was unresolved. */
   unresolvedShowIds?: string[];
 }
 

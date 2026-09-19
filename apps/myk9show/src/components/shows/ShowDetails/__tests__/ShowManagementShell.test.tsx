@@ -183,6 +183,16 @@ describe('ShowManagementShell', () => {
     expect(screen.getByTestId('status-pill')).toBeInTheDocument();
   });
 
+  it('shows Edit for managers and opens the existing edit panel', () => {
+    renderShell();
+
+    const editButton = screen.getByRole('button', { name: 'Edit' });
+    expect(editButton).toBeInTheDocument();
+    fireEvent.click(editButton);
+
+    expect(screen.getByTestId('edit-panel-open')).toBeInTheDocument();
+  });
+
   it('gives the status control the host club required for publishing', () => {
     renderShell();
     expect(screen.getByTestId('status-pill')).toHaveAttribute('data-club-id', 'club-1');

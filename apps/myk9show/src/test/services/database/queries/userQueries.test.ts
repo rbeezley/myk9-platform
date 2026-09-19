@@ -2,6 +2,7 @@ import { describe, it, expect, vi, afterEach, beforeEach } from 'vitest';
 import {
   getAllUsers,
   getUserById,
+  getDeletedUserById,
   createUser,
   updateUser,
   deleteUser,
@@ -19,6 +20,7 @@ describe('User Queries', () => {
   beforeEach(() => {
     mockSupabase.rpc.mockReset();
     resetMockSupabase();
+    mockSupabase.rpc.mockResolvedValue({ data: [], error: null });
   });
 
   afterEach(() => {
@@ -219,10 +221,13 @@ describe('User Queries', () => {
       const mockData = { id: userId, first_name: 'Ada', last_name: 'Judge' };
       const chain = createChainableQuery({ data: mockData, error: null });
       mockSupabase.from.mockReturnValue(chain);
-      mockSupabase.rpc.mockResolvedValueOnce({
-        data: [{ person_id: userId, role_name: 'judge' }],
-        error: null,
-      });
+      mockSupabase.rpc.mockImplementation((functionName: string) =>
+        Promise.resolve(
+          functionName === 'get_people_private'
+            ? { data: [], error: null }
+            : { data: [{ person_id: userId, role_name: 'judge' }], error: null }
+        )
+      );
 
       const result = await getUserById(userId);
 
@@ -278,6 +283,24 @@ describe('User Queries', () => {
       expect(result.error!.code).toBe('PGRST116');
     });
 
+    it('withholds the detailed row when the private hydration fails', async () => {
+      const userId = 'user-private-read-failed';
+      mockSupabase.from.mockReturnValue(
+        createChainableQuery({ data: { id: userId, first_name: 'Ada' }, error: null })
+      );
+      mockSupabase.rpc.mockImplementation((functionName: string) => {
+        if (functionName === 'get_people_private') {
+          return Promise.resolve({ data: null, error: { message: 'network unavailable' } });
+        }
+        return Promise.resolve({ data: [], error: null });
+      });
+
+      const result = await getUserById(userId);
+
+      expect(result.data).toBeNull();
+      expect(result.error?.message).toContain('Private person fields are unavailable');
+    });
+
     it('should validate response time for detailed user fetch', async () => {
       const userId = 'user-123';
       const mockData = {
@@ -296,6 +319,45 @@ describe('User Queries', () => {
 
       expect(result.data).toEqual({ ...mockData, roles: [] });
       expect(duration).toBeLessThan(200);
+    });
+  });
+
+  describe('getDeletedUserById', () => {
+    it('hydrates private fields for the site-admin deleted-person surface', async () => {
+      const userId = 'deleted-person-1';
+      mockSupabase.rpc.mockImplementation((functionName: string) => {
+        if (functionName === 'get_deleted_people') {
+          return Promise.resolve({
+            data: [{ id: userId, deleted_at: '2026-09-01T00:00:00.000Z' }],
+            error: null,
+          });
+        }
+        if (functionName === 'get_people_private') {
+          return Promise.resolve({
+            data: [
+              {
+                person_id: userId,
+                date_of_birth: '2011-03-04',
+                junior_handler_numbers: { AKC: '123' },
+              },
+            ],
+            error: null,
+          });
+        }
+        if (functionName === 'get_deleted_person_role_history') {
+          return Promise.resolve({ data: [], error: null });
+        }
+        return Promise.resolve({ data: [], error: null });
+      });
+
+      const result = await getDeletedUserById(userId);
+
+      expect(result.error).toBeNull();
+      expect(result.data).toMatchObject({
+        id: userId,
+        date_of_birth: '2011-03-04',
+        junior_handler_numbers: { AKC: '123' },
+      });
     });
   });
 
@@ -490,6 +552,22 @@ describe('User Queries', () => {
         expect(result.error!.message).toMatch(/signs in with/i);
       });
 
+      it('rejects the email before attempting a private write', async () => {
+        mockSupabase.from.mockReturnValue(
+          createChainableQuery({ data: linkedPerson, error: null })
+        );
+
+        await updateUser('user-123', {
+          email: 'corrected@example.com',
+          date_of_birth: '2011-03-04',
+        } as DbUserUpdate & { date_of_birth: string });
+
+        expect(mockSupabase.rpc).not.toHaveBeenCalledWith(
+          'upsert_people_private',
+          expect.anything()
+        );
+      });
+
       it('lets an unchanged email through, so ordinary saves still work', async () => {
         const updated = { id: 'user-123', ...linkedPerson, first_name: 'Updated' };
         mockSupabase.from
@@ -516,6 +594,91 @@ describe('User Queries', () => {
 
         expect(result.error).toBeNull();
         expect(result.data).toEqual(updated);
+      });
+
+      it('restores private fields when the public update fails', async () => {
+        const previous = {
+          person_id: 'user-123',
+          date_of_birth: '2010-01-01',
+          junior_handler_numbers: { AKC: 'OLD' },
+        };
+        mockSupabase.rpc.mockImplementation(
+          (functionName: string, args?: Record<string, unknown>) => {
+            if (functionName === 'get_people_private')
+              return Promise.resolve({ data: [previous], error: null });
+            if (functionName === 'upsert_people_private') {
+              return Promise.resolve({
+                data: [{ ...previous, date_of_birth: args?.p_date_of_birth ?? null }],
+                error: null,
+              });
+            }
+            return Promise.resolve({ data: [], error: null });
+          }
+        );
+        mockSupabase.from.mockReturnValue(
+          createChainableQuery({
+            data: null,
+            error: { message: 'public write failed', code: 'PGRST' },
+          })
+        );
+
+        const result = await updateUser('user-123', {
+          first_name: 'Updated',
+          date_of_birth: '2011-03-04',
+        } as DbUserUpdate & { date_of_birth: string });
+
+        expect(result.error?.message).toContain('public write failed');
+        expect(mockSupabase.rpc).toHaveBeenCalledTimes(3);
+        expect(mockSupabase.rpc).toHaveBeenLastCalledWith('upsert_people_private', {
+          p_person_id: 'user-123',
+          p_date_of_birth: '2010-01-01',
+          p_junior_handler_numbers: { AKC: 'OLD' },
+        });
+      });
+
+      it('reports a rollback failure instead of hiding the inconsistent state', async () => {
+        let upserts = 0;
+        mockSupabase.rpc.mockImplementation((functionName: string) => {
+          if (functionName === 'get_people_private') {
+            return Promise.resolve({
+              data: [
+                { person_id: 'user-123', date_of_birth: '2010-01-01', junior_handler_numbers: {} },
+              ],
+              error: null,
+            });
+          }
+          if (functionName === 'upsert_people_private') {
+            upserts += 1;
+            return Promise.resolve(
+              upserts === 1
+                ? {
+                    data: [
+                      {
+                        person_id: 'user-123',
+                        date_of_birth: '2011-03-04',
+                        junior_handler_numbers: {},
+                      },
+                    ],
+                    error: null,
+                  }
+                : { data: null, error: { message: 'rollback unavailable' } }
+            );
+          }
+          return Promise.resolve({ data: [], error: null });
+        });
+        mockSupabase.from.mockReturnValue(
+          createChainableQuery({
+            data: null,
+            error: { message: 'public write failed', code: 'PGRST' },
+          })
+        );
+
+        const result = await updateUser('user-123', {
+          first_name: 'Updated',
+          date_of_birth: '2011-03-04',
+        } as DbUserUpdate & { date_of_birth: string });
+
+        expect(result.error?.message).toContain('rollback failed');
       });
 
       // Reading the linkage and writing the row are separate requests, so a

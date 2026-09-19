@@ -9,6 +9,7 @@ import {
 import type { ShowExperienceSnapshot } from '@/features/experience/experienceSnapshot';
 import { normalizeJuniorHandlerNumbers } from '@/features/registries/juniorHandlerPolicy';
 import { resolveHandlerPerson } from '@/features/registries/handlerIdentity';
+import { loadPeoplePrivateProfiles } from '@/services/database/users/privatePeople';
 import type {
   EntryFormDog,
   EntryFormSecretary,
@@ -205,14 +206,51 @@ async function fetchEntryFormData(
   }
   const allPersonIds = [...new Set([...ownerIds, ...breederIds, ...handlerIds])].filter(Boolean);
 
-  const { data: personsRaw } = await supabase
-    .from('people')
-    .select(
-      'id, first_name, last_name, street_address, city, state, zip_code, phone, email, date_of_birth, junior_handler_numbers'
-    )
-    .in('id', allPersonIds);
+  const [{ data: personsRaw }, privateResult] = await Promise.all([
+    supabase
+      .from('people')
+      .select('id, first_name, last_name, street_address, city, state, zip_code, phone, email')
+      .in('id', allPersonIds),
+    // Private identity fields are fetched through the relationship-scoped RPC;
+    // the broad people lookup above remains directory-safe.
+    loadPeoplePrivateProfiles([...new Set([...ownerIds, ...handlerIds])]),
+  ]);
+  if (!privateResult.readComplete) {
+    // Do not turn an unavailable private read into plausible-looking blank
+    // junior fields on paperwork. React Query exposes this as its normal
+    // error state, so callers will not print incomplete forms.
+    throw new Error('Private handler profile data is unavailable');
+  }
+  const privateProfiles = privateResult.byPersonId;
 
-  const personMap = new Map((personsRaw ?? []).map(p => [p.id, p]));
+  type EntryFormPersonRow = {
+    id: string;
+    first_name: string | null;
+    last_name: string | null;
+    street_address: string | null;
+    city: string | null;
+    state: string | null;
+    zip_code: string | null;
+    phone: string | null;
+    email: string | null;
+    date_of_birth?: string | null;
+    junior_handler_numbers?: Record<string, string>;
+  };
+  const personMap = new Map(
+    ((personsRaw ?? []) as EntryFormPersonRow[]).map(p => {
+      const privateProfile = privateProfiles.get(p.id);
+      return [
+        p.id,
+        privateProfile
+          ? {
+              ...p,
+              date_of_birth: privateProfile.dateOfBirth,
+              junior_handler_numbers: privateProfile.juniorHandlerNumbers,
+            }
+          : p,
+      ] as const;
+    })
+  );
 
   // Index pedigree
   const pedigreeMap = new Map<string, { sire: string | null; dam: string | null }>();

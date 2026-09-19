@@ -13,11 +13,16 @@ import React from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 
 const mockMaybeSingle = vi.fn().mockResolvedValue({ data: null, error: null });
+const { mockPrivateRpc } = vi.hoisted(() => ({ mockPrivateRpc: vi.fn() }));
 const mockIsDeletedAt = vi.fn().mockReturnValue({ maybeSingle: mockMaybeSingle });
 const mockEqAuthUserId = vi.fn().mockReturnValue({ is: mockIsDeletedAt });
 const mockSelect = vi.fn().mockReturnValue({ eq: mockEqAuthUserId });
 vi.mock('@/services/database/supabaseClient', () => ({
   supabase: { from: () => ({ select: mockSelect }) },
+}));
+
+vi.mock('@/lib/supabase', () => ({
+  supabase: { rpc: mockPrivateRpc },
 }));
 
 vi.mock('@/lib/queryClient', () => ({
@@ -51,8 +56,6 @@ const dbPersonData = {
   email: 'test@example.com',
   auth_user_id: 'auth-user-123',
   profile_image: null,
-  date_of_birth: '2011-03-04',
-  junior_handler_numbers: { AKC: '7654321' },
 };
 
 function createWrapper() {
@@ -75,6 +78,16 @@ describe('useProfileForm junior handler fields', () => {
     vi.clearAllMocks();
     mockMutateAsync.mockResolvedValue({});
     mockMaybeSingle.mockResolvedValue({ data: dbPersonData, error: null });
+    mockPrivateRpc.mockResolvedValue({
+      data: [
+        {
+          person_id: 'person-123',
+          date_of_birth: '2011-03-04',
+          junior_handler_numbers: { AKC: '7654321' },
+        },
+      ],
+      error: null,
+    });
   });
 
   it('pre-fills the date of birth and the AKC number from the person row', async () => {
@@ -177,5 +190,21 @@ describe('useProfileForm junior handler fields', () => {
       await result.current.save();
     });
     expect(mockMutateAsync).toHaveBeenCalledWith(expect.objectContaining({ dateOfBirth: '' }));
+  });
+
+  it('does not write private blanks when the private read is incomplete', async () => {
+    mockPrivateRpc.mockResolvedValue({ data: null, error: { message: 'network unavailable' } });
+    const result = await loaded();
+
+    await act(async () => {
+      await result.current.save();
+    });
+
+    expect(mockMutateAsync).toHaveBeenCalledWith(
+      expect.not.objectContaining({ dateOfBirth: expect.anything() })
+    );
+    expect(mockMutateAsync).toHaveBeenCalledWith(
+      expect.not.objectContaining({ juniorHandlerNumbers: expect.anything() })
+    );
   });
 });

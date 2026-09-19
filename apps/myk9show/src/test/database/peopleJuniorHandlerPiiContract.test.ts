@@ -20,7 +20,7 @@ const MIGRATIONS_DIR = resolve(process.cwd(), '../../supabase/migrations');
 const SRC_DIR = resolve(process.cwd(), 'src');
 
 const PII_COLUMNS = ['date_of_birth', 'junior_handler_numbers'] as const;
-const MIGRATION_VERSION = '20260918154700';
+const MIGRATION_VERSION = '20260919174531';
 
 function migrationFiles(): string[] {
   return readdirSync(MIGRATIONS_DIR)
@@ -97,33 +97,28 @@ const SCAN_ROOTS = [
   resolve(process.cwd(), 'supabase/functions'),
 ].filter(dir => existsSync(dir));
 
-describe('the migration that adds the columns', () => {
+describe('the migration that protects the private columns', () => {
   const file = migrationFiles().find(f => f.startsWith(MIGRATION_VERSION));
 
   it('exists', () => {
     expect(file, `no migration starting ${MIGRATION_VERSION}`).toBeDefined();
   });
 
-  it('adds both columns and revokes them from anon explicitly', () => {
+  it('creates the private boundary and revokes anonymous access explicitly', () => {
     const sql = sqlWithoutProse(readFileSync(resolve(MIGRATIONS_DIR, file!), 'utf8'));
-    expect(sql).toMatch(/ADD COLUMN IF NOT EXISTS date_of_birth date/i);
-    expect(sql).toMatch(/ADD COLUMN IF NOT EXISTS junior_handler_numbers jsonb NOT NULL/i);
-    expect(sql).toMatch(
-      /REVOKE ALL \(date_of_birth, junior_handler_numbers\) ON public\.people FROM anon/i
-    );
+    expect(sql).toMatch(/CREATE TABLE public\.people_private/i);
+    expect(sql).toMatch(/REVOKE ALL ON TABLE public\.people_private FROM anon/i);
+    expect(sql).toMatch(/GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE public\.people_private TO authenticated/i);
+    expect(sql).toMatch(/DROP COLUMN IF EXISTS date_of_birth/i);
+    expect(sql).toMatch(/DROP COLUMN IF EXISTS junior_handler_numbers/i);
   });
 
-  it('re-affirms the four-column anon allowlist after that revoke, and adds nothing', () => {
-    // A column-scoped REVOKE on a table is modelled by anonEntriesGrantContract as
-    // clearing every column grant, so the re-grant is what keeps the judge embeds
-    // on the public show pages resolving. Order matters: revoke, then grant.
+  it('backfills before removing the legacy columns', () => {
     const sql = sqlWithoutProse(readFileSync(resolve(MIGRATIONS_DIR, file!), 'utf8'));
-    const revokeAt = sql.search(/REVOKE ALL \(date_of_birth/i);
-    const grantAt = sql.search(
-      /GRANT SELECT \(id, first_name, last_name, email\) ON public\.people/i
-    );
-    expect(revokeAt).toBeGreaterThan(-1);
-    expect(grantAt).toBeGreaterThan(revokeAt);
+    const backfillAt = sql.search(/INSERT INTO public\.people_private/i);
+    const dropAt = sql.search(/DROP COLUMN IF EXISTS date_of_birth/i);
+    expect(backfillAt).toBeGreaterThan(-1);
+    expect(dropAt).toBeGreaterThan(backfillAt);
   });
 
   it('pins the jsonb key set to the same registries as RegistryId', () => {
@@ -147,7 +142,7 @@ describe('no migration exposes the columns to anon', () => {
       for (const statement of sql.split(';')) {
         const flat = statement.replace(/\s+/g, ' ');
         if (!/\bGRANT\b/i.test(flat)) continue;
-        if (!/\bON\s+(?:TABLE\s+)?(?:public\.)?people\b/i.test(flat)) continue;
+        if (!/\bON\s+(?:TABLE\s+)?(?:public\.)?(?:people|people_private)\b/i.test(flat)) continue;
         if (!/\bTO\b[^;]*\b(?:anon|PUBLIC)\b/i.test(flat)) continue;
         if (PII_COLUMNS.some(column => flat.includes(column))) offenders.push(`${file}: ${flat}`);
       }
@@ -268,7 +263,7 @@ describe('no public or anon-facing app read carries the columns', () => {
     // Otherwise the absence assertions above are satisfied by a feature that was
     // never wired up (LESSON dead-suite-reds).
     const readers = [
-      'services/database/users/juniorHandlerProfiles.ts',
+      'services/database/users/privatePeople.ts',
       'hooks/queries/useEntryFormData.ts',
     ];
     for (const relativePath of readers) {

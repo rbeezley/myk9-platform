@@ -58,27 +58,34 @@ export function useAddPerson() {
   });
 }
 
+export function buildUpdatePersonPayload(person: User) {
+  // Support both `address` and `streetAddress` fields (User type has both).
+  const streetValue = person.address || person.streetAddress || null;
+  const payload = {
+    first_name: person.firstName,
+    last_name: person.lastName,
+    email: person.email || null,
+    phone: person.phone || null,
+    street_address: streetValue,
+    city: person.city || null,
+    state: person.state || null,
+    zip_code: person.zipCode || null,
+    profile_image: person.profileImage || null,
+  } as Parameters<typeof updateUser>[1];
+  // Preserve property presence. A private read can be temporarily incomplete;
+  // `undefined` means "do not touch this field", not clear it.
+  if (person.dateOfBirth !== undefined) payload.date_of_birth = person.dateOfBirth || null;
+  if (person.juniorHandlerNumbers !== undefined) {
+    payload.junior_handler_numbers = person.juniorHandlerNumbers ?? {};
+  }
+  return payload;
+}
+
 export function useUpdatePerson() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async (person: User): Promise<User> => {
-      // Support both `address` and `streetAddress` fields (User type has both)
-      const streetValue = person.address || person.streetAddress || null;
-      const { data, error } = await updateUser(person.id, {
-        first_name: person.firstName,
-        last_name: person.lastName,
-        email: person.email || null,
-        phone: person.phone || null,
-        street_address: streetValue,
-        city: person.city || null,
-        state: person.state || null,
-        zip_code: person.zipCode || null,
-        profile_image: person.profileImage || null,
-        // MYK9-570: this payload is hand-listed, so a new people column that is
-        // not named here is silently discarded on every save from /people/:id.
-        date_of_birth: person.dateOfBirth || null,
-        junior_handler_numbers: person.juniorHandlerNumbers ?? {},
-      });
+      const { data, error } = await updateUser(person.id, buildUpdatePersonPayload(person));
       if (error || !data) {
         // Keep the code alongside the message — the friendly-error helpers key
         // on it, and a refusal that arrives without one reads as a generic

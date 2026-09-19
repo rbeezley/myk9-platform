@@ -1,6 +1,6 @@
 import { supabase } from '@/lib/supabase';
 import { chunk, ID_CHUNK_SIZE } from '@/utils/chunkIds';
-import { normalizeJuniorHandlerNumbers } from '@/features/registries/juniorHandlerPolicy';
+import { loadPeoplePrivateProfiles } from './privatePeople';
 
 /**
  * MYK9-570: the two junior handler columns for a set of handlers.
@@ -37,16 +37,42 @@ export async function loadJuniorHandlerProfiles(
   const ids = [...new Set(personIds.filter(Boolean))];
   if (ids.length === 0) return { byPersonId: new Map(), readComplete: true };
 
+  const [{ byPersonId: privateProfiles, readComplete }, namesResult] = await Promise.all([
+    loadPeoplePrivateProfiles(ids),
+    loadPeopleNames(ids),
+  ]);
   const byPersonId = new Map<string, JuniorHandlerProfile>();
+
+  // The private RPC intentionally returns only private fields. Names remain a
+  // directory concern and are already present on the entry/report rows when
+  // paperwork is assembled; no broad people read is needed here.
+  for (const [personId, profile] of privateProfiles) {
+    const name = namesResult.byPersonId.get(personId);
+    byPersonId.set(personId, {
+      firstName: name?.firstName ?? null,
+      lastName: name?.lastName ?? null,
+      dateOfBirth: profile.dateOfBirth,
+      juniorHandlerNumbers: profile.juniorHandlerNumbers,
+    });
+  }
+
+  return { byPersonId, readComplete: readComplete && namesResult.readComplete };
+}
+
+async function loadPeopleNames(
+  personIds: readonly string[]
+): Promise<{
+  byPersonId: Map<string, { firstName: string | null; lastName: string | null }>;
+  readComplete: boolean;
+}> {
+  const byPersonId = new Map<string, { firstName: string | null; lastName: string | null }>();
   let readComplete = true;
 
-  // Batched, not one `.in(...)`: the filter travels in the URL, and a secretary
-  // printing a whole show's catalog sends hundreds of handler ids (MYK9-272).
-  for (const batch of chunk(ids, ID_CHUNK_SIZE)) {
+  for (const batch of chunk(personIds, ID_CHUNK_SIZE)) {
     try {
       const { data, error } = await supabase
         .from('people')
-        .select('id, first_name, last_name, date_of_birth, junior_handler_numbers')
+        .select('id, first_name, last_name')
         .in('id', batch);
       if (error) {
         readComplete = false;
@@ -56,12 +82,9 @@ export async function loadJuniorHandlerProfiles(
         byPersonId.set(row.id, {
           firstName: row.first_name ?? null,
           lastName: row.last_name ?? null,
-          dateOfBirth: row.date_of_birth ?? null,
-          juniorHandlerNumbers: normalizeJuniorHandlerNumbers(row.junior_handler_numbers),
         });
       }
     } catch {
-      // Offline. Keep whatever the earlier batches returned and report partial.
       readComplete = false;
     }
   }

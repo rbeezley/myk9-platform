@@ -3,9 +3,8 @@
  *
  * SA-008 replaced `select('*')` on the people directory with an explicit
  * allowlist so an RLS regression could not turn it into a full-table PII dump.
- * MYK9-570 finished the job: `people` now carries a handler's date of birth and
- * their registry-issued junior handler numbers, and a star select ships both to
- * every caller — including admin searches and role pickers that display neither.
+ * MYK9-664 moves the handler's date of birth and registry-issued junior handler
+ * numbers into `people_private`; no people-directory column list includes them.
  *
  * A star is also INVISIBLE to `peopleJuniorHandlerPiiContract`, which asserts
  * that no public surface names those columns: `'*'` contains neither string, so
@@ -27,10 +26,9 @@ export const PEOPLE_MAPPER_COLUMNS =
   'id, first_name, last_name, email, phone, street_address, city, state, zip_code, country, profile_image, auth_user_id, status, created_at, updated_at, deleted_at, deleted_by' as const;
 
 /**
- * The mapper columns PLUS the junior-handler PII, for the three surfaces that
- * actually collect or print it: the people directory (which feeds the
- * secretary's person edit panel), `getUserById`, and the person's own profile.
- * Everything else reads `PEOPLE_MAPPER_COLUMNS`.
+ * Compatibility name for callers that need the complete directory identity row.
+ * Private junior-handler fields are loaded by the relationship-scoped
+ * `people_private` RPC, never by this broad people query.
  */
 export const PEOPLE_DIRECTORY_COLUMNS =
-  `${PEOPLE_MAPPER_COLUMNS}, date_of_birth, junior_handler_numbers` as const;
+  PEOPLE_MAPPER_COLUMNS;

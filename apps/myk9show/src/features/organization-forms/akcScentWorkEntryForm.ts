@@ -8,6 +8,7 @@ import {
   deriveJuniorStatus,
   getJuniorHandlerNumber,
 } from '@/features/registries/juniorHandlerPolicy';
+import { compareArmbands } from '@/features/emergency-trial-packet/armband';
 
 type EntryGridLevel = 'Novice' | 'Advanced' | 'Excellent' | 'Master';
 type EntryGridElement = 'Container' | 'Interior' | 'Exterior' | 'Buried' | 'Handler Discrimination';
@@ -396,9 +397,8 @@ function registeredName(dog: EntryFormDog): string {
 
 function sortDogsForPacket(dogs: EntryFormDog[]): EntryFormDog[] {
   return [...dogs].sort((a, b) => {
-    const armbandA = a.armband ?? Number.MAX_SAFE_INTEGER;
-    const armbandB = b.armband ?? Number.MAX_SAFE_INTEGER;
-    if (armbandA !== armbandB) return armbandA - armbandB;
+    const armbandOrder = compareArmbands(a.armband, b.armband);
+    if (armbandOrder !== 0) return armbandOrder;
     return registeredName(a).localeCompare(registeredName(b));
   });
 }

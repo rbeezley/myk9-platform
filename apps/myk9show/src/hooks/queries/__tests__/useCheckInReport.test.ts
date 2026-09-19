@@ -10,7 +10,7 @@ describe('groupEntriesByExhibitor', () => {
       id: string;
       dog_id: string;
       handler_id: string;
-      armband_number: number;
+      armband_number: string | null;
       handler_first_name: string;
       handler_last_name: string;
       dog_call_name: string;
@@ -28,7 +28,7 @@ describe('groupEntriesByExhibitor', () => {
     id: 'entry-1',
     dog_id: 'dog-1',
     handler_id: 'handler-1',
-    armband_number: 142,
+    armband_number: '142',
     handler_first_name: 'Sarah',
     handler_last_name: 'Mitchell',
     dog_call_name: 'Buddy',
@@ -52,15 +52,15 @@ describe('groupEntriesByExhibitor', () => {
     const groups = groupEntriesByExhibitor(entries);
     expect(groups).toHaveLength(1);
     expect(groups[0].entries).toHaveLength(2);
-    expect(groups[0].armbandNumber).toBe(142);
+    expect(groups[0].armbandNumber).toBe('142');
     expect(groups[0].handlerName).toBe('Sarah Mitchell');
     expect(groups[0].dogName).toBe('Buddy');
   });
 
   it('creates separate groups for different dogs', () => {
     const entries = [
-      makeEntry({ id: 'e1', dog_id: 'dog-1', armband_number: 142 }),
-      makeEntry({ id: 'e2', dog_id: 'dog-2', armband_number: 143, dog_call_name: 'Daisy' }),
+      makeEntry({ id: 'e1', dog_id: 'dog-1', armband_number: '142' }),
+      makeEntry({ id: 'e2', dog_id: 'dog-2', armband_number: '143', dog_call_name: 'Daisy' }),
     ];
     const groups = groupEntriesByExhibitor(entries);
     expect(groups).toHaveLength(2);
@@ -132,12 +132,12 @@ describe('groupEntriesByExhibitor', () => {
 
   it('sorts groups by armband number', () => {
     const entries = [
-      makeEntry({ id: 'e1', dog_id: 'dog-2', armband_number: 200, dog_call_name: 'Ziggy' }),
-      makeEntry({ id: 'e2', dog_id: 'dog-1', armband_number: 100 }),
+      makeEntry({ id: 'e1', dog_id: 'dog-2', armband_number: '200', dog_call_name: 'Ziggy' }),
+      makeEntry({ id: 'e2', dog_id: 'dog-1', armband_number: '100' }),
     ];
     const groups = groupEntriesByExhibitor(entries);
-    expect(groups[0].armbandNumber).toBe(100);
-    expect(groups[1].armbandNumber).toBe(200);
+    expect(groups[0].armbandNumber).toBe('100');
+    expect(groups[1].armbandNumber).toBe('200');
   });
 });
 

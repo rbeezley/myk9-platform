@@ -12,6 +12,7 @@ import {
 import type { CheckInEntryRow } from './useCheckInReport';
 import { loadHandlerPeople } from '@/services/database/entries/handlerHydration';
 import { projectHandlerIdentity } from '@/features/registries/handlerIdentity';
+import { normalizePacketArmband } from '@/features/emergency-trial-packet/armband';
 
 function isNotDeleted(entry: ReplicatedEntry) {
   return !entry.deletedAt && !entry.deleted_at;
@@ -55,7 +56,7 @@ function buildArmbandMaps(armbands: ReplicatedArmband[]) {
   };
 }
 
-function armbandNumberForEntry(
+function armbandLabelForEntry(
   entry: ReplicatedEntry,
   armbandsByEntryId: ReadonlyMap<string, ReplicatedArmband>,
   armbandsByDogId: ReadonlyMap<string, ReplicatedArmband>
@@ -66,9 +67,7 @@ function armbandNumberForEntry(
     entry.armband_number ??
     armbandsByEntryId.get(entry.id)?.armbandNumber ??
     (entry.dogId ? armbandsByDogId.get(entry.dogId)?.armbandNumber : undefined);
-  if (!value) return null;
-  const parsed = Number.parseInt(value, 10);
-  return Number.isNaN(parsed) ? null : parsed;
+  return normalizePacketArmband(value);
 }
 
 function trialNumber(trial: ReplicatedTrial | null) {
@@ -140,7 +139,7 @@ export async function fetchReplicatedCheckInEntries(showId: string): Promise<Che
         dog_id: entry.dogId ?? '',
         handler_id: entry.handlerId ?? '',
         check_in_status: getEntryCheckInStatus(entry),
-        armband_number: armbandNumberForEntry(entry, armbandsByEntryId, armbandsByDogId),
+        armband_number: armbandLabelForEntry(entry, armbandsByEntryId, armbandsByDogId),
         handler_first_name: handler.firstName,
         handler_last_name: handler.lastName,
         dog_call_name: getDogCallName(entry),

@@ -4,6 +4,7 @@ import type { EntryFormDog } from '@/lib/reports/entryFormTypes';
 import type { PdfFormFillValues } from './pdfForm';
 import { fillPdfForm } from './pdfForm';
 import { UKC_NOSEWORK_ENTRY_FORM_FIELDS } from './ukcNoseworkEntryFormFields';
+import { compareArmbands } from '@/features/emergency-trial-packet/armband';
 
 export function buildUKCNoseworkEntryFormValues(dog: EntryFormDog): PdfFormFillValues {
   const text: NonNullable<PdfFormFillValues['text']> = {};
@@ -90,9 +91,8 @@ function registeredName(dog: EntryFormDog): string {
 
 function sortDogsForPacket(dogs: EntryFormDog[]): EntryFormDog[] {
   return [...dogs].sort((a, b) => {
-    const armbandA = a.armband ?? Number.MAX_SAFE_INTEGER;
-    const armbandB = b.armband ?? Number.MAX_SAFE_INTEGER;
-    if (armbandA !== armbandB) return armbandA - armbandB;
+    const armbandOrder = compareArmbands(a.armband, b.armband);
+    if (armbandOrder !== 0) return armbandOrder;
     return registeredName(a).localeCompare(registeredName(b));
   });
 }

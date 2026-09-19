@@ -25,7 +25,7 @@ export interface SubmissionEntry {
   /** Final placement within class (1 = first, null = not placed) */
   finalPlacement: number | null;
   /** Armband number assigned to this entry */
-  armbandNumber: number;
+  armbandNumber: string;
   /** Trial this entry belongs to — used by formatters to group entries per event */
   trialId: string;
   /** Class this entry belongs to — used by formatters to group entries per class */

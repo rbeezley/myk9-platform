@@ -253,7 +253,7 @@ describe('useAKCSubmissionData', () => {
                 dog_id: 'd1',
                 class_id: 'c1',
                 trial_id: 't1',
-                armband: '102',
+                armband: '12A',
                 search_time_seconds: 20,
                 final_placement: null,
                 result_status: 'Q',
@@ -288,6 +288,7 @@ describe('useAKCSubmissionData', () => {
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
 
     expect(result.current.data?.entries[0]?.dogGender).toBe('B');
+    expect(result.current.data?.entries[0]?.armbandNumber).toBe('12A');
   });
 
   it('uses dog_registrations.registered_name for dogRegisteredName', async () => {

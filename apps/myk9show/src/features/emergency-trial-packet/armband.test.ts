@@ -88,6 +88,7 @@ describe('normalizePacketArmband', () => {
 
   it('treats the legacy numeric 0 sentinel as unassigned, not as armband zero', () => {
     expect(normalizePacketArmband(0)).toBeNull();
+    expect(normalizePacketArmband('0')).toBeNull();
   });
 
   it('treats NaN as unassigned', () => {

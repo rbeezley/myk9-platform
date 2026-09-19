@@ -3,6 +3,7 @@ import { queryKeys, cacheStrategies } from '@/lib/queryClient';
 import { shouldShowSection } from '@/components/classes/ClassDetailsMain.helpers';
 import { fetchReplicatedCheckInEntries } from './useCheckInReportReplication';
 import { normalizeHandlerName } from '@/features/registries/handlerIdentity';
+import { compareArmbands, type PacketArmband } from '@/features/emergency-trial-packet/armband';
 
 // Types
 export interface CheckInEntryRow {
@@ -10,7 +11,7 @@ export interface CheckInEntryRow {
   dog_id: string;
   handler_id: string;
   check_in_status: string | null;
-  armband_number: number | null;
+  armband_number: PacketArmband;
   handler_first_name: string | null;
   handler_last_name: string | null;
   dog_call_name: string | null;
@@ -34,7 +35,7 @@ export interface CheckInClassEntry {
 
 export interface ExhibitorCheckInGroup {
   key: string;
-  armbandNumber: number;
+  armbandNumber: PacketArmband;
   handlerName: string;
   dogName: string;
   dogBreed: string;
@@ -128,7 +129,7 @@ export function groupEntriesByExhibitor(rows: CheckInEntryRow[]): ExhibitorCheck
       map.set(key, {
         group: {
           key,
-          armbandNumber: row.armband_number ?? 0,
+          armbandNumber: row.armband_number,
           handlerName:
             [row.handler_first_name, row.handler_last_name].filter(Boolean).join(' ') || 'Unknown',
           dogName: row.dog_call_name || 'Unknown',
@@ -162,7 +163,7 @@ export function groupEntriesByExhibitor(rows: CheckInEntryRow[]): ExhibitorCheck
       checkedInCount: statuses.filter(s => s !== 'no-status' && !!s).length,
       summaryStatus: deriveSummaryStatus(statuses),
     }))
-    .sort((a, b) => a.armbandNumber - b.armbandNumber);
+    .sort((a, b) => compareArmbands(a.armbandNumber, b.armbandNumber));
 }
 
 // Hook

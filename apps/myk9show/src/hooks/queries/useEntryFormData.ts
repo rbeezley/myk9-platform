@@ -8,6 +8,7 @@ import {
 } from '@/features/dogs/identity';
 import type { ShowExperienceSnapshot } from '@/features/experience/experienceSnapshot';
 import { normalizeJuniorHandlerNumbers } from '@/features/registries/juniorHandlerPolicy';
+import { normalizePacketArmband } from '@/features/emergency-trial-packet/armband';
 import {
   projectFirstAssignedHandler,
   resolveHandlerPerson,
@@ -160,7 +161,7 @@ async function fetchEntryFormData(
       classId: e.class_id ?? '',
       element: cls?.element ?? '',
       level: cls?.level ?? '',
-      armband: e.armband != null ? Number(e.armband) : null,
+      armband: normalizePacketArmband(e.armband),
       handler: e.handler,
       handlerId: e.handler_id ?? null,
       submittedAt: e.submitted_at,
@@ -337,7 +338,8 @@ async function fetchEntryFormData(
     const handler =
       handlerIdentity.source === 'owner' || handlerIdentity.name === ownerFullName
         ? null
-        : handlerIdentity.name;
+        : (handlerIdentity.name ??
+          (handlerIdentity.source === 'unknown' ? 'Unknown Handler' : null));
     const handlerRaw = resolveHandlerPerson({
       printedHandlerName: handlerIdentity.name,
       handlerIdPerson: handlerIdentity.person,

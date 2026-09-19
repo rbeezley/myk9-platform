@@ -42,7 +42,7 @@ export interface EntryFormEntry {
   classId: string;
   element: string;
   level: string;
-  armband: number | null;
+  armband: string | null;
   handler: string | null;
   /** MYK9-570: `entries.handler_id` — the person behind the printed handler name. */
   handlerId: string | null;
@@ -91,7 +91,7 @@ export interface EntryFormDog {
    */
   handlerDateOfBirth: string | null;
   handlerJuniorHandlerNumbers: Record<string, string> | undefined;
-  armband: number | null;
+  armband: string | null;
   entries: EntryFormEntry[];
   agreementDate: string | null;
 }

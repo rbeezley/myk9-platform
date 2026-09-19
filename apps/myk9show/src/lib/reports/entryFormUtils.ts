@@ -1,5 +1,6 @@
 import type { EntryFormTrial, EntryFormEntry, EntryFormDog, GridCell } from './entryFormTypes';
 import { AKC_SCENT_WORK_ELEMENTS } from './entryFormTypes';
+import { compareArmbands } from '@/features/emergency-trial-packet/armband';
 
 /**
  * Build a class selection grid: Map<trialId, Map<element, GridCell>>
@@ -92,7 +93,7 @@ export function sortEntryFormDogs(dogs: EntryFormDog[], sortOrder: string): Entr
       return sorted.sort((a, b) => {
         const aName = (a.owner.lastName ?? '').toLowerCase();
         const bName = (b.owner.lastName ?? '').toLowerCase();
-        return aName.localeCompare(bName) || (a.armband ?? 0) - (b.armband ?? 0);
+        return aName.localeCompare(bName) || compareArmbands(a.armband, b.armband);
       });
 
     case 'dog-name':
@@ -104,6 +105,6 @@ export function sortEntryFormDogs(dogs: EntryFormDog[], sortOrder: string): Entr
 
     case 'armband':
     default:
-      return sorted.sort((a, b) => (a.armband ?? 0) - (b.armband ?? 0));
+      return sorted.sort((a, b) => compareArmbands(a.armband, b.armband));
   }
 }

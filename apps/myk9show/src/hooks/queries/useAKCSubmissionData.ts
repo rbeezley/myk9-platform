@@ -263,7 +263,7 @@ export function useAKCSubmissionData(showId: string) {
           searchTimeSeconds: e.search_time_seconds,
           totalFaults: null,
           finalPlacement: e.final_placement,
-          armbandNumber: e.armband != null ? Number(e.armband) : 0,
+          armbandNumber: e.armband ?? '',
           trialId: e.trial_id ?? '',
           classId: e.class_id ?? '',
           // AKCSubmissionEntry fields

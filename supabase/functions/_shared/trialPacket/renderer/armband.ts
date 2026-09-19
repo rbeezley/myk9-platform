@@ -81,5 +81,5 @@ export function normalizePacketArmband(value: string | number | null | undefined
     return value === 0 || Number.isNaN(value) ? null : String(value);
   }
   const trimmed = value.trim();
-  return trimmed === '' ? null : trimmed;
+  return trimmed === '' || trimmed === '0' ? null : trimmed;
 }

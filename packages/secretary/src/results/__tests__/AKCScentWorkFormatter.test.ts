@@ -51,7 +51,7 @@ function makeEntry(overrides: Partial<AKCSubmissionEntry> = {}): AKCSubmissionEn
     searchTimeSeconds: 14.5,
     totalFaults: 0,
     finalPlacement: 1,
-    armbandNumber: 101,
+    armbandNumber: '101',
     trialId: 'trial-1',
     classId: 'class-1',
     dogRegisteredName: 'Acme Fluffy The First',
@@ -467,11 +467,11 @@ describe('AKCScentWorkFormatter', () => {
       expect(xml).toContain('dogName="CallName"');
     });
 
-    it('includes armband number as catalogNumber', () => {
+    it('preserves an alphanumeric armband as catalogNumber', () => {
       const xml = AKCScentWorkFormatter.formatXml(
-        makeData({ entries: [makeEntry({ armbandNumber: 145 })] })
+        makeData({ entries: [makeEntry({ armbandNumber: '12A' })] })
       );
-      expect(xml).toContain('catalogNumber="145"');
+      expect(xml).toContain('catalogNumber="12A"');
     });
 
     it('includes search time as courseTime', () => {

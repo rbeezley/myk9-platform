@@ -200,7 +200,7 @@ describe('useEntryFormData resolves the handler person for the junior fields', (
     await waitFor(() => expect(result.current.dogs).toHaveLength(1));
 
     const dog = result.current.dogs[0]!;
-    expect(dog.handler).toBeNull();
+    expect(dog.handler).toBe('Unknown Handler');
     expect(dog.handlerDateOfBirth).toBeNull();
     expect(dog.handlerJuniorHandlerNumbers).toBeUndefined();
   });

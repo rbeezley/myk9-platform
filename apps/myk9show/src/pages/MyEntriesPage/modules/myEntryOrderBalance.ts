@@ -22,7 +22,7 @@ import {
   UNKNOWN_ENTRY_BALANCE_SUMMARY,
   type EntryBalanceSource,
 } from '@/features/payments/entryBalanceSummary';
-import { withResolvedMoneyRoots } from '@/features/financial/moneyRoot';
+import { buildMoneyAttribution, withResolvedMoneyRoots } from '@/features/financial/moneyRoot';
 import {
   getEntryPaymentPrompt,
   type EntryPaymentPrompt,
@@ -139,9 +139,11 @@ export function buildOrderBalance(
   if (sources.length === 0) return null;
 
   const eligible = sources.filter(source => isCurrentSummaryEntry(source, now));
-  const moneyRootUnresolved = sources.some(
-    source => !source.deletedAt && source.moneyRootUnresolved
-  );
+  const moneyRootUnresolved =
+    sources.some(source => !source.deletedAt && source.moneyRootUnresolved) ||
+    buildMoneyAttribution(sources).unresolved.some(
+      issue => issue.problem === 'orphaned-supersession'
+    );
   const summary = moneyRootUnresolved
     ? UNKNOWN_ENTRY_BALANCE_SUMMARY
     : summarizeEntryBalances(sources, now);

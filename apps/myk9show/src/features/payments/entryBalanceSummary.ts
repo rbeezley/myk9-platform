@@ -14,7 +14,7 @@ import {
   isMoneyConfirmed,
   type UserEntriesSource,
 } from '@/services/database/entries/userEntriesRead';
-import { withResolvedMoneyRoots } from '@/features/financial/moneyRoot';
+import { buildMoneyAttribution, withResolvedMoneyRoots } from '@/features/financial/moneyRoot';
 
 export interface EntryBalanceClassSource {
   id: string;
@@ -341,6 +341,13 @@ export function summarizeEntryBalancesFromSource(
   now: Date = new Date()
 ): EntryBalanceSummary {
   if (!isMoneyConfirmed(source)) return UNKNOWN_ENTRY_BALANCE_SUMMARY;
+  if (
+    buildMoneyAttribution(entries).unresolved.some(
+      issue => issue.problem === 'orphaned-supersession'
+    )
+  ) {
+    return UNKNOWN_ENTRY_BALANCE_SUMMARY;
+  }
   const rootedEntries = withResolvedMoneyRoots(entries, (entry, root) => ({
     ...entry,
     paymentStatus: root.paymentStatus,

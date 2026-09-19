@@ -1241,7 +1241,9 @@ async function handleEntryPaymentCompleted(session: Stripe.Checkout.Session) {
     if (item.entry_id) {
       const { data: existingEntry, error: existingEntryError } = await supabase
         .from('entries')
-        .select('id, dog_id, class_id, show_id, payment_status, entry_status, entry_fee')
+        .select(
+          'id, dog_id, class_id, show_id, payment_status, entry_status, entry_fee, moved_from_entry_id'
+        )
         .eq('id', item.entry_id)
         .eq('dog_id', item.dog_id)
         .eq('class_id', item.class_id)
@@ -1277,6 +1279,28 @@ async function handleEntryPaymentCompleted(session: Stripe.Checkout.Session) {
         continue;
       }
 
+      const loadedMoneyRoot = await loadPaymentReconciliationEntries([existingEntry.id]);
+      const moneyRootId = loadedMoneyRoot.reconciliationEntryIds[0] ?? existingEntry.id;
+      const moneyRoot =
+        loadedMoneyRoot.entries.find(entry => entry.id === moneyRootId) ?? existingEntry;
+      if (loadedMoneyRoot.error || moneyRoot.payment_status !== 'pending') {
+        const errorMessage =
+          loadedMoneyRoot.error?.message ?? 'Recovered entry money root is no longer unpaid';
+        console.error(
+          `Error recovering existing entry root for cart item ${item.id}:`,
+          errorMessage
+        );
+        noServiceLineIds.push(item.id);
+        lineAmountsById.set(item.id, lineAmountCents);
+        failedLines.push({
+          cartItemId: item.id,
+          classId: item.class_id,
+          dogId: item.dog_id,
+          errorMessage,
+        });
+        continue;
+      }
+
       const { data: updatedEntryRows, error: updateEntryError } = await supabase
         .from('entries')
         .update({
@@ -1284,11 +1308,11 @@ async function handleEntryPaymentCompleted(session: Stripe.Checkout.Session) {
           payment_method: 'online',
           stripe_payment_intent_id: paymentIntentId,
           entry_fee: lineAmountCents / 100,
-          ...(existingEntry.entry_status === 'pending-payment'
+          ...(moneyRoot.id === existingEntry.id && existingEntry.entry_status === 'pending-payment'
             ? { entry_status: 'confirmed' }
             : {}),
         })
-        .eq('id', existingEntry.id)
+        .eq('id', moneyRoot.id)
         .eq('payment_status', 'pending')
         .not('entry_status', 'in', `(${[...INACTIVE_ENTRY_STATUSES].join(',')})`)
         .select('id');
@@ -1308,9 +1332,17 @@ async function handleEntryPaymentCompleted(session: Stripe.Checkout.Session) {
         continue;
       }
 
-      entryIds.push(existingEntry.id);
-      paidLineIds.push(existingEntry.id);
-      lineAmountsById.set(existingEntry.id, lineAmountCents);
+      if (moneyRoot.id !== existingEntry.id && existingEntry.entry_status === 'pending-payment') {
+        await supabase
+          .from('entries')
+          .update({ entry_status: 'confirmed' })
+          .eq('id', existingEntry.id)
+          .eq('entry_status', 'pending-payment');
+      }
+
+      entryIds.push(moneyRoot.id);
+      paidLineIds.push(moneyRoot.id);
+      lineAmountsById.set(moneyRoot.id, lineAmountCents);
 
       await expireRecoveredEntryPaymentLinks(existingEntry.id, session.id);
       continue;

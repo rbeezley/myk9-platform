@@ -56,7 +56,7 @@ export type UserEntriesSource =
  * on every source, carrying the unconfirmed notice (decision (a)).
  */
 export function isMoneyConfirmed(source: UserEntriesSource): boolean {
-  return source === 'confirmed';
+  return source === 'confirmed' || source === 'confirmed-move-up-link-unavailable';
 }
 
 /**
@@ -149,6 +149,8 @@ const USER_ENTRIES_SELECT_BASE = `
 
 /** The current schema's complete select, retained for column-list consumers. */
 export const USER_ENTRIES_SELECT = `${USER_ENTRIES_SELECT_BASE},
+      withdrawal_reason_code,
+      registration_confirmation_number,
       moved_from_entry_id`;
 
 /**
@@ -183,6 +185,13 @@ export function buildUserEntriesSelect(options: {
   includeRegistrationConfirmationNumber: boolean;
   includeMoveUpLink: boolean;
 }): string {
+  if (
+    options.includeReasonCode &&
+    options.includeRegistrationConfirmationNumber &&
+    options.includeMoveUpLink
+  ) {
+    return USER_ENTRIES_SELECT;
+  }
   const optional = [
     options.includeReasonCode ? 'withdrawal_reason_code' : null,
     options.includeRegistrationConfirmationNumber ? 'registration_confirmation_number' : null,

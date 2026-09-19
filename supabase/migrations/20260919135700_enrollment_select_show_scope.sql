@@ -125,7 +125,7 @@ as $$
     and r.name = 'club_admin'
     and ur.show_id is not null
     and ur.is_active = true
-    and (ur.expires_at is null or ur.expires_at > now());
+    and (ur.expires_at is null or ur.expires_at > now())
 
   -- Preserve the pre-existing show-scoped secretary read path.
   union

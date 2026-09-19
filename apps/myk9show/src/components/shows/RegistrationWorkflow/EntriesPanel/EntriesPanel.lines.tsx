@@ -14,6 +14,8 @@ export interface EntriesPanelLinesProps {
   waitlistClassIds?: ReadonlySet<string> | undefined;
   capacityReady?: boolean | undefined;
   capacityUnavailable?: boolean | undefined;
+  /** Overrides the availability copy when another read is the reason. */
+  placeholder?: string | undefined;
 }
 
 /**
@@ -29,6 +31,7 @@ export const EntriesPanelLines: React.FC<EntriesPanelLinesProps> = ({
   waitlistClassIds,
   capacityReady = true,
   capacityUnavailable,
+  placeholder,
 }) => (
   <div className="space-y-4">
     {groups.map(group => (
@@ -59,7 +62,7 @@ export const EntriesPanelLines: React.FC<EntriesPanelLinesProps> = ({
                 <span className="flex shrink-0 items-center gap-1">
                   <span className="tabular-nums">
                     {!capacityReady
-                      ? availabilityPlaceholder(capacityUnavailable)
+                      ? (placeholder ?? availabilityPlaceholder(capacityUnavailable))
                       : isWaitlist
                         ? 'No payment due'
                         : formatCartCurrency(line.feeCents)}

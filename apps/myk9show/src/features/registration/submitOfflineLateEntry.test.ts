@@ -352,4 +352,71 @@ describe('submitOfflineLateEntry', () => {
     ]);
     expect(result.armbandAssignments).toEqual([{ dogId: 'dog-1', armband: '250' }]);
   });
+  it('records a pre-entry as a pre-entry: entries still open, show not started (MYK9-642)', async () => {
+    // The late-entry dialog used to hardcode `isDayOfShow: true`, so a
+    // secretary keying a mailed-in form the week before the show certified it
+    // to the registry as a day-of-show entry. The bucket is the shared rule's
+    // to decide, and it must agree with the fee this same call writes.
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-09-01T16:00:00Z'));
+    try {
+      await submitOfflineLateEntry({
+        showId: 'show-1',
+        paymentMethod: 'check',
+        showFeeInfo: {
+          preEntryFee: '30',
+          dayOfShowFee: '35',
+          startDate: '2026-09-17T00:00:00+00:00',
+          entryCloseDate: '2026-09-10T00:00:00+00:00',
+          entryWindowTimezone: 'America/New_York',
+        },
+        classes: [{ id: 'class-1', entryFee: 30 }],
+        classSelections: [
+          { dogId: 'dog-1', trialId: 'trial-1', selectedClasses: [{ classId: 'class-1' }] },
+        ],
+        handlerAssignments: {},
+      });
+    } finally {
+      vi.useRealTimers();
+    }
+
+    expect(createEntryMock).toHaveBeenCalledWith(
+      expect.objectContaining({ isDayOfShow: false, entryFee: 30 }),
+      expect.anything()
+    );
+  });
+  it('a Central-time desk entry the evening before the show is a pre-entry (MYK9-642 J-F1)', async () => {
+    // The offline desk path writes `entry_fee` and `is_day_of_show` straight
+    // through replication — no server corrects it. Fed the America/New_York
+    // fallback (which is what `show.trials` always resolved to) this instant
+    // stored $35 / day-of for an entry `submit_show_entries` calls a $30
+    // pre-entry. Fed the show's real zone, the two agree.
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-11-07T05:30:00Z')); // 23:30 CT on Nov 6
+    try {
+      await submitOfflineLateEntry({
+        showId: 'show-1',
+        paymentMethod: 'check',
+        showFeeInfo: {
+          preEntryFee: '30',
+          dayOfShowFee: '35',
+          startDate: '2026-11-07T00:00:00+00:00',
+          entryCloseDate: '2026-12-01T00:00:00+00:00',
+          entryWindowTimezone: 'America/Chicago',
+        },
+        classes: [{ id: 'class-1', entryFee: 30 }],
+        classSelections: [
+          { dogId: 'dog-1', trialId: 'trial-1', selectedClasses: [{ classId: 'class-1' }] },
+        ],
+        handlerAssignments: {},
+      });
+    } finally {
+      vi.useRealTimers();
+    }
+
+    expect(createEntryMock).toHaveBeenCalledWith(
+      expect.objectContaining({ isDayOfShow: false, entryFee: 30 }),
+      expect.anything()
+    );
+  });
 });

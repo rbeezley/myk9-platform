@@ -1,5 +1,6 @@
 import { getTrialTimezone } from '@/features/registries';
 import { formatDateLocal, parseLocalDateString } from '@/utils/dateLocal';
+import { calendarDateInTimeZone } from '@/utils/calendarDate';
 
 export interface EntryWindowTrial {
   id?: string | null | undefined;
@@ -27,25 +28,13 @@ export function getEntryWindowTimezone(trials?: readonly EntryWindowTrial[] | nu
   return getTrialTimezone(primaryTrial);
 }
 
-function formatDateInTimeZone(now: Date, timeZone: string): string {
-  const parts = new Intl.DateTimeFormat('en-US', {
-    timeZone,
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-  }).formatToParts(now);
-  const get = (type: Intl.DateTimeFormatPartTypes) =>
-    parts.find(part => part.type === type)?.value ?? '';
-  return `${get('year')}-${get('month')}-${get('day')}`;
-}
-
 export function currentEntryWindowDate(
   today: string | undefined,
   timeZone: string | undefined
 ): Date | undefined {
   if (today) return parseCalendarDate(today);
   const dateOnly = timeZone
-    ? formatDateInTimeZone(new Date(), timeZone)
+    ? calendarDateInTimeZone(new Date(), timeZone)
     : formatDateLocal(new Date());
   return parseCalendarDate(dateOnly);
 }

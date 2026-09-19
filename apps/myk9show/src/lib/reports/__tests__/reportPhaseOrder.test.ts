@@ -55,6 +55,18 @@ describe('resolveShowTimePhase', () => {
     ).toBe('unknown');
   });
 
+  it('accepts timestamps with PostgreSQL fractional-second precision', () => {
+    expect(
+      resolveShowTimePhase(
+        {
+          startDate: '2026-03-22T00:00:00.123456Z',
+          endDate: '2026-03-23T00:00:00.123456Z',
+        },
+        MARCH_22
+      )
+    ).toBe('during');
+  });
+
   it('treats an invalid today value as unknown', () => {
     expect(
       resolveShowTimePhase(

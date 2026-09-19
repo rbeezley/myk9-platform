@@ -4,6 +4,7 @@ import {
   buildEntryBalanceRecoveryHref,
   mapEntryRowToBalanceSource,
   summarizeEntryBalances,
+  summarizeEntryBalancesFromSource,
   type EntryBalanceSource,
 } from './entryBalanceSummary';
 import {
@@ -29,6 +30,64 @@ function entry(overrides: Partial<EntryBalanceSource>): EntryBalanceSource {
 const now = new Date(2026, 5, 1);
 
 describe('summarizeEntryBalances', () => {
+  it('maps the supersession link from the account read', () => {
+    const source = mapEntryRowToBalanceSource({
+      id: 'destination',
+      show_id: 'show-1',
+      moved_from_entry_id: 'source',
+      entry_status: 'confirmed',
+      payment_status: 'pending',
+      payment_method: 'online',
+      entry_fee: 0,
+      show: { id: 'show-1', name: 'Spring Trial', start_date: '2026-06-10' },
+    });
+
+    expect(source.movedFromEntryId).toBe('source');
+  });
+
+  it('follows a moved unpaid entry back to its money root while keeping the live entry identity', () => {
+    const summary = summarizeEntryBalances(
+      [
+        entry({
+          id: 'source',
+          entryStatus: EntryStatus.MOVED,
+          paymentStatus: PaymentStatus.PENDING,
+          paymentMethod: 'online',
+          totalFee: 35,
+        }),
+        entry({
+          id: 'destination',
+          entryStatus: EntryStatus.ACCEPTED,
+          paymentStatus: PaymentStatus.PENDING,
+          paymentMethod: null,
+          totalFee: 0,
+          movedFromEntryId: 'source',
+        }),
+      ],
+      now
+    );
+
+    expect(summary.amountDueCents).toBe(3500);
+    expect(summary.onlineDueCents).toBe(3500);
+    expect(summary.onlineShowBalances[0]?.entryIds).toEqual(['source']);
+    expect(summary.onlineShowBalances[0]?.displayEntryIds).toEqual(['destination']);
+  });
+
+  it('keeps unrelated shows payable when one show has an unresolved money root', () => {
+    const summary = summarizeEntryBalances(
+      [
+        entry({ id: 'broken-destination', showId: 'show-1', movedFromEntryId: 'missing' }),
+        entry({ id: 'healthy-entry', showId: 'show-2', showName: 'Second Trial' }),
+      ],
+      now
+    );
+
+    expect(summary.kind).toBe('known');
+    expect(summary.onlineShowBalances).toHaveLength(1);
+    expect(summary.onlineShowBalances[0]?.showId).toBe('show-2');
+    expect(summary.onlineShowBalances[0]?.entryIds).toEqual(['healthy-entry']);
+  });
+
   it('sums current accepted and pending-review fees into the same amount due My Shows displays', () => {
     const summary = summarizeEntryBalances(
       [
@@ -136,6 +195,116 @@ describe('summarizeEntryBalances', () => {
     );
 
     expect(buildEntryBalanceRecoveryHref(summary)).toBe('/exhibitor/payments?due=1');
+  });
+
+  it('attributes a move-up destination balance to the original paid entry', () => {
+    const summary = summarizeEntryBalancesFromSource(
+      [
+        entry({
+          id: 'source',
+          entryStatus: EntryStatus.MOVED,
+          paymentStatus: PaymentStatus.PENDING,
+          totalFee: 35,
+        }),
+        entry({
+          id: 'destination',
+          movedFromEntryId: 'source',
+          totalFee: 0,
+          paymentStatus: PaymentStatus.PENDING,
+          paymentMethod: null,
+        }),
+      ],
+      'confirmed',
+      now
+    );
+
+    expect(summary.amountDueCents).toBe(3500);
+    expect(summary.onlineDueCents).toBe(3500);
+    expect(summary.onlineShowBalances[0]?.displayEntryIds).toEqual(['destination']);
+    expect(summary.onlineShowBalances[0]?.entryIds).toEqual(['source']);
+  });
+
+  it('ignores a soft-deleted move-up destination after a successful reversal', () => {
+    const summary = summarizeEntryBalancesFromSource(
+      [
+        entry({ id: 'source', totalFee: 35, entryStatus: EntryStatus.ACCEPTED }),
+        entry({
+          id: 'destination',
+          movedFromEntryId: 'source',
+          totalFee: 0,
+          deletedAt: '2026-09-19T12:00:00Z',
+        }),
+      ],
+      'confirmed',
+      now
+    );
+
+    expect(summary.amountDueCents).toBe(3500);
+    expect(summary.onlineShowBalances[0]?.entryIds).toEqual(['source']);
+  });
+
+  it('withholds money when the move-up source was soft-deleted', () => {
+    const summary = summarizeEntryBalancesFromSource(
+      [
+        entry({
+          id: 'source',
+          entryStatus: EntryStatus.MOVED,
+          totalFee: 35,
+          deletedAt: '2026-09-19T12:00:00Z',
+        }),
+        entry({
+          id: 'destination',
+          movedFromEntryId: 'source',
+          totalFee: 0,
+        }),
+      ],
+      'confirmed',
+      now
+    );
+
+    expect(summary.kind).toBe('unknown');
+    expect(summary.amountDueCents).toBe(0);
+    expect(summary.onlineShowBalances).toEqual([]);
+  });
+
+  it('withholds money when the move-up source is outside the confirmed scope', () => {
+    const summary = summarizeEntryBalancesFromSource(
+      [entry({ id: 'destination', movedFromEntryId: 'source', totalFee: 0 })],
+      'confirmed',
+      now
+    );
+
+    expect(summary.kind).toBe('unknown');
+    expect(summary.amountDueCents).toBe(0);
+  });
+
+  it('withholds every account balance when one move-up root is unresolved', () => {
+    const summary = summarizeEntryBalancesFromSource(
+      [
+        entry({ id: 'destination', movedFromEntryId: 'missing-source', totalFee: 0 }),
+        entry({ id: 'online', showId: 'show-2', totalFee: 20 }),
+      ],
+      'confirmed',
+      now
+    );
+
+    expect(summary.kind).toBe('unknown');
+    expect(summary.onlineDueCents).toBe(0);
+  });
+
+  it('keeps unrelated account balances visible when one show has an orphaned move-up row', () => {
+    const summary = summarizeEntryBalancesFromSource(
+      [
+        entry({ id: 'orphaned-source', entryStatus: EntryStatus.MOVED, totalFee: 35 }),
+        entry({ id: 'other-show', showId: 'show-2', totalFee: 20 }),
+      ],
+      'confirmed',
+      now
+    );
+
+    expect(summary.kind).toBe('known');
+    expect(summary.amountDueCents).toBe(5500);
+    expect(summary.onlineShowBalances.map(show => show.showId)).toEqual(['show-1', 'show-2']);
   });
 });
 

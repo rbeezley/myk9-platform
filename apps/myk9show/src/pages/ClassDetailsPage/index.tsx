@@ -63,6 +63,7 @@ const ClassDetailsPage: React.FC = () => {
     trialClasses,
     localRawEntries,
     dbRawEntries,
+    staffShowRawEntries,
     classEntries,
     entriesLoading,
     entriesError,
@@ -350,6 +351,7 @@ const ClassDetailsPage: React.FC = () => {
             isStaff={isStaff}
             classData={currentClass}
             entries={dbRawEntries}
+            scopeEntries={staffShowRawEntries}
             showId={parentShow?.id}
             trialId={trialId || currentClass.trialId}
             classId={classId}

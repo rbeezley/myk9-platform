@@ -23,6 +23,7 @@ export interface SavableEntryClass {
 
 export interface EntryClassEdits {
   handler?: string | undefined;
+  clearHandlerId?: boolean | undefined;
   jumpHeight?: string | undefined;
   status?: string | undefined;
 }
@@ -32,8 +33,6 @@ export interface SaveEntryEditsParams {
   classEdits: Record<string, EntryClassEdits>;
   /** The card-level handler, used when a class row carries none of its own. */
   fallbackHandler?: string | undefined;
-  /** Secretary surfaces pass true; mirrors `ignoreModificationDeadline`. */
-  clearHandlerId: boolean;
 }
 
 /**
@@ -46,15 +45,16 @@ export interface SaveEntryEditsParams {
 export async function saveEntryEdits(
   params: SaveEntryEditsParams
 ): Promise<{ error: string | null }> {
-  const { classes, classEdits, fallbackHandler, clearHandlerId } = params;
+  const { classes, classEdits, fallbackHandler } = params;
 
   // A grouped dog card can contain multiple entry rows, and each row may need a
   // different handler.
   for (const classEntry of classes) {
     const editedHandler = classEdits[classEntry.id]?.handler;
     const originalHandler = classEntry.handler ?? fallbackHandler ?? '';
-    if (editedHandler !== undefined && editedHandler !== originalHandler) {
-      // MYK9-570: `clearHandlerId` stays the CALLER's decision, unchanged.
+    const clearHandlerId = classEdits[classEntry.id]?.clearHandlerId ?? false;
+    if ((editedHandler !== undefined && editedHandler !== originalHandler) || clearHandlerId) {
+      // MYK9-665: text corrections preserve the load-bearing handler_id link.
       //
       // Round 1 of that issue's review made it unconditional on the theory that
       // a rename should drop the now-wrong person link. Round 2 showed the
@@ -70,12 +70,11 @@ export async function saveEntryEdits(
       // So the stale-link problem is solved on the READ side instead, where it
       // costs nothing: `resolveHandlerPerson` refuses to derive junior status or
       // print a registry number unless the person behind `handler_id` bears the
-      // name being printed. Whether the WRITE should also re-point or clear the
-      // id is a real question with real consequences, and it is MYK9-665's to
-      // answer — not this dialog's to assume.
+      // name being printed. The manager-only clear control is the explicit path
+      // for removing the identity link; legacy clear requests remain safe.
       const { error } = await updateEntryHandler({
         entryId: classEntry.id,
-        handler: editedHandler,
+        handler: editedHandler ?? originalHandler,
         handlerId: null,
         clearHandlerId,
       });

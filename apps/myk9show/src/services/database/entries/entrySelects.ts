@@ -59,8 +59,8 @@ export const AUTHENTICATED_ENTRY_READ_COLUMNS = `
  * an unknown column, and migration 20260918193300 is applied by hand after the
  * merge — so naming the column in the shared list would turn every entry read
  * in the app into "Couldn't load entries" for the length of the deploy window.
- * Eighteen call sites read entries; two of them care about the link, and both
- * retry with the plain list via `isMoveUpLinkSchemaUnavailable`.
+ * Three entry reads care about the link, and all retry with the plain list via
+ * `isMoveUpLinkSchemaUnavailable`.
  *
  * Flat, because the typed PostgREST builder parses the select at COMPILE time
  * and nesting one interpolated constant inside another exhausts its parser,

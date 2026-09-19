@@ -31,6 +31,8 @@ interface ResultLabelsReportProps {
   scope: ReportScope;
   sortOrder: string;
   isLoading?: boolean;
+  isUnavailable?: boolean;
+  isError?: boolean;
   iframeRef?: React.RefObject<HTMLIFrameElement | null>;
 }
 
@@ -42,6 +44,8 @@ export const ResultLabelsReport: React.FC<ResultLabelsReportProps> = ({
   scope,
   sortOrder,
   isLoading = false,
+  isUnavailable = false,
+  isError = false,
   iframeRef,
 }) => {
   const [templateId, setTemplateId] = useState(DEFAULT_RESULT_TEMPLATE_ID);
@@ -188,8 +192,20 @@ export const ResultLabelsReport: React.FC<ResultLabelsReportProps> = ({
         </div>
       )}
 
+      {isUnavailable && !isLoading && (
+        <div role="status" aria-live="polite" className="p-8 text-center text-muted-foreground">
+          Entry data is unavailable right now. Reconnect and try again before printing.
+        </div>
+      )}
+
+      {isError && !isLoading && (
+        <div role="alert" className="p-8 text-center text-destructive">
+          Entry data could not be loaded. Try again before printing.
+        </div>
+      )}
+
       {/* Empty state */}
-      {!isLoading && items.length === 0 && (
+      {!isLoading && !isUnavailable && !isError && items.length === 0 && (
         <div
           role="status"
           aria-live="polite"
@@ -200,37 +216,40 @@ export const ResultLabelsReport: React.FC<ResultLabelsReportProps> = ({
       )}
 
       {/* Live preview — fixed-dimension cells matching the chosen stock */}
-      {pages.map(page => (
-        <div
-          key={page.pageNumber}
-          style={{
-            display: 'grid',
-            gridTemplateColumns: `repeat(${template.columns}, ${template.labelWidth}in)`,
-            columnGap: `${template.gapX}in`,
-            rowGap: `${template.gapY}in`,
-            margin: '0 auto 16px',
-            border: '1px dashed var(--border)',
-            padding: '8px',
-          }}
-        >
-          {page.cells.map((cell, i) => (
-            <div
-              key={i}
-              style={{
-                width: `${template.labelWidth}in`,
-                height: `${template.labelHeight}in`,
-                border:
-                  cell.type === 'item' ? '1px solid var(--border)' : '1px dashed var(--border)',
-                boxSizing: 'border-box',
-                overflow: 'hidden',
-                padding: '0.08in 0.12in',
-              }}
-            >
-              {cell.type === 'item' && cell.item && <ResultLabelCell item={cell.item} />}
-            </div>
-          ))}
-        </div>
-      ))}
+      {!isLoading &&
+        !isUnavailable &&
+        !isError &&
+        pages.map(page => (
+          <div
+            key={page.pageNumber}
+            style={{
+              display: 'grid',
+              gridTemplateColumns: `repeat(${template.columns}, ${template.labelWidth}in)`,
+              columnGap: `${template.gapX}in`,
+              rowGap: `${template.gapY}in`,
+              margin: '0 auto 16px',
+              border: '1px dashed var(--border)',
+              padding: '8px',
+            }}
+          >
+            {page.cells.map((cell, i) => (
+              <div
+                key={i}
+                style={{
+                  width: `${template.labelWidth}in`,
+                  height: `${template.labelHeight}in`,
+                  border:
+                    cell.type === 'item' ? '1px solid var(--border)' : '1px dashed var(--border)',
+                  boxSizing: 'border-box',
+                  overflow: 'hidden',
+                  padding: '0.08in 0.12in',
+                }}
+              >
+                {cell.type === 'item' && cell.item && <ResultLabelCell item={cell.item} />}
+              </div>
+            ))}
+          </div>
+        ))}
     </div>
   );
 };

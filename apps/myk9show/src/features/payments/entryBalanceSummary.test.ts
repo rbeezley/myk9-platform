@@ -68,7 +68,7 @@ describe('summarizeEntryBalances', () => {
 
     expect(summary.amountDueCents).toBe(3500);
     expect(summary.onlineDueCents).toBe(3500);
-    expect(summary.onlineShowBalances[0]?.entryIds).toEqual(['destination']);
+    expect(summary.onlineShowBalances[0]?.entryIds).toEqual(['source']);
   });
 
   it('keeps unrelated shows payable when one show has an unresolved money root', () => {

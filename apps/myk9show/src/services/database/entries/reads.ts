@@ -538,11 +538,7 @@ async function postgrestGetEntriesByTrial(trialId: string) {
 }
 
 async function postgrestGetEntriesByClass(classId: string) {
-  const { data, error } = await supabase
-    .from('entries')
-    .select(
-      `
-      ${AUTHENTICATED_ENTRY_READ_COLUMNS},
+  const CLASS_ENTRY_RELATIONS_SELECT = `
       dog:dog_id (
         id,
         name,
@@ -551,18 +547,31 @@ async function postgrestGetEntriesByClass(classId: string) {
         owner:owner_id (
           id,
           first_name,
-        last_name,
-        email
+          last_name,
+          email
         )
       ),
       registration:registration_id (
         ${ENROLLMENT_FINANCIAL_SELECT}
       )
-    `
-    )
-    .eq('class_id', classId)
-    .is('deleted_at', null)
-    .order('run_order', { ascending: true, nullsFirst: false });
+    `;
+  const CLASS_ENTRIES_SELECT_WITH_LINK = `${AUTHENTICATED_ENTRY_READ_COLUMNS_WITH_MOVE_UP_LINK},${CLASS_ENTRY_RELATIONS_SELECT}`;
+  const CLASS_ENTRIES_SELECT = `${AUTHENTICATED_ENTRY_READ_COLUMNS},${CLASS_ENTRY_RELATIONS_SELECT}`;
+  const { data, error } = await withMoveUpLinkFallback(withLink =>
+    withLink
+      ? supabase
+          .from('entries')
+          .select(CLASS_ENTRIES_SELECT_WITH_LINK)
+          .eq('class_id', classId)
+          .is('deleted_at', null)
+          .order('run_order', { ascending: true, nullsFirst: false })
+      : supabase
+          .from('entries')
+          .select(CLASS_ENTRIES_SELECT)
+          .eq('class_id', classId)
+          .is('deleted_at', null)
+          .order('run_order', { ascending: true, nullsFirst: false })
+  );
 
   if (error) throw createDatabaseError(error, 'entries', 'select_by_class');
 

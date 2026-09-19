@@ -74,6 +74,9 @@ BEGIN
   IF has_function_privilege('anon', 'public.get_people_private(uuid[])', 'execute') THEN
     RAISE EXCEPTION 'FAIL anon can execute get_people_private';
   END IF;
+  IF has_function_privilege('anon', 'public.update_person_with_private(uuid,jsonb,jsonb)', 'execute') THEN
+    RAISE EXCEPTION 'FAIL anon can execute update_person_with_private';
+  END IF;
 
   SET LOCAL ROLE authenticated;
 
@@ -82,13 +85,18 @@ BEGIN
   PERFORM set_config('request.jwt.claims', json_build_object('sub', self_auth, 'role', 'authenticated')::text, true);
   SELECT count(*) INTO visible_rows FROM public.get_people_private(ARRAY[handler_id]);
   IF visible_rows <> 1 THEN RAISE EXCEPTION 'FAIL self cannot read private profile'; END IF;
-  PERFORM public.upsert_people_private(handler_id, DATE '2012-04-03', '{"AKC":"664-JR-2"}'::jsonb);
+  PERFORM public.update_person_with_private(
+    handler_id,
+    '{"phone":"self-save"}'::jsonb,
+    '{"date_of_birth":"2012-04-03","junior_handler_numbers":{"AKC":"664-JR-2"}}'::jsonb
+  );
 
   -- Related manager: entry -> show -> managed club is the only manager read arm.
   PERFORM set_config('request.jwt.claim.sub', related_manager::text, true);
   PERFORM set_config('request.jwt.claims', json_build_object('sub', related_manager, 'role', 'authenticated')::text, true);
   SELECT count(*) INTO visible_rows FROM public.get_people_private(ARRAY[handler_id]);
   IF visible_rows <> 1 THEN RAISE EXCEPTION 'FAIL related show manager cannot read private profile'; END IF;
+  PERFORM public.update_person_with_private(handler_id, '{"phone":"manager-save"}'::jsonb, '{}'::jsonb);
   writes_denied := false;
   BEGIN
     PERFORM public.upsert_people_private(handler_id, DATE '2012-04-04', '{"AKC":"manager"}'::jsonb);
@@ -96,6 +104,17 @@ BEGIN
     writes_denied := true;
   END;
   IF NOT writes_denied THEN RAISE EXCEPTION 'FAIL related show manager can write private profile'; END IF;
+  writes_denied := false;
+  BEGIN
+    PERFORM public.update_person_with_private(
+      handler_id,
+      '{"phone":"manager-private"}'::jsonb,
+      '{"date_of_birth":"2012-04-04"}'::jsonb
+    );
+  EXCEPTION WHEN insufficient_privilege THEN
+    writes_denied := true;
+  END;
+  IF NOT writes_denied THEN RAISE EXCEPTION 'FAIL related show manager can atomically write private profile'; END IF;
 
   -- Unrelated manager: role in another club does not expose this handler.
   PERFORM set_config('request.jwt.claim.sub', unrelated_manager::text, true);
@@ -114,7 +133,11 @@ BEGIN
   PERFORM set_config('request.jwt.claims', json_build_object('sub', site_admin, 'role', 'authenticated')::text, true);
   SELECT count(*) INTO visible_rows FROM public.get_people_private(ARRAY[handler_id]);
   IF visible_rows <> 1 THEN RAISE EXCEPTION 'FAIL site admin cannot read private profile'; END IF;
-  PERFORM public.upsert_people_private(handler_id, DATE '2012-04-05', '{"AKC":"664-JR-5"}'::jsonb);
+  PERFORM public.update_person_with_private(
+    handler_id,
+    '{}'::jsonb,
+    '{"date_of_birth":"2012-04-05","junior_handler_numbers":{"AKC":"664-JR-5"}}'::jsonb
+  );
 
   RESET ROLE;
 END;

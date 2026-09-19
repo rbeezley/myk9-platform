@@ -1,7 +1,7 @@
 // Users-related database queries
 import { supabase, logQuery, createDatabaseError } from '../supabaseClient';
 import { logger } from '@/services/LoggingService';
-import type { DbUserInsert, DbUserUpdate } from '../../../types/database-mappings';
+import type { DbUser, DbUserInsert, DbUserUpdate } from '../../../types/database-mappings';
 import { translatePersonIdentityError } from '@/utils/duplicateIdentityErrors';
 import {
   checkSignInEmailChange,
@@ -10,7 +10,7 @@ import {
 } from './signInEmailGuard';
 import { hydrateVisibleRoles } from './roleLabels';
 import { PEOPLE_DIRECTORY_COLUMNS, PEOPLE_MAPPER_COLUMNS } from './peopleColumns';
-import { loadPeoplePrivateProfiles, savePeoplePrivateProfile } from './privatePeople';
+import { loadPeoplePrivateProfiles, updatePersonWithPrivateProfile } from './privatePeople';
 import { normalizeJuniorHandlerNumbers } from '@/features/registries/juniorHandlerPolicy';
 
 type PrivateUserFields = {
@@ -197,40 +197,37 @@ export const updateUser = async (id: string, updates: DbUserUpdateWithPrivate) =
       }
     }
 
-    let savedPrivate: Awaited<ReturnType<typeof savePeoplePrivateProfile>>['data'] = null;
-    let previousPrivate: Awaited<ReturnType<typeof savePeoplePrivateProfile>>['data'] = null;
     if (hasPrivateUpdate) {
-      const { byPersonId, readComplete } = await loadPeoplePrivateProfiles([id]);
-      const currentPrivate = byPersonId.get(id);
-      const needsExistingDate = privateFields.date_of_birth === undefined;
-      const needsExistingNumbers = privateFields.junior_handler_numbers === undefined;
-      if (!readComplete && (needsExistingDate || needsExistingNumbers)) {
-        throw new Error('Private person fields are unavailable; refusing an unsafe partial update');
+      const publicUpdates = { ...updates } as Record<string, unknown>;
+      delete publicUpdates.date_of_birth;
+      delete publicUpdates.junior_handler_numbers;
+
+      const privateUpdates: Record<string, unknown> = {};
+      if (privateFields.date_of_birth !== undefined) {
+        privateUpdates.date_of_birth = privateFields.date_of_birth;
       }
-      previousPrivate = currentPrivate ?? null;
-      const privateResult = await savePeoplePrivateProfile({
+      if (privateFields.junior_handler_numbers !== undefined) {
+        privateUpdates.junior_handler_numbers = normalizeJuniorHandlerNumbers(
+          privateFields.junior_handler_numbers
+        );
+      }
+
+      const privateResult = await updatePersonWithPrivateProfile({
         personId: id,
-        dateOfBirth:
-          privateFields.date_of_birth !== undefined
-            ? privateFields.date_of_birth
-            : (currentPrivate?.dateOfBirth ?? null),
-        juniorHandlerNumbers:
-          privateFields.junior_handler_numbers !== undefined
-            ? normalizeJuniorHandlerNumbers(privateFields.junior_handler_numbers)
-            : (currentPrivate?.juniorHandlerNumbers ?? {}),
+        publicUpdates,
+        privateUpdates,
       });
       if (privateResult.error || !privateResult.data) {
         throw Object.assign(
-          new Error(privateResult.error?.message || 'Failed to update private person fields'),
+          new Error(privateResult.error?.message || 'Failed to update person profile'),
           { code: privateResult.error?.code }
         );
       }
-      savedPrivate = privateResult.data;
+
+      return { data: privateResult.data as unknown as DbUser, error: null };
     }
 
     const payload = { ...updates } as DbUserUpdate;
-    delete (payload as PrivateUserFields).date_of_birth;
-    delete (payload as PrivateUserFields).junior_handler_numbers;
     let query = supabase
       .from('people')
       .update({
@@ -256,20 +253,6 @@ export const updateUser = async (id: string, updates: DbUserUpdateWithPrivate) =
     logQuery('user', 'update', duration, error?.message);
 
     if (error) {
-      if (hasPrivateUpdate && savedPrivate) {
-        const rollback = await savePeoplePrivateProfile({
-          personId: id,
-          dateOfBirth: previousPrivate?.dateOfBirth ?? null,
-          juniorHandlerNumbers: previousPrivate?.juniorHandlerNumbers ?? {},
-        });
-        if (rollback.error || !rollback.data) {
-          throw new Error(
-            `Public person update failed and private rollback failed: ${
-              rollback.error?.message || 'no rollback row returned'
-            }`
-          );
-        }
-      }
       // The filter matched nothing: the row existed and was unlinked a moment
       // ago, so it has just been adopted. Report the refusal, not a bare
       // "no rows" from a filter the caller never asked for. Narrow to that one
@@ -284,13 +267,7 @@ export const updateUser = async (id: string, updates: DbUserUpdateWithPrivate) =
     }
 
     return {
-      data: savedPrivate
-        ? {
-            ...data,
-            date_of_birth: savedPrivate.dateOfBirth,
-            junior_handler_numbers: savedPrivate.juniorHandlerNumbers,
-          }
-        : data,
+      data,
       error: null,
     };
   } catch (error) {

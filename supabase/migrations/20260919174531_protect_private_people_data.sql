@@ -144,8 +144,8 @@ CREATE POLICY people_private_delete ON public.people_private
   USING ((SELECT public.can_write_people_private(people_private.person_id)));
 
 -- The app calls these narrow RPCs until the generated schema types are refreshed
--- from the applied database. Both functions repeat the private boundary rather
--- than relying on a caller-provided role or a broad people read.
+-- from the applied database. The read and write functions repeat the private
+-- boundary rather than relying on a caller-provided role or a broad people read.
 CREATE OR REPLACE FUNCTION public.get_people_private(p_person_ids uuid[])
 RETURNS TABLE (
   person_id uuid,
@@ -190,6 +190,14 @@ BEGIN
       USING ERRCODE = '42501';
   END IF;
 
+  -- Serialize this legacy narrow write with the atomic profile update below.
+  -- The row lock prevents an older client from racing a combined public/private
+  -- save and putting stale private values back after the transaction commits.
+  PERFORM 1 FROM public.people WHERE id = p_person_id FOR UPDATE;
+  IF NOT FOUND THEN
+    RAISE EXCEPTION 'Person not found' USING ERRCODE = 'P0002';
+  END IF;
+
   INSERT INTO public.people_private (person_id, date_of_birth, junior_handler_numbers)
   VALUES (p_person_id, p_date_of_birth, COALESCE(p_junior_handler_numbers, '{}'::jsonb))
   ON CONFLICT (person_id) DO UPDATE
@@ -209,6 +217,152 @@ COMMENT ON FUNCTION public.upsert_people_private(uuid, date, jsonb) IS
 REVOKE ALL ON FUNCTION public.upsert_people_private(uuid, date, jsonb) FROM PUBLIC;
 REVOKE ALL ON FUNCTION public.upsert_people_private(uuid, date, jsonb) FROM anon;
 GRANT EXECUTE ON FUNCTION public.upsert_people_private(uuid, date, jsonb) TO authenticated, service_role;
+
+-- Update the public profile and an explicitly-present private patch in one
+-- transaction. The previous client flow read private values, wrote them, then
+-- updated people and attempted a compensating private write on failure. That
+-- read/merge/rollback sequence could overwrite a concurrent edit. This RPC
+-- locks the person row first, validates the same public update boundary as the
+-- people RLS policy, and applies both patches before returning the merged row.
+CREATE OR REPLACE FUNCTION public.update_person_with_private(
+  p_person_id uuid,
+  p_public_updates jsonb,
+  p_private_updates jsonb DEFAULT '{}'::jsonb
+)
+RETURNS jsonb
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = ''
+AS $$
+DECLARE
+  v_person public.people;
+  v_private public.people_private;
+  v_public jsonb := COALESCE(p_public_updates, '{}'::jsonb);
+  v_private_patch jsonb := COALESCE(p_private_updates, '{}'::jsonb);
+  v_has_private_patch boolean;
+BEGIN
+  IF p_person_id IS NULL
+     OR jsonb_typeof(v_public) <> 'object'
+     OR jsonb_typeof(v_private_patch) <> 'object' THEN
+    RAISE EXCEPTION 'Profile update payload must be JSON objects'
+      USING ERRCODE = '22023';
+  END IF;
+
+  SELECT * INTO v_person
+  FROM public.people
+  WHERE id = p_person_id AND deleted_at IS NULL
+  FOR UPDATE;
+
+  IF NOT FOUND THEN
+    RAISE EXCEPTION 'Person not found or already deleted' USING ERRCODE = 'P0002';
+  END IF;
+
+  IF NOT (
+    v_person.auth_user_id = (SELECT auth.uid())
+    OR (SELECT public.can_manage_show_person(p_person_id))
+    OR (SELECT public.is_site_admin())
+  ) THEN
+    RAISE EXCEPTION 'Permission denied' USING ERRCODE = '42501';
+  END IF;
+
+  IF EXISTS (
+    SELECT 1
+    FROM jsonb_object_keys(v_public) AS key
+    WHERE key NOT IN (
+      'first_name', 'last_name', 'email', 'phone', 'street_address',
+      'city', 'state', 'zip_code', 'country', 'profile_image', 'status'
+    )
+  ) THEN
+    RAISE EXCEPTION 'Profile update contains an unsupported public field'
+      USING ERRCODE = '22023';
+  END IF;
+
+  IF EXISTS (
+    SELECT 1
+    FROM jsonb_object_keys(v_private_patch) AS key
+    WHERE key NOT IN ('date_of_birth', 'junior_handler_numbers')
+  ) THEN
+    RAISE EXCEPTION 'Profile update contains an unsupported private field'
+      USING ERRCODE = '22023';
+  END IF;
+
+  v_has_private_patch :=
+    v_private_patch ? 'date_of_birth'
+    OR v_private_patch ? 'junior_handler_numbers';
+
+  IF v_has_private_patch AND NOT public.can_write_people_private(p_person_id) THEN
+    RAISE EXCEPTION 'Private person fields may only be changed by the subject or a site admin'
+      USING ERRCODE = '42501';
+  END IF;
+
+  -- Keep the sign-in identity invariant enforced at the write itself. The app
+  -- still performs its friendly preflight check, but this closes the adoption
+  -- race between that check and this transaction.
+  IF v_public ? 'email'
+     AND lower(btrim(v_person.email)) IS DISTINCT FROM lower(btrim(v_public->>'email'))
+     AND v_person.auth_user_id IS NOT NULL THEN
+    RAISE EXCEPTION 'This person signs in with this email address, so it cannot be changed here'
+      USING ERRCODE = '42501';
+  END IF;
+
+  UPDATE public.people
+  SET first_name = CASE WHEN v_public ? 'first_name' THEN v_public->>'first_name' ELSE first_name END,
+      last_name = CASE WHEN v_public ? 'last_name' THEN v_public->>'last_name' ELSE last_name END,
+      email = CASE
+        WHEN v_public ? 'email'
+          AND v_person.auth_user_id IS NOT NULL
+          AND lower(btrim(v_person.email)) = lower(btrim(v_public->>'email'))
+          THEN v_person.email
+        WHEN v_public ? 'email' THEN v_public->>'email'
+        ELSE email
+      END,
+      phone = CASE WHEN v_public ? 'phone' THEN v_public->>'phone' ELSE phone END,
+      street_address = CASE WHEN v_public ? 'street_address' THEN v_public->>'street_address' ELSE street_address END,
+      city = CASE WHEN v_public ? 'city' THEN v_public->>'city' ELSE city END,
+      state = CASE WHEN v_public ? 'state' THEN v_public->>'state' ELSE state END,
+      zip_code = CASE WHEN v_public ? 'zip_code' THEN v_public->>'zip_code' ELSE zip_code END,
+      country = CASE WHEN v_public ? 'country' THEN v_public->>'country' ELSE country END,
+      profile_image = CASE WHEN v_public ? 'profile_image' THEN v_public->>'profile_image' ELSE profile_image END,
+      status = CASE WHEN v_public ? 'status' THEN v_public->>'status' ELSE status END,
+      updated_at = now()
+  WHERE id = p_person_id
+  RETURNING * INTO v_person;
+
+  IF v_has_private_patch THEN
+    INSERT INTO public.people_private (person_id, date_of_birth, junior_handler_numbers)
+    VALUES (
+      p_person_id,
+      CASE WHEN v_private_patch ? 'date_of_birth'
+        THEN (v_private_patch->>'date_of_birth')::date ELSE NULL END,
+      CASE WHEN v_private_patch ? 'junior_handler_numbers'
+        THEN COALESCE(v_private_patch->'junior_handler_numbers', '{}'::jsonb)
+        ELSE '{}'::jsonb END
+    )
+    ON CONFLICT (person_id) DO UPDATE
+      SET date_of_birth = CASE WHEN v_private_patch ? 'date_of_birth'
+        THEN EXCLUDED.date_of_birth ELSE people_private.date_of_birth END,
+          junior_handler_numbers = CASE WHEN v_private_patch ? 'junior_handler_numbers'
+        THEN EXCLUDED.junior_handler_numbers ELSE people_private.junior_handler_numbers END;
+  END IF;
+
+  SELECT * INTO v_private
+  FROM public.people_private
+  WHERE person_id = p_person_id;
+
+  RETURN to_jsonb(v_person)
+    || jsonb_build_object(
+      'date_of_birth', v_private.date_of_birth,
+      'junior_handler_numbers', v_private.junior_handler_numbers
+    );
+END;
+$$;
+
+COMMENT ON FUNCTION public.update_person_with_private(uuid, jsonb, jsonb) IS
+  'MYK9-664: atomically updates an authorized public person patch and explicitly-present subject/site-admin private fields; locks the person row to prevent stale compensation writes.';
+
+REVOKE ALL ON FUNCTION public.update_person_with_private(uuid, jsonb, jsonb) FROM PUBLIC;
+REVOKE ALL ON FUNCTION public.update_person_with_private(uuid, jsonb, jsonb) FROM anon;
+GRANT EXECUTE ON FUNCTION public.update_person_with_private(uuid, jsonb, jsonb) TO authenticated, service_role;
 
 -- Backfill before removing the source columns. Existing values are copied exactly;
 -- empty JSON objects do not create needless rows.

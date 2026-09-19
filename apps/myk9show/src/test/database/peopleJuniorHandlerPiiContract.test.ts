@@ -134,6 +134,21 @@ describe('the migration that protects the private columns', () => {
       );
     }
   });
+
+  it('uses a locked atomic public/private update RPC with explicit field presence', () => {
+    const sql = readFileSync(resolve(MIGRATIONS_DIR, file!), 'utf8');
+    expect(sql).toMatch(
+      /CREATE OR REPLACE FUNCTION public\.update_person_with_private\(\s*p_person_id uuid,\s*p_public_updates jsonb,\s*p_private_updates jsonb DEFAULT '\{\}'::jsonb/i
+    );
+    expect(sql).toMatch(
+      /GRANT EXECUTE ON FUNCTION public\.update_person_with_private\(uuid, jsonb, jsonb\) TO authenticated, service_role/i
+    );
+    expect(sql).toMatch(
+      /FROM public\.people\s+WHERE id = p_person_id AND deleted_at IS NULL\s+FOR UPDATE/i
+    );
+    expect(sql).toMatch(/v_private_patch \? 'date_of_birth'/i);
+    expect(sql).toMatch(/v_private_patch \? 'junior_handler_numbers'/i);
+  });
 });
 
 describe('no migration exposes the columns to anon', () => {

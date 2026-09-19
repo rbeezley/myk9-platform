@@ -596,89 +596,48 @@ describe('User Queries', () => {
         expect(result.data).toEqual(updated);
       });
 
-      it('restores private fields when the public update fails', async () => {
-        const previous = {
-          person_id: 'user-123',
-          date_of_birth: '2010-01-01',
+      it('applies public and explicitly-present private fields through one atomic RPC', async () => {
+        const updated = {
+          id: 'user-123',
+          first_name: 'Updated',
+          date_of_birth: '2011-03-04',
           junior_handler_numbers: { AKC: 'OLD' },
         };
-        mockSupabase.rpc.mockImplementation(
-          (functionName: string, args?: Record<string, unknown>) => {
-            if (functionName === 'get_people_private')
-              return Promise.resolve({ data: [previous], error: null });
-            if (functionName === 'upsert_people_private') {
-              return Promise.resolve({
-                data: [{ ...previous, date_of_birth: args?.p_date_of_birth ?? null }],
-                error: null,
-              });
-            }
-            return Promise.resolve({ data: [], error: null });
-          }
-        );
-        mockSupabase.from.mockReturnValue(
-          createChainableQuery({
-            data: null,
-            error: { message: 'public write failed', code: 'PGRST' },
-          })
-        );
+        mockSupabase.rpc.mockResolvedValue({ data: updated, error: null });
 
         const result = await updateUser('user-123', {
           first_name: 'Updated',
           date_of_birth: '2011-03-04',
         } as DbUserUpdate & { date_of_birth: string });
 
-        expect(result.error?.message).toContain('public write failed');
-        expect(mockSupabase.rpc).toHaveBeenCalledTimes(3);
-        expect(mockSupabase.rpc).toHaveBeenLastCalledWith('upsert_people_private', {
+        expect(result.error).toBeNull();
+        expect(result.data).toEqual(updated);
+        expect(mockSupabase.rpc).toHaveBeenCalledTimes(1);
+        expect(mockSupabase.rpc).toHaveBeenCalledWith('update_person_with_private', {
           p_person_id: 'user-123',
-          p_date_of_birth: '2010-01-01',
-          p_junior_handler_numbers: { AKC: 'OLD' },
+          p_public_updates: { first_name: 'Updated' },
+          p_private_updates: { date_of_birth: '2011-03-04' },
         });
       });
 
-      it('reports a rollback failure instead of hiding the inconsistent state', async () => {
-        let upserts = 0;
-        mockSupabase.rpc.mockImplementation((functionName: string) => {
-          if (functionName === 'get_people_private') {
-            return Promise.resolve({
-              data: [
-                { person_id: 'user-123', date_of_birth: '2010-01-01', junior_handler_numbers: {} },
-              ],
-              error: null,
-            });
-          }
-          if (functionName === 'upsert_people_private') {
-            upserts += 1;
-            return Promise.resolve(
-              upserts === 1
-                ? {
-                    data: [
-                      {
-                        person_id: 'user-123',
-                        date_of_birth: '2011-03-04',
-                        junior_handler_numbers: {},
-                      },
-                    ],
-                    error: null,
-                  }
-                : { data: null, error: { message: 'rollback unavailable' } }
-            );
-          }
-          return Promise.resolve({ data: [], error: null });
+      it('does not attempt a compensating private write when the atomic RPC fails', async () => {
+        mockSupabase.rpc.mockResolvedValue({
+          data: null,
+          error: { message: 'atomic update failed', code: 'PGRST' },
         });
-        mockSupabase.from.mockReturnValue(
-          createChainableQuery({
-            data: null,
-            error: { message: 'public write failed', code: 'PGRST' },
-          })
-        );
 
         const result = await updateUser('user-123', {
           first_name: 'Updated',
           date_of_birth: '2011-03-04',
         } as DbUserUpdate & { date_of_birth: string });
 
-        expect(result.error?.message).toContain('rollback failed');
+        expect(result.error?.message).toContain('atomic update failed');
+        expect(mockSupabase.rpc).toHaveBeenCalledTimes(1);
+        expect(mockSupabase.rpc).toHaveBeenCalledWith('update_person_with_private', {
+          p_person_id: 'user-123',
+          p_public_updates: { first_name: 'Updated' },
+          p_private_updates: { date_of_birth: '2011-03-04' },
+        });
       });
 
       // Reading the linkage and writing the row are separate requests, so a

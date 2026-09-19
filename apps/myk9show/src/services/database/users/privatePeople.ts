@@ -24,6 +24,12 @@ interface PrivateRpcResult<T> {
   error: PrivateRpcError | null;
 }
 
+export interface AtomicPersonUpdateResult extends Record<string, unknown> {
+  id: string;
+  date_of_birth: string | null;
+  junior_handler_numbers: unknown;
+}
+
 /**
  * The private table and RPCs land in Supabase before the generated schema types
  * can be refreshed. Keep this boundary local and typed by the migration contract;
@@ -74,17 +80,21 @@ export async function loadPeoplePrivateProfiles(
   return { byPersonId, readComplete };
 }
 
-export async function savePeoplePrivateProfile(input: {
+/**
+ * Apply public and explicitly-present private fields under one database
+ * transaction. The RPC locks the person row before patching either relation,
+ * so callers never need to read/merge/compensate private state in the browser.
+ */
+export async function updatePersonWithPrivateProfile(input: {
   personId: string;
-  dateOfBirth: string | null;
-  juniorHandlerNumbers: Record<string, string> | null | undefined;
-}): Promise<{ data: PrivatePersonProfile | null; error: PrivateRpcError | null }> {
-  const { data, error } = await privateRpc<PrivatePeopleRow[]>('upsert_people_private', {
+  publicUpdates: Record<string, unknown>;
+  privateUpdates: Record<string, unknown>;
+}): Promise<{ data: AtomicPersonUpdateResult | null; error: PrivateRpcError | null }> {
+  const { data, error } = await privateRpc<AtomicPersonUpdateResult>('update_person_with_private', {
     p_person_id: input.personId,
-    p_date_of_birth: input.dateOfBirth,
-    p_junior_handler_numbers: input.juniorHandlerNumbers ?? {},
+    p_public_updates: input.publicUpdates,
+    p_private_updates: input.privateUpdates,
   });
 
-  const row = data?.[0];
-  return { data: row ? mapPrivateRow(row) : null, error };
+  return { data, error };
 }

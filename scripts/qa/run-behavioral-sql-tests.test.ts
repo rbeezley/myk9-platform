@@ -71,6 +71,7 @@ const launchCriticalSqlTests = [
   'judge_qualification_rpc_authorization_test.sql',
   'notification_preferences_sms_rls_test.sql',
   'paperwork_prints_rls_test.sql',
+  'people_private_data_access_test.sql',
   'placement_soft_delete_ranking_test.sql',
   'pre_rule_table_grants_test.sql',
   'pull_refund_decision_rls_test.sql',

@@ -15,6 +15,7 @@ See `proposal.md`. `people_select` deliberately supports broad operational direc
 3. Authorize writes only to the subject and site admins. Show managers receive relationship-scoped read access for paperwork but no private-field write access. If an existing client surface depends on broader writes, narrow or disable that private-field path rather than reproducing the gap.
 4. Backfill values first, switch application reads/writes and generated types, then remove the old columns in the same reviewed migration only when contract tests prove no source query still references them. The migration must explicitly grant authenticated access, revoke anonymous access, and assert table and column ACLs.
 5. This data is online-only identity/profile data, not show-day replicated state; no replication table is introduced.
+6. Mixed public/private profile saves use a single `update_person_with_private` SECURITY DEFINER RPC. It locks the `people` row, validates explicit public/private field allowlists and caller scope, applies both patches in one transaction, and returns the merged row. Private patch keys are presence-based so an omitted field is preserved and an explicit JSON null clears it. The client never performs a read/merge/compensating rollback, and the legacy private-only RPC takes the same person-row lock for older callers.
 
 ## Risks / Trade-offs
 

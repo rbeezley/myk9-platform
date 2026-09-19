@@ -74,6 +74,7 @@ TEST_FILES=(
   "$TEST_DIR/myk9_474_public_judge_names_test.sql"
   "$TEST_DIR/notification_preferences_sms_rls_test.sql"
   "$TEST_DIR/paperwork_prints_rls_test.sql"
+  "$TEST_DIR/people_private_data_access_test.sql"
   "$TEST_DIR/placement_soft_delete_ranking_test.sql"
   "$TEST_DIR/pre_rule_table_grants_test.sql"
   "$TEST_DIR/show_officials_label_not_permission_test.sql"

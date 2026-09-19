@@ -244,8 +244,8 @@ describe('summarizeEntryBalances', () => {
     );
 
     expect(summary.kind).toBe('known');
-    expect(summary.amountDueCents).toBe(2000);
-    expect(summary.onlineShowBalances[0]?.showId).toBe('show-2');
+    expect(summary.amountDueCents).toBe(5500);
+    expect(summary.onlineShowBalances.map(show => show.showId)).toEqual(['show-1', 'show-2']);
   });
 });
 

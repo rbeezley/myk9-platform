@@ -68,6 +68,8 @@ export interface ReconcileResult {
   missingEntryIds: string[];
   /** Entries still present but no longer active in the show. */
   inactiveEntryIds: string[];
+  /** Entries whose move-up money root could not be reconciled safely. */
+  unresolvedEntryIds: string[];
 }
 
 const UNPAID = 'pending';
@@ -89,6 +91,7 @@ export function reconcileEntryPaymentRequest(input: ReconcileInput): ReconcileRe
     sameIntentPaidEntryIds: [],
     missingEntryIds: [],
     inactiveEntryIds: [],
+    unresolvedEntryIds: [],
   };
 
   // The link row is the idempotency latch: once it leaves 'open' (we marked it
@@ -110,7 +113,7 @@ export function reconcileEntryPaymentRequest(input: ReconcileInput): ReconcileRe
   const patches: EntryPaymentPatch[] = [];
   const alreadyPaidEntryIds: string[] = [...(input.duplicateEntryIds ?? [])];
   const sameIntentPaidEntryIds: string[] = [];
-  const inactiveEntryIds: string[] = [...(input.blockedEntryIds ?? [])];
+  const inactiveEntryIds: string[] = [];
   const blockedEntryIds = new Set(input.blockedEntryIds ?? []);
 
   const reconciliationIds = new Set(input.reconciliationEntryIds ?? input.expectedEntryIds);
@@ -175,5 +178,6 @@ export function reconcileEntryPaymentRequest(input: ReconcileInput): ReconcileRe
     sameIntentPaidEntryIds,
     missingEntryIds,
     inactiveEntryIds,
+    unresolvedEntryIds: [...blockedEntryIds],
   };
 }

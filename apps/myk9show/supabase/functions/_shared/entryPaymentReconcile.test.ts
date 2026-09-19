@@ -80,7 +80,8 @@ describe('reconcileEntryPaymentRequest', () => {
     });
 
     expect(r.patches).toEqual([]);
-    expect(r.inactiveEntryIds).toEqual(['destination']);
+    expect(r.inactiveEntryIds).toEqual([]);
+    expect(r.unresolvedEntryIds).toEqual(['destination']);
   });
 
   it('advances a moved destination lifecycle while stamping its money root', () => {

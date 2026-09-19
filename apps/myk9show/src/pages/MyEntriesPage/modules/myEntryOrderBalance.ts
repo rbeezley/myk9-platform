@@ -18,6 +18,7 @@
 import { EntryStatus, PaymentStatus } from '@/types/show-registration-types';
 import {
   isCurrentSummaryEntry,
+  normalizeOrphanedMoveUpEntries,
   summarizeEntryBalances,
   UNKNOWN_ENTRY_BALANCE_SUMMARY,
   type EntryBalanceSource,
@@ -130,7 +131,8 @@ export function buildOrderBalance(
   ctx: OrderBalanceContext,
   now: Date = new Date()
 ): MyEntryBalance | null {
-  const sources = withResolvedMoneyRoots(toBalanceSources(classes, ctx), (entry, root) => ({
+  const normalizedSources = normalizeOrphanedMoveUpEntries(toBalanceSources(classes, ctx));
+  const sources = withResolvedMoneyRoots(normalizedSources, (entry, root) => ({
     ...entry,
     paymentStatus: root.paymentStatus,
     paymentMethod: root.paymentMethod,

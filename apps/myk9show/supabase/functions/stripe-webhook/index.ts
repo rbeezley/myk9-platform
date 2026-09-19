@@ -1915,7 +1915,16 @@ async function handleEntryPaymentRequestCompleted(session: Stripe.Checkout.Sessi
   }
 
   // Freeze the withdrawal policy these entries were paid under (best-effort).
-  await stampWithdrawalSnapshot(updatedEntryIds, link.show_id as string | null);
+  const withdrawalSnapshotEntryIds = [
+    ...updatedEntryIds,
+    ...result.patches
+      .map(patch => patch.entryStatusEntryId)
+      .filter((id): id is string => Boolean(id)),
+  ];
+  await stampWithdrawalSnapshot(
+    [...new Set(withdrawalSnapshotEntryIds)],
+    link.show_id as string | null
+  );
 
   const noOpPatchIds = plannedPatchIds.filter(id => !updatedEntryIds.includes(id));
   let rereadNoOpEntries: {
@@ -1981,6 +1990,7 @@ async function handleEntryPaymentRequestCompleted(session: Stripe.Checkout.Sessi
     rereadNoOpEntries,
     initialMissingEntryIds: result.missingEntryIds,
     initialInactiveEntryIds: result.inactiveEntryIds,
+    initialUnresolvedEntryIds: result.unresolvedEntryIds,
     initialAlreadyPaidEntryIds: result.alreadyPaidEntryIds,
     initialSameIntentPaidEntryIds: result.sameIntentPaidEntryIds,
     paymentIntentId,
@@ -2108,6 +2118,18 @@ async function handleEntryPaymentRequestCompleted(session: Stripe.Checkout.Sessi
        <code>${updateOutcome.unknownNoOpEntryIds.join(', ')}</code>.</p>
        <p>The webhook will treat them as invalid for refund safety.</p>`,
       { source: 'stripe-webhook', dedupeKey: `payment-link-unknown-noop-${session.id}` }
+    );
+  }
+
+  if (updateOutcome.unresolvedEntryIds.length > 0) {
+    await alertAdmin(
+      'Payment link move-up root could not be reconciled',
+      `<p>Session <code>${session.id}</code> was PAID, but these live destination
+       entries could not be safely matched to their money roots:
+       <code>${updateOutcome.unresolvedEntryIds.join(', ')}</code>.</p>
+       <p>The affected lines will be refunded; verify the move-up history before
+       restoring or reissuing any payment link.</p>`,
+      { source: 'stripe-webhook', dedupeKey: `payment-link-unresolved-root-${session.id}` }
     );
   }
 

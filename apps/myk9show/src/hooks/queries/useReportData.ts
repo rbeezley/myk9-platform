@@ -202,7 +202,18 @@ export function useReportData({ show, trialId, classId }: UseReportDataOptions) 
       if (error) throw error;
       return hydrateEntryRegistrations((data ?? []) as ReportDbEntry[]);
     },
-    enabled: selectedTrialIsInShow && classesQuery.isSuccess,
+    enabled:
+      selectedTrialIsInShow &&
+      classesQuery.isSuccess &&
+      (classId === 'all' ||
+        Boolean(
+          classesQuery.data?.some(
+            reportClass =>
+              reportClass.id === classId &&
+              (trialId === 'all' || reportClass.trial_id === trialId) &&
+              reportTrials?.some(trial => trial.id === reportClass.trial_id)
+          )
+        )),
     ...cacheStrategies.moderate,
   });
 
@@ -247,6 +258,7 @@ export function useReportData({ show, trialId, classId }: UseReportDataOptions) 
   // but belong to the PREVIOUS selection -- present, and wrong.
   const hasEveryRowSet =
     reportTrials !== undefined &&
+    (hasCurrentReportTrials || trialsQuery.data === undefined) &&
     classesQuery.data !== undefined &&
     entriesQuery.data !== undefined;
 

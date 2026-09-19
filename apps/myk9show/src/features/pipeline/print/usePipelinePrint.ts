@@ -61,7 +61,13 @@ export function mapEntry(row: EntryRow): PrintReportEntry {
   const dog = row.dog;
   const owner = dog?.owner;
   const assignedHandlerName = row.handler?.trim() || formatPersonName(row.handler_person) || '';
-  const handlerName = assignedHandlerName || formatPersonName(owner) || 'Unknown Handler';
+  // A handler_id is an assigned identity even when its person join is absent
+  // from a cold/partial read. Never turn that unresolved assignment into the
+  // owner's name; an explicit placeholder is safer than calling the wrong
+  // person to the gate.
+  const handlerName =
+    assignedHandlerName ||
+    (row.handler_id ? 'Unknown Handler' : formatPersonName(owner) || 'Unknown Handler');
 
   return {
     id: String(row.id),

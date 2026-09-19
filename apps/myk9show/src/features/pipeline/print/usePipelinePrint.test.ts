@@ -46,4 +46,18 @@ describe('mapEntry', () => {
 
     expect(entry.handlerName).toBe('Pat Owner');
   });
+
+  it('does not silently print the owner when a handler id cannot be resolved', () => {
+    const entry = mapEntry({
+      id: 'entry-unresolved-handler',
+      handler_id: 'person-handler-2',
+      handler: null,
+      dog: {
+        call_name: 'Scout',
+        owner: { first_name: 'Pat', last_name: 'Owner' },
+      },
+    });
+
+    expect(entry.handlerName).toBe('Unknown Handler');
+  });
 });

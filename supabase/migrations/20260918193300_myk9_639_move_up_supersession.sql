@@ -848,6 +848,21 @@ BEGIN
       USING ERRCODE = '22023';
   END IF;
 
+  -- The requested destination must still be the terminal live descendant.
+  -- A stale Undo can arrive after another device has moved this entry again;
+  -- restoring its source would otherwise leave two live runs and orphan the
+  -- newer descendant's money lineage. A moved child still counts here: its
+  -- own successor may be further down the chain.
+  IF EXISTS (
+    SELECT 1
+    FROM public.entries successor
+    WHERE successor.moved_from_entry_id = v_dest.id
+      AND successor.deleted_at IS NULL
+  ) THEN
+    RAISE EXCEPTION 'This move-up has a newer successor and cannot be reversed.'
+      USING ERRCODE = '22023';
+  END IF;
+
   -- The SOURCE is a second row, in a second show potentially, and this function
   -- is DEFINER — owned by `postgres`, which carries rolbypassrls, so the UPDATE
   -- below is checked by nothing but this. Authorizing only the destination's

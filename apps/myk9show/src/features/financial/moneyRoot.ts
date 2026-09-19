@@ -174,6 +174,17 @@ export function buildMoneyAttribution<T extends MoneyRootLink & { entryStatus?: 
   for (const entry of entries) {
     if (!isSupersededMoveUpEntry(entry)) continue;
     if (claimedRootIds.has(entry.id)) continue;
+    // A multi-hop chain claims every ancestor on the way to its root. The
+    // resolver returns only the root, so walk the links separately before
+    // declaring an intermediate moved row orphaned.
+    let current: T | undefined = entry;
+    const visited = new Set<string>();
+    while (current?.movedFromEntryId && !visited.has(current.id)) {
+      visited.add(current.id);
+      if (claimedRootIds.has(current.movedFromEntryId)) break;
+      current = byId.get(current.movedFromEntryId);
+    }
+    if (current?.movedFromEntryId && claimedRootIds.has(current.movedFromEntryId)) continue;
     unresolved.push({ entryId: entry.id, problem: 'orphaned-supersession' });
   }
 

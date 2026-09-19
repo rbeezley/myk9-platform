@@ -73,6 +73,7 @@ export const USER_ENTRIES_SELECT = `
       handler_id,
       payment_status,
       payment_method,
+      moved_from_entry_id,
       entry_status,
       check_in_status,
       entry_fee,

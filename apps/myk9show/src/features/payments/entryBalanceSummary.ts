@@ -7,6 +7,7 @@ import { getTrialTimezone } from '@/features/registries';
 import { getEntryWindowTimezone, type EntryWindowTrial } from '@/utils/entryWindowDate';
 import { DEFAULT_SHOW_TIMEZONE, toEntryCloseDay } from './entryCloseDeadline';
 import { getEntryPaymentPrompt } from './entryPaymentPrompt';
+import { withResolvedMoneyRoots } from '@/features/financial/moneyRoot';
 // The gate is a PURE predicate, so it is imported from its own module rather
 // than the `entries` barrel: a unit test that mocks the barrel's data-access
 // functions must not thereby stub out the rule that withholds money.
@@ -42,6 +43,8 @@ export interface EntryBalanceSource {
   paymentMethod?: string | null | undefined;
   /** Fee in dollars, matching My Entries' loaded entry model. */
   totalFee: number;
+  movedFromEntryId?: string | null | undefined;
+  moneyRootUnresolved?: boolean | undefined;
   classes?: EntryBalanceClassSource[] | undefined;
 }
 
@@ -113,6 +116,7 @@ export type EntryBalanceRawRow = Record<string, unknown> & {
   show_id?: string | null;
   entry_status?: string | null;
   payment_status?: string | null;
+  moved_from_entry_id?: string | null;
   payment_method?: string | null;
   entry_fee?: number | null;
   show?: {
@@ -188,6 +192,7 @@ export function mapEntryRowToBalanceSource(row: EntryBalanceRawRow): EntryBalanc
     paymentStatus,
     paymentMethod: row.payment_method ?? null,
     totalFee: row.entry_fee ?? 0,
+    movedFromEntryId: row.moved_from_entry_id ?? null,
   };
 }
 
@@ -244,13 +249,23 @@ export function summarizeEntryBalances(
   entries: EntryBalanceSource[],
   now: Date = new Date()
 ): EntryBalanceSummary {
+  const rootedEntries = withResolvedMoneyRoots(entries, (entry, root) => ({
+    ...entry,
+    paymentStatus: root.paymentStatus,
+    paymentMethod: root.paymentMethod,
+    totalFee: root.totalFee,
+  }));
+  if (rootedEntries.some(entry => entry.moneyRootUnresolved)) {
+    return UNKNOWN_ENTRY_BALANCE_SUMMARY;
+  }
+
   const showBalances = new Map<string, Omit<EntryBalanceShowSummary, 'paymentHref'>>();
   let currentFeesCents = 0;
   let amountDueCents = 0;
   let onlineDueCents = 0;
   let payAtShowDueCents = 0;
 
-  for (const entry of entries) {
+  for (const entry of rootedEntries) {
     const isCurrentEntry = isCurrentSummaryEntry(entry, now);
     if (!isCurrentEntry && !isBalanceEligibleEntry(entry)) continue;
 

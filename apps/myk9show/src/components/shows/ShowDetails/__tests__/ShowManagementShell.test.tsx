@@ -157,9 +157,9 @@ function renderShell(
 }
 
 /**
- * Navigate WITHIN the mounted router, the way the header Actions "Show settings"
- * link does. Re-rendering a fresh MemoryRouter would remount the shell and let a
- * mount-time param read pass a test the real app fails.
+ * Navigate WITHIN the mounted router, the way an in-app edit link does.
+ * Re-rendering a fresh MemoryRouter would remount the shell and let a mount-time
+ * param read pass a test the real app fails.
  */
 function LocationProbe() {
   const location = useLocation();
@@ -273,9 +273,9 @@ describe('ShowManagementShell', () => {
   });
 
   it('no longer carries its own overflow menu', () => {
-    // MYK9-630: the `...` menu is deleted. Its five items moved -- Show settings
+    // MYK9-630: the `...` menu is deleted. Its five items moved -- Show Details
     // to the header Actions menu, Copy link and Preview to the Overview landing
-    // card, Delete into the Show Edit panel, and Edit is Show settings.
+    // card, Delete into the Show Edit panel, and editing remains on this page.
     renderShell();
     expect(screen.queryByRole('button', { name: /more show actions/i })).toBeNull();
     expect(screen.queryByRole('menuitem', { name: /preview as exhibitor/i })).toBeNull();
@@ -283,19 +283,17 @@ describe('ShowManagementShell', () => {
   });
 
   it('opens the edit panel when the header Actions link lands with ?edit=true', () => {
-    // The Actions item is a LINK to the page the secretary is already on, so the
-    // shell never remounts and a mount-time read of the param cannot see it.
+    // An in-app edit link can target the page the secretary is already on, so
+    // the shell never remounts and a mount-time read of the param cannot see it.
     renderShell({}, '/shows/show-1', <InPageNavigator to="/shows/show-1?edit=true" />);
     expect(screen.queryByTestId('edit-panel-open')).toBeNull();
     fireEvent.click(screen.getByTestId('in-page-nav'));
     expect(screen.getByTestId('edit-panel-open')).toBeInTheDocument();
   });
 
-  it('opens settings ON the section the secretary is working in, and leaves them there', () => {
-    // Round-3 review: the Actions item used to be an ABSOLUTE
-    // `/shows/:id?edit=true`, so from Entry Management it walked the secretary
-    // to Overview and closing the panel stranded them there. Search-only now,
-    // and the shell strips the param, so the URL is unchanged either side.
+  it('opens the edit panel ON the section the secretary is working in, and leaves them there', () => {
+    // The edit link is search-only and the shell strips the param, so the URL
+    // is unchanged either side of opening and closing the panel.
     renderShell(
       { activeManagementSection: 'entries' },
       '/shows/show-1/entries',

@@ -47,8 +47,11 @@ export const PaymentStep: React.FC<PaymentStepProps> = ({
   // Resolved here, from the same hook the wizard's Next gate and the class step
   // use, rather than threaded down as a prop: one rule, one reader, no chance of
   // this step and the gate disagreeing about whether the zone is known.
-  const { timeZone: entryWindowTimezone, isReady: entryWindowTimezoneReady } =
-    useEntryWindowTimezone(showId);
+  const {
+    timeZone: entryWindowTimezone,
+    isReady: entryWindowTimezoneReady,
+    isUnavailable: entryWindowTimezoneUnavailable,
+  } = useEntryWindowTimezone(showId);
 
   // Resolved by the PAGE and handed down, so the entries panel and these
   // controls can never disagree about how the entry is being paid for. The
@@ -128,11 +131,16 @@ export const PaymentStep: React.FC<PaymentStepProps> = ({
       </div>
 
       {!entryWindowTimezoneReady && (
-        <Alert role="status">
+        // Two states the user experiences very differently, split the way the
+        // capacity alert below already splits them: still reading, and cannot
+        // be read. "Loading" about a failed read describes a wait that never
+        // ends (MYK9-642 N-F3).
+        <Alert role={entryWindowTimezoneUnavailable ? 'alert' : 'status'}>
           <Info className="h-4 w-4" />
           <AlertDescription>
-            Loading show details before totalling this entry. The entry fee depends on the show's
-            own timezone, so nothing is totalled until it is known.
+            {entryWindowTimezoneUnavailable
+              ? 'We could not load this show\u2019s details, so we cannot work out the entry fee. Check your connection and reload the page.'
+              : "Loading show details before totalling this entry. The entry fee depends on the show's own timezone, so nothing is totalled until it is known."}
           </AlertDescription>
         </Alert>
       )}

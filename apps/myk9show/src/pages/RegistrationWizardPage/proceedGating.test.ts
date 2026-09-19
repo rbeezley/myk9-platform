@@ -16,6 +16,7 @@ function ctx(overrides: Partial<ProceedGatingContext>): ProceedGatingContext {
     agreedToEntryAgreement: false,
     capacityReady: true,
     entryWindowTimezoneReady: true,
+    entryWindowTimezoneUnavailable: false,
     blockedClassCount: 0,
     capacityUnavailable: false,
     agreementUnavailable: false,
@@ -113,6 +114,23 @@ describe('proceedBlockedReason', () => {
       expect(
         proceedBlockedReason(ctx({ stepId: 'payment', entryWindowTimezoneReady: false }))
       ).toBe('Loading show details. Please wait, then try again.');
+    });
+
+    it('says the read FAILED rather than asking for more patience', () => {
+      // The same split `capacityUnavailable` makes two branches below, for the
+      // same reason: on the offline desk path "please wait" about a failed read
+      // is the difference between "a moment" and "this device cannot take
+      // entries until you reload", on show day (N-F3).
+      const reason = proceedBlockedReason(
+        ctx({
+          stepId: 'payment',
+          entryWindowTimezoneReady: false,
+          entryWindowTimezoneUnavailable: true,
+        })
+      );
+      expect(reason).toMatch(/could not load/i);
+      expect(reason).toMatch(/reload/i);
+      expect(reason).not.toMatch(/please wait/i);
     });
 
     it('outranks the availability gate, so the user is told the nearer reason', () => {

@@ -60,11 +60,28 @@ vi.mock('@/store/showRegistrationStore', () => ({
 // MYK9-642: PaymentStep and the wizard's Next gate refuse to total an entry
 // until the show's entry-window timezone is resolved from the trial store, so
 // a test that renders them without a hydrated trial store sees the loading
-// state instead of the fees. Nothing here is about the timezone; report it
-// resolved.
-vi.mock('@/hooks/useEntryWindowTimezone', () => ({
-  useEntryWindowTimezone: () => ({ timeZone: 'America/New_York', isReady: true }),
+// state instead of the fees. Nothing here is about the timezone, so it is
+// reported resolved by default — but through a fixture that can be flipped, not
+// a permanent `true`, so at least one case per suite exercises not-ready and a
+// regression in the gate cannot hide behind these mocks (N-F6).
+const entryWindowTimezoneFixture = vi.hoisted(() => ({
+  timeZone: 'America/New_York',
+  isReady: true,
+  isUnavailable: false,
 }));
+vi.mock('@/hooks/useEntryWindowTimezone', () => ({
+  useEntryWindowTimezone: () => entryWindowTimezoneFixture,
+}));
+
+function withUnresolvedShowTimezone(): void {
+  entryWindowTimezoneFixture.isReady = false;
+  entryWindowTimezoneFixture.isUnavailable = false;
+}
+
+function withResolvedShowTimezone(): void {
+  entryWindowTimezoneFixture.isReady = true;
+  entryWindowTimezoneFixture.isUnavailable = false;
+}
 
 vi.mock('@/store/showStore', () => ({
   useShowStore: () => ({
@@ -237,6 +254,7 @@ import RegistrationWizardPage from '../RegistrationWizardPage';
 
 describe('RegistrationWizardPage — Stripe payment handoff', () => {
   beforeEach(() => {
+    withResolvedShowTimezone();
     navigateMock.mockReset();
     submitShowRegistrationMock.mockReset();
     submitRegistrationCartCheckoutMock.mockClear();
@@ -271,6 +289,35 @@ describe('RegistrationWizardPage — Stripe payment handoff', () => {
     await user.click(screen.getByRole('button', { name: 'Next' }));
 
     await waitFor(() => expect(submitRegistrationCartCheckoutMock).toHaveBeenCalledTimes(1));
+    expect(submitShowRegistrationMock).not.toHaveBeenCalled();
+  });
+
+  it('will not hand payment to Stripe while the show timezone is unresolved (MYK9-642)', async () => {
+    // The whole reason the gate exists: the day-of fee tier is decided in the
+    // show's own timezone, so an entry must not leave this page priced from the
+    // America/New_York fallback. Same walk as the test above, one flag flipped.
+    withUnresolvedShowTimezone();
+    const { user } = render(<RegistrationWizardPage />, {
+      initialRoute: '/shows/show-1/register',
+    });
+
+    await waitFor(() =>
+      expect(screen.getByTestId('step-content')).toHaveTextContent('dog-selection')
+    );
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Next' })).not.toBeDisabled());
+    await user.click(screen.getByRole('button', { name: 'Next' }));
+
+    await waitFor(() =>
+      expect(screen.getByTestId('step-content')).toHaveTextContent('class-selection')
+    );
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Next' })).not.toBeDisabled());
+    await user.click(screen.getByRole('button', { name: 'Next' }));
+
+    await waitFor(() => expect(screen.getByTestId('step-content')).toHaveTextContent('payment'));
+
+    // Next is disabled on the payment step, and neither writer ran.
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Next' })).toBeDisabled());
+    expect(submitRegistrationCartCheckoutMock).not.toHaveBeenCalled();
     expect(submitShowRegistrationMock).not.toHaveBeenCalled();
   });
 

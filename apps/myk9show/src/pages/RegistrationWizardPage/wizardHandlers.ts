@@ -58,6 +58,7 @@ export function createWizardHandlers(state: RegistrationWizardState) {
     currentWorkflowConfig,
     entryWindowTimezone,
     entryWindowTimezoneReady,
+    entryWindowTimezoneUnavailable,
     currentStep,
     setCurrentStep,
     setStepCompletionState,
@@ -136,7 +137,9 @@ export function createWizardHandlers(state: RegistrationWizardState) {
       // L-F1). Never submit a fee derived from the fallback zone.
       if (!entryWindowTimezoneReady) {
         notifications.error(
-          'Still loading this show. Wait a moment and try again \u2014 the entry fee depends on the show timezone.'
+          entryWindowTimezoneUnavailable
+            ? 'We could not load this show\u2019s details, so we cannot work out the entry fee. Check your connection and reload the page.'
+            : 'Still loading this show. Wait a moment and try again \u2014 the entry fee depends on the show timezone.'
         );
         return;
       }

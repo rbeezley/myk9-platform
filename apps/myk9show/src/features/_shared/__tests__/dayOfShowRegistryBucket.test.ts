@@ -17,6 +17,7 @@ import {
   countUKCNoseworkEntries,
 } from '@/features/organization-forms/ukcNoseworkTrialReport';
 import { UKC_NOSEWORK_TRIAL_REPORT_FIELDS } from '@/features/organization-forms/ukcNoseworkTrialReportFields';
+import { summarizeShowDayReconciliation } from '@/features/show-workbench/showDayReconciliationSummary';
 import { isDayOfShowEntry } from '../isDayOfShowEntry';
 
 /** The show from the MYK9-642 reproduction. */
@@ -92,5 +93,46 @@ describe('UKC Nosework Trial Report counts follow the shared day-of-show rule', 
       onlineEntries: 0,
       totalEntries: 4,
     });
+  });
+});
+
+describe('The Show Closeout money card follows the same rule (MYK9-642 N-F5)', () => {
+  // `summarizeShowDayReconciliation` is pure and never sees which writer
+  // produced a row, so a fixture with the flag already set proves nothing about
+  // MYK9-642 — that was the round-2 finding, and deleting that test left the
+  // widening with no executable record at all.
+  //
+  // This is the record: the flag is DERIVED here by the shared rule, at the
+  // instant the widening is about (after entries closed, weeks before the show
+  // starts), so the card's count moves if and only if the rule says day-of.
+  // Flip `>` to `>=` on the close boundary, or revert the rule to start-date
+  // only, and this goes red.
+  const entryAt = (submittedOn: string, fee: number) => ({
+    id: `entry-${submittedOn}`,
+    is_day_of_show: isDayOfShowEntry({ ...SHOW, now: new Date(`${submittedOn}T16:00:00Z`) }),
+    entry_fee: fee,
+    payment_status: 'paid',
+    payment_method: 'check',
+  });
+
+  it('counts a mail-in taken after entries closed, weeks before the show', () => {
+    // Entries closed 2026-09-10; this is keyed on the 11th, six days before the
+    // show runs. Nobody took this money at the desk — which is what MYK9-677
+    // asks about — but the registry bucket says day-of, and this card reads the
+    // registry bucket.
+    const summary = summarizeShowDayReconciliation([entryAt('2026-09-11', 35)]);
+
+    expect(summary.lateEntryCount).toBe(1);
+    expect(summary.collectedAmount).toBe(35);
+  });
+
+  it('leaves a genuine pre-entry out of the desk totals', () => {
+    // The positive control: same writer, same card, one day earlier — the close
+    // date itself, when entries are still open.
+    const summary = summarizeShowDayReconciliation([entryAt('2026-09-10', 30)]);
+
+    expect(summary.lateEntryCount).toBe(0);
+    expect(summary.collectedAmount).toBe(0);
+    expect(summary.totalEntryCount).toBe(1);
   });
 });

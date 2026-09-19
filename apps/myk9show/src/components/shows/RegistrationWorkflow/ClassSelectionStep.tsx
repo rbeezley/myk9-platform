@@ -114,7 +114,8 @@ export const ClassSelectionStep: React.FC<ClassSelectionStepProps> = ({
     useClassAvailability(showId);
 
   const show = shows.find(s => s.id === showId);
-  const { timeZone: entryWindowTimezone } = useEntryWindowTimezone(showId);
+  const { timeZone: entryWindowTimezone, isReady: entryWindowTimezoneReady } =
+    useEntryWindowTimezone(showId);
 
   /**
    * Show officials take late entries at the desk for a class already in the
@@ -184,9 +185,16 @@ export const ClassSelectionStep: React.FC<ClassSelectionStepProps> = ({
     // zone the browser happens to be in while the payment step and the server
     // used the show's own — a third answer to the one question MYK9-642 exists
     // to make singular (L-F2).
-    const defaultFee = getClassFee(show ? { ...show, entryWindowTimezone } : undefined, {
-      entryFee: undefined,
-    });
+    // `entryWindowTimezoneReady`, not just the zone (N-F4). No chip renders in
+    // that state today because `showTrials` comes from the same store and is
+    // empty whenever the read is unfinished — but that is an invariant of the
+    // store, not of this component, and the error branch already produces
+    // "trials populated, not ready". Priced from an unresolved zone this would
+    // be a third answer to the question MYK9-642 exists to make singular.
+    const defaultFee = getClassFee(
+      show && entryWindowTimezoneReady ? { ...show, entryWindowTimezone } : undefined,
+      { entryFee: undefined }
+    );
 
     // Keyed by class id, NOT read off the chosen source: the step prefers the
     // replicated class list, and only the availability read knows whether dogs
@@ -332,6 +340,7 @@ export const ClassSelectionStep: React.FC<ClassSelectionStepProps> = ({
     availabilityClasses,
     show,
     entryWindowTimezone,
+    entryWindowTimezoneReady,
     isStaff,
   ]);
   const hasClassGroups = useMemo(

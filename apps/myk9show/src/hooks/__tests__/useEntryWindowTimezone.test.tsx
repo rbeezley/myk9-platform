@@ -1,22 +1,27 @@
 /**
- * MYK9-642 round 1, finding J-F1.
+ * MYK9-642 review rounds 1-3.
  *
- * The show store's replication mapper hardcodes `trials: []`, so the zone the
- * day-of-show rule was fed was always the `America/New_York` fallback. These
- * tests pin the source of truth: the trial store, filtered to this show.
+ * Three facts, three bugs:
+ *   J-F1 — the zone must come from the trial store, not `show.trials` (always []).
+ *   L-F1 — "not read yet" must not be answered with the Eastern fallback.
+ *   N-F2 — `trialsReadStatus` flips to 'ready' on the LOCAL read, zero rows
+ *          included, so "ready" alone is a fact about the device, not the show.
+ *   N-F3 — a failed read is not a wait.
  *
- * Mutation check for this file: make the hook read an empty array instead of
- * the store (i.e. restore the old source) and both "reads the show's real trial
- * timezone" and "uses the FIRST trial by date" go red with
- * `expected 'America/New_York' to be 'America/Chicago'`; hardcode `isReady:
- * true` and the readiness block below goes red.
+ * Mutation checks for this file:
+ *   - make the hook read `[]` instead of the store → the zone cases go red with
+ *     `expected 'America/New_York' to be 'America/Chicago'`.
+ *   - make `isReady` just `readStatus === 'ready'` → the cold-replica case goes
+ *     red (it reports ready with the fallback zone).
+ *   - drop the `isUnavailable` term → the error cases go red.
  *
- * The trial-store stub is built per test and the module re-imported each time,
- * deliberately: a module-scope mutable fixture would be shared state that the
- * shuffled CI run has to be re-proved against.
+ * The trial store and the replication context are stubbed per case behind
+ * `vi.resetModules()`, so this file holds no module-scope mutable state and one
+ * shuffled run settles it.
  */
 
 import { describe, expect, it, vi, afterEach } from 'vitest';
+import React from 'react';
 import { renderHook } from '@testing-library/react';
 
 interface StubTrial {
@@ -26,23 +31,63 @@ interface StubTrial {
   timezone: string;
 }
 
-async function resolve(
-  trials: StubTrial[],
-  showId: string | undefined,
-  trialsReadStatus: 'idle' | 'loading' | 'ready' | 'error' = 'ready'
-): Promise<{ timeZone: string; isReady: boolean }> {
+type ReadStatus = 'idle' | 'loading' | 'ready' | 'error';
+type SyncStatus = 'idle' | 'syncing' | 'success' | 'error';
+
+interface Scenario {
+  trials?: StubTrial[];
+  showId?: string | undefined;
+  readStatus?: ReadStatus;
+  /** Omitted entirely = no ReplicationSyncProvider in the tree. */
+  syncStatus?: SyncStatus | 'no-provider';
+}
+
+const CHICAGO_TRIAL: StubTrial = {
+  id: 'trial-1',
+  showId: 'show-1',
+  trialDate: '2026-11-08',
+  timezone: 'America/Chicago',
+};
+
+async function resolve(scenario: Scenario) {
+  const { trials = [], readStatus = 'ready', syncStatus = 'success' } = scenario;
+  // `in`, not a default: `showId: undefined` is a real case (no show yet) and a
+  // default would silently turn it back into 'show-1'.
+  const showId = 'showId' in scenario ? scenario.showId : 'show-1';
+
   vi.resetModules();
   vi.doMock('@/store/trialStore', () => ({
     useTrialStore: (
-      selector: (state: { trials: StubTrial[]; trialsReadStatus: string }) => unknown
-    ) => selector({ trials, trialsReadStatus }),
+      selector: (state: { trials: StubTrial[]; trialsReadStatus: ReadStatus }) => unknown
+    ) => selector({ trials, trialsReadStatus: readStatus }),
   }));
-  const { useEntryWindowTimezone } = await import('../useEntryWindowTimezone');
-  return renderHook(() => useEntryWindowTimezone(showId)).result.current;
-}
 
-async function resolveZone(trials: StubTrial[], showId: string | undefined): Promise<string> {
-  return (await resolve(trials, showId)).timeZone;
+  const { ReplicationSyncContext } = await import('@/context/ReplicationSyncContext');
+  const { useEntryWindowTimezone } = await import('../useEntryWindowTimezone');
+
+  const wrapper =
+    syncStatus === 'no-provider'
+      ? undefined
+      : ({ children }: { children: React.ReactNode }) =>
+          React.createElement(
+            ReplicationSyncContext.Provider,
+            {
+              value: {
+                status: {
+                  isSyncing: false,
+                  lastSyncAt: null,
+                  error: null,
+                  tablesStatus: { trials: syncStatus },
+                },
+                triggerSync: async () => {},
+                syncTable: async () => {},
+              },
+            },
+            children
+          );
+
+  return renderHook(() => useEntryWindowTimezone(showId), wrapper ? { wrapper } : undefined).result
+    .current;
 }
 
 afterEach(() => {
@@ -50,92 +95,128 @@ afterEach(() => {
   vi.resetModules();
 });
 
-describe('useEntryWindowTimezone', () => {
+describe('useEntryWindowTimezone — the zone (J-F1)', () => {
   it("reads the show's real trial timezone, not the America/New_York fallback", async () => {
-    await expect(
-      resolveZone(
-        [{ id: 'trial-1', showId: 'show-1', trialDate: '2026-11-08', timezone: 'America/Chicago' }],
-        'show-1'
-      )
-    ).resolves.toBe('America/Chicago');
+    await expect(resolve({ trials: [CHICAGO_TRIAL] })).resolves.toMatchObject({
+      timeZone: 'America/Chicago',
+      isReady: true,
+    });
   });
 
   it('ignores trials belonging to another show', async () => {
     await expect(
-      resolveZone(
-        [{ id: 'other', showId: 'show-2', trialDate: '2026-11-08', timezone: 'America/Chicago' }],
-        'show-1'
-      )
-    ).resolves.toBe('America/New_York');
+      resolve({ trials: [{ ...CHICAGO_TRIAL, id: 'other', showId: 'show-2' }] })
+    ).resolves.toMatchObject({ timeZone: 'America/New_York' });
   });
 
   it('uses the FIRST trial by date when a show spans zones', async () => {
     // Same ordering as `submit_show_entries` (`ORDER BY t.date NULLS LAST, t.id`).
     await expect(
-      resolveZone(
-        [
+      resolve({
+        trials: [
           { id: 'sun', showId: 'show-1', trialDate: '2026-11-09', timezone: 'America/Denver' },
-          { id: 'sat', showId: 'show-1', trialDate: '2026-11-08', timezone: 'America/Chicago' },
+          CHICAGO_TRIAL,
         ],
-        'show-1'
-      )
-    ).resolves.toBe('America/Chicago');
-  });
-
-  it('falls back when no trials are loaded yet', async () => {
-    await expect(resolveZone([], 'show-1')).resolves.toBe('America/New_York');
+      })
+    ).resolves.toMatchObject({ timeZone: 'America/Chicago' });
   });
 
   it('falls back when the show id is absent', async () => {
-    await expect(
-      resolveZone(
-        [{ id: 'trial-1', showId: 'show-1', trialDate: '2026-11-08', timezone: 'America/Chicago' }],
-        undefined
-      )
-    ).resolves.toBe('America/New_York');
+    await expect(resolve({ trials: [CHICAGO_TRIAL], showId: undefined })).resolves.toMatchObject({
+      timeZone: 'America/New_York',
+    });
   });
 });
 
-describe('useEntryWindowTimezone — readiness (MYK9-642 round 2, L-F1)', () => {
-  const CHICAGO_TRIAL = {
-    id: 'trial-1',
-    showId: 'show-1',
-    trialDate: '2026-11-08',
-    timezone: 'America/Chicago',
-  };
+describe('useEntryWindowTimezone — readiness (L-F1)', () => {
+  it('is NOT ready while the local read is idle or loading', async () => {
+    for (const readStatus of ['idle', 'loading'] as const) {
+      await expect(resolve({ readStatus })).resolves.toEqual({
+        timeZone: 'America/New_York',
+        isReady: false,
+        isUnavailable: false,
+      });
+    }
+  });
 
-  it('is NOT ready while the trial read is idle or loading, even though a zone is returned', async () => {
-    // The zone it returns mid-hydration is the America/New_York fallback — the
-    // exact value MYK9-642 round 1 removed everywhere else. Callers must gate
-    // on isReady rather than trust it.
-    await expect(resolve([], 'show-1', 'idle')).resolves.toEqual({
-      timeZone: 'America/New_York',
-      isReady: false,
+  it("is ready the moment this show's trials are in hand, whatever else is still running", async () => {
+    await expect(
+      resolve({ trials: [CHICAGO_TRIAL], readStatus: 'loading', syncStatus: 'syncing' })
+    ).resolves.toMatchObject({ timeZone: 'America/Chicago', isReady: true });
+  });
+});
+
+describe('useEntryWindowTimezone — a cold replica is not a show without trials (N-F2)', () => {
+  // `trialsReadStatus` becomes 'ready' as soon as the LOCAL IndexedDB read
+  // returns, zero rows included; the network download runs after that. Treating
+  // that as "this show has no trials" reinstates the Eastern fallback on a first
+  // visit, a cleared profile, or a show whose trials have not synced — which is
+  // L-F1 all over again, one level down.
+  it('is NOT ready when the local read finished empty and the sync has not landed', async () => {
+    for (const syncStatus of ['idle', 'syncing'] as const) {
+      await expect(resolve({ readStatus: 'ready', syncStatus })).resolves.toEqual({
+        timeZone: 'America/New_York',
+        isReady: false,
+        isUnavailable: false,
+      });
+    }
+  });
+
+  it('opens only once the rows arrive', async () => {
+    const cold = await resolve({ readStatus: 'ready', syncStatus: 'syncing' });
+    expect(cold).toMatchObject({ isReady: false, timeZone: 'America/New_York' });
+
+    const warm = await resolve({
+      trials: [CHICAGO_TRIAL],
+      readStatus: 'ready',
+      syncStatus: 'syncing',
     });
-    await expect(resolve([], 'show-1', 'loading')).resolves.toEqual({
+    expect(warm).toMatchObject({ isReady: true, timeZone: 'America/Chicago' });
+  });
+
+  it('is ready for a show that genuinely has no trials — once the sync says so', async () => {
+    // The distinction the whole finding is about: "no trials for this show" is
+    // only a fact once a completed download says it is.
+    await expect(resolve({ readStatus: 'ready', syncStatus: 'success' })).resolves.toEqual({
       timeZone: 'America/New_York',
-      isReady: false,
+      isReady: true,
+      isUnavailable: false,
     });
   });
 
-  it('is NOT ready when the trial read failed', async () => {
-    await expect(resolve([CHICAGO_TRIAL], 'show-1', 'error')).resolves.toEqual({
-      timeZone: 'America/Chicago',
+  it('is NOT ready without a replication provider to confirm the download', async () => {
+    await expect(
+      resolve({ readStatus: 'ready', syncStatus: 'no-provider' })
+    ).resolves.toMatchObject({ isReady: false, isUnavailable: false });
+  });
+});
+
+describe('useEntryWindowTimezone — a failed read is not a wait (N-F3)', () => {
+  it('reports unavailable when the local read failed', async () => {
+    await expect(resolve({ readStatus: 'error' })).resolves.toEqual({
+      timeZone: 'America/New_York',
       isReady: false,
+      isUnavailable: true,
     });
   });
 
-  it('is ready once the read finished, with the real zone', async () => {
-    await expect(resolve([CHICAGO_TRIAL], 'show-1', 'ready')).resolves.toEqual({
+  it('reports unavailable when the trials sync failed with nothing cached', async () => {
+    await expect(resolve({ readStatus: 'ready', syncStatus: 'error' })).resolves.toEqual({
+      timeZone: 'America/New_York',
+      isReady: false,
+      isUnavailable: true,
+    });
+  });
+
+  it('is NOT unavailable when a refresh failed but this show’s trials are cached', async () => {
+    // A failed background refresh must not take down a wizard that has what it
+    // needs; the zone in hand is real.
+    await expect(
+      resolve({ trials: [CHICAGO_TRIAL], readStatus: 'error', syncStatus: 'error' })
+    ).resolves.toEqual({
       timeZone: 'America/Chicago',
       isReady: true,
-    });
-  });
-
-  it('is ready for a show that genuinely has no trials — that is not the same as not loaded', async () => {
-    await expect(resolve([], 'show-1', 'ready')).resolves.toEqual({
-      timeZone: 'America/New_York',
-      isReady: true,
+      isUnavailable: false,
     });
   });
 });

@@ -135,8 +135,12 @@ export function useRegistrationWizardState() {
   // with that same fallback, and this wizard can mount straight onto Payment
   // with a Submit button (see useWizardDraftRehydration). An unresolved zone is
   // its own state, never Eastern.
-  const { timeZone: entryWindowTimezone, isReady: entryWindowTimezoneReady } =
-    useEntryWindowTimezone(showId);
+  const entryWindowTimezoneState = useEntryWindowTimezone(showId);
+  const {
+    timeZone: entryWindowTimezone,
+    isReady: entryWindowTimezoneReady,
+    isUnavailable: entryWindowTimezoneUnavailable,
+  } = entryWindowTimezoneState;
 
   // Derived from role flags, not RegistrationContext.mode — that value defaults
   // to 'exhibitor' while RBAC loads, which would hide the secretary search UI.
@@ -528,6 +532,7 @@ export function useRegistrationWizardState() {
     agreedToEntryAgreement,
     capacityReady,
     entryWindowTimezoneReady,
+    entryWindowTimezoneUnavailable,
     blockedClassCount: registrationCapacity.blockedClassIds.size,
     capacityUnavailable,
   });
@@ -649,6 +654,8 @@ export function useRegistrationWizardState() {
     entryCloseAvailability,
     entryWindowTimezone,
     entryWindowTimezoneReady,
+    entryWindowTimezoneUnavailable,
+    entryWindowTimezoneState,
     ownerResolution,
     proceedBlocked,
     canProceed,

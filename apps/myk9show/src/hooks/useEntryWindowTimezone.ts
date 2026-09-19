@@ -1,29 +1,45 @@
 /**
- * The show's entry-window timezone, read from the trials that are actually
- * loaded, plus whether that read has finished (MYK9-642, review rounds 1-2).
+ * The show's entry-window timezone, and whether we actually KNOW it
+ * (MYK9-642, review rounds 1-3).
  *
- * TWO facts, because collapsing them is the bug. `useShowStore`'s replication
- * mapper sets `trials: []` unconditionally ("Local-only: managed by trialStore")
- * and nothing ever fills it, so `getEntryWindowTimezone(show.trials)` was always
- * the `America/New_York` fallback. Reading the trial store instead fixes that —
- * but "not loaded yet" and "no trials" both still resolve to the same fallback
- * string, and the wizard can mount straight onto the Payment step with a Submit
- * button (`useWizardDraftRehydration`: a reload, or the return from a cancelled
- * Stripe checkout) while `loadTrials()` is still reading IndexedDB.
+ * THREE facts, because every collapse of them has been a money bug:
  *
- * The day-of-show rule reads "today" in this zone and `submit_show_entries`
- * reads it in the show's real first-trial zone, so during that window the client
- * can quote a tier the server will not charge — and `submitOfflineLateEntry`
- * writes `entry_fee` and `is_day_of_show` straight through replication with no
- * server to correct it. Callers must treat `isReady === false` as "we do not
- * know yet", never as Eastern.
+ *   J-F1 — `useShowStore`'s mapper sets `trials: []` unconditionally and
+ *   nothing ever fills it, so `getEntryWindowTimezone(show.trials)` was always
+ *   the `America/New_York` fallback. Read the trial store instead.
  *
- * `trialsReadStatus` is the same signal `WorkflowStepContent` already uses to
- * refuse a mid-hydration trial row, for the same reason: no marker is better
- * than a wrong one.
+ *   L-F1 — "the trial read has not finished" and "this show has no trials" both
+ *   still resolve to that fallback, and the wizard can mount straight onto the
+ *   Payment step with a Submit button (`useWizardDraftRehydration`: a reload, or
+ *   the return from a cancelled Stripe checkout). So readiness is its own fact.
+ *
+ *   N-F2 — `trialsReadStatus` flips to 'ready' when the LOCAL IndexedDB read
+ *   returns, including when it returns zero rows; the network download runs
+ *   after that. A cold or lagging replica therefore reported "ready" with the
+ *   fallback zone — L-F1 again, one level down. Readiness now means: the local
+ *   read finished AND either this show's trials are actually here, or the
+ *   replication sync for `trials` has completed (so "no trials" is a fact about
+ *   the show rather than about the device).
+ *
+ *   N-F3 — a failed read is not a wait. `isUnavailable` separates "we cannot
+ *   read this" from "we are still reading", exactly as `capacityUnavailable`
+ *   does for class availability in `proceedGating`, so the UI never tells
+ *   someone at a desk to wait for something that will not arrive.
+ *
+ * Why it matters: the day-of-show fee tier is decided in this zone and
+ * `submit_show_entries` decides it in the show's real first-trial zone, so a
+ * wrong zone quotes a tier the server will not charge — and
+ * `submitOfflineLateEntry` writes `entry_fee` and `is_day_of_show` straight
+ * through replication with no server to correct it.
+ *
+ * `trialsReadStatus` is the same signal `WorkflowStepContent` uses to refuse a
+ * mid-hydration trial row, for the reason it states: no marker is better than a
+ * wrong one.
  */
 
+import { useContext } from 'react';
 import { useTrialStore } from '@/store/trialStore';
+import { ReplicationSyncContext } from '@/context/ReplicationSyncContext';
 import { getEntryWindowTimezone, type EntryWindowTrial } from '@/utils/entryWindowDate';
 import type { Trial } from '@/store/trial-store-types';
 
@@ -31,27 +47,55 @@ export interface EntryWindowTimezone {
   /**
    * The resolved IANA zone. Always a usable string — it is the documented
    * fallback while `isReady` is false, which is exactly why `isReady` exists.
+   * Never price an entry from it unless `isReady`.
    */
   timeZone: string;
-  /** False while the trial read is idle/loading/failed: the zone is a guess. */
+  /** The zone is known: trust it for the fee tier and the registry bucket. */
   isReady: boolean;
+  /**
+   * The zone could not be read at all, as opposed to not being read YET.
+   * Callers must say so rather than asking the user to keep waiting.
+   */
+  isUnavailable: boolean;
+}
+
+function trialsForShow(
+  trials: readonly Trial[] | undefined,
+  showId: string | undefined
+): EntryWindowTrial[] {
+  if (!showId) return [];
+  return (trials ?? [])
+    .filter(trial => trial.showId === showId)
+    .map(trial => ({ id: trial.id, date: trial.trialDate, timezone: trial.timezone }));
 }
 
 function resolveZone(trials: readonly Trial[] | undefined, showId: string | undefined): string {
   if (!showId) return getEntryWindowTimezone(undefined);
-  const showTrials: EntryWindowTrial[] = (trials ?? [])
-    .filter(trial => trial.showId === showId)
-    .map(trial => ({ id: trial.id, date: trial.trialDate, timezone: trial.timezone }));
-  return getEntryWindowTimezone(showTrials);
+  return getEntryWindowTimezone(trialsForShow(trials, showId));
 }
 
 export function useEntryWindowTimezone(showId: string | undefined): EntryWindowTimezone {
-  // Resolved INSIDE the selector so the subscription's value is a string.
-  // Trials replicate globally (the provider mounts with no `syncScopeId`), and
+  // Resolved INSIDE the selectors so every subscription value is a primitive.
+  // Trials replicate globally (the provider mounts with no `syncScopeId`) and
   // every merge sets a fresh array identity, so subscribing to `state.trials`
-  // re-rendered the whole wizard on any trial change anywhere.
+  // re-rendered the whole wizard on any trial change anywhere (L-F5).
   const timeZone = useTrialStore(state => resolveZone(state.trials, showId));
-  const isReady = useTrialStore(state => state.trialsReadStatus === 'ready');
+  const hasShowTrials = useTrialStore(state => trialsForShow(state.trials, showId).length > 0);
+  const readStatus = useTrialStore(state => state.trialsReadStatus);
 
-  return { timeZone, isReady };
+  // Read through the context rather than `useReplicationSync`, which throws
+  // without a provider: this hook is called from components whose tests mount
+  // them bare, and "no provider" is simply "no completion signal" — which the
+  // rule below already treats as not-settled.
+  const syncContext = useContext(ReplicationSyncContext);
+  const trialsSyncStatus = syncContext?.status.tablesStatus.trials;
+
+  const localReadFinished = readStatus === 'ready';
+  const syncSettled = trialsSyncStatus === 'success';
+  // A trial for THIS show in hand beats every other signal: the zone is real,
+  // whatever a later refresh did.
+  const isReady = hasShowTrials || (localReadFinished && syncSettled);
+  const isUnavailable = !isReady && (readStatus === 'error' || trialsSyncStatus === 'error');
+
+  return { timeZone, isReady, isUnavailable };
 }

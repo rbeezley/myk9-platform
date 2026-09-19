@@ -34,9 +34,17 @@ export interface ProceedGatingContext {
    * resolves the rule answers with the `America/New_York` fallback — so the
    * amount on screen may be a tier the server will not charge, and the offline
    * desk path would WRITE that amount with no server to correct it (MYK9-642
-   * L-F1). Distinct from every other gate here: it always resolves on its own.
+   * L-F1).
    */
   entryWindowTimezoneReady: boolean;
+  /**
+   * The zone could not be READ, as opposed to not having been read yet — the
+   * same split `capacityUnavailable` makes below, for the same reason: "please
+   * wait" describes a wait that never ends, and on the offline desk path that
+   * is the difference between "a moment" and "this device cannot take entries
+   * until you reload" on show day (MYK9-642 N-F3).
+   */
+  entryWindowTimezoneUnavailable: boolean;
   blockedClassCount: number;
   /**
    * True when availability could not be read at all (offline, or the query
@@ -72,7 +80,11 @@ export function proceedBlockedReason(ctx: ProceedGatingContext): string | null {
       return null;
     case 'payment':
       // First: without the show's timezone there is no trustworthy total to
-      // agree to, so nothing below this can be decided either.
+      // agree to, so nothing below this can be decided either. Unavailable
+      // outranks loading — never ask someone to wait for a failed read.
+      if (ctx.entryWindowTimezoneUnavailable) {
+        return 'We could not load this show\u2019s details, so we cannot work out the entry fee. Check your connection and reload the page.';
+      }
       if (!ctx.entryWindowTimezoneReady) {
         return 'Loading show details. Please wait, then try again.';
       }

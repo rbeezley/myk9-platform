@@ -50,11 +50,28 @@ vi.mock('@/hooks/useClassStoreCompat', () => ({
 // MYK9-642: PaymentStep and the wizard's Next gate refuse to total an entry
 // until the show's entry-window timezone is resolved from the trial store, so
 // a test that renders them without a hydrated trial store sees the loading
-// state instead of the fees. Nothing here is about the timezone; report it
-// resolved.
-vi.mock('@/hooks/useEntryWindowTimezone', () => ({
-  useEntryWindowTimezone: () => ({ timeZone: 'America/New_York', isReady: true }),
+// state instead of the fees. Nothing here is about the timezone, so it is
+// reported resolved by default — but through a fixture that can be flipped, not
+// a permanent `true`, so at least one case per suite exercises not-ready and a
+// regression in the gate cannot hide behind these mocks (N-F6).
+const entryWindowTimezoneFixture = vi.hoisted(() => ({
+  timeZone: 'America/New_York',
+  isReady: true,
+  isUnavailable: false,
 }));
+vi.mock('@/hooks/useEntryWindowTimezone', () => ({
+  useEntryWindowTimezone: () => entryWindowTimezoneFixture,
+}));
+
+function withUnresolvedShowTimezone(): void {
+  entryWindowTimezoneFixture.isReady = false;
+  entryWindowTimezoneFixture.isUnavailable = false;
+}
+
+function withResolvedShowTimezone(): void {
+  entryWindowTimezoneFixture.isReady = true;
+  entryWindowTimezoneFixture.isUnavailable = false;
+}
 
 vi.mock('@/store/showStore', () => ({
   useShowStore: () => ({
@@ -105,7 +122,23 @@ describe('Phase 3.5: Payment Component Tests', () => {
     };
 
     beforeEach(() => {
+      withResolvedShowTimezone();
       vi.clearAllMocks();
+    });
+
+    it('renders no fee calculation while the show timezone is unresolved (MYK9-642)', () => {
+      // The fee tier is decided in the show's own timezone; until it resolves
+      // this step must show no total rather than one from the fallback.
+      withUnresolvedShowTimezone();
+      render(
+        <PaymentStep
+          paymentResolution={makePaymentResolution({ paymentMethod: 'credit_card' })}
+          {...defaultProps}
+        />
+      );
+
+      expect(screen.getByText(/Loading show details before totalling this entry/i)).toBeVisible();
+      expect(screen.queryByText('Secretary Payment Management')).toBeNull();
     });
 
     it('should render payment step with fee calculation', () => {

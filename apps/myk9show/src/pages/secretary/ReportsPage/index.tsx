@@ -454,6 +454,8 @@ export default function ReportsPage() {
               scope={effectiveScope}
               sortOrder={sortOrder}
               isLoading={isLoading}
+              isUnavailable={dataState === 'unavailable'}
+              isError={isError}
               iframeRef={iframeRef}
             />
             <iframe ref={iframeRef} title="Label Print" style={{ display: 'none' }} />

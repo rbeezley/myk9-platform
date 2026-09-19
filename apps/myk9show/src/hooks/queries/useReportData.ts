@@ -138,7 +138,7 @@ export function useReportData({ show, trialId, classId }: UseReportDataOptions) 
   // trial set for every downstream consumer so controls cannot advertise a
   // trial that previews/classes did not load.
   const hasCurrentReportTrials =
-    Boolean(trialsQuery.data?.length) && !trialsQuery.isPlaceholderData;
+    trialsQuery.data !== undefined && !trialsQuery.isPlaceholderData;
   const reportTrials =
     hasCurrentReportTrials || !show?.trials?.length
       ? trialsQuery.data

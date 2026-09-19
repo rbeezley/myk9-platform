@@ -31,6 +31,8 @@ interface ResultLabelsReportProps {
   scope: ReportScope;
   sortOrder: string;
   isLoading?: boolean;
+  isUnavailable?: boolean;
+  isError?: boolean;
   iframeRef?: React.RefObject<HTMLIFrameElement | null>;
 }
 
@@ -42,6 +44,8 @@ export const ResultLabelsReport: React.FC<ResultLabelsReportProps> = ({
   scope,
   sortOrder,
   isLoading = false,
+  isUnavailable = false,
+  isError = false,
   iframeRef,
 }) => {
   const [templateId, setTemplateId] = useState(DEFAULT_RESULT_TEMPLATE_ID);
@@ -188,8 +192,20 @@ export const ResultLabelsReport: React.FC<ResultLabelsReportProps> = ({
         </div>
       )}
 
+      {isUnavailable && !isLoading && (
+        <div role="status" aria-live="polite" className="p-8 text-center text-muted-foreground">
+          Entry data is unavailable right now. Reconnect and try again before printing.
+        </div>
+      )}
+
+      {isError && !isLoading && (
+        <div role="alert" className="p-8 text-center text-destructive">
+          Entry data could not be loaded. Try again before printing.
+        </div>
+      )}
+
       {/* Empty state */}
-      {!isLoading && items.length === 0 && (
+      {!isLoading && !isUnavailable && !isError && items.length === 0 && (
         <div
           role="status"
           aria-live="polite"

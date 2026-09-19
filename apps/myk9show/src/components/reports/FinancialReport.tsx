@@ -47,8 +47,8 @@ export const FinancialReport: React.FC<ReportProps> = ({
       {totals.unresolvedMoneyRoots.length === 1
         ? "1 entry's fee and payment could not be matched to the run that earned them, so they are not included below."
         : `${totals.unresolvedMoneyRoots.length} entries' fees and payments could not be matched to the runs that earned them, so they are not included below.`}{' '}
-      This happens when a dog was moved up from a class outside this report — run it at show
-      scope — or when a superseded entry has no live entry to carry it.
+      This happens when a dog was moved up from a class outside this report — run it at show scope —
+      or when a superseded entry has no live entry to carry it.
     </p>
   );
 

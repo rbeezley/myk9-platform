@@ -23,11 +23,29 @@ export interface HandlerReference {
   handler_id?: string | null | undefined;
   handlerId?: string | null | undefined;
   handler_person?: HandlerPersonRow | null | undefined;
+  dog?: {
+    owner?: {
+      id?: string | null | undefined;
+      first_name?: string | null | undefined;
+      last_name?: string | null | undefined;
+    } | null;
+  } | null;
 }
 
 export function handlerIdFor(reference: HandlerReference): string | undefined {
   const handlerId = reference.handlerId ?? reference.handler_id;
   return handlerId?.trim() || undefined;
+}
+
+function ownerIdFor(reference: HandlerReference): string | undefined {
+  return reference.dog?.owner?.id?.trim() || undefined;
+}
+
+function ownerNeedsHydration(reference: HandlerReference): boolean {
+  const owner = reference.dog?.owner;
+  return Boolean(
+    ownerIdFor(reference) && (!owner?.first_name?.trim() || !owner?.last_name?.trim())
+  );
 }
 
 function normalizeCachedPerson(
@@ -90,12 +108,13 @@ export async function loadHandlerPeople(
 export async function loadMissingHandlerPeopleMap(
   entries: readonly HandlerReference[]
 ): Promise<Map<string, HandlerPersonRow>> {
-  return loadHandlerPeople(
-    entries
-      .filter(entry => !entry.handler?.trim() && !entry.handler_person)
-      .map(handlerIdFor)
-      .filter((id): id is string => Boolean(id))
-  );
+  const ids = entries.flatMap(entry => {
+    const handlerId =
+      !entry.handler?.trim() && !entry.handler_person ? handlerIdFor(entry) : undefined;
+    const ownerId = ownerNeedsHydration(entry) ? ownerIdFor(entry) : undefined;
+    return [handlerId, ownerId].filter((id): id is string => Boolean(id));
+  });
+  return loadHandlerPeople(ids);
 }
 
 export function attachHandlerPerson<T extends Record<string, unknown>>(
@@ -105,7 +124,27 @@ export function attachHandlerPerson<T extends Record<string, unknown>>(
 ): T {
   const handlerId = handlerIdFor(entry);
   const person = handlerId ? people.get(handlerId) : undefined;
-  return (person ? { ...row, handler_person: person } : row) as T;
+  const ownerId = ownerIdFor(entry);
+  const ownerPerson = ownerId ? people.get(ownerId) : undefined;
+  if (!person && !ownerPerson) return row;
+
+  const hydrated = { ...row } as T & {
+    handler_person?: HandlerPersonRow | null;
+    dog?: Record<string, unknown> | null;
+  };
+  if (person) hydrated.handler_person = person;
+  if (ownerPerson && hydrated.dog?.owner && typeof hydrated.dog.owner === 'object') {
+    hydrated.dog = {
+      ...hydrated.dog,
+      owner: {
+        ...(hydrated.dog.owner as Record<string, unknown>),
+        id: ownerPerson.id,
+        first_name: ownerPerson.first_name,
+        last_name: ownerPerson.last_name,
+      },
+    };
+  }
+  return hydrated as T;
 }
 
 export async function hydrateMissingHandlerPeople<T extends Record<string, unknown>>(

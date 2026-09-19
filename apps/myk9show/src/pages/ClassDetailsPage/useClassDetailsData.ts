@@ -83,6 +83,14 @@ export function secretaryEntryToRawRow(entry: SecretaryEntry): RawEntryRow {
   };
 }
 
+export function selectEffectiveRawEntries(
+  useStaffEntrySource: boolean,
+  staffEntries: readonly RawEntryRow[],
+  databaseEntries: readonly RawEntryRow[]
+): readonly RawEntryRow[] {
+  return useStaffEntrySource ? staffEntries : databaseEntries;
+}
+
 /**
  * Transform a local ShowEntry (from useEntryStore) into ClassEntryDisplay.
  */
@@ -248,7 +256,10 @@ export function useClassDetailsData() {
         .map(secretaryEntryToRawRow),
     [classId, staffShowEntries.data]
   );
-  const effectiveRawEntries = useStaffEntrySource ? staffClassEntries : dbRawEntries;
+  const effectiveRawEntries = useMemo(
+    () => selectEffectiveRawEntries(useStaffEntrySource, staffClassEntries, dbRawEntries),
+    [useStaffEntrySource, staffClassEntries, dbRawEntries]
+  );
   const staffEntriesError = staffShowEntries.isError
     ? staffShowEntries.error instanceof Error
       ? staffShowEntries.error.message
@@ -326,7 +337,7 @@ export function useClassDetailsData() {
     });
 
     return merged;
-  }, [dbEntries, dbRawEntries, localEntries, dogsById]);
+  }, [dbEntries, effectiveRawEntries, localEntries, dogsById]);
 
   return {
     // URL params

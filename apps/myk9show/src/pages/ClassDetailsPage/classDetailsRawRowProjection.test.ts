@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { secretaryEntryToRawRow } from './useClassDetailsData';
+import { secretaryEntryToRawRow, selectEffectiveRawEntries } from './useClassDetailsData';
+import type { RawEntryRow } from '@/hooks/queries/useClassEntriesRaw';
 import { buildClassReadinessSummary, type ClassReadinessEntry } from './classReadiness';
 import type { SecretaryEntry } from '@/services/database/entries';
 
@@ -59,6 +60,14 @@ function secretaryEntry(overrides: Partial<SecretaryEntry>): SecretaryEntry {
 const CLASS_INPUT = { status: 'setup' };
 
 describe('secretaryEntryToRawRow feeding buildClassReadinessSummary', () => {
+  it('updates the effective source when staff rows replace database rows', () => {
+    const databaseRows = [{ id: 'database-row' }] as RawEntryRow[];
+    const staffRows = [{ id: 'staff-row' }] as RawEntryRow[];
+
+    expect(selectEffectiveRawEntries(true, staffRows, databaseRows)).toBe(staffRows);
+    expect(selectEffectiveRawEntries(false, staffRows, databaseRows)).toBe(databaseRows);
+  });
+
   it('does not report Payment due for the money-neutral destination of a move-up', () => {
     const rows = [
       secretaryEntry({ id: SOURCE_ID, entry_status: 'moved', payment_status: 'paid' }),

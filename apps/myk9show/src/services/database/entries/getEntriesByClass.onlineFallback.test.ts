@@ -245,6 +245,32 @@ describe('entry identity hydration contract', () => {
       handler_person: { first_name: 'Alex', last_name: 'Assigned' },
     });
   });
+
+  it('hydrates owner names for owner-only offline rows at the class scope', async () => {
+    mockDogsTable.getAllDogs.mockResolvedValue([
+      { id: 'dog-1', name: 'Buddy', breed: 'Golden Retriever', ownerId: 'owner-1' },
+    ]);
+    mockEntriesTable.getEntriesByClass.mockResolvedValue([
+      {
+        id: 'entry-owner-only',
+        dogId: 'dog-1',
+        classId: 'c1',
+        showId: 's1',
+        handler: null,
+        handlerId: null,
+        deletedAt: null,
+        entryStatus: 'confirmed',
+        runOrder: 1,
+      },
+    ]);
+    peopleRows = [{ id: 'owner-1', first_name: 'Owner', last_name: 'Fallback' }];
+
+    const result = await getEntriesByClass('c1');
+
+    expect(result.data[0]).toMatchObject({
+      dog: { owner: { id: 'owner-1', first_name: 'Owner', last_name: 'Fallback' } },
+    });
+  });
 });
 
 describe('getEntriesByTrial — cold local replica verifies online', () => {

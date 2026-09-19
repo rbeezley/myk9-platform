@@ -179,22 +179,42 @@ export const updateUser = async (id: string, updates: DbUserUpdateWithPrivate) =
     const hasPrivateUpdate =
       privateFields.date_of_birth !== undefined ||
       privateFields.junior_handler_numbers !== undefined;
+
+    // Validate identity changes before touching the private boundary. This
+    // keeps a rejected email change from leaving a private write behind.
+    if (updates.email !== undefined) {
+      const decision = await checkSignInEmailChange(id, updates.email);
+      if (!decision.allowed) {
+        throw Object.assign(new Error(decision.message), { code: decision.code });
+      }
+      if (decision.reason === 'unchanged') {
+        // Same address, but possibly padded or differently cased. Do not
+        // rewrite the stored identity value.
+        updates = { ...updates };
+        delete updates.email;
+      } else {
+        requireUnlinked = true;
+      }
+    }
+
     let savedPrivate: Awaited<ReturnType<typeof savePeoplePrivateProfile>>['data'] = null;
+    let previousPrivate: Awaited<ReturnType<typeof savePeoplePrivateProfile>>['data'] = null;
     if (hasPrivateUpdate) {
       const { byPersonId, readComplete } = await loadPeoplePrivateProfiles([id]);
       const currentPrivate = byPersonId.get(id);
       const needsExistingDate = privateFields.date_of_birth === undefined;
       const needsExistingNumbers = privateFields.junior_handler_numbers === undefined;
-      if ((!readComplete || !currentPrivate) && (needsExistingDate || needsExistingNumbers)) {
+      if (!readComplete && (needsExistingDate || needsExistingNumbers)) {
         throw new Error('Private person fields are unavailable; refusing an unsafe partial update');
       }
+      previousPrivate = currentPrivate ?? null;
       const privateResult = await savePeoplePrivateProfile({
         personId: id,
         dateOfBirth:
           privateFields.date_of_birth !== undefined
             ? privateFields.date_of_birth
             : (currentPrivate?.dateOfBirth ?? null),
-          juniorHandlerNumbers:
+        juniorHandlerNumbers:
           privateFields.junior_handler_numbers !== undefined
             ? normalizeJuniorHandlerNumbers(privateFields.junior_handler_numbers)
             : (currentPrivate?.juniorHandlerNumbers ?? {}),
@@ -211,23 +231,6 @@ export const updateUser = async (id: string, updates: DbUserUpdateWithPrivate) =
     const payload = { ...updates } as DbUserUpdate;
     delete (payload as PrivateUserFields).date_of_birth;
     delete (payload as PrivateUserFields).junior_handler_numbers;
-    if (updates.email !== undefined) {
-      const decision = await checkSignInEmailChange(id, updates.email);
-      if (!decision.allowed) {
-        throw Object.assign(new Error(decision.message), { code: decision.code });
-      }
-      if (decision.reason === 'unchanged') {
-        // Same address, but possibly padded or differently cased. Writing that
-        // variant back would still change the stored identity value, and
-        // `handle_new_user()` matches on `LOWER(email)` with no trim — so
-        // "  ada@example.com  " reads as a different person at signup. Nothing
-        // changed, so touch nothing.
-        delete payload.email;
-      } else {
-        requireUnlinked = true;
-      }
-    }
-
     let query = supabase
       .from('people')
       .update({
@@ -253,6 +256,20 @@ export const updateUser = async (id: string, updates: DbUserUpdateWithPrivate) =
     logQuery('user', 'update', duration, error?.message);
 
     if (error) {
+      if (hasPrivateUpdate && savedPrivate) {
+        const rollback = await savePeoplePrivateProfile({
+          personId: id,
+          dateOfBirth: previousPrivate?.dateOfBirth ?? null,
+          juniorHandlerNumbers: previousPrivate?.juniorHandlerNumbers ?? {},
+        });
+        if (rollback.error || !rollback.data) {
+          throw new Error(
+            `Public person update failed and private rollback failed: ${
+              rollback.error?.message || 'no rollback row returned'
+            }`
+          );
+        }
+      }
       // The filter matched nothing: the row existed and was unlinked a moment
       // ago, so it has just been adopted. Report the refusal, not a bare
       // "no rows" from a filter the caller never asked for. Narrow to that one
@@ -499,6 +516,19 @@ export const getDeletedUserById = async (id: string) => {
     const person = rows.find(row => row.id === id) ?? null;
     if (!person) return { data: null, error: null };
 
+    const { byPersonId: privateProfiles, readComplete } = await loadPeoplePrivateProfiles([id]);
+    if (!readComplete) {
+      throw new Error('Private person fields are unavailable; refusing incomplete hydration');
+    }
+    const privateProfile = privateProfiles.get(id);
+    const personWithPrivate = privateProfile
+      ? {
+          ...person,
+          date_of_birth: privateProfile.dateOfBirth,
+          junior_handler_numbers: privateProfile.juniorHandlerNumbers,
+        }
+      : person;
+
     // The RPC returns SETOF public.people — the row and nothing else — while
     // Live `getUserById` hydrates current role labels through a scoped RPC, but
     // a removed-person record intentionally needs the historical roles held at
@@ -555,7 +585,7 @@ export const getDeletedUserById = async (id: string) => {
     // removal, so drop it. For new removals, an inactive grant must also carry
     // this removal's timestamp. Legacy inactive rows without a stamp are kept
     // because the old schema cannot distinguish their history.
-    const removedAt = (person as { deleted_at?: string | null }).deleted_at;
+    const removedAt = (personWithPrivate as { deleted_at?: string | null }).deleted_at;
     const heldAtRemoval = (roleRows ?? []).filter(row => {
       const expiresAt = (row as { expires_at?: string | null }).expires_at;
       if (expiresAt && removedAt && new Date(expiresAt) <= new Date(removedAt)) {
@@ -570,7 +600,7 @@ export const getDeletedUserById = async (id: string) => {
       return new Date(deactivatedAt).getTime() === new Date(removedAt).getTime();
     });
 
-    return { data: { ...person, user_roles: heldAtRemoval }, error: null };
+    return { data: { ...personWithPrivate, user_roles: heldAtRemoval }, error: null };
   } catch (error) {
     const duration = Date.now() - startTime;
     const dbError = createDatabaseError(error, 'user', 'select_deleted_by_id');

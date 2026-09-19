@@ -4,7 +4,9 @@
 BEGIN;
 
 INSERT INTO public.clubs (id, name)
-VALUES ('00000000-0000-0000-0000-000000682001', 'MYK9-682 Scope Club');
+VALUES
+  ('00000000-0000-0000-0000-000000682001', 'MYK9-682 Scope Club'),
+  ('00000000-0000-0000-0000-000000682002', 'MYK9-682 Existing Club');
 
 INSERT INTO public.people (id, first_name, last_name, email, auth_user_id)
 VALUES
@@ -214,19 +216,19 @@ BEGIN
   SELECT public.review_club_access_request(
     '00000000-0000-0000-0000-000000682022',
     'approved',
-    '00000000-0000-0000-0000-000000682001',
+    '00000000-0000-0000-0000-000000682002',
     NULL,
     NULL
   ) INTO v_club_id;
 
-  IF v_club_id <> '00000000-0000-0000-0000-000000682001'
+  IF v_club_id <> '00000000-0000-0000-0000-000000682002'
      OR EXISTS (
        SELECT 1 FROM public.clubs WHERE name = 'MYK9-682 Existing Club Request'
      )
      OR NOT EXISTS (
        SELECT 1 FROM public.club_access_requests
        WHERE id = '00000000-0000-0000-0000-000000682022'
-         AND approved_club_id = '00000000-0000-0000-0000-000000682001'
+         AND approved_club_id = '00000000-0000-0000-0000-000000682002'
      ) THEN
     RAISE EXCEPTION 'FAIL existing-club approval did not honor the selected club';
   END IF;

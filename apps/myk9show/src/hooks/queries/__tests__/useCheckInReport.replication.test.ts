@@ -3,6 +3,7 @@ import { vi } from 'vitest';
 const replicationMocks = vi.hoisted(() => ({
   getEntriesByShow: vi.fn(),
   getClassById: vi.fn(),
+  getDogById: vi.fn(),
   getTrialsByShow: vi.fn(),
   getArmbandsByShow: vi.fn(),
 }));
@@ -32,6 +33,9 @@ vi.mock('@/services/replication', () => ({
   replicatedClassesTable: {
     getClassById: (...args: unknown[]) => replicationMocks.getClassById(...args),
   },
+  replicatedDogsTable: {
+    getDogById: (...args: unknown[]) => replicationMocks.getDogById(...args),
+  },
   replicatedTrialsTable: {
     getTrialsByShow: (...args: unknown[]) => replicationMocks.getTrialsByShow(...args),
   },
@@ -45,6 +49,7 @@ describe('fetchReplicatedCheckInEntries', () => {
     vi.resetModules();
     vi.clearAllMocks();
     cacheMocks.bulkGet.mockResolvedValue([]);
+    replicationMocks.getDogById.mockResolvedValue(null);
   });
 
   it('builds the check-in report rows from replicated show-day tables', async () => {
@@ -280,6 +285,49 @@ describe('fetchReplicatedCheckInEntries', () => {
       handler_id: 'handler-cached',
       handler_first_name: 'Offline',
       handler_last_name: 'Assigned',
+    });
+  });
+
+  it('uses the replicated dog owner when the entry has no handler assignment', async () => {
+    replicationMocks.getEntriesByShow.mockResolvedValue([
+      {
+        id: 'entry-owner-handled',
+        showId: 'show-1',
+        dogId: 'dog-owner',
+        handlerId: undefined,
+        handler: null,
+        dogCallName: 'Buddy',
+        classId: 'class-1',
+      },
+    ]);
+    replicationMocks.getDogById.mockResolvedValue({
+      id: 'dog-owner',
+      ownerId: 'owner-1',
+      name: 'Buddy',
+      breed: 'Golden Retriever',
+    });
+    replicationMocks.getClassById.mockResolvedValue({
+      id: 'class-1',
+      trialId: 'trial-1',
+      element: 'Buried',
+      level: 'Novice',
+    });
+    replicationMocks.getTrialsByShow.mockResolvedValue([
+      { id: 'trial-1', date: '2026-04-12', trialNumber: '1' },
+    ]);
+    replicationMocks.getArmbandsByShow.mockResolvedValue([]);
+    cacheMocks.bulkGet.mockResolvedValue([
+      { id: 'owner-1', firstName: 'Owner', lastName: 'Fallback' },
+    ]);
+
+    const { fetchReplicatedCheckInEntries } = await import('../useCheckInReportReplication');
+
+    const rows = await fetchReplicatedCheckInEntries('show-1');
+
+    expect(rows[0]).toMatchObject({
+      handler_id: '',
+      handler_first_name: 'Owner',
+      handler_last_name: 'Fallback',
     });
   });
 

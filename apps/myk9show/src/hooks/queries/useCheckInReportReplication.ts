@@ -1,6 +1,7 @@
 import {
   replicatedArmbandsTable,
   replicatedClassesTable,
+  replicatedDogsTable,
   replicatedEntriesTable,
   replicatedTrialsTable,
   type ReplicatedArmband,
@@ -99,11 +100,23 @@ export async function fetchReplicatedCheckInEntries(showId: string): Promise<Che
   const { byEntryId: armbandsByEntryId, byDogId: armbandsByDogId } = buildArmbandMaps(armbands);
   const classCache = new Map<string, Promise<ReplicatedClass | null>>();
   const activeEntries = entries.filter(isNotDeleted);
+  const dogIds = [
+    ...new Set(activeEntries.map(entry => entry.dogId).filter((id): id is string => Boolean(id))),
+  ];
+  const dogs = await Promise.all(dogIds.map(dogId => replicatedDogsTable.getDogById(dogId)));
+  const dogsById = new Map(dogs.flatMap(dog => (dog ? [[dog.id, dog] as const] : [])));
+  const ownerIds = [
+    ...new Set(dogs.map(dog => dog?.ownerId).filter((id): id is string => Boolean(id))),
+  ];
   const handlerPeople = await loadHandlerPeople(
-    activeEntries
-      .filter(entry => !(entry.handlerName ?? entry.handler)?.trim())
-      .map(entry => entry.handlerId)
-      .filter((id): id is string => Boolean(id))
+    [
+      ...new Set([
+        ...ownerIds,
+        ...activeEntries
+          .filter(entry => !(entry.handlerName ?? entry.handler)?.trim())
+          .map(entry => entry.handlerId),
+      ]),
+    ].filter((id): id is string => Boolean(id))
   );
 
   return Promise.all(
@@ -111,12 +124,14 @@ export async function fetchReplicatedCheckInEntries(showId: string): Promise<Che
       const cls = await getClassForEntry(entry, classCache);
       const trialId = getEntryTrialId(entry, cls);
       const trial = trialId ? (trialsById.get(trialId) ?? null) : null;
+      const ownerId = entry.dogId ? dogsById.get(entry.dogId)?.ownerId : undefined;
       const handlerIdentity = projectHandlerIdentity({
         assignedHandlerName: entry.handlerName ?? entry.handler,
         assignedHandlerId: entry.handlerId,
         assignedHandlerPerson: entry.handlerId
           ? (handlerPeople.get(entry.handlerId) ?? null)
           : null,
+        ownerPerson: ownerId ? (handlerPeople.get(ownerId) ?? null) : null,
       });
       const handler = splitHandlerName(handlerIdentity.name ?? undefined);
 

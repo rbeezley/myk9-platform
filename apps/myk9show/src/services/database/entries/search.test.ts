@@ -656,7 +656,7 @@ describe('getUserEntries account-scope read', () => {
     mockReplicatedStores();
     const firstPage = Array.from({ length: 1000 }, (_, index) => ({
       id: `entry-${index}`,
-      created_at: `2026-06-05T12:00:${String(index % 60).padStart(2, '0')}.000Z`,
+      created_at: `2026-06-05T12:${String(Math.floor(index / 60)).padStart(2, '0')}:${String(index % 60).padStart(2, '0')}.000Z`,
     }));
     const { viewQuery } = mockSupabaseTables({
       viewEntryPages: [firstPage, [{ id: 'entry-1000', created_at: '2026-06-05T12:16:40.000Z' }]],
@@ -722,7 +722,7 @@ describe('getUserEntries account-scope read', () => {
     mockReplicatedStores();
     const firstPage = Array.from({ length: 1000 }, (_, index) => ({
       id: `entry-${index}`,
-      created_at: `2026-06-05T12:00:${String(index % 60).padStart(2, '0')}.000Z`,
+      created_at: `2026-06-05T12:${String(Math.floor(index / 60)).padStart(2, '0')}:${String(index % 60).padStart(2, '0')}.000Z`,
     }));
     const secondPage = Array.from({ length: 231 }, (_, index) => ({
       id: `entry-${1000 + index}`,

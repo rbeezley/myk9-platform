@@ -93,18 +93,20 @@ const ENTRIES_REPLICATION_PAGE_SIZE = 1000;
 const RECEIPT_REFERENCE_REFRESH_VERSION = 1;
 const RECEIPT_REFERENCE_REFRESH_KEY = 'myk9:entries:receipt-reference-refresh';
 
-function receiptReferenceRefreshStorageKey(showId: string): string {
-  return `${RECEIPT_REFERENCE_REFRESH_KEY}:v${RECEIPT_REFERENCE_REFRESH_VERSION}:${showId}`;
+function receiptReferenceRefreshStorageKey(showId: string, principalId: string): string {
+  return `${RECEIPT_REFERENCE_REFRESH_KEY}:v${RECEIPT_REFERENCE_REFRESH_VERSION}:${principalId}:${showId}`;
 }
 
-function hasReceiptReferenceRefresh(showId: string): boolean {
+function hasReceiptReferenceRefresh(showId: string, principalId: string): boolean {
   if (typeof localStorage === 'undefined') return false;
-  return localStorage.getItem(receiptReferenceRefreshStorageKey(showId)) === 'complete';
+  return (
+    localStorage.getItem(receiptReferenceRefreshStorageKey(showId, principalId)) === 'complete'
+  );
 }
 
-function markReceiptReferenceRefresh(showId: string): void {
+function markReceiptReferenceRefresh(showId: string, principalId: string): void {
   if (typeof localStorage === 'undefined') return;
-  localStorage.setItem(receiptReferenceRefreshStorageKey(showId), 'complete');
+  localStorage.setItem(receiptReferenceRefreshStorageKey(showId, principalId), 'complete');
 }
 
 /**
@@ -195,6 +197,10 @@ export class ReplicatedEntriesTable extends ReplicatedTable<ReplicatedEntry> {
   }
 
   async sync(syncScopeId: string): Promise<SyncResult> {
+    return this.syncForPrincipal(syncScopeId, 'anonymous');
+  }
+
+  async syncForPrincipal(syncScopeId: string, principalId: string): Promise<SyncResult> {
     const showScopeId = syncScopeId.trim();
     if (!showScopeId) {
       if (!this._hasWarnedMissingShowScope) {
@@ -212,18 +218,32 @@ export class ReplicatedEntriesTable extends ReplicatedTable<ReplicatedEntry> {
 
     // Background replication and report reads can request the same show together.
     // Share only the active operation; the next refresh must still contact the server.
-    const inFlight = this._syncsByShow.get(showScopeId);
+    const syncKey = `${principalId}:${showScopeId}`;
+    const inFlight = this._syncsByShow.get(syncKey);
     if (inFlight) return inFlight;
-    const sync = this.syncShow(showScopeId).finally(() => {
-      this._syncsByShow.delete(showScopeId);
+    const sync = this.syncShow(showScopeId, principalId).finally(() => {
+      this._syncsByShow.delete(syncKey);
     });
-    this._syncsByShow.set(showScopeId, sync);
+    this._syncsByShow.set(syncKey, sync);
     return sync;
   }
 
-  private async syncShow(showScopeId: string): Promise<SyncResult> {
+  async refreshReceiptReferencesForUser(principalId: string): Promise<void> {
+    const localRows = await this.getAll();
+    const showIds = new Set(
+      localRows.map(row => row.showId).filter((showId): showId is string => Boolean(showId))
+    );
+
+    await Promise.all(
+      [...showIds]
+        .filter(showId => !hasReceiptReferenceRefresh(showId, principalId))
+        .map(showId => this.syncForPrincipal(showId, principalId))
+    );
+  }
+
+  private async syncShow(showScopeId: string, principalId: string): Promise<SyncResult> {
     logger.log(`[${this.getTableName()}] Starting sync`);
-    const needsReceiptReferenceRefresh = !hasReceiptReferenceRefresh(showScopeId);
+    const needsReceiptReferenceRefresh = !hasReceiptReferenceRefresh(showScopeId, principalId);
     let remoteRowCount: number | undefined;
     let receiptReferenceColumnObserved = false;
 
@@ -262,16 +282,11 @@ export class ReplicatedEntriesTable extends ReplicatedTable<ReplicatedEntry> {
         // their own entries with result columns nulled by the release cascade.
         // The view flattens dog display fields as dog_call_name/dog_breed.
         const rows: EntryRow[] = [];
-        const upperBound = new Date().toISOString();
         let cursorUpdatedAt: string | null = null;
         let cursorId: string | null = null;
 
         for (;;) {
           let query = supabase.from('view_authenticated_entry_results_replication').select('*');
-
-          if (typeof query.lte === 'function') {
-            query = query.lte('updated_at', upperBound);
-          }
 
           if (cursorUpdatedAt && cursorId && typeof query.or === 'function') {
             query = query.or(
@@ -368,7 +383,7 @@ export class ReplicatedEntriesTable extends ReplicatedTable<ReplicatedEntry> {
       result.success &&
       (receiptReferenceColumnObserved || remoteRowCount === 0)
     ) {
-      markReceiptReferenceRefresh(showScopeId);
+      markReceiptReferenceRefresh(showScopeId, principalId);
     }
 
     if (!result.success && result.error && !isAbortSyncError(result.error)) {

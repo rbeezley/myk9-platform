@@ -83,7 +83,6 @@ async function postgrestGetUserEntries() {
   // single signal across every page stops the orphaned paging at the same
   // instant the caller gives up.
   const deadline = AbortSignal.timeout(USER_ENTRIES_VIEW_TIMEOUT_MS);
-  const upperBound = new Date().toISOString();
   let cursorCreatedAt: string | null = null;
   let cursorId: string | null = null;
 
@@ -103,10 +102,6 @@ async function postgrestGetUserEntries() {
         .order('created_at', { ascending: false })
         .order('id', { ascending: false })
         .abortSignal(deadline);
-
-      if (typeof query.lte === 'function') {
-        query = query.lte('created_at', upperBound);
-      }
 
       if (cursorCreatedAt && cursorId) {
         query = query.or(
@@ -321,6 +316,13 @@ export const getUserEntries = async (userId: string): Promise<UserEntriesResult>
     }
 
     logQuery('entries', 'select_user_entries', Date.now() - startTime);
+    if (typeof replicatedEntriesTable.refreshReceiptReferencesForUser === 'function') {
+      void replicatedEntriesTable.refreshReceiptReferencesForUser(userId).catch(error => {
+        logger.warn('My Entries receipt-reference refresh failed', 'database', {
+          error: error instanceof Error ? error.message : String(error),
+        });
+      });
+    }
     return { ...result, source: 'confirmed' };
   } catch (error) {
     return readUserEntriesFromReplica(userId, error, startTime);

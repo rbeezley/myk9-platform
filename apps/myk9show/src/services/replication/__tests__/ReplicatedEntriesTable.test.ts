@@ -1320,7 +1320,7 @@ describe('ReplicatedEntriesTable', () => {
         { scopeValue: TEST_LICENSE_KEY }
       );
       localStorage.setItem(
-        'myk9:entries:receipt-reference-refresh:v1:' + TEST_LICENSE_KEY,
+        'myk9:entries:receipt-reference-refresh:v1:anonymous:' + TEST_LICENSE_KEY,
         'complete'
       );
 

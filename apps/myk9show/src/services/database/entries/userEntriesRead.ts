@@ -21,7 +21,7 @@ import { buildMapFromArray } from '../_shared/maps';
 import { withTimeout, DEFAULT_TIMEOUT_MS } from '@myk9/core';
 import { buildReplicatedUserEntryRows } from './userEntriesReplication';
 import { applyOrderReferenceRule } from './orderReferenceRule';
-import { USER_ENTRIES_SELECT, buildUserEntriesSelect } from './userEntriesSelect';
+import { buildUserEntriesSelect } from './userEntriesSelect';
 export { USER_ENTRIES_SELECT } from './userEntriesSelect';
 import { selectOwnedDogIds } from '@/utils/dogOwnership';
 import {

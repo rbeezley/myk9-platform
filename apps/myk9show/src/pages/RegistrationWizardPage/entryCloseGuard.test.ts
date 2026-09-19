@@ -263,4 +263,13 @@ describe('getEntryWindowTimezone', () => {
       ])
     ).toBe('America/Chicago');
   });
+
+  it('ignores malformed calendar dates when choosing the primary trial', () => {
+    expect(
+      getEntryWindowTimezone([
+        { id: 'malformed', date: '2026-02-30', timezone: 'America/Los_Angeles' },
+        { id: 'valid', date: '2026-03-01', timezone: 'America/Chicago' },
+      ])
+    ).toBe('America/Chicago');
+  });
 });

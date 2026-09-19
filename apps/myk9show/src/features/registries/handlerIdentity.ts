@@ -135,6 +135,7 @@ export function projectFirstAssignedHandler<TPerson extends HandlerPersonLike>(
   entries: readonly HandlerIdentityEntry<TPerson>[],
   ownerPerson?: TPerson | null
 ): HandlerIdentityProjection<TPerson> {
+  let unresolvedAssignment: HandlerIdentityProjection<TPerson> | null = null;
   for (const entry of entries) {
     const projection = projectHandlerIdentity({ ...entry, ownerPerson });
     if (
@@ -143,9 +144,12 @@ export function projectFirstAssignedHandler<TPerson extends HandlerPersonLike>(
     ) {
       return projection;
     }
+    if (projection.source === 'unknown' && entry.assignedHandlerId?.trim()) {
+      unresolvedAssignment = projection;
+    }
   }
 
-  return projectHandlerIdentity({ ownerPerson });
+  return unresolvedAssignment ?? projectHandlerIdentity({ ownerPerson });
 }
 
 /**

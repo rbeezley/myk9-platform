@@ -179,6 +179,12 @@ describe('projectHandlerIdentity', () => {
     ).toMatchObject({ name: 'Entry Text', source: 'assigned-text' });
   });
 
+  it('preserves an unresolved assignment instead of falling back to the owner', () => {
+    expect(
+      projectHandlerIdentity({ assignedHandlerId: 'missing-handler', ownerPerson: OWNER })
+    ).toMatchObject({ name: null, source: 'unknown', person: null });
+  });
+
   it('uses the joined assigned person when handler text is absent', () => {
     expect(
       projectHandlerIdentity({

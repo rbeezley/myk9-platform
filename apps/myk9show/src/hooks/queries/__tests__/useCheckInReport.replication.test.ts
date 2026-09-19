@@ -276,11 +276,55 @@ describe('fetchReplicatedCheckInEntries', () => {
 
     const rows = await fetchReplicatedCheckInEntries('show-1');
 
-    expect(supabaseMocks.from).not.toHaveBeenCalled();
     expect(rows[0]).toMatchObject({
       handler_id: 'handler-cached',
       handler_first_name: 'Offline',
       handler_last_name: 'Assigned',
+    });
+  });
+
+  it('refreshes a stale cached handler name when online data is available', async () => {
+    replicationMocks.getEntriesByShow.mockResolvedValue([
+      {
+        id: 'entry-handler-renamed',
+        showId: 'show-1',
+        dogId: 'dog-1',
+        handlerId: 'handler-renamed',
+        handler: null,
+        dogCallName: 'Buddy',
+        classId: 'class-1',
+      },
+    ]);
+    replicationMocks.getClassById.mockResolvedValue({
+      id: 'class-1',
+      trialId: 'trial-1',
+      element: 'Buried',
+      level: 'Novice',
+    });
+    replicationMocks.getTrialsByShow.mockResolvedValue([
+      { id: 'trial-1', date: '2026-04-12', trialNumber: '1' },
+    ]);
+    replicationMocks.getArmbandsByShow.mockResolvedValue([]);
+    cacheMocks.bulkGet.mockResolvedValue([
+      { id: 'handler-renamed', firstName: 'Old', lastName: 'Name' },
+    ]);
+    supabaseMocks.from.mockReturnValue({
+      select: () => ({
+        in: () =>
+          Promise.resolve({
+            data: [{ id: 'handler-renamed', first_name: 'New', last_name: 'Name' }],
+            error: null,
+          }),
+      }),
+    });
+
+    const { fetchReplicatedCheckInEntries } = await import('../useCheckInReportReplication');
+
+    const rows = await fetchReplicatedCheckInEntries('show-1');
+
+    expect(rows[0]).toMatchObject({
+      handler_first_name: 'New',
+      handler_last_name: 'Name',
     });
   });
 });

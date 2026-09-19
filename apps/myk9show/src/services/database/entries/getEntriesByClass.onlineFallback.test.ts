@@ -88,6 +88,7 @@ vi.mock('@/services/database/supabaseClient', () => ({
 import {
   getEntriesByClass,
   getEntriesByDog,
+  getEntriesByStatus,
   getEntriesByTrial,
   getEntryById,
 } from '@/services/database/entries';
@@ -220,6 +221,26 @@ describe('entry identity hydration contract', () => {
     const result = await getEntryById('entry-handler-only');
 
     expect(result.data).toMatchObject({
+      handler_id: 'handler-1',
+      handler_person: { first_name: 'Alex', last_name: 'Assigned' },
+    });
+  });
+
+  it('hydrates handler_id-only rows in the replicated status read', async () => {
+    mockEntriesTable.getAll.mockResolvedValue([
+      {
+        id: 'entry-status-handler-only',
+        handler: null,
+        handlerId: 'handler-1',
+        entryStatus: 'confirmed',
+        submittedAt: '2026-04-12T09:00:00.000Z',
+      },
+    ]);
+    peopleRows = [{ id: 'handler-1', first_name: 'Alex', last_name: 'Assigned' }];
+
+    const result = await getEntriesByStatus('confirmed');
+
+    expect(result.data[0]).toMatchObject({
       handler_id: 'handler-1',
       handler_person: { first_name: 'Alex', last_name: 'Assigned' },
     });

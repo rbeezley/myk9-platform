@@ -1,5 +1,8 @@
 import { supabase } from '../supabaseClient';
 import { db } from '../connection';
+import { withTimeout } from '@myk9/core';
+
+const HANDLER_PEOPLE_TIMEOUT_MS = 3000;
 
 export interface HandlerPersonRow {
   id: string;
@@ -19,6 +22,7 @@ export interface HandlerReference {
   handler?: string | null | undefined;
   handler_id?: string | null | undefined;
   handlerId?: string | null | undefined;
+  handler_person?: HandlerPersonRow | null | undefined;
 }
 
 export function handlerIdFor(reference: HandlerReference): string | undefined {
@@ -64,14 +68,15 @@ export async function loadHandlerPeople(
   if (ids.length === 0) return new Map();
 
   const cached = await loadCachedHandlerPeople(ids);
-  const missingIds = ids.filter(id => !cached.has(id));
-  if (missingIds.length === 0) return cached;
 
   try {
-    const { data, error } = await supabase
-      .from('people')
-      .select('id, first_name, last_name')
-      .in('id', missingIds);
+    // Refresh every cached id so a renamed person cannot remain stale forever.
+    // The local cache is still the safe result when the network is unavailable.
+    const { data, error } = await withTimeout(
+      supabase.from('people').select('id, first_name, last_name').in('id', ids),
+      HANDLER_PEOPLE_TIMEOUT_MS,
+      'entry handler identity hydration'
+    );
     if (error || !data) return cached;
     return new Map([
       ...cached,
@@ -87,7 +92,7 @@ export async function loadMissingHandlerPeopleMap(
 ): Promise<Map<string, HandlerPersonRow>> {
   return loadHandlerPeople(
     entries
-      .filter(entry => !entry.handler?.trim())
+      .filter(entry => !entry.handler?.trim() && !entry.handler_person)
       .map(handlerIdFor)
       .filter((id): id is string => Boolean(id))
   );

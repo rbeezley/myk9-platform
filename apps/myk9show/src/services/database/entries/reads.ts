@@ -11,6 +11,7 @@ import {
   compareNumberAscNullsLast,
   loadLookupMap,
   readWithReplicationFallback,
+  type ReadWithReplicationFallbackOptions,
   sortedCopy,
 } from '../_shared/read-shape';
 import { replicatedEntriesTable } from '@/services/replication/ReplicatedEntriesTable';
@@ -103,6 +104,25 @@ interface EntryDbHandlerRow extends Record<string, unknown>, HandlerReference {
   armband: string | null;
   show_id: string | null;
   dog_id: string | null;
+}
+
+type EntryReadRow = Record<string, unknown>;
+
+async function readEntriesWithHandlerHydration<T extends EntryReadRow[] | EntryReadRow | null>(
+  options: ReadWithReplicationFallbackOptions<T>
+) {
+  const result = await readWithReplicationFallback(options);
+  if (Array.isArray(result.data)) {
+    return {
+      ...result,
+      data: (await hydrateMissingHandlerPeople(result.data as EntryDbHandlerRow[])) as unknown as T,
+    };
+  }
+  if (result.data) {
+    const [data] = await hydrateMissingHandlerPeople([result.data as EntryDbHandlerRow]);
+    return { ...result, data: data as unknown as T };
+  }
+  return result;
 }
 
 function getEntryCreatedSortValue(entry: ReplicatedEntry): string | undefined {
@@ -692,7 +712,7 @@ const isLiveEntry = (entry: ReplicatedEntry): boolean => !entry.deletedAt && !en
 
 // Get all entries with related data
 export const getAllEntries = async () => {
-  return readWithReplicationFallback({
+  return readEntriesWithHandlerHydration({
     replication: async () => {
       const [entries, dogsMap, classesMap, showsMap] = await Promise.all([
         replicatedEntriesTable.getAll(),
@@ -719,7 +739,7 @@ export const getAllEntries = async () => {
 
 // Get entry by ID with full details
 export const getEntryById = async (id: string) => {
-  return readWithReplicationFallback({
+  return readEntriesWithHandlerHydration({
     replication: async () => {
       const entry = await replicatedEntriesTable.getEntryById(id);
       if (!entry) return { data: null, error: null };
@@ -755,7 +775,7 @@ export const getEntriesByShow = async (showId: string) => {
   // this show through the conflict-aware sync path before treating it as complete.
   // Failed/offline sync must not discard the entries already available locally.
   await refreshShowEntriesForRead(showId);
-  const result = await readWithReplicationFallback({
+  const result = await readEntriesWithHandlerHydration({
     replication: async () => {
       const [entries, dogsMap, classesMap] = await Promise.all([
         replicatedEntriesTable.getEntriesByShow(showId),
@@ -803,7 +823,7 @@ export const getEntriesByShow = async (showId: string) => {
  * trial.
  */
 export const getEntriesByShowFromReplication = async (showId: string) => {
-  return readWithReplicationFallback({
+  return readEntriesWithHandlerHydration({
     replication: async () => {
       const [rawEntries, dogsMap, classesMap] = await Promise.all([
         replicatedEntriesTable.getEntriesByShow(showId),
@@ -840,7 +860,7 @@ export const getEntriesByShowFromReplication = async (showId: string) => {
 
 // Get entries by show ID with financial joins (promo_code, trial name)
 export const getEntriesByShowForFinancials = async (showId: string) => {
-  return readWithReplicationFallback({
+  return readEntriesWithHandlerHydration({
     replication: async () => {
       const [rawEntries, dogsMap, classesMap, trials] = await Promise.all([
         replicatedEntriesTable.getEntriesByShow(showId),
@@ -910,7 +930,7 @@ export const getEntriesByShowForFinancials = async (showId: string) => {
 // check-in sheet is printable at trial scope too, so it carries the same
 // cold-store false zero. Verified online when the local read comes back empty.
 export const getEntriesByTrial = async (trialId: string) => {
-  return readWithReplicationFallback({
+  return readEntriesWithHandlerHydration({
     replication: async () => {
       // Get classes for this trial, then filter entries by those class IDs
       const [trialClasses, allEntries, dogsMap] = await Promise.all([
@@ -975,7 +995,7 @@ export const getEntriesByTrial = async (trialId: string) => {
 // wrong — which is exactly what `verifyOnlineWhenEmpty` is for. Same treatment
 // as getEntriesByShow above.
 export const getEntriesByClass = async (classId: string) => {
-  return readWithReplicationFallback({
+  return readEntriesWithHandlerHydration({
     replication: async () => {
       const [entries, dogsMap] = await Promise.all([
         replicatedEntriesTable.getEntriesByClass(classId),
@@ -1214,7 +1234,7 @@ export const countBlockingEntriesByDog = async (dogId: string): Promise<number> 
 
 // Get entries by status
 export const getEntriesByStatus = async (status: EntryStatus) => {
-  return readWithReplicationFallback({
+  return readEntriesWithHandlerHydration({
     replication: async () => {
       const [allEntries, dogsMap, classesMap, showsMap] = await Promise.all([
         replicatedEntriesTable.getAll(),

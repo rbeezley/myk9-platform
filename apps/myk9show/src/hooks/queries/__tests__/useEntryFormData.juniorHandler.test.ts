@@ -191,6 +191,20 @@ describe('useEntryFormData resolves the handler person for the junior fields', (
     expect(dog.handlerJuniorHandlerNumbers).toEqual({ AKC: 'KID-NUMBER' });
   });
 
+  it('does not attach owner junior data when an assigned handler id is unresolved', async () => {
+    routeTables(
+      [{ id: 'entry-unresolved', handler: null, handler_id: 'missing-handler' }],
+      [SARAH]
+    );
+    const { result } = renderEntryFormData();
+    await waitFor(() => expect(result.current.dogs).toHaveLength(1));
+
+    const dog = result.current.dogs[0]!;
+    expect(dog.handler).toBeNull();
+    expect(dog.handlerDateOfBirth).toBeNull();
+    expect(dog.handlerJuniorHandlerNumbers).toBeUndefined();
+  });
+
   it('does not treat the owner as the handler when someone else is printed', async () => {
     // The owner is a CANDIDATE, not a default: only their own name admits them.
     routeTables([{ id: 'entry-a', handler: 'Bob Handler', handler_id: null }], [SARAH]);

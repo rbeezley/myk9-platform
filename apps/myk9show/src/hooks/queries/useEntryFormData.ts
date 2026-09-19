@@ -339,7 +339,7 @@ async function fetchEntryFormData(
         ? null
         : handlerIdentity.name;
     const handlerRaw = resolveHandlerPerson({
-      printedHandlerName: handlerIdentity.name ?? ownerFullName,
+      printedHandlerName: handlerIdentity.name,
       handlerIdPerson: handlerIdentity.person,
       ownerPerson: ownerRaw ?? null,
     });

@@ -23,7 +23,7 @@ export interface ReplicationReadResult<T> extends ReadResult<T> {
   locallyDeletedIds?: readonly string[];
 }
 
-interface ReadWithReplicationFallbackOptions<T> {
+export interface ReadWithReplicationFallbackOptions<T> {
   replication: () => Promise<ReplicationReadResult<T>>;
   postgrest: () => Promise<ReadResult<T>>;
   table: string;

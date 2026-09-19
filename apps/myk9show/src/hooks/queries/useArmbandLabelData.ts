@@ -1,16 +1,19 @@
 import { useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { supabase } from '@/lib/supabase';
+import { getEntriesByShowFromReplication } from '@/services/database/entries';
+import { getTrialsByShow } from '@/services/database/trials';
 import type { ArmbandLabelEntry } from '@/lib/labels/armbandLabelTypes';
 import { formatReportDate } from '@/lib/reports/reportUtils';
 import { useShowVenueWifi } from './useShowVenueWifi';
+import { projectHandlerIdentity } from '@/features/registries/handlerIdentity';
 
 /** Exported for unit testing — pure function, no hooks */
 export function mapEntryToArmbandLabelEntry(
   raw: Record<string, unknown>
 ): ArmbandLabelEntry | null {
-  const armband = raw.armband as number | null;
-  if (!armband) return null;
+  const rawArmband = raw.armband as number | string | null | undefined;
+  const armband = rawArmband == null ? null : Number(rawArmband);
+  if (armband == null || !Number.isFinite(armband) || armband === 0) return null;
 
   const dog = raw.dog as Record<string, unknown> | null;
   const owner = dog?.owner as Record<string, unknown> | null;
@@ -19,6 +22,12 @@ export function mapEntryToArmbandLabelEntry(
 
   const rawDate = (trial?.date as string) ?? '';
   const trialDate = rawDate ? formatReportDate(rawDate) : '';
+  const handlerIdentity = projectHandlerIdentity({
+    assignedHandlerName: raw.handler as string | null | undefined,
+    assignedHandlerId: raw.handler_id as string | null | undefined,
+    assignedHandlerPerson: raw.handler_person as Record<string, string | null> | null,
+    ownerPerson: owner as Record<string, string | null> | null,
+  });
 
   return {
     id: raw.id as string,
@@ -28,9 +37,14 @@ export function mapEntryToArmbandLabelEntry(
     calendarDay: rawDate,
     armband,
     callName: (dog?.call_name as string) ?? '',
-    handler: owner ? `${owner.first_name ?? ''} ${owner.last_name ?? ''}`.trim() : '',
+    handler: handlerIdentity.name ?? (raw.handler_id ? 'Unknown Handler' : ''),
     trialDate,
     isDayOfShow: (raw.is_day_of_show as boolean) ?? false,
+    handlerIdentity: {
+      id: (raw.handler_id as string | null | undefined)?.trim() || null,
+      name: handlerIdentity.name,
+      source: handlerIdentity.source,
+    },
   };
 }
 
@@ -46,15 +60,20 @@ export function useArmbandLabelData(showId: string | undefined): ArmbandLabelDat
     queryKey: ['armband-label-entries', showId],
     queryFn: async () => {
       if (!showId) return [];
-      const { data } = await supabase
-        .from('entries')
-        .select(
-          'id, dog_id, armband, is_day_of_show, dog:dogs!inner(call_name, owner:people!dogs_owner_id_fkey(first_name, last_name)), class:classes!left(id, trial:trials!left(id, date))'
-        )
-        .eq('show_id', showId)
-        .is('deleted_at', null)
-        .not('armband', 'is', null);
-      return data ?? [];
+      const [{ data: entries, error: entriesError }, { data: trials, error: trialsError }] =
+        await Promise.all([getEntriesByShowFromReplication(showId), getTrialsByShow(showId)]);
+      if (entriesError) throw entriesError;
+      if (trialsError) throw trialsError;
+      const trialsById = new Map((trials ?? []).map(trial => [trial.id, trial] as const));
+      return (entries ?? []).map(entry => {
+        const row = entry as Record<string, unknown>;
+        const cls = row.class as Record<string, unknown> | null;
+        const trialId = cls?.trial_id as string | undefined;
+        return {
+          ...row,
+          class: cls ? { ...cls, trial: trialId ? (trialsById.get(trialId) ?? null) : null } : null,
+        };
+      });
     },
     enabled: !!showId,
     staleTime: 2 * 60 * 1000,

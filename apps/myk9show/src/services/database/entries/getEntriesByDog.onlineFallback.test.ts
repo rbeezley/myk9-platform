@@ -136,6 +136,31 @@ describe('getEntriesByDog — online-first with a replica fallback', () => {
       expect(result.verified).toBe(true);
     });
 
+    it('hydrates the owner relation on online rows through the same boundary', async () => {
+      onlineRows = [
+        {
+          ...defaultOnlineRow,
+          dog: {
+            id: 'dog-1',
+            owner: { id: 'owner-1', first_name: null, last_name: null },
+          },
+        },
+      ];
+      mockPeopleTable.bulkGet.mockResolvedValue([
+        { id: 'owner-1', first_name: 'Jamie', last_name: 'Walker' },
+      ]);
+
+      const result = await getEntriesByDog('dog-1');
+      const row = result.data[0] as {
+        dog?: { owner?: { first_name?: string | null; last_name?: string | null } | null };
+      };
+
+      expect(row.dog?.owner).toMatchObject({
+        first_name: 'Jamie',
+        last_name: 'Walker',
+      });
+    });
+
     // MYK9-121's actual failure mode, at the read layer: the replica holds one
     // entry from a show that synced, while a second show never did. The old
     // empty-only guard saw a non-empty result and never checked the server, so

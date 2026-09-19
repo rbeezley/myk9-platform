@@ -337,7 +337,8 @@ async function postgrestGetEntriesByShow(showId: string) {
         id,
         name,
         class_number,
-        entry_fee
+        entry_fee,
+        trial_id
       ),
       registration:registration_id (
         ${ENROLLMENT_FINANCIAL_SELECT}
@@ -632,6 +633,18 @@ async function postgrestGetEntriesByDog(dogId: string) {
     .select(
       `
       ${AUTHENTICATED_ENTRY_READ_COLUMNS},
+      dog:dog_id (
+        id,
+        name,
+        call_name,
+        breed,
+        owner:owner_id (
+          id,
+          first_name,
+          last_name,
+          email
+        )
+      ),
       class:class_id (
         id,
         name,

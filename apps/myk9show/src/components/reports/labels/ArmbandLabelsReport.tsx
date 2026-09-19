@@ -98,6 +98,7 @@ export const ArmbandLabelsReport: React.FC<ArmbandLabelsReportProps> = ({
               armband: entry.armband,
               callName: entry.callName,
               handlerName: entry.handler,
+              ...(entry.handlerIdentity ? { handlerIdentity: entry.handlerIdentity } : {}),
               classIds: filteredCandidates
                 .filter(
                   candidate =>

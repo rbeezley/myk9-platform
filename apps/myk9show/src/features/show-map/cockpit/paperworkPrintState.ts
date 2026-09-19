@@ -89,6 +89,7 @@ export interface ArmbandPaperworkDog {
   armband: number;
   callName: string;
   handlerName: string;
+  handlerIdentity?: PaperworkHandlerIdentity | undefined;
   classIds?: readonly string[] | undefined;
   trialIds?: readonly string[] | undefined;
 }

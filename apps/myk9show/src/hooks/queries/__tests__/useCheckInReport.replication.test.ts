@@ -48,6 +48,8 @@ describe('fetchReplicatedCheckInEntries', () => {
   beforeEach(() => {
     vi.resetModules();
     vi.clearAllMocks();
+    Object.defineProperty(navigator, 'onLine', { configurable: true, value: true });
+    supabaseMocks.from.mockReset();
     cacheMocks.bulkGet.mockResolvedValue([]);
     replicationMocks.getDogById.mockResolvedValue(null);
   });

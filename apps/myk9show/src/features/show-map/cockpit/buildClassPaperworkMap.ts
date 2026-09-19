@@ -140,6 +140,11 @@ function buildArmbandDescriptor(
       armband: number;
       callName: string;
       handlerName: string;
+      handlerIdentity: {
+        id: string | null;
+        name: string | null;
+        source: ReturnType<typeof projectHandlerIdentity>['source'];
+      };
       classIds: string[];
       trialIds: string[];
     }
@@ -166,6 +171,11 @@ function buildArmbandDescriptor(
       armband,
       callName: String(dog?.call_name ?? dog?.name ?? ''),
       handlerName: handlerIdentity.name ?? (entry.handler_id?.trim() ? 'Unknown Handler' : ''),
+      handlerIdentity: {
+        id: entry.handler_id?.trim() || null,
+        name: handlerIdentity.name,
+        source: handlerIdentity.source,
+      },
       classIds: [scope.classId],
       trialIds: [scope.trialId],
     });

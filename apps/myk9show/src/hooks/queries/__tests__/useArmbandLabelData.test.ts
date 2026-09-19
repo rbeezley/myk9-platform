@@ -23,8 +23,27 @@ describe('mapEntryToArmbandLabelEntry', () => {
       armband: 101,
       callName: 'Storm',
       handler: 'Jane Smith',
+      handlerIdentity: { id: null, name: 'Jane Smith', source: 'owner' },
       trialDate: '6/11/2025',
       isDayOfShow: false,
+    });
+  });
+
+  it('prefers the assigned handler over the dog owner', () => {
+    const result = mapEntryToArmbandLabelEntry({
+      id: 'e-assigned',
+      dog_id: 'dog-1',
+      armband: 105,
+      dog: { call_name: 'Storm', owner: { first_name: 'Jane', last_name: 'Smith' } },
+      handler: 'Alex Assigned',
+      handler_id: 'handler-1',
+      handler_person: { first_name: 'Alex', last_name: 'Assigned' },
+      class: { trial: { id: 'trial-1', date: '2025-06-11' } },
+    });
+
+    expect(result).toMatchObject({
+      handler: 'Alex Assigned',
+      handlerIdentity: { id: 'handler-1', name: 'Alex Assigned', source: 'assigned-text' },
     });
   });
 

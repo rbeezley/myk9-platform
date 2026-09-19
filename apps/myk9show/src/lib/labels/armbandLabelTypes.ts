@@ -1,3 +1,5 @@
+import type { PaperworkHandlerIdentity } from '@/features/show-map/cockpit/paperworkPrintState';
+
 export interface ArmbandLabelEntry {
   id: string;
   dogId: string;
@@ -9,6 +11,7 @@ export interface ArmbandLabelEntry {
   handler: string;
   trialDate: string;
   isDayOfShow: boolean;
+  handlerIdentity?: PaperworkHandlerIdentity | undefined;
 }
 
 export interface ArmbandLabelItem {

@@ -94,6 +94,7 @@ describe('buildClassPaperworkMap', () => {
         armband: 101,
         callName: 'Storm',
         handlerName: 'Jamie Walker',
+        handlerIdentity: { id: null, name: 'Jamie Walker', source: 'owner' },
         classIds: ['class-1'],
         trialIds: ['trial-1'],
       },

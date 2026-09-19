@@ -3,6 +3,7 @@ import { db } from '../connection';
 import { withTimeout } from '@myk9/core';
 
 const HANDLER_PEOPLE_TIMEOUT_MS = 3000;
+const HANDLER_PEOPLE_FAST_TIMEOUT_MS = 250;
 
 function isOffline(): boolean {
   return typeof navigator !== 'undefined' && navigator.onLine === false;
@@ -96,22 +97,58 @@ export async function loadHandlerPeople(
   // the browser has already told us there is no network.
   if (isOffline()) return cached;
 
-  try {
-    // Refresh every cached id so a renamed person cannot remain stale forever.
-    // The local cache is still the safe result when the network is unavailable.
-    const { data, error } = await withTimeout(
-      supabase.from('people').select('id, first_name, last_name').in('id', ids),
-      HANDLER_PEOPLE_TIMEOUT_MS,
-      'entry handler identity hydration'
-    );
-    if (error || !data) return cached;
-    // A successful response is authoritative. If an id is omitted because the
-    // person was deleted or is no longer visible, do not resurrect its stale
-    // cached name into paperwork.
-    return new Map((data as HandlerPersonRow[]).map(person => [person.id, person] as const));
-  } catch {
-    return cached;
-  }
+  const refresh = Promise.resolve()
+    .then(() =>
+      withTimeout(
+        supabase.from('people').select('id, first_name, last_name').in('id', ids),
+        HANDLER_PEOPLE_TIMEOUT_MS,
+        'entry handler identity hydration'
+      )
+    )
+    .then(({ data, error }) => {
+      if (error || !data) return null;
+      // A successful response is authoritative. If an id is omitted because the
+      // person was deleted or is no longer visible, do not resurrect its stale
+      // cached name into paperwork.
+      return new Map((data as HandlerPersonRow[]).map(person => [person.id, person] as const));
+    });
+
+  // Show-day reads must not make every replicated query wait through a slow
+  // online timeout. Give a healthy request a short chance to refresh a rename,
+  // then return the safe local result while the authoritative request finishes.
+  const fastResult = await Promise.race([
+    refresh
+      .then(result => ({ kind: 'fresh' as const, result }))
+      .catch(() => ({ kind: 'failed' as const })),
+    new Promise<{ kind: 'deferred' }>(resolve =>
+      setTimeout(() => resolve({ kind: 'deferred' }), HANDLER_PEOPLE_FAST_TIMEOUT_MS)
+    ),
+  ]);
+  if (fastResult.kind === 'fresh' && fastResult.result) return fastResult.result;
+  if (fastResult.kind === 'failed') return cached;
+
+  // Keep the eventual response useful to the next read without blocking this
+  // one. Cache only successful server data; omitted ids are deliberately
+  // removed so deleted/inaccessible people cannot keep an old printed name.
+  void refresh
+    .then(async result => {
+      if (!result) return;
+      try {
+        const people = [...result.values()].map(person => ({
+          id: person.id,
+          firstName: person.first_name ?? '',
+          lastName: person.last_name ?? '',
+        }));
+        if (people.length > 0) await db.instance.people.bulkPut(people);
+        const missingIds = ids.filter(id => !result.has(id));
+        if (missingIds.length > 0) await db.instance.people.bulkDelete(missingIds);
+      } catch {
+        // A cache write is an optimization; the current caller already has a
+        // safe cached/unknown projection and the next read can try again.
+      }
+    })
+    .catch(() => undefined);
+  return cached;
 }
 
 export async function loadMissingHandlerPeopleMap(

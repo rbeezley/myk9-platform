@@ -58,6 +58,13 @@ type EntryRow = {
 };
 
 function routeTables(entries: EntryRow[], people: unknown[]) {
+  const publicPeople = (people as Array<Record<string, unknown>>).map(person =>
+    Object.fromEntries(
+      Object.entries(person).filter(
+        ([key]) => key !== 'date_of_birth' && key !== 'junior_handler_numbers'
+      )
+    )
+  );
   const rows: Record<string, unknown[]> = {
     shows: [],
     trials: [{ id: 'trial-1', date: '2026-04-12', trial_number: 'Trial 1' }],
@@ -82,11 +89,22 @@ function routeTables(entries: EntryRow[], people: unknown[]) {
     ],
     dog_registrations: [],
     pedigree_ancestors: [],
-    people,
+    people: publicPeople,
   };
   mocks.from.mockImplementation((table: string) =>
     createChainableQuery({ data: rows[table] ?? [], error: null })
   );
+  mocks.rpc.mockImplementation((functionName: string, args: { p_person_ids?: string[] }) => {
+    if (functionName !== 'get_people_private') return Promise.resolve({ data: [], error: null });
+    const privateRows = (people as Array<Record<string, unknown>>)
+      .filter(person => args.p_person_ids?.includes(person.id as string))
+      .map(person => ({
+        person_id: person.id,
+        date_of_birth: person.date_of_birth ?? null,
+        junior_handler_numbers: person.junior_handler_numbers ?? {},
+      }));
+    return Promise.resolve({ data: privateRows, error: null });
+  });
 }
 
 function renderEntryFormData() {
@@ -102,7 +120,7 @@ describe('useEntryFormData resolves the handler person for the junior fields', (
     mocks.rpc.mockResolvedValue({ data: [], error: null });
   });
 
-  it('reads the junior columns for the handler named on the printed entry', async () => {
+  it('reads private fields through the scoped RPC for the handler named on the printed entry', async () => {
     routeTables([{ id: 'entry-a', handler: 'Chris Kid', handler_id: KID.id }], [SARAH, KID]);
     const { result } = renderEntryFormData();
     await waitFor(() => expect(result.current.dogs).toHaveLength(1));
@@ -185,9 +203,7 @@ describe('useEntryFormData resolves the handler person for the junior fields', (
     expect(dog.handlerDateOfBirth).toBeNull();
   });
 
-  it('asks the people read for the junior columns at all', async () => {
-    // Guards the select string: if these columns stop being requested the whole
-    // feature goes quietly inert and every other assertion here still passes.
+  it('keeps the broad people read private-field-free and asks the private RPC', async () => {
     routeTables([{ id: 'entry-a', handler: 'Chris Kid', handler_id: KID.id }], [KID]);
     const { result } = renderEntryFormData();
     await waitFor(() => expect(result.current.dogs).toHaveLength(1));
@@ -196,8 +212,21 @@ describe('useEntryFormData resolves the handler person for the junior fields', (
       .filter((_, index) => mocks.from.mock.calls[index]?.[0] === 'people')
       .map(r => r.value)[0];
     const selectArg = peopleQuery.select.mock.calls[0][0] as string;
-    expect(selectArg).toContain('date_of_birth');
-    expect(selectArg).toContain('junior_handler_numbers');
+    expect(selectArg).not.toContain('date_of_birth');
+    expect(selectArg).not.toContain('junior_handler_numbers');
     expect(selectArg).toContain('first_name');
+    expect(mocks.rpc.mock.calls[0]).toEqual([
+      'get_people_private',
+      { p_person_ids: [SARAH.id, KID.id] },
+    ]);
+  });
+
+  it('fails closed when the private RPC is unavailable instead of printing blanks', async () => {
+    routeTables([{ id: 'entry-a', handler: 'Chris Kid', handler_id: KID.id }], [SARAH, KID]);
+    mocks.rpc.mockRejectedValueOnce(new Error('network unavailable'));
+    const { result } = renderEntryFormData();
+
+    await waitFor(() => expect(result.current.isError).toBe(true));
+    expect(result.current.dogs).toEqual([]);
   });
 });

@@ -8,7 +8,8 @@ import { supabase } from '@/services/database/supabaseClient';
 import { queryKeys } from '@/lib/queryClient';
 import { friendlyDbError } from '@/utils/friendlyDbError';
 import { juniorHandlerNumbersForSave } from '@/features/registries/juniorHandlerPolicy';
-import { PEOPLE_DIRECTORY_COLUMNS } from '@/services/database/users/peopleColumns';
+import { PEOPLE_MAPPER_COLUMNS } from '@/services/database/users/peopleColumns';
+import { loadPeoplePrivateProfiles } from '@/services/database/users/privatePeople';
 
 export interface ProfileFormValues {
   firstName: string;
@@ -79,17 +80,32 @@ export function useCurrentUserPerson(authUserId: string | undefined) {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('people')
-        // Explicit, not `*`: MYK9-570 put PII on this table, and a star is
-        // invisible to the contract test that keeps it off other surfaces. This
-        // IS the surface that collects it, so it names the junior columns.
-        .select(PEOPLE_DIRECTORY_COLUMNS)
+        // The broad identity query stays private-field-free. Junior fields are
+        // loaded by the self-authorized people_private RPC below.
+        .select(PEOPLE_MAPPER_COLUMNS)
         .eq('auth_user_id', authUserId!)
         .is('deleted_at', null)
         .maybeSingle();
 
       if (error || !data) return null;
 
-      return mapDbUserToUser(data);
+      const { byPersonId, readComplete } = await loadPeoplePrivateProfiles([data.id]);
+      const privateProfile = byPersonId.get(data.id);
+      return {
+        ...mapDbUserToUser(
+          privateProfile
+            ? {
+                ...data,
+                date_of_birth: privateProfile.dateOfBirth,
+                junior_handler_numbers: privateProfile.juniorHandlerNumbers,
+              }
+            : data
+        ),
+        // A successful public read with a failed private RPC is not a complete
+        // profile. Keep that state on the query result so a later save cannot
+        // turn the missing private values into destructive blanks.
+        privateFieldsReadComplete: readComplete,
+      };
     },
     enabled: !!authUserId,
   });
@@ -197,6 +213,13 @@ export function useProfileForm() {
     }
     setSaving(true);
     try {
+      const privateFields = person.privateFieldsReadComplete
+        ? {
+            dateOfBirth: values.dateOfBirth,
+            juniorHandlerNumbers: juniorHandlerNumbersForSave(values.juniorHandlerNumbers),
+          }
+        : {};
+
       await updatePerson.mutateAsync({
         ...person,
         firstName: values.firstName.trim(),
@@ -207,9 +230,10 @@ export function useProfileForm() {
         state: values.state.trim(),
         zipCode: values.zipCode.trim(),
         // MYK9-570. '' clears the date; the numbers are reassembled into the
-        // registry-keyed map the column stores, omitting blanks.
-        dateOfBirth: values.dateOfBirth,
-        juniorHandlerNumbers: juniorHandlerNumbersForSave(values.juniorHandlerNumbers),
+        // registry-keyed map the column stores, omitting blanks. If the private
+        // RPC was incomplete, omit both fields instead of overwriting values
+        // that were never loaded.
+        ...privateFields,
       });
       // Explicit duration at this callsite: the profile save toast previously
       // persisted indefinitely (defaulted to no auto-dismiss) and stuck around

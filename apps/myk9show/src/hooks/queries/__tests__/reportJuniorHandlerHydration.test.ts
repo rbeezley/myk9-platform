@@ -1,15 +1,15 @@
 /**
  * MYK9-570 round-1 review. Every catalog test injects `handler_person` by hand,
  * so the HOP that actually produces it — entry rows carrying `handler_id`, a
- * `people` read, `ReportDbEntry.handler_person` — had no coverage at all. If
+ * public-name read plus private-profile RPC, `ReportDbEntry.handler_person` — had no coverage at all. If
  * `handler_id` stopped arriving the feature would go silently inert with every
  * other test still green.
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import type { ReportDbEntry } from '@/lib/reports/types';
 
-const mocks = vi.hoisted(() => ({ from: vi.fn() }));
-vi.mock('@/lib/supabase', () => ({ supabase: { from: mocks.from } }));
+const mocks = vi.hoisted(() => ({ from: vi.fn(), rpc: vi.fn() }));
+vi.mock('@/lib/supabase', () => ({ supabase: { from: mocks.from, rpc: mocks.rpc } }));
 
 import { loadJuniorHandlerProfiles } from '@/services/database/users/juniorHandlerProfiles';
 import { hydrateHandlerJuniorProfilesForTest } from '../useReportData';
@@ -22,13 +22,17 @@ const PERSON = {
   junior_handler_numbers: { AKC: 'KID-NUMBER' },
 };
 
-/** A `people` read that answers with `rows`, or fails when `error` is given. */
+/** A public `people` name read that answers with `rows`, or fails when `error` is given. */
 function peopleRead(rows: unknown[], error: unknown = null) {
   const select = vi.fn().mockReturnValue({
     in: vi.fn().mockResolvedValue({ data: error ? null : rows, error }),
   });
   mocks.from.mockReturnValue({ select });
   return select;
+}
+
+function privateRead(rows: unknown[], error: unknown = null) {
+  mocks.rpc.mockResolvedValue({ data: error ? null : rows, error });
 }
 
 /**
@@ -52,6 +56,17 @@ function peopleReadPerBatch(responses: Array<{ data: unknown[] | null; error: un
   return inFn;
 }
 
+function privateReadPerBatch(responses: Array<{ data: unknown[] | null; error: unknown }>) {
+  let call = 0;
+  const rpc = vi.fn().mockImplementation(() => {
+    const response = responses[Math.min(call, responses.length - 1)]!;
+    call += 1;
+    return Promise.resolve(response);
+  });
+  mocks.rpc.mockImplementation(rpc);
+  return rpc;
+}
+
 /** 150 ids: two batches under a chunk size of 100. */
 function manyPersonIds(): string[] {
   return Array.from({ length: 150 }, (_, index) => `person-${index}`);
@@ -72,13 +87,19 @@ function entry(overrides: Partial<Record<string, unknown>> = {}): ReportDbEntry 
 describe('loadJuniorHandlerProfiles', () => {
   beforeEach(() => vi.clearAllMocks());
 
-  it('asks people for exactly the columns the feature needs, and no more', () => {
+  it('asks people only for names and uses the private RPC for sensitive fields', () => {
     const select = peopleRead([PERSON]);
+    privateRead([
+      {
+        person_id: PERSON.id,
+        date_of_birth: PERSON.date_of_birth,
+        junior_handler_numbers: PERSON.junior_handler_numbers,
+      },
+    ]);
     return loadJuniorHandlerProfiles([PERSON.id]).then(result => {
       const columns = (select.mock.calls[0]![0] as string).split(',').map(c => c.trim());
-      expect(columns.sort()).toEqual(
-        ['date_of_birth', 'first_name', 'id', 'junior_handler_numbers', 'last_name'].sort()
-      );
+      expect(columns.sort()).toEqual(['first_name', 'id', 'last_name'].sort());
+      expect(mocks.rpc).toHaveBeenCalledWith('get_people_private', { p_person_ids: [PERSON.id] });
       expect(result.byPersonId.get(PERSON.id)).toEqual({
         firstName: 'Chris',
         lastName: 'Kid',
@@ -93,11 +114,13 @@ describe('loadJuniorHandlerProfiles', () => {
     peopleRead([]);
     const result = await loadJuniorHandlerProfiles([]);
     expect(mocks.from).not.toHaveBeenCalled();
+    expect(mocks.rpc).not.toHaveBeenCalled();
     expect(result.readComplete).toBe(true);
   });
 
   it('reports an incomplete read rather than an empty answer', async () => {
-    peopleRead([], { message: 'offline' });
+    peopleRead([PERSON]);
+    privateRead([], { message: 'offline' });
     const result = await loadJuniorHandlerProfiles([PERSON.id]);
     expect(result.readComplete).toBe(false);
     expect(result.byPersonId.size).toBe(0);
@@ -109,6 +132,13 @@ describe('the report hydration hop', () => {
 
   it('attaches the handler person when the entry carries a handler_id', async () => {
     peopleRead([PERSON]);
+    privateRead([
+      {
+        person_id: PERSON.id,
+        date_of_birth: PERSON.date_of_birth,
+        junior_handler_numbers: PERSON.junior_handler_numbers,
+      },
+    ]);
     const [hydrated] = await hydrateHandlerJuniorProfilesForTest([entry()]);
     expect(hydrated?.handler_person).toEqual({
       first_name: 'Chris',
@@ -122,11 +152,19 @@ describe('the report hydration hop', () => {
     const select = peopleRead([PERSON]);
     const [hydrated] = await hydrateHandlerJuniorProfilesForTest([entry({ handler_id: null })]);
     expect(select).not.toHaveBeenCalled();
+    expect(mocks.rpc).not.toHaveBeenCalled();
     expect(hydrated?.handler_person).toBeUndefined();
   });
 
   it('attaches nothing to an entry whose handler is not in the answer', async () => {
     peopleRead([PERSON]);
+    privateRead([
+      {
+        person_id: PERSON.id,
+        date_of_birth: PERSON.date_of_birth,
+        junior_handler_numbers: PERSON.junior_handler_numbers,
+      },
+    ]);
     const hydrated = await hydrateHandlerJuniorProfilesForTest([
       entry(),
       entry({ id: 'e2', handler_id: 'person-absent' }),
@@ -142,8 +180,15 @@ describe('the report hydration hop', () => {
     // say which — so it marks none.
     const ids = manyPersonIds();
     const firstBatchRows = ids.slice(0, 100).map(id => ({ ...PERSON, id }));
-    const inFn = peopleReadPerBatch([
+    peopleReadPerBatch([
       { data: firstBatchRows, error: null },
+      { data: null, error: { message: 'offline' } },
+    ]);
+    const inFn = privateReadPerBatch([
+      {
+        data: ids.slice(0, 100).map(id => ({ ...PERSON, person_id: id })),
+        error: null,
+      },
       { data: null, error: { message: 'offline' } },
     ]);
 
@@ -159,9 +204,19 @@ describe('the report hydration hop', () => {
   it('marks everyone when every batch answered', async () => {
     // Positive control for the test above: same two-batch shape, no failure.
     const ids = manyPersonIds();
-    const inFn = peopleReadPerBatch([
+    peopleReadPerBatch([
       { data: ids.slice(0, 100).map(id => ({ ...PERSON, id })), error: null },
       { data: ids.slice(100).map(id => ({ ...PERSON, id })), error: null },
+    ]);
+    const inFn = privateReadPerBatch([
+      {
+        data: ids.slice(0, 100).map(id => ({ ...PERSON, person_id: id })),
+        error: null,
+      },
+      {
+        data: ids.slice(100).map(id => ({ ...PERSON, person_id: id })),
+        error: null,
+      },
     ]);
 
     const entries = ids.map(id => entry({ id: `e-${id}`, handler_id: id }));
@@ -174,7 +229,8 @@ describe('the report hydration hop', () => {
   it('marks NOBODY when the people read did not complete', async () => {
     // Half a hydration is worse than none: the catalog would mark some juniors
     // and silently miss others, with nothing on the page to say which.
-    peopleRead([], { message: 'offline' });
+    peopleRead([PERSON]);
+    privateRead([], { message: 'offline' });
     const [hydrated] = await hydrateHandlerJuniorProfilesForTest([entry()]);
     expect(hydrated?.handler_person).toBeUndefined();
   });

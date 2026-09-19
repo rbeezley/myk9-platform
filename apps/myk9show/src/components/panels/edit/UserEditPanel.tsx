@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useMemo, useEffect } from 'react';
+import React, { useState, useCallback, useMemo, useEffect, useRef } from 'react';
 import { EditPanelWrapper } from './EditPanelWrapper';
 import { useEditPanel } from './useEditPanel';
 import { JudgeQualificationPanel } from './JudgeQualificationPanel';
@@ -24,6 +24,7 @@ import { BasicInfoTab } from './BasicInfoTab';
 import { ContactInfoTab } from './ContactInfoTab';
 import { QualificationsTab } from './QualificationsTab';
 import { ComplimentaryPremiumSection } from './ComplimentaryPremiumSection';
+import { useUserQuery } from '@/hooks/queries/useUsersQuery';
 
 // Re-export types for consumers that may need them
 export type { UserEditPanelProps, UserFormData } from './UserEditPanel.types';
@@ -34,6 +35,8 @@ const TAB_TRIGGER_CLASS = 'gap-2 rounded-lg transition-all duration-300';
 const UserEditForm: React.FC<{ userId: string }> = ({ userId }) => {
   const queryClient = useQueryClient();
   const { data, form } = useEditPanel<UserFormData>();
+  const { data: hydratedUser } = useUserQuery(userId);
+  const hydratedUserIdRef = useRef<string | null>(null);
   const { user: currentUser } = useAuthContext();
   const { hasPermission } = useRBAC();
   const { loadUsers } = useUserStore();
@@ -56,6 +59,18 @@ const UserEditForm: React.FC<{ userId: string }> = ({ userId }) => {
     travelRadius: 100,
   });
   const [availabilityLoaded, setAvailabilityLoaded] = useState(false);
+
+  // The admin list is intentionally directory-safe and therefore does not
+  // carry private identity fields. Hydrate through getUserById when the edit
+  // form opens so an unrelated phone edit cannot present existing private data
+  // as empty. Do not reset edits already made while the detail read is in
+  // flight.
+  useEffect(() => {
+    if (!form || !hydratedUser || form.hasChanges || hydratedUserIdRef.current === hydratedUser.id)
+      return;
+    hydratedUserIdRef.current = hydratedUser.id;
+    form.reset(userToFormData(hydratedUser));
+  }, [hydratedUser, form]);
 
   // Load availability from DB on mount for judges
   useEffect(() => {

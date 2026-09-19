@@ -25,6 +25,11 @@ export interface AdminUser extends User {
   lastSignInAt: string | null;
 }
 
+type PrivateUserFields = {
+  date_of_birth?: string | null;
+  junior_handler_numbers?: unknown;
+};
+
 /**
  * What this mapper actually requires of a row: an id, and whatever else is
  * present. MYK9-570 replaced the `select('*')` reads on `people` with explicit
@@ -34,7 +39,10 @@ export interface AdminUser extends User {
  * forced a cast at each of those call sites, which is exactly how a missing
  * column stops being visible to the compiler.
  */
-export type MappableDbUser = Partial<DbUser> & Pick<DbUser, 'id'>;
+export type MappableDbUser =
+  Partial<Omit<DbUser, 'date_of_birth' | 'junior_handler_numbers'>> &
+  Pick<DbUser, 'id'> &
+  PrivateUserFields;
 
 // Database to UI mapper for User data
 export const mapDbUserToUser = (dbUser: MappableDbUser): User => ({
@@ -65,8 +73,8 @@ export const mapDbUserToUser = (dbUser: MappableDbUser): User => ({
 });
 
 // UI to Database mapper for User updates
-export const mapUserToDbUpdate = (user: Partial<User>): DbUserUpdate => {
-  const dbUpdate: DbUserUpdate = {};
+export const mapUserToDbUpdate = (user: Partial<User>): DbUserUpdate & PrivateUserFields => {
+  const dbUpdate = {} as DbUserUpdate & PrivateUserFields;
 
   if (user.firstName !== undefined) dbUpdate.first_name = user.firstName;
   if (user.lastName !== undefined) dbUpdate.last_name = user.lastName;

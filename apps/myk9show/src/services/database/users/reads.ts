@@ -10,6 +10,14 @@ import {
 } from './signInEmailGuard';
 import { hydrateVisibleRoles } from './roleLabels';
 import { PEOPLE_DIRECTORY_COLUMNS, PEOPLE_MAPPER_COLUMNS } from './peopleColumns';
+import { loadPeoplePrivateProfiles, savePeoplePrivateProfile } from './privatePeople';
+import { normalizeJuniorHandlerNumbers } from '@/features/registries/juniorHandlerPolicy';
+
+type PrivateUserFields = {
+  date_of_birth?: string | null;
+  junior_handler_numbers?: unknown;
+};
+type DbUserUpdateWithPrivate = DbUserUpdate & PrivateUserFields;
 
 // Re-exported so existing importers keep working; the lists live in peopleColumns.ts.
 export { PEOPLE_DIRECTORY_COLUMNS, PEOPLE_MAPPER_COLUMNS } from './peopleColumns';
@@ -104,7 +112,19 @@ export const getUserById = async (id: string) => {
       throw createDatabaseError(error, 'user', 'select_by_id');
     }
 
-    const [person] = await hydrateVisibleRoles([data]);
+    const { byPersonId: privateProfiles, readComplete } = await loadPeoplePrivateProfiles([id]);
+    if (!readComplete) {
+      throw new Error('Private person fields are unavailable; refusing incomplete hydration');
+    }
+    const privateProfile = privateProfiles.get(id);
+    const row = privateProfile
+      ? {
+          ...data,
+          date_of_birth: privateProfile.dateOfBirth,
+          junior_handler_numbers: privateProfile.juniorHandlerNumbers,
+        }
+      : data;
+    const [person] = await hydrateVisibleRoles([row]);
     return { data: person, error: null };
   } catch (error) {
     const duration = Date.now() - startTime;
@@ -146,7 +166,7 @@ export const createUser = async (userData: DbUserInsert) => {
 };
 
 // Update user
-export const updateUser = async (id: string, updates: DbUserUpdate) => {
+export const updateUser = async (id: string, updates: DbUserUpdateWithPrivate) => {
   const startTime = Date.now();
 
   try {
@@ -155,7 +175,42 @@ export const updateUser = async (id: string, updates: DbUserUpdate) => {
     // path to `people.email` funnels through here (three mappers plus the show
     // wizard's direct call), so this is the one place the check belongs.
     let requireUnlinked = false;
-    const payload: DbUserUpdate = { ...updates };
+    const privateFields = updates as PrivateUserFields;
+    const hasPrivateUpdate =
+      privateFields.date_of_birth !== undefined ||
+      privateFields.junior_handler_numbers !== undefined;
+    let savedPrivate: Awaited<ReturnType<typeof savePeoplePrivateProfile>>['data'] = null;
+    if (hasPrivateUpdate) {
+      const { byPersonId, readComplete } = await loadPeoplePrivateProfiles([id]);
+      const currentPrivate = byPersonId.get(id);
+      const needsExistingDate = privateFields.date_of_birth === undefined;
+      const needsExistingNumbers = privateFields.junior_handler_numbers === undefined;
+      if ((!readComplete || !currentPrivate) && (needsExistingDate || needsExistingNumbers)) {
+        throw new Error('Private person fields are unavailable; refusing an unsafe partial update');
+      }
+      const privateResult = await savePeoplePrivateProfile({
+        personId: id,
+        dateOfBirth:
+          privateFields.date_of_birth !== undefined
+            ? privateFields.date_of_birth
+            : (currentPrivate?.dateOfBirth ?? null),
+          juniorHandlerNumbers:
+          privateFields.junior_handler_numbers !== undefined
+            ? normalizeJuniorHandlerNumbers(privateFields.junior_handler_numbers)
+            : (currentPrivate?.juniorHandlerNumbers ?? {}),
+      });
+      if (privateResult.error || !privateResult.data) {
+        throw Object.assign(
+          new Error(privateResult.error?.message || 'Failed to update private person fields'),
+          { code: privateResult.error?.code }
+        );
+      }
+      savedPrivate = privateResult.data;
+    }
+
+    const payload = { ...updates } as DbUserUpdate;
+    delete (payload as PrivateUserFields).date_of_birth;
+    delete (payload as PrivateUserFields).junior_handler_numbers;
     if (updates.email !== undefined) {
       const decision = await checkSignInEmailChange(id, updates.email);
       if (!decision.allowed) {
@@ -211,7 +266,16 @@ export const updateUser = async (id: string, updates: DbUserUpdate) => {
       throw createDatabaseError(error, 'user', 'update');
     }
 
-    return { data, error: null };
+    return {
+      data: savedPrivate
+        ? {
+            ...data,
+            date_of_birth: savedPrivate.dateOfBirth,
+            junior_handler_numbers: savedPrivate.juniorHandlerNumbers,
+          }
+        : data,
+      error: null,
+    };
   } catch (error) {
     const duration = Date.now() - startTime;
     // MYK9-175: mirror the insert path. A `people_email_unique` collision has

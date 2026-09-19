@@ -19,6 +19,7 @@ describe('User Queries', () => {
   beforeEach(() => {
     mockSupabase.rpc.mockReset();
     resetMockSupabase();
+    mockSupabase.rpc.mockResolvedValue({ data: [], error: null });
   });
 
   afterEach(() => {
@@ -219,10 +220,13 @@ describe('User Queries', () => {
       const mockData = { id: userId, first_name: 'Ada', last_name: 'Judge' };
       const chain = createChainableQuery({ data: mockData, error: null });
       mockSupabase.from.mockReturnValue(chain);
-      mockSupabase.rpc.mockResolvedValueOnce({
-        data: [{ person_id: userId, role_name: 'judge' }],
-        error: null,
-      });
+      mockSupabase.rpc.mockImplementation((functionName: string) =>
+        Promise.resolve(
+          functionName === 'get_people_private'
+            ? { data: [], error: null }
+            : { data: [{ person_id: userId, role_name: 'judge' }], error: null }
+        )
+      );
 
       const result = await getUserById(userId);
 
@@ -276,6 +280,24 @@ describe('User Queries', () => {
       expect(result.data).toBeNull();
       expect(result.error).toBeDefined();
       expect(result.error!.code).toBe('PGRST116');
+    });
+
+    it('withholds the detailed row when the private hydration fails', async () => {
+      const userId = 'user-private-read-failed';
+      mockSupabase.from.mockReturnValue(
+        createChainableQuery({ data: { id: userId, first_name: 'Ada' }, error: null })
+      );
+      mockSupabase.rpc.mockImplementation((functionName: string) => {
+        if (functionName === 'get_people_private') {
+          return Promise.resolve({ data: null, error: { message: 'network unavailable' } });
+        }
+        return Promise.resolve({ data: [], error: null });
+      });
+
+      const result = await getUserById(userId);
+
+      expect(result.data).toBeNull();
+      expect(result.error?.message).toContain('Private person fields are unavailable');
     });
 
     it('should validate response time for detailed user fetch', async () => {

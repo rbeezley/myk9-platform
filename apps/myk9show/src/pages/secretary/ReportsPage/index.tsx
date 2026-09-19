@@ -157,11 +157,16 @@ export default function ReportsPage() {
       trialId,
       classId,
     });
+  const phaseTrials = trials?.length ? trials : (currentShow?.trials ?? []);
   const showTimePhase = resolveShowTimePhase(
     currentShow,
     new Date(),
     getEntryWindowTimezone(
-      (trials ?? []) as Array<{ id?: string | null; date?: string | null; timezone?: string | null }>
+      phaseTrials as Array<{
+        id?: string | null;
+        date?: string | null;
+        timezone?: string | null;
+      }>
     )
   );
 

@@ -45,6 +45,7 @@ export interface EntryBalanceSource {
   /** Fee in dollars, matching My Entries' loaded entry model. */
   totalFee: number;
   deletedAt?: string | null | undefined;
+  showDeletedAt?: string | null | undefined;
   movedFromEntryId?: string | null | undefined;
   classes?: EntryBalanceClassSource[] | undefined;
   /** Set when the move-up source could not be read in this scope. */
@@ -130,6 +131,7 @@ export type EntryBalanceRawRow = Record<string, unknown> & {
     name?: string | null;
     start_date?: string | null;
     end_date?: string | null;
+    deleted_at?: string | null;
     entry_close_date?: string | null;
     trials?: EntryWindowTrial[] | null;
   } | null;
@@ -199,6 +201,7 @@ export function mapEntryRowToBalanceSource(row: EntryBalanceRawRow): EntryBalanc
     paymentMethod: row.payment_method ?? null,
     totalFee: row.entry_fee ?? 0,
     deletedAt: row.deleted_at ?? null,
+    showDeletedAt: show?.deleted_at ?? null,
     movedFromEntryId: row.moved_from_entry_id ?? null,
   };
 }
@@ -264,7 +267,7 @@ export function summarizeEntryBalances(
   let payAtShowDueCents = 0;
 
   for (const entry of entries) {
-    if (entry.deletedAt) continue;
+    if (entry.deletedAt && !entry.showDeletedAt) continue;
     const isCurrentEntry = isCurrentSummaryEntry(entry, now);
     if (!isCurrentEntry && !isBalanceEligibleEntry(entry)) continue;
 

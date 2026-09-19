@@ -456,6 +456,8 @@ BEGIN
 END;
 $$;
 
+RESET ROLE;
+
 -- ---------------------------------------------------------------------------
 -- 4. The reverse refuses a SOURCE in a show the caller does not manage.
 --    Round 1's defect: the function authorized only the destination's show,

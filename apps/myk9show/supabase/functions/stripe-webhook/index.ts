@@ -1283,9 +1283,16 @@ async function handleEntryPaymentCompleted(session: Stripe.Checkout.Session) {
       const moneyRootId = loadedMoneyRoot.reconciliationEntryIds[0] ?? existingEntry.id;
       const moneyRoot =
         loadedMoneyRoot.entries.find(entry => entry.id === moneyRootId) ?? existingEntry;
-      if (loadedMoneyRoot.error || moneyRoot.payment_status !== 'pending') {
+      if (
+        loadedMoneyRoot.error ||
+        loadedMoneyRoot.blockedEntryIds.includes(existingEntry.id) ||
+        moneyRoot.payment_status !== 'pending'
+      ) {
         const errorMessage =
-          loadedMoneyRoot.error?.message ?? 'Recovered entry money root is no longer unpaid';
+          loadedMoneyRoot.error?.message ??
+          (loadedMoneyRoot.blockedEntryIds.includes(existingEntry.id)
+            ? 'Recovered entry money root could not be reconciled safely'
+            : 'Recovered entry money root is no longer unpaid');
         console.error(
           `Error recovering existing entry root for cart item ${item.id}:`,
           errorMessage
@@ -1432,7 +1439,7 @@ async function handleEntryPaymentCompleted(session: Stripe.Checkout.Session) {
   await resolvePaidWaitlistOffers(paidLineIds, session.id);
 
   // Freeze the withdrawal policy these entries were paid under (best-effort).
-  await stampWithdrawalSnapshot(entryIds, cart.show_id);
+  await stampWithdrawalSnapshot([...new Set([...entryIds, ...paidLineIds])], cart.show_id);
 
   const overflowRefundDecision = decideCartOverflowRefund({
     paymentIntentId,
@@ -1679,7 +1686,12 @@ async function loadPaymentReconciliationEntries(entryIds: string[]): Promise<{
       return currentId;
     }
     const seen = new Set<string>();
-    while (!seen.has(currentId)) {
+    while (true) {
+      if (seen.has(currentId)) {
+        blockedEntryIds.push(entryId);
+        blocked = true;
+        break;
+      }
       seen.add(currentId);
       const parentId = entriesById.get(currentId)?.moved_from_entry_id;
       if (!parentId) break;

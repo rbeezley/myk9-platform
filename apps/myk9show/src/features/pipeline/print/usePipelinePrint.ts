@@ -12,6 +12,7 @@ import { generateRunOrder, generateScoreSheet, generateResults } from './print-s
 import type { ClassPipelineItem } from '../mission-control-types';
 import type { PrintClassInfo, PrintReportEntry } from './print-types';
 import { projectHandlerIdentity } from '@/features/registries/handlerIdentity';
+import { normalizePacketArmband } from '@/features/emergency-trial-packet/armband';
 
 /** Map result_status from DB to display text */
 function mapResultStatus(status: string | null): string | null {
@@ -71,7 +72,7 @@ export function mapEntry(row: EntryRow): PrintReportEntry {
 
   return {
     id: String(row.id),
-    armband: Number(row.armband) || 0,
+    armband: normalizePacketArmband(row.armband),
     runOrder: row.run_order ?? null,
     callName: dog?.call_name ?? 'Unknown',
     breed: dog?.breed ?? '',

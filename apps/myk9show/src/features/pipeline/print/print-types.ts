@@ -1,7 +1,9 @@
+import type { PacketArmband } from '@/features/emergency-trial-packet/armband';
+
 /** A single entry shaped for print reports */
 export interface PrintReportEntry {
   id: string;
-  armband: number;
+  armband: PacketArmband;
   runOrder: number | null;
   callName: string;
   breed: string;

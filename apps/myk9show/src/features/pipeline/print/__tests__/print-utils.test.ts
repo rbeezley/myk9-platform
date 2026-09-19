@@ -15,7 +15,7 @@ import type { PrintReportEntry } from '../print-types';
 function makeEntry(overrides: Partial<PrintReportEntry> = {}): PrintReportEntry {
   return {
     id: '1',
-    armband: 100,
+    armband: '100',
     runOrder: null,
     callName: 'Rex',
     breed: 'Labrador',
@@ -70,9 +70,9 @@ describe('formatReportTime', () => {
 describe('sortByRunOrder', () => {
   it('sorts by runOrder then armband', () => {
     const entries = [
-      makeEntry({ id: 'a', armband: 200, runOrder: 2 }),
-      makeEntry({ id: 'b', armband: 100, runOrder: 1 }),
-      makeEntry({ id: 'c', armband: 150, runOrder: null }),
+      makeEntry({ id: 'a', armband: '200', runOrder: 2 }),
+      makeEntry({ id: 'b', armband: '100', runOrder: 1 }),
+      makeEntry({ id: 'c', armband: '150', runOrder: null }),
     ];
     const sorted = sortByRunOrder(entries);
     // b: runOrder 1, a: runOrder 2, c: null runOrder falls back to armband 150
@@ -83,9 +83,9 @@ describe('sortByRunOrder', () => {
 describe('sortByArmband', () => {
   it('sorts by armband number', () => {
     const entries = [
-      makeEntry({ id: 'a', armband: 300 }),
-      makeEntry({ id: 'b', armband: 100 }),
-      makeEntry({ id: 'c', armband: 200 }),
+      makeEntry({ id: 'a', armband: '300' }),
+      makeEntry({ id: 'b', armband: '100' }),
+      makeEntry({ id: 'c', armband: '200' }),
     ];
     const sorted = sortByArmband(entries);
     expect(sorted.map(e => e.id)).toEqual(['b', 'c', 'a']);
@@ -105,9 +105,9 @@ describe('sortByPlacement', () => {
 
   it('sorts non-qualified by status priority: Absent > Excused > NQ', () => {
     const entries = [
-      makeEntry({ id: 'nq', resultText: 'NQ', armband: 100 }),
-      makeEntry({ id: 'abs', resultText: 'Absent', armband: 200 }),
-      makeEntry({ id: 'exc', resultText: 'Excused', armband: 300 }),
+      makeEntry({ id: 'nq', resultText: 'NQ', armband: '100' }),
+      makeEntry({ id: 'abs', resultText: 'Absent', armband: '200' }),
+      makeEntry({ id: 'exc', resultText: 'Excused', armband: '300' }),
     ];
     const sorted = sortByPlacement(entries);
     expect(sorted.map(e => e.id)).toEqual(['abs', 'exc', 'nq']);
@@ -115,11 +115,23 @@ describe('sortByPlacement', () => {
 
   it('breaks ties by armband', () => {
     const entries = [
-      makeEntry({ id: 'b', resultText: 'NQ', armband: 200 }),
-      makeEntry({ id: 'a', resultText: 'NQ', armband: 100 }),
+      makeEntry({ id: 'b', resultText: 'NQ', armband: '200' }),
+      makeEntry({ id: 'a', resultText: 'NQ', armband: '100' }),
     ];
     const sorted = sortByPlacement(entries);
     expect(sorted.map(e => e.id)).toEqual(['a', 'b']);
+  });
+
+  it('uses one alphanumeric ordering for run order, scoresheets, and results', () => {
+    const entries = [
+      makeEntry({ id: '12B', armband: '12B' }),
+      makeEntry({ id: '12A', armband: '12A' }),
+      makeEntry({ id: '12', armband: '12' }),
+    ];
+
+    expect(sortByRunOrder(entries).map(entry => entry.id)).toEqual(['12', '12A', '12B']);
+    expect(sortByArmband(entries).map(entry => entry.id)).toEqual(['12', '12A', '12B']);
+    expect(sortByPlacement(entries).map(entry => entry.id)).toEqual(['12', '12A', '12B']);
   });
 });
 

@@ -12,6 +12,7 @@ import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { getReportById, getReportsForRegistries } from '@/lib/reports/reportRegistry';
 import type { ReportDefinition, ReportPhase } from '@/lib/reports/types';
 import { resolveConfiguredRegistryId, type RegistryId } from '@/features/registries';
+import type { PacketArmband } from '@/features/emergency-trial-packet/armband';
 import { orderReportPhases, type ShowTimePhase } from '@/lib/reports/reportPhaseOrder';
 import { formatClassLabel } from '@/lib/utils';
 import { AlertTriangle, Download } from 'lucide-react';
@@ -44,7 +45,7 @@ function formatClassOptionLabel(cls: {
 function formatDogOptionLabel(dog: {
   callName: string;
   registeredName: string | null;
-  armband: number | null;
+  armband: PacketArmband;
 }): string {
   const registered = dog.registeredName ? ` (${dog.registeredName})` : '';
   const armband = dog.armband != null ? ` · #${dog.armband}` : '';
@@ -112,7 +113,7 @@ interface ReportControlsBarProps {
     id: string;
     callName: string;
     registeredName: string | null;
-    armband: number | null;
+    armband: PacketArmband;
   }>;
   /** The dog list failed to load, so an empty `dogs` means unknown, not none. */
   dogsUnavailable?: boolean;

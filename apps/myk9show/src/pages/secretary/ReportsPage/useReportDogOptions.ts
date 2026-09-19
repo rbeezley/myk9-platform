@@ -1,11 +1,16 @@
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
+import {
+  compareArmbands,
+  normalizePacketArmband,
+  type PacketArmband,
+} from '@/features/emergency-trial-packet/armband';
 
 export interface ReportDogOption {
   id: string;
   callName: string;
   registeredName: string | null;
-  armband: number | null;
+  armband: PacketArmband;
 }
 
 export interface ReportDogOptions {
@@ -19,6 +24,10 @@ export interface ReportDogOptions {
    * defect class the rest of this page exists to fix.
    */
   unavailable: boolean;
+}
+
+export function sortReportDogOptions(options: readonly ReportDogOption[]): ReportDogOption[] {
+  return [...options].sort((a, b) => compareArmbands(a.armband, b.armband));
 }
 
 /**
@@ -52,19 +61,20 @@ export function useReportDogOptions(
       const regMap = new Map((regs ?? []).map(r => [r.dog_id, r.registered_name]));
       const seen = new Set<string>();
 
-      return entryDogs
-        .filter(e => {
-          if (!e.dog_id || seen.has(e.dog_id)) return false;
-          seen.add(e.dog_id);
-          return true;
-        })
-        .map(e => ({
-          id: e.dog_id!,
-          callName: ((e.dog as Record<string, unknown>)?.call_name as string) ?? '',
-          registeredName: regMap.get(e.dog_id!) ?? null,
-          armband: e.armband != null ? Number(e.armband) : null,
-        }))
-        .sort((a, b) => (a.armband ?? 0) - (b.armband ?? 0));
+      return sortReportDogOptions(
+        entryDogs
+          .filter(e => {
+            if (!e.dog_id || seen.has(e.dog_id)) return false;
+            seen.add(e.dog_id);
+            return true;
+          })
+          .map(e => ({
+            id: e.dog_id!,
+            callName: ((e.dog as Record<string, unknown>)?.call_name as string) ?? '',
+            registeredName: regMap.get(e.dog_id!) ?? null,
+            armband: normalizePacketArmband(e.armband),
+          }))
+      );
     },
     enabled: !!showId && supportsDogFilter,
     staleTime: 5 * 60 * 1000,

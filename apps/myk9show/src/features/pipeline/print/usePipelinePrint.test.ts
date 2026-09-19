@@ -32,6 +32,12 @@ describe('mapEntry', () => {
     expect(entry.handlerName).toBe('Jamie Handler');
   });
 
+  it('preserves alphanumeric armband labels for every print model', () => {
+    const entry = mapEntry({ id: 'entry-alphanumeric-armband', armband: '12A' });
+
+    expect(entry.armband).toBe('12A');
+  });
+
   it('uses the hydrated handler person for an entry with only handler_id', () => {
     const entry = mapEntry({
       id: 'entry-hydrated-handler',

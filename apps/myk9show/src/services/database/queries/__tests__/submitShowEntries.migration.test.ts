@@ -52,14 +52,34 @@ describe('submit_show_entries migration authorization', () => {
     const migration = readFileSync(
       resolve(
         process.cwd(),
-        '../../supabase/migrations/20260707123000_entry_management_handler_corrections.sql'
+        '../../supabase/migrations/20260919150017_myk9_665_align_handler_id_clear_behavior.sql'
       ),
       'utf8'
     );
 
     expect(migration).not.toContain('concat_ws');
-    expect(migration).toContain('WHEN p_clear_handler_id THEN NULL');
+    expect(migration).toContain('v_is_official := public.can_manage_show(v_show_id)');
+    expect(migration).toContain('WHEN p_handler_id IS NOT NULL THEN p_handler_id');
+    expect(migration).toContain('p_clear_handler_id boolean DEFAULT FALSE');
+    expect(migration).toContain('OR public.is_show_secretary(v_show_id)');
+  });
+
+  it('keeps exhibitor clear requests from dropping handler_id', () => {
+    const migration = readFileSync(
+      resolve(
+        process.cwd(),
+        '../../supabase/migrations/20260919150017_myk9_665_align_handler_id_clear_behavior.sql'
+      ),
+      'utf8'
+    );
+
+    expect(migration).toContain('MYK9-665');
+    expect(migration).toContain('p_clear_handler_id boolean DEFAULT FALSE');
+    expect(migration).toContain(
+      'WHEN v_resolved_handler_id IS NOT NULL THEN v_resolved_handler_id'
+    );
     expect(migration).toContain('ELSE v_existing_handler_id');
+    expect(migration.match(/p_clear_handler_id THEN NULL/g)).toHaveLength(1);
   });
 
   it('returns the registration and submission ids expected by the client wrapper', () => {

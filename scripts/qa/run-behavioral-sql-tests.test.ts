@@ -91,6 +91,7 @@ const launchCriticalSqlTests = [
   'withdraw_own_entry_test.sql',
   'withdraw_or_pull_own_entry_test.sql',
   'update_own_entry_jump_height_test.sql',
+  'update_entry_handler_for_entry_management_test.sql',
   'seed_demo_paid_stray_guard_test.sql',
   'seed_demo_paid_stray_guard_scopes_test.sql',
 ];

@@ -22,7 +22,8 @@ values
   ('00000000-0000-0000-0000-000000126011', 'Club', 'Admin', '00000000-0000-0000-0000-000000126101'),
   ('00000000-0000-0000-0000-000000126012', 'Club', 'Secretary', '00000000-0000-0000-0000-000000126102'),
   ('00000000-0000-0000-0000-000000126013', 'Entry', 'Handler', '00000000-0000-0000-0000-000000126103'),
-  ('00000000-0000-0000-0000-000000126014', 'Unrelated', 'User', '00000000-0000-0000-0000-000000126104');
+  ('00000000-0000-0000-0000-000000126014', 'Unrelated', 'User', '00000000-0000-0000-0000-000000126104'),
+  ('00000000-0000-0000-0000-000000126015', 'Show Pinned', 'Club Admin', '00000000-0000-0000-0000-000000126105');
 
 insert into public.club_members (club_id, person_id, membership_status)
 values
@@ -68,6 +69,17 @@ values
 update public.shows
 set deleted_at = now()
 where id = '00000000-0000-0000-0000-000000126004';
+
+insert into public.user_roles (
+  user_id, role_id, club_id, show_id, is_active, expires_at, auth_user_id
+)
+select
+  '00000000-0000-0000-0000-000000126015', roles.id,
+  '00000000-0000-0000-0000-000000126001',
+  '00000000-0000-0000-0000-000000126002', true, null,
+  '00000000-0000-0000-0000-000000126105'
+from public.roles
+where roles.name = 'club_admin';
 
 insert into public.trials (id, show_id, name, date)
 values
@@ -236,6 +248,41 @@ begin
 
   if row_count <> 3 then
     raise exception 'FAIL handler sees %/3 own entries', row_count;
+  end if;
+end;
+$$;
+
+-- A show-pinned club_admin can manage exactly its assigned show. This covers
+-- the shared can_manage_show predicate used by entries INSERT/UPDATE and the
+-- entries_select replacement in the MYK9-663 follow-up migration.
+do $$
+declare
+  assigned boolean;
+  other boolean;
+  row_count integer;
+begin
+  perform set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-000000126105', true);
+  perform set_config(
+    'request.jwt.claims',
+    json_build_object('sub', '00000000-0000-0000-0000-000000126105', 'role', 'authenticated')::text,
+    true
+  );
+
+  assigned := public.can_manage_show('00000000-0000-0000-0000-000000126002');
+  other := public.can_manage_show('00000000-0000-0000-0000-000000126003');
+  select count(e.id) into row_count
+  from public.entries e
+  where e.id in (
+    '00000000-0000-0000-0000-000000126031',
+    '00000000-0000-0000-0000-000000126032',
+    '00000000-0000-0000-0000-000000126033'
+  );
+
+  if not assigned or other then
+    raise exception 'FAIL pinned club_admin can_manage_show assigned=%, other=%', assigned, other;
+  end if;
+  if row_count <> 1 then
+    raise exception 'FAIL pinned club_admin sees %/1 assigned-show entries', row_count;
   end if;
 end;
 $$;

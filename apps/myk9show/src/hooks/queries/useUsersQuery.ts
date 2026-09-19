@@ -126,11 +126,15 @@ export function mergeUserMutationResult(
 ): User {
   const privateFieldsChanged =
     updates.dateOfBirth !== undefined || updates.juniorHandlerNumbers !== undefined;
-  if (previousUser?.privateFieldsReadComplete === true && !privateFieldsChanged) {
+  if (previousUser?.privateFieldsReadComplete === true) {
     return {
       ...updatedUser,
-      dateOfBirth: previousUser.dateOfBirth,
-      juniorHandlerNumbers: previousUser.juniorHandlerNumbers,
+      ...(privateFieldsChanged
+        ? {}
+        : {
+            dateOfBirth: previousUser.dateOfBirth,
+            juniorHandlerNumbers: previousUser.juniorHandlerNumbers,
+          }),
       ...(previousUser.roles !== undefined && { roles: previousUser.roles }),
       ...(previousUser.judgeInfo !== undefined && { judgeInfo: previousUser.judgeInfo }),
       ...(previousUser.judgeQualifications !== undefined && {

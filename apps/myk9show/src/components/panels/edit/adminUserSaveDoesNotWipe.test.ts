@@ -87,6 +87,30 @@ describe('a save from /admin/users does not wipe what it never loaded', () => {
     expect(cached.privateFieldsReadComplete).toBe(true);
   });
 
+  it('keeps detail roles when a private save returns only the profile row', () => {
+    const cached = mergeUserMutationResult(
+      {
+        ...mapDbUserToUser(DIRECTORY_ROW),
+        privateFieldsReadComplete: true,
+        roles: [UserRole.JUDGE],
+        judgeQualifications: [],
+      },
+      {
+        id: 'person-1',
+        firstName: 'Mariana',
+        lastName: 'Rivera',
+        dateOfBirth: '2012-04-05',
+        juniorHandlerNumbers: { AKC: 'NEW-7654321' },
+      },
+      { dateOfBirth: '2012-04-05', juniorHandlerNumbers: { AKC: 'NEW-7654321' } }
+    );
+
+    expect(cached.dateOfBirth).toBe('2012-04-05');
+    expect(cached.juniorHandlerNumbers).toEqual({ AKC: 'NEW-7654321' });
+    expect(cached.roles).toEqual([UserRole.JUDGE]);
+    expect(cached.judgeQualifications).toEqual([]);
+  });
+
   it('marshals the edit panel payload before the atomic private-profile save', () => {
     const update = mapUserToDbUpdate(
       buildUserEditSavePayload(

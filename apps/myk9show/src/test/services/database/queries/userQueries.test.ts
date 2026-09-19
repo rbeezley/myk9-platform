@@ -239,7 +239,11 @@ describe('User Queries', () => {
         p_limit: 500,
         p_offset: 0,
       });
-      expect(result.data).toEqual({ ...mockData, roles: ['judge'] });
+      expect(result.data).toEqual({
+        ...mockData,
+        roles: ['judge'],
+        privateFieldsReadComplete: true,
+      });
     });
 
     it('should fetch user by ID with full details successfully', async () => {
@@ -265,7 +269,7 @@ describe('User Queries', () => {
       const result = await getUserById(userId);
       const duration = Date.now() - startTime;
 
-      expect(result.data).toEqual({ ...mockData, roles: [] });
+      expect(result.data).toEqual({ ...mockData, roles: [], privateFieldsReadComplete: true });
       expect(result.error).toBeNull();
       expect(duration).toBeLessThan(200);
     });
@@ -317,7 +321,7 @@ describe('User Queries', () => {
       const result = await getUserById(userId);
       const duration = Date.now() - startTime;
 
-      expect(result.data).toEqual({ ...mockData, roles: [] });
+      expect(result.data).toEqual({ ...mockData, roles: [], privateFieldsReadComplete: true });
       expect(duration).toBeLessThan(200);
     });
   });

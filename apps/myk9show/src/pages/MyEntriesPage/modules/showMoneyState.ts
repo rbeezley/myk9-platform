@@ -111,15 +111,18 @@ export function deriveShowMoneyState(
     // answers "is this show over?".
     const isPast = isPastShowEntry(dueOrders[0], now);
     const dueEntryIds = dueOrders.flatMap(order => order.balance?.dueEntryIds ?? []);
+    const paymentEntryIds = dueOrders.flatMap(
+      order => order.balance?.paymentEntryIds ?? order.balance?.dueEntryIds ?? []
+    );
     const showId = dueOrders[0].showId;
     return {
       kind: isPast ? 'unresolved' : 'balance-due',
       amountCents,
       dueDogNames: [...new Set(dueOrders.flatMap(dueDogNamesOf))],
       paymentHref:
-        isPast || !showId || dueEntryIds.length === 0
+        isPast || !showId || paymentEntryIds.length === 0
           ? null
-          : buildFinishPaymentHref(showId, dueEntryIds),
+          : buildFinishPaymentHref(showId, paymentEntryIds),
       dueOrderIds: dueOrders.map(order => order.id),
     };
   }

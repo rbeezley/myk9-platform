@@ -83,6 +83,24 @@ describe('buildOrderBalance', () => {
     expect(balance?.amountDueCents).toBe(0);
   });
 
+  it('keeps visible destination ids separate from money-root checkout ids', () => {
+    const balance = buildOrderBalance(
+      [
+        makeClass({ id: 'source', entryStatus: EntryStatus.MOVED, fee: 35 }),
+        makeClass({
+          id: 'destination',
+          movedFromEntryId: 'source',
+          fee: 0,
+        }),
+      ],
+      makeCtx(),
+      NOW
+    );
+
+    expect(balance?.dueEntryIds).toEqual(['destination']);
+    expect(balance?.paymentEntryIds).toEqual(['source']);
+  });
+
   it('keeps confirmed debt from an unrelated class when a sibling root is unresolved', () => {
     const balance = buildOrderBalance(
       [

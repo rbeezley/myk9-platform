@@ -228,8 +228,8 @@ describe('MYK9-639 — move_up_entry / reverse_move_up_entry', () => {
       'COMMENT ON FUNCTION public.move_up_entry',
       'CREATE OR REPLACE FUNCTION public.reverse_move_up_entry'
     );
-    const reverseComment = MIGRATION.slice(
-      MIGRATION.indexOf('COMMENT ON FUNCTION public.reverse_move_up_entry')
+    const reverseComment = REVERSE_MOVE_MIGRATION.slice(
+      REVERSE_MOVE_MIGRATION.indexOf('COMMENT ON FUNCTION public.reverse_move_up_entry')
     );
 
     expect(moveUpComment).toMatch(/MONEY DOES NOT TRAVEL/);

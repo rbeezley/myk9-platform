@@ -65,6 +65,8 @@ export interface EntryBalanceShowSummary {
   amountDueCents: number;
   onlineDueCents: number;
   payAtShowDueCents: number;
+  /** Entry-row ids used to match the balance back to the visible dog/class cards. */
+  displayEntryIds: string[];
   entryIds: string[];
   paymentHref: string;
 }
@@ -251,6 +253,11 @@ function entryIdsForPayment(entry: EntryBalanceSource): string[] {
   return classEntryIds.length > 0 ? classEntryIds : [entry.id];
 }
 
+function entryIdsForDisplay(entry: EntryBalanceSource): string[] {
+  const classEntryIds = entry.classes?.map(cls => cls.id).filter(Boolean) ?? [];
+  return classEntryIds.length > 0 ? classEntryIds : [entry.id];
+}
+
 export function summarizeEntryBalances(
   entries: EntryBalanceSource[],
   now: Date = new Date()
@@ -314,6 +321,7 @@ export function summarizeEntryBalances(
       amountDueCents: 0,
       onlineDueCents: 0,
       payAtShowDueCents: 0,
+      displayEntryIds: [],
       entryIds: [],
     };
     existing.amountDueCents += cents;
@@ -324,6 +332,7 @@ export function summarizeEntryBalances(
     // carry.
     existing.entryCloseDay = existing.entryCloseDay ?? entry.entryCloseDay ?? null;
     existing.isPastShow = existing.isPastShow || isPastShowEntry(entry, now);
+    existing.displayEntryIds.push(...entryIdsForDisplay(entry));
     existing.entryIds.push(...entryIdsForPayment(entry));
     showBalances.set(showId, existing);
   }
@@ -331,6 +340,7 @@ export function summarizeEntryBalances(
   const onlineShowBalances = [...showBalances.values()]
     .map(show => ({
       ...show,
+      displayEntryIds: [...new Set(show.displayEntryIds)],
       entryIds: [...new Set(show.entryIds)],
       paymentHref: buildFinishPaymentHref(show.showId, [...new Set(show.entryIds)]),
     }))

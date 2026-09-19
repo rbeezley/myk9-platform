@@ -182,7 +182,8 @@ export function buildOrderBalance(
     onlineDueCents: summary.onlineDueCents,
     payAtShowDueCents: summary.payAtShowDueCents,
     payAtShowMethod: payAtShowSource?.paymentMethod ?? null,
-    dueEntryIds: onlineShow?.entryIds ?? [],
+    dueEntryIds: onlineShow?.displayEntryIds ?? [],
+    paymentEntryIds: onlineShow?.entryIds ?? [],
   };
 }
 
@@ -265,7 +266,7 @@ export function buildOrderPaymentHref(entry: MyEntry): string | null {
   // relation has not replicated and the row carried no show_id.
   if (!entry.showId) return null;
 
-  const dueIds = entry.balance?.dueEntryIds ?? [];
+  const dueIds = entry.balance?.paymentEntryIds ?? entry.balance?.dueEntryIds ?? [];
   if (dueIds.length > 0) return buildFinishPaymentHref(entry.showId, dueIds);
   // A balance that resolved to an EMPTY due list is authoritative: this order
   // owes nothing online, so there is nothing to recover.

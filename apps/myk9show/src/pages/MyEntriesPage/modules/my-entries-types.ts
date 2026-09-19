@@ -136,6 +136,8 @@ export interface MyEntryBalance {
   payAtShowMethod: string | null;
   /** Entry-row ids that actually owe an ONLINE balance — the pay link's target. */
   dueEntryIds: string[];
+  /** Root entry ids used by checkout; distinct from visible destination rows. */
+  paymentEntryIds?: string[] | undefined;
 }
 
 /**

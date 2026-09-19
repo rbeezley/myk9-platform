@@ -5,6 +5,7 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { cn } from '@/lib/utils';
 import { usePremiumPublishControl } from './usePremiumPublishControl';
 import { PREMIUM_CARD_ANCHOR } from '@/features/show-workbench/publishReadiness';
+import { PREMIUM_UP_TO_DATE_REASON } from './premiumPublishAction';
 
 // `scroll-mt-20` only. The `target:ring-*` classes that used to live here could
 // never fire: the one link that carried `#setup-publish-premium` was a router
@@ -67,7 +68,7 @@ export function PremiumDownloadCard({ showId, showStaleBadge = false }: PremiumD
     landingUnpublished,
     needsRepublish,
     action,
-  } = usePremiumPublishControl(showId, showStaleBadge);
+  } = usePremiumPublishControl(showId, showStaleBadge, true);
   const publishedUrl = info?.publishedUrl;
   const publishedAt = info?.publishedAt;
 
@@ -102,16 +103,21 @@ export function PremiumDownloadCard({ showId, showStaleBadge = false }: PremiumD
           </div>
           {/* size="touch": publishing the premium is a PRIMARY action, which
               docs/INTENT.md § 3 never permits below the 44px floor. */}
-          <Button
-            size="touch"
-            className="shrink-0 whitespace-nowrap"
-            onClick={handleGenerateAndPublish}
-            disabled={action.disabledReason !== undefined}
-            {...(action.disabledReason ? { title: action.disabledReason } : {})}
-          >
-            <Upload className="h-4 w-4 mr-2" />
-            {action.label}
-          </Button>
+          <div className="flex shrink-0 flex-col items-start gap-1">
+            <Button
+              size="touch"
+              className="whitespace-nowrap"
+              onClick={handleGenerateAndPublish}
+              disabled={action.disabledReason !== undefined}
+              {...(action.disabledReason ? { title: action.disabledReason } : {})}
+            >
+              <Upload className="h-4 w-4 mr-2" />
+              {action.label}
+            </Button>
+            {action.disabledReason && (
+              <span className="text-sm text-muted-foreground">{action.disabledReason}</span>
+            )}
+          </div>
         </>
       ) : (
         <>
@@ -137,17 +143,24 @@ export function PremiumDownloadCard({ showId, showStaleBadge = false }: PremiumD
               Premium PDF published {publishedLabel}
             </p>
           </div>
-          {needsRepublish && (
-            <Button
-              size="touch"
-              className="shrink-0 whitespace-nowrap"
-              onClick={handleGenerateAndPublish}
-              disabled={action.disabledReason !== undefined}
-              {...(action.disabledReason ? { title: action.disabledReason } : {})}
-            >
-              <Upload className="h-4 w-4 mr-2" />
-              {action.label}
-            </Button>
+          {(needsRepublish ||
+            (action.disabledReason !== undefined &&
+              action.disabledReason !== PREMIUM_UP_TO_DATE_REASON)) && (
+            <div className="flex shrink-0 flex-col items-start gap-1">
+              <Button
+                size="touch"
+                className="whitespace-nowrap"
+                onClick={handleGenerateAndPublish}
+                disabled={action.disabledReason !== undefined}
+                {...(action.disabledReason ? { title: action.disabledReason } : {})}
+              >
+                <Upload className="h-4 w-4 mr-2" />
+                {action.label}
+              </Button>
+              {action.disabledReason && (
+                <span className="text-sm text-muted-foreground">{action.disabledReason}</span>
+              )}
+            </div>
           )}
           <a
             href={publishedUrl ?? ''}

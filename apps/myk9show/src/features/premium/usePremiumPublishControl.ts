@@ -24,19 +24,25 @@ export interface PremiumPublishControl extends PremiumPublishFacts {
  *
  * @param showStaleBadge whether staleness is this viewer's business — false for
  * exhibitors, true for anyone who can actually publish.
+ * @param canManageShow whether the viewer's show-management scope has resolved
+ * true. The publish-info read stays disabled until this gate opens.
  */
 export function usePremiumPublishControl(
   showId: string,
-  showStaleBadge: boolean
+  showStaleBadge: boolean,
+  canManageShow: boolean
 ): PremiumPublishControl {
-  const query = usePublishInfo(showId);
+  const query = usePublishInfo(showId, canManageShow);
   const flow = useGenerateAndPublishPremium(showId);
 
-  const infoState: PublishInfoState = query.isError
-    ? 'unavailable'
-    : query.data === undefined
-      ? 'loading'
-      : 'ready';
+  const infoState: PublishInfoState =
+    query.fetchStatus === 'paused'
+      ? 'offline'
+      : query.isError
+        ? 'unavailable'
+        : query.data === undefined
+          ? 'loading'
+          : 'ready';
 
   const facts = derivePremiumPublish({
     info: query.data,

@@ -1,5 +1,6 @@
 import { act, fireEvent, screen, waitFor } from '@/test/utils/testUtils';
 import { createTestQueryClient, render } from '@/test/utils/testUtils';
+import { onlineManager } from '@tanstack/react-query';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { usePremiumPublishStore } from '../useGenerateAndPublishPremium';
 import { PremiumDownloadCard } from '../PremiumDownloadCard';
@@ -75,6 +76,30 @@ describe('PremiumDownloadCard', () => {
       await screen.findByRole('button', { name: /generate & publish premium/i })
     ).toBeInTheDocument();
     expect(screen.getByText('Premium PDF is not published yet')).toBeInTheDocument();
+  });
+
+  it('shows the offline reason beside the paused publish action', () => {
+    onlineManager.setOnline(false);
+    try {
+      renderCard();
+
+      expect(screen.getByRole('button', { name: /generate & publish premium/i })).toBeDisabled();
+      expect(
+        screen.getByText("You're offline — publishing needs a connection")
+      ).toBeInTheDocument();
+      expect(maybeSingleMock).not.toHaveBeenCalled();
+    } finally {
+      onlineManager.setOnline(true);
+    }
+  });
+
+  it('shows the loading reason while the online publish read is pending', () => {
+    maybeSingleMock.mockReturnValue(new Promise(() => {}));
+
+    renderCard();
+
+    expect(screen.getByRole('button', { name: /generate & publish premium/i })).toBeDisabled();
+    expect(screen.getByText('Checking the premium’s publish state…')).toBeInTheDocument();
   });
 
   it('opens published premium lists in a new tab', async () => {

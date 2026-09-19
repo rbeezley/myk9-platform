@@ -31,11 +31,11 @@ export async function fetchPublishInfo(showId: string): Promise<PublishInfo> {
   };
 }
 
-export function usePublishInfo(showId: string | undefined) {
+export function usePublishInfo(showId: string | undefined, canManageShow: boolean) {
   return useQuery({
     queryKey: publishInfoQueryKey(showId ?? ''),
     queryFn: () => fetchPublishInfo(showId!),
-    enabled: !!showId,
+    enabled: !!showId && canManageShow,
     staleTime: 30_000,
   });
 }

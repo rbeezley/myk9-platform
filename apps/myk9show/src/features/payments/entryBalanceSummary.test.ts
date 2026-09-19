@@ -162,6 +162,18 @@ describe('summarizeEntryBalances', () => {
 
     expect(summary.amountDueCents).toBe(3500);
     expect(summary.onlineDueCents).toBe(3500);
+    expect(summary.onlineShowBalances[0]?.entryIds).toEqual(['source']);
+  });
+
+  it('withholds money when the move-up source is outside the confirmed scope', () => {
+    const summary = summarizeEntryBalancesFromSource(
+      [entry({ id: 'destination', movedFromEntryId: 'source', totalFee: 0 })],
+      'confirmed',
+      now
+    );
+
+    expect(summary.kind).toBe('unknown');
+    expect(summary.amountDueCents).toBe(0);
   });
 });
 

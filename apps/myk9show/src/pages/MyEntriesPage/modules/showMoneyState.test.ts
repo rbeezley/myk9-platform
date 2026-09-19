@@ -82,6 +82,30 @@ function orders(rows: MyEntry[], now = NOW) {
 }
 
 describe('deriveShowMoneyState', () => {
+  it('reports an unresolved move-up balance without offering a wrong cart link', () => {
+    const state = deriveShowMoneyState(
+      [
+        makeRow({
+          balance: {
+            paymentStatus: PaymentStatus.PENDING,
+            paymentMethod: 'online',
+            amountDueCents: 0,
+            onlineDueCents: 0,
+            payAtShowDueCents: 0,
+            payAtShowMethod: null,
+            dueEntryIds: [],
+            moneyRootUnresolved: true,
+          },
+        }),
+      ],
+      NOW,
+      'confirmed'
+    );
+
+    expect(state.kind).toBe('unresolved');
+    expect(state.paymentHref).toBeNull();
+  });
+
   it('reports balance-due with the cart amount and href for the one unpaid order', () => {
     const state = deriveShowMoneyState(
       orders([

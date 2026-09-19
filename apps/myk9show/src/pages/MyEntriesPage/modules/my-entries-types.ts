@@ -136,6 +136,8 @@ export interface MyEntryBalance {
   payAtShowMethod: string | null;
   /** Entry-row ids that actually owe an ONLINE balance — the pay link's target. */
   dueEntryIds: string[];
+  /** True when the original move-up payment row was not available in this read. */
+  moneyRootUnresolved?: boolean | undefined;
 }
 
 /**

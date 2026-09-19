@@ -45,6 +45,10 @@ export interface EntryBalanceSource {
   totalFee: number;
   movedFromEntryId?: string | null | undefined;
   classes?: EntryBalanceClassSource[] | undefined;
+  /** Set when the move-up source could not be read in this scope. */
+  moneyRootUnresolved?: boolean | undefined;
+  /** The entry row whose payment must be recovered, when lineage resolved. */
+  moneyRootEntryId?: string | undefined;
 }
 
 export interface EntryBalanceShowSummary {
@@ -240,6 +244,10 @@ function feeCents(feeDollars: number): number {
 }
 
 function entryIdsForPayment(entry: EntryBalanceSource): string[] {
+  if (entry.moneyRootUnresolved) return [];
+  if (entry.moneyRootEntryId && entry.moneyRootEntryId !== entry.id) {
+    return [entry.moneyRootEntryId];
+  }
   const classEntryIds = entry.classes?.map(cls => cls.id).filter(Boolean) ?? [];
   return classEntryIds.length > 0 ? classEntryIds : [entry.id];
 }
@@ -337,6 +345,9 @@ export function summarizeEntryBalancesFromSource(
     paymentMethod: root.paymentMethod,
     totalFee: root.totalFee,
   }));
+  if (rootedEntries.some(entry => entry.moneyRootUnresolved)) {
+    return UNKNOWN_ENTRY_BALANCE_SUMMARY;
+  }
   return summarizeEntryBalances(rootedEntries, now);
 }
 

@@ -139,6 +139,7 @@ export function buildOrderBalance(
   const eligible = sources.filter(source => isCurrentSummaryEntry(source, now));
   const summary = summarizeEntryBalances(sources, now);
   const onlineShow = summary.onlineShowBalances[0];
+  const moneyRootUnresolved = sources.some(source => source.moneyRootUnresolved);
 
   // The pay-at-show instruction must quote only the in-person portion and name
   // the method of the rows that actually carry it — a mixed cash+online order
@@ -178,6 +179,7 @@ export function buildOrderBalance(
     payAtShowDueCents: summary.payAtShowDueCents,
     payAtShowMethod: payAtShowSource?.paymentMethod ?? null,
     dueEntryIds: onlineShow?.entryIds ?? [],
+    moneyRootUnresolved,
   };
 }
 

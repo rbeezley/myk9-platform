@@ -341,16 +341,15 @@ export function summarizeEntryBalancesFromSource(
   now: Date = new Date()
 ): EntryBalanceSummary {
   if (!isMoneyConfirmed(source)) return UNKNOWN_ENTRY_BALANCE_SUMMARY;
-  const rootedEntries = withResolvedMoneyRoots(
-    entries.filter(entry => !entry.deletedAt),
-    (entry, root) => ({
-      ...entry,
-      paymentStatus: root.paymentStatus,
-      paymentMethod: root.paymentMethod,
-      totalFee: root.totalFee,
-    })
+  const rootedEntries = withResolvedMoneyRoots(entries, (entry, root) => ({
+    ...entry,
+    paymentStatus: root.paymentStatus,
+    paymentMethod: root.paymentMethod,
+    totalFee: root.totalFee,
+  }));
+  const hasUnresolvedRoot = rootedEntries.some(
+    entry => !entry.deletedAt && entry.moneyRootUnresolved
   );
-  const hasUnresolvedRoot = rootedEntries.some(entry => entry.moneyRootUnresolved);
   const summary = summarizeEntryBalances(
     rootedEntries.filter(entry => !entry.moneyRootUnresolved),
     now

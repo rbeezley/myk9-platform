@@ -1596,6 +1596,8 @@ type PaymentReconciliationEntry = {
 async function loadPaymentReconciliationEntries(entryIds: string[]): Promise<{
   entries: PaymentReconciliationEntry[];
   reconciliationEntryIds: string[];
+  duplicateEntryIds: string[];
+  lifecycleEntryIdsByRoot: Record<string, string>;
   error: { message: string } | null;
 }> {
   const entriesById = new Map<string, PaymentReconciliationEntry>();
@@ -1624,6 +1626,9 @@ async function loadPaymentReconciliationEntries(entryIds: string[]): Promise<{
 
   const reconciliationEntryIds = entryIds.map(entryId => {
     let currentId = entryId;
+    if (INACTIVE_ENTRY_STATUSES.has(entriesById.get(entryId)?.entry_status ?? '')) {
+      return currentId;
+    }
     const seen = new Set<string>();
     while (!seen.has(currentId)) {
       seen.add(currentId);
@@ -1633,10 +1638,25 @@ async function loadPaymentReconciliationEntries(entryIds: string[]): Promise<{
     }
     return currentId;
   });
+  const lifecycleEntryIdsByRoot: Record<string, string> = {};
+  for (const [index, entryId] of entryIds.entries()) {
+    const row = entriesById.get(entryId);
+    const rootId = reconciliationEntryIds[index];
+    if (row?.entry_status === 'pending-payment' && rootId && rootId !== entryId) {
+      lifecycleEntryIdsByRoot[rootId] = entryId;
+    }
+  }
+  const expectedIdSet = new Set(entryIds);
+  const duplicateEntryIds = entryIds.filter((entryId, index) => {
+    const rootId = reconciliationEntryIds[index];
+    return rootId !== entryId && expectedIdSet.has(rootId);
+  });
 
   return {
     entries: [...entriesById.values()],
     reconciliationEntryIds,
+    duplicateEntryIds,
+    lifecycleEntryIdsByRoot,
     error,
   };
 }
@@ -1705,7 +1725,8 @@ async function handleEntryPaymentRequestCompleted(session: Stripe.Checkout.Sessi
     return;
   }
 
-  const { entries, reconciliationEntryIds } = loadedEntries;
+  const { entries, reconciliationEntryIds, duplicateEntryIds, lifecycleEntryIdsByRoot } =
+    loadedEntries;
 
   const result = reconcileEntryPaymentRequest({
     linkStatus: link.status,
@@ -1713,6 +1734,8 @@ async function handleEntryPaymentRequestCompleted(session: Stripe.Checkout.Sessi
     expectedEntryIds: entryIds,
     entries,
     reconciliationEntryIds,
+    duplicateEntryIds,
+    lifecycleEntryIdsByRoot,
     paymentIntentId,
   });
 
@@ -1770,7 +1793,9 @@ async function handleEntryPaymentRequestCompleted(session: Stripe.Checkout.Sessi
       payment_method: patch.payment_method,
       stripe_payment_intent_id: patch.stripe_payment_intent_id,
     };
-    if (patch.entry_status) update.entry_status = patch.entry_status;
+    if (patch.entry_status && patch.entryStatusEntryId === patch.id) {
+      update.entry_status = patch.entry_status;
+    }
     let updateQuery = supabase
       .from('entries')
       .update(update)
@@ -1793,6 +1818,25 @@ async function handleEntryPaymentRequestCompleted(session: Stripe.Checkout.Sessi
       );
     }
     updatedEntryIds.push(...((updatedRows ?? []) as { id: string }[]).map(row => row.id));
+
+    if (
+      updatedRows?.length &&
+      patch.entry_status &&
+      patch.entryStatusEntryId &&
+      patch.entryStatusEntryId !== patch.id
+    ) {
+      const { error: lifecycleError } = await supabase
+        .from('entries')
+        .update({ entry_status: patch.entry_status })
+        .eq('id', patch.entryStatusEntryId)
+        .not('entry_status', 'in', inactiveEntryStatusFilter);
+      if (lifecycleError) {
+        console.error(
+          `Failed to advance move-up destination ${patch.entryStatusEntryId}:`,
+          lifecycleError
+        );
+      }
+    }
   }
 
   // Freeze the withdrawal policy these entries were paid under (best-effort).

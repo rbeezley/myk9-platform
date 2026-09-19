@@ -43,6 +43,47 @@ describe('reconcileEntryPaymentRequest', () => {
     expect(r.patches.map(patch => patch.id)).toEqual(['source']);
   });
 
+  it('refunds an inactive move-up destination instead of settling its root', () => {
+    const r = reconcileEntryPaymentRequest({
+      ...base,
+      expectedEntryIds: ['destination'],
+      reconciliationEntryIds: ['destination'],
+      entries: [
+        {
+          id: 'destination',
+          payment_status: 'pending',
+          entry_status: 'withdrawn',
+          moved_from_entry_id: 'source',
+        },
+        { id: 'source', payment_status: 'pending', entry_status: 'moved' },
+      ],
+    });
+
+    expect(r.patches).toEqual([]);
+    expect(r.inactiveEntryIds).toEqual(['destination']);
+  });
+
+  it('advances a moved destination lifecycle while stamping its money root', () => {
+    const r = reconcileEntryPaymentRequest({
+      ...base,
+      expectedEntryIds: ['destination'],
+      reconciliationEntryIds: ['source'],
+      lifecycleEntryIdsByRoot: { source: 'destination' },
+      entries: [
+        {
+          id: 'destination',
+          payment_status: 'pending',
+          entry_status: 'pending-payment',
+          moved_from_entry_id: 'source',
+        },
+        { id: 'source', payment_status: 'pending', entry_status: 'moved' },
+      ],
+    });
+
+    expect(r.patches[0]).toMatchObject({ id: 'source', entry_status: 'confirmed' });
+    expect(r.patches[0]?.entryStatusEntryId).toBe('destination');
+  });
+
   it('advances a promoted waitlist entry pending-payment → confirmed, but leaves a mail-in entry_status alone', () => {
     const r = reconcileEntryPaymentRequest(base);
     const wl = r.patches.find(p => p.id === 'wl')!;

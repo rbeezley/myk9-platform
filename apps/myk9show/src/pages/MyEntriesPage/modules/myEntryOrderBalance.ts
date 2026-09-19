@@ -130,22 +130,18 @@ export function buildOrderBalance(
   ctx: OrderBalanceContext,
   now: Date = new Date()
 ): MyEntryBalance | null {
-  const sources = withResolvedMoneyRoots(
-    toBalanceSources(
-      classes.filter(cls => !cls.deletedAt),
-      ctx
-    ),
-    (entry, root) => ({
-      ...entry,
-      paymentStatus: root.paymentStatus,
-      paymentMethod: root.paymentMethod,
-      totalFee: root.totalFee,
-    })
-  );
+  const sources = withResolvedMoneyRoots(toBalanceSources(classes, ctx), (entry, root) => ({
+    ...entry,
+    paymentStatus: root.paymentStatus,
+    paymentMethod: root.paymentMethod,
+    totalFee: root.totalFee,
+  }));
   if (sources.length === 0) return null;
 
   const eligible = sources.filter(source => isCurrentSummaryEntry(source, now));
-  const moneyRootUnresolved = sources.some(source => source.moneyRootUnresolved);
+  const moneyRootUnresolved = sources.some(
+    source => !source.deletedAt && source.moneyRootUnresolved
+  );
   const summary = moneyRootUnresolved
     ? UNKNOWN_ENTRY_BALANCE_SUMMARY
     : summarizeEntryBalances(sources, now);

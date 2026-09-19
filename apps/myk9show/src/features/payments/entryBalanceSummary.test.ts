@@ -184,6 +184,30 @@ describe('summarizeEntryBalances', () => {
     expect(summary.onlineShowBalances[0]?.entryIds).toEqual(['source']);
   });
 
+  it('resolves through a soft-deleted source without blanking unrelated balances', () => {
+    const summary = summarizeEntryBalancesFromSource(
+      [
+        entry({
+          id: 'source',
+          entryStatus: EntryStatus.MOVED,
+          totalFee: 35,
+          deletedAt: '2026-09-19T12:00:00Z',
+        }),
+        entry({
+          id: 'destination',
+          movedFromEntryId: 'source',
+          totalFee: 0,
+        }),
+      ],
+      'confirmed',
+      now
+    );
+
+    expect(summary.kind).toBe('known');
+    expect(summary.amountDueCents).toBe(3500);
+    expect(summary.onlineShowBalances[0]?.entryIds).toEqual(['destination']);
+  });
+
   it('withholds money when the move-up source is outside the confirmed scope', () => {
     const summary = summarizeEntryBalancesFromSource(
       [entry({ id: 'destination', movedFromEntryId: 'source', totalFee: 0 })],

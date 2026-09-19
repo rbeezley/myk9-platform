@@ -26,6 +26,10 @@ export interface ReconcileInput {
   entries: ReconcileEntryRow[];
   /** Root rows to settle when a checkout line targets a live move-up destination. */
   reconciliationEntryIds?: string[];
+  /** Checkout lines duplicated by also including their money root. */
+  duplicateEntryIds?: string[];
+  /** Destination rows whose lifecycle must advance after the root is paid. */
+  lifecycleEntryIdsByRoot?: Record<string, string>;
   paymentIntentId: string | null;
 }
 
@@ -39,6 +43,8 @@ export interface EntryPaymentPatch {
   stripe_payment_intent_id: string | null;
   /** Set only when advancing a promoted waitlist entry's lifecycle. */
   entry_status?: 'confirmed';
+  /** Destination row to advance when payment is stamped on its money root. */
+  entryStatusEntryId?: string;
   /** True only for a paid webhook racing a just-expired promotion offer. */
   allowExpiredPromotionClaim?: true;
 }
@@ -100,7 +106,7 @@ export function reconcileEntryPaymentRequest(input: ReconcileInput): ReconcileRe
   const missingEntryIds = input.expectedEntryIds.filter(id => !presentIds.has(id));
 
   const patches: EntryPaymentPatch[] = [];
-  const alreadyPaidEntryIds: string[] = [];
+  const alreadyPaidEntryIds: string[] = [...(input.duplicateEntryIds ?? [])];
   const sameIntentPaidEntryIds: string[] = [];
   const inactiveEntryIds: string[] = [];
 
@@ -139,8 +145,10 @@ export function reconcileEntryPaymentRequest(input: ReconcileInput): ReconcileRe
       };
       // A promoted waitlist entry pays its way from pending-payment → confirmed.
       // A mail-in entry's lifecycle status is untouched; only the money moves.
-      if (e.entry_status === WAITLIST_PENDING) {
+      const lifecycleEntryId = input.lifecycleEntryIdsByRoot?.[e.id] ?? e.id;
+      if (e.entry_status === WAITLIST_PENDING || lifecycleEntryId !== e.id) {
         patch.entry_status = 'confirmed';
+        patch.entryStatusEntryId = lifecycleEntryId;
       }
       patches.push(patch);
     } else if (

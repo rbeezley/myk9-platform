@@ -129,6 +129,47 @@ describe('saveShowAtomicOnline', () => {
     );
   });
 
+  it('preflights every selected class before RPC or cache persistence', async () => {
+    rpcMock.mockResolvedValue({ error: null });
+    const invalidTrials: WizardTrial[] = [
+      {
+        id: 'wizard-trial-invalid',
+        name: 'Saturday Trial',
+        dateTime: '2026-06-01T09:00:00',
+        eventNumber: 'EVT-001',
+        trialType: 'Scent Work',
+        classes: [
+          {
+            templateId: 'akc-template',
+            customizations: {
+              className: 'Container Novice A — unresolved clone',
+              element: 'Unknown',
+              level: 'Novice',
+              section: 'A',
+            },
+          },
+        ],
+      },
+    ];
+
+    await expect(
+      saveShowAtomicOnline({
+        show: baseShow,
+        trials: invalidTrials,
+        judgeDetails: {},
+        clubs: [],
+        status: 'unpublished',
+        queryClient: makeQueryClient(),
+        triggerSync: vi.fn().mockResolvedValue(undefined),
+      })
+    ).rejects.toThrow(/Container Novice A — unresolved clone/);
+
+    expect(rpcMock).not.toHaveBeenCalled();
+    expect(showsSetMock).not.toHaveBeenCalled();
+    expect(trialsSetMock).not.toHaveBeenCalled();
+    expect(classesSetMock).not.toHaveBeenCalled();
+  });
+
   it('keeps venue coordinates in the immediate saved-show cache', async () => {
     rpcMock.mockResolvedValue({ error: null });
 

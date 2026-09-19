@@ -8,6 +8,7 @@ import type { ShowInput } from '@/store/showStore';
 import type { ClassData } from '@/components/classes/types/classTypes';
 import { resolvePremiumStyle, type PremiumStyle } from '@/types/premium-types';
 import type { JudgeDetailsMap, ShowStatus, EditMode } from './show-creation-wizard-types';
+import { assertValidWizardClassSelections } from './classConfigurationValidation';
 
 export interface WizardShowData {
   name: string;
@@ -114,8 +115,10 @@ export function createClassDataFromWizard(
   showId: string,
   existingTrials: ExistingTrial[],
   editMode?: EditMode,
-  showFees?: { preEntryFee?: number; dayOfShowFee?: number }
+  showFees?: { preEntryFee?: number; dayOfShowFee?: number },
+  organization = 'AKC'
 ): ClassData[] {
+  assertValidWizardClassSelections(organization, wizardTrials);
   const classes: ClassData[] = [];
 
   // In add-classes mode, process ALL trials (we're adding classes to existing trials).
@@ -134,8 +137,8 @@ export function createClassDataFromWizard(
     if (trialId && wizardTrial.classes.length > 0) {
       wizardTrial.classes.forEach((cls, index) => {
         const className = (cls.customizations?.className as string) || `Class ${index + 1}`;
-        const element = (cls.customizations?.element as string) || 'Unknown';
-        const level = (cls.customizations?.level as string) || 'Unknown';
+        const element = String(cls.customizations?.element ?? '').trim();
+        const level = String(cls.customizations?.level ?? '').trim();
 
         // Generate a proper UUID for the class
         const classId = crypto.randomUUID();

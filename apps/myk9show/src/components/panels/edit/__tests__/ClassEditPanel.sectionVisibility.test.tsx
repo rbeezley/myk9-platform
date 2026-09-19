@@ -129,8 +129,8 @@ describe('ClassEditPanel — Section field visibility', () => {
 
   it('still shows Element and Level fields for all levels', () => {
     renderPanel('Advanced', 'Interior');
-    expect(screen.getByLabelText('Element')).toBeInTheDocument();
-    expect(screen.getByLabelText('Level')).toBeInTheDocument();
+    expect(screen.getByLabelText('Element')).toHaveAttribute('readonly');
+    expect(screen.getByLabelText('Level')).toHaveAttribute('readonly');
   });
 });
 
@@ -167,6 +167,13 @@ function renderFullPanel(level: string, element: string) {
 }
 
 describe('ClassEditForm (full mode) — Section field visibility', () => {
+  it('keeps registry identity fields read-only', () => {
+    renderFullPanel('Novice', 'Interior');
+    expect(document.querySelector('#element')).toHaveAttribute('readonly');
+    expect(document.querySelector('#level')).toHaveAttribute('readonly');
+    expect(document.querySelector('#section')).toHaveAttribute('readonly');
+  });
+
   it('shows Section field for Novice level', () => {
     renderFullPanel('Novice', 'Interior');
     expect(screen.getByLabelText('Section')).toBeInTheDocument();

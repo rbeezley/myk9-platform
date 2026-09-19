@@ -1,5 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useLocation } from 'react-router-dom';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Button } from '@/components/ui/button';
 import { logger } from '@/services/LoggingService';
 import { CloneFromShowCombobox } from './CloneFromShowCombobox';
 import { useWizardStore } from '@/store/wizardStore';
@@ -13,6 +15,7 @@ import {
   resolveSelectedJudges,
   isValidDateRange,
   isValidEntryDates,
+  canChangeClonedOrganization,
 } from './ShowDetailsStep.helpers';
 import {
   BasicsSection,
@@ -27,8 +30,15 @@ import { useShowDetailsStepActions } from './useShowDetailsStepActions';
 export const ShowDetailsStep: React.FC<ShowDetailsStepProps> = ({ className }) => {
   logger.debug('ShowDetailsStep component loaded', 'wizard');
   const location = useLocation();
-  const { show, updateShowData, addJudgeToShow, removeJudgeFromShow, judgeDetails } =
-    useWizardStore();
+  const {
+    show,
+    trials,
+    updateShowData,
+    addJudgeToShow,
+    removeJudgeFromShow,
+    judgeDetails,
+    setCurrentStep,
+  } = useWizardStore();
   const { clubs, loadClubs, syncClubs } = useClubStore();
   const { people, loadPeople, loadUsers, isLoading } = useUserStore();
   const { userWithRoles } = useAuthContext();
@@ -81,6 +91,7 @@ export const ShowDetailsStep: React.FC<ShowDetailsStepProps> = ({ className }) =
   // Search states
   const [clubSearchTerm, setClubSearchTerm] = useState('');
   const [showClubSearch, setShowClubSearch] = useState(false);
+  const [organizationChangeBlocked, setOrganizationChangeBlocked] = useState(false);
 
   // Auto-select club if user has exactly one
   useEffect(() => {
@@ -113,6 +124,19 @@ export const ShowDetailsStep: React.FC<ShowDetailsStepProps> = ({ className }) =
   const dateRangeValid = isValidDateRange(show.startDate, show.endDate);
   const entryDatesValid = isValidEntryDates(show.entryOpenDate, show.entryCloseDate);
 
+  const handleShowUpdate = (patch: Partial<typeof show>) => {
+    if (
+      patch.organization &&
+      !canChangeClonedOrganization(show.organization, patch.organization, trials)
+    ) {
+      setOrganizationChangeBlocked(true);
+      return;
+    }
+
+    setOrganizationChangeBlocked(false);
+    updateShowData(patch);
+  };
+
   const handleAddJudge = (personId: string) => {
     const p = people.find(x => x.id === personId);
     if (!p) return;
@@ -131,7 +155,7 @@ export const ShowDetailsStep: React.FC<ShowDetailsStepProps> = ({ className }) =
 
         <BasicsSection
           show={show}
-          onUpdate={updateShowData}
+          onUpdate={handleShowUpdate}
           clubField={
             <HostClubField
               clubId={show.clubId}
@@ -146,6 +170,23 @@ export const ShowDetailsStep: React.FC<ShowDetailsStepProps> = ({ className }) =
             />
           }
         />
+
+        {organizationChangeBlocked && (
+          <Alert role="alert" className="border-warning/40 bg-warning/10">
+            <AlertDescription className="flex flex-wrap items-center gap-3 text-warning">
+              This cloned show still has classes from the current organization. Return to Classes to
+              remove or replace them before choosing a different organization.
+              <Button
+                type="button"
+                variant="outline"
+                className="min-h-11 border-warning/40 bg-background text-foreground"
+                onClick={() => setCurrentStep(2)}
+              >
+                Review Classes
+              </Button>
+            </AlertDescription>
+          </Alert>
+        )}
 
         <DatesEntrySection
           show={show}

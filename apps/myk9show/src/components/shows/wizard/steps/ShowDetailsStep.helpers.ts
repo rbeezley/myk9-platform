@@ -58,6 +58,20 @@ export function isValidEntryDates(openDate?: string, closeDate?: string): boolea
 }
 
 /**
+ * A cloned class keeps the previous registry's identity. Changing the show
+ * organization is safe only after those classes have been cleared in the
+ * canonical Classes step; labels are not sufficient to re-derive a mapping.
+ */
+export function canChangeClonedOrganization(
+  currentOrganization: string,
+  nextOrganization: string,
+  trials: ReadonlyArray<{ classes: readonly unknown[] }>
+): boolean {
+  if (currentOrganization === nextOrganization) return true;
+  return !trials.some(trial => trial.classes.length > 0);
+}
+
+/**
  * Split all people into "suggested" (has one of the given roles) and "others".
  * Both groups are filtered by searchTerm. Used by OfficialPicker.
  *

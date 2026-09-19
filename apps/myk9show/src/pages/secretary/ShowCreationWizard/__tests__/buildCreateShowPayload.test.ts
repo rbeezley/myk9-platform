@@ -208,6 +208,7 @@ describe('buildCreateShowPayload', () => {
           customizations: {
             element: 'Container',
             level: 'Novice',
+            section: 'A',
             className: 'NW1 Containers',
           },
           judgeId: 'judge-uuid-a',
@@ -231,7 +232,12 @@ describe('buildCreateShowPayload', () => {
       classes: [
         {
           templateId: 'tmpl-1',
-          customizations: { element: 'Container', level: 'Novice', className: 'NW1 Containers' },
+          customizations: {
+            element: 'Container',
+            level: 'Novice',
+            section: 'A',
+            className: 'NW1 Containers',
+          },
           judgeId: 'judge-uuid-a',
         },
       ],
@@ -254,7 +260,12 @@ describe('buildCreateShowPayload', () => {
       classes: [
         {
           templateId: 'tmpl-1',
-          customizations: { element: 'Container', level: 'Novice', className: 'NW1 Containers' },
+          customizations: {
+            element: 'Container',
+            level: 'Novice',
+            section: 'A',
+            className: 'NW1 Containers',
+          },
           // no judgeId
         },
       ],
@@ -278,6 +289,7 @@ describe('buildCreateShowPayload', () => {
           customizations: {
             element: 'Container',
             level: 'Novice',
+            section: 'A',
             className: 'NW1 Containers',
           },
         },
@@ -365,7 +377,12 @@ describe('buildCreateShowPayload', () => {
       classes: [
         {
           templateId: 'tmpl-unknown',
-          customizations: { element: 'Container', level: 'Novice', className: 'NW1' },
+          customizations: {
+            element: 'Container',
+            level: 'Novice',
+            section: 'A',
+            className: 'NW1',
+          },
         },
       ],
     };
@@ -448,7 +465,12 @@ describe('buildCreateShowPayload', () => {
       classes: [
         {
           templateId: 'tmpl-1',
-          customizations: { element: 'Container', level: 'Novice', className: 'NW1' },
+          customizations: {
+            element: 'Container',
+            level: 'Novice',
+            section: 'A',
+            className: 'NW1',
+          },
         },
       ],
     };

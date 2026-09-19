@@ -332,6 +332,7 @@ export function summarizeEntryBalances(
     // carry.
     existing.entryCloseDay = existing.entryCloseDay ?? entry.entryCloseDay ?? null;
     existing.isPastShow = existing.isPastShow || isPastShowEntry(entry, now);
+    existing.displayEntryIds = existing.displayEntryIds ?? [];
     existing.displayEntryIds.push(...entryIdsForDisplay(entry));
     existing.entryIds.push(...entryIdsForPayment(entry));
     showBalances.set(showId, existing);

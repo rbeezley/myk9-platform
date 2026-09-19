@@ -133,9 +133,8 @@ const reviewedLaterPolicyDdl: Readonly<Record<string, string>> = {
   '20260919135700_enrollment_select_show_scope.sql':
     'MYK9-663 follow-up. Replaces the already-applied enrollments_select policy and aligns ' +
     'entries_select with the new uncorrelated entry_enrollment_select_show_ids() helper. That ' +
-    'helper keeps club-scoped secretary/club_admin access within the show club, preserves ' +
-    'show-scoped secretary access to the assigned show, and keeps a show-pinned club_admin on ' +
-    'the assigned show, avoiding the widening caused by ' +
+    'helper keeps club-scoped secretary/club_admin access within the show club and keeps a ' +
+    'show-pinned club_admin on the assigned show, avoiding the widening caused by ' +
     'manageable_show_ids(). The migration also corrects can_manage_show() and ' +
     'is_show_office_manager() so entries/enrollments mutation policies cannot write through the ' +
     'same pinned-role widening. The helper is SECURITY DEFINER and granted only to ' +

@@ -64,23 +64,32 @@ vi.mock('@/store/showRegistrationStore', () => ({
 // reported resolved by default — but through a fixture that can be flipped, not
 // a permanent `true`, so at least one case per suite exercises not-ready and a
 // regression in the gate cannot hide behind these mocks (N-F6).
-const entryWindowTimezoneFixture = vi.hoisted(() => ({
-  timeZone: 'America/New_York',
-  isReady: true,
-  isUnavailable: false,
-}));
+const entryWindowTimezone = vi.hoisted(() => {
+  // ONE factory for every field, and the live object is seeded from it. A setter
+  // that restored a hand-written subset would leak any field it forgot — and a
+  // reset that lives inside one describe leaks the whole object into the next
+  // one, which under `--sequence.shuffle` is a ~1/13 red on a file CI runs
+  // shuffled and local runs do not (MYK9-642 P-F1, LESSON MYK9-666).
+  const defaults = () => ({
+    timeZone: 'America/New_York',
+    isReady: true,
+    isUnavailable: false,
+  });
+  return { defaults, current: defaults() };
+});
 vi.mock('@/hooks/useEntryWindowTimezone', () => ({
-  useEntryWindowTimezone: () => entryWindowTimezoneFixture,
+  useEntryWindowTimezone: () => entryWindowTimezone.current,
 }));
+
+// FILE-WIDE, outside every describe: the reset has to outlive whichever describe
+// the shuffled order happens to end on.
+beforeEach(() => {
+  Object.assign(entryWindowTimezone.current, entryWindowTimezone.defaults());
+});
 
 function withUnresolvedShowTimezone(): void {
-  entryWindowTimezoneFixture.isReady = false;
-  entryWindowTimezoneFixture.isUnavailable = false;
-}
-
-function withResolvedShowTimezone(): void {
-  entryWindowTimezoneFixture.isReady = true;
-  entryWindowTimezoneFixture.isUnavailable = false;
+  entryWindowTimezone.current.isReady = false;
+  entryWindowTimezone.current.isUnavailable = false;
 }
 
 vi.mock('@/store/showStore', () => ({
@@ -254,7 +263,6 @@ import RegistrationWizardPage from '../RegistrationWizardPage';
 
 describe('RegistrationWizardPage — Stripe payment handoff', () => {
   beforeEach(() => {
-    withResolvedShowTimezone();
     navigateMock.mockReset();
     submitShowRegistrationMock.mockReset();
     submitRegistrationCartCheckoutMock.mockClear();

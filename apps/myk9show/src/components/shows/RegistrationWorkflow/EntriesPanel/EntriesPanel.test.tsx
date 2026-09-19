@@ -495,6 +495,11 @@ describe('EntriesPanel — no money while the show timezone is unresolved (MYK9-
 
     expect(screen.queryByText(/\$\d/)).toBeNull();
     expect(screen.getAllByText('Checking fees').length).toBeGreaterThan(0);
+    // The Total due row specifically: it computes its own string through
+    // `formatAmountDue` and was the one money row the placeholder did not reach
+    // (P-F2). Asserting the absence of the availability copy is what catches it
+    // — `getAllByText('Checking fees')` above is satisfied by the other rows.
+    expect(screen.queryByText('Checking availability')).toBeNull();
   });
 
   it('says the fees could not be worked out when the read FAILED', () => {
@@ -507,9 +512,11 @@ describe('EntriesPanel — no money while the show timezone is unresolved (MYK9-
 
     expect(screen.queryByText(/\$\d/)).toBeNull();
     expect(screen.getAllByText('Not available').length).toBeGreaterThan(0);
-    // Never the availability copy: that read is fine, and it is the one with a
-    // retry affordance beside it.
+    // Never the availability copy, in either of its two forms: that read is
+    // fine, and it is the one with a retry affordance beside it. 'Not
+    // confirmed' is what the Total due row printed before P-F2.
     expect(screen.queryByText('Checking availability')).toBeNull();
+    expect(screen.queryByText('Not confirmed')).toBeNull();
   });
 
   it('renders the real tier once the zone resolves', () => {

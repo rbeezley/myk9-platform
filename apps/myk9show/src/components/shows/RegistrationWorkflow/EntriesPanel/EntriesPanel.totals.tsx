@@ -68,6 +68,11 @@ export const EntriesPanelTotals: React.FC<EntriesPanelTotalsProps> = ({
   const amountDue = formatAmountDue({
     capacityReady,
     capacityUnavailable,
+    // The row the eye goes to, and the one `placeholder` had not reached: it
+    // read "Checking availability" while every other row in the same card read
+    // "Checking fees", which also split it from the phone bar's headline that
+    // is supposed to be the SAME string (MYK9-642 P-F2).
+    placeholder,
     totals,
     entryFeeCents: totals?.amountDueCents ?? 0,
     classCount,

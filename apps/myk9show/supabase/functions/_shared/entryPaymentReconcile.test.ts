@@ -24,6 +24,25 @@ describe('reconcileEntryPaymentRequest', () => {
     expect(mailin.stripe_payment_intent_id).toBe('pi_123');
   });
 
+  it('settles a move-up payment on the original money root while the checkout line stays on the destination', () => {
+    const r = reconcileEntryPaymentRequest({
+      ...base,
+      expectedEntryIds: ['destination'],
+      reconciliationEntryIds: ['source'],
+      entries: [
+        {
+          id: 'destination',
+          payment_status: 'pending',
+          entry_status: 'confirmed',
+          moved_from_entry_id: 'source',
+        },
+        { id: 'source', payment_status: 'pending', entry_status: 'moved' },
+      ],
+    });
+
+    expect(r.patches.map(patch => patch.id)).toEqual(['source']);
+  });
+
   it('advances a promoted waitlist entry pending-payment → confirmed, but leaves a mail-in entry_status alone', () => {
     const r = reconcileEntryPaymentRequest(base);
     const wl = r.patches.find(p => p.id === 'wl')!;

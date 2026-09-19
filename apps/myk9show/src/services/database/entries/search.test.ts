@@ -478,7 +478,7 @@ describe('getUserEntries account-scope read', () => {
 
       const result = await getUserEntries('user-1');
 
-      expect(result.source).toBe('confirmed');
+      expect(result.source).toBe('confirmed-move-up-link-unavailable');
       expect(result.data).toEqual(rows);
       const selects = viewQuery.select.mock.calls.map(call => call[0]);
       expect(selects[0]).toContain('moved_from_entry_id');

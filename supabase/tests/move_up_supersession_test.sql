@@ -426,6 +426,14 @@ RESET ROLE;
 UPDATE public.entries SET area1_time_seconds = 0
  WHERE id = '00000000-0000-0000-0000-000000639073';
 
+SET LOCAL ROLE authenticated;
+SELECT set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-000000639151', true);
+SELECT set_config(
+  'request.jwt.claims',
+  '{"sub":"00000000-0000-0000-0000-000000639151","role":"authenticated","app_metadata":{}}',
+  true
+);
+
 -- ---------------------------------------------------------------------------
 -- 5b. An intermediate destination in a later move-up chain cannot be undone
 -- by a stale Undo action. The terminal destination is now 639079, so the

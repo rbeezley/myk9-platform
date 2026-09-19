@@ -18,6 +18,7 @@ import { withResolvedMoneyRoots } from '@/features/financial/moneyRoot';
 
 export interface EntryBalanceClassSource {
   id: string;
+  deletedAt?: string | null | undefined;
 }
 
 export interface EntryBalanceSource {
@@ -43,6 +44,7 @@ export interface EntryBalanceSource {
   paymentMethod?: string | null | undefined;
   /** Fee in dollars, matching My Entries' loaded entry model. */
   totalFee: number;
+  deletedAt?: string | null | undefined;
   movedFromEntryId?: string | null | undefined;
   classes?: EntryBalanceClassSource[] | undefined;
   /** Set when the move-up source could not be read in this scope. */
@@ -121,6 +123,7 @@ export type EntryBalanceRawRow = Record<string, unknown> & {
   payment_status?: string | null;
   payment_method?: string | null;
   entry_fee?: number | null;
+  deleted_at?: string | null;
   moved_from_entry_id?: string | null;
   show?: {
     id?: string | null;
@@ -195,6 +198,7 @@ export function mapEntryRowToBalanceSource(row: EntryBalanceRawRow): EntryBalanc
     paymentStatus,
     paymentMethod: row.payment_method ?? null,
     totalFee: row.entry_fee ?? 0,
+    deletedAt: row.deleted_at ?? null,
     movedFromEntryId: row.moved_from_entry_id ?? null,
   };
 }
@@ -245,9 +249,6 @@ function feeCents(feeDollars: number): number {
 
 function entryIdsForPayment(entry: EntryBalanceSource): string[] {
   if (entry.moneyRootUnresolved) return [];
-  if (entry.moneyRootEntryId && entry.moneyRootEntryId !== entry.id) {
-    return [entry.moneyRootEntryId];
-  }
   const classEntryIds = entry.classes?.map(cls => cls.id).filter(Boolean) ?? [];
   return classEntryIds.length > 0 ? classEntryIds : [entry.id];
 }
@@ -263,6 +264,7 @@ export function summarizeEntryBalances(
   let payAtShowDueCents = 0;
 
   for (const entry of entries) {
+    if (entry.deletedAt) continue;
     const isCurrentEntry = isCurrentSummaryEntry(entry, now);
     if (!isCurrentEntry && !isBalanceEligibleEntry(entry)) continue;
 
@@ -339,18 +341,21 @@ export function summarizeEntryBalancesFromSource(
   now: Date = new Date()
 ): EntryBalanceSummary {
   if (!isMoneyConfirmed(source)) return UNKNOWN_ENTRY_BALANCE_SUMMARY;
-  const rootedEntries = withResolvedMoneyRoots(entries, (entry, root) => ({
-    ...entry,
-    paymentStatus: root.paymentStatus,
-    paymentMethod: root.paymentMethod,
-    totalFee: root.totalFee,
-  }));
+  const rootedEntries = withResolvedMoneyRoots(
+    entries.filter(entry => !entry.deletedAt),
+    (entry, root) => ({
+      ...entry,
+      paymentStatus: root.paymentStatus,
+      paymentMethod: root.paymentMethod,
+      totalFee: root.totalFee,
+    })
+  );
   const hasUnresolvedRoot = rootedEntries.some(entry => entry.moneyRootUnresolved);
   const summary = summarizeEntryBalances(
     rootedEntries.filter(entry => !entry.moneyRootUnresolved),
     now
   );
-  if (hasUnresolvedRoot && summary.amountDueCents === 0) {
+  if (hasUnresolvedRoot) {
     return UNKNOWN_ENTRY_BALANCE_SUMMARY;
   }
   return summary;

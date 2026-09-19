@@ -104,6 +104,7 @@ export function deriveShowMoneyState(
   if (!isMoneyConfirmed(source)) return UNKNOWN_SHOW_MONEY_STATE;
 
   const unresolvedOrders = orders.filter(order => order.balance?.moneyRootUnresolved);
+  if (unresolvedOrders.length > 0) return UNKNOWN_SHOW_MONEY_STATE;
   const resolvedOrders = orders.filter(order => !order.balance?.moneyRootUnresolved);
 
   const dueOrders = resolvedOrders.filter(order => onlineDueCentsOf(order) > 0);
@@ -126,8 +127,6 @@ export function deriveShowMoneyState(
       dueOrderIds: dueOrders.map(order => order.id),
     };
   }
-
-  if (unresolvedOrders.length > 0) return UNKNOWN_SHOW_MONEY_STATE;
 
   const kind: ShowMoneyKind = orders.some(
     order => getOrderPayAtShowPrompt(order).kind === 'pay-at-show'

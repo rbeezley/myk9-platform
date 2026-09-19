@@ -125,7 +125,7 @@ describe('deriveShowMoneyState', () => {
     expect(state.dueOrderIds).toEqual(['e3']);
   });
 
-  it('keeps a sibling debt actionable when another order has unresolved move-up lineage', () => {
+  it('withholds a sibling debt when another order has unresolved move-up lineage', () => {
     const known = unpaidOrder('known', 'd2', 'Scout');
     known.balance = {
       paymentStatus: PaymentStatus.PENDING,
@@ -158,9 +158,9 @@ describe('deriveShowMoneyState', () => {
       'confirmed'
     );
 
-    expect(state.kind).toBe('balance-due');
-    expect(state.amountCents).toBe(4500);
-    expect(state.paymentHref).toContain('known');
+    expect(state.kind).toBe('unknown');
+    expect(state.amountCents).toBe(0);
+    expect(state.paymentHref).toBeNull();
   });
 
   it('sums only the owing orders when two are unpaid', () => {

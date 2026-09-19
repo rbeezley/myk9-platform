@@ -1585,6 +1585,62 @@ async function handleEntryPaymentCompleted(session: Stripe.Checkout.Session) {
  * session must have one) and the idempotency latch (once it leaves 'open', a
  * re-delivered event is a no-op).
  */
+type PaymentReconciliationEntry = {
+  id: string;
+  payment_status: string | null;
+  entry_status: string | null;
+  moved_from_entry_id: string | null;
+  stripe_payment_intent_id: string | null;
+};
+
+async function loadPaymentReconciliationEntries(entryIds: string[]): Promise<{
+  entries: PaymentReconciliationEntry[];
+  reconciliationEntryIds: string[];
+  error: { message: string } | null;
+}> {
+  const entriesById = new Map<string, PaymentReconciliationEntry>();
+  let lookupIds = [...new Set(entryIds)];
+  let error: { message: string } | null = null;
+  for (let hop = 0; hop <= 16 && lookupIds.length > 0; hop += 1) {
+    const response = await supabase
+      .from('entries')
+      .select('id, payment_status, entry_status, moved_from_entry_id, stripe_payment_intent_id')
+      .in('id', lookupIds);
+    if (response.error) {
+      error = response.error;
+      break;
+    }
+    for (const row of (response.data ?? []) as PaymentReconciliationEntry[]) {
+      entriesById.set(row.id, row);
+    }
+    lookupIds = [
+      ...new Set(
+        (response.data ?? [])
+          .map(row => (row as { moved_from_entry_id?: string | null }).moved_from_entry_id)
+          .filter((id): id is string => Boolean(id) && !entriesById.has(id))
+      ),
+    ];
+  }
+
+  const reconciliationEntryIds = entryIds.map(entryId => {
+    let currentId = entryId;
+    const seen = new Set<string>();
+    while (!seen.has(currentId)) {
+      seen.add(currentId);
+      const parentId = entriesById.get(currentId)?.moved_from_entry_id;
+      if (!parentId || !entriesById.has(parentId)) break;
+      currentId = parentId;
+    }
+    return currentId;
+  });
+
+  return {
+    entries: [...entriesById.values()],
+    reconciliationEntryIds,
+    error,
+  };
+}
+
 async function handleEntryPaymentRequestCompleted(session: Stripe.Checkout.Session) {
   // MP-07: the webhook payload's payment_status/amount_total are untrusted
   // (same reasoning as the cart path's fresh retrieve above) — a payment
@@ -1635,10 +1691,8 @@ async function handleEntryPaymentRequestCompleted(session: Stripe.Checkout.Sessi
   }
 
   const entryIds = (link.entry_ids as string[] | null) ?? [];
-  const { data: entriesData, error: entriesError } = await supabase
-    .from('entries')
-    .select('id, payment_status, entry_status, stripe_payment_intent_id')
-    .in('id', entryIds);
+  const loadedEntries = await loadPaymentReconciliationEntries(entryIds);
+  const entriesError = loadedEntries.error;
   if (entriesError) {
     console.error('Failed to load entries for payment link:', entriesError);
     await alertAdmin(
@@ -1651,16 +1705,14 @@ async function handleEntryPaymentRequestCompleted(session: Stripe.Checkout.Sessi
     return;
   }
 
+  const { entries, reconciliationEntryIds } = loadedEntries;
+
   const result = reconcileEntryPaymentRequest({
     linkStatus: link.status,
     sessionPaymentStatus: freshSession.payment_status ?? null,
     expectedEntryIds: entryIds,
-    entries: (entriesData ?? []) as {
-      id: string;
-      payment_status: string | null;
-      entry_status: string | null;
-      stripe_payment_intent_id: string | null;
-    }[],
+    entries,
+    reconciliationEntryIds,
     paymentIntentId,
   });
 
@@ -1784,6 +1836,17 @@ async function handleEntryPaymentRequestCompleted(session: Stripe.Checkout.Sessi
   // from, not just the refund amount. Deriving the snapshot from the session
   // total instead overstated the platform fee on every partial-invalid order.
   const entryFeesById = await loadEntryPaymentLineItemFees(session.id);
+  // Checkout lines point at the live move-up destination, while the payment
+  // stamp is applied to its original money root. Keep the destination's
+  // authoritative line fee available under the root id for refund arithmetic.
+  for (let index = 0; index < entryIds.length; index += 1) {
+    const destinationId = entryIds[index];
+    const rootId = reconciliationEntryIds[index];
+    const destinationFee = entryFeesById.get(destinationId);
+    if (rootId && destinationFee != null && !entryFeesById.has(rootId)) {
+      entryFeesById.set(rootId, destinationFee);
+    }
+  }
   // Declared here rather than beside the snapshot below because the make-whole
   // refund needs them too: the flat per-checkout component and the floor are
   // earned once per CHARGE, so splitting them across the invalid entries

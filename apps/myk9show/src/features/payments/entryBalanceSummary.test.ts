@@ -162,6 +162,25 @@ describe('summarizeEntryBalances', () => {
 
     expect(summary.amountDueCents).toBe(3500);
     expect(summary.onlineDueCents).toBe(3500);
+    expect(summary.onlineShowBalances[0]?.entryIds).toEqual(['destination']);
+  });
+
+  it('ignores a soft-deleted move-up destination after a successful reversal', () => {
+    const summary = summarizeEntryBalancesFromSource(
+      [
+        entry({ id: 'source', totalFee: 35, entryStatus: EntryStatus.ACCEPTED }),
+        entry({
+          id: 'destination',
+          movedFromEntryId: 'source',
+          totalFee: 0,
+          deletedAt: '2026-09-19T12:00:00Z',
+        }),
+      ],
+      'confirmed',
+      now
+    );
+
+    expect(summary.amountDueCents).toBe(3500);
     expect(summary.onlineShowBalances[0]?.entryIds).toEqual(['source']);
   });
 
@@ -176,7 +195,7 @@ describe('summarizeEntryBalances', () => {
     expect(summary.amountDueCents).toBe(0);
   });
 
-  it('keeps a confirmed debt on another show visible when one move-up root is unresolved', () => {
+  it('withholds every account balance when one move-up root is unresolved', () => {
     const summary = summarizeEntryBalancesFromSource(
       [
         entry({ id: 'destination', movedFromEntryId: 'missing-source', totalFee: 0 }),
@@ -186,9 +205,8 @@ describe('summarizeEntryBalances', () => {
       now
     );
 
-    expect(summary.kind).toBe('known');
-    expect(summary.onlineDueCents).toBe(2000);
-    expect(summary.onlineShowBalances[0]?.showId).toBe('show-2');
+    expect(summary.kind).toBe('unknown');
+    expect(summary.onlineDueCents).toBe(0);
   });
 });
 

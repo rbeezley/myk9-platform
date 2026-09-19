@@ -19,6 +19,7 @@ import { EntryStatus, PaymentStatus } from '@/types/show-registration-types';
 import {
   isCurrentSummaryEntry,
   summarizeEntryBalances,
+  UNKNOWN_ENTRY_BALANCE_SUMMARY,
   type EntryBalanceSource,
 } from '@/features/payments/entryBalanceSummary';
 import { withResolvedMoneyRoots } from '@/features/financial/moneyRoot';
@@ -65,6 +66,7 @@ function toBalanceSources(classes: EntryClass[], ctx: OrderBalanceContext): Entr
   return classes.map(cls => ({
     id: cls.id,
     movedFromEntryId: cls.movedFromEntryId,
+    deletedAt: cls.deletedAt,
     showId: ctx.showId,
     showName: ctx.showName,
     showDate: ctx.showDate,
@@ -128,18 +130,26 @@ export function buildOrderBalance(
   ctx: OrderBalanceContext,
   now: Date = new Date()
 ): MyEntryBalance | null {
-  const sources = withResolvedMoneyRoots(toBalanceSources(classes, ctx), (entry, root) => ({
-    ...entry,
-    paymentStatus: root.paymentStatus,
-    paymentMethod: root.paymentMethod,
-    totalFee: root.totalFee,
-  }));
+  const sources = withResolvedMoneyRoots(
+    toBalanceSources(
+      classes.filter(cls => !cls.deletedAt),
+      ctx
+    ),
+    (entry, root) => ({
+      ...entry,
+      paymentStatus: root.paymentStatus,
+      paymentMethod: root.paymentMethod,
+      totalFee: root.totalFee,
+    })
+  );
   if (sources.length === 0) return null;
 
   const eligible = sources.filter(source => isCurrentSummaryEntry(source, now));
-  const summary = summarizeEntryBalances(sources, now);
-  const onlineShow = summary.onlineShowBalances[0];
   const moneyRootUnresolved = sources.some(source => source.moneyRootUnresolved);
+  const summary = moneyRootUnresolved
+    ? UNKNOWN_ENTRY_BALANCE_SUMMARY
+    : summarizeEntryBalances(sources, now);
+  const onlineShow = summary.onlineShowBalances[0];
 
   // The pay-at-show instruction must quote only the in-person portion and name
   // the method of the rows that actually carry it — a mixed cash+online order
@@ -178,7 +188,7 @@ export function buildOrderBalance(
     onlineDueCents: summary.onlineDueCents,
     payAtShowDueCents: summary.payAtShowDueCents,
     payAtShowMethod: payAtShowSource?.paymentMethod ?? null,
-    dueEntryIds: onlineShow?.entryIds ?? [],
+    dueEntryIds: moneyRootUnresolved ? [] : (onlineShow?.entryIds ?? []),
     moneyRootUnresolved,
   };
 }

@@ -154,7 +154,12 @@ export async function resolveMoveUpReversal(
   }
 
   const source = await replicatedEntriesTable.getEntryById(linkedSourceId);
-  if (!source || readEntryStatusOf(source) !== 'moved' || source.deletedAt || source.deleted_at) {
+  if (
+    !source ||
+    readEntryStatusOf(source)?.trim().toLowerCase() !== 'moved' ||
+    source.deletedAt ||
+    source.deleted_at
+  ) {
     return { kind: 'blocked', reason: 'source-missing' };
   }
 

@@ -10,6 +10,7 @@ export interface ReconcileEntryRow {
   id: string;
   payment_status: string | null;
   entry_status: string | null;
+  moved_from_entry_id?: string | null;
   stripe_payment_intent_id?: string | null;
 }
 
@@ -23,6 +24,8 @@ export interface ReconcileInput {
   expectedEntryIds: string[];
   /** Entries actually loaded now (may be a subset if some were deleted). */
   entries: ReconcileEntryRow[];
+  /** Root rows to settle when a checkout line targets a live move-up destination. */
+  reconciliationEntryIds?: string[];
   paymentIntentId: string | null;
 }
 
@@ -101,7 +104,9 @@ export function reconcileEntryPaymentRequest(input: ReconcileInput): ReconcileRe
   const sameIntentPaidEntryIds: string[] = [];
   const inactiveEntryIds: string[] = [];
 
+  const reconciliationIds = new Set(input.reconciliationEntryIds ?? input.expectedEntryIds);
   for (const e of input.entries) {
+    if (!reconciliationIds.has(e.id)) continue;
     const isExpiredPromotionClaim =
       input.linkStatus === 'expired' &&
       input.sessionPaymentStatus === 'paid' &&

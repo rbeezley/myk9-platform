@@ -38,7 +38,8 @@ import {
  * out, or came back empty over a populated snapshot. Both withhold money;
  * only the second is worth a warning in the logs.
  */
-export type UserEntriesSource = 'confirmed' | 'replica-offline' | 'replica-after-error';
+export type UserEntriesSource =
+  'confirmed' | 'confirmed-move-up-link-unavailable' | 'replica-offline' | 'replica-after-error';
 
 /**
  * The ONE rule for whether a money figure derived from these rows may be
@@ -209,6 +210,7 @@ async function postgrestGetUserEntries() {
   // these two columns, so one missing must not drop the other.
   let includeRegistrationConfirmationNumber = true;
   let includeMoveUpLink = true;
+  let moveUpLinkUnavailable = false;
   // ONE deadline for the whole paged read, not one per page. `withTimeout`
   // only races the promise it is given, so when it wins, the loop below is
   // still in flight — a per-page signal would let each SUBSEQUENT page start a
@@ -276,6 +278,7 @@ async function postgrestGetUserEntries() {
     }
     if (includeMoveUpLink && isMoveUpLinkSchemaUnavailable(response.error)) {
       includeMoveUpLink = false;
+      moveUpLinkUnavailable = true;
       logger.warn(
         'My Entries read without moved_from_entry_id: migration 20260918193300 is not applied',
         'database',
@@ -302,7 +305,7 @@ async function postgrestGetUserEntries() {
     for (const row of pageRows) applyOrderReferenceRule(row);
     rows.push(...pageRows);
     if (pageRows.length < USER_ENTRIES_PAGE_SIZE) {
-      return { data: rows, error: null };
+      return { data: rows, error: null, moveUpLinkUnavailable };
     }
   }
 
@@ -439,7 +442,11 @@ export const getUserEntries = async (userId: string): Promise<UserEntriesResult>
     }
 
     logQuery('entries', 'select_user_entries', Date.now() - startTime);
-    return { ...result, source: 'confirmed' };
+    const { moveUpLinkUnavailable, ...confirmedResult } = result;
+    return {
+      ...confirmedResult,
+      source: moveUpLinkUnavailable ? 'confirmed-move-up-link-unavailable' : 'confirmed',
+    };
   } catch (error) {
     return readUserEntriesFromReplica(userId, error, startTime);
   }

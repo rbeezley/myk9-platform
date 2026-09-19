@@ -1,4 +1,4 @@
-import { screen } from '@testing-library/react';
+import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import type { DateRange } from 'react-day-picker';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
@@ -114,6 +114,40 @@ describe('DateRangePicker', () => {
     );
     expect(screen.getByTestId('range-start-class')).toHaveTextContent(/range_start.*ring-2/);
     expect(screen.getByTestId('range-end-class')).toHaveTextContent(/range_end.*ring-2/);
+  });
+
+  it('dismisses on Escape, contains focus, and restores focus to the trigger', async () => {
+    const user = userEvent.setup();
+
+    render(
+      <DateRangePicker onStartDateChange={onStartDateChange} onEndDateChange={onEndDateChange} />
+    );
+
+    const trigger = screen.getByRole('button', { name: /select date range/i });
+    await user.click(trigger);
+    const dialog = screen.getByRole('dialog', { name: 'Choose a date range' });
+    await waitFor(() => expect(dialog).toContainElement(document.activeElement));
+
+    const focusableCount =
+      within(dialog).getAllByRole('button').length +
+      within(dialog).getAllByRole('textbox').length +
+      within(dialog).queryAllByRole('combobox').length;
+    expect(document.querySelectorAll('[data-base-ui-focus-guard]').length).toBeGreaterThanOrEqual(
+      2
+    );
+    for (let index = 0; index < focusableCount; index += 1) {
+      await user.tab();
+      const activeElement = document.activeElement;
+      expect(
+        activeElement === dialog ||
+          dialog.contains(activeElement) ||
+          activeElement?.hasAttribute('data-base-ui-focus-guard')
+      ).toBe(true);
+    }
+
+    await user.keyboard('{Escape}');
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+    expect(trigger).toHaveFocus();
   });
 
   it('does not wipe existing dates when the calendar emits an empty selection', async () => {

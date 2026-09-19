@@ -14,6 +14,7 @@
 
 import React, { useCallback, useMemo, useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
+import { useQueryClient } from '@tanstack/react-query';
 import { logger } from '@/services/LoggingService';
 import { notifications } from '@/lib/notifications';
 import { Filter, Plus, Download, Search, Users, ShieldCheck } from 'lucide-react';
@@ -22,6 +23,7 @@ import { Badge } from '@/components/ui/badge';
 // Hooks and services
 import { useAdminUsersQuery, useUpdateUserMutation } from '@/hooks/queries/useUsersQuery';
 import { User } from '@/types/user-types';
+import { queryKeys } from '@/lib/queryClient';
 import { getUserFriendlyError } from '@/utils/errorMessages';
 // Components
 import { UserTable } from '@/components/admin/users/UserTable';
@@ -62,6 +64,7 @@ export type { UserFilter, SelectedUser } from './UserManagementPage.types';
 
 const UserManagementPage: React.FC = () => {
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
 
   // View state lives in the URL so it survives the drill-down to /people/:id —
   // Back restores the exact list, and the breadcrumb there can link to it.
@@ -236,10 +239,13 @@ const UserManagementPage: React.FC = () => {
     [navigate, searchTerm, filters, sort, currentPage, pageSize]
   );
 
-  const handleEditUser = useCallback((user: User) => {
-    setSelectedUser(user);
-    setShowUserEditPanel(true);
-  }, []);
+  const handleEditUser = useCallback(
+    (user: User) => {
+      setSelectedUser(queryClient.getQueryData<User>(queryKeys.users.detail(user.id)) ?? user);
+      setShowUserEditPanel(true);
+    },
+    [queryClient]
+  );
 
   const handleManageRoles = useCallback((user: User) => {
     setRoleAssignTarget(user);
@@ -307,7 +313,9 @@ const UserManagementPage: React.FC = () => {
         id: selectedUser.id,
         updates: userData,
       });
-      setSelectedUser(updatedUser);
+      setSelectedUser(
+        queryClient.getQueryData<User>(queryKeys.users.detail(updatedUser.id)) ?? updatedUser
+      );
       setShowUserEditPanel(false);
       notifications.success('User updated successfully');
     } catch (err) {

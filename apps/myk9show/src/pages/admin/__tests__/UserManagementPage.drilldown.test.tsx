@@ -11,6 +11,8 @@ import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import type { User } from '@/types/user-types';
 
+const { mockUpdateUser } = vi.hoisted(() => ({ mockUpdateUser: vi.fn() }));
+
 const person = {
   id: 'user-1',
   firstName: 'Ada',
@@ -28,7 +30,7 @@ vi.mock('@/hooks/queries/useUsersQuery', async importOriginal => ({
     error: null,
     refetch: vi.fn(),
   }),
-  useUpdateUserMutation: () => ({ mutateAsync: vi.fn() }),
+  useUpdateUserMutation: () => ({ mutateAsync: mockUpdateUser }),
 }));
 
 // Stand in for the table so the test drives the two intents directly rather
@@ -53,8 +55,26 @@ vi.mock('@/components/admin/users/UserTable', () => ({
 }));
 
 vi.mock('@/components/panels/edit/UserEditPanel', () => ({
-  UserEditPanel: ({ open, userName }: { open: boolean; userName: string }) =>
-    open ? <div data-testid="edit-panel">{userName}</div> : null,
+  UserEditPanel: ({
+    open,
+    userName,
+    initialUserData,
+    onSave,
+  }: {
+    open: boolean;
+    userName: string;
+    initialUserData: User;
+    onSave: (updates: Partial<User>) => Promise<void>;
+  }) =>
+    open ? (
+      <div data-testid="edit-panel">
+        <span>{userName}</span>
+        <span data-testid="edit-panel-user">{JSON.stringify(initialUserData)}</span>
+        <button type="button" onClick={() => onSave({ phone: '555-0200' })}>
+          save user
+        </button>
+      </div>
+    ) : null,
 }));
 
 import UserManagementPage from '../UserManagementPage';
@@ -82,13 +102,16 @@ function renderAt(url: string) {
       </MemoryRouter>
     </QueryClientProvider>
   );
-  return { user };
+  return { user, client };
 }
 
 const backTo = () => JSON.parse(screen.getByTestId('person-state').textContent || 'null')?.backTo;
 
 describe('UserManagementPage drill-down', () => {
-  beforeEach(() => vi.clearAllMocks());
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockUpdateUser.mockResolvedValue({ ...person, phone: '555-0200' });
+  });
 
   it('opens the person record on a row click', async () => {
     const { user } = renderAt('/admin/users');
@@ -126,6 +149,30 @@ describe('UserManagementPage drill-down', () => {
 
     expect(screen.queryByTestId('person-path')).not.toBeInTheDocument();
     expect(await screen.findByTestId('edit-panel')).toHaveTextContent('Ada Lovelace');
+  });
+
+  it('reopens after save with the complete detail user, not the role-less mutation row', async () => {
+    const { user, client } = renderAt('/admin/users');
+    const completeUser = {
+      ...person,
+      dateOfBirth: '2011-03-04',
+      juniorHandlerNumbers: { AKC: '7654321' },
+      privateFieldsReadComplete: true,
+      roles: ['judge'],
+      judgeQualifications: [],
+    } as unknown as User;
+    client.setQueryData(['users', 'detail', person.id], completeUser);
+
+    await user.click(screen.getByRole('button', { name: 'menu edit' }));
+    expect(screen.getByTestId('edit-panel-user')).toHaveTextContent('2011-03-04');
+    expect(screen.getByTestId('edit-panel-user')).toHaveTextContent('judge');
+
+    await user.click(screen.getByRole('button', { name: 'save user' }));
+    expect(screen.queryByTestId('edit-panel')).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: 'menu edit' }));
+    expect(screen.getByTestId('edit-panel-user')).toHaveTextContent('2011-03-04');
+    expect(screen.getByTestId('edit-panel-user')).toHaveTextContent('judge');
   });
 
   it('reads the search term out of the URL', () => {

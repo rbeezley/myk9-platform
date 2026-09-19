@@ -218,6 +218,38 @@ describe('getEntriesByShow — cold local replica verifies online', () => {
     expect(result.data.map(row => row.id)).toEqual(['entry-cold-degraded']);
   });
 
+  it('filters locally deleted rows from the cold-join online fallback', async () => {
+    mockEntriesTable.sync.mockResolvedValue({ success: true });
+    onlineRows = [
+      { id: 'entry-local-delete', show_id: 's1', class: { id: 'c1' } },
+      { id: 'entry-online-1', show_id: 's1', class: { id: 'c1' } },
+    ];
+    mockEntriesTable.getEntriesByShow.mockResolvedValue([
+      {
+        id: 'entry-cold-join',
+        dogId: null,
+        classId: 'c1',
+        showId: 's1',
+        registrationId: null,
+        deletedAt: null,
+        entryStatus: 'confirmed',
+      },
+      {
+        id: 'entry-local-delete',
+        dogId: null,
+        classId: null,
+        showId: 's1',
+        registrationId: null,
+        deletedAt: '2026-07-09T00:00:00.000Z',
+        entryStatus: 'confirmed',
+      },
+    ]);
+
+    const result = await getEntriesByShow('s1');
+
+    expect(result.data.map(row => row.id)).toEqual(['entry-online-1']);
+  });
+
   it('does not call online when the local replica already has the show’s entries', async () => {
     mockEntriesTable.getEntriesByShow.mockResolvedValue([
       {

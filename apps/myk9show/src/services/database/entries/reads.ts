@@ -101,6 +101,11 @@ function missingClassJoinIds(
   ];
 }
 
+function withoutLocallyDeletedRows<T>(data: T[], locallyDeletedIds: readonly string[]) {
+  const deleted = new Set(locallyDeletedIds);
+  return data.filter(row => !deleted.has(String((row as { id?: unknown }).id)));
+}
+
 async function loadEnrollmentFinancialsMap(
   entries: ReadonlyArray<ReplicatedEntry>
 ): Promise<Map<string, Record<string, unknown>>> {
@@ -848,7 +853,11 @@ export const getEntriesByShow = async (showId: string) => {
       if (missingClassJoinIds(sortedEntries, classesMap).length > 0 && !isBrowserOffline()) {
         try {
           const online = await postgrestGetEntriesByShow(showId);
-          return { ...online, locallyDeletedIds };
+          return {
+            ...online,
+            data: withoutLocallyDeletedRows(online.data, locallyDeletedIds),
+            locallyDeletedIds,
+          };
         } catch {
           // Keep mapped local rows as a degraded but usable result.
         }
@@ -900,7 +909,11 @@ export const getEntriesByShowFromReplication = async (showId: string) => {
       if (missingClassJoinIds(entries, classesMap).length > 0 && !isBrowserOffline()) {
         try {
           const online = await postgrestGetEntriesByShow(showId);
-          return { ...online, locallyDeletedIds };
+          return {
+            ...online,
+            data: withoutLocallyDeletedRows(online.data, locallyDeletedIds),
+            locallyDeletedIds,
+          };
         } catch {
           // Keep mapped local rows as a degraded but usable result.
         }

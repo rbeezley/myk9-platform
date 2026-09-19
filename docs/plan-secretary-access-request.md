@@ -1,5 +1,7 @@
 # Additional access request flow
 
+> **Status:** Active
+
 ## Scope
 
 - Make the existing role-intent checkboxes visible before Google and Apple OAuth.

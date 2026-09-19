@@ -75,6 +75,7 @@ export const USER_ENTRIES_SELECT = `
       payment_method,
       entry_status,
       check_in_status,
+      moved_from_entry_id,
       entry_fee,
       armband,
       run_order,

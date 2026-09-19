@@ -68,6 +68,13 @@ describe('ShowMapMoveUpDialog move-back (MYK9-640)', () => {
     expect(screen.queryByRole('button', { name: /move back/i })).not.toBeInTheDocument();
   });
 
+  it('explains when this move-up was superseded by a later move', () => {
+    renderDialog({ reversal: { kind: 'blocked', reason: 'superseded' } });
+
+    expect(screen.getByText(/since been superseded by another move-up/i)).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /move back/i })).not.toBeInTheDocument();
+  });
+
   it('says nothing at all about moving back on an entry that was never moved', () => {
     renderDialog({ reversal: { kind: 'blocked', reason: 'not-a-move-up' } });
 

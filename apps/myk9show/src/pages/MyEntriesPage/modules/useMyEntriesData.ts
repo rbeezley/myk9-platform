@@ -242,6 +242,7 @@ export function useMyEntriesData({
     const classes: EntryClass[] = [
       {
         id: entry.id as string,
+        movedFromEntryId: (entry.moved_from_entry_id as string | null) ?? null,
         entryStatus: mapEntryStatus(entry.entry_status as string),
         entryStatusKind,
         classId: classData?.id,

@@ -21,6 +21,7 @@ import {
   summarizeEntryBalances,
   type EntryBalanceSource,
 } from '@/features/payments/entryBalanceSummary';
+import { withResolvedMoneyRoots } from '@/features/financial/moneyRoot';
 import {
   getEntryPaymentPrompt,
   type EntryPaymentPrompt,
@@ -63,6 +64,7 @@ export interface OrderBalanceContext {
 function toBalanceSources(classes: EntryClass[], ctx: OrderBalanceContext): EntryBalanceSource[] {
   return classes.map(cls => ({
     id: cls.id,
+    movedFromEntryId: cls.movedFromEntryId,
     showId: ctx.showId,
     showName: ctx.showName,
     showDate: ctx.showDate,
@@ -126,7 +128,12 @@ export function buildOrderBalance(
   ctx: OrderBalanceContext,
   now: Date = new Date()
 ): MyEntryBalance | null {
-  const sources = toBalanceSources(classes, ctx);
+  const sources = withResolvedMoneyRoots(toBalanceSources(classes, ctx), (entry, root) => ({
+    ...entry,
+    paymentStatus: root.paymentStatus,
+    paymentMethod: root.paymentMethod,
+    totalFee: root.totalFee,
+  }));
   if (sources.length === 0) return null;
 
   const eligible = sources.filter(source => isCurrentSummaryEntry(source, now));

@@ -129,6 +129,14 @@ describe('buildMoneyAttribution', () => {
     expect(buildMoneyAttribution([SOURCE, DESTINATION]).unresolved).toEqual([]);
   });
 
+  it('claims every superseded row in a multi-hop chain', () => {
+    const first: Row = { id: 'a', entryStatus: 'moved', fee: 35 };
+    const second: Row = { id: 'b', entryStatus: 'moved', movedFromEntryId: 'a', fee: 0 };
+    const third: Row = { id: 'c', entryStatus: 'confirmed', movedFromEntryId: 'b', fee: 0 };
+
+    expect(buildMoneyAttribution([first, second, third]).unresolved).toEqual([]);
+  });
+
   it('reports an unreachable root against the LIVE entry that needs it', () => {
     const attribution = buildMoneyAttribution([DESTINATION]);
 

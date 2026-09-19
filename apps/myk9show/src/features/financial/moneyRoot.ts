@@ -152,13 +152,33 @@ export function buildMoneyAttribution<T extends MoneyRootLink & { entryStatus?: 
 
   const claimedRootIds = new Set<string>();
 
+  const claimChainIds = (entry: T) => {
+    let current = entry;
+    const seen = new Set<string>();
+
+    for (let hop = 0; hop < MONEY_ROOT_MAX_DEPTH; hop += 1) {
+      if (seen.has(current.id)) return;
+      seen.add(current.id);
+      claimedRootIds.add(current.id);
+
+      const parentId = current.movedFromEntryId;
+      if (!parentId) return;
+      const parent = byId.get(parentId);
+      if (!parent) return;
+      current = parent;
+    }
+  };
+
   for (const entry of entries) {
     if (isSupersededMoveUpEntry(entry)) continue;
     live.push(entry);
 
     const resolution = resolveMoneyRoot(entry, byId);
     rootById.set(entry.id, resolution.root);
-    claimedRootIds.add(resolution.root.id);
+    // Claim every row traversed by the live descendant. A two-hop chain has
+    // two superseded rows, and claiming only the root falsely reports the
+    // intermediate row as orphaned.
+    claimChainIds(entry);
     if (resolution.problem) {
       unresolved.push({
         entryId: entry.id,

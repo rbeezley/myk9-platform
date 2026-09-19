@@ -150,6 +150,20 @@ describe('moveUpSupersession', () => {
 
       expect([...sqlColumns].sort()).toEqual([...clientColumns].sort());
     });
+
+    it('has a durable guard against reversing an intermediate move-up', () => {
+      const migration = readFileSync(
+        resolve(
+          __dirname,
+          '../../../../../../supabase/migrations/20260919131700_reverse_move_up_terminal_guard.sql'
+        ),
+        'utf8'
+      );
+
+      expect(migration).toMatch(
+        /IF COALESCE\(v_dest\.entry_status, ''\) = 'moved' THEN[\s\S]*?cannot be reversed/
+      );
+    });
   });
 
   describe('hasRunStarted', () => {
@@ -235,6 +249,17 @@ describe('moveUpSupersession', () => {
       await expect(resolveMoveUpReversal('dest-1')).resolves.toEqual({
         kind: 'blocked',
         reason: 'run-started',
+      });
+    });
+
+    it('refuses an intermediate destination that has already been superseded', async () => {
+      mockGetEntryById.mockImplementation(
+        entriesById([SOURCE, { ...DESTINATION, entryStatus: 'moved' }])
+      );
+
+      await expect(resolveMoveUpReversal('dest-1')).resolves.toEqual({
+        kind: 'blocked',
+        reason: 'superseded',
       });
     });
 

@@ -14,6 +14,7 @@ import {
   isMoneyConfirmed,
   type UserEntriesSource,
 } from '@/services/database/entries/userEntriesRead';
+import { withResolvedMoneyRoots } from '@/features/financial/moneyRoot';
 
 export interface EntryBalanceClassSource {
   id: string;
@@ -42,6 +43,7 @@ export interface EntryBalanceSource {
   paymentMethod?: string | null | undefined;
   /** Fee in dollars, matching My Entries' loaded entry model. */
   totalFee: number;
+  movedFromEntryId?: string | null | undefined;
   classes?: EntryBalanceClassSource[] | undefined;
 }
 
@@ -115,6 +117,7 @@ export type EntryBalanceRawRow = Record<string, unknown> & {
   payment_status?: string | null;
   payment_method?: string | null;
   entry_fee?: number | null;
+  moved_from_entry_id?: string | null;
   show?: {
     id?: string | null;
     name?: string | null;
@@ -188,6 +191,7 @@ export function mapEntryRowToBalanceSource(row: EntryBalanceRawRow): EntryBalanc
     paymentStatus,
     paymentMethod: row.payment_method ?? null,
     totalFee: row.entry_fee ?? 0,
+    movedFromEntryId: row.moved_from_entry_id ?? null,
   };
 }
 
@@ -327,7 +331,13 @@ export function summarizeEntryBalancesFromSource(
   now: Date = new Date()
 ): EntryBalanceSummary {
   if (!isMoneyConfirmed(source)) return UNKNOWN_ENTRY_BALANCE_SUMMARY;
-  return summarizeEntryBalances(entries, now);
+  const rootedEntries = withResolvedMoneyRoots(entries, (entry, root) => ({
+    ...entry,
+    paymentStatus: root.paymentStatus,
+    paymentMethod: root.paymentMethod,
+    totalFee: root.totalFee,
+  }));
+  return summarizeEntryBalances(rootedEntries, now);
 }
 
 export function buildEntryBalanceRecoveryHref(summary: EntryBalanceSummary): string {

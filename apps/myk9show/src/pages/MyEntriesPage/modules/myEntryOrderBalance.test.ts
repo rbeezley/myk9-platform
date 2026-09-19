@@ -135,6 +135,30 @@ describe('buildOrderBalance', () => {
 
     expect(balance!.paymentStatus).toBe(PaymentStatus.PARTIAL_REFUND);
   });
+
+  it('carries move-up money from the superseded class into the live class balance', () => {
+    const classes = [
+      makeClass({
+        id: 'source',
+        entryStatus: EntryStatus.MOVED,
+        paymentStatus: PaymentStatus.PENDING,
+        paymentMethod: 'online',
+        fee: 35,
+      }),
+      makeClass({
+        id: 'destination',
+        movedFromEntryId: 'source',
+        paymentStatus: PaymentStatus.PENDING,
+        paymentMethod: null,
+        fee: 0,
+      }),
+    ];
+
+    const balance = buildOrderBalance(classes, makeCtx(), NOW);
+
+    expect(balance!.amountDueCents).toBe(3500);
+    expect(balance!.onlineDueCents).toBe(3500);
+  });
 });
 
 describe('reconcileOrderPaymentStatus', () => {

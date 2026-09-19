@@ -4,6 +4,7 @@ import {
   buildEntryBalanceRecoveryHref,
   mapEntryRowToBalanceSource,
   summarizeEntryBalances,
+  summarizeEntryBalancesFromSource,
   type EntryBalanceSource,
 } from './entryBalanceSummary';
 import {
@@ -136,6 +137,31 @@ describe('summarizeEntryBalances', () => {
     );
 
     expect(buildEntryBalanceRecoveryHref(summary)).toBe('/exhibitor/payments?due=1');
+  });
+
+  it('attributes a move-up destination balance to the original paid entry', () => {
+    const summary = summarizeEntryBalancesFromSource(
+      [
+        entry({
+          id: 'source',
+          entryStatus: EntryStatus.MOVED,
+          paymentStatus: PaymentStatus.PENDING,
+          totalFee: 35,
+        }),
+        entry({
+          id: 'destination',
+          movedFromEntryId: 'source',
+          totalFee: 0,
+          paymentStatus: PaymentStatus.PENDING,
+          paymentMethod: null,
+        }),
+      ],
+      'confirmed',
+      now
+    );
+
+    expect(summary.amountDueCents).toBe(3500);
+    expect(summary.onlineDueCents).toBe(3500);
   });
 });
 

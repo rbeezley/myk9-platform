@@ -12917,6 +12917,7 @@ export type Database = {
           waitlist_entry_id: string
         }[]
       }
+      entry_enrollment_select_show_ids: { Args: never; Returns: string[] }
       manageable_show_ids: { Args: never; Returns: string[] }
       normalize_club_name: { Args: { value: string }; Returns: string }
       normalize_dog_registration_number: {

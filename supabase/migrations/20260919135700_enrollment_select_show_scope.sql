@@ -8,7 +8,7 @@
 
 begin;
 
-create or replace function public.enrollment_select_show_ids()
+create or replace function public.entry_enrollment_select_show_ids()
 returns setof uuid
 language sql
 stable
@@ -49,11 +49,11 @@ as $$
     and (ur.expires_at is null or ur.expires_at > now());
 $$;
 
-comment on function public.enrollment_select_show_ids() is
+comment on function public.entry_enrollment_select_show_ids() is
   'Enrollment SELECT scope: club-scoped managers see their club shows; a show-pinned club_admin sees only its assigned show; site admins see all shows.';
 
-revoke all on function public.enrollment_select_show_ids() from public, anon;
-grant execute on function public.enrollment_select_show_ids() to authenticated, service_role;
+revoke all on function public.entry_enrollment_select_show_ids() from public, anon;
+grant execute on function public.entry_enrollment_select_show_ids() to authenticated, service_role;
 
 drop policy if exists "enrollments_select" on public.enrollments;
 
@@ -70,11 +70,29 @@ create policy "enrollments_select"
       from public.people p
       where p.auth_user_id = (select auth.uid())
     )
-    or show_id in (select public.enrollment_select_show_ids())
+    or show_id in (select public.entry_enrollment_select_show_ids())
+  );
+
+alter policy entries_select on public.entries
+  using (
+    entries.show_id in (select public.entry_enrollment_select_show_ids())
+    or exists (
+      select 1
+      from public.people p
+      where p.auth_user_id = (select auth.uid())
+        and p.id = entries.handler_id
+    )
+    or exists (
+      select 1
+      from public.people p
+      join public.dogs d on d.owner_id = p.id
+      where p.auth_user_id = (select auth.uid())
+        and d.id = entries.dog_id
+    )
   );
 
 comment on policy "enrollments_select" on public.enrollments is
-  'Role arm is scoped by enrollment_select_show_ids(): club-scoped managers see their own club, while show-pinned club_admin rows remain exact-show. The is_show_official and handler_id arms preserve official and owner reads.';
+  'Role arm is scoped by entry_enrollment_select_show_ids(): club-scoped managers see their own club, while show-pinned club_admin rows remain exact-show. The is_show_official and handler_id arms preserve official and owner reads.';
 
 notify pgrst, 'reload schema';
 

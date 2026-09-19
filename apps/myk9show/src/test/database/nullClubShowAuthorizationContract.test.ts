@@ -77,6 +77,7 @@ const REVIEWED_CLUB_HELPER_CALL_SITES: readonly string[] = [
   //      OR (SELECT public.is_site_admin())
   // so a club-less show reaches nobody but a site admin.
   'trial_secretary_show_ids -> is_trial_secretary',
+  'entry_enrollment_select_show_ids -> is_trial_secretary',
   // Guarded by s.club_id IS NOT NULL in 20260912211500 (MYK9-474). Copied verbatim from
   // get_show_officials, which is this function's template:
   //   AND (s.status IN (...) OR (s.club_id IS NOT NULL AND is_club_admin(s.club_id)) OR ...)

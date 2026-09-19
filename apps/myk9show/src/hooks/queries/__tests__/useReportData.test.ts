@@ -482,5 +482,26 @@ describe('useReportData', () => {
       await waitFor(() => expect(result.current.dataState).toBe('error'));
       expect(result.current.isReady).toBe(false);
     });
+
+    it('keeps cached show trials printable when trial verification fails', async () => {
+      const cachedShow = {
+        ...mockShow,
+        trials: [{ id: 'trial-1', name: 'Trial 1', trialNumber: 1, date: '2026-04-12' }],
+      } as unknown as Show;
+      mockGetTrialsByShow.mockResolvedValue({
+        data: null,
+        error: new Error('verification offline'),
+      } as never);
+      mockGetClassesByTrialId.mockResolvedValue({ data: [], error: null } as never);
+      mockGetEntriesByShowFromReplication.mockResolvedValue({ data: [], error: null } as never);
+
+      const { result } = renderHook(() => useReportData({ ...defaultOptions, show: cachedShow }), {
+        wrapper: onlineWrapper(),
+      });
+
+      await waitFor(() => expect(result.current.dataState).toBe('ready'));
+      expect(result.current.isReady).toBe(true);
+      expect(result.current.trials).toHaveLength(1);
+    });
   });
 });

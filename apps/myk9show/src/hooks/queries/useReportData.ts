@@ -271,10 +271,17 @@ export function useReportData({ show, trialId, classId }: UseReportDataOptions) 
         reportTrials?.some(trial => trial.id === reportClass.trial_id)
     );
   const hasInvalidScope = !selectedTrialIsInShow || !selectedClassIsInScope;
+  // A show detail can provide a complete replicated trial set even when the
+  // auxiliary scoped trial verification is unavailable. That verification
+  // failure must not make otherwise complete cached report rows unprintable.
+  const hasBlockingQueryError =
+    (trialsQuery.isError && reportTrials === undefined) ||
+    classesQuery.isError ||
+    entriesQuery.isError;
 
   const dataState: ReportDataState = hasInvalidScope
     ? 'error'
-    : queries.some(q => q.isError)
+    : hasBlockingQueryError
       ? 'error'
       : queries.some(q => q.isPlaceholderData)
         ? 'stale'

@@ -193,7 +193,11 @@ BEGIN
   -- Serialize this legacy narrow write with the atomic profile update below.
   -- The row lock prevents an older client from racing a combined public/private
   -- save and putting stale private values back after the transaction commits.
-  PERFORM 1 FROM public.people WHERE id = p_person_id FOR UPDATE;
+  PERFORM 1
+  FROM public.people
+  WHERE id = p_person_id
+    AND deleted_at IS NULL
+  FOR UPDATE;
   IF NOT FOUND THEN
     RAISE EXCEPTION 'Person not found' USING ERRCODE = 'P0002';
   END IF;
@@ -363,6 +367,10 @@ COMMENT ON FUNCTION public.update_person_with_private(uuid, jsonb, jsonb) IS
 REVOKE ALL ON FUNCTION public.update_person_with_private(uuid, jsonb, jsonb) FROM PUBLIC;
 REVOKE ALL ON FUNCTION public.update_person_with_private(uuid, jsonb, jsonb) FROM anon;
 GRANT EXECUTE ON FUNCTION public.update_person_with_private(uuid, jsonb, jsonb) TO authenticated, service_role;
+
+-- PostgREST caches the RPC schema. Refresh it after creating the functions so
+-- clients can call the new signatures immediately after this migration runs.
+NOTIFY pgrst, 'reload schema';
 
 -- Backfill before removing the source columns. Existing values are copied exactly;
 -- empty JSON objects do not create needless rows.

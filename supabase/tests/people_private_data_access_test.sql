@@ -21,7 +21,12 @@ VALUES
   ('00000000-0000-0000-0000-000000664012', 'MYK9-664', 'Unrelated Manager', '00000000-0000-0000-0000-000000664102'),
   ('00000000-0000-0000-0000-000000664013', 'MYK9-664', 'Exhibitor', '00000000-0000-0000-0000-000000664103'),
   ('00000000-0000-0000-0000-000000664014', 'MYK9-664', 'Handler', '00000000-0000-0000-0000-000000664104'),
-  ('00000000-0000-0000-0000-000000664015', 'MYK9-664', 'Site Admin', '00000000-0000-0000-0000-000000664105');
+  ('00000000-0000-0000-0000-000000664015', 'MYK9-664', 'Site Admin', '00000000-0000-0000-0000-000000664105'),
+  ('00000000-0000-0000-0000-000000664016', 'MYK9-664', 'Deleted Handler', '00000000-0000-0000-0000-000000664106');
+
+UPDATE public.people
+SET deleted_at = current_timestamp
+WHERE id = '00000000-0000-0000-0000-000000664016';
 
 INSERT INTO public.club_members (club_id, person_id, membership_status)
 VALUES
@@ -65,8 +70,11 @@ DECLARE
   exhibitor uuid := '00000000-0000-0000-0000-000000664103';
   self_auth uuid := '00000000-0000-0000-0000-000000664104';
   site_admin uuid := '00000000-0000-0000-0000-000000664105';
+  deleted_handler uuid := '00000000-0000-0000-0000-000000664016';
   visible_rows integer;
   writes_denied boolean;
+  private_dob date;
+  private_numbers jsonb;
 BEGIN
   IF has_table_privilege('anon', 'public.people_private', 'SELECT') THEN
     RAISE EXCEPTION 'FAIL anon retained people_private SELECT';
@@ -90,6 +98,21 @@ BEGIN
     '{"phone":"self-save"}'::jsonb,
     '{"date_of_birth":"2012-04-03","junior_handler_numbers":{"AKC":"664-JR-2"}}'::jsonb
   );
+  PERFORM public.update_person_with_private(
+    handler_id,
+    '{}'::jsonb,
+    '{"junior_handler_numbers":{}}'::jsonb
+  );
+  SELECT date_of_birth, junior_handler_numbers
+  INTO private_dob, private_numbers
+  FROM public.people_private
+  WHERE person_id = handler_id;
+  IF private_dob IS DISTINCT FROM DATE '2012-04-03' THEN
+    RAISE EXCEPTION 'FAIL omitted private date was not preserved';
+  END IF;
+  IF private_numbers IS DISTINCT FROM '{}'::jsonb THEN
+    RAISE EXCEPTION 'FAIL explicit empty junior-number map did not clear existing values';
+  END IF;
 
   -- Related manager: entry -> show -> managed club is the only manager read arm.
   PERFORM set_config('request.jwt.claim.sub', related_manager::text, true);
@@ -138,6 +161,16 @@ BEGIN
     '{}'::jsonb,
     '{"date_of_birth":"2012-04-05","junior_handler_numbers":{"AKC":"664-JR-5"}}'::jsonb
   );
+
+  writes_denied := false;
+  BEGIN
+    PERFORM public.upsert_people_private(deleted_handler, DATE '2012-04-06', '{}'::jsonb);
+  EXCEPTION WHEN SQLSTATE 'P0002' THEN
+    writes_denied := true;
+  END;
+  IF NOT writes_denied THEN
+    RAISE EXCEPTION 'FAIL legacy private upsert can write soft-deleted person';
+  END IF;
 
   RESET ROLE;
 END;

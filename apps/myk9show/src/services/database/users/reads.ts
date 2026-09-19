@@ -207,9 +207,8 @@ export const updateUser = async (id: string, updates: DbUserUpdateWithPrivate) =
         privateUpdates.date_of_birth = privateFields.date_of_birth;
       }
       if (privateFields.junior_handler_numbers !== undefined) {
-        privateUpdates.junior_handler_numbers = normalizeJuniorHandlerNumbers(
-          privateFields.junior_handler_numbers
-        );
+        privateUpdates.junior_handler_numbers =
+          normalizeJuniorHandlerNumbers(privateFields.junior_handler_numbers) ?? {};
       }
 
       const privateResult = await updatePersonWithPrivateProfile({

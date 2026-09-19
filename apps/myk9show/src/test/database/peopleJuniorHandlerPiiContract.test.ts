@@ -148,6 +148,21 @@ describe('the migration that protects the private columns', () => {
     );
     expect(sql).toMatch(/v_private_patch \? 'date_of_birth'/i);
     expect(sql).toMatch(/v_private_patch \? 'junior_handler_numbers'/i);
+
+    const upsertStart = sql.indexOf('CREATE OR REPLACE FUNCTION public.upsert_people_private');
+    const upsertEnd = sql.indexOf('COMMENT ON FUNCTION public.upsert_people_private');
+    expect(upsertStart).toBeGreaterThan(-1);
+    expect(upsertEnd).toBeGreaterThan(upsertStart);
+    expect(sql.slice(upsertStart, upsertEnd)).toMatch(
+      /FROM public\.people\s+WHERE id = p_person_id\s+AND deleted_at IS NULL\s+FOR UPDATE/i
+    );
+
+    const rpcGrant = sql.indexOf(
+      'GRANT EXECUTE ON FUNCTION public.update_person_with_private(uuid, jsonb, jsonb)'
+    );
+    const schemaReload = sql.indexOf("NOTIFY pgrst, 'reload schema'");
+    expect(rpcGrant).toBeGreaterThan(-1);
+    expect(schemaReload).toBeGreaterThan(rpcGrant);
   });
 });
 

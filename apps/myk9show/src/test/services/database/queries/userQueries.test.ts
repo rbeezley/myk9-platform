@@ -640,6 +640,28 @@ describe('User Queries', () => {
         });
       });
 
+      it('preserves an explicit empty junior-number map as a clearing patch', async () => {
+        const updated = {
+          id: 'user-123',
+          first_name: 'Updated',
+          junior_handler_numbers: {},
+        };
+        mockSupabase.rpc.mockResolvedValue({ data: updated, error: null });
+
+        const result = await updateUser('user-123', {
+          first_name: 'Updated',
+          junior_handler_numbers: {},
+        } as DbUserUpdate & { junior_handler_numbers: Record<string, string> });
+
+        expect(result.error).toBeNull();
+        expect(result.data).toEqual(updated);
+        expect(mockSupabase.rpc).toHaveBeenCalledWith('update_person_with_private', {
+          p_person_id: 'user-123',
+          p_public_updates: { first_name: 'Updated' },
+          p_private_updates: { junior_handler_numbers: {} },
+        });
+      });
+
       // Reading the linkage and writing the row are separate requests, so a
       // signup can adopt the person in between. Restating the condition as a
       // filter makes Postgres re-check it at write time.

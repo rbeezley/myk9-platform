@@ -5,7 +5,7 @@
  */
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
@@ -21,11 +21,20 @@ const person = {
   roles: ['exhibitor'],
   status: 'active',
 } as unknown as User;
+const secondPerson = {
+  id: 'user-2',
+  firstName: 'Grace',
+  lastName: 'Hopper',
+  email: 'grace@example.com',
+  roles: ['judge'],
+  status: 'active',
+} as unknown as User;
+const roster = [person, secondPerson];
 
 vi.mock('@/hooks/queries/useUsersQuery', async importOriginal => ({
   ...(await importOriginal<typeof import('@/hooks/queries/useUsersQuery')>()),
   useAdminUsersQuery: () => ({
-    data: [person],
+    data: roster,
     isLoading: false,
     error: null,
     refetch: vi.fn(),
@@ -49,6 +58,9 @@ vi.mock('@/components/admin/users/UserTable', () => ({
       </button>
       <button type="button" onClick={() => onEditUser(person)}>
         menu edit
+      </button>
+      <button type="button" onClick={() => onEditUser(secondPerson)}>
+        menu edit user-2
       </button>
     </div>
   ),
@@ -103,6 +115,14 @@ function renderAt(url: string) {
     </QueryClientProvider>
   );
   return { user, client };
+}
+
+function deferred<T>() {
+  let resolve!: (value: T) => void;
+  const promise = new Promise<T>(resolvePromise => {
+    resolve = resolvePromise;
+  });
+  return { promise, resolve };
 }
 
 const backTo = () => JSON.parse(screen.getByTestId('person-state').textContent || 'null')?.backTo;
@@ -176,6 +196,40 @@ describe('UserManagementPage drill-down', () => {
     await user.click(screen.getByRole('button', { name: 'menu edit' }));
     expect(screen.getByTestId('edit-panel-user')).toHaveTextContent('2011-03-04');
     expect(screen.getByTestId('edit-panel-user')).toHaveTextContent('judge');
+  });
+
+  it('ignores an older edit refetch that finishes after a newer selection', async () => {
+    const firstRefetch = deferred<User>();
+    const secondRefetch = deferred<User>();
+    const completeFirst = { ...person, privateFieldsReadComplete: true } as User;
+    const completeSecond = { ...secondPerson, privateFieldsReadComplete: true } as User;
+    const { user, client } = renderAt('/admin/users');
+
+    client.setQueryDefaults(['users', 'detail'], {
+      queryFn: ({ queryKey }) =>
+        String(queryKey[2]) === person.id ? firstRefetch.promise : secondRefetch.promise,
+    });
+    client.setQueryData(['users', 'detail', person.id], completeFirst);
+    client.setQueryData(['users', 'detail', secondPerson.id], completeSecond);
+
+    const firstClick = user.click(screen.getByRole('button', { name: 'menu edit', exact: true }));
+    const secondClick = user.click(screen.getByRole('button', { name: 'menu edit user-2' }));
+
+    await waitFor(() => {
+      expect(
+        client.getQueryData<User>(['users', 'detail', person.id])?.privateFieldsReadComplete
+      ).toBe(false);
+      expect(
+        client.getQueryData<User>(['users', 'detail', secondPerson.id])?.privateFieldsReadComplete
+      ).toBe(false);
+    });
+
+    secondRefetch.resolve(completeSecond);
+    await waitFor(() => expect(screen.getByTestId('edit-panel')).toHaveTextContent('Grace Hopper'));
+
+    firstRefetch.resolve(completeFirst);
+    await Promise.all([firstClick, secondClick]);
+    expect(screen.getByTestId('edit-panel')).toHaveTextContent('Grace Hopper');
   });
 
   it('reads the search term out of the URL', () => {

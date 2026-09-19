@@ -123,8 +123,10 @@ const reviewedLaterPolicyDdl: Readonly<Record<string, string>> = {
     "so any club's secretary or club_admin read EVERY club's enrollments. Replaces that one " +
     'disjunct with `show_id IN (SELECT manageable_show_ids())` — the same UNCORRELATED shape ' +
     'entries_select took in MYK9-126 (20260730170000), never a per-row can_manage_show(), so it ' +
-    'does not reintroduce the 20260611120000 statement-timeout shape. Narrowing only: it removes ' +
-    'cross-tenant reads and adds none. The is_site_admin, is_show_official(show_id), ' +
+    'does not reintroduce the 20260611120000 statement-timeout shape. Club-scoped manager reads ' +
+    "are narrowed to the show's club, while the explicit show-pinned club_admin arm preserves " +
+    "exact-show scope instead of inheriting the helper's club-wide arm. The is_site_admin, " +
+    'is_show_official(show_id), ' +
     'is_platform_admin and handler_id arms are carried over byte-identical, so the exhibitor and ' +
     'show-official reads are untouched. Same policy name, same SELECT command, same TO public ' +
     'role — predicate only, like the MYK9-147 / MYK9-469 / MYK9-470 / MYK9-475 entries above. ' +

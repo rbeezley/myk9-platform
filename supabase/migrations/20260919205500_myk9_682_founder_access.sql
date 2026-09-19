@@ -29,6 +29,7 @@ DECLARE
   v_club_id uuid;
   v_club_admin_role_id uuid;
   v_club_admin_assignment_id uuid;
+  v_club_admin_reactivated boolean := false;
   v_secretary_assignment_id uuid;
   v_membership_id uuid;
 BEGIN
@@ -119,7 +120,10 @@ BEGIN
     raise exception 'club_admin role is missing' using errcode = 'P0002';
   end if;
 
-  select id into v_club_admin_assignment_id
+  select
+    id,
+    (not is_active or (expires_at is not null and expires_at <= now()))
+  into v_club_admin_assignment_id, v_club_admin_reactivated
   from public.user_roles
   where user_id = v_request.requester_person_id
     and role_id = v_club_admin_role_id
@@ -144,6 +148,27 @@ BEGIN
         granted_by = v_reviewer_person_id,
         granted_at = now()
     where id = v_club_admin_assignment_id;
+
+    if v_club_admin_reactivated then
+      insert into public.permission_audit_log (
+        user_id,
+        action,
+        target_type,
+        target_id,
+        new_value
+      )
+      values (
+        v_reviewer_person_id,
+        'club_admin_reactivated',
+        'user_role',
+        v_club_admin_assignment_id,
+        jsonb_build_object(
+          'person_id', v_request.requester_person_id,
+          'club_id', v_club_id,
+          'role', 'club_admin'
+        )
+      );
+    end if;
   end if;
 
   -- Founding requesters are members of the club they asked to establish. Do

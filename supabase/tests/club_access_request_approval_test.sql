@@ -94,6 +94,7 @@ DECLARE
   v_secretary_count integer;
   v_member_count integer;
   v_secretary_audit_count integer;
+  v_admin_reactivation_audit_count integer;
   v_approval_audit jsonb;
 BEGIN
   SELECT public.review_club_access_request(
@@ -192,6 +193,16 @@ BEGIN
 
   IF v_club_admin_count <> 2 OR v_member_count <> 1 THEN
     RAISE EXCEPTION 'FAIL re-approval created duplicate assignments or membership rows';
+  END IF;
+
+  SELECT count(*) INTO v_admin_reactivation_audit_count
+  FROM public.permission_audit_log
+  WHERE action = 'club_admin_reactivated'
+    AND target_type = 'user_role'
+    AND new_value->>'person_id' = '00000000-0000-0000-0000-000000682011';
+
+  IF v_admin_reactivation_audit_count <> 1 THEN
+    RAISE EXCEPTION 'FAIL re-approval did not audit club-admin reactivation';
   END IF;
 
   SELECT count(*) INTO v_secretary_audit_count

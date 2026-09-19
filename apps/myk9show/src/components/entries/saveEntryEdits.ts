@@ -33,7 +33,7 @@ export interface SaveEntryEditsParams {
   /** The card-level handler, used when a class row carries none of its own. */
   fallbackHandler?: string | undefined;
   /** Show-manager corrections explicitly detach the prior handler identity. */
-  clearHandlerId?: boolean | undefined;
+  clearHandlerId: boolean;
 }
 
 /**

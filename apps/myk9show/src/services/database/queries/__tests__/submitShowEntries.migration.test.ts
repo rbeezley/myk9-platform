@@ -58,10 +58,8 @@ describe('submit_show_entries migration authorization', () => {
     );
 
     expect(migration).not.toContain('concat_ws');
-    expect(migration).toContain('v_show_club_id IS NOT NULL');
-    expect(migration.match(/ELSE COALESCE\(p_handler_id, v_existing_handler_id\)/g)).toHaveLength(
-      1
-    );
+    expect(migration).toContain('v_is_official := public.can_manage_show(v_show_id)');
+    expect(migration).toContain('WHEN p_handler_id IS NOT NULL THEN p_handler_id');
   });
 
   it('aligns the exhibitor handler_id clear behavior with the official branch', () => {
@@ -75,8 +73,10 @@ describe('submit_show_entries migration authorization', () => {
 
     expect(migration).toContain('MYK9-665');
     expect(migration).toContain('WHEN p_clear_handler_id THEN NULL');
-    expect(migration).toContain('ELSE COALESCE(v_resolved_handler_id, v_existing_handler_id)');
-    expect(migration).toContain('ELSE COALESCE(p_handler_id, v_existing_handler_id)');
+    expect(migration).toContain(
+      'WHEN v_resolved_handler_id IS NOT NULL THEN v_resolved_handler_id'
+    );
+    expect(migration).toContain('ELSE v_existing_handler_id');
     expect(migration.match(/WHEN p_clear_handler_id THEN NULL/g)).toHaveLength(2);
   });
 

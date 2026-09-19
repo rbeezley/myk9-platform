@@ -19,7 +19,6 @@ AS $$
 DECLARE
   v_person_id uuid;
   v_show_id uuid;
-  v_show_club_id uuid;
   v_existing_handler_id uuid;
   v_resolved_handler_id uuid;
   v_is_official boolean;
@@ -35,10 +34,9 @@ BEGIN
       USING ERRCODE = '42501';
   END IF;
 
-  SELECT e.show_id, e.handler_id, s.club_id
-    INTO v_show_id, v_existing_handler_id, v_show_club_id
+  SELECT e.show_id, e.handler_id
+    INTO v_show_id, v_existing_handler_id
     FROM public.entries e
-    JOIN public.shows s ON s.id = e.show_id
    WHERE e.id = p_entry_id;
 
   IF NOT FOUND THEN
@@ -46,11 +44,7 @@ BEGIN
       USING ERRCODE = '22023';
   END IF;
 
-  v_is_official := (
-    public.is_site_admin()
-    OR public.is_show_secretary(v_show_id)
-    OR (v_show_club_id IS NOT NULL AND public.is_club_admin(v_show_club_id))
-  );
+  v_is_official := public.can_manage_show(v_show_id);
   IF v_is_official THEN
     IF p_handler_id IS NOT NULL THEN
       IF NOT EXISTS (SELECT 1 FROM public.people WHERE id = p_handler_id) THEN
@@ -63,8 +57,9 @@ BEGIN
     UPDATE public.entries
        SET handler = p_handler,
            handler_id = CASE
+             WHEN v_resolved_handler_id IS NOT NULL THEN v_resolved_handler_id
              WHEN p_clear_handler_id THEN NULL
-             ELSE COALESCE(v_resolved_handler_id, v_existing_handler_id)
+             ELSE v_existing_handler_id
            END,
            updated_at = now()
      WHERE id = p_entry_id;
@@ -86,8 +81,9 @@ BEGIN
   UPDATE public.entries e
    SET handler = p_handler,
          handler_id = CASE
+           WHEN p_handler_id IS NOT NULL THEN p_handler_id
            WHEN p_clear_handler_id THEN NULL
-           ELSE COALESCE(p_handler_id, v_existing_handler_id)
+           ELSE v_existing_handler_id
          END,
          updated_at = now()
     FROM public.dogs d

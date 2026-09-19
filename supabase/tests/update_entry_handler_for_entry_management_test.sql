@@ -110,6 +110,30 @@ begin
 end;
 $$;
 
+-- An explicit exhibitor clear is honored by the same branch for compatibility
+-- with older callers; the owner then restores the selected handler identity.
+select pg_temp.call_handler_update(
+  '00000000-0000-0000-0000-000000665102', 'MYK9-665 Cleared Handler', true);
+do $$
+begin
+  if (select handler_id from public.entries where id = '00000000-0000-0000-0000-000000665031')
+    is not null then
+    raise exception 'FAIL exhibitor clear did not clear handler_id';
+  end if;
+end;
+$$;
+select pg_temp.call_handler_update(
+  '00000000-0000-0000-0000-000000665101', 'MYK9-665 Handler Restored', false,
+  null, '00000000-0000-0000-0000-000000665012');
+do $$
+begin
+  if (select handler_id from public.entries where id = '00000000-0000-0000-0000-000000665031')
+    is distinct from '00000000-0000-0000-0000-000000665012'::uuid then
+    raise exception 'FAIL owner could not restore selected handler';
+  end if;
+end;
+$$;
+
 -- An official's explicit clear request clears the link, using the same rule as
 -- the exhibitor branch for compatibility with older callers.
 select pg_temp.call_handler_update(

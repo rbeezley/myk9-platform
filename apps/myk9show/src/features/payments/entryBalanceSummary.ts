@@ -66,7 +66,7 @@ export interface EntryBalanceShowSummary {
   onlineDueCents: number;
   payAtShowDueCents: number;
   /** Entry-row ids used to match the balance back to the visible dog/class cards. */
-  displayEntryIds: string[];
+  displayEntryIds?: string[] | undefined;
   entryIds: string[];
   paymentHref: string;
 }

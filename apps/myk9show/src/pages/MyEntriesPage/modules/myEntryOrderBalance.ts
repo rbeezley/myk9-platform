@@ -182,7 +182,7 @@ export function buildOrderBalance(
     onlineDueCents: summary.onlineDueCents,
     payAtShowDueCents: summary.payAtShowDueCents,
     payAtShowMethod: payAtShowSource?.paymentMethod ?? null,
-    dueEntryIds: onlineShow?.displayEntryIds ?? [],
+    dueEntryIds: onlineShow?.displayEntryIds ?? onlineShow?.entryIds ?? [],
     paymentEntryIds: onlineShow?.entryIds ?? [],
   };
 }

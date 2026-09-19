@@ -9,7 +9,7 @@ import {
 import type { ShowExperienceSnapshot } from '@/features/experience/experienceSnapshot';
 import { normalizeJuniorHandlerNumbers } from '@/features/registries/juniorHandlerPolicy';
 import {
-  projectHandlerIdentity,
+  projectFirstAssignedHandler,
   resolveHandlerPerson,
 } from '@/features/registries/handlerIdentity';
 import type {
@@ -322,28 +322,25 @@ async function fetchEntryFormData(
     });
     // The form prints the owner block when the projected handler is the owner;
     // a distinct assigned handler gets its own field.
-    const handlerEntry = dogEntries.find(e => e.handler?.trim() || e.handlerId);
-
     // MYK9-570: WHO that handler is, for the junior fields, is decided by the
     // shared projection and resolver in handlerIdentity.ts — never inferred
     // here from whichever person happens to be in scope.
-    //
-    const handlerIdPerson = handlerEntry?.handlerId
-      ? (personMap.get(handlerEntry.handlerId) ?? null)
-      : null;
-    const handlerIdentity = projectHandlerIdentity({
-      assignedHandlerName: handlerEntry?.handler,
-      assignedHandlerId: handlerEntry?.handlerId,
-      assignedHandlerPerson: handlerIdPerson,
-      ownerPerson: ownerRaw ?? null,
-    });
+    const handlerIdentity = projectFirstAssignedHandler(
+      dogEntries.map(entry => ({
+        id: entry.id,
+        assignedHandlerName: entry.handler,
+        assignedHandlerId: entry.handlerId,
+        assignedHandlerPerson: entry.handlerId ? (personMap.get(entry.handlerId) ?? null) : null,
+      })),
+      ownerRaw ?? null
+    );
     const handler =
       handlerIdentity.source === 'owner' || handlerIdentity.name === ownerFullName
         ? null
         : handlerIdentity.name;
     const handlerRaw = resolveHandlerPerson({
       printedHandlerName: handlerIdentity.name ?? ownerFullName,
-      handlerIdPerson,
+      handlerIdPerson: handlerIdentity.person,
       ownerPerson: ownerRaw ?? null,
     });
 

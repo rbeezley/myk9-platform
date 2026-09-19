@@ -30,13 +30,15 @@ const { mockEntriesTable, mockDogsTable, mockClassesTable, mockShowsTable, mockT
     mockEntriesTable: {
       getEntriesByClass: vi.fn(),
       getAll: vi.fn().mockResolvedValue([]),
+      getEntryById: vi.fn(),
     },
-    mockDogsTable: { getAllDogs: vi.fn().mockResolvedValue([]) },
+    mockDogsTable: { getAllDogs: vi.fn().mockResolvedValue([]), getDogById: vi.fn() },
     mockClassesTable: {
       getAll: vi.fn().mockResolvedValue([]),
       getClassesByTrial: vi.fn().mockResolvedValue([]),
+      getClassById: vi.fn(),
     },
-    mockShowsTable: { getAllShows: vi.fn().mockResolvedValue([]) },
+    mockShowsTable: { getAllShows: vi.fn().mockResolvedValue([]), getShowById: vi.fn() },
     mockTrialsTable: { getAll: vi.fn().mockResolvedValue([]) },
   }));
 
@@ -83,7 +85,12 @@ vi.mock('@/services/database/supabaseClient', () => ({
   createDatabaseError,
 }));
 
-import { getEntriesByClass, getEntriesByTrial } from '@/services/database/entries';
+import {
+  getEntriesByClass,
+  getEntriesByDog,
+  getEntriesByTrial,
+  getEntryById,
+} from '@/services/database/entries';
 
 describe('getEntriesByClass — cold local replica verifies online', () => {
   beforeEach(() => {
@@ -167,6 +174,55 @@ describe('getEntriesByClass — cold local replica verifies online', () => {
     const result = await getEntriesByClass('c1');
 
     expect(result.data).toHaveLength(0);
+  });
+});
+
+describe('entry identity hydration contract', () => {
+  beforeEach(() => {
+    onlineRows = [defaultOnlineRow];
+    peopleRows = [];
+    mockEntriesTable.getAll.mockResolvedValue([]);
+    mockEntriesTable.getEntryById.mockReset();
+    mockDogsTable.getDogById.mockResolvedValue(null);
+    mockClassesTable.getClassById.mockResolvedValue(null);
+    mockShowsTable.getShowById.mockResolvedValue(null);
+  });
+
+  it('hydrates handler_id-only rows in the online dog read', async () => {
+    onlineRows = [
+      {
+        id: 'dog-entry-handler-only',
+        handler: null,
+        handler_id: 'handler-1',
+      },
+    ];
+    peopleRows = [{ id: 'handler-1', first_name: 'Alex', last_name: 'Assigned' }];
+
+    const result = await getEntriesByDog('dog-1');
+
+    expect(result.data[0]).toMatchObject({
+      handler_id: 'handler-1',
+      handler_person: { first_name: 'Alex', last_name: 'Assigned' },
+    });
+  });
+
+  it('hydrates handler_id-only rows in the replicated single-entry read', async () => {
+    mockEntriesTable.getEntryById.mockResolvedValue({
+      id: 'entry-handler-only',
+      handler: null,
+      handlerId: 'handler-1',
+      dogId: null,
+      classId: null,
+      showId: null,
+    });
+    peopleRows = [{ id: 'handler-1', first_name: 'Alex', last_name: 'Assigned' }];
+
+    const result = await getEntryById('entry-handler-only');
+
+    expect(result.data).toMatchObject({
+      handler_id: 'handler-1',
+      handler_person: { first_name: 'Alex', last_name: 'Assigned' },
+    });
   });
 });
 

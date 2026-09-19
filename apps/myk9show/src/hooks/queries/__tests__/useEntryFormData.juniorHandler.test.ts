@@ -174,6 +174,23 @@ describe('useEntryFormData resolves the handler person for the junior fields', (
     expect(result.current.dogs[0]!.handlerDateOfBirth).toBe('2009-05-05');
   });
 
+  it('does not let an owner entry mask a later assigned proxy handler', async () => {
+    routeTables(
+      [
+        { id: 'entry-owner', handler: 'Sarah Owner', handler_id: SARAH.id },
+        { id: 'entry-proxy', handler: 'Chris Kid', handler_id: KID.id },
+      ],
+      [SARAH, KID]
+    );
+    const { result } = renderEntryFormData();
+    await waitFor(() => expect(result.current.dogs).toHaveLength(1));
+
+    const dog = result.current.dogs[0]!;
+    expect(dog.handler).toBe('Chris Kid');
+    expect(dog.handlerDateOfBirth).toBe('2012-04-02');
+    expect(dog.handlerJuniorHandlerNumbers).toEqual({ AKC: 'KID-NUMBER' });
+  });
+
   it('does not treat the owner as the handler when someone else is printed', async () => {
     // The owner is a CANDIDATE, not a default: only their own name admits them.
     routeTables([{ id: 'entry-a', handler: 'Bob Handler', handler_id: null }], [SARAH]);

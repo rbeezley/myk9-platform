@@ -287,7 +287,8 @@ async function postgrestGetEntryById(id: string) {
     .single();
 
   if (error) throw createDatabaseError(error, 'entries', 'select_by_id');
-  return { data, error: null };
+  const [hydrated] = await hydrateMissingHandlerPeople([data as EntryDbHandlerRow]);
+  return { data: hydrated, error: null };
 }
 
 async function postgrestGetEntriesByShow(showId: string) {
@@ -631,7 +632,10 @@ async function postgrestGetEntriesByDog(dogId: string) {
     .order('created_at', { ascending: false });
 
   if (error) throw createDatabaseError(error, 'entries', 'select_by_dog');
-  return { data: data || [], error: null };
+  return {
+    data: await hydrateMissingHandlerPeople((data || []) as EntryDbHandlerRow[]),
+    error: null,
+  };
 }
 
 async function postgrestGetEntriesByStatus(status: EntryStatus) {
@@ -724,7 +728,9 @@ export const getEntryById = async (id: string) => {
         entry.classId ? replicatedClassesTable.getClassById(entry.classId) : Promise.resolve(null),
         entry.showId ? replicatedShowsTable.getShowById(entry.showId) : Promise.resolve(null),
       ]);
-      const data = mapReplicatedEntryToDbRow(entry, { dog, cls, show });
+      const row = mapReplicatedEntryToDbRow(entry, { dog, cls, show });
+      const handlerPeopleMap = await loadMissingHandlerPeopleMap([entry]);
+      const data = attachHandlerPerson(row, entry, handlerPeopleMap);
       return { data, error: null };
     },
     postgrest: () => postgrestGetEntryById(id),
@@ -1067,11 +1073,16 @@ async function replicaGetEntriesByDog(dogId: string) {
     liveEntries.filter(e => e._syncStatus === 'pending').map(e => String(e.id))
   );
   const sortedEntries = sortedCopy(liveEntries, compareDateDesc(getEntryCreatedSortValue));
+  const handlerPeopleMap = await loadMissingHandlerPeopleMap(sortedEntries);
   const data = sortedEntries.map(entry =>
-    mapReplicatedEntryToDbRow(entry, {
-      cls: entry.classId ? (classesMap.get(entry.classId) ?? null) : null,
-      show: entry.showId ? (showsMap.get(entry.showId) ?? null) : null,
-    })
+    attachHandlerPerson(
+      mapReplicatedEntryToDbRow(entry, {
+        cls: entry.classId ? (classesMap.get(entry.classId) ?? null) : null,
+        show: entry.showId ? (showsMap.get(entry.showId) ?? null) : null,
+      }),
+      entry,
+      handlerPeopleMap
+    )
   );
   return { data, locallyDeletedIds, pendingIds };
 }

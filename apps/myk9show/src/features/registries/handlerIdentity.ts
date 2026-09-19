@@ -78,6 +78,12 @@ export interface ProjectHandlerIdentityInput<
   ownerPerson?: TPerson | null | undefined;
 }
 
+export interface HandlerIdentityEntry<
+  TPerson extends HandlerPersonLike = HandlerPersonLike,
+> extends ProjectHandlerIdentityInput<TPerson> {
+  id?: string | null | undefined;
+}
+
 function personName(person: HandlerPersonLike | null | undefined): string {
   return `${person?.first_name ?? ''} ${person?.last_name ?? ''}`.trim();
 }
@@ -119,6 +125,27 @@ export function projectHandlerIdentity<TPerson extends HandlerPersonLike>({
   return ownerName
     ? { name: ownerName, person: ownerPerson ?? null, source: 'owner' }
     : { name: null, person: null, source: 'unknown' };
+}
+
+/**
+ * Pick the first genuinely assigned handler across a dog's entries. Owner-handled
+ * entries are deliberately skipped so they cannot mask a later proxy assignment.
+ */
+export function projectFirstAssignedHandler<TPerson extends HandlerPersonLike>(
+  entries: readonly HandlerIdentityEntry<TPerson>[],
+  ownerPerson?: TPerson | null
+): HandlerIdentityProjection<TPerson> {
+  for (const entry of entries) {
+    const projection = projectHandlerIdentity({ ...entry, ownerPerson });
+    if (
+      (projection.source === 'assigned-text' || projection.source === 'assigned-person') &&
+      !handlerNameMatchesPerson(projection.name, ownerPerson)
+    ) {
+      return projection;
+    }
+  }
+
+  return projectHandlerIdentity({ ownerPerson });
 }
 
 /**

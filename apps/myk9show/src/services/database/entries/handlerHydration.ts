@@ -1,9 +1,18 @@
 import { supabase } from '../supabaseClient';
+import { db } from '../connection';
 
 export interface HandlerPersonRow {
   id: string;
   first_name: string | null;
   last_name: string | null;
+}
+
+interface CachedHandlerPerson {
+  id?: string;
+  first_name?: string | null;
+  last_name?: string | null;
+  firstName?: string | null;
+  lastName?: string | null;
 }
 
 export interface HandlerReference {
@@ -17,21 +26,59 @@ export function handlerIdFor(reference: HandlerReference): string | undefined {
   return handlerId?.trim() || undefined;
 }
 
-export async function loadHandlerPeople(
+function normalizeCachedPerson(
+  person: CachedHandlerPerson | null | undefined
+): HandlerPersonRow | null {
+  if (!person?.id) return null;
+  return {
+    id: person.id,
+    first_name: person.first_name ?? person.firstName ?? null,
+    last_name: person.last_name ?? person.lastName ?? null,
+  };
+}
+
+/** Read the local people cache before attempting an online hydration. */
+export async function loadCachedHandlerPeople(
   handlerIds: readonly string[]
 ): Promise<Map<string, HandlerPersonRow>> {
   const ids = [...new Set(handlerIds.map(id => id.trim()).filter(Boolean))];
   if (ids.length === 0) return new Map();
 
   try {
+    const cached = await db.instance.people.bulkGet(ids);
+    return new Map(
+      cached
+        .map(person => normalizeCachedPerson(person as CachedHandlerPerson | undefined))
+        .filter((person): person is HandlerPersonRow => Boolean(person))
+        .map(person => [person.id, person])
+    );
+  } catch {
+    return new Map();
+  }
+}
+
+export async function loadHandlerPeople(
+  handlerIds: readonly string[]
+): Promise<Map<string, HandlerPersonRow>> {
+  const ids = [...new Set(handlerIds.map(id => id.trim()).filter(Boolean))];
+  if (ids.length === 0) return new Map();
+
+  const cached = await loadCachedHandlerPeople(ids);
+  const missingIds = ids.filter(id => !cached.has(id));
+  if (missingIds.length === 0) return cached;
+
+  try {
     const { data, error } = await supabase
       .from('people')
       .select('id, first_name, last_name')
-      .in('id', ids);
-    if (error || !data) return new Map();
-    return new Map((data as HandlerPersonRow[]).map(person => [person.id, person]));
+      .in('id', missingIds);
+    if (error || !data) return cached;
+    return new Map([
+      ...cached,
+      ...(data as HandlerPersonRow[]).map(person => [person.id, person] as const),
+    ]);
   } catch {
-    return new Map();
+    return cached;
   }
 }
 

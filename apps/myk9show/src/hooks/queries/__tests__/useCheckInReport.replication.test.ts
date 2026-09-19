@@ -11,10 +11,18 @@ const supabaseMocks = vi.hoisted(() => ({
   from: vi.fn(),
 }));
 
+const cacheMocks = vi.hoisted(() => ({
+  bulkGet: vi.fn().mockResolvedValue([]),
+}));
+
 vi.mock('@/services/database/supabaseClient', () => ({
   supabase: {
     from: (...args: unknown[]) => supabaseMocks.from(...args),
   },
+}));
+
+vi.mock('@/services/database/connection', () => ({
+  db: { instance: { people: { bulkGet: (...args: unknown[]) => cacheMocks.bulkGet(...args) } } },
 }));
 
 vi.mock('@/services/replication', () => ({
@@ -36,6 +44,7 @@ describe('fetchReplicatedCheckInEntries', () => {
   beforeEach(() => {
     vi.resetModules();
     vi.clearAllMocks();
+    cacheMocks.bulkGet.mockResolvedValue([]);
   });
 
   it('builds the check-in report rows from replicated show-day tables', async () => {
@@ -233,6 +242,44 @@ describe('fetchReplicatedCheckInEntries', () => {
     expect(rows[0]).toMatchObject({
       handler_id: 'handler-1',
       handler_first_name: 'Alex',
+      handler_last_name: 'Assigned',
+    });
+  });
+
+  it('uses a cached person for handler_id-only rows without an online read', async () => {
+    replicationMocks.getEntriesByShow.mockResolvedValue([
+      {
+        id: 'entry-handler-cached',
+        showId: 'show-1',
+        dogId: 'dog-1',
+        handlerId: 'handler-cached',
+        handler: null,
+        dogCallName: 'Buddy',
+        classId: 'class-1',
+      },
+    ]);
+    replicationMocks.getClassById.mockResolvedValue({
+      id: 'class-1',
+      trialId: 'trial-1',
+      element: 'Buried',
+      level: 'Novice',
+    });
+    replicationMocks.getTrialsByShow.mockResolvedValue([
+      { id: 'trial-1', date: '2026-04-12', trialNumber: '1' },
+    ]);
+    replicationMocks.getArmbandsByShow.mockResolvedValue([]);
+    cacheMocks.bulkGet.mockResolvedValue([
+      { id: 'handler-cached', firstName: 'Offline', lastName: 'Assigned' },
+    ]);
+
+    const { fetchReplicatedCheckInEntries } = await import('../useCheckInReportReplication');
+
+    const rows = await fetchReplicatedCheckInEntries('show-1');
+
+    expect(supabaseMocks.from).not.toHaveBeenCalled();
+    expect(rows[0]).toMatchObject({
+      handler_id: 'handler-cached',
+      handler_first_name: 'Offline',
       handler_last_name: 'Assigned',
     });
   });

@@ -53,13 +53,11 @@ import {
  */
 const REVIEWED_CLUB_HELPER_CALL_SITES: readonly string[] = [
   // Guarded by 20260828230000 (MYK9-258).
-  'can_manage_show -> is_club_admin',
   'can_manage_show -> is_trial_secretary',
   'can_manage_trial -> is_club_admin',
   'can_manage_trial -> is_trial_secretary',
   'manageable_show_ids -> is_club_admin',
   'manageable_show_ids -> is_trial_secretary',
-  'is_show_office_manager -> is_club_admin',
   'is_show_office_manager -> is_trial_secretary',
   'get_entries_for_export -> is_trial_secretary',
   // Already guarded before MYK9-258; the source of the idiom.
@@ -77,6 +75,7 @@ const REVIEWED_CLUB_HELPER_CALL_SITES: readonly string[] = [
   //      OR (SELECT public.is_site_admin())
   // so a club-less show reaches nobody but a site admin.
   'trial_secretary_show_ids -> is_trial_secretary',
+  'entry_enrollment_select_show_ids -> is_trial_secretary',
   // Guarded by s.club_id IS NOT NULL in 20260912211500 (MYK9-474). Copied verbatim from
   // get_show_officials, which is this function's template:
   //   AND (s.status IN (...) OR (s.club_id IS NOT NULL AND is_club_admin(s.club_id)) OR ...)

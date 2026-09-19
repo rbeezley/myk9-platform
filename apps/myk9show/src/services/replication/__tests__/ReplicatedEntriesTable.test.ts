@@ -1231,6 +1231,47 @@ describe('ReplicatedEntriesTable', () => {
       expect(mockEq).toHaveBeenCalledWith('show_id', expect.anything());
     });
 
+    it('paginates entry rows beyond PostgREST limits', async () => {
+      const firstPage = Array.from({ length: 1000 }, (_, index) => ({
+        id: `entry-${index}`,
+        show_id: TEST_LICENSE_KEY,
+        updated_at: `2026-06-05T12:${String(Math.floor(index / 60)).padStart(2, '0')}:${String(index % 60).padStart(2, '0')}.000Z`,
+      }));
+      const secondPage = [
+        {
+          id: 'entry-1000',
+          show_id: TEST_LICENSE_KEY,
+          updated_at: '2026-06-05T12:16:40.000Z',
+        },
+      ];
+      let pageIndex = 0;
+      const mockRange = vi.fn(() =>
+        Promise.resolve({ data: pageIndex++ === 0 ? firstPage : secondPage, error: null })
+      );
+      const mockQuery = {
+        gt: vi.fn(() => mockQuery),
+        or: vi.fn(() => mockQuery),
+        order: vi.fn(() => mockQuery),
+        eq: vi.fn(() => mockQuery),
+        range: mockRange,
+      };
+      const mockSelect = vi.fn().mockReturnValue(mockQuery);
+
+      vi.mocked(supabaseMock.from).mockReturnValue({
+        select: mockSelect,
+      });
+
+      const result = await table.sync(TEST_LICENSE_KEY);
+
+      expect(result.success).toBe(true);
+      expect(mockRange).toHaveBeenNthCalledWith(1, 0, 999);
+      expect(mockRange).toHaveBeenNthCalledWith(2, 0, 999);
+      expect(mockQuery.or).toHaveBeenCalledWith(expect.stringContaining('updated_at.gt.'));
+      await expect(table.get('entry-1000')).resolves.toMatchObject({
+        id: 'entry-1000',
+      });
+    });
+
     it('should update sync metadata after successful sync', async () => {
       const mockQueryChain = {
         data: [],
@@ -1277,6 +1318,10 @@ describe('ReplicatedEntriesTable', () => {
           syncStatus: 'idle',
         },
         { scopeValue: TEST_LICENSE_KEY }
+      );
+      localStorage.setItem(
+        'myk9:entries:receipt-reference-refresh:v1:anonymous:' + TEST_LICENSE_KEY,
+        'complete'
       );
 
       const mockQueryChain = {

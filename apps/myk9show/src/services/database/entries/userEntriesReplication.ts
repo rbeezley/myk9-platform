@@ -134,7 +134,7 @@ export async function buildReplicatedUserEntryRows(
     // nothing — and the receipt then fell through to a raw enrollment UUID,
     // printing a different identifier than the same order shows online. The
     // confirmation number now replicates WITH the entry (migration
-    // 20260918193700), so the row carries it and `applyOrderReferenceRule` —
+    // 20260919130100), so the row carries it and `applyOrderReferenceRule` —
     // the SAME function the online read calls — decides which token wins.
     // Identical precedence on both paths is the point; see that module.
     //

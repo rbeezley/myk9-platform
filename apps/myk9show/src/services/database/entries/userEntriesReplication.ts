@@ -3,6 +3,7 @@ import { withTimeout, DEFAULT_TIMEOUT_MS } from '@myk9/core';
 import { logger } from '@/services/LoggingService';
 import { mapReplicatedEntryToDbRow } from '@/services/mappers/entryMappers';
 import { withholdScoredResultColumns } from './resultVisibility';
+import { applyOrderReferenceRule } from './orderReferenceRule';
 import type { ReplicatedEntry } from '@/services/replication/ReplicatedEntriesTable';
 import type { ReplicatedDog } from '@/services/replication/ReplicatedDogsTable';
 import type { ReplicatedClass } from '@/services/replication/ReplicatedClassesTable';
@@ -128,6 +129,21 @@ export async function buildReplicatedUserEntryRows(
     if (enrollment) {
       row.registration = enrollment;
     }
+    // MYK9-659: the enrichment above is the one NETWORK call on the offline
+    // path, so on the dead show-day network that put us here it returns
+    // nothing — and the receipt then fell through to a raw enrollment UUID,
+    // printing a different identifier than the same order shows online. The
+    // confirmation number now replicates WITH the entry (migration
+    // 20260918193700), so the row carries it and `applyOrderReferenceRule` —
+    // the SAME function the online read calls — decides which token wins.
+    // Identical precedence on both paths is the point; see that module.
+    //
+    // Absent when the replica row predates that push, which is honest: the
+    // receipt prints no reference rather than an id nobody can quote.
+    if (entry.registrationConfirmationNumber) {
+      row.registration_confirmation_number = entry.registrationConfirmationNumber;
+    }
+    applyOrderReferenceRule(row);
     row.class_results_released_at = cls?.resultsReleasedAt ?? cls?.results_released_at ?? null;
     row.dog_image_url =
       (row.dog_image_url as string | null | undefined) ??

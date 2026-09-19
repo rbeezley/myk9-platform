@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
-import { User, Phone, Award, CalendarDays } from 'lucide-react';
+import { User as UserIcon, Phone, Award, CalendarDays } from 'lucide-react';
 import ProfilePhotoDialog from '@/components/users/ProfilePhotoDialog';
 import { useAuthContext } from '@/hooks/useAuthContext';
 import { useRBAC } from '@/hooks/useRBAC';
@@ -19,7 +19,12 @@ import { useUserStore } from '@/store/userStore';
 import AvailabilityFormFields from '@/components/judges/AvailabilityFormFields';
 
 import type { UserEditPanelProps, UserFormData } from './UserEditPanel.types';
-import { userFormSchema, userToFormData, formDataToUser } from './UserEditPanel.helpers';
+import {
+  userFormSchema,
+  userToFormData,
+  formDataToUser,
+  type PrivateFieldsDirty,
+} from './UserEditPanel.helpers';
 import { BasicInfoTab } from './BasicInfoTab';
 import { ContactInfoTab } from './ContactInfoTab';
 import { QualificationsTab } from './QualificationsTab';
@@ -31,16 +36,37 @@ export type { UserEditPanelProps, UserFormData } from './UserEditPanel.types';
 
 const TAB_TRIGGER_CLASS = 'gap-2 rounded-lg transition-all duration-300';
 
+const privateFieldsSnapshot = (data: Pick<UserFormData, 'dateOfBirth' | 'juniorHandlerNumbers'>) =>
+  JSON.stringify([data.dateOfBirth, data.juniorHandlerNumbers]);
+
 // Form content component
 const UserEditForm: React.FC<{
   userId: string;
   canWritePrivateFields: boolean;
   hydratedUser: User | null | undefined;
   detailHydrationReady: boolean;
-}> = ({ userId, canWritePrivateFields, hydratedUser, detailHydrationReady }) => {
+  open: boolean;
+  onPrivateFieldsDirtyChange: (dirty: PrivateFieldsDirty) => void;
+}> = ({
+  userId,
+  canWritePrivateFields,
+  hydratedUser,
+  detailHydrationReady,
+  open,
+  onPrivateFieldsDirtyChange,
+}) => {
   const queryClient = useQueryClient();
   const { data, form } = useEditPanel<UserFormData>();
   const hydratedUserIdRef = useRef<string | null>(null);
+  const privateFieldsBaselineRef = useRef({
+    dateOfBirth: data.dateOfBirth,
+    juniorHandlerNumbers: data.juniorHandlerNumbers,
+  });
+  const privateFieldsDirtyRef = useRef<PrivateFieldsDirty>({
+    dateOfBirth: false,
+    juniorHandlerNumbers: false,
+  });
+  const lastHydratedPrivateSnapshotRef = useRef<string | null>(null);
   const { user: currentUser } = useAuthContext();
   const { hasPermission } = useRBAC();
   const { loadUsers } = useUserStore();
@@ -64,23 +90,66 @@ const UserEditForm: React.FC<{
   });
   const [availabilityLoaded, setAvailabilityLoaded] = useState(false);
 
+  useEffect(() => {
+    const nextDirty: PrivateFieldsDirty = {
+      dateOfBirth: data.dateOfBirth !== privateFieldsBaselineRef.current.dateOfBirth,
+      juniorHandlerNumbers:
+        privateFieldsSnapshot(data) !== privateFieldsSnapshot(privateFieldsBaselineRef.current),
+    };
+    if (
+      nextDirty.dateOfBirth !== privateFieldsDirtyRef.current.dateOfBirth ||
+      nextDirty.juniorHandlerNumbers !== privateFieldsDirtyRef.current.juniorHandlerNumbers
+    ) {
+      privateFieldsDirtyRef.current = nextDirty;
+      onPrivateFieldsDirtyChange(nextDirty);
+    }
+  }, [data, onPrivateFieldsDirtyChange]);
+
+  useEffect(() => {
+    if (open) return;
+    privateFieldsBaselineRef.current = {
+      dateOfBirth: data.dateOfBirth,
+      juniorHandlerNumbers: data.juniorHandlerNumbers,
+    };
+    privateFieldsDirtyRef.current = { dateOfBirth: false, juniorHandlerNumbers: false };
+    lastHydratedPrivateSnapshotRef.current = null;
+    onPrivateFieldsDirtyChange(privateFieldsDirtyRef.current);
+  }, [data, onPrivateFieldsDirtyChange, open]);
+
   // The admin list is intentionally directory-safe and therefore does not
   // carry private identity fields. Hydrate through getUserById when the edit
   // form opens so an unrelated phone edit cannot present existing private data
   // as empty. Do not reset edits already made while the detail read is in
   // flight.
   useEffect(() => {
-    if (
-      !form ||
-      !hydratedUser ||
-      !detailHydrationReady ||
-      form.hasChanges ||
-      hydratedUserIdRef.current === hydratedUser.id
-    )
+    if (!form || !hydratedUser || !detailHydrationReady) return;
+
+    const hydratedFormData = userToFormData(hydratedUser);
+    const hydratedPrivateSnapshot = privateFieldsSnapshot(hydratedFormData);
+    if (lastHydratedPrivateSnapshotRef.current === hydratedPrivateSnapshot) return;
+    lastHydratedPrivateSnapshotRef.current = hydratedPrivateSnapshot;
+
+    const privateFieldsDirty = privateFieldsDirtyRef.current;
+    privateFieldsBaselineRef.current = {
+      dateOfBirth: hydratedFormData.dateOfBirth,
+      juniorHandlerNumbers: hydratedFormData.juniorHandlerNumbers,
+    };
+
+    if (form.hasChanges) {
+      form.setValues({
+        ...(privateFieldsDirty.dateOfBirth ? {} : { dateOfBirth: hydratedFormData.dateOfBirth }),
+        ...(privateFieldsDirty.juniorHandlerNumbers
+          ? {}
+          : { juniorHandlerNumbers: hydratedFormData.juniorHandlerNumbers }),
+        juniorHandlerFieldsLoaded: true,
+      });
       return;
+    }
+
+    if (hydratedUserIdRef.current === hydratedUser.id) return;
     hydratedUserIdRef.current = hydratedUser.id;
-    form.reset(userToFormData(hydratedUser));
-  }, [detailHydrationReady, hydratedUser, form]);
+    form.reset(hydratedFormData);
+  }, [detailHydrationReady, form, hydratedUser]);
 
   // Load availability from DB on mount for judges
   useEffect(() => {
@@ -202,7 +271,7 @@ const UserEditForm: React.FC<{
           className={`grid w-full ${isJudge ? 'grid-cols-4' : 'grid-cols-2'} bg-gradient-to-r from-muted/50 to-muted/30 border border-border/30 rounded-xl p-1 transition-all duration-300 ease-out`}
         >
           <TabsTrigger value="basic" className={TAB_TRIGGER_CLASS}>
-            <User className="h-4 w-4" />
+            <UserIcon className="h-4 w-4" />
             Basic Info
           </TabsTrigger>
           <TabsTrigger value="contact" className={TAB_TRIGGER_CLASS}>
@@ -345,6 +414,10 @@ export const UserEditPanel: React.FC<UserEditPanelProps> = ({
 }) => {
   const { user: currentUser, userWithRoles } = useAuthContext();
   const { hasPermission } = useRBAC();
+  const [privateFieldsDirty, setPrivateFieldsDirty] = useState<PrivateFieldsDirty>({
+    dateOfBirth: false,
+    juniorHandlerNumbers: false,
+  });
   const {
     data: hydratedUser,
     isFetchedAfterMount: detailReadFetched,
@@ -371,13 +444,16 @@ export const UserEditPanel: React.FC<UserEditPanelProps> = ({
   // scope-aware surface in User Management.
   const handleSave = useCallback(
     async (formData: UserFormData) => {
-      const userData = formDataToUser(formData, { includePrivateFields: canWritePrivateFields });
+      const userData = formDataToUser(formData, {
+        includePrivateFields: canWritePrivateFields,
+        privateFieldsDirty,
+      });
 
       if (onSave) {
         await onSave(userData);
       }
     },
-    [canWritePrivateFields, onSave]
+    [canWritePrivateFields, onSave, privateFieldsDirty]
   );
 
   return (
@@ -399,6 +475,8 @@ export const UserEditPanel: React.FC<UserEditPanelProps> = ({
         canWritePrivateFields={canWritePrivateFields}
         hydratedUser={hydratedUser}
         detailHydrationReady={detailHydrationReady}
+        open={open}
+        onPrivateFieldsDirtyChange={setPrivateFieldsDirty}
       />
     </EditPanelWrapper>
   );

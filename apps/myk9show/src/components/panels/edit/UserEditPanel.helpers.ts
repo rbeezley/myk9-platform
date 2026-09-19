@@ -157,11 +157,23 @@ export const userToFormData = (user: Partial<UserType>): UserFormData => {
  * makes `deriveJuniorStatus` return 'unknown' — so entering a junior number on
  * `/admin/users` destroyed the very thing that makes it print.
  */
+export type PrivateFieldsDirty = {
+  dateOfBirth: boolean;
+  juniorHandlerNumbers: boolean;
+};
+
 function juniorHandlerFieldsToSave(
-  formData: UserFormData
+  formData: UserFormData,
+  privateFieldsDirty?: PrivateFieldsDirty
 ): Pick<Partial<UserType>, 'dateOfBirth' | 'juniorHandlerNumbers'> {
   const loaded = formData.juniorHandlerFieldsLoaded;
   const numbers = juniorHandlerNumbersForSave(formData.juniorHandlerNumbers);
+  if (privateFieldsDirty) {
+    return {
+      ...(privateFieldsDirty.dateOfBirth && { dateOfBirth: formData.dateOfBirth }),
+      ...(privateFieldsDirty.juniorHandlerNumbers && { juniorHandlerNumbers: numbers }),
+    };
+  }
   return {
     ...(loaded || formData.dateOfBirth ? { dateOfBirth: formData.dateOfBirth } : {}),
     ...(loaded || Object.keys(numbers).length > 0 ? { juniorHandlerNumbers: numbers } : {}),
@@ -174,7 +186,7 @@ function juniorHandlerFieldsToSave(
 // from accidentally turning a public-only edit into a forbidden private RPC.
 export const formDataToUser = (
   formData: UserFormData,
-  options: { includePrivateFields?: boolean } = {}
+  options: { includePrivateFields?: boolean; privateFieldsDirty?: PrivateFieldsDirty } = {}
 ): Partial<UserType> => ({
   firstName: formData.firstName,
   lastName: formData.lastName,
@@ -188,7 +200,9 @@ export const formDataToUser = (
   // either the row it was seeded from carried them, or somebody typed one. A
   // form that never loaded them emits NOTHING, so a save from a surface with a
   // narrower read cannot blank a column it never showed.
-  ...(options.includePrivateFields === false ? {} : juniorHandlerFieldsToSave(formData)),
+  ...(options.includePrivateFields === false
+    ? {}
+    : juniorHandlerFieldsToSave(formData, options.privateFieldsDirty)),
   profileImage: formData.profileImage,
   judgeQualifications: formData.judgeQualifications,
   roles: formData.roles as UserRole[],

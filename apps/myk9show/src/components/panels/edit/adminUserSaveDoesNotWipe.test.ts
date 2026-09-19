@@ -149,6 +149,24 @@ describe('a save from /admin/users does not wipe what it never loaded', () => {
     expect(update).not.toHaveProperty('junior_handler_numbers');
   });
 
+  it('emits only the private field the user actually changed after rebase', () => {
+    const form = userToFormData(mapDbUserToUser(DIRECTORY_ROW));
+    const update = mapUserToDbUpdate(
+      buildUserEditSavePayload(
+        formDataToUser(
+          { ...form, dateOfBirth: '2012-04-05', phone: '555-0200' },
+          {
+            includePrivateFields: true,
+            privateFieldsDirty: { dateOfBirth: true, juniorHandlerNumbers: false },
+          }
+        )
+      )
+    );
+
+    expect(update.date_of_birth).toBe('2012-04-05');
+    expect(update).not.toHaveProperty('junior_handler_numbers');
+  });
+
   it('marshals the edit panel payload before the atomic private-profile save', () => {
     const update = mapUserToDbUpdate(
       buildUserEditSavePayload(

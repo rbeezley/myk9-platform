@@ -51,12 +51,12 @@ real boundary.
 
 > **Provenance of the 2026-09-15 stamp.** The 88 commits from `c660131f5` to `738a5a6cf` were
 > covered in two parts. The first 23 (through `de90d1b0b`) were reviewed by Codex on 2026-09-12 and
-> 2026-09-13, but neither report reached `main` — both are blocked by
-> [MYK9-501](https://linear.app/myk9-platform/issue/MYK9-501) and survive only as uncommitted files
-> in `/private/tmp/myk9-ncr-review-20260912` and `/private/tmp/myk9-ncr-review-20260913`. Their
-> commit inventories are reproduced in `docs/qa/claude-daily-commit-review-2026-09-15.md` so this
-> stamp stays provable from `main` if those worktrees are lost. The remaining 65
-> (`de90d1b0b..738a5a6cf`) were reviewed by `claude-daily-commit-review` on 2026-09-15.
+> 2026-09-13. Their reports and registry entries were restored to `main` on 2026-09-19 under
+> [MYK9-501](https://linear.app/myk9-platform/issue/MYK9-501), after the deleted retained
+> worktree's staged blobs were recovered from Git's object database. Their commit inventories are
+> also reproduced in `docs/qa/claude-daily-commit-review-2026-09-15.md`. The remaining 65
+> (`de90d1b0b..738a5a6cf`) were reviewed by `claude-daily-commit-review` on 2026-09-15. Restoring
+> the reports did not advance this cursor or stamp any newer commit.
 
 ### Adding a stream
 

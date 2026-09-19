@@ -104,38 +104,42 @@ async function postgrestGetUserEntries() {
         .abortSignal(deadline)
         .range(from, to);
 
-    let response = await runPage();
-    if (includeReasonCode && isWithdrawalReasonCodeSchemaUnavailable(response.error)) {
-      // Pre-20260918041700 database. Drop the column and re-ask for this page;
-      // every later page goes without it too.
-      includeReasonCode = false;
-      // SAY SO. This branch is the only evidence anywhere that the migration has
-      // not been pushed: without it the page renders correctly, silently pays a
-      // doubled first-page round trip, and nothing tells anyone that the push is
-      // outstanding — or, later, that the compat arm is safe to delete
-      // (MYK9-654). The file's other degraded states warn the same way.
-      logger.warn(
-        'My Entries read without withdrawal_reason_code: migration 20260918041700 is not applied',
-        'database',
-        { column: 'withdrawal_reason_code', migration: '20260918041700' }
-      );
+    let response;
+    while (true) {
       response = await runPage();
-    }
-    if (
-      includeRegistrationConfirmationNumber &&
-      isRegistrationConfirmationNumberSchemaUnavailable(response.error)
-    ) {
-      // Pre-20260919130100 database. Same contract as the arm above: drop the
-      // column, re-ask this page, and go without it for every later page. The
-      // online receipt falls back to the `registration:registration_id(...)`
-      // embed's confirmation number, which is what it read before MYK9-659.
-      includeRegistrationConfirmationNumber = false;
-      logger.warn(
-        'My Entries read without registration_confirmation_number: migration 20260919130100 is not applied',
-        'database',
-        { column: 'registration_confirmation_number', migration: '20260919130100' }
-      );
-      response = await runPage();
+      if (includeReasonCode && isWithdrawalReasonCodeSchemaUnavailable(response.error)) {
+        // Pre-20260918041700 database. Drop the column and re-ask this page;
+        // every later page goes without it too.
+        includeReasonCode = false;
+        // SAY SO. This branch is the only evidence anywhere that the migration has
+        // not been pushed: without it the page renders correctly, silently pays a
+        // doubled first-page round trip, and nothing tells anyone that the push is
+        // outstanding — or, later, that the compat arm is safe to delete
+        // (MYK9-654). The file's other degraded states warn the same way.
+        logger.warn(
+          'My Entries read without withdrawal_reason_code: migration 20260918041700 is not applied',
+          'database',
+          { column: 'withdrawal_reason_code', migration: '20260918041700' }
+        );
+        continue;
+      }
+      if (
+        includeRegistrationConfirmationNumber &&
+        isRegistrationConfirmationNumberSchemaUnavailable(response.error)
+      ) {
+        // Pre-20260918193700 database. Same contract as the arm above: drop the
+        // column, re-ask this page, and go without it for every later page. The
+        // online receipt falls back to the `registration:registration_id(...)`
+        // embed's confirmation number, which is what it read before MYK9-659.
+        includeRegistrationConfirmationNumber = false;
+        logger.warn(
+          'My Entries read without registration_confirmation_number: migration 20260918193700 is not applied',
+          'database',
+          { column: 'registration_confirmation_number', migration: '20260918193700' }
+        );
+        continue;
+      }
+      break;
     }
     const { data, error } = response;
 

@@ -114,6 +114,24 @@ describe('useReportData', () => {
     ]);
   });
 
+  it('does not read or print a trial outside the current show', async () => {
+    mockGetTrialsByShow.mockResolvedValue({ data: [], error: null } as never);
+    const cachedShow = {
+      ...mockShow,
+      trials: [{ id: 'trial-1', name: 'Trial 1', trialNumber: 1, date: '2026-04-12' }],
+    } as never;
+
+    const { result } = renderHook(
+      () => useReportData({ ...defaultOptions, show: cachedShow, trialId: 'other-trial' }),
+      { wrapper: createWrapper() }
+    );
+
+    await waitFor(() => expect(result.current.isReady).toBe(false));
+    expect(mockGetClassesByTrialId).not.toHaveBeenCalled();
+    expect(mockGetEntriesByTrial).not.toHaveBeenCalled();
+    expect(mockGetEntriesByShowFromReplication).not.toHaveBeenCalled();
+  });
+
   it('fetches trials when show is provided', async () => {
     const mockTrials = [
       { id: 'trial-1', show_id: 'show-1', date: '2026-04-12' },

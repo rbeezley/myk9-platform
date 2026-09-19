@@ -138,7 +138,7 @@ export function useReportData({ show, trialId, classId }: UseReportDataOptions) 
   // trial set for every downstream consumer so controls cannot advertise a
   // trial that previews/classes did not load.
   const hasCurrentReportTrials =
-    trialsQuery.data !== undefined && !trialsQuery.isPlaceholderData;
+    Boolean(trialsQuery.data?.length) && !trialsQuery.isPlaceholderData;
   const reportTrials =
     hasCurrentReportTrials || !show?.trials?.length
       ? trialsQuery.data
@@ -151,6 +151,9 @@ export function useReportData({ show, trialId, classId }: UseReportDataOptions) 
           timezone: trial.timezone ?? null,
           registry_id: trial.registryId ?? null,
         }));
+  const selectedTrialIsInShow =
+    trialId === 'all' ||
+    (reportTrials !== undefined && reportTrials.some(trial => trial.id === trialId));
 
   const classesQuery = useQuery({
     queryKey: [
@@ -172,7 +175,7 @@ export function useReportData({ show, trialId, classId }: UseReportDataOptions) 
       if (error) throw error;
       return data ?? [];
     },
-    enabled: trialsQuery.isSuccess || reportTrials !== undefined,
+    enabled: selectedTrialIsInShow && (trialsQuery.isSuccess || reportTrials !== undefined),
     ...cacheStrategies.moderate,
   });
 
@@ -199,7 +202,7 @@ export function useReportData({ show, trialId, classId }: UseReportDataOptions) 
       if (error) throw error;
       return hydrateEntryRegistrations((data ?? []) as ReportDbEntry[]);
     },
-    enabled: classesQuery.isSuccess,
+    enabled: selectedTrialIsInShow && classesQuery.isSuccess,
     ...cacheStrategies.moderate,
   });
 

@@ -216,7 +216,7 @@ export const ResultLabelsReport: React.FC<ResultLabelsReportProps> = ({
       )}
 
       {/* Live preview — fixed-dimension cells matching the chosen stock */}
-      {pages.map(page => (
+      {!isLoading && !isUnavailable && !isError && pages.map(page => (
         <div
           key={page.pageNumber}
           style={{

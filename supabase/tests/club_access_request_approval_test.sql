@@ -71,6 +71,19 @@ VALUES (
   'Existing club approval request'
 );
 
+INSERT INTO public.club_access_requests (
+  id,
+  requester_person_id,
+  requester_auth_user_id,
+  requested_club_name
+)
+VALUES (
+  '00000000-0000-0000-0000-000000682023',
+  '00000000-0000-0000-0000-000000682011',
+  '00000000-0000-0000-0000-000000682101',
+  'MYK9-682 Rollback Club'
+);
+
 SET LOCAL ROLE authenticated;
 SELECT set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-000000682102', true);
 
@@ -279,23 +292,6 @@ BEGIN
 END;
 $$;
 
-SELECT set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-000000682102', true);
-
-INSERT INTO public.club_access_requests (
-  id,
-  requester_person_id,
-  requester_auth_user_id,
-  requested_club_name
-)
-VALUES (
-  '00000000-0000-0000-0000-000000682022',
-  '00000000-0000-0000-0000-000000682011',
-  '00000000-0000-0000-0000-000000682101',
-  'MYK9-682 Rollback Club'
-);
-
-SELECT set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-000000682102', true);
-
 DO $$
 DECLARE
   v_request_status text;
@@ -309,7 +305,7 @@ BEGIN
 
   BEGIN
     PERFORM public.review_club_access_request(
-      '00000000-0000-0000-0000-000000682022',
+      '00000000-0000-0000-0000-000000682023',
       'approved',
       NULL,
       NULL,
@@ -326,7 +322,7 @@ BEGIN
 
   SELECT status INTO v_request_status
   FROM public.club_access_requests
-  WHERE id = '00000000-0000-0000-0000-000000682022';
+  WHERE id = '00000000-0000-0000-0000-000000682023';
 
   SELECT count(*) INTO v_role_count
   FROM public.user_roles

@@ -102,15 +102,15 @@ describe('saveEntryEdits', () => {
 });
 
 /**
- * MYK9-570 round-1 review, P1. The printed handler is `entries.handler` (free
- * text); junior status and the AKC junior handler number are read through
- * `entries.handler_id`. Renaming the handler without clearing the id makes one
- * person's junior status and registry number print under another person's name.
+ * MYK9-665. The printed handler is `entries.handler` (free text); junior status
+ * and the AKC junior handler number are read through `entries.handler_id`.
+ * The caller controls whether a correction clears that load-bearing link, while
+ * the read-side resolver prevents a stale link from printing the wrong person.
  *
  * Asserted on the RPC CALL ARGS, because that is the whole fix: the value of
  * `clearHandlerId` is invisible in the UI and in every rendered output.
  */
-describe('MYK9-570: a handler rename must not keep the old handler_id', () => {
+describe('MYK9-665: handler_id clearing stays caller- and role-controlled', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mocks.updateEntryDetails.mockResolvedValue({ error: null });
@@ -120,11 +120,11 @@ describe('MYK9-570: a handler rename must not keep the old handler_id', () => {
   it.each([true, false])(
     'passes the caller tier through to the RPC untouched (clearHandlerId %p)',
     async callerTier => {
-      // MYK9-570 round 2: `handler_id` is load-bearing for the exhibitor's own
+      // `handler_id` is load-bearing for the exhibitor's own
       // self check-in, the at-show queue and the "is this my entry?" predicate,
-      // so this dialog must not decide to null it. Whether a rename should clear
-      // or re-point the link is MYK9-665's question; the stale-link problem is
-      // solved on the READ side by `resolveHandlerPerson`.
+      // so this dialog must not decide to null it. The stale-link problem is
+      // solved on the READ side by `resolveHandlerPerson`; the RPC applies the
+      // caller's explicit clear decision with the role-safe semantics above.
       await saveEntryEdits({
         classes,
         classEdits: { 'entry-1': { handler: 'Sam Handler' } },

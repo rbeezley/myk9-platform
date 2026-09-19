@@ -62,6 +62,21 @@ describe('submit_show_entries migration authorization', () => {
     expect(migration).toContain('ELSE v_existing_handler_id');
   });
 
+  it('aligns the exhibitor handler_id clear behavior with the official branch', () => {
+    const migration = readFileSync(
+      resolve(
+        process.cwd(),
+        '../../supabase/migrations/20260919100001_myk9_665_align_handler_id_clear_behavior.sql'
+      ),
+      'utf8'
+    );
+
+    expect(migration).toContain('MYK9-665');
+    expect(migration).toContain('WHEN p_clear_handler_id AND v_is_official THEN NULL');
+    expect(migration).toContain('ELSE v_existing_handler_id');
+    expect(migration).not.toContain('handler_id = COALESCE(p_handler_id, v_existing_handler_id)');
+  });
+
   it('returns the registration and submission ids expected by the client wrapper', () => {
     const migration = readFileSync(
       resolve(

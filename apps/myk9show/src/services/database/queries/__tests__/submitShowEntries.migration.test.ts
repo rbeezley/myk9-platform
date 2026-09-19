@@ -72,7 +72,11 @@ describe('submit_show_entries migration authorization', () => {
     );
 
     expect(migration).toContain('MYK9-665');
-    expect(migration).toContain('WHEN p_clear_handler_id AND v_is_official THEN NULL');
+    expect(migration).toContain(
+      'v_should_clear_handler_id := v_is_official AND p_clear_handler_id'
+    );
+    expect(migration).toContain('WHEN v_should_clear_handler_id THEN NULL');
+    expect(migration.match(/WHEN v_should_clear_handler_id THEN NULL/g)).toHaveLength(2);
     expect(migration).toContain('ELSE v_existing_handler_id');
     expect(migration).not.toContain('handler_id = COALESCE(p_handler_id, v_existing_handler_id)');
   });

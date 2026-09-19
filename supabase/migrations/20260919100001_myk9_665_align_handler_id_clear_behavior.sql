@@ -23,6 +23,7 @@ DECLARE
   v_existing_handler_id uuid;
   v_resolved_handler_id uuid;
   v_is_official boolean;
+  v_should_clear_handler_id boolean;
 BEGIN
   SELECT p.id
     INTO v_person_id
@@ -51,6 +52,7 @@ BEGIN
     OR public.is_show_secretary(v_show_id)
     OR public.is_club_admin(v_show_club_id)
   );
+  v_should_clear_handler_id := v_is_official AND p_clear_handler_id;
 
   IF v_is_official THEN
     IF p_handler_id IS NOT NULL THEN
@@ -65,7 +67,7 @@ BEGIN
        SET handler = p_handler,
            handler_id = CASE
              WHEN v_resolved_handler_id IS NOT NULL THEN v_resolved_handler_id
-             WHEN p_clear_handler_id THEN NULL
+             WHEN v_should_clear_handler_id THEN NULL
              ELSE v_existing_handler_id
            END,
            updated_at = now()
@@ -89,7 +91,7 @@ BEGIN
      SET handler = p_handler,
          handler_id = CASE
            WHEN p_handler_id IS NOT NULL THEN p_handler_id
-           WHEN p_clear_handler_id AND v_is_official THEN NULL
+           WHEN v_should_clear_handler_id THEN NULL
            ELSE v_existing_handler_id
          END,
          updated_at = now()

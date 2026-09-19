@@ -1,6 +1,7 @@
 import { describe, it, expect, vi } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { render, screen } from '@/test/utils/testUtils';
 import { GazetteEntryBlankDocument } from '../GazetteEntryBlankDocument';
+import { OwnerHandlerSection } from '../sections/OwnerHandlerSection';
 import { buildEntryBlankProps } from '@/features/heritage/entry-blank/buildEntryBlankProps';
 
 // ─── Mock @react-pdf/renderer ─────────────────────────────────────────────────
@@ -147,5 +148,26 @@ describe('GazetteEntryBlankDocument', () => {
     // Trial number 'I' is lower-cased to 'i' in the Gazette PDF (matches the
     // lowercase-roman folio convention of the rest of the document).
     expect(screen.getByText('i')).toBeTruthy();
+  });
+
+  it('keeps a designated handler distinct from the owner', () => {
+    render(
+      <OwnerHandlerSection
+        owner={{
+          ownerName: 'Pat Owner',
+          handlerName: 'Jamie Handler',
+          mailingAddress: null,
+          city: null,
+          state: null,
+          zip: null,
+          telephone: null,
+          email: null,
+          juniorHandlerAge: null,
+        }}
+      />
+    );
+
+    expect(screen.getByText('Pat Owner')).toBeTruthy();
+    expect(screen.getByText('Jamie Handler')).toBeTruthy();
   });
 });

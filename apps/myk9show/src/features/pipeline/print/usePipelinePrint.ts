@@ -25,7 +25,7 @@ function mapResultStatus(status: string | null): string | null {
   return map[status] ?? status;
 }
 
-interface OwnerData {
+interface PersonData {
   first_name?: string | null;
   last_name?: string | null;
 }
@@ -33,12 +33,17 @@ interface OwnerData {
 interface DogData {
   call_name?: string | null;
   breed?: string | null;
-  owner?: OwnerData | null;
+  owner?: PersonData | null;
 }
 
-interface EntryRow {
+export interface EntryRow {
   id: string;
   armband?: string | number | null;
+  handler_id?: string | null;
+  /** Legacy text selected from entries; this is the assigned handler name. */
+  handler?: string | null;
+  /** Optional joined handler person on richer entry read shapes. */
+  handler_person?: PersonData | null;
   run_order?: number | null;
   is_scored?: boolean | null;
   result_status?: string | null;
@@ -48,12 +53,15 @@ interface EntryRow {
   dog?: DogData | null;
 }
 
-function mapEntry(row: EntryRow): PrintReportEntry {
+function formatPersonName(person: PersonData | null | undefined): string {
+  return `${person?.first_name ?? ''} ${person?.last_name ?? ''}`.trim();
+}
+
+export function mapEntry(row: EntryRow): PrintReportEntry {
   const dog = row.dog;
   const owner = dog?.owner;
-  const firstName = owner?.first_name ?? '';
-  const lastName = owner?.last_name ?? '';
-  const handlerName = firstName || lastName ? `${firstName} ${lastName}`.trim() : 'Unknown Handler';
+  const assignedHandlerName = row.handler?.trim() || formatPersonName(row.handler_person) || '';
+  const handlerName = assignedHandlerName || formatPersonName(owner) || 'Unknown Handler';
 
   return {
     id: String(row.id),

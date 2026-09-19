@@ -70,7 +70,7 @@ describe('applyOrderReferenceRule', () => {
   });
 
   it('leaves the embed untouched when the view column is absent', () => {
-    // A database that has not received 20260919130100 yet: the online receipt
+    // A database that has not received 20260918193700 yet: the online receipt
     // keeps printing exactly what it printed before this change.
     const registration = { id: ENROLLMENT_ID, confirmation_number: 'MK9-000146' };
     const row: Record<string, unknown> = { registration_id: ENROLLMENT_ID, registration };

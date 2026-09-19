@@ -32,7 +32,7 @@ const MIGRATIONS_DIR = resolve(__dirname, '../../../../../supabase/migrations');
 const INNER_VIEW_DEF = 'CREATE OR REPLACE VIEW public.view_authenticated_entry_results\n';
 const WRAPPER_VIEW_DEF =
   'CREATE OR REPLACE VIEW public.view_authenticated_entry_results_replication\n';
-const OWN_MIGRATION = '20260919130100_myk9_659_view_registration_confirmation_number.sql';
+const OWN_MIGRATION = '20260918193700_myk9_659_view_registration_confirmation_number.sql';
 
 /**
  * The newest migration that defines the inner view, by filename order — which

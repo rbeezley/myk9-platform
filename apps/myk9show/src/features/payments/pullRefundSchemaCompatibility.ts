@@ -33,7 +33,7 @@ export function isWithdrawalReasonCodeSchemaUnavailable(
 
 /**
  * True only when MYK9-659's `registration_confirmation_number` is unavailable
- * on the authenticated entry-results views (20260919130100).
+ * on the authenticated entry-results views (20260918193700).
  *
  * Same deploy window and the same stakes as the two above: PostgREST fails the
  * WHOLE request with 42703 on a column it cannot resolve, and `getUserEntries`

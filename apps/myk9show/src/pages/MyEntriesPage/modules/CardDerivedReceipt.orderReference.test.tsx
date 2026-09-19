@@ -69,7 +69,7 @@ describe('MYK9-659 — the mail-in receipt prints the order reference', () => {
 
   it('prints no reference at all when the confirmation number has not replicated', () => {
     // The offline replica path on a build or database that predates migration
-    // 20260919130100. The UUID is not a reference anyone can quote, so nothing
+    // 20260918193700. The UUID is not a reference anyone can quote, so nothing
     // prints — the pinned MYK9-631 behaviour.
     renderReceipt(mailInOrder({ confirmationNumber: undefined }));
 

@@ -382,6 +382,10 @@ describe('getUserEntries account-scope read', () => {
       ),
       { code: '42703' }
     );
+    const withdrawalSchemaError = Object.assign(
+      new Error('column view_authenticated_entry_results.withdrawal_reason_code does not exist'),
+      { code: '42703' }
+    );
 
     it('names the column in the select', async () => {
       mockReplicatedStores();
@@ -446,9 +450,52 @@ describe('getUserEntries account-scope read', () => {
       // ...and the OTHER optional column is not taken down with it.
       expect(selects.at(-1)).toContain('withdrawal_reason_code');
       expect(mocks.loggerWarn).toHaveBeenCalledWith(
-        expect.stringContaining('20260919130100'),
+        expect.stringContaining('20260918193700'),
         'database',
         expect.objectContaining({ column: 'registration_confirmation_number' })
+      );
+    });
+
+    it('drops both optional columns when both migrations are absent', async () => {
+      mockReplicatedStores();
+      const rows = [{ id: 'entry-1' }];
+      const viewQuery = makeViewEntriesQuery(rows);
+      viewQuery.range.mockImplementation(() => {
+        const select = viewQuery.select.mock.calls.at(-1)?.[0] ?? '';
+        if (select.includes('registration_confirmation_number')) {
+          return Promise.resolve({ data: [], error: schemaError });
+        }
+        if (select.includes('withdrawal_reason_code')) {
+          return Promise.resolve({ data: [], error: withdrawalSchemaError });
+        }
+        return Promise.resolve({ data: rows, error: null });
+      });
+      mocks.supabaseFrom.mockImplementation((table: string) => {
+        if (table === 'view_authenticated_entry_results') return viewQuery;
+        throw new Error(`Unexpected table: ${table}`);
+      });
+
+      const result = await getUserEntries('user-1');
+
+      expect(result.source).toBe('confirmed');
+      expect(result.data).toEqual(rows);
+      const selects = viewQuery.select.mock.calls.map(call => call[0]);
+      expect(selects).toHaveLength(3);
+      expect(selects[0]).toContain('registration_confirmation_number');
+      expect(selects[0]).toContain('withdrawal_reason_code');
+      expect(selects[1]).not.toContain('registration_confirmation_number');
+      expect(selects[1]).toContain('withdrawal_reason_code');
+      expect(selects[2]).not.toContain('registration_confirmation_number');
+      expect(selects[2]).not.toContain('withdrawal_reason_code');
+      expect(mocks.loggerWarn).toHaveBeenCalledWith(
+        expect.stringContaining('20260918193700'),
+        'database',
+        expect.objectContaining({ column: 'registration_confirmation_number' })
+      );
+      expect(mocks.loggerWarn).toHaveBeenCalledWith(
+        expect.stringContaining('20260918041700'),
+        'database',
+        expect.objectContaining({ column: 'withdrawal_reason_code' })
       );
     });
   });

@@ -152,7 +152,7 @@ describe('MYK9-631 AC4/Q7 — the receipt carries one identifier or none', () =>
 
   // MYK9-659 answered what the order-level reference IS: the enrollment's
   // confirmation number, which `submit_show_entries` guarantees for every order
-  // the app creates and migration 20260919130100 replicates so the offline
+  // the app creates and migration 20260918193700 replicates so the offline
   // receipt prints the same string as the online one. Nothing is minted, so
   // this branch survives — it is now reached only by a legacy pre-link row, or
   // by a replica cached before that push. Printing a class row's id, or the

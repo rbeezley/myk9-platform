@@ -31,6 +31,8 @@ interface MyEntriesOverviewProps {
    * happened to be unconfirmed (MYK9-629 round 1).
    */
   showMoney: boolean;
+  /** Explains why the money row is withheld instead of implying no balance. */
+  moneyWarning?: boolean;
   currentFees: number;
   amountDue: number;
   hasPastBalance: boolean;
@@ -44,6 +46,7 @@ interface MyEntriesOverviewProps {
 
 export const MyEntriesOverview: React.FC<MyEntriesOverviewProps> = ({
   showMoney,
+  moneyWarning = false,
   currentFees,
   amountDue,
   hasPastBalance,
@@ -64,6 +67,12 @@ export const MyEntriesOverview: React.FC<MyEntriesOverviewProps> = ({
           onNavigate={onNavigate}
         />
       </div>
+    )}
+    {!showMoney && moneyWarning && (
+      <p role="status" className="text-sm text-muted-foreground">
+        Some balances could not be confirmed with the server yet, so My Shows is not showing a
+        total.
+      </p>
     )}
 
     {/* order-3 on mobile keeps the dog strip below the primary entry workflow.

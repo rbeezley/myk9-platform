@@ -125,6 +125,7 @@ export const EditEntryDialog: React.FC<EditEntryDialogProps> = ({ dialog, onClos
     withdrawalReasonCode: c.withdrawalReasonCode,
     ...(c.jumpHeight !== undefined && { jumpHeight: c.jumpHeight }),
     ...(c.trialType !== undefined && { trialType: c.trialType }),
+    ...(c.handlerId !== undefined && { handlerId: c.handlerId }),
     ...(c.handler !== undefined && { handler: c.handler }),
     ...(c.runOrder !== undefined && { runOrder: c.runOrder }),
   }));

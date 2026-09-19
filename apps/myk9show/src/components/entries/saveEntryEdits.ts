@@ -18,6 +18,7 @@ import { jumpHeightErrorMessage } from '@/services/database/entries/jumpHeightEr
 export interface SavableEntryClass {
   id: string;
   jumpHeight?: string | undefined;
+  handlerId?: string | null;
   handler?: string | undefined;
 }
 
@@ -74,7 +75,7 @@ export async function saveEntryEdits(
       const { error } = await updateEntryHandler({
         entryId: classEntry.id,
         handler: editedHandler,
-        handlerId: null,
+        handlerId: classEntry.handlerId ?? null,
       });
       if (error) return { error: 'Failed to update handler. Please try again.' };
     }

@@ -137,7 +137,7 @@ select pg_temp.call_handler_update(
 -- A club admin is authorized while the show is linked to that club.
 select pg_temp.call_handler_update(
   '00000000-0000-0000-0000-000000665105', 'MYK9-665 Club Admin Correction', false,
-  null, '00000000-0000-0000-0000-000000665012');
+  null, '00000000-0000-0000-0000-000000665014');
 do $$
 begin
   if (select handler from public.entries where id = '00000000-0000-0000-0000-000000665031')
@@ -145,7 +145,7 @@ begin
     raise exception 'FAIL club admin could not correct linked show entry';
   end if;
   if (select handler_id from public.entries where id = '00000000-0000-0000-0000-000000665031')
-    is distinct from '00000000-0000-0000-0000-000000665012'::uuid then
+    is distinct from '00000000-0000-0000-0000-000000665014'::uuid then
     raise exception 'FAIL club admin selected handler was not stored';
   end if;
 end;
@@ -155,7 +155,7 @@ $$;
 update public.shows set club_id = null
  where id = '00000000-0000-0000-0000-000000665002';
 select pg_temp.call_handler_update(
-  '00000000-0000-0000-0000-000000665105', 'MYK9-665 Null Club Attempt', true,
+  '00000000-0000-0000-0000-000000665105', 'MYK9-665 Null Club Attempt', false,
   'Not authorized: caller does not own entry %');
 
 -- A non-owner/non-handler cannot use the correction RPC.

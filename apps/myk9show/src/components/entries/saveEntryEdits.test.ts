@@ -21,7 +21,7 @@ vi.mock('@/services/database/entries', () => ({
 
 import { saveEntryEdits } from './saveEntryEdits';
 
-const classes = [{ id: 'entry-1', jumpHeight: '8"', handler: 'Pat Owner' }];
+const classes = [{ id: 'entry-1', jumpHeight: '8"', handler: 'Pat Owner', handlerId: 'handler-1' }];
 
 describe('saveEntryEdits', () => {
   beforeEach(() => {
@@ -124,7 +124,7 @@ describe('MYK9-665: handler_id stays load-bearing across text corrections', () =
     expect(mocks.updateEntryHandler).toHaveBeenCalledWith({
       entryId: 'entry-1',
       handler: 'Sam Handler',
-      handlerId: null,
+      handlerId: 'handler-1',
     });
   });
 

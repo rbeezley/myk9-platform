@@ -173,12 +173,12 @@ describe('EntryEditDialog — per-class handlers', () => {
       expect(entryServiceMocks.updateEntryHandler).toHaveBeenCalledWith({
         entryId: 'entry-container',
         handler: 'Chris Lee',
-        handlerId: null,
+        handlerId: 'handler-jamie',
       });
     });
   });
 
-  it('passes the secretary clear decision when correcting a handler', async () => {
+  it('preserves the secretary handler identity when correcting handler text', async () => {
     const entry = {
       ...makeEntry('Scent Work'),
       classes: [
@@ -217,7 +217,7 @@ describe('EntryEditDialog — per-class handlers', () => {
       expect(entryServiceMocks.updateEntryHandler).toHaveBeenCalledWith({
         entryId: 'entry-container',
         handler: 'Jamie Walker',
-        handlerId: null,
+        handlerId: 'secretary-person-id',
       });
     });
   });

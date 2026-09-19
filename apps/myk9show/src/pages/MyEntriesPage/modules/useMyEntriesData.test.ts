@@ -177,6 +177,32 @@ describe('useMyEntriesData — trial timezone lands on the class row', () => {
   });
 });
 
+describe('useMyEntriesData — move-up lineage reaches card-level money math', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    (useAuthContext as ReturnType<typeof vi.fn>).mockReturnValue({
+      user: { id: 'user-1', email: 'exhibitor@test.com' },
+      userWithRoles: { databaseUserId: 'person-1' },
+      isAuthenticated: true,
+    });
+    (useCurrentUserPersonId as ReturnType<typeof vi.fn>).mockReturnValue('person-1');
+  });
+
+  it('preserves moved_from_entry_id on the live destination class', async () => {
+    const row = { ...entryRow(), entry_fee: 0, moved_from_entry_id: 'source-1' };
+    (getUserEntries as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
+      source: 'confirmed',
+      data: [row],
+      error: null,
+    });
+
+    const { result } = renderData();
+    await waitFor(() => expect(result.current.entries).toHaveLength(1));
+
+    expect(result.current.entries[0]?.classes[0]?.movedFromEntryId).toBe('source-1');
+  });
+});
+
 describe('useMyEntriesData — a failed reload must not discard loaded entries', () => {
   beforeEach(() => {
     vi.clearAllMocks();

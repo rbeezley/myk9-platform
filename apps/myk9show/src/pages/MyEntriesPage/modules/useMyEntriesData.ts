@@ -242,6 +242,8 @@ export function useMyEntriesData({
     const classes: EntryClass[] = [
       {
         id: entry.id as string,
+        movedFromEntryId: (entry.moved_from_entry_id as string | null) ?? null,
+        deletedAt: (entry.deleted_at as string | null) ?? null,
         entryStatus: mapEntryStatus(entry.entry_status as string),
         entryStatusKind,
         classId: classData?.id,
@@ -251,7 +253,6 @@ export function useMyEntriesData({
         name: classData?.name || 'Unknown Class',
         number: classData?.class_number || '',
         fee: (entry.entry_fee as number) || 0,
-        movedFromEntryId: (entry.moved_from_entry_id as string | null) ?? null,
         trialDate,
         trialNumber,
         trialTimezone,
@@ -374,7 +375,8 @@ export function useMyEntriesData({
         return;
       }
 
-      const rawRows = (data as OwnEntryResultRow[]).filter(shouldRenderOwnEntry);
+      const allRows = data as OwnEntryResultRow[];
+      const rawRows = allRows.filter(shouldRenderOwnEntry);
       const userEntries = groupEntriesByOrder(rawRows.map(entry => transformEntry(entry)));
       setEntries(userEntries);
       setSource(rowSource);
@@ -384,7 +386,7 @@ export function useMyEntriesData({
       // it does on My Payments.
       setBalanceSummary(
         summarizeEntryBalancesFromSource(
-          rawRows.map(row => mapEntryRowToBalanceSource(row as EntryBalanceRawRow)),
+          allRows.map(row => mapEntryRowToBalanceSource(row as EntryBalanceRawRow)),
           rowSource
         )
       );

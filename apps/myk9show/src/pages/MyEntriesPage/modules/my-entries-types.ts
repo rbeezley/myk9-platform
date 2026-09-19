@@ -15,6 +15,9 @@ import type { ShowMoneyKind } from './showMoneyState';
 export interface EntryClass {
   /** Entry row id (one dog in one class) — used as `p_entry_id` for check-in. */
   id: string;
+  /** Source entry id when this class was created by a move-up. */
+  movedFromEntryId?: string | null | undefined;
+  deletedAt?: string | null | undefined;
   /** Status of this entry row; dog/order summaries may be dominated by a sibling row. */
   entryStatus?: EntryStatus | undefined;
   /** Canonical kind retained beside the lossy UI enum for honest display copy. */
@@ -33,8 +36,6 @@ export interface EntryClass {
   name: string;
   number: string;
   fee: number;
-  /** The source row carrying money for a moved-up destination. */
-  movedFromEntryId?: string | null | undefined;
   /** Trial date for this class row, distinct from the show start date. */
   trialDate?: Date | undefined;
   /** Trial number assigned by the show secretary/registry. */
@@ -138,6 +139,8 @@ export interface MyEntryBalance {
   dueEntryIds: string[];
   /** Root entry ids used by checkout; distinct from visible destination rows. */
   paymentEntryIds?: string[] | undefined;
+  /** True when the original move-up payment row was not available in this read. */
+  moneyRootUnresolved?: boolean | undefined;
 }
 
 /**

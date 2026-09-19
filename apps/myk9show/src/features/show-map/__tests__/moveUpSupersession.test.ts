@@ -4,13 +4,27 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { hasRunStarted, resolveMoveUpReversal, reverseShowMapMoveUp } from '../moveUpSupersession';
 import { rowToEntry } from '@/services/replication/ReplicatedEntriesTable.mapper';
 import type { ReplicatedEntry } from '@/services/replication/ReplicatedEntriesTable.mapper';
-import { readFileSync } from 'node:fs';
+import { readdirSync, readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 
 const mockGetEntryById = vi.fn();
 const mockGetClassById = vi.fn();
 const mockReverseMoveUpEntryViaRpc = vi.fn();
 const mockUpdateEntry = vi.fn();
+
+function latestReverseMoveUpMigration(): string {
+  const migrationDir = resolve(__dirname, '../../../../../../supabase/migrations');
+  const candidates = readdirSync(migrationDir)
+    .filter(name => name.endsWith('.sql'))
+    .filter(name => {
+      const source = readFileSync(resolve(migrationDir, name), 'utf8');
+      return source.includes('CREATE OR REPLACE FUNCTION public.reverse_move_up_entry');
+    })
+    .sort();
+  const latest = candidates.at(-1);
+  if (!latest) throw new Error('No reverse_move_up_entry migration found');
+  return resolve(migrationDir, latest);
+}
 
 vi.mock('@/services/database/supabaseClient', () => ({
   supabase: { from: vi.fn() },
@@ -128,13 +142,7 @@ describe('moveUpSupersession', () => {
       // The two lists stand in for each other, so they are compared rather than
       // described. Anything the SQL refuses to undo, the dialog must be able to
       // explain BEFORE the secretary presses the button.
-      const migration = readFileSync(
-        resolve(
-          __dirname,
-          '../../../../../../supabase/migrations/20260919170000_myk9_639_reverse_move_up_successor_guard.sql'
-        ),
-        'utf8'
-      );
+      const migration = readFileSync(latestReverseMoveUpMigration(), 'utf8');
       const reverseBody = migration.slice(
         migration.indexOf('CREATE OR REPLACE FUNCTION public.reverse_move_up_entry'),
         migration.indexOf('REVOKE ALL ON FUNCTION public.reverse_move_up_entry')
@@ -150,6 +158,12 @@ describe('moveUpSupersession', () => {
       const clientColumns = new Set(SIGNAL_COLUMNS.map(([column]) => column as string));
 
       expect([...sqlColumns].sort()).toEqual([...clientColumns].sort());
+    });
+
+    it('has a durable guard against reversing an intermediate move-up', () => {
+      const migration = readFileSync(latestReverseMoveUpMigration(), 'utf8');
+
+      expect(migration).toMatch(/newer successor[\s\S]*?cannot be reversed/);
     });
   });
 
@@ -236,6 +250,17 @@ describe('moveUpSupersession', () => {
       await expect(resolveMoveUpReversal('dest-1')).resolves.toEqual({
         kind: 'blocked',
         reason: 'run-started',
+      });
+    });
+
+    it('refuses an intermediate destination that has already been superseded', async () => {
+      mockGetEntryById.mockImplementation(
+        entriesById([SOURCE, { ...DESTINATION, entryStatus: 'moved' }])
+      );
+
+      await expect(resolveMoveUpReversal('dest-1')).resolves.toEqual({
+        kind: 'blocked',
+        reason: 'superseded',
       });
     });
 

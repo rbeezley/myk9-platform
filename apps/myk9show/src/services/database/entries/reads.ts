@@ -801,6 +801,7 @@ export const getEntriesByShowFromReplication = async (showId: string) => {
     operation: 'select_by_show_report',
     errorData: [],
     verifyOnlineWhenEmpty: true,
+    errorOnOnlineVerificationFailure: true,
   });
 };
 
@@ -920,6 +921,7 @@ export const getEntriesByTrial = async (trialId: string) => {
     operation: 'select_by_trial',
     errorData: [],
     verifyOnlineWhenEmpty: true,
+    errorOnOnlineVerificationFailure: true,
   });
 };
 
@@ -983,6 +985,7 @@ export const getEntriesByClass = async (classId: string) => {
     operation: 'select_by_class',
     errorData: [],
     verifyOnlineWhenEmpty: true,
+    errorOnOnlineVerificationFailure: true,
   });
 };
 

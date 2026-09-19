@@ -103,6 +103,9 @@ export function deriveShowMoneyState(
   // third strip on the same page.
   if (!isMoneyConfirmed(source)) return UNKNOWN_SHOW_MONEY_STATE;
 
+  const unresolvedOrders = orders.filter(order => order.balance?.moneyRootUnresolved);
+  if (unresolvedOrders.length > 0) return UNKNOWN_SHOW_MONEY_STATE;
+
   const dueOrders = orders.filter(order => onlineDueCentsOf(order) > 0);
   const amountCents = dueOrders.reduce((sum, order) => sum + onlineDueCentsOf(order), 0);
 

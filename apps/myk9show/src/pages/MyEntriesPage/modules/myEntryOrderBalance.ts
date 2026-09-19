@@ -18,10 +18,12 @@
 import { EntryStatus, PaymentStatus } from '@/types/show-registration-types';
 import {
   isCurrentSummaryEntry,
+  normalizeOrphanedMoveUpEntries,
   summarizeEntryBalances,
+  UNKNOWN_ENTRY_BALANCE_SUMMARY,
   type EntryBalanceSource,
 } from '@/features/payments/entryBalanceSummary';
-import { withResolvedMoneyRoots } from '@/features/financial/moneyRoot';
+import { buildMoneyAttribution, withResolvedMoneyRoots } from '@/features/financial/moneyRoot';
 import {
   getEntryPaymentPrompt,
   type EntryPaymentPrompt,
@@ -64,6 +66,8 @@ export interface OrderBalanceContext {
 function toBalanceSources(classes: EntryClass[], ctx: OrderBalanceContext): EntryBalanceSource[] {
   return classes.map(cls => ({
     id: cls.id,
+    movedFromEntryId: cls.movedFromEntryId,
+    deletedAt: cls.deletedAt,
     showId: ctx.showId,
     showName: ctx.showName,
     showDate: ctx.showDate,
@@ -75,7 +79,6 @@ function toBalanceSources(classes: EntryClass[], ctx: OrderBalanceContext): Entr
     // to the order context when the row never carried the field at all.
     paymentMethod: cls.paymentMethod !== undefined ? cls.paymentMethod : ctx.paymentMethod,
     totalFee: cls.fee,
-    movedFromEntryId: cls.movedFromEntryId,
   }));
 }
 
@@ -128,21 +131,37 @@ export function buildOrderBalance(
   ctx: OrderBalanceContext,
   now: Date = new Date()
 ): MyEntryBalance | null {
-  const sources = toBalanceSources(classes, ctx);
+  const normalizedSources = normalizeOrphanedMoveUpEntries(toBalanceSources(classes, ctx));
+  const sources = withResolvedMoneyRoots(
+    normalizedSources,
+    (entry, root) => ({
+      ...entry,
+      paymentStatus: root.paymentStatus,
+      paymentMethod: root.paymentMethod,
+      totalFee: root.totalFee,
+    }),
+    entry => !entry.deletedAt
+  );
   if (sources.length === 0) return null;
 
-  const rootedSources = withResolvedMoneyRoots(sources, (source, root) => ({
-    ...source,
-    paymentStatus: root.paymentStatus,
-    paymentMethod: root.paymentMethod,
-    totalFee: root.totalFee,
-  }));
-  const trustworthySources = rootedSources.filter(source => !source.moneyRootUnresolved);
-  if (trustworthySources.length === 0) return null;
-
+  const moneyRootUnresolved =
+    sources.some(source => !source.deletedAt && source.moneyRootUnresolved) ||
+    buildMoneyAttribution(sources.filter(source => !source.deletedAt)).unresolved.some(
+      issue => issue.problem === 'orphaned-supersession'
+    );
+  const trustworthySources = sources.filter(source => !source.moneyRootUnresolved);
+  const hasDeletedKnownRoot = sources.some(
+    source =>
+      source.moneyRootUnresolved &&
+      source.moneyRootEntryId !== source.id &&
+      sources.some(root => root.id === source.moneyRootEntryId && root.deletedAt)
+  );
+  if (trustworthySources.length === 0 && !hasDeletedKnownRoot) return null;
   const eligible = trustworthySources.filter(source => isCurrentSummaryEntry(source, now));
-  const summary = summarizeEntryBalances(trustworthySources, now);
-  if (summary.kind === 'unknown') return null;
+  const summary =
+    trustworthySources.length > 0
+      ? summarizeEntryBalances(trustworthySources, now)
+      : UNKNOWN_ENTRY_BALANCE_SUMMARY;
   const onlineShow = summary.onlineShowBalances[0];
 
   // The pay-at-show instruction must quote only the in-person portion and name
@@ -184,6 +203,7 @@ export function buildOrderBalance(
     payAtShowMethod: payAtShowSource?.paymentMethod ?? null,
     dueEntryIds: onlineShow?.displayEntryIds ?? onlineShow?.entryIds ?? [],
     paymentEntryIds: onlineShow?.entryIds ?? [],
+    moneyRootUnresolved,
   };
 }
 

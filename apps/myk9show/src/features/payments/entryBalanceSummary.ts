@@ -7,7 +7,6 @@ import { getTrialTimezone } from '@/features/registries';
 import { getEntryWindowTimezone, type EntryWindowTrial } from '@/utils/entryWindowDate';
 import { DEFAULT_SHOW_TIMEZONE, toEntryCloseDay } from './entryCloseDeadline';
 import { getEntryPaymentPrompt } from './entryPaymentPrompt';
-import { withResolvedMoneyRoots } from '@/features/financial/moneyRoot';
 // The gate is a PURE predicate, so it is imported from its own module rather
 // than the `entries` barrel: a unit test that mocks the barrel's data-access
 // functions must not thereby stub out the rule that withholds money.
@@ -15,9 +14,11 @@ import {
   isMoneyConfirmed,
   type UserEntriesSource,
 } from '@/services/database/entries/userEntriesRead';
+import { buildMoneyAttribution, withResolvedMoneyRoots } from '@/features/financial/moneyRoot';
 
 export interface EntryBalanceClassSource {
   id: string;
+  deletedAt?: string | null | undefined;
 }
 
 export interface EntryBalanceSource {
@@ -43,10 +44,14 @@ export interface EntryBalanceSource {
   paymentMethod?: string | null | undefined;
   /** Fee in dollars, matching My Entries' loaded entry model. */
   totalFee: number;
+  deletedAt?: string | null | undefined;
+  showDeletedAt?: string | null | undefined;
   movedFromEntryId?: string | null | undefined;
-  moneyRootEntryId?: string | null | undefined;
-  moneyRootUnresolved?: boolean | undefined;
   classes?: EntryBalanceClassSource[] | undefined;
+  /** Set when the move-up source could not be read in this scope. */
+  moneyRootUnresolved?: boolean | undefined;
+  /** The entry row whose payment must be recovered, when lineage resolved. */
+  moneyRootEntryId?: string | undefined;
 }
 
 export interface EntryBalanceShowSummary {
@@ -121,14 +126,16 @@ export type EntryBalanceRawRow = Record<string, unknown> & {
   show_id?: string | null;
   entry_status?: string | null;
   payment_status?: string | null;
-  moved_from_entry_id?: string | null;
   payment_method?: string | null;
   entry_fee?: number | null;
+  deleted_at?: string | null;
+  moved_from_entry_id?: string | null;
   show?: {
     id?: string | null;
     name?: string | null;
     start_date?: string | null;
     end_date?: string | null;
+    deleted_at?: string | null;
     entry_close_date?: string | null;
     trials?: EntryWindowTrial[] | null;
   } | null;
@@ -197,6 +204,8 @@ export function mapEntryRowToBalanceSource(row: EntryBalanceRawRow): EntryBalanc
     paymentStatus,
     paymentMethod: row.payment_method ?? null,
     totalFee: row.entry_fee ?? 0,
+    deletedAt: row.deleted_at ?? null,
+    showDeletedAt: show?.deleted_at ?? null,
     movedFromEntryId: row.moved_from_entry_id ?? null,
   };
 }
@@ -254,6 +263,7 @@ function entryIdsForPayment(entry: EntryBalanceSource): string[] {
 }
 
 function entryIdsForDisplay(entry: EntryBalanceSource): string[] {
+  if (entry.moneyRootUnresolved) return [];
   const classEntryIds = entry.classes?.map(cls => cls.id).filter(Boolean) ?? [];
   return classEntryIds.length > 0 ? classEntryIds : [entry.id];
 }
@@ -288,6 +298,7 @@ export function summarizeEntryBalances(
   let payAtShowDueCents = 0;
 
   for (const entry of trustworthyEntries) {
+    if (entry.deletedAt && !entry.showDeletedAt) continue;
     const isCurrentEntry = isCurrentSummaryEntry(entry, now);
     if (!isCurrentEntry && !isBalanceEligibleEntry(entry)) continue;
 
@@ -359,6 +370,26 @@ export function summarizeEntryBalances(
 }
 
 /**
+ * A removed move-up destination leaves its source row marked `moved` even
+ * though that source is the only remaining money row. Treat that orphan as
+ * current so its fee remains visible; valid move-up chains still resolve to
+ * the live destination and never enter this set.
+ */
+export function normalizeOrphanedMoveUpEntries(
+  entries: EntryBalanceSource[]
+): EntryBalanceSource[] {
+  const orphanedIds = new Set(
+    buildMoneyAttribution(entries.filter(entry => !entry.deletedAt))
+      .unresolved.filter(issue => issue.problem === 'orphaned-supersession')
+      .map(issue => issue.entryId)
+  );
+  if (orphanedIds.size === 0) return entries;
+  return entries.map(entry =>
+    orphanedIds.has(entry.id) ? { ...entry, entryStatus: EntryStatus.ACCEPTED } : entry
+  );
+}
+
+/**
  * The account-level entry point: summarize these rows, or refuse to, from the
  * one rule. Every `getUserEntries` consumer that renders money calls THIS, not
  * `summarizeEntryBalances` — see `isMoneyConfirmed`.
@@ -369,7 +400,28 @@ export function summarizeEntryBalancesFromSource(
   now: Date = new Date()
 ): EntryBalanceSummary {
   if (!isMoneyConfirmed(source)) return UNKNOWN_ENTRY_BALANCE_SUMMARY;
-  return summarizeEntryBalances(entries, now);
+  const normalizedEntries = normalizeOrphanedMoveUpEntries(entries);
+  const rootedEntries = withResolvedMoneyRoots(
+    normalizedEntries,
+    (entry, root) => ({
+      ...entry,
+      paymentStatus: root.paymentStatus,
+      paymentMethod: root.paymentMethod,
+      totalFee: root.totalFee,
+    }),
+    entry => !entry.deletedAt
+  );
+  const hasUnresolvedRoot = rootedEntries.some(
+    entry => !entry.deletedAt && entry.moneyRootUnresolved
+  );
+  const summary = summarizeEntryBalances(
+    rootedEntries.filter(entry => !entry.moneyRootUnresolved),
+    now
+  );
+  if (hasUnresolvedRoot) {
+    return UNKNOWN_ENTRY_BALANCE_SUMMARY;
+  }
+  return summary;
 }
 
 export function buildEntryBalanceRecoveryHref(summary: EntryBalanceSummary): string {

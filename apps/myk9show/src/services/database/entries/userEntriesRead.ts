@@ -40,7 +40,8 @@ import {
  * out, or came back empty over a populated snapshot. Both withhold money;
  * only the second is worth a warning in the logs.
  */
-export type UserEntriesSource = 'confirmed' | 'replica-offline' | 'replica-after-error';
+export type UserEntriesSource =
+  'confirmed' | 'confirmed-move-up-link-unavailable' | 'replica-offline' | 'replica-after-error';
 
 /**
  * The ONE rule for whether a money figure derived from these rows may be
@@ -77,7 +78,9 @@ async function postgrestGetUserEntries() {
   // MYK9-659's view column, tracked separately: two INDEPENDENT migrations back
   // these two columns, so one missing must not drop the other.
   let includeRegistrationConfirmationNumber = true;
+  // MYK9-639's view column is independently optional while deployments catch up.
   let includeMoveUpLink = true;
+  let moveUpLinkUnavailable = false;
   // ONE deadline for the whole paged read, not one per page. `withTimeout`
   // only races the promise it is given, so when it wins, the loop below is
   // still in flight — a per-page signal would let each SUBSEQUENT page start a
@@ -121,15 +124,6 @@ async function postgrestGetUserEntries() {
     let response;
     while (true) {
       response = await runPage();
-      if (includeMoveUpLink && isMoveUpLinkSchemaUnavailable(response.error)) {
-        includeMoveUpLink = false;
-        logger.warn(
-          'My Entries read without moved_from_entry_id: move-up migration is not applied',
-          'database',
-          { column: 'moved_from_entry_id', migration: '20260918193300' }
-        );
-        continue;
-      }
       if (includeReasonCode && isWithdrawalReasonCodeSchemaUnavailable(response.error)) {
         // Pre-20260918041700 database. Drop the column and re-ask this page;
         // every later page goes without it too.
@@ -162,6 +156,16 @@ async function postgrestGetUserEntries() {
         );
         continue;
       }
+      if (includeMoveUpLink && isMoveUpLinkSchemaUnavailable(response.error)) {
+        includeMoveUpLink = false;
+        moveUpLinkUnavailable = true;
+        logger.warn(
+          'My Entries read without moved_from_entry_id: migration 20260918193300 is not applied',
+          'database',
+          { column: 'moved_from_entry_id', migration: '20260918193300' }
+        );
+        continue;
+      }
       break;
     }
     const { data, error } = response;
@@ -183,7 +187,7 @@ async function postgrestGetUserEntries() {
     for (const row of pageRows) applyOrderReferenceRule(row);
     rows.push(...pageRows);
     if (pageRows.length < USER_ENTRIES_PAGE_SIZE) {
-      return { data: rows, error: null };
+      return { data: rows, error: null, moveUpLinkUnavailable };
     }
 
     const lastRow = pageRows[pageRows.length - 1];
@@ -338,7 +342,11 @@ export const getUserEntries = async (userId: string): Promise<UserEntriesResult>
         });
       });
     }
-    return { ...result, source: 'confirmed' };
+    const { moveUpLinkUnavailable, ...confirmedResult } = result;
+    return {
+      ...confirmedResult,
+      source: moveUpLinkUnavailable ? 'confirmed-move-up-link-unavailable' : 'confirmed',
+    };
   } catch (error) {
     return readUserEntriesFromReplica(userId, error, startTime);
   }

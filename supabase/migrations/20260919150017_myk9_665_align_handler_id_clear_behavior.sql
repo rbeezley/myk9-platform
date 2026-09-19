@@ -1,10 +1,11 @@
 -- MYK9-665: keep handler_id semantics consistent for official and exhibitor edits.
 --
--- handler_id remains the load-bearing person link captured for the entry. A
+-- handler_id remains the load-bearing person link captured for the entry. The
 -- text correction preserves that link for both caller tiers. The legacy clear
 -- flag is ignored for backwards compatibility; selected p_handler_id remains
 -- the explicit reassignment path. The RPC must not infer a person from free
--- text names.
+-- text names. This migration also aligns authorization with can_manage_show()
+-- so nullable-club shows cannot fail open to unrelated club admins.
 
 CREATE OR REPLACE FUNCTION public.update_entry_handler_for_entry_management(
   p_entry_id uuid,

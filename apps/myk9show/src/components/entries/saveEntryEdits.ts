@@ -23,6 +23,8 @@ export interface SavableEntryClass {
 
 export interface EntryClassEdits {
   handler?: string | undefined;
+  /** Optional explicit person selection; free-text edits leave this undefined. */
+  handlerId?: string | null | undefined;
   jumpHeight?: string | undefined;
   status?: string | undefined;
 }
@@ -70,11 +72,11 @@ export async function saveEntryEdits(
       // print a registry number unless the person behind `handler_id` bears the
       // name being printed. Whether the WRITE should also re-point or clear the
       // id is a real question with real consequences. Legacy clear requests are
-      // rejected by the RPC; explicit selected handler ids can re-point it.
+      // ignored by the RPC; an explicit selected handler id can re-point it.
       const { error } = await updateEntryHandler({
         entryId: classEntry.id,
         handler: editedHandler,
-        handlerId: null,
+        handlerId: classEdits[classEntry.id]?.handlerId ?? null,
       });
       if (error) return { error: 'Failed to update handler. Please try again.' };
     }

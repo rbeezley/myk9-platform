@@ -97,6 +97,7 @@ TEST_FILES=(
   "$TEST_DIR/withdraw_own_entry_test.sql"
   "$TEST_DIR/withdraw_or_pull_own_entry_test.sql"
   "$TEST_DIR/update_own_entry_jump_height_test.sql"
+  "$TEST_DIR/update_entry_handler_for_entry_management_test.sql"
   "$TEST_DIR/seed_demo_paid_stray_guard_test.sql"
   "$TEST_DIR/seed_demo_paid_stray_guard_scopes_test.sql"
 )

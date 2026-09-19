@@ -10,7 +10,7 @@ export interface EntryWindowTrial {
 
 function parseCalendarDate(value?: string | null): Date | undefined {
   if (!value) return undefined;
-  return parseLocalDateString(value.split('T')[0] ?? value);
+  return parseLocalDateString(value.split(/[T ]/)[0] ?? value);
 }
 
 function compareTrialOrder(a: EntryWindowTrial, b: EntryWindowTrial): number {

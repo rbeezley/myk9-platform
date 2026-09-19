@@ -162,12 +162,16 @@ export default function ReportsPage() {
   // show detail and report query share the same show, so a non-empty detail row
   // is the only useful answer when the scoped query has no rows yet.
   const resolvedTrials = trials ?? currentShow?.trials ?? [];
-  const reportTimezone =
-    resolvedTrials.length > 0 ? getEntryWindowTimezone(resolvedTrials) : undefined;
   const showTimePhase = resolveShowTimePhase(
     currentShow,
     new Date(),
-    reportTimezone
+    getEntryWindowTimezone(
+      resolvedTrials as Array<{
+        id?: string | null;
+        date?: string | null;
+        timezone?: string | null;
+      }>
+    )
   );
 
   const trialOptions = useMemo(

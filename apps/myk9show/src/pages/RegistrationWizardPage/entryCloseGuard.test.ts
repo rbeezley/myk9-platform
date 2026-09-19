@@ -254,4 +254,13 @@ describe('getEntryWindowTimezone', () => {
   it('falls back to America/New_York when no trial timezone is available', () => {
     expect(getEntryWindowTimezone([])).toBe('America/New_York');
   });
+
+  it('orders space-separated PostgreSQL timestamps by calendar date', () => {
+    expect(
+      getEntryWindowTimezone([
+        { id: 'later', date: '2026-03-23', timezone: 'America/Los_Angeles' },
+        { id: 'earlier', date: '2026-03-22 23:00:00-05', timezone: 'America/Chicago' },
+      ])
+    ).toBe('America/Chicago');
+  });
 });

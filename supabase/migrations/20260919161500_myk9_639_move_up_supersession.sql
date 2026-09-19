@@ -86,12 +86,10 @@
 -- dog stays exactly where they were. Nothing half-lands, and no row is written
 -- that the schema cannot hold.
 --
--- PUSH FLAG: this version sorts BEFORE 20260918211700 (MYK9-642), which merged
--- first and is already applied live, so a plain `supabase db push` skips this
--- file as older than the remote head. It needs `supabase db push --include-all`.
--- The version is deliberately NOT bumped: it is free on origin/main and in
--- supabase_migrations.schema_migrations, and renumbering after the audit
--- verified this exact file would invalidate that verification.
+-- PUSH ORDER: this migration is deliberately timestamped AFTER 20260918211700
+-- (MYK9-642), which merged first. A normal `supabase db push` therefore applies
+-- this file in order; it must not rely on `--include-all` to discover the
+-- move-up schema.
 
 BEGIN;
 

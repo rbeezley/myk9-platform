@@ -212,7 +212,7 @@ describe('UserManagementPage drill-down', () => {
     client.setQueryData(['users', 'detail', person.id], completeFirst);
     client.setQueryData(['users', 'detail', secondPerson.id], completeSecond);
 
-    const firstClick = user.click(screen.getByRole('button', { name: 'menu edit', exact: true }));
+    const firstClick = user.click(screen.getByRole('button', { name: /^menu edit$/ }));
     const secondClick = user.click(screen.getByRole('button', { name: 'menu edit user-2' }));
 
     await waitFor(() => {

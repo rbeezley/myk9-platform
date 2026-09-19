@@ -1231,6 +1231,42 @@ describe('ReplicatedEntriesTable', () => {
       expect(mockEq).toHaveBeenCalledWith('show_id', expect.anything());
     });
 
+    it('paginates entry rows beyond PostgREST limits', async () => {
+      const firstPage = Array.from({ length: 1000 }, (_, index) => ({
+        id: `entry-${index}`,
+        show_id: TEST_LICENSE_KEY,
+        updated_at: `2026-06-05T12:${String(Math.floor(index / 60)).padStart(2, '0')}:${String(index % 60).padStart(2, '0')}.000Z`,
+      }));
+      const secondPage = [
+        {
+          id: 'entry-1000',
+          show_id: TEST_LICENSE_KEY,
+          updated_at: '2026-06-05T12:16:40.000Z',
+        },
+      ];
+      const mockRange = vi.fn((from: number) =>
+        Promise.resolve({ data: from === 0 ? firstPage : secondPage, error: null })
+      );
+      const mockEq = vi.fn().mockReturnValue({ range: mockRange });
+      const mockOrderById = vi.fn().mockReturnValue({ eq: mockEq });
+      const mockOrder = vi.fn().mockReturnValue({ order: mockOrderById });
+      const mockGt = vi.fn().mockReturnValue({ order: mockOrder });
+      const mockSelect = vi.fn().mockReturnValue({ gt: mockGt });
+
+      vi.mocked(supabaseMock.from).mockReturnValue({
+        select: mockSelect,
+      });
+
+      const result = await table.sync(TEST_LICENSE_KEY);
+
+      expect(result.success).toBe(true);
+      expect(mockRange).toHaveBeenNthCalledWith(1, 0, 999);
+      expect(mockRange).toHaveBeenNthCalledWith(2, 1000, 1999);
+      await expect(table.get('entry-1000')).resolves.toMatchObject({
+        id: 'entry-1000',
+      });
+    });
+
     it('should update sync metadata after successful sync', async () => {
       const mockQueryChain = {
         data: [],

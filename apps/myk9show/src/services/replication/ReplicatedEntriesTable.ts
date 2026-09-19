@@ -89,6 +89,8 @@ type MoveUpRpcReturns<Fn extends MoveUpRpcName> = Database['public']['Functions'
  */
 export const WITHDRAW_OWN_ENTRY_RPC = 'withdraw_own_entry';
 
+const ENTRIES_REPLICATION_PAGE_SIZE = 1000;
+
 /**
  * Project a replicated entry onto the withdraw predicate's input.
  *
@@ -239,21 +241,31 @@ export class ReplicatedEntriesTable extends ReplicatedTable<ReplicatedEntry> {
         // managers receive raw scored fields, while exhibitors only receive
         // their own entries with result columns nulled by the release cascade.
         // The view flattens dog display fields as dog_call_name/dog_breed.
-        let query = supabase
-          .from('view_authenticated_entry_results_replication')
-          .select('*')
-          .gt('updated_at', new Date(since).toISOString())
-          .order('updated_at', { ascending: true });
+        const rows: EntryRow[] = [];
+        for (let page = 0; ; page++) {
+          const from = page * ENTRIES_REPLICATION_PAGE_SIZE;
+          const to = from + ENTRIES_REPLICATION_PAGE_SIZE - 1;
+          let query = supabase
+            .from('view_authenticated_entry_results_replication')
+            .select('*')
+            .gt('updated_at', new Date(since).toISOString())
+            .order('updated_at', { ascending: true })
+          if (typeof query.order === 'function') {
+            query = query.order('id', { ascending: true });
+          }
 
-        query = query.eq('show_id', showScopeId);
+          query = query.eq('show_id', showScopeId);
+          const response =
+            typeof query.range === 'function' ? await query.range(from, to) : await query;
 
-        const { data, error } = await query;
+          if (response.error) {
+            throw new Error(`Entries refresh failed: ${response.error.message}`);
+          }
 
-        if (error) {
-          throw new Error(`Entries refresh failed: ${error.message}`);
+          const pageRows = (response.data ?? []) as unknown as EntryRow[];
+          rows.push(...pageRows);
+          if (pageRows.length < ENTRIES_REPLICATION_PAGE_SIZE) return rows;
         }
-
-        return (data ?? []) as unknown as EntryRow[];
       },
       getRemoteId: remote => {
         return String(remote.id);

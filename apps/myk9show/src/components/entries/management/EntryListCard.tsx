@@ -192,6 +192,15 @@ export const EntryListCard: React.FC<EntryListCardProps> = ({
               Fee: ${entry.totalFee} (Paid: ${entry.paidAmount})
             </span>
 
+            {/* MYK9-639: this run was moved up and the entry holding its money
+                is not in this read, so the fee above is the destination's own
+                $0 -- say so rather than let it read as a settled figure. */}
+            {entry.moneyRootUnresolved && (
+              <Badge variant="outline" className="border-warning text-warning">
+                Payment record not loaded
+              </Badge>
+            )}
+
             {entry.comped ? (
               <Tooltip>
                 <TooltipTrigger asChild>

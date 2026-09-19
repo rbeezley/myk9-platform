@@ -34,7 +34,7 @@ export interface RawOperationalEntryInput {
    * so this row's payment status says nothing about whether anyone owes
    * anything.
    */
-  moved_from_entry_id?: string | null;
+  moved_from_entry_id?: string | null | undefined;
 }
 
 export interface OperationalClassInput {

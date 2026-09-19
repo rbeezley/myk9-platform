@@ -213,4 +213,21 @@ describe('EntryListCard - check-in button affordance', () => {
 
     expect(onRemoveEntry).toHaveBeenCalledWith('entry-1');
   });
+  /**
+   * MYK9-639: a destination whose paying source did not come back in the read
+   * shows its own $0 fee. Without this the number reads as a settled figure.
+   */
+  it('says so when the entry holding this run\'s money is not loaded', () => {
+    render(
+      <EntryListCard {...defaultProps} entries={[makeEntry({ moneyRootUnresolved: true })]} />
+    );
+
+    expect(screen.getByText('Payment record not loaded')).toBeInTheDocument();
+  });
+
+  it('shows no such warning for an ordinary entry', () => {
+    render(<EntryListCard {...defaultProps} />);
+
+    expect(screen.queryByText('Payment record not loaded')).not.toBeInTheDocument();
+  });
 });

@@ -1,4 +1,4 @@
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen, fireEvent, within } from '@testing-library/react';
 import { describe, it, expect, vi } from 'vitest';
 import { MemoryRouter, Routes, Route, useLocation, useNavigate } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
@@ -19,8 +19,23 @@ vi.mock('@/components/common/PageHeader', () => ({
   ),
 }));
 vi.mock('@/components/common/DetailHero', () => ({
-  DetailHero: ({ headerActions }: { headerActions?: React.ReactNode }) => (
-    <div data-testid="detail-hero">{headerActions}</div>
+  DetailHero: ({
+    headerActions,
+    primaryAction,
+  }: {
+    headerActions?: React.ReactNode;
+    primaryAction?: { label: string; onClick: () => void };
+  }) => (
+    <div data-testid="detail-hero">
+      <div data-testid="detail-hero-header-actions">{headerActions}</div>
+      {primaryAction && (
+        <div data-testid="detail-hero-side-actions">
+          <button type="button" onClick={primaryAction.onClick}>
+            {primaryAction.label}
+          </button>
+        </div>
+      )}
+    </div>
   ),
 }));
 vi.mock('@/components/shows/ShowDateBlock', () => ({ ShowDateBlock: () => null }));
@@ -183,10 +198,14 @@ describe('ShowManagementShell', () => {
     expect(screen.getByTestId('status-pill')).toBeInTheDocument();
   });
 
-  it('shows Edit for managers and opens the existing edit panel', () => {
+  it('shows Edit in the side action slot for managers and opens the existing edit panel', () => {
     renderShell();
 
-    const editButton = screen.getByRole('button', { name: 'Edit' });
+    const headerActions = screen.getByTestId('detail-hero-header-actions');
+    expect(headerActions).not.toHaveTextContent('Edit');
+
+    const sideActions = screen.getByTestId('detail-hero-side-actions');
+    const editButton = within(sideActions).getByRole('button', { name: 'Edit' });
     expect(editButton).toBeInTheDocument();
     fireEvent.click(editButton);
 

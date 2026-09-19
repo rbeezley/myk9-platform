@@ -227,9 +227,6 @@ export function ShowManagementShell({
               metadata={[]}
               headerActions={
                 <>
-                  <Button type="button" variant="outline" size="touch" onClick={openEditPanel}>
-                    Edit
-                  </Button>
                   <LiveUpdateIndicator />
                   <ShowPresenceStack />
                   <span id={SHOW_STATUS_CONTROL_ANCHOR} className="scroll-mt-20">
@@ -237,6 +234,7 @@ export function ShowManagementShell({
                   </span>
                 </>
               }
+              primaryAction={{ label: 'Edit', onClick: openEditPanel }}
               footer={
                 <QuickInfoCards
                   show={show}

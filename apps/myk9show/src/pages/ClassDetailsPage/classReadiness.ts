@@ -37,7 +37,7 @@ export function buildClassReadinessSummary(
   entries: ReadonlyArray<ClassReadinessEntry>
 ): ClassReadinessSummary {
   const attentionReasons = entries.map(entry =>
-    entry.check_in_status === 'pulled' ? [] : classifyRawEntryAttention(entry)
+    entry.check_in_status === 'pulled' ? [] : classifyRawEntryAttention(entry, entries)
   );
   const checkInEligibleEntries = entries.filter(
     entry => getOperationalEntryState({ rawEntryStatus: entry.entry_status }) === 'accepted'

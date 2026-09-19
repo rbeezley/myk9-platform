@@ -131,7 +131,7 @@ describe('moveUpSupersession', () => {
       const migration = readFileSync(
         resolve(
           __dirname,
-          '../../../../../../supabase/migrations/20260918193300_myk9_639_move_up_supersession.sql'
+          '../../../../../../supabase/migrations/20260919161500_myk9_639_move_up_supersession.sql'
         ),
         'utf8'
       );

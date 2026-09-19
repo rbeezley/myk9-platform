@@ -251,6 +251,7 @@ export function useMyEntriesData({
         name: classData?.name || 'Unknown Class',
         number: classData?.class_number || '',
         fee: (entry.entry_fee as number) || 0,
+        movedFromEntryId: (entry.moved_from_entry_id as string | null) ?? null,
         trialDate,
         trialNumber,
         trialTimezone,

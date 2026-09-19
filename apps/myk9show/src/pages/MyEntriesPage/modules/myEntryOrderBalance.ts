@@ -74,6 +74,7 @@ function toBalanceSources(classes: EntryClass[], ctx: OrderBalanceContext): Entr
     // to the order context when the row never carried the field at all.
     paymentMethod: cls.paymentMethod !== undefined ? cls.paymentMethod : ctx.paymentMethod,
     totalFee: cls.fee,
+    movedFromEntryId: cls.movedFromEntryId,
   }));
 }
 

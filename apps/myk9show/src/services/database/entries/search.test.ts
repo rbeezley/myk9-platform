@@ -366,6 +366,42 @@ describe('getUserEntries account-scope read', () => {
         expect.objectContaining({ column: 'withdrawal_reason_code' })
       );
     });
+
+    it('also drops moved_from_entry_id when the move-up migration is not applied', async () => {
+      mockReplicatedStores();
+      const rows = [{ id: 'entry-1' }];
+      const moveUpSchemaError = Object.assign(
+        new Error('column view_authenticated_entry_results.moved_from_entry_id does not exist'),
+        { code: '42703' }
+      );
+      const viewQuery = makeViewEntriesQuery(rows);
+      viewQuery.range.mockImplementation(() => {
+        const select = viewQuery.select.mock.calls.at(-1)?.[0] ?? '';
+        return Promise.resolve(
+          select.includes('moved_from_entry_id')
+            ? { data: [], error: moveUpSchemaError }
+            : { data: rows, error: null }
+        );
+      });
+      mocks.supabaseFrom.mockImplementation((table: string) => {
+        if (table === 'view_authenticated_entry_results') return viewQuery;
+        throw new Error(`Unexpected table: ${table}`);
+      });
+
+      const result = await getUserEntries('user-1');
+
+      expect(result.source).toBe('confirmed');
+      expect(result.data).toEqual(rows);
+      const selects = viewQuery.select.mock.calls.map(call => call[0]);
+      expect(selects).toHaveLength(2);
+      expect(selects[0]).toContain('moved_from_entry_id');
+      expect(selects[1]).not.toContain('moved_from_entry_id');
+      expect(mocks.loggerWarn).toHaveBeenCalledWith(
+        expect.stringContaining('moved_from_entry_id'),
+        'database',
+        expect.objectContaining({ column: 'moved_from_entry_id' })
+      );
+    });
   });
 
   /**

@@ -33,6 +33,8 @@ export interface EntryClass {
   name: string;
   number: string;
   fee: number;
+  /** The source row carrying money for a moved-up destination. */
+  movedFromEntryId?: string | null | undefined;
   /** Trial date for this class row, distinct from the show start date. */
   trialDate?: Date | undefined;
   /** Trial number assigned by the show secretary/registry. */

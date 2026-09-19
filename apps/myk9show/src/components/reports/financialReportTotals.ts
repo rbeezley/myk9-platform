@@ -303,7 +303,7 @@ export function calculateFinancialReportTotals(
     paymentBreakdown: [...paymentMap.values()].sort(sortBuckets),
     trialBreakdown: [...trialMap.values()].sort(sortBuckets),
     unresolvedMoneyRoots: attribution.unresolved
-      .filter(item => countedIds.has(item.entryId))
+      .filter(item => item.problem === 'orphaned-supersession' || countedIds.has(item.entryId))
       .map(({ entryId, problem }) => ({ entryId, problem })),
   };
 }

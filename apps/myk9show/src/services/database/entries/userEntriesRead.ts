@@ -23,6 +23,7 @@ import { buildReplicatedUserEntryRows } from './userEntriesReplication';
 import { applyOrderReferenceRule } from './orderReferenceRule';
 import { selectOwnedDogIds } from '@/utils/dogOwnership';
 import {
+  isMoveUpLinkSchemaUnavailable,
   isWithdrawalReasonCodeSchemaUnavailable,
   isRegistrationConfirmationNumberSchemaUnavailable,
 } from '@/features/payments/pullRefundSchemaCompatibility';
@@ -174,13 +175,18 @@ export const USER_ENTRIES_SELECT = `
 export function buildUserEntriesSelect(options: {
   includeReasonCode: boolean;
   includeRegistrationConfirmationNumber: boolean;
+  includeMoveUpLink?: boolean;
 }): string {
+  const baseSelect =
+    options.includeMoveUpLink === false
+      ? USER_ENTRIES_SELECT.replace(/,\s*moved_from_entry_id/, '')
+      : USER_ENTRIES_SELECT;
   const optional = [
     options.includeReasonCode ? 'withdrawal_reason_code' : null,
     options.includeRegistrationConfirmationNumber ? 'registration_confirmation_number' : null,
   ].filter((column): column is string => column !== null);
-  if (optional.length === 0) return USER_ENTRIES_SELECT;
-  return `${USER_ENTRIES_SELECT},\n      ${optional.join(',\n      ')}`;
+  if (optional.length === 0) return baseSelect;
+  return `${baseSelect},\n      ${optional.join(',\n      ')}`;
 }
 
 // Routes own-entry reads through the cascade-aware authenticated view so scored
@@ -200,6 +206,7 @@ async function postgrestGetUserEntries() {
   // MYK9-659's view column, tracked separately: two INDEPENDENT migrations back
   // these two columns, so one missing must not drop the other.
   let includeRegistrationConfirmationNumber = true;
+  let includeMoveUpLink = true;
   // ONE deadline for the whole paged read, not one per page. `withTimeout`
   // only races the promise it is given, so when it wins, the loop below is
   // still in flight — a per-page signal would let each SUBSEQUENT page start a
@@ -215,7 +222,11 @@ async function postgrestGetUserEntries() {
       supabase
         .from('view_authenticated_entry_results')
         .select(
-          buildUserEntriesSelect({ includeReasonCode, includeRegistrationConfirmationNumber })
+          buildUserEntriesSelect({
+            includeReasonCode,
+            includeRegistrationConfirmationNumber,
+            includeMoveUpLink,
+          })
         )
         // My Entries is OWN entries only. The view returns can_manage OR
         // is_own_entry rows, so without this filter a secretary/admin would receive
@@ -229,37 +240,45 @@ async function postgrestGetUserEntries() {
         .range(from, to);
 
     let response = await runPage();
-    if (includeReasonCode && isWithdrawalReasonCodeSchemaUnavailable(response.error)) {
-      // Pre-20260918041700 database. Drop the column and re-ask for this page;
-      // every later page goes without it too.
-      includeReasonCode = false;
-      // SAY SO. This branch is the only evidence anywhere that the migration has
-      // not been pushed: without it the page renders correctly, silently pays a
-      // doubled first-page round trip, and nothing tells anyone that the push is
-      // outstanding — or, later, that the compat arm is safe to delete
-      // (MYK9-654). The file's other degraded states warn the same way.
-      logger.warn(
-        'My Entries read without withdrawal_reason_code: migration 20260918041700 is not applied',
-        'database',
-        { column: 'withdrawal_reason_code', migration: '20260918041700' }
-      );
-      response = await runPage();
-    }
-    if (
-      includeRegistrationConfirmationNumber &&
-      isRegistrationConfirmationNumberSchemaUnavailable(response.error)
-    ) {
-      // Pre-20260918193700 database. Same contract as the arm above: drop the
-      // column, re-ask this page, and go without it for every later page. The
-      // online receipt falls back to the `registration:registration_id(...)`
-      // embed's confirmation number, which is what it read before MYK9-659.
-      includeRegistrationConfirmationNumber = false;
-      logger.warn(
-        'My Entries read without registration_confirmation_number: migration 20260918193700 is not applied',
-        'database',
-        { column: 'registration_confirmation_number', migration: '20260918193700' }
-      );
-      response = await runPage();
+    for (let retry = 0; retry < 3; retry += 1) {
+      if (includeMoveUpLink && isMoveUpLinkSchemaUnavailable(response.error)) {
+        includeMoveUpLink = false;
+        logger.warn(
+          'My Entries read without moved_from_entry_id: move-up migration is not applied',
+          'database',
+          { column: 'moved_from_entry_id', migration: '20260918193300' }
+        );
+        response = await runPage();
+        continue;
+      }
+      if (includeReasonCode && isWithdrawalReasonCodeSchemaUnavailable(response.error)) {
+        // Pre-20260918041700 database. Drop the column and re-ask for this page;
+        // every later page goes without it too.
+        includeReasonCode = false;
+        logger.warn(
+          'My Entries read without withdrawal_reason_code: migration 20260918041700 is not applied',
+          'database',
+          { column: 'withdrawal_reason_code', migration: '20260918041700' }
+        );
+        response = await runPage();
+        continue;
+      }
+      if (
+        includeRegistrationConfirmationNumber &&
+        isRegistrationConfirmationNumberSchemaUnavailable(response.error)
+      ) {
+        // Pre-20260918193700 database. Drop the column and re-ask this page;
+        // every later page goes without it too.
+        includeRegistrationConfirmationNumber = false;
+        logger.warn(
+          'My Entries read without registration_confirmation_number: migration 20260918193700 is not applied',
+          'database',
+          { column: 'registration_confirmation_number', migration: '20260918193700' }
+        );
+        response = await runPage();
+        continue;
+      }
+      break;
     }
     const { data, error } = response;
 

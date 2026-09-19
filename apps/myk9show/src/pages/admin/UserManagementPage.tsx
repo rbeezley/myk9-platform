@@ -241,7 +241,8 @@ const UserManagementPage: React.FC = () => {
 
   const handleEditUser = useCallback(
     (user: User) => {
-      setSelectedUser(queryClient.getQueryData<User>(queryKeys.users.detail(user.id)) ?? user);
+      const cachedUser = queryClient.getQueryData<User>(queryKeys.users.detail(user.id));
+      setSelectedUser(cachedUser?.privateFieldsReadComplete === true ? cachedUser : user);
       setShowUserEditPanel(true);
     },
     [queryClient]
@@ -313,8 +314,14 @@ const UserManagementPage: React.FC = () => {
         id: selectedUser.id,
         updates: userData,
       });
+      const detailKey = queryKeys.users.detail(updatedUser.id);
+      const cachedUser = queryClient.getQueryData<User>(detailKey);
+      if (cachedUser?.privateFieldsReadComplete !== true) {
+        await queryClient.refetchQueries({ queryKey: detailKey, exact: true, type: 'active' });
+      }
+      const hydratedUser = queryClient.getQueryData<User>(detailKey);
       setSelectedUser(
-        queryClient.getQueryData<User>(queryKeys.users.detail(updatedUser.id)) ?? updatedUser
+        hydratedUser?.privateFieldsReadComplete === true ? hydratedUser : updatedUser
       );
       setShowUserEditPanel(false);
       notifications.success('User updated successfully');

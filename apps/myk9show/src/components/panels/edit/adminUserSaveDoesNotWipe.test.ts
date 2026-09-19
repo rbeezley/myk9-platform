@@ -111,6 +111,26 @@ describe('a save from /admin/users does not wipe what it never loaded', () => {
     expect(cached.judgeQualifications).toEqual([]);
   });
 
+  it('does not mark an admin-list private mutation row as complete without detail hydration', () => {
+    const cached = mergeUserMutationResult(
+      undefined,
+      {
+        id: 'person-1',
+        firstName: 'Mariana',
+        lastName: 'Rivera',
+        dateOfBirth: '2012-04-05',
+        juniorHandlerNumbers: { AKC: 'NEW-7654321' },
+      },
+      { dateOfBirth: '2012-04-05', juniorHandlerNumbers: { AKC: 'NEW-7654321' } }
+    );
+
+    expect(cached.dateOfBirth).toBe('2012-04-05');
+    expect(cached.juniorHandlerNumbers).toEqual({ AKC: 'NEW-7654321' });
+    expect(cached.privateFieldsReadComplete).toBe(false);
+    expect(cached.roles).toBeUndefined();
+    expect(cached.judgeQualifications).toBeUndefined();
+  });
+
   it('marshals the edit panel payload before the atomic private-profile save', () => {
     const update = mapUserToDbUpdate(
       buildUserEditSavePayload(

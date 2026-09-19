@@ -144,7 +144,11 @@ export function mergeUserMutationResult(
     };
   }
 
-  return { ...updatedUser, privateFieldsReadComplete: privateFieldsChanged };
+  // A private RPC result contains the profile columns it wrote, but not the
+  // role and qualification joins that make a detail record complete. Do not
+  // let an admin-list save promote that narrow row into a complete cache entry;
+  // the detail query must hydrate it first.
+  return { ...updatedUser, privateFieldsReadComplete: false };
 }
 
 // User database service implementation

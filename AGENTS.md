@@ -283,10 +283,6 @@ For tiny docs-only edits, test-only nits, or narrow review fixes, the lightweigh
 
 ## PR reviews
 
-### Temporary review policy — through 2026-09-24
-
-Because Claude review capacity is nearly exhausted, use the fallback review path with sub-agents for code reviews through September 24, 2026. Do not describe that fallback as an independent Claude review; record the actual sub-agent lenses used and keep review-gate wording honest. Reassess after September 24 unless the user gives a newer instruction.
-
 When asked to review a PR, run focused verification by default when practical:
 
 - Inspect the diff for defects first.

@@ -59,9 +59,7 @@ export async function loadJuniorHandlerProfiles(
   return { byPersonId, readComplete: readComplete && namesResult.readComplete };
 }
 
-async function loadPeopleNames(
-  personIds: readonly string[]
-): Promise<{
+async function loadPeopleNames(personIds: readonly string[]): Promise<{
   byPersonId: Map<string, { firstName: string | null; lastName: string | null }>;
   readComplete: boolean;
 }> {

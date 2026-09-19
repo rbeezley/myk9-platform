@@ -30,5 +30,4 @@ export const PEOPLE_MAPPER_COLUMNS =
  * Private junior-handler fields are loaded by the relationship-scoped
  * `people_private` RPC, never by this broad people query.
  */
-export const PEOPLE_DIRECTORY_COLUMNS =
-  PEOPLE_MAPPER_COLUMNS;
+export const PEOPLE_DIRECTORY_COLUMNS = PEOPLE_MAPPER_COLUMNS;

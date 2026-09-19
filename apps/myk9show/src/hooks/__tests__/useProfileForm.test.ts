@@ -5,6 +5,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 
 // Mock supabase — useCurrentUserPerson queries directly
 const mockMaybeSingle = vi.fn().mockResolvedValue({ data: null, error: null });
+const { mockPrivateRpc } = vi.hoisted(() => ({ mockPrivateRpc: vi.fn() }));
 const mockIsDeletedAt = vi.fn().mockReturnValue({ maybeSingle: mockMaybeSingle });
 const mockEqAuthUserId = vi.fn().mockReturnValue({ is: mockIsDeletedAt });
 const mockSelect = vi.fn().mockReturnValue({ eq: mockEqAuthUserId });
@@ -12,6 +13,10 @@ vi.mock('@/services/database/supabaseClient', () => ({
   supabase: {
     from: () => ({ select: mockSelect }),
   },
+}));
+
+vi.mock('@/lib/supabase', () => ({
+  supabase: { rpc: mockPrivateRpc },
 }));
 
 vi.mock('@/lib/queryClient', () => ({
@@ -73,6 +78,7 @@ describe('useProfileForm', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockMutateAsync.mockResolvedValue({});
+    mockPrivateRpc.mockResolvedValue({ data: [], error: null });
     // Default: return person data from supabase
     mockMaybeSingle.mockResolvedValue({ data: dbPersonData, error: null });
   });

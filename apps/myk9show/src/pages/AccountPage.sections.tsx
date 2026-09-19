@@ -203,11 +203,21 @@ export function ProfileSection() {
           </div>
           {/* MYK9-570: junior handler inputs. Same component as the secretary's
               person edit — one set of labels, one set of rules. */}
+          {!form.privateFieldsReady && !form.isLoading && (
+            <Alert variant="destructive">
+              <AlertTriangle className="h-4 w-4" />
+              <AlertDescription>
+                Private profile fields are unavailable right now. They are read-only until the
+                connection is restored; please try again before saving.
+              </AlertDescription>
+            </Alert>
+          )}
           <JuniorHandlerFields
             idPrefix="account"
             dateOfBirth={form.values.dateOfBirth}
             juniorHandlerNumbers={form.values.juniorHandlerNumbers}
             dateOfBirthError={form.errors.dateOfBirth}
+            disabled={!form.privateFieldsReady}
             onDateOfBirthChange={value => form.setValue('dateOfBirth', value)}
             onJuniorHandlerNumberChange={(registryId, value) =>
               form.setValue('juniorHandlerNumbers', previous => ({

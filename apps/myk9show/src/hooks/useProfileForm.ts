@@ -115,6 +115,7 @@ export function useProfileForm() {
   const { user: authUser } = useAuthContext();
   const { data: person, isLoading } = useCurrentUserPerson(authUser?.id);
   const personId = person?.id || null;
+  const privateFieldsReady = person?.privateFieldsReadComplete === true;
   const updatePerson = useUpdatePerson();
 
   const [values, setValues] = useState<ProfileFormValues>({
@@ -211,15 +212,15 @@ export function useProfileForm() {
       setSaveError(message);
       return;
     }
+    if (!privateFieldsReady) {
+      const message =
+        'Private profile fields are unavailable right now. Please try again before saving.';
+      notifications.error(message);
+      setSaveError(message);
+      return;
+    }
     setSaving(true);
     try {
-      const privateFields = person.privateFieldsReadComplete
-        ? {
-            dateOfBirth: values.dateOfBirth,
-            juniorHandlerNumbers: juniorHandlerNumbersForSave(values.juniorHandlerNumbers),
-          }
-        : {};
-
       await updatePerson.mutateAsync({
         ...person,
         firstName: values.firstName.trim(),
@@ -230,10 +231,9 @@ export function useProfileForm() {
         state: values.state.trim(),
         zipCode: values.zipCode.trim(),
         // MYK9-570. '' clears the date; the numbers are reassembled into the
-        // registry-keyed map the column stores, omitting blanks. If the private
-        // RPC was incomplete, omit both fields instead of overwriting values
-        // that were never loaded.
-        ...privateFields,
+        // registry-keyed map the column stores, omitting blanks.
+        dateOfBirth: values.dateOfBirth,
+        juniorHandlerNumbers: juniorHandlerNumbersForSave(values.juniorHandlerNumbers),
       });
       // Explicit duration at this callsite: the profile save toast previously
       // persisted indefinitely (defaulted to no auto-dismiss) and stuck around
@@ -288,6 +288,7 @@ export function useProfileForm() {
     isLoading,
     person,
     personId,
+    privateFieldsReady,
     email: authUser?.email || '',
   };
 }

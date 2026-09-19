@@ -108,7 +108,9 @@ describe('the migration that protects the private columns', () => {
     const sql = sqlWithoutProse(readFileSync(resolve(MIGRATIONS_DIR, file!), 'utf8'));
     expect(sql).toMatch(/CREATE TABLE public\.people_private/i);
     expect(sql).toMatch(/REVOKE ALL ON TABLE public\.people_private FROM anon/i);
-    expect(sql).toMatch(/GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE public\.people_private TO authenticated/i);
+    expect(sql).toMatch(
+      /GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE public\.people_private TO authenticated/i
+    );
     expect(sql).toMatch(/DROP COLUMN IF EXISTS date_of_birth/i);
     expect(sql).toMatch(/DROP COLUMN IF EXISTS junior_handler_numbers/i);
   });

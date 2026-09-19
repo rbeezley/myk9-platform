@@ -39,8 +39,7 @@ type PrivateUserFields = {
  * forced a cast at each of those call sites, which is exactly how a missing
  * column stops being visible to the compiler.
  */
-export type MappableDbUser =
-  Partial<Omit<DbUser, 'date_of_birth' | 'junior_handler_numbers'>> &
+export type MappableDbUser = Partial<Omit<DbUser, 'date_of_birth' | 'junior_handler_numbers'>> &
   Pick<DbUser, 'id'> &
   PrivateUserFields;
 

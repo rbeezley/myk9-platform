@@ -19,7 +19,6 @@ Any club admin or secretary can currently read every row in `people`, including 
 
 ### Modified Capabilities
 
-
 ## Impact
 
 - Supabase migration, grants, RLS policies, generated database types, and junior-handler read/write paths.

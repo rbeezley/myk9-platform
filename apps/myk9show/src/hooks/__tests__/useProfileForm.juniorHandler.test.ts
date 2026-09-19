@@ -42,6 +42,7 @@ vi.mock('@/lib/notifications', () => ({
   notifications: { error: vi.fn(), success: vi.fn() },
 }));
 
+import { notifications } from '@/lib/notifications';
 import { useProfileForm } from '../useProfileForm';
 
 const dbPersonData = {
@@ -92,6 +93,7 @@ describe('useProfileForm junior handler fields', () => {
 
   it('pre-fills the date of birth and the AKC number from the person row', async () => {
     const result = await loaded();
+    expect(result.current.privateFieldsReady).toBe(true);
     expect(result.current.values.dateOfBirth).toBe('2011-03-04');
     expect(result.current.values.juniorHandlerNumbers).toEqual({ AKC: '7654321' });
     expect(result.current.isDirty).toBe(false);
@@ -99,6 +101,7 @@ describe('useProfileForm junior handler fields', () => {
 
   it('is dirty when only the junior number changes', async () => {
     const result = await loaded();
+    expect(result.current.privateFieldsReady).toBe(true);
     act(() =>
       result.current.setValue('juniorHandlerNumbers', {
         ...result.current.values.juniorHandlerNumbers,
@@ -192,19 +195,22 @@ describe('useProfileForm junior handler fields', () => {
     expect(mockMutateAsync).toHaveBeenCalledWith(expect.objectContaining({ dateOfBirth: '' }));
   });
 
-  it('does not write private blanks when the private read is incomplete', async () => {
+  it('blocks every save when the private read is incomplete', async () => {
     mockPrivateRpc.mockResolvedValue({ data: null, error: { message: 'network unavailable' } });
     const result = await loaded();
+    expect(result.current.privateFieldsReady).toBe(false);
 
+    act(() => result.current.setValue('phone', '555-9999'));
     await act(async () => {
       await result.current.save();
     });
 
-    expect(mockMutateAsync).toHaveBeenCalledWith(
-      expect.not.objectContaining({ dateOfBirth: expect.anything() })
+    expect(mockMutateAsync).not.toHaveBeenCalled();
+    expect(result.current.saveError).toBe(
+      'Private profile fields are unavailable right now. Please try again before saving.'
     );
-    expect(mockMutateAsync).toHaveBeenCalledWith(
-      expect.not.objectContaining({ juniorHandlerNumbers: expect.anything() })
+    expect(notifications.error).toHaveBeenCalledWith(
+      'Private profile fields are unavailable right now. Please try again before saving.'
     );
   });
 });

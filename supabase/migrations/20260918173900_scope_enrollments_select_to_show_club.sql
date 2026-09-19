@@ -78,22 +78,18 @@
 --                                      (show_officials_label_not_permission_
 --                                      test.sql, MYK9-114). Pinned by
 --                                      assertion 7 of the behavioural test.
---   show-pinned CLUB_ADMIN          -> remains show-scoped. The policy adds
+--   show-pinned CLUB_ADMIN          -> WIDER, not tighter. Stated plainly
 --     (ur.show_id set)                 because it is the one shape in this
---                                      table that would move the wrong way,
+--                                      table that moves the wrong way, and an
 --                                      earlier draft of this header got it
 --                                      wrong by lumping it in with secretary:
 --                                      is_club_admin(check_club_id) has NO
 --                                      show_id predicate at all, so a row
 --                                      {club_admin, club_id C, show_id S1}
 --                                      went from "S1's enrollments only" to
---                                      "every show of club C". The explicit
---                                      show-pinned arm below prevents that
---                                      widening while keeping the shared
---                                      helper unchanged for other policies.
---                                      The remaining live-data notes below
---                                      explain why this shape is rare, but
---                                      rarity is not used as the guard.
+--                                      "every show of club C". Left as a
+--                                      documented edge rather than guarded,
+--                                      on three grounds: (a) zero user_roles
 --                                      rows of ANY role carry a non-null
 --                                      show_id on the live database; (b) the
 --                                      only writer that could produce one is
@@ -108,16 +104,13 @@
 --                                      one tenant. approve_role_request raises
 --                                      23514 unless p_show_id's show belongs to
 --                                      p_club_id, so S1 is always a show of C,
---                                      but the explicit exact-show arm below
---                                      prevents that widening. It remains
---                                      inside one tenant, which is the
---                                      cross-tenant boundary MYK9-663 fixes;
---                                      narrowing is_club_admin() itself would
---                                      change a predicate 30+ policies share.
---                                      The explicit arm in the final policy
---                                      preserves this exact-show behavior; the
---                                      shared helper remains club-wide only
---                                      for club-scoped appointments.
+--                                      and the widened set is exactly what a
+--                                      club_admin of C already gets from a
+--                                      plain club-scoped row. It is not a
+--                                      cross-tenant read, which is what
+--                                      MYK9-663 is about. Narrowing is_club_admin() is a
+--                                      change to a predicate 30+ policies
+--                                      share and does not belong in MYK9-663.
 --   show with club_id IS NULL       -> tighter, deliberately:
 --                                      manageable_show_ids() reaches nobody
 --                                      but a site admin on a club-less show
@@ -192,18 +185,6 @@ create policy "enrollments_select"
       WHERE p.auth_user_id = (SELECT auth.uid())
     )
     OR show_id IN (SELECT public.manageable_show_ids())
-    OR EXISTS (
-      SELECT 1
-      FROM public.user_roles ur
-      JOIN public.roles r ON r.id = ur.role_id
-      JOIN public.shows s ON s.id = enrollments.show_id
-      WHERE ur.auth_user_id = (SELECT auth.uid())
-        AND r.name = 'club_admin'
-        AND ur.show_id = enrollments.show_id
-        AND ur.club_id = s.club_id
-        AND ur.is_active = true
-        AND (ur.expires_at IS NULL OR ur.expires_at > now())
-    )
   );
 
 comment on policy "enrollments_select" on public.enrollments is
@@ -214,8 +195,7 @@ comment on policy "enrollments_select" on public.enrollments is
   'unscoped "holds secretary/club_admin ANYWHERE" disjunct that let any club''s '
   'staff read every club''s enrollments (MYK9-663). The is_show_official and '
   'handler_id arms are unchanged, so show officials and the exhibitor who owns '
-  'the enrollment keep their reads. Show-pinned club_admin rows retain exact '
-  'show scope instead of inheriting the club-wide manageable_show_ids() arm.';
+  'the enrollment keep their reads.';
 
 -- See the GRANTs note above: restates today's ACL, which
 -- pre_rule_table_grants_test.sql already enforces. A no-op as written.

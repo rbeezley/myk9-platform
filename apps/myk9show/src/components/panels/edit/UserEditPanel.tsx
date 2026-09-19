@@ -38,11 +38,14 @@ const TAB_TRIGGER_CLASS = 'gap-2 rounded-lg transition-all duration-300';
 
 const privateFieldsSnapshot = (data: Pick<UserFormData, 'dateOfBirth' | 'juniorHandlerNumbers'>) =>
   JSON.stringify([data.dateOfBirth, data.juniorHandlerNumbers]);
+const juniorHandlerNumbersSnapshot = (data: Pick<UserFormData, 'juniorHandlerNumbers'>) =>
+  JSON.stringify(data.juniorHandlerNumbers);
 
 // Form content component
 const UserEditForm: React.FC<{
   userId: string;
   canWritePrivateFields: boolean;
+  privateFieldsStatus: 'loading' | 'error' | 'readonly' | 'ready';
   hydratedUser: User | null | undefined;
   detailHydrationReady: boolean;
   open: boolean;
@@ -50,6 +53,7 @@ const UserEditForm: React.FC<{
 }> = ({
   userId,
   canWritePrivateFields,
+  privateFieldsStatus,
   hydratedUser,
   detailHydrationReady,
   open,
@@ -94,7 +98,8 @@ const UserEditForm: React.FC<{
     const nextDirty: PrivateFieldsDirty = {
       dateOfBirth: data.dateOfBirth !== privateFieldsBaselineRef.current.dateOfBirth,
       juniorHandlerNumbers:
-        privateFieldsSnapshot(data) !== privateFieldsSnapshot(privateFieldsBaselineRef.current),
+        juniorHandlerNumbersSnapshot(data) !==
+        juniorHandlerNumbersSnapshot(privateFieldsBaselineRef.current),
     };
     if (
       nextDirty.dateOfBirth !== privateFieldsDirtyRef.current.dateOfBirth ||
@@ -302,6 +307,7 @@ const UserEditForm: React.FC<{
             hasAdminPermission={hasPermission('admin:manage')}
             canEditAdvancedFields={canEditAdvancedFields}
             canWritePrivateFields={canWritePrivateFields}
+            privateFieldsStatus={privateFieldsStatus}
             onOpenPhotoModal={() => setIsPhotoModalOpen(true)}
           />
 
@@ -418,11 +424,9 @@ export const UserEditPanel: React.FC<UserEditPanelProps> = ({
     dateOfBirth: false,
     juniorHandlerNumbers: false,
   });
-  const {
-    data: hydratedUser,
-    isFetchedAfterMount: detailReadFetched,
-    isFetching: detailReadFetching,
-  } = useUserQuery(userId, { refetchOnMount: 'always' });
+  const { data: hydratedUser, isFetchedAfterMount: detailReadFetched } = useUserQuery(userId, {
+    refetchOnMount: 'always',
+  });
   const isCreateMode = !userId;
   const title = isCreateMode ? 'Add Person' : 'Edit User';
   const subtitle = isCreateMode ? 'Create a person profile' : `Editing profile for ${userName}`;
@@ -430,7 +434,11 @@ export const UserEditPanel: React.FC<UserEditPanelProps> = ({
   const initialFormData = useMemo(() => userToFormData(initialUserData), [initialUserData]);
   const detailHydrationReady =
     isCreateMode ||
-    (detailReadFetched && !detailReadFetching && hydratedUser?.privateFieldsReadComplete === true);
+    // Once a complete private read has hydrated the form, a background
+    // refresh must not silently omit dirty private fields from the save.
+    // `handleEditUser` invalidates this marker before an edit begins, so a
+    // stale cached record cannot become writable during the initial fetch.
+    (detailReadFetched && hydratedUser?.privateFieldsReadComplete === true);
   const hasPrivateWritePermission =
     hasPermission('admin:manage') ||
     // A subject may edit their own private fields. `userId` is the people id;
@@ -439,6 +447,13 @@ export const UserEditPanel: React.FC<UserEditPanelProps> = ({
     (currentUser?.id !== undefined && initialUserData.user_id === currentUser.id) ||
     (userWithRoles?.databaseUserId !== undefined && userWithRoles.databaseUserId === userId);
   const canWritePrivateFields = detailHydrationReady && hasPrivateWritePermission;
+  const privateFieldsStatus = detailHydrationReady
+    ? hasPrivateWritePermission
+      ? 'ready'
+      : 'readonly'
+    : hydratedUser?.privateFieldsReadError
+      ? 'error'
+      : 'loading';
 
   // Handle save — persist profile data. Role assignments have their own
   // scope-aware surface in User Management.
@@ -473,6 +488,7 @@ export const UserEditPanel: React.FC<UserEditPanelProps> = ({
       <UserEditForm
         userId={userId}
         canWritePrivateFields={canWritePrivateFields}
+        privateFieldsStatus={privateFieldsStatus}
         hydratedUser={hydratedUser}
         detailHydrationReady={detailHydrationReady}
         open={open}

@@ -56,6 +56,9 @@ export interface UseEntryFormDataResult {
   } | null;
   isLoading: boolean;
   isError: boolean;
+  /** Public paperwork remains usable when private hydration is unavailable. */
+  privateFieldsReadComplete: boolean;
+  privateFieldsReadError?: string;
 }
 
 async function fetchEntryFormData(
@@ -72,6 +75,8 @@ async function fetchEntryFormData(
     experienceIsPublished?: boolean;
     experiencePublishedContent?: ShowExperienceSnapshot | null;
   } | null;
+  privateFieldsReadComplete: boolean;
+  privateFieldsReadError?: string;
 }> {
   const { data: showRaw } = await supabase
     .from('shows')
@@ -144,7 +149,14 @@ async function fetchEntryFormData(
   const { data: entriesRaw } = await entriesQuery;
 
   if (!entriesRaw || entriesRaw.length === 0) {
-    return { dogs: [], secretary: null, trials, classes, show };
+    return {
+      dogs: [],
+      secretary: null,
+      trials,
+      classes,
+      show,
+      privateFieldsReadComplete: true,
+    };
   }
 
   const classMap = new Map(classes.map(c => [c.id, c]));
@@ -215,12 +227,6 @@ async function fetchEntryFormData(
     // the broad people lookup above remains directory-safe.
     loadPeoplePrivateProfiles([...new Set([...ownerIds, ...handlerIds])]),
   ]);
-  if (!privateResult.readComplete) {
-    // Do not turn an unavailable private read into plausible-looking blank
-    // junior fields on paperwork. React Query exposes this as its normal
-    // error state, so callers will not print incomplete forms.
-    throw new Error('Private handler profile data is unavailable');
-  }
   const privateProfiles = privateResult.byPersonId;
 
   type EntryFormPersonRow = {
@@ -406,7 +412,15 @@ async function fetchEntryFormData(
     });
   }
 
-  return { dogs, secretary, trials, classes, show };
+  return {
+    dogs,
+    secretary,
+    trials,
+    classes,
+    show,
+    privateFieldsReadComplete: privateResult.readComplete,
+    ...(privateResult.readError ? { privateFieldsReadError: privateResult.readError } : {}),
+  };
 }
 
 export function useEntryFormData({
@@ -438,5 +452,9 @@ export function useEntryFormData({
     show: query.data?.show ?? null,
     isLoading: query.isLoading,
     isError: query.isError,
+    privateFieldsReadComplete: query.data?.privateFieldsReadComplete ?? false,
+    ...(query.data?.privateFieldsReadError
+      ? { privateFieldsReadError: query.data.privateFieldsReadError }
+      : {}),
   };
 }

@@ -53,14 +53,17 @@ function mapPrivateRow(row: PrivatePeopleRow): PrivatePersonProfile {
  * RPC scopes each person through self/site-admin or entry → managed show; an
  * unrelated manager therefore receives no row rather than a blank PII object.
  */
-export async function loadPeoplePrivateProfiles(
-  personIds: readonly string[]
-): Promise<{ byPersonId: Map<string, PrivatePersonProfile>; readComplete: boolean }> {
+export async function loadPeoplePrivateProfiles(personIds: readonly string[]): Promise<{
+  byPersonId: Map<string, PrivatePersonProfile>;
+  readComplete: boolean;
+  readError?: string;
+}> {
   const ids = [...new Set(personIds.filter(Boolean))];
   if (ids.length === 0) return { byPersonId: new Map(), readComplete: true };
 
   const byPersonId = new Map<string, PrivatePersonProfile>();
   let readComplete = true;
+  let readError: string | undefined;
 
   for (const batch of chunk(ids, ID_CHUNK_SIZE)) {
     try {
@@ -69,15 +72,17 @@ export async function loadPeoplePrivateProfiles(
       });
       if (error) {
         readComplete = false;
+        readError ??= error.message;
         continue;
       }
       for (const row of data ?? []) byPersonId.set(row.person_id, mapPrivateRow(row));
-    } catch {
+    } catch (error) {
       readComplete = false;
+      readError ??= error instanceof Error ? error.message : 'Private profile read failed';
     }
   }
 
-  return { byPersonId, readComplete };
+  return { byPersonId, readComplete, ...(readError ? { readError } : {}) };
 }
 
 /**

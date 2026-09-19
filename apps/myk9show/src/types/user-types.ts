@@ -29,6 +29,8 @@ export interface User {
   juniorHandlerNumbers?: Record<string, string> | undefined;
   /** True only when the private profile RPC completed for this user. */
   privateFieldsReadComplete?: boolean | undefined;
+  /** Diagnostic detail retained when public identity loaded but private hydration did not. */
+  privateFieldsReadError?: string | undefined;
   membershipId?: string | undefined;
   clubAffiliations?: string[] | undefined;
   roles?: UserRole[] | undefined;

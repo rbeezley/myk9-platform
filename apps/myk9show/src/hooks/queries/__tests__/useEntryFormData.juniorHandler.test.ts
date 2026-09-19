@@ -221,12 +221,16 @@ describe('useEntryFormData resolves the handler person for the junior fields', (
     ]);
   });
 
-  it('fails closed when the private RPC is unavailable instead of printing blanks', async () => {
+  it('keeps the public form usable and marks private fields unavailable', async () => {
     routeTables([{ id: 'entry-a', handler: 'Chris Kid', handler_id: KID.id }], [SARAH, KID]);
     mocks.rpc.mockRejectedValueOnce(new Error('network unavailable'));
     const { result } = renderEntryFormData();
 
-    await waitFor(() => expect(result.current.isError).toBe(true));
-    expect(result.current.dogs).toEqual([]);
+    await waitFor(() => expect(result.current.dogs).toHaveLength(1));
+    expect(result.current.privateFieldsReadComplete).toBe(false);
+    expect(result.current.isError).toBe(false);
+    expect(result.current.dogs).toHaveLength(1);
+    expect(result.current.dogs[0]?.handlerDateOfBirth).toBeNull();
+    expect(result.current.dogs[0]?.handlerJuniorHandlerNumbers).toBeUndefined();
   });
 });

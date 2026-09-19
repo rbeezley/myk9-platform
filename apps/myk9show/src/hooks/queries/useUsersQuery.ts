@@ -29,6 +29,7 @@ type PrivateUserFields = {
   date_of_birth?: string | null;
   junior_handler_numbers?: unknown;
   privateFieldsReadComplete?: boolean;
+  privateFieldsReadError?: string;
 };
 
 /**
@@ -66,6 +67,9 @@ export const mapDbUserToUser = (dbUser: MappableDbUser): User => ({
   juniorHandlerNumbers: normalizeJuniorHandlerNumbers(dbUser.junior_handler_numbers),
   ...(dbUser.privateFieldsReadComplete !== undefined && {
     privateFieldsReadComplete: dbUser.privateFieldsReadComplete,
+  }),
+  ...(dbUser.privateFieldsReadError !== undefined && {
+    privateFieldsReadError: dbUser.privateFieldsReadError,
   }),
   roles: extractRoles(dbUser as unknown as Record<string, unknown>),
   createdAt: dbUser.created_at ? new Date(dbUser.created_at) : undefined,

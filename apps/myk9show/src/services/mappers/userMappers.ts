@@ -99,6 +99,12 @@ export const mapDatabaseToUser = (dbUser: Record<string, unknown>): User => {
     // un-junior every handler on the paperwork.
     dateOfBirth: (dbUser.date_of_birth as string | null) ?? undefined,
     juniorHandlerNumbers: normalizeJuniorHandlerNumbers(dbUser.junior_handler_numbers),
+    ...(typeof dbUser.privateFieldsReadComplete === 'boolean'
+      ? { privateFieldsReadComplete: dbUser.privateFieldsReadComplete }
+      : {}),
+    ...(typeof dbUser.privateFieldsReadError === 'string'
+      ? { privateFieldsReadError: dbUser.privateFieldsReadError }
+      : {}),
 
     // Map associated dogs if included in query
     dogs: Array.isArray(dbUser.dog)

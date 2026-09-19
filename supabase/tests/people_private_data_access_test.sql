@@ -122,13 +122,6 @@ BEGIN
   PERFORM public.update_person_with_private(handler_id, '{"phone":"manager-save"}'::jsonb, '{}'::jsonb);
   writes_denied := false;
   BEGIN
-    PERFORM public.upsert_people_private(handler_id, DATE '2012-04-04', '{"AKC":"manager"}'::jsonb);
-  EXCEPTION WHEN insufficient_privilege THEN
-    writes_denied := true;
-  END;
-  IF NOT writes_denied THEN RAISE EXCEPTION 'FAIL related show manager can write private profile'; END IF;
-  writes_denied := false;
-  BEGIN
     PERFORM public.update_person_with_private(
       handler_id,
       '{"phone":"manager-private"}'::jsonb,
@@ -164,7 +157,11 @@ BEGIN
 
   writes_denied := false;
   BEGIN
-    PERFORM public.upsert_people_private(deleted_handler, DATE '2012-04-06', '{}'::jsonb);
+    PERFORM public.update_person_with_private(
+      deleted_handler,
+      '{}'::jsonb,
+      '{"date_of_birth":"2012-04-06"}'::jsonb
+    );
   EXCEPTION WHEN SQLSTATE 'P0002' THEN
     writes_denied := true;
   END;

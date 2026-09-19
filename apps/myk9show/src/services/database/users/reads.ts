@@ -112,10 +112,11 @@ export const getUserById = async (id: string) => {
       throw createDatabaseError(error, 'user', 'select_by_id');
     }
 
-    const { byPersonId: privateProfiles, readComplete } = await loadPeoplePrivateProfiles([id]);
-    if (!readComplete) {
-      throw new Error('Private person fields are unavailable; refusing incomplete hydration');
-    }
+    const {
+      byPersonId: privateProfiles,
+      readComplete,
+      readError,
+    } = await loadPeoplePrivateProfiles([id]);
     const privateProfile = privateProfiles.get(id);
     const row = privateProfile
       ? {
@@ -125,7 +126,14 @@ export const getUserById = async (id: string) => {
         }
       : data;
     const [person] = await hydrateVisibleRoles([row]);
-    return { data: { ...person, privateFieldsReadComplete: true }, error: null };
+    return {
+      data: {
+        ...person,
+        privateFieldsReadComplete: readComplete,
+        ...(readError ? { privateFieldsReadError: readError } : {}),
+      },
+      error: null,
+    };
   } catch (error) {
     const duration = Date.now() - startTime;
     const dbError = createDatabaseError(error, 'user', 'select_by_id');
@@ -492,10 +500,11 @@ export const getDeletedUserById = async (id: string) => {
     const person = rows.find(row => row.id === id) ?? null;
     if (!person) return { data: null, error: null };
 
-    const { byPersonId: privateProfiles, readComplete } = await loadPeoplePrivateProfiles([id]);
-    if (!readComplete) {
-      throw new Error('Private person fields are unavailable; refusing incomplete hydration');
-    }
+    const {
+      byPersonId: privateProfiles,
+      readComplete,
+      readError,
+    } = await loadPeoplePrivateProfiles([id]);
     const privateProfile = privateProfiles.get(id);
     const personWithPrivate = privateProfile
       ? {
@@ -577,7 +586,12 @@ export const getDeletedUserById = async (id: string) => {
     });
 
     return {
-      data: { ...personWithPrivate, user_roles: heldAtRemoval, privateFieldsReadComplete: true },
+      data: {
+        ...personWithPrivate,
+        user_roles: heldAtRemoval,
+        privateFieldsReadComplete: readComplete,
+        ...(readError ? { privateFieldsReadError: readError } : {}),
+      },
       error: null,
     };
   } catch (error) {

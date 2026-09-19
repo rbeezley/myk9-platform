@@ -29,6 +29,7 @@ export interface UserTableProps {
   onViewUser: (user: import('@/types/user-types').User) => void;
   /** Write intent — "Edit user", which opens the panel over this list. */
   onEditUser: (user: import('@/types/user-types').User) => void;
+  editingUserId?: string | null;
   onManageRoles?: (user: import('@/types/user-types').User) => void;
   currentPage: number;
   totalPages: number;

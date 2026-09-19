@@ -23,6 +23,7 @@ export interface UserRowActionHandlers {
   onChangeStatus?: ((user: User) => void) | undefined;
   statusActionDisabled?: boolean | undefined;
   statusActionDescription?: string | undefined;
+  editActionDisabled?: boolean | undefined;
 }
 
 export function buildUserRowActions(user: User, handlers: UserRowActionHandlers): RowAction[] {
@@ -35,6 +36,7 @@ export function buildUserRowActions(user: User, handlers: UserRowActionHandlers)
     onChangeStatus,
     statusActionDisabled,
     statusActionDescription,
+    editActionDisabled,
   } = handlers;
   const isRemoved = Boolean(user.deletedAt);
 
@@ -80,6 +82,8 @@ export function buildUserRowActions(user: User, handlers: UserRowActionHandlers)
       label: 'Edit user',
       icon: <Edit />,
       onSelect: () => onEdit(user),
+      ...(editActionDisabled !== undefined ? { disabled: editActionDisabled } : {}),
+      ...(editActionDisabled ? { description: 'Loading the latest profile…' } : {}),
       className: 'myk9-table-dropdown-item',
     },
     ...(onManageRoles

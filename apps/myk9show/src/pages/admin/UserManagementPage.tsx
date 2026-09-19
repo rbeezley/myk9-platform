@@ -112,6 +112,7 @@ const UserManagementPage: React.FC = () => {
   const [showFilters, setShowFilters] = useState(false);
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
   const editRequestRef = useRef(0);
+  const [editingUserId, setEditingUserId] = useState<string | null>(null);
   const [showCreateDialog, setShowCreateDialog] = useState(false);
   const [showUserEditPanel, setShowUserEditPanel] = useState(false);
   const [roleAssignTarget, setRoleAssignTarget] = useState<User | null>(null);
@@ -243,6 +244,7 @@ const UserManagementPage: React.FC = () => {
   const handleEditUser = useCallback(
     async (user: User) => {
       const requestId = ++editRequestRef.current;
+      setEditingUserId(user.id);
       const cachedUser = queryClient.getQueryData<User>(queryKeys.users.detail(user.id));
       const detailKey = queryKeys.users.detail(user.id);
       if (cachedUser) {
@@ -251,10 +253,12 @@ const UserManagementPage: React.FC = () => {
         }
         await queryClient.refetchQueries({ queryKey: detailKey, exact: true, type: 'all' });
       }
-      if (requestId !== editRequestRef.current) return;
-      const freshUser = queryClient.getQueryData<User>(detailKey);
-      setSelectedUser(freshUser?.privateFieldsReadComplete === true ? freshUser : user);
-      setShowUserEditPanel(true);
+      if (requestId === editRequestRef.current) {
+        const freshUser = queryClient.getQueryData<User>(detailKey);
+        setSelectedUser(freshUser?.privateFieldsReadComplete === true ? freshUser : user);
+        setShowUserEditPanel(true);
+        setEditingUserId(null);
+      }
     },
     [queryClient]
   );
@@ -507,6 +511,7 @@ const UserManagementPage: React.FC = () => {
               onSelectAll={handleSelectAll}
               onViewUser={handleViewUser}
               onEditUser={handleEditUser}
+              editingUserId={editingUserId}
               onManageRoles={handleManageRoles}
               currentPage={clampedPage}
               totalPages={totalPages}

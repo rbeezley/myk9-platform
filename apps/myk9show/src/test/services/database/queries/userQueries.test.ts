@@ -287,7 +287,7 @@ describe('User Queries', () => {
       expect(result.error!.code).toBe('PGRST116');
     });
 
-    it('withholds the detailed row when the private hydration fails', async () => {
+    it('returns the public row with an incomplete private-read marker', async () => {
       const userId = 'user-private-read-failed';
       mockSupabase.from.mockReturnValue(
         createChainableQuery({ data: { id: userId, first_name: 'Ada' }, error: null })
@@ -301,8 +301,12 @@ describe('User Queries', () => {
 
       const result = await getUserById(userId);
 
-      expect(result.data).toBeNull();
-      expect(result.error?.message).toContain('Private person fields are unavailable');
+      expect(result.error).toBeNull();
+      expect(result.data).toMatchObject({
+        id: userId,
+        privateFieldsReadComplete: false,
+        privateFieldsReadError: 'network unavailable',
+      });
     });
 
     it('should validate response time for detailed user fetch', async () => {
@@ -567,7 +571,7 @@ describe('User Queries', () => {
         } as DbUserUpdate & { date_of_birth: string });
 
         expect(mockSupabase.rpc).not.toHaveBeenCalledWith(
-          'upsert_people_private',
+          'update_person_with_private',
           expect.anything()
         );
       });

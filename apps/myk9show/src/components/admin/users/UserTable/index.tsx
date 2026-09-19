@@ -35,6 +35,7 @@ export const UserTable: React.FC<UserTableProps> = ({
   onSelectAll,
   onViewUser,
   onEditUser,
+  editingUserId,
   onManageRoles,
   currentPage,
   totalPages,
@@ -159,7 +160,8 @@ export const UserTable: React.FC<UserTableProps> = ({
         // caller's PEOPLE id (`userWithRoles.databaseUserId`). The auth uuid
         // alone never matched: get_admin_user_list returns no auth_user_id, so
         // every row's user_id is undefined and the guard silently never fired.
-        userWithRoles?.databaseUserId ?? currentUser?.id
+        userWithRoles?.databaseUserId ?? currentUser?.id,
+        editingUserId
       ),
     [
       selectedUsers,
@@ -177,6 +179,7 @@ export const UserTable: React.FC<UserTableProps> = ({
       userWithRoles?.databaseUserId,
       currentUser?.id,
       hasPermission,
+      editingUserId,
     ]
   );
 

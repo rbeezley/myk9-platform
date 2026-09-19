@@ -56,9 +56,6 @@ BEGIN
 END;
 $$;
 
-CREATE INDEX IF NOT EXISTS people_private_person_id_idx
-  ON public.people_private (person_id);
-
 DROP TRIGGER IF EXISTS people_private_set_updated_at ON public.people_private;
 CREATE TRIGGER people_private_set_updated_at
   BEFORE UPDATE ON public.people_private
@@ -169,58 +166,6 @@ COMMENT ON FUNCTION public.get_people_private(uuid[]) IS
 REVOKE ALL ON FUNCTION public.get_people_private(uuid[]) FROM PUBLIC;
 REVOKE ALL ON FUNCTION public.get_people_private(uuid[]) FROM anon;
 GRANT EXECUTE ON FUNCTION public.get_people_private(uuid[]) TO authenticated, service_role;
-
-CREATE OR REPLACE FUNCTION public.upsert_people_private(
-  p_person_id uuid,
-  p_date_of_birth date,
-  p_junior_handler_numbers jsonb
-)
-RETURNS TABLE (
-  person_id uuid,
-  date_of_birth date,
-  junior_handler_numbers jsonb
-)
-LANGUAGE plpgsql
-SECURITY DEFINER
-SET search_path = ''
-AS $$
-BEGIN
-  IF p_person_id IS NULL OR NOT public.can_write_people_private(p_person_id) THEN
-    RAISE EXCEPTION 'Private person fields may only be changed by the subject or a site admin'
-      USING ERRCODE = '42501';
-  END IF;
-
-  -- Serialize this legacy narrow write with the atomic profile update below.
-  -- The row lock prevents an older client from racing a combined public/private
-  -- save and putting stale private values back after the transaction commits.
-  PERFORM 1
-  FROM public.people
-  WHERE id = p_person_id
-    AND deleted_at IS NULL
-  FOR UPDATE;
-  IF NOT FOUND THEN
-    RAISE EXCEPTION 'Person not found' USING ERRCODE = 'P0002';
-  END IF;
-
-  INSERT INTO public.people_private (person_id, date_of_birth, junior_handler_numbers)
-  VALUES (p_person_id, p_date_of_birth, COALESCE(p_junior_handler_numbers, '{}'::jsonb))
-  ON CONFLICT (person_id) DO UPDATE
-    SET date_of_birth = EXCLUDED.date_of_birth,
-        junior_handler_numbers = EXCLUDED.junior_handler_numbers;
-
-  RETURN QUERY
-    SELECT pp.person_id, pp.date_of_birth, pp.junior_handler_numbers
-    FROM public.people_private pp
-    WHERE pp.person_id = p_person_id;
-END;
-$$;
-
-COMMENT ON FUNCTION public.upsert_people_private(uuid, date, jsonb) IS
-  'MYK9-664: subject/site-admin private profile write. Relationship-scoped show managers are intentionally denied.';
-
-REVOKE ALL ON FUNCTION public.upsert_people_private(uuid, date, jsonb) FROM PUBLIC;
-REVOKE ALL ON FUNCTION public.upsert_people_private(uuid, date, jsonb) FROM anon;
-GRANT EXECUTE ON FUNCTION public.upsert_people_private(uuid, date, jsonb) TO authenticated, service_role;
 
 -- Update the public profile and an explicitly-present private patch in one
 -- transaction. The previous client flow read private values, wrote them, then

@@ -44,6 +44,7 @@ interface BasicInfoTabProps {
   canEditAdvancedFields: boolean;
   onOpenPhotoModal: () => void;
   canWritePrivateFields?: boolean;
+  privateFieldsStatus?: 'loading' | 'error' | 'readonly' | 'ready';
 }
 
 export const BasicInfoTab: React.FC<BasicInfoTabProps> = ({
@@ -51,6 +52,7 @@ export const BasicInfoTab: React.FC<BasicInfoTabProps> = ({
   canEditAdvancedFields,
   onOpenPhotoModal,
   canWritePrivateFields = false,
+  privateFieldsStatus = 'readonly',
 }) => {
   const { data, form } = useEditPanel<UserFormData>();
   const hasSignInAccount = usePersonHasSignInAccount(personId);
@@ -175,7 +177,11 @@ export const BasicInfoTab: React.FC<BasicInfoTabProps> = ({
 
       {!canWritePrivateFields && (
         <p className="text-sm text-muted-foreground">
-          Junior handler details are read-only for this role.
+          {privateFieldsStatus === 'loading'
+            ? 'Junior handler details are still loading.'
+            : privateFieldsStatus === 'error'
+              ? 'Junior handler details are unavailable right now. Try again before editing them.'
+              : 'Junior handler details are read-only for this role.'}
         </p>
       )}
 

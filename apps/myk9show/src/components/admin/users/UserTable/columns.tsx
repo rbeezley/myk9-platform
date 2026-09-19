@@ -61,7 +61,8 @@ export function buildColumns(
   onRestoreUser: (user: User) => void,
   onManageRolesUser?: (user: User) => void,
   onChangeStatusUser?: (user: User) => void,
-  currentUserId?: string
+  currentUserId?: string,
+  editingUserId?: string | null
 ): ColumnDef<AdminUser, unknown>[] {
   const density = DENSITY_CONFIG[densityMode];
 
@@ -294,6 +295,7 @@ export function buildColumns(
               onDelete={onDeleteUser}
               onRestore={onRestoreUser}
               {...(onManageRolesUser ? { onManageRoles: onManageRolesUser } : {})}
+              editActionDisabled={editingUserId === user.id}
               {...(onChangeStatusUser
                 ? {
                     onChangeStatus: onChangeStatusUser,

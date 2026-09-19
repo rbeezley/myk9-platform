@@ -1,5 +1,5 @@
-import { supabase } from '@/lib/supabase';
 import { chunk, ID_CHUNK_SIZE } from '@/utils/chunkIds';
+import { supabase } from '@/lib/supabase';
 import { loadPeoplePrivateProfiles } from './privatePeople';
 
 /**
@@ -18,7 +18,7 @@ import { loadPeoplePrivateProfiles } from './privatePeople';
  * to print. An unmarked junior is a nuisance; a blank roster on show day is not.
  */
 export interface JuniorHandlerProfile {
-  /** The person's own name, used to check they are the handler the paperwork prints. */
+  /** The person's name is used to verify the handler printed on paperwork. */
   firstName: string | null;
   lastName: string | null;
   dateOfBirth: string | null;
@@ -43,9 +43,9 @@ export async function loadJuniorHandlerProfiles(
   ]);
   const byPersonId = new Map<string, JuniorHandlerProfile>();
 
-  // The private RPC intentionally returns only private fields. Names remain a
-  // directory concern and are already present on the entry/report rows when
-  // paperwork is assembled; no broad people read is needed here.
+  // The private RPC intentionally returns only private fields. This separate,
+  // narrow name lookup remains because the report resolver verifies that the
+  // private profile belongs to the printed handler; it is not a broad profile read.
   for (const [personId, profile] of privateProfiles) {
     const name = namesResult.byPersonId.get(personId);
     byPersonId.set(personId, {

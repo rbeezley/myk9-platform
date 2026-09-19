@@ -25,6 +25,7 @@ import { selectOwnedDogIds } from '@/utils/dogOwnership';
 import {
   isWithdrawalReasonCodeSchemaUnavailable,
   isRegistrationConfirmationNumberSchemaUnavailable,
+  isMoveUpLinkSchemaUnavailable,
 } from '@/features/payments/pullRefundSchemaCompatibility';
 
 /**
@@ -63,7 +64,7 @@ export function isMoneyConfirmed(source: UserEntriesSource): boolean {
  * PostgREST fallback (e.g. a missing `check_in_status` reads as "Not Checked In"
  * even after a persisted check-in).
  */
-export const USER_ENTRIES_SELECT = `
+const USER_ENTRIES_SELECT_BASE = `
       id,
       dog_id,
       show_id,
@@ -75,7 +76,6 @@ export const USER_ENTRIES_SELECT = `
       payment_method,
       entry_status,
       check_in_status,
-      moved_from_entry_id,
       entry_fee,
       armband,
       run_order,
@@ -146,14 +146,20 @@ export const USER_ENTRIES_SELECT = `
       )
     `;
 
+/** The current schema's complete select, retained for column-list consumers. */
+export const USER_ENTRIES_SELECT = `${USER_ENTRIES_SELECT_BASE},
+      moved_from_entry_id`;
+
 /**
  * The base select PLUS whichever migration-backed view columns this database is
  * known to have.
  *
- * Two of them exist — MYK9-632's `withdrawal_reason_code` (20260918041700) and
- * MYK9-659's `registration_confirmation_number` (20260918193700) — and they are
- * INDEPENDENT, so each is dropped on its own rather than taking the other down
- * with it. Same shape as `postgrestGetSecretaryPullMetadataMap`.
+ * Three migration-backed columns are optional — MYK9-632's
+ * `withdrawal_reason_code` (20260918041700), MYK9-659's
+ * `registration_confirmation_number` (20260918193700), and MYK9-639's
+ * `moved_from_entry_id` (20260918193300) — and they are INDEPENDENT, so each
+ * is dropped on its own rather than taking the other down with it. Same shape
+ * as `postgrestGetSecretaryPullMetadataMap`.
  *
  * Why either is optional at all: until its migration is pushed, naming the
  * column fails the WHOLE query with 42703. That would not merely drop a badge
@@ -174,13 +180,15 @@ export const USER_ENTRIES_SELECT = `
 export function buildUserEntriesSelect(options: {
   includeReasonCode: boolean;
   includeRegistrationConfirmationNumber: boolean;
+  includeMoveUpLink: boolean;
 }): string {
   const optional = [
     options.includeReasonCode ? 'withdrawal_reason_code' : null,
     options.includeRegistrationConfirmationNumber ? 'registration_confirmation_number' : null,
+    options.includeMoveUpLink ? 'moved_from_entry_id' : null,
   ].filter((column): column is string => column !== null);
-  if (optional.length === 0) return USER_ENTRIES_SELECT;
-  return `${USER_ENTRIES_SELECT},\n      ${optional.join(',\n      ')}`;
+  if (optional.length === 0) return USER_ENTRIES_SELECT_BASE;
+  return `${USER_ENTRIES_SELECT_BASE},\n      ${optional.join(',\n      ')}`;
 }
 
 // Routes own-entry reads through the cascade-aware authenticated view so scored
@@ -200,6 +208,7 @@ async function postgrestGetUserEntries() {
   // MYK9-659's view column, tracked separately: two INDEPENDENT migrations back
   // these two columns, so one missing must not drop the other.
   let includeRegistrationConfirmationNumber = true;
+  let includeMoveUpLink = true;
   // ONE deadline for the whole paged read, not one per page. `withTimeout`
   // only races the promise it is given, so when it wins, the loop below is
   // still in flight — a per-page signal would let each SUBSEQUENT page start a
@@ -215,7 +224,11 @@ async function postgrestGetUserEntries() {
       supabase
         .from('view_authenticated_entry_results')
         .select(
-          buildUserEntriesSelect({ includeReasonCode, includeRegistrationConfirmationNumber })
+          buildUserEntriesSelect({
+            includeReasonCode,
+            includeRegistrationConfirmationNumber,
+            includeMoveUpLink,
+          })
         )
         // My Entries is OWN entries only. The view returns can_manage OR
         // is_own_entry rows, so without this filter a secretary/admin would receive
@@ -258,6 +271,15 @@ async function postgrestGetUserEntries() {
         'My Entries read without registration_confirmation_number: migration 20260918193700 is not applied',
         'database',
         { column: 'registration_confirmation_number', migration: '20260918193700' }
+      );
+      response = await runPage();
+    }
+    if (includeMoveUpLink && isMoveUpLinkSchemaUnavailable(response.error)) {
+      includeMoveUpLink = false;
+      logger.warn(
+        'My Entries read without moved_from_entry_id: migration 20260918193300 is not applied',
+        'database',
+        { column: 'moved_from_entry_id', migration: '20260918193300' }
       );
       response = await runPage();
     }

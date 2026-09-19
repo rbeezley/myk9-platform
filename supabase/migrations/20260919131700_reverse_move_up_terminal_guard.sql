@@ -120,6 +120,11 @@ BEGIN
 END;
 $function$;
 
+REVOKE ALL ON FUNCTION public.reverse_move_up_entry(uuid) FROM PUBLIC;
+REVOKE ALL ON FUNCTION public.reverse_move_up_entry(uuid) FROM anon;
+GRANT EXECUTE ON FUNCTION public.reverse_move_up_entry(uuid) TO authenticated;
+GRANT EXECUTE ON FUNCTION public.reverse_move_up_entry(uuid) TO service_role;
+
 COMMENT ON FUNCTION public.reverse_move_up_entry(uuid) IS
   'MYK9-640: undo a terminal move-up as ONE transaction; refuses an intermediate '
   'destination whose entry_status is moved, and refuses any destination whose '

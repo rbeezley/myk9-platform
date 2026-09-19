@@ -175,6 +175,21 @@ describe('summarizeEntryBalances', () => {
     expect(summary.kind).toBe('unknown');
     expect(summary.amountDueCents).toBe(0);
   });
+
+  it('keeps a confirmed debt on another show visible when one move-up root is unresolved', () => {
+    const summary = summarizeEntryBalancesFromSource(
+      [
+        entry({ id: 'destination', movedFromEntryId: 'missing-source', totalFee: 0 }),
+        entry({ id: 'online', showId: 'show-2', totalFee: 20 }),
+      ],
+      'confirmed',
+      now
+    );
+
+    expect(summary.kind).toBe('known');
+    expect(summary.onlineDueCents).toBe(2000);
+    expect(summary.onlineShowBalances[0]?.showId).toBe('show-2');
+  });
 });
 
 describe('entry-close deadline on the amount-due summary', () => {

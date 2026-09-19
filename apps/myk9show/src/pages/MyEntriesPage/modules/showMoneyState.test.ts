@@ -102,7 +102,7 @@ describe('deriveShowMoneyState', () => {
       'confirmed'
     );
 
-    expect(state.kind).toBe('unresolved');
+    expect(state.kind).toBe('unknown');
     expect(state.paymentHref).toBeNull();
   });
 
@@ -123,6 +123,44 @@ describe('deriveShowMoneyState', () => {
     expect(state.dueDogNames).toEqual(['Scout']);
     expect(state.paymentHref).toBe('/cart?showId=s1&entryIds=cls-e3');
     expect(state.dueOrderIds).toEqual(['e3']);
+  });
+
+  it('keeps a sibling debt actionable when another order has unresolved move-up lineage', () => {
+    const known = unpaidOrder('known', 'd2', 'Scout');
+    known.balance = {
+      paymentStatus: PaymentStatus.PENDING,
+      paymentMethod: 'online',
+      amountDueCents: 4500,
+      onlineDueCents: 4500,
+      payAtShowDueCents: 0,
+      payAtShowMethod: null,
+      dueEntryIds: ['cls-known'],
+    };
+    const state = deriveShowMoneyState(
+      [
+        makeRow({
+          id: 'unresolved',
+          dogName: 'Rex',
+          balance: {
+            paymentStatus: PaymentStatus.PENDING,
+            paymentMethod: 'online',
+            amountDueCents: 0,
+            onlineDueCents: 0,
+            payAtShowDueCents: 0,
+            payAtShowMethod: null,
+            dueEntryIds: [],
+            moneyRootUnresolved: true,
+          },
+        }),
+        known,
+      ],
+      NOW,
+      'confirmed'
+    );
+
+    expect(state.kind).toBe('balance-due');
+    expect(state.amountCents).toBe(4500);
+    expect(state.paymentHref).toContain('known');
   });
 
   it('sums only the owing orders when two are unpaid', () => {

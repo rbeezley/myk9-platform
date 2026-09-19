@@ -454,6 +454,43 @@ describe('getUserEntries account-scope read', () => {
     });
   });
 
+  describe('moved_from_entry_id (MYK9-639) — asked for, and optional', () => {
+    const schemaError = Object.assign(
+      new Error('column view_authenticated_entry_results.moved_from_entry_id does not exist'),
+      { code: '42703' }
+    );
+
+    it('drops the column and re-asks when the view has not got it yet', async () => {
+      mockReplicatedStores();
+      const rows = [{ id: 'entry-1' }];
+      const viewQuery = makeViewEntriesQuery(rows);
+      viewQuery.range.mockImplementation(() =>
+        Promise.resolve(
+          viewQuery.select.mock.calls.at(-1)?.[0]?.includes('moved_from_entry_id')
+            ? { data: [] as Array<Record<string, unknown>>, error: schemaError }
+            : { data: rows, error: null }
+        )
+      );
+      mocks.supabaseFrom.mockImplementation((table: string) => {
+        if (table === 'view_authenticated_entry_results') return viewQuery;
+        throw new Error(`Unexpected table: ${table}`);
+      });
+
+      const result = await getUserEntries('user-1');
+
+      expect(result.source).toBe('confirmed');
+      expect(result.data).toEqual(rows);
+      const selects = viewQuery.select.mock.calls.map(call => call[0]);
+      expect(selects[0]).toContain('moved_from_entry_id');
+      expect(selects.at(-1)).not.toContain('moved_from_entry_id');
+      expect(mocks.loggerWarn).toHaveBeenCalledWith(
+        expect.stringContaining('20260918193300'),
+        'database',
+        expect.objectContaining({ column: 'moved_from_entry_id' })
+      );
+    });
+  });
+
   it('reads the authoritative view even when the local replica looks fully hydrated', async () => {
     mockReplicatedStores();
     const onlineRows = [{ id: 'entry-1' }, { id: 'entry-2' }];

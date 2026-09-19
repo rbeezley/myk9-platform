@@ -345,10 +345,15 @@ export function summarizeEntryBalancesFromSource(
     paymentMethod: root.paymentMethod,
     totalFee: root.totalFee,
   }));
-  if (rootedEntries.some(entry => entry.moneyRootUnresolved)) {
+  const hasUnresolvedRoot = rootedEntries.some(entry => entry.moneyRootUnresolved);
+  const summary = summarizeEntryBalances(
+    rootedEntries.filter(entry => !entry.moneyRootUnresolved),
+    now
+  );
+  if (hasUnresolvedRoot && summary.amountDueCents === 0) {
     return UNKNOWN_ENTRY_BALANCE_SUMMARY;
   }
-  return summarizeEntryBalances(rootedEntries, now);
+  return summary;
 }
 
 export function buildEntryBalanceRecoveryHref(summary: EntryBalanceSummary): string {

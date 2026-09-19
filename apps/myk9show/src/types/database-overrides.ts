@@ -30,11 +30,22 @@ import type { Database as GeneratedDatabase } from '@myk9/supabase';
 
 type GeneratedPublic = GeneratedDatabase['public'];
 type GeneratedFunctions = GeneratedPublic['Functions'];
-type GeneratedTables = GeneratedPublic['Tables'];
 
 /** Replace one `Args` field of a generated function type, keeping `Returns`. */
 type WithArg<Fn extends { Args: object }, K extends keyof Fn['Args'], T> = Omit<Fn, 'Args'> & {
   Args: Omit<Fn['Args'], K> & { [P in K]: T };
+};
+
+/**
+ * The same, for an `Args` field the generator already made OPTIONAL (a SQL
+ * `DEFAULT`). `WithArg` would re-declare it as required, which narrows the
+ * type for callers that omit it; this keeps the `?`.
+ */
+type WithOptionalArg<Fn extends { Args: object }, K extends keyof Fn['Args'], T> = Omit<
+  Fn,
+  'Args'
+> & {
+  Args: Omit<Fn['Args'], K> & { [P in K]?: T };
 };
 
 /**
@@ -106,37 +117,30 @@ type ListClubRoleRequests = WithReturnFields<
 >;
 
 /**
- * `entries.moved_from_entry_id` (MYK9-639,
- * `supabase/migrations/20260918193300_myk9_639_move_up_supersession.sql`).
+ * `move_up_entry(p_entry_id uuid, p_target_class_id uuid, p_new_entry_id uuid,
+ * p_reason text DEFAULT NULL)` —
+ * `supabase/migrations/20260918193300_myk9_639_move_up_supersession.sql`.
  *
- * A different shape of correction from the two above: the generator is not
- * WRONG here, it is simply OLDER than the schema. The column exists in the
- * migration and in both authenticated entry views, and the typed PostgREST
- * builder validates every name in a `.select()` string against these types —
- * so without this overlay, naming the column in
- * `AUTHENTICATED_ENTRY_READ_COLUMNS` makes the whole query resolve to
- * `SelectQueryError<"column 'moved_from_entry_id' does not exist on 'entries'">`
- * and the app stops compiling.
- *
- * TEMPORARY. Delete this block the moment `database.types.ts` is regenerated
- * after `supabase db push` (M2 round 2, finding 3 — the precedent is 6e7e59de5,
- * a dedicated regeneration commit after 20260918154700). Leaving it in place
- * after that is harmless but misleading: the drift check regenerates the
- * package file, and this overlay would silently shadow the real definition.
+ * The migration declares the argument `text DEFAULT NULL`, and a NULL means
+ * "no reason given": the note the function records is built with
+ * `COALESCE(': ' || NULLIF(btrim(p_reason), ''), '')`, so NULL and an empty
+ * string both yield a bare "Moved up from class …". `pg_proc` records the
+ * DEFAULT but not the nullability, so the generated `p_reason?: string`
+ * rejects the explicit NULL the client sends when the secretary left the
+ * reason box empty.
  */
-type EntriesWithMoveUpLink = Omit<GeneratedTables['entries'], 'Row' | 'Insert' | 'Update'> & {
-  Row: GeneratedTables['entries']['Row'] & { moved_from_entry_id: string | null };
-  Insert: GeneratedTables['entries']['Insert'] & { moved_from_entry_id?: string | null };
-  Update: GeneratedTables['entries']['Update'] & { moved_from_entry_id?: string | null };
-};
+type MoveUpEntry = WithOptionalArg<GeneratedFunctions['move_up_entry'], 'p_reason', string | null>;
 
 /** The generated `Database` with the corrections above applied. */
 export type Database = Omit<GeneratedDatabase, 'public'> & {
-  public: Omit<GeneratedPublic, 'Functions' | 'Tables'> & {
-    Tables: Omit<GeneratedTables, 'entries'> & { entries: EntriesWithMoveUpLink };
-    Functions: Omit<GeneratedFunctions, 'withdraw_own_entry' | 'list_club_role_requests'> & {
+  public: Omit<GeneratedPublic, 'Functions'> & {
+    Functions: Omit<
+      GeneratedFunctions,
+      'withdraw_own_entry' | 'list_club_role_requests' | 'move_up_entry'
+    > & {
       withdraw_own_entry: WithdrawOwnEntry;
       list_club_role_requests: ListClubRoleRequests;
+      move_up_entry: MoveUpEntry;
     };
   };
 };

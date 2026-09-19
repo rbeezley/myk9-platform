@@ -174,7 +174,6 @@ describe('EntryEditDialog — per-class handlers', () => {
         entryId: 'entry-container',
         handler: 'Chris Lee',
         handlerId: null,
-        clearHandlerId: false,
       });
     });
   });
@@ -219,7 +218,6 @@ describe('EntryEditDialog — per-class handlers', () => {
         entryId: 'entry-container',
         handler: 'Jamie Walker',
         handlerId: null,
-        clearHandlerId: true,
       });
     });
   });

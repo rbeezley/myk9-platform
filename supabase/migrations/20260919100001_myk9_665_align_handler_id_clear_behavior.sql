@@ -101,4 +101,9 @@ BEGIN
 END;
 $$;
 
+REVOKE ALL ON FUNCTION public.update_entry_handler_for_entry_management(uuid, text, uuid, boolean)
+  FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.update_entry_handler_for_entry_management(uuid, text, uuid, boolean)
+  TO authenticated;
+
 NOTIFY pgrst, 'reload schema';

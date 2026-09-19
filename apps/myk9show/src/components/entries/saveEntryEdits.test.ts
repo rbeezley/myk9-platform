@@ -36,7 +36,6 @@ describe('saveEntryEdits', () => {
       // A handler edit plus a re-pick of the SAME height: exactly the shape that
       // used to fire a pointless second write.
       classEdits: { 'entry-1': { handler: 'Sam Handler', jumpHeight: '8"' } },
-      clearHandlerId: false,
     });
 
     expect(mocks.updateEntryHandler).toHaveBeenCalledTimes(1);
@@ -48,7 +47,6 @@ describe('saveEntryEdits', () => {
     await saveEntryEdits({
       classes,
       classEdits: { 'entry-1': { jumpHeight: '12"' } },
-      clearHandlerId: false,
     });
 
     expect(mocks.updateEntryDetails).toHaveBeenCalledWith({
@@ -61,7 +59,6 @@ describe('saveEntryEdits', () => {
     await saveEntryEdits({
       classes: [...classes, { id: 'entry-2', jumpHeight: '8"' }],
       classEdits: { 'entry-1': { jumpHeight: '12"', status: 'withdrawn' } },
-      clearHandlerId: false,
     });
 
     expect(mocks.updateEntryDetails).not.toHaveBeenCalled();
@@ -78,7 +75,6 @@ describe('saveEntryEdits', () => {
     const result = await saveEntryEdits({
       classes,
       classEdits: { 'entry-1': { jumpHeight: '12"' } },
-      clearHandlerId: false,
     });
 
     expect(result.error).toBe(
@@ -93,7 +89,6 @@ describe('saveEntryEdits', () => {
     const result = await saveEntryEdits({
       classes,
       classEdits: { 'entry-1': { handler: 'Sam Handler', jumpHeight: '12"' } },
-      clearHandlerId: false,
     });
 
     expect(result.error).toBe('Failed to update handler. Please try again.');
@@ -104,11 +99,11 @@ describe('saveEntryEdits', () => {
 /**
  * MYK9-665. The printed handler is `entries.handler` (free text); junior status
  * and the AKC junior handler number are read through `entries.handler_id`.
- * The caller controls whether a correction clears that load-bearing link, while
- * the read-side resolver prevents a stale link from printing the wrong person.
+ * Text corrections preserve that load-bearing link, while the read-side
+ * resolver prevents a stale link from printing the wrong person.
  *
- * Asserted on the RPC CALL ARGS, because that is the whole fix: the value of
- * `clearHandlerId` is invisible in the UI and in every rendered output.
+ * Asserted on the RPC CALL ARGS, because the client must not send the legacy
+ * clear parameter after the option-3 decision.
  */
 describe('MYK9-665: handler_id stays load-bearing across text corrections', () => {
   beforeEach(() => {
@@ -117,27 +112,22 @@ describe('MYK9-665: handler_id stays load-bearing across text corrections', () =
     mocks.updateEntryHandler.mockResolvedValue({ error: null });
   });
 
-  it.each([true, false])(
-    'passes the legacy clearHandlerId argument through unchanged (%p)',
-    async callerTier => {
-      // `handler_id` is load-bearing for the exhibitor's own
-      // self check-in, the at-show queue and the "is this my entry?" predicate.
-      // The stale-link problem is solved on the READ side by
-      // `resolveHandlerPerson`; the RPC preserves the link during text edits.
-      await saveEntryEdits({
-        classes,
-        classEdits: { 'entry-1': { handler: 'Sam Handler' } },
-        clearHandlerId: callerTier,
-      });
+  it('does not send the legacy clearHandlerId argument', async () => {
+    // `handler_id` is load-bearing for the exhibitor's own
+    // self check-in, the at-show queue and the "is this my entry?" predicate.
+    // The stale-link problem is solved on the READ side by
+    // `resolveHandlerPerson`; the RPC preserves the link during text edits.
+    await saveEntryEdits({
+      classes,
+      classEdits: { 'entry-1': { handler: 'Sam Handler' } },
+    });
 
-      expect(mocks.updateEntryHandler).toHaveBeenCalledWith({
-        entryId: 'entry-1',
-        handler: 'Sam Handler',
-        handlerId: null,
-        clearHandlerId: callerTier,
-      });
-    }
-  );
+    expect(mocks.updateEntryHandler).toHaveBeenCalledWith({
+      entryId: 'entry-1',
+      handler: 'Sam Handler',
+      handlerId: null,
+    });
+  });
 
   it('does not write at all when the handler did not change', () => {
     // The guard must not turn "no change" into a clearing write — that would
@@ -145,7 +135,6 @@ describe('MYK9-665: handler_id stays load-bearing across text corrections', () =
     return saveEntryEdits({
       classes,
       classEdits: { 'entry-1': { jumpHeight: '12"' } },
-      clearHandlerId: false,
     }).then(() => {
       expect(mocks.updateEntryHandler).not.toHaveBeenCalled();
     });

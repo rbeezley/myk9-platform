@@ -23,13 +23,19 @@ values
   ('00000000-0000-0000-0000-000000665011', 'MYK9-665', 'Owner', '00000000-0000-0000-0000-000000665101'),
   ('00000000-0000-0000-0000-000000665012', 'MYK9-665', 'Handler', '00000000-0000-0000-0000-000000665102'),
   ('00000000-0000-0000-0000-000000665013', 'MYK9-665', 'Secretary', '00000000-0000-0000-0000-000000665103'),
-  ('00000000-0000-0000-0000-000000665014', 'MYK9-665', 'Outsider', '00000000-0000-0000-0000-000000665104');
+  ('00000000-0000-0000-0000-000000665014', 'MYK9-665', 'Outsider', '00000000-0000-0000-0000-000000665104'),
+  ('00000000-0000-0000-0000-000000665015', 'MYK9-665', 'Club Admin', '00000000-0000-0000-0000-000000665105');
 
 insert into public.user_roles (user_id, role_id, club_id, is_active, auth_user_id)
 select '00000000-0000-0000-0000-000000665013', id,
   '00000000-0000-0000-0000-000000665001', true,
   '00000000-0000-0000-0000-000000665103'
 from public.roles where name = 'secretary';
+insert into public.user_roles (user_id, role_id, club_id, is_active, auth_user_id)
+select '00000000-0000-0000-0000-000000665015', id,
+  '00000000-0000-0000-0000-000000665001', true,
+  '00000000-0000-0000-0000-000000665105'
+from public.roles where name = 'club_admin';
 
 insert into public.dogs (id, name, call_name, breed, owner_id)
 values ('00000000-0000-0000-0000-000000665021', 'MYK9-665 Dog', 'Dog', 'Beagle',
@@ -124,7 +130,7 @@ $$;
 update public.shows set club_id = null
  where id = '00000000-0000-0000-0000-000000665002';
 select pg_temp.call_handler_update(
-  '00000000-0000-0000-0000-000000665103', 'MYK9-665 Null Club Attempt', true,
+  '00000000-0000-0000-0000-000000665105', 'MYK9-665 Null Club Attempt', true,
   'Not authorized: caller does not own entry %');
 
 -- A non-owner/non-handler cannot use the correction RPC.

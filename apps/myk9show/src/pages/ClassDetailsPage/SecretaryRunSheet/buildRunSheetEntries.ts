@@ -3,6 +3,7 @@ import type { RawEntryRow } from '@/hooks/queries/useClassEntriesRaw';
 import type { Dog } from '@/types/dog-types';
 import type { RunSheetEntry, RunSheetResult } from './types';
 import { formatSearchTime } from './types';
+import { projectHandlerIdentity } from '@/features/registries/handlerIdentity';
 
 function normalizeOrganization(value: string | null | undefined): string {
   return (value ?? '').trim().toUpperCase();
@@ -41,7 +42,13 @@ function rawToEntry(
   const dogName = dog?.call_name ?? dog?.name ?? 'Unknown Dog';
   const owner = dog?.owner;
   const ownerName = owner ? `${owner.first_name ?? ''} ${owner.last_name ?? ''}`.trim() : '';
-  const handlerName = row.handler?.trim() || ownerName;
+  const handlerIdentity = projectHandlerIdentity({
+    assignedHandlerName: row.handler,
+    assignedHandlerId: row.handler_id,
+    assignedHandlerPerson: row.handler_person,
+    ownerPerson: owner,
+  });
+  const handlerName = handlerIdentity.name ?? '';
 
   const checkInStatus = readCheckInStatus(row.check_in_status);
   const isCheckedIn = checkInStatus === 'checked-in';

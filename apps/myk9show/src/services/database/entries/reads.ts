@@ -35,6 +35,12 @@ import {
 } from './entrySelects';
 import { withReleasedShowResults } from './releasedShowResults';
 import { refreshShowEntriesForRead } from './refreshShowEntriesForRead';
+import {
+  attachHandlerPerson,
+  hydrateMissingHandlerPeople,
+  loadMissingHandlerPeopleMap,
+  type HandlerReference,
+} from './handlerHydration';
 
 // ---------------------------------------------------------------------------
 // Helpers — batch-load related data into Maps to avoid N+1 reads
@@ -93,69 +99,10 @@ async function loadEnrollmentFinancialsMap(
   }
 }
 
-interface EntryHandlerPerson {
-  id: string;
-  first_name: string | null;
-  last_name: string | null;
-}
-
-interface HandlerReference {
-  handler?: string | null | undefined;
-  handler_id?: string | null | undefined;
-  handlerId?: string | null | undefined;
-}
-
 interface EntryDbHandlerRow extends Record<string, unknown>, HandlerReference {
   armband: string | null;
   show_id: string | null;
   dog_id: string | null;
-}
-
-/**
- * Replicated entries carry the handler FK and legacy text, but not the people
- * row. Hydrate only entries whose text is empty so the persisted entry text
- * remains authoritative when the two disagree.
- */
-async function loadMissingHandlerPeopleMap(
-  entries: ReadonlyArray<HandlerReference>
-): Promise<Map<string, EntryHandlerPerson>> {
-  const handlerIds = [
-    ...new Set(
-      entries
-        .filter(entry => !entry.handler?.trim())
-        .map(entry => entry.handlerId ?? entry.handler_id)
-        .filter((id): id is string => Boolean(id))
-    ),
-  ];
-  if (handlerIds.length === 0) return new Map();
-
-  try {
-    const { data, error } = await supabase
-      .from('people')
-      .select('id, first_name, last_name')
-      .in('id', handlerIds);
-    if (error || !data) return new Map();
-    return new Map((data as EntryHandlerPerson[]).map(person => [person.id, person]));
-  } catch {
-    return new Map();
-  }
-}
-
-function attachHandlerPerson(
-  row: Record<string, unknown>,
-  entry: HandlerReference,
-  people: ReadonlyMap<string, EntryHandlerPerson>
-): Record<string, unknown> {
-  const handlerId = entry.handlerId ?? entry.handler_id;
-  const person = handlerId ? people.get(handlerId) : undefined;
-  return person ? { ...row, handler_person: person } : row;
-}
-
-async function hydrateMissingHandlerPeople<T extends Record<string, unknown>>(
-  rows: readonly T[]
-): Promise<T[]> {
-  const people = await loadMissingHandlerPeopleMap(rows);
-  return rows.map(row => attachHandlerPerson(row, row, people) as T);
 }
 
 function getEntryCreatedSortValue(entry: ReplicatedEntry): string | undefined {
@@ -287,7 +234,10 @@ async function postgrestGetAllEntries() {
     .order('created_at', { ascending: false });
 
   if (error) throw createDatabaseError(error, 'entries', 'select_all');
-  return { data: data || [], error: null };
+  return {
+    data: await hydrateMissingHandlerPeople((data || []) as EntryDbHandlerRow[]),
+    error: null,
+  };
 }
 
 async function postgrestGetEntryById(id: string) {
@@ -378,7 +328,10 @@ async function postgrestGetEntriesByShow(showId: string) {
     .order('created_at', { ascending: false });
 
   if (error) throw createDatabaseError(error, 'entries', 'select_by_show');
-  return { data: data || [], error: null };
+  return {
+    data: await hydrateMissingHandlerPeople((data || []) as EntryDbHandlerRow[]),
+    error: null,
+  };
 }
 
 /**
@@ -577,7 +530,10 @@ async function postgrestGetEntriesByShowForFinancials(showId: string) {
   );
 
   if (error) throw createDatabaseError(error, 'entries', 'select_by_show_financials');
-  return { data: data || [], error: null };
+  return {
+    data: await hydrateMissingHandlerPeople((data || []) as EntryDbHandlerRow[]),
+    error: null,
+  };
 }
 
 async function postgrestGetEntriesByTrial(trialId: string) {
@@ -744,7 +700,10 @@ export const getAllEntries = async () => {
         entries.filter(isLiveEntry),
         compareDateDesc(getEntryCreatedSortValue)
       );
-      const data = mapEntriesWithStandardJoins(sortedEntries, dogsMap, classesMap, showsMap);
+      const handlerPeopleMap = await loadMissingHandlerPeopleMap(sortedEntries);
+      const data = mapEntriesWithStandardJoins(sortedEntries, dogsMap, classesMap, showsMap).map(
+        (row, index) => attachHandlerPerson(row, sortedEntries[index]!, handlerPeopleMap)
+      );
       return { data, error: null };
     },
     postgrest: postgrestGetAllEntries,
@@ -851,8 +810,16 @@ export const getEntriesByShowFromReplication = async (showId: string) => {
         compareDateDesc(getEntryCreatedSortValue)
       );
       const enrollmentsMap = await loadEnrollmentFinancialsMap(entries);
+      const handlerPeopleMap = await loadMissingHandlerPeopleMap(entries);
+      const data = mapEntriesWithStandardJoins(
+        entries,
+        dogsMap,
+        classesMap,
+        new Map(),
+        enrollmentsMap
+      );
       return {
-        data: mapEntriesWithStandardJoins(entries, dogsMap, classesMap, new Map(), enrollmentsMap),
+        data: data.map((row, index) => attachHandlerPerson(row, entries[index]!, handlerPeopleMap)),
         error: null,
         locallyDeletedIds,
       };
@@ -905,12 +872,13 @@ export const getEntriesByShowForFinancials = async (showId: string) => {
 
       const sortedEntries = sortedCopy(entries, compareDateDesc(getEntryCreatedSortValue));
       const enrollmentsMap = await loadEnrollmentFinancialsMap(sortedEntries);
+      const handlerPeopleMap = await loadMissingHandlerPeopleMap(sortedEntries);
       const data = sortedEntries.map(entry => {
         const raw = entry as unknown as Record<string, unknown>;
         const promoCodeId = raw.promoCodeId as string | undefined;
         const cls = entry.classId ? classesMap.get(entry.classId) : null;
         const trialRow = cls?.trialId ? (trialsMap.get(cls.trialId) ?? null) : null;
-        return mapReplicatedEntryToDbRow(entry, {
+        const row = mapReplicatedEntryToDbRow(entry, {
           dog: entry.dogId ? (dogsMap.get(entry.dogId) ?? null) : null,
           cls: cls ?? null,
           registration: entry.registrationId
@@ -919,6 +887,7 @@ export const getEntriesByShowForFinancials = async (showId: string) => {
           promoCode: promoCodeId ? (promoCodesMap.get(promoCodeId) ?? null) : null,
           trial: trialRow,
         });
+        return attachHandlerPerson(row, entry, handlerPeopleMap);
       });
 
       return { data, error: null };

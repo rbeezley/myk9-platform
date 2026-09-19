@@ -5,6 +5,7 @@ import { getCockpitReportHref } from './cockpitRoutes';
 import { buildReportPaperworkDescriptor } from './buildReportPaperworkDescriptor';
 import { buildArmbandPaperworkDescriptor, derivePaperworkPrintState } from './paperworkPrintState';
 import type { SecretaryCockpitPaperwork } from './secretaryCockpitTypes';
+import { projectHandlerIdentity } from '@/features/registries/handlerIdentity';
 
 const REPORTS = [
   { id: 'check-in-sheet', label: 'Check-in sheet' },
@@ -150,18 +151,21 @@ function buildArmbandDescriptor(
     const dog = row.dog as Record<string, unknown> | null;
     const handler = row.handler_person as Record<string, unknown> | null;
     const owner = dog?.owner as Record<string, unknown> | null;
+    const handlerIdentity = projectHandlerIdentity({
+      assignedHandlerName: row.handler as string | null | undefined,
+      assignedHandlerId: entry.handler_id,
+      assignedHandlerPerson: handler,
+      ownerPerson: owner,
+    });
     const dogId = entry.dog_id ?? '';
     const key = `${dogId || `armband:${armband}`}:${calendarDay}`;
     if (dogs.has(key)) continue;
-    const handlerSource = handler ?? owner;
     dogs.set(key, {
       dogId,
       calendarDay,
       armband,
       callName: String(dog?.call_name ?? dog?.name ?? ''),
-      handlerName: handlerSource
-        ? `${handlerSource.first_name ?? ''} ${handlerSource.last_name ?? ''}`.trim()
-        : String(row.handler ?? ''),
+      handlerName: handlerIdentity.name ?? '',
       classIds: [scope.classId],
       trialIds: [scope.trialId],
     });

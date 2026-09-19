@@ -211,6 +211,26 @@ describe('buildRunSheetEntries', () => {
     expect(e.ownerName).toBe('Richard Beezley');
   });
 
+  it('uses the hydrated assigned handler when handler text is absent', () => {
+    const [e] = buildRunSheetEntries([
+      makeRow({
+        handler: null,
+        handler_id: 'handler-1',
+        handler_person: { id: 'handler-1', first_name: 'Alex', last_name: 'Assigned' },
+        dog: {
+          id: 'd1',
+          name: 'Ziva',
+          call_name: null,
+          breed: null,
+          registrations: null,
+          owner: { id: 'o1', first_name: 'Richard', last_name: 'Beezley' },
+        },
+      }),
+    ]);
+    expect(e.handlerName).toBe('Alex Assigned');
+    expect(e.ownerName).toBe('Richard Beezley');
+  });
+
   it('falls back to owner name when entry handler is blank', () => {
     const [e] = buildRunSheetEntries([
       makeRow({

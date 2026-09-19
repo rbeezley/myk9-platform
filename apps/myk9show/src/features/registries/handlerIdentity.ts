@@ -57,6 +57,70 @@ export interface HandlerPersonLike {
   last_name?: string | null | undefined;
 }
 
+export type HandlerIdentitySource = 'assigned-text' | 'assigned-person' | 'owner' | 'unknown';
+
+export interface HandlerIdentityProjection<TPerson extends HandlerPersonLike = HandlerPersonLike> {
+  name: string | null;
+  person: TPerson | null;
+  source: HandlerIdentitySource;
+}
+
+export interface ProjectHandlerIdentityInput<
+  TPerson extends HandlerPersonLike = HandlerPersonLike,
+> {
+  /** The denormalized `entries.handler` text, which is the printed authority. */
+  assignedHandlerName?: string | null | undefined;
+  /** The `entries.handler_id` FK, used to distinguish an unresolved assignment from no assignment. */
+  assignedHandlerId?: string | null | undefined;
+  /** The person joined through `entries.handler_id`, when the read shape hydrates it. */
+  assignedHandlerPerson?: TPerson | null | undefined;
+  /** The dog's owner, used only when the entry has no assigned handler. */
+  ownerPerson?: TPerson | null | undefined;
+}
+
+function personName(person: HandlerPersonLike | null | undefined): string {
+  return `${person?.first_name ?? ''} ${person?.last_name ?? ''}`.trim();
+}
+
+/**
+ * Project the handler identity used by paperwork and show-day reports.
+ *
+ * This is deliberately the only precedence rule: stored entry text first,
+ * hydrated assigned person second, owner only when no assignment exists, and
+ * null for an assigned-but-unresolved handler. Consumers choose their own
+ * presentation placeholder for the final case, but never invent a different
+ * person.
+ */
+export function projectHandlerIdentity<TPerson extends HandlerPersonLike>({
+  assignedHandlerName,
+  assignedHandlerId,
+  assignedHandlerPerson,
+  ownerPerson,
+}: ProjectHandlerIdentityInput<TPerson>): HandlerIdentityProjection<TPerson> {
+  const printedName = assignedHandlerName?.trim() ?? '';
+  if (printedName) {
+    return { name: printedName, person: assignedHandlerPerson ?? null, source: 'assigned-text' };
+  }
+
+  const assignedPersonName = personName(assignedHandlerPerson);
+  if (assignedPersonName) {
+    return {
+      name: assignedPersonName,
+      person: assignedHandlerPerson ?? null,
+      source: 'assigned-person',
+    };
+  }
+
+  if (assignedHandlerId?.trim()) {
+    return { name: null, person: null, source: 'unknown' };
+  }
+
+  const ownerName = personName(ownerPerson);
+  return ownerName
+    ? { name: ownerName, person: ownerPerson ?? null, source: 'owner' }
+    : { name: null, person: null, source: 'unknown' };
+}
+
 /**
  * Case, punctuation and whitespace folded away. Hyphens and apostrophes become
  * spaces so `Owner-Smith` and `O'Brien` survive a secretary typing them either

@@ -482,6 +482,24 @@ describe('mapScopedReportEntries', () => {
       expect(handlerOf(handlerDbRow())).toBe('Test Secretary');
     });
 
+    it('prefers entry text over a disagreeing hydrated handler person', () => {
+      const row = {
+        ...handlerDbRow({ handler: 'Entry Text' }),
+        handler_person: { first_name: 'Joined', last_name: 'Person' },
+      } as unknown as DbEntry;
+
+      expect(handlerOf(row)).toBe('Entry Text');
+    });
+
+    it('uses the hydrated handler person when only handler_id is present', () => {
+      const row = {
+        ...handlerDbRow({ handler: null }),
+        handler_person: { first_name: 'Alex', last_name: 'Assigned' },
+      } as unknown as DbEntry;
+
+      expect(handlerOf(row)).toBe('Alex Assigned');
+    });
+
     it('renders a clear placeholder rather than an ambiguous blank', () => {
       // A blank cell on a gate sheet reads as "no handler needed"; the steward
       // cannot tell it apart from missing data.

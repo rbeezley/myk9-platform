@@ -31,6 +31,7 @@ import type { SecretaryEntry } from '@/services/database/entries';
 import { useShowManageScope } from '@/hooks/useShowManageScope';
 import { useShowQuery } from '@/hooks/queries/useShowsDatabase';
 import { useAuthContext } from '@/hooks/useAuthContext';
+import { projectHandlerIdentity } from '@/features/registries/handlerIdentity';
 
 /**
  * Exported for its contract test: this hand-written projection is the last hop
@@ -51,6 +52,7 @@ export function secretaryEntryToRawRow(entry: SecretaryEntry): RawEntryRow {
     handler_id: entry.handler_id,
     armband: entry.armband,
     handler: entry.handler,
+    handler_person: entry.handler_person,
     result_status: entry.result_status,
     is_scored: entry.is_scored,
     search_time_seconds: entry.search_time_seconds,
@@ -269,7 +271,7 @@ export function useClassDetailsData() {
     }
 
     // Build a lookup of raw DB entries for dog name resolution
-    const rawById = new Map(dbRawEntries.map(r => [r.id, r]));
+    const rawById = new Map(effectiveRawEntries.map(r => [r.id, r]));
 
     // Start with database entries — resolve dog names from raw DB join data
     const dbDisplayEntries: ClassEntryDisplay[] = dbEntries.map(e => {
@@ -283,11 +285,17 @@ export function useClassDetailsData() {
       // Get dog name from the raw DB join (mapDatabaseToEntry doesn't extract it)
       const raw = rawById.get(e.id);
       const dogName = raw?.dog?.call_name || raw?.dog?.name || e.dog || 'Unknown Dog';
+      const handlerIdentity = projectHandlerIdentity({
+        assignedHandlerName: raw?.handler ?? e.handler,
+        assignedHandlerId: raw?.handler_id ?? null,
+        assignedHandlerPerson: raw?.handler_person,
+        ownerPerson: raw?.dog?.owner,
+      });
 
       return {
         id: e.id,
         armband,
-        handler: e.handler || '',
+        handler: handlerIdentity.name ?? '',
         dog: dogName,
         status: '' as ClassEntryDisplay['status'], // Scoring handled by rawEntries
         score: '',

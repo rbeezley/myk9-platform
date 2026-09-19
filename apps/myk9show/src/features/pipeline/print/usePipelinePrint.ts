@@ -11,6 +11,7 @@ import { useTrialStore } from '@/store/trialStore';
 import { generateRunOrder, generateScoreSheet, generateResults } from './print-service';
 import type { ClassPipelineItem } from '../mission-control-types';
 import type { PrintClassInfo, PrintReportEntry } from './print-types';
+import { projectHandlerIdentity } from '@/features/registries/handlerIdentity';
 
 /** Map result_status from DB to display text */
 function mapResultStatus(status: string | null): string | null {
@@ -53,21 +54,20 @@ export interface EntryRow {
   dog?: DogData | null;
 }
 
-function formatPersonName(person: PersonData | null | undefined): string {
-  return `${person?.first_name ?? ''} ${person?.last_name ?? ''}`.trim();
-}
-
 export function mapEntry(row: EntryRow): PrintReportEntry {
   const dog = row.dog;
   const owner = dog?.owner;
-  const assignedHandlerName = row.handler?.trim() || formatPersonName(row.handler_person) || '';
+  const handlerIdentity = projectHandlerIdentity({
+    assignedHandlerName: row.handler,
+    assignedHandlerId: row.handler_id,
+    assignedHandlerPerson: row.handler_person,
+    ownerPerson: owner,
+  });
   // A handler_id is an assigned identity even when its person join is absent
   // from a cold/partial read. Never turn that unresolved assignment into the
   // owner's name; an explicit placeholder is safer than calling the wrong
   // person to the gate.
-  const handlerName =
-    assignedHandlerName ||
-    (row.handler_id ? 'Unknown Handler' : formatPersonName(owner) || 'Unknown Handler');
+  const handlerName = handlerIdentity.name ?? 'Unknown Handler';
 
   return {
     id: String(row.id),

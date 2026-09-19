@@ -8,7 +8,10 @@ import {
 } from '@/features/dogs/identity';
 import type { ShowExperienceSnapshot } from '@/features/experience/experienceSnapshot';
 import { normalizeJuniorHandlerNumbers } from '@/features/registries/juniorHandlerPolicy';
-import { resolveHandlerPerson } from '@/features/registries/handlerIdentity';
+import {
+  projectHandlerIdentity,
+  resolveHandlerPerson,
+} from '@/features/registries/handlerIdentity';
 import type {
   EntryFormDog,
   EntryFormSecretary,
@@ -317,28 +320,29 @@ async function fetchEntryFormData(
       first_name: owner.firstName,
       last_name: owner.lastName,
     });
-    // `handler` is the name the AKC form PRINTS. It stays null when the handler
-    // is the owner — that is what the `!== ownerFullName` filter is for; the
-    // form prints the owner block in that case.
-    const handlerEntry = dogEntries.find(e => e.handler && e.handler !== ownerFullName);
-    const handler = handlerEntry?.handler ?? null;
+    // The form prints the owner block when the projected handler is the owner;
+    // a distinct assigned handler gets its own field.
+    const handlerEntry = dogEntries.find(e => e.handler?.trim() || e.handlerId);
 
     // MYK9-570: WHO that handler is, for the junior fields, is decided by the
-    // one resolver in handlerIdentity.ts — never inferred here from whatever is
-    // in scope. Two rounds of review found this block wrong in two different
-    // ways (a person borrowed from another entry; then, after that fallback was
-    // deleted, the owner-handled case lost the number entirely — 1276 of 1281
-    // live entries), so the choice no longer lives at the call site.
+    // shared projection and resolver in handlerIdentity.ts — never inferred
+    // here from whichever person happens to be in scope.
     //
-    // The printed name is `handler` when there IS a separate handler entry, and
-    // the owner's name otherwise. Both candidates are offered; the resolver
-    // admits one only if its name is the one being printed.
-    const printedHandlerName = handler ?? ownerFullName;
     const handlerIdPerson = handlerEntry?.handlerId
       ? (personMap.get(handlerEntry.handlerId) ?? null)
       : null;
+    const handlerIdentity = projectHandlerIdentity({
+      assignedHandlerName: handlerEntry?.handler,
+      assignedHandlerId: handlerEntry?.handlerId,
+      assignedHandlerPerson: handlerIdPerson,
+      ownerPerson: ownerRaw ?? null,
+    });
+    const handler =
+      handlerIdentity.source === 'owner' || handlerIdentity.name === ownerFullName
+        ? null
+        : handlerIdentity.name;
     const handlerRaw = resolveHandlerPerson({
-      printedHandlerName,
+      printedHandlerName: handlerIdentity.name ?? ownerFullName,
       handlerIdPerson,
       ownerPerson: ownerRaw ?? null,
     });

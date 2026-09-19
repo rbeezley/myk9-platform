@@ -26,6 +26,11 @@ export interface RawEntryRow {
   handler_id: string | null;
   armband: string | null;
   handler: string | null;
+  handler_person?: {
+    id?: string;
+    first_name: string | null;
+    last_name: string | null;
+  } | null;
   result_status: string | null;
   is_scored: boolean | null;
   search_time_seconds: number | null;

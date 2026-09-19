@@ -138,6 +138,42 @@ describe('buildClassPaperworkMap', () => {
     });
   });
 
+  it('fingerprints the assigned handler instead of the owner for armband labels', () => {
+    const assignedEntries = [
+      {
+        ...entries[0],
+        handler: 'Alex Assigned',
+        handler_id: 'handler-1',
+        handler_person: { first_name: 'Joined', last_name: 'Person' },
+      } as unknown as DbEntry,
+    ];
+    const ownerOnly = buildClassPaperworkMap({
+      showId: 'show-1',
+      classes,
+      trials: [{ id: 'trial-1', trialDate: '2026-07-20' }],
+      entries,
+      records: [],
+      returnTo: '/shows/show-1/show-day',
+    });
+    const assigned = buildClassPaperworkMap({
+      showId: 'show-1',
+      classes,
+      trials: [{ id: 'trial-1', trialDate: '2026-07-20' }],
+      entries: assignedEntries,
+      records: [],
+      returnTo: '/shows/show-1/show-day',
+    });
+
+    const ownerFingerprint = ownerOnly
+      .get('class-1')
+      ?.find(item => item.reportId === 'armband-labels')?.confirmation?.fingerprint;
+    const assignedFingerprint = assigned
+      .get('class-1')
+      ?.find(item => item.reportId === 'armband-labels')?.confirmation?.fingerprint;
+
+    expect(assignedFingerprint).not.toBe(ownerFingerprint);
+  });
+
   it('includes Class identity and lifecycle in result-document fingerprints', () => {
     const scope = {
       kind: 'class' as const,

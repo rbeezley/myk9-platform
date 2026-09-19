@@ -98,4 +98,24 @@ describe('secretaryEntryToRawRow feeding buildClassReadinessSummary', () => {
 
     expect(row.moved_from_entry_id).toBe(SOURCE_ID);
   });
+
+  it('carries the hydrated handler person through the run-sheet projection', () => {
+    const row = secretaryEntryToRawRow(
+      secretaryEntry({
+        handler: null,
+        handler_person: {
+          id: 'person-1',
+          first_name: 'Alex',
+          last_name: 'Assigned',
+          auth_user_id: null,
+        },
+      })
+    );
+
+    expect(row.handler_person).toMatchObject({
+      id: 'person-1',
+      first_name: 'Alex',
+      last_name: 'Assigned',
+    });
+  });
 });

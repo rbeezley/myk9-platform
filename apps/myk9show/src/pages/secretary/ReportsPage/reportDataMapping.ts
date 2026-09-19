@@ -18,7 +18,10 @@ import { formatShowDateRange } from '@/lib/format/dates';
 import { resolveDogIdentityForOrganization } from '@/features/dogs/identity';
 import { resolveConfiguredRegistryId } from '@/features/registries';
 import { deriveJuniorStatus } from '@/features/registries/juniorHandlerPolicy';
-import { resolveHandlerPerson } from '@/features/registries/handlerIdentity';
+import {
+  projectHandlerIdentity,
+  resolveHandlerPerson,
+} from '@/features/registries/handlerIdentity';
 
 export function mapReportEntries(
   dbEntries: ReportDbEntry[],
@@ -85,7 +88,12 @@ function mapReportEntry(
 ): ReportEntry {
   const dog = e.dog;
   const registration = e.registration;
-  const handlerName = resolveReportHandlerName(e.handler);
+  const handlerIdentity = projectHandlerIdentity({
+    assignedHandlerName: e.handler,
+    assignedHandlerId: e.handler_id,
+    assignedHandlerPerson: e.handler_person,
+  });
+  const handlerName = resolveReportHandlerName(handlerIdentity.name);
   // Pass the armband through as TEXT. `Number('12A')` is NaN, which the packet
   // model then reads as "no armband" -- so a suffixed armband silently vanished
   // from the Reports page just as it printed `#0` on the packet (MYK9-243).
@@ -197,8 +205,13 @@ function resolveHandlerJunior(
   // see handlerIdentity.ts. The catalog has no owner row in hand, so the
   // handler_id person is its only candidate; the rule still requires that
   // person to bear the printed name, because a rename leaves the id behind.
+  const handlerIdentity = projectHandlerIdentity({
+    assignedHandlerName: e.handler,
+    assignedHandlerId: e.handler_id,
+    assignedHandlerPerson: person,
+  });
   const handlerPerson = resolveHandlerPerson({
-    printedHandlerName: e.handler,
+    printedHandlerName: handlerIdentity.name,
     handlerIdPerson: person,
     ownerPerson: null,
   });

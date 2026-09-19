@@ -192,4 +192,48 @@ describe('fetchReplicatedCheckInEntries', () => {
     expect(rows[0].handler_first_name).toBe('Cher');
     expect(rows[0].handler_last_name).toBeNull();
   });
+
+  it('hydrates an assigned handler when the replicated row has only handler_id', async () => {
+    replicationMocks.getEntriesByShow.mockResolvedValue([
+      {
+        id: 'entry-handler-only',
+        showId: 'show-1',
+        dogId: 'dog-1',
+        handlerId: 'handler-1',
+        handler: null,
+        dogCallName: 'Buddy',
+        classId: 'class-1',
+        checkInStatus: 'no-status',
+      },
+    ]);
+    replicationMocks.getClassById.mockResolvedValue({
+      id: 'class-1',
+      trialId: 'trial-1',
+      element: 'Buried',
+      level: 'Novice',
+    });
+    replicationMocks.getTrialsByShow.mockResolvedValue([
+      { id: 'trial-1', date: '2026-04-12', trialNumber: '1' },
+    ]);
+    replicationMocks.getArmbandsByShow.mockResolvedValue([]);
+    supabaseMocks.from.mockReturnValue({
+      select: () => ({
+        in: () =>
+          Promise.resolve({
+            data: [{ id: 'handler-1', first_name: 'Alex', last_name: 'Assigned' }],
+            error: null,
+          }),
+      }),
+    });
+
+    const { fetchReplicatedCheckInEntries } = await import('../useCheckInReportReplication');
+
+    const rows = await fetchReplicatedCheckInEntries('show-1');
+
+    expect(rows[0]).toMatchObject({
+      handler_id: 'handler-1',
+      handler_first_name: 'Alex',
+      handler_last_name: 'Assigned',
+    });
+  });
 });

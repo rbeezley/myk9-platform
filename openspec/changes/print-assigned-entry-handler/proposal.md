@@ -19,7 +19,6 @@ Check-in sheets and run orders currently print the dog's owner even when the ent
 
 ### Modified Capabilities
 
-
 ## Impact
 
 - Pipeline print mapping/types/templates and focused tests; potentially existing organization-form/gazette tests only if the audit finds the same assumption.

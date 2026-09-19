@@ -20,8 +20,12 @@ import { logger } from '@/services/LoggingService';
 import { buildMapFromArray } from '../_shared/maps';
 import { withTimeout, DEFAULT_TIMEOUT_MS } from '@myk9/core';
 import { buildReplicatedUserEntryRows } from './userEntriesReplication';
+import { applyOrderReferenceRule } from './orderReferenceRule';
 import { selectOwnedDogIds } from '@/utils/dogOwnership';
-import { isWithdrawalReasonCodeSchemaUnavailable } from '@/features/payments/pullRefundSchemaCompatibility';
+import {
+  isWithdrawalReasonCodeSchemaUnavailable,
+  isRegistrationConfirmationNumberSchemaUnavailable,
+} from '@/features/payments/pullRefundSchemaCompatibility';
 
 /**
  * Where an account-level entry read's rows came from.
@@ -142,26 +146,41 @@ export const USER_ENTRIES_SELECT = `
     `;
 
 /**
- * The same select PLUS MYK9-632's `withdrawal_reason_code`, spelled out rather
- * than spliced: supabase-js parses the select string at the TYPE level, and it
- * only parses a literal.
+ * The base select PLUS whichever migration-backed view columns this database is
+ * known to have.
  *
- * Two selects exist because migration 20260918041700 is what puts the column on
- * the view, and until that is pushed naming it fails the WHOLE query with
- * 42703. That would not merely drop a badge suffix: `getUserEntries` reads a
- * failed view read as "fall back to the per-show replica", and `/my-entries` is
- * a cross-show route that never syncs one — so My Shows, My Payments and the
- * exhibitor dashboard would all go empty for the window between this branch
- * merging and the push. The read therefore asks for the column and drops it for
- * the rest of the read if the server says it is not there, through the same
- * `isWithdrawalReasonCodeSchemaUnavailable` seam
- * `postgrestGetSecretaryPullMetadataMap` already uses for it.
+ * Two of them exist — MYK9-632's `withdrawal_reason_code` (20260918041700) and
+ * MYK9-659's `registration_confirmation_number` (20260918193700) — and they are
+ * INDEPENDENT, so each is dropped on its own rather than taking the other down
+ * with it. Same shape as `postgrestGetSecretaryPullMetadataMap`.
  *
- * `search.test.ts` pins BOTH: that the column is asked for, and that the rows
- * still arrive from the VIEW when the server refuses it.
+ * Why either is optional at all: until its migration is pushed, naming the
+ * column fails the WHOLE query with 42703. That would not merely drop a badge
+ * suffix or an order reference — `getUserEntries` reads a failed view read as
+ * "fall back to the per-show replica", and `/my-entries` is a cross-show route
+ * that never syncs one, so My Shows, My Payments and the exhibitor dashboard
+ * would all go empty for the window between this branch merging and the push.
+ * The read therefore asks for each column and drops it for the rest of the read
+ * if the server says it is not there, through the same `is…SchemaUnavailable`
+ * seams `postgrestGetSecretaryPullMetadataMap` already uses.
+ *
+ * Built by interpolation rather than spelled out per combination: supabase-js
+ * parses the select string at the TYPE level and cannot parse this one anyway
+ * (the constant's trailing whitespace already defeated it), which is why
+ * `postgrestGetUserEntries` casts through `unknown`. `search.test.ts` is what
+ * pins the column list and the drop-and-retry behaviour.
  */
-const USER_ENTRIES_SELECT_WITH_REASON_CODE = `${USER_ENTRIES_SELECT},
-      withdrawal_reason_code`;
+export function buildUserEntriesSelect(options: {
+  includeReasonCode: boolean;
+  includeRegistrationConfirmationNumber: boolean;
+}): string {
+  const optional = [
+    options.includeReasonCode ? 'withdrawal_reason_code' : null,
+    options.includeRegistrationConfirmationNumber ? 'registration_confirmation_number' : null,
+  ].filter((column): column is string => column !== null);
+  if (optional.length === 0) return USER_ENTRIES_SELECT;
+  return `${USER_ENTRIES_SELECT},\n      ${optional.join(',\n      ')}`;
+}
 
 // Routes own-entry reads through the cascade-aware authenticated view so scored
 // columns (final_placement, result_status, etc.) are nulled until the
@@ -177,6 +196,9 @@ async function postgrestGetUserEntries() {
   // one page's schema verdict into every later read (and into the next test in
   // a shuffled run).
   let includeReasonCode = true;
+  // MYK9-659's view column, tracked separately: two INDEPENDENT migrations back
+  // these two columns, so one missing must not drop the other.
+  let includeRegistrationConfirmationNumber = true;
   // ONE deadline for the whole paged read, not one per page. `withTimeout`
   // only races the promise it is given, so when it wins, the loop below is
   // still in flight — a per-page signal would let each SUBSEQUENT page start a
@@ -191,7 +213,9 @@ async function postgrestGetUserEntries() {
     const runPage = () =>
       supabase
         .from('view_authenticated_entry_results')
-        .select(includeReasonCode ? USER_ENTRIES_SELECT_WITH_REASON_CODE : USER_ENTRIES_SELECT)
+        .select(
+          buildUserEntriesSelect({ includeReasonCode, includeRegistrationConfirmationNumber })
+        )
         // My Entries is OWN entries only. The view returns can_manage OR
         // is_own_entry rows, so without this filter a secretary/admin would receive
         // every manageable show entry here. is_own_entry is a SQL-resolved column
@@ -220,6 +244,22 @@ async function postgrestGetUserEntries() {
       );
       response = await runPage();
     }
+    if (
+      includeRegistrationConfirmationNumber &&
+      isRegistrationConfirmationNumberSchemaUnavailable(response.error)
+    ) {
+      // Pre-20260918193700 database. Same contract as the arm above: drop the
+      // column, re-ask this page, and go without it for every later page. The
+      // online receipt falls back to the `registration:registration_id(...)`
+      // embed's confirmation number, which is what it read before MYK9-659.
+      includeRegistrationConfirmationNumber = false;
+      logger.warn(
+        'My Entries read without registration_confirmation_number: migration 20260918193700 is not applied',
+        'database',
+        { column: 'registration_confirmation_number', migration: '20260918193700' }
+      );
+      response = await runPage();
+    }
     const { data, error } = response;
 
     if (error) {
@@ -234,6 +274,9 @@ async function postgrestGetUserEntries() {
     // anyway — `transformEntry` casts each field — so nothing is lost here that
     // was ever enforced; `search.test.ts` is what pins the column list.
     const pageRows = (data || []) as unknown as Record<string, unknown>[];
+    // One rule, both paths: the view's own column decides the order reference,
+    // the embed only backs it up. See applyOrderReferenceRule.
+    for (const row of pageRows) applyOrderReferenceRule(row);
     rows.push(...pageRows);
     if (pageRows.length < USER_ENTRIES_PAGE_SIZE) {
       return { data: rows, error: null };

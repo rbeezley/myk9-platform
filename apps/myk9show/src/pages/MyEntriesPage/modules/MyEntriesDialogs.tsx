@@ -363,11 +363,17 @@ export const ReceiptEntryDialog: React.FC<ReceiptEntryDialogProps> = ({
         ...(entry.confirmationNumber !== undefined && {
           confirmationNumber: entry.confirmationNumber,
         }),
-        // The Stripe order id, and nothing else. Never `entry.id`, which on this
+        // The order's own id, and nothing else. Never `entry.id`, which on this
         // shape is one class row of the order — and, since MYK9-659, never
         // `entry.registrationId` either: the enrollment's UUID is not a
         // reference anyone can quote, and the ORDER's real reference is its
         // confirmation number above, which `enrollments` always carries.
+        //
+        // NOT the Stripe payment intent: `entryReceiptOrder.ts` maps this from
+        // `stripe_orders.id` (an internal UUID) and the intent separately into
+        // `reference`/`paymentReference`. So this is a fallback of last resort —
+        // reachable only for an online Stripe order whose enrollment somehow has
+        // no confirmation number — and it still prints a UUID when it fires.
         ...(entry.orderId ? { reference: entry.orderId } : {}),
         showName: entry.showName,
         showDate: entry.showDate,

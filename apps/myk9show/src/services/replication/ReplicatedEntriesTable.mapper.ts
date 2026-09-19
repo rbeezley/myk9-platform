@@ -105,6 +105,14 @@ export interface ReplicatedEntry {
    * `optionalColumn` because a row cached before that push simply lacks it,
    * and never projected back in `entryToSupabaseRow` — it is not an `entries`
    * column, so a whole-row upload must not try to write it.
+   *
+   * Carries the snake alias like every other replicated column on this
+   * interface (`show_deleted_at`, `withdrawal_reason_code`,
+   * `moved_from_entry_id`, `check_in_status`, …): consumers read whichever
+   * casing their own code uses, and a column that broke the pattern would be
+   * the one nobody thinks to look for. Both keys are filled from the same
+   * `optionalColumn` call, so they can never disagree — no consumer needs to
+   * `??` between them.
    */
   registrationConfirmationNumber?: string | undefined;
   registration_confirmation_number?: string | undefined;

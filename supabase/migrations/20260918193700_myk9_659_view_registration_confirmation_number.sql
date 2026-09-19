@@ -48,8 +48,31 @@
 --
 --  * No new GRANT is needed for the column. Neither view carries column-level
 --    ACLs (`pg_attribute.attacl` is empty on both, checked live), so the
---    table-level `GRANT SELECT ... TO authenticated` below covers it. The views
---    are owner-run, so no reader needs SELECT on `public.enrollments` itself.
+--    table-level `GRANT SELECT ... TO authenticated` below covers it.
+--
+--  * WHO SEES IT, stated plainly, because this column is NOT the sibling of
+--    `payment_reference` it first looks like. Every other `can_view_admin`
+--    column on this view is an `entries` column, also reachable under `entries`
+--    RLS and the entries column allowlist. This one is a CROSS-TABLE column
+--    from `public.enrollments`, reached by an owner-run LEFT JOIN that
+--    evaluates no `enrollments` policy at all -- so `access.can_view_admin` is
+--    the ONLY guard on it, and it is a different predicate from
+--    `enrollments_select` (20260918173900), whose exhibitor arm matches
+--    `enrollments.handler_id`, the person who PLACED the order.
+--
+--    That difference is DELIBERATE and is the rule this change adopts: the
+--    order reference belongs to whoever the ENTRY belongs to. `can_view_admin`
+--    is a show manager, the entry's own handler, or the dog's owner, so a
+--    person whose own entry sits on an order gets that order's reference on the
+--    receipt that lists their own fees -- even when someone else placed the
+--    order. That is the one rule BOTH client read paths now apply: the online
+--    account read prefers this column over the
+--    `registration:registration_id(confirmation_number)` embed precisely so it
+--    stops inheriting `enrollments_select`'s different answer, and the offline
+--    replica rebuild calls the same resolver
+--    (`services/database/entries/orderReferenceRule.ts`). The token is a
+--    quotable order reference, not a lookup key: nothing in `apps`, `packages`
+--    or `supabase/functions` filters or joins on `confirmation_number`.
 --
 --  * ACLs are re-asserted rather than assumed. CREATE OR REPLACE does not reset
 --    them (only DROP does), but stating them keeps this file self-contained and
@@ -221,11 +244,20 @@ SELECT
   -- order the app creates has one. It reached the client only through the
   -- PostgREST `registration:registration_id(...)` embed, which the offline
   -- replica path cannot make -- so the same order printed `Confirmation #:
-  -- MK9-000146` online and a raw enrollment UUID offline. Masked by
-  -- `can_view_admin` (a show manager, or the entry's own exhibitor), exactly
-  -- like every other order/payment column on this view: a judge or steward
-  -- reading the same feed gains nothing. Appended at the END of the select
-  -- list because CREATE OR REPLACE VIEW may only add columns there.
+  -- MK9-000146` online and a raw enrollment UUID offline.
+  --
+  -- NOT the sibling of `payment_reference` above. That is an `entries` column,
+  -- also reachable under `entries` RLS; this is a CROSS-TABLE column from
+  -- `public.enrollments`, reached by an owner-run LEFT JOIN that evaluates no
+  -- `enrollments` policy, so `access.can_view_admin` is its ONLY guard -- and
+  -- a different predicate from `enrollments_select`, which matches the
+  -- enrollment's own handler_id. Deliberate: the order reference belongs to
+  -- whoever the ENTRY belongs to, so the entry's handler or the dog's owner
+  -- sees the reference of the order their entry is on, even when another
+  -- person placed it. Both client read paths apply that one rule.
+  --
+  -- Appended at the END of the select list because CREATE OR REPLACE VIEW may
+  -- only add columns there.
   CASE WHEN access.can_view_admin THEN en.confirmation_number END AS registration_confirmation_number
 FROM public.entries e
 LEFT JOIN public.enrollments en ON en.id = e.registration_id
@@ -333,12 +365,10 @@ REVOKE INSERT, UPDATE, DELETE ON public.view_authenticated_entry_results FROM au
 COMMENT ON VIEW public.view_authenticated_entry_results IS
   'Authenticated entry results. Scored columns stay gated by can_view_scores and '
   'payment columns by can_view_admin, which now also masks the enumerated '
-  'withdrawal_reason_code beside the free-text withdrawal_reason (MYK9-632) and '
-  'the order''s enrollments.confirmation_number as registration_confirmation_number '
-  '(MYK9-659). A '
+  'withdrawal_reason_code beside the free-text withdrawal_reason (MYK9-632). A '
   'club-less show is manageable by site admins only (MYK9-258 / MYK9-329). Class '
   'result visibility resolves once per class via private.class_result_visibility '
-  '(MYK9-126). moved_from_entry_id (MYK9-639) is unmasked: it is structural provenance, like class_id. registration_confirmation_number (MYK9-659) is appended after it and masked by can_view_admin. The view remains security_invoker = false.';
+  '(MYK9-126). moved_from_entry_id (MYK9-639) is unmasked: it is structural provenance, like class_id. registration_confirmation_number (MYK9-659) is appended after it and is NOT a sibling of payment_reference: it is a cross-table column from public.enrollments, reached by an owner-run LEFT JOIN that evaluates no enrollments policy, so can_view_admin is its ONLY guard -- a different predicate from enrollments_select, which matches the enrollment''s own handler_id. That is deliberate: the order reference belongs to whoever the ENTRY belongs to, so the entry''s handler or the dog''s owner sees the reference of the order their entry is on, even when another person placed it, and both client read paths apply that one rule. The view remains security_invoker = false.';
 
 -- MYK9-291's wrapper, re-emitted with the star expanded (see the header).
 CREATE OR REPLACE VIEW public.view_authenticated_entry_results_replication
@@ -472,7 +502,7 @@ REVOKE ALL ON public.view_authenticated_entry_results_replication FROM anon;
 REVOKE INSERT, UPDATE, DELETE ON public.view_authenticated_entry_results_replication FROM authenticated;
 
 COMMENT ON VIEW public.view_authenticated_entry_results_replication IS
-  'Replication feed wrapping view_authenticated_entry_results, adding the shows join needed to replicate soft-deleted shows (MYK9-291). Owner-run (security_invoker = false) like the view it wraps; the score/payment gating is inherited from that inner view body, and the shows columns are reachable only for entries the inner view already admitted. Advisor security_definer_view ERROR accepted by design 2026-09-09 (docs/improve-audit-2026-07-11/009-advisor-disposition-sweep.md, Verdict 1). Any rebuild MUST carry WITH (security_invoker = false) inline -- CREATE OR REPLACE VIEW resets reloptions. The select list is explicit (MYK9-632): `entries.*` re-expanded on every rebuild and would have reordered the columns the moment the inner view gained one. moved_from_entry_id (MYK9-639) is appended after it. registration_confirmation_number (MYK9-659) is appended after that, so the offline receipt prints the same order reference as the online one.';
+  'Replication feed wrapping view_authenticated_entry_results, adding the shows join needed to replicate soft-deleted shows (MYK9-291). Owner-run (security_invoker = false) like the view it wraps; the score/payment gating is inherited from that inner view body, and the shows columns are reachable only for entries the inner view already admitted. Advisor security_definer_view ERROR accepted by design 2026-09-09 (docs/improve-audit-2026-07-11/009-advisor-disposition-sweep.md, Verdict 1). Any rebuild MUST carry WITH (security_invoker = false) inline -- CREATE OR REPLACE VIEW resets reloptions. The select list is explicit (MYK9-632): `entries.*` re-expanded on every rebuild and would have reordered the columns the moment the inner view gained one. moved_from_entry_id (MYK9-639) is appended after it. registration_confirmation_number (MYK9-659) is appended after that, so the offline receipt prints the same order reference as the online one -- guarded by the inner view''s can_view_admin alone (see that view''s comment), which is the entry''s access, not the enrollment''s.';
 
 NOTIFY pgrst, 'reload schema';
 

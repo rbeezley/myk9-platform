@@ -368,6 +368,91 @@ describe('getUserEntries account-scope read', () => {
     });
   });
 
+  /**
+   * MYK9-659: the ONE rule for the order reference is the view's
+   * `can_view_admin`, so the online read must take the identifier from the
+   * view COLUMN — not from the `registration:registration_id(...)` embed,
+   * which PostgREST resolves under `enrollments_select` and therefore answers
+   * a different question (the order's handler, not the entry's).
+   */
+  describe('registration_confirmation_number (MYK9-659) — asked for, preferred, and optional', () => {
+    const schemaError = Object.assign(
+      new Error(
+        'column view_authenticated_entry_results.registration_confirmation_number does not exist'
+      ),
+      { code: '42703' }
+    );
+
+    it('names the column in the select', async () => {
+      mockReplicatedStores();
+      const { viewQuery } = mockSupabaseTables({ viewEntryRows: [{ id: 'entry-1' }] });
+
+      await getUserEntries('user-1');
+
+      expect(viewQuery.select).toHaveBeenCalledWith(
+        expect.stringContaining('registration_confirmation_number')
+      );
+    });
+
+    it('lets the view column override the embed on the rows it returns', async () => {
+      mockReplicatedStores();
+      const { viewQuery } = mockSupabaseTables({
+        viewEntryRows: [
+          {
+            id: 'entry-1',
+            registration_id: 'enrollment-1',
+            registration_confirmation_number: 'MK9-000146',
+            registration: { id: 'enrollment-1', payment_status: 'paid' },
+          },
+        ],
+      });
+      expect(viewQuery).toBeDefined();
+
+      const result = await getUserEntries('user-1');
+
+      expect(result.source).toBe('confirmed');
+      expect(result.data[0]!.registration).toEqual({
+        id: 'enrollment-1',
+        payment_status: 'paid',
+        confirmation_number: 'MK9-000146',
+      });
+    });
+
+    it('drops the column and re-asks when the view has not got it yet', async () => {
+      mockReplicatedStores();
+      const rows = [{ id: 'entry-1' }];
+      const viewQuery = makeViewEntriesQuery(rows);
+      viewQuery.range.mockImplementation(() =>
+        Promise.resolve(
+          viewQuery.select.mock.calls.at(-1)?.[0]?.includes('registration_confirmation_number')
+            ? { data: [] as Array<Record<string, unknown>>, error: schemaError }
+            : { data: rows, error: null }
+        )
+      );
+      mocks.supabaseFrom.mockImplementation((table: string) => {
+        if (table === 'view_authenticated_entry_results') return viewQuery;
+        throw new Error(`Unexpected table: ${table}`);
+      });
+
+      const result = await getUserEntries('user-1');
+
+      // The page survives the pre-push window; only the identifier degrades,
+      // back to the embed's confirmation number.
+      expect(result.source).toBe('confirmed');
+      expect(result.data).toEqual(rows);
+      const selects = viewQuery.select.mock.calls.map(call => call[0]);
+      expect(selects[0]).toContain('registration_confirmation_number');
+      expect(selects.at(-1)).not.toContain('registration_confirmation_number');
+      // ...and the OTHER optional column is not taken down with it.
+      expect(selects.at(-1)).toContain('withdrawal_reason_code');
+      expect(mocks.loggerWarn).toHaveBeenCalledWith(
+        expect.stringContaining('20260918193700'),
+        'database',
+        expect.objectContaining({ column: 'registration_confirmation_number' })
+      );
+    });
+  });
+
   it('reads the authoritative view even when the local replica looks fully hydrated', async () => {
     mockReplicatedStores();
     const onlineRows = [{ id: 'entry-1' }, { id: 'entry-2' }];

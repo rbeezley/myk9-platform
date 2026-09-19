@@ -37,6 +37,12 @@ describe('resolveShowTimePhase', () => {
     expect(resolveShowTimePhase({ startDate: '2026-03-21' }, MARCH_22)).toBe('after');
   });
 
+  it('treats an invalid end-before-start range as unknown', () => {
+    expect(
+      resolveShowTimePhase({ startDate: '2026-03-25', endDate: '2026-03-20' }, MARCH_22)
+    ).toBe('unknown');
+  });
+
   it('reads a show with no dates, a null show, and an undefined show as unknown', () => {
     expect(resolveShowTimePhase({}, MARCH_22)).toBe('unknown');
     expect(resolveShowTimePhase({ startDate: null, endDate: null }, MARCH_22)).toBe('unknown');

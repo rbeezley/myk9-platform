@@ -45,6 +45,10 @@ export function resolveShowTimePhase(
   const start = show?.startDate?.slice(0, 10);
   if (!start) return 'unknown';
   const end = show?.endDate?.slice(0, 10) || start;
+  // A malformed range has no trustworthy phase. Without this guard, a date
+  // before the start but after an earlier end is incorrectly reported as
+  // `after`, which can put the report picker in the wrong operational order.
+  if (end < start) return 'unknown';
   const now = toLocalDateKey(today);
   if (now < start) return 'before';
   if (now > end) return 'after';

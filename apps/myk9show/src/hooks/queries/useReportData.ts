@@ -133,17 +133,34 @@ export function useReportData({ show, trialId, classId }: UseReportDataOptions) 
     ...cacheStrategies.moderate,
   });
 
+  // A show detail can already carry its replicated trials while this scoped
+  // query is paused or its local trial read is still cold. Keep one resolved
+  // trial set for every downstream consumer so controls cannot advertise a
+  // trial that previews/classes did not load.
+  const reportTrials =
+    trialsQuery.data?.length || !show?.trials?.length
+      ? trialsQuery.data
+      : show.trials.map(trial => ({
+          id: trial.id,
+          show_id: showId,
+          name: trial.name,
+          date: trial.date,
+          trial_number: Number(trial.trialNumber) || 0,
+          timezone: trial.timezone ?? null,
+          registry_id: trial.registryId ?? null,
+        }));
+
   const classesQuery = useQuery({
     queryKey: [
       ...queryKeys.showClasses(showId),
       trialId,
       trialId === 'all'
-        ? ((trialsQuery.data ?? []) as Array<{ id: string }>).map(trial => trial.id)
+        ? ((reportTrials ?? []) as Array<{ id: string }>).map(trial => trial.id)
         : [],
     ],
     queryFn: async () => {
       if (trialId === 'all') {
-        const trials = (trialsQuery.data ?? []) as Array<{ id: string }>;
+        const trials = (reportTrials ?? []) as Array<{ id: string }>;
         const results = await Promise.all(trials.map(trial => getClassesByTrialId(trial.id)));
         const failedResult = results.find(result => result.error);
         if (failedResult?.error) throw failedResult.error;
@@ -153,7 +170,7 @@ export function useReportData({ show, trialId, classId }: UseReportDataOptions) 
       if (error) throw error;
       return data ?? [];
     },
-    enabled: trialsQuery.isSuccess,
+    enabled: trialsQuery.isSuccess || reportTrials !== undefined,
     ...cacheStrategies.moderate,
   });
 
@@ -246,7 +263,7 @@ export function useReportData({ show, trialId, classId }: UseReportDataOptions) 
 
   return {
     show,
-    trials: trialsQuery.data,
+    trials: reportTrials,
     classes: classesQuery.data,
     entries,
     registrationsReadComplete,

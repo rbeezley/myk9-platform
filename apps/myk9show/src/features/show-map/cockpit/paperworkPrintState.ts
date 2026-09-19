@@ -1,4 +1,5 @@
 import type { ReportScope } from '@/lib/reports/types';
+import type { HandlerIdentitySource } from '@/features/registries/handlerIdentity';
 
 export interface PaperworkSubject {
   key: string;
@@ -56,6 +57,7 @@ export interface CheckInPaperworkEntry {
   runOrder: number | null;
   checkInStatus: string | null;
   trialId?: string | undefined;
+  handlerIdentity?: PaperworkHandlerIdentity | undefined;
 }
 
 export interface ScoreSheetPaperworkEntry extends CheckInPaperworkEntry {
@@ -72,6 +74,13 @@ export interface ResultPaperworkEntry {
   searchTimeSeconds: number | null;
   totalFaults: number | null;
   trialId?: string | undefined;
+  handlerIdentity?: PaperworkHandlerIdentity | undefined;
+}
+
+export interface PaperworkHandlerIdentity {
+  id: string | null;
+  name: string | null;
+  source: HandlerIdentitySource;
 }
 
 export interface ArmbandPaperworkDog {

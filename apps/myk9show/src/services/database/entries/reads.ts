@@ -1081,8 +1081,9 @@ export interface DogEntriesReadResult {
 //     own `resolveConflict` keeps a `_syncStatus: 'pending'` row over the server
 //     copy for exactly this reason; merging follows that same rule.
 async function replicaGetEntriesByDog(dogId: string) {
-  const [allEntries, classesMap, showsMap] = await Promise.all([
+  const [allEntries, dogsMap, classesMap, showsMap] = await Promise.all([
     replicatedEntriesTable.getAll(),
+    loadDogsMap(),
     loadClassesMap(),
     loadShowsMap(),
   ]);
@@ -1093,18 +1094,18 @@ async function replicaGetEntriesByDog(dogId: string) {
     liveEntries.filter(e => e._syncStatus === 'pending').map(e => String(e.id))
   );
   const sortedEntries = sortedCopy(liveEntries, compareDateDesc(getEntryCreatedSortValue));
-  const handlerPeopleMap = await loadMissingHandlerPeopleMap(sortedEntries);
   const data = sortedEntries.map(entry =>
-    attachHandlerPerson(
-      mapReplicatedEntryToDbRow(entry, {
-        cls: entry.classId ? (classesMap.get(entry.classId) ?? null) : null,
-        show: entry.showId ? (showsMap.get(entry.showId) ?? null) : null,
-      }),
-      entry,
-      handlerPeopleMap
-    )
+    mapReplicatedEntryToDbRow(entry, {
+      dog: entry.dogId ? (dogsMap.get(entry.dogId) ?? null) : null,
+      cls: entry.classId ? (classesMap.get(entry.classId) ?? null) : null,
+      show: entry.showId ? (showsMap.get(entry.showId) ?? null) : null,
+    })
   );
-  return { data, locallyDeletedIds, pendingIds };
+  return {
+    data: await hydrateMissingHandlerPeople(data),
+    locallyDeletedIds,
+    pendingIds,
+  };
 }
 
 const EMPTY_REPLICA_READ = {

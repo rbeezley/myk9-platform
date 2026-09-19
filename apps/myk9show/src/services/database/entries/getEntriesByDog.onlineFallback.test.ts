@@ -20,14 +20,21 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
  * tests' shared fixture.
  */
 
-const { mockEntriesTable, mockDogsTable, mockClassesTable, mockShowsTable, mockTrialsTable } =
-  vi.hoisted(() => ({
-    mockEntriesTable: { getAll: vi.fn() },
-    mockDogsTable: { getAllDogs: vi.fn().mockResolvedValue([]) },
-    mockClassesTable: { getAll: vi.fn().mockResolvedValue([]) },
-    mockShowsTable: { getAllShows: vi.fn().mockResolvedValue([]) },
-    mockTrialsTable: { getAll: vi.fn().mockResolvedValue([]) },
-  }));
+const {
+  mockEntriesTable,
+  mockDogsTable,
+  mockClassesTable,
+  mockShowsTable,
+  mockTrialsTable,
+  mockPeopleTable,
+} = vi.hoisted(() => ({
+  mockEntriesTable: { getAll: vi.fn() },
+  mockDogsTable: { getAllDogs: vi.fn().mockResolvedValue([]) },
+  mockClassesTable: { getAll: vi.fn().mockResolvedValue([]) },
+  mockShowsTable: { getAllShows: vi.fn().mockResolvedValue([]) },
+  mockTrialsTable: { getAll: vi.fn().mockResolvedValue([]) },
+  mockPeopleTable: { bulkGet: vi.fn().mockResolvedValue([]) },
+}));
 
 vi.mock('@/services/replication/ReplicatedEntriesTable', () => ({
   replicatedEntriesTable: mockEntriesTable,
@@ -43,6 +50,9 @@ vi.mock('@/services/replication/ReplicatedShowsTable', () => ({
 }));
 vi.mock('@/services/replication/ReplicatedTrialsTable', () => ({
   replicatedTrialsTable: mockTrialsTable,
+}));
+vi.mock('@/services/database/connection', () => ({
+  db: { instance: { people: mockPeopleTable } },
 }));
 
 const defaultOnlineRow = {
@@ -100,6 +110,8 @@ describe('getEntriesByDog — online-first with a replica fallback', () => {
     onlineError = null;
     onlineCallCount = 0;
     mockEntriesTable.getAll.mockResolvedValue([]);
+    mockDogsTable.getAllDogs.mockResolvedValue([]);
+    mockPeopleTable.bulkGet.mockResolvedValue([]);
   });
 
   describe('the online read is authoritative', () => {
@@ -317,6 +329,27 @@ describe('getEntriesByDog — online-first with a replica fallback', () => {
 
       expect(result.data).toHaveLength(1);
       expect(result.verified).toBe(false);
+    });
+
+    it('hydrates the owner relation on replicated rows before the offline fallback', async () => {
+      onlineError = { message: 'network down' };
+      mockEntriesTable.getAll.mockResolvedValue([localRow()]);
+      mockDogsTable.getAllDogs.mockResolvedValue([
+        { id: 'dog-1', name: 'Buddy', breed: 'Golden', ownerId: 'owner-1' },
+      ]);
+      mockPeopleTable.bulkGet.mockResolvedValue([
+        { id: 'owner-1', first_name: 'Jamie', last_name: 'Walker' },
+      ]);
+
+      const result = await getEntriesByDog('dog-1');
+      const row = result.data[0] as {
+        dog?: { owner?: { first_name?: string | null; last_name?: string | null } | null };
+      };
+
+      expect(row.dog?.owner).toMatchObject({
+        first_name: 'Jamie',
+        last_name: 'Walker',
+      });
     });
   });
 });

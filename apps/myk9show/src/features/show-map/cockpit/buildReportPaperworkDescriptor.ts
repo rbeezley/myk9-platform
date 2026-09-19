@@ -1,12 +1,37 @@
 import type { DbClass, DbEntry } from '@/types/database-mappings';
 import type { ReportScope } from '@/lib/reports/types';
+import {
+  projectHandlerIdentity,
+  type HandlerPersonLike,
+} from '@/features/registries/handlerIdentity';
 
 import {
   buildCheckInPaperworkDescriptor,
   buildResultPaperworkDescriptor,
   buildScoreSheetPaperworkDescriptor,
+  type PaperworkHandlerIdentity,
   type PaperworkDescriptor,
 } from './paperworkPrintState';
+
+type ReportDescriptorEntry = DbEntry & {
+  handler_person?: HandlerPersonLike | null;
+  dog?: { owner?: HandlerPersonLike | null } | null;
+};
+
+function projectEntryHandlerIdentity(entry: DbEntry): PaperworkHandlerIdentity {
+  const row = entry as ReportDescriptorEntry;
+  const projection = projectHandlerIdentity({
+    assignedHandlerName: entry.handler,
+    assignedHandlerId: entry.handler_id,
+    assignedHandlerPerson: row.handler_person,
+    ownerPerson: row.dog?.owner,
+  });
+  return {
+    id: entry.handler_id?.trim() || null,
+    name: projection.name,
+    source: projection.source,
+  };
+}
 
 function entryInScope(entry: DbEntry, scope: ReportScope, classes: readonly DbClass[]): boolean {
   if (scope.kind === 'class') return entry.class_id === scope.classId;
@@ -64,6 +89,7 @@ export function buildReportPaperworkDescriptor(input: {
         runOrder: entry.run_order,
         checkInStatus: entry.check_in_status,
         trialId: classById.get(entry.class_id ?? '')?.trial_id ?? undefined,
+        handlerIdentity: projectEntryHandlerIdentity(entry),
       }))
     );
   }
@@ -80,6 +106,7 @@ export function buildReportPaperworkDescriptor(input: {
         checkInStatus: entry.check_in_status,
         section: classById.get(entry.class_id ?? '')?.section ?? null,
         trialId: classById.get(entry.class_id ?? '')?.trial_id ?? undefined,
+        handlerIdentity: projectEntryHandlerIdentity(entry),
       })),
       classFacts
     );
@@ -99,6 +126,7 @@ export function buildReportPaperworkDescriptor(input: {
         searchTimeSeconds: entry.search_time_seconds,
         totalFaults: entry.total_faults,
         trialId: classById.get(entry.class_id ?? '')?.trial_id ?? undefined,
+        handlerIdentity: projectEntryHandlerIdentity(entry),
       })),
       classFacts
     );

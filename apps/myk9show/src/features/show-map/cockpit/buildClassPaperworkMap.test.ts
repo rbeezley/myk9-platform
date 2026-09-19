@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import { buildClassPaperworkMap } from './buildClassPaperworkMap';
 import { buildReportPaperworkDescriptor } from './buildReportPaperworkDescriptor';
-import { buildArmbandPaperworkDescriptor } from './paperworkPrintState';
+import { buildArmbandPaperworkDescriptor, derivePaperworkPrintState } from './paperworkPrintState';
 import type { DbClass, DbEntry } from '@/types/database-mappings';
 
 const classes = [{ id: 'class-1', trial_id: 'trial-1' }] as DbClass[];
@@ -233,5 +233,55 @@ describe('buildClassPaperworkMap', () => {
 
     expect(scheduled?.coverage.subjectFingerprints).toHaveProperty('class:class-1');
     expect(completed?.fingerprint).not.toBe(scheduled?.fingerprint);
+  });
+
+  it('marks check-in paperwork stale when the assigned handler changes', () => {
+    const scope = {
+      kind: 'class' as const,
+      showId: 'show-1',
+      trialId: 'trial-1',
+      classId: 'class-1',
+    };
+    const printed = buildReportPaperworkDescriptor({
+      reportId: 'check-in-sheet',
+      scope,
+      classes,
+      entries: [
+        {
+          ...entries[0],
+          handler: 'Alex Assigned',
+          handler_id: 'handler-1',
+        } as unknown as DbEntry,
+      ],
+    });
+    const current = buildReportPaperworkDescriptor({
+      reportId: 'check-in-sheet',
+      scope,
+      classes,
+      entries: [
+        {
+          ...entries[0],
+          handler: 'Jordan Proxy',
+          handler_id: 'handler-2',
+        } as unknown as DbEntry,
+      ],
+    });
+
+    expect(current?.fingerprint).not.toBe(printed?.fingerprint);
+    expect(
+      derivePaperworkPrintState(
+        [
+          {
+            id: 'check-in-print',
+            reportId: 'check-in-sheet',
+            coverage: printed!.coverage as unknown as Record<string, unknown>,
+            fingerprint: printed!.fingerprint,
+            printedAt: '2026-07-20T14:42:00.000Z',
+            printedByName: 'Jannie',
+          },
+        ],
+        current!
+      ).state
+    ).toBe('stale');
   });
 });

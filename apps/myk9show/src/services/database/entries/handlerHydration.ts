@@ -4,6 +4,10 @@ import { withTimeout } from '@myk9/core';
 
 const HANDLER_PEOPLE_TIMEOUT_MS = 3000;
 
+function isOffline(): boolean {
+  return typeof navigator !== 'undefined' && navigator.onLine === false;
+}
+
 export interface HandlerPersonRow {
   id: string;
   first_name: string | null;
@@ -87,6 +91,11 @@ export async function loadHandlerPeople(
 
   const cached = await loadCachedHandlerPeople(ids);
 
+  // IndexedDB is the authoritative offline source for this ancillary join.
+  // Do not make every replicated entry read wait for the online timeout when
+  // the browser has already told us there is no network.
+  if (isOffline()) return cached;
+
   try {
     // Refresh every cached id so a renamed person cannot remain stale forever.
     // The local cache is still the safe result when the network is unavailable.
@@ -96,10 +105,10 @@ export async function loadHandlerPeople(
       'entry handler identity hydration'
     );
     if (error || !data) return cached;
-    return new Map([
-      ...cached,
-      ...(data as HandlerPersonRow[]).map(person => [person.id, person] as const),
-    ]);
+    // A successful response is authoritative. If an id is omitted because the
+    // person was deleted or is no longer visible, do not resurrect its stale
+    // cached name into paperwork.
+    return new Map((data as HandlerPersonRow[]).map(person => [person.id, person] as const));
   } catch {
     return cached;
   }

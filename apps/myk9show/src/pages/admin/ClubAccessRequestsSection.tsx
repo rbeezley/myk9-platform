@@ -196,8 +196,8 @@ export function ClubAccessRequestsSection() {
           </h2>
           <p className="mt-1 max-w-3xl text-base text-muted-foreground">
             These requests come from the exhibitor home page when someone is setting up a club for
-            the first time. Approval creates or connects the club and gives the requester club-admin
-            access.
+            the first time. Approval creates or connects the club, adds the requester as an active
+            member, and gives them club-admin and secretary/show-manager access for that club.
           </p>
         </div>
         <Button

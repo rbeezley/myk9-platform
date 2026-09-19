@@ -41,6 +41,7 @@ TEST_FILES=(
   "$TEST_DIR/class_status_auto_derivation_test.sql"
   "$TEST_DIR/class_lifecycle_absent_parity_test.sql"
   "$TEST_DIR/checkout_confirmation_on_insert_test.sql"
+  "$TEST_DIR/club_access_request_approval_test.sql"
   "$TEST_DIR/club_secretary_grant_test.sql"
   "$TEST_DIR/club_show_managers_visibility_test.sql"
   "$TEST_DIR/club_delete_restrict_test.sql"

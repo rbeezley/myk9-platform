@@ -16,6 +16,12 @@ export interface RawEntryRow {
   registration_id?: string | null;
   entry_status?: string | null;
   payment_status?: string | null;
+  /**
+   * The paying entry a move-up superseded, when this row is the destination.
+   * `classifyRawEntryAttention` reads it to keep "Payment due" off a
+   * money-neutral destination whose source is already paid (MYK9-639).
+   */
+  moved_from_entry_id?: string | null | undefined;
   registration?: { payment_status?: string | null } | null;
   handler_id: string | null;
   armband: string | null;

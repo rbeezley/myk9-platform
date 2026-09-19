@@ -31,6 +31,16 @@ export interface EntriesPanelProps {
   feeCalculation?: FeeCalculationResult | undefined;
   capacityReady?: boolean | undefined;
   capacityUnavailable?: boolean | undefined;
+  /**
+   * Whether the show's entry-window timezone — which decides the fee tier — is
+   * known. The panel is mounted on every step except the Receipt, and when the
+   * zone is unknown `calculateTotalFees` falls through to the $25 class default:
+   * a third value that is neither tier, rendered beside the Payment step's own
+   * alert saying nothing is totalled (MYK9-642 N-F1). Money is withheld exactly
+   * as it is for an unresolved capacity check, and `isUnavailable` picks the
+   * failed-read copy over the still-reading one.
+   */
+  feeTier?: { isReady: boolean; isUnavailable: boolean } | undefined;
   waiveFees?: boolean | undefined;
   feeOverride?: number | null | undefined;
   waitlistClassIds?: ReadonlySet<string> | undefined;
@@ -57,8 +67,9 @@ export const EntriesPanel: React.FC<EntriesPanelProps> = ({
   navigation,
   paymentMethod = '',
   feeCalculation,
-  capacityReady = true,
-  capacityUnavailable,
+  capacityReady: capacityReadyProp = true,
+  capacityUnavailable: capacityUnavailableProp,
+  feeTier,
   waiveFees = false,
   feeOverride = null,
   waitlistClassIds,
@@ -66,6 +77,22 @@ export const EntriesPanel: React.FC<EntriesPanelProps> = ({
   removingLineKey,
   rates,
 }) => {
+  // One pair for every money read this panel makes. Two different unresolved
+  // reads (class availability, the show's timezone) blank the same figures, so
+  // they are combined once here rather than at each of the six call sites.
+  const feeTierReady = feeTier?.isReady ?? true;
+  const feeTierUnavailable = feeTier?.isUnavailable ?? false;
+  const capacityReady = capacityReadyProp && feeTierReady;
+  const capacityUnavailable = capacityUnavailableProp || feeTierUnavailable;
+  // Which read is the reason decides the copy: "Checking availability" beside a
+  // "Loading show details" alert names the wrong thing. Availability wins when
+  // both are unresolved, because it is the one with a retry affordance.
+  const moneyPlaceholder = capacityReadyProp
+    ? feeTierUnavailable
+      ? 'Not available'
+      : 'Checking fees'
+    : undefined;
+
   const liveRates = usePlatformFeeRates();
   const resolvedRates = rates ?? liveRates;
   const [detailsOpen, setDetailsOpen] = useState(false);
@@ -93,6 +120,7 @@ export const EntriesPanel: React.FC<EntriesPanelProps> = ({
   const headline = formatAmountDue({
     capacityReady,
     capacityUnavailable,
+    placeholder: moneyPlaceholder,
     totals,
     entryFeeCents,
     classCount,
@@ -109,6 +137,7 @@ export const EntriesPanel: React.FC<EntriesPanelProps> = ({
       groups={groups}
       capacityReady={capacityReady}
       capacityUnavailable={capacityUnavailable}
+      placeholder={moneyPlaceholder}
       waitlistClassIds={waitlistClassIds}
       {...(showRemove ? { onRemoveLine: requestRemove, removingLineKey } : {})}
     />
@@ -120,6 +149,7 @@ export const EntriesPanel: React.FC<EntriesPanelProps> = ({
       entryFeeCents={entryFeeCents}
       capacityReady={capacityReady}
       capacityUnavailable={capacityUnavailable}
+      placeholder={moneyPlaceholder}
       {...(isPayment ? { discounts: feeCalculation.discounts } : {})}
       {...(adjustmentCents !== 0 ? { adjustmentCents } : {})}
       {...(totals ? { payment: { totals, paymentMethod, rates: resolvedRates } } : {})}

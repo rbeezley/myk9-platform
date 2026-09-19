@@ -111,7 +111,15 @@ describe('useEntryListData — single class path', () => {
   it('calls fetchSingleClass with classId, licenseKey, and role', async () => {
     const payload: EntryListData = {
       entries: [{ id: '1', armband: 1 } as never],
-      classInfo: { className: 'Novice A', element: 'Container', level: 'Novice' },
+      // `totalEntries`/`completedEntries` are required since MYK9-646; one
+      // unscored entry in this payload, so 1 expected / 0 accounted.
+      classInfo: {
+        className: 'Novice A',
+        element: 'Container',
+        level: 'Novice',
+        totalEntries: 1,
+        completedEntries: 0,
+      },
     };
     const deps = makeDeps({
       fetchSingleClass: vi.fn().mockResolvedValue(payload),
@@ -151,7 +159,14 @@ describe('useEntryListData — combined class path', () => {
   it('uses the combined fetcher when classIdA + classIdB are provided', async () => {
     const payload: EntryListData = {
       entries: [{ id: '11' } as never, { id: '22' } as never],
-      classInfo: { className: 'Combined Open', element: 'Container', level: 'Open' },
+      // Two unscored entries across the combined A/B pair: 2 expected, 0 accounted.
+      classInfo: {
+        className: 'Combined Open',
+        element: 'Container',
+        level: 'Open',
+        totalEntries: 2,
+        completedEntries: 0,
+      },
     };
     const deps = makeDeps({
       fetchCombinedClasses: vi.fn().mockResolvedValue(payload),

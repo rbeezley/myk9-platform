@@ -1,3 +1,4 @@
+import { isSupersededMoveUpEntry } from '@/features/financial/moneyRoot';
 import type { ReportEntry } from '@/lib/reports/types';
 
 const FEE_RATE_BY_YEAR = {
@@ -89,8 +90,16 @@ export function resolveAKCTrialSecretaryReportPolicy(
     };
   }
 
-  const totalEntries = entries.length;
-  const excludedRuns = entries.filter(isExcludedRun).length;
+  // MYK9-639: the superseded half of a move-up is not a run. The dog enters the
+  // ring once, in the destination class, and AKC is owed one recording fee for
+  // it — counting the vacated source too billed the club $9.00 for one $4.50
+  // run. This is NOT the same question as MYK9-317 / MYK9-445 (whether
+  // withdrawn / scratched / absent entries are billable), which `isExcludedRun`
+  // owns and this change does not touch: those dogs held a real accepted entry,
+  // and the pair here is one entry recorded in two rows.
+  const countedEntries = entries.filter(entry => !isSupersededMoveUpEntry(entry));
+  const totalEntries = countedEntries.length;
+  const excludedRuns = countedEntries.filter(isExcludedRun).length;
   const paidRuns = Math.max(0, totalEntries - excludedRuns);
   const feeRate = FEE_RATE_BY_YEAR[feeYear];
   const totalFee = paidRuns * feeRate;

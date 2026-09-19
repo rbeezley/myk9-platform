@@ -35,6 +35,8 @@ const makeDog = (overrides: Partial<EntryFormDog> = {}): EntryFormDog => ({
   dam: null,
   owner: makeOwner(),
   handler: null,
+  handlerDateOfBirth: null,
+  handlerJuniorHandlerNumbers: undefined,
   armband: 101,
   entries: [],
   agreementDate: '2026-04-01',
@@ -57,6 +59,7 @@ describe('buildClassGrid', () => {
         level: 'Excellent',
         armband: 101,
         handler: null,
+        handlerId: null,
         submittedAt: null,
       },
       {
@@ -67,6 +70,7 @@ describe('buildClassGrid', () => {
         level: 'Excellent',
         armband: 101,
         handler: null,
+        handlerId: null,
         submittedAt: null,
       },
     ];
@@ -90,6 +94,7 @@ describe('buildClassGrid', () => {
         level: 'Novice B',
         armband: 101,
         handler: null,
+        handlerId: null,
         submittedAt: null,
       },
     ];

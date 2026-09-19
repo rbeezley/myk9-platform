@@ -431,6 +431,36 @@ Copy this block for each new finding.
 
 ## Open Findings
 
+### Codex commit-review reconciliation — 2026-09-13
+
+`source: codex`; baseline `de90d1b0b3a08c825b9cd014379c600c04911a9f`.
+[Full report and proof](codex-daily-commit-review-2026-09-13.md). Linear remains the work queue.
+
+**2026-09-19 publication recovery:** the installed MYK9-501 hook passed all eight behavioral controls. The deleted worktree's staged report blobs were recovered and published without changing the newer shared cursor or unrelated primary work.
+
+- **P1 existing/open:** [MYK9-495](https://linear.app/myk9-platform/issue/MYK9-495), canonical match to the separately filed walk finding. Real balance mapper/summary: pending $30 entry gives 3000 cents due; adding paid registration gives 0. Source P1/Urgent preserved; unassigned; first/last seen September 13. Exact mixed-order and real money-surface proof required; no charge made or duplicate issue created.
+- **P2 existing/open:** [MYK9-494](https://linear.app/myk9-platform/issue/MYK9-494), canonical match to the separately filed judge-schedule regression. Real row mapper and timeline lose the name for an exhibitor-restricted people embed; visible-embed positive control works. Source P1/Urgent and issue priority preserved; unassigned; first/last seen September 13. Require authorized assignment-derived read-to-render, browser and warm-offline proof. The interface exists in the app; its fields are not populated for this viewer.
+- **P2 unchanged:** [MYK9-467](https://linear.app/myk9-platform/issue/MYK9-467) and [MYK9-466](https://linear.app/myk9-platform/issue/MYK9-466), both reproduced a second consecutive day. Respectively: cached TV content hides refresh failure in both layouts; offered preview drops remote-only trials with empty/partial local caches. Richard owns both; first September 12, last September 13; exact recovery/browser contracts retained. MYK9-466 now In Progress with open #2195; no closure from proposed code.
+- **P2 blocked proof/delivery:** [MYK9-423](https://linear.app/myk9-platform/issue/MYK9-423), original payment proof accepted but #2179 still open; seventh detailed daily observation. The new pending entry in MYK9-495 differs from the original three paid entries. [MYK9-479](https://linear.app/myk9-platform/issue/MYK9-479), applied retirement accepted but original overview/printed-output spot checks remain explicitly unperformed; Done preserved pending owner reconciliation. Richard owns both. All remaining proof directly recorded in Linear.
+- **Newly resolved with focused/applied proof:** MYK9-469, MYK9-470, MYK9-474 and MYK9-464 (P2), MYK9-471, MYK9-472 and MYK9-475 (P3). Named current SQL CI and applied records support security/data closures; MYK9-464's secretary browser proof passed and its club-admin browser gap was explicitly accepted by the owner. No issue statuses changed. Prior NCR-2026-09-11-01 remains resolved, not counted again.
+
+- **P2 new tooling defect:** [MYK9-501 / NCR-2026-09-13-01](https://linear.app/myk9-platform/issue/MYK9-501), source codex/Medium; unassigned; first September 12, last September 13, two runs. Global `/Users/richardbeezley/.codex/hooks.json:9` validates the dirty primary despite an explicitly selected review worktree, blocking the docs commit before execution. Even a read-only search containing the commit phrase triggers it. Require correct-target docs/app positive/negative validation, read-only control, preserved primary work, and actual report/cursor publication through the repaired installed hook. Full contract saved and verified in Linear.
+
+Counts: new 1, unchanged 2, resolved 7, duplicate candidates 2, blocked 2, rejected 0. Unresolved P0 0 / P1 1 / P2 6 / P3 0. Six canonical descriptions updated and verified, one issue created, no closures. 1,089 unique existing tests / 130 files and app typecheck pass; six intentional assertions reproduce four existing defects. September 12 report recovered into this local batch; the cursor is stamped through all 23 covered commits locally but publication is blocked by MYK9-501. Four docs remain staged in `/private/tmp/myk9-ncr-review-20260913`; remote cursor is still `c660131f5`. No application implementation changes.
+
+### Codex commit-review reconciliation — 2026-09-12
+
+`source: codex`; baseline `69f61d921c21a1fe87a3ced7f147b253e8f4fb5c`.
+[Full report, reproductions and closure evidence](codex-daily-commit-review-2026-09-12.md).
+This reconciliation supersedes earlier claims for these IDs; Linear remains the work queue.
+
+- **P2 new/open:** [MYK9-467](https://linear.app/myk9-platform/issue/MYK9-467), reopened Todo. Populated TV layouts retain cached data after a failed query but suppress the error and still show Live. Two real-query failure-transition assertions fail, one per viewport. Owner Richard; source Medium; first/last seen September 12, one run. Preserve cached content with visible refresh status; require active/results failure/recovery tests and owned browser proof. The original podium-to-empty trigger remains separately unproven.
+- **P2 new/open:** [MYK9-466](https://linear.app/myk9-platform/issue/MYK9-466), existing Todo and broader High priority preserved. Offered-class fallback maps only local trial IDs: no cached trials removes the preview/anchor; a partial cache omits another trial despite successful remote data. Both production read-to-preview probes fail; seven existing fallback tests pass. Source Medium; first/last seen September 12, one run. Owner unassigned. Reconcile missing trial identities while preserving local edits/offline behavior; require exact empty/partial-cache tests and browser proof. Separate access-policy work remains open.
+- **P2 blocked delivery/in-progress:** [MYK9-423](https://linear.app/myk9-platform/issue/MYK9-423). Hosted exact CTA/payment/both-balances proof and a real hydration regression with failing negative control now exist in #2179. Earlier missing-evidence statements are superseded; no repeat payment needed. Final-head validation, independent review, known evidence transcription correction and merge remain. Owner Richard; source High historical; sixth detailed daily observation. No current payment defect asserted.
+- **P2 resolved:** NCR-2026-09-11-01 moved to Closed Findings above with mutation and migrated-CI proof; broader MYK9-126 stays In Progress.
+
+Counts: new 2, unchanged 0, resolved 1, blocked 1, duplicate 0, rejected 0. Outstanding P0 0 / P1 0 / P2 3 / P3 0. Four canonical descriptions updated; no issues created or closed. Nine commits reviewed; 920 unique existing tests / 82 files, app typecheck and 12 package builds pass. Four intentional new assertions reproduce the two defects. No application implementation changes.
+
 ### Codex commit-review reconciliation — 2026-09-11
 
 `source: codex`; baseline `c660131f5d091fe5f7e5972edf5493b2af44bc6d`.

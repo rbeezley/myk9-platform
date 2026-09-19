@@ -83,9 +83,10 @@ VALUES
   );
 
 -- Three dogs for the same reason as anon_tv_entry_soft_delete_test.sql:
--- entries_dog_class_unique_idx is UNIQUE (dog_id, class_id) WHERE entry_status
--- NOT IN ('withdrawn','scratched') and does NOT exclude soft-deleted rows, so
--- each fixture entry uses its own dog. Same breed on purpose -- view_breed_stats
+-- entries_dog_class_unique_idx is UNIQUE (dog_id, class_id) over live,
+-- non-withdrawn/scratched rows (MYK9-639 added `deleted_at IS NULL`; before
+-- that a tombstone reserved the seat too), so each fixture entry uses its own
+-- dog -- which holds under either predicate. Same breed on purpose -- view_breed_stats
 -- groups by dog_breed, so leaked tombstones show up as inflated totals.
 INSERT INTO public.dogs (id, name, call_name, breed, owner_id)
 VALUES

@@ -37,6 +37,18 @@ type WithArg<Fn extends { Args: object }, K extends keyof Fn['Args'], T> = Omit<
 };
 
 /**
+ * The same, for an `Args` field the generator already made OPTIONAL (a SQL
+ * `DEFAULT`). `WithArg` would re-declare it as required, which narrows the
+ * type for callers that omit it; this keeps the `?`.
+ */
+type WithOptionalArg<Fn extends { Args: object }, K extends keyof Fn['Args'], T> = Omit<
+  Fn,
+  'Args'
+> & {
+  Args: Omit<Fn['Args'], K> & { [P in K]?: T };
+};
+
+/**
  * Replace fields of a `RETURNS TABLE` function's row shape, keeping `Args`.
  * `pg_proc` (what `supabase gen types` builds `Returns` from) has no concept
  * of a query's own WHERE/JOIN shape, so every declared output column comes
@@ -104,12 +116,31 @@ type ListClubRoleRequests = WithReturnFields<
   }
 >;
 
+/**
+ * `move_up_entry(p_entry_id uuid, p_target_class_id uuid, p_new_entry_id uuid,
+ * p_reason text DEFAULT NULL)` —
+ * `supabase/migrations/20260918193300_myk9_639_move_up_supersession.sql`.
+ *
+ * The migration declares the argument `text DEFAULT NULL`, and a NULL means
+ * "no reason given": the note the function records is built with
+ * `COALESCE(': ' || NULLIF(btrim(p_reason), ''), '')`, so NULL and an empty
+ * string both yield a bare "Moved up from class …". `pg_proc` records the
+ * DEFAULT but not the nullability, so the generated `p_reason?: string`
+ * rejects the explicit NULL the client sends when the secretary left the
+ * reason box empty.
+ */
+type MoveUpEntry = WithOptionalArg<GeneratedFunctions['move_up_entry'], 'p_reason', string | null>;
+
 /** The generated `Database` with the corrections above applied. */
 export type Database = Omit<GeneratedDatabase, 'public'> & {
   public: Omit<GeneratedPublic, 'Functions'> & {
-    Functions: Omit<GeneratedFunctions, 'withdraw_own_entry' | 'list_club_role_requests'> & {
+    Functions: Omit<
+      GeneratedFunctions,
+      'withdraw_own_entry' | 'list_club_role_requests' | 'move_up_entry'
+    > & {
       withdraw_own_entry: WithdrawOwnEntry;
       list_club_role_requests: ListClubRoleRequests;
+      move_up_entry: MoveUpEntry;
     };
   };
 };

@@ -34,6 +34,13 @@ import type {
   ArmbandDialogState,
 } from '@/types/entry-management-types';
 
+/**
+ * The row a money action lands on: the stamp the mapper put there, never a
+ * second derivation (MYK9-639).
+ */
+function moneyRootIdOf(entryId: string, entries: readonly EntryManagementEntry[]): string {
+  return entries.find(entry => entry.id === entryId)?.moneyRootEntryId ?? entryId;
+}
 interface UseEntryManagementActionsProps {
   entries: EntryManagementEntry[];
   setEntries: React.Dispatch<React.SetStateAction<EntryManagementEntry[]>>;
@@ -506,8 +513,14 @@ export function useEntryManagementActions({
 
   // Handle comp entry
   const handleCompEntry = useCallback(
-    async (entryId: string, reason: string) => {
+    async (requestedEntryId: string, reason: string) => {
       setIsProcessing(true);
+      // MYK9-639: a comp lands on the entry that HOLDS the money. On a dog who
+      // was moved up that is the superseded source, not the money-neutral
+      // destination the secretary clicked — comping the destination would flag a
+      // $0 row and leave the real fee collected. The mapper stamps the answer on
+      // the row; nothing re-derives it from a list a caller has to get right.
+      const entryId = moneyRootIdOf(requestedEntryId, entriesRef.current);
       try {
         const { error: dbError } = await compEntry({ entryId, reason });
 
@@ -543,13 +556,15 @@ export function useEntryManagementActions({
         setIsProcessing(false);
       }
     },
-    [setEntries, setError, user]
+    [entriesRef, setEntries, setError, user]
   );
 
   // Handle uncomp entry
   const handleUncompEntry = useCallback(
-    async (entryId: string) => {
+    async (requestedEntryId: string) => {
       setIsProcessing(true);
+      // Same target as the comp it removes (MYK9-639).
+      const entryId = moneyRootIdOf(requestedEntryId, entriesRef.current);
       try {
         const { error: dbError } = await uncompEntry(entryId);
 
@@ -580,7 +595,7 @@ export function useEntryManagementActions({
         setIsProcessing(false);
       }
     },
-    [setEntries, setError, user]
+    [entriesRef, setEntries, setError, user]
   );
 
   const handleRemoveEntry = useCallback(

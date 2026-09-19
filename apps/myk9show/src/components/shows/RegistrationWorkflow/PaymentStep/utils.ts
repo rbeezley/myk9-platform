@@ -1,6 +1,7 @@
 import type { ClassSelectionData, PaymentMethod } from '@/types/show-registration-types';
 import type { FeeCalculationResult, FeeBreakdownItem } from './types';
 import { getDogDisplayName } from '@/types/dog-types';
+import { isDayOfShowEntry, type DayOfShowEntryContext } from '@/features/_shared/isDayOfShowEntry';
 
 /**
  * Minimal subset of Dog used by fee calculation.
@@ -30,6 +31,19 @@ export interface ShowFeeInfo {
   preEntryFee: string;
   dayOfShowFee?: string | undefined;
   startDate: string;
+  /** `shows.entry_close_date`. The pre-entry deadline; absent on older callers. */
+  entryCloseDate?: string | undefined;
+  /** IANA zone of the show's first trial, so "today" matches the server guard. */
+  entryWindowTimezone?: string | undefined;
+}
+
+/** Adapt the wizard's fee inputs to the shared day-of-show rule. */
+export function showDayOfShowContext(show: ShowFeeInfo): DayOfShowEntryContext {
+  return {
+    startDate: show.startDate,
+    entryCloseDate: show.entryCloseDate,
+    timeZone: show.entryWindowTimezone,
+  };
 }
 
 /** Default entry fee when neither show nor class has a fee set. */
@@ -53,19 +67,12 @@ export function getShowEntryFee(
 ): number {
   // Show-level fee with date-based tier
   if (show) {
-    const now = new Date();
-    now.setHours(0, 0, 0, 0);
-    // Parse startDate as local midnight; "YYYY-MM-DD" alone parses as UTC and
-    // shifts by a day in negative timezones. (Note: @/utils/dateLocal has a
-    // shared parseLocalDateString, but importing it here pulls LoggingService
-    // into the tree, which many registration tests don't mock.)
-    const startDateStr = show.startDate.includes('T')
-      ? show.startDate
-      : `${show.startDate}T00:00:00`;
-    const showStart = new Date(startDateStr);
-    showStart.setHours(0, 0, 0, 0);
-
-    if (now >= showStart && show.dayOfShowFee) {
+    // ONE rule, shared with `entries.is_day_of_show` (MYK9-642). The app used to
+    // decide "this is a day-of-show entry" here and never record it, so a
+    // mail-in taken after entries closed was charged the day-of fee and then
+    // certified to the registry as a pre-entry. Both judgements now come from
+    // `isDayOfShowEntry`, which the server restates in `submit_show_entries`.
+    if (isDayOfShowEntry(showDayOfShowContext(show)) && show.dayOfShowFee) {
       const dayFee = parseFloat(show.dayOfShowFee.replace(/[$,]/g, ''));
       // Zero means "no day-of tier", NOT "free". Leaving Day-of-Show Fee blank in
       // the creation wizard persists "0.00" rather than NULL, so there is nothing

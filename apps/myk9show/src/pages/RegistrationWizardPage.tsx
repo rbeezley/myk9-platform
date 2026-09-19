@@ -74,6 +74,7 @@ function RegistrationWizardContent() {
     registrationNumber,
     liveTotalFees,
     liveFeeCalculation,
+    entryWindowTimezoneState,
     waiveFees,
     setWaiveFees,
     feeOverride,
@@ -193,6 +194,7 @@ function RegistrationWizardContent() {
         {...(isDesktopLayout ? {} : { navigation: wizardNavigation('mt-0 border-t-0 pt-0') })}
         capacityReady={capacityReady}
         capacityUnavailable={capacityUnavailable}
+        feeTier={entryWindowTimezoneState}
         waitlistClassIds={waitlistClassIds}
         {...(isPaymentStep
           ? {

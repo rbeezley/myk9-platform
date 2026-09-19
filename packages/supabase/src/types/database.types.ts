@@ -1978,6 +1978,7 @@ export type Database = {
           license_key: string | null
           local_id: string | null
           move_up_requested: boolean | null
+          moved_from_entry_id: string | null
           no_finish_count: number | null
           payment_method: string | null
           payment_notes: string | null
@@ -2072,6 +2073,7 @@ export type Database = {
           license_key?: string | null
           local_id?: string | null
           move_up_requested?: boolean | null
+          moved_from_entry_id?: string | null
           no_finish_count?: number | null
           payment_method?: string | null
           payment_notes?: string | null
@@ -2166,6 +2168,7 @@ export type Database = {
           license_key?: string | null
           local_id?: string | null
           move_up_requested?: boolean | null
+          moved_from_entry_id?: string | null
           no_finish_count?: number | null
           payment_method?: string | null
           payment_notes?: string | null
@@ -2260,6 +2263,69 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "people"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "entries_moved_from_entry_id_fkey"
+            columns: ["moved_from_entry_id"]
+            isOneToOne: false
+            referencedRelation: "entries"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "entries_moved_from_entry_id_fkey"
+            columns: ["moved_from_entry_id"]
+            isOneToOne: false
+            referencedRelation: "view_authenticated_entry_results"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "entries_moved_from_entry_id_fkey"
+            columns: ["moved_from_entry_id"]
+            isOneToOne: false
+            referencedRelation: "view_authenticated_entry_results_replication"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "entries_moved_from_entry_id_fkey"
+            columns: ["moved_from_entry_id"]
+            isOneToOne: false
+            referencedRelation: "view_entry_with_results"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "entries_moved_from_entry_id_fkey"
+            columns: ["moved_from_entry_id"]
+            isOneToOne: false
+            referencedRelation: "view_fastest_times"
+            referencedColumns: ["entry_id"]
+          },
+          {
+            foreignKeyName: "entries_moved_from_entry_id_fkey"
+            columns: ["moved_from_entry_id"]
+            isOneToOne: false
+            referencedRelation: "view_myk9q_entries"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "entries_moved_from_entry_id_fkey"
+            columns: ["moved_from_entry_id"]
+            isOneToOne: false
+            referencedRelation: "view_own_entry_results"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "entries_moved_from_entry_id_fkey"
+            columns: ["moved_from_entry_id"]
+            isOneToOne: false
+            referencedRelation: "view_public_entry_results"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "entries_moved_from_entry_id_fkey"
+            columns: ["moved_from_entry_id"]
+            isOneToOne: false
+            referencedRelation: "view_stats_summary"
+            referencedColumns: ["entry_id"]
           },
           {
             foreignKeyName: "entries_promo_code_id_fkey"
@@ -4627,11 +4693,13 @@ export type Database = {
           city: string | null
           country: string | null
           created_at: string | null
+          date_of_birth: string | null
           deleted_at: string | null
           deleted_by: string | null
           email: string | null
           first_name: string
           id: string
+          junior_handler_numbers: Json
           last_name: string
           license_key: string | null
           phone: string | null
@@ -4649,11 +4717,13 @@ export type Database = {
           city?: string | null
           country?: string | null
           created_at?: string | null
+          date_of_birth?: string | null
           deleted_at?: string | null
           deleted_by?: string | null
           email?: string | null
           first_name: string
           id?: string
+          junior_handler_numbers?: Json
           last_name: string
           license_key?: string | null
           phone?: string | null
@@ -4671,11 +4741,13 @@ export type Database = {
           city?: string | null
           country?: string | null
           created_at?: string | null
+          date_of_birth?: string | null
           deleted_at?: string | null
           deleted_by?: string | null
           email?: string | null
           first_name?: string
           id?: string
+          junior_handler_numbers?: Json
           last_name?: string
           license_key?: string | null
           phone?: string | null
@@ -10617,6 +10689,7 @@ export type Database = {
           license_key: string | null
           local_id: string | null
           move_up_requested: boolean | null
+          moved_from_entry_id: string | null
           no_finish_count: number | null
           payment_method: string | null
           payment_notes: string | null
@@ -10631,6 +10704,7 @@ export type Database = {
           refund_amount: number | null
           refund_notes: string | null
           refunded_at: string | null
+          registration_confirmation_number: string | null
           registration_id: string | null
           result_status: string | null
           result_text: string | null
@@ -10710,6 +10784,69 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "people"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "entries_moved_from_entry_id_fkey"
+            columns: ["moved_from_entry_id"]
+            isOneToOne: false
+            referencedRelation: "entries"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "entries_moved_from_entry_id_fkey"
+            columns: ["moved_from_entry_id"]
+            isOneToOne: false
+            referencedRelation: "view_authenticated_entry_results"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "entries_moved_from_entry_id_fkey"
+            columns: ["moved_from_entry_id"]
+            isOneToOne: false
+            referencedRelation: "view_authenticated_entry_results_replication"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "entries_moved_from_entry_id_fkey"
+            columns: ["moved_from_entry_id"]
+            isOneToOne: false
+            referencedRelation: "view_entry_with_results"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "entries_moved_from_entry_id_fkey"
+            columns: ["moved_from_entry_id"]
+            isOneToOne: false
+            referencedRelation: "view_fastest_times"
+            referencedColumns: ["entry_id"]
+          },
+          {
+            foreignKeyName: "entries_moved_from_entry_id_fkey"
+            columns: ["moved_from_entry_id"]
+            isOneToOne: false
+            referencedRelation: "view_myk9q_entries"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "entries_moved_from_entry_id_fkey"
+            columns: ["moved_from_entry_id"]
+            isOneToOne: false
+            referencedRelation: "view_own_entry_results"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "entries_moved_from_entry_id_fkey"
+            columns: ["moved_from_entry_id"]
+            isOneToOne: false
+            referencedRelation: "view_public_entry_results"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "entries_moved_from_entry_id_fkey"
+            columns: ["moved_from_entry_id"]
+            isOneToOne: false
+            referencedRelation: "view_stats_summary"
+            referencedColumns: ["entry_id"]
           },
           {
             foreignKeyName: "entries_registration_id_fkey"
@@ -10876,6 +11013,7 @@ export type Database = {
           license_key: string | null
           local_id: string | null
           move_up_requested: boolean | null
+          moved_from_entry_id: string | null
           no_finish_count: number | null
           payment_method: string | null
           payment_notes: string | null
@@ -10890,6 +11028,7 @@ export type Database = {
           refund_amount: number | null
           refund_notes: string | null
           refunded_at: string | null
+          registration_confirmation_number: string | null
           registration_id: string | null
           result_status: string | null
           result_text: string | null
@@ -10973,6 +11112,69 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "people"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "entries_moved_from_entry_id_fkey"
+            columns: ["moved_from_entry_id"]
+            isOneToOne: false
+            referencedRelation: "entries"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "entries_moved_from_entry_id_fkey"
+            columns: ["moved_from_entry_id"]
+            isOneToOne: false
+            referencedRelation: "view_authenticated_entry_results"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "entries_moved_from_entry_id_fkey"
+            columns: ["moved_from_entry_id"]
+            isOneToOne: false
+            referencedRelation: "view_authenticated_entry_results_replication"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "entries_moved_from_entry_id_fkey"
+            columns: ["moved_from_entry_id"]
+            isOneToOne: false
+            referencedRelation: "view_entry_with_results"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "entries_moved_from_entry_id_fkey"
+            columns: ["moved_from_entry_id"]
+            isOneToOne: false
+            referencedRelation: "view_fastest_times"
+            referencedColumns: ["entry_id"]
+          },
+          {
+            foreignKeyName: "entries_moved_from_entry_id_fkey"
+            columns: ["moved_from_entry_id"]
+            isOneToOne: false
+            referencedRelation: "view_myk9q_entries"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "entries_moved_from_entry_id_fkey"
+            columns: ["moved_from_entry_id"]
+            isOneToOne: false
+            referencedRelation: "view_own_entry_results"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "entries_moved_from_entry_id_fkey"
+            columns: ["moved_from_entry_id"]
+            isOneToOne: false
+            referencedRelation: "view_public_entry_results"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "entries_moved_from_entry_id_fkey"
+            columns: ["moved_from_entry_id"]
+            isOneToOne: false
+            referencedRelation: "view_stats_summary"
+            referencedColumns: ["entry_id"]
           },
           {
             foreignKeyName: "entries_registration_id_fkey"
@@ -12460,11 +12662,13 @@ export type Database = {
           city: string | null
           country: string | null
           created_at: string | null
+          date_of_birth: string | null
           deleted_at: string | null
           deleted_by: string | null
           email: string | null
           first_name: string
           id: string
+          junior_handler_numbers: Json
           last_name: string
           license_key: string | null
           phone: string | null
@@ -12919,6 +13123,15 @@ export type Database = {
       }
       entry_enrollment_select_show_ids: { Args: never; Returns: string[] }
       manageable_show_ids: { Args: never; Returns: string[] }
+      move_up_entry: {
+        Args: {
+          p_entry_id: string
+          p_new_entry_id: string
+          p_reason?: string
+          p_target_class_id: string
+        }
+        Returns: string
+      }
       normalize_club_name: { Args: { value: string }; Returns: string }
       normalize_dog_registration_number: {
         Args: { value: string }
@@ -13197,11 +13410,13 @@ export type Database = {
           city: string | null
           country: string | null
           created_at: string | null
+          date_of_birth: string | null
           deleted_at: string | null
           deleted_by: string | null
           email: string | null
           first_name: string
           id: string
+          junior_handler_numbers: Json
           last_name: string
           license_key: string | null
           phone: string | null
@@ -13292,6 +13507,10 @@ export type Database = {
           isSetofReturn: true
         }
       }
+      reverse_move_up_entry: {
+        Args: { p_destination_entry_id: string }
+        Returns: string
+      }
       reverse_order_refund_cents: {
         Args: {
           p_amount_cents?: number
@@ -13373,11 +13592,13 @@ export type Database = {
           city: string | null
           country: string | null
           created_at: string | null
+          date_of_birth: string | null
           deleted_at: string | null
           deleted_by: string | null
           email: string | null
           first_name: string
           id: string
+          junior_handler_numbers: Json
           last_name: string
           license_key: string | null
           phone: string | null

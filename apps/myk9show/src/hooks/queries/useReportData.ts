@@ -9,6 +9,7 @@ import {
 import { queryKeys, cacheStrategies } from '@/lib/queryClient';
 import type { Show } from '@/types/show-types';
 import { loadDogRegistrations } from '@/services/database/dogs/reads';
+import { loadJuniorHandlerProfiles } from '@/services/database/users/juniorHandlerProfiles';
 import { refreshShowEntriesForRead } from '@/services/database/entries/refreshShowEntriesForRead';
 import type { ReportDbEntry } from '@/lib/reports/types';
 
@@ -36,18 +37,70 @@ interface HydratedReportEntries {
   registrationsReadComplete: boolean;
 }
 
+/**
+ * MYK9-570: hydrate each entry with its handler's junior handler columns.
+ *
+ * The replica carries `entries.handler_id` but nothing from `people`, so the
+ * catalog cannot know a handler's date of birth without asking. Deliberately
+ * ANCILLARY — a failed read leaves `handler_person` undefined, which the mapper
+ * reads as "unknown", so the catalog prints without junior marks instead of
+ * refusing to print.
+ */
+async function hydrateHandlerJuniorProfiles(entries: ReportDbEntry[]): Promise<ReportDbEntry[]> {
+  const handlerIds = [
+    ...new Set(
+      entries
+        .map(entry => (entry as { handler_id?: string | null }).handler_id)
+        .filter((id): id is string => Boolean(id))
+    ),
+  ];
+  if (handlerIds.length === 0) return entries;
+
+  const { byPersonId, readComplete } = await loadJuniorHandlerProfiles(handlerIds);
+  // A partial read is NOT a partial answer here. An entry whose handler happened
+  // to fall in a failed batch would come back with no `handler_person` and print
+  // as an ordinary adult, so the catalog would mark some juniors and silently
+  // miss others with nothing on the page to say so. Marking none of them is the
+  // honest outcome, and it is what an offline secretary already gets.
+  if (!readComplete || byPersonId.size === 0) return entries;
+
+  return entries.map(entry => {
+    const handlerId = (entry as { handler_id?: string | null }).handler_id;
+    const profile = handlerId ? byPersonId.get(handlerId) : undefined;
+    if (!profile) return entry;
+    return {
+      ...entry,
+      handler_person: {
+        first_name: profile.firstName,
+        last_name: profile.lastName,
+        date_of_birth: profile.dateOfBirth,
+        junior_handler_numbers: profile.juniorHandlerNumbers,
+      },
+    };
+  });
+}
+
+/**
+ * The hydration hop, exported for its own test. It is the step that turns
+ * `entries.handler_id` into `handler_person`, and it is invisible to every
+ * catalog test (they all inject `handler_person` directly), so without a handle
+ * on it the feature could go inert with the suite still green.
+ */
+export const hydrateHandlerJuniorProfilesForTest = hydrateHandlerJuniorProfiles;
+
 async function hydrateEntryRegistrations(entries: ReportDbEntry[]): Promise<HydratedReportEntries> {
+  const withHandlers = await hydrateHandlerJuniorProfiles(entries);
   const dogIds = [
-    ...new Set(entries.map(entry => entry.dog_id).filter((id): id is string => Boolean(id))),
+    ...new Set(withHandlers.map(entry => entry.dog_id).filter((id): id is string => Boolean(id))),
   ];
   if (dogIds.length === 0) {
-    return { entries, registrationsReadComplete: true };
+    return { entries: withHandlers, registrationsReadComplete: true };
   }
 
   const { byDog, registrationsReadComplete } = await loadDogRegistrations(dogIds);
 
   return {
-    entries: entries.map(entry => {
+    entries: withHandlers.map(entry => {
       if (!entry.dog_id) return entry;
       const dog = entry.dog ?? { id: entry.dog_id };
       return {

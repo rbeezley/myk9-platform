@@ -177,3 +177,37 @@ describe('ResultCatalog', () => {
     expect(rows[1].querySelectorAll('td')[1]).toHaveTextContent('—');
   });
 });
+
+/**
+ * MYK9-570. The result catalog prints the handler name through the same helper
+ * as the show catalog, so the junior mark has to appear on both — a reader
+ * comparing the two documents must not find a handler marked on one and not the
+ * other. Round 1 found only the show catalog covered.
+ */
+describe('junior handler mark (MYK9-570)', () => {
+  const juniorProps: ReportProps = {
+    ...baseProps,
+    entries: [
+      { ...baseProps.entries[0]!, id: 'j1', handler: 'Mariana Rivera', handlerIsJunior: true },
+      { ...baseProps.entries[0]!, id: 'j2', armband: '109', handler: 'Carlos Rivera' },
+    ],
+  };
+
+  it('marks a junior handler and leaves an adult alone', () => {
+    render(<ResultCatalog {...juniorProps} />);
+    expect(screen.getByText('Mariana Rivera Jr.')).toBeInTheDocument();
+    expect(screen.getByText('Carlos Rivera')).toBeInTheDocument();
+    expect(screen.queryByText('Carlos Rivera Jr.')).not.toBeInTheDocument();
+  });
+
+  it('prints the plain name when junior status is unknown', () => {
+    render(
+      <ResultCatalog
+        {...baseProps}
+        entries={[{ ...baseProps.entries[0]!, handler: 'Unknown Age Person' }]}
+      />
+    );
+    expect(screen.getByText('Unknown Age Person')).toBeInTheDocument();
+    expect(screen.queryByText(/Jr\./)).not.toBeInTheDocument();
+  });
+});

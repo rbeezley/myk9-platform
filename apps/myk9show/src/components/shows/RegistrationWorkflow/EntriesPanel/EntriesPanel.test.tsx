@@ -463,3 +463,76 @@ describe('EntriesPanel reconciles a staff fee override with the lines', () => {
     expect(aside().queryByText('Secretary adjustment')).not.toBeInTheDocument();
   });
 });
+
+describe('EntriesPanel — no money while the show timezone is unresolved (MYK9-642 N-F1)', () => {
+  // The panel is mounted on every step except the Receipt. When the zone is
+  // unknown the wizard passes `undefined` as the show, and `calculateTotalFees`
+  // falls through to the $25-per-class default — a third value that is neither
+  // the pre-entry nor the day-of tier — which was rendered right beside the
+  // Payment step's own alert saying nothing is totalled until the zone is known.
+  const feesFromDefaultTier = calculateTotalFees(
+    ['dog-1'],
+    [{ dogId: 'dog-1', trialId: 'trial-1', selectedClasses: [{ classId: 'class-0' }] }],
+    [{ id: 'dog-1', name: 'Rover' }],
+    [{ id: 'class-0', className: 'Class 0' }],
+    undefined,
+    new Set()
+  );
+
+  it('is the $25 default that is at stake — not a tier', () => {
+    // Positive control for the two cases below: without this, "no dollar figure
+    // rendered" could be true because there was never a figure to render.
+    expect(feesFromDefaultTier.total).toBe(25);
+  });
+
+  it('renders no dollar figure anywhere while the zone is still being read', () => {
+    render(
+      paymentPanel({
+        feeCalculation: feesFromDefaultTier,
+        feeTier: { isReady: false, isUnavailable: false },
+      })
+    );
+
+    expect(screen.queryByText(/\$\d/)).toBeNull();
+    expect(screen.getAllByText('Checking fees').length).toBeGreaterThan(0);
+    // The Total due row specifically: it computes its own string through
+    // `formatAmountDue` and was the one money row the placeholder did not reach
+    // (P-F2). Asserting the absence of the availability copy is what catches it
+    // — `getAllByText('Checking fees')` above is satisfied by the other rows.
+    expect(screen.queryByText('Checking availability')).toBeNull();
+  });
+
+  it('says the fees could not be worked out when the read FAILED', () => {
+    render(
+      paymentPanel({
+        feeCalculation: feesFromDefaultTier,
+        feeTier: { isReady: false, isUnavailable: true },
+      })
+    );
+
+    expect(screen.queryByText(/\$\d/)).toBeNull();
+    expect(screen.getAllByText('Not available').length).toBeGreaterThan(0);
+    // Never the availability copy, in either of its two forms: that read is
+    // fine, and it is the one with a retry affordance beside it. 'Not
+    // confirmed' is what the Total due row printed before P-F2.
+    expect(screen.queryByText('Checking availability')).toBeNull();
+    expect(screen.queryByText('Not confirmed')).toBeNull();
+  });
+
+  it('renders the real tier once the zone resolves', () => {
+    render(paymentPanel({ feeTier: { isReady: true, isUnavailable: false } }));
+
+    // `fees()` prices at the show tier, $30 — the figure the server commits.
+    expect(screen.getAllByText('$30.00').length).toBeGreaterThan(0);
+    expect(screen.queryByText('Checking fees')).toBeNull();
+  });
+
+  it('still defers to the availability copy when BOTH reads are unresolved', () => {
+    render(
+      paymentPanel({ feeTier: { isReady: false, isUnavailable: false }, capacityReady: false })
+    );
+
+    expect(screen.queryByText(/\$\d/)).toBeNull();
+    expect(screen.getAllByText('Checking availability').length).toBeGreaterThan(0);
+  });
+});

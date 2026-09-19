@@ -50,6 +50,13 @@ export interface ReportEntry {
   discountAmount?: number;
   refundAmount?: number;
   comped?: boolean;
+  /**
+   * MYK9-639: set on the DESTINATION of a move-up, pointing at the entry whose
+   * money this run's dollars come from. Every money aggregation resolves it via
+   * `@/features/financial/moneyRoot` so the pair is counted once, at the amount
+   * actually paid.
+   */
+  movedFromEntryId?: string | null | undefined;
   entrySource?: ReportEntrySource;
   isDayOfShow?: boolean;
   // Class/trial context — populated for show-level and trial-level catalog reports
@@ -61,6 +68,13 @@ export interface ReportEntry {
   trialNumber?: string;
   trialDate?: string;
   judgeName?: string;
+  /**
+   * MYK9-570: true only when the handler's date of birth puts them inside this
+   * trial's registry junior band on this trial's date. Absent for an adult, for
+   * a handler with no date of birth, and for ASCA (whose rulebook states no
+   * upper age bound) — the catalog prints a mark only when this is true.
+   */
+  handlerIsJunior?: boolean;
 }
 
 /**
@@ -76,6 +90,23 @@ export type ReportDbEntry = DbEntry & {
   } | null;
   registration?: {
     payment_status?: string | null;
+  } | null;
+  /**
+   * MYK9-570: the handler's junior handler columns, hydrated from `people` by
+   * `loadJuniorHandlerProfiles`. Absent when the hydration read did not run or
+   * did not complete — which is NOT the same as "not a junior", so the mapper
+   * leaves the entry unmarked rather than marking it an adult.
+   */
+  handler_person?: {
+    /**
+     * The person's OWN name. Carried so the mapper can refuse to derive junior
+     * status when `entries.handler_id` names someone other than the free-text
+     * `entries.handler` the paperwork prints — see `handlerNameMatchesPerson`.
+     */
+    first_name?: string | null;
+    last_name?: string | null;
+    date_of_birth?: string | null;
+    junior_handler_numbers?: Record<string, string> | undefined;
   } | null;
 };
 

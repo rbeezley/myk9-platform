@@ -17,6 +17,8 @@ import { formatRingLabel } from '@/utils/ringLabel';
 import { formatShowDateRange } from '@/lib/format/dates';
 import { resolveDogIdentityForOrganization } from '@/features/dogs/identity';
 import { resolveConfiguredRegistryId } from '@/features/registries';
+import { deriveJuniorStatus } from '@/features/registries/juniorHandlerPolicy';
+import { resolveHandlerPerson } from '@/features/registries/handlerIdentity';
 
 export function mapReportEntries(
   dbEntries: ReportDbEntry[],
@@ -112,8 +114,10 @@ function mapReportEntry(
     handlerName,
     registrationNumber
   );
+  const junior = resolveHandlerJunior(e, trial);
   return {
     ...base,
+    ...junior,
     ...(e.dog_id ? { dogId: e.dog_id } : {}),
     ...(e.entry_status ? { entryStatus: e.entry_status } : {}),
     ...(e.withdrawal_reason ? { withdrawalReason: e.withdrawal_reason } : {}),
@@ -132,6 +136,10 @@ function mapReportEntry(
     ...(e.discount_amount != null ? { discountAmount: Number(e.discount_amount) } : {}),
     ...(e.refund_amount != null ? { refundAmount: Number(e.refund_amount) } : {}),
     ...(e.comped != null ? { comped: Boolean(e.comped) } : {}),
+    // MYK9-639: carried so the report can follow a move-up back to the entry
+    // that holds the money. Read defensively: the column reaches the views only
+    // once migration 20260918193300 is applied.
+    ...(readMovedFromEntryId(e) ? { movedFromEntryId: readMovedFromEntryId(e) } : {}),
     ...(entrySource ? { entrySource } : {}),
     ...(e.is_day_of_show != null ? { isDayOfShow: Boolean(e.is_day_of_show) } : {}),
     ...(trial
@@ -153,12 +161,60 @@ function mapReportEntry(
   };
 }
 
+function readMovedFromEntryId(entry: ReportDbEntry): string | null {
+  const value = (entry as unknown as Record<string, unknown>).moved_from_entry_id;
+  return typeof value === 'string' && value ? value : null;
+}
+
 function readEntrySource(entrySource: string | null | undefined): ReportEntry['entrySource'] {
   if (entrySource === REPORT_ENTRY_SOURCE.MYK9 || entrySource === REPORT_ENTRY_SOURCE.UKC_ONLINE) {
     return entrySource;
   }
 
   return undefined;
+}
+
+/**
+ * MYK9-570: is this entry's handler a junior at THIS trial?
+ *
+ * Derived per entry, never stored: the same person is a junior at a March trial
+ * and an adult at a November one, and the three registries do not even measure
+ * on the same day (juniorHandlerPolicy.ts). Returns an empty object — not
+ * `handlerIsJunior: false` — whenever the answer is unknown, so a missing
+ * hydration read cannot print as "definitely an adult".
+ */
+function resolveHandlerJunior(
+  e: ReportDbEntry,
+  trial?: DbTrial
+): Pick<ReportEntry, 'handlerIsJunior'> {
+  if (!trial) return {};
+  const registryId = resolveConfiguredRegistryId(trial.registry_id);
+  if (!registryId) return {};
+  const person = e.handler_person;
+  if (!person) return {};
+
+  // Who the paperwork is about is decided in ONE place for every print path —
+  // see handlerIdentity.ts. The catalog has no owner row in hand, so the
+  // handler_id person is its only candidate; the rule still requires that
+  // person to bear the printed name, because a rename leaves the id behind.
+  const handlerPerson = resolveHandlerPerson({
+    printedHandlerName: e.handler,
+    handlerIdPerson: person,
+    ownerPerson: null,
+  });
+  if (!handlerPerson) return {};
+
+  const status = deriveJuniorStatus({
+    dateOfBirth: handlerPerson.date_of_birth ?? null,
+    trialDate: trial.date ?? null,
+    registryId,
+  });
+  // Only an affirmative 'junior' marks. 'adult', and every flavour of 'unknown'
+  // (no date of birth — which is EVERY person until the column is populated — an
+  // ASCA trial, a date after the trial), print the plain name.
+  if (status.kind !== 'junior') return {};
+
+  return { handlerIsJunior: true };
 }
 
 export function readTrialRegistryId(trial: DbTrial): string {

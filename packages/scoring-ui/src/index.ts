@@ -6,7 +6,7 @@
  *
  * @example
  * ```typescript
- * import { useStopwatch, useEntryListFilters } from '@myk9/scoring-ui';
+ * import { useStopwatch } from '@myk9/scoring-ui';
  *
  * // Timer with auto-stop and warnings
  * const stopwatch = useStopwatch({
@@ -14,19 +14,12 @@
  *   level: "Novice",
  *   onTimeExpired: (time) => console.log('Time up:', time),
  * });
- *
- * // Entry list filtering and sorting
- * const { filteredEntries, sortBy, setSortBy } = useEntryListFilters({
- *   entries,
- *   prioritizeInRing: true,
- * });
  * ```
  */
 
 // Hooks
 export { useStopwatch } from './hooks/useStopwatch';
 export { useElementTimer } from './hooks/useElementTimer';
-export { useEntryListFilters } from './hooks/useEntryListFilters';
 export { useDragAndDropEntries } from './hooks/useDragAndDropEntries';
 export { useScoresheetScoring } from './hooks/useScoresheetScoring';
 
@@ -70,11 +63,6 @@ export type {
   StopwatchOptions,
   StopwatchReturn,
   ElementTimerReturn,
-  TabType,
-  SortType,
-  SectionFilter,
-  EntryListFiltersOptions,
-  EntryListFiltersReturn,
   DragAndDropOptions,
   DragAndDropReturn,
   ResolvedClassRules,

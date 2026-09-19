@@ -16,6 +16,8 @@ export interface EntriesPanelTotalsProps {
   entryFeeCents: number;
   capacityReady: boolean;
   capacityUnavailable?: boolean | undefined;
+  /** Overrides the availability copy when another read is the reason. */
+  placeholder?: string | undefined;
   /** Discounts applied to the entry. Always empty today; see MEMORY. */
   discounts?: readonly { amount: number; description: string }[] | undefined;
   /**
@@ -36,9 +38,11 @@ export interface EntriesPanelTotalsProps {
 function moneyOrPlaceholder(
   capacityReady: boolean,
   capacityUnavailable: boolean | undefined,
-  cents: number
+  cents: number,
+  placeholder?: string | undefined
 ): string {
-  return capacityReady ? formatCartCurrency(cents) : availabilityPlaceholder(capacityUnavailable);
+  if (capacityReady) return formatCartCurrency(cents);
+  return placeholder ?? availabilityPlaceholder(capacityUnavailable);
 }
 
 /**
@@ -54,6 +58,7 @@ export const EntriesPanelTotals: React.FC<EntriesPanelTotalsProps> = ({
   entryFeeCents,
   capacityReady,
   capacityUnavailable,
+  placeholder,
   discounts,
   adjustmentCents,
   payment,
@@ -63,6 +68,11 @@ export const EntriesPanelTotals: React.FC<EntriesPanelTotalsProps> = ({
   const amountDue = formatAmountDue({
     capacityReady,
     capacityUnavailable,
+    // The row the eye goes to, and the one `placeholder` had not reached: it
+    // read "Checking availability" while every other row in the same card read
+    // "Checking fees", which also split it from the phone bar's headline that
+    // is supposed to be the SAME string (MYK9-642 P-F2).
+    placeholder,
     totals,
     entryFeeCents: totals?.amountDueCents ?? 0,
     classCount,
@@ -77,7 +87,7 @@ export const EntriesPanelTotals: React.FC<EntriesPanelTotalsProps> = ({
       <div className="flex items-baseline justify-between gap-2 text-base font-semibold">
         <span>Entry fees</span>
         <span className="tabular-nums">
-          {moneyOrPlaceholder(capacityReady, capacityUnavailable, entryFeeCents)}
+          {moneyOrPlaceholder(capacityReady, capacityUnavailable, entryFeeCents, placeholder)}
         </span>
       </div>
 
@@ -109,7 +119,7 @@ export const EntriesPanelTotals: React.FC<EntriesPanelTotalsProps> = ({
           <div className="flex items-baseline justify-between gap-2 text-sm">
             <span className="text-muted-foreground">Subtotal</span>
             <span className="tabular-nums">
-              {moneyOrPlaceholder(capacityReady, capacityUnavailable, entryFeeCents)}
+              {moneyOrPlaceholder(capacityReady, capacityUnavailable, entryFeeCents, placeholder)}
             </span>
           </div>
           {/* The override, said out loud. Without this row the total simply

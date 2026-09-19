@@ -13,6 +13,8 @@ export const AKC_SCENT_WORK_ENTRY_FORM_FIELDS = {
   foreignCheckbox: 'Foreign',
   gender: 'Gender',
   handlerName: 'HandlerName',
+  // MYK9-570: the blank has carried this AcroForm field all along; nothing filled it.
+  juniorHandlerNumber: 'JuniorHandlerNumber',
   ownerAddress: 'OwnerAddress',
   ownerName: 'OwnerName',
   phoneSignature: 'Phone',

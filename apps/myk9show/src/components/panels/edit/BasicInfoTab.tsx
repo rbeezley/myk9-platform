@@ -9,6 +9,8 @@ import { Separator } from '@/components/ui/separator';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { User, Camera } from 'lucide-react';
 import { fetchPersonIdentity } from '@/services/database/users';
+import { JuniorHandlerFields } from '@/components/common/JuniorHandlerFields';
+import type { RegistryId } from '@/features/registries';
 import { useEditPanel } from './useEditPanel';
 import type { UserFormData } from './UserEditPanel.types';
 
@@ -54,6 +56,7 @@ export const BasicInfoTab: React.FC<BasicInfoTabProps> = ({
   const firstNameError = form?.getError('firstName');
   const lastNameError = form?.getError('lastName');
   const emailError = form?.getError('email');
+  const dateOfBirthError = form?.getError('dateOfBirth');
   const emailInputProps = { id: 'email', type: 'email', value: data.email, name: 'email' } as const;
 
   return (
@@ -141,6 +144,31 @@ export const BasicInfoTab: React.FC<BasicInfoTabProps> = ({
           />
         )}
       </FormField>
+
+      {/* MYK9-570. Junior handler status is derived from the date of birth and the
+          trial date, so this block sets the inputs, never a flag. */}
+      <Separator />
+      <div className="space-y-4">
+        <h4 className="text-sm font-medium text-muted-foreground uppercase tracking-wide">
+          Junior handler
+        </h4>
+        <JuniorHandlerFields
+          idPrefix="user-edit"
+          dateOfBirth={data.dateOfBirth ?? ''}
+          juniorHandlerNumbers={data.juniorHandlerNumbers ?? {}}
+          dateOfBirthError={dateOfBirthError}
+          onDateOfBirthChange={value => form?.setValue('dateOfBirth', value)}
+          // Updater, not a spread of the render closure: two registries changed
+          // in one tick (autofill, a paste into both) would otherwise lose the
+          // first.
+          onJuniorHandlerNumberChange={(registryId: RegistryId, value) =>
+            form?.setValue('juniorHandlerNumbers', (previous: unknown) => ({
+              ...((previous as Record<string, string>) ?? {}),
+              [registryId]: value,
+            }))
+          }
+        />
+      </div>
 
       <p className="text-sm text-muted-foreground">
         Role assignments are managed from the{' '}

@@ -23,6 +23,37 @@ function entry(overrides: Partial<ReportEntry> = {}): ReportEntry {
 }
 
 describe('resolveAKCTrialSecretaryReportPolicy', () => {
+  it('bills AKC for ONE run when a dog is moved up, not two (MYK9-639)', () => {
+    // The finding's pair, on the 2026 schedule ($4.50/run). The dog enters the
+    // ring once, in the destination class; counting the vacated source too
+    // remitted $9.00 for one run, and put this report back into disagreement
+    // with the Financial Report and the UKC report, which both count 1.
+    const result = resolveAKCTrialSecretaryReportPolicy('2026-06-12', [
+      entry({ id: 'source-moved', entryStatus: 'moved' }),
+      entry({ id: 'destination', entryStatus: 'confirmed', movedFromEntryId: 'source-moved' }),
+    ]);
+
+    expect(result).toMatchObject({
+      ok: true,
+      totalEntries: 1,
+      paidRuns: 1,
+      feeRate: 4.5,
+      formattedTotal: '4.50',
+    });
+  });
+
+  it('leaves the post-closing withdrawal exclusions alone (MYK9-317 / MYK9-445 own those)', () => {
+    // Dropping the superseded half of a move-up is a different question from
+    // whether a withdrawn dog is billable. This pins that the narrow change did
+    // not quietly widen.
+    const result = resolveAKCTrialSecretaryReportPolicy('2026-06-12', [
+      entry({ id: 'ran', entryStatus: 'confirmed' }),
+      entry({ id: 'withdrawn-in-season', withdrawalReason: 'Bitch in season' }),
+    ]);
+
+    expect(result).toMatchObject({ ok: true, totalEntries: 2, excludedRuns: 1, paidRuns: 1 });
+  });
+
   it.each([
     ['2025-12-31', 3.5, '3.50'],
     ['2026-01-01', 4.5, '4.50'],

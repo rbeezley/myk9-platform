@@ -24,6 +24,7 @@ import {
 import { logger } from '@myk9/core';
 import type { CheckInStatus } from '@myk9/core';
 import { supabase } from '@/services/database/supabaseClient';
+import type { Database } from '@/types/supabase';
 import { getSyncErrorMessage, isAbortSyncError } from './syncErrorUtils';
 import {
   entryToSupabaseRow,
@@ -32,6 +33,11 @@ import {
   type ReplicatedEntry,
 } from './ReplicatedEntriesTable.mapper';
 import { buildRingsideRpcFields, RINGSIDE_RPC_FUNCTION } from './ringsideEntryRpc';
+import {
+  classifyMoveUpRpcError,
+  MOVE_UP_ENTRY_RPC,
+  REVERSE_MOVE_UP_ENTRY_RPC,
+} from './moveUpEntryRpc';
 import {
   JumpHeightConflictError,
   JumpHeightNotFoundError,
@@ -55,6 +61,11 @@ import type {
 
 export { rowToEntry };
 export type { ReplicatedEntry };
+
+/** The two move-up server functions, as the generated types name them. */
+type MoveUpRpcName = typeof MOVE_UP_ENTRY_RPC | typeof REVERSE_MOVE_UP_ENTRY_RPC;
+type MoveUpRpcArgs<Fn extends MoveUpRpcName> = Database['public']['Functions'][Fn]['Args'];
+type MoveUpRpcReturns<Fn extends MoveUpRpcName> = Database['public']['Functions'][Fn]['Returns'];
 
 /**
  * MYK9-535: SECURITY DEFINER RPC that lets the person who owns an entry (dog
@@ -933,6 +944,193 @@ export class ReplicatedEntriesTable extends ReplicatedTable<ReplicatedEntry> {
    * is still ELIGIBLE to withdraw; if one is ever added, this write would be
    * skipped and the entry would keep showing its pre-withdrawal status.
    */
+  /**
+   * Move an entry up a class, as ONE server transaction (MYK9-639/MYK9-640).
+   *
+   * ONLINE-ONLY and NOT queued through the MutationManager, for exactly the
+   * reason `withdrawOwnEntry` above is not, and the reason is worth restating
+   * because the obvious alternative has already been tried and failed here:
+   *
+   *   an optimistic local write cannot be reverted. `setOnce` refuses to
+   *   overwrite a locally-DIRTY row with a clean value — the guard that protects
+   *   offline scoring — so the revert that would undo a rejected move-up can
+   *   never fire, and the source stays `moved` on that device forever while the
+   *   dog is really still in its old class. MYK9-535 hit this exact wall and
+   *   the conclusion was "the fix is not a better revert: it is not writing
+   *   optimistically at all."
+   *
+   * So the call awaits the server and then stores the CONFIRMED rows clean.
+   * That is a real loss — a move-up now needs connectivity, where before it
+   * queued — and it is the trade this operation has to make: the previous
+   * queued shape is what let a source be marked `moved` with no destination
+   * anywhere, which is the worse show-day failure by a wide margin. The RPC is
+   * atomic, so the server state is always one or the other, never half.
+   *
+   * @returns the destination entry id the server committed.
+   */
+  async moveUpEntryViaRpc(input: {
+    sourceEntryId: string;
+    targetClassId: string;
+    newEntryId: string;
+    reason?: string | undefined;
+  }): Promise<string> {
+    const sourceWasCached = Boolean(await this.get(input.sourceEntryId));
+
+    const { data, error } = await this.callMoveUpRpc(MOVE_UP_ENTRY_RPC, {
+      p_entry_id: input.sourceEntryId,
+      p_target_class_id: input.targetClassId,
+      p_new_entry_id: input.newEntryId,
+      p_reason: input.reason ?? null,
+    });
+    if (error) {
+      throw classifyMoveUpRpcError(error, 'That entry could not be moved.');
+    }
+
+    const destinationId = data ? data : input.newEntryId;
+    await this.hydrateMovedPair([input.sourceEntryId, destinationId], sourceWasCached);
+    logger.log(
+      `[${this.getTableName()}] Moved entry ${input.sourceEntryId} -> ${destinationId} via ${MOVE_UP_ENTRY_RPC}`
+    );
+    return destinationId;
+  }
+
+  /**
+   * Put the dog back in the class they were moved out of — the same shape in
+   * reverse, and online-only for the same reason.
+   *
+   * @returns the restored source entry id.
+   */
+  async reverseMoveUpEntryViaRpc(destinationEntryId: string): Promise<string> {
+    const destinationWasCached = Boolean(await this.get(destinationEntryId));
+
+    const { data, error } = await this.callMoveUpRpc(REVERSE_MOVE_UP_ENTRY_RPC, {
+      p_destination_entry_id: destinationEntryId,
+    });
+    if (error) {
+      throw classifyMoveUpRpcError(error, 'That move-up could not be reversed.');
+    }
+
+    const sourceId = data ? data : null;
+
+    // Drop the destination from the LOCAL store before the read-back, because
+    // the read-back structurally cannot deliver its removal:
+    // `view_authenticated_entry_results` admits a soft-deleted row only for its
+    // own exhibitor (`deleted_at IS NULL OR is_own_entry`), so for a secretary
+    // the row is simply not returned and the stale clean copy would sit here
+    // forever — the dog showing live in BOTH classes on the very device that
+    // pressed Move back, with no sync able to remove it (this table sets no
+    // `shouldCleanupStaleRows`, and an incremental fetch can never emit a row
+    // the view hides). `origin/main`'s undo wrote a tombstone through
+    // `updateEntry`; the RPC rewrite dropped it and replaced it with a read-back
+    // that cannot see the row it needs.
+    //
+    // A local `delete` rather than a tombstone `set`, because
+    // `getEntriesByClass` and `getEntriesByShow` filter nothing — a row left in
+    // the store with `deleted_at` set would still be counted by the move-up
+    // capacity guard. The server row keeps its tombstone; this store is a cache.
+    if (destinationWasCached) {
+      try {
+        await this.delete(destinationEntryId);
+      } catch (tombstoneError) {
+        logger.warn(
+          `[${this.getTableName()}] Local removal of the reversed move-up entry ${destinationEntryId} failed`,
+          tombstoneError
+        );
+      }
+    }
+
+    // The SOURCE only. Asking the read-back to carry the destination's removal
+    // was the bug twice over: the view hides a soft-deleted row from a
+    // secretary (so nothing came back and the stale copy stayed), and RETURNS
+    // it to a manager who owns or handles the dog (so the row this method had
+    // just deleted locally went straight back in, live, with its `confirmed`
+    // status intact and counting toward the target class's capacity).
+    //
+    // The destination is gone from this store by design; there is nothing to
+    // hydrate. The server keeps its tombstone.
+    await this.hydrateMovedPair(sourceId ? [sourceId] : [], destinationWasCached);
+    logger.log(
+      `[${this.getTableName()}] Reversed move-up ${destinationEntryId} via ${REVERSE_MOVE_UP_ENTRY_RPC}`
+    );
+    return sourceId ?? destinationEntryId;
+  }
+
+  /**
+   * `supabase.rpc` with the try/catch the jump-height path documents: an rpc that
+   * THROWS (a fetch that never reached Postgres) would otherwise skip SQLSTATE
+   * classification and leak a transport string into the dialog.
+   *
+   * Both functions are in the generated types since migration 20260918193300,
+   * so the name and the `Args` are checked against `pg_proc` here — including
+   * `move_up_entry`'s `p_reason`, widened to accept NULL in
+   * `src/types/database-overrides.ts`. `Returns` is the uuid the server
+   * committed; it is `string | null` here because the catch below has no row
+   * to report.
+   */
+  private async callMoveUpRpc<Fn extends MoveUpRpcName>(
+    fn: Fn,
+    args: MoveUpRpcArgs<Fn>
+  ): Promise<{ data: MoveUpRpcReturns<Fn> | null; error: unknown }> {
+    try {
+      return await supabase.rpc(fn, args);
+    } catch (thrown) {
+      return { data: null, error: thrown ?? {} };
+    }
+  }
+
+  /**
+   * Refresh both halves of a move from the replication view, CLEAN.
+   *
+   * One read for the pair, because the server committed them together. The
+   * show-scoped rule (MYK9-573) is respected through `anchorWasCached`: if the
+   * row this operation started from was not in the replica, this show is not
+   * loaded here and writing either row back would make an account-scope read
+   * treat them as the user's whole entry list.
+   */
+  private async hydrateMovedPair(entryIds: string[], anchorWasCached: boolean): Promise<void> {
+    if (entryIds.length === 0) return;
+    if (!anchorWasCached) {
+      logger.log(
+        `[${this.getTableName()}] Move-up pair not written back — the show-scoped replica does not hold this show`
+      );
+      return;
+    }
+
+    try {
+      const { data, error } = await supabase
+        .from('view_authenticated_entry_results_replication')
+        .select('*')
+        .in('id', entryIds);
+      if (error || !data) return;
+
+      for (const raw of data as unknown as EntryRow[]) {
+        const row = raw as EntryRow & Record<string, unknown>;
+        // Never write a tombstone back into the cache. The view returns
+        // soft-deleted rows to whoever OWNS or handles the dog
+        // (`deleted_at IS NULL OR is_own_entry`), so a small-club secretary
+        // moving their own dog up gets the removed row back — and `set`ting it
+        // would undo the local delete this class performs by design, leaving
+        // the dog live in two classes and inflating the target's capacity
+        // count. `getEntriesByClass` filters nothing.
+        if (row.deleted_at) {
+          await this.delete(String(row.id));
+          continue;
+        }
+        const serverVersion = row.version as number | undefined;
+        this.reportSetResult(
+          String(row.id),
+          await this.set(String(row.id), rowToEntry(raw), false, undefined, serverVersion, {
+            allowColdInsert: 'move-up pair confirmed by the server',
+          })
+        );
+      }
+    } catch (readBackError) {
+      // The server change is COMMITTED; this is only a cache refresh. The next
+      // incremental sync brings the pair in either way.
+      logger.warn(`[${this.getTableName()}] Move-up read-back failed`, readBackError);
+    }
+  }
+
   private async hydrateConfirmedRow(
     entryId: string,
     wasCached: boolean,

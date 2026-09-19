@@ -6,7 +6,7 @@ import { useClubsQuery } from '@/hooks/queries/useClubsDatabase';
 import { notifications } from '@/lib/notifications';
 import { logger } from '@/services/LoggingService';
 import {
-  getAllClubAccessRequests,
+  getPendingClubAccessRequests,
   reviewClubAccessRequest,
   type ClubAccessRequest,
 } from '@/services/database/club-access-requests';
@@ -155,7 +155,7 @@ export function ClubAccessRequestsSection() {
     try {
       setLoading(true);
       setFailed(false);
-      setRequests(await getAllClubAccessRequests());
+      setRequests(await getPendingClubAccessRequests());
     } catch (error) {
       setFailed(true);
       logger.error('Failed to load club access requests', 'admin', {}, error as Error);

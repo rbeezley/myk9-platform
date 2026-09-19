@@ -59,4 +59,6 @@ $$;
 revoke all on function public.submit_signup_role_requests(jsonb) from public, anon;
 grant execute on function public.submit_signup_role_requests(jsonb) to authenticated;
 
+notify pgrst, 'reload schema';
+
 commit;

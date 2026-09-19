@@ -74,12 +74,13 @@ export async function submitNewClubAccessRequest(
   return (data as string | null) ?? null;
 }
 
-export async function getAllClubAccessRequests(): Promise<ClubAccessRequest[]> {
+export async function getPendingClubAccessRequests(): Promise<ClubAccessRequest[]> {
   const { data, error } = await supabase
     .from('club_access_requests')
     .select(
       '*, requester:people!club_access_requests_requester_person_id_fkey(first_name,last_name,email)'
     )
+    .eq('status', 'pending')
     .order('created_at', { ascending: false });
 
   if (error) throw error;

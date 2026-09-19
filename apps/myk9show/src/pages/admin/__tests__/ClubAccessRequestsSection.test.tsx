@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { render, screen, waitFor } from '@/test/utils/testUtils';
 import { ClubAccessRequestsSection } from '../ClubAccessRequestsSection';
 import {
-  getAllClubAccessRequests,
+  getPendingClubAccessRequests,
   reviewClubAccessRequest,
 } from '@/services/database/club-access-requests';
 
@@ -13,7 +13,7 @@ const mocks = vi.hoisted(() => ({
 }));
 
 vi.mock('@/services/database/club-access-requests', () => ({
-  getAllClubAccessRequests: mocks.requests,
+  getPendingClubAccessRequests: mocks.requests,
   reviewClubAccessRequest: mocks.review,
 }));
 
@@ -42,7 +42,7 @@ const request = {
 describe('ClubAccessRequestsSection', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    vi.mocked(getAllClubAccessRequests).mockResolvedValue([request]);
+    vi.mocked(getPendingClubAccessRequests).mockResolvedValue([request]);
     vi.mocked(reviewClubAccessRequest).mockResolvedValue('club-1');
     mocks.clubs.mockReturnValue([{ id: 'club-2', name: 'Existing Dog Club' }]);
   });

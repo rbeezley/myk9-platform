@@ -174,6 +174,39 @@ describe('buildClassPaperworkMap', () => {
     expect(assignedFingerprint).not.toBe(ownerFingerprint);
   });
 
+  it('keeps an unresolved assigned handler explicit in armband fingerprints', () => {
+    const ownerOnly = buildClassPaperworkMap({
+      showId: 'show-1',
+      classes,
+      trials: [{ id: 'trial-1', trialDate: '2026-07-20' }],
+      entries,
+      records: [],
+      returnTo: '/shows/show-1/show-day',
+    });
+    const map = buildClassPaperworkMap({
+      showId: 'show-1',
+      classes,
+      trials: [{ id: 'trial-1', trialDate: '2026-07-20' }],
+      entries: [
+        {
+          ...entries[0],
+          handler: null,
+          handler_id: 'missing-handler',
+        } as unknown as DbEntry,
+      ],
+      records: [],
+      returnTo: '/shows/show-1/show-day',
+    });
+
+    const unresolvedFingerprint = map
+      .get('class-1')
+      ?.find(item => item.reportId === 'armband-labels')?.confirmation?.fingerprint;
+    const ownerFingerprint = ownerOnly
+      .get('class-1')
+      ?.find(item => item.reportId === 'armband-labels')?.confirmation?.fingerprint;
+    expect(unresolvedFingerprint).not.toBe(ownerFingerprint);
+  });
+
   it('includes Class identity and lifecycle in result-document fingerprints', () => {
     const scope = {
       kind: 'class' as const,

@@ -231,6 +231,12 @@ describe('buildRunSheetEntries', () => {
     expect(e.ownerName).toBe('Richard Beezley');
   });
 
+  it('keeps an unresolved assigned handler explicit instead of blank', () => {
+    const [e] = buildRunSheetEntries([makeRow({ handler: null, handler_id: 'missing-handler' })]);
+
+    expect(e.handlerName).toBe('Unknown Handler');
+  });
+
   it('falls back to owner name when entry handler is blank', () => {
     const [e] = buildRunSheetEntries([
       makeRow({

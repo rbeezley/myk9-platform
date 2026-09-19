@@ -2,6 +2,7 @@ import { useQuery } from '@tanstack/react-query';
 import { queryKeys, cacheStrategies } from '@/lib/queryClient';
 import { shouldShowSection } from '@/components/classes/ClassDetailsMain.helpers';
 import { fetchReplicatedCheckInEntries } from './useCheckInReportReplication';
+import { normalizeHandlerName } from '@/features/registries/handlerIdentity';
 
 // Types
 export interface CheckInEntryRow {
@@ -83,7 +84,14 @@ export function groupEntriesByExhibitor(rows: CheckInEntryRow[]): ExhibitorCheck
   >();
 
   for (const row of rows) {
-    const key = `${row.dog_id}:${row.handler_id}`;
+    const handlerKey = row.handler_id?.trim()
+      ? `id:${row.handler_id.trim()}`
+      : `text:${
+          normalizeHandlerName(
+            [row.handler_first_name, row.handler_last_name].filter(Boolean).join(' ')
+          ) || 'unknown'
+        }`;
+    const key = `${row.dog_id}:${handlerKey}`;
     const status = row.check_in_status || 'no-status';
     if (!map.has(key)) {
       map.set(key, {

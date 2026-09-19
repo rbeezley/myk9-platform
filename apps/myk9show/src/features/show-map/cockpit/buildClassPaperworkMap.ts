@@ -165,7 +165,7 @@ function buildArmbandDescriptor(
       calendarDay,
       armband,
       callName: String(dog?.call_name ?? dog?.name ?? ''),
-      handlerName: handlerIdentity.name ?? '',
+      handlerName: handlerIdentity.name ?? (entry.handler_id?.trim() ? 'Unknown Handler' : ''),
       classIds: [scope.classId],
       trialIds: [scope.trialId],
     });

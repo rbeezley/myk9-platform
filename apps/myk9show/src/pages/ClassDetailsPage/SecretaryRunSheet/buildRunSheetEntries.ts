@@ -48,7 +48,7 @@ function rawToEntry(
     assignedHandlerPerson: row.handler_person,
     ownerPerson: owner,
   });
-  const handlerName = handlerIdentity.name ?? '';
+  const handlerName = handlerIdentity.name ?? (row.handler_id?.trim() ? 'Unknown Handler' : '');
 
   const checkInStatus = readCheckInStatus(row.check_in_status);
   const isCheckedIn = checkInStatus === 'checked-in';

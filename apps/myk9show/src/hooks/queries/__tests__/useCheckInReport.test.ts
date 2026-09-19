@@ -66,6 +66,28 @@ describe('groupEntriesByExhibitor', () => {
     expect(groups).toHaveLength(2);
   });
 
+  it('keeps distinct text-only handlers separate when handler ids are blank', () => {
+    const entries = [
+      makeEntry({
+        id: 'e1',
+        handler_id: '',
+        handler_first_name: 'Alex',
+        handler_last_name: 'Assigned',
+      }),
+      makeEntry({
+        id: 'e2',
+        handler_id: '',
+        handler_first_name: 'Jordan',
+        handler_last_name: 'Proxy',
+      }),
+    ];
+
+    const groups = groupEntriesByExhibitor(entries);
+
+    expect(groups).toHaveLength(2);
+    expect(groups.map(group => group.handlerName)).toEqual(['Alex Assigned', 'Jordan Proxy']);
+  });
+
   it('sorts groups by armband number', () => {
     const entries = [
       makeEntry({ id: 'e1', dog_id: 'dog-2', armband_number: 200, dog_call_name: 'Ziggy' }),

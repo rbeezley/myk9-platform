@@ -35,7 +35,8 @@ values ('00000000-0000-0000-0000-000000632003', '00000000-0000-0000-0000-0000006
   'MYK9-632 Trial', current_date, 'AKC');
 
 -- `entries_dog_class_unique_idx` is UNIQUE on (dog_id, class_id) WHERE
--- entry_status <> ALL ('withdrawn','scratched'), so each scenario needs its own
+-- `deleted_at IS NULL AND entry_status <> ALL ('withdrawn','scratched')`
+-- (MYK9-639 added the first conjunct), so each scenario needs its own
 -- class; one dog keeps a single dog_registrations row for the INSERT trigger.
 insert into public.classes (id, trial_id, name, status)
 select ('00000000-0000-0000-0000-00000063204' || n)::uuid,

@@ -100,7 +100,13 @@ export const EntryListCard: React.FC<EntryListCardProps> = ({
       onStatusChange(entryId, EntryStatus.CANCELLED, reason);
       // Withdrawn = refund due (April status model): chain straight into the
       // refund dialog when the entry was paid online and not yet refunded.
-      const entry = entries.find(e => e.id === entryId);
+      // MYK9-639: the ROW is the run and carries the rooted money, so the gate
+      // reads it directly; the dialog issues the refund against
+      // `moneyRootEntryId`. No second resolver, and no caller has to hold the
+      // right array -- `entries` here is the card's group, from which the
+      // superseded source has already been removed, so a lookup would have
+      // silently fallen back to the money-neutral row.
+      const entry = entries.find(candidate => candidate.id === entryId);
       if (entry && isStripeRefundable(entry)) {
         setRefundDialog({ open: true, entry });
       }
@@ -185,6 +191,15 @@ export const EntryListCard: React.FC<EntryListCardProps> = ({
             <span>
               Fee: ${entry.totalFee} (Paid: ${entry.paidAmount})
             </span>
+
+            {/* MYK9-639: this run was moved up and the entry holding its money
+                is not in this read, so the fee above is the destination's own
+                $0 -- say so rather than let it read as a settled figure. */}
+            {entry.moneyRootUnresolved && (
+              <Badge variant="outline" className="border-warning text-warning">
+                Payment record not loaded
+              </Badge>
+            )}
 
             {entry.comped ? (
               <Tooltip>
@@ -311,7 +326,15 @@ export const EntryListCard: React.FC<EntryListCardProps> = ({
                                   role="menuitem"
                                   data-status-popover-action
                                   className="flex min-h-11 w-full items-center gap-2 rounded-md px-2 text-left text-sm hover:bg-accent focus-visible:bg-accent focus-visible:outline-none"
-                                  onClick={() => setRefundDialog({ open: true, entry })}
+                                  onClick={() =>
+                                    setRefundDialog({
+                                      open: true,
+                                      // The row itself: it carries the rooted
+                                      // figures to show AND `moneyRootEntryId`,
+                                      // the row the refund is issued against.
+                                      entry,
+                                    })
+                                  }
                                 >
                                   <CreditCard className="h-4 w-4" aria-hidden />
                                   Refund payment…

@@ -125,6 +125,91 @@ describe('useEntryManagementData', () => {
     expect(entry.notes).toBe('Crate near ring');
   });
 
+  /**
+   * MYK9-639. The whole restructure hangs on ONE hop: `loadEntries` runs its
+   * mapped rows through `withEntryManagementMoneyRoots` before they reach
+   * state. Every predicate, badge, gate and total downstream is correct only
+   * because of that call, and a unit test of the resolver cannot see it being
+   * removed. This drives the real hook with the real mapper and asserts the
+   * destination row that comes OUT.
+   */
+  it('resolves a move-up destination to the money its source holds', async () => {
+    mocks.getEntriesForShow.mockResolvedValue({
+      data: [
+        {
+          id: 'source-1',
+          show_id: 'show-1',
+          entry_status: 'moved',
+          payment_status: 'paid',
+          entry_fee: 35,
+          payment_method: 'check',
+          dog: null,
+          class: null,
+          registration: null,
+          trial: null,
+        },
+        {
+          id: 'destination-1',
+          show_id: 'show-1',
+          entry_status: 'confirmed',
+          payment_status: 'pending',
+          entry_fee: 0,
+          payment_method: null,
+          moved_from_entry_id: 'source-1',
+          dog: null,
+          class: null,
+          registration: null,
+          trial: null,
+        },
+      ],
+      error: null,
+    });
+
+    const { result } = renderHook(() => useEntryManagementData());
+    await waitFor(() => expect(result.current.isLoadingShows).toBe(false));
+
+    act(() => result.current.setSelectedShowId('show-1'));
+
+    await waitFor(() => expect(result.current.entries).toHaveLength(2));
+
+    const destination = result.current.entries.find(entry => entry.id === 'destination-1');
+    expect(destination?.moneyRootEntryId).toBe('source-1');
+    expect(destination?.totalFee).toBe(35);
+    expect(destination?.paymentStatus).toBe(PaymentStatus.PAID_ONLINE);
+    expect(destination?.rawPaymentStatus).toBe('paid');
+    expect(destination?.paymentMethod).toBe('check');
+    expect(destination?.moneyRootUnresolved).toBeFalsy();
+  });
+
+  it('flags a destination whose source did not come back in the read', async () => {
+    mocks.getEntriesForShow.mockResolvedValue({
+      data: [
+        {
+          id: 'destination-1',
+          show_id: 'show-1',
+          entry_status: 'confirmed',
+          payment_status: 'pending',
+          entry_fee: 0,
+          moved_from_entry_id: 'source-that-is-not-here',
+          dog: null,
+          class: null,
+          registration: null,
+          trial: null,
+        },
+      ],
+      error: null,
+    });
+
+    const { result } = renderHook(() => useEntryManagementData());
+    await waitFor(() => expect(result.current.isLoadingShows).toBe(false));
+
+    act(() => result.current.setSelectedShowId('show-1'));
+
+    await waitFor(() => expect(result.current.entries).toHaveLength(1));
+
+    expect(result.current.entries[0]?.moneyRootUnresolved).toBe(true);
+  });
+
   it('loads shows on mount', async () => {
     const { result } = renderHook(() => useEntryManagementData());
     await waitFor(() => expect(result.current.isLoadingShows).toBe(false));

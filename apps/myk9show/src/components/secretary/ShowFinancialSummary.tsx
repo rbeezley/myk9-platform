@@ -27,7 +27,8 @@ import { Download, DollarSign, Users, Tag, Gift, Search, ChevronDown } from 'luc
 import { getEntriesByShowForFinancials } from '@/services/database/entries';
 import { paymentStatusColors } from '@/lib/financial-constants';
 import type { ShowFinancialEntryRow } from './financialSummaryTypes';
-import { computeShowFinancialSummary } from './showFinancialSummaryCalc';
+import { computeShowFinancialSummary, resolveShowFinancialRows } from './showFinancialSummaryCalc';
+import { UnresolvedMoneyRootNotice } from './UnresolvedMoneyRootNotice';
 
 interface ShowFinancialSummaryProps {
   showId: string;
@@ -50,7 +51,7 @@ export const ShowFinancialSummary: React.FC<ShowFinancialSummaryProps> = ({ show
     ...cacheStrategies.dynamic,
   });
 
-  const entries: ShowFinancialEntryRow[] = useMemo(
+  const allEntries: ShowFinancialEntryRow[] = useMemo(
     () =>
       rawEntries.map((e: Record<string, unknown>) => {
         const dog = e.dog as Record<string, unknown> | null;
@@ -61,6 +62,8 @@ export const ShowFinancialSummary: React.FC<ShowFinancialSummaryProps> = ({ show
 
         return {
           id: e.id as string,
+          entryStatus: (e.entry_status as string | null) ?? null,
+          movedFromEntryId: (e.moved_from_entry_id as string | null) ?? null,
           trialId: (trial?.id as string) || '',
           trialName: (trial?.name as string) || 'Unknown Trial',
           handler: e.handler as string | null,
@@ -78,6 +81,15 @@ export const ShowFinancialSummary: React.FC<ShowFinancialSummaryProps> = ({ show
         };
       }),
     [rawEntries]
+  );
+
+  // MYK9-639: one row per RUN, each carrying the money from wherever it is
+  // recorded. The superseded half of a move-up never reaches the card, the
+  // subtotals, the table or the CSV; the surviving row shows the fee and
+  // payment the exhibitor actually made.
+  const { rows: entries, unresolvedMoneyRootCount } = useMemo(
+    () => resolveShowFinancialRows(allEntries),
+    [allEntries]
   );
 
   const { summary, trialSubtotals, trialOptions } = useMemo(
@@ -139,6 +151,10 @@ export const ShowFinancialSummary: React.FC<ShowFinancialSummaryProps> = ({ show
 
   return (
     <div className="space-y-4">
+      <UnresolvedMoneyRootNotice
+        count={unresolvedMoneyRootCount}
+        remedy="Check the Financial Report at show scope for the full total."
+      />
       <div className="flex items-center justify-between">
         <div>
           <h3 className="text-lg font-semibold">Financial Summary</h3>

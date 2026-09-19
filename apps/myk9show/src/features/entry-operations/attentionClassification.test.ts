@@ -14,6 +14,39 @@ const input = (overrides: Partial<OperationalEntryInput> = {}): OperationalEntry
 });
 
 describe('classifyEntryAttention', () => {
+  describe('a money-neutral move-up destination (MYK9-639)', () => {
+    it('is not "Payment due" on the Show Desk or the class readiness panel', () => {
+      // These two surfaces read RAW rows; the mapper-level rooting never
+      // touches them. A move-up destination is created `payment_status =
+      // 'pending'` with the money left on the entry it points at, so
+      // classifying it here could only ever produce "Payment due" in red on a
+      // dog who has paid — while Entry Management, on the same pair, reports no
+      // issue at all.
+      expect(
+        classifyRawEntryAttention({
+          entry_status: 'confirmed',
+          payment_status: 'pending',
+          moved_from_entry_id: 'source-1',
+        })
+      ).toEqual([]);
+    });
+
+    it('still asks the LIFECYCLE questions, which are properties of the run', () => {
+      expect(
+        classifyRawEntryAttention({
+          entry_status: 'pending',
+          payment_status: 'pending',
+          moved_from_entry_id: 'source-1',
+        })
+      ).toEqual(['pending_review']);
+    });
+
+    it('leaves an ordinary unpaid entry flagged', () => {
+      expect(
+        classifyRawEntryAttention({ entry_status: 'confirmed', payment_status: 'pending' })
+      ).toEqual(['payment_due']);
+    });
+  });
   it('classifies a pending entry as pending_review', () => {
     expect(classifyEntryAttention(input({ entryStatus: EntryStatus.PENDING }))).toEqual([
       'pending_review',

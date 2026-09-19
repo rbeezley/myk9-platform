@@ -54,6 +54,14 @@ export interface SecretaryEntry {
   payment_received_on?: string | null;
   payment_notes?: string | null;
   registration_id: string | null;
+  /**
+   * MYK9-639: set on the DESTINATION of a move-up, pointing at the entry that
+   * holds this run's money. The destination is created money-neutral, so every
+   * fee, badge and gate on Entry Management resolves through it. Optional for
+   * the same reason `payment_reference` is: a cold read against a database
+   * where 20260918193300 has not been applied returns no such column.
+   */
+  moved_from_entry_id?: string | null;
   registration: {
     id: string;
     confirmation_number: string;

@@ -10,8 +10,14 @@
  * break any regex consumer with no compile-time link. Keep the builder, the
  * parser, and the pattern co-located here so a change to one forces the others.
  *
- * Producers: services/database/day-of-operations/move-up.ts,
- *            features/show-map/showMapActionMutations.ts
+ * PRODUCER: `public.move_up_entry` (migration 20260918193300) writes this note
+ * onto the DESTINATION entry it creates. The SOURCE's `special_requests` is no
+ * longer touched at all — the `moved_from_entry_id` FK is the lineage, and that
+ * column is where a secretary writes "reactive dog, needs the ramp".
+ *
+ * CONSUMER: `resolveMoveUpReversal`, which parses it only to RECOGNISE a legacy
+ * pair recorded before the FK existed (zero such rows live today) so the dialog
+ * can explain itself rather than offer a control the server would refuse.
  */
 
 /**
@@ -22,12 +28,10 @@
 export const MOVED_UP_FROM_PATTERN = /Moved up from class ([^\s:]+)/;
 
 /**
- * Build the note written onto the new entry's `special_requests`.
- *
- * `sourceClassId` is intentionally nullable: the entry row's class id can type
- * as `string | null | undefined` at the call sites, and this matches the prior
- * inline template's coercion behavior exactly (a missing id stringifies rather
- * than throwing). In practice a fetched entry always has a class id.
+ * Build the note. Kept in TypeScript beside the parser even though the SQL
+ * function is now the only producer: the two must agree, and a template
+ * authored in only one language drifts the first time either is reworded. The
+ * SQL is pinned against this shape by `movedFromEntryIdViewProjection.test.ts`.
  */
 export function buildMovedUpFromNote(
   sourceClassId: string | null | undefined,

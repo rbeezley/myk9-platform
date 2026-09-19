@@ -13,7 +13,7 @@ const mockUpdateClass = vi.hoisted(() => vi.fn());
 const mockUpdateReplicatedCheckInStatus = vi.hoisted(() => vi.fn());
 const mockUpdateReplicatedDayOfScratch = vi.hoisted(() => vi.fn());
 const mockUpdateReplicatedEntry = vi.hoisted(() => vi.fn());
-const mockCreateReplicatedEntry = vi.hoisted(() => vi.fn());
+const mockMoveUpEntryViaRpc = vi.hoisted(() => vi.fn());
 const mockGetReplicatedEntryById = vi.hoisted(() => vi.fn());
 const mockGetReplicatedClassById = vi.hoisted(() => vi.fn());
 const mockGetReplicatedEntriesByClass = vi.hoisted(() => vi.fn());
@@ -37,7 +37,7 @@ vi.mock('@/services/replication', () => ({
   },
   replicatedEntriesTable: {
     updateEntry: (...args: unknown[]) => mockUpdateReplicatedEntry(...args),
-    createEntry: (...args: unknown[]) => mockCreateReplicatedEntry(...args),
+    moveUpEntryViaRpc: (...args: unknown[]) => mockMoveUpEntryViaRpc(...args),
     getEntryById: (...args: unknown[]) => mockGetReplicatedEntryById(...args),
     getEntriesByClass: (...args: unknown[]) => mockGetReplicatedEntriesByClass(...args),
   },
@@ -101,7 +101,9 @@ describe('ShowMapTab', () => {
     mockUpdateReplicatedCheckInStatus.mockResolvedValue('mutation-1');
     mockUpdateReplicatedDayOfScratch.mockResolvedValue('mutation-2');
     mockUpdateReplicatedEntry.mockResolvedValue('entry-mutation-1');
-    mockCreateReplicatedEntry.mockImplementation(entry => Promise.resolve(entry));
+    mockMoveUpEntryViaRpc.mockImplementation(({ newEntryId }: { newEntryId: string }) =>
+      Promise.resolve(newEntryId)
+    );
     mockGetReplicatedEntryById.mockResolvedValue({
       id: 'entry-1',
       showId: 'show-1',
@@ -699,21 +701,19 @@ describe('ShowMapTab', () => {
     await user.type(screen.getByLabelText(/reason/i), 'Qualified today');
     await user.click(screen.getByRole('button', { name: /move entry/i }));
 
+    // ONE server call carries the whole move (MYK9-639): the destination insert
+    // and the source's `moved` mark are a single transaction, and the client
+    // sends no payment field with it.
     await waitFor(() => {
-      expect(mockUpdateReplicatedEntry).toHaveBeenCalledWith(
-        'entry-1',
+      expect(mockMoveUpEntryViaRpc).toHaveBeenCalledWith(
         expect.objectContaining({
-          entryStatus: 'moved',
-          specialRequests: 'Moved up to Interior Advanced: Qualified today',
+          sourceEntryId: 'entry-1',
+          targetClassId: 'class-2',
+          reason: 'Qualified today',
         })
       );
     });
-    expect(mockCreateReplicatedEntry).toHaveBeenCalledWith(
-      expect.objectContaining({
-        classId: 'class-2',
-        entryStatus: 'confirmed',
-      })
-    );
+    expect(mockUpdateReplicatedEntry).not.toHaveBeenCalled();
   });
 
   it('opens the message handler dialog and sends a canned reply', async () => {

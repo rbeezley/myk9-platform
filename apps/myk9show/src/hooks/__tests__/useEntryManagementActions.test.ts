@@ -4,7 +4,12 @@ import { useEntryManagementActions } from '../useEntryManagementActions';
 import { EntryStatus, PaymentStatus } from '@/types/show-registration-types';
 import type { EntryManagementEntry } from '@/types/entry-management-types';
 import { setEntryArmband } from '@/services/database/armbands';
-import { deleteEntry, updateCheckInStatus } from '@/services/database/entries';
+import {
+  compEntry,
+  deleteEntry,
+  uncompEntry,
+  updateCheckInStatus,
+} from '@/services/database/entries';
 import { updateEnrollmentPaymentStatus } from '@/services/database/show-registrations';
 import { updateReplicatedCheckInStatus } from '@/services/show-day/checkInStatus';
 import { fromAny } from '@total-typescript/shoehorn';
@@ -490,5 +495,74 @@ describe('useEntryManagementActions', () => {
 
     expect(updateReplicatedCheckInStatus).toHaveBeenCalledWith('entry-1', 'checked-in');
     expect(updateCheckInStatus).not.toHaveBeenCalled();
+  });
+  /**
+   * MYK9-639. A move-up creates the destination money-neutral and leaves every
+   * cent on the superseded source. A comp clicked on the destination must land
+   * on the source, or the secretary waives a $0 row and the real fee stays
+   * collected — the exact shape of the bug this issue is about, moved one hop.
+   * This drives the REAL handler, not `moneyRootIdOf`, because the stamp only
+   * helps if the handler reads it.
+   */
+  it('comps the entry that holds the money, not the money-neutral destination clicked', async () => {
+    vi.mocked(compEntry).mockResolvedValue(fromAny({ data: null, error: null }));
+    const source = {
+      ...makeEntry(),
+      id: 'source-1',
+      totalFee: 35,
+      paymentStatus: PaymentStatus.PAID_BY_CHECK,
+      moneyRootEntryId: 'source-1',
+    };
+    const destination = {
+      ...makeEntry(),
+      id: 'destination-1',
+      totalFee: 0,
+      paymentStatus: PaymentStatus.PENDING,
+      moneyRootEntryId: 'source-1',
+    };
+
+    const { result } = renderHook(() =>
+      useEntryManagementActions({
+        entries: [source, destination],
+        setEntries: vi.fn(),
+        selectedShowId: 'show-1',
+        selectedShow: null,
+        setError: vi.fn(),
+        user: { id: 'secretary-1' },
+      })
+    );
+
+    await act(async () => {
+      await result.current.handleCompEntry('destination-1', 'Judge error');
+    });
+
+    expect(compEntry).toHaveBeenCalledWith({ entryId: 'source-1', reason: 'Judge error' });
+  });
+
+  it('removes the comp from the same entry it was applied to', async () => {
+    vi.mocked(uncompEntry).mockResolvedValue(fromAny({ data: null, error: null }));
+    const destination = {
+      ...makeEntry(),
+      id: 'destination-1',
+      totalFee: 0,
+      moneyRootEntryId: 'source-1',
+    };
+
+    const { result } = renderHook(() =>
+      useEntryManagementActions({
+        entries: [destination],
+        setEntries: vi.fn(),
+        selectedShowId: 'show-1',
+        selectedShow: null,
+        setError: vi.fn(),
+        user: { id: 'secretary-1' },
+      })
+    );
+
+    await act(async () => {
+      await result.current.handleUncompEntry('destination-1');
+    });
+
+    expect(uncompEntry).toHaveBeenCalledWith('source-1');
   });
 });

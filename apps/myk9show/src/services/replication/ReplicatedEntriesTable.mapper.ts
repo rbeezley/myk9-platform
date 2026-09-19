@@ -79,6 +79,20 @@ export interface ReplicatedEntry {
   withdrawalReasonCode?: string | null | undefined;
   withdrawal_reason_code?: string | null | undefined;
   withdrawal_reason?: string | null | undefined;
+  /**
+   * MYK9-639: on the DESTINATION entry of a move-up, the id of the source entry
+   * it supersedes — and the ONLY link between them.
+   *
+   * The destination holds no money: `resolveMoneyRoot` follows this column back
+   * to the entry the exhibitor actually paid for, so the pair is counted once,
+   * at the amount actually paid, wherever the dog now runs.
+   *
+   * Migration 20260918193300 adds the column, projects it through
+   * `view_authenticated_entry_results(_replication)`, and creates the two
+   * functions that write it. The client never writes it directly.
+   */
+  movedFromEntryId?: string | null | undefined;
+  moved_from_entry_id?: string | null | undefined;
   submittedAt?: string | undefined;
   registrationId?: string | undefined;
   trialId?: string | undefined;
@@ -142,6 +156,14 @@ export interface ReplicatedEntry {
   total_incorrect_finds?: number | null | undefined;
   no_finish_count?: number | null | undefined;
   points_earned?: number | null | undefined;
+  /**
+   * MYK9-640: two more signals that a run has STARTED. They were in the SQL
+   * guard and in the client's mirror of it, but NOT in this mapper — so
+   * `hasRunStarted` read them off an object that never carried them and both
+   * were inert. Reading "by key" does not help when the key is never written.
+   */
+  points_possible?: number | null | undefined;
+  scoring_started_at?: string | null | undefined;
 
   class_id?: string | undefined;
   entry_status?: string | undefined;
@@ -224,6 +246,20 @@ export function entryToSupabaseRow(entry: ReplicatedEntry): Record<string, unkno
       : entry.withdrawal_reason_code !== undefined
         ? { withdrawal_reason_code: entry.withdrawal_reason_code }
         : {}),
+    // MYK9-639: the supersession link, emitted ONLY when this row actually
+    // carries one. A null would be a real clear, and `updateEntry` rebuilds the
+    // whole row for every unrelated edit — a device holding a row cached before
+    // the column existed would otherwise unlink a move-up someone else made.
+    //
+    // `comped`, `comped_reason` and `discount_amount` are deliberately NOT here.
+    // They were added only to carry money onto a move-up destination; money no
+    // longer moves, and emitting them on every whole-row upload made columns
+    // that were previously never written last-write-wins from any replica.
+    ...(entry.movedFromEntryId != null
+      ? { moved_from_entry_id: entry.movedFromEntryId }
+      : entry.moved_from_entry_id != null
+        ? { moved_from_entry_id: entry.moved_from_entry_id }
+        : {}),
     submitted_at: entry.submittedAt ?? null,
     registration_id: fk(entry.registrationId),
     trial_id: fk(entry.trialId ?? entry.trial_id),
@@ -263,6 +299,7 @@ export function entryToSupabaseRow(entry: ReplicatedEntry): Record<string, unkno
     }),
     ...(entry.no_finish_count !== undefined && { no_finish_count: entry.no_finish_count }),
     ...(entry.points_earned !== undefined && { points_earned: entry.points_earned }),
+    ...(entry.points_possible !== undefined && { points_possible: entry.points_possible }),
     // Only write placement if result is qualified — NQ/absent/etc. should never have a placement
     final_placement:
       entry.resultStatus && entry.resultStatus !== 'qualified'
@@ -347,6 +384,10 @@ export function rowToEntry(row: EntryRow): ReplicatedEntry {
     // as the bare word "Withdrawn" — never as "Pulled".
     withdrawalReasonCode: optionalColumn(row, 'withdrawal_reason_code'),
     withdrawal_reason_code: optionalColumn(row, 'withdrawal_reason_code'),
+    // MYK9-639. `optionalColumn` for the same reason: until migration
+    // 20260918193300 is pushed the view does not return this column at all.
+    movedFromEntryId: optionalColumn(row, 'moved_from_entry_id'),
+    moved_from_entry_id: optionalColumn(row, 'moved_from_entry_id'),
     submittedAt: row.submitted_at ?? undefined,
     registrationId: row.registration_id ?? undefined,
     trialId: row.trial_id ?? undefined,
@@ -406,6 +447,9 @@ export function rowToEntry(row: EntryRow): ReplicatedEntry {
     total_incorrect_finds: (dbRow.total_incorrect_finds as number | undefined) ?? undefined,
     no_finish_count: (dbRow.no_finish_count as number | undefined) ?? undefined,
     points_earned: (dbRow.points_earned as number | undefined) ?? undefined,
+    // MYK9-640: the two signals the run-started guard could not see.
+    points_possible: (dbRow.points_possible as number | undefined) ?? undefined,
+    scoring_started_at: optionalColumn(row, 'scoring_started_at'),
     class_id: row.class_id ?? undefined,
     entry_status: row.entry_status ?? undefined,
     element: (dbRow.element as string | undefined) ?? undefined,

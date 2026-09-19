@@ -21,13 +21,18 @@ import { replicatedTrialsTable } from '@/services/replication/ReplicatedTrialsTa
 import { replicatedArmbandsTable } from '@/services/replication/ReplicatedArmbandsTable';
 import { mapReplicatedEntryToDbRow } from '@/services/mappers/entryMappers';
 import { buildMapFromArray } from '../_shared/maps';
+import { logger } from '@/services/LoggingService';
+import { isMoveUpLinkSchemaUnavailable } from '@/features/payments/pullRefundSchemaCompatibility';
 import type { ReplicatedEntry } from '@/services/replication/ReplicatedEntriesTable';
 import type { ReplicatedDog } from '@/services/replication/ReplicatedDogsTable';
 import type { ReplicatedClass } from '@/services/replication/ReplicatedClassesTable';
 import type { ReplicatedShow } from '@/services/replication/ReplicatedShowsTable';
 import type { EntryStatus } from '@/types/entry-lifecycle';
 import type { DbEntryWithRelations } from '@/services/mappers/classMappers';
-import { AUTHENTICATED_ENTRY_READ_COLUMNS } from './entrySelects';
+import {
+  AUTHENTICATED_ENTRY_READ_COLUMNS,
+  AUTHENTICATED_ENTRY_READ_COLUMNS_WITH_MOVE_UP_LINK,
+} from './entrySelects';
 import { withReleasedShowResults } from './releasedShowResults';
 import { refreshShowEntriesForRead } from './refreshShowEntriesForRead';
 
@@ -311,11 +316,80 @@ async function postgrestGetEntriesByShow(showId: string) {
   return { data: data || [], error: null };
 }
 
-async function postgrestGetEntriesByShowForFinancials(showId: string) {
-  const { data, error } = await supabase
-    .from('entries')
-    .select(
-      `
+/**
+ * Run an entries read twice if it has to: once naming MYK9-639's
+ * `moved_from_entry_id`, and again without it when the column does not exist.
+ *
+ * `supabase db push` is run by hand after the merge and Vercel serves `main`
+ * before that happens, so for the length of that window PostgREST answers 42703
+ * and fails the WHOLE request, not just the column. Only the two reads that are
+ * SUMMED as money name the link, so this is the only place the window has to be
+ * handled — the other sixteen entry reads use the plain list and are unaffected.
+ *
+ * The degraded read simply carries no supersession link, which
+ * `resolveMoneyRoot` already treats as "this row is its own root" — the
+ * pre-MYK9-639 behaviour, not a new failure mode.
+ */
+async function withMoveUpLinkFallback<T>(
+  run: (withLink: boolean) => PromiseLike<{ data: T | null; error: unknown }>
+): Promise<{ data: T | null; error: unknown }> {
+  const first = await run(true);
+  if (!isMoveUpLinkSchemaUnavailable(first.error as { code?: string; message?: string } | null)) {
+    return first;
+  }
+  logger.warn(
+    '[entries] moved_from_entry_id is not in the schema yet; reading without the move-up link'
+  );
+  return run(false);
+}
+
+/**
+ * The two money reads name MYK9-639's `moved_from_entry_id`; every other entry
+ * read does not.
+ *
+ * Both variants of each are written out in full rather than composed from a
+ * shared fragment: the typed PostgREST builder parses the select at COMPILE
+ * time, and an extra level of interpolation exhausts its parser, degrading the
+ * whole query's type to `ParserError`. The duplication is the price of the
+ * select being type-checked at all, and each pair is kept adjacent so a change
+ * to one is obvious in the other.
+ */
+const SHOW_FINANCIALS_SELECT_WITH_LINK = `
+      ${AUTHENTICATED_ENTRY_READ_COLUMNS_WITH_MOVE_UP_LINK},
+      dog:dog_id (
+        id,
+        name,
+        call_name,
+        breed,
+        owner:owner_id (
+          id,
+          first_name,
+          last_name,
+          email
+        )
+      ),
+      class:class_id (
+        id,
+        name,
+        class_number,
+        entry_fee
+      ),
+      registration:registration_id (
+        ${ENROLLMENT_FINANCIAL_SELECT}
+      ),
+      promo_code:promo_code_id (
+        id,
+        code,
+        discount_type,
+        discount_value
+      ),
+      trial:trial_id (
+        id,
+        name
+      )
+    `;
+
+const SHOW_FINANCIALS_SELECT = `
       ${AUTHENTICATED_ENTRY_READ_COLUMNS},
       dog:dog_id (
         id,
@@ -348,21 +422,41 @@ async function postgrestGetEntriesByShowForFinancials(showId: string) {
         id,
         name
       )
-    `
-    )
-    .eq('show_id', showId)
-    .is('deleted_at', null)
-    .order('created_at', { ascending: false });
+    `;
 
-  if (error) throw createDatabaseError(error, 'entries', 'select_by_show_financials');
-  return { data: data || [], error: null };
-}
+const TRIAL_ENTRIES_SELECT_WITH_LINK = `
+      ${AUTHENTICATED_ENTRY_READ_COLUMNS_WITH_MOVE_UP_LINK},
+      dog:dog_id (
+        id,
+        name,
+        call_name,
+        breed,
+        owner:owner_id (
+          id,
+          first_name,
+          last_name,
+          email
+        )
+      ),
+      class:class_id!inner (
+        id,
+        name,
+        class_number,
+        entry_fee,
+        trial_id
+      ),
+      registration:registration_id (
+        ${ENROLLMENT_FINANCIAL_SELECT}
+      ),
+      promo_code:promo_code_id (
+        id,
+        code,
+        discount_type,
+        discount_value
+      )
+    `;
 
-async function postgrestGetEntriesByTrial(trialId: string) {
-  const { data, error } = await supabase
-    .from('entries')
-    .select(
-      `
+const TRIAL_ENTRIES_SELECT = `
       ${AUTHENTICATED_ENTRY_READ_COLUMNS},
       dog:dog_id (
         id,
@@ -392,11 +486,52 @@ async function postgrestGetEntriesByTrial(trialId: string) {
         discount_type,
         discount_value
       )
-    `
-    )
-    .eq('class.trial_id', trialId)
-    .is('deleted_at', null)
-    .order('created_at', { ascending: false });
+    `;
+
+async function postgrestGetEntriesByShowForFinancials(showId: string) {
+  // MYK9-639: this read is SUMMED as money, so it names the supersession link —
+  // and retries without it for the deploy window, when the column does not
+  // exist yet and PostgREST would 42703 the whole request.
+  // The ternary is on the WHOLE query, not inside `.select()`: the typed
+  // builder parses each select literal at compile time, and a union of two of
+  // them exhausts its parser.
+  const { data, error } = await withMoveUpLinkFallback(withLink =>
+    withLink
+      ? supabase
+          .from('entries')
+          .select(SHOW_FINANCIALS_SELECT_WITH_LINK)
+          .eq('show_id', showId)
+          .is('deleted_at', null)
+          .order('created_at', { ascending: false })
+      : supabase
+          .from('entries')
+          .select(SHOW_FINANCIALS_SELECT)
+          .eq('show_id', showId)
+          .is('deleted_at', null)
+          .order('created_at', { ascending: false })
+  );
+
+  if (error) throw createDatabaseError(error, 'entries', 'select_by_show_financials');
+  return { data: data || [], error: null };
+}
+
+async function postgrestGetEntriesByTrial(trialId: string) {
+  // MYK9-639: the trial-scoped Financial Report sums this one. Same fallback.
+  const { data, error } = await withMoveUpLinkFallback(withLink =>
+    withLink
+      ? supabase
+          .from('entries')
+          .select(TRIAL_ENTRIES_SELECT_WITH_LINK)
+          .eq('class.trial_id', trialId)
+          .is('deleted_at', null)
+          .order('created_at', { ascending: false })
+      : supabase
+          .from('entries')
+          .select(TRIAL_ENTRIES_SELECT)
+          .eq('class.trial_id', trialId)
+          .is('deleted_at', null)
+          .order('created_at', { ascending: false })
+  );
 
   if (error) throw createDatabaseError(error, 'entries', 'select_by_trial');
   return { data: data || [], error: null };

@@ -1,6 +1,7 @@
 import type { EntryManagementEntry } from '@/types/entry-management-types';
 import { PaymentStatus } from '@/types/show-registration-types';
 import { getEffectivePaymentStatus } from './entryManagementUtils';
+import { buildMoneyAttribution } from '@/features/financial/moneyRoot';
 
 export interface EnrollmentGroup {
   /** Unique per group (registrationId | pi:<intent> | entry:<id>) — the React
@@ -38,10 +39,18 @@ export interface EnrollmentGroup {
   entries: EntryManagementEntry[];
 }
 
-export function groupEntriesByEnrollment(entries: EntryManagementEntry[]): EnrollmentGroup[] {
+export function groupEntriesByEnrollment(allEntries: EntryManagementEntry[]): EnrollmentGroup[] {
   const map = new Map<string, EnrollmentGroup>();
 
+  // MYK9-639: the superseded half of a move-up is not a second line on the
+  // exhibitor's card — the dog runs once. Its money is not lost with it: the
+  // surviving row takes its fee and payment from its root, because a move-up
+  // destination is created money-neutral.
+  const attribution = buildMoneyAttribution(allEntries);
+  const entries = attribution.live;
+
   for (const entry of entries) {
+    const moneyRoot = attribution.rootById.get(entry.id) ?? entry;
     // Online (webhook-created) entries have no registrationId — group them by
     // Stripe ORDER (payment intent) so unrelated exhibitors never collapse
     // into one card with mixed handlers/totals/refund status (Codex P1,
@@ -80,8 +89,12 @@ export function groupEntriesByEnrollment(entries: EntryManagementEntry[]): Enrol
       // No enrollment record (online/pi-grouped or standalone entries): both
       // figures come from the entries themselves. With an enrollment, its
       // total/paid stay authoritative and are never accumulated.
-      group.totalAmount += entry.totalFee;
-      group.paidAmount += entry.paidAmount;
+      //
+      // MYK9-639: from the ROOT, once per run. Reading the destination's own
+      // figures would show the exhibitor $0; reading both halves would show
+      // them double.
+      group.totalAmount += moneyRoot.totalFee;
+      group.paidAmount += moneyRoot.paidAmount;
     }
   }
 

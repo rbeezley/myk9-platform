@@ -1,7 +1,6 @@
-import { CLASS_STATUS, logger, type CheckInStatus } from '@myk9/core';
+import { CLASS_STATUS, type CheckInStatus } from '@myk9/core';
 
 import { createDatabaseError, supabase } from '@/services/database/supabaseClient';
-import { buildMovedUpFromNote } from '@/services/database/entries/moveUpNote';
 import {
   replicatedClassesTable,
   replicatedEntriesTable,
@@ -15,6 +14,8 @@ import {
 import { logReplicatedEntryStatusChange } from '@/services/show-day/entryStatusAudit';
 import { generateUUID } from '@/utils/idUtils';
 import { isEligibleMoveUpTarget } from '@/utils/moveUpEligibility';
+import { reverseShowMapMoveUp } from './moveUpSupersession';
+import { MoveUpRpcError } from '@/services/replication/moveUpEntryRpc';
 import { getTrialRegistry } from '@/features/registries';
 
 export interface ShowMapMoveUpInput {
@@ -25,10 +26,12 @@ export interface ShowMapMoveUpInput {
 
 export interface ShowMapMoveUpUndoInput {
   originalEntryId: string;
+  /**
+   * The destination entry. It is all the reverse needs: the server follows
+   * `moved_from_entry_id` from here to the source it must restore, so nothing
+   * captured at move time can go stale in between (MYK9-640).
+   */
   newEntryId: string;
-  previousEntryStatus: string | null;
-  previousCheckInStatus: string | null;
-  previousSpecialRequests: string | null;
 }
 
 export interface ShowMapMoveUpResult extends ShowMapMoveUpUndoInput {
@@ -251,11 +254,11 @@ export async function getShowMapHandlerMessageTarget(
   };
 }
 
-// INTENT: Show Map move-up stays on replicated entry mutations because this
-// action is show-day/offline-critical. The online day-of path routes status
-// changes through entries/lifecycle.ts; this path mirrors the same domain
-// transition locally, audit-logs it, and relies on sync/server review as the
-// backstop for stale replicas or concurrent capacity changes.
+// INTENT: the move-up is a SHOW-DAY operation and stays on the replicated entry
+// layer for its READS (source, classes, trial, capacity) so the secretary sees
+// the same data offline. The WRITE is one server transaction — see
+// `moveUpEntryViaRpc` for why it is online-only and why the previous queued
+// pair of writes had to go.
 export async function moveUpShowMapEntry({
   entryId,
   targetClassId,
@@ -264,26 +267,26 @@ export async function moveUpShowMapEntry({
   const currentEntry = await replicatedEntriesTable.getEntryById(entryId);
 
   if (!currentEntry) {
-    throw createDatabaseError(new Error('Entry not found'), 'entries', 'show_map_move_up_fetch');
+    throw new MoveUpRpcError('not-found', 'That entry no longer exists.');
   }
 
   const targetClass = await replicatedClassesTable.getClassById(targetClassId);
   if (!targetClass) {
-    throw createDatabaseError(new Error('Target class not found'), 'classes', 'show_map_move_up');
+    throw new MoveUpRpcError('not-found', 'That class no longer exists.');
   }
 
-  // Enforce the move-up rule server-side too — the UI target picker is the
-  // first line of defense, but a stale UI or alternate surface must not be able
-  // to move e.g. a Buried Master into Container Novice. Same element, strictly
-  // higher level. See isEligibleMoveUpTarget.
+  // Enforce the move-up rule client-side: the registry level ladder lives in TS
+  // (the registry is on the trial, not on a CHECK), so this is the layer that
+  // can reason about it. The RPC owns everything a stale client must not be
+  // trusted with — who may write, that the source is movable, and atomicity.
   const sourceClassId = currentEntry.classId ?? currentEntry.class_id ?? null;
   const sourceClass = sourceClassId
     ? await replicatedClassesTable.getClassById(sourceClassId)
     : null;
   if (!sourceClass) {
-    throw createDatabaseError(new Error('Current class not found'), 'classes', 'show_map_move_up');
+    throw new MoveUpRpcError('not-found', 'That entry\u2019s current class no longer exists.');
   }
-  // Resolve the registry server-side too, from the source class's trial (a show's
+  // Resolve the registry client-side too, from the source class's trial (a show's
   // trials always share one registry — scoping §7) — defaults to AKC if the trial
   // can't be resolved, matching getTrialRegistry's own fallback.
   const sourceTrialId = sourceClass.trialId ?? sourceClass.trial_id ?? null;
@@ -292,13 +295,12 @@ export async function moveUpShowMapEntry({
     : null;
   const registryId = getTrialRegistry(sourceTrial).id;
   if (!isEligibleMoveUpTarget(sourceClass, targetClass, registryId)) {
-    throw createDatabaseError(
-      new Error(
-        `${targetClass.name} is not a valid move-up target for ${sourceClass.name}. ` +
-          'A move-up must be to a higher level within the same element.'
-      ),
-      'entries',
-      'show_map_move_up'
+    // Authored for the secretary, so thrown as a refusal rather than a
+    // DatabaseError — the latter reaches production as "Something went wrong".
+    throw new MoveUpRpcError(
+      'refused',
+      `${targetClass.name} is not a valid move-up target for ${sourceClass.name}. ` +
+        'A move-up must be to a higher level within the same element.'
     );
   }
 
@@ -312,99 +314,24 @@ export async function moveUpShowMapEntry({
   }).length;
   const limit = targetClass.maxEntries ?? 999;
   if (acceptedCount >= limit) {
-    throw createDatabaseError(new Error('Target class is full'), 'entries', 'show_map_move_up');
+    throw new MoveUpRpcError('refused', `${targetClass.name} is full.`);
   }
 
   const previousEntryStatus =
     currentEntry.entryStatus ?? currentEntry.entry_status ?? currentEntry.status ?? null;
-  const previousCheckInStatus = currentEntry.checkInStatus ?? currentEntry.check_in_status ?? null;
-  const previousSpecialRequests =
-    currentEntry.specialRequests ?? currentEntry.special_requests ?? null;
-  const moveNote = `Moved up to ${targetClass.name}${reason ? ': ' + reason : ''}`;
-  const movedUpFromNote = buildMovedUpFromNote(
-    currentEntry.classId ?? currentEntry.class_id,
-    reason
-  );
   const newEntryId = generateUUID();
 
-  // Create the promoted entry FIRST. If this fails, the original entry is left
-  // exactly as it was — the dog still runs where it is, nothing is corrupted.
-  try {
-    await replicatedEntriesTable.createEntry({
-      id: newEntryId,
-      dogId: currentEntry.dogId,
-      showId: currentEntry.showId,
-      classId: targetClassId,
-      trialId: targetClass.trialId ?? targetClass.trial_id,
-      trial_id: targetClass.trialId ?? targetClass.trial_id,
-      entryStatus: 'confirmed',
-      entry_status: 'confirmed',
-      paymentStatus: 'waived',
-      entryFee: 0,
-      jumpHeight: currentEntry.jumpHeight,
-      handler: currentEntry.handler,
-      armband: currentEntry.armband,
-      specialRequests: movedUpFromNote,
-      special_requests: movedUpFromNote,
-    });
-  } catch (error) {
-    throw createDatabaseError(error, 'entries', 'show_map_move_up_create');
-  }
-
-  // New entry exists; now retire the original. If THIS fails, soft-delete the
-  // entry we just created so we don't leave a duplicate. Use a soft-delete
-  // UPDATE (not a hard deleteEntry) deliberately: on flaky show-day WiFi the
-  // create's INSERT may still be in retry-backoff in the mutation queue, and a
-  // hard DELETE is an independent, un-ordered mutation that could upload first,
-  // no-op against a not-yet-inserted row, and then let the INSERT land — leaving
-  // a live orphan on the server, invisible on this device. An UPDATE targets the
-  // SAME row as the pending INSERT, so it can never resurrect into a live entry
-  // regardless of queue ordering. This mirrors undoShowMapMoveUp's retire path.
-  try {
-    await replicatedEntriesTable.updateEntry(entryId, {
-      entryStatus: 'moved',
-      entry_status: 'moved',
-      specialRequests: moveNote,
-      special_requests: moveNote,
-    });
-  } catch (error) {
-    // updateEntry is NOT atomic: it commits the local row BEFORE it queues the
-    // sync mutation (ReplicatedEntriesTable.updateEntry), so a throw here may
-    // have already left the original locally marked 'moved'. Restore it to its
-    // captured previous state FIRST — that makes the dog runnable again on this
-    // device even if the next step fails — then soft-delete the new entry.
-    // Ordering matters: if we soft-deleted first and the restore then threw, the
-    // dog would be stranded with no runnable entry; restoring first means the
-    // worst case is a visible duplicate the secretary can scratch.
-    try {
-      await replicatedEntriesTable.updateEntry(entryId, {
-        entryStatus: previousEntryStatus ?? undefined,
-        entry_status: previousEntryStatus ?? undefined,
-        checkInStatus: previousCheckInStatus ?? undefined,
-        check_in_status: previousCheckInStatus ?? undefined,
-        specialRequests: previousSpecialRequests,
-        special_requests: previousSpecialRequests,
-      });
-    } catch (restoreError) {
-      logger.error(
-        '[show-map] Failed to restore original entry after mark-moved failure',
-        restoreError
-      );
-    }
-    try {
-      const rolledBackAt = new Date().toISOString();
-      await replicatedEntriesTable.updateEntry(newEntryId, {
-        deletedAt: rolledBackAt,
-        deleted_at: rolledBackAt,
-      });
-    } catch (rollbackError) {
-      logger.error(
-        '[show-map] Failed to soft-delete move-up entry after mark-moved failure',
-        rollbackError
-      );
-    }
-    throw createDatabaseError(error, 'entries', 'show_map_move_up');
-  }
+  // ONE server call. It inserts the money-neutral destination carrying
+  // `moved_from_entry_id`, copies the check-in only when it is a check-in, and
+  // marks the source `moved` — in a single transaction, so there is no window
+  // in which the dog is entered twice or entered nowhere. It also refuses a
+  // source that is pulled, withdrawn, scratched, absent or already moved.
+  const destinationEntryId = await replicatedEntriesTable.moveUpEntryViaRpc({
+    sourceEntryId: entryId,
+    targetClassId,
+    newEntryId,
+    reason,
+  });
 
   await logReplicatedEntryStatusChange({
     entryId,
@@ -412,50 +339,26 @@ export async function moveUpShowMapEntry({
     toStatus: 'moved',
     action: 'mark_entry_moved',
     reason,
-    metadata: { targetClassName: targetClass.name },
+    metadata: { targetClassName: targetClass.name, destinationEntryId },
   });
 
   return {
     originalEntryId: entryId,
-    newEntryId,
-    previousEntryStatus,
-    previousCheckInStatus,
-    previousSpecialRequests,
+    newEntryId: destinationEntryId,
     targetClassName: targetClass.name,
   };
 }
 
+/**
+ * The 8-second banner's Undo.
+ *
+ * It is the SAME operation as the durable "Move back" on the dialog, so it is
+ * the same call: one server transaction that restores the source and removes
+ * the destination. Before, the banner restored a status captured at move time
+ * while the dialog restored the live one, and the banner's own path was two
+ * uncompensated writes — if the second failed the dog was left with no live
+ * entry at all.
+ */
 export async function undoShowMapMoveUp(input: ShowMapMoveUpUndoInput): Promise<void> {
-  if (!input.previousEntryStatus) {
-    throw createDatabaseError(
-      new Error('Cannot undo move-up because the original entry status was not captured.'),
-      'entries',
-      'show_map_undo_move_up_restore'
-    );
-  }
-
-  const deletedAt = new Date().toISOString();
-  await replicatedEntriesTable.updateEntry(input.newEntryId, {
-    deletedAt,
-    deleted_at: deletedAt,
-  });
-  const restoredCheckInStatus = (input.previousCheckInStatus ?? 'no-status') as CheckInStatus;
-  await replicatedEntriesTable.updateEntry(input.originalEntryId, {
-    entryStatus: input.previousEntryStatus,
-    entry_status: input.previousEntryStatus,
-    checkInStatus: restoredCheckInStatus,
-    check_in_status: restoredCheckInStatus,
-    specialRequests: input.previousSpecialRequests,
-    special_requests: input.previousSpecialRequests,
-  });
-
-  await logReplicatedEntryStatusChange({
-    entryId: input.originalEntryId,
-    fromStatus: 'moved',
-    toStatus: input.previousEntryStatus,
-    action: 'restore_entry_status',
-    metadata: {
-      checkInStatus: restoredCheckInStatus,
-    },
-  });
+  await reverseShowMapMoveUp(input.newEntryId);
 }

@@ -25,6 +25,8 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/comp
 import { Download, DollarSign, Users, Tag, Gift, Search } from 'lucide-react';
 import { paymentStatusColors } from '@/lib/financial-constants';
 import type { TrialFinancialEntryRow } from './financialSummaryTypes';
+import { resolveShowFinancialRows } from './showFinancialSummaryCalc';
+import { UnresolvedMoneyRootNotice } from './UnresolvedMoneyRootNotice';
 
 interface FinancialSummaryProps {
   trialId: string;
@@ -37,7 +39,7 @@ export const FinancialSummary: React.FC<FinancialSummaryProps> = ({ trialId }) =
   const { data: rawEntries = [], isLoading } = useTrialEntries(trialId);
 
   // Map raw entries to display rows
-  const entries: TrialFinancialEntryRow[] = useMemo(
+  const allEntries: TrialFinancialEntryRow[] = useMemo(
     () =>
       rawEntries.map(e => {
         const dog = e.dog;
@@ -48,6 +50,8 @@ export const FinancialSummary: React.FC<FinancialSummaryProps> = ({ trialId }) =
 
         return {
           id: e.id,
+          entryStatus: (raw.entry_status as string | null) ?? null,
+          movedFromEntryId: (raw.moved_from_entry_id as string | null) ?? null,
           handler: e.handler,
           dogName: dog?.call_name || dog?.name || 'Unknown',
           ownerName: owner
@@ -63,6 +67,15 @@ export const FinancialSummary: React.FC<FinancialSummaryProps> = ({ trialId }) =
         };
       }),
     [rawEntries]
+  );
+
+  // MYK9-639: one row per RUN, each carrying the money from wherever it is
+  // recorded. The superseded half of a move-up never reaches the card, the
+  // table or the CSV; the surviving row shows the fee and payment the exhibitor
+  // actually made.
+  const { rows: entries, unresolvedMoneyRootCount } = useMemo(
+    () => resolveShowFinancialRows(allEntries),
+    [allEntries]
   );
 
   // Filtered entries
@@ -168,6 +181,10 @@ export const FinancialSummary: React.FC<FinancialSummaryProps> = ({ trialId }) =
 
   return (
     <div className="space-y-4">
+      <UnresolvedMoneyRootNotice
+        count={unresolvedMoneyRootCount}
+        remedy="The show-level Financial Summary counts them; this trial card cannot."
+      />
       <div className="flex items-center justify-between">
         <div>
           <h3 className="text-lg font-semibold">Financial Summary</h3>

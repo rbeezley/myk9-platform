@@ -50,6 +50,13 @@ export interface ReportEntry {
   discountAmount?: number;
   refundAmount?: number;
   comped?: boolean;
+  /**
+   * MYK9-639: set on the DESTINATION of a move-up, pointing at the entry whose
+   * money this run's dollars come from. Every money aggregation resolves it via
+   * `@/features/financial/moneyRoot` so the pair is counted once, at the amount
+   * actually paid.
+   */
+  movedFromEntryId?: string | null | undefined;
   entrySource?: ReportEntrySource;
   isDayOfShow?: boolean;
   // Class/trial context — populated for show-level and trial-level catalog reports

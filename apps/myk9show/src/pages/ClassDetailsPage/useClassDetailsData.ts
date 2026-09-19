@@ -32,7 +32,12 @@ import { useShowManageScope } from '@/hooks/useShowManageScope';
 import { useShowQuery } from '@/hooks/queries/useShowsDatabase';
 import { useAuthContext } from '@/hooks/useAuthContext';
 
-function secretaryEntryToRawRow(entry: SecretaryEntry): RawEntryRow {
+/**
+ * Exported for its contract test: this hand-written projection is the last hop
+ * between the secretary read and the readiness strip, and a field dropped here
+ * is invisible to a unit test of the pure summariser (LESSONS `last-hop-drop`).
+ */
+export function secretaryEntryToRawRow(entry: SecretaryEntry): RawEntryRow {
   return {
     id: entry.id,
     class_id: entry.class_id ?? '',
@@ -41,6 +46,7 @@ function secretaryEntryToRawRow(entry: SecretaryEntry): RawEntryRow {
     registration_id: entry.registration_id,
     entry_status: entry.entry_status,
     payment_status: entry.payment_status,
+    moved_from_entry_id: entry.moved_from_entry_id,
     registration: entry.registration,
     handler_id: entry.handler_id,
     armband: entry.armband,

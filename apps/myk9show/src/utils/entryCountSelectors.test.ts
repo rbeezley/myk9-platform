@@ -52,6 +52,58 @@ function entry(overrides: Partial<EntryManagementEntry>): EntryManagementEntry {
 }
 
 describe('entry count selectors', () => {
+  it('reads ONE entry and $35 for a moved-up dog (MYK9-639)', () => {
+    // The money stayed on the superseded source; the destination is
+    // money-neutral. Counting both reported "2 entries"; reading the
+    // destination's own figures would have reported $0 revenue and $0 owed.
+    const { stats, tabCounts } = getEntryManagementCountSummary([
+      entry({
+        id: 'source-moved',
+        entryStatus: EntryStatus.MOVED,
+        totalFee: 35,
+        paidAmount: 35,
+        paymentStatus: PaymentStatus.PAID_BY_CHECK,
+      }),
+      entry({
+        id: 'destination',
+        entryStatus: EntryStatus.ACCEPTED,
+        totalFee: 0,
+        paidAmount: 0,
+        paymentStatus: PaymentStatus.PENDING,
+        movedFromEntryId: 'source-moved',
+      }),
+    ]);
+
+    expect(stats.total).toBe(1);
+    expect(tabCounts.all).toBe(1);
+    expect(stats.revenue).toBe(35);
+    expect(stats.outstanding).toBe(0);
+  });
+
+  it('does not flag a moved-up dog as an unpaid entry needing attention', () => {
+    // The destination's own `payment_status` is `pending` by construction, so
+    // the issue classifier has to read the ROOT or every move-up would raise a
+    // false "payment outstanding".
+    const { stats } = getEntryManagementCountSummary([
+      entry({
+        id: 'source-moved',
+        entryStatus: EntryStatus.MOVED,
+        totalFee: 35,
+        paidAmount: 35,
+        paymentStatus: PaymentStatus.PAID_BY_CHECK,
+      }),
+      entry({
+        id: 'destination',
+        entryStatus: EntryStatus.ACCEPTED,
+        totalFee: 0,
+        paidAmount: 0,
+        paymentStatus: PaymentStatus.PENDING,
+        movedFromEntryId: 'source-moved',
+      }),
+    ]);
+
+    expect(stats.outstanding).toBe(0);
+  });
   it('counts raw pending-bucket statuses the same way Entry Management maps them', () => {
     const rawEntries = [
       { entry_status: 'submitted' },

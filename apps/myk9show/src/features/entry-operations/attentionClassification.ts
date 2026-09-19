@@ -28,6 +28,13 @@ export interface RawOperationalEntryInput {
   entry_status?: string | null;
   payment_status?: string | null;
   registration?: { payment_status?: string | null } | null;
+  /**
+   * MYK9-639: set on the DESTINATION of a move-up. Its `payment_status` is
+   * `'pending'` by construction — the money stayed on the entry it points at —
+   * so this row's payment status says nothing about whether anyone owes
+   * anything.
+   */
+  moved_from_entry_id?: string | null | undefined;
 }
 
 export interface OperationalClassInput {
@@ -80,8 +87,24 @@ export function matchesOperationalAttentionFilter(
   return reasons.includes('missing_information') || reasons.includes('payment_due');
 }
 
+/**
+ * The raw-row classifier, for the two show-day surfaces that never see the
+ * mapper's rooted rows: the Show Desk's "Payment due" signal and the class
+ * readiness panel.
+ *
+ * A move-up destination is skipped for the PAYMENT question entirely. It is
+ * created money-neutral (`payment_status = 'pending'`, `entry_fee = 0`) and the
+ * settlement stays on the entry `moved_from_entry_id` names, which these
+ * surfaces do not load — so classifying it here could only ever produce
+ * "Payment due" on a dog who has paid, in red, while Entry Management on the
+ * same data reports no issue. Two surfaces, two answers, one pair: the defect
+ * class MYK9-639 exists to end.
+ *
+ * Its LIFECYCLE questions (pending review, missing information) are unaffected
+ * and still asked, because those are properties of the run, not of the money.
+ */
 export function classifyRawEntryAttention(entry: RawOperationalEntryInput): EntryAttentionReason[] {
-  return classifyEntryAttention({
+  const reasons = classifyEntryAttention({
     rawEntryStatus: entry.entry_status,
     ...(entry.payment_status != null
       ? { paymentStatus: mapPaymentStatus(entry.payment_status) }
@@ -90,6 +113,11 @@ export function classifyRawEntryAttention(entry: RawOperationalEntryInput): Entr
       ? { enrollmentPaymentStatus: mapPaymentStatus(entry.registration.payment_status) }
       : {}),
   });
+
+  if (entry.moved_from_entry_id) {
+    return reasons.filter(reason => reason !== 'payment_due');
+  }
+  return reasons;
 }
 
 /**

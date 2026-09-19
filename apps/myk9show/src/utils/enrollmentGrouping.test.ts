@@ -23,6 +23,43 @@ const base: EntryManagementEntry = {
 };
 
 describe('groupEntriesByEnrollment', () => {
+  it('bills a move-up once, from the row that holds the money (MYK9-639)', () => {
+    // Two rows can never share a payment intent in reality: the destination of a
+    // move-up is created money-neutral and `trg_entries_protect_payment_fields_insert`
+    // makes a copied `stripe_payment_intent_id` impossible. So the pair is
+    // grouped by the ENROLLMENT they share, the superseded row is dropped, and
+    // the surviving run takes its $35 from the source it points at.
+    const groups = groupEntriesByEnrollment([
+      {
+        ...base,
+        id: 'source-moved',
+        registrationId: '',
+        stripePaymentIntentId: 'pi_1',
+        totalFee: 35,
+        paidAmount: 35,
+        entryStatus: EntryStatus.MOVED,
+      },
+      {
+        ...base,
+        id: 'destination',
+        registrationId: '',
+        stripePaymentIntentId: 'pi_1',
+        totalFee: 0,
+        paidAmount: 0,
+        entryStatus: EntryStatus.ACCEPTED,
+        movedFromEntryId: 'source-moved',
+      },
+    ]);
+
+    expect(groups).toHaveLength(1);
+    // Not $70 (both halves) and not $0 (the money-neutral destination's own
+    // figures) — the one fee the exhibitor actually paid.
+    expect(groups[0]?.totalAmount).toBe(35);
+    expect(groups[0]?.paidAmount).toBe(35);
+    // One line on the card: the dog runs once.
+    expect(groups[0]?.entries.map(entry => entry.id)).toEqual(['destination']);
+  });
+
   it('groups entries sharing a registrationId into one group', () => {
     const entries: EntryManagementEntry[] = [
       { ...base, id: 'e1', registrationId: 'reg-1', dogId: 'dog-1', dogName: 'Bravo' },

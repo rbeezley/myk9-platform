@@ -314,7 +314,14 @@ BEGIN
       -- to authenticated (20260917214300, MYK9-632). anon stays 0: the same
       -- migration REVOKEs the column from anon, because why an exhibitor
       -- withdrew is none of a ringside passcode session's business.
-      ('entries','authenticated',55),
+      -- 55 became 56 when entries.moved_from_entry_id was added and granted to
+      -- authenticated (20260918193300, MYK9-639): a secretary has to be able to
+      -- see which entry holds a moved-up run's money, or every fee, badge and
+      -- refund target on their screen resolves to the money-neutral $0 row.
+      -- anon stays 0 for the same reason as above -- that migration REVOKEs the
+      -- column from anon, since a ringside passcode session scores runs and has
+      -- no business following the money.
+      ('entries','authenticated',56),
       ('judge_assignments','anon',10),
       ('judge_assignments','authenticated',12),
       ('dogs','anon',5),
@@ -366,6 +373,11 @@ BEGIN
     ('entries','payment_status'), ('entries','entry_fee'),
     ('entries','stripe_payment_intent_id'), ('entries','refund_amount'),
     ('entries','handler_id'),
+    -- MYK9-639: the pointer to the entry holding a moved-up run's money. It is
+    -- a money column in everything but type, and the count assertion above only
+    -- proves anon holds ZERO entries columns -- name it here so a future grant
+    -- that adds anon back to the table cannot slip this one in with it.
+    ('entries','moved_from_entry_id'),
     ('platform_settings','updated_by'), ('platform_settings','updated_at'),
     ('platform_settings','id'), ('platform_settings','stripe_livemode')
   ) AS t(tbl, col)

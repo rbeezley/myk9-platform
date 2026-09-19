@@ -1,4 +1,44 @@
-import type { ShowFinancialEntryRow, TrialSubtotal } from './financialSummaryTypes';
+import { buildMoneyAttribution } from '@/features/financial/moneyRoot';
+import type {
+  ShowFinancialEntryRow,
+  TrialFinancialEntryRow,
+  TrialSubtotal,
+} from './financialSummaryTypes';
+
+/**
+ * The rows this card actually reports on, with each run's money taken from
+ * wherever it is recorded (MYK9-639).
+ *
+ * One row per RUN: the superseded half of a move-up is dropped, because the dog
+ * enters the ring once. The surviving row keeps its OWN class, trial and dog —
+ * that is where the run happens — and takes `entryFee`, `discountAmount`,
+ * `paymentStatus`, `comped` and `compedReason` from its money root, because the
+ * destination of a move-up is created money-neutral and the settlement stayed on
+ * the entry the exhibitor paid for.
+ *
+ * Shared by the summary, the per-trial subtotals, the table and the CSV export,
+ * so none of the four can end up reporting a different number from the others.
+ */
+export function resolveShowFinancialRows<T extends TrialFinancialEntryRow>(
+  allEntries: readonly T[]
+): { rows: T[]; unresolvedMoneyRootCount: number } {
+  const attribution = buildMoneyAttribution(allEntries);
+  const rows = attribution.live.map(entry => {
+    const root = attribution.rootById.get(entry.id) ?? entry;
+    if (root.id === entry.id) return entry;
+    return {
+      ...entry,
+      entryFee: root.entryFee,
+      discountAmount: root.discountAmount,
+      paymentStatus: root.paymentStatus,
+      comped: root.comped,
+      compedReason: root.compedReason,
+      promoCode: root.promoCode,
+    };
+  });
+
+  return { rows, unresolvedMoneyRootCount: attribution.unresolved.length };
+}
 
 export interface ShowFinancialSummaryTotals {
   totalEntries: number;
@@ -21,11 +61,12 @@ export interface ShowFinancialSummaryTotals {
  * binary-float dollars drifts by a penny on large shows (MP-26) — and
  * divides once at the end.
  */
-export function computeShowFinancialSummary(entries: ShowFinancialEntryRow[]): {
+export function computeShowFinancialSummary(allEntries: ShowFinancialEntryRow[]): {
   summary: ShowFinancialSummaryTotals;
   trialSubtotals: TrialSubtotal[];
   trialOptions: [string, string][];
 } {
+  const { rows: entries } = resolveShowFinancialRows(allEntries);
   const acc: ShowFinancialSummaryTotals = {
     totalEntries: entries.length,
     totalFees: 0,

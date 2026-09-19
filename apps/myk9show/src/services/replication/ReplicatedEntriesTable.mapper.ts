@@ -101,7 +101,7 @@ export interface ReplicatedEntry {
    *
    * It lives on `enrollments`, which is NOT in replication scope, and reached
    * the client only through the account read's PostgREST embed. Migration
-   * 20260918193700 projects it onto the entry-results views; read with
+   * 20260919130100 projects it onto the entry-results views; read with
    * `optionalColumn` because a row cached before that push simply lacks it,
    * and never projected back in `entryToSupabaseRow` — it is not an `entries`
    * column, so a whole-row upload must not try to write it.
@@ -411,7 +411,7 @@ export function rowToEntry(row: EntryRow): ReplicatedEntry {
     moved_from_entry_id: optionalColumn(row, 'moved_from_entry_id'),
     submittedAt: row.submitted_at ?? undefined,
     registrationId: row.registration_id ?? undefined,
-    // MYK9-659. `optionalColumn` on purpose: until migration 20260918193700
+    // MYK9-659. `optionalColumn` on purpose: until migration 20260919130100
     // is pushed the view does not return this column, and the generated row
     // type cannot know it. Absent reads as `undefined`, and the offline
     // receipt then prints no reference at all rather than a raw UUID.

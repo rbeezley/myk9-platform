@@ -150,7 +150,7 @@ export const USER_ENTRIES_SELECT = `
  * known to have.
  *
  * Two of them exist — MYK9-632's `withdrawal_reason_code` (20260918041700) and
- * MYK9-659's `registration_confirmation_number` (20260918193700) — and they are
+ * MYK9-659's `registration_confirmation_number` (20260919130100) — and they are
  * INDEPENDENT, so each is dropped on its own rather than taking the other down
  * with it. Same shape as `postgrestGetSecretaryPullMetadataMap`.
  *
@@ -248,15 +248,15 @@ async function postgrestGetUserEntries() {
       includeRegistrationConfirmationNumber &&
       isRegistrationConfirmationNumberSchemaUnavailable(response.error)
     ) {
-      // Pre-20260918193700 database. Same contract as the arm above: drop the
+      // Pre-20260919130100 database. Same contract as the arm above: drop the
       // column, re-ask this page, and go without it for every later page. The
       // online receipt falls back to the `registration:registration_id(...)`
       // embed's confirmation number, which is what it read before MYK9-659.
       includeRegistrationConfirmationNumber = false;
       logger.warn(
-        'My Entries read without registration_confirmation_number: migration 20260918193700 is not applied',
+        'My Entries read without registration_confirmation_number: migration 20260919130100 is not applied',
         'database',
-        { column: 'registration_confirmation_number', migration: '20260918193700' }
+        { column: 'registration_confirmation_number', migration: '20260919130100' }
       );
       response = await runPage();
     }

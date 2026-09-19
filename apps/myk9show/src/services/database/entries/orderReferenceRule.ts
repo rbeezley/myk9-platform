@@ -29,7 +29,7 @@
  *
  * The embed is still read for everything else it carries (`payment_status`,
  * `payment_reference`, `paid_amount`), and is the fallback for the reference
- * itself so a database that has not yet received 20260918193700 keeps printing
+ * itself so a database that has not yet received 20260919130100 keeps printing
  * a confirmation number online exactly as it does today.
  *
  * Offline, the same precedence reads: the replicated view column first, the

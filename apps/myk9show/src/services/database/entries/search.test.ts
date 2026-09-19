@@ -446,7 +446,7 @@ describe('getUserEntries account-scope read', () => {
       // ...and the OTHER optional column is not taken down with it.
       expect(selects.at(-1)).toContain('withdrawal_reason_code');
       expect(mocks.loggerWarn).toHaveBeenCalledWith(
-        expect.stringContaining('20260918193700'),
+        expect.stringContaining('20260919130100'),
         'database',
         expect.objectContaining({ column: 'registration_confirmation_number' })
       );

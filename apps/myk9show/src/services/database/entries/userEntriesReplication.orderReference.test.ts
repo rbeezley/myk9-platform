@@ -11,7 +11,7 @@
  * first place returns nothing. The same order therefore printed
  * `Confirmation #: MK9-000146` online and a raw enrollment UUID offline.
  *
- * Migration 20260918193700 carries the number on the replication view; these
+ * Migration 20260919130100 carries the number on the replication view; these
  * tests pin that `buildReplicatedUserEntryRows` puts it where the mapper reads
  * it, with and without the network.
  */
@@ -137,7 +137,7 @@ describe('MYK9-659 — the replicated order carries its own confirmation number'
     expect(data[0]!.registration).toBeUndefined();
   });
 
-  it('leaves it absent before migration 20260918193700 is pushed', async () => {
+  it('leaves it absent before migration 20260919130100 is pushed', async () => {
     // A replica row cached from a view that does not yet return the column.
     // The receipt then prints NO reference — the pinned MYK9-631 behaviour —
     // never a raw enrollment UUID.

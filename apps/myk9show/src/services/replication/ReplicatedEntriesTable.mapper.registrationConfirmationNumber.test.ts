@@ -30,7 +30,7 @@ describe('rowToEntry — registration_confirmation_number', () => {
   });
 
   it('yields undefined when the column is absent, so a pre-push replica row still maps', () => {
-    // Migration 20260918193700 is what puts the column on the views. Until it
+    // Migration 20260919130100 is what puts the column on the views. Until it
     // is pushed the key simply is not there, and the receipt must print no
     // reference at all rather than a raw enrollment UUID (MYK9-631).
     const entry = rowToEntry(minimalRow);

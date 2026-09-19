@@ -54,7 +54,8 @@ export async function saveEntryEdits(
     const editedHandler = classEdits[classEntry.id]?.handler;
     const originalHandler = classEntry.handler ?? fallbackHandler ?? '';
     if (editedHandler !== undefined && editedHandler !== originalHandler) {
-      // MYK9-570: `clearHandlerId` stays the CALLER's decision, unchanged.
+      // MYK9-665: `clearHandlerId` remains in the RPC call for compatibility,
+      // but text corrections preserve the load-bearing handler_id link.
       //
       // Round 1 of that issue's review made it unconditional on the theory that
       // a rename should drop the now-wrong person link. Round 2 showed the
@@ -71,8 +72,9 @@ export async function saveEntryEdits(
       // costs nothing: `resolveHandlerPerson` refuses to derive junior status or
       // print a registry number unless the person behind `handler_id` bears the
       // name being printed. Whether the WRITE should also re-point or clear the
-      // id is a real question with real consequences. MYK9-665 keeps that
-      // decision with the caller and makes the RPC apply it consistently.
+      // id is a real question with real consequences. MYK9-665 keeps the link
+      // intact for both caller tiers and uses the read-side name resolver to
+      // make a stale link harmless.
       const { error } = await updateEntryHandler({
         entryId: classEntry.id,
         handler: editedHandler,

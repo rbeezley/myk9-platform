@@ -110,7 +110,7 @@ describe('saveEntryEdits', () => {
  * Asserted on the RPC CALL ARGS, because that is the whole fix: the value of
  * `clearHandlerId` is invisible in the UI and in every rendered output.
  */
-describe('MYK9-665: handler_id clearing stays caller- and role-controlled', () => {
+describe('MYK9-665: handler_id stays load-bearing across text corrections', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mocks.updateEntryDetails.mockResolvedValue({ error: null });
@@ -118,13 +118,12 @@ describe('MYK9-665: handler_id clearing stays caller- and role-controlled', () =
   });
 
   it.each([true, false])(
-    'passes the caller tier through to the RPC untouched (clearHandlerId %p)',
+    'passes the legacy clearHandlerId argument through unchanged (%p)',
     async callerTier => {
       // `handler_id` is load-bearing for the exhibitor's own
-      // self check-in, the at-show queue and the "is this my entry?" predicate,
-      // so this dialog must not decide to null it. The stale-link problem is
-      // solved on the READ side by `resolveHandlerPerson`; the RPC applies the
-      // caller's explicit clear decision with the role-safe semantics above.
+      // self check-in, the at-show queue and the "is this my entry?" predicate.
+      // The stale-link problem is solved on the READ side by
+      // `resolveHandlerPerson`; the RPC preserves the link during text edits.
       await saveEntryEdits({
         classes,
         classEdits: { 'entry-1': { handler: 'Sam Handler' } },

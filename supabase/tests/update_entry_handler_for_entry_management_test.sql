@@ -1,4 +1,4 @@
--- MYK9-665: role-safe handler_id clearing and preservation.
+-- MYK9-665: preserve the load-bearing handler_id during text corrections.
 --
 -- Run with psql -X -v ON_ERROR_STOP=1 after migrations. All fixtures roll back.
 -- This executes the installed RPC, rather than asserting only on migration text.
@@ -48,7 +48,8 @@ create function pg_temp.call_handler_update(
   caller text,
   new_handler text,
   clear_id boolean,
-  expected_error text default null
+  expected_error text default null,
+  selected_handler_id uuid default null
 ) returns void language plpgsql as $$
 declare
   actual_error text;
@@ -59,7 +60,7 @@ begin
   perform set_config('role', 'authenticated', true);
   begin
     perform public.update_entry_handler_for_entry_management(
-      '00000000-0000-0000-0000-000000665031', new_handler, null, clear_id);
+      '00000000-0000-0000-0000-000000665031', new_handler, selected_handler_id, clear_id);
   exception when others then
     actual_error := sqlerrm;
   end;
@@ -75,11 +76,10 @@ begin
 end;
 $$;
 
--- An exhibitor cannot clear the load-bearing link, even if an untrusted caller
--- supplies true. The handler-only caller remains able to edit the entry after it.
+-- An exhibitor's legacy clear request preserves the load-bearing link and still
+-- updates the printed handler text.
 select pg_temp.call_handler_update(
-  '00000000-0000-0000-0000-000000665102', 'MYK9-665 Renamed Handler', true,
-  'Not authorized: exhibitors cannot clear handler_id');
+  '00000000-0000-0000-0000-000000665102', 'MYK9-665 Renamed Handler', true);
 do $$
 begin
   if (select handler_id from public.entries where id = '00000000-0000-0000-0000-000000665031')
@@ -87,13 +87,14 @@ begin
     raise exception 'FAIL exhibitor clear changed handler_id';
   end if;
   if (select handler from public.entries where id = '00000000-0000-0000-0000-000000665031')
-    <> 'MYK9-665 Handler' then
-    raise exception 'FAIL rejected exhibitor clear changed handler';
+    <> 'MYK9-665 Renamed Handler' then
+    raise exception 'FAIL exhibitor edit did not update handler text';
   end if;
 end;
 $$;
 select pg_temp.call_handler_update(
-  '00000000-0000-0000-0000-000000665102', 'MYK9-665 Handler Again', false);
+  '00000000-0000-0000-0000-000000665102', 'MYK9-665 Handler Again', false,
+  null, '00000000-0000-0000-0000-000000665012');
 do $$
 begin
   if (select handler from public.entries where id = '00000000-0000-0000-0000-000000665031')
@@ -103,13 +104,14 @@ begin
 end;
 $$;
 
--- An official may explicitly clear the link.
+-- An official's legacy clear request also preserves the link.
 select pg_temp.call_handler_update(
   '00000000-0000-0000-0000-000000665103', 'MYK9-665 Corrected Handler', true);
 do $$
 begin
-if (select handler_id from public.entries where id = '00000000-0000-0000-0000-000000665031') is not null then
-    raise exception 'FAIL official clear did not clear handler_id';
+  if (select handler_id from public.entries where id = '00000000-0000-0000-0000-000000665031')
+    <> '00000000-0000-0000-0000-000000665012'::uuid then
+    raise exception 'FAIL official text correction cleared handler_id';
   end if;
   if (select handler from public.entries where id = '00000000-0000-0000-0000-000000665031')
     <> 'MYK9-665 Corrected Handler' then
@@ -117,6 +119,13 @@ if (select handler_id from public.entries where id = '00000000-0000-0000-0000-00
   end if;
 end;
 $$;
+
+-- A club admin must not become an official for a show whose club_id is NULL.
+update public.shows set club_id = null
+ where id = '00000000-0000-0000-0000-000000665002';
+select pg_temp.call_handler_update(
+  '00000000-0000-0000-0000-000000665103', 'MYK9-665 Null Club Attempt', true,
+  'Not authorized: caller does not own entry %');
 
 -- A non-owner/non-handler cannot use the correction RPC.
 select pg_temp.call_handler_update(

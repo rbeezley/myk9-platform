@@ -59,8 +59,9 @@ describe('submit_show_entries migration authorization', () => {
 
     expect(migration).not.toContain('concat_ws');
     expect(migration).toContain('v_show_club_id IS NOT NULL');
-    expect(migration).toContain('WHEN v_should_clear_handler_id THEN NULL');
-    expect(migration).toContain('ELSE v_existing_handler_id');
+    expect(
+      migration.match(/handler_id = COALESCE\(p_handler_id, v_existing_handler_id\)/g)
+    ).toHaveLength(1);
   });
 
   it('aligns the exhibitor handler_id clear behavior with the official branch', () => {
@@ -74,12 +75,10 @@ describe('submit_show_entries migration authorization', () => {
 
     expect(migration).toContain('MYK9-665');
     expect(migration).toContain(
-      'v_should_clear_handler_id := v_is_official AND p_clear_handler_id'
+      'handler_id = COALESCE(v_resolved_handler_id, v_existing_handler_id)'
     );
-    expect(migration).toContain('WHEN v_should_clear_handler_id THEN NULL');
-    expect(migration.match(/WHEN v_should_clear_handler_id THEN NULL/g)).toHaveLength(2);
-    expect(migration).toContain('ELSE v_existing_handler_id');
-    expect(migration).not.toContain('handler_id = COALESCE(p_handler_id, v_existing_handler_id)');
+    expect(migration.match(/handler_id = COALESCE\(/g)).toHaveLength(2);
+    expect(migration).not.toContain('p_clear_handler_id THEN NULL');
   });
 
   it('returns the registration and submission ids expected by the client wrapper', () => {

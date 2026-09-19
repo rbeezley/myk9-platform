@@ -1,9 +1,10 @@
 -- MYK9-665: keep handler_id semantics consistent for official and exhibitor edits.
 --
--- handler_id remains the load-bearing person link captured for the entry. An
--- official caller may explicitly clear it; exhibitor edits preserve it because
--- clearing a handler-only entry would revoke that exhibitor's access. This RPC
--- must not infer a person from free-text handler names.
+-- handler_id remains the load-bearing person link captured for the entry. The
+-- legacy p_clear_handler_id argument is retained for RPC compatibility, but a
+-- text correction never clears the link for either caller tier. This preserves
+-- access and relies on the read-side name resolver for stale-link safety. The
+-- RPC must not infer a person from free-text handler names.
 
 CREATE OR REPLACE FUNCTION public.update_entry_handler_for_entry_management(
   p_entry_id uuid,
@@ -23,7 +24,6 @@ DECLARE
   v_existing_handler_id uuid;
   v_resolved_handler_id uuid;
   v_is_official boolean;
-  v_should_clear_handler_id boolean;
 BEGIN
   SELECT p.id
     INTO v_person_id
@@ -52,8 +52,6 @@ BEGIN
     OR public.is_show_secretary(v_show_id)
     OR (v_show_club_id IS NOT NULL AND public.is_club_admin(v_show_club_id))
   );
-  v_should_clear_handler_id := v_is_official AND p_clear_handler_id;
-
   IF v_is_official THEN
     IF p_handler_id IS NOT NULL THEN
       IF NOT EXISTS (SELECT 1 FROM public.people WHERE id = p_handler_id) THEN
@@ -65,11 +63,7 @@ BEGIN
 
     UPDATE public.entries
        SET handler = p_handler,
-           handler_id = CASE
-             WHEN v_resolved_handler_id IS NOT NULL THEN v_resolved_handler_id
-             WHEN v_should_clear_handler_id THEN NULL
-             ELSE v_existing_handler_id
-           END,
+           handler_id = COALESCE(v_resolved_handler_id, v_existing_handler_id),
            updated_at = now()
      WHERE id = p_entry_id;
 
@@ -87,18 +81,9 @@ BEGIN
       USING ERRCODE = '42501';
   END IF;
 
-  IF p_handler_id IS NULL AND p_clear_handler_id THEN
-    RAISE EXCEPTION 'Not authorized: exhibitors cannot clear handler_id'
-      USING ERRCODE = '42501';
-  END IF;
-
   UPDATE public.entries e
-     SET handler = p_handler,
-         handler_id = CASE
-           WHEN p_handler_id IS NOT NULL THEN p_handler_id
-           WHEN v_should_clear_handler_id THEN NULL
-           ELSE v_existing_handler_id
-         END,
+   SET handler = p_handler,
+         handler_id = COALESCE(p_handler_id, v_existing_handler_id),
          updated_at = now()
     FROM public.dogs d
    WHERE e.id = p_entry_id

@@ -1,6 +1,6 @@
 -- MYK9-665: keep handler_id semantics consistent for official and exhibitor edits.
 --
--- handler_id remains the load-bearing person link captured for the entry. The
+-- handler_id remains the load-bearing person link captured for the entry.
 -- Text corrections preserve the link for exhibitors. Official callers may
 -- explicitly clear it through the new manager-only checkbox; selected
 -- p_handler_id remains the reassignment path. The RPC must not infer a person
@@ -46,7 +46,8 @@ BEGIN
       USING ERRCODE = '22023';
   END IF;
 
-  v_is_official := public.can_manage_show(v_show_id);
+  v_is_official := public.can_manage_show(v_show_id)
+    OR public.is_show_secretary(v_show_id);
   IF v_is_official THEN
     IF p_handler_id IS NOT NULL THEN
       IF NOT EXISTS (SELECT 1 FROM public.people WHERE id = p_handler_id) THEN

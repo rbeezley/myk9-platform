@@ -61,9 +61,10 @@ describe('submit_show_entries migration authorization', () => {
     expect(migration).toContain('v_is_official := public.can_manage_show(v_show_id)');
     expect(migration).toContain('WHEN p_handler_id IS NOT NULL THEN p_handler_id');
     expect(migration).toContain('p_clear_handler_id boolean DEFAULT FALSE');
+    expect(migration).toContain('OR public.is_show_secretary(v_show_id)');
   });
 
-  it('aligns the exhibitor handler_id clear behavior with the official branch', () => {
+  it('keeps exhibitor clear requests from dropping handler_id', () => {
     const migration = readFileSync(
       resolve(
         process.cwd(),

@@ -85,7 +85,6 @@ export function EntryEditDialog({
       string,
       {
         handler?: string;
-        handlerId?: string | null;
         clearHandlerId?: boolean;
         jumpHeight?: string;
         status?: string;
@@ -282,6 +281,7 @@ export function EntryEditDialog({
       ) {
         return true;
       }
+      if (edits.clearHandlerId === true) return true;
       if (edits.jumpHeight && edits.jumpHeight !== originalClass?.jumpHeight) return true;
     }
     return false;

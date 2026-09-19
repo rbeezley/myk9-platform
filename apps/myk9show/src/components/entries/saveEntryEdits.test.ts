@@ -140,19 +140,19 @@ describe('MYK9-665: handler_id stays load-bearing across text corrections', () =
     });
   });
 
-  it('passes an explicit selected handler id for a reassignment', async () => {
+  it('sends a manager clear even when handler text is unchanged', async () => {
     await saveEntryEdits({
       classes,
       classEdits: {
-        'entry-1': { handler: 'Selected Handler', handlerId: 'person-2' },
+        'entry-1': { clearHandlerId: true },
       },
     });
 
     expect(mocks.updateEntryHandler).toHaveBeenCalledWith({
       entryId: 'entry-1',
-      handler: 'Selected Handler',
-      handlerId: 'person-2',
-      clearHandlerId: false,
+      handler: 'Pat Owner',
+      handlerId: null,
+      clearHandlerId: true,
     });
   });
 });

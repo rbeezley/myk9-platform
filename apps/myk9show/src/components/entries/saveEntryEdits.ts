@@ -23,8 +23,6 @@ export interface SavableEntryClass {
 
 export interface EntryClassEdits {
   handler?: string | undefined;
-  /** Optional explicit person selection; free-text edits leave this undefined. */
-  handlerId?: string | null | undefined;
   clearHandlerId?: boolean | undefined;
   jumpHeight?: string | undefined;
   status?: string | undefined;
@@ -54,7 +52,8 @@ export async function saveEntryEdits(
   for (const classEntry of classes) {
     const editedHandler = classEdits[classEntry.id]?.handler;
     const originalHandler = classEntry.handler ?? fallbackHandler ?? '';
-    if (editedHandler !== undefined && editedHandler !== originalHandler) {
+    const clearHandlerId = classEdits[classEntry.id]?.clearHandlerId ?? false;
+    if ((editedHandler !== undefined && editedHandler !== originalHandler) || clearHandlerId) {
       // MYK9-665: text corrections preserve the load-bearing handler_id link.
       //
       // Round 1 of that issue's review made it unconditional on the theory that
@@ -71,14 +70,13 @@ export async function saveEntryEdits(
       // So the stale-link problem is solved on the READ side instead, where it
       // costs nothing: `resolveHandlerPerson` refuses to derive junior status or
       // print a registry number unless the person behind `handler_id` bears the
-      // name being printed. Whether the WRITE should also re-point or clear the
-      // id is a real question with real consequences. Legacy clear requests are
-      // ignored by the RPC; an explicit selected handler id can re-point it.
+      // name being printed. The manager-only clear control is the explicit path
+      // for removing the identity link; legacy clear requests remain safe.
       const { error } = await updateEntryHandler({
         entryId: classEntry.id,
-        handler: editedHandler,
-        handlerId: classEdits[classEntry.id]?.handlerId ?? null,
-        clearHandlerId: classEdits[classEntry.id]?.clearHandlerId ?? false,
+        handler: editedHandler ?? originalHandler,
+        handlerId: null,
+        clearHandlerId,
       });
       if (error) return { error: 'Failed to update handler. Please try again.' };
     }

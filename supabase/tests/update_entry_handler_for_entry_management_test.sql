@@ -18,13 +18,36 @@ values ('00000000-0000-0000-0000-000000665004', '00000000-0000-0000-0000-0000006
   'Container Novice', 'upcoming');
 
 -- Owner, handler-only exhibitor, secretary and an unrelated person.
-insert into public.people (id, first_name, last_name, auth_user_id)
+insert into public.people (id, first_name, last_name, email)
 values
-  ('00000000-0000-0000-0000-000000665011', 'MYK9-665', 'Owner', '00000000-0000-0000-0000-000000665101'),
-  ('00000000-0000-0000-0000-000000665012', 'MYK9-665', 'Handler', '00000000-0000-0000-0000-000000665102'),
-  ('00000000-0000-0000-0000-000000665013', 'MYK9-665', 'Secretary', '00000000-0000-0000-0000-000000665103'),
-  ('00000000-0000-0000-0000-000000665014', 'MYK9-665', 'Outsider', '00000000-0000-0000-0000-000000665104'),
-  ('00000000-0000-0000-0000-000000665015', 'MYK9-665', 'Club Admin', '00000000-0000-0000-0000-000000665105');
+  ('00000000-0000-0000-0000-000000665011', 'MYK9-665', 'Owner', 'myk9-665-owner@example.test'),
+  ('00000000-0000-0000-0000-000000665012', 'MYK9-665', 'Handler', 'myk9-665-handler@example.test'),
+  ('00000000-0000-0000-0000-000000665013', 'MYK9-665', 'Secretary', 'myk9-665-secretary@example.test'),
+  ('00000000-0000-0000-0000-000000665014', 'MYK9-665', 'Outsider', 'myk9-665-outsider@example.test'),
+  ('00000000-0000-0000-0000-000000665015', 'MYK9-665', 'Club Admin', 'myk9-665-club-admin@example.test');
+
+insert into auth.users (
+  id, instance_id, aud, role, email, encrypted_password, email_confirmed_at,
+  created_at, updated_at, raw_app_meta_data, raw_user_meta_data,
+  is_super_admin, is_sso_user, is_anonymous
+)
+values
+  ('00000000-0000-0000-0000-000000665101', '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated', 'myk9-665-owner@example.test', '', now(), now(), now(), '{}', '{}', false, false, false),
+  ('00000000-0000-0000-0000-000000665102', '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated', 'myk9-665-handler@example.test', '', now(), now(), now(), '{}', '{}', false, false, false),
+  ('00000000-0000-0000-0000-000000665103', '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated', 'myk9-665-secretary@example.test', '', now(), now(), now(), '{}', '{}', false, false, false),
+  ('00000000-0000-0000-0000-000000665104', '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated', 'myk9-665-outsider@example.test', '', now(), now(), now(), '{}', '{}', false, false, false),
+  ('00000000-0000-0000-0000-000000665105', '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated', 'myk9-665-club-admin@example.test', '', now(), now(), now(), '{}', '{}', false, false, false);
+
+update public.people p
+set auth_user_id = fixture.auth_id
+from (values
+  ('00000000-0000-0000-0000-000000665011'::uuid, '00000000-0000-0000-0000-000000665101'::uuid),
+  ('00000000-0000-0000-0000-000000665012'::uuid, '00000000-0000-0000-0000-000000665102'::uuid),
+  ('00000000-0000-0000-0000-000000665013'::uuid, '00000000-0000-0000-0000-000000665103'::uuid),
+  ('00000000-0000-0000-0000-000000665014'::uuid, '00000000-0000-0000-0000-000000665104'::uuid),
+  ('00000000-0000-0000-0000-000000665015'::uuid, '00000000-0000-0000-0000-000000665105'::uuid)
+) as fixture(person_id, auth_id)
+where p.id = fixture.person_id;
 
 insert into public.user_roles (user_id, role_id, club_id, is_active, auth_user_id)
 select '00000000-0000-0000-0000-000000665013', id,
@@ -180,7 +203,7 @@ select pg_temp.call_handler_update(
 
 -- A non-owner/non-handler cannot use the correction RPC.
 select pg_temp.call_handler_update(
-  '00000000-0000-0000-0000-000000665013', 'MYK9-665 Intruder', false,
+  '00000000-0000-0000-0000-000000665103', 'MYK9-665 Intruder', false,
   'Not authorized: caller does not own entry %');
 
 rollback;

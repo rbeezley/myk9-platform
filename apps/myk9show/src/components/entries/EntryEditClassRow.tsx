@@ -176,7 +176,7 @@ export function EntryEditClassRow({
               onCheckedChange={checked => onClearHandlerIdChange?.(classEntry.id, checked === true)}
             />
             <Label htmlFor={`clear-handler-${classEntry.id}`} className="text-xs cursor-pointer">
-              Clear previous handler identity
+              Clear previous handler identity (removes this person's check-in access)
             </Label>
           </div>
         )}

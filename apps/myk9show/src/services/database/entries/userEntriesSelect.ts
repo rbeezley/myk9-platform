@@ -4,7 +4,7 @@
  * The two migration-backed columns are optional because deployments can briefly
  * run the app against a database that has not received their migrations yet.
  */
-export const USER_ENTRIES_SELECT = `
+const USER_ENTRIES_SELECT_BASE = `
       id,
       dog_id,
       show_id,
@@ -86,6 +86,12 @@ export const USER_ENTRIES_SELECT = `
       )
     `;
 
+/** The current schema's complete select, retained for column-list consumers. */
+export const USER_ENTRIES_SELECT = `${USER_ENTRIES_SELECT_BASE},
+      withdrawal_reason_code,
+      registration_confirmation_number,
+      moved_from_entry_id`;
+
 /**
  * Add the migration-backed view columns that are known to exist on the server.
  * Each optional column is dropped independently when its migration is absent,
@@ -94,11 +100,13 @@ export const USER_ENTRIES_SELECT = `
 export function buildUserEntriesSelect(options: {
   includeReasonCode: boolean;
   includeRegistrationConfirmationNumber: boolean;
+  includeMoveUpLink: boolean;
 }): string {
   const optional = [
     options.includeReasonCode ? 'withdrawal_reason_code' : null,
     options.includeRegistrationConfirmationNumber ? 'registration_confirmation_number' : null,
+    options.includeMoveUpLink ? 'moved_from_entry_id' : null,
   ].filter((column): column is string => column !== null);
-  if (optional.length === 0) return USER_ENTRIES_SELECT;
-  return `${USER_ENTRIES_SELECT},\n      ${optional.join(',\n      ')}`;
+  if (optional.length === 0) return USER_ENTRIES_SELECT_BASE;
+  return `${USER_ENTRIES_SELECT_BASE},\n      ${optional.join(',\n      ')}`;
 }

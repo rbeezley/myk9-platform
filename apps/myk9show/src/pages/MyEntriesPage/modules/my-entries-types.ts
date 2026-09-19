@@ -15,6 +15,9 @@ import type { ShowMoneyKind } from './showMoneyState';
 export interface EntryClass {
   /** Entry row id (one dog in one class) — used as `p_entry_id` for check-in. */
   id: string;
+  /** Source entry id when this class was created by a move-up. */
+  movedFromEntryId?: string | null | undefined;
+  deletedAt?: string | null | undefined;
   /** Status of this entry row; dog/order summaries may be dominated by a sibling row. */
   entryStatus?: EntryStatus | undefined;
   /** Canonical kind retained beside the lossy UI enum for honest display copy. */
@@ -134,6 +137,8 @@ export interface MyEntryBalance {
   payAtShowMethod: string | null;
   /** Entry-row ids that actually owe an ONLINE balance — the pay link's target. */
   dueEntryIds: string[];
+  /** True when the original move-up payment row was not available in this read. */
+  moneyRootUnresolved?: boolean | undefined;
 }
 
 /**

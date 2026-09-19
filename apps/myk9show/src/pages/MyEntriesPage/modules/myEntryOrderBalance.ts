@@ -18,9 +18,12 @@
 import { EntryStatus, PaymentStatus } from '@/types/show-registration-types';
 import {
   isCurrentSummaryEntry,
+  normalizeOrphanedMoveUpEntries,
   summarizeEntryBalances,
+  UNKNOWN_ENTRY_BALANCE_SUMMARY,
   type EntryBalanceSource,
 } from '@/features/payments/entryBalanceSummary';
+import { buildMoneyAttribution, withResolvedMoneyRoots } from '@/features/financial/moneyRoot';
 import {
   getEntryPaymentPrompt,
   type EntryPaymentPrompt,
@@ -63,6 +66,8 @@ export interface OrderBalanceContext {
 function toBalanceSources(classes: EntryClass[], ctx: OrderBalanceContext): EntryBalanceSource[] {
   return classes.map(cls => ({
     id: cls.id,
+    movedFromEntryId: cls.movedFromEntryId,
+    deletedAt: cls.deletedAt,
     showId: ctx.showId,
     showName: ctx.showName,
     showDate: ctx.showDate,
@@ -126,11 +131,28 @@ export function buildOrderBalance(
   ctx: OrderBalanceContext,
   now: Date = new Date()
 ): MyEntryBalance | null {
-  const sources = toBalanceSources(classes, ctx);
+  const normalizedSources = normalizeOrphanedMoveUpEntries(toBalanceSources(classes, ctx));
+  const sources = withResolvedMoneyRoots(
+    normalizedSources,
+    (entry, root) => ({
+      ...entry,
+      paymentStatus: root.paymentStatus,
+      paymentMethod: root.paymentMethod,
+      totalFee: root.totalFee,
+    }),
+    entry => !entry.deletedAt
+  );
   if (sources.length === 0) return null;
 
   const eligible = sources.filter(source => isCurrentSummaryEntry(source, now));
-  const summary = summarizeEntryBalances(sources, now);
+  const moneyRootUnresolved =
+    sources.some(source => !source.deletedAt && source.moneyRootUnresolved) ||
+    buildMoneyAttribution(sources.filter(source => !source.deletedAt)).unresolved.some(
+      issue => issue.problem === 'orphaned-supersession'
+    );
+  const summary = moneyRootUnresolved
+    ? UNKNOWN_ENTRY_BALANCE_SUMMARY
+    : summarizeEntryBalances(sources, now);
   const onlineShow = summary.onlineShowBalances[0];
 
   // The pay-at-show instruction must quote only the in-person portion and name
@@ -170,7 +192,8 @@ export function buildOrderBalance(
     onlineDueCents: summary.onlineDueCents,
     payAtShowDueCents: summary.payAtShowDueCents,
     payAtShowMethod: payAtShowSource?.paymentMethod ?? null,
-    dueEntryIds: onlineShow?.entryIds ?? [],
+    dueEntryIds: moneyRootUnresolved ? [] : (onlineShow?.entryIds ?? []),
+    moneyRootUnresolved,
   };
 }
 

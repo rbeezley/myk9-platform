@@ -36,6 +36,10 @@ export function usePublishInfo(showId: string | undefined) {
     queryKey: publishInfoQueryKey(showId ?? ''),
     queryFn: () => fetchPublishInfo(showId!),
     enabled: !!showId,
+    // This query is keyed by show. The app-wide placeholder policy keeps the
+    // previous query's data during key changes, which would briefly label the
+    // newly selected show with the previous show's premium URL/state.
+    placeholderData: () => undefined,
     staleTime: 30_000,
   });
 }

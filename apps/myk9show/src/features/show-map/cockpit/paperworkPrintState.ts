@@ -53,7 +53,7 @@ export interface CheckInPaperworkEntry {
   entryId: string;
   classId: string;
   dogId: string;
-  armband: number | null;
+  armband: number | string | null;
   runOrder: number | null;
   checkInStatus: string | null;
   trialId?: string | undefined;
@@ -68,7 +68,7 @@ export interface ResultPaperworkEntry {
   entryId: string;
   classId: string;
   dogId: string;
-  armband: number | null;
+  armband: number | string | null;
   resultStatus: string | null;
   placement: number | null;
   searchTimeSeconds: number | null;

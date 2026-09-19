@@ -116,7 +116,8 @@ function invalidateHandlerIdentityQueries(): void {
         root === 'check-in-report' ||
         root === 'reports' ||
         root === 'entries' ||
-        root === 'show-desk'
+        root === 'show-desk' ||
+        (root === 'shows' && query.queryKey[2] === 'entries')
       );
     },
   });

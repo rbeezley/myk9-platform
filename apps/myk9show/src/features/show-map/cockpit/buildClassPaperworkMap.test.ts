@@ -236,6 +236,32 @@ describe('buildClassPaperworkMap', () => {
     expect(completed?.fingerprint).not.toBe(scheduled?.fingerprint);
   });
 
+  it('preserves alphanumeric armbands in every entry paperwork fingerprint', () => {
+    const scope = {
+      kind: 'class' as const,
+      showId: 'show-1',
+      trialId: 'trial-1',
+      classId: 'class-1',
+    };
+    const reportIds = ['check-in-sheet', 'scoresheet', 'results-sheet', 'result-labels'] as const;
+    for (const reportId of reportIds) {
+      const withFirstArmband = buildReportPaperworkDescriptor({
+        reportId,
+        scope,
+        classes,
+        entries: [{ ...entries[0], armband: '12A' } as DbEntry],
+      });
+      const withSecondArmband = buildReportPaperworkDescriptor({
+        reportId,
+        scope,
+        classes,
+        entries: [{ ...entries[0], armband: '12B' } as DbEntry],
+      });
+
+      expect(withFirstArmband?.fingerprint).not.toBe(withSecondArmband?.fingerprint);
+    }
+  });
+
   it('marks check-in paperwork stale when the assigned handler changes', () => {
     const scope = {
       kind: 'class' as const,

@@ -140,9 +140,10 @@ export function useReportData({ show, trialId, classId }: UseReportDataOptions) 
   const hasCurrentReportTrials =
     trialsQuery.data !== undefined && !trialsQuery.isPlaceholderData;
   const reportTrials =
-    hasCurrentReportTrials || !show?.trials?.length
+    hasCurrentReportTrials
       ? trialsQuery.data
-      : show.trials.map(trial => ({
+      : show?.trials?.length
+        ? show.trials.map(trial => ({
           id: trial.id,
           show_id: showId,
           name: trial.name,
@@ -150,7 +151,8 @@ export function useReportData({ show, trialId, classId }: UseReportDataOptions) 
           trial_number: Number(trial.trialNumber) || 0,
           timezone: trial.timezone ?? null,
           registry_id: trial.registryId ?? null,
-        }));
+          }))
+        : undefined;
   const selectedTrialIsInShow =
     trialId === 'all' ||
     (reportTrials !== undefined && reportTrials.some(trial => trial.id === trialId));
@@ -261,7 +263,20 @@ export function useReportData({ show, trialId, classId }: UseReportDataOptions) 
     classesQuery.data !== undefined &&
     entriesQuery.data !== undefined;
 
-  const dataState: ReportDataState = queries.some(q => q.isError)
+  const selectedClassIsInScope =
+    classId === 'all' ||
+    classesQuery.data === undefined ||
+    classesQuery.data.some(
+      reportClass =>
+        reportClass.id === classId &&
+        (trialId === 'all' || reportClass.trial_id === trialId) &&
+        reportTrials?.some(trial => trial.id === reportClass.trial_id)
+    );
+  const hasInvalidScope = !selectedTrialIsInShow || !selectedClassIsInScope;
+
+  const dataState: ReportDataState = hasInvalidScope
+    ? 'error'
+    : queries.some(q => q.isError)
     ? 'error'
     : queries.some(q => q.isPlaceholderData)
       ? 'stale'

@@ -14,8 +14,8 @@ function parseCalendarDate(value?: string | null): Date | undefined {
 }
 
 function compareTrialOrder(a: EntryWindowTrial, b: EntryWindowTrial): number {
-  const aDate = a.date ?? null;
-  const bDate = b.date ?? null;
+  const aDate = parseCalendarDate(a.date) ? (a.date ?? null) : null;
+  const bDate = parseCalendarDate(b.date) ? (b.date ?? null) : null;
   if (aDate && bDate && aDate !== bDate) return aDate.localeCompare(bDate);
   if (aDate && !bDate) return -1;
   if (!aDate && bDate) return 1;

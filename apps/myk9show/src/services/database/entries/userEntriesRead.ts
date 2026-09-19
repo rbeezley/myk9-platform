@@ -56,7 +56,7 @@ export type UserEntriesSource =
  * on every source, carrying the unconfirmed notice (decision (a)).
  */
 export function isMoneyConfirmed(source: UserEntriesSource): boolean {
-  return source === 'confirmed' || source === 'confirmed-move-up-link-unavailable';
+  return source === 'confirmed';
 }
 
 /**

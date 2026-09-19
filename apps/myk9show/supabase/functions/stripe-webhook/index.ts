@@ -1345,6 +1345,9 @@ async function handleEntryPaymentCompleted(session: Stripe.Checkout.Session) {
       lineAmountsById.set(moneyRoot.id, lineAmountCents);
 
       await expireRecoveredEntryPaymentLinks(existingEntry.id, session.id);
+      if (moneyRoot.id !== existingEntry.id) {
+        await expireRecoveredEntryPaymentLinks(moneyRoot.id, session.id);
+      }
       continue;
     }
 
@@ -1621,6 +1624,7 @@ type PaymentReconciliationEntry = {
   id: string;
   payment_status: string | null;
   entry_status: string | null;
+  deleted_at: string | null;
   moved_from_entry_id: string | null;
   stripe_payment_intent_id: string | null;
 };
@@ -1638,7 +1642,9 @@ async function loadPaymentReconciliationEntries(entryIds: string[]): Promise<{
   for (let hop = 0; hop <= 16 && lookupIds.length > 0; hop += 1) {
     const response = await supabase
       .from('entries')
-      .select('id, payment_status, entry_status, moved_from_entry_id, stripe_payment_intent_id')
+      .select(
+        'id, payment_status, entry_status, deleted_at, moved_from_entry_id, stripe_payment_intent_id'
+      )
       .in('id', lookupIds);
     if (response.error) {
       error = response.error;
@@ -1666,6 +1672,10 @@ async function loadPaymentReconciliationEntries(entryIds: string[]): Promise<{
       seen.add(currentId);
       const parentId = entriesById.get(currentId)?.moved_from_entry_id;
       if (!parentId || !entriesById.has(parentId)) break;
+      if (entriesById.get(parentId)?.deleted_at) {
+        error = { message: `Move-up money root ${parentId} is deleted` };
+        break;
+      }
       currentId = parentId;
     }
     return currentId;
@@ -1678,11 +1688,13 @@ async function loadPaymentReconciliationEntries(entryIds: string[]): Promise<{
       lifecycleEntryIdsByRoot[rootId] = entryId;
     }
   }
-  const expectedIdSet = new Set(entryIds);
-  const duplicateEntryIds = entryIds.filter((entryId, index) => {
+  const seenRootIds = new Set<string>();
+  const duplicateEntryIds: string[] = [];
+  for (const [index, entryId] of entryIds.entries()) {
     const rootId = reconciliationEntryIds[index];
-    return rootId !== entryId && expectedIdSet.has(rootId);
-  });
+    if (seenRootIds.has(rootId)) duplicateEntryIds.push(entryId);
+    else seenRootIds.add(rootId);
+  }
 
   return {
     entries: [...entriesById.values()],
@@ -1825,7 +1837,7 @@ async function handleEntryPaymentRequestCompleted(session: Stripe.Checkout.Sessi
       payment_method: patch.payment_method,
       stripe_payment_intent_id: patch.stripe_payment_intent_id,
     };
-    if (patch.entry_status && patch.entryStatusEntryId === patch.id) {
+    if (patch.entry_status && (!patch.entryStatusEntryId || patch.entryStatusEntryId === patch.id)) {
       update.entry_status = patch.entry_status;
     }
     let updateQuery = supabase
@@ -1861,6 +1873,7 @@ async function handleEntryPaymentRequestCompleted(session: Stripe.Checkout.Sessi
         .from('entries')
         .update({ entry_status: patch.entry_status })
         .eq('id', patch.entryStatusEntryId)
+        .eq('entry_status', 'pending-payment')
         .not('entry_status', 'in', inactiveEntryStatusFilter);
       if (lifecycleError) {
         console.error(

@@ -342,7 +342,7 @@ export function summarizeEntryBalancesFromSource(
 ): EntryBalanceSummary {
   if (!isMoneyConfirmed(source)) return UNKNOWN_ENTRY_BALANCE_SUMMARY;
   if (
-    buildMoneyAttribution(entries).unresolved.some(
+    buildMoneyAttribution(entries.filter(entry => !entry.deletedAt)).unresolved.some(
       issue => issue.problem === 'orphaned-supersession'
     )
   ) {

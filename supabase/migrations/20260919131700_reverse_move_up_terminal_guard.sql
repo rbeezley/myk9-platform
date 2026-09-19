@@ -96,7 +96,7 @@ BEGIN
   -- check-in through the move; only a later checked-in destination state is
   -- carried back when the source has no check-in yet.
   v_restored_status := CASE
-    WHEN COALESCE(v_dest.entry_status, '') IN ('', 'moved') THEN 'confirmed'
+    WHEN COALESCE(v_dest.entry_status, '') = '' THEN 'confirmed'
     ELSE v_dest.entry_status
   END;
 

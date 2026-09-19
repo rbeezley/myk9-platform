@@ -1746,8 +1746,7 @@ async function loadPaymentReconciliationEntries(entryIds: string[]): Promise<{
   }
   const duplicateEntryIds: string[] = [];
   for (const [rootId, indices] of indicesByRoot) {
-    const canonicalIndex =
-      indices.find(index => entryIds[index] === rootId) ?? indices[0];
+    const canonicalIndex = indices.find(index => entryIds[index] === rootId) ?? indices[0];
     for (const index of indices) {
       if (index !== canonicalIndex) duplicateEntryIds.push(entryIds[index]);
     }
@@ -1833,8 +1832,7 @@ async function handleEntryPaymentRequestCompleted(session: Stripe.Checkout.Sessi
     duplicateEntryIds,
     lifecycleEntryIdsByRoot,
     blockedEntryIds,
-  } =
-    loadedEntries;
+  } = loadedEntries;
 
   const result = reconcileEntryPaymentRequest({
     linkStatus: link.status,
@@ -1902,7 +1900,10 @@ async function handleEntryPaymentRequestCompleted(session: Stripe.Checkout.Sessi
       payment_method: patch.payment_method,
       stripe_payment_intent_id: patch.stripe_payment_intent_id,
     };
-    if (patch.entry_status && (!patch.entryStatusEntryId || patch.entryStatusEntryId === patch.id)) {
+    if (
+      patch.entry_status &&
+      (!patch.entryStatusEntryId || patch.entryStatusEntryId === patch.id)
+    ) {
       update.entry_status = patch.entry_status;
     }
     let updateQuery = supabase

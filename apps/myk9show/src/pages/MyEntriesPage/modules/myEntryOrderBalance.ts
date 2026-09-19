@@ -132,12 +132,16 @@ export function buildOrderBalance(
   now: Date = new Date()
 ): MyEntryBalance | null {
   const normalizedSources = normalizeOrphanedMoveUpEntries(toBalanceSources(classes, ctx));
-  const sources = withResolvedMoneyRoots(normalizedSources, (entry, root) => ({
-    ...entry,
-    paymentStatus: root.paymentStatus,
-    paymentMethod: root.paymentMethod,
-    totalFee: root.totalFee,
-  }), entry => !entry.deletedAt);
+  const sources = withResolvedMoneyRoots(
+    normalizedSources,
+    (entry, root) => ({
+      ...entry,
+      paymentStatus: root.paymentStatus,
+      paymentMethod: root.paymentMethod,
+      totalFee: root.totalFee,
+    }),
+    entry => !entry.deletedAt
+  );
   if (sources.length === 0) return null;
 
   const eligible = sources.filter(source => isCurrentSummaryEntry(source, now));

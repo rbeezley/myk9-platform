@@ -343,8 +343,8 @@ export function normalizeOrphanedMoveUpEntries(
   entries: EntryBalanceSource[]
 ): EntryBalanceSource[] {
   const orphanedIds = new Set(
-    buildMoneyAttribution(entries.filter(entry => !entry.deletedAt)).unresolved
-      .filter(issue => issue.problem === 'orphaned-supersession')
+    buildMoneyAttribution(entries.filter(entry => !entry.deletedAt))
+      .unresolved.filter(issue => issue.problem === 'orphaned-supersession')
       .map(issue => issue.entryId)
   );
   if (orphanedIds.size === 0) return entries;
@@ -365,12 +365,16 @@ export function summarizeEntryBalancesFromSource(
 ): EntryBalanceSummary {
   if (!isMoneyConfirmed(source)) return UNKNOWN_ENTRY_BALANCE_SUMMARY;
   const normalizedEntries = normalizeOrphanedMoveUpEntries(entries);
-  const rootedEntries = withResolvedMoneyRoots(normalizedEntries, (entry, root) => ({
-    ...entry,
-    paymentStatus: root.paymentStatus,
-    paymentMethod: root.paymentMethod,
-    totalFee: root.totalFee,
-  }), entry => !entry.deletedAt);
+  const rootedEntries = withResolvedMoneyRoots(
+    normalizedEntries,
+    (entry, root) => ({
+      ...entry,
+      paymentStatus: root.paymentStatus,
+      paymentMethod: root.paymentMethod,
+      totalFee: root.totalFee,
+    }),
+    entry => !entry.deletedAt
+  );
   const hasUnresolvedRoot = rootedEntries.some(
     entry => !entry.deletedAt && entry.moneyRootUnresolved
   );

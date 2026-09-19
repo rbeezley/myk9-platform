@@ -54,9 +54,8 @@ export function useHasAnyEntryForShow(showId: string | undefined): HasAnyEntryFo
       // (MYK9-629 round 1).
       return {
         entered,
-        confirmed: entered ||
-          source === 'confirmed' ||
-          source === 'confirmed-move-up-link-unavailable',
+        confirmed:
+          entered || source === 'confirmed' || source === 'confirmed-move-up-link-unavailable',
       };
     },
     // One retry, not the global default of two: each attempt pays the full

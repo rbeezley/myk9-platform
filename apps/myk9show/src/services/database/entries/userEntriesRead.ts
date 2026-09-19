@@ -41,10 +41,7 @@ import {
  * only the second is worth a warning in the logs.
  */
 export type UserEntriesSource =
-  | 'confirmed'
-  | 'confirmed-move-up-link-unavailable'
-  | 'replica-offline'
-  | 'replica-after-error';
+  'confirmed' | 'confirmed-move-up-link-unavailable' | 'replica-offline' | 'replica-after-error';
 
 /**
  * The ONE rule for whether a money figure derived from these rows may be

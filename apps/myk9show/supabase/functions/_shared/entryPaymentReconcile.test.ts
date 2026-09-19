@@ -43,6 +43,31 @@ describe('reconcileEntryPaymentRequest', () => {
     expect(r.patches.map(patch => patch.id)).toEqual(['source']);
   });
 
+  it.each([
+    ['destination', 'source'],
+    ['source', 'destination'],
+  ])('settles one canonical root regardless of duplicate line order (%s first)', first => {
+    const ids = first === 'destination' ? ['destination', 'source'] : ['source', 'destination'];
+    const r = reconcileEntryPaymentRequest({
+      ...base,
+      expectedEntryIds: ids,
+      reconciliationEntryIds: ['source', 'source'],
+      duplicateEntryIds: ['destination'],
+      entries: [
+        {
+          id: 'destination',
+          payment_status: 'pending',
+          entry_status: 'confirmed',
+          moved_from_entry_id: 'source',
+        },
+        { id: 'source', payment_status: 'pending', entry_status: 'moved' },
+      ],
+    });
+
+    expect(r.patches.map(patch => patch.id)).toEqual(['source']);
+    expect(r.alreadyPaidEntryIds).toEqual(['destination']);
+  });
+
   it('refunds an inactive move-up destination instead of settling its root', () => {
     const r = reconcileEntryPaymentRequest({
       ...base,

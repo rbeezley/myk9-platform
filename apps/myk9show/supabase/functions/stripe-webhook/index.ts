@@ -1719,6 +1719,17 @@ async function loadPaymentReconciliationEntries(entryIds: string[]): Promise<{
     }
     return blocked ? entryId : currentId;
   });
+  // A payment link may redundantly contain both a moved money root and its
+  // live destination. The root row is still the settlement target; only the
+  // stale root checkout line is a duplicate. Keep the root eligible whenever
+  // an unblocked destination already resolves to it.
+  const blockedRootIds = new Set(blockedEntryIds);
+  for (const [index, rootId] of reconciliationEntryIds.entries()) {
+    if (rootId !== entryIds[index] && !blockedRootIds.has(entryIds[index])) {
+      blockedRootIds.delete(rootId);
+    }
+  }
+  blockedEntryIds.splice(0, blockedEntryIds.length, ...blockedRootIds);
   const lifecycleEntryIdsByRoot: Record<string, string> = {};
   for (const [index, entryId] of entryIds.entries()) {
     const row = entriesById.get(entryId);

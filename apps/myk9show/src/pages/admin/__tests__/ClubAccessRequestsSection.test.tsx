@@ -56,6 +56,19 @@ describe('ClubAccessRequestsSection', () => {
     expect(screen.getByRole('option', { name: 'Use Existing Dog Club' })).toBeInTheDocument();
   });
 
+  it('does not make an unsafe website value clickable', async () => {
+    vi.mocked(getPendingClubAccessRequests).mockResolvedValue([
+      { ...request, requestedClubWebsite: 'javascript:alert(document.domain)' },
+    ]);
+
+    render(<ClubAccessRequestsSection />, { initialRoute: '/admin/onboarding' });
+
+    expect(await screen.findByText('javascript:alert(document.domain)')).toBeInTheDocument();
+    expect(
+      screen.queryByRole('link', { name: 'javascript:alert(document.domain)' })
+    ).not.toBeInTheDocument();
+  });
+
   it('approves a request by creating a new club and granting access', async () => {
     const { user } = render(<ClubAccessRequestsSection />, { initialRoute: '/admin/onboarding' });
     await user.click(await screen.findByRole('button', { name: /approve and give club access/i }));

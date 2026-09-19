@@ -12,6 +12,17 @@ import {
 } from '@/services/database/club-access-requests';
 import { formatShortDate } from '@/lib/format/dates';
 
+function getSafeWebsiteUrl(value: string | null): string | null {
+  if (!value) return null;
+
+  try {
+    const url = new URL(value);
+    return url.protocol === 'http:' || url.protocol === 'https:' ? url.toString() : null;
+  } catch {
+    return null;
+  }
+}
+
 function ReviewCard({
   request,
   clubs,
@@ -25,6 +36,7 @@ function ReviewCard({
   const [clubName, setClubName] = useState(request.requestedClubName);
   const [note, setNote] = useState('');
   const [busy, setBusy] = useState(false);
+  const safeWebsiteUrl = getSafeWebsiteUrl(request.requestedClubWebsite);
 
   const handleReview = async (decision: 'approved' | 'denied') => {
     try {
@@ -67,16 +79,18 @@ function ReviewCard({
             {request.requesterName} · {request.requesterEmail} · Requested{' '}
             {formatShortDate(request.createdAt)}
           </p>
-          {request.requestedClubWebsite && (
+          {safeWebsiteUrl ? (
             <a
-              href={request.requestedClubWebsite}
+              href={safeWebsiteUrl}
               target="_blank"
               rel="noreferrer"
               className="mt-2 inline-block min-h-11 text-sm text-primary underline-offset-4 hover:underline"
             >
-              {request.requestedClubWebsite}
+              {safeWebsiteUrl}
             </a>
-          )}
+          ) : request.requestedClubWebsite ? (
+            <p className="mt-2 text-sm text-muted-foreground">{request.requestedClubWebsite}</p>
+          ) : null}
           {request.requestNote && (
             <p className="mt-3 text-sm leading-relaxed">{request.requestNote}</p>
           )}

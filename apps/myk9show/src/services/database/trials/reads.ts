@@ -174,6 +174,7 @@ export const getTrialsByShow = async (showId: string) => {
     operation: 'select_by_show',
     errorData: [],
     verifyOnlineWhenEmpty: true,
+    errorOnOnlineVerificationFailure: true,
   });
 };
 

@@ -110,7 +110,6 @@ export function deriveShowMoneyState(
     // Every order in a group belongs to the same show, so any one of them
     // answers "is this show over?".
     const isPast = isPastShowEntry(dueOrders[0], now);
-    const dueEntryIds = dueOrders.flatMap(order => order.balance?.dueEntryIds ?? []);
     const paymentEntryIds = dueOrders.flatMap(
       order => order.balance?.paymentEntryIds ?? order.balance?.dueEntryIds ?? []
     );

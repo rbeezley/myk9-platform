@@ -72,12 +72,12 @@ describe('submit_show_entries migration authorization', () => {
     );
 
     expect(migration).toContain('MYK9-665');
-    expect(migration).toContain('WHEN p_clear_handler_id THEN NULL');
+    expect(migration).toContain('IF p_clear_handler_id THEN');
     expect(migration).toContain(
       'WHEN v_resolved_handler_id IS NOT NULL THEN v_resolved_handler_id'
     );
     expect(migration).toContain('ELSE v_existing_handler_id');
-    expect(migration.match(/WHEN p_clear_handler_id THEN NULL/g)).toHaveLength(2);
+    expect(migration).not.toContain('p_clear_handler_id THEN NULL');
   });
 
   it('returns the registration and submission ids expected by the client wrapper', () => {

@@ -32,8 +32,6 @@ export interface SaveEntryEditsParams {
   classEdits: Record<string, EntryClassEdits>;
   /** The card-level handler, used when a class row carries none of its own. */
   fallbackHandler?: string | undefined;
-  /** Show-manager corrections explicitly detach the prior handler identity. */
-  clearHandlerId: boolean;
 }
 
 /**
@@ -46,7 +44,7 @@ export interface SaveEntryEditsParams {
 export async function saveEntryEdits(
   params: SaveEntryEditsParams
 ): Promise<{ error: string | null }> {
-  const { classes, classEdits, fallbackHandler, clearHandlerId } = params;
+  const { classes, classEdits, fallbackHandler } = params;
 
   // A grouped dog card can contain multiple entry rows, and each row may need a
   // different handler.
@@ -54,8 +52,7 @@ export async function saveEntryEdits(
     const editedHandler = classEdits[classEntry.id]?.handler;
     const originalHandler = classEntry.handler ?? fallbackHandler ?? '';
     if (editedHandler !== undefined && editedHandler !== originalHandler) {
-      // MYK9-665: the caller makes the identity decision explicitly. Exhibitor
-      // text edits preserve handler_id; show-manager corrections clear it.
+      // MYK9-665: text corrections preserve the load-bearing handler_id link.
       //
       // Round 1 of that issue's review made it unconditional on the theory that
       // a rename should drop the now-wrong person link. Round 2 showed the
@@ -72,13 +69,12 @@ export async function saveEntryEdits(
       // costs nothing: `resolveHandlerPerson` refuses to derive junior status or
       // print a registry number unless the person behind `handler_id` bears the
       // name being printed. Whether the WRITE should also re-point or clear the
-      // id is a real question with real consequences. The clear flag is honored
-      // by both RPC branches so older callers cannot silently no-op.
+      // id is a real question with real consequences. Legacy clear requests are
+      // rejected by the RPC; explicit selected handler ids can re-point it.
       const { error } = await updateEntryHandler({
         entryId: classEntry.id,
         handler: editedHandler,
         handlerId: null,
-        clearHandlerId,
       });
       if (error) return { error: 'Failed to update handler. Please try again.' };
     }

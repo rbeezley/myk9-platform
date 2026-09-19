@@ -267,7 +267,6 @@ describe('submitShowEntries', () => {
       p_entry_id: 'entry-uuid-1',
       p_handler: 'Grace Hollis',
       p_handler_id: 'person-uuid-1',
-      p_clear_handler_id: false,
     });
   });
 
@@ -284,25 +283,6 @@ describe('submitShowEntries', () => {
       p_entry_id: 'entry-uuid-1',
       p_handler: 'Grace Hollis',
       p_handler_id: null,
-      p_clear_handler_id: false,
-    });
-  });
-
-  it('sends the explicit handler clear argument for secretary corrections', async () => {
-    mockRpc.mockResolvedValue({ data: null, error: null });
-
-    await updateEntryHandler({
-      entryId: 'entry-uuid-1',
-      handler: 'Grace Hollis',
-      handlerId: null,
-      clearHandlerId: true,
-    });
-
-    expect(mockRpc).toHaveBeenCalledWith('update_entry_handler_for_entry_management', {
-      p_entry_id: 'entry-uuid-1',
-      p_handler: 'Grace Hollis',
-      p_handler_id: null,
-      p_clear_handler_id: true,
     });
   });
 });

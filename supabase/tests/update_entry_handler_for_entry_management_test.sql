@@ -110,47 +110,29 @@ begin
 end;
 $$;
 
--- An explicit exhibitor clear is honored by the same branch for compatibility
--- with older callers. This intentionally revokes the former handler's access;
--- an official caller can then assign the replacement identity.
+-- A legacy exhibitor clear fails closed instead of revoking the former
+-- handler's access.
 select pg_temp.call_handler_update(
-  '00000000-0000-0000-0000-000000665102', 'MYK9-665 Cleared Handler', true);
-do $$
-begin
-  if (select handler_id from public.entries where id = '00000000-0000-0000-0000-000000665031')
-    is not null then
-    raise exception 'FAIL exhibitor clear did not clear handler_id';
-  end if;
-end;
-$$;
+  '00000000-0000-0000-0000-000000665102', 'MYK9-665 Cleared Handler', true,
+  'Explicit handler identity clearing is not supported%');
+
+-- An official text correction with no selected replacement also preserves the
+-- existing handler identity.
 select pg_temp.call_handler_update(
-  '00000000-0000-0000-0000-000000665103', 'MYK9-665 Handler Restored', false,
-  null, '00000000-0000-0000-0000-000000665012');
+  '00000000-0000-0000-0000-000000665103', 'MYK9-665 Handler Restored', false);
 do $$
 begin
   if (select handler_id from public.entries where id = '00000000-0000-0000-0000-000000665031')
     is distinct from '00000000-0000-0000-0000-000000665012'::uuid then
-    raise exception 'FAIL owner could not restore selected handler';
+    raise exception 'FAIL official text correction changed handler_id';
   end if;
 end;
 $$;
 
--- An official's explicit clear request clears the link, using the same rule as
--- the exhibitor branch for compatibility with older callers.
+-- An official legacy clear also fails closed.
 select pg_temp.call_handler_update(
-  '00000000-0000-0000-0000-000000665103', 'MYK9-665 Corrected Handler', true);
-do $$
-begin
-  if (select handler_id from public.entries where id = '00000000-0000-0000-0000-000000665031')
-    is not null then
-    raise exception 'FAIL official clear did not clear handler_id';
-  end if;
-  if (select handler from public.entries where id = '00000000-0000-0000-0000-000000665031')
-    is distinct from 'MYK9-665 Corrected Handler' then
-    raise exception 'FAIL official clear did not update handler text';
-  end if;
-end;
-$$;
+  '00000000-0000-0000-0000-000000665103', 'MYK9-665 Corrected Handler', true,
+  'Explicit handler identity clearing is not supported%');
 
 -- A club admin is authorized while the show is linked to that club.
 select pg_temp.call_handler_update(

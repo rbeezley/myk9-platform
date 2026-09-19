@@ -59,6 +59,26 @@ describe('mapEntryToArmbandLabelEntry', () => {
     expect(result?.armband).toBe('12A');
   });
 
+  it('preserves class and trial scope from a cold offline row without joins', () => {
+    const result = mapEntryToArmbandLabelEntry({
+      id: 'e-cold-class',
+      dog_id: 'dog-1',
+      class_id: 'class-cached',
+      trial_id: 'trial-cached',
+      trial_date: '2025-06-12',
+      armband: 106,
+      dog: { call_name: 'Storm', owner: null },
+      class: null,
+    });
+
+    expect(result).toMatchObject({
+      classId: 'class-cached',
+      trialId: 'trial-cached',
+      calendarDay: '2025-06-12',
+      trialDate: '6/12/2025',
+    });
+  });
+
   it('returns null for entries without armband', () => {
     const raw = {
       id: 'e2',

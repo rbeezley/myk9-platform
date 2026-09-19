@@ -324,6 +324,7 @@ export const mapReplicatedEntryToDbRow = (
     ...mapFields(entry as unknown as Record<string, unknown>, {
       id: 'id',
       class_id: 'classId',
+      trial_id: 'trialId',
       show_id: 'showId',
       dog_id: 'dogId',
       handler_id: 'handlerId',

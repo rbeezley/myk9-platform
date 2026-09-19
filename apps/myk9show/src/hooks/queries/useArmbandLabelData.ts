@@ -21,7 +21,15 @@ export function mapEntryToArmbandLabelEntry(
   const cls = raw.class as Record<string, unknown> | null;
   const trial = cls?.trial as Record<string, unknown> | null;
 
-  const rawDate = (trial?.date as string) ?? '';
+  const classId = (cls?.id as string) ?? (raw.class_id as string) ?? '';
+  const trialId =
+    (trial?.id as string) ??
+    (cls?.trial_id as string) ??
+    (raw.trial_id as string) ??
+    (raw.trialId as string) ??
+    '';
+  const rawDate =
+    (trial?.date as string) ?? (raw.trial_date as string) ?? (raw.trialDate as string) ?? '';
   const trialDate = rawDate ? formatReportDate(rawDate) : '';
   const handlerIdentity = projectHandlerIdentity({
     assignedHandlerName: raw.handler as string | null | undefined,
@@ -33,8 +41,8 @@ export function mapEntryToArmbandLabelEntry(
   return {
     id: raw.id as string,
     dogId: (raw.dog_id as string) ?? '',
-    trialId: (trial?.id as string) ?? '',
-    classId: (cls?.id as string) ?? '',
+    trialId,
+    classId,
     calendarDay: rawDate,
     armband,
     callName: (dog?.call_name as string) ?? '',
@@ -69,7 +77,10 @@ export function useArmbandLabelData(showId: string | undefined): ArmbandLabelDat
       return (entries ?? []).map(entry => {
         const row = entry as Record<string, unknown>;
         const cls = row.class as Record<string, unknown> | null;
-        const trialId = cls?.trial_id as string | undefined;
+        const trialId =
+          (cls?.trial_id as string | undefined) ??
+          (row.trial_id as string | undefined) ??
+          (row.trialId as string | undefined);
         return {
           ...row,
           class: cls ? { ...cls, trial: trialId ? (trialsById.get(trialId) ?? null) : null } : null,

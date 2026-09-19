@@ -272,4 +272,13 @@ describe('getEntryWindowTimezone', () => {
       ])
     ).toBe('America/Chicago');
   });
+
+  it('ignores non-ISO calendar dates when choosing the primary trial', () => {
+    expect(
+      getEntryWindowTimezone([
+        { id: 'non-iso', date: '2026-2-3', timezone: 'America/Chicago' },
+        { id: 'valid', date: '2026-10-01', timezone: 'America/Los_Angeles' },
+      ])
+    ).toBe('America/Los_Angeles');
+  });
 });

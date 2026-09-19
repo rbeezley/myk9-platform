@@ -11,6 +11,7 @@ export interface EntryWindowTrial {
 function parseCalendarDate(value?: string | null): Date | undefined {
   if (!value) return undefined;
   const datePart = value.split(/[T ]/)[0] ?? value;
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(datePart)) return undefined;
   const parsed = parseLocalDateString(datePart);
   if (!parsed) return undefined;
   const [year, month, day] = datePart.split('-').map(Number);

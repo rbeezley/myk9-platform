@@ -89,11 +89,11 @@ select pg_temp.call_handler_update(
 do $$
 begin
   if (select handler_id from public.entries where id = '00000000-0000-0000-0000-000000665031')
-    <> '00000000-0000-0000-0000-000000665012'::uuid then
+    is distinct from '00000000-0000-0000-0000-000000665012'::uuid then
     raise exception 'FAIL exhibitor clear changed handler_id';
   end if;
   if (select handler from public.entries where id = '00000000-0000-0000-0000-000000665031')
-    <> 'MYK9-665 Renamed Handler' then
+    is distinct from 'MYK9-665 Renamed Handler' then
     raise exception 'FAIL exhibitor edit did not update handler text';
   end if;
 end;
@@ -104,7 +104,7 @@ select pg_temp.call_handler_update(
 do $$
 begin
   if (select handler from public.entries where id = '00000000-0000-0000-0000-000000665031')
-    <> 'MYK9-665 Handler Again' then
+    is distinct from 'MYK9-665 Handler Again' then
     raise exception 'FAIL exhibitor edit did not update handler text';
   end if;
 end;
@@ -121,7 +121,7 @@ begin
     raise exception 'FAIL official clear did not clear handler_id';
   end if;
   if (select handler from public.entries where id = '00000000-0000-0000-0000-000000665031')
-    <> 'MYK9-665 Corrected Handler' then
+    is distinct from 'MYK9-665 Corrected Handler' then
     raise exception 'FAIL official clear did not update handler text';
   end if;
 end;
@@ -134,8 +134,12 @@ select pg_temp.call_handler_update(
 do $$
 begin
   if (select handler from public.entries where id = '00000000-0000-0000-0000-000000665031')
-    <> 'MYK9-665 Club Admin Correction' then
+    is distinct from 'MYK9-665 Club Admin Correction' then
     raise exception 'FAIL club admin could not correct linked show entry';
+  end if;
+  if (select handler_id from public.entries where id = '00000000-0000-0000-0000-000000665031')
+    is distinct from '00000000-0000-0000-0000-000000665012'::uuid then
+    raise exception 'FAIL club admin selected handler was not stored';
   end if;
 end;
 $$;

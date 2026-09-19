@@ -67,6 +67,18 @@ describe('resolveShowTimePhase', () => {
     ).toBe('during');
   });
 
+  it('accepts the space-separated Postgres timestamp format', () => {
+    expect(
+      resolveShowTimePhase(
+        {
+          startDate: '2026-03-22 00:00:00+00',
+          endDate: '2026-03-23 00:00:00+00',
+        },
+        MARCH_22
+      )
+    ).toBe('during');
+  });
+
   it('treats an invalid today value as unknown', () => {
     expect(
       resolveShowTimePhase(

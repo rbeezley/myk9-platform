@@ -17,7 +17,7 @@ export const DEFAULT_REPORT_PHASE_ORDER: readonly ReportPhase[] = [
 
 const ISO_DATE_PREFIX = /^\d{4}-\d{2}-\d{2}$/;
 const ISO_DATE_OR_TIMESTAMP =
-  /^\d{4}-\d{2}-\d{2}(?:T\d{2}:\d{2}(?::\d{2}(?:\.\d+)?)?(?:Z|[+-]\d{2}:?\d{2})?)?$/;
+  /^\d{4}-\d{2}-\d{2}(?:(?:T| )\d{2}:\d{2}(?::\d{2}(?:\.\d+)?)?(?:Z|[+-]\d{2}(?::?\d{2})?)?)?$/;
 
 function isValidDatePrefix(value: string | undefined): value is string {
   if (!value || !ISO_DATE_PREFIX.test(value)) return false;

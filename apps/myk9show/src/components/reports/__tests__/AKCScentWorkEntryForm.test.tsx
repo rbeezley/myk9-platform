@@ -45,6 +45,8 @@ const {
         email: 'sarah@example.com',
       },
       handler: null,
+      handlerDateOfBirth: null,
+      handlerJuniorHandlerNumbers: undefined,
       armband: 101,
       entries: [
         {
@@ -55,6 +57,7 @@ const {
           level: 'Excellent',
           armband: 101,
           handler: null,
+          handlerId: null,
           submittedAt: '2026-04-01T12:00:00Z',
         },
         {
@@ -65,6 +68,7 @@ const {
           level: 'Excellent',
           armband: 101,
           handler: null,
+          handlerId: null,
           submittedAt: '2026-04-01T12:00:00Z',
         },
       ],

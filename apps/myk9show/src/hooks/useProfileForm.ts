@@ -7,6 +7,8 @@ import { notifications } from '@/lib/notifications';
 import { supabase } from '@/services/database/supabaseClient';
 import { queryKeys } from '@/lib/queryClient';
 import { friendlyDbError } from '@/utils/friendlyDbError';
+import { juniorHandlerNumbersForSave } from '@/features/registries/juniorHandlerPolicy';
+import { PEOPLE_DIRECTORY_COLUMNS } from '@/services/database/users/peopleColumns';
 
 export interface ProfileFormValues {
   firstName: string;
@@ -16,15 +18,53 @@ export interface ProfileFormValues {
   city: string;
   state: string;
   zipCode: string;
+  /** MYK9-570: ISO `YYYY-MM-DD`, or '' when unknown. */
+  dateOfBirth: string;
+  /**
+   * MYK9-570: the WHOLE registry-keyed map, not one field per rendered input —
+   * the form renders inputs only for the registries that issue a number, and
+   * rebuilding the map from those dropped any other stored key on save.
+   */
+  juniorHandlerNumbers: Record<string, string>;
 }
 
 interface ProfileFormErrors {
   firstName?: string;
+  dateOfBirth?: string;
   lastName?: string;
   streetAddress?: string;
   city?: string;
   state?: string;
   zipCode?: string;
+}
+
+/** Two junior-number maps agree once both are shaped the way a save shapes them. */
+function sameJuniorHandlerNumbers(
+  a: Record<string, string>,
+  b: Record<string, string> | undefined
+): boolean {
+  const left = juniorHandlerNumbersForSave(a);
+  const right = juniorHandlerNumbersForSave(b);
+  const keys = new Set([...Object.keys(left), ...Object.keys(right)]);
+  for (const key of keys) {
+    if (left[key] !== right[key]) return false;
+  }
+  return true;
+}
+
+/**
+ * MYK9-570. Empty is fine (the field is optional); a present value must be a
+ * real calendar date in the past, matching the CHECK the migration adds and the
+ * same rule the secretary's edit panel applies.
+ */
+function validateDateOfBirth(value: string): string | undefined {
+  if (!value) return undefined;
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return 'Please enter a date of birth as YYYY-MM-DD';
+  const parsed = new Date(`${value}T00:00:00Z`);
+  if (Number.isNaN(parsed.getTime())) return 'Please enter a real date of birth';
+  if (Number(value.slice(0, 4)) < 1900) return 'Please enter a date of birth after 1900';
+  if (parsed.getTime() > Date.now()) return 'A date of birth cannot be in the future';
+  return undefined;
 }
 
 /**
@@ -39,7 +79,10 @@ export function useCurrentUserPerson(authUserId: string | undefined) {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('people')
-        .select('*')
+        // Explicit, not `*`: MYK9-570 put PII on this table, and a star is
+        // invisible to the contract test that keeps it off other surfaces. This
+        // IS the surface that collects it, so it names the junior columns.
+        .select(PEOPLE_DIRECTORY_COLUMNS)
         .eq('auth_user_id', authUserId!)
         .is('deleted_at', null)
         .maybeSingle();
@@ -66,6 +109,8 @@ export function useProfileForm() {
     city: '',
     state: '',
     zipCode: '',
+    dateOfBirth: '',
+    juniorHandlerNumbers: {},
   });
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
@@ -82,12 +127,30 @@ export function useProfileForm() {
         city: person.city || '',
         state: person.state || '',
         zipCode: person.zipCode || '',
+        dateOfBirth: person.dateOfBirth || '',
+        juniorHandlerNumbers: { ...(person.juniorHandlerNumbers ?? {}) },
       });
     }
   }, [person]);
 
-  const setValue = (field: keyof ProfileFormValues, value: string) => {
-    setValues(prev => ({ ...prev, [field]: value }));
+  /**
+   * `value` may be an UPDATER — `(previous) => next` — for a field derived from
+   * its own current value. Two changes to different keys of the junior-number
+   * map in one tick otherwise both read the same stale render closure and the
+   * first is lost (MYK9-570 round 2).
+   */
+  const setValue = <Field extends keyof ProfileFormValues>(
+    field: Field,
+    value:
+      ProfileFormValues[Field] | ((previous: ProfileFormValues[Field]) => ProfileFormValues[Field])
+  ) => {
+    setValues(prev => ({
+      ...prev,
+      [field]:
+        typeof value === 'function'
+          ? (value as (p: ProfileFormValues[Field]) => ProfileFormValues[Field])(prev[field])
+          : value,
+    }));
   };
 
   // Validation
@@ -95,6 +158,10 @@ export function useProfileForm() {
     const e: ProfileFormErrors = {};
     if (!values.firstName.trim()) e.firstName = 'First name is required';
     if (!values.lastName.trim()) e.lastName = 'Last name is required';
+    // MYK9-570: a future date of birth would make every junior derivation
+    // negative, and the migration's CHECK refuses anything before 1900.
+    const dobError = validateDateOfBirth(values.dateOfBirth);
+    if (dobError) e.dateOfBirth = dobError;
     return e;
   }, [values]);
 
@@ -110,7 +177,11 @@ export function useProfileForm() {
       values.streetAddress !== (person.streetAddress || person.address || '') ||
       values.city !== (person.city || '') ||
       values.state !== (person.state || '') ||
-      values.zipCode !== (person.zipCode || '')
+      values.zipCode !== (person.zipCode || '') ||
+      values.dateOfBirth !== (person.dateOfBirth || '') ||
+      // Compared through the same shaping the save applies, so re-typing the
+      // same number with a stray space is not "dirty".
+      !sameJuniorHandlerNumbers(values.juniorHandlerNumbers, person.juniorHandlerNumbers)
     );
   }, [values, person]);
 
@@ -135,6 +206,10 @@ export function useProfileForm() {
         city: values.city.trim(),
         state: values.state.trim(),
         zipCode: values.zipCode.trim(),
+        // MYK9-570. '' clears the date; the numbers are reassembled into the
+        // registry-keyed map the column stores, omitting blanks.
+        dateOfBirth: values.dateOfBirth,
+        juniorHandlerNumbers: juniorHandlerNumbersForSave(values.juniorHandlerNumbers),
       });
       // Explicit duration at this callsite: the profile save toast previously
       // persisted indefinitely (defaulted to no auto-dismiss) and stuck around
@@ -163,6 +238,8 @@ export function useProfileForm() {
         city: person.city || '',
         state: person.state || '',
         zipCode: person.zipCode || '',
+        dateOfBirth: person.dateOfBirth || '',
+        juniorHandlerNumbers: { ...(person.juniorHandlerNumbers ?? {}) },
       });
     }
   };

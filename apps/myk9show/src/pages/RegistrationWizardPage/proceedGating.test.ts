@@ -15,6 +15,8 @@ function ctx(overrides: Partial<ProceedGatingContext>): ProceedGatingContext {
     needsAgreement: false,
     agreedToEntryAgreement: false,
     capacityReady: true,
+    entryWindowTimezoneReady: true,
+    entryWindowTimezoneUnavailable: false,
     blockedClassCount: 0,
     capacityUnavailable: false,
     agreementUnavailable: false,
@@ -101,6 +103,55 @@ describe('proceedBlockedReason', () => {
   });
 
   describe('payment', () => {
+    // MYK9-642 L-F1. The day-of-show fee tier is decided in the show's own
+    // timezone, read asynchronously from the trial store. Until that read
+    // finishes the rule answers with the America/New_York fallback, so there is
+    // no total worth agreeing to — and the wizard can mount straight onto this
+    // step with a Submit button (useWizardDraftRehydration). This blocks FIRST,
+    // ahead of every other payment gate, because none of them can be decided
+    // from a total that may be a tier out.
+    it('blocks before anything else while the show timezone is still loading', () => {
+      expect(
+        proceedBlockedReason(ctx({ stepId: 'payment', entryWindowTimezoneReady: false }))
+      ).toBe('Loading show details. Please wait, then try again.');
+    });
+
+    it('says the read FAILED rather than asking for more patience', () => {
+      // The same split `capacityUnavailable` makes two branches below, for the
+      // same reason: on the offline desk path "please wait" about a failed read
+      // is the difference between "a moment" and "this device cannot take
+      // entries until you reload", on show day (N-F3).
+      const reason = proceedBlockedReason(
+        ctx({
+          stepId: 'payment',
+          entryWindowTimezoneReady: false,
+          entryWindowTimezoneUnavailable: true,
+        })
+      );
+      expect(reason).toMatch(/could not load/i);
+      expect(reason).toMatch(/reload/i);
+      expect(reason).not.toMatch(/please wait/i);
+    });
+
+    it('outranks the availability gate, so the user is told the nearer reason', () => {
+      expect(
+        proceedBlockedReason(
+          ctx({
+            stepId: 'payment',
+            entryWindowTimezoneReady: false,
+            capacityReady: false,
+            capacityUnavailable: true,
+          })
+        )
+      ).toBe('Loading show details. Please wait, then try again.');
+    });
+
+    it('stops blocking once the timezone resolves', () => {
+      expect(proceedBlockedReason(ctx({ stepId: 'payment', entryWindowTimezoneReady: true }))).toBe(
+        null
+      );
+    });
+
     // Offline the availability query pauses: isLoading false, error null, no
     // data. "Please wait, then try again" describes a wait that never ends.
     it('names an unreadable availability check instead of asking the user to wait', () => {

@@ -54,6 +54,25 @@ export async function saveEntryEdits(
     const editedHandler = classEdits[classEntry.id]?.handler;
     const originalHandler = classEntry.handler ?? fallbackHandler ?? '';
     if (editedHandler !== undefined && editedHandler !== originalHandler) {
+      // MYK9-570: `clearHandlerId` stays the CALLER's decision, unchanged.
+      //
+      // Round 1 of that issue's review made it unconditional on the theory that
+      // a rename should drop the now-wrong person link. Round 2 showed the
+      // reasoning rested on a false premise — `entries.handler_id` is NOT
+      // incidental. It is keyed by the exhibitor's own self check-in
+      // (`useClassCheckInData` filters `.eq('handler_id', userId)` with no
+      // owner/co-owner fallback), the at-show exhibitor queue view,
+      // `entry_results_caller_context`'s "is this my entry?" predicate,
+      // recoverable show access codes, the announcement push path and the
+      // show-registrations read. Nulling it on a text correction would take an
+      // exhibitor's own check-in page away from them.
+      //
+      // So the stale-link problem is solved on the READ side instead, where it
+      // costs nothing: `resolveHandlerPerson` refuses to derive junior status or
+      // print a registry number unless the person behind `handler_id` bears the
+      // name being printed. Whether the WRITE should also re-point or clear the
+      // id is a real question with real consequences, and it is MYK9-665's to
+      // answer — not this dialog's to assume.
       const { error } = await updateEntryHandler({
         entryId: classEntry.id,
         handler: editedHandler,

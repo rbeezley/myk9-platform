@@ -44,6 +44,8 @@ export interface EntryFormEntry {
   level: string;
   armband: number | null;
   handler: string | null;
+  /** MYK9-570: `entries.handler_id` — the person behind the printed handler name. */
+  handlerId: string | null;
   submittedAt: string | null;
 }
 
@@ -80,6 +82,15 @@ export interface EntryFormDog {
   dam: string | null;
   owner: EntryFormPerson;
   handler: string | null;
+  /**
+   * MYK9-570: the handler's date of birth (`people.date_of_birth`, ISO
+   * `YYYY-MM-DD`) and registry-issued junior handler numbers, carried RAW so the
+   * form builder can derive junior status against the trial date and registry
+   * the form is actually for. Null/undefined when the entry has no `handler_id`
+   * or the person has no date of birth.
+   */
+  handlerDateOfBirth: string | null;
+  handlerJuniorHandlerNumbers: Record<string, string> | undefined;
   armband: number | null;
   entries: EntryFormEntry[];
   agreementDate: string | null;

@@ -24,7 +24,6 @@ import type { StepId } from '@/components/shows/RegistrationWorkflow/Registratio
 import { selectedDogsOwner } from '@/features/registration/selectedDogsOwner';
 import { resolveRegistrationCompletionPath } from '../RegistrationWizardPage.routes';
 import { submitPaymentStep } from './submitPaymentStep';
-import { getEntryWindowTimezone } from './entryCloseGuard';
 import { defaultPaymentForMode, type RegistrationWizardState } from './useRegistrationWizardState';
 import type { SavedDraft } from '@/hooks/useDraftPersistence';
 
@@ -57,6 +56,9 @@ export function createWizardHandlers(state: RegistrationWizardState) {
     storeUpdateEntryStatus,
     currentWorkflowMode,
     currentWorkflowConfig,
+    entryWindowTimezone,
+    entryWindowTimezoneReady,
+    entryWindowTimezoneUnavailable,
     currentStep,
     setCurrentStep,
     setStepCompletionState,
@@ -127,6 +129,21 @@ export function createWizardHandlers(state: RegistrationWizardState) {
     }
 
     if (currentStepId === 'payment' && registrationId && currentRegistration) {
+      // Both submit paths run through here — the online RPC submission and the
+      // offline desk writer — so one guard covers both. The Next button is
+      // already disabled by `proceedBlockedReason`, but a rehydrated wizard can
+      // mount straight onto Payment and this handler reads the zone from the
+      // render it was built in, so the click has to be refused too (MYK9-642
+      // L-F1). Never submit a fee derived from the fallback zone.
+      if (!entryWindowTimezoneReady) {
+        notifications.error(
+          entryWindowTimezoneUnavailable
+            ? 'We could not load this show\u2019s details, so we cannot work out the entry fee. Check your connection and reload the page.'
+            : 'Still loading this show. Wait a moment and try again \u2014 the entry fee depends on the show timezone.'
+        );
+        return;
+      }
+
       if (!currentShow) {
         notifications.error('Show not found. Please go back and try again.');
         return;
@@ -158,7 +175,12 @@ export function createWizardHandlers(state: RegistrationWizardState) {
             startDate: currentShow.startDate,
             entryOpenDate: currentShow.entryOpenDate,
             entryCloseDate: currentShow.entryCloseDate,
-            entryWindowTimezone: getEntryWindowTimezone(currentShow.trials),
+            // From the trial store, NOT `currentShow.trials` — the show store
+            // never populates that array, so it was always the
+            // America/New_York fallback and the offline desk path wrote the
+            // wrong fee and registry bucket for a non-Eastern show in the hour
+            // before local midnight (MYK9-642 J-F1).
+            entryWindowTimezone,
           },
           currentStep,
           cart: { clearCart, ensureCart, addItem, abandonCart },

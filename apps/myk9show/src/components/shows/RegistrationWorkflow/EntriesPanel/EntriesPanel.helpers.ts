@@ -287,6 +287,8 @@ export function computePaymentTotals({
 }
 
 export interface AmountDueInput {
+  /** Overrides the availability copy when another read is the reason. */
+  placeholder?: string | undefined;
   capacityReady: boolean;
   capacityUnavailable?: boolean | undefined;
   /** Payment step only. Absent = the headline is entry fees. */
@@ -309,6 +311,7 @@ export interface AmountDueInput {
 export function formatAmountDue({
   capacityReady,
   capacityUnavailable,
+  placeholder,
   totals,
   entryFeeCents,
   classCount,
@@ -318,7 +321,7 @@ export function formatAmountDue({
   // step, where nothing is chosen yet, is exactly where capacity is unread.
   if (classCount === 0) return formatCartCurrency(0);
   // Capacity next: with lines on the entry, no figure is trustworthy until read.
-  if (!capacityReady) return availabilityPlaceholder(capacityUnavailable);
+  if (!capacityReady) return placeholder ?? availabilityPlaceholder(capacityUnavailable);
   if (totals?.isWaived) return '$0.00 (Waived)';
   return formatCartCurrency(totals ? totals.amountDueCents : entryFeeCents);
 }

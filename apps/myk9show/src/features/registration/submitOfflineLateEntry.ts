@@ -1,8 +1,10 @@
 import type { ArmbandAssignment } from '@/components/shows/RegistrationWorkflow/ConfirmationStep.types';
 import {
   getShowEntryFee,
+  showDayOfShowContext,
   type ShowFeeInfo,
 } from '@/components/shows/RegistrationWorkflow/PaymentStep/utils';
+import { isDayOfShowEntry } from '@/features/_shared/isDayOfShowEntry';
 import {
   replicatedArmbandsTable,
   replicatedDogRegistrationsTable,
@@ -94,6 +96,14 @@ export async function submitOfflineLateEntry({
     throw new Error('Offline late entries cannot use card checkout');
   }
 
+  // ONE rule, shared with the fee tier and restated by `submit_show_entries`
+  // (MYK9-642). This used to be a hardcoded `true`: the dialog is normally used
+  // at the desk on show day, but "normally" is not a registry bucket, and the
+  // sibling wizard path recorded the opposite fact about the same entry.
+  // Evaluated once so every entry in one submission lands in the same bucket
+  // even if the clock crosses midnight mid-loop.
+  const entryIsDayOfShow = isDayOfShowEntry(showDayOfShowContext(showFeeInfo));
+
   const classesById = new Map(classes.map(cls => [cls.id, cls]));
   const capacitySelections = classSelections.flatMap(selection =>
     selection.selectedClasses.map(selectedClass => ({
@@ -163,7 +173,7 @@ export async function submitOfflineLateEntry({
         trial_id: selection.trialId,
         handler: handler?.handlerName || '',
         handlerId: handler?.handlerId,
-        isDayOfShow: true,
+        isDayOfShow: entryIsDayOfShow,
         entrySource: 'myk9',
         capacityOverride,
         paymentMethod,

@@ -397,7 +397,6 @@ export const EntryListPage: React.FC<EntryListPageProps> = ({
         classId={classId}
         classInfo={classInfo}
         localEntries={localEntries}
-        completedEntries={completedEntries}
         hasPermission={hasPermission}
         hideMaxTimeOption={context.hideMaxTimeOption}
         hideSettingsOption={context.hideSettingsOption}

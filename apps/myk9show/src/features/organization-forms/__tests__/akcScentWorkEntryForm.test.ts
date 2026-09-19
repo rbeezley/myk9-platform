@@ -47,6 +47,8 @@ const dog: EntryFormDog = {
     email: 'sarah@example.com',
   },
   handler: 'Bob Handler',
+  handlerDateOfBirth: null,
+  handlerJuniorHandlerNumbers: undefined,
   armband: 101,
   entries: [
     {
@@ -57,6 +59,7 @@ const dog: EntryFormDog = {
       level: 'Excellent',
       armband: 101,
       handler: null,
+      handlerId: null,
       submittedAt: '2026-04-01T12:00:00Z',
     },
     {
@@ -67,6 +70,7 @@ const dog: EntryFormDog = {
       level: 'Novice A',
       armband: 101,
       handler: null,
+      handlerId: null,
       submittedAt: '2026-04-01T12:00:00Z',
     },
     {
@@ -77,6 +81,7 @@ const dog: EntryFormDog = {
       level: 'Detective',
       armband: 101,
       handler: null,
+      handlerId: null,
       submittedAt: '2026-04-01T12:00:00Z',
     },
     {
@@ -87,6 +92,7 @@ const dog: EntryFormDog = {
       level: 'Master',
       armband: 101,
       handler: null,
+      handlerId: null,
       submittedAt: '2026-04-01T12:00:00Z',
     },
     {
@@ -97,6 +103,7 @@ const dog: EntryFormDog = {
       level: 'Advanced',
       armband: 101,
       handler: null,
+      handlerId: null,
       submittedAt: '2026-04-01T12:00:00Z',
     },
   ],
@@ -181,5 +188,64 @@ describe('buildAKCScentWorkEntryFormFilename', () => {
     expect(buildAKCScentWorkEntryFormPacketFilename('Spring Scent Trial 2026')).toBe(
       'akc-entry-form-packet-Spring-Scent-Trial-2026.pdf'
     );
+  });
+});
+
+/**
+ * MYK9-570. The AKC entry form has carried a `JuniorHandlerNumber` AcroForm field
+ * all along; nothing filled it. It is filled ONLY when the handler is a junior
+ * under the AKC rule at the earliest trial they are entered in — a number
+ * outlives the status, so printing it for an adult claims eligibility the
+ * regulations do not grant.
+ */
+describe('junior handler number (MYK9-570)', () => {
+  const juniorDog = (dateOfBirth: string | null): EntryFormDog => ({
+    ...dog,
+    handlerDateOfBirth: dateOfBirth,
+    handlerJuniorHandlerNumbers: { AKC: '7654321' },
+  });
+
+  it('is a real field on the blank, so the fill cannot be a no-op', async () => {
+    const pdf = await PDFDocument.load(new Uint8Array(await readFile(templatePath)));
+    const names = pdf
+      .getForm()
+      .getFields()
+      .map(field => field.getName());
+    expect(names).toContain(AKC_SCENT_WORK_ENTRY_FORM_FIELDS.juniorHandlerNumber);
+  });
+
+  it('prints the number for a handler who is 17 at the first trial', () => {
+    // First entered trial is 2026-04-12; a 2008-09-18 birthday is 17 that day.
+    const values = buildAKCScentWorkEntryFormValues({ dog: juniorDog('2008-09-18'), trials });
+    expect(values.text?.[AKC_SCENT_WORK_ENTRY_FORM_FIELDS.juniorHandlerNumber]).toBe('7654321');
+  });
+
+  it('leaves it blank for a handler who has already turned 18', () => {
+    const values = buildAKCScentWorkEntryFormValues({ dog: juniorDog('2008-04-11'), trials });
+    expect(values.text?.[AKC_SCENT_WORK_ENTRY_FORM_FIELDS.juniorHandlerNumber]).toBeUndefined();
+  });
+
+  it('leaves it blank when the handler has no date of birth', () => {
+    const values = buildAKCScentWorkEntryFormValues({ dog: juniorDog(null), trials });
+    expect(values.text?.[AKC_SCENT_WORK_ENTRY_FORM_FIELDS.juniorHandlerNumber]).toBeUndefined();
+  });
+
+  it('leaves it blank when the junior is a junior but holds no AKC number', () => {
+    const values = buildAKCScentWorkEntryFormValues({
+      dog: { ...dog, handlerDateOfBirth: '2008-09-18', handlerJuniorHandlerNumbers: undefined },
+      trials,
+    });
+    expect(values.text?.[AKC_SCENT_WORK_ENTRY_FORM_FIELDS.juniorHandlerNumber]).toBeUndefined();
+  });
+
+  it('reaches the rendered PDF, not just the values object', async () => {
+    const values = buildAKCScentWorkEntryFormValues({ dog: juniorDog('2008-09-18'), trials });
+    const bytes = await fillPdfForm(new Uint8Array(await readFile(templatePath)), values, {
+      flatten: false,
+    });
+    const filled = await PDFDocument.load(bytes);
+    expect(
+      filled.getForm().getTextField(AKC_SCENT_WORK_ENTRY_FORM_FIELDS.juniorHandlerNumber).getText()
+    ).toBe('7654321');
   });
 });

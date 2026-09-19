@@ -3,7 +3,9 @@ import { db } from '../connection';
 import { withTimeout } from '@myk9/core';
 
 const HANDLER_PEOPLE_TIMEOUT_MS = 3000;
-const HANDLER_PEOPLE_FAST_TIMEOUT_MS = 250;
+const HANDLER_PEOPLE_CIRCUIT_COOLDOWN_MS = 30_000;
+
+let handlerHydrationCircuitOpenUntil = 0;
 
 function isOffline(): boolean {
   return typeof navigator !== 'undefined' && navigator.onLine === false;
@@ -115,6 +117,7 @@ export async function loadHandlerPeople(
   // Do not make every replicated entry read wait for the online timeout when
   // the browser has already told us there is no network.
   if (isOffline()) return cached;
+  if (Date.now() < handlerHydrationCircuitOpenUntil) return cached;
 
   const refresh = Promise.resolve()
     .then(() =>
@@ -132,30 +135,24 @@ export async function loadHandlerPeople(
       return new Map((data as HandlerPersonRow[]).map(person => [person.id, person] as const));
     });
 
-  // Show-day reads must not make every replicated query wait through a slow
-  // online timeout. Give a healthy request a short chance to refresh a rename,
-  // then return the safe local result while the authoritative request finishes.
-  const fastResult = await Promise.race([
-    refresh
-      .then(result => ({ kind: 'fresh' as const, result }))
-      .catch(() => ({ kind: 'failed' as const })),
-    new Promise<{ kind: 'deferred' }>(resolve =>
-      setTimeout(() => resolve({ kind: 'deferred' }), HANDLER_PEOPLE_FAST_TIMEOUT_MS)
-    ),
-  ]);
-  if (fastResult.kind === 'fresh' && fastResult.result) {
-    await persistAuthoritativeHandlerPeople(ids, fastResult.result);
-    return fastResult.result;
+  try {
+    const result = await refresh;
+    if (!result) {
+      handlerHydrationCircuitOpenUntil = Date.now() + HANDLER_PEOPLE_CIRCUIT_COOLDOWN_MS;
+      return cached;
+    }
+    handlerHydrationCircuitOpenUntil = 0;
+    await persistAuthoritativeHandlerPeople(ids, result);
+    return result;
+  } catch {
+    handlerHydrationCircuitOpenUntil = Date.now() + HANDLER_PEOPLE_CIRCUIT_COOLDOWN_MS;
+    return cached;
   }
-  if (fastResult.kind === 'failed') return cached;
+}
 
-  // Keep the eventual response useful to the next read without blocking this
-  // one. Cache only successful server data; omitted ids are deliberately
-  // removed so deleted/inaccessible people cannot keep an old printed name.
-  void refresh
-    .then(result => (result ? persistAuthoritativeHandlerPeople(ids, result) : undefined))
-    .catch(() => undefined);
-  return cached;
+/** Test-only reset for the in-memory connectivity circuit. */
+export function resetHandlerHydrationCircuit(): void {
+  handlerHydrationCircuitOpenUntil = 0;
 }
 
 export async function loadMissingHandlerPeopleMap(

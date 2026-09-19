@@ -73,6 +73,10 @@ async function loadShowsMap(): Promise<Map<string, ReplicatedShow>> {
   );
 }
 
+function isBrowserOffline(): boolean {
+  return typeof navigator !== 'undefined' && navigator.onLine === false;
+}
+
 function requireClassJoins(
   entries: readonly ReplicatedEntry[],
   classesMap: ReadonlyMap<string, ReplicatedClass>
@@ -85,7 +89,7 @@ function requireClassJoins(
         .filter((classId): classId is string => Boolean(classId && !classesMap.has(classId)))
     ),
   ];
-  if (missingClassIds.length > 0) {
+  if (missingClassIds.length > 0 && !isBrowserOffline()) {
     throw new Error(`replicated entry class joins unavailable: ${missingClassIds.join(', ')}`);
   }
 }

@@ -343,7 +343,7 @@ export async function moveUpShowMapEntry({
     metadata: {
       targetClassName: targetClass.name,
       destinationEntryId,
-      destinationEntryStatus: destinationEntryStatusFor(previousEntryStatus),
+      destinationEntryStatusRequested: destinationEntryStatusFor(previousEntryStatus),
     },
   });
 

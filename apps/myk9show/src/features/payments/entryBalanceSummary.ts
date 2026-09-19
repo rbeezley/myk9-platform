@@ -104,6 +104,8 @@ export interface EntryBalanceSummary {
   onlineDueCents: number;
   payAtShowDueCents: number;
   onlineShowBalances: EntryBalanceShowSummary[];
+  /** Shows withheld because at least one of their money roots was unresolved. */
+  unresolvedShowIds?: string[];
 }
 
 /**
@@ -263,6 +265,14 @@ export function summarizeEntryBalances(
   if (trustworthyEntries.length === 0 && rootedEntries.length > 0) {
     return UNKNOWN_ENTRY_BALANCE_SUMMARY;
   }
+  const unresolvedShowIds = [
+    ...new Set(
+      rootedEntries
+        .filter(entry => entry.moneyRootUnresolved)
+        .map(entry => entry.showId)
+        .filter(Boolean)
+    ),
+  ];
 
   const showBalances = new Map<string, Omit<EntryBalanceShowSummary, 'paymentHref'>>();
   let currentFeesCents = 0;
@@ -333,6 +343,7 @@ export function summarizeEntryBalances(
     onlineDueCents,
     payAtShowDueCents,
     onlineShowBalances,
+    ...(unresolvedShowIds.length > 0 ? { unresolvedShowIds } : {}),
   };
 }
 

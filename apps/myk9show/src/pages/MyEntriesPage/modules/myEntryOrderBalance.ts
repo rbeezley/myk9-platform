@@ -21,6 +21,7 @@ import {
   summarizeEntryBalances,
   type EntryBalanceSource,
 } from '@/features/payments/entryBalanceSummary';
+import { withResolvedMoneyRoots } from '@/features/financial/moneyRoot';
 import {
   getEntryPaymentPrompt,
   type EntryPaymentPrompt,
@@ -130,8 +131,16 @@ export function buildOrderBalance(
   const sources = toBalanceSources(classes, ctx);
   if (sources.length === 0) return null;
 
-  const eligible = sources.filter(source => isCurrentSummaryEntry(source, now));
-  const summary = summarizeEntryBalances(sources, now);
+  const rootedSources = withResolvedMoneyRoots(sources, (source, root) => ({
+    ...source,
+    paymentStatus: root.paymentStatus,
+    paymentMethod: root.paymentMethod,
+    totalFee: root.totalFee,
+  }));
+  if (rootedSources.some(source => source.moneyRootUnresolved)) return null;
+
+  const eligible = rootedSources.filter(source => isCurrentSummaryEntry(source, now));
+  const summary = summarizeEntryBalances(rootedSources, now);
   if (summary.kind === 'unknown') return null;
   const onlineShow = summary.onlineShowBalances[0];
 
@@ -157,7 +166,7 @@ export function buildOrderBalance(
   // settled status to reconcile. Amount-due totals (`summary` above) are
   // unaffected — they still run on the raw, unfiltered `sources` via
   // `isCurrentSummaryEntry`.
-  const reconciliationSources = sources.filter(
+  const reconciliationSources = rootedSources.filter(
     source =>
       isCurrentSummaryEntry(source, now) ||
       PAID_STATUSES.includes(source.paymentStatus) ||

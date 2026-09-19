@@ -95,6 +95,7 @@ export function AmountDueSection({
   }
 
   if (summary.amountDueCents <= 0) {
+    const hasUnresolvedShows = (summary.unresolvedShowIds?.length ?? 0) > 0;
     return (
       <Card className="border-success/30">
         <CardContent className="flex flex-col gap-2 py-5 sm:flex-row sm:items-center sm:justify-between">
@@ -102,13 +103,18 @@ export function AmountDueSection({
             <h2 className="text-sm font-medium text-muted-foreground">Amount due</h2>
             <p className="text-2xl font-semibold tabular-nums text-success">$0.00</p>
           </div>
-          <p className="text-sm text-muted-foreground">Current entries are paid up.</p>
+          <p className="text-sm text-muted-foreground">
+            {hasUnresolvedShows
+              ? 'Some show balances could not be confirmed yet. Your confirmed balances are paid up.'
+              : 'Current entries are paid up.'}
+          </p>
         </CardContent>
       </Card>
     );
   }
 
   const includesPastBalance = summary.amountDueCents > summary.currentFeesCents;
+  const hasUnresolvedShows = (summary.unresolvedShowIds?.length ?? 0) > 0;
 
   // Shared by every row so the multi-show breakdown can never disagree with
   // the single-show line about what day it is.
@@ -128,6 +134,12 @@ export function AmountDueSection({
   return (
     <Card className="border-warning/40">
       <CardContent className="space-y-4 py-5">
+        {hasUnresolvedShows && (
+          <p role="status" className="text-sm text-muted-foreground">
+            Some show balances could not be confirmed yet; the amount shown covers confirmed
+            balances only.
+          </p>
+        )}
         <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
           <div>
             <h2 className="text-sm font-medium text-muted-foreground">Amount due</h2>

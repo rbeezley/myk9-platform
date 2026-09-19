@@ -58,6 +58,31 @@ describe('buildOrderBalance', () => {
     expect(balance).toBeNull();
   });
 
+  it('reconciles moved-up payment status from the money root', () => {
+    const balance = buildOrderBalance(
+      [
+        makeClass({
+          id: 'source',
+          entryStatus: EntryStatus.MOVED,
+          paymentStatus: PaymentStatus.PAID_ONLINE,
+          fee: 35,
+        }),
+        makeClass({
+          id: 'destination',
+          entryStatus: EntryStatus.ACCEPTED,
+          paymentStatus: PaymentStatus.PENDING,
+          movedFromEntryId: 'source',
+          fee: 0,
+        }),
+      ],
+      makeCtx(),
+      NOW
+    );
+
+    expect(balance?.paymentStatus).toBe(PaymentStatus.PAID_ONLINE);
+    expect(balance?.amountDueCents).toBe(0);
+  });
+
   it('preserves an explicit null payment method instead of inheriting a paid-cash sibling', () => {
     // c1 is a cash row (sets the order's fallback paymentMethod); c2 has no
     // resolved payment method yet (null, not undefined) — a still-unresolved

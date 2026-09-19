@@ -136,7 +136,9 @@ COMMENT ON FUNCTION public.reverse_move_up_entry(uuid) IS
   'total_incorrect_finds, no_finish_count or total_score. Also refuses when a '
   'newer live move-up successor already superseded the destination. Touches no '
   'money: after MYK9-639 the destination never held any. Restates can_manage_show '
-  'on BOTH the destination''s and the source''s show, and requires them to be the same show.';
+  'on BOTH the destination''s and the source''s show, and requires them to be the same show; '
+  'the source check closes the privilege-escalation hole where a manager could otherwise '
+  'restore an entry from another show.';
 
 NOTIFY pgrst, 'reload schema';
 

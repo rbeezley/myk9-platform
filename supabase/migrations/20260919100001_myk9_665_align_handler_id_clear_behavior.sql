@@ -50,7 +50,7 @@ BEGIN
   v_is_official := (
     public.is_site_admin()
     OR public.is_show_secretary(v_show_id)
-    OR public.is_club_admin(v_show_club_id)
+    OR (v_show_club_id IS NOT NULL AND public.is_club_admin(v_show_club_id))
   );
   v_should_clear_handler_id := v_is_official AND p_clear_handler_id;
 
@@ -84,6 +84,11 @@ BEGIN
        AND p_handler_id IN (v_person_id, d.owner_id, d.co_owner_id)
   ) THEN
     RAISE EXCEPTION 'Not authorized: caller cannot assign handler %', p_handler_id
+      USING ERRCODE = '42501';
+  END IF;
+
+  IF p_handler_id IS NULL AND p_clear_handler_id THEN
+    RAISE EXCEPTION 'Not authorized: exhibitors cannot clear handler_id'
       USING ERRCODE = '42501';
   END IF;
 

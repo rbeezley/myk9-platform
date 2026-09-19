@@ -52,13 +52,14 @@ describe('submit_show_entries migration authorization', () => {
     const migration = readFileSync(
       resolve(
         process.cwd(),
-        '../../supabase/migrations/20260707123000_entry_management_handler_corrections.sql'
+        '../../supabase/migrations/20260919100001_myk9_665_align_handler_id_clear_behavior.sql'
       ),
       'utf8'
     );
 
     expect(migration).not.toContain('concat_ws');
-    expect(migration).toContain('WHEN p_clear_handler_id THEN NULL');
+    expect(migration).toContain('v_show_club_id IS NOT NULL');
+    expect(migration).toContain('WHEN v_should_clear_handler_id THEN NULL');
     expect(migration).toContain('ELSE v_existing_handler_id');
   });
 

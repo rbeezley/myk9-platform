@@ -71,31 +71,49 @@ begin
   if expected_error is not null and (actual_error is null or actual_error not like expected_error) then
     raise exception 'FAIL caller %, expected %; got %', caller, expected_error, actual_error;
   end if;
+  raise notice 'PASS handler update for %', caller;
 end;
 $$;
 
 -- An exhibitor cannot clear the load-bearing link, even if an untrusted caller
 -- supplies true. The handler-only caller remains able to edit the entry after it.
 select pg_temp.call_handler_update(
-  '00000000-0000-0000-0000-000000665102', 'MYK9-665 Renamed Handler', true);
+  '00000000-0000-0000-0000-000000665102', 'MYK9-665 Renamed Handler', true,
+  'Not authorized: exhibitors cannot clear handler_id');
 do $$
 begin
   if (select handler_id from public.entries where id = '00000000-0000-0000-0000-000000665031')
     <> '00000000-0000-0000-0000-000000665012'::uuid then
     raise exception 'FAIL exhibitor clear changed handler_id';
   end if;
+  if (select handler from public.entries where id = '00000000-0000-0000-0000-000000665031')
+    <> 'MYK9-665 Handler' then
+    raise exception 'FAIL rejected exhibitor clear changed handler';
+  end if;
 end;
 $$;
 select pg_temp.call_handler_update(
   '00000000-0000-0000-0000-000000665102', 'MYK9-665 Handler Again', false);
+do $$
+begin
+  if (select handler from public.entries where id = '00000000-0000-0000-0000-000000665031')
+    <> 'MYK9-665 Handler Again' then
+    raise exception 'FAIL exhibitor edit did not update handler text';
+  end if;
+end;
+$$;
 
 -- An official may explicitly clear the link.
 select pg_temp.call_handler_update(
   '00000000-0000-0000-0000-000000665103', 'MYK9-665 Corrected Handler', true);
 do $$
 begin
-  if (select handler_id from public.entries where id = '00000000-0000-0000-0000-000000665031') is not null then
+if (select handler_id from public.entries where id = '00000000-0000-0000-0000-000000665031') is not null then
     raise exception 'FAIL official clear did not clear handler_id';
+  end if;
+  if (select handler from public.entries where id = '00000000-0000-0000-0000-000000665031')
+    <> 'MYK9-665 Corrected Handler' then
+    raise exception 'FAIL official clear did not update handler text';
   end if;
 end;
 $$;

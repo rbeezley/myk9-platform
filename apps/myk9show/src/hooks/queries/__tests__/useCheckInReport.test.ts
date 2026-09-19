@@ -88,6 +88,18 @@ describe('groupEntriesByExhibitor', () => {
     expect(groups.map(group => group.handlerName)).toEqual(['Alex Assigned', 'Jordan Proxy']);
   });
 
+  it('merges id-backed and text-only rows with the same printed handler identity', () => {
+    const entries = [
+      makeEntry({ id: 'e1', class_id: 'c1' }),
+      makeEntry({ id: 'e2', class_id: 'c2', handler_id: '' }),
+    ];
+
+    const groups = groupEntriesByExhibitor(entries);
+
+    expect(groups).toHaveLength(1);
+    expect(groups[0].entries).toHaveLength(2);
+  });
+
   it('sorts groups by armband number', () => {
     const entries = [
       makeEntry({ id: 'e1', dog_id: 'dog-2', armband_number: 200, dog_call_name: 'Ziggy' }),

@@ -84,13 +84,12 @@ export function groupEntriesByExhibitor(rows: CheckInEntryRow[]): ExhibitorCheck
   >();
 
   for (const row of rows) {
+    const printedHandlerName = [row.handler_first_name, row.handler_last_name]
+      .filter(Boolean)
+      .join(' ');
     const handlerKey = row.handler_id?.trim()
-      ? `id:${row.handler_id.trim()}`
-      : `text:${
-          normalizeHandlerName(
-            [row.handler_first_name, row.handler_last_name].filter(Boolean).join(' ')
-          ) || 'unknown'
-        }`;
+      ? `name:${normalizeHandlerName(printedHandlerName) || `id:${row.handler_id.trim()}`}`
+      : `name:${normalizeHandlerName(printedHandlerName) || 'unknown'}`;
     const key = `${row.dog_id}:${handlerKey}`;
     const status = row.check_in_status || 'no-status';
     if (!map.has(key)) {

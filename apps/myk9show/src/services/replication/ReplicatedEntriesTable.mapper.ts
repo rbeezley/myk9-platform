@@ -1,19 +1,10 @@
 import type { CheckInStatus } from '@myk9/core';
 import type { Database } from '@/types/supabase';
+import { optionalColumn } from './optionalColumn';
 
 /**
  * Database row type from Supabase schema.
  */
-
-/**
- * Reads a column that may not exist on the generated row type yet (a migration
- * that has not been applied, or types not regenerated since). Returns undefined
- * rather than throwing so a pre-migration database still maps cleanly.
- */
-function optionalColumn(row: unknown, column: string): string | undefined {
-  const value = (row as Record<string, unknown>)[column];
-  return typeof value === 'string' ? value : undefined;
-}
 
 export type EntryRow = Database['public']['Tables']['entries']['Row'];
 

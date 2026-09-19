@@ -21,6 +21,8 @@ import { buildMapFromArray } from '../_shared/maps';
 import { withTimeout, DEFAULT_TIMEOUT_MS } from '@myk9/core';
 import { buildReplicatedUserEntryRows } from './userEntriesReplication';
 import { applyOrderReferenceRule } from './orderReferenceRule';
+import { USER_ENTRIES_SELECT, buildUserEntriesSelect } from './userEntriesSelect';
+export { USER_ENTRIES_SELECT } from './userEntriesSelect';
 import { selectOwnedDogIds } from '@/utils/dogOwnership';
 import {
   isWithdrawalReasonCodeSchemaUnavailable,
@@ -55,131 +57,6 @@ export type UserEntriesSource = 'confirmed' | 'replica-offline' | 'replica-after
  */
 export function isMoneyConfirmed(source: UserEntriesSource): boolean {
   return source === 'confirmed';
-}
-
-/**
- * Columns the MyEntries mapper reads (transformEntry). Keep in sync with the
- * replication path — a dropped column silently renders as a default on the
- * PostgREST fallback (e.g. a missing `check_in_status` reads as "Not Checked In"
- * even after a persisted check-in).
- */
-export const USER_ENTRIES_SELECT = `
-      id,
-      dog_id,
-      show_id,
-      class_id,
-      trial_id,
-      handler,
-      handler_id,
-      payment_status,
-      payment_method,
-      entry_status,
-      check_in_status,
-      entry_fee,
-      armband,
-      run_order,
-      jump_height,
-      special_requests,
-      is_scored,
-      result_status,
-      search_time_seconds,
-      total_faults,
-      final_placement,
-      class_results_released_at,
-      dog_image_url,
-      deleted_at,
-      refund_amount,
-      refunded_at,
-      submitted_at,
-      created_at,
-      updated_at,
-      registration_id,
-      registration:registration_id (
-        id,
-        confirmation_number,
-        payment_status,
-        payment_reference,
-        paid_amount
-      ),
-      dog:dog_id (
-        id,
-        name,
-        call_name,
-        breed
-      ),
-      show:show_id (
-        id,
-        name,
-        deleted_at,
-        status,
-        start_date,
-        end_date,
-        entry_close_date,
-        venue_name,
-        city,
-        state,
-        trials:trials (
-          id,
-          date,
-          timezone
-        )
-      ),
-      class:class_id (
-        id,
-        name,
-        class_number,
-        trial:trial_id (
-          id,
-          trial_type,
-          date,
-          trial_number,
-          timezone
-        )
-      ),
-      trial:trial_id (
-        id,
-        trial_type,
-        date,
-        trial_number,
-        timezone
-      )
-    `;
-
-/**
- * The base select PLUS whichever migration-backed view columns this database is
- * known to have.
- *
- * Two of them exist — MYK9-632's `withdrawal_reason_code` (20260918041700) and
- * MYK9-659's `registration_confirmation_number` (20260919130100) — and they are
- * INDEPENDENT, so each is dropped on its own rather than taking the other down
- * with it. Same shape as `postgrestGetSecretaryPullMetadataMap`.
- *
- * Why either is optional at all: until its migration is pushed, naming the
- * column fails the WHOLE query with 42703. That would not merely drop a badge
- * suffix or an order reference — `getUserEntries` reads a failed view read as
- * "fall back to the per-show replica", and `/my-entries` is a cross-show route
- * that never syncs one, so My Shows, My Payments and the exhibitor dashboard
- * would all go empty for the window between this branch merging and the push.
- * The read therefore asks for each column and drops it for the rest of the read
- * if the server says it is not there, through the same `is…SchemaUnavailable`
- * seams `postgrestGetSecretaryPullMetadataMap` already uses.
- *
- * Built by interpolation rather than spelled out per combination: supabase-js
- * parses the select string at the TYPE level and cannot parse this one anyway
- * (the constant's trailing whitespace already defeated it), which is why
- * `postgrestGetUserEntries` casts through `unknown`. `search.test.ts` is what
- * pins the column list and the drop-and-retry behaviour.
- */
-export function buildUserEntriesSelect(options: {
-  includeReasonCode: boolean;
-  includeRegistrationConfirmationNumber: boolean;
-}): string {
-  const optional = [
-    options.includeReasonCode ? 'withdrawal_reason_code' : null,
-    options.includeRegistrationConfirmationNumber ? 'registration_confirmation_number' : null,
-  ].filter((column): column is string => column !== null);
-  if (optional.length === 0) return USER_ENTRIES_SELECT;
-  return `${USER_ENTRIES_SELECT},\n      ${optional.join(',\n      ')}`;
 }
 
 // Routes own-entry reads through the cascade-aware authenticated view so scored

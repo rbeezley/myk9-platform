@@ -217,7 +217,7 @@ describe('EntryListCard - check-in button affordance', () => {
    * MYK9-639: a destination whose paying source did not come back in the read
    * shows its own $0 fee. Without this the number reads as a settled figure.
    */
-  it('says so when the entry holding this run\'s money is not loaded', () => {
+  it("says so when the entry holding this run's money is not loaded", () => {
     render(
       <EntryListCard {...defaultProps} entries={[makeEntry({ moneyRootUnresolved: true })]} />
     );

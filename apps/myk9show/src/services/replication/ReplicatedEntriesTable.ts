@@ -90,6 +90,22 @@ type MoveUpRpcReturns<Fn extends MoveUpRpcName> = Database['public']['Functions'
 export const WITHDRAW_OWN_ENTRY_RPC = 'withdraw_own_entry';
 
 const ENTRIES_REPLICATION_PAGE_SIZE = 1000;
+const RECEIPT_REFERENCE_REFRESH_VERSION = 1;
+const RECEIPT_REFERENCE_REFRESH_KEY = 'myk9:entries:receipt-reference-refresh';
+
+function receiptReferenceRefreshStorageKey(showId: string): string {
+  return `${RECEIPT_REFERENCE_REFRESH_KEY}:v${RECEIPT_REFERENCE_REFRESH_VERSION}:${showId}`;
+}
+
+function hasReceiptReferenceRefresh(showId: string): boolean {
+  if (typeof localStorage === 'undefined') return false;
+  return localStorage.getItem(receiptReferenceRefreshStorageKey(showId)) === 'complete';
+}
+
+function markReceiptReferenceRefresh(showId: string): void {
+  if (typeof localStorage === 'undefined') return;
+  localStorage.setItem(receiptReferenceRefreshStorageKey(showId), 'complete');
+}
 
 /**
  * Project a replicated entry onto the withdraw predicate's input.
@@ -207,6 +223,9 @@ export class ReplicatedEntriesTable extends ReplicatedTable<ReplicatedEntry> {
 
   private async syncShow(showScopeId: string): Promise<SyncResult> {
     logger.log(`[${this.getTableName()}] Starting sync`);
+    const needsReceiptReferenceRefresh = !hasReceiptReferenceRefresh(showScopeId);
+    let remoteRowCount: number | undefined;
+    let receiptReferenceColumnObserved = false;
 
     const adapter: SyncReplicatedTableAdapter<EntryRow, ReplicatedEntry> = {
       getRemoteRowCount: async () => {
@@ -225,7 +244,8 @@ export class ReplicatedEntriesTable extends ReplicatedTable<ReplicatedEntry> {
             return undefined;
           }
 
-          return count ?? 0;
+          remoteRowCount = count ?? 0;
+          return remoteRowCount;
         } catch (error) {
           logger.warn(
             `[${showScopeId}] Entries coverage count unavailable; continuing sync`,
@@ -242,21 +262,35 @@ export class ReplicatedEntriesTable extends ReplicatedTable<ReplicatedEntry> {
         // their own entries with result columns nulled by the release cascade.
         // The view flattens dog display fields as dog_call_name/dog_breed.
         const rows: EntryRow[] = [];
-        for (let page = 0; ; page++) {
-          const from = page * ENTRIES_REPLICATION_PAGE_SIZE;
-          const to = from + ENTRIES_REPLICATION_PAGE_SIZE - 1;
-          let query = supabase
-            .from('view_authenticated_entry_results_replication')
-            .select('*')
-            .gt('updated_at', new Date(since).toISOString())
-            .order('updated_at', { ascending: true })
+        const upperBound = new Date().toISOString();
+        let cursorUpdatedAt: string | null = null;
+        let cursorId: string | null = null;
+
+        for (;;) {
+          let query = supabase.from('view_authenticated_entry_results_replication').select('*');
+
+          if (typeof query.lte === 'function') {
+            query = query.lte('updated_at', upperBound);
+          }
+
+          if (cursorUpdatedAt && cursorId && typeof query.or === 'function') {
+            query = query.or(
+              `updated_at.gt.${cursorUpdatedAt},and(updated_at.eq.${cursorUpdatedAt},id.gt.${cursorId})`
+            );
+          } else {
+            query = query.gt('updated_at', new Date(since).toISOString());
+          }
+
+          query = query.order('updated_at', { ascending: true });
           if (typeof query.order === 'function') {
             query = query.order('id', { ascending: true });
           }
 
           query = query.eq('show_id', showScopeId);
           const response =
-            typeof query.range === 'function' ? await query.range(from, to) : await query;
+            typeof query.range === 'function'
+              ? await query.range(0, ENTRIES_REPLICATION_PAGE_SIZE - 1)
+              : await query;
 
           if (response.error) {
             throw new Error(`Entries refresh failed: ${response.error.message}`);
@@ -264,7 +298,19 @@ export class ReplicatedEntriesTable extends ReplicatedTable<ReplicatedEntry> {
 
           const pageRows = (response.data ?? []) as unknown as EntryRow[];
           rows.push(...pageRows);
+          if (
+            pageRows.some(row =>
+              Object.prototype.hasOwnProperty.call(row, 'registration_confirmation_number')
+            )
+          ) {
+            receiptReferenceColumnObserved = true;
+          }
           if (pageRows.length < ENTRIES_REPLICATION_PAGE_SIZE) return rows;
+
+          const lastRow = pageRows[pageRows.length - 1];
+          if (!lastRow?.updated_at || !lastRow.id) return rows;
+          cursorUpdatedAt = String(lastRow.updated_at);
+          cursorId = String(lastRow.id);
         }
       },
       getRemoteId: remote => {
@@ -312,9 +358,18 @@ export class ReplicatedEntriesTable extends ReplicatedTable<ReplicatedEntry> {
       adapter,
       { value: showScopeId },
       {
+        forceFullSync: needsReceiptReferenceRefresh,
         incrementalBufferMs: REPLICATION_INCREMENTAL_BUFFER_MS_HIGH_CHURN,
       }
     );
+
+    if (
+      needsReceiptReferenceRefresh &&
+      result.success &&
+      (receiptReferenceColumnObserved || remoteRowCount === 0)
+    ) {
+      markReceiptReferenceRefresh(showScopeId);
+    }
 
     if (!result.success && result.error && !isAbortSyncError(result.error)) {
       logger.error(`[${this.getTableName()}] Sync failed:`, result.error);

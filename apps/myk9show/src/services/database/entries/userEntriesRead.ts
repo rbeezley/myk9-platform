@@ -83,12 +83,13 @@ async function postgrestGetUserEntries() {
   // single signal across every page stops the orphaned paging at the same
   // instant the caller gives up.
   const deadline = AbortSignal.timeout(USER_ENTRIES_VIEW_TIMEOUT_MS);
+  const upperBound = new Date().toISOString();
+  let cursorCreatedAt: string | null = null;
+  let cursorId: string | null = null;
 
   for (let page = 0; page < USER_ENTRIES_MAX_PAGES; page++) {
-    const from = page * USER_ENTRIES_PAGE_SIZE;
-    const to = from + USER_ENTRIES_PAGE_SIZE - 1;
-    const runPage = () =>
-      supabase
+    const runPage = () => {
+      let query = supabase
         .from('view_authenticated_entry_results')
         .select(
           buildUserEntriesSelect({ includeReasonCode, includeRegistrationConfirmationNumber })
@@ -101,8 +102,20 @@ async function postgrestGetUserEntries() {
         .eq('is_own_entry', true)
         .order('created_at', { ascending: false })
         .order('id', { ascending: false })
-        .abortSignal(deadline)
-        .range(from, to);
+        .abortSignal(deadline);
+
+      if (typeof query.lte === 'function') {
+        query = query.lte('created_at', upperBound);
+      }
+
+      if (cursorCreatedAt && cursorId) {
+        query = query.or(
+          `created_at.lt.${cursorCreatedAt},and(created_at.eq.${cursorCreatedAt},id.lt.${cursorId})`
+        );
+      }
+
+      return query.range(0, USER_ENTRIES_PAGE_SIZE - 1);
+    };
 
     let response;
     while (true) {
@@ -162,6 +175,17 @@ async function postgrestGetUserEntries() {
     if (pageRows.length < USER_ENTRIES_PAGE_SIZE) {
       return { data: rows, error: null };
     }
+
+    const lastRow = pageRows[pageRows.length - 1];
+    if (!lastRow?.created_at || !lastRow.id) {
+      throw createDatabaseError(
+        new Error('User entries page is missing its stable pagination cursor'),
+        'view_authenticated_entry_results',
+        'select_user_entries'
+      );
+    }
+    cursorCreatedAt = String(lastRow.created_at);
+    cursorId = String(lastRow.id);
   }
 
   throw createDatabaseError(

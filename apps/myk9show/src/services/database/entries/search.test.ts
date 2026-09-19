@@ -78,6 +78,7 @@ function makeViewEntriesQuery(
   pages?: Array<Array<Record<string, unknown>>>
 ) {
   let selectedData = data;
+  let pageIndex = 0;
   const query = {
     // Typed with its argument so a test can assert WHICH columns were asked for
     // (MYK9-632's optional `withdrawal_reason_code`), not merely that a select
@@ -85,10 +86,13 @@ function makeViewEntriesQuery(
     select: vi.fn((_columns: string) => query),
     is: vi.fn(() => query),
     eq: vi.fn(() => query),
+    lte: vi.fn(() => query),
+    or: vi.fn(() => query),
     order: vi.fn(() => query),
     abortSignal: vi.fn(() => query),
     range: vi.fn((from: number) => {
-      if (pages) selectedData = pages[Math.floor(from / 1000)] ?? [];
+      if (pages)
+        selectedData = pages[pages.length > 1 ? pageIndex++ : Math.floor(from / 1000)] ?? [];
       return Promise.resolve({ data: selectedData, error });
     }),
   };
@@ -650,9 +654,12 @@ describe('getUserEntries account-scope read', () => {
   // fetching pages nobody awaits after withTimeout has already won.
   it('shares one abort signal across every page of the view read', async () => {
     mockReplicatedStores();
-    const firstPage = Array.from({ length: 1000 }, (_, index) => ({ id: `entry-${index}` }));
+    const firstPage = Array.from({ length: 1000 }, (_, index) => ({
+      id: `entry-${index}`,
+      created_at: `2026-06-05T12:00:${String(index % 60).padStart(2, '0')}.000Z`,
+    }));
     const { viewQuery } = mockSupabaseTables({
-      viewEntryPages: [firstPage, [{ id: 'entry-1000' }]],
+      viewEntryPages: [firstPage, [{ id: 'entry-1000', created_at: '2026-06-05T12:16:40.000Z' }]],
     });
 
     await getUserEntries('user-1');
@@ -713,9 +720,13 @@ describe('getUserEntries account-scope read', () => {
 
   it("fetches every page when the account has more than PostgREST's 1000-row cap", async () => {
     mockReplicatedStores();
-    const firstPage = Array.from({ length: 1000 }, (_, index) => ({ id: `entry-${index}` }));
+    const firstPage = Array.from({ length: 1000 }, (_, index) => ({
+      id: `entry-${index}`,
+      created_at: `2026-06-05T12:00:${String(index % 60).padStart(2, '0')}.000Z`,
+    }));
     const secondPage = Array.from({ length: 231 }, (_, index) => ({
       id: `entry-${1000 + index}`,
+      created_at: `2026-06-05T12:16:${String(index).padStart(2, '0')}.000Z`,
     }));
     const { viewQuery } = mockSupabaseTables({
       viewEntryPages: [firstPage, secondPage],
@@ -730,7 +741,7 @@ describe('getUserEntries account-scope read', () => {
       ...secondPage.map(entry => entry.id),
     ]);
     expect(viewQuery.range).toHaveBeenNthCalledWith(1, 0, 999);
-    expect(viewQuery.range).toHaveBeenNthCalledWith(2, 1000, 1999);
+    expect(viewQuery.range).toHaveBeenNthCalledWith(2, 0, 999);
   });
 
   it('keeps an empty local result when the account-level online read fails offline', async () => {

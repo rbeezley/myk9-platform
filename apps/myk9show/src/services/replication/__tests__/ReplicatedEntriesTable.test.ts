@@ -1244,14 +1244,18 @@ describe('ReplicatedEntriesTable', () => {
           updated_at: '2026-06-05T12:16:40.000Z',
         },
       ];
-      const mockRange = vi.fn((from: number) =>
-        Promise.resolve({ data: from === 0 ? firstPage : secondPage, error: null })
+      let pageIndex = 0;
+      const mockRange = vi.fn(() =>
+        Promise.resolve({ data: pageIndex++ === 0 ? firstPage : secondPage, error: null })
       );
-      const mockEq = vi.fn().mockReturnValue({ range: mockRange });
-      const mockOrderById = vi.fn().mockReturnValue({ eq: mockEq });
-      const mockOrder = vi.fn().mockReturnValue({ order: mockOrderById });
-      const mockGt = vi.fn().mockReturnValue({ order: mockOrder });
-      const mockSelect = vi.fn().mockReturnValue({ gt: mockGt });
+      const mockQuery = {
+        gt: vi.fn(() => mockQuery),
+        or: vi.fn(() => mockQuery),
+        order: vi.fn(() => mockQuery),
+        eq: vi.fn(() => mockQuery),
+        range: mockRange,
+      };
+      const mockSelect = vi.fn().mockReturnValue(mockQuery);
 
       vi.mocked(supabaseMock.from).mockReturnValue({
         select: mockSelect,
@@ -1261,7 +1265,8 @@ describe('ReplicatedEntriesTable', () => {
 
       expect(result.success).toBe(true);
       expect(mockRange).toHaveBeenNthCalledWith(1, 0, 999);
-      expect(mockRange).toHaveBeenNthCalledWith(2, 1000, 1999);
+      expect(mockRange).toHaveBeenNthCalledWith(2, 0, 999);
+      expect(mockQuery.or).toHaveBeenCalledWith(expect.stringContaining('updated_at.gt.'));
       await expect(table.get('entry-1000')).resolves.toMatchObject({
         id: 'entry-1000',
       });
@@ -1313,6 +1318,10 @@ describe('ReplicatedEntriesTable', () => {
           syncStatus: 'idle',
         },
         { scopeValue: TEST_LICENSE_KEY }
+      );
+      localStorage.setItem(
+        'myk9:entries:receipt-reference-refresh:v1:' + TEST_LICENSE_KEY,
+        'complete'
       );
 
       const mockQueryChain = {

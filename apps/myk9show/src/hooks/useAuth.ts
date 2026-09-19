@@ -48,6 +48,12 @@ function withTimeout<T>(promise: Promise<T>, timeoutMs: number, message: string)
  * Extracted from onAuthStateChange so it runs in the background without blocking signOut.
  */
 async function createOAuthPeopleRecord(userId: string, sessionUser: User) {
+  // Capture this synchronously before the record setup awaits any database
+  // work. AuthCallbackPage navigates away as soon as the session is available.
+  const requestedRoles = decodeOAuthRoleIntent(
+    new URL(window.location.href).searchParams.get(OAUTH_ROLE_INTENT_PARAM)
+  );
+
   const { data: existing } = await supabase
     .from('people')
     .select('id')
@@ -105,9 +111,6 @@ async function createOAuthPeopleRecord(userId: string, sessionUser: User) {
     }
   }
 
-  const requestedRoles = decodeOAuthRoleIntent(
-    new URL(window.location.href).searchParams.get(OAUTH_ROLE_INTENT_PARAM)
-  );
   if (requestedRoles.length > 0) {
     const { error } = await (supabase.rpc as CallableFunction)('submit_signup_role_requests', {
       p_intended_roles: requestedRoles,

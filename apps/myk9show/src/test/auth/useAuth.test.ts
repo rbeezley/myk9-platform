@@ -620,6 +620,63 @@ describe('useAuth', () => {
       });
     });
 
+    it('captures OAuth role intent before callback navigation can replace the URL', async () => {
+      const oauthUser: User = {
+        ...mockUser,
+        app_metadata: { provider: 'google' },
+        user_metadata: { given_name: 'Jane', family_name: 'Doe' },
+      };
+      let resolveExisting!: (value: { data: null; error: null }) => void;
+      const existingLookup = new Promise<{ data: null; error: null }>(resolve => {
+        resolveExisting = resolve;
+      });
+      const selectChain = {
+        select: vi.fn().mockReturnThis(),
+        eq: vi.fn().mockReturnThis(),
+        maybeSingle: vi.fn(() => existingLookup),
+      };
+      const insertChain = {
+        insert: vi.fn().mockReturnValue({
+          select: vi.fn().mockReturnValue({
+            single: vi.fn().mockResolvedValue({ data: { id: 'new-person-id' }, error: null }),
+          }),
+        }),
+      };
+      const profileInsertChain = { insert: vi.fn().mockResolvedValue({ data: {}, error: null }) };
+      let authChangeCallback: (event: string, session: { user: User } | null) => void;
+      mockSupabase.auth.onAuthStateChange.mockImplementation(
+        (cb: (event: string, session: { user: User } | null) => void) => {
+          authChangeCallback = cb;
+          return { data: { subscription: { unsubscribe: vi.fn() } } };
+        }
+      );
+      let fromCallCount = 0;
+      mockSupabase.from.mockImplementation((table: string) => {
+        if (table === 'people') {
+          fromCallCount++;
+          if (fromCallCount === 1) return selectChain;
+          if (fromCallCount === 2) return insertChain;
+        }
+        if (table === 'exhibitor_profiles') return profileInsertChain;
+        return createChainableQuery();
+      });
+      mockSupabase.rpc.mockReturnValue({ data: null, error: null });
+      window.history.pushState({}, '', '/auth/callback?requestedRoles=club_officer');
+
+      renderHook(() => useAuth());
+
+      await act(async () => {
+        authChangeCallback!('SIGNED_IN', { user: oauthUser });
+        window.history.pushState({}, '', '/');
+        resolveExisting({ data: null, error: null });
+      });
+
+      expect(mockSupabase.rpc).toHaveBeenCalledWith('submit_signup_role_requests', {
+        p_intended_roles: ['club_officer'],
+      });
+      window.history.pushState({}, '', '/');
+    });
+
     it('should not create people record if one already exists', async () => {
       const oauthUser: User = {
         ...mockUser,

@@ -69,7 +69,13 @@ const UserEditForm: React.FC<{ userId: string; canWritePrivateFields: boolean }>
   // as empty. Do not reset edits already made while the detail read is in
   // flight.
   useEffect(() => {
-    if (!form || !hydratedUser || form.hasChanges || hydratedUserIdRef.current === hydratedUser.id)
+    if (
+      !form ||
+      !hydratedUser ||
+      hydratedUser.privateFieldsReadComplete !== true ||
+      form.hasChanges ||
+      hydratedUserIdRef.current === hydratedUser.id
+    )
       return;
     hydratedUserIdRef.current = hydratedUser.id;
     form.reset(userToFormData(hydratedUser));

@@ -14,7 +14,11 @@
  * pipeline feeding it (LESSON last-hop-drop, pointing the other way).
  */
 import { describe, expect, it } from 'vitest';
-import { mapDbUserToUser, mapUserToDbUpdate } from '@/hooks/queries/useUsersQuery';
+import {
+  mapDbUserToUser,
+  mapUserToDbUpdate,
+  mergeUserMutationResult,
+} from '@/hooks/queries/useUsersQuery';
 import { buildUserEditSavePayload } from '@/components/users/UserDetails/userEditSavePayload';
 import { formDataToUser, userToFormData } from './UserEditPanel.helpers';
 import type { UserFormData } from './UserEditPanel.types';
@@ -62,6 +66,22 @@ function saveThrough(
 }
 
 describe('a save from /admin/users does not wipe what it never loaded', () => {
+  it('keeps complete private fields when a public-only save returns an incomplete row', () => {
+    const cached = mergeUserMutationResult(
+      {
+        ...mapDbUserToUser(DIRECTORY_ROW),
+        privateFieldsReadComplete: true,
+      },
+      { id: 'person-1', firstName: 'Mariana', lastName: 'Rivera', phone: '555-0200' },
+      { phone: '555-0200' }
+    );
+
+    expect(cached.phone).toBe('555-0200');
+    expect(cached.dateOfBirth).toBe('2011-03-04');
+    expect(cached.juniorHandlerNumbers).toEqual({ AKC: '7654321' });
+    expect(cached.privateFieldsReadComplete).toBe(true);
+  });
+
   it('marshals the edit panel payload before the atomic private-profile save', () => {
     const update = mapUserToDbUpdate(
       buildUserEditSavePayload(

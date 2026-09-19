@@ -27,6 +27,8 @@ export interface User {
    * Read it with `getJuniorHandlerNumber`, never by raw key access.
    */
   juniorHandlerNumbers?: Record<string, string> | undefined;
+  /** True only when the private profile RPC completed for this user. */
+  privateFieldsReadComplete?: boolean | undefined;
   membershipId?: string | undefined;
   clubAffiliations?: string[] | undefined;
   roles?: UserRole[] | undefined;

@@ -28,6 +28,7 @@ export interface AdminUser extends User {
 type PrivateUserFields = {
   date_of_birth?: string | null;
   junior_handler_numbers?: unknown;
+  privateFieldsReadComplete?: boolean;
 };
 
 /**
@@ -63,6 +64,9 @@ export const mapDbUserToUser = (dbUser: MappableDbUser): User => ({
   // the other (LESSON last-hop-drop).
   dateOfBirth: dbUser.date_of_birth || undefined,
   juniorHandlerNumbers: normalizeJuniorHandlerNumbers(dbUser.junior_handler_numbers),
+  ...(dbUser.privateFieldsReadComplete !== undefined && {
+    privateFieldsReadComplete: dbUser.privateFieldsReadComplete,
+  }),
   roles: extractRoles(dbUser as unknown as Record<string, unknown>),
   createdAt: dbUser.created_at ? new Date(dbUser.created_at) : undefined,
   updatedAt: dbUser.updated_at ? new Date(dbUser.updated_at) : undefined,
@@ -114,6 +118,25 @@ export const updateUserFromUi = async (id: string, updates: Partial<User>): Prom
   }
   return mapDbUserToUser(result.data);
 };
+
+export function mergeUserMutationResult(
+  previousUser: User | undefined,
+  updatedUser: User,
+  updates: Partial<User>
+): User {
+  const privateFieldsChanged =
+    updates.dateOfBirth !== undefined || updates.juniorHandlerNumbers !== undefined;
+  if (previousUser?.privateFieldsReadComplete === true && !privateFieldsChanged) {
+    return {
+      ...updatedUser,
+      dateOfBirth: previousUser.dateOfBirth,
+      juniorHandlerNumbers: previousUser.juniorHandlerNumbers,
+      privateFieldsReadComplete: true,
+    };
+  }
+
+  return { ...updatedUser, privateFieldsReadComplete: privateFieldsChanged };
+}
 
 // User database service implementation
 const UserService = {
@@ -351,8 +374,15 @@ export function useUpdateUserMutation() {
   return useMutation({
     mutationFn: ({ id, updates }: { id: string; updates: Partial<User> }) =>
       updateUserFromUi(id, updates),
-    onSuccess: (updatedUser: User) => {
-      queryClient.setQueryData(queryKeys.users.detail(updatedUser.id), updatedUser);
+    onSuccess: (updatedUser: User, variables) => {
+      const detailKey = queryKeys.users.detail(updatedUser.id);
+      const previousUser = queryClient.getQueryData<User>(detailKey);
+      const cachedUser = mergeUserMutationResult(previousUser, updatedUser, variables.updates);
+
+      queryClient.setQueryData(detailKey, cachedUser);
+      // A public-only result is not a complete replacement for the detail
+      // record. Refetch it so a reopen cannot latch the incomplete cache.
+      queryClient.invalidateQueries({ queryKey: detailKey });
 
       queryClient.setQueryData(queryKeys.users.all, (oldData: User[] | undefined) => {
         if (!oldData) return [updatedUser];

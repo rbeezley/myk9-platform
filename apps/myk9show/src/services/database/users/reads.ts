@@ -125,7 +125,7 @@ export const getUserById = async (id: string) => {
         }
       : data;
     const [person] = await hydrateVisibleRoles([row]);
-    return { data: person, error: null };
+    return { data: { ...person, privateFieldsReadComplete: true }, error: null };
   } catch (error) {
     const duration = Date.now() - startTime;
     const dbError = createDatabaseError(error, 'user', 'select_by_id');
@@ -576,7 +576,10 @@ export const getDeletedUserById = async (id: string) => {
       return new Date(deactivatedAt).getTime() === new Date(removedAt).getTime();
     });
 
-    return { data: { ...personWithPrivate, user_roles: heldAtRemoval }, error: null };
+    return {
+      data: { ...personWithPrivate, user_roles: heldAtRemoval, privateFieldsReadComplete: true },
+      error: null,
+    };
   } catch (error) {
     const duration = Date.now() - startTime;
     const dbError = createDatabaseError(error, 'user', 'select_deleted_by_id');

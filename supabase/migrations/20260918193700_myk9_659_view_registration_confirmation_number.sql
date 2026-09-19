@@ -50,6 +50,24 @@
 --    them (only DROP does), but stating them keeps this file self-contained and
 --    keeps the dormant-write REVOKEs from 20260912183000 in force.
 --
+-- PUSH WITH `--include-all`. This version sorts BEFORE the linked project's
+-- current head: 20260918211700 (MYK9-642) was applied while this branch was in
+-- review, so a plain `supabase db push` skips this file as "out of order" and
+-- says nothing useful about it. Run:
+--
+--   supabase db push --include-all --project-ref sojmvhhwsjxmfistvzbe
+--
+-- The version is deliberately NOT renumbered: renumbering would move this file
+-- after 20260918211700 in a tree where nothing between them touches these views,
+-- buying nothing and rewriting a version another branch may already reference.
+-- Out-of-order application is safe HERE specifically because no migration
+-- between 20260918041700 and the current head redefines
+-- `view_authenticated_entry_results` or its `_replication` wrapper -- verified
+-- with `grep -l view_authenticated_entry_results supabase/migrations/*.sql |
+-- sort | tail`, whose last entry before this file is 20260918041700. So this
+-- file is still the LATEST definition of both views and cannot be silently
+-- reverted by a later one.
+--
 -- NOT PUSHED by the authoring agent: `supabase db push` on the linked project
 -- is Richard's to run. Until it lands, `registration_confirmation_number` is
 -- simply not in the view, the client reads it as `undefined` through

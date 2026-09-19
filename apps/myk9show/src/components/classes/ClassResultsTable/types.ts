@@ -13,7 +13,7 @@ import type { RawEntryRow } from '@/hooks/queries/useClassEntriesRaw';
 /** Props for the ClassResultsTable component */
 export interface ClassResultsTableProps {
   entries: ScentWorkEntry[];
-  rawEntries?: RawEntryRow[] | undefined;
+  rawEntries?: readonly RawEntryRow[] | undefined;
   classConfig: ScentWorkClassConfig;
   userPermissions: UserPermissions;
   onDeleteEntry?: ((entryId: string) => void) | undefined;

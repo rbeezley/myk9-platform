@@ -25,7 +25,7 @@ import { STATUSES_REQUIRING_REASON, NAVIGABLE_FIELDS } from './constants';
 
 interface UseClassResultsParams {
   entries: ScentWorkEntry[];
-  rawEntries: RawEntryRow[];
+  rawEntries: readonly RawEntryRow[];
   classConfig: ScentWorkClassConfig;
   userPermissions: UserPermissions;
   classId: string;

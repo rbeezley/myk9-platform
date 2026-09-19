@@ -11,7 +11,7 @@ import { toLocalDateOnly } from '@/utils/date-format';
 
 interface SecretaryRunSheetProps {
   currentClass: ClassData;
-  dbRawEntries: RawEntryRow[];
+  dbRawEntries: readonly RawEntryRow[];
   userId: string;
   myEntryIds?: Set<string>;
   dogs: Dog[];

@@ -87,7 +87,7 @@ function rawToEntry(
 // in B7 — Class Details is now read-only for run order (reorder action
 // links out to Show Desk).
 export function buildRunSheetEntries(
-  rows: RawEntryRow[],
+  rows: readonly RawEntryRow[],
   dogLookup: Map<string, Dog> = new Map(),
   organization?: string | null
 ): RunSheetEntry[] {

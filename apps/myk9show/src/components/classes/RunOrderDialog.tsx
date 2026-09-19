@@ -28,7 +28,7 @@ interface RunOrderDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   /** Full entry list — used to detect A/B sections. */
-  entries: RunOrderEntry[];
+  entries: readonly RunOrderEntry[];
   onApply: (
     preset: RunOrderPreset,
     scope?: RunOrderScope,

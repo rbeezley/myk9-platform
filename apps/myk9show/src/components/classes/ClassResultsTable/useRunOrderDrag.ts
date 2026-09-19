@@ -12,7 +12,7 @@ import { notifications } from '@/lib/notifications';
 import type { RawEntryRow } from '@/hooks/queries/useClassEntriesRaw';
 
 interface UseRunOrderDragParams {
-  rawEntries: RawEntryRow[];
+  rawEntries: readonly RawEntryRow[];
 }
 
 export function useRunOrderDrag({ rawEntries }: UseRunOrderDragParams) {

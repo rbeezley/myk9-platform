@@ -74,7 +74,44 @@ export function deriveSummaryStatus(statuses: string[]): 'none' | 'partial' | 'c
   return 'none';
 }
 
+function handlerIdentityKey(rows: CheckInEntryRow[]): Map<string, string> {
+  const idsByDogAndName = new Map<string, Set<string>>();
+
+  for (const row of rows) {
+    const handlerId = row.handler_id?.trim();
+    if (!handlerId) continue;
+
+    const handlerName = normalizeHandlerName(
+      [row.handler_first_name, row.handler_last_name].filter(Boolean).join(' ')
+    );
+    if (!handlerName) continue;
+
+    const nameKey = `${row.dog_id}:name:${handlerName}`;
+    const handlerIds = idsByDogAndName.get(nameKey) ?? new Set<string>();
+    handlerIds.add(handlerId);
+    idsByDogAndName.set(nameKey, handlerIds);
+  }
+
+  return new Map(
+    rows.map(row => {
+      const handlerId = row.handler_id?.trim();
+      if (handlerId) return [row.id, `id:${handlerId}`];
+
+      const handlerName = normalizeHandlerName(
+        [row.handler_first_name, row.handler_last_name].filter(Boolean).join(' ')
+      );
+      const handlerIds = idsByDogAndName.get(`${row.dog_id}:name:${handlerName}`);
+      const matchingHandlerId = handlerIds?.size === 1 ? [...handlerIds][0] : null;
+      return [
+        row.id,
+        matchingHandlerId ? `id:${matchingHandlerId}` : `name:${handlerName || 'unknown'}`,
+      ];
+    })
+  );
+}
+
 export function groupEntriesByExhibitor(rows: CheckInEntryRow[]): ExhibitorCheckInGroup[] {
+  const handlerKeys = handlerIdentityKey(rows);
   const map = new Map<
     string,
     {
@@ -84,12 +121,7 @@ export function groupEntriesByExhibitor(rows: CheckInEntryRow[]): ExhibitorCheck
   >();
 
   for (const row of rows) {
-    const printedHandlerName = [row.handler_first_name, row.handler_last_name]
-      .filter(Boolean)
-      .join(' ');
-    const handlerKey = row.handler_id?.trim()
-      ? `name:${normalizeHandlerName(printedHandlerName) || `id:${row.handler_id.trim()}`}`
-      : `name:${normalizeHandlerName(printedHandlerName) || 'unknown'}`;
+    const handlerKey = handlerKeys.get(row.id) ?? 'name:unknown';
     const key = `${row.dog_id}:${handlerKey}`;
     const status = row.check_in_status || 'no-status';
     if (!map.has(key)) {

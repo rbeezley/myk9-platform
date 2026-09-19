@@ -100,6 +100,36 @@ describe('groupEntriesByExhibitor', () => {
     expect(groups[0].entries).toHaveLength(2);
   });
 
+  it('keeps different id-backed handlers separate even when their names match', () => {
+    const entries = [
+      makeEntry({ id: 'e1', handler_id: 'handler-1' }),
+      makeEntry({ id: 'e2', handler_id: 'handler-2' }),
+    ];
+
+    const groups = groupEntriesByExhibitor(entries);
+
+    expect(groups).toHaveLength(2);
+    expect(groups.flatMap(group => group.entries.map(entry => entry.entryId)).sort()).toEqual([
+      'e1',
+      'e2',
+    ]);
+  });
+
+  it('keeps a text-only row separate when its name matches multiple ids', () => {
+    const entries = [
+      makeEntry({ id: 'e1', handler_id: 'handler-1' }),
+      makeEntry({ id: 'e2', handler_id: 'handler-2' }),
+      makeEntry({ id: 'e3', handler_id: '' }),
+    ];
+
+    const groups = groupEntriesByExhibitor(entries);
+
+    expect(groups).toHaveLength(3);
+    expect(
+      groups.find(group => group.entries.some(entry => entry.entryId === 'e3'))?.handlerName
+    ).toBe('Sarah Mitchell');
+  });
+
   it('sorts groups by armband number', () => {
     const entries = [
       makeEntry({ id: 'e1', dog_id: 'dog-2', armband_number: 200, dog_call_name: 'Ziggy' }),

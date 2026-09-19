@@ -9,7 +9,7 @@ import { buildRunSheetEntries } from './buildRunSheetEntries';
 import type { RunSheetEntry } from './types';
 
 interface UseRunSheetStateProps {
-  rawEntries: RawEntryRow[];
+  rawEntries: readonly RawEntryRow[];
   classId: string;
   userId: string;
   dogs: Dog[];

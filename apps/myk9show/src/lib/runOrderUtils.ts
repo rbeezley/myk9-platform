@@ -89,7 +89,7 @@ function shuffleArray<T>(array: T[]): T[] {
  * Returns true if entries contain at least two distinct non-null sections.
  * Used to decide whether to show section-aware preset options in the UI.
  */
-export function hasMultipleSections(entries: RunOrderEntry[]): boolean {
+export function hasMultipleSections(entries: readonly RunOrderEntry[]): boolean {
   const sections = new Set(entries.map(e => e.section).filter(s => s != null && s !== ''));
   return sections.size >= 2;
 }

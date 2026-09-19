@@ -15,7 +15,7 @@ import type { RunOrderScope, RenumberMode } from '@/components/classes/RunOrderD
  * On partial failure shows an error toast and re-throws so the dialog stays
  * open for retry.
  */
-export function useRunOrderPreset(classId: string | undefined, rawEntries: RawEntryRow[]) {
+export function useRunOrderPreset(classId: string | undefined, rawEntries: readonly RawEntryRow[]) {
   const [isApplying, setIsApplying] = useState(false);
   const queryClient = useQueryClient();
 

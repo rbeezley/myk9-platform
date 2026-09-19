@@ -5,7 +5,7 @@ import type { RawEntryRow } from '@/hooks/queries/useClassEntriesRaw';
 export interface ClassDetailsMainProps {
   classData: ClassData;
   classEntries: EntryData[];
-  rawEntries?: RawEntryRow[] | undefined;
+  rawEntries?: readonly RawEntryRow[] | undefined;
   parentShow?: Show | undefined;
   onAddEntry: () => void;
   onDeleteEntry?: (entryId: string) => void;

@@ -13,6 +13,7 @@ export interface PremiumPublishControl extends PremiumPublishFacts {
   publishFailed: boolean;
   failureMessage: string;
   info: PublishInfo | undefined;
+  infoState: PublishInfoState;
 }
 
 /**
@@ -51,5 +52,5 @@ export function usePremiumPublishControl(
     showStaleBadge,
   });
 
-  return { ...facts, ...flow, info: query.data };
+  return { ...facts, ...flow, info: query.data, infoState };
 }

@@ -128,6 +128,12 @@ vi.mock('@/hooks/useDogStoreCompat', () => ({
 // Mock shows query
 vi.mock('@/hooks/queries/useShowsDatabase', () => ({
   useShowsQuery: () => ({ data: mockShow ? [mockShow] : [] }),
+  useShowQuery: () => ({
+    data: undefined,
+    isLoading: false,
+    isPlaceholderData: false,
+    isError: false,
+  }),
   useUpdateShowMutation: () => ({ mutateAsync: vi.fn(), isPending: false }),
   showQueryKeys: {
     detail: (showId: string) => ['shows', 'detail', showId],
@@ -136,8 +142,13 @@ vi.mock('@/hooks/queries/useShowsDatabase', () => ({
 }));
 
 vi.mock('@/store/showStore', () => ({
-  useShowStore: (selector: (s: Record<string, unknown>) => unknown) =>
-    selector({ updateShow: updateShowLocallyMock }),
+  useShowStore: (selector?: (s: Record<string, unknown>) => unknown) => {
+    const state = {
+      shows: mockShow ? [mockShow] : [],
+      updateShow: updateShowLocallyMock,
+    };
+    return selector ? selector(state) : state;
+  },
 }));
 
 vi.mock('@/services/database/judges', () => ({

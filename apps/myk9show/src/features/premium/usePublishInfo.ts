@@ -36,6 +36,9 @@ export function usePublishInfo(showId: string | undefined, canManageShow: boolea
     queryKey: publishInfoQueryKey(showId ?? ''),
     queryFn: () => fetchPublishInfo(showId!),
     enabled: !!showId && canManageShow,
+    // Publish state is show-scoped. The app-wide previous-data placeholder can
+    // otherwise make show B render show A's publish state for one frame.
+    placeholderData: () => undefined,
     staleTime: 30_000,
   });
 }

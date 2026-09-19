@@ -7,6 +7,11 @@ import type { ShowDetailTabsProps } from '../ShowDetailTabs';
 import { buildShowManagementTabDefs } from '@/pages/ShowDetailsPage.tabDefs';
 import type { Show } from '@/types/show-types';
 
+const manageScope = vi.hoisted(() => ({
+  status: 'resolved' as 'resolved' | 'resolving' | 'unavailable',
+  canManage: true,
+}));
+
 // Shell primitives mocked to passthroughs; presence/status/premium mocked to
 // testids so we can assert the shell RENDERS them (the silent-provider-loss
 // guard: presence UI must not be dropped by the extraction).
@@ -42,13 +47,26 @@ vi.mock('@/features/show-live-sync/LiveUpdateIndicator', () => ({
   LiveUpdateIndicator: () => <div data-testid="live-indicator" />,
 }));
 vi.mock('@/features/premium/PremiumDownloadCard', () => ({
-  PremiumDownloadCard: () => <div data-testid="premium-download-card" />,
+  PremiumDownloadCard: ({ canManageShow }: { canManageShow: boolean }) => (
+    <div data-testid="premium-download-card" data-can-manage={String(canManageShow)} />
+  ),
 }));
 vi.mock('@/features/premium/LandingPageCard', () => ({
   LandingPageCard: () => <div data-testid="landing-page-card" />,
 }));
 vi.mock('../ShowDeskCompactContext', () => ({
-  ShowDeskCompactContext: () => <div data-testid="show-desk-compact-context" />,
+  ShowDeskCompactContext: ({ canManageShow }: { canManageShow: boolean }) => (
+    <div data-testid="show-desk-compact-context" data-can-manage={String(canManageShow)} />
+  ),
+}));
+vi.mock('@/hooks/useShowManageScope', () => ({
+  useShowManageScope: () => ({
+    status: manageScope.status,
+    canManage: manageScope.canManage,
+    canOperate: manageScope.canManage,
+    hasOperationalStaffRole: true,
+    clubId: 'club-1',
+  }),
 }));
 vi.mock('@/components/panels/edit/ShowEditPanel', () => ({
   ShowEditPanel: ({
@@ -156,6 +174,11 @@ function renderShell(
   return props;
 }
 
+beforeEach(() => {
+  manageScope.status = 'resolved';
+  manageScope.canManage = true;
+});
+
 /**
  * Navigate WITHIN the mounted router, the way the header Actions "Show settings"
  * link does. Re-rendering a fresh MemoryRouter would remount the shell and let a
@@ -240,6 +263,27 @@ describe('ShowManagementShell', () => {
     expect(anchor).toBeInTheDocument();
     expect(screen.getByTestId('premium-download-card')).toBeInTheDocument();
     expect(screen.getByTestId('landing-page-card')).toBeInTheDocument();
+  });
+
+  it('keeps premium reads disabled until the management scope resolves', () => {
+    manageScope.status = 'resolving';
+    manageScope.canManage = false;
+
+    renderShell();
+
+    expect(screen.getByTestId('premium-download-card')).toHaveAttribute('data-can-manage', 'false');
+  });
+
+  it('keeps the Show Desk publish read disabled in the same unresolved window', () => {
+    manageScope.status = 'resolving';
+    manageScope.canManage = false;
+
+    renderShell({ activeManagementSection: 'show-day' }, '/shows/show-1/show-day');
+
+    expect(screen.getByTestId('show-desk-compact-context')).toHaveAttribute(
+      'data-can-manage',
+      'false'
+    );
   });
 
   it.each(['reports', 'results', 'entries', 'setup'] as const)(

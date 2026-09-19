@@ -50,7 +50,12 @@ const show = {
 
 function renderContext() {
   return render(
-    <ShowDeskCompactContext show={show} canonicalShowHref="/shows/show-1" armbandCount={0} />
+    <ShowDeskCompactContext
+      show={show}
+      canonicalShowHref="/shows/show-1"
+      armbandCount={0}
+      canManageShow={true}
+    />
   );
 }
 
@@ -106,7 +111,12 @@ describe('ShowDeskCompactContext', () => {
     mocks.sync.isOnline = true;
     mocks.sync.queueSize = 2;
     rerender(
-      <ShowDeskCompactContext show={show} canonicalShowHref="/shows/show-1" armbandCount={0} />
+      <ShowDeskCompactContext
+        show={show}
+        canonicalShowHref="/shows/show-1"
+        armbandCount={0}
+        canManageShow={true}
+      />
     );
 
     expect(screen.getByRole('status')).toHaveTextContent('2 changes saved on this device');

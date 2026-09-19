@@ -16,6 +16,8 @@ const ANCHOR_CLASS = 'scroll-mt-20';
 
 interface PremiumDownloadCardProps {
   showId: string;
+  /** True only after the show-management scope resolves for this show. */
+  canManageShow: boolean;
   /**
    * When true, render the "show data has changed since publish" badge to
    * nudge a re-publish. Only shown to people who can manage the show; for
@@ -53,7 +55,11 @@ function PublishFailureNotice({
   );
 }
 
-export function PremiumDownloadCard({ showId, showStaleBadge = false }: PremiumDownloadCardProps) {
+export function PremiumDownloadCard({
+  showId,
+  canManageShow,
+  showStaleBadge = false,
+}: PremiumDownloadCardProps) {
   // Read, derivation and flow all come from one hook, because the header
   // Actions menu offers the SAME publish from every section and the two must
   // never disagree about whether it is on offer or what it is called.
@@ -68,7 +74,8 @@ export function PremiumDownloadCard({ showId, showStaleBadge = false }: PremiumD
     landingUnpublished,
     needsRepublish,
     action,
-  } = usePremiumPublishControl(showId, showStaleBadge, true);
+    infoState,
+  } = usePremiumPublishControl(showId, showStaleBadge, canManageShow);
   const publishedUrl = info?.publishedUrl;
   const publishedAt = info?.publishedAt;
 
@@ -89,17 +96,19 @@ export function PremiumDownloadCard({ showId, showStaleBadge = false }: PremiumD
         <PublishFailureNotice
           message={failureMessage}
           onRetry={handleGenerateAndPublish}
-          disabled={isBusy}
+          disabled={isBusy || action.disabledReason !== undefined}
         />
       )}
-      {!hasPublishedPremium ? (
+      {infoState !== 'ready' || !hasPublishedPremium ? (
         <>
           <div className="bg-muted text-muted-foreground rounded-md p-3">
             <FileText className="h-6 w-6" />
           </div>
           <div className="flex-1">
             <h3 className="font-semibold text-sm">Premium List</h3>
-            <p className="text-xs text-muted-foreground mt-0.5">Premium PDF is not published yet</p>
+            <p className="text-xs text-muted-foreground mt-0.5">
+              {infoState === 'ready' ? 'Premium PDF is not published yet' : action.disabledReason}
+            </p>
           </div>
           {/* size="touch": publishing the premium is a PRIMARY action, which
               docs/INTENT.md § 3 never permits below the 44px floor. */}

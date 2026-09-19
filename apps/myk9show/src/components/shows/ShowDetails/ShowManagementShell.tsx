@@ -36,6 +36,7 @@ import { SHOW_STATUS_CONTROL_ANCHOR } from '@/features/show-workbench/publishRea
 import { notifications } from '@/lib/notifications';
 import type { Show } from '@/types/show-types';
 import type { GeneratedPremium } from '@/types/premium-types';
+import { useShowManageScope } from '@/hooks/useShowManageScope';
 import { ShowDeskCompactContext } from './ShowDeskCompactContext';
 
 function parseOptionalCurrency(value: string | number | undefined): number | undefined {
@@ -125,6 +126,8 @@ export function ShowManagementShell({
   const queryClient = useQueryClient();
   const [searchParams, setSearchParams] = useSearchParams();
   const updateShowLocally = useShowStore(s => s.updateShow);
+  const manageScope = useShowManageScope(show.id);
+  const canPublishPremium = manageScope.status === 'resolved' && manageScope.canManage;
   // Read from the ROUTER's params, not `window.location`: this shell is mounted
   // by the router, and an in-app navigation that never touches `window.location`
   // (the header Actions "Show settings" link) must be seen the same way a cold
@@ -202,6 +205,7 @@ export function ShowManagementShell({
             show={show}
             canonicalShowHref={canonicalShowHref}
             armbandCount={armbandCount}
+            canManageShow={canPublishPremium}
           />
         ) : (
           <>
@@ -285,7 +289,11 @@ export function ShowManagementShell({
             // (MYK9-630 round 5). Scrolling still works; the ring never did.
             className="mt-4 grid scroll-mt-20 grid-cols-1 gap-3 rounded-md sm:grid-cols-2"
           >
-            <PremiumDownloadCard showId={show.id} showStaleBadge={true} />
+            <PremiumDownloadCard
+              showId={show.id}
+              showStaleBadge={true}
+              canManageShow={canPublishPremium}
+            />
             <LandingPageCard showId={show.id} showStyle={getShowStyle(show)} />
           </div>
         )}

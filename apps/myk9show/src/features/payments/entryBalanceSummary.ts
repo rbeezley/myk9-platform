@@ -370,7 +370,7 @@ export function summarizeEntryBalancesFromSource(
     paymentStatus: root.paymentStatus,
     paymentMethod: root.paymentMethod,
     totalFee: root.totalFee,
-  }));
+  }), entry => !entry.deletedAt);
   const hasUnresolvedRoot = rootedEntries.some(
     entry => !entry.deletedAt && entry.moneyRootUnresolved
   );

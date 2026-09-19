@@ -184,7 +184,7 @@ describe('summarizeEntryBalances', () => {
     expect(summary.onlineShowBalances[0]?.entryIds).toEqual(['source']);
   });
 
-  it('resolves through a soft-deleted source without blanking unrelated balances', () => {
+  it('withholds money when the move-up source was soft-deleted', () => {
     const summary = summarizeEntryBalancesFromSource(
       [
         entry({
@@ -203,9 +203,9 @@ describe('summarizeEntryBalances', () => {
       now
     );
 
-    expect(summary.kind).toBe('known');
-    expect(summary.amountDueCents).toBe(3500);
-    expect(summary.onlineShowBalances[0]?.entryIds).toEqual(['destination']);
+    expect(summary.kind).toBe('unknown');
+    expect(summary.amountDueCents).toBe(0);
+    expect(summary.onlineShowBalances).toEqual([]);
   });
 
   it('withholds money when the move-up source is outside the confirmed scope', () => {

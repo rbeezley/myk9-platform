@@ -231,17 +231,19 @@ export interface ResolvedMoneyRoot {
  */
 export function withResolvedMoneyRoots<T extends MoneyRootLink & { entryStatus?: string | null }>(
   entries: readonly T[],
-  merge: (entry: T, root: T) => T
+  merge: (entry: T, root: T) => T,
+  isRootAvailable: (root: T) => boolean = () => true
 ): Array<T & ResolvedMoneyRoot> {
   const byId = indexEntriesById(entries);
 
   return entries.map(entry => {
     const { root, problem } = resolveMoneyRoot(entry, byId);
-    const rooted = root.id === entry.id ? entry : merge(entry, root);
+    const rootAvailable = isRootAvailable(root);
+    const rooted = root.id === entry.id || !rootAvailable ? entry : merge(entry, root);
     return {
       ...rooted,
       moneyRootEntryId: root.id,
-      moneyRootUnresolved: problem !== undefined,
+      moneyRootUnresolved: problem !== undefined || !rootAvailable,
     };
   });
 }

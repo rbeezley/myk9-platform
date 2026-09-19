@@ -159,6 +159,31 @@ describe('buildOrderBalance', () => {
     expect(balance!.amountDueCents).toBe(3500);
     expect(balance!.onlineDueCents).toBe(3500);
   });
+
+  it('withholds a move-up balance when its source was soft-deleted', () => {
+    const classes = [
+      makeClass({
+        id: 'source',
+        entryStatus: EntryStatus.MOVED,
+        paymentStatus: PaymentStatus.PENDING,
+        fee: 35,
+        deletedAt: '2026-09-19T12:00:00Z',
+      }),
+      makeClass({
+        id: 'destination',
+        movedFromEntryId: 'source',
+        paymentStatus: PaymentStatus.PENDING,
+        paymentMethod: null,
+        fee: 0,
+      }),
+    ];
+
+    const balance = buildOrderBalance(classes, makeCtx(), NOW);
+
+    expect(balance!.moneyRootUnresolved).toBe(true);
+    expect(balance!.amountDueCents).toBe(0);
+    expect(balance!.dueEntryIds).toEqual([]);
+  });
 });
 
 describe('reconcileOrderPaymentStatus', () => {

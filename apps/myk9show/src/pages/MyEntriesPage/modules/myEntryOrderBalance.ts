@@ -137,13 +137,13 @@ export function buildOrderBalance(
     paymentStatus: root.paymentStatus,
     paymentMethod: root.paymentMethod,
     totalFee: root.totalFee,
-  }));
+  }), entry => !entry.deletedAt);
   if (sources.length === 0) return null;
 
   const eligible = sources.filter(source => isCurrentSummaryEntry(source, now));
   const moneyRootUnresolved =
     sources.some(source => !source.deletedAt && source.moneyRootUnresolved) ||
-    buildMoneyAttribution(sources).unresolved.some(
+    buildMoneyAttribution(sources.filter(source => !source.deletedAt)).unresolved.some(
       issue => issue.problem === 'orphaned-supersession'
     );
   const summary = moneyRootUnresolved

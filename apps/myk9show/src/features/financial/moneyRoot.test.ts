@@ -5,12 +5,14 @@ import {
   isSupersededMoveUpEntry,
   MONEY_ROOT_MAX_DEPTH,
   resolveMoneyRoot,
+  withResolvedMoneyRoots,
 } from './moneyRoot';
 
 interface Row {
   id: string;
   entryStatus?: string | null;
   movedFromEntryId?: string | null;
+  deletedAt?: string | null;
   fee: number;
 }
 
@@ -144,5 +146,20 @@ describe('buildMoneyAttribution', () => {
     expect(attribution.unresolved).toEqual([
       { entryId: 'dest', problem: 'missing-link', brokenAt: 'source' },
     ]);
+  });
+
+  it('does not treat a soft-deleted root as settled money', () => {
+    const deletedSource: Row = { ...SOURCE, deletedAt: '2026-09-18T00:00:00Z' };
+    const rooted = withResolvedMoneyRoots(
+      [deletedSource, DESTINATION],
+      (entry, root) => ({ ...entry, fee: root.fee }),
+      entry => !entry.deletedAt
+    );
+
+    expect(rooted.find(entry => entry.id === 'dest')).toMatchObject({
+      fee: 0,
+      moneyRootEntryId: 'source',
+      moneyRootUnresolved: true,
+    });
   });
 });

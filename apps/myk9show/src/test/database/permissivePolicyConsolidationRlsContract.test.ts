@@ -131,14 +131,15 @@ const reviewedLaterPolicyDdl: Readonly<Record<string, string>> = {
     'enrollments_insert and enrollments_update are untouched, so the consolidation counts and ' +
     'overlap groups this test pins are unaffected.',
   '20260919135700_enrollment_select_show_scope.sql':
-    'MYK9-663 follow-up. Replaces the already-applied enrollments_select policy with the same ' +
-    'site-admin, show-official, platform-admin and handler arms, but uses the new uncorrelated ' +
-    'entry_enrollment_select_show_ids() helper for the manager arm. That helper keeps club-scoped ' +
-    'secretary/club_admin access within the show club and keeps a show-pinned club_admin on the ' +
-    'assigned show, avoiding the widening caused by manageable_show_ids(). It is SECURITY DEFINER ' +
-    'and granted only to authenticated/service_role; anon remains excluded by the existing table ' +
-    'grant contract. Same SELECT policy name, command and TO public role; no enrollments mutation ' +
-    'policy changes and keeps entries_select aligned with enrollments_select.',
+    'MYK9-663 follow-up. Replaces the already-applied enrollments_select policy and aligns ' +
+    'entries_select with the new uncorrelated entry_enrollment_select_show_ids() helper. That ' +
+    'helper keeps club-scoped secretary/club_admin access within the show club and keeps a ' +
+    'show-pinned club_admin on the assigned show, avoiding the widening caused by ' +
+    'manageable_show_ids(). The migration also corrects can_manage_show() and ' +
+    'is_show_office_manager() so entries/enrollments mutation policies cannot write through the ' +
+    'same pinned-role widening. The helper is SECURITY DEFINER and granted only to ' +
+    'authenticated/service_role; anon remains excluded by the existing table grant contract. ' +
+    'The SELECT policy names, commands and TO public role remain unchanged.',
 };
 
 const tableCases: TableCase[] = [

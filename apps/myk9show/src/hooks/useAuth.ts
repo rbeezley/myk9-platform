@@ -5,6 +5,11 @@ import { captureAuthEmailRequestFailure } from '@/services/observability/sentry'
 import { clearAppearanceCache } from '@/context/themeClasses';
 import { replicatedClassesTable } from '@/services/replication';
 import type { User } from '@supabase/supabase-js';
+import {
+  decodeOAuthRoleIntent,
+  encodeOAuthRoleIntent,
+  OAUTH_ROLE_INTENT_PARAM,
+} from '@/services/auth/oauthRoleIntent';
 
 /**
  * Custom authentication hook that provides user authentication state and methods
@@ -43,13 +48,17 @@ function withTimeout<T>(promise: Promise<T>, timeoutMs: number, message: string)
  * Extracted from onAuthStateChange so it runs in the background without blocking signOut.
  */
 async function createOAuthPeopleRecord(userId: string, sessionUser: User) {
+  // Capture this synchronously before the record setup awaits any database
+  // work. AuthCallbackPage navigates away as soon as the session is available.
+  const requestedRoles = decodeOAuthRoleIntent(
+    new URL(window.location.href).searchParams.get(OAUTH_ROLE_INTENT_PARAM)
+  );
+
   const { data: existing } = await supabase
     .from('people')
     .select('id')
     .eq('auth_user_id', userId)
     .maybeSingle();
-
-  if (existing) return;
 
   // Re-fetch user to ensure metadata is fully hydrated
   const {
@@ -61,40 +70,53 @@ async function createOAuthPeopleRecord(userId: string, sessionUser: User) {
   const firstName: string = meta.given_name || fullName.split(' ')[0] || 'First';
   const lastName: string = meta.family_name || fullName.split(' ').slice(1).join(' ') || 'Name';
 
-  const { data: newPerson, error: insertError } = await supabase
-    .from('people')
-    .insert([
-      {
-        first_name: firstName,
-        last_name: lastName,
-        email: freshUser?.email ?? sessionUser.email ?? null,
-        auth_user_id: userId,
-        agreed_to_tos_at: new Date().toISOString(),
-      },
-    ])
-    .select('id')
-    .single();
+  let personId = existing?.id ?? null;
+  if (!personId) {
+    const { data: newPerson, error: insertError } = await supabase
+      .from('people')
+      .insert([
+        {
+          first_name: firstName,
+          last_name: lastName,
+          email: freshUser?.email ?? sessionUser.email ?? null,
+          auth_user_id: userId,
+          agreed_to_tos_at: new Date().toISOString(),
+        },
+      ])
+      .select('id')
+      .single();
 
-  if (insertError) {
-    console.error('Failed to create people record for OAuth user:', insertError);
-    return;
+    if (insertError) {
+      console.error('Failed to create people record for OAuth user:', insertError);
+      return;
+    }
+    personId = newPerson?.id ?? null;
   }
 
-  if (newPerson) {
+  if (personId && !existing) {
     // Assign default exhibitor role via RBAC service (handles dedup + reactivation)
     try {
-      await rbacService.ensureUserHasRole(newPerson.id, 'exhibitor');
+      await rbacService.ensureUserHasRole(personId, 'exhibitor');
     } catch (err) {
       console.error('Failed to assign exhibitor role for OAuth user (non-blocking):', err);
     }
 
     const { error: profileError } = await supabase.from('exhibitor_profiles').insert({
-      person_id: newPerson.id,
+      person_id: personId,
       auth_user_id: userId,
     });
 
     if (profileError) {
       console.error('Failed to create exhibitor profile for OAuth user:', profileError);
+    }
+  }
+
+  if (requestedRoles.length > 0) {
+    const { error } = await (supabase.rpc as CallableFunction)('submit_signup_role_requests', {
+      p_intended_roles: requestedRoles,
+    });
+    if (error) {
+      console.error('Failed to create OAuth role requests:', error);
     }
   }
 }
@@ -254,11 +276,17 @@ export function useAuth() {
    * @throws {AuthError} If OAuth initiation fails
    */
   const signInWithOAuthProvider = useCallback(
-    async (provider: 'google' | 'apple', redirectTo?: string) => {
+    async (
+      provider: 'google' | 'apple',
+      redirectTo?: string,
+      intendedRoles: readonly string[] = []
+    ) => {
       const callbackUrl = new URL('/auth/callback', window.location.origin);
       if (redirectTo) {
         callbackUrl.searchParams.set('redirectTo', redirectTo);
       }
+      const encodedRoles = encodeOAuthRoleIntent(intendedRoles);
+      if (encodedRoles) callbackUrl.searchParams.set(OAUTH_ROLE_INTENT_PARAM, encodedRoles);
 
       const { error } = await supabase.auth.signInWithOAuth({
         provider,
@@ -276,7 +304,8 @@ export function useAuth() {
    * @throws {AuthError} If OAuth initiation fails
    */
   const signInWithGoogle = useCallback(
-    (redirectTo?: string) => signInWithOAuthProvider('google', redirectTo),
+    (redirectTo?: string, intendedRoles?: readonly string[]) =>
+      signInWithOAuthProvider('google', redirectTo, intendedRoles),
     [signInWithOAuthProvider]
   );
 
@@ -285,7 +314,8 @@ export function useAuth() {
    * @throws {AuthError} If OAuth initiation fails
    */
   const signInWithApple = useCallback(
-    (redirectTo?: string) => signInWithOAuthProvider('apple', redirectTo),
+    (redirectTo?: string, intendedRoles?: readonly string[]) =>
+      signInWithOAuthProvider('apple', redirectTo, intendedRoles),
     [signInWithOAuthProvider]
   );
 

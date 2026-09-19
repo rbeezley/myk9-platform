@@ -72,7 +72,29 @@ describe('SignUpPage', () => {
     fireEvent.click(screen.getByLabelText(/I agree to the/i));
     fireEvent.click(screen.getByRole('button', { name: /continue with google/i }));
 
-    expect(mockSignInWithGoogle).toHaveBeenCalledWith('/?onboarding=true#get-started');
+    expect(mockSignInWithGoogle).toHaveBeenCalledWith('/?onboarding=true#get-started', [
+      'exhibitor',
+    ]);
+  });
+
+  it('passes elevated role intent to Google OAuth', async () => {
+    const user = userEvent.setup();
+    render(
+      <MemoryRouter>
+        <SignUpPage />
+      </MemoryRouter>
+    );
+
+    await user.click(screen.getByLabelText(/club officer/i));
+    await user.click(screen.getByLabelText(/show secretary/i));
+    await user.click(screen.getByLabelText(/I agree to the/i));
+    await user.click(screen.getByRole('button', { name: /continue with google/i }));
+
+    expect(mockSignInWithGoogle).toHaveBeenCalledWith(undefined, [
+      'exhibitor',
+      'club_officer',
+      'secretary',
+    ]);
   });
 
   it('renders an "or" divider between Google button and email form', () => {

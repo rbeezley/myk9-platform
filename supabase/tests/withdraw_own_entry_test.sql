@@ -28,8 +28,9 @@ values ('00000000-0000-0000-0000-000000535003', '00000000-0000-0000-0000-0000005
   'MYK9-535 Trial', current_date, 'AKC');
 
 -- `entries_dog_class_unique_idx` is UNIQUE on (dog_id, class_id) WHERE
--- entry_status <> ALL ('withdrawn','scratched') — note it does NOT exclude
--- soft-deleted rows. Nine scenarios on one dog therefore need nine classes,
+-- `deleted_at IS NULL AND entry_status <> ALL ('withdrawn','scratched')`
+-- (MYK9-639 added the first conjunct; before it, a tombstone reserved the seat
+-- too). Nine scenarios on one dog therefore need nine classes,
 -- one entry each. Giving each scenario its own class (rather than its own dog)
 -- keeps a single dog_registrations row, which the
 -- trg_entries_require_dog_registration INSERT trigger needs to match the

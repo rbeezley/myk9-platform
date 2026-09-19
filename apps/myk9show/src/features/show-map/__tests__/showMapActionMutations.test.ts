@@ -26,8 +26,8 @@ const mockGetReplicatedEntryById = vi.fn();
 const mockGetReplicatedClassById = vi.fn();
 const mockGetReplicatedEntriesByClass = vi.fn();
 const mockGetReplicatedTrialById = vi.fn();
-const mockCreateReplicatedEntry = vi.fn();
-const mockDeleteReplicatedEntry = vi.fn();
+const mockMoveUpEntryViaRpc = vi.fn();
+const mockReverseMoveUpEntryViaRpc = vi.fn();
 const mockAuditLog = vi.fn((..._args: unknown[]) => Promise.resolve());
 
 vi.mock('@/services/database/supabaseClient', () => ({
@@ -53,8 +53,8 @@ vi.mock('@/services/replication', () => ({
     updateEntryStatus: (...args: unknown[]) => mockUpdateReplicatedEntryStatus(...args),
     getEntryById: (...args: unknown[]) => mockGetReplicatedEntryById(...args),
     getEntriesByClass: (...args: unknown[]) => mockGetReplicatedEntriesByClass(...args),
-    createEntry: (...args: unknown[]) => mockCreateReplicatedEntry(...args),
-    deleteEntry: (...args: unknown[]) => mockDeleteReplicatedEntry(...args),
+    moveUpEntryViaRpc: (...args: unknown[]) => mockMoveUpEntryViaRpc(...args),
+    reverseMoveUpEntryViaRpc: (...args: unknown[]) => mockReverseMoveUpEntryViaRpc(...args),
   },
   replicatedTrialsTable: {
     // Default to null (→ getTrialRegistry falls back to AKC), matching every existing
@@ -102,6 +102,12 @@ describe('showMapActionMutations', () => {
       trialId: 'trial-1',
       entryStatus: 'checked-in',
       checkInStatus: 'checked-in',
+      // MYK9-639's measured row: one dog, entered once, $35 paid by check. The
+      // money stays HERE; the move-up must not copy any of it forward.
+      paymentStatus: 'paid',
+      paymentMethod: 'check',
+      entryFee: 35,
+      paymentReference: 'ck 1042',
       specialRequests: 'Bring paper form',
       withdrawalReason: null,
       jumpHeight: '12',
@@ -132,8 +138,10 @@ describe('showMapActionMutations', () => {
       });
     });
     mockGetReplicatedEntriesByClass.mockResolvedValue([]);
-    mockCreateReplicatedEntry.mockImplementation(entry => Promise.resolve(entry));
-    mockDeleteReplicatedEntry.mockResolvedValue('delete-mutation-1');
+    mockMoveUpEntryViaRpc.mockImplementation(({ newEntryId }: { newEntryId: string }) =>
+      Promise.resolve(newEntryId)
+    );
+    mockReverseMoveUpEntryViaRpc.mockResolvedValue('entry-1');
     mockAuditLog.mockResolvedValue();
   });
 
@@ -256,21 +264,6 @@ describe('showMapActionMutations', () => {
         })
       );
     });
-
-    it('fails loudly when undo did not capture the original entry status', async () => {
-      await expect(
-        undoShowMapScratch({
-          entryId: 'entry-1',
-          previousEntryStatus: null,
-          previousCheckInStatus: 'checked-in',
-          previousSpecialRequests: null,
-          previousWithdrawalReason: null,
-        })
-      ).rejects.toThrow('original entry status was not captured');
-
-      expect(mockFrom).not.toHaveBeenCalled();
-      expect(mockUpdateReplicatedEntry).not.toHaveBeenCalled();
-    });
   });
 
   it('marks a class complete with a manual override marker in the same replicated payload', async () => {
@@ -375,7 +368,7 @@ describe('showMapActionMutations', () => {
     );
   });
 
-  it('moves an entry up through replicated entry mutations and returns undo data', async () => {
+  it('moves an entry up as ONE server call, and carries NO money with it', async () => {
     const result = await moveUpShowMapEntry({
       entryId: 'entry-1',
       targetClassId: 'class-2',
@@ -384,35 +377,47 @@ describe('showMapActionMutations', () => {
 
     expect(result).toMatchObject({
       originalEntryId: 'entry-1',
-      previousEntryStatus: 'checked-in',
-      previousCheckInStatus: 'checked-in',
-      previousSpecialRequests: 'Bring paper form',
       targetClassName: 'Advanced A',
     });
     expect(result.newEntryId).toEqual(expect.any(String));
 
-    expect(mockUpdateReplicatedEntry).toHaveBeenCalledWith(
-      'entry-1',
-      expect.objectContaining({
-        entryStatus: 'moved',
-        entry_status: 'moved',
-        specialRequests: 'Moved up to Advanced A: Qualified today',
-        special_requests: 'Moved up to Advanced A: Qualified today',
-      })
-    );
-    expect(mockCreateReplicatedEntry).toHaveBeenCalledWith(
-      expect.objectContaining({
-        id: result.newEntryId,
-        dogId: 'dog-1',
-        showId: 'show-1',
-        classId: 'class-2',
-        trialId: 'trial-2',
-        entryStatus: 'confirmed',
-        paymentStatus: 'waived',
-        entryFee: 0,
-        specialRequests: 'Moved up from class class-1: Qualified today',
-      })
-    );
+    // ONE call. The destination insert and the source's `moved` mark are a
+    // single transaction inside `move_up_entry`, so there is no window in which
+    // the dog is entered twice or entered nowhere.
+    expect(mockMoveUpEntryViaRpc).toHaveBeenCalledTimes(1);
+    expect(mockMoveUpEntryViaRpc).toHaveBeenCalledWith({
+      sourceEntryId: 'entry-1',
+      targetClassId: 'class-2',
+      newEntryId: result.newEntryId,
+      reason: 'Qualified today',
+    });
+
+    // MYK9-639: money never moves. The client sends no payment field at all —
+    // not the status, not the fee, not the method, not the reference. This is
+    // the assertion that keeps a Stripe-paid entry moveable: `payment_method:
+    // 'online'` on an INSERT is exactly what
+    // `trg_entries_protect_payment_fields_insert` raises 42501 on.
+    const [rpcArgs] = mockMoveUpEntryViaRpc.mock.calls[0] as [Record<string, unknown>];
+    for (const forbidden of [
+      'paymentStatus',
+      'payment_status',
+      'paymentMethod',
+      'payment_method',
+      'entryFee',
+      'entry_fee',
+      'paymentReference',
+      'comped',
+      'compedReason',
+      'discountAmount',
+      'stripePaymentIntentId',
+      'refundAmount',
+    ]) {
+      expect(rpcArgs).not.toHaveProperty(forbidden);
+    }
+
+    // No direct replicated writes any more — the two-write pair is gone.
+    expect(mockUpdateReplicatedEntry).not.toHaveBeenCalled();
+
     expect(mockAuditLog).toHaveBeenCalledWith(
       expect.objectContaining({
         action: 'update',
@@ -423,10 +428,27 @@ describe('showMapActionMutations', () => {
           action: 'mark_entry_moved',
           reason: 'Qualified today',
           targetClassName: 'Advanced A',
+          destinationEntryId: result.newEntryId,
         }),
       })
     );
     expect(mockFrom).not.toHaveBeenCalled();
+  });
+
+  it('does not touch the source when the server refuses the move', async () => {
+    // The RPC is the whole operation: if it fails, nothing happened. There is no
+    // half-landed state left for a rollback to repair, which is the shape the
+    // previous two-write version could not guarantee.
+    mockMoveUpEntryViaRpc.mockRejectedValue(
+      new Error('This entry is not in a state that can be moved.')
+    );
+
+    await expect(
+      moveUpShowMapEntry({ entryId: 'entry-1', targetClassId: 'class-2' })
+    ).rejects.toThrow(/not in a state that can be moved/);
+
+    expect(mockUpdateReplicatedEntry).not.toHaveBeenCalled();
+    expect(mockAuditLog).not.toHaveBeenCalled();
   });
 
   it('surfaces a replicated move-up capacity error', async () => {
@@ -457,7 +479,10 @@ describe('showMapActionMutations', () => {
         entryId: 'entry-1',
         targetClassId: 'class-2',
       })
-    ).rejects.toThrow('Target class is full');
+      // Names the class, because this sentence now actually reaches the
+      // secretary: a MoveUpRpcError survives getUserFriendlyError'"'"'s production
+      // code-lookup, where a DatabaseError was replaced by "Something went wrong".
+    ).rejects.toThrow('Advanced A is full.');
   });
 
   it('rejects a move-up to a lower/cross-element class (write-path enforcement)', async () => {
@@ -492,9 +517,9 @@ describe('showMapActionMutations', () => {
       })
     ).rejects.toThrow('not a valid move-up target');
 
-    // Nothing should have been written.
+    // Nothing should have been written — the server call is never made.
     expect(mockUpdateReplicatedEntry).not.toHaveBeenCalled();
-    expect(mockCreateReplicatedEntry).not.toHaveBeenCalled();
+    expect(mockMoveUpEntryViaRpc).not.toHaveBeenCalled();
   });
 
   it('resolves the source class trial registry and accepts a UKC-only Superior→Elite move-up (Phase 5b)', async () => {
@@ -533,7 +558,7 @@ describe('showMapActionMutations', () => {
 
     expect(result.targetClassName).toBe('Container Elite');
     expect(mockGetReplicatedTrialById).toHaveBeenCalledWith('trial-1');
-    expect(mockUpdateReplicatedEntry).toHaveBeenCalled();
+    expect(mockMoveUpEntryViaRpc).toHaveBeenCalled();
   });
 
   it('rejects the same UKC Superior→Elite move-up when the trial registry cannot be resolved', async () => {
@@ -568,22 +593,6 @@ describe('showMapActionMutations', () => {
     ).rejects.toThrow('not a valid move-up target');
   });
 
-  it('leaves the original entry untouched when replicated move-up creation fails', async () => {
-    mockCreateReplicatedEntry.mockRejectedValueOnce(new Error('create failed'));
-
-    await expect(
-      moveUpShowMapEntry({
-        entryId: 'entry-1',
-        targetClassId: 'class-2',
-        reason: 'Qualified today',
-      })
-    ).rejects.toThrow('create failed');
-
-    // The create happens FIRST; when it fails the original entry was never
-    // marked 'moved', so there is nothing to roll back.
-    expect(mockUpdateReplicatedEntry).not.toHaveBeenCalled();
-  });
-
   it('keeps Show Map move-up fully replicated and audit logged', async () => {
     await moveUpShowMapEntry({
       entryId: 'entry-1',
@@ -601,173 +610,33 @@ describe('showMapActionMutations', () => {
     );
   });
 
-  it('preserves the mark-moved failure even when both rollback writes also fail', async () => {
-    // All three updateEntry calls reject: the mark-moved on the original, the
-    // restore of the original, and the soft-delete of the new entry. The
-    // original error must still surface.
-    mockUpdateReplicatedEntry
-      .mockRejectedValueOnce(new Error('mark-moved failed'))
-      .mockRejectedValueOnce(new Error('restore failed'))
-      .mockRejectedValueOnce(new Error('soft-delete failed'));
-
-    await expect(
-      moveUpShowMapEntry({
-        entryId: 'entry-1',
-        targetClassId: 'class-2',
-      })
-    ).rejects.toThrow('mark-moved failed');
-
-    expect(mockCreateReplicatedEntry).toHaveBeenCalledTimes(1);
-    // mark-moved + restore original + soft-delete new = three updateEntry calls;
-    // no hard delete.
-    expect(mockUpdateReplicatedEntry).toHaveBeenCalledTimes(3);
-    expect(mockDeleteReplicatedEntry).not.toHaveBeenCalled();
-  });
-
-  describe('moveUpShowMapEntry write order', () => {
-    it('creates the promoted entry before marking the original moved', async () => {
-      await moveUpShowMapEntry({
-        entryId: 'entry-1',
-        targetClassId: 'class-2',
-        reason: 'Qualified today',
-      });
-
-      const createOrder = mockCreateReplicatedEntry.mock.invocationCallOrder[0];
-      const markMovedOrder = mockUpdateReplicatedEntry.mock.invocationCallOrder[0];
-      expect(createOrder).toBeLessThan(markMovedOrder);
-    });
-
-    it('soft-deletes the newly created entry when marking the original moved fails', async () => {
-      // The first updateEntry is the mark-moved on the original; reject only it,
-      // so the rollback soft-delete (a second updateEntry) still resolves.
-      mockUpdateReplicatedEntry.mockRejectedValueOnce(new Error('mark-moved failed'));
-
-      await expect(
-        moveUpShowMapEntry({
-          entryId: 'entry-1',
-          targetClassId: 'class-2',
-        })
-      ).rejects.toThrow('mark-moved failed');
-
-      expect(mockCreateReplicatedEntry).toHaveBeenCalledTimes(1);
-      const createdEntryId = mockCreateReplicatedEntry.mock.calls[0][0].id;
-      // Rollback is a soft-delete UPDATE on the SAME row as the pending INSERT —
-      // NOT a hard deleteEntry, which is an independent, un-ordered mutation that
-      // could resurrect a live orphan on flaky show-day WiFi.
-      expect(mockDeleteReplicatedEntry).not.toHaveBeenCalled();
-      expect(mockUpdateReplicatedEntry).toHaveBeenCalledWith(
-        createdEntryId,
-        expect.objectContaining({
-          deletedAt: expect.any(String),
-          deleted_at: expect.any(String),
-        })
-      );
-    });
-
-    it('restores the original to its previous status BEFORE soft-deleting the new entry when mark-moved fails', async () => {
-      // updateEntry commits its local row before queueing sync, so a failed
-      // mark-moved may already have flipped the original to 'moved' locally.
-      // The rollback must restore the original (not just remove the new entry),
-      // and restore FIRST so the dog stays runnable even if the soft-delete then
-      // fails. Reject only the first updateEntry (the mark-moved).
-      mockUpdateReplicatedEntry.mockRejectedValueOnce(new Error('mark-moved failed'));
-
-      await expect(
-        moveUpShowMapEntry({
-          entryId: 'entry-1',
-          targetClassId: 'class-2',
-        })
-      ).rejects.toThrow('mark-moved failed');
-
-      const createdEntryId = mockCreateReplicatedEntry.mock.calls[0][0].id;
-      // calls[0] = mark-moved (threw); calls[1] = restore original; calls[2] = soft-delete new.
-      const calls = mockUpdateReplicatedEntry.mock.calls;
-      expect(calls).toHaveLength(3);
-      expect(calls[1][0]).toBe('entry-1');
-      expect(calls[1][1]).toMatchObject({
-        entryStatus: 'checked-in',
-        entry_status: 'checked-in',
-        checkInStatus: 'checked-in',
-        check_in_status: 'checked-in',
-        specialRequests: 'Bring paper form',
-        special_requests: 'Bring paper form',
-      });
-      expect(calls[2][0]).toBe(createdEntryId);
-      expect(typeof calls[2][1].deleted_at).toBe('string');
-    });
-  });
-
-  it('undoes a move-up by soft-deleting the new replicated entry before restoring the original entry', async () => {
-    await undoShowMapMoveUp({
-      originalEntryId: 'entry-1',
-      newEntryId: 'new-entry-1',
-      previousEntryStatus: 'checked-in',
-      previousCheckInStatus: 'checked-in',
-      previousSpecialRequests: null,
-    });
-
-    expect(mockDeleteReplicatedEntry).not.toHaveBeenCalled();
-    expect(mockUpdateReplicatedEntry).toHaveBeenCalledWith(
-      'new-entry-1',
-      expect.objectContaining({
-        deletedAt: expect.any(String),
-        deleted_at: expect.any(String),
-      })
+  it('sends the banner Undo down the SAME reverse as the durable Move back', async () => {
+    // They are one operation, so they are one call. Before, the banner restored a
+    // status captured at move time through two uncompensated writes while the
+    // dialog restored the live one — two shapes for the same act, and only one
+    // of them could not strand the dog with no live entry.
+    mockGetReplicatedEntryById.mockImplementation((id: string) =>
+      Promise.resolve(
+        id === 'new-entry-1'
+          ? {
+              id: 'new-entry-1',
+              dogId: 'dog-1',
+              classId: 'class-2',
+              entryStatus: 'confirmed',
+              checkInStatus: 'checked-in',
+              movedFromEntryId: 'entry-1',
+              isScored: false,
+              resultStatus: 'pending',
+            }
+          : { id: 'entry-1', dogId: 'dog-1', classId: 'class-1', entryStatus: 'moved' }
+      )
     );
-    expect(mockUpdateReplicatedEntry).toHaveBeenCalledWith(
-      'entry-1',
-      expect.objectContaining({
-        entryStatus: 'checked-in',
-        entry_status: 'checked-in',
-        checkInStatus: 'checked-in',
-        check_in_status: 'checked-in',
-        specialRequests: null,
-        special_requests: null,
-      })
-    );
-    expect(mockAuditLog).toHaveBeenCalledWith(
-      expect.objectContaining({
-        action: 'update',
-        entityType: 'entry',
-        entityId: 'entry-1',
-        changes: { entryStatus: { from: 'moved', to: 'checked-in' } },
-        metadata: expect.objectContaining({
-          action: 'restore_entry_status',
-          checkInStatus: 'checked-in',
-        }),
-      })
-    );
-    expect(mockFrom).not.toHaveBeenCalled();
-  });
 
-  it('does not restore the original entry when undo cannot soft-delete the move-up entry', async () => {
-    mockUpdateReplicatedEntry.mockRejectedValueOnce(new Error('replica soft delete failed'));
+    await undoShowMapMoveUp({ originalEntryId: 'entry-1', newEntryId: 'new-entry-1' });
 
-    await expect(
-      undoShowMapMoveUp({
-        originalEntryId: 'entry-1',
-        newEntryId: 'new-entry-1',
-        previousEntryStatus: 'checked-in',
-        previousCheckInStatus: 'checked-in',
-        previousSpecialRequests: null,
-      })
-    ).rejects.toThrow('replica soft delete failed');
-
-    expect(mockDeleteReplicatedEntry).not.toHaveBeenCalled();
-    expect(mockUpdateReplicatedEntry).toHaveBeenCalledTimes(1);
-  });
-
-  it('fails loudly when undo did not capture the original entry status', async () => {
-    await expect(
-      undoShowMapMoveUp({
-        originalEntryId: 'entry-1',
-        newEntryId: 'new-entry-1',
-        previousEntryStatus: null,
-        previousCheckInStatus: 'checked-in',
-        previousSpecialRequests: null,
-      })
-    ).rejects.toThrow('original entry status was not captured');
-
+    expect(mockReverseMoveUpEntryViaRpc).toHaveBeenCalledTimes(1);
+    expect(mockReverseMoveUpEntryViaRpc).toHaveBeenCalledWith('new-entry-1');
+    expect(mockUpdateReplicatedEntry).not.toHaveBeenCalled();
     expect(mockFrom).not.toHaveBeenCalled();
   });
 });

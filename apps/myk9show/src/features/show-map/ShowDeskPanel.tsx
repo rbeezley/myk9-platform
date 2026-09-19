@@ -71,6 +71,9 @@ export default function ShowDeskPanel({
     moveUpAction,
     closeMoveUpDialog,
     confirmMoveUp,
+    moveUpReversal,
+    isReversingMoveUp,
+    reverseMoveUp,
     scratchAction,
     closeScratchDialog,
     confirmScratchNoShow,
@@ -217,6 +220,9 @@ export default function ShowDeskPanel({
             isSubmitting={isExecuting}
             onOpenChange={open => !open && closeMoveUpDialog()}
             onConfirm={confirmMoveUp}
+            {...(moveUpReversal !== undefined && { reversal: moveUpReversal })}
+            isReversing={isReversingMoveUp}
+            onMoveBack={reverseMoveUp}
           />
           <ShowMapScratchNoShowDialog
             open={Boolean(scratchAction)}

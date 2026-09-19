@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { ArrowUpCircle } from 'lucide-react';
+import { ArrowUpCircle, Undo2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
@@ -19,6 +19,7 @@ import {
 } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import type { ShowMapNode } from './showMapTypes';
+import { MOVE_UP_REVERSAL_REFUSALS, type MoveUpReversalState } from './moveUpSupersession';
 
 export interface ShowMapMoveUpTarget {
   id: string;
@@ -39,6 +40,13 @@ interface ShowMapMoveUpDialogProps {
   isSubmitting: boolean;
   onOpenChange: (open: boolean) => void;
   onConfirm: (input: ShowMapMoveUpConfirmInput) => void;
+  /**
+   * MYK9-640. Whether this entry can be put back where it came from, and why
+   * not when it cannot. `undefined` while the answer is still being read.
+   */
+  reversal?: MoveUpReversalState | undefined;
+  isReversing?: boolean | undefined;
+  onMoveBack?: (() => void) | undefined;
 }
 
 export function ShowMapMoveUpDialog({
@@ -49,6 +57,9 @@ export function ShowMapMoveUpDialog({
   isSubmitting,
   onOpenChange,
   onConfirm,
+  reversal,
+  isReversing = false,
+  onMoveBack,
 }: ShowMapMoveUpDialogProps) {
   const [targetClassId, setTargetClassId] = useState('');
   const [reason, setReason] = useState('');
@@ -89,6 +100,33 @@ export function ShowMapMoveUpDialog({
             )}
           </div>
 
+          {reversal?.kind === 'available' && onMoveBack && (
+            <div className="space-y-2 rounded-md border border-dashed p-4">
+              <div className="text-sm font-medium">
+                {reversal.sourceClassName
+                  ? `This entry was moved up from ${reversal.sourceClassName}.`
+                  : 'This entry was moved up from another class.'}
+              </div>
+              <p className="text-sm text-muted-foreground">
+                Moving it back restores the original entry, with its check-in, and removes this one.
+              </p>
+              <Button type="button" variant="outline" onClick={onMoveBack} disabled={isReversing}>
+                <Undo2 className="mr-2 h-4 w-4" />
+                {isReversing
+                  ? 'Moving back...'
+                  : reversal.sourceClassName
+                    ? `Move back to ${reversal.sourceClassName}`
+                    : 'Move back'}
+              </Button>
+            </div>
+          )}
+
+          {reversal?.kind === 'blocked' && reversal.reason !== 'not-a-move-up' && (
+            <p className="rounded-md border border-dashed p-4 text-sm text-muted-foreground">
+              {MOVE_UP_REVERSAL_REFUSALS[reversal.reason]}
+            </p>
+          )}
+
           <div className="space-y-2">
             <Label>Target class</Label>
             <Select value={targetClassId} onValueChange={setTargetClassId}>
@@ -109,7 +147,11 @@ export function ShowMapMoveUpDialog({
               </SelectContent>
             </Select>
             {targets.length === 0 && (
-              <p className="text-sm text-muted-foreground">No other classes are available.</p>
+              <p className="text-sm text-muted-foreground">
+                {reversal?.kind === 'available'
+                  ? 'There is no higher class to move up to from here.'
+                  : 'No other classes are available.'}
+              </p>
             )}
           </div>
 

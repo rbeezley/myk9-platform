@@ -208,6 +208,9 @@ function ShowMapTabView({
     lastMoveUp,
     undoLastMoveUp,
     isUndoingMoveUp,
+    moveUpReversal,
+    isReversingMoveUp,
+    reverseMoveUp,
     scratchAction,
     closeScratchDialog,
     confirmScratchNoShow,
@@ -362,6 +365,9 @@ function ShowMapTabView({
               if (!open) closeMoveUpDialog();
             }}
             onConfirm={confirmMoveUp}
+            {...(moveUpReversal !== undefined && { reversal: moveUpReversal })}
+            isReversing={isReversingMoveUp}
+            onMoveBack={reverseMoveUp}
           />
           <ShowMapScratchNoShowDialog
             key={scratchAction?.nodeId ?? 'scratch-dialog'}

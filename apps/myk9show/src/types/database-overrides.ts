@@ -30,6 +30,7 @@ import type { Database as GeneratedDatabase } from '@myk9/supabase';
 
 type GeneratedPublic = GeneratedDatabase['public'];
 type GeneratedFunctions = GeneratedPublic['Functions'];
+type GeneratedTables = GeneratedPublic['Tables'];
 
 /** Replace one `Args` field of a generated function type, keeping `Returns`. */
 type WithArg<Fn extends { Args: object }, K extends keyof Fn['Args'], T> = Omit<Fn, 'Args'> & {
@@ -104,9 +105,35 @@ type ListClubRoleRequests = WithReturnFields<
   }
 >;
 
+/**
+ * `entries.moved_from_entry_id` (MYK9-639,
+ * `supabase/migrations/20260918193300_myk9_639_move_up_supersession.sql`).
+ *
+ * A different shape of correction from the two above: the generator is not
+ * WRONG here, it is simply OLDER than the schema. The column exists in the
+ * migration and in both authenticated entry views, and the typed PostgREST
+ * builder validates every name in a `.select()` string against these types —
+ * so without this overlay, naming the column in
+ * `AUTHENTICATED_ENTRY_READ_COLUMNS` makes the whole query resolve to
+ * `SelectQueryError<"column 'moved_from_entry_id' does not exist on 'entries'">`
+ * and the app stops compiling.
+ *
+ * TEMPORARY. Delete this block the moment `database.types.ts` is regenerated
+ * after `supabase db push` (M2 round 2, finding 3 — the precedent is 6e7e59de5,
+ * a dedicated regeneration commit after 20260918154700). Leaving it in place
+ * after that is harmless but misleading: the drift check regenerates the
+ * package file, and this overlay would silently shadow the real definition.
+ */
+type EntriesWithMoveUpLink = Omit<GeneratedTables['entries'], 'Row' | 'Insert' | 'Update'> & {
+  Row: GeneratedTables['entries']['Row'] & { moved_from_entry_id: string | null };
+  Insert: GeneratedTables['entries']['Insert'] & { moved_from_entry_id?: string | null };
+  Update: GeneratedTables['entries']['Update'] & { moved_from_entry_id?: string | null };
+};
+
 /** The generated `Database` with the corrections above applied. */
 export type Database = Omit<GeneratedDatabase, 'public'> & {
-  public: Omit<GeneratedPublic, 'Functions'> & {
+  public: Omit<GeneratedPublic, 'Functions' | 'Tables'> & {
+    Tables: Omit<GeneratedTables, 'entries'> & { entries: EntriesWithMoveUpLink };
     Functions: Omit<GeneratedFunctions, 'withdraw_own_entry' | 'list_club_role_requests'> & {
       withdraw_own_entry: WithdrawOwnEntry;
       list_club_role_requests: ListClubRoleRequests;

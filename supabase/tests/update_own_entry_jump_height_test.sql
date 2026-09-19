@@ -51,8 +51,9 @@ values
     'MYK9-561 Trial D', current_date, 'AKC');
 
 -- `entries_dog_class_unique_idx` is UNIQUE on (dog_id, class_id) WHERE
--- entry_status <> ALL ('withdrawn','scratched') and does NOT exclude
--- soft-deleted rows, so every scenario gets its own class on one dog. One dog
+-- `deleted_at IS NULL AND entry_status <> ALL ('withdrawn','scratched')`
+-- (MYK9-639 added the first conjunct), so every scenario gets its own class on
+-- one dog -- which holds under either predicate. One dog
 -- keeps a single dog_registrations row, which
 -- trg_entries_require_dog_registration matches against the trial's registry.
 insert into public.classes (id, trial_id, name, status)

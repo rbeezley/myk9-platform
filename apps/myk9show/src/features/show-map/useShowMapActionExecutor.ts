@@ -5,6 +5,7 @@ import { queryKeys } from '@/lib/queryClient';
 import { classKeys } from '@/hooks/queries/useClassesDatabase';
 import { entryInvalidationKeys } from '@/services/database/entries/invalidation';
 import { getUserFriendlyError } from '@/utils/errorMessages';
+import { getMoveUpErrorMessage } from '@/services/replication/moveUpEntryRpc';
 import { showUndoToast } from '@/lib/undoToast';
 import { useMessageStore } from '@/store/messageStore';
 import type { ExhibitorCheckInGroup } from '@/hooks/queries/useCheckInReport';
@@ -14,6 +15,7 @@ import {
   markRowCheckedIn,
   markShowDayDetailsCheckedIn,
 } from './showMapCheckInOptimisticUpdates';
+import { useShowMapMoveUpReversal } from './useShowMapMoveUpReversal';
 import type { ShowMapAction } from './showMapActions';
 import type { ExecutableShowMapActionExecution } from './showMapActionExecution';
 import {
@@ -305,7 +307,7 @@ export function useShowMapActionExecutor({ showId }: UseShowMapActionExecutorInp
       setLastMoveUp(null);
     },
     onError: error => {
-      toast.error(getUserFriendlyError(error));
+      toast.error(getMoveUpErrorMessage(error, 'That move-up could not be undone.'));
     },
     onSettled: (_data, _error, variables) => {
       invalidateShowMapActionQueries(variables?.classId);
@@ -332,9 +334,6 @@ export function useShowMapActionExecutor({ showId }: UseShowMapActionExecutorInp
       const nextLastMoveUp = {
         originalEntryId: result.originalEntryId,
         newEntryId: result.newEntryId,
-        previousEntryStatus: result.previousEntryStatus,
-        previousCheckInStatus: result.previousCheckInStatus,
-        previousSpecialRequests: result.previousSpecialRequests,
         entryLabel: action.label,
         targetClassName: result.targetClassName,
         targetClassId,
@@ -350,12 +349,28 @@ export function useShowMapActionExecutor({ showId }: UseShowMapActionExecutorInp
       toast.success('Entry moved up');
     },
     onError: error => {
-      toast.error(getUserFriendlyError(error));
+      // Not getUserFriendlyError: in production that hunts for a PostgREST
+      // `code`, finds none on a refusal, and replaces every sentence the RPC
+      // wrote with "Something went wrong."
+      toast.error(getMoveUpErrorMessage(error, 'That entry could not be moved.'));
     },
     onSettled: (_data, _error, variables) => {
       invalidateShowMapActionQueries(variables?.action.classId);
       invalidateShowMapActionQueries(variables?.targetClassId);
     },
+  });
+
+  // MYK9-640: the DURABLE way back, on the same Move-up dialog the move was made
+  // from. `lastMoveUp` above is the 8-second undo and restores the state captured
+  // at move time; this one is still there tomorrow, from the live destination row.
+  const moveUpEntryId = moveUpAction
+    ? sourceIdFromShowMapNodeId(moveUpAction.nodeId, 'entry')
+    : null;
+  const moveUpReversal = useShowMapMoveUpReversal({
+    entryId: moveUpEntryId,
+    onClose: () => setMoveUpAction(null),
+    onReversed: classIds =>
+      [moveUpAction?.classId, ...classIds].forEach(id => invalidateShowMapActionQueries(id)),
   });
 
   const bulkApproveMutation = useMutation({
@@ -446,6 +461,7 @@ export function useShowMapActionExecutor({ showId }: UseShowMapActionExecutorInp
     confirmMoveUp: ({ targetClassId, reason }: ConfirmShowMapMoveUpInput) => {
       if (moveUpAction) moveUpMutation.mutate({ action: moveUpAction, targetClassId, reason });
     },
+    ...moveUpReversal,
     lastMoveUp,
     undoLastMoveUp: () => {
       if (lastMoveUp) undoMoveUpMutation.mutate(lastMoveUp);

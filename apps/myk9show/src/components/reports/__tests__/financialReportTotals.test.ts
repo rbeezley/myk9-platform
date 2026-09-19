@@ -33,18 +33,135 @@ function entry(overrides: Partial<ReportEntry>): ReportEntry {
 }
 
 describe('financialReportTotals', () => {
-  it('separates current entries from waitlisted and withdrawn entries', () => {
-    expect(isEntryIncludedInFinancialReport(entry({ entryStatus: 'accepted' }), 'current')).toBe(
-      true
+  /**
+   * MYK9-639, from the finding's own measurement: one dog, entered once, $35
+   * paid by check, then moved up.
+   *
+   * After the restructure the two rows are NOT interchangeable. The superseded
+   * source still holds the money — the destination is created money-neutral and
+   * only carries `movedFromEntryId` back to it — so a reader that counts the
+   * destination's own figures reports $0 and one that counts both reports $70.
+   */
+  const MOVED_UP_PAIR: ReportEntry[] = [
+    entry({
+      id: 'source-moved',
+      entryStatus: 'moved',
+      entryFee: 35,
+      paymentStatus: PaymentStatus.PAID_BY_CHECK,
+      paymentMethod: 'check',
+    }),
+    entry({
+      id: 'destination',
+      entryStatus: 'confirmed',
+      entryFee: 0,
+      paymentStatus: PaymentStatus.PENDING,
+      paymentMethod: undefined,
+      movedFromEntryId: 'source-moved',
+    }),
+  ];
+
+  it('counts a move-up as ONE entry at the amount paid, with no Waived/Comped line (MYK9-639)', () => {
+    const totals = calculateFinancialReportTotals(MOVED_UP_PAIR, 'current');
+
+    expect(totals.summary.count).toBe(1);
+    expect(totals.summary.gross).toBe(35);
+    expect(totals.summary.collected).toBe(35);
+    expect(totals.summary.waived).toBe(0);
+    expect(totals.summary.outstanding).toBe(0);
+    expect(totals.summary.netRetained).toBe(35);
+    expect(totals.lines.map(line => line.entry.id)).toEqual(['destination']);
+    // The line is the RUN (the destination class) but the money and the method
+    // are the root's — so the secretary reconciling against the cheque sees
+    // "Check", not "Pending" and not "Waived/Comped".
+    expect(totals.paymentBreakdown.map(bucket => bucket.label)).toEqual(['Check']);
+    expect(totals.unresolvedMoneyRoots).toEqual([]);
+  });
+
+  it('follows a DOUBLE move-up to the original payment (MYK9-639)', () => {
+    const totals = calculateFinancialReportTotals(
+      [
+        entry({ id: 'a', entryStatus: 'moved', entryFee: 35 }),
+        entry({ id: 'b', entryStatus: 'moved', entryFee: 0, movedFromEntryId: 'a' }),
+        entry({ id: 'c', entryStatus: 'confirmed', entryFee: 0, movedFromEntryId: 'b' }),
+      ],
+      'current'
     );
-    expect(isEntryIncludedInFinancialReport(entry({ entryStatus: 'waitlist' }), 'current')).toBe(
+
+    expect(totals.summary.count).toBe(1);
+    expect(totals.summary.collected).toBe(35);
+    expect(totals.lines.map(line => line.entry.id)).toEqual(['c']);
+  });
+
+  it('SURFACES a money root outside the report scope instead of printing $0', () => {
+    // A trial-scoped report whose move-up source sits in another trial. Silence
+    // here would drop a real $35 off a club's reconciliation.
+    const totals = calculateFinancialReportTotals(
+      [
+        entry({
+          id: 'destination',
+          entryStatus: 'confirmed',
+          entryFee: 0,
+          movedFromEntryId: 'elsewhere',
+        }),
+      ],
+      'current'
+    );
+
+    expect(totals.unresolvedMoneyRoots).toEqual([
+      { entryId: 'destination', problem: 'missing-link' },
+    ]);
+  });
+
+  it('keeps a refund recorded on the ROOT visible through the move, and after it is reversed', () => {
+    // The scenario the copy-forward shape could not survive: the exhibitor is
+    // refunded while the dog sits in the destination class. The refund lives on
+    // the entry that holds the Stripe intent — the source — so it reaches the
+    // report through the live descendant...
+    const moved = calculateFinancialReportTotals(
+      [
+        entry({
+          id: 'source-moved',
+          entryStatus: 'moved',
+          entryFee: 35,
+          paymentStatus: PaymentStatus.REFUNDED,
+          refundAmount: 35,
+        }),
+        entry({
+          id: 'destination',
+          entryStatus: 'confirmed',
+          entryFee: 0,
+          paymentStatus: PaymentStatus.PENDING,
+          movedFromEntryId: 'source-moved',
+        }),
+      ],
+      'current'
+    );
+    expect(moved.summary.count).toBe(1);
+    expect(moved.summary.refunded).toBe(35);
+    expect(moved.summary.netRetained).toBe(0);
+
+    // ...and after Move back, the source is live again and still holds it. The
+    // reverse writes no money at all, so nothing can be lost in the round trip.
+    const reversed = calculateFinancialReportTotals(
+      [
+        entry({
+          id: 'source-moved',
+          entryStatus: 'confirmed',
+          entryFee: 35,
+          paymentStatus: PaymentStatus.REFUNDED,
+          refundAmount: 35,
+        }),
+      ],
+      'current'
+    );
+    expect(reversed.summary.count).toBe(1);
+    expect(reversed.summary.refunded).toBe(35);
+    expect(reversed.summary.netRetained).toBe(0);
+  });
+
+  it('excludes the superseded source of a move-up from the current report (MYK9-639)', () => {
+    expect(isEntryIncludedInFinancialReport(entry({ entryStatus: 'moved' }), 'current')).toBe(
       false
-    );
-    expect(isEntryIncludedInFinancialReport(entry({ entryStatus: 'withdrawn' }), 'current')).toBe(
-      false
-    );
-    expect(isEntryIncludedInFinancialReport(entry({ entryStatus: 'waitlist' }), 'waitlist')).toBe(
-      true
     );
   });
 

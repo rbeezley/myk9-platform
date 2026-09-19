@@ -52,7 +52,12 @@ export function useHasAnyEntryForShow(showId: string | undefined): HasAnyEntryFo
       // account-level query, so "no row here" is an absence of knowledge, and
       // the gate must not spend it as "you are a stranger to this show"
       // (MYK9-629 round 1).
-      return { entered, confirmed: entered || source === 'confirmed' };
+      return {
+        entered,
+        confirmed: entered ||
+          source === 'confirmed' ||
+          source === 'confirmed-move-up-link-unavailable',
+      };
     },
     // One retry, not the global default of two: each attempt pays the full
     // `getUserEntries` view deadline, so the default turns a dead network into

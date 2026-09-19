@@ -375,7 +375,8 @@ export function useMyEntriesData({
         return;
       }
 
-      const rawRows = (data as OwnEntryResultRow[]).filter(shouldRenderOwnEntry);
+      const allRows = data as OwnEntryResultRow[];
+      const rawRows = allRows.filter(shouldRenderOwnEntry);
       const userEntries = groupEntriesByOrder(rawRows.map(entry => transformEntry(entry)));
       setEntries(userEntries);
       setSource(rowSource);
@@ -385,7 +386,7 @@ export function useMyEntriesData({
       // it does on My Payments.
       setBalanceSummary(
         summarizeEntryBalancesFromSource(
-          rawRows.map(row => mapEntryRowToBalanceSource(row as EntryBalanceRawRow)),
+          allRows.map(row => mapEntryRowToBalanceSource(row as EntryBalanceRawRow)),
           rowSource
         )
       );

@@ -1333,14 +1333,22 @@ async function handleEntryPaymentCompleted(session: Stripe.Checkout.Session) {
       }
 
       if (moneyRoot.id !== existingEntry.id && existingEntry.entry_status === 'pending-payment') {
-        await supabase
+        const { error: destinationStatusError } = await supabase
           .from('entries')
           .update({ entry_status: 'confirmed' })
           .eq('id', existingEntry.id)
           .eq('entry_status', 'pending-payment');
+        if (destinationStatusError) {
+          console.error(
+            `Failed to advance recovered move-up destination ${existingEntry.id}:`,
+            destinationStatusError
+          );
+        }
       }
 
-      entryIds.push(moneyRoot.id);
+      // Receipts and order history name the live destination the exhibitor
+      // bought; the original root remains the payment-bearing row.
+      entryIds.push(existingEntry.id);
       paidLineIds.push(moneyRoot.id);
       lineAmountsById.set(moneyRoot.id, lineAmountCents);
 
@@ -1634,11 +1642,13 @@ async function loadPaymentReconciliationEntries(entryIds: string[]): Promise<{
   reconciliationEntryIds: string[];
   duplicateEntryIds: string[];
   lifecycleEntryIdsByRoot: Record<string, string>;
+  blockedEntryIds: string[];
   error: { message: string } | null;
 }> {
   const entriesById = new Map<string, PaymentReconciliationEntry>();
   let lookupIds = [...new Set(entryIds)];
   let error: { message: string } | null = null;
+  const blockedEntryIds: string[] = [];
   for (let hop = 0; hop <= 16 && lookupIds.length > 0; hop += 1) {
     const response = await supabase
       .from('entries')
@@ -1664,6 +1674,7 @@ async function loadPaymentReconciliationEntries(entryIds: string[]): Promise<{
 
   const reconciliationEntryIds = entryIds.map(entryId => {
     let currentId = entryId;
+    let blocked = false;
     if (INACTIVE_ENTRY_STATUSES.has(entriesById.get(entryId)?.entry_status ?? '')) {
       return currentId;
     }
@@ -1671,14 +1682,25 @@ async function loadPaymentReconciliationEntries(entryIds: string[]): Promise<{
     while (!seen.has(currentId)) {
       seen.add(currentId);
       const parentId = entriesById.get(currentId)?.moved_from_entry_id;
-      if (!parentId || !entriesById.has(parentId)) break;
+      if (!parentId) break;
+      if (!entriesById.has(parentId)) {
+        blockedEntryIds.push(entryId);
+        blocked = true;
+        break;
+      }
       if (entriesById.get(parentId)?.deleted_at) {
-        error = { message: `Move-up money root ${parentId} is deleted` };
+        blockedEntryIds.push(entryId);
+        blocked = true;
         break;
       }
       currentId = parentId;
     }
-    return currentId;
+    const resolvedRoot = entriesById.get(currentId);
+    if (currentId !== entryId && INACTIVE_ENTRY_STATUSES.has(resolvedRoot?.entry_status ?? '')) {
+      blockedEntryIds.push(entryId);
+      blocked = true;
+    }
+    return blocked ? entryId : currentId;
   });
   const lifecycleEntryIdsByRoot: Record<string, string> = {};
   for (const [index, entryId] of entryIds.entries()) {
@@ -1701,6 +1723,7 @@ async function loadPaymentReconciliationEntries(entryIds: string[]): Promise<{
     reconciliationEntryIds,
     duplicateEntryIds,
     lifecycleEntryIdsByRoot,
+    blockedEntryIds: [...new Set(blockedEntryIds)],
     error,
   };
 }
@@ -1769,7 +1792,13 @@ async function handleEntryPaymentRequestCompleted(session: Stripe.Checkout.Sessi
     return;
   }
 
-  const { entries, reconciliationEntryIds, duplicateEntryIds, lifecycleEntryIdsByRoot } =
+  const {
+    entries,
+    reconciliationEntryIds,
+    duplicateEntryIds,
+    lifecycleEntryIdsByRoot,
+    blockedEntryIds,
+  } =
     loadedEntries;
 
   const result = reconcileEntryPaymentRequest({
@@ -1780,6 +1809,7 @@ async function handleEntryPaymentRequestCompleted(session: Stripe.Checkout.Sessi
     reconciliationEntryIds,
     duplicateEntryIds,
     lifecycleEntryIdsByRoot,
+    blockedEntryIds,
     paymentIntentId,
   });
 

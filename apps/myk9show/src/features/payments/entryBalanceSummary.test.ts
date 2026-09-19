@@ -232,6 +232,21 @@ describe('summarizeEntryBalances', () => {
     expect(summary.kind).toBe('unknown');
     expect(summary.onlineDueCents).toBe(0);
   });
+
+  it('keeps unrelated account balances visible when one show has an orphaned move-up row', () => {
+    const summary = summarizeEntryBalancesFromSource(
+      [
+        entry({ id: 'orphaned-source', entryStatus: EntryStatus.MOVED, totalFee: 35 }),
+        entry({ id: 'other-show', showId: 'show-2', totalFee: 20 }),
+      ],
+      'confirmed',
+      now
+    );
+
+    expect(summary.kind).toBe('known');
+    expect(summary.amountDueCents).toBe(2000);
+    expect(summary.onlineShowBalances[0]?.showId).toBe('show-2');
+  });
 });
 
 describe('entry-close deadline on the amount-due summary', () => {

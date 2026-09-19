@@ -63,6 +63,26 @@ describe('reconcileEntryPaymentRequest', () => {
     expect(r.inactiveEntryIds).toEqual(['destination']);
   });
 
+  it('refunds a destination when its move-up money root cannot be read safely', () => {
+    const r = reconcileEntryPaymentRequest({
+      ...base,
+      expectedEntryIds: ['destination'],
+      reconciliationEntryIds: ['destination'],
+      blockedEntryIds: ['destination'],
+      entries: [
+        {
+          id: 'destination',
+          payment_status: 'pending',
+          entry_status: 'confirmed',
+          moved_from_entry_id: 'deleted-source',
+        },
+      ],
+    });
+
+    expect(r.patches).toEqual([]);
+    expect(r.inactiveEntryIds).toEqual(['destination']);
+  });
+
   it('advances a moved destination lifecycle while stamping its money root', () => {
     const r = reconcileEntryPaymentRequest({
       ...base,

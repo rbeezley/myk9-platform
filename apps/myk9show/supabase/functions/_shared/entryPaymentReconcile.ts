@@ -30,6 +30,8 @@ export interface ReconcileInput {
   duplicateEntryIds?: string[];
   /** Destination rows whose lifecycle must advance after the root is paid. */
   lifecycleEntryIdsByRoot?: Record<string, string>;
+  /** Entry lines whose move-up money root cannot be safely reconciled. */
+  blockedEntryIds?: string[];
   paymentIntentId: string | null;
 }
 
@@ -108,11 +110,13 @@ export function reconcileEntryPaymentRequest(input: ReconcileInput): ReconcileRe
   const patches: EntryPaymentPatch[] = [];
   const alreadyPaidEntryIds: string[] = [...(input.duplicateEntryIds ?? [])];
   const sameIntentPaidEntryIds: string[] = [];
-  const inactiveEntryIds: string[] = [];
+  const inactiveEntryIds: string[] = [...(input.blockedEntryIds ?? [])];
+  const blockedEntryIds = new Set(input.blockedEntryIds ?? []);
 
   const reconciliationIds = new Set(input.reconciliationEntryIds ?? input.expectedEntryIds);
   for (const e of input.entries) {
     if (!reconciliationIds.has(e.id)) continue;
+    if (blockedEntryIds.has(e.id)) continue;
     const isExpiredPromotionClaim =
       input.linkStatus === 'expired' &&
       input.sessionPaymentStatus === 'paid' &&

@@ -30,6 +30,64 @@ function entry(overrides: Partial<EntryBalanceSource>): EntryBalanceSource {
 const now = new Date(2026, 5, 1);
 
 describe('summarizeEntryBalances', () => {
+  it('maps the supersession link from the account read', () => {
+    const source = mapEntryRowToBalanceSource({
+      id: 'destination',
+      show_id: 'show-1',
+      moved_from_entry_id: 'source',
+      entry_status: 'confirmed',
+      payment_status: 'pending',
+      payment_method: 'online',
+      entry_fee: 0,
+      show: { id: 'show-1', name: 'Spring Trial', start_date: '2026-06-10' },
+    });
+
+    expect(source.movedFromEntryId).toBe('source');
+  });
+
+  it('follows a moved unpaid entry back to its money root while keeping the live entry identity', () => {
+    const summary = summarizeEntryBalances(
+      [
+        entry({
+          id: 'source',
+          entryStatus: EntryStatus.MOVED,
+          paymentStatus: PaymentStatus.PENDING,
+          paymentMethod: 'online',
+          totalFee: 35,
+        }),
+        entry({
+          id: 'destination',
+          entryStatus: EntryStatus.ACCEPTED,
+          paymentStatus: PaymentStatus.PENDING,
+          paymentMethod: null,
+          totalFee: 0,
+          movedFromEntryId: 'source',
+        }),
+      ],
+      now
+    );
+
+    expect(summary.amountDueCents).toBe(3500);
+    expect(summary.onlineDueCents).toBe(3500);
+    expect(summary.onlineShowBalances[0]?.entryIds).toEqual(['source']);
+    expect(summary.onlineShowBalances[0]?.displayEntryIds).toEqual(['destination']);
+  });
+
+  it('keeps unrelated shows payable when one show has an unresolved money root', () => {
+    const summary = summarizeEntryBalances(
+      [
+        entry({ id: 'broken-destination', showId: 'show-1', movedFromEntryId: 'missing' }),
+        entry({ id: 'healthy-entry', showId: 'show-2', showName: 'Second Trial' }),
+      ],
+      now
+    );
+
+    expect(summary.kind).toBe('known');
+    expect(summary.onlineShowBalances).toHaveLength(1);
+    expect(summary.onlineShowBalances[0]?.showId).toBe('show-2');
+    expect(summary.onlineShowBalances[0]?.entryIds).toEqual(['healthy-entry']);
+  });
+
   it('sums current accepted and pending-review fees into the same amount due My Shows displays', () => {
     const summary = summarizeEntryBalances(
       [
@@ -162,7 +220,8 @@ describe('summarizeEntryBalances', () => {
 
     expect(summary.amountDueCents).toBe(3500);
     expect(summary.onlineDueCents).toBe(3500);
-    expect(summary.onlineShowBalances[0]?.entryIds).toEqual(['destination']);
+    expect(summary.onlineShowBalances[0]?.displayEntryIds).toEqual(['destination']);
+    expect(summary.onlineShowBalances[0]?.entryIds).toEqual(['source']);
   });
 
   it('ignores a soft-deleted move-up destination after a successful reversal', () => {

@@ -11,18 +11,25 @@
  * been run — until it is, the column is absent, every client read of it is
  * `undefined`, and the reverse move falls back to the move-up note.
  */
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
+import { describe, expect, it } from 'vitest';
 import {
   MOVE_UP_REQUEST_FULFILLED_STATUS,
   MOVE_UP_REQUEST_STATUSES,
 } from '@/features/show-map/moveUpRequestStatuses';
-import { readFileSync } from 'node:fs';
-import { resolve } from 'node:path';
-import { describe, expect, it } from 'vitest';
 
 const MIGRATION = readFileSync(
   resolve(
     __dirname,
     '../../../../../supabase/migrations/20260918193300_myk9_639_move_up_supersession.sql'
+  ),
+  'utf8'
+);
+const REVERSE_MOVE_MIGRATION = readFileSync(
+  resolve(
+    __dirname,
+    '../../../../../supabase/migrations/20260919170000_myk9_639_reverse_move_up_successor_guard.sql'
   ),
   'utf8'
 );
@@ -54,7 +61,7 @@ const moveUpFn = sliceBetween(
 );
 
 const reverseFn = sliceBetween(
-  MIGRATION,
+  REVERSE_MOVE_MIGRATION,
   'CREATE OR REPLACE FUNCTION public.reverse_move_up_entry(',
   'REVOKE ALL ON FUNCTION public.reverse_move_up_entry'
 );
@@ -221,8 +228,8 @@ describe('MYK9-639 — move_up_entry / reverse_move_up_entry', () => {
       'COMMENT ON FUNCTION public.move_up_entry',
       'CREATE OR REPLACE FUNCTION public.reverse_move_up_entry'
     );
-    const reverseComment = MIGRATION.slice(
-      MIGRATION.indexOf('COMMENT ON FUNCTION public.reverse_move_up_entry')
+    const reverseComment = REVERSE_MOVE_MIGRATION.slice(
+      REVERSE_MOVE_MIGRATION.indexOf('COMMENT ON FUNCTION public.reverse_move_up_entry')
     );
 
     expect(moveUpComment).toMatch(/MONEY DOES NOT TRAVEL/);

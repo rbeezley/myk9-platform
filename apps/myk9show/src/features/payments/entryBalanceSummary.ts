@@ -70,6 +70,8 @@ export interface EntryBalanceShowSummary {
   amountDueCents: number;
   onlineDueCents: number;
   payAtShowDueCents: number;
+  /** Entry-row ids used to match the balance back to the visible dog/class cards. */
+  displayEntryIds?: string[] | undefined;
   entryIds: string[];
   paymentHref: string;
 }
@@ -109,6 +111,8 @@ export interface EntryBalanceSummary {
   onlineDueCents: number;
   payAtShowDueCents: number;
   onlineShowBalances: EntryBalanceShowSummary[];
+  /** Shows with at least one entry withheld because its money root was unresolved. */
+  unresolvedShowIds?: string[];
 }
 
 /**
@@ -251,6 +255,14 @@ function feeCents(feeDollars: number): number {
 }
 
 function entryIdsForPayment(entry: EntryBalanceSource): string[] {
+  if (entry.moneyRootEntryId && entry.moneyRootEntryId !== entry.id) {
+    return [entry.moneyRootEntryId];
+  }
+  const classEntryIds = entry.classes?.map(cls => cls.id).filter(Boolean) ?? [];
+  return classEntryIds.length > 0 ? classEntryIds : [entry.id];
+}
+
+function entryIdsForDisplay(entry: EntryBalanceSource): string[] {
   if (entry.moneyRootUnresolved) return [];
   const classEntryIds = entry.classes?.map(cls => cls.id).filter(Boolean) ?? [];
   return classEntryIds.length > 0 ? classEntryIds : [entry.id];
@@ -260,13 +272,32 @@ export function summarizeEntryBalances(
   entries: EntryBalanceSource[],
   now: Date = new Date()
 ): EntryBalanceSummary {
+  const rootedEntries = withResolvedMoneyRoots(entries, (entry, root) => ({
+    ...entry,
+    paymentStatus: root.paymentStatus,
+    paymentMethod: root.paymentMethod,
+    totalFee: root.totalFee,
+  }));
+  const trustworthyEntries = rootedEntries.filter(entry => !entry.moneyRootUnresolved);
+  if (trustworthyEntries.length === 0 && rootedEntries.length > 0) {
+    return UNKNOWN_ENTRY_BALANCE_SUMMARY;
+  }
+  const unresolvedShowIds = [
+    ...new Set(
+      rootedEntries
+        .filter(entry => entry.moneyRootUnresolved)
+        .map(entry => entry.showId)
+        .filter(Boolean)
+    ),
+  ];
+
   const showBalances = new Map<string, Omit<EntryBalanceShowSummary, 'paymentHref'>>();
   let currentFeesCents = 0;
   let amountDueCents = 0;
   let onlineDueCents = 0;
   let payAtShowDueCents = 0;
 
-  for (const entry of entries) {
+  for (const entry of trustworthyEntries) {
     if (entry.deletedAt && !entry.showDeletedAt) continue;
     const isCurrentEntry = isCurrentSummaryEntry(entry, now);
     if (!isCurrentEntry && !isBalanceEligibleEntry(entry)) continue;
@@ -301,6 +332,7 @@ export function summarizeEntryBalances(
       amountDueCents: 0,
       onlineDueCents: 0,
       payAtShowDueCents: 0,
+      displayEntryIds: [],
       entryIds: [],
     };
     existing.amountDueCents += cents;
@@ -311,6 +343,8 @@ export function summarizeEntryBalances(
     // carry.
     existing.entryCloseDay = existing.entryCloseDay ?? entry.entryCloseDay ?? null;
     existing.isPastShow = existing.isPastShow || isPastShowEntry(entry, now);
+    existing.displayEntryIds = existing.displayEntryIds ?? [];
+    existing.displayEntryIds.push(...entryIdsForDisplay(entry));
     existing.entryIds.push(...entryIdsForPayment(entry));
     showBalances.set(showId, existing);
   }
@@ -318,6 +352,7 @@ export function summarizeEntryBalances(
   const onlineShowBalances = [...showBalances.values()]
     .map(show => ({
       ...show,
+      displayEntryIds: [...new Set(show.displayEntryIds)],
       entryIds: [...new Set(show.entryIds)],
       paymentHref: buildFinishPaymentHref(show.showId, [...new Set(show.entryIds)]),
     }))
@@ -330,6 +365,7 @@ export function summarizeEntryBalances(
     onlineDueCents,
     payAtShowDueCents,
     onlineShowBalances,
+    ...(unresolvedShowIds.length > 0 ? { unresolvedShowIds } : {}),
   };
 }
 

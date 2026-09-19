@@ -280,6 +280,49 @@ END;
 $$;
 
 -- ---------------------------------------------------------------------------
+-- 2b. A stale Undo cannot reverse the middle of a move-up chain. The newer
+-- destination remains live, and the original pair is untouched. Undoing the
+-- terminal child first restores the prior destination, after which the prior
+-- Undo is valid.
+-- ---------------------------------------------------------------------------
+DO $$
+DECLARE
+  v_new_id uuid;
+  v_message text;
+  v_source_status text;
+  v_middle_status text;
+BEGIN
+  v_new_id := public.move_up_entry(
+    '00000000-0000-0000-0000-000000639072',
+    '00000000-0000-0000-0000-000000639033',
+    '00000000-0000-0000-0000-000000639079'
+  );
+
+  BEGIN
+    PERFORM public.reverse_move_up_entry('00000000-0000-0000-0000-000000639072');
+    RAISE EXCEPTION 'FAIL stale reverse of a middle destination was allowed';
+  EXCEPTION WHEN invalid_parameter_value THEN
+    GET STACKED DIAGNOSTICS v_message = MESSAGE_TEXT;
+    IF v_message NOT LIKE '%newer successor%' THEN
+      RAISE EXCEPTION 'FAIL stale reverse returned the wrong refusal: %', v_message;
+    END IF;
+  END;
+
+  SELECT entry_status INTO STRICT v_source_status
+    FROM public.entries WHERE id = '00000000-0000-0000-0000-000000639061';
+  SELECT entry_status INTO STRICT v_middle_status
+    FROM public.entries WHERE id = '00000000-0000-0000-0000-000000639072';
+  IF v_source_status <> 'moved' OR v_middle_status <> 'moved' THEN
+    RAISE EXCEPTION 'FAIL stale reverse changed the original chain: % / %',
+      v_source_status, v_middle_status;
+  END IF;
+
+  PERFORM public.reverse_move_up_entry(v_new_id);
+  RAISE NOTICE 'PASS stale reverse refuses a nonterminal destination';
+END;
+$$;
+
+-- ---------------------------------------------------------------------------
 -- 3. Positive control: a STRIPE-PAID source moves. If the INSERT ever names a
 --    payment column again, trg_entries_protect_payment_fields_insert raises
 --    42501 here and this file fails.
@@ -433,28 +476,6 @@ SELECT set_config(
   '{"sub":"00000000-0000-0000-0000-000000639151","role":"authenticated","app_metadata":{}}',
   true
 );
-
--- ---------------------------------------------------------------------------
--- 5b. An intermediate destination in a later move-up chain cannot be undone
--- by a stale Undo action. The terminal destination is now 639079, so the
--- original destination 639073 must remain superseded and untouched.
--- ---------------------------------------------------------------------------
-DO $$
-BEGIN
-  PERFORM public.move_up_entry(
-    '00000000-0000-0000-0000-000000639073',
-    '00000000-0000-0000-0000-000000639033',
-    '00000000-0000-0000-0000-000000639079'
-  );
-
-  BEGIN
-    PERFORM public.reverse_move_up_entry('00000000-0000-0000-0000-000000639073');
-    RAISE EXCEPTION 'FAIL a stale Undo reversed an intermediate move-up';
-  EXCEPTION WHEN invalid_parameter_value THEN
-    RAISE NOTICE 'PASS reverse_move_up_entry refuses an intermediate move-up';
-  END;
-END;
-$$;
 
 RESET ROLE;
 

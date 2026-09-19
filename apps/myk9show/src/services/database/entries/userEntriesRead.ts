@@ -25,9 +25,9 @@ import { buildUserEntriesSelect } from './userEntriesSelect';
 export { USER_ENTRIES_SELECT } from './userEntriesSelect';
 import { selectOwnedDogIds } from '@/utils/dogOwnership';
 import {
+  isMoveUpLinkSchemaUnavailable,
   isWithdrawalReasonCodeSchemaUnavailable,
   isRegistrationConfirmationNumberSchemaUnavailable,
-  isMoveUpLinkSchemaUnavailable,
 } from '@/features/payments/pullRefundSchemaCompatibility';
 
 /**

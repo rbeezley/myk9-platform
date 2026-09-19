@@ -102,6 +102,9 @@ export const findRecoverableEntries = async ({
     .eq('show_id', showId)
     .eq('payment_status', 'pending')
     // Keep this aligned with entries_entry_status_check; UI "accepted" maps to DB "confirmed".
+    // A moved-up source remains the money-bearing row. It is intentionally
+    // recoverable by its explicit id even though normal cart discovery never
+    // offers terminal/moved rows.
     .in('entry_status', RECOVERABLE_ENTRY_STATUSES)
     .is('deleted_at', null)
     .in('dog_id', dogIds);

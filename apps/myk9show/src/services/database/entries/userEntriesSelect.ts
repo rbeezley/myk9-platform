@@ -100,13 +100,17 @@ export const USER_ENTRIES_SELECT = `${USER_ENTRIES_SELECT_BASE},
 export function buildUserEntriesSelect(options: {
   includeReasonCode: boolean;
   includeRegistrationConfirmationNumber: boolean;
-  includeMoveUpLink: boolean;
+  includeMoveUpLink?: boolean;
 }): string {
+  const baseSelect =
+    options.includeMoveUpLink === false
+      ? USER_ENTRIES_SELECT_BASE
+      : `${USER_ENTRIES_SELECT_BASE},\n      moved_from_entry_id`;
   const optional = [
     options.includeReasonCode ? 'withdrawal_reason_code' : null,
     options.includeRegistrationConfirmationNumber ? 'registration_confirmation_number' : null,
     options.includeMoveUpLink ? 'moved_from_entry_id' : null,
   ].filter((column): column is string => column !== null);
-  if (optional.length === 0) return USER_ENTRIES_SELECT_BASE;
-  return `${USER_ENTRIES_SELECT_BASE},\n      ${optional.join(',\n      ')}`;
+  if (optional.length === 0) return baseSelect;
+  return `${baseSelect},\n      ${optional.join(',\n      ')}`;
 }

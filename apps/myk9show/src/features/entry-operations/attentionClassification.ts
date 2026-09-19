@@ -25,6 +25,7 @@ export interface OperationalEntryInput {
 }
 
 export interface RawOperationalEntryInput {
+  id?: string | null;
   entry_status?: string | null;
   payment_status?: string | null;
   registration?: { payment_status?: string | null } | null;
@@ -92,32 +93,56 @@ export function matchesOperationalAttentionFilter(
  * mapper's rooted rows: the Show Desk's "Payment due" signal and the class
  * readiness panel.
  *
- * A move-up destination is skipped for the PAYMENT question entirely. It is
- * created money-neutral (`payment_status = 'pending'`, `entry_fee = 0`) and the
- * settlement stays on the entry `moved_from_entry_id` names, which these
- * surfaces do not load — so classifying it here could only ever produce
- * "Payment due" on a dog who has paid, in red, while Entry Management on the
- * same data reports no issue. Two surfaces, two answers, one pair: the defect
- * class MYK9-639 exists to end.
+ * A move-up destination resolves its PAYMENT question through the source row
+ * when that row is in the same loaded scope. It is created money-neutral
+ * (`payment_status = 'pending'`, `entry_fee = 0`) and the settlement stays on
+ * the entry `moved_from_entry_id` names; using the destination's raw status
+ * would produce "Payment due" on a dog who has paid.
  *
  * Its LIFECYCLE questions (pending review, missing information) are unaffected
  * and still asked, because those are properties of the run, not of the money.
  */
-export function classifyRawEntryAttention(entry: RawOperationalEntryInput): EntryAttentionReason[] {
+export function classifyRawEntryAttention(
+  entry: RawOperationalEntryInput,
+  scope?: readonly RawOperationalEntryInput[]
+): EntryAttentionReason[] {
+  const moneyEntry = resolveRawMoneyEntry(entry, scope);
   const reasons = classifyEntryAttention({
     rawEntryStatus: entry.entry_status,
-    ...(entry.payment_status != null
-      ? { paymentStatus: mapPaymentStatus(entry.payment_status) }
+    ...(moneyEntry.payment_status != null
+      ? { paymentStatus: mapPaymentStatus(moneyEntry.payment_status) }
       : {}),
-    ...(entry.registration?.payment_status != null
-      ? { enrollmentPaymentStatus: mapPaymentStatus(entry.registration.payment_status) }
+    ...(moneyEntry.registration?.payment_status != null
+      ? { enrollmentPaymentStatus: mapPaymentStatus(moneyEntry.registration.payment_status) }
       : {}),
   });
 
-  if (entry.moved_from_entry_id) {
+  if (entry.moved_from_entry_id && (!scope || moneyEntry === entry)) {
     return reasons.filter(reason => reason !== 'payment_due');
   }
   return reasons;
+}
+
+function resolveRawMoneyEntry(
+  entry: RawOperationalEntryInput,
+  scope: readonly RawOperationalEntryInput[] | undefined
+): RawOperationalEntryInput {
+  if (!entry.moved_from_entry_id || !scope || !entry.id) return entry;
+
+  const byId = new Map(
+    scope.flatMap(candidate => (candidate.id ? [[candidate.id, candidate] as const] : []))
+  );
+  let current = entry;
+  const visited = new Set<string>([entry.id]);
+  while (current.moved_from_entry_id) {
+    const parentId = current.moved_from_entry_id;
+    if (visited.has(parentId)) return entry;
+    const parent = byId.get(parentId);
+    if (!parent) return entry;
+    visited.add(parentId);
+    current = parent;
+  }
+  return current;
 }
 
 /**

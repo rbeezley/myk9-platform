@@ -147,6 +147,7 @@ describe('moveUpSupersession', () => {
         migration.indexOf('CREATE OR REPLACE FUNCTION public.reverse_move_up_entry'),
         migration.indexOf('REVOKE ALL ON FUNCTION public.reverse_move_up_entry')
       );
+      expect(reverseBody).toContain('newer successor');
       const guard = reverseBody.slice(
         reverseBody.indexOf('IF COALESCE(v_dest.is_scored'),
         reverseBody.indexOf('RAISE EXCEPTION', reverseBody.indexOf('IF COALESCE(v_dest.is_scored'))
@@ -162,9 +163,7 @@ describe('moveUpSupersession', () => {
     it('has a durable guard against reversing an intermediate move-up', () => {
       const migration = readFileSync(latestReverseMoveUpMigration(), 'utf8');
 
-      expect(migration).toMatch(
-        /IF COALESCE\(v_dest\.entry_status, ''\) = 'moved' THEN[\s\S]*?cannot be reversed/
-      );
+      expect(migration).toMatch(/newer successor[\s\S]*?cannot be reversed/);
     });
   });
 

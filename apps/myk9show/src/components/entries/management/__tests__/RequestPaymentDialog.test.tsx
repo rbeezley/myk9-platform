@@ -30,6 +30,11 @@ const entry = {
   showId: 'show-1',
 } as unknown as EntryManagementEntry;
 
+const movedEntry = {
+  ...entry,
+  moneyRootEntryId: 'source-1',
+} as unknown as EntryManagementEntry;
+
 function renderDialog(onRequested = vi.fn()) {
   render(
     <RequestPaymentDialog
@@ -96,6 +101,27 @@ describe('RequestPaymentDialog', () => {
 
     expect(await screen.findByText(/payment account is not set up/i)).toBeInTheDocument();
     expect(screen.queryByLabelText(/payment link/i)).not.toBeInTheDocument();
+  });
+
+  it('requests payment against the money root for a moved-up entry', async () => {
+    mockedInvoke.mockResolvedValue({
+      data: {
+        url: 'https://checkout.stripe.com/c/pay/cs_test_moved',
+        subtotal_cents: 3500,
+        platform_fee_cents: 245,
+        total_cents: 3745,
+      },
+      error: null,
+    });
+
+    render(<RequestPaymentDialog open={true} onOpenChange={vi.fn()} entry={movedEntry} />);
+    await userEvent.click(screen.getByRole('button', { name: /generate link/i }));
+
+    await waitFor(() => {
+      expect(mockedInvoke).toHaveBeenCalledWith('stripe-payment-link', {
+        body: expect.objectContaining({ entry_ids: ['source-1'] }),
+      });
+    });
   });
 });
 

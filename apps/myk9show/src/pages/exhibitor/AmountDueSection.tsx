@@ -94,6 +94,22 @@ export function AmountDueSection({
     );
   }
 
+  const hasUnresolvedShows = (summary.unresolvedShowIds?.length ?? 0) > 0;
+
+  if (hasUnresolvedShows && summary.amountDueCents <= 0) {
+    return (
+      <Card>
+        <CardContent className="py-5">
+          <h2 className="text-sm font-medium text-muted-foreground">Amount due</h2>
+          <p className="mt-1 text-sm text-muted-foreground">
+            We couldn&apos;t confirm every show balance with the server, so we&apos;re not showing a
+            total yet. Your payment history is still below.
+          </p>
+        </CardContent>
+      </Card>
+    );
+  }
+
   if (summary.amountDueCents <= 0) {
     return (
       <Card className="border-success/30">
@@ -128,6 +144,12 @@ export function AmountDueSection({
   return (
     <Card className="border-warning/40">
       <CardContent className="space-y-4 py-5">
+        {hasUnresolvedShows && (
+          <p role="status" className="text-sm text-muted-foreground">
+            Some show balances could not be confirmed yet; the amount shown covers confirmed
+            balances only.
+          </p>
+        )}
         <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
           <div>
             <h2 className="text-sm font-medium text-muted-foreground">Amount due</h2>

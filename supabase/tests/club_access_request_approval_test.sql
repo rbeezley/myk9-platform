@@ -222,6 +222,8 @@ BEGIN
 END;
 $$;
 
+SELECT set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-000000682102', true);
+
 DO $$
 DECLARE
   v_club_id uuid;
@@ -291,6 +293,8 @@ BEGIN
   END;
 END;
 $$;
+
+SELECT set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-000000682102', true);
 
 DO $$
 DECLARE

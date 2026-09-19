@@ -12,6 +12,8 @@ import { DogSearchFilters, type QuickFilter, type SearchFilters } from './DogSea
 
 interface DogSearchInterfaceProps {
   dogs: Dog[];
+  /** Canonical search text owned by the server-backed picker. */
+  searchQuery?: string;
   onDogsFiltered: (filteredDogs: Dog[]) => void;
   onSearchQueryChange?: (query: string) => void;
   onActiveFilterChange?: (activeFilter: string) => void;
@@ -24,6 +26,7 @@ interface DogSearchInterfaceProps {
 
 export const DogSearchInterface: React.FC<DogSearchInterfaceProps> = ({
   dogs,
+  searchQuery: controlledSearchQuery,
   onDogsFiltered,
   onSearchQueryChange,
   onActiveFilterChange,
@@ -53,8 +56,15 @@ export const DogSearchInterface: React.FC<DogSearchInterfaceProps> = ({
   const [showSuggestions, setShowSuggestions] = useState(false);
   const searchInputRef = useRef<HTMLInputElement>(null);
 
-  // Debounced search query for performance
-  const debouncedSearchQuery = useDebounce(filters.searchQuery, 300);
+  // The parent owns this value when the picker is backed by a server search.
+  // Keeping one effective query prevents the applied chip and visible rows
+  // from briefly using different debounce generations.
+  const effectiveSearchQuery = controlledSearchQuery ?? filters.searchQuery;
+  const normalizedSearchQuery = effectiveSearchQuery.trim().toLowerCase();
+
+  // Debounce only persistence analytics; filtering itself follows the same
+  // normalized query that identifies the server request.
+  const debouncedSearchQuery = useDebounce(effectiveSearchQuery, 300);
 
   // Quick filters for common use cases
   const quickFilters: QuickFilter[] = useMemo(
@@ -144,8 +154,8 @@ export const DogSearchInterface: React.FC<DogSearchInterfaceProps> = ({
     }
 
     // Apply search query
-    if (debouncedSearchQuery.trim()) {
-      const query = debouncedSearchQuery.toLowerCase();
+    if (normalizedSearchQuery) {
+      const query = normalizedSearchQuery;
       filtered = filtered.filter(dog => {
         return (
           dog.callName?.toLowerCase().includes(query) ||
@@ -203,7 +213,7 @@ export const DogSearchInterface: React.FC<DogSearchInterfaceProps> = ({
     }
 
     return filtered;
-  }, [dogs, debouncedSearchQuery, filters, quickFilters]);
+  }, [dogs, normalizedSearchQuery, filters, quickFilters]);
 
   // Notify parent component when filtered dogs change
   React.useEffect(() => {
@@ -216,7 +226,7 @@ export const DogSearchInterface: React.FC<DogSearchInterfaceProps> = ({
   }, [filters.quickFilter, onActiveFilterChange]);
 
   // Track search completion and add to recent searches
-  const searchKey = `${debouncedSearchQuery}-${filteredDogs.length}`;
+  const searchKey = `${normalizedSearchQuery}-${filteredDogs.length}`;
   const prevSearchKeyRef = useRef(searchKey);
   useEffect(() => {
     if (

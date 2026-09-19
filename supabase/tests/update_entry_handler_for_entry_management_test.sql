@@ -82,10 +82,10 @@ begin
 end;
 $$;
 
--- An exhibitor's legacy clear request preserves the load-bearing link and still
--- updates the printed handler text.
+-- An exhibitor's text correction preserves the load-bearing link when the new
+-- client omits the legacy clear request.
 select pg_temp.call_handler_update(
-  '00000000-0000-0000-0000-000000665102', 'MYK9-665 Renamed Handler', true);
+  '00000000-0000-0000-0000-000000665102', 'MYK9-665 Renamed Handler', false);
 do $$
 begin
   if (select handler_id from public.entries where id = '00000000-0000-0000-0000-000000665031')
@@ -110,18 +110,32 @@ begin
 end;
 $$;
 
--- An official's legacy clear request also preserves the link.
+-- An official's explicit clear request clears the link, using the same rule as
+-- the exhibitor branch for compatibility with older callers.
 select pg_temp.call_handler_update(
   '00000000-0000-0000-0000-000000665103', 'MYK9-665 Corrected Handler', true);
 do $$
 begin
   if (select handler_id from public.entries where id = '00000000-0000-0000-0000-000000665031')
-    <> '00000000-0000-0000-0000-000000665012'::uuid then
-    raise exception 'FAIL official text correction cleared handler_id';
+    is not null then
+    raise exception 'FAIL official clear did not clear handler_id';
   end if;
   if (select handler from public.entries where id = '00000000-0000-0000-0000-000000665031')
     <> 'MYK9-665 Corrected Handler' then
     raise exception 'FAIL official clear did not update handler text';
+  end if;
+end;
+$$;
+
+-- A club admin is authorized while the show is linked to that club.
+select pg_temp.call_handler_update(
+  '00000000-0000-0000-0000-000000665105', 'MYK9-665 Club Admin Correction', false,
+  null, '00000000-0000-0000-0000-000000665012');
+do $$
+begin
+  if (select handler from public.entries where id = '00000000-0000-0000-0000-000000665031')
+    <> 'MYK9-665 Club Admin Correction' then
+    raise exception 'FAIL club admin could not correct linked show entry';
   end if;
 end;
 $$;

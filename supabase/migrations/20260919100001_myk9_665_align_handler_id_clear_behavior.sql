@@ -1,10 +1,9 @@
 -- MYK9-665: keep handler_id semantics consistent for official and exhibitor edits.
 --
--- handler_id remains the load-bearing person link captured for the entry. The
--- legacy p_clear_handler_id argument is retained for RPC compatibility, but a
--- text correction never clears the link for either caller tier. This preserves
--- access and relies on the read-side name resolver for stale-link safety. The
--- RPC must not infer a person from free-text handler names.
+-- handler_id remains the load-bearing person link captured for the entry. A
+-- text correction preserves that link unless the caller explicitly requests a
+-- clear; both caller tiers use the same rule. The RPC must not infer a person
+-- from free-text handler names.
 
 CREATE OR REPLACE FUNCTION public.update_entry_handler_for_entry_management(
   p_entry_id uuid,
@@ -63,7 +62,10 @@ BEGIN
 
     UPDATE public.entries
        SET handler = p_handler,
-           handler_id = COALESCE(v_resolved_handler_id, v_existing_handler_id),
+           handler_id = CASE
+             WHEN p_clear_handler_id THEN NULL
+             ELSE COALESCE(v_resolved_handler_id, v_existing_handler_id)
+           END,
            updated_at = now()
      WHERE id = p_entry_id;
 
@@ -83,7 +85,10 @@ BEGIN
 
   UPDATE public.entries e
    SET handler = p_handler,
-         handler_id = COALESCE(p_handler_id, v_existing_handler_id),
+         handler_id = CASE
+           WHEN p_clear_handler_id THEN NULL
+           ELSE COALESCE(p_handler_id, v_existing_handler_id)
+         END,
          updated_at = now()
     FROM public.dogs d
    WHERE e.id = p_entry_id

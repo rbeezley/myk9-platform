@@ -137,8 +137,10 @@ export function useReportData({ show, trialId, classId }: UseReportDataOptions) 
   // query is paused or its local trial read is still cold. Keep one resolved
   // trial set for every downstream consumer so controls cannot advertise a
   // trial that previews/classes did not load.
+  const hasCurrentReportTrials =
+    Boolean(trialsQuery.data?.length) && !trialsQuery.isPlaceholderData;
   const reportTrials =
-    trialsQuery.data?.length || !show?.trials?.length
+    hasCurrentReportTrials || !show?.trials?.length
       ? trialsQuery.data
       : show.trials.map(trial => ({
           id: trial.id,
@@ -241,7 +243,7 @@ export function useReportData({ show, trialId, classId }: UseReportDataOptions) 
   // Placeholder is checked BEFORE that, because placeholder rows are complete
   // but belong to the PREVIOUS selection -- present, and wrong.
   const hasEveryRowSet =
-    trialsQuery.data !== undefined &&
+    reportTrials !== undefined &&
     classesQuery.data !== undefined &&
     entriesQuery.data !== undefined;
 

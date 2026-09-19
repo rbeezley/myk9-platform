@@ -41,6 +41,7 @@ export async function postgrestGetAllShows() {
         date,
         trial_number,
         timezone,
+        registry_id,
         status,
         trial_type,
         max_entries_per_dog,

@@ -94,6 +94,26 @@ describe('useReportData', () => {
     expect(result.current.show).toEqual(mockShow);
   });
 
+  it('is ready when cached show trials back the report while the trial read is pending', async () => {
+    mockGetTrialsByShow.mockImplementation(() => new Promise(() => {}) as never);
+    mockGetClassesByTrialId.mockResolvedValue({ data: [], error: null } as never);
+    mockGetEntriesByShowFromReplication.mockResolvedValue({ data: [], error: null } as never);
+
+    const cachedShow = {
+      ...mockShow,
+      trials: [{ id: 'trial-1', name: 'Trial 1', trialNumber: 1, date: '2026-04-12' }],
+    } as never;
+    const { result } = renderHook(
+      () => useReportData({ ...defaultOptions, show: cachedShow }),
+      { wrapper: createWrapper() }
+    );
+
+    await waitFor(() => expect(result.current.isReady).toBe(true));
+    expect(result.current.trials).toEqual([
+      expect.objectContaining({ id: 'trial-1', trial_number: 1, date: '2026-04-12' }),
+    ]);
+  });
+
   it('fetches trials when show is provided', async () => {
     const mockTrials = [
       { id: 'trial-1', show_id: 'show-1', date: '2026-04-12' },

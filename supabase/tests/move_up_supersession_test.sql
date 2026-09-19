@@ -488,6 +488,17 @@ BEGIN
 END;
 $$;
 
+-- Back to the caller the app actually uses: the RESET ROLE above (needed so the
+-- foreign-row read could see past RLS) left the session as the superuser, which
+-- owns both functions and bypasses RLS. Case 6 must run as a secretary.
+SET LOCAL ROLE authenticated;
+SELECT set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-000000639151', true);
+SELECT set_config(
+  'request.jwt.claims',
+  '{"sub":"00000000-0000-0000-0000-000000639151","role":"authenticated","app_metadata":{}}',
+  true
+);
+
 -- ---------------------------------------------------------------------------
 -- 6. The full round trip: move up -> move back -> move up AGAIN into the same
 --    class. The second move-up is what the relaxed unique index exists for.

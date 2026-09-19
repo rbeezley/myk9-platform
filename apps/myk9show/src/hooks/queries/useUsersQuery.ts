@@ -296,11 +296,20 @@ export function useAdminUsersQuery(showDeleted: boolean) {
   });
 }
 
-export function useUserQuery(id: string) {
+type UserQueryOptions = {
+  refetchOnMount?: boolean | 'always';
+};
+
+export function useUserQuery(id: string, enabledOrOptions: boolean | UserQueryOptions = true) {
+  const enabled = typeof enabledOrOptions === 'boolean' ? enabledOrOptions : true;
+  const refetchOnMount =
+    typeof enabledOrOptions === 'object' ? enabledOrOptions.refetchOnMount : undefined;
+
   return useQuery({
     queryKey: queryKeys.users.detail(id),
     queryFn: () => UserService.getById(id),
-    enabled: !!id,
+    enabled: !!id && enabled,
+    ...(refetchOnMount === undefined ? {} : { refetchOnMount }),
   });
 }
 

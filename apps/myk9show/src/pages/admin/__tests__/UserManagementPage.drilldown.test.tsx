@@ -161,6 +161,9 @@ describe('UserManagementPage drill-down', () => {
       roles: ['judge'],
       judgeQualifications: [],
     } as unknown as User;
+    client.setQueryDefaults(['users', 'detail', person.id], {
+      queryFn: async () => completeUser,
+    });
     client.setQueryData(['users', 'detail', person.id], completeUser);
 
     await user.click(screen.getByRole('button', { name: 'menu edit' }));

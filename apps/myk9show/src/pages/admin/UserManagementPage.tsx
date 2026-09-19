@@ -240,9 +240,17 @@ const UserManagementPage: React.FC = () => {
   );
 
   const handleEditUser = useCallback(
-    (user: User) => {
+    async (user: User) => {
       const cachedUser = queryClient.getQueryData<User>(queryKeys.users.detail(user.id));
-      setSelectedUser(cachedUser?.privateFieldsReadComplete === true ? cachedUser : user);
+      const detailKey = queryKeys.users.detail(user.id);
+      if (cachedUser) {
+        if (cachedUser.privateFieldsReadComplete === true) {
+          queryClient.setQueryData(detailKey, { ...cachedUser, privateFieldsReadComplete: false });
+        }
+        await queryClient.refetchQueries({ queryKey: detailKey, exact: true, type: 'all' });
+      }
+      const freshUser = queryClient.getQueryData<User>(detailKey);
+      setSelectedUser(freshUser?.privateFieldsReadComplete === true ? freshUser : user);
       setShowUserEditPanel(true);
     },
     [queryClient]

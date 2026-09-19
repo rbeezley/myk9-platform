@@ -10,7 +10,7 @@ import { User, Phone, Award, CalendarDays } from 'lucide-react';
 import ProfilePhotoDialog from '@/components/users/ProfilePhotoDialog';
 import { useAuthContext } from '@/hooks/useAuthContext';
 import { useRBAC } from '@/hooks/useRBAC';
-import type { JudgeInfo } from '@/types/user-types';
+import type { JudgeInfo, User } from '@/types/user-types';
 import { useQueryClient } from '@tanstack/react-query';
 import { queryKeys } from '@/lib/queryClient';
 import { logger } from '@/services/LoggingService';
@@ -32,13 +32,14 @@ export type { UserEditPanelProps, UserFormData } from './UserEditPanel.types';
 const TAB_TRIGGER_CLASS = 'gap-2 rounded-lg transition-all duration-300';
 
 // Form content component
-const UserEditForm: React.FC<{ userId: string; canWritePrivateFields: boolean }> = ({
-  userId,
-  canWritePrivateFields,
-}) => {
+const UserEditForm: React.FC<{
+  userId: string;
+  canWritePrivateFields: boolean;
+  hydratedUser: User | null | undefined;
+  detailHydrationReady: boolean;
+}> = ({ userId, canWritePrivateFields, hydratedUser, detailHydrationReady }) => {
   const queryClient = useQueryClient();
   const { data, form } = useEditPanel<UserFormData>();
-  const { data: hydratedUser } = useUserQuery(userId);
   const hydratedUserIdRef = useRef<string | null>(null);
   const { user: currentUser } = useAuthContext();
   const { hasPermission } = useRBAC();
@@ -72,14 +73,14 @@ const UserEditForm: React.FC<{ userId: string; canWritePrivateFields: boolean }>
     if (
       !form ||
       !hydratedUser ||
-      hydratedUser.privateFieldsReadComplete !== true ||
+      !detailHydrationReady ||
       form.hasChanges ||
       hydratedUserIdRef.current === hydratedUser.id
     )
       return;
     hydratedUserIdRef.current = hydratedUser.id;
     form.reset(userToFormData(hydratedUser));
-  }, [hydratedUser, form]);
+  }, [detailHydrationReady, hydratedUser, form]);
 
   // Load availability from DB on mount for judges
   useEffect(() => {
@@ -344,18 +345,27 @@ export const UserEditPanel: React.FC<UserEditPanelProps> = ({
 }) => {
   const { user: currentUser, userWithRoles } = useAuthContext();
   const { hasPermission } = useRBAC();
+  const {
+    data: hydratedUser,
+    isFetchedAfterMount: detailReadFetched,
+    isFetching: detailReadFetching,
+  } = useUserQuery(userId, { refetchOnMount: 'always' });
   const isCreateMode = !userId;
   const title = isCreateMode ? 'Add Person' : 'Edit User';
   const subtitle = isCreateMode ? 'Create a person profile' : `Editing profile for ${userName}`;
   // Convert user data to form data
   const initialFormData = useMemo(() => userToFormData(initialUserData), [initialUserData]);
-  const canWritePrivateFields =
+  const detailHydrationReady =
+    isCreateMode ||
+    (detailReadFetched && !detailReadFetching && hydratedUser?.privateFieldsReadComplete === true);
+  const hasPrivateWritePermission =
     hasPermission('admin:manage') ||
     // A subject may edit their own private fields. `userId` is the people id;
     // auth_user_id is carried as User.user_id and databaseUserId is the
     // canonical person id from the auth context.
     (currentUser?.id !== undefined && initialUserData.user_id === currentUser.id) ||
     (userWithRoles?.databaseUserId !== undefined && userWithRoles.databaseUserId === userId);
+  const canWritePrivateFields = detailHydrationReady && hasPrivateWritePermission;
 
   // Handle save — persist profile data. Role assignments have their own
   // scope-aware surface in User Management.
@@ -384,7 +394,12 @@ export const UserEditPanel: React.FC<UserEditPanelProps> = ({
       saveLabel={isCreateMode ? 'Add Person' : 'Save Changes'}
       cancelLabel="Cancel"
     >
-      <UserEditForm userId={userId} canWritePrivateFields={canWritePrivateFields} />
+      <UserEditForm
+        userId={userId}
+        canWritePrivateFields={canWritePrivateFields}
+        hydratedUser={hydratedUser}
+        detailHydrationReady={detailHydrationReady}
+      />
     </EditPanelWrapper>
   );
 };

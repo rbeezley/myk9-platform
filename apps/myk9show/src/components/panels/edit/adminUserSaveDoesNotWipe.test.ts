@@ -131,6 +131,24 @@ describe('a save from /admin/users does not wipe what it never loaded', () => {
     expect(cached.judgeQualifications).toBeUndefined();
   });
 
+  it('omits stale private fields from a public save while detail hydration is pending', () => {
+    const staleForm = userToFormData(mapDbUserToUser(DIRECTORY_ROW));
+    const update = mapUserToDbUpdate(
+      buildUserEditSavePayload(
+        formDataToUser(
+          { ...staleForm, phone: '555-0200' },
+          // The edit surface has not completed its fresh detail read, so a
+          // public-only save must not replay cached DOB/registry values.
+          { includePrivateFields: false }
+        )
+      )
+    );
+
+    expect(update.phone).toBe('555-0200');
+    expect(update).not.toHaveProperty('date_of_birth');
+    expect(update).not.toHaveProperty('junior_handler_numbers');
+  });
+
   it('marshals the edit panel payload before the atomic private-profile save', () => {
     const update = mapUserToDbUpdate(
       buildUserEditSavePayload(

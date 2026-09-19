@@ -1682,6 +1682,11 @@ async function loadPaymentReconciliationEntries(entryIds: string[]): Promise<{
   const reconciliationEntryIds = entryIds.map(entryId => {
     let currentId = entryId;
     let blocked = false;
+    const entry = entriesById.get(entryId);
+    if (entry?.deleted_at || entry?.entry_status === 'moved') {
+      blockedEntryIds.push(entryId);
+      return entryId;
+    }
     if (INACTIVE_ENTRY_STATUSES.has(entriesById.get(entryId)?.entry_status ?? '')) {
       return currentId;
     }
@@ -1722,12 +1727,19 @@ async function loadPaymentReconciliationEntries(entryIds: string[]): Promise<{
       lifecycleEntryIdsByRoot[rootId] = entryId;
     }
   }
-  const seenRootIds = new Set<string>();
+  const indicesByRoot = new Map<string, number[]>();
+  for (const [index, rootId] of reconciliationEntryIds.entries()) {
+    const indices = indicesByRoot.get(rootId) ?? [];
+    indices.push(index);
+    indicesByRoot.set(rootId, indices);
+  }
   const duplicateEntryIds: string[] = [];
-  for (const [index, entryId] of entryIds.entries()) {
-    const rootId = reconciliationEntryIds[index];
-    if (seenRootIds.has(rootId)) duplicateEntryIds.push(entryId);
-    else seenRootIds.add(rootId);
+  for (const [rootId, indices] of indicesByRoot) {
+    const canonicalIndex =
+      indices.find(index => entryIds[index] === rootId) ?? indices[0];
+    for (const index of indices) {
+      if (index !== canonicalIndex) duplicateEntryIds.push(entryIds[index]);
+    }
   }
 
   return {

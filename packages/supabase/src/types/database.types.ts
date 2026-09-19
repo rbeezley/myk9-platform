@@ -10704,6 +10704,7 @@ export type Database = {
           refund_amount: number | null
           refund_notes: string | null
           refunded_at: string | null
+          registration_confirmation_number: string | null
           registration_id: string | null
           result_status: string | null
           result_text: string | null
@@ -11027,6 +11028,7 @@ export type Database = {
           refund_amount: number | null
           refund_notes: string | null
           refunded_at: string | null
+          registration_confirmation_number: string | null
           registration_id: string | null
           result_status: string | null
           result_text: string | null

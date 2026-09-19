@@ -131,7 +131,7 @@ describe('moveUpSupersession', () => {
       const migration = readFileSync(
         resolve(
           __dirname,
-          '../../../../../../supabase/migrations/20260919161500_myk9_639_move_up_supersession.sql'
+          '../../../../../../supabase/migrations/20260919170000_myk9_639_reverse_move_up_successor_guard.sql'
         ),
         'utf8'
       );
@@ -139,6 +139,7 @@ describe('moveUpSupersession', () => {
         migration.indexOf('CREATE OR REPLACE FUNCTION public.reverse_move_up_entry'),
         migration.indexOf('REVOKE ALL ON FUNCTION public.reverse_move_up_entry')
       );
+      expect(reverseBody).toContain('newer successor');
       const guard = reverseBody.slice(
         reverseBody.indexOf('IF COALESCE(v_dest.is_scored'),
         reverseBody.indexOf('RAISE EXCEPTION', reverseBody.indexOf('IF COALESCE(v_dest.is_scored'))

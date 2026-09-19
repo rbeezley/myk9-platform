@@ -11,21 +11,18 @@
  * been run — until it is, the column is absent, every client read of it is
  * `undefined`, and the reverse move falls back to the move-up note.
  */
-const MOVE_UP_REQUEST_STATUSES = [
-  'move-up-requested',
-  'move_up_requested',
-  'scratch-requested',
-  'scratch_requested',
-] as const;
-const MOVE_UP_REQUEST_FULFILLED_STATUS = 'confirmed';
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
+import {
+  MOVE_UP_REQUEST_FULFILLED_STATUS,
+  MOVE_UP_REQUEST_STATUSES,
+} from '@/features/show-map/moveUpRequestStatuses';
 
 const MIGRATION = readFileSync(
   resolve(
     __dirname,
-    '../../../../../supabase/migrations/20260919161500_myk9_639_move_up_supersession.sql'
+    '../../../../../supabase/migrations/20260918193300_myk9_639_move_up_supersession.sql'
   ),
   'utf8'
 );

@@ -132,6 +132,7 @@ export function buildOrderBalance(
 
   const eligible = sources.filter(source => isCurrentSummaryEntry(source, now));
   const summary = summarizeEntryBalances(sources, now);
+  if (summary.kind === 'unknown') return null;
   const onlineShow = summary.onlineShowBalances[0];
 
   // The pay-at-show instruction must quote only the in-person portion and name

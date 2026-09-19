@@ -48,6 +48,16 @@ function makeSource(overrides: Partial<EntryBalanceSource> = {}): EntryBalanceSo
 }
 
 describe('buildOrderBalance', () => {
+  it('withholds the card balance when a moved-up money root is unavailable', () => {
+    const balance = buildOrderBalance(
+      [makeClass({ movedFromEntryId: 'missing-source', fee: 0 })],
+      makeCtx(),
+      NOW
+    );
+
+    expect(balance).toBeNull();
+  });
+
   it('preserves an explicit null payment method instead of inheriting a paid-cash sibling', () => {
     // c1 is a cash row (sets the order's fallback paymentMethod); c2 has no
     // resolved payment method yet (null, not undefined) — a still-unresolved

@@ -86,10 +86,12 @@
 -- dog stays exactly where they were. Nothing half-lands, and no row is written
 -- that the schema cannot hold.
 --
--- PUSH ORDER: this migration is deliberately timestamped AFTER 20260918211700
--- (MYK9-642), which merged first. A normal `supabase db push` therefore applies
--- this file in order; it must not rely on `--include-all` to discover the
--- move-up schema.
+-- PUSH FLAG: this version sorts BEFORE 20260918211700 (MYK9-642), which merged
+-- first and is already applied live, so a plain `supabase db push` skips this
+-- file as older than the remote head. It needs `supabase db push --include-all`.
+-- The version is deliberately NOT bumped: it is free on origin/main and in
+-- supabase_migrations.schema_migrations, and renumbering after the audit
+-- verified this exact file would invalidate that verification.
 
 BEGIN;
 
@@ -843,21 +845,6 @@ BEGIN
      OR v_source.deleted_at IS NOT NULL
      OR COALESCE(v_source.entry_status, '') <> 'moved' THEN
     RAISE EXCEPTION 'The original entry is no longer there to restore.'
-      USING ERRCODE = '22023';
-  END IF;
-
-  -- The requested destination must still be the terminal live descendant.
-  -- A stale Undo can arrive after another device has moved this entry again;
-  -- restoring its source would otherwise leave two live runs and orphan the
-  -- newer descendant's money lineage. A moved child still counts here: its
-  -- own successor may be further down the chain.
-  IF EXISTS (
-    SELECT 1
-    FROM public.entries successor
-    WHERE successor.moved_from_entry_id = v_dest.id
-      AND successor.deleted_at IS NULL
-  ) THEN
-    RAISE EXCEPTION 'This move-up has a newer successor and cannot be reversed.'
       USING ERRCODE = '22023';
   END IF;
 

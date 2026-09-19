@@ -111,7 +111,8 @@ end;
 $$;
 
 -- An explicit exhibitor clear is honored by the same branch for compatibility
--- with older callers; the owner then restores the selected handler identity.
+-- with older callers. This intentionally revokes the former handler's access;
+-- an official caller can then assign the replacement identity.
 select pg_temp.call_handler_update(
   '00000000-0000-0000-0000-000000665102', 'MYK9-665 Cleared Handler', true);
 do $$
@@ -123,7 +124,7 @@ begin
 end;
 $$;
 select pg_temp.call_handler_update(
-  '00000000-0000-0000-0000-000000665101', 'MYK9-665 Handler Restored', false,
+  '00000000-0000-0000-0000-000000665103', 'MYK9-665 Handler Restored', false,
   null, '00000000-0000-0000-0000-000000665012');
 do $$
 begin

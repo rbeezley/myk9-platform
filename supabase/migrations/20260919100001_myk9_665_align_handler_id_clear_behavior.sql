@@ -2,8 +2,8 @@
 --
 -- handler_id remains the load-bearing person link captured for the entry. A
 -- text correction preserves that link unless the caller explicitly requests a
--- clear; both caller tiers use the same rule. The RPC must not infer a person
--- from free-text handler names.
+-- clear, which intentionally revokes the former handler's access; both caller
+-- tiers use the same rule. The RPC must not infer a person from free-text names.
 
 CREATE OR REPLACE FUNCTION public.update_entry_handler_for_entry_management(
   p_entry_id uuid,

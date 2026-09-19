@@ -46,7 +46,7 @@ export interface SaveEntryEditsParams {
 export async function saveEntryEdits(
   params: SaveEntryEditsParams
 ): Promise<{ error: string | null }> {
-  const { classes, classEdits, fallbackHandler, clearHandlerId = false } = params;
+  const { classes, classEdits, fallbackHandler, clearHandlerId } = params;
 
   // A grouped dog card can contain multiple entry rows, and each row may need a
   // different handler.

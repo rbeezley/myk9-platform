@@ -217,7 +217,7 @@ export const updateEntryHandler = async (params: {
         p_entry_id: entryId,
         p_handler: handler,
         p_handler_id: handlerId,
-        ...(clearHandlerId ? { p_clear_handler_id: true } : {}),
+        p_clear_handler_id: clearHandlerId,
       } as never
     );
 

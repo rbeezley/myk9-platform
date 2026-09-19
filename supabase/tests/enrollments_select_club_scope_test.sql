@@ -363,8 +363,7 @@ $$;
 
 RESET ROLE;
 
--- 7. A show-pinned secretary row grants nothing (deliberate tightening,
---    matching entries_select).
+-- 7. A show-pinned secretary row retains access to its assigned show.
 SET LOCAL ROLE authenticated;
 SELECT set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-000000663157', true);
 SELECT set_config(
@@ -388,19 +387,16 @@ BEGIN
       own_handled;
   END IF;
 
-  -- Everything they can see must be that one handler row: the show-pinned
-  -- secretary appointment itself grants nothing. Under the pre-MYK9-663
-  -- predicate this persona also read Club A''s 2 rows via
-  -- `ur.show_id = enrollments.show_id`, so this count was 3.
+  -- The assigned-show role arm grants both Club A Show A rows. It must not
+  -- widen to Club B or Club A Show A2.
   SELECT count(*) INTO visible FROM public.enrollments
-   WHERE show_id IN ('00000000-0000-0000-0000-000000663011',
-                     '00000000-0000-0000-0000-000000663012');
-  IF visible <> 1 THEN
+   WHERE show_id = '00000000-0000-0000-0000-000000663011';
+  IF visible <> 2 THEN
     RAISE EXCEPTION
-      'FAIL show-pinned secretary sees % enrollments; only their own handler row should be visible',
+      'FAIL show-pinned secretary sees % enrollments on the assigned show; expected 2',
       visible;
   END IF;
-  RAISE NOTICE 'PASS show-pinned secretary row grants no enrollment read beyond their own handler row';
+  RAISE NOTICE 'PASS show-pinned secretary retains assigned-show enrollment read';
 END;
 $$;
 

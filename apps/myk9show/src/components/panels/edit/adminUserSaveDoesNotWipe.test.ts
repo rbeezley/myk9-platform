@@ -62,6 +62,29 @@ function saveThrough(
 }
 
 describe('a save from /admin/users does not wipe what it never loaded', () => {
+  it('marshals the edit panel payload before the atomic private-profile save', () => {
+    const update = mapUserToDbUpdate(
+      buildUserEditSavePayload(
+        formDataToUser({
+          ...userToFormData(mapDbUserToUser(DIRECTORY_ROW)),
+          phone: '555-0200',
+          dateOfBirth: '2011-03-04',
+          juniorHandlerNumbers: { AKC: '7654321' },
+        })
+      )
+    );
+
+    expect(update).toEqual(
+      expect.objectContaining({
+        phone: '555-0200',
+        date_of_birth: '2011-03-04',
+        junior_handler_numbers: { AKC: '7654321' },
+      })
+    );
+    expect(update).not.toHaveProperty('dateOfBirth');
+    expect(update).not.toHaveProperty('juniorHandlerNumbers');
+  });
+
   it('emits neither junior column when the row did not carry them', () => {
     const update = saveThrough(ADMIN_LIST_ROW, form => ({ ...form, phone: '555-0200' }));
 

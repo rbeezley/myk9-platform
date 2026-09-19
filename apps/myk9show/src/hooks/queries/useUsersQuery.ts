@@ -98,6 +98,23 @@ export const mapUserToDbUpdate = (user: Partial<User>): DbUserUpdate & PrivateUs
   return dbUpdate;
 };
 
+/**
+ * Canonical UI save boundary. Admin edit surfaces intentionally work with the
+ * camelCase User shape; only this function marshals that shape before it can
+ * reach PostgREST (including the snake_case private fields used by the atomic
+ * profile RPC).
+ */
+export const updateUserFromUi = async (id: string, updates: Partial<User>): Promise<User> => {
+  const result = await updateUser(id, mapUserToDbUpdate(updates));
+  if (result.error) {
+    // Carry the code, not just the message: `getUserFriendlyError` maps by
+    // code in production and discards the message, so a bare `new Error`
+    // turns an actionable refusal into "Failed to update user" (MYK9-136).
+    throw Object.assign(new Error(result.error.message), { code: result.error.code });
+  }
+  return mapDbUserToUser(result.data);
+};
+
 // User database service implementation
 const UserService = {
   getAll: async (): Promise<User[]> => {
@@ -148,17 +165,7 @@ const UserService = {
     return mapDbUserToUser(result.data);
   },
 
-  update: async (id: string, updates: Partial<User>): Promise<User> => {
-    const dbUpdates = mapUserToDbUpdate(updates);
-    const result = await updateUser(id, dbUpdates);
-    if (result.error) {
-      // Carry the code, not just the message: `getUserFriendlyError` maps by
-      // code in production and discards the message, so a bare `new Error`
-      // turns an actionable refusal into "Failed to update user" (MYK9-136).
-      throw Object.assign(new Error(result.error.message), { code: result.error.code });
-    }
-    return mapDbUserToUser(result.data);
-  },
+  update: updateUserFromUi,
 
   delete: async (id: string, deletedBy?: string): Promise<void> => {
     const result = await deleteUser(id, deletedBy);
@@ -343,7 +350,7 @@ export function useUpdateUserMutation() {
 
   return useMutation({
     mutationFn: ({ id, updates }: { id: string; updates: Partial<User> }) =>
-      UserService.update(id, updates),
+      updateUserFromUi(id, updates),
     onSuccess: (updatedUser: User) => {
       queryClient.setQueryData(queryKeys.users.detail(updatedUser.id), updatedUser);
 
@@ -398,7 +405,7 @@ export function useOptimisticUpdateUser() {
 
   return useMutation({
     mutationFn: ({ id, updates }: { id: string; updates: Partial<User> }) =>
-      UserService.update(id, updates),
+      updateUserFromUi(id, updates),
     onMutate: async ({ id, updates }) => {
       await queryClient.cancelQueries({ queryKey: queryKeys.users.detail(id) });
       await queryClient.cancelQueries({ queryKey: queryKeys.users.all });

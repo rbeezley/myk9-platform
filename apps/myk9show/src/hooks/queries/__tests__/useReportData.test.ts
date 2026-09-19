@@ -104,10 +104,9 @@ describe('useReportData', () => {
       ...mockShow,
       trials: [{ id: 'trial-1', name: 'Trial 1', trialNumber: 1, date: '2026-04-12' }],
     } as never;
-    const { result } = renderHook(
-      () => useReportData({ ...defaultOptions, show: cachedShow }),
-      { wrapper: createWrapper() }
-    );
+    const { result } = renderHook(() => useReportData({ ...defaultOptions, show: cachedShow }), {
+      wrapper: createWrapper(),
+    });
 
     await waitFor(() => expect(result.current.isReady).toBe(true));
     expect(result.current.trials).toEqual([

@@ -15,7 +15,9 @@ function parseCalendarDate(value?: string | null): Date | undefined {
   const parsed = parseLocalDateString(datePart);
   if (!parsed) return undefined;
   const [year, month, day] = datePart.split('-').map(Number);
-  return parsed.getFullYear() === year && parsed.getMonth() === month - 1 && parsed.getDate() === day
+  return parsed.getFullYear() === year &&
+    parsed.getMonth() === month - 1 &&
+    parsed.getDate() === day
     ? parsed
     : undefined;
 }

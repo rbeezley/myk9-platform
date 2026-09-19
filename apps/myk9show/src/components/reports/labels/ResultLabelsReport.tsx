@@ -216,37 +216,40 @@ export const ResultLabelsReport: React.FC<ResultLabelsReportProps> = ({
       )}
 
       {/* Live preview — fixed-dimension cells matching the chosen stock */}
-      {!isLoading && !isUnavailable && !isError && pages.map(page => (
-        <div
-          key={page.pageNumber}
-          style={{
-            display: 'grid',
-            gridTemplateColumns: `repeat(${template.columns}, ${template.labelWidth}in)`,
-            columnGap: `${template.gapX}in`,
-            rowGap: `${template.gapY}in`,
-            margin: '0 auto 16px',
-            border: '1px dashed var(--border)',
-            padding: '8px',
-          }}
-        >
-          {page.cells.map((cell, i) => (
-            <div
-              key={i}
-              style={{
-                width: `${template.labelWidth}in`,
-                height: `${template.labelHeight}in`,
-                border:
-                  cell.type === 'item' ? '1px solid var(--border)' : '1px dashed var(--border)',
-                boxSizing: 'border-box',
-                overflow: 'hidden',
-                padding: '0.08in 0.12in',
-              }}
-            >
-              {cell.type === 'item' && cell.item && <ResultLabelCell item={cell.item} />}
-            </div>
-          ))}
-        </div>
-      ))}
+      {!isLoading &&
+        !isUnavailable &&
+        !isError &&
+        pages.map(page => (
+          <div
+            key={page.pageNumber}
+            style={{
+              display: 'grid',
+              gridTemplateColumns: `repeat(${template.columns}, ${template.labelWidth}in)`,
+              columnGap: `${template.gapX}in`,
+              rowGap: `${template.gapY}in`,
+              margin: '0 auto 16px',
+              border: '1px dashed var(--border)',
+              padding: '8px',
+            }}
+          >
+            {page.cells.map((cell, i) => (
+              <div
+                key={i}
+                style={{
+                  width: `${template.labelWidth}in`,
+                  height: `${template.labelHeight}in`,
+                  border:
+                    cell.type === 'item' ? '1px solid var(--border)' : '1px dashed var(--border)',
+                  boxSizing: 'border-box',
+                  overflow: 'hidden',
+                  padding: '0.08in 0.12in',
+                }}
+              >
+                {cell.type === 'item' && cell.item && <ResultLabelCell item={cell.item} />}
+              </div>
+            ))}
+          </div>
+        ))}
     </div>
   );
 };

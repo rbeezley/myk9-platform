@@ -137,13 +137,11 @@ export function useReportData({ show, trialId, classId }: UseReportDataOptions) 
   // query is paused or its local trial read is still cold. Keep one resolved
   // trial set for every downstream consumer so controls cannot advertise a
   // trial that previews/classes did not load.
-  const hasCurrentReportTrials =
-    trialsQuery.data !== undefined && !trialsQuery.isPlaceholderData;
-  const reportTrials =
-    hasCurrentReportTrials
-      ? trialsQuery.data
-      : show?.trials?.length
-        ? show.trials.map(trial => ({
+  const hasCurrentReportTrials = trialsQuery.data !== undefined && !trialsQuery.isPlaceholderData;
+  const reportTrials = hasCurrentReportTrials
+    ? trialsQuery.data
+    : show?.trials?.length
+      ? show.trials.map(trial => ({
           id: trial.id,
           show_id: showId,
           name: trial.name,
@@ -151,8 +149,8 @@ export function useReportData({ show, trialId, classId }: UseReportDataOptions) 
           trial_number: Number(trial.trialNumber) || 0,
           timezone: trial.timezone ?? null,
           registry_id: trial.registryId ?? null,
-          }))
-        : undefined;
+        }))
+      : undefined;
   const selectedTrialIsInShow =
     trialId === 'all' ||
     (reportTrials !== undefined && reportTrials.some(trial => trial.id === trialId));
@@ -277,14 +275,14 @@ export function useReportData({ show, trialId, classId }: UseReportDataOptions) 
   const dataState: ReportDataState = hasInvalidScope
     ? 'error'
     : queries.some(q => q.isError)
-    ? 'error'
-    : queries.some(q => q.isPlaceholderData)
-      ? 'stale'
-      : hasEveryRowSet
-        ? 'ready'
-        : queries.some(q => q.fetchStatus === 'paused')
-          ? 'unavailable'
-          : 'loading';
+      ? 'error'
+      : queries.some(q => q.isPlaceholderData)
+        ? 'stale'
+        : hasEveryRowSet
+          ? 'ready'
+          : queries.some(q => q.fetchStatus === 'paused')
+            ? 'unavailable'
+            : 'loading';
 
   const refetch = () => {
     void trialsQuery.refetch();

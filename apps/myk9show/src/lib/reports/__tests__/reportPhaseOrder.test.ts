@@ -38,21 +38,19 @@ describe('resolveShowTimePhase', () => {
   });
 
   it('treats an invalid end-before-start range as unknown', () => {
-    expect(
-      resolveShowTimePhase({ startDate: '2026-03-25', endDate: '2026-03-20' }, MARCH_22)
-    ).toBe('unknown');
+    expect(resolveShowTimePhase({ startDate: '2026-03-25', endDate: '2026-03-20' }, MARCH_22)).toBe(
+      'unknown'
+    );
   });
 
   it('treats malformed date values as unknown', () => {
-    expect(
-      resolveShowTimePhase({ startDate: '2026-03-01', endDate: '2026-03-xx' }, MARCH_22)
-    ).toBe('unknown');
+    expect(resolveShowTimePhase({ startDate: '2026-03-01', endDate: '2026-03-xx' }, MARCH_22)).toBe(
+      'unknown'
+    );
     expect(resolveShowTimePhase({ startDate: '2026-02-30', endDate: '2026-03-02' }, MARCH_22)).toBe(
       'unknown'
     );
-    expect(
-      resolveShowTimePhase({ startDate: '2026-03-22T99:99:99Z' }, MARCH_22)
-    ).toBe('unknown');
+    expect(resolveShowTimePhase({ startDate: '2026-03-22T99:99:99Z' }, MARCH_22)).toBe('unknown');
   });
 
   it('accepts timestamps with PostgreSQL fractional-second precision', () => {

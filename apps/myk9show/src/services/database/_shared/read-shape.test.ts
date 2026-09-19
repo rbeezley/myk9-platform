@@ -195,6 +195,29 @@ describe('read-shape helpers', () => {
       expect(postgrest).toHaveBeenCalledTimes(1);
     });
 
+    it('can surface an online verification failure for cold scopes', async () => {
+      const replication = vi.fn().mockResolvedValue({ data: [], error: null });
+      const postgrest = vi.fn().mockRejectedValue(new Error('offline'));
+
+      const result = await readWithReplicationFallback({
+        replication,
+        postgrest,
+        table: 'trials',
+        operation: 'select_by_show',
+        errorData: [],
+        verifyOnlineWhenEmpty: true,
+        errorOnOnlineVerificationFailure: true,
+      });
+
+      expect(result.data).toEqual([]);
+      expect(result.error).toMatchObject({
+        name: 'DatabaseError',
+        message: 'offline',
+        table: 'trials',
+        operation: 'select_by_show_online_verify',
+      });
+    });
+
     it('does not online-verify an empty result when the flag is off (backwards compatible)', async () => {
       const replication = vi.fn().mockResolvedValue({ data: [], error: null });
       const postgrest = vi.fn().mockResolvedValue({ data: [{ id: 'online' }], error: null });

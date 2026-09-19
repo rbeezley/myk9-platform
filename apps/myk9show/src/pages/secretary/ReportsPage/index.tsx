@@ -6,6 +6,7 @@ import { useReportData, type ReportDataState } from '@/hooks/queries/useReportDa
 import { getReportById } from '@/lib/reports/reportRegistry';
 import { ReportControlsBar } from './ReportControlsBar';
 import { resolveShowTimePhase } from '@/lib/reports/reportPhaseOrder';
+import { getEntryWindowTimezone } from '@/utils/entryWindowDate';
 import { ReportPreview } from './ReportPreview';
 import { printIframe } from './reportPreviewUtils';
 import { ArmbandLabelsReport } from '@/components/reports/labels/ArmbandLabelsReport';
@@ -129,7 +130,6 @@ export default function ReportsPage() {
   // show day the check-in and score sheets lead instead of sitting under eleven
   // pre-show planning reports. Headings and membership are unchanged and
   // nothing is gated — see `orderReportPhases`.
-  const showTimePhase = resolveShowTimePhase(currentShow);
   const linkShowId = showId ?? currentShow?.id;
   const [searchParams] = useSearchParams();
   const [initialScope] = useState(() => resolveInitialReportScope(searchParams));
@@ -157,17 +157,36 @@ export default function ReportsPage() {
       trialId,
       classId,
     });
+  // During a paused/loading or cold-replica report-trials query, retain the
+  // show detail's already-loaded trials for timezone and registry scope. The
+  // show detail and report query share the same show, so a non-empty detail row
+  // is the only useful answer when the scoped query has no rows yet.
+  const resolvedTrials = useMemo(
+    () => trials ?? currentShow?.trials ?? [],
+    [currentShow?.trials, trials]
+  );
+  const showTimePhase = resolveShowTimePhase(
+    currentShow,
+    new Date(),
+    getEntryWindowTimezone(
+      resolvedTrials as Array<{
+        id?: string | null;
+        date?: string | null;
+        timezone?: string | null;
+      }>
+    )
+  );
 
   const trialOptions = useMemo(
     () =>
-      ((trials ?? []) as Array<Record<string, unknown>>).map(t => ({
+      (resolvedTrials as Array<Record<string, unknown>>).map(t => ({
         id: t.id as string,
         name: (t.name ?? '') as string,
-        trial_number: Number(t.trial_number ?? 0),
-        date: (t.date ?? '') as string,
-        registry_id: (t.registry_id ?? null) as string | null,
+        trial_number: Number(t.trial_number ?? t.trialNumber ?? 0),
+        date: (t.date ?? t.trialDate ?? '') as string,
+        registry_id: (t.registry_id ?? t.registryId ?? null) as string | null,
       })),
-    [trials]
+    [resolvedTrials]
   );
 
   const classOptions = useMemo(
@@ -438,6 +457,8 @@ export default function ReportsPage() {
               scope={effectiveScope}
               sortOrder={sortOrder}
               isLoading={isLoading}
+              isUnavailable={dataState === 'unavailable'}
+              isError={isError}
               iframeRef={iframeRef}
             />
             <iframe ref={iframeRef} title="Label Print" style={{ display: 'none' }} />

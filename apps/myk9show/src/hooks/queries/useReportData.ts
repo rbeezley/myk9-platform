@@ -133,17 +133,39 @@ export function useReportData({ show, trialId, classId }: UseReportDataOptions) 
     ...cacheStrategies.moderate,
   });
 
+  // A show detail can already carry its replicated trials while this scoped
+  // query is paused or its local trial read is still cold. Keep one resolved
+  // trial set for every downstream consumer so controls cannot advertise a
+  // trial that previews/classes did not load.
+  const hasCurrentReportTrials = trialsQuery.data !== undefined && !trialsQuery.isPlaceholderData;
+  const reportTrials = hasCurrentReportTrials
+    ? trialsQuery.data
+    : show?.trials?.length
+      ? show.trials.map(trial => ({
+          id: trial.id,
+          show_id: showId,
+          name: trial.name,
+          date: trial.date,
+          trial_number: Number(trial.trialNumber) || 0,
+          timezone: trial.timezone ?? null,
+          registry_id: trial.registryId ?? null,
+        }))
+      : undefined;
+  const selectedTrialIsInShow =
+    trialId === 'all' ||
+    (reportTrials !== undefined && reportTrials.some(trial => trial.id === trialId));
+
   const classesQuery = useQuery({
     queryKey: [
       ...queryKeys.showClasses(showId),
       trialId,
       trialId === 'all'
-        ? ((trialsQuery.data ?? []) as Array<{ id: string }>).map(trial => trial.id)
+        ? ((reportTrials ?? []) as Array<{ id: string }>).map(trial => trial.id)
         : [],
     ],
     queryFn: async () => {
       if (trialId === 'all') {
-        const trials = (trialsQuery.data ?? []) as Array<{ id: string }>;
+        const trials = (reportTrials ?? []) as Array<{ id: string }>;
         const results = await Promise.all(trials.map(trial => getClassesByTrialId(trial.id)));
         const failedResult = results.find(result => result.error);
         if (failedResult?.error) throw failedResult.error;
@@ -153,7 +175,7 @@ export function useReportData({ show, trialId, classId }: UseReportDataOptions) 
       if (error) throw error;
       return data ?? [];
     },
-    enabled: trialsQuery.isSuccess,
+    enabled: selectedTrialIsInShow && (trialsQuery.isSuccess || reportTrials !== undefined),
     ...cacheStrategies.moderate,
   });
 
@@ -180,7 +202,18 @@ export function useReportData({ show, trialId, classId }: UseReportDataOptions) 
       if (error) throw error;
       return hydrateEntryRegistrations((data ?? []) as ReportDbEntry[]);
     },
-    enabled: classesQuery.isSuccess,
+    enabled:
+      selectedTrialIsInShow &&
+      classesQuery.isSuccess &&
+      (classId === 'all' ||
+        Boolean(
+          classesQuery.data?.some(
+            reportClass =>
+              reportClass.id === classId &&
+              (trialId === 'all' || reportClass.trial_id === trialId) &&
+              reportTrials?.some(trial => trial.id === reportClass.trial_id)
+          )
+        )),
     ...cacheStrategies.moderate,
   });
 
@@ -224,19 +257,39 @@ export function useReportData({ show, trialId, classId }: UseReportDataOptions) 
   // Placeholder is checked BEFORE that, because placeholder rows are complete
   // but belong to the PREVIOUS selection -- present, and wrong.
   const hasEveryRowSet =
-    trialsQuery.data !== undefined &&
+    reportTrials !== undefined &&
     classesQuery.data !== undefined &&
     entriesQuery.data !== undefined;
 
-  const dataState: ReportDataState = queries.some(q => q.isError)
+  const selectedClassIsInScope =
+    classId === 'all' ||
+    classesQuery.data === undefined ||
+    classesQuery.data.some(
+      reportClass =>
+        reportClass.id === classId &&
+        (trialId === 'all' || reportClass.trial_id === trialId) &&
+        reportTrials?.some(trial => trial.id === reportClass.trial_id)
+    );
+  const hasInvalidScope = !selectedTrialIsInShow || !selectedClassIsInScope;
+  // A show detail can provide a complete replicated trial set even when the
+  // auxiliary scoped trial verification is unavailable. That verification
+  // failure must not make otherwise complete cached report rows unprintable.
+  const hasBlockingQueryError =
+    (trialsQuery.isError && reportTrials === undefined) ||
+    classesQuery.isError ||
+    entriesQuery.isError;
+
+  const dataState: ReportDataState = hasInvalidScope
     ? 'error'
-    : queries.some(q => q.isPlaceholderData)
-      ? 'stale'
-      : hasEveryRowSet
-        ? 'ready'
-        : queries.some(q => q.fetchStatus === 'paused')
-          ? 'unavailable'
-          : 'loading';
+    : hasBlockingQueryError
+      ? 'error'
+      : queries.some(q => q.isPlaceholderData)
+        ? 'stale'
+        : hasEveryRowSet
+          ? 'ready'
+          : queries.some(q => q.fetchStatus === 'paused')
+            ? 'unavailable'
+            : 'loading';
 
   const refetch = () => {
     void trialsQuery.refetch();
@@ -246,7 +299,7 @@ export function useReportData({ show, trialId, classId }: UseReportDataOptions) 
 
   return {
     show,
-    trials: trialsQuery.data,
+    trials: reportTrials,
     classes: classesQuery.data,
     entries,
     registrationsReadComplete,

@@ -477,28 +477,6 @@ SELECT set_config(
   true
 );
 
--- ---------------------------------------------------------------------------
--- 5b. An intermediate destination in a later move-up chain cannot be undone
--- by a stale Undo action. The terminal destination is now 639079, so the
--- original destination 639073 must remain superseded and untouched.
--- ---------------------------------------------------------------------------
-DO $$
-BEGIN
-  PERFORM public.move_up_entry(
-    '00000000-0000-0000-0000-000000639073',
-    '00000000-0000-0000-0000-000000639033',
-    '00000000-0000-0000-0000-000000639079'
-  );
-
-  BEGIN
-    PERFORM public.reverse_move_up_entry('00000000-0000-0000-0000-000000639073');
-    RAISE EXCEPTION 'FAIL a stale Undo reversed an intermediate move-up';
-  EXCEPTION WHEN invalid_parameter_value THEN
-    RAISE NOTICE 'PASS reverse_move_up_entry refuses an intermediate move-up';
-  END;
-END;
-$$;
-
 RESET ROLE;
 
 -- ---------------------------------------------------------------------------

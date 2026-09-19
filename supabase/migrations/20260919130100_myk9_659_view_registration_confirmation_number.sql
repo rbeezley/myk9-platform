@@ -501,6 +501,15 @@ GRANT SELECT ON public.view_authenticated_entry_results_replication TO service_r
 REVOKE ALL ON public.view_authenticated_entry_results_replication FROM anon;
 REVOKE INSERT, UPDATE, DELETE ON public.view_authenticated_entry_results_replication FROM authenticated;
 
+-- The replication feed is incremental after its initial sync and uses the
+-- entry's updated_at watermark. Bump existing registered entries so devices
+-- that already cached them receive the newly projected order reference on the
+-- next sync instead of waiting for the periodic full-sync heal interval.
+UPDATE public.entries AS e
+SET updated_at = GREATEST(e.updated_at, now())
+FROM public.enrollments AS en
+WHERE en.id = e.registration_id;
+
 COMMENT ON VIEW public.view_authenticated_entry_results_replication IS
   'Replication feed wrapping view_authenticated_entry_results, adding the shows join needed to replicate soft-deleted shows (MYK9-291). Owner-run (security_invoker = false) like the view it wraps; the score/payment gating is inherited from that inner view body, and the shows columns are reachable only for entries the inner view already admitted. Advisor security_definer_view ERROR accepted by design 2026-09-09 (docs/improve-audit-2026-07-11/009-advisor-disposition-sweep.md, Verdict 1). Any rebuild MUST carry WITH (security_invoker = false) inline -- CREATE OR REPLACE VIEW resets reloptions. The select list is explicit (MYK9-632): `entries.*` re-expanded on every rebuild and would have reordered the columns the moment the inner view gained one. moved_from_entry_id (MYK9-639) is appended after it. registration_confirmation_number (MYK9-659) is appended after that, so the offline receipt prints the same order reference as the online one -- guarded by the inner view''s can_view_admin alone (see that view''s comment), which is the entry''s access, not the enrollment''s.';
 

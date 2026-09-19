@@ -157,10 +157,11 @@ export default function ReportsPage() {
       trialId,
       classId,
     });
-  // During a paused/loading report-trials query, retain the show detail's
-  // already-loaded trials for timezone and registry scope. A successful empty
-  // query is authoritative, so only `undefined` falls back to the show row.
-  const resolvedTrials = trials === undefined ? (currentShow?.trials ?? []) : trials;
+  // During a paused/loading or cold-replica report-trials query, retain the
+  // show detail's already-loaded trials for timezone and registry scope. The
+  // show detail and report query share the same show, so a non-empty detail row
+  // is the only useful answer when the scoped query has no rows yet.
+  const resolvedTrials = trials?.length ? trials : (currentShow?.trials ?? trials ?? []);
   const showTimePhase = resolveShowTimePhase(
     currentShow,
     new Date(),

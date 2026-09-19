@@ -118,6 +118,7 @@ export const mapDatabaseToShow = (
         id: trialObj.id as string | null | undefined,
         timezone: trialObj.timezone as string | null | undefined,
       }),
+      registryId: (trialObj.registry_id ?? trialObj.registryId ?? null) as string | null,
       classes: ((trialObj.class as unknown[]) || []).map((cls: unknown) => {
         const classObj = cls as Record<string, unknown>;
         return {

@@ -123,6 +123,21 @@ REVOKE ALL ON FUNCTION public.reverse_move_up_entry(uuid) FROM anon;
 GRANT EXECUTE ON FUNCTION public.reverse_move_up_entry(uuid) TO authenticated;
 GRANT EXECUTE ON FUNCTION public.reverse_move_up_entry(uuid) TO service_role;
 
+COMMENT ON FUNCTION public.reverse_move_up_entry(uuid) IS
+  'MYK9-640: undo a move-up as ONE transaction -- restore the superseded source '
+  'from the destination''s live entry_status, and from the SOURCE''s own '
+  'check_in_status unless the dog was checked in on the destination after the '
+  'move (so ''at-gate'' survives a round trip), then soft-delete '
+  'the destination. Refuses once the run has STARTED, meaning any of: is_scored, '
+  'is_in_ring, a check-in of in-ring or completed, scoring_started_at, '
+  'scoring_completed_at, ring_entry_time, a non-pending result_status, a '
+  'final_placement, or a non-zero points_earned, points_possible, '
+  'search_time_seconds, area1..4_time_seconds, total_faults, total_correct_finds, '
+  'total_incorrect_finds, no_finish_count or total_score. Also refuses when a '
+  'newer live move-up successor already superseded the destination. Touches no '
+  'money: after MYK9-639 the destination never held any. Restates can_manage_show '
+  'on BOTH the destination''s and the source''s show, and requires them to be the same show.';
+
 NOTIFY pgrst, 'reload schema';
 
 COMMIT;

@@ -44,6 +44,7 @@ export interface EntryBalanceSource {
   /** Fee in dollars, matching My Entries' loaded entry model. */
   totalFee: number;
   movedFromEntryId?: string | null | undefined;
+  moneyRootEntryId?: string | null | undefined;
   moneyRootUnresolved?: boolean | undefined;
   classes?: EntryBalanceClassSource[] | undefined;
 }
@@ -258,7 +259,8 @@ export function summarizeEntryBalances(
     paymentMethod: root.paymentMethod,
     totalFee: root.totalFee,
   }));
-  if (rootedEntries.some(entry => entry.moneyRootUnresolved)) {
+  const trustworthyEntries = rootedEntries.filter(entry => !entry.moneyRootUnresolved);
+  if (trustworthyEntries.length === 0 && rootedEntries.length > 0) {
     return UNKNOWN_ENTRY_BALANCE_SUMMARY;
   }
 
@@ -268,7 +270,7 @@ export function summarizeEntryBalances(
   let onlineDueCents = 0;
   let payAtShowDueCents = 0;
 
-  for (const entry of rootedEntries) {
+  for (const entry of trustworthyEntries) {
     const isCurrentEntry = isCurrentSummaryEntry(entry, now);
     if (!isCurrentEntry && !isBalanceEligibleEntry(entry)) continue;
 

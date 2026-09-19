@@ -71,6 +71,21 @@ describe('summarizeEntryBalances', () => {
     expect(summary.onlineShowBalances[0]?.entryIds).toEqual(['source']);
   });
 
+  it('keeps unrelated shows payable when one show has an unresolved money root', () => {
+    const summary = summarizeEntryBalances(
+      [
+        entry({ id: 'broken-destination', showId: 'show-1', movedFromEntryId: 'missing' }),
+        entry({ id: 'healthy-entry', showId: 'show-2', showName: 'Second Trial' }),
+      ],
+      now
+    );
+
+    expect(summary.kind).toBe('known');
+    expect(summary.onlineShowBalances).toHaveLength(1);
+    expect(summary.onlineShowBalances[0]?.showId).toBe('show-2');
+    expect(summary.onlineShowBalances[0]?.entryIds).toEqual(['healthy-entry']);
+  });
+
   it('sums current accepted and pending-review fees into the same amount due My Shows displays', () => {
     const summary = summarizeEntryBalances(
       [

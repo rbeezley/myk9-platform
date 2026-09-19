@@ -179,7 +179,7 @@ describe('EntryEditDialog — per-class handlers', () => {
     });
   });
 
-  it('clears stale handler person links when secretary saves a text correction', async () => {
+  it('preserves the secretary handler identity when correcting handler text', async () => {
     const entry = {
       ...makeEntry('Scent Work'),
       classes: [
@@ -219,7 +219,7 @@ describe('EntryEditDialog — per-class handlers', () => {
         entryId: 'entry-container',
         handler: 'Jamie Walker',
         handlerId: null,
-        clearHandlerId: true,
+        clearHandlerId: false,
       });
     });
   });

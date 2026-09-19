@@ -31,10 +31,9 @@
  *   3. nobody.
  *
  * There is deliberately no cross-entry lookup and no "nearest plausible person".
- * `entries.handler` is free text and `entries.handler_id` is a FK that a rename
- * leaves behind (the RPC's exhibitor branch discards the clear flag — MYK9-665),
- * so the FK alone is not identity. Matching on the printed name is what makes a
- * stale id harmless.
+ * `entries.handler` is free text and `entries.handler_id` is a load-bearing FK
+ * that a rename can leave behind, so the FK alone is not identity. Matching on
+ * the printed name is what makes a stale id harmless.
  *
  * ## What it deliberately gets wrong
  *

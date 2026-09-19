@@ -15,6 +15,14 @@ export const DEFAULT_REPORT_PHASE_ORDER: readonly ReportPhase[] = [
   'anytime',
 ];
 
+const ISO_DATE_PREFIX = /^\d{4}-\d{2}-\d{2}$/;
+
+function isValidDatePrefix(value: string | undefined): value is string {
+  if (!value || !ISO_DATE_PREFIX.test(value)) return false;
+  const parsed = new Date(`${value}T00:00:00.000Z`);
+  return !Number.isNaN(parsed.getTime()) && parsed.toISOString().slice(0, 10) === value;
+}
+
 /**
  * `YYYY-MM-DD` for a Date, in LOCAL time.
  *
@@ -45,10 +53,12 @@ export function resolveShowTimePhase(
   const start = show?.startDate?.slice(0, 10);
   if (!start) return 'unknown';
   const end = show?.endDate?.slice(0, 10) || start;
+  if (!isValidDatePrefix(start) || !isValidDatePrefix(end)) return 'unknown';
   // A malformed range has no trustworthy phase. Without this guard, a date
   // before the start but after an earlier end is incorrectly reported as
   // `after`, which can put the report picker in the wrong operational order.
   if (end < start) return 'unknown';
+  if (Number.isNaN(today.getTime())) return 'unknown';
   const now = toLocalDateKey(today);
   if (now < start) return 'before';
   if (now > end) return 'after';

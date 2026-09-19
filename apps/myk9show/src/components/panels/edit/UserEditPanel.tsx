@@ -32,7 +32,10 @@ export type { UserEditPanelProps, UserFormData } from './UserEditPanel.types';
 const TAB_TRIGGER_CLASS = 'gap-2 rounded-lg transition-all duration-300';
 
 // Form content component
-const UserEditForm: React.FC<{ userId: string }> = ({ userId }) => {
+const UserEditForm: React.FC<{ userId: string; canWritePrivateFields: boolean }> = ({
+  userId,
+  canWritePrivateFields,
+}) => {
   const queryClient = useQueryClient();
   const { data, form } = useEditPanel<UserFormData>();
   const { data: hydratedUser } = useUserQuery(userId);
@@ -222,6 +225,7 @@ const UserEditForm: React.FC<{ userId: string }> = ({ userId }) => {
             personId={userId}
             hasAdminPermission={hasPermission('admin:manage')}
             canEditAdvancedFields={canEditAdvancedFields}
+            canWritePrivateFields={canWritePrivateFields}
             onOpenPhotoModal={() => setIsPhotoModalOpen(true)}
           />
 
@@ -332,23 +336,42 @@ export const UserEditPanel: React.FC<UserEditPanelProps> = ({
   enableAutoSave = false,
   // showAdvancedFields = false,
 }) => {
+  const { user: currentUser, userWithRoles } = useAuthContext();
+  const { hasPermission } = useRBAC();
   const isCreateMode = !userId;
   const title = isCreateMode ? 'Add Person' : 'Edit User';
   const subtitle = isCreateMode ? 'Create a person profile' : `Editing profile for ${userName}`;
   // Convert user data to form data
   const initialFormData = useMemo(() => userToFormData(initialUserData), [initialUserData]);
+  const canWritePrivateFields = useMemo(() => {
+    if (hasPermission('admin:manage')) return true;
+
+    // A subject may edit their own private fields. `userId` is the people id;
+    // auth_user_id is carried as User.user_id and databaseUserId is the
+    // canonical person id from the auth context.
+    return (
+      (currentUser?.id !== undefined && initialUserData.user_id === currentUser.id) ||
+      (userWithRoles?.databaseUserId !== undefined && userWithRoles.databaseUserId === userId)
+    );
+  }, [
+    currentUser?.id,
+    hasPermission,
+    initialUserData.user_id,
+    userId,
+    userWithRoles?.databaseUserId,
+  ]);
 
   // Handle save — persist profile data. Role assignments have their own
   // scope-aware surface in User Management.
   const handleSave = useCallback(
     async (formData: UserFormData) => {
-      const userData = formDataToUser(formData);
+      const userData = formDataToUser(formData, { includePrivateFields: canWritePrivateFields });
 
       if (onSave) {
         await onSave(userData);
       }
     },
-    [onSave]
+    [canWritePrivateFields, onSave]
   );
 
   return (
@@ -365,7 +388,7 @@ export const UserEditPanel: React.FC<UserEditPanelProps> = ({
       saveLabel={isCreateMode ? 'Add Person' : 'Save Changes'}
       cancelLabel="Cancel"
     >
-      <UserEditForm userId={userId} />
+      <UserEditForm userId={userId} canWritePrivateFields={canWritePrivateFields} />
     </EditPanelWrapper>
   );
 };

@@ -168,8 +168,14 @@ function juniorHandlerFieldsToSave(
   };
 }
 
-// Convert form data back to UserType
-export const formDataToUser = (formData: UserFormData): Partial<UserType> => ({
+// Convert form data back to UserType. Related show managers may read private
+// fields for an authorized edit view, but they are not allowed to write them.
+// Keeping this gate at the form-to-payload boundary prevents a hydrated value
+// from accidentally turning a public-only edit into a forbidden private RPC.
+export const formDataToUser = (
+  formData: UserFormData,
+  options: { includePrivateFields?: boolean } = {}
+): Partial<UserType> => ({
   firstName: formData.firstName,
   lastName: formData.lastName,
   email: formData.email,
@@ -182,7 +188,7 @@ export const formDataToUser = (formData: UserFormData): Partial<UserType> => ({
   // either the row it was seeded from carried them, or somebody typed one. A
   // form that never loaded them emits NOTHING, so a save from a surface with a
   // narrower read cannot blank a column it never showed.
-  ...juniorHandlerFieldsToSave(formData),
+  ...(options.includePrivateFields === false ? {} : juniorHandlerFieldsToSave(formData)),
   profileImage: formData.profileImage,
   judgeQualifications: formData.judgeQualifications,
   roles: formData.roles as UserRole[],

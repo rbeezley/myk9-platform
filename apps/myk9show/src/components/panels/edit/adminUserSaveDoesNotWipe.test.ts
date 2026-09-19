@@ -77,6 +77,20 @@ describe('a save from /admin/users does not wipe what it never loaded', () => {
     expect(update.junior_handler_numbers).toEqual({ AKC: '7654321' });
   });
 
+  it('omits hydrated private fields from a related-manager public-only save', () => {
+    const user = mapDbUserToUser(DIRECTORY_ROW);
+    const form = userToFormData(user);
+    const update = mapUserToDbUpdate(
+      buildUserEditSavePayload(
+        formDataToUser({ ...form, phone: '555-0200' }, { includePrivateFields: false })
+      )
+    );
+
+    expect(update.phone).toBe('555-0200');
+    expect('date_of_birth' in update).toBe(false);
+    expect('junior_handler_numbers' in update).toBe(false);
+  });
+
   it('lets an admin SET a date of birth on a row that arrived without one', () => {
     // Not emitting an untouched field must not become "never emit it" — the
     // whole point of the field is that someone can fill it in.

@@ -36,7 +36,7 @@ function mockPerson(person: Record<string, unknown> | null) {
   );
 }
 
-function renderTab(personId: string | undefined = 'person-1') {
+function renderTab(personId: string | undefined = 'person-1', canWritePrivateFields = false) {
   const context = {
     data: formData,
     updateData: () => {},
@@ -54,6 +54,7 @@ function renderTab(personId: string | undefined = 'person-1') {
         personId={personId}
         hasAdminPermission={false}
         canEditAdvancedFields={false}
+        canWritePrivateFields={canWritePrivateFields}
         onOpenPhotoModal={() => {}}
       />
     </EditPanelContext.Provider>
@@ -126,5 +127,14 @@ describe('BasicInfoTab sign-in email', () => {
 
     await waitFor(() => expect(screen.getByLabelText(/email address/i)).toBeInTheDocument());
     expect(screen.getByLabelText(/email address/i)).not.toHaveAttribute('readonly');
+  });
+
+  it('keeps hydrated junior fields read-only for a related manager', () => {
+    mockPerson({ auth_user_id: 'auth-1', email: 'ada@example.com' });
+
+    renderTab();
+
+    expect(screen.getByLabelText(/date of birth/i)).toBeDisabled();
+    expect(screen.getByText(/junior handler details are read-only/i)).toBeInTheDocument();
   });
 });

@@ -43,12 +43,14 @@ interface BasicInfoTabProps {
   hasAdminPermission: boolean;
   canEditAdvancedFields: boolean;
   onOpenPhotoModal: () => void;
+  canWritePrivateFields?: boolean;
 }
 
 export const BasicInfoTab: React.FC<BasicInfoTabProps> = ({
   personId,
   canEditAdvancedFields,
   onOpenPhotoModal,
+  canWritePrivateFields = false,
 }) => {
   const { data, form } = useEditPanel<UserFormData>();
   const hasSignInAccount = usePersonHasSignInAccount(personId);
@@ -167,8 +169,15 @@ export const BasicInfoTab: React.FC<BasicInfoTabProps> = ({
               [registryId]: value,
             }))
           }
+          disabled={!canWritePrivateFields}
         />
       </div>
+
+      {!canWritePrivateFields && (
+        <p className="text-sm text-muted-foreground">
+          Junior handler details are read-only for this role.
+        </p>
+      )}
 
       <p className="text-sm text-muted-foreground">
         Role assignments are managed from the{' '}

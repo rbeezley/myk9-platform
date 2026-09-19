@@ -16,11 +16,21 @@ export const DEFAULT_REPORT_PHASE_ORDER: readonly ReportPhase[] = [
 ];
 
 const ISO_DATE_PREFIX = /^\d{4}-\d{2}-\d{2}$/;
+const ISO_DATE_OR_TIMESTAMP =
+  /^\d{4}-\d{2}-\d{2}(?:T\d{2}:\d{2}(?::\d{2}(?:\.\d{1,3})?)?(?:Z|[+-]\d{2}:?\d{2})?)?$/;
 
 function isValidDatePrefix(value: string | undefined): value is string {
   if (!value || !ISO_DATE_PREFIX.test(value)) return false;
   const parsed = new Date(`${value}T00:00:00.000Z`);
   return !Number.isNaN(parsed.getTime()) && parsed.toISOString().slice(0, 10) === value;
+}
+
+function extractValidDatePrefix(value: string | undefined): string | undefined {
+  if (!value || !ISO_DATE_OR_TIMESTAMP.test(value)) return undefined;
+  const prefix = value.slice(0, 10);
+  if (!isValidDatePrefix(prefix)) return undefined;
+  if (value === prefix) return prefix;
+  return Number.isNaN(new Date(value).getTime()) ? undefined : prefix;
 }
 
 /**
@@ -50,10 +60,11 @@ export function resolveShowTimePhase(
   show: { startDate?: string | null; endDate?: string | null } | null | undefined,
   today: Date = new Date()
 ): ShowTimePhase {
-  const start = show?.startDate?.slice(0, 10);
+  const start = extractValidDatePrefix(show?.startDate ?? undefined);
   if (!start) return 'unknown';
-  const end = show?.endDate?.slice(0, 10) || start;
-  if (!isValidDatePrefix(start) || !isValidDatePrefix(end)) return 'unknown';
+  const rawEnd = show?.endDate;
+  const end = rawEnd == null || rawEnd === '' ? start : extractValidDatePrefix(rawEnd);
+  if (!end) return 'unknown';
   // A malformed range has no trustworthy phase. Without this guard, a date
   // before the start but after an earlier end is incorrectly reported as
   // `after`, which can put the report picker in the wrong operational order.

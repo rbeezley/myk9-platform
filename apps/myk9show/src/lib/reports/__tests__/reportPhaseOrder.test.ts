@@ -50,6 +50,9 @@ describe('resolveShowTimePhase', () => {
     expect(resolveShowTimePhase({ startDate: '2026-02-30', endDate: '2026-03-02' }, MARCH_22)).toBe(
       'unknown'
     );
+    expect(
+      resolveShowTimePhase({ startDate: '2026-03-22T99:99:99Z' }, MARCH_22)
+    ).toBe('unknown');
   });
 
   it('treats an invalid today value as unknown', () => {

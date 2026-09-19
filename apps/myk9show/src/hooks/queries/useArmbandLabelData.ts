@@ -83,7 +83,14 @@ export function useArmbandLabelData(showId: string | undefined): ArmbandLabelDat
           (row.trialId as string | undefined);
         return {
           ...row,
-          class: cls ? { ...cls, trial: trialId ? (trialsById.get(trialId) ?? null) : null } : null,
+          class:
+            cls || trialId
+              ? {
+                  ...(cls ?? {}),
+                  ...(trialId ? { trial_id: trialId } : {}),
+                  trial: trialId ? (trialsById.get(trialId) ?? null) : null,
+                }
+              : null,
         };
       });
     },

@@ -46,6 +46,7 @@ const defaultOnlineRow = { id: 'entry-online-1', show_id: 's1', class: { id: 'c1
 // Mutable so individual tests can model what the SERVER still returns (e.g. a
 // row whose delete has not yet synced is still live server-side).
 let onlineRows: Array<Record<string, unknown>> = [defaultOnlineRow];
+let onlineError: { message: string } | null = null;
 
 vi.mock('@/services/database/supabaseClient', () => ({
   supabase: {
@@ -53,7 +54,8 @@ vi.mock('@/services/database/supabaseClient', () => ({
       select: () => ({
         eq: () => ({
           is: () => ({
-            order: () => Promise.resolve({ data: onlineRows, error: null }),
+            order: () =>
+              Promise.resolve({ data: onlineError ? null : onlineRows, error: onlineError }),
           }),
         }),
       }),
@@ -69,6 +71,7 @@ describe('getEntriesByShow — cold local replica verifies online', () => {
   beforeEach(() => {
     mockEntriesTable.sync.mockReset();
     onlineRows = [defaultOnlineRow];
+    onlineError = null;
   });
 
   it('syncs a populated but incomplete show replica before returning its entries', async () => {
@@ -192,6 +195,27 @@ describe('getEntriesByShow — cold local replica verifies online', () => {
         value: originalOnline,
       });
     }
+  });
+
+  it('keeps cold cached rows when the online join fallback also fails', async () => {
+    mockEntriesTable.sync.mockResolvedValue({ success: true });
+    onlineError = { message: 'network down' };
+    mockEntriesTable.getEntriesByShow.mockResolvedValue([
+      {
+        id: 'entry-cold-degraded',
+        dogId: null,
+        classId: 'c1',
+        showId: 's1',
+        registrationId: null,
+        deletedAt: null,
+        entryStatus: 'confirmed',
+      },
+    ]);
+
+    const result = await getEntriesByShow('s1');
+
+    expect(result.error).toBeNull();
+    expect(result.data.map(row => row.id)).toEqual(['entry-cold-degraded']);
   });
 
   it('does not call online when the local replica already has the show’s entries', async () => {

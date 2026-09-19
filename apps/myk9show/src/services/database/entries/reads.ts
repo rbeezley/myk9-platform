@@ -81,7 +81,17 @@ function requireClassJoins(
   entries: readonly ReplicatedEntry[],
   classesMap: ReadonlyMap<string, ReplicatedClass>
 ): void {
-  const missingClassIds = [
+  const missingClassIds = missingClassJoinIds(entries, classesMap);
+  if (missingClassIds.length > 0 && !isBrowserOffline()) {
+    throw new Error(`replicated entry class joins unavailable: ${missingClassIds.join(', ')}`);
+  }
+}
+
+function missingClassJoinIds(
+  entries: readonly ReplicatedEntry[],
+  classesMap: ReadonlyMap<string, ReplicatedClass>
+): string[] {
+  return [
     ...new Set(
       entries
         .filter(isLiveEntry)
@@ -89,9 +99,6 @@ function requireClassJoins(
         .filter((classId): classId is string => Boolean(classId && !classesMap.has(classId)))
     ),
   ];
-  if (missingClassIds.length > 0 && !isBrowserOffline()) {
-    throw new Error(`replicated entry class joins unavailable: ${missingClassIds.join(', ')}`);
-  }
 }
 
 async function loadEnrollmentFinancialsMap(
@@ -826,7 +833,6 @@ export const getEntriesByShow = async (showId: string) => {
         entries.filter(isLiveEntry),
         compareDateDesc(getEntryCreatedSortValue)
       );
-      requireClassJoins(sortedEntries, classesMap);
       const enrollmentsMap = await loadEnrollmentFinancialsMap(sortedEntries);
       const handlerPeopleMap = await loadMissingHandlerPeopleMap(sortedEntries);
       const data = sortedEntries.map(entry => {
@@ -839,6 +845,14 @@ export const getEntriesByShow = async (showId: string) => {
         });
         return attachHandlerPerson(row, entry, handlerPeopleMap);
       });
+      if (missingClassJoinIds(sortedEntries, classesMap).length > 0 && !isBrowserOffline()) {
+        try {
+          const online = await postgrestGetEntriesByShow(showId);
+          return { ...online, locallyDeletedIds };
+        } catch {
+          // Keep mapped local rows as a degraded but usable result.
+        }
+      }
       return { data, error: null, locallyDeletedIds };
     },
     postgrest: () => postgrestGetEntriesByShow(showId),
@@ -871,7 +885,6 @@ export const getEntriesByShowFromReplication = async (showId: string) => {
         rawEntries.filter(isLiveEntry),
         compareDateDesc(getEntryCreatedSortValue)
       );
-      requireClassJoins(entries, classesMap);
       const enrollmentsMap = await loadEnrollmentFinancialsMap(entries);
       const handlerPeopleMap = await loadMissingHandlerPeopleMap(entries);
       const data = mapEntriesWithStandardJoins(
@@ -881,11 +894,18 @@ export const getEntriesByShowFromReplication = async (showId: string) => {
         new Map(),
         enrollmentsMap
       );
-      return {
-        data: data.map((row, index) => attachHandlerPerson(row, entries[index]!, handlerPeopleMap)),
-        error: null,
-        locallyDeletedIds,
-      };
+      const hydratedData = data.map((row, index) =>
+        attachHandlerPerson(row, entries[index]!, handlerPeopleMap)
+      );
+      if (missingClassJoinIds(entries, classesMap).length > 0 && !isBrowserOffline()) {
+        try {
+          const online = await postgrestGetEntriesByShow(showId);
+          return { ...online, locallyDeletedIds };
+        } catch {
+          // Keep mapped local rows as a degraded but usable result.
+        }
+      }
+      return { data: hydratedData, error: null, locallyDeletedIds };
     },
     postgrest: () => postgrestGetEntriesByShow(showId),
     table: 'entries',

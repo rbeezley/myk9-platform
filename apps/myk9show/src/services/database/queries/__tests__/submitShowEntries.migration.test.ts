@@ -52,7 +52,7 @@ describe('submit_show_entries migration authorization', () => {
     const migration = readFileSync(
       resolve(
         process.cwd(),
-        '../../supabase/migrations/20260919100001_myk9_665_align_handler_id_clear_behavior.sql'
+        '../../supabase/migrations/20260919150000_myk9_665_align_handler_id_clear_behavior.sql'
       ),
       'utf8'
     );
@@ -67,7 +67,7 @@ describe('submit_show_entries migration authorization', () => {
     const migration = readFileSync(
       resolve(
         process.cwd(),
-        '../../supabase/migrations/20260919100001_myk9_665_align_handler_id_clear_behavior.sql'
+        '../../supabase/migrations/20260919150000_myk9_665_align_handler_id_clear_behavior.sql'
       ),
       'utf8'
     );

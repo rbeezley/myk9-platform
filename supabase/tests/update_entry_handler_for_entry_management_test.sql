@@ -160,7 +160,7 @@ select pg_temp.call_handler_update(
 
 -- A non-owner/non-handler cannot use the correction RPC.
 select pg_temp.call_handler_update(
-  '00000000-0000-0000-0000-000000665104', 'MYK9-665 Intruder', false,
+  '00000000-0000-0000-0000-000000665013', 'MYK9-665 Intruder', false,
   'Not authorized: caller does not own entry %');
 
 rollback;

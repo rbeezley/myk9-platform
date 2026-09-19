@@ -101,8 +101,8 @@ describe('saveEntryEdits', () => {
  * and the AKC junior handler number are read through `entries.handler_id`.
  * Text corrections preserve that load-bearing link for both caller tiers.
  *
- * Asserted on the RPC CALL ARGS, because the client must not send the legacy
- * clear parameter is intentionally not sent by the current client.
+ * Asserted on the RPC call args: the client carries the stored identity and
+ * omits the legacy clear parameter.
  */
 describe('MYK9-665: handler_id stays load-bearing across text corrections', () => {
   beforeEach(() => {

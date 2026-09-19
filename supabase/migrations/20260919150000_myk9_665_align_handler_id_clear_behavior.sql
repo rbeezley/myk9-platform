@@ -74,10 +74,13 @@ BEGIN
 
   IF p_handler_id IS NOT NULL AND NOT EXISTS (
     SELECT 1
-      FROM public.entries e
+     FROM public.entries e
       JOIN public.dogs d ON d.id = e.dog_id
      WHERE e.id = p_entry_id
-       AND p_handler_id IN (v_person_id, d.owner_id, d.co_owner_id)
+       AND (
+         p_handler_id IN (v_person_id, d.owner_id, d.co_owner_id)
+         OR p_handler_id = v_existing_handler_id
+       )
   ) THEN
     RAISE EXCEPTION 'Not authorized: caller cannot assign handler %', p_handler_id
       USING ERRCODE = '42501';

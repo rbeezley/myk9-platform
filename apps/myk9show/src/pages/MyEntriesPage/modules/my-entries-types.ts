@@ -45,6 +45,8 @@ export interface EntryClass {
    */
   trialTimezone?: string | undefined;
   jumpHeight?: string | undefined;
+  /** Persisted handler person identity used by access and check-in predicates. */
+  handlerId?: string | null | undefined;
   /** Trial discipline (e.g. "Scent Work", "Agility"); gates the jump-height field. */
   trialType?: string | undefined;
   runOrder?: number | undefined;

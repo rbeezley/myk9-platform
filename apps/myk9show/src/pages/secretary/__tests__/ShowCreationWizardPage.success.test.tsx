@@ -105,7 +105,13 @@ describe('ShowCreationWizardPage success overlay', () => {
     const overlay = screen.getByRole('heading', { name: /show created!/i }).closest('div.fixed');
     expect(overlay).not.toBeNull();
     expect(overlay).toHaveClass('max-h-[100dvh]', 'overflow-y-auto');
-    expect(overlay?.firstElementChild).toHaveClass('min-h-full', 'p-4', 'sm:p-8');
+    expect(overlay?.firstElementChild).toHaveClass(
+      'min-h-full',
+      'flex-col',
+      'justify-center',
+      'p-4',
+      'sm:p-8'
+    );
     expect(screen.getByRole('button', { name: /review & publish show/i })).toBeInTheDocument();
     expect(
       screen.getAllByRole('button', { name: /^copy (admin|judge|steward|exhibitor) code$/i })

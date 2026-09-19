@@ -106,6 +106,32 @@ function withoutLocallyDeletedRows<T>(data: T[], locallyDeletedIds: readonly str
   return data.filter(row => !deleted.has(String((row as { id?: unknown }).id)));
 }
 
+function mergePendingEntryRows(
+  onlineRows: Record<string, unknown>[],
+  localRows: Record<string, unknown>[],
+  pendingIds: ReadonlySet<string>
+): Record<string, unknown>[] {
+  if (pendingIds.size === 0) return onlineRows;
+  const pendingById = new Map(
+    localRows.filter(row => pendingIds.has(rowId(row))).map(row => [rowId(row), row])
+  );
+  const serverIds = new Set(onlineRows.map(rowId));
+  return [
+    ...onlineRows.map(row => {
+      const pending = pendingById.get(rowId(row));
+      if (!pending) return row;
+      return {
+        ...row,
+        ...pending,
+        class: pending.class ?? row.class,
+        dog: pending.dog ?? row.dog,
+        show: pending.show ?? row.show,
+      };
+    }),
+    ...[...pendingById.entries()].filter(([id]) => !serverIds.has(id)).map(([, row]) => row),
+  ];
+}
+
 async function loadEnrollmentFinancialsMap(
   entries: ReadonlyArray<ReplicatedEntry>
 ): Promise<Map<string, Record<string, unknown>>> {
@@ -838,6 +864,9 @@ export const getEntriesByShow = async (showId: string) => {
         entries.filter(isLiveEntry),
         compareDateDesc(getEntryCreatedSortValue)
       );
+      const pendingIds = new Set(
+        sortedEntries.filter(entry => entry._syncStatus === 'pending').map(entry => entry.id)
+      );
       const enrollmentsMap = await loadEnrollmentFinancialsMap(sortedEntries);
       const handlerPeopleMap = await loadMissingHandlerPeopleMap(sortedEntries);
       const data = sortedEntries.map(entry => {
@@ -855,7 +884,11 @@ export const getEntriesByShow = async (showId: string) => {
           const online = await postgrestGetEntriesByShow(showId);
           return {
             ...online,
-            data: withoutLocallyDeletedRows(online.data, locallyDeletedIds),
+            data: mergePendingEntryRows(
+              withoutLocallyDeletedRows(online.data, locallyDeletedIds),
+              data,
+              pendingIds
+            ),
             locallyDeletedIds,
           };
         } catch {
@@ -894,6 +927,9 @@ export const getEntriesByShowFromReplication = async (showId: string) => {
         rawEntries.filter(isLiveEntry),
         compareDateDesc(getEntryCreatedSortValue)
       );
+      const pendingIds = new Set(
+        entries.filter(entry => entry._syncStatus === 'pending').map(entry => entry.id)
+      );
       const enrollmentsMap = await loadEnrollmentFinancialsMap(entries);
       const handlerPeopleMap = await loadMissingHandlerPeopleMap(entries);
       const data = mapEntriesWithStandardJoins(
@@ -911,7 +947,11 @@ export const getEntriesByShowFromReplication = async (showId: string) => {
           const online = await postgrestGetEntriesByShow(showId);
           return {
             ...online,
-            data: withoutLocallyDeletedRows(online.data, locallyDeletedIds),
+            data: mergePendingEntryRows(
+              withoutLocallyDeletedRows(online.data, locallyDeletedIds),
+              hydratedData,
+              pendingIds
+            ),
             locallyDeletedIds,
           };
         } catch {

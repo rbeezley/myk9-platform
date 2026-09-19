@@ -250,6 +250,39 @@ describe('getEntriesByShow — cold local replica verifies online', () => {
     expect(result.data.map(row => row.id)).toEqual(['entry-online-1']);
   });
 
+  it('overlays pending local rows onto the cold-join online fallback', async () => {
+    mockEntriesTable.sync.mockResolvedValue({ success: true });
+    onlineRows = [
+      {
+        id: 'entry-pending',
+        show_id: 's1',
+        handler: 'Server Handler',
+        class: { id: 'c1' },
+      },
+    ];
+    mockEntriesTable.getEntriesByShow.mockResolvedValue([
+      {
+        id: 'entry-pending',
+        dogId: null,
+        classId: 'c1',
+        showId: 's1',
+        handler: 'Local Handler',
+        registrationId: null,
+        deletedAt: null,
+        entryStatus: 'confirmed',
+        _syncStatus: 'pending',
+      },
+    ]);
+
+    const result = await getEntriesByShow('s1');
+
+    expect(result.data[0]).toMatchObject({
+      id: 'entry-pending',
+      handler: 'Local Handler',
+      class: { id: 'c1' },
+    });
+  });
+
   it('does not call online when the local replica already has the show’s entries', async () => {
     mockEntriesTable.getEntriesByShow.mockResolvedValue([
       {

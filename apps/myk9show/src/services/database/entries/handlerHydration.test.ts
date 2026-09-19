@@ -9,6 +9,7 @@ vi.mock('@/services/database/supabaseClient', () => ({
 }));
 
 import { db } from '@/services/database/connection';
+import { queryClient } from '@/lib/queryClient';
 import {
   loadHandlerPeople,
   resetHandlerHydrationCircuit,
@@ -182,6 +183,7 @@ describe('loadHandlerPeople offline boundary', () => {
       { id: 'handler-1', firstName: 'Old', lastName: 'Name' },
     ]);
     const bulkPut = vi.spyOn(db.instance.people, 'bulkPut').mockResolvedValue('handler-1');
+    const invalidateQueries = vi.spyOn(queryClient, 'invalidateQueries');
     let resolveRefresh!: (value: { data: HandlerPersonRow[]; error: null }) => void;
     const refresh = new Promise<{ data: HandlerPersonRow[]; error: null }>(resolve => {
       resolveRefresh = resolve;
@@ -197,15 +199,16 @@ describe('loadHandlerPeople offline boundary', () => {
         return result;
       });
       await new Promise(resolve => setTimeout(resolve, 300));
-      expect(settled).toBe(false);
+      expect(settled).toBe(true);
+      await expect(pending).resolves.toEqual(
+        new Map([['handler-1', { id: 'handler-1', first_name: 'Old', last_name: 'Name' }]])
+      );
       resolveRefresh({
         data: [{ id: 'handler-1', first_name: 'New', last_name: 'Name' }],
         error: null,
       });
-      await expect(pending).resolves.toEqual(
-        new Map([['handler-1', { id: 'handler-1', first_name: 'New', last_name: 'Name' }]])
-      );
-      expect(bulkPut).toHaveBeenCalled();
+      await vi.waitFor(() => expect(bulkPut).toHaveBeenCalled());
+      expect(invalidateQueries).toHaveBeenCalled();
     } finally {
       Object.defineProperty(navigator, 'onLine', {
         configurable: true,
@@ -232,9 +235,11 @@ describe('loadHandlerPeople offline boundary', () => {
     try {
       const pending = loadHandlerPeople(['handler-1']);
       await new Promise(resolve => setTimeout(resolve, 300));
+      await expect(pending).resolves.toEqual(
+        new Map([['handler-1', { id: 'handler-1', first_name: 'Deleted', last_name: 'Person' }]])
+      );
       resolveRefresh({ data: [], error: null });
-      await expect(pending).resolves.toEqual(new Map());
-      expect(bulkDelete).toHaveBeenCalledWith(['handler-1']);
+      await vi.waitFor(() => expect(bulkDelete).toHaveBeenCalledWith(['handler-1']));
     } finally {
       Object.defineProperty(navigator, 'onLine', {
         configurable: true,

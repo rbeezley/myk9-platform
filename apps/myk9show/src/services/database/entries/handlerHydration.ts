@@ -1,8 +1,10 @@
 import { supabase } from '../supabaseClient';
 import { db } from '../connection';
 import { withTimeout } from '@myk9/core';
+import { queryClient } from '@/lib/queryClient';
 
 const HANDLER_PEOPLE_TIMEOUT_MS = 3000;
+const HANDLER_PEOPLE_FAST_TIMEOUT_MS = 250;
 const HANDLER_PEOPLE_CIRCUIT_COOLDOWN_MS = 30_000;
 
 let handlerHydrationCircuitOpenUntil = 0;
@@ -105,6 +107,33 @@ async function persistAuthoritativeHandlerPeople(
   }
 }
 
+function invalidateHandlerIdentityQueries(): void {
+  void queryClient.invalidateQueries({
+    predicate: query => {
+      const root = query.queryKey[0];
+      return (
+        root === 'armband-label-entries' ||
+        root === 'check-in-report' ||
+        root === 'report-data' ||
+        root === 'entries' ||
+        root === 'show-desk'
+      );
+    },
+  });
+}
+
+function handlerPeopleChanged(
+  previous: ReadonlyMap<string, HandlerPersonRow>,
+  next: ReadonlyMap<string, HandlerPersonRow>
+): boolean {
+  const ids = new Set([...previous.keys(), ...next.keys()]);
+  return [...ids].some(id => {
+    const before = previous.get(id);
+    const after = next.get(id);
+    return before?.first_name !== after?.first_name || before?.last_name !== after?.last_name;
+  });
+}
+
 export async function loadHandlerPeople(
   handlerIds: readonly string[]
 ): Promise<Map<string, HandlerPersonRow>> {
@@ -135,19 +164,40 @@ export async function loadHandlerPeople(
       return new Map((data as HandlerPersonRow[]).map(person => [person.id, person] as const));
     });
 
-  try {
-    const result = await refresh;
-    if (!result) {
-      handlerHydrationCircuitOpenUntil = Date.now() + HANDLER_PEOPLE_CIRCUIT_COOLDOWN_MS;
-      return cached;
-    }
+  const fastResult = await Promise.race([
+    refresh
+      .then(result => ({ kind: 'fresh' as const, result }))
+      .catch(() => ({ kind: 'failed' as const })),
+    new Promise<{ kind: 'deferred' }>(resolve =>
+      setTimeout(() => resolve({ kind: 'deferred' }), HANDLER_PEOPLE_FAST_TIMEOUT_MS)
+    ),
+  ]);
+  if (fastResult.kind === 'fresh' && fastResult.result) {
     handlerHydrationCircuitOpenUntil = 0;
-    await persistAuthoritativeHandlerPeople(ids, result);
-    return result;
-  } catch {
+    await persistAuthoritativeHandlerPeople(ids, fastResult.result);
+    return fastResult.result;
+  }
+  if (fastResult.kind === 'failed') {
     handlerHydrationCircuitOpenUntil = Date.now() + HANDLER_PEOPLE_CIRCUIT_COOLDOWN_MS;
     return cached;
   }
+
+  // Return the safe local projection promptly, then recompute active paperwork
+  // and report queries when the authoritative response arrives.
+  void refresh
+    .then(async result => {
+      if (!result) {
+        handlerHydrationCircuitOpenUntil = Date.now() + HANDLER_PEOPLE_CIRCUIT_COOLDOWN_MS;
+        return;
+      }
+      handlerHydrationCircuitOpenUntil = 0;
+      await persistAuthoritativeHandlerPeople(ids, result);
+      if (handlerPeopleChanged(cached, result)) invalidateHandlerIdentityQueries();
+    })
+    .catch(() => {
+      handlerHydrationCircuitOpenUntil = Date.now() + HANDLER_PEOPLE_CIRCUIT_COOLDOWN_MS;
+    });
+  return cached;
 }
 
 /** Test-only reset for the in-memory connectivity circuit. */

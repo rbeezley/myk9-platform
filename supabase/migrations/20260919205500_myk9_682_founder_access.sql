@@ -60,6 +60,8 @@ BEGIN
       RAISE EXCEPTION 'Club access request has already been approved' USING ERRCODE = '23514';
     END IF;
     v_club_id := v_request.approved_club_id;
+  ELSE
+    v_club_id := p_existing_club_id;
   END IF;
 
   SELECT id INTO v_reviewer_person_id

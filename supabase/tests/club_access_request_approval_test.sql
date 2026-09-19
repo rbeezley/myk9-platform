@@ -54,6 +54,21 @@ VALUES (
   'Founding club request'
 );
 
+INSERT INTO public.club_access_requests (
+  id,
+  requester_person_id,
+  requester_auth_user_id,
+  requested_club_name,
+  request_note
+)
+VALUES (
+  '00000000-0000-0000-0000-000000682022',
+  '00000000-0000-0000-0000-000000682011',
+  '00000000-0000-0000-0000-000000682101',
+  'MYK9-682 Existing Club Request',
+  'Existing club approval request'
+);
+
 SET LOCAL ROLE authenticated;
 SELECT set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-000000682102', true);
 
@@ -189,6 +204,34 @@ BEGIN
   END IF;
 
   RAISE NOTICE 'PASS new-club approval grants scoped roles, membership, audit data, and is idempotent';
+END;
+$$;
+
+DO $$
+DECLARE
+  v_club_id uuid;
+BEGIN
+  SELECT public.review_club_access_request(
+    '00000000-0000-0000-0000-000000682022',
+    'approved',
+    '00000000-0000-0000-0000-000000682001',
+    NULL,
+    NULL
+  ) INTO v_club_id;
+
+  IF v_club_id <> '00000000-0000-0000-0000-000000682001'
+     OR EXISTS (
+       SELECT 1 FROM public.clubs WHERE name = 'MYK9-682 Existing Club Request'
+     )
+     OR NOT EXISTS (
+       SELECT 1 FROM public.club_access_requests
+       WHERE id = '00000000-0000-0000-0000-000000682022'
+         AND approved_club_id = '00000000-0000-0000-0000-000000682001'
+     ) THEN
+    RAISE EXCEPTION 'FAIL existing-club approval did not honor the selected club';
+  END IF;
+
+  RAISE NOTICE 'PASS existing-club approval honors the selected club';
 END;
 $$;
 

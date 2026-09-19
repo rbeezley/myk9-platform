@@ -137,10 +137,11 @@ export function buildOrderBalance(
     paymentMethod: root.paymentMethod,
     totalFee: root.totalFee,
   }));
-  if (rootedSources.some(source => source.moneyRootUnresolved)) return null;
+  const trustworthySources = rootedSources.filter(source => !source.moneyRootUnresolved);
+  if (trustworthySources.length === 0) return null;
 
-  const eligible = rootedSources.filter(source => isCurrentSummaryEntry(source, now));
-  const summary = summarizeEntryBalances(rootedSources, now);
+  const eligible = trustworthySources.filter(source => isCurrentSummaryEntry(source, now));
+  const summary = summarizeEntryBalances(trustworthySources, now);
   if (summary.kind === 'unknown') return null;
   const onlineShow = summary.onlineShowBalances[0];
 
@@ -166,7 +167,7 @@ export function buildOrderBalance(
   // settled status to reconcile. Amount-due totals (`summary` above) are
   // unaffected — they still run on the raw, unfiltered `sources` via
   // `isCurrentSummaryEntry`.
-  const reconciliationSources = rootedSources.filter(
+  const reconciliationSources = trustworthySources.filter(
     source =>
       isCurrentSummaryEntry(source, now) ||
       PAID_STATUSES.includes(source.paymentStatus) ||

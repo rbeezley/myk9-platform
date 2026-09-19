@@ -83,6 +83,20 @@ describe('buildOrderBalance', () => {
     expect(balance?.amountDueCents).toBe(0);
   });
 
+  it('keeps confirmed debt from an unrelated class when a sibling root is unresolved', () => {
+    const balance = buildOrderBalance(
+      [
+        makeClass({ id: 'healthy', fee: 25 }),
+        makeClass({ id: 'broken', movedFromEntryId: 'missing-source', fee: 0 }),
+      ],
+      makeCtx(),
+      NOW
+    );
+
+    expect(balance?.amountDueCents).toBe(2500);
+    expect(balance?.dueEntryIds).toEqual(['healthy']);
+  });
+
   it('preserves an explicit null payment method instead of inheriting a paid-cash sibling', () => {
     // c1 is a cash row (sets the order's fallback paymentMethod); c2 has no
     // resolved payment method yet (null, not undefined) — a still-unresolved

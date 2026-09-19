@@ -244,9 +244,6 @@ function feeCents(feeDollars: number): number {
 }
 
 function entryIdsForPayment(entry: EntryBalanceSource): string[] {
-  if (entry.moneyRootEntryId && entry.moneyRootEntryId !== entry.id) {
-    return [entry.moneyRootEntryId];
-  }
   const classEntryIds = entry.classes?.map(cls => cls.id).filter(Boolean) ?? [];
   return classEntryIds.length > 0 ? classEntryIds : [entry.id];
 }

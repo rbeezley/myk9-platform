@@ -94,8 +94,23 @@ export function AmountDueSection({
     );
   }
 
+  const hasUnresolvedShows = (summary.unresolvedShowIds?.length ?? 0) > 0;
+
+  if (hasUnresolvedShows && summary.amountDueCents <= 0) {
+    return (
+      <Card>
+        <CardContent className="py-5">
+          <h2 className="text-sm font-medium text-muted-foreground">Amount due</h2>
+          <p className="mt-1 text-sm text-muted-foreground">
+            We couldn&apos;t confirm every show balance with the server, so we&apos;re not showing a
+            total yet. Your payment history is still below.
+          </p>
+        </CardContent>
+      </Card>
+    );
+  }
+
   if (summary.amountDueCents <= 0) {
-    const hasUnresolvedShows = (summary.unresolvedShowIds?.length ?? 0) > 0;
     return (
       <Card className="border-success/30">
         <CardContent className="flex flex-col gap-2 py-5 sm:flex-row sm:items-center sm:justify-between">
@@ -114,7 +129,6 @@ export function AmountDueSection({
   }
 
   const includesPastBalance = summary.amountDueCents > summary.currentFeesCents;
-  const hasUnresolvedShows = (summary.unresolvedShowIds?.length ?? 0) > 0;
 
   // Shared by every row so the multi-show breakdown can never disagree with
   // the single-show line about what day it is.

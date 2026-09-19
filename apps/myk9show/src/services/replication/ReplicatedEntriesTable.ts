@@ -1033,10 +1033,16 @@ export class ReplicatedEntriesTable extends ReplicatedTable<ReplicatedEntry> {
       }
     }
 
-    await this.hydrateMovedPair(
-      sourceId ? [destinationEntryId, sourceId] : [destinationEntryId],
-      destinationWasCached
-    );
+    // The SOURCE only. Asking the read-back to carry the destination's removal
+    // was the bug twice over: the view hides a soft-deleted row from a
+    // secretary (so nothing came back and the stale copy stayed), and RETURNS
+    // it to a manager who owns or handles the dog (so the row this method had
+    // just deleted locally went straight back in, live, with its `confirmed`
+    // status intact and counting toward the target class's capacity).
+    //
+    // The destination is gone from this store by design; there is nothing to
+    // hydrate. The server keeps its tombstone.
+    await this.hydrateMovedPair(sourceId ? [sourceId] : [], destinationWasCached);
     logger.log(
       `[${this.getTableName()}] Reversed move-up ${destinationEntryId} via ${REVERSE_MOVE_UP_ENTRY_RPC}`
     );
@@ -1072,6 +1078,7 @@ export class ReplicatedEntriesTable extends ReplicatedTable<ReplicatedEntry> {
    * treat them as the user's whole entry list.
    */
   private async hydrateMovedPair(entryIds: string[], anchorWasCached: boolean): Promise<void> {
+    if (entryIds.length === 0) return;
     if (!anchorWasCached) {
       logger.log(
         `[${this.getTableName()}] Move-up pair not written back — the show-scoped replica does not hold this show`
@@ -1088,6 +1095,17 @@ export class ReplicatedEntriesTable extends ReplicatedTable<ReplicatedEntry> {
 
       for (const raw of data as unknown as EntryRow[]) {
         const row = raw as EntryRow & Record<string, unknown>;
+        // Never write a tombstone back into the cache. The view returns
+        // soft-deleted rows to whoever OWNS or handles the dog
+        // (`deleted_at IS NULL OR is_own_entry`), so a small-club secretary
+        // moving their own dog up gets the removed row back — and `set`ting it
+        // would undo the local delete this class performs by design, leaving
+        // the dog live in two classes and inflating the target's capacity
+        // count. `getEntriesByClass` filters nothing.
+        if (row.deleted_at) {
+          await this.delete(String(row.id));
+          continue;
+        }
         const serverVersion = row.version as number | undefined;
         this.reportSetResult(
           String(row.id),

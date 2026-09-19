@@ -4,7 +4,6 @@ import {
   indexEntriesById,
   isSupersededMoveUpEntry,
   MONEY_ROOT_MAX_DEPTH,
-  resolveMoneyActionTarget,
   resolveMoneyRoot,
 } from './moneyRoot';
 
@@ -137,23 +136,5 @@ describe('buildMoneyAttribution', () => {
     expect(attribution.unresolved).toEqual([
       { entryId: 'dest', problem: 'missing-link', brokenAt: 'source' },
     ]);
-  });
-});
-
-describe('resolveMoneyActionTarget', () => {
-  it('sends a refund, comp or discount to the row that holds the payment', () => {
-    // `stripe-refund-entry` needs the payment intent, and that stayed on the
-    // source: the destination never had one and the insert trigger makes sure it
-    // never can.
-    expect(resolveMoneyActionTarget('dest', [SOURCE, DESTINATION])).toBe(SOURCE);
-  });
-
-  it('sends an ordinary entry to itself', () => {
-    const plain: Row = { id: 'plain', fee: 35 };
-    expect(resolveMoneyActionTarget('plain', [plain])).toBe(plain);
-  });
-
-  it('returns null for an entry that is not in the loaded list', () => {
-    expect(resolveMoneyActionTarget('nope', [SOURCE])).toBeNull();
   });
 });

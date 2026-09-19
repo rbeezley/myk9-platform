@@ -36,6 +36,10 @@
 --   7. Moving a dog into a class they already hold a live entry in is refused
 --      in words (22023), not as raw constraint text.
 --   8. EXECUTE is revoked from PUBLIC and anon on both functions.
+--   9. A 'move-up-requested' source does NOT carry that status onto the
+--      destination -- the request is fulfilled by the move, not re-queued.
+--  10. A round trip keeps an 'at-gate' check-in and does not renumber the
+--      armband (the reverse re-arms auto_assign_armband_on_accept).
 --
 -- Run with psql -X -v ON_ERROR_STOP=1 against a migrated local database;
 -- every fixture rolls back.
@@ -90,7 +94,9 @@ insert into public.dogs (id, name, call_name, breed, status)
 values
   ('00000000-0000-0000-0000-000000639041', 'MYK9-639 Dog', 'Acorn', 'Beagle', 'active'),
   ('00000000-0000-0000-0000-000000639042', 'MYK9-639 Online Dog', 'Pip', 'Beagle', 'active'),
-  ('00000000-0000-0000-0000-000000639043', 'MYK9-639 Club B Dog', 'Rook', 'Beagle', 'active');
+  ('00000000-0000-0000-0000-000000639043', 'MYK9-639 Club B Dog', 'Rook', 'Beagle', 'active'),
+  ('00000000-0000-0000-0000-000000639044', 'MYK9-639 Request Dog', 'Juno', 'Beagle', 'active'),
+  ('00000000-0000-0000-0000-000000639045', 'MYK9-639 Dupe Dog', 'Wren', 'Beagle', 'active');
 
 -- Every trial is AKC, so one registration each satisfies
 -- trg_entries_require_dog_registration for every INSERT below.
@@ -98,7 +104,9 @@ insert into public.dog_registrations (dog_id, organization, registration_number,
 values
   ('00000000-0000-0000-0000-000000639041', 'AKC', 'SR6390001', true),
   ('00000000-0000-0000-0000-000000639042', 'AKC', 'SR6390002', true),
-  ('00000000-0000-0000-0000-000000639043', 'AKC', 'SR6390003', true);
+  ('00000000-0000-0000-0000-000000639043', 'AKC', 'SR6390003', true),
+  ('00000000-0000-0000-0000-000000639044', 'AKC', 'SR6390004', true),
+  ('00000000-0000-0000-0000-000000639045', 'AKC', 'SR6390005', true);
 
 insert into public.people (id, first_name, last_name, auth_user_id)
 values
@@ -118,11 +126,18 @@ select '00000000-0000-0000-0000-000000639052', id, '00000000-0000-0000-0000-0000
   true, '00000000-0000-0000-0000-000000639152'
 from public.roles where name = 'secretary';
 
--- The source entries. Written as the table owner so the fixture itself is not
--- what is under test; the money on 639061 is a desk payment, on 639062 a Stripe
--- one (payment_method 'online' + payment_status 'paid' can only be created by
--- the payment service, i.e. not by `authenticated` -- see
--- trg_entries_protect_payment_fields_insert).
+-- The source entries.
+--
+-- SET LOCAL ROLE service_role, because 639062 is the Stripe-paid fixture and
+-- `trg_entries_protect_payment_fields_insert` raises 42501 on
+-- `payment_method='online' AND payment_status='paid'` for EVERY role but that
+-- one. The runner connects with no SET ROLE at all, so `current_setting('role')`
+-- reads 'none' and the trigger fires -- aborting this file under
+-- ON_ERROR_STOP and taking every test file registered after it down with it
+-- (the runner stops at the first failure). Eight other files in this directory
+-- use the same idiom for the same reason.
+SET LOCAL ROLE service_role;
+
 insert into public.entries (
   id, dog_id, class_id, show_id, trial_id, entry_status, check_in_status,
   payment_status, payment_method, entry_fee, armband, is_day_of_show, entry_source
@@ -139,7 +154,25 @@ values
   ('00000000-0000-0000-0000-000000639063', '00000000-0000-0000-0000-000000639043',
    '00000000-0000-0000-0000-000000639034', '00000000-0000-0000-0000-000000639012',
    '00000000-0000-0000-0000-000000639022', 'confirmed', 'no-status',
-   'paid', 'check', 35.00, '102', false, 'myk9');
+   'paid', 'check', 35.00, '102', false, 'myk9'),
+  -- The approve-a-move-up-request flow's own starting state.
+  ('00000000-0000-0000-0000-000000639065', '00000000-0000-0000-0000-000000639044',
+   '00000000-0000-0000-0000-000000639031', '00000000-0000-0000-0000-000000639011',
+   '00000000-0000-0000-0000-000000639021', 'move-up-requested', 'no-status',
+   'paid', 'check', 35.00, '103', false, 'myk9'),
+  -- A dog who ALREADY holds a live entry in Excellent, plus a Novice entry to
+  -- move in from -- so the duplicate pre-check is reached rather than the
+  -- "already in this class" guard that precedes it.
+  ('00000000-0000-0000-0000-000000639066', '00000000-0000-0000-0000-000000639045',
+   '00000000-0000-0000-0000-000000639031', '00000000-0000-0000-0000-000000639011',
+   '00000000-0000-0000-0000-000000639021', 'confirmed', 'no-status',
+   'paid', 'check', 35.00, '104', false, 'myk9'),
+  ('00000000-0000-0000-0000-000000639067', '00000000-0000-0000-0000-000000639045',
+   '00000000-0000-0000-0000-000000639033', '00000000-0000-0000-0000-000000639011',
+   '00000000-0000-0000-0000-000000639021', 'confirmed', 'no-status',
+   'paid', 'check', 35.00, '104', false, 'myk9');
+
+RESET ROLE;
 
 -- ---------------------------------------------------------------------------
 -- 1. A secretary of Club A cannot move an entry on Club B's show.
@@ -281,14 +314,20 @@ END;
 $$;
 
 -- ---------------------------------------------------------------------------
--- 7. A dog already entered in the target class is refused in words.
+-- 7. A dog already entered in the TARGET class is refused in words. Wren holds
+--    a live Excellent entry and a Novice one; moving the Novice entry into
+--    Excellent reaches the duplicate pre-check, not the "already in this class"
+--    guard that precedes it (which is what the earlier version of this case
+--    actually hit).
 -- ---------------------------------------------------------------------------
 DO $$
+DECLARE
+  v_message text;
 BEGIN
   BEGIN
     PERFORM public.move_up_entry(
-      '00000000-0000-0000-0000-000000639072',
-      '00000000-0000-0000-0000-000000639032',
+      '00000000-0000-0000-0000-000000639066',
+      '00000000-0000-0000-0000-000000639033',
       '00000000-0000-0000-0000-000000639074'
     );
     RAISE EXCEPTION 'FAIL a duplicate class entry was allowed';
@@ -296,8 +335,36 @@ BEGIN
     WHEN unique_violation THEN
       RAISE EXCEPTION 'FAIL duplicate surfaced as raw 23505 instead of a message';
     WHEN invalid_parameter_value THEN
+      GET STACKED DIAGNOSTICS v_message = MESSAGE_TEXT;
+      IF v_message NOT LIKE '%already entered in that class%' THEN
+        RAISE EXCEPTION 'FAIL wrong refusal reached: %', v_message;
+      END IF;
       RAISE NOTICE 'PASS a duplicate class entry is refused in words';
   END;
+END;
+$$;
+
+-- ---------------------------------------------------------------------------
+-- 9. A move-up FULFILS a move-up request: the destination must not inherit the
+--    request status, or approving it puts the same dog straight back into the
+--    pending queue, approvable again and again up the ladder.
+-- ---------------------------------------------------------------------------
+DO $$
+DECLARE
+  v_new_id uuid;
+  v_dest   public.entries%ROWTYPE;
+BEGIN
+  v_new_id := public.move_up_entry(
+    '00000000-0000-0000-0000-000000639065',
+    '00000000-0000-0000-0000-000000639032',
+    '00000000-0000-0000-0000-000000639077'
+  );
+
+  SELECT * INTO v_dest FROM public.entries WHERE id = v_new_id;
+  IF v_dest.entry_status <> 'confirmed' THEN
+    RAISE EXCEPTION 'FAIL the destination inherited the request status: %', v_dest.entry_status;
+  END IF;
+  RAISE NOTICE 'PASS a move-up request does not survive onto the destination';
 END;
 $$;
 
@@ -429,6 +496,66 @@ BEGIN
   END IF;
 
   RAISE NOTICE 'PASS move up -> move back -> move up again';
+END;
+$$;
+
+-- ---------------------------------------------------------------------------
+-- 10. A round trip must not downgrade the dog's check-in. The forward half
+--     narrows everything but 'checked-in' to 'no-status' on the DESTINATION;
+--     copying that back verbatim used to leave a dog standing at the gate as
+--     'no-status', silently out of the gate queue. It must also not renumber
+--     the armband: the reverse's 'moved' -> live transition re-arms
+--     auto_assign_armband_on_accept.
+-- ---------------------------------------------------------------------------
+RESET ROLE;
+SET LOCAL ROLE service_role;
+INSERT INTO public.entries (
+  id, dog_id, class_id, show_id, trial_id, entry_status, check_in_status,
+  payment_status, entry_fee, armband
+)
+VALUES ('00000000-0000-0000-0000-000000639068', '00000000-0000-0000-0000-000000639044',
+  '00000000-0000-0000-0000-000000639033', '00000000-0000-0000-0000-000000639011',
+  '00000000-0000-0000-0000-000000639021', 'confirmed', 'at-gate', 'paid', 35.00, '103');
+RESET ROLE;
+
+SET LOCAL ROLE authenticated;
+SELECT set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-000000639151', true);
+SELECT set_config(
+  'request.jwt.claims',
+  '{"sub":"00000000-0000-0000-0000-000000639151","role":"authenticated","app_metadata":{}}',
+  true
+);
+
+DO $$
+DECLARE
+  v_new_id   uuid;
+  v_dest     public.entries%ROWTYPE;
+  v_restored public.entries%ROWTYPE;
+BEGIN
+  v_new_id := public.move_up_entry(
+    '00000000-0000-0000-0000-000000639068',
+    '00000000-0000-0000-0000-000000639032',
+    '00000000-0000-0000-0000-000000639078'
+  );
+
+  SELECT * INTO v_dest FROM public.entries WHERE id = v_new_id;
+  IF v_dest.check_in_status <> 'no-status' THEN
+    RAISE EXCEPTION 'FAIL at-gate travelled to the destination: %', v_dest.check_in_status;
+  END IF;
+
+  PERFORM public.reverse_move_up_entry(v_new_id);
+
+  SELECT * INTO v_restored FROM public.entries
+   WHERE id = '00000000-0000-0000-0000-000000639068';
+  IF v_restored.check_in_status <> 'at-gate' THEN
+    RAISE EXCEPTION 'FAIL the round trip downgraded the check-in to %',
+      v_restored.check_in_status;
+  END IF;
+  IF v_restored.armband IS DISTINCT FROM '103' THEN
+    RAISE EXCEPTION 'FAIL the round trip renumbered the armband to %', v_restored.armband;
+  END IF;
+
+  RAISE NOTICE 'PASS a round trip keeps the gate state and the armband';
 END;
 $$;
 

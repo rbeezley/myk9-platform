@@ -23,7 +23,6 @@ import { CLOSED_STATUSES } from '@/components/entries/management/bulkActionEligi
 import { getNextArmbandForShow, setEntryArmband } from '@/services/database/armbands';
 
 import { supabase } from '@/services/database/supabaseClient';
-import { resolveMoneyActionTarget } from '@/features/financial/moneyRoot';
 import { resolveSecretaryCc } from '@/services/notifications/ccSecretary';
 import { updateEnrollmentPaymentStatus } from '@/services/database/show-registrations';
 import { buildExportRow, type ExportEntry } from '@/utils/entryExportUtils';
@@ -35,6 +34,13 @@ import type {
   ArmbandDialogState,
 } from '@/types/entry-management-types';
 
+/**
+ * The row a money action lands on: the stamp the mapper put there, never a
+ * second derivation (MYK9-639).
+ */
+function moneyRootIdOf(entryId: string, entries: readonly EntryManagementEntry[]): string {
+  return entries.find(entry => entry.id === entryId)?.moneyRootEntryId ?? entryId;
+}
 interface UseEntryManagementActionsProps {
   entries: EntryManagementEntry[];
   setEntries: React.Dispatch<React.SetStateAction<EntryManagementEntry[]>>;
@@ -509,12 +515,12 @@ export function useEntryManagementActions({
   const handleCompEntry = useCallback(
     async (requestedEntryId: string, reason: string) => {
       setIsProcessing(true);
-      // MYK9-639: a comp lands on the entry that holds the money. On a dog who
+      // MYK9-639: a comp lands on the entry that HOLDS the money. On a dog who
       // was moved up that is the superseded source, not the money-neutral
       // destination the secretary clicked — comping the destination would flag a
-      // $0 row and leave the real fee collected.
-      const entryId =
-        resolveMoneyActionTarget(requestedEntryId, entriesRef.current)?.id ?? requestedEntryId;
+      // $0 row and leave the real fee collected. The mapper stamps the answer on
+      // the row; nothing re-derives it from a list a caller has to get right.
+      const entryId = moneyRootIdOf(requestedEntryId, entriesRef.current);
       try {
         const { error: dbError } = await compEntry({ entryId, reason });
 
@@ -558,8 +564,7 @@ export function useEntryManagementActions({
     async (requestedEntryId: string) => {
       setIsProcessing(true);
       // Same target as the comp it removes (MYK9-639).
-      const entryId =
-        resolveMoneyActionTarget(requestedEntryId, entriesRef.current)?.id ?? requestedEntryId;
+      const entryId = moneyRootIdOf(requestedEntryId, entriesRef.current);
       try {
         const { error: dbError } = await uncompEntry(entryId);
 

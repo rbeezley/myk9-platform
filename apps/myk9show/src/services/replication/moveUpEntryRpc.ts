@@ -70,7 +70,11 @@ export function classifyMoveUpRpcError(error: unknown, fallback: string): MoveUp
   if (code === 'P0002') {
     return new MoveUpRpcError('not-found', message || 'That entry no longer exists.');
   }
-  return new MoveUpRpcError('unavailable', message || fallback);
+  // Deliberately NOT the server's `message`: an unmapped SQLSTATE is raw
+  // Postgres text (23503 on a stale registration_id, 40001 under a ringside
+  // conflict storm, 23505 on a colliding caller-supplied id), and the authored
+  // sentences above are the only ones written for a secretary to read.
+  return new MoveUpRpcError('unavailable', fallback);
 }
 
 /**
@@ -84,10 +88,13 @@ export function classifyMoveUpRpcError(error: unknown, fallback: string): MoveUp
  * within its own show.", "This run has already started…" — was therefore
  * invisible to the only person who needed it.
  *
- * These strings are authored FOR the secretary, in the migration and here, and
- * never carry raw Postgres text: `classifyMoveUpRpcError` maps every SQLSTATE the
- * functions raise, and anything unrecognised goes back through
- * `getUserFriendlyError` unchanged.
+ * These strings are authored FOR the secretary, in the migration and here.
+ * `classifyMoveUpRpcError` maps every SQLSTATE the two functions raise —
+ * P0002, 42501, 22023 — and turns anything else into the CALLER's fallback
+ * sentence rather than the server's text, so an unmapped code (23503 on a
+ * stale registration_id, 40001 under a conflict storm, 23505 on a colliding
+ * caller-supplied id) can never surface raw Postgres in a toast. An error that
+ * is not a `MoveUpRpcError` at all still goes through `getUserFriendlyError`.
  */
 export function getMoveUpErrorMessage(error: unknown, fallback: string): string {
   if (error instanceof MoveUpRpcError) return error.message;

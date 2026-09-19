@@ -2,7 +2,10 @@ import { createDatabaseError } from '@/services/database/databaseError';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { hasRunStarted, resolveMoveUpReversal, reverseShowMapMoveUp } from '../moveUpSupersession';
+import { rowToEntry } from '@/services/replication/ReplicatedEntriesTable.mapper';
 import type { ReplicatedEntry } from '@/services/replication/ReplicatedEntriesTable.mapper';
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 
 const mockGetEntryById = vi.fn();
 const mockGetClassById = vi.fn();
@@ -67,6 +70,86 @@ describe('moveUpSupersession', () => {
     mockGetClassById.mockResolvedValue({ id: 'class-novice', name: 'Interior Novice A' });
     mockReverseMoveUpEntryViaRpc.mockResolvedValue('source-1');
     mockUpdateEntry.mockResolvedValue('mutation-1');
+  });
+
+  describe('hasRunStarted over a REAL replicated row', () => {
+    // The guard reads columns "by key", which only helps if the key is there.
+    // `rowToEntry` is an explicit field list, and it did not name
+    // `scoring_started_at` or `points_possible` — so two of the SQL guard's
+    // signals were dead on the client while a comment claimed the opposite.
+    // Plain-object fixtures could never see it (LESSONS `source-text-tests`).
+    const SIGNAL_COLUMNS = [
+      ['is_scored', true],
+      ['is_in_ring', true],
+      ['result_status', 'absent'],
+      ['final_placement', 3],
+      ['scoring_started_at', '2026-09-18T12:00:00Z'],
+      ['scoring_completed_at', '2026-09-18T12:30:00Z'],
+      ['ring_entry_time', '2026-09-18T12:00:00Z'],
+      ['points_earned', 3],
+      ['points_possible', 10],
+      ['search_time_seconds', 41.2],
+      ['area1_time_seconds', 12.5],
+      ['area2_time_seconds', 8],
+      ['area3_time_seconds', 8],
+      ['area4_time_seconds', 8],
+      ['total_faults', 1],
+      ['total_correct_finds', 1],
+      ['total_incorrect_finds', 2],
+      ['no_finish_count', 1],
+      ['total_score', 88],
+      ['check_in_status', 'in-ring'],
+    ] as const;
+
+    it.each(SIGNAL_COLUMNS)('sees %s through the replica mapper', (column, value) => {
+      const replicated = rowToEntry({
+        id: 'dest-1',
+        entry_status: 'confirmed',
+        check_in_status: 'no-status',
+        [column]: value,
+      } as never);
+
+      expect(hasRunStarted(replicated)).toBe(true);
+    });
+
+    it('is false for a freshly created destination', () => {
+      expect(
+        hasRunStarted(
+          rowToEntry({
+            id: 'dest-1',
+            entry_status: 'confirmed',
+            check_in_status: 'checked-in',
+          } as never)
+        )
+      ).toBe(false);
+    });
+
+    it('names every column the SQL guard names, and no fewer', () => {
+      // The two lists stand in for each other, so they are compared rather than
+      // described. Anything the SQL refuses to undo, the dialog must be able to
+      // explain BEFORE the secretary presses the button.
+      const migration = readFileSync(
+        resolve(
+          __dirname,
+          '../../../../../../supabase/migrations/20260918193300_myk9_639_move_up_supersession.sql'
+        ),
+        'utf8'
+      );
+      const reverseBody = migration.slice(
+        migration.indexOf('CREATE OR REPLACE FUNCTION public.reverse_move_up_entry'),
+        migration.indexOf('REVOKE ALL ON FUNCTION public.reverse_move_up_entry')
+      );
+      const guard = reverseBody.slice(
+        reverseBody.indexOf('IF COALESCE(v_dest.is_scored'),
+        reverseBody.indexOf('RAISE EXCEPTION', reverseBody.indexOf('IF COALESCE(v_dest.is_scored'))
+      );
+      const sqlColumns = new Set(
+        [...guard.matchAll(/v_dest\.([a-z0-9_]+)/g)].map(match => match[1] as string)
+      );
+      const clientColumns = new Set(SIGNAL_COLUMNS.map(([column]) => column as string));
+
+      expect([...sqlColumns].sort()).toEqual([...clientColumns].sort());
+    });
   });
 
   describe('hasRunStarted', () => {

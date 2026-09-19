@@ -12,6 +12,8 @@ const SECRETARY_PAYMENT_SCHEMA_TARGET = /payment_reference|payment_received_on|p
 
 const WITHDRAWAL_REASON_CODE_SCHEMA_TARGET = /withdrawal_reason_code/i;
 
+const MOVE_UP_LINK_SCHEMA_TARGET = /moved_from_entry_id/i;
+
 /**
  * True only when MYK9-632's `entries.withdrawal_reason_code` is unavailable.
  * Lets the secretary read keep working against a database where that migration
@@ -24,6 +26,26 @@ export function isWithdrawalReasonCodeSchemaUnavailable(
   if (!error) return false;
   const message = error.message ?? '';
   if (!WITHDRAWAL_REASON_CODE_SCHEMA_TARGET.test(message)) return false;
+  return MISSING_SCHEMA_CODES.has(error.code ?? '') || MISSING_SCHEMA_MESSAGE.test(message);
+}
+
+/**
+ * True only when MYK9-639's `entries.moved_from_entry_id` is unavailable
+ * (20260918193300). Same window as `isWithdrawalReasonCodeSchemaUnavailable`
+ * and for the same reason: Vercel builds `main` before anyone runs
+ * `supabase db push`, and PostgREST fails the WHOLE request with 42703 on an
+ * unknown column — so without this the deploy window turns every entries read
+ * into "Couldn't load entries", not just the move-up.
+ *
+ * The degraded read simply has no supersession link, which the money resolver
+ * already treats as "this row is its own root".
+ */
+export function isMoveUpLinkSchemaUnavailable(
+  error: PostgrestErrorLike | null | undefined
+): boolean {
+  if (!error) return false;
+  const message = error.message ?? '';
+  if (!MOVE_UP_LINK_SCHEMA_TARGET.test(message)) return false;
   return MISSING_SCHEMA_CODES.has(error.code ?? '') || MISSING_SCHEMA_MESSAGE.test(message);
 }
 

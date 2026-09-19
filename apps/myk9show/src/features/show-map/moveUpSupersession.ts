@@ -115,10 +115,11 @@ export function hasRunStarted(entry: Partial<ReplicatedEntry>): boolean {
  *     to the one `moved` entry for this dog in that class.
  *
  * The second is READ-ONLY legacy support: nothing writes a pair without the FK
- * any more, and there are ZERO rows with `entry_status = 'moved'` on the live
- * database today, so it exists only for a demo/staging pair recorded by the old
- * code. The server refuses to reverse such a pair (it has no FK to follow), so
- * this resolver reports it as available only when the FK is present.
+ * any more, and no LIVE row carries `entry_status = 'moved'` on this database
+ * (the one historical pair was soft-deleted on 2026-09-17), so it exists only
+ * for a demo/staging pair recorded by the old code. The server refuses to
+ * reverse such a pair — it has no FK to follow — so this resolver reports it as
+ * available only when the FK is present.
  */
 export async function resolveMoveUpReversal(
   destinationEntryId: string

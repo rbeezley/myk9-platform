@@ -664,7 +664,11 @@ BEGIN
     WHERE e.dog_id = v_source.dog_id
       AND e.class_id = p_target_class_id
       AND e.deleted_at IS NULL
-      AND COALESCE(e.entry_status, '') <> ALL (ARRAY['withdrawn', 'scratched'])
+      -- Byte-identical to entries_dog_class_unique_idx's predicate above. A
+      -- COALESCE here would be STRICTER than the index: a NULL entry_status is
+      -- excluded from the index entirely, so the INSERT would have succeeded
+      -- while this refused it in words.
+      AND e.entry_status <> ALL (ARRAY['withdrawn'::text, 'scratched'::text])
   ) THEN
     RAISE EXCEPTION 'This dog is already entered in that class.' USING ERRCODE = '22023';
   END IF;
@@ -686,10 +690,26 @@ BEGIN
     -- The dog's APPROVAL state travels; a move-up is not an acceptance. Writing
     -- 'confirmed' unconditionally promoted a `pending-payment` or `submitted`
     -- entry the secretary had never accepted, and a round trip then restored it
-    -- as 'confirmed' -- because the reverse restores from the destination. The
-    -- movability guard above has already refused every status that must not
-    -- move at all.
-    v_source.entry_status,
+    -- as 'confirmed' -- because the reverse restores from the destination.
+    --
+    -- The four REQUEST statuses are the exception, and they have to be: a
+    -- request is a request to move THIS entry, and it is fulfilled the moment
+    -- this function runs. `approveMoveUpRequestReplicated` requires the source
+    -- to be 'move-up-requested' before it calls here, so inheriting that status
+    -- put the destination straight back into `getPendingMoveUpRequests`'s
+    -- queue -- the secretary approves, the row reappears in front of them, and
+    -- approving again walks the dog another rung up the ladder. Same shape for
+    -- 'scratch-requested': an exhibitor's request against the OLD class must not
+    -- become a pending request against a class they never entered.
+    --
+    -- Kept in lockstep with MOVE_UP_REQUEST_STATUSES in
+    -- features/show-map/moveUpRequestStatuses.ts, which the contract test pins.
+    CASE
+      WHEN COALESCE(v_source.entry_status, '') IN (
+        'move-up-requested', 'move_up_requested', 'scratch-requested', 'scratch_requested'
+      ) THEN 'confirmed'
+      ELSE v_source.entry_status
+    END,
     -- MYK9-640: a check-in travels, and ONLY as a check-in. 'pulled' cannot
     -- reach here (refused above); 'in-ring', 'at-gate' and 'completed' describe
     -- a run in the class being left, not the one being entered.
@@ -728,8 +748,10 @@ COMMENT ON FUNCTION public.move_up_entry(uuid, uuid, uuid, text) IS
   'destination is created payment_status = ''pending'', entry_fee = 0, with no '
   'method, reference, comp, discount or Stripe intent, and moved_from_entry_id is '
   'the only link back to the paying entry. What DOES travel from the source: '
-  'entry_status (a move-up is not an acceptance), check_in_status but only when it '
-  'is ''checked-in'', entry_source, is_day_of_show, registration_id, handler, '
+  'entry_status (a move-up is not an acceptance) EXCEPT the four request '
+  'statuses, which fold to ''confirmed'' because the request is fulfilled by '
+  'this call, check_in_status but only when it is ''checked-in'', entry_source, '
+  'is_day_of_show, registration_id, handler, '
   'armband and jump_height. Refuses a source that is soft-deleted, pulled, '
   'withdrawn, scratched, absent, already moved, not accepted, or whose run has '
   'already STARTED (scored, in ring, any area time or count, a result, a '
@@ -753,8 +775,9 @@ SET search_path TO ''
 AS $function$
 DECLARE
   v_dest             public.entries%ROWTYPE;
-  v_source           public.entries%ROWTYPE;
-  v_restored_status  text;
+  v_source            public.entries%ROWTYPE;
+  v_restored_status   text;
+  v_restored_check_in text;
 BEGIN
   SELECT * INTO v_dest
   FROM public.entries
@@ -841,9 +864,26 @@ BEGIN
     ELSE v_dest.entry_status
   END;
 
+  -- The source kept its OWN check-in through the move (this function's forward
+  -- half never writes it), and the forward half narrows what travels to the
+  -- destination -- 'at-gate', 'come-to-gate' and 'conflict' all degrade to
+  -- 'no-status' there. Copying the destination's value back verbatim therefore
+  -- DOWNGRADED a dog standing at the gate to 'no-status' on a round trip, and
+  -- silently dropped them out of the gate queue.
+  --
+  -- So: keep the source's own state, and carry the destination's back only when
+  -- it records something the source does not -- a dog checked in on the
+  -- destination AFTER the move, which is the case the forward carry exists for.
+  v_restored_check_in := CASE
+    WHEN v_dest.check_in_status = 'checked-in'
+      AND COALESCE(v_source.check_in_status, 'no-status') = 'no-status'
+    THEN 'checked-in'
+    ELSE v_source.check_in_status
+  END;
+
   UPDATE public.entries
   SET entry_status = v_restored_status,
-      check_in_status = v_dest.check_in_status
+      check_in_status = v_restored_check_in
   WHERE id = v_source.id;
 
   UPDATE public.entries
@@ -861,7 +901,9 @@ GRANT EXECUTE ON FUNCTION public.reverse_move_up_entry(uuid) TO service_role;
 
 COMMENT ON FUNCTION public.reverse_move_up_entry(uuid) IS
   'MYK9-640: undo a move-up as ONE transaction -- restore the superseded source '
-  'from the destination''s live entry_status and check_in_status, then soft-delete '
+  'from the destination''s live entry_status, and from the SOURCE''s own '
+  'check_in_status unless the dog was checked in on the destination after the '
+  'move (so ''at-gate'' survives a round trip), then soft-delete '
   'the destination. Refuses once the run has STARTED, meaning any of: is_scored, '
   'is_in_ring, a check-in of in-ring or completed, scoring_started_at, '
   'scoring_completed_at, ring_entry_time, a non-pending result_status, a '

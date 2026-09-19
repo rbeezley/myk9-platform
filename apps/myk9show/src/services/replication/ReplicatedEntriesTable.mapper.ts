@@ -156,6 +156,14 @@ export interface ReplicatedEntry {
   total_incorrect_finds?: number | null | undefined;
   no_finish_count?: number | null | undefined;
   points_earned?: number | null | undefined;
+  /**
+   * MYK9-640: two more signals that a run has STARTED. They were in the SQL
+   * guard and in the client's mirror of it, but NOT in this mapper — so
+   * `hasRunStarted` read them off an object that never carried them and both
+   * were inert. Reading "by key" does not help when the key is never written.
+   */
+  points_possible?: number | null | undefined;
+  scoring_started_at?: string | null | undefined;
 
   class_id?: string | undefined;
   entry_status?: string | undefined;
@@ -291,6 +299,7 @@ export function entryToSupabaseRow(entry: ReplicatedEntry): Record<string, unkno
     }),
     ...(entry.no_finish_count !== undefined && { no_finish_count: entry.no_finish_count }),
     ...(entry.points_earned !== undefined && { points_earned: entry.points_earned }),
+    ...(entry.points_possible !== undefined && { points_possible: entry.points_possible }),
     // Only write placement if result is qualified — NQ/absent/etc. should never have a placement
     final_placement:
       entry.resultStatus && entry.resultStatus !== 'qualified'
@@ -438,6 +447,9 @@ export function rowToEntry(row: EntryRow): ReplicatedEntry {
     total_incorrect_finds: (dbRow.total_incorrect_finds as number | undefined) ?? undefined,
     no_finish_count: (dbRow.no_finish_count as number | undefined) ?? undefined,
     points_earned: (dbRow.points_earned as number | undefined) ?? undefined,
+    // MYK9-640: the two signals the run-started guard could not see.
+    points_possible: (dbRow.points_possible as number | undefined) ?? undefined,
+    scoring_started_at: optionalColumn(row, 'scoring_started_at'),
     class_id: row.class_id ?? undefined,
     entry_status: row.entry_status ?? undefined,
     element: (dbRow.element as string | undefined) ?? undefined,

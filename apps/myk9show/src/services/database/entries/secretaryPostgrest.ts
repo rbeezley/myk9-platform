@@ -1,6 +1,7 @@
 import { createDatabaseError, logQuery, supabase } from '../supabaseClient';
 import {
   isPullRefundSchemaUnavailable,
+  isMoveUpLinkSchemaUnavailable,
   isSecretaryPaymentSchemaUnavailable,
   isWithdrawalReasonCodeSchemaUnavailable,
 } from '@/features/payments/pullRefundSchemaCompatibility';
@@ -54,7 +55,6 @@ const SECRETARY_ENTRIES_BASE_SELECT = `
         refunded_at,
         stripe_payment_intent_id,
         registration_id,
-        moved_from_entry_id,
         handler_person:handler_id (
           id,
           first_name,
@@ -102,6 +102,18 @@ const SECRETARY_ENTRIES_BASE_SELECT = `
  * database without that migration still returns entries -- see
  * `isSecretaryPaymentSchemaUnavailable`.
  */
+/**
+ * MYK9-639's supersession link, appended only when the schema has it.
+ *
+ * PostgREST fails the WHOLE request with 42703 on an unknown column, and
+ * migration 20260918193300 is applied by hand after the merge — so naming it
+ * unconditionally would make the cold-store read (a brand-new show, a fresh
+ * device) fail outright for the length of the deploy window, exactly as
+ * `payment_reference` and `withdrawal_reason_code` would.
+ */
+const MOVE_UP_LINK_COLUMN = `,
+        moved_from_entry_id`;
+
 const SECRETARY_ENTRIES_SELECT_WITH_PAYMENT = `${SECRETARY_ENTRIES_BASE_SELECT},
         payment_reference,
         payment_received_on,
@@ -121,21 +133,27 @@ export async function postgrestGetSecretaryEntriesForShow(
   // brand-new show or a fresh device -- render "Couldn't load entries".
   // This is also the relation `ReplicatedEntriesTable` pulls, so both secretary
   // read paths now agree on columns as well as rows.
-  const runSelect = (includePaymentBookkeeping: boolean) =>
+  const runSelect = (includePaymentBookkeeping: boolean, includeMoveUpLink: boolean) =>
     supabase
       .from('view_authenticated_entry_results')
       .select(
-        includePaymentBookkeeping
+        (includePaymentBookkeeping
           ? SECRETARY_ENTRIES_SELECT_WITH_PAYMENT
-          : SECRETARY_ENTRIES_BASE_SELECT
+          : SECRETARY_ENTRIES_BASE_SELECT) + (includeMoveUpLink ? MOVE_UP_LINK_COLUMN : '')
       )
       .eq('show_id', showId)
       .is('deleted_at', null)
       .order('created_at', { ascending: true });
 
-  let response = await runSelect(true);
+  let includeMoveUpLink = true;
+  let response = await runSelect(true, includeMoveUpLink);
+  // MYK9-639: the deploy window, same shape as the two below it.
+  if (isMoveUpLinkSchemaUnavailable(response.error)) {
+    includeMoveUpLink = false;
+    response = await runSelect(true, includeMoveUpLink);
+  }
   if (isSecretaryPaymentSchemaUnavailable(response.error)) {
-    response = await runSelect(false);
+    response = await runSelect(false, includeMoveUpLink);
   }
   const { data, error } = response;
 

@@ -42,8 +42,21 @@ const ERROR_MESSAGES: Record<string, string> = {
   refund_failed: 'The refund could not be completed. Check the entry and try again.',
 };
 
-/** Minimal shape required by RefundEntryDialog — a subset of EntryManagementEntry. */
-export type RefundableEntry = Pick<EntryManagementEntry, 'id' | 'totalFee' | 'dogName'>;
+/**
+ * Minimal shape required by RefundEntryDialog — a subset of EntryManagementEntry.
+ *
+ * `moneyRootEntryId` is what the refund is ISSUED against (MYK9-639). On a
+ * moved-up dog the run and the money are different rows: the destination is
+ * created money-neutral and the Stripe intent stays on the source, so posting
+ * `id` here would send `stripe-refund-entry` a row with no intent and earn a
+ * 422 — while this dialog, reading the ROOTED figures off the same row, showed a
+ * plausible full-refund amount. The mapper stamps it on every row; equal to
+ * `id` for everything that was never moved.
+ */
+export type RefundableEntry = Pick<
+  EntryManagementEntry,
+  'id' | 'totalFee' | 'dogName' | 'moneyRootEntryId'
+>;
 
 function describeManualPolicy(policy: WithdrawalPolicy | null): string {
   if (!policy) return '';
@@ -225,7 +238,8 @@ export function RefundEntryDialog({
     try {
       const { data, error: invokeError } = await supabase.functions.invoke('stripe-refund-entry', {
         body: {
-          entry_id: entry.id,
+          // The row that HOLDS the payment, not the row that holds the run.
+          entry_id: entry.moneyRootEntryId ?? entry.id,
           amount_cents: amountCents,
           notes: notes.trim() || undefined,
           ...(usePolicySnapshot ? { use_policy_snapshot: true } : {}),

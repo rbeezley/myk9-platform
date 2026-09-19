@@ -27,7 +27,10 @@ vi.mock('../supabaseClient', () => ({
 
 import { toSecretaryEntry } from './secretaryReadReplication';
 import { postgrestGetSecretaryEntriesForShow } from './secretaryPostgrest';
-import { AUTHENTICATED_ENTRY_READ_COLUMNS } from './entrySelects';
+import {
+  AUTHENTICATED_ENTRY_READ_COLUMNS,
+  AUTHENTICATED_ENTRY_READ_COLUMNS_WITH_MOVE_UP_LINK,
+} from './entrySelects';
 import { mapSecretaryEntryToEntryManagementEntry } from '@/hooks/useEntryManagementData';
 
 const EMPTY_RELATIONS = {
@@ -132,11 +135,30 @@ describe('moved_from_entry_id reaches Entry Management (MYK9-639)', () => {
     );
   });
 
-  it('is named by the shared authenticated entry select, which feeds the financial reads', () => {
-    // `AUTHENTICATED_ENTRY_READ_COLUMNS` is the PostgREST fallback under the
-    // Show Financial Summary and the trial-scoped Financial Report. Warm reads
-    // go through the replication view, which already carries the column, so
-    // without this the same page reports different money warm vs cold.
-    expect(AUTHENTICATED_ENTRY_READ_COLUMNS).toContain('moved_from_entry_id');
+  it('is named by the entry select the MONEY reads use, and by no other', () => {
+    // The two PostgREST reads that are summed as money need the link — without
+    // it the same page reports different money warm vs cold. Every OTHER entry
+    // read must NOT name it, because PostgREST fails the whole request with
+    // 42703 on an unknown column and migration 20260918193300 is applied by
+    // hand after the merge: naming it in the shared list would turn every entry
+    // read in the app into "Couldn't load entries" for the length of that
+    // window.
+    expect(AUTHENTICATED_ENTRY_READ_COLUMNS_WITH_MOVE_UP_LINK).toContain('moved_from_entry_id');
+    expect(AUTHENTICATED_ENTRY_READ_COLUMNS).not.toContain('moved_from_entry_id');
+  });
+
+  it('differs from the plain list by EXACTLY that one column', () => {
+    // The with-link list is written out flat rather than composed, because the
+    // typed PostgREST builder cannot parse a nested interpolation — so the two
+    // can drift. This is what stops them.
+    const columns = (list: string) =>
+      list
+        .split(',')
+        .map(column => column.trim())
+        .filter(Boolean);
+    const plain = columns(AUTHENTICATED_ENTRY_READ_COLUMNS);
+    const withLink = columns(AUTHENTICATED_ENTRY_READ_COLUMNS_WITH_MOVE_UP_LINK);
+
+    expect(withLink).toEqual([...plain, 'moved_from_entry_id']);
   });
 });

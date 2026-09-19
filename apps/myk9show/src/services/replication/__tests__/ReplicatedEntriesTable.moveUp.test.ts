@@ -100,6 +100,70 @@ describe('reverseMoveUpEntryViaRpc (MYK9-640)', () => {
     expect(restored?.entryStatus).toBe('confirmed');
   });
 
+  it('does not let the read-back resurrect the destination for an OWNER', async () => {
+    // The view's gate is `deleted_at IS NULL OR is_own_entry`, so a manager who
+    // also owns or handles the dog — a small-club secretary moving their own
+    // dog up — gets the soft-deleted destination BACK from it. Re-`set`ting it
+    // put the row this method had just deleted straight back in, live, with
+    // `confirmed` intact and counting toward the target class's capacity. The
+    // fix is not to filter the read-back: it is to stop asking it to carry a
+    // removal at all, and hydrate the SOURCE only.
+    await seed('source-1', {
+      id: 'source-1',
+      classId: 'class-novice',
+      showId: 'show-1',
+      entryStatus: 'moved',
+    });
+    await seed('dest-1', {
+      id: 'dest-1',
+      classId: 'class-advanced',
+      showId: 'show-1',
+      entryStatus: 'confirmed',
+      movedFromEntryId: 'source-1',
+    });
+
+    vi.mocked(supabase.rpc).mockResolvedValue({ data: 'source-1', error: null } as never);
+    const requestedIds: string[][] = [];
+    vi.mocked(supabase.from).mockImplementation(
+      () =>
+        ({
+          select: () => ({
+            in: (_column: string, ids: string[]) => {
+              requestedIds.push(ids);
+              // The stub answers only what was asked for, as PostgREST does,
+              // and includes the tombstone as an OWNER's read really would.
+              const rows = [
+                {
+                  id: 'source-1',
+                  class_id: 'class-novice',
+                  show_id: 'show-1',
+                  entry_status: 'confirmed',
+                  version: 4,
+                },
+                // What an owner's read really returns.
+                {
+                  id: 'dest-1',
+                  class_id: 'class-advanced',
+                  show_id: 'show-1',
+                  entry_status: 'confirmed',
+                  deleted_at: '2026-09-18T00:00:00Z',
+                  version: 3,
+                },
+              ].filter(row => ids.includes(row.id));
+              return Promise.resolve({ data: rows, error: null });
+            },
+          }),
+        }) as never
+    );
+
+    await table.reverseMoveUpEntryViaRpc('dest-1');
+
+    // The destination is never even ASKED for.
+    expect(requestedIds).toEqual([['source-1']]);
+    expect(await table.get('dest-1')).toBeNull();
+    expect(await table.getEntriesByClass('class-advanced')).toEqual([]);
+  });
+
   it('leaves the local store alone when the server refuses', async () => {
     await seed('dest-1', {
       id: 'dest-1',

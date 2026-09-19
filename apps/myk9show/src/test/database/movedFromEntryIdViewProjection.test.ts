@@ -11,6 +11,10 @@
  * been run — until it is, the column is absent, every client read of it is
  * `undefined`, and the reverse move falls back to the move-up note.
  */
+import {
+  MOVE_UP_REQUEST_FULFILLED_STATUS,
+  MOVE_UP_REQUEST_STATUSES,
+} from '@/features/show-map/moveUpRequestStatuses';
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
@@ -114,12 +118,28 @@ describe('MYK9-639 — move_up_entry / reverse_move_up_entry', () => {
     );
   });
 
+  it('FOLDS the request statuses, so approving a move-up does not re-queue it (round 4)', () => {
+    // `approveMoveUpRequestReplicated` requires the source to be
+    // 'move-up-requested' before it calls this function, so inheriting that
+    // status put the destination straight back into `getPendingMoveUpRequests`'s
+    // queue: the secretary approves, the row reappears, and approving again
+    // walks the dog another rung up the ladder.
+    for (const status of MOVE_UP_REQUEST_STATUSES) {
+      expect(moveUpFn).toContain(`'${status}'`);
+    }
+    expect(moveUpFn).toMatch(
+      new RegExp(
+        `\\) THEN '${MOVE_UP_REQUEST_FULFILLED_STATUS}'\\s*\\n\\s*ELSE v_source\\.entry_status`
+      )
+    );
+  });
+
   it('carries the APPROVAL state rather than promoting to confirmed (round 3)', () => {
     // Writing 'confirmed' unconditionally accepted an entry the secretary never
     // had — a `pending-payment` or `submitted` source landed approved — and the
     // reverse then restored it as 'confirmed' too, because it restores from the
     // destination.
-    expect(moveUpFn).toContain('v_source.entry_status,');
+    expect(moveUpFn).toContain('ELSE v_source.entry_status');
     expect(moveUpFn).not.toMatch(/VALUES[\s\S]*\n\s*'confirmed',/);
   });
 
@@ -128,6 +148,32 @@ describe('MYK9-639 — move_up_entry / reverse_move_up_entry', () => {
     expect(moveUpFn).toMatch(
       /SELECT 1\s*\n\s*FROM public\.entries e\s*\n\s*WHERE e\.dog_id = v_source\.dog_id/
     );
+  });
+
+  it('states the duplicate pre-check exactly as the index predicate does (round 4)', () => {
+    // A COALESCE here would be STRICTER than the index, which excludes a NULL
+    // entry_status row from itself entirely — so the RPC would refuse in words
+    // a move the INSERT would have allowed. Two predicates standing in for each
+    // other must read identically.
+    expect(MIGRATION).toContain(
+      "WHERE deleted_at IS NULL\n    AND entry_status <> ALL (ARRAY['withdrawn'::text, 'scratched'::text])"
+    );
+    expect(moveUpFn).toContain(
+      "AND e.entry_status <> ALL (ARRAY['withdrawn'::text, 'scratched'::text])"
+    );
+    expect(moveUpFn).not.toContain("COALESCE(e.entry_status, '')");
+  });
+
+  it('restores the SOURCE\u2019s own check-in, so a round trip keeps at-gate (round 4)', () => {
+    // The forward half narrows everything but 'checked-in' to 'no-status' on
+    // the destination; copying that back verbatim downgraded a dog standing at
+    // the gate and dropped them out of the gate queue.
+    expect(reverseFn).toContain('v_restored_check_in := CASE');
+    expect(reverseFn).toMatch(
+      /WHEN v_dest\.check_in_status = 'checked-in'\s*\n\s*AND COALESCE\(v_source\.check_in_status, 'no-status'\) = 'no-status'/
+    );
+    expect(reverseFn).toContain('ELSE v_source.check_in_status');
+    expect(reverseFn).toContain('check_in_status = v_restored_check_in');
   });
 
   it('carries the check-in ONLY as a check-in', () => {

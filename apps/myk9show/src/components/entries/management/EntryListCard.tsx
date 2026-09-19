@@ -44,7 +44,6 @@ import { CHECKIN_STATUSES } from '@myk9/core';
 import { WithdrawalReasonDialog } from './WithdrawalReasonDialog';
 import { removalSummaryLine } from './removalSummaryLine';
 import { RefundEntryDialog } from './RefundEntryDialog';
-import { resolveMoneyActionTarget } from '@/features/financial/moneyRoot';
 import { isStripeRefundable } from './refundEligibility';
 import { RequestPaymentDialog } from './RequestPaymentDialog';
 import { isPaymentRequestable } from './paymentRequestEligibility';
@@ -101,10 +100,13 @@ export const EntryListCard: React.FC<EntryListCardProps> = ({
       onStatusChange(entryId, EntryStatus.CANCELLED, reason);
       // Withdrawn = refund due (April status model): chain straight into the
       // refund dialog when the entry was paid online and not yet refunded.
-      // MYK9-639: refund the entry that HOLDS the money. On a moved-up dog the
-      // Stripe intent stayed on the superseded source; the destination never had
-      // one, so stripe-refund-entry would refuse it outright.
-      const entry = resolveMoneyActionTarget(entryId, entries) ?? undefined;
+      // MYK9-639: the ROW is the run and carries the rooted money, so the gate
+      // reads it directly; the dialog issues the refund against
+      // `moneyRootEntryId`. No second resolver, and no caller has to hold the
+      // right array -- `entries` here is the card's group, from which the
+      // superseded source has already been removed, so a lookup would have
+      // silently fallen back to the money-neutral row.
+      const entry = entries.find(candidate => candidate.id === entryId);
       if (entry && isStripeRefundable(entry)) {
         setRefundDialog({ open: true, entry });
       }
@@ -318,8 +320,10 @@ export const EntryListCard: React.FC<EntryListCardProps> = ({
                                   onClick={() =>
                                     setRefundDialog({
                                       open: true,
-                                      // MYK9-639: the money row, not the run.
-                                      entry: resolveMoneyActionTarget(entry.id, entries) ?? entry,
+                                      // The row itself: it carries the rooted
+                                      // figures to show AND `moneyRootEntryId`,
+                                      // the row the refund is issued against.
+                                      entry,
                                     })
                                   }
                                 >

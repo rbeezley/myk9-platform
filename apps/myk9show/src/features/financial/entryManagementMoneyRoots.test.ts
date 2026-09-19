@@ -116,6 +116,20 @@ describe('withEntryManagementMoneyRoots', () => {
       ).toEqual([]);
     });
 
+    it('issues the refund against the row that holds the Stripe intent', () => {
+      // `stripe-refund-entry` re-reads the posted id FROM THE SERVER, where a
+      // move-up destination is money-neutral by construction — no intent, no
+      // method, `payment_status = 'pending'` — so posting the run's id earns a
+      // 422 while the dialog, reading the ROOTED figures off the same row,
+      // shows a plausible $35 full refund. There is no other route: the
+      // superseded source is not rendered anywhere on the page.
+      const destination = rootedDestination();
+      const posted = destination.moneyRootEntryId ?? destination.id;
+
+      expect(posted).toBe('source-moved');
+      expect(posted).not.toBe(destination.id);
+    });
+
     it('offers the refund the exhibitor is owed', () => {
       // Before: the gate read the money-neutral row, so the menu item was never
       // rendered — and the superseded source it WOULD have been offered on is

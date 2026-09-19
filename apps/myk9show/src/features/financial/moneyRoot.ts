@@ -38,10 +38,14 @@ export interface MoneyRootLink {
  * The first three are a LIVE entry that cannot reach its root.
  * `orphaned-supersession` is the mirror image: a superseded (`moved`) row that
  * no live entry claims, so excluding it from the count would drop its money
- * with nothing to attribute it to. That is the one live legacy pair on this
- * database — written by the pre-MYK9-639 code, which left a `waived` $0
- * destination and no FK — and it is the shape a hand-edited or partially
- * restored row takes too.
+ * with nothing to attribute it to.
+ *
+ * No such row exists on the live database — the one historical pair, written by
+ * the pre-MYK9-639 code as a `waived` $0 destination with no FK, was
+ * soft-deleted on 2026-09-17 and every financial read filters `deleted_at`. The
+ * arm is here for the shape, not for a known example: a hand-edited row, a
+ * partial restore, or a source removed after its destination was created all
+ * produce it.
  */
 export type MoneyRootProblem = 'missing-link' | 'cycle' | 'too-deep' | 'orphaned-supersession';
 
@@ -174,30 +178,6 @@ export function buildMoneyAttribution<T extends MoneyRootLink & { entryStatus?: 
   }
 
   return { live, rootById, unresolved };
-}
-
-/**
- * Where a money ACTION has to land (MYK9-639).
- *
- * A refund, a comp or a discount invoked on a dog who was moved up must target
- * the entry that holds the money, not the run. `stripe-refund-entry` needs the
- * `stripe_payment_intent_id`, and that stays on the root — the destination of a
- * move-up never had one, and `trg_entries_protect_payment_fields_insert` makes
- * sure it never can. A comp written on the money-neutral destination would set
- * `comped` on a $0 row and leave the real $35 collected.
- *
- * Returns `null` when the entry is not in `entries` at all; returns the entry
- * itself when its chain cannot be followed, which is the same "surface it, do
- * not silently redirect" rule the aggregations use.
- */
-export function resolveMoneyActionTarget<T extends MoneyRootLink>(
-  entryId: string,
-  entries: readonly T[]
-): T | null {
-  const byId = indexEntriesById(entries);
-  const entry = byId.get(entryId);
-  if (!entry) return null;
-  return resolveMoneyRoot(entry, byId).root;
 }
 
 /** Stamped onto every row whose money has been resolved (see {@link withResolvedMoneyRoots}). */

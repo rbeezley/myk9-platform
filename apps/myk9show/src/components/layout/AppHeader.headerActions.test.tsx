@@ -390,7 +390,9 @@ describe('AppHeader Actions menu — the two items that are not plain destinatio
     expect(detailsLink).toHaveAttribute('href', '/shows/show-1');
     await user.click(detailsLink);
 
-    await waitFor(() => expect(screen.getByTestId('probe-pathname')).toHaveTextContent('/shows/show-1'));
+    await waitFor(() =>
+      expect(screen.getByTestId('probe-pathname')).toHaveTextContent('/shows/show-1')
+    );
     expect(screen.getByTestId('probe-search')).toHaveTextContent('');
   });
 });

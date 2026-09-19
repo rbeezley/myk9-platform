@@ -141,10 +141,7 @@ export function parseActionRouteContext(pathname: string): ActionRouteContext {
   return { kind: 'global' };
 }
 
-function buildShowActions(
-  showId: string,
-  viewer: ActionViewer
-): AppAction[] {
+function buildShowActions(showId: string, viewer: ActionViewer): AppAction[] {
   if (!viewer.canManageShow) return [];
 
   const encoded = encodeURIComponent(showId);

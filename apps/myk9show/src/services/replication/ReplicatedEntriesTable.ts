@@ -24,6 +24,7 @@ import {
 import { logger } from '@myk9/core';
 import type { CheckInStatus } from '@myk9/core';
 import { supabase } from '@/services/database/supabaseClient';
+import type { Database } from '@/types/supabase';
 import { getSyncErrorMessage, isAbortSyncError } from './syncErrorUtils';
 import {
   entryToSupabaseRow,
@@ -60,6 +61,11 @@ import type {
 
 export { rowToEntry };
 export type { ReplicatedEntry };
+
+/** The two move-up server functions, as the generated types name them. */
+type MoveUpRpcName = typeof MOVE_UP_ENTRY_RPC | typeof REVERSE_MOVE_UP_ENTRY_RPC;
+type MoveUpRpcArgs<Fn extends MoveUpRpcName> = Database['public']['Functions'][Fn]['Args'];
+type MoveUpRpcReturns<Fn extends MoveUpRpcName> = Database['public']['Functions'][Fn]['Returns'];
 
 /**
  * MYK9-535: SECURITY DEFINER RPC that lets the person who owns an entry (dog
@@ -980,7 +986,7 @@ export class ReplicatedEntriesTable extends ReplicatedTable<ReplicatedEntry> {
       throw classifyMoveUpRpcError(error, 'That entry could not be moved.');
     }
 
-    const destinationId = typeof data === 'string' && data ? data : input.newEntryId;
+    const destinationId = data ? data : input.newEntryId;
     await this.hydrateMovedPair([input.sourceEntryId, destinationId], sourceWasCached);
     logger.log(
       `[${this.getTableName()}] Moved entry ${input.sourceEntryId} -> ${destinationId} via ${MOVE_UP_ENTRY_RPC}`
@@ -1004,7 +1010,7 @@ export class ReplicatedEntriesTable extends ReplicatedTable<ReplicatedEntry> {
       throw classifyMoveUpRpcError(error, 'That move-up could not be reversed.');
     }
 
-    const sourceId = typeof data === 'string' && data ? data : null;
+    const sourceId = data ? data : null;
 
     // Drop the destination from the LOCAL store before the read-back, because
     // the read-back structurally cannot deliver its removal:
@@ -1054,15 +1060,19 @@ export class ReplicatedEntriesTable extends ReplicatedTable<ReplicatedEntry> {
    * THROWS (a fetch that never reached Postgres) would otherwise skip SQLSTATE
    * classification and leak a transport string into the dialog.
    *
-   * The `as never` casts stay only until migration 20260918193300 reaches the
-   * generated types.
+   * Both functions are in the generated types since migration 20260918193300,
+   * so the name and the `Args` are checked against `pg_proc` here — including
+   * `move_up_entry`'s `p_reason`, widened to accept NULL in
+   * `src/types/database-overrides.ts`. `Returns` is the uuid the server
+   * committed; it is `string | null` here because the catch below has no row
+   * to report.
    */
-  private async callMoveUpRpc(
-    fn: string,
-    args: Record<string, unknown>
-  ): Promise<{ data: unknown; error: unknown }> {
+  private async callMoveUpRpc<Fn extends MoveUpRpcName>(
+    fn: Fn,
+    args: MoveUpRpcArgs<Fn>
+  ): Promise<{ data: MoveUpRpcReturns<Fn> | null; error: unknown }> {
     try {
-      return await supabase.rpc(fn as never, args as never);
+      return await supabase.rpc(fn, args);
     } catch (thrown) {
       return { data: null, error: thrown ?? {} };
     }

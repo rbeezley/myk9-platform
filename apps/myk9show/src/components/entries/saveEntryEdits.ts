@@ -25,6 +25,7 @@ export interface EntryClassEdits {
   handler?: string | undefined;
   /** Optional explicit person selection; free-text edits leave this undefined. */
   handlerId?: string | null | undefined;
+  clearHandlerId?: boolean | undefined;
   jumpHeight?: string | undefined;
   status?: string | undefined;
 }
@@ -77,6 +78,7 @@ export async function saveEntryEdits(
         entryId: classEntry.id,
         handler: editedHandler,
         handlerId: classEdits[classEntry.id]?.handlerId ?? null,
+        clearHandlerId: classEdits[classEntry.id]?.clearHandlerId ?? false,
       });
       if (error) return { error: 'Failed to update handler. Please try again.' };
     }

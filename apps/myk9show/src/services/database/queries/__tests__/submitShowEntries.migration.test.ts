@@ -78,7 +78,7 @@ describe('submit_show_entries migration authorization', () => {
       'WHEN v_resolved_handler_id IS NOT NULL THEN v_resolved_handler_id'
     );
     expect(migration).toContain('ELSE v_existing_handler_id');
-    expect(migration).not.toContain('p_clear_handler_id THEN NULL');
+    expect(migration.match(/p_clear_handler_id THEN NULL/g)).toHaveLength(1);
   });
 
   it('returns the registration and submission ids expected by the client wrapper', () => {

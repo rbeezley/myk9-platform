@@ -1,11 +1,11 @@
 -- MYK9-665: keep handler_id semantics consistent for official and exhibitor edits.
 --
 -- handler_id remains the load-bearing person link captured for the entry. The
--- text correction preserves that link for both caller tiers. The legacy clear
--- flag is ignored for backwards compatibility; selected p_handler_id remains
--- the explicit reassignment path. The RPC must not infer a person from free
--- text names. This migration also aligns authorization with can_manage_show()
--- so nullable-club shows cannot fail open to unrelated club admins.
+-- Text corrections preserve the link for exhibitors. Official callers may
+-- explicitly clear it through the new manager-only checkbox; selected
+-- p_handler_id remains the reassignment path. The RPC must not infer a person
+-- from free-text names. Authorization uses can_manage_show() so nullable-club
+-- shows cannot fail open to unrelated club admins.
 
 CREATE OR REPLACE FUNCTION public.update_entry_handler_for_entry_management(
   p_entry_id uuid,
@@ -60,6 +60,7 @@ BEGIN
        SET handler = p_handler,
            handler_id = CASE
              WHEN v_resolved_handler_id IS NOT NULL THEN v_resolved_handler_id
+             WHEN p_clear_handler_id THEN NULL
              ELSE v_existing_handler_id
            END,
            updated_at = now()
@@ -108,6 +109,6 @@ $$;
 REVOKE ALL ON FUNCTION public.update_entry_handler_for_entry_management(uuid, text, uuid, boolean)
   FROM PUBLIC, anon;
 GRANT EXECUTE ON FUNCTION public.update_entry_handler_for_entry_management(uuid, text, uuid, boolean)
-  TO authenticated;
+  TO authenticated, service_role;
 
 NOTIFY pgrst, 'reload schema';

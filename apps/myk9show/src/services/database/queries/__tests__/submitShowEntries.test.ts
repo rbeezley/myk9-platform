@@ -267,6 +267,7 @@ describe('submitShowEntries', () => {
       p_entry_id: 'entry-uuid-1',
       p_handler: 'Grace Hollis',
       p_handler_id: 'person-uuid-1',
+      p_clear_handler_id: false,
     });
   });
 
@@ -283,6 +284,7 @@ describe('submitShowEntries', () => {
       p_entry_id: 'entry-uuid-1',
       p_handler: 'Grace Hollis',
       p_handler_id: null,
+      p_clear_handler_id: false,
     });
   });
 });

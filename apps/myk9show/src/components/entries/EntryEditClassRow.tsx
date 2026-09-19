@@ -9,6 +9,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Checkbox } from '@/components/ui/checkbox';
 import {
   Select,
   SelectContent,
@@ -69,9 +70,12 @@ interface EntryEditClassRowProps {
    */
   canOfferLeaveClass?: boolean;
   currentHandler: string;
+  canClearHandlerId?: boolean;
+  clearHandlerId?: boolean | undefined;
   currentJumpHeight: string | undefined;
   onLeaveClass: (classId: string, className: string) => void;
   onHandlerChange: (classId: string, handler: string) => void;
+  onClearHandlerIdChange?: (classId: string, clear: boolean) => void;
   onJumpHeightChange: (classId: string, jumpHeight: string) => void;
 }
 
@@ -82,9 +86,12 @@ export function EntryEditClassRow({
   rowEligibility,
   canOfferLeaveClass = true,
   currentHandler,
+  canClearHandlerId = false,
+  clearHandlerId = false,
   currentJumpHeight,
   onLeaveClass,
   onHandlerChange,
+  onClearHandlerIdChange,
   onJumpHeightChange,
 }: EntryEditClassRowProps) {
   const isPulled = status === 'scratched';
@@ -161,6 +168,18 @@ export function EntryEditClassRow({
           placeholder="Enter handler name"
           disabled={isRemoved}
         />
+        {canClearHandlerId && classEntry.handlerId && (
+          <div className="flex items-center gap-2 pt-1">
+            <Checkbox
+              id={`clear-handler-${classEntry.id}`}
+              checked={clearHandlerId}
+              onCheckedChange={checked => onClearHandlerIdChange?.(classEntry.id, checked === true)}
+            />
+            <Label htmlFor={`clear-handler-${classEntry.id}`} className="text-xs cursor-pointer">
+              Clear previous handler identity
+            </Label>
+          </div>
+        )}
       </div>
 
       {/* Jump height only applies to jumping disciplines

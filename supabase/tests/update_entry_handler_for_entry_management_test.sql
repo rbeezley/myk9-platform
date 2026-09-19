@@ -136,14 +136,14 @@ begin
 end;
 $$;
 
--- An official legacy clear is likewise ignored.
+-- An official manager can explicitly clear the old identity.
 select pg_temp.call_handler_update(
   '00000000-0000-0000-0000-000000665103', 'MYK9-665 Corrected Handler', true);
 do $$
 begin
   if (select handler_id from public.entries where id = '00000000-0000-0000-0000-000000665031')
-    is distinct from '00000000-0000-0000-0000-000000665012'::uuid then
-    raise exception 'FAIL legacy official clear changed handler_id';
+    is not null then
+    raise exception 'FAIL official clear did not clear handler_id';
   end if;
 end;
 $$;

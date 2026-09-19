@@ -83,7 +83,14 @@ export function EntryEditDialog({
   const [classEdits, setClassEdits] = useState<
     Record<
       string,
-      { handler?: string; jumpHeight?: string; status?: string; reasonCode?: string | null }
+      {
+        handler?: string;
+        handlerId?: string | null;
+        clearHandlerId?: boolean;
+        jumpHeight?: string;
+        status?: string;
+        reasonCode?: string | null;
+      }
     >
   >({});
 
@@ -171,6 +178,13 @@ export function EntryEditDialog({
     setClassEdits(prev => ({
       ...prev,
       [classId]: { ...prev[classId], handler },
+    }));
+  };
+
+  const handleClearHandlerIdChange = (classId: string, clearHandlerId: boolean) => {
+    setClassEdits(prev => ({
+      ...prev,
+      [classId]: { ...prev[classId], clearHandlerId },
     }));
   };
 
@@ -352,6 +366,8 @@ export function EntryEditDialog({
                       reasonCode={getClassReasonCode(classEntry)}
                       rowEligibility={withdrawEligibility[classEntry.id]}
                       canOfferLeaveClass={allowLeaveClass}
+                      canClearHandlerId={asShowManager}
+                      clearHandlerId={classEdits[classEntry.id]?.clearHandlerId}
                       currentHandler={
                         classEdits[classEntry.id]?.handler ??
                         classEntry.handler ??
@@ -363,6 +379,7 @@ export function EntryEditDialog({
                       }
                       onLeaveClass={handlePullRequest}
                       onHandlerChange={handleHandlerChange}
+                      onClearHandlerIdChange={handleClearHandlerIdChange}
                       onJumpHeightChange={handleJumpHeightChange}
                     />
                   ))}

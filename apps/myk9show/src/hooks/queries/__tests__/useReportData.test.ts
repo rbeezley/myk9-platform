@@ -3,6 +3,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { renderHook, waitFor, act } from '@testing-library/react';
 import { QueryClient, QueryClientProvider, onlineManager } from '@tanstack/react-query';
 import { useReportData } from '../useReportData';
+import type { Show } from '@/types/show-types';
 
 vi.mock('@/services/database/entries/refreshShowEntriesForRead', () => ({
   refreshShowEntriesForRead: vi.fn().mockResolvedValue(undefined),
@@ -57,7 +58,7 @@ const createWrapper = () => {
     React.createElement(QueryClientProvider, { client: queryClient }, children);
 };
 
-const mockShow = { id: 'show-1', name: 'Spring Trial 2026' } as never;
+const mockShow = { id: 'show-1', name: 'Spring Trial 2026' } as unknown as Show;
 
 const defaultOptions = {
   show: mockShow,

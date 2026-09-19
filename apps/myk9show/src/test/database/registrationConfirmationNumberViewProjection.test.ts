@@ -7,10 +7,17 @@
  * `withdrawalReasonCodeViewProjection`, with one deliberate difference: those
  * are hard-pinned to their own migration filename, so each stops covering the
  * views the moment a later migration redefines them — and a stale copy of a
- * view body is exactly the P0 this PR shipped and then fixed. This file
- * resolves the LATEST migration that defines
- * `view_authenticated_entry_results` and asserts against that, so it keeps
+ * view body is exactly the P0 this PR shipped and then fixed. The assertions
+ * that must survive a rebuild — the column is present, and `can_view_admin`
+ * still masks it — resolve the LATEST migration that defines
+ * `view_authenticated_entry_results` and run against that, so they keep
  * pointing at whatever the current definition actually is.
+ *
+ * The ONE exception is column ORDER. `CREATE OR REPLACE VIEW` may only append,
+ * so "this column is last" is a claim about the migration that appended it, not
+ * about the views forever: the next migration to append a column of its own
+ * would make a latest-resolved order assertion a guaranteed false red while
+ * nothing was wrong. That assertion is pinned to this file's own migration.
  *
  * Behavioural SQL under `supabase/tests/` only ever runs in CI (no container
  * runtime on the development Mac), and nothing here substitutes for
@@ -19,56 +26,84 @@
  */
 import { readdirSync, readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
-import { describe, expect, it } from 'vitest';
+import { beforeAll, describe, expect, it } from 'vitest';
 
 const MIGRATIONS_DIR = resolve(__dirname, '../../../../../supabase/migrations');
 const INNER_VIEW_DEF = 'CREATE OR REPLACE VIEW public.view_authenticated_entry_results\n';
 const WRAPPER_VIEW_DEF =
   'CREATE OR REPLACE VIEW public.view_authenticated_entry_results_replication\n';
+const OWN_MIGRATION = '20260918193700_myk9_659_view_registration_confirmation_number.sql';
 
 /**
  * The newest migration that defines the inner view, by filename order — which
  * is the definition the database ends up with after a rebuild from migrations.
- * Resolved rather than named so this test cannot silently stop covering the
- * live shape (LESSON `replace-function-latest`).
+ * Resolved rather than named so the durability assertions cannot silently stop
+ * covering the live shape (LESSON `replace-function-latest`).
  */
-const LATEST_VIEW_MIGRATION = (() => {
+function latestViewMigration(): string {
   const candidates = readdirSync(MIGRATIONS_DIR)
     .filter(name => name.endsWith('.sql'))
     .sort()
     .filter(name => readFileSync(resolve(MIGRATIONS_DIR, name), 'utf8').includes(INNER_VIEW_DEF));
-  expect(candidates.length).toBeGreaterThan(0);
+  if (candidates.length === 0) {
+    throw new Error(`no migration defines ${INNER_VIEW_DEF.trim()}`);
+  }
   return candidates.at(-1)!;
-})();
-
-const MIGRATION = readFileSync(resolve(MIGRATIONS_DIR, LATEST_VIEW_MIGRATION), 'utf8');
-
-function sliceBetween(source: string, start: string, end: string): string {
-  const startIndex = source.indexOf(start);
-  expect(startIndex).toBeGreaterThanOrEqual(0);
-  const endIndex = source.indexOf(end, startIndex);
-  expect(endIndex).toBeGreaterThan(startIndex);
-  return source.slice(startIndex, endIndex);
 }
 
-const innerView = sliceBetween(
-  MIGRATION,
-  INNER_VIEW_DEF,
-  'GRANT SELECT ON public.view_authenticated_entry_results TO authenticated;'
-);
-
-const wrapperView = sliceBetween(
-  MIGRATION,
-  WRAPPER_VIEW_DEF,
-  'GRANT SELECT ON public.view_authenticated_entry_results_replication TO authenticated;'
-);
+/**
+ * The whole `CREATE … ;` / `COMMENT … ;` statement that begins at `start`.
+ *
+ * The end anchor is the statement terminator — the first `;` ending a line that
+ * is not a `--` comment (the bodies carry semicolons inside comments, so the
+ * first `;` in the text is not it) — falling back to the next
+ * `CREATE OR REPLACE VIEW`. Deliberately NOT the GRANT that follows: anchoring
+ * there made a rebuild that stops re-asserting grants throw while slicing
+ * instead of failing the named grant test.
+ */
+function sliceStatement(source: string, start: string): string {
+  const startIndex = source.indexOf(start);
+  if (startIndex < 0) {
+    throw new Error(`migration does not contain ${JSON.stringify(start.trim())}`);
+  }
+  const rest = source.slice(startIndex);
+  let offset = 0;
+  for (const line of rest.split('\n')) {
+    offset += line.length + 1;
+    if (line.trimStart().startsWith('--')) continue;
+    if (line.trimEnd().endsWith(';')) return rest.slice(0, offset);
+  }
+  const next = rest.indexOf('CREATE OR REPLACE VIEW', start.length);
+  if (next < 0) {
+    throw new Error(`no statement terminator after ${JSON.stringify(start.trim())}`);
+  }
+  return rest.slice(0, next);
+}
 
 describe('MYK9-659 — registration_confirmation_number on the authenticated entry views', () => {
+  /** Resolved LATEST definition — what a rebuild from migrations produces. */
+  let migration: string;
+  let innerView: string;
+  let wrapperView: string;
+  /** This PR's own migration — the only place column ORDER is a claim. */
+  let ownInnerView: string;
+  let ownWrapperView: string;
+
+  beforeAll(() => {
+    migration = readFileSync(resolve(MIGRATIONS_DIR, latestViewMigration()), 'utf8');
+    innerView = sliceStatement(migration, INNER_VIEW_DEF);
+    wrapperView = sliceStatement(migration, WRAPPER_VIEW_DEF);
+
+    const own = readFileSync(resolve(MIGRATIONS_DIR, OWN_MIGRATION), 'utf8');
+    ownInnerView = sliceStatement(own, INNER_VIEW_DEF);
+    ownWrapperView = sliceStatement(own, WRAPPER_VIEW_DEF);
+  });
+
   it('is the file this PR added, not an older definition left as the latest', () => {
     // A positive control on the resolver above: if this ever fails, either a
     // later migration redefined the views without carrying the column (the
     // silent-revert failure mode), or the column was renamed.
-    expect(MIGRATION).toContain('registration_confirmation_number');
+    expect(migration).toContain('registration_confirmation_number');
   });
 
   it('projects the column on BOTH views', () => {
@@ -95,19 +130,23 @@ describe('MYK9-659 — registration_confirmation_number on the authenticated ent
     expect(innerView).toContain('LEFT JOIN public.enrollments en ON en.id = e.registration_id');
   });
 
-  it('appends the column LAST in each select list', () => {
+  it('appends the column LAST in each select list of its own migration', () => {
     // CREATE OR REPLACE VIEW may only add columns at the end. Anywhere else and
     // the migration fails on apply, which nothing in CI would catch.
-    const innerSelect = innerView.slice(0, innerView.indexOf('FROM public.entries e'));
+    //
+    // Scoped to OWN_MIGRATION on purpose. A later migration appending a column
+    // of its own is correct and expected; asserting last-ness against the
+    // resolved LATEST would turn that into a false red here.
+    const innerSelect = ownInnerView.slice(0, ownInnerView.indexOf('FROM public.entries e'));
     expect(innerSelect.trimEnd().endsWith('AS registration_confirmation_number')).toBe(true);
     // After MYK9-639's tail, which is the previous appended column.
     expect(innerSelect).toMatch(
       /e\.moved_from_entry_id,[\s\S]*AS registration_confirmation_number/
     );
 
-    const wrapperSelect = wrapperView.slice(
+    const wrapperSelect = ownWrapperView.slice(
       0,
-      wrapperView.indexOf('FROM public.view_authenticated_entry_results')
+      ownWrapperView.indexOf('FROM public.view_authenticated_entry_results')
     );
     expect(wrapperSelect.trimEnd().endsWith('entries.registration_confirmation_number')).toBe(true);
     expect(wrapperSelect).toMatch(
@@ -127,10 +166,9 @@ describe('MYK9-659 — registration_confirmation_number on the authenticated ent
     // first draft called this column a sibling of `payment_reference`, which is
     // an `entries` column reachable under `entries` RLS too — reading that
     // comparison as a no-op argument is how the next disclosure gets written.
-    const comment = sliceBetween(
-      MIGRATION,
-      'COMMENT ON VIEW public.view_authenticated_entry_results IS',
-      'CREATE OR REPLACE VIEW public.view_authenticated_entry_results_replication'
+    const comment = sliceStatement(
+      migration,
+      'COMMENT ON VIEW public.view_authenticated_entry_results IS'
     );
     expect(comment).toMatch(/cross-table column from public\.enrollments/i);
     expect(comment).toMatch(/can_view_admin is its ONLY guard/i);
@@ -139,11 +177,11 @@ describe('MYK9-659 — registration_confirmation_number on the authenticated ent
   });
 
   it('keeps the new column out of anon and out of write grants', () => {
-    expect(MIGRATION).toContain('REVOKE ALL ON public.view_authenticated_entry_results FROM anon;');
-    expect(MIGRATION).toContain(
+    expect(migration).toContain('REVOKE ALL ON public.view_authenticated_entry_results FROM anon;');
+    expect(migration).toContain(
       'REVOKE ALL ON public.view_authenticated_entry_results_replication FROM anon;'
     );
-    expect(MIGRATION).toContain(
+    expect(migration).toContain(
       'REVOKE INSERT, UPDATE, DELETE ON public.view_authenticated_entry_results FROM authenticated;'
     );
   });

@@ -209,6 +209,13 @@ describe('loadHandlerPeople offline boundary', () => {
       });
       await vi.waitFor(() => expect(bulkPut).toHaveBeenCalled());
       expect(invalidateQueries).toHaveBeenCalled();
+      const invalidateOptions = invalidateQueries.mock.calls.at(-1)?.[0] as unknown as {
+        predicate?: (query: { queryKey: readonly unknown[] }) => boolean;
+      };
+      expect(
+        invalidateOptions.predicate?.({ queryKey: ['reports', 'show-1', 'trial-1', 'class-1'] })
+      ).toBe(true);
+      expect(invalidateOptions.predicate?.({ queryKey: ['report-data', 'show-1'] })).toBe(false);
     } finally {
       Object.defineProperty(navigator, 'onLine', {
         configurable: true,

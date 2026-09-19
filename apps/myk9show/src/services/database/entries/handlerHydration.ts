@@ -114,7 +114,7 @@ function invalidateHandlerIdentityQueries(): void {
       return (
         root === 'armband-label-entries' ||
         root === 'check-in-report' ||
-        root === 'report-data' ||
+        root === 'reports' ||
         root === 'entries' ||
         root === 'show-desk'
       );

@@ -9,11 +9,13 @@ vi.mock('@/components/ui/calendar', () => ({
   Calendar: ({
     onSelect,
     classNames,
+    numberOfMonths,
   }: {
     onSelect?: (range: DateRange | undefined) => void;
     classNames?: { range_start?: string; range_end?: string };
+    numberOfMonths?: number;
   }) => (
-    <div>
+    <div data-testid="date-range-calendar" data-number-of-months={numberOfMonths}>
       <button
         type="button"
         onClick={() =>
@@ -106,9 +108,24 @@ describe('DateRangePicker', () => {
     await user.click(screen.getByRole('button', { name: /select date range/i }));
 
     const dialog = screen.getByRole('dialog', { name: 'Choose a date range' });
+    const body = screen.getByTestId('date-range-picker-scroll-body');
+    const footer = screen.getByTestId('date-range-picker-footer');
+    expect(dialog).toHaveClass(
+      'max-h-[calc(100dvh-1rem)]',
+      'sm:max-h-[calc(100dvh-2rem)]',
+      'w-[calc(100vw-1rem)]',
+      'overflow-hidden'
+    );
     expect(dialog).toHaveAccessibleDescription(
       'Select the first date for the start of your range, then select the last date for the end. Both panes are one continuous calendar. Use the Previous Month and Next Month buttons to move through the calendar.'
     );
+    expect(body).toHaveClass('min-h-0', 'flex-1', 'overflow-y-auto');
+    expect(body).toContainElement(screen.getByRole('group', { name: 'Date range key' }));
+    expect(body).toContainElement(screen.getByTestId('date-range-calendar'));
+    expect(screen.getByTestId('date-range-calendar')).toHaveAttribute('data-number-of-months', '2');
+    expect(body).toContainElement(screen.getByPlaceholderText('8:00 AM'));
+    expect(dialog).toContainElement(footer);
+    expect(footer).toHaveClass('shrink-0', 'border-t');
     expect(screen.getByRole('group', { name: 'Date range key' })).toHaveTextContent(
       'StartEndDates in between'
     );
@@ -126,7 +143,10 @@ describe('DateRangePicker', () => {
     const trigger = screen.getByRole('button', { name: /select date range/i });
     await user.click(trigger);
     const dialog = screen.getByRole('dialog', { name: 'Choose a date range' });
-    await waitFor(() => expect(dialog).toContainElement(document.activeElement));
+    await waitFor(() => {
+      const activeElement = document.activeElement;
+      expect(activeElement instanceof HTMLElement && dialog.contains(activeElement)).toBe(true);
+    });
 
     const focusableCount =
       within(dialog).getAllByRole('button').length +
@@ -138,10 +158,12 @@ describe('DateRangePicker', () => {
     for (let index = 0; index < focusableCount; index += 1) {
       await user.tab();
       const activeElement = document.activeElement;
+      const isHTMLElement = activeElement instanceof HTMLElement;
       expect(
-        activeElement === dialog ||
-          dialog.contains(activeElement) ||
-          activeElement?.hasAttribute('data-base-ui-focus-guard')
+        isHTMLElement &&
+          (activeElement === dialog ||
+            dialog.contains(activeElement) ||
+            activeElement.hasAttribute('data-base-ui-focus-guard'))
       ).toBe(true);
     }
 

@@ -197,100 +197,108 @@ export const DateRangePicker: React.FC<DateRangePickerProps> = ({
       </div>
 
       <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent className="max-w-3xl rounded-xl bg-popover p-4 shadow-2xl">
-          <DialogHeader className="text-left">
+        <DialogContent className="flex max-h-[calc(100dvh-1rem)] w-[calc(100vw-1rem)] max-w-3xl flex-col gap-0 overflow-hidden rounded-xl bg-popover p-0 shadow-2xl sm:max-h-[calc(100dvh-2rem)] sm:w-[calc(100vw-2rem)]">
+          <DialogHeader className="shrink-0 border-b px-4 pb-3 pt-4 text-left sm:px-6 sm:pt-5">
             <DialogTitle className="pr-8 text-lg">Choose a date range</DialogTitle>
-            <DialogDescription className="mt-1 max-w-2xl">
+          </DialogHeader>
+          <div
+            data-testid="date-range-picker-scroll-body"
+            className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 py-4 sm:px-6"
+          >
+            <DialogDescription className="max-w-2xl">
               Select the first date for the start of your range, then select the last date for the
               end. Both panes are one continuous calendar. Use the Previous Month and Next Month
               buttons to move through the calendar.
             </DialogDescription>
-          </DialogHeader>
-          <div
-            role="group"
-            aria-label="Date range key"
-            className="flex flex-wrap items-center gap-x-4 gap-y-2 text-sm text-muted-foreground"
-          >
-            <span className="inline-flex items-center gap-1.5">
-              <span
-                aria-hidden="true"
-                className="h-4 w-4 rounded-full bg-primary ring-2 ring-primary/30"
-              />
-              Start
-            </span>
-            <span className="inline-flex items-center gap-1.5">
-              <span
-                aria-hidden="true"
-                className="h-4 w-4 rounded-full bg-secondary ring-2 ring-secondary/60"
-              />
-              End
-            </span>
-            <span className="inline-flex items-center gap-1.5">
-              <span aria-hidden="true" className="h-4 w-4 rounded-sm bg-accent" />
-              Dates in between
-            </span>
+            <div
+              role="group"
+              aria-label="Date range key"
+              className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-2 text-sm text-muted-foreground"
+            >
+              <span className="inline-flex items-center gap-1.5">
+                <span
+                  aria-hidden="true"
+                  className="h-4 w-4 rounded-full bg-primary ring-2 ring-primary/30"
+                />
+                Start
+              </span>
+              <span className="inline-flex items-center gap-1.5">
+                <span
+                  aria-hidden="true"
+                  className="h-4 w-4 rounded-full bg-secondary ring-2 ring-secondary/60"
+                />
+                End
+              </span>
+              <span className="inline-flex items-center gap-1.5">
+                <span aria-hidden="true" className="h-4 w-4 rounded-sm bg-accent" />
+                Dates in between
+              </span>
+            </div>
+
+            <Calendar
+              mode="range"
+              selected={draftRange}
+              {...(calendarDefaultMonth ? { defaultMonth: calendarDefaultMonth } : {})}
+              onSelect={handleRangeSelect}
+              disabled={date => (minDate && date < minDate) || false}
+              numberOfMonths={2}
+              classNames={{
+                range_start:
+                  'range_start day-range-start [&>button]:font-semibold [&>button]:ring-2 [&>button]:ring-primary [&>button]:ring-offset-1',
+                range_end:
+                  'range_end day-range-end [&>button]:font-semibold [&>button]:ring-2 [&>button]:ring-secondary [&>button]:ring-offset-1',
+              }}
+              initialFocus
+            />
+
+            {showTime && (
+              <div className="mt-3 grid grid-cols-2 gap-4 border-t pt-3">
+                <div className="space-y-1">
+                  <Label
+                    {...(startTimeId !== undefined && { htmlFor: startTimeId })}
+                    className="text-xs text-muted-foreground"
+                  >
+                    {startLabel} time
+                  </Label>
+                  <div className="flex items-center gap-2">
+                    <Clock className="h-4 w-4 text-muted-foreground" />
+                    <Input
+                      {...(startTimeId !== undefined && { id: startTimeId })}
+                      type="text"
+                      value={startTime}
+                      onChange={handleStartTimeChange}
+                      placeholder="8:00 AM"
+                      className="flex-1"
+                    />
+                  </div>
+                </div>
+                <div className="space-y-1">
+                  <Label
+                    {...(endTimeId !== undefined && { htmlFor: endTimeId })}
+                    className="text-xs text-muted-foreground"
+                  >
+                    {endLabel} time
+                  </Label>
+                  <div className="flex items-center gap-2">
+                    <Clock className="h-4 w-4 text-muted-foreground" />
+                    <Input
+                      {...(endTimeId !== undefined && { id: endTimeId })}
+                      type="text"
+                      value={endTime}
+                      onChange={handleEndTimeChange}
+                      placeholder="5:00 PM"
+                      className="flex-1"
+                    />
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
 
-          <Calendar
-            mode="range"
-            selected={draftRange}
-            {...(calendarDefaultMonth ? { defaultMonth: calendarDefaultMonth } : {})}
-            onSelect={handleRangeSelect}
-            disabled={date => (minDate && date < minDate) || false}
-            numberOfMonths={2}
-            classNames={{
-              range_start:
-                'range_start day-range-start [&>button]:font-semibold [&>button]:ring-2 [&>button]:ring-primary [&>button]:ring-offset-1',
-              range_end:
-                'range_end day-range-end [&>button]:font-semibold [&>button]:ring-2 [&>button]:ring-secondary [&>button]:ring-offset-1',
-            }}
-            initialFocus
-          />
-
-          {showTime && (
-            <div className="grid grid-cols-2 gap-4 border-t pt-3">
-              <div className="space-y-1">
-                <Label
-                  {...(startTimeId !== undefined && { htmlFor: startTimeId })}
-                  className="text-xs text-muted-foreground"
-                >
-                  {startLabel} time
-                </Label>
-                <div className="flex items-center gap-2">
-                  <Clock className="h-4 w-4 text-muted-foreground" />
-                  <Input
-                    {...(startTimeId !== undefined && { id: startTimeId })}
-                    type="text"
-                    value={startTime}
-                    onChange={handleStartTimeChange}
-                    placeholder="8:00 AM"
-                    className="flex-1"
-                  />
-                </div>
-              </div>
-              <div className="space-y-1">
-                <Label
-                  {...(endTimeId !== undefined && { htmlFor: endTimeId })}
-                  className="text-xs text-muted-foreground"
-                >
-                  {endLabel} time
-                </Label>
-                <div className="flex items-center gap-2">
-                  <Clock className="h-4 w-4 text-muted-foreground" />
-                  <Input
-                    {...(endTimeId !== undefined && { id: endTimeId })}
-                    type="text"
-                    value={endTime}
-                    onChange={handleEndTimeChange}
-                    placeholder="5:00 PM"
-                    className="flex-1"
-                  />
-                </div>
-              </div>
-            </div>
-          )}
-
-          <DialogFooter className="mt-3 border-t pt-3">
+          <DialogFooter
+            data-testid="date-range-picker-footer"
+            className="shrink-0 border-t px-4 py-3 sm:px-6"
+          >
             <Button size="sm" onClick={() => setOpen(false)}>
               Done
             </Button>

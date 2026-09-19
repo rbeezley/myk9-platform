@@ -23,6 +23,7 @@ describe('Calendar range boundaries', () => {
     const startButton = screen.getByRole('button', { name: /May 11th, 2026/i });
     const endButton = screen.getByRole('button', { name: /May 13th, 2026/i });
 
+    expect(screen.getAllByRole('grid')).toHaveLength(2);
     expect(startButton.parentElement).toHaveClass('range_start', 'day-range-start');
     expect(endButton.parentElement).toHaveClass('range_end', 'day-range-end');
   });

@@ -222,6 +222,12 @@ describe('loadHandlerPeople offline boundary', () => {
       expect(invalidateOptions.predicate?.({ queryKey: ['shows', 'show-1', 'classes'] })).toBe(
         false
       );
+      expect(
+        invalidateOptions.predicate?.({ queryKey: ['classes', 'class-1', 'entries', 'auth'] })
+      ).toBe(true);
+      expect(invalidateOptions.predicate?.({ queryKey: ['classes', 'class-1', 'detail'] })).toBe(
+        false
+      );
     } finally {
       Object.defineProperty(navigator, 'onLine', {
         configurable: true,

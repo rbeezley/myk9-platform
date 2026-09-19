@@ -27,10 +27,13 @@ vi.mock('@/store/wizardStore', () => ({
       acceptCashPayments: false,
       style: 'monogram',
     },
+    trials: [],
     updateShowData: mockUpdateShowData,
+    updateTrial: vi.fn(),
     addJudgeToShow: vi.fn(),
     removeJudgeFromShow: vi.fn(),
     judgeDetails: {},
+    setCurrentStep: vi.fn(),
   })),
 }));
 

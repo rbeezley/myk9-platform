@@ -3,6 +3,11 @@ import { getAllPeopleSorted, filterPeopleByName } from '@/lib/people-utils';
 import type { Club } from '@/types/club-types';
 import { UserRole } from '@/types/auth-types';
 import type { User } from '@/types/user-types';
+import {
+  formatTrialTypeLabel,
+  getTrialTypesForOrganization,
+  type TrialType,
+} from '@/types/template.types';
 import type { ResolvedJudge } from './ShowDetailsStep.types';
 
 // Re-export shared people utilities for backward compatibility
@@ -55,6 +60,39 @@ export function isValidDateRange(startDate?: string, endDate?: string): boolean 
 export function isValidEntryDates(openDate?: string, closeDate?: string): boolean {
   if (!openDate || !closeDate) return true;
   return !isAfter(new Date(openDate), new Date(closeDate));
+}
+
+/**
+ * A cloned class keeps the previous registry's identity. Changing the show
+ * organization is safe only after those classes have been cleared in the
+ * canonical Classes step; labels are not sufficient to re-derive a mapping.
+ */
+export function canChangeClonedOrganization(
+  currentOrganization: string,
+  nextOrganization: string,
+  trials: ReadonlyArray<{ classes: readonly unknown[] }>,
+  options: { cloneHydrationInProgress?: boolean } = {}
+): boolean {
+  if (currentOrganization === nextOrganization) return true;
+  if (options.cloneHydrationInProgress) return false;
+  return !trials.some(trial => trial.classes.length > 0);
+}
+
+/**
+ * Keep a trial's discipline valid when its show organization changes after all
+ * classes have been cleared. Existing compatible disciplines are normalized;
+ * stale or missing values fall back to the first option for the new registry.
+ */
+export function reconcileTrialTypeForOrganization(
+  organization: string,
+  trialType?: string
+): string | undefined {
+  const availableTypes = getTrialTypesForOrganization(organization);
+  if (trialType?.trim()) {
+    const normalized = formatTrialTypeLabel(trialType);
+    if (availableTypes.includes(normalized as TrialType)) return normalized;
+  }
+  return availableTypes[0];
 }
 
 /**

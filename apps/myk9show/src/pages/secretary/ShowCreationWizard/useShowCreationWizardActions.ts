@@ -34,6 +34,7 @@ import { saveShowAtomicOnline } from './saveShowAtomicOnline';
 import { buildRuleMap } from './buildRuleMap';
 import { createWizardClasses } from './createWizardClasses';
 import { createDraftShow, finishShowSave } from './showSaveCompletion';
+import { assertValidWizardClassSelections } from './classConfigurationValidation';
 
 interface UseShowCreationWizardActionsOptions {
   editMode?: EditMode | undefined;
@@ -156,7 +157,8 @@ export function useShowCreationWizardActions({
         showId,
         existingTrials,
         editMode,
-        { preEntryFee: show.preEntryFee, dayOfShowFee: show.dayOfShowFee }
+        { preEntryFee: show.preEntryFee, dayOfShowFee: show.dayOfShowFee },
+        show.organization
       );
 
       // In add-classes mode, trial.classes includes both existing and new classes.
@@ -186,7 +188,7 @@ export function useShowCreationWizardActions({
     // show.dayOfShowFee / show.preEntryFee intentionally excluded — fee changes
     // should not invalidate already-built class arrays mid-wizard.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [trials, judgeDetails, existingTrials, editMode, existingDBClasses]
+    [trials, judgeDetails, existingTrials, editMode, existingDBClasses, show.organization]
   );
 
   /**
@@ -202,6 +204,11 @@ export function useShowCreationWizardActions({
 
       try {
         setIsLoading(true);
+
+        // Validate the complete selected class set before any show/trial/class
+        // persistence mutation. This is also repeated by the pure payload and
+        // transformer boundaries so every save path rejects sentinel identities.
+        assertValidWizardClassSelections(show.organization, trials);
 
         // New-show + online path: single atomic RPC
         // (create_show_with_children, migration 145) writes shows + trials +

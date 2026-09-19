@@ -25,9 +25,17 @@ import type { ClassTemplate } from '@/types/template.types';
 interface CloneFromShowComboboxProps {
   /** Optional: restrict to this clubId (pre-selected club context) */
   clubId?: string | undefined;
+  /** Reports whether the wizard currently represents a selected clone. */
+  onCloneStateChange?: ((isCloned: boolean) => void) | undefined;
+  /** Reports the async interval while cloned trials/classes are being hydrated. */
+  onHydrationStateChange?: ((isHydrating: boolean) => void) | undefined;
 }
 
-export const CloneFromShowCombobox: React.FC<CloneFromShowComboboxProps> = ({ clubId }) => {
+export const CloneFromShowCombobox: React.FC<CloneFromShowComboboxProps> = ({
+  clubId,
+  onCloneStateChange,
+  onHydrationStateChange,
+}) => {
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState('');
   const [clonedShowName, setClonedShowName] = useState<string | null>(null);
@@ -75,6 +83,8 @@ export const CloneFromShowCombobox: React.FC<CloneFromShowComboboxProps> = ({ cl
     setOpen(false);
     setSearch('');
     setClonedShowName(show.name);
+    onCloneStateChange?.(true);
+    onHydrationStateChange?.(true);
     resetWizard();
 
     // Prefill all non-date show fields
@@ -111,57 +121,63 @@ export const CloneFromShowCombobox: React.FC<CloneFromShowComboboxProps> = ({ cl
       }
     }
 
-    const sourceTrials = await getCloneSourceTrials(show);
-    if (requestId !== cloneRequestIdRef.current) return;
+    try {
+      const sourceTrials = await getCloneSourceTrials(show);
+      if (requestId !== cloneRequestIdRef.current) return;
 
-    if (sourceTrials.length) {
-      for (const trial of sourceTrials) {
-        const sourceClasses = trial.classes || [];
-        // Wizard state stores one template id per class. Normal trial data is single-sport, and
-        // customizations preserve the visible class details if the template cannot be recovered.
-        const template = resolveCloneTemplate({
-          templates,
-          organization: show.organization,
-          trialType: trial.trialType,
-          classes: sourceClasses,
-        });
+      if (sourceTrials.length) {
+        for (const trial of sourceTrials) {
+          const sourceClasses = trial.classes || [];
+          // Wizard state stores one template id per class. Normal trial data is single-sport, and
+          // customizations preserve the visible class details if the template cannot be recovered.
+          const template = resolveCloneTemplate({
+            templates,
+            organization: show.organization,
+            trialType: trial.trialType,
+            classes: sourceClasses,
+          });
 
-        addTrial({
-          name: trial.name || 'Trial',
-          dateTime: '',
-          eventNumber: '',
-          trialType: trial.trialType,
-          classes: sourceClasses.map(cls => {
-            const judgeId =
-              (show.assignedJudges || []).find(judge => judge.assignedClasses?.includes(cls.id))
-                ?.judgeId || undefined;
+          addTrial({
+            name: trial.name || 'Trial',
+            dateTime: '',
+            eventNumber: '',
+            trialType: trial.trialType,
+            classes: sourceClasses.map(cls => {
+              const judgeId =
+                (show.assignedJudges || []).find(judge => judge.assignedClasses?.includes(cls.id))
+                  ?.judgeId || undefined;
 
-            return {
-              templateId: cls.templateId || template?.id || '',
-              customizations: {
-                className: cls.name,
-                element: cls.element,
-                level: cls.level,
-                section: cls.section,
-                entryFee: cls.entryFee,
-                hidesUsed: cls.hidesUsed,
-                distractionsUsed: cls.distractionsUsed,
-                itemsUsed: cls.itemsUsed,
-                timeLimit1: cls.timeLimit1,
-                timeLimit2: cls.timeLimit2,
-                timeLimit3: cls.timeLimit3,
-              },
-              ...(judgeId ? { judgeId } : {}),
-            };
-          }),
-        });
+              return {
+                templateId: cls.templateId || template?.id || '',
+                customizations: {
+                  className: cls.name,
+                  element: cls.element,
+                  level: cls.level,
+                  section: cls.section,
+                  entryFee: cls.entryFee,
+                  hidesUsed: cls.hidesUsed,
+                  distractionsUsed: cls.distractionsUsed,
+                  itemsUsed: cls.itemsUsed,
+                  timeLimit1: cls.timeLimit1,
+                  timeLimit2: cls.timeLimit2,
+                  timeLimit3: cls.timeLimit3,
+                },
+                ...(judgeId ? { judgeId } : {}),
+              };
+            }),
+          });
+        }
       }
+    } finally {
+      if (requestId === cloneRequestIdRef.current) onHydrationStateChange?.(false);
     }
   };
 
   const handleStartFresh = () => {
     cloneRequestIdRef.current += 1;
     setClonedShowName(null);
+    onCloneStateChange?.(false);
+    onHydrationStateChange?.(false);
     resetWizard();
   };
 

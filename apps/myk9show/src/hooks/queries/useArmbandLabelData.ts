@@ -12,8 +12,9 @@ export function mapEntryToArmbandLabelEntry(
   raw: Record<string, unknown>
 ): ArmbandLabelEntry | null {
   const rawArmband = raw.armband as number | string | null | undefined;
-  const armband = rawArmband == null ? null : Number(rawArmband);
-  if (armband == null || !Number.isFinite(armband) || armband === 0) return null;
+  const normalizedArmband = rawArmband == null ? null : String(rawArmband).trim();
+  if (!normalizedArmband || normalizedArmband === '0') return null;
+  const armband = typeof rawArmband === 'number' ? rawArmband : normalizedArmband;
 
   const dog = raw.dog as Record<string, unknown> | null;
   const owner = dog?.owner as Record<string, unknown> | null;

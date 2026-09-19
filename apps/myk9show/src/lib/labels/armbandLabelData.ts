@@ -32,7 +32,7 @@ export function filterEntries(
   });
 
   if (filter.specificArmband != null) {
-    result = result.filter(e => e.armband === filter.specificArmband);
+    result = result.filter(e => String(e.armband) === String(filter.specificArmband));
   }
 
   return result;
@@ -40,7 +40,12 @@ export function filterEntries(
 
 export function prepareArmbandLabelItems(entries: ArmbandLabelEntry[]): ArmbandLabelItem[] {
   return [...entries]
-    .sort((a, b) => a.armband - b.armband)
+    .sort((a, b) => {
+      const numericDifference = Number(a.armband) - Number(b.armband);
+      return Number.isNaN(numericDifference)
+        ? String(a.armband).localeCompare(String(b.armband))
+        : numericDifference;
+    })
     .map(e => ({
       armband: e.armband,
       callName: e.callName,

@@ -60,6 +60,7 @@ describe('loadHandlerPeople offline boundary', () => {
     vi.mocked(db.instance.people.bulkGet).mockResolvedValue([
       { id: 'handler-1', firstName: 'Cached', lastName: 'Handler' },
     ]);
+    const bulkDelete = vi.spyOn(db.instance.people, 'bulkDelete').mockResolvedValue();
     mocks.from.mockReturnValue({
       select: vi.fn().mockReturnValue({
         in: vi.fn().mockResolvedValue({ data: [], error: null }),
@@ -67,6 +68,70 @@ describe('loadHandlerPeople offline boundary', () => {
     });
 
     try {
+      await expect(loadHandlerPeople(['handler-1'])).resolves.toEqual(new Map());
+      expect(bulkDelete).toHaveBeenCalledWith(['handler-1']);
+    } finally {
+      Object.defineProperty(navigator, 'onLine', {
+        configurable: true,
+        value: originalOnline,
+      });
+    }
+  });
+
+  it('persists a fast authoritative refresh before a later offline read', async () => {
+    const originalOnline = navigator.onLine;
+    Object.defineProperty(navigator, 'onLine', { configurable: true, value: true });
+    vi.mocked(db.instance.people.bulkGet)
+      .mockResolvedValueOnce([{ id: 'handler-1', firstName: 'Cached', lastName: 'Handler' }])
+      .mockResolvedValueOnce([{ id: 'handler-1', firstName: 'Fresh', lastName: 'Handler' }]);
+    const bulkPut = vi.spyOn(db.instance.people, 'bulkPut').mockResolvedValue('handler-1');
+    mocks.from.mockReturnValue({
+      select: vi.fn().mockReturnValue({
+        in: vi.fn().mockResolvedValue({
+          data: [{ id: 'handler-1', first_name: 'Fresh', last_name: 'Handler' }],
+          error: null,
+        }),
+      }),
+    });
+
+    try {
+      await expect(loadHandlerPeople(['handler-1'])).resolves.toEqual(
+        new Map([['handler-1', { id: 'handler-1', first_name: 'Fresh', last_name: 'Handler' }]])
+      );
+      expect(bulkPut).toHaveBeenCalledWith([
+        { id: 'handler-1', firstName: 'Fresh', lastName: 'Handler' },
+      ]);
+
+      Object.defineProperty(navigator, 'onLine', { configurable: true, value: false });
+      await expect(loadHandlerPeople(['handler-1'])).resolves.toEqual(
+        new Map([['handler-1', { id: 'handler-1', first_name: 'Fresh', last_name: 'Handler' }]])
+      );
+    } finally {
+      Object.defineProperty(navigator, 'onLine', {
+        configurable: true,
+        value: originalOnline,
+      });
+    }
+  });
+
+  it('removes an omitted fast-refresh identity before a later offline read', async () => {
+    const originalOnline = navigator.onLine;
+    Object.defineProperty(navigator, 'onLine', { configurable: true, value: true });
+    vi.mocked(db.instance.people.bulkGet)
+      .mockResolvedValueOnce([{ id: 'handler-1', firstName: 'Cached', lastName: 'Handler' }])
+      .mockResolvedValueOnce([]);
+    const bulkDelete = vi.spyOn(db.instance.people, 'bulkDelete').mockResolvedValue();
+    mocks.from.mockReturnValue({
+      select: vi.fn().mockReturnValue({
+        in: vi.fn().mockResolvedValue({ data: [], error: null }),
+      }),
+    });
+
+    try {
+      await expect(loadHandlerPeople(['handler-1'])).resolves.toEqual(new Map());
+      expect(bulkDelete).toHaveBeenCalledWith(['handler-1']);
+
+      Object.defineProperty(navigator, 'onLine', { configurable: true, value: false });
       await expect(loadHandlerPeople(['handler-1'])).resolves.toEqual(new Map());
     } finally {
       Object.defineProperty(navigator, 'onLine', {

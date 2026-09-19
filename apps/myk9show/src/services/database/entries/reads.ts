@@ -73,6 +73,23 @@ async function loadShowsMap(): Promise<Map<string, ReplicatedShow>> {
   );
 }
 
+function requireClassJoins(
+  entries: readonly ReplicatedEntry[],
+  classesMap: ReadonlyMap<string, ReplicatedClass>
+): void {
+  const missingClassIds = [
+    ...new Set(
+      entries
+        .filter(isLiveEntry)
+        .map(entry => entry.classId)
+        .filter((classId): classId is string => Boolean(classId && !classesMap.has(classId)))
+    ),
+  ];
+  if (missingClassIds.length > 0) {
+    throw new Error(`replicated entry class joins unavailable: ${missingClassIds.join(', ')}`);
+  }
+}
+
 async function loadEnrollmentFinancialsMap(
   entries: ReadonlyArray<ReplicatedEntry>
 ): Promise<Map<string, Record<string, unknown>>> {
@@ -737,6 +754,7 @@ export const getAllEntries = async () => {
         entries.filter(isLiveEntry),
         compareDateDesc(getEntryCreatedSortValue)
       );
+      requireClassJoins(sortedEntries, classesMap);
       const handlerPeopleMap = await loadMissingHandlerPeopleMap(sortedEntries);
       const data = mapEntriesWithStandardJoins(sortedEntries, dogsMap, classesMap, showsMap).map(
         (row, index) => attachHandlerPerson(row, sortedEntries[index]!, handlerPeopleMap)
@@ -804,6 +822,7 @@ export const getEntriesByShow = async (showId: string) => {
         entries.filter(isLiveEntry),
         compareDateDesc(getEntryCreatedSortValue)
       );
+      requireClassJoins(sortedEntries, classesMap);
       const enrollmentsMap = await loadEnrollmentFinancialsMap(sortedEntries);
       const handlerPeopleMap = await loadMissingHandlerPeopleMap(sortedEntries);
       const data = sortedEntries.map(entry => {
@@ -848,6 +867,7 @@ export const getEntriesByShowFromReplication = async (showId: string) => {
         rawEntries.filter(isLiveEntry),
         compareDateDesc(getEntryCreatedSortValue)
       );
+      requireClassJoins(entries, classesMap);
       const enrollmentsMap = await loadEnrollmentFinancialsMap(entries);
       const handlerPeopleMap = await loadMissingHandlerPeopleMap(entries);
       const data = mapEntriesWithStandardJoins(
@@ -1258,6 +1278,7 @@ export const getEntriesByStatus = async (status: EntryStatus) => {
       ]);
       const filtered = allEntries.filter(e => e.entryStatus === status && isLiveEntry(e));
       const sortedEntries = sortedCopy(filtered, compareDateDesc(getEntryCreatedSortValue));
+      requireClassJoins(sortedEntries, classesMap);
       const data = mapEntriesWithStandardJoins(sortedEntries, dogsMap, classesMap, showsMap);
       return { data, error: null };
     },

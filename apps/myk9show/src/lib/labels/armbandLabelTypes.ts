@@ -1,12 +1,14 @@
 import type { PaperworkHandlerIdentity } from '@/features/show-map/cockpit/paperworkPrintState';
 
+export type ArmbandLabelValue = number | string;
+
 export interface ArmbandLabelEntry {
   id: string;
   dogId: string;
   trialId: string;
   classId: string;
   calendarDay: string;
-  armband: number;
+  armband: ArmbandLabelValue;
   callName: string;
   handler: string;
   trialDate: string;
@@ -15,7 +17,7 @@ export interface ArmbandLabelEntry {
 }
 
 export interface ArmbandLabelItem {
-  armband: number;
+  armband: ArmbandLabelValue;
   callName: string;
   handler: string;
   trialDate: string;

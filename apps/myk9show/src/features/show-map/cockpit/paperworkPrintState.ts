@@ -86,7 +86,7 @@ export interface PaperworkHandlerIdentity {
 export interface ArmbandPaperworkDog {
   dogId: string;
   calendarDay: string;
-  armband: number;
+  armband: number | string;
   callName: string;
   handlerName: string;
   handlerIdentity?: PaperworkHandlerIdentity | undefined;

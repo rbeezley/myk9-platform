@@ -47,6 +47,18 @@ describe('mapEntryToArmbandLabelEntry', () => {
     });
   });
 
+  it('preserves suffixed armband labels instead of coercing them to numbers', () => {
+    const result = mapEntryToArmbandLabelEntry({
+      id: 'e-suffixed',
+      dog_id: 'dog-1',
+      armband: '12A',
+      dog: { call_name: 'Storm', owner: null },
+      class: null,
+    });
+
+    expect(result?.armband).toBe('12A');
+  });
+
   it('returns null for entries without armband', () => {
     const raw = {
       id: 'e2',

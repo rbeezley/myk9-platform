@@ -147,6 +147,26 @@ describe('getEntriesByShow — cold local replica verifies online', () => {
     expect((result.data[0] as Record<string, unknown>).id).toBe('entry-online-1');
   });
 
+  it('falls back online when nonempty replication rows are missing their class join', async () => {
+    mockEntriesTable.sync.mockResolvedValue({ success: true });
+    mockEntriesTable.getEntriesByShow.mockResolvedValue([
+      {
+        id: 'entry-cold-join',
+        dogId: null,
+        classId: 'c1',
+        showId: 's1',
+        registrationId: null,
+        deletedAt: null,
+        entryStatus: 'confirmed',
+      },
+    ]);
+
+    const result = await getEntriesByShow('s1');
+
+    expect(result.data).toHaveLength(1);
+    expect((result.data[0] as Record<string, unknown>).id).toBe('entry-online-1');
+  });
+
   it('does not call online when the local replica already has the show’s entries', async () => {
     mockEntriesTable.getEntriesByShow.mockResolvedValue([
       {

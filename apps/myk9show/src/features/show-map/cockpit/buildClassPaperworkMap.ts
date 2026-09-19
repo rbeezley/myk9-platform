@@ -137,7 +137,7 @@ function buildArmbandDescriptor(
     {
       dogId: string;
       calendarDay: string;
-      armband: number;
+      armband: number | string;
       callName: string;
       handlerName: string;
       handlerIdentity: {
@@ -150,8 +150,9 @@ function buildArmbandDescriptor(
     }
   >();
   for (const entry of entries) {
-    const armband = entry.armband == null ? null : Number(entry.armband);
-    if (!Number.isFinite(armband) || armband === null || !calendarDay) continue;
+    const rawArmband = entry.armband == null ? '' : String(entry.armband).trim();
+    if (!rawArmband || !calendarDay) continue;
+    const armband = /^\d+(?:\.\d+)?$/.test(rawArmband) ? Number(rawArmband) : rawArmband;
     const row = entry as DbEntry & Record<string, unknown>;
     const dog = row.dog as Record<string, unknown> | null;
     const handler = row.handler_person as Record<string, unknown> | null;

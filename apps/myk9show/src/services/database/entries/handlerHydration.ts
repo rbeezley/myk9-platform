@@ -84,6 +84,25 @@ export async function loadCachedHandlerPeople(
   }
 }
 
+async function persistAuthoritativeHandlerPeople(
+  ids: readonly string[],
+  people: ReadonlyMap<string, HandlerPersonRow>
+): Promise<void> {
+  try {
+    const cachedPeople = [...people.values()].map(person => ({
+      id: person.id,
+      firstName: person.first_name ?? '',
+      lastName: person.last_name ?? '',
+    }));
+    if (cachedPeople.length > 0) await db.instance.people.bulkPut(cachedPeople);
+    const missingIds = ids.filter(id => !people.has(id));
+    if (missingIds.length > 0) await db.instance.people.bulkDelete(missingIds);
+  } catch {
+    // A cache write is an optimization; the current caller already has the
+    // authoritative projection and the next read can try again.
+  }
+}
+
 export async function loadHandlerPeople(
   handlerIds: readonly string[]
 ): Promise<Map<string, HandlerPersonRow>> {
@@ -124,29 +143,17 @@ export async function loadHandlerPeople(
       setTimeout(() => resolve({ kind: 'deferred' }), HANDLER_PEOPLE_FAST_TIMEOUT_MS)
     ),
   ]);
-  if (fastResult.kind === 'fresh' && fastResult.result) return fastResult.result;
+  if (fastResult.kind === 'fresh' && fastResult.result) {
+    await persistAuthoritativeHandlerPeople(ids, fastResult.result);
+    return fastResult.result;
+  }
   if (fastResult.kind === 'failed') return cached;
 
   // Keep the eventual response useful to the next read without blocking this
   // one. Cache only successful server data; omitted ids are deliberately
   // removed so deleted/inaccessible people cannot keep an old printed name.
   void refresh
-    .then(async result => {
-      if (!result) return;
-      try {
-        const people = [...result.values()].map(person => ({
-          id: person.id,
-          firstName: person.first_name ?? '',
-          lastName: person.last_name ?? '',
-        }));
-        if (people.length > 0) await db.instance.people.bulkPut(people);
-        const missingIds = ids.filter(id => !result.has(id));
-        if (missingIds.length > 0) await db.instance.people.bulkDelete(missingIds);
-      } catch {
-        // A cache write is an optimization; the current caller already has a
-        // safe cached/unknown projection and the next read can try again.
-      }
-    })
+    .then(result => (result ? persistAuthoritativeHandlerPeople(ids, result) : undefined))
     .catch(() => undefined);
   return cached;
 }

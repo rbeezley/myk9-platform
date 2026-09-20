@@ -13,6 +13,7 @@ import {
 } from '@/components/ui/alert-dialog';
 import { useWizardStore } from '@/store/wizardStore';
 import { useTrialStore } from '@/store/trialStore';
+import { isTrialSnapshotReady } from '@/components/shows/wizard/steps/TrialConfigurationStep.helpers';
 import { useClassStoreCompat } from '@/hooks/useClassStoreCompat';
 import { useUserStore } from '@/store/userStore';
 import HorizontalProgressIndicator from '@/components/shows/wizard/components/HorizontalProgressIndicator';
@@ -92,7 +93,14 @@ const ShowCreationWizardPage: React.FC = () => {
     trialCount: trials.length,
   });
 
-  const { trials: existingTrials } = useTrialStore();
+  const {
+    trials: existingTrials,
+    trialsReadStatus,
+    trialsHasConfirmedSnapshot,
+  } = useTrialStore();
+  const existingTrialsReady =
+    editMode?.mode !== 'add-trials' ||
+    isTrialSnapshotReady(trialsReadStatus, trialsHasConfirmedSnapshot);
   const { classes: existingClasses } = useClassStoreCompat();
   const { people, loadPeople } = useUserStore();
 
@@ -379,6 +387,7 @@ const ShowCreationWizardPage: React.FC = () => {
                     currentStep={currentStep}
                     editMode={editMode}
                     existingTrials={existingTrials}
+                    existingTrialsReady={existingTrialsReady}
                     existingClasses={existingClasses}
                     hasAttemptedNext={hasAttemptedNext}
                     isLoading={isLoading}

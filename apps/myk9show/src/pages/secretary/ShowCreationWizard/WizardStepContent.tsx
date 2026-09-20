@@ -12,6 +12,7 @@ interface WizardStepContentProps {
   currentStep: number;
   editMode: EditMode | undefined;
   existingTrials: Trial[];
+  existingTrialsReady: boolean;
   existingClasses: SyncableClassData[];
   hasAttemptedNext: boolean;
   isLoading: boolean;
@@ -30,6 +31,7 @@ export const WizardStepContent: React.FC<WizardStepContentProps> = ({
   currentStep,
   editMode,
   existingTrials,
+  existingTrialsReady,
   existingClasses,
   hasAttemptedNext,
   isLoading,
@@ -51,7 +53,8 @@ export const WizardStepContent: React.FC<WizardStepContentProps> = ({
         <TrialConfigurationStep
           {...stepProps}
           existingTrialCount={showExistingTrials.length}
-          existingTrials={showExistingTrials}
+          existingTrials={showExistingTrials.map(trial => ({ trialDate: trial.trialDate }))}
+          existingTrialsReady={existingTrialsReady}
           submitted={hasAttemptedNext}
         />
       );

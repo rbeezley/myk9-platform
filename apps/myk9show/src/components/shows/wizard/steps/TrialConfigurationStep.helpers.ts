@@ -5,6 +5,7 @@ import {
 } from '@/types/template.types';
 import { format } from 'date-fns';
 import { parseLocalDateString } from '@/utils/dateLocal';
+import type { ReplicatedReadStatus } from '@/store/trial-store-types';
 
 interface TrialTypeTemplateOption {
   isActive?: boolean;
@@ -14,6 +15,8 @@ interface TrialTypeTemplateOption {
 
 export interface TrialDateSource {
   trialDate: string;
+  id?: string;
+  name?: string;
 }
 
 export interface TrialCreationCopy {
@@ -28,8 +31,16 @@ function dateOnly(value: string): string {
   return Number.isNaN(parsed.getTime()) ? '' : format(parsed, 'yyyy-MM-dd');
 }
 
-export function getTrialCreationCopy(existingTrials: readonly TrialDateSource[]): TrialCreationCopy {
-  if (existingTrials.length === 0) {
+export function getTrialCreationCopy(
+  existingTrials: readonly TrialDateSource[],
+  selectedDate?: string
+): TrialCreationCopy {
+  const normalizedSelectedDate = selectedDate ? dateOnly(selectedDate) : '';
+  const hasTrialOnSelectedDate = normalizedSelectedDate
+    ? existingTrials.some(trial => dateOnly(trial.trialDate) === normalizedSelectedDate)
+    : existingTrials.length > 0;
+
+  if (!hasTrialOnSelectedDate) {
     return {
       addTrialLabel: 'Add First Trial',
       emptyStateTitle: 'Schedule Your Trials',
@@ -43,6 +54,29 @@ export function getTrialCreationCopy(existingTrials: readonly TrialDateSource[])
     emptyStateTitle: 'Add Another Trial',
     emptyStateDescription: 'Add another trial to continue setting up this show.',
   };
+}
+
+export function getTrialNameAfterDateChange(
+  existingTrials: readonly TrialDateSource[],
+  currentTrialId: string,
+  previousDate: string,
+  nextDate: string
+): string {
+  const currentTrial = existingTrials.find(trial => trial.id === currentTrialId);
+  if (!currentTrial?.name) return '';
+
+  const otherTrials = existingTrials.filter(trial => trial.id !== currentTrialId);
+  const generatedName = getDefaultTrialName(otherTrials, previousDate);
+  if (currentTrial.name !== generatedName) return currentTrial.name;
+
+  return getDefaultTrialName(otherTrials, nextDate);
+}
+
+export function isTrialSnapshotReady(
+  readStatus: ReplicatedReadStatus,
+  hasConfirmedSnapshot: boolean
+): boolean {
+  return hasConfirmedSnapshot && readStatus !== 'idle' && readStatus !== 'loading';
 }
 
 export function getDefaultTrialName(

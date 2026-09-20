@@ -197,9 +197,16 @@ describe('resolveActions — club admin on a show', () => {
     expect(mailIn?.disabledReason).toBe('Trial secretary access only');
   });
 
+  it('greys Add a new trial for club admins, because trial setup is secretary-only', () => {
+    const addTrial = actions.find(a => a.id === 'show-add-new-trial');
+    expect(addTrial?.disabledReason).toBe('Trial secretary access only');
+  });
+
   it('leaves the rest available', () => {
     expect(
-      actions.filter(a => a.id !== 'show-add-mail-in-entry').every(a => !a.disabledReason)
+      actions
+        .filter(a => !['show-add-mail-in-entry', 'show-add-new-trial'].includes(a.id))
+        .every(a => !a.disabledReason)
     ).toBe(true);
   });
 });

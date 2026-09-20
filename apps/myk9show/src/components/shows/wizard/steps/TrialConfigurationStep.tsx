@@ -20,6 +20,7 @@ import { formatTrialTypeLabel } from '@/types/template.types';
 import {
   getDefaultTrialName,
   getTrialCreationCopy,
+  getTrialNameAfterDateChange,
   resolveTrialTypeOptions,
   type TrialDateSource,
 } from './TrialConfigurationStep.helpers';
@@ -41,6 +42,8 @@ interface TrialConfigurationStepProps {
   existingTrials?: TrialDateSource[];
   /** True once the user has clicked Next — gates the "at least one trial required" error. */
   submitted?: boolean;
+  /** Existing-show trials are addable only after a confirmed replicated snapshot. */
+  existingTrialsReady?: boolean;
 }
 
 export const TrialConfigurationStep: React.FC<TrialConfigurationStepProps> = ({
@@ -48,6 +51,7 @@ export const TrialConfigurationStep: React.FC<TrialConfigurationStepProps> = ({
   existingTrialCount = 0,
   existingTrials = [],
   submitted = false,
+  existingTrialsReady = true,
 }) => {
   const { show, trials, addTrial, updateTrial, removeTrial } = useWizardStore();
   const { templates } = useTemplates();
@@ -58,10 +62,17 @@ export const TrialConfigurationStep: React.FC<TrialConfigurationStepProps> = ({
   }, [show.organization, templates]);
 
   const trialDates = useMemo(
-    () => [...existingTrials, ...trials.map(trial => ({ trialDate: trial.dateTime }))],
+    () => [
+      ...existingTrials,
+      ...trials.map(trial => ({ id: trial.id, name: trial.name, trialDate: trial.dateTime })),
+    ],
     [existingTrials, trials]
   );
-  const creationCopy = useMemo(() => getTrialCreationCopy(trialDates), [trialDates]);
+  const creationCopy = useMemo(
+    () => getTrialCreationCopy(trialDates, show.startDate || undefined),
+    [show.startDate, trialDates]
+  );
+  const canAddTrial = existingTrialsReady;
 
   // Derive errors using useMemo instead of useState + effect
   const errors = useMemo(() => {
@@ -122,6 +133,8 @@ export const TrialConfigurationStep: React.FC<TrialConfigurationStepProps> = ({
   }, [trials, show.startDate, show.endDate, show.organization, submitted]);
 
   const handleAddTrial = () => {
+    if (!canAddTrial) return;
+
     const trialIndex = trials.length;
     // Default 2 trials per day: trials 0-1 → startDate, 2-3 → startDate+1, etc.
     const startDate = (show.startDate && parseLocalDateString(show.startDate)) || new Date();
@@ -150,7 +163,16 @@ export const TrialConfigurationStep: React.FC<TrialConfigurationStepProps> = ({
 
   const handleTrialDateTimeChange = (trialId: string, date: Date | undefined) => {
     if (date) {
-      updateTrial(trialId, { dateTime: format(date, "yyyy-MM-dd'T'HH:mm:ss") });
+      const nextDateTime = format(date, "yyyy-MM-dd'T'HH:mm:ss");
+      const currentTrial = trials.find(trial => trial.id === trialId);
+      const updatedName = currentTrial
+        ? getTrialNameAfterDateChange(trialDates, trialId, currentTrial.dateTime, nextDateTime)
+        : '';
+
+      updateTrial(trialId, {
+        dateTime: nextDateTime,
+        ...(updatedName && updatedName !== currentTrial?.name ? { name: updatedName } : {}),
+      });
     }
   };
 
@@ -161,11 +183,22 @@ export const TrialConfigurationStep: React.FC<TrialConfigurationStepProps> = ({
           {/* Add Trial Button */}
           <div className="flex justify-between items-center">
             <h3 className="text-lg font-semibold text-foreground">Trials ({trials.length})</h3>
-            <Button onClick={handleAddTrial} className="flex items-center gap-2">
+            <Button
+              onClick={handleAddTrial}
+              disabled={!canAddTrial}
+              title={canAddTrial ? undefined : 'Waiting for the current trials to finish loading'}
+              className="flex items-center gap-2"
+            >
               <Plus className="h-4 w-4" />
               {creationCopy.addTrialLabel}
             </Button>
           </div>
+
+          {!canAddTrial && (
+            <p role="status" className="text-sm text-muted-foreground">
+              Checking the current trials before adding another one…
+            </p>
+          )}
 
           {/* Existing trials info banner */}
           {existingTrialCount > 0 && (
@@ -196,7 +229,13 @@ export const TrialConfigurationStep: React.FC<TrialConfigurationStepProps> = ({
                 <p className="text-sm text-muted-foreground max-w-sm mx-auto mb-6">
                   {creationCopy.emptyStateDescription}
                 </p>
-                <Button onClick={handleAddTrial} size="lg" className="shadow-md">
+                <Button
+                  onClick={handleAddTrial}
+                  disabled={!canAddTrial}
+                  title={canAddTrial ? undefined : 'Waiting for the current trials to finish loading'}
+                  size="lg"
+                  className="shadow-md"
+                >
                   <Plus className="h-4 w-4 mr-2" />
                   {creationCopy.addTrialLabel}
                 </Button>

@@ -179,6 +179,7 @@ function buildShowActions(
       id: 'show-add-new-trial',
       label: 'Add a new trial',
       href: `/secretary/create-show/wizard?showId=${encoded}&mode=add-trials`,
+      ...(viewer.canOperateShow ? {} : { disabledReason: TRIAL_SECRETARY_ONLY_REASON }),
     },
     {
       // Runs the Premium List card's OWN flow, from whatever section the

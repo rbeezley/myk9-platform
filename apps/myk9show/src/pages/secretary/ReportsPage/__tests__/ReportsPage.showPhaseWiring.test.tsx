@@ -1,7 +1,6 @@
-import { beforeEach, describe, it, expect, vi } from 'vitest';
+import { afterEach, beforeEach, describe, it, expect, vi } from 'vitest';
 import { render, screen } from '@/test/utils/testUtils';
 import userEvent from '@testing-library/user-event';
-import { calendarDateInTimeZone } from '@/utils/calendarDate';
 import ReportsPage from '../index';
 
 const mockReportState = vi.hoisted(() => ({
@@ -37,16 +36,16 @@ vi.mock('sonner', () => {
 });
 
 const SHOW_TIMEZONE = 'America/Chicago';
-/** A show that is RUNNING today in its own configured timezone. */
-const TODAY_KEY = calendarDateInTimeZone(new Date(), SHOW_TIMEZONE);
+const SHOW_DAY = '2026-03-22';
+const SHOW_DAY_AFTERNOON = new Date('2026-03-22T18:00:00.000Z');
 
 vi.mock('@/hooks/useFastShowDetails', () => ({
   useFastShowDetails: () => ({
     show: {
       id: 'show-1',
       name: 'Spring Scent Trial 2026',
-      startDate: TODAY_KEY,
-      endDate: TODAY_KEY,
+      startDate: SHOW_DAY,
+      endDate: SHOW_DAY,
     },
     isLoading: false,
     isError: false,
@@ -225,6 +224,10 @@ describe('ReportsPage wires the show’s own phase into the report picker', () =
    * show that is running today and reads the order off the DOM.
    */
   beforeEach(() => {
+    // Freeze only Date. Keeping real timers lets user-event and Base UI's
+    // popover scheduling run normally while every render sees one show day.
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(SHOW_DAY_AFTERNOON);
     mockReportState.trialOneRegistryId = 'AKC';
     mockReportState.isLoading = false;
     mockReportState.dataState = null;
@@ -233,6 +236,10 @@ describe('ReportsPage wires the show’s own phase into the report picker', () =
     mockPrintState.isError = false;
     mockPrintState.syncFailed = false;
     toastSpy.called.mockClear();
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
   });
 
   it('puts "During the show" first, and Check-in Sheet first within it', async () => {

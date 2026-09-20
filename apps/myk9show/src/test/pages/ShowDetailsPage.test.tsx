@@ -144,6 +144,31 @@ vi.mock('@/hooks/queries/useShowsDatabase', () => ({
   showQueryKeys: {
     detail: (showId: string) => ['shows', 'detail', showId],
     lists: () => ['shows', 'list'],
+    byClub: (clubId: string) => ['shows', 'club', clubId],
+    byStatus: (status: string) => ['shows', 'status', status],
+    upcoming: () => ['shows', 'upcoming'],
+    withEntryCounts: () => ['shows', 'withEntryCounts'],
+  },
+  syncShowQueryCaches: (queryClient: QueryClient, updatedShow: Record<string, unknown>) => {
+    queryClient.setQueryData(['shows', 'detail', updatedShow.id], updatedShow);
+    queryClient.setQueryData<Array<Record<string, unknown>>>(
+      ['shows', 'list'],
+      current =>
+        current?.map(show => (show.id === updatedShow.id ? updatedShow : show)) ?? [updatedShow]
+    );
+    queryClient.setQueryData<Array<Record<string, unknown>>>(
+      ['shows', 'club', updatedShow.clubId],
+      current =>
+        current?.map(show => (show.id === updatedShow.id ? updatedShow : show)) ?? [updatedShow]
+    );
+    queryClient.setQueryData<Array<Record<string, unknown>>>(
+      ['shows', 'status', updatedShow.status],
+      current =>
+        current?.map(show => (show.id === updatedShow.id ? updatedShow : show)) ?? [updatedShow]
+    );
+    queryClient.invalidateQueries({ queryKey: ['shows', 'statistics'] });
+    queryClient.invalidateQueries({ queryKey: ['shows', 'upcoming'] });
+    queryClient.invalidateQueries({ queryKey: ['shows', 'withEntryCounts'] });
   },
 }));
 
@@ -1024,7 +1049,7 @@ describe('ShowDetailsPage', () => {
     });
   });
 
-  it('persists preview style through the React Query mutation and updates detail/list caches when the store is cold', async () => {
+  it('persists preview style through the replicated mutation when Zustand and filtered caches are cold', async () => {
     const user = userEvent.setup();
     mockAuthContext.isSecretary = true;
     mockShow = { ...mockShow, style: 'monogram' };
@@ -1033,23 +1058,40 @@ describe('ShowDetailsPage', () => {
     const { queryClient } = renderPage('show-1', '', '?preview=public');
     queryClient.setQueryData(['shows', 'detail', 'show-1'], mockShow);
     queryClient.setQueryData(['shows', 'list'], [mockShow]);
+    queryClient.setQueryData(['shows', 'club', 'club-1'], [mockShow]);
+    queryClient.setQueryData(['shows', 'status', 'Upcoming'], [mockShow]);
+    queryClient.setQueryData(['shows', 'upcoming'], [mockShow]);
+    queryClient.setQueryData(['shows', 'withEntryCounts'], [mockShow]);
 
     await user.click(screen.getByRole('radio', { name: 'Heritage' }));
     await user.click(screen.getByRole('button', { name: 'Save style' }));
 
     await waitFor(() =>
-      expect(updateShowFromPreviewMock).toHaveBeenCalledWith({
-        id: 'show-1',
-        updates: { style: 'heritage' },
-      })
+      expect(updateShowLocallyMock).toHaveBeenCalledWith(
+        'show-1',
+        { style: 'heritage' },
+        expect.objectContaining({ id: 'show-1', style: 'monogram' })
+      )
     );
-    expect(updateShowLocallyMock).not.toHaveBeenCalledWith('show-1', { style: 'heritage' });
+    expect(updateShowFromPreviewMock).not.toHaveBeenCalled();
     expect(queryClient.getQueryData(['shows', 'detail', 'show-1'])).toMatchObject({
       style: 'heritage',
     });
     expect(
       queryClient.getQueryData<Array<{ id: string; style?: string }>>(['shows', 'list'])
     ).toEqual([expect.objectContaining({ id: 'show-1', style: 'heritage' })]);
+    expect(
+      queryClient.getQueryData<Array<{ id: string; style?: string }>>(['shows', 'club', 'club-1'])
+    ).toEqual([expect.objectContaining({ id: 'show-1', style: 'heritage' })]);
+    expect(
+      queryClient.getQueryData<Array<{ id: string; style?: string }>>([
+        'shows',
+        'status',
+        'Upcoming',
+      ])
+    ).toEqual([expect.objectContaining({ id: 'show-1', style: 'heritage' })]);
+    expect(queryClient.getQueryState(['shows', 'upcoming'])?.isInvalidated).toBe(true);
+    expect(queryClient.getQueryState(['shows', 'withEntryCounts'])?.isInvalidated).toBe(true);
   });
 
   it('persists preview style through the replicated show store when the show is warm', async () => {
@@ -1067,7 +1109,11 @@ describe('ShowDetailsPage', () => {
     await user.click(screen.getByRole('button', { name: 'Save style' }));
 
     await waitFor(() =>
-      expect(updateShowLocallyMock).toHaveBeenCalledWith('show-1', { style: 'heritage' })
+      expect(updateShowLocallyMock).toHaveBeenCalledWith(
+        'show-1',
+        { style: 'heritage' },
+        expect.objectContaining({ id: 'show-1', style: 'monogram' })
+      )
     );
     expect(updateShowFromPreviewMock).not.toHaveBeenCalled();
     expect(queryClient.getQueryData(['shows', 'detail', 'show-1'])).toMatchObject({

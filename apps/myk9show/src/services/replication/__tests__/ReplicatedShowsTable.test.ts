@@ -729,6 +729,45 @@ describe('ReplicatedShowsTable', () => {
       );
     });
 
+    it('updates a cold table from the known show row without requiring a network write', async () => {
+      const knownShow: ReplicatedShow = {
+        id: 'show-1',
+        name: 'Known Show',
+        organization: 'AKC',
+        startDate: '2026-06-15',
+        endDate: '2026-06-16',
+        status: 'draft',
+        clubId: TEST_CLUB_ID,
+        style: 'monogram',
+      };
+      const queueMutation = vi.spyOn(
+        table as unknown as {
+          queueMutation: (
+            operation: string,
+            rowId: string,
+            payload: Record<string, unknown>
+          ) => Promise<string | null>;
+        },
+        'queueMutation'
+      );
+
+      await table.updateShow('show-1', { style: 'heritage' }, knownShow);
+
+      expect(queueMutation).toHaveBeenCalledWith(
+        'UPDATE',
+        'show-1',
+        expect.objectContaining({
+          name: 'Known Show',
+          style: 'heritage',
+        })
+      );
+      expect(await table.get('show-1')).toMatchObject({
+        id: 'show-1',
+        style: 'heritage',
+        _syncStatus: 'pending',
+      });
+    });
+
     it('should update lastModified timestamp on update', async () => {
       const show: ReplicatedShow = {
         id: 'show-1',

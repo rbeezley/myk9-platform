@@ -7,11 +7,7 @@ import { useUrlTab } from '@/hooks/useUrlTab';
 import { resolveOverviewJudgesWithRoster } from '@/components/shows/overview/overviewJudges';
 import { type TrialStats } from '@/components/shows/tabs/TrialsTab';
 import type { ShowJudgeAssignment } from '@/types/judge-types';
-import {
-  showQueryKeys,
-  useShowsQuery,
-  useUpdateShowMutation,
-} from '@/hooks/queries/useShowsDatabase';
+import { syncShowQueryCaches, useShowsQuery } from '@/hooks/queries/useShowsDatabase';
 import { useFastShowDetails } from '@/hooks/useFastShowDetails';
 import { useShowLandingData } from '@/hooks/useShowLandingData';
 import { useNavigationPerformance } from '@/hooks/useNavigationPerformance';
@@ -58,7 +54,6 @@ import {
 import { useSubmittedEntryProjection } from '@/features/exhibitor-entry/useSubmittedEntryProjection';
 import { markCurrentUserEntryClasses } from './ShowDetailsPage.publicClasses';
 import { isValidUUID } from '@/utils/validation';
-import type { Show } from '@/types/show-types';
 import { useShowStore } from '@/store/showStore';
 
 /** Loads `/shows/:id` once and delegates to the public, exhibitor, or management surface. */
@@ -73,9 +68,7 @@ const ShowDetailsPage: React.FC = () => {
   const { user, loading: authLoading, userWithRoles, rbacLoading } = useAuthContext();
   const canReadEntryRows = Boolean(user && user.is_anonymous !== true);
   const trials = useTrialStore(s => s.trials);
-  const { mutateAsync: updateShowFromPreview } = useUpdateShowMutation();
   const updateShowLocally = useShowStore(s => s.updateShow);
-  const storeShows = useShowStore(s => s.shows);
   const trialClasses = useTrialStore(s => s.trialClasses);
   const trialClassesReadStatus = useTrialStore(s => s.trialClassesReadStatus);
   const loadTrials = useTrialStore(s => s.loadTrials);
@@ -518,21 +511,17 @@ const ShowDetailsPage: React.FC = () => {
         onRetry={() => void refetchShow()}
         styleMode={canManageShow ? 'manager-draft-preview' : 'public'}
         onSaveDraftStyle={async style => {
-          const updatedShow = storeShows.some(item => item.id === actualCurrentShow.id)
-            ? await updateShowLocally(actualCurrentShow.id, { style })
-            : await updateShowFromPreview({
-                id: actualCurrentShow.id,
-                updates: { style },
-              });
+          const updatedShow = await updateShowLocally(
+            actualCurrentShow.id,
+            {
+              style,
+            },
+            actualCurrentShow
+          );
           if (!updatedShow) {
             throw new Error('Show was not available to save this style.');
           }
-          queryClient.setQueryData(showQueryKeys.detail(actualCurrentShow.id), updatedShow);
-          queryClient.setQueryData<Show[]>(showQueryKeys.lists(), current =>
-            current
-              ? current.map(item => (item.id === updatedShow.id ? updatedShow : item))
-              : [updatedShow]
-          );
+          syncShowQueryCaches(queryClient, updatedShow);
         }}
       />
     );

@@ -1,5 +1,5 @@
 // React Query hooks for Show database operations
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient, type QueryClient } from '@tanstack/react-query';
 import type { Show, ShowInput } from '@/types/show-types';
 import { isValidUUID } from '@/utils/validation';
 import {
@@ -43,6 +43,31 @@ export const showQueryKeys = {
     [...showQueryKeys.all, 'dateRange', startDate, endDate] as const,
   deleted: () => [...showQueryKeys.all, 'deleted'] as const,
 };
+
+/** Keep every show-shaped cache consistent after a local or remote mutation. */
+export function syncShowQueryCaches(queryClient: QueryClient, updatedShow: Show): void {
+  queryClient.setQueryData<Show>(showQueryKeys.detail(updatedShow.id), updatedShow);
+  queryClient.setQueryData<Show[]>(showQueryKeys.lists(), old => {
+    if (!old) return [updatedShow];
+    return old.map(show => (show.id === updatedShow.id ? updatedShow : show));
+  });
+
+  if (updatedShow.clubId) {
+    queryClient.setQueryData<Show[]>(showQueryKeys.byClub(updatedShow.clubId), old => {
+      if (!old) return [updatedShow];
+      return old.map(show => (show.id === updatedShow.id ? updatedShow : show));
+    });
+  }
+
+  queryClient.setQueryData<Show[]>(showQueryKeys.byStatus(updatedShow.status), old => {
+    if (!old) return [updatedShow];
+    return old.map(show => (show.id === updatedShow.id ? updatedShow : show));
+  });
+
+  queryClient.invalidateQueries({ queryKey: showQueryKeys.statistics() });
+  queryClient.invalidateQueries({ queryKey: showQueryKeys.upcoming() });
+  queryClient.invalidateQueries({ queryKey: showQueryKeys.withEntryCounts() });
+}
 
 // Cache strategies
 const cacheStrategies = {
@@ -279,33 +304,7 @@ export const useUpdateShowMutation = () => {
       return mapDatabaseToShow(data as Parameters<typeof mapDatabaseToShow>[0]);
     },
     onSuccess: updatedShow => {
-      // Update the specific show cache
-      queryClient.setQueryData<Show>(showQueryKeys.detail(updatedShow.id), updatedShow);
-
-      // Update the shows list cache
-      queryClient.setQueryData<Show[]>(showQueryKeys.lists(), old => {
-        if (!old) return [updatedShow];
-        return old.map(show => (show.id === updatedShow.id ? updatedShow : show));
-      });
-
-      // Update club-specific cache
-      if (updatedShow.clubId) {
-        queryClient.setQueryData<Show[]>(showQueryKeys.byClub(updatedShow.clubId), old => {
-          if (!old) return [updatedShow];
-          return old.map(show => (show.id === updatedShow.id ? updatedShow : show));
-        });
-      }
-
-      // Update status-specific cache
-      queryClient.setQueryData<Show[]>(showQueryKeys.byStatus(updatedShow.status), old => {
-        if (!old) return [updatedShow];
-        return old.map(show => (show.id === updatedShow.id ? updatedShow : show));
-      });
-
-      // Invalidate related queries
-      queryClient.invalidateQueries({ queryKey: showQueryKeys.statistics() });
-      queryClient.invalidateQueries({ queryKey: showQueryKeys.upcoming() });
-      queryClient.invalidateQueries({ queryKey: showQueryKeys.withEntryCounts() });
+      syncShowQueryCaches(queryClient, updatedShow);
     },
   });
 };

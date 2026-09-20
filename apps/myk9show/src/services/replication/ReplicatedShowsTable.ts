@@ -332,8 +332,12 @@ export class ReplicatedShowsTable extends ReplicatedTable<ReplicatedShow> {
    * Update show (marks as dirty for later sync)
    * @returns mutation ID if queued, null if no MutationManager
    */
-  async updateShow(showId: string, updates: Partial<ReplicatedShow>): Promise<string | null> {
-    const currentShow = await this.get(showId);
+  async updateShow(
+    showId: string,
+    updates: Partial<ReplicatedShow>,
+    knownShow?: ReplicatedShow
+  ): Promise<string | null> {
+    const currentShow = (await this.get(showId)) ?? knownShow ?? null;
     if (!currentShow) {
       throw new Error(`Show ${showId} not found`);
     }

@@ -167,52 +167,6 @@ async function loadClubsById(): Promise<Map<string, ReplicatedClub>> {
   return new Map(clubs.map(c => [c.id, c]));
 }
 
-function parseOptionalNumber(value: string | number | null | undefined): number | undefined {
-  if (value === null || value === undefined || value === '') return undefined;
-  const parsed = typeof value === 'number' ? value : Number.parseFloat(value);
-  return Number.isFinite(parsed) ? parsed : undefined;
-}
-
-/** Seed a cold replica with the authoritative show snapshot already on screen. */
-function showToReplicated(show: Show): ReplicatedShow {
-  return {
-    id: show.id,
-    name: show.name,
-    organization: show.organization,
-    startDate: show.startDate,
-    endDate: show.endDate,
-    location: show.location || undefined,
-    latitude: show.latitude ?? null,
-    longitude: show.longitude ?? null,
-    status: show.status || undefined,
-    entryOpenDate: show.entryOpenDate || undefined,
-    entryCloseDate: show.entryCloseDate || undefined,
-    preEntryFee: parseOptionalNumber(show.preEntryFee),
-    dayOfShowFee: parseOptionalNumber(show.dayOfShowFee),
-    startingArmbandNumber: show.startingArmbandNumber,
-    clubId: show.clubId || undefined,
-    maxEntriesPerDog: show.maxEntriesPerDog,
-    maxTotalEntries: show.maxTotalEntries,
-    allowsNonOwnerHandlers: show.allowNonOwnerHandlers,
-    acceptCheckPayments: show.acceptCheckPayments,
-    acceptCashPayments: show.acceptCashPayments,
-    isNationals: show.isNationals,
-    logoUrl: show.logoUrl || undefined,
-    coverImageUrl: show.coverImageUrl || undefined,
-    accentColor: show.accentColor || undefined,
-    style: show.style ?? undefined,
-    experienceIsPublished: show.experienceIsPublished,
-    experiencePublishedAt: show.experiencePublishedAt,
-    experiencePublishedStyle: show.experiencePublishedStyle,
-    experiencePublishedContent: show.experiencePublishedContent,
-    _version: show._version,
-    _lastModified: show._lastModified,
-    _lastModifiedBy: show._lastModifiedBy,
-    _syncStatus: show._syncStatus,
-    _localOnly: show._localOnly,
-  };
-}
-
 // Input types for creating/updating shows
 export interface ShowInput {
   name: string;
@@ -258,11 +212,7 @@ interface ShowStore {
 
   // Local-First Actions
   addShow: (showData: ShowInput) => Promise<Show>;
-  updateShow: (
-    id: string,
-    updates: Partial<ShowInput>,
-    knownShow?: Show
-  ) => Promise<Show | null>;
+  updateShow: (id: string, updates: Partial<ShowInput>) => Promise<Show | null>;
   deleteShow: (id: string) => Promise<void>;
   deleteShowCascading: (id: string) => Promise<void>;
   getShowById: (id: string) => Show | null;
@@ -414,15 +364,11 @@ export const useShowStore = create<ShowStore>()((set, get) => ({
     }
   },
 
-  updateShow: async (
-    id: string,
-    rawUpdates: Partial<ShowInput>,
-    knownShow?: Show
-  ): Promise<Show | null> => {
+  updateShow: async (id: string, rawUpdates: Partial<ShowInput>): Promise<Show | null> => {
     try {
       set({ isLoading: true, error: null });
 
-      const currentShow = get().shows.find(s => s.id === id) ?? knownShow;
+      const currentShow = get().shows.find(s => s.id === id);
       if (!currentShow) {
         const error = `Show with id ${id} not found`;
         set({ error, isLoading: false });
@@ -462,11 +408,7 @@ export const useShowStore = create<ShowStore>()((set, get) => ({
       if (updates.style !== undefined) replicatedUpdates.style = updates.style ?? undefined;
       if (updates.isNationals !== undefined) replicatedUpdates.isNationals = updates.isNationals;
 
-      const showMutationId = await replicatedShowsTable.updateShow(
-        id,
-        replicatedUpdates,
-        showToReplicated(currentShow)
-      );
+      const showMutationId = await replicatedShowsTable.updateShow(id, replicatedUpdates);
 
       // Registry is show-wide and stored denormalized on each trial (write-path Phase 1).
       // On an organization change, give the editing client immediate LOCAL consistency for

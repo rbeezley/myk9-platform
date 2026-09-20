@@ -729,8 +729,8 @@ describe('ReplicatedShowsTable', () => {
       );
     });
 
-    it('updates a cold table from the known show row without requiring a network write', async () => {
-      const knownShow: ReplicatedShow = {
+    it('queues an exact style RPC and patches only the warm row style metadata', async () => {
+      const show: ReplicatedShow = {
         id: 'show-1',
         name: 'Known Show',
         organization: 'AKC',
@@ -745,27 +745,171 @@ describe('ReplicatedShowsTable', () => {
           queueMutation: (
             operation: string,
             rowId: string,
-            payload: Record<string, unknown>
+            payload: Record<string, unknown>,
+            dependsOn?: string[],
+            rpc?: { name: string; args?: Record<string, unknown> },
+            deferUpload?: boolean
           ) => Promise<string | null>;
         },
         'queueMutation'
       );
+      queueMutation.mockResolvedValue('mutation-1');
 
-      await table.updateShow('show-1', { style: 'heritage' }, knownShow);
+      await table.set('show-1', show);
+      const before = await table.get('show-1');
+
+      await table.updateShowStyle('show-1', 'heritage');
 
       expect(queueMutation).toHaveBeenCalledWith(
         'UPDATE',
         'show-1',
-        expect.objectContaining({
-          name: 'Known Show',
-          style: 'heritage',
-        })
+        { id: 'show-1', style: 'heritage' },
+        undefined,
+        {
+          name: 'update_show_style',
+          args: { p_show_id: 'show-1', p_style: 'heritage' },
+        },
+        true
       );
-      expect(await table.get('show-1')).toMatchObject({
-        id: 'show-1',
+
+      const after = await table.get('show-1');
+      expect(after).toEqual({
+        ...before,
         style: 'heritage',
+        _lastModified: expect.any(Date),
         _syncStatus: 'pending',
       });
+    });
+
+    it('queues a style RPC for a cold table without fabricating a local row', async () => {
+      const queueMutation = vi.spyOn(
+        table as unknown as {
+          queueMutation: (
+            operation: string,
+            rowId: string,
+            payload: Record<string, unknown>,
+            dependsOn?: string[],
+            rpc?: { name: string; args?: Record<string, unknown> },
+            deferUpload?: boolean
+          ) => Promise<string | null>;
+        },
+        'queueMutation'
+      );
+      queueMutation.mockResolvedValue('mutation-1');
+
+      await table.updateShowStyle('show-1', 'heritage');
+
+      expect(queueMutation).toHaveBeenCalledWith(
+        'UPDATE',
+        'show-1',
+        { id: 'show-1', style: 'heritage' },
+        undefined,
+        {
+          name: 'update_show_style',
+          args: { p_show_id: 'show-1', p_style: 'heritage' },
+        },
+        true
+      );
+      expect(await table.get('show-1')).toBeNull();
+    });
+
+    it('requests upload only after the warm row has been patched', async () => {
+      const show: ReplicatedShow = {
+        id: 'show-1',
+        name: 'Known Show',
+        organization: 'AKC',
+        startDate: '2026-06-15',
+        endDate: '2026-06-16',
+        style: 'monogram',
+      };
+      const queueMutation = vi.spyOn(
+        table as unknown as {
+          queueMutation: (
+            operation: string,
+            rowId: string,
+            payload: Record<string, unknown>,
+            dependsOn?: string[],
+            rpc?: { name: string; args?: Record<string, unknown> },
+            deferUpload?: boolean
+          ) => Promise<string | null>;
+        },
+        'queueMutation'
+      );
+      queueMutation.mockResolvedValue('mutation-1');
+      const set = vi.spyOn(table, 'set');
+      const requestUpload = vi.spyOn(
+        table as unknown as { requestUpload: () => void },
+        'requestUpload'
+      );
+
+      await table.set('show-1', show);
+      set.mockClear();
+
+      await table.updateShowStyle('show-1', 'heritage');
+
+      expect(queueMutation).toHaveBeenCalledWith(
+        'UPDATE',
+        'show-1',
+        { id: 'show-1', style: 'heritage' },
+        undefined,
+        {
+          name: 'update_show_style',
+          args: { p_show_id: 'show-1', p_style: 'heritage' },
+        },
+        true
+      );
+      expect(requestUpload).toHaveBeenCalledTimes(1);
+      expect(set.mock.invocationCallOrder.at(-1)).toBeLessThan(
+        requestUpload.mock.invocationCallOrder[0]
+      );
+    });
+
+    it('does not patch or request upload when queueing the style RPC fails', async () => {
+      const show: ReplicatedShow = {
+        id: 'show-1',
+        name: 'Known Show',
+        organization: 'AKC',
+        startDate: '2026-06-15',
+        endDate: '2026-06-16',
+        style: 'monogram',
+      };
+      const queueMutation = vi.spyOn(
+        table as unknown as {
+          queueMutation: (
+            operation: string,
+            rowId: string,
+            payload: Record<string, unknown>,
+            dependsOn?: string[],
+            rpc?: { name: string; args?: Record<string, unknown> },
+            deferUpload?: boolean
+          ) => Promise<string | null>;
+        },
+        'queueMutation'
+      );
+      queueMutation.mockRejectedValue(new Error('queue failed'));
+      const requestUpload = vi.spyOn(
+        table as unknown as { requestUpload: () => void },
+        'requestUpload'
+      );
+
+      await table.set('show-1', show);
+      const before = await table.get('show-1');
+
+      await expect(table.updateShowStyle('show-1', 'heritage')).rejects.toThrow('queue failed');
+
+      expect(queueMutation).toHaveBeenCalledWith(
+        'UPDATE',
+        'show-1',
+        { id: 'show-1', style: 'heritage' },
+        undefined,
+        {
+          name: 'update_show_style',
+          args: { p_show_id: 'show-1', p_style: 'heritage' },
+        },
+        true
+      );
+      expect(await table.get('show-1')).toEqual(before);
+      expect(requestUpload).not.toHaveBeenCalled();
     });
 
     it('should update lastModified timestamp on update', async () => {

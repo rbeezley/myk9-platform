@@ -332,12 +332,8 @@ export class ReplicatedShowsTable extends ReplicatedTable<ReplicatedShow> {
    * Update show (marks as dirty for later sync)
    * @returns mutation ID if queued, null if no MutationManager
    */
-  async updateShow(
-    showId: string,
-    updates: Partial<ReplicatedShow>,
-    knownShow?: ReplicatedShow
-  ): Promise<string | null> {
-    const currentShow = (await this.get(showId)) ?? knownShow ?? null;
+  async updateShow(showId: string, updates: Partial<ReplicatedShow>): Promise<string | null> {
+    const currentShow = await this.get(showId);
     if (!currentShow) {
       throw new Error(`Show ${showId} not found`);
     }
@@ -366,6 +362,46 @@ export class ReplicatedShowsTable extends ReplicatedTable<ReplicatedShow> {
     const mutationId = await this.queueMutation('UPDATE', showId, updatePayload);
     this._lastMutationId = mutationId;
     logger.log(`[${this.getTableName()}] Updated show ${showId}`);
+    return mutationId;
+  }
+
+  /**
+   * Queue the style-only SECURITY DEFINER RPC without reconstructing a cold row.
+   * @returns mutation ID if queued, null if no MutationManager
+   */
+  async updateShowStyle(showId: string, style: string): Promise<string | null> {
+    const currentShow = await this.get(showId);
+    const mutationId = await this.queueMutation(
+      'UPDATE',
+      showId,
+      { id: showId, style },
+      undefined,
+      {
+        name: 'update_show_style',
+        args: { p_show_id: showId, p_style: style },
+      },
+      true
+    );
+
+    try {
+      if (currentShow) {
+        await this.set(
+          showId,
+          {
+            ...currentShow,
+            style,
+            _lastModified: new Date(),
+            _syncStatus: 'pending',
+          },
+          true
+        );
+      }
+    } finally {
+      this.requestUpload();
+    }
+
+    this._lastMutationId = mutationId;
+    logger.log(`[${this.getTableName()}] Updated show style ${showId}`);
     return mutationId;
   }
 

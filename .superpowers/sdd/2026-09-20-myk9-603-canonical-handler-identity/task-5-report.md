@@ -86,8 +86,9 @@ Test Files  1 passed (1)
 Tests       2 passed | 9 skipped (11)
 ```
 
-The full quick-advance file remains red until the shared canonical mapper
-preserves denormalized `dogCallName`/`dogBreed` when no dog cache row exists:
+At the review point, the full quick-advance file was red until the shared
+canonical mapper preserved denormalized `dogCallName`/`dogBreed` when no dog
+cache row existed:
 
 ```text
 Test Files  1 failed (1)
@@ -95,7 +96,54 @@ Tests       1 failed | 9 passed (10)
 Failure: expected "#12 Scout — Beagle", received "#12"
 ```
 
-The shared `handlerHydration.ts` changed-only emission and the adjacent
-`AtShowClassListPage.yourRing.test.tsx` canonical-read fixture remain for the
-root agent to apply because this subtask's patch guard rejects those
-cross-consumer files.
+Fix round 1 then completed the shared `handlerHydration.ts` changed-only
+emission, the adjacent `AtShowClassListPage.yourRing.test.tsx` canonical-read
+fixture, and the shared denormalized dog-label mapper; the focused five-file
+suite recorded above passed afterward.
+
+## Fix round 2 evidence
+
+Added real feedback-loop integration coverage for both at-show consumers. The
+new class-list and quick-advance suites mount the consumer with the real
+`loadHandlerPeople` completion path, exercise both fast and deferred online
+responses, count canonical reads, and assert exactly one completion-driven
+follow-up read. The identical authoritative response on that follow-up does
+not produce another read. The fixtures begin with a cold dog cache and carry
+the owner dependency through the typed `dog_owner_id` read boundary, so both
+consumers prove that the deferred owner completion is relevant and resolves to
+the owner exactly once.
+
+The replicated entry mapper now preserves `dog_owner_id` alongside the
+denormalized dog labels when the dog cache row is missing. `rowToEntry` retains
+the same explicit identity dependency for typed replicated rows, and the mapper
+regression covers the cold-dog shape.
+
+Exact verification:
+
+```text
+cd apps/myk9show && pnpm vitest run src/features/at-show/useAtShowClassList.realHydration.test.tsx src/features/at-show/quickAdvancePanel.realHydration.test.tsx src/services/mappers/__tests__/entryMappers.test.ts
+Test Files  3 passed (3)
+Tests       7 passed (7)
+
+cd apps/myk9show && pnpm vitest run src/services/database/entries/handlerHydration.test.ts src/features/at-show/useAtShowClassList.test.tsx src/features/at-show/quickAdvanceReplicated.test.ts src/features/at-show/AtShowClassListPage.yourRing.test.tsx src/services/mappers/__tests__/entryMappers.test.ts src/features/at-show/useAtShowClassList.realHydration.test.tsx src/features/at-show/quickAdvancePanel.realHydration.test.tsx
+Test Files  7 passed (7)
+Tests       53 passed (53)
+
+cd apps/myk9show && pnpm exec tsc --noEmit --project tsconfig.app.json
+passed (exit 0)
+
+cd apps/myk9show && pnpm exec tsc --noEmit --project tsconfig.test.json
+passed (exit 0)
+
+pnpm qa:code-quality-ratchet
+passed; oversizedSourceFiles=158, anyCasts=21, todoMarkers=17, directSupabaseCoreBypasses=3
+
+pnpm exec prettier --check apps/myk9show/src/services/mappers/__tests__/entryMappers.test.ts apps/myk9show/src/services/mappers/entryMappers.ts apps/myk9show/src/services/replication/ReplicatedEntriesTable.mapper.ts apps/myk9show/src/features/at-show/useAtShowClassList.realHydration.test.tsx apps/myk9show/src/features/at-show/quickAdvancePanel.realHydration.test.tsx
+passed; all touched files matched Prettier
+
+git diff --check
+passed (exit 0)
+
+pnpm format:check:changed
+blocked by the pre-existing branch change in apps/myk9show/src/services/database/entries/secretary.replication.test.ts; no fix-round file was reported
+```

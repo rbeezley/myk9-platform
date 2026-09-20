@@ -22,6 +22,7 @@ export interface ReplicatedEntry {
   showEndDate?: string | undefined;
   dogId?: string | undefined;
   dogOwnerId?: string | undefined;
+  dog_owner_id?: string | undefined;
   handlerId?: string | undefined;
   armband?: string | undefined;
   handler?: string | undefined;
@@ -357,7 +358,8 @@ export function rowToEntry(row: EntryRow): ReplicatedEntry {
     showStartDate: optionalColumn(row, 'source_show_start_date'),
     showEndDate: optionalColumn(row, 'source_show_end_date'),
     dogId: row.dog_id ?? undefined,
-    dogOwnerId: dog?.owner_id ?? undefined,
+    dogOwnerId: dog?.owner_id ?? optionalColumn(row, 'dog_owner_id'),
+    dog_owner_id: dog?.owner_id ?? optionalColumn(row, 'dog_owner_id'),
     handlerId: row.handler_id ?? undefined,
     armband: row.armband ?? undefined,
     handler: row.handler ?? undefined,

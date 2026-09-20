@@ -50,11 +50,13 @@ describe('mapReplicatedEntryToDbRow', () => {
     const replicated = rowToEntry({
       id: 'entry-cold-dog',
       dog_id: 'dog-1',
+      dog_owner_id: 'owner-1',
       dog_call_name: 'Scout',
       dog_breed: 'Beagle',
     } as Parameters<typeof rowToEntry>[0]);
 
     expect(mapReplicatedEntryToDbRow(replicated, { dog: null })).toMatchObject({
+      dog_owner_id: 'owner-1',
       dog_call_name: 'Scout',
       dog_breed: 'Beagle',
     });

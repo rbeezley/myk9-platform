@@ -326,6 +326,10 @@ export const mapReplicatedEntryToDbRow = (
       class_id: 'classId',
       show_id: 'showId',
       dog_id: 'dogId',
+      // Preserve the canonical owner dependency even when the separate dog
+      // cache row is unavailable. At-show consumers use this ID to match a
+      // later handler-person hydration completion.
+      dog_owner_id: 'dogOwnerId',
       handler_id: 'handlerId',
       armband: 'armband',
       handler: 'handler',

@@ -123,13 +123,23 @@ const reviewedLaterPolicyDdl: Readonly<Record<string, string>> = {
     "so any club's secretary or club_admin read EVERY club's enrollments. Replaces that one " +
     'disjunct with `show_id IN (SELECT manageable_show_ids())` — the same UNCORRELATED shape ' +
     'entries_select took in MYK9-126 (20260730170000), never a per-row can_manage_show(), so it ' +
-    'does not reintroduce the 20260611120000 statement-timeout shape. Narrowing only: it removes ' +
-    'cross-tenant reads and adds none. The is_site_admin, is_show_official(show_id), ' +
+    'does not reintroduce the 20260611120000 statement-timeout shape. Club-scoped manager reads ' +
+    "are narrowed to the show's club. The is_site_admin, is_show_official(show_id), " +
     'is_platform_admin and handler_id arms are carried over byte-identical, so the exhibitor and ' +
     'show-official reads are untouched. Same policy name, same SELECT command, same TO public ' +
     'role — predicate only, like the MYK9-147 / MYK9-469 / MYK9-470 / MYK9-475 entries above. ' +
     'enrollments_insert and enrollments_update are untouched, so the consolidation counts and ' +
     'overlap groups this test pins are unaffected.',
+  '20260919135700_enrollment_select_show_scope.sql':
+    'MYK9-663 follow-up. Replaces the already-applied enrollments_select policy and aligns ' +
+    'entries_select with the new uncorrelated entry_enrollment_select_show_ids() helper. That ' +
+    'helper keeps club-scoped secretary/club_admin access within the show club and keeps a ' +
+    'show-pinned club_admin on the assigned show, avoiding the widening caused by ' +
+    'manageable_show_ids(). The migration also corrects can_manage_show() and ' +
+    'is_show_office_manager() so entries/enrollments mutation policies cannot write through the ' +
+    'same pinned-role widening. The helper is SECURITY DEFINER and granted only to ' +
+    'authenticated/service_role; anon remains excluded by the existing table grant contract. ' +
+    'The SELECT policy names, commands and TO public role remain unchanged.',
 };
 
 const tableCases: TableCase[] = [

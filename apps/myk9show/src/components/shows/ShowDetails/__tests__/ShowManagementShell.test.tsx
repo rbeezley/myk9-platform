@@ -1,4 +1,4 @@
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen, fireEvent, within } from '@testing-library/react';
 import { describe, it, expect, vi } from 'vitest';
 import { MemoryRouter, Routes, Route, useLocation, useNavigate } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
@@ -6,6 +6,11 @@ import { ShowManagementShell, type ShowManagementShellProps } from '../ShowManag
 import type { ShowDetailTabsProps } from '../ShowDetailTabs';
 import { buildShowManagementTabDefs } from '@/pages/ShowDetailsPage.tabDefs';
 import type { Show } from '@/types/show-types';
+
+const manageScope = vi.hoisted(() => ({
+  status: 'resolved' as 'resolved' | 'resolving' | 'unavailable',
+  canManage: true,
+}));
 
 // Shell primitives mocked to passthroughs; presence/status/premium mocked to
 // testids so we can assert the shell RENDERS them (the silent-provider-loss
@@ -19,8 +24,23 @@ vi.mock('@/components/common/PageHeader', () => ({
   ),
 }));
 vi.mock('@/components/common/DetailHero', () => ({
-  DetailHero: ({ headerActions }: { headerActions?: React.ReactNode }) => (
-    <div data-testid="detail-hero">{headerActions}</div>
+  DetailHero: ({
+    headerActions,
+    primaryAction,
+  }: {
+    headerActions?: React.ReactNode;
+    primaryAction?: { label: string; onClick: () => void };
+  }) => (
+    <div data-testid="detail-hero">
+      <div data-testid="detail-hero-header-actions">{headerActions}</div>
+      {primaryAction && (
+        <div data-testid="detail-hero-side-actions">
+          <button type="button" onClick={primaryAction.onClick}>
+            {primaryAction.label}
+          </button>
+        </div>
+      )}
+    </div>
   ),
 }));
 vi.mock('@/components/shows/ShowDateBlock', () => ({ ShowDateBlock: () => null }));
@@ -42,13 +62,26 @@ vi.mock('@/features/show-live-sync/LiveUpdateIndicator', () => ({
   LiveUpdateIndicator: () => <div data-testid="live-indicator" />,
 }));
 vi.mock('@/features/premium/PremiumDownloadCard', () => ({
-  PremiumDownloadCard: () => <div data-testid="premium-download-card" />,
+  PremiumDownloadCard: ({ canManageShow }: { canManageShow: boolean }) => (
+    <div data-testid="premium-download-card" data-can-manage={String(canManageShow)} />
+  ),
 }));
 vi.mock('@/features/premium/LandingPageCard', () => ({
   LandingPageCard: () => <div data-testid="landing-page-card" />,
 }));
 vi.mock('../ShowDeskCompactContext', () => ({
-  ShowDeskCompactContext: () => <div data-testid="show-desk-compact-context" />,
+  ShowDeskCompactContext: ({ canManageShow }: { canManageShow: boolean }) => (
+    <div data-testid="show-desk-compact-context" data-can-manage={String(canManageShow)} />
+  ),
+}));
+vi.mock('@/hooks/useShowManageScope', () => ({
+  useShowManageScope: () => ({
+    status: manageScope.status,
+    canManage: manageScope.canManage,
+    canOperate: manageScope.canManage,
+    hasOperationalStaffRole: true,
+    clubId: 'club-1',
+  }),
 }));
 vi.mock('@/components/panels/edit/ShowEditPanel', () => ({
   ShowEditPanel: ({
@@ -132,7 +165,7 @@ function renderShell(
 ) {
   const props = shellProps(overrides);
   const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
-  render(
+  const renderTree = () => (
     <QueryClientProvider client={qc}>
       <MemoryRouter initialEntries={[initialRoute]}>
         {extra}
@@ -153,13 +186,19 @@ function renderShell(
       </MemoryRouter>
     </QueryClientProvider>
   );
-  return props;
+  const view = render(renderTree());
+  return { ...view, props, rerenderShell: () => view.rerender(renderTree()) };
 }
 
+beforeEach(() => {
+  manageScope.status = 'resolved';
+  manageScope.canManage = true;
+});
+
 /**
- * Navigate WITHIN the mounted router, the way the header Actions "Show settings"
- * link does. Re-rendering a fresh MemoryRouter would remount the shell and let a
- * mount-time param read pass a test the real app fails.
+ * Navigate WITHIN the mounted router, the way an in-app edit link does.
+ * Re-rendering a fresh MemoryRouter would remount the shell and let a mount-time
+ * param read pass a test the real app fails.
  */
 function LocationProbe() {
   const location = useLocation();
@@ -181,6 +220,20 @@ describe('ShowManagementShell', () => {
     expect(screen.getByTestId('presence-stack')).toBeInTheDocument();
     expect(screen.getByTestId('live-indicator')).toBeInTheDocument();
     expect(screen.getByTestId('status-pill')).toBeInTheDocument();
+  });
+
+  it('shows Edit in the side action slot for managers and opens the existing edit panel', () => {
+    renderShell();
+
+    const headerActions = screen.getByTestId('detail-hero-header-actions');
+    expect(headerActions).not.toHaveTextContent('Edit');
+
+    const sideActions = screen.getByTestId('detail-hero-side-actions');
+    const editButton = within(sideActions).getByRole('button', { name: 'Edit' });
+    expect(editButton).toBeInTheDocument();
+    fireEvent.click(editButton);
+
+    expect(screen.getByTestId('edit-panel-open')).toBeInTheDocument();
   });
 
   it('gives the status control the host club required for publishing', () => {
@@ -242,6 +295,57 @@ describe('ShowManagementShell', () => {
     expect(screen.getByTestId('landing-page-card')).toBeInTheDocument();
   });
 
+  it('structurally unmounts management UI until the management scope resolves', () => {
+    manageScope.status = 'resolving';
+    manageScope.canManage = false;
+
+    renderShell();
+
+    expect(screen.getByRole('status', { name: /loading content/i })).toBeInTheDocument();
+    expect(screen.queryByTestId('premium-download-card')).toBeNull();
+    expect(screen.queryByTestId('detail-hero')).toBeNull();
+  });
+
+  it('surfaces a retryable degraded state when management scope is unavailable', () => {
+    manageScope.status = 'unavailable';
+    manageScope.canManage = false;
+
+    renderShell();
+
+    expect(screen.getByRole('alert')).toHaveTextContent("We couldn't verify show access.");
+    expect(screen.getByRole('button', { name: /try again/i })).toBeInTheDocument();
+    expect(screen.queryByTestId('premium-download-card')).toBeNull();
+    expect(screen.queryByTestId('detail-hero')).toBeNull();
+  });
+
+  it('structurally unmounts Show Desk management UI in the unresolved window', () => {
+    manageScope.status = 'resolving';
+    manageScope.canManage = false;
+
+    renderShell({ activeManagementSection: 'show-day' }, '/shows/show-1/show-day');
+
+    expect(screen.queryByTestId('show-desk-compact-context')).toBeNull();
+    expect(screen.queryByTestId('detail-hero')).toBeNull();
+  });
+
+  it('does not flash cached management content across scope transitions', () => {
+    const view = renderShell();
+
+    manageScope.status = 'resolving';
+    view.rerenderShell();
+    expect(screen.getByRole('status', { name: /loading content/i })).toBeInTheDocument();
+    expect(screen.queryByTestId('premium-download-card')).toBeNull();
+
+    manageScope.status = 'resolved';
+    manageScope.canManage = false;
+    view.rerenderShell();
+    expect(screen.queryByTestId('premium-download-card')).toBeNull();
+
+    manageScope.canManage = true;
+    view.rerenderShell();
+    expect(screen.getByTestId('premium-download-card')).toHaveAttribute('data-can-manage', 'true');
+  });
+
   it.each(['reports', 'results', 'entries', 'setup'] as const)(
     'keeps the publish row OFF the %s section (Overview only, decision 2)',
     section => {
@@ -273,9 +377,9 @@ describe('ShowManagementShell', () => {
   });
 
   it('no longer carries its own overflow menu', () => {
-    // MYK9-630: the `...` menu is deleted. Its five items moved -- Show settings
+    // MYK9-630: the `...` menu is deleted. Its five items moved -- Show Details
     // to the header Actions menu, Copy link and Preview to the Overview landing
-    // card, Delete into the Show Edit panel, and Edit is Show settings.
+    // card, Delete into the Show Edit panel, and editing remains on this page.
     renderShell();
     expect(screen.queryByRole('button', { name: /more show actions/i })).toBeNull();
     expect(screen.queryByRole('menuitem', { name: /preview as exhibitor/i })).toBeNull();
@@ -283,19 +387,17 @@ describe('ShowManagementShell', () => {
   });
 
   it('opens the edit panel when the header Actions link lands with ?edit=true', () => {
-    // The Actions item is a LINK to the page the secretary is already on, so the
-    // shell never remounts and a mount-time read of the param cannot see it.
+    // An in-app edit link can target the page the secretary is already on, so
+    // the shell never remounts and a mount-time read of the param cannot see it.
     renderShell({}, '/shows/show-1', <InPageNavigator to="/shows/show-1?edit=true" />);
     expect(screen.queryByTestId('edit-panel-open')).toBeNull();
     fireEvent.click(screen.getByTestId('in-page-nav'));
     expect(screen.getByTestId('edit-panel-open')).toBeInTheDocument();
   });
 
-  it('opens settings ON the section the secretary is working in, and leaves them there', () => {
-    // Round-3 review: the Actions item used to be an ABSOLUTE
-    // `/shows/:id?edit=true`, so from Entry Management it walked the secretary
-    // to Overview and closing the panel stranded them there. Search-only now,
-    // and the shell strips the param, so the URL is unchanged either side.
+  it('opens the edit panel ON the section the secretary is working in, and leaves them there', () => {
+    // The edit link is search-only and the shell strips the param, so the URL
+    // is unchanged either side of opening and closing the panel.
     renderShell(
       { activeManagementSection: 'entries' },
       '/shows/show-1/entries',

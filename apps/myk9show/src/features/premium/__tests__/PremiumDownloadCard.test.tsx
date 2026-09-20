@@ -1,8 +1,10 @@
 import { act, fireEvent, screen, waitFor } from '@/test/utils/testUtils';
 import { createTestQueryClient, render } from '@/test/utils/testUtils';
+import { onlineManager, QueryClient } from '@tanstack/react-query';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { usePremiumPublishStore } from '../useGenerateAndPublishPremium';
 import { PremiumDownloadCard } from '../PremiumDownloadCard';
+import { publishInfoQueryKey } from '../usePublishInfo';
 
 const maybeSingleMock = vi.hoisted(() => vi.fn());
 const generateMock = vi.hoisted(() => vi.fn());
@@ -41,9 +43,32 @@ vi.mock('@/lib/notifications', () => ({
   },
 }));
 
-function renderCard(showStaleBadge = false) {
-  return render(<PremiumDownloadCard showId="show-1" showStaleBadge={showStaleBadge} />, {
-    queryClient: createTestQueryClient(),
+function renderCard(
+  showStaleBadge = false,
+  showId = 'show-1',
+  canManageShow = true,
+  queryClient = createTestQueryClient()
+) {
+  return render(
+    <PremiumDownloadCard
+      showId={showId}
+      showStaleBadge={showStaleBadge}
+      canManageShow={canManageShow}
+    />,
+    {
+      queryClient,
+    }
+  );
+}
+
+function createPlaceholderQueryClient() {
+  return new QueryClient({
+    defaultOptions: {
+      queries: {
+        retry: false,
+        placeholderData: (previousData: unknown) => previousData,
+      },
+    },
   });
 }
 
@@ -71,10 +96,130 @@ describe('PremiumDownloadCard', () => {
 
     renderCard();
 
-    expect(
-      await screen.findByRole('button', { name: /generate & publish premium/i })
-    ).toBeInTheDocument();
-    expect(screen.getByText('Premium PDF is not published yet')).toBeInTheDocument();
+    expect(await screen.findByText('Premium PDF is not published yet')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /generate & publish premium/i })).toBeInTheDocument();
+  });
+
+  it('shows the offline reason beside the paused publish action', () => {
+    onlineManager.setOnline(false);
+    try {
+      renderCard();
+
+      expect(screen.getByRole('button', { name: /generate & publish premium/i })).toBeDisabled();
+      expect(screen.getAllByText("You're offline — publishing needs a connection")).toHaveLength(2);
+      expect(maybeSingleMock).not.toHaveBeenCalled();
+    } finally {
+      onlineManager.setOnline(true);
+    }
+  });
+
+  it('keeps an authorized cached download visible while publishing is paused offline', async () => {
+    const queryClient = createTestQueryClient();
+    queryClient.setQueryData(
+      publishInfoQueryKey('show-1'),
+      {
+        publishedUrl: 'https://example.test/cached-premium.pdf',
+        publishedAt: '2026-05-09T12:00:00.000Z',
+        updatedAt: '2026-05-09T12:00:00.000Z',
+        experienceIsPublished: true,
+      },
+      { updatedAt: 0 }
+    );
+
+    onlineManager.setOnline(false);
+    try {
+      renderCard(false, 'show-1', true, queryClient);
+      void queryClient.refetchQueries({ queryKey: publishInfoQueryKey('show-1') });
+
+      expect(screen.getByRole('link', { name: /download pdf/i })).toHaveAttribute(
+        'href',
+        'https://example.test/cached-premium.pdf'
+      );
+      await waitFor(() =>
+        expect(
+          screen.getAllByText("You're offline — publishing needs a connection").length
+        ).toBeGreaterThan(0)
+      );
+      expect(screen.getByRole('button', { name: /publish/i })).toBeDisabled();
+    } finally {
+      onlineManager.setOnline(true);
+    }
+  });
+
+  it('shows the loading reason while the online publish read is pending', () => {
+    maybeSingleMock.mockReturnValue(new Promise(() => {}));
+
+    renderCard();
+
+    expect(screen.getByRole('button', { name: /generate & publish premium/i })).toBeDisabled();
+    expect(screen.getAllByText('Checking the premium’s publish state…')).toHaveLength(2);
+  });
+
+  it('does not call an unresolved publish read', () => {
+    renderCard(false, 'show-1', false);
+
+    expect(maybeSingleMock).not.toHaveBeenCalled();
+    expect(screen.getAllByText('Checking the premium’s publish state…')).toHaveLength(2);
+  });
+
+  it('does not show the unpublished copy after a failed publish read', async () => {
+    maybeSingleMock.mockResolvedValue({ data: null, error: new Error('read failed') });
+
+    renderCard();
+
+    expect(await screen.findAllByText('Publish state could not be read')).toHaveLength(2);
+    expect(screen.queryByText('Premium PDF is not published yet')).not.toBeInTheDocument();
+  });
+
+  it('does not carry publish info from the previous show while the next read is pending', async () => {
+    maybeSingleMock
+      .mockResolvedValueOnce({
+        data: {
+          published_premium_url: 'https://example.test/show-a.pdf',
+          published_premium_at: '2026-05-09T12:00:00.000Z',
+          updated_at: '2026-05-09T12:00:00.000Z',
+        },
+        error: null,
+      })
+      .mockReturnValueOnce(new Promise(() => {}));
+    const queryClient = createPlaceholderQueryClient();
+    const view = renderCard(false, 'show-a', true, queryClient);
+
+    expect(await screen.findByRole('link', { name: /download pdf/i })).toHaveAttribute(
+      'href',
+      'https://example.test/show-a.pdf'
+    );
+
+    view.rerender(
+      <PremiumDownloadCard showId="show-b" showStaleBadge={false} canManageShow={true} />
+    );
+
+    expect(screen.getAllByText('Checking the premium’s publish state…')).toHaveLength(2);
+    expect(screen.queryByText(/premium pdf published may 9, 2026/i)).not.toBeInTheDocument();
+  });
+
+  it('hides cached management state while scope is unresolved, then restores it when allowed', async () => {
+    const queryClient = createPlaceholderQueryClient();
+    queryClient.setQueryData(publishInfoQueryKey('show-a'), {
+      publishedUrl: 'https://example.test/show-a.pdf',
+      publishedAt: '2026-05-09T12:00:00.000Z',
+      updatedAt: '2026-05-09T12:00:00.000Z',
+      experienceIsPublished: true,
+    });
+
+    const view = renderCard(false, 'show-a', false, queryClient);
+
+    expect(screen.queryByRole('link', { name: /download pdf/i })).toBeNull();
+    expect(screen.getAllByText('Checking the premium’s publish state…')).toHaveLength(2);
+
+    view.rerender(
+      <PremiumDownloadCard showId="show-a" showStaleBadge={false} canManageShow={true} />
+    );
+
+    expect(await screen.findByRole('link', { name: /download pdf/i })).toHaveAttribute(
+      'href',
+      'https://example.test/show-a.pdf'
+    );
   });
 
   it('opens published premium lists in a new tab', async () => {
@@ -260,6 +405,33 @@ describe('PremiumDownloadCard', () => {
       expect(generateMock).toHaveBeenCalledTimes(2);
       expect(screen.queryByRole('alert')).not.toBeInTheDocument();
     });
+  });
+
+  it('disables retry while the publish read is paused offline', async () => {
+    maybeSingleMock.mockResolvedValue({
+      data: {
+        published_premium_url: null,
+        published_premium_at: null,
+        updated_at: '2026-05-09T12:00:00.000Z',
+      },
+      error: null,
+    });
+    generateMock.mockRejectedValueOnce(new Error('publish failed'));
+
+    const queryClient = createTestQueryClient();
+    const { user } = renderCard(false, 'show-1', true, queryClient);
+    await user.click(await screen.findByRole('button', { name: /generate & publish premium/i }));
+    expect(await screen.findByRole('button', { name: /try again/i })).toBeEnabled();
+
+    onlineManager.setOnline(false);
+    try {
+      await queryClient.refetchQueries({ queryKey: ['shows', 'show-1', 'publish-info'] });
+      await waitFor(() =>
+        expect(screen.getByRole('button', { name: /try again/i })).toBeDisabled()
+      );
+    } finally {
+      onlineManager.setOnline(true);
+    }
   });
 
   it('shows a secretary-friendly retry when publishing the experience fails and recovers', async () => {

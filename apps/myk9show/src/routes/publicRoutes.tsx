@@ -76,6 +76,7 @@ const SupportTicketPage = lazy(() => import('@/pages/SupportTicketPage'));
 
 // Account (merged profile + preferences + settings)
 const AccountPage = lazy(() => import('@/pages/AccountPage'));
+const RequestAccessPage = lazy(() => import('@/pages/RequestAccessPage'));
 
 // Exhibitor pages
 const BrowseShowsPage = lazy(() => import('@/pages/BrowseShowsPage'));
@@ -371,6 +372,19 @@ export const PublicRoutes = () => (
           <SuspenseWrapper>
             <PageTransition>
               <AccountPage />
+            </PageTransition>
+          </SuspenseWrapper>
+        </ProtectedRoute>
+      }
+    />
+
+    <Route
+      path="/request-access"
+      element={
+        <ProtectedRoute>
+          <SuspenseWrapper>
+            <PageTransition>
+              <RequestAccessPage />
             </PageTransition>
           </SuspenseWrapper>
         </ProtectedRoute>

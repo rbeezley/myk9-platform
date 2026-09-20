@@ -641,9 +641,9 @@ const ClubMembersPage: React.FC = () => {
               this club&apos;s shows. This does not remove their club membership.
             </AlertDialogDescription>
           </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Keep show access</AlertDialogCancel>
-            <AlertDialogAction onClick={confirmShowAccessRevoke}>
+          <AlertDialogFooter className="gap-2 sm:flex-wrap sm:space-x-0">
+            <AlertDialogCancel className="w-full sm:w-auto">Keep show access</AlertDialogCancel>
+            <AlertDialogAction className="w-full sm:w-auto" onClick={confirmShowAccessRevoke}>
               Revoke show access
             </AlertDialogAction>
           </AlertDialogFooter>

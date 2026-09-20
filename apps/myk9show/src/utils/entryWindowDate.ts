@@ -10,12 +10,21 @@ export interface EntryWindowTrial {
 
 function parseCalendarDate(value?: string | null): Date | undefined {
   if (!value) return undefined;
-  return parseLocalDateString(value.split('T')[0] ?? value);
+  const datePart = value.split(/[T ]/)[0] ?? value;
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(datePart)) return undefined;
+  const parsed = parseLocalDateString(datePart);
+  if (!parsed) return undefined;
+  const [year, month, day] = datePart.split('-').map(Number);
+  return parsed.getFullYear() === year &&
+    parsed.getMonth() === month - 1 &&
+    parsed.getDate() === day
+    ? parsed
+    : undefined;
 }
 
 function compareTrialOrder(a: EntryWindowTrial, b: EntryWindowTrial): number {
-  const aDate = a.date ?? null;
-  const bDate = b.date ?? null;
+  const aDate = parseCalendarDate(a.date) ? (a.date ?? null) : null;
+  const bDate = parseCalendarDate(b.date) ? (b.date ?? null) : null;
   if (aDate && bDate && aDate !== bDate) return aDate.localeCompare(bDate);
   if (aDate && !bDate) return -1;
   if (!aDate && bDate) return 1;

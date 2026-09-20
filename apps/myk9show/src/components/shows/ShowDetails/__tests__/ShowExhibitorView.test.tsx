@@ -106,6 +106,12 @@ function renderView(overrides: Partial<ShowExhibitorViewProps> = {}) {
 }
 
 describe('ShowExhibitorView', () => {
+  it('does not expose the management Edit action to exhibitors', () => {
+    renderView();
+
+    expect(screen.queryByRole('button', { name: 'Edit' })).toBeNull();
+  });
+
   it('shows the "See classes" deep-link when the show has classes', () => {
     const tabs = makeTabs({ classes: [{ id: 'c1' }] as ShowDetailTabsProps['classes'] });
     renderView({ tabs });

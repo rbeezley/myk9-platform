@@ -37,6 +37,55 @@ describe('resolveShowTimePhase', () => {
     expect(resolveShowTimePhase({ startDate: '2026-03-21' }, MARCH_22)).toBe('after');
   });
 
+  it('treats an invalid end-before-start range as unknown', () => {
+    expect(resolveShowTimePhase({ startDate: '2026-03-25', endDate: '2026-03-20' }, MARCH_22)).toBe(
+      'unknown'
+    );
+  });
+
+  it('treats malformed date values as unknown', () => {
+    expect(resolveShowTimePhase({ startDate: '2026-03-01', endDate: '2026-03-xx' }, MARCH_22)).toBe(
+      'unknown'
+    );
+    expect(resolveShowTimePhase({ startDate: '2026-02-30', endDate: '2026-03-02' }, MARCH_22)).toBe(
+      'unknown'
+    );
+    expect(resolveShowTimePhase({ startDate: '2026-03-22T99:99:99Z' }, MARCH_22)).toBe('unknown');
+  });
+
+  it('accepts timestamps with PostgreSQL fractional-second precision', () => {
+    expect(
+      resolveShowTimePhase(
+        {
+          startDate: '2026-03-22T00:00:00.123456Z',
+          endDate: '2026-03-23T00:00:00.123456Z',
+        },
+        MARCH_22
+      )
+    ).toBe('during');
+  });
+
+  it('accepts the space-separated Postgres timestamp format', () => {
+    expect(
+      resolveShowTimePhase(
+        {
+          startDate: '2026-03-22 00:00:00+00',
+          endDate: '2026-03-23 00:00:00+00',
+        },
+        MARCH_22
+      )
+    ).toBe('during');
+  });
+
+  it('treats an invalid today value as unknown', () => {
+    expect(
+      resolveShowTimePhase(
+        { startDate: '2026-03-20', endDate: '2026-03-24' },
+        new Date('not-a-date')
+      )
+    ).toBe('unknown');
+  });
+
   it('reads a show with no dates, a null show, and an undefined show as unknown', () => {
     expect(resolveShowTimePhase({}, MARCH_22)).toBe('unknown');
     expect(resolveShowTimePhase({ startDate: null, endDate: null }, MARCH_22)).toBe('unknown');
@@ -45,11 +94,35 @@ describe('resolveShowTimePhase', () => {
   });
 
   it('compares calendar days in LOCAL time, not UTC', () => {
-    // 7pm local on the last day of a one-day show. `toISOString()` would push
-    // this to the next UTC day anywhere west of Greenwich and demote the show to
-    // 'after' while the secretary is still closing out at the venue.
-    const eveningOfShowDay = new Date(2026, 2, 22, 19, 30, 0);
-    expect(resolveShowTimePhase({ startDate: '2026-03-22' }, eveningOfShowDay)).toBe('during');
+    // Force a venue timezone whose local date differs from UTC. `toISOString()`
+    // would push this instant to the next day and demote the show to 'after'.
+    const originalTimezone = process.env.TZ;
+    process.env.TZ = 'America/Chicago';
+    try {
+      const eveningOfShowDay = new Date('2026-03-23T00:30:00.000Z');
+      expect(resolveShowTimePhase({ startDate: '2026-03-22' }, eveningOfShowDay)).toBe('during');
+    } finally {
+      if (originalTimezone === undefined) delete process.env.TZ;
+      else process.env.TZ = originalTimezone;
+    }
+  });
+
+  it('uses the configured show timezone when it differs from the browser timezone', () => {
+    const originalTimezone = process.env.TZ;
+    process.env.TZ = 'America/Chicago';
+    try {
+      const afterMidnightInNewYork = new Date('2026-03-23T04:30:00.000Z');
+      expect(
+        resolveShowTimePhase(
+          { startDate: '2026-03-20', endDate: '2026-03-22' },
+          afterMidnightInNewYork,
+          'America/New_York'
+        )
+      ).toBe('after');
+    } finally {
+      if (originalTimezone === undefined) delete process.env.TZ;
+      else process.env.TZ = originalTimezone;
+    }
   });
 
   it('accepts a timestamptz as well as a date', () => {

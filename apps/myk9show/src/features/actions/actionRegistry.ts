@@ -32,8 +32,8 @@ export interface AppAction {
   label: string;
   /**
    * Where this action lives, for the items that ARE a destination. A
-   * search-only value (`?edit=true`) is deliberate and resolves against the
-   * viewer's current path, so the action happens where they are standing.
+   * search-only value is allowed for actions that intentionally operate on the
+   * viewer's current path.
    */
   href?: string;
   /**
@@ -141,11 +141,7 @@ export function parseActionRouteContext(pathname: string): ActionRouteContext {
   return { kind: 'global' };
 }
 
-function buildShowActions(
-  showId: string,
-  shellMounted: boolean,
-  viewer: ActionViewer
-): AppAction[] {
+function buildShowActions(showId: string, viewer: ActionViewer): AppAction[] {
   if (!viewer.canManageShow) return [];
 
   const encoded = encodeURIComponent(showId);
@@ -187,17 +183,12 @@ function buildShowActions(
       separatorBefore: true,
     },
     {
-      // SEARCH-ONLY where the shell is mounted, so the panel opens on the
-      // section the secretary is already on: an absolute `/shows/:id?edit=true`
-      // walked them off Entry Management to Overview and stranded them there
-      // when they closed it, which the deleted `...` menu never did.
-      //
-      // On a SIBLING route (`/register`, `/trials/...`) no shell is mounted, so
-      // a relative param would sit in the URL with nothing to consume it. There
-      // the item goes to Overview, where the panel actually lives.
+      // Show Details is the canonical page for reviewing a show. Editing stays
+      // on that page for viewers who already have the existing management
+      // permission; this menu item is navigation only.
       id: 'show-settings',
-      label: 'Show settings…',
-      href: shellMounted ? '?edit=true' : `/shows/${encoded}?edit=true`,
+      label: 'Show Details',
+      href: `/shows/${encoded}`,
     },
   ];
 }
@@ -222,6 +213,6 @@ function buildRoleWideActions(viewer: ActionViewer): AppAction[] {
  * button is HIDDEN, not disabled.
  */
 export function resolveActions(route: ActionRouteContext, viewer: ActionViewer): AppAction[] {
-  if (route.kind === 'show') return buildShowActions(route.showId, route.shellMounted, viewer);
+  if (route.kind === 'show') return buildShowActions(route.showId, viewer);
   return buildRoleWideActions(viewer);
 }

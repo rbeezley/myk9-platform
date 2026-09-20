@@ -1,4 +1,4 @@
-import type { DatabaseError } from '../supabaseClient';
+import { createDatabaseError, type DatabaseError } from '../supabaseClient';
 import { withReplicationFallback } from './replication-fallback';
 
 export interface ReadResult<T> {
@@ -57,6 +57,13 @@ export interface ReadWithReplicationFallbackOptions<T> {
    */
   verifyOnlineWhenEmpty?: boolean;
   /**
+   * Treat a failed empty-result verification as unavailable instead of
+   * preserving the empty local result. Use this when an empty local scope
+   * cannot be distinguished from a cold replica and downstream consumers must
+   * not treat the rows as authoritative.
+   */
+  errorOnOnlineVerificationFailure?: boolean;
+  /**
    * How to read a row's identity for tombstone exclusion. Defaults to `row.id`.
    * Only consulted when `verifyOnlineWhenEmpty` runs an online read AND the
    * replication callback reported `locallyDeletedIds`.
@@ -80,6 +87,7 @@ export async function readWithReplicationFallback<T>({
   operation,
   errorData,
   verifyOnlineWhenEmpty,
+  errorOnOnlineVerificationFailure,
   rowId,
 }: ReadWithReplicationFallbackOptions<T>): Promise<ReadResult<T>> {
   let locallyDeletedIds: readonly string[] | undefined;
@@ -128,7 +136,13 @@ export async function readWithReplicationFallback<T>({
     const idOf = rowId ?? defaultRowId;
     const kept = (online.data as unknown[]).filter(row => !deleted.has(idOf(row)));
     return { data: kept as T, error: online.error };
-  } catch {
+  } catch (error) {
+    if (errorOnOnlineVerificationFailure) {
+      return {
+        data: result.data,
+        error: createDatabaseError(error, table, `${operation}_online_verify`),
+      };
+    }
     return result;
   }
 }

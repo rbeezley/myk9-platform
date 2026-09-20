@@ -14,9 +14,11 @@ import {
   isMoneyConfirmed,
   type UserEntriesSource,
 } from '@/services/database/entries/userEntriesRead';
+import { buildMoneyAttribution, withResolvedMoneyRoots } from '@/features/financial/moneyRoot';
 
 export interface EntryBalanceClassSource {
   id: string;
+  deletedAt?: string | null | undefined;
 }
 
 export interface EntryBalanceSource {
@@ -42,7 +44,14 @@ export interface EntryBalanceSource {
   paymentMethod?: string | null | undefined;
   /** Fee in dollars, matching My Entries' loaded entry model. */
   totalFee: number;
+  deletedAt?: string | null | undefined;
+  showDeletedAt?: string | null | undefined;
+  movedFromEntryId?: string | null | undefined;
   classes?: EntryBalanceClassSource[] | undefined;
+  /** Set when the move-up source could not be read in this scope. */
+  moneyRootUnresolved?: boolean | undefined;
+  /** The entry row whose payment must be recovered, when lineage resolved. */
+  moneyRootEntryId?: string | undefined;
 }
 
 export interface EntryBalanceShowSummary {
@@ -61,6 +70,8 @@ export interface EntryBalanceShowSummary {
   amountDueCents: number;
   onlineDueCents: number;
   payAtShowDueCents: number;
+  /** Entry-row ids used to match the balance back to the visible dog/class cards. */
+  displayEntryIds?: string[] | undefined;
   entryIds: string[];
   paymentHref: string;
 }
@@ -100,6 +111,8 @@ export interface EntryBalanceSummary {
   onlineDueCents: number;
   payAtShowDueCents: number;
   onlineShowBalances: EntryBalanceShowSummary[];
+  /** Shows with at least one entry withheld because its money root was unresolved. */
+  unresolvedShowIds?: string[];
 }
 
 /**
@@ -115,11 +128,14 @@ export type EntryBalanceRawRow = Record<string, unknown> & {
   payment_status?: string | null;
   payment_method?: string | null;
   entry_fee?: number | null;
+  deleted_at?: string | null;
+  moved_from_entry_id?: string | null;
   show?: {
     id?: string | null;
     name?: string | null;
     start_date?: string | null;
     end_date?: string | null;
+    deleted_at?: string | null;
     entry_close_date?: string | null;
     trials?: EntryWindowTrial[] | null;
   } | null;
@@ -188,6 +204,9 @@ export function mapEntryRowToBalanceSource(row: EntryBalanceRawRow): EntryBalanc
     paymentStatus,
     paymentMethod: row.payment_method ?? null,
     totalFee: row.entry_fee ?? 0,
+    deletedAt: row.deleted_at ?? null,
+    showDeletedAt: show?.deleted_at ?? null,
+    movedFromEntryId: row.moved_from_entry_id ?? null,
   };
 }
 
@@ -236,6 +255,15 @@ function feeCents(feeDollars: number): number {
 }
 
 function entryIdsForPayment(entry: EntryBalanceSource): string[] {
+  if (entry.moneyRootEntryId && entry.moneyRootEntryId !== entry.id) {
+    return [entry.moneyRootEntryId];
+  }
+  const classEntryIds = entry.classes?.map(cls => cls.id).filter(Boolean) ?? [];
+  return classEntryIds.length > 0 ? classEntryIds : [entry.id];
+}
+
+function entryIdsForDisplay(entry: EntryBalanceSource): string[] {
+  if (entry.moneyRootUnresolved) return [];
   const classEntryIds = entry.classes?.map(cls => cls.id).filter(Boolean) ?? [];
   return classEntryIds.length > 0 ? classEntryIds : [entry.id];
 }
@@ -244,13 +272,33 @@ export function summarizeEntryBalances(
   entries: EntryBalanceSource[],
   now: Date = new Date()
 ): EntryBalanceSummary {
+  const rootedEntries = withResolvedMoneyRoots(entries, (entry, root) => ({
+    ...entry,
+    paymentStatus: root.paymentStatus,
+    paymentMethod: root.paymentMethod,
+    totalFee: root.totalFee,
+  }));
+  const trustworthyEntries = rootedEntries.filter(entry => !entry.moneyRootUnresolved);
+  if (trustworthyEntries.length === 0 && rootedEntries.length > 0) {
+    return UNKNOWN_ENTRY_BALANCE_SUMMARY;
+  }
+  const unresolvedShowIds = [
+    ...new Set(
+      rootedEntries
+        .filter(entry => entry.moneyRootUnresolved)
+        .map(entry => entry.showId)
+        .filter(Boolean)
+    ),
+  ];
+
   const showBalances = new Map<string, Omit<EntryBalanceShowSummary, 'paymentHref'>>();
   let currentFeesCents = 0;
   let amountDueCents = 0;
   let onlineDueCents = 0;
   let payAtShowDueCents = 0;
 
-  for (const entry of entries) {
+  for (const entry of trustworthyEntries) {
+    if (entry.deletedAt && !entry.showDeletedAt) continue;
     const isCurrentEntry = isCurrentSummaryEntry(entry, now);
     if (!isCurrentEntry && !isBalanceEligibleEntry(entry)) continue;
 
@@ -284,6 +332,7 @@ export function summarizeEntryBalances(
       amountDueCents: 0,
       onlineDueCents: 0,
       payAtShowDueCents: 0,
+      displayEntryIds: [],
       entryIds: [],
     };
     existing.amountDueCents += cents;
@@ -294,6 +343,8 @@ export function summarizeEntryBalances(
     // carry.
     existing.entryCloseDay = existing.entryCloseDay ?? entry.entryCloseDay ?? null;
     existing.isPastShow = existing.isPastShow || isPastShowEntry(entry, now);
+    existing.displayEntryIds = existing.displayEntryIds ?? [];
+    existing.displayEntryIds.push(...entryIdsForDisplay(entry));
     existing.entryIds.push(...entryIdsForPayment(entry));
     showBalances.set(showId, existing);
   }
@@ -301,6 +352,7 @@ export function summarizeEntryBalances(
   const onlineShowBalances = [...showBalances.values()]
     .map(show => ({
       ...show,
+      displayEntryIds: [...new Set(show.displayEntryIds)],
       entryIds: [...new Set(show.entryIds)],
       paymentHref: buildFinishPaymentHref(show.showId, [...new Set(show.entryIds)]),
     }))
@@ -313,7 +365,28 @@ export function summarizeEntryBalances(
     onlineDueCents,
     payAtShowDueCents,
     onlineShowBalances,
+    ...(unresolvedShowIds.length > 0 ? { unresolvedShowIds } : {}),
   };
+}
+
+/**
+ * A removed move-up destination leaves its source row marked `moved` even
+ * though that source is the only remaining money row. Treat that orphan as
+ * current so its fee remains visible; valid move-up chains still resolve to
+ * the live destination and never enter this set.
+ */
+export function normalizeOrphanedMoveUpEntries(
+  entries: EntryBalanceSource[]
+): EntryBalanceSource[] {
+  const orphanedIds = new Set(
+    buildMoneyAttribution(entries.filter(entry => !entry.deletedAt))
+      .unresolved.filter(issue => issue.problem === 'orphaned-supersession')
+      .map(issue => issue.entryId)
+  );
+  if (orphanedIds.size === 0) return entries;
+  return entries.map(entry =>
+    orphanedIds.has(entry.id) ? { ...entry, entryStatus: EntryStatus.ACCEPTED } : entry
+  );
 }
 
 /**
@@ -327,7 +400,28 @@ export function summarizeEntryBalancesFromSource(
   now: Date = new Date()
 ): EntryBalanceSummary {
   if (!isMoneyConfirmed(source)) return UNKNOWN_ENTRY_BALANCE_SUMMARY;
-  return summarizeEntryBalances(entries, now);
+  const normalizedEntries = normalizeOrphanedMoveUpEntries(entries);
+  const rootedEntries = withResolvedMoneyRoots(
+    normalizedEntries,
+    (entry, root) => ({
+      ...entry,
+      paymentStatus: root.paymentStatus,
+      paymentMethod: root.paymentMethod,
+      totalFee: root.totalFee,
+    }),
+    entry => !entry.deletedAt
+  );
+  const hasUnresolvedRoot = rootedEntries.some(
+    entry => !entry.deletedAt && entry.moneyRootUnresolved
+  );
+  const summary = summarizeEntryBalances(
+    rootedEntries.filter(entry => !entry.moneyRootUnresolved),
+    now
+  );
+  if (hasUnresolvedRoot) {
+    return UNKNOWN_ENTRY_BALANCE_SUMMARY;
+  }
+  return summary;
 }
 
 export function buildEntryBalanceRecoveryHref(summary: EntryBalanceSummary): string {

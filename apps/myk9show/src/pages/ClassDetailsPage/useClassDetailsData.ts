@@ -354,6 +354,7 @@ export function useClassDetailsData() {
     // Entries
     localRawEntries,
     dbRawEntries: effectiveRawEntries,
+    staffShowRawEntries: (staffShowEntries.data ?? []).map(secretaryEntryToRawRow),
     classEntries,
     // One switch over the ownership state machine, so every arm is reachable
     // and each state has exactly one loading/error meaning.

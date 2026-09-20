@@ -31,11 +31,18 @@ export async function fetchPublishInfo(showId: string): Promise<PublishInfo> {
   };
 }
 
-export function usePublishInfo(showId: string | undefined) {
+export function usePublishInfo(showId: string | undefined, canManageShow: boolean) {
   return useQuery({
     queryKey: publishInfoQueryKey(showId ?? ''),
     queryFn: () => fetchPublishInfo(showId!),
-    enabled: !!showId,
+    enabled: !!showId && canManageShow,
+    // A disabled observer can still expose cached data for its key. Mask the
+    // result until the show-management scope is resolved so a transition from
+    // manager to non-manager cannot render the previous management state.
+    select: data => (canManageShow ? data : undefined),
+    // Publish state is show-scoped. The app-wide previous-data placeholder can
+    // otherwise make show B render show A's publish state for one frame.
+    placeholderData: () => undefined,
     staleTime: 30_000,
   });
 }

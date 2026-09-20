@@ -549,7 +549,7 @@ async function postgrestGetEntriesByShow(showId: string) {
  * before that happens, so for the length of that window PostgREST answers 42703
  * and fails the WHOLE request, not just the column. Only the two reads that are
  * SUMMED as money name the link, so this is the only place the window has to be
- * handled — the other sixteen entry reads use the plain list and are unaffected.
+ * handled; the other entry reads use the plain list and are unaffected.
  *
  * The degraded read simply carries no supersession link, which
  * `resolveMoneyRoot` already treats as "this row is its own root" — the
@@ -770,11 +770,7 @@ async function postgrestGetEntriesByTrial(trialId: string) {
 }
 
 async function postgrestGetEntriesByClass(classId: string) {
-  const { data, error } = await supabase
-    .from('entries')
-    .select(
-      `
-      ${AUTHENTICATED_ENTRY_READ_COLUMNS},
+  const CLASS_ENTRY_RELATIONS_SELECT = `
       dog:dog_id (
         id,
         name,
@@ -783,18 +779,31 @@ async function postgrestGetEntriesByClass(classId: string) {
         owner:owner_id (
           id,
           first_name,
-        last_name,
-        email
+          last_name,
+          email
         )
       ),
       registration:registration_id (
         ${ENROLLMENT_FINANCIAL_SELECT}
       )
-    `
-    )
-    .eq('class_id', classId)
-    .is('deleted_at', null)
-    .order('run_order', { ascending: true, nullsFirst: false });
+    `;
+  const CLASS_ENTRIES_SELECT_WITH_LINK = `${AUTHENTICATED_ENTRY_READ_COLUMNS_WITH_MOVE_UP_LINK},${CLASS_ENTRY_RELATIONS_SELECT}`;
+  const CLASS_ENTRIES_SELECT = `${AUTHENTICATED_ENTRY_READ_COLUMNS},${CLASS_ENTRY_RELATIONS_SELECT}`;
+  const { data, error } = await withMoveUpLinkFallback(withLink =>
+    withLink
+      ? supabase
+          .from('entries')
+          .select(CLASS_ENTRIES_SELECT_WITH_LINK)
+          .eq('class_id', classId)
+          .is('deleted_at', null)
+          .order('run_order', { ascending: true, nullsFirst: false })
+      : supabase
+          .from('entries')
+          .select(CLASS_ENTRIES_SELECT)
+          .eq('class_id', classId)
+          .is('deleted_at', null)
+          .order('run_order', { ascending: true, nullsFirst: false })
+  );
 
   if (error) throw createDatabaseError(error, 'entries', 'select_by_class');
 
@@ -1087,6 +1096,7 @@ export const getEntriesByShowFromReplication = async (showId: string) => {
     operation: 'select_by_show_report',
     errorData: [],
     verifyOnlineWhenEmpty: true,
+    errorOnOnlineVerificationFailure: true,
   });
 };
 
@@ -1211,6 +1221,7 @@ export const getEntriesByTrial = async (trialId: string) => {
     operation: 'select_by_trial',
     errorData: [],
     verifyOnlineWhenEmpty: true,
+    errorOnOnlineVerificationFailure: true,
   });
 };
 
@@ -1263,6 +1274,7 @@ export const getEntriesByClass = async (classId: string) => {
     operation: 'select_by_class',
     errorData: [],
     verifyOnlineWhenEmpty: true,
+    errorOnOnlineVerificationFailure: true,
   });
 };
 

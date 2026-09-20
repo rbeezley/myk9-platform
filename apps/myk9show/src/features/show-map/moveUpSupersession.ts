@@ -9,7 +9,8 @@ import type { ReplicatedEntry } from '@/services/replication/ReplicatedEntriesTa
  * `not-a-move-up` is not an error — it is the ordinary answer for every entry
  * that was never moved, and the control simply is not offered.
  */
-export type MoveUpReversalBlockedReason = 'not-a-move-up' | 'source-missing' | 'run-started';
+export type MoveUpReversalBlockedReason =
+  'not-a-move-up' | 'source-missing' | 'run-started' | 'superseded';
 
 export interface MoveUpReversal {
   destinationEntryId: string;
@@ -135,6 +136,10 @@ export async function resolveMoveUpReversal(
     return { kind: 'blocked', reason: 'not-a-move-up' };
   }
 
+  if (readEntryStatusOf(destination)?.trim().toLowerCase() === 'moved') {
+    return { kind: 'blocked', reason: 'superseded' };
+  }
+
   // Ordered after the "is this even a move-up?" question so an ordinary scored
   // entry is never described as an unreversible one.
   if (hasRunStarted(destination)) {
@@ -149,7 +154,12 @@ export async function resolveMoveUpReversal(
   }
 
   const source = await replicatedEntriesTable.getEntryById(linkedSourceId);
-  if (!source || readEntryStatusOf(source) !== 'moved' || source.deletedAt || source.deleted_at) {
+  if (
+    !source ||
+    readEntryStatusOf(source)?.trim().toLowerCase() !== 'moved' ||
+    source.deletedAt ||
+    source.deleted_at
+  ) {
     return { kind: 'blocked', reason: 'source-missing' };
   }
 
@@ -210,4 +220,6 @@ export const MOVE_UP_REVERSAL_REFUSALS: Record<MoveUpReversalBlockedReason, stri
   'source-missing':
     'The class this entry was moved out of no longer has the original entry, so it cannot be restored.',
   'run-started': 'This run has already started, so the move-up can no longer be reversed.',
+  superseded:
+    'This move-up has since been superseded by another move-up, so it cannot be reversed here.',
 };

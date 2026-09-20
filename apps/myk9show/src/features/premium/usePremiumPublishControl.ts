@@ -13,6 +13,7 @@ export interface PremiumPublishControl extends PremiumPublishFacts {
   publishFailed: boolean;
   failureMessage: string;
   info: PublishInfo | undefined;
+  infoState: PublishInfoState;
 }
 
 /**
@@ -24,26 +25,37 @@ export interface PremiumPublishControl extends PremiumPublishFacts {
  *
  * @param showStaleBadge whether staleness is this viewer's business — false for
  * exhibitors, true for anyone who can actually publish.
+ * @param canManageShow whether the viewer's show-management scope has resolved
+ * true. The publish-info read stays disabled until this gate opens.
  */
 export function usePremiumPublishControl(
   showId: string,
-  showStaleBadge: boolean
+  showStaleBadge: boolean,
+  canManageShow: boolean
 ): PremiumPublishControl {
-  const query = usePublishInfo(showId);
+  const query = usePublishInfo(showId, canManageShow);
+  // Disabled React Query observers can retain cached data. Never derive a
+  // management action or published-state label from it until this render has
+  // a resolved management scope.
+  const info = canManageShow ? query.data : undefined;
   const flow = useGenerateAndPublishPremium(showId);
 
-  const infoState: PublishInfoState = query.isError
-    ? 'unavailable'
-    : query.data === undefined
-      ? 'loading'
-      : 'ready';
+  const infoState: PublishInfoState = !canManageShow
+    ? 'loading'
+    : query.fetchStatus === 'paused'
+      ? 'offline'
+      : query.isError
+        ? 'unavailable'
+        : info === undefined
+          ? 'loading'
+          : 'ready';
 
   const facts = derivePremiumPublish({
-    info: query.data,
+    info,
     infoState,
     isBusy: flow.isBusy,
     showStaleBadge,
   });
 
-  return { ...facts, ...flow, info: query.data };
+  return { ...facts, ...flow, info, infoState };
 }

@@ -2,7 +2,7 @@
 
 ### Requirement: Premium publishing completes or provides actionable recovery
 
-The canonical publish flow SHALL publish one stable premium artifact and matching show experience state for a valid show, SHALL be safe to retry after partial progress, and SHALL distinguish known correctable requirements from unknown failures without exposing technical payloads.
+The canonical publish flow SHALL publish one immutable versioned premium artifact and matching show experience state for a valid show, SHALL be safe to retry after partial progress, and SHALL distinguish known correctable requirements from unknown failures without exposing technical payloads.
 
 #### Scenario: Valid show publishes successfully
 
@@ -23,4 +23,3 @@ The canonical publish flow SHALL publish one stable premium artifact and matchin
 
 - **WHEN** publishing fails for an unclassified reason
 - **THEN** the UI offers a safe retry and logs technical evidence without exposing it to the organizer
-

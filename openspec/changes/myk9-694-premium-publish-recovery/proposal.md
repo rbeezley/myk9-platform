@@ -9,7 +9,7 @@ Original request: "Select the next 5 issues from the to-do status. Then orchestr
 - Trace the current generate → PDF upload → show metadata → experience snapshot flow and fix the proven root cause.
 - Preserve the single canonical publish action and its per-show double-submit latch.
 - Classify known missing configuration/required-data failures into plain, actionable recovery copy while keeping raw payloads out of the UI.
-- Keep retries idempotent across the stable `<showId>.pdf` object and show-row updates, and cover partial-progress recovery.
+- Keep retries idempotent across one immutable versioned artifact and the atomic show-row commit, and cover partial-progress recovery.
 
 This does not duplicate an existing surface. The existing premium card and Actions command already share one publish flow; the fix belongs in that flow rather than a new recovery page or dialog.
 

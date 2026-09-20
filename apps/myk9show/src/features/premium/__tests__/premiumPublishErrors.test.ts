@@ -15,7 +15,7 @@ describe('premium publish error contract', () => {
     expect(error).toBeInstanceOf(PremiumPublishError);
     expect(error.code).toBe('missing-organization');
     expect(premiumPublishFailureMessage(error)).toBe(
-      'Set this show\'s organization to AKC or UKC in Show settings, then try again.'
+      "Set this show's organization to AKC or UKC in Show settings, then try again."
     );
   });
 
@@ -40,7 +40,7 @@ describe('premium publish error contract', () => {
 
     expect(error.code).toBe('permission');
     expect(premiumPublishFailureMessage(error)).toBe(
-      'You do not have permission to publish this show\'s premium list. Ask the show owner to add you as a secretary.'
+      "You do not have permission to publish this show's premium list. Ask the show owner to add you as a secretary."
     );
   });
 });

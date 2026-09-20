@@ -1,5 +1,5 @@
--- MYK9-694: the canonical premium publish path permits every authorized show
--- manager to write the stable <show_id>.pdf object, not only secretaries.
+-- MYK9-694: show-manager and show-scoped-secretary premium publication.
+-- The staged path is immutable; the RPC is the only show-row commit.
 
 BEGIN;
 
@@ -41,28 +41,29 @@ VALUES
    '{}', '{}', false, false, false),
   ('00000000-0000-0000-0000-000000694032', '00000000-0000-0000-0000-000000000000',
    'authenticated', 'authenticated', 'myk9-694-secretary@example.test', '', now(), now(), now(),
-  '{}', '{}', false, false, false);
+   '{}', '{}', false, false, false);
 
 UPDATE public.people
 SET auth_user_id = fixture.auth_id
 FROM (VALUES
-  ('00000000-0000-0000-0000-000000694021'::uuid,
-   '00000000-0000-0000-0000-000000694031'::uuid),
-  ('00000000-0000-0000-0000-000000694022'::uuid,
-   '00000000-0000-0000-0000-000000694032'::uuid)
+  ('00000000-0000-0000-0000-000000694021'::uuid, '00000000-0000-0000-0000-000000694031'::uuid),
+  ('00000000-0000-0000-0000-000000694022'::uuid, '00000000-0000-0000-0000-000000694032'::uuid)
 ) AS fixture(person_id, auth_id)
 WHERE public.people.id = fixture.person_id;
 
 INSERT INTO public.user_roles (user_id, role_id, club_id, is_active, auth_user_id)
-SELECT fixture.person_id, roles.id, '00000000-0000-0000-0000-000000694001', true,
-       fixture.auth_id
-FROM (VALUES
-  ('00000000-0000-0000-0000-000000694021'::uuid,
-   '00000000-0000-0000-0000-000000694031'::uuid, 'club_admin'::text),
-  ('00000000-0000-0000-0000-000000694022'::uuid,
-   '00000000-0000-0000-0000-000000694032'::uuid, 'secretary'::text)
-) AS fixture(person_id, auth_id, role_name)
-JOIN public.roles ON roles.name = fixture.role_name;
+SELECT '00000000-0000-0000-0000-000000694021', roles.id,
+       '00000000-0000-0000-0000-000000694001', true,
+       '00000000-0000-0000-0000-000000694031'
+FROM public.roles WHERE roles.name = 'club_admin';
+
+-- Deliberately show-scoped: club_id stays NULL, so this exercises the principal
+-- that migration 190 accidentally excluded.
+INSERT INTO public.user_roles (user_id, role_id, show_id, is_active, auth_user_id)
+SELECT '00000000-0000-0000-0000-000000694022', roles.id,
+       '00000000-0000-0000-0000-000000694013', true,
+       '00000000-0000-0000-0000-000000694032'
+FROM public.roles WHERE roles.name = 'secretary';
 
 SET LOCAL ROLE authenticated;
 
@@ -73,43 +74,102 @@ DECLARE
   own_show CONSTANT uuid := '00000000-0000-0000-0000-000000694011';
   other_show CONSTANT uuid := '00000000-0000-0000-0000-000000694012';
   secretary_show CONSTANT uuid := '00000000-0000-0000-0000-000000694013';
+  artifact CONSTANT text := '11111111-1111-1111-1111-111111111111';
+  secretary_artifact CONSTANT text := '22222222-2222-2222-2222-222222222222';
   denied boolean;
-  affected integer;
+  result jsonb;
+  previous_url text;
 BEGIN
-  -- Positive control: generation authorizes the club admin, so the upload must
-  -- reach the same stable object path without an RLS denial.
   PERFORM set_config('request.jwt.claim.sub', admin_id::text, true);
   PERFORM set_config(
     'request.jwt.claims',
     jsonb_build_object('sub', admin_id, 'role', 'authenticated')::text,
     true
   );
-  INSERT INTO storage.objects (bucket_id, name, owner_id)
-  VALUES ('premium-published', own_show::text || '.pdf', admin_id);
 
-  -- The same manager cannot plant a PDF under another show's stable path.
+  INSERT INTO storage.objects (bucket_id, name, owner_id)
+  VALUES ('premium-published', own_show::text || '/' || artifact || '.pdf', admin_id);
+
+  -- Exact path shape: no UUID-prefixed suffix, extra extension, or flat path.
+  FOREACH result IN ARRAY ARRAY[
+    to_jsonb(own_show::text || '/' || artifact || '-suffix.pdf'),
+    to_jsonb(own_show::text || '/' || artifact || '.pdf.backup'),
+    to_jsonb(own_show::text || '.pdf')
+  ] LOOP
+    BEGIN
+      INSERT INTO storage.objects (bucket_id, name, owner_id)
+      VALUES ('premium-published', result #>> '{}', admin_id);
+      denied := false;
+    EXCEPTION WHEN insufficient_privilege THEN
+      denied := true;
+    END;
+    IF NOT denied THEN
+      RAISE EXCEPTION 'FAIL malformed/suffixed premium path was accepted: %', result #>> '{}';
+    END IF;
+  END LOOP;
+
+  -- Club-admin positive control: generation and atomic publication share auth.
+  result := public.publish_premium_artifact(
+    own_show,
+    own_show::text || '/' || artifact || '.pdf',
+    'https://example.test/storage/v1/object/public/premium-published/' ||
+      own_show::text || '/' || artifact || '.pdf',
+    '2026-09-19T12:00:00Z',
+    'heritage',
+    jsonb_build_object('outputs', jsonb_build_object('premiumUrl', 'pending'))
+  );
+  IF result->>'premiumUrl' NOT LIKE '%/' || artifact || '.pdf' THEN
+    RAISE EXCEPTION 'FAIL atomic publication did not return the committed URL: %', result;
+  END IF;
+
+  SELECT published_premium_url INTO previous_url FROM public.shows WHERE id = own_show;
+  IF previous_url IS NULL OR NOT EXISTS (
+    SELECT 1 FROM public.shows
+    WHERE id = own_show
+      AND experience_is_published
+      AND experience_published_style = 'heritage'
+  ) THEN
+    RAISE EXCEPTION 'FAIL atomic publication did not commit metadata and snapshot';
+  END IF;
+
+  -- A commit failure cannot replace the last-good metadata.
   BEGIN
-    INSERT INTO storage.objects (bucket_id, name, owner_id)
-    VALUES ('premium-published', other_show::text || '.pdf', admin_id);
+    PERFORM public.publish_premium_artifact(
+      own_show,
+      own_show::text || '/' || artifact || '.pdf',
+      'https://example.test/not-premium-published/' || artifact || '.pdf',
+      '2026-09-19T13:00:00Z',
+      'monogram',
+      '{}'::jsonb
+    );
     denied := false;
-  EXCEPTION WHEN insufficient_privilege THEN
+  EXCEPTION WHEN OTHERS THEN
+    denied := true;
+  END;
+  IF NOT denied OR (SELECT published_premium_url FROM public.shows WHERE id = own_show) <> previous_url THEN
+    RAISE EXCEPTION 'FAIL failed commit changed the last-good show metadata';
+  END IF;
+
+  -- Cross-show commit authorization is denied even when the object is staged.
+  BEGIN
+    PERFORM public.publish_premium_artifact(
+      other_show,
+      own_show::text || '/' || artifact || '.pdf',
+      'https://example.test/storage/v1/object/public/premium-published/' ||
+        own_show::text || '/' || artifact || '.pdf',
+      '2026-09-19T14:00:00Z',
+      'heritage',
+      '{}'::jsonb
+    );
+    denied := false;
+  EXCEPTION WHEN OTHERS THEN
     denied := true;
   END;
   IF NOT denied THEN
-    RAISE EXCEPTION 'FAIL club admin uploaded another club''s premium PDF';
+    RAISE EXCEPTION 'FAIL manager committed another show''s staged artifact';
   END IF;
 
-  -- Upsert's UPDATE leg must remain usable for the manager's own stable path.
-  UPDATE storage.objects
-  SET metadata = jsonb_build_object('contentType', 'application/pdf')
-  WHERE bucket_id = 'premium-published'
-    AND name = own_show::text || '.pdf';
-  GET DIAGNOSTICS affected = ROW_COUNT;
-  IF affected <> 1 THEN
-    RAISE EXCEPTION 'FAIL club admin could not update own premium PDF: % rows', affected;
-  END IF;
-
-  -- Existing secretary access remains valid after the policy widening.
+  -- Show-scoped secretary positive control.
   PERFORM set_config('request.jwt.claim.sub', secretary_id::text, true);
   PERFORM set_config(
     'request.jwt.claims',
@@ -117,36 +177,20 @@ BEGIN
     true
   );
   INSERT INTO storage.objects (bucket_id, name, owner_id)
-  VALUES ('premium-published', secretary_show::text || '.pdf', secretary_id);
+  VALUES ('premium-published', secretary_show::text || '/' || secretary_artifact || '.pdf', secretary_id);
+  PERFORM public.publish_premium_artifact(
+    secretary_show,
+    secretary_show::text || '/' || secretary_artifact || '.pdf',
+    'https://example.test/storage/v1/object/public/premium-published/' ||
+      secretary_show::text || '/' || secretary_artifact || '.pdf',
+    '2026-09-19T15:00:00Z',
+    'heritage',
+    '{}'::jsonb
+  );
 
-  RAISE NOTICE 'PASS MYK9-694 club-admin and secretary premium PDF upload/update scope';
+  RAISE NOTICE 'PASS MYK9-694 exact staged paths, manager/secretary auth, atomic commit, and failure preservation';
 END;
 $$;
 
 RESET ROLE;
-
--- Direct SQL DELETE is blocked by Storage's protect_delete trigger before RLS,
--- so pin the applied DELETE policy expression instead of claiming a row probe
--- exercised it. The same predicate is used by INSERT and UPDATE above.
-DO $$
-DECLARE
-  policy_expression text;
-BEGIN
-  SELECT coalesce(pg_get_expr(pol.polqual, pol.polrelid), '')
-  INTO policy_expression
-  FROM pg_policy AS pol
-  JOIN pg_class AS relation ON relation.oid = pol.polrelid
-  JOIN pg_namespace AS namespace ON namespace.oid = relation.relnamespace
-  WHERE namespace.nspname = 'storage'
-    AND relation.relname = 'objects'
-    AND pol.polname = 'Show managers can delete premium published';
-
-  IF policy_expression IS NULL
-     OR policy_expression NOT LIKE '%can_manage_show%'
-     OR policy_expression NOT LIKE '%premium-published%' THEN
-    RAISE EXCEPTION 'FAIL premium DELETE policy does not use manager scope: %', policy_expression;
-  END IF;
-END;
-$$;
-
 ROLLBACK;

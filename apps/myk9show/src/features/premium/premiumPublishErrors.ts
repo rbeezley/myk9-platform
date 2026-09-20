@@ -1,27 +1,21 @@
 export type PremiumPublishStage =
-  | 'generation'
-  | 'pdf-render'
-  | 'pdf-upload'
-  | 'premium-metadata'
-  | 'experience-snapshot';
+  'generation' | 'pdf-render' | 'pdf-upload' | 'premium-metadata' | 'experience-snapshot';
 
 export type PremiumPublishFailureCode =
-  | 'missing-organization'
-  | 'missing-secretary'
-  | 'configuration'
-  | 'permission'
-  | 'unknown';
+  'missing-organization' | 'missing-secretary' | 'configuration' | 'permission' | 'unknown';
 
 export class PremiumPublishError extends Error {
   override readonly name = 'PremiumPublishError';
+  readonly originalError?: unknown;
 
   constructor(
     message: string,
     readonly stage: PremiumPublishStage,
     readonly code: PremiumPublishFailureCode = 'unknown',
-    readonly cause?: unknown
+    originalError?: unknown
   ) {
     super(message);
+    this.originalError = originalError;
   }
 }
 

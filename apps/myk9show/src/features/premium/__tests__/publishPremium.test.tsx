@@ -4,8 +4,6 @@ import type { GeneratedPremium } from '../../../types/premium-types';
 const toBlobMock = vi.fn();
 const pdfSpy = vi.fn((_element: unknown) => ({ toBlob: toBlobMock }));
 const uploadMock = vi.fn();
-const updateEqMock = vi.fn();
-const updateMock = vi.fn(() => ({ eq: updateEqMock }));
 const fromMock = vi.fn();
 
 vi.mock('@react-pdf/renderer', () => ({
@@ -30,7 +28,7 @@ vi.mock('@/services/database/supabaseClient', () => ({
     },
     from: (...args: unknown[]) => {
       fromMock(...args);
-      return { update: updateMock };
+      return { update: vi.fn() };
     },
   },
 }));
@@ -97,12 +95,9 @@ describe('publishPremium', () => {
     toBlobMock.mockReset();
     pdfSpy.mockClear();
     uploadMock.mockReset();
-    updateEqMock.mockReset();
-    updateMock.mockClear();
     fromMock.mockReset();
     toBlobMock.mockResolvedValue(new Blob(['pdf']));
     uploadMock.mockResolvedValue({ error: null });
-    updateEqMock.mockResolvedValue({ error: null });
   });
 
   it('passes inkSaver=true into the rendered template', async () => {
@@ -124,7 +119,7 @@ describe('publishPremium', () => {
       'render boom'
     );
     expect(uploadMock).not.toHaveBeenCalled();
-    expect(updateMock).not.toHaveBeenCalled();
+    expect(fromMock).not.toHaveBeenCalled();
   });
 
   it('does not update DB columns when upload fails', async () => {
@@ -132,41 +127,50 @@ describe('publishPremium', () => {
     await expect(publishPremium('show-1', basePremium)).rejects.toMatchObject({
       stage: 'pdf-upload',
     });
-    expect(updateMock).not.toHaveBeenCalled();
+    expect(fromMock).not.toHaveBeenCalled();
   });
 
-  it('uses one stable show PDF path so retry replaces partial progress', async () => {
-    await publishPremium('show-1', basePremium);
-    await publishPremium('show-1', basePremium);
+  it('uses one immutable versioned artifact path for a safe retry', async () => {
+    await publishPremium('show-1', basePremium, { artifactId: 'artifact-1' });
+    await publishPremium('show-1', basePremium, { artifactId: 'artifact-1' });
 
     expect(uploadMock).toHaveBeenNthCalledWith(
       1,
-      'show-1.pdf',
+      'show-1/artifact-1.pdf',
       expect.any(Blob),
-      expect.objectContaining({ upsert: true, contentType: 'application/pdf' })
+      expect.objectContaining({ upsert: false, contentType: 'application/pdf' })
     );
     expect(uploadMock).toHaveBeenNthCalledWith(
       2,
-      'show-1.pdf',
+      'show-1/artifact-1.pdf',
       expect.any(Blob),
-      expect.objectContaining({ upsert: true, contentType: 'application/pdf' })
+      expect.objectContaining({ upsert: false, contentType: 'application/pdf' })
     );
   });
 
-  it('classifies a failed metadata write after upload', async () => {
-    updateEqMock.mockResolvedValueOnce({ error: new Error('metadata write failed') });
-
-    await expect(publishPremium('show-1', basePremium)).rejects.toMatchObject({
-      stage: 'premium-metadata',
+  it('returns the staged artifact without mutating show metadata', async () => {
+    const result = await publishPremium('show-1', basePremium, {
+      artifactId: 'artifact-1',
+      publishedAt: '2026-05-09T14:00:00.000Z',
     });
+
     expect(uploadMock).toHaveBeenCalledTimes(1);
-    expect(updateMock).toHaveBeenCalledTimes(1);
+    expect(fromMock).not.toHaveBeenCalled();
+    expect(result).toEqual({
+      path: 'show-1/artifact-1.pdf',
+      url: 'https://example.com/abc.pdf',
+      publishedAt: '2026-05-09T14:00:00.000Z',
+    });
   });
 
-  it('updates DB columns only after a successful render+upload', async () => {
-    await publishPremium('show-1', basePremium);
-    expect(uploadMock).toHaveBeenCalled();
-    expect(updateMock).toHaveBeenCalled();
+  it('treats an already-staged artifact as safe retry progress', async () => {
+    uploadMock.mockResolvedValueOnce({
+      error: { status: 409, message: 'The resource already exists' },
+    });
+
+    await expect(
+      publishPremium('show-1', basePremium, { artifactId: 'artifact-1' })
+    ).resolves.toMatchObject({ path: 'show-1/artifact-1.pdf' });
   });
 
   it('routes UKC org to the UKC template', async () => {

@@ -13,7 +13,7 @@ const SHOW_B = 'show-b';
 
 const edges = vi.hoisted(() => ({
   generate: vi.fn(),
-  publishExperience: vi.fn(async () => undefined),
+  publishExperience: vi.fn(async (_options: Record<string, unknown>) => undefined),
   release: {} as Record<string, (value?: unknown) => void>,
 }));
 
@@ -135,6 +135,17 @@ describe('premium publish state is per SHOW, not global', () => {
 
     expect(edges.generate).toHaveBeenCalledTimes(1);
     expect(edges.publishExperience).toHaveBeenCalledTimes(2);
+    const firstAttempt = edges.publishExperience.mock.calls[0]?.[0];
+    const secondAttempt = edges.publishExperience.mock.calls[1]?.[0];
+    if (!firstAttempt || !secondAttempt) throw new Error('publish attempt arguments missing');
+    expect(firstAttempt).toMatchObject({
+      artifactId: expect.any(String),
+      publishedAt: expect.any(String),
+    });
+    expect(secondAttempt).toMatchObject({
+      artifactId: firstAttempt.artifactId,
+      publishedAt: firstAttempt.publishedAt,
+    });
     expect(hook.result.current.publishFailed).toBe(false);
   });
 });

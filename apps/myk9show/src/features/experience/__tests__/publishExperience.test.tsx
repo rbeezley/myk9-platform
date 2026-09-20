@@ -2,20 +2,24 @@ import { describe, expect, it, vi } from 'vitest';
 import { publishExperience } from '../publishExperience';
 import { PremiumPublishError } from '../../premium/premiumPublishErrors';
 
+const mocks = vi.hoisted(() => ({
+  rpc: vi.fn(async (): Promise<{ data: unknown; error: Error | null }> => ({
+    data: { premiumUrl: 'https://example.com/show.pdf', publishedAt: '2026-05-09T14:00:00.000Z' },
+    error: null as Error | null,
+  })),
+}));
+
 vi.mock('@/features/premium/publishPremium', () => ({
   publishPremium: vi.fn(async () => ({
+    path: 'show-1/artifact-1.pdf',
     url: 'https://example.com/show.pdf',
     publishedAt: '2026-05-09T14:00:00.000Z',
   })),
 }));
 
-const update = vi.fn(() => ({
-  eq: vi.fn(async () => ({ error: null as Error | null })),
-}));
-
 vi.mock('@/services/database/supabaseClient', () => ({
   supabase: {
-    from: vi.fn(() => ({ update })),
+    rpc: mocks.rpc,
   },
 }));
 
@@ -59,12 +63,15 @@ describe('publishExperience', () => {
       inkSaver: false,
     });
 
-    expect(update).toHaveBeenCalledWith(
+    expect(mocks.rpc).toHaveBeenCalledWith(
+      'publish_premium_artifact',
       expect.objectContaining({
-        experience_is_published: true,
-        experience_published_at: '2026-05-09T14:00:00.000Z',
-        experience_published_style: 'heritage',
-        experience_published_content: expect.objectContaining({
+        p_show_id: 'show-1',
+        p_storage_path: 'show-1/artifact-1.pdf',
+        p_public_url: 'https://example.com/show.pdf',
+        p_published_at: '2026-05-09T14:00:00.000Z',
+        p_experience_style: 'heritage',
+        p_experience_content: expect.objectContaining({
           style: 'heritage',
           outputs: { premiumUrl: 'https://example.com/show.pdf' },
         }),
@@ -72,9 +79,8 @@ describe('publishExperience', () => {
     );
   });
 
-  it('marks the snapshot write as partial progress so retry can reuse the generated premium', async () => {
-    const eq = vi.fn(async () => ({ error: new Error('snapshot write failed') }));
-    update.mockReturnValueOnce({ eq });
+  it('treats a failed atomic commit as partial progress so retry can reuse the staged artifact', async () => {
+    mocks.rpc.mockResolvedValueOnce({ data: null, error: new Error('snapshot write failed') });
 
     await expect(
       publishExperience({
@@ -100,10 +106,51 @@ describe('publishExperience', () => {
           officials: { chairman: null },
           trials: [],
           supplemental: {
-          vetClinic: null,
-          accommodations: [],
-          coverImageUrl: null,
-          hospitalityNotes: null,
+            vetClinic: null,
+            accommodations: [],
+            coverImageUrl: null,
+            hospitalityNotes: null,
+            awardsDescription: null,
+            additionalNotes: null,
+          },
+          narratives: { showHours: 'Hours', trialInformation: 'Info' },
+        },
+        inkSaver: false,
+      })
+    ).rejects.toMatchObject<Partial<PremiumPublishError>>({ stage: 'experience-snapshot' });
+  });
+
+  it('treats a zero-row atomic commit as failure', async () => {
+    mocks.rpc.mockResolvedValueOnce({ data: [], error: null });
+
+    await expect(
+      publishExperience({
+        showId: 'show-1',
+        premium: {
+          org: 'AKC',
+          style: 'heritage',
+          templateId: null,
+          show: {
+            name: 'Bluegrass Classic',
+            startDate: '2026-05-01',
+            endDate: '2026-05-02',
+            venue: '',
+            entryOpenDate: null,
+            entryCloseDate: null,
+            preEntryFee: 25,
+            dayOfFee: 30,
+            acceptChecks: false,
+            acceptCash: false,
+          },
+          club: { name: 'Bluegrass KC', logoUrl: null },
+          secretary: { name: null, email: null, phone: null, mailingAddress: null },
+          officials: { chairman: null },
+          trials: [],
+          supplemental: {
+            vetClinic: null,
+            accommodations: [],
+            coverImageUrl: null,
+            hospitalityNotes: null,
             awardsDescription: null,
             additionalNotes: null,
           },

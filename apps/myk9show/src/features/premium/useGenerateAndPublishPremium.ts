@@ -23,13 +23,19 @@ export interface PremiumPublishShowState {
 interface PremiumPublishStore {
   /** Per SHOW. A secretary can hold two shows open in two tabs of one app. */
   byShowId: Record<string, PremiumPublishShowState>;
-  /** Keep a successfully-generated premium for a snapshot-only retry. */
-  generatedByShowId: Record<string, GeneratedPremium | undefined>;
+  /** Keep one generated immutable-artifact attempt for every safe publish retry. */
+  generatedByShowId: Record<string, GeneratedPremiumAttempt | undefined>;
   begin: (showId: string) => void;
   succeed: (showId: string) => void;
   fail: (showId: string, failureMessage: string) => void;
-  rememberGenerated: (showId: string, premium: GeneratedPremium) => void;
+  rememberGenerated: (showId: string, attempt: GeneratedPremiumAttempt) => void;
   forgetGenerated: (showId: string) => void;
+}
+
+interface GeneratedPremiumAttempt {
+  premium: GeneratedPremium;
+  artifactId: string;
+  publishedAt: string;
 }
 
 const IDLE: PremiumPublishShowState = { inFlight: false, failed: false };
@@ -63,11 +69,9 @@ export const usePremiumPublishStore = create<PremiumPublishStore>()(set => ({
       generatedByShowId: { ...state.generatedByShowId, [showId]: undefined },
     })),
   fail: (showId, failureMessage) =>
-    set(state =>
-      patch(state, showId, { inFlight: false, failed: true, failureMessage })
-    ),
-  rememberGenerated: (showId, premium) =>
-    set(state => ({ generatedByShowId: { ...state.generatedByShowId, [showId]: premium } })),
+    set(state => patch(state, showId, { inFlight: false, failed: true, failureMessage })),
+  rememberGenerated: (showId, attempt) =>
+    set(state => ({ generatedByShowId: { ...state.generatedByShowId, [showId]: attempt } })),
   forgetGenerated: showId =>
     set(state => ({ generatedByShowId: { ...state.generatedByShowId, [showId]: undefined } })),
 }));
@@ -119,10 +123,20 @@ export function useGenerateAndPublishPremium(showId: string): GenerateAndPublish
     }
     begin(showId);
     try {
-      const cachedPremium = usePremiumPublishStore.getState().generatedByShowId[showId];
-      const premium = cachedPremium ?? (await generate(showId));
-      rememberGenerated(showId, premium);
-      await publishExperience({ showId, premium, inkSaver: false });
+      const cachedAttempt = usePremiumPublishStore.getState().generatedByShowId[showId];
+      const attempt = cachedAttempt ?? {
+        artifactId: crypto.randomUUID(),
+        publishedAt: new Date().toISOString(),
+        premium: await generate(showId),
+      };
+      rememberGenerated(showId, attempt);
+      await publishExperience({
+        showId,
+        premium: attempt.premium,
+        artifactId: attempt.artifactId,
+        publishedAt: attempt.publishedAt,
+        inkSaver: false,
+      });
       await Promise.all([
         queryClient.refetchQueries({ queryKey: publishInfoQueryKey(showId), type: 'active' }),
         queryClient.invalidateQueries({
@@ -137,10 +151,9 @@ export function useGenerateAndPublishPremium(showId: string): GenerateAndPublish
       notifications.success('Premium list published');
     } catch (error) {
       const classified = classifyPremiumPublishError(error, 'generation');
-      // Snapshot failure occurs after the stable PDF upload and premium row
-      // update. Reusing this generated payload lets retry converge without a
-      // second model call; every earlier stage must generate fresh data.
-      if (classified.stage !== 'experience-snapshot') forgetGenerated(showId);
+      // Every post-generation stage is retryable against the same immutable
+      // artifact. A generation failure has no staged artifact to recover.
+      if (classified.stage === 'generation') forgetGenerated(showId);
       fail(showId, premiumPublishFailureMessage(classified));
       notifications.error('Could not publish the premium list');
     }

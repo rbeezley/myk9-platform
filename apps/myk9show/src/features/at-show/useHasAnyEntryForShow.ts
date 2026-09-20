@@ -27,7 +27,7 @@ export interface HasAnyEntryForShow {
    * hook then means "we could not find out", NOT "you are a stranger to this
    * show" — the gate must say so rather than showing the worker-passcode copy
    * to an entered exhibitor whose network dropped (MYK9-629 restructure 3).
-  */
+   */
   isError: boolean;
   identityState: PersonIdentityState;
   hasUsablePersonId: boolean;
@@ -37,10 +37,8 @@ export function useHasAnyEntryForShow(showId: string | undefined): HasAnyEntryFo
   // The one resolver, shared with My Shows and My Payments, so the
   // `getUserEntries` cache is one key per account (MYK9-629 restructure 4).
   const personId = useEntriesPersonId();
-  const {
-    personIdentityState: authIdentityState,
-    hasUsablePersonId: authHasUsablePersonId,
-  } = useAuthContext();
+  const { personIdentityState: authIdentityState, hasUsablePersonId: authHasUsablePersonId } =
+    useAuthContext();
   const identityState: PersonIdentityState =
     authIdentityState ?? (personId ? 'resolved' : 'unresolved');
   const hasUsablePersonId = authHasUsablePersonId ?? Boolean(personId);

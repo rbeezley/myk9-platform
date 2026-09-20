@@ -28,6 +28,7 @@
 ### Task 1: Lock Person Identity to One Authority
 
 **Files:**
+
 - Modify: `apps/myk9show/src/context/AuthContext.tsx`
 - Modify: `apps/myk9show/src/context/authContextTypes.ts`
 - Create: `apps/myk9show/src/context/personIdentityCache.ts`
@@ -39,6 +40,7 @@
 - Test: `apps/myk9show/src/test/auth/AuthContext.rbacLifecycle.test.tsx`
 
 **Interfaces:**
+
 - Consumes: `AuthContextType.personId: string | null`, `personIdentityState: 'unresolved' | 'resolved' | 'missing'`, `hasUsablePersonId: boolean`.
 - Produces: `useEntriesPersonId(): string | null` as the sole account-entry identity resolver.
 
@@ -55,8 +57,9 @@ expect(result.current).toBeNull();
 Add the same case for `personIdentityState: 'unresolved'`, and retain the cached-identity case:
 
 ```ts
-expect(renderIdentity({ personId: 'person-cached', state: 'unresolved' }).current)
-  .toBe('person-cached');
+expect(renderIdentity({ personId: 'person-cached', state: 'unresolved' }).current).toBe(
+  'person-cached'
+);
 ```
 
 - [ ] **Step 2: Run the identity tests red**
@@ -115,6 +118,7 @@ git commit -m "fix(auth): make person identity authoritative offline"
 ### Task 2: Introduce One Account-Entry Read-State Model
 
 **Files:**
+
 - Create: `apps/myk9show/src/features/account-entry-read/accountEntryReadState.ts`
 - Create: `apps/myk9show/src/features/account-entry-read/accountEntryReadState.test.ts`
 - Modify: `apps/myk9show/src/hooks/queries/useAccountEnteredShowIds.ts`
@@ -122,6 +126,7 @@ git commit -m "fix(auth): make person identity authoritative offline"
 - Modify: `apps/myk9show/src/pages/MyEntriesPage/modules/useMyEntriesData.ts`
 
 **Interfaces:**
+
 - Consumes: `PersonIdentityState`, nullable `personId`, React Query pending/error flags, and `UserEntriesSource` from `getUserEntries`.
 - Produces:
 
@@ -157,17 +162,27 @@ it.each([
   ['confirmed missing', null, 'missing', false, false, undefined, 'identity-missing'],
   ['cached identity reading', 'person-1', 'unresolved', true, false, undefined, 'read-pending'],
   ['cached confirmed read', 'person-1', 'unresolved', false, false, 'confirmed', 'confirmed'],
-  ['cached replica fallback', 'person-1', 'unresolved', false, false, 'replica-after-error', 'unconfirmed'],
+  [
+    'cached replica fallback',
+    'person-1',
+    'unresolved',
+    false,
+    false,
+    'replica-after-error',
+    'unconfirmed',
+  ],
   ['read failure', 'person-1', 'resolved', false, true, undefined, 'error'],
 ])('%s', (_name, personId, personIdentityState, isPending, isError, source, expected) => {
-  expect(deriveAccountEntryReadState({
-    hasUser: true,
-    personId,
-    personIdentityState,
-    isPending,
-    isError,
-    source,
-  })).toBe(expected);
+  expect(
+    deriveAccountEntryReadState({
+      hasUser: true,
+      personId,
+      personIdentityState,
+      isPending,
+      isError,
+      source,
+    })
+  ).toBe(expected);
 });
 ```
 
@@ -213,6 +228,7 @@ git commit -m "refactor(entries): share account read truth state"
 ### Task 3: Render Known My Shows Rows Without Making Empty Claims
 
 **Files:**
+
 - Modify: `apps/myk9show/src/pages/MyEntriesPage/index.tsx`
 - Modify: `apps/myk9show/src/pages/MyEntriesPage/modules/entriesIdentityState.ts`
 - Modify: `apps/myk9show/src/pages/MyEntriesPage/modules/EntriesIdentityPendingCard.tsx`
@@ -221,32 +237,39 @@ git commit -m "refactor(entries): share account read truth state"
 - Test: `apps/myk9show/src/pages/MyEntriesPage/modules/useMyEntriesData.test.ts`
 
 **Interfaces:**
+
 - Consumes: shared `AccountEntryReadState`, `entries.length`, and existing `EntriesIdentityPendingCard`.
 - Produces: `getMyEntriesPresentation(input): 'known-rows' | 'identity-pending' | 'identity-missing' | 'unconfirmed-empty' | 'confirmed-empty'` as a pure presentation discriminator.
 
 - [ ] **Step 1: Add assertion-first presentation tests**
 
 ```ts
-expect(getMyEntriesPresentation({
-  identityState: 'unresolved',
-  readState: 'unconfirmed',
-  entryCount: 2,
-  isLoading: false,
-})).toBe('known-rows');
+expect(
+  getMyEntriesPresentation({
+    identityState: 'unresolved',
+    readState: 'unconfirmed',
+    entryCount: 2,
+    isLoading: false,
+  })
+).toBe('known-rows');
 
-expect(getMyEntriesPresentation({
-  identityState: 'unresolved',
-  readState: 'identity-unresolved',
-  entryCount: 0,
-  isLoading: false,
-})).toBe('identity-pending');
+expect(
+  getMyEntriesPresentation({
+    identityState: 'unresolved',
+    readState: 'identity-unresolved',
+    entryCount: 0,
+    isLoading: false,
+  })
+).toBe('identity-pending');
 
-expect(getMyEntriesPresentation({
-  identityState: 'resolved',
-  readState: 'unconfirmed',
-  entryCount: 0,
-  isLoading: false,
-})).toBe('unconfirmed-empty');
+expect(
+  getMyEntriesPresentation({
+    identityState: 'resolved',
+    readState: 'unconfirmed',
+    entryCount: 0,
+    isLoading: false,
+  })
+).toBe('unconfirmed-empty');
 ```
 
 Add a rendered-page regression proving two cached rows remain visible while the profile refresh is unresolved.
@@ -293,12 +316,14 @@ git commit -m "fix(entries): keep known offline rows visible"
 ### Task 4: Make Find Shows Honest About Unconfirmed Membership
 
 **Files:**
+
 - Modify: `apps/myk9show/src/hooks/useBrowseShowsData.ts`
 - Modify: `apps/myk9show/src/pages/BrowseShowsPage.tsx`
 - Create: `apps/myk9show/src/hooks/useBrowseShowsData.test.tsx`
 - Test: `apps/myk9show/src/test/pages/BrowseShowsPage.test.tsx`
 
 **Interfaces:**
+
 - Consumes: `AccountEntryReadState` from `useAccountEnteredShowIds` and existing known-positive show IDs.
 - Produces: `accountEntriesReliable: boolean` and `accountEntriesDegraded: boolean` in `UseBrowseShowsDataReturn`.
 
@@ -331,8 +356,7 @@ Set:
 ```ts
 const accountEntriesReliable = accountEnteredShowIds.readState === 'confirmed';
 const accountEntriesDegraded =
-  accountEnteredShowIds.readState === 'unconfirmed' ||
-  accountEnteredShowIds.readState === 'error';
+  accountEnteredShowIds.readState === 'unconfirmed' || accountEnteredShowIds.readState === 'error';
 ```
 
 Keep known-positive IDs in the merged entries. Do not turn `unconfirmed` into a page-wide error or endless loading state. In `BrowseShowsPage`, render an existing shadcn `Alert` above the list with calm copy such as “Your entered-show markers may be incomplete while this device is offline” and the existing Retry action. Do not add a modal, dialog, or new destination.
@@ -353,6 +377,7 @@ git commit -m "fix(shows): surface unconfirmed entry membership"
 ### Task 5: Remove the Online-Only Account-Today Query From Ringside Gates
 
 **Files:**
+
 - Modify: `apps/myk9show/src/features/at-show/useRingsideEntryShows.ts`
 - Modify: `apps/myk9show/src/features/at-show/AtShowAccessGate.tsx`
 - Test: `apps/myk9show/src/features/at-show/useRingsideEntryShows.test.tsx`
@@ -360,6 +385,7 @@ git commit -m "fix(shows): surface unconfirmed entry membership"
 - Test: `apps/myk9show/src/features/at-show/RingsideEntryPage.test.tsx`
 
 **Interfaces:**
+
 - Consumes: account-today data only as an optional positive signal; canonical affiliation comes from `useExhibitorUpcomingShows`/`useHasAnyEntryForShow`.
 - Produces: nonblocking `/at-show` and show-specific access while the account-today React Query is paused offline.
 
@@ -424,10 +450,12 @@ git commit -m "fix(ringside): keep offline identity paths nonblocking"
 ### Task 6: Verify the Structural Batch and Prepare Delivery
 
 **Files:**
+
 - Modify: `openspec/changes/persist-offline-person-identity/tasks.md`
 - Review: all files changed from `origin/main`
 
 **Interfaces:**
+
 - Consumes: Tasks 1–5.
 - Produces: a reviewable MYK9-601 branch with final-head verification evidence; staging evidence remains explicitly deferred until deployment.
 

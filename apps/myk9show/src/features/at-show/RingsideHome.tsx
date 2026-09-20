@@ -93,8 +93,8 @@ export function RingsideHome({
   if (!hasShows && (readState === 'error' || readState === 'unconfirmed')) {
     return (
       <RingsideDegradedState
-        heading="We couldn&apos;t confirm your upcoming shows."
-        detail="Your entries may still be available on My Shows. Try again when your connection is available, or use a show-day passcode if you&apos;re volunteering."
+        heading="We couldn't confirm your upcoming shows."
+        detail="Your entries may still be available on My Shows. Try again when your connection is available, or use a show-day passcode if you're volunteering."
         onEnterPasscode={onEnterPasscode}
       />
     );
@@ -111,7 +111,7 @@ export function RingsideHome({
         detail={
           identityState === 'missing'
             ? 'This account is not linked to an exhibitor profile yet. Ask the secretary to add it, or use a passcode if you are volunteering.'
-            : 'We\'re still confirming which shows belong to you. Keep this page open and try again when your connection is available.'
+            : "We're still confirming which shows belong to you. Keep this page open and try again when your connection is available."
         }
         onEnterPasscode={onEnterPasscode}
       />

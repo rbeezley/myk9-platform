@@ -38,11 +38,6 @@ vi.mock('@/hooks/useAuthContext', () => ({
   useAuthContext: () => ({ user: { id: 'auth-user-123', email: 'test@example.com' } }),
 }));
 
-vi.mock('@/lib/notifications', () => ({
-  notifications: { error: vi.fn(), success: vi.fn() },
-}));
-
-import { notifications } from '@/lib/notifications';
 import { useProfileForm } from '../useProfileForm';
 
 const dbPersonData = {
@@ -195,7 +190,7 @@ describe('useProfileForm junior handler fields', () => {
     expect(mockMutateAsync).toHaveBeenCalledWith(expect.objectContaining({ dateOfBirth: '' }));
   });
 
-  it('blocks every save when the private read is incomplete', async () => {
+  it('saves public edits without sending unavailable private fields', async () => {
     mockPrivateRpc.mockResolvedValue({ data: null, error: { message: 'network unavailable' } });
     const result = await loaded();
     expect(result.current.privateFieldsReady).toBe(false);
@@ -205,12 +200,13 @@ describe('useProfileForm junior handler fields', () => {
       await result.current.save();
     });
 
-    expect(mockMutateAsync).not.toHaveBeenCalled();
-    expect(result.current.saveError).toBe(
-      'Private profile fields are unavailable right now. Please try again before saving.'
+    expect(mockMutateAsync).toHaveBeenCalledWith(
+      expect.objectContaining({
+        phone: '555-9999',
+        dateOfBirth: undefined,
+        juniorHandlerNumbers: undefined,
+      })
     );
-    expect(notifications.error).toHaveBeenCalledWith(
-      'Private profile fields are unavailable right now. Please try again before saving.'
-    );
+    expect(result.current.saveError).toBeNull();
   });
 });

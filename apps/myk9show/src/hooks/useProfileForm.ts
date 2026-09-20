@@ -10,6 +10,7 @@ import { friendlyDbError } from '@/utils/friendlyDbError';
 import { juniorHandlerNumbersForSave } from '@/features/registries/juniorHandlerPolicy';
 import { PEOPLE_MAPPER_COLUMNS } from '@/services/database/users/peopleColumns';
 import { loadPeoplePrivateProfiles } from '@/services/database/users/privatePeople';
+import type { User } from '@/types/user-types';
 
 export interface ProfileFormValues {
   firstName: string;
@@ -103,7 +104,7 @@ export function useCurrentUserPerson(
         return { ...mapDbUserToUser(data), privateFieldsReadComplete: false };
       }
 
-      const { byPersonId, readComplete } = await loadPeoplePrivateProfiles([data.id]);
+      const { byPersonId, readComplete, readError } = await loadPeoplePrivateProfiles([data.id]);
       const privateProfile = byPersonId.get(data.id);
       return {
         ...mapDbUserToUser(
@@ -119,6 +120,7 @@ export function useCurrentUserPerson(
         // profile. Keep that state on the query result so a later save cannot
         // turn the missing private values into destructive blanks.
         privateFieldsReadComplete: readComplete,
+        ...(readError ? { privateFieldsReadError: readError } : {}),
       };
     },
     enabled: !!authUserId,
@@ -127,11 +129,16 @@ export function useCurrentUserPerson(
 
 export function useProfileForm() {
   const { user: authUser } = useAuthContext();
-  const { data: person, isLoading } = useCurrentUserPerson(authUser?.id, {
+  const {
+    data: person,
+    isLoading,
+    refetch: refetchPerson,
+  } = useCurrentUserPerson(authUser?.id, {
     includePrivateFields: true,
   });
   const personId = person?.id || null;
   const privateFieldsReady = person?.privateFieldsReadComplete === true;
+  const privateFieldsError = person?.privateFieldsReadError;
   const updatePerson = useUpdatePerson();
 
   const [values, setValues] = useState<ProfileFormValues>({
@@ -217,6 +224,13 @@ export function useProfileForm() {
       !sameJuniorHandlerNumbers(values.juniorHandlerNumbers, person.juniorHandlerNumbers)
     );
   }, [values, person]);
+  const privateFieldsDirty = useMemo(() => {
+    if (!person) return false;
+    return (
+      values.dateOfBirth !== (person.dateOfBirth || '') ||
+      !sameJuniorHandlerNumbers(values.juniorHandlerNumbers, person.juniorHandlerNumbers)
+    );
+  }, [values.dateOfBirth, values.juniorHandlerNumbers, person]);
 
   const save = async () => {
     if (!person) return;
@@ -228,7 +242,7 @@ export function useProfileForm() {
       setSaveError(message);
       return;
     }
-    if (!privateFieldsReady) {
+    if (!privateFieldsReady && privateFieldsDirty) {
       const message =
         'Private profile fields are unavailable right now. Please try again before saving.';
       notifications.error(message);
@@ -237,7 +251,7 @@ export function useProfileForm() {
     }
     setSaving(true);
     try {
-      await updatePerson.mutateAsync({
+      const publicUpdate: User = {
         ...person,
         firstName: values.firstName.trim(),
         lastName: values.lastName.trim(),
@@ -246,11 +260,16 @@ export function useProfileForm() {
         city: values.city.trim(),
         state: values.state.trim(),
         zipCode: values.zipCode.trim(),
+      };
+      if (privateFieldsReady) {
         // MYK9-570. '' clears the date; the numbers are reassembled into the
         // registry-keyed map the column stores, omitting blanks.
-        dateOfBirth: values.dateOfBirth,
-        juniorHandlerNumbers: juniorHandlerNumbersForSave(values.juniorHandlerNumbers),
-      });
+        publicUpdate.dateOfBirth = values.dateOfBirth;
+        publicUpdate.juniorHandlerNumbers = juniorHandlerNumbersForSave(
+          values.juniorHandlerNumbers
+        );
+      }
+      await updatePerson.mutateAsync(publicUpdate);
       // Explicit duration at this callsite: the profile save toast previously
       // persisted indefinitely (defaulted to no auto-dismiss) and stuck around
       // across navigations. Auto-dismiss after ~4s.
@@ -299,6 +318,9 @@ export function useProfileForm() {
     saveError,
     saveSuccess,
     clearSaveStatus,
+    privateFieldsError,
+    privateFieldsDirty,
+    retryPrivateFields: () => void refetchPerson(),
     save,
     reset,
     isLoading,

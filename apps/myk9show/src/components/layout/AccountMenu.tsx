@@ -31,7 +31,9 @@ export function AccountMenu({
   className,
 }: AccountMenuProps) {
   const { user, signOut } = useAuthContext();
-  const { data: currentPerson } = useCurrentUserPerson(user?.id);
+  // Use the same complete-profile cache as Account/Profile, avoiding a second
+  // public people read under a separate cache key while private hydration runs.
+  const { data: currentPerson } = useCurrentUserPerson(user?.id, { includePrivateFields: true });
   const [aboutOpen, setAboutOpen] = useState(false);
   const [signOutWarning, setSignOutWarning] = useState<SignOutWarningContext | null>(null);
 

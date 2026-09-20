@@ -302,10 +302,12 @@ export function useAdminUsersQuery(showDeleted: boolean) {
 
 type UserQueryOptions = {
   refetchOnMount?: boolean | 'always';
+  enabled?: boolean;
 };
 
 export function useUserQuery(id: string, enabledOrOptions: boolean | UserQueryOptions = true) {
-  const enabled = typeof enabledOrOptions === 'boolean' ? enabledOrOptions : true;
+  const enabled =
+    typeof enabledOrOptions === 'boolean' ? enabledOrOptions : (enabledOrOptions.enabled ?? true);
   const refetchOnMount =
     typeof enabledOrOptions === 'object' ? enabledOrOptions.refetchOnMount : undefined;
 

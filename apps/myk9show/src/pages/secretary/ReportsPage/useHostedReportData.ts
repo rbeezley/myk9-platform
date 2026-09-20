@@ -76,6 +76,10 @@ export function useHostedReportData({
         show: entryForm.show,
         isLoading: entryForm.isLoading,
         isError: entryForm.isError,
+        privateFieldsReadComplete: entryForm.privateFieldsReadComplete,
+        ...(entryForm.privateFieldsReadError
+          ? { privateFieldsReadError: entryForm.privateFieldsReadError }
+          : {}),
       }
     : undefined;
 

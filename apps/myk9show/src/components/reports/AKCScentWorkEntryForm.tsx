@@ -407,6 +407,8 @@ export const AKCScentWorkEntryForm: React.FC<ReportProps> = ({
     show = null,
     isLoading = false,
     isError = false,
+    privateFieldsReadComplete = true,
+    privateFieldsReadError,
   } = entryFormData ?? {};
   const liveExperience = getLiveExperienceSnapshot(show ?? {});
   const hospitalityNotes = liveExperience?.supplemental.hospitalityNotes ?? null;
@@ -436,6 +438,17 @@ export const AKCScentWorkEntryForm: React.FC<ReportProps> = ({
       <div className="report-page">
         <p style={{ color: '#c00', textAlign: 'center', paddingTop: '2in' }}>
           Failed to load entry form data.
+        </p>
+      </div>
+    );
+  }
+
+  if (!privateFieldsReadComplete) {
+    return (
+      <div className="report-page">
+        <p style={{ color: '#c00', textAlign: 'center', paddingTop: '2in' }}>
+          Private handler data is unavailable; entry forms were not generated.
+          {privateFieldsReadError ? ` ${privateFieldsReadError}` : ''}
         </p>
       </div>
     );

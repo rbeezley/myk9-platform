@@ -426,6 +426,7 @@ export const UserEditPanel: React.FC<UserEditPanelProps> = ({
   });
   const { data: hydratedUser, isFetchedAfterMount: detailReadFetched } = useUserQuery(userId, {
     refetchOnMount: 'always',
+    enabled: open,
   });
   const isCreateMode = !userId;
   const title = isCreateMode ? 'Add Person' : 'Edit User';

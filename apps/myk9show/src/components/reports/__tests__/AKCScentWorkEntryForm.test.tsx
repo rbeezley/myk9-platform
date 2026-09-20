@@ -161,6 +161,19 @@ describe('AKCScentWorkEntryForm', () => {
     expect(screen.getByText('OFFICIAL ENTRY FORM')).toBeInTheDocument();
   });
 
+  it('does not render an official form when private handler hydration is incomplete', () => {
+    mockUseEntryFormData.mockReturnValue({
+      ...mockDefaultReturn,
+      privateFieldsReadComplete: false,
+      privateFieldsReadError: 'Private RPC unavailable',
+    });
+
+    renderForm();
+
+    expect(screen.getByText(/private handler data is unavailable/i)).toBeInTheDocument();
+    expect(screen.queryByText('OFFICIAL ENTRY FORM')).not.toBeInTheDocument();
+  });
+
   it('renders published experience notes when available', () => {
     mockUseEntryFormData.mockReturnValue({
       dogs: mockDogs,

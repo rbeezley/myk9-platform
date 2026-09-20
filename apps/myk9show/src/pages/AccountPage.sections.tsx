@@ -208,7 +208,14 @@ export function ProfileSection() {
               <AlertTriangle className="h-4 w-4" />
               <AlertDescription>
                 Private profile fields are unavailable right now. They are read-only until the
-                connection is restored; please try again before saving.
+                connection is restored; public profile changes can still be saved.
+                <Button
+                  variant="link"
+                  className="h-auto p-0 ml-1"
+                  onClick={form.retryPrivateFields}
+                >
+                  Retry
+                </Button>
               </AlertDescription>
             </Alert>
           )}
@@ -228,7 +235,11 @@ export function ProfileSection() {
           />
           {form.isDirty && (
             <div className="flex flex-col gap-2 pt-2 sm:flex-row">
-              <Button onClick={form.save} disabled={form.saving} size="touch">
+              <Button
+                onClick={form.save}
+                disabled={form.saving || (!form.privateFieldsReady && form.privateFieldsDirty)}
+                size="touch"
+              >
                 {form.saving ? (
                   <>
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />

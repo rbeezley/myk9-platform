@@ -579,6 +579,7 @@ export function useAKCOfficialPdfAction({
         !isDataReady ||
         entryFormData.isLoading ||
         entryFormData.isError ||
+        entryFormData.privateFieldsReadComplete === false ||
         (dogId === 'all' ? entryFormData.dogs.length === 0 : !officialUKCEntryPdfValues),
       isLoading: isDownloadingOfficialPdf,
       label: dogId === 'all' ? 'Download UKC Entry Form Packet' : 'Download UKC Entry Form PDF',
@@ -593,6 +594,7 @@ export function useAKCOfficialPdfAction({
         !isDataReady ||
         entryFormData.isLoading ||
         entryFormData.isError ||
+        entryFormData.privateFieldsReadComplete === false ||
         trialId === 'all' ||
         classId === 'all' ||
         dogId === 'all' ||
@@ -612,6 +614,7 @@ export function useAKCOfficialPdfAction({
         !isDataReady ||
         entryFormData.isLoading ||
         entryFormData.isError ||
+        entryFormData.privateFieldsReadComplete === false ||
         (dogId === 'all' ? entryFormData.dogs.length === 0 : !officialEntryPdfValues),
       isLoading: isDownloadingOfficialPdf,
       label: dogId === 'all' ? 'Download AKC Entry Form Packet' : 'Download AKC Entry Form PDF',
@@ -642,6 +645,7 @@ export function useAKCOfficialPdfAction({
         !isDataReady ||
         entryFormData.isLoading ||
         entryFormData.isError ||
+        entryFormData.privateFieldsReadComplete === false ||
         trialId === 'all' ||
         classId === 'all' ||
         dogId === 'all' ||

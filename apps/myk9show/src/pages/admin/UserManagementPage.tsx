@@ -252,6 +252,18 @@ const UserManagementPage: React.FC = () => {
           queryClient.setQueryData(detailKey, { ...cachedUser, privateFieldsReadComplete: false });
         }
         await queryClient.refetchQueries({ queryKey: detailKey, exact: true, type: 'all' });
+        const refreshedUser = queryClient.getQueryData<User>(detailKey);
+        if (
+          cachedUser.privateFieldsReadComplete === true &&
+          refreshedUser?.privateFieldsReadComplete !== true
+        ) {
+          queryClient.setQueryData(detailKey, {
+            ...cachedUser,
+            privateFieldsReadComplete: false,
+            privateFieldsReadError:
+              'Latest profile data could not be loaded. Retry to edit private fields.',
+          });
+        }
       }
       if (requestId === editRequestRef.current) {
         const freshUser = queryClient.getQueryData<User>(detailKey);

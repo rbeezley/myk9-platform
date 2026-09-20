@@ -156,6 +156,18 @@ describe('the migration that protects the private columns', () => {
     expect(rpcGrant).toBeGreaterThan(-1);
     expect(schemaReload).toBeGreaterThan(rpcGrant);
   });
+
+  it('authorizes owner fallback by canonical printed handler and batches RPC reads', () => {
+    const sql = readFileSync(resolve(MIGRATIONS_DIR, file!), 'utf8');
+    expect(sql).toMatch(/CREATE OR REPLACE FUNCTION public\.private_handler_name_matches/i);
+    expect(sql).toMatch(
+      /d\.owner_id = p_person_id AND public\.private_handler_name_matches\(e\.handler, p_person_id\)/i
+    );
+    const getStart = sql.indexOf('CREATE OR REPLACE FUNCTION public.get_people_private');
+    const getEnd = sql.indexOf('COMMENT ON FUNCTION public.get_people_private', getStart);
+    expect(sql.slice(getStart, getEnd)).toMatch(/WITH requested AS/i);
+    expect(sql.slice(getStart, getEnd)).not.toMatch(/can_read_people_private\(pp\.person_id\)/i);
+  });
 });
 
 describe('no migration exposes the columns to anon', () => {

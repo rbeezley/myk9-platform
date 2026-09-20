@@ -147,6 +147,9 @@ export interface ReportEntryFormData {
   } | null;
   isLoading: boolean;
   isError: boolean;
+  /** Official forms must not print without a complete private-field read. */
+  privateFieldsReadComplete?: boolean;
+  privateFieldsReadError?: string;
 }
 
 export interface ReportProps {

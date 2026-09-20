@@ -21,6 +21,7 @@ VALUES
   ('00000000-0000-0000-0000-000000664012', 'MYK9-664', 'Unrelated Manager', '00000000-0000-0000-0000-000000664102'),
   ('00000000-0000-0000-0000-000000664013', 'MYK9-664', 'Exhibitor', '00000000-0000-0000-0000-000000664103'),
   ('00000000-0000-0000-0000-000000664014', 'MYK9-664', 'Handler', '00000000-0000-0000-0000-000000664104'),
+  ('00000000-0000-0000-0000-000000664017', 'Owner', 'Fallback', '00000000-0000-0000-0000-000000664107'),
   ('00000000-0000-0000-0000-000000664015', 'MYK9-664', 'Site Admin', '00000000-0000-0000-0000-000000664105'),
   ('00000000-0000-0000-0000-000000664016', 'MYK9-664', 'Deleted Handler', '00000000-0000-0000-0000-000000664106');
 
@@ -57,9 +58,31 @@ VALUES (
   'confirmed', 'paid'
 );
 
+INSERT INTO public.dogs (id, name, call_name, breed, owner_id)
+VALUES (
+  '00000000-0000-0000-0000-000000664005', 'MYK9-664 Dog', 'Fallback Dog', 'Mixed',
+  '00000000-0000-0000-0000-000000664017'
+);
+
+-- The stale handler FK points at Handler, but the canonical printed name
+-- resolves to the owner. A related manager may read the owner's private row.
+INSERT INTO public.entries (id, show_id, dog_id, handler_id, handler, entry_status, payment_status)
+VALUES (
+  '00000000-0000-0000-0000-000000664006',
+  '00000000-0000-0000-0000-000000664003',
+  '00000000-0000-0000-0000-000000664005',
+  '00000000-0000-0000-0000-000000664014',
+  'Owner Fallback',
+  'confirmed', 'paid'
+);
+
 INSERT INTO public.people_private (person_id, date_of_birth, junior_handler_numbers)
 VALUES (
   '00000000-0000-0000-0000-000000664014', DATE '2012-04-02', '{"AKC":"664-JR"}'::jsonb
+);
+INSERT INTO public.people_private (person_id, date_of_birth, junior_handler_numbers)
+VALUES (
+  '00000000-0000-0000-0000-000000664017', DATE '2013-04-02', '{"AKC":"664-OWNER"}'::jsonb
 );
 
 DO $$
@@ -119,6 +142,8 @@ BEGIN
   PERFORM set_config('request.jwt.claims', json_build_object('sub', related_manager, 'role', 'authenticated')::text, true);
   SELECT count(*) INTO visible_rows FROM public.get_people_private(ARRAY[handler_id]);
   IF visible_rows <> 1 THEN RAISE EXCEPTION 'FAIL related show manager cannot read private profile'; END IF;
+  SELECT count(*) INTO visible_rows FROM public.get_people_private(ARRAY['00000000-0000-0000-0000-000000664017'::uuid]);
+  IF visible_rows <> 1 THEN RAISE EXCEPTION 'FAIL owner fallback handler cannot read private profile'; END IF;
   PERFORM public.update_person_with_private(handler_id, '{"phone":"manager-save"}'::jsonb, '{}'::jsonb);
   writes_denied := false;
   BEGIN

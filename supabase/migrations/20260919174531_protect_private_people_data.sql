@@ -71,6 +71,38 @@ GRANT ALL ON TABLE public.people_private TO service_role;
 ALTER TABLE public.people_private ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.people_private FORCE ROW LEVEL SECURITY;
 
+CREATE OR REPLACE FUNCTION public.private_handler_name_matches(p_printed_name text, p_person_id uuid)
+RETURNS boolean
+LANGUAGE sql
+STABLE
+SECURITY DEFINER
+SET search_path = ''
+AS $$
+  WITH person AS (
+    SELECT lower(trim(first_name)) AS first_name, lower(trim(last_name)) AS last_name
+    FROM public.people
+    WHERE id = p_person_id
+      AND deleted_at IS NULL
+  ), printed AS (
+    SELECT lower(trim(coalesce(p_printed_name, ''))) AS value
+  )
+  SELECT EXISTS (
+    SELECT 1
+    FROM person, printed
+    WHERE CASE
+      WHEN position(',' IN printed.value) > 0 THEN
+        trim(split_part(printed.value, ',', 1)) = person.last_name
+        AND trim(split_part(printed.value, ',', 2)) = person.first_name
+      ELSE printed.value = person.first_name || ' ' || person.last_name
+    END
+  );
+$$;
+
+REVOKE ALL ON FUNCTION public.private_handler_name_matches(text, uuid) FROM PUBLIC;
+REVOKE ALL ON FUNCTION public.private_handler_name_matches(text, uuid) FROM authenticated;
+REVOKE ALL ON FUNCTION public.private_handler_name_matches(text, uuid) FROM anon;
+GRANT EXECUTE ON FUNCTION public.private_handler_name_matches(text, uuid) TO service_role;
+
 CREATE OR REPLACE FUNCTION public.can_read_people_private(p_person_id uuid)
 RETURNS boolean
 LANGUAGE sql
@@ -88,7 +120,7 @@ AS $$
           AND e.show_id IS NOT NULL
           AND (
             e.handler_id = p_person_id
-            OR (e.handler_id IS NULL AND (d.owner_id = p_person_id OR d.co_owner_id = p_person_id))
+            OR (d.owner_id = p_person_id AND public.private_handler_name_matches(e.handler, p_person_id))
           )
           AND e.show_id IN (SELECT public.manageable_show_ids())
       );
@@ -154,10 +186,33 @@ STABLE
 SECURITY DEFINER
 SET search_path = ''
 AS $$
+  WITH requested AS (
+    SELECT DISTINCT unnest(COALESCE(p_person_ids, ARRAY[]::uuid[])) AS person_id
+  ), authorized AS (
+    SELECT r.person_id
+    FROM requested r
+    WHERE r.person_id = (SELECT public.get_my_person_id())
+       OR (SELECT public.is_site_admin())
+    UNION
+    SELECT DISTINCT e.handler_id
+    FROM public.entries e
+    JOIN requested r ON r.person_id = e.handler_id
+    WHERE e.deleted_at IS NULL
+      AND e.show_id IS NOT NULL
+      AND e.show_id IN (SELECT public.manageable_show_ids())
+    UNION
+    SELECT DISTINCT d.owner_id
+    FROM public.entries e
+    JOIN public.dogs d ON d.id = e.dog_id
+    JOIN requested r ON r.person_id = d.owner_id
+    WHERE e.deleted_at IS NULL
+      AND e.show_id IS NOT NULL
+      AND e.show_id IN (SELECT public.manageable_show_ids())
+      AND public.private_handler_name_matches(e.handler, d.owner_id)
+  )
   SELECT pp.person_id, pp.date_of_birth, pp.junior_handler_numbers
   FROM public.people_private pp
-  WHERE pp.person_id = ANY(COALESCE(p_person_ids, ARRAY[]::uuid[]))
-    AND public.can_read_people_private(pp.person_id);
+  JOIN authorized a ON a.person_id = pp.person_id;
 $$;
 
 COMMENT ON FUNCTION public.get_people_private(uuid[]) IS

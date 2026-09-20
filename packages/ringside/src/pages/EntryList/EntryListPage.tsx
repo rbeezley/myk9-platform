@@ -114,7 +114,6 @@ export const EntryListPage: React.FC<EntryListPageProps> = ({
     sortOrder,
     searchTerm,
     filteredEntries,
-    completedEntries,
     notRunningEntries,
     currentEntries,
     entryCounts,
@@ -240,7 +239,7 @@ export const EntryListPage: React.FC<EntryListPageProps> = ({
               label: 'Results Sheet',
               onClick: () => setPrintDialogType('results'),
               icon: 'results',
-              disabled: completedEntries.length === 0,
+              disabled: (classInfo?.completedEntries ?? 0) < 1,
             },
             {
               label: 'Scoresheet',

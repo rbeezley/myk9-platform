@@ -80,14 +80,19 @@ export interface ParityCase {
   /** Has the initial load COMPLETED — not "are there entries". */
   loaded?: boolean;
   fetchError?: Error | null;
+  /** Host-provided class-level count used by class-scoped print availability. */
+  completedEntries?: number;
 }
 
 export function makeSingleClassProps(cse: ParityCase = {}): EntryListPageProps {
-  const { entries = [], loaded = true, fetchError = null } = cse;
+  const { entries = [], loaded = true, fetchError = null, completedEntries = 0 } = cse;
 
   return {
     classId: 'class-a',
-    data: { entries, classInfo: { className: 'Novice A' } },
+    data: {
+      entries,
+      classInfo: { className: 'Novice A', totalEntries: entries.length, completedEntries },
+    },
     dataStatus: { isRefreshing: false, fetchError, refresh: vi.fn() },
     handlers: {
       handleEntryClick: vi.fn(),
@@ -172,7 +177,10 @@ export function makeCombinedProps(cse: ParityCase = {}): EntryListPageProps {
 
   return {
     ...base,
-    data: { ...base.data, classInfo: { className: 'Novice A/B' } },
+    data: {
+      ...base.data,
+      classInfo: { ...base.data.classInfo, className: 'Novice A/B' },
+    },
     combined: {
       classIds: { a: 'class-a', b: 'class-b' },
       sectionFilter: 'all',

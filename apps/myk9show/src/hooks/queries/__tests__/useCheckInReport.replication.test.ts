@@ -209,6 +209,44 @@ describe('fetchReplicatedCheckInEntries', () => {
     expect(rows[0].handler_last_name).toBeNull();
   });
 
+  it('uses the authoritative armband when the replicated entry has legacy zero', async () => {
+    replicationMocks.getEntriesByShow.mockResolvedValue([
+      {
+        id: 'entry-legacy-zero',
+        showId: 'show-1',
+        dogId: 'dog-1',
+        handlerId: 'handler-1',
+        handler: 'Cher',
+        armband: '0',
+        classId: 'class-1',
+      },
+    ]);
+    replicationMocks.getClassById.mockResolvedValue({
+      id: 'class-1',
+      trialId: 'trial-1',
+      element: 'Buried',
+      level: 'Novice',
+    });
+    replicationMocks.getTrialsByShow.mockResolvedValue([
+      { id: 'trial-1', date: '2026-04-12', trialNumber: '1' },
+    ]);
+    replicationMocks.getArmbandsByShow.mockResolvedValue([
+      {
+        id: 'authoritative-armband',
+        showId: 'show-1',
+        dogId: 'dog-1',
+        armbandNumber: '12A',
+        isAvailable: false,
+      },
+    ]);
+
+    const { fetchReplicatedCheckInEntries } = await import('../useCheckInReportReplication');
+
+    const rows = await fetchReplicatedCheckInEntries('show-1');
+
+    expect(rows[0]?.armband_number).toBe('12A');
+  });
+
   it('hydrates an assigned handler when the replicated row has only handler_id', async () => {
     replicationMocks.getEntriesByShow.mockResolvedValue([
       {

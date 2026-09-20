@@ -20,6 +20,7 @@ import { replicatedClassesTable } from '@/services/replication/ReplicatedClasses
 import { replicatedShowsTable } from '@/services/replication/ReplicatedShowsTable';
 import { replicatedTrialsTable } from '@/services/replication/ReplicatedTrialsTable';
 import { replicatedArmbandsTable } from '@/services/replication/ReplicatedArmbandsTable';
+import { normalizePacketArmband } from '@/features/emergency-trial-packet/armband';
 import { mapReplicatedEntryToDbRow } from '@/services/mappers/entryMappers';
 import { buildMapFromArray } from '../_shared/maps';
 import { logger } from '@/services/LoggingService';
@@ -233,7 +234,9 @@ function mapEntriesWithStandardJoins(
 async function fetchMissingArmbands(
   entries: ReadonlyArray<{ armband: string | null; show_id: string | null; dog_id: string | null }>
 ): Promise<Map<string, string>> {
-  const missing = entries.filter(e => !e.armband && e.show_id && e.dog_id);
+  const missing = entries.filter(
+    e => normalizePacketArmband(e.armband) == null && e.show_id && e.dog_id
+  );
   if (missing.length === 0) return new Map();
 
   const showIds = [...new Set(missing.map(e => e.show_id!))];
@@ -263,6 +266,20 @@ async function fetchMissingArmbands(
 
     return new Map(armbandRows.map(a => [`${a.show_id}:${a.dog_id}`, String(a.armband_number)]));
   }
+}
+
+async function backfillMissingArmbands<
+  T extends { armband: string | null; show_id: string | null; dog_id: string | null },
+>(entries: readonly T[]): Promise<T[]> {
+  const armbandMap = await fetchMissingArmbands(entries);
+  return entries.map(entry => {
+    const normalizedArmband = normalizePacketArmband(entry.armband);
+    if (normalizedArmband == null && entry.show_id && entry.dog_id) {
+      const armband = armbandMap.get(`${entry.show_id}:${entry.dog_id}`);
+      if (armband) return { ...entry, armband };
+    }
+    return normalizedArmband === entry.armband ? entry : { ...entry, armband: normalizedArmband };
+  });
 }
 
 // ---------------------------------------------------------------------------
@@ -674,14 +691,7 @@ async function postgrestGetEntriesByClass(classId: string) {
   const entries = await hydrateMissingHandlerPeople((data || []) as EntryDbHandlerRow[]);
 
   // Backfill armbands from the authoritative armbands table
-  const armbandMap = await fetchMissingArmbands(entries);
-  const backfilledEntries = entries.map(e => {
-    if (!e.armband && e.show_id && e.dog_id) {
-      const armband = armbandMap.get(`${e.show_id}:${e.dog_id}`);
-      if (armband) return { ...e, armband };
-    }
-    return e;
-  });
+  const backfilledEntries = await backfillMissingArmbands(entries);
 
   return { data: backfilledEntries, error: null };
 }
@@ -879,6 +889,7 @@ export const getEntriesByShow = async (showId: string) => {
         });
         return attachHandlerPerson(row, entry, handlerPeopleMap);
       });
+      const backfilledData = await backfillMissingArmbands(data);
       if (missingClassJoinIds(sortedEntries, classesMap).length > 0 && !isBrowserOffline()) {
         try {
           const online = await postgrestGetEntriesByShow(showId);
@@ -886,7 +897,7 @@ export const getEntriesByShow = async (showId: string) => {
             ...online,
             data: mergePendingEntryRows(
               withoutLocallyDeletedRows(online.data, locallyDeletedIds),
-              data,
+              backfilledData,
               pendingIds
             ),
             locallyDeletedIds,
@@ -895,7 +906,7 @@ export const getEntriesByShow = async (showId: string) => {
           // Keep mapped local rows as a degraded but usable result.
         }
       }
-      return { data, error: null, locallyDeletedIds };
+      return { data: backfilledData, error: null, locallyDeletedIds };
     },
     postgrest: () => postgrestGetEntriesByShow(showId),
     table: 'entries',
@@ -942,6 +953,7 @@ export const getEntriesByShowFromReplication = async (showId: string) => {
       const hydratedData = data.map((row, index) =>
         attachHandlerPerson(row, entries[index]!, handlerPeopleMap)
       );
+      const backfilledData = await backfillMissingArmbands(hydratedData);
       if (missingClassJoinIds(entries, classesMap).length > 0 && !isBrowserOffline()) {
         try {
           const online = await postgrestGetEntriesByShow(showId);
@@ -949,7 +961,7 @@ export const getEntriesByShowFromReplication = async (showId: string) => {
             ...online,
             data: mergePendingEntryRows(
               withoutLocallyDeletedRows(online.data, locallyDeletedIds),
-              hydratedData,
+              backfilledData,
               pendingIds
             ),
             locallyDeletedIds,
@@ -958,7 +970,7 @@ export const getEntriesByShowFromReplication = async (showId: string) => {
           // Keep mapped local rows as a degraded but usable result.
         }
       }
-      return { data: hydratedData, error: null, locallyDeletedIds };
+      return { data: backfilledData, error: null, locallyDeletedIds };
     },
     postgrest: () => postgrestGetEntriesByShow(showId),
     table: 'entries',
@@ -1132,20 +1144,7 @@ export const getEntriesByClass = async (classId: string) => {
       });
       // Backfill armbands from the authoritative armbands table for entries
       // whose replication UPDATE hasn't synced yet
-      const armbandMap = await fetchMissingArmbands(
-        data.map(d => ({
-          armband: d.armband as string | null,
-          show_id: d.show_id as string | null,
-          dog_id: d.dog_id as string | null,
-        }))
-      );
-      const backfilledData = data.map(e => {
-        if (!e.armband && e.show_id && e.dog_id) {
-          const armband = armbandMap.get(`${e.show_id}:${e.dog_id}`);
-          if (armband) return { ...e, armband };
-        }
-        return e;
-      });
+      const backfilledData = await backfillMissingArmbands(data);
       return { data: backfilledData, error: null, locallyDeletedIds };
     },
     postgrest: () => postgrestGetEntriesByClass(classId),

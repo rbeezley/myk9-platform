@@ -61,13 +61,15 @@ function armbandLabelForEntry(
   armbandsByEntryId: ReadonlyMap<string, ReplicatedArmband>,
   armbandsByDogId: ReadonlyMap<string, ReplicatedArmband>
 ) {
-  const value =
-    entry.armband ??
-    entry.armbandNumber ??
-    entry.armband_number ??
+  const directValue = normalizePacketArmband(
+    entry.armband ?? entry.armbandNumber ?? entry.armband_number
+  );
+  if (directValue != null) return directValue;
+
+  return normalizePacketArmband(
     armbandsByEntryId.get(entry.id)?.armbandNumber ??
-    (entry.dogId ? armbandsByDogId.get(entry.dogId)?.armbandNumber : undefined);
-  return normalizePacketArmband(value);
+      (entry.dogId ? armbandsByDogId.get(entry.dogId)?.armbandNumber : undefined)
+  );
 }
 
 function trialNumber(trial: ReplicatedTrial | null) {

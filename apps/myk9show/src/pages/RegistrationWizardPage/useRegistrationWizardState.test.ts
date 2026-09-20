@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   defaultPaymentForMode,
+  resolveRegistrationCapacityGate,
   shouldEnableRegistrationCapacityCheck,
 } from './useRegistrationWizardState';
 import { isShowDeskLateEntryMode } from '../RegistrationWizardPage.routes';
@@ -35,5 +36,26 @@ describe('shouldEnableRegistrationCapacityCheck', () => {
 
   it('keeps the existing bypass for ordinary organizer workflows', () => {
     expect(shouldEnableRegistrationCapacityCheck('secretary_new', false)).toBe(false);
+  });
+
+  it('does not let a retained exhibitor error block secretary mode after RBAC resolves', () => {
+    const exhibitorState = resolveRegistrationCapacityGate({
+      enabled: true,
+      isLoading: false,
+      error: 'availability unavailable',
+      unknownClassCount: 0,
+    });
+    const secretaryState = resolveRegistrationCapacityGate({
+      enabled: false,
+      isLoading: false,
+      error: 'availability unavailable',
+      unknownClassCount: 0,
+    });
+
+    expect(exhibitorState.capacityReady).toBe(false);
+    expect(secretaryState).toEqual({
+      capacityReady: true,
+      capacityUnavailable: false,
+    });
   });
 });

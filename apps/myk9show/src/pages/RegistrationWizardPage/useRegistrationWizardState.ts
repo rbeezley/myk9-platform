@@ -81,6 +81,32 @@ export function shouldEnableRegistrationCapacityCheck(
   return workflowMode === 'exhibitor' && !isOrganizerLateEntryMode(workflowMode, isLateEntryMode);
 }
 
+interface RegistrationCapacityGateInput {
+  enabled: boolean;
+  isLoading: boolean;
+  error: string | null;
+  unknownClassCount: number;
+}
+
+export function resolveRegistrationCapacityGate({
+  enabled,
+  isLoading,
+  error,
+  unknownClassCount,
+}: RegistrationCapacityGateInput): {
+  capacityReady: boolean;
+  capacityUnavailable: boolean;
+} {
+  if (!enabled) {
+    return { capacityReady: true, capacityUnavailable: false };
+  }
+
+  return {
+    capacityReady: !isLoading && !error && unknownClassCount === 0,
+    capacityUnavailable: !isLoading && (!!error || unknownClassCount > 0),
+  };
+}
+
 export function useRegistrationWizardState() {
   const { showId: showIdParam } = useParams<{ showId: string }>();
   // showId is guaranteed by the outer RegistrationWizardPage guard
@@ -186,6 +212,7 @@ export function useRegistrationWizardState() {
     error: capacityError,
     refetch: refetchClassAvailability,
   } = useClassAvailability(showId, { enabled: capacityCheckEnabled });
+  const exposedCapacityError = capacityCheckEnabled ? capacityError : null;
 
   // Reset step state when workflow mode changes mid-session (e.g. role change)
   // to prevent stale completions from a previous mode allowing skipping payment.
@@ -381,24 +408,18 @@ export function useRegistrationWizardState() {
     () => getRegistrationCapacityState(classSelections, availabilityClasses, selectedDogIds),
     [classSelections, availabilityClasses, selectedDogIds]
   );
-  const capacityReady =
-    !capacityCheckEnabled && !capacityLoading && !capacityError
-      ? true
-      : capacityCheckEnabled &&
-        !capacityLoading &&
-        !capacityError &&
-        registrationCapacity.unknownClassIds.size === 0;
+  const { capacityReady, capacityUnavailable } = resolveRegistrationCapacityGate({
+    enabled: capacityCheckEnabled,
+    isLoading: capacityLoading,
+    error: capacityError,
+    unknownClassCount: registrationCapacity.unknownClassIds.size,
+  });
 
   // `capacityReady === false` covers two states the user experiences very
   // differently: still loading, and cannot be loaded. (Offline the query pauses
   // rather than failing — see isAvailabilityUnreadable.) Treating "cannot be
   // loaded" as "still checking" tells the exhibitor to wait for something that
   // will never arrive.
-  const capacityUnavailable =
-    capacityCheckEnabled &&
-    !capacityLoading &&
-    (!!capacityError || registrationCapacity.unknownClassIds.size > 0);
-
   // FOUR states, not three. The question is not only "is there an agreement?"
   // but "have we actually resolved that question for THIS organization?".
   //   resolved with a row  -> must be ticked
@@ -667,7 +688,7 @@ export function useRegistrationWizardState() {
     feeOverride,
     setFeeOverride,
     capacityReady,
-    capacityError,
+    capacityError: exposedCapacityError,
     capacityUnavailable,
     refetchClassAvailability,
     waitlistClassIds: registrationCapacity.waitlistClassIds,

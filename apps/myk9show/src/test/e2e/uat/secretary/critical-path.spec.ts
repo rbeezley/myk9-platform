@@ -12,6 +12,10 @@ import {
 test.describe.configure({ mode: 'serial' });
 
 const SHOW_ID = LIVE_SECRETARY_SHOW_ID;
+// Deterministic MYK9-109 load fixture owned by the demo exhibitor. Unlike the
+// account's named dogs, this fixture remains available after user dog cleanup.
+const NON_OWNED_DOG_SEARCH = 'Echo 10';
+const NON_OWNED_DOG_LABEL = 'Echo';
 const healthByTest = new Map<string, BrowserHealth>();
 
 test.describe('Phase 1 UAT - Secretary critical path', () => {
@@ -81,17 +85,20 @@ test.describe('Phase 1 UAT - Secretary critical path', () => {
 
     const search = page.getByPlaceholder(/Search all dogs/i);
     await expect(search).toBeVisible();
-    await search.fill('Ranger');
-    await waitForDogSearch(page, 'ranger');
+    await search.fill(NON_OWNED_DOG_SEARCH);
+    await waitForDogSearch(page, 'echo');
 
     await expect(page.getByText(/^\d+ dogs?/)).toBeVisible();
     await expect(page.getByText(/No dogs match your search/i)).not.toBeVisible();
 
-    const ranger = page.getByRole('checkbox', { name: 'Select Ranger', exact: true }).last();
-    await expect(ranger).toBeVisible();
-    await expect(ranger).toHaveAttribute('aria-checked', 'false');
-    await ranger.click();
-    await expect(ranger).toHaveAttribute('aria-checked', 'true');
+    const dog = page.getByRole('checkbox', {
+      name: `Select ${NON_OWNED_DOG_LABEL}`,
+      exact: true,
+    });
+    await expect(dog).toBeVisible();
+    await expect(dog).toHaveAttribute('aria-checked', 'false');
+    await dog.click();
+    await expect(dog).toHaveAttribute('aria-checked', 'true');
     await expect(page.getByText(/1 selected/)).toBeVisible({ timeout: 5000 });
     await expect(page.getByRole('button', { name: /^Next/ })).toBeEnabled();
 

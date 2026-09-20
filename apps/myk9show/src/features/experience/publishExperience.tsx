@@ -10,12 +10,14 @@ export async function publishExperience({
   inkSaver,
   artifactId,
   publishedAt,
+  publishVersion,
 }: {
   showId: string;
   premium: GeneratedPremium;
   inkSaver: boolean;
   artifactId?: string;
   publishedAt?: string;
+  publishVersion: number;
 }): Promise<{ publishedAt: string; premiumUrl: string }> {
   const premiumResult = await publishPremium(showId, premium, {
     inkSaver,
@@ -24,7 +26,7 @@ export async function publishExperience({
   });
   const snapshot = buildExperienceSnapshot({
     premium,
-    premiumUrl: premiumResult.url,
+    premiumPath: premiumResult.path,
     publishedAt: premiumResult.publishedAt,
   });
 
@@ -33,8 +35,7 @@ export async function publishExperience({
     {
       p_show_id: showId,
       p_storage_path: premiumResult.path,
-      p_public_url: premiumResult.url,
-      p_published_at: premiumResult.publishedAt,
+      p_publish_version: publishVersion,
       p_experience_style: premium.style,
       p_experience_content: snapshot,
     }
@@ -52,9 +53,15 @@ export async function publishExperience({
   }
 
   return {
-    publishedAt: premiumResult.publishedAt,
+    publishedAt: getCommittedPublishedAt(data) ?? premiumResult.publishedAt,
     premiumUrl: premiumResult.url,
   };
+}
+
+function getCommittedPublishedAt(data: unknown): string | null {
+  if (!data || typeof data !== 'object' || !('publishedAt' in data)) return null;
+  const publishedAt = (data as { publishedAt?: unknown }).publishedAt;
+  return typeof publishedAt === 'string' ? publishedAt : null;
 }
 
 interface PremiumPublishRpcClient {

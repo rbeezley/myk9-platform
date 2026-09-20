@@ -1,7 +1,6 @@
 import { useCallback } from 'react';
 import { create } from 'zustand';
 import { useQueryClient } from '@tanstack/react-query';
-import { publishExperience } from '@/features/experience/publishExperience';
 import { notifications } from '@/lib/notifications';
 import { publishInfoQueryKey } from './usePublishInfo';
 import { useGeneratePremium } from './useGeneratePremium';
@@ -10,7 +9,12 @@ import {
   GENERIC_PREMIUM_PUBLISH_FAILURE,
   premiumPublishFailureMessage,
 } from './premiumPublishErrors';
-import type { GeneratedPremium } from '@/types/premium-types';
+import {
+  beginPremiumPublishAttempt,
+  discardPremiumPublishAttempt,
+  getPremiumPublishAttempt,
+  publishGeneratedPremiumAttempt,
+} from './premiumPublishCoordinator';
 
 const PUBLISH_FAILURE_MESSAGE = GENERIC_PREMIUM_PUBLISH_FAILURE;
 
@@ -23,19 +27,9 @@ export interface PremiumPublishShowState {
 interface PremiumPublishStore {
   /** Per SHOW. A secretary can hold two shows open in two tabs of one app. */
   byShowId: Record<string, PremiumPublishShowState>;
-  /** Keep one generated immutable-artifact attempt for every safe publish retry. */
-  generatedByShowId: Record<string, GeneratedPremiumAttempt | undefined>;
   begin: (showId: string) => void;
   succeed: (showId: string) => void;
   fail: (showId: string, failureMessage: string) => void;
-  rememberGenerated: (showId: string, attempt: GeneratedPremiumAttempt) => void;
-  forgetGenerated: (showId: string) => void;
-}
-
-interface GeneratedPremiumAttempt {
-  premium: GeneratedPremium;
-  artifactId: string;
-  publishedAt: string;
 }
 
 const IDLE: PremiumPublishShowState = { inFlight: false, failed: false };
@@ -61,19 +55,13 @@ function patch(
  */
 export const usePremiumPublishStore = create<PremiumPublishStore>()(set => ({
   byShowId: {},
-  generatedByShowId: {},
   begin: showId => set(state => patch(state, showId, { inFlight: true, failed: false })),
   succeed: showId =>
     set(state => ({
       ...patch(state, showId, IDLE),
-      generatedByShowId: { ...state.generatedByShowId, [showId]: undefined },
     })),
   fail: (showId, failureMessage) =>
     set(state => patch(state, showId, { inFlight: false, failed: true, failureMessage })),
-  rememberGenerated: (showId, attempt) =>
-    set(state => ({ generatedByShowId: { ...state.generatedByShowId, [showId]: attempt } })),
-  forgetGenerated: showId =>
-    set(state => ({ generatedByShowId: { ...state.generatedByShowId, [showId]: undefined } })),
 }));
 
 export function premiumPublishStateFor(
@@ -108,8 +96,6 @@ export function useGenerateAndPublishPremium(showId: string): GenerateAndPublish
   const begin = usePremiumPublishStore(state => state.begin);
   const succeed = usePremiumPublishStore(state => state.succeed);
   const fail = usePremiumPublishStore(state => state.fail);
-  const rememberGenerated = usePremiumPublishStore(state => state.rememberGenerated);
-  const forgetGenerated = usePremiumPublishStore(state => state.forgetGenerated);
   const showState = premiumPublishStateFor(byShowId, showId);
 
   const run = useCallback(async () => {
@@ -123,18 +109,24 @@ export function useGenerateAndPublishPremium(showId: string): GenerateAndPublish
     }
     begin(showId);
     try {
-      const cachedAttempt = usePremiumPublishStore.getState().generatedByShowId[showId];
-      const attempt = cachedAttempt ?? {
-        artifactId: crypto.randomUUID(),
-        publishedAt: new Date().toISOString(),
-        premium: await generate(showId),
-      };
-      rememberGenerated(showId, attempt);
-      await publishExperience({
+      const cachedAttempt = getPremiumPublishAttempt(showId);
+      const publishVersion =
+        cachedAttempt?.publishVersion ?? (await beginPremiumPublishAttempt(showId));
+      let premium = cachedAttempt?.premium;
+      if (!premium) {
+        try {
+          premium = await generate(showId);
+        } catch (error) {
+          discardPremiumPublishAttempt(showId);
+          throw error;
+        }
+      }
+      await publishGeneratedPremiumAttempt({
         showId,
-        premium: attempt.premium,
-        artifactId: attempt.artifactId,
-        publishedAt: attempt.publishedAt,
+        premium,
+        ...(cachedAttempt ? { artifactId: cachedAttempt.artifactId } : {}),
+        ...(cachedAttempt ? { publishedAt: cachedAttempt.publishedAt } : {}),
+        publishVersion,
         inkSaver: false,
       });
       await Promise.all([
@@ -151,13 +143,10 @@ export function useGenerateAndPublishPremium(showId: string): GenerateAndPublish
       notifications.success('Premium list published');
     } catch (error) {
       const classified = classifyPremiumPublishError(error, 'generation');
-      // Every post-generation stage is retryable against the same immutable
-      // artifact. A generation failure has no staged artifact to recover.
-      if (classified.stage === 'generation') forgetGenerated(showId);
       fail(showId, premiumPublishFailureMessage(classified));
       notifications.error('Could not publish the premium list');
     }
-  }, [showId, begin, succeed, fail, rememberGenerated, forgetGenerated, generate, queryClient]);
+  }, [showId, begin, succeed, fail, generate, queryClient]);
 
   return {
     run,

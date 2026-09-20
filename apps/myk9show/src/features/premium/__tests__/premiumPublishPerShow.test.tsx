@@ -7,12 +7,14 @@ import {
   usePremiumPublishStore,
 } from '../useGenerateAndPublishPremium';
 import { PremiumPublishError } from '../premiumPublishErrors';
+import { resetPremiumPublishCoordinatorForTests } from '../premiumPublishCoordinator';
 
 const SHOW_A = 'show-a';
 const SHOW_B = 'show-b';
 
 const edges = vi.hoisted(() => ({
   generate: vi.fn(),
+  beginPremiumPublishAttempt: vi.fn(async () => 1),
   publishExperience: vi.fn(async (_options: Record<string, unknown>) => undefined),
   release: {} as Record<string, (value?: unknown) => void>,
 }));
@@ -29,6 +31,13 @@ vi.mock('../useGeneratePremium', () => ({
 vi.mock('@/features/experience/publishExperience', () => ({
   publishExperience: edges.publishExperience,
 }));
+
+vi.mock('../premiumPublishCoordinator', async () => {
+  const actual = await vi.importActual<typeof import('../premiumPublishCoordinator')>(
+    '../premiumPublishCoordinator'
+  );
+  return { ...actual, beginPremiumPublishAttempt: edges.beginPremiumPublishAttempt };
+});
 
 vi.mock('@/lib/notifications', () => ({
   notifications: { success: vi.fn(), error: vi.fn(), info: vi.fn(), warning: vi.fn() },
@@ -47,8 +56,11 @@ function pending(showId: string) {
 }
 
 beforeEach(() => {
-  usePremiumPublishStore.setState({ byShowId: {}, generatedByShowId: {} });
+  usePremiumPublishStore.setState({ byShowId: {} });
+  resetPremiumPublishCoordinatorForTests();
   edges.generate.mockReset();
+  edges.beginPremiumPublishAttempt.mockReset();
+  edges.beginPremiumPublishAttempt.mockResolvedValue(1);
   edges.publishExperience.mockClear();
   edges.release = {};
 });
@@ -145,6 +157,7 @@ describe('premium publish state is per SHOW, not global', () => {
     expect(secondAttempt).toMatchObject({
       artifactId: firstAttempt.artifactId,
       publishedAt: firstAttempt.publishedAt,
+      publishVersion: firstAttempt.publishVersion,
     });
     expect(hook.result.current.publishFailed).toBe(false);
   });

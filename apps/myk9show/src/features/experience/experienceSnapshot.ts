@@ -7,17 +7,20 @@ export interface ShowExperienceSnapshot {
   narratives: GeneratedPremium['narratives'];
   supplemental: PremiumSupplemental;
   outputs: {
-    premiumUrl: string | null;
+    /** New snapshots persist only the trusted immutable Storage identity. */
+    premiumPath?: string | null;
+    /** Legacy snapshots may still carry a URL from before MYK9-694. */
+    premiumUrl?: string | null;
   };
 }
 
 export function buildExperienceSnapshot({
   premium,
-  premiumUrl,
+  premiumPath,
   publishedAt,
 }: {
   premium: Pick<GeneratedPremium, 'style' | 'narratives' | 'supplemental'>;
-  premiumUrl: string | null;
+  premiumPath: string | null;
   publishedAt: string;
 }): ShowExperienceSnapshot {
   return {
@@ -25,7 +28,7 @@ export function buildExperienceSnapshot({
     generatedAt: publishedAt,
     narratives: premium.narratives,
     supplemental: premium.supplemental,
-    outputs: { premiumUrl },
+    outputs: { premiumPath, premiumUrl: null },
   };
 }
 

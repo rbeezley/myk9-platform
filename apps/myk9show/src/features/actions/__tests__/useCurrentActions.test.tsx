@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react';
-import { renderHook } from '@testing-library/react';
+import { renderHook, waitFor } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
@@ -13,6 +13,8 @@ const scope = vi.hoisted(() => ({
   canManage: true,
   canOperate: true,
 }));
+
+const publishInfoRead = vi.hoisted(() => vi.fn());
 
 vi.mock('@/hooks/useAuthContext', () => ({
   useAuthContext: () => ({
@@ -31,6 +33,16 @@ vi.mock('@/hooks/useShowManageScope', () => ({
   }),
 }));
 
+vi.mock('@/services/database/supabaseClient', () => ({
+  supabase: {
+    from: vi.fn(() => ({
+      select: vi.fn(() => ({
+        eq: vi.fn(() => ({ maybeSingle: publishInfoRead })),
+      })),
+    })),
+  },
+}));
+
 function wrapper({ children }: { children: ReactNode }) {
   // A QueryClient too: the hook composes the premium publish flow, which the
   // app always renders inside a provider.
@@ -46,6 +58,8 @@ beforeEach(() => {
   scope.status = 'resolved';
   scope.canManage = true;
   scope.canOperate = true;
+  publishInfoRead.mockReset();
+  publishInfoRead.mockResolvedValue({ data: null, error: null });
 });
 
 /**
@@ -88,5 +102,24 @@ describe('useCurrentActions — ownership must be resolved before anything is of
     scope.canOperate = false;
     const { result } = renderHook(() => useCurrentActions(), { wrapper });
     expect(result.current.actions).toEqual([]);
+  });
+
+  it.each([
+    ['exhibitor', 'resolved', false],
+    ['manager scope unresolved', 'resolving', true],
+  ] as const)('does not request publish info for %s', async (_label, status, canManage) => {
+    scope.status = status;
+    scope.canManage = canManage;
+
+    renderHook(() => useCurrentActions(), { wrapper });
+
+    await new Promise(resolve => setTimeout(resolve, 0));
+    expect(publishInfoRead).not.toHaveBeenCalled();
+  });
+
+  it('requests publish info once after management scope resolves', async () => {
+    renderHook(() => useCurrentActions(), { wrapper });
+
+    await waitFor(() => expect(publishInfoRead).toHaveBeenCalledTimes(1));
   });
 });

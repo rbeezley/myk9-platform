@@ -22,7 +22,9 @@ const mocks = vi.hoisted(() => ({
 }));
 
 vi.mock('@/features/premium/usePublishInfo', () => ({
-  usePublishInfo: () => ({ data: mocks.publishInfo }),
+  usePublishInfo: (_showId: string, canManageShow: boolean) => ({
+    data: canManageShow ? mocks.publishInfo : undefined,
+  }),
 }));
 vi.mock('@/hooks/useGlobalSyncStatus', () => ({
   useGlobalSyncStatus: () => mocks.sync,
@@ -50,7 +52,12 @@ const show = {
 
 function renderContext() {
   return render(
-    <ShowDeskCompactContext show={show} canonicalShowHref="/shows/show-1" armbandCount={0} />
+    <ShowDeskCompactContext
+      show={show}
+      canonicalShowHref="/shows/show-1"
+      armbandCount={0}
+      canManageShow={true}
+    />
   );
 }
 
@@ -95,6 +102,20 @@ describe('ShowDeskCompactContext', () => {
     );
   });
 
+  it('does not expose cached publish state while management scope is denied', () => {
+    render(
+      <ShowDeskCompactContext
+        show={show}
+        canonicalShowHref="/shows/show-1"
+        armbandCount={0}
+        canManageShow={false}
+      />
+    );
+
+    expect(screen.queryByText('Premium list is not published')).toBeNull();
+    expect(screen.queryByText(/show data changed after publish/i)).toBeNull();
+  });
+
   it('uses calm, truthful offline and pending-save wording', () => {
     mocks.sync.status = 'offline';
     mocks.sync.isOnline = false;
@@ -106,7 +127,12 @@ describe('ShowDeskCompactContext', () => {
     mocks.sync.isOnline = true;
     mocks.sync.queueSize = 2;
     rerender(
-      <ShowDeskCompactContext show={show} canonicalShowHref="/shows/show-1" armbandCount={0} />
+      <ShowDeskCompactContext
+        show={show}
+        canonicalShowHref="/shows/show-1"
+        armbandCount={0}
+        canManageShow={true}
+      />
     );
 
     expect(screen.getByRole('status')).toHaveTextContent('2 changes saved on this device');

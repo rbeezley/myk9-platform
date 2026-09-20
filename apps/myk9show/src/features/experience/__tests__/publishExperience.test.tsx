@@ -4,7 +4,7 @@ import { PremiumPublishError } from '../../premium/premiumPublishErrors';
 
 const mocks = vi.hoisted(() => ({
   rpc: vi.fn(async (): Promise<{ data: unknown; error: Error | null }> => ({
-    data: { premiumUrl: 'https://example.com/show.pdf', publishedAt: '2026-05-09T14:00:00.000Z' },
+    data: { premiumPath: 'show-1/artifact-1.pdf', publishedAt: '2026-05-09T15:00:00.000Z' },
     error: null as Error | null,
   })),
 }));
@@ -25,7 +25,7 @@ vi.mock('@/services/database/supabaseClient', () => ({
 
 describe('publishExperience', () => {
   it('publishes premium and writes the published experience snapshot', async () => {
-    await publishExperience({
+    const result = await publishExperience({
       showId: 'show-1',
       premium: {
         org: 'AKC',
@@ -61,22 +61,21 @@ describe('publishExperience', () => {
         },
       },
       inkSaver: false,
+      publishVersion: 1,
     });
 
-    expect(mocks.rpc).toHaveBeenCalledWith(
-      'publish_premium_artifact',
-      expect.objectContaining({
-        p_show_id: 'show-1',
-        p_storage_path: 'show-1/artifact-1.pdf',
-        p_public_url: 'https://example.com/show.pdf',
-        p_published_at: '2026-05-09T14:00:00.000Z',
-        p_experience_style: 'heritage',
-        p_experience_content: expect.objectContaining({
-          style: 'heritage',
-          outputs: { premiumUrl: 'https://example.com/show.pdf' },
-        }),
-      })
-    );
+    expect(result.publishedAt).toBe('2026-05-09T15:00:00.000Z');
+
+    expect(mocks.rpc).toHaveBeenCalledWith('publish_premium_artifact', {
+      p_show_id: 'show-1',
+      p_storage_path: 'show-1/artifact-1.pdf',
+      p_publish_version: 1,
+      p_experience_style: 'heritage',
+      p_experience_content: expect.objectContaining({
+        style: 'heritage',
+        outputs: { premiumPath: 'show-1/artifact-1.pdf', premiumUrl: null },
+      }),
+    });
   });
 
   it('treats a failed atomic commit as partial progress so retry can reuse the staged artifact', async () => {
@@ -116,6 +115,7 @@ describe('publishExperience', () => {
           narratives: { showHours: 'Hours', trialInformation: 'Info' },
         },
         inkSaver: false,
+        publishVersion: 1,
       })
     ).rejects.toMatchObject<Partial<PremiumPublishError>>({ stage: 'experience-snapshot' });
   });
@@ -157,6 +157,7 @@ describe('publishExperience', () => {
           narratives: { showHours: 'Hours', trialInformation: 'Info' },
         },
         inkSaver: false,
+        publishVersion: 1,
       })
     ).rejects.toMatchObject<Partial<PremiumPublishError>>({ stage: 'experience-snapshot' });
   });

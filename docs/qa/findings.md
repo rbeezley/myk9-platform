@@ -95,7 +95,7 @@ Copy this block for each new finding.
 - **Intent check:** No product behaviour implicated; the interceptors are MYK9-517 (toast) and MYK9-622 (sticky chrome), both filed.
 - **Fix owner:** whoever next touches `wizardVisualQA.spec.ts`: click through the MYK9-543 hit-test probe (`scrollUntilClickable` in `wizardChips.ts`) instead of raw `click()`, and drop serial mode unless a scenario depends on the previous one.
 - **Proof required:** three consecutive green runs on `chromium` and `mobile-chrome`.
-- **Notes:** Recorded here rather than as a Linear issue (2026-09-17 filing-threshold change: harness hygiene goes to findings, not the backlog). Superseded Linear MYK9-627, cancelled.
+- **Notes:** Historical September 17 cancellation was a filing-threshold decision, not resolution. On September 19, Codex rechecked unchanged current source and restored canonical [MYK9-627](https://linear.app/myk9-platform/issue/MYK9-627) to Backlog under the user's all-severity Linear policy. Canonical P2 verification gap; source Low retained. No fresh browser recurrence asserted; original closure proof remains required.
 
 ### QA-RBAC-ID-SPACE-001
 
@@ -430,6 +430,18 @@ Copy this block for each new finding.
 - **Notes:** This test is the regression guard for **NCR-2026-09-04-04** (the tracker `pending`-set leak, fixed 2026-09-05). The product fix is sound; it is the guard that is timing-fragile. Distinct finding, not a recurrence — that one was a stale-state leak in the E2E sweep, this is a real-timer budget in the unit test that pins its fix. A flaky guard on a defect that already recurred once is worth more than its severity suggests.
 
 ## Open Findings
+
+### Codex commit-review reconciliation — 2026-09-19
+
+source: codex; reviewed through `71537ced65ef8b6b3d773fe94e9e023f9817e63f`; code baseline `0c684debe573f02fe9e57c4927f5c1d5baec85a0`. [Report and proof](codex-daily-commit-review-2026-09-19.md). Linear is the work queue.
+
+- **P1 new/open:** NCR-2026-09-19-01 / [MYK9-639](https://linear.app/myk9-platform/issue/MYK9-639): real exhibitor balance goes from $35 due to $0 after an unpaid move-up; pre-existing omission remains after consolidation. Richard owns it. Require root-aware online/offline balance, settlement-action and browser proof.
+- **P1 new/open:** NCR-2026-09-19-03 / [MYK9-640](https://linear.app/myk9-platform/issue/MYK9-640): stale Undo accepts an intermediate moved entry in A→B→C; server source lacks the terminal-lineage guard. Client refusal test fails; SQL outcome traced, not executed. Require applied SQL/concurrency and two-device proof. Richard owns it.
+- **P2 new/open:** NCR-2026-09-19-02 / MYK9-639: buildMoneyAttribution falsely calls the intermediate B orphaned although C resolves its $35 root. Pure assertion fails. Require multi-hop aggregate controls and warning render proof. Richard owns it.
+- **P2 unchanged/open:** [QA-TEST-FLAKE-002 / MYK9-627](https://linear.app/myk9-platform/issue/MYK9-627) reopened under the user's all-severity policy; unchanged source and missing three-run desktop/mobile closure proof. Unassigned. No new runtime flake asserted.
+- **P2 duplicate/open:** [MYK9-648](https://linear.app/myk9-platform/issue/MYK9-648), previous-show premium placeholder data; source corroborated, owner unassigned, existing navigation proof gate retained.
+
+New 3, unchanged 1, resolved 0, duplicate 1, rejected product hypothesis 1, blocked findings 0. All new findings first/last seen September 19, one run; source labels High/High/Medium. Four canonical issues updated, none created/closed. 423 existing tests pass with the package-build limitation in the report; three intentional failing probes. Historical single-hop fixes remain distinct. Environment/network and broad-check gaps are not product defects.
 
 ### Codex commit-review reconciliation — 2026-09-13
 

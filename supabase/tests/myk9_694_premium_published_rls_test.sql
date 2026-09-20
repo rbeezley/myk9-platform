@@ -75,10 +75,14 @@ DECLARE
   other_show CONSTANT uuid := '00000000-0000-0000-0000-000000694012';
   secretary_show CONSTANT uuid := '00000000-0000-0000-0000-000000694013';
   artifact CONSTANT text := '11111111-1111-1111-1111-111111111111';
+  second_artifact CONSTANT text := '33333333-3333-3333-3333-333333333333';
+  bad_artifact CONSTANT text := '44444444-4444-4444-4444-444444444444';
   secretary_artifact CONSTANT text := '22222222-2222-2222-2222-222222222222';
   denied boolean;
   result jsonb;
-  previous_url text;
+  first_version bigint;
+  second_version bigint;
+  previous_path text;
 BEGIN
   PERFORM set_config('request.jwt.claim.sub', admin_id::text, true);
   PERFORM set_config(
@@ -87,8 +91,11 @@ BEGIN
     true
   );
 
-  INSERT INTO storage.objects (bucket_id, name, owner_id)
-  VALUES ('premium-published', own_show::text || '/' || artifact || '.pdf', admin_id);
+  INSERT INTO storage.objects (bucket_id, name, owner_id, metadata)
+  VALUES (
+    'premium-published', own_show::text || '/' || artifact || '.pdf', admin_id,
+    jsonb_build_object('mimetype', 'application/pdf', 'size', 1024)
+  );
 
   -- Exact path shape: no UUID-prefixed suffix, extra extension, or flat path.
   FOREACH result IN ARRAY ARRAY[
@@ -108,37 +115,74 @@ BEGIN
     END IF;
   END LOOP;
 
+  IF EXISTS (
+    SELECT 1
+    FROM pg_policies
+    WHERE schemaname = 'storage'
+      AND tablename = 'objects'
+      AND cmd IN ('UPDATE', 'DELETE')
+      AND policyname ILIKE '%premium%'
+  ) THEN
+    RAISE EXCEPTION 'FAIL premium published storage remains mutable by policy';
+  END IF;
+  IF NOT EXISTS (
+    SELECT 1
+    FROM storage.buckets
+    WHERE id = 'premium-published'
+      AND file_size_limit = 26214400
+      AND 'application/pdf' = ANY(allowed_mime_types)
+  ) THEN
+    RAISE EXCEPTION 'FAIL premium-published bucket constraints were not applied';
+  END IF;
+
   -- Club-admin positive control: generation and atomic publication share auth.
+  first_version := public.begin_premium_publish(own_show);
   result := public.publish_premium_artifact(
     own_show,
     own_show::text || '/' || artifact || '.pdf',
-    'https://example.test/storage/v1/object/public/premium-published/' ||
-      own_show::text || '/' || artifact || '.pdf',
-    '2026-09-19T12:00:00Z',
+    first_version,
     'heritage',
     jsonb_build_object('outputs', jsonb_build_object('premiumUrl', 'pending'))
   );
-  IF result->>'premiumUrl' NOT LIKE '%/' || artifact || '.pdf' THEN
-    RAISE EXCEPTION 'FAIL atomic publication did not return the committed URL: %', result;
+  IF result->>'premiumPath' <> own_show::text || '/' || artifact || '.pdf' THEN
+    RAISE EXCEPTION 'FAIL atomic publication did not return the committed path: %', result;
   END IF;
 
-  SELECT published_premium_url INTO previous_url FROM public.shows WHERE id = own_show;
-  IF previous_url IS NULL OR NOT EXISTS (
+  SELECT published_premium_path INTO previous_path FROM public.shows WHERE id = own_show;
+  IF previous_path IS NULL OR NOT EXISTS (
     SELECT 1 FROM public.shows
     WHERE id = own_show
       AND experience_is_published
       AND experience_published_style = 'heritage'
+      AND published_premium_url IS NULL
+      AND published_premium_version = first_version
+      AND experience_published_content->'outputs'->>'premiumPath' = own_show::text || '/' || artifact || '.pdf'
+      AND (experience_published_content->'outputs'->'premiumUrl') IS NULL
+      AND experience_published_content->>'generatedAt' = experience_published_at::text
   ) THEN
     RAISE EXCEPTION 'FAIL atomic publication did not commit metadata and snapshot';
   END IF;
 
-  -- A commit failure cannot replace the last-good metadata.
+  -- A lost response can be retried idempotently, but the version cannot point
+  -- at a different artifact.
+  result := public.publish_premium_artifact(
+    own_show,
+    previous_path,
+    first_version,
+    'monogram',
+    jsonb_build_object('outputs', jsonb_build_object('premiumUrl', 'https://attacker.test'))
+  );
+  IF result->>'premiumPath' <> previous_path
+     OR (SELECT published_premium_version FROM public.shows WHERE id = own_show) <> first_version
+  THEN
+    RAISE EXCEPTION 'FAIL exact committed publish retry was not idempotent';
+  END IF;
+
   BEGIN
     PERFORM public.publish_premium_artifact(
       own_show,
-      own_show::text || '/' || artifact || '.pdf',
-      'https://example.test/not-premium-published/' || artifact || '.pdf',
-      '2026-09-19T13:00:00Z',
+      own_show::text || '/' || second_artifact || '.pdf',
+      first_version,
       'monogram',
       '{}'::jsonb
     );
@@ -146,8 +190,54 @@ BEGIN
   EXCEPTION WHEN OTHERS THEN
     denied := true;
   END;
-  IF NOT denied OR (SELECT published_premium_url FROM public.shows WHERE id = own_show) <> previous_url THEN
+  IF NOT denied THEN
+    RAISE EXCEPTION 'FAIL committed version accepted a different artifact path';
+  END IF;
+
+  -- A non-PDF object cannot be committed and cannot replace last-good state.
+  INSERT INTO storage.objects (bucket_id, name, owner_id, metadata)
+  VALUES (
+    'premium-published', own_show::text || '/' || bad_artifact || '.pdf', admin_id,
+    jsonb_build_object('mimetype', 'text/plain', 'size', 1024)
+  );
+  second_version := public.begin_premium_publish(own_show);
+  BEGIN
+    PERFORM public.publish_premium_artifact(
+      own_show,
+      own_show::text || '/' || bad_artifact || '.pdf',
+      second_version,
+      'monogram',
+      '{}'::jsonb
+    );
+    denied := false;
+  EXCEPTION WHEN OTHERS THEN
+    denied := true;
+  END;
+  IF NOT denied OR (SELECT published_premium_path FROM public.shows WHERE id = own_show) <> previous_path THEN
     RAISE EXCEPTION 'FAIL failed commit changed the last-good show metadata';
+  END IF;
+
+  -- A newer server-issued version makes an older completion stale.
+  INSERT INTO storage.objects (bucket_id, name, owner_id, metadata)
+  VALUES (
+    'premium-published', own_show::text || '/' || second_artifact || '.pdf', admin_id,
+    jsonb_build_object('mimetype', 'application/pdf', 'size', 1024)
+  );
+  second_version := public.begin_premium_publish(own_show);
+  BEGIN
+    PERFORM public.publish_premium_artifact(
+      own_show,
+      own_show::text || '/' || second_artifact || '.pdf',
+      first_version,
+      'monogram',
+      '{}'::jsonb
+    );
+    denied := false;
+  EXCEPTION WHEN OTHERS THEN
+    denied := true;
+  END;
+  IF NOT denied OR (SELECT published_premium_path FROM public.shows WHERE id = own_show) <> previous_path THEN
+    RAISE EXCEPTION 'FAIL stale premium completion replaced the last-good state';
   END IF;
 
   -- Cross-show commit authorization is denied even when the object is staged.
@@ -155,9 +245,7 @@ BEGIN
     PERFORM public.publish_premium_artifact(
       other_show,
       own_show::text || '/' || artifact || '.pdf',
-      'https://example.test/storage/v1/object/public/premium-published/' ||
-        own_show::text || '/' || artifact || '.pdf',
-      '2026-09-19T14:00:00Z',
+      first_version,
       'heritage',
       '{}'::jsonb
     );
@@ -176,14 +264,16 @@ BEGIN
     jsonb_build_object('sub', secretary_id, 'role', 'authenticated')::text,
     true
   );
-  INSERT INTO storage.objects (bucket_id, name, owner_id)
-  VALUES ('premium-published', secretary_show::text || '/' || secretary_artifact || '.pdf', secretary_id);
+  INSERT INTO storage.objects (bucket_id, name, owner_id, metadata)
+  VALUES (
+    'premium-published', secretary_show::text || '/' || secretary_artifact || '.pdf', secretary_id,
+    jsonb_build_object('mimetype', 'application/pdf', 'size', 1024)
+  );
+  first_version := public.begin_premium_publish(secretary_show);
   PERFORM public.publish_premium_artifact(
     secretary_show,
     secretary_show::text || '/' || secretary_artifact || '.pdf',
-    'https://example.test/storage/v1/object/public/premium-published/' ||
-      secretary_show::text || '/' || secretary_artifact || '.pdf',
-    '2026-09-19T15:00:00Z',
+    first_version,
     'heritage',
     '{}'::jsonb
   );

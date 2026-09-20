@@ -5,6 +5,8 @@ import { Button } from '@/components/ui/button';
 import { PageShell } from '@/components/common/PageShell';
 import { PageHeader } from '@/components/common/PageHeader';
 import { DetailHero } from '@/components/common/DetailHero';
+import { ErrorState } from '@/components/common/ErrorState';
+import { LoadingSkeleton } from '@/components/common/LoadingSkeleton';
 import { ShowDateBlock } from '@/components/shows/ShowDateBlock';
 import { ShowStatusPill } from '@/components/shows/ShowStatusPill';
 import { QuickInfoCards } from '@/components/shows/overview/QuickInfoCards';
@@ -20,7 +22,7 @@ import { PrimaryTabs, type PrimaryTabDef } from '@/components/common/PrimaryTabs
 import { TabsContent } from '@/components/ui/tabs';
 import { ShowOverviewTab } from '@/components/shows/tabs/ShowOverviewTab';
 import { getShowStyle } from '@/features/registries';
-import { publishExperience } from '@/features/experience/publishExperience';
+import { publishGeneratedPremiumAttempt } from '@/features/premium/premiumPublishCoordinator';
 import { persistShowJudgeAssignments } from '@/services/database/judges';
 import {
   SHOW_EDIT_TAB_PARAM,
@@ -36,6 +38,7 @@ import { SHOW_STATUS_CONTROL_ANCHOR } from '@/features/show-workbench/publishRea
 import { notifications } from '@/lib/notifications';
 import type { Show } from '@/types/show-types';
 import type { GeneratedPremium } from '@/types/premium-types';
+import { useShowManageScope } from '@/hooks/useShowManageScope';
 import { ShowDeskCompactContext } from './ShowDeskCompactContext';
 
 function parseOptionalCurrency(value: string | number | undefined): number | undefined {
@@ -100,7 +103,7 @@ export interface ShowManagementShellProps {
  * The management surface for anyone who manages this show — site admin,
  * club-scoped secretary, or club-scoped CLUB ADMIN (MYK9-630 phase 3; before it
  * club admins were held on the exhibitor view by a second, narrower predicate,
- * which is what made "Show settings…" inert for them, MYK9-653).
+ * which is what made the old settings link inert for them, MYK9-653).
  *
  * The show hero with staff actions
  * (presence, status, edit/delete), the publish row, the section nav, and either
@@ -108,7 +111,53 @@ export interface ShowManagementShellProps {
  * edit/delete dialogs and the save pipeline. Presence UI relies on the
  * ShowPresenceProvider the router wraps this shell in.
  */
-export function ShowManagementShell({
+type AuthorizedShowManagementShellProps = ShowManagementShellProps & {
+  canManageShow: boolean;
+};
+
+/**
+ * Keep the management tree structurally absent until the canonical ownership
+ * answer is final. In particular, a disabled publish query may still have
+ * cached data, so passing a false flag into mounted management children is not
+ * enough to prevent stale controls from flashing during auth transitions.
+ */
+export function ShowManagementShell(props: ShowManagementShellProps) {
+  const manageScope = useShowManageScope(props.show.id);
+  const queryClient = useQueryClient();
+
+  if (manageScope.status === 'resolving') {
+    return (
+      <PageShell>
+        <LoadingSkeleton variant="cards" count={3} heading="Checking show access" />
+      </PageShell>
+    );
+  }
+
+  if (manageScope.status === 'unavailable') {
+    return (
+      <PageShell>
+        <ErrorState
+          message="We couldn't verify show access."
+          description="The management view is paused until show access can be confirmed."
+          onRetry={() => {
+            void queryClient.invalidateQueries({ queryKey: showQueryKeys.detail(props.show.id) });
+          }}
+          headingLevel={1}
+        />
+      </PageShell>
+    );
+  }
+
+  if (!manageScope.canManage) return null;
+
+  return <AuthorizedShowManagementShell {...props} canManageShow={manageScope.canManage} />;
+}
+
+// The shell owns several independent route/layout branches; keep the
+// authorization gate above structural while documenting the existing branch
+// complexity here rather than weakening the shared lint threshold.
+// eslint-disable-next-line complexity
+function AuthorizedShowManagementShell({
   show,
   showId,
   breadcrumbs,
@@ -120,18 +169,19 @@ export function ShowManagementShell({
   sectionTabs,
   entryDataState = 'ready',
   onRetryEntryData,
-}: ShowManagementShellProps) {
+  canManageShow,
+}: AuthorizedShowManagementShellProps) {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [searchParams, setSearchParams] = useSearchParams();
   const updateShowLocally = useShowStore(s => s.updateShow);
   // Read from the ROUTER's params, not `window.location`: this shell is mounted
   // by the router, and an in-app navigation that never touches `window.location`
-  // (the header Actions "Show settings" link) must be seen the same way a cold
-  // load is. Captured in a `useState` INITIALIZER, which runs once on the first
-  // render -- the effect below strips both params straight after, and reading
-  // them during a later render would come back null and snap the panel back to
-  // Basic Info while the secretary was looking at Judges (F4/F12).
+  // must be seen the same way a cold load is. Captured in a `useState`
+  // INITIALIZER, which runs once on the first render -- the effect below strips
+  // both params straight after, and reading them during a later render would
+  // come back null and snap the panel back to Basic Info while the secretary
+  // was looking at Judges (F4/F12).
   const [showEditPanel, setShowEditPanel] = useState(() => searchParams.get('edit') === 'true');
   const [editPanelTab] = useState<ShowEditTab>(() =>
     normalizeShowEditTab(searchParams.get(SHOW_EDIT_TAB_PARAM))
@@ -139,8 +189,8 @@ export function ShowManagementShell({
   const editParam = searchParams.get('edit');
   useEffect(() => {
     // Strip both so a refresh or a shared URL does not reopen the editor. Keyed
-    // on `editParam` rather than mount, because the header Actions "Show
-    // settings" link puts it back on a page that is already mounted.
+    // on `editParam` rather than mount, because an in-app edit link can put it
+    // back on a page that is already mounted.
     const hadEdit = searchParams.get('edit') === 'true';
     const hadTab = searchParams.get(SHOW_EDIT_TAB_PARAM) !== null;
     if (hadEdit || hadTab) {
@@ -148,10 +198,11 @@ export function ShowManagementShell({
       searchParams.delete(SHOW_EDIT_TAB_PARAM);
       setSearchParams(searchParams, { replace: true });
     }
-  }, [editParam]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [editParam]);
 
-  // Reopening from the menu should start on Basic Info, not on whatever tab a deep link
-  // once asked for -- the deep link is a one-shot instruction, not a preference.
+  // Reopening from an edit link should start on Basic Info, not on whatever tab
+  // a deep link once asked for -- the deep link is a one-shot instruction, not
+  // a preference.
   const [editPanelOpenedByLink, setEditPanelOpenedByLink] = useState(
     () => searchParams.get('edit') === 'true'
   );
@@ -160,12 +211,11 @@ export function ShowManagementShell({
     setShowEditPanel(true);
   };
 
-  // The header Actions menu's "Show settings" is a LINK to `?edit=true` on the
-  // page the secretary is already standing on, so React Router replaces the
-  // search without remounting this shell and the initializer above can never
-  // see it. This is React's "adjust state when an input changes" pattern,
-  // during render on purpose: the same thing in an effect costs a second render
-  // pass with the panel shut and trips the cascading-renders lint.
+  // An in-app edit link can replace the search without remounting this shell,
+  // so the initializer above can never see a newly-arrived `edit=true`. This
+  // is React's "adjust state when an input changes" pattern, during render on
+  // purpose: the same thing in an effect costs a second render pass with the
+  // panel shut and trips the cascading-renders lint.
   const [seenEditParam, setSeenEditParam] = useState(editParam);
   if (editParam !== seenEditParam) {
     setSeenEditParam(editParam);
@@ -202,6 +252,7 @@ export function ShowManagementShell({
             show={show}
             canonicalShowHref={canonicalShowHref}
             armbandCount={armbandCount}
+            canManageShow={canManageShow}
           />
         ) : (
           <>
@@ -234,10 +285,11 @@ export function ShowManagementShell({
                   </span>
                 </>
               }
+              primaryAction={{ label: 'Edit', onClick: openEditPanel }}
               footer={
                 <QuickInfoCards
                   show={show}
-                  canManageShow={true}
+                  canManageShow={canManageShow}
                   entryCount={entryDataUnavailable ? null : catalogEntryCount}
                 />
               }
@@ -285,7 +337,11 @@ export function ShowManagementShell({
             // (MYK9-630 round 5). Scrolling still works; the ring never did.
             className="mt-4 grid scroll-mt-20 grid-cols-1 gap-3 rounded-md sm:grid-cols-2"
           >
-            <PremiumDownloadCard showId={show.id} showStaleBadge={true} />
+            <PremiumDownloadCard
+              showId={show.id}
+              showStaleBadge={true}
+              canManageShow={canManageShow}
+            />
             <LandingPageCard showId={show.id} showStyle={getShowStyle(show)} />
           </div>
         )}
@@ -309,7 +365,7 @@ export function ShowManagementShell({
                 <ShowOverviewTab
                   show={show}
                   isAuthenticated={true}
-                  canManageShow={true}
+                  canManageShow={canManageShow}
                   judges={tabs.judges}
                   classes={tabs.classes}
                   onViewClasses={() => navigate(`${canonicalShowHref}/setup?section=classes`)}
@@ -349,7 +405,7 @@ export function ShowManagementShell({
             );
 
             if (publishableShowData.publishExperience && publishableShowData.generatedPremium) {
-              await publishExperience({
+              await publishGeneratedPremiumAttempt({
                 showId: id,
                 premium: applyShowFormDataToPremium(
                   publishableShowData.generatedPremium,

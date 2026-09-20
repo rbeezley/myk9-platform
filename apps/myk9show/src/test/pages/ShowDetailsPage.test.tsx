@@ -7,6 +7,8 @@ import ShowDetailsPage from '@/pages/ShowDetailsPage';
 import { ShowWorkbenchSetupPage } from '@/pages/secretary/ShowWorkbenchSetupPage';
 
 const publishExperienceMock = vi.hoisted(() => vi.fn());
+const publishGeneratedPremiumAttemptMock = vi.hoisted(() => vi.fn());
+const beginPremiumPublishAttemptMock = vi.hoisted(() => vi.fn(async () => 1));
 const updateShowLocallyMock = vi.hoisted(() => vi.fn());
 const notificationsSuccessMock = vi.hoisted(() => vi.fn());
 const getEntriesForShowMock = vi.hoisted(() => vi.fn());
@@ -40,7 +42,10 @@ const mockAuthContext = {
   } as Record<string, unknown> | null,
   isSecretary: false,
   isAdmin: false,
-  hasRole: vi.fn(() => false),
+  hasRole: vi.fn((...roles: unknown[]) => {
+    void roles;
+    return false;
+  }),
   hasPermission: vi.fn(() => false),
   checkPermissionAsync: vi.fn().mockResolvedValue(false),
   refreshPermissions: vi.fn().mockResolvedValue(undefined),
@@ -54,6 +59,21 @@ const mockAuthContext = {
 };
 vi.mock('@/hooks/useAuthContext', () => ({
   useAuthContext: () => mockAuthContext,
+}));
+
+vi.mock('@/hooks/useShowManageScope', () => ({
+  useShowManageScope: () => {
+    const rolesCold = mockAuthContext.rbacLoading && !mockAuthContext.userWithRoles;
+    const isClubAdmin = mockAuthContext.hasRole('club_admin');
+    const canManage = mockAuthContext.isSecretary || mockAuthContext.isAdmin || isClubAdmin;
+    return {
+      status: rolesCold ? 'resolving' : 'resolved',
+      canManage,
+      canOperate: canManage && (mockAuthContext.isSecretary || mockAuthContext.isAdmin),
+      hasOperationalStaffRole: mockAuthContext.isSecretary || mockAuthContext.isAdmin,
+      clubId: canManage ? 'club-1' : undefined,
+    };
+  },
 }));
 
 // Mock show query
@@ -128,6 +148,12 @@ vi.mock('@/hooks/useDogStoreCompat', () => ({
 // Mock shows query
 vi.mock('@/hooks/queries/useShowsDatabase', () => ({
   useShowsQuery: () => ({ data: mockShow ? [mockShow] : [] }),
+  useShowQuery: () => ({
+    data: undefined,
+    isLoading: false,
+    isPlaceholderData: false,
+    isError: false,
+  }),
   useUpdateShowMutation: () => ({ mutateAsync: vi.fn(), isPending: false }),
   showQueryKeys: {
     detail: (showId: string) => ['shows', 'detail', showId],
@@ -136,8 +162,13 @@ vi.mock('@/hooks/queries/useShowsDatabase', () => ({
 }));
 
 vi.mock('@/store/showStore', () => ({
-  useShowStore: (selector: (s: Record<string, unknown>) => unknown) =>
-    selector({ updateShow: updateShowLocallyMock }),
+  useShowStore: (selector?: (s: Record<string, unknown>) => unknown) => {
+    const state = {
+      shows: mockShow ? [mockShow] : [],
+      updateShow: updateShowLocallyMock,
+    };
+    return selector ? selector(state) : state;
+  },
 }));
 
 vi.mock('@/services/database/judges', () => ({
@@ -146,6 +177,10 @@ vi.mock('@/services/database/judges', () => ({
 
 vi.mock('@/features/experience/publishExperience', () => ({
   publishExperience: (args: unknown) => publishExperienceMock(args),
+}));
+vi.mock('@/features/premium/premiumPublishCoordinator', () => ({
+  beginPremiumPublishAttempt: beginPremiumPublishAttemptMock,
+  publishGeneratedPremiumAttempt: (args: unknown) => publishGeneratedPremiumAttemptMock(args),
 }));
 vi.mock('@/lib/notifications', () => ({
   notifications: {
@@ -407,6 +442,8 @@ describe('ShowDetailsPage', () => {
     mockAuthContext.isAdmin = false;
     mockAuthContext.hasRole.mockReturnValue(false);
     publishExperienceMock.mockReset();
+    publishGeneratedPremiumAttemptMock.mockReset();
+    beginPremiumPublishAttemptMock.mockClear();
     updateShowLocallyMock.mockReset();
     notificationsSuccessMock.mockReset();
     updateShowLocallyMock.mockImplementation(
@@ -1055,7 +1092,7 @@ describe('ShowDetailsPage', () => {
       'show-1',
       expect.objectContaining({ name: 'Bluegrass Classic Renamed', style: 'heritage' })
     );
-    expect(publishExperienceMock).toHaveBeenCalledWith(
+    expect(publishGeneratedPremiumAttemptMock).toHaveBeenCalledWith(
       expect.objectContaining({
         showId: 'show-1',
         inkSaver: false,

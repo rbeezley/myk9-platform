@@ -2,7 +2,7 @@
 
 - [x] 1.1 Reuse the existing premium style selection capability from the show Preview experience without duplicating the editor.
 - [x] 1.2 Support current/pending indication, live preview, Save, Cancel, entitlement filtering, and understandable save errors.
-- [x] 1.3 Route Save through `public.update_show_style(uuid, text)` with authenticated tenant and Premium authorization, preserving draft-versus-published behavior. (Implemented; live SQL behavioral execution remains unavailable without a local/CI Postgres runtime.)
+- [ ] 1.3 Route Save through `public.update_show_style(uuid, text)` with authenticated tenant and Premium authorization, preserving draft-versus-published behavior. (Implementation exists; live SQL behavioral verification remains pending because no local/CI Postgres runtime was available.)
 - [x] 1.4 Implement the style-only offline mutation without fabricating cold rows; patch every returned cache field and scope pending/error state to the show.
 
 ## 2. Testing

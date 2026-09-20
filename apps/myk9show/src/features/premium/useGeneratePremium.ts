@@ -1,6 +1,7 @@
 import { useMutation } from '@tanstack/react-query';
 import { supabase } from '../../services/database/supabaseClient';
 import type { GeneratedPremium } from '../../types/premium-types';
+import { classifyPremiumPublishError } from './premiumPublishErrors';
 
 const GENERATION_FAILURE_MESSAGE = "We couldn't generate the premium list. Please try again.";
 
@@ -18,8 +19,12 @@ export function useGeneratePremium(): UseGeneratePremiumResult {
         body: { show_id: showId },
       });
       if (fnError) {
-        console.error('[premium-generation] request failed', { showId });
-        throw new Error(GENERATION_FAILURE_MESSAGE);
+        console.error('[premium-generation] request failed', { showId, error: fnError });
+        const classified = classifyPremiumPublishError(fnError, 'generation');
+        if (classified.code === 'unknown') {
+          throw new Error(GENERATION_FAILURE_MESSAGE);
+        }
+        throw classified;
       }
       return data as GeneratedPremium;
     },

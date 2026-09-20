@@ -2,6 +2,7 @@ import { publishPremium } from '@/features/premium/publishPremium';
 import { supabase } from '@/services/database/supabaseClient';
 import type { GeneratedPremium } from '@/types/premium-types';
 import { buildExperienceSnapshot } from './experienceSnapshot';
+import { classifyPremiumPublishError } from '@/features/premium/premiumPublishErrors';
 
 export async function publishExperience({
   showId,
@@ -29,7 +30,10 @@ export async function publishExperience({
     } as unknown as Record<string, never>)
     .eq('id', showId);
 
-  if (error) throw error;
+  if (error) {
+    console.error('[premium-publish] experience snapshot update failed', { showId, error });
+    throw classifyPremiumPublishError(error, 'experience-snapshot');
+  }
 
   return { publishedAt: premiumResult.publishedAt, premiumUrl: premiumResult.url };
 }

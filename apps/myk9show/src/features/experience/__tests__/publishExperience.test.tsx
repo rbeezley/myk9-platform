@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import { publishExperience } from '../publishExperience';
+import { PremiumPublishError } from '../../premium/premiumPublishErrors';
 
 vi.mock('@/features/premium/publishPremium', () => ({
   publishPremium: vi.fn(async () => ({
@@ -9,7 +10,7 @@ vi.mock('@/features/premium/publishPremium', () => ({
 }));
 
 const update = vi.fn(() => ({
-  eq: vi.fn(async () => ({ error: null })),
+  eq: vi.fn(async () => ({ error: null as Error | null })),
 }));
 
 vi.mock('@/services/database/supabaseClient', () => ({
@@ -69,5 +70,47 @@ describe('publishExperience', () => {
         }),
       })
     );
+  });
+
+  it('marks the snapshot write as partial progress so retry can reuse the generated premium', async () => {
+    const eq = vi.fn(async () => ({ error: new Error('snapshot write failed') }));
+    update.mockReturnValueOnce({ eq });
+
+    await expect(
+      publishExperience({
+        showId: 'show-1',
+        premium: {
+          org: 'AKC',
+          style: 'heritage',
+          templateId: null,
+          show: {
+            name: 'Bluegrass Classic',
+            startDate: '2026-05-01',
+            endDate: '2026-05-02',
+            venue: 'Louisville',
+            entryOpenDate: null,
+            entryCloseDate: null,
+            preEntryFee: 25,
+            dayOfFee: 30,
+            acceptChecks: false,
+            acceptCash: false,
+          },
+          club: { name: 'Bluegrass KC', logoUrl: null },
+          secretary: { name: null, email: null, phone: null, mailingAddress: null },
+          officials: { chairman: null },
+          trials: [],
+          supplemental: {
+          vetClinic: null,
+          accommodations: [],
+          coverImageUrl: null,
+          hospitalityNotes: null,
+            awardsDescription: null,
+            additionalNotes: null,
+          },
+          narratives: { showHours: 'Hours', trialInformation: 'Info' },
+        },
+        inkSaver: false,
+      })
+    ).rejects.toMatchObject<Partial<PremiumPublishError>>({ stage: 'experience-snapshot' });
   });
 });

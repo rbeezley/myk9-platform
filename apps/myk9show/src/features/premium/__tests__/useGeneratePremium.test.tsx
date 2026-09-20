@@ -49,9 +49,10 @@ describe('useGeneratePremium', () => {
     await waitFor(() => {
       expect(result.current.error).toBe("We couldn't generate the premium list. Please try again.");
     });
-    expect(consoleErrorMock).toHaveBeenCalledWith('[premium-generation] request failed', {
-      showId: 'show-1',
-    });
+    expect(consoleErrorMock).toHaveBeenCalledWith(
+      '[premium-generation] request failed',
+      expect.objectContaining({ showId: 'show-1', error: expect.anything() })
+    );
     expect(consoleErrorMock).not.toHaveBeenCalledWith(
       '[premium-generation] request failed',
       expect.objectContaining({ context: expect.anything() })

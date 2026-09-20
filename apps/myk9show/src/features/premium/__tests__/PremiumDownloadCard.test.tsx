@@ -52,7 +52,7 @@ describe('PremiumDownloadCard', () => {
     // The publish flow's in-flight/failed state is a module-scope store now
     // (two triggers in two subtrees share it), so it has to be reset like any
     // other global between tests.
-    usePremiumPublishStore.setState({ byShowId: {} });
+    usePremiumPublishStore.setState({ byShowId: {}, generatedByShowId: {} });
     maybeSingleMock.mockReset();
     generateMock.mockReset();
     publishExperienceMock.mockReset();
@@ -247,7 +247,7 @@ describe('PremiumDownloadCard', () => {
     await user.click(await screen.findByRole('button', { name: /generate & publish premium/i }));
 
     expect(await screen.findByRole('alert')).toHaveTextContent(
-      /we couldn't publish the premium list\. please try again\./i
+      /you do not have permission to publish this show's premium list/i
     );
     expect(screen.getByRole('button', { name: /try again/i })).toBeInTheDocument();
     expect(
@@ -260,6 +260,27 @@ describe('PremiumDownloadCard', () => {
       expect(generateMock).toHaveBeenCalledTimes(2);
       expect(screen.queryByRole('alert')).not.toBeInTheDocument();
     });
+  });
+
+  it('shows specific guidance when the show organization is missing', async () => {
+    maybeSingleMock.mockResolvedValue({
+      data: {
+        published_premium_url: null,
+        published_premium_at: null,
+        updated_at: '2026-05-09T12:00:00.000Z',
+      },
+      error: null,
+    });
+    generateMock.mockRejectedValueOnce(
+      new Error('Premium generation is only supported for AKC and UKC shows (got: null)')
+    );
+
+    const { user } = renderCard();
+    await user.click(await screen.findByRole('button', { name: /generate & publish premium/i }));
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      /set this show's organization to akc or ukc in show settings/i
+    );
   });
 
   it('shows a secretary-friendly retry when publishing the experience fails and recovers', async () => {

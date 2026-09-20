@@ -3,6 +3,7 @@ import { supabase } from '@/services/database/supabaseClient';
 import { AKCPremiumTemplate } from './pdf/AKCPremiumTemplate';
 import { UKCPremiumTemplate } from './pdf/UKCPremiumTemplate';
 import type { GeneratedPremium } from '@/types/premium-types';
+import { classifyPremiumPublishError } from './premiumPublishErrors';
 
 const BUCKET = 'premium-published';
 
@@ -40,7 +41,7 @@ export async function publishPremium(
       inkSaver,
       error: err instanceof Error ? err.message : String(err),
     });
-    throw err;
+    throw classifyPremiumPublishError(err, 'pdf-render');
   }
 
   const path = `${showId}.pdf`;
@@ -49,7 +50,10 @@ export async function publishPremium(
     upsert: true,
     cacheControl: '3600',
   });
-  if (uploadError) throw uploadError;
+  if (uploadError) {
+    console.error('[premium-publish] PDF upload failed', { showId, path, error: uploadError });
+    throw classifyPremiumPublishError(uploadError, 'pdf-upload');
+  }
 
   const { data: urlData } = supabase.storage.from(BUCKET).getPublicUrl(path);
   const url = urlData.publicUrl;
@@ -64,7 +68,13 @@ export async function publishPremium(
       published_premium_at: publishedAt,
     } as unknown as Record<string, never>)
     .eq('id', showId);
-  if (updateError) throw updateError;
+  if (updateError) {
+    console.error('[premium-publish] premium metadata update failed', {
+      showId,
+      error: updateError,
+    });
+    throw classifyPremiumPublishError(updateError, 'premium-metadata');
+  }
 
   return { url, publishedAt };
 }

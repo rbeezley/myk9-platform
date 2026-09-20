@@ -129,8 +129,38 @@ describe('publishPremium', () => {
 
   it('does not update DB columns when upload fails', async () => {
     uploadMock.mockResolvedValueOnce({ error: { message: 'upload boom' } });
-    await expect(publishPremium('show-1', basePremium)).rejects.toBeTruthy();
+    await expect(publishPremium('show-1', basePremium)).rejects.toMatchObject({
+      stage: 'pdf-upload',
+    });
     expect(updateMock).not.toHaveBeenCalled();
+  });
+
+  it('uses one stable show PDF path so retry replaces partial progress', async () => {
+    await publishPremium('show-1', basePremium);
+    await publishPremium('show-1', basePremium);
+
+    expect(uploadMock).toHaveBeenNthCalledWith(
+      1,
+      'show-1.pdf',
+      expect.any(Blob),
+      expect.objectContaining({ upsert: true, contentType: 'application/pdf' })
+    );
+    expect(uploadMock).toHaveBeenNthCalledWith(
+      2,
+      'show-1.pdf',
+      expect.any(Blob),
+      expect.objectContaining({ upsert: true, contentType: 'application/pdf' })
+    );
+  });
+
+  it('classifies a failed metadata write after upload', async () => {
+    updateEqMock.mockResolvedValueOnce({ error: new Error('metadata write failed') });
+
+    await expect(publishPremium('show-1', basePremium)).rejects.toMatchObject({
+      stage: 'premium-metadata',
+    });
+    expect(uploadMock).toHaveBeenCalledTimes(1);
+    expect(updateMock).toHaveBeenCalledTimes(1);
   });
 
   it('updates DB columns only after a successful render+upload', async () => {

@@ -5,20 +5,31 @@ import { publishExperience } from '@/features/experience/publishExperience';
 import { notifications } from '@/lib/notifications';
 import { publishInfoQueryKey } from './usePublishInfo';
 import { useGeneratePremium } from './useGeneratePremium';
+import {
+  classifyPremiumPublishError,
+  GENERIC_PREMIUM_PUBLISH_FAILURE,
+  premiumPublishFailureMessage,
+} from './premiumPublishErrors';
+import type { GeneratedPremium } from '@/types/premium-types';
 
-const PUBLISH_FAILURE_MESSAGE = "We couldn't publish the premium list. Please try again.";
+const PUBLISH_FAILURE_MESSAGE = GENERIC_PREMIUM_PUBLISH_FAILURE;
 
 export interface PremiumPublishShowState {
   inFlight: boolean;
   failed: boolean;
+  failureMessage?: string;
 }
 
 interface PremiumPublishStore {
   /** Per SHOW. A secretary can hold two shows open in two tabs of one app. */
   byShowId: Record<string, PremiumPublishShowState>;
+  /** Keep a successfully-generated premium for a snapshot-only retry. */
+  generatedByShowId: Record<string, GeneratedPremium | undefined>;
   begin: (showId: string) => void;
   succeed: (showId: string) => void;
-  fail: (showId: string) => void;
+  fail: (showId: string, failureMessage: string) => void;
+  rememberGenerated: (showId: string, premium: GeneratedPremium) => void;
+  forgetGenerated: (showId: string) => void;
 }
 
 const IDLE: PremiumPublishShowState = { inFlight: false, failed: false };
@@ -44,9 +55,21 @@ function patch(
  */
 export const usePremiumPublishStore = create<PremiumPublishStore>()(set => ({
   byShowId: {},
+  generatedByShowId: {},
   begin: showId => set(state => patch(state, showId, { inFlight: true, failed: false })),
-  succeed: showId => set(state => patch(state, showId, IDLE)),
-  fail: showId => set(state => patch(state, showId, { inFlight: false, failed: true })),
+  succeed: showId =>
+    set(state => ({
+      ...patch(state, showId, IDLE),
+      generatedByShowId: { ...state.generatedByShowId, [showId]: undefined },
+    })),
+  fail: (showId, failureMessage) =>
+    set(state =>
+      patch(state, showId, { inFlight: false, failed: true, failureMessage })
+    ),
+  rememberGenerated: (showId, premium) =>
+    set(state => ({ generatedByShowId: { ...state.generatedByShowId, [showId]: premium } })),
+  forgetGenerated: showId =>
+    set(state => ({ generatedByShowId: { ...state.generatedByShowId, [showId]: undefined } })),
 }));
 
 export function premiumPublishStateFor(
@@ -81,6 +104,8 @@ export function useGenerateAndPublishPremium(showId: string): GenerateAndPublish
   const begin = usePremiumPublishStore(state => state.begin);
   const succeed = usePremiumPublishStore(state => state.succeed);
   const fail = usePremiumPublishStore(state => state.fail);
+  const rememberGenerated = usePremiumPublishStore(state => state.rememberGenerated);
+  const forgetGenerated = usePremiumPublishStore(state => state.forgetGenerated);
   const showState = premiumPublishStateFor(byShowId, showId);
 
   const run = useCallback(async () => {
@@ -94,7 +119,9 @@ export function useGenerateAndPublishPremium(showId: string): GenerateAndPublish
     }
     begin(showId);
     try {
-      const premium = await generate(showId);
+      const cachedPremium = usePremiumPublishStore.getState().generatedByShowId[showId];
+      const premium = cachedPremium ?? (await generate(showId));
+      rememberGenerated(showId, premium);
       await publishExperience({ showId, premium, inkSaver: false });
       await Promise.all([
         queryClient.refetchQueries({ queryKey: publishInfoQueryKey(showId), type: 'active' }),
@@ -108,16 +135,21 @@ export function useGenerateAndPublishPremium(showId: string): GenerateAndPublish
       ]);
       succeed(showId);
       notifications.success('Premium list published');
-    } catch {
-      fail(showId);
+    } catch (error) {
+      const classified = classifyPremiumPublishError(error, 'generation');
+      // Snapshot failure occurs after the stable PDF upload and premium row
+      // update. Reusing this generated payload lets retry converge without a
+      // second model call; every earlier stage must generate fresh data.
+      if (classified.stage !== 'experience-snapshot') forgetGenerated(showId);
+      fail(showId, premiumPublishFailureMessage(classified));
       notifications.error('Could not publish the premium list');
     }
-  }, [showId, begin, succeed, fail, generate, queryClient]);
+  }, [showId, begin, succeed, fail, rememberGenerated, forgetGenerated, generate, queryClient]);
 
   return {
     run,
     isBusy: showState.inFlight,
     publishFailed: showState.failed,
-    failureMessage: PUBLISH_FAILURE_MESSAGE,
+    failureMessage: showState.failureMessage ?? PUBLISH_FAILURE_MESSAGE,
   };
 }

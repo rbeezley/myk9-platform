@@ -66,6 +66,7 @@ TEST_FILES=(
   "$TEST_DIR/move_up_supersession_test.sql"
   "$TEST_DIR/entry_views_soft_delete_test.sql"
   "$TEST_DIR/image_storage_upsert_rls_test.sql"
+  "$TEST_DIR/myk9_694_premium_published_rls_test.sql"
   "$TEST_DIR/myk9_114_entry_access_context_test.sql"
   "$TEST_DIR/myk9_126_class_result_visibility_parity_test.sql"
   "$TEST_DIR/myk9_169_role_boundaries_test.sql"

@@ -44,8 +44,8 @@ function renderPreview(overrides: Partial<React.ComponentProps<typeof ShowPublic
       landingTrials={[makeTrial('trial-1')]}
       hasEntryClassInventory={null}
       entryNotYetOpen={false}
-      canManageShow
-      onSaveStyle={vi.fn().mockResolvedValue(undefined)}
+      styleMode="manager-draft-preview"
+      onSaveDraftStyle={vi.fn().mockResolvedValue(undefined)}
       {...overrides}
     />,
     { initialRoute: '/shows/show-1?preview=public' }
@@ -68,39 +68,39 @@ describe('ShowPublicLanding style preview', () => {
 
   it('previews a selected entitled style before save and persists the exact style value', async () => {
     entitlement.canAuthorizePremium = true;
-    const onSaveStyle = vi.fn().mockResolvedValue(undefined);
-    const user = renderPreview({ onSaveStyle }).user;
+    const onSaveDraftStyle = vi.fn().mockResolvedValue(undefined);
+    const user = renderPreview({ onSaveDraftStyle }).user;
 
     await user.click(screen.getByRole('radio', { name: 'Heritage' }));
 
     expect(screen.getByText('Pending: Heritage')).toBeInTheDocument();
     expect(screen.getByTestId('heritage-landing')).toHaveTextContent('heritage');
-    expect(onSaveStyle).not.toHaveBeenCalled();
+    expect(onSaveDraftStyle).not.toHaveBeenCalled();
 
     await user.click(screen.getByRole('button', { name: 'Save style' }));
 
-    await waitFor(() => expect(onSaveStyle).toHaveBeenCalledWith('heritage'));
+    await waitFor(() => expect(onSaveDraftStyle).toHaveBeenCalledWith('heritage'));
     expect(screen.getByText('Current: Heritage')).toBeInTheDocument();
     expect(screen.queryByText('Pending: Heritage')).not.toBeInTheDocument();
   });
 
   it('cancels a pending style without changing the preview or persistence', async () => {
     entitlement.canAuthorizePremium = true;
-    const onSaveStyle = vi.fn().mockResolvedValue(undefined);
-    const user = renderPreview({ onSaveStyle }).user;
+    const onSaveDraftStyle = vi.fn().mockResolvedValue(undefined);
+    const user = renderPreview({ onSaveDraftStyle }).user;
 
     await user.click(screen.getByRole('radio', { name: 'Heritage' }));
     await user.click(screen.getByRole('button', { name: 'Cancel style' }));
 
     expect(screen.getByText('Current: Monogram')).toBeInTheDocument();
     expect(screen.getByTestId('monogram-landing')).toHaveTextContent('monogram');
-    expect(onSaveStyle).not.toHaveBeenCalled();
+    expect(onSaveDraftStyle).not.toHaveBeenCalled();
   });
 
   it('keeps the persisted style active and explains a save error', async () => {
     entitlement.canAuthorizePremium = true;
-    const onSaveStyle = vi.fn().mockRejectedValue(new Error('offline queue unavailable'));
-    const user = renderPreview({ onSaveStyle }).user;
+    const onSaveDraftStyle = vi.fn().mockRejectedValue(new Error('offline queue unavailable'));
+    const user = renderPreview({ onSaveDraftStyle }).user;
 
     await user.click(screen.getByRole('radio', { name: 'Heritage' }));
     await user.click(screen.getByRole('button', { name: 'Save style' }));
@@ -123,13 +123,14 @@ describe('ShowPublicLanding style preview', () => {
       }),
     });
 
-    expect(screen.getByText('Current: Poster')).toBeInTheDocument();
+    expect(screen.getByText('Draft: Poster')).toBeInTheDocument();
+    expect(screen.getByText('Published: Heritage')).toBeInTheDocument();
   });
 
   it('rechecks Premium authorization when saving a pending premium style', async () => {
     entitlement.canAuthorizePremium = true;
-    const onSaveStyle = vi.fn().mockResolvedValue(undefined);
-    const view = renderPreview({ onSaveStyle });
+    const onSaveDraftStyle = vi.fn().mockResolvedValue(undefined);
+    const view = renderPreview({ onSaveDraftStyle });
     const user = view.user;
 
     await user.click(screen.getByRole('radio', { name: 'Heritage' }));
@@ -140,13 +141,13 @@ describe('ShowPublicLanding style preview', () => {
         landingTrials={[makeTrial('trial-1')]}
         hasEntryClassInventory={null}
         entryNotYetOpen={false}
-        canManageShow
-        onSaveStyle={onSaveStyle}
+        styleMode="manager-draft-preview"
+        onSaveDraftStyle={onSaveDraftStyle}
       />
     );
     await user.click(screen.getByRole('button', { name: 'Save style' }));
 
-    expect(onSaveStyle).not.toHaveBeenCalled();
+    expect(onSaveDraftStyle).not.toHaveBeenCalled();
     expect(await screen.findByRole('alert')).toHaveTextContent(
       'Premium access is no longer available'
     );
@@ -156,13 +157,13 @@ describe('ShowPublicLanding style preview', () => {
   it('disables style selection while a save is in flight', async () => {
     entitlement.canAuthorizePremium = true;
     let resolveSave!: () => void;
-    const onSaveStyle = vi.fn(
+    const onSaveDraftStyle = vi.fn(
       () =>
         new Promise<void>(resolve => {
           resolveSave = resolve;
         })
     );
-    const user = renderPreview({ onSaveStyle }).user;
+    const user = renderPreview({ onSaveDraftStyle }).user;
 
     await user.click(screen.getByRole('radio', { name: 'Heritage' }));
     await user.click(screen.getByRole('button', { name: 'Save style' }));

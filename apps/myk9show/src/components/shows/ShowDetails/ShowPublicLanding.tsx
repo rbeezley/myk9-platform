@@ -31,9 +31,10 @@ export interface ShowPublicLandingProps {
   /** True when a cached show is being shown because the refresh failed. */
   refreshFailed?: boolean | undefined;
   onRetry?: (() => void) | undefined;
-  /** Staff-only controls for choosing the style while viewing public preview. */
-  canManageShow?: boolean;
-  onSaveStyle?: (style: ShowStyle) => Promise<void>;
+  /** Which persisted experience should drive this landing. */
+  styleMode?: 'public' | 'manager-draft-preview';
+  /** Persists the manager's draft style; published style is unchanged here. */
+  onSaveDraftStyle?: (style: ShowStyle) => Promise<void>;
 }
 
 /**
@@ -52,36 +53,41 @@ export function ShowPublicLanding({
   entryNotYetOpen,
   refreshFailed,
   onRetry,
-  canManageShow = false,
-  onSaveStyle,
+  styleMode = 'public',
+  onSaveDraftStyle,
 }: ShowPublicLandingProps) {
-  // When an experience is published, its published style wins over the show's
-  // current (possibly draft) style for public visitors.
+  const draftStyle = getShowStyle(show);
+  const publishedStyle =
+    show.experienceIsPublished && show.experiencePublishedStyle
+      ? getShowStyle({ style: show.experiencePublishedStyle })
+      : null;
+  const isManagerDraftPreview = styleMode === 'manager-draft-preview';
+
+  // Public visitors render the last published experience. Managers in Preview
+  // intentionally render the current draft instead; changing the draft must
+  // not make the public URL look ahead of its published snapshot.
   const publicLandingShow = useMemo(
-    () =>
-      show.experienceIsPublished && show.experiencePublishedStyle
-        ? { ...show, style: show.experiencePublishedStyle }
-        : show,
-    [show]
+    () => ({ ...show, style: publishedStyle ?? draftStyle }),
+    [draftStyle, publishedStyle, show]
   );
-  const styleEditorEnabled = canManageShow && onSaveStyle !== undefined;
-  // Managers edit the draft `shows.style`; everyone else sees the published
-  // experience style when one exists.
-  const persistedStyle = styleEditorEnabled ? getShowStyle(show) : getShowStyle(publicLandingShow);
-  const [committedStyle, setCommittedStyle] = useState<ShowStyle>(persistedStyle);
+  const persistedPreviewStyle = isManagerDraftPreview ? draftStyle : (publishedStyle ?? draftStyle);
+  const styleEditorEnabled = isManagerDraftPreview && onSaveDraftStyle !== undefined;
+  const [committedStyle, setCommittedStyle] = useState<ShowStyle>(persistedPreviewStyle);
   const [pendingStyle, setPendingStyle] = useState<ShowStyle | null>(null);
   const [saveError, setSaveError] = useState(false);
   const [entitlementError, setEntitlementError] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
 
   useEffect(() => {
-    setCommittedStyle(persistedStyle);
+    setCommittedStyle(persistedPreviewStyle);
     setPendingStyle(null);
     setSaveError(false);
     setEntitlementError(false);
-  }, [persistedStyle, show.id, styleEditorEnabled]);
+  }, [persistedPreviewStyle, show.id, styleEditorEnabled]);
 
-  const previewStyle = styleEditorEnabled ? (pendingStyle ?? committedStyle) : persistedStyle;
+  const previewStyle = styleEditorEnabled
+    ? (pendingStyle ?? committedStyle)
+    : persistedPreviewStyle;
   const previewLandingShow = useMemo(
     () => ({ ...publicLandingShow, style: previewStyle }),
     [previewStyle, publicLandingShow]
@@ -128,12 +134,12 @@ export function ShowPublicLanding({
   const StyledLanding = STYLED_LANDING_BY_STYLE[publicShowStyle];
 
   const handleSaveStyle = async (style: ShowStyle) => {
-    if (!onSaveStyle || isSaving) return;
+    if (!onSaveDraftStyle || isSaving) return;
     setIsSaving(true);
     setSaveError(false);
     setEntitlementError(false);
     try {
-      await onSaveStyle(style);
+      await onSaveDraftStyle(style);
       setCommittedStyle(style);
       setPendingStyle(null);
     } catch {
@@ -149,6 +155,7 @@ export function ShowPublicLanding({
       {styleEditorEnabled && (
         <PremiumStylePreviewControls
           committedStyle={committedStyle}
+          publishedStyle={publishedStyle}
           previewStyle={previewStyle}
           pendingStyle={pendingStyle}
           saveError={saveError}
@@ -185,6 +192,7 @@ export function ShowPublicLanding({
 
 interface PremiumStylePreviewControlsProps {
   committedStyle: ShowStyle;
+  publishedStyle: ShowStyle | null;
   previewStyle: ShowStyle;
   pendingStyle: ShowStyle | null;
   saveError: boolean;
@@ -198,6 +206,7 @@ interface PremiumStylePreviewControlsProps {
 
 function PremiumStylePreviewControls({
   committedStyle,
+  publishedStyle,
   previewStyle,
   pendingStyle,
   saveError,
@@ -230,7 +239,12 @@ function PremiumStylePreviewControls({
           <p className="text-sm text-muted-foreground">Choose how exhibitors will see this show.</p>
         </div>
         <div className="text-sm text-muted-foreground">
-          <span>Current: {PREMIUM_STYLE_LABELS[committedStyle]}</span>
+          <span>
+            {publishedStyle ? 'Draft' : 'Current'}: {PREMIUM_STYLE_LABELS[committedStyle]}
+          </span>
+          {publishedStyle && (
+            <span className="ml-3">Published: {PREMIUM_STYLE_LABELS[publishedStyle]}</span>
+          )}
           {pendingStyle && (
             <span className="ml-3 font-medium text-foreground">
               Pending: {PREMIUM_STYLE_LABELS[pendingStyle]}

@@ -9,6 +9,7 @@ import { ShowWorkbenchSetupPage } from '@/pages/secretary/ShowWorkbenchSetupPage
 const publishExperienceMock = vi.hoisted(() => vi.fn());
 const updateShowLocallyMock = vi.hoisted(() => vi.fn());
 const updateShowFromPreviewMock = vi.hoisted(() => vi.fn());
+const showStoreState = vi.hoisted(() => ({ shows: [] as Array<Record<string, unknown>> }));
 const notificationsSuccessMock = vi.hoisted(() => vi.fn());
 const getEntriesForShowMock = vi.hoisted(() => vi.fn());
 const getEntriesByShowMock = vi.hoisted(() => vi.fn());
@@ -148,7 +149,7 @@ vi.mock('@/hooks/queries/useShowsDatabase', () => ({
 
 vi.mock('@/store/showStore', () => ({
   useShowStore: (selector: (s: Record<string, unknown>) => unknown) =>
-    selector({ updateShow: updateShowLocallyMock }),
+    selector({ updateShow: updateShowLocallyMock, shows: showStoreState.shows }),
 }));
 
 vi.mock('@/services/database/judges', () => ({
@@ -421,6 +422,7 @@ describe('ShowDetailsPage', () => {
     publishExperienceMock.mockReset();
     updateShowLocallyMock.mockReset();
     updateShowFromPreviewMock.mockReset();
+    showStoreState.shows = [];
     notificationsSuccessMock.mockReset();
     updateShowLocallyMock.mockImplementation(
       async (id: string, updates: Record<string, unknown>) => ({
@@ -1042,6 +1044,32 @@ describe('ShowDetailsPage', () => {
       })
     );
     expect(updateShowLocallyMock).not.toHaveBeenCalledWith('show-1', { style: 'heritage' });
+    expect(queryClient.getQueryData(['shows', 'detail', 'show-1'])).toMatchObject({
+      style: 'heritage',
+    });
+    expect(
+      queryClient.getQueryData<Array<{ id: string; style?: string }>>(['shows', 'list'])
+    ).toEqual([expect.objectContaining({ id: 'show-1', style: 'heritage' })]);
+  });
+
+  it('persists preview style through the replicated show store when the show is warm', async () => {
+    const user = userEvent.setup();
+    mockAuthContext.isSecretary = true;
+    mockShow = { ...mockShow, style: 'monogram' };
+    showStoreState.shows = [mockShow];
+    updateShowLocallyMock.mockResolvedValue({ ...mockShow, style: 'heritage' });
+
+    const { queryClient } = renderPage('show-1', '', '?preview=public');
+    queryClient.setQueryData(['shows', 'detail', 'show-1'], mockShow);
+    queryClient.setQueryData(['shows', 'list'], [mockShow]);
+
+    await user.click(screen.getByRole('radio', { name: 'Heritage' }));
+    await user.click(screen.getByRole('button', { name: 'Save style' }));
+
+    await waitFor(() =>
+      expect(updateShowLocallyMock).toHaveBeenCalledWith('show-1', { style: 'heritage' })
+    );
+    expect(updateShowFromPreviewMock).not.toHaveBeenCalled();
     expect(queryClient.getQueryData(['shows', 'detail', 'show-1'])).toMatchObject({
       style: 'heritage',
     });

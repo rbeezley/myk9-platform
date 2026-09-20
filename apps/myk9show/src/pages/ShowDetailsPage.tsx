@@ -59,6 +59,7 @@ import { useSubmittedEntryProjection } from '@/features/exhibitor-entry/useSubmi
 import { markCurrentUserEntryClasses } from './ShowDetailsPage.publicClasses';
 import { isValidUUID } from '@/utils/validation';
 import type { Show } from '@/types/show-types';
+import { useShowStore } from '@/store/showStore';
 
 /** Loads `/shows/:id` once and delegates to the public, exhibitor, or management surface. */
 const ShowDetailsPage: React.FC = () => {
@@ -73,6 +74,8 @@ const ShowDetailsPage: React.FC = () => {
   const canReadEntryRows = Boolean(user && user.is_anonymous !== true);
   const trials = useTrialStore(s => s.trials);
   const { mutateAsync: updateShowFromPreview } = useUpdateShowMutation();
+  const updateShowLocally = useShowStore(s => s.updateShow);
+  const storeShows = useShowStore(s => s.shows);
   const trialClasses = useTrialStore(s => s.trialClasses);
   const trialClassesReadStatus = useTrialStore(s => s.trialClassesReadStatus);
   const loadTrials = useTrialStore(s => s.loadTrials);
@@ -513,12 +516,17 @@ const ShowDetailsPage: React.FC = () => {
         entryNotYetOpen={entryStatus.status === 'not_yet_open'}
         refreshFailed={refreshFailed}
         onRetry={() => void refetchShow()}
-        canManageShow={canManageShow}
-        onSaveStyle={async style => {
-          const updatedShow = await updateShowFromPreview({
-            id: actualCurrentShow.id,
-            updates: { style },
-          });
+        styleMode={canManageShow ? 'manager-draft-preview' : 'public'}
+        onSaveDraftStyle={async style => {
+          const updatedShow = storeShows.some(item => item.id === actualCurrentShow.id)
+            ? await updateShowLocally(actualCurrentShow.id, { style })
+            : await updateShowFromPreview({
+                id: actualCurrentShow.id,
+                updates: { style },
+              });
+          if (!updatedShow) {
+            throw new Error('Show was not available to save this style.');
+          }
           queryClient.setQueryData(showQueryKeys.detail(actualCurrentShow.id), updatedShow);
           queryClient.setQueryData<Show[]>(showQueryKeys.lists(), current =>
             current

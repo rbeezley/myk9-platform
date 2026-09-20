@@ -14,18 +14,25 @@ import { useShowTodayBanner } from '@/features/show-today/useShowTodayBanner';
 import { useShowStore } from '@/store/showStore';
 import { useMyShows } from '@/hooks/useMyShows';
 import { useAuthContext } from '@/hooks/useAuthContext';
-import { useExhibitorUpcomingShows } from './useExhibitorUpcomingShows';
+import {
+  useExhibitorUpcomingShows,
+  type ExhibitorUpcomingReadState,
+} from './useExhibitorUpcomingShows';
 import {
   resolveRingsideEntry,
   type RingsideShowRef,
   type NamedShowSource,
 } from './ringsideEntryResolver';
 import { hasRingsideAccountShowAccess } from './ringsideAccountAccess';
+import type { PersonIdentityState } from '@/context/authContextTypes';
 
 export interface RingsideEntryShows {
   liveShows: RingsideShowRef[];
   upcomingShows: RingsideShowRef[];
   isLoading: boolean;
+  identityState: PersonIdentityState;
+  hasUsablePersonId: boolean;
+  readState: ExhibitorUpcomingReadState;
 }
 
 export function useRingsideEntryShows(): RingsideEntryShows {
@@ -83,16 +90,21 @@ export function useRingsideEntryShows(): RingsideEntryShows {
     return {
       liveShows: resolved.liveShows.map(enrich),
       upcomingShows: resolved.upcomingShows.map(enrich),
+      identityState: exhibitorUpcomingShows.identityState ?? 'resolved',
+      hasUsablePersonId: exhibitorUpcomingShows.hasUsablePersonId,
+      readState: exhibitorUpcomingShows.readState,
       isLoading:
-        judge.isLoading || banner.isLoading || showsLoading || exhibitorUpcomingShows.isLoading,
+        judge.isLoading || showsLoading || exhibitorUpcomingShows.isLoading,
     };
   }, [
     judge.assignments,
     judge.isLoading,
     banner.items,
-    banner.isLoading,
     exhibitorUpcomingShows.upcomingShows,
     exhibitorUpcomingShows.isLoading,
+    exhibitorUpcomingShows.identityState,
+    exhibitorUpcomingShows.hasUsablePersonId,
+    exhibitorUpcomingShows.readState,
     today,
     upcoming,
     shows,

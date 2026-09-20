@@ -112,6 +112,18 @@ describe('useRingsideEntryShows', () => {
     ]);
   });
 
+  it('does not block a cached exhibitor show on account-today loading', () => {
+    banner.isLoading = true;
+    exhibitorUpcoming.upcomingShows = [{ showId: 'show-1', showName: 'Saved Show' }];
+
+    const { result } = renderHook(() => useRingsideEntryShows());
+
+    expect(result.current.isLoading).toBe(false);
+    expect(result.current.upcomingShows).toEqual([
+      { showId: 'show-1', showName: 'Saved Show', phase: 'upcoming' },
+    ]);
+  });
+
   it('keeps the chooser loading while the exhibitor entry lookup is in flight', () => {
     exhibitorUpcoming.isLoading = true;
 

@@ -21,6 +21,8 @@ const mockHasAnyEntry = vi.hoisted(() => ({
   hasAnyEntryForShow: false,
   isLoading: false,
   isError: false,
+  identityState: 'resolved' as 'resolved' | 'unresolved' | 'missing',
+  hasUsablePersonId: true,
 }));
 
 vi.mock('@/hooks/useAuthContext', () => ({
@@ -67,6 +69,8 @@ describe('AtShowAccessGate', () => {
     mockHasAnyEntry.hasAnyEntryForShow = false;
     mockHasAnyEntry.isLoading = false;
     mockHasAnyEntry.isError = false;
+    mockHasAnyEntry.identityState = 'resolved';
+    mockHasAnyEntry.hasUsablePersonId = true;
     useRingsideGrantStore.getState().clearGrant();
     useRingsideGrantStore.getState().setSuppressRehydration(false);
   });
@@ -84,6 +88,22 @@ describe('AtShowAccessGate', () => {
   it('admits signed-in staff without a passcode grant', () => {
     mockUser = { id: 'user-1' };
     mockRoles = [UserRole.STEWARD];
+    mockAccountToday.isLoading = true;
+    mockHasAnyEntry.isLoading = true;
+    mockHasAnyEntry.identityState = 'unresolved';
+
+    renderGate();
+
+    expect(screen.getByText('AT SHOW CONTENT')).toBeInTheDocument();
+  });
+
+  it('admits a passcode grant even when exhibitor identity is unresolved', () => {
+    mockAccountToday.isLoading = true;
+    mockHasAnyEntry.isLoading = true;
+    mockHasAnyEntry.identityState = 'unresolved';
+    useRingsideGrantStore
+      .getState()
+      .setGrant({ showId: 'show-1', role: 'judge', source: 'passcode' });
 
     renderGate();
 
@@ -94,6 +114,8 @@ describe('AtShowAccessGate', () => {
     mockUser = { id: 'user-1' };
     mockRoles = [UserRole.EXHIBITOR];
     mockAccountToday.hasAccountEntryForShow = true;
+    mockHasAnyEntry.identityState = 'unresolved';
+    mockHasAnyEntry.hasUsablePersonId = true;
 
     renderGate();
 
@@ -116,12 +138,16 @@ describe('AtShowAccessGate', () => {
   it('gives an entered exhibitor visiting before show day exhibitor-voiced guidance, not a passcode prompt', () => {
     mockUser = { id: 'user-1' };
     mockRoles = [UserRole.EXHIBITOR];
+    mockAccountToday.isLoading = true;
     mockHasAnyEntry.hasAnyEntryForShow = true;
+    mockHasAnyEntry.identityState = 'unresolved';
+    mockHasAnyEntry.hasUsablePersonId = true;
 
     renderGate();
 
     expect(screen.getByText("Ringside isn't open for this show yet.")).toBeInTheDocument();
     expect(screen.getByRole('link', { name: /go to my shows/i })).toBeInTheDocument();
+    expect(screen.queryByRole('status', { name: 'Checking ringside access…' })).not.toBeInTheDocument();
     expect(
       screen.queryByText("You don't have ringside access for this show.")
     ).not.toBeInTheDocument();
@@ -143,6 +169,32 @@ describe('AtShowAccessGate', () => {
     // The gate itself never renders a passcode INPUT — only a link into the
     // explicit `?passcode=1` flow, asserted separately below.
     expect(screen.queryByRole('textbox')).not.toBeInTheDocument();
+  });
+
+  it('keeps an exhibitor in a pending identity state instead of showing stranger copy', () => {
+    mockUser = { id: 'user-1' };
+    mockRoles = [UserRole.EXHIBITOR];
+    mockHasAnyEntry.identityState = 'unresolved';
+    mockHasAnyEntry.hasUsablePersonId = false;
+
+    renderGate();
+
+    expect(screen.getByText('Still confirming your account.')).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: /go to my shows/i })).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: /show-day passcode/i })).toBeInTheDocument();
+    expect(screen.queryByText("You don't have ringside access for this show.")).not.toBeInTheDocument();
+  });
+
+  it('explains a confirmed missing profile while preserving the passcode path', () => {
+    mockUser = { id: 'user-1' };
+    mockRoles = [UserRole.EXHIBITOR];
+    mockHasAnyEntry.identityState = 'missing';
+    mockHasAnyEntry.hasUsablePersonId = false;
+
+    renderGate();
+
+    expect(screen.getByText("We couldn't find your exhibitor profile.")).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: /show-day passcode/i })).toBeInTheDocument();
   });
 
   // A signed-in exhibitor volunteering as a steward at a show they have no

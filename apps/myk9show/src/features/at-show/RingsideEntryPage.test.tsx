@@ -38,7 +38,14 @@ function renderPage() {
   );
 }
 
-const NO_SHOWS = { liveShows: [], upcomingShows: [], isLoading: false };
+const NO_SHOWS = {
+  liveShows: [],
+  upcomingShows: [],
+  isLoading: false,
+  identityState: 'resolved' as const,
+  hasUsablePersonId: true,
+  readState: 'confirmed' as const,
+};
 
 beforeEach(() => {
   mockAuth.mockReset();
@@ -72,11 +79,60 @@ describe('RingsideEntryPage', () => {
     expect(screen.getByRole('status', { name: 'Finding your show…' })).toBeInTheDocument();
   });
 
+  it('keeps a signed-in exhibitor in a pending identity state', () => {
+    mockShows.mockReturnValue({
+      ...NO_SHOWS,
+      identityState: 'unresolved',
+      hasUsablePersonId: false,
+    });
+    renderPage();
+    expect(screen.getByText('Still confirming your account.')).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: /go to my shows/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /show-day passcode/i })).toBeInTheDocument();
+  });
+
+  it('keeps the passcode path for staff while identity is unresolved', () => {
+    mockRoles = [UserRole.STEWARD];
+    mockShows.mockReturnValue({
+      ...NO_SHOWS,
+      identityState: 'unresolved',
+      hasUsablePersonId: false,
+    });
+    renderPage();
+    expect(screen.getByText('Still confirming your account.')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /show-day passcode/i })).toBeInTheDocument();
+  });
+
+  it('explains a confirmed missing profile while preserving the passcode path', () => {
+    mockShows.mockReturnValue({
+      ...NO_SHOWS,
+      identityState: 'missing',
+      hasUsablePersonId: false,
+    });
+    renderPage();
+    expect(screen.getByText("We couldn't find your exhibitor profile.")).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /show-day passcode/i })).toBeInTheDocument();
+  });
+
+  it('does not turn an unconfirmed upcoming-show read into a confident empty state', () => {
+    mockShows.mockReturnValue({
+      ...NO_SHOWS,
+      readState: 'unconfirmed',
+    });
+    renderPage();
+    expect(screen.getByText("We couldn't confirm your upcoming shows.")).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /show-day passcode/i })).toBeInTheDocument();
+    expect(screen.queryByText("You're signed in — nothing is running yet.")).not.toBeInTheDocument();
+  });
+
   it('auto-jumps into the ring when exactly one show is live', () => {
     mockShows.mockReturnValue({
       liveShows: [{ showId: 'show-9', showName: 'Heartland', phase: 'live' }],
       upcomingShows: [],
       isLoading: false,
+      identityState: 'resolved',
+      hasUsablePersonId: true,
+      readState: 'confirmed',
     });
     renderPage();
     expect(screen.getByText('IN THE RING: show-9')).toBeInTheDocument();
@@ -95,6 +151,9 @@ describe('RingsideEntryPage', () => {
       liveShows: [],
       upcomingShows: [{ showId: 'show-9', showName: 'Heartland', phase: 'upcoming' }],
       isLoading: false,
+      identityState: 'resolved',
+      hasUsablePersonId: true,
+      readState: 'confirmed',
     });
 
     renderPage();
@@ -109,6 +168,9 @@ describe('RingsideEntryPage', () => {
       liveShows: [],
       upcomingShows: [{ showId: 'show-9', showName: 'Heartland', phase: 'upcoming' }],
       isLoading: false,
+      identityState: 'resolved',
+      hasUsablePersonId: true,
+      readState: 'confirmed',
     });
 
     renderPage();
@@ -126,6 +188,9 @@ describe('RingsideEntryPage', () => {
       ],
       upcomingShows: [],
       isLoading: false,
+      identityState: 'resolved',
+      hasUsablePersonId: true,
+      readState: 'confirmed',
     });
     renderPage();
     expect(screen.getByText('Live now')).toBeInTheDocument();

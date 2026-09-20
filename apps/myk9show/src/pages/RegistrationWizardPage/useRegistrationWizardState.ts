@@ -63,6 +63,24 @@ import { getRegistrationCapacityState } from './registrationCapacity';
 export const defaultPaymentForMode = (mode: WorkflowMode): PaymentMethod | undefined =>
   mode === 'exhibitor' ? 'credit_card' : mode === 'secretary_new' ? 'secretary_paid' : undefined;
 
+/**
+ * URL late-entry hints only describe an organizer's workflow when paired with
+ * a non-exhibitor role. Exhibitors can append the same params themselves.
+ */
+export function isOrganizerLateEntryMode(
+  workflowMode: WorkflowMode,
+  isLateEntryMode: boolean
+): boolean {
+  return workflowMode !== 'exhibitor' && isLateEntryMode;
+}
+
+export function shouldEnableRegistrationCapacityCheck(
+  workflowMode: WorkflowMode,
+  isLateEntryMode: boolean
+): boolean {
+  return workflowMode === 'exhibitor' && !isOrganizerLateEntryMode(workflowMode, isLateEntryMode);
+}
+
 export function useRegistrationWizardState() {
   const { showId: showIdParam } = useParams<{ showId: string }>();
   // showId is guaranteed by the outer RegistrationWizardPage guard
@@ -158,7 +176,10 @@ export function useRegistrationWizardState() {
   // and late-entry flows use their server/offline submission paths directly;
   // the online exhibitor flow shares this availability source with class
   // selection and blocks while it is unresolved.
-  const capacityCheckEnabled = currentWorkflowMode === 'exhibitor' && !isLateEntryMode;
+  const capacityCheckEnabled = shouldEnableRegistrationCapacityCheck(
+    currentWorkflowMode,
+    isLateEntryMode
+  );
   const {
     classes: availabilityClasses,
     isLoading: capacityLoading,

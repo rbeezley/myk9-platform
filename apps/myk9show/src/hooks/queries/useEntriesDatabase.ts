@@ -93,14 +93,15 @@ export const useVerifiedEntriesByShowQuery = (showId: string, enabled = true) =>
   const { user, loading } = useAuthContext();
 
   return useQuery({
-    queryKey: [...queryKeys.showEntries(showId), 'verified'],
+    queryKey: [...queryKeys.entries, 'show', showId, 'verified'],
     queryFn: async () => {
       const result = await getEntriesByShow(showId);
       if (result.error) throw result.error;
       return { data: result.data, verified: result.verified };
     },
     enabled: !!showId && enabled && Boolean(user && user.is_anonymous !== true) && !loading,
-    ...cacheStrategies.moderate,
+    staleTime: 0,
+    gcTime: cacheStrategies.moderate.gcTime,
   });
 };
 

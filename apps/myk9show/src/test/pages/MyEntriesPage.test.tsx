@@ -671,6 +671,43 @@ describe('MyEntriesPage UI Improvements', () => {
   });
 
   describe('Entry Loading', () => {
+    it('keeps cached rows visible while the profile refresh is unresolved', async () => {
+      (useAuthContext as ReturnType<typeof vi.fn>).mockReturnValue({
+        user: mockUser,
+        userWithRoles: { ...mockUser, databaseUserId: 'person-cached' },
+        personId: 'person-cached',
+        personIdentityState: 'unresolved',
+        isAuthenticated: true,
+      });
+      (getUserEntries as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
+        source: 'confirmed',
+        data: [
+          makeResultRow({
+            id: 'entry-cached-1',
+            registration_id: 'reg-cached-1',
+            show_id: 'show-cached-1',
+            dog: { id: 'dog-cached-1', name: 'Koda', call_name: 'Koda' },
+            show: { ...makeResultRow().show, id: 'show-cached-1', name: 'Cached Spring Trial' },
+          }),
+          makeResultRow({
+            id: 'entry-cached-2',
+            registration_id: 'reg-cached-2',
+            show_id: 'show-cached-2',
+            dog: { id: 'dog-cached-2', name: 'Milo', call_name: 'Milo' },
+            show: { ...makeResultRow().show, id: 'show-cached-2', name: 'Cached Summer Trial' },
+          }),
+        ],
+        error: null,
+      });
+
+      renderWithProviders(<MyEntriesPage />);
+
+      expect(await screen.findByText('Cached Spring Trial')).toBeInTheDocument();
+      expect(screen.getByText('Cached Summer Trial')).toBeInTheDocument();
+      expect(screen.queryByText(/Getting your shows ready/i)).not.toBeInTheDocument();
+      expect(screen.queryByText(/Welcome!/i)).not.toBeInTheDocument();
+    });
+
     it('does not load entries when no person id source is available', async () => {
       renderWithProviders(<MyEntriesPage />);
 

@@ -1,5 +1,74 @@
 import { describe, it, expect } from 'vitest';
-import { deriveEntriesIdentityState, canClaimNoEntries } from './entriesIdentityState';
+import {
+  deriveEntriesIdentityState,
+  canClaimNoEntries,
+  getMyEntriesPresentation,
+} from './entriesIdentityState';
+
+describe('getMyEntriesPresentation', () => {
+  it('keeps known rows visible while the profile refresh is unresolved', () => {
+    expect(
+      getMyEntriesPresentation({
+        identityState: 'unresolved',
+        readState: 'unconfirmed',
+        entryCount: 2,
+        isLoading: false,
+      })
+    ).toBe('known-rows');
+  });
+
+  it('does not turn an unresolved empty read into an account claim', () => {
+    expect(
+      getMyEntriesPresentation({
+        identityState: 'unresolved',
+        readState: 'identity-unresolved',
+        entryCount: 0,
+        isLoading: false,
+      })
+    ).toBe('identity-pending');
+  });
+
+  it('uses a calm unconfirmed notice for an empty unconfirmed read', () => {
+    expect(
+      getMyEntriesPresentation({
+        identityState: 'resolved',
+        readState: 'unconfirmed',
+        entryCount: 0,
+        isLoading: false,
+      })
+    ).toBe('unconfirmed-empty');
+  });
+
+  it('keeps a confirmed missing profile distinct from an unresolved identity', () => {
+    expect(
+      getMyEntriesPresentation({
+        identityState: 'missing',
+        readState: 'identity-missing',
+        entryCount: 0,
+        isLoading: false,
+      })
+    ).toBe('identity-missing');
+    expect(
+      getMyEntriesPresentation({
+        identityState: 'unresolved',
+        readState: 'read-pending',
+        entryCount: 0,
+        isLoading: true,
+      })
+    ).toBe('identity-pending');
+  });
+
+  it('allows the first-run state only after a confirmed empty read', () => {
+    expect(
+      getMyEntriesPresentation({
+        identityState: 'resolved',
+        readState: 'confirmed',
+        entryCount: 0,
+        isLoading: false,
+      })
+    ).toBe('confirmed-empty');
+  });
+});
 
 describe('deriveEntriesIdentityState', () => {
   it('is pending while auth itself is still settling', () => {
@@ -37,6 +106,36 @@ describe('deriveEntriesIdentityState', () => {
     expect(deriveEntriesIdentityState({ authLoading: false, hasUser: true, personId: 'p1' })).toBe(
       'resolved'
     );
+  });
+
+  it('records an authoritative missing profile separately from unresolved identity', () => {
+    expect(
+      deriveEntriesIdentityState({
+        authLoading: false,
+        hasUser: true,
+        personId: null,
+        personIdentityState: 'missing',
+      })
+    ).toBe('missing');
+    expect(
+      deriveEntriesIdentityState({
+        authLoading: false,
+        hasUser: true,
+        personId: null,
+        personIdentityState: 'unresolved',
+      })
+    ).toBe('unresolved');
+  });
+
+  it('keeps cached-read identity unresolved for presentation until profile resolution', () => {
+    expect(
+      deriveEntriesIdentityState({
+        authLoading: false,
+        hasUser: true,
+        personId: 'person-cached',
+        personIdentityState: 'unresolved',
+      })
+    ).toBe('unresolved');
   });
 
   it('treats an empty-string person id as unresolved, not as an identity', () => {

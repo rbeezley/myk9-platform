@@ -66,7 +66,9 @@ export function useLocalPresenceIdentity(showId: string | undefined): LocalPrese
 
   // profileImage lives on the people table, not the auth profile. AppHeader calls
   // the same hook so this is always a React Query cache hit — no extra network request.
-  const { data: personRecord } = useCurrentUserPerson(userId);
+  // Presence, the account menu, and the profile form all share the complete
+  // current-person cache; avoid parallel public/private people queries.
+  const { data: personRecord } = useCurrentUserPerson(userId, { includePrivateFields: true });
   const avatarUrl = personRecord?.profileImage ?? undefined;
 
   return useMemo<LocalPresenceIdentity | null>(() => {

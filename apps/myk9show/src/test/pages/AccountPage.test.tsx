@@ -25,6 +25,7 @@ const mockForm = {
   reset: vi.fn(),
   isDirty: false,
   saving: false,
+  privateFieldsUnavailable: false,
 };
 
 vi.mock('@/hooks/useProfileForm', () => ({
@@ -113,6 +114,7 @@ describe('AccountPage', () => {
     mockAuthUserId = 'u-1';
     mockForm.isDirty = false;
     mockForm.saving = false;
+    mockForm.privateFieldsUnavailable = false;
   });
 
   const render = (initialRoute = '/account') =>
@@ -162,6 +164,18 @@ describe('AccountPage', () => {
     render();
     expect(screen.getByText('Profile photo')).toBeInTheDocument();
     expect(screen.getByText('Personal information')).toBeInTheDocument();
+  });
+
+  it('does not show a destructive private-read alert while auth is not ready', () => {
+    mockAuthUserId = '';
+    render();
+    expect(screen.queryByText(/private profile fields are unavailable/i)).not.toBeInTheDocument();
+  });
+
+  it('shows the private-read alert after an authenticated read completes incompletely', () => {
+    mockForm.privateFieldsUnavailable = true;
+    render();
+    expect(screen.getByText(/private profile fields are unavailable/i)).toBeInTheDocument();
   });
 
   it('shows the signed-in user roles as read-only information', () => {

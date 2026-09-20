@@ -225,9 +225,31 @@ export const updateUser = async (id: string, updates: DbUserUpdateWithPrivate) =
         privateUpdates,
       });
       if (privateResult.error || !privateResult.data) {
+        if (
+          requireUnlinked &&
+          (privateResult.error?.code === '42501' || privateResult.error?.code === 'PGRST116')
+        ) {
+          throw Object.assign(new Error(SIGN_IN_EMAIL_LOCKED_MESSAGE), {
+            code: SIGN_IN_EMAIL_LOCKED_CODE,
+          });
+        }
+        if (privateResult.error?.code === '42501') {
+          throw Object.assign(
+            new Error(
+              'Private profile fields can only be changed by the subject or a site administrator.'
+            ),
+            { code: 'PRIVATE_PROFILE_WRITE_FORBIDDEN' }
+          );
+        }
+        if (privateResult.error?.code === '22023') {
+          throw Object.assign(
+            new Error('The private profile update contains an invalid field or value.'),
+            { code: 'PRIVATE_PROFILE_UPDATE_INVALID' }
+          );
+        }
         throw Object.assign(
           new Error(privateResult.error?.message || 'Failed to update person profile'),
-          { code: privateResult.error?.code }
+          { code: privateResult.error?.code ?? 'PRIVATE_PROFILE_UPDATE_FAILED' }
         );
       }
 

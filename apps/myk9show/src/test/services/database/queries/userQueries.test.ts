@@ -224,7 +224,10 @@ describe('User Queries', () => {
       mockSupabase.rpc.mockImplementation((functionName: string) =>
         Promise.resolve(
           functionName === 'get_people_private'
-            ? { data: [], error: null }
+            ? {
+                data: [{ person_id: userId, date_of_birth: null, junior_handler_numbers: {} }],
+                error: null,
+              }
             : { data: [{ person_id: userId, role_name: 'judge' }], error: null }
         )
       );
@@ -241,6 +244,8 @@ describe('User Queries', () => {
       });
       expect(result.data).toEqual({
         ...mockData,
+        date_of_birth: null,
+        junior_handler_numbers: undefined,
         roles: ['judge'],
         privateFieldsReadComplete: true,
       });
@@ -264,12 +269,28 @@ describe('User Queries', () => {
       };
 
       mockSupabase.from.mockReturnValue(createChainableQuery({ data: mockData, error: null }));
+      mockSupabase.rpc.mockImplementation((functionName: string) =>
+        Promise.resolve(
+          functionName === 'get_people_private'
+            ? {
+                data: [{ person_id: userId, date_of_birth: null, junior_handler_numbers: {} }],
+                error: null,
+              }
+            : { data: [], error: null }
+        )
+      );
 
       const startTime = Date.now();
       const result = await getUserById(userId);
       const duration = Date.now() - startTime;
 
-      expect(result.data).toEqual({ ...mockData, roles: [], privateFieldsReadComplete: true });
+      expect(result.data).toEqual({
+        ...mockData,
+        date_of_birth: null,
+        junior_handler_numbers: undefined,
+        roles: [],
+        privateFieldsReadComplete: true,
+      });
       expect(result.error).toBeNull();
       expect(duration).toBeLessThan(200);
     });
@@ -320,12 +341,28 @@ describe('User Queries', () => {
       };
 
       mockSupabase.from.mockReturnValue(createChainableQuery({ data: mockData, error: null }));
+      mockSupabase.rpc.mockImplementation((functionName: string) =>
+        Promise.resolve(
+          functionName === 'get_people_private'
+            ? {
+                data: [{ person_id: userId, date_of_birth: null, junior_handler_numbers: {} }],
+                error: null,
+              }
+            : { data: [], error: null }
+        )
+      );
 
       const startTime = Date.now();
       const result = await getUserById(userId);
       const duration = Date.now() - startTime;
 
-      expect(result.data).toEqual({ ...mockData, roles: [], privateFieldsReadComplete: true });
+      expect(result.data).toEqual({
+        ...mockData,
+        date_of_birth: null,
+        junior_handler_numbers: undefined,
+        roles: [],
+        privateFieldsReadComplete: true,
+      });
       expect(duration).toBeLessThan(200);
     });
   });
@@ -646,6 +683,21 @@ describe('User Queries', () => {
           p_public_updates: { first_name: 'Updated' },
           p_private_updates: { date_of_birth: '2011-03-04' },
         });
+      });
+
+      it('maps private-write authorization failures to actionable app errors', async () => {
+        mockSupabase.rpc.mockResolvedValue({
+          data: null,
+          error: { message: 'new row violates row-level security policy', code: '42501' },
+        });
+
+        const result = await updateUser('user-123', {
+          first_name: 'Updated',
+          date_of_birth: '2011-03-04',
+        } as DbUserUpdate & { date_of_birth: string });
+
+        expect(result.error?.code).toBe('PRIVATE_PROFILE_WRITE_FORBIDDEN');
+        expect(result.error?.message).toMatch(/subject or a site administrator/i);
       });
 
       it('preserves an explicit empty junior-number map as a clearing patch', async () => {

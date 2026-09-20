@@ -125,6 +125,14 @@ describe('loadJuniorHandlerProfiles', () => {
     expect(result.readComplete).toBe(false);
     expect(result.byPersonId.size).toBe(0);
   });
+
+  it('does not treat an empty successful private response as complete', async () => {
+    peopleRead([PERSON]);
+    privateRead([]);
+    const result = await loadJuniorHandlerProfiles([PERSON.id]);
+    expect(result.readComplete).toBe(false);
+    expect(result.byPersonId.size).toBe(0);
+  });
 });
 
 describe('the report hydration hop', () => {
@@ -156,7 +164,7 @@ describe('the report hydration hop', () => {
     expect(hydrated?.handler_person).toBeUndefined();
   });
 
-  it('attaches nothing to an entry whose handler is not in the answer', async () => {
+  it('attaches nothing when the private answer is incomplete', async () => {
     peopleRead([PERSON]);
     privateRead([
       {
@@ -169,7 +177,7 @@ describe('the report hydration hop', () => {
       entry(),
       entry({ id: 'e2', handler_id: 'person-absent' }),
     ]);
-    expect(hydrated[0]?.handler_person).toBeDefined();
+    expect(hydrated[0]?.handler_person).toBeUndefined();
     expect(hydrated[1]?.handler_person).toBeUndefined();
   });
 

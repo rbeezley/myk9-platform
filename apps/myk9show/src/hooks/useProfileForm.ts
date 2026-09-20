@@ -138,6 +138,12 @@ export function useProfileForm() {
   });
   const personId = person?.id || null;
   const privateFieldsReady = person?.privateFieldsReadComplete === true;
+  // A disabled query is intentionally pending while auth is being restored;
+  // only surface the destructive unavailable state after an authenticated
+  // profile read has actually returned an incomplete record.
+  const privateFieldsUnavailable = Boolean(
+    authUser?.id && !isLoading && person && !privateFieldsReady
+  );
   const privateFieldsError = person?.privateFieldsReadError;
   const updatePerson = useUpdatePerson();
 
@@ -327,6 +333,7 @@ export function useProfileForm() {
     person,
     personId,
     privateFieldsReady,
+    privateFieldsUnavailable,
     email: authUser?.email || '',
   };
 }

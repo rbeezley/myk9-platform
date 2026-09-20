@@ -4685,6 +4685,38 @@ export type Database = {
           },
         ]
       }
+      people_private: {
+        Row: {
+          created_at: string
+          date_of_birth: string | null
+          junior_handler_numbers: Json
+          person_id: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          date_of_birth?: string | null
+          junior_handler_numbers?: Json
+          person_id: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          date_of_birth?: string | null
+          junior_handler_numbers?: Json
+          person_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "people_private_person_id_fkey"
+            columns: ["person_id"]
+            isOneToOne: true
+            referencedRelation: "people"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       people: {
         Row: {
           agreed_to_tos_at: string | null
@@ -4693,13 +4725,11 @@ export type Database = {
           city: string | null
           country: string | null
           created_at: string | null
-          date_of_birth: string | null
           deleted_at: string | null
           deleted_by: string | null
           email: string | null
           first_name: string
           id: string
-          junior_handler_numbers: Json
           last_name: string
           license_key: string | null
           phone: string | null
@@ -4717,13 +4747,11 @@ export type Database = {
           city?: string | null
           country?: string | null
           created_at?: string | null
-          date_of_birth?: string | null
           deleted_at?: string | null
           deleted_by?: string | null
           email?: string | null
           first_name: string
           id?: string
-          junior_handler_numbers?: Json
           last_name: string
           license_key?: string | null
           phone?: string | null
@@ -4741,13 +4769,11 @@ export type Database = {
           city?: string | null
           country?: string | null
           created_at?: string | null
-          date_of_birth?: string | null
           deleted_at?: string | null
           deleted_by?: string | null
           email?: string | null
           first_name?: string
           id?: string
-          junior_handler_numbers?: Json
           last_name?: string
           license_key?: string | null
           phone?: string | null
@@ -13121,6 +13147,14 @@ export type Database = {
           waitlist_entry_id: string
         }[]
       }
+      get_people_private: {
+        Args: { p_person_ids: string[] }
+        Returns: {
+          date_of_birth: string | null
+          junior_handler_numbers: Json
+          person_id: string
+        }[]
+      }
       manageable_show_ids: { Args: never; Returns: string[] }
       move_up_entry: {
         Args: {
@@ -13614,6 +13648,14 @@ export type Database = {
           isOneToOne: false
           isSetofReturn: true
         }
+      }
+      update_person_with_private: {
+        Args: {
+          p_person_id: string
+          p_private_updates?: Json
+          p_public_updates: Json
+        }
+        Returns: Json
       }
       soft_delete_show: { Args: { p_show_id: string }; Returns: undefined }
       stamp_show_refund_entries: {

@@ -14,32 +14,6 @@ interface PrivatePeopleRow {
   junior_handler_numbers: unknown;
 }
 
-interface PrivateRpcError {
-  message: string;
-  code?: string;
-}
-
-interface PrivateRpcResult<T> {
-  data: T | null;
-  error: PrivateRpcError | null;
-}
-
-export interface AtomicPersonUpdateResult extends Record<string, unknown> {
-  id: string;
-  date_of_birth: string | null;
-  junior_handler_numbers: unknown;
-}
-
-/**
- * The private table and RPCs land in Supabase before the generated schema types
- * can be refreshed. Keep this boundary local and typed by the migration contract;
- * do not add an invented people_private entry to database.types.ts.
- */
-const privateRpc = supabase.rpc.bind(supabase) as unknown as <T>(
-  functionName: string,
-  args: Record<string, unknown>
-) => Promise<PrivateRpcResult<T>>;
-
 function mapPrivateRow(row: PrivatePeopleRow): PrivatePersonProfile {
   return {
     personId: row.person_id,
@@ -67,7 +41,7 @@ export async function loadPeoplePrivateProfiles(personIds: readonly string[]): P
 
   for (const batch of chunk(ids, ID_CHUNK_SIZE)) {
     try {
-      const { data, error } = await privateRpc<PrivatePeopleRow[]>('get_people_private', {
+      const { data, error } = await supabase.rpc('get_people_private', {
         p_person_ids: batch,
       });
       if (error) {
@@ -82,6 +56,12 @@ export async function loadPeoplePrivateProfiles(personIds: readonly string[]): P
     }
   }
 
+  const missingIds = ids.filter(id => !byPersonId.has(id));
+  if (missingIds.length > 0) {
+    readComplete = false;
+    readError ??= 'Private profile data was unavailable for one or more requested people';
+  }
+
   return { byPersonId, readComplete, ...(readError ? { readError } : {}) };
 }
 
@@ -94,12 +74,10 @@ export async function updatePersonWithPrivateProfile(input: {
   personId: string;
   publicUpdates: Record<string, unknown>;
   privateUpdates: Record<string, unknown>;
-}): Promise<{ data: AtomicPersonUpdateResult | null; error: PrivateRpcError | null }> {
-  const { data, error } = await privateRpc<AtomicPersonUpdateResult>('update_person_with_private', {
+}) {
+  return supabase.rpc('update_person_with_private', {
     p_person_id: input.personId,
     p_public_updates: input.publicUpdates,
     p_private_updates: input.privateUpdates,
   });
-
-  return { data, error };
 }

@@ -76,6 +76,18 @@ VALUES (
   'confirmed', 'paid'
 );
 
+-- Owner-handled entries commonly leave the denormalized handler text blank;
+-- the resolver uses the owner's canonical name in that case.
+INSERT INTO public.entries (id, show_id, dog_id, handler_id, handler, entry_status, payment_status)
+VALUES (
+  '00000000-0000-0000-0000-000000664007',
+  '00000000-0000-0000-0000-000000664003',
+  '00000000-0000-0000-0000-000000664005',
+  NULL,
+  NULL,
+  'confirmed', 'paid'
+);
+
 INSERT INTO public.people_private (person_id, date_of_birth, junior_handler_numbers)
 VALUES (
   '00000000-0000-0000-0000-000000664014', DATE '2012-04-02', '{"AKC":"664-JR"}'::jsonb

@@ -161,7 +161,7 @@ describe('the migration that protects the private columns', () => {
     const sql = readFileSync(resolve(MIGRATIONS_DIR, file!), 'utf8');
     expect(sql).toMatch(/CREATE OR REPLACE FUNCTION public\.private_handler_name_matches/i);
     expect(sql).toMatch(
-      /d\.owner_id = p_person_id AND public\.private_handler_name_matches\(e\.handler, p_person_id\)/i
+      /d\.owner_id = p_person_id[\s\S]*public\.private_handler_name_matches\(\s*COALESCE\(NULLIF\(btrim\(e\.handler\), ''\), owner_person\.first_name \|\| ' ' \|\| owner_person\.last_name\),\s*p_person_id\s*\)/i
     );
     const getStart = sql.indexOf('CREATE OR REPLACE FUNCTION public.get_people_private');
     const getEnd = sql.indexOf('COMMENT ON FUNCTION public.get_people_private', getStart);

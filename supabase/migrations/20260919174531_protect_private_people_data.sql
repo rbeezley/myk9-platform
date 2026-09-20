@@ -89,7 +89,10 @@ AS $$
   SELECT EXISTS (
     SELECT 1
     FROM person, printed
-    WHERE CASE
+    WHERE person.first_name IS NOT NULL
+      AND person.last_name IS NOT NULL
+      AND printed.value <> ''
+      AND CASE
       WHEN position(',' IN printed.value) > 0 THEN
         trim(split_part(printed.value, ',', 1)) = person.last_name
         AND trim(split_part(printed.value, ',', 2)) = person.first_name
@@ -116,11 +119,18 @@ AS $$
         SELECT 1
         FROM public.entries e
         LEFT JOIN public.dogs d ON d.id = e.dog_id
+        LEFT JOIN public.people owner_person ON owner_person.id = d.owner_id
         WHERE e.deleted_at IS NULL
           AND e.show_id IS NOT NULL
           AND (
             e.handler_id = p_person_id
-            OR (d.owner_id = p_person_id AND public.private_handler_name_matches(e.handler, p_person_id))
+            OR (
+              d.owner_id = p_person_id
+              AND public.private_handler_name_matches(
+                COALESCE(NULLIF(btrim(e.handler), ''), owner_person.first_name || ' ' || owner_person.last_name),
+                p_person_id
+              )
+            )
           )
           AND e.show_id IN (SELECT public.manageable_show_ids())
       );
@@ -204,11 +214,15 @@ AS $$
     SELECT DISTINCT d.owner_id
     FROM public.entries e
     JOIN public.dogs d ON d.id = e.dog_id
+    JOIN public.people owner_person ON owner_person.id = d.owner_id
     JOIN requested r ON r.person_id = d.owner_id
     WHERE e.deleted_at IS NULL
       AND e.show_id IS NOT NULL
       AND e.show_id IN (SELECT public.manageable_show_ids())
-      AND public.private_handler_name_matches(e.handler, d.owner_id)
+      AND public.private_handler_name_matches(
+        COALESCE(NULLIF(btrim(e.handler), ''), owner_person.first_name || ' ' || owner_person.last_name),
+        d.owner_id
+      )
   )
   SELECT pp.person_id, pp.date_of_birth, pp.junior_handler_numbers
   FROM public.people_private pp
@@ -288,6 +302,14 @@ BEGIN
   ) THEN
     RAISE EXCEPTION 'Profile update contains an unsupported private field'
       USING ERRCODE = '22023';
+  END IF;
+
+  -- Recheck the sign-in identity while holding the person lock. The client
+  -- preflight is advisory; this closes the adoption race before an atomic
+  -- public/private save changes an authenticated person's email.
+  IF v_public ? 'email' AND v_person.auth_user_id IS NOT NULL THEN
+    RAISE EXCEPTION 'This person has a sign-in account. Change their sign-in email through account security settings.'
+      USING ERRCODE = '42501';
   END IF;
 
   v_has_private_patch :=

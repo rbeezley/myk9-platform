@@ -5,9 +5,7 @@ import {
   isSecretaryPaymentSchemaUnavailable,
   isWithdrawalReasonCodeSchemaUnavailable,
 } from '@/features/payments/pullRefundSchemaCompatibility';
-import type { ReplicatedEntry } from '@/services/replication/ReplicatedEntriesTable';
-import { projectEntryHandlerIdentity } from './entryHandlerProjection';
-import type { HandlerPersonRow } from './handlerHydration';
+import { projectPostgrestEntryHandlerIdentity } from './entryHandlerReadBoundary';
 import type { SecretaryEntry } from './secretaryTypes';
 
 export interface SecretaryPullMetadata {
@@ -122,45 +120,6 @@ const SECRETARY_ENTRIES_SELECT_WITH_PAYMENT = `${SECRETARY_ENTRIES_BASE_SELECT},
         payment_received_on,
         payment_notes`;
 
-function relatedRecord(value: unknown): Record<string, unknown> | null {
-  if (!value || typeof value !== 'object') return null;
-  if (Array.isArray(value)) {
-    const first = value[0];
-    return first && typeof first === 'object' ? (first as Record<string, unknown>) : null;
-  }
-  return value as Record<string, unknown>;
-}
-
-function relatedPerson(value: unknown): HandlerPersonRow | null {
-  const person = relatedRecord(value);
-  if (typeof person?.id !== 'string') return null;
-  return {
-    id: person.id,
-    first_name: typeof person.first_name === 'string' ? person.first_name : null,
-    last_name: typeof person.last_name === 'string' ? person.last_name : null,
-  };
-}
-
-function projectSecretaryPostgrestHandlerIdentity(
-  row: Record<string, unknown>
-): SecretaryEntry['handler_identity'] {
-  const handlerPerson = relatedPerson(row.handler_person);
-  const dog = relatedRecord(row.dog);
-  const ownerPerson = relatedPerson(dog?.owner);
-  const people = new Map(
-    [handlerPerson, ownerPerson]
-      .filter((person): person is NonNullable<typeof person> => Boolean(person))
-      .map(person => [person.id, person] as const)
-  );
-  const entry: ReplicatedEntry = {
-    id: String(row.id),
-    handlerId: typeof row.handler_id === 'string' ? row.handler_id : undefined,
-    handler: typeof row.handler === 'string' ? row.handler : undefined,
-    dogOwnerId: ownerPerson?.id,
-  };
-  return projectEntryHandlerIdentity(entry, people);
-}
-
 export async function postgrestGetSecretaryEntriesForShow(
   showId: string,
   startTime: number,
@@ -220,7 +179,7 @@ export async function postgrestGetSecretaryEntriesForShow(
     const entry = row as unknown as SecretaryEntry;
     return {
       ...entry,
-      handler_identity: projectSecretaryPostgrestHandlerIdentity(
+      handler_identity: projectPostgrestEntryHandlerIdentity(
         row as unknown as Record<string, unknown>
       ),
     };

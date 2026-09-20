@@ -24,6 +24,11 @@ import { getTrialTimezone } from '@/features/registries';
 import { projectEntryHandlerIdentity } from './entryHandlerProjection';
 import { loadHandlerPeople, type HandlerPersonRow } from './handlerHydration';
 import {
+  collectHandlerIdentityIds,
+  handlerPeopleMapFromRows,
+  withReplicatedDogOwner,
+} from './entryHandlerReadBoundary';
+import {
   postgrestGetSecretaryPullMetadataMap,
   type SecretaryPullMetadata,
 } from './secretaryPostgrest';
@@ -35,6 +40,11 @@ interface SecretaryPerson {
   last_name: string | null;
   email: string | null;
   auth_user_id: string | null;
+}
+
+interface SecretaryPeopleSnapshot {
+  peopleMap: Map<string, SecretaryPerson>;
+  authoritative: boolean;
 }
 
 interface SecretaryEnrollment {
@@ -110,34 +120,11 @@ function fallbackDogFromEntry(entry: ReplicatedEntry, dogId: string): SecretaryD
   };
 }
 
-function withSecretaryDogOwner(
-  entry: ReplicatedEntry,
-  dogsMap: ReadonlyMap<string, ReplicatedDog>
-): ReplicatedEntry {
-  const ownerId = entry.dogOwnerId ?? (entry.dogId ? dogsMap.get(entry.dogId)?.ownerId : undefined);
-  return ownerId === entry.dogOwnerId ? entry : { ...entry, dogOwnerId: ownerId };
-}
-
-function handlerIdentityIds(entries: readonly ReplicatedEntry[]): string[] {
-  return [
-    ...new Set(
-      entries.flatMap(entry =>
-        [entry.handlerId, entry.dogOwnerId].filter((id): id is string => Boolean(id?.trim()))
-      )
-    ),
-  ];
-}
-
 async function loadSecretaryPeopleMap(
-  entries: ReplicatedEntry[],
-  dogs: ReplicatedDog[]
-): Promise<Map<string, SecretaryPerson>> {
-  const ids = [
-    ...entries.map(e => e.handlerId).filter(Boolean),
-    ...dogs.map(d => d.ownerId).filter(Boolean),
-  ];
-  const uniqueIds = [...new Set(ids)] as string[];
-  if (uniqueIds.length === 0) return new Map();
+  entries: readonly ReplicatedEntry[]
+): Promise<SecretaryPeopleSnapshot> {
+  const uniqueIds = collectHandlerIdentityIds(entries);
+  if (uniqueIds.length === 0) return { peopleMap: new Map(), authoritative: true };
 
   try {
     const { data, error } = await supabase
@@ -145,10 +132,13 @@ async function loadSecretaryPeopleMap(
       .select('id, first_name, last_name, email, auth_user_id')
       .in('id', uniqueIds);
 
-    if (error || !data) return new Map();
-    return new Map((data as SecretaryPerson[]).map(person => [person.id, person]));
+    if (error || !data) return { peopleMap: new Map(), authoritative: false };
+    return {
+      peopleMap: new Map((data as SecretaryPerson[]).map(person => [person.id, person])),
+      authoritative: true,
+    };
   } catch {
-    return new Map();
+    return { peopleMap: new Map(), authoritative: false };
   }
 }
 
@@ -360,7 +350,7 @@ export async function getReplicatedSecretaryEntriesForShow(showId: string) {
     replicatedTrialsTable.getTrialsByShow(showId),
   ]);
   const dogsMap = buildMapFromArray(dogs.filter(isNotDeleted), d => d.id);
-  const entriesWithOwners = entries.map(entry => withSecretaryDogOwner(entry, dogsMap));
+  const entriesWithOwners = entries.map(entry => withReplicatedDogOwner(entry, dogsMap));
   const classesMap = buildMapFromArray(classes.filter(isNotDeleted), c => c.id);
   const trialsMap = buildMapFromArray(trials, t => t.id);
   const assignedArmbands = armbands.filter(a => a.isAvailable !== true);
@@ -372,12 +362,17 @@ export async function getReplicatedSecretaryEntriesForShow(showId: string) {
     assignedArmbands.filter(a => a.dogId),
     a => a.dogId as string
   );
-  const [peopleMap, handlerIdentityPeopleMap, enrollmentsMap, pullMetadataMap] = await Promise.all([
-    loadSecretaryPeopleMap(entries, dogs),
-    loadHandlerPeople(handlerIdentityIds(entriesWithOwners)),
-    loadSecretaryEnrollmentsMap(entries),
-    entries.length > 0 ? loadSecretaryPullMetadataMap(showId) : Promise.resolve(new Map()),
-  ]);
+  const [secretaryPeople, hydratedHandlerPeople, enrollmentsMap, pullMetadataMap] =
+    await Promise.all([
+      loadSecretaryPeopleMap(entriesWithOwners),
+      loadHandlerPeople(collectHandlerIdentityIds(entriesWithOwners)),
+      loadSecretaryEnrollmentsMap(entries),
+      entries.length > 0 ? loadSecretaryPullMetadataMap(showId) : Promise.resolve(new Map()),
+    ]);
+  const peopleMap = secretaryPeople.peopleMap;
+  const handlerIdentityPeopleMap = secretaryPeople.authoritative
+    ? handlerPeopleMapFromRows(peopleMap.values())
+    : hydratedHandlerPeople;
   const data = entriesWithOwners
     .map(entry =>
       toSecretaryEntry(entry, {

@@ -12,6 +12,7 @@ import { db } from '@/services/database/connection';
 import {
   loadHandlerPeople,
   resetHandlerHydrationCircuit,
+  subscribeHandlerPeopleHydration,
   type HandlerPersonRow,
 } from './handlerHydration';
 
@@ -264,6 +265,53 @@ describe('loadHandlerPeople offline boundary', () => {
       });
     }
   });
+
+  it('emits completion after a delayed refresh persists into an empty cache', async () => {
+    const originalOnline = navigator.onLine;
+    Object.defineProperty(navigator, 'onLine', { configurable: true, value: true });
+    vi.mocked(db.instance.people.bulkGet).mockResolvedValue([]);
+    const bulkPut = vi.spyOn(db.instance.people, 'bulkPut').mockResolvedValue('handler-1');
+    let resolveRefresh!: (value: { data: HandlerPersonRow[]; error: null }) => void;
+    const refresh = new Promise<{ data: HandlerPersonRow[]; error: null }>(resolve => {
+      resolveRefresh = resolve;
+    });
+    mocks.from.mockReturnValue({
+      select: vi.fn().mockReturnValue({ in: vi.fn().mockReturnValue(refresh) }),
+    });
+    const events: Array<{ ids: readonly string[]; people: ReadonlyMap<string, HandlerPersonRow> }> =
+      [];
+    const unsubscribe = subscribeHandlerPeopleHydration(event => events.push(event));
+
+    try {
+      const pending = loadHandlerPeople(['handler-1']);
+      await new Promise(resolve => setTimeout(resolve, 300));
+      await expect(pending).resolves.toEqual(new Map());
+      expect(events).toEqual([]);
+
+      resolveRefresh({
+        data: [{ id: 'handler-1', first_name: 'Fresh', last_name: 'Handler' }],
+        error: null,
+      });
+
+      await vi.waitFor(() => expect(events).toHaveLength(1));
+      expect(events[0]).toEqual({
+        ids: ['handler-1'],
+        people: new Map([
+          ['handler-1', { id: 'handler-1', first_name: 'Fresh', last_name: 'Handler' }],
+        ]),
+      });
+      expect(bulkPut).toHaveBeenCalledWith([
+        { id: 'handler-1', firstName: 'Fresh', lastName: 'Handler' },
+      ]);
+    } finally {
+      unsubscribe();
+      Object.defineProperty(navigator, 'onLine', {
+        configurable: true,
+        value: originalOnline,
+      });
+    }
+  });
+
   function deferredSupabaseResponse() {
     let resolve!: (value: { data: HandlerPersonRow[]; error: null }) => void;
     const promise = new Promise<{ data: HandlerPersonRow[]; error: null }>(resolvePromise => {

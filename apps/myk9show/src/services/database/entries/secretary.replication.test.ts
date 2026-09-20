@@ -89,7 +89,25 @@ function mockLegacyEntryUpdate() {
   return query;
 }
 
-function mockMetadataLookups(pullMetadata: unknown[] = []) {
+function mockMetadataLookups(
+  pullMetadata: unknown[] = [],
+  peopleData: unknown[] = [
+    {
+      id: 'owner-1',
+      first_name: 'Avery',
+      last_name: 'Owner',
+      email: 'avery@example.com',
+      auth_user_id: 'owner-auth-1',
+    },
+    {
+      id: 'handler-1',
+      first_name: 'Harper',
+      last_name: 'Handler',
+      email: 'harper@example.com',
+      auth_user_id: 'handler-auth-1',
+    },
+  ]
+) {
   const makeQuery = (data: unknown[]) => {
     const query = {
       select: vi.fn(() => query),
@@ -100,22 +118,7 @@ function mockMetadataLookups(pullMetadata: unknown[] = []) {
 
   mocks.supabaseFrom.mockImplementation((table: string) => {
     if (table === 'people') {
-      return makeQuery([
-        {
-          id: 'owner-1',
-          first_name: 'Avery',
-          last_name: 'Owner',
-          email: 'avery@example.com',
-          auth_user_id: 'owner-auth-1',
-        },
-        {
-          id: 'handler-1',
-          first_name: 'Harper',
-          last_name: 'Handler',
-          email: 'harper@example.com',
-          auth_user_id: 'handler-auth-1',
-        },
-      ]);
+      return makeQuery(peopleData);
     }
 
     if (table === 'enrollments') {
@@ -452,7 +455,15 @@ describe('secretary entry read replication', () => {
     mocks.loadHandlerPeople.mockResolvedValue(
       new Map([['owner-1', { id: 'owner-1', first_name: 'Olivia', last_name: 'Owner' }]])
     );
-    mockMetadataLookups();
+    mockMetadataLookups([], [
+      {
+        id: 'owner-1',
+        first_name: 'Olivia',
+        last_name: 'Owner',
+        email: 'olivia@example.com',
+        auth_user_id: 'owner-auth-1',
+      },
+    ]);
 
     const result = await getEntriesForShow('show-1');
 
@@ -488,7 +499,15 @@ describe('secretary entry read replication', () => {
     mocks.loadHandlerPeople.mockResolvedValue(
       new Map([['owner-1', { id: 'owner-1', first_name: 'Olivia', last_name: 'Owner' }]])
     );
-    mockMetadataLookups();
+    mockMetadataLookups([], [
+      {
+        id: 'owner-1',
+        first_name: 'Olivia',
+        last_name: 'Owner',
+        email: 'olivia@example.com',
+        auth_user_id: 'owner-auth-1',
+      },
+    ]);
 
     const result = await getEntriesForShow('show-1');
 

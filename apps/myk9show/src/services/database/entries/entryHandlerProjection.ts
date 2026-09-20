@@ -16,7 +16,7 @@ export function projectEntryHandlerIdentity(
   const ownerId = entry.dogOwnerId ?? null;
 
   return projectHandlerIdentity({
-    assignedHandlerName: entry.handlerName ?? entry.handler,
+    assignedHandlerName: entry.handler ?? entry.handlerName,
     assignedHandlerId: handlerId,
     assignedHandlerPerson: handlerId ? (people.get(handlerId) ?? null) : null,
     ownerPerson: ownerId ? (people.get(ownerId) ?? null) : null,

@@ -29,6 +29,47 @@ export interface HandlerPersonRow {
   last_name: string | null;
 }
 
+export interface HandlerPeopleHydrationEvent {
+  /** IDs whose authoritative refresh has completed and been persisted. */
+  ids: readonly string[];
+  /** The authoritative snapshot for those IDs; omitted IDs were not returned. */
+  people: ReadonlyMap<string, HandlerPersonRow>;
+}
+
+type HandlerPeopleHydrationListener = (event: HandlerPeopleHydrationEvent) => void;
+
+const handlerPeopleHydrationListeners = new Set<HandlerPeopleHydrationListener>();
+
+/** Subscribe without coupling consumers to a React Query key or cache. */
+export function subscribeHandlerPeopleHydration(
+  listener: HandlerPeopleHydrationListener
+): () => void {
+  handlerPeopleHydrationListeners.add(listener);
+  return () => handlerPeopleHydrationListeners.delete(listener);
+}
+
+function emitHandlerPeopleHydration(
+  ids: readonly string[],
+  people: ReadonlyMap<string, HandlerPersonRow>
+): void {
+  if (ids.length === 0) return;
+  const event: HandlerPeopleHydrationEvent = {
+    ids: [...ids],
+    people: new Map(
+      ids
+        .map(id => [id, people.get(id)] as const)
+        .filter((entry): entry is readonly [string, HandlerPersonRow] => Boolean(entry[1]))
+    ),
+  };
+  for (const listener of handlerPeopleHydrationListeners) {
+    try {
+      listener(event);
+    } catch {
+      // A consumer refresh must not make the read boundary fail.
+    }
+  }
+}
+
 interface CachedHandlerPerson {
   id?: string;
   first_name?: string | null;
@@ -72,9 +113,10 @@ async function persistAuthoritativeHandlerPeople(
   ids: readonly string[],
   people: ReadonlyMap<string, HandlerPersonRow>,
   requestGeneration: ReadonlyMap<string, number>
-): Promise<void> {
+): Promise<readonly string[] | null> {
   try {
     const isCurrent = (id: string) => personGenerations.get(id) === requestGeneration.get(id);
+    const currentIds = ids.filter(isCurrent);
     const currentPeople = [...people.values()].filter(person => isCurrent(person.id));
     const cachedPeople = currentPeople.map(person => ({
       id: person.id,
@@ -84,9 +126,11 @@ async function persistAuthoritativeHandlerPeople(
     if (cachedPeople.length > 0) await db.instance.people.bulkPut(cachedPeople);
     const missingIds = ids.filter(id => isCurrent(id) && !people.has(id));
     if (missingIds.length > 0) await db.instance.people.bulkDelete(missingIds);
+    return currentIds;
   } catch {
     // A cache write is an optimization; the current caller already has the
     // authoritative projection and the next read can try again.
+    return null;
   }
 }
 
@@ -131,7 +175,12 @@ export async function loadHandlerPeople(
   ]);
   if (fastResult.kind === 'fresh' && fastResult.result) {
     handlerHydrationCircuitOpenUntil = 0;
-    await persistAuthoritativeHandlerPeople(ids, fastResult.result, requestGeneration);
+    const persistedIds = await persistAuthoritativeHandlerPeople(
+      ids,
+      fastResult.result,
+      requestGeneration
+    );
+    if (persistedIds) emitHandlerPeopleHydration(persistedIds, fastResult.result);
     return fastResult.result;
   }
   if (fastResult.kind === 'failed') {
@@ -148,7 +197,8 @@ export async function loadHandlerPeople(
         return;
       }
       handlerHydrationCircuitOpenUntil = 0;
-      await persistAuthoritativeHandlerPeople(ids, result, requestGeneration);
+      const persistedIds = await persistAuthoritativeHandlerPeople(ids, result, requestGeneration);
+      if (persistedIds) emitHandlerPeopleHydration(persistedIds, result);
     })
     .catch(() => {
       handlerHydrationCircuitOpenUntil = Date.now() + HANDLER_PEOPLE_CIRCUIT_COOLDOWN_MS;

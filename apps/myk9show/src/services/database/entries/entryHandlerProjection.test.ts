@@ -43,6 +43,13 @@ const textAssignedEntry = entry({
   dogOwnerId: owner.id,
 });
 
+const conflictingHandlerAliasesEntry = entry({
+  handlerId: assigned.id,
+  handler: 'New Handler',
+  handlerName: 'Old Handler',
+  dogOwnerId: owner.id,
+});
+
 describe('projectEntryHandlerIdentity', () => {
   it('uses the assigned person for a replicated handler-id-only entry', () => {
     expect(projectEntryHandlerIdentity(proxyEntry, people)).toMatchObject({
@@ -64,5 +71,11 @@ describe('projectEntryHandlerIdentity', () => {
 
   it('preserves entries.handler as the printed authority', () => {
     expect(projectEntryHandlerIdentity(textAssignedEntry, people).name).toBe('Typed Handler');
+  });
+
+  it('uses entries.handler over a stale handlerName alias', () => {
+    expect(projectEntryHandlerIdentity(conflictingHandlerAliasesEntry, people).name).toBe(
+      'New Handler'
+    );
   });
 });

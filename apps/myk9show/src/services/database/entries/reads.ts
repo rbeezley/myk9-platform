@@ -35,8 +35,12 @@ import {
 } from './entrySelects';
 import { withReleasedShowResults } from './releasedShowResults';
 import { refreshShowEntriesForRead } from './refreshShowEntriesForRead';
-import { projectEntryHandlerIdentity, type ProjectedEntryHandler } from './entryHandlerProjection';
-import { loadHandlerPeople } from './handlerHydration';
+import {
+  HANDLER_PERSON_SELECT,
+  attachPostgrestHandlerIdentity,
+  mapReplicatedEntriesWithHandlerIdentity,
+  projectPostgrestEntryHandlerIdentity,
+} from './entryHandlerReadBoundary';
 
 // ---------------------------------------------------------------------------
 // Helpers — batch-load related data into Maps to avoid N+1 reads
@@ -46,13 +50,6 @@ const ENROLLMENT_FINANCIAL_SELECT = `
         id,
         payment_status
       `;
-
-const HANDLER_PERSON_SELECT = `
-      handler_person:handler_id (
-        id,
-        first_name,
-        last_name
-      )`;
 
 async function loadDogsMap(): Promise<Map<string, ReplicatedDog>> {
   return loadLookupMap(
@@ -114,98 +111,6 @@ function getEntryCreatedSortValue(entry: ReplicatedEntry): string | undefined {
   // Replication stores submitted_at as submittedAt; the mapper emits it as
   // created_at for the DB-shaped row, matching the PostgREST order column.
   return entry.submittedAt ?? entry.updated_at;
-}
-
-/**
- * The entry replica carries the dog foreign key, while ownership lives on the
- * replicated dog row. Resolve that typed relationship before projecting
- * handler identity so owner fallback works for ordinary entry view rows that
- * did not embed `dogs.owner_id`.
- */
-function withReplicatedDogOwner(
-  entry: ReplicatedEntry,
-  dogsMap: ReadonlyMap<string, ReplicatedDog>
-): ReplicatedEntry {
-  const ownerId = entry.dogOwnerId ?? (entry.dogId ? dogsMap.get(entry.dogId)?.ownerId : undefined);
-  return ownerId === entry.dogOwnerId ? entry : { ...entry, dogOwnerId: ownerId };
-}
-
-function handlerIdentityIds(entries: readonly ReplicatedEntry[]): string[] {
-  return [
-    ...new Set(
-      entries.flatMap(entry =>
-        [entry.handlerId, entry.dogOwnerId].filter((id): id is string => Boolean(id?.trim()))
-      )
-    ),
-  ];
-}
-
-/**
- * Map replicated entries and attach the canonical handler identity exactly
- * once at the database read boundary. The people hydrator receives IDs only;
- * it must not infer ownership from a DB-shaped row after mapping has erased
- * the typed replicated-dog relationship.
- */
-async function mapReplicatedEntriesWithHandlerIdentity(
-  entries: readonly ReplicatedEntry[],
-  dogsMap: ReadonlyMap<string, ReplicatedDog>,
-  mapEntry: (entry: ReplicatedEntry) => Record<string, unknown>
-): Promise<Record<string, unknown>[]> {
-  const entriesWithOwners = entries.map(entry => withReplicatedDogOwner(entry, dogsMap));
-  const people = await loadHandlerPeople(handlerIdentityIds(entriesWithOwners));
-  return entriesWithOwners.map(entry => ({
-    ...mapEntry(entry),
-    handler_identity: projectEntryHandlerIdentity(entry, people),
-  }));
-}
-
-function recordFromUnknown(value: unknown): Record<string, unknown> | null {
-  if (!value || typeof value !== 'object') return null;
-  if (Array.isArray(value)) {
-    const first = value[0];
-    return first && typeof first === 'object' ? (first as Record<string, unknown>) : null;
-  }
-  return value as Record<string, unknown>;
-}
-
-function joinedPersonFromUnknown(value: unknown) {
-  const person = recordFromUnknown(value);
-  if (typeof person?.id !== 'string') return null;
-  return {
-    id: person.id,
-    first_name: typeof person.first_name === 'string' ? person.first_name : null,
-    last_name: typeof person.last_name === 'string' ? person.last_name : null,
-  };
-}
-
-/**
- * Project a PostgREST row using the same precedence as the replicated path.
- * Joined `handler_person` and `dog.owner` rows are adapted to the canonical
- * replicated-entry input instead of maintaining a second precedence rule.
- */
-function projectPostgrestEntryHandlerIdentity(row: Record<string, unknown>): ProjectedEntryHandler {
-  const handlerPerson = joinedPersonFromUnknown(row.handler_person);
-  const dog = recordFromUnknown(row.dog);
-  const ownerPerson = joinedPersonFromUnknown(dog?.owner);
-  const people = new Map(
-    [handlerPerson, ownerPerson]
-      .filter((person): person is NonNullable<typeof person> => Boolean(person))
-      .map(person => [person.id, person] as const)
-  );
-  const entry: ReplicatedEntry = {
-    id: String(row.id),
-    handlerId: typeof row.handler_id === 'string' ? row.handler_id : undefined,
-    handler: typeof row.handler === 'string' ? row.handler : undefined,
-    dogOwnerId: ownerPerson?.id,
-  };
-  return projectEntryHandlerIdentity(entry, people);
-}
-
-function attachPostgrestHandlerIdentity<T extends Record<string, unknown>>(rows: T[]): T[] {
-  return rows.map(row => ({
-    ...row,
-    handler_identity: projectPostgrestEntryHandlerIdentity(row),
-  }));
 }
 
 // ---------------------------------------------------------------------------

@@ -185,7 +185,9 @@ describe('ClassCreationPage', () => {
     await user.click(screen.getByRole('button', { name: /next/i }));
     await user.click(screen.getByRole('button', { name: /next/i }));
 
-    expect(screen.getByText(/estimated judging time based on current entries/i)).toBeInTheDocument();
+    expect(
+      screen.getByText(/estimated judging time based on current entries/i)
+    ).toBeInTheDocument();
 
     mockClassStoreState.isStale = true;
     view.rerender(<ClassCreationPage trialId="trial-1" />);

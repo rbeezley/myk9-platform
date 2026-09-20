@@ -479,7 +479,8 @@ export const ClassSelectionGrid: React.FC<ClassSelectionGridProps> = ({
                 {showJudgeTimeEstimate && (
                   <div className="text-sm text-muted-foreground">
                     Estimated judging time based on current entries:{' '}
-                    {selectedClasses.length * (template.defaults?.judgingTimeEstimate || 15)} minutes
+                    {selectedClasses.length * (template.defaults?.judgingTimeEstimate || 15)}{' '}
+                    minutes
                   </div>
                 )}
               </div>

@@ -156,6 +156,39 @@ describe('ClassCreationPage', () => {
     expect(screen.getByText('15')).toBeInTheDocument();
   });
 
+  it('hides the estimate when cached entry counts become stale', async () => {
+    const selectedClass = template.classDefinitions[0]!;
+    mockClassStoreState.classes = [
+      {
+        id: 'class-1',
+        trialId: 'trial-1',
+        className: selectedClass.className,
+        element: selectedClass.element,
+        level: selectedClass.level,
+        section: selectedClass.section,
+      },
+    ];
+    mockClassStoreState.entries = [{ classId: 'class-1', status: 'Qualified' }];
+
+    const view = render(<ClassCreationPage trialId="trial-1" />);
+    const { user } = view;
+
+    await chooseTemplate(user, 'Space');
+    await user.click(screen.getByRole('button', { name: /next/i }));
+    await user.click(screen.getByText('Container Novice A'));
+    await user.click(screen.getByRole('button', { name: /next/i }));
+    await user.click(screen.getByRole('button', { name: /next/i }));
+
+    expect(screen.getByText(/estimated judging time based on current entries/i)).toBeInTheDocument();
+
+    mockClassStoreState.isStale = true;
+    view.rerender(<ClassCreationPage trialId="trial-1" />);
+
+    expect(
+      screen.queryByText(/estimated judging time based on current entries/i)
+    ).not.toBeInTheDocument();
+  });
+
   it.each([
     ['moved', { entryStatus: 'moved' }],
     ['scratched', { entryStatus: 'scratched' }],

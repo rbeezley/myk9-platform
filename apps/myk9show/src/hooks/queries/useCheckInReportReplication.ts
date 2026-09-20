@@ -108,38 +108,43 @@ export async function fetchReplicatedCheckInEntries(showId: string): Promise<Che
   const activeEntries = entries
     .filter(isNotDeleted)
     .map(entry => withReplicatedDogOwner(entry, dogsById));
+  const classesByEntryId = new Map(
+    await Promise.all(
+      activeEntries.map(
+        async entry => [entry.id, await getClassForEntry(entry, classCache)] as const
+      )
+    )
+  );
   const handlerPeople = await loadHandlerPeople(collectHandlerIdentityIds(activeEntries));
 
-  return Promise.all(
-    activeEntries.map(async entry => {
-      const cls = await getClassForEntry(entry, classCache);
-      const trialId = getEntryTrialId(entry, cls);
-      const trial = trialId ? (trialsById.get(trialId) ?? null) : null;
-      const handlerIdentity = projectEntryHandlerIdentity(entry, handlerPeople);
-      const handler =
-        handlerIdentity.source === 'unknown'
-          ? splitHandlerName(undefined)
-          : splitHandlerName(handlerIdentity.name ?? undefined);
+  return activeEntries.map(entry => {
+    const cls = classesByEntryId.get(entry.id) ?? null;
+    const trialId = getEntryTrialId(entry, cls);
+    const trial = trialId ? (trialsById.get(trialId) ?? null) : null;
+    const handlerIdentity = projectEntryHandlerIdentity(entry, handlerPeople);
+    const handler =
+      handlerIdentity.source === 'unknown'
+        ? splitHandlerName(undefined)
+        : splitHandlerName(handlerIdentity.name ?? undefined);
 
-      return {
-        id: entry.id,
-        dog_id: entry.dogId ?? '',
-        handler_id: entry.handlerId ?? '',
-        check_in_status: getEntryCheckInStatus(entry),
-        armband_number: armbandNumberForEntry(entry, armbandsByEntryId, armbandsByDogId),
-        handler_first_name: handler.firstName,
-        handler_last_name: handler.lastName,
-        handler_identity_ids: collectHandlerIdentityIds([entry]),
-        dog_call_name: getDogCallName(entry),
-        dog_breed_name: getDogBreed(entry),
-        class_id: getEntryClassId(entry),
-        element: cls?.element ?? null,
-        level: cls?.level ?? null,
-        section: cls?.section ?? null,
-        trial_id: trialId,
-        trial_date: trial?.date ?? trial?.trial_date ?? '',
-        trial_number: trialNumber(trial),
-      };
-    })
-  );
+    return {
+      id: entry.id,
+      dog_id: entry.dogId ?? '',
+      handler_id: entry.handlerId ?? '',
+      check_in_status: getEntryCheckInStatus(entry),
+      armband_number: armbandNumberForEntry(entry, armbandsByEntryId, armbandsByDogId),
+      handler_first_name: handler.firstName,
+      handler_last_name: handler.lastName,
+      handler_identity_ids: collectHandlerIdentityIds([entry]),
+      dog_call_name: getDogCallName(entry),
+      dog_breed_name: getDogBreed(entry),
+      class_id: getEntryClassId(entry),
+      element: cls?.element ?? null,
+      level: cls?.level ?? null,
+      section: cls?.section ?? null,
+      trial_id: trialId,
+      trial_date: trial?.date ?? trial?.trial_date ?? '',
+      trial_number: trialNumber(trial),
+    };
+  });
 }

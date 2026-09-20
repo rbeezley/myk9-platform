@@ -376,4 +376,70 @@ describe('fetchReplicatedCheckInEntries', () => {
     unmount();
     expect(hydrationMocks.stopHandlerPeopleHydration).toHaveBeenCalledTimes(1);
   });
+
+  it('does not lose hydration completion while a class lookup is pending', async () => {
+    replicationMocks.getEntriesByShow.mockResolvedValue([
+      {
+        id: 'entry-owner',
+        showId: 'show-1',
+        dogId: 'dog-1',
+        handlerId: null,
+        handler: null,
+        dogCallName: 'Buddy',
+        classId: 'class-1',
+      },
+    ]);
+    replicationMocks.getAllDogs.mockResolvedValue([
+      {
+        id: 'dog-1',
+        name: 'Buddy',
+        callName: 'Buddy',
+        breed: 'Golden Retriever',
+        ownerId: 'owner-1',
+      },
+    ]);
+    replicationMocks.getClassById.mockReturnValue(
+      new Promise(resolve =>
+        setTimeout(
+          () =>
+            resolve({
+              id: 'class-1',
+              trialId: 'trial-1',
+              element: 'Buried',
+              level: 'Novice',
+            }),
+          20
+        )
+      )
+    );
+    replicationMocks.getTrialsByShow.mockResolvedValue([
+      { id: 'trial-1', date: '2026-04-12', trialNumber: '1' },
+    ]);
+    replicationMocks.getArmbandsByShow.mockResolvedValue([]);
+
+    let hydrationCalls = 0;
+    hydrationMocks.loadHandlerPeople.mockImplementation(async () => {
+      hydrationCalls += 1;
+      if (hydrationCalls === 1) {
+        setTimeout(() => hydrationMocks.handlerPeopleListener?.({ ids: ['owner-1'] }), 0);
+        return new Map();
+      }
+      return new Map([['owner-1', { id: 'owner-1', first_name: 'Olivia', last_name: 'Owner' }]]);
+    });
+
+    const { useCheckInReport } = await import('../useCheckInReport');
+    const queryClient = new QueryClient({
+      defaultOptions: { queries: { retry: false, gcTime: Number.POSITIVE_INFINITY } },
+    });
+    const wrapper = ({ children }: PropsWithChildren) =>
+      createElement(QueryClientProvider, { client: queryClient }, children);
+    const { result, unmount } = renderHook(() => useCheckInReport('show-1'), { wrapper });
+
+    await waitFor(() => expect(result.current.data?.[0]?.handlerName).toBe('Olivia Owner'));
+    expect(hydrationMocks.loadHandlerPeople).toHaveBeenCalledTimes(2);
+
+    await new Promise(resolve => setTimeout(resolve, 20));
+    expect(hydrationMocks.loadHandlerPeople).toHaveBeenCalledTimes(2);
+    unmount();
+  });
 });

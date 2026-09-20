@@ -161,3 +161,53 @@ passed
   no further progress for over 30 seconds; it was interrupted with exit 130.
 - `pnpm qa:inflight` did not return within 60 seconds while checking the
   touched paths and was interrupted; it produced no ownership hit.
+
+## Fix round 2/5 — sequence class lookups before handler hydration
+
+### Changes
+
+- Resolved every active entry's class lookup before starting
+  `loadHandlerPeople`. The final projection is now synchronous after the
+  hydrator returns, so its deferred completion cannot publish before the
+  report rows are available to the hook subscription.
+- Added an actual-hook regression with a deliberately delayed class lookup and
+  a completion event scheduled during the old ordering. The report converges
+  to `Olivia Owner` and stays at two hydration reads, proving the event was not
+  lost and no loop was introduced.
+- Scoped the Gazette audit to the nearest field container for each label and
+  asserted both positive and negative owner/handler membership. No Gazette
+  production change was needed.
+
+### TDD evidence
+
+Before sequencing, the new delayed-class test failed with `Unknown` after the
+completion event fired while class lookup was pending. After sequencing, the
+same regression passed; the focused check-in/Gazette suite passed in full.
+
+### Verification
+
+```text
+pnpm vitest run \
+  apps/myk9show/src/hooks/queries/__tests__/useCheckInReport.test.ts \
+  apps/myk9show/src/hooks/queries/__tests__/useCheckInReport.replication.test.ts \
+  apps/myk9show/src/features/gazette/entry-blank/__tests__/GazetteEntryBlankDocument.test.tsx
+Test Files 3 passed; Tests 30 passed
+
+pnpm exec tsc --noEmit --project apps/myk9show/tsconfig.app.json
+passed (exit 0)
+
+pnpm exec prettier --check \
+  apps/myk9show/src/hooks/queries/useCheckInReportReplication.ts \
+  apps/myk9show/src/hooks/queries/__tests__/useCheckInReport.replication.test.ts \
+  apps/myk9show/src/features/gazette/entry-blank/__tests__/GazetteEntryBlankDocument.test.tsx \
+  .superpowers/sdd/2026-09-20-myk9-603-canonical-handler-identity/task-6-report.md
+passed; all matched files use Prettier code style
+
+git diff --check
+passed
+```
+
+### Concerns
+
+- No new concerns beyond the unrelated test-project typecheck and interrupted
+  broad checks recorded above.

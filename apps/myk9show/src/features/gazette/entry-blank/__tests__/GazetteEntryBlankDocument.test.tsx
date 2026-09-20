@@ -155,17 +155,12 @@ describe('GazetteEntryBlankDocument', () => {
       owner: { first_name: 'Olivia', last_name: 'Owner' },
       handler: { first_name: 'Harper', last_name: 'Handler' },
     });
-    const { container } = render(<GazetteEntryBlankDocument {...props} />);
-    const ownerField = Array.from(container.querySelectorAll('div')).find(
-      field =>
-        field.textContent?.includes('Owner name') && field.textContent.includes('Olivia Owner')
-    );
-    const handlerField = Array.from(container.querySelectorAll('div')).find(
-      field =>
-        field.textContent?.includes('Handler (if different)') &&
-        field.textContent.includes('Harper Handler')
-    );
-    expect(ownerField).toBeTruthy();
-    expect(handlerField).toBeTruthy();
+    render(<GazetteEntryBlankDocument {...props} />);
+    const ownerField = screen.getByText('Owner name').closest('div');
+    const handlerField = screen.getByText('Handler (if different)').closest('div');
+    expect(ownerField).toHaveTextContent('Olivia Owner');
+    expect(ownerField).not.toHaveTextContent('Harper Handler');
+    expect(handlerField).toHaveTextContent('Harper Handler');
+    expect(handlerField).not.toHaveTextContent('Olivia Owner');
   });
 });

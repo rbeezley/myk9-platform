@@ -468,7 +468,7 @@ export const ClassSelectionGrid: React.FC<ClassSelectionGridProps> = ({
       </Card>
 
       {/* Selection Summary */}
-      {selectedClasses.length > 0 && showJudgeTimeEstimate && (
+      {selectedClasses.length > 0 && (
         <Card>
           <CardContent className="pt-4">
             <div className="flex items-center justify-between">
@@ -476,10 +476,12 @@ export const ClassSelectionGrid: React.FC<ClassSelectionGridProps> = ({
                 <span className="font-medium">
                   {selectedClasses.length} class{selectedClasses.length !== 1 ? 'es' : ''} selected
                 </span>
-                <div className="text-sm text-muted-foreground">
-                  Estimated judging time based on current entries:{' '}
-                  {selectedClasses.length * (template.defaults?.judgingTimeEstimate || 15)} minutes
-                </div>
+                {showJudgeTimeEstimate && (
+                  <div className="text-sm text-muted-foreground">
+                    Estimated judging time based on current entries:{' '}
+                    {selectedClasses.length * (template.defaults?.judgingTimeEstimate || 15)} minutes
+                  </div>
+                )}
               </div>
               <Button variant="outline" onClick={clearAllSelections}>
                 Clear Selection

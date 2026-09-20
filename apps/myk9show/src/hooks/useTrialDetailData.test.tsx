@@ -96,6 +96,17 @@ describe('useTrialDetailData', () => {
     expect(vi.mocked(useTrialQuery)).toHaveBeenCalledWith(undefined);
   });
 
+  it('does not reuse the selected trial when the requested trial is not cached', () => {
+    setStores({
+      trials: [{ id: 't1', showId: 's1' }],
+      selectedTrialId: 't1',
+    });
+
+    renderHook(() => useTrialDetailData('t2'));
+
+    expect(vi.mocked(useTrialQuery)).toHaveBeenCalledWith('t2');
+  });
+
   it('falls back to the anon by-id read for the parent show when only the show is cold', () => {
     setStores({ trials: [{ id: 't1', showId: 's1' }], selectedTrialId: 't1', shows: [] });
     setShowQuery({ id: 's1' });

@@ -44,6 +44,7 @@ describe('ClassSelectionGrid judge-time estimate', () => {
 
     expect(screen.queryByText(/estimated judging time/i)).not.toBeInTheDocument();
     expect(screen.queryByText(/based on current entries/i)).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /clear selection/i })).toBeInTheDocument();
   });
 
   it('shows the unchanged calculation and current-entry wording for populated counts', () => {

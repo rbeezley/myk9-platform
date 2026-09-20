@@ -5,7 +5,7 @@ import type { ArmbandLabelItem } from '@/lib/labels/armbandLabelTypes';
 import { DEFAULT_CONTENT_CONFIG } from '@/lib/labels/armbandLabelTypes';
 
 const item: ArmbandLabelItem = {
-  armband: 101,
+  armband: '101',
   callName: 'Storm',
   handler: 'Jane Smith',
   trialDate: '6/11/2025',

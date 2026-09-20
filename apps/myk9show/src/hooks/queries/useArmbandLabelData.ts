@@ -6,15 +6,14 @@ import type { ArmbandLabelEntry } from '@/lib/labels/armbandLabelTypes';
 import { formatReportDate } from '@/lib/reports/reportUtils';
 import { useShowVenueWifi } from './useShowVenueWifi';
 import { projectHandlerIdentity } from '@/features/registries/handlerIdentity';
+import { normalizePacketArmband } from '@/features/emergency-trial-packet/armband';
 
 /** Exported for unit testing — pure function, no hooks */
 export function mapEntryToArmbandLabelEntry(
   raw: Record<string, unknown>
 ): ArmbandLabelEntry | null {
-  const rawArmband = raw.armband as number | string | null | undefined;
-  const normalizedArmband = rawArmband == null ? null : String(rawArmband).trim();
-  if (!normalizedArmband || normalizedArmband === '0') return null;
-  const armband = typeof rawArmband === 'number' ? rawArmband : normalizedArmband;
+  const armband = normalizePacketArmband(raw.armband as number | string | null | undefined);
+  if (!armband) return null;
 
   const dog = raw.dog as Record<string, unknown> | null;
   const owner = dog?.owner as Record<string, unknown> | null;

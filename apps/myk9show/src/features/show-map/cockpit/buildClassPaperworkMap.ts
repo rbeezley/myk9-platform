@@ -6,6 +6,7 @@ import { buildReportPaperworkDescriptor } from './buildReportPaperworkDescriptor
 import { buildArmbandPaperworkDescriptor, derivePaperworkPrintState } from './paperworkPrintState';
 import type { SecretaryCockpitPaperwork } from './secretaryCockpitTypes';
 import { projectHandlerIdentity } from '@/features/registries/handlerIdentity';
+import { normalizePacketArmband } from '@/features/emergency-trial-packet/armband';
 
 const REPORTS = [
   { id: 'check-in-sheet', label: 'Check-in sheet' },
@@ -150,9 +151,8 @@ function buildArmbandDescriptor(
     }
   >();
   for (const entry of entries) {
-    const rawArmband = entry.armband == null ? '' : String(entry.armband).trim();
-    if (!rawArmband || !calendarDay) continue;
-    const armband = /^\d+(?:\.\d+)?$/.test(rawArmband) ? Number(rawArmband) : rawArmband;
+    const armband = normalizePacketArmband(entry.armband);
+    if (!armband || !calendarDay) continue;
     const row = entry as DbEntry & Record<string, unknown>;
     const dog = row.dog as Record<string, unknown> | null;
     const handler = row.handler_person as Record<string, unknown> | null;

@@ -64,7 +64,7 @@ export const ArmbandLabelsReport: React.FC<ArmbandLabelsReportProps> = ({
   const filterConfig: LabelFilterConfig = useMemo(
     () => ({
       ...filter,
-      specificArmband: showSpecific && specificArmband ? Number(specificArmband) : null,
+      specificArmband: showSpecific && specificArmband ? specificArmband : null,
     }),
     [filter, showSpecific, specificArmband]
   );
@@ -267,12 +267,12 @@ export const ArmbandLabelsReport: React.FC<ArmbandLabelsReportProps> = ({
               </label>
               {showSpecific && (
                 <Input
-                  type="number"
-                  inputMode="numeric"
+                  type="text"
+                  inputMode="text"
                   value={specificArmband}
                   onChange={e => setSpecificArmband(e.target.value)}
                   className="w-20 ml-2 h-11"
-                  placeholder="#"
+                  placeholder="# / 12A"
                   aria-label="Armband number"
                 />
               )}

@@ -8,6 +8,7 @@ import {
   type DogRegistrationLike,
 } from '@/features/dogs/identity';
 import { parseAKCResultStatus } from '@myk9/secretary';
+import { normalizePacketArmband } from '@/features/emergency-trial-packet/armband';
 import type {
   AKCSubmissionData,
   AKCSubmissionEntry,
@@ -263,7 +264,7 @@ export function useAKCSubmissionData(showId: string) {
           searchTimeSeconds: e.search_time_seconds,
           totalFaults: null,
           finalPlacement: e.final_placement,
-          armbandNumber: e.armband ?? '',
+          armbandNumber: normalizePacketArmband(e.armband) ?? '',
           trialId: e.trial_id ?? '',
           classId: e.class_id ?? '',
           // AKCSubmissionEntry fields

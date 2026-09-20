@@ -1,6 +1,6 @@
 import type { PaperworkHandlerIdentity } from '@/features/show-map/cockpit/paperworkPrintState';
 
-export type ArmbandLabelValue = number | string;
+export type ArmbandLabelValue = string;
 
 export interface ArmbandLabelEntry {
   id: string;
@@ -35,7 +35,7 @@ export interface LabelContentConfig {
 export interface LabelFilterConfig {
   earlyEntries: boolean;
   dayOfShowEntries: boolean;
-  specificArmband?: number | null;
+  specificArmband?: string | null;
 }
 
 export const DEFAULT_CONTENT_CONFIG: LabelContentConfig = {

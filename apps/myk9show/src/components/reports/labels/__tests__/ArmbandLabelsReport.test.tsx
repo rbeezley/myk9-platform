@@ -12,7 +12,7 @@ vi.mock('@/hooks/queries/useArmbandLabelData', () => ({
         trialId: 'trial-1',
         classId: 'class-1',
         calendarDay: '2025-06-11',
-        armband: 101,
+        armband: '101',
         callName: 'Storm',
         handler: 'Jane',
         trialDate: '6/11/2025',
@@ -24,7 +24,7 @@ vi.mock('@/hooks/queries/useArmbandLabelData', () => ({
         trialId: 'trial-1',
         classId: 'class-1',
         calendarDay: '2025-06-11',
-        armband: 102,
+        armband: '102',
         callName: 'Max',
         handler: 'Bob',
         trialDate: '6/11/2025',
@@ -139,9 +139,9 @@ describe('ArmbandLabelsReport', () => {
       expect(checkboxLabel?.contains(numberInput)).toBe(false);
 
       // And typing leaves the checkbox checked.
-      fireEvent.change(numberInput, { target: { value: '42' } });
+      fireEvent.change(numberInput, { target: { value: '12A' } });
       expect(specificCheckbox).toHaveAttribute('aria-checked', 'true');
-      expect(numberInput).toHaveValue(42);
+      expect(numberInput).toHaveValue('12A');
     });
 
     it('hides the number field and clears it when the checkbox is unchecked', () => {

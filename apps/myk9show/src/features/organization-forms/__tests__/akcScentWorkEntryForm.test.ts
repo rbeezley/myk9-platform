@@ -49,7 +49,7 @@ const dog: EntryFormDog = {
   handler: 'Bob Handler',
   handlerDateOfBirth: null,
   handlerJuniorHandlerNumbers: undefined,
-  armband: 101,
+  armband: '101',
   entries: [
     {
       id: 'e1',
@@ -57,7 +57,7 @@ const dog: EntryFormDog = {
       classId: 'c1',
       element: 'Container',
       level: 'Excellent',
-      armband: 101,
+      armband: '101',
       handler: null,
       handlerId: null,
       submittedAt: '2026-04-01T12:00:00Z',
@@ -68,7 +68,7 @@ const dog: EntryFormDog = {
       classId: 'c2',
       element: 'Interior',
       level: 'Novice A',
-      armband: 101,
+      armband: '101',
       handler: null,
       handlerId: null,
       submittedAt: '2026-04-01T12:00:00Z',
@@ -79,7 +79,7 @@ const dog: EntryFormDog = {
       classId: 'c3',
       element: 'Detective',
       level: 'Detective',
-      armband: 101,
+      armband: '101',
       handler: null,
       handlerId: null,
       submittedAt: '2026-04-01T12:00:00Z',
@@ -90,7 +90,7 @@ const dog: EntryFormDog = {
       classId: 'c4',
       element: 'Buried',
       level: 'Master',
-      armband: 101,
+      armband: '101',
       handler: null,
       handlerId: null,
       submittedAt: '2026-04-01T12:00:00Z',
@@ -101,7 +101,7 @@ const dog: EntryFormDog = {
       classId: 'c5',
       element: 'Handler Discrimination',
       level: 'Advanced',
-      armband: 101,
+      armband: '101',
       handler: null,
       handlerId: null,
       submittedAt: '2026-04-01T12:00:00Z',
@@ -156,7 +156,7 @@ describe('buildAKCScentWorkEntryFormValues', () => {
 
   it('builds a flattened multi-dog packet from the real AKC Entry Form PDF', async () => {
     const bytes = await buildAKCScentWorkEntryFormPacketPdfBytes({
-      dogs: [{ ...dog, dogId: 'dog-2', callName: 'Rocket', armband: 88 }, dog],
+      dogs: [{ ...dog, dogId: 'dog-2', callName: 'Rocket', armband: '88' }, dog],
       trials,
       templateBytes: new Uint8Array(await readFile(templatePath)),
     });

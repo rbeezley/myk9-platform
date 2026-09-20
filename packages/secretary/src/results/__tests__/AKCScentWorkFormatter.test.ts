@@ -163,8 +163,8 @@ describe('AKCScentWorkFormatter', () => {
       const xml = AKCScentWorkFormatter.formatXml(
         makeData({
           entries: [
-            makeEntry({ classId: 'class-1', armbandNumber: 101 }),
-            makeEntry({ classId: 'class-1', armbandNumber: 102, finalPlacement: 2 }),
+            makeEntry({ classId: 'class-1', armbandNumber: '101' }),
+            makeEntry({ classId: 'class-1', armbandNumber: '102', finalPlacement: 2 }),
           ],
         })
       );
@@ -215,9 +215,9 @@ describe('AKCScentWorkFormatter', () => {
       const xml = AKCScentWorkFormatter.formatXml(
         makeData({
           entries: [
-            makeEntry({ classId: 'class-1', armbandNumber: 101, entryStatus: 'completed' }),
-            makeEntry({ classId: 'class-1', armbandNumber: 102, entryStatus: 'completed' }),
-            makeEntry({ classId: 'class-1', armbandNumber: 103, entryStatus: 'withdrawn' }),
+            makeEntry({ classId: 'class-1', armbandNumber: '101', entryStatus: 'completed' }),
+            makeEntry({ classId: 'class-1', armbandNumber: '102', entryStatus: 'completed' }),
+            makeEntry({ classId: 'class-1', armbandNumber: '103', entryStatus: 'withdrawn' }),
           ],
         })
       );
@@ -229,10 +229,10 @@ describe('AKCScentWorkFormatter', () => {
       const xml = AKCScentWorkFormatter.formatXml(
         makeData({
           entries: [
-            makeEntry({ classId: 'class-1', armbandNumber: 101, checkInStatus: 'completed' }),
+            makeEntry({ classId: 'class-1', armbandNumber: '101', checkInStatus: 'completed' }),
             makeEntry({
               classId: 'class-1',
-              armbandNumber: 102,
+              armbandNumber: '102',
               resultStatus: 'absent',
               finalPlacement: null,
             }),
@@ -249,19 +249,19 @@ describe('AKCScentWorkFormatter', () => {
           entries: [
             makeEntry({
               classId: 'class-1',
-              armbandNumber: 101,
+              armbandNumber: '101',
               finalPlacement: 1,
               resultStatus: 'qualified',
             }),
             makeEntry({
               classId: 'class-1',
-              armbandNumber: 102,
+              armbandNumber: '102',
               finalPlacement: null,
               resultStatus: 'qualified',
             }),
             makeEntry({
               classId: 'class-1',
-              armbandNumber: 103,
+              armbandNumber: '103',
               finalPlacement: null,
               resultStatus: 'nq',
             }),
@@ -381,9 +381,9 @@ describe('AKCScentWorkFormatter', () => {
       // fix each one; collapsing them on the triple would hide all but the first.
       const broken = { element: 'Unknown', level: 'Unknown', section: null, className: 'Unknown' };
       const result = collectUnmappableAKCClasses([
-        makeEntry({ ...broken, classId: 'class-1', armbandNumber: 101 }),
-        makeEntry({ ...broken, classId: 'class-1', armbandNumber: 102 }),
-        makeEntry({ ...broken, classId: 'class-2', armbandNumber: 103 }),
+        makeEntry({ ...broken, classId: 'class-1', armbandNumber: '101' }),
+        makeEntry({ ...broken, classId: 'class-1', armbandNumber: '102' }),
+        makeEntry({ ...broken, classId: 'class-2', armbandNumber: '103' }),
       ]);
       expect(result).toHaveLength(2);
       expect(result.map(c => c.classId)).toEqual(['class-1', 'class-2']);
@@ -645,25 +645,25 @@ describe('AKCScentWorkFormatter', () => {
         entries: [
           makeEntry({
             classId: 'class-1',
-            armbandNumber: 101,
+            armbandNumber: '101',
             resultStatus: 'qualified',
             finalPlacement: 1,
           }),
           makeEntry({
             classId: 'class-1',
-            armbandNumber: 102,
+            armbandNumber: '102',
             resultStatus: 'qualified',
             finalPlacement: null,
           }),
           makeEntry({
             classId: 'class-1',
-            armbandNumber: 103,
+            armbandNumber: '103',
             resultStatus: 'qualified',
             finalPlacement: null,
           }),
           makeEntry({
             classId: 'class-1',
-            armbandNumber: 104,
+            armbandNumber: '104',
             resultStatus: 'qualified',
             finalPlacement: null,
           }),
@@ -779,8 +779,8 @@ describe('AKCScentWorkFormatter', () => {
           makeTrial({ id: 'trial-2', eventNumber: 'EV002', date: '2026-05-11' }),
         ],
         entries: [
-          makeEntry({ trialId: 'trial-1', armbandNumber: 101 }),
-          makeEntry({ trialId: 'trial-2', armbandNumber: 201 }),
+          makeEntry({ trialId: 'trial-1', armbandNumber: '101' }),
+          makeEntry({ trialId: 'trial-2', armbandNumber: '201' }),
         ],
       });
       // Both events present

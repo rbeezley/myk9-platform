@@ -47,7 +47,7 @@ const {
       handler: null,
       handlerDateOfBirth: null,
       handlerJuniorHandlerNumbers: undefined,
-      armband: 101,
+      armband: '101',
       entries: [
         {
           id: 'e1',
@@ -55,7 +55,7 @@ const {
           classId: 'c1',
           element: 'Container',
           level: 'Excellent',
-          armband: 101,
+          armband: '101',
           handler: null,
           handlerId: null,
           submittedAt: '2026-04-01T12:00:00Z',
@@ -66,7 +66,7 @@ const {
           classId: 'c2',
           element: 'Interior',
           level: 'Excellent',
-          armband: 101,
+          armband: '101',
           handler: null,
           handlerId: null,
           submittedAt: '2026-04-01T12:00:00Z',

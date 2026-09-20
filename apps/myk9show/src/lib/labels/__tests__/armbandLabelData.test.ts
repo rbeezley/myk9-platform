@@ -12,7 +12,7 @@ const entries: ArmbandLabelEntry[] = [
     trialId: 'trial-1',
     classId: 'class-1',
     calendarDay: '2025-06-11',
-    armband: 101,
+    armband: '101',
     callName: 'Storm',
     handler: 'Jane Doe',
     trialDate: '6/11/2025',
@@ -24,7 +24,7 @@ const entries: ArmbandLabelEntry[] = [
     trialId: 'trial-1',
     classId: 'class-1',
     calendarDay: '2025-06-11',
-    armband: 102,
+    armband: '102',
     callName: 'Jewels',
     handler: 'Bob Smith',
     trialDate: '6/11/2025',
@@ -36,7 +36,7 @@ const entries: ArmbandLabelEntry[] = [
     trialId: 'trial-2',
     classId: 'class-3',
     calendarDay: '2025-06-12',
-    armband: 201,
+    armband: '201',
     callName: 'Crash',
     handler: 'Sue Lee',
     trialDate: '6/12/2025',
@@ -83,7 +83,7 @@ describe('filterEntries', () => {
     const result = filterEntries(entries, {
       earlyEntries: true,
       dayOfShowEntries: true,
-      specificArmband: 102,
+      specificArmband: '102',
     });
     expect(result).toHaveLength(1);
     expect(result[0].callName).toBe('Jewels');
@@ -93,9 +93,18 @@ describe('filterEntries', () => {
 describe('prepareArmbandLabelItems', () => {
   it('sorts by armband number ascending', () => {
     const items = prepareArmbandLabelItems(entries);
-    expect(items[0].armband).toBe(101);
-    expect(items[1].armband).toBe(102);
-    expect(items[2].armband).toBe(201);
+    expect(items[0].armband).toBe('101');
+    expect(items[1].armband).toBe('102');
+    expect(items[2].armband).toBe('201');
+  });
+
+  it('sorts suffixed labels with their numeric armband', () => {
+    const items = prepareArmbandLabelItems([
+      { ...entries[0], id: '12a', armband: '12A' },
+      { ...entries[0], id: '12', armband: '12' },
+      { ...entries[0], id: '13', armband: '13' },
+    ]);
+    expect(items.map(item => item.armband)).toEqual(['12', '12A', '13']);
   });
 });
 
@@ -107,7 +116,7 @@ describe('selectArmbandLabelEntries', () => {
       trialId: index < 4 ? 'trial-1' : 'trial-2',
       classId: `class-${index + 1}`,
       calendarDay: '2025-06-11',
-      armband: 101,
+      armband: '101',
       callName: 'Storm',
       handler: 'Jane Doe',
       trialDate: '6/11/2025',
@@ -156,7 +165,7 @@ describe('selectArmbandLabelEntries', () => {
       showId: 'show-1',
     });
     expect(selected).toHaveLength(2);
-    expect(selected.map(item => item.armband)).toEqual([101, 101]);
+    expect(selected.map(item => item.armband)).toEqual(['101', '101']);
   });
 
   it('keeps separate Dogs handled by the same person', () => {

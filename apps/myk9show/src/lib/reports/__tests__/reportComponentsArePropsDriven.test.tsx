@@ -56,7 +56,7 @@ const ENTRY_FORM_DATA: ReportEntryFormData = {
         zipCode: '74101',
       },
       handler: null,
-      armband: 1,
+      armband: '1',
       entries: [],
       agreementDate: '2026-08-01',
     },

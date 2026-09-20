@@ -42,7 +42,7 @@ function makeEntry(overrides: Partial<AKCSubmissionEntry> = {}): AKCSubmissionEn
     searchTimeSeconds: 14.5,
     totalFaults: 0,
     finalPlacement: null,
-    armbandNumber: 101,
+    armbandNumber: '101',
     trialId: 'trial-1',
     classId: 'class-1',
     dogRegisteredName: 'Acme Fluffy The First',
@@ -210,9 +210,9 @@ describe('classifyAKCEntryOutcome', () => {
 
     it('does not let an excluded row block a submission as unscored', () => {
       const entries = [
-        makeEntry({ armbandNumber: 1, resultStatus: 'qualified' }),
-        makeEntry({ armbandNumber: 2, entryStatus: 'moved', resultStatus: 'pending' }),
-        makeEntry({ armbandNumber: 3, entryStatus: 'promotion-expired', resultStatus: 'pending' }),
+        makeEntry({ armbandNumber: '1', resultStatus: 'qualified' }),
+        makeEntry({ armbandNumber: '2', entryStatus: 'moved', resultStatus: 'pending' }),
+        makeEntry({ armbandNumber: '3', entryStatus: 'promotion-expired', resultStatus: 'pending' }),
       ];
       expect(countUnscoredAKCEntries(entries)).toBe(0);
       expect(selectSubmittableAKCEntries(entries)).toHaveLength(1);
@@ -221,8 +221,8 @@ describe('classifyAKCEntryOutcome', () => {
     it('keeps excluded rows out of every class tally', () => {
       expect(
         tallyAKCClass([
-          makeEntry({ armbandNumber: 1, resultStatus: 'qualified' }),
-          makeEntry({ armbandNumber: 2, entryStatus: 'draft', resultStatus: 'pending' }),
+          makeEntry({ armbandNumber: '1', resultStatus: 'qualified' }),
+          makeEntry({ armbandNumber: '2', entryStatus: 'draft', resultStatus: 'pending' }),
         ])
       ).toEqual({ numEntries: 1, numStarters: 1, numQualifying: 1, numWithdrawals: 0 });
     });
@@ -262,11 +262,11 @@ describe('classifyAKCEntryOutcome', () => {
 describe('tallyAKCClass', () => {
   it('derives every count from the same classification as the dog rows', () => {
     const tallies = tallyAKCClass([
-      makeEntry({ armbandNumber: 1, resultStatus: 'qualified', finalPlacement: 1 }),
-      makeEntry({ armbandNumber: 2, resultStatus: 'qualified', finalPlacement: null }),
-      makeEntry({ armbandNumber: 3, resultStatus: 'nq' }),
-      makeEntry({ armbandNumber: 4, resultStatus: 'absent' }),
-      makeEntry({ armbandNumber: 5, entryStatus: 'withdrawn', resultStatus: 'pending' }),
+      makeEntry({ armbandNumber: '1', resultStatus: 'qualified', finalPlacement: 1 }),
+      makeEntry({ armbandNumber: '2', resultStatus: 'qualified', finalPlacement: null }),
+      makeEntry({ armbandNumber: '3', resultStatus: 'nq' }),
+      makeEntry({ armbandNumber: '4', resultStatus: 'absent' }),
+      makeEntry({ armbandNumber: '5', entryStatus: 'withdrawn', resultStatus: 'pending' }),
     ]);
     expect(tallies).toEqual({
       numEntries: 4, // 5 minus the withdrawal
@@ -278,8 +278,8 @@ describe('tallyAKCClass', () => {
 
   it('never double-subtracts a dog that is both withdrawn and absent', () => {
     const tallies = tallyAKCClass([
-      makeEntry({ armbandNumber: 1, entryStatus: 'withdrawn', resultStatus: 'absent' }),
-      makeEntry({ armbandNumber: 2, resultStatus: 'qualified' }),
+      makeEntry({ armbandNumber: '1', entryStatus: 'withdrawn', resultStatus: 'absent' }),
+      makeEntry({ armbandNumber: '2', resultStatus: 'qualified' }),
     ]);
     expect(tallies.numWithdrawals).toBe(1);
     expect(tallies.numEntries).toBe(1);
@@ -300,13 +300,13 @@ describe('countUnscoredAKCEntries', () => {
   it('counts only entries with no result recorded', () => {
     expect(
       countUnscoredAKCEntries([
-        makeEntry({ armbandNumber: 1, resultStatus: 'pending' }),
-        makeEntry({ armbandNumber: 2, resultStatus: null }),
-        makeEntry({ armbandNumber: 3, resultStatus: 'qualified' }),
-        makeEntry({ armbandNumber: 4, resultStatus: 'nq' }),
+        makeEntry({ armbandNumber: '1', resultStatus: 'pending' }),
+        makeEntry({ armbandNumber: '2', resultStatus: null }),
+        makeEntry({ armbandNumber: '3', resultStatus: 'qualified' }),
+        makeEntry({ armbandNumber: '4', resultStatus: 'nq' }),
         // Withdrawn and absent dogs are accounted for — they need no result.
-        makeEntry({ armbandNumber: 5, entryStatus: 'withdrawn', resultStatus: 'pending' }),
-        makeEntry({ armbandNumber: 6, checkInStatus: 'pulled', resultStatus: 'pending' }),
+        makeEntry({ armbandNumber: '5', entryStatus: 'withdrawn', resultStatus: 'pending' }),
+        makeEntry({ armbandNumber: '6', checkInStatus: 'pulled', resultStatus: 'pending' }),
       ])
     ).toBe(2);
   });

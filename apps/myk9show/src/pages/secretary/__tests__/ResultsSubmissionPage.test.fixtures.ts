@@ -45,7 +45,7 @@ function makeAKCEntry(
     searchTimeSeconds: null,
     totalFaults: null,
     finalPlacement: null,
-    armbandNumber: 101,
+    armbandNumber: '101',
     trialId: 't1',
     classId: 'c1',
     dogRegisteredName: null,

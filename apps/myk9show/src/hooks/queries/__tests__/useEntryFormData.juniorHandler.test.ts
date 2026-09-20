@@ -67,7 +67,7 @@ function routeTables(entries: EntryRow[], people: unknown[]) {
       dog_id: 'dog-1',
       class_id: 'class-1',
       trial_id: 'trial-1',
-      armband: 101,
+      armband: '101',
       submitted_at: null,
     })),
     dogs: [

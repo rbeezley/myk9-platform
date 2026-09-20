@@ -37,7 +37,7 @@ const makeDog = (overrides: Partial<EntryFormDog> = {}): EntryFormDog => ({
   handler: null,
   handlerDateOfBirth: null,
   handlerJuniorHandlerNumbers: undefined,
-  armband: 101,
+  armband: '101',
   entries: [],
   agreementDate: '2026-04-01',
   ...overrides,
@@ -57,7 +57,7 @@ describe('buildClassGrid', () => {
         classId: 'c1',
         element: 'Container',
         level: 'Excellent',
-        armband: 101,
+        armband: '101',
         handler: null,
         handlerId: null,
         submittedAt: null,
@@ -68,7 +68,7 @@ describe('buildClassGrid', () => {
         classId: 'c2',
         element: 'Interior',
         level: 'Excellent',
-        armband: 101,
+        armband: '101',
         handler: null,
         handlerId: null,
         submittedAt: null,
@@ -92,7 +92,7 @@ describe('buildClassGrid', () => {
         classId: 'c1',
         element: 'Container',
         level: 'Novice B',
-        armband: 101,
+        armband: '101',
         handler: null,
         handlerId: null,
         submittedAt: null,
@@ -151,8 +151,8 @@ describe('groupEntriesByDog', () => {
 describe('sortEntryFormDogs', () => {
   it('sorts by armband number', () => {
     const dogs = [
-      makeDog({ dogId: 'dog-2', armband: 200, callName: 'Zulu' }),
-      makeDog({ dogId: 'dog-1', armband: 101, callName: 'Alpha' }),
+      makeDog({ dogId: 'dog-2', armband: '200', callName: 'Zulu' }),
+      makeDog({ dogId: 'dog-1', armband: '101', callName: 'Alpha' }),
     ];
     const sorted = sortEntryFormDogs(dogs, 'armband');
     expect(sorted[0].armband).toBe(101);
@@ -196,8 +196,8 @@ describe('sortEntryFormDogs', () => {
 
   it('defaults to armband sort for unknown sort key', () => {
     const dogs = [
-      makeDog({ dogId: 'dog-2', armband: 200 }),
-      makeDog({ dogId: 'dog-1', armband: 101 }),
+      makeDog({ dogId: 'dog-2', armband: '200' }),
+      makeDog({ dogId: 'dog-1', armband: '101' }),
     ];
     const sorted = sortEntryFormDogs(dogs, 'unknown');
     expect(sorted[0].armband).toBe(101);

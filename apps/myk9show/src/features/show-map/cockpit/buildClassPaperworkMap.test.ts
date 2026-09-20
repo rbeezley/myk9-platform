@@ -91,7 +91,7 @@ describe('buildClassPaperworkMap', () => {
       {
         dogId: 'dog-1',
         calendarDay: '2026-07-20',
-        armband: 101,
+        armband: '101',
         callName: 'Storm',
         handlerName: 'Jamie Walker',
         handlerIdentity: { id: null, name: 'Jamie Walker', source: 'owner' },

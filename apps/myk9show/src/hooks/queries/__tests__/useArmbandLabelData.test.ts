@@ -5,7 +5,7 @@ describe('mapEntryToArmbandLabelEntry', () => {
     const raw = {
       id: 'e1',
       dog_id: 'dog-1',
-      armband: 101,
+      armband: '101',
       is_day_of_show: false,
       dog: {
         call_name: 'Storm',
@@ -20,7 +20,7 @@ describe('mapEntryToArmbandLabelEntry', () => {
       trialId: 'trial-1',
       classId: 'class-1',
       calendarDay: '2025-06-11',
-      armband: 101,
+      armband: '101',
       callName: 'Storm',
       handler: 'Jane Smith',
       handlerIdentity: { id: null, name: 'Jane Smith', source: 'owner' },
@@ -33,7 +33,7 @@ describe('mapEntryToArmbandLabelEntry', () => {
     const result = mapEntryToArmbandLabelEntry({
       id: 'e-assigned',
       dog_id: 'dog-1',
-      armband: 105,
+      armband: '105',
       dog: { call_name: 'Storm', owner: { first_name: 'Jane', last_name: 'Smith' } },
       handler: 'Alex Assigned',
       handler_id: 'handler-1',
@@ -88,6 +88,10 @@ describe('mapEntryToArmbandLabelEntry', () => {
       class: null,
     };
     expect(mapEntryToArmbandLabelEntry(raw)).toBeNull();
+  });
+
+  it('treats legacy string zero as unassigned', () => {
+    expect(mapEntryToArmbandLabelEntry({ id: 'e-zero', armband: '0' })).toBeNull();
   });
 
   it('handles missing dog/owner gracefully', () => {

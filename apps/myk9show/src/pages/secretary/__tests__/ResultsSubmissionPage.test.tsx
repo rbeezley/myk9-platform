@@ -202,7 +202,7 @@ describe('ResultsSubmissionPage', () => {
   // sending exactly the way a missing registration number does.
   it('blocks sending to AKC while any entry has no result recorded', async () => {
     mockAKCData.data = makeAKCSubmissionData({
-      entries: [{ resultStatus: 'qualified' }, { armbandNumber: 102, resultStatus: 'pending' }],
+      entries: [{ resultStatus: 'qualified' }, { armbandNumber: '102', resultStatus: 'pending' }],
     });
 
     renderPage();
@@ -323,9 +323,9 @@ describe('ResultsSubmissionPage', () => {
       entries: [
         { resultStatus: 'qualified' },
         // Never paid for, and moved to another class: neither ran here.
-        { armbandNumber: 102, entryStatus: 'promotion-expired', resultStatus: 'pending' },
+        { armbandNumber: '102', entryStatus: 'promotion-expired', resultStatus: 'pending' },
         {
-          armbandNumber: 103,
+          armbandNumber: '103',
           entryStatus: 'moved',
           resultStatus: 'pending',
           registrationNumber: null,

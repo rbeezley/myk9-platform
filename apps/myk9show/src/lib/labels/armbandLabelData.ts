@@ -1,5 +1,6 @@
 import type { ArmbandLabelEntry, ArmbandLabelItem, LabelFilterConfig } from './armbandLabelTypes';
 import type { ReportScope } from '@/lib/reports/types';
+import { compareArmbands } from '@/features/emergency-trial-packet/armband';
 
 export function selectArmbandLabelEntries(
   entries: readonly ArmbandLabelEntry[],
@@ -41,10 +42,7 @@ export function filterEntries(
 export function prepareArmbandLabelItems(entries: ArmbandLabelEntry[]): ArmbandLabelItem[] {
   return [...entries]
     .sort((a, b) => {
-      const numericDifference = Number(a.armband) - Number(b.armband);
-      return Number.isNaN(numericDifference)
-        ? String(a.armband).localeCompare(String(b.armband))
-        : numericDifference;
+      return compareArmbands(a.armband, b.armband);
     })
     .map(e => ({
       armband: e.armband,

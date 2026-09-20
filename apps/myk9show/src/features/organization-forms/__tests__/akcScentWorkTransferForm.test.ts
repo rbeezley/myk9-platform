@@ -47,7 +47,7 @@ const dog: EntryFormDog = {
   handler: null,
   handlerDateOfBirth: null,
   handlerJuniorHandlerNumbers: undefined,
-  armband: 101,
+  armband: '101',
   entries: [],
   agreementDate: null,
 };
@@ -58,7 +58,7 @@ const entry: EntryFormEntry = {
   classId: 'class-1',
   element: 'Buried',
   level: 'Novice',
-  armband: 101,
+  armband: '101',
   handler: null,
   handlerId: null,
   submittedAt: '2026-04-01T12:00:00Z',

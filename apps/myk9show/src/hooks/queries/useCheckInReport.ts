@@ -131,7 +131,8 @@ export function groupEntriesByExhibitor(rows: CheckInEntryRow[]): ExhibitorCheck
           key,
           armbandNumber: row.armband_number,
           handlerName:
-            [row.handler_first_name, row.handler_last_name].filter(Boolean).join(' ') || 'Unknown',
+            [row.handler_first_name, row.handler_last_name].filter(Boolean).join(' ') ||
+            (row.handler_id?.trim() ? 'Unknown Handler' : 'Unknown'),
           dogName: row.dog_call_name || 'Unknown',
           dogBreed: row.dog_breed_name || '',
           entries: [],

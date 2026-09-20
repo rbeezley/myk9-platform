@@ -67,7 +67,7 @@ describe('MYK9-567 — handler name reaches the check-in sheet intact', () => {
     const reportEntry = mapDbEntryToReportEntry(
       {
         id: 'entry-1',
-        armband: 101,
+        armband: '101',
         run_order: 1,
         check_in_status: null,
         section: null,
@@ -170,7 +170,7 @@ describe('MYK9-567 — handler name reaches the registry entry form intact', () 
         email: 'sarah@example.com',
       },
       handler,
-      armband: 101,
+      armband: '101',
       entries: [
         {
           id: 'e1',
@@ -178,7 +178,7 @@ describe('MYK9-567 — handler name reaches the registry entry form intact', () 
           classId: 'c1',
           element: 'Container',
           level: 'Novice A',
-          armband: 101,
+          armband: '101',
           handler,
           submittedAt: '2026-04-01T12:00:00Z',
         },

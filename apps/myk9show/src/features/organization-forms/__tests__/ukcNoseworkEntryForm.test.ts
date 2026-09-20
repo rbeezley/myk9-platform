@@ -43,7 +43,7 @@ const dog: EntryFormDog = {
   handler: null,
   handlerDateOfBirth: null,
   handlerJuniorHandlerNumbers: undefined,
-  armband: 101,
+  armband: '101',
   entries: [],
   agreementDate: null,
 };
@@ -115,7 +115,7 @@ describe('UKC Nosework entry form PDF', () => {
 
   it('can build a flattened packet from the official template', async () => {
     const bytes = await buildUKCNoseworkEntryFormPacketPdfBytes({
-      dogs: [dog, { ...dog, dogId: 'dog-2', callName: 'Rocket', armband: 102 }],
+      dogs: [dog, { ...dog, dogId: 'dog-2', callName: 'Rocket', armband: '102' }],
       templateBytes: await readEntryTemplate(),
     });
     const pdf = await PDFDocument.load(bytes);

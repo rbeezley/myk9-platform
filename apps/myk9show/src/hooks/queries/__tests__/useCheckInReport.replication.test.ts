@@ -1,3 +1,7 @@
+import type { PropsWithChildren } from 'react';
+import { createElement } from 'react';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { act, renderHook, waitFor } from '@testing-library/react';
 import { vi } from 'vitest';
 
 const replicationMocks = vi.hoisted(() => ({
@@ -5,10 +9,14 @@ const replicationMocks = vi.hoisted(() => ({
   getClassById: vi.fn(),
   getTrialsByShow: vi.fn(),
   getArmbandsByShow: vi.fn(),
+  getAllDogs: vi.fn(),
 }));
 
 const hydrationMocks = vi.hoisted(() => ({
   loadHandlerPeople: vi.fn(),
+  subscribeHandlerPeopleHydration: vi.fn(),
+  stopHandlerPeopleHydration: vi.fn(),
+  handlerPeopleListener: null as ((event: { ids: readonly string[] }) => void) | null,
 }));
 
 const supabaseMocks = vi.hoisted(() => ({
@@ -34,22 +42,32 @@ vi.mock('@/services/replication', () => ({
   replicatedArmbandsTable: {
     getByShow: (...args: unknown[]) => replicationMocks.getArmbandsByShow(...args),
   },
+  replicatedDogsTable: {
+    getAllDogs: (...args: unknown[]) => replicationMocks.getAllDogs(...args),
+  },
 }));
 
 vi.mock('@/services/database/entries/handlerHydration', () => ({
   loadHandlerPeople: (...args: unknown[]) => hydrationMocks.loadHandlerPeople(...args),
+  subscribeHandlerPeopleHydration: (listener: (event: { ids: readonly string[] }) => void) => {
+    hydrationMocks.handlerPeopleListener = listener;
+    hydrationMocks.subscribeHandlerPeopleHydration(listener);
+    return hydrationMocks.stopHandlerPeopleHydration;
+  },
 }));
 
 describe('fetchReplicatedCheckInEntries', () => {
   beforeEach(() => {
     vi.resetModules();
     vi.clearAllMocks();
+    hydrationMocks.handlerPeopleListener = null;
     hydrationMocks.loadHandlerPeople.mockResolvedValue(
       new Map([
         ['owner-1', { id: 'owner-1', first_name: 'Olivia', last_name: 'Owner' }],
         ['handler-1', { id: 'handler-1', first_name: 'Harper', last_name: 'Handler' }],
       ])
     );
+    replicationMocks.getAllDogs.mockResolvedValue([]);
   });
 
   it('builds the check-in report rows from replicated show-day tables', async () => {
@@ -141,6 +159,7 @@ describe('fetchReplicatedCheckInEntries', () => {
         armband_number: 142,
         handler_first_name: 'Harper',
         handler_last_name: 'Handler',
+        handler_identity_ids: ['handler-1', 'owner-1'],
         dog_call_name: 'Buddy',
         dog_breed_name: 'Golden Retriever',
         class_id: 'class-1',
@@ -159,6 +178,7 @@ describe('fetchReplicatedCheckInEntries', () => {
         armband_number: 142,
         handler_first_name: 'Harper',
         handler_last_name: 'Handler',
+        handler_identity_ids: ['handler-1', 'owner-1'],
         dog_call_name: 'Buddy',
         dog_breed_name: 'Golden Retriever',
         class_id: 'class-2',
@@ -245,6 +265,115 @@ describe('fetchReplicatedCheckInEntries', () => {
     expect(rows[0]).toMatchObject({
       handler_first_name: 'Olivia',
       handler_last_name: 'Owner',
+      handler_identity_ids: ['owner-1'],
     });
+  });
+
+  it('attaches a cold dog owner before collecting identity dependencies', async () => {
+    replicationMocks.getEntriesByShow.mockResolvedValue([
+      {
+        id: 'entry-owner-from-dog',
+        showId: 'show-1',
+        dogId: 'dog-1',
+        handlerId: null,
+        handler: null,
+        dogCallName: 'Buddy',
+        classId: 'class-1',
+      },
+    ]);
+    replicationMocks.getAllDogs.mockResolvedValue([
+      {
+        id: 'dog-1',
+        name: 'Buddy',
+        callName: 'Buddy',
+        breed: 'Golden Retriever',
+        ownerId: 'owner-1',
+      },
+    ]);
+    replicationMocks.getClassById.mockResolvedValue({
+      id: 'class-1',
+      trialId: 'trial-1',
+      element: 'Buried',
+      level: 'Novice',
+    });
+    replicationMocks.getTrialsByShow.mockResolvedValue([
+      { id: 'trial-1', date: '2026-04-12', trialNumber: '1' },
+    ]);
+    replicationMocks.getArmbandsByShow.mockResolvedValue([]);
+
+    const { fetchReplicatedCheckInEntries } = await import('../useCheckInReportReplication');
+
+    const rows = await fetchReplicatedCheckInEntries('show-1');
+
+    expect(hydrationMocks.loadHandlerPeople).toHaveBeenCalledWith(['owner-1']);
+    expect(rows[0]).toMatchObject({
+      handler_first_name: 'Olivia',
+      handler_last_name: 'Owner',
+      handler_identity_ids: ['owner-1'],
+    });
+  });
+
+  it('refreshes once when delayed handler hydration completes for this report', async () => {
+    replicationMocks.getEntriesByShow.mockResolvedValue([
+      {
+        id: 'entry-owner',
+        showId: 'show-1',
+        dogId: 'dog-1',
+        handlerId: null,
+        handler: null,
+        dogCallName: 'Buddy',
+        classId: 'class-1',
+      },
+    ]);
+    replicationMocks.getAllDogs.mockResolvedValue([
+      {
+        id: 'dog-1',
+        name: 'Buddy',
+        callName: 'Buddy',
+        breed: 'Golden Retriever',
+        ownerId: 'owner-1',
+      },
+    ]);
+    replicationMocks.getClassById.mockResolvedValue({
+      id: 'class-1',
+      trialId: 'trial-1',
+      element: 'Buried',
+      level: 'Novice',
+    });
+    replicationMocks.getTrialsByShow.mockResolvedValue([
+      { id: 'trial-1', date: '2026-04-12', trialNumber: '1' },
+    ]);
+    replicationMocks.getArmbandsByShow.mockResolvedValue([]);
+    hydrationMocks.loadHandlerPeople
+      .mockResolvedValueOnce(new Map())
+      .mockResolvedValue(
+        new Map([['owner-1', { id: 'owner-1', first_name: 'Olivia', last_name: 'Owner' }]])
+      );
+
+    const { useCheckInReport } = await import('../useCheckInReport');
+    const queryClient = new QueryClient({
+      defaultOptions: { queries: { retry: false, gcTime: Number.POSITIVE_INFINITY } },
+    });
+    const wrapper = ({ children }: PropsWithChildren) =>
+      createElement(QueryClientProvider, { client: queryClient }, children);
+    const { result, unmount } = renderHook(() => useCheckInReport('show-1'), { wrapper });
+
+    await waitFor(() => expect(result.current.data?.[0]?.handlerName).toBe('Unknown'));
+    expect(hydrationMocks.handlerPeopleListener).toBeTypeOf('function');
+    const readsBeforeCompletion = hydrationMocks.loadHandlerPeople.mock.calls.length;
+
+    act(() => hydrationMocks.handlerPeopleListener?.({ ids: ['unrelated-person'] }));
+    await new Promise(resolve => setTimeout(resolve, 20));
+    expect(hydrationMocks.loadHandlerPeople.mock.calls.length).toBe(readsBeforeCompletion);
+
+    act(() => hydrationMocks.handlerPeopleListener?.({ ids: ['owner-1'] }));
+    await waitFor(() => expect(result.current.data?.[0]?.handlerName).toBe('Olivia Owner'));
+    expect(hydrationMocks.loadHandlerPeople).toHaveBeenCalledTimes(readsBeforeCompletion + 1);
+
+    await new Promise(resolve => setTimeout(resolve, 20));
+    expect(hydrationMocks.loadHandlerPeople).toHaveBeenCalledTimes(readsBeforeCompletion + 1);
+
+    unmount();
+    expect(hydrationMocks.stopHandlerPeopleHydration).toHaveBeenCalledTimes(1);
   });
 });

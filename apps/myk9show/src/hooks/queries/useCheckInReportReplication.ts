@@ -1,6 +1,7 @@
 import {
   replicatedArmbandsTable,
   replicatedClassesTable,
+  replicatedDogsTable,
   replicatedEntriesTable,
   replicatedTrialsTable,
   type ReplicatedArmband,
@@ -9,7 +10,10 @@ import {
   type ReplicatedTrial,
 } from '@/services/replication';
 import { loadHandlerPeople } from '@/services/database/entries/handlerHydration';
-import { collectHandlerIdentityIds } from '@/services/database/entries/entryHandlerReadBoundary';
+import {
+  collectHandlerIdentityIds,
+  withReplicatedDogOwner,
+} from '@/services/database/entries/entryHandlerReadBoundary';
 import { projectEntryHandlerIdentity } from '@/services/database/entries/entryHandlerProjection';
 import type { CheckInEntryRow } from './useCheckInReport';
 
@@ -91,15 +95,19 @@ async function getClassForEntry(
 }
 
 export async function fetchReplicatedCheckInEntries(showId: string): Promise<CheckInEntryRow[]> {
-  const [entries, trials, armbands] = await Promise.all([
+  const [entries, trials, armbands, dogs] = await Promise.all([
     replicatedEntriesTable.getEntriesByShow(showId),
     replicatedTrialsTable.getTrialsByShow(showId),
     replicatedArmbandsTable.getByShow(showId),
+    replicatedDogsTable.getAllDogs(),
   ]);
   const trialsById = new Map(trials.map(trial => [trial.id, trial]));
+  const dogsById = new Map(dogs.map(dog => [dog.id, dog]));
   const { byEntryId: armbandsByEntryId, byDogId: armbandsByDogId } = buildArmbandMaps(armbands);
   const classCache = new Map<string, Promise<ReplicatedClass | null>>();
-  const activeEntries = entries.filter(isNotDeleted);
+  const activeEntries = entries
+    .filter(isNotDeleted)
+    .map(entry => withReplicatedDogOwner(entry, dogsById));
   const handlerPeople = await loadHandlerPeople(collectHandlerIdentityIds(activeEntries));
 
   return Promise.all(
@@ -121,6 +129,7 @@ export async function fetchReplicatedCheckInEntries(showId: string): Promise<Che
         armband_number: armbandNumberForEntry(entry, armbandsByEntryId, armbandsByDogId),
         handler_first_name: handler.firstName,
         handler_last_name: handler.lastName,
+        handler_identity_ids: collectHandlerIdentityIds([entry]),
         dog_call_name: getDogCallName(entry),
         dog_breed_name: getDogBreed(entry),
         class_id: getEntryClassId(entry),

@@ -19,12 +19,15 @@
  * this works offline and never shows a locked stale snapshot.
  */
 
-import { useEffect } from 'react';
+import { useEffect, useMemo, useRef } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { ArrowLeft, CheckCircle2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { replicatedEntriesTable } from '@/services/replication/ReplicatedEntriesTable';
-import { backfillReplicatedEntryArmbands } from '@/services/database/entries';
+import {
+  enrichReplicatedEntryArmbands,
+  projectReplicatedEntryArmbands,
+} from '@/services/database/entries';
 import { badgeClass } from './slots/atShowChrome.helpers';
 import {
   toQuickAdvanceChips,
@@ -37,24 +40,58 @@ function useQuickAdvanceChips(
   scoredEntryId: string | undefined
 ): QuickAdvanceChip[] {
   const queryClient = useQueryClient();
+  const projectionSequence = useRef(0);
+  const queryKey = useMemo(() => ['at-show', 'quick-advance', classId] as const, [classId]);
+
+  const refreshAuthoritativeLabels = () => {
+    if (!classId) return;
+    const sequence = ++projectionSequence.current;
+    void replicatedEntriesTable
+      .getEntriesByClass(classId)
+      .then(entries => enrichReplicatedEntryArmbands(entries))
+      .then(entries => {
+        if (sequence === projectionSequence.current) {
+          queryClient.setQueryData(queryKey, entries);
+        }
+      })
+      .catch(() => {});
+  };
 
   // React to the table itself rather than to any one mutation path: a check-in
   // change can land from the entry list, a steward's device, or a sync pull.
   useEffect(() => {
     if (!classId) return;
     return replicatedEntriesTable.subscribe(() => {
-      void queryClient.invalidateQueries({ queryKey: ['at-show', 'quick-advance', classId] });
+      void queryClient.invalidateQueries({ queryKey });
+      refreshAuthoritativeLabels();
     });
-  }, [classId, queryClient]);
+  }, [classId, queryClient, queryKey]);
 
   const { data } = useQuery({
-    queryKey: ['at-show', 'quick-advance', classId],
-    queryFn: async () =>
-      backfillReplicatedEntryArmbands(
+    queryKey,
+    queryFn: async () => {
+      const sequence = ++projectionSequence.current;
+      const localEntries = projectReplicatedEntryArmbands(
         await replicatedEntriesTable.getEntriesByClass(classId as string)
-      ),
+      );
+      void enrichReplicatedEntryArmbands(localEntries)
+        .then(entries => {
+          if (sequence === projectionSequence.current) {
+            queryClient.setQueryData(queryKey, entries);
+          }
+        })
+        .catch(() => {});
+      return localEntries;
+    },
     enabled: !!classId,
   });
+
+  useEffect(
+    () => () => {
+      projectionSequence.current += 1;
+    },
+    []
+  );
 
   return toQuickAdvanceChips(data ?? [], { excludeEntryId: scoredEntryId });
 }

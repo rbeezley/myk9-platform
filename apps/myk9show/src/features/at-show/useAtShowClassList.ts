@@ -5,7 +5,7 @@
  * organization (needed by `findPairedSectionedClass` to decide A/B pairing).
  */
 
-import { useEffect, useMemo } from 'react';
+import { useEffect, useMemo, useRef } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   replicatedClassesTable,
@@ -22,7 +22,10 @@ import {
 } from './atShowClassListAdapter';
 import { syncAtShowData } from './atShowDataAdapter';
 import type { AtShowNextUpPreview } from './atShowNextUpPreview';
-import { backfillReplicatedEntryArmbands } from '@/services/database/entries';
+import {
+  enrichReplicatedEntryArmbands,
+  projectReplicatedEntryArmbands,
+} from '@/services/database/entries';
 
 export interface UseAtShowClassListResult {
   groups: AtShowClassGroup[];
@@ -47,6 +50,7 @@ export interface UseAtShowClassListResult {
 
 export function useAtShowClassList(showId: string | undefined): UseAtShowClassListResult {
   const queryClient = useQueryClient();
+  const entryProjectionSequence = useRef(0);
   useEffect(() => {
     if (!showId) return;
     const queryKey = ['at-show', 'classlist', showId] as const;
@@ -62,6 +66,7 @@ export function useAtShowClassList(showId: string | undefined): UseAtShowClassLi
     const applyEntriesSnapshot = (
       allEntries: Parameters<typeof refreshAtShowClassListEntries>[1]
     ) => {
+      const sequence = ++entryProjectionSequence.current;
       const apply = (entries: typeof allEntries) => {
         let hadCachedGroups = false;
         queryClient.setQueryData<AtShowClassGroup[]>(queryKey, current => {
@@ -80,9 +85,11 @@ export function useAtShowClassList(showId: string | undefined): UseAtShowClassLi
         });
       };
 
-      apply(allEntries);
-      void backfillReplicatedEntryArmbands(allEntries)
-        .then(apply)
+      apply(projectReplicatedEntryArmbands(allEntries));
+      void enrichReplicatedEntryArmbands(allEntries)
+        .then(entries => {
+          if (sequence === entryProjectionSequence.current) apply(entries);
+        })
         .catch(() => {});
     };
     const unsubscribe = [
@@ -90,7 +97,10 @@ export function useAtShowClassList(showId: string | undefined): UseAtShowClassLi
       replicatedTrialsTable.subscribe(invalidateStructure, { emitCurrent: false }),
       replicatedEntriesTable.subscribe(applyEntriesSnapshot, { emitCurrent: false }),
     ];
-    return () => unsubscribe.forEach(stop => stop());
+    return () => {
+      entryProjectionSequence.current += 1;
+      unsubscribe.forEach(stop => stop());
+    };
   }, [queryClient, showId]);
 
   // MYK9-637: nothing else on this route hydrates the show's entries. The

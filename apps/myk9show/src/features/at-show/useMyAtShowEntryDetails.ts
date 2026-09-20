@@ -1,7 +1,10 @@
-import { useEffect, useMemo } from 'react';
+import { useEffect, useMemo, useRef } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { replicatedEntriesTable } from '@/services/replication';
-import { backfillReplicatedEntryArmbands } from '@/services/database/entries';
+import {
+  enrichReplicatedEntryArmbands,
+  projectReplicatedEntryArmbands,
+} from '@/services/database/entries';
 import {
   buildMyAtShowEntryDetails,
   type AtShowClassSummary,
@@ -47,25 +50,44 @@ export function useMyAtShowEntryDetails(
   classesById: ReadonlyMap<string, AtShowClassSummary>
 ): UseMyAtShowEntryDetailsResult {
   const queryClient = useQueryClient();
+  const projectionSequence = useRef(0);
+  const queryKey = useMemo(() => ['at-show', 'my-entries-detail', showId] as const, [showId]);
 
   useEffect(() => {
     if (!showId) return;
     return replicatedEntriesTable.subscribe(() => {
-      void queryClient.invalidateQueries({ queryKey: ['at-show', 'my-entries-detail', showId] });
+      void queryClient.invalidateQueries({ queryKey });
     });
-  }, [showId, queryClient]);
+  }, [showId, queryClient, queryKey]);
 
   const entriesQuery = useQuery({
-    queryKey: ['at-show', 'my-entries-detail', showId],
-    queryFn: async () =>
-      backfillReplicatedEntryArmbands(
+    queryKey,
+    queryFn: async () => {
+      const sequence = ++projectionSequence.current;
+      const localEntries = projectReplicatedEntryArmbands(
         await replicatedEntriesTable.getEntriesByShow(showId as string)
-      ),
+      );
+      void enrichReplicatedEntryArmbands(localEntries)
+        .then(entries => {
+          if (sequence === projectionSequence.current) {
+            queryClient.setQueryData(queryKey, entries);
+          }
+        })
+        .catch(() => {});
+      return localEntries;
+    },
     enabled: !!showId && ownEntryIds.size > 0,
     // Reads IndexedDB; the default "online" mode pauses it offline, which would
     // show an exhibitor an empty running order at the ring. See MYK9-200.
     networkMode: 'always',
   });
+
+  useEffect(
+    () => () => {
+      projectionSequence.current += 1;
+    },
+    []
+  );
 
   const entries = useMemo(() => {
     if (!entriesQuery.data) return [];

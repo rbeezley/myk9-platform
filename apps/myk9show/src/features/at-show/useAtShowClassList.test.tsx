@@ -17,6 +17,8 @@ const stops = vi.hoisted(() => ({
   entries: vi.fn(),
 }));
 
+const armbandLookup = vi.hoisted(() => ({ getByShow: vi.fn() }));
+
 vi.mock('@/services/replication', () => ({
   replicatedShowsTable: { getShowById: vi.fn() },
   replicatedTrialsTable: {
@@ -50,6 +52,9 @@ vi.mock('@/services/replication', () => ({
     ),
   },
 }));
+vi.mock('@/services/replication/ReplicatedArmbandsTable', () => ({
+  replicatedArmbandsTable: armbandLookup,
+}));
 
 import {
   replicatedClassesTable,
@@ -74,6 +79,7 @@ function wrapper(client: QueryClient) {
 describe('useAtShowClassList entry refresh', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    armbandLookup.getByShow.mockResolvedValue([]);
     subscriptions.classes = null;
     subscriptions.trials = null;
     subscriptions.entries = null;
@@ -234,5 +240,60 @@ describe('useAtShowClassList entry refresh', () => {
     });
 
     await waitFor(() => expect(result.current.entryCountsAvailable).toBe(true));
+  });
+
+  it('ignores an older asynchronous armband enrichment after a newer snapshot arrives', async () => {
+    const pendingLookups: Array<(value: unknown[]) => void> = [];
+    armbandLookup.getByShow.mockImplementation(
+      () => new Promise(resolve => pendingLookups.push(resolve))
+    );
+    const client = makeClient();
+    const { result } = renderHook(() => useAtShowClassList('show-1'), {
+      wrapper: wrapper(client),
+    });
+    await waitFor(() => expect(result.current.groups).toHaveLength(1));
+
+    act(() => {
+      subscriptions.entries?.([
+        {
+          id: 'old',
+          showId: 'show-1',
+          classId: 'class-1',
+          dogId: 'dog-1',
+          armband: '0',
+          checkInStatus: 'in-ring',
+        },
+      ]);
+      subscriptions.entries?.([
+        {
+          id: 'new',
+          showId: 'show-1',
+          classId: 'class-1',
+          dogId: 'dog-2',
+          armband: '0',
+          checkInStatus: 'in-ring',
+        },
+      ]);
+    });
+
+    expect(pendingLookups).toHaveLength(2);
+    await act(async () => {
+      pendingLookups[1]?.([
+        { showId: 'show-1', dogId: 'dog-2', armbandNumber: '22A', isAvailable: false },
+      ]);
+      await Promise.resolve();
+    });
+    await act(async () => {
+      pendingLookups[0]?.([
+        { showId: 'show-1', dogId: 'dog-1', armbandNumber: '11A', isAvailable: false },
+      ]);
+      await Promise.resolve();
+    });
+
+    await waitFor(() =>
+      expect(result.current.groups[0]?.nextUpByClassId.get('class-1')).toMatchObject({
+        inRingArmband: '22A',
+      })
+    );
   });
 });

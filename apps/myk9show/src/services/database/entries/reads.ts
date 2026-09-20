@@ -231,6 +231,25 @@ function mapEntriesWithStandardJoins(
  *
  * Reads from replicatedArmbandsTable first, falls back to PostgREST.
  */
+const ARMBAND_AUTHORITY_TIMEOUT_MS = 250;
+
+async function withAuthorityTimeout<T>(promise: PromiseLike<T>): Promise<T> {
+  let timeoutId: ReturnType<typeof setTimeout> | undefined;
+  try {
+    return await Promise.race([
+      promise,
+      new Promise<T>((_, reject) => {
+        timeoutId = setTimeout(
+          () => reject(new Error('authoritative armband lookup timed out')),
+          ARMBAND_AUTHORITY_TIMEOUT_MS
+        );
+      }),
+    ]);
+  } finally {
+    if (timeoutId !== undefined) clearTimeout(timeoutId);
+  }
+}
+
 async function fetchMissingArmbands(
   entries: ReadonlyArray<{ armband: string | null; show_id: string | null; dog_id: string | null }>
 ): Promise<Map<string, string>> {
@@ -242,67 +261,75 @@ async function fetchMissingArmbands(
   const showIds = [...new Set(missing.map(e => e.show_id!))];
   const dogIds = new Set(missing.map(e => e.dog_id!));
 
+  let resolved = new Map<string, string>();
   try {
-    // Read from replication store
     const armbandsByShow = await Promise.all(
       showIds.map(sid => replicatedArmbandsTable.getByShow(sid))
     );
-    const allArmbands = armbandsByShow.flat();
+    const relevant = armbandsByShow
+      .flat()
+      .filter(a => a.isAvailable === false && a.dogId && dogIds.has(a.dogId));
+    resolved = new Map(relevant.map(a => [`${a.showId}:${a.dogId}`, a.armbandNumber]));
+  } catch {
+    // A cold or unavailable local armband replica must not discard valid entry
+    // labels. The bounded online leg below is the only enrichment attempt.
+  }
 
-    // Filter to only the dog IDs we need
-    const relevant = allArmbands.filter(
-      a => a.isAvailable === false && a.dogId && dogIds.has(a.dogId)
+  const unresolved = missing.filter(entry => !resolved.has(`${entry.show_id}:${entry.dog_id}`));
+  if (unresolved.length === 0 || isBrowserOffline()) return resolved;
+
+  try {
+    const { data: armbandRows } = await withAuthorityTimeout(
+      supabase
+        .from('armbands')
+        .select('show_id, dog_id, armband_number, is_available')
+        .in('show_id', [
+          ...new Set(unresolved.map(entry => entry.show_id).filter(Boolean)),
+        ] as string[])
+        .in('dog_id', [
+          ...new Set(unresolved.map(entry => entry.dog_id).filter(Boolean)),
+        ] as string[])
+        .eq('is_available', false)
     );
-    const resolved = new Map(relevant.map(a => [`${a.showId}:${a.dogId}`, a.armbandNumber]));
-    const unresolved = missing.filter(entry => !resolved.has(`${entry.show_id}:${entry.dog_id}`));
-    if (unresolved.length === 0 || isBrowserOffline()) return resolved;
-
-    // A warm but partial local replica is not authoritative. Fetch only the
-    // unresolved keys online so a stale/missing IndexedDB row cannot mask the
-    // assignment on show-day paperwork.
-    const { data: armbandRows } = await supabase
-      .from('armbands')
-      .select('show_id, dog_id, armband_number, is_available')
-      .in('show_id', [
-        ...new Set(unresolved.map(entry => entry.show_id).filter(Boolean)),
-      ] as string[])
-      .in('dog_id', [...new Set(unresolved.map(entry => entry.dog_id).filter(Boolean))] as string[])
-      .eq('is_available', false);
 
     for (const row of armbandRows ?? []) {
       if (row.is_available !== false || !row.dog_id) continue;
       resolved.set(`${row.show_id}:${row.dog_id}`, String(row.armband_number));
     }
-    return resolved;
   } catch {
-    if (isBrowserOffline()) return new Map();
-    // Fallback to PostgREST
-    let armbandRows: Array<{
-      show_id: string;
-      dog_id: string | null;
-      armband_number: string | number;
-      is_available: boolean | null;
-    }> | null = null;
-    try {
-      const response = await supabase
-        .from('armbands')
-        .select('show_id, dog_id, armband_number, is_available')
-        .in('show_id', showIds)
-        .in('dog_id', [...dogIds])
-        .eq('is_available', false);
-      armbandRows = response.data;
-    } catch {
-      return new Map();
-    }
-
-    if (!armbandRows || armbandRows.length === 0) return new Map();
-
-    return new Map(
-      armbandRows
-        .filter(a => a.is_available === false && a.dog_id)
-        .map(a => [`${a.show_id}:${a.dog_id}`, String(a.armband_number)])
-    );
+    // Keep the local projection on timeout, network failure, or malformed data.
   }
+  return resolved;
+}
+
+function normalizeEntryArmband<T extends { armband?: string | null | undefined }>(entry: T): T {
+  const normalizedArmband = normalizePacketArmband(entry.armband);
+  return normalizedArmband === entry.armband || (normalizedArmband == null && entry.armband == null)
+    ? entry
+    : ({ ...entry, armband: normalizedArmband } as T);
+}
+
+/** Project the locally available label without waiting on authority or network. */
+export function projectReplicatedEntryArmbands<T extends { armband?: string | null | undefined }>(
+  entries: readonly T[]
+): T[] {
+  return entries.map(normalizeEntryArmband);
+}
+
+function mergeMissingArmbands<
+  T extends {
+    armband?: string | null | undefined;
+    show_id?: string | null | undefined;
+    dog_id?: string | null | undefined;
+  },
+>(entries: readonly T[], armbandMap: ReadonlyMap<string, string>): T[] {
+  return entries.map(entry => {
+    if (normalizePacketArmband(entry.armband) != null || !entry.show_id || !entry.dog_id) {
+      return entry;
+    }
+    const armband = armbandMap.get(`${entry.show_id}:${entry.dog_id}`);
+    return armband ? ({ ...entry, armband } as T) : entry;
+  });
 }
 
 export async function backfillMissingArmbands<
@@ -312,23 +339,40 @@ export async function backfillMissingArmbands<
     dog_id?: string | null | undefined;
   },
 >(entries: readonly T[]): Promise<T[]> {
+  const projected = entries.map(normalizeEntryArmband);
   const armbandMap = await fetchMissingArmbands(
-    entries.map(entry => ({
+    projected.map(entry => ({
       ...entry,
       armband: entry.armband ?? null,
       show_id: entry.show_id ?? null,
       dog_id: entry.dog_id ?? null,
     }))
   );
-  return entries.map(entry => {
-    const normalizedArmband = normalizePacketArmband(entry.armband);
-    if (normalizedArmband == null && entry.show_id && entry.dog_id) {
-      const armband = armbandMap.get(`${entry.show_id}:${entry.dog_id}`);
-      if (armband) return { ...entry, armband } as T;
-    }
-    return normalizedArmband === entry.armband
-      ? entry
-      : ({ ...entry, armband: normalizedArmband } as T);
+  return mergeMissingArmbands(projected, armbandMap);
+}
+
+/** Enrich an already-renderable local projection without replacing valid labels. */
+export async function enrichReplicatedEntryArmbands<
+  T extends {
+    armband?: string | null | undefined;
+    showId?: string | null | undefined;
+    dogId?: string | null | undefined;
+  },
+>(entries: readonly T[]): Promise<T[]> {
+  const projected = projectReplicatedEntryArmbands(entries);
+  const rows = await backfillMissingArmbands(
+    projected.map(entry => ({
+      ...entry,
+      armband: entry.armband ?? null,
+      show_id: entry.showId ?? null,
+      dog_id: entry.dogId ?? null,
+    }))
+  );
+  return entries.map((entry, index) => {
+    const armband = rows[index]?.armband;
+    return armband === entry.armband || (armband == null && entry.armband == null)
+      ? projected[index]!
+      : ({ ...entry, armband } as T);
   });
 }
 
@@ -339,20 +383,7 @@ export async function backfillReplicatedEntryArmbands<
     dogId?: string | null | undefined;
   },
 >(entries: readonly T[]): Promise<T[]> {
-  const rows = await backfillMissingArmbands(
-    entries.map(entry => ({
-      ...entry,
-      armband: entry.armband ?? null,
-      show_id: entry.showId ?? null,
-      dog_id: entry.dogId ?? null,
-    }))
-  );
-  return entries.map((entry, index) => {
-    const armband = rows[index]?.armband;
-    return armband === entry.armband || (armband == null && entry.armband == null)
-      ? entry
-      : ({ ...entry, armband } as T);
-  });
+  return enrichReplicatedEntryArmbands(entries);
 }
 
 async function hydrateAndBackfillEntryRows<T extends EntryReadRow>(rows: T[]): Promise<T[]> {

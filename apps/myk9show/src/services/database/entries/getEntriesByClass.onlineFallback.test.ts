@@ -73,6 +73,7 @@ let onlineRows: Array<Record<string, unknown>> = [defaultOnlineRow];
 let peopleRows: Array<Record<string, unknown>> = [];
 let armbandRows: Array<Record<string, unknown>> = [];
 let armbandQueryCalls: Array<Record<string, unknown>> = [];
+let armbandQueryNeverResolves = false;
 let onlineCallCount = 0;
 
 vi.mock('@/services/database/supabaseClient', () => ({
@@ -90,6 +91,7 @@ vi.mock('@/services/database/supabaseClient', () => ({
                   },
                   eq: (column: string, value: unknown) => {
                     armbandQueryCalls.push({ kind: 'eq', column, value });
+                    if (armbandQueryNeverResolves) return new Promise(() => {});
                     return Promise.resolve({ data: armbandRows, error: null });
                   },
                 };
@@ -127,6 +129,7 @@ describe('getEntriesByClass — cold local replica verifies online', () => {
     peopleRows = [];
     armbandRows = [];
     armbandQueryCalls = [];
+    armbandQueryNeverResolves = false;
     onlineCallCount = 0;
   });
 
@@ -209,6 +212,41 @@ describe('getEntriesByClass — cold local replica verifies online', () => {
 
     expect(result.data[0]?.armband).toBeNull();
     expect(armbandQueryCalls).toContainEqual({ kind: 'eq', column: 'is_available', value: false });
+  });
+
+  it('preserves valid local labels while enriching only missing labels', async () => {
+    mockArmbandsTable.getByShow.mockResolvedValue([
+      { showId: 's1', dogId: 'dog-missing', armbandNumber: '12A', isAvailable: false },
+    ]);
+
+    const { enrichReplicatedEntryArmbands } = await import('@/services/database/entries');
+    const result = await enrichReplicatedEntryArmbands([
+      { id: 'entry-local', showId: 's1', dogId: 'dog-local', armband: '9B' },
+      { id: 'entry-missing', showId: 's1', dogId: 'dog-missing', armband: '0' },
+    ]);
+
+    expect(result.map(entry => entry.armband)).toEqual(['9B', '12A']);
+  });
+
+  it('returns the local projection when authoritative enrichment times out', async () => {
+    vi.useFakeTimers();
+    try {
+      mockArmbandsTable.getByShow.mockResolvedValue([]);
+      armbandQueryNeverResolves = true;
+      const { enrichReplicatedEntryArmbands } = await import('@/services/database/entries');
+      const resultPromise = enrichReplicatedEntryArmbands([
+        { id: 'entry-local', showId: 's1', dogId: 'dog-local', armband: '9B' },
+        { id: 'entry-missing', showId: 's1', dogId: 'dog-missing', armband: '0' },
+      ]);
+
+      await vi.advanceTimersByTimeAsync(250);
+      await expect(resultPromise).resolves.toEqual([
+        { id: 'entry-local', showId: 's1', dogId: 'dog-local', armband: '9B' },
+        { id: 'entry-missing', showId: 's1', dogId: 'dog-missing', armband: null },
+      ]);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it('does not resurrect a locally-tombstoned entry the server still returns as live', async () => {

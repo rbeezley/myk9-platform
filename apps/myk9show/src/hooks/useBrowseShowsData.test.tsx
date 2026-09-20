@@ -1,7 +1,7 @@
 import React from 'react';
 import { describe, expect, it, vi } from 'vitest';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { renderHook } from '@testing-library/react';
+import { act, renderHook } from '@testing-library/react';
 import type { Show } from '@/types/show-types';
 import { UserRole } from '@/types/auth-types';
 import { useBrowseShowsData } from './useBrowseShowsData';
@@ -89,6 +89,8 @@ function createWrapper() {
 
 describe('useBrowseShowsData — unconfirmed account membership', () => {
   it('keeps known entered shows while exposing degraded membership without page failure', () => {
+    const refetchAccountEntries = vi.fn(async () => undefined);
+    const loadEntries = vi.fn(async () => undefined);
     useAuthContextMock.mockReturnValue({
       user: mockUser,
       userWithRoles: mockUser,
@@ -103,12 +105,13 @@ describe('useBrowseShowsData — unconfirmed account membership', () => {
       identityState: 'resolved',
       hasUsablePersonId: true,
       readState: 'unconfirmed',
+      refetch: refetchAccountEntries,
     });
     useEntryStoreMock.mockReturnValue({
       entries: [],
       isLoading: false,
       error: null,
-      loadEntries: vi.fn(async () => undefined),
+      loadEntries,
     });
     useShowStoreMock.mockImplementation((selector: (state: unknown) => unknown) =>
       selector({ shows: [mockShow], isLoading: false, error: null })
@@ -125,5 +128,11 @@ describe('useBrowseShowsData — unconfirmed account membership', () => {
     expect(result.current.accountEntriesDegraded).toBe(true);
     expect(result.current.hasError).toBe(false);
     expect(result.current.isLoading).toBe(false);
+
+    act(() => {
+      void result.current.handleRetry();
+    });
+    expect(refetchAccountEntries).toHaveBeenCalledTimes(1);
+    expect(loadEntries).toHaveBeenCalledTimes(2);
   });
 });

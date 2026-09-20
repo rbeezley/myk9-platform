@@ -125,8 +125,11 @@ export function useBrowseShowsData({
   // The SAME resolver the other three `getUserEntries` consumers use, so
   // restructure 4 is 4/4 rather than 3/4 (MYK9-629 round 1).
   const accountEnteredShowIds = useAccountEnteredShowIds();
-  const { active: activeAccountEnteredShowIds, all: allAccountEnteredShowIds } =
-    accountEnteredShowIds;
+  const {
+    active: activeAccountEnteredShowIds,
+    all: allAccountEnteredShowIds,
+    refetch: refetchAccountEntries,
+  } = accountEnteredShowIds;
   const derivedUserId = personId ?? user?.databaseUserId ?? user?.id;
   const entries = useMemo(
     () =>
@@ -334,7 +337,7 @@ export function useBrowseShowsData({
     try {
       const startTime = performance.now();
 
-      await loadEntries();
+      await Promise.all([loadEntries(), refetchAccountEntries()]);
 
       // Re-sync relationships after successful data reload
       if (user?.id) {
@@ -349,7 +352,7 @@ export function useBrowseShowsData({
     } catch (error) {
       logger.error('Retry failed', 'shows', {}, error as Error);
     }
-  }, [loadEntries, user, shows]);
+  }, [loadEntries, refetchAccountEntries, user, shows]);
 
   return {
     user,

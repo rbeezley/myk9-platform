@@ -36,6 +36,7 @@ export interface AccountEnteredShowIds {
   identityState: PersonIdentityState;
   hasUsablePersonId: boolean;
   readState: AccountEntryReadState;
+  refetch: () => Promise<unknown>;
 }
 
 const EMPTY_ACCOUNT_ENTERED_SHOW_IDS: AccountEnteredShowIds = {
@@ -46,6 +47,7 @@ const EMPTY_ACCOUNT_ENTERED_SHOW_IDS: AccountEnteredShowIds = {
   identityState: 'unresolved',
   hasUsablePersonId: false,
   readState: 'identity-unresolved',
+  refetch: async () => undefined,
 };
 
 export function useAccountEnteredShowIds(): AccountEnteredShowIds {
@@ -57,7 +59,13 @@ export function useAccountEnteredShowIds(): AccountEnteredShowIds {
   } = useAuthContext();
   const identityState = authIdentityState ?? (personId ? 'resolved' : 'unresolved');
   const hasUsablePersonId = authHasUsablePersonId ?? Boolean(personId);
-  const { data, isLoading, isPending, isError } = useQuery({
+  const {
+    data,
+    isLoading,
+    isPending,
+    isError,
+    refetch = EMPTY_ACCOUNT_ENTERED_SHOW_IDS.refetch,
+  } = useQuery({
     queryKey: ['browse-shows', 'account-entered-show-ids', personId],
     queryFn: async () => {
       if (!personId) return { all: [], active: [], source: 'replica-after-error' as const };
@@ -116,5 +124,6 @@ export function useAccountEnteredShowIds(): AccountEnteredShowIds {
     identityState,
     hasUsablePersonId,
     readState,
+    refetch,
   };
 }

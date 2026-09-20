@@ -21,17 +21,13 @@ export function useMyEntryBalanceSummary() {
   // The one resolver, shared with My Shows and both ringside hooks, so the
   // `getUserEntries` cache is one key per account (MYK9-629 restructure 4).
   const personId = useEntriesPersonId();
-  const hasAccountIdentity = Boolean(user?.id && user.is_anonymous !== true && personId);
 
-  const query = useQuery({
+  return useQuery({
     // `personId` already varies by account, but only incidentally — it is a
     // query parameter that happens to be an identity. The marker states the
     // scoping outright so the guard can see it (MYK9-429).
     queryKey: ['exhibitor', 'my-entry-balance-summary', viewerScope(personId)],
-    enabled: hasAccountIdentity,
-    // This query is scoped to the current person. Never carry a prior
-    // exhibitor's balance into a new account or signed-out view.
-    placeholderData: () => undefined,
+    enabled: Boolean(user?.id && personId),
     // One retry, not the global default of two: each attempt pays the full
     // `getUserEntries` view deadline, so the default turns a dead network into
     // a ~46s spinner before the replica fallback is ever shown.
@@ -63,9 +59,4 @@ export function useMyEntryBalanceSummary() {
     },
     ...cacheStrategies.moderate,
   });
-
-  return {
-    ...query,
-    data: hasAccountIdentity ? query.data : undefined,
-  };
 }

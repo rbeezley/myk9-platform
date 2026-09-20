@@ -1,6 +1,7 @@
 import { Badge } from '@/components/ui/badge';
 import React from 'react';
 import { chipClasses } from '@/components/base/chipClasses';
+import type { UserWithRoles } from '@/types/auth-types';
 import type { ShowTab } from '@/types/unified-shows-types';
 import type { Show } from '@/types/show-types';
 import type { SyncableShowEntry } from '@/store/entry-store-types';
@@ -126,8 +127,10 @@ export const DATE_RANGE_LABELS: Record<string, string> = {
   next_month: 'Next Month',
 };
 
-export function getBrowseShowsCountUserId(personId: string | null | undefined): string | undefined {
-  return personId ?? undefined;
+export function getBrowseShowsCountUserId(
+  user: UserWithRoles | null | undefined
+): string | undefined {
+  return user?.databaseUserId ?? user?.id;
 }
 
 /**

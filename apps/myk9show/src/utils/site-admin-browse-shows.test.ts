@@ -31,7 +31,6 @@ function makeSiteAdmin(overrides: Partial<UserWithRoles> = {}): UserWithRoles {
     id: 'admin-1',
     email: 'admin@example.com',
     roles: [UserRole.SITE_ADMIN],
-    databaseUserId: 'person-admin-1',
     permissions: [...Object.values(PERMISSIONS)],
     scopes: [],
     app_metadata: {},
@@ -110,7 +109,7 @@ describe('getUserShowContext for SITE_ADMIN', () => {
   it('includes all show IDs in managedShows', () => {
     const admin = makeSiteAdmin();
     const shows = [makeShow({ id: 'show-1' }), makeShow({ id: 'show-2' })];
-    const ctx = getUserShowContext(admin, shows, [], admin.databaseUserId);
+    const ctx = getUserShowContext(admin, shows, []);
     expect(ctx).not.toBeNull();
     expect(ctx!.managedShows).toContain('show-1');
     expect(ctx!.managedShows).toContain('show-2');
@@ -119,7 +118,7 @@ describe('getUserShowContext for SITE_ADMIN', () => {
   it('includes shows with no clubId in managedShows', () => {
     const admin = makeSiteAdmin();
     const shows = [makeShow({ id: 'show-no-club', clubId: '' })];
-    const ctx = getUserShowContext(admin, shows, [], admin.databaseUserId);
+    const ctx = getUserShowContext(admin, shows, []);
     expect(ctx!.managedShows).toContain('show-no-club');
   });
 });
@@ -132,7 +131,7 @@ describe("filterShowsForTab('managing') for SITE_ADMIN", () => {
   it('returns all shows when site_admin has them in managedShows', () => {
     const admin = makeSiteAdmin();
     const shows = [makeShow({ id: 'show-1' }), makeShow({ id: 'show-2' })];
-    const ctx = getUserShowContext(admin, shows, [], admin.databaseUserId);
+    const ctx = getUserShowContext(admin, shows, []);
     const result = filterShowsForTab('managing', shows, [], ctx);
     expect(result).toHaveLength(2);
   });
@@ -140,7 +139,7 @@ describe("filterShowsForTab('managing') for SITE_ADMIN", () => {
   it('returns the future show on the managing tab', () => {
     const admin = makeSiteAdmin();
     const show = makeShow({ id: 'show-future' });
-    const ctx = getUserShowContext(admin, [show], [], admin.databaseUserId);
+    const ctx = getUserShowContext(admin, [show], []);
     const result = filterShowsForTab('managing', [show], [], ctx);
     expect(result.map(s => s.id)).toContain('show-future');
   });
@@ -237,7 +236,7 @@ describe('filterShowsForTab managing tab — past-startDate shows are preserved'
       endDate: nextWeek.toISOString().split('T')[0],
     });
 
-    const ctx = getUserShowContext(admin, [ongoingShow], [], admin.databaseUserId);
+    const ctx = getUserShowContext(admin, [ongoingShow], []);
     const result = filterShowsForTab('managing', [ongoingShow], [], ctx);
 
     // filterShowsForTab itself correctly includes the show
@@ -254,7 +253,7 @@ describe('filterShowsForTab managing tab — past-startDate shows are preserved'
       endDate: lastMonthEnd.toISOString().split('T')[0],
     });
 
-    const ctx = getUserShowContext(admin, [pastShow], [], admin.databaseUserId);
+    const ctx = getUserShowContext(admin, [pastShow], []);
     const result = filterShowsForTab('managing', [pastShow], [], ctx);
 
     // filterShowsForTab correctly includes past shows too

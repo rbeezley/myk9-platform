@@ -82,7 +82,7 @@ describe('browse show count scope', () => {
     const show = makeShow();
     const entry = makeEntry();
 
-    const context = getUserShowContext(user, [show], [entry], user.databaseUserId);
+    const context = getUserShowContext(user, [show], [entry]);
 
     expect(context?.userId).toBe('person-1');
     expect(context?.entries).toEqual(['show-1']);
@@ -91,16 +91,7 @@ describe('browse show count scope', () => {
   it('passes the database user id into tab count derivation', () => {
     const user = makeUser();
 
-    expect(getBrowseShowsCountUserId(user.databaseUserId)).toBe('person-1');
-  });
-
-  it('does not infer a count identity when the authoritative person id is unresolved', () => {
-    expect(getBrowseShowsCountUserId(null)).toBeUndefined();
-  });
-
-  it('does not infer relationship context from an auth UUID', () => {
-    const user = makeUser({ databaseUserId: undefined });
-    expect(getUserShowContext(user, [makeShow()], [], null)).toBeNull();
+    expect(getBrowseShowsCountUserId(user)).toBe('person-1');
   });
 
   it('returns raw tab count from getCount regardless of which tab is selected', () => {

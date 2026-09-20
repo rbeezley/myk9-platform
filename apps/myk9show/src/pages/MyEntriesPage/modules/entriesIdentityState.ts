@@ -62,6 +62,11 @@ export function getMyEntriesPresentation({
 }: MyEntriesPresentationInput): MyEntriesPresentation {
   if (entryCount > 0) return 'known-rows';
   if (identityState === 'missing') return 'identity-missing';
+  // A cached person id lets the replica read run, but an unresolved
+  // authoritative profile still leaves the account identity unconfirmed. An
+  // empty result from that read is therefore not entitled to the first-run
+  // claim, even when the replica reports a confirmed source.
+  if (identityState === 'unresolved') return 'identity-pending';
   if (readState === 'identity-unresolved' || readState === 'read-pending') {
     return 'identity-pending';
   }

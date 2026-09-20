@@ -2,7 +2,6 @@ import React, { useState, useEffect, useCallback, useMemo, Suspense } from 'reac
 import { useSearchParams } from 'react-router-dom';
 import { logger } from '@/services/LoggingService';
 import { Button } from '@/components/ui/button';
-import { Alert, AlertDescription } from '@/components/ui/alert';
 import { TabsContent } from '@/components/ui/tabs';
 import { PrimaryTabs, type PrimaryTabDef } from '@/components/common/PrimaryTabs';
 import { useUrlTab } from '@/hooks/useUrlTab';
@@ -57,7 +56,7 @@ import { buildChipFilters, getDefaultViewMode } from './browseShowsPage.helpers'
 
 const BrowseShowsPage: React.FC = () => {
   const [searchParams, setSearchParams] = useSearchParams();
-  const { userWithRoles: authUser, personId, isSecretary, isAdmin, hasRole } = useAuthContext();
+  const { userWithRoles: authUser, isSecretary, isAdmin, hasRole } = useAuthContext();
   const canManageShow = useCallback(
     (show: Pick<Show, 'id' | 'clubId'>) =>
       canManageShowSurface({
@@ -100,10 +99,8 @@ const BrowseShowsPage: React.FC = () => {
     entries,
     enhancedShows: allEnhancedShows,
     userContext,
-    browseIdentityState,
     tabQuickActions,
     handleRetry,
-    accountEntriesDegraded,
   } = useBrowseShowsData({ filteredShows: filteredShowsState, selectedTab });
 
   // Use extracted filter hook
@@ -114,14 +111,7 @@ const BrowseShowsPage: React.FC = () => {
     monthScopedShows,
     hasActiveFilters,
     clearAllFilters,
-  } = useBrowseShowsFilters({
-    shows,
-    entries,
-    userContext,
-    identityState: browseIdentityState,
-    selectedTab,
-    origin,
-  });
+  } = useBrowseShowsFilters({ shows, entries, userContext, selectedTab, origin });
 
   // Sync filtered shows into state for the data hook (avoids second hook call)
   useEffect(() => {
@@ -169,7 +159,7 @@ const BrowseShowsPage: React.FC = () => {
   );
 
   const enhancedShows = allEnhancedShows;
-  const countUserId = useMemo(() => getBrowseShowsCountUserId(personId), [personId]);
+  const countUserId = useMemo(() => getBrowseShowsCountUserId(user), [user]);
 
   // Bulk selection for shows
   const getShowId = useCallback((show: { id: string }) => show.id, []);
@@ -484,19 +474,6 @@ const BrowseShowsPage: React.FC = () => {
             value={filters.month}
             onChange={handleMonthChange}
           />
-
-          {accountEntriesDegraded && (
-            <Alert className="mb-4">
-              <AlertDescription className="flex flex-wrap items-center justify-between gap-3">
-                <span>
-                  Your entered-show markers may be incomplete while this device is offline
-                </span>
-                <Button variant="outline" onClick={handleRetry}>
-                  Retry
-                </Button>
-              </AlertDescription>
-            </Alert>
-          )}
 
           {/* Tabs — hidden for guests and exhibitors, who only have Browse All */}
           <PrimaryTabs

@@ -16,7 +16,6 @@ import { useHasAnyEntryForShow } from '@/features/at-show/useHasAnyEntryForShow'
 import { useExhibitorUpcomingShows } from '@/features/at-show/useExhibitorUpcomingShows';
 import { useAccountEnteredShowIds } from '@/hooks/queries/useAccountEnteredShowIds';
 import { useMyEntryBalanceSummary } from '@/features/payments/useMyEntryBalanceSummary';
-import { useMyEntriesData } from '@/pages/MyEntriesPage/modules/useMyEntriesData';
 import { usePersonIdentity } from '@/context/usePersonIdentity';
 
 const { mockRbacService, mockUseAuth, mockGetUserEntries } = vi.hoisted(() => ({
@@ -600,11 +599,8 @@ describe('AuthContext RBAC lifecycle', () => {
       const auth = useAuthContext();
       const hasAny = useHasAnyEntryForShow('show-heartland');
       const upcoming = useExhibitorUpcomingShows();
-      const entered = useAccountEnteredShowIds();
+      const entered = useAccountEnteredShowIds(auth.personId);
       const balance = useMyEntryBalanceSummary();
-      const myEntries = useMyEntriesData({
-        persistCheckInStatus: async () => undefined,
-      });
       return (
         <div>
           <span data-testid="integration-person-id">
@@ -618,7 +614,6 @@ describe('AuthContext RBAC lifecycle', () => {
           <span data-testid="integration-upcoming">{upcoming.upcomingShows.length}</span>
           <span data-testid="integration-entered">{entered.all.length}</span>
           <span data-testid="integration-balance">{balance.data?.kind ?? 'pending'}</span>
-          <span data-testid="integration-my-entries">{myEntries.entries.length}</span>
         </div>
       );
     };
@@ -634,10 +629,41 @@ describe('AuthContext RBAC lifecycle', () => {
       expect(screen.getByTestId('integration-upcoming')).toHaveTextContent('1');
       expect(screen.getByTestId('integration-entered')).toHaveTextContent('1');
       expect(screen.getByTestId('integration-balance')).toHaveTextContent('unknown');
-      expect(screen.getByTestId('integration-my-entries')).toHaveTextContent('1');
     });
-    expect(mockGetUserEntries).toHaveBeenCalledTimes(5);
+    expect(mockGetUserEntries).toHaveBeenCalledTimes(4);
     expect(mockGetUserEntries).toHaveBeenCalledWith('person-cached');
+  });
+
+  it('keeps all four account reads disabled when no identity cache exists', async () => {
+    onlineManager.setOnline(false);
+    mockRbacService.getUserPermissions.mockResolvedValue(accessForRole(UserRole.EXHIBITOR));
+    mockGetUserEntries.mockResolvedValue({ data: [], error: null, source: 'replica-offline' });
+    const pendingProfile = new Promise<never>(() => {});
+    mockSupabase.from.mockImplementation((table: string) =>
+      table === 'people'
+        ? ({
+            select: () => ({
+              eq: () => ({ maybeSingle: () => pendingProfile }),
+            }),
+          } as never)
+        : createChainableQuery()
+    );
+
+    const TestComponent = () => {
+      const auth = useAuthContext();
+      useHasAnyEntryForShow('show-heartland');
+      useExhibitorUpcomingShows();
+      useAccountEnteredShowIds(auth.personId);
+      useMyEntryBalanceSummary();
+      return <span data-testid="no-cache-person-id">{auth.personId ?? 'none'}</span>;
+    };
+
+    renderWithAuthProvider(<TestComponent />);
+
+    await waitFor(() => {
+      expect(screen.getByTestId('no-cache-person-id')).toHaveTextContent('none');
+    });
+    expect(mockGetUserEntries).not.toHaveBeenCalled();
   });
 
   it('uses the cached person id before RBAC hydrates without granting a role', async () => {
@@ -668,7 +694,7 @@ describe('AuthContext RBAC lifecycle', () => {
           <span data-testid="rbac-independent-role">
             {auth.hasRole(UserRole.EXHIBITOR).toString()}
           </span>
-          <span data-testid="rbac-independent-read-state">{upcoming.readState}</span>
+          <span data-testid="rbac-independent-upcoming">{upcoming.upcomingShows.length}</span>
         </div>
       );
     };
@@ -677,7 +703,7 @@ describe('AuthContext RBAC lifecycle', () => {
 
     await waitFor(() => {
       expect(screen.getByTestId('rbac-independent-person-id')).toHaveTextContent('person-cached');
-      expect(screen.getByTestId('rbac-independent-read-state')).toHaveTextContent('unconfirmed');
+      expect(screen.getByTestId('rbac-independent-upcoming')).toHaveTextContent('0');
       expect(mockGetUserEntries).toHaveBeenCalledWith('person-cached');
     });
     expect(screen.getByTestId('rbac-independent-role')).toHaveTextContent('false');

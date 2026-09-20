@@ -1,8 +1,7 @@
 import type { ReactNode } from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { renderHook, waitFor } from '@/test/utils/testUtils';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { queryClient } from '@/lib/queryClient';
+import { describe, expect, it, vi } from 'vitest';
 
 const mocks = vi.hoisted(() => {
   const source = () => ({
@@ -18,16 +17,12 @@ const mocks = vi.hoisted(() => {
   };
 });
 
-const authState = vi.hoisted(() => ({
-  user: { id: 'user-1' } as { id: string } | null,
-}));
-
 vi.mock('@/lib/supabase', () => ({
   supabase: { rpc: mocks.rpc },
 }));
 
 vi.mock('@/hooks/useAuthContext', () => ({
-  useAuthContext: () => ({ user: authState.user }),
+  useAuthContext: () => ({ user: { id: 'user-1' } }),
 }));
 
 vi.mock('@/services/replication', () => ({
@@ -37,16 +32,9 @@ vi.mock('@/services/replication', () => ({
   replicatedShowsTable: mocks.shows,
 }));
 
-import { accountTodayEntriesQueryKey, useAccountTodayEntries } from './accountTodayEntries';
+import { useAccountTodayEntries } from './accountTodayEntries';
 
 describe('useAccountTodayEntries', () => {
-  beforeEach(() => {
-    queryClient.clear();
-    authState.user = { id: 'user-1' };
-    mocks.rpc.mockResolvedValue({ data: [], error: null });
-    vi.clearAllMocks();
-  });
-
   it('shares the initial RPC and non-emitting subscriptions across duplicate consumers', async () => {
     const queryClient = new QueryClient({
       defaultOptions: { queries: { retry: false } },
@@ -76,33 +64,5 @@ describe('useAccountTodayEntries', () => {
     for (const source of [mocks.entries, mocks.classes, mocks.trials, mocks.shows]) {
       expect(vi.mocked(source.subscribe).mock.results[0]?.value).toHaveBeenCalledOnce();
     }
-  });
-
-  it('rejects previous account data on the production client during switch and sign-out', async () => {
-    const accountAEntries = [{ showId: 'show-a' }];
-    queryClient.setQueryData(accountTodayEntriesQueryKey('user-1'), accountAEntries);
-    let resolveB!: (value: { data: never[]; error: null }) => void;
-    mocks.rpc.mockImplementation(
-      () =>
-        new Promise(resolve => {
-          resolveB = resolve as (value: { data: never[]; error: null }) => void;
-        })
-    );
-    const wrapper = ({ children }: { children: ReactNode }) => (
-      <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
-    );
-    const { result, rerender } = renderHook(() => useAccountTodayEntries(), { wrapper });
-
-    await waitFor(() => expect(result.current.data).toEqual(accountAEntries));
-
-    authState.user = { id: 'user-2' };
-    rerender();
-    expect(result.current.data).toBeUndefined();
-
-    authState.user = null;
-    rerender();
-    expect(result.current.data).toBeUndefined();
-
-    resolveB({ data: [], error: null });
   });
 });

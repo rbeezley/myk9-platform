@@ -8,11 +8,7 @@ import { getPublicShows } from '@/services/database/shows';
 import { mapDatabaseShowsArray } from '@/services/mappers/showMappers';
 import { logger } from '@/services/LoggingService';
 import type { Show } from '@/types/show-types';
-import type {
-  BrowseIdentityState,
-  UserShowContext,
-  ShowRelationship,
-} from '@/types/unified-shows-types';
+import type { UserShowContext, ShowRelationship } from '@/types/unified-shows-types';
 import { getUserShowContext, enhanceShowsWithRelationships } from '@/utils/unified-shows-config';
 import { useNavigate } from 'react-router-dom';
 import { getTabQuickActions } from '@/utils/show-actions';
@@ -27,7 +23,7 @@ import { ShowPermissionValidator } from '@/utils/permissionValidation';
 import { userHasEntriesForShow } from '@/utils/entryStatusUtils';
 import { mergeAccountEnteredShowStubs } from '@/utils/browseShowsUtils';
 import { useAccountEnteredShowIds } from '@/hooks/queries/useAccountEnteredShowIds';
-import type { PersonIdentityState } from '@/context/authContextTypes';
+import { useEntriesPersonId } from '@/hooks/useEntriesPersonId';
 
 /**
  * Enhanced show with relationship metadata
@@ -64,11 +60,6 @@ interface UseBrowseShowsDataReturn {
   hasError: boolean;
   showsError: Error | null;
   entriesError: string | null;
-  accountEnteredIdentityState: PersonIdentityState;
-  browseIdentityState: BrowseIdentityState;
-  accountEnteredReadState: ReturnType<typeof useAccountEnteredShowIds>['readState'];
-  accountEntriesReliable: boolean;
-  accountEntriesDegraded: boolean;
 
   // Data
   shows: Show[];
@@ -94,27 +85,11 @@ export function useBrowseShowsData({
   selectedTab,
 }: UseBrowseShowsDataProps): UseBrowseShowsDataReturn {
   const navigate = useNavigate();
-  const {
-    user: authUser,
-    userWithRoles: user,
-    loading: authLoading,
-    personId,
-    personIdentityState,
-  } = useAuthContext();
+  const { userWithRoles: user, loading: authLoading } = useAuthContext();
   const storeShows = useShowStore(s => s.shows);
   const showsLoading = useShowStore(s => s.isLoading);
 
-  const browseIdentityState: BrowseIdentityState =
-    !authUser || authUser.is_anonymous === true
-      ? 'anonymous'
-      : personId
-        ? 'resolved'
-        : personIdentityState === 'missing'
-          ? 'missing'
-          : 'pending';
-
-  // Public fallback: fetch the discoverable show list directly whenever the
-  // local show replica has no rows, including while account identity is pending.
+  // Guest fallback: fetch public shows directly when not authenticated.
   // The shows_select RLS policy allows unauthenticated reads for published/upcoming/in_progress/completed.
   const { data: publicShows, isLoading: publicShowsLoading } = useQuery({
     queryKey: ['shows', 'public'],
@@ -123,15 +98,11 @@ export function useBrowseShowsData({
       if (error) throw error;
       return mapDatabaseShowsArray(data ?? []);
     },
-    enabled: !authLoading && (!authUser || storeShows.length === 0),
+    enabled: !authLoading && !user,
     staleTime: 60_000,
   });
 
-  const shows = user
-    ? storeShows.length > 0
-      ? storeShows
-      : (publicShows ?? storeShows)
-    : (publicShows ?? storeShows);
+  const shows = user ? storeShows : (publicShows ?? storeShows);
   const storeErrorMsg = useShowStore(s => s.error);
   const showsError = storeErrorMsg ? new Error(storeErrorMsg) : null;
   const {
@@ -149,16 +120,11 @@ export function useBrowseShowsData({
   // so this corrects the tab count/list without swapping the shared store.
   // The SAME resolver the other three `getUserEntries` consumers use, so
   // restructure 4 is 4/4 rather than 3/4 (MYK9-629 round 1).
-  const accountEnteredShowIds = useAccountEnteredShowIds();
-  const {
-    active: activeAccountEnteredShowIds,
-    all: allAccountEnteredShowIds,
-    refetch: refetchAccountEntries,
-  } = accountEnteredShowIds;
-  // Account-entry membership is scoped by AuthContext's authoritative person
-  // identity. Do not stamp account-level rows with RBAC/profile fallbacks (or
-  // the auth UUID) while that identity is unresolved.
-  const derivedUserId = personId ?? undefined;
+  const personId = useEntriesPersonId();
+  const accountEnteredShowIds = useAccountEnteredShowIds(personId);
+  const { active: activeAccountEnteredShowIds, all: allAccountEnteredShowIds } =
+    accountEnteredShowIds;
+  const derivedUserId = user?.databaseUserId ?? user?.id;
   const entries = useMemo(
     () =>
       mergeAccountEnteredShowStubs(
@@ -192,26 +158,20 @@ export function useBrowseShowsData({
   // be stuck forever.
   const showsSyncPending =
     !!user &&
-    storeShows.length === 0 &&
-    shows.length === 0 &&
     (syncStatus.tablesStatus.shows === 'idle' || syncStatus.tablesStatus.shows === 'syncing');
-  const accountEntriesReliable = accountEnteredShowIds.readState === 'confirmed';
-  const accountEntriesDegraded =
-    accountEnteredShowIds.readState === 'unconfirmed' ||
-    accountEnteredShowIds.readState === 'error';
   const isLoading =
     authLoading ||
-    publicShowsLoading ||
-    (shows.length === 0 && (showsLoading || entriesLoading || showsSyncPending));
-  // Membership confidence is separate from public show discovery. An account
-  // read can be pending, stale, or unavailable while the public list remains
-  // usable; only public-list and show-store loading block Find Shows content.
-  const hasError = !!(showsError || entriesError);
+    showsLoading ||
+    entriesLoading ||
+    accountEnteredShowIds.isLoading ||
+    (shows.length === 0 && showsSyncPending) ||
+    publicShowsLoading;
+  const hasError = !!(showsError || entriesError || accountEnteredShowIds.isError);
 
   // Get user show context for filtering with caching
   const userContext = useMemo(() => {
-    return getUserShowContext(user, shows, entries, personId);
-  }, [personId, user, shows, entries]);
+    return getUserShowContext(user, shows, entries);
+  }, [user, shows, entries]);
 
   // Sync show relationships when user or data changes
   useEffect(() => {
@@ -360,7 +320,7 @@ export function useBrowseShowsData({
     try {
       const startTime = performance.now();
 
-      await Promise.all([loadEntries(), refetchAccountEntries()]);
+      await loadEntries();
 
       // Re-sync relationships after successful data reload
       if (user?.id) {
@@ -375,7 +335,7 @@ export function useBrowseShowsData({
     } catch (error) {
       logger.error('Retry failed', 'shows', {}, error as Error);
     }
-  }, [loadEntries, refetchAccountEntries, user, shows]);
+  }, [loadEntries, user, shows]);
 
   return {
     user,
@@ -383,11 +343,6 @@ export function useBrowseShowsData({
     hasError,
     showsError: showsError || null,
     entriesError: entriesError || null,
-    accountEnteredIdentityState: accountEnteredShowIds.identityState,
-    browseIdentityState,
-    accountEnteredReadState: accountEnteredShowIds.readState,
-    accountEntriesReliable,
-    accountEntriesDegraded,
     shows,
     entries,
     enhancedShows,

@@ -68,6 +68,17 @@ describe('getMyEntriesPresentation', () => {
       })
     ).toBe('confirmed-empty');
   });
+
+  it('keeps a cached identity pending until the authoritative profile resolves', () => {
+    expect(
+      getMyEntriesPresentation({
+        identityState: 'unresolved',
+        readState: 'confirmed',
+        entryCount: 0,
+        isLoading: false,
+      })
+    ).toBe('identity-pending');
+  });
 });
 
 describe('deriveEntriesIdentityState', () => {

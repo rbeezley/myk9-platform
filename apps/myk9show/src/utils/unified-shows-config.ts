@@ -7,7 +7,6 @@ import {
   UserShowContext,
   ShowWithRelationship,
   ShowRelationship,
-  BrowseIdentityState,
 } from '@/types/unified-shows-types';
 import {
   getUserEntries,
@@ -160,12 +159,11 @@ export function getTabsForUser(user: UserWithRoles | null): TabConfiguration {
 export function getUserShowContext(
   user: UserWithRoles | null,
   shows: Show[],
-  entries: SyncableShowEntry[],
-  personId: string | null | undefined
+  entries: SyncableShowEntry[]
 ): UserShowContext | null {
-  if (!user || !personId) return null;
+  if (!user) return null;
 
-  const userId = personId;
+  const userId = user.databaseUserId ?? user.id;
   const userRoles = user.roles || [];
 
   const userEntries = getUserEntries(userId, shows, entries).map(s => s.id);
@@ -233,18 +231,11 @@ export function filterShowsForTab(
   tabId: string,
   shows: Show[],
   _entries: SyncableShowEntry[],
-  context: UserShowContext | null,
-  identityState: BrowseIdentityState = context ? 'resolved' : 'anonymous'
+  context: UserShowContext | null
 ): Show[] {
-  if (identityState !== 'resolved') {
-    // Only the public Browse All tab is safe while authentication is pending
-    // or a person record is confirmed missing. Staff tabs must not fail open to
-    // all shows just because relationship context is unavailable.
-    return tabId === 'all' ? shows : [];
-  }
-
   if (!context) {
-    // Anonymous visitors have one tab; a month picks past shows now, not a tab.
+    // Guest filtering
+    // Guests have one tab; a month picks past shows now, not a tab.
     return shows;
   }
 

@@ -4,9 +4,9 @@
 
 ## Goals / Non-Goals
 
-**Goals:** restore a previously confirmed person ID for the same auth user, keep authoritative online refresh, expose identity resolution truthfully, and enable existing replica-backed entry reads offline.
+**Goals:** restore a previously confirmed person ID for the same auth user, keep authoritative online refresh, expose identity resolution truthfully, enable the four named `getUserEntries` consumers offline, and keep My Shows from presenting unresolved identity as a confirmed empty account.
 
-**Non-Goals:** cache the whole people row, infer person ID from the auth UUID, expand directory access, add UI, or change MYK9-563's stale-money rules.
+**Non-Goals:** cache the whole people row, infer person ID from the auth UUID, expand directory access, change Browse Shows/ringside/show-today behavior, add UI, or change MYK9-563's stale-money rules.
 
 ## Decisions
 
@@ -15,6 +15,7 @@
 - Clear the prior account's identity cache on a real account transition, not during the pre-session boot state, matching the MYK9-200 lifecycle rule.
 - Preserve explicit resolution state from the profile query so paused/error, confirmed missing, and resolved are distinct. Entry surfaces consume that state rather than interpreting a null ID.
 - Keep all entry data reads through the existing `getUserEntries`/replica path; durable identity unlocks that path and introduces no direct Supabase entry read.
+- Provider-level cold-offline coverage mounts exactly `useHasAnyEntryForShow`, `useExhibitorUpcomingShows`, `useAccountEnteredShowIds`, and `useMyEntryBalanceSummary` with a persisted session and paused profile lookup.
 
 ## Risks / Trade-offs
 

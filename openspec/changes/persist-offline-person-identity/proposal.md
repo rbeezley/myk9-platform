@@ -6,11 +6,12 @@ On a cold offline boot, the authenticated exhibitor's network-only person lookup
 
 - Persist the authenticated user's person ID beside the durable auth/session identity, following the existing durable-role seam.
 - Restore that pairing before online profile lookup settles and distinguish unresolved identity from a confirmed missing person.
-- Let all account-level entry hooks execute against the replica when durable identity is available offline.
+- Let the four existing account-level `getUserEntries` consumers execute against the replica when durable identity is available offline: `useHasAnyEntryForShow`, `useExhibitorUpcomingShows`, `useAccountEnteredShowIds`, and `useMyEntryBalanceSummary`.
 - Add cold-offline tests covering persisted identity, query enablement, and the unresolved state.
-- Non-goal: add a new identity screen, bypass the existing online refresh, or display stale money values covered by MYK9-563.
+- Keep My Shows truthful when cached identity is present but the authoritative profile remains unresolved; known rows may render, but an empty read is not a confirmed empty account.
+- Non-goal: add a new identity screen, bypass the existing online refresh, change Browse Shows or ringside UI behavior, change `show-today`, or display stale money values covered by MYK9-563.
 
-This does not duplicate an existing surface; it repairs the shared identity prerequisite used by existing exhibitor surfaces. A link would not restore offline data access.
+This does not duplicate an existing surface; it repairs the shared identity prerequisite used by existing exhibitor surfaces. A link would not restore offline data access. Browse Shows, ringside, and show-today behavior changes remain separate work.
 
 ## Capabilities
 

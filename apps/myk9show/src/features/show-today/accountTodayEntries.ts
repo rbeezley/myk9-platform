@@ -58,7 +58,7 @@ export async function fetchHydratedAccountTodayEntries(): Promise<HydratedAccoun
 export function useAccountTodayEntries(options: UseAccountTodayEntriesOptions = {}) {
   const { user } = useAuthContext();
   const queryClient = useQueryClient();
-  const enabled = (options.enabled ?? true) && !!user && user.is_anonymous !== true;
+  const enabled = (options.enabled ?? true) && !!user;
   const queryKey = useMemo(() => accountTodayEntriesQueryKey(user?.id), [user?.id]);
 
   useEffect(() => {
@@ -66,20 +66,12 @@ export function useAccountTodayEntries(options: UseAccountTodayEntriesOptions = 
     return accountTodaySubscriptions.retain(queryClient, queryKey);
   }, [enabled, queryClient, queryKey]);
 
-  const query = useQuery({
+  return useQuery({
     queryKey,
     queryFn: fetchHydratedAccountTodayEntries,
     enabled,
-    // This enrichment is scoped to the authenticated user. Do not carry a
-    // prior account's today's entries into a changed or signed-out session.
-    placeholderData: () => undefined,
     staleTime: 60_000,
   });
-
-  return {
-    ...query,
-    data: user && user.is_anonymous !== true ? query.data : undefined,
-  };
 }
 
 export function usePreFavoriteAccountTodayEntries() {

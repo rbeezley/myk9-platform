@@ -28,13 +28,6 @@ export type ShowRelationship =
   | 'assignments'; // Shows user is judging
 
 /**
- * Identity confidence for Browse Shows. Anonymous is the only state that may
- * use guest semantics; authenticated users without a confirmed person remain
- * explicitly pending (or missing) until account relationships are safe.
- */
-export type BrowseIdentityState = 'anonymous' | 'pending' | 'missing' | 'resolved';
-
-/**
  * Configuration for a complete tab system
  */
 export interface TabConfiguration {

@@ -70,9 +70,6 @@ const RingsideEntryPage: React.FC = () => {
     <RingsideHome
       liveShows={entry.liveShows}
       upcomingShows={entry.upcomingShows}
-      identityState={entry.identityState}
-      hasUsablePersonId={entry.hasUsablePersonId}
-      readState={entry.readState}
       onEnterPasscode={() => setShowPasscode(true)}
     />
   );

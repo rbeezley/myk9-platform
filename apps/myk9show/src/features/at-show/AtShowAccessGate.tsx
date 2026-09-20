@@ -25,9 +25,6 @@ export function AtShowAccessGate({ children }: { children: ReactNode }) {
   const accountToday = useAccountTodayAutoFavorites(
     user && !grantRole && !hasAccountStaffRole ? showId : undefined
   );
-  const needsExhibitorAffiliationLookup = Boolean(
-    user && !grantRole && !hasAccountStaffRole && !accountToday.hasAccountEntryForShow
-  );
   // exhibitor-show-day-access: distinguishes "entered exhibitor visiting
   // early" from "stranger with no relationship to this show" so the no-access
   // gate below can speak to the right audience instead of assuming a worker
@@ -36,9 +33,11 @@ export function AtShowAccessGate({ children }: { children: ReactNode }) {
     hasAnyEntryForShow,
     isLoading: hasAnyEntryLoading,
     isError: hasAnyEntryError,
-    identityState,
-    hasUsablePersonId,
-  } = useHasAnyEntryForShow(needsExhibitorAffiliationLookup ? showId : undefined);
+  } = useHasAnyEntryForShow(
+    user && !grantRole && !hasAccountStaffRole && !accountToday.hasAccountEntryForShow
+      ? showId
+      : undefined
+  );
 
   // Client-only UX gate: a passcode grant admits the ringside UI for this
   // device/show, but data security remains enforced by Supabase RLS and the
@@ -55,65 +54,17 @@ export function AtShowAccessGate({ children }: { children: ReactNode }) {
     return <AtShowAnnouncementFeed showId={showId}>{children}</AtShowAnnouncementFeed>;
   }
 
+  if (user && accountToday.isLoading) {
+    return (
+      <FullScreen>
+        <LoadingEmptyState message="Checking ringside access…" />
+      </FullScreen>
+    );
+  }
+
   if (!user) {
     const returnTo = `${location.pathname}${location.search}`;
     return <Navigate to={`/sign-in?returnTo=${encodeURIComponent(returnTo)}`} replace />;
-  }
-
-  if (needsExhibitorAffiliationLookup && !hasUsablePersonId && identityState === 'missing') {
-    return (
-      <FullScreen>
-        <div className="max-w-md rounded-xl border bg-card p-6 text-center shadow-sm">
-          <ShieldAlert className="mx-auto mb-4 h-12 w-12 text-muted-foreground" />
-          <p className="mb-2 text-lg font-medium">We couldn&apos;t find your exhibitor profile.</p>
-          <p className="text-sm text-muted-foreground">
-            This account is signed in, but it is not linked to an exhibitor profile yet. Ask the
-            secretary to add your profile, or use a show-day passcode if you&apos;re volunteering.
-          </p>
-          <div className="mt-5 flex flex-col gap-2 sm:flex-row sm:justify-center">
-            <Link
-              to="/exhibitor/entries"
-              className="inline-flex min-h-11 items-center justify-center rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-            >
-              Go to My Shows
-            </Link>
-            <Link
-              to="/at-show?passcode=1"
-              className="inline-flex min-h-11 items-center justify-center rounded-md border border-input px-4 text-sm font-medium text-foreground hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-            >
-              I have a show-day passcode
-            </Link>
-          </div>
-        </div>
-      </FullScreen>
-    );
-  }
-
-  if (needsExhibitorAffiliationLookup && !hasUsablePersonId && identityState === 'unresolved') {
-    return (
-      <FullScreen>
-        <div className="max-w-md rounded-xl border bg-card p-6 text-center shadow-sm">
-          <ShieldAlert className="mx-auto mb-4 h-12 w-12 text-muted-foreground" />
-          <p className="mb-2 text-lg font-medium">Still confirming your account.</p>
-          <p className="text-sm text-muted-foreground">
-            We&apos;re still confirming which entries belong to you. Keep this page open and try
-            again when your connection is available.
-          </p>
-          <Link
-            to="/exhibitor/entries"
-            className="mt-5 inline-flex min-h-11 items-center justify-center rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-          >
-            Go to My Shows
-          </Link>
-          <Link
-            to="/at-show?passcode=1"
-            className="mt-3 inline-flex min-h-11 items-center justify-center rounded-md border border-input px-4 text-sm font-medium text-foreground hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-          >
-            I have a show-day passcode
-          </Link>
-        </div>
-      </FullScreen>
-    );
   }
 
   // Wait for the entry-affiliation lookup before deciding which no-access copy

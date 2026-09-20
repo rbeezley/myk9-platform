@@ -226,6 +226,41 @@ describe('buildCreateShowPayload', () => {
     expect(rpcInput.p_classes[0]!.trial_id).toBe(trialIdMap['wizard-trial-1']);
   });
 
+  it('round-trips one canonical class triple into RPC and local persistence', () => {
+    const trialWithLegacyClass: WizardTrial = {
+      ...baseTrial,
+      classes: [
+        {
+          templateId: 'tmpl-1',
+          customizations: {
+            className: 'Containers Novice A',
+            element: ' Containers ',
+            level: ' Novice ',
+            section: ' A ',
+          },
+        },
+      ],
+    };
+    const { rpcInput, localEntities } = buildCreateShowPayload(
+      baseShow,
+      [trialWithLegacyClass],
+      {},
+      new Map(),
+      'unpublished'
+    );
+
+    expect(rpcInput.p_classes[0]).toMatchObject({
+      element: 'Container',
+      level: 'Novice',
+      section: 'A',
+    });
+    expect(localEntities.classes[0]).toMatchObject({
+      element: 'Container',
+      level: 'Novice',
+      section: 'A',
+    });
+  });
+
   it('carries the per-class judgeId into p_classes[].judge_id (class-level assignment grain)', () => {
     const trialWithClass: WizardTrial = {
       ...baseTrial,

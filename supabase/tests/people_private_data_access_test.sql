@@ -22,6 +22,7 @@ VALUES
   ('00000000-0000-0000-0000-000000664013', 'MYK9-664', 'Exhibitor', '00000000-0000-0000-0000-000000664103'),
   ('00000000-0000-0000-0000-000000664014', 'MYK9-664', 'Handler', '00000000-0000-0000-0000-000000664104'),
   ('00000000-0000-0000-0000-000000664017', 'Owner', 'Fallback', '00000000-0000-0000-0000-000000664107'),
+  ('00000000-0000-0000-0000-000000664018', 'Empty', 'Profile', '00000000-0000-0000-0000-000000664108'),
   ('00000000-0000-0000-0000-000000664015', 'MYK9-664', 'Site Admin', '00000000-0000-0000-0000-000000664105'),
   ('00000000-0000-0000-0000-000000664016', 'MYK9-664', 'Deleted Handler', '00000000-0000-0000-0000-000000664106');
 
@@ -63,6 +64,11 @@ VALUES (
   '00000000-0000-0000-0000-000000664005', 'MYK9-664 Dog', 'Fallback Dog', 'Mixed',
   '00000000-0000-0000-0000-000000664017'
 );
+INSERT INTO public.dogs (id, name, call_name, breed, owner_id)
+VALUES (
+  '00000000-0000-0000-0000-000000664008', 'MYK9-664 Empty Dog', 'Empty Dog', 'Mixed',
+  '00000000-0000-0000-0000-000000664018'
+);
 
 -- The stale handler FK points at Handler, but the canonical printed name
 -- resolves to the owner. A related manager may read the owner's private row.
@@ -73,6 +79,15 @@ VALUES (
   '00000000-0000-0000-0000-000000664005',
   '00000000-0000-0000-0000-000000664014',
   'Owner Fallback',
+  'confirmed', 'paid'
+);
+INSERT INTO public.entries (id, show_id, dog_id, handler_id, handler, entry_status, payment_status)
+VALUES (
+  '00000000-0000-0000-0000-000000664008',
+  '00000000-0000-0000-0000-000000664003',
+  '00000000-0000-0000-0000-000000664008',
+  NULL,
+  NULL,
   'confirmed', 'paid'
 );
 
@@ -100,6 +115,7 @@ VALUES (
 DO $$
 DECLARE
   handler_id uuid := '00000000-0000-0000-0000-000000664014';
+  empty_person uuid := '00000000-0000-0000-0000-000000664018';
   related_manager uuid := '00000000-0000-0000-0000-000000664101';
   unrelated_manager uuid := '00000000-0000-0000-0000-000000664102';
   exhibitor uuid := '00000000-0000-0000-0000-000000664103';
@@ -149,6 +165,17 @@ BEGIN
     RAISE EXCEPTION 'FAIL explicit empty junior-number map did not clear existing values';
   END IF;
 
+  -- Self access remains complete even when no private row was materialized.
+  PERFORM set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-000000664108', true);
+  PERFORM set_config('request.jwt.claims', json_build_object('sub', '00000000-0000-0000-0000-000000664108', 'role', 'authenticated')::text, true);
+  SELECT count(*) INTO visible_rows FROM public.get_people_private(ARRAY[empty_person]);
+  IF visible_rows <> 1 THEN RAISE EXCEPTION 'FAIL self cannot read an authorized empty private profile'; END IF;
+  SELECT date_of_birth, junior_handler_numbers INTO private_dob, private_numbers
+  FROM public.get_people_private(ARRAY[empty_person]);
+  IF private_dob IS NOT NULL OR private_numbers IS DISTINCT FROM '{}'::jsonb THEN
+    RAISE EXCEPTION 'FAIL authorized empty private profile was not returned as empty';
+  END IF;
+
   -- Related manager: entry -> show -> managed club is the only manager read arm.
   PERFORM set_config('request.jwt.claim.sub', related_manager::text, true);
   PERFORM set_config('request.jwt.claims', json_build_object('sub', related_manager, 'role', 'authenticated')::text, true);
@@ -156,6 +183,8 @@ BEGIN
   IF visible_rows <> 1 THEN RAISE EXCEPTION 'FAIL related show manager cannot read private profile'; END IF;
   SELECT count(*) INTO visible_rows FROM public.get_people_private(ARRAY['00000000-0000-0000-0000-000000664017'::uuid]);
   IF visible_rows <> 1 THEN RAISE EXCEPTION 'FAIL owner fallback handler cannot read private profile'; END IF;
+  SELECT count(*) INTO visible_rows FROM public.get_people_private(ARRAY[empty_person]);
+  IF visible_rows <> 1 THEN RAISE EXCEPTION 'FAIL manager cannot read an authorized empty private profile'; END IF;
   PERFORM public.update_person_with_private(handler_id, '{"phone":"manager-save"}'::jsonb, '{}'::jsonb);
   writes_denied := false;
   BEGIN
@@ -186,6 +215,8 @@ BEGIN
   PERFORM set_config('request.jwt.claims', json_build_object('sub', site_admin, 'role', 'authenticated')::text, true);
   SELECT count(*) INTO visible_rows FROM public.get_people_private(ARRAY[handler_id]);
   IF visible_rows <> 1 THEN RAISE EXCEPTION 'FAIL site admin cannot read private profile'; END IF;
+  SELECT count(*) INTO visible_rows FROM public.get_people_private(ARRAY[empty_person]);
+  IF visible_rows <> 1 THEN RAISE EXCEPTION 'FAIL site admin cannot read an authorized empty private profile'; END IF;
   PERFORM public.update_person_with_private(
     handler_id,
     '{}'::jsonb,

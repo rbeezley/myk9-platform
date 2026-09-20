@@ -166,6 +166,12 @@ describe('the migration that protects the private columns', () => {
     const getStart = sql.indexOf('CREATE OR REPLACE FUNCTION public.get_people_private');
     const getEnd = sql.indexOf('COMMENT ON FUNCTION public.get_people_private', getStart);
     expect(sql.slice(getStart, getEnd)).toMatch(/WITH requested AS/i);
+    expect(sql.slice(getStart, getEnd)).toMatch(
+      /LEFT JOIN public\.people_private pp ON pp\.person_id = a\.person_id/i
+    );
+    expect(sql.slice(getStart, getEnd)).toMatch(
+      /COALESCE\(pp\.junior_handler_numbers, '\{\}'::jsonb\)/i
+    );
     expect(sql.slice(getStart, getEnd)).not.toMatch(/can_read_people_private\(pp\.person_id\)/i);
   });
 });

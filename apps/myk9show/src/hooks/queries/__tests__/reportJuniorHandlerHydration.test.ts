@@ -133,6 +133,25 @@ describe('loadJuniorHandlerProfiles', () => {
     expect(result.readComplete).toBe(false);
     expect(result.byPersonId.size).toBe(0);
   });
+
+  it('treats an authorized empty private profile as complete', async () => {
+    peopleRead([PERSON]);
+    privateRead([
+      {
+        person_id: PERSON.id,
+        date_of_birth: null,
+        junior_handler_numbers: {},
+      },
+    ]);
+    const result = await loadJuniorHandlerProfiles([PERSON.id]);
+    expect(result.readComplete).toBe(true);
+    expect(result.byPersonId.get(PERSON.id)).toEqual({
+      firstName: 'Chris',
+      lastName: 'Kid',
+      dateOfBirth: null,
+      juniorHandlerNumbers: undefined,
+    });
+  });
 });
 
 describe('the report hydration hop', () => {

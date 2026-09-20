@@ -224,9 +224,13 @@ AS $$
         d.owner_id
       )
   )
-  SELECT pp.person_id, pp.date_of_birth, pp.junior_handler_numbers
-  FROM public.people_private pp
-  JOIN authorized a ON a.person_id = pp.person_id;
+  -- An authorized person may legitimately have no private row: the lossless
+  -- backfill only materializes non-empty legacy values. Return an explicit
+  -- empty profile for that case so the client can distinguish authorized-empty
+  -- from an unauthorized ID, which remains absent from the result.
+  SELECT a.person_id, pp.date_of_birth, COALESCE(pp.junior_handler_numbers, '{}'::jsonb)
+  FROM authorized a
+  LEFT JOIN public.people_private pp ON pp.person_id = a.person_id;
 $$;
 
 COMMENT ON FUNCTION public.get_people_private(uuid[]) IS

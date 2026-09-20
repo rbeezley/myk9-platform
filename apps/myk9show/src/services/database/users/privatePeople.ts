@@ -3,6 +3,11 @@ import type { Json } from '@/types/supabase';
 import { chunk, ID_CHUNK_SIZE } from '@/utils/chunkIds';
 import { normalizeJuniorHandlerNumbers } from '@/features/registries/juniorHandlerPolicy';
 
+const PRIVATE_RPC_UNAVAILABLE_KEY = 'myk9:people-private-rpc-unavailable';
+const PRIVATE_RPC_UNAVAILABLE_TTL_MS = 60_000;
+const PRIVATE_RPC_UNAVAILABLE_MESSAGE =
+  'Private profile data is unavailable until the database migration is applied';
+
 export interface PrivatePersonProfile {
   personId: string;
   dateOfBirth: string | null;
@@ -23,6 +28,56 @@ function mapPrivateRow(row: PrivatePeopleRow): PrivatePersonProfile {
   };
 }
 
+function privateRpcUnavailable(): boolean {
+  if (typeof window === 'undefined') return false;
+
+  try {
+    const markedAt = Number(window.sessionStorage.getItem(PRIVATE_RPC_UNAVAILABLE_KEY));
+    if (!Number.isFinite(markedAt)) return false;
+    if (Date.now() - markedAt < PRIVATE_RPC_UNAVAILABLE_TTL_MS) return true;
+    window.sessionStorage.removeItem(PRIVATE_RPC_UNAVAILABLE_KEY);
+  } catch {
+    // Storage is optional; a private-read failure must remain fail-closed.
+  }
+  return false;
+}
+
+function rememberPrivateRpcUnavailable(): void {
+  try {
+    window.sessionStorage.setItem(PRIVATE_RPC_UNAVAILABLE_KEY, String(Date.now()));
+  } catch {
+    // Storage is optional; the current call still returns unavailable below.
+  }
+}
+
+function clearPrivateRpcUnavailable(): void {
+  try {
+    window.sessionStorage.removeItem(PRIVATE_RPC_UNAVAILABLE_KEY);
+  } catch {
+    // Storage is optional.
+  }
+}
+
+function isMissingPrivateRpc(error: { code?: string; status?: number; message?: string }): boolean {
+  return (
+    error.code === 'PGRST202' ||
+    error.status === 404 ||
+    /(?:could not find|function .*get_people_private.*does not exist)/i.test(error.message ?? '')
+  );
+}
+
+function unavailablePrivateProfiles(): {
+  byPersonId: Map<string, PrivatePersonProfile>;
+  readComplete: false;
+  readError: string;
+} {
+  return {
+    byPersonId: new Map(),
+    readComplete: false,
+    readError: PRIVATE_RPC_UNAVAILABLE_MESSAGE,
+  };
+}
+
 /**
  * Read only the private profiles the database authorizes for this caller. The
  * RPC scopes each person through self/site-admin or entry → managed show; an
@@ -35,6 +90,7 @@ export async function loadPeoplePrivateProfiles(personIds: readonly string[]): P
 }> {
   const ids = [...new Set(personIds.filter(Boolean))];
   if (ids.length === 0) return { byPersonId: new Map(), readComplete: true };
+  if (privateRpcUnavailable()) return unavailablePrivateProfiles();
 
   const byPersonId = new Map<string, PrivatePersonProfile>();
   let readComplete = true;
@@ -46,10 +102,15 @@ export async function loadPeoplePrivateProfiles(personIds: readonly string[]): P
         p_person_ids: batch,
       });
       if (error) {
+        if (isMissingPrivateRpc(error)) {
+          rememberPrivateRpcUnavailable();
+          return unavailablePrivateProfiles();
+        }
         readComplete = false;
         readError ??= error.message;
         continue;
       }
+      clearPrivateRpcUnavailable();
       for (const row of data ?? []) byPersonId.set(row.person_id, mapPrivateRow(row));
     } catch (error) {
       readComplete = false;

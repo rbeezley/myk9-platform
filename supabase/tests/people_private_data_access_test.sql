@@ -329,7 +329,7 @@ BEGIN
   -- empty. Non-empty private data remains subject/site-admin only.
   INSERT INTO public.people (id, first_name, last_name, auth_user_id)
   VALUES (
-    '00000000-0000-0000-0000-000000664020', 'Manager', 'Created', related_manager
+    '00000000-0000-0000-0000-000000664020', 'Manager', 'Created', NULL
   );
   IF EXISTS (
     SELECT 1 FROM public.people_private
@@ -343,7 +343,7 @@ BEGIN
     INSERT INTO public.people (
       id, first_name, last_name, auth_user_id, date_of_birth
     ) VALUES (
-      '00000000-0000-0000-0000-000000664021', 'Manager', 'Private', related_manager,
+      '00000000-0000-0000-0000-000000664021', 'Manager', 'Private', NULL,
       DATE '2012-04-04'
     );
   EXCEPTION WHEN insufficient_privilege THEN

@@ -110,6 +110,9 @@ describe('the migration that protects the private columns', () => {
     expect(sql).toMatch(/CREATE TABLE public\.people_private/i);
     expect(sql).toMatch(/REVOKE ALL ON TABLE public\.people_private FROM anon/i);
     expect(sql).toMatch(
+      /REVOKE INSERT, UPDATE, DELETE ON TABLE public\.people_private FROM authenticated/i
+    );
+    expect(sql).toMatch(
       /GRANT SELECT ON TABLE public\.people_private TO authenticated, service_role/i
     );
     expect(sql).not.toMatch(/GRANT[^;]+(?:INSERT|UPDATE|DELETE)[^;]+people_private/i);
@@ -152,7 +155,10 @@ describe('the migration that protects the private columns', () => {
     expect(sql).toMatch(/v_private_patch \? 'junior_handler_numbers'/i);
     expect(sql).toMatch(/jsonb_typeof\(v_private_patch->'junior_handler_numbers'\) = 'null'/i);
     expect(sql).toMatch(
-      /IF \(SELECT public\.can_read_people_private\(p_person_id\)\)[\s\S]*RETURN to_jsonb\(v_person\);/i
+      /IF \(SELECT public\.can_read_people_private\(p_person_id\)\)[\s\S]*RETURN to_jsonb\(v_person\)\s*\|\|\s*jsonb_build_object\([\s\S]*'date_of_birth'[\s\S]*'junior_handler_numbers'/i
+    );
+    expect(sql).toMatch(
+      /RETURN to_jsonb\(v_person\)\s*-\s*'date_of_birth'\s*-\s*'junior_handler_numbers';/i
     );
 
     const rpcGrant = sql.indexOf(

@@ -100,7 +100,7 @@ vi.mock('@/utils/checkInTransitions', () => ({
 
 // Controlled scoring-helper stubs — exercise at-show wiring, not engine internals.
 vi.mock('@/pages/scoring/types', () => ({
-  toScoringEntry: (re: { id: string; armband: number }) => ({
+  toScoringEntry: (re: { id: string; armband: string }) => ({
     entryId: re.id,
     armband: re.armband,
     dogName: 'Rex',
@@ -123,7 +123,7 @@ const StubLiveScoresheet = ({
   onVoiceAnnouncement,
   enableVoiceAnnouncements,
 }: {
-  entry: { armband: number };
+  entry: { armband: string };
   onSubmit: (sd: unknown) => void;
   onBack: () => void;
   onWarningChime?: () => void;
@@ -179,7 +179,7 @@ function seed() {
     level: 'Novice',
   } as never);
   vi.mocked(replicatedEntriesTable.getEntriesByClass).mockResolvedValue([
-    { id: 'entry-1', armband: 105, dogId: 'dog-1', checkInStatus: 'no-status' },
+    { id: 'entry-1', armband: '105', dogId: 'dog-1', checkInStatus: 'no-status' },
   ] as never);
   vi.mocked(replicatedDogsTable.get).mockResolvedValue({ id: 'dog-1', callName: 'Rex' } as never);
   vi.mocked(replicatedTrialsTable.getTrialById).mockResolvedValue({
@@ -310,7 +310,7 @@ describe('AtShowScoresheetPage (Phase 1h live scoresheet)', () => {
     vi.mocked(replicatedEntriesTable.getEntriesByClass).mockImplementation(async (id: string) => {
       if (id === 'class-1') {
         return [
-          { id: 'entry-1', armband: 105, dogId: 'dog-1', checkInStatus: 'no-status' },
+          { id: 'entry-1', armband: '105', dogId: 'dog-1', checkInStatus: 'no-status' },
         ] as never;
       }
       return [] as never;
@@ -377,7 +377,7 @@ describe('AtShowScoresheetPage (Phase 1h live scoresheet)', () => {
 
     await waitFor(() =>
       expect(submitScoreOptimistically).toHaveBeenCalledWith(
-        expect.objectContaining({ entryId: 'entry-1', classId: 'class-1', armband: 105 })
+        expect.objectContaining({ entryId: 'entry-1', classId: 'class-1', armband: '105' })
       )
     );
   });

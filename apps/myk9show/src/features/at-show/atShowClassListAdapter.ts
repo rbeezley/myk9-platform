@@ -25,6 +25,7 @@ import { getFavoriteClassIdsForTrial } from '@/features/show-today/accountTodayE
 import { composeClassTitle } from '@/services/entryDisplay/entryDisplaySelectors';
 import { buildNextUpPreview, type AtShowNextUpPreview } from './atShowNextUpPreview';
 import { countEntryAccounting } from '@/features/_shared/entryAccounting';
+import { backfillReplicatedEntryArmbands } from '@/services/database/entries';
 
 /** A trial and its classes (mapped to ringside `ClassEntry`), for grouped display. */
 export interface AtShowClassGroup {
@@ -183,10 +184,11 @@ export async function areAtShowEntryCountsKnown(showId: string): Promise<boolean
  * one full-table scan per class (matters on show-day / offline IndexedDB).
  */
 export async function fetchAtShowClassList(showId: string): Promise<AtShowClassGroup[]> {
-  const [trials, allEntries] = await Promise.all([
+  const [trials, rawEntries] = await Promise.all([
     replicatedTrialsTable.getTrialsByShow(showId),
     replicatedEntriesTable.getEntriesByShow(showId),
   ]);
+  const allEntries = await backfillReplicatedEntryArmbands(rawEntries);
 
   const entriesByClass = groupEntriesByClass(allEntries);
 

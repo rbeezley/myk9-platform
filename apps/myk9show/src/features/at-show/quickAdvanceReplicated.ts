@@ -19,6 +19,7 @@
 import { quickAdvanceCandidates, gateStatusLabel, type QuickAdvanceEntry } from '@myk9/ringside';
 import type { ReplicatedEntry } from '@/services/replication/ReplicatedEntriesTable';
 import { toRunQueueEntry } from './replicatedRunQueue';
+import { normalizePacketArmband } from '@/features/emergency-trial-packet/armband';
 
 /** Everything a chip renders, resolved at render time (no stale locking). */
 export interface QuickAdvanceChip {
@@ -54,7 +55,7 @@ function toChip(row: ReplicatedQuickAdvanceEntry): QuickAdvanceChip {
   const { entry } = row;
   return {
     entryId: entry.id,
-    armband: entry.armband ?? entry.armbandNumber ?? '',
+    armband: normalizePacketArmband(entry.armband ?? entry.armbandNumber) ?? '',
     callName: entry.dogCallName ?? '',
     breed: entry.dogBreed ?? '',
     gateLabel: gateStatusLabel(row),

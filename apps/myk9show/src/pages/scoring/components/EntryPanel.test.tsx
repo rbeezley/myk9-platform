@@ -41,6 +41,20 @@ describe('EntryPanel', () => {
     expect(screen.getByText('101')).toBeInTheDocument();
   });
 
+  it('shows the canonical alphanumeric armband label', () => {
+    render(
+      <EntryPanel
+        entry={makeEntry({ armband: 12, armbandLabel: '12A' })}
+        settings={DEFAULT_SESSION_SETTINGS}
+        onSave={vi.fn()}
+        onSaveAndNext={vi.fn()}
+        onClose={vi.fn()}
+        isSaving={false}
+      />
+    );
+    expect(screen.getByText('12A')).toBeInTheDocument();
+  });
+
   it('shows Q NQ ABS EX result buttons', () => {
     render(
       <EntryPanel

@@ -32,6 +32,7 @@ import {
   composeClassTitle,
   resolveClassSection,
 } from '@/services/entryDisplay/entryDisplaySelectors';
+import { projectHandlerIdentity } from '@/features/registries/handlerIdentity';
 import type { ShowChangeSignal } from '@/features/show-live-sync/showChangeSignal';
 import {
   classifyEntries,
@@ -181,6 +182,10 @@ export function transformEntry(re: ReplicatedEntry, cls: ReplicatedClass | null)
   const timeLimit2 = timeLimitString(cls?.timeLimitArea2Seconds ?? cls?.time_limit_area2_seconds);
   const timeLimit3 = timeLimitString(cls?.timeLimitArea3Seconds ?? cls?.time_limit_area3_seconds);
   const armbandLabel = normalizePacketArmband(re.armband ?? re.armbandNumber ?? re.armband_number);
+  const handlerIdentity = projectHandlerIdentity({
+    assignedHandlerName: re.handler ?? re.handlerName ?? re.handler_name,
+    assignedHandlerId: re.handlerId,
+  });
 
   // Optional fields are spread conditionally: under exactOptionalPropertyTypes
   // an optional `field?: T` rejects an explicit `undefined` value, so absent
@@ -197,7 +202,7 @@ export function transformEntry(re: ReplicatedEntry, cls: ReplicatedClass | null)
 
     callName: re.dogCallName ?? re.dog_call_name ?? '',
     breed: re.dogBreed ?? re.dog_breed ?? '',
-    handler: re.handler ?? re.handlerName ?? re.handler_name ?? '',
+    handler: handlerIdentity.name ?? 'Unknown Handler',
 
     isScored: re.isScored ?? re.is_scored ?? false,
     status,

@@ -97,6 +97,24 @@ describe('buildMyAtShowEntryDetails', () => {
 
     expect(details[0]?.dogName).toBe('Your dog');
   });
+
+  it('preserves alphanumeric armband labels', () => {
+    const details = buildMyAtShowEntryDetails(
+      [
+        {
+          id: 'entry-12a',
+          showId: 'show-1',
+          dogCallName: 'Rex',
+          armband: '12A',
+          isScored: false,
+        },
+      ],
+      new Set(['entry-12a']),
+      classesById
+    );
+
+    expect(details[0]?.armband).toBe('12A');
+  });
 });
 
 describe('deriveAtShowNextAction', () => {

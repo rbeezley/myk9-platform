@@ -493,6 +493,7 @@ export function toScoresheetEntry(entry: ScoringEntry, classInfo: ClassInfo): Sc
   return {
     id: entry.entryId,
     armband: entry.armband,
+    ...(entry.armbandLabel !== undefined && { armbandLabel: entry.armbandLabel }),
     dogName: entry.callName,
     handlerName: entry.handler,
     className: classInfo.name,

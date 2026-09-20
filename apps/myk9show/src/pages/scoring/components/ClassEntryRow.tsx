@@ -74,7 +74,7 @@ export function ClassEntryRow({
         isActive ? 'bg-info/10 border border-info/30 ' : 'hover:bg-accent'
       )}
     >
-      <ArmbandBadge armband={entry.armband} />
+      <ArmbandBadge armband={entry.armbandLabel ?? entry.armband} />
       <div className="flex-1 min-w-0">
         <div className="text-sm font-medium truncate">{entry.callName}</div>
         <div className="text-xs text-muted-foreground truncate">{entry.breed}</div>

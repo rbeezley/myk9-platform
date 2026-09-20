@@ -85,7 +85,7 @@ export const ScoringEntryCard = forwardRef<HTMLDivElement, ScoringEntryCardProps
         )}
 
         {/* Armband Badge */}
-        <ArmbandBadge armband={entry.armband} />
+        <ArmbandBadge armband={entry.armbandLabel ?? entry.armband} />
 
         {/* Entry Info */}
         <div className="flex-1 min-w-0">

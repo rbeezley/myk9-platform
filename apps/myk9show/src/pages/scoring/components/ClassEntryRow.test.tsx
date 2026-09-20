@@ -33,6 +33,17 @@ describe('ClassEntryRow', () => {
     expect(screen.getByText('Smith')).toBeInTheDocument();
   });
 
+  it('renders the canonical alphanumeric armband label', () => {
+    render(
+      <ClassEntryRow
+        entry={makeEntry({ armband: 12, armbandLabel: '12A' })}
+        isActive={false}
+        onClick={vi.fn()}
+      />
+    );
+    expect(screen.getByText('12A')).toBeInTheDocument();
+  });
+
   it('calls onClick when clicked', async () => {
     const onClick = vi.fn();
     render(<ClassEntryRow entry={makeEntry()} isActive={false} onClick={onClick} />);

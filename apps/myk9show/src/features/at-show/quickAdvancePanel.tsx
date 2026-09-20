@@ -24,6 +24,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { ArrowLeft, CheckCircle2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { replicatedEntriesTable } from '@/services/replication/ReplicatedEntriesTable';
+import { backfillReplicatedEntryArmbands } from '@/services/database/entries';
 import { badgeClass } from './slots/atShowChrome.helpers';
 import {
   toQuickAdvanceChips,
@@ -48,7 +49,10 @@ function useQuickAdvanceChips(
 
   const { data } = useQuery({
     queryKey: ['at-show', 'quick-advance', classId],
-    queryFn: () => replicatedEntriesTable.getEntriesByClass(classId as string),
+    queryFn: async () =>
+      backfillReplicatedEntryArmbands(
+        await replicatedEntriesTable.getEntriesByClass(classId as string)
+      ),
     enabled: !!classId,
   });
 

@@ -30,7 +30,7 @@ vi.mock('@/services/replication/ReplicatedArmbandsTable', () => ({
   replicatedArmbandsTable: { getByShow: (id: string) => getArmbandsByShow(id) },
 }));
 
-import { createAtShowDataDependencies } from './atShowDataAdapter';
+import { createAtShowDataDependencies, transformEntry } from './atShowDataAdapter';
 
 function makeClass(id: string, over: Record<string, unknown> = {}) {
   return {
@@ -75,6 +75,20 @@ describe('fetchCombinedClasses — completion is a property of the PAIR', () => 
     const result = await deps.fetchSingleClass!('class-a', 'show-1', 'judge');
 
     expect(result.entries[0]?.armbandLabel).toBe('12A');
+  });
+
+  it('does not imply a blank handler when an assigned handler cannot be resolved', () => {
+    const result = transformEntry(
+      {
+        id: 'entry-handler-only',
+        classId: 'class-a',
+        handlerId: 'handler-deleted',
+        handler: '',
+      },
+      makeClass('class-a')
+    );
+
+    expect(result.handler).toBe('Unknown Handler');
   });
 
   it('does not report the ring finalized when only section A is', async () => {

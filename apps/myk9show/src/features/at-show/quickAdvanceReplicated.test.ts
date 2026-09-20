@@ -100,4 +100,11 @@ describe('formatChipLabel', () => {
       })
     ).toBe('Bella — Poodle');
   });
+
+  it('preserves alphanumeric armband labels', () => {
+    const [chip] = toQuickAdvanceChips([entry({ id: '12A', armband: '12A' })]);
+
+    expect(chip?.armband).toBe('12A');
+    expect(formatChipLabel(chip!)).toBe('#12A Dog 12A — Golden Retriever');
+  });
 });

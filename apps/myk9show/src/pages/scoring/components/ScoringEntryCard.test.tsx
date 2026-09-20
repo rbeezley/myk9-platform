@@ -62,4 +62,9 @@ describe('ScoringEntryCard placement (scoring view — not the podium)', () => {
     render(<ScoringEntryCard entry={makeScoringEntry({ armband: 0 })} />);
     expect(screen.getByText('—')).toBeInTheDocument();
   });
+
+  it('renders the canonical alphanumeric armband label', () => {
+    render(<ScoringEntryCard entry={makeScoringEntry({ armband: 12, armbandLabel: '12A' })} />);
+    expect(screen.getByText('12A')).toBeInTheDocument();
+  });
 });

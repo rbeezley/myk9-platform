@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { ReplicatedEntry } from '@/services/replication/ReplicatedEntriesTable';
 import type { SecretaryEntry } from '@/services/database/entries';
-import { secretaryEntryToScoringEntry, toScoringEntry } from './types';
+import { secretaryEntryToScoringEntry, toScoringEntry, toScoresheetEntry } from './types';
 
 describe('toScoringEntry', () => {
   it('keeps projected dog identity when the dog replica is cold', () => {
@@ -113,6 +113,30 @@ describe('secretaryEntryToScoringEntry', () => {
         faults: 1,
         qualification: 'Qualified',
       },
+    });
+  });
+});
+
+describe('toScoresheetEntry', () => {
+  it('passes the canonical armband label to the scoresheet contract', () => {
+    const scoringEntry = toScoringEntry(
+      {
+        id: 'entry-12a',
+        classId: 'class-1',
+        dogId: 'dog-1',
+        handler: 'Jamie Handler',
+        armband: '12A',
+        status: 'accepted',
+      },
+      null,
+      0
+    );
+
+    expect(
+      toScoresheetEntry(scoringEntry, { id: 'class-1', name: 'Container Novice' })
+    ).toMatchObject({
+      armband: 12,
+      armbandLabel: '12A',
     });
   });
 });

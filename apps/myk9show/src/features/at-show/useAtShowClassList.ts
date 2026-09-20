@@ -22,6 +22,7 @@ import {
 } from './atShowClassListAdapter';
 import { syncAtShowData } from './atShowDataAdapter';
 import type { AtShowNextUpPreview } from './atShowNextUpPreview';
+import { backfillReplicatedEntryArmbands } from '@/services/database/entries';
 
 export interface UseAtShowClassListResult {
   groups: AtShowClassGroup[];
@@ -61,21 +62,28 @@ export function useAtShowClassList(showId: string | undefined): UseAtShowClassLi
     const applyEntriesSnapshot = (
       allEntries: Parameters<typeof refreshAtShowClassListEntries>[1]
     ) => {
-      let hadCachedGroups = false;
-      queryClient.setQueryData<AtShowClassGroup[]>(queryKey, current => {
-        if (!current) return undefined;
-        hadCachedGroups = true;
-        return refreshAtShowClassListEntries(current, allEntries, showId);
-      });
-      // A leading notification can race the initial query. In that one case,
-      // preserve the old refetch behavior instead of dropping the update.
-      if (!hadCachedGroups) invalidate();
-      // The snapshot that lands from the show-scoped sync is also what makes
-      // the counts knowable; re-ask, so a cold list stops reading as unknown
-      // without waiting for a remount.
-      void queryClient.invalidateQueries({
-        queryKey: ['at-show', 'classlist-entry-counts', showId],
-      });
+      const apply = (entries: typeof allEntries) => {
+        let hadCachedGroups = false;
+        queryClient.setQueryData<AtShowClassGroup[]>(queryKey, current => {
+          if (!current) return undefined;
+          hadCachedGroups = true;
+          return refreshAtShowClassListEntries(current, entries, showId);
+        });
+        // A leading notification can race the initial query. In that one case,
+        // preserve the old refetch behavior instead of dropping the update.
+        if (!hadCachedGroups) invalidate();
+        // The snapshot that lands from the show-scoped sync is also what makes
+        // the counts knowable; re-ask, so a cold list stops reading as unknown
+        // without waiting for a remount.
+        void queryClient.invalidateQueries({
+          queryKey: ['at-show', 'classlist-entry-counts', showId],
+        });
+      };
+
+      apply(allEntries);
+      void backfillReplicatedEntryArmbands(allEntries)
+        .then(apply)
+        .catch(() => {});
     };
     const unsubscribe = [
       replicatedClassesTable.subscribe(invalidateStructure, { emitCurrent: false }),

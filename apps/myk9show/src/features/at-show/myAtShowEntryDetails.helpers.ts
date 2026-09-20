@@ -12,6 +12,7 @@
 import type { CheckInStatus } from '@myk9/core';
 import type { ReplicatedEntry } from '@/services/replication';
 import { UserRole } from '@/types/auth-types';
+import { normalizePacketArmband } from '@/features/emergency-trial-packet/armband';
 
 const STAFF_ROLES: readonly UserRole[] = [
   UserRole.SITE_ADMIN,
@@ -82,7 +83,7 @@ export function buildMyAtShowEntryDetails(
       entryId: entry.id,
       classId: entry.classId ?? null,
       dogName: entry.dogCallName ?? 'Your dog',
-      armband: entry.armband ?? null,
+      armband: normalizePacketArmband(entry.armband ?? entry.armbandNumber),
       checkInStatus: entry.checkInStatus ?? 'no-status',
       className: classSummary?.className ?? null,
       expectedStartLabel: classSummary?.expectedStartLabel ?? null,

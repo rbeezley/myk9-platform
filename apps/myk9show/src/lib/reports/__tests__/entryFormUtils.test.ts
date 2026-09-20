@@ -155,8 +155,8 @@ describe('sortEntryFormDogs', () => {
       makeDog({ dogId: 'dog-1', armband: '101', callName: 'Alpha' }),
     ];
     const sorted = sortEntryFormDogs(dogs, 'armband');
-    expect(sorted[0].armband).toBe(101);
-    expect(sorted[1].armband).toBe(200);
+    expect(sorted[0].armband).toBe('101');
+    expect(sorted[1].armband).toBe('200');
   });
 
   it('sorts by owner last name', () => {
@@ -200,6 +200,6 @@ describe('sortEntryFormDogs', () => {
       makeDog({ dogId: 'dog-1', armband: '101' }),
     ];
     const sorted = sortEntryFormDogs(dogs, 'unknown');
-    expect(sorted[0].armband).toBe(101);
+    expect(sorted[0].armband).toBe('101');
   });
 });

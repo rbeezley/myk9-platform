@@ -115,7 +115,7 @@ export function EntryPanel({
     <div className="flex flex-col gap-4 p-4 h-full">
       {/* Dog info */}
       <div className="flex items-center gap-3">
-        <ArmbandBadge armband={entry.armband} />
+        <ArmbandBadge armband={entry.armbandLabel ?? entry.armband} />
         <div>
           <div className="font-semibold">{entry.callName}</div>
           <div className="text-sm text-muted-foreground">{entry.handler}</div>

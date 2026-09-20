@@ -71,6 +71,8 @@ vi.mock('@/services/replication/ReplicatedArmbandsTable', () => ({
 const defaultOnlineRow = { id: 'entry-online-1', class: { id: 'c1' } };
 let onlineRows: Array<Record<string, unknown>> = [defaultOnlineRow];
 let peopleRows: Array<Record<string, unknown>> = [];
+let armbandRows: Array<Record<string, unknown>> = [];
+let armbandQueryCalls: Array<Record<string, unknown>> = [];
 let onlineCallCount = 0;
 
 vi.mock('@/services/database/supabaseClient', () => ({
@@ -78,18 +80,34 @@ vi.mock('@/services/database/supabaseClient', () => ({
     from: (table: string) =>
       table === 'people'
         ? { select: () => ({ in: () => Promise.resolve({ data: peopleRows, error: null }) }) }
-        : {
-            select: () => ({
-              eq: () => ({
-                is: () => ({
-                  order: () => {
-                    onlineCallCount += 1;
-                    return Promise.resolve({ data: onlineRows, error: null });
+        : table === 'armbands'
+          ? {
+              select: () => {
+                const chain = {
+                  in: (column: string, values: unknown[]) => {
+                    armbandQueryCalls.push({ kind: 'in', column, values });
+                    return chain;
                   },
+                  eq: (column: string, value: unknown) => {
+                    armbandQueryCalls.push({ kind: 'eq', column, value });
+                    return Promise.resolve({ data: armbandRows, error: null });
+                  },
+                };
+                return chain;
+              },
+            }
+          : {
+              select: () => ({
+                eq: () => ({
+                  is: () => ({
+                    order: () => {
+                      onlineCallCount += 1;
+                      return Promise.resolve({ data: onlineRows, error: null });
+                    },
+                  }),
                 }),
               }),
-            }),
-          },
+            },
   },
   logQuery: vi.fn(),
   createDatabaseError,
@@ -107,6 +125,8 @@ describe('getEntriesByClass — cold local replica verifies online', () => {
   beforeEach(() => {
     onlineRows = [defaultOnlineRow];
     peopleRows = [];
+    armbandRows = [];
+    armbandQueryCalls = [];
     onlineCallCount = 0;
   });
 
@@ -162,6 +182,33 @@ describe('getEntriesByClass — cold local replica verifies online', () => {
       handler_id: 'handler-1',
       handler_person: { first_name: 'Alex', last_name: 'Assigned' },
     });
+  });
+
+  it('does not reattach a released authoritative armband row', async () => {
+    mockEntriesTable.getEntriesByClass.mockResolvedValue([
+      {
+        id: 'entry-released-armband',
+        dogId: 'dog-1',
+        classId: 'c1',
+        showId: 's1',
+        armband: '0',
+        deletedAt: null,
+        entryStatus: 'confirmed',
+      },
+    ]);
+    armbandRows = [
+      {
+        show_id: 's1',
+        dog_id: 'dog-1',
+        armband_number: '12A',
+        is_available: true,
+      },
+    ];
+
+    const result = await getEntriesByClass('c1');
+
+    expect(result.data[0]?.armband).toBeNull();
+    expect(armbandQueryCalls).toContainEqual({ kind: 'eq', column: 'is_available', value: false });
   });
 
   it('does not resurrect a locally-tombstoned entry the server still returns as live', async () => {

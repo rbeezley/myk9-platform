@@ -262,15 +262,15 @@ async function fetchMissingArmbands(
     // assignment on show-day paperwork.
     const { data: armbandRows } = await supabase
       .from('armbands')
-      .select('show_id, dog_id, armband_number')
+      .select('show_id, dog_id, armband_number, is_available')
       .in('show_id', [
         ...new Set(unresolved.map(entry => entry.show_id).filter(Boolean)),
       ] as string[])
-      .in('dog_id', [
-        ...new Set(unresolved.map(entry => entry.dog_id).filter(Boolean)),
-      ] as string[]);
+      .in('dog_id', [...new Set(unresolved.map(entry => entry.dog_id).filter(Boolean))] as string[])
+      .eq('is_available', false);
 
     for (const row of armbandRows ?? []) {
+      if (row.is_available !== false || !row.dog_id) continue;
       resolved.set(`${row.show_id}:${row.dog_id}`, String(row.armband_number));
     }
     return resolved;
@@ -281,13 +281,15 @@ async function fetchMissingArmbands(
       show_id: string;
       dog_id: string | null;
       armband_number: string | number;
+      is_available: boolean | null;
     }> | null = null;
     try {
       const response = await supabase
         .from('armbands')
-        .select('show_id, dog_id, armband_number')
+        .select('show_id, dog_id, armband_number, is_available')
         .in('show_id', showIds)
-        .in('dog_id', [...dogIds]);
+        .in('dog_id', [...dogIds])
+        .eq('is_available', false);
       armbandRows = response.data;
     } catch {
       return new Map();
@@ -295,7 +297,11 @@ async function fetchMissingArmbands(
 
     if (!armbandRows || armbandRows.length === 0) return new Map();
 
-    return new Map(armbandRows.map(a => [`${a.show_id}:${a.dog_id}`, String(a.armband_number)]));
+    return new Map(
+      armbandRows
+        .filter(a => a.is_available === false && a.dog_id)
+        .map(a => [`${a.show_id}:${a.dog_id}`, String(a.armband_number)])
+    );
   }
 }
 

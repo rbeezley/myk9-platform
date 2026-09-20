@@ -122,6 +122,12 @@ export function buildUnifiedSidebarConfig(
           description: 'Your entries, dogs, and upcoming shows',
         },
         {
+          title: 'Request additional access',
+          href: '/request-access',
+          icon: Building2,
+          description: 'Set up a club or ask for secretary access',
+        },
+        {
           title: 'My Dogs',
           href: '/dogs',
           icon: Heart,
@@ -240,6 +246,12 @@ export function buildUnifiedSidebarConfig(
             title: 'My Entries',
             href: '/exhibitor/entries',
             icon: FileText,
+          },
+          {
+            title: 'Request additional access',
+            href: '/request-access',
+            icon: Building2,
+            description: 'Set up a club or ask for secretary access',
           },
         ],
       });

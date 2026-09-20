@@ -146,14 +146,24 @@ export async function postgrestGetSecretaryEntriesForShow(
       .order('created_at', { ascending: true });
 
   let includeMoveUpLink = true;
-  let response = await runSelect(true, includeMoveUpLink);
-  // MYK9-639: the deploy window, same shape as the two below it.
-  if (isMoveUpLinkSchemaUnavailable(response.error)) {
-    includeMoveUpLink = false;
-    response = await runSelect(true, includeMoveUpLink);
-  }
-  if (isSecretaryPaymentSchemaUnavailable(response.error)) {
-    response = await runSelect(false, includeMoveUpLink);
+  let includePaymentBookkeeping = true;
+  let response = await runSelect(includePaymentBookkeeping, includeMoveUpLink);
+  // Each migration-backed column has its own compatibility retry. A database
+  // missing both migrations can report either missing column first, so retry
+  // until both optional projections have been removed rather than leaving one
+  // of them in the final request.
+  for (let retry = 0; retry < 2; retry += 1) {
+    if (includeMoveUpLink && isMoveUpLinkSchemaUnavailable(response.error)) {
+      includeMoveUpLink = false;
+      response = await runSelect(includePaymentBookkeeping, includeMoveUpLink);
+      continue;
+    }
+    if (includePaymentBookkeeping && isSecretaryPaymentSchemaUnavailable(response.error)) {
+      includePaymentBookkeeping = false;
+      response = await runSelect(includePaymentBookkeeping, includeMoveUpLink);
+      continue;
+    }
+    break;
   }
   const { data, error } = response;
 

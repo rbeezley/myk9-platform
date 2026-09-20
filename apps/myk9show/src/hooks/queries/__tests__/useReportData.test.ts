@@ -3,6 +3,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { renderHook, waitFor, act } from '@testing-library/react';
 import { QueryClient, QueryClientProvider, onlineManager } from '@tanstack/react-query';
 import { useReportData } from '../useReportData';
+import type { Show } from '@/types/show-types';
 
 vi.mock('@/services/database/entries/refreshShowEntriesForRead', () => ({
   refreshShowEntriesForRead: vi.fn().mockResolvedValue(undefined),
@@ -57,7 +58,7 @@ const createWrapper = () => {
     React.createElement(QueryClientProvider, { client: queryClient }, children);
 };
 
-const mockShow = { id: 'show-1', name: 'Spring Trial 2026' } as never;
+const mockShow = { id: 'show-1', name: 'Spring Trial 2026' } as unknown as Show;
 
 const defaultOptions = {
   show: mockShow,
@@ -92,6 +93,43 @@ describe('useReportData', () => {
       wrapper: createWrapper(),
     });
     expect(result.current.show).toEqual(mockShow);
+  });
+
+  it('is ready when cached show trials back the report while the trial read is pending', async () => {
+    mockGetTrialsByShow.mockImplementation(() => new Promise(() => {}) as never);
+    mockGetClassesByTrialId.mockResolvedValue({ data: [], error: null } as never);
+    mockGetEntriesByShowFromReplication.mockResolvedValue({ data: [], error: null } as never);
+
+    const cachedShow = {
+      ...mockShow,
+      trials: [{ id: 'trial-1', name: 'Trial 1', trialNumber: 1, date: '2026-04-12' }],
+    } as never;
+    const { result } = renderHook(() => useReportData({ ...defaultOptions, show: cachedShow }), {
+      wrapper: createWrapper(),
+    });
+
+    await waitFor(() => expect(result.current.isReady).toBe(true));
+    expect(result.current.trials).toEqual([
+      expect.objectContaining({ id: 'trial-1', trial_number: 1, date: '2026-04-12' }),
+    ]);
+  });
+
+  it('does not read or print a trial outside the current show', async () => {
+    mockGetTrialsByShow.mockResolvedValue({ data: [], error: null } as never);
+    const cachedShow = {
+      ...mockShow,
+      trials: [{ id: 'trial-1', name: 'Trial 1', trialNumber: 1, date: '2026-04-12' }],
+    } as never;
+
+    const { result } = renderHook(
+      () => useReportData({ ...defaultOptions, show: cachedShow, trialId: 'other-trial' }),
+      { wrapper: createWrapper() }
+    );
+
+    await waitFor(() => expect(result.current.isReady).toBe(false));
+    expect(mockGetClassesByTrialId).not.toHaveBeenCalled();
+    expect(mockGetEntriesByTrial).not.toHaveBeenCalled();
+    expect(mockGetEntriesByShowFromReplication).not.toHaveBeenCalled();
   });
 
   it('fetches trials when show is provided', async () => {
@@ -443,6 +481,27 @@ describe('useReportData', () => {
 
       await waitFor(() => expect(result.current.dataState).toBe('error'));
       expect(result.current.isReady).toBe(false);
+    });
+
+    it('keeps cached show trials printable when trial verification fails', async () => {
+      const cachedShow = {
+        ...mockShow,
+        trials: [{ id: 'trial-1', name: 'Trial 1', trialNumber: 1, date: '2026-04-12' }],
+      } as unknown as Show;
+      mockGetTrialsByShow.mockResolvedValue({
+        data: null,
+        error: new Error('verification offline'),
+      } as never);
+      mockGetClassesByTrialId.mockResolvedValue({ data: [], error: null } as never);
+      mockGetEntriesByShowFromReplication.mockResolvedValue({ data: [], error: null } as never);
+
+      const { result } = renderHook(() => useReportData({ ...defaultOptions, show: cachedShow }), {
+        wrapper: onlineWrapper(),
+      });
+
+      await waitFor(() => expect(result.current.dataState).toBe('ready'));
+      expect(result.current.isReady).toBe(true);
+      expect(result.current.trials).toHaveLength(1);
     });
   });
 });

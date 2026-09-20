@@ -1,4 +1,4 @@
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen, fireEvent, within } from '@testing-library/react';
 import { describe, it, expect, vi } from 'vitest';
 import { MemoryRouter, Routes, Route, useLocation, useNavigate } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
@@ -24,8 +24,23 @@ vi.mock('@/components/common/PageHeader', () => ({
   ),
 }));
 vi.mock('@/components/common/DetailHero', () => ({
-  DetailHero: ({ headerActions }: { headerActions?: React.ReactNode }) => (
-    <div data-testid="detail-hero">{headerActions}</div>
+  DetailHero: ({
+    headerActions,
+    primaryAction,
+  }: {
+    headerActions?: React.ReactNode;
+    primaryAction?: { label: string; onClick: () => void };
+  }) => (
+    <div data-testid="detail-hero">
+      <div data-testid="detail-hero-header-actions">{headerActions}</div>
+      {primaryAction && (
+        <div data-testid="detail-hero-side-actions">
+          <button type="button" onClick={primaryAction.onClick}>
+            {primaryAction.label}
+          </button>
+        </div>
+      )}
+    </div>
   ),
 }));
 vi.mock('@/components/shows/ShowDateBlock', () => ({ ShowDateBlock: () => null }));
@@ -180,9 +195,9 @@ beforeEach(() => {
 });
 
 /**
- * Navigate WITHIN the mounted router, the way the header Actions "Show settings"
- * link does. Re-rendering a fresh MemoryRouter would remount the shell and let a
- * mount-time param read pass a test the real app fails.
+ * Navigate WITHIN the mounted router, the way an in-app edit link does.
+ * Re-rendering a fresh MemoryRouter would remount the shell and let a mount-time
+ * param read pass a test the real app fails.
  */
 function LocationProbe() {
   const location = useLocation();
@@ -204,6 +219,20 @@ describe('ShowManagementShell', () => {
     expect(screen.getByTestId('presence-stack')).toBeInTheDocument();
     expect(screen.getByTestId('live-indicator')).toBeInTheDocument();
     expect(screen.getByTestId('status-pill')).toBeInTheDocument();
+  });
+
+  it('shows Edit in the side action slot for managers and opens the existing edit panel', () => {
+    renderShell();
+
+    const headerActions = screen.getByTestId('detail-hero-header-actions');
+    expect(headerActions).not.toHaveTextContent('Edit');
+
+    const sideActions = screen.getByTestId('detail-hero-side-actions');
+    const editButton = within(sideActions).getByRole('button', { name: 'Edit' });
+    expect(editButton).toBeInTheDocument();
+    fireEvent.click(editButton);
+
+    expect(screen.getByTestId('edit-panel-open')).toBeInTheDocument();
   });
 
   it('gives the status control the host club required for publishing', () => {
@@ -317,9 +346,9 @@ describe('ShowManagementShell', () => {
   });
 
   it('no longer carries its own overflow menu', () => {
-    // MYK9-630: the `...` menu is deleted. Its five items moved -- Show settings
+    // MYK9-630: the `...` menu is deleted. Its five items moved -- Show Details
     // to the header Actions menu, Copy link and Preview to the Overview landing
-    // card, Delete into the Show Edit panel, and Edit is Show settings.
+    // card, Delete into the Show Edit panel, and editing remains on this page.
     renderShell();
     expect(screen.queryByRole('button', { name: /more show actions/i })).toBeNull();
     expect(screen.queryByRole('menuitem', { name: /preview as exhibitor/i })).toBeNull();
@@ -327,19 +356,17 @@ describe('ShowManagementShell', () => {
   });
 
   it('opens the edit panel when the header Actions link lands with ?edit=true', () => {
-    // The Actions item is a LINK to the page the secretary is already on, so the
-    // shell never remounts and a mount-time read of the param cannot see it.
+    // An in-app edit link can target the page the secretary is already on, so
+    // the shell never remounts and a mount-time read of the param cannot see it.
     renderShell({}, '/shows/show-1', <InPageNavigator to="/shows/show-1?edit=true" />);
     expect(screen.queryByTestId('edit-panel-open')).toBeNull();
     fireEvent.click(screen.getByTestId('in-page-nav'));
     expect(screen.getByTestId('edit-panel-open')).toBeInTheDocument();
   });
 
-  it('opens settings ON the section the secretary is working in, and leaves them there', () => {
-    // Round-3 review: the Actions item used to be an ABSOLUTE
-    // `/shows/:id?edit=true`, so from Entry Management it walked the secretary
-    // to Overview and closing the panel stranded them there. Search-only now,
-    // and the shell strips the param, so the URL is unchanged either side.
+  it('opens the edit panel ON the section the secretary is working in, and leaves them there', () => {
+    // The edit link is search-only and the shell strips the param, so the URL
+    // is unchanged either side of opening and closing the panel.
     renderShell(
       { activeManagementSection: 'entries' },
       '/shows/show-1/entries',

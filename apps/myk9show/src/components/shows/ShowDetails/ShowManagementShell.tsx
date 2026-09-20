@@ -101,7 +101,7 @@ export interface ShowManagementShellProps {
  * The management surface for anyone who manages this show — site admin,
  * club-scoped secretary, or club-scoped CLUB ADMIN (MYK9-630 phase 3; before it
  * club admins were held on the exhibitor view by a second, narrower predicate,
- * which is what made "Show settings…" inert for them, MYK9-653).
+ * which is what made the old settings link inert for them, MYK9-653).
  *
  * The show hero with staff actions
  * (presence, status, edit/delete), the publish row, the section nav, and either
@@ -130,11 +130,11 @@ export function ShowManagementShell({
   const canPublishPremium = manageScope.status === 'resolved' && manageScope.canManage;
   // Read from the ROUTER's params, not `window.location`: this shell is mounted
   // by the router, and an in-app navigation that never touches `window.location`
-  // (the header Actions "Show settings" link) must be seen the same way a cold
-  // load is. Captured in a `useState` INITIALIZER, which runs once on the first
-  // render -- the effect below strips both params straight after, and reading
-  // them during a later render would come back null and snap the panel back to
-  // Basic Info while the secretary was looking at Judges (F4/F12).
+  // must be seen the same way a cold load is. Captured in a `useState`
+  // INITIALIZER, which runs once on the first render -- the effect below strips
+  // both params straight after, and reading them during a later render would
+  // come back null and snap the panel back to Basic Info while the secretary
+  // was looking at Judges (F4/F12).
   const [showEditPanel, setShowEditPanel] = useState(() => searchParams.get('edit') === 'true');
   const [editPanelTab] = useState<ShowEditTab>(() =>
     normalizeShowEditTab(searchParams.get(SHOW_EDIT_TAB_PARAM))
@@ -142,8 +142,8 @@ export function ShowManagementShell({
   const editParam = searchParams.get('edit');
   useEffect(() => {
     // Strip both so a refresh or a shared URL does not reopen the editor. Keyed
-    // on `editParam` rather than mount, because the header Actions "Show
-    // settings" link puts it back on a page that is already mounted.
+    // on `editParam` rather than mount, because an in-app edit link can put it
+    // back on a page that is already mounted.
     const hadEdit = searchParams.get('edit') === 'true';
     const hadTab = searchParams.get(SHOW_EDIT_TAB_PARAM) !== null;
     if (hadEdit || hadTab) {
@@ -153,8 +153,9 @@ export function ShowManagementShell({
     }
   }, [editParam]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Reopening from the menu should start on Basic Info, not on whatever tab a deep link
-  // once asked for -- the deep link is a one-shot instruction, not a preference.
+  // Reopening from an edit link should start on Basic Info, not on whatever tab
+  // a deep link once asked for -- the deep link is a one-shot instruction, not
+  // a preference.
   const [editPanelOpenedByLink, setEditPanelOpenedByLink] = useState(
     () => searchParams.get('edit') === 'true'
   );
@@ -163,12 +164,11 @@ export function ShowManagementShell({
     setShowEditPanel(true);
   };
 
-  // The header Actions menu's "Show settings" is a LINK to `?edit=true` on the
-  // page the secretary is already standing on, so React Router replaces the
-  // search without remounting this shell and the initializer above can never
-  // see it. This is React's "adjust state when an input changes" pattern,
-  // during render on purpose: the same thing in an effect costs a second render
-  // pass with the panel shut and trips the cascading-renders lint.
+  // An in-app edit link can replace the search without remounting this shell,
+  // so the initializer above can never see a newly-arrived `edit=true`. This
+  // is React's "adjust state when an input changes" pattern, during render on
+  // purpose: the same thing in an effect costs a second render pass with the
+  // panel shut and trips the cascading-renders lint.
   const [seenEditParam, setSeenEditParam] = useState(editParam);
   if (editParam !== seenEditParam) {
     setSeenEditParam(editParam);
@@ -238,6 +238,7 @@ export function ShowManagementShell({
                   </span>
                 </>
               }
+              primaryAction={{ label: 'Edit', onClick: openEditPanel }}
               footer={
                 <QuickInfoCards
                   show={show}

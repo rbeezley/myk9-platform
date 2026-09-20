@@ -18,6 +18,14 @@ export interface RecoverableEntryRow {
   show_start_date: string | null;
 }
 
+export const RECOVERABLE_ENTRY_STATUSES = [
+  'pending',
+  'submitted',
+  'pending-payment',
+  'confirmed',
+  'moved',
+] as const;
+
 const DEFAULT_ENTRY_FEE_DOLLARS = 25;
 
 const parseFeeDollars = (value: number | string | null): number | null => {
@@ -94,7 +102,10 @@ export const findRecoverableEntries = async ({
     .eq('show_id', showId)
     .eq('payment_status', 'pending')
     // Keep this aligned with entries_entry_status_check; UI "accepted" maps to DB "confirmed".
-    .in('entry_status', ['pending', 'submitted', 'pending-payment', 'confirmed'])
+    // A moved-up source remains the money-bearing row. It is intentionally
+    // recoverable by its explicit id even though normal cart discovery never
+    // offers terminal/moved rows.
+    .in('entry_status', RECOVERABLE_ENTRY_STATUSES)
     .is('deleted_at', null)
     .in('dog_id', dogIds);
 

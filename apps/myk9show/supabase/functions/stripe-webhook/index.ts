@@ -1241,7 +1241,9 @@ async function handleEntryPaymentCompleted(session: Stripe.Checkout.Session) {
     if (item.entry_id) {
       const { data: existingEntry, error: existingEntryError } = await supabase
         .from('entries')
-        .select('id, dog_id, class_id, show_id, payment_status, entry_status, entry_fee')
+        .select(
+          'id, dog_id, class_id, show_id, payment_status, entry_status, entry_fee, moved_from_entry_id'
+        )
         .eq('id', item.entry_id)
         .eq('dog_id', item.dog_id)
         .eq('class_id', item.class_id)
@@ -1277,6 +1279,35 @@ async function handleEntryPaymentCompleted(session: Stripe.Checkout.Session) {
         continue;
       }
 
+      const loadedMoneyRoot = await loadPaymentReconciliationEntries([existingEntry.id]);
+      const moneyRootId = loadedMoneyRoot.reconciliationEntryIds[0] ?? existingEntry.id;
+      const moneyRoot =
+        loadedMoneyRoot.entries.find(entry => entry.id === moneyRootId) ?? existingEntry;
+      if (
+        loadedMoneyRoot.error ||
+        loadedMoneyRoot.blockedEntryIds.includes(existingEntry.id) ||
+        moneyRoot.payment_status !== 'pending'
+      ) {
+        const errorMessage =
+          loadedMoneyRoot.error?.message ??
+          (loadedMoneyRoot.blockedEntryIds.includes(existingEntry.id)
+            ? 'Recovered entry money root could not be reconciled safely'
+            : 'Recovered entry money root is no longer unpaid');
+        console.error(
+          `Error recovering existing entry root for cart item ${item.id}:`,
+          errorMessage
+        );
+        noServiceLineIds.push(item.id);
+        lineAmountsById.set(item.id, lineAmountCents);
+        failedLines.push({
+          cartItemId: item.id,
+          classId: item.class_id,
+          dogId: item.dog_id,
+          errorMessage,
+        });
+        continue;
+      }
+
       const { data: updatedEntryRows, error: updateEntryError } = await supabase
         .from('entries')
         .update({
@@ -1284,11 +1315,11 @@ async function handleEntryPaymentCompleted(session: Stripe.Checkout.Session) {
           payment_method: 'online',
           stripe_payment_intent_id: paymentIntentId,
           entry_fee: lineAmountCents / 100,
-          ...(existingEntry.entry_status === 'pending-payment'
+          ...(moneyRoot.id === existingEntry.id && existingEntry.entry_status === 'pending-payment'
             ? { entry_status: 'confirmed' }
             : {}),
         })
-        .eq('id', existingEntry.id)
+        .eq('id', moneyRoot.id)
         .eq('payment_status', 'pending')
         .not('entry_status', 'in', `(${[...INACTIVE_ENTRY_STATUSES].join(',')})`)
         .select('id');
@@ -1308,11 +1339,30 @@ async function handleEntryPaymentCompleted(session: Stripe.Checkout.Session) {
         continue;
       }
 
+      if (moneyRoot.id !== existingEntry.id && existingEntry.entry_status === 'pending-payment') {
+        const { error: destinationStatusError } = await supabase
+          .from('entries')
+          .update({ entry_status: 'confirmed' })
+          .eq('id', existingEntry.id)
+          .eq('entry_status', 'pending-payment');
+        if (destinationStatusError) {
+          console.error(
+            `Failed to advance recovered move-up destination ${existingEntry.id}:`,
+            destinationStatusError
+          );
+        }
+      }
+
+      // Receipts and order history name the live destination the exhibitor
+      // bought; the original root remains the payment-bearing row.
       entryIds.push(existingEntry.id);
-      paidLineIds.push(existingEntry.id);
-      lineAmountsById.set(existingEntry.id, lineAmountCents);
+      paidLineIds.push(moneyRoot.id);
+      lineAmountsById.set(moneyRoot.id, lineAmountCents);
 
       await expireRecoveredEntryPaymentLinks(existingEntry.id, session.id);
+      if (moneyRoot.id !== existingEntry.id) {
+        await expireRecoveredEntryPaymentLinks(moneyRoot.id, session.id);
+      }
       continue;
     }
 
@@ -1389,7 +1439,7 @@ async function handleEntryPaymentCompleted(session: Stripe.Checkout.Session) {
   await resolvePaidWaitlistOffers(paidLineIds, session.id);
 
   // Freeze the withdrawal policy these entries were paid under (best-effort).
-  await stampWithdrawalSnapshot(entryIds, cart.show_id);
+  await stampWithdrawalSnapshot([...new Set([...entryIds, ...paidLineIds])], cart.show_id);
 
   const overflowRefundDecision = decideCartOverflowRefund({
     paymentIntentId,
@@ -1585,6 +1635,133 @@ async function handleEntryPaymentCompleted(session: Stripe.Checkout.Session) {
  * session must have one) and the idempotency latch (once it leaves 'open', a
  * re-delivered event is a no-op).
  */
+type PaymentReconciliationEntry = {
+  id: string;
+  payment_status: string | null;
+  entry_status: string | null;
+  deleted_at: string | null;
+  moved_from_entry_id: string | null;
+  stripe_payment_intent_id: string | null;
+};
+
+async function loadPaymentReconciliationEntries(entryIds: string[]): Promise<{
+  entries: PaymentReconciliationEntry[];
+  reconciliationEntryIds: string[];
+  duplicateEntryIds: string[];
+  lifecycleEntryIdsByRoot: Record<string, string>;
+  blockedEntryIds: string[];
+  error: { message: string } | null;
+}> {
+  const entriesById = new Map<string, PaymentReconciliationEntry>();
+  let lookupIds = [...new Set(entryIds)];
+  let error: { message: string } | null = null;
+  const blockedEntryIds: string[] = [];
+  for (let hop = 0; hop <= 16 && lookupIds.length > 0; hop += 1) {
+    const response = await supabase
+      .from('entries')
+      .select(
+        'id, payment_status, entry_status, deleted_at, moved_from_entry_id, stripe_payment_intent_id'
+      )
+      .in('id', lookupIds);
+    if (response.error) {
+      error = response.error;
+      break;
+    }
+    for (const row of (response.data ?? []) as PaymentReconciliationEntry[]) {
+      entriesById.set(row.id, row);
+    }
+    lookupIds = [
+      ...new Set(
+        (response.data ?? [])
+          .map(row => (row as { moved_from_entry_id?: string | null }).moved_from_entry_id)
+          .filter((id): id is string => Boolean(id) && !entriesById.has(id))
+      ),
+    ];
+  }
+
+  const reconciliationEntryIds = entryIds.map(entryId => {
+    let currentId = entryId;
+    let blocked = false;
+    const entry = entriesById.get(entryId);
+    if (entry?.deleted_at || entry?.entry_status === 'moved') {
+      blockedEntryIds.push(entryId);
+      return entryId;
+    }
+    if (INACTIVE_ENTRY_STATUSES.has(entriesById.get(entryId)?.entry_status ?? '')) {
+      return currentId;
+    }
+    const seen = new Set<string>();
+    while (true) {
+      if (seen.has(currentId)) {
+        blockedEntryIds.push(entryId);
+        blocked = true;
+        break;
+      }
+      seen.add(currentId);
+      const parentId = entriesById.get(currentId)?.moved_from_entry_id;
+      if (!parentId) break;
+      if (!entriesById.has(parentId)) {
+        blockedEntryIds.push(entryId);
+        blocked = true;
+        break;
+      }
+      if (entriesById.get(parentId)?.deleted_at) {
+        blockedEntryIds.push(entryId);
+        blocked = true;
+        break;
+      }
+      currentId = parentId;
+    }
+    const resolvedRoot = entriesById.get(currentId);
+    if (currentId !== entryId && INACTIVE_ENTRY_STATUSES.has(resolvedRoot?.entry_status ?? '')) {
+      blockedEntryIds.push(entryId);
+      blocked = true;
+    }
+    return blocked ? entryId : currentId;
+  });
+  // A payment link may redundantly contain both a moved money root and its
+  // live destination. The root row is still the settlement target; only the
+  // stale root checkout line is a duplicate. Keep the root eligible whenever
+  // an unblocked destination already resolves to it.
+  const blockedRootIds = new Set(blockedEntryIds);
+  for (const [index, rootId] of reconciliationEntryIds.entries()) {
+    if (rootId !== entryIds[index] && !blockedRootIds.has(entryIds[index])) {
+      blockedRootIds.delete(rootId);
+    }
+  }
+  blockedEntryIds.splice(0, blockedEntryIds.length, ...blockedRootIds);
+  const lifecycleEntryIdsByRoot: Record<string, string> = {};
+  for (const [index, entryId] of entryIds.entries()) {
+    const row = entriesById.get(entryId);
+    const rootId = reconciliationEntryIds[index];
+    if (row?.entry_status === 'pending-payment' && rootId && rootId !== entryId) {
+      lifecycleEntryIdsByRoot[rootId] = entryId;
+    }
+  }
+  const indicesByRoot = new Map<string, number[]>();
+  for (const [index, rootId] of reconciliationEntryIds.entries()) {
+    const indices = indicesByRoot.get(rootId) ?? [];
+    indices.push(index);
+    indicesByRoot.set(rootId, indices);
+  }
+  const duplicateEntryIds: string[] = [];
+  for (const [rootId, indices] of indicesByRoot) {
+    const canonicalIndex = indices.find(index => entryIds[index] === rootId) ?? indices[0];
+    for (const index of indices) {
+      if (index !== canonicalIndex) duplicateEntryIds.push(entryIds[index]);
+    }
+  }
+
+  return {
+    entries: [...entriesById.values()],
+    reconciliationEntryIds,
+    duplicateEntryIds,
+    lifecycleEntryIdsByRoot,
+    blockedEntryIds: [...new Set(blockedEntryIds)],
+    error,
+  };
+}
+
 async function handleEntryPaymentRequestCompleted(session: Stripe.Checkout.Session) {
   // MP-07: the webhook payload's payment_status/amount_total are untrusted
   // (same reasoning as the cart path's fresh retrieve above) — a payment
@@ -1635,10 +1812,8 @@ async function handleEntryPaymentRequestCompleted(session: Stripe.Checkout.Sessi
   }
 
   const entryIds = (link.entry_ids as string[] | null) ?? [];
-  const { data: entriesData, error: entriesError } = await supabase
-    .from('entries')
-    .select('id, payment_status, entry_status, stripe_payment_intent_id')
-    .in('id', entryIds);
+  const loadedEntries = await loadPaymentReconciliationEntries(entryIds);
+  const entriesError = loadedEntries.error;
   if (entriesError) {
     console.error('Failed to load entries for payment link:', entriesError);
     await alertAdmin(
@@ -1651,16 +1826,23 @@ async function handleEntryPaymentRequestCompleted(session: Stripe.Checkout.Sessi
     return;
   }
 
+  const {
+    entries,
+    reconciliationEntryIds,
+    duplicateEntryIds,
+    lifecycleEntryIdsByRoot,
+    blockedEntryIds,
+  } = loadedEntries;
+
   const result = reconcileEntryPaymentRequest({
     linkStatus: link.status,
     sessionPaymentStatus: freshSession.payment_status ?? null,
     expectedEntryIds: entryIds,
-    entries: (entriesData ?? []) as {
-      id: string;
-      payment_status: string | null;
-      entry_status: string | null;
-      stripe_payment_intent_id: string | null;
-    }[],
+    entries,
+    reconciliationEntryIds,
+    duplicateEntryIds,
+    lifecycleEntryIdsByRoot,
+    blockedEntryIds,
     paymentIntentId,
   });
 
@@ -1718,7 +1900,12 @@ async function handleEntryPaymentRequestCompleted(session: Stripe.Checkout.Sessi
       payment_method: patch.payment_method,
       stripe_payment_intent_id: patch.stripe_payment_intent_id,
     };
-    if (patch.entry_status) update.entry_status = patch.entry_status;
+    if (
+      patch.entry_status &&
+      (!patch.entryStatusEntryId || patch.entryStatusEntryId === patch.id)
+    ) {
+      update.entry_status = patch.entry_status;
+    }
     let updateQuery = supabase
       .from('entries')
       .update(update)
@@ -1741,10 +1928,39 @@ async function handleEntryPaymentRequestCompleted(session: Stripe.Checkout.Sessi
       );
     }
     updatedEntryIds.push(...((updatedRows ?? []) as { id: string }[]).map(row => row.id));
+
+    if (
+      updatedRows?.length &&
+      patch.entry_status &&
+      patch.entryStatusEntryId &&
+      patch.entryStatusEntryId !== patch.id
+    ) {
+      const { error: lifecycleError } = await supabase
+        .from('entries')
+        .update({ entry_status: patch.entry_status })
+        .eq('id', patch.entryStatusEntryId)
+        .eq('entry_status', 'pending-payment')
+        .not('entry_status', 'in', inactiveEntryStatusFilter);
+      if (lifecycleError) {
+        console.error(
+          `Failed to advance move-up destination ${patch.entryStatusEntryId}:`,
+          lifecycleError
+        );
+      }
+    }
   }
 
   // Freeze the withdrawal policy these entries were paid under (best-effort).
-  await stampWithdrawalSnapshot(updatedEntryIds, link.show_id as string | null);
+  const withdrawalSnapshotEntryIds = [
+    ...updatedEntryIds,
+    ...result.patches
+      .map(patch => patch.entryStatusEntryId)
+      .filter((id): id is string => Boolean(id)),
+  ];
+  await stampWithdrawalSnapshot(
+    [...new Set(withdrawalSnapshotEntryIds)],
+    link.show_id as string | null
+  );
 
   const noOpPatchIds = plannedPatchIds.filter(id => !updatedEntryIds.includes(id));
   let rereadNoOpEntries: {
@@ -1784,6 +2000,17 @@ async function handleEntryPaymentRequestCompleted(session: Stripe.Checkout.Sessi
   // from, not just the refund amount. Deriving the snapshot from the session
   // total instead overstated the platform fee on every partial-invalid order.
   const entryFeesById = await loadEntryPaymentLineItemFees(session.id);
+  // Checkout lines point at the live move-up destination, while the payment
+  // stamp is applied to its original money root. Keep the destination's
+  // authoritative line fee available under the root id for refund arithmetic.
+  for (let index = 0; index < entryIds.length; index += 1) {
+    const destinationId = entryIds[index];
+    const rootId = reconciliationEntryIds[index];
+    const destinationFee = entryFeesById.get(destinationId);
+    if (rootId && destinationFee != null && !entryFeesById.has(rootId)) {
+      entryFeesById.set(rootId, destinationFee);
+    }
+  }
   // Declared here rather than beside the snapshot below because the make-whole
   // refund needs them too: the flat per-checkout component and the floor are
   // earned once per CHARGE, so splitting them across the invalid entries
@@ -1799,6 +2026,7 @@ async function handleEntryPaymentRequestCompleted(session: Stripe.Checkout.Sessi
     rereadNoOpEntries,
     initialMissingEntryIds: result.missingEntryIds,
     initialInactiveEntryIds: result.inactiveEntryIds,
+    initialUnresolvedEntryIds: result.unresolvedEntryIds,
     initialAlreadyPaidEntryIds: result.alreadyPaidEntryIds,
     initialSameIntentPaidEntryIds: result.sameIntentPaidEntryIds,
     paymentIntentId,
@@ -1926,6 +2154,18 @@ async function handleEntryPaymentRequestCompleted(session: Stripe.Checkout.Sessi
        <code>${updateOutcome.unknownNoOpEntryIds.join(', ')}</code>.</p>
        <p>The webhook will treat them as invalid for refund safety.</p>`,
       { source: 'stripe-webhook', dedupeKey: `payment-link-unknown-noop-${session.id}` }
+    );
+  }
+
+  if (updateOutcome.unresolvedEntryIds.length > 0) {
+    await alertAdmin(
+      'Payment link move-up root could not be reconciled',
+      `<p>Session <code>${session.id}</code> was PAID, but these live destination
+       entries could not be safely matched to their money roots:
+       <code>${updateOutcome.unresolvedEntryIds.join(', ')}</code>.</p>
+       <p>The affected lines will be refunded; verify the move-up history before
+       restoring or reissuing any payment link.</p>`,
+      { source: 'stripe-webhook', dedupeKey: `payment-link-unresolved-root-${session.id}` }
     );
   }
 

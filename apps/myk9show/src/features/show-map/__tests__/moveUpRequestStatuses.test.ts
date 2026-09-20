@@ -1,15 +1,8 @@
-/**
- * MYK9-639 round 4: the client mirror of the request-status fold, and the
- * lifecycle rule it must NOT break.
- */
 import { describe, expect, it } from 'vitest';
 import { destinationEntryStatusFor, MOVE_UP_REQUEST_STATUSES } from '../moveUpRequestStatuses';
 
 describe('destinationEntryStatusFor', () => {
   it.each(MOVE_UP_REQUEST_STATUSES)('fulfils the %s request instead of re-queuing it', status => {
-    // Inheriting the status put the destination straight back into
-    // `getPendingMoveUpRequests`, so approving a request made it reappear —
-    // approvable again, one rung higher each time.
     expect(destinationEntryStatusFor(status)).toBe('confirmed');
   });
 
@@ -25,9 +18,7 @@ describe('destinationEntryStatusFor', () => {
     expect(destinationEntryStatusFor('checked-in')).toBe('checked-in');
   });
 
-  it('preserves null and blank, as the SQL ELSE branch does', () => {
-    // `entries.entry_status` is nullable; coercing to '' would be the one place
-    // the mirror disagreed with what it mirrors.
+  it('preserves null and blank', () => {
     expect(destinationEntryStatusFor(null)).toBeNull();
     expect(destinationEntryStatusFor(undefined)).toBeUndefined();
     expect(destinationEntryStatusFor('  ')).toBe('  ');

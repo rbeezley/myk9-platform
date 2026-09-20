@@ -2,6 +2,14 @@ import React, { useState, useCallback } from 'react';
 import type { DateRange } from 'react-day-picker';
 import { Calendar } from '@/components/ui/calendar';
 import { Button } from '@/components/ui/button';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { CalendarIcon, Clock, X } from 'lucide-react';
@@ -188,28 +196,44 @@ export const DateRangePicker: React.FC<DateRangePickerProps> = ({
         )}
       </div>
 
-      {/* Modal overlay — centered on screen */}
-      {open && (
-        <div
-          role="dialog"
-          aria-modal="true"
-          className="fixed inset-0 z-50 flex items-center justify-center"
-          onClick={() => setOpen(false)}
-        >
-          {/* Backdrop */}
-          <div className="absolute inset-0 bg-black/50" />
-
-          {/* Calendar panel */}
+      <Dialog open={open} onOpenChange={setOpen}>
+        <DialogContent className="flex max-h-[calc(100dvh-1rem)] w-[calc(100vw-1rem)] max-w-3xl flex-col gap-0 overflow-hidden rounded-xl bg-popover p-0 shadow-2xl sm:max-h-[calc(100dvh-2rem)] sm:w-[calc(100vw-2rem)]">
+          <DialogHeader className="shrink-0 border-b px-4 pb-3 pt-4 text-left sm:px-6 sm:pt-5">
+            <DialogTitle className="pr-8 text-lg">Choose a date range</DialogTitle>
+          </DialogHeader>
           <div
-            className="relative z-10 rounded-xl border bg-popover p-4 shadow-2xl"
-            onClick={e => e.stopPropagation()}
+            data-testid="date-range-picker-scroll-body"
+            className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 py-4 sm:px-6"
           >
-            <button
-              className="absolute top-2 right-2 p-1 rounded-md hover:bg-muted text-muted-foreground"
-              onClick={() => setOpen(false)}
+            <DialogDescription className="max-w-2xl">
+              Select the first date for the start of your range, then select the last date for the
+              end. Both panes are one continuous calendar. Use the Previous Month and Next Month
+              buttons to move through the calendar.
+            </DialogDescription>
+            <div
+              role="group"
+              aria-label="Date range key"
+              className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-2 text-sm text-muted-foreground"
             >
-              <X className="h-4 w-4" />
-            </button>
+              <span className="inline-flex items-center gap-1.5">
+                <span
+                  aria-hidden="true"
+                  className="h-4 w-4 rounded-full bg-primary ring-2 ring-primary/30"
+                />
+                Start
+              </span>
+              <span className="inline-flex items-center gap-1.5">
+                <span
+                  aria-hidden="true"
+                  className="h-4 w-4 rounded-full bg-secondary ring-2 ring-secondary/60"
+                />
+                End
+              </span>
+              <span className="inline-flex items-center gap-1.5">
+                <span aria-hidden="true" className="h-4 w-4 rounded-sm bg-accent" />
+                Dates in between
+              </span>
+            </div>
 
             <Calendar
               mode="range"
@@ -218,11 +242,17 @@ export const DateRangePicker: React.FC<DateRangePickerProps> = ({
               onSelect={handleRangeSelect}
               disabled={date => (minDate && date < minDate) || false}
               numberOfMonths={2}
+              classNames={{
+                range_start:
+                  'range_start day-range-start [&>button]:font-semibold [&>button]:ring-2 [&>button]:ring-primary [&>button]:ring-offset-1',
+                range_end:
+                  'range_end day-range-end [&>button]:font-semibold [&>button]:ring-2 [&>button]:ring-secondary [&>button]:ring-offset-1',
+              }}
               initialFocus
             />
 
             {showTime && (
-              <div className="border-t mt-3 pt-3 grid grid-cols-2 gap-4">
+              <div className="mt-3 grid grid-cols-2 gap-4 border-t pt-3">
                 <div className="space-y-1">
                   <Label
                     {...(startTimeId !== undefined && { htmlFor: startTimeId })}
@@ -263,15 +293,18 @@ export const DateRangePicker: React.FC<DateRangePickerProps> = ({
                 </div>
               </div>
             )}
-
-            <div className="border-t mt-3 pt-3 flex justify-end">
-              <Button size="sm" onClick={() => setOpen(false)}>
-                Done
-              </Button>
-            </div>
           </div>
-        </div>
-      )}
+
+          <DialogFooter
+            data-testid="date-range-picker-footer"
+            className="shrink-0 border-t px-4 py-3 sm:px-6"
+          >
+            <Button size="sm" onClick={() => setOpen(false)}>
+              Done
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </>
   );
 };

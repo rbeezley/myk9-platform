@@ -18,8 +18,10 @@ export interface RawEntryRow {
   payment_status?: string | null;
   /**
    * The paying entry a move-up superseded, when this row is the destination.
-   * `classifyRawEntryAttention` reads it to keep "Payment due" off a
-   * money-neutral destination whose source is already paid (MYK9-639).
+   * A class-scoped read normally does not include that source because it is in
+   * another class; the attention classifier therefore attempts resolution when
+   * the source is present and otherwise preserves its conservative suppression
+   * fallback. Show-wide surfaces can resolve the link directly (MYK9-639).
    */
   moved_from_entry_id?: string | null | undefined;
   registration?: { payment_status?: string | null } | null;

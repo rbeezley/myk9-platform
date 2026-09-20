@@ -371,6 +371,10 @@ const MyEntriesPage: React.FC = () => {
                 {entries.length > 0 && (
                   <MyEntriesOverview
                     showMoney={balanceSummary.kind === 'known'}
+                    moneyWarning={
+                      balanceSummary.kind === 'unknown' ||
+                      (balanceSummary.unresolvedShowIds?.length ?? 0) > 0
+                    }
                     currentFees={entryStats.currentFees}
                     amountDue={entryStats.currentAmountDue}
                     hasPastBalance={balanceSummary.onlineShowBalances.some(show => show.isPastShow)}

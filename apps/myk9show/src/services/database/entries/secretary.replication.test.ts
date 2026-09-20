@@ -455,15 +455,18 @@ describe('secretary entry read replication', () => {
     mocks.loadHandlerPeople.mockResolvedValue(
       new Map([['owner-1', { id: 'owner-1', first_name: 'Olivia', last_name: 'Owner' }]])
     );
-    mockMetadataLookups([], [
-      {
-        id: 'owner-1',
-        first_name: 'Olivia',
-        last_name: 'Owner',
-        email: 'olivia@example.com',
-        auth_user_id: 'owner-auth-1',
-      },
-    ]);
+    mockMetadataLookups(
+      [],
+      [
+        {
+          id: 'owner-1',
+          first_name: 'Olivia',
+          last_name: 'Owner',
+          email: 'olivia@example.com',
+          auth_user_id: 'owner-auth-1',
+        },
+      ]
+    );
 
     const result = await getEntriesForShow('show-1');
 
@@ -499,15 +502,18 @@ describe('secretary entry read replication', () => {
     mocks.loadHandlerPeople.mockResolvedValue(
       new Map([['owner-1', { id: 'owner-1', first_name: 'Olivia', last_name: 'Owner' }]])
     );
-    mockMetadataLookups([], [
-      {
-        id: 'owner-1',
-        first_name: 'Olivia',
-        last_name: 'Owner',
-        email: 'olivia@example.com',
-        auth_user_id: 'owner-auth-1',
-      },
-    ]);
+    mockMetadataLookups(
+      [],
+      [
+        {
+          id: 'owner-1',
+          first_name: 'Olivia',
+          last_name: 'Owner',
+          email: 'olivia@example.com',
+          auth_user_id: 'owner-auth-1',
+        },
+      ]
+    );
 
     const result = await getEntriesForShow('show-1');
 

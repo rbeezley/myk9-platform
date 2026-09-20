@@ -10,6 +10,8 @@
 
 ## 3. Verification and Delivery
 
-- [x] 3.1 Run focused tests, shuffled app tests for touched files, app typecheck, OpenSpec validation, and code-quality ratchet; verify all pass or document unrelated failures
-  - Task 7 evidence (2026-09-20): the complete touched-test suite passed in one command (`18` files, `168` tests). The shuffled app suite started with seed `1789927667745`, emitted no useful output for 30 seconds after startup, and was interrupted with exit `130` per the verification brief. App typecheck, repository lint, and the code-quality ratchet passed; lint initially exposed and then cleared a stale unused import in the touched Your Ring test. `pnpm format:check:changed` remains blocked by the existing formatting warning in `apps/myk9show/src/services/database/entries/secretary.replication.test.ts`. Review-tier classified the branch as `adversarial` because the task evidence reports are in the diff.
-- [ ] 3.2 Open and merge the reviewed PR with CI green, update MYK9-603 with audit/test evidence, and archive the change
+- [x] 3.1 Run the focused suite, app typecheck, repository lint, changed-file formatting check, and code-quality ratchet; verify all pass or document unrelated failures
+  - Task 7 evidence (2026-09-20): the complete touched-test suite passed in one command (`18` files, `168` tests). App typecheck, repository lint, `pnpm format:check:changed`, and the code-quality ratchet passed. The stale unused import exposed by lint was removed, and the secretary replication test received only mechanical Prettier formatting. Review-tier classified the branch as `adversarial` because the task evidence reports are in the diff.
+- [ ] 3.2 Run the shuffled app suite and validate the OpenSpec change
+  - Limitation: the shuffled app suite started with seed `1789927667745`, emitted no useful output for 30 seconds after startup, and was interrupted with exit `130`; it was not a passing run. The isolated branch lacks the active change's `.openspec.yaml`, proposal, design, and spec artifacts, so no OpenSpec CLI validation was run.
+- [ ] 3.3 Open and merge the reviewed PR with CI green, update MYK9-603 with audit/test evidence, and archive the change

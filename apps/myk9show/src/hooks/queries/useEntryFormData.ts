@@ -8,7 +8,10 @@ import {
 } from '@/features/dogs/identity';
 import type { ShowExperienceSnapshot } from '@/features/experience/experienceSnapshot';
 import { normalizeJuniorHandlerNumbers } from '@/features/registries/juniorHandlerPolicy';
-import { resolveHandlerPerson } from '@/features/registries/handlerIdentity';
+import {
+  handlerNameMatchesPerson,
+  resolveHandlerPerson,
+} from '@/features/registries/handlerIdentity';
 import { loadPeoplePrivateProfiles } from '@/services/database/users/privatePeople';
 import type {
   EntryFormDog,
@@ -251,9 +254,19 @@ async function fetchEntryFormData(
     const dogEntries = entriesByDog.get(dog.id) ?? [];
     const ownerPerson = dog.owner_id ? personMap.get(dog.owner_id) : null;
     const ownerFullName = formatPersonName(ownerPerson ?? {});
-    const handlerEntry = dogEntries.find(e => e.handler && e.handler !== ownerFullName);
-    if (handlerEntry?.handlerId) requiredPrivatePersonIds.add(handlerEntry.handlerId);
-    else if (!handlerEntry && dog.owner_id) requiredPrivatePersonIds.add(dog.owner_id);
+    const handlerEntry = dogEntries.find(
+      e => e.handler && !handlerNameMatchesPerson(e.handler, ownerPerson)
+    );
+    const printedHandlerName = handlerEntry?.handler ?? ownerFullName;
+    const handlerIdPerson = handlerEntry?.handlerId
+      ? (personMap.get(handlerEntry.handlerId) ?? null)
+      : null;
+    const resolvedHandler = resolveHandlerPerson({
+      printedHandlerName,
+      handlerIdPerson,
+      ownerPerson,
+    });
+    if (resolvedHandler?.id) requiredPrivatePersonIds.add(resolvedHandler.id);
   }
 
   // Private identity fields are fetched through the relationship-scoped RPC;
@@ -266,7 +279,9 @@ async function fetchEntryFormData(
     personMap.set(personId, {
       ...person,
       date_of_birth: privateProfile.dateOfBirth,
-      junior_handler_numbers: privateProfile.juniorHandlerNumbers,
+      ...(privateProfile.juniorHandlerNumbers === undefined
+        ? {}
+        : { junior_handler_numbers: privateProfile.juniorHandlerNumbers }),
     });
   }
 
@@ -374,9 +389,11 @@ async function fetchEntryFormData(
       last_name: owner.lastName,
     });
     // `handler` is the name the AKC form PRINTS. It stays null when the handler
-    // is the owner — that is what the `!== ownerFullName` filter is for; the
-    // form prints the owner block in that case.
-    const handlerEntry = dogEntries.find(e => e.handler && e.handler !== ownerFullName);
+    // is the owner — canonical identity matching handles punctuation, spacing,
+    // and surname-first owner variants.
+    const handlerEntry = dogEntries.find(
+      e => e.handler && !handlerNameMatchesPerson(e.handler, ownerRaw)
+    );
     const handler = handlerEntry?.handler ?? null;
 
     // MYK9-570: WHO that handler is, for the junior fields, is decided by the

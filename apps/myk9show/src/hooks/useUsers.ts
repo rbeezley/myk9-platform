@@ -5,6 +5,8 @@ import type { User } from '@/types/user-types';
 import { getAllUsers, createUser, updateUser, deleteUser } from '@/services/database/users';
 import { mapDatabaseToUser } from '@/services/mappers/userMappers';
 import { rbacService } from '@/services/rbac';
+import { privateFieldsForCreate } from '@/store/userStore';
+import { updatePersonWithPrivateProfile } from '@/services/database/users/privatePeople';
 
 export function useUsers() {
   return useQuery<User[]>({
@@ -34,6 +36,23 @@ export function useAddPerson() {
       if (error || !data) throw new Error(error?.message || 'Failed to create user');
 
       const newPersonId = (data as Record<string, unknown>).id as string;
+      const privateUpdates = privateFieldsForCreate(person);
+      if (Object.keys(privateUpdates).length > 0) {
+        const { error: privateError } = await updatePersonWithPrivateProfile({
+          personId: newPersonId,
+          publicUpdates: {},
+          privateUpdates,
+        });
+        if (privateError) {
+          const { error: rollbackError } = await deleteUser(newPersonId);
+          if (rollbackError) {
+            throw new Error(
+              `Private profile save failed and user rollback failed: ${rollbackError.message}`
+            );
+          }
+          throw new Error(`Private profile save failed: ${privateError.message}`);
+        }
+      }
       const roles = person.roles?.length ? person.roles : [UserRole.EXHIBITOR];
       try {
         await Promise.all(

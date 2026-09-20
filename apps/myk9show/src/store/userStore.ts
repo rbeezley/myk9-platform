@@ -13,6 +13,9 @@ import { logger } from '@/services/LoggingService';
 export interface UserInput {
   firstName: string;
   lastName: string;
+  /** Private profile fields are persisted through the narrow people RPC. */
+  dateOfBirth?: string | undefined;
+  juniorHandlerNumbers?: Record<string, string> | undefined;
   email?: string;
   phone?: string;
   address?: {
@@ -29,6 +32,21 @@ export interface UserInput {
     name: string;
     phone: string;
     relationship: string;
+  };
+}
+
+/**
+ * Keep private create fields out of the broad people INSERT payload. The
+ * caller uses this explicit patch with update_person_with_private instead.
+ */
+export function privateFieldsForCreate(
+  userData: Pick<UserInput, 'dateOfBirth' | 'juniorHandlerNumbers'>
+): Record<string, unknown> {
+  return {
+    ...(userData.dateOfBirth !== undefined ? { date_of_birth: userData.dateOfBirth || null } : {}),
+    ...(userData.juniorHandlerNumbers !== undefined
+      ? { junior_handler_numbers: userData.juniorHandlerNumbers }
+      : {}),
   };
 }
 
@@ -137,6 +155,27 @@ export const useUserStore = create<UserStore>()(
           }
 
           const newPersonId = (dbUser as Record<string, unknown>).id as string;
+
+          const privateUpdates = privateFieldsForCreate(userData);
+          if (Object.keys(privateUpdates).length > 0) {
+            const { updatePersonWithPrivateProfile } =
+              await import('@/services/database/users/privatePeople');
+            const { error: privateError } = await updatePersonWithPrivateProfile({
+              personId: newPersonId,
+              publicUpdates: {},
+              privateUpdates,
+            });
+            if (privateError) {
+              const { deleteUser } = await import('@/services/database/users');
+              const { error: rollbackError } = await deleteUser(newPersonId);
+              if (rollbackError) {
+                throw new Error(
+                  `Private profile save failed and user rollback failed: ${rollbackError.message}`
+                );
+              }
+              throw new Error(`Private profile save failed: ${privateError.message}`);
+            }
+          }
 
           // Assign roles via user_roles table. If this fails, roll back the
           // person so callers are not told creation succeeded without access.

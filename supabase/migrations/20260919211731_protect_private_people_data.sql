@@ -70,8 +70,7 @@ COMMENT ON TABLE public.people_private IS
 -- privileges in this project grant anon CRUD on new public tables unless revoked.
 REVOKE ALL ON TABLE public.people_private FROM anon;
 REVOKE ALL ON TABLE public.people_private FROM PUBLIC;
-GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE public.people_private TO authenticated;
-GRANT ALL ON TABLE public.people_private TO service_role;
+GRANT SELECT ON TABLE public.people_private TO authenticated, service_role;
 
 ALTER TABLE public.people_private ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.people_private FORCE ROW LEVEL SECURITY;
@@ -83,13 +82,28 @@ STABLE
 SECURITY DEFINER
 SET search_path = ''
 AS $$
-  WITH person AS (
-    SELECT lower(trim(first_name)) AS first_name, lower(trim(last_name)) AS last_name
+  WITH person_raw AS (
+    SELECT lower(coalesce(first_name, '')) AS first_name,
+           lower(coalesce(last_name, '')) AS last_name
     FROM public.people
     WHERE id = p_person_id
       AND deleted_at IS NULL
+  ), person AS (
+    SELECT trim(regexp_replace(
+             replace(replace(replace(replace(replace(first_name, '.', ' '), '''', ' '), '`', ' '), '’', ' '), '-', ' '),
+             '\s+', ' ', 'g')) AS first_name,
+           trim(regexp_replace(
+             replace(replace(replace(replace(replace(last_name, '.', ' '), '''', ' '), '`', ' '), '’', ' '), '-', ' '),
+             '\s+', ' ', 'g')) AS last_name
+    FROM person_raw
+  ), printed_raw AS (
+    SELECT coalesce(p_printed_name, '') AS value
   ), printed AS (
-    SELECT lower(trim(coalesce(p_printed_name, ''))) AS value
+    SELECT value AS raw_value,
+           trim(regexp_replace(
+             replace(replace(replace(replace(replace(lower(value), '.', ' '), '''', ' '), '`', ' '), '’', ' '), '-', ' '),
+             '\s+', ' ', 'g')) AS value
+    FROM printed_raw
   )
   SELECT EXISTS (
     SELECT 1
@@ -98,9 +112,15 @@ AS $$
       AND person.last_name IS NOT NULL
       AND printed.value <> ''
       AND CASE
-      WHEN position(',' IN printed.value) > 0 THEN
-        trim(split_part(printed.value, ',', 1)) = person.last_name
-        AND trim(split_part(printed.value, ',', 2)) = person.first_name
+      WHEN position(',' IN printed.raw_value) > 0
+        AND trim(split_part(printed.value, ',', 1)) <> ''
+        AND trim(split_part(printed.value, ',', 2)) <> '' THEN
+        trim(regexp_replace(
+          replace(replace(replace(replace(replace(lower(split_part(printed.raw_value, ',', 1)), '.', ' '), '''', ' '), '`', ' '), '’', ' '), '-', ' '),
+          '\s+', ' ', 'g')) = person.last_name
+        AND trim(regexp_replace(
+          replace(replace(replace(replace(replace(lower(split_part(printed.raw_value, ',', 2)), '.', ' '), '''', ' '), '`', ' '), '’', ' '), '-', ' '),
+          '\s+', ' ', 'g')) = person.first_name
       ELSE printed.value = person.first_name || ' ' || person.last_name
     END
   );
@@ -128,7 +148,15 @@ AS $$
         WHERE e.deleted_at IS NULL
           AND e.show_id IS NOT NULL
           AND (
-            e.handler_id = p_person_id
+            (
+              e.handler_id = p_person_id
+              AND EXISTS (
+                SELECT 1
+                FROM public.people target_person
+                WHERE target_person.id = e.handler_id
+                  AND target_person.deleted_at IS NULL
+              )
+            )
             OR (
               d.owner_id = p_person_id
               AND public.private_handler_name_matches(
@@ -172,20 +200,8 @@ CREATE POLICY people_private_select ON public.people_private
   USING ((SELECT public.can_read_people_private(people_private.person_id)));
 
 DROP POLICY IF EXISTS people_private_insert ON public.people_private;
-CREATE POLICY people_private_insert ON public.people_private
-  FOR INSERT TO authenticated
-  WITH CHECK ((SELECT public.can_write_people_private(people_private.person_id)));
-
 DROP POLICY IF EXISTS people_private_update ON public.people_private;
-CREATE POLICY people_private_update ON public.people_private
-  FOR UPDATE TO authenticated
-  USING ((SELECT public.can_write_people_private(people_private.person_id)))
-  WITH CHECK ((SELECT public.can_write_people_private(people_private.person_id)));
-
 DROP POLICY IF EXISTS people_private_delete ON public.people_private;
-CREATE POLICY people_private_delete ON public.people_private
-  FOR DELETE TO authenticated
-  USING ((SELECT public.can_write_people_private(people_private.person_id)));
 
 -- The app calls these narrow RPCs until the generated schema types are refreshed
 -- from the applied database. The read and write functions repeat the private
@@ -211,6 +227,9 @@ AS $$
     UNION
     SELECT DISTINCT e.handler_id
     FROM public.entries e
+    JOIN public.people target_person
+      ON target_person.id = e.handler_id
+     AND target_person.deleted_at IS NULL
     JOIN requested r ON r.person_id = e.handler_id
     WHERE e.deleted_at IS NULL
       AND e.show_id IS NOT NULL
@@ -304,6 +323,13 @@ BEGIN
       USING ERRCODE = '22023';
   END IF;
 
+  -- A manager may update the public directory row, but their payload must not
+  -- smuggle a private patch past the private write boundary. The client sends
+  -- an empty object for managers; enforce that invariant in the RPC too.
+  IF NOT (SELECT public.can_read_people_private(p_person_id)) THEN
+    v_private_patch := '{}'::jsonb;
+  END IF;
+
   IF EXISTS (
     SELECT 1
     FROM jsonb_object_keys(v_private_patch) AS key
@@ -379,17 +405,36 @@ BEGIN
         THEN EXCLUDED.date_of_birth ELSE people_private.date_of_birth END,
           junior_handler_numbers = CASE WHEN v_private_patch ? 'junior_handler_numbers'
         THEN EXCLUDED.junior_handler_numbers ELSE people_private.junior_handler_numbers END;
+
+    -- Keep legacy clients coherent during the expand phase. The person row is
+    -- already locked above, so the legacy->private trigger observes the same
+    -- values and does not create an inverse lock-ordering path.
+    UPDATE public.people
+    SET date_of_birth = CASE WHEN v_private_patch ? 'date_of_birth'
+          THEN (v_private_patch->>'date_of_birth')::date ELSE date_of_birth END,
+        junior_handler_numbers = CASE WHEN v_private_patch ? 'junior_handler_numbers'
+          THEN CASE WHEN jsonb_typeof(v_private_patch->'junior_handler_numbers') = 'null'
+            THEN '{}'::jsonb ELSE v_private_patch->'junior_handler_numbers' END
+          ELSE junior_handler_numbers END
+    WHERE id = p_person_id;
   END IF;
 
   SELECT * INTO v_private
   FROM public.people_private
   WHERE person_id = p_person_id;
 
-  RETURN to_jsonb(v_person)
-    || jsonb_build_object(
-      'date_of_birth', v_private.date_of_birth,
-      'junior_handler_numbers', v_private.junior_handler_numbers
-    );
+  IF (SELECT public.can_read_people_private(p_person_id)) THEN
+    RETURN to_jsonb(v_person)
+      || jsonb_build_object(
+        'date_of_birth', v_private.date_of_birth,
+        'junior_handler_numbers', v_private.junior_handler_numbers
+      );
+  END IF;
+
+  -- An unrelated manager may still update an allowed public field, but the
+  -- response must not become a private-field side channel merely because the
+  -- function runs as its owner.
+  RETURN to_jsonb(v_person);
 END;
 $$;
 
@@ -408,6 +453,12 @@ NOTIFY pgrst, 'reload schema';
 -- Existing values are copied exactly; empty JSON objects do not create needless
 -- rows. The later cleanup migration must repeat the lossless assertion before
 -- removing the legacy columns.
+-- Serialize this copy with legacy writes. Installing the one-way sync trigger
+-- before the copy would also be safe, but locking the source table makes the
+-- lossless assertion explicit and prevents a concurrent write between SELECT
+-- and INSERT from being missed.
+LOCK TABLE public.people IN SHARE ROW EXCLUSIVE MODE;
+
 INSERT INTO public.people_private (person_id, date_of_birth, junior_handler_numbers)
 SELECT p.id, p.date_of_birth, p.junior_handler_numbers
 FROM public.people p
@@ -431,10 +482,11 @@ BEGIN
 END;
 $$;
 
--- Compatibility dual-write. During the expand phase, older deployed clients may
--- still write the legacy columns while newer clients write people_private through
--- update_person_with_private. Both directions execute in the same transaction.
--- The IS DISTINCT FROM guards make the pair safe from trigger recursion.
+-- Compatibility write-through. During the expand phase, older deployed clients
+-- may still write the legacy columns while newer clients write people_private
+-- through update_person_with_private. This direction is intentionally one-way:
+-- direct private CRUD is not granted, and a private DELETE cannot race a legacy
+-- update or recreate a row during a parent cascade.
 CREATE OR REPLACE FUNCTION public.sync_people_private_from_legacy()
 RETURNS trigger
 LANGUAGE plpgsql
@@ -442,6 +494,29 @@ SECURITY DEFINER
 SET search_path = ''
 AS $$
 BEGIN
+  IF auth.uid() IS NOT NULL
+     AND NOT public.can_write_people_private(NEW.id) THEN
+    IF TG_OP = 'INSERT'
+       OR (TG_OP = 'UPDATE'
+           AND (NEW.date_of_birth IS DISTINCT FROM OLD.date_of_birth
+                OR NEW.junior_handler_numbers IS DISTINCT FROM OLD.junior_handler_numbers)) THEN
+      RAISE EXCEPTION 'Private person fields may only be changed by the subject or a site admin'
+        USING ERRCODE = '42501';
+    END IF;
+  END IF;
+
+  -- An empty legacy insert should not materialize a duplicate empty private
+  -- row when an explicit private fixture or RPC row already exists. It may,
+  -- however, clear an existing private row.
+  IF NEW.date_of_birth IS NULL AND COALESCE(NEW.junior_handler_numbers, '{}'::jsonb) = '{}'::jsonb THEN
+    UPDATE public.people_private
+    SET date_of_birth = NULL,
+        junior_handler_numbers = '{}'::jsonb
+    WHERE person_id = NEW.id
+      AND (date_of_birth IS NOT NULL OR junior_handler_numbers <> '{}'::jsonb);
+    RETURN NEW;
+  END IF;
+
   INSERT INTO public.people_private (person_id, date_of_birth, junior_handler_numbers)
   VALUES (NEW.id, NEW.date_of_birth, COALESCE(NEW.junior_handler_numbers, '{}'::jsonb))
   ON CONFLICT (person_id) DO UPDATE
@@ -453,39 +528,9 @@ BEGIN
 END;
 $$;
 
-CREATE OR REPLACE FUNCTION public.sync_people_legacy_from_private()
-RETURNS trigger
-LANGUAGE plpgsql
-SECURITY DEFINER
-SET search_path = ''
-AS $$
-BEGIN
-  IF TG_OP = 'DELETE' THEN
-    UPDATE public.people
-    SET date_of_birth = NULL,
-        junior_handler_numbers = '{}'::jsonb
-    WHERE id = OLD.person_id
-      AND (date_of_birth IS DISTINCT FROM NULL
-           OR junior_handler_numbers IS DISTINCT FROM '{}'::jsonb);
-    RETURN OLD;
-  END IF;
-
-  UPDATE public.people
-  SET date_of_birth = NEW.date_of_birth,
-      junior_handler_numbers = NEW.junior_handler_numbers
-  WHERE id = NEW.person_id
-    AND (date_of_birth IS DISTINCT FROM NEW.date_of_birth
-         OR junior_handler_numbers IS DISTINCT FROM NEW.junior_handler_numbers);
-  RETURN NEW;
-END;
-$$;
-
 REVOKE ALL ON FUNCTION public.sync_people_private_from_legacy() FROM PUBLIC;
 REVOKE ALL ON FUNCTION public.sync_people_private_from_legacy() FROM anon;
 REVOKE ALL ON FUNCTION public.sync_people_private_from_legacy() FROM authenticated;
-REVOKE ALL ON FUNCTION public.sync_people_legacy_from_private() FROM PUBLIC;
-REVOKE ALL ON FUNCTION public.sync_people_legacy_from_private() FROM anon;
-REVOKE ALL ON FUNCTION public.sync_people_legacy_from_private() FROM authenticated;
 
 DROP TRIGGER IF EXISTS people_sync_private_from_legacy ON public.people;
 CREATE TRIGGER people_sync_private_from_legacy
@@ -493,9 +538,7 @@ CREATE TRIGGER people_sync_private_from_legacy
   FOR EACH ROW EXECUTE FUNCTION public.sync_people_private_from_legacy();
 
 DROP TRIGGER IF EXISTS people_sync_legacy_from_private ON public.people_private;
-CREATE TRIGGER people_sync_legacy_from_private
-  AFTER INSERT OR UPDATE OF date_of_birth, junior_handler_numbers OR DELETE ON public.people_private
-  FOR EACH ROW EXECUTE FUNCTION public.sync_people_legacy_from_private();
+DROP FUNCTION IF EXISTS public.sync_people_legacy_from_private();
 
 -- Do not drop the legacy columns in this migration. Older clients still select
 -- them through their deployed directory query until the application rollout is

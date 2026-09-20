@@ -73,6 +73,8 @@ const BrowsePeoplePage: React.FC = () => {
       lastName: '',
       email: '',
       phone: '',
+      dateOfBirth: '',
+      juniorHandlerNumbers: {},
       streetAddress: '',
       city: '',
       state: '',
@@ -93,6 +95,8 @@ const BrowsePeoplePage: React.FC = () => {
         lastName: userData.lastName || '',
         email: userData.email || '',
         phone: userData.phone || '',
+        dateOfBirth: userData.dateOfBirth || '',
+        juniorHandlerNumbers: userData.juniorHandlerNumbers || {},
         address: {
           street: streetValue,
           city: userData.city || '',

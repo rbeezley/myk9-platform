@@ -192,6 +192,18 @@ describe('useEntryFormData resolves the handler person for the junior fields', (
     expect(result.current.dogs[0]!.handlerDateOfBirth).toBe('2009-05-05');
   });
 
+  it('uses canonical owner identity when the printed name is surname-first', async () => {
+    routeTables([{ id: 'entry-a', handler: 'Owner, Sarah', handler_id: null }], [SARAH]);
+    const { result } = renderEntryFormData();
+    await waitFor(() => expect(result.current.dogs).toHaveLength(1));
+
+    expect(result.current.dogs[0]!.handlerDateOfBirth).toBe('2009-05-05');
+    expect(result.current.dogs[0]!.handlerJuniorHandlerNumbers).toEqual({
+      AKC: 'SARAH-NUMBER',
+    });
+    expect(mocks.rpc.mock.calls[0]).toEqual(['get_people_private', { p_person_ids: [SARAH.id] }]);
+  });
+
   it('does not treat the owner as the handler when someone else is printed', async () => {
     // The owner is a CANDIDATE, not a default: only their own name admits them.
     routeTables([{ id: 'entry-a', handler: 'Bob Handler', handler_id: null }], [SARAH]);

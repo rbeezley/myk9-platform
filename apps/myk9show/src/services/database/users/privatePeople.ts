@@ -1,4 +1,5 @@
 import { supabase } from '@/lib/supabase';
+import type { Json } from '@/types/supabase';
 import { chunk, ID_CHUNK_SIZE } from '@/utils/chunkIds';
 import { normalizeJuniorHandlerNumbers } from '@/features/registries/juniorHandlerPolicy';
 
@@ -77,7 +78,7 @@ export async function updatePersonWithPrivateProfile(input: {
 }) {
   return supabase.rpc('update_person_with_private', {
     p_person_id: input.personId,
-    p_public_updates: input.publicUpdates,
-    p_private_updates: input.privateUpdates,
+    p_public_updates: input.publicUpdates as Json,
+    p_private_updates: input.privateUpdates as Json,
   });
 }

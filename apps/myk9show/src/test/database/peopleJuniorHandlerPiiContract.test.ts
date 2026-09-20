@@ -20,7 +20,7 @@ const MIGRATIONS_DIR = resolve(process.cwd(), '../../supabase/migrations');
 const SRC_DIR = resolve(process.cwd(), 'src');
 
 const PII_COLUMNS = ['date_of_birth', 'junior_handler_numbers'] as const;
-const MIGRATION_VERSION = '20260919174531';
+const MIGRATION_VERSION = '20260919211731';
 
 function migrationFiles(): string[] {
   return readdirSync(MIGRATIONS_DIR)
@@ -110,8 +110,9 @@ describe('the migration that protects the private columns', () => {
     expect(sql).toMatch(/CREATE TABLE public\.people_private/i);
     expect(sql).toMatch(/REVOKE ALL ON TABLE public\.people_private FROM anon/i);
     expect(sql).toMatch(
-      /GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE public\.people_private TO authenticated/i
+      /GRANT SELECT ON TABLE public\.people_private TO authenticated, service_role/i
     );
+    expect(sql).not.toMatch(/GRANT[^;]+(?:INSERT|UPDATE|DELETE)[^;]+people_private/i);
     expect(sql).not.toMatch(/DROP COLUMN IF EXISTS date_of_birth/i);
     expect(sql).not.toMatch(/DROP COLUMN IF EXISTS junior_handler_numbers/i);
     expect(source).toMatch(/expand\/contract compatibility/i);
@@ -150,6 +151,9 @@ describe('the migration that protects the private columns', () => {
     expect(sql).toMatch(/v_private_patch \? 'date_of_birth'/i);
     expect(sql).toMatch(/v_private_patch \? 'junior_handler_numbers'/i);
     expect(sql).toMatch(/jsonb_typeof\(v_private_patch->'junior_handler_numbers'\) = 'null'/i);
+    expect(sql).toMatch(
+      /IF \(SELECT public\.can_read_people_private\(p_person_id\)\)[\s\S]*RETURN to_jsonb\(v_person\);/i
+    );
 
     const rpcGrant = sql.indexOf(
       'GRANT EXECUTE ON FUNCTION public.update_person_with_private(uuid, jsonb, jsonb)'
@@ -165,11 +169,14 @@ describe('the migration that protects the private columns', () => {
     expect(source).toMatch(/all older clients are retired/i);
     expect(source).toMatch(/Full PII isolation completes only in that contract phase/i);
     expect(source).toMatch(/CREATE OR REPLACE FUNCTION public\.sync_people_private_from_legacy/i);
-    expect(source).toMatch(/CREATE OR REPLACE FUNCTION public\.sync_people_legacy_from_private/i);
     expect(source).toMatch(/CREATE TRIGGER people_sync_private_from_legacy/i);
-    expect(source).toMatch(/CREATE TRIGGER people_sync_legacy_from_private/i);
     expect(source).toMatch(/IS DISTINCT FROM EXCLUDED\.date_of_birth/i);
-    expect(source).toMatch(/IS DISTINCT FROM NEW\.date_of_birth/i);
+    expect(source).toMatch(/DROP TRIGGER IF EXISTS people_sync_legacy_from_private/i);
+    expect(source).toMatch(/DROP FUNCTION IF EXISTS public\.sync_people_legacy_from_private/i);
+    expect(source).toMatch(/LOCK TABLE public\.people IN SHARE ROW EXCLUSIVE MODE/i);
+    expect(source).toMatch(
+      /Private person fields may only be changed by the subject or a site admin/i
+    );
     expect(source).toMatch(/Do not drop the legacy columns/i);
   });
 

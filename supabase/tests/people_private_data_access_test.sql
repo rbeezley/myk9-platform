@@ -111,6 +111,17 @@ INSERT INTO public.people_private (person_id, date_of_birth, junior_handler_numb
 VALUES (
   '00000000-0000-0000-0000-000000664017', DATE '2013-04-02', '{"AKC":"664-OWNER"}'::jsonb
 );
+INSERT INTO public.people_private (person_id, date_of_birth, junior_handler_numbers)
+VALUES (
+  '00000000-0000-0000-0000-000000664016', DATE '2011-04-02', '{"AKC":"664-DELETED"}'::jsonb
+);
+INSERT INTO public.entries (id, show_id, handler_id, entry_status, payment_status)
+VALUES (
+  '00000000-0000-0000-0000-000000664009',
+  '00000000-0000-0000-0000-000000664003',
+  '00000000-0000-0000-0000-000000664016',
+  'confirmed', 'paid'
+);
 
 DO $$
 DECLARE
@@ -139,6 +150,11 @@ BEGIN
   END IF;
   IF NOT has_table_privilege('authenticated', 'public.people_private', 'SELECT') THEN
     RAISE EXCEPTION 'FAIL authenticated lost people_private table SELECT';
+  END IF;
+  IF has_table_privilege('authenticated', 'public.people_private', 'INSERT')
+     OR has_table_privilege('authenticated', 'public.people_private', 'UPDATE')
+     OR has_table_privilege('authenticated', 'public.people_private', 'DELETE') THEN
+    RAISE EXCEPTION 'FAIL authenticated retained direct people_private write access';
   END IF;
   IF NOT has_function_privilege('authenticated', 'public.get_people_private(uuid[])', 'execute') THEN
     RAISE EXCEPTION 'FAIL authenticated cannot execute get_people_private';
@@ -257,6 +273,8 @@ BEGIN
   IF visible_rows <> 1 THEN RAISE EXCEPTION 'FAIL owner fallback handler cannot read private profile'; END IF;
   SELECT count(*) INTO visible_rows FROM public.get_people_private(ARRAY[empty_person]);
   IF visible_rows <> 1 THEN RAISE EXCEPTION 'FAIL manager cannot read an authorized empty private profile'; END IF;
+  SELECT count(*) INTO visible_rows FROM public.get_people_private(ARRAY[deleted_handler]);
+  IF visible_rows <> 0 THEN RAISE EXCEPTION 'FAIL manager can read a soft-deleted handler profile'; END IF;
   PERFORM public.update_person_with_private(handler_id, '{"phone":"manager-save"}'::jsonb, '{}'::jsonb);
   writes_denied := false;
   BEGIN
@@ -268,7 +286,20 @@ BEGIN
   EXCEPTION WHEN insufficient_privilege THEN
     writes_denied := true;
   END;
-  IF NOT writes_denied THEN RAISE EXCEPTION 'FAIL related show manager can atomically write private profile'; END IF;
+  IF NOT writes_denied THEN
+    RAISE EXCEPTION 'FAIL related show manager can atomically write private profile';
+  END IF;
+  writes_denied := false;
+  BEGIN
+    UPDATE public.people
+    SET date_of_birth = DATE '2012-04-04'
+    WHERE id = handler_id;
+  EXCEPTION WHEN insufficient_privilege THEN
+    writes_denied := true;
+  END;
+  IF NOT writes_denied THEN
+    RAISE EXCEPTION 'FAIL related manager can write legacy private columns';
+  END IF;
 
   -- Unrelated manager: role in another club does not expose this handler.
   PERFORM set_config('request.jwt.claim.sub', unrelated_manager::text, true);
@@ -289,6 +320,8 @@ BEGIN
   IF visible_rows <> 1 THEN RAISE EXCEPTION 'FAIL site admin cannot read private profile'; END IF;
   SELECT count(*) INTO visible_rows FROM public.get_people_private(ARRAY[empty_person]);
   IF visible_rows <> 1 THEN RAISE EXCEPTION 'FAIL site admin cannot read an authorized empty private profile'; END IF;
+  SELECT count(*) INTO visible_rows FROM public.get_people_private(ARRAY[deleted_handler]);
+  IF visible_rows <> 1 THEN RAISE EXCEPTION 'FAIL site admin cannot read deleted-person private details'; END IF;
   PERFORM public.update_person_with_private(
     handler_id,
     '{}'::jsonb,

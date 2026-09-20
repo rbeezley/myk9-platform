@@ -134,7 +134,8 @@ function validateSection(
   section: string
 ): string | null {
   const variants = levelKey ? (element.variantsByLevel?.[levelKey] ?? []) : [];
-  if (variants.length > 0 && !section) {
+  const ownershipVariants = variants.filter(variant => variant.kind === 'ownership');
+  if (ownershipVariants.length > 0 && !section) {
     return `a section is required for ${element.label} at this level`;
   }
   if (section && !variants.some(variant => variant.key === section)) {

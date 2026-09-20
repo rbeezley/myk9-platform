@@ -76,6 +76,53 @@ describe('createClassDataFromWizard registry identity preflight', () => {
     ).toThrow(/Container Novice/);
   });
 
+  it('allows an ASCA base class without a section alongside additive Level C classes', () => {
+    const trials: WizardTrial[] = [
+      {
+        id: 'trial-1',
+        name: 'Saturday Trial',
+        dateTime: '2026-10-01T09:00:00',
+        eventNumber: 'EVT-001',
+        trialType: 'Scent Detection',
+        classes: [
+          {
+            templateId: 'asca-template',
+            customizations: {
+              className: 'Container Novice',
+              element: 'Container',
+              level: 'Novice',
+            },
+          },
+          {
+            templateId: 'asca-template',
+            customizations: {
+              className: 'Container Novice Level C',
+              element: 'Container',
+              level: 'Novice',
+              section: 'C',
+            },
+          },
+        ],
+      },
+    ];
+
+    expect(
+      createClassDataFromWizard(
+        trials,
+        { 'trial-1': 'trial-real' },
+        {},
+        'show-1',
+        [],
+        undefined,
+        undefined,
+        'ASCA'
+      ).map(classData => [classData.element, classData.level, classData.section])
+    ).toEqual([
+      ['Container', 'Novice', ''],
+      ['Container', 'Novice', 'C'],
+    ]);
+  });
+
   it('persists a legacy plural element alias as the canonical registry label', () => {
     const trials: WizardTrial[] = [
       {

@@ -15,6 +15,7 @@
  * necessary but nowhere near sufficient.
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
+import type { ReplicatedClass } from '@/services/replication/ReplicatedClassesTable';
 
 const getClassById = vi.fn();
 const getEntriesByClass = vi.fn();
@@ -32,9 +33,10 @@ vi.mock('@/services/replication/ReplicatedArmbandsTable', () => ({
 
 import { createAtShowDataDependencies, transformEntry } from './atShowDataAdapter';
 
-function makeClass(id: string, over: Record<string, unknown> = {}) {
+function makeClass(id: string, over: Partial<ReplicatedClass> = {}): ReplicatedClass {
   return {
     id,
+    name: 'Container Novice',
     element: 'Container',
     level: 'Novice',
     section: id === 'class-a' ? 'A' : 'B',
@@ -44,7 +46,7 @@ function makeClass(id: string, over: Record<string, unknown> = {}) {
   };
 }
 
-async function fetchCombined(a: Record<string, unknown>, b: Record<string, unknown>) {
+async function fetchCombined(a: Partial<ReplicatedClass>, b: Partial<ReplicatedClass>) {
   getClassById.mockImplementation(async (id: string) =>
     id === 'class-a' ? makeClass('class-a', a) : makeClass('class-b', b)
   );

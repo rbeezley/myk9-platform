@@ -133,7 +133,11 @@ describe('toScoresheetEntry', () => {
     );
 
     expect(
-      toScoresheetEntry(scoringEntry, { id: 'class-1', name: 'Container Novice' })
+      toScoresheetEntry(scoringEntry, {
+        id: 'class-1',
+        name: 'Container Novice',
+        entryCount: 1,
+      })
     ).toMatchObject({
       armband: 12,
       armbandLabel: '12A',

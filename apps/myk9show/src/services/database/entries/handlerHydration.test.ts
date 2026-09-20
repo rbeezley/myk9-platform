@@ -361,4 +361,71 @@ describe('loadHandlerPeople offline boundary', () => {
       });
     }
   });
+
+  it('does not publish an older completion after a newer generation starts during persistence', async () => {
+    const originalOnline = navigator.onLine;
+    Object.defineProperty(navigator, 'onLine', { configurable: true, value: true });
+    const first = deferredSupabaseResponse();
+    const second = deferredSupabaseResponse();
+    let releaseOldPersistence!: (value: string) => void;
+    const oldPersistence = new Promise<string>(resolve => {
+      releaseOldPersistence = resolve;
+    });
+    const bulkPut = vi.spyOn(db.instance.people, 'bulkPut').mockImplementation(async people => {
+      if (people.some(person => person.firstName === 'Old')) return oldPersistence;
+      return 'handler-1';
+    });
+    mocks.from
+      .mockReturnValueOnce({
+        select: vi.fn().mockReturnValue({ in: vi.fn().mockReturnValue(first.promise) }),
+      })
+      .mockReturnValueOnce({
+        select: vi.fn().mockReturnValue({ in: vi.fn().mockReturnValue(second.promise) }),
+      });
+    const events: Array<{ ids: readonly string[]; people: ReadonlyMap<string, HandlerPersonRow> }> =
+      [];
+    const unsubscribe = subscribeHandlerPeopleHydration(event => events.push(event));
+
+    try {
+      const stale = loadHandlerPeople(['handler-1']);
+      await vi.waitFor(() => expect(mocks.from).toHaveBeenCalledTimes(1));
+      first.resolve({
+        data: [{ id: 'handler-1', first_name: 'Old', last_name: 'Name' }],
+        error: null,
+      });
+      await vi.waitFor(() =>
+        expect(bulkPut).toHaveBeenCalledWith([
+          { id: 'handler-1', firstName: 'Old', lastName: 'Name' },
+        ])
+      );
+
+      const current = loadHandlerPeople(['handler-1']);
+      await vi.waitFor(() => expect(mocks.from).toHaveBeenCalledTimes(2));
+      second.resolve({
+        data: [{ id: 'handler-1', first_name: 'New', last_name: 'Name' }],
+        error: null,
+      });
+      await expect(current).resolves.toEqual(
+        new Map([['handler-1', { id: 'handler-1', first_name: 'New', last_name: 'Name' }]])
+      );
+      await vi.waitFor(() => expect(events).toHaveLength(1));
+      expect(events[0]).toEqual({
+        ids: ['handler-1'],
+        people: new Map([['handler-1', { id: 'handler-1', first_name: 'New', last_name: 'Name' }]]),
+      });
+
+      releaseOldPersistence('handler-1');
+      await expect(stale).resolves.toEqual(
+        new Map([['handler-1', { id: 'handler-1', first_name: 'Old', last_name: 'Name' }]])
+      );
+      await new Promise(resolve => setTimeout(resolve, 0));
+      expect(events).toHaveLength(1);
+    } finally {
+      unsubscribe();
+      Object.defineProperty(navigator, 'onLine', {
+        configurable: true,
+        value: originalOnline,
+      });
+    }
+  });
 });

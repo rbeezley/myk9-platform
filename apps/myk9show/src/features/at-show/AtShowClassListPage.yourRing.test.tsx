@@ -52,7 +52,6 @@ vi.mock('@/hooks/useAuthContext', () => ({
 import { AtShowClassListPage } from './AtShowClassListPage';
 import {
   replicatedClassesTable,
-  replicatedEntriesTable,
   replicatedShowsTable,
   replicatedTrialsTable,
 } from '@/services/replication';

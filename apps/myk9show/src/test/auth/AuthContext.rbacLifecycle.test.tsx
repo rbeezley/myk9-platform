@@ -56,6 +56,7 @@ describe('AuthContext RBAC lifecycle', () => {
   beforeEach(() => {
     localStorage.clear();
     vi.clearAllMocks();
+    mockSupabase.from.mockImplementation(() => createChainableQuery());
     mockUseAuth.mockReturnValue(mockAuthReturn);
     mockRbacService.getUserPermissions.mockResolvedValue({
       roles: [],

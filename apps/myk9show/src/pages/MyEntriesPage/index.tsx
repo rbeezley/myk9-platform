@@ -313,11 +313,7 @@ const MyEntriesPage: React.FC = () => {
                  below proves nothing. Rendering FirstRunZeroState here told an
                  exhibitor on a cold offline boot that they had never entered a
                  show, with their entries sitting in IndexedDB. */
-              <EntriesIdentityPendingCard
-                onRetry={refreshEntries}
-                refreshing={refreshing}
-                identityState={identityState}
-              />
+              <EntriesIdentityPendingCard onRetry={refreshEntries} refreshing={refreshing} />
             ) : entries.length === 0 &&
               !waitlistSurface.hasPositions &&
               !isLoading &&

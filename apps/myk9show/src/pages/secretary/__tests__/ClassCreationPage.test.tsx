@@ -16,7 +16,12 @@ const mockClassStoreState = vi.hoisted(() => ({
     level?: string;
     section?: string;
   }>,
-  entries: [] as Array<{ classId: string; status: string }>,
+  entries: [] as Array<{
+    classId: string;
+    status?: string;
+    entryStatus?: string;
+    checkInStatus?: string;
+  }>,
   isLoading: false,
   isFetching: false,
   isStale: false,
@@ -87,7 +92,7 @@ describe('ClassCreationPage', () => {
     expect(screen.getByText('Selected Classes (1)')).toBeInTheDocument();
   });
 
-  it('hides the review Minutes stat when current entry counts are zero', async () => {
+  it('hides the review judge-time estimate when current entry counts are zero', async () => {
     const { user } = render(<ClassCreationPage trialId="trial-1" />);
 
     await chooseTemplate(user, 'Space');
@@ -97,10 +102,12 @@ describe('ClassCreationPage', () => {
     await user.click(screen.getByRole('button', { name: /next/i }));
 
     expect(screen.getByText('Review & Create')).toHaveClass('text-foreground');
-    expect(screen.queryByText('Minutes')).not.toBeInTheDocument();
+    expect(
+      screen.queryByText(/estimated judging time based on current entries/i)
+    ).not.toBeInTheDocument();
   });
 
-  it('uses the current active entry count for the review Minutes stat and updates it', async () => {
+  it('uses current counts only to gate the unchanged review judge-time estimate', async () => {
     const selectedClass = template.classDefinitions[0]!;
     mockClassStoreState.classes = [
       {
@@ -138,13 +145,48 @@ describe('ClassCreationPage', () => {
     await user.click(screen.getByRole('button', { name: /next/i }));
     await user.click(screen.getByRole('button', { name: /next/i }));
 
-    expect(screen.getByText('Minutes')).toBeInTheDocument();
+    expect(
+      screen.getByText(/estimated judging time based on current entries/i)
+    ).toBeInTheDocument();
     expect(screen.getByText('15')).toBeInTheDocument();
 
     mockClassStoreState.entries = [{ classId: 'class-1', status: 'Qualified' }];
     view.rerender(<ClassCreationPage trialId="trial-1" />);
 
     expect(screen.getByText('15')).toBeInTheDocument();
+  });
+
+  it.each([
+    ['moved', { entryStatus: 'moved' }],
+    ['scratched', { entryStatus: 'scratched' }],
+    ['not accepted', { entryStatus: 'not_accepted' }],
+    ['absent', { entryStatus: 'absent' }],
+    ['pulled', { entryStatus: 'accepted', checkInStatus: 'pulled' }],
+  ] as const)('hides review judge time for %s entries', async (_label, lifecycle) => {
+    const selectedClass = template.classDefinitions[0]!;
+    mockClassStoreState.classes = [
+      {
+        id: 'class-1',
+        trialId: 'trial-1',
+        className: selectedClass.className,
+        element: selectedClass.element,
+        level: selectedClass.level,
+        section: selectedClass.section,
+      },
+    ];
+    mockClassStoreState.entries = [{ classId: 'class-1', ...lifecycle }];
+
+    const { user } = render(<ClassCreationPage trialId="trial-1" />);
+
+    await chooseTemplate(user, 'Space');
+    await user.click(screen.getByRole('button', { name: /next/i }));
+    await user.click(screen.getByText('Container Novice A'));
+    await user.click(screen.getByRole('button', { name: /next/i }));
+    await user.click(screen.getByRole('button', { name: /next/i }));
+
+    expect(
+      screen.queryByText(/estimated judging time based on current entries/i)
+    ).not.toBeInTheDocument();
   });
 
   it('matches optional template fields to database-normalized empty strings', async () => {
@@ -182,6 +224,8 @@ describe('ClassCreationPage', () => {
     await user.click(screen.getByRole('button', { name: /next/i }));
     await user.click(screen.getByRole('button', { name: /next/i }));
 
-    expect(screen.getByText('Minutes')).toBeInTheDocument();
+    expect(
+      screen.getByText(/estimated judging time based on current entries/i)
+    ).toBeInTheDocument();
   });
 });

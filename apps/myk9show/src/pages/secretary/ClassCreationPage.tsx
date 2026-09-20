@@ -27,6 +27,7 @@ import { ClassSelectionGrid } from '@/components/templates/secretary/ClassSelect
 import { hasCurrentEntryCounts } from '@/components/templates/secretary/entryCountState';
 import { ClassBatchActions } from '@/components/templates/secretary/ClassBatchActions';
 import { FieldOverrideForm } from '@/components/templates/secretary/FieldOverrideForm';
+import { isExpectedEntry } from '@/features/_shared/entryAccounting';
 import { useClassStoreCompat } from '@/hooks/useClassStoreCompat';
 
 interface ClassCreationPageProps {
@@ -93,7 +94,7 @@ export const ClassCreationPage: React.FC<ClassCreationPageProps> = ({ trialId })
         .map(cls => cls.id)
     );
     const count = currentEntries.filter(
-      entry => trialClassIds.has(entry.classId) && entry.status !== 'Withdrawn'
+      entry => trialClassIds.has(entry.classId) && isExpectedEntry(entry)
     ).length;
     return { status: 'ready' as const, count };
   }, [
@@ -545,7 +546,9 @@ export const ClassCreationPage: React.FC<ClassCreationPageProps> = ({ trialId })
                         {selectedClassDefinitions.length *
                           (selectedTemplate.defaults?.judgingTimeEstimate || 15)}
                       </div>
-                      <div className="text-sm text-muted-foreground">Minutes</div>
+                      <div className="text-sm text-muted-foreground">
+                        Estimated judging time based on current entries
+                      </div>
                     </div>
                   )}
                   <div className="text-center">

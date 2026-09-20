@@ -24,7 +24,15 @@ describe('normalizeWizardClassTriple', () => {
         {
           id: 'trial-1',
           trialType: 'Scent Work',
-          classes: [{ customizations: triple }],
+          classes: [
+            {
+              customizations: {
+                element: triple.element,
+                level: triple.level,
+                section: triple.section,
+              },
+            },
+          ],
         },
       ])
     ).not.toThrow();

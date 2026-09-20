@@ -4,6 +4,7 @@ import {
   projectHandlerIdentity,
   type HandlerPersonLike,
 } from '@/features/registries/handlerIdentity';
+import { normalizePacketArmband } from '@/features/emergency-trial-packet/armband';
 
 import {
   buildCheckInPaperworkDescriptor,
@@ -85,7 +86,7 @@ export function buildReportPaperworkDescriptor(input: {
         entryId: entry.id,
         classId: entry.class_id ?? '',
         dogId: entry.dog_id ?? '',
-        armband: entry.armband ?? null,
+        armband: normalizePacketArmband(entry.armband),
         runOrder: entry.run_order,
         checkInStatus: entry.check_in_status,
         trialId: classById.get(entry.class_id ?? '')?.trial_id ?? undefined,
@@ -101,7 +102,7 @@ export function buildReportPaperworkDescriptor(input: {
         entryId: entry.id,
         classId: entry.class_id ?? '',
         dogId: entry.dog_id ?? '',
-        armband: entry.armband ?? null,
+        armband: normalizePacketArmband(entry.armband),
         runOrder: entry.run_order,
         checkInStatus: entry.check_in_status,
         section: classById.get(entry.class_id ?? '')?.section ?? null,
@@ -120,7 +121,7 @@ export function buildReportPaperworkDescriptor(input: {
         entryId: entry.id,
         classId: entry.class_id ?? '',
         dogId: entry.dog_id ?? '',
-        armband: entry.armband ?? null,
+        armband: normalizePacketArmband(entry.armband),
         resultStatus: entry.result_status,
         placement: entry.final_placement,
         searchTimeSeconds: entry.search_time_seconds,

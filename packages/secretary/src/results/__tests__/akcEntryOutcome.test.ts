@@ -212,7 +212,11 @@ describe('classifyAKCEntryOutcome', () => {
       const entries = [
         makeEntry({ armbandNumber: '1', resultStatus: 'qualified' }),
         makeEntry({ armbandNumber: '2', entryStatus: 'moved', resultStatus: 'pending' }),
-        makeEntry({ armbandNumber: '3', entryStatus: 'promotion-expired', resultStatus: 'pending' }),
+        makeEntry({
+          armbandNumber: '3',
+          entryStatus: 'promotion-expired',
+          resultStatus: 'pending',
+        }),
       ];
       expect(countUnscoredAKCEntries(entries)).toBe(0);
       expect(selectSubmittableAKCEntries(entries)).toHaveLength(1);

@@ -177,7 +177,7 @@ export function getOrgTitle(element?: string): string {
  * handler recorded" from "column is broken", which is exactly how MYK9-119
  * went unnoticed. Matches the wording `useCheckInReport` already prints.
  */
-export const UNKNOWN_HANDLER = 'Unknown';
+export const UNKNOWN_HANDLER = 'Unknown Handler';
 
 /**
  * Resolve the handler name for printed paperwork.

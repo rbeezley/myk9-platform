@@ -1,4 +1,8 @@
-import { mapDbEntryToReportEntry, resolveReportHandlerName } from '@/lib/reports/reportUtils';
+import {
+  mapDbEntryToReportEntry,
+  resolveReportHandlerName,
+  UNKNOWN_HANDLER,
+} from '@/lib/reports/reportUtils';
 import { resolveClassSection } from '@/services/entryDisplay/entryDisplaySelectors';
 import { REPORT_ENTRY_SOURCE } from '@/lib/reports/types';
 import { resolveClassJudgeName, resolveTrialJudgeName } from '@/utils/classJudgeDisplay';
@@ -21,6 +25,7 @@ import { deriveJuniorStatus } from '@/features/registries/juniorHandlerPolicy';
 import {
   projectHandlerIdentity,
   resolveHandlerPerson,
+  type HandlerPersonLike,
 } from '@/features/registries/handlerIdentity';
 
 export function mapReportEntries(
@@ -87,13 +92,18 @@ function mapReportEntry(
   assignedJudges: ReadonlyArray<ShowJudgeAssignment> = []
 ): ReportEntry {
   const dog = e.dog;
+  const ownerPerson = (dog as (typeof dog & { owner?: HandlerPersonLike | null }) | undefined)
+    ?.owner;
   const registration = e.registration;
   const handlerIdentity = projectHandlerIdentity({
     assignedHandlerName: e.handler,
     assignedHandlerId: e.handler_id,
     assignedHandlerPerson: e.handler_person,
+    ownerPerson,
   });
-  const handlerName = resolveReportHandlerName(handlerIdentity.name);
+  const handlerName = resolveReportHandlerName(
+    handlerIdentity.name ?? (e.handler_id?.trim() ? UNKNOWN_HANDLER : null)
+  );
   // Pass the armband through as TEXT. `Number('12A')` is NaN, which the packet
   // model then reads as "no armband" -- so a suffixed armband silently vanished
   // from the Reports page just as it printed `#0` on the packet (MYK9-243).

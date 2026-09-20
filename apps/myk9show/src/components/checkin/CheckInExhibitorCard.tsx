@@ -4,6 +4,10 @@ import { ChevronDown, ChevronUp } from 'lucide-react';
 import { StatusIcon } from '@/components/status';
 import { CheckInClassRow } from './CheckInClassRow';
 import type { ExhibitorCheckInGroup } from '@/hooks/queries/useCheckInReport';
+import {
+  formatPacketArmband,
+  UNASSIGNED_ARMBAND_DISPLAY,
+} from '@/features/emergency-trial-packet/armband';
 
 function getSummaryEntryStatus(summaryStatus: ExhibitorCheckInGroup['summaryStatus']) {
   if (summaryStatus === 'checked-in') return 'checked-in';
@@ -32,6 +36,7 @@ export function CheckInExhibitorCard({
 
   const summaryEntryStatus = getSummaryEntryStatus(group.summaryStatus);
   const isDone = group.summaryStatus === 'checked-in';
+  const armbandLabel = formatPacketArmband(group.armbandNumber);
 
   return (
     <div
@@ -45,7 +50,7 @@ export function CheckInExhibitorCard({
       >
         <div className="flex items-center gap-3">
           <span className="rounded-md bg-muted px-2.5 py-0.5 text-sm font-bold tabular-nums">
-            #{group.armbandNumber}
+            {armbandLabel === UNASSIGNED_ARMBAND_DISPLAY ? armbandLabel : `#${armbandLabel}`}
           </span>
           <div>
             <div className="text-sm font-semibold">{group.handlerName}</div>

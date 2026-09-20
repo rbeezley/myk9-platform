@@ -5,7 +5,7 @@ import type { ExhibitorCheckInGroup } from '@/hooks/queries/useCheckInReport';
 
 const makeGroup = (overrides: Partial<ExhibitorCheckInGroup> = {}): ExhibitorCheckInGroup => ({
   key: 'dog-1:handler-1',
-  armbandNumber: 142,
+  armbandNumber: '142',
   handlerName: 'Sarah Mitchell',
   dogName: 'Buddy',
   dogBreed: 'Golden Retriever',
@@ -44,6 +44,18 @@ describe('CheckInExhibitorCard', () => {
     expect(screen.getByText('#142')).toBeInTheDocument();
     expect(screen.getByText('Sarah Mitchell')).toBeInTheDocument();
     expect(screen.getByText(/Buddy/)).toBeInTheDocument();
+  });
+
+  it('renders an em dash without a hash for an unassigned armband', () => {
+    render(
+      <CheckInExhibitorCard
+        group={makeGroup({ armbandNumber: null })}
+        onCheckIn={vi.fn()}
+        onCheckInAll={vi.fn()}
+      />
+    );
+    expect(screen.getByText('—')).toBeInTheDocument();
+    expect(screen.queryByText('#—')).not.toBeInTheDocument();
   });
 
   it('shows "Check In All" button when no entries are checked in', () => {

@@ -262,6 +262,29 @@ describe('buildClassPaperworkMap', () => {
     }
   });
 
+  it('normalizes legacy zero armbands before report fingerprints', () => {
+    const scope = {
+      kind: 'class' as const,
+      showId: 'show-1',
+      trialId: 'trial-1',
+      classId: 'class-1',
+    };
+    const zero = buildReportPaperworkDescriptor({
+      reportId: 'check-in-sheet',
+      scope,
+      classes,
+      entries: [{ ...entries[0], armband: '0' } as DbEntry],
+    });
+    const unassigned = buildReportPaperworkDescriptor({
+      reportId: 'check-in-sheet',
+      scope,
+      classes,
+      entries: [{ ...entries[0], armband: null } as DbEntry],
+    });
+
+    expect(zero?.fingerprint).toBe(unassigned?.fingerprint);
+  });
+
   it('marks check-in paperwork stale when the assigned handler changes', () => {
     const scope = {
       kind: 'class' as const,

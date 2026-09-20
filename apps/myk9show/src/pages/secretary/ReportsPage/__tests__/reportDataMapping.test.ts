@@ -509,7 +509,7 @@ describe('mapScopedReportEntries', () => {
       expect(handler).toBe(UNKNOWN_HANDLER);
     });
 
-    it('does not fall back to the dog owner, who need not be the handler', () => {
+    it('uses the dog owner when no assigned handler exists', () => {
       const row = {
         ...handlerDbRow({ handler: null, handler_id: null }),
         dog: {
@@ -519,7 +519,17 @@ describe('mapScopedReportEntries', () => {
         },
       } as unknown as DbEntry;
 
-      expect(handlerOf(row)).toBe(UNKNOWN_HANDLER);
+      expect(handlerOf(row)).toBe('Dog Owner');
+    });
+
+    it('normalizes a legacy zero armband before rendering and fingerprinting', () => {
+      const row = handlerDbRow({ armband: '0' });
+      const mapped = mapScopedReportEntries([row], trials, classes, {
+        kind: 'show',
+        showId: 'show-1',
+      })[0];
+
+      expect(mapped?.armband).toBeNull();
     });
 
     it('ignores a whitespace-only handler', () => {

@@ -8,7 +8,7 @@ export async function refreshShowEntriesForRead(showId: string): Promise<boolean
   try {
     return await Promise.race([
       Promise.resolve(replicatedEntriesTable.sync(showId)).then(
-        () => true,
+        result => result.success === true,
         () => false
       ),
       new Promise<boolean>(resolve => {

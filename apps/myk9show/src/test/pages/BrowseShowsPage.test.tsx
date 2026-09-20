@@ -234,6 +234,8 @@ function setupMocks(options: {
   hasError?: boolean;
   showsError?: Error | null;
   enhancedShows?: EnhancedShow[];
+  accountEntriesDegraded?: boolean;
+  handleRetry?: () => void;
 }) {
   const {
     user = null,
@@ -242,6 +244,8 @@ function setupMocks(options: {
     hasError = false,
     showsError = null,
     enhancedShows,
+    accountEntriesDegraded = false,
+    handleRetry,
   } = options;
 
   // Set the auth user for useAuthContext mock
@@ -281,8 +285,10 @@ function setupMocks(options: {
       : null,
     tabQuickActions,
     quickStats: defaultQuickStats,
-    handleRetry: vi.fn(),
+    handleRetry: handleRetry ?? vi.fn(),
     loadEntries: vi.fn(),
+    accountEntriesReliable: !accountEntriesDegraded,
+    accountEntriesDegraded,
   });
 
   mockUseBrowseShowsFilters.mockReturnValue({
@@ -802,6 +808,29 @@ describe('BrowseShowsPage - Tab Rendering Logic', () => {
       await waitFor(() => {
         expect(screen.getByTestId('error-state')).toBeInTheDocument();
       });
+    });
+
+    it('keeps public discovery usable and warns when entered-show markers are unconfirmed', async () => {
+      const handleRetry = vi.fn();
+      setupMocks({
+        user: createMockUser(UserRole.EXHIBITOR),
+        accountEntriesDegraded: true,
+        handleRetry,
+      });
+
+      renderWithProviders(<BrowseShowsPage />);
+
+      expect(
+        await screen.findByText(
+          'Your entered-show markers may be incomplete while this device is offline'
+        )
+      ).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: 'Retry' })).toBeEnabled();
+      expect(screen.getByTestId('shows-cards')).toBeInTheDocument();
+      expect(screen.queryByText(/no shows/i)).not.toBeInTheDocument();
+
+      fireEvent.click(screen.getByRole('button', { name: 'Retry' }));
+      expect(handleRetry).toHaveBeenCalledTimes(1);
     });
   });
 });

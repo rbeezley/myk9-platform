@@ -23,7 +23,7 @@ import { ShowPermissionValidator } from '@/utils/permissionValidation';
 import { userHasEntriesForShow } from '@/utils/entryStatusUtils';
 import { mergeAccountEnteredShowStubs } from '@/utils/browseShowsUtils';
 import { useAccountEnteredShowIds } from '@/hooks/queries/useAccountEnteredShowIds';
-import { useEntriesPersonId } from '@/hooks/useEntriesPersonId';
+import type { PersonIdentityState } from '@/context/authContextTypes';
 
 /**
  * Enhanced show with relationship metadata
@@ -60,6 +60,10 @@ interface UseBrowseShowsDataReturn {
   hasError: boolean;
   showsError: Error | null;
   entriesError: string | null;
+  accountEnteredIdentityState: PersonIdentityState;
+  accountEnteredReadState: ReturnType<typeof useAccountEnteredShowIds>['readState'];
+  accountEntriesReliable: boolean;
+  accountEntriesDegraded: boolean;
 
   // Data
   shows: Show[];
@@ -85,7 +89,7 @@ export function useBrowseShowsData({
   selectedTab,
 }: UseBrowseShowsDataProps): UseBrowseShowsDataReturn {
   const navigate = useNavigate();
-  const { userWithRoles: user, loading: authLoading } = useAuthContext();
+  const { user: authUser, userWithRoles: user, loading: authLoading, personId } = useAuthContext();
   const storeShows = useShowStore(s => s.shows);
   const showsLoading = useShowStore(s => s.isLoading);
 
@@ -120,11 +124,10 @@ export function useBrowseShowsData({
   // so this corrects the tab count/list without swapping the shared store.
   // The SAME resolver the other three `getUserEntries` consumers use, so
   // restructure 4 is 4/4 rather than 3/4 (MYK9-629 round 1).
-  const personId = useEntriesPersonId();
-  const accountEnteredShowIds = useAccountEnteredShowIds(personId);
+  const accountEnteredShowIds = useAccountEnteredShowIds();
   const { active: activeAccountEnteredShowIds, all: allAccountEnteredShowIds } =
     accountEnteredShowIds;
-  const derivedUserId = user?.databaseUserId ?? user?.id;
+  const derivedUserId = personId ?? user?.databaseUserId ?? user?.id;
   const entries = useMemo(
     () =>
       mergeAccountEnteredShowStubs(
@@ -159,14 +162,25 @@ export function useBrowseShowsData({
   const showsSyncPending =
     !!user &&
     (syncStatus.tablesStatus.shows === 'idle' || syncStatus.tablesStatus.shows === 'syncing');
+  const accountIdentityPending =
+    Boolean(authUser) &&
+    (accountEnteredShowIds.readState === 'identity-unresolved' ||
+      accountEnteredShowIds.readState === 'read-pending');
+  const accountEntriesReliable = accountEnteredShowIds.readState === 'confirmed';
+  const accountEntriesDegraded =
+    accountEnteredShowIds.readState === 'unconfirmed' ||
+    accountEnteredShowIds.readState === 'error';
   const isLoading =
     authLoading ||
     showsLoading ||
     entriesLoading ||
     accountEnteredShowIds.isLoading ||
+    accountIdentityPending ||
     (shows.length === 0 && showsSyncPending) ||
     publicShowsLoading;
-  const hasError = !!(showsError || entriesError || accountEnteredShowIds.isError);
+  // Membership confidence is separate from public show discovery. An account
+  // read can be stale or unavailable while the public list remains usable.
+  const hasError = !!(showsError || entriesError);
 
   // Get user show context for filtering with caching
   const userContext = useMemo(() => {
@@ -343,6 +357,10 @@ export function useBrowseShowsData({
     hasError,
     showsError: showsError || null,
     entriesError: entriesError || null,
+    accountEnteredIdentityState: accountEnteredShowIds.identityState,
+    accountEnteredReadState: accountEnteredShowIds.readState,
+    accountEntriesReliable,
+    accountEntriesDegraded,
     shows,
     entries,
     enhancedShows,

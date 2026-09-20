@@ -127,6 +127,7 @@ describe('QuickAdvancePanel real handler hydration feedback loop', () => {
   });
 
   afterEach(() => {
+    vi.useRealTimers();
     vi.restoreAllMocks();
     onlineManager.setOnline(true);
     Object.defineProperty(navigator, 'onLine', { configurable: true, value: true });
@@ -167,16 +168,47 @@ describe('QuickAdvancePanel real handler hydration feedback loop', () => {
         );
         Object.defineProperty(navigator, 'onLine', { configurable: true, value: true });
         onlineManager.setOnline(true);
+        if (mode === 'deferred') vi.useFakeTimers();
 
         act(() => quickAdvanceMocks.entryListener?.());
-        await waitFor(() => expect(quickAdvanceMocks.replicatedRead).toHaveBeenCalledTimes(2));
+        const waitForSecondRead =
+          mode === 'deferred'
+            ? vi.waitFor(() =>
+                expect(quickAdvanceMocks.replicatedRead.mock.calls.length).toBeGreaterThanOrEqual(2)
+              )
+            : waitFor(() => expect(quickAdvanceMocks.replicatedRead).toHaveBeenCalledTimes(2));
+        await waitForSecondRead;
 
         if (mode === 'deferred') {
+          await vi.waitFor(() => expect(mockSupabase.from).toHaveBeenCalledWith('people'));
+          await vi.advanceTimersByTimeAsync(250);
+          await vi.waitFor(() => {
+            expect(quickAdvanceMocks.replicatedRead).toHaveBeenCalledTimes(2);
+            expect(client.getQueryState(['at-show', 'quick-advance', 'class-1'])).toMatchObject({
+              status: 'success',
+              fetchStatus: 'idle',
+            });
+            const projected = client.getQueryData<AtShowProjectedEntry[]>([
+              'at-show',
+              'quick-advance',
+              'class-1',
+            ]);
+            expect(projected?.[0]?.handler_identity).toEqual({
+              name: null,
+              source: 'unknown',
+              person: null,
+            });
+          });
           deferred.resolve({ data: [authoritativePerson], error: null });
         }
 
-        await waitFor(() => expect(quickAdvanceMocks.replicatedRead).toHaveBeenCalledTimes(3));
-        await waitFor(() => {
+        const waitForFollowUp =
+          mode === 'deferred'
+            ? vi.waitFor(() => expect(quickAdvanceMocks.replicatedRead).toHaveBeenCalledTimes(3))
+            : waitFor(() => expect(quickAdvanceMocks.replicatedRead).toHaveBeenCalledTimes(3));
+        await waitForFollowUp;
+        const waitForOwner = mode === 'deferred' ? vi.waitFor : waitFor;
+        await waitForOwner(() => {
           const projected = client.getQueryData<AtShowProjectedEntry[]>([
             'at-show',
             'quick-advance',
@@ -189,7 +221,8 @@ describe('QuickAdvancePanel real handler hydration feedback loop', () => {
             person: authoritativePerson,
           });
         });
-        await new Promise(resolve => setTimeout(resolve, 30));
+        if (mode === 'deferred') await vi.advanceTimersByTimeAsync(30);
+        else await new Promise(resolve => setTimeout(resolve, 30));
         expect(quickAdvanceMocks.replicatedRead).toHaveBeenCalledTimes(3);
       } finally {
         view.unmount();

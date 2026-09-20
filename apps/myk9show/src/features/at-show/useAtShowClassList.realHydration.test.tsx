@@ -206,6 +206,7 @@ describe('useAtShowClassList real handler hydration feedback loop', () => {
   });
 
   afterEach(() => {
+    vi.useRealTimers();
     vi.restoreAllMocks();
     Object.defineProperty(navigator, 'onLine', { configurable: true, value: true });
   });
@@ -239,31 +240,75 @@ describe('useAtShowClassList real handler hydration feedback loop', () => {
             : [deferred.promise, Promise.resolve({ data: [authoritativePerson], error: null })]
         );
         Object.defineProperty(navigator, 'onLine', { configurable: true, value: true });
+        if (mode === 'deferred') vi.useFakeTimers();
 
         act(() => subscriptions.entries?.());
-        await waitFor(() =>
-          expect(
-            replicationMocks.entries.getEntriesByShow.mock.calls.length
-          ).toBeGreaterThanOrEqual(2)
-        );
+        const waitForSecondRead =
+          mode === 'deferred'
+            ? vi.waitFor(() =>
+                expect(
+                  replicationMocks.entries.getEntriesByShow.mock.calls.length
+                ).toBeGreaterThanOrEqual(2)
+              )
+            : waitFor(() =>
+                expect(
+                  replicationMocks.entries.getEntriesByShow.mock.calls.length
+                ).toBeGreaterThanOrEqual(2)
+              );
+        await waitForSecondRead;
 
         if (mode === 'deferred') {
+          await vi.waitFor(() => expect(mockSupabase.from).toHaveBeenCalledWith('people'));
+          await vi.advanceTimersByTimeAsync(250);
+          await vi.waitFor(() => {
+            expect(replicationMocks.entries.getEntriesByShow).toHaveBeenCalledTimes(2);
+            expect(client.getQueryState(['at-show', 'classlist', 'show-1'])).toMatchObject({
+              status: 'success',
+              fetchStatus: 'idle',
+            });
+            expect(result.current.groups[0]?.handlerIdentitiesByClassId?.get('class-1')).toEqual([
+              { name: null, source: 'unknown', person: null },
+            ]);
+          });
           deferred.resolve({ data: [authoritativePerson], error: null });
         }
 
-        await waitFor(() =>
-          expect(replicationMocks.entries.getEntriesByShow).toHaveBeenCalledTimes(3)
-        );
-        await waitFor(() =>
-          expect(result.current.groups[0]?.handlerIdentitiesByClassId?.get('class-1')).toEqual([
-            {
-              name: 'Olivia Owner',
-              source: 'owner',
-              person: authoritativePerson,
-            },
-          ])
-        );
-        await new Promise(resolve => setTimeout(resolve, 30));
+        const waitForFollowUp =
+          mode === 'deferred'
+            ? vi.waitFor(() =>
+                expect(replicationMocks.entries.getEntriesByShow).toHaveBeenCalledTimes(3)
+              )
+            : waitFor(() =>
+                expect(replicationMocks.entries.getEntriesByShow).toHaveBeenCalledTimes(3)
+              );
+        await waitForFollowUp;
+        const waitForOwner =
+          mode === 'deferred'
+            ? vi.waitFor(() =>
+                expect(
+                  result.current.groups[0]?.handlerIdentitiesByClassId?.get('class-1')
+                ).toEqual([
+                  {
+                    name: 'Olivia Owner',
+                    source: 'owner',
+                    person: authoritativePerson,
+                  },
+                ])
+              )
+            : waitFor(() =>
+                expect(
+                  result.current.groups[0]?.handlerIdentitiesByClassId?.get('class-1')
+                ).toEqual([
+                  {
+                    name: 'Olivia Owner',
+                    source: 'owner',
+                    person: authoritativePerson,
+                  },
+                ])
+              );
+        await waitForOwner;
+        if (mode === 'deferred') await vi.advanceTimersByTimeAsync(30);
+        else await new Promise(resolve => setTimeout(resolve, 30));
         expect(replicationMocks.entries.getEntriesByShow).toHaveBeenCalledTimes(3);
         expect(navigator.onLine).toBe(true);
       } finally {

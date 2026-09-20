@@ -147,3 +147,33 @@ passed (exit 0)
 pnpm format:check:changed
 blocked by the pre-existing branch change in apps/myk9show/src/services/database/entries/secretary.replication.test.ts; no fix-round file was reported
 ```
+
+## Fix round 3 evidence
+
+Corrected the deferred cases in both real-hydration suites. They now install
+fake timers only for the deferred branch, hold the authoritative response past
+the hydrator's 250 ms fast-path deadline, assert the consumer's second query is
+idle with an unresolved owner, then resolve the response and assert the single
+completion-driven follow-up plus the final owner projection. Each suite restores
+real timers and unmounts the consumer in cleanup. No production files changed.
+
+Exact verification:
+
+```text
+cd apps/myk9show && pnpm vitest run src/features/at-show/useAtShowClassList.realHydration.test.tsx src/features/at-show/quickAdvancePanel.realHydration.test.tsx
+Test Files  2 passed (2)
+Tests       4 passed (4)
+
+cd apps/myk9show && pnpm vitest run src/services/database/entries/handlerHydration.test.ts src/features/at-show/useAtShowClassList.test.tsx src/features/at-show/quickAdvanceReplicated.test.ts src/features/at-show/AtShowClassListPage.yourRing.test.tsx src/services/mappers/__tests__/entryMappers.test.ts src/features/at-show/useAtShowClassList.realHydration.test.tsx src/features/at-show/quickAdvancePanel.realHydration.test.tsx
+Test Files  7 passed (7)
+Tests       53 passed (53)
+
+cd apps/myk9show && pnpm exec tsc --noEmit --project tsconfig.test.json
+passed (exit 0)
+
+pnpm exec prettier --check apps/myk9show/src/features/at-show/useAtShowClassList.realHydration.test.tsx apps/myk9show/src/features/at-show/quickAdvancePanel.realHydration.test.tsx
+passed; both corrected test files matched Prettier
+
+git diff --check
+passed (exit 0)
+```

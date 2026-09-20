@@ -139,7 +139,7 @@ describe('ClassCreationPage', () => {
     await user.click(screen.getByRole('button', { name: /next/i }));
 
     expect(screen.getByText('Minutes')).toBeInTheDocument();
-    expect(screen.getByText('30')).toBeInTheDocument();
+    expect(screen.getByText('15')).toBeInTheDocument();
 
     mockClassStoreState.entries = [{ classId: 'class-1', status: 'Qualified' }];
     view.rerender(<ClassCreationPage trialId="trial-1" />);

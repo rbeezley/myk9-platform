@@ -478,7 +478,7 @@ export const ClassSelectionGrid: React.FC<ClassSelectionGridProps> = ({
                 </span>
                 <div className="text-sm text-muted-foreground">
                   Estimated judging time based on current entries:{' '}
-                  {entryCountState.count * (template.defaults?.judgingTimeEstimate || 15)} minutes
+                  {selectedClasses.length * (template.defaults?.judgingTimeEstimate || 15)} minutes
                 </div>
               </div>
               <Button variant="outline" onClick={clearAllSelections}>

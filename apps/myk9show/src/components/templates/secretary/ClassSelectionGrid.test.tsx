@@ -49,13 +49,13 @@ describe('ClassSelectionGrid judge-time estimate', () => {
   it('shows the unchanged calculation and current-entry wording for populated counts', () => {
     renderGrid({ status: 'ready', count: 3 });
 
-    expect(screen.getByText(/45\s+minutes/)).toBeInTheDocument();
+    expect(screen.getByText(/15\s+minutes/)).toBeInTheDocument();
     expect(
       screen.getByText(/estimated judging time based on current entries/i)
     ).toBeInTheDocument();
   });
 
-  it('reacts when current entries are added or withdrawn', () => {
+  it('hides and restores the unchanged calculation as current counts change', () => {
     const view = renderGrid({ status: 'ready', count: 1 });
     expect(screen.getByText(/based on current entries/i)).toBeInTheDocument();
     expect(screen.getByText(/15\s+minutes/)).toBeInTheDocument();
@@ -81,6 +81,6 @@ describe('ClassSelectionGrid judge-time estimate', () => {
     );
 
     expect(screen.getByText(/based on current entries/i)).toBeInTheDocument();
-    expect(screen.getByText(/30\s+minutes/)).toBeInTheDocument();
+    expect(screen.getByText(/15\s+minutes/)).toBeInTheDocument();
   });
 });

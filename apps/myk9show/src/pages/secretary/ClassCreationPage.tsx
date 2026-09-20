@@ -542,7 +542,7 @@ export const ClassCreationPage: React.FC<ClassCreationPageProps> = ({ trialId })
                   {showJudgeTimeEstimate && (
                     <div className="text-center">
                       <div className="text-2xl font-bold text-teal-600">
-                        {entryCountState.count *
+                        {selectedClassDefinitions.length *
                           (selectedTemplate.defaults?.judgingTimeEstimate || 15)}
                       </div>
                       <div className="text-sm text-muted-foreground">Minutes</div>

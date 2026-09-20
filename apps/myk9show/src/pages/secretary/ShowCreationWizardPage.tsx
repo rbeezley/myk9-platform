@@ -96,7 +96,9 @@ const ShowCreationWizardPage: React.FC = () => {
   const {
     trials: existingTrials,
     trialsReadStatus,
+    trialsReadError,
     trialsHasConfirmedSnapshot,
+    loadTrials,
   } = useTrialStore();
   const existingTrialsReady =
     editMode?.mode !== 'add-trials' ||
@@ -394,6 +396,13 @@ const ShowCreationWizardPage: React.FC = () => {
                     onCreateShow={handleCreateShow}
                     onBack={handleBack}
                     officialsUnknown={officialsUnavailable}
+                    existingTrialsReadStatus={
+                      editMode?.mode === 'add-trials' ? trialsReadStatus : undefined
+                    }
+                    existingTrialsReadError={
+                      editMode?.mode === 'add-trials' ? trialsReadError : undefined
+                    }
+                    onRetryExistingTrials={editMode?.mode === 'add-trials' ? loadTrials : undefined}
                   />
                 )}
               </div>

@@ -1,5 +1,6 @@
 import React from 'react';
 import type { Trial } from '@/store/trialStore';
+import type { ReplicatedReadStatus } from '@/store/trial-store-types';
 import type { SyncableClassData } from '@/store/classStore';
 import ShowDetailsStep from '@/components/shows/wizard/steps/ShowDetailsStep';
 import TrialConfigurationStep from '@/components/shows/wizard/steps/TrialConfigurationStep';
@@ -20,6 +21,12 @@ interface WizardStepContentProps {
   onBack: () => void;
   /** True when the show's existing officials could not be read. */
   officialsUnknown?: boolean | undefined;
+  /** Read status for the existing-show trial snapshot. */
+  existingTrialsReadStatus?: ReplicatedReadStatus | undefined;
+  /** Error from the latest existing-show trial snapshot read. */
+  existingTrialsReadError?: string | null | undefined;
+  /** Retry the existing-show trial snapshot read. */
+  onRetryExistingTrials?: (() => void | Promise<void>) | undefined;
 }
 
 /**
@@ -38,6 +45,9 @@ export const WizardStepContent: React.FC<WizardStepContentProps> = ({
   onCreateShow,
   onBack,
   officialsUnknown,
+  existingTrialsReadStatus,
+  existingTrialsReadError,
+  onRetryExistingTrials,
 }) => {
   const stepProps = { className: '' };
 
@@ -58,6 +68,9 @@ export const WizardStepContent: React.FC<WizardStepContentProps> = ({
             trialDate: trial.trialDate,
           }))}
           existingTrialsReady={existingTrialsReady}
+          existingTrialsReadStatus={existingTrialsReadStatus}
+          existingTrialsReadError={existingTrialsReadError}
+          onRetryExistingTrials={onRetryExistingTrials}
           submitted={hasAttemptedNext}
         />
       );

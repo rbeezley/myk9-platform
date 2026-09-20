@@ -15,6 +15,7 @@ import { parseLocalDateString } from '@/utils/dateLocal';
 import { Label } from '@/components/ui/label';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { useWizardStore } from '@/store/wizardStore';
+import type { ReplicatedReadStatus } from '@/store/trial-store-types';
 import { useTemplates } from '@/hooks/useTemplates';
 import { formatTrialTypeLabel } from '@/types/template.types';
 import {
@@ -43,6 +44,12 @@ interface TrialConfigurationStepProps {
   submitted?: boolean;
   /** Existing-show trials are addable only after a confirmed replicated snapshot. */
   existingTrialsReady?: boolean;
+  /** Read status for the existing-show trial snapshot. */
+  existingTrialsReadStatus?: ReplicatedReadStatus | undefined;
+  /** Error from the latest existing-show trial snapshot read. */
+  existingTrialsReadError?: string | null | undefined;
+  /** Retry the existing-show trial snapshot read. */
+  onRetryExistingTrials?: (() => void | Promise<void>) | undefined;
 }
 
 export const TrialConfigurationStep: React.FC<TrialConfigurationStepProps> = ({
@@ -51,6 +58,9 @@ export const TrialConfigurationStep: React.FC<TrialConfigurationStepProps> = ({
   existingTrials = [],
   submitted = false,
   existingTrialsReady = true,
+  existingTrialsReadStatus,
+  existingTrialsReadError,
+  onRetryExistingTrials,
 }) => {
   const { show, trials, addTrial, updateTrial, removeTrial } = useWizardStore();
   const { templates } = useTemplates();
@@ -72,6 +82,8 @@ export const TrialConfigurationStep: React.FC<TrialConfigurationStepProps> = ({
     [show.startDate, allTrials]
   );
   const canAddTrial = existingTrialsReady;
+  const isExistingTrialsLoading = !canAddTrial && existingTrialsReadStatus === 'loading';
+  const existingTrialsReadFailed = !canAddTrial && existingTrialsReadStatus === 'error';
 
   // Derive errors using useMemo instead of useState + effect
   const errors = useMemo(() => {
@@ -185,11 +197,36 @@ export const TrialConfigurationStep: React.FC<TrialConfigurationStepProps> = ({
             </Button>
           </div>
 
-          {!canAddTrial && (
+          {existingTrialsReadFailed ? (
+            <div
+              role="alert"
+              className="flex flex-col gap-3 rounded-lg border border-destructive/30 bg-destructive/5 px-4 py-3 text-sm"
+            >
+              <div>
+                <p className="font-medium text-foreground">
+                  We couldn&apos;t verify the current trials.
+                </p>
+                <p className="text-muted-foreground">
+                  {existingTrialsReadError || 'Try again before adding a trial.'}
+                </p>
+              </div>
+              <Button
+                type="button"
+                variant="outline"
+                className="w-fit"
+                onClick={() => void onRetryExistingTrials?.()}
+                disabled={isExistingTrialsLoading}
+              >
+                Retry
+              </Button>
+            </div>
+          ) : !canAddTrial ? (
             <p role="status" className="text-sm text-muted-foreground">
-              Checking the current trials before adding another one…
+              {isExistingTrialsLoading
+                ? 'Loading the current trials…'
+                : 'Checking the current trials before adding another one…'}
             </p>
-          )}
+          ) : null}
 
           {/* Existing trials info banner */}
           {existingTrialCount > 0 && (

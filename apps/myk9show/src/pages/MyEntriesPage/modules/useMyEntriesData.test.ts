@@ -3,15 +3,11 @@ import { renderHook, waitFor, act } from '@testing-library/react';
 import { shouldRenderOwnEntry, useMyEntriesData } from './useMyEntriesData';
 import { getUserEntries } from '@/services/database/entries';
 import { useAuthContext } from '@/hooks/useAuthContext';
-import { useCurrentUserPersonId } from '@/hooks/useRoleBasedData';
 
 vi.mock('@/services/database/entries', () => ({
   getUserEntries: vi.fn(),
 }));
 vi.mock('@/hooks/useAuthContext');
-vi.mock('@/hooks/useRoleBasedData', () => ({
-  useCurrentUserPersonId: vi.fn(),
-}));
 vi.mock('@/services/AuditService', () => ({
   auditService: { log: vi.fn() },
   AuditAction: { READ: 'READ', UPDATE: 'UPDATE' },
@@ -95,9 +91,9 @@ describe('useMyEntriesData — entry_close_date is a calendar date, not an insta
     (useAuthContext as ReturnType<typeof vi.fn>).mockReturnValue({
       user: { id: 'user-1', email: 'exhibitor@test.com' },
       userWithRoles: { databaseUserId: 'person-1' },
+      personId: 'person-1',
       isAuthenticated: true,
     });
-    (useCurrentUserPersonId as ReturnType<typeof vi.fn>).mockReturnValue('person-1');
   });
 
   afterEach(() => {
@@ -139,9 +135,9 @@ describe('useMyEntriesData — trial timezone lands on the class row', () => {
     (useAuthContext as ReturnType<typeof vi.fn>).mockReturnValue({
       user: { id: 'user-1', email: 'exhibitor@test.com' },
       userWithRoles: { databaseUserId: 'person-1' },
+      personId: 'person-1',
       isAuthenticated: true,
     });
-    (useCurrentUserPersonId as ReturnType<typeof vi.fn>).mockReturnValue('person-1');
   });
 
   it("carries the trial's own zone onto every class row", async () => {
@@ -183,9 +179,9 @@ describe('useMyEntriesData — move-up lineage reaches card-level money math', (
     (useAuthContext as ReturnType<typeof vi.fn>).mockReturnValue({
       user: { id: 'user-1', email: 'exhibitor@test.com' },
       userWithRoles: { databaseUserId: 'person-1' },
+      personId: 'person-1',
       isAuthenticated: true,
     });
-    (useCurrentUserPersonId as ReturnType<typeof vi.fn>).mockReturnValue('person-1');
   });
 
   it('preserves moved_from_entry_id on the live destination class', async () => {
@@ -209,9 +205,9 @@ describe('useMyEntriesData — a failed reload must not discard loaded entries',
     (useAuthContext as ReturnType<typeof vi.fn>).mockReturnValue({
       user: { id: 'user-1', email: 'exhibitor@test.com' },
       userWithRoles: { databaseUserId: 'person-1' },
+      personId: 'person-1',
       isAuthenticated: true,
     });
-    (useCurrentUserPersonId as ReturnType<typeof vi.fn>).mockReturnValue('person-1');
   });
 
   // INTENT (PRODUCT.md principle 4, "Offline is normal, not broken"): the error
@@ -333,9 +329,9 @@ describe('useMyEntriesData — preserved entries must not cross an identity chan
     (useAuthContext as ReturnType<typeof vi.fn>).mockReturnValue({
       user: { id: 'user-A', email: 'a@test.com' },
       userWithRoles: { databaseUserId: 'person-A' },
+      personId: 'person-A',
       isAuthenticated: true,
     });
-    (useCurrentUserPersonId as ReturnType<typeof vi.fn>).mockReturnValue('person-A');
   });
 
   // Raised by Codex review on PR #1696. Preserving entries across a failed
@@ -357,9 +353,9 @@ describe('useMyEntriesData — preserved entries must not cross an identity chan
     (useAuthContext as ReturnType<typeof vi.fn>).mockReturnValue({
       user: { id: 'user-B', email: 'b@test.com' },
       userWithRoles: { databaseUserId: 'person-B' },
+      personId: 'person-B',
       isAuthenticated: true,
     });
-    (useCurrentUserPersonId as ReturnType<typeof vi.fn>).mockReturnValue('person-B');
     (getUserEntries as ReturnType<typeof vi.fn>).mockResolvedValue({
       source: 'confirmed',
       data: null,

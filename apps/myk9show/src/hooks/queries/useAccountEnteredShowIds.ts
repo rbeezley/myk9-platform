@@ -1,6 +1,12 @@
 import { useQuery } from '@tanstack/react-query';
+import { useAuthContext } from '@/hooks/useAuthContext';
 import { getUserEntries } from '@/services/database/entries';
 import { isActiveSubmittedEntryStatus } from '@/services/entryDisplay/entryDisplaySelectors';
+import type { PersonIdentityState } from '@/context/authContextTypes';
+import {
+  deriveAccountEntryReadState,
+  type AccountEntryReadState,
+} from '@/features/account-entry-read/accountEntryReadState';
 
 /**
  * exhibitor-count-integrity (Shows page "Entered as exhibitor" tab).
@@ -18,15 +24,18 @@ import { isActiveSubmittedEntryStatus } from '@/services/entryDisplay/entryDispl
  * corrected without swapping the shared `entryStore` that many other surfaces
  * depend on.
  *
- * Returns show ids only; the caller stamps them with its own user id so the
- * existing membership filters (which key on `registrationData.handlerId`)
- * match regardless of which user-identity notion the page uses.
+ * Returns show ids plus the explicit identity/read state; the caller stamps
+ * them with its own user id so the existing membership filters (which key on
+ * `registrationData.handlerId`) match without re-resolving account identity.
  */
 export interface AccountEnteredShowIds {
   all: string[];
   active: string[];
   isLoading: boolean;
   isError: boolean;
+  identityState: PersonIdentityState;
+  hasUsablePersonId: boolean;
+  readState: AccountEntryReadState;
 }
 
 const EMPTY_ACCOUNT_ENTERED_SHOW_IDS: AccountEnteredShowIds = {
@@ -34,16 +43,25 @@ const EMPTY_ACCOUNT_ENTERED_SHOW_IDS: AccountEnteredShowIds = {
   active: [],
   isLoading: false,
   isError: false,
+  identityState: 'unresolved',
+  hasUsablePersonId: false,
+  readState: 'identity-unresolved',
 };
 
-export function useAccountEnteredShowIds(
-  personId: string | null | undefined
-): AccountEnteredShowIds {
-  const { data, isLoading, isError } = useQuery({
+export function useAccountEnteredShowIds(): AccountEnteredShowIds {
+  const {
+    user,
+    personId,
+    personIdentityState: authIdentityState,
+    hasUsablePersonId: authHasUsablePersonId,
+  } = useAuthContext();
+  const identityState = authIdentityState ?? (personId ? 'resolved' : 'unresolved');
+  const hasUsablePersonId = authHasUsablePersonId ?? Boolean(personId);
+  const { data, isLoading, isPending, isError } = useQuery({
     queryKey: ['browse-shows', 'account-entered-show-ids', personId],
     queryFn: async () => {
-      if (!personId) return EMPTY_ACCOUNT_ENTERED_SHOW_IDS;
-      const { data: rows, error } = await getUserEntries(personId);
+      if (!personId) return { all: [], active: [], source: 'replica-after-error' as const };
+      const { data: rows, error, source } = await getUserEntries(personId);
       if (error) throw error;
 
       const all = new Set<string>();
@@ -62,7 +80,7 @@ export function useAccountEnteredShowIds(
           active.add(showId);
         }
       }
-      return { all: [...all], active: [...active] };
+      return { all: [...all], active: [...active], source };
     },
     enabled: !!personId,
     staleTime: 60_000,
@@ -78,12 +96,25 @@ export function useAccountEnteredShowIds(
     networkMode: 'always' as const,
   });
 
+  const readState = deriveAccountEntryReadState({
+    hasUser: Boolean(user?.id),
+    personId: personId ?? null,
+    personIdentityState: identityState,
+    isPending: isPending ?? isLoading,
+    isError,
+    source: data?.source,
+  });
+
   return {
-    ...(data ?? EMPTY_ACCOUNT_ENTERED_SHOW_IDS),
+    all: data?.all ?? EMPTY_ACCOUNT_ENTERED_SHOW_IDS.all,
+    active: data?.active ?? EMPTY_ACCOUNT_ENTERED_SHOW_IDS.active,
     // A disabled query for an anonymous visitor must not keep Browse Shows in
     // a loading state. Authenticated exhibitors wait for this authoritative
     // account-level read instead of seeing a false zero-entry state.
     isLoading: !!personId && isLoading,
     isError: !!personId && isError,
+    identityState,
+    hasUsablePersonId,
+    readState,
   };
 }

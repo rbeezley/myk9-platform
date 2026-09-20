@@ -18,6 +18,9 @@ const banner = { items: [] as unknown[], isLoading: false };
 const exhibitorUpcoming = {
   upcomingShows: [] as { showId: string; showName: string }[],
   isLoading: false,
+  identityState: 'resolved' as const,
+  hasUsablePersonId: true,
+  readState: 'confirmed' as const,
 };
 let storeShows: Show[] = [];
 
@@ -53,6 +56,9 @@ describe('useRingsideEntryShows', () => {
     banner.items = [];
     exhibitorUpcoming.upcomingShows = [];
     exhibitorUpcoming.isLoading = false;
+    exhibitorUpcoming.identityState = 'resolved';
+    exhibitorUpcoming.hasUsablePersonId = true;
+    exhibitorUpcoming.readState = 'confirmed';
   });
 
   it('lists a manager multi-day in-progress show as live on its second day', () => {

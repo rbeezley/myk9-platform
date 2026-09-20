@@ -7,6 +7,11 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useAuthContext } from '@/hooks/useAuthContext';
 import { useEntriesPersonId } from '@/hooks/useEntriesPersonId';
+import type { PersonIdentityState } from '@/context/authContextTypes';
+import {
+  deriveAccountEntryReadState,
+  type AccountEntryReadState,
+} from '@/features/account-entry-read/accountEntryReadState';
 import { deriveEntriesIdentityState, type EntriesIdentityState } from './entriesIdentityState';
 import { auditService } from '@/services/AuditService';
 import { AuditAction } from '@/types/audit-types';
@@ -62,6 +67,7 @@ interface UseMyEntriesDataReturn {
    * offline, so an empty list under an unresolved identity proves nothing.
    */
   identityState: EntriesIdentityState;
+  readState: AccountEntryReadState;
   isLoading: boolean;
   isError: boolean;
   refreshing: boolean;
@@ -150,7 +156,7 @@ function getOwnEntryPaymentStatus(
 export function useMyEntriesData({
   persistCheckInStatus,
 }: UseMyEntriesDataOptions): UseMyEntriesDataReturn {
-  const { user, loading: authLoading } = useAuthContext();
+  const { user, loading: authLoading, personIdentityState } = useAuthContext();
   // The one resolver, shared with My Payments and both ringside hooks, so the
   // `getUserEntries` cache is one key per account (MYK9-629 restructure 4).
   const personId = useEntriesPersonId();
@@ -161,7 +167,10 @@ export function useMyEntriesData({
     authLoading,
     hasUser: Boolean(user?.id),
     personId,
+    personIdentityState,
   });
+  const entryPersonIdentityState: PersonIdentityState =
+    personIdentityState ?? (personId ? 'resolved' : 'unresolved');
   const [entries, setEntries] = useState<MyEntry[]>([]);
   // Before the first read lands, the balance is UNKNOWN, not zero: a zeroed
   // `known` summary is the "$0.00, paid up" claim this page is not entitled to
@@ -528,11 +537,21 @@ export function useMyEntriesData({
     [entries, persistCheckInStatus, user?.id]
   );
 
+  const readState = deriveAccountEntryReadState({
+    hasUser: Boolean(user?.id),
+    personId: personId ?? null,
+    personIdentityState: entryPersonIdentityState,
+    isPending: isLoading,
+    isError,
+    source,
+  });
+
   return {
     entries,
     balanceSummary,
     source,
     identityState,
+    readState,
     isLoading,
     isError,
     refreshing,

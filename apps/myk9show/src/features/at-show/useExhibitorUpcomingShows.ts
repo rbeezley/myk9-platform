@@ -12,34 +12,48 @@
  * adds no new network path; the bucketing itself lives in the pure
  * `selectExhibitorUpcomingShows`.
  *
- * Identity note: `personId` resolves through `useEntriesPersonId`, which reads
- * the AuthContext `people` lookup — a plain network query that PAUSES
- * offline — so it can stay null
- * indefinitely on a cold offline boot. This hook deliberately does NOT report
+ * Identity note: `personId` can come from the AuthContext's durable pairing
+ * before the `people` lookup finishes. When neither source is available, this
+ * hook deliberately does NOT report
  * that as `isLoading`: `useRingsideEntryShows` folds every source's flag into
  * one, and a never-resolving flag would park the whole entry point on "Finding
  * your show…" forever, for staff as well as exhibitors. A hard hang at the
  * ringside front door is worse than the empty chooser it would replace.
  *
- * The cost is that an unresolved identity is indistinguishable from "no
- * upcoming shows" here (the disabled-query-renders-false-zero shape). That is
- * contained because nothing downstream states the emptiness as fact — the
- * chooser's empty state offers the passcode and My Shows rather than asserting
- * the exhibitor has no entries — and because it degrades to exactly the
- * behaviour that shipped before this source existed.
+ * The hook returns the identity state separately from the rows. Consumers can
+ * keep the chooser's non-blocking loading behavior while avoiding a false
+ * "no upcoming shows" or stranger decision during a cold offline boot.
  */
 
 import { useQuery } from '@tanstack/react-query';
 import { useEntriesPersonId } from '@/hooks/useEntriesPersonId';
+import { useAuthContext } from '@/hooks/useAuthContext';
 import { getUserEntries } from '@/services/database/entries';
+import type { UserEntriesSource } from '@/services/database/entries/userEntriesRead';
+import type { PersonIdentityState } from '@/context/authContextTypes';
 import { selectExhibitorUpcomingShows, type ExhibitorEntryRow } from './exhibitorRingsideShows';
 import type { NamedShowSource } from './ringsideEntryResolver';
+import {
+  deriveAccountEntryReadState,
+  type AccountEntryReadState,
+} from '@/features/account-entry-read/accountEntryReadState';
 
 const EMPTY: NamedShowSource[] = [];
+
+/** @deprecated Use AccountEntryReadState at call sites. */
+export type ExhibitorUpcomingReadState = AccountEntryReadState;
+
+interface UpcomingShowsRead {
+  shows: NamedShowSource[];
+  source: UserEntriesSource;
+}
 
 export interface ExhibitorUpcomingShows {
   upcomingShows: NamedShowSource[];
   isLoading: boolean;
+  identityState: PersonIdentityState;
+  hasUsablePersonId: boolean;
+  readState: ExhibitorUpcomingReadState;
 }
 
 export function useExhibitorUpcomingShows(): ExhibitorUpcomingShows {
@@ -47,13 +61,24 @@ export function useExhibitorUpcomingShows(): ExhibitorUpcomingShows {
   // so the `getUserEntries` cache is one key per account (MYK9-629
   // restructure 4).
   const personId = useEntriesPersonId();
+  const {
+    user,
+    personIdentityState: authIdentityState,
+    hasUsablePersonId: authHasUsablePersonId,
+  } = useAuthContext();
+  const identityState: PersonIdentityState =
+    authIdentityState ?? (personId ? 'resolved' : 'unresolved');
+  const hasUsablePersonId = authHasUsablePersonId ?? Boolean(personId);
 
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, isPending, isError } = useQuery<UpcomingShowsRead>({
     queryKey: ['at-show', 'exhibitor-upcoming-shows', personId],
     queryFn: async () => {
-      const { data: rows, error } = await getUserEntries(personId as string);
+      const { data: rows, error, source } = await getUserEntries(personId as string);
       if (error) throw error;
-      return selectExhibitorUpcomingShows((rows ?? []) as ExhibitorEntryRow[]);
+      return {
+        shows: selectExhibitorUpcomingShows((rows ?? []) as ExhibitorEntryRow[]),
+        source,
+      };
     },
     enabled: !!personId,
     staleTime: 60_000,
@@ -68,10 +93,21 @@ export function useExhibitorUpcomingShows(): ExhibitorUpcomingShows {
     // reason as `useAtShowClassList` / `RingsideShowBoundary`.
     networkMode: 'always' as const,
   });
+  const readState = deriveAccountEntryReadState({
+    hasUser: Boolean(user?.id),
+    personId: personId ?? null,
+    personIdentityState: identityState,
+    isPending: isPending ?? isLoading,
+    isError,
+    source: data?.source,
+  });
 
   return {
-    upcomingShows: data ?? EMPTY,
+    upcomingShows: data?.shows ?? EMPTY,
     // Never loading without an identity to load for — see the identity note above.
     isLoading: !!personId && isLoading,
+    identityState,
+    hasUsablePersonId,
+    readState,
   };
 }

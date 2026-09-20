@@ -339,6 +339,42 @@ describe('useMyEntriesData — a failed reload must not discard loaded entries',
   });
 });
 
+describe('useMyEntriesData — unloaded entries keep a stable identity fence', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    (useAuthContext as ReturnType<typeof vi.fn>).mockReturnValue({
+      user: { id: 'user-A', email: 'a@test.com' },
+      userWithRoles: { databaseUserId: 'person-A' },
+      personId: 'person-A',
+      personIdentityState: 'resolved',
+      hasUsablePersonId: true,
+      isAuthenticated: true,
+    });
+  });
+
+  it('keeps the pending empty entries array referentially stable across rerender', async () => {
+    const pendingRead = deferred<{
+      source: 'confirmed';
+      data: ReturnType<typeof entryRow>[];
+      error: null;
+    }>();
+    (getUserEntries as ReturnType<typeof vi.fn>).mockReturnValue(pendingRead.promise);
+
+    const { result, rerender } = renderData();
+    const pendingEntries = result.current.entries;
+
+    expect(pendingEntries).toEqual([]);
+    rerender();
+    expect(result.current.entries).toBe(pendingEntries);
+    expect(getUserEntries).toHaveBeenCalledWith('person-A');
+
+    await act(async () => {
+      pendingRead.resolve({ source: 'confirmed', data: [], error: null });
+      await pendingRead.promise;
+    });
+  });
+});
+
 describe('useMyEntriesData — preserved entries must not cross an identity change', () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -467,6 +503,9 @@ describe('useMyEntriesData — preserved entries must not cross an identity chan
     // can answer. This is the important synchronous half of the fence.
     expect(result.current.entries).toEqual([]);
     expect(result.current.balanceSummary.kind).toBe('unknown');
+    const hiddenEntries = result.current.entries;
+    act(() => rerender());
+    expect(result.current.entries).toBe(hiddenEntries);
 
     await act(async () => {
       accountBRead.resolve({ source: 'confirmed', data: [accountBRow], error: null });

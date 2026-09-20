@@ -80,6 +80,13 @@ interface UseMyEntriesDataReturn {
   ) => Promise<void>;
 }
 
+/**
+ * Stable identity-fence value. Callers use `entries` in memo and effect
+ * dependencies, so an unloaded identity must not create a new empty array on
+ * every render while its account read is pending.
+ */
+const EMPTY_MY_ENTRIES: MyEntry[] = [];
+
 interface PersistCheckInStatusInput {
   entryId: string;
   classId: string;
@@ -481,7 +488,7 @@ export function useMyEntriesData({
 
   const hasCurrentEntries =
     currentIdentity !== null && loadedIdentityRef.current === currentIdentity;
-  const visibleEntries = hasCurrentEntries ? entries : [];
+  const visibleEntries = hasCurrentEntries ? entries : EMPTY_MY_ENTRIES;
   const visibleBalanceSummary = hasCurrentEntries ? balanceSummary : UNKNOWN_ENTRY_BALANCE_SUMMARY;
   const visibleSource = hasCurrentEntries ? source : 'replica-after-error';
   const visibleIsLoading =

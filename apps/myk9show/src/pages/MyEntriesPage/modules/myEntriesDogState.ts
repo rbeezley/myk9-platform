@@ -25,11 +25,7 @@ export function deriveMyEntriesDogState<TDog>({
 
   return {
     dogs: visibleDogs,
-    hasDogs: !ownerId
-      ? false
-      : isLoading || isPlaceholderData
-        ? undefined
-        : visibleDogs.length > 0,
+    hasDogs: !ownerId ? false : isLoading || isPlaceholderData ? undefined : visibleDogs.length > 0,
     currentUserPersonId: ownerId || undefined,
   };
 }

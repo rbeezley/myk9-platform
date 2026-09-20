@@ -25,22 +25,29 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
  * `.eq().is().order()` chain these postgrest reads need.
  */
 
-const { mockEntriesTable, mockDogsTable, mockClassesTable, mockShowsTable, mockTrialsTable } =
-  vi.hoisted(() => ({
-    mockEntriesTable: {
-      getEntriesByClass: vi.fn(),
-      getAll: vi.fn().mockResolvedValue([]),
-      getEntryById: vi.fn(),
-    },
-    mockDogsTable: { getAllDogs: vi.fn().mockResolvedValue([]), getDogById: vi.fn() },
-    mockClassesTable: {
-      getAll: vi.fn().mockResolvedValue([]),
-      getClassesByTrial: vi.fn().mockResolvedValue([]),
-      getClassById: vi.fn(),
-    },
-    mockShowsTable: { getAllShows: vi.fn().mockResolvedValue([]), getShowById: vi.fn() },
-    mockTrialsTable: { getAll: vi.fn().mockResolvedValue([]) },
-  }));
+const {
+  mockEntriesTable,
+  mockDogsTable,
+  mockClassesTable,
+  mockShowsTable,
+  mockTrialsTable,
+  mockArmbandsTable,
+} = vi.hoisted(() => ({
+  mockEntriesTable: {
+    getEntriesByClass: vi.fn(),
+    getAll: vi.fn().mockResolvedValue([]),
+    getEntryById: vi.fn(),
+  },
+  mockDogsTable: { getAllDogs: vi.fn().mockResolvedValue([]), getDogById: vi.fn() },
+  mockClassesTable: {
+    getAll: vi.fn().mockResolvedValue([]),
+    getClassesByTrial: vi.fn().mockResolvedValue([]),
+    getClassById: vi.fn(),
+  },
+  mockShowsTable: { getAllShows: vi.fn().mockResolvedValue([]), getShowById: vi.fn() },
+  mockTrialsTable: { getAll: vi.fn().mockResolvedValue([]) },
+  mockArmbandsTable: { getByShow: vi.fn().mockResolvedValue([]) },
+}));
 
 vi.mock('@/services/replication/ReplicatedEntriesTable', () => ({
   replicatedEntriesTable: mockEntriesTable,
@@ -56,6 +63,9 @@ vi.mock('@/services/replication/ReplicatedShowsTable', () => ({
 }));
 vi.mock('@/services/replication/ReplicatedTrialsTable', () => ({
   replicatedTrialsTable: mockTrialsTable,
+}));
+vi.mock('@/services/replication/ReplicatedArmbandsTable', () => ({
+  replicatedArmbandsTable: mockArmbandsTable,
 }));
 
 const defaultOnlineRow = { id: 'entry-online-1', class: { id: 'c1' } };
@@ -279,6 +289,7 @@ describe('getEntriesByTrial — cold local replica verifies online', () => {
     onlineCallCount = 0;
     mockClassesTable.getClassesByTrial.mockResolvedValue([{ id: 'c1', trialId: 't1' }]);
     mockEntriesTable.getAll.mockResolvedValue([]);
+    mockArmbandsTable.getByShow.mockResolvedValue([]);
   });
 
   it('falls back to the online read when the local replica has zero rows for the trial', async () => {
@@ -335,5 +346,48 @@ describe('getEntriesByTrial — cold local replica verifies online', () => {
     const result = await getEntriesByTrial('t1');
 
     expect(result.data).toHaveLength(0);
+  });
+
+  it('backfills a legacy armband from the authoritative table in the replicated trial read', async () => {
+    mockEntriesTable.getAll.mockResolvedValue([
+      {
+        id: 'entry-trial-legacy-zero',
+        dogId: 'dog-1',
+        classId: 'c1',
+        showId: 's1',
+        armband: '0',
+        deletedAt: null,
+        entryStatus: 'confirmed',
+        runOrder: 1,
+      },
+    ]);
+    mockArmbandsTable.getByShow.mockResolvedValue([
+      { showId: 's1', dogId: 'dog-1', armbandNumber: '12A' },
+    ]);
+    onlineRows = [];
+
+    const result = await getEntriesByTrial('t1');
+
+    expect((result.data[0] as Record<string, unknown>).armband).toBe('12A');
+  });
+
+  it('backfills a legacy armband from the authoritative table in the online trial read', async () => {
+    mockEntriesTable.getAll.mockResolvedValue([]);
+    mockArmbandsTable.getByShow.mockResolvedValue([
+      { showId: 's1', dogId: 'dog-1', armbandNumber: '12A' },
+    ]);
+    onlineRows = [
+      {
+        id: 'entry-online-trial-legacy-zero',
+        show_id: 's1',
+        dog_id: 'dog-1',
+        armband: '0',
+        class: { id: 'c1' },
+      },
+    ];
+
+    const result = await getEntriesByTrial('t1');
+
+    expect((result.data[0] as Record<string, unknown>).armband).toBe('12A');
   });
 });

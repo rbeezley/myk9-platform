@@ -653,8 +653,9 @@ async function postgrestGetEntriesByTrial(trialId: string) {
   );
 
   if (error) throw createDatabaseError(error, 'entries', 'select_by_trial');
+  const entries = await hydrateMissingHandlerPeople((data || []) as EntryDbHandlerRow[]);
   return {
-    data: await hydrateMissingHandlerPeople((data || []) as EntryDbHandlerRow[]),
+    data: await backfillMissingArmbands(entries),
     error: null,
   };
 }
@@ -1093,7 +1094,8 @@ export const getEntriesByTrial = async (trialId: string) => {
         });
         return attachHandlerPerson(row, entry, handlerPeopleMap);
       });
-      return { data, error: null, locallyDeletedIds };
+      const backfilledData = await backfillMissingArmbands(data);
+      return { data: backfilledData, error: null, locallyDeletedIds };
     },
     postgrest: () => postgrestGetEntriesByTrial(trialId),
     table: 'entries',

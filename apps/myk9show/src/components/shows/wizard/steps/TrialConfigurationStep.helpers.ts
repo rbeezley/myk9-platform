@@ -3,11 +3,60 @@ import {
   formatTrialTypeLabel,
   getTrialTypesForOrganization,
 } from '@/types/template.types';
+import { format } from 'date-fns';
+import { parseLocalDateString } from '@/utils/dateLocal';
 
 interface TrialTypeTemplateOption {
   isActive?: boolean;
   organization?: string;
   trialType?: string;
+}
+
+export interface TrialDateSource {
+  trialDate: string;
+}
+
+export interface TrialCreationCopy {
+  addTrialLabel: 'Add First Trial' | 'Add Another Trial';
+  emptyStateTitle: 'Schedule Your Trials' | 'Add Another Trial';
+  emptyStateDescription: string;
+}
+
+function dateOnly(value: string): string {
+  if (/^\d{4}-\d{2}-\d{2}/.test(value)) return value.slice(0, 10);
+  const parsed = new Date(value);
+  return Number.isNaN(parsed.getTime()) ? '' : format(parsed, 'yyyy-MM-dd');
+}
+
+export function getTrialCreationCopy(existingTrials: readonly TrialDateSource[]): TrialCreationCopy {
+  if (existingTrials.length === 0) {
+    return {
+      addTrialLabel: 'Add First Trial',
+      emptyStateTitle: 'Schedule Your Trials',
+      emptyStateDescription:
+        'Trials are individual competition events within your show. Add your first trial to get started.',
+    };
+  }
+
+  return {
+    addTrialLabel: 'Add Another Trial',
+    emptyStateTitle: 'Add Another Trial',
+    emptyStateDescription: 'Add another trial to continue setting up this show.',
+  };
+}
+
+export function getDefaultTrialName(
+  existingTrials: readonly TrialDateSource[],
+  selectedDate: string
+): string {
+  const normalizedDate = dateOnly(selectedDate);
+  const trialDate = parseLocalDateString(normalizedDate);
+  const dayName = trialDate ? format(trialDate, 'EEEE') : 'Trial';
+  const sameDayCount = existingTrials.filter(
+    trial => dateOnly(trial.trialDate) === normalizedDate
+  ).length;
+
+  return `${dayName} Trial ${sameDayCount + 1}`;
 }
 
 function normalizeTrialTypeOption(trialType: string | undefined): TrialType | undefined {

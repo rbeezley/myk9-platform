@@ -88,7 +88,7 @@ const SECRETARY_REGISTER_PATH = /^\/secretary\/register\/([^/]+)(?:\/|$)/;
  * Segments that sit where a show id sits but name no show. `/shows/new` and
  * `/shows/browse` are both real routes (`publicRoutes.tsx` redirects them into
  * the create-show wizard and the browse list), so without this they parsed as
- * `{ kind: 'show', showId: 'new' | 'browse' }` and the header offered six
+ * `{ kind: 'show', showId: 'new' | 'browse' }` and the header offered seven
  * actions against a show that does not exist.
  *
  * Exported so `actionRegistry.routeSegments.test.ts` can check this list
@@ -174,6 +174,11 @@ function buildShowActions(
       id: 'show-open-show-desk',
       label: 'Open Show Day',
       href: `/shows/${encoded}/show-day`,
+    },
+    {
+      id: 'show-add-new-trial',
+      label: 'Add a new trial',
+      href: `/secretary/create-show/wizard?showId=${encoded}&mode=add-trials`,
     },
     {
       // Runs the Premium List card's OWN flow, from whatever section the

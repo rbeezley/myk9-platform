@@ -136,12 +136,13 @@ describe('resolveActions — secretary on a show', () => {
     expect(actions.some(action => action.href?.includes('#'))).toBe(false);
   });
 
-  it('returns the six decided items in order', () => {
+  it('returns the seven decided items in order', () => {
     expect(actions.map(a => a.id)).toEqual([
       'show-add-mail-in-entry',
       'show-enter-own-dogs',
       'show-open-entry-management',
       'show-open-show-desk',
+      'show-add-new-trial',
       'show-generate-publish-premium',
       'show-settings',
     ]);
@@ -153,6 +154,7 @@ describe('resolveActions — secretary on a show', () => {
       `/shows/${SHOW_ID}/register`,
       `/shows/${SHOW_ID}/entries`,
       `/shows/${SHOW_ID}/show-day`,
+      `/secretary/create-show/wizard?showId=${SHOW_ID}&mode=add-trials`,
       undefined, // the premium flow is a command, not a place
       '?edit=true',
     ]);
@@ -186,8 +188,8 @@ describe('resolveActions — secretary on a show', () => {
 describe('resolveActions — club admin on a show', () => {
   const actions = resolveActions(SHOW_CONTEXT, clubAdmin);
 
-  it('keeps the same six items', () => {
-    expect(actions).toHaveLength(6);
+  it('keeps the same seven items', () => {
+    expect(actions).toHaveLength(7);
   });
 
   it('greys mail-in entry with a reason, because /secretary/register is secretary-only', () => {

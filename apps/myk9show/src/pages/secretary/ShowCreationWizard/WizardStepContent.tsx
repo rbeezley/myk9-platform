@@ -43,14 +43,15 @@ export const WizardStepContent: React.FC<WizardStepContentProps> = ({
     case 0:
       return <ShowDetailsStep {...stepProps} />;
     case 1: {
-      const existingTrialCount =
+      const showExistingTrials =
         editMode?.mode === 'add-trials'
-          ? existingTrials.filter(t => t.showId === editMode.showId).length
-          : 0;
+          ? existingTrials.filter(t => t.showId === editMode.showId)
+          : [];
       return (
         <TrialConfigurationStep
           {...stepProps}
-          existingTrialCount={existingTrialCount}
+          existingTrialCount={showExistingTrials.length}
+          existingTrials={showExistingTrials}
           submitted={hasAttemptedNext}
         />
       );

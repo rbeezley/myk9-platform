@@ -17,7 +17,12 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/comp
 import { useWizardStore } from '@/store/wizardStore';
 import { useTemplates } from '@/hooks/useTemplates';
 import { formatTrialTypeLabel } from '@/types/template.types';
-import { resolveTrialTypeOptions } from './TrialConfigurationStep.helpers';
+import {
+  getDefaultTrialName,
+  getTrialCreationCopy,
+  resolveTrialTypeOptions,
+  type TrialDateSource,
+} from './TrialConfigurationStep.helpers';
 
 /** Parse a date string safely — handles both YYYY-MM-DD and ISO datetime */
 function safeParseDateString(str: string | undefined): Date | undefined {
@@ -32,6 +37,8 @@ interface TrialConfigurationStepProps {
   className?: string;
   /** Number of existing trials already in the show (for add-trials mode info banner). */
   existingTrialCount?: number;
+  /** Current show trials, used for first/another copy and day-scoped numbering. */
+  existingTrials?: TrialDateSource[];
   /** True once the user has clicked Next — gates the "at least one trial required" error. */
   submitted?: boolean;
 }
@@ -39,6 +46,7 @@ interface TrialConfigurationStepProps {
 export const TrialConfigurationStep: React.FC<TrialConfigurationStepProps> = ({
   className,
   existingTrialCount = 0,
+  existingTrials = [],
   submitted = false,
 }) => {
   const { show, trials, addTrial, updateTrial, removeTrial } = useWizardStore();
@@ -48,6 +56,12 @@ export const TrialConfigurationStep: React.FC<TrialConfigurationStepProps> = ({
   const trialTypeOptions = useMemo(() => {
     return resolveTrialTypeOptions(show.organization, templates);
   }, [show.organization, templates]);
+
+  const trialDates = useMemo(
+    () => [...existingTrials, ...trials.map(trial => ({ trialDate: trial.dateTime }))],
+    [existingTrials, trials]
+  );
+  const creationCopy = useMemo(() => getTrialCreationCopy(trialDates), [trialDates]);
 
   // Derive errors using useMemo instead of useState + effect
   const errors = useMemo(() => {
@@ -123,13 +137,11 @@ export const TrialConfigurationStep: React.FC<TrialConfigurationStepProps> = ({
     baseDate.setHours(8, 0, 0, 0); // Set to 8:00 AM
     const defaultDateTime = format(baseDate, "yyyy-MM-dd'T'HH:mm:ss");
 
-    // Count how many existing trials fall on the same date to get the per-day number
+    // Count current and newly drafted trials on the same date to get the per-day number.
     const baseDateStr = format(baseDate, 'yyyy-MM-dd');
-    const sameDayCount = trials.filter(t => t.dateTime?.startsWith(baseDateStr)).length;
-    const dayName = format(baseDate, 'EEEE'); // e.g. "Saturday"
 
     addTrial({
-      name: `${dayName} Trial ${sameDayCount + 1}`,
+      name: getDefaultTrialName(trialDates, baseDateStr),
       dateTime: defaultDateTime,
       eventNumber: '',
       classes: [],
@@ -151,7 +163,7 @@ export const TrialConfigurationStep: React.FC<TrialConfigurationStepProps> = ({
             <h3 className="text-lg font-semibold text-foreground">Trials ({trials.length})</h3>
             <Button onClick={handleAddTrial} className="flex items-center gap-2">
               <Plus className="h-4 w-4" />
-              Add Trial
+              {creationCopy.addTrialLabel}
             </Button>
           </div>
 
@@ -178,14 +190,15 @@ export const TrialConfigurationStep: React.FC<TrialConfigurationStepProps> = ({
                 <div className="mx-auto w-16 h-16 rounded-2xl bg-primary/10 flex items-center justify-center mb-5 shadow-sm">
                   <CalendarPlus className="h-8 w-8 text-primary" />
                 </div>
-                <h4 className="text-xl font-semibold text-foreground mb-2">Schedule Your Trials</h4>
+                <h4 className="text-xl font-semibold text-foreground mb-2">
+                  {creationCopy.emptyStateTitle}
+                </h4>
                 <p className="text-sm text-muted-foreground max-w-sm mx-auto mb-6">
-                  Trials are individual competition events within your show. Add your first trial to
-                  get started.
+                  {creationCopy.emptyStateDescription}
                 </p>
                 <Button onClick={handleAddTrial} size="lg" className="shadow-md">
                   <Plus className="h-4 w-4 mr-2" />
-                  Add First Trial
+                  {creationCopy.addTrialLabel}
                 </Button>
               </div>
             </div>

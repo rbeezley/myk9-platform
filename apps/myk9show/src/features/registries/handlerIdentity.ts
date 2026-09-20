@@ -90,7 +90,12 @@ export function projectHandlerIdentity<TPerson extends HandlerPersonLike>({
 }: ProjectHandlerIdentityInput<TPerson>): HandlerIdentityProjection<TPerson> {
   const printedName = assignedHandlerName?.trim() ?? '';
   if (printedName) {
-    return { name: printedName, person: assignedHandlerPerson ?? null, source: 'assigned-text' };
+    const matchingAssignedPerson = resolveHandlerPerson({
+      printedHandlerName: printedName,
+      handlerIdPerson: assignedHandlerPerson,
+      ownerPerson: null,
+    });
+    return { name: printedName, person: matchingAssignedPerson, source: 'assigned-text' };
   }
 
   const assignedPersonName = personName(assignedHandlerPerson);

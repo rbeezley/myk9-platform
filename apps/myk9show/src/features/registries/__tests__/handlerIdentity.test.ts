@@ -179,6 +179,17 @@ describe('projectHandlerIdentity', () => {
     ).toMatchObject({ name: 'Entry Text', source: 'assigned-text' });
   });
 
+  it('does not attach stale assigned-person metadata to mismatched stored text', () => {
+    expect(
+      projectHandlerIdentity({
+        assignedHandlerName: 'Grandma Smith',
+        assignedHandlerId: KID.id,
+        assignedHandlerPerson: KID,
+        ownerPerson: OWNER,
+      })
+    ).toMatchObject({ name: 'Grandma Smith', person: null, source: 'assigned-text' });
+  });
+
   it('uses the joined assigned person when handler text is absent', () => {
     expect(
       projectHandlerIdentity({

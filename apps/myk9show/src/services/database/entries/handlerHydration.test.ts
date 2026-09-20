@@ -312,6 +312,97 @@ describe('loadHandlerPeople offline boundary', () => {
     }
   });
 
+  it('does not emit a completion when a re-read persists identical authoritative values', async () => {
+    const originalOnline = navigator.onLine;
+    Object.defineProperty(navigator, 'onLine', { configurable: true, value: true });
+    const first = deferredSupabaseResponse();
+    const bulkPut = vi.spyOn(db.instance.people, 'bulkPut').mockResolvedValue('handler-1');
+    vi.mocked(db.instance.people.bulkGet)
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([{ id: 'handler-1', firstName: 'Fresh', lastName: 'Handler' }]);
+    mocks.from
+      .mockReturnValueOnce({
+        select: vi.fn().mockReturnValue({ in: vi.fn().mockReturnValue(first.promise) }),
+      })
+      .mockReturnValueOnce({
+        select: vi.fn().mockReturnValue({
+          in: vi.fn().mockResolvedValue({
+            data: [{ id: 'handler-1', first_name: 'Fresh', last_name: 'Handler' }],
+            error: null,
+          }),
+        }),
+      });
+    const events: Array<{ ids: readonly string[]; people: ReadonlyMap<string, HandlerPersonRow> }> =
+      [];
+    const unsubscribe = subscribeHandlerPeopleHydration(event => events.push(event));
+
+    try {
+      const pending = loadHandlerPeople(['handler-1']);
+      await new Promise(resolve => setTimeout(resolve, 300));
+      await expect(pending).resolves.toEqual(new Map());
+      first.resolve({
+        data: [{ id: 'handler-1', first_name: 'Fresh', last_name: 'Handler' }],
+        error: null,
+      });
+      await vi.waitFor(() => expect(events).toHaveLength(1));
+
+      await expect(loadHandlerPeople(['handler-1'])).resolves.toEqual(
+        new Map([['handler-1', { id: 'handler-1', first_name: 'Fresh', last_name: 'Handler' }]])
+      );
+      expect(events).toHaveLength(1);
+      expect(bulkPut).toHaveBeenCalledTimes(1);
+    } finally {
+      unsubscribe();
+      Object.defineProperty(navigator, 'onLine', {
+        configurable: true,
+        value: originalOnline,
+      });
+    }
+  });
+
+  it('emits a deletion once, then stays quiet when the authoritative absence is unchanged', async () => {
+    const originalOnline = navigator.onLine;
+    Object.defineProperty(navigator, 'onLine', { configurable: true, value: true });
+    const first = deferredSupabaseResponse();
+    const bulkDelete = vi.spyOn(db.instance.people, 'bulkDelete').mockResolvedValue();
+    vi.mocked(db.instance.people.bulkGet)
+      .mockResolvedValueOnce([{ id: 'handler-1', firstName: 'Deleted', lastName: 'Person' }])
+      .mockResolvedValueOnce([]);
+    mocks.from
+      .mockReturnValueOnce({
+        select: vi.fn().mockReturnValue({ in: vi.fn().mockReturnValue(first.promise) }),
+      })
+      .mockReturnValueOnce({
+        select: vi.fn().mockReturnValue({
+          in: vi.fn().mockResolvedValue({ data: [], error: null }),
+        }),
+      });
+    const events: Array<{ ids: readonly string[]; people: ReadonlyMap<string, HandlerPersonRow> }> =
+      [];
+    const unsubscribe = subscribeHandlerPeopleHydration(event => events.push(event));
+
+    try {
+      const pending = loadHandlerPeople(['handler-1']);
+      await new Promise(resolve => setTimeout(resolve, 300));
+      await expect(pending).resolves.toEqual(
+        new Map([['handler-1', { id: 'handler-1', first_name: 'Deleted', last_name: 'Person' }]])
+      );
+      first.resolve({ data: [], error: null });
+      await vi.waitFor(() => expect(events).toHaveLength(1));
+
+      await expect(loadHandlerPeople(['handler-1'])).resolves.toEqual(new Map());
+      expect(events).toHaveLength(1);
+      expect(bulkDelete).toHaveBeenCalledTimes(1);
+      expect(events[0]).toEqual({ ids: ['handler-1'], people: new Map() });
+    } finally {
+      unsubscribe();
+      Object.defineProperty(navigator, 'onLine', {
+        configurable: true,
+        value: originalOnline,
+      });
+    }
+  });
+
   function deferredSupabaseResponse() {
     let resolve!: (value: { data: HandlerPersonRow[]; error: null }) => void;
     const promise = new Promise<{ data: HandlerPersonRow[]; error: null }>(resolvePromise => {

@@ -34,6 +34,10 @@ export interface AtShowClassGroup {
   classes: ClassEntry[];
   /** Per-class "in ring / next up" row preview, keyed by class id. */
   nextUpByClassId: Map<string, AtShowNextUpPreview>;
+  /** Canonical handler/owner projections, retained for consumers that render entry identity. */
+  handlerIdentitiesByClassId?: Map<string, ProjectedEntryHandler[]>;
+  /** IDs used to filter authoritative handler-person completion events. */
+  handlerIdentityIds?: readonly string[];
 }
 
 /** A canonical projected row, normalized only for the existing ringside helpers. */
@@ -181,8 +185,8 @@ export function toClassEntry(
   };
 }
 
-function groupEntriesByClass(entries: ReplicatedEntry[]): Map<string, ReplicatedEntry[]> {
-  const entriesByClass = new Map<string, ReplicatedEntry[]>();
+function groupEntriesByClass<T extends ReplicatedEntry>(entries: readonly T[]): Map<string, T[]> {
+  const entriesByClass = new Map<string, T[]>();
   for (const entry of entries) {
     const classId = entry.classId;
     if (!classId) continue;
@@ -191,6 +195,10 @@ function groupEntriesByClass(entries: ReplicatedEntry[]): Map<string, Replicated
     else entriesByClass.set(classId, [entry]);
   }
   return entriesByClass;
+}
+
+function getProjectedHandlerIdentity(entry: ReplicatedEntry): ProjectedEntryHandler | undefined {
+  return (entry as AtShowProjectedEntry).handler_identity;
 }
 
 /**
@@ -292,15 +300,34 @@ export async function fetchAtShowClassList(showId: string): Promise<AtShowClassG
       const classes = await replicatedClassesTable.getClassesByTrial(trial.id);
       const favoriteClassIds = getFavoriteClassIdsForTrial(showId, trial.id);
       const nextUpByClassId = new Map<string, AtShowNextUpPreview>();
+      const handlerIdentitiesByClassId = new Map<string, ProjectedEntryHandler[]>();
+      const handlerIdentityIds = new Set<string>();
       const classEntries = classes.map(cls => {
         // Same grouped-entries pass that feeds the counts — no extra fetch, so
         // the preview stays offline-first and costs nothing on show day.
         const classEntriesForClass = entriesByClass.get(cls.id) ?? [];
         nextUpByClassId.set(cls.id, buildNextUpPreview(classEntriesForClass));
+        handlerIdentitiesByClassId.set(
+          cls.id,
+          classEntriesForClass.flatMap(entry => {
+            const identity = getProjectedHandlerIdentity(entry);
+            return identity ? [identity] : [];
+          })
+        );
+        for (const entry of classEntriesForClass) {
+          if (entry.handlerId) handlerIdentityIds.add(entry.handlerId);
+          if (entry.dogOwnerId) handlerIdentityIds.add(entry.dogOwnerId);
+        }
         return toClassEntry(cls, classEntriesForClass, favoriteClassIds);
       });
       classEntries.sort((a, b) => a.class_order - b.class_order);
-      return { trial, classes: classEntries, nextUpByClassId };
+      return {
+        trial,
+        classes: classEntries,
+        nextUpByClassId,
+        handlerIdentitiesByClassId,
+        handlerIdentityIds: [...handlerIdentityIds],
+      };
     })
   );
 }

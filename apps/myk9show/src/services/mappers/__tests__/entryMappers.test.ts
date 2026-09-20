@@ -45,4 +45,18 @@ describe('mapReplicatedEntryToDbRow', () => {
 
     expect(mapReplicatedEntryToDbRow(replicated).deleted_at).toBe(deletedAt);
   });
+
+  it('preserves denormalized dog identity when the dog cache row is missing', () => {
+    const replicated = rowToEntry({
+      id: 'entry-cold-dog',
+      dog_id: 'dog-1',
+      dog_call_name: 'Scout',
+      dog_breed: 'Beagle',
+    } as Parameters<typeof rowToEntry>[0]);
+
+    expect(mapReplicatedEntryToDbRow(replicated, { dog: null })).toMatchObject({
+      dog_call_name: 'Scout',
+      dog_breed: 'Beagle',
+    });
+  });
 });

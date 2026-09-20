@@ -89,6 +89,18 @@ function normalizeCachedPerson(
   };
 }
 
+function sameHandlerPerson(
+  first: HandlerPersonRow | undefined,
+  second: HandlerPersonRow | undefined
+): boolean {
+  if (!first || !second) return first === second;
+  return (
+    first.id === second.id &&
+    first.first_name === second.first_name &&
+    first.last_name === second.last_name
+  );
+}
+
 function currentHandlerIds(
   ids: readonly string[],
   requestGeneration: ReadonlyMap<string, number>
@@ -119,24 +131,30 @@ export async function loadCachedHandlerPeople(
 async function persistAuthoritativeHandlerPeople(
   ids: readonly string[],
   people: ReadonlyMap<string, HandlerPersonRow>,
-  requestGeneration: ReadonlyMap<string, number>
-): Promise<boolean> {
+  requestGeneration: ReadonlyMap<string, number>,
+  cached: ReadonlyMap<string, HandlerPersonRow>
+): Promise<readonly string[] | null> {
   try {
     const isCurrent = (id: string) => personGenerations.get(id) === requestGeneration.get(id);
-    const currentPeople = [...people.values()].filter(person => isCurrent(person.id));
-    const cachedPeople = currentPeople.map(person => ({
+    const changedIds = ids.filter(
+      id => isCurrent(id) && !sameHandlerPerson(cached.get(id), people.get(id))
+    );
+    const changedPeople = [...people.values()].filter(
+      person => isCurrent(person.id) && changedIds.includes(person.id)
+    );
+    const peopleToPersist = changedPeople.map(person => ({
       id: person.id,
       firstName: person.first_name ?? '',
       lastName: person.last_name ?? '',
     }));
-    if (cachedPeople.length > 0) await db.instance.people.bulkPut(cachedPeople);
-    const missingIds = ids.filter(id => isCurrent(id) && !people.has(id));
+    if (peopleToPersist.length > 0) await db.instance.people.bulkPut(peopleToPersist);
+    const missingIds = changedIds.filter(id => isCurrent(id) && !people.has(id));
     if (missingIds.length > 0) await db.instance.people.bulkDelete(missingIds);
-    return true;
+    return changedIds;
   } catch {
     // A cache write is an optimization; the current caller already has the
     // authoritative projection and the next read can try again.
-    return false;
+    return null;
   }
 }
 
@@ -190,12 +208,13 @@ export async function loadHandlerPeople(
   ]);
   if (fastResult.kind === 'fresh' && fastResult.result) {
     handlerHydrationCircuitOpenUntil = 0;
-    const persisted = await persistAuthoritativeHandlerPeople(
+    const changedIds = await persistAuthoritativeHandlerPeople(
       ids,
       fastResult.result,
-      requestGeneration
+      requestGeneration,
+      cached
     );
-    if (persisted) emitCurrentHandlerPeople(ids, fastResult.result, requestGeneration);
+    if (changedIds) emitCurrentHandlerPeople(changedIds, fastResult.result, requestGeneration);
     return fastResult.result;
   }
   if (fastResult.kind === 'failed') {
@@ -212,8 +231,13 @@ export async function loadHandlerPeople(
         return;
       }
       handlerHydrationCircuitOpenUntil = 0;
-      const persisted = await persistAuthoritativeHandlerPeople(ids, result, requestGeneration);
-      if (persisted) emitCurrentHandlerPeople(ids, result, requestGeneration);
+      const changedIds = await persistAuthoritativeHandlerPeople(
+        ids,
+        result,
+        requestGeneration,
+        cached
+      );
+      if (changedIds) emitCurrentHandlerPeople(changedIds, result, requestGeneration);
     })
     .catch(() => {
       handlerHydrationCircuitOpenUntil = Date.now() + HANDLER_PEOPLE_CIRCUIT_COOLDOWN_MS;

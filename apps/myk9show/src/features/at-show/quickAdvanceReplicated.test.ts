@@ -1,23 +1,25 @@
 import { createElement, type PropsWithChildren } from 'react';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { render, screen, waitFor } from '@testing-library/react';
+import { onlineManager, QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { act, render, screen, waitFor } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { db } from '@/services/database/connection';
 import { toQuickAdvanceChips, formatChipLabel } from './quickAdvanceReplicated';
 import type { ReplicatedEntry } from '@/services/replication/ReplicatedEntriesTable';
 
 const quickAdvanceMocks = vi.hoisted(() => ({
-  projectedRead: vi.fn(),
   replicatedRead: vi.fn(),
+  getAllDogs: vi.fn(),
+  getByShow: vi.fn(),
   subscribe: vi.fn(() => vi.fn()),
-  subscribeHandlerPeopleHydration: vi.fn(() => vi.fn()),
-}));
-
-vi.mock('@/services/database/entries', () => ({
-  getEntriesByClass: quickAdvanceMocks.projectedRead,
-}));
-
-vi.mock('@/services/database/entries/handlerHydration', () => ({
-  subscribeHandlerPeopleHydration: quickAdvanceMocks.subscribeHandlerPeopleHydration,
+  handlerListener: null as ((event: { ids: readonly string[] }) => void) | null,
+  emitHandlerOnSubscribe: false,
+  subscribeHandlerPeopleHydration: vi.fn(
+    (callback: (event: { ids: readonly string[] }) => void) => {
+      quickAdvanceMocks.handlerListener = callback;
+      if (quickAdvanceMocks.emitHandlerOnSubscribe) callback({ ids: ['handler-1'] });
+      return vi.fn();
+    }
+  ),
 }));
 
 vi.mock('@/services/replication/ReplicatedEntriesTable', () => ({
@@ -26,6 +28,24 @@ vi.mock('@/services/replication/ReplicatedEntriesTable', () => ({
     subscribe: quickAdvanceMocks.subscribe,
   },
 }));
+
+vi.mock('@/services/replication/ReplicatedDogsTable', () => ({
+  replicatedDogsTable: { getAllDogs: quickAdvanceMocks.getAllDogs },
+}));
+
+vi.mock('@/services/replication/ReplicatedArmbandsTable', () => ({
+  replicatedArmbandsTable: { getByShow: quickAdvanceMocks.getByShow },
+}));
+
+vi.mock('@/services/database/entries/handlerHydration', async () => {
+  const actual = await vi.importActual<
+    typeof import('@/services/database/entries/handlerHydration')
+  >('@/services/database/entries/handlerHydration');
+  return {
+    ...actual,
+    subscribeHandlerPeopleHydration: quickAdvanceMocks.subscribeHandlerPeopleHydration,
+  };
+});
 
 import { QuickAdvancePanel } from './quickAdvancePanel';
 
@@ -138,28 +158,34 @@ describe('formatChipLabel', () => {
 describe('QuickAdvancePanel offline projected read', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    quickAdvanceMocks.projectedRead.mockResolvedValue({
-      data: [
-        {
-          id: 'next-entry',
-          class_id: 'class-1',
-          show_id: 'show-1',
-          armband: '12',
-          run_order: 1,
-          check_in_status: 'no-status',
-          entry_status: 'confirmed',
-          is_scored: false,
-          dog: { call_name: 'Scout', breed: 'Beagle' },
-          handler_identity: { name: 'Olivia Owner', source: 'owner', person: null },
-        },
-      ],
-      error: null,
-    });
+    quickAdvanceMocks.handlerListener = null;
+    quickAdvanceMocks.emitHandlerOnSubscribe = false;
+    vi.spyOn(db.instance.people, 'bulkGet').mockResolvedValue([]);
+    quickAdvanceMocks.replicatedRead.mockResolvedValue([
+      {
+        id: 'next-entry',
+        classId: 'class-1',
+        showId: 'show-1',
+        dogId: 'dog-1',
+        handlerId: 'handler-1',
+        handler: 'Jamie Handler',
+        armband: '12',
+        runOrder: 1,
+        checkInStatus: 'no-status',
+        entryStatus: 'confirmed',
+        isScored: false,
+        dogCallName: 'Scout',
+        dogBreed: 'Beagle',
+      },
+    ]);
+    quickAdvanceMocks.getAllDogs.mockResolvedValue([]);
   });
 
   it('renders local quick-advance chips while offline after a score save', async () => {
     const originalOnline = navigator.onLine;
+    const originalQueryOnline = onlineManager.isOnline();
     Object.defineProperty(navigator, 'onLine', { configurable: true, value: false });
+    onlineManager.setOnline(false);
     try {
       render(
         createElement(QuickAdvancePanel, {
@@ -174,9 +200,79 @@ describe('QuickAdvancePanel offline projected read', () => {
 
       await waitFor(() => expect(screen.getByTestId('quick-advance-entry')).toBeInTheDocument());
       expect(screen.getByText('#12 Scout — Beagle')).toBeInTheDocument();
-      expect(quickAdvanceMocks.projectedRead).toHaveBeenCalledWith('class-1');
-      expect(quickAdvanceMocks.replicatedRead).not.toHaveBeenCalled();
+      expect(quickAdvanceMocks.replicatedRead).toHaveBeenCalledWith('class-1');
+      expect(quickAdvanceMocks.getAllDogs).toHaveBeenCalled();
     } finally {
+      vi.restoreAllMocks();
+      onlineManager.setOnline(originalQueryOnline);
+      Object.defineProperty(navigator, 'onLine', {
+        configurable: true,
+        value: originalOnline,
+      });
+    }
+  });
+
+  it('bounds quick-advance reads after one relevant deferred completion', async () => {
+    const originalOnline = navigator.onLine;
+    const originalQueryOnline = onlineManager.isOnline();
+    Object.defineProperty(navigator, 'onLine', { configurable: true, value: false });
+    onlineManager.setOnline(false);
+    try {
+      render(
+        createElement(QuickAdvancePanel, {
+          classId: 'class-1',
+          scoredEntryId: 'scored-entry',
+          onBackToList: () => {},
+          onCorrectScore: () => {},
+          onPickEntry: () => {},
+        }),
+        { wrapper: queryWrapper(new QueryClient()) }
+      );
+      await waitFor(() => expect(screen.getByTestId('quick-advance-entry')).toBeInTheDocument());
+      const readsBeforeCompletion = quickAdvanceMocks.replicatedRead.mock.calls.length;
+
+      act(() => quickAdvanceMocks.handlerListener?.({ ids: ['unrelated-person'] }));
+      await new Promise(resolve => setTimeout(resolve, 20));
+      expect(quickAdvanceMocks.replicatedRead.mock.calls.length).toBe(readsBeforeCompletion);
+
+      act(() => quickAdvanceMocks.handlerListener?.({ ids: ['handler-1'] }));
+      await waitFor(() =>
+        expect(quickAdvanceMocks.replicatedRead).toHaveBeenCalledTimes(readsBeforeCompletion + 1)
+      );
+      await new Promise(resolve => setTimeout(resolve, 20));
+      expect(quickAdvanceMocks.replicatedRead.mock.calls.length).toBe(readsBeforeCompletion + 1);
+    } finally {
+      vi.restoreAllMocks();
+      onlineManager.setOnline(originalQueryOnline);
+      Object.defineProperty(navigator, 'onLine', {
+        configurable: true,
+        value: originalOnline,
+      });
+    }
+  });
+
+  it('bounds quick-advance reads after a fast handler completion', async () => {
+    quickAdvanceMocks.emitHandlerOnSubscribe = true;
+    const originalOnline = navigator.onLine;
+    const originalQueryOnline = onlineManager.isOnline();
+    Object.defineProperty(navigator, 'onLine', { configurable: true, value: false });
+    onlineManager.setOnline(false);
+    try {
+      render(
+        createElement(QuickAdvancePanel, {
+          classId: 'class-1',
+          scoredEntryId: 'scored-entry',
+          onBackToList: () => {},
+          onCorrectScore: () => {},
+          onPickEntry: () => {},
+        }),
+        { wrapper: queryWrapper(new QueryClient()) }
+      );
+      await waitFor(() => expect(screen.getByTestId('quick-advance-entry')).toBeInTheDocument());
+      expect(quickAdvanceMocks.replicatedRead.mock.calls.length).toBeLessThanOrEqual(2);
+    } finally {
+      vi.restoreAllMocks();
+      onlineManager.setOnline(originalQueryOnline);
       Object.defineProperty(navigator, 'onLine', {
         configurable: true,
         value: originalOnline,

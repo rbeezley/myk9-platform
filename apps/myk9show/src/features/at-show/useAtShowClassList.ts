@@ -70,7 +70,11 @@ export function useAtShowClassList(showId: string | undefined): UseAtShowClassLi
         },
         { emitCurrent: false }
       ),
-      subscribeHandlerPeopleHydration(() => invalidate()),
+      subscribeHandlerPeopleHydration(event => {
+        const currentGroups = queryClient.getQueryData<AtShowClassGroup[]>(queryKey) ?? [];
+        const relevantIds = new Set(currentGroups.flatMap(group => group.handlerIdentityIds ?? []));
+        if (event.ids.some(id => relevantIds.has(id))) invalidate();
+      }),
     ];
     return () => unsubscribe.forEach(stop => stop());
   }, [queryClient, showId]);

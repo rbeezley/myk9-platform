@@ -19,6 +19,10 @@ const judgeAssignmentData = vi.hoisted(() => ({
 
 const syncJudgeAssignments = vi.hoisted(() => vi.fn());
 
+const canonicalEntryRead = vi.hoisted(() => ({
+  getEntriesByShow: vi.fn(),
+}));
+
 vi.mock('@/services/replication', () => ({
   replicatedShowsTable: { getShowById: vi.fn() },
   replicatedTrialsTable: { getTrialsByShow: vi.fn(), subscribe: vi.fn(() => vi.fn()) },
@@ -29,6 +33,10 @@ vi.mock('@/services/replication', () => ({
 vi.mock('@/services/database/judges', () => ({
   getActiveJudgeAssignmentsForShow: judgeAssignmentData.getActive,
   subscribeToJudgeAssignmentChanges: judgeAssignmentData.subscribe,
+}));
+
+vi.mock('@/services/database/entries', () => ({
+  getEntriesByShow: canonicalEntryRead.getEntriesByShow,
 }));
 
 const authState = vi.hoisted(() => ({
@@ -104,10 +112,13 @@ function seedClassList() {
     INTERIOR_EXCELLENT,
     BURIED_ADVANCED,
   ] as never);
-  vi.mocked(replicatedEntriesTable.getEntriesByShow).mockResolvedValue([
-    { id: 'entry-a', classId: 'class-a', isScored: true },
-    { id: 'entry-c', classId: 'class-c', isScored: false },
-  ] as never);
+  canonicalEntryRead.getEntriesByShow.mockResolvedValue({
+    data: [
+      { id: 'entry-a', class_id: 'class-a', is_scored: true },
+      { id: 'entry-c', class_id: 'class-c', is_scored: false },
+    ],
+    error: null,
+  });
   judgeAssignmentData.getActive.mockResolvedValue([]);
 }
 
@@ -311,10 +322,13 @@ describe('AtShowClassListPage Your ring', () => {
       INTERIOR_EXCELLENT,
       BURIED_ADVANCED,
     ] as never);
-    vi.mocked(replicatedEntriesTable.getEntriesByShow).mockResolvedValue([
-      { id: 'entry-a', classId: 'class-a', isScored: false },
-      { id: 'entry-c', classId: 'class-c', isScored: false },
-    ] as never);
+    canonicalEntryRead.getEntriesByShow.mockResolvedValue({
+      data: [
+        { id: 'entry-a', class_id: 'class-a', is_scored: false },
+        { id: 'entry-c', class_id: 'class-c', is_scored: false },
+      ],
+      error: null,
+    });
     judgeAssignmentData.getActive.mockResolvedValue([
       { id: 'assignment-a', personId: 'judge-1', classId: 'class-a', status: 'confirmed' },
       { id: 'assignment-b', personId: 'judge-1', classId: 'class-b', status: 'confirmed' },

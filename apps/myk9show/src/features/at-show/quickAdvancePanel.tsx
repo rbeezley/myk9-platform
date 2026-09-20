@@ -33,7 +33,7 @@ import {
   formatChipLabel,
   type QuickAdvanceChip,
 } from './quickAdvanceReplicated';
-import { projectAtShowEntryRow } from './atShowClassListAdapter';
+import { projectAtShowEntryRow, type AtShowProjectedEntry } from './atShowClassListAdapter';
 
 function useQuickAdvanceChips(
   classId: string | undefined,
@@ -45,11 +45,18 @@ function useQuickAdvanceChips(
   // change can land from the entry list, a steward's device, or a sync pull.
   useEffect(() => {
     if (!classId) return;
+    const queryKey = ['at-show', 'quick-advance', classId] as const;
     const invalidate = () => {
-      void queryClient.invalidateQueries({ queryKey: ['at-show', 'quick-advance', classId] });
+      void queryClient.invalidateQueries({ queryKey });
     };
     const stopEntries = replicatedEntriesTable.subscribe(invalidate, { emitCurrent: false });
-    const stopHandlerPeople = subscribeHandlerPeopleHydration(invalidate);
+    const stopHandlerPeople = subscribeHandlerPeopleHydration(event => {
+      const entries = queryClient.getQueryData<AtShowProjectedEntry[]>(queryKey) ?? [];
+      const relevantIds = new Set(
+        entries.flatMap(entry => [entry.handlerId, entry.dogOwnerId].filter(Boolean))
+      );
+      if (event.ids.some(id => relevantIds.has(id))) invalidate();
+    });
     return () => {
       stopEntries();
       stopHandlerPeople();

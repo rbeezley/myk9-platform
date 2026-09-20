@@ -71,7 +71,10 @@ export const useClassStoreCompat = (showId?: string) => {
 
   const entries = useMemo(() => {
     if (!currentEntriesQuery.data) return [];
-    const rows = showId ? currentEntriesQuery.data.data : currentEntriesQuery.data;
+    const rows =
+      showId && !Array.isArray(currentEntriesQuery.data)
+        ? currentEntriesQuery.data.data
+        : currentEntriesQuery.data;
     return mapDatabaseEntriesArray(rows as unknown as DbEntryWithRelations[]);
   }, [currentEntriesQuery.data, showId]);
 
@@ -252,7 +255,9 @@ export const useClassStoreCompat = (showId?: string) => {
     refetch,
     isStale: classesQuery.isStale || currentEntriesQuery.isStale,
     isFetching: classesQuery.isFetching || currentEntriesQuery.isFetching,
-    isEntriesVerified: !showId || currentEntriesQuery.data?.verified === true,
+    isEntriesVerified:
+      !showId ||
+      (!Array.isArray(currentEntriesQuery.data) && currentEntriesQuery.data?.verified === true),
 
     // Statistics
     statistics: statisticsQuery.data,

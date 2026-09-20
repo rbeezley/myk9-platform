@@ -92,6 +92,26 @@ function matchingFixture(url: string, fixtures: readonly DogSearchFixture[]) {
   return fixtures.find(fixture => normalizedUrl.includes(fixture.searchTerm.toLowerCase()));
 }
 
+function isLiveIdsRead(url: string): boolean {
+  const query = new URL(url).searchParams;
+  const keys = [...query.keys()];
+  return (
+    query.get('select')?.toLowerCase() === 'id' &&
+    query.get('deleted_at')?.toLowerCase() === 'is.null' &&
+    query.get('order')?.toLowerCase() === 'id.asc' &&
+    query.get('limit') === '1000' &&
+    keys.every(
+      key =>
+        key === 'select' ||
+        key === 'deleted_at' ||
+        key === 'order' ||
+        key === 'limit' ||
+        key === 'id'
+    ) &&
+    (!query.has('id') || query.get('id')?.toLowerCase().startsWith('gt.') === true)
+  );
+}
+
 /**
  * Make only the searched dogs and their registrations deterministic. The real
  * roster response is preserved and augmented only when it lacks one of these
@@ -135,10 +155,9 @@ export async function installDogSearchFixtures(
     // select=id request. Keep searched fixtures in that live-id set too, or a
     // real staging response without the fixture removes it immediately after
     // the search has selected it.
-    const isLiveIdsRead =
-      normalizedUrl.includes('select=id') && normalizedUrl.includes('deleted_at=is.null');
+    const isLiveIdsRequest = isLiveIdsRead(route.request().url());
     if (
-      (isReplicationSync || isRosterRead || isLiveIdsRead) &&
+      (isReplicationSync || isRosterRead || isLiveIdsRequest) &&
       !normalizedUrl.includes(SEARCH_QUERY_MARKER)
     ) {
       const response = await route.fetch();
@@ -146,7 +165,9 @@ export async function installDogSearchFixtures(
       const existingIds = new Set(body.map(row => row.id));
       const missingFixtures = fixtures
         .filter(searchFixture => !existingIds.has(searchFixture.id))
-        .map(searchFixture => (isLiveIdsRead ? { id: searchFixture.id } : dogRow(searchFixture)));
+        .map(searchFixture =>
+          isLiveIdsRequest ? { id: searchFixture.id } : dogRow(searchFixture)
+        );
       await route.fulfill({ response, body: JSON.stringify([...body, ...missingFixtures]) });
       return;
     }

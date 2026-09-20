@@ -8,6 +8,7 @@ import React, { useCallback, useMemo } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { useAuthContext } from '@/hooks/useAuthContext';
+import { useEntriesPersonId } from '@/hooks/useEntriesPersonId';
 import { countUpcomingClassesByDog } from './modules/myEntriesStats.helpers';
 import { useDogsByOwnerQuery } from '@/hooks/queries/useDogsDatabase';
 import { useReplicationSync } from '@/hooks/useReplicationSync';
@@ -15,7 +16,6 @@ import { ShowTodayBanner } from '@/features/show-today/ShowTodayBanner';
 import { FirstRunZeroState } from '@/components/exhibitor/FirstRunZeroState';
 import { buildEntryBalanceRecoveryHref } from '@/features/payments/entryBalanceSummary';
 import { areReplicationTablesPendingFirstSync } from '@/utils/replicationSyncEmptyState';
-import { useCurrentUserPersonId } from '@/hooks/useRoleBasedData';
 import { useCheckInMutation } from '@/hooks/mutations/useCheckInMutation';
 import { Calendar as CalendarIcon } from 'lucide-react';
 import '@/styles/myk9-show-details.css';
@@ -48,7 +48,7 @@ import {
 } from './modules';
 
 const MyEntriesPage: React.FC = () => {
-  const { user, userWithRoles, firstName } = useAuthContext();
+  const { user, firstName } = useAuthContext();
   const checkInMutation = useCheckInMutation({ writer: 'self-checkin-rpc' });
   const { status: syncStatus } = useReplicationSync();
 
@@ -132,13 +132,7 @@ const MyEntriesPage: React.FC = () => {
 
   const navigate = useNavigate();
 
-  // Resolve the exhibitor's person id from the same source entry loading and the
-  // AddDogPanel use (legacy lookup first, then the auth record). Deriving dog
-  // ownership from only userWithRoles.databaseUserId would disable the dog query
-  // for exhibitors whose id comes from the legacy lookup, making the zero-state
-  // wrongly treat them as having no dogs. See useMyEntriesData's personId.
-  const currentUserPersonId = useCurrentUserPersonId();
-  const ownerId = currentUserPersonId ?? userWithRoles?.databaseUserId ?? '';
+  const ownerId = useEntriesPersonId() ?? '';
 
   const { data: dogs = [], isLoading: dogsLoading } = useDogsByOwnerQuery(ownerId, !!ownerId);
 
@@ -319,7 +313,11 @@ const MyEntriesPage: React.FC = () => {
                  below proves nothing. Rendering FirstRunZeroState here told an
                  exhibitor on a cold offline boot that they had never entered a
                  show, with their entries sitting in IndexedDB. */
-              <EntriesIdentityPendingCard onRetry={refreshEntries} refreshing={refreshing} />
+              <EntriesIdentityPendingCard
+                onRetry={refreshEntries}
+                refreshing={refreshing}
+                identityState={identityState}
+              />
             ) : entries.length === 0 &&
               !waitlistSurface.hasPositions &&
               !isLoading &&
@@ -536,7 +534,7 @@ const MyEntriesPage: React.FC = () => {
         onResultRevealSeen={reveal.markSeen}
         addDogOpen={dialogs.addDogOpen}
         onCloseAddDog={dialogs.closeAddDog}
-        currentUserPersonId={currentUserPersonId ?? undefined}
+        currentUserPersonId={ownerId || undefined}
       />
     </>
   );

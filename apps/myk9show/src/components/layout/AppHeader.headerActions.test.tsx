@@ -94,6 +94,7 @@ const premiumEdges = vi.hoisted(() => ({
     updatedAt: null as string | null,
     experienceIsPublished: true as boolean | null,
   },
+  publishFetchStatus: 'idle' as 'idle' | 'fetching' | 'paused',
 }));
 
 vi.mock('@/features/premium/useGeneratePremium', () => ({
@@ -115,7 +116,11 @@ vi.mock('@/features/premium/usePublishInfo', async () => {
   );
   return {
     ...actual,
-    usePublishInfo: () => ({ data: premiumEdges.publishInfo, isError: false }),
+    usePublishInfo: () => ({
+      data: premiumEdges.publishInfo,
+      isError: false,
+      fetchStatus: premiumEdges.publishFetchStatus,
+    }),
   };
 });
 
@@ -152,6 +157,7 @@ beforeEach(() => {
     updatedAt: null,
     experienceIsPublished: true,
   };
+  premiumEdges.publishFetchStatus = 'idle';
   // The publish store is module scope; a leaked in-flight id would latch the
   // next test's click into a silent no-op.
   usePremiumPublishStore.setState({ byShowId: {} });
@@ -430,6 +436,15 @@ describe('the premium item says what the Premium List card says', () => {
     const { item } = await openMenu();
     expect(item).toHaveAttribute('data-disabled');
     expect(item).toHaveTextContent('Checking the premium');
+  });
+
+  it('shows the offline reason in the paused publish menu item', async () => {
+    premiumEdges.publishInfo = undefined as never;
+    premiumEdges.publishFetchStatus = 'paused';
+
+    const { item } = await openMenu();
+    expect(item).toHaveAttribute('data-disabled');
+    expect(item).toHaveTextContent("You're offline — publishing needs a connection");
   });
 
   it('is enabled and says "Republish premium" when the show data moved on', async () => {

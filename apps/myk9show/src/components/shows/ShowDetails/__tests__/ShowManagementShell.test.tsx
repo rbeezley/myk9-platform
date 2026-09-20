@@ -7,6 +7,11 @@ import type { ShowDetailTabsProps } from '../ShowDetailTabs';
 import { buildShowManagementTabDefs } from '@/pages/ShowDetailsPage.tabDefs';
 import type { Show } from '@/types/show-types';
 
+const manageScope = vi.hoisted(() => ({
+  status: 'resolved' as 'resolved' | 'resolving' | 'unavailable',
+  canManage: true,
+}));
+
 // Shell primitives mocked to passthroughs; presence/status/premium mocked to
 // testids so we can assert the shell RENDERS them (the silent-provider-loss
 // guard: presence UI must not be dropped by the extraction).
@@ -57,13 +62,26 @@ vi.mock('@/features/show-live-sync/LiveUpdateIndicator', () => ({
   LiveUpdateIndicator: () => <div data-testid="live-indicator" />,
 }));
 vi.mock('@/features/premium/PremiumDownloadCard', () => ({
-  PremiumDownloadCard: () => <div data-testid="premium-download-card" />,
+  PremiumDownloadCard: ({ canManageShow }: { canManageShow: boolean }) => (
+    <div data-testid="premium-download-card" data-can-manage={String(canManageShow)} />
+  ),
 }));
 vi.mock('@/features/premium/LandingPageCard', () => ({
   LandingPageCard: () => <div data-testid="landing-page-card" />,
 }));
 vi.mock('../ShowDeskCompactContext', () => ({
-  ShowDeskCompactContext: () => <div data-testid="show-desk-compact-context" />,
+  ShowDeskCompactContext: ({ canManageShow }: { canManageShow: boolean }) => (
+    <div data-testid="show-desk-compact-context" data-can-manage={String(canManageShow)} />
+  ),
+}));
+vi.mock('@/hooks/useShowManageScope', () => ({
+  useShowManageScope: () => ({
+    status: manageScope.status,
+    canManage: manageScope.canManage,
+    canOperate: manageScope.canManage,
+    hasOperationalStaffRole: true,
+    clubId: 'club-1',
+  }),
 }));
 vi.mock('@/components/panels/edit/ShowEditPanel', () => ({
   ShowEditPanel: ({
@@ -147,7 +165,7 @@ function renderShell(
 ) {
   const props = shellProps(overrides);
   const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
-  render(
+  const renderTree = () => (
     <QueryClientProvider client={qc}>
       <MemoryRouter initialEntries={[initialRoute]}>
         {extra}
@@ -168,8 +186,14 @@ function renderShell(
       </MemoryRouter>
     </QueryClientProvider>
   );
-  return props;
+  const view = render(renderTree());
+  return { ...view, props, rerenderShell: () => view.rerender(renderTree()) };
 }
+
+beforeEach(() => {
+  manageScope.status = 'resolved';
+  manageScope.canManage = true;
+});
 
 /**
  * Navigate WITHIN the mounted router, the way an in-app edit link does.
@@ -269,6 +293,57 @@ describe('ShowManagementShell', () => {
     expect(anchor).toBeInTheDocument();
     expect(screen.getByTestId('premium-download-card')).toBeInTheDocument();
     expect(screen.getByTestId('landing-page-card')).toBeInTheDocument();
+  });
+
+  it('structurally unmounts management UI until the management scope resolves', () => {
+    manageScope.status = 'resolving';
+    manageScope.canManage = false;
+
+    renderShell();
+
+    expect(screen.getByRole('status', { name: /loading content/i })).toBeInTheDocument();
+    expect(screen.queryByTestId('premium-download-card')).toBeNull();
+    expect(screen.queryByTestId('detail-hero')).toBeNull();
+  });
+
+  it('surfaces a retryable degraded state when management scope is unavailable', () => {
+    manageScope.status = 'unavailable';
+    manageScope.canManage = false;
+
+    renderShell();
+
+    expect(screen.getByRole('alert')).toHaveTextContent("We couldn't verify show access.");
+    expect(screen.getByRole('button', { name: /try again/i })).toBeInTheDocument();
+    expect(screen.queryByTestId('premium-download-card')).toBeNull();
+    expect(screen.queryByTestId('detail-hero')).toBeNull();
+  });
+
+  it('structurally unmounts Show Desk management UI in the unresolved window', () => {
+    manageScope.status = 'resolving';
+    manageScope.canManage = false;
+
+    renderShell({ activeManagementSection: 'show-day' }, '/shows/show-1/show-day');
+
+    expect(screen.queryByTestId('show-desk-compact-context')).toBeNull();
+    expect(screen.queryByTestId('detail-hero')).toBeNull();
+  });
+
+  it('does not flash cached management content across scope transitions', () => {
+    const view = renderShell();
+
+    manageScope.status = 'resolving';
+    view.rerenderShell();
+    expect(screen.getByRole('status', { name: /loading content/i })).toBeInTheDocument();
+    expect(screen.queryByTestId('premium-download-card')).toBeNull();
+
+    manageScope.status = 'resolved';
+    manageScope.canManage = false;
+    view.rerenderShell();
+    expect(screen.queryByTestId('premium-download-card')).toBeNull();
+
+    manageScope.canManage = true;
+    view.rerenderShell();
+    expect(screen.getByTestId('premium-download-card')).toHaveAttribute('data-can-manage', 'true');
   });
 
   it.each(['reports', 'results', 'entries', 'setup'] as const)(

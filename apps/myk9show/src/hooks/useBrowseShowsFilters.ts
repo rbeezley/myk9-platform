@@ -3,7 +3,7 @@ import { useUrlFilters } from '@/hooks/useUrlFilters';
 import type { Show } from '@/types/show-types';
 import type { SyncableShowEntry } from '@/store/entryStore';
 import { filterShowsForTab } from '@/utils/unified-shows-config';
-import type { UserShowContext } from '@/types/unified-shows-types';
+import type { BrowseIdentityState, UserShowContext } from '@/types/unified-shows-types';
 import { getEntryStatus, userHasEntriesForShow } from '@/utils/entryStatusUtils';
 import {
   ALL_MONTHS_KEY,
@@ -118,6 +118,7 @@ interface UseBrowseShowsFiltersProps {
   shows: Show[];
   entries: SyncableShowEntry[];
   userContext: UserShowContext | null;
+  identityState?: BrowseIdentityState;
   selectedTab: string;
   /** The visitor's chosen location; enables the radius filter and nearest-first sort. */
   origin?: LatLng | null;
@@ -142,9 +143,11 @@ export function useBrowseShowsFilters({
   shows,
   entries,
   userContext,
+  identityState,
   selectedTab,
   origin = null,
 }: UseBrowseShowsFiltersProps): UseBrowseShowsFiltersReturn {
+  const effectiveIdentityState = identityState ?? (userContext ? 'resolved' : 'anonymous');
   // URL-backed so a refresh, back-navigation, or shared link keeps the same
   // result set (MYK9-221). Same [values, setValues] contract as useState.
   const [rawFilters, setFilters] = useUrlFilters<ShowFilters>(DEFAULT_FILTERS, {
@@ -192,7 +195,13 @@ export function useBrowseShowsFilters({
   // Apply filters to shows
   const applyFilters = useCallback(() => {
     // First apply tab-based filtering
-    let filtered = filterShowsForTab(selectedTab, shows, entries, userContext);
+    let filtered = filterShowsForTab(
+      selectedTab,
+      shows,
+      entries,
+      userContext,
+      effectiveIdentityState
+    );
 
     // Search filter
     if (filters.search) {
@@ -292,7 +301,7 @@ export function useBrowseShowsFilters({
     }
 
     setFilteredShows(filtered);
-  }, [shows, entries, userContext, selectedTab, filters, origin]);
+  }, [shows, entries, userContext, effectiveIdentityState, selectedTab, filters, origin]);
 
   // Apply filters when dependencies change
   useEffect(() => {

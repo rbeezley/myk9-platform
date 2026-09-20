@@ -1,10 +1,12 @@
 import React from 'react';
 import { describe, expect, it, vi } from 'vitest';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { act, renderHook } from '@testing-library/react';
+import { act, renderHook, waitFor } from '@testing-library/react';
 import type { Show } from '@/types/show-types';
 import { UserRole } from '@/types/auth-types';
 import { useBrowseShowsData } from './useBrowseShowsData';
+import { getPublicShows } from '@/services/database/shows';
+import { mapDatabaseShowsArray } from '@/services/mappers/showMappers';
 
 vi.mock('react-router-dom', async importOriginal => ({
   ...(await importOriginal<typeof import('react-router-dom')>()),
@@ -172,6 +174,97 @@ describe('useBrowseShowsData — unconfirmed account membership', () => {
 
     expect(result.current.entries).toEqual([]);
     expect(result.current.accountEntriesReliable).toBe(false);
-    expect(result.current.isLoading).toBe(true);
+    // Membership confidence is independent from the public Find Shows list;
+    // a preloaded show list remains usable while the person identity is pending.
+    expect(result.current.isLoading).toBe(false);
+    expect(result.current.browseIdentityState).toBe('pending');
+  });
+
+  it('keeps preloaded public shows visible while an authenticated identity is pending', async () => {
+    const secretary = {
+      id: 'auth-user-secretary',
+      databaseUserId: undefined,
+      roles: [UserRole.SECRETARY],
+    } as never;
+    const publicShow = { ...mockShow, id: 'public-show-1' };
+    vi.mocked(getPublicShows).mockResolvedValue({ data: [{}], error: null } as never);
+    vi.mocked(mapDatabaseShowsArray).mockReturnValue([publicShow]);
+
+    useAuthContextMock.mockReturnValue({
+      user: secretary,
+      userWithRoles: secretary,
+      loading: false,
+      personId: null,
+      personIdentityState: 'unresolved',
+      hasUsablePersonId: false,
+    });
+    useAccountEnteredShowIdsMock.mockReturnValue({
+      all: [],
+      active: [],
+      isLoading: false,
+      isError: false,
+      identityState: 'unresolved',
+      hasUsablePersonId: false,
+      readState: 'identity-unresolved',
+      refetch: vi.fn(async () => undefined),
+    });
+    useEntryStoreMock.mockReturnValue({
+      entries: [],
+      isLoading: true,
+      error: null,
+      loadEntries: vi.fn(async () => undefined),
+    });
+    useShowStoreMock.mockImplementation((selector: (state: unknown) => unknown) =>
+      selector({ shows: [], isLoading: false, error: null })
+    );
+    useReplicationSyncMock.mockReturnValue({ status: { tablesStatus: { shows: 'synced' } } });
+
+    const { result } = renderHook(
+      () => useBrowseShowsData({ filteredShows: [publicShow], selectedTab: 'all' }),
+      { wrapper: createWrapper() }
+    );
+
+    await waitFor(() => expect(result.current.shows).toEqual([publicShow]));
+    expect(result.current.isLoading).toBe(false);
+    expect(result.current.browseIdentityState).toBe('pending');
+  });
+
+  it('does not block a preloaded show list on pending account membership', () => {
+    useAuthContextMock.mockReturnValue({
+      user: mockUser,
+      userWithRoles: mockUser,
+      loading: false,
+      personId: 'person-1',
+      personIdentityState: 'resolved',
+      hasUsablePersonId: true,
+    });
+    useAccountEnteredShowIdsMock.mockReturnValue({
+      all: [],
+      active: [],
+      isLoading: true,
+      isError: false,
+      identityState: 'resolved',
+      hasUsablePersonId: true,
+      readState: 'read-pending',
+      refetch: vi.fn(async () => undefined),
+    });
+    useEntryStoreMock.mockReturnValue({
+      entries: [],
+      isLoading: true,
+      error: null,
+      loadEntries: vi.fn(async () => undefined),
+    });
+    useShowStoreMock.mockImplementation((selector: (state: unknown) => unknown) =>
+      selector({ shows: [mockShow], isLoading: false, error: null })
+    );
+    useReplicationSyncMock.mockReturnValue({ status: { tablesStatus: { shows: 'synced' } } });
+
+    const { result } = renderHook(
+      () => useBrowseShowsData({ filteredShows: [mockShow], selectedTab: 'all' }),
+      { wrapper: createWrapper() }
+    );
+
+    expect(result.current.isLoading).toBe(false);
+    expect(result.current.accountEntriesReliable).toBe(false);
   });
 });

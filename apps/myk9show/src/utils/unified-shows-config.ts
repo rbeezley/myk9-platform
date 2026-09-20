@@ -7,6 +7,7 @@ import {
   UserShowContext,
   ShowWithRelationship,
   ShowRelationship,
+  BrowseIdentityState,
 } from '@/types/unified-shows-types';
 import {
   getUserEntries,
@@ -232,11 +233,18 @@ export function filterShowsForTab(
   tabId: string,
   shows: Show[],
   _entries: SyncableShowEntry[],
-  context: UserShowContext | null
+  context: UserShowContext | null,
+  identityState: BrowseIdentityState = context ? 'resolved' : 'anonymous'
 ): Show[] {
+  if (identityState !== 'resolved') {
+    // Only the public Browse All tab is safe while authentication is pending
+    // or a person record is confirmed missing. Staff tabs must not fail open to
+    // all shows just because relationship context is unavailable.
+    return tabId === 'all' ? shows : [];
+  }
+
   if (!context) {
-    // Guest filtering
-    // Guests have one tab; a month picks past shows now, not a tab.
+    // Anonymous visitors have one tab; a month picks past shows now, not a tab.
     return shows;
   }
 

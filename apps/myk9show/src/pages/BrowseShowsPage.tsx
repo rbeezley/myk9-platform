@@ -100,6 +100,7 @@ const BrowseShowsPage: React.FC = () => {
     entries,
     enhancedShows: allEnhancedShows,
     userContext,
+    browseIdentityState,
     tabQuickActions,
     handleRetry,
     accountEntriesDegraded,
@@ -113,7 +114,14 @@ const BrowseShowsPage: React.FC = () => {
     monthScopedShows,
     hasActiveFilters,
     clearAllFilters,
-  } = useBrowseShowsFilters({ shows, entries, userContext, selectedTab, origin });
+  } = useBrowseShowsFilters({
+    shows,
+    entries,
+    userContext,
+    identityState: browseIdentityState,
+    selectedTab,
+    origin,
+  });
 
   // Sync filtered shows into state for the data hook (avoids second hook call)
   useEffect(() => {

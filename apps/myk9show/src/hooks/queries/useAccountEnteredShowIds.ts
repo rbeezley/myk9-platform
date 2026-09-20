@@ -59,6 +59,9 @@ export function useAccountEnteredShowIds(): AccountEnteredShowIds {
   } = useAuthContext();
   const identityState = authIdentityState ?? (personId ? 'resolved' : 'unresolved');
   const hasUsablePersonId = authHasUsablePersonId ?? Boolean(personId);
+  const hasAccountIdentity = Boolean(
+    user?.id && user.is_anonymous !== true && personId && hasUsablePersonId
+  );
   const {
     data,
     isLoading,
@@ -90,7 +93,7 @@ export function useAccountEnteredShowIds(): AccountEnteredShowIds {
       }
       return { all: [...all], active: [...active], source };
     },
-    enabled: !!personId,
+    enabled: hasAccountIdentity,
     staleTime: 60_000,
     // One retry, not the global default of two: each attempt pays the full
     // `getUserEntries` view deadline, so the default turns a dead network into
@@ -102,6 +105,9 @@ export function useAccountEnteredShowIds(): AccountEnteredShowIds {
     // it, so the fallback is unreachable exactly when it matters. Same
     // reason as `useAtShowClassList` / `RingsideShowBoundary`.
     networkMode: 'always' as const,
+    // This query is scoped to the current person. Never carry the previous
+    // account's entered-show ids while a new identity key is resolving.
+    placeholderData: () => undefined,
   });
 
   const readState = deriveAccountEntryReadState({
@@ -114,13 +120,13 @@ export function useAccountEnteredShowIds(): AccountEnteredShowIds {
   });
 
   return {
-    all: data?.all ?? EMPTY_ACCOUNT_ENTERED_SHOW_IDS.all,
-    active: data?.active ?? EMPTY_ACCOUNT_ENTERED_SHOW_IDS.active,
+    all: hasAccountIdentity ? (data?.all ?? EMPTY_ACCOUNT_ENTERED_SHOW_IDS.all) : [],
+    active: hasAccountIdentity ? (data?.active ?? EMPTY_ACCOUNT_ENTERED_SHOW_IDS.active) : [],
     // A disabled query for an anonymous visitor must not keep Browse Shows in
     // a loading state. Authenticated exhibitors wait for this authoritative
     // account-level read instead of seeing a false zero-entry state.
-    isLoading: !!personId && isLoading,
-    isError: !!personId && isError,
+    isLoading: hasAccountIdentity && isLoading,
+    isError: hasAccountIdentity && isError,
     identityState,
     hasUsablePersonId,
     readState,

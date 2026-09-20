@@ -37,11 +37,17 @@ export function useHasAnyEntryForShow(showId: string | undefined): HasAnyEntryFo
   // The one resolver, shared with My Shows and My Payments, so the
   // `getUserEntries` cache is one key per account (MYK9-629 restructure 4).
   const personId = useEntriesPersonId();
-  const { personIdentityState: authIdentityState, hasUsablePersonId: authHasUsablePersonId } =
-    useAuthContext();
+  const {
+    user,
+    personIdentityState: authIdentityState,
+    hasUsablePersonId: authHasUsablePersonId,
+  } = useAuthContext();
   const identityState: PersonIdentityState =
     authIdentityState ?? (personId ? 'resolved' : 'unresolved');
   const hasUsablePersonId = authHasUsablePersonId ?? Boolean(personId);
+  const hasAccountIdentity = Boolean(
+    user?.id && user.is_anonymous !== true && personId && hasUsablePersonId
+  );
 
   const { data, isLoading, isError } = useQuery({
     queryKey: ['at-show', 'has-any-entry', personId, showId],
@@ -71,7 +77,10 @@ export function useHasAnyEntryForShow(showId: string | undefined): HasAnyEntryFo
     // `getUserEntries` view deadline, so the default turns a dead network into
     // a ~46s spinner at the ringside front door.
     retry: 1,
-    enabled: !!personId && !!showId,
+    // This query is scoped to the current person. Never carry a prior
+    // exhibitor's positive entry result into a new account or signed-out view.
+    placeholderData: () => undefined,
+    enabled: hasAccountIdentity && !!showId,
     // `getUserEntries` carries its own offline fallback (the replicated
     // snapshot), but React Query's default `networkMode: 'online'` parks
     // this query at `fetchStatus: 'paused'` while offline and never calls
@@ -81,12 +90,12 @@ export function useHasAnyEntryForShow(showId: string | undefined): HasAnyEntryFo
   });
 
   return {
-    hasAnyEntryForShow: data?.entered ?? false,
-    isLoading,
+    hasAnyEntryForShow: hasAccountIdentity && (data?.entered ?? false),
+    isLoading: hasAccountIdentity && isLoading,
     // Two ways to fail to find out: the read threw, or it answered "no" from
     // rows the server never confirmed. Both are "could not confirm", and the
     // gate renders the same copy for each.
-    isError: !!personId && (isError || (data ? !data.confirmed : false)),
+    isError: hasAccountIdentity && (isError || (data ? !data.confirmed : false)),
     identityState,
     hasUsablePersonId,
   };

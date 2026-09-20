@@ -8,7 +8,11 @@ import { getPublicShows } from '@/services/database/shows';
 import { mapDatabaseShowsArray } from '@/services/mappers/showMappers';
 import { logger } from '@/services/LoggingService';
 import type { Show } from '@/types/show-types';
-import type { UserShowContext, ShowRelationship } from '@/types/unified-shows-types';
+import type {
+  BrowseIdentityState,
+  UserShowContext,
+  ShowRelationship,
+} from '@/types/unified-shows-types';
 import { getUserShowContext, enhanceShowsWithRelationships } from '@/utils/unified-shows-config';
 import { useNavigate } from 'react-router-dom';
 import { getTabQuickActions } from '@/utils/show-actions';
@@ -61,6 +65,7 @@ interface UseBrowseShowsDataReturn {
   showsError: Error | null;
   entriesError: string | null;
   accountEnteredIdentityState: PersonIdentityState;
+  browseIdentityState: BrowseIdentityState;
   accountEnteredReadState: ReturnType<typeof useAccountEnteredShowIds>['readState'];
   accountEntriesReliable: boolean;
   accountEntriesDegraded: boolean;
@@ -89,11 +94,27 @@ export function useBrowseShowsData({
   selectedTab,
 }: UseBrowseShowsDataProps): UseBrowseShowsDataReturn {
   const navigate = useNavigate();
-  const { user: authUser, userWithRoles: user, loading: authLoading, personId } = useAuthContext();
+  const {
+    user: authUser,
+    userWithRoles: user,
+    loading: authLoading,
+    personId,
+    personIdentityState,
+  } = useAuthContext();
   const storeShows = useShowStore(s => s.shows);
   const showsLoading = useShowStore(s => s.isLoading);
 
-  // Guest fallback: fetch public shows directly when not authenticated.
+  const browseIdentityState: BrowseIdentityState =
+    !authUser || authUser.is_anonymous === true
+      ? 'anonymous'
+      : personId
+        ? 'resolved'
+        : personIdentityState === 'missing'
+          ? 'missing'
+          : 'pending';
+
+  // Public fallback: fetch the discoverable show list directly whenever the
+  // local show replica has no rows, including while account identity is pending.
   // The shows_select RLS policy allows unauthenticated reads for published/upcoming/in_progress/completed.
   const { data: publicShows, isLoading: publicShowsLoading } = useQuery({
     queryKey: ['shows', 'public'],
@@ -102,11 +123,15 @@ export function useBrowseShowsData({
       if (error) throw error;
       return mapDatabaseShowsArray(data ?? []);
     },
-    enabled: !authLoading && !user,
+    enabled: !authLoading && (!authUser || storeShows.length === 0),
     staleTime: 60_000,
   });
 
-  const shows = user ? storeShows : (publicShows ?? storeShows);
+  const shows = user
+    ? storeShows.length > 0
+      ? storeShows
+      : (publicShows ?? storeShows)
+    : (publicShows ?? storeShows);
   const storeErrorMsg = useShowStore(s => s.error);
   const showsError = storeErrorMsg ? new Error(storeErrorMsg) : null;
   const {
@@ -167,25 +192,20 @@ export function useBrowseShowsData({
   // be stuck forever.
   const showsSyncPending =
     !!user &&
+    storeShows.length === 0 &&
+    shows.length === 0 &&
     (syncStatus.tablesStatus.shows === 'idle' || syncStatus.tablesStatus.shows === 'syncing');
-  const accountIdentityPending =
-    Boolean(authUser) &&
-    (accountEnteredShowIds.readState === 'identity-unresolved' ||
-      accountEnteredShowIds.readState === 'read-pending');
   const accountEntriesReliable = accountEnteredShowIds.readState === 'confirmed';
   const accountEntriesDegraded =
     accountEnteredShowIds.readState === 'unconfirmed' ||
     accountEnteredShowIds.readState === 'error';
   const isLoading =
     authLoading ||
-    showsLoading ||
-    entriesLoading ||
-    accountEnteredShowIds.isLoading ||
-    accountIdentityPending ||
-    (shows.length === 0 && showsSyncPending) ||
-    publicShowsLoading;
+    publicShowsLoading ||
+    (shows.length === 0 && (showsLoading || entriesLoading || showsSyncPending));
   // Membership confidence is separate from public show discovery. An account
-  // read can be stale or unavailable while the public list remains usable.
+  // read can be pending, stale, or unavailable while the public list remains
+  // usable; only public-list and show-store loading block Find Shows content.
   const hasError = !!(showsError || entriesError);
 
   // Get user show context for filtering with caching
@@ -364,6 +384,7 @@ export function useBrowseShowsData({
     showsError: showsError || null,
     entriesError: entriesError || null,
     accountEnteredIdentityState: accountEnteredShowIds.identityState,
+    browseIdentityState,
     accountEnteredReadState: accountEnteredShowIds.readState,
     accountEntriesReliable,
     accountEntriesDegraded,

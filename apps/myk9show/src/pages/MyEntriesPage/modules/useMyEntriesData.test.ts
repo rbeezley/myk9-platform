@@ -57,6 +57,14 @@ const entryRow = () => ({
   registration: { id: 'reg-1', confirmation_number: 'ABC123' },
 });
 
+function deferred<T>() {
+  let resolve!: (value: T) => void;
+  const promise = new Promise<T>(resolvePromise => {
+    resolve = resolvePromise;
+  });
+  return { promise, resolve };
+}
+
 const renderData = () =>
   renderHook(() =>
     useMyEntriesData({ persistCheckInStatus: vi.fn().mockResolvedValue(undefined) })
@@ -391,5 +399,72 @@ describe('useMyEntriesData — preserved entries must not cross an identity chan
 
     expect(result.current.isError).toBe(true);
     expect(result.current.entries).toHaveLength(1);
+  });
+
+  it('ignores a deferred A response and refresh finalizer after switching to B', async () => {
+    const accountARefresh = deferred<{
+      source: 'confirmed';
+      data: ReturnType<typeof entryRow>[];
+      error: null;
+    }>();
+    const accountBRead = deferred<{
+      source: 'confirmed';
+      data: ReturnType<typeof entryRow>[];
+      error: null;
+    }>();
+    const accountARow = {
+      ...entryRow(),
+      id: 'entry-a',
+      show_id: 'show-a',
+      dog: { id: 'dog-a', name: 'Aster', call_name: 'Aster' },
+      show: { ...entryRow().show, id: 'show-a', name: 'Account A Show' },
+    };
+    const accountBRow = {
+      ...entryRow(),
+      id: 'entry-b',
+      show_id: 'show-b',
+      dog: { id: 'dog-b', name: 'Briar', call_name: 'Briar' },
+      show: { ...entryRow().show, id: 'show-b', name: 'Account B Show' },
+    };
+
+    (getUserEntries as ReturnType<typeof vi.fn>)
+      .mockResolvedValueOnce({ source: 'confirmed', data: [accountARow], error: null })
+      .mockImplementation((personId: string) =>
+        personId === 'person-A' ? accountARefresh.promise : accountBRead.promise
+      );
+
+    const { result, rerender } = renderData();
+    await waitFor(() => expect(result.current.entries[0]?.showName).toBe('Account A Show'));
+
+    await act(async () => {
+      void result.current.refreshEntries();
+    });
+    await waitFor(() => expect(getUserEntries).toHaveBeenCalledWith('person-A'));
+
+    (useAuthContext as ReturnType<typeof vi.fn>).mockReturnValue({
+      user: { id: 'user-B', email: 'b@test.com' },
+      userWithRoles: { databaseUserId: 'person-B' },
+      personId: 'person-B',
+      isAuthenticated: true,
+    });
+    act(() => rerender());
+
+    // The old A rows are hidden in the identity-change render, before B's read
+    // can answer. This is the important synchronous half of the fence.
+    expect(result.current.entries).toEqual([]);
+    expect(result.current.balanceSummary.kind).toBe('unknown');
+
+    await act(async () => {
+      accountBRead.resolve({ source: 'confirmed', data: [accountBRow], error: null });
+    });
+    await waitFor(() => expect(result.current.entries[0]?.showName).toBe('Account B Show'));
+
+    await act(async () => {
+      accountARefresh.resolve({ source: 'confirmed', data: [accountARow], error: null });
+      await accountARefresh.promise;
+    });
+
+    expect(result.current.entries[0]?.showName).toBe('Account B Show');
+    expect(result.current.refreshing).toBe(false);
   });
 });

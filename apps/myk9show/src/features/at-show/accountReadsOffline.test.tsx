@@ -22,7 +22,7 @@
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { renderHook, waitFor } from '@testing-library/react';
-import { QueryClient, QueryClientProvider, onlineManager } from '@tanstack/react-query';
+import { QueryClientProvider, onlineManager } from '@tanstack/react-query';
 import type { ReactNode } from 'react';
 import { useHasAnyEntryForShow } from './useHasAnyEntryForShow';
 import { useExhibitorUpcomingShows } from './useExhibitorUpcomingShows';
@@ -31,6 +31,7 @@ import { useMyEntryBalanceSummary } from '@/features/payments/useMyEntryBalanceS
 import { getUserEntries } from '@/services/database/entries';
 import { useAuthContext } from '@/hooks/useAuthContext';
 import { savePersonIdentityCache } from '@/context/personIdentityCache';
+import { queryClient } from '@/lib/queryClient';
 
 vi.mock('@/services/database/entries', () => ({
   getUserEntries: vi.fn(),
@@ -61,8 +62,6 @@ const replicaRows = [
 // One client for the whole file, created once. Building it inside the wrapper
 // component made a NEW client on every render, which silently discards the
 // in-flight query and its cache between renders.
-const queryClient = new QueryClient();
-
 function wrapper({ children }: { children: ReactNode }) {
   return <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>;
 }
@@ -171,6 +170,70 @@ describe('account reads while offline, with identity resolved (MYK9-536)', () =>
     await waitFor(() => expect(result.current.data).toBeDefined());
     expect(result.current.data?.kind).toBe('known');
     expect(result.current.data?.amountDueCents).toBe(3000);
+  });
+
+  it('rejects previous account placeholders across every account entry consumer', async () => {
+    let resolveB!: (value: { data: typeof replicaRows; error: null; source: 'confirmed' }) => void;
+    const accountBRead = new Promise<{
+      data: typeof replicaRows;
+      error: null;
+      source: 'confirmed';
+    }>(resolve => {
+      resolveB = resolve;
+    });
+    (getUserEntries as ReturnType<typeof vi.fn>).mockImplementation((personId: string) =>
+      personId === 'person-1'
+        ? Promise.resolve({ data: replicaRows, error: null, source: 'replica-offline' })
+        : accountBRead
+    );
+
+    const { result, rerender } = renderHook(
+      () => ({
+        hasAny: useHasAnyEntryForShow(SHOW_ID),
+        upcoming: useExhibitorUpcomingShows(),
+        entered: useAccountEnteredShowIds(),
+        balance: useMyEntryBalanceSummary(),
+      }),
+      { wrapper }
+    );
+    await waitFor(() => {
+      expect(result.current.hasAny.hasAnyEntryForShow).toBe(true);
+      expect(result.current.upcoming.upcomingShows).toHaveLength(1);
+      expect(result.current.entered.all).toContain(SHOW_ID);
+      expect(result.current.balance.data?.kind).toBe('unknown');
+    });
+
+    (useAuthContext as ReturnType<typeof vi.fn>).mockReturnValue({
+      user: { id: 'user-2' },
+      userWithRoles: { databaseUserId: 'person-2' },
+      personId: 'person-2',
+      personIdentityState: 'resolved',
+      hasUsablePersonId: true,
+      isAuthenticated: true,
+    });
+    rerender();
+    expect(result.current.hasAny.hasAnyEntryForShow).toBe(false);
+    expect(result.current.hasAny.isLoading).toBe(true);
+    expect(result.current.upcoming.upcomingShows).toEqual([]);
+    expect(result.current.entered.all).toEqual([]);
+    expect(result.current.balance.data).toBeUndefined();
+
+    (useAuthContext as ReturnType<typeof vi.fn>).mockReturnValue({
+      user: null,
+      userWithRoles: null,
+      personId: null,
+      personIdentityState: 'unresolved',
+      hasUsablePersonId: false,
+      isAuthenticated: false,
+    });
+    rerender();
+    expect(result.current.hasAny.hasAnyEntryForShow).toBe(false);
+    expect(result.current.hasAny.isLoading).toBe(false);
+    expect(result.current.upcoming.upcomingShows).toEqual([]);
+    expect(result.current.entered.all).toEqual([]);
+    expect(result.current.balance.data).toBeUndefined();
+
+    resolveB({ data: replicaRows, error: null, source: 'confirmed' });
   });
 });
 

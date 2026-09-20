@@ -69,6 +69,9 @@ export function useExhibitorUpcomingShows(): ExhibitorUpcomingShows {
   const identityState: PersonIdentityState =
     authIdentityState ?? (personId ? 'resolved' : 'unresolved');
   const hasUsablePersonId = authHasUsablePersonId ?? Boolean(personId);
+  const hasAccountIdentity = Boolean(
+    user?.id && user.is_anonymous !== true && personId && hasUsablePersonId
+  );
 
   const { data, isLoading, isPending, isError } = useQuery<UpcomingShowsRead>({
     queryKey: ['at-show', 'exhibitor-upcoming-shows', personId],
@@ -80,7 +83,7 @@ export function useExhibitorUpcomingShows(): ExhibitorUpcomingShows {
         source,
       };
     },
-    enabled: !!personId,
+    enabled: hasAccountIdentity,
     staleTime: 60_000,
     // One retry, not the global default of two: each attempt pays the full
     // `getUserEntries` view deadline, so the default turns a dead network into
@@ -92,6 +95,9 @@ export function useExhibitorUpcomingShows(): ExhibitorUpcomingShows {
     // it, so the fallback is unreachable exactly when it matters. Same
     // reason as `useAtShowClassList` / `RingsideShowBoundary`.
     networkMode: 'always' as const,
+    // This query is scoped to the current person. Never show another
+    // exhibitor's upcoming shows while a new identity key is resolving.
+    placeholderData: () => undefined,
   });
   const readState = deriveAccountEntryReadState({
     hasUser: Boolean(user?.id),
@@ -103,9 +109,9 @@ export function useExhibitorUpcomingShows(): ExhibitorUpcomingShows {
   });
 
   return {
-    upcomingShows: data?.shows ?? EMPTY,
+    upcomingShows: hasAccountIdentity ? (data?.shows ?? EMPTY) : EMPTY,
     // Never loading without an identity to load for — see the identity note above.
-    isLoading: !!personId && isLoading,
+    isLoading: hasAccountIdentity && isLoading,
     identityState,
     hasUsablePersonId,
     readState,

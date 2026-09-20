@@ -290,6 +290,7 @@ function setupMocks(options: {
     loadEntries: vi.fn(),
     accountEntriesReliable: !accountEntriesDegraded,
     accountEntriesDegraded,
+    browseIdentityState: user?.databaseUserId ? 'resolved' : user ? 'pending' : 'anonymous',
   });
 
   mockUseBrowseShowsFilters.mockReturnValue({
@@ -350,6 +351,17 @@ describe('BrowseShowsPage - Tab Rendering Logic', () => {
         expect(screen.getByTestId('shows-cards')).toBeInTheDocument();
       });
       expect(screen.queryByTestId('shows-table')).not.toBeInTheDocument();
+    });
+
+    it('renders preloaded public shows while an authenticated identity is pending', async () => {
+      const secretary = createMockUser(UserRole.SECRETARY, 'secretary-pending');
+      secretary.databaseUserId = undefined;
+      setupMocks({ user: secretary });
+
+      renderWithProviders(<BrowseShowsPage />, { route: '/shows?tab=all' });
+
+      await waitFor(() => expect(screen.getByTestId('shows-cards')).toBeInTheDocument());
+      expect(screen.queryByTestId('shows-page-skeleton')).not.toBeInTheDocument();
     });
 
     it('honors an explicit table view URL for guests', async () => {

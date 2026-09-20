@@ -115,6 +115,8 @@ describe('useRingsideEntryShows', () => {
   it('does not block a cached exhibitor show on account-today loading', () => {
     banner.isLoading = true;
     exhibitorUpcoming.upcomingShows = [{ showId: 'show-1', showName: 'Saved Show' }];
+    exhibitorUpcoming.identityState = 'unresolved';
+    exhibitorUpcoming.readState = 'unconfirmed';
 
     const { result } = renderHook(() => useRingsideEntryShows());
 

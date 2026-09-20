@@ -21,6 +21,8 @@ import {
 } from '@/services/replication/ReplicatedTrialsTable';
 import { buildMapFromArray } from '../_shared/maps';
 import { getTrialTimezone } from '@/features/registries';
+import { projectEntryHandlerIdentity } from './entryHandlerProjection';
+import { loadHandlerPeople, type HandlerPersonRow } from './handlerHydration';
 import {
   postgrestGetSecretaryPullMetadataMap,
   type SecretaryPullMetadata,
@@ -53,6 +55,7 @@ export interface SecretaryEntryRelations {
   armbandsByEntryId: ReadonlyMap<string, ReplicatedArmband>;
   armbandsByDogId: ReadonlyMap<string, ReplicatedArmband>;
   peopleMap: ReadonlyMap<string, SecretaryPerson>;
+  handlerIdentityPeopleMap?: ReadonlyMap<string, HandlerPersonRow>;
   enrollmentsMap: ReadonlyMap<string, SecretaryEnrollment>;
   trialsMap: ReadonlyMap<string, ReplicatedTrial>;
   pullMetadataMap: ReadonlyMap<string, SecretaryPullMetadata>;
@@ -105,6 +108,24 @@ function fallbackDogFromEntry(entry: ReplicatedEntry, dogId: string): SecretaryD
     ...(callName ? { callName } : {}),
     breed: breed ?? 'Unknown',
   };
+}
+
+function withSecretaryDogOwner(
+  entry: ReplicatedEntry,
+  dogsMap: ReadonlyMap<string, ReplicatedDog>
+): ReplicatedEntry {
+  const ownerId = entry.dogOwnerId ?? (entry.dogId ? dogsMap.get(entry.dogId)?.ownerId : undefined);
+  return ownerId === entry.dogOwnerId ? entry : { ...entry, dogOwnerId: ownerId };
+}
+
+function handlerIdentityIds(entries: readonly ReplicatedEntry[]): string[] {
+  return [
+    ...new Set(
+      entries.flatMap(entry =>
+        [entry.handlerId, entry.dogOwnerId].filter((id): id is string => Boolean(id?.trim()))
+      )
+    ),
+  ];
 }
 
 async function loadSecretaryPeopleMap(
@@ -179,6 +200,7 @@ export function toSecretaryEntry(
     armbandsByEntryId,
     armbandsByDogId,
     peopleMap,
+    handlerIdentityPeopleMap = new Map(),
     enrollmentsMap,
     trialsMap,
     pullMetadataMap,
@@ -198,6 +220,7 @@ export function toSecretaryEntry(
   const trialId = entry.trialId ?? entry.trial_id ?? null;
   const trial = trialId ? (trialsMap.get(trialId) ?? null) : null;
   const pullMetadata = pullMetadataMap.get(entry.id) ?? null;
+  const handler_identity = projectEntryHandlerIdentity(entry, handlerIdentityPeopleMap);
   const armband =
     entry.armband ??
     armbandsByEntryId.get(entry.id)?.armbandNumber ??
@@ -295,6 +318,7 @@ export function toSecretaryEntry(
           auth_user_id: handler.auth_user_id,
         }
       : null,
+    handler_identity,
     dog: dog
       ? {
           id: dog.id,
@@ -336,6 +360,7 @@ export async function getReplicatedSecretaryEntriesForShow(showId: string) {
     replicatedTrialsTable.getTrialsByShow(showId),
   ]);
   const dogsMap = buildMapFromArray(dogs.filter(isNotDeleted), d => d.id);
+  const entriesWithOwners = entries.map(entry => withSecretaryDogOwner(entry, dogsMap));
   const classesMap = buildMapFromArray(classes.filter(isNotDeleted), c => c.id);
   const trialsMap = buildMapFromArray(trials, t => t.id);
   const assignedArmbands = armbands.filter(a => a.isAvailable !== true);
@@ -347,12 +372,13 @@ export async function getReplicatedSecretaryEntriesForShow(showId: string) {
     assignedArmbands.filter(a => a.dogId),
     a => a.dogId as string
   );
-  const [peopleMap, enrollmentsMap, pullMetadataMap] = await Promise.all([
+  const [peopleMap, handlerIdentityPeopleMap, enrollmentsMap, pullMetadataMap] = await Promise.all([
     loadSecretaryPeopleMap(entries, dogs),
+    loadHandlerPeople(handlerIdentityIds(entriesWithOwners)),
     loadSecretaryEnrollmentsMap(entries),
     entries.length > 0 ? loadSecretaryPullMetadataMap(showId) : Promise.resolve(new Map()),
   ]);
-  const data = entries
+  const data = entriesWithOwners
     .map(entry =>
       toSecretaryEntry(entry, {
         dogsMap,
@@ -360,6 +386,7 @@ export async function getReplicatedSecretaryEntriesForShow(showId: string) {
         armbandsByEntryId,
         armbandsByDogId,
         peopleMap,
+        handlerIdentityPeopleMap,
         enrollmentsMap,
         trialsMap,
         pullMetadataMap,

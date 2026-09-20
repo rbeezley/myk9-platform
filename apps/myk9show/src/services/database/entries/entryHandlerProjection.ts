@@ -12,7 +12,7 @@ export function projectEntryHandlerIdentity(
   entry: ReplicatedEntry,
   people: ReadonlyMap<string, HandlerPersonRow>
 ): ProjectedEntryHandler {
-  const handlerId = entry.handlerId ?? entry.handler_id ?? null;
+  const handlerId = entry.handlerId ?? null;
   const ownerId = entry.dogOwnerId ?? null;
 
   return projectHandlerIdentity({

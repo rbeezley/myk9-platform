@@ -13,18 +13,25 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
  * doesn't support the `.eq().is().order()` chain postgrestGetEntriesByShow needs.
  */
 
-const { mockEntriesTable, mockDogsTable, mockClassesTable, mockShowsTable, mockTrialsTable } =
-  vi.hoisted(() => ({
-    mockEntriesTable: {
-      sync: vi.fn(),
-      getEntriesByShow: vi.fn(),
-      getAll: vi.fn().mockResolvedValue([]),
-    },
-    mockDogsTable: { getAllDogs: vi.fn().mockResolvedValue([]) },
-    mockClassesTable: { getAll: vi.fn().mockResolvedValue([]) },
-    mockShowsTable: { getAllShows: vi.fn().mockResolvedValue([]) },
-    mockTrialsTable: { getAll: vi.fn().mockResolvedValue([]) },
-  }));
+const {
+  mockEntriesTable,
+  mockDogsTable,
+  mockClassesTable,
+  mockShowsTable,
+  mockTrialsTable,
+  mockLoadHandlerPeople,
+} = vi.hoisted(() => ({
+  mockEntriesTable: {
+    sync: vi.fn(),
+    getEntriesByShow: vi.fn(),
+    getAll: vi.fn().mockResolvedValue([]),
+  },
+  mockDogsTable: { getAllDogs: vi.fn().mockResolvedValue([]) },
+  mockClassesTable: { getAll: vi.fn().mockResolvedValue([]) },
+  mockShowsTable: { getAllShows: vi.fn().mockResolvedValue([]) },
+  mockTrialsTable: { getAll: vi.fn().mockResolvedValue([]) },
+  mockLoadHandlerPeople: vi.fn().mockResolvedValue(new Map()),
+}));
 
 vi.mock('@/services/replication/ReplicatedEntriesTable', () => ({
   replicatedEntriesTable: mockEntriesTable,
@@ -40,6 +47,9 @@ vi.mock('@/services/replication/ReplicatedShowsTable', () => ({
 }));
 vi.mock('@/services/replication/ReplicatedTrialsTable', () => ({
   replicatedTrialsTable: mockTrialsTable,
+}));
+vi.mock('@/services/database/entries/handlerHydration', () => ({
+  loadHandlerPeople: mockLoadHandlerPeople,
 }));
 
 const defaultOnlineRow = { id: 'entry-online-1', show_id: 's1', class: { id: 'c1' } };
@@ -69,6 +79,8 @@ describe('getEntriesByShow — cold local replica verifies online', () => {
   beforeEach(() => {
     mockEntriesTable.sync.mockReset();
     onlineRows = [defaultOnlineRow];
+    mockLoadHandlerPeople.mockReset();
+    mockLoadHandlerPeople.mockResolvedValue(new Map());
   });
 
   it('syncs a populated but incomplete show replica before returning its entries', async () => {
@@ -164,6 +176,34 @@ describe('getEntriesByShow — cold local replica verifies online', () => {
 
     expect(result.data).toHaveLength(1);
     expect((result.data[0] as Record<string, unknown>).id).toBe('entry-local-1');
+  });
+
+  it('projects the owner as handler identity when replicated assignment is blank', async () => {
+    mockDogsTable.getAllDogs.mockResolvedValue([
+      { id: 'dog-owner', name: 'Scout', breed: 'Beagle', ownerId: 'owner-1' },
+    ]);
+    mockLoadHandlerPeople.mockResolvedValue(
+      new Map([['owner-1', { id: 'owner-1', first_name: 'Olivia', last_name: 'Owner' }]])
+    );
+    mockEntriesTable.getEntriesByShow.mockResolvedValue([
+      {
+        id: 'entry-owner-handler',
+        dogId: 'dog-owner',
+        classId: 'c1',
+        showId: 's1',
+        handler: null,
+        handlerId: null,
+        deletedAt: null,
+        entryStatus: 'confirmed',
+      },
+    ]);
+
+    const result = await getEntriesByShow('s1');
+
+    expect(result.data[0]).toMatchObject({
+      handler_identity: { name: 'Olivia Owner', source: 'owner' },
+    });
+    expect(mockLoadHandlerPeople).toHaveBeenCalledWith(['owner-1']);
   });
 
   it('does not resurrect a locally-tombstoned entry the server still returns as live', async () => {

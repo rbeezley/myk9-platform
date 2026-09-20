@@ -39,9 +39,23 @@ export const WizardStepContent: React.FC<WizardStepContentProps> = ({
 }) => {
   const stepProps = { className: '' };
 
+  const persistedShowTrials = editMode
+    ? existingTrials.filter(trial => trial.showId === editMode.showId)
+    : [];
+  const persistedTrialIds = new Set(persistedShowTrials.map(trial => trial.id));
+  const persistedShowClassCount = editMode
+    ? existingClasses.filter(classData => persistedTrialIds.has(classData.trialId)).length
+    : 0;
+
   switch (currentStep) {
     case 0:
-      return <ShowDetailsStep {...stepProps} />;
+      return (
+        <ShowDetailsStep
+          {...stepProps}
+          persistedTrialCount={persistedShowTrials.length}
+          persistedClassCount={persistedShowClassCount}
+        />
+      );
     case 1: {
       const existingTrialCount =
         editMode?.mode === 'add-trials'
@@ -85,6 +99,12 @@ export const WizardStepContent: React.FC<WizardStepContentProps> = ({
         />
       );
     default:
-      return <ShowDetailsStep {...stepProps} />;
+      return (
+        <ShowDetailsStep
+          {...stepProps}
+          persistedTrialCount={persistedShowTrials.length}
+          persistedClassCount={persistedShowClassCount}
+        />
+      );
   }
 };

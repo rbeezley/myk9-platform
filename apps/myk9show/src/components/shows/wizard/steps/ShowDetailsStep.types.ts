@@ -8,6 +8,9 @@ export type { OrganizationOption } from '@/data/organizations';
 
 export interface ShowDetailsStepProps {
   className?: string;
+  /** Existing persisted children make the show's registry identity immutable. */
+  persistedTrialCount?: number;
+  persistedClassCount?: number;
 }
 
 export interface ResolvedJudge {

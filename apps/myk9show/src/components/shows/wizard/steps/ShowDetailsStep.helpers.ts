@@ -71,10 +71,14 @@ export function canChangeClonedOrganization(
   currentOrganization: string,
   nextOrganization: string,
   trials: ReadonlyArray<{ classes: readonly unknown[] }>,
-  options: { cloneHydrationInProgress?: boolean } = {}
+  options: {
+    cloneHydrationInProgress?: boolean;
+    persistedTrialDataExists?: boolean;
+  } = {}
 ): boolean {
   if (currentOrganization === nextOrganization) return true;
   if (options.cloneHydrationInProgress) return false;
+  if (options.persistedTrialDataExists) return false;
   return !trials.some(trial => trial.classes.length > 0);
 }
 

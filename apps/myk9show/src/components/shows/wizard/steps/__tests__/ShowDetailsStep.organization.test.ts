@@ -20,6 +20,20 @@ describe('cloned show organization changes', () => {
     ).toBe(false);
   });
 
+  it('blocks organization changes for existing-show edits with persisted trials', () => {
+    expect(canChangeClonedOrganization('AKC', 'UKC', [], { persistedTrialDataExists: true })).toBe(
+      false
+    );
+  });
+
+  it('blocks organization changes for existing-show edits with persisted classes', () => {
+    expect(
+      canChangeClonedOrganization('AKC', 'UKC', [{ classes: [] }], {
+        persistedTrialDataExists: true,
+      })
+    ).toBe(false);
+  });
+
   it('reconciles stale trial types to the new organization after classes are cleared', () => {
     expect(reconcileTrialTypeForOrganization('UKC', 'Scent Work')).toBe('Nosework');
     expect(reconcileTrialTypeForOrganization('UKC', 'Agility')).toBe('Agility');

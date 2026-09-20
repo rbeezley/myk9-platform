@@ -28,7 +28,11 @@ import {
 } from './sections';
 import { useShowDetailsStepActions } from './useShowDetailsStepActions';
 
-export const ShowDetailsStep: React.FC<ShowDetailsStepProps> = ({ className }) => {
+export const ShowDetailsStep: React.FC<ShowDetailsStepProps> = ({
+  className,
+  persistedTrialCount = 0,
+  persistedClassCount = 0,
+}) => {
   logger.debug('ShowDetailsStep component loaded', 'wizard');
   const location = useLocation();
   const {
@@ -98,6 +102,7 @@ export const ShowDetailsStep: React.FC<ShowDetailsStepProps> = ({ className }) =
   const [isCloneHydrating, setIsCloneHydrating] = useState(false);
 
   const hasSelectedClasses = trials.some(trial => trial.classes.length > 0);
+  const hasPersistedTrialData = persistedTrialCount > 0 || persistedClassCount > 0;
 
   // Auto-select club if user has exactly one
   useEffect(() => {
@@ -135,6 +140,7 @@ export const ShowDetailsStep: React.FC<ShowDetailsStepProps> = ({ className }) =
       patch.organization &&
       !canChangeClonedOrganization(show.organization, patch.organization, trials, {
         cloneHydrationInProgress: isCloneHydrating,
+        persistedTrialDataExists: hasPersistedTrialData,
       })
     ) {
       setOrganizationChangeBlocked(true);
@@ -192,23 +198,26 @@ export const ShowDetailsStep: React.FC<ShowDetailsStepProps> = ({ className }) =
           }
         />
 
-        {organizationChangeBlocked && (hasSelectedClasses || isCloneHydrating) && (
-          <Alert role="alert" className="border-warning/40 bg-warning/10">
-            <AlertDescription className="flex flex-wrap items-center gap-3 text-warning">
-              {isClonedShow
-                ? 'This cloned show still has classes from the current organization. Return to Classes to remove or replace them before choosing a different organization.'
-                : 'This show still has classes from the current organization. Return to Classes to remove or replace them before choosing a different organization.'}
-              <Button
-                type="button"
-                variant="outline"
-                className="min-h-11 border-warning/40 bg-background text-foreground"
-                onClick={() => setCurrentStep(2)}
-              >
-                Review Classes
-              </Button>
-            </AlertDescription>
-          </Alert>
-        )}
+        {organizationChangeBlocked &&
+          (hasSelectedClasses || isCloneHydrating || hasPersistedTrialData) && (
+            <Alert role="alert" className="border-warning/40 bg-warning/10">
+              <AlertDescription className="flex flex-wrap items-center gap-3 text-warning">
+                {hasPersistedTrialData
+                  ? 'This show already has trials or classes under the current organization. Keep that organization for this show.'
+                  : isClonedShow
+                    ? 'This cloned show still has classes from the current organization. Return to Classes to remove or replace them before choosing a different organization.'
+                    : 'This show still has classes from the current organization. Return to Classes to remove or replace them before choosing a different organization.'}
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="min-h-11 border-warning/40 bg-background text-foreground"
+                  onClick={() => setCurrentStep(2)}
+                >
+                  Review Classes
+                </Button>
+              </AlertDescription>
+            </Alert>
+          )}
 
         <DatesEntrySection
           show={show}

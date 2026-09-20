@@ -8,6 +8,9 @@ import {
   type ReplicatedEntry,
   type ReplicatedTrial,
 } from '@/services/replication';
+import { loadHandlerPeople } from '@/services/database/entries/handlerHydration';
+import { collectHandlerIdentityIds } from '@/services/database/entries/entryHandlerReadBoundary';
+import { projectEntryHandlerIdentity } from '@/services/database/entries/entryHandlerProjection';
 import type { CheckInEntryRow } from './useCheckInReport';
 
 function isNotDeleted(entry: ReplicatedEntry) {
@@ -97,13 +100,18 @@ export async function fetchReplicatedCheckInEntries(showId: string): Promise<Che
   const { byEntryId: armbandsByEntryId, byDogId: armbandsByDogId } = buildArmbandMaps(armbands);
   const classCache = new Map<string, Promise<ReplicatedClass | null>>();
   const activeEntries = entries.filter(isNotDeleted);
+  const handlerPeople = await loadHandlerPeople(collectHandlerIdentityIds(activeEntries));
 
   return Promise.all(
     activeEntries.map(async entry => {
       const cls = await getClassForEntry(entry, classCache);
       const trialId = getEntryTrialId(entry, cls);
       const trial = trialId ? (trialsById.get(trialId) ?? null) : null;
-      const handler = splitHandlerName(entry.handlerName ?? entry.handler);
+      const handlerIdentity = projectEntryHandlerIdentity(entry, handlerPeople);
+      const handler =
+        handlerIdentity.source === 'unknown'
+          ? splitHandlerName(undefined)
+          : splitHandlerName(handlerIdentity.name ?? undefined);
 
       return {
         id: entry.id,

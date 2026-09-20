@@ -7,6 +7,10 @@ const replicationMocks = vi.hoisted(() => ({
   getArmbandsByShow: vi.fn(),
 }));
 
+const hydrationMocks = vi.hoisted(() => ({
+  loadHandlerPeople: vi.fn(),
+}));
+
 const supabaseMocks = vi.hoisted(() => ({
   from: vi.fn(),
 }));
@@ -32,10 +36,20 @@ vi.mock('@/services/replication', () => ({
   },
 }));
 
+vi.mock('@/services/database/entries/handlerHydration', () => ({
+  loadHandlerPeople: (...args: unknown[]) => hydrationMocks.loadHandlerPeople(...args),
+}));
+
 describe('fetchReplicatedCheckInEntries', () => {
   beforeEach(() => {
     vi.resetModules();
     vi.clearAllMocks();
+    hydrationMocks.loadHandlerPeople.mockResolvedValue(
+      new Map([
+        ['owner-1', { id: 'owner-1', first_name: 'Olivia', last_name: 'Owner' }],
+        ['handler-1', { id: 'handler-1', first_name: 'Harper', last_name: 'Handler' }],
+      ])
+    );
   });
 
   it('builds the check-in report rows from replicated show-day tables', async () => {
@@ -45,7 +59,8 @@ describe('fetchReplicatedCheckInEntries', () => {
         showId: 'show-1',
         dogId: 'dog-1',
         handlerId: 'handler-1',
-        handler: 'Sarah Mitchell',
+        dogOwnerId: 'owner-1',
+        handler: null,
         dogCallName: 'Buddy',
         dogBreed: 'Golden Retriever',
         classId: 'class-1',
@@ -56,7 +71,8 @@ describe('fetchReplicatedCheckInEntries', () => {
         showId: 'show-1',
         dogId: 'dog-1',
         handlerId: 'handler-1',
-        handler: 'Sarah Mitchell',
+        dogOwnerId: 'owner-1',
+        handler: null,
         dogCallName: 'Buddy',
         dogBreed: 'Golden Retriever',
         classId: 'class-2',
@@ -111,8 +127,11 @@ describe('fetchReplicatedCheckInEntries', () => {
     expect(replicationMocks.getEntriesByShow).toHaveBeenCalledWith('show-1');
     expect(replicationMocks.getTrialsByShow).toHaveBeenCalledWith('show-1');
     expect(replicationMocks.getArmbandsByShow).toHaveBeenCalledWith('show-1');
+    expect(hydrationMocks.loadHandlerPeople).toHaveBeenCalledWith(['handler-1', 'owner-1']);
     expect(replicationMocks.getClassById).toHaveBeenCalledTimes(2);
     expect(supabaseMocks.from).not.toHaveBeenCalled();
+    const { groupEntriesByExhibitor } = await import('../useCheckInReport');
+    expect(groupEntriesByExhibitor(rows)[0]?.handlerName).toBe('Harper Handler');
     expect(rows).toEqual([
       {
         id: 'entry-1',
@@ -120,8 +139,8 @@ describe('fetchReplicatedCheckInEntries', () => {
         handler_id: 'handler-1',
         check_in_status: 'checked-in',
         armband_number: 142,
-        handler_first_name: 'Sarah',
-        handler_last_name: 'Mitchell',
+        handler_first_name: 'Harper',
+        handler_last_name: 'Handler',
         dog_call_name: 'Buddy',
         dog_breed_name: 'Golden Retriever',
         class_id: 'class-1',
@@ -138,8 +157,8 @@ describe('fetchReplicatedCheckInEntries', () => {
         handler_id: 'handler-1',
         check_in_status: 'no-status',
         armband_number: 142,
-        handler_first_name: 'Sarah',
-        handler_last_name: 'Mitchell',
+        handler_first_name: 'Harper',
+        handler_last_name: 'Handler',
         dog_call_name: 'Buddy',
         dog_breed_name: 'Golden Retriever',
         class_id: 'class-2',
@@ -191,5 +210,41 @@ describe('fetchReplicatedCheckInEntries', () => {
     expect(rows[0].armband_number).toBeNull();
     expect(rows[0].handler_first_name).toBe('Cher');
     expect(rows[0].handler_last_name).toBeNull();
+  });
+
+  it('uses the projected owner identity when no handler text or id exists', async () => {
+    replicationMocks.getEntriesByShow.mockResolvedValue([
+      {
+        id: 'entry-owner',
+        showId: 'show-1',
+        dogId: 'dog-1',
+        dogOwnerId: 'owner-1',
+        handlerId: null,
+        handler: null,
+        dogCallName: 'Buddy',
+        classId: 'class-1',
+      },
+    ]);
+    replicationMocks.getClassById.mockResolvedValue({
+      id: 'class-1',
+      trialId: 'trial-1',
+      element: 'Buried',
+      level: 'Novice',
+    });
+    replicationMocks.getTrialsByShow.mockResolvedValue([
+      { id: 'trial-1', date: '2026-04-12', trialNumber: '1' },
+    ]);
+    replicationMocks.getArmbandsByShow.mockResolvedValue([]);
+
+    const { fetchReplicatedCheckInEntries } = await import('../useCheckInReportReplication');
+
+    const rows = await fetchReplicatedCheckInEntries('show-1');
+
+    const { groupEntriesByExhibitor } = await import('../useCheckInReport');
+    expect(groupEntriesByExhibitor(rows)[0]?.handlerName).toBe('Olivia Owner');
+    expect(rows[0]).toMatchObject({
+      handler_first_name: 'Olivia',
+      handler_last_name: 'Owner',
+    });
   });
 });

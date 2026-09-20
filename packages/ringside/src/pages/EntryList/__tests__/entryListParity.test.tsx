@@ -329,3 +329,45 @@ describe.each(PAGES)('class-scoped Results Sheet availability — $name', page =
     }
   );
 });
+
+const COMBINED_RESULTS_SHEET_CASES = [
+  ['pending', 'all'],
+  ['completed', 'all'],
+  ['pending', 'A'],
+  ['pending', 'B'],
+  ['completed', 'A'],
+  ['completed', 'B'],
+] as const;
+
+describe('combined class-scoped Results Sheet availability', () => {
+  it.each(COMBINED_RESULTS_SHEET_CASES)(
+    'enables Results Sheet on the %s status and %s section tab when filtered rows are empty',
+    (activeTab, sectionFilter) => {
+      const props = makeCombinedProps({
+        entries: [{ id: 'e1', classId: 'class-a' }],
+        loaded: true,
+        completedEntries: 1,
+      });
+      props.context = { ...props.context, role: 'secretary' };
+      props.derived = {
+        ...props.derived,
+        activeTab,
+        currentEntries: [],
+        filteredEntries: [],
+        pendingEntries: [],
+        completedEntries: [],
+      };
+      props.combined = { ...props.combined!, sectionFilter };
+
+      render(
+        <MemoryRouter>
+          <EntryListPage {...props} />
+        </MemoryRouter>
+      );
+
+      fireEvent.click(screen.getByRole('button', { name: /actions menu/i }));
+
+      expect(screen.getByRole('button', { name: 'Results Sheet' })).toBeEnabled();
+    }
+  );
+});

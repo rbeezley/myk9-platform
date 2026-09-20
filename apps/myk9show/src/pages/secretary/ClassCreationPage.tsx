@@ -87,12 +87,7 @@ export const ClassCreationPage: React.FC<ClassCreationPageProps> = ({ trialId })
           cls =>
             cls.trialId === effectiveTrialId &&
             selectedClassKeys.has(
-              JSON.stringify([
-                cls.className,
-                cls.element,
-                cls.level ?? '',
-                cls.section ?? '',
-              ])
+              JSON.stringify([cls.className, cls.element, cls.level ?? '', cls.section ?? ''])
             )
         )
         .map(cls => cls.id)

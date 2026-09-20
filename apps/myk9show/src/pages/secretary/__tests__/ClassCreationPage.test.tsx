@@ -172,9 +172,7 @@ describe('ClassCreationPage', () => {
         section: '',
       },
     ];
-    mockClassStoreState.entries = [
-      { classId: 'class-optional-fields', status: 'Qualified' },
-    ];
+    mockClassStoreState.entries = [{ classId: 'class-optional-fields', status: 'Qualified' }];
 
     const { user } = render(<ClassCreationPage trialId="trial-1" />);
 

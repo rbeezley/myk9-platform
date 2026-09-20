@@ -1,6 +1,7 @@
 import { beforeEach, describe, it, expect, vi } from 'vitest';
 import { render, screen } from '@/test/utils/testUtils';
 import userEvent from '@testing-library/user-event';
+import { calendarDateInTimeZone } from '@/utils/calendarDate';
 import ReportsPage from '../index';
 
 const mockReportState = vi.hoisted(() => ({
@@ -35,16 +36,9 @@ vi.mock('sonner', () => {
   return { toast, Toaster: () => null };
 });
 
-/**
- * A show that is RUNNING today, in local time. Computed once at module scope —
- * a constant, not mutable state — so this file adds no shuffle hazard.
- */
-const TODAY_KEY = (() => {
-  const now = new Date();
-  const month = `${now.getMonth() + 1}`.padStart(2, '0');
-  const day = `${now.getDate()}`.padStart(2, '0');
-  return `${now.getFullYear()}-${month}-${day}`;
-})();
+const SHOW_TIMEZONE = 'America/Chicago';
+/** A show that is RUNNING today in its own configured timezone. */
+const TODAY_KEY = calendarDateInTimeZone(new Date(), SHOW_TIMEZONE);
 
 vi.mock('@/hooks/useFastShowDetails', () => ({
   useFastShowDetails: () => ({
@@ -69,6 +63,7 @@ vi.mock('@/hooks/queries/useReportData', () => ({
         trial_number: 1,
         event_number: '2026123401',
         date: '2026-04-12',
+        timezone: SHOW_TIMEZONE,
         registry_id: mockReportState.trialOneRegistryId,
       },
       { id: 'trial-2', trial_number: 2, date: '2026-04-13' },

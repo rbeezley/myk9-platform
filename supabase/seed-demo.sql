@@ -170,6 +170,22 @@ END $$;
 -- ---------------------------------------------------------------------------
 -- 0. Idempotency: remove prior seed rows (children first, FK-safe)
 -- ---------------------------------------------------------------------------
+-- The load-secretary accounts are optional and provisioned separately by
+-- setup-e2e-test-users.ts, so a missing row is a safe no-op here. When one is
+-- present, keep its roster identity aligned with the canonical fixture on every
+-- reseed without changing the stable email key or account scope.
+UPDATE public.people AS p
+SET first_name = names.first_name,
+    last_name = names.last_name
+FROM (VALUES
+  ('load-secretary-1@myk9t.com', 'Renee', 'Lawson'),
+  ('load-secretary-2@myk9t.com', 'Tanya', 'Ortiz'),
+  ('load-secretary-3@myk9t.com', 'Caleb', 'Morgan')
+) AS names(email, first_name, last_name)
+WHERE lower(p.email) = names.email
+  AND (p.first_name IS DISTINCT FROM names.first_name
+       OR p.last_name IS DISTINCT FROM names.last_name);
+
 -- Cart items reference classes/dogs with NO ACTION FKs — clear any that point at
 -- seeded classes/dogs first, or a demo cart would block the class/dog deletes.
 DELETE FROM public.entry_cart_items

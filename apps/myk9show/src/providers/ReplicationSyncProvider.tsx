@@ -68,6 +68,11 @@ import {
   type TableSyncStatus,
 } from './replicationSyncStatus';
 import { getRingsideUploadSyncTargets, type UploadSyncTarget } from './ringsideUploadSyncTargets';
+import {
+  forgetSuccessfulShowStyleMutation,
+  forgetSuccessfulShowStyleForShow,
+  reconcileFailedShowStyle,
+} from '@/features/premium/showStylePersistence';
 
 interface SyncStatus {
   isSyncing: boolean;
@@ -615,6 +620,12 @@ export const ReplicationSyncProvider: React.FC<ReplicationSyncProviderProps> = (
       for (const table of tables) {
         queryClient.invalidateQueries({ queryKey: [table] });
       }
+      for (const mutation of detail.mutations ?? []) {
+        if (mutation.tableName === 'shows' && mutation.rpcName === 'update_show_style') {
+          if (mutation.mutationId) forgetSuccessfulShowStyleMutation(mutation.mutationId);
+          else forgetSuccessfulShowStyleForShow(mutation.rowId);
+        }
+      }
       void getRingsideUploadSyncTargets(detail, {
         getEntry: id => replicatedEntriesTable.get(id),
         getClass: id => replicatedClassesTable.get(id),
@@ -656,6 +667,24 @@ export const ReplicationSyncProvider: React.FC<ReplicationSyncProviderProps> = (
 
       for (const failureDetail of splitPermanentScoreAuthorizationFailures(detail)) {
         const ids = failureDetail.mutations.map(m => m.id).filter(Boolean);
+        const styleFailures = failureDetail.mutations.filter(
+          mutation => mutation.tableName === 'shows' && mutation.rpc?.name === 'update_show_style'
+        );
+        if (styleFailures.length > 0) {
+          void Promise.all(
+            styleFailures.map(mutation => {
+              if (!mutation.rowId) return Promise.resolve();
+              return reconcileFailedShowStyle({
+                mutationId: mutation.id,
+                showId: mutation.rowId,
+                attemptedStyle: String(
+                  mutation.rpc?.args?.p_style ?? mutation.data?.style ?? 'monogram'
+                ) as Parameters<typeof reconcileFailedShowStyle>[0]['attemptedStyle'],
+                queryClient,
+              });
+            })
+          );
+        }
         const isPermanentScoreAuthorizationFailure =
           hasPermanentScoreAuthorizationFailure(failureDetail);
         const toastId = ids[0]
@@ -692,7 +721,23 @@ export const ReplicationSyncProvider: React.FC<ReplicationSyncProviderProps> = (
           cancel: {
             label: 'Discard',
             onClick: () => {
-              void Promise.allSettled(ids.map(id => mutationManager.discardFailedMutation(id)));
+              void Promise.allSettled(
+                ids.map(id => mutationManager.discardFailedMutation(id))
+              ).then(() =>
+                Promise.all(
+                  styleFailures.map(mutation => {
+                    if (!mutation.rowId) return Promise.resolve();
+                    return reconcileFailedShowStyle({
+                      mutationId: mutation.id,
+                      showId: mutation.rowId,
+                      attemptedStyle: String(
+                        mutation.rpc?.args?.p_style ?? mutation.data?.style ?? 'monogram'
+                      ) as Parameters<typeof reconcileFailedShowStyle>[0]['attemptedStyle'],
+                      queryClient,
+                    });
+                  })
+                )
+              );
               clearToastId();
             },
           },
@@ -701,7 +746,7 @@ export const ReplicationSyncProvider: React.FC<ReplicationSyncProviderProps> = (
     };
     window.addEventListener('replication:sync-failed', handleSyncFailed);
     return () => window.removeEventListener('replication:sync-failed', handleSyncFailed);
-  }, []);
+  }, [queryClient]);
 
   // Re-surface persisted sync failures from previous sessions when the user
   // authenticates. A failure toast lost to navigation or reload must not bury

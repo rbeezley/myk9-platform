@@ -271,6 +271,11 @@ export abstract class ReplicatedTable<T extends { id: string }> {
     this.mutationManager?.requestUpload();
   }
 
+  /** Remove a deferred mutation when its dependent local write fails. */
+  protected async discardQueuedMutation(mutationId: string): Promise<void> {
+    await this.mutationManager?.discardPendingMutation(mutationId);
+  }
+
   // ========================================
   // PUBLIC ACCESSORS
   // ========================================

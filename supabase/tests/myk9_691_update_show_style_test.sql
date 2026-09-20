@@ -132,6 +132,14 @@ BEGIN
     END IF;
     RAISE NOTICE 'PASS free account is denied Premium style with SQLSTATE 42501';
   END;
+
+  -- The manager's broad table UPDATE grant must not bypass the Premium/RPC gate.
+  BEGIN
+    UPDATE public.shows SET style = 'heritage' WHERE id = v_show_id;
+    RAISE EXCEPTION 'FAIL direct authenticated shows.style UPDATE was accepted';
+  EXCEPTION WHEN SQLSTATE '42501' THEN
+    RAISE NOTICE 'PASS direct authenticated shows.style UPDATE is rejected';
+  END;
   RESET ROLE;
 
   -- Club-A manager with active Premium access may select the Premium style.

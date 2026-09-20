@@ -269,6 +269,21 @@ export class MutationQueueStore {
     return toDelete.length;
   }
 
+  async discardPendingMutation(
+    mutationId: string,
+    authUserId: string,
+    confirmOwner: () => Promise<void>
+  ): Promise<boolean> {
+    const db = await databaseManager.getDatabase('MutationManager');
+    const mutation = (await db.get(REPLICATION_STORES.PENDING_MUTATIONS, mutationId)) as
+      PendingMutation | undefined;
+    if (!mutation || mutation.authUserId !== authUserId) return false;
+
+    await confirmOwner();
+    await db.delete(REPLICATION_STORES.PENDING_MUTATIONS, mutationId);
+    return true;
+  }
+
   async updateMutationServerVersions(
     tableName: string,
     rowId: string,

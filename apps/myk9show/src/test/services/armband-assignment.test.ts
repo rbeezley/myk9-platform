@@ -96,6 +96,12 @@ describe('startingArmbandNumber in show mappers', () => {
       }) as Record<string, unknown>;
       expect(result.starting_armband_number).toBe(500);
     });
+
+    it('does not include style because style has an exclusive RPC write path', () => {
+      const result = mapShowInputToUpdate({ style: 'heritage' }) as Record<string, unknown>;
+
+      expect(result).not.toHaveProperty('style');
+    });
   });
 
   describe('mapDatabaseToShow', () => {

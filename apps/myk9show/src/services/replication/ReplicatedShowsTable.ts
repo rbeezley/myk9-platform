@@ -339,6 +339,9 @@ export class ReplicatedShowsTable extends ReplicatedTable<ReplicatedShow> {
     }
 
     const resolvedUpdates = invalidateVenuePinIfLocationChanged(currentShow.location, updates);
+    // Style is an RPC-owned field. Never let a stale generic Show edit carry it
+    // back to Supabase or overwrite a newer Preview save.
+    delete resolvedUpdates.style;
     const updatedShow: ReplicatedShow = {
       ...currentShow,
       ...resolvedUpdates,
@@ -348,6 +351,10 @@ export class ReplicatedShowsTable extends ReplicatedTable<ReplicatedShow> {
 
     await this.set(showId, updatedShow, true); // Mark as dirty
     const updatePayload = this.toSupabaseRow(updatedShow);
+    // Style is owned exclusively by update_show_style. Omitting it from the
+    // generic payload prevents a stale row from clobbering a concurrent style
+    // mutation, even when the local row already contains a style value.
+    delete updatePayload.style;
     if (!('experienceIsPublished' in resolvedUpdates)) delete updatePayload.experience_is_published;
     if (!('experiencePublishedAt' in resolvedUpdates)) delete updatePayload.experience_published_at;
     if (!('experiencePublishedStyle' in resolvedUpdates))
@@ -396,13 +403,38 @@ export class ReplicatedShowsTable extends ReplicatedTable<ReplicatedShow> {
           true
         );
       }
-    } finally {
-      this.requestUpload();
+    } catch (error) {
+      if (mutationId) await this.discardQueuedMutation(mutationId);
+      throw error;
     }
+
+    this.requestUpload();
 
     this._lastMutationId = mutationId;
     logger.log(`[${this.getTableName()}] Updated show style ${showId}`);
     return mutationId;
+  }
+
+  /**
+   * Revert a permanently rejected style mutation to the clean replicated base.
+   * A later style edit wins over an earlier rejection, so only revert when the
+   * row still carries the rejected style value.
+   */
+  async revertFailedStyleMutation(
+    showId: string,
+    attemptedStyle: string
+  ): Promise<ReplicatedShow | null> {
+    const row = await this.getReplicatedRow(showId);
+    if (!row || !row.isDirty || row.data.style !== attemptedStyle || !row.baseData) return null;
+
+    const restored = {
+      ...row.baseData,
+      id: showId,
+      _syncStatus: 'synced' as const,
+      _lastModified: new Date(),
+    };
+    await this.replaceFromRemote(showId, restored, row.serverVersion);
+    return this.get(showId);
   }
 
   /**

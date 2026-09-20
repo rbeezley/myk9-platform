@@ -666,18 +666,18 @@ describe('MutationManager', () => {
       expect(window.dispatchEvent).toHaveBeenCalledWith(
         expect.objectContaining({
           type: 'replication:upload-complete',
-          detail: {
+          detail: expect.objectContaining({
             tables: ['entries'],
             count: 1,
             mutations: [
-              {
+              expect.objectContaining({
                 tableName: 'entries',
                 rowId: 'entry-1',
                 operation: 'UPDATE',
                 rpcName: 'ringside_update_entry',
-              },
+              }),
             ],
-          },
+          }),
         })
       );
     });

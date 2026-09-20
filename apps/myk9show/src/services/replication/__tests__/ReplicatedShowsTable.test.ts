@@ -729,6 +729,38 @@ describe('ReplicatedShowsTable', () => {
       );
     });
 
+    it('keeps style out of the generic full-row update contract', async () => {
+      const show: ReplicatedShow = {
+        id: 'show-1',
+        name: 'Known Show',
+        organization: 'AKC',
+        startDate: '2026-06-15',
+        endDate: '2026-06-16',
+        style: 'monogram',
+      };
+      const queueMutation = vi.spyOn(
+        table as unknown as {
+          queueMutation: (
+            operation: string,
+            rowId: string,
+            payload: Record<string, unknown>
+          ) => Promise<string | null>;
+        },
+        'queueMutation'
+      );
+      queueMutation.mockResolvedValue('mutation-1');
+
+      await table.set('show-1', show);
+      await table.updateShow('show-1', { name: 'Renamed Show', style: 'heritage' });
+
+      expect(queueMutation).toHaveBeenCalledWith(
+        'UPDATE',
+        'show-1',
+        expect.not.objectContaining({ style: expect.anything() })
+      );
+      expect((await table.get('show-1'))?.style).toBe('monogram');
+    });
+
     it('queues an exact style RPC and patches only the warm row style metadata', async () => {
       const show: ReplicatedShow = {
         id: 'show-1',
@@ -910,6 +942,80 @@ describe('ReplicatedShowsTable', () => {
       );
       expect(await table.get('show-1')).toEqual(before);
       expect(requestUpload).not.toHaveBeenCalled();
+    });
+
+    it('discards the queued style RPC when the warm local write fails', async () => {
+      const show: ReplicatedShow = {
+        id: 'show-1',
+        name: 'Known Show',
+        organization: 'AKC',
+        startDate: '2026-06-15',
+        endDate: '2026-06-16',
+        style: 'monogram',
+      };
+      const queueMutation = vi.spyOn(
+        table as unknown as {
+          queueMutation: (
+            operation: string,
+            rowId: string,
+            payload: Record<string, unknown>,
+            dependsOn?: string[],
+            rpc?: { name: string; args?: Record<string, unknown> },
+            deferUpload?: boolean
+          ) => Promise<string | null>;
+        },
+        'queueMutation'
+      );
+      queueMutation.mockResolvedValue('mutation-1');
+      await table.set('show-1', show);
+      const set = vi.spyOn(table, 'set');
+      set.mockRejectedValueOnce(new Error('local replica unavailable'));
+      const discardQueuedMutation = vi.spyOn(
+        table as unknown as { discardQueuedMutation: (id: string) => Promise<void> },
+        'discardQueuedMutation'
+      );
+      const requestUpload = vi.spyOn(
+        table as unknown as { requestUpload: () => void },
+        'requestUpload'
+      );
+      await expect(table.updateShowStyle('show-1', 'heritage')).rejects.toThrow(
+        'local replica unavailable'
+      );
+
+      expect(discardQueuedMutation).toHaveBeenCalledWith('mutation-1');
+      expect(requestUpload).not.toHaveBeenCalled();
+    });
+
+    it('reverts a rejected warm style mutation to the clean base row', async () => {
+      const show: ReplicatedShow = {
+        id: 'show-1',
+        name: 'Known Show',
+        organization: 'AKC',
+        startDate: '2026-06-15',
+        endDate: '2026-06-16',
+        style: 'monogram',
+      };
+      const queueMutation = vi.spyOn(
+        table as unknown as {
+          queueMutation: (
+            operation: string,
+            rowId: string,
+            payload: Record<string, unknown>,
+            dependsOn?: string[],
+            rpc?: { name: string; args?: Record<string, unknown> },
+            deferUpload?: boolean
+          ) => Promise<string | null>;
+        },
+        'queueMutation'
+      );
+      queueMutation.mockResolvedValue('mutation-1');
+      await table.set('show-1', show);
+      await table.updateShowStyle('show-1', 'heritage');
+
+      const restored = await table.revertFailedStyleMutation('show-1', 'heritage');
+
+      expect(restored).toMatchObject({ id: 'show-1', style: 'monogram', _syncStatus: 'synced' });
+      expect(await table.get('show-1')).toMatchObject({ style: 'monogram' });
     });
 
     it('should update lastModified timestamp on update', async () => {

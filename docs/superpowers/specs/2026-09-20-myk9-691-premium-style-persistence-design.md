@@ -6,13 +6,14 @@ Allow an authorized show manager to preview and save an entitled Premium present
 
 ## Context
 
-The Preview UI and shared style selector already satisfy most of the visible behavior. The failed correction path is persistence:
+The Preview UI and shared style selector already satisfy most of the visible behavior. Preview is the sole style editor; Settings links to it rather than duplicating the control. The failed correction path is persistence:
 
 - A cold replicated store was seeded from the app-level `Show` model.
 - That model is intentionally lossy relative to the replicated/database row.
 - Reconstructing a full row changed values such as `upcoming` to `draft` and could overwrite payment, handler, capacity, and other fields absent from the mapper.
 - A generic direct partial mutation is not sufficient because OCC conflict reconciliation can rebuild a queued direct update from the full local row.
 - The existing cache synchronizer updates only some query families and inserts the show into caches whose filters may not match.
+- A generic show save can carry a stale full-row style and clobber a concurrent style mutation.
 
 This is therefore a persistence-boundary repair, not another UI guard.
 
@@ -32,13 +33,16 @@ The function:
 - returns the new integer replication version;
 - is executable by `authenticated` only, with `PUBLIC` and `anon` revoked.
 
+A `BEFORE UPDATE OF style` trigger rejects invoker-level direct table updates, so
+the existing table grant cannot bypass the RPC's authorization and Premium gate.
+
 The RPC does not publish an experience snapshot. Draft publication remains the responsibility of the existing publish flow.
 
 ### 2. Offline replication queues the RPC as a delta
 
 `ReplicatedShowsTable.updateShowStyle(showId, style)` queues an UPDATE mutation whose data is exactly `{ id, style }` and whose RPC arguments are exactly `{ p_show_id, p_style }`.
 
-The mutation is queued with deferred upload. If the replicated row already exists, the table patches that row's style and pending metadata before requesting upload. If the table is cold, it does not synthesize or persist a partial `ReplicatedShow`; the durable queued mutation is sufficient.
+The mutation is queued with deferred upload. If the replicated row already exists, the table patches that row's style and pending metadata before requesting upload. If the table is cold, it does not synthesize or persist a partial `ReplicatedShow`; the durable queued mutation is sufficient. If the local replica write fails after queueing, the pending mutation is discarded before upload. A permanent RPC rejection restores the clean replica base and warm caches.
 
 Because the queued mutation is RPC-routed, OCC reconciliation never expands it into a full-row `shows` update.
 
@@ -48,7 +52,7 @@ Create a Premium feature command that accepts the complete `Show` already on scr
 
 It never inserts a show into an absent or filtered cache. Statistics caches are left unchanged because style does not affect them.
 
-Covered cache families are detail, list (including filtered list keys), search, club, status, upcoming, date range, entry counts, and deleted-show collections.
+Covered cache families are detail, list (including filtered list keys), search, club, status, upcoming, date range, entry counts, deleted-show, and public collections.
 
 ### 4. Preview async state belongs to one show
 
@@ -60,6 +64,7 @@ The existing interaction contract remains:
 - Save queues the draft style;
 - Cancel restores the persisted draft;
 - a save failure restores the persisted draft and explains the outcome in plain language;
+- a permanent deferred server rejection reconciles the local replica and caches before showing the failure action;
 - published shows label draft and published styles separately;
 - the public presentation continues using the published snapshot until the existing publish action runs.
 
@@ -107,7 +112,7 @@ Rejected because the same user action would have different durability and author
 
 ## Testing
 
-- SQL behavioral test: valid manager writes, Monogram without Premium, Premium rejection, unrelated-column preservation, cross-club denial, anonymous denial, invalid-style rejection, and returned version.
+- SQL behavioral test: valid manager writes, Monogram without Premium, Premium rejection, unrelated-column preservation, cross-club denial, anonymous denial, invalid-style rejection, returned version, and rejection of a raw authenticated `shows.style` UPDATE. The script is present but has not been run locally because no Postgres runtime is available.
 - Replication unit tests: exact delta/RPC payload, deferred upload, warm-row patch, cold-row non-fabrication, and queue failure behavior.
 - Feature-command unit tests: merged return value, every show cache family patched, absent caches remain absent, statistics remain unchanged, and persistence failure leaves caches untouched.
 - Preview/page tests: default, entitlement filtering, live preview, Save, Cancel, error recovery, draft-versus-published labels, and navigation during an in-flight save.

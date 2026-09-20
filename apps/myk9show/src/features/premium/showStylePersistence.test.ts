@@ -2,13 +2,15 @@ import { QueryClient } from '@tanstack/react-query';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Show } from '@/types/show-types';
 import { showQueryKeys } from '@/hooks/queries/useShowsDatabase';
-import { saveShowDraftStyle } from './showStylePersistence';
+import { reconcileFailedShowStyle, saveShowDraftStyle } from './showStylePersistence';
 
 const updateShowStyleMock = vi.hoisted(() => vi.fn());
+const revertFailedStyleMutationMock = vi.hoisted(() => vi.fn());
 
 vi.mock('@/services/replication', () => ({
   replicatedShowsTable: {
     updateShowStyle: updateShowStyleMock,
+    revertFailedStyleMutation: revertFailedStyleMutationMock,
   },
 }));
 
@@ -57,6 +59,7 @@ function seedShowCaches(queryClient: QueryClient): void {
   ]);
   queryClient.setQueryData(showQueryKeys.withEntryCounts(), [show, otherShow]);
   queryClient.setQueryData(showQueryKeys.deleted(), [show, otherShow]);
+  queryClient.setQueryData(['shows', 'public'], [show, otherShow]);
   queryClient.setQueryData(showQueryKeys.statistics(), statistics);
 }
 
@@ -64,6 +67,7 @@ describe('saveShowDraftStyle', () => {
   beforeEach(() => {
     updateShowStyleMock.mockReset();
     updateShowStyleMock.mockResolvedValue('mutation-1');
+    revertFailedStyleMutationMock.mockReset();
   });
 
   it('updates only the matching show style and sync metadata in every existing show cache', async () => {
@@ -99,6 +103,7 @@ describe('saveShowDraftStyle', () => {
       showQueryKeys.byDateRange('2026-01-01', '2026-12-31'),
       showQueryKeys.withEntryCounts(),
       showQueryKeys.deleted(),
+      ['shows', 'public'],
     ]) {
       expect(queryClient.getQueryData<Show[]>(key)).toEqual([
         expect.objectContaining({ id: 'show-1', style: 'heritage', _syncStatus: 'pending' }),
@@ -143,4 +148,56 @@ describe('saveShowDraftStyle', () => {
     expect(queryClient.getQueryData(filteredKey)).toBe(beforeData);
     expect(queryClient.getQueryState(filteredKey)?.dataUpdatedAt).toBe(beforeUpdatedAt);
   });
+
+  it('cancels in-flight show reads before applying a saved style', async () => {
+    let resolveOldRead!: (value: Show) => void;
+    const oldRead = queryClientForOldShowRead();
+    oldRead.setQueryData(showQueryKeys.detail('show-1'), show);
+    const oldReadPromise = oldRead.fetchQuery({
+      queryKey: showQueryKeys.detail('show-1'),
+      queryFn: () =>
+        new Promise<Show>(resolve => {
+          resolveOldRead = resolve;
+        }),
+    });
+
+    await saveShowDraftStyle({ show, style: 'heritage', queryClient: oldRead });
+    resolveOldRead({ ...show, style: 'monogram' });
+    await oldReadPromise.catch(() => undefined);
+
+    expect(oldRead.getQueryData<Show>(showQueryKeys.detail('show-1'))?.style).toBe('heritage');
+  });
+
+  it('reconciles a permanently rejected style to the replicated base style', async () => {
+    const queryClient = new QueryClient();
+    seedShowCaches(queryClient);
+    revertFailedStyleMutationMock.mockResolvedValue({
+      ...show,
+      style: 'monogram',
+      _syncStatus: 'synced',
+      _lastModified: new Date('2026-01-01T00:00:00.000Z'),
+    });
+
+    await reconcileFailedShowStyle({
+      showId: 'show-1',
+      attemptedStyle: 'heritage',
+      queryClient,
+    });
+
+    expect(revertFailedStyleMutationMock).toHaveBeenCalledWith('show-1', 'heritage');
+    expect(queryClient.getQueryData<Show>(showQueryKeys.detail('show-1'))).toMatchObject({
+      style: 'monogram',
+      _syncStatus: 'synced',
+    });
+    expect(queryClient.getQueryData<Show[]>(showQueryKeys.lists())?.[0]).toMatchObject({
+      style: 'monogram',
+      _syncStatus: 'synced',
+    });
+  });
 });
+
+function queryClientForOldShowRead(): QueryClient {
+  return new QueryClient({
+    defaultOptions: { queries: { retry: false } },
+  });
+}

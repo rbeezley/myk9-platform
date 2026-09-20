@@ -405,7 +405,8 @@ export const useShowStore = create<ShowStore>()((set, get) => ({
       if ('coverImageUrl' in updates)
         replicatedUpdates.coverImageUrl = updates.coverImageUrl as string;
       if ('accentColor' in updates) replicatedUpdates.accentColor = updates.accentColor as string;
-      if (updates.style !== undefined) replicatedUpdates.style = updates.style ?? undefined;
+      // Style is persisted only by Preview's narrow RPC command. Generic show
+      // edits must not carry a stale style snapshot into a full-row mutation.
       if (updates.isNationals !== undefined) replicatedUpdates.isNationals = updates.isNationals;
 
       const showMutationId = await replicatedShowsTable.updateShow(id, replicatedUpdates);
@@ -461,7 +462,8 @@ export const useShowStore = create<ShowStore>()((set, get) => ({
       if (updates.assignedJudges !== undefined)
         definedUpdates.assignedJudges = updates.assignedJudges;
       if (updates.trials !== undefined) definedUpdates.trials = updates.trials;
-      if (updates.style !== undefined) definedUpdates.style = updates.style;
+      // Style is owned by Preview's update_show_style RPC; a generic settings
+      // save must not optimistically persist its stale form snapshot.
       if (updates.isNationals !== undefined) definedUpdates.isNationals = updates.isNationals;
 
       const updatedShow: Show = {

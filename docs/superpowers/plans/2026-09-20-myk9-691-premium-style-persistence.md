@@ -4,7 +4,7 @@
 
 **Goal:** Make Preview style saves offline-durable, server-authorized, style-only, cache-consistent, and scoped to the originating show.
 
-**Architecture:** A narrow Supabase RPC validates manager authority and Premium entitlement and updates only `shows.style`. Replication queues that RPC as a delta without fabricating a cold row, while a Premium feature command returns a merged page view and patches every existing show-shaped React Query cache.
+**Architecture:** A narrow Supabase RPC validates manager authority and Premium entitlement and updates only `shows.style`. A database trigger rejects invoker-level direct style updates, so the RPC is the only client-writable style boundary. Replication queues that RPC as a delta without fabricating a cold row, rolls back a local write that fails after queueing, and reconciles permanent server rejection to the clean replica. A Premium feature command returns a merged page view and patches every existing show-shaped React Query cache.
 
 **Tech Stack:** TypeScript, React, TanStack Query, Zustand-backed replication, Vitest, Supabase/PostgreSQL, pgTAP-style SQL behavioral scripts, OpenSpec.
 
@@ -19,7 +19,7 @@
 - `monogram` is available without Premium; the other seven canonical styles require `has_effective_premium_access(public.get_my_person_id(), now())` at the server boundary.
 - Save changes the draft `shows.style`; it never changes `experience_published_style` or `experience_published_content`.
 - Patch only existing cache entries by show ID. Never insert the show into an absent or filtered cache.
-- Preserve the existing Preview UI and shared `PremiumStyleSelector`; do not create another editor or page.
+- Preview is the one canonical style editor. Settings shows the current style and links to `/shows/:id?preview=public`; it must not persist style through the generic show save path.
 - Do not run `supabase db push` from this branch. A post-merge push requires explicit approval.
 - Batch local corrections before the single PR push to conserve Vercel preview quota.
 
@@ -368,6 +368,18 @@ git commit -m "fix(premium): keep preview style caches consistent"
 ---
 
 ### Task 4: Verify the complete MYK9-691 correction and prepare PR #2377
+
+### Adversarial correction wave (2026-09-20)
+
+- [x] Direct `shows.style` updates are rejected by a trigger unless executed by the SECURITY DEFINER RPC; the SQL script covers the raw authenticated UPDATE. The SQL script was not executed locally because no Postgres runtime was available.
+- [x] A failed local replica write discards the just-queued mutation before upload is requested.
+- [x] Permanent `update_show_style` failures reconcile the replicated base row and all warm show caches; retry remains available and discard also restores the clean style.
+- [x] Generic show updates and form saves strip `style`, so concurrent generic edits cannot clobber the RPC-owned field.
+- [x] Preview cancels in-flight show reads before applying a saved style and the cache synchronizer includes `['shows', 'public']`.
+- [x] Settings no longer renders a second style editor; it deep-links to Preview.
+- [x] Focused tests were written assertion-first and run red before implementation; the final touched app set is green in a shuffled run (9 files, 208 tests), and the replication package suite is green in a shuffled run (40 files, 553 tests).
+- [x] App, test, edge-test, and API TypeScript projects, changed-file formatting, lint, OpenSpec strict validation, and the code-quality ratchet (via Node's strip-types runner) passed. The aggregate E2E typecheck helper and `tsx`-based migration guard were blocked by the sandbox's temporary IPC `EPERM`; no SQL runtime was available.
+- [ ] SQL behavioral runtime verification, migration application, PR review, and merge/deploy evidence remain external follow-up; this plan does not claim them as complete.
 
 **Files:**
 

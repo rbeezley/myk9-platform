@@ -1,4 +1,5 @@
 import { useCallback, useMemo } from 'react';
+import { Link } from 'react-router-dom';
 import { FileText, Palette } from 'lucide-react';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -9,14 +10,12 @@ import { PremiumContentEditor } from '@/features/premium/PremiumContentEditor';
 import type { ShowExperienceSnapshot } from '@/features/experience/experienceSnapshot';
 import type { GeneratedPremium, PremiumStyle } from '@/types/premium-types';
 import type { ShowEditFormData } from './ShowEditPanel.types';
-import { PremiumStyleSelector } from './PremiumStyleSelector';
 
 interface ShowEditPremiumTabProps {
   data: ShowEditFormData;
   clubId: string;
   showOrg: 'AKC' | 'UKC' | null;
   isActive: boolean;
-  handleSelectChange: (field: keyof ShowEditFormData) => (value: string) => void;
   handleCheckboxChange: (field: keyof ShowEditFormData) => (checked: boolean) => void;
   handleValueChange: <K extends keyof ShowEditFormData>(
     field: K
@@ -28,7 +27,6 @@ export function ShowEditPremiumTab({
   clubId,
   showOrg,
   isActive,
-  handleSelectChange,
   handleCheckboxChange,
   handleValueChange,
 }: ShowEditPremiumTabProps) {
@@ -70,10 +68,28 @@ export function ShowEditPremiumTab({
           </p>
         </CardHeader>
         <CardContent>
-          <PremiumStyleSelector
-            selectedStyle={(data.style || 'monogram') as PremiumStyle}
-            onSelect={style => handleSelectChange('style')(style)}
-          />
+          {hasShowId ? (
+            <div className="space-y-3">
+              <p className="text-sm text-muted-foreground">
+                The current draft style is{' '}
+                <span className="font-medium text-foreground">{data.style || 'monogram'}</span>.
+                Choose and save presentation styles in the show Preview so the live rendering and
+                draft stay together.
+              </p>
+              <Link
+                to={`/shows/${data.id}?preview=public`}
+                className="inline-flex min-h-11 items-center rounded-md border border-border px-4 py-2 text-sm font-medium text-foreground transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+              >
+                Open show Preview
+              </Link>
+            </div>
+          ) : (
+            <Alert>
+              <AlertDescription>
+                Save the show first to choose a presentation style.
+              </AlertDescription>
+            </Alert>
+          )}
           <label className="mt-4 flex items-start gap-3 rounded-md border p-3 cursor-pointer">
             <Checkbox
               aria-label="Generate exhibitor documents on save"

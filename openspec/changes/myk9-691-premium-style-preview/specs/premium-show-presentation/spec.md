@@ -5,14 +5,18 @@
 An authorized organizer SHALL be able to use the existing Preview experience to select among entitled premium styles, see the pending presentation before save, and explicitly save or cancel the change through the canonical show-style mutation.
 
 The canonical show-style mutation SHALL call `public.update_show_style(uuid,
-text)`. That RPC SHALL be authenticated-only, SHALL authorize only a site admin
+text)`. A database boundary SHALL reject direct invoker-level updates to
+`shows.style`, so an authenticated table UPDATE cannot bypass the RPC. That RPC SHALL be authenticated-only, SHALL authorize only a site admin
 or a manager of the show club, SHALL return SQLSTATE `42501` for authorization
 or Premium denial, SHALL return SQLSTATE `22023` for invalid style or missing
 show input, and SHALL update only `shows.style` while returning the incremented
 show version. The client SHALL perform this as a style-only offline mutation:
 it SHALL not fabricate a cold local row, SHALL patch every field returned by the
 mutation into the local cache, and SHALL scope pending/error state to the show
-whose save is in flight.
+whose save is in flight. If a local replica write fails after queueing, the
+client SHALL discard that pending mutation before upload. If the deferred RPC
+is permanently rejected, the client SHALL reconcile the clean replica base
+and warm query caches before presenting retry/discard actions.
 
 #### Scenario: Default style is shown
 
@@ -54,3 +58,13 @@ whose save is in flight.
   style on a draft versus a published show
 - **THEN** the pending draft presentation is local until Save, and public and
   printable presentation use the persisted style only after a successful save
+
+#### Scenario: Direct table style update cannot bypass the RPC
+
+- **WHEN** an authenticated client issues a raw `UPDATE public.shows SET style = ...`
+- **THEN** the database rejects it with SQLSTATE `42501` and the RPC's authorization and Premium checks remain the only client style-write path
+
+#### Scenario: Generic show edits preserve RPC-owned style
+
+- **WHEN** a generic show edit is saved while a style mutation is pending
+- **THEN** the generic mutation omits `style` and cannot overwrite the pending style with a stale full row

@@ -191,6 +191,8 @@ export type MutationOperation = (typeof MUTATION_OPERATIONS)[number];
 
 /** Successful upload identity only — never expose the mutation payload to listeners. */
 export interface UploadedMutation {
+  /** Local queue identity when the event was produced by the current runner. */
+  mutationId?: string;
   tableName: string;
   rowId: string;
   operation: MutationOperation;

@@ -1,14 +1,16 @@
 -- MYK9-664 — move junior-handler identity fields out of the broad people directory.
 --
--- Deployment order is intentional:
+-- Deployment order is intentional: this migration is the expand phase.
 --   1. create the private boundary and its grants/policies;
 --   2. backfill the values while the legacy columns still exist;
 --   3. assert that the backfill is lossless;
---   4. remove the legacy columns only after the application reads/writes have moved.
+--   4. leave the legacy columns in place until every deployed client reads the
+--      private boundary. A later cleanup migration may remove them.
 --
--- Rollback before step 4: add the two legacy columns back, copy the values from
--- people_private, then remove people_private. A rollback after step 4 follows the
--- same sequence in reverse and must restore the columns before dropping the table.
+-- Keeping the source columns during this rollout is required because database
+-- migration and Vercel application rollout are separate operations. Removing
+-- them here would make an older deployed client fail while the new RPC-backed
+-- client is still rolling out.
 
 BEGIN;
 
@@ -365,7 +367,8 @@ BEGIN
       CASE WHEN v_private_patch ? 'date_of_birth'
         THEN (v_private_patch->>'date_of_birth')::date ELSE NULL END,
       CASE WHEN v_private_patch ? 'junior_handler_numbers'
-        THEN COALESCE(v_private_patch->'junior_handler_numbers', '{}'::jsonb)
+        THEN CASE WHEN jsonb_typeof(v_private_patch->'junior_handler_numbers') = 'null'
+          THEN '{}'::jsonb ELSE v_private_patch->'junior_handler_numbers' END
         ELSE '{}'::jsonb END
     )
     ON CONFLICT (person_id) DO UPDATE
@@ -398,8 +401,10 @@ GRANT EXECUTE ON FUNCTION public.update_person_with_private(uuid, jsonb, jsonb) 
 -- clients can call the new signatures immediately after this migration runs.
 NOTIFY pgrst, 'reload schema';
 
--- Backfill before removing the source columns. Existing values are copied exactly;
--- empty JSON objects do not create needless rows.
+-- Backfill while retaining the source columns for expand/contract compatibility.
+-- Existing values are copied exactly; empty JSON objects do not create needless
+-- rows. The later cleanup migration must repeat the lossless assertion before
+-- removing the legacy columns.
 INSERT INTO public.people_private (person_id, date_of_birth, junior_handler_numbers)
 SELECT p.id, p.date_of_birth, p.junior_handler_numbers
 FROM public.people p
@@ -423,13 +428,8 @@ BEGIN
 END;
 $$;
 
--- Application code no longer selects or updates these columns. Dropping them is
--- what makes a broad people-directory query unable to return private data even if
--- a future caller accidentally asks for every people column.
-ALTER TABLE public.people
-  DROP CONSTRAINT IF EXISTS people_date_of_birth_plausible,
-  DROP CONSTRAINT IF EXISTS people_junior_handler_numbers_shape,
-  DROP COLUMN IF EXISTS date_of_birth,
-  DROP COLUMN IF EXISTS junior_handler_numbers;
+-- Do not drop the legacy columns in this migration. Older clients still select
+-- them through their deployed directory query until the application rollout is
+-- complete. A follow-up cleanup migration owns the destructive contract change.
 
 COMMIT;

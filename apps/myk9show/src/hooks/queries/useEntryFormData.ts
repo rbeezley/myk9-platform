@@ -210,24 +210,12 @@ async function fetchEntryFormData(
     if (dog.owner_id) ownerIds.add(dog.owner_id);
     if (dog.breeder_id) breederIds.add(dog.breeder_id);
   }
-  // MYK9-570: handlers too — their date of birth drives the junior handler
-  // number on the AKC entry form, and a handler is frequently not the owner.
-  const handlerIds = new Set<string>();
-  for (const entry of allEntries) {
-    if (entry.handlerId) handlerIds.add(entry.handlerId);
-  }
-  const allPersonIds = [...new Set([...ownerIds, ...breederIds, ...handlerIds])].filter(Boolean);
+  const allPersonIds = [...new Set([...ownerIds, ...breederIds])].filter(Boolean);
 
-  const [{ data: personsRaw }, privateResult] = await Promise.all([
-    supabase
-      .from('people')
-      .select('id, first_name, last_name, street_address, city, state, zip_code, phone, email')
-      .in('id', allPersonIds),
-    // Private identity fields are fetched through the relationship-scoped RPC;
-    // the broad people lookup above remains directory-safe.
-    loadPeoplePrivateProfiles([...new Set([...ownerIds, ...handlerIds])]),
-  ]);
-  const privateProfiles = privateResult.byPersonId;
+  const { data: personsRaw } = await supabase
+    .from('people')
+    .select('id, first_name, last_name, street_address, city, state, zip_code, phone, email')
+    .in('id', allPersonIds);
 
   type EntryFormPersonRow = {
     id: string;
@@ -244,19 +232,37 @@ async function fetchEntryFormData(
   };
   const personMap = new Map(
     ((personsRaw ?? []) as EntryFormPersonRow[]).map(p => {
-      const privateProfile = privateProfiles.get(p.id);
-      return [
-        p.id,
-        privateProfile
-          ? {
-              ...p,
-              date_of_birth: privateProfile.dateOfBirth,
-              junior_handler_numbers: privateProfile.juniorHandlerNumbers,
-            }
-          : p,
-      ] as const;
+      return [p.id, p] as const;
     })
   );
+
+  // Only request private data for the handler person each dog will actually
+  // resolve to. An owner can be in the public directory without being an
+  // authorized private-read subject; treating every owner omission as an
+  // incomplete handler read would disable otherwise usable forms.
+  const requiredPrivatePersonIds = new Set<string>();
+  for (const dog of dogsRaw ?? []) {
+    const dogEntries = entriesByDog.get(dog.id) ?? [];
+    const ownerPerson = dog.owner_id ? personMap.get(dog.owner_id) : null;
+    const ownerFullName = formatPersonName(ownerPerson ?? {});
+    const handlerEntry = dogEntries.find(e => e.handler && e.handler !== ownerFullName);
+    if (handlerEntry?.handlerId) requiredPrivatePersonIds.add(handlerEntry.handlerId);
+    else if (!handlerEntry && dog.owner_id) requiredPrivatePersonIds.add(dog.owner_id);
+  }
+
+  // Private identity fields are fetched through the relationship-scoped RPC;
+  // the broad people lookup above remains directory-safe.
+  const privateResult = await loadPeoplePrivateProfiles([...requiredPrivatePersonIds]);
+  const privateProfiles = privateResult.byPersonId;
+  for (const [personId, person] of personMap) {
+    const privateProfile = privateProfiles.get(personId);
+    if (!privateProfile) continue;
+    personMap.set(personId, {
+      ...person,
+      date_of_birth: privateProfile.dateOfBirth,
+      junior_handler_numbers: privateProfile.juniorHandlerNumbers,
+    });
+  }
 
   // Index pedigree
   const pedigreeMap = new Map<string, { sire: string | null; dam: string | null }>();

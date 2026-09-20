@@ -37,7 +37,8 @@ export async function loadJuniorHandlerProfiles(
   const ids = [...new Set(personIds.filter(Boolean))];
   if (ids.length === 0) return { byPersonId: new Map(), readComplete: true };
 
-  const { byPersonId: privateProfiles, readComplete } = await loadPeoplePrivateProfiles(ids);
+  const { byPersonId: privateProfiles, readComplete: privateReadComplete } =
+    await loadPeoplePrivateProfiles(ids);
   // Only fetch public names for private profiles the caller was actually
   // authorized to receive. An unrelated roster entry must not trigger a
   // second broad lookup, and a name-read hiccup must not discard private data.
@@ -57,7 +58,7 @@ export async function loadJuniorHandlerProfiles(
     });
   }
 
-  return { byPersonId, readComplete };
+  return { byPersonId, readComplete: privateReadComplete && namesResult.readComplete };
 }
 
 async function loadPeopleNames(personIds: readonly string[]): Promise<{
@@ -87,6 +88,8 @@ async function loadPeopleNames(personIds: readonly string[]): Promise<{
       readComplete = false;
     }
   }
+
+  if (personIds.some(personId => !byPersonId.has(personId))) readComplete = false;
 
   return { byPersonId, readComplete };
 }

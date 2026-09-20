@@ -215,10 +215,16 @@ describe('useEntryFormData resolves the handler person for the junior fields', (
     expect(selectArg).not.toContain('date_of_birth');
     expect(selectArg).not.toContain('junior_handler_numbers');
     expect(selectArg).toContain('first_name');
-    expect(mocks.rpc.mock.calls[0]).toEqual([
-      'get_people_private',
-      { p_person_ids: [SARAH.id, KID.id] },
-    ]);
+    expect(mocks.rpc.mock.calls[0]).toEqual(['get_people_private', { p_person_ids: [KID.id] }]);
+  });
+
+  it('does not let an unauthorized owner omission block an authorized handler form', async () => {
+    routeTables([{ id: 'entry-a', handler: 'Chris Kid', handler_id: KID.id }], [KID]);
+    const { result } = renderEntryFormData();
+    await waitFor(() => expect(result.current.dogs).toHaveLength(1));
+
+    expect(result.current.privateFieldsReadComplete).toBe(true);
+    expect(result.current.dogs[0]?.handlerDateOfBirth).toBe('2012-04-02');
   });
 
   it('keeps the public form usable and marks private fields unavailable', async () => {

@@ -200,6 +200,20 @@ describe('the report hydration hop', () => {
     expect(hydrated[1]?.handler_person).toBeUndefined();
   });
 
+  it('marks hydration incomplete when the private row has no public name', async () => {
+    peopleRead([]);
+    privateRead([
+      {
+        person_id: PERSON.id,
+        date_of_birth: PERSON.date_of_birth,
+        junior_handler_numbers: PERSON.junior_handler_numbers,
+      },
+    ]);
+
+    const [hydrated] = await hydrateHandlerJuniorProfilesForTest([entry()]);
+    expect(hydrated?.handler_person).toBeUndefined();
+  });
+
   it('marks NOBODY when only SOME batches answered', async () => {
     // The state the guard actually exists for, and the one round 2 found
     // untested: batch 1 returns rows, batch 2 errors. Half a hydration would

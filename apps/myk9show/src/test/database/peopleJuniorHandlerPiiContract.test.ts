@@ -105,22 +105,23 @@ describe('the migration that protects the private columns', () => {
   });
 
   it('creates the private boundary and revokes anonymous access explicitly', () => {
-    const sql = sqlWithoutProse(readFileSync(resolve(MIGRATIONS_DIR, file!), 'utf8'));
+    const source = readFileSync(resolve(MIGRATIONS_DIR, file!), 'utf8');
+    const sql = sqlWithoutProse(source);
     expect(sql).toMatch(/CREATE TABLE public\.people_private/i);
     expect(sql).toMatch(/REVOKE ALL ON TABLE public\.people_private FROM anon/i);
     expect(sql).toMatch(
       /GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE public\.people_private TO authenticated/i
     );
-    expect(sql).toMatch(/DROP COLUMN IF EXISTS date_of_birth/i);
-    expect(sql).toMatch(/DROP COLUMN IF EXISTS junior_handler_numbers/i);
+    expect(sql).not.toMatch(/DROP COLUMN IF EXISTS date_of_birth/i);
+    expect(sql).not.toMatch(/DROP COLUMN IF EXISTS junior_handler_numbers/i);
+    expect(source).toMatch(/expand\/contract compatibility/i);
   });
 
-  it('backfills before removing the legacy columns', () => {
+  it('backfills losslessly while retaining legacy columns for older clients', () => {
     const sql = sqlWithoutProse(readFileSync(resolve(MIGRATIONS_DIR, file!), 'utf8'));
     const backfillAt = sql.search(/INSERT INTO public\.people_private/i);
-    const dropAt = sql.search(/DROP COLUMN IF EXISTS date_of_birth/i);
     expect(backfillAt).toBeGreaterThan(-1);
-    expect(dropAt).toBeGreaterThan(backfillAt);
+    expect(sql).not.toMatch(/ALTER TABLE public\.people[\s\S]*DROP COLUMN/i);
   });
 
   it('pins the jsonb key set to the same registries as RegistryId', () => {
@@ -148,6 +149,7 @@ describe('the migration that protects the private columns', () => {
     );
     expect(sql).toMatch(/v_private_patch \? 'date_of_birth'/i);
     expect(sql).toMatch(/v_private_patch \? 'junior_handler_numbers'/i);
+    expect(sql).toMatch(/jsonb_typeof\(v_private_patch->'junior_handler_numbers'\) = 'null'/i);
 
     const rpcGrant = sql.indexOf(
       'GRANT EXECUTE ON FUNCTION public.update_person_with_private(uuid, jsonb, jsonb)'

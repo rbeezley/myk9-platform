@@ -164,6 +164,17 @@ BEGIN
   IF private_numbers IS DISTINCT FROM '{}'::jsonb THEN
     RAISE EXCEPTION 'FAIL explicit empty junior-number map did not clear existing values';
   END IF;
+  PERFORM public.update_person_with_private(
+    handler_id,
+    '{}'::jsonb,
+    '{"junior_handler_numbers":null}'::jsonb
+  );
+  SELECT junior_handler_numbers INTO private_numbers
+  FROM public.people_private
+  WHERE person_id = handler_id;
+  IF private_numbers IS DISTINCT FROM '{}'::jsonb THEN
+    RAISE EXCEPTION 'FAIL JSON null junior-number patch did not clear existing values';
+  END IF;
 
   -- Self access remains complete even when no private row was materialized.
   PERFORM set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-000000664108', true);

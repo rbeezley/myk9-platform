@@ -78,6 +78,30 @@ export interface ScentWorkGrid {
 }
 
 /**
+ * Resolve a stored/display element label to the registry's canonical label.
+ * Grid columns intentionally expose aliases such as AKC's "Containers" while
+ * class identity stores the singular registry label "Container".
+ */
+export function normalizeScentWorkElementLabel(
+  sport: RegistrySport,
+  rawLabel: string | null | undefined
+): string {
+  const trimmed = rawLabel?.trim() ?? '';
+  if (!trimmed) return '';
+  const normalized = normalizeLabel(trimmed);
+  const element = sport.elements.find(
+    candidate =>
+      normalizeLabel(candidate.label) === normalized ||
+      normalizeLabel(candidate.gridLabel) === normalized
+  );
+  return element?.label ?? trimmed;
+}
+
+function normalizeLabel(value: string | undefined): string {
+  return value?.trim().replace(/\s+/gu, ' ').toLocaleLowerCase() ?? '';
+}
+
+/**
  * Build the entry-blank §II grid (level rows × element columns) for a sport.
  *
  * Rows expand by CONTINUATION variants only: ASCA's "Level C" is its own row (a distinct class),

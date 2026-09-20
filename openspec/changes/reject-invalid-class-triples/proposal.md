@@ -16,7 +16,6 @@ The show wizard can persist literal `Unknown` registry identifiers, and a cloned
 
 ### New Capabilities
 
-
 ### Modified Capabilities
 
 - `secretary-class-configuration-integrity`: Require registry-valid class triples and make cloned organization changes fail safely within the canonical setup workflow.

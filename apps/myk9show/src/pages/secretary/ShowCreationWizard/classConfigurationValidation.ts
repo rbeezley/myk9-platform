@@ -1,5 +1,5 @@
 import { deriveRegistryId } from '@/features/registries';
-import { getScentWorkSport } from '@/features/registries/scentWork';
+import { getScentWorkSport, normalizeScentWorkElementLabel } from '@/features/registries/scentWork';
 import type { ElementSpec, RegistrySport } from '@/features/registries/types';
 import { formatTrialTypeLabel } from '@/types/template.types';
 
@@ -55,7 +55,11 @@ export function assertValidWizardClassSelections(
     trial.classes.forEach((classSelection, classIndex) => {
       const customizations = classSelection.customizations ?? {};
       const className = textValue(customizations.className) || `Class ${classIndex + 1}`;
-      const element = textValue(customizations.element);
+      const element = normalizeWizardClassElement(
+        organization,
+        trial.trialType,
+        textValue(customizations.element)
+      );
       const level = textValue(customizations.level);
       const section = textValue(customizations.section);
 
@@ -75,6 +79,16 @@ export function assertValidWizardClassSelections(
   if (invalidClasses.length > 0) {
     throw new InvalidWizardClassConfigurationError(invalidClasses);
   }
+}
+
+/** Normalize legacy display aliases at the registry boundary before validation or persistence. */
+export function normalizeWizardClassElement(
+  organization: string,
+  trialType: string | undefined,
+  element: string
+): string {
+  if (!isConfiguredScentTrial(trialType)) return element;
+  return normalizeScentWorkElementLabel(getScentWorkSport(deriveRegistryId(organization)), element);
 }
 
 function isConfiguredScentTrial(trialType: string | undefined): boolean {

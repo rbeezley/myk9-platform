@@ -8,7 +8,10 @@ import type { ShowInput } from '@/store/showStore';
 import type { ClassData } from '@/components/classes/types/classTypes';
 import { resolvePremiumStyle, type PremiumStyle } from '@/types/premium-types';
 import type { JudgeDetailsMap, ShowStatus, EditMode } from './show-creation-wizard-types';
-import { assertValidWizardClassSelections } from './classConfigurationValidation';
+import {
+  assertValidWizardClassSelections,
+  normalizeWizardClassElement,
+} from './classConfigurationValidation';
 
 export interface WizardShowData {
   name: string;
@@ -137,7 +140,11 @@ export function createClassDataFromWizard(
     if (trialId && wizardTrial.classes.length > 0) {
       wizardTrial.classes.forEach((cls, index) => {
         const className = (cls.customizations?.className as string) || `Class ${index + 1}`;
-        const element = String(cls.customizations?.element ?? '').trim();
+        const element = normalizeWizardClassElement(
+          organization,
+          wizardTrial.trialType,
+          String(cls.customizations?.element ?? '').trim()
+        );
         const level = String(cls.customizations?.level ?? '').trim();
 
         // Generate a proper UUID for the class

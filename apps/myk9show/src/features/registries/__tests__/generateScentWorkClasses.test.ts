@@ -1,5 +1,9 @@
 import { describe, it, expect } from 'vitest';
-import { generateScentWorkClasses, getScentWorkSport } from '../scentWork';
+import {
+  generateScentWorkClasses,
+  getScentWorkSport,
+  normalizeScentWorkElementLabel,
+} from '../scentWork';
 import type { RegistrySport } from '../types';
 
 /**
@@ -11,6 +15,15 @@ import type { RegistrySport } from '../types';
 describe('generateScentWorkClasses — AKC', () => {
   const classes = generateScentWorkClasses(getScentWorkSport('AKC'));
   const names = classes.map(c => c.className);
+
+  it.each([
+    ['Container', 'Container'],
+    ['Containers', 'Container'],
+    ['  CONTAINERS  ', 'Container'],
+    ['Interior', 'Interior'],
+  ])('normalizes %s to the canonical element label', (raw, expected) => {
+    expect(normalizeScentWorkElementLabel(getScentWorkSport('AKC'), raw)).toBe(expected);
+  });
 
   it('produces the canonical 26-class AKC catalog', () => {
     expect(classes).toHaveLength(26);

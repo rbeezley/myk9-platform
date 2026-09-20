@@ -146,12 +146,13 @@ describe('paper scoresheet breeds', () => {
       { id: 'entry-1', classId: 'class-1', dogId: 'dog-1', showId: 'show-1', armband: '0' },
     ]);
     mockGetArmbandsByShow.mockResolvedValue([
-      { showId: 'show-1', dogId: 'dog-1', armbandNumber: '12A' },
+      { showId: 'show-1', dogId: 'dog-1', armbandNumber: '12A', isAvailable: false },
     ]);
 
     const [entry] = await loadEntriesWithDogs('class-1');
 
     expect(entry!.armband).toBe(12);
+    expect(entry!.armbandLabel).toBe('12A');
   });
 
   it('REFUSES rather than printing blanks when registrations cannot be read at all', async () => {

@@ -48,6 +48,22 @@ describe('toScoringEntry', () => {
     expect(scoringEntry.callName).toBe('Current Call Name');
     expect(scoringEntry.breed).toBe('Current Breed');
   });
+
+  it('preserves an alphanumeric armband label alongside numeric compatibility data', () => {
+    const entry: ReplicatedEntry = {
+      id: 'entry-1',
+      classId: 'class-1',
+      dogId: 'dog-1',
+      handler: 'Jamie Handler',
+      armband: '12A',
+      status: 'accepted',
+    };
+
+    const scoringEntry = toScoringEntry(entry, null, 0);
+
+    expect(scoringEntry.armbandLabel).toBe('12A');
+    expect(scoringEntry.armband).toBe(12);
+  });
 });
 
 describe('secretaryEntryToScoringEntry', () => {

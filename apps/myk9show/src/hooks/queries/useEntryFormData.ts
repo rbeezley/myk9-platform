@@ -9,6 +9,7 @@ import {
 import type { ShowExperienceSnapshot } from '@/features/experience/experienceSnapshot';
 import { normalizeJuniorHandlerNumbers } from '@/features/registries/juniorHandlerPolicy';
 import { normalizePacketArmband } from '@/features/emergency-trial-packet/armband';
+import { backfillMissingArmbands } from '@/services/database/entries';
 import {
   projectFirstAssignedHandler,
   resolveHandlerPerson,
@@ -150,9 +151,13 @@ async function fetchEntryFormData(
     return { dogs: [], secretary: null, trials, classes, show };
   }
 
+  const authoritativeEntries = await backfillMissingArmbands(
+    entriesRaw.map(entry => ({ ...entry, show_id: showId, dog_id: entry.dog_id }))
+  );
+
   const classMap = new Map(classes.map(c => [c.id, c]));
 
-  const allEntries: (EntryFormEntry & { dogId: string })[] = (entriesRaw ?? []).map(e => {
+  const allEntries: (EntryFormEntry & { dogId: string })[] = authoritativeEntries.map(e => {
     const cls = classMap.get(e.class_id ?? '');
     return {
       id: e.id,

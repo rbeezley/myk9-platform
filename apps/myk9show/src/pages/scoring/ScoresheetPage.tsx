@@ -17,6 +17,7 @@ import { replicatedEntriesTable } from '@/services/replication/ReplicatedEntries
 import { replicatedClassesTable } from '@/services/replication/ReplicatedClassesTable';
 import { replicatedDogsTable } from '@/services/replication/ReplicatedDogsTable';
 import { replicatedTrialsTable } from '@/services/replication/ReplicatedTrialsTable';
+import { backfillReplicatedEntryArmbands } from '@/services/database/entries';
 
 import { logger } from '@/services/LoggingService';
 import { transitionToInRing, transitionToCompleted } from '@/utils/checkInTransitions';
@@ -78,10 +79,11 @@ export function ScoresheetPage() {
 
       try {
         // Load class and entry count in parallel
-        const [cls, allEntries] = await Promise.all([
+        const [cls, rawEntries] = await Promise.all([
           replicatedClassesTable.getClassById(classId),
           replicatedEntriesTable.getEntriesByClass(classId),
         ]);
+        const allEntries = await backfillReplicatedEntryArmbands(rawEntries);
 
         if (!cls) {
           setError('Class not found');

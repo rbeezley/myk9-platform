@@ -172,7 +172,9 @@ export function ClassPodium({ entries, section }: ClassPodiumProps) {
                       {entry.handler}
                     </p>
                     <p className="mt-1 line-clamp-2 text-sm text-muted-foreground">{entry.breed}</p>
-                    <p className="mt-2 text-sm font-semibold text-foreground">#{entry.armband}</p>
+                    <p className="mt-2 text-sm font-semibold text-foreground">
+                      #{entry.armbandLabel ?? entry.armband}
+                    </p>
                   </div>
                   <div
                     className={`${style.height} relative mt-2 overflow-hidden rounded-t-lg border-x border-t ${style.platform}`}

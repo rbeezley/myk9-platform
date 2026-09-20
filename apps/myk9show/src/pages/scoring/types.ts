@@ -18,6 +18,7 @@ import { replicatedShowsTable } from '@/services/replication/ReplicatedShowsTabl
 import type { ReplicatedDog } from '@/services/replication/ReplicatedDogsTable';
 import type { ReplicatedClass } from '@/services/replication/ReplicatedClassesTable';
 import type { SecretaryEntry } from '@/services/database/entries';
+import { armbandSortKey, normalizePacketArmband } from '@/features/emergency-trial-packet/armband';
 
 /**
  * Extended entry type for scoring UI
@@ -34,6 +35,7 @@ export interface ScoringEntry extends BaseEntry {
   handler: string;
   breed: string;
   armband: number;
+  armbandLabel?: string | null;
 
   // Status and ordering
   status: 'pending' | 'in-ring' | 'scored' | 'pulled' | 'absent';
@@ -109,7 +111,8 @@ export function toScoringEntry(
   index: number,
   resolvedBreed?: string | null | undefined
 ): ScoringEntry {
-  const armband = parseInt(entry.armband || '0', 10) || 0;
+  const armbandLabel = normalizePacketArmband(entry.armband) ?? null;
+  const armband = armbandSortKey(armbandLabel) ?? 0;
   const status = mapEntryStatus(entry.status);
 
   // Check result_status/resultStatus to detect scored entries (set by optimistic scoring)
@@ -142,6 +145,7 @@ export function toScoringEntry(
     handler: entry.handler || 'Unknown Handler',
     breed: resolveScoringBreed(resolvedBreed, dog, entry),
     armband,
+    armbandLabel,
 
     // Status
     status: isScored ? 'scored' : status,

@@ -217,7 +217,7 @@ describe('useClassCheckInData', () => {
       error: null,
     });
     mockArmbandsByShow.mockResolvedValue([
-      { showId: 'show-1', dogId: 'dog-1', armbandNumber: '12A' },
+      { showId: 'show-1', dogId: 'dog-1', armbandNumber: '12A', isAvailable: false },
     ]);
 
     const { result } = renderHook(() => useClassCheckInData('entry-1'), { wrapper });

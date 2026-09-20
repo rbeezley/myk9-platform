@@ -13,6 +13,7 @@ import type { CheckInEntryRow } from './useCheckInReport';
 import { loadHandlerPeople } from '@/services/database/entries/handlerHydration';
 import { projectHandlerIdentity } from '@/features/registries/handlerIdentity';
 import { normalizePacketArmband } from '@/features/emergency-trial-packet/armband';
+import { backfillReplicatedEntryArmbands } from '@/services/database/entries';
 
 function isNotDeleted(entry: ReplicatedEntry) {
   return !entry.deletedAt && !entry.deleted_at;
@@ -99,8 +100,19 @@ export async function fetchReplicatedCheckInEntries(showId: string): Promise<Che
   ]);
   const trialsById = new Map(trials.map(trial => [trial.id, trial]));
   const { byEntryId: armbandsByEntryId, byDogId: armbandsByDogId } = buildArmbandMaps(armbands);
+  const entriesWithLocalArmbands: ReplicatedEntry[] = entries.map(entry => {
+    const armband = armbandLabelForEntry(entry, armbandsByEntryId, armbandsByDogId);
+    return armband == null ? entry : { ...entry, armband };
+  });
+  const authoritativeActiveEntries = await backfillReplicatedEntryArmbands(
+    entriesWithLocalArmbands.filter(isNotDeleted)
+  );
+  const authoritativeById = new Map(authoritativeActiveEntries.map(entry => [entry.id, entry]));
+  const authoritativeEntries = entriesWithLocalArmbands.map(
+    entry => authoritativeById.get(entry.id) ?? entry
+  );
   const classCache = new Map<string, Promise<ReplicatedClass | null>>();
-  const activeEntries = entries.filter(isNotDeleted);
+  const activeEntries = authoritativeEntries.filter(isNotDeleted);
   const dogIds = [
     ...new Set(activeEntries.map(entry => entry.dogId).filter((id): id is string => Boolean(id))),
   ];

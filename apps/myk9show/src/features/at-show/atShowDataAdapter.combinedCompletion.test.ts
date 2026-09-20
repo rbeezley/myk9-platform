@@ -19,11 +19,15 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 const getClassById = vi.fn();
 const getEntriesByClass = vi.fn();
 const getTrialById = vi.fn();
+const getArmbandsByShow = vi.fn();
 
 vi.mock('@/services/replication', () => ({
   replicatedClassesTable: { getClassById: (id: string) => getClassById(id) },
   replicatedEntriesTable: { getEntriesByClass: (id: string) => getEntriesByClass(id) },
   replicatedTrialsTable: { getTrialById: (id: string) => getTrialById(id) },
+}));
+vi.mock('@/services/replication/ReplicatedArmbandsTable', () => ({
+  replicatedArmbandsTable: { getByShow: (id: string) => getArmbandsByShow(id) },
 }));
 
 import { createAtShowDataDependencies } from './atShowDataAdapter';
@@ -55,6 +59,22 @@ describe('fetchCombinedClasses — completion is a property of the PAIR', () => 
     vi.clearAllMocks();
     getEntriesByClass.mockResolvedValue([]);
     getTrialById.mockResolvedValue(null);
+    getArmbandsByShow.mockResolvedValue([]);
+  });
+
+  it('backfills a legacy zero before transforming an at-show entry', async () => {
+    getClassById.mockResolvedValue(makeClass('class-a'));
+    getEntriesByClass.mockResolvedValue([
+      { id: 'entry-1', classId: 'class-a', showId: 'show-1', dogId: 'dog-1', armband: '0' },
+    ]);
+    getArmbandsByShow.mockResolvedValue([
+      { showId: 'show-1', dogId: 'dog-1', armbandNumber: '12A', isAvailable: false },
+    ]);
+
+    const deps = createAtShowDataDependencies();
+    const result = await deps.fetchSingleClass!('class-a', 'show-1', 'judge');
+
+    expect(result.entries[0]?.armbandLabel).toBe('12A');
   });
 
   it('does not report the ring finalized when only section A is', async () => {

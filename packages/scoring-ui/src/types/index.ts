@@ -12,6 +12,8 @@ export type { ResolvedClassRules, ClassRuleFields } from './resolvedClassRules';
 export interface BaseEntry {
   id: number;
   armband?: number;
+  /** Canonical printed label, including alphanumeric assignments such as 12A. */
+  armbandLabel?: string | null;
   callName?: string;
   handler?: string;
   breed?: string;

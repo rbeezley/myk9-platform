@@ -191,7 +191,7 @@ describe('useAKCSubmissionData', () => {
     });
 
     mockGetArmbandsByShow.mockResolvedValue([
-      { showId: 'show-1', dogId: 'dog-1', armbandNumber: '12A' },
+      { showId: 'show-1', dogId: 'dog-1', armbandNumber: '12A', isAvailable: false },
     ]);
 
     const { result } = renderHook(() => useAKCSubmissionData('show-1'), { wrapper });

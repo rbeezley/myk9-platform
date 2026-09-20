@@ -21,7 +21,7 @@ import {
 } from '@/services/replication/ReplicatedTrialsTable';
 import { buildMapFromArray } from '../_shared/maps';
 import { getTrialTimezone } from '@/features/registries';
-import { backfillMissingArmbands } from './reads';
+import { backfillReplicatedEntryArmbands } from './reads';
 import { normalizePacketArmband } from '@/features/emergency-trial-packet/armband';
 import {
   postgrestGetSecretaryPullMetadataMap,
@@ -354,14 +354,7 @@ export async function getReplicatedSecretaryEntriesForShow(showId: string) {
     loadSecretaryEnrollmentsMap(entries),
     entries.length > 0 ? loadSecretaryPullMetadataMap(showId) : Promise.resolve(new Map()),
   ]);
-  const authoritativeEntries = await backfillMissingArmbands(
-    entries.map(entry => ({
-      ...entry,
-      armband: entry.armband ?? null,
-      show_id: entry.showId ?? null,
-      dog_id: entry.dogId ?? null,
-    }))
-  );
+  const authoritativeEntries = await backfillReplicatedEntryArmbands(entries);
   const data = entries
     .map((entry, index) =>
       toSecretaryEntry(

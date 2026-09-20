@@ -250,7 +250,9 @@ async function fetchMissingArmbands(
     const allArmbands = armbandsByShow.flat();
 
     // Filter to only the dog IDs we need
-    const relevant = allArmbands.filter(a => a.dogId && dogIds.has(a.dogId));
+    const relevant = allArmbands.filter(
+      a => a.isAvailable === false && a.dogId && dogIds.has(a.dogId)
+    );
     const resolved = new Map(relevant.map(a => [`${a.showId}:${a.dogId}`, a.armbandNumber]));
     const unresolved = missing.filter(entry => !resolved.has(`${entry.show_id}:${entry.dog_id}`));
     if (unresolved.length === 0 || isBrowserOffline()) return resolved;
@@ -273,12 +275,23 @@ async function fetchMissingArmbands(
     }
     return resolved;
   } catch {
+    if (isBrowserOffline()) return new Map();
     // Fallback to PostgREST
-    const { data: armbandRows } = await supabase
-      .from('armbands')
-      .select('show_id, dog_id, armband_number')
-      .in('show_id', showIds)
-      .in('dog_id', [...dogIds]);
+    let armbandRows: Array<{
+      show_id: string;
+      dog_id: string | null;
+      armband_number: string | number;
+    }> | null = null;
+    try {
+      const response = await supabase
+        .from('armbands')
+        .select('show_id, dog_id, armband_number')
+        .in('show_id', showIds)
+        .in('dog_id', [...dogIds]);
+      armbandRows = response.data;
+    } catch {
+      return new Map();
+    }
 
     if (!armbandRows || armbandRows.length === 0) return new Map();
 
@@ -287,21 +300,57 @@ async function fetchMissingArmbands(
 }
 
 export async function backfillMissingArmbands<
-  T extends { armband: string | null; show_id: string | null; dog_id: string | null },
+  T extends {
+    armband?: string | null | undefined;
+    show_id?: string | null | undefined;
+    dog_id?: string | null | undefined;
+  },
 >(entries: readonly T[]): Promise<T[]> {
-  const armbandMap = await fetchMissingArmbands(entries);
+  const armbandMap = await fetchMissingArmbands(
+    entries.map(entry => ({
+      ...entry,
+      armband: entry.armband ?? null,
+      show_id: entry.show_id ?? null,
+      dog_id: entry.dog_id ?? null,
+    }))
+  );
   return entries.map(entry => {
     const normalizedArmband = normalizePacketArmband(entry.armband);
     if (normalizedArmband == null && entry.show_id && entry.dog_id) {
       const armband = armbandMap.get(`${entry.show_id}:${entry.dog_id}`);
-      if (armband) return { ...entry, armband };
+      if (armband) return { ...entry, armband } as T;
     }
-    return normalizedArmband === entry.armband ? entry : { ...entry, armband: normalizedArmband };
+    return normalizedArmband === entry.armband
+      ? entry
+      : ({ ...entry, armband: normalizedArmband } as T);
+  });
+}
+
+export async function backfillReplicatedEntryArmbands<
+  T extends {
+    armband?: string | null | undefined;
+    showId?: string | null | undefined;
+    dogId?: string | null | undefined;
+  },
+>(entries: readonly T[]): Promise<T[]> {
+  const rows = await backfillMissingArmbands(
+    entries.map(entry => ({
+      ...entry,
+      armband: entry.armband ?? null,
+      show_id: entry.showId ?? null,
+      dog_id: entry.dogId ?? null,
+    }))
+  );
+  return entries.map((entry, index) => {
+    const armband = rows[index]?.armband;
+    return armband === entry.armband || (armband == null && entry.armband == null)
+      ? entry
+      : ({ ...entry, armband } as T);
   });
 }
 
 async function hydrateAndBackfillEntryRows<T extends EntryReadRow>(rows: T[]): Promise<T[]> {
-  const hydrated = await hydrateMissingHandlerPeople(rows as EntryDbHandlerRow[]);
+  const hydrated = await hydrateMissingHandlerPeople(rows as unknown as EntryDbHandlerRow[]);
   return (await backfillMissingArmbands(hydrated)) as unknown as T[];
 }
 

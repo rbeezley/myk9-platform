@@ -698,6 +698,7 @@ describe('secretary entry read replication', () => {
   it('warns when falling back to PostgREST after a replicated read failure', async () => {
     const replicationError = new Error('replicated entries unavailable');
     mocks.getEntriesByShow.mockRejectedValueOnce(replicationError);
+    mocks.getArmbandsByShow.mockResolvedValue([]);
     mockPostgrestEntriesRead([
       {
         id: 'entry-from-postgrest',

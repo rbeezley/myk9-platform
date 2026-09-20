@@ -34,6 +34,8 @@ export interface ScoreData {
 export interface ScoresheetEntry {
   id: string;
   armband: number;
+  /** Canonical printed label, including alphanumeric assignments such as 12A. */
+  armbandLabel?: string | null;
   dogName: string;
   handlerName: string;
   className: string;

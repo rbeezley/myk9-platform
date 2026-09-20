@@ -363,7 +363,7 @@ describe('getEntriesByTrial — cold local replica verifies online', () => {
       },
     ]);
     mockArmbandsTable.getByShow.mockResolvedValue([
-      { showId: 's1', dogId: 'dog-1', armbandNumber: '12A' },
+      { showId: 's1', dogId: 'dog-1', armbandNumber: '12A', isAvailable: false },
     ]);
     onlineRows = [];
 
@@ -375,7 +375,7 @@ describe('getEntriesByTrial — cold local replica verifies online', () => {
   it('backfills a legacy armband from the authoritative table in the online trial read', async () => {
     mockEntriesTable.getAll.mockResolvedValue([]);
     mockArmbandsTable.getByShow.mockResolvedValue([
-      { showId: 's1', dogId: 'dog-1', armbandNumber: '12A' },
+      { showId: 's1', dogId: 'dog-1', armbandNumber: '12A', isAvailable: false },
     ]);
     onlineRows = [
       {

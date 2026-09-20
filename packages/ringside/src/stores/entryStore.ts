@@ -9,6 +9,8 @@ export interface Entry {
   /** UUID in the unified platform DB (Phase 1 id-model migration). */
   id: string;
   armband: number;
+  /** Canonical printed label; numeric armband remains for legacy sorting/actions. */
+  armbandLabel?: string | null;
   callName: string;
   breed: string;
   handler: string;

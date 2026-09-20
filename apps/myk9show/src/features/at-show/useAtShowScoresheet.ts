@@ -19,6 +19,7 @@ import { replicatedEntriesTable } from '@/services/replication/ReplicatedEntries
 import { replicatedClassesTable } from '@/services/replication/ReplicatedClassesTable';
 import { replicatedDogsTable } from '@/services/replication/ReplicatedDogsTable';
 import { replicatedTrialsTable } from '@/services/replication/ReplicatedTrialsTable';
+import { backfillReplicatedEntryArmbands } from '@/services/database/entries';
 import { logger } from '@/services/LoggingService';
 import { transitionToInRing, transitionToCompleted } from '@/utils/checkInTransitions';
 import { buildResolvedClassRules } from '@myk9/scoring-ui';
@@ -117,6 +118,7 @@ export function useAtShowScoresheet({
           replicatedClassesTable.getClassById(classId),
           replicatedEntriesTable.getEntriesByClass(classId),
         ]);
+        allEntries = await backfillReplicatedEntryArmbands(allEntries);
         if (cancelled) return;
         const cachedTrial = cls?.trialId
           ? await replicatedTrialsTable.getTrialById(cls.trialId)
@@ -138,6 +140,7 @@ export function useAtShowScoresheet({
             replicatedClassesTable.getClassById(classId),
             replicatedEntriesTable.getEntriesByClass(classId),
           ]);
+          allEntries = await backfillReplicatedEntryArmbands(allEntries);
           if (cancelled) return;
         }
         if (!cls) {

@@ -133,7 +133,9 @@ export const AKCScentWorkLiveScoresheet: React.FC<LiveScoresheetProps> = ({
             <Card className="p-4">
               <div className="flex items-center gap-4">
                 <div className="flex-shrink-0 w-14 h-14 rounded-xl bg-primary flex items-center justify-center shadow-md">
-                  <span className="text-xl font-bold text-primary-foreground">{entry.armband}</span>
+                  <span className="text-xl font-bold text-primary-foreground">
+                    {entry.armbandLabel ?? entry.armband}
+                  </span>
                 </div>
                 <div className="flex-1 min-w-0 flex flex-col gap-0.5">
                   <div className="text-lg font-semibold truncate leading-tight">
@@ -317,7 +319,9 @@ export const AKCScentWorkLiveScoresheet: React.FC<LiveScoresheetProps> = ({
 
             <div className="flex items-center gap-3 p-3 bg-muted/50 rounded-xl">
               <div className="flex-shrink-0 w-10 h-10 rounded-lg bg-primary flex items-center justify-center shadow-sm">
-                <span className="text-sm font-bold text-primary-foreground">{entry.armband}</span>
+                <span className="text-sm font-bold text-primary-foreground">
+                  {entry.armbandLabel ?? entry.armband}
+                </span>
               </div>
               <div>
                 <div className="font-medium">{entry.dogName}</div>

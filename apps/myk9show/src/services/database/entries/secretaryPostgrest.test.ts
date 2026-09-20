@@ -4,12 +4,16 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 const mocks = vi.hoisted(() => ({
   from: vi.fn(),
   select: vi.fn(),
+  getArmbandsByShow: vi.fn(),
 }));
 
 vi.mock('../supabaseClient', () => ({
   createDatabaseError,
   logQuery: vi.fn(),
   supabase: { from: mocks.from },
+}));
+vi.mock('@/services/replication/ReplicatedArmbandsTable', () => ({
+  replicatedArmbandsTable: { getByShow: mocks.getArmbandsByShow },
 }));
 
 import { postgrestGetSecretaryPullMetadataMap } from './secretaryPostgrest';
@@ -86,6 +90,38 @@ describe('postgrestGetSecretaryPullMetadataMap', () => {
 describe('postgrestGetSecretaryEntriesForShow — payment bookkeeping compatibility', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mocks.getArmbandsByShow.mockResolvedValue([]);
+  });
+
+  it('backfills a legacy zero from the authoritative armband replica', async () => {
+    mocks.getArmbandsByShow.mockResolvedValue([
+      { showId: 'show-1', dogId: 'dog-1', armbandNumber: '12A', isAvailable: false },
+    ]);
+    mocks.from.mockImplementation((relation: string) => {
+      const query = {
+        select: vi.fn(() => query),
+        eq: vi.fn(() => query),
+        is: vi.fn(() => query),
+        order: vi.fn(() =>
+          Promise.resolve(
+            relation === 'view_authenticated_entry_results'
+              ? {
+                  data: [{ id: 'entry-1', show_id: 'show-1', dog_id: 'dog-1', armband: '0' }],
+                  error: null,
+                }
+              : { data: [], error: null }
+          )
+        ),
+        then: (resolve: (value: unknown) => unknown) =>
+          Promise.resolve({ data: [], error: null }).then(resolve),
+      };
+      return query;
+    });
+
+    const { postgrestGetSecretaryEntriesForShow } = await import('./secretaryPostgrest');
+    const result = await postgrestGetSecretaryEntriesForShow('show-1', Date.now(), 'test');
+
+    expect(result.data[0]).toEqual(expect.objectContaining({ armband: '12A' }));
   });
 
   /**

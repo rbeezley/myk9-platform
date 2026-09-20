@@ -8,25 +8,14 @@ import {
 } from '@/features/dogs/identity';
 import { getTrialRegistry } from '@/features/registries';
 import { loadDogRegistrations } from '@/services/database/dogs/reads';
-import { backfillMissingArmbands } from '@/services/database/entries';
+import { backfillReplicatedEntryArmbands } from '@/services/database/entries';
 import { toScoringEntry } from './types';
 import type { ScoringEntry } from './types';
 
 /** Fetch all entries for a class with their dog data, parallelising dog lookups. */
 export async function loadEntriesWithDogs(classId: string): Promise<ScoringEntry[]> {
   const rawEntries = await replicatedEntriesTable.getEntriesByClass(classId);
-  const authoritativeRows = await backfillMissingArmbands(
-    rawEntries.map(entry => ({
-      ...entry,
-      armband: entry.armband ?? null,
-      show_id: entry.showId ?? null,
-      dog_id: entry.dogId ?? null,
-    }))
-  );
-  const entries = rawEntries.map((entry, index) => ({
-    ...entry,
-    armband: authoritativeRows[index]?.armband ?? undefined,
-  }));
+  const entries = await backfillReplicatedEntryArmbands(rawEntries);
   const uniqueDogIds = [...new Set(entries.map(e => e.dogId).filter(Boolean))] as string[];
   const dogs = await Promise.all(uniqueDogIds.map(id => replicatedDogsTable.get(id)));
   const dogsMap = new Map(uniqueDogIds.map((id, i) => [id, dogs[i] ?? null]));

@@ -43,6 +43,11 @@ vi.mock('@/services/replication', () => ({
     getByShow: (...args: unknown[]) => replicationMocks.getArmbandsByShow(...args),
   },
 }));
+vi.mock('@/services/replication/ReplicatedArmbandsTable', () => ({
+  replicatedArmbandsTable: {
+    getByShow: (...args: unknown[]) => replicationMocks.getArmbandsByShow(...args),
+  },
+}));
 
 describe('fetchReplicatedCheckInEntries', () => {
   beforeEach(() => {

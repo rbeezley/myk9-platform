@@ -246,7 +246,7 @@ export const SortableEntryCard: React.FC<SortableEntryCardProps> = ({
     >
       <DogCard
         key={entry.id}
-        armband={entry.armband}
+        armband={entry.armbandLabel ?? entry.armband}
         callName={entry.callName}
         breed={entry.breed}
         handler={entry.handler}
@@ -310,7 +310,7 @@ export const SortableEntryCard: React.FC<SortableEntryCardProps> = ({
             <div
               {...attributes}
               {...listeners}
-              aria-label={`Reorder ${entry.callName}, armband ${entry.armband}`}
+              aria-label={`Reorder ${entry.callName}, armband ${entry.armbandLabel ?? entry.armband}`}
               className="inline-flex min-h-11 min-w-11 cursor-grab items-center justify-center rounded-md text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring active:cursor-grabbing"
             >
               <GripVertical size={20} aria-hidden="true" />

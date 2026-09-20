@@ -23,6 +23,8 @@ import {
   replicatedClassesTable,
   replicatedTrialsTable,
 } from '@/services/replication';
+import { backfillReplicatedEntryArmbands } from '@/services/database/entries';
+import { armbandSortKey, normalizePacketArmband } from '@/features/emergency-trial-packet/armband';
 import type { ReplicatedEntry } from '@/services/replication/ReplicatedEntriesTable';
 import type { ReplicatedClass } from '@/services/replication/ReplicatedClassesTable';
 import type { ReplicatedTrial } from '@/services/replication/ReplicatedTrialsTable';
@@ -178,6 +180,7 @@ export function transformEntry(re: ReplicatedEntry, cls: ReplicatedClass | null)
   const timeLimit = timeLimitString(cls?.timeLimitSeconds ?? cls?.time_limit_seconds);
   const timeLimit2 = timeLimitString(cls?.timeLimitArea2Seconds ?? cls?.time_limit_area2_seconds);
   const timeLimit3 = timeLimitString(cls?.timeLimitArea3Seconds ?? cls?.time_limit_area3_seconds);
+  const armbandLabel = normalizePacketArmband(re.armband ?? re.armbandNumber ?? re.armband_number);
 
   // Optional fields are spread conditionally: under exactOptionalPropertyTypes
   // an optional `field?: T` rejects an explicit `undefined` value, so absent
@@ -189,7 +192,8 @@ export function transformEntry(re: ReplicatedEntry, cls: ReplicatedClass | null)
     actualClassId: re.classId ?? re.class_id ?? '',
 
     // Competitor number — genuinely numeric; coerce from the string source.
-    armband: re.armband != null ? Number(re.armband) : 0,
+    armband: armbandSortKey(armbandLabel) ?? 0,
+    armbandLabel,
 
     callName: re.dogCallName ?? re.dog_call_name ?? '',
     breed: re.dogBreed ?? re.dog_breed ?? '',
@@ -316,7 +320,9 @@ async function fetchClassData(classId: string): Promise<{
   rawEntries: ReplicatedEntry[];
 }> {
   const cls = await replicatedClassesTable.getClassById(classId);
-  const rawEntries = await replicatedEntriesTable.getEntriesByClass(classId);
+  const rawEntries = await backfillReplicatedEntryArmbands(
+    await replicatedEntriesTable.getEntriesByClass(classId)
+  );
   const entries = rawEntries.map(re => transformEntry(re, cls));
   const trial =
     (cls?.trialId ?? cls?.trial_id)

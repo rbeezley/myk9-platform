@@ -6,6 +6,7 @@ import {
   isWithdrawalReasonCodeSchemaUnavailable,
 } from '@/features/payments/pullRefundSchemaCompatibility';
 import type { SecretaryEntry } from './secretaryTypes';
+import { backfillMissingArmbands } from './reads';
 
 export interface SecretaryPullMetadata {
   id: string;
@@ -165,6 +166,20 @@ export async function postgrestGetSecretaryEntriesForShow(
   }
 
   const entries = (data ?? []) as unknown as SecretaryEntry[];
+  const authoritativeEntries = await backfillMissingArmbands(
+    entries.map(entry => ({
+      ...entry,
+      armband: entry.armband ?? null,
+      show_id: entry.show_id ?? null,
+      dog_id: entry.dog_id ?? null,
+    }))
+  );
+  const entriesWithAuthoritativeArmbands = entries.map((entry, index) => {
+    const armband = authoritativeEntries[index]?.armband;
+    return armband === entry.armband || (armband == null && entry.armband == null)
+      ? entry
+      : { ...entry, armband };
+  });
 
   // The view carries the scored columns but NOT the pull/refund bookkeeping
   // (`withdrawn_at`, `refund_decision`, `refund_decided_at`), which live only on
@@ -177,7 +192,7 @@ export async function postgrestGetSecretaryEntriesForShow(
     () => new Map<string, SecretaryPullMetadata>()
   );
 
-  for (const entry of entries) {
+  for (const entry of entriesWithAuthoritativeArmbands) {
     const meta = pullMetadata.get(entry.id);
     if (!meta) continue;
     entry.withdrawn_at = meta.withdrawn_at;
@@ -185,7 +200,7 @@ export async function postgrestGetSecretaryEntriesForShow(
     entry.refund_decided_at = meta.refund_decided_at;
   }
 
-  return { data: entries, error: null };
+  return { data: entriesWithAuthoritativeArmbands, error: null };
 }
 
 /**

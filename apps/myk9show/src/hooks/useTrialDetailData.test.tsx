@@ -79,6 +79,23 @@ describe('useTrialDetailData', () => {
     expect(vi.mocked(useTrialQuery)).toHaveBeenCalledWith('t1');
   });
 
+  it('prefers the requested trial over a different selected trial', () => {
+    setStores({
+      trials: [
+        { id: 't1', showId: 's1' },
+        { id: 't2', showId: 's2' },
+      ],
+      selectedTrialId: 't1',
+      shows: [{ id: 's2' }],
+    });
+
+    const { result } = renderHook(() => useTrialDetailData('t2'));
+
+    expect(result.current.currentTrial?.id).toBe('t2');
+    expect(result.current.parentShow?.id).toBe('s2');
+    expect(vi.mocked(useTrialQuery)).toHaveBeenCalledWith(undefined);
+  });
+
   it('falls back to the anon by-id read for the parent show when only the show is cold', () => {
     setStores({ trials: [{ id: 't1', showId: 's1' }], selectedTrialId: 't1', shows: [] });
     setShowQuery({ id: 's1' });

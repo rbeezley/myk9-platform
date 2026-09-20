@@ -11,11 +11,10 @@
  * WHAT THIS GUARANTEES, PRECISELY: the fallback is reachable offline *once
  * identity has resolved*. It is not reachable before that, and these tests pin
  * that boundary rather than papering over it — see the last case. All four
- * hooks are gated on `personId`, which comes from the AuthContext `people`
- * lookup: a plain network query that pauses offline (`entriesIdentityState.ts`,
- * LESSONS `offline-identity-pairing`). On a cold offline boot the identity
- * never arrives, the queries stay disabled, and no `networkMode` can help.
- * Making identity itself offline-durable is a separate piece of work.
+ * hooks are gated on `personId`, which now comes from the AuthContext's
+ * account-scoped identity cache while the `people` lookup is paused offline.
+ * A cold boot without that cache remains unresolved and keeps the queries
+ * disabled; a restored pairing unlocks the replica-backed reads immediately.
  *
  * The assertion is deliberately about the CALL happening offline, not about the
  * rows: a test that only checked rows would pass with the query paused and a
@@ -30,14 +29,11 @@ import { useExhibitorUpcomingShows } from './useExhibitorUpcomingShows';
 import { useAccountEnteredShowIds } from '@/hooks/queries/useAccountEnteredShowIds';
 import { useMyEntryBalanceSummary } from '@/features/payments/useMyEntryBalanceSummary';
 import { getUserEntries } from '@/services/database/entries';
-import { useCurrentUserPersonId } from '@/hooks/useRoleBasedData';
 import { useAuthContext } from '@/hooks/useAuthContext';
+import { savePersonIdentityCache } from '@/context/personIdentityCache';
 
 vi.mock('@/services/database/entries', () => ({
   getUserEntries: vi.fn(),
-}));
-vi.mock('@/hooks/useRoleBasedData', () => ({
-  useCurrentUserPersonId: vi.fn(),
 }));
 vi.mock('@/hooks/useAuthContext', () => ({
   useAuthContext: vi.fn(),
@@ -74,10 +70,10 @@ function wrapper({ children }: { children: ReactNode }) {
 beforeEach(() => {
   vi.clearAllMocks();
   queryClient.clear();
-  (useCurrentUserPersonId as ReturnType<typeof vi.fn>).mockReturnValue('person-1');
   (useAuthContext as ReturnType<typeof vi.fn>).mockReturnValue({
     user: { id: 'user-1' },
     userWithRoles: { databaseUserId: 'person-1' },
+    personId: 'person-1',
     isAuthenticated: true,
   });
   (getUserEntries as ReturnType<typeof vi.fn>).mockResolvedValue({
@@ -112,8 +108,32 @@ describe('account reads while offline, with identity resolved (MYK9-536)', () =>
     expect(getUserEntries).toHaveBeenCalledWith('person-1');
   });
 
+  it('keeps an unconfirmed empty read distinct from a confirmed empty show list', async () => {
+    (getUserEntries as ReturnType<typeof vi.fn>).mockResolvedValue({
+      data: [],
+      error: null,
+      source: 'replica-offline',
+    });
+
+    const { result } = renderHook(() => useExhibitorUpcomingShows(), { wrapper });
+
+    await waitFor(() => expect(result.current.readState).toBe('unconfirmed'));
+    expect(result.current.upcomingShows).toEqual([]);
+  });
+
+  it('surfaces an upcoming-show read error instead of rendering an empty claim', async () => {
+    (getUserEntries as ReturnType<typeof vi.fn>).mockRejectedValue(
+      new Error('entries unavailable')
+    );
+
+    const { result } = renderHook(() => useExhibitorUpcomingShows(), { wrapper });
+
+    await waitFor(() => expect(result.current.readState).toBe('error'), { timeout: 5000 });
+    expect(result.current.upcomingShows).toEqual([]);
+  });
+
   it('useAccountEnteredShowIds still calls the entry read and answers', async () => {
-    const { result } = renderHook(() => useAccountEnteredShowIds('person-1'), {
+    const { result } = renderHook(() => useAccountEnteredShowIds(), {
       wrapper,
     });
 
@@ -154,21 +174,45 @@ describe('account reads while offline, with identity resolved (MYK9-536)', () =>
   });
 });
 
-describe('account reads on a COLD offline boot, identity unresolved', () => {
+describe('account reads on a COLD offline boot', () => {
   beforeEach(() => {
     // The `people` lookup that resolves `personId` is itself a network query and
     // pauses offline, so on a cold boot it never answers.
-    (useCurrentUserPersonId as ReturnType<typeof vi.fn>).mockReturnValue(null);
     (useAuthContext as ReturnType<typeof vi.fn>).mockReturnValue({
       user: { id: 'user-1' },
       userWithRoles: {},
+      personId: null,
       isAuthenticated: true,
     });
   });
 
-  it('reports unresolved identity rather than a confident empty list', async () => {
+  it('runs all four account reads with a restored person identity', async () => {
+    savePersonIdentityCache('user-1', 'person-1');
+    (useAuthContext as ReturnType<typeof vi.fn>).mockReturnValue({
+      user: { id: 'user-1' },
+      userWithRoles: {},
+      personId: 'person-1',
+      isAuthenticated: true,
+    });
+    const hasAny = renderHook(() => useHasAnyEntryForShow(SHOW_ID), { wrapper });
     const upcoming = renderHook(() => useExhibitorUpcomingShows(), { wrapper });
-    const entered = renderHook(() => useAccountEnteredShowIds(null), {
+    const entered = renderHook(() => useAccountEnteredShowIds(), { wrapper });
+    const balance = renderHook(() => useMyEntryBalanceSummary(), { wrapper });
+
+    await waitFor(() => {
+      expect(getUserEntries).toHaveBeenCalledTimes(4);
+      expect(hasAny.result.current.hasAnyEntryForShow).toBe(true);
+      expect(upcoming.result.current.upcomingShows).toHaveLength(1);
+      expect(entered.result.current.all).toContain(SHOW_ID);
+      expect(balance.result.current.data?.kind).toBe('unknown');
+    });
+    expect(getUserEntries).toHaveBeenCalledWith('person-1');
+  });
+
+  it('reports unresolved identity rather than a confident empty list when no cache exists', async () => {
+    const hasAny = renderHook(() => useHasAnyEntryForShow(SHOW_ID), { wrapper });
+    const upcoming = renderHook(() => useExhibitorUpcomingShows(), { wrapper });
+    const entered = renderHook(() => useAccountEnteredShowIds(), {
       wrapper,
     });
 
@@ -182,6 +226,10 @@ describe('account reads on a COLD offline boot, identity unresolved', () => {
     // `isLoading: !!personId && isLoading` encodes deliberately.
     await waitFor(() => expect(upcoming.result.current.isLoading).toBe(false));
     expect(upcoming.result.current.upcomingShows).toEqual([]);
+    expect(upcoming.result.current.identityState).toBe('unresolved');
+    expect(hasAny.result.current.identityState).toBe('unresolved');
+    expect(entered.result.current.identityState).toBe('unresolved');
+    expect(entered.result.current.readState).toBe('identity-unresolved');
     expect(entered.result.current.isLoading).toBe(false);
     expect(entered.result.current.all).toEqual([]);
   });

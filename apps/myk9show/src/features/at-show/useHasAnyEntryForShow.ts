@@ -15,7 +15,9 @@
  */
 import { useQuery } from '@tanstack/react-query';
 import { useEntriesPersonId } from '@/hooks/useEntriesPersonId';
+import { useAuthContext } from '@/hooks/useAuthContext';
 import { getUserEntries } from '@/services/database/entries';
+import type { PersonIdentityState } from '@/context/authContextTypes';
 
 export interface HasAnyEntryForShow {
   hasAnyEntryForShow: boolean;
@@ -25,14 +27,23 @@ export interface HasAnyEntryForShow {
    * hook then means "we could not find out", NOT "you are a stranger to this
    * show" — the gate must say so rather than showing the worker-passcode copy
    * to an entered exhibitor whose network dropped (MYK9-629 restructure 3).
-   */
+  */
   isError: boolean;
+  identityState: PersonIdentityState;
+  hasUsablePersonId: boolean;
 }
 
 export function useHasAnyEntryForShow(showId: string | undefined): HasAnyEntryForShow {
   // The one resolver, shared with My Shows and My Payments, so the
   // `getUserEntries` cache is one key per account (MYK9-629 restructure 4).
   const personId = useEntriesPersonId();
+  const {
+    personIdentityState: authIdentityState,
+    hasUsablePersonId: authHasUsablePersonId,
+  } = useAuthContext();
+  const identityState: PersonIdentityState =
+    authIdentityState ?? (personId ? 'resolved' : 'unresolved');
+  const hasUsablePersonId = authHasUsablePersonId ?? Boolean(personId);
 
   const { data, isLoading, isError } = useQuery({
     queryKey: ['at-show', 'has-any-entry', personId, showId],
@@ -78,5 +89,7 @@ export function useHasAnyEntryForShow(showId: string | undefined): HasAnyEntryFo
     // rows the server never confirmed. Both are "could not confirm", and the
     // gate renders the same copy for each.
     isError: !!personId && (isError || (data ? !data.confirmed : false)),
+    identityState,
+    hasUsablePersonId,
   };
 }

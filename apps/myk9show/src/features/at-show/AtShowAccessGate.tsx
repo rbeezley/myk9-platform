@@ -38,9 +38,7 @@ export function AtShowAccessGate({ children }: { children: ReactNode }) {
     isError: hasAnyEntryError,
     identityState,
     hasUsablePersonId,
-  } = useHasAnyEntryForShow(
-    needsExhibitorAffiliationLookup ? showId : undefined
-  );
+  } = useHasAnyEntryForShow(needsExhibitorAffiliationLookup ? showId : undefined);
 
   // Client-only UX gate: a passcode grant admits the ringside UI for this
   // device/show, but data security remains enforced by Supabase RLS and the

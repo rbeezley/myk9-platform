@@ -11,11 +11,16 @@
 
 import { ArrowLeft, ChevronRight, KeyRound, Radio } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import type { PersonIdentityState } from '@/context/authContextTypes';
+import type { ExhibitorUpcomingReadState } from './useExhibitorUpcomingShows';
 import type { RingsideShowRef } from './ringsideEntryResolver';
 
 interface RingsideHomeProps {
   liveShows: RingsideShowRef[];
   upcomingShows: RingsideShowRef[];
+  identityState: PersonIdentityState;
+  hasUsablePersonId: boolean;
+  readState: ExhibitorUpcomingReadState;
   /** Reveal the passcode entry flow (reuses SmartSignInPage in the parent). */
   onEnterPasscode: () => void;
 }
@@ -40,8 +45,78 @@ function ShowCard({ show, sublabel }: { show: RingsideShowRef; sublabel: string 
   );
 }
 
-export function RingsideHome({ liveShows, upcomingShows, onEnterPasscode }: RingsideHomeProps) {
+function RingsideDegradedState({
+  heading,
+  detail,
+  onEnterPasscode,
+}: {
+  heading: string;
+  detail: string;
+  onEnterPasscode: () => void;
+}) {
+  return (
+    <div className="flex min-h-dvh flex-col items-center justify-center bg-background px-4 py-12">
+      <div className="w-full max-w-md rounded-xl border bg-card p-6 text-center shadow-sm">
+        <h1 className="mb-2 text-2xl font-bold text-foreground">Ringside</h1>
+        <p className="text-lg font-medium">{heading}</p>
+        <p className="mt-2 text-sm text-muted-foreground">{detail}</p>
+        <div className="mt-5 flex flex-col gap-2 sm:flex-row sm:justify-center">
+          <Link
+            to="/exhibitor/entries"
+            className="inline-flex min-h-11 items-center justify-center rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+          >
+            Go to My Shows
+          </Link>
+          <button
+            type="button"
+            onClick={onEnterPasscode}
+            className="inline-flex min-h-11 items-center justify-center rounded-md border border-input px-4 text-sm font-medium text-foreground hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+          >
+            I have a show-day passcode
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+export function RingsideHome({
+  liveShows,
+  upcomingShows,
+  identityState,
+  hasUsablePersonId,
+  readState,
+  onEnterPasscode,
+}: RingsideHomeProps) {
   const hasShows = liveShows.length > 0 || upcomingShows.length > 0;
+
+  if (!hasShows && (readState === 'error' || readState === 'unconfirmed')) {
+    return (
+      <RingsideDegradedState
+        heading="We couldn&apos;t confirm your upcoming shows."
+        detail="Your entries may still be available on My Shows. Try again when your connection is available, or use a show-day passcode if you&apos;re volunteering."
+        onEnterPasscode={onEnterPasscode}
+      />
+    );
+  }
+
+  if (!hasUsablePersonId && !hasShows && identityState !== 'resolved') {
+    return (
+      <RingsideDegradedState
+        heading={
+          identityState === 'missing'
+            ? "We couldn't find your exhibitor profile."
+            : 'Still confirming your account.'
+        }
+        detail={
+          identityState === 'missing'
+            ? 'This account is not linked to an exhibitor profile yet. Ask the secretary to add it, or use a passcode if you are volunteering.'
+            : 'We\'re still confirming which shows belong to you. Keep this page open and try again when your connection is available.'
+        }
+        onEnterPasscode={onEnterPasscode}
+      />
+    );
+  }
 
   return (
     <div className="flex min-h-dvh flex-col items-center justify-center bg-background px-4 py-12">

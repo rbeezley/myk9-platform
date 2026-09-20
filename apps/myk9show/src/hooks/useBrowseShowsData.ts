@@ -130,7 +130,10 @@ export function useBrowseShowsData({
     all: allAccountEnteredShowIds,
     refetch: refetchAccountEntries,
   } = accountEnteredShowIds;
-  const derivedUserId = personId ?? user?.databaseUserId ?? user?.id;
+  // Account-entry membership is scoped by AuthContext's authoritative person
+  // identity. Do not stamp account-level rows with RBAC/profile fallbacks (or
+  // the auth UUID) while that identity is unresolved.
+  const derivedUserId = personId ?? undefined;
   const entries = useMemo(
     () =>
       mergeAccountEnteredShowStubs(

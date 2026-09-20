@@ -12,15 +12,23 @@ import { addDays, format, subDays } from 'date-fns';
 import { UserRole } from '@/types/auth-types';
 import type { Show } from '@/types/show-types';
 import { showFactory } from '@/test/utils/factories';
+import type { ExhibitorUpcomingReadState } from './useExhibitorUpcomingShows';
+import type { PersonIdentityState } from '@/context/authContextTypes';
 
 const judgeAssignments = { assignments: [] as unknown[], isLoading: false };
 const banner = { items: [] as unknown[], isLoading: false };
-const exhibitorUpcoming = {
-  upcomingShows: [] as { showId: string; showName: string }[],
+const exhibitorUpcoming: {
+  upcomingShows: { showId: string; showName: string }[];
+  isLoading: boolean;
+  identityState: PersonIdentityState;
+  hasUsablePersonId: boolean;
+  readState: ExhibitorUpcomingReadState;
+} = {
+  upcomingShows: [],
   isLoading: false,
-  identityState: 'resolved' as const,
+  identityState: 'resolved',
   hasUsablePersonId: true,
-  readState: 'confirmed' as const,
+  readState: 'confirmed',
 };
 let storeShows: Show[] = [];
 

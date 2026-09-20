@@ -122,7 +122,9 @@ describe('RingsideEntryPage', () => {
     renderPage();
     expect(screen.getByText("We couldn't confirm your upcoming shows.")).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /show-day passcode/i })).toBeInTheDocument();
-    expect(screen.queryByText("You're signed in — nothing is running yet.")).not.toBeInTheDocument();
+    expect(
+      screen.queryByText("You're signed in — nothing is running yet.")
+    ).not.toBeInTheDocument();
   });
 
   it('auto-jumps into the ring when exactly one show is live', () => {

@@ -93,8 +93,7 @@ export function useRingsideEntryShows(): RingsideEntryShows {
       identityState: exhibitorUpcomingShows.identityState ?? 'resolved',
       hasUsablePersonId: exhibitorUpcomingShows.hasUsablePersonId,
       readState: exhibitorUpcomingShows.readState,
-      isLoading:
-        judge.isLoading || showsLoading || exhibitorUpcomingShows.isLoading,
+      isLoading: judge.isLoading || showsLoading || exhibitorUpcomingShows.isLoading,
     };
   }, [
     judge.assignments,

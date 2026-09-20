@@ -15,6 +15,9 @@ const useQueryMock = vi.hoisted(() => vi.fn());
 vi.mock('@tanstack/react-query', () => ({ useQuery: useQueryMock }));
 vi.mock('@/services/database/entries', () => ({ getUserEntries: vi.fn() }));
 vi.mock('@/hooks/useEntriesPersonId', () => ({ useEntriesPersonId: () => 'person-1' }));
+vi.mock('@/hooks/useAuthContext', () => ({
+  useAuthContext: () => ({ personIdentityState: 'resolved', hasUsablePersonId: true }),
+}));
 
 beforeEach(() => {
   vi.clearAllMocks();

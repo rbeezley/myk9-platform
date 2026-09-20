@@ -135,4 +135,43 @@ describe('useBrowseShowsData — unconfirmed account membership', () => {
     expect(refetchAccountEntries).toHaveBeenCalledTimes(1);
     expect(loadEntries).toHaveBeenCalledTimes(2);
   });
+
+  it('does not stamp account membership from a role/profile fallback', () => {
+    const loadEntries = vi.fn(async () => undefined);
+    useAuthContextMock.mockReturnValue({
+      user: mockUser,
+      userWithRoles: mockUser,
+      loading: false,
+      personId: null,
+    });
+    useAccountEnteredShowIdsMock.mockReturnValue({
+      all: ['show-1'],
+      active: ['show-1'],
+      isLoading: false,
+      isError: false,
+      identityState: 'unresolved',
+      hasUsablePersonId: false,
+      readState: 'identity-unresolved',
+      refetch: vi.fn(async () => undefined),
+    });
+    useEntryStoreMock.mockReturnValue({
+      entries: [],
+      isLoading: false,
+      error: null,
+      loadEntries,
+    });
+    useShowStoreMock.mockImplementation((selector: (state: unknown) => unknown) =>
+      selector({ shows: [mockShow], isLoading: false, error: null })
+    );
+    useReplicationSyncMock.mockReturnValue({ status: { tablesStatus: { shows: 'synced' } } });
+
+    const { result } = renderHook(
+      () => useBrowseShowsData({ filteredShows: [mockShow], selectedTab: 'all' }),
+      { wrapper: createWrapper() }
+    );
+
+    expect(result.current.entries).toEqual([]);
+    expect(result.current.accountEntriesReliable).toBe(false);
+    expect(result.current.isLoading).toBe(true);
+  });
 });

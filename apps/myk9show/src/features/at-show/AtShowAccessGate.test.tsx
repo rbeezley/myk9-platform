@@ -147,7 +147,9 @@ describe('AtShowAccessGate', () => {
 
     expect(screen.getByText("Ringside isn't open for this show yet.")).toBeInTheDocument();
     expect(screen.getByRole('link', { name: /go to my shows/i })).toBeInTheDocument();
-    expect(screen.queryByRole('status', { name: 'Checking ringside access…' })).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole('status', { name: 'Checking ringside access…' })
+    ).not.toBeInTheDocument();
     expect(
       screen.queryByText("You don't have ringside access for this show.")
     ).not.toBeInTheDocument();
@@ -182,7 +184,9 @@ describe('AtShowAccessGate', () => {
     expect(screen.getByText('Still confirming your account.')).toBeInTheDocument();
     expect(screen.getByRole('link', { name: /go to my shows/i })).toBeInTheDocument();
     expect(screen.getByRole('link', { name: /show-day passcode/i })).toBeInTheDocument();
-    expect(screen.queryByText("You don't have ringside access for this show.")).not.toBeInTheDocument();
+    expect(
+      screen.queryByText("You don't have ringside access for this show.")
+    ).not.toBeInTheDocument();
   });
 
   it('explains a confirmed missing profile while preserving the passcode path', () => {

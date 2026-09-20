@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { defaultPaymentForMode } from './useRegistrationWizardState';
+import {
+  defaultPaymentForMode,
+  resolveRegistrationCapacityGate,
+  shouldEnableRegistrationCapacityCheck,
+} from './useRegistrationWizardState';
+import { isShowDeskLateEntryMode } from '../RegistrationWizardPage.routes';
 
 describe('defaultPaymentForMode', () => {
   it('keeps exhibitors on online checkout by default', () => {
@@ -13,5 +18,44 @@ describe('defaultPaymentForMode', () => {
   it('leaves non-secretary staff modes explicit', () => {
     expect(defaultPaymentForMode('club_admin')).toBeUndefined();
     expect(defaultPaymentForMode('site_admin')).toBeUndefined();
+  });
+});
+
+describe('shouldEnableRegistrationCapacityCheck', () => {
+  it('keeps the capacity check enabled for exhibitors despite a late-entry URL hint', () => {
+    const isLateEntryMode = isShowDeskLateEntryMode(
+      new URLSearchParams('source=show-desk&entryMode=late')
+    );
+
+    expect(shouldEnableRegistrationCapacityCheck('exhibitor', isLateEntryMode)).toBe(true);
+  });
+
+  it('preserves the capacity-check bypass for organizer late entry', () => {
+    expect(shouldEnableRegistrationCapacityCheck('secretary_new', true)).toBe(false);
+  });
+
+  it('keeps the existing bypass for ordinary organizer workflows', () => {
+    expect(shouldEnableRegistrationCapacityCheck('secretary_new', false)).toBe(false);
+  });
+
+  it('does not let a retained exhibitor error block secretary mode after RBAC resolves', () => {
+    const exhibitorState = resolveRegistrationCapacityGate({
+      enabled: true,
+      isLoading: false,
+      error: 'availability unavailable',
+      unknownClassCount: 0,
+    });
+    const secretaryState = resolveRegistrationCapacityGate({
+      enabled: false,
+      isLoading: false,
+      error: 'availability unavailable',
+      unknownClassCount: 0,
+    });
+
+    expect(exhibitorState.capacityReady).toBe(false);
+    expect(secretaryState).toEqual({
+      capacityReady: true,
+      capacityUnavailable: false,
+    });
   });
 });

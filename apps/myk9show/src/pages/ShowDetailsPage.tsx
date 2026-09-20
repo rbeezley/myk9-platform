@@ -1,12 +1,13 @@
 import React, { useEffect, useMemo } from 'react';
 import { useParams, useNavigate, useSearchParams, useMatch, useLocation } from 'react-router-dom';
+import { useQueryClient } from '@tanstack/react-query';
 import { readEntryDogId, withEntryDogContext } from '@/features/registration/entryDogContext';
 import { type PrimaryTabDef } from '@/components/common/PrimaryTabs';
 import { useUrlTab } from '@/hooks/useUrlTab';
 import { resolveOverviewJudgesWithRoster } from '@/components/shows/overview/overviewJudges';
 import { type TrialStats } from '@/components/shows/tabs/TrialsTab';
 import type { ShowJudgeAssignment } from '@/types/judge-types';
-import { useShowsQuery } from '@/hooks/queries/useShowsDatabase';
+import { showQueryKeys, useShowsQuery, useUpdateShowMutation } from '@/hooks/queries/useShowsDatabase';
 import { useFastShowDetails } from '@/hooks/useFastShowDetails';
 import { useShowLandingData } from '@/hooks/useShowLandingData';
 import { useNavigationPerformance } from '@/hooks/useNavigationPerformance';
@@ -53,6 +54,7 @@ import {
 import { useSubmittedEntryProjection } from '@/features/exhibitor-entry/useSubmittedEntryProjection';
 import { markCurrentUserEntryClasses } from './ShowDetailsPage.publicClasses';
 import { isValidUUID } from '@/utils/validation';
+import type { Show } from '@/types/show-types';
 
 /** Loads `/shows/:id` once and delegates to the public, exhibitor, or management surface. */
 const ShowDetailsPage: React.FC = () => {
@@ -60,11 +62,13 @@ const ShowDetailsPage: React.FC = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const { hash } = useLocation();
+  const queryClient = useQueryClient();
   const managementSectionMatch = useMatch('/shows/:id/:section/*');
   const { endNavigation } = useNavigationPerformance();
   const { user, loading: authLoading, userWithRoles, rbacLoading } = useAuthContext();
   const canReadEntryRows = Boolean(user && user.is_anonymous !== true);
   const trials = useTrialStore(s => s.trials);
+  const { mutateAsync: updateShowFromPreview } = useUpdateShowMutation();
   const trialClasses = useTrialStore(s => s.trialClasses);
   const trialClassesReadStatus = useTrialStore(s => s.trialClassesReadStatus);
   const loadTrials = useTrialStore(s => s.loadTrials);
@@ -505,6 +509,19 @@ const ShowDetailsPage: React.FC = () => {
         entryNotYetOpen={entryStatus.status === 'not_yet_open'}
         refreshFailed={refreshFailed}
         onRetry={() => void refetchShow()}
+        canManageShow={canManageShow}
+        onSaveStyle={async style => {
+          const updatedShow = await updateShowFromPreview({
+            id: actualCurrentShow.id,
+            updates: { style },
+          });
+          queryClient.setQueryData(showQueryKeys.detail(actualCurrentShow.id), updatedShow);
+          queryClient.setQueryData<Show[]>(showQueryKeys.lists(), current =>
+            current
+              ? current.map(item => (item.id === updatedShow.id ? updatedShow : item))
+              : [updatedShow]
+          );
+        }}
       />
     );
   }

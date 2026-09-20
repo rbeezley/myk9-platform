@@ -1,5 +1,5 @@
 import { useCallback, useMemo } from 'react';
-import { Check, FileText, Palette } from 'lucide-react';
+import { FileText, Palette } from 'lucide-react';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -9,6 +9,7 @@ import { PremiumContentEditor } from '@/features/premium/PremiumContentEditor';
 import type { ShowExperienceSnapshot } from '@/features/experience/experienceSnapshot';
 import type { GeneratedPremium, PremiumStyle } from '@/types/premium-types';
 import type { ShowEditFormData } from './ShowEditPanel.types';
+import { PremiumStyleSelector } from './PremiumStyleSelector';
 
 interface ShowEditPremiumTabProps {
   data: ShowEditFormData;
@@ -69,38 +70,10 @@ export function ShowEditPremiumTab({
           </p>
         </CardHeader>
         <CardContent>
-          <div
-            className="grid grid-cols-1 sm:grid-cols-2 gap-2"
-            role="radiogroup"
-            aria-label="Show experience style"
-          >
-            {STYLE_OPTIONS.map(opt => {
-              const selected = (data.style || 'monogram') === opt.key;
-              return (
-                <button
-                  key={opt.key}
-                  type="button"
-                  role="radio"
-                  aria-checked={selected}
-                  aria-label={opt.name}
-                  onClick={() => handleSelectChange('style')(opt.key)}
-                  className={`text-left p-3 rounded-md border transition-colors ${
-                    selected
-                      ? 'border-primary bg-primary/10'
-                      : 'border-border hover:border-primary/50'
-                  }`}
-                >
-                  <div className="flex items-center gap-2">
-                    <span className={`text-sm font-medium ${selected ? 'text-primary' : ''}`}>
-                      {opt.name}
-                    </span>
-                    {selected && <Check className="h-3.5 w-3.5 text-primary" />}
-                  </div>
-                  <p className="mt-1 text-xs text-muted-foreground leading-snug">{opt.tagline}</p>
-                </button>
-              );
-            })}
-          </div>
+          <PremiumStyleSelector
+            selectedStyle={(data.style || 'monogram') as PremiumStyle}
+            onSelect={style => handleSelectChange('style')(style)}
+          />
           <label className="mt-4 flex items-start gap-3 rounded-md border p-3 cursor-pointer">
             <Checkbox
               aria-label="Generate exhibitor documents on save"
@@ -160,55 +133,6 @@ export function ShowEditPremiumTab({
     </TabsContent>
   );
 }
-
-interface StyleOption {
-  key: PremiumStyle;
-  name: string;
-  tagline: string;
-}
-
-const STYLE_OPTIONS: StyleOption[] = [
-  {
-    key: 'monogram',
-    name: 'Monogram',
-    tagline: 'Centered TC monogram, large serif title - conservative classic.',
-  },
-  {
-    key: 'banner',
-    name: 'Banner',
-    tagline: 'Black bar across top, left-aligned title - clean and direct.',
-  },
-  {
-    key: 'headline',
-    name: 'Headline',
-    tagline: 'Stacked header with double-rule divider - quietly bold.',
-  },
-  {
-    key: 'magazine',
-    name: 'Magazine',
-    tagline: 'Editorial spread - display serif cover, pull quotes inside.',
-  },
-  {
-    key: 'poster',
-    name: 'Poster',
-    tagline: 'Bold single-page hero - tight uppercase, ink-blot accents.',
-  },
-  {
-    key: 'gazette',
-    name: 'Gazette',
-    tagline: 'Newspaper broadsheet - masthead, multi-column body.',
-  },
-  {
-    key: 'fieldGuide',
-    name: 'Field Guide',
-    tagline: 'Utility reference - section-numbered sections, dense data tables.',
-  },
-  {
-    key: 'heritage',
-    name: 'Heritage',
-    tagline: 'Traditional kennel club - ivory paper, ornamental rules.',
-  },
-];
 
 function currencyToNumber(value: string): number {
   const parsed = Number.parseFloat(value);

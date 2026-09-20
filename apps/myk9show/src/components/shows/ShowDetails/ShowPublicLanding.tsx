@@ -1,6 +1,11 @@
-import { useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { getShowStyle } from '@/features/registries';
 import { STYLED_LANDING_BY_STYLE } from '@/features/_shared/styledLandingRegistry';
+import type { ShowStyle } from '@/features/registries';
+import { useEntitlement } from '@/features/entitlement/useEntitlement';
+import { PremiumStyleSelector } from '@/components/panels/edit/PremiumStyleSelector';
+import { PREMIUM_STYLE_LABELS } from '@/types/premium-types';
+import { Button } from '@/components/ui/button';
 import { StaleShowNotice } from './StaleShowNotice';
 import type { Show } from '@/types/show-types';
 import type { Trial } from '@/components/trials/types/trial.types';
@@ -26,6 +31,9 @@ export interface ShowPublicLandingProps {
   /** True when a cached show is being shown because the refresh failed. */
   refreshFailed?: boolean | undefined;
   onRetry?: (() => void) | undefined;
+  /** Staff-only controls for choosing the style while viewing public preview. */
+  canManageShow?: boolean;
+  onSaveStyle?: (style: ShowStyle) => Promise<void>;
 }
 
 /**
@@ -44,6 +52,8 @@ export function ShowPublicLanding({
   entryNotYetOpen,
   refreshFailed,
   onRetry,
+  canManageShow = false,
+  onSaveStyle,
 }: ShowPublicLandingProps) {
   // When an experience is published, its published style wins over the show's
   // current (possibly draft) style for public visitors.
@@ -54,9 +64,33 @@ export function ShowPublicLanding({
         : show,
     [show]
   );
+  const styleEditorEnabled = canManageShow && onSaveStyle !== undefined;
+  // Managers edit the draft `shows.style`; everyone else sees the published
+  // experience style when one exists.
+  const persistedStyle = styleEditorEnabled ? getShowStyle(show) : getShowStyle(publicLandingShow);
+  const [committedStyle, setCommittedStyle] = useState<ShowStyle>(persistedStyle);
+  const [pendingStyle, setPendingStyle] = useState<ShowStyle | null>(null);
+  const [saveError, setSaveError] = useState(false);
+  const [entitlementError, setEntitlementError] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+
+  useEffect(() => {
+    setCommittedStyle(persistedStyle);
+    setPendingStyle(null);
+    setSaveError(false);
+    setEntitlementError(false);
+  }, [persistedStyle, show.id, styleEditorEnabled]);
+
+  const previewStyle = styleEditorEnabled
+    ? (pendingStyle ?? committedStyle)
+    : persistedStyle;
+  const previewLandingShow = useMemo(
+    () => ({ ...publicLandingShow, style: previewStyle }),
+    [previewStyle, publicLandingShow]
+  );
 
   const previewShow = useMemo(() => {
-    if (offeredClasses.length === 0) return publicLandingShow;
+    if (offeredClasses.length === 0) return previewLandingShow;
 
     const offeredClassesByTrial = new Map<string, ClassInfo[]>();
     for (const classInfo of offeredClasses) {
@@ -66,7 +100,7 @@ export function ShowPublicLanding({
     }
 
     return {
-      ...publicLandingShow,
+      ...previewLandingShow,
       trials: landingTrials.map(trial => ({
         id: trial.id,
         name: trial.name || trial.trialNumber || 'Trial',
@@ -82,20 +116,63 @@ export function ShowPublicLanding({
         })),
       })),
     };
-  }, [landingTrials, offeredClasses, publicLandingShow]);
+  }, [landingTrials, offeredClasses, previewLandingShow]);
 
   // INTENT: null/default style uses the product's committed Monogram default
   // for public visitors. That keeps the shareable show URL on a brand landing
   // without adding another default surface; management users still get the
-  // tabbed product UI where show operations live.
-  const publicShowStyle = getShowStyle(publicLandingShow);
+  // tabbed product UI where show operations live unless a manager explicitly
+  // opens the public preview, which composes the style editor here.
+  const publicShowStyle = getShowStyle(previewLandingShow);
   // The registry is exhaustive over every ShowStyle value (typecheck
   // enforces it), and getShowStyle() falls back to the committed
   // Monogram default for null/default/unknown values.
   const StyledLanding = STYLED_LANDING_BY_STYLE[publicShowStyle];
 
+  const handleSaveStyle = async (style: ShowStyle) => {
+    if (!onSaveStyle || isSaving) return;
+    setIsSaving(true);
+    setSaveError(false);
+    setEntitlementError(false);
+    try {
+      await onSaveStyle(style);
+      setCommittedStyle(style);
+      setPendingStyle(null);
+    } catch {
+      setPendingStyle(null);
+      setSaveError(true);
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
   return (
     <>
+      {styleEditorEnabled && (
+        <PremiumStylePreviewControls
+          committedStyle={committedStyle}
+          previewStyle={previewStyle}
+          pendingStyle={pendingStyle}
+          saveError={saveError}
+          entitlementError={entitlementError}
+          isSaving={isSaving}
+          onSelect={style => {
+            setPendingStyle(style === committedStyle ? null : style);
+            setSaveError(false);
+            setEntitlementError(false);
+          }}
+          onCancel={() => {
+            setPendingStyle(null);
+            setSaveError(false);
+            setEntitlementError(false);
+          }}
+          onSave={style => void handleSaveStyle(style)}
+          onEntitlementBlocked={() => {
+            setPendingStyle(null);
+            setEntitlementError(true);
+          }}
+        />
+      )}
       {refreshFailed && onRetry && <StaleShowNotice onRetry={onRetry} />}
       <StyledLanding
         show={previewShow}
@@ -105,5 +182,105 @@ export function ShowPublicLanding({
         entryNotYetOpen={entryNotYetOpen}
       />
     </>
+  );
+}
+
+interface PremiumStylePreviewControlsProps {
+  committedStyle: ShowStyle;
+  previewStyle: ShowStyle;
+  pendingStyle: ShowStyle | null;
+  saveError: boolean;
+  entitlementError: boolean;
+  isSaving: boolean;
+  onSelect: (style: ShowStyle) => void;
+  onCancel: () => void;
+  onSave: (style: ShowStyle) => void;
+  onEntitlementBlocked: () => void;
+}
+
+function PremiumStylePreviewControls({
+  committedStyle,
+  previewStyle,
+  pendingStyle,
+  saveError,
+  entitlementError,
+  isSaving,
+  onSelect,
+  onCancel,
+  onSave,
+  onEntitlementBlocked,
+}: PremiumStylePreviewControlsProps) {
+  const { canAuthorizePremium, isLoading: entitlementLoading } = useEntitlement();
+
+  const handleSave = () => {
+    if (!pendingStyle || isSaving) return;
+    if (pendingStyle !== 'monogram' && !canAuthorizePremium) {
+      onEntitlementBlocked();
+      return;
+    }
+    onSave(pendingStyle);
+  };
+
+  return (
+    <section
+      aria-label="Premium presentation style"
+      className="mx-auto mb-6 w-full max-w-5xl rounded-lg border bg-card p-4 shadow-sm"
+    >
+      <div className="mb-3 flex flex-wrap items-baseline justify-between gap-2">
+        <div>
+          <h2 className="text-lg font-semibold">Premium presentation style</h2>
+          <p className="text-sm text-muted-foreground">Choose how exhibitors will see this show.</p>
+        </div>
+        <div className="text-sm text-muted-foreground">
+          <span>Current: {PREMIUM_STYLE_LABELS[committedStyle]}</span>
+          {pendingStyle && (
+            <span className="ml-3 font-medium text-foreground">
+              Pending: {PREMIUM_STYLE_LABELS[pendingStyle]}
+            </span>
+          )}
+        </div>
+      </div>
+      <PremiumStyleSelector
+        selectedStyle={previewStyle}
+        {...(!canAuthorizePremium ? { availableStyles: ['monogram'] as const } : {})}
+        onSelect={onSelect}
+        disabled={isSaving}
+        ariaLabel="Premium presentation style options"
+      />
+      {entitlementLoading && (
+        <p className="mt-2 text-xs text-muted-foreground">Checking Premium style access…</p>
+      )}
+      {!entitlementLoading && !canAuthorizePremium && (
+        <p className="mt-2 text-xs text-muted-foreground">
+          Premium styles beyond Monogram require an active Premium entitlement.
+        </p>
+      )}
+      {(saveError || entitlementError) && (
+        <p role="alert" className="mt-3 text-sm text-destructive">
+          {entitlementError
+            ? `Premium access is no longer available. Your current style is still ${PREMIUM_STYLE_LABELS[committedStyle]}.`
+            : `We couldn't save that style. Your current style is still ${PREMIUM_STYLE_LABELS[committedStyle]}.`}
+        </p>
+      )}
+      <div className="mt-4 flex flex-wrap justify-end gap-2">
+        <Button
+          type="button"
+          variant="outline"
+          size="touch"
+          disabled={!pendingStyle || isSaving}
+          onClick={onCancel}
+        >
+          Cancel style
+        </Button>
+        <Button
+          type="button"
+          size="touch"
+          disabled={!pendingStyle || isSaving}
+          onClick={handleSave}
+        >
+          {isSaving ? 'Saving…' : 'Save style'}
+        </Button>
+      </div>
+    </section>
   );
 }

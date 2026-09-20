@@ -8,6 +8,7 @@ import { ShowWorkbenchSetupPage } from '@/pages/secretary/ShowWorkbenchSetupPage
 
 const publishExperienceMock = vi.hoisted(() => vi.fn());
 const updateShowLocallyMock = vi.hoisted(() => vi.fn());
+const updateShowFromPreviewMock = vi.hoisted(() => vi.fn());
 const notificationsSuccessMock = vi.hoisted(() => vi.fn());
 const getEntriesForShowMock = vi.hoisted(() => vi.fn());
 const getEntriesByShowMock = vi.hoisted(() => vi.fn());
@@ -54,6 +55,16 @@ const mockAuthContext = {
 };
 vi.mock('@/hooks/useAuthContext', () => ({
   useAuthContext: () => mockAuthContext,
+}));
+vi.mock('@/features/entitlement/useEntitlement', () => ({
+  useEntitlement: () => ({
+    canAuthorizePremium: true,
+    isTrusted: true,
+    effective: null,
+    isLoading: false,
+    isError: false,
+    refetch: vi.fn(),
+  }),
 }));
 
 // Mock show query
@@ -128,7 +139,7 @@ vi.mock('@/hooks/useDogStoreCompat', () => ({
 // Mock shows query
 vi.mock('@/hooks/queries/useShowsDatabase', () => ({
   useShowsQuery: () => ({ data: mockShow ? [mockShow] : [] }),
-  useUpdateShowMutation: () => ({ mutateAsync: vi.fn(), isPending: false }),
+  useUpdateShowMutation: () => ({ mutateAsync: updateShowFromPreviewMock, isPending: false }),
   showQueryKeys: {
     detail: (showId: string) => ['shows', 'detail', showId],
     lists: () => ['shows', 'list'],
@@ -282,7 +293,7 @@ function PageLocationProbe() {
 
 function renderPage(showId = 'show-1', subPath = '', query = '') {
   const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
-  return render(
+  const rendered = render(
     <QueryClientProvider client={qc}>
       <MemoryRouter initialEntries={[`/shows/${showId}${subPath}${query}`]}>
         <PageLocationProbe />
@@ -302,6 +313,7 @@ function renderPage(showId = 'show-1', subPath = '', query = '') {
       </MemoryRouter>
     </QueryClientProvider>
   );
+  return { ...rendered, queryClient: qc };
 }
 
 function seedOwnedEntry(overrides: Partial<(typeof mockShowEntries)[number]> = {}): void {
@@ -408,6 +420,7 @@ describe('ShowDetailsPage', () => {
     mockAuthContext.hasRole.mockReturnValue(false);
     publishExperienceMock.mockReset();
     updateShowLocallyMock.mockReset();
+    updateShowFromPreviewMock.mockReset();
     notificationsSuccessMock.mockReset();
     updateShowLocallyMock.mockImplementation(
       async (id: string, updates: Record<string, unknown>) => ({
@@ -416,6 +429,7 @@ describe('ShowDetailsPage', () => {
         id,
       })
     );
+    updateShowFromPreviewMock.mockResolvedValue({ ...mockShow, style: 'heritage' });
     showEditPanelMock.impl = () => null;
   });
 
@@ -1006,6 +1020,34 @@ describe('ShowDetailsPage', () => {
     await waitFor(() => {
       expect(notificationsSuccessMock).toHaveBeenCalledWith('Show changes saved');
     });
+  });
+
+  it('persists preview style through the React Query mutation and updates detail/list caches when the store is cold', async () => {
+    const user = userEvent.setup();
+    mockAuthContext.isSecretary = true;
+    mockShow = { ...mockShow, style: 'monogram' };
+    updateShowFromPreviewMock.mockResolvedValue({ ...mockShow, style: 'heritage' });
+
+    const { queryClient } = renderPage('show-1', '', '?preview=public');
+    queryClient.setQueryData(['shows', 'detail', 'show-1'], mockShow);
+    queryClient.setQueryData(['shows', 'list'], [mockShow]);
+
+    await user.click(screen.getByRole('radio', { name: 'Heritage' }));
+    await user.click(screen.getByRole('button', { name: 'Save style' }));
+
+    await waitFor(() =>
+      expect(updateShowFromPreviewMock).toHaveBeenCalledWith({
+        id: 'show-1',
+        updates: { style: 'heritage' },
+      })
+    );
+    expect(updateShowLocallyMock).not.toHaveBeenCalledWith('show-1', { style: 'heritage' });
+    expect(queryClient.getQueryData(['shows', 'detail', 'show-1'])).toMatchObject({
+      style: 'heritage',
+    });
+    expect(queryClient.getQueryData<Array<{ id: string; style?: string }>>(['shows', 'list'])).toEqual(
+      [expect.objectContaining({ id: 'show-1', style: 'heritage' })]
+    );
   });
 
   it('publishes experience after saving draft show changes when requested', async () => {

@@ -193,6 +193,35 @@ describe('useProfileForm', () => {
     expect(result.current.isDirty).toBe(true);
   });
 
+  it('preserves public drafts while a private retry refreshes clean fields', async () => {
+    const { result } = renderHook(() => useProfileForm(), { wrapper: createWrapper() });
+    await waitForFormLoaded(result);
+
+    act(() => {
+      result.current.setValue('phone', '555-draft');
+    });
+    mockMaybeSingle.mockResolvedValue({
+      data: { ...dbPersonData, city: 'Refreshed City' },
+      error: null,
+    });
+    mockPrivateRpc.mockResolvedValue({
+      data: [
+        { person_id: dbPersonData.id, date_of_birth: '2012-03-04', junior_handler_numbers: {} },
+      ],
+      error: null,
+    });
+
+    await act(async () => {
+      await result.current.retryPrivateFields();
+    });
+
+    await waitFor(() => expect(mockMaybeSingle).toHaveBeenCalledTimes(2));
+    await waitFor(() => expect(result.current.privateFieldsReady).toBe(true));
+    expect(result.current.values.phone).toBe('555-draft');
+    expect(result.current.values.city).toBe('Refreshed City');
+    expect(result.current.values.dateOfBirth).toBe('2012-03-04');
+  });
+
   it('save() calls updatePerson.mutateAsync with trimmed values', async () => {
     const { result } = renderHook(() => useProfileForm(), { wrapper: createWrapper() });
 

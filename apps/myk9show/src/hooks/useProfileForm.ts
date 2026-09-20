@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useUpdatePerson } from '@/hooks/useUsers';
 import { mapDbUserToUser } from '@/hooks/queries/useUsersQuery';
@@ -52,6 +52,31 @@ function sameJuniorHandlerNumbers(
     if (left[key] !== right[key]) return false;
   }
   return true;
+}
+
+function profileValuesFromPerson(person: User): ProfileFormValues {
+  return {
+    firstName: person.firstName || '',
+    lastName: person.lastName || '',
+    phone: person.phone || '',
+    streetAddress: person.streetAddress || person.address || '',
+    city: person.city || '',
+    state: person.state || '',
+    zipCode: person.zipCode || '',
+    dateOfBirth: person.dateOfBirth || '',
+    juniorHandlerNumbers: { ...(person.juniorHandlerNumbers ?? {}) },
+  };
+}
+
+function sameProfileField(
+  field: keyof ProfileFormValues,
+  left: ProfileFormValues,
+  right: ProfileFormValues
+): boolean {
+  if (field === 'juniorHandlerNumbers') {
+    return sameJuniorHandlerNumbers(left.juniorHandlerNumbers, right.juniorHandlerNumbers);
+  }
+  return left[field] === right[field];
 }
 
 /**
@@ -161,22 +186,36 @@ export function useProfileForm() {
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [saveSuccess, setSaveSuccess] = useState(false);
+  const formBaselineRef = useRef<{ personId: string; values: ProfileFormValues } | null>(null);
 
-  // Pre-fill from person data
+  // Pre-fill from person data, but do not clobber fields the user changed while
+  // a focus refetch or private-field retry was in flight. The previous person
+  // snapshot is the baseline for identifying draft fields; clean fields follow
+  // the refreshed record so private hydration still reaches the form.
   useEffect(() => {
-    if (person) {
-      setValues({
-        firstName: person.firstName || '',
-        lastName: person.lastName || '',
-        phone: person.phone || '',
-        streetAddress: person.streetAddress || person.address || '',
-        city: person.city || '',
-        state: person.state || '',
-        zipCode: person.zipCode || '',
-        dateOfBirth: person.dateOfBirth || '',
-        juniorHandlerNumbers: { ...(person.juniorHandlerNumbers ?? {}) },
-      });
+    if (!person) {
+      formBaselineRef.current = null;
+      return;
     }
+
+    const nextValues = profileValuesFromPerson(person);
+    const previousBaseline = formBaselineRef.current;
+    if (!previousBaseline || previousBaseline.personId !== person.id) {
+      formBaselineRef.current = { personId: person.id, values: nextValues };
+      setValues(nextValues);
+      return;
+    }
+
+    setValues(currentValues => {
+      const mergedValues = { ...nextValues };
+      (Object.keys(nextValues) as Array<keyof ProfileFormValues>).forEach(field => {
+        if (!sameProfileField(field, currentValues, previousBaseline.values)) {
+          Object.assign(mergedValues, { [field]: currentValues[field] });
+        }
+      });
+      return mergedValues;
+    });
+    formBaselineRef.current = { personId: person.id, values: nextValues };
   }, [person]);
 
   /**
@@ -295,17 +334,9 @@ export function useProfileForm() {
 
   const reset = () => {
     if (person) {
-      setValues({
-        firstName: person.firstName || '',
-        lastName: person.lastName || '',
-        phone: person.phone || '',
-        streetAddress: person.streetAddress || person.address || '',
-        city: person.city || '',
-        state: person.state || '',
-        zipCode: person.zipCode || '',
-        dateOfBirth: person.dateOfBirth || '',
-        juniorHandlerNumbers: { ...(person.juniorHandlerNumbers ?? {}) },
-      });
+      const nextValues = profileValuesFromPerson(person);
+      formBaselineRef.current = { personId: person.id, values: nextValues };
+      setValues(nextValues);
     }
   };
 

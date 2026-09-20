@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react';
 import { act, render, screen, waitFor } from '@testing-library/react';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { QueryClient, QueryClientProvider, onlineManager } from '@tanstack/react-query';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { useAuthContext } from '@/hooks/useAuthContext';
@@ -72,6 +72,7 @@ describe('AuthContext RBAC lifecycle', () => {
   });
 
   afterEach(() => {
+    onlineManager.setOnline(true);
     vi.useRealTimers();
     vi.restoreAllMocks();
   });
@@ -558,6 +559,11 @@ describe('AuthContext RBAC lifecycle', () => {
 
   it('feeds a restored identity through all account entry consumers while offline', async () => {
     savePersonIdentityCache(mockUser.id, 'person-cached');
+    // Keep the real profile query paused while the account-level consumers use
+    // their replica-capable `networkMode: 'always'` reads below. The provider
+    // must restore personId from cache; this test intentionally does not mock
+    // AuthContext's identity fields.
+    onlineManager.setOnline(false);
     mockRbacService.getUserPermissions.mockResolvedValue(accessForRole(UserRole.EXHIBITOR));
     mockGetUserEntries.mockResolvedValue({
       data: [
@@ -619,6 +625,7 @@ describe('AuthContext RBAC lifecycle', () => {
 
     renderWithAuthProvider(<TestComponent />);
 
+    expect(onlineManager.isOnline()).toBe(false);
     await waitFor(() => {
       expect(screen.getByTestId('integration-person-id')).toHaveTextContent('person-cached');
       expect(screen.getByTestId('integration-identity-state')).toHaveTextContent('unresolved');

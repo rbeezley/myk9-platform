@@ -159,11 +159,12 @@ export function getTabsForUser(user: UserWithRoles | null): TabConfiguration {
 export function getUserShowContext(
   user: UserWithRoles | null,
   shows: Show[],
-  entries: SyncableShowEntry[]
+  entries: SyncableShowEntry[],
+  personId: string | null | undefined
 ): UserShowContext | null {
-  if (!user) return null;
+  if (!user || !personId) return null;
 
-  const userId = user.databaseUserId ?? user.id;
+  const userId = personId;
   const userRoles = user.roles || [];
 
   const userEntries = getUserEntries(userId, shows, entries).map(s => s.id);

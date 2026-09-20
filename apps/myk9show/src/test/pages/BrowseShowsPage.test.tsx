@@ -122,6 +122,7 @@ vi.mock('@/hooks/useAuthContext', () => ({
   useAuthContext: () => ({
     userWithRoles: mockAuthUser.current,
     user: mockAuthUser.current,
+    personId: mockAuthUser.current?.databaseUserId ?? null,
     getUserRoles: () => mockAuthUser.current?.roles || [],
     isAuthenticated: !!mockAuthUser.current,
     isSecretary: false,

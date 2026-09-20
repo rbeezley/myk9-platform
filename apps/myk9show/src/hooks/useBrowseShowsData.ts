@@ -190,8 +190,8 @@ export function useBrowseShowsData({
 
   // Get user show context for filtering with caching
   const userContext = useMemo(() => {
-    return getUserShowContext(user, shows, entries);
-  }, [user, shows, entries]);
+    return getUserShowContext(user, shows, entries, personId);
+  }, [personId, user, shows, entries]);
 
   // Sync show relationships when user or data changes
   useEffect(() => {

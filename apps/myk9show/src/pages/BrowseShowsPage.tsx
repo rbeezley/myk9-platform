@@ -57,7 +57,7 @@ import { buildChipFilters, getDefaultViewMode } from './browseShowsPage.helpers'
 
 const BrowseShowsPage: React.FC = () => {
   const [searchParams, setSearchParams] = useSearchParams();
-  const { userWithRoles: authUser, isSecretary, isAdmin, hasRole } = useAuthContext();
+  const { userWithRoles: authUser, personId, isSecretary, isAdmin, hasRole } = useAuthContext();
   const canManageShow = useCallback(
     (show: Pick<Show, 'id' | 'clubId'>) =>
       canManageShowSurface({
@@ -161,7 +161,7 @@ const BrowseShowsPage: React.FC = () => {
   );
 
   const enhancedShows = allEnhancedShows;
-  const countUserId = useMemo(() => getBrowseShowsCountUserId(user), [user]);
+  const countUserId = useMemo(() => getBrowseShowsCountUserId(personId), [personId]);
 
   // Bulk selection for shows
   const getShowId = useCallback((show: { id: string }) => show.id, []);

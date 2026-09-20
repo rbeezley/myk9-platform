@@ -3,6 +3,7 @@
  */
 
 import { format } from 'date-fns';
+import { deriveRegistryId } from '@/features/registries';
 import type { Show } from '@/types/show-types';
 import type { ShowInput } from '@/store/showStore';
 import type { ClassData } from '@/components/classes/types/classTypes';
@@ -191,7 +192,7 @@ export function createClassDataFromWizard(
     }
   });
 
-  return classes;
+  return filterDuplicateWizardClasses(classes, new Set(), deriveRegistryId(organization));
 }
 
 /** Remove selected classes already persisted, plus duplicate canonical triples in one selection. */

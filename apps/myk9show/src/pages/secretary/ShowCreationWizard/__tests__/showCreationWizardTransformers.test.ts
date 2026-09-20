@@ -239,6 +239,7 @@ describe('createClassDataFromWizard registry identity preflight', () => {
       'AKC'
     );
 
+    expect(classes).toHaveLength(1);
     expect(filterDuplicateWizardClasses(classes, new Set(), 'AKC')).toHaveLength(1);
   });
 
@@ -253,7 +254,11 @@ describe('createClassDataFromWizard registry identity preflight', () => {
         classes: [
           {
             templateId: 'akc-template',
-            customizations: { className: 'Detective', element: 'Detective' },
+            customizations: {
+              className: 'Detective',
+              element: 'Detective',
+              level: 'Detective',
+            },
           },
         ],
       },
@@ -270,6 +275,6 @@ describe('createClassDataFromWizard registry identity preflight', () => {
         undefined,
         'AKC'
       )
-    ).toHaveLength(1);
+    ).toMatchObject([{ element: 'Detective', level: '', section: '' }]);
   });
 });

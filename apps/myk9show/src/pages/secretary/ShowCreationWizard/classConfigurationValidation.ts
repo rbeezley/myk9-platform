@@ -132,11 +132,19 @@ export function normalizeWizardClassTriple(
     candidate =>
       labelsEqual(candidate.key, raw.section) || labelsEqual(candidate.label, raw.section)
   );
+  const standaloneLabel =
+    elementSpec && elementSpec.levels.length === 1
+      ? sport.levels.find(candidate => candidate.key === elementSpec.levels[0])?.label
+      : undefined;
+  const canonicalLevel =
+    standaloneLabel && (!raw.level || labelsEqual(raw.level, standaloneLabel))
+      ? ''
+      : (levelSpec?.label ?? raw.level);
 
   return {
     registryId,
     element,
-    level: levelSpec?.label ?? raw.level,
+    level: canonicalLevel,
     section: variant?.key ?? raw.section,
   };
 }

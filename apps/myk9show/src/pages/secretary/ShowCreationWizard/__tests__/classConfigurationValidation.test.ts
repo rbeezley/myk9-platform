@@ -55,6 +55,18 @@ describe('normalizeWizardClassTriple', () => {
     ).toEqual({ registryId: 'ASCA', element: 'Container', level: 'Novice', section: 'C' });
   });
 
+  it.each([
+    ['AKC', 'Scent Work', 'Detective'],
+    ['ASCA', 'Scent Detection', 'Champion'],
+  ] as const)('clears the %s standalone pseudo-level %s', (organization, trialType, level) => {
+    expect(
+      normalizeWizardClassTriple(organization, trialType, {
+        element: level,
+        level,
+      })
+    ).toMatchObject({ registryId: organization, element: level, level: '', section: '' });
+  });
+
   it('uses the normalized triple for validation-to-persistence identity and deduplication', () => {
     const legacy = normalizeWizardClassTriple('AKC', 'Scent Work', {
       element: 'Containers',

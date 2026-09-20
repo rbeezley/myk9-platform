@@ -239,6 +239,15 @@ describe('buildCreateShowPayload', () => {
             section: ' A ',
           },
         },
+        {
+          templateId: 'tmpl-1',
+          customizations: {
+            className: 'Container Novice A',
+            element: 'Container',
+            level: 'Novice',
+            section: 'A',
+          },
+        },
       ],
     };
     const { rpcInput, localEntities } = buildCreateShowPayload(
@@ -249,6 +258,8 @@ describe('buildCreateShowPayload', () => {
       'unpublished'
     );
 
+    expect(rpcInput.p_classes).toHaveLength(1);
+    expect(localEntities.classes).toHaveLength(1);
     expect(rpcInput.p_classes[0]).toMatchObject({
       element: 'Container',
       level: 'Novice',
@@ -258,6 +269,45 @@ describe('buildCreateShowPayload', () => {
       element: 'Container',
       level: 'Novice',
       section: 'A',
+    });
+  });
+
+  it('hydrates standalone scoring rules with a null level after clearing pseudo-levels', () => {
+    const trialWithPseudoLevel: WizardTrial = {
+      ...baseTrial,
+      classes: [
+        {
+          templateId: 'tmpl-1',
+          customizations: {
+            className: 'Detective',
+            element: 'Detective',
+            level: 'Detective',
+          },
+        },
+      ],
+    };
+    const { rpcInput, localEntities } = buildCreateShowPayload(
+      baseShow,
+      [trialWithPseudoLevel],
+      {},
+      makeRuleMap('tmpl-1|Detective|', {
+        timer_mode: 'single',
+        max_time_seconds_fixed: 180,
+      }),
+      'unpublished'
+    );
+
+    expect(rpcInput.p_classes[0]).toMatchObject({
+      element: 'Detective',
+      level: null,
+      timer_mode: 'single',
+      time_limit_seconds: 180,
+    });
+    expect(localEntities.classes[0]).toMatchObject({
+      element: 'Detective',
+      level: undefined,
+      timerMode: 'single',
+      timeLimitSeconds: 180,
     });
   });
 

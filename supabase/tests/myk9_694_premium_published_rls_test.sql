@@ -1,4 +1,4 @@
--- MYK9-694: show-manager and show-scoped-secretary premium publication.
+-- MYK9-694: show-manager and club-scoped-secretary premium publication.
 -- The staged path is immutable; the RPC is the only show-row commit.
 
 BEGIN;
@@ -57,11 +57,11 @@ SELECT '00000000-0000-0000-0000-000000694021', roles.id,
        '00000000-0000-0000-0000-000000694031'
 FROM public.roles WHERE roles.name = 'club_admin';
 
--- Deliberately show-scoped: club_id stays NULL, so this exercises the principal
--- that migration 190 accidentally excluded.
-INSERT INTO public.user_roles (user_id, role_id, show_id, is_active, auth_user_id)
+-- Club-scoped secretary: show_id stays NULL and the club matches Show C.
+-- A named/show-scoped secretary is deliberately not the authorization contract.
+INSERT INTO public.user_roles (user_id, role_id, club_id, is_active, auth_user_id)
 SELECT '00000000-0000-0000-0000-000000694022', roles.id,
-       '00000000-0000-0000-0000-000000694013', true,
+       '00000000-0000-0000-0000-000000694001', true,
        '00000000-0000-0000-0000-000000694032'
 FROM public.roles WHERE roles.name = 'secretary';
 
@@ -97,11 +97,11 @@ BEGIN
     jsonb_build_object('mimetype', 'application/pdf', 'size', 1024)
   );
 
-  -- Exact path shape: no UUID-prefixed suffix, extra extension, or flat path.
+  -- Versioned path shape: no UUID-prefixed suffix or extra extension. Flat
+  -- <show-id>.pdf remains a temporary rollback-compatibility shape below.
   FOREACH result IN ARRAY ARRAY[
     to_jsonb(own_show::text || '/' || artifact || '-suffix.pdf'),
-    to_jsonb(own_show::text || '/' || artifact || '.pdf.backup'),
-    to_jsonb(own_show::text || '.pdf')
+    to_jsonb(own_show::text || '/' || artifact || '.pdf.backup')
   ] LOOP
     BEGIN
       INSERT INTO storage.objects (bucket_id, name, owner_id)
@@ -115,15 +115,21 @@ BEGIN
     END IF;
   END LOOP;
 
-  IF EXISTS (
-    SELECT 1
-    FROM pg_policies
-    WHERE schemaname = 'storage'
-      AND tablename = 'objects'
-      AND cmd IN ('UPDATE', 'DELETE')
-      AND policyname ILIKE '%premium%'
-  ) THEN
-    RAISE EXCEPTION 'FAIL premium published storage remains mutable by policy';
+  INSERT INTO storage.objects (bucket_id, name, owner_id, metadata)
+  VALUES (
+    'premium-published', own_show::text || '.pdf', admin_id,
+    jsonb_build_object('mimetype', 'application/pdf', 'size', 1024)
+  );
+  UPDATE storage.objects
+     SET metadata = jsonb_build_object('mimetype', 'application/pdf', 'size', 2048)
+   WHERE bucket_id = 'premium-published' AND name = own_show::text || '.pdf';
+  IF NOT FOUND THEN
+    RAISE EXCEPTION 'FAIL legacy flat premium compatibility update was denied';
+  END IF;
+  DELETE FROM storage.objects
+   WHERE bucket_id = 'premium-published' AND name = own_show::text || '.pdf';
+  IF NOT FOUND THEN
+    RAISE EXCEPTION 'FAIL legacy flat premium compatibility delete was denied';
   END IF;
   IF NOT EXISTS (
     SELECT 1
@@ -161,6 +167,20 @@ BEGIN
       AND experience_published_content->>'generatedAt' = experience_published_at::text
   ) THEN
     RAISE EXCEPTION 'FAIL atomic publication did not commit metadata and snapshot';
+  END IF;
+
+  -- New versioned artifacts are append-only even for an authorized manager.
+  UPDATE storage.objects
+     SET metadata = jsonb_build_object('mimetype', 'application/pdf', 'size', 2048)
+   WHERE bucket_id = 'premium-published'
+     AND name = previous_path;
+  IF FOUND THEN
+    RAISE EXCEPTION 'FAIL versioned premium artifact was mutable';
+  END IF;
+  DELETE FROM storage.objects
+   WHERE bucket_id = 'premium-published' AND name = previous_path;
+  IF FOUND THEN
+    RAISE EXCEPTION 'FAIL versioned premium artifact was deletable';
   END IF;
 
   -- A lost response can be retried idempotently, but the version cannot point
@@ -257,7 +277,7 @@ BEGIN
     RAISE EXCEPTION 'FAIL manager committed another show''s staged artifact';
   END IF;
 
-  -- Show-scoped secretary positive control.
+  -- Club-scoped secretary positive control.
   PERFORM set_config('request.jwt.claim.sub', secretary_id::text, true);
   PERFORM set_config(
     'request.jwt.claims',
@@ -278,7 +298,7 @@ BEGIN
     '{}'::jsonb
   );
 
-  RAISE NOTICE 'PASS MYK9-694 exact staged paths, manager/secretary auth, atomic commit, and failure preservation';
+  RAISE NOTICE 'PASS MYK9-694 exact staged paths, legacy compatibility, manager/secretary auth, atomic commit, and failure preservation';
 END;
 $$;
 

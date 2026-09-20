@@ -1,6 +1,8 @@
 -- MYK9-694 follow-up: trust a persisted Storage path and reject stale
--- organizer completions. The prior migration established the atomic commit;
--- this migration removes caller-supplied URLs and organizer mutation access.
+-- organizer completions. The prior migration established the atomic commit.
+-- New app publishes use immutable folder artifacts. Flat <show-id>.pdf policy
+-- compatibility remains temporarily for the currently deployed/rollback app;
+-- it is intentionally not an append-only guarantee for legacy objects.
 
 ALTER TABLE public.shows
   ADD COLUMN IF NOT EXISTS published_premium_path text,
@@ -24,6 +26,60 @@ DROP POLICY IF EXISTS "Show managers can delete premium published" ON storage.ob
 DROP POLICY IF EXISTS "Show managers can upload/update/delete premium published" ON storage.objects;
 DROP POLICY IF EXISTS "Premium organizers can update published PDFs" ON storage.objects;
 DROP POLICY IF EXISTS "Premium organizers can delete published PDFs" ON storage.objects;
+DROP POLICY IF EXISTS "Legacy premium published compatibility insert" ON storage.objects;
+DROP POLICY IF EXISTS "Legacy premium published compatibility update" ON storage.objects;
+DROP POLICY IF EXISTS "Legacy premium published compatibility delete" ON storage.objects;
+
+-- Rollback compatibility for the deployed app's flat object replacement. The
+-- new app never writes this shape; versioned folder artifacts below have no
+-- UPDATE or DELETE policy.
+CREATE POLICY "Legacy premium published compatibility insert"
+ON storage.objects FOR INSERT
+TO authenticated
+WITH CHECK (
+  bucket_id = 'premium-published'
+  AND name ~* '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}[.]pdf$'
+  AND (
+    (SELECT public.can_manage_show(split_part(name, '.', 1)::uuid))
+    OR (SELECT public.is_show_secretary(split_part(name, '.', 1)::uuid))
+    OR (SELECT public.is_platform_admin())
+  )
+);
+
+CREATE POLICY "Legacy premium published compatibility update"
+ON storage.objects FOR UPDATE
+TO authenticated
+USING (
+  bucket_id = 'premium-published'
+  AND name ~* '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}[.]pdf$'
+  AND (
+    (SELECT public.can_manage_show(split_part(name, '.', 1)::uuid))
+    OR (SELECT public.is_show_secretary(split_part(name, '.', 1)::uuid))
+    OR (SELECT public.is_platform_admin())
+  )
+)
+WITH CHECK (
+  bucket_id = 'premium-published'
+  AND name ~* '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}[.]pdf$'
+  AND (
+    (SELECT public.can_manage_show(split_part(name, '.', 1)::uuid))
+    OR (SELECT public.is_show_secretary(split_part(name, '.', 1)::uuid))
+    OR (SELECT public.is_platform_admin())
+  )
+);
+
+CREATE POLICY "Legacy premium published compatibility delete"
+ON storage.objects FOR DELETE
+TO authenticated
+USING (
+  bucket_id = 'premium-published'
+  AND name ~* '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}[.]pdf$'
+  AND (
+    (SELECT public.can_manage_show(split_part(name, '.', 1)::uuid))
+    OR (SELECT public.is_show_secretary(split_part(name, '.', 1)::uuid))
+    OR (SELECT public.is_platform_admin())
+  )
+);
 
 DROP FUNCTION IF EXISTS public.publish_premium_artifact(uuid, text, text, timestamptz, text, jsonb);
 

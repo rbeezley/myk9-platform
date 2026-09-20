@@ -14,10 +14,15 @@ The canonical publish flow SHALL publish one append-only versioned premium artif
 - **WHEN** an organizer completes a publish
 - **THEN** the database persists the validated storage path and consumers derive the public URL from trusted Supabase configuration
 
-#### Scenario: Published bytes remain immutable
+#### Scenario: New published bytes remain immutable
 
 - **WHEN** an organizer has published an artifact
 - **THEN** organizer credentials cannot update or delete that object and the bucket rejects non-PDF or oversized uploads
+
+#### Scenario: Legacy flat paths remain rollback-compatible during rollout
+
+- **WHEN** the currently deployed or rollback app uses an exact `<show-id>.pdf` path
+- **THEN** its temporary compatibility policies allow that legacy object shape to be inserted, updated, or deleted by an authorized organizer, while the new app writes only versioned folder paths and does not treat legacy objects as append-only
 
 #### Scenario: Required data or configuration is missing
 

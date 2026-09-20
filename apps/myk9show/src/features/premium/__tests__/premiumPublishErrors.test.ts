@@ -45,6 +45,18 @@ describe('premium publish error contract', () => {
     );
   });
 
+  it('classifies a superseded publish as a safe fresh-attempt recovery', () => {
+    const error = classifyPremiumPublishError(
+      new Error('Premium publication attempt is stale or found no show row'),
+      'experience-snapshot'
+    );
+
+    expect(error.code).toBe('stale-attempt');
+    expect(premiumPublishFailureMessage(error)).toBe(
+      'Another publish started for this show. Try publishing again to continue.'
+    );
+  });
+
   it('parses the production Edge Function error body before classifying it', async () => {
     const error = Object.assign(new Error('Edge Function returned a non-2xx status code'), {
       context: new Response(

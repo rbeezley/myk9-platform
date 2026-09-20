@@ -23,6 +23,11 @@ import { TabsContent } from '@/components/ui/tabs';
 import { ShowOverviewTab } from '@/components/shows/tabs/ShowOverviewTab';
 import { getShowStyle } from '@/features/registries';
 import { publishGeneratedPremiumAttempt } from '@/features/premium/premiumPublishCoordinator';
+import {
+  classifyPremiumPublishError,
+  PremiumPublishError,
+  premiumPublishFailureMessage,
+} from '@/features/premium/premiumPublishErrors';
 import { persistShowJudgeAssignments } from '@/services/database/judges';
 import {
   SHOW_EDIT_TAB_PARAM,
@@ -405,14 +410,24 @@ function AuthorizedShowManagementShell({
             );
 
             if (publishableShowData.publishExperience && publishableShowData.generatedPremium) {
-              await publishGeneratedPremiumAttempt({
-                showId: id,
-                premium: applyShowFormDataToPremium(
-                  publishableShowData.generatedPremium,
-                  showData as Partial<ShowInput>
-                ),
-                inkSaver: Boolean(publishableShowData.inkSaver),
-              });
+              try {
+                await publishGeneratedPremiumAttempt({
+                  showId: id,
+                  premium: applyShowFormDataToPremium(
+                    publishableShowData.generatedPremium,
+                    showData as Partial<ShowInput>
+                  ),
+                  inkSaver: Boolean(publishableShowData.inkSaver),
+                });
+              } catch (error) {
+                const classified = classifyPremiumPublishError(error, 'experience-snapshot');
+                throw new PremiumPublishError(
+                  premiumPublishFailureMessage(classified),
+                  classified.stage,
+                  classified.code,
+                  error
+                );
+              }
               queryClient.invalidateQueries({ queryKey: ['shows', id, 'publish-info'] });
               queryClient.invalidateQueries({
                 queryKey: ['shows', id, 'published-experience-content'],

@@ -11,6 +11,7 @@ const publishGeneratedPremiumAttemptMock = vi.hoisted(() => vi.fn());
 const beginPremiumPublishAttemptMock = vi.hoisted(() => vi.fn(async () => 1));
 const updateShowLocallyMock = vi.hoisted(() => vi.fn());
 const notificationsSuccessMock = vi.hoisted(() => vi.fn());
+const notificationsErrorMock = vi.hoisted(() => vi.fn());
 const getEntriesForShowMock = vi.hoisted(() => vi.fn());
 const getEntriesByShowMock = vi.hoisted(() => vi.fn());
 const showEditPanelMock = vi.hoisted<{
@@ -184,7 +185,7 @@ vi.mock('@/features/premium/premiumPublishCoordinator', () => ({
 }));
 vi.mock('@/lib/notifications', () => ({
   notifications: {
-    error: vi.fn(),
+    error: notificationsErrorMock,
     success: notificationsSuccessMock,
   },
 }));
@@ -446,6 +447,7 @@ describe('ShowDetailsPage', () => {
     beginPremiumPublishAttemptMock.mockClear();
     updateShowLocallyMock.mockReset();
     notificationsSuccessMock.mockReset();
+    notificationsErrorMock.mockReset();
     updateShowLocallyMock.mockImplementation(
       async (id: string, updates: Record<string, unknown>) => ({
         ...mockShow,
@@ -1136,6 +1138,50 @@ describe('ShowDetailsPage', () => {
       expect.objectContaining({ style: 'heritage' })
     );
     expect(setQueryDataSpy).toHaveBeenCalledWith(['shows', 'list'], expect.any(Function));
+  });
+
+  it('keeps the editor open and surfaces calm recovery copy when premium publish fails', async () => {
+    const user = userEvent.setup();
+    mockAuthContext.isSecretary = true;
+    publishGeneratedPremiumAttemptMock.mockRejectedValueOnce(
+      new Error('organization is missing: internal configuration details')
+    );
+    showEditPanelMock.impl = ({ onSave }) => (
+      <button
+        onClick={() => {
+          void onSave({
+            name: 'Bluegrass Classic Renamed',
+            status: 'draft',
+            organization: null,
+            clubId: 'club-1',
+            startDate: '2026-03-22',
+            endDate: '2026-03-23',
+            publishExperience: true,
+            generatedPremium: makeGeneratedPremium('heritage'),
+          }).catch(error => {
+            notificationsErrorMock('Failed to save changes', {
+              description: error instanceof Error ? error.message : String(error),
+            });
+          });
+        }}
+      >
+        save mocked edit panel
+      </button>
+    );
+
+    renderPage();
+
+    await user.click(screen.getByRole('button', { name: /save mocked edit panel/i }));
+
+    await waitFor(() => {
+      expect(notificationsErrorMock).toHaveBeenCalledWith('Failed to save changes', {
+        description: "Set this show's organization to AKC or UKC in Show settings, then try again.",
+      });
+    });
+    expect(screen.getByRole('button', { name: /save mocked edit panel/i })).toBeInTheDocument();
+    expect(notificationsErrorMock.mock.calls[0]?.[1]?.description).not.toContain(
+      'internal configuration'
+    );
   });
 
   it('computes per-trial entry counts from the entryCountByClassId index', async () => {

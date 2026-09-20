@@ -2,7 +2,12 @@ export type PremiumPublishStage =
   'generation' | 'pdf-render' | 'pdf-upload' | 'premium-metadata' | 'experience-snapshot';
 
 export type PremiumPublishFailureCode =
-  'missing-organization' | 'missing-secretary' | 'configuration' | 'permission' | 'unknown';
+  | 'missing-organization'
+  | 'missing-secretary'
+  | 'configuration'
+  | 'permission'
+  | 'stale-attempt'
+  | 'unknown';
 
 export class PremiumPublishError extends Error {
   override readonly name = 'PremiumPublishError';
@@ -39,11 +44,13 @@ function classifyMessage(message: string): PremiumPublishFailureCode {
       ? 'missing-secretary'
       : /anthropic_api_key|service configuration|configuration error/.test(normalized)
         ? 'configuration'
-        : /row-level security|permission denied|not authorized|unauthorized|forbidden/.test(
-              normalized
-            )
-          ? 'permission'
-          : 'unknown';
+        : /stale|superseded|already committed to another path/.test(normalized)
+          ? 'stale-attempt'
+          : /row-level security|permission denied|not authorized|unauthorized|forbidden/.test(
+                normalized
+              )
+            ? 'permission'
+            : 'unknown';
 }
 
 export function classifyPremiumPublishError(
@@ -114,6 +121,8 @@ export function premiumPublishFailureMessage(error: PremiumPublishError): string
       return 'Premium publishing is temporarily unavailable. Please contact support.';
     case 'permission':
       return "You do not have permission to publish this show's premium list. Ask the show owner to add you as a secretary.";
+    case 'stale-attempt':
+      return 'Another publish started for this show. Try publishing again to continue.';
     default:
       return GENERIC_PREMIUM_PUBLISH_FAILURE;
   }

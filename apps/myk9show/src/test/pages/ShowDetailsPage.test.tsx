@@ -40,7 +40,10 @@ const mockAuthContext = {
   } as Record<string, unknown> | null,
   isSecretary: false,
   isAdmin: false,
-  hasRole: vi.fn(() => false),
+  hasRole: vi.fn((...roles: unknown[]) => {
+    void roles;
+    return false;
+  }),
   hasPermission: vi.fn(() => false),
   checkPermissionAsync: vi.fn().mockResolvedValue(false),
   refreshPermissions: vi.fn().mockResolvedValue(undefined),

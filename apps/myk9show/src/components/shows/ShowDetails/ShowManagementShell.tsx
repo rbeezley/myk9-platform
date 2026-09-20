@@ -5,6 +5,8 @@ import { Button } from '@/components/ui/button';
 import { PageShell } from '@/components/common/PageShell';
 import { PageHeader } from '@/components/common/PageHeader';
 import { DetailHero } from '@/components/common/DetailHero';
+import { ErrorState } from '@/components/common/ErrorState';
+import { LoadingSkeleton } from '@/components/common/LoadingSkeleton';
 import { ShowDateBlock } from '@/components/shows/ShowDateBlock';
 import { ShowStatusPill } from '@/components/shows/ShowStatusPill';
 import { QuickInfoCards } from '@/components/shows/overview/QuickInfoCards';
@@ -36,6 +38,7 @@ import { SHOW_STATUS_CONTROL_ANCHOR } from '@/features/show-workbench/publishRea
 import { notifications } from '@/lib/notifications';
 import type { Show } from '@/types/show-types';
 import type { GeneratedPremium } from '@/types/premium-types';
+import { useShowManageScope } from '@/hooks/useShowManageScope';
 import { ShowDeskCompactContext } from './ShowDeskCompactContext';
 
 function parseOptionalCurrency(value: string | number | undefined): number | undefined {
@@ -108,7 +111,53 @@ export interface ShowManagementShellProps {
  * edit/delete dialogs and the save pipeline. Presence UI relies on the
  * ShowPresenceProvider the router wraps this shell in.
  */
-export function ShowManagementShell({
+type AuthorizedShowManagementShellProps = ShowManagementShellProps & {
+  canManageShow: boolean;
+};
+
+/**
+ * Keep the management tree structurally absent until the canonical ownership
+ * answer is final. In particular, a disabled publish query may still have
+ * cached data, so passing a false flag into mounted management children is not
+ * enough to prevent stale controls from flashing during auth transitions.
+ */
+export function ShowManagementShell(props: ShowManagementShellProps) {
+  const manageScope = useShowManageScope(props.show.id);
+  const queryClient = useQueryClient();
+
+  if (manageScope.status === 'resolving') {
+    return (
+      <PageShell>
+        <LoadingSkeleton variant="cards" count={3} heading="Checking show access" />
+      </PageShell>
+    );
+  }
+
+  if (manageScope.status === 'unavailable') {
+    return (
+      <PageShell>
+        <ErrorState
+          message="We couldn't verify show access."
+          description="The management view is paused until show access can be confirmed."
+          onRetry={() => {
+            void queryClient.invalidateQueries({ queryKey: showQueryKeys.detail(props.show.id) });
+          }}
+          headingLevel={1}
+        />
+      </PageShell>
+    );
+  }
+
+  if (!manageScope.canManage) return null;
+
+  return <AuthorizedShowManagementShell {...props} canManageShow={manageScope.canManage} />;
+}
+
+// The shell owns several independent route/layout branches; keep the
+// authorization gate above structural while documenting the existing branch
+// complexity here rather than weakening the shared lint threshold.
+// eslint-disable-next-line complexity
+function AuthorizedShowManagementShell({
   show,
   showId,
   breadcrumbs,
@@ -120,7 +169,8 @@ export function ShowManagementShell({
   sectionTabs,
   entryDataState = 'ready',
   onRetryEntryData,
-}: ShowManagementShellProps) {
+  canManageShow,
+}: AuthorizedShowManagementShellProps) {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [searchParams, setSearchParams] = useSearchParams();
@@ -148,7 +198,7 @@ export function ShowManagementShell({
       searchParams.delete(SHOW_EDIT_TAB_PARAM);
       setSearchParams(searchParams, { replace: true });
     }
-  }, [editParam]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [editParam]);
 
   // Reopening from an edit link should start on Basic Info, not on whatever tab
   // a deep link once asked for -- the deep link is a one-shot instruction, not
@@ -202,6 +252,7 @@ export function ShowManagementShell({
             show={show}
             canonicalShowHref={canonicalShowHref}
             armbandCount={armbandCount}
+            canManageShow={canManageShow}
           />
         ) : (
           <>
@@ -238,7 +289,7 @@ export function ShowManagementShell({
               footer={
                 <QuickInfoCards
                   show={show}
-                  canManageShow={true}
+                  canManageShow={canManageShow}
                   entryCount={entryDataUnavailable ? null : catalogEntryCount}
                 />
               }
@@ -286,7 +337,11 @@ export function ShowManagementShell({
             // (MYK9-630 round 5). Scrolling still works; the ring never did.
             className="mt-4 grid scroll-mt-20 grid-cols-1 gap-3 rounded-md sm:grid-cols-2"
           >
-            <PremiumDownloadCard showId={show.id} showStaleBadge={true} />
+            <PremiumDownloadCard
+              showId={show.id}
+              showStaleBadge={true}
+              canManageShow={canManageShow}
+            />
             <LandingPageCard showId={show.id} showStyle={getShowStyle(show)} />
           </div>
         )}
@@ -310,7 +365,7 @@ export function ShowManagementShell({
                 <ShowOverviewTab
                   show={show}
                   isAuthenticated={true}
-                  canManageShow={true}
+                  canManageShow={canManageShow}
                   judges={tabs.judges}
                   classes={tabs.classes}
                   onViewClasses={() => navigate(`${canonicalShowHref}/setup?section=classes`)}

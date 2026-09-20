@@ -18,11 +18,10 @@ import { useWizardStore } from '@/store/wizardStore';
 import { useTemplates } from '@/hooks/useTemplates';
 import { formatTrialTypeLabel } from '@/types/template.types';
 import {
-  getDefaultTrialName,
+  getNextTrialName,
   getTrialCreationCopy,
-  getTrialNameAfterDateChange,
   resolveTrialTypeOptions,
-  type TrialDateSource,
+  type TrialNameSource,
 } from './TrialConfigurationStep.helpers';
 
 /** Parse a date string safely — handles both YYYY-MM-DD and ISO datetime */
@@ -39,7 +38,7 @@ interface TrialConfigurationStepProps {
   /** Number of existing trials already in the show (for add-trials mode info banner). */
   existingTrialCount?: number;
   /** Current show trials, used for first/another copy and day-scoped numbering. */
-  existingTrials?: TrialDateSource[];
+  existingTrials?: TrialNameSource[];
   /** True once the user has clicked Next — gates the "at least one trial required" error. */
   submitted?: boolean;
   /** Existing-show trials are addable only after a confirmed replicated snapshot. */
@@ -61,16 +60,16 @@ export const TrialConfigurationStep: React.FC<TrialConfigurationStepProps> = ({
     return resolveTrialTypeOptions(show.organization, templates);
   }, [show.organization, templates]);
 
-  const trialDates = useMemo(
+  const allTrials = useMemo(
     () => [
       ...existingTrials,
-      ...trials.map(trial => ({ id: trial.id, name: trial.name, trialDate: trial.dateTime })),
+      ...trials.map(trial => ({ name: trial.name, trialDate: trial.dateTime })),
     ],
     [existingTrials, trials]
   );
   const creationCopy = useMemo(
-    () => getTrialCreationCopy(trialDates, show.startDate || undefined),
-    [show.startDate, trialDates]
+    () => getTrialCreationCopy(allTrials, show.startDate || undefined),
+    [show.startDate, allTrials]
   );
   const canAddTrial = existingTrialsReady;
 
@@ -154,7 +153,7 @@ export const TrialConfigurationStep: React.FC<TrialConfigurationStepProps> = ({
     const baseDateStr = format(baseDate, 'yyyy-MM-dd');
 
     addTrial({
-      name: getDefaultTrialName(trialDates, baseDateStr),
+      name: getNextTrialName(allTrials, baseDateStr),
       dateTime: defaultDateTime,
       eventNumber: '',
       classes: [],
@@ -164,15 +163,7 @@ export const TrialConfigurationStep: React.FC<TrialConfigurationStepProps> = ({
   const handleTrialDateTimeChange = (trialId: string, date: Date | undefined) => {
     if (date) {
       const nextDateTime = format(date, "yyyy-MM-dd'T'HH:mm:ss");
-      const currentTrial = trials.find(trial => trial.id === trialId);
-      const updatedName = currentTrial
-        ? getTrialNameAfterDateChange(trialDates, trialId, currentTrial.dateTime, nextDateTime)
-        : '';
-
-      updateTrial(trialId, {
-        dateTime: nextDateTime,
-        ...(updatedName && updatedName !== currentTrial?.name ? { name: updatedName } : {}),
-      });
+      updateTrial(trialId, { dateTime: nextDateTime });
     }
   };
 
@@ -232,7 +223,9 @@ export const TrialConfigurationStep: React.FC<TrialConfigurationStepProps> = ({
                 <Button
                   onClick={handleAddTrial}
                   disabled={!canAddTrial}
-                  title={canAddTrial ? undefined : 'Waiting for the current trials to finish loading'}
+                  title={
+                    canAddTrial ? undefined : 'Waiting for the current trials to finish loading'
+                  }
                   size="lg"
                   className="shadow-md"
                 >

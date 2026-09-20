@@ -1,9 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { TrialType } from '@/types/template.types';
 import {
-  getDefaultTrialName,
+  getNextTrialName,
   getTrialCreationCopy,
-  getTrialNameAfterDateChange,
   isTrialSnapshotReady,
   resolveTrialTypeOptions,
 } from './TrialConfigurationStep.helpers';
@@ -43,63 +42,49 @@ describe('trial creation wording', () => {
   });
 
   it('uses another-trial wording when the show already has a trial', () => {
-    expect(getTrialCreationCopy([{ trialDate: '2026-08-01' }])).toEqual({
+    expect(getTrialCreationCopy([{ name: 'Saturday Trial 1', trialDate: '2026-08-01' }])).toEqual({
       addTrialLabel: 'Add Another Trial',
       emptyStateTitle: 'Add Another Trial',
       emptyStateDescription: 'Add another trial to continue setting up this show.',
     });
   });
 
-  it('numbers the next trial after same-day trials', () => {
+  it('allocates the first unused persisted same-day trial name', () => {
     expect(
-      getDefaultTrialName(
-        [{ trialDate: '2026-08-01' }, { trialDate: '2026-08-01' }],
+      getNextTrialName(
+        [
+          { name: 'Saturday Trial 1', trialDate: '2026-08-01' },
+          { name: 'Saturday Trial 3', trialDate: '2026-08-01' },
+        ],
         '2026-08-01'
       )
-    ).toBe('Saturday Trial 3');
+    ).toBe('Saturday Trial 2');
   });
 
   it('does not count trials from another day', () => {
-    expect(getDefaultTrialName([{ trialDate: '2026-08-02' }], '2026-08-01')).toBe(
-      'Saturday Trial 1'
-    );
+    expect(
+      getNextTrialName([{ name: 'Sunday Trial 1', trialDate: '2026-08-02' }], '2026-08-01')
+    ).toBe('Saturday Trial 1');
+  });
+
+  it('does not reserve generated names for unrelated same-day trial names', () => {
+    expect(
+      getNextTrialName([{ name: 'Veteran Sweepstakes', trialDate: '2026-08-01' }], '2026-08-01')
+    ).toBe('Saturday Trial 1');
   });
 
   it('uses first-trial wording for a selected day with no trial on that day', () => {
-    expect(getTrialCreationCopy([{ trialDate: '2026-08-02' }], '2026-08-01').addTrialLabel).toBe(
-      'Add First Trial'
-    );
+    expect(
+      getTrialCreationCopy([{ name: 'Sunday Trial 1', trialDate: '2026-08-02' }], '2026-08-01')
+        .addTrialLabel
+    ).toBe('Add First Trial');
   });
 
   it('uses another-trial wording when the selected day already has a trial', () => {
-    expect(getTrialCreationCopy([{ trialDate: '2026-08-01' }], '2026-08-01').addTrialLabel).toBe(
-      'Add Another Trial'
-    );
-  });
-
-  it('recomputes an untouched generated name when its date changes', () => {
     expect(
-      getTrialNameAfterDateChange(
-        [
-          { id: 'trial-1', name: 'Saturday Trial 1', trialDate: '2026-08-01' },
-          { id: 'trial-2', name: 'Sunday Trial 1', trialDate: '2026-08-02' },
-        ],
-        'trial-1',
-        '2026-08-01',
-        '2026-08-02'
-      )
-    ).toBe('Sunday Trial 2');
-  });
-
-  it('preserves a genuinely customized name when its date changes', () => {
-    expect(
-      getTrialNameAfterDateChange(
-        [{ id: 'trial-1', name: 'Veteran Sweepstakes', trialDate: '2026-08-01' }],
-        'trial-1',
-        '2026-08-01',
-        '2026-08-02'
-      )
-    ).toBe('Veteran Sweepstakes');
+      getTrialCreationCopy([{ name: 'Saturday Trial 1', trialDate: '2026-08-01' }], '2026-08-01')
+        .addTrialLabel
+    ).toBe('Add Another Trial');
   });
 
   it('fails closed before a current trial snapshot is confirmed', () => {

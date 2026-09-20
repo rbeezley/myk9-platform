@@ -13,10 +13,9 @@ interface TrialTypeTemplateOption {
   trialType?: string;
 }
 
-export interface TrialDateSource {
+export interface TrialNameSource {
   trialDate: string;
-  id?: string;
-  name?: string;
+  name: string;
 }
 
 export interface TrialCreationCopy {
@@ -32,7 +31,7 @@ function dateOnly(value: string): string {
 }
 
 export function getTrialCreationCopy(
-  existingTrials: readonly TrialDateSource[],
+  existingTrials: readonly TrialNameSource[],
   selectedDate?: string
 ): TrialCreationCopy {
   const normalizedSelectedDate = selectedDate ? dateOnly(selectedDate) : '';
@@ -56,22 +55,6 @@ export function getTrialCreationCopy(
   };
 }
 
-export function getTrialNameAfterDateChange(
-  existingTrials: readonly TrialDateSource[],
-  currentTrialId: string,
-  previousDate: string,
-  nextDate: string
-): string {
-  const currentTrial = existingTrials.find(trial => trial.id === currentTrialId);
-  if (!currentTrial?.name) return '';
-
-  const otherTrials = existingTrials.filter(trial => trial.id !== currentTrialId);
-  const generatedName = getDefaultTrialName(otherTrials, previousDate);
-  if (currentTrial.name !== generatedName) return currentTrial.name;
-
-  return getDefaultTrialName(otherTrials, nextDate);
-}
-
 export function isTrialSnapshotReady(
   readStatus: ReplicatedReadStatus,
   hasConfirmedSnapshot: boolean
@@ -79,18 +62,25 @@ export function isTrialSnapshotReady(
   return hasConfirmedSnapshot && readStatus !== 'idle' && readStatus !== 'loading';
 }
 
-export function getDefaultTrialName(
-  existingTrials: readonly TrialDateSource[],
+export function getNextTrialName(
+  existingTrials: readonly TrialNameSource[],
   selectedDate: string
 ): string {
   const normalizedDate = dateOnly(selectedDate);
   const trialDate = parseLocalDateString(normalizedDate);
   const dayName = trialDate ? format(trialDate, 'EEEE') : 'Trial';
-  const sameDayCount = existingTrials.filter(
-    trial => dateOnly(trial.trialDate) === normalizedDate
-  ).length;
+  const usedNames = new Set(
+    existingTrials
+      .filter(trial => dateOnly(trial.trialDate) === normalizedDate)
+      .map(trial => trial.name.trim().toLowerCase())
+  );
 
-  return `${dayName} Trial ${sameDayCount + 1}`;
+  let trialNumber = 1;
+  while (usedNames.has(`${dayName} trial ${trialNumber}`.toLowerCase())) {
+    trialNumber += 1;
+  }
+
+  return `${dayName} Trial ${trialNumber}`;
 }
 
 function normalizeTrialTypeOption(trialType: string | undefined): TrialType | undefined {

@@ -53,7 +53,10 @@ export const WizardStepContent: React.FC<WizardStepContentProps> = ({
         <TrialConfigurationStep
           {...stepProps}
           existingTrialCount={showExistingTrials.length}
-          existingTrials={showExistingTrials.map(trial => ({ trialDate: trial.trialDate }))}
+          existingTrials={showExistingTrials.map(trial => ({
+            name: trial.name ?? '',
+            trialDate: trial.trialDate,
+          }))}
           existingTrialsReady={existingTrialsReady}
           submitted={hasAttemptedNext}
         />

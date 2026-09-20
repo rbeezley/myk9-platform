@@ -13155,6 +13155,7 @@ export type Database = {
           person_id: string
         }[]
       }
+      entry_enrollment_select_show_ids: { Args: never; Returns: string[] }
       manageable_show_ids: { Args: never; Returns: string[] }
       move_up_entry: {
         Args: {

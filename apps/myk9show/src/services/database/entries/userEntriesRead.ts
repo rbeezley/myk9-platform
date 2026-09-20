@@ -21,8 +21,11 @@ import { buildMapFromArray } from '../_shared/maps';
 import { withTimeout, DEFAULT_TIMEOUT_MS } from '@myk9/core';
 import { buildReplicatedUserEntryRows } from './userEntriesReplication';
 import { applyOrderReferenceRule } from './orderReferenceRule';
+import { buildUserEntriesSelect } from './userEntriesSelect';
+export { USER_ENTRIES_SELECT } from './userEntriesSelect';
 import { selectOwnedDogIds } from '@/utils/dogOwnership';
 import {
+  isMoveUpLinkSchemaUnavailable,
   isWithdrawalReasonCodeSchemaUnavailable,
   isRegistrationConfirmationNumberSchemaUnavailable,
 } from '@/features/payments/pullRefundSchemaCompatibility';
@@ -37,7 +40,8 @@ import {
  * out, or came back empty over a populated snapshot. Both withhold money;
  * only the second is worth a warning in the logs.
  */
-export type UserEntriesSource = 'confirmed' | 'replica-offline' | 'replica-after-error';
+export type UserEntriesSource =
+  'confirmed' | 'confirmed-move-up-link-unavailable' | 'replica-offline' | 'replica-after-error';
 
 /**
  * The ONE rule for whether a money figure derived from these rows may be
@@ -57,131 +61,6 @@ export function isMoneyConfirmed(source: UserEntriesSource): boolean {
   return source === 'confirmed';
 }
 
-/**
- * Columns the MyEntries mapper reads (transformEntry). Keep in sync with the
- * replication path — a dropped column silently renders as a default on the
- * PostgREST fallback (e.g. a missing `check_in_status` reads as "Not Checked In"
- * even after a persisted check-in).
- */
-export const USER_ENTRIES_SELECT = `
-      id,
-      dog_id,
-      show_id,
-      class_id,
-      trial_id,
-      handler,
-      handler_id,
-      payment_status,
-      payment_method,
-      entry_status,
-      check_in_status,
-      entry_fee,
-      armband,
-      run_order,
-      jump_height,
-      special_requests,
-      is_scored,
-      result_status,
-      search_time_seconds,
-      total_faults,
-      final_placement,
-      class_results_released_at,
-      dog_image_url,
-      deleted_at,
-      refund_amount,
-      refunded_at,
-      submitted_at,
-      created_at,
-      updated_at,
-      registration_id,
-      registration:registration_id (
-        id,
-        confirmation_number,
-        payment_status,
-        payment_reference,
-        paid_amount
-      ),
-      dog:dog_id (
-        id,
-        name,
-        call_name,
-        breed
-      ),
-      show:show_id (
-        id,
-        name,
-        deleted_at,
-        status,
-        start_date,
-        end_date,
-        entry_close_date,
-        venue_name,
-        city,
-        state,
-        trials:trials (
-          id,
-          date,
-          timezone
-        )
-      ),
-      class:class_id (
-        id,
-        name,
-        class_number,
-        trial:trial_id (
-          id,
-          trial_type,
-          date,
-          trial_number,
-          timezone
-        )
-      ),
-      trial:trial_id (
-        id,
-        trial_type,
-        date,
-        trial_number,
-        timezone
-      )
-    `;
-
-/**
- * The base select PLUS whichever migration-backed view columns this database is
- * known to have.
- *
- * Two of them exist — MYK9-632's `withdrawal_reason_code` (20260918041700) and
- * MYK9-659's `registration_confirmation_number` (20260918193700) — and they are
- * INDEPENDENT, so each is dropped on its own rather than taking the other down
- * with it. Same shape as `postgrestGetSecretaryPullMetadataMap`.
- *
- * Why either is optional at all: until its migration is pushed, naming the
- * column fails the WHOLE query with 42703. That would not merely drop a badge
- * suffix or an order reference — `getUserEntries` reads a failed view read as
- * "fall back to the per-show replica", and `/my-entries` is a cross-show route
- * that never syncs one, so My Shows, My Payments and the exhibitor dashboard
- * would all go empty for the window between this branch merging and the push.
- * The read therefore asks for each column and drops it for the rest of the read
- * if the server says it is not there, through the same `is…SchemaUnavailable`
- * seams `postgrestGetSecretaryPullMetadataMap` already uses.
- *
- * Built by interpolation rather than spelled out per combination: supabase-js
- * parses the select string at the TYPE level and cannot parse this one anyway
- * (the constant's trailing whitespace already defeated it), which is why
- * `postgrestGetUserEntries` casts through `unknown`. `search.test.ts` is what
- * pins the column list and the drop-and-retry behaviour.
- */
-export function buildUserEntriesSelect(options: {
-  includeReasonCode: boolean;
-  includeRegistrationConfirmationNumber: boolean;
-}): string {
-  const optional = [
-    options.includeReasonCode ? 'withdrawal_reason_code' : null,
-    options.includeRegistrationConfirmationNumber ? 'registration_confirmation_number' : null,
-  ].filter((column): column is string => column !== null);
-  if (optional.length === 0) return USER_ENTRIES_SELECT;
-  return `${USER_ENTRIES_SELECT},\n      ${optional.join(',\n      ')}`;
-}
-
 // Routes own-entry reads through the cascade-aware authenticated view so scored
 // columns (final_placement, result_status, etc.) are nulled until the
 // visibility cascade releases them. The view is owner-run and embeds the same
@@ -199,6 +78,9 @@ async function postgrestGetUserEntries() {
   // MYK9-659's view column, tracked separately: two INDEPENDENT migrations back
   // these two columns, so one missing must not drop the other.
   let includeRegistrationConfirmationNumber = true;
+  // MYK9-639's view column is independently optional while deployments catch up.
+  let includeMoveUpLink = true;
+  let moveUpLinkUnavailable = false;
   // ONE deadline for the whole paged read, not one per page. `withTimeout`
   // only races the promise it is given, so when it wins, the loop below is
   // still in flight — a per-page signal would let each SUBSEQUENT page start a
@@ -206,15 +88,19 @@ async function postgrestGetUserEntries() {
   // single signal across every page stops the orphaned paging at the same
   // instant the caller gives up.
   const deadline = AbortSignal.timeout(USER_ENTRIES_VIEW_TIMEOUT_MS);
+  let cursorCreatedAt: string | null = null;
+  let cursorId: string | null = null;
 
   for (let page = 0; page < USER_ENTRIES_MAX_PAGES; page++) {
-    const from = page * USER_ENTRIES_PAGE_SIZE;
-    const to = from + USER_ENTRIES_PAGE_SIZE - 1;
-    const runPage = () =>
-      supabase
+    const runPage = () => {
+      let query = supabase
         .from('view_authenticated_entry_results')
         .select(
-          buildUserEntriesSelect({ includeReasonCode, includeRegistrationConfirmationNumber })
+          buildUserEntriesSelect({
+            includeReasonCode,
+            includeRegistrationConfirmationNumber,
+            includeMoveUpLink,
+          })
         )
         // My Entries is OWN entries only. The view returns can_manage OR
         // is_own_entry rows, so without this filter a secretary/admin would receive
@@ -224,41 +110,63 @@ async function postgrestGetUserEntries() {
         .eq('is_own_entry', true)
         .order('created_at', { ascending: false })
         .order('id', { ascending: false })
-        .abortSignal(deadline)
-        .range(from, to);
+        .abortSignal(deadline);
 
-    let response = await runPage();
-    if (includeReasonCode && isWithdrawalReasonCodeSchemaUnavailable(response.error)) {
-      // Pre-20260918041700 database. Drop the column and re-ask for this page;
-      // every later page goes without it too.
-      includeReasonCode = false;
-      // SAY SO. This branch is the only evidence anywhere that the migration has
-      // not been pushed: without it the page renders correctly, silently pays a
-      // doubled first-page round trip, and nothing tells anyone that the push is
-      // outstanding — or, later, that the compat arm is safe to delete
-      // (MYK9-654). The file's other degraded states warn the same way.
-      logger.warn(
-        'My Entries read without withdrawal_reason_code: migration 20260918041700 is not applied',
-        'database',
-        { column: 'withdrawal_reason_code', migration: '20260918041700' }
-      );
+      if (cursorCreatedAt && cursorId) {
+        query = query.or(
+          `created_at.lt.${cursorCreatedAt},and(created_at.eq.${cursorCreatedAt},id.lt.${cursorId})`
+        );
+      }
+
+      return query.range(0, USER_ENTRIES_PAGE_SIZE - 1);
+    };
+
+    let response;
+    while (true) {
       response = await runPage();
-    }
-    if (
-      includeRegistrationConfirmationNumber &&
-      isRegistrationConfirmationNumberSchemaUnavailable(response.error)
-    ) {
-      // Pre-20260918193700 database. Same contract as the arm above: drop the
-      // column, re-ask this page, and go without it for every later page. The
-      // online receipt falls back to the `registration:registration_id(...)`
-      // embed's confirmation number, which is what it read before MYK9-659.
-      includeRegistrationConfirmationNumber = false;
-      logger.warn(
-        'My Entries read without registration_confirmation_number: migration 20260918193700 is not applied',
-        'database',
-        { column: 'registration_confirmation_number', migration: '20260918193700' }
-      );
-      response = await runPage();
+      if (includeReasonCode && isWithdrawalReasonCodeSchemaUnavailable(response.error)) {
+        // Pre-20260918041700 database. Drop the column and re-ask this page;
+        // every later page goes without it too.
+        includeReasonCode = false;
+        // SAY SO. This branch is the only evidence anywhere that the migration has
+        // not been pushed: without it the page renders correctly, silently pays a
+        // doubled first-page round trip, and nothing tells anyone that the push is
+        // outstanding — or, later, that the compat arm is safe to delete
+        // (MYK9-654). The file's other degraded states warn the same way.
+        logger.warn(
+          'My Entries read without withdrawal_reason_code: migration 20260918041700 is not applied',
+          'database',
+          { column: 'withdrawal_reason_code', migration: '20260918041700' }
+        );
+        continue;
+      }
+      if (
+        includeRegistrationConfirmationNumber &&
+        isRegistrationConfirmationNumberSchemaUnavailable(response.error)
+      ) {
+        // Pre-20260918193700 database. Same contract as the arm above: drop the
+        // column, re-ask this page, and go without it for every later page. The
+        // online receipt falls back to the `registration:registration_id(...)`
+        // embed's confirmation number, which is what it read before MYK9-659.
+        includeRegistrationConfirmationNumber = false;
+        logger.warn(
+          'My Entries read without registration_confirmation_number: migration 20260918193700 is not applied',
+          'database',
+          { column: 'registration_confirmation_number', migration: '20260918193700' }
+        );
+        continue;
+      }
+      if (includeMoveUpLink && isMoveUpLinkSchemaUnavailable(response.error)) {
+        includeMoveUpLink = false;
+        moveUpLinkUnavailable = true;
+        logger.warn(
+          'My Entries read without moved_from_entry_id: migration 20260918193300 is not applied',
+          'database',
+          { column: 'moved_from_entry_id', migration: '20260918193300' }
+        );
+        continue;
+      }
+      break;
     }
     const { data, error } = response;
 
@@ -279,8 +187,19 @@ async function postgrestGetUserEntries() {
     for (const row of pageRows) applyOrderReferenceRule(row);
     rows.push(...pageRows);
     if (pageRows.length < USER_ENTRIES_PAGE_SIZE) {
-      return { data: rows, error: null };
+      return { data: rows, error: null, moveUpLinkUnavailable };
     }
+
+    const lastRow = pageRows[pageRows.length - 1];
+    if (!lastRow?.created_at || !lastRow.id) {
+      throw createDatabaseError(
+        new Error('User entries page is missing its stable pagination cursor'),
+        'view_authenticated_entry_results',
+        'select_user_entries'
+      );
+    }
+    cursorCreatedAt = String(lastRow.created_at);
+    cursorId = String(lastRow.id);
   }
 
   throw createDatabaseError(
@@ -416,7 +335,18 @@ export const getUserEntries = async (userId: string): Promise<UserEntriesResult>
     }
 
     logQuery('entries', 'select_user_entries', Date.now() - startTime);
-    return { ...result, source: 'confirmed' };
+    if (typeof replicatedEntriesTable.refreshReceiptReferencesForUser === 'function') {
+      void replicatedEntriesTable.refreshReceiptReferencesForUser(userId).catch(error => {
+        logger.warn('My Entries receipt-reference refresh failed', 'database', {
+          error: error instanceof Error ? error.message : String(error),
+        });
+      });
+    }
+    const { moveUpLinkUnavailable, ...confirmedResult } = result;
+    return {
+      ...confirmedResult,
+      source: moveUpLinkUnavailable ? 'confirmed-move-up-link-unavailable' : 'confirmed',
+    };
   } catch (error) {
     return readUserEntriesFromReplica(userId, error, startTime);
   }

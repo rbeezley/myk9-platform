@@ -1,4 +1,5 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
+import { Link } from 'react-router-dom';
 import { toast } from 'sonner';
 import { AlertTriangle, Camera, CheckCircle2, Loader2, Mail, MapPin, Phone } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -58,6 +59,19 @@ export function ProfileSection() {
 
   return (
     <div className="space-y-6">
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">Need additional access?</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <p className="text-sm text-muted-foreground">
+            Set up a new club or ask an existing club to appoint you as its show secretary.
+          </p>
+          <Button asChild variant="outline" size="touch">
+            <Link to="/request-access">Request additional access</Link>
+          </Button>
+        </CardContent>
+      </Card>
       <Card>
         <CardHeader>
           <CardTitle className="text-base">Profile photo</CardTitle>

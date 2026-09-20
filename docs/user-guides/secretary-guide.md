@@ -66,8 +66,8 @@ The wizard creates all three in one pass. **Dashboard → Create Show.**
 
 ## 2 · Edit a show, or reassign a judge
 
-- **Show details:** open the show → **Actions → Show settings…** (the Actions button sits in the top bar, left of the bell; on a phone it is the lightning icon).
-- **Add a judge to the show:** same place, **Judges** tab.
+- **Show details:** open the show → **Actions → Show Details** (the Actions button sits in the top bar, left of the bell; on a phone it is the lightning icon), then use the existing **Edit** action on the show page when you need to change details.
+- **Add a judge to the show:** on the show page, choose **Edit**, then use the **Judges** tab.
 - **Change a class's judge:** **Manage Classes**, then the judge dropdown on that class's row.
 
 > A class's judge dropdown only offers judges already attached to the show. If the one you want isn't listed, add them on the Judges tab first, then come back.

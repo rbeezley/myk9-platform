@@ -48,6 +48,73 @@ function makeSource(overrides: Partial<EntryBalanceSource> = {}): EntryBalanceSo
 }
 
 describe('buildOrderBalance', () => {
+  it('withholds the card balance when a moved-up money root is unavailable', () => {
+    const balance = buildOrderBalance(
+      [makeClass({ movedFromEntryId: 'missing-source', fee: 0 })],
+      makeCtx(),
+      NOW
+    );
+
+    expect(balance).toBeNull();
+  });
+
+  it('reconciles moved-up payment status from the money root', () => {
+    const balance = buildOrderBalance(
+      [
+        makeClass({
+          id: 'source',
+          entryStatus: EntryStatus.MOVED,
+          paymentStatus: PaymentStatus.PAID_ONLINE,
+          fee: 35,
+        }),
+        makeClass({
+          id: 'destination',
+          entryStatus: EntryStatus.ACCEPTED,
+          paymentStatus: PaymentStatus.PENDING,
+          movedFromEntryId: 'source',
+          fee: 0,
+        }),
+      ],
+      makeCtx(),
+      NOW
+    );
+
+    expect(balance?.paymentStatus).toBe(PaymentStatus.PAID_ONLINE);
+    expect(balance?.amountDueCents).toBe(0);
+  });
+
+  it('keeps visible destination ids separate from money-root checkout ids', () => {
+    const balance = buildOrderBalance(
+      [
+        makeClass({ id: 'source', entryStatus: EntryStatus.MOVED, fee: 35 }),
+        makeClass({
+          id: 'destination',
+          movedFromEntryId: 'source',
+          fee: 0,
+        }),
+      ],
+      makeCtx(),
+      NOW
+    );
+
+    expect(balance?.dueEntryIds).toEqual(['destination']);
+    expect(balance?.paymentEntryIds).toEqual(['source']);
+  });
+
+  it('keeps confirmed debt from an unrelated class when a sibling root is unresolved', () => {
+    const balance = buildOrderBalance(
+      [
+        makeClass({ id: 'healthy', fee: 25 }),
+        makeClass({ id: 'broken', movedFromEntryId: 'missing-source', fee: 0 }),
+      ],
+      makeCtx(),
+      NOW
+    );
+
+    expect(balance?.amountDueCents).toBe(2500);
+    expect(balance?.dueEntryIds).toEqual(['healthy']);
+  });
+
   it('preserves an explicit null payment method instead of inheriting a paid-cash sibling', () => {
     // c1 is a cash row (sets the order's fallback paymentMethod); c2 has no
     // resolved payment method yet (null, not undefined) — a still-unresolved
@@ -134,6 +201,55 @@ describe('buildOrderBalance', () => {
     const balance = buildOrderBalance(classes, ctx, NOW);
 
     expect(balance!.paymentStatus).toBe(PaymentStatus.PARTIAL_REFUND);
+  });
+
+  it('carries move-up money from the superseded class into the live class balance', () => {
+    const classes = [
+      makeClass({
+        id: 'source',
+        entryStatus: EntryStatus.MOVED,
+        paymentStatus: PaymentStatus.PENDING,
+        paymentMethod: 'online',
+        fee: 35,
+      }),
+      makeClass({
+        id: 'destination',
+        movedFromEntryId: 'source',
+        paymentStatus: PaymentStatus.PENDING,
+        paymentMethod: null,
+        fee: 0,
+      }),
+    ];
+
+    const balance = buildOrderBalance(classes, makeCtx(), NOW);
+
+    expect(balance!.amountDueCents).toBe(3500);
+    expect(balance!.onlineDueCents).toBe(3500);
+  });
+
+  it('withholds a move-up balance when its source was soft-deleted', () => {
+    const classes = [
+      makeClass({
+        id: 'source',
+        entryStatus: EntryStatus.MOVED,
+        paymentStatus: PaymentStatus.PENDING,
+        fee: 35,
+        deletedAt: '2026-09-19T12:00:00Z',
+      }),
+      makeClass({
+        id: 'destination',
+        movedFromEntryId: 'source',
+        paymentStatus: PaymentStatus.PENDING,
+        paymentMethod: null,
+        fee: 0,
+      }),
+    ];
+
+    const balance = buildOrderBalance(classes, makeCtx(), NOW);
+
+    expect(balance!.moneyRootUnresolved).toBe(true);
+    expect(balance!.amountDueCents).toBe(0);
+    expect(balance!.dueEntryIds).toEqual([]);
   });
 });
 

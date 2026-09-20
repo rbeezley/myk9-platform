@@ -102,7 +102,7 @@ const SignUp: React.FC = () => {
     setError('');
     setGoogleLoading(true);
     try {
-      await signInWithGoogle(hasRedirectTarget ? signUpReturnTo : undefined);
+      await signInWithGoogle(hasRedirectTarget ? signUpReturnTo : undefined, selectedRoles);
     } catch (error: unknown) {
       setError(error instanceof Error ? error.message : 'Google sign-in failed');
       setGoogleLoading(false);
@@ -113,7 +113,7 @@ const SignUp: React.FC = () => {
     setError('');
     setAppleLoading(true);
     try {
-      await signInWithApple(hasRedirectTarget ? signUpReturnTo : undefined);
+      await signInWithApple(hasRedirectTarget ? signUpReturnTo : undefined, selectedRoles);
     } catch (error: unknown) {
       setError(error instanceof Error ? error.message : 'Apple sign-in failed');
       setAppleLoading(false);
@@ -247,6 +247,34 @@ const SignUp: React.FC = () => {
           <Link to={signInPath} className="text-primary hover:underline font-medium">
             Sign in
           </Link>
+        </div>
+        <div className="mb-6 rounded-lg border border-border bg-muted/30 p-4">
+          <p className="mb-2 font-medium">Request access as…</p>
+          <div className="space-y-2">
+            {[
+              { value: 'exhibitor', label: 'Exhibitor (I show dogs)' },
+              { value: 'club_officer', label: 'Club officer / show host' },
+              { value: 'secretary', label: 'Show secretary' },
+            ].map(({ value, label }) => (
+              <label key={value} className="flex min-h-11 items-center gap-2 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={selectedRoles.includes(value)}
+                  onChange={e =>
+                    setSelectedRoles(prev =>
+                      e.target.checked ? [...prev, value] : prev.filter(r => r !== value)
+                    )
+                  }
+                  className="h-4 w-4 rounded border-input accent-primary"
+                />
+                <span className="text-sm">{label}</span>
+              </label>
+            ))}
+          </div>
+          <p className="mt-2 text-xs text-muted-foreground">
+            Exhibitor access starts with your account. Club officer and secretary access requires
+            approval.
+          </p>
         </div>
         <button
           type="button"
@@ -394,36 +422,6 @@ const SignUp: React.FC = () => {
                 {showConfirmPassword ? <EyeOff size={18} /> : <Eye size={18} />}
               </button>
             </div>
-          </div>
-
-          {/* Role selection */}
-          <div className="mb-4">
-            <p className="mb-2 font-medium text-sm">Request access as…</p>
-            <div className="space-y-1.5">
-              {[
-                { value: 'exhibitor', label: 'Exhibitor (I show dogs)' },
-                { value: 'club_officer', label: 'Club officer / show host' },
-                { value: 'secretary', label: 'Show secretary' },
-              ].map(({ value, label }) => (
-                <label key={value} className="flex items-center gap-2 cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={selectedRoles.includes(value)}
-                    onChange={e =>
-                      setSelectedRoles(prev =>
-                        e.target.checked ? [...prev, value] : prev.filter(r => r !== value)
-                      )
-                    }
-                    className="h-4 w-4 rounded border-input accent-primary"
-                  />
-                  <span className="text-sm">{label}</span>
-                </label>
-              ))}
-            </div>
-            <p className="mt-2 text-xs text-muted-foreground">
-              Exhibitor access starts with your account. Club officer and secretary access requires
-              approval.
-            </p>
           </div>
 
           <div className="mb-6 flex items-start gap-2">

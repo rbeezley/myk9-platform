@@ -24,6 +24,112 @@ describe('reconcileEntryPaymentRequest', () => {
     expect(mailin.stripe_payment_intent_id).toBe('pi_123');
   });
 
+  it('settles a move-up payment on the original money root while the checkout line stays on the destination', () => {
+    const r = reconcileEntryPaymentRequest({
+      ...base,
+      expectedEntryIds: ['destination'],
+      reconciliationEntryIds: ['source'],
+      entries: [
+        {
+          id: 'destination',
+          payment_status: 'pending',
+          entry_status: 'confirmed',
+          moved_from_entry_id: 'source',
+        },
+        { id: 'source', payment_status: 'pending', entry_status: 'moved' },
+      ],
+    });
+
+    expect(r.patches.map(patch => patch.id)).toEqual(['source']);
+  });
+
+  it.each([
+    ['destination', 'source'],
+    ['source', 'destination'],
+  ])('settles one canonical root regardless of duplicate line order (%s first)', first => {
+    const ids = first === 'destination' ? ['destination', 'source'] : ['source', 'destination'];
+    const r = reconcileEntryPaymentRequest({
+      ...base,
+      expectedEntryIds: ids,
+      reconciliationEntryIds: ['source', 'source'],
+      duplicateEntryIds: ['destination'],
+      entries: [
+        {
+          id: 'destination',
+          payment_status: 'pending',
+          entry_status: 'confirmed',
+          moved_from_entry_id: 'source',
+        },
+        { id: 'source', payment_status: 'pending', entry_status: 'moved' },
+      ],
+    });
+
+    expect(r.patches.map(patch => patch.id)).toEqual(['source']);
+    expect(r.alreadyPaidEntryIds).toEqual(['destination']);
+  });
+
+  it('refunds an inactive move-up destination instead of settling its root', () => {
+    const r = reconcileEntryPaymentRequest({
+      ...base,
+      expectedEntryIds: ['destination'],
+      reconciliationEntryIds: ['destination'],
+      entries: [
+        {
+          id: 'destination',
+          payment_status: 'pending',
+          entry_status: 'withdrawn',
+          moved_from_entry_id: 'source',
+        },
+        { id: 'source', payment_status: 'pending', entry_status: 'moved' },
+      ],
+    });
+
+    expect(r.patches).toEqual([]);
+    expect(r.inactiveEntryIds).toEqual(['destination']);
+  });
+
+  it('refunds a destination when its move-up money root cannot be read safely', () => {
+    const r = reconcileEntryPaymentRequest({
+      ...base,
+      expectedEntryIds: ['destination'],
+      reconciliationEntryIds: ['destination'],
+      blockedEntryIds: ['destination'],
+      entries: [
+        {
+          id: 'destination',
+          payment_status: 'pending',
+          entry_status: 'confirmed',
+          moved_from_entry_id: 'deleted-source',
+        },
+      ],
+    });
+
+    expect(r.patches).toEqual([]);
+    expect(r.inactiveEntryIds).toEqual([]);
+    expect(r.unresolvedEntryIds).toEqual(['destination']);
+  });
+
+  it('advances a moved destination lifecycle while stamping its money root', () => {
+    const r = reconcileEntryPaymentRequest({
+      ...base,
+      expectedEntryIds: ['destination'],
+      reconciliationEntryIds: ['source'],
+      lifecycleEntryIdsByRoot: { source: 'destination' },
+      entries: [
+        {
+          id: 'destination',
+          payment_status: 'pending',
+          entry_status: 'pending-payment',
+          moved_from_entry_id: 'source',
+        },
+        { id: 'source', payment_status: 'pending', entry_status: 'moved' },
+      ],
+    });
+
+    expect(r.patches[0]).toMatchObject({ id: 'source', entry_status: 'confirmed' });
+    expect(r.patches[0]?.entryStatusEntryId).toBe('destination');
+  });
+
   it('advances a promoted waitlist entry pending-payment → confirmed, but leaves a mail-in entry_status alone', () => {
     const r = reconcileEntryPaymentRequest(base);
     const wl = r.patches.find(p => p.id === 'wl')!;

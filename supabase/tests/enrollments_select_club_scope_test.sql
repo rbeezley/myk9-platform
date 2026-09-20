@@ -17,6 +17,8 @@
 --   5. A show-scoped steward on Club B's show still reads that show's
 --      enrollments via is_show_official(show_id).
 --   6. A site admin reads every club's enrollments.
+--   8. A show-pinned club_admin reads that show but not another show of the
+--      same club. This catches widening through manageable_show_ids().
 --   7. A secretary row that ALSO pins ur.show_id grants nothing THROUGH THE
 --      ROLE ARM, even on its own club's show -- while that same persona still
 --      reads the one enrollment they handle themselves. The handler row is the
@@ -72,6 +74,9 @@ values
    'published', true, true),
   ('00000000-0000-0000-0000-000000663012', 'MYK9-663 Show B', 'AKC',
    current_date + 10, current_date + 11, '00000000-0000-0000-0000-000000663002',
+   'published', true, true),
+  ('00000000-0000-0000-0000-000000663013', 'MYK9-663 Show A2', 'AKC',
+   current_date + 10, current_date + 11, '00000000-0000-0000-0000-000000663001',
    'published', true, true);
 
 insert into public.people (id, first_name, last_name, auth_user_id)
@@ -89,7 +94,9 @@ values
   ('00000000-0000-0000-0000-000000663056', 'Other', 'Handler',
    '00000000-0000-0000-0000-000000663156'),
   ('00000000-0000-0000-0000-000000663057', 'Show Pinned', 'Secretary',
-   '00000000-0000-0000-0000-000000663157');
+   '00000000-0000-0000-0000-000000663157'),
+  ('00000000-0000-0000-0000-000000663058', 'Show Pinned', 'Club Admin',
+   '00000000-0000-0000-0000-000000663158');
 
 -- Club-scoped appointments (ur.show_id IS NULL), the shape
 -- is_trial_secretary()/is_club_admin() require -- see
@@ -98,6 +105,11 @@ insert into public.user_roles (user_id, role_id, club_id, is_active, auth_user_i
 select '00000000-0000-0000-0000-000000663051', id, '00000000-0000-0000-0000-000000663001',
   true, '00000000-0000-0000-0000-000000663151'
 from public.roles where name = 'secretary';
+
+insert into public.user_roles (user_id, role_id, club_id, show_id, is_active, auth_user_id)
+select '00000000-0000-0000-0000-000000663058', id, '00000000-0000-0000-0000-000000663001',
+  '00000000-0000-0000-0000-000000663011', true, '00000000-0000-0000-0000-000000663158'
+from public.roles where name = 'club_admin';
 
 insert into public.user_roles (user_id, role_id, club_id, is_active, auth_user_id)
 select '00000000-0000-0000-0000-000000663053', id, '00000000-0000-0000-0000-000000663001',
@@ -145,9 +157,12 @@ values
   -- Assertion 7's positive control: the show-pinned secretary handles this one
   -- personally, on the club they have NO staff role in.
   ('00000000-0000-0000-0000-000000663065', '00000000-0000-0000-0000-000000663012',
-   '00000000-0000-0000-0000-000000663057');
+   '00000000-0000-0000-0000-000000663057'),
+  -- Same club, different show: the show-pinned club_admin must not see this.
+  ('00000000-0000-0000-0000-000000663066', '00000000-0000-0000-0000-000000663013',
+   '00000000-0000-0000-0000-000000663056');
 
--- Positive control: as the table owner, RLS is bypassed and all four rows are
+-- Positive control: as the table owner, RLS is bypassed and all six rows are
 -- present. Without this, a fixture that silently failed to insert would make
 -- every "reads none of Club B's" assertion below pass vacuously.
 DO $$
@@ -155,12 +170,13 @@ DECLARE
   total integer;
 BEGIN
   SELECT count(*) INTO total FROM public.enrollments
-   WHERE show_id IN ('00000000-0000-0000-0000-000000663011',
-                     '00000000-0000-0000-0000-000000663012');
-  IF total <> 5 THEN
-    RAISE EXCEPTION 'FAIL fixture did not land: expected 5 enrollments, got %', total;
+    WHERE show_id IN ('00000000-0000-0000-0000-000000663011',
+                     '00000000-0000-0000-0000-000000663012',
+                     '00000000-0000-0000-0000-000000663013');
+  IF total <> 6 THEN
+    RAISE EXCEPTION 'FAIL fixture did not land: expected 6 enrollments, got %', total;
   END IF;
-  RAISE NOTICE 'PASS fixture control: 5 enrollments exist';
+  RAISE NOTICE 'PASS fixture control: 6 enrollments exist';
 END;
 $$;
 
@@ -179,11 +195,12 @@ DECLARE
   other_club integer;
 BEGIN
   SELECT count(*) INTO own_club FROM public.enrollments
-   WHERE show_id = '00000000-0000-0000-0000-000000663011';
+   WHERE show_id IN ('00000000-0000-0000-0000-000000663011',
+                     '00000000-0000-0000-0000-000000663013');
   SELECT count(*) INTO other_club FROM public.enrollments
    WHERE show_id = '00000000-0000-0000-0000-000000663012';
-  IF own_club <> 2 THEN
-    RAISE EXCEPTION 'FAIL Club A secretary sees % of its own 2 enrollments', own_club;
+  IF own_club <> 3 THEN
+    RAISE EXCEPTION 'FAIL Club A secretary sees % of its own 3 enrollments', own_club;
   END IF;
   IF other_club <> 0 THEN
     RAISE EXCEPTION 'FAIL Club A secretary reads % of Club B''s enrollments', other_club;
@@ -209,11 +226,12 @@ DECLARE
   other_club integer;
 BEGIN
   SELECT count(*) INTO own_club FROM public.enrollments
-   WHERE show_id = '00000000-0000-0000-0000-000000663011';
+   WHERE show_id IN ('00000000-0000-0000-0000-000000663011',
+                     '00000000-0000-0000-0000-000000663013');
   SELECT count(*) INTO other_club FROM public.enrollments
    WHERE show_id = '00000000-0000-0000-0000-000000663012';
-  IF own_club <> 2 THEN
-    RAISE EXCEPTION 'FAIL Club A club_admin sees % of its own 2 enrollments', own_club;
+  IF own_club <> 3 THEN
+    RAISE EXCEPTION 'FAIL Club A club_admin sees % of its own 3 enrollments', own_club;
   END IF;
   IF other_club <> 0 THEN
     RAISE EXCEPTION 'FAIL Club A club_admin reads % of Club B''s enrollments', other_club;
@@ -301,11 +319,45 @@ DECLARE
 BEGIN
   SELECT count(*) INTO total FROM public.enrollments
    WHERE show_id IN ('00000000-0000-0000-0000-000000663011',
-                     '00000000-0000-0000-0000-000000663012');
-  IF total <> 5 THEN
-    RAISE EXCEPTION 'FAIL site admin sees % of 5 enrollments', total;
+                     '00000000-0000-0000-0000-000000663012',
+                     '00000000-0000-0000-0000-000000663013');
+  IF total <> 6 THEN
+    RAISE EXCEPTION 'FAIL site admin sees % of 6 enrollments', total;
   END IF;
   RAISE NOTICE 'PASS site admin reads every club''s enrollments';
+END;
+$$;
+
+RESET ROLE;
+
+-- 8. A show-pinned club_admin keeps exact-show scope, including against
+-- another show of the same club.
+SET LOCAL ROLE authenticated;
+SELECT set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-000000663158', true);
+SELECT set_config(
+  'request.jwt.claims',
+  '{"sub":"00000000-0000-0000-0000-000000663158","role":"authenticated","app_metadata":{}}',
+  true
+);
+
+DO $$
+DECLARE
+  pinned_show integer;
+  other_show_same_club integer;
+  foreign_club integer;
+BEGIN
+  SELECT count(*) INTO pinned_show FROM public.enrollments
+   WHERE show_id = '00000000-0000-0000-0000-000000663011';
+  SELECT count(*) INTO other_show_same_club FROM public.enrollments
+   WHERE show_id = '00000000-0000-0000-0000-000000663013';
+  SELECT count(*) INTO foreign_club FROM public.enrollments
+   WHERE show_id = '00000000-0000-0000-0000-000000663012';
+  IF pinned_show <> 2 OR other_show_same_club <> 0 OR foreign_club <> 0 THEN
+    RAISE EXCEPTION
+      'FAIL show-pinned club_admin visibility: pinned %, same-club other %, foreign-club %',
+      pinned_show, other_show_same_club, foreign_club;
+  END IF;
+  RAISE NOTICE 'PASS show-pinned club_admin remains scoped to its assigned show';
 END;
 $$;
 
@@ -338,7 +390,7 @@ BEGIN
 
   -- Everything they can see must be that one handler row: the show-pinned
   -- secretary appointment itself grants nothing. Under the pre-MYK9-663
-  -- predicate this persona also read Club A''s 2 rows via
+  -- predicate this persona also read Club A's 2 rows via
   -- `ur.show_id = enrollments.show_id`, so this count was 3.
   SELECT count(*) INTO visible FROM public.enrollments
    WHERE show_id IN ('00000000-0000-0000-0000-000000663011',

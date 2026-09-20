@@ -18,6 +18,7 @@ export interface ReconcileEntryPaymentUpdateOutcomeInput {
   rereadNoOpEntries: EntryPaymentNoOpRow[];
   initialMissingEntryIds: string[];
   initialInactiveEntryIds: string[];
+  initialUnresolvedEntryIds?: string[];
   initialAlreadyPaidEntryIds: string[];
   initialSameIntentPaidEntryIds: string[];
   paymentIntentId: string | null;
@@ -32,6 +33,7 @@ export interface ReconcileEntryPaymentUpdateOutcomeResult {
   noOpPatchIds: string[];
   missingEntryIds: string[];
   inactiveEntryIds: string[];
+  unresolvedEntryIds: string[];
   alreadyPaidEntryIds: string[];
   sameIntentPaidEntryIds: string[];
   unknownNoOpEntryIds: string[];
@@ -73,6 +75,7 @@ export function reconcileEntryPaymentUpdateOutcome(
 
   const missingEntryIds = unique([...input.initialMissingEntryIds, ...missingFromNoOp]);
   const inactiveEntryIds = unique([...input.initialInactiveEntryIds, ...inactiveFromNoOp]);
+  const unresolvedEntryIds = unique(input.initialUnresolvedEntryIds ?? []);
   const alreadyPaidEntryIds = unique([...input.initialAlreadyPaidEntryIds, ...alreadyPaidFromNoOp]);
   const sameIntentPaidEntryIds = unique([
     ...input.initialSameIntentPaidEntryIds,
@@ -81,6 +84,7 @@ export function reconcileEntryPaymentUpdateOutcome(
   const invalidEntryIds = unique([
     ...missingEntryIds,
     ...inactiveEntryIds,
+    ...unresolvedEntryIds,
     ...alreadyPaidEntryIds,
     ...unknownNoOpEntryIds,
   ]);
@@ -94,6 +98,7 @@ export function reconcileEntryPaymentUpdateOutcome(
     noOpPatchIds,
     missingEntryIds,
     inactiveEntryIds,
+    unresolvedEntryIds,
     alreadyPaidEntryIds,
     sameIntentPaidEntryIds,
     unknownNoOpEntryIds,

@@ -83,7 +83,13 @@ export function EntryEditDialog({
   const [classEdits, setClassEdits] = useState<
     Record<
       string,
-      { handler?: string; jumpHeight?: string; status?: string; reasonCode?: string | null }
+      {
+        handler?: string;
+        clearHandlerId?: boolean;
+        jumpHeight?: string;
+        status?: string;
+        reasonCode?: string | null;
+      }
     >
   >({});
 
@@ -174,6 +180,13 @@ export function EntryEditDialog({
     }));
   };
 
+  const handleClearHandlerIdChange = (classId: string, clearHandlerId: boolean) => {
+    setClassEdits(prev => ({
+      ...prev,
+      [classId]: { ...prev[classId], clearHandlerId },
+    }));
+  };
+
   const handlePullRequest = (classId: string, className: string) => {
     setPullDialog({ open: true, classId, className });
   };
@@ -242,7 +255,6 @@ export function EntryEditDialog({
         classes: entry.classes,
         classEdits,
         fallbackHandler: entry.handler,
-        clearHandlerId: ignoreModificationDeadline,
       });
       if (error) {
         setError(error);
@@ -269,6 +281,7 @@ export function EntryEditDialog({
       ) {
         return true;
       }
+      if (edits.clearHandlerId === true) return true;
       if (edits.jumpHeight && edits.jumpHeight !== originalClass?.jumpHeight) return true;
     }
     return false;
@@ -353,6 +366,8 @@ export function EntryEditDialog({
                       reasonCode={getClassReasonCode(classEntry)}
                       rowEligibility={withdrawEligibility[classEntry.id]}
                       canOfferLeaveClass={allowLeaveClass}
+                      canClearHandlerId={asShowManager}
+                      clearHandlerId={classEdits[classEntry.id]?.clearHandlerId}
                       currentHandler={
                         classEdits[classEntry.id]?.handler ??
                         classEntry.handler ??
@@ -364,6 +379,7 @@ export function EntryEditDialog({
                       }
                       onLeaveClass={handlePullRequest}
                       onHandlerChange={handleHandlerChange}
+                      onClearHandlerIdChange={handleClearHandlerIdChange}
                       onJumpHeightChange={handleJumpHeightChange}
                     />
                   ))}

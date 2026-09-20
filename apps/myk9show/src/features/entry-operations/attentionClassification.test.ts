@@ -15,19 +15,46 @@ const input = (overrides: Partial<OperationalEntryInput> = {}): OperationalEntry
 
 describe('classifyEntryAttention', () => {
   describe('a money-neutral move-up destination (MYK9-639)', () => {
-    it('is not "Payment due" on the Show Desk or the class readiness panel', () => {
+    it('uses the source payment status when the source is in the same scope', () => {
       // These two surfaces read RAW rows; the mapper-level rooting never
       // touches them. A move-up destination is created `payment_status =
       // 'pending'` with the money left on the entry it points at, so
       // classifying it here could only ever produce "Payment due" in red on a
       // dog who has paid — while Entry Management, on the same pair, reports no
       // issue at all.
+      const source = { id: 'source-1', entry_status: 'moved', payment_status: 'paid' };
       expect(
-        classifyRawEntryAttention({
-          entry_status: 'confirmed',
-          payment_status: 'pending',
-          moved_from_entry_id: 'source-1',
-        })
+        classifyRawEntryAttention(
+          {
+            id: 'destination-1',
+            entry_status: 'confirmed',
+            payment_status: 'pending',
+            moved_from_entry_id: source.id,
+          },
+          [
+            source,
+            {
+              id: 'destination-1',
+              entry_status: 'confirmed',
+              payment_status: 'pending',
+              moved_from_entry_id: source.id,
+            },
+          ]
+        )
+      ).toEqual([]);
+    });
+
+    it('does not claim a destination is paid when its source is unavailable', () => {
+      expect(
+        classifyRawEntryAttention(
+          {
+            id: 'destination-1',
+            entry_status: 'confirmed',
+            payment_status: 'pending',
+            moved_from_entry_id: 'missing-source',
+          },
+          []
+        )
       ).toEqual([]);
     });
 

@@ -11,9 +11,11 @@ import {
 export type AttentionReason = 'pending_review';
 
 export interface EntryLike {
+  id?: string | null;
   entry_status?: string | null;
   payment_status?: string | null;
   check_in_status?: string | null;
+  moved_from_entry_id?: string | null;
 }
 
 export function getEntryAttention(entry: EntryLike): AttentionReason | null {

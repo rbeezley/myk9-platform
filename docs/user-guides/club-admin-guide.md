@@ -31,6 +31,16 @@ Your club receives entry fees through a payment processor called Stripe. Here is
 
 **Why Stripe contacts the treasurer directly:** Stripe is legally required to verify the identity of the account holder before releasing funds. This is a U.S. regulatory requirement, not a myK9Show request. When you receive an email from Stripe asking for information, respond directly to them.
 
+### If you requested a new club
+
+When a site admin approves your new-club request, myK9Show automatically gives you three club-scoped records for that club:
+
+- an active **Club Admin** role;
+- an active club membership, so you appear in the **Members** roster; and
+- **Secretary/show manager** access, so you can create and operate that club's shows.
+
+These permissions apply only to the approved club. You do not need to request secretary access again for that club, and this does not give you access to another club's shows.
+
 ---
 
 ## Section 1 — Club Profile Setup
@@ -75,7 +85,7 @@ The **Shows** page lists every show your club is hosting or has hosted. Shows ar
 | **Results**  | Verify and release results, then submit them to the registry                                                              |
 | **Reports**  | Print any of the show's reports, grouped by **Before the show**, **During the show**, **After the show**, and **Anytime** |
 
-The **Actions** menu in the top bar and **Show settings…** work the same for you as they do for the secretary.
+The **Actions** menu in the top bar takes you to **Show Details**. The existing **Edit** action remains available on the show page to authorized managers; this does not expand your permissions.
 
 **Three jobs stay with the trial secretary:**
 

@@ -18,9 +18,12 @@
 import { EntryStatus, PaymentStatus } from '@/types/show-registration-types';
 import {
   isCurrentSummaryEntry,
+  normalizeOrphanedMoveUpEntries,
   summarizeEntryBalances,
+  UNKNOWN_ENTRY_BALANCE_SUMMARY,
   type EntryBalanceSource,
 } from '@/features/payments/entryBalanceSummary';
+import { buildMoneyAttribution, withResolvedMoneyRoots } from '@/features/financial/moneyRoot';
 import {
   getEntryPaymentPrompt,
   type EntryPaymentPrompt,
@@ -63,6 +66,8 @@ export interface OrderBalanceContext {
 function toBalanceSources(classes: EntryClass[], ctx: OrderBalanceContext): EntryBalanceSource[] {
   return classes.map(cls => ({
     id: cls.id,
+    movedFromEntryId: cls.movedFromEntryId,
+    deletedAt: cls.deletedAt,
     showId: ctx.showId,
     showName: ctx.showName,
     showDate: ctx.showDate,
@@ -126,11 +131,37 @@ export function buildOrderBalance(
   ctx: OrderBalanceContext,
   now: Date = new Date()
 ): MyEntryBalance | null {
-  const sources = toBalanceSources(classes, ctx);
+  const normalizedSources = normalizeOrphanedMoveUpEntries(toBalanceSources(classes, ctx));
+  const sources = withResolvedMoneyRoots(
+    normalizedSources,
+    (entry, root) => ({
+      ...entry,
+      paymentStatus: root.paymentStatus,
+      paymentMethod: root.paymentMethod,
+      totalFee: root.totalFee,
+    }),
+    entry => !entry.deletedAt
+  );
   if (sources.length === 0) return null;
 
-  const eligible = sources.filter(source => isCurrentSummaryEntry(source, now));
-  const summary = summarizeEntryBalances(sources, now);
+  const moneyRootUnresolved =
+    sources.some(source => !source.deletedAt && source.moneyRootUnresolved) ||
+    buildMoneyAttribution(sources.filter(source => !source.deletedAt)).unresolved.some(
+      issue => issue.problem === 'orphaned-supersession'
+    );
+  const trustworthySources = sources.filter(source => !source.moneyRootUnresolved);
+  const hasDeletedKnownRoot = sources.some(
+    source =>
+      source.moneyRootUnresolved &&
+      source.moneyRootEntryId !== source.id &&
+      sources.some(root => root.id === source.moneyRootEntryId && root.deletedAt)
+  );
+  if (trustworthySources.length === 0 && !hasDeletedKnownRoot) return null;
+  const eligible = trustworthySources.filter(source => isCurrentSummaryEntry(source, now));
+  const summary =
+    trustworthySources.length > 0
+      ? summarizeEntryBalances(trustworthySources, now)
+      : UNKNOWN_ENTRY_BALANCE_SUMMARY;
   const onlineShow = summary.onlineShowBalances[0];
 
   // The pay-at-show instruction must quote only the in-person portion and name
@@ -155,7 +186,7 @@ export function buildOrderBalance(
   // settled status to reconcile. Amount-due totals (`summary` above) are
   // unaffected — they still run on the raw, unfiltered `sources` via
   // `isCurrentSummaryEntry`.
-  const reconciliationSources = sources.filter(
+  const reconciliationSources = trustworthySources.filter(
     source =>
       isCurrentSummaryEntry(source, now) ||
       PAID_STATUSES.includes(source.paymentStatus) ||
@@ -170,7 +201,9 @@ export function buildOrderBalance(
     onlineDueCents: summary.onlineDueCents,
     payAtShowDueCents: summary.payAtShowDueCents,
     payAtShowMethod: payAtShowSource?.paymentMethod ?? null,
-    dueEntryIds: onlineShow?.entryIds ?? [],
+    dueEntryIds: onlineShow?.displayEntryIds ?? onlineShow?.entryIds ?? [],
+    paymentEntryIds: onlineShow?.entryIds ?? [],
+    moneyRootUnresolved,
   };
 }
 
@@ -253,7 +286,7 @@ export function buildOrderPaymentHref(entry: MyEntry): string | null {
   // relation has not replicated and the row carried no show_id.
   if (!entry.showId) return null;
 
-  const dueIds = entry.balance?.dueEntryIds ?? [];
+  const dueIds = entry.balance?.paymentEntryIds ?? entry.balance?.dueEntryIds ?? [];
   if (dueIds.length > 0) return buildFinishPaymentHref(entry.showId, dueIds);
   // A balance that resolved to an EMPTY due list is authoritative: this order
   // owes nothing online, so there is nothing to recover.

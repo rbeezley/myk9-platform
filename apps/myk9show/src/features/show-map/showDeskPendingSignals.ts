@@ -104,7 +104,10 @@ function countEntriesWaitingCheckIn(entries: readonly EntryLike[]): number {
 
 function countEntriesPaymentDue(entries: readonly EntryLike[]): number {
   return entries.filter(entry =>
-    classifyRawEntryAttention(entry as RawOperationalEntryInput).includes('payment_due')
+    classifyRawEntryAttention(
+      entry as RawOperationalEntryInput,
+      entries as readonly RawOperationalEntryInput[]
+    ).includes('payment_due')
   ).length;
 }
 

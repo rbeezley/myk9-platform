@@ -1,4 +1,4 @@
-import { beforeEach, describe, it, expect, vi } from 'vitest';
+import { afterEach, beforeEach, describe, it, expect, vi } from 'vitest';
 import { render, screen } from '@/test/utils/testUtils';
 import userEvent from '@testing-library/user-event';
 import ReportsPage from '../index';
@@ -35,24 +35,17 @@ vi.mock('sonner', () => {
   return { toast, Toaster: () => null };
 });
 
-/**
- * A show that is RUNNING today, in local time. Computed once at module scope —
- * a constant, not mutable state — so this file adds no shuffle hazard.
- */
-const TODAY_KEY = (() => {
-  const now = new Date();
-  const month = `${now.getMonth() + 1}`.padStart(2, '0');
-  const day = `${now.getDate()}`.padStart(2, '0');
-  return `${now.getFullYear()}-${month}-${day}`;
-})();
+const SHOW_TIMEZONE = 'America/Chicago';
+const SHOW_DAY = '2026-03-22';
+const SHOW_DAY_AFTERNOON = new Date('2026-03-22T18:00:00.000Z');
 
 vi.mock('@/hooks/useFastShowDetails', () => ({
   useFastShowDetails: () => ({
     show: {
       id: 'show-1',
       name: 'Spring Scent Trial 2026',
-      startDate: TODAY_KEY,
-      endDate: TODAY_KEY,
+      startDate: SHOW_DAY,
+      endDate: SHOW_DAY,
     },
     isLoading: false,
     isError: false,
@@ -69,6 +62,7 @@ vi.mock('@/hooks/queries/useReportData', () => ({
         trial_number: 1,
         event_number: '2026123401',
         date: '2026-04-12',
+        timezone: SHOW_TIMEZONE,
         registry_id: mockReportState.trialOneRegistryId,
       },
       { id: 'trial-2', trial_number: 2, date: '2026-04-13' },
@@ -230,6 +224,10 @@ describe('ReportsPage wires the show’s own phase into the report picker', () =
    * show that is running today and reads the order off the DOM.
    */
   beforeEach(() => {
+    // Freeze only Date. Keeping real timers lets user-event and Base UI's
+    // popover scheduling run normally while every render sees one show day.
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(SHOW_DAY_AFTERNOON);
     mockReportState.trialOneRegistryId = 'AKC';
     mockReportState.isLoading = false;
     mockReportState.dataState = null;
@@ -238,6 +236,10 @@ describe('ReportsPage wires the show’s own phase into the report picker', () =
     mockPrintState.isError = false;
     mockPrintState.syncFailed = false;
     toastSpy.called.mockClear();
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
   });
 
   it('puts "During the show" first, and Check-in Sheet first within it', async () => {

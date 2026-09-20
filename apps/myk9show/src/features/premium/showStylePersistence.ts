@@ -56,12 +56,11 @@ export async function saveShowDraftStyle({
     },
     current => {
       if (!Array.isArray(current)) return current;
-      return current.map(item => {
-        if (!item || typeof item !== 'object' || !('id' in item) || item.id !== show.id) {
-          return item;
-        }
-        return { ...item, ...patch };
-      });
+      const matchingIndex = current.findIndex(
+        item => item && typeof item === 'object' && 'id' in item && item.id === show.id
+      );
+      if (matchingIndex < 0) return current;
+      return current.map((item, index) => (index === matchingIndex ? { ...item, ...patch } : item));
     }
   );
 

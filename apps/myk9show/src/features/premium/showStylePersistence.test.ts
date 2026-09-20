@@ -127,4 +127,20 @@ describe('saveShowDraftStyle', () => {
       expect(queryClient.getQueryData(key)).toBe(data);
     }
   });
+
+  it('does not rewrite a filtered cache that does not contain the target show', async () => {
+    const queryClient = new QueryClient({
+      defaultOptions: { queries: { structuralSharing: false } },
+    });
+    const filteredKey = showQueryKeys.search('other-show');
+    const filteredShows = [otherShow];
+    queryClient.setQueryData(filteredKey, filteredShows);
+    const beforeData = queryClient.getQueryData<Show[]>(filteredKey);
+    const beforeUpdatedAt = queryClient.getQueryState(filteredKey)?.dataUpdatedAt;
+
+    await saveShowDraftStyle({ show, style: 'heritage', queryClient });
+
+    expect(queryClient.getQueryData(filteredKey)).toBe(beforeData);
+    expect(queryClient.getQueryState(filteredKey)?.dataUpdatedAt).toBe(beforeUpdatedAt);
+  });
 });

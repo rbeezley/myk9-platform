@@ -1100,7 +1100,7 @@ describe('ShowDetailsPage', () => {
     ).toEqual([expect.objectContaining({ id: 'show-1', style: 'heritage' })]);
   });
 
-  it('persists preview style through the replicated show store when the show is warm', async () => {
+  it('persists preview style through a warm React Query cache', async () => {
     const user = userEvent.setup();
     mockAuthContext.isSecretary = true;
     mockShow = { ...mockShow, style: 'monogram' };

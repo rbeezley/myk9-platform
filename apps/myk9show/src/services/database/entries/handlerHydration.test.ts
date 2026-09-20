@@ -11,7 +11,6 @@ vi.mock('@/services/database/supabaseClient', () => ({
 import { db } from '@/services/database/connection';
 import {
   loadHandlerPeople,
-  loadMissingHandlerPeopleMap,
   resetHandlerHydrationCircuit,
   type HandlerPersonRow,
 } from './handlerHydration';
@@ -68,14 +67,7 @@ describe('loadHandlerPeople offline boundary', () => {
     ]);
 
     try {
-      await expect(
-        loadMissingHandlerPeopleMap([
-          {
-            handler: null,
-            dog: { owner: { id: 'owner-1', first_name: null, last_name: null } },
-          },
-        ])
-      ).resolves.toEqual(
+      await expect(loadHandlerPeople(['owner-1'])).resolves.toEqual(
         new Map([['owner-1', { id: 'owner-1', first_name: 'Jamie', last_name: 'Walker' }]])
       );
       expect(mocks.from).not.toHaveBeenCalled();

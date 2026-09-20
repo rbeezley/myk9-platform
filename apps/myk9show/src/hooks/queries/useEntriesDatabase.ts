@@ -100,8 +100,9 @@ export const useVerifiedEntriesByShowQuery = (showId: string, enabled = true) =>
       return { data: result.data, verified: result.verified };
     },
     enabled: !!showId && enabled && Boolean(user && user.is_anonymous !== true) && !loading,
-    staleTime: 0,
+    staleTime: cacheStrategies.moderate.staleTime,
     gcTime: cacheStrategies.moderate.gcTime,
+    refetchOnMount: 'always',
   });
 };
 

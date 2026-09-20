@@ -271,21 +271,20 @@ describe('submitShowEntries', () => {
     });
   });
 
-  it('can request handler person clearing for secretary text corrections', async () => {
+  it('does not send the legacy handler clear argument for text corrections', async () => {
     mockRpc.mockResolvedValue({ data: null, error: null });
 
     await updateEntryHandler({
       entryId: 'entry-uuid-1',
       handler: 'Grace Hollis',
       handlerId: null,
-      clearHandlerId: true,
     });
 
     expect(mockRpc).toHaveBeenCalledWith('update_entry_handler_for_entry_management', {
       p_entry_id: 'entry-uuid-1',
       p_handler: 'Grace Hollis',
       p_handler_id: null,
-      p_clear_handler_id: true,
+      p_clear_handler_id: false,
     });
   });
 });

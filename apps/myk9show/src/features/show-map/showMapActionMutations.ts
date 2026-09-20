@@ -15,6 +15,7 @@ import { logReplicatedEntryStatusChange } from '@/services/show-day/entryStatusA
 import { generateUUID } from '@/utils/idUtils';
 import { isEligibleMoveUpTarget } from '@/utils/moveUpEligibility';
 import { reverseShowMapMoveUp } from './moveUpSupersession';
+import { destinationEntryStatusFor } from './moveUpRequestStatuses';
 import { MoveUpRpcError } from '@/services/replication/moveUpEntryRpc';
 import { getTrialRegistry } from '@/features/registries';
 
@@ -332,6 +333,7 @@ export async function moveUpShowMapEntry({
     newEntryId,
     reason,
   });
+  const destinationEntry = await replicatedEntriesTable.getEntryById(destinationEntryId);
 
   await logReplicatedEntryStatusChange({
     entryId,
@@ -339,7 +341,12 @@ export async function moveUpShowMapEntry({
     toStatus: 'moved',
     action: 'mark_entry_moved',
     reason,
-    metadata: { targetClassName: targetClass.name, destinationEntryId },
+    metadata: {
+      targetClassName: targetClass.name,
+      destinationEntryId,
+      destinationEntryStatus:
+        readEntryStatus(destinationEntry) ?? destinationEntryStatusFor(previousEntryStatus),
+    },
   });
 
   return {

@@ -23,13 +23,15 @@ describe('stripe-webhook withdrawal snapshot wiring', () => {
   });
 
   it('stamps freshly-created cart entries with the show they were paid under', () => {
-    expect(source).toContain('await stampWithdrawalSnapshot(entryIds, cart.show_id)');
+    expect(source).toContain(
+      'await stampWithdrawalSnapshot([...new Set([...entryIds, ...paidLineIds])], cart.show_id)'
+    );
   });
 
   it('stamps payment-link entries using the actually-paid ids and the link show', () => {
-    expect(source).toContain(
-      'await stampWithdrawalSnapshot(updatedEntryIds, link.show_id as string | null)'
-    );
+    expect(source).toContain('await stampWithdrawalSnapshot(');
+    expect(source).toContain('...new Set(withdrawalSnapshotEntryIds)');
+    expect(source).toContain('link.show_id as string | null');
   });
 
   it('is best-effort and decoupled from the payment write — never throws, only logs', () => {

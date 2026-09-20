@@ -16,7 +16,10 @@ import { WithdrawalPolicyDisclosure } from '@/features/payments/WithdrawalPolicy
 import type { EntryManagementEntry } from '@/types/entry-management-types';
 
 /** Minimal shape required by RequestPaymentDialog. */
-export type RequestableEntry = Pick<EntryManagementEntry, 'id' | 'dogName' | 'totalFee' | 'showId'>;
+export type RequestableEntry = Pick<
+  EntryManagementEntry,
+  'id' | 'dogName' | 'totalFee' | 'showId' | 'moneyRootEntryId'
+>;
 
 interface RequestPaymentDialogProps {
   open: boolean;
@@ -70,7 +73,7 @@ export function RequestPaymentDialog({
       const origin = window.location.origin;
       const { data, error: invokeError } = await supabase.functions.invoke('stripe-payment-link', {
         body: {
-          entry_ids: [entry.id],
+          entry_ids: [entry.moneyRootEntryId ?? entry.id],
           success_url: `${origin}/shows/${entry.showId}?payment=success`,
           cancel_url: `${origin}/shows/${entry.showId}?payment=cancelled`,
         },

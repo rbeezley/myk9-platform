@@ -112,6 +112,25 @@ describe('financialReportTotals', () => {
     ]);
   });
 
+  it('surfaces an orphaned superseded row even though it is not counted', () => {
+    const totals = calculateFinancialReportTotals(
+      [
+        entry({
+          id: 'orphaned-source',
+          entryStatus: 'moved',
+          entryFee: 35,
+          paymentStatus: PaymentStatus.PAID_BY_CHECK,
+        }),
+      ],
+      'current'
+    );
+
+    expect(totals.lines).toEqual([]);
+    expect(totals.unresolvedMoneyRoots).toEqual([
+      { entryId: 'orphaned-source', problem: 'orphaned-supersession' },
+    ]);
+  });
+
   it('keeps a refund recorded on the ROOT visible through the move, and after it is reversed', () => {
     // The scenario the copy-forward shape could not survive: the exhibitor is
     // refunded while the dog sits in the destination class. The refund lives on

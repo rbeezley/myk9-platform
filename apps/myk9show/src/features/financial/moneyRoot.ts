@@ -152,13 +152,33 @@ export function buildMoneyAttribution<T extends MoneyRootLink & { entryStatus?: 
 
   const claimedRootIds = new Set<string>();
 
+  const claimChainIds = (entry: T) => {
+    let current = entry;
+    const seen = new Set<string>();
+
+    for (let hop = 0; hop < MONEY_ROOT_MAX_DEPTH; hop += 1) {
+      if (seen.has(current.id)) return;
+      seen.add(current.id);
+      claimedRootIds.add(current.id);
+
+      const parentId = current.movedFromEntryId;
+      if (!parentId) return;
+      const parent = byId.get(parentId);
+      if (!parent) return;
+      current = parent;
+    }
+  };
+
   for (const entry of entries) {
     if (isSupersededMoveUpEntry(entry)) continue;
     live.push(entry);
 
     const resolution = resolveMoneyRoot(entry, byId);
     rootById.set(entry.id, resolution.root);
-    claimedRootIds.add(resolution.root.id);
+    // Claim every row traversed by the live descendant. A two-hop chain has
+    // two superseded rows, and claiming only the root falsely reports the
+    // intermediate row as orphaned.
+    claimChainIds(entry);
     if (resolution.problem) {
       unresolved.push({
         entryId: entry.id,
@@ -174,6 +194,17 @@ export function buildMoneyAttribution<T extends MoneyRootLink & { entryStatus?: 
   for (const entry of entries) {
     if (!isSupersededMoveUpEntry(entry)) continue;
     if (claimedRootIds.has(entry.id)) continue;
+    // A multi-hop chain claims every ancestor on the way to its root. The
+    // resolver returns only the root, so walk the links separately before
+    // declaring an intermediate moved row orphaned.
+    let current: T | undefined = entry;
+    const visited = new Set<string>();
+    while (current?.movedFromEntryId && !visited.has(current.id)) {
+      visited.add(current.id);
+      if (claimedRootIds.has(current.movedFromEntryId)) break;
+      current = byId.get(current.movedFromEntryId);
+    }
+    if (current?.movedFromEntryId && claimedRootIds.has(current.movedFromEntryId)) continue;
     unresolved.push({ entryId: entry.id, problem: 'orphaned-supersession' });
   }
 
@@ -211,17 +242,19 @@ export interface ResolvedMoneyRoot {
  */
 export function withResolvedMoneyRoots<T extends MoneyRootLink & { entryStatus?: string | null }>(
   entries: readonly T[],
-  merge: (entry: T, root: T) => T
+  merge: (entry: T, root: T) => T,
+  isRootAvailable: (root: T) => boolean = () => true
 ): Array<T & ResolvedMoneyRoot> {
   const byId = indexEntriesById(entries);
 
   return entries.map(entry => {
     const { root, problem } = resolveMoneyRoot(entry, byId);
-    const rooted = root.id === entry.id ? entry : merge(entry, root);
+    const rootAvailable = isRootAvailable(root);
+    const rooted = root.id === entry.id || !rootAvailable ? entry : merge(entry, root);
     return {
       ...rooted,
       moneyRootEntryId: root.id,
-      moneyRootUnresolved: problem !== undefined,
+      moneyRootUnresolved: problem !== undefined || !rootAvailable,
     };
   });
 }

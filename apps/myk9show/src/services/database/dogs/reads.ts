@@ -755,7 +755,8 @@ export const SEARCH_ALL_DOGS_LIMIT = 50;
 // RLS still enforces that only privileged roles can read non-owned rows.
 export const searchAllDogs = async (
   searchTerm: string,
-  limit: number = SEARCH_ALL_DOGS_LIMIT
+  limit: number = SEARCH_ALL_DOGS_LIMIT,
+  signal?: AbortSignal
 ): Promise<{
   data: Record<string, unknown>[];
   error: DatabaseError | null;
@@ -781,7 +782,7 @@ export const searchAllDogs = async (
     // network, or authorization failure indistinguishable from "no such dog":
     // a registration-number search would return an empty list with
     // `error: null` while the backend was actually broken.
-    const { data: regMatches, error: regError } = await supabase
+    const registrationQuery = supabase
       .from('dog_registrations')
       .select('dog_id')
       // Breed is a registration attribute, so it is matched here alongside the
@@ -790,6 +791,9 @@ export const searchAllDogs = async (
         `registration_number.ilike.%${sanitized}%,registered_name.ilike.%${sanitized}%,breed.ilike.%${sanitized}%`
       )
       .limit(limit);
+    const { data: regMatches, error: regError } = signal
+      ? await registrationQuery.abortSignal(signal)
+      : await registrationQuery;
     if (regError) throw createDatabaseError(regError, 'dog', 'search_all');
     const registrationDogIds = [
       ...new Set(
@@ -804,7 +808,7 @@ export const searchAllDogs = async (
       orFilters.push(`id.in.(${registrationDogIds.join(',')})`);
     }
 
-    const { data, error } = await supabase
+    const dogQuery = supabase
       .from('dogs')
       .select(
         `
@@ -823,6 +827,7 @@ export const searchAllDogs = async (
       .is('deleted_at', null)
       .order('name', { ascending: true })
       .limit(limit);
+    const { data, error } = signal ? await dogQuery.abortSignal(signal) : await dogQuery;
 
     const duration = Date.now() - startTime;
     logQuery('dog', 'search_all', duration, error?.message);
@@ -831,6 +836,10 @@ export const searchAllDogs = async (
     const rows = (data as Record<string, unknown>[] | null) ?? [];
     return { data: rows, error: null, hitLimit: rows.length >= limit };
   } catch (error) {
+    // React Query treats an aborted query as a superseded request. Preserve
+    // that cancellation signal instead of converting it into a search error
+    // for the current query.
+    if (signal?.aborted) throw error;
     const duration = Date.now() - startTime;
     const dbError = createDatabaseError(error, 'dog', 'search_all');
     logQuery('dog', 'search_all', duration, dbError.message);

@@ -35,8 +35,8 @@ export interface AuthContextType {
     redirectTo?: string
   ) => Promise<void>;
   signOut: () => Promise<void>;
-  signInWithGoogle: (redirectTo?: string) => Promise<void>;
-  signInWithApple: (redirectTo?: string) => Promise<void>;
+  signInWithGoogle: (redirectTo?: string, intendedRoles?: readonly string[]) => Promise<void>;
+  signInWithApple: (redirectTo?: string, intendedRoles?: readonly string[]) => Promise<void>;
   resetPassword: (email: string, captchaToken?: string) => Promise<void>;
   updatePassword: (newPassword: string) => Promise<void>;
   updateProfile: (updates: {

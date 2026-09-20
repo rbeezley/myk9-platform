@@ -35,6 +35,7 @@ const launchCriticalSqlTests = [
   'class_status_auto_derivation_test.sql',
   'class_lifecycle_absent_parity_test.sql',
   'checkout_confirmation_on_insert_test.sql',
+  'club_access_request_approval_test.sql',
   'entry_requires_dog_registration_test.sql',
   'club_secretary_grant_test.sql',
   'club_show_managers_visibility_test.sql',
@@ -91,6 +92,7 @@ const launchCriticalSqlTests = [
   'withdraw_own_entry_test.sql',
   'withdraw_or_pull_own_entry_test.sql',
   'update_own_entry_jump_height_test.sql',
+  'update_entry_handler_for_entry_management_test.sql',
   'seed_demo_paid_stray_guard_test.sql',
   'seed_demo_paid_stray_guard_scopes_test.sql',
 ];

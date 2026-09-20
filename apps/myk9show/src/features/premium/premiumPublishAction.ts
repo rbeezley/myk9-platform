@@ -34,11 +34,11 @@ export interface PremiumPublishFacts {
 }
 
 /**
- * Where the publish read stands. `loading` covers the offline PAUSE too: this
- * query inherits networkMode 'online', so offline it parks with no data, which
- * reads exactly like "not published yet" if you only look at `data`.
+ * Where the publish read stands. The query inherits networkMode 'online', so
+ * its offline PAUSE must stay distinct from online loading: both have no data,
+ * but only one can be resolved by reconnecting.
  */
-export type PublishInfoState = 'loading' | 'ready' | 'unavailable';
+export type PublishInfoState = 'loading' | 'offline' | 'ready' | 'unavailable';
 
 export interface PremiumPublishInput {
   /** The publish read, or undefined when it has not resolved. */
@@ -56,6 +56,7 @@ export interface PremiumPublishInput {
 export const PREMIUM_UP_TO_DATE_REASON = 'Premium is published and up to date';
 export const PREMIUM_BUSY_REASON = 'Already publishing';
 export const PREMIUM_LOADING_REASON = 'Checking the premium’s publish state…';
+export const PREMIUM_OFFLINE_REASON = "You're offline — publishing needs a connection";
 export const PREMIUM_UNAVAILABLE_REASON = 'Publish state could not be read';
 const PUBLISH_LABEL = 'Generate & publish premium';
 
@@ -91,11 +92,13 @@ export function derivePremiumPublish({
     ? { label: 'Publishing…', disabledReason: PREMIUM_BUSY_REASON }
     : infoState === 'unavailable'
       ? { label: PUBLISH_LABEL, disabledReason: PREMIUM_UNAVAILABLE_REASON }
-      : infoState === 'loading' || info === undefined
-        ? { label: PUBLISH_LABEL, disabledReason: PREMIUM_LOADING_REASON }
-        : hasPublishedPremium && !needsRepublish
-          ? { label: PUBLISH_LABEL, disabledReason: PREMIUM_UP_TO_DATE_REASON }
-          : { label };
+      : infoState === 'offline'
+        ? { label: PUBLISH_LABEL, disabledReason: PREMIUM_OFFLINE_REASON }
+        : infoState === 'loading' || info === undefined
+          ? { label: PUBLISH_LABEL, disabledReason: PREMIUM_LOADING_REASON }
+          : hasPublishedPremium && !needsRepublish
+            ? { label: PUBLISH_LABEL, disabledReason: PREMIUM_UP_TO_DATE_REASON }
+            : { label };
 
   return { hasPublishedPremium, stale, landingUnpublished, needsRepublish, action };
 }

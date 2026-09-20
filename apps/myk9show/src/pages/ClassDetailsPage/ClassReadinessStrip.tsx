@@ -27,6 +27,7 @@ export interface ClassReadinessStripProps {
   isStaff: boolean;
   classData: ClassReadinessClassInput;
   entries: ReadonlyArray<ClassReadinessEntry>;
+  scopeEntries?: ReadonlyArray<ClassReadinessEntry>;
   showId: string | null | undefined;
   trialId: string | null | undefined;
   classId?: string | undefined;
@@ -78,6 +79,7 @@ export function ClassReadinessStrip({
   isStaff,
   classData,
   entries,
+  scopeEntries = entries,
   showId,
   trialId,
   classId,
@@ -126,7 +128,7 @@ export function ClassReadinessStrip({
     );
   }
 
-  const summary = buildClassReadinessSummary(classData, entries);
+  const summary = buildClassReadinessSummary(classData, entries, scopeEntries);
   const reviewHref = classContext ? getClassReviewHref(classContext) : undefined;
   const missingInformationHref = classContext
     ? getClassMissingInformationHref(classContext)

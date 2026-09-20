@@ -212,8 +212,11 @@ export function DogSearchFilters({
               <X
                 className="h-3 w-3 cursor-pointer"
                 onClick={() => {
-                  setFilters(prev => ({ ...prev, searchQuery: '' }));
-                  onSearchQueryChange?.('');
+                  if (onSearchQueryChange) {
+                    onSearchQueryChange('');
+                  } else {
+                    setFilters(prev => ({ ...prev, searchQuery: '' }));
+                  }
                 }}
               />
             </Badge>

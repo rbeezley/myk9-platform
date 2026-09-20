@@ -25,6 +25,7 @@ import {
   getOnboardingStatusPresentation,
   ONBOARDING_STATUS_FILTERS,
 } from './adminStatusPresentation';
+import { ClubAccessRequestsSection } from './ClubAccessRequestsSection';
 
 type OnboardingStatus = OnboardingRequest['status'];
 
@@ -163,6 +164,8 @@ export default function OnboardingInboxPage() {
           </div>
         </div>
       </div>
+
+      <ClubAccessRequestsSection />
 
       <label className="block sm:hidden">
         <span className="mb-1.5 block text-sm font-medium">Request status</span>

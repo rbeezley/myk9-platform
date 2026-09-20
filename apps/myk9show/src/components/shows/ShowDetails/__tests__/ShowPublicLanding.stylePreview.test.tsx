@@ -173,4 +173,49 @@ describe('ShowPublicLanding style preview', () => {
     resolveSave();
     await waitFor(() => expect(screen.getByText('Current: Heritage')).toBeInTheDocument());
   });
+
+  it('does not carry an in-flight save state into a keyed preview for another show', async () => {
+    entitlement.canAuthorizePremium = true;
+    let resolveSave!: () => void;
+    const onSaveDraftStyle = vi.fn(
+      () =>
+        new Promise<void>(resolve => {
+          resolveSave = resolve;
+        })
+    );
+    const view = render(
+      <ShowPublicLanding
+        key="show-a"
+        show={makeShow({ id: 'show-a', style: 'monogram' })}
+        landingTrials={[makeTrial('trial-a')]}
+        hasEntryClassInventory={null}
+        entryNotYetOpen={false}
+        styleMode="manager-draft-preview"
+        onSaveDraftStyle={onSaveDraftStyle}
+      />,
+      { initialRoute: '/shows/show-a?preview=public' }
+    );
+    const user = view.user;
+
+    await user.click(screen.getByRole('radio', { name: 'Heritage' }));
+    await user.click(screen.getByRole('button', { name: 'Save style' }));
+
+    view.rerender(
+      <ShowPublicLanding
+        key="show-b"
+        show={makeShow({ id: 'show-b', style: 'monogram' })}
+        landingTrials={[makeTrial('trial-b')]}
+        hasEntryClassInventory={null}
+        entryNotYetOpen={false}
+        styleMode="manager-draft-preview"
+        onSaveDraftStyle={onSaveDraftStyle}
+      />
+    );
+    resolveSave();
+
+    await waitFor(() => expect(screen.getByText('Current: Monogram')).toBeInTheDocument());
+    expect(screen.getByTestId('monogram-landing')).toHaveTextContent('monogram');
+    expect(screen.queryByText('Pending: Heritage')).not.toBeInTheDocument();
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+  });
 });

@@ -7,7 +7,7 @@ import { useUrlTab } from '@/hooks/useUrlTab';
 import { resolveOverviewJudgesWithRoster } from '@/components/shows/overview/overviewJudges';
 import { type TrialStats } from '@/components/shows/tabs/TrialsTab';
 import type { ShowJudgeAssignment } from '@/types/judge-types';
-import { syncShowQueryCaches, useShowsQuery } from '@/hooks/queries/useShowsDatabase';
+import { useShowsQuery } from '@/hooks/queries/useShowsDatabase';
 import { useFastShowDetails } from '@/hooks/useFastShowDetails';
 import { useShowLandingData } from '@/hooks/useShowLandingData';
 import { useNavigationPerformance } from '@/hooks/useNavigationPerformance';
@@ -54,7 +54,7 @@ import {
 import { useSubmittedEntryProjection } from '@/features/exhibitor-entry/useSubmittedEntryProjection';
 import { markCurrentUserEntryClasses } from './ShowDetailsPage.publicClasses';
 import { isValidUUID } from '@/utils/validation';
-import { useShowStore } from '@/store/showStore';
+import { saveShowDraftStyle } from '@/features/premium/showStylePersistence';
 
 /** Loads `/shows/:id` once and delegates to the public, exhibitor, or management surface. */
 const ShowDetailsPage: React.FC = () => {
@@ -68,7 +68,6 @@ const ShowDetailsPage: React.FC = () => {
   const { user, loading: authLoading, userWithRoles, rbacLoading } = useAuthContext();
   const canReadEntryRows = Boolean(user && user.is_anonymous !== true);
   const trials = useTrialStore(s => s.trials);
-  const updateShowLocally = useShowStore(s => s.updateShow);
   const trialClasses = useTrialStore(s => s.trialClasses);
   const trialClassesReadStatus = useTrialStore(s => s.trialClassesReadStatus);
   const loadTrials = useTrialStore(s => s.loadTrials);
@@ -502,6 +501,7 @@ const ShowDetailsPage: React.FC = () => {
   if (audience === 'public') {
     return (
       <ShowPublicLanding
+        key={actualCurrentShow.id}
         show={actualCurrentShow}
         landingTrials={landingTrials}
         offeredClasses={publicShowClasses}
@@ -510,19 +510,9 @@ const ShowDetailsPage: React.FC = () => {
         refreshFailed={refreshFailed}
         onRetry={() => void refetchShow()}
         styleMode={canManageShow ? 'manager-draft-preview' : 'public'}
-        onSaveDraftStyle={async style => {
-          const updatedShow = await updateShowLocally(
-            actualCurrentShow.id,
-            {
-              style,
-            },
-            actualCurrentShow
-          );
-          if (!updatedShow) {
-            throw new Error('Show was not available to save this style.');
-          }
-          syncShowQueryCaches(queryClient, updatedShow);
-        }}
+        onSaveDraftStyle={style =>
+          saveShowDraftStyle({ show: actualCurrentShow, style, queryClient }).then(() => undefined)
+        }
       />
     );
   }

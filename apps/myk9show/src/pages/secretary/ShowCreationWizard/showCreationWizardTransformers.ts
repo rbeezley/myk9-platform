@@ -6,11 +6,13 @@ import { format } from 'date-fns';
 import type { Show } from '@/types/show-types';
 import type { ShowInput } from '@/store/showStore';
 import type { ClassData } from '@/components/classes/types/classTypes';
+import type { RegistryId } from '@/features/registries/types';
 import { resolvePremiumStyle, type PremiumStyle } from '@/types/premium-types';
 import type { JudgeDetailsMap, ShowStatus, EditMode } from './show-creation-wizard-types';
 import {
   assertValidWizardClassSelections,
-  normalizeWizardClassElement,
+  type NormalizedWizardTrialSelection,
+  wizardClassIdentityKey,
 } from './classConfigurationValidation';
 
 export interface WizardShowData {
@@ -119,9 +121,12 @@ export function createClassDataFromWizard(
   existingTrials: ExistingTrial[],
   editMode?: EditMode,
   showFees?: { preEntryFee?: number; dayOfShowFee?: number },
-  organization = 'AKC'
+  organization = 'AKC',
+  normalizedClassSelections?: readonly NormalizedWizardTrialSelection[]
 ): ClassData[] {
-  assertValidWizardClassSelections(organization, wizardTrials);
+  const normalizedTrials =
+    normalizedClassSelections ?? assertValidWizardClassSelections(organization, wizardTrials);
+  const normalizedByTrialId = new Map(normalizedTrials.map(trial => [trial.trialId, trial]));
   const classes: ClassData[] = [];
 
   // In add-classes mode, process ALL trials (we're adding classes to existing trials).
@@ -136,16 +141,13 @@ export function createClassDataFromWizard(
 
   trialsToProcess.forEach(wizardTrial => {
     const trialId = trialIdMap[wizardTrial.id];
+    const normalizedTrial = normalizedByTrialId.get(wizardTrial.id);
 
-    if (trialId && wizardTrial.classes.length > 0) {
+    if (trialId && normalizedTrial && normalizedTrial.classes.length > 0) {
       wizardTrial.classes.forEach((cls, index) => {
-        const className = (cls.customizations?.className as string) || `Class ${index + 1}`;
-        const element = normalizeWizardClassElement(
-          organization,
-          wizardTrial.trialType,
-          String(cls.customizations?.element ?? '').trim()
-        );
-        const level = String(cls.customizations?.level ?? '').trim();
+        const normalizedClass = normalizedTrial.classes[index];
+        if (!normalizedClass) return;
+        const { triple } = normalizedClass;
 
         // Generate a proper UUID for the class
         const classId = crypto.randomUUID();
@@ -158,14 +160,14 @@ export function createClassDataFromWizard(
           trialNumber: wizardTrial.eventNumber || wizardTrial.name,
           classOrder: String(index + 1),
           status: 'Scheduled' as const,
-          judge: judgeDetails[cls.judgeId || '']?.name || 'TBD',
+          judge: judgeDetails[normalizedClass.judgeId || '']?.name || 'TBD',
           // Preserve the per-class judge UUID (not just the display name) so the
           // RPC payload can write a class-level judge_assignment. Dropping it
           // here is what left judges off the class-centric judge dashboard.
-          judgeId: cls.judgeId || undefined,
-          element: element,
-          level: level,
-          section: (cls.customizations?.section as string) || '',
+          judgeId: normalizedClass.judgeId || undefined,
+          element: triple.element,
+          level: triple.level,
+          section: triple.section,
           hidesUsed: '0',
           distractionsUsed: '0',
           itemsUsed: '',
@@ -173,7 +175,7 @@ export function createClassDataFromWizard(
           timeLimit2: '',
           timeLimit3: '',
           photoUrl: '',
-          className: className,
+          className: normalizedClass.className,
           entryFee:
             (cls.customizations?.entryFee as number | undefined) ?? showFees?.preEntryFee ?? 0,
           preEntryFee:
@@ -181,7 +183,7 @@ export function createClassDataFromWizard(
           dayOfShowFee:
             (cls.customizations?.dayOfShowFee as number | undefined) ?? showFees?.dayOfShowFee ?? 0,
           maxEntries: undefined,
-          templateId: cls.templateId,
+          templateId: normalizedClass.templateId,
         };
 
         classes.push(classData);
@@ -190,6 +192,26 @@ export function createClassDataFromWizard(
   });
 
   return classes;
+}
+
+/** Remove selected classes already persisted, plus duplicate canonical triples in one selection. */
+export function filterDuplicateWizardClasses(
+  classes: readonly ClassData[],
+  existingKeys: ReadonlySet<string>,
+  registryId: RegistryId
+): ClassData[] {
+  const seenKeys = new Set(existingKeys);
+  return classes.filter(classData => {
+    const key = wizardClassIdentityKey(classData.trialId, {
+      registryId,
+      element: classData.element ?? '',
+      level: classData.level ?? '',
+      section: classData.section ?? '',
+    });
+    if (seenKeys.has(key)) return false;
+    seenKeys.add(key);
+    return true;
+  });
 }
 
 /**

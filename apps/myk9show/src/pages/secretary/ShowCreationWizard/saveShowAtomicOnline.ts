@@ -18,6 +18,7 @@ import { formatClubAddress } from '@/utils/clubAddress';
 import { resolvePremiumStyle } from '@/types/premium-types';
 import { friendlyDbError } from '@/utils/friendlyDbError';
 import type { WizardShowData, WizardTrial } from './showCreationWizardTransformers';
+import type { NormalizedWizardTrialSelection } from './classConfigurationValidation';
 
 export interface SaveShowAtomicOnlineArgs {
   show: WizardShowData;
@@ -27,6 +28,7 @@ export interface SaveShowAtomicOnlineArgs {
   status: ShowStatus;
   queryClient: QueryClient;
   triggerSync: () => Promise<unknown>;
+  normalizedClassSelections?: readonly NormalizedWizardTrialSelection[];
 }
 
 export interface SaveShowAtomicOnlineResult {
@@ -53,7 +55,16 @@ export interface SaveShowAtomicOnlineResult {
 export async function saveShowAtomicOnline(
   args: SaveShowAtomicOnlineArgs
 ): Promise<SaveShowAtomicOnlineResult> {
-  const { show, trials, judgeDetails, clubs, status, queryClient, triggerSync } = args;
+  const {
+    show,
+    trials,
+    judgeDetails,
+    clubs,
+    status,
+    queryClient,
+    triggerSync,
+    normalizedClassSelections,
+  } = args;
 
   const ruleMap = await buildRuleMap(trials.flatMap(t => t.classes.map(c => c.templateId)));
 
@@ -62,7 +73,8 @@ export async function saveShowAtomicOnline(
     trials,
     judgeDetails,
     ruleMap,
-    status
+    status,
+    normalizedClassSelections
   );
 
   // `create_show_with_children` is defined in migration 145; cast the RPC

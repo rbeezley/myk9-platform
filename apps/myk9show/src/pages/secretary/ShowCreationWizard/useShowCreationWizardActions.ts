@@ -25,6 +25,7 @@ import type { EditMode, ShowStatus } from './show-creation-wizard-types';
 import { useClassStoreCompat } from '@/hooks/useClassStoreCompat';
 import {
   createClassDataFromWizard,
+  filterDuplicateWizardClasses,
   showToShowInput,
   transformWizardDataToShow,
 } from './showCreationWizardTransformers';
@@ -34,7 +35,12 @@ import { saveShowAtomicOnline } from './saveShowAtomicOnline';
 import { buildRuleMap } from './buildRuleMap';
 import { createWizardClasses } from './createWizardClasses';
 import { createDraftShow, finishShowSave } from './showSaveCompletion';
-import { assertValidWizardClassSelections } from './classConfigurationValidation';
+import {
+  assertValidWizardClassSelections,
+  normalizeWizardClassTriple,
+  wizardClassIdentityKey,
+  type NormalizedWizardTrialSelection,
+} from './classConfigurationValidation';
 
 interface UseShowCreationWizardActionsOptions {
   editMode?: EditMode | undefined;
@@ -147,7 +153,11 @@ export function useShowCreationWizardActions({
    * so scoring works fully offline.
    */
   const createClasses = useCallback(
-    async (showId: string, trialIdMap: Record<string, string>) => {
+    async (
+      showId: string,
+      trialIdMap: Record<string, string>,
+      normalizedClassSelections: readonly NormalizedWizardTrialSelection[]
+    ) => {
       logger.debug('createClasses called', 'wizard', { showId, trialIdMap });
 
       const allClasses = createClassDataFromWizard(
@@ -158,19 +168,25 @@ export function useShowCreationWizardActions({
         existingTrials,
         editMode,
         { preEntryFee: show.preEntryFee, dayOfShowFee: show.dayOfShowFee },
-        show.organization
+        show.organization,
+        normalizedClassSelections
       );
 
       // In add-classes mode, trial.classes includes both existing and new classes.
       // Filter out classes that already exist in the DB to avoid duplicates.
       let classesToCreate = allClasses;
       if (editMode?.mode === 'add-classes') {
+        const registryId = deriveRegistryId(show.organization);
+        const trialTypesById = new Map(trials.map(trial => [trial.id, trial.trialType]));
         const existingClassKeys = new Set(
-          existingDBClasses.map(c => `${c.trialId}|${c.element}|${c.level}|${c.section ?? ''}`)
+          existingDBClasses.map(c =>
+            wizardClassIdentityKey(
+              c.trialId,
+              normalizeWizardClassTriple(show.organization, trialTypesById.get(c.trialId), c)
+            )
+          )
         );
-        classesToCreate = allClasses.filter(
-          c => !existingClassKeys.has(`${c.trialId}|${c.element}|${c.level}|${c.section ?? ''}`)
-        );
+        classesToCreate = filterDuplicateWizardClasses(allClasses, existingClassKeys, registryId);
         logger.debug('Filtered existing classes for add-classes mode', 'wizard', {
           total: allClasses.length,
           new: classesToCreate.length,
@@ -185,10 +201,16 @@ export function useShowCreationWizardActions({
 
       logger.debug(`Created ${classesToCreate.length} classes`, 'wizard');
     },
-    // show.dayOfShowFee / show.preEntryFee intentionally excluded — fee changes
-    // should not invalidate already-built class arrays mid-wizard.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [trials, judgeDetails, existingTrials, editMode, existingDBClasses, show.organization]
+    [
+      trials,
+      judgeDetails,
+      existingTrials,
+      editMode,
+      existingDBClasses,
+      show.organization,
+      show.dayOfShowFee,
+      show.preEntryFee,
+    ]
   );
 
   /**
@@ -208,7 +230,10 @@ export function useShowCreationWizardActions({
         // Validate the complete selected class set before any show/trial/class
         // persistence mutation. This is also repeated by the pure payload and
         // transformer boundaries so every save path rejects sentinel identities.
-        assertValidWizardClassSelections(show.organization, trials);
+        const normalizedClassSelections = assertValidWizardClassSelections(
+          show.organization,
+          trials
+        );
 
         // New-show + online path: single atomic RPC
         // (create_show_with_children, migration 145) writes shows + trials +
@@ -229,6 +254,7 @@ export function useShowCreationWizardActions({
             status,
             queryClient,
             triggerSync,
+            normalizedClassSelections,
           });
 
           loadTrialClasses().catch(() => {
@@ -322,7 +348,7 @@ export function useShowCreationWizardActions({
         const trialIdMap = await createTrials(realShowId, savedShow.name, savedShow.organization);
 
         // Create classes using the real trial UUIDs (await for offline-first storage)
-        await createClasses(realShowId, trialIdMap);
+        await createClasses(realShowId, trialIdMap, normalizedClassSelections);
 
         // Persist judge assignments to judge_assignments table
         const judges = wizardShow.assignedJudges || [];

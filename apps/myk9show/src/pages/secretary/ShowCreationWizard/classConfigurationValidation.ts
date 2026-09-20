@@ -1,15 +1,38 @@
 import { deriveRegistryId } from '@/features/registries';
 import { getScentWorkSport, normalizeScentWorkElementLabel } from '@/features/registries/scentWork';
-import type { ElementSpec, RegistrySport } from '@/features/registries/types';
+import type { ElementSpec, RegistryId, RegistrySport } from '@/features/registries/types';
 import { formatTrialTypeLabel } from '@/types/template.types';
 
 export interface WizardClassSelectionLike {
   customizations: Record<string, unknown>;
+  templateId?: string;
+  judgeId?: string | undefined;
 }
 
 export interface WizardTrialSelectionLike {
+  id?: string;
   trialType?: string | undefined;
   classes: readonly WizardClassSelectionLike[];
+}
+
+export interface CanonicalWizardClassTriple {
+  registryId: RegistryId;
+  element: string;
+  level: string;
+  section: string;
+}
+
+export interface NormalizedWizardClassSelection {
+  className: string;
+  templateId: string;
+  judgeId?: string | undefined;
+  triple: CanonicalWizardClassTriple;
+}
+
+export interface NormalizedWizardTrialSelection {
+  trialId: string;
+  trialType?: string | undefined;
+  classes: readonly NormalizedWizardClassSelection[];
 }
 
 export interface InvalidWizardClass {
@@ -45,25 +68,19 @@ export class InvalidWizardClassConfigurationError extends Error {
 export function assertValidWizardClassSelections(
   organization: string,
   trials: readonly WizardTrialSelectionLike[]
-): void {
+): readonly NormalizedWizardTrialSelection[] {
+  const normalizedTrials = normalizeWizardClassSelections(organization, trials);
   const invalidClasses: InvalidWizardClass[] = [];
 
-  trials.forEach(trial => {
+  normalizedTrials.forEach(trial => {
     const registrySport = isConfiguredScentTrial(trial.trialType)
-      ? getScentWorkSport(deriveRegistryId(organization))
+      ? getScentWorkSport(trial.classes[0]?.triple.registryId ?? deriveRegistryId(organization))
       : null;
     trial.classes.forEach((classSelection, classIndex) => {
-      const customizations = classSelection.customizations ?? {};
-      const className = textValue(customizations.className) || `Class ${classIndex + 1}`;
-      const element = normalizeWizardClassElement(
-        organization,
-        trial.trialType,
-        textValue(customizations.element)
-      );
-      const level = textValue(customizations.level);
-      const section = textValue(customizations.section);
+      const className = classSelection.className || `Class ${classIndex + 1}`;
+      const { triple } = classSelection;
 
-      const sentinelError = validateSentinelValues(element, level, section);
+      const sentinelError = validateSentinelValues(triple);
       if (sentinelError) {
         invalidClasses.push({ className, reason: sentinelError });
         return;
@@ -71,7 +88,7 @@ export function assertValidWizardClassSelections(
 
       if (!registrySport) return;
 
-      const reason = validateAgainstRegistry(registrySport, element, level, section);
+      const reason = validateAgainstRegistry(registrySport, triple);
       if (reason) invalidClasses.push({ className, reason });
     });
   });
@@ -79,16 +96,76 @@ export function assertValidWizardClassSelections(
   if (invalidClasses.length > 0) {
     throw new InvalidWizardClassConfigurationError(invalidClasses);
   }
+
+  return normalizedTrials;
 }
 
-/** Normalize legacy display aliases at the registry boundary before validation or persistence. */
-export function normalizeWizardClassElement(
+/**
+ * Normalize every registry class field once at the wizard boundary. The returned triple is the
+ * only class identity that downstream validation, generation, deduplication, and persistence may
+ * consume. Unknown values stay trimmed so validation can explain the rejected triple.
+ */
+export function normalizeWizardClassTriple(
   organization: string,
   trialType: string | undefined,
-  element: string
+  values: { element?: unknown; level?: unknown; section?: unknown }
+): CanonicalWizardClassTriple {
+  const registryId = deriveRegistryId(organization);
+  const raw = {
+    element: textValue(values.element),
+    level: textValue(values.level),
+    section: textValue(values.section),
+  };
+  if (!isConfiguredScentTrial(trialType)) return { registryId, ...raw };
+
+  const sport = getScentWorkSport(registryId);
+  const element = normalizeScentWorkElementLabel(sport, raw.element);
+  const elementSpec = sport.elements.find(candidate => candidate.label === element);
+  const levelSpec = elementSpec
+    ? sport.levels.find(
+        candidate =>
+          elementSpec.levels.includes(candidate.key) && labelsEqual(candidate.label, raw.level)
+      )
+    : undefined;
+  const variants = levelSpec ? (elementSpec?.variantsByLevel?.[levelSpec.key] ?? []) : [];
+  const variant = variants.find(
+    candidate =>
+      labelsEqual(candidate.key, raw.section) || labelsEqual(candidate.label, raw.section)
+  );
+
+  return {
+    registryId,
+    element,
+    level: levelSpec?.label ?? raw.level,
+    section: variant?.key ?? raw.section,
+  };
+}
+
+export function normalizeWizardClassSelections(
+  organization: string,
+  trials: readonly WizardTrialSelectionLike[]
+): readonly NormalizedWizardTrialSelection[] {
+  return trials.map((trial, trialIndex) => ({
+    trialId: trial.id ?? `trial-${trialIndex + 1}`,
+    trialType: trial.trialType,
+    classes: trial.classes.map((classSelection, classIndex) => ({
+      className: textValue(classSelection.customizations?.className) || `Class ${classIndex + 1}`,
+      templateId: classSelection.templateId ?? '',
+      judgeId: classSelection.judgeId,
+      triple: normalizeWizardClassTriple(
+        organization,
+        trial.trialType,
+        classSelection.customizations ?? {}
+      ),
+    })),
+  }));
+}
+
+export function wizardClassIdentityKey(
+  trialId: string,
+  triple: CanonicalWizardClassTriple
 ): string {
-  if (!isConfiguredScentTrial(trialType)) return element;
-  return normalizeScentWorkElementLabel(getScentWorkSport(deriveRegistryId(organization)), element);
+  return [triple.registryId, trialId, triple.element, triple.level, triple.section].join('|');
 }
 
 function isConfiguredScentTrial(trialType: string | undefined): boolean {
@@ -98,34 +175,34 @@ function isConfiguredScentTrial(trialType: string | undefined): boolean {
   );
 }
 
-function validateSentinelValues(element: string, level: string, section: string): string | null {
-  if (!element) return 'the registry element is missing';
-  if (isUnresolved(element)) return 'the registry element is unresolved';
-  if (level && isUnresolved(level)) return 'the registry level is unresolved';
-  if (section && isUnresolved(section)) return 'the registry section is unresolved';
+function validateSentinelValues(triple: CanonicalWizardClassTriple): string | null {
+  if (!triple.element) return 'the registry element is missing';
+  if (isUnresolved(triple.element)) return 'the registry element is unresolved';
+  if (triple.level && isUnresolved(triple.level)) return 'the registry level is unresolved';
+  if (triple.section && isUnresolved(triple.section)) return 'the registry section is unresolved';
   return null;
 }
 
 function validateAgainstRegistry(
   sport: RegistrySport,
-  elementLabel: string,
-  levelLabel: string,
-  sectionLabel: string
+  triple: CanonicalWizardClassTriple
 ): string | null {
-  const element = sport.elements.find(candidate => candidate.label === elementLabel);
-  if (!element) return `“${elementLabel}” is not configured for this registry`;
+  const element = sport.elements.find(candidate => candidate.label === triple.element);
+  if (!element) return `“${triple.element}” is not configured for this registry`;
 
-  const level = sport.levels.find(candidate => candidate.label === levelLabel);
+  const level = sport.levels.find(candidate => candidate.label === triple.level);
   const standalone =
     element.levels.length === 1 &&
     sport.levels.find(candidate => candidate.key === element.levels[0])?.label === element.label;
-  if (!levelLabel && standalone) return validateSection(element, undefined, sectionLabel);
-  if (!level) return `“${levelLabel || 'a blank level'}” is not configured for this registry`;
+  if (!triple.level && standalone) return validateSection(element, undefined, triple.section);
+  if (!level) {
+    return `“${triple.level || 'a blank level'}” is not configured for this registry`;
+  }
   if (!element.levels.includes(level.key)) {
-    return `level “${levelLabel}” is not offered for ${elementLabel}`;
+    return `level “${triple.level}” is not offered for ${triple.element}`;
   }
 
-  return validateSection(element, level.key, sectionLabel);
+  return validateSection(element, level.key, triple.section);
 }
 
 function validateSection(
@@ -146,6 +223,13 @@ function validateSection(
 
 function textValue(value: unknown): string {
   return typeof value === 'string' ? value.trim() : '';
+}
+
+function labelsEqual(left: string, right: string): boolean {
+  return (
+    left.trim().replace(/\s+/gu, ' ').toLocaleLowerCase() ===
+    right.trim().replace(/\s+/gu, ' ').toLocaleLowerCase()
+  );
 }
 
 function isUnresolved(value: string): boolean {

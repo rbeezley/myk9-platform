@@ -1,5 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import { createClassDataFromWizard, type WizardTrial } from '../showCreationWizardTransformers';
+import {
+  createClassDataFromWizard,
+  filterDuplicateWizardClasses,
+  type WizardTrial,
+} from '../showCreationWizardTransformers';
 
 describe('createClassDataFromWizard registry identity preflight', () => {
   it.each(['scent_work', 'SCENT_WORK'])(
@@ -193,6 +197,49 @@ describe('createClassDataFromWizard registry identity preflight', () => {
         'AKC'
       )
     ).toThrow(/Containers Master A — invalid section/);
+  });
+
+  it('deduplicates legacy and canonical aliases using the persisted triple identity', () => {
+    const trial: WizardTrial = {
+      id: 'trial-1',
+      name: 'Saturday Trial',
+      dateTime: '2026-10-01T09:00:00',
+      eventNumber: 'EVT-001',
+      trialType: 'Scent Work',
+      classes: [
+        {
+          templateId: 'akc-template',
+          customizations: {
+            className: 'Containers Novice A — legacy',
+            element: 'Containers',
+            level: 'Novice',
+            section: 'A',
+          },
+        },
+        {
+          templateId: 'akc-template',
+          customizations: {
+            className: 'Container Novice A — canonical',
+            element: 'Container',
+            level: 'Novice',
+            section: 'A',
+          },
+        },
+      ],
+    };
+
+    const classes = createClassDataFromWizard(
+      [trial],
+      { 'trial-1': 'trial-real' },
+      {},
+      'show-1',
+      [],
+      undefined,
+      undefined,
+      'AKC'
+    );
+
+    expect(filterDuplicateWizardClasses(classes, new Set(), 'AKC')).toHaveLength(1);
   });
 
   it('allows a standalone registry class whose level is intentionally omitted', () => {

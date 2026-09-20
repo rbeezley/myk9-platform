@@ -12,6 +12,7 @@ import {
   type WizardShowData,
   type WizardTrial,
 } from './showCreationWizardTransformers';
+import type { NormalizedWizardTrialSelection } from './classConfigurationValidation';
 
 export interface ShowRpcPayload {
   id: string;
@@ -122,7 +123,8 @@ export function buildCreateShowPayload(
   trials: WizardTrial[],
   judgeDetails: JudgeDetailsMap,
   ruleMap: Map<string, SportClassRuleRow>,
-  status: ShowStatus
+  status: ShowStatus,
+  normalizedClassSelections?: readonly NormalizedWizardTrialSelection[]
 ): CreateShowPayloadResult {
   const showId = crypto.randomUUID();
   const dbStatus = mapShowStatus(status);
@@ -162,7 +164,8 @@ export function buildCreateShowPayload(
     [],
     undefined,
     { preEntryFee: show.preEntryFee, dayOfShowFee: show.dayOfShowFee },
-    show.organization
+    show.organization,
+    normalizedClassSelections
   );
 
   const classPayloads: ClassRpcPayload[] = allClassData.map(cls => {

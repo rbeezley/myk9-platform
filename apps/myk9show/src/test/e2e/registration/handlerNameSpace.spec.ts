@@ -154,15 +154,18 @@ test('the handler name field accepts spaces, hyphens and apostrophes', async ({ 
     timeout: 10000,
   });
 
-  const field = dialog.getByLabel('Handler name');
-  await expect(field).toBeVisible();
-  await field.click();
-  await field.press('ControlOrMeta+a');
+  // The controlled input is remounted while the typeahead popover opens and
+  // while its value changes. Resolve it fresh for each locator action instead
+  // of holding a handle across those renders.
+  const handlerField = () => page.getByRole('dialog').getByLabel('Handler name');
+  await expect(handlerField()).toBeVisible();
+  await handlerField().evaluate(element => (element as HTMLInputElement).focus());
+  await page.keyboard.press('ControlOrMeta+a');
   // pressSequentially, not fill(): fill() sets .value directly and would never
   // dispatch the Space keydown that was swallowing the character.
-  await field.pressSequentially(HANDLER_NAME, { delay: 20 });
+  await page.keyboard.type(HANDLER_NAME, { delay: 20 });
 
-  await expect(field).toHaveValue(HANDLER_NAME);
+  await expect(handlerField()).toHaveValue(HANDLER_NAME);
 
   // The typeahead list is usually open on the last typed character and anchors
   // directly under the field, inside the dialog — it can sit over "Confirm
@@ -170,13 +173,16 @@ test('the handler name field accepts spaces, hyphens and apostrophes', async ({ 
   // an unconditional Escape reaches the modal dialog instead and closes the
   // whole thing, and `toBeHidden()` would pass on a listbox that never
   // rendered, so the guard has to be gated on seeing it first.
-  const suggestions = dialog.getByRole('listbox');
+  const suggestions = page.getByRole('dialog').getByRole('listbox');
   if (await suggestions.isVisible()) {
-    await field.press('Escape');
+    await page.keyboard.press('Escape');
+    await expect(
+      page.getByRole('dialog').getByRole('heading', { name: 'Change Handler' })
+    ).toBeVisible();
     await expect(suggestions).toBeHidden();
   }
 
-  await dialog.getByRole('button', { name: 'Confirm Handler' }).click();
+  await page.getByRole('dialog').getByRole('button', { name: 'Confirm Handler' }).click();
   await expect(page.getByText(HANDLER_NAME, { exact: false }).first()).toBeVisible({
     timeout: 10000,
   });

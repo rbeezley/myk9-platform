@@ -131,13 +131,22 @@ export async function installDogSearchFixtures(
     const fixture = matchingFixture(route.request().url(), fixtures);
     const isReplicationSync = normalizedUrl.includes('updated_at=gt.');
     const isRosterRead = normalizedUrl.includes('owner:people');
-    if ((isReplicationSync || isRosterRead) && !normalizedUrl.includes(SEARCH_QUERY_MARKER)) {
+    // The replicated dog read reconciles its local rows against a separate
+    // select=id request. Keep searched fixtures in that live-id set too, or a
+    // real staging response without the fixture removes it immediately after
+    // the search has selected it.
+    const isLiveIdsRead =
+      normalizedUrl.includes('select=id') && normalizedUrl.includes('deleted_at=is.null');
+    if (
+      (isReplicationSync || isRosterRead || isLiveIdsRead) &&
+      !normalizedUrl.includes(SEARCH_QUERY_MARKER)
+    ) {
       const response = await route.fetch();
       const body = (await response.json()) as Array<Record<string, unknown>>;
       const existingIds = new Set(body.map(row => row.id));
       const missingFixtures = fixtures
         .filter(searchFixture => !existingIds.has(searchFixture.id))
-        .map(dogRow);
+        .map(searchFixture => (isLiveIdsRead ? { id: searchFixture.id } : dogRow(searchFixture)));
       await route.fulfill({ response, body: JSON.stringify([...body, ...missingFixtures]) });
       return;
     }

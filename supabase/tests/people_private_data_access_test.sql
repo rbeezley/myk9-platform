@@ -23,8 +23,14 @@ VALUES
   ('00000000-0000-0000-0000-000000664014', 'MYK9-664', 'Handler', '00000000-0000-0000-0000-000000664104'),
   ('00000000-0000-0000-0000-000000664017', 'Owner', 'Fallback', '00000000-0000-0000-0000-000000664107'),
   ('00000000-0000-0000-0000-000000664018', 'Empty', 'Profile', '00000000-0000-0000-0000-000000664108'),
+  ('00000000-0000-0000-0000-000000664019', 'Hidden', 'Owner', '00000000-0000-0000-0000-000000664109'),
   ('00000000-0000-0000-0000-000000664015', 'MYK9-664', 'Site Admin', '00000000-0000-0000-0000-000000664105'),
   ('00000000-0000-0000-0000-000000664016', 'MYK9-664', 'Deleted Handler', '00000000-0000-0000-0000-000000664106');
+
+UPDATE public.people
+SET date_of_birth = DATE '2014-04-02',
+    junior_handler_numbers = '{"AKC":"664-HIDDEN"}'::jsonb
+WHERE id = '00000000-0000-0000-0000-000000664019';
 
 UPDATE public.people
 SET deleted_at = current_timestamp
@@ -69,6 +75,11 @@ VALUES (
   '00000000-0000-0000-0000-000000664008', 'MYK9-664 Empty Dog', 'Empty Dog', 'Mixed',
   '00000000-0000-0000-0000-000000664018'
 );
+INSERT INTO public.dogs (id, name, call_name, breed, owner_id)
+VALUES (
+  '00000000-0000-0000-0000-000000664010', 'MYK9-664 Hidden Dog', 'Hidden Dog', 'Mixed',
+  '00000000-0000-0000-0000-000000664019'
+);
 
 -- The stale handler FK points at Handler, but the canonical printed name
 -- resolves to the owner. A related manager may read the owner's private row.
@@ -100,6 +111,20 @@ VALUES (
   '00000000-0000-0000-0000-000000664005',
   NULL,
   NULL,
+  'confirmed', 'paid'
+);
+
+-- The manager can update this owner through the manageable show, but the
+-- printed handler name deliberately does not resolve to the owner. This
+-- exercises the RPC response redaction for a public-update caller without a
+-- private-read relationship.
+INSERT INTO public.entries (id, show_id, dog_id, handler_id, handler, entry_status, payment_status)
+VALUES (
+  '00000000-0000-0000-0000-000000664010',
+  '00000000-0000-0000-0000-000000664003',
+  '00000000-0000-0000-0000-000000664010',
+  '00000000-0000-0000-0000-000000664014',
+  'Not the owner',
   'confirmed', 'paid'
 );
 
@@ -135,6 +160,7 @@ DECLARE
   deleted_handler uuid := '00000000-0000-0000-0000-000000664016';
   visible_rows integer;
   writes_denied boolean;
+  response jsonb;
   private_dob date;
   private_numbers jsonb;
   public_phone text;
@@ -289,6 +315,44 @@ BEGIN
   IF NOT writes_denied THEN
     RAISE EXCEPTION 'FAIL related show manager can atomically write private profile';
   END IF;
+
+  SELECT public.update_person_with_private(
+    '00000000-0000-0000-0000-000000664019',
+    '{"phone":"manager-save-hidden"}'::jsonb,
+    '{}'::jsonb
+  ) INTO response;
+  IF response ? 'date_of_birth' OR response ? 'junior_handler_numbers' THEN
+    RAISE EXCEPTION 'FAIL manager RPC response exposed unrelated private fields';
+  END IF;
+
+  -- A manager may create a directory person with the legacy private fields
+  -- empty. Non-empty private data remains subject/site-admin only.
+  INSERT INTO public.people (id, first_name, last_name, auth_user_id)
+  VALUES (
+    '00000000-0000-0000-0000-000000664020', 'Manager', 'Created', related_manager
+  );
+  IF EXISTS (
+    SELECT 1 FROM public.people_private
+    WHERE person_id = '00000000-0000-0000-0000-000000664020'
+  ) THEN
+    RAISE EXCEPTION 'FAIL empty manager-created person materialized a private row';
+  END IF;
+
+  writes_denied := false;
+  BEGIN
+    INSERT INTO public.people (
+      id, first_name, last_name, auth_user_id, date_of_birth
+    ) VALUES (
+      '00000000-0000-0000-0000-000000664021', 'Manager', 'Private', related_manager,
+      DATE '2012-04-04'
+    );
+  EXCEPTION WHEN insufficient_privilege THEN
+    writes_denied := true;
+  END;
+  IF NOT writes_denied THEN
+    RAISE EXCEPTION 'FAIL manager-created non-empty private fields were accepted';
+  END IF;
+
   writes_denied := false;
   BEGIN
     UPDATE public.people

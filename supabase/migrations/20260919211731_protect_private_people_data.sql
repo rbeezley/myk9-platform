@@ -70,6 +70,7 @@ COMMENT ON TABLE public.people_private IS
 -- privileges in this project grant anon CRUD on new public tables unless revoked.
 REVOKE ALL ON TABLE public.people_private FROM anon;
 REVOKE ALL ON TABLE public.people_private FROM PUBLIC;
+REVOKE INSERT, UPDATE, DELETE ON TABLE public.people_private FROM authenticated;
 GRANT SELECT ON TABLE public.people_private TO authenticated, service_role;
 
 ALTER TABLE public.people_private ENABLE ROW LEVEL SECURITY;
@@ -304,7 +305,7 @@ BEGIN
   END IF;
 
   IF NOT (
-    v_person.auth_user_id = (SELECT auth.uid())
+    (v_person.auth_user_id IS NOT NULL AND v_person.auth_user_id = (SELECT auth.uid()))
     OR (SELECT public.can_manage_show_person(p_person_id))
     OR (SELECT public.is_site_admin())
   ) THEN
@@ -434,7 +435,7 @@ BEGIN
   -- An unrelated manager may still update an allowed public field, but the
   -- response must not become a private-field side channel merely because the
   -- function runs as its owner.
-  RETURN to_jsonb(v_person);
+  RETURN to_jsonb(v_person) - 'date_of_birth' - 'junior_handler_numbers';
 END;
 $$;
 
@@ -496,7 +497,9 @@ AS $$
 BEGIN
   IF auth.uid() IS NOT NULL
      AND NOT public.can_write_people_private(NEW.id) THEN
-    IF TG_OP = 'INSERT'
+    IF (TG_OP = 'INSERT'
+           AND (NEW.date_of_birth IS NOT NULL
+                OR COALESCE(NEW.junior_handler_numbers, '{}'::jsonb) <> '{}'::jsonb))
        OR (TG_OP = 'UPDATE'
            AND (NEW.date_of_birth IS DISTINCT FROM OLD.date_of_birth
                 OR NEW.junior_handler_numbers IS DISTINCT FROM OLD.junior_handler_numbers)) THEN

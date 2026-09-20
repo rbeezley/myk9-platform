@@ -69,7 +69,7 @@ export const AUTHENTICATED_TABLE_GRANTS: Readonly<Record<string, string>> = {
   paperwork_prints: 'SELECT,INSERT',
   pedigree_ancestors: 'SELECT,INSERT,UPDATE,DELETE',
   people: 'SELECT,INSERT,UPDATE,DELETE',
-  people_private: 'SELECT,INSERT,UPDATE,DELETE',
+  people_private: 'SELECT',
   performance_metrics: 'SELECT,INSERT',
   permission_audit_log: 'SELECT,INSERT',
   permissions: 'SELECT,INSERT,UPDATE,DELETE',

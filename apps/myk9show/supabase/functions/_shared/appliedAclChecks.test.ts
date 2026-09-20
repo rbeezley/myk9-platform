@@ -192,6 +192,11 @@ describe('AUTHENTICATED_TABLE_GRANTS agrees with the SQL contract', () => {
 
     expect(disagreements).toEqual([]);
   });
+
+  it('keeps the private people boundary read-only for authenticated clients', () => {
+    expect(AUTHENTICATED_TABLE_GRANTS.people_private).toBe('SELECT');
+    expect(sqlAuthenticatedGrants.people_private).toBe('SELECT');
+  });
 });
 
 describe('SERVICE_ROLE_TABLE_GRANTS agrees with the deployed SQL contract', () => {

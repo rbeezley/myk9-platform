@@ -32,6 +32,10 @@ vi.mock('@/hooks/useClassStoreCompat', () => ({
   useClassStoreCompat: () => mockClassStoreState,
 }));
 
+vi.mock('@/hooks/useTrialDetailData', () => ({
+  useTrialDetailData: () => ({ parentShow: undefined }),
+}));
+
 vi.mock('@/hooks/useAuthContext', () => ({
   useAuthContext: () => ({ user: { id: 'secretary-1' } }),
 }));

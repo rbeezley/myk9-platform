@@ -23,6 +23,7 @@ import {
   useUpdateEntryMutation,
   useDeleteEntryMutation,
 } from '@/hooks/queries/useClassesDatabase';
+import { useEntriesByShowQuery } from '@/hooks/queries/useEntriesDatabase';
 import {
   mapClassInputToInsert,
   mapClassInputToUpdate,
@@ -47,9 +48,11 @@ import {
  * Compatibility hook that provides classStore-like API using React Query
  * This allows existing components to work unchanged while using the database
  */
-export const useClassStoreCompat = () => {
+export const useClassStoreCompat = (showId?: string) => {
   const classesQuery = useClassesQuery();
   const entriesQuery = useEntriesQuery();
+  const entriesByShowQuery = useEntriesByShowQuery(showId ?? '', Boolean(showId));
+  const currentEntriesQuery = showId ? entriesByShowQuery : entriesQuery;
   const statisticsQuery = useClassStatisticsQuery();
 
   const createClassMutation = useCreateClassMutation();
@@ -67,14 +70,14 @@ export const useClassStoreCompat = () => {
   }, [classesQuery.data]);
 
   const entries = useMemo(() => {
-    if (!entriesQuery.data) return [];
-    return mapDatabaseEntriesArray(entriesQuery.data as unknown as DbEntryWithRelations[]);
-  }, [entriesQuery.data]);
+    if (!currentEntriesQuery.data) return [];
+    return mapDatabaseEntriesArray(currentEntriesQuery.data as unknown as DbEntryWithRelations[]);
+  }, [currentEntriesQuery.data]);
 
   // Aggregate loading and error states
   const isLoading = aggregateLoadingStates(
     classesQuery.isLoading,
-    entriesQuery.isLoading,
+    currentEntriesQuery.isLoading,
     createClassMutation.isPending,
     updateClassMutation.isPending,
     deleteClassMutation.isPending,
@@ -87,7 +90,7 @@ export const useClassStoreCompat = () => {
     () =>
       aggregateQueryErrors(
         classesQuery.error,
-        entriesQuery.error,
+        currentEntriesQuery.error,
         createClassMutation.error,
         updateClassMutation.error,
         deleteClassMutation.error,
@@ -97,7 +100,7 @@ export const useClassStoreCompat = () => {
       ),
     [
       classesQuery.error,
-      entriesQuery.error,
+      currentEntriesQuery.error,
       createClassMutation.error,
       updateClassMutation.error,
       deleteClassMutation.error,
@@ -179,7 +182,7 @@ export const useClassStoreCompat = () => {
 
   const refetch = () => {
     classesQuery.refetch();
-    entriesQuery.refetch();
+    currentEntriesQuery.refetch();
   };
 
   // Legacy compatibility methods (no-op implementations)
@@ -246,8 +249,8 @@ export const useClassStoreCompat = () => {
 
     // Additional React Query benefits
     refetch,
-    isStale: classesQuery.isStale || entriesQuery.isStale,
-    isFetching: classesQuery.isFetching || entriesQuery.isFetching,
+    isStale: classesQuery.isStale || currentEntriesQuery.isStale,
+    isFetching: classesQuery.isFetching || currentEntriesQuery.isFetching,
 
     // Statistics
     statistics: statisticsQuery.data,

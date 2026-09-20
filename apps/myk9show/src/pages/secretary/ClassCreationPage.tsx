@@ -29,6 +29,7 @@ import { ClassBatchActions } from '@/components/templates/secretary/ClassBatchAc
 import { FieldOverrideForm } from '@/components/templates/secretary/FieldOverrideForm';
 import { isExpectedEntry } from '@/features/_shared/entryAccounting';
 import { useClassStoreCompat } from '@/hooks/useClassStoreCompat';
+import { useTrialDetailData } from '@/hooks/useTrialDetailData';
 
 interface ClassCreationPageProps {
   trialId?: string;
@@ -58,6 +59,8 @@ export const ClassCreationPage: React.FC<ClassCreationPageProps> = ({ trialId })
     .map(item => item.classDefinition);
 
   const effectiveTrialId = trialId || paramTrialId;
+  const { parentShow } = useTrialDetailData(effectiveTrialId);
+  const entryScopeShowId = showId || parentShow?.id;
   const {
     classes: existingClasses,
     entries: currentEntries,
@@ -65,7 +68,7 @@ export const ClassCreationPage: React.FC<ClassCreationPageProps> = ({ trialId })
     isFetching: entryDataFetching,
     isStale: entryDataStale,
     error: entryDataError,
-  } = useClassStoreCompat();
+  } = useClassStoreCompat(entryScopeShowId);
   const entryCountState = useMemo(() => {
     if (entryDataLoading || entryDataFetching || entryDataStale) {
       return { status: 'loading' as const, count: 0 };

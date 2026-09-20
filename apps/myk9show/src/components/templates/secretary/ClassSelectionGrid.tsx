@@ -21,12 +21,14 @@ import {
   Users,
   DollarSign,
 } from 'lucide-react';
+import { hasCurrentEntryCounts, type EntryCountState } from './entryCountState';
 
 interface ClassSelectionGridProps {
   template: ClassTemplate;
   selectedClasses: ClassDefinition[];
   onSelectionChange: (classes: ClassDefinition[]) => void;
   onPreviewClass?: (classDefinition: ClassDefinition) => void;
+  entryCountState?: EntryCountState | undefined;
 }
 
 export const ClassSelectionGrid: React.FC<ClassSelectionGridProps> = ({
@@ -34,6 +36,7 @@ export const ClassSelectionGrid: React.FC<ClassSelectionGridProps> = ({
   selectedClasses,
   onSelectionChange,
   onPreviewClass,
+  entryCountState = { status: 'unavailable', count: 0 },
 }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [filterElement, setFilterElement] = useState<string>('');
@@ -124,6 +127,7 @@ export const ClassSelectionGrid: React.FC<ClassSelectionGridProps> = ({
 
   const allFilteredSelected =
     filteredClasses.length > 0 && filteredClasses.every(cls => isClassSelected(cls));
+  const showJudgeTimeEstimate = hasCurrentEntryCounts(entryCountState);
 
   return (
     <div className="space-y-6">
@@ -464,7 +468,7 @@ export const ClassSelectionGrid: React.FC<ClassSelectionGridProps> = ({
       </Card>
 
       {/* Selection Summary */}
-      {selectedClasses.length > 0 && (
+      {selectedClasses.length > 0 && showJudgeTimeEstimate && (
         <Card>
           <CardContent className="pt-4">
             <div className="flex items-center justify-between">
@@ -473,8 +477,8 @@ export const ClassSelectionGrid: React.FC<ClassSelectionGridProps> = ({
                   {selectedClasses.length} class{selectedClasses.length !== 1 ? 'es' : ''} selected
                 </span>
                 <div className="text-sm text-muted-foreground">
-                  Estimated judging time:{' '}
-                  {selectedClasses.length * (template.defaults?.judgingTimeEstimate || 15)} minutes
+                  Estimated judging time based on current entries:{' '}
+                  {entryCountState.count * (template.defaults?.judgingTimeEstimate || 15)} minutes
                 </div>
               </div>
               <Button variant="outline" onClick={clearAllSelections}>

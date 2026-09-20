@@ -10,6 +10,7 @@ import { Button } from '@/components/ui/button';
 import { useAuthContext } from '@/hooks/useAuthContext';
 import { useEntriesPersonId } from '@/hooks/useEntriesPersonId';
 import { countUpcomingClassesByDog } from './modules/myEntriesStats.helpers';
+import { deriveMyEntriesDogState } from './modules/myEntriesDogState';
 import { useDogsByOwnerQuery } from '@/hooks/queries/useDogsDatabase';
 import { useReplicationSync } from '@/hooks/useReplicationSync';
 import { ShowTodayBanner } from '@/features/show-today/ShowTodayBanner';
@@ -145,7 +146,22 @@ const MyEntriesPage: React.FC = () => {
 
   const ownerId = useEntriesPersonId() ?? '';
 
-  const { data: dogs = [], isLoading: dogsLoading } = useDogsByOwnerQuery(ownerId, !!ownerId);
+  const {
+    data: dogs = [],
+    isLoading: dogsLoading,
+    isPlaceholderData: dogsIsPlaceholder,
+  } = useDogsByOwnerQuery(ownerId, !!ownerId);
+
+  const {
+    dogs: visibleDogs,
+    hasDogs,
+    currentUserPersonId,
+  } = deriveMyEntriesDogState({
+    ownerId,
+    dogs,
+    isLoading: dogsLoading,
+    isPlaceholderData: dogsIsPlaceholder,
+  });
 
   // Tri-state dog ownership for the first-run zero-state. Resolving it eagerly
   // off `dogs.length` flashes "Add Your First Dog" at an exhibitor who *does*
@@ -155,8 +171,6 @@ const MyEntriesPage: React.FC = () => {
   //   - settled     → the real answer
   // `undefined` is deliberately distinct from `false` so FirstRunZeroState never
   // commits to the no-dogs branch before ownership is known.
-  const hasDogs: boolean | undefined = !ownerId ? false : dogsLoading ? undefined : dogs.length > 0;
-
   const upcomingClassCountByDog = useMemo(() => countUpcomingClassesByDog(entries), [entries]);
 
   const isInitialEntriesSyncing =
@@ -387,7 +401,7 @@ const MyEntriesPage: React.FC = () => {
                     hasPastBalance={balanceSummary.onlineShowBalances.some(show => show.isPastShow)}
                     currentFeesHref={currentFeesHref}
                     onNavigate={navigate}
-                    dogs={(dogs ?? []) as OverviewDog[]}
+                    dogs={visibleDogs as OverviewDog[]}
                     upcomingClassCountByDog={upcomingClassCountByDog}
                     onAddDog={dialogs.openAddDog}
                   />
@@ -543,7 +557,7 @@ const MyEntriesPage: React.FC = () => {
         onResultRevealSeen={reveal.markSeen}
         addDogOpen={dialogs.addDogOpen}
         onCloseAddDog={dialogs.closeAddDog}
-        currentUserPersonId={ownerId || undefined}
+        currentUserPersonId={currentUserPersonId}
       />
     </>
   );

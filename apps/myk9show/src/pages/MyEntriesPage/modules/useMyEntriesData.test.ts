@@ -100,6 +100,8 @@ describe('useMyEntriesData — entry_close_date is a calendar date, not an insta
       user: { id: 'user-1', email: 'exhibitor@test.com' },
       userWithRoles: { databaseUserId: 'person-1' },
       personId: 'person-1',
+      personIdentityState: 'resolved',
+      hasUsablePersonId: true,
       isAuthenticated: true,
     });
   });
@@ -144,6 +146,8 @@ describe('useMyEntriesData — trial timezone lands on the class row', () => {
       user: { id: 'user-1', email: 'exhibitor@test.com' },
       userWithRoles: { databaseUserId: 'person-1' },
       personId: 'person-1',
+      personIdentityState: 'resolved',
+      hasUsablePersonId: true,
       isAuthenticated: true,
     });
   });
@@ -188,6 +192,8 @@ describe('useMyEntriesData — move-up lineage reaches card-level money math', (
       user: { id: 'user-1', email: 'exhibitor@test.com' },
       userWithRoles: { databaseUserId: 'person-1' },
       personId: 'person-1',
+      personIdentityState: 'resolved',
+      hasUsablePersonId: true,
       isAuthenticated: true,
     });
   });
@@ -214,6 +220,8 @@ describe('useMyEntriesData — a failed reload must not discard loaded entries',
       user: { id: 'user-1', email: 'exhibitor@test.com' },
       userWithRoles: { databaseUserId: 'person-1' },
       personId: 'person-1',
+      personIdentityState: 'resolved',
+      hasUsablePersonId: true,
       isAuthenticated: true,
     });
   });
@@ -338,6 +346,8 @@ describe('useMyEntriesData — preserved entries must not cross an identity chan
       user: { id: 'user-A', email: 'a@test.com' },
       userWithRoles: { databaseUserId: 'person-A' },
       personId: 'person-A',
+      personIdentityState: 'resolved',
+      hasUsablePersonId: true,
       isAuthenticated: true,
     });
   });
@@ -362,6 +372,8 @@ describe('useMyEntriesData — preserved entries must not cross an identity chan
       user: { id: 'user-B', email: 'b@test.com' },
       userWithRoles: { databaseUserId: 'person-B' },
       personId: 'person-B',
+      personIdentityState: 'resolved',
+      hasUsablePersonId: true,
       isAuthenticated: true,
     });
     (getUserEntries as ReturnType<typeof vi.fn>).mockResolvedValue({
@@ -445,6 +457,8 @@ describe('useMyEntriesData — preserved entries must not cross an identity chan
       user: { id: 'user-B', email: 'b@test.com' },
       userWithRoles: { databaseUserId: 'person-B' },
       personId: 'person-B',
+      personIdentityState: 'resolved',
+      hasUsablePersonId: true,
       isAuthenticated: true,
     });
     act(() => rerender());

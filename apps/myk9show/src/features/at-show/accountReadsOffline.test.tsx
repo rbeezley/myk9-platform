@@ -11,11 +11,10 @@
  * WHAT THIS GUARANTEES, PRECISELY: the fallback is reachable offline *once
  * identity has resolved*. It is not reachable before that, and these tests pin
  * that boundary rather than papering over it — see the last case. All four
- * hooks are gated on `personId`, which comes from the AuthContext `people`
- * lookup: a plain network query that pauses offline (`entriesIdentityState.ts`,
- * LESSONS `offline-identity-pairing`). On a cold offline boot the identity
- * never arrives, the queries stay disabled, and no `networkMode` can help.
- * Making identity itself offline-durable is a separate piece of work.
+ * hooks are gated on `personId`, which comes from AuthContext's durable
+ * account-person pairing. On a cold offline boot without a cached pairing the
+ * identity remains unresolved, the queries stay disabled, and no `networkMode`
+ * can help.
  *
  * The assertion is deliberately about the CALL happening offline, not about the
  * rows: a test that only checked rows would pass with the query paused and a
@@ -30,20 +29,18 @@ import { useExhibitorUpcomingShows } from './useExhibitorUpcomingShows';
 import { useAccountEnteredShowIds } from '@/hooks/queries/useAccountEnteredShowIds';
 import { useMyEntryBalanceSummary } from '@/features/payments/useMyEntryBalanceSummary';
 import { getUserEntries } from '@/services/database/entries';
-import { useCurrentUserPersonId } from '@/hooks/useRoleBasedData';
 import { useAuthContext } from '@/hooks/useAuthContext';
 
 vi.mock('@/services/database/entries', () => ({
   getUserEntries: vi.fn(),
-}));
-vi.mock('@/hooks/useRoleBasedData', () => ({
-  useCurrentUserPersonId: vi.fn(),
 }));
 vi.mock('@/hooks/useAuthContext', () => ({
   useAuthContext: vi.fn(),
 }));
 
 const SHOW_ID = 'show-heartland';
+const PERSON_A = 'person-A';
+const PERSON_B = 'person-B';
 
 /** What the replica fallback hands back when the view is unreachable. */
 const replicaRows = [
@@ -65,7 +62,15 @@ const replicaRows = [
 // One client for the whole file, created once. Building it inside the wrapper
 // component made a NEW client on every render, which silently discards the
 // in-flight query and its cache between renders.
-const queryClient = new QueryClient();
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      // Match the app-wide client. The four account-entry hooks must opt out
+      // locally so an identity switch cannot reuse this previous-data value.
+      placeholderData: (previousData: unknown) => previousData,
+    },
+  },
+});
 
 function wrapper({ children }: { children: ReactNode }) {
   return <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>;
@@ -74,10 +79,12 @@ function wrapper({ children }: { children: ReactNode }) {
 beforeEach(() => {
   vi.clearAllMocks();
   queryClient.clear();
-  (useCurrentUserPersonId as ReturnType<typeof vi.fn>).mockReturnValue('person-1');
   (useAuthContext as ReturnType<typeof vi.fn>).mockReturnValue({
     user: { id: 'user-1' },
     userWithRoles: { databaseUserId: 'person-1' },
+    personId: 'person-1',
+    personIdentityState: 'resolved',
+    hasUsablePersonId: true,
     isAuthenticated: true,
   });
   (getUserEntries as ReturnType<typeof vi.fn>).mockResolvedValue({
@@ -152,16 +159,77 @@ describe('account reads while offline, with identity resolved (MYK9-536)', () =>
     expect(result.current.data?.kind).toBe('known');
     expect(result.current.data?.amountDueCents).toBe(3000);
   });
+
+  it('does not carry account A rows, membership, or balance into account B', async () => {
+    let activePersonId = PERSON_A;
+    let resolveAccountB!: (value: {
+      data: typeof replicaRows;
+      error: null;
+      source: 'confirmed';
+    }) => void;
+    const accountBRead = new Promise<{
+      data: typeof replicaRows;
+      error: null;
+      source: 'confirmed';
+    }>(resolve => {
+      resolveAccountB = resolve;
+    });
+
+    (useAuthContext as ReturnType<typeof vi.fn>).mockImplementation(() => ({
+      user: { id: activePersonId === PERSON_A ? 'user-A' : 'user-B' },
+      userWithRoles: {},
+      personId: activePersonId,
+      personIdentityState: 'resolved',
+      hasUsablePersonId: true,
+      isAuthenticated: true,
+    }));
+    (getUserEntries as ReturnType<typeof vi.fn>).mockImplementation((personId: string) =>
+      personId === PERSON_A
+        ? Promise.resolve({ data: replicaRows, error: null, source: 'confirmed' })
+        : accountBRead
+    );
+
+    const anyEntry = renderHook(() => useHasAnyEntryForShow(SHOW_ID), { wrapper });
+    const upcoming = renderHook(() => useExhibitorUpcomingShows(), { wrapper });
+    const entered = renderHook(() => useAccountEnteredShowIds(activePersonId), { wrapper });
+    const balance = renderHook(() => useMyEntryBalanceSummary(), { wrapper });
+
+    await waitFor(() => expect(anyEntry.result.current.hasAnyEntryForShow).toBe(true));
+    await waitFor(() => expect(upcoming.result.current.upcomingShows).toHaveLength(1));
+    await waitFor(() => expect(entered.result.current.all).toContain(SHOW_ID));
+    await waitFor(() => expect(balance.result.current.data?.amountDueCents).toBe(3000));
+
+    activePersonId = PERSON_B;
+    anyEntry.rerender();
+    upcoming.rerender();
+    entered.rerender();
+    balance.rerender();
+
+    // The B read is deliberately unresolved. These assertions are synchronous
+    // proof that no A value is available as a placeholder during the switch.
+    expect(anyEntry.result.current.hasAnyEntryForShow).toBe(false);
+    expect(upcoming.result.current.upcomingShows).toEqual([]);
+    expect(entered.result.current.all).toEqual([]);
+    expect(balance.result.current.data).toBeUndefined();
+
+    resolveAccountB({ data: [], error: null, source: 'confirmed' });
+    await waitFor(() => expect(balance.result.current.data?.amountDueCents).toBe(0));
+    expect(anyEntry.result.current.hasAnyEntryForShow).toBe(false);
+    expect(upcoming.result.current.upcomingShows).toEqual([]);
+    expect(entered.result.current.all).toEqual([]);
+  });
 });
 
 describe('account reads on a COLD offline boot, identity unresolved', () => {
   beforeEach(() => {
     // The `people` lookup that resolves `personId` is itself a network query and
     // pauses offline, so on a cold boot it never answers.
-    (useCurrentUserPersonId as ReturnType<typeof vi.fn>).mockReturnValue(null);
     (useAuthContext as ReturnType<typeof vi.fn>).mockReturnValue({
       user: { id: 'user-1' },
       userWithRoles: {},
+      personId: null,
+      personIdentityState: 'unresolved',
+      hasUsablePersonId: false,
       isAuthenticated: true,
     });
   });

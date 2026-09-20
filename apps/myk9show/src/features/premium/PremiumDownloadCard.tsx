@@ -99,7 +99,7 @@ export function PremiumDownloadCard({
           disabled={isBusy || action.disabledReason !== undefined}
         />
       )}
-      {infoState !== 'ready' || !hasPublishedPremium ? (
+      {!hasPublishedPremium ? (
         <>
           <div className="bg-muted text-muted-foreground rounded-md p-3">
             <FileText className="h-6 w-6" />

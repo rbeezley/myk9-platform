@@ -301,6 +301,19 @@ describe('ShowManagementShell', () => {
 
     renderShell();
 
+    expect(screen.getByRole('status', { name: /loading content/i })).toBeInTheDocument();
+    expect(screen.queryByTestId('premium-download-card')).toBeNull();
+    expect(screen.queryByTestId('detail-hero')).toBeNull();
+  });
+
+  it('surfaces a retryable degraded state when management scope is unavailable', () => {
+    manageScope.status = 'unavailable';
+    manageScope.canManage = false;
+
+    renderShell();
+
+    expect(screen.getByRole('alert')).toHaveTextContent("We couldn't verify show access.");
+    expect(screen.getByRole('button', { name: /try again/i })).toBeInTheDocument();
     expect(screen.queryByTestId('premium-download-card')).toBeNull();
     expect(screen.queryByTestId('detail-hero')).toBeNull();
   });
@@ -320,6 +333,7 @@ describe('ShowManagementShell', () => {
 
     manageScope.status = 'resolving';
     view.rerenderShell();
+    expect(screen.getByRole('status', { name: /loading content/i })).toBeInTheDocument();
     expect(screen.queryByTestId('premium-download-card')).toBeNull();
 
     manageScope.status = 'resolved';

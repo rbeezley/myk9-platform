@@ -113,6 +113,39 @@ describe('PremiumDownloadCard', () => {
     }
   });
 
+  it('keeps an authorized cached download visible while publishing is paused offline', async () => {
+    const queryClient = createTestQueryClient();
+    queryClient.setQueryData(
+      publishInfoQueryKey('show-1'),
+      {
+        publishedUrl: 'https://example.test/cached-premium.pdf',
+        publishedAt: '2026-05-09T12:00:00.000Z',
+        updatedAt: '2026-05-09T12:00:00.000Z',
+        experienceIsPublished: true,
+      },
+      { updatedAt: 0 }
+    );
+
+    onlineManager.setOnline(false);
+    try {
+      renderCard(false, 'show-1', true, queryClient);
+      void queryClient.refetchQueries({ queryKey: publishInfoQueryKey('show-1') });
+
+      expect(screen.getByRole('link', { name: /download pdf/i })).toHaveAttribute(
+        'href',
+        'https://example.test/cached-premium.pdf'
+      );
+      await waitFor(() =>
+        expect(
+          screen.getAllByText("You're offline — publishing needs a connection").length
+        ).toBeGreaterThan(0)
+      );
+      expect(screen.getByRole('button', { name: /publish/i })).toBeDisabled();
+    } finally {
+      onlineManager.setOnline(true);
+    }
+  });
+
   it('shows the loading reason while the online publish read is pending', () => {
     maybeSingleMock.mockReturnValue(new Promise(() => {}));
 

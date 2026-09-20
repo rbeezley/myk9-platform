@@ -5,6 +5,8 @@ import { Button } from '@/components/ui/button';
 import { PageShell } from '@/components/common/PageShell';
 import { PageHeader } from '@/components/common/PageHeader';
 import { DetailHero } from '@/components/common/DetailHero';
+import { ErrorState } from '@/components/common/ErrorState';
+import { LoadingSkeleton } from '@/components/common/LoadingSkeleton';
 import { ShowDateBlock } from '@/components/shows/ShowDateBlock';
 import { ShowStatusPill } from '@/components/shows/ShowStatusPill';
 import { QuickInfoCards } from '@/components/shows/overview/QuickInfoCards';
@@ -121,8 +123,32 @@ type AuthorizedShowManagementShellProps = ShowManagementShellProps & {
  */
 export function ShowManagementShell(props: ShowManagementShellProps) {
   const manageScope = useShowManageScope(props.show.id);
+  const queryClient = useQueryClient();
 
-  if (manageScope.status !== 'resolved' || !manageScope.canManage) return null;
+  if (manageScope.status === 'resolving') {
+    return (
+      <PageShell>
+        <LoadingSkeleton variant="cards" count={3} heading="Checking show access" />
+      </PageShell>
+    );
+  }
+
+  if (manageScope.status === 'unavailable') {
+    return (
+      <PageShell>
+        <ErrorState
+          message="We couldn't verify show access."
+          description="The management view is paused until show access can be confirmed."
+          onRetry={() => {
+            void queryClient.invalidateQueries({ queryKey: showQueryKeys.detail(props.show.id) });
+          }}
+          headingLevel={1}
+        />
+      </PageShell>
+    );
+  }
+
+  if (!manageScope.canManage) return null;
 
   return <AuthorizedShowManagementShell {...props} canManageShow={manageScope.canManage} />;
 }

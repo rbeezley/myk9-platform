@@ -19,7 +19,6 @@ Premium publishing stays disabled forever offline, gives touch users no visible 
 
 ### Modified Capabilities
 
-
 ## Impact
 
 - Premium publish derivation, query enablement, download card, current show actions, and focused hook/render tests.

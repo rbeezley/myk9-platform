@@ -49,6 +49,25 @@ function selectDog(page: Page, name: string) {
   return page.getByRole('checkbox', { name: new RegExp(`^Select ${name}$`, 'i') });
 }
 
+function dogSearchRow(id: string, name: string) {
+  return {
+    id,
+    name,
+    call_name: name,
+    owner_id: `owner-${id}`,
+    status: 'active',
+    deleted_at: null,
+    owner: {
+      id: `owner-${id}`,
+      first_name: 'Test',
+      last_name: 'Owner',
+      email: `${id}@example.test`,
+      phone: null,
+    },
+    registrations: [],
+  };
+}
+
 test.describe('Secretary registration for existing users', () => {
   test.beforeEach(async ({ page }) => {
     // MYK9-545: this spec now really selects dogs, where before its text click
@@ -73,6 +92,63 @@ test.describe('Secretary registration for existing users', () => {
     await selectDog(page, PRIMARY_DOG).click();
     await expect(page.getByText(/1 selected/).first()).toBeVisible({ timeout: 5000 });
     await expect(page.getByRole('button', { name: /^Next/ })).toBeEnabled();
+  });
+
+  test('keeps newer filtered rows when an older dog search response arrives last', async ({
+    page,
+  }) => {
+    let resolveOldStarted!: () => void;
+    let resolveNewStarted!: () => void;
+    let releaseOldResponse!: () => void;
+    const oldStarted = new Promise<void>(resolve => {
+      resolveOldStarted = resolve;
+    });
+    const newStarted = new Promise<void>(resolve => {
+      resolveNewStarted = resolve;
+    });
+    const oldResponseReleased = new Promise<void>(resolve => {
+      releaseOldResponse = resolve;
+    });
+
+    await page.route('**/rest/v1/dogs**', async route => {
+      const url = decodeURIComponent(route.request().url()).toLowerCase();
+      if (!url.includes('or=')) {
+        await route.continue();
+        return;
+      }
+      if (url.includes('old')) {
+        resolveOldStarted();
+        await oldResponseReleased;
+        await route.fulfill({
+          status: 200,
+          contentType: 'application/json',
+          body: JSON.stringify([dogSearchRow('old-dog', 'Old Dog')]),
+        });
+        return;
+      }
+      if (url.includes('new')) {
+        resolveNewStarted();
+        await route.fulfill({
+          status: 200,
+          contentType: 'application/json',
+          body: JSON.stringify([dogSearchRow('new-dog', 'New Dog')]),
+        });
+        return;
+      }
+      await route.continue();
+    });
+
+    const search = page.getByPlaceholder(/Search all dogs/i);
+    await search.fill('Old');
+    await oldStarted;
+
+    await search.fill('New');
+    await newStarted;
+    await expect(selectDog(page, 'New Dog')).toBeVisible({ timeout: 10000 });
+
+    releaseOldResponse();
+    await expect(selectDog(page, 'New Dog')).toBeVisible();
+    await expect(selectDog(page, 'Old Dog')).not.toBeVisible();
   });
 
   test('blocks existing-user carts that span multiple exhibitors', async ({ page }) => {

@@ -56,6 +56,21 @@ vi.mock('@/hooks/useAuthContext', () => ({
   useAuthContext: () => mockAuthContext,
 }));
 
+vi.mock('@/hooks/useShowManageScope', () => ({
+  useShowManageScope: () => {
+    const rolesCold = mockAuthContext.rbacLoading && !mockAuthContext.userWithRoles;
+    const isClubAdmin = mockAuthContext.hasRole('club_admin');
+    const canManage = mockAuthContext.isSecretary || mockAuthContext.isAdmin || isClubAdmin;
+    return {
+      status: rolesCold ? 'resolving' : 'resolved',
+      canManage,
+      canOperate: canManage && (mockAuthContext.isSecretary || mockAuthContext.isAdmin),
+      hasOperationalStaffRole: mockAuthContext.isSecretary || mockAuthContext.isAdmin,
+      clubId: canManage ? 'club-1' : undefined,
+    };
+  },
+}));
+
 // Mock show query
 let mockShow: Record<string, unknown> | null = {
   id: 'show-1',

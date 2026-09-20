@@ -35,8 +35,11 @@ export function usePublishInfo(showId: string | undefined, canManageShow: boolea
   return useQuery({
     queryKey: publishInfoQueryKey(showId ?? ''),
     queryFn: () => fetchPublishInfo(showId!),
-<<<<<<< HEAD
     enabled: !!showId && canManageShow,
+    // A disabled observer can still expose cached data for its key. Mask the
+    // result until the show-management scope is resolved so a transition from
+    // manager to non-manager cannot render the previous management state.
+    select: data => (canManageShow ? data : undefined),
     // Publish state is show-scoped. The app-wide previous-data placeholder can
     // otherwise make show B render show A's publish state for one frame.
     placeholderData: () => undefined,

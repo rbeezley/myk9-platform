@@ -34,23 +34,28 @@ export function usePremiumPublishControl(
   canManageShow: boolean
 ): PremiumPublishControl {
   const query = usePublishInfo(showId, canManageShow);
+  // Disabled React Query observers can retain cached data. Never derive a
+  // management action or published-state label from it until this render has
+  // a resolved management scope.
+  const info = canManageShow ? query.data : undefined;
   const flow = useGenerateAndPublishPremium(showId);
 
-  const infoState: PublishInfoState =
-    query.fetchStatus === 'paused'
+  const infoState: PublishInfoState = !canManageShow
+    ? 'loading'
+    : query.fetchStatus === 'paused'
       ? 'offline'
       : query.isError
         ? 'unavailable'
-        : query.data === undefined
+        : info === undefined
           ? 'loading'
           : 'ready';
 
   const facts = derivePremiumPublish({
-    info: query.data,
+    info,
     infoState,
     isBusy: flow.isBusy,
     showStaleBadge,
   });
 
-  return { ...facts, ...flow, info: query.data, infoState };
+  return { ...facts, ...flow, info, infoState };
 }

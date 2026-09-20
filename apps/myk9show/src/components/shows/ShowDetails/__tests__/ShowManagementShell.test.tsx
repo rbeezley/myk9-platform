@@ -165,7 +165,7 @@ function renderShell(
 ) {
   const props = shellProps(overrides);
   const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
-  render(
+  const renderTree = () => (
     <QueryClientProvider client={qc}>
       <MemoryRouter initialEntries={[initialRoute]}>
         {extra}
@@ -186,7 +186,8 @@ function renderShell(
       </MemoryRouter>
     </QueryClientProvider>
   );
-  return props;
+  const view = render(renderTree());
+  return { ...view, props, rerenderShell: () => view.rerender(renderTree()) };
 }
 
 beforeEach(() => {
@@ -294,25 +295,41 @@ describe('ShowManagementShell', () => {
     expect(screen.getByTestId('landing-page-card')).toBeInTheDocument();
   });
 
-  it('keeps premium reads disabled until the management scope resolves', () => {
+  it('structurally unmounts management UI until the management scope resolves', () => {
     manageScope.status = 'resolving';
     manageScope.canManage = false;
 
     renderShell();
 
-    expect(screen.getByTestId('premium-download-card')).toHaveAttribute('data-can-manage', 'false');
+    expect(screen.queryByTestId('premium-download-card')).toBeNull();
+    expect(screen.queryByTestId('detail-hero')).toBeNull();
   });
 
-  it('keeps the Show Desk publish read disabled in the same unresolved window', () => {
+  it('structurally unmounts Show Desk management UI in the unresolved window', () => {
     manageScope.status = 'resolving';
     manageScope.canManage = false;
 
     renderShell({ activeManagementSection: 'show-day' }, '/shows/show-1/show-day');
 
-    expect(screen.getByTestId('show-desk-compact-context')).toHaveAttribute(
-      'data-can-manage',
-      'false'
-    );
+    expect(screen.queryByTestId('show-desk-compact-context')).toBeNull();
+    expect(screen.queryByTestId('detail-hero')).toBeNull();
+  });
+
+  it('does not flash cached management content across scope transitions', () => {
+    const view = renderShell();
+
+    manageScope.status = 'resolving';
+    view.rerenderShell();
+    expect(screen.queryByTestId('premium-download-card')).toBeNull();
+
+    manageScope.status = 'resolved';
+    manageScope.canManage = false;
+    view.rerenderShell();
+    expect(screen.queryByTestId('premium-download-card')).toBeNull();
+
+    manageScope.canManage = true;
+    view.rerenderShell();
+    expect(screen.getByTestId('premium-download-card')).toHaveAttribute('data-can-manage', 'true');
   });
 
   it.each(['reports', 'results', 'entries', 'setup'] as const)(

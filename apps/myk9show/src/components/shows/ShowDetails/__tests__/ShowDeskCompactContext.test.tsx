@@ -22,7 +22,9 @@ const mocks = vi.hoisted(() => ({
 }));
 
 vi.mock('@/features/premium/usePublishInfo', () => ({
-  usePublishInfo: () => ({ data: mocks.publishInfo }),
+  usePublishInfo: (_showId: string, canManageShow: boolean) => ({
+    data: canManageShow ? mocks.publishInfo : undefined,
+  }),
 }));
 vi.mock('@/hooks/useGlobalSyncStatus', () => ({
   useGlobalSyncStatus: () => mocks.sync,
@@ -98,6 +100,20 @@ describe('ShowDeskCompactContext', () => {
       'href',
       '/shows/show-1#setup-publish'
     );
+  });
+
+  it('does not expose cached publish state while management scope is denied', () => {
+    render(
+      <ShowDeskCompactContext
+        show={show}
+        canonicalShowHref="/shows/show-1"
+        armbandCount={0}
+        canManageShow={false}
+      />
+    );
+
+    expect(screen.queryByText('Premium list is not published')).toBeNull();
+    expect(screen.queryByText(/show data changed after publish/i)).toBeNull();
   });
 
   it('uses calm, truthful offline and pending-save wording', () => {

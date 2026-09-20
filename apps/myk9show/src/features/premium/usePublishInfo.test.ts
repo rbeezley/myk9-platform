@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const mockUseQuery = vi.fn();
 
@@ -16,8 +16,12 @@ vi.mock('@/services/database/supabaseClient', () => ({
 import { usePublishInfo } from './usePublishInfo';
 
 describe('usePublishInfo', () => {
+  beforeEach(() => {
+    mockUseQuery.mockClear();
+  });
+
   it("does not carry another show's publish state across a show navigation", () => {
-    usePublishInfo('show-b');
+    usePublishInfo('show-b', true);
 
     const options = mockUseQuery.mock.calls[0]?.[0] as {
       placeholderData?: (previous: unknown) => unknown;
@@ -27,5 +31,31 @@ describe('usePublishInfo', () => {
     expect(options.placeholderData?.({ publishedUrl: 'https://show-a.test/premium.pdf' })).toBe(
       undefined
     );
+  });
+
+  it('masks cached publish state until management scope is allowed', () => {
+    usePublishInfo('show-b', false);
+
+    const options = mockUseQuery.mock.calls[0]?.[0] as {
+      enabled?: boolean;
+      select?: (data: unknown) => unknown;
+    };
+    const cachedInfo = { publishedUrl: 'https://show-a.test/premium.pdf' };
+
+    expect(options.enabled).toBe(false);
+    expect(options.select?.(cachedInfo)).toBeUndefined();
+  });
+
+  it('restores cached publish state only after management scope resolves', () => {
+    usePublishInfo('show-b', true);
+
+    const options = mockUseQuery.mock.calls[0]?.[0] as {
+      enabled?: boolean;
+      select?: (data: unknown) => unknown;
+    };
+    const cachedInfo = { publishedUrl: 'https://show-b.test/premium.pdf' };
+
+    expect(options.enabled).toBe(true);
+    expect(options.select?.(cachedInfo)).toBe(cachedInfo);
   });
 });

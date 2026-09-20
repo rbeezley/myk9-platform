@@ -109,7 +109,29 @@ export interface ShowManagementShellProps {
  * edit/delete dialogs and the save pipeline. Presence UI relies on the
  * ShowPresenceProvider the router wraps this shell in.
  */
-export function ShowManagementShell({
+type AuthorizedShowManagementShellProps = ShowManagementShellProps & {
+  canManageShow: boolean;
+};
+
+/**
+ * Keep the management tree structurally absent until the canonical ownership
+ * answer is final. In particular, a disabled publish query may still have
+ * cached data, so passing a false flag into mounted management children is not
+ * enough to prevent stale controls from flashing during auth transitions.
+ */
+export function ShowManagementShell(props: ShowManagementShellProps) {
+  const manageScope = useShowManageScope(props.show.id);
+
+  if (manageScope.status !== 'resolved' || !manageScope.canManage) return null;
+
+  return <AuthorizedShowManagementShell {...props} canManageShow={manageScope.canManage} />;
+}
+
+// The shell owns several independent route/layout branches; keep the
+// authorization gate above structural while documenting the existing branch
+// complexity here rather than weakening the shared lint threshold.
+// eslint-disable-next-line complexity
+function AuthorizedShowManagementShell({
   show,
   showId,
   breadcrumbs,
@@ -121,13 +143,12 @@ export function ShowManagementShell({
   sectionTabs,
   entryDataState = 'ready',
   onRetryEntryData,
-}: ShowManagementShellProps) {
+  canManageShow,
+}: AuthorizedShowManagementShellProps) {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [searchParams, setSearchParams] = useSearchParams();
   const updateShowLocally = useShowStore(s => s.updateShow);
-  const manageScope = useShowManageScope(show.id);
-  const canPublishPremium = manageScope.status === 'resolved' && manageScope.canManage;
   // Read from the ROUTER's params, not `window.location`: this shell is mounted
   // by the router, and an in-app navigation that never touches `window.location`
   // must be seen the same way a cold load is. Captured in a `useState`
@@ -151,7 +172,7 @@ export function ShowManagementShell({
       searchParams.delete(SHOW_EDIT_TAB_PARAM);
       setSearchParams(searchParams, { replace: true });
     }
-  }, [editParam]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [editParam]);
 
   // Reopening from an edit link should start on Basic Info, not on whatever tab
   // a deep link once asked for -- the deep link is a one-shot instruction, not
@@ -205,7 +226,7 @@ export function ShowManagementShell({
             show={show}
             canonicalShowHref={canonicalShowHref}
             armbandCount={armbandCount}
-            canManageShow={canPublishPremium}
+            canManageShow={canManageShow}
           />
         ) : (
           <>
@@ -242,7 +263,7 @@ export function ShowManagementShell({
               footer={
                 <QuickInfoCards
                   show={show}
-                  canManageShow={true}
+                  canManageShow={canManageShow}
                   entryCount={entryDataUnavailable ? null : catalogEntryCount}
                 />
               }
@@ -293,7 +314,7 @@ export function ShowManagementShell({
             <PremiumDownloadCard
               showId={show.id}
               showStaleBadge={true}
-              canManageShow={canPublishPremium}
+              canManageShow={canManageShow}
             />
             <LandingPageCard showId={show.id} showStyle={getShowStyle(show)} />
           </div>
@@ -318,7 +339,7 @@ export function ShowManagementShell({
                 <ShowOverviewTab
                   show={show}
                   isAuthenticated={true}
-                  canManageShow={true}
+                  canManageShow={canManageShow}
                   judges={tabs.judges}
                   classes={tabs.classes}
                   onViewClasses={() => navigate(`${canonicalShowHref}/setup?section=classes`)}

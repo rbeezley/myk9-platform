@@ -4,6 +4,7 @@ import { onlineManager, QueryClient } from '@tanstack/react-query';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { usePremiumPublishStore } from '../useGenerateAndPublishPremium';
 import { PremiumDownloadCard } from '../PremiumDownloadCard';
+import { publishInfoQueryKey } from '../usePublishInfo';
 
 const maybeSingleMock = vi.hoisted(() => vi.fn());
 const generateMock = vi.hoisted(() => vi.fn());
@@ -162,6 +163,30 @@ describe('PremiumDownloadCard', () => {
 
     expect(screen.getAllByText('Checking the premium’s publish state…')).toHaveLength(2);
     expect(screen.queryByText(/premium pdf published may 9, 2026/i)).not.toBeInTheDocument();
+  });
+
+  it('hides cached management state while scope is unresolved, then restores it when allowed', async () => {
+    const queryClient = createPlaceholderQueryClient();
+    queryClient.setQueryData(publishInfoQueryKey('show-a'), {
+      publishedUrl: 'https://example.test/show-a.pdf',
+      publishedAt: '2026-05-09T12:00:00.000Z',
+      updatedAt: '2026-05-09T12:00:00.000Z',
+      experienceIsPublished: true,
+    });
+
+    const view = renderCard(false, 'show-a', false, queryClient);
+
+    expect(screen.queryByRole('link', { name: /download pdf/i })).toBeNull();
+    expect(screen.getAllByText('Checking the premium’s publish state…')).toHaveLength(2);
+
+    view.rerender(
+      <PremiumDownloadCard showId="show-a" showStaleBadge={false} canManageShow={true} />
+    );
+
+    expect(await screen.findByRole('link', { name: /download pdf/i })).toHaveAttribute(
+      'href',
+      'https://example.test/show-a.pdf'
+    );
   });
 
   it('opens published premium lists in a new tab', async () => {

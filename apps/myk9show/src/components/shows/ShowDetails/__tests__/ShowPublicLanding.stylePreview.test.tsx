@@ -37,9 +37,7 @@ function makeTrial(id: string): Trial {
   return { id } as unknown as Trial;
 }
 
-function renderPreview(
-  overrides: Partial<React.ComponentProps<typeof ShowPublicLanding>> = {}
-) {
+function renderPreview(overrides: Partial<React.ComponentProps<typeof ShowPublicLanding>> = {}) {
   return render(
     <ShowPublicLanding
       show={makeShow()}

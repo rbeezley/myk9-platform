@@ -81,9 +81,7 @@ export function ShowPublicLanding({
     setEntitlementError(false);
   }, [persistedStyle, show.id, styleEditorEnabled]);
 
-  const previewStyle = styleEditorEnabled
-    ? (pendingStyle ?? committedStyle)
-    : persistedStyle;
+  const previewStyle = styleEditorEnabled ? (pendingStyle ?? committedStyle) : persistedStyle;
   const previewLandingShow = useMemo(
     () => ({ ...publicLandingShow, style: previewStyle }),
     [previewStyle, publicLandingShow]

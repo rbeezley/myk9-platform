@@ -7,7 +7,11 @@ import { useUrlTab } from '@/hooks/useUrlTab';
 import { resolveOverviewJudgesWithRoster } from '@/components/shows/overview/overviewJudges';
 import { type TrialStats } from '@/components/shows/tabs/TrialsTab';
 import type { ShowJudgeAssignment } from '@/types/judge-types';
-import { showQueryKeys, useShowsQuery, useUpdateShowMutation } from '@/hooks/queries/useShowsDatabase';
+import {
+  showQueryKeys,
+  useShowsQuery,
+  useUpdateShowMutation,
+} from '@/hooks/queries/useShowsDatabase';
 import { useFastShowDetails } from '@/hooks/useFastShowDetails';
 import { useShowLandingData } from '@/hooks/useShowLandingData';
 import { useNavigationPerformance } from '@/hooks/useNavigationPerformance';

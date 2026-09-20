@@ -1045,9 +1045,9 @@ describe('ShowDetailsPage', () => {
     expect(queryClient.getQueryData(['shows', 'detail', 'show-1'])).toMatchObject({
       style: 'heritage',
     });
-    expect(queryClient.getQueryData<Array<{ id: string; style?: string }>>(['shows', 'list'])).toEqual(
-      [expect.objectContaining({ id: 'show-1', style: 'heritage' })]
-    );
+    expect(
+      queryClient.getQueryData<Array<{ id: string; style?: string }>>(['shows', 'list'])
+    ).toEqual([expect.objectContaining({ id: 'show-1', style: 'heritage' })]);
   });
 
   it('publishes experience after saving draft show changes when requested', async () => {

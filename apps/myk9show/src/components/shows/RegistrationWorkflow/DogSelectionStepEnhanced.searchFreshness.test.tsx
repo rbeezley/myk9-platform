@@ -169,6 +169,35 @@ describe('DogSelectionStepEnhanced search freshness', () => {
     expect(screen.queryByRole('checkbox', { name: 'Select Old Dog' })).not.toBeInTheDocument();
   });
 
+  it('keeps the controlled query in the input and chip when selected dogs change', async () => {
+    mockSearchAllDogs.mockResolvedValue({
+      data: [dog('old-dog', 'Old Dog')],
+      error: null,
+      hitLimit: false,
+    });
+
+    const onSelectionChange = vi.fn();
+    const view = render(
+      <DogSelectionStepEnhanced selectedDogs={[]} onSelectionChange={onSelectionChange} />
+    );
+    typeSearch('old');
+    await waitFor(
+      () => expect(mockSearchAllDogs.mock.calls.some(call => call[0] === 'old')).toBe(true),
+      { timeout: 1500 }
+    );
+    expect(await screen.findByRole('checkbox', { name: 'Select Old Dog' })).toBeInTheDocument();
+    expect(screen.getByPlaceholderText(/Search all dogs/i)).toHaveValue('old');
+    expect(screen.getByText('Search: "old"')).toBeInTheDocument();
+
+    view.rerender(
+      <DogSelectionStepEnhanced selectedDogs={['old-dog']} onSelectionChange={onSelectionChange} />
+    );
+
+    expect(screen.getByPlaceholderText(/Search all dogs/i)).toHaveValue('old');
+    expect(screen.getByText('Search: "old"')).toBeInTheDocument();
+    expect(screen.getByRole('checkbox', { name: 'Select Old Dog' })).toBeChecked();
+  });
+
   it('clears filtered rows immediately when the search is cleared', async () => {
     mockSearchAllDogs.mockResolvedValue({
       data: [dog('old-dog', 'Old Dog')],
@@ -189,6 +218,7 @@ describe('DogSelectionStepEnhanced search freshness', () => {
     typeSearch('');
 
     expect(screen.queryByRole('checkbox', { name: 'Select Old Dog' })).not.toBeInTheDocument();
+    expect(screen.queryByText('Search: "old"')).not.toBeInTheDocument();
   });
 
   it('does not surface a superseded request cancellation as a search error', async () => {

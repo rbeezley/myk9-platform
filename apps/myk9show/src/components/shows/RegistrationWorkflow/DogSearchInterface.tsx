@@ -57,14 +57,22 @@ export const DogSearchInterface: React.FC<DogSearchInterfaceProps> = ({
   const searchInputRef = useRef<HTMLInputElement>(null);
 
   // The parent owns this value when the picker is backed by a server search.
-  // Keeping one effective query prevents the applied chip and visible rows
-  // from briefly using different debounce generations.
-  const effectiveSearchQuery = controlledSearchQuery ?? filters.searchQuery;
-  const normalizedSearchQuery = effectiveSearchQuery.trim().toLowerCase();
+  // Every search-facing surface reads this one value so the input, chip,
+  // suggestions, and visible rows cannot drift across query generations.
+  const isSearchControlled = controlledSearchQuery !== undefined;
+  const searchQuery = isSearchControlled ? controlledSearchQuery : filters.searchQuery;
+  const normalizedSearchQuery = searchQuery.trim().toLowerCase();
+
+  const updateSearchQuery = (query: string) => {
+    if (!isSearchControlled) {
+      setFilters(prev => ({ ...prev, searchQuery: query }));
+    }
+    onSearchQueryChange?.(query);
+  };
 
   // Debounce only persistence analytics; filtering itself follows the same
   // normalized query that identifies the server request.
-  const debouncedSearchQuery = useDebounce(effectiveSearchQuery, 300);
+  const debouncedSearchQuery = useDebounce(searchQuery, 300);
 
   // Quick filters for common use cases
   const quickFilters: QuickFilter[] = useMemo(
@@ -271,18 +279,18 @@ export const DogSearchInterface: React.FC<DogSearchInterfaceProps> = ({
 
   const clearAllFilters = () => {
     setFilters(defaultFilters);
-    onSearchQueryChange?.('');
+    updateSearchQuery('');
   };
 
   const hasActiveFilters =
-    filters.searchQuery !== '' ||
+    searchQuery !== '' ||
     filters.breedFilter !== '' ||
     filters.genderFilter !== '' ||
     filters.registrationFilter !== '' ||
     filters.ageFilter !== '' ||
     filters.quickFilter !== '';
   const activeFilterCount = [
-    filters.searchQuery,
+    searchQuery,
     filters.breedFilter,
     filters.genderFilter,
     filters.registrationFilter,
@@ -291,12 +299,11 @@ export const DogSearchInterface: React.FC<DogSearchInterfaceProps> = ({
   ].filter(v => v !== '').length;
 
   // Get suggestions for current query
-  const currentSuggestions = getSuggestions(filters.searchQuery, 5);
+  const currentSuggestions = getSuggestions(searchQuery, 5);
   const frequentSearches = getFrequentSearches(3);
 
   const handleSearchSelect = (query: string) => {
-    setFilters(prev => ({ ...prev, searchQuery: query }));
-    onSearchQueryChange?.(query);
+    updateSearchQuery(query);
     setShowSuggestions(false);
   };
 
@@ -307,7 +314,7 @@ export const DogSearchInterface: React.FC<DogSearchInterfaceProps> = ({
         modal={false}
         open={
           showSuggestions &&
-          (currentSuggestions.length > 0 || (!filters.searchQuery && frequentSearches.length > 0))
+          (currentSuggestions.length > 0 || (!searchQuery && frequentSearches.length > 0))
         }
         onOpenChange={setShowSuggestions}
       >
@@ -317,11 +324,10 @@ export const DogSearchInterface: React.FC<DogSearchInterfaceProps> = ({
             <Input
               ref={searchInputRef}
               placeholder={placeholder}
-              value={filters.searchQuery}
+              value={searchQuery}
               onChange={e => {
                 const newQuery = e.target.value;
-                setFilters(prev => ({ ...prev, searchQuery: newQuery }));
-                onSearchQueryChange?.(newQuery);
+                updateSearchQuery(newQuery);
                 setShowSuggestions(true);
               }}
               onFocus={() => setShowSuggestions(true)}
@@ -333,15 +339,14 @@ export const DogSearchInterface: React.FC<DogSearchInterfaceProps> = ({
               className="pl-10 pr-10 border border-border"
             />
           </PopoverTrigger>
-          {filters.searchQuery && (
+          {searchQuery && (
             <Button
               variant="ghost"
               size="sm"
               className="absolute right-1 top-1/2 transform -translate-y-1/2 h-8 w-8 p-0"
               aria-label="Clear dog search"
               onClick={() => {
-                setFilters(prev => ({ ...prev, searchQuery: '' }));
-                onSearchQueryChange?.('');
+                updateSearchQuery('');
                 setShowSuggestions(false);
               }}
             >
@@ -351,8 +356,7 @@ export const DogSearchInterface: React.FC<DogSearchInterfaceProps> = ({
 
           {/* Search Suggestions */}
           {showSuggestions &&
-            (currentSuggestions.length > 0 ||
-              (!filters.searchQuery && frequentSearches.length > 0)) && (
+            (currentSuggestions.length > 0 || (!searchQuery && frequentSearches.length > 0)) && (
               <PopoverContent
                 id="dog-search-suggestions"
                 align="start"
@@ -362,7 +366,7 @@ export const DogSearchInterface: React.FC<DogSearchInterfaceProps> = ({
               >
                 <SearchSuggestions
                   suggestions={currentSuggestions}
-                  currentQuery={filters.searchQuery}
+                  currentQuery={searchQuery}
                   onSuggestionSelect={handleSearchSelect}
                   frequentSearches={frequentSearches}
                 />
@@ -372,7 +376,7 @@ export const DogSearchInterface: React.FC<DogSearchInterfaceProps> = ({
       </Popover>
 
       <DogSearchFilters
-        filters={filters}
+        filters={isSearchControlled ? { ...filters, searchQuery } : filters}
         setFilters={setFilters}
         quickFilters={quickFilters}
         filterOptions={filterOptions}
@@ -383,7 +387,7 @@ export const DogSearchInterface: React.FC<DogSearchInterfaceProps> = ({
         activeFilterCount={activeFilterCount}
         hasActiveFilters={hasActiveFilters}
         clearAllFilters={clearAllFilters}
-        onSearchQueryChange={onSearchQueryChange}
+        onSearchQueryChange={updateSearchQuery}
       />
     </div>
   );

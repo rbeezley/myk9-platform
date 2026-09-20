@@ -19,7 +19,6 @@ Secretary dog search can display an unfiltered roster while showing a specific s
 
 ### Modified Capabilities
 
-
 ## Impact
 
 - Secretary dog picker query hook/service, request cancellation or freshness logic, and focused component/E2E regression coverage.

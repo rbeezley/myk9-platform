@@ -266,6 +266,7 @@ describe('entry identity hydration contract', () => {
         dogId: 'dog-1',
         classId: 'c1',
         showId: 's1',
+        armband: '42',
         handler: null,
         handlerId: null,
         deletedAt: null,

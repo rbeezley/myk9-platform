@@ -6,12 +6,14 @@ const {
   mockLoadDogRegistrations,
   mockGetEntriesByClass,
   mockDogGet,
+  mockGetArmbandsByShow,
 } = vi.hoisted(() => ({
   mockGetClassById: vi.fn(),
   mockGetTrialById: vi.fn(),
   mockLoadDogRegistrations: vi.fn(),
   mockGetEntriesByClass: vi.fn(),
   mockDogGet: vi.fn(),
+  mockGetArmbandsByShow: vi.fn().mockResolvedValue([]),
 }));
 
 vi.mock('@/services/replication/ReplicatedClassesTable', () => ({
@@ -25,6 +27,9 @@ vi.mock('@/services/replication/ReplicatedEntriesTable', () => ({
 }));
 vi.mock('@/services/replication/ReplicatedDogsTable', () => ({
   replicatedDogsTable: { get: mockDogGet },
+}));
+vi.mock('@/services/replication/ReplicatedArmbandsTable', () => ({
+  replicatedArmbandsTable: { getByShow: mockGetArmbandsByShow },
 }));
 vi.mock('@/services/database/dogs/reads', () => ({
   loadDogRegistrations: mockLoadDogRegistrations,
@@ -41,6 +46,7 @@ import { loadEntriesWithDogs } from '../paperScoresheetData';
 describe('paper scoresheet breeds', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mockGetArmbandsByShow.mockResolvedValue([]);
     mockGetEntriesByClass.mockResolvedValue([
       { id: 'entry-1', classId: 'class-1', dogId: 'dog-1', armband: '14', status: 'accepted' },
     ]);
@@ -133,6 +139,19 @@ describe('paper scoresheet breeds', () => {
 
     const [entry] = await loadEntriesWithDogs('class-1');
     expect(entry!.breed).toBe('Belgian Malinois');
+  });
+
+  it('uses the authoritative armband when the replicated row still has legacy zero', async () => {
+    mockGetEntriesByClass.mockResolvedValue([
+      { id: 'entry-1', classId: 'class-1', dogId: 'dog-1', showId: 'show-1', armband: '0' },
+    ]);
+    mockGetArmbandsByShow.mockResolvedValue([
+      { showId: 'show-1', dogId: 'dog-1', armbandNumber: '12A' },
+    ]);
+
+    const [entry] = await loadEntriesWithDogs('class-1');
+
+    expect(entry!.armband).toBe(12);
   });
 
   it('REFUSES rather than printing blanks when registrations cannot be read at all', async () => {

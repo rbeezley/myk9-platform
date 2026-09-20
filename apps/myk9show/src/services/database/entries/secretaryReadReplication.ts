@@ -21,6 +21,8 @@ import {
 } from '@/services/replication/ReplicatedTrialsTable';
 import { buildMapFromArray } from '../_shared/maps';
 import { getTrialTimezone } from '@/features/registries';
+import { backfillMissingArmbands } from './reads';
+import { normalizePacketArmband } from '@/features/emergency-trial-packet/armband';
 import {
   postgrestGetSecretaryPullMetadataMap,
   type SecretaryPullMetadata,
@@ -199,7 +201,7 @@ export function toSecretaryEntry(
   const trial = trialId ? (trialsMap.get(trialId) ?? null) : null;
   const pullMetadata = pullMetadataMap.get(entry.id) ?? null;
   const armband =
-    entry.armband ??
+    normalizePacketArmband(entry.armband) ??
     armbandsByEntryId.get(entry.id)?.armbandNumber ??
     (dogId ? armbandsByDogId.get(dogId)?.armbandNumber : undefined) ??
     null;
@@ -352,18 +354,29 @@ export async function getReplicatedSecretaryEntriesForShow(showId: string) {
     loadSecretaryEnrollmentsMap(entries),
     entries.length > 0 ? loadSecretaryPullMetadataMap(showId) : Promise.resolve(new Map()),
   ]);
+  const authoritativeEntries = await backfillMissingArmbands(
+    entries.map(entry => ({
+      ...entry,
+      armband: entry.armband ?? null,
+      show_id: entry.showId ?? null,
+      dog_id: entry.dogId ?? null,
+    }))
+  );
   const data = entries
-    .map(entry =>
-      toSecretaryEntry(entry, {
-        dogsMap,
-        classesMap,
-        armbandsByEntryId,
-        armbandsByDogId,
-        peopleMap,
-        enrollmentsMap,
-        trialsMap,
-        pullMetadataMap,
-      })
+    .map((entry, index) =>
+      toSecretaryEntry(
+        { ...entry, armband: authoritativeEntries[index]?.armband ?? undefined },
+        {
+          dogsMap,
+          classesMap,
+          armbandsByEntryId,
+          armbandsByDogId,
+          peopleMap,
+          enrollmentsMap,
+          trialsMap,
+          pullMetadataMap,
+        }
+      )
     )
     .sort((a, b) =>
       (a.created_at ?? a.submitted_at ?? a.id).localeCompare(b.created_at ?? b.submitted_at ?? b.id)

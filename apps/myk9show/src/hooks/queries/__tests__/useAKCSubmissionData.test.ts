@@ -16,9 +16,13 @@ vi.mock('@/hooks/useAuthContext', () => ({
 }));
 
 const mockSupabase = vi.hoisted(() => ({ from: vi.fn() }));
+const mockGetArmbandsByShow = vi.hoisted(() => vi.fn().mockResolvedValue([]));
 
 vi.mock('@/services/database/supabaseClient', () => ({
   supabase: mockSupabase,
+}));
+vi.mock('@/services/replication/ReplicatedArmbandsTable', () => ({
+  replicatedArmbandsTable: { getByShow: mockGetArmbandsByShow },
 }));
 
 // ---------------------------------------------------------------------------
@@ -37,6 +41,7 @@ function wrapper({ children }: { children: React.ReactNode }) {
 describe('useAKCSubmissionData', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mockGetArmbandsByShow.mockResolvedValue([]);
   });
 
   it('returns null data when showId is empty', () => {
@@ -124,7 +129,7 @@ describe('useAKCSubmissionData', () => {
                 dog_id: 'dog-1',
                 class_id: 'class-1',
                 trial_id: 'trial-1',
-                armband: '101',
+                armband: '0',
                 search_time_seconds: 14.5,
                 final_placement: 1,
                 result_status: null,
@@ -185,12 +190,17 @@ describe('useAKCSubmissionData', () => {
       };
     });
 
+    mockGetArmbandsByShow.mockResolvedValue([
+      { showId: 'show-1', dogId: 'dog-1', armbandNumber: '12A' },
+    ]);
+
     const { result } = renderHook(() => useAKCSubmissionData('show-1'), { wrapper });
 
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
 
     const entry = result.current.data?.entries[0];
     expect(entry?.dogGender).toBe('D');
+    expect(entry?.armbandNumber).toBe('12A');
   });
 
   it('maps dogs.sex Female to dogGender B', async () => {

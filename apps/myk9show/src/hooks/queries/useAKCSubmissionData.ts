@@ -9,6 +9,7 @@ import {
 } from '@/features/dogs/identity';
 import { parseAKCResultStatus } from '@myk9/secretary';
 import { normalizePacketArmband } from '@/features/emergency-trial-packet/armband';
+import { backfillMissingArmbands } from '@/services/database/entries';
 import type {
   AKCSubmissionData,
   AKCSubmissionEntry,
@@ -122,7 +123,10 @@ export function useAKCSubmissionData(showId: string) {
       }>;
 
       const classMap = new Map(classRows.map(c => [c.id, c]));
-      const validEntries = entryRows.filter(
+      const authoritativeEntryRows = await backfillMissingArmbands(
+        entryRows.map(entry => ({ ...entry, show_id: showId, dog_id: entry.dog_id }))
+      );
+      const validEntries = authoritativeEntryRows.filter(
         e => e.dog_id && e.class_id && classMap.has(e.class_id)
       );
       const dogIds = [...new Set(validEntries.map(e => e.dog_id!))] as string[];

@@ -142,6 +142,12 @@ const { mockChain, mockFrom, mockRpc } = vi.hoisted(() => {
   return { mockChain: chain, mockFrom: from, mockRpc: rpc };
 });
 
+const mockArmbandsByShow = vi.hoisted(() => vi.fn().mockResolvedValue([]));
+
+vi.mock('@/services/replication/ReplicatedArmbandsTable', () => ({
+  replicatedArmbandsTable: { getByShow: mockArmbandsByShow },
+}));
+
 vi.mock('@/services/database/supabaseClient', () => ({
   supabase: {
     from: (...args: unknown[]) => mockFrom(...args),
@@ -162,6 +168,7 @@ function wrapper({ children }: { children: React.ReactNode }) {
 describe('useClassCheckInData', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mockArmbandsByShow.mockResolvedValue([]);
     mockChain.select = vi.fn().mockReturnValue(mockChain);
     mockChain.eq = vi.fn().mockReturnValue(mockChain);
     mockChain.maybeSingle = vi.fn();
@@ -202,6 +209,21 @@ describe('useClassCheckInData', () => {
     expect(result.current.data?.class.name).toBe('Container Novice A');
     expect(result.current.data?.entry.armband).toBe('42');
     expect(result.current.error).toBeNull();
+  });
+
+  it('uses the authoritative armband when the query row still has legacy zero', async () => {
+    mockChain.maybeSingle = vi.fn().mockResolvedValue({
+      data: { ...baseRow, armband: '0' },
+      error: null,
+    });
+    mockArmbandsByShow.mockResolvedValue([
+      { showId: 'show-1', dogId: 'dog-1', armbandNumber: '12A' },
+    ]);
+
+    const { result } = renderHook(() => useClassCheckInData('entry-1'), { wrapper });
+    await waitFor(() => expect(result.current.isLoading).toBe(false));
+
+    expect(result.current.data?.entry.armband).toBe('12A');
   });
 
   // MYK9-479: classes.judge_name was dropped. The judge comes from the

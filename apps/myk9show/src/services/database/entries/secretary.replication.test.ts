@@ -414,6 +414,23 @@ describe('secretary entry read replication', () => {
     ]);
   });
 
+  it('normalizes legacy zero before falling back to the authoritative armband', async () => {
+    mocks.getEntriesByShow.mockResolvedValue([
+      {
+        id: 'entry-1',
+        showId: 'show-1',
+        dogId: 'dog-1',
+        classId: 'class-1',
+        armband: '0',
+        entryStatus: 'confirmed',
+      },
+    ]);
+
+    const result = await getEntriesForShow('show-1');
+
+    expect(result.data![0]).toEqual(expect.objectContaining({ id: 'entry-1', armband: '101' }));
+  });
+
   it('preserves the scoring fields used by every secretary class-count surface', async () => {
     const result = await getEntriesForShow('show-1');
 

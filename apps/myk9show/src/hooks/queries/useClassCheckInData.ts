@@ -2,6 +2,7 @@ import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/services/database/supabaseClient';
 import { fetchJudgeNamesByClass } from '@/services/database/_shared/judgeNamesByClass';
 import { useAuthContext } from '@/hooks/useAuthContext';
+import { backfillMissingArmbands } from '@/services/database/entries';
 import type { ExhibitorClassInfo } from '@/types/exhibitor-types';
 import { isCheckInStatus } from '@myk9/core';
 
@@ -145,7 +146,13 @@ async function fetchCheckInData(
 
   if (error) throw new Error(error.message);
   if (!data) return null;
-  const row = data as unknown as CheckInDataRow;
+  const [row] = await backfillMissingArmbands([
+    {
+      ...(data as unknown as CheckInDataRow),
+      show_id: (data as unknown as CheckInDataRow).class.trial.show.id,
+      dog_id: (data as unknown as CheckInDataRow).dog.id,
+    },
+  ]);
   const judgeNames = await fetchJudgeNamesByClass(row.class.trial.show.id);
   return mapRowToClassInfo(row, judgeNames.get(row.class.id));
 }

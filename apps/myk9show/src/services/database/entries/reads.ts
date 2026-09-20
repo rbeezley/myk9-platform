@@ -175,11 +175,11 @@ async function readEntriesWithHandlerHydration<T extends EntryReadRow[] | EntryR
   if (Array.isArray(result.data)) {
     return {
       ...result,
-      data: (await hydrateMissingHandlerPeople(result.data as EntryDbHandlerRow[])) as unknown as T,
+      data: (await hydrateAndBackfillEntryRows(result.data as EntryDbHandlerRow[])) as unknown as T,
     };
   }
   if (result.data) {
-    const [data] = await hydrateMissingHandlerPeople([result.data as EntryDbHandlerRow]);
+    const [data] = await hydrateAndBackfillEntryRows([result.data as EntryDbHandlerRow]);
     return { ...result, data: data as unknown as T };
   }
   return result;
@@ -251,9 +251,27 @@ async function fetchMissingArmbands(
 
     // Filter to only the dog IDs we need
     const relevant = allArmbands.filter(a => a.dogId && dogIds.has(a.dogId));
-    if (relevant.length === 0) return new Map();
+    const resolved = new Map(relevant.map(a => [`${a.showId}:${a.dogId}`, a.armbandNumber]));
+    const unresolved = missing.filter(entry => !resolved.has(`${entry.show_id}:${entry.dog_id}`));
+    if (unresolved.length === 0 || isBrowserOffline()) return resolved;
 
-    return new Map(relevant.map(a => [`${a.showId}:${a.dogId}`, a.armbandNumber]));
+    // A warm but partial local replica is not authoritative. Fetch only the
+    // unresolved keys online so a stale/missing IndexedDB row cannot mask the
+    // assignment on show-day paperwork.
+    const { data: armbandRows } = await supabase
+      .from('armbands')
+      .select('show_id, dog_id, armband_number')
+      .in('show_id', [
+        ...new Set(unresolved.map(entry => entry.show_id).filter(Boolean)),
+      ] as string[])
+      .in('dog_id', [
+        ...new Set(unresolved.map(entry => entry.dog_id).filter(Boolean)),
+      ] as string[]);
+
+    for (const row of armbandRows ?? []) {
+      resolved.set(`${row.show_id}:${row.dog_id}`, String(row.armband_number));
+    }
+    return resolved;
   } catch {
     // Fallback to PostgREST
     const { data: armbandRows } = await supabase
@@ -268,7 +286,7 @@ async function fetchMissingArmbands(
   }
 }
 
-async function backfillMissingArmbands<
+export async function backfillMissingArmbands<
   T extends { armband: string | null; show_id: string | null; dog_id: string | null },
 >(entries: readonly T[]): Promise<T[]> {
   const armbandMap = await fetchMissingArmbands(entries);
@@ -280,6 +298,11 @@ async function backfillMissingArmbands<
     }
     return normalizedArmband === entry.armband ? entry : { ...entry, armband: normalizedArmband };
   });
+}
+
+async function hydrateAndBackfillEntryRows<T extends EntryReadRow>(rows: T[]): Promise<T[]> {
+  const hydrated = await hydrateMissingHandlerPeople(rows as EntryDbHandlerRow[]);
+  return (await backfillMissingArmbands(hydrated)) as unknown as T[];
 }
 
 // ---------------------------------------------------------------------------
@@ -331,7 +354,7 @@ async function postgrestGetAllEntries() {
 
   if (error) throw createDatabaseError(error, 'entries', 'select_all');
   return {
-    data: await hydrateMissingHandlerPeople((data || []) as EntryDbHandlerRow[]),
+    data: await hydrateAndBackfillEntryRows((data || []) as EntryDbHandlerRow[]),
     error: null,
   };
 }
@@ -383,7 +406,7 @@ async function postgrestGetEntryById(id: string) {
     .single();
 
   if (error) throw createDatabaseError(error, 'entries', 'select_by_id');
-  const [hydrated] = await hydrateMissingHandlerPeople([data as EntryDbHandlerRow]);
+  const [hydrated] = await hydrateAndBackfillEntryRows([data as EntryDbHandlerRow]);
   return { data: hydrated, error: null };
 }
 
@@ -427,7 +450,7 @@ async function postgrestGetEntriesByShow(showId: string) {
 
   if (error) throw createDatabaseError(error, 'entries', 'select_by_show');
   return {
-    data: await hydrateMissingHandlerPeople((data || []) as EntryDbHandlerRow[]),
+    data: await hydrateAndBackfillEntryRows((data || []) as EntryDbHandlerRow[]),
     error: null,
   };
 }
@@ -629,7 +652,7 @@ async function postgrestGetEntriesByShowForFinancials(showId: string) {
 
   if (error) throw createDatabaseError(error, 'entries', 'select_by_show_financials');
   return {
-    data: await hydrateMissingHandlerPeople((data || []) as EntryDbHandlerRow[]),
+    data: await hydrateAndBackfillEntryRows((data || []) as EntryDbHandlerRow[]),
     error: null,
   };
 }
@@ -653,7 +676,7 @@ async function postgrestGetEntriesByTrial(trialId: string) {
   );
 
   if (error) throw createDatabaseError(error, 'entries', 'select_by_trial');
-  const entries = await hydrateMissingHandlerPeople((data || []) as EntryDbHandlerRow[]);
+  const entries = await hydrateAndBackfillEntryRows((data || []) as EntryDbHandlerRow[]);
   return {
     data: await backfillMissingArmbands(entries),
     error: null,
@@ -689,7 +712,7 @@ async function postgrestGetEntriesByClass(classId: string) {
 
   if (error) throw createDatabaseError(error, 'entries', 'select_by_class');
 
-  const entries = await hydrateMissingHandlerPeople((data || []) as EntryDbHandlerRow[]);
+  const entries = await hydrateAndBackfillEntryRows((data || []) as EntryDbHandlerRow[]);
 
   // Backfill armbands from the authoritative armbands table
   const backfilledEntries = await backfillMissingArmbands(entries);
@@ -736,7 +759,7 @@ async function postgrestGetEntriesByDog(dogId: string) {
 
   if (error) throw createDatabaseError(error, 'entries', 'select_by_dog');
   return {
-    data: await hydrateMissingHandlerPeople((data || []) as EntryDbHandlerRow[]),
+    data: await hydrateAndBackfillEntryRows((data || []) as EntryDbHandlerRow[]),
     error: null,
   };
 }
@@ -1213,7 +1236,7 @@ async function replicaGetEntriesByDog(dogId: string) {
     })
   );
   return {
-    data: await hydrateMissingHandlerPeople(data),
+    data: await hydrateAndBackfillEntryRows(data),
     locallyDeletedIds,
     pendingIds,
   };

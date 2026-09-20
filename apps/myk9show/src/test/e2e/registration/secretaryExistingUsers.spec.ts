@@ -3,6 +3,11 @@ import { signInAsSecretary } from '../uat/shared/auth';
 import { LIVE_REGISTRATION_SHOW_ID } from '../uat/shared/seededShows';
 import { installSharedStagingWriteGuard } from '../helpers/sharedStagingWriteGuard';
 import { applyRegistrationClock } from './seedRoster';
+import {
+  COOPER_DOG_SEARCH_FIXTURE,
+  installDogSearchFixtures,
+  WILLOW_DOG_SEARCH_FIXTURE,
+} from './dogSearchFixtures';
 
 const SHOW_ID = process.env.QA_EXISTING_USER_REGISTRATION_SHOW_ID ?? LIVE_REGISTRATION_SHOW_ID;
 // Both from `supabase/seed-demo.sql` section 5, and they must have DIFFERENT
@@ -74,6 +79,7 @@ test.describe('Secretary registration for existing users', () => {
     // silently selected nothing. Its siblings all install the guard; make the
     // "no shared-staging writes" claim true by construction here too.
     await installSharedStagingWriteGuard(page, { strictRpcWrites: true });
+    await installDogSearchFixtures(page, [WILLOW_DOG_SEARCH_FIXTURE, COOPER_DOG_SEARCH_FIXTURE]);
     // The seed's entry window is relative to the reseed date
     // (CURRENT_DATE - 16 .. + 76), so a pinned absolute date expires.
     await applyRegistrationClock(page);

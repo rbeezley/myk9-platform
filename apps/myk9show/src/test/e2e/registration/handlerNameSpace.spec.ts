@@ -2,6 +2,7 @@ import { test, expect, type Page } from '@playwright/test';
 import { signInAsSecretary } from '../uat/shared/auth';
 import { LIVE_REGISTRATION_SHOW_ID } from '../uat/shared/seededShows';
 import { applyRegistrationClock } from './seedRoster';
+import { installDogSearchFixtures, RANGER_DOG_SEARCH_FIXTURE } from './dogSearchFixtures';
 
 /**
  * MYK9-567: a human tester could not put a space in the handler name —
@@ -111,6 +112,7 @@ test('the handler name field accepts spaces, hyphens and apostrophes', async ({ 
   // MYK9-545: the seed's entry window is relative to the reseed date.
   await applyRegistrationClock(page);
   await preventSharedWrites(page);
+  await installDogSearchFixtures(page, [RANGER_DOG_SEARCH_FIXTURE]);
   await signInAsSecretary(page, `/secretary/register/${SHOW_ID}`);
 
   await expect(page.getByRole('heading', { name: 'Select Dogs to Register' })).toBeVisible({

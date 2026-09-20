@@ -109,6 +109,7 @@ describe('getEntriesByShow — cold local replica verifies online', () => {
     ]);
     const result = await getEntriesByShow('s1');
     expect(result.error).toBeNull();
+    expect(result.verified).toBe(false);
     expect(result.data.map(row => row.id)).toEqual(['offline-entry']);
   });
 
@@ -131,6 +132,7 @@ describe('getEntriesByShow — cold local replica verifies online', () => {
       await vi.advanceTimersByTimeAsync(3000);
       const result = await pending;
       expect(result.error).toBeNull();
+      expect(result.verified).toBe(false);
       expect(result.data.map(row => row.id)).toEqual(['cached-entry']);
       expect(vi.getTimerCount()).toBe(0);
     } finally {
@@ -144,6 +146,7 @@ describe('getEntriesByShow — cold local replica verifies online', () => {
     const result = await getEntriesByShow('s1');
 
     expect(result.data).toHaveLength(1);
+    expect(result.verified).toBe(true);
     expect((result.data[0] as Record<string, unknown>).id).toBe('entry-online-1');
   });
 

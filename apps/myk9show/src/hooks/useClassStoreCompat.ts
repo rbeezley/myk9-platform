@@ -23,7 +23,7 @@ import {
   useUpdateEntryMutation,
   useDeleteEntryMutation,
 } from '@/hooks/queries/useClassesDatabase';
-import { useEntriesByShowQuery } from '@/hooks/queries/useEntriesDatabase';
+import { useVerifiedEntriesByShowQuery } from '@/hooks/queries/useEntriesDatabase';
 import {
   mapClassInputToInsert,
   mapClassInputToUpdate,
@@ -51,7 +51,7 @@ import {
 export const useClassStoreCompat = (showId?: string) => {
   const classesQuery = useClassesQuery();
   const entriesQuery = useEntriesQuery();
-  const entriesByShowQuery = useEntriesByShowQuery(showId ?? '', Boolean(showId));
+  const entriesByShowQuery = useVerifiedEntriesByShowQuery(showId ?? '', Boolean(showId));
   const currentEntriesQuery = showId ? entriesByShowQuery : entriesQuery;
   const statisticsQuery = useClassStatisticsQuery();
 
@@ -71,8 +71,9 @@ export const useClassStoreCompat = (showId?: string) => {
 
   const entries = useMemo(() => {
     if (!currentEntriesQuery.data) return [];
-    return mapDatabaseEntriesArray(currentEntriesQuery.data as unknown as DbEntryWithRelations[]);
-  }, [currentEntriesQuery.data]);
+    const rows = showId ? currentEntriesQuery.data.data : currentEntriesQuery.data;
+    return mapDatabaseEntriesArray(rows as unknown as DbEntryWithRelations[]);
+  }, [currentEntriesQuery.data, showId]);
 
   // Aggregate loading and error states
   const isLoading = aggregateLoadingStates(
@@ -251,6 +252,7 @@ export const useClassStoreCompat = (showId?: string) => {
     refetch,
     isStale: classesQuery.isStale || currentEntriesQuery.isStale,
     isFetching: classesQuery.isFetching || currentEntriesQuery.isFetching,
+    isEntriesVerified: !showId || currentEntriesQuery.data?.verified === true,
 
     // Statistics
     statistics: statisticsQuery.data,

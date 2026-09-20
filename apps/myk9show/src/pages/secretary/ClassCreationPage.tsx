@@ -68,9 +68,10 @@ export const ClassCreationPage: React.FC<ClassCreationPageProps> = ({ trialId })
     isFetching: entryDataFetching,
     isStale: entryDataStale,
     error: entryDataError,
+    isEntriesVerified: entryDataVerified,
   } = useClassStoreCompat(entryScopeShowId);
   const entryCountState = useMemo(() => {
-    if (entryDataLoading || entryDataFetching || entryDataStale) {
+    if (entryDataLoading || entryDataFetching || entryDataStale || !entryDataVerified) {
       return { status: 'loading' as const, count: 0 };
     }
     if (entryDataError || !effectiveTrialId) return { status: 'unavailable' as const, count: 0 };
@@ -107,6 +108,7 @@ export const ClassCreationPage: React.FC<ClassCreationPageProps> = ({ trialId })
     entryDataFetching,
     entryDataLoading,
     entryDataStale,
+    entryDataVerified,
     existingClasses,
     selectedClassDefinitions,
   ]);

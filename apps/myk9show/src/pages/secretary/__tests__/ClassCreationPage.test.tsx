@@ -25,6 +25,7 @@ const mockClassStoreState = vi.hoisted(() => ({
   isLoading: false,
   isFetching: false,
   isStale: false,
+  isEntriesVerified: true,
   error: null as string | null,
 }));
 
@@ -68,6 +69,7 @@ describe('ClassCreationPage', () => {
     mockClassStoreState.isLoading = false;
     mockClassStoreState.isFetching = false;
     mockClassStoreState.isStale = false;
+    mockClassStoreState.isEntriesVerified = true;
     mockClassStoreState.error = null;
   });
 

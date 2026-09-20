@@ -1,6 +1,33 @@
-import { describe, it, expect } from 'vitest';
+import { createElement, type PropsWithChildren } from 'react';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { render, screen, waitFor } from '@testing-library/react';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { toQuickAdvanceChips, formatChipLabel } from './quickAdvanceReplicated';
 import type { ReplicatedEntry } from '@/services/replication/ReplicatedEntriesTable';
+
+const quickAdvanceMocks = vi.hoisted(() => ({
+  projectedRead: vi.fn(),
+  replicatedRead: vi.fn(),
+  subscribe: vi.fn(() => vi.fn()),
+  subscribeHandlerPeopleHydration: vi.fn(() => vi.fn()),
+}));
+
+vi.mock('@/services/database/entries', () => ({
+  getEntriesByClass: quickAdvanceMocks.projectedRead,
+}));
+
+vi.mock('@/services/database/entries/handlerHydration', () => ({
+  subscribeHandlerPeopleHydration: quickAdvanceMocks.subscribeHandlerPeopleHydration,
+}));
+
+vi.mock('@/services/replication/ReplicatedEntriesTable', () => ({
+  replicatedEntriesTable: {
+    getEntriesByClass: quickAdvanceMocks.replicatedRead,
+    subscribe: quickAdvanceMocks.subscribe,
+  },
+}));
+
+import { QuickAdvancePanel } from './quickAdvancePanel';
 
 function entry(over: Partial<ReplicatedEntry> & { id: string }): ReplicatedEntry {
   return {
@@ -11,6 +38,12 @@ function entry(over: Partial<ReplicatedEntry> & { id: string }): ReplicatedEntry
     runOrder: Number(over.id),
     isScored: false,
     ...over,
+  };
+}
+
+function queryWrapper(client: QueryClient) {
+  return function TestQueryProvider({ children }: PropsWithChildren) {
+    return createElement(QueryClientProvider, { client }, children);
   };
 }
 
@@ -99,5 +132,55 @@ describe('formatChipLabel', () => {
         gateLabel: null,
       })
     ).toBe('Bella — Poodle');
+  });
+});
+
+describe('QuickAdvancePanel offline projected read', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    quickAdvanceMocks.projectedRead.mockResolvedValue({
+      data: [
+        {
+          id: 'next-entry',
+          class_id: 'class-1',
+          show_id: 'show-1',
+          armband: '12',
+          run_order: 1,
+          check_in_status: 'no-status',
+          entry_status: 'confirmed',
+          is_scored: false,
+          dog: { call_name: 'Scout', breed: 'Beagle' },
+          handler_identity: { name: 'Olivia Owner', source: 'owner', person: null },
+        },
+      ],
+      error: null,
+    });
+  });
+
+  it('renders local quick-advance chips while offline after a score save', async () => {
+    const originalOnline = navigator.onLine;
+    Object.defineProperty(navigator, 'onLine', { configurable: true, value: false });
+    try {
+      render(
+        createElement(QuickAdvancePanel, {
+          classId: 'class-1',
+          scoredEntryId: 'scored-entry',
+          onBackToList: () => {},
+          onCorrectScore: () => {},
+          onPickEntry: () => {},
+        }),
+        { wrapper: queryWrapper(new QueryClient()) }
+      );
+
+      await waitFor(() => expect(screen.getByTestId('quick-advance-entry')).toBeInTheDocument());
+      expect(screen.getByText('#12 Scout — Beagle')).toBeInTheDocument();
+      expect(quickAdvanceMocks.projectedRead).toHaveBeenCalledWith('class-1');
+      expect(quickAdvanceMocks.replicatedRead).not.toHaveBeenCalled();
+    } finally {
+      Object.defineProperty(navigator, 'onLine', {
+        configurable: true,
+        value: originalOnline,
+      });
+    }
   });
 });

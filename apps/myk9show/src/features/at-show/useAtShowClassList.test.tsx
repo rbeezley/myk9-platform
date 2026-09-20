@@ -8,6 +8,7 @@ const subscriptions = vi.hoisted(() => ({
   classes: null as (() => void) | null,
   trials: null as (() => void) | null,
   entries: null as ((entries: ReplicatedEntry[]) => void) | null,
+  handlerPeople: null as ((event: { ids: readonly string[] }) => void) | null,
   entryOptions: undefined as { emitCurrent?: boolean } | undefined,
 }));
 
@@ -15,6 +16,11 @@ const stops = vi.hoisted(() => ({
   classes: vi.fn(),
   trials: vi.fn(),
   entries: vi.fn(),
+  handlerPeople: vi.fn(),
+}));
+
+const projectedReads = vi.hoisted(() => ({
+  getEntriesByShow: vi.fn(),
 }));
 
 vi.mock('@/services/replication', () => ({
@@ -51,12 +57,26 @@ vi.mock('@/services/replication', () => ({
   },
 }));
 
+vi.mock('@/services/database/entries', () => ({
+  getEntriesByShow: projectedReads.getEntriesByShow,
+}));
+
+vi.mock('@/services/database/entries/handlerHydration', () => ({
+  subscribeHandlerPeopleHydration: vi.fn(
+    (callback: (event: { ids: readonly string[] }) => void) => {
+      subscriptions.handlerPeople = callback;
+      return stops.handlerPeople;
+    }
+  ),
+}));
+
 import {
   replicatedClassesTable,
   replicatedEntriesTable,
   replicatedShowsTable,
   replicatedTrialsTable,
 } from '@/services/replication';
+import { projectAtShowEntryRow } from './atShowClassListAdapter';
 import { useAtShowClassList } from './useAtShowClassList';
 
 function makeClient(): QueryClient {
@@ -77,7 +97,21 @@ describe('useAtShowClassList entry refresh', () => {
     subscriptions.classes = null;
     subscriptions.trials = null;
     subscriptions.entries = null;
+    subscriptions.handlerPeople = null;
     subscriptions.entryOptions = undefined;
+    projectedReads.getEntriesByShow.mockResolvedValue({
+      data: [
+        {
+          id: 'entry-1',
+          show_id: 'show-1',
+          class_id: 'class-1',
+          is_scored: false,
+          dog: { call_name: 'Scout', breed: 'Beagle' },
+          handler_identity: { name: 'Olivia Owner', source: 'owner', person: null },
+        },
+      ],
+      error: null,
+    });
     vi.mocked(replicatedShowsTable.getShowById).mockResolvedValue({
       id: 'show-1',
       name: 'Show One',
@@ -106,7 +140,37 @@ describe('useAtShowClassList entry refresh', () => {
     } as never);
   });
 
-  it('uses the delivered snapshot without re-reading entries, trials, or classes', async () => {
+  it('uses the canonical owner fallback on the initial settled render without a replication event', async () => {
+    const client = makeClient();
+    const { result } = renderHook(() => useAtShowClassList('show-1'), {
+      wrapper: wrapper(client),
+    });
+
+    await waitFor(() => expect(result.current.groups[0]?.classes[0]?.entry_count).toBe(1));
+    expect(projectedReads.getEntriesByShow).toHaveBeenCalledWith('show-1');
+    expect(replicatedEntriesTable.getEntriesByShow).not.toHaveBeenCalled();
+    expect(
+      projectAtShowEntryRow({
+        id: 'entry-1',
+        handler: null,
+        handler_identity: { name: 'Olivia Owner', source: 'owner', person: null },
+      }).handler_identity
+    ).toMatchObject({ name: 'Olivia Owner', source: 'owner' });
+  });
+
+  it('invalidates the canonical projected read when a replication snapshot arrives', async () => {
+    let projectedRows = [
+      {
+        id: 'entry-1',
+        show_id: 'show-1',
+        class_id: 'class-1',
+        is_scored: false,
+      },
+    ];
+    projectedReads.getEntriesByShow.mockImplementation(async () => ({
+      data: projectedRows,
+      error: null,
+    }));
     const client = makeClient();
     const { result, unmount } = renderHook(() => useAtShowClassList('show-1'), {
       wrapper: wrapper(client),
@@ -114,14 +178,26 @@ describe('useAtShowClassList entry refresh', () => {
 
     await waitFor(() => expect(result.current.groups[0]?.classes[0]?.entry_count).toBe(1));
     expect(subscriptions.entryOptions).toEqual({ emitCurrent: false });
-    // Baselines, not absolute counts: the MYK9-637 show-scoped hydration reads
-    // trials once of its own accord. What this test pins is that DELIVERING a
-    // snapshot re-reads nothing, so measure the delta across that delivery.
     const readsBeforeSnapshot = {
-      entries: vi.mocked(replicatedEntriesTable.getEntriesByShow).mock.calls.length,
+      entries: projectedReads.getEntriesByShow.mock.calls.length,
       trials: vi.mocked(replicatedTrialsTable.getTrialsByShow).mock.calls.length,
       classes: vi.mocked(replicatedClassesTable.getClassesByTrial).mock.calls.length,
     };
+
+    projectedRows = [
+      {
+        id: 'entry-1',
+        show_id: 'show-1',
+        class_id: 'class-1',
+        is_scored: true,
+      },
+      {
+        id: 'entry-2',
+        show_id: 'show-1',
+        class_id: 'class-1',
+        is_scored: false,
+      },
+    ];
 
     act(() => {
       subscriptions.entries?.([
@@ -137,25 +213,35 @@ describe('useAtShowClassList entry refresh', () => {
         completed_count: 1,
       });
     });
-    expect(replicatedEntriesTable.getEntriesByShow).toHaveBeenCalledTimes(
-      readsBeforeSnapshot.entries
+    expect(projectedReads.getEntriesByShow).toHaveBeenCalledTimes(readsBeforeSnapshot.entries + 1);
+    expect(replicatedTrialsTable.getTrialsByShow).toHaveBeenCalledTimes(
+      readsBeforeSnapshot.trials + 1
     );
-    expect(replicatedTrialsTable.getTrialsByShow).toHaveBeenCalledTimes(readsBeforeSnapshot.trials);
     expect(replicatedClassesTable.getClassesByTrial).toHaveBeenCalledTimes(
-      readsBeforeSnapshot.classes
+      readsBeforeSnapshot.classes + 1
     );
-    // And the initial reads really were the expected ones: one entries read and
-    // one classes read from `fetchAtShowClassList`, and TWO trials reads --
-    // that same fetch plus the show-scoped hydration, which needs the trial
-    // list to scope its per-trial class sync.
-    expect(readsBeforeSnapshot.entries).toBe(1);
-    expect(readsBeforeSnapshot.classes).toBe(1);
-    expect(readsBeforeSnapshot.trials).toBe(2);
 
     unmount();
     expect(stops.entries).toHaveBeenCalledTimes(1);
     expect(stops.trials).toHaveBeenCalledTimes(1);
     expect(stops.classes).toHaveBeenCalledTimes(1);
+    expect(stops.handlerPeople).toHaveBeenCalledTimes(1);
+  });
+
+  it('invalidates the projected read when authoritative handler hydration completes', async () => {
+    const client = makeClient();
+    const invalidate = vi.spyOn(client, 'invalidateQueries');
+    const { result } = renderHook(() => useAtShowClassList('show-1'), {
+      wrapper: wrapper(client),
+    });
+    await waitFor(() => expect(result.current.groups).toHaveLength(1));
+    invalidate.mockClear();
+
+    act(() => subscriptions.handlerPeople?.({ ids: ['owner-1'] }));
+
+    expect(invalidate).toHaveBeenCalledWith({
+      queryKey: ['at-show', 'classlist', 'show-1'],
+    });
   });
 
   it('falls back to query invalidation when a snapshot arrives before groups are cached', async () => {
@@ -212,7 +298,7 @@ describe('useAtShowClassList entry refresh', () => {
   });
 
   it('reports entry counts as unknown until this show scope has synced', async () => {
-    vi.mocked(replicatedEntriesTable.getEntriesByShow).mockResolvedValue([] as never);
+    projectedReads.getEntriesByShow.mockResolvedValue({ data: [], error: null });
     vi.mocked(replicatedEntriesTable.getSyncMetadata).mockResolvedValue(null as never);
     const client = makeClient();
     const { result } = renderHook(() => useAtShowClassList('show-1'), {
@@ -224,7 +310,7 @@ describe('useAtShowClassList entry refresh', () => {
   });
 
   it('reports entry counts as available once the show scope has synced', async () => {
-    vi.mocked(replicatedEntriesTable.getEntriesByShow).mockResolvedValue([] as never);
+    projectedReads.getEntriesByShow.mockResolvedValue({ data: [], error: null });
     vi.mocked(replicatedEntriesTable.getSyncMetadata).mockResolvedValue({
       totalRows: 0,
     } as never);

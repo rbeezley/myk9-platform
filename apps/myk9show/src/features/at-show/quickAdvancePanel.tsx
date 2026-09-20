@@ -15,8 +15,9 @@
  * ranking when a steward or exhibitor happens to set them; with a paper gate
  * sheet — the common case — the chips are simply the next dogs by run order.
  *
- * Candidates come from the replicated table and re-render on its changes, so
- * this works offline and never shows a locked stale snapshot.
+ * Candidates come from the canonical projected read and re-render when the
+ * replicated table changes, so this works offline and never shows a locked
+ * stale snapshot.
  */
 
 import { useEffect } from 'react';
@@ -24,12 +25,15 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { ArrowLeft, CheckCircle2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { replicatedEntriesTable } from '@/services/replication/ReplicatedEntriesTable';
+import { getEntriesByClass } from '@/services/database/entries';
+import { subscribeHandlerPeopleHydration } from '@/services/database/entries/handlerHydration';
 import { badgeClass } from './slots/atShowChrome.helpers';
 import {
   toQuickAdvanceChips,
   formatChipLabel,
   type QuickAdvanceChip,
 } from './quickAdvanceReplicated';
+import { projectAtShowEntryRow } from './atShowClassListAdapter';
 
 function useQuickAdvanceChips(
   classId: string | undefined,
@@ -41,15 +45,26 @@ function useQuickAdvanceChips(
   // change can land from the entry list, a steward's device, or a sync pull.
   useEffect(() => {
     if (!classId) return;
-    return replicatedEntriesTable.subscribe(() => {
+    const invalidate = () => {
       void queryClient.invalidateQueries({ queryKey: ['at-show', 'quick-advance', classId] });
-    });
+    };
+    const stopEntries = replicatedEntriesTable.subscribe(invalidate, { emitCurrent: false });
+    const stopHandlerPeople = subscribeHandlerPeopleHydration(invalidate);
+    return () => {
+      stopEntries();
+      stopHandlerPeople();
+    };
   }, [classId, queryClient]);
 
   const { data } = useQuery({
     queryKey: ['at-show', 'quick-advance', classId],
-    queryFn: () => replicatedEntriesTable.getEntriesByClass(classId as string),
+    queryFn: async () => {
+      const result = await getEntriesByClass(classId as string);
+      if (result.error) throw result.error;
+      return result.data.map(projectAtShowEntryRow);
+    },
     enabled: !!classId,
+    networkMode: 'always',
   });
 
   return toQuickAdvanceChips(data ?? [], { excludeEntryId: scoredEntryId });

@@ -17,11 +17,11 @@ import {
   areAtShowEntryCountsKnown,
   fetchAtShowClassList,
   isAtShowClassDataHydrated,
-  refreshAtShowClassListEntries,
   type AtShowClassGroup,
 } from './atShowClassListAdapter';
 import { syncAtShowData } from './atShowDataAdapter';
 import type { AtShowNextUpPreview } from './atShowNextUpPreview';
+import { subscribeHandlerPeopleHydration } from '@/services/database/entries/handlerHydration';
 
 export interface UseAtShowClassListResult {
   groups: AtShowClassGroup[];
@@ -58,29 +58,19 @@ export function useAtShowClassList(showId: string | undefined): UseAtShowClassLi
         queryKey: ['at-show', 'classlist-hydration', showId],
       });
     };
-    const applyEntriesSnapshot = (
-      allEntries: Parameters<typeof refreshAtShowClassListEntries>[1]
-    ) => {
-      let hadCachedGroups = false;
-      queryClient.setQueryData<AtShowClassGroup[]>(queryKey, current => {
-        if (!current) return undefined;
-        hadCachedGroups = true;
-        return refreshAtShowClassListEntries(current, allEntries, showId);
-      });
-      // A leading notification can race the initial query. In that one case,
-      // preserve the old refetch behavior instead of dropping the update.
-      if (!hadCachedGroups) invalidate();
-      // The snapshot that lands from the show-scoped sync is also what makes
-      // the counts knowable; re-ask, so a cold list stops reading as unknown
-      // without waiting for a remount.
-      void queryClient.invalidateQueries({
-        queryKey: ['at-show', 'classlist-entry-counts', showId],
-      });
-    };
     const unsubscribe = [
       replicatedClassesTable.subscribe(invalidateStructure, { emitCurrent: false }),
       replicatedTrialsTable.subscribe(invalidateStructure, { emitCurrent: false }),
-      replicatedEntriesTable.subscribe(applyEntriesSnapshot, { emitCurrent: false }),
+      replicatedEntriesTable.subscribe(
+        () => {
+          invalidate();
+          void queryClient.invalidateQueries({
+            queryKey: ['at-show', 'classlist-entry-counts', showId],
+          });
+        },
+        { emitCurrent: false }
+      ),
+      subscribeHandlerPeopleHydration(() => invalidate()),
     ];
     return () => unsubscribe.forEach(stop => stop());
   }, [queryClient, showId]);
@@ -92,7 +82,7 @@ export function useAtShowClassList(showId: string | undefined): UseAtShowClassLi
   // looked correct purely because ringside's EntryList calls
   // `forceSyncEntriesAndClasses` -> `syncAtShowData` on mount. Both surfaces
   // now hydrate through that one canonical call; it de-dupes in-flight work,
-  // and the subscription above re-projects the counts when rows land.
+  // and the subscription above invalidates the canonical projected read when rows land.
   //
   // Deliberately fire-and-forget and defensively wrapped: this is offline-first
   // and a hydration failure must never break the local read.

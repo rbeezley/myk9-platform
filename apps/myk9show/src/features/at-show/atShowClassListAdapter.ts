@@ -4,8 +4,8 @@
  * Fetches a show's trials → classes and maps each `ReplicatedClass` into a
  * ringside `ClassEntry` so the at-show ClassList can render myK9Q-faithful
  * class cards AND reuse ringside's pairing helper (`findPairedSectionedClass`)
- * for Novice Section A/B navigation. Entry counts come from the replicated
- * entries table (offline-first).
+ * for Novice Section A/B navigation. Entry counts come from the canonical
+ * projected entries read (offline-first).
  *
  * Not a full ringside ClassList extraction — a lean host-side picker (plan D3).
  */
@@ -25,6 +25,8 @@ import { getFavoriteClassIdsForTrial } from '@/features/show-today/accountTodayE
 import { composeClassTitle } from '@/services/entryDisplay/entryDisplaySelectors';
 import { buildNextUpPreview, type AtShowNextUpPreview } from './atShowNextUpPreview';
 import { countEntryAccounting } from '@/features/_shared/entryAccounting';
+import { getEntriesByShow } from '@/services/database/entries';
+import type { ProjectedEntryHandler } from '@/services/database/entries/entryHandlerProjection';
 
 /** A trial and its classes (mapped to ringside `ClassEntry`), for grouped display. */
 export interface AtShowClassGroup {
@@ -32,6 +34,99 @@ export interface AtShowClassGroup {
   classes: ClassEntry[];
   /** Per-class "in ring / next up" row preview, keyed by class id. */
   nextUpByClassId: Map<string, AtShowNextUpPreview>;
+}
+
+/** A canonical projected row, normalized only for the existing ringside helpers. */
+export type AtShowProjectedEntry = ReplicatedEntry & {
+  handler_identity?: ProjectedEntryHandler;
+};
+
+function recordFromUnknown(value: unknown): Record<string, unknown> {
+  return value && typeof value === 'object' && !Array.isArray(value)
+    ? (value as Record<string, unknown>)
+    : {};
+}
+
+function stringValue(value: unknown): string | undefined {
+  if (typeof value === 'string') return value;
+  if (typeof value === 'number' && Number.isFinite(value)) return String(value);
+  return undefined;
+}
+
+function numberValue(value: unknown): number | undefined {
+  if (typeof value === 'number' && Number.isFinite(value)) return value;
+  if (typeof value === 'string' && value.trim()) {
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? parsed : undefined;
+  }
+  return undefined;
+}
+
+function booleanValue(value: unknown): boolean | undefined {
+  return typeof value === 'boolean' ? value : undefined;
+}
+
+/**
+ * Normalize one canonical database/read-boundary row for the existing at-show
+ * helpers without dropping `handler_identity`. The read boundary is the sole
+ * owner of identity projection; this adapter only bridges snake_case row names
+ * to the ringside-facing replicated shape.
+ */
+export function projectAtShowEntryRow(row: unknown): AtShowProjectedEntry {
+  const source = recordFromUnknown(row);
+  const dog = recordFromUnknown(source.dog ?? source.dogs);
+  const owner = recordFromUnknown(dog.owner);
+  const classId = stringValue(source.class_id ?? source.classId);
+  const showId = stringValue(source.show_id ?? source.showId);
+  const dogId = stringValue(source.dog_id ?? source.dogId);
+  const dogOwnerId = stringValue(
+    source.dog_owner_id ?? source.dogOwnerId ?? dog.owner_id ?? owner.id
+  );
+  const handlerId = stringValue(source.handler_id ?? source.handlerId);
+  const armband = stringValue(source.armband ?? source.armbandNumber);
+  const handler = stringValue(source.handler);
+  const handlerName = stringValue(source.handler_name ?? source.handlerName);
+  const entryStatus = stringValue(source.entry_status ?? source.entryStatus ?? source.status);
+  const checkInStatus = stringValue(source.check_in_status ?? source.checkInStatus);
+  const runOrder = numberValue(source.run_order ?? source.runOrder);
+  const isScored = booleanValue(source.is_scored ?? source.isScored);
+  const isInRing = booleanValue(source.is_in_ring ?? source.isInRing);
+  const resultStatus = stringValue(source.result_status ?? source.resultStatus);
+  const deletedAt = stringValue(source.deleted_at ?? source.deletedAt);
+  const dogCallName = stringValue(
+    source.dog_call_name ?? source.dogCallName ?? dog.call_name ?? dog.callName
+  );
+  const dogBreed = stringValue(source.dog_breed ?? source.dogBreed ?? dog.breed);
+
+  const projected: Record<string, unknown> = {
+    ...source,
+    id: stringValue(source.id) ?? '',
+  };
+  if (classId !== undefined) projected.classId = classId;
+  if (showId !== undefined) projected.showId = showId;
+  if (dogId !== undefined) projected.dogId = dogId;
+  if (dogOwnerId !== undefined) projected.dogOwnerId = dogOwnerId;
+  if (handlerId !== undefined) projected.handlerId = handlerId;
+  if (armband !== undefined) {
+    projected.armband = armband;
+    projected.armbandNumber = armband;
+  }
+  if (handler !== undefined) projected.handler = handler;
+  if (handlerName !== undefined) projected.handlerName = handlerName;
+  if (entryStatus !== undefined) projected.entryStatus = entryStatus;
+  if (checkInStatus !== undefined) {
+    projected.checkInStatus = checkInStatus;
+    projected.check_in_status = checkInStatus;
+  }
+  if (runOrder !== undefined) projected.runOrder = runOrder;
+  if (isScored !== undefined) projected.isScored = isScored;
+  if (isInRing !== undefined) projected.isInRing = isInRing;
+  if (resultStatus !== undefined) projected.resultStatus = resultStatus;
+  if (deletedAt !== undefined) projected.deletedAt = deletedAt;
+  if (dogCallName !== undefined) projected.dogCallName = dogCallName;
+  if (dogBreed !== undefined) projected.dogBreed = dogBreed;
+
+  return projected as unknown as AtShowProjectedEntry;
 }
 
 /** Render the class name from element + level (+ section). The '-' "no section" sentinel is handled by resolveClassSection inside composeClassTitle. */
@@ -183,10 +278,12 @@ export async function areAtShowEntryCountsKnown(showId: string): Promise<boolean
  * one full-table scan per class (matters on show-day / offline IndexedDB).
  */
 export async function fetchAtShowClassList(showId: string): Promise<AtShowClassGroup[]> {
-  const [trials, allEntries] = await Promise.all([
+  const [trials, entryRead] = await Promise.all([
     replicatedTrialsTable.getTrialsByShow(showId),
-    replicatedEntriesTable.getEntriesByShow(showId),
+    getEntriesByShow(showId),
   ]);
+  if (entryRead.error) throw entryRead.error;
+  const allEntries = entryRead.data.map(projectAtShowEntryRow);
 
   const entriesByClass = groupEntriesByClass(allEntries);
 

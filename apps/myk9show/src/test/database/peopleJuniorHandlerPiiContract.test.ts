@@ -159,6 +159,20 @@ describe('the migration that protects the private columns', () => {
     expect(schemaReload).toBeGreaterThan(rpcGrant);
   });
 
+  it('keeps legacy and private writes synchronized until the contract gate', () => {
+    const source = readFileSync(resolve(MIGRATIONS_DIR, file!), 'utf8');
+    expect(source).toMatch(/production client version is RPC-aware/i);
+    expect(source).toMatch(/all older clients are retired/i);
+    expect(source).toMatch(/Full PII isolation completes only in that contract phase/i);
+    expect(source).toMatch(/CREATE OR REPLACE FUNCTION public\.sync_people_private_from_legacy/i);
+    expect(source).toMatch(/CREATE OR REPLACE FUNCTION public\.sync_people_legacy_from_private/i);
+    expect(source).toMatch(/CREATE TRIGGER people_sync_private_from_legacy/i);
+    expect(source).toMatch(/CREATE TRIGGER people_sync_legacy_from_private/i);
+    expect(source).toMatch(/IS DISTINCT FROM EXCLUDED\.date_of_birth/i);
+    expect(source).toMatch(/IS DISTINCT FROM NEW\.date_of_birth/i);
+    expect(source).toMatch(/Do not drop the legacy columns/i);
+  });
+
   it('authorizes owner fallback by canonical printed handler and batches RPC reads', () => {
     const sql = readFileSync(resolve(MIGRATIONS_DIR, file!), 'utf8');
     expect(sql).toMatch(/CREATE OR REPLACE FUNCTION public\.private_handler_name_matches/i);

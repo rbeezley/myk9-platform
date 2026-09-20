@@ -63,6 +63,9 @@ CREATE TRIGGER people_private_set_updated_at
   BEFORE UPDATE ON public.people_private
   FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
 
+COMMENT ON TABLE public.people_private IS
+  'MYK9-664 expand phase: private reads use this boundary, but legacy people columns remain synchronized until the production client version is RPC-aware and all older clients are retired. Full PII isolation completes only in that contract phase. A later contract-phase migration owns column removal after that gate is recorded.';
+
 -- Explicit API-role decisions. There is deliberately no anon grant: default
 -- privileges in this project grant anon CRUD on new public tables unless revoked.
 REVOKE ALL ON TABLE public.people_private FROM anon;
@@ -427,6 +430,72 @@ BEGIN
   END IF;
 END;
 $$;
+
+-- Compatibility dual-write. During the expand phase, older deployed clients may
+-- still write the legacy columns while newer clients write people_private through
+-- update_person_with_private. Both directions execute in the same transaction.
+-- The IS DISTINCT FROM guards make the pair safe from trigger recursion.
+CREATE OR REPLACE FUNCTION public.sync_people_private_from_legacy()
+RETURNS trigger
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = ''
+AS $$
+BEGIN
+  INSERT INTO public.people_private (person_id, date_of_birth, junior_handler_numbers)
+  VALUES (NEW.id, NEW.date_of_birth, COALESCE(NEW.junior_handler_numbers, '{}'::jsonb))
+  ON CONFLICT (person_id) DO UPDATE
+  SET date_of_birth = EXCLUDED.date_of_birth,
+      junior_handler_numbers = EXCLUDED.junior_handler_numbers
+  WHERE public.people_private.date_of_birth IS DISTINCT FROM EXCLUDED.date_of_birth
+     OR public.people_private.junior_handler_numbers IS DISTINCT FROM EXCLUDED.junior_handler_numbers;
+  RETURN NEW;
+END;
+$$;
+
+CREATE OR REPLACE FUNCTION public.sync_people_legacy_from_private()
+RETURNS trigger
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = ''
+AS $$
+BEGIN
+  IF TG_OP = 'DELETE' THEN
+    UPDATE public.people
+    SET date_of_birth = NULL,
+        junior_handler_numbers = '{}'::jsonb
+    WHERE id = OLD.person_id
+      AND (date_of_birth IS DISTINCT FROM NULL
+           OR junior_handler_numbers IS DISTINCT FROM '{}'::jsonb);
+    RETURN OLD;
+  END IF;
+
+  UPDATE public.people
+  SET date_of_birth = NEW.date_of_birth,
+      junior_handler_numbers = NEW.junior_handler_numbers
+  WHERE id = NEW.person_id
+    AND (date_of_birth IS DISTINCT FROM NEW.date_of_birth
+         OR junior_handler_numbers IS DISTINCT FROM NEW.junior_handler_numbers);
+  RETURN NEW;
+END;
+$$;
+
+REVOKE ALL ON FUNCTION public.sync_people_private_from_legacy() FROM PUBLIC;
+REVOKE ALL ON FUNCTION public.sync_people_private_from_legacy() FROM anon;
+REVOKE ALL ON FUNCTION public.sync_people_private_from_legacy() FROM authenticated;
+REVOKE ALL ON FUNCTION public.sync_people_legacy_from_private() FROM PUBLIC;
+REVOKE ALL ON FUNCTION public.sync_people_legacy_from_private() FROM anon;
+REVOKE ALL ON FUNCTION public.sync_people_legacy_from_private() FROM authenticated;
+
+DROP TRIGGER IF EXISTS people_sync_private_from_legacy ON public.people;
+CREATE TRIGGER people_sync_private_from_legacy
+  AFTER INSERT OR UPDATE OF date_of_birth, junior_handler_numbers ON public.people
+  FOR EACH ROW EXECUTE FUNCTION public.sync_people_private_from_legacy();
+
+DROP TRIGGER IF EXISTS people_sync_legacy_from_private ON public.people_private;
+CREATE TRIGGER people_sync_legacy_from_private
+  AFTER INSERT OR UPDATE OF date_of_birth, junior_handler_numbers OR DELETE ON public.people_private
+  FOR EACH ROW EXECUTE FUNCTION public.sync_people_legacy_from_private();
 
 -- Do not drop the legacy columns in this migration. Older clients still select
 -- them through their deployed directory query until the application rollout is

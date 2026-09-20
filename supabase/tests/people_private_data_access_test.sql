@@ -126,6 +126,7 @@ DECLARE
   writes_denied boolean;
   private_dob date;
   private_numbers jsonb;
+  public_phone text;
 BEGIN
   IF has_table_privilege('anon', 'public.people_private', 'SELECT') THEN
     RAISE EXCEPTION 'FAIL anon retained people_private SELECT';
@@ -136,6 +137,19 @@ BEGIN
   IF has_function_privilege('anon', 'public.update_person_with_private(uuid,jsonb,jsonb)', 'execute') THEN
     RAISE EXCEPTION 'FAIL anon can execute update_person_with_private';
   END IF;
+  IF NOT has_table_privilege('authenticated', 'public.people_private', 'SELECT') THEN
+    RAISE EXCEPTION 'FAIL authenticated lost people_private table SELECT';
+  END IF;
+  IF NOT has_function_privilege('authenticated', 'public.get_people_private(uuid[])', 'execute') THEN
+    RAISE EXCEPTION 'FAIL authenticated cannot execute get_people_private';
+  END IF;
+  IF NOT has_function_privilege('authenticated', 'public.update_person_with_private(uuid,jsonb,jsonb)', 'execute') THEN
+    RAISE EXCEPTION 'FAIL authenticated cannot execute update_person_with_private';
+  END IF;
+  IF has_column_privilege('anon', 'public.people', 'date_of_birth', 'SELECT')
+     OR has_column_privilege('anon', 'public.people', 'junior_handler_numbers', 'SELECT') THEN
+    RAISE EXCEPTION 'FAIL anon can read legacy private people columns';
+  END IF;
 
   SET LOCAL ROLE authenticated;
 
@@ -144,11 +158,58 @@ BEGIN
   PERFORM set_config('request.jwt.claims', json_build_object('sub', self_auth, 'role', 'authenticated')::text, true);
   SELECT count(*) INTO visible_rows FROM public.get_people_private(ARRAY[handler_id]);
   IF visible_rows <> 1 THEN RAISE EXCEPTION 'FAIL self cannot read private profile'; END IF;
+
+  -- Legacy deployed clients still write public.people during the expand phase;
+  -- the compatibility trigger must keep the private boundary in sync.
+  UPDATE public.people
+  SET date_of_birth = DATE '2012-04-01',
+      junior_handler_numbers = '{"AKC":"664-LEGACY"}'::jsonb
+  WHERE id = handler_id;
+  SELECT date_of_birth, junior_handler_numbers
+  INTO private_dob, private_numbers
+  FROM public.people_private
+  WHERE person_id = handler_id;
+  IF private_dob IS DISTINCT FROM DATE '2012-04-01'
+     OR private_numbers IS DISTINCT FROM '{"AKC":"664-LEGACY"}'::jsonb THEN
+    RAISE EXCEPTION 'FAIL legacy people write did not synchronize people_private';
+  END IF;
+
   PERFORM public.update_person_with_private(
     handler_id,
     '{"phone":"self-save"}'::jsonb,
     '{"date_of_birth":"2012-04-03","junior_handler_numbers":{"AKC":"664-JR-2"}}'::jsonb
   );
+  SELECT date_of_birth, junior_handler_numbers, phone
+  INTO private_dob, private_numbers, public_phone
+  FROM public.people
+  WHERE id = handler_id;
+  IF private_dob IS DISTINCT FROM DATE '2012-04-03'
+     OR private_numbers IS DISTINCT FROM '{"AKC":"664-JR-2"}'::jsonb
+     OR public_phone IS DISTINCT FROM 'self-save' THEN
+    RAISE EXCEPTION 'FAIL private RPC write did not synchronize legacy people columns';
+  END IF;
+
+  writes_denied := false;
+  BEGIN
+    PERFORM public.update_person_with_private(
+      handler_id,
+      '{"phone":"should-rollback"}'::jsonb,
+      '{"junior_handler_numbers":{"AKC":42}}'::jsonb
+    );
+  EXCEPTION WHEN check_violation THEN
+    writes_denied := true;
+  END;
+  IF NOT writes_denied THEN RAISE EXCEPTION 'FAIL invalid private patch was accepted'; END IF;
+  SELECT phone, date_of_birth, junior_handler_numbers
+  INTO public_phone, private_dob, private_numbers
+  FROM public.people
+  WHERE id = handler_id;
+  IF public_phone IS DISTINCT FROM 'self-save'
+     OR private_dob IS DISTINCT FROM DATE '2012-04-03'
+     OR private_numbers IS DISTINCT FROM '{"AKC":"664-JR-2"}'::jsonb THEN
+    RAISE EXCEPTION 'FAIL atomic public/private transaction did not roll back';
+  END IF;
+
   PERFORM public.update_person_with_private(
     handler_id,
     '{}'::jsonb,

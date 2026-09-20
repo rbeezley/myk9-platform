@@ -203,14 +203,20 @@ async function fetchEntryFormData(
       .in('position', ['sire', 'dam']),
   ]);
 
-  // 5. Fetch people (owners + breeders)
+  // 5. Fetch public people identity (owners, breeders, and non-owner handler
+  // names). Handler names are safe directory fields; private completeness is
+  // scoped separately below to only the handler or owner the resolver uses.
   const ownerIds = new Set<string>();
   const breederIds = new Set<string>();
+  const handlerIds = new Set<string>();
   for (const dog of dogsRaw ?? []) {
     if (dog.owner_id) ownerIds.add(dog.owner_id);
     if (dog.breeder_id) breederIds.add(dog.breeder_id);
   }
-  const allPersonIds = [...new Set([...ownerIds, ...breederIds])].filter(Boolean);
+  for (const entry of allEntries) {
+    if (entry.handlerId) handlerIds.add(entry.handlerId);
+  }
+  const allPersonIds = [...new Set([...ownerIds, ...breederIds, ...handlerIds])].filter(Boolean);
 
   const { data: personsRaw } = await supabase
     .from('people')

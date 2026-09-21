@@ -108,6 +108,53 @@ confirms works.
   intercepted and the database still empty. If seam 1 cannot clear this,
   switch to seam 2 and record why here before continuing.
 
+#### Phase 1 findings (2026-09-21, spike in `exhibitorReadPathCapture.spec.ts`)
+
+**The captured read path.** A signed-in exhibitor on `/exhibitor/entries`
+issues one auth POST, four RBAC RPCs (`get_effective_permissions`,
+`get_own_entitlement_context`, `get_user_permissions`, `get_user_roles`) and
+reads across `armbands`, `classes`, `clubs`, `dogs`, `exhibitor_profiles`,
+`judge_assignments`, `people`, `shows`, `trials`, `waitlist_entries`. The
+replication sync shape is
+`?select=*&updated_at=gt.1970-01-01T00:00:00.000Z&order=updated_at.asc`, plus
+`HEAD …?select=id` count probes.
+
+**There is no `entries` table read at all.** My Entries reads the view
+`view_authenticated_entry_results`, filtered `is_own_entry=true` and paged
+(`userEntriesRead.ts:72`). Any fixture that intercepts `entries` intercepts
+nothing.
+
+**Synthesized rows DO survive replication — seam 1 is viable.** Serving one
+fabricated `dogs` row caused the app to issue a `dog_registrations` read that
+does not otherwise occur. Replication accepted the row and drove dependent
+behaviour from it. This was the main open risk in the seam analysis and it is
+now retired.
+
+**The remaining gate is sync status, not row data.** `MyEntriesPage`
+(`index.tsx:157`) computes
+
+    isInitialEntriesSyncing =
+      entries.length === 0 &&
+      areReplicationTablesPendingFirstSync(syncStatus, ['entries','dogs','classes','shows'])
+
+and `areReplicationTablesPendingFirstSync` treats a table as pending while its
+`tablesStatus` is `'idle'` or `'syncing'`. With the network intercepted the
+`entries` replication table never leaves `'idle'`, because per-show entry sync
+is scoped by the user's association with a show and nothing on this page
+triggers it. So the page stays in its pending/zero state and never reads the
+view, no matter how good the row fixtures are.
+
+**Consequence for the design:** a pure network fixture is not sufficient for
+this page. The fixture has to additionally satisfy the sync-status machinery —
+either by driving `tablesStatus` directly, or by intercepting
+`view_authenticated_entry_results` _and_ making the four gate tables report a
+settled first sync. This is a hybrid of seams 1 and 2, and it should be
+written as one helper so no spec has to know about it.
+
+Note the silver lining: `'error'` is deliberately NOT pending. A table whose
+sync failed is a settled answer. That may be a cheaper lever than faking
+success, and it is worth trying first in Phase 2.
+
 #### Type the fixture against the generated schema
 
 `packages/supabase/src/types/database.types.ts` is generated from the live
@@ -149,10 +196,40 @@ thing standing between a schema change and a green-but-broken suite.
 - It must assert the real read path end to end and carry a failure message
   that says "staging data moved, this is not a verdict on the diff" — the
   distinction that cost a day on 2026-09-20.
-- Decide deliberately whether it is required or advisory in PR smoke. If
-  required, we have rebuilt today's coupling with one spec instead of three;
-  if advisory, someone has to actually watch it. **This is a question for the
-  owner, not a default.**
+
+#### Required or advisory — decision
+
+Neither, as a binary. Both options are bad for the same reason each way:
+
+- **Required** rebuilds today's coupling with one spec instead of three. A
+  staging wipe blocks every PR again, which is precisely the failure this plan
+  exists to remove.
+- **Advisory** only works if someone watches it. On a one-person team an
+  advisory red is an advisory red forever, and the canary silently stops being
+  a canary.
+
+**Decision: required, but it distinguishes absence from breakage.**
+
+The canary's first act is to ask whether the data it needs exists at all:
+
+- **Data absent** → `test.skip()` with a loud annotation naming the condition
+  ("staging fixture data is missing; the exhibitor read path was not
+  exercised"). The PR is not blocked, because an empty database is not a
+  verdict on anyone's diff.
+- **Data present but the read path errors** — a 403 from a tightened policy, a
+  404 from a moved RPC, a payload that no longer matches the schema → **fail**.
+  That is a real regression and it should block.
+
+This is the distinction that cost a day on 2026-09-20: the suite could not
+tell "the database is empty" from "the code is broken", so it reported the
+first as the second nine times over.
+
+The skip must not become invisible, or we have shipped advisory-by-another-
+name. So the "is staging populated?" question moves to where it belongs —
+**a nightly check whose only job is to assert the demo fixtures exist**, and
+which is allowed to be loud about it. Staging being empty is an operational
+condition, not a pull-request condition, and it should page the operator once
+a night rather than nine PRs at random.
 
 ### Phase 5 — testing
 

@@ -35,7 +35,9 @@ export function useTrialDetailData(trialId: string | undefined): TrialDetailData
   const { trials, selectedTrialId } = useTrialStore();
   const { shows } = useShowStore();
 
-  const storeTrial = trials.find(trial => trial.id === selectedTrialId);
+  const storeTrial = trialId
+    ? trials.find(trial => trial.id === trialId)
+    : trials.find(trial => trial.id === selectedTrialId);
   const {
     data: fallbackTrial,
     isSuccess: fallbackTrialResolved,

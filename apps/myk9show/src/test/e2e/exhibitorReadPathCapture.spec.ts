@@ -98,6 +98,29 @@ async function fulfillJson(route: Route, body: unknown, rowCount: number) {
 
 /** The demo exhibitor's real `people.id`, confirmed by a signed-in probe. */
 const PERSON_ID = '6fd402f4-88fb-447d-876e-7c6ae3c429d1';
+const AUTH_USER_ID = '4b63a211-b6bd-4916-b1f9-567f1bebb038';
+
+/**
+ * `onboarding_completed_at` is the field the redirect turns on
+ * (`useExhibitorProfile.ts:264`), and the `person` key mirrors the embed the
+ * query asks for: `person:people!person_id(...)`.
+ */
+const EXHIBITOR_PROFILE_ROW = {
+  id: 'e0e0e0e0-0000-0000-0000-000000000001',
+  person_id: PERSON_ID,
+  auth_user_id: AUTH_USER_ID,
+  onboarding_completed_at: '2026-01-01T00:00:00.000Z',
+  created_at: '2026-01-01T00:00:00.000Z',
+  updated_at: '2026-01-01T00:00:00.000Z',
+  person: {
+    id: PERSON_ID,
+    first_name: 'Demo',
+    last_name: 'Exhibitor',
+    email: 'exhibitor@myk9t.com',
+    phone: null,
+    profile_image: null,
+  },
+};
 
 const DOG_ROW = {
   id: 'd09d09d0-0000-0000-0000-000000000001',
@@ -128,6 +151,13 @@ test('a synthesized show survives replication and triggers the entries read', as
     if (route.request().method() === 'HEAD') return fulfillJson(route, [], 1);
     await fulfillJson(route, [DOG_ROW], 1);
   });
+  // Without this the exhibitor has no profile row, `needsOnboarding` is true
+  // and ExhibitorOnboardingChecker redirects every signed-in route to
+  // /onboarding — so My Shows never mounts and no fixture below it matters.
+  await page.route('**/rest/v1/exhibitor_profiles*', async route => {
+    if (route.request().method() === 'HEAD') return fulfillJson(route, [], 1);
+    await fulfillJson(route, [EXHIBITOR_PROFILE_ROW], 1);
+  });
 
   await signInAsExhibitor(page, '/exhibitor/entries');
   await page.waitForLoadState('networkidle');
@@ -138,15 +168,15 @@ test('a synthesized show survives replication and triggers the entries read', as
   console.log('\n===== CONSOLE ERRORS (%d) =====', consoleErrors.length);
   for (const line of [...new Set(consoleErrors)].slice(0, 15)) console.log(line);
 
-  const heading = await page.getByRole('heading', { level: 1 }).first().textContent();
-  console.log('\n===== H1 ===== %s', heading);
+  console.log('\n===== URL ===== %s', page.url());
+  const headings = await page.getByRole('heading').allTextContents();
+  console.log('===== HEADINGS ===== %s', JSON.stringify(headings.slice(0, 12)));
   const body =
     (await page
-      .locator('main')
-      .first()
+      .locator('body')
       .innerText()
       .catch(() => '')) || '';
-  console.log('\n===== MAIN TEXT (first 600) =====\n%s', body.slice(0, 600));
+  console.log('\n===== BODY TEXT (first 900) =====\n%s', body.slice(0, 900));
 
   const entriesReads = seen.filter(
     line => line.includes('/rest/v1/entries') || line.includes('view_authenticated_entry_results')

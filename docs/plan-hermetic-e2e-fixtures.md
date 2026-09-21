@@ -130,7 +130,23 @@ does not otherwise occur. Replication accepted the row and drove dependent
 behaviour from it. This was the main open risk in the seam analysis and it is
 now retired.
 
-**The remaining gate is sync status, not row data.** `MyEntriesPage`
+**CORRECTION (same day, Phase 2).** The sync-status conclusion below was
+WRONG, and is kept only because the reasoning is instructive. The page was not
+sitting in a pending state — it had never mounted at all. `/exhibitor/entries`
+was redirecting to `/onboarding`, so every hypothesis about replication status
+was explaining a page that was not on screen. The tell was missed because the
+spike printed the `<h1>` but not `page.url()`; once the URL was printed the
+real cause was immediate. **Print where you are before theorising about what
+you see.**
+
+The actual gate is `ExhibitorOnboardingChecker`: with no `exhibitor_profiles`
+row, `needsOnboarding` is true and every signed-in exhibitor route redirects.
+One missing row, not a replication subtlety. It also explains the failures
+that never made sense under the "entries are missing" theory — the header
+wordmark, the appearance control and `Clear Cache` on `/account?section=data`,
+none of which read an entry. They were all being served the onboarding wizard.
+
+~~**The remaining gate is sync status, not row data.**~~ `MyEntriesPage`
 (`index.tsx:157`) computes
 
     isInitialEntriesSyncing =

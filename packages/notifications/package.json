@@ -21,7 +21,7 @@
   },
   "devDependencies": {
     "@myk9/test-utils": "workspace:*",
-    "@vitest/coverage-v8": "^5.0.0",
+    "@vitest/coverage-v8": "^5.0.1",
     "tsup": "^8.5.1",
     "typescript": "~5.9.3",
     "vitest": "^5.0.0"

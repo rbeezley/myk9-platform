@@ -14,8 +14,8 @@ update public.people
 set deleted_at = now()
 where id = '00000000-0000-0000-0000-000000603013';
 
-insert into public.shows (id, name, type, organization, start_date, end_date, status)
-values ('00000000-0000-0000-0000-000000603001', 'MYK9-603 Show', 'All-Breed', 'AKC',
+insert into public.shows (id, name, organization, start_date, end_date, status)
+values ('00000000-0000-0000-0000-000000603001', 'MYK9-603 Show', 'AKC',
   current_date, current_date, 'published');
 
 insert into public.trials (id, show_id, name, date, registry_id)
@@ -24,7 +24,7 @@ values ('00000000-0000-0000-0000-000000603002', '00000000-0000-0000-0000-0000006
 
 insert into public.classes (id, trial_id, name, status)
 values ('00000000-0000-0000-0000-000000603003', '00000000-0000-0000-0000-000000603002',
-  'MYK9-603 Class', 'no-status');
+  'MYK9-603 Class', 'upcoming');
 
 insert into public.dogs (id, name, call_name, breed, owner_id)
 values

@@ -7,7 +7,6 @@ const makeGroup = (overrides: Partial<ExhibitorCheckInGroup> = {}): ExhibitorChe
   key: 'dog-1:handler-1',
   armbandNumber: 142,
   handlerName: 'Sarah Mitchell',
-  handlerIdentityIds: ['handler-1'],
   dogName: 'Buddy',
   dogBreed: 'Golden Retriever',
   entries: [

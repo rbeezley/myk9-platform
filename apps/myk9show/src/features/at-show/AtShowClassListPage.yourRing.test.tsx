@@ -20,7 +20,7 @@ const judgeAssignmentData = vi.hoisted(() => ({
 const syncJudgeAssignments = vi.hoisted(() => vi.fn());
 
 const canonicalEntryRead = vi.hoisted(() => ({
-  getEntriesByShow: vi.fn(),
+  getLocalShowDayEntriesByShow: vi.fn(),
 }));
 
 vi.mock('@/services/replication', () => ({
@@ -28,6 +28,7 @@ vi.mock('@/services/replication', () => ({
   replicatedTrialsTable: { getTrialsByShow: vi.fn(), subscribe: vi.fn(() => vi.fn()) },
   replicatedClassesTable: { getClassesByTrial: vi.fn(), subscribe: vi.fn(() => vi.fn()) },
   replicatedEntriesTable: { getEntriesByShow: vi.fn(), subscribe: vi.fn(() => vi.fn()) },
+  replicatedDogsTable: { getAllDogs: vi.fn().mockResolvedValue([]) },
 }));
 
 vi.mock('@/services/database/judges', () => ({
@@ -36,7 +37,7 @@ vi.mock('@/services/database/judges', () => ({
 }));
 
 vi.mock('@/services/database/entries', () => ({
-  getEntriesByShow: canonicalEntryRead.getEntriesByShow,
+  getLocalShowDayEntriesByShow: canonicalEntryRead.getLocalShowDayEntriesByShow,
 }));
 
 const authState = vi.hoisted(() => ({
@@ -111,12 +112,12 @@ function seedClassList() {
     INTERIOR_EXCELLENT,
     BURIED_ADVANCED,
   ] as never);
-  canonicalEntryRead.getEntriesByShow.mockResolvedValue({
-    data: [
-      { id: 'entry-a', class_id: 'class-a', is_scored: true },
-      { id: 'entry-c', class_id: 'class-c', is_scored: false },
+  canonicalEntryRead.getLocalShowDayEntriesByShow.mockResolvedValue({
+    entries: [
+      { id: 'entry-a', classId: 'class-a', isScored: true },
+      { id: 'entry-c', classId: 'class-c', isScored: false },
     ],
-    error: null,
+    hydrationRevision: 0,
   });
   judgeAssignmentData.getActive.mockResolvedValue([]);
 }
@@ -321,12 +322,12 @@ describe('AtShowClassListPage Your ring', () => {
       INTERIOR_EXCELLENT,
       BURIED_ADVANCED,
     ] as never);
-    canonicalEntryRead.getEntriesByShow.mockResolvedValue({
-      data: [
-        { id: 'entry-a', class_id: 'class-a', is_scored: false },
-        { id: 'entry-c', class_id: 'class-c', is_scored: false },
+    canonicalEntryRead.getLocalShowDayEntriesByShow.mockResolvedValue({
+      entries: [
+        { id: 'entry-a', classId: 'class-a', isScored: false },
+        { id: 'entry-c', classId: 'class-c', isScored: false },
       ],
-      error: null,
+      hydrationRevision: 0,
     });
     judgeAssignmentData.getActive.mockResolvedValue([
       { id: 'assignment-a', personId: 'judge-1', classId: 'class-a', status: 'confirmed' },

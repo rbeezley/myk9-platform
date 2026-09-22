@@ -31,6 +31,7 @@ vi.mock('@/services/replication', () => ({
     getAll: vi.fn().mockResolvedValue([]),
     subscribe: vi.fn(() => vi.fn()),
   },
+  replicatedDogsTable: { getAllDogs: vi.fn().mockResolvedValue([]) },
 }));
 
 const mockAuthState = vi.hoisted(() => ({

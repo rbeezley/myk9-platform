@@ -32,6 +32,13 @@ vi.mock('@/services/replication/ReplicatedDogsTable', () => ({
 vi.mock('@/services/replication/ReplicatedArmbandsTable', () => ({
   replicatedArmbandsTable: { getByShow: quickAdvanceMocks.getByShow },
 }));
+vi.mock('@/services/replication', () => ({
+  replicatedEntriesTable: {
+    getEntriesByClass: quickAdvanceMocks.replicatedRead,
+    subscribe: quickAdvanceMocks.subscribe,
+  },
+  replicatedDogsTable: { getAllDogs: quickAdvanceMocks.getAllDogs },
+}));
 
 import { QuickAdvancePanel } from './quickAdvancePanel';
 import type { AtShowProjectedEntry } from './atShowClassListAdapter';
@@ -188,12 +195,12 @@ describe('QuickAdvancePanel real handler hydration feedback loop', () => {
               status: 'success',
               fetchStatus: 'idle',
             });
-            const projected = client.getQueryData<AtShowProjectedEntry[]>([
+            const projected = client.getQueryData<{ entries: AtShowProjectedEntry[] }>([
               'at-show',
               'quick-advance',
               'class-1',
             ]);
-            expect(projected?.[0]?.handler_identity).toEqual({
+            expect(projected?.entries[0]?.handler_identity).toEqual({
               name: null,
               source: 'unknown',
               person: null,
@@ -209,13 +216,13 @@ describe('QuickAdvancePanel real handler hydration feedback loop', () => {
         await waitForFollowUp;
         const waitForOwner = mode === 'deferred' ? vi.waitFor : waitFor;
         await waitForOwner(() => {
-          const projected = client.getQueryData<AtShowProjectedEntry[]>([
+          const projected = client.getQueryData<{ entries: AtShowProjectedEntry[] }>([
             'at-show',
             'quick-advance',
             'class-1',
           ]);
-          expect(projected?.[0]?.dogOwnerId).toBe('owner-1');
-          expect(projected?.[0]?.handler_identity).toEqual({
+          expect(projected?.entries[0]?.dogOwnerId).toBe('owner-1');
+          expect(projected?.entries[0]?.handler_identity).toEqual({
             name: 'Olivia Owner',
             source: 'owner',
             person: authoritativePerson,

@@ -299,6 +299,7 @@ describe('loadHandlerPeople offline boundary', () => {
         people: new Map([
           ['handler-1', { id: 'handler-1', first_name: 'Fresh', last_name: 'Handler' }],
         ]),
+        revision: expect.any(Number),
       });
       expect(bulkPut).toHaveBeenCalledWith([
         { id: 'handler-1', firstName: 'Fresh', lastName: 'Handler' },
@@ -393,7 +394,11 @@ describe('loadHandlerPeople offline boundary', () => {
       await expect(loadHandlerPeople(['handler-1'])).resolves.toEqual(new Map());
       expect(events).toHaveLength(1);
       expect(bulkDelete).toHaveBeenCalledTimes(1);
-      expect(events[0]).toEqual({ ids: ['handler-1'], people: new Map() });
+      expect(events[0]).toEqual({
+        ids: ['handler-1'],
+        people: new Map(),
+        revision: expect.any(Number),
+      });
     } finally {
       unsubscribe();
       Object.defineProperty(navigator, 'onLine', {
@@ -503,6 +508,7 @@ describe('loadHandlerPeople offline boundary', () => {
       expect(events[0]).toEqual({
         ids: ['handler-1'],
         people: new Map([['handler-1', { id: 'handler-1', first_name: 'New', last_name: 'Name' }]]),
+        revision: expect.any(Number),
       });
 
       releaseOldPersistence('handler-1');

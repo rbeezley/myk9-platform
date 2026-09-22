@@ -5,7 +5,7 @@
  * organization (needed by `findPairedSectionedClass` to decide A/B pairing).
  */
 
-import { useEffect, useMemo } from 'react';
+import { useEffect, useMemo, useRef } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   replicatedClassesTable,
@@ -21,7 +21,10 @@ import {
 } from './atShowClassListAdapter';
 import { syncAtShowData } from './atShowDataAdapter';
 import type { AtShowNextUpPreview } from './atShowNextUpPreview';
-import { subscribeHandlerPeopleHydration } from '@/services/database/entries/handlerHydration';
+import {
+  getHandlerPeopleHydrationRevision,
+  subscribeHandlerPeopleHydration,
+} from '@/services/database/entries/handlerHydration';
 
 export interface UseAtShowClassListResult {
   groups: AtShowClassGroup[];
@@ -46,6 +49,7 @@ export interface UseAtShowClassListResult {
 
 export function useAtShowClassList(showId: string | undefined): UseAtShowClassListResult {
   const queryClient = useQueryClient();
+  const latestHandlerRevision = useRef(getHandlerPeopleHydrationRevision());
   useEffect(() => {
     if (!showId) return;
     const queryKey = ['at-show', 'classlist', showId] as const;
@@ -71,11 +75,14 @@ export function useAtShowClassList(showId: string | undefined): UseAtShowClassLi
         { emitCurrent: false }
       ),
       subscribeHandlerPeopleHydration(event => {
-        const currentGroups = queryClient.getQueryData<AtShowClassGroup[]>(queryKey) ?? [];
+        latestHandlerRevision.current = event.revision;
+        const currentGroups =
+          queryClient.getQueryData<{ groups: AtShowClassGroup[] }>(queryKey)?.groups ?? [];
         const relevantIds = new Set(currentGroups.flatMap(group => group.handlerIdentityIds ?? []));
         if (event.ids.some(id => relevantIds.has(id))) invalidate();
       }),
     ];
+    latestHandlerRevision.current = getHandlerPeopleHydrationRevision();
     return () => unsubscribe.forEach(stop => stop());
   }, [queryClient, showId]);
 
@@ -121,6 +128,12 @@ export function useAtShowClassList(showId: string | undefined): UseAtShowClassLi
     // the ringside EntryList, which already set this for the same reason.
     networkMode: 'always',
   });
+  useEffect(() => {
+    const read = groupsQuery.data;
+    if (read && latestHandlerRevision.current > read.hydrationRevision) {
+      void queryClient.invalidateQueries({ queryKey: ['at-show', 'classlist', showId] });
+    }
+  }, [groupsQuery.data, queryClient, showId]);
   const showQuery = useQuery({
     queryKey: ['at-show', 'show', showId],
     queryFn: () => replicatedShowsTable.getShowById(showId as string),
@@ -130,7 +143,7 @@ export function useAtShowClassList(showId: string | undefined): UseAtShowClassLi
 
   // Keyed off the query data (not a `?? []` fallback) so the merged map keeps a
   // stable identity across renders where nothing refetched.
-  const groupsData = groupsQuery.data;
+  const groupsData = groupsQuery.data?.groups;
   const groups = useMemo(() => groupsData ?? [], [groupsData]);
   const shouldCheckClassHydration =
     !!showId && groupsData !== undefined && !groupsData.some(group => group.classes.length > 0);

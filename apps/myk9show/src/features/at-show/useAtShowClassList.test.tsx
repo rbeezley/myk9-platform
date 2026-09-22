@@ -9,7 +9,7 @@ const subscriptions = vi.hoisted(() => ({
   classes: null as (() => void) | null,
   trials: null as (() => void) | null,
   entries: null as ((entries: ReplicatedEntry[]) => void) | null,
-  handlerPeople: null as ((event: { ids: readonly string[] }) => void) | null,
+  handlerPeople: null as ((event: { ids: readonly string[]; revision: number }) => void) | null,
   emitHandlerOnSubscribe: false,
   entryOptions: undefined as { emitCurrent?: boolean } | undefined,
 }));
@@ -96,9 +96,9 @@ vi.mock('@/services/database/entries/handlerHydration', async () => {
   return {
     ...actual,
     subscribeHandlerPeopleHydration: vi.fn(
-      (callback: (event: { ids: readonly string[] }) => void) => {
+      (callback: (event: { ids: readonly string[]; revision: number }) => void) => {
         subscriptions.handlerPeople = callback;
-        if (subscriptions.emitHandlerOnSubscribe) callback({ ids: ['owner-1'] });
+        if (subscriptions.emitHandlerOnSubscribe) callback({ ids: ['owner-1'], revision: 0 });
         return stops.handlerPeople;
       }
     ),
@@ -278,7 +278,7 @@ describe('useAtShowClassList entry refresh', () => {
     await waitFor(() => expect(result.current.groups).toHaveLength(1));
     invalidate.mockClear();
 
-    act(() => subscriptions.handlerPeople?.({ ids: ['owner-1'] }));
+    act(() => subscriptions.handlerPeople?.({ ids: ['owner-1'], revision: 0 }));
 
     expect(invalidate).toHaveBeenCalledWith({
       queryKey: ['at-show', 'classlist', 'show-1'],
@@ -304,7 +304,7 @@ describe('useAtShowClassList entry refresh', () => {
     await waitFor(() => expect(result.current.groups[0]?.classes[0]?.entry_count).toBe(1));
     const readsBeforeCompletion = replicationMocks.entries.getEntriesByShow.mock.calls.length;
 
-    act(() => subscriptions.handlerPeople?.({ ids: ['owner-1'] }));
+    act(() => subscriptions.handlerPeople?.({ ids: ['owner-1'], revision: 0 }));
     await waitFor(() =>
       expect(replicationMocks.entries.getEntriesByShow).toHaveBeenCalledTimes(
         readsBeforeCompletion + 1

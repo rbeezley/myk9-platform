@@ -20,26 +20,29 @@
  * stale snapshot.
  */
 
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { ArrowLeft, CheckCircle2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { replicatedEntriesTable } from '@/services/replication/ReplicatedEntriesTable';
-import { getEntriesByClass } from '@/services/database/entries';
-import { subscribeHandlerPeopleHydration } from '@/services/database/entries/handlerHydration';
+import {
+  getHandlerPeopleHydrationRevision,
+  subscribeHandlerPeopleHydration,
+} from '@/services/database/entries/handlerHydration';
 import { badgeClass } from './slots/atShowChrome.helpers';
 import {
   toQuickAdvanceChips,
   formatChipLabel,
   type QuickAdvanceChip,
 } from './quickAdvanceReplicated';
-import { projectAtShowEntryRow, type AtShowProjectedEntry } from './atShowClassListAdapter';
+import { getLocalShowDayEntriesByClass, type LocalShowDayEntry } from '@/services/database/entries';
 
 function useQuickAdvanceChips(
   classId: string | undefined,
   scoredEntryId: string | undefined
 ): QuickAdvanceChip[] {
   const queryClient = useQueryClient();
+  const latestHandlerRevision = useRef(getHandlerPeopleHydrationRevision());
 
   // React to the table itself rather than to any one mutation path: a check-in
   // change can land from the entry list, a steward's device, or a sync pull.
@@ -51,7 +54,9 @@ function useQuickAdvanceChips(
     };
     const stopEntries = replicatedEntriesTable.subscribe(invalidate, { emitCurrent: false });
     const stopHandlerPeople = subscribeHandlerPeopleHydration(event => {
-      const entries = queryClient.getQueryData<AtShowProjectedEntry[]>(queryKey) ?? [];
+      latestHandlerRevision.current = event.revision;
+      const entries =
+        queryClient.getQueryData<{ entries: LocalShowDayEntry[] }>(queryKey)?.entries ?? [];
       const relevantIds = new Set(
         entries.flatMap(entry => [entry.handlerId, entry.dogOwnerId].filter(Boolean))
       );
@@ -66,15 +71,18 @@ function useQuickAdvanceChips(
   const { data } = useQuery({
     queryKey: ['at-show', 'quick-advance', classId],
     queryFn: async () => {
-      const result = await getEntriesByClass(classId as string);
-      if (result.error) throw result.error;
-      return result.data.map(projectAtShowEntryRow);
+      return getLocalShowDayEntriesByClass(classId as string);
     },
     enabled: !!classId,
     networkMode: 'always',
   });
+  useEffect(() => {
+    if (data && latestHandlerRevision.current > data.hydrationRevision) {
+      void queryClient.invalidateQueries({ queryKey: ['at-show', 'quick-advance', classId] });
+    }
+  }, [classId, data, queryClient]);
 
-  return toQuickAdvanceChips(data ?? [], { excludeEntryId: scoredEntryId });
+  return toQuickAdvanceChips(data?.entries ?? [], { excludeEntryId: scoredEntryId });
 }
 
 export interface QuickAdvancePanelProps {

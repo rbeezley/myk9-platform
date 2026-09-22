@@ -223,6 +223,7 @@ describe('useAtShowClassList real handler hydration feedback loop', () => {
         await waitFor(() =>
           expect(replicationMocks.entries.getEntriesByShow).toHaveBeenCalledTimes(1)
         );
+        await waitFor(() => expect(result.current.groups).toHaveLength(1));
         expect(result.current.groups[0]?.handlerIdentitiesByClassId?.get('class-1')).toEqual([
           { name: null, source: 'unknown', person: null },
         ]);
@@ -316,4 +317,52 @@ describe('useAtShowClassList real handler hydration feedback loop', () => {
       }
     }
   );
+
+  it('keeps a people refresh that completes before the first class-list result is published', async () => {
+    const client = makeClient();
+    let resolveClasses!: (classes: unknown[]) => void;
+    replicationMocks.classes.getClassesByTrial.mockReturnValueOnce(
+      new Promise(resolve => {
+        resolveClasses = resolve;
+      }) as never
+    );
+    setPeopleResponses([
+      Promise.resolve({ data: [authoritativePerson], error: null }),
+      Promise.resolve({ data: [authoritativePerson], error: null }),
+    ]);
+    Object.defineProperty(navigator, 'onLine', { configurable: true, value: true });
+
+    const { result, unmount } = renderHook(() => useAtShowClassList('show-1'), {
+      wrapper: wrapper(client),
+    });
+    try {
+      await waitFor(() => expect(mockSupabase.from).toHaveBeenCalledWith('people'));
+      await waitFor(() => expect(replicationMocks.classes.getClassesByTrial).toHaveBeenCalled());
+      expect(result.current.groups).toHaveLength(0);
+
+      resolveClasses([
+        {
+          id: 'class-1',
+          element: 'Container',
+          level: 'Novice',
+          section: '-',
+          classStatus: 'in_progress',
+        },
+      ]);
+
+      await waitFor(() => expect(result.current.groups).toHaveLength(1));
+      await waitFor(() =>
+        expect(result.current.groups[0]?.handlerIdentitiesByClassId?.get('class-1')).toEqual([
+          {
+            name: 'Olivia Owner',
+            source: 'owner',
+            person: authoritativePerson,
+          },
+        ])
+      );
+      expect(replicationMocks.entries.getEntriesByShow).toHaveBeenCalledTimes(2);
+    } finally {
+      unmount();
+    }
+  });
 });

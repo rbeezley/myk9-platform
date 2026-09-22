@@ -34,11 +34,19 @@ export interface HandlerPeopleHydrationEvent {
   ids: readonly string[];
   /** The authoritative snapshot for those IDs; omitted IDs were not returned. */
   people: ReadonlyMap<string, HandlerPersonRow>;
+  /** Monotonic process-local revision for consumers that are still loading. */
+  revision: number;
 }
 
 type HandlerPeopleHydrationListener = (event: HandlerPeopleHydrationEvent) => void;
 
 const handlerPeopleHydrationListeners = new Set<HandlerPeopleHydrationListener>();
+let handlerPeopleHydrationRevision = 0;
+
+/** Current completion revision, including refreshes that predate a subscriber. */
+export function getHandlerPeopleHydrationRevision(): number {
+  return handlerPeopleHydrationRevision;
+}
 
 /** Subscribe without coupling consumers to a React Query key or cache. */
 export function subscribeHandlerPeopleHydration(
@@ -53,6 +61,7 @@ function emitHandlerPeopleHydration(
   people: ReadonlyMap<string, HandlerPersonRow>
 ): void {
   if (ids.length === 0) return;
+  handlerPeopleHydrationRevision += 1;
   const event: HandlerPeopleHydrationEvent = {
     ids: [...ids],
     people: new Map(
@@ -60,6 +69,7 @@ function emitHandlerPeopleHydration(
         .map(id => [id, people.get(id)] as const)
         .filter((entry): entry is readonly [string, HandlerPersonRow] => Boolean(entry[1]))
     ),
+    revision: handlerPeopleHydrationRevision,
   };
   for (const listener of handlerPeopleHydrationListeners) {
     try {

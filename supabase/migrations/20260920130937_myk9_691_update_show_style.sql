@@ -2,21 +2,30 @@
 -- The client must not update public.shows directly for this field: this RPC
 -- keeps tenant authorization and account-Premium entitlement server-owned.
 
--- Keep the client-facing table UPDATE grant from becoming an authorization
--- bypass.  The RPC is SECURITY DEFINER and therefore runs this trigger as its
--- owner (postgres); every invoker-level style update is rejected before it can
--- reach the row.  Other show columns retain their existing generic update
--- behavior.
-create or replace function public.reject_direct_show_style_update()
+-- Keep the client-facing table grants from becoming an authorization bypass.
+-- The RPC is SECURITY DEFINER and therefore runs this trigger as its owner
+-- (postgres); every invoker-level style update is rejected before it can reach
+-- the row. Direct inserts remain a supported creation path, so enforce the
+-- same Premium entitlement there while allowing the Monogram default.
+create or replace function public.enforce_show_style_write_boundary()
 returns trigger
 language plpgsql
 security invoker
 set search_path = ''
 as $$
 begin
-  if current_user <> 'postgres' and new.style is distinct from old.style then
-    raise exception 'Show style must be changed through update_show_style'
-      using errcode = '42501';
+  if current_user <> 'postgres' then
+    if tg_op = 'INSERT' then
+      if new.style is not null
+         and new.style <> 'monogram'
+         and not public.has_effective_premium_access(public.get_my_person_id(), now()) then
+        raise exception 'Premium access is required for this show style'
+          using errcode = '42501';
+      end if;
+    elsif new.style is distinct from old.style then
+      raise exception 'Show style must be changed through update_show_style'
+        using errcode = '42501';
+    end if;
   end if;
   return new;
 end;
@@ -24,9 +33,12 @@ $$;
 
 drop trigger if exists trg_shows_style_rpc_boundary on public.shows;
 create trigger trg_shows_style_rpc_boundary
-  before update of style on public.shows
+  before insert or update of style on public.shows
   for each row
-  execute function public.reject_direct_show_style_update();
+  execute function public.enforce_show_style_write_boundary();
+
+-- The trigger is an internal implementation detail, not a client RPC.
+revoke all on function public.enforce_show_style_write_boundary() from public, anon, authenticated;
 
 create or replace function public.update_show_style(
   p_show_id uuid,

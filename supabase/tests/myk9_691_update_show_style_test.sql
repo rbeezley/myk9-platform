@@ -171,6 +171,52 @@ BEGIN
   END IF;
   RAISE NOTICE 'PASS Premium style save changes style only and increments version once';
 
+  -- Direct inserts are still used by some show-creation paths. They must
+  -- apply the same Premium entitlement check as the Preview RPC.
+  INSERT INTO public.shows (
+    id, name, organization, start_date, end_date, club_id, status, style
+  ) VALUES (
+    '00000000-0000-0000-0000-000000691022', 'MYK9-691 Premium Insert', 'AKC',
+    current_date + 12, current_date + 13,
+    '00000000-0000-0000-0000-000000691001', 'draft', 'heritage'
+  );
+  RAISE NOTICE 'PASS active Premium manager can insert a Premium style';
+  RESET ROLE;
+
+  PERFORM set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-000000691101', true);
+  PERFORM set_config('request.jwt.claims', jsonb_build_object(
+    'sub', '00000000-0000-0000-0000-000000691101', 'role', 'authenticated')::text, true);
+  SET LOCAL ROLE authenticated;
+  BEGIN
+    INSERT INTO public.shows (
+      id, name, organization, start_date, end_date, club_id, status, style
+    ) VALUES (
+      '00000000-0000-0000-0000-000000691023', 'MYK9-691 Free Premium Insert', 'AKC',
+      current_date + 14, current_date + 15,
+      '00000000-0000-0000-0000-000000691001', 'draft', 'heritage'
+    );
+    RAISE EXCEPTION 'FAIL free manager inserted a Premium style';
+  EXCEPTION WHEN insufficient_privilege THEN
+    IF SQLSTATE <> '42501' THEN
+      RAISE EXCEPTION 'FAIL free Premium insert denial returned SQLSTATE %', SQLSTATE;
+    END IF;
+    RAISE NOTICE 'PASS free manager is denied Premium style on direct insert';
+  END;
+
+  INSERT INTO public.shows (
+    id, name, organization, start_date, end_date, club_id, status
+  ) VALUES (
+    '00000000-0000-0000-0000-000000691024', 'MYK9-691 Free Monogram Insert', 'AKC',
+    current_date + 16, current_date + 17,
+    '00000000-0000-0000-0000-000000691001', 'draft'
+  );
+  IF (SELECT s.style FROM public.shows s
+      WHERE s.id = '00000000-0000-0000-0000-000000691024') IS DISTINCT FROM 'monogram' THEN
+    RAISE EXCEPTION 'FAIL free manager show insert did not retain the Monogram default';
+  END IF;
+  RAISE NOTICE 'PASS free manager can insert a show with the Monogram default';
+  RESET ROLE;
+
   -- A manager of another club and an ordinary authenticated user cannot cross
   -- the tenant boundary, regardless of the requested style.
   PERFORM set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-000000691103', true);

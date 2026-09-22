@@ -48,16 +48,12 @@ const generatedPremiumSchema = z.object({
       eventNumber: nullableText,
       type: z.string(),
       judges: z.array(z.object({ name: z.string(), elements: z.array(z.string()) })),
-      classes: z.array(
-        z.object({ element: z.string(), level: z.string(), section: nullableText })
-      ),
+      classes: z.array(z.object({ element: z.string(), level: z.string(), section: nullableText })),
     })
   ),
   supplemental: z.object({
     vetClinic: z.object({ name: z.string(), address: z.string(), phone: z.string() }).nullable(),
-    accommodations: z.array(
-      z.object({ name: z.string(), address: z.string(), phone: z.string() })
-    ),
+    accommodations: z.array(z.object({ name: z.string(), address: z.string(), phone: z.string() })),
     coverImageUrl: nullableText,
     hospitalityNotes: nullableText,
     awardsDescription: nullableText,

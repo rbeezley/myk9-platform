@@ -24,6 +24,11 @@ The canonical publish flow SHALL publish one append-only versioned premium artif
 - **WHEN** the currently deployed or rollback app uses an exact `<show-id>.pdf` path
 - **THEN** its temporary compatibility policies allow that legacy object shape to be inserted, updated, or deleted by an authorized organizer, and a later legacy publish invalidates any older versioned path so new-app readers show the latest premium
 
+#### Scenario: Legacy upsert visibility stays show-scoped
+
+- **WHEN** an authenticated manager or club-scoped secretary updates the legacy flat object for an authorized show
+- **THEN** the database allows row visibility required for Storage upsert only for that exact legacy object, while anonymous users and organizers for other shows cannot enumerate it or versioned artifacts
+
 #### Scenario: New app rolls out before the database
 
 - **WHEN** the new app calls either publication RPC and it is absent from the old database schema, or reads the not-yet-added path column

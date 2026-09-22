@@ -15,6 +15,8 @@ The retry identity fingerprints the complete `{ premium, inkSaver }` intent. A c
 
 New artifacts are append-only for authenticated organizers: the client may insert an exact `<show-id>/<artifact-id>.pdf` object but cannot update or delete it. The bucket accepts only PDF content within a bounded size. For rollout compatibility, the deployed/rollback app's legacy flat `<show-id>.pdf` policies temporarily retain their exact-path insert/update/delete access; the new app never writes that shape and these legacy objects are not claimed to be append-only. Failed final commits leave the last-good path, metadata, snapshot, and bytes untouched; retry reuses the same artifact id, attempt version, and timestamp, treating an already-staged object as safe partial progress. Cleanup is a separate privileged operation, not part of the versioned organizer publish policy.
 
+Migration `20260712130000` removed the bucket-wide public `SELECT` policy because it enabled directory listing and exposed premium URLs before sharing. The legacy Storage upsert still needs row visibility for its `UPDATE`, so the compatibility migration grants `SELECT` only to authenticated managers/club-scoped secretaries/platform admins for exact flat `<show-id>.pdf` objects belonging to shows they may manage. This does not restore anonymous or bucket-wide/versioned-object listing; authorized show staff can see legacy object metadata for shows they manage.
+
 Every UI entry point routes through one per-show attempt coordinator. Known Edge Function failures are classified from the real `FunctionsHttpError` response body, while technical payloads remain in logs and the organizer sees plain recovery guidance, including an actionable correction in the header action surface.
 
 ## Risks

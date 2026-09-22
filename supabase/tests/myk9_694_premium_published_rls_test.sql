@@ -65,6 +65,16 @@ SELECT '00000000-0000-0000-0000-000000694022', roles.id,
        '00000000-0000-0000-0000-000000694032'
 FROM public.roles WHERE roles.name = 'secretary';
 
+-- An existing object for another club must remain invisible to the manager A
+-- used below; the migration intentionally does not restore bucket-wide reads.
+INSERT INTO storage.objects (bucket_id, name, owner_id, metadata)
+VALUES (
+  'premium-published',
+  '00000000-0000-0000-0000-000000694012.pdf',
+  '00000000-0000-0000-0000-000000694031',
+  jsonb_build_object('mimetype', 'application/pdf', 'size', 1024)
+);
+
 SET LOCAL ROLE authenticated;
 
 DO $$
@@ -87,6 +97,7 @@ DECLARE
   first_version bigint;
   second_version bigint;
   previous_path text;
+  visible_count integer;
 BEGIN
   PERFORM set_config('request.jwt.claim.sub', admin_id::text, true);
   PERFORM set_config(
@@ -124,11 +135,24 @@ BEGIN
     'premium-published', own_show::text || '.pdf', admin_id,
     jsonb_build_object('mimetype', 'application/pdf', 'size', 1024)
   );
+  SELECT count(*) INTO visible_count
+    FROM storage.objects
+   WHERE bucket_id = 'premium-published';
+  IF visible_count <> 1 THEN
+    RAISE EXCEPTION 'FAIL manager saw % premium objects; expected only the own-show legacy flat object', visible_count;
+  END IF;
+
   UPDATE storage.objects
      SET metadata = jsonb_build_object('mimetype', 'application/pdf', 'size', 2048)
    WHERE bucket_id = 'premium-published' AND name = own_show::text || '.pdf';
   IF NOT FOUND THEN
     RAISE EXCEPTION 'FAIL legacy flat premium compatibility update was denied';
+  END IF;
+  UPDATE storage.objects
+     SET metadata = jsonb_build_object('mimetype', 'application/pdf', 'size', 2048)
+   WHERE bucket_id = 'premium-published' AND name = '00000000-0000-0000-0000-000000694012.pdf';
+  IF FOUND THEN
+    RAISE EXCEPTION 'FAIL manager updated another club''s legacy premium object';
   END IF;
   DELETE FROM storage.objects
    WHERE bucket_id = 'premium-published' AND name = own_show::text || '.pdf';
@@ -445,6 +469,16 @@ BEGIN
   );
 
   RAISE NOTICE 'PASS MYK9-694 exact staged paths, legacy compatibility, manager/secretary auth, atomic commit, and failure preservation';
+END;
+$$;
+
+RESET ROLE;
+SET LOCAL ROLE anon;
+DO $$
+BEGIN
+  IF EXISTS (SELECT 1 FROM storage.objects WHERE bucket_id = 'premium-published') THEN
+    RAISE EXCEPTION 'FAIL anonymous role could list premium-published objects';
+  END IF;
 END;
 $$;
 

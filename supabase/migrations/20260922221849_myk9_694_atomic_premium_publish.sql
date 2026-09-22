@@ -28,6 +28,7 @@ DROP POLICY IF EXISTS "Show managers can delete premium published" ON storage.ob
 DROP POLICY IF EXISTS "Show managers can upload/update/delete premium published" ON storage.objects;
 DROP POLICY IF EXISTS "Premium organizers can update published PDFs" ON storage.objects;
 DROP POLICY IF EXISTS "Premium organizers can delete published PDFs" ON storage.objects;
+DROP POLICY IF EXISTS "Legacy premium published compatibility select" ON storage.objects;
 DROP POLICY IF EXISTS "Legacy premium published compatibility insert" ON storage.objects;
 DROP POLICY IF EXISTS "Legacy premium published compatibility update" ON storage.objects;
 DROP POLICY IF EXISTS "Legacy premium published compatibility delete" ON storage.objects;
@@ -46,6 +47,21 @@ WITH CHECK (
   AND (
     (SELECT public.can_manage_show(CASE WHEN position('/' IN name) > 0 THEN split_part(name, '/', 1)::uuid ELSE split_part(name, '.', 1)::uuid END))
     OR (SELECT public.is_show_secretary(CASE WHEN position('/' IN name) > 0 THEN split_part(name, '/', 1)::uuid ELSE split_part(name, '.', 1)::uuid END))
+    OR (SELECT public.is_platform_admin())
+  )
+);
+
+-- UPDATE (including Storage upsert) requires row visibility. Keep this SELECT
+-- scope to the one legacy flat object per show; do not restore bucket listing.
+CREATE POLICY "Legacy premium published compatibility select"
+ON storage.objects FOR SELECT
+TO authenticated
+USING (
+  bucket_id = 'premium-published'
+  AND name ~* '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}[.]pdf$'
+  AND (
+    (SELECT public.can_manage_show(split_part(name, '.', 1)::uuid))
+    OR (SELECT public.is_show_secretary(split_part(name, '.', 1)::uuid))
     OR (SELECT public.is_platform_admin())
   )
 );
@@ -79,8 +95,20 @@ USING (
   bucket_id = 'premium-published'
   AND name ~* '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}[.]pdf$'
   AND (
-    (SELECT public.can_manage_show(split_part(name, '.', 1)::uuid))
-    OR (SELECT public.is_show_secretary(split_part(name, '.', 1)::uuid))
+    (SELECT public.can_manage_show(
+      CASE
+        WHEN name ~* '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}[.]pdf$'
+          THEN split_part(name, '.', 1)::uuid
+        ELSE NULL::uuid
+      END
+    ))
+    OR (SELECT public.is_show_secretary(
+      CASE
+        WHEN name ~* '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}[.]pdf$'
+          THEN split_part(name, '.', 1)::uuid
+        ELSE NULL::uuid
+      END
+    ))
     OR (SELECT public.is_platform_admin())
   )
 );

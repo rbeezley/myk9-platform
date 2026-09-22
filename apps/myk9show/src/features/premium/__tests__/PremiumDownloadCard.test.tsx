@@ -6,6 +6,7 @@ import { usePremiumPublishStore } from '../useGenerateAndPublishPremium';
 import { PremiumDownloadCard } from '../PremiumDownloadCard';
 import { publishInfoQueryKey } from '../usePublishInfo';
 import { resetPremiumPublishCoordinatorForTests } from '../premiumPublishCoordinator';
+import { generatedPremium } from './fixtures/generatedPremium';
 
 const maybeSingleMock = vi.hoisted(() => vi.fn());
 const generateMock = vi.hoisted(() => vi.fn());
@@ -282,7 +283,7 @@ describe('PremiumDownloadCard', () => {
         },
         error: null,
       });
-    generateMock.mockResolvedValue({});
+    generateMock.mockResolvedValue(generatedPremium());
     publishExperienceMock.mockResolvedValue({
       premiumUrl: 'https://example.test/premium.pdf',
       publishedAt: '2026-05-10T12:06:00.000Z',
@@ -318,7 +319,7 @@ describe('PremiumDownloadCard', () => {
         },
         error: null,
       });
-    generateMock.mockResolvedValue({});
+    generateMock.mockResolvedValue(generatedPremium());
     publishExperienceMock.mockResolvedValue({
       premiumUrl: 'https://example.test/premium.pdf',
       publishedAt: '2026-05-10T12:06:00.000Z',
@@ -368,7 +369,7 @@ describe('PremiumDownloadCard', () => {
     });
 
     expect(generateMock).toHaveBeenCalledTimes(1);
-    resolveGeneration?.({});
+    resolveGeneration?.(generatedPremium());
     await waitFor(() => expect(publishExperienceMock).toHaveBeenCalledTimes(1));
   });
 
@@ -385,7 +386,7 @@ describe('PremiumDownloadCard', () => {
       .mockRejectedValueOnce(
         new Error('Edge Function returned 500: {"detail":"permission denied"}')
       )
-      .mockResolvedValueOnce({});
+      .mockResolvedValueOnce(generatedPremium());
     publishExperienceMock.mockResolvedValue({
       premiumUrl: 'https://example.test/premium.pdf',
       publishedAt: '2026-05-09T12:01:00.000Z',
@@ -401,7 +402,9 @@ describe('PremiumDownloadCard', () => {
     expect(
       screen.queryByText(/permission denied|edge function returned 500/i)
     ).not.toBeInTheDocument();
-    expect(notificationErrorMock).toHaveBeenCalledWith('Could not publish the premium list');
+    expect(notificationErrorMock).toHaveBeenCalledWith(
+      "You do not have permission to publish this show's premium list. Ask the show owner to add you as a secretary."
+    );
 
     await user.click(screen.getByRole('button', { name: /try again/i }));
     await waitFor(() => {
@@ -478,7 +481,7 @@ describe('PremiumDownloadCard', () => {
         },
         error: null,
       });
-    generateMock.mockResolvedValue({});
+    generateMock.mockResolvedValue(generatedPremium());
     publishExperienceMock
       .mockRejectedValueOnce(new Error('Edge Function returned 500: {"detail":"db down"}'))
       .mockResolvedValueOnce({

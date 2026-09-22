@@ -1,7 +1,14 @@
 import { supabase } from '@/services/database/supabaseClient';
-import { classifyPremiumPublishError } from './premiumPublishErrors';
 import { publishExperience } from '@/features/experience/publishExperience';
-import type { GeneratedPremium } from '@/types/premium-types';
+import { publishExperienceLegacy } from '@/features/experience/publishExperienceLegacy';
+import {
+  classifyPremiumPublishError,
+  isMissingPremiumPublishRpc,
+  PremiumPublishError,
+} from './premiumPublishErrors';
+import type { PremiumPublishAttempt, PremiumPublishIntent } from './premiumPublishIntent';
+import { premiumPublishIntentFingerprint } from './premiumPublishIntent';
+import { parseGeneratedPremium, parsePersistedPremiumAttempt } from './premiumPublishSchema';
 
 interface PremiumPublishRpcClient {
   rpc: (
@@ -10,37 +17,18 @@ interface PremiumPublishRpcClient {
   ) => Promise<{ data: unknown; error: unknown | null }>;
 }
 
-const inFlightByShowId = new Map<string, Promise<{ publishedAt: string; premiumUrl: string }>>();
-const ATTEMPT_STORAGE_KEY = 'myk9:premium-publish-attempts:v1';
-const ATTEMPT_SCHEMA_VERSION = 1;
-export interface PremiumPublishAttempt {
-  premium?: GeneratedPremium;
-  premiumFingerprint?: string;
-  artifactId: string;
-  publishedAt: string;
-  publishVersion: number;
-}
-
+type PublishResult = { publishedAt: string; premiumUrl: string };
+const inFlightByShowId = new Map<
+  string,
+  { fingerprint: string; promise: Promise<PublishResult> }
+>();
+const ATTEMPT_STORAGE_KEY = 'myk9:premium-publish-attempts:v2';
+const LEGACY_ATTEMPT_STORAGE_KEY = 'myk9:premium-publish-attempts:v1';
+const ATTEMPT_SCHEMA_VERSION = 2;
 const attemptByShowId = new Map<string, PremiumPublishAttempt>();
-const beginByShowId = new Map<string, Promise<number>>();
+const reservedVersionByShowId = new Map<string, Promise<number>>();
+const legacySchemaByShowId = new Set<string>();
 let hydrated = false;
-
-function stableSerialize(value: unknown): string {
-  if (Array.isArray(value)) return `[${value.map(stableSerialize).join(',')}]`;
-  if (value && typeof value === 'object') {
-    return `{${Object.keys(value as Record<string, unknown>)
-      .sort()
-      .map(
-        key => `${JSON.stringify(key)}:${stableSerialize((value as Record<string, unknown>)[key])}`
-      )
-      .join(',')}}`;
-  }
-  return JSON.stringify(value) ?? 'null';
-}
-
-export function premiumPublishFingerprint(premium: GeneratedPremium): string {
-  return stableSerialize(premium);
-}
 
 function getAttemptStorage(): Storage | null {
   try {
@@ -50,68 +38,12 @@ function getAttemptStorage(): Storage | null {
   }
 }
 
-function clearAttemptStorage(storage: Storage): void {
-  try {
-    storage.removeItem(ATTEMPT_STORAGE_KEY);
-  } catch {
-    // Session storage can be unavailable in privacy-restricted contexts.
-  }
-}
-
-function isPersistedAttempt(value: unknown): value is PremiumPublishAttempt {
-  if (!value || typeof value !== 'object') return false;
-  const attempt = value as Record<string, unknown>;
-  if (
-    typeof attempt.artifactId !== 'string' ||
-    typeof attempt.publishedAt !== 'string' ||
-    typeof attempt.publishVersion !== 'number' ||
-    !Number.isSafeInteger(attempt.publishVersion) ||
-    attempt.publishVersion < 1
-  ) {
-    return false;
-  }
-  if (attempt.premium === undefined) return true;
-  return (
-    typeof attempt.premiumFingerprint === 'string' &&
-    typeof attempt.premium === 'object' &&
-    attempt.premium !== null &&
-    premiumPublishFingerprint(attempt.premium as GeneratedPremium) === attempt.premiumFingerprint
-  );
-}
-
-function hydrateAttempts(): void {
-  if (hydrated) return;
-  hydrated = true;
-  const storage = getAttemptStorage();
-  if (!storage) return;
-  try {
-    const parsed = JSON.parse(storage.getItem(ATTEMPT_STORAGE_KEY) ?? 'null') as {
-      schemaVersion?: unknown;
-      attempts?: unknown;
-    } | null;
-    if (
-      parsed?.schemaVersion !== ATTEMPT_SCHEMA_VERSION ||
-      !parsed.attempts ||
-      typeof parsed.attempts !== 'object' ||
-      Array.isArray(parsed.attempts)
-    ) {
-      clearAttemptStorage(storage);
-      return;
-    }
-    for (const [showId, attempt] of Object.entries(parsed.attempts)) {
-      if (showId && isPersistedAttempt(attempt)) attemptByShowId.set(showId, attempt);
-    }
-  } catch {
-    clearAttemptStorage(storage);
-  }
-}
-
 function persistAttempts(): void {
   const storage = getAttemptStorage();
   if (!storage) return;
   try {
     if (attemptByShowId.size === 0) {
-      clearAttemptStorage(storage);
+      storage.removeItem(ATTEMPT_STORAGE_KEY);
       return;
     }
     storage.setItem(
@@ -126,25 +58,40 @@ function persistAttempts(): void {
   }
 }
 
-/** Server-side versioning is the ordering authority for a publish attempt. */
-export async function beginPremiumPublishAttempt(showId: string): Promise<number> {
-  hydrateAttempts();
-  const existing = attemptByShowId.get(showId);
-  if (existing) return existing.publishVersion;
-  const pending = beginByShowId.get(showId);
-  if (pending) return pending;
-
-  const request = beginPremiumPublishVersion(showId);
-  beginByShowId.set(showId, request);
-  void request.then(
-    () => {
-      if (beginByShowId.get(showId) === request) beginByShowId.delete(showId);
-    },
-    () => {
-      if (beginByShowId.get(showId) === request) beginByShowId.delete(showId);
+function hydrateAttempts(): void {
+  if (hydrated) return;
+  hydrated = true;
+  const storage = getAttemptStorage();
+  if (!storage) return;
+  try {
+    storage.removeItem(LEGACY_ATTEMPT_STORAGE_KEY);
+    const parsed = JSON.parse(storage.getItem(ATTEMPT_STORAGE_KEY) ?? 'null') as {
+      schemaVersion?: unknown;
+      attempts?: unknown;
+    } | null;
+    if (
+      parsed?.schemaVersion !== ATTEMPT_SCHEMA_VERSION ||
+      !parsed.attempts ||
+      typeof parsed.attempts !== 'object' ||
+      Array.isArray(parsed.attempts)
+    ) {
+      storage.removeItem(ATTEMPT_STORAGE_KEY);
+      return;
     }
-  );
-  return request;
+    for (const [showId, value] of Object.entries(parsed.attempts)) {
+      const attempt = parsePersistedPremiumAttempt(value);
+      if (
+        attempt &&
+        attempt.showId === showId &&
+        attempt.fingerprint === premiumPublishIntentFingerprint(attempt.intent)
+      ) {
+        attemptByShowId.set(showId, attempt);
+      }
+    }
+    persistAttempts();
+  } catch {
+    storage.removeItem(ATTEMPT_STORAGE_KEY);
+  }
 }
 
 async function beginPremiumPublishVersion(showId: string): Promise<number> {
@@ -152,22 +99,36 @@ async function beginPremiumPublishVersion(showId: string): Promise<number> {
     'begin_premium_publish',
     { p_show_id: showId }
   );
-  if (error) throw classifyPremiumPublishError(error, 'premium-metadata');
-
+  if (error) throw error;
   const version = typeof data === 'number' ? data : Number(data);
   if (!Number.isSafeInteger(version) || version < 1) {
-    throw classifyPremiumPublishError(
-      new Error('Premium publish attempt did not receive a server version'),
+    throw new PremiumPublishError(
+      'Premium publish attempt did not receive a server version',
       'premium-metadata'
     );
   }
-  attemptByShowId.set(showId, {
-    artifactId: crypto.randomUUID(),
-    publishedAt: new Date().toISOString(),
-    publishVersion: version,
-  });
-  persistAttempts();
   return version;
+}
+
+/** Reserve the ordering token before premium generation begins. */
+export function beginPremiumPublishAttempt(showId: string): Promise<number> {
+  hydrateAttempts();
+  const current = attemptByShowId.get(showId);
+  if (current) return Promise.resolve(current.publishVersion);
+  const pending = reservedVersionByShowId.get(showId);
+  if (pending) return pending;
+  const reservation = beginPremiumPublishVersion(showId).catch(error => {
+    if (isMissingPremiumPublishRpc(error)) {
+      legacySchemaByShowId.add(showId);
+      return 0;
+    }
+    throw classifyPremiumPublishError(error, 'premium-metadata');
+  });
+  reservedVersionByShowId.set(showId, reservation);
+  void reservation.catch(() => {
+    if (reservedVersionByShowId.get(showId) === reservation) reservedVersionByShowId.delete(showId);
+  });
+  return reservation;
 }
 
 export function getPremiumPublishAttempt(showId: string): PremiumPublishAttempt | undefined {
@@ -178,6 +139,7 @@ export function getPremiumPublishAttempt(showId: string): PremiumPublishAttempt 
 export function discardPremiumPublishAttempt(showId: string): void {
   hydrateAttempts();
   attemptByShowId.delete(showId);
+  reservedVersionByShowId.delete(showId);
   persistAttempts();
 }
 
@@ -186,90 +148,98 @@ export function resetPremiumPublishCoordinatorForTests(options?: {
   preserveStorage?: boolean;
 }): void {
   attemptByShowId.clear();
+  reservedVersionByShowId.clear();
   inFlightByShowId.clear();
-  beginByShowId.clear();
+  legacySchemaByShowId.clear();
   hydrated = false;
   if (!options?.preserveStorage) {
     const storage = getAttemptStorage();
-    if (storage) clearAttemptStorage(storage);
+    storage?.removeItem(ATTEMPT_STORAGE_KEY);
+    storage?.removeItem(LEGACY_ATTEMPT_STORAGE_KEY);
   }
 }
 
-/** Existing editor saves use the same versioned coordinator as the card/menu. */
 export async function publishGeneratedPremiumAttempt({
   showId,
   premium,
   inkSaver,
-  artifactId,
-  publishedAt,
-  publishVersion,
 }: {
   showId: string;
-  premium: GeneratedPremium;
+  premium: unknown;
   inkSaver: boolean;
-  artifactId?: string;
-  publishedAt?: string;
-  publishVersion?: number;
-}) {
+}): Promise<PublishResult> {
   hydrateAttempts();
-  const inputFingerprint = premiumPublishFingerprint(premium);
-  let stored = attemptByShowId.get(showId);
-  if (stored?.premium && stored.premiumFingerprint !== inputFingerprint) {
-    attemptByShowId.delete(showId);
-    persistAttempts();
-    stored = undefined;
-    publishVersion = undefined;
+  const intent: PremiumPublishIntent = { premium: parseGeneratedPremium(premium), inkSaver };
+  const fingerprint = premiumPublishIntentFingerprint(intent);
+  const inFlight = inFlightByShowId.get(showId);
+  if (inFlight) {
+    if (inFlight.fingerprint === fingerprint) return inFlight.promise;
+    throw new PremiumPublishError(
+      'A different premium list is already publishing for this show',
+      'premium-metadata',
+      'intent-conflict'
+    );
   }
-  const existing = inFlightByShowId.get(showId);
-  if (existing) return existing;
 
-  const attempt = (async () => {
-    const version =
-      publishVersion ?? stored?.publishVersion ?? (await beginPremiumPublishAttempt(showId));
-    const stableAttempt = attemptByShowId.get(showId) ?? {
-      artifactId: artifactId ?? crypto.randomUUID(),
-      publishedAt: publishedAt ?? new Date().toISOString(),
-      publishVersion: version,
-    };
-    const resolvedPremium = stableAttempt.premium ?? premium;
-    const completeAttempt = {
-      ...stableAttempt,
-      ...(resolvedPremium
-        ? { premium: resolvedPremium, premiumFingerprint: inputFingerprint }
-        : {}),
-      publishVersion: version,
-    };
-    if (!completeAttempt.premium) {
-      throw new Error('Premium publish coordinator requires generated premium data');
+  const promise = (async () => {
+    if (legacySchemaByShowId.has(showId)) {
+      return publishExperienceLegacy({ showId, intent });
     }
-    attemptByShowId.set(showId, completeAttempt);
-    persistAttempts();
-    try {
-      const result = await publishExperience({
+    let attempt = attemptByShowId.get(showId);
+    if (attempt && attempt.fingerprint !== fingerprint) {
+      discardPremiumPublishAttempt(showId);
+      attempt = undefined;
+    }
+    if (!attempt) {
+      const reserved = reservedVersionByShowId.get(showId);
+      const version = reserved
+        ? await reserved
+        : await beginPremiumPublishVersion(showId).catch(error => {
+            if (isMissingPremiumPublishRpc(error)) {
+              legacySchemaByShowId.add(showId);
+              return 0;
+            }
+            throw classifyPremiumPublishError(error, 'premium-metadata');
+          });
+      reservedVersionByShowId.delete(showId);
+      if (version === 0 || legacySchemaByShowId.has(showId)) {
+        return publishExperienceLegacy({ showId, intent });
+      }
+      attempt = {
+        schemaVersion: ATTEMPT_SCHEMA_VERSION,
         showId,
-        premium: completeAttempt.premium,
-        inkSaver,
-        artifactId: completeAttempt.artifactId,
-        publishedAt: completeAttempt.publishedAt,
+        fingerprint,
+        intent,
+        artifactId: crypto.randomUUID(),
         publishVersion: version,
-      });
-      attemptByShowId.delete(showId);
+      };
+      attemptByShowId.set(showId, attempt);
       persistAttempts();
+    }
+
+    try {
+      const result = await publishExperience({ showId, attempt });
+      discardPremiumPublishAttempt(showId);
       return result;
     } catch (error) {
+      if (isMissingPremiumPublishRpc(error, 'publish_premium_artifact')) {
+        discardPremiumPublishAttempt(showId);
+        legacySchemaByShowId.add(showId);
+        return publishExperienceLegacy({ showId, intent });
+      }
       const classified = classifyPremiumPublishError(error, 'experience-snapshot');
       if (classified.code === 'stale-attempt') discardPremiumPublishAttempt(showId);
       throw classified;
     }
   })();
-  inFlightByShowId.set(showId, attempt);
-  void attempt.then(
+  inFlightByShowId.set(showId, { fingerprint, promise });
+  void promise.then(
     () => {
-      if (inFlightByShowId.get(showId) === attempt) inFlightByShowId.delete(showId);
+      if (inFlightByShowId.get(showId)?.promise === promise) inFlightByShowId.delete(showId);
     },
     () => {
-      if (inFlightByShowId.get(showId) === attempt) inFlightByShowId.delete(showId);
+      if (inFlightByShowId.get(showId)?.promise === promise) inFlightByShowId.delete(showId);
     }
   );
-  return attempt;
+  return promise;
 }

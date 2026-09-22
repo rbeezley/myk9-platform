@@ -4,9 +4,50 @@ import {
   classifyPremiumFunctionError,
   premiumPublishFailureMessage,
   PremiumPublishError,
+  isMissingPremiumPublishRpc,
 } from '../premiumPublishErrors';
 
 describe('premium publish error contract', () => {
+  it('recognizes only structured missing-function/schema-cache errors for the expected RPC', () => {
+    expect(
+      isMissingPremiumPublishRpc({
+        code: 'PGRST202',
+        message:
+          'Could not find the function public.begin_premium_publish(p_show_id) in the schema cache',
+      })
+    ).toBe(true);
+    expect(isMissingPremiumPublishRpc({ code: '42501', message: 'permission denied' })).toBe(false);
+    expect(
+      isMissingPremiumPublishRpc({
+        code: 'PGRST202',
+        message: 'publish_premium_artifact not found',
+      })
+    ).toBe(false);
+    expect(
+      isMissingPremiumPublishRpc(
+        {
+          code: 'PGRST202',
+          message:
+            'Could not find the function public.publish_premium_artifact in the schema cache',
+        },
+        'publish_premium_artifact'
+      )
+    ).toBe(true);
+    expect(
+      isMissingPremiumPublishRpc(
+        classifyPremiumPublishError(
+          {
+            code: 'PGRST202',
+            message:
+              'Could not find the function public.publish_premium_artifact in the schema cache',
+          },
+          'experience-snapshot'
+        ),
+        'publish_premium_artifact'
+      )
+    ).toBe(true);
+  });
+
   it('turns a missing organization response into specific correction guidance', () => {
     const error = classifyPremiumPublishError(
       new Error('Premium generation is only supported for AKC and UKC shows (got: null)'),

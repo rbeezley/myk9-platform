@@ -4,6 +4,7 @@ import { useLocation } from 'react-router-dom';
 import userEvent from '@testing-library/user-event';
 import { render } from '@/test/utils/testUtils';
 import AppHeader from './AppHeader';
+import { generatedPremium } from '@/features/premium/__tests__/fixtures/generatedPremium';
 import { usePremiumPublishStore } from '@/features/premium/useGenerateAndPublishPremium';
 import { resetPremiumPublishCoordinatorForTests } from '@/features/premium/premiumPublishCoordinator';
 
@@ -11,6 +12,12 @@ const viewer = vi.hoisted(() => ({
   canManage: true,
   canOperate: true,
   isStaff: true,
+}));
+const notificationsMock = vi.hoisted(() => ({
+  success: vi.fn(),
+  error: vi.fn(),
+  info: vi.fn(),
+  warning: vi.fn(),
 }));
 
 vi.mock('@/hooks/useTheme', () => ({
@@ -85,9 +92,10 @@ vi.mock('@/components/layout/AccountMenuContent', () => ({
 // The premium flow's two edges, so the REAL `useGenerateAndPublishPremium` runs
 // and the test measures the binding rather than a stub of it.
 const premiumEdges = vi.hoisted(() => ({
-  generate: vi.fn(async (showId: string) => ({ showId, pdfUrl: 'blob:premium' })),
+  generate: vi.fn(async () => generatedPremium()),
   beginPremiumPublishAttempt: vi.fn(async () => 1),
   publishExperience: vi.fn(async () => undefined),
+  publishGeneratedPremiumAttempt: vi.fn(async () => undefined),
   // The publish read the Premium List card renders from. The menu item now
   // reads the SAME one, so these fixtures drive both.
   publishInfo: {
@@ -119,6 +127,7 @@ vi.mock('@/features/premium/premiumPublishCoordinator', async () => {
   return {
     ...actual,
     beginPremiumPublishAttempt: premiumEdges.beginPremiumPublishAttempt,
+    publishGeneratedPremiumAttempt: premiumEdges.publishGeneratedPremiumAttempt,
   };
 });
 
@@ -137,7 +146,7 @@ vi.mock('@/features/premium/usePublishInfo', async () => {
 });
 
 vi.mock('@/lib/notifications', () => ({
-  notifications: { success: vi.fn(), error: vi.fn(), info: vi.fn(), warning: vi.fn() },
+  notifications: notificationsMock,
 }));
 
 function LocationProbe() {
@@ -164,6 +173,8 @@ beforeEach(() => {
   premiumEdges.generate.mockClear();
   premiumEdges.beginPremiumPublishAttempt.mockClear();
   premiumEdges.publishExperience.mockClear();
+  premiumEdges.publishGeneratedPremiumAttempt.mockClear();
+  notificationsMock.error.mockClear();
   premiumEdges.publishInfo = {
     publishedUrl: null,
     publishedAt: null,
@@ -376,12 +387,30 @@ describe('AppHeader Actions menu — the two items that are not plain destinatio
 
     await waitFor(() => expect(premiumEdges.generate).toHaveBeenCalledWith('show-1'));
     await waitFor(() =>
-      expect(premiumEdges.publishExperience).toHaveBeenCalledWith(
-        expect.objectContaining({ showId: 'show-1' })
+      expect(premiumEdges.publishGeneratedPremiumAttempt).toHaveBeenCalledWith(
+        expect.objectContaining({ showId: 'show-1', premium: generatedPremium(), inkSaver: false })
       )
     );
     // And it did NOT move the secretary off the section they were working on.
     expect(screen.getByTestId('probe-pathname')).toHaveTextContent(SECTION_ROUTE);
+  });
+
+  it('shows the actionable correction when publishing from the header fails', async () => {
+    premiumEdges.generate.mockRejectedValueOnce(
+      new Error('Premium generation is only supported for AKC and UKC shows (got: null)')
+    );
+    const user = userEvent.setup();
+    render(<AppHeader />, { initialRoute: SECTION_ROUTE });
+
+    await user.click(screen.getByRole('button', { name: /^actions$/i }));
+    const menu = await screen.findByRole('menu');
+    await user.click(within(menu).getByTestId('header-action-show-generate-publish-premium'));
+
+    await waitFor(() =>
+      expect(notificationsMock.error).toHaveBeenCalledWith(
+        "Set this show's organization to AKC or UKC in Show settings, then try again."
+      )
+    );
   });
 
   it('is not a link at all, so there is no hash for the router to drop', async () => {

@@ -1,41 +1,34 @@
 import { publishPremium } from '@/features/premium/publishPremium';
+import type { PremiumPublishAttempt } from '@/features/premium/premiumPublishIntent';
 import { supabase } from '@/services/database/supabaseClient';
-import type { GeneratedPremium } from '@/types/premium-types';
-import { buildExperienceSnapshot } from './experienceSnapshot';
 import { classifyPremiumPublishError } from '@/features/premium/premiumPublishErrors';
+import { buildExperienceSnapshot } from './experienceSnapshot';
 
 export async function publishExperience({
   showId,
-  premium,
-  inkSaver,
-  artifactId,
-  publishedAt,
-  publishVersion,
+  attempt,
 }: {
   showId: string;
-  premium: GeneratedPremium;
-  inkSaver: boolean;
-  artifactId?: string;
-  publishedAt?: string;
-  publishVersion: number;
+  attempt: PremiumPublishAttempt;
 }): Promise<{ publishedAt: string; premiumUrl: string }> {
-  const premiumResult = await publishPremium(showId, premium, {
+  const { premium, inkSaver } = attempt.intent;
+  const staged = await publishPremium(showId, premium, {
+    artifactId: attempt.artifactId,
     inkSaver,
-    ...(artifactId ? { artifactId } : {}),
-    ...(publishedAt ? { publishedAt } : {}),
   });
   const snapshot = buildExperienceSnapshot({
     premium,
-    premiumPath: premiumResult.path,
-    publishedAt: premiumResult.publishedAt,
+    premiumPath: staged.path,
+    premiumUrl: staged.publicUrl,
   });
 
   const { data, error } = await (supabase as unknown as PremiumPublishRpcClient).rpc(
     'publish_premium_artifact',
     {
       p_show_id: showId,
-      p_storage_path: premiumResult.path,
-      p_publish_version: publishVersion,
+      p_storage_path: staged.path,
+      p_public_url: staged.publicUrl,
+      p_publish_version: attempt.publishVersion,
       p_experience_style: premium.style,
       p_experience_content: snapshot,
     }
@@ -46,22 +39,20 @@ export async function publishExperience({
     throw classifyPremiumPublishError(error, 'experience-snapshot');
   }
 
-  if (!data || (Array.isArray(data) && data.length === 0)) {
-    const noRowsError = new Error('Premium publication committed zero show rows');
-    console.error('[premium-publish] atomic publication returned no show row', { showId });
-    throw classifyPremiumPublishError(noRowsError, 'experience-snapshot');
+  if (!data || typeof data !== 'object' || Array.isArray(data)) {
+    const invalidResponse = new Error('Premium publication returned an invalid result');
+    console.error('[premium-publish] atomic publication returned an invalid result', { showId });
+    throw classifyPremiumPublishError(invalidResponse, 'experience-snapshot');
   }
 
-  return {
-    publishedAt: getCommittedPublishedAt(data) ?? premiumResult.publishedAt,
-    premiumUrl: premiumResult.url,
-  };
-}
+  const committed = data as { publishedAt?: unknown; premiumUrl?: unknown };
+  if (typeof committed.publishedAt !== 'string' || typeof committed.premiumUrl !== 'string') {
+    const incompleteResponse = new Error('Premium publication returned incomplete metadata');
+    console.error('[premium-publish] atomic publication returned incomplete metadata', { showId });
+    throw classifyPremiumPublishError(incompleteResponse, 'experience-snapshot');
+  }
 
-function getCommittedPublishedAt(data: unknown): string | null {
-  if (!data || typeof data !== 'object' || !('publishedAt' in data)) return null;
-  const publishedAt = (data as { publishedAt?: unknown }).publishedAt;
-  return typeof publishedAt === 'string' ? publishedAt : null;
+  return { publishedAt: committed.publishedAt, premiumUrl: committed.premiumUrl };
 }
 
 interface PremiumPublishRpcClient {

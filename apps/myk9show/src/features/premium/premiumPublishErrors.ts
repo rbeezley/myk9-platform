@@ -7,6 +7,7 @@ export type PremiumPublishFailureCode =
   | 'configuration'
   | 'permission'
   | 'stale-attempt'
+  | 'intent-conflict'
   | 'unknown';
 
 export class PremiumPublishError extends Error {
@@ -22,6 +23,23 @@ export class PremiumPublishError extends Error {
     super(message);
     this.originalError = originalError;
   }
+}
+
+export function isMissingPremiumPublishRpc(
+  error: unknown,
+  functionName = 'begin_premium_publish'
+): boolean {
+  if (error instanceof PremiumPublishError && error.originalError !== undefined) {
+    return isMissingPremiumPublishRpc(error.originalError, functionName);
+  }
+  if (!error || typeof error !== 'object') return false;
+  const record = error as Record<string, unknown>;
+  if (record.code !== 'PGRST202') return false;
+  const detail = [record.message, record.details, record.hint]
+    .filter((part): part is string => typeof part === 'string')
+    .join(' ')
+    .toLowerCase();
+  return detail.includes(functionName.toLowerCase()) && /function|schema cache/.test(detail);
 }
 
 function errorText(error: unknown): string {
@@ -123,6 +141,8 @@ export function premiumPublishFailureMessage(error: PremiumPublishError): string
       return "You do not have permission to publish this show's premium list. Ask the show owner to add you as a secretary.";
     case 'stale-attempt':
       return 'Another publish started for this show. Try publishing again to continue.';
+    case 'intent-conflict':
+      return 'A different premium list is already publishing for this show. Wait for it to finish, then try again.';
     default:
       return GENERIC_PREMIUM_PUBLISH_FAILURE;
   }

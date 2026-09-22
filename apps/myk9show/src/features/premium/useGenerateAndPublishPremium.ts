@@ -110,9 +110,8 @@ export function useGenerateAndPublishPremium(showId: string): GenerateAndPublish
     begin(showId);
     try {
       const cachedAttempt = getPremiumPublishAttempt(showId);
-      const publishVersion =
-        cachedAttempt?.publishVersion ?? (await beginPremiumPublishAttempt(showId));
-      let premium = cachedAttempt?.premium;
+      if (!cachedAttempt) await beginPremiumPublishAttempt(showId);
+      let premium = cachedAttempt?.intent.premium;
       if (!premium) {
         try {
           premium = await generate(showId);
@@ -124,9 +123,6 @@ export function useGenerateAndPublishPremium(showId: string): GenerateAndPublish
       await publishGeneratedPremiumAttempt({
         showId,
         premium,
-        ...(cachedAttempt ? { artifactId: cachedAttempt.artifactId } : {}),
-        ...(cachedAttempt ? { publishedAt: cachedAttempt.publishedAt } : {}),
-        publishVersion,
         inkSaver: false,
       });
       await Promise.all([
@@ -144,7 +140,7 @@ export function useGenerateAndPublishPremium(showId: string): GenerateAndPublish
     } catch (error) {
       const classified = classifyPremiumPublishError(error, 'generation');
       fail(showId, premiumPublishFailureMessage(classified));
-      notifications.error('Could not publish the premium list');
+      notifications.error(premiumPublishFailureMessage(classified));
     }
   }, [showId, begin, succeed, fail, generate, queryClient]);
 

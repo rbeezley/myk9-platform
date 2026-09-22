@@ -8,13 +8,14 @@ import {
 } from '../useGenerateAndPublishPremium';
 import { PremiumPublishError } from '../premiumPublishErrors';
 import { resetPremiumPublishCoordinatorForTests } from '../premiumPublishCoordinator';
+import { generatedPremium } from './fixtures/generatedPremium';
 
 const SHOW_A = 'show-a';
 const SHOW_B = 'show-b';
 
 const edges = vi.hoisted(() => ({
   generate: vi.fn(),
-  beginPremiumPublishAttempt: vi.fn(async () => 1),
+  rpc: vi.fn(async () => ({ data: 1, error: null })),
   publishExperience: vi.fn(async (_options: Record<string, unknown>) => undefined),
   release: {} as Record<string, (value?: unknown) => void>,
 }));
@@ -32,12 +33,7 @@ vi.mock('@/features/experience/publishExperience', () => ({
   publishExperience: edges.publishExperience,
 }));
 
-vi.mock('../premiumPublishCoordinator', async () => {
-  const actual = await vi.importActual<typeof import('../premiumPublishCoordinator')>(
-    '../premiumPublishCoordinator'
-  );
-  return { ...actual, beginPremiumPublishAttempt: edges.beginPremiumPublishAttempt };
-});
+vi.mock('@/services/database/supabaseClient', () => ({ supabase: { rpc: edges.rpc } }));
 
 vi.mock('@/lib/notifications', () => ({
   notifications: { success: vi.fn(), error: vi.fn(), info: vi.fn(), warning: vi.fn() },
@@ -59,8 +55,8 @@ beforeEach(() => {
   usePremiumPublishStore.setState({ byShowId: {} });
   resetPremiumPublishCoordinatorForTests();
   edges.generate.mockReset();
-  edges.beginPremiumPublishAttempt.mockReset();
-  edges.beginPremiumPublishAttempt.mockResolvedValue(1);
+  edges.rpc.mockReset();
+  edges.rpc.mockResolvedValue({ data: 1, error: null });
   edges.publishExperience.mockClear();
   edges.release = {};
 });
@@ -69,7 +65,7 @@ describe('premium publish state is per SHOW, not global', () => {
   it('lets a second show publish while the first is still in flight', async () => {
     edges.generate.mockImplementation(async (showId: string) => {
       await pending(showId);
-      return { showId };
+      return generatedPremium();
     });
 
     const a = renderHook(() => useGenerateAndPublishPremium(SHOW_A), { wrapper });
@@ -88,7 +84,7 @@ describe('premium publish state is per SHOW, not global', () => {
   it('refuses a SECOND trigger for the same show, with busy visible on both', async () => {
     edges.generate.mockImplementation(async (showId: string) => {
       await pending(showId);
-      return { showId };
+      return generatedPremium();
     });
 
     // Two triggers on the same show — the card's button and the header item.
@@ -128,8 +124,8 @@ describe('premium publish state is per SHOW, not global', () => {
   });
 
   it('retries a failed snapshot without paying for generation again', async () => {
-    const premium = { showId: SHOW_A };
-    edges.generate.mockResolvedValue(premium);
+    const generated = generatedPremium();
+    edges.generate.mockResolvedValue(generated);
     edges.publishExperience
       .mockRejectedValueOnce(new PremiumPublishError('snapshot failed', 'experience-snapshot'))
       .mockResolvedValueOnce(undefined);
@@ -151,13 +147,11 @@ describe('premium publish state is per SHOW, not global', () => {
     const secondAttempt = edges.publishExperience.mock.calls[1]?.[0];
     if (!firstAttempt || !secondAttempt) throw new Error('publish attempt arguments missing');
     expect(firstAttempt).toMatchObject({
-      artifactId: expect.any(String),
-      publishedAt: expect.any(String),
+      showId: SHOW_A,
+      attempt: { artifactId: expect.any(String), publishVersion: 1 },
     });
     expect(secondAttempt).toMatchObject({
-      artifactId: firstAttempt.artifactId,
-      publishedAt: firstAttempt.publishedAt,
-      publishVersion: firstAttempt.publishVersion,
+      attempt: firstAttempt.attempt,
     });
     expect(hook.result.current.publishFailed).toBe(false);
   });

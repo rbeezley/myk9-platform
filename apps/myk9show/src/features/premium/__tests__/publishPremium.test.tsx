@@ -148,18 +148,14 @@ describe('publishPremium', () => {
     );
   });
 
-  it('returns the staged artifact without mutating show metadata', async () => {
-    const result = await publishPremium('show-1', basePremium, {
-      artifactId: 'artifact-1',
-      publishedAt: '2026-05-09T14:00:00.000Z',
-    });
+  it('returns the staged artifact without a client publication timestamp', async () => {
+    const result = await publishPremium('show-1', basePremium, { artifactId: 'artifact-1' });
 
     expect(uploadMock).toHaveBeenCalledTimes(1);
     expect(fromMock).not.toHaveBeenCalled();
     expect(result).toEqual({
       path: 'show-1/artifact-1.pdf',
-      url: 'https://example.com/abc.pdf',
-      publishedAt: '2026-05-09T14:00:00.000Z',
+      publicUrl: 'https://example.com/abc.pdf',
     });
   });
 

@@ -77,8 +77,10 @@ DECLARE
   artifact CONSTANT text := '11111111-1111-1111-1111-111111111111';
   second_artifact CONSTANT text := '33333333-3333-3333-3333-333333333333';
   bad_artifact CONSTANT text := '44444444-4444-4444-4444-444444444444';
+  oversized_artifact CONSTANT text := '55555555-5555-5555-5555-555555555555';
   secretary_artifact CONSTANT text := '22222222-2222-2222-2222-222222222222';
-  legacy_url CONSTANT text := 'https://legacy.example.test/00000000-0000-0000-0000-000000694011.pdf';
+  legacy_url CONSTANT text := 'https://sojmvhhwsjxmfistvzbe.supabase.co/storage/v1/object/public/premium-published/00000000-0000-0000-0000-000000694011.pdf';
+  versioned_url CONSTANT text := 'https://sojmvhhwsjxmfistvzbe.supabase.co/storage/v1/object/public/premium-published/00000000-0000-0000-0000-000000694011/11111111-1111-1111-1111-111111111111.pdf';
   denied boolean;
   legacy_attempt_version bigint;
   result jsonb;
@@ -148,6 +150,7 @@ BEGIN
   result := public.publish_premium_artifact(
     own_show,
     own_show::text || '/' || artifact || '.pdf',
+    versioned_url,
     first_version,
     'heritage',
     jsonb_build_object('outputs', jsonb_build_object('premiumUrl', 'pending'))
@@ -162,11 +165,11 @@ BEGIN
     WHERE id = own_show
       AND experience_is_published
       AND experience_published_style = 'heritage'
-      AND published_premium_url IS NULL
+      AND published_premium_url = versioned_url
       AND premium_publish_version = first_version
       AND published_premium_version = first_version
       AND experience_published_content->'outputs'->>'premiumPath' = own_show::text || '/' || artifact || '.pdf'
-      AND (experience_published_content->'outputs'->'premiumUrl') IS NULL
+      AND experience_published_content->'outputs'->>'premiumUrl' = versioned_url
       AND experience_published_content->>'generatedAt' = experience_published_at::text
   ) THEN
     RAISE EXCEPTION 'FAIL atomic publication did not commit metadata and snapshot';
@@ -191,11 +194,13 @@ BEGIN
   result := public.publish_premium_artifact(
     own_show,
     previous_path,
+    versioned_url,
     first_version,
     'monogram',
     jsonb_build_object('outputs', jsonb_build_object('premiumUrl', 'https://attacker.test'))
   );
   IF result->>'premiumPath' <> previous_path
+     OR result->>'premiumUrl' <> versioned_url
      OR (SELECT published_premium_version FROM public.shows WHERE id = own_show) <> first_version
   THEN
     RAISE EXCEPTION 'FAIL exact committed publish retry was not idempotent';
@@ -204,7 +209,25 @@ BEGIN
   BEGIN
     PERFORM public.publish_premium_artifact(
       own_show,
+      previous_path,
+      'https://attacker.example/forged.pdf',
+      first_version,
+      'monogram',
+      '{}'::jsonb
+    );
+    denied := false;
+  EXCEPTION WHEN OTHERS THEN
+    denied := true;
+  END;
+  IF NOT denied OR (SELECT published_premium_url FROM public.shows WHERE id = own_show) <> versioned_url THEN
+    RAISE EXCEPTION 'FAIL non-allowlisted URL changed the committed publication';
+  END IF;
+
+  BEGIN
+    PERFORM public.publish_premium_artifact(
+      own_show,
       own_show::text || '/' || second_artifact || '.pdf',
+      versioned_url,
       first_version,
       'monogram',
       '{}'::jsonb
@@ -228,6 +251,7 @@ BEGIN
     PERFORM public.publish_premium_artifact(
       own_show,
       own_show::text || '/' || bad_artifact || '.pdf',
+      'https://sojmvhhwsjxmfistvzbe.supabase.co/storage/v1/object/public/premium-published/' || own_show::text || '/' || bad_artifact || '.pdf',
       second_version,
       'monogram',
       '{}'::jsonb
@@ -238,6 +262,29 @@ BEGIN
   END;
   IF NOT denied OR (SELECT published_premium_path FROM public.shows WHERE id = own_show) <> previous_path THEN
     RAISE EXCEPTION 'FAIL failed commit changed the last-good show metadata';
+  END IF;
+
+  INSERT INTO storage.objects (bucket_id, name, owner_id, metadata)
+  VALUES (
+    'premium-published', own_show::text || '/' || oversized_artifact || '.pdf', admin_id,
+    jsonb_build_object('mimetype', 'application/pdf', 'size', 26214401)
+  );
+  second_version := public.begin_premium_publish(own_show);
+  BEGIN
+    PERFORM public.publish_premium_artifact(
+      own_show,
+      own_show::text || '/' || oversized_artifact || '.pdf',
+      'https://sojmvhhwsjxmfistvzbe.supabase.co/storage/v1/object/public/premium-published/' || own_show::text || '/' || oversized_artifact || '.pdf',
+      second_version,
+      'monogram',
+      '{}'::jsonb
+    );
+    denied := false;
+  EXCEPTION WHEN OTHERS THEN
+    denied := true;
+  END;
+  IF NOT denied OR (SELECT published_premium_path FROM public.shows WHERE id = own_show) <> previous_path THEN
+    RAISE EXCEPTION 'FAIL oversized PDF replaced the last-good publication';
   END IF;
 
   -- A newer server-issued version makes an older completion stale.
@@ -251,6 +298,7 @@ BEGIN
     PERFORM public.publish_premium_artifact(
       own_show,
       own_show::text || '/' || second_artifact || '.pdf',
+      'https://sojmvhhwsjxmfistvzbe.supabase.co/storage/v1/object/public/premium-published/' || own_show::text || '/' || second_artifact || '.pdf',
       first_version,
       'monogram',
       '{}'::jsonb
@@ -268,6 +316,7 @@ BEGIN
     PERFORM public.publish_premium_artifact(
       other_show,
       own_show::text || '/' || artifact || '.pdf',
+      versioned_url,
       first_version,
       'heritage',
       '{}'::jsonb
@@ -332,6 +381,7 @@ BEGIN
     PERFORM public.publish_premium_artifact(
       own_show,
       previous_path,
+      versioned_url,
       legacy_attempt_version,
       'heritage',
       '{}'::jsonb
@@ -347,6 +397,29 @@ BEGIN
       AND published_premium_url = legacy_url
   ) THEN
     RAISE EXCEPTION 'FAIL versioned attempt replaced a later rollback publication';
+  END IF;
+
+  -- A new app publish after the rollback write restores a matching path/URL.
+  second_version := public.begin_premium_publish(own_show);
+  result := public.publish_premium_artifact(
+    own_show,
+    own_show::text || '/' || second_artifact || '.pdf',
+    'https://sojmvhhwsjxmfistvzbe.supabase.co/storage/v1/object/public/premium-published/' || own_show::text || '/' || second_artifact || '.pdf',
+    second_version,
+    'heritage',
+    '{}'::jsonb
+  );
+  IF NOT EXISTS (
+    SELECT 1 FROM public.shows
+    WHERE id = own_show
+      AND published_premium_path = own_show::text || '/' || second_artifact || '.pdf'
+      AND published_premium_url = 'https://sojmvhhwsjxmfistvzbe.supabase.co/storage/v1/object/public/premium-published/' || own_show::text || '/' || second_artifact || '.pdf'
+      AND published_premium_version = second_version
+      AND premium_publish_version = second_version
+      AND experience_published_content->'outputs'->>'premiumPath' = published_premium_path
+      AND experience_published_content->'outputs'->>'premiumUrl' = published_premium_url
+  ) THEN
+    RAISE EXCEPTION 'FAIL versioned publication did not restore matching path and URL';
   END IF;
 
   -- Club-scoped secretary positive control.
@@ -365,6 +438,7 @@ BEGIN
   PERFORM public.publish_premium_artifact(
     secretary_show,
     secretary_show::text || '/' || secretary_artifact || '.pdf',
+    'https://sojmvhhwsjxmfistvzbe.supabase.co/storage/v1/object/public/premium-published/' || secretary_show::text || '/' || secretary_artifact || '.pdf',
     first_version,
     'heritage',
     '{}'::jsonb

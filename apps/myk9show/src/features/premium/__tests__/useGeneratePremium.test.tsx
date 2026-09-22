@@ -58,4 +58,15 @@ describe('useGeneratePremium', () => {
       expect.objectContaining({ context: expect.anything() })
     );
   });
+
+  it('rejects malformed generated premium data instead of trusting an unchecked response', async () => {
+    invokeMock.mockResolvedValue({ data: {}, error: null });
+    const { result } = renderHook(() => useGeneratePremium(), { wrapper });
+
+    await expect(result.current.generate('show-1')).rejects.toThrow();
+    expect(consoleErrorMock).toHaveBeenCalledWith(
+      '[premium-generation] invalid response shape',
+      expect.objectContaining({ showId: 'show-1', error: expect.anything() })
+    );
+  });
 });

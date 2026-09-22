@@ -2,6 +2,7 @@ import { useMutation } from '@tanstack/react-query';
 import { supabase } from '../../services/database/supabaseClient';
 import type { GeneratedPremium } from '../../types/premium-types';
 import { classifyPremiumFunctionError } from './premiumPublishErrors';
+import { parseGeneratedPremium } from './premiumPublishSchema';
 
 const GENERATION_FAILURE_MESSAGE = "We couldn't generate the premium list. Please try again.";
 
@@ -26,7 +27,12 @@ export function useGeneratePremium(): UseGeneratePremiumResult {
         }
         throw classified;
       }
-      return data as GeneratedPremium;
+      try {
+        return parseGeneratedPremium(data);
+      } catch (error) {
+        console.error('[premium-generation] invalid response shape', { showId, error });
+        throw error;
+      }
     },
   });
 

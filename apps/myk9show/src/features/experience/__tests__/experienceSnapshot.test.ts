@@ -20,12 +20,14 @@ describe('experienceSnapshot', () => {
         },
       },
       premiumPath: 'show-1/artifact-1.pdf',
-      publishedAt: '2026-05-09T14:00:00.000Z',
+      premiumUrl: 'https://trusted.example/premium-published/show-1/artifact-1.pdf',
     });
 
     expect(snapshot.style).toBe('heritage');
     expect(snapshot.outputs.premiumPath).toBe('show-1/artifact-1.pdf');
-    expect(snapshot.outputs.premiumUrl).toBeNull();
+    expect(snapshot.outputs.premiumUrl).toBe(
+      'https://trusted.example/premium-published/show-1/artifact-1.pdf'
+    );
     expect(snapshot.narratives.showHours).toBe('Doors open at 7:00 AM.');
   });
 

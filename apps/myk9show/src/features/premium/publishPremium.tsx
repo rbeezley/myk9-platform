@@ -11,13 +11,11 @@ export interface PublishPremiumOptions {
   inkSaver?: boolean;
   /** Stable for one publish attempt so an atomic commit can be retried. */
   artifactId?: string;
-  publishedAt?: string;
 }
 
 export interface StagedPremiumArtifact {
   path: string;
-  url: string;
-  publishedAt: string;
+  publicUrl: string;
 }
 
 /**
@@ -35,24 +33,8 @@ export async function publishPremium(
   premium: GeneratedPremium,
   opts?: PublishPremiumOptions
 ): Promise<StagedPremiumArtifact> {
-  const Template = premium.org === 'UKC' ? UKCPremiumTemplate : AKCPremiumTemplate;
   const inkSaver = opts?.inkSaver ?? false;
-
-  // Render and upload BEFORE updating DB columns. A failed render must not
-  // invalidate the previously-published premium.
-  let blob: Blob;
-  try {
-    blob = await pdf(<Template premium={premium} inkSaver={inkSaver} />).toBlob();
-  } catch (err) {
-    console.error('[premium-publish] PDF render failed', {
-      showId,
-      style: premium.style,
-      org: premium.org,
-      inkSaver,
-      error: err instanceof Error ? err.message : String(err),
-    });
-    throw classifyPremiumPublishError(err, 'pdf-render');
-  }
+  const blob = await renderPremiumPdf(showId, premium, inkSaver);
 
   const artifactId = opts?.artifactId ?? crypto.randomUUID();
   const path = `${showId}/${artifactId}.pdf`;
@@ -73,8 +55,27 @@ export async function publishPremium(
   }
 
   const { data: urlData } = supabase.storage.from(BUCKET).getPublicUrl(path);
-  const url = urlData.publicUrl;
-  return { path, url, publishedAt: opts?.publishedAt ?? new Date().toISOString() };
+  return { path, publicUrl: urlData.publicUrl };
+}
+
+export async function renderPremiumPdf(
+  showId: string,
+  premium: GeneratedPremium,
+  inkSaver: boolean
+): Promise<Blob> {
+  const Template = premium.org === 'UKC' ? UKCPremiumTemplate : AKCPremiumTemplate;
+  try {
+    return await pdf(<Template premium={premium} inkSaver={inkSaver} />).toBlob();
+  } catch (err) {
+    console.error('[premium-publish] PDF render failed', {
+      showId,
+      style: premium.style,
+      org: premium.org,
+      inkSaver,
+      error: err instanceof Error ? err.message : String(err),
+    });
+    throw classifyPremiumPublishError(err, 'pdf-render');
+  }
 }
 
 function isAlreadyStagedError(error: unknown): boolean {

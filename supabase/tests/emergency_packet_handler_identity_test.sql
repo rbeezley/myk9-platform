@@ -34,6 +34,15 @@ values
   ('00000000-0000-0000-0000-000000603024', 'MYK9-603 Dog 4', 'Dog 4', 'Beagle', '00000000-0000-0000-0000-000000603011'),
   ('00000000-0000-0000-0000-000000603025', 'MYK9-603 Dog 5', 'Dog 5', 'Beagle', null);
 
+-- AKC entry validation requires a registration for every dog in this show.
+insert into public.dog_registrations (dog_id, organization, registration_number, is_primary)
+values
+  ('00000000-0000-0000-0000-000000603021', 'AKC', 'MYK9-603-001', true),
+  ('00000000-0000-0000-0000-000000603022', 'AKC', 'MYK9-603-002', true),
+  ('00000000-0000-0000-0000-000000603023', 'AKC', 'MYK9-603-003', true),
+  ('00000000-0000-0000-0000-000000603024', 'AKC', 'MYK9-603-004', true),
+  ('00000000-0000-0000-0000-000000603025', 'AKC', 'MYK9-603-005', true);
+
 insert into public.entries (id, dog_id, class_id, show_id, trial_id, handler, handler_id,
   entry_status, armband, run_order, check_in_status)
 values

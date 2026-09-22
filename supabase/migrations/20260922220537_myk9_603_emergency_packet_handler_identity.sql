@@ -185,8 +185,9 @@ AS $$
   WHERE EXISTS (SELECT 1 FROM show_row);
 $$;
 
-COMMENT ON FUNCTION public.emergency_packet_input(uuid, date) IS
-  'Emergency trial packet input as EmergencyPacketInput-shaped JSON. SECURITY DEFINER with soft-delete filters restated; performs NO authorization, so EXECUTE stays limited to service_role (MYK9-228). Judge names resolve through judge_assignments only (MYK9-479). Handler names prefer entry text, then the assigned person, then the dog's owner only when no handler identity is assigned (MYK9-603).';
+COMMENT ON FUNCTION public.emergency_packet_input(uuid, date) IS $comment$
+  Emergency trial packet input as EmergencyPacketInput-shaped JSON. SECURITY DEFINER with soft-delete filters restated; performs NO authorization, so EXECUTE stays limited to service_role (MYK9-228). Judge names resolve through judge_assignments only (MYK9-479). Handler names prefer entry text, then the assigned person, then the dog's owner only when no handler identity is assigned (MYK9-603).
+$comment$;
 
 REVOKE ALL ON FUNCTION public.emergency_packet_input(uuid, date) FROM PUBLIC, anon, authenticated;
 GRANT EXECUTE ON FUNCTION public.emergency_packet_input(uuid, date) TO service_role;

@@ -88,7 +88,8 @@ function mapReportEntry(
 ): ReportEntry {
   const dog = e.dog;
   const registration = e.registration;
-  const handlerName = resolveReportEntryHandlerName(e);
+  const handlerIdentity = resolveReportEntryHandlerIdentity(e);
+  const handlerName = resolveReportHandlerName(handlerIdentity.name);
   // Pass the armband through as TEXT. `Number('12A')` is NaN, which the packet
   // model then reads as "no armband" -- so a suffixed armband silently vanished
   // from the Reports page just as it printed `#0` on the packet (MYK9-243).
@@ -117,7 +118,7 @@ function mapReportEntry(
     handlerName,
     registrationNumber
   );
-  const junior = resolveHandlerJunior(e, trial);
+  const junior = resolveHandlerJunior(e, handlerIdentity, trial);
   return {
     ...base,
     ...junior,
@@ -164,16 +165,16 @@ function mapReportEntry(
   };
 }
 
-function resolveReportEntryHandlerName(entry: ReportDbEntry): string {
-  const identity =
+function resolveReportEntryHandlerIdentity(entry: ReportDbEntry) {
+  return (
     entry.handler_identity ??
     projectHandlerIdentity({
       assignedHandlerName: entry.handler,
       assignedHandlerId: entry.handler_id,
       assignedHandlerPerson: entry.handler_person,
       ownerPerson: entry.dog?.owner,
-    });
-  return resolveReportHandlerName(identity.name);
+    })
+  );
 }
 
 function readMovedFromEntryId(entry: ReportDbEntry): string | null {
@@ -200,6 +201,7 @@ function readEntrySource(entrySource: string | null | undefined): ReportEntry['e
  */
 function resolveHandlerJunior(
   e: ReportDbEntry,
+  identity: ReturnType<typeof resolveReportEntryHandlerIdentity>,
   trial?: DbTrial
 ): Pick<ReportEntry, 'handlerIsJunior'> {
   if (!trial) return {};
@@ -213,7 +215,7 @@ function resolveHandlerJunior(
   // handler_id person is its only candidate; the rule still requires that
   // person to bear the printed name, because a rename leaves the id behind.
   const handlerPerson = resolveHandlerPerson({
-    printedHandlerName: e.handler,
+    printedHandlerName: identity.name,
     handlerIdPerson: person,
     ownerPerson: null,
   });

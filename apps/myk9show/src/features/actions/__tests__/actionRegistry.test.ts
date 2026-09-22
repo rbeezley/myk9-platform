@@ -101,29 +101,18 @@ const SIBLING_CONTEXT = { kind: 'show', showId: SHOW_ID, shellMounted: false } a
 describe('resolveActions — secretary on a show', () => {
   const actions = resolveActions(SHOW_CONTEXT, secretary);
 
-  it('puts Show settings last and opens the panel WHERE THE VIEWER IS', () => {
-    // Richard, 2026-09-17: "Show settings is the last item in the header Actions
-    // menu and opens the existing Show Edit panel (`?edit=true`). No separate
-    // settings page; /shows/:id/setup redirects to /shows/:id."
-    //
-    // Search-only, so it resolves against the current path. An ABSOLUTE
-    // `/shows/:id?edit=true` walked a secretary off Entry Management to
-    // Overview and stranded them there when they closed the panel; the deleted
-    // `...` menu opened it in place on every section.
+  it('puts Show Details last and links to the canonical show page', () => {
     const last = actions[actions.length - 1];
     expect(last?.id).toBe('show-settings');
-    expect(last?.href).toBe('?edit=true');
-    expect(last?.href?.startsWith('/')).toBe(false);
+    expect(last?.label).toBe('Show Details');
+    expect(last?.href).toBe(`/shows/${SHOW_ID}`);
     expect(actions.some(action => action.href?.endsWith('/setup'))).toBe(false);
   });
 
-  it('sends Show settings to Overview on a route with no shell to open it', () => {
-    // `/shows/:id/register` and `/shows/:id/trials/...` are SIBLINGS of
-    // `/shows/:id`, so no `ShowManagementShell` is mounted and a relative
-    // `?edit=true` would be a stray param that opens nothing.
+  it('sends Show Details to the same canonical page from a sibling route', () => {
     const siblingActions = resolveActions(SIBLING_CONTEXT, secretary);
-    const settings = siblingActions.find(action => action.id === 'show-settings');
-    expect(settings?.href).toBe(`/shows/${SHOW_ID}?edit=true`);
+    const details = siblingActions.find(action => action.id === 'show-settings');
+    expect(details?.href).toBe(`/shows/${SHOW_ID}`);
   });
 
   it('runs the premium flow as a command, never as a hash link', () => {
@@ -156,7 +145,7 @@ describe('resolveActions — secretary on a show', () => {
       `/shows/${SHOW_ID}/show-day`,
       `/secretary/create-show/wizard?showId=${SHOW_ID}&mode=add-trials`,
       undefined, // the premium flow is a command, not a place
-      '?edit=true',
+      `/shows/${SHOW_ID}`,
     ]);
   });
 

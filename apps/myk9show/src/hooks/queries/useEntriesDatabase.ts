@@ -86,6 +86,27 @@ export const useEntriesByShowQuery = (showId: string, enabled = true) => {
 };
 
 /**
+ * Authenticated show read that preserves replica freshness for workflows where
+ * a cached count would produce an unsafe decision.
+ */
+export const useVerifiedEntriesByShowQuery = (showId: string, enabled = true) => {
+  const { user, loading } = useAuthContext();
+
+  return useQuery({
+    queryKey: [...queryKeys.entries, 'show', showId, 'verified'],
+    queryFn: async () => {
+      const result = await getEntriesByShow(showId);
+      if (result.error) throw result.error;
+      return { data: result.data, verified: result.verified };
+    },
+    enabled: !!showId && enabled && Boolean(user && user.is_anonymous !== true) && !loading,
+    staleTime: cacheStrategies.moderate.staleTime,
+    gcTime: cacheStrategies.moderate.gcTime,
+    refetchOnMount: 'always',
+  });
+};
+
+/**
  * Canonical staff read for show-scoped entry work.
  *
  * Show Desk, Class Details, Class Management, and Entry Management must share

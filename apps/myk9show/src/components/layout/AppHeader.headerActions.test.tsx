@@ -94,6 +94,7 @@ const premiumEdges = vi.hoisted(() => ({
     updatedAt: null as string | null,
     experienceIsPublished: true as boolean | null,
   },
+  publishFetchStatus: 'idle' as 'idle' | 'fetching' | 'paused',
 }));
 
 vi.mock('@/features/premium/useGeneratePremium', () => ({
@@ -115,7 +116,11 @@ vi.mock('@/features/premium/usePublishInfo', async () => {
   );
   return {
     ...actual,
-    usePublishInfo: () => ({ data: premiumEdges.publishInfo, isError: false }),
+    usePublishInfo: () => ({
+      data: premiumEdges.publishInfo,
+      isError: false,
+      fetchStatus: premiumEdges.publishFetchStatus,
+    }),
   };
 });
 
@@ -152,6 +157,7 @@ beforeEach(() => {
     updatedAt: null,
     experienceIsPublished: true,
   };
+  premiumEdges.publishFetchStatus = 'idle';
   // The publish store is module scope; a leaked in-flight id would latch the
   // next test's click into a silent no-op.
   usePremiumPublishStore.setState({ byShowId: {} });
@@ -197,7 +203,7 @@ describe('AppHeader Actions menu — secretary on a show route', () => {
       'Open Show Day',
       'Add a new trial',
       'Generate & publish premium',
-      'Show settings…',
+      'Show Details',
     ]);
   });
 
@@ -379,10 +385,7 @@ describe('AppHeader Actions menu — the two items that are not plain destinatio
     expect(item.closest('a')).toBeNull();
   });
 
-  it('opens Show settings on the CURRENT section, not on Overview', async () => {
-    // Round-3 review: an absolute `/shows/:id?edit=true` walked a secretary off
-    // Entry Management to Overview, and closing the panel stranded them there.
-    // The deleted `...` menu opened the panel in place on every section.
+  it('links Show Details to the canonical show page', async () => {
     const user = userEvent.setup();
     render(
       <>
@@ -394,10 +397,14 @@ describe('AppHeader Actions menu — the two items that are not plain destinatio
 
     await user.click(screen.getByRole('button', { name: /^actions$/i }));
     const menu = await screen.findByRole('menu');
-    await user.click(within(menu).getByTestId('header-action-show-settings'));
+    const detailsLink = within(menu).getByTestId('header-action-show-settings');
+    expect(detailsLink).toHaveAttribute('href', '/shows/show-1');
+    await user.click(detailsLink);
 
-    await waitFor(() => expect(screen.getByTestId('probe-search')).toHaveTextContent('?edit=true'));
-    expect(screen.getByTestId('probe-pathname')).toHaveTextContent(ENTRY_MANAGEMENT_ROUTE);
+    await waitFor(() =>
+      expect(screen.getByTestId('probe-pathname')).toHaveTextContent('/shows/show-1')
+    );
+    expect(screen.getByTestId('probe-search')).toHaveTextContent('');
   });
 });
 
@@ -434,6 +441,15 @@ describe('the premium item says what the Premium List card says', () => {
     const { item } = await openMenu();
     expect(item).toHaveAttribute('data-disabled');
     expect(item).toHaveTextContent('Checking the premium');
+  });
+
+  it('shows the offline reason in the paused publish menu item', async () => {
+    premiumEdges.publishInfo = undefined as never;
+    premiumEdges.publishFetchStatus = 'paused';
+
+    const { item } = await openMenu();
+    expect(item).toHaveAttribute('data-disabled');
+    expect(item).toHaveTextContent("You're offline — publishing needs a connection");
   });
 
   it('is enabled and says "Republish premium" when the show data moved on', async () => {

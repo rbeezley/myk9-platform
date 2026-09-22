@@ -3,17 +3,21 @@ import { replicatedEntriesTable } from '@/services/replication/ReplicatedEntries
 const REFRESH_WAIT_MS = 3000;
 
 /** Refresh partial caches without letting a stalled connection block offline reads. */
-export async function refreshShowEntriesForRead(showId: string): Promise<void> {
+export async function refreshShowEntriesForRead(showId: string): Promise<boolean> {
   let timeout: ReturnType<typeof setTimeout> | undefined;
   try {
-    await Promise.race([
-      replicatedEntriesTable.sync(showId),
-      new Promise<void>(resolve => {
-        timeout = setTimeout(resolve, REFRESH_WAIT_MS);
+    return await Promise.race([
+      Promise.resolve(replicatedEntriesTable.sync(showId)).then(
+        result => result.success === true,
+        () => false
+      ),
+      new Promise<boolean>(resolve => {
+        timeout = setTimeout(() => resolve(false), REFRESH_WAIT_MS);
       }),
     ]);
   } catch {
     // The existing cached read remains usable when sync is unavailable.
+    return false;
   } finally {
     if (timeout !== undefined) clearTimeout(timeout);
   }

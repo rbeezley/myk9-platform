@@ -49,7 +49,7 @@ echo "  Main repo: $MAIN_REPO" >&2
 # hooks too.
 if [ -d "$WORKTREE_DIR/.githooks" ]; then
   common_cfg="$(git rev-parse --path-format=absolute --git-common-dir)/config"
-  worktree_config_enabled="$(git config --get extensions.worktreeConfig 2>/dev/null || true)"
+  worktree_config_enabled="$(git config --file "$common_cfg" --get extensions.worktreeConfig 2>/dev/null || true)"
 
   # Several new worktrees can bootstrap at once. Git config uses a lock file,
   # but concurrent writers to the same config file fail instead of waiting.
@@ -68,6 +68,7 @@ if [ -d "$WORKTREE_DIR/.githooks" ]; then
     fi
     rm -f "$WORKTREE_INVENTORY_FILE"
   }
+  lock_wait_reported=false
   for attempt in {1..300}; do
     if mkdir "$config_lock" 2>/dev/null; then
       lock_acquired=true
@@ -77,11 +78,17 @@ if [ -d "$WORKTREE_DIR/.githooks" ]; then
     elif [ ! -d "$config_lock" ]; then
       echo "Cannot create Git config bootstrap lock: $config_lock" >&2
       exit 1
+    elif [ "$lock_wait_reported" != true ]; then
+      echo "Waiting for Git config bootstrap lock: $config_lock" >&2
+      lock_wait_reported=true
     fi
     sleep 0.1
   done
   if [ "$lock_acquired" != true ]; then
     echo "Timed out waiting for Git config bootstrap lock: $config_lock" >&2
+    echo "Lock owner marker: $config_lock/pid" >&2
+    printf 'After confirming no bootstrap is active, clear the stale lock with: rm -rf -- %q\n' \
+      "$config_lock" >&2
     exit 1
   fi
   # Shared config is only read for linked worktrees when worktreeConfig is

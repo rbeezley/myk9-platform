@@ -4,6 +4,7 @@ import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 
 import { describe, expect, it } from 'vitest';
+import { createRealGitFixture, runBootstrapAt } from './bootstrap-worktree-test-helpers';
 
 const bootstrapScript = resolve(process.cwd(), 'scripts/bootstrap-worktree.sh');
 
@@ -66,7 +67,13 @@ if [ "$1" = "rev-parse" ] && [ "$2" = "--path-format=absolute" ]; then
   printf '%s\\n' "$MYK9_BOOTSTRAP_GIT_DIR"
   exit 0
 fi
-if [ "$1" = "config" ]; then
+  if [ "$1" = "config" ]; then
+  if [ "$2" = "--file" ] && [ "$4" = "--get" ] && [ "$5" = "extensions.worktreeConfig" ]; then
+    if [ "$MYK9_BOOTSTRAP_WORKTREE_CONFIG" = "true" ]; then
+      printf '%s\\n' 'true'
+    fi
+    exit 0
+  fi
   if [ "$2" = "--get" ] && [ "$3" = "extensions.worktreeConfig" ]; then
     printf '%s\\n' 'true'
   fi
@@ -100,6 +107,7 @@ function runBootstrap(
       MYK9_BOOTSTRAP_GIT_DIR: fixture.gitDir,
       MYK9_BOOTSTRAP_GIT_LOG: fixture.gitLogFile,
       MYK9_BOOTSTRAP_GIT_FAILURE: gitFailure ? '1' : '0',
+      MYK9_BOOTSTRAP_WORKTREE_CONFIG: 'true',
     },
     timeout: 10_000,
   });
@@ -109,6 +117,47 @@ function runBootstrap(
     stderr: String(result.stderr),
     stdout: String(result.stdout),
   };
+}
+
+function runBootstrapAfterReleasingLock(
+  fixture: Fixture,
+  lockPath: string
+): Promise<{ result: BootstrapResult; waited: boolean }> {
+  return new Promise(resolvePromise => {
+    const child = spawn('bash', [bootstrapScript], {
+      cwd: fixture.linked,
+      env: {
+        ...process.env,
+        PATH: `${fixture.bin}:${process.env.PATH ?? ''}`,
+        MYK9_BOOTSTRAP_LINKED: fixture.linked,
+        MYK9_BOOTSTRAP_INVENTORY: fixture.inventoryFile,
+        MYK9_BOOTSTRAP_GIT_DIR: fixture.gitDir,
+        MYK9_BOOTSTRAP_GIT_LOG: fixture.gitLogFile,
+        MYK9_BOOTSTRAP_GIT_FAILURE: '0',
+        MYK9_BOOTSTRAP_WORKTREE_CONFIG: 'true',
+      },
+    });
+    let stdout = '';
+    let stderr = '';
+    let waited = false;
+    const timeoutId = setTimeout(() => child.kill('SIGKILL'), 10_000);
+    child.stdout.on('data', (chunk: Buffer) => (stdout += chunk.toString()));
+    child.stderr.on('data', (chunk: Buffer) => {
+      stderr += chunk.toString();
+      if (!waited && stderr.includes(`Waiting for Git config bootstrap lock: ${lockPath}`)) {
+        waited = true;
+        rmSync(lockPath, { recursive: true, force: true });
+      }
+    });
+    child.on('error', error => {
+      clearTimeout(timeoutId);
+      resolvePromise({ result: { error, status: null, stderr, stdout }, waited });
+    });
+    child.on('close', status => {
+      clearTimeout(timeoutId);
+      resolvePromise({ result: { status, stderr, stdout }, waited });
+    });
+  });
 }
 
 function inventory(primary: string, extraCount: number): string {
@@ -141,7 +190,9 @@ describe('bootstrap-worktree worktree inventory handling', () => {
       }
       const log = readFileSync(fixture.gitLogFile, 'utf8');
       expect(log).toContain('worktree list --porcelain -z');
-      expect(log).toContain('config --get extensions.worktreeConfig');
+      expect(log).toContain(
+        `config --file ${fixture.gitDir}/config --get extensions.worktreeConfig`
+      );
       expect(log).not.toContain(`config --file ${fixture.gitDir}/config core.hooksPath .githooks`);
       expect(log).toContain(
         `config --file ${fixture.gitDir}/config.worktree core.hooksPath .githooks`
@@ -224,6 +275,44 @@ describe('bootstrap-worktree worktree inventory handling', () => {
     }
   });
 
+  it('reports manual recovery steps after an abandoned config lock times out', () => {
+    const fixture = createFixture(0);
+    const lockPath = `${fixture.gitDir}/config.bootstrap.lock`;
+    execFileSync('mkdir', ['-p', lockPath]);
+    writeFileSync(`${lockPath}/pid`, '424242\n');
+    writeFileSync(join(fixture.bin, 'sleep'), '#!/bin/sh\nexit 0\n', { mode: 0o755 });
+    try {
+      const result = runBootstrap(fixture);
+      expect(result.error).toBeUndefined();
+      expect(result.status).toBe(1);
+      expect(result.stderr).toContain(`Lock owner marker: ${lockPath}/pid`);
+      expect(result.stderr).toContain('After confirming no bootstrap is active');
+      const shellQuotedLockPath = execFileSync('bash', ['-c', 'printf %q "$1"', 'bash', lockPath], {
+        encoding: 'utf8',
+      });
+      expect(result.stderr).toContain(`rm -rf -- ${shellQuotedLockPath}`);
+      expect(readFileSync(fixture.gitLogFile, 'utf8')).not.toContain('core.hooksPath');
+    } finally {
+      rmSync(fixture.root, { recursive: true, force: true });
+    }
+  });
+
+  it('waits for an existing bootstrap lock before updating Git config', async () => {
+    const fixture = createFixture(0);
+    const lockPath = `${fixture.gitDir}/config.bootstrap.lock`;
+    execFileSync('mkdir', ['-p', lockPath]);
+    writeFileSync(`${lockPath}/pid`, '424242\n');
+    try {
+      const { result, waited } = await runBootstrapAfterReleasingLock(fixture, lockPath);
+      expect(waited).toBe(true);
+      expect(result.error).toBeUndefined();
+      expect(result.status).toBe(0);
+      expect(result.stderr).toContain('Git hooks activated');
+    } finally {
+      rmSync(fixture.root, { recursive: true, force: true });
+    }
+  });
+
   it('serializes simultaneous bootstrap hook writes', async () => {
     const fixture = createRealGitFixture();
     try {
@@ -253,7 +342,7 @@ describe('bootstrap-worktree worktree inventory handling', () => {
       }
       for (const checkout of [fixture.primary, ...fixture.worktrees]) {
         expect(
-          execFileSync('git', ['-C', checkout, 'config', '--worktree', '--get', 'core.hooksPath'], {
+          execFileSync('git', ['-C', checkout, 'config', '--get', 'core.hooksPath'], {
             encoding: 'utf8',
             env: {
               ...process.env,
@@ -286,100 +375,73 @@ describe('bootstrap-worktree worktree inventory handling', () => {
       rmSync(fixture.root, { recursive: true, force: true });
     }
   });
-});
-
-function createRealGitFixture(): {
-  root: string;
-  primary: string;
-  worktrees: string[];
-  bin: string;
-  globalConfig: string;
-} {
-  const root = mkdtempSync(join(tmpdir(), 'myk9 bootstrap concurrent real\n git '));
-  const primary = join(root, 'primary\ncheckout');
-  const worktrees = [join(root, 'worktree one'), join(root, 'worktree two')];
-  const bin = join(root, 'bin');
-  const globalConfig = join(root, 'global config');
-  execFileSync('mkdir', ['-p', primary, bin]);
-  writeFileSync(globalConfig, '[core]\n\thooksPath = /global/hooks\n');
-  execFileSync('git', ['init', '-q', primary]);
-  execFileSync('git', ['-C', primary, 'config', 'user.email', 'bootstrap-test@example.invalid']);
-  execFileSync('git', ['-C', primary, 'config', 'user.name', 'Bootstrap Test']);
-  execFileSync('git', ['-C', primary, 'config', 'extensions.worktreeConfig', 'true']);
-  execFileSync('mkdir', ['-p', join(primary, '.githooks')]);
-  writeFileSync(join(primary, '.githooks/pre-commit'), '#!/bin/sh\nexit 0\n', { mode: 0o755 });
-  execFileSync('git', ['-C', primary, 'add', '.githooks/pre-commit']);
-  execFileSync('git', ['-C', primary, 'commit', '-qm', 'fixture']);
-  for (const [index, worktree] of worktrees.entries()) {
-    execFileSync('git', [
-      '-C',
-      primary,
-      'worktree',
-      'add',
-      '-q',
-      '-b',
-      `bootstrap-${index}`,
-      worktree,
-      'HEAD',
-    ]);
-    execFileSync('mkdir', ['-p', join(worktree, 'apps/myk9show/node_modules/.bin')]);
-    writeFileSync(join(worktree, 'apps/myk9show/node_modules/.bin/vite'), '#!/bin/sh\n', {
-      mode: 0o755,
+  it('ignores a global worktreeConfig setting when selecting repo config mode', async () => {
+    const fixture = createRealGitFixture({
+      localWorktreeConfig: false,
+      globalWorktreeConfig: true,
     });
-  }
-  writeFileSync(
-    join(bin, 'pnpm'),
-    `#!/bin/sh
-if [ "$1" = "build" ]; then
-  attempt=0
-  while [ "$attempt" -lt 30 ]; do
-    other_hooks="$(git -C "$MYK9_BOOTSTRAP_OTHER_WORKTREE" config --worktree --get core.hooksPath 2>/dev/null || true)"
-    if [ "$other_hooks" = ".githooks" ]; then exit 0; fi
-    attempt=$((attempt + 1))
-    sleep 0.1
-  done
-  echo 'other bootstrap could not update config during build' >&2
-  exit 1
-fi
-exit 0
-`,
-    { mode: 0o755 }
-  );
-  return { root, primary, worktrees, bin, globalConfig };
-}
-
-function runBootstrapAt(
-  worktree: string,
-  bin: string,
-  globalConfig: string,
-  otherWorktree: string
-): Promise<BootstrapResult> {
-  return new Promise(resolvePromise => {
-    const child = spawn('bash', [bootstrapScript], {
-      cwd: worktree,
-      env: {
-        ...process.env,
-        GIT_CONFIG_GLOBAL: globalConfig,
-        GIT_CONFIG_NOSYSTEM: '1',
-        MYK9_BOOTSTRAP_OTHER_WORKTREE: otherWorktree,
-        PATH: `${bin}:${process.env.PATH ?? ''}`,
-      },
-    });
-    let stdout = '';
-    let stderr = '';
-    const timeoutId = setTimeout(() => child.kill('SIGKILL'), 10_000);
-    child.stdout.on('data', (chunk: Buffer) => (stdout += chunk.toString()));
-    child.stderr.on('data', (chunk: Buffer) => (stderr += chunk.toString()));
-    child.on('error', error => {
-      clearTimeout(timeoutId);
-      resolvePromise({ error, status: null, stderr, stdout });
-    });
-    child.on('close', status => {
-      clearTimeout(timeoutId);
-      resolvePromise({ status, stderr, stdout });
-    });
+    try {
+      const result = await runBootstrapAt(
+        fixture.worktrees[0],
+        fixture.bin,
+        fixture.globalConfig,
+        fixture.worktrees[1]
+      );
+      expect(result.error).toBeUndefined();
+      expect(result.status).toBe(0);
+      for (const checkout of fixture.worktrees) {
+        expect(
+          execFileSync('git', ['-C', checkout, 'config', '--get', 'core.hooksPath'], {
+            encoding: 'utf8',
+            env: {
+              ...process.env,
+              GIT_CONFIG_GLOBAL: fixture.globalConfig,
+              GIT_CONFIG_NOSYSTEM: '1',
+            },
+          }).trim()
+        ).toBe('.githooks');
+      }
+      expect(
+        execFileSync(
+          'git',
+          ['config', '--file', join(fixture.primary, '.git/config'), '--get', 'core.hooksPath'],
+          { encoding: 'utf8' }
+        ).trim()
+      ).toBe('.githooks');
+      expect(
+        spawnSync('git', [
+          'config',
+          '--file',
+          join(fixture.primary, '.git/config'),
+          '--get',
+          'extensions.worktreeConfig',
+        ]).status
+      ).toBe(1);
+      expect(
+        execFileSync('git', ['config', '--global', '--get', 'extensions.worktreeConfig'], {
+          encoding: 'utf8',
+          env: {
+            ...process.env,
+            GIT_CONFIG_GLOBAL: fixture.globalConfig,
+            GIT_CONFIG_NOSYSTEM: '1',
+          },
+        }).trim()
+      ).toBe('true');
+      expect(
+        execFileSync('git', ['config', '--global', '--get', 'core.hooksPath'], {
+          encoding: 'utf8',
+          env: {
+            ...process.env,
+            GIT_CONFIG_GLOBAL: fixture.globalConfig,
+            GIT_CONFIG_NOSYSTEM: '1',
+          },
+        }).trim()
+      ).toBe('/global/hooks');
+    } finally {
+      rmSync(fixture.root, { recursive: true, force: true });
+    }
   });
-}
+});
 
 describe('bootstrap-worktree implementation guard', () => {
   it('reads all porcelain output without a short-lived head pipeline', () => {

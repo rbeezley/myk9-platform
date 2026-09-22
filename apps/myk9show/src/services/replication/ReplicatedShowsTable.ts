@@ -416,24 +416,39 @@ export class ReplicatedShowsTable extends ReplicatedTable<ReplicatedShow> {
   }
 
   /**
-   * Revert a permanently rejected style mutation to the clean replicated base.
+   * Revert only the style from a permanently rejected mutation. Other edits can
+   * share the row's dirty snapshot, so they must survive style reconciliation.
    * A later style edit wins over an earlier rejection, so only revert when the
    * row still carries the rejected style value.
    */
   async revertFailedStyleMutation(
     showId: string,
-    attemptedStyle: string
+    attemptedStyle: string,
+    mutationId?: string
   ): Promise<ReplicatedShow | null> {
     const row = await this.getReplicatedRow(showId);
     if (!row || !row.isDirty || row.data.style !== attemptedStyle || !row.baseData) return null;
 
     const restored = {
-      ...row.baseData,
+      ...row.data,
+      style: row.baseData.style,
       id: showId,
-      _syncStatus: 'synced' as const,
+      _syncStatus: 'pending' as const,
       _lastModified: new Date(),
     };
-    await this.replaceFromRemote(showId, restored, row.serverVersion);
+
+    if (await this.hasOtherMutationsForRow(showId, mutationId)) {
+      await this.set(showId, restored, true, row.version);
+    } else {
+      // All other queued writes have either succeeded or been discarded. Keep
+      // their now-current local values, roll back just style, and release the
+      // dirty marker left behind by the failed style RPC.
+      await this.replaceFromRemote(
+        showId,
+        { ...restored, _syncStatus: 'synced' },
+        row.serverVersion
+      );
+    }
     return this.get(showId);
   }
 

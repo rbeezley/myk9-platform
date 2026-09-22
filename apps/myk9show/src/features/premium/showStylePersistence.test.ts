@@ -181,10 +181,11 @@ describe('saveShowDraftStyle', () => {
     await reconcileFailedShowStyle({
       showId: 'show-1',
       attemptedStyle: 'heritage',
+      mutationId: 'mutation-1',
       queryClient,
     });
 
-    expect(revertFailedStyleMutationMock).toHaveBeenCalledWith('show-1', 'heritage');
+    expect(revertFailedStyleMutationMock).toHaveBeenCalledWith('show-1', 'heritage', 'mutation-1');
     expect(queryClient.getQueryData<Show>(showQueryKeys.detail('show-1'))).toMatchObject({
       style: 'monogram',
       _syncStatus: 'synced',

@@ -1018,6 +1018,48 @@ describe('ReplicatedShowsTable', () => {
       expect(await table.get('show-1')).toMatchObject({ style: 'monogram' });
     });
 
+    it('restores only style when another show edit is still queued', async () => {
+      const show: ReplicatedShow = {
+        id: 'show-1',
+        name: 'Known Show',
+        organization: 'AKC',
+        startDate: '2026-06-15',
+        endDate: '2026-06-16',
+        style: 'monogram',
+      };
+      await table.set('show-1', show);
+
+      const queuedMutations = [
+        { id: 'name-edit', tableName: 'shows', rowId: 'show-1' },
+        { id: 'style-edit', tableName: 'shows', rowId: 'show-1' },
+      ];
+      table.setMutationManager({
+        getPendingMutationsForRow: vi.fn().mockResolvedValue(queuedMutations),
+        getFailedMutations: vi.fn().mockResolvedValue([]),
+      } as never);
+      vi.spyOn(
+        table as unknown as {
+          queueMutation: (...args: unknown[]) => Promise<string | null>;
+        },
+        'queueMutation'
+      )
+        .mockResolvedValueOnce('name-edit')
+        .mockResolvedValueOnce('style-edit');
+
+      await table.updateShow('show-1', { name: 'Updated Show Name' });
+      await table.updateShowStyle('show-1', 'heritage');
+
+      const restored = await table.revertFailedStyleMutation('show-1', 'heritage', 'style-edit');
+      const replica = await table.getReplicatedRow('show-1');
+
+      expect(restored).toMatchObject({ name: 'Updated Show Name', style: 'monogram' });
+      expect(replica).toMatchObject({
+        isDirty: true,
+        syncStatus: 'pending',
+        data: { name: 'Updated Show Name', style: 'monogram' },
+      });
+    });
+
     it('should update lastModified timestamp on update', async () => {
       const show: ReplicatedShow = {
         id: 'show-1',

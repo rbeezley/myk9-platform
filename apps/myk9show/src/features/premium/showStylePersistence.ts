@@ -128,7 +128,11 @@ export async function reconcileFailedShowStyle({
   mutationId,
   queryClient,
 }: ReconcileFailedShowStyleInput): Promise<void> {
-  const restored = await replicatedShowsTable.revertFailedStyleMutation(showId, attemptedStyle);
+  const restored = await replicatedShowsTable.revertFailedStyleMutation(
+    showId,
+    attemptedStyle,
+    mutationId
+  );
   const rollback = mutationId ? rollbackByMutationId.get(mutationId) : undefined;
   const fallbackShow = rollback?.show;
   if (!restored && !cachedStyleStillMatches(queryClient, showId, attemptedStyle)) {

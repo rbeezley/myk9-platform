@@ -161,6 +161,38 @@ export abstract class ReplicatedTable<T extends { id: string }> {
   }
 
   /**
+   * Check whether a row still has queued work besides the mutation being
+   * reconciled. This lets table-specific failure recovery preserve dirty local
+   * data while allowing a row whose only failed mutation was discarded to be
+   * marked clean.
+   */
+  protected async hasOtherMutationsForRow(
+    rowId: string,
+    excludedMutationId?: string
+  ): Promise<boolean> {
+    if (!this.mutationManager) return false;
+    try {
+      const [pending, failed] = await Promise.all([
+        this.mutationManager.getPendingMutationsForRow(this.tableName, rowId),
+        this.mutationManager.getFailedMutations(),
+      ]);
+      return [...pending, ...failed].some(
+        mutation =>
+          mutation.id !== excludedMutationId &&
+          mutation.tableName === this.tableName &&
+          String(mutation.rowId) === String(rowId)
+      );
+    } catch (error) {
+      // If queue state is temporarily unavailable, preserve dirty local data.
+      this.logger.warn(
+        `[${this.tableName}] Could not inspect row mutations for ${rowId}; preserving dirty state`,
+        error
+      );
+      return true;
+    }
+  }
+
+  /**
    * Rebuild a full Supabase UPDATE payload from a local row after conflict
    * resolution. Subclasses with direct full-row UPDATE mutations should override
    * this with their table mapper; RPC/delta-only tables can keep the default.

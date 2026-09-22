@@ -49,12 +49,14 @@ export function ShowDeskCompactContext({
   show,
   canonicalShowHref,
   armbandCount,
+  canManageShow,
 }: {
   show: Show;
   canonicalShowHref: string;
   armbandCount: number | undefined;
+  canManageShow: boolean;
 }) {
-  const { data: publishInfo } = usePublishInfo(show.id);
+  const { data: publishInfo } = usePublishInfo(show.id, canManageShow);
   /**
    * `undefined` means the publish read did not succeed -- this query has no
    * `networkMode`, so it inherits 'online' and pauses offline, returning

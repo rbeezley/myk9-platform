@@ -67,7 +67,7 @@ test.describe('Show management workflow', () => {
     await expect(page.getByTestId('header-actions-trigger')).toBeVisible({ timeout: 15000 });
     await page.getByTestId('header-actions-trigger').click();
     await expect(page.getByRole('menuitem', { name: 'Open Entry Management' })).toBeVisible();
-    await expect(page.getByRole('menuitem', { name: 'Show settings…' })).toBeVisible();
+    await expect(page.getByRole('menuitem', { name: 'Show Details' })).toBeVisible();
     await page.keyboard.press('Escape');
 
     // MYK9-630 phase 2: the five standalone page links above the tab strip are

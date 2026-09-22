@@ -43,7 +43,10 @@ const mockAuthContext = {
   } as Record<string, unknown> | null,
   isSecretary: false,
   isAdmin: false,
-  hasRole: vi.fn(() => false),
+  hasRole: vi.fn((...roles: unknown[]) => {
+    void roles;
+    return false;
+  }),
   hasPermission: vi.fn(() => false),
   checkPermissionAsync: vi.fn().mockResolvedValue(false),
   refreshPermissions: vi.fn().mockResolvedValue(undefined),
@@ -67,6 +70,21 @@ vi.mock('@/features/entitlement/useEntitlement', () => ({
     isError: false,
     refetch: vi.fn(),
   }),
+}));
+
+vi.mock('@/hooks/useShowManageScope', () => ({
+  useShowManageScope: () => {
+    const rolesCold = mockAuthContext.rbacLoading && !mockAuthContext.userWithRoles;
+    const isClubAdmin = mockAuthContext.hasRole('club_admin');
+    const canManage = mockAuthContext.isSecretary || mockAuthContext.isAdmin || isClubAdmin;
+    return {
+      status: rolesCold ? 'resolving' : 'resolved',
+      canManage,
+      canOperate: canManage && (mockAuthContext.isSecretary || mockAuthContext.isAdmin),
+      hasOperationalStaffRole: mockAuthContext.isSecretary || mockAuthContext.isAdmin,
+      clubId: canManage ? 'club-1' : undefined,
+    };
+  },
 }));
 
 // Mock show query
@@ -141,6 +159,12 @@ vi.mock('@/hooks/useDogStoreCompat', () => ({
 // Mock shows query
 vi.mock('@/hooks/queries/useShowsDatabase', () => ({
   useShowsQuery: () => ({ data: mockShow ? [mockShow] : [] }),
+  useShowQuery: () => ({
+    data: undefined,
+    isLoading: false,
+    isPlaceholderData: false,
+    isError: false,
+  }),
   useUpdateShowMutation: () => ({ mutateAsync: updateShowMutationMock, isPending: false }),
   showQueryKeys: {
     detail: (showId: string) => ['shows', 'detail', showId],
@@ -161,8 +185,13 @@ vi.mock('@/features/premium/showStylePersistence', () => ({
 }));
 
 vi.mock('@/store/showStore', () => ({
-  useShowStore: (selector: (s: Record<string, unknown>) => unknown) =>
-    selector({ updateShow: updateShowLocallyMock, shows: showStoreState.shows }),
+  useShowStore: (selector?: (s: Record<string, unknown>) => unknown) => {
+    const state = {
+      shows: showStoreState.shows,
+      updateShow: updateShowLocallyMock,
+    };
+    return selector ? selector(state) : state;
+  },
 }));
 
 vi.mock('@/services/database/judges', () => ({

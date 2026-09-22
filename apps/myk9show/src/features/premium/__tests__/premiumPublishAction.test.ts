@@ -3,6 +3,7 @@ import {
   derivePremiumPublish,
   PREMIUM_BUSY_REASON,
   PREMIUM_LOADING_REASON,
+  PREMIUM_OFFLINE_REASON,
   PREMIUM_UNAVAILABLE_REASON,
   PREMIUM_UP_TO_DATE_REASON,
 } from '../premiumPublishAction';
@@ -64,6 +65,13 @@ describe('derivePremiumPublish — what the card and the menu both read', () => 
       derivePremiumPublish({ ...manager, info: undefined, infoState: 'loading' }).action
         .disabledReason
     ).toBe(PREMIUM_LOADING_REASON);
+  });
+
+  it('distinguishes a paused offline read from online loading', () => {
+    expect(
+      derivePremiumPublish({ ...manager, info: undefined, infoState: 'offline' }).action
+        .disabledReason
+    ).toBe(PREMIUM_OFFLINE_REASON);
   });
 
   it('greys when the publish read failed, and says so', () => {

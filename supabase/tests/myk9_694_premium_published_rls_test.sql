@@ -78,7 +78,9 @@ DECLARE
   second_artifact CONSTANT text := '33333333-3333-3333-3333-333333333333';
   bad_artifact CONSTANT text := '44444444-4444-4444-4444-444444444444';
   secretary_artifact CONSTANT text := '22222222-2222-2222-2222-222222222222';
+  legacy_url CONSTANT text := 'https://legacy.example.test/00000000-0000-0000-0000-000000694011.pdf';
   denied boolean;
+  legacy_attempt_version bigint;
   result jsonb;
   first_version bigint;
   second_version bigint;
@@ -161,6 +163,7 @@ BEGIN
       AND experience_is_published
       AND experience_published_style = 'heritage'
       AND published_premium_url IS NULL
+      AND premium_publish_version = first_version
       AND published_premium_version = first_version
       AND experience_published_content->'outputs'->>'premiumPath' = own_show::text || '/' || artifact || '.pdf'
       AND (experience_published_content->'outputs'->'premiumUrl') IS NULL
@@ -275,6 +278,75 @@ BEGIN
   END;
   IF NOT denied THEN
     RAISE EXCEPTION 'FAIL manager committed another show''s staged artifact';
+  END IF;
+
+  -- A rollback app writes only the legacy URL and timestamp. That newer
+  -- publication must invalidate the versioned A path and any in-flight token.
+  UPDATE public.shows
+     SET published_premium_url = legacy_url,
+         published_premium_at = clock_timestamp()
+   WHERE id = own_show;
+  IF NOT FOUND OR NOT EXISTS (
+    SELECT 1 FROM public.shows
+    WHERE id = own_show
+      AND published_premium_path IS NULL
+      AND published_premium_version IS NULL
+      AND published_premium_url = legacy_url
+      AND premium_publish_version = second_version + 1
+  ) THEN
+    RAISE EXCEPTION 'FAIL rollback publish did not replace versioned premium state';
+  END IF;
+
+  -- The legacy URL is stable across publishes. A changed timestamp identifies
+  -- a second publish and must invalidate an in-flight versioned attempt.
+  legacy_attempt_version := public.begin_premium_publish(own_show);
+  UPDATE public.shows
+     SET published_premium_url = legacy_url,
+         published_premium_at = clock_timestamp()
+   WHERE id = own_show;
+  IF NOT FOUND OR NOT EXISTS (
+    SELECT 1 FROM public.shows
+    WHERE id = own_show
+      AND published_premium_path IS NULL
+      AND published_premium_version IS NULL
+      AND published_premium_url = legacy_url
+      AND premium_publish_version = legacy_attempt_version + 1
+  ) THEN
+    RAISE EXCEPTION 'FAIL repeated rollback publish did not invalidate the active version';
+  END IF;
+
+  UPDATE public.shows
+     SET published_premium_url = legacy_url
+   WHERE id = own_show;
+  IF NOT FOUND OR NOT EXISTS (
+    SELECT 1 FROM public.shows
+    WHERE id = own_show
+      AND published_premium_path IS NULL
+      AND published_premium_url = legacy_url
+      AND premium_publish_version = legacy_attempt_version + 1
+  ) THEN
+    RAISE EXCEPTION 'FAIL unchanged legacy metadata advanced the publish version';
+  END IF;
+
+  BEGIN
+    PERFORM public.publish_premium_artifact(
+      own_show,
+      previous_path,
+      legacy_attempt_version,
+      'heritage',
+      '{}'::jsonb
+    );
+    denied := false;
+  EXCEPTION WHEN OTHERS THEN
+    denied := true;
+  END;
+  IF NOT denied OR NOT EXISTS (
+    SELECT 1 FROM public.shows
+    WHERE id = own_show
+      AND published_premium_path IS NULL
+      AND published_premium_url = legacy_url
+  ) THEN
+    RAISE EXCEPTION 'FAIL versioned attempt replaced a later rollback publication';
   END IF;
 
   -- Club-scoped secretary positive control.

@@ -22,7 +22,7 @@ The canonical publish flow SHALL publish one append-only versioned premium artif
 #### Scenario: Legacy flat paths remain rollback-compatible during rollout
 
 - **WHEN** the currently deployed or rollback app uses an exact `<show-id>.pdf` path
-- **THEN** its temporary compatibility policies allow that legacy object shape to be inserted, updated, or deleted by an authorized organizer, while the new app writes only versioned folder paths and does not treat legacy objects as append-only
+- **THEN** its temporary compatibility policies allow that legacy object shape to be inserted, updated, or deleted by an authorized organizer, and a later legacy publish invalidates any older versioned path so new-app readers show the latest premium
 
 #### Scenario: Required data or configuration is missing
 

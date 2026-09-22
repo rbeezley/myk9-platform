@@ -54,6 +54,25 @@ describe('usePublishInfo', () => {
     expect(getPublicUrlMock).toHaveBeenCalledWith('show-b/artifact-1.pdf');
   });
 
+  it('uses the latest legacy URL after a rollback publish clears the versioned path', async () => {
+    maybeSingleMock.mockResolvedValue({
+      data: {
+        published_premium_path: null,
+        published_premium_url: 'https://legacy.example.test/show-b.pdf',
+        published_premium_at: '2026-09-22T21:49:00.000Z',
+        updated_at: '2026-09-22T21:49:00.000Z',
+        experience_is_published: true,
+      },
+      error: null,
+    });
+
+    await expect(fetchPublishInfo('show-b')).resolves.toMatchObject({
+      publishedPath: null,
+      publishedUrl: 'https://legacy.example.test/show-b.pdf',
+    });
+    expect(getPublicUrlMock).not.toHaveBeenCalled();
+  });
+
   it("does not carry another show's publish state across a show navigation", () => {
     usePublishInfo('show-b', true);
 

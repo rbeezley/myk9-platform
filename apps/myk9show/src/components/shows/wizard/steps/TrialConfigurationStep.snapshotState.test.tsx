@@ -208,6 +208,7 @@ describe('TrialConfigurationStep existing snapshot state', () => {
 
     expect(screen.getByLabelText('Trial Name *')).toHaveValue('Saturday Trial 2');
     expect(screen.getByText('Saturday Trial 2')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Remove Saturday Trial 2' })).toBeInTheDocument();
     expect(screen.getByRole('alert')).toHaveTextContent('Saturday Trial 2 type is required');
   });
 

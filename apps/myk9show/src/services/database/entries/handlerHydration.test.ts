@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import Dexie from 'dexie';
 
 const mocks = vi.hoisted(() => ({
   from: vi.fn(),
@@ -467,10 +468,13 @@ describe('loadHandlerPeople offline boundary', () => {
     const oldPersistence = new Promise<string>(resolve => {
       releaseOldPersistence = resolve;
     });
-    const bulkPut = vi.spyOn(db.instance.people, 'bulkPut').mockImplementation(async people => {
-      if (people.some(person => person.firstName === 'Old')) return oldPersistence;
-      return 'handler-1';
-    });
+    const bulkPut = vi
+      .spyOn(db.instance.people, 'bulkPut')
+      .mockImplementation(people =>
+        people.some(person => person.firstName === 'Old')
+          ? Dexie.Promise.resolve(oldPersistence)
+          : Dexie.Promise.resolve('handler-1')
+      );
     mocks.from
       .mockReturnValueOnce({
         select: vi.fn().mockReturnValue({ in: vi.fn().mockReturnValue(first.promise) }),

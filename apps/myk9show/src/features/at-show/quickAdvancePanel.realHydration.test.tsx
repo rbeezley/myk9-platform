@@ -1,4 +1,5 @@
 import { createElement, type PropsWithChildren } from 'react';
+import Dexie from 'dexie';
 import { onlineManager, QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { act, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -110,10 +111,12 @@ describe('QuickAdvancePanel real handler hydration feedback loop', () => {
     Object.defineProperty(navigator, 'onLine', { configurable: true, value: false });
     onlineManager.setOnline(false);
 
-    vi.spyOn(db.instance.people, 'bulkGet').mockImplementation(async ids =>
-      ids.flatMap(id => (cachedPerson && cachedPerson.id === String(id) ? [cachedPerson] : []))
+    vi.spyOn(db.instance.people, 'bulkGet').mockImplementation(ids =>
+      Dexie.Promise.resolve(
+        ids.flatMap(id => (cachedPerson && cachedPerson.id === String(id) ? [cachedPerson] : []))
+      )
     );
-    vi.spyOn(db.instance.people, 'bulkPut').mockImplementation(async people => {
+    vi.spyOn(db.instance.people, 'bulkPut').mockImplementation(people => {
       const person = people[0];
       if (person) {
         cachedPerson = {
@@ -122,10 +125,11 @@ describe('QuickAdvancePanel real handler hydration feedback loop', () => {
           lastName: person.lastName ?? '',
         };
       }
-      return cachedPerson?.id ?? '';
+      return Dexie.Promise.resolve(cachedPerson?.id ?? '');
     });
-    vi.spyOn(db.instance.people, 'bulkDelete').mockImplementation(async ids => {
+    vi.spyOn(db.instance.people, 'bulkDelete').mockImplementation(ids => {
       if (cachedPerson && ids.some(id => String(id) === cachedPerson?.id)) cachedPerson = undefined;
+      return Dexie.Promise.resolve();
     });
 
     quickAdvanceMocks.replicatedRead.mockResolvedValue([coldDogEntry] as never);

@@ -153,6 +153,56 @@ describe('useReportData', () => {
     expect(mockGetEntriesByShowFromReplication).toHaveBeenCalledTimes(2);
   });
 
+  it('refreshes an owner-fallback print when its authoritative person arrives late', async () => {
+    const staleEntry = {
+      id: 'entry-1',
+      class_id: 'class-1',
+      handler_id: null,
+      handler: null,
+      handler_identity: { name: null, person: null, source: 'unknown' as const },
+      dog: {
+        id: 'dog-1',
+        call_name: 'Rocket',
+        owner: { first_name: 'Owner', last_name: 'Name' },
+      },
+    };
+    const hydratedEntry = {
+      ...staleEntry,
+      handler_identity: {
+        name: 'Owner Name',
+        person: { id: 'owner-1', first_name: 'Owner', last_name: 'Name' },
+        source: 'owner' as const,
+      },
+    };
+    mockGetTrialsByShow.mockResolvedValue({
+      data: [{ id: 'trial-1', show_id: 'show-1' }],
+      error: null,
+    } as never);
+    mockGetClassesByTrialId.mockResolvedValue({
+      data: [{ id: 'class-1', trial_id: 'trial-1', element: 'Scent Work' }],
+      error: null,
+    } as never);
+    mockGetEntriesByShowFromReplication.mockImplementation(async () => {
+      if (mockGetEntriesByShowFromReplication.mock.calls.length === 1) {
+        hydrationMocks.revision += 1;
+        for (const listener of hydrationMocks.listeners) {
+          listener({ ids: ['owner-1'], revision: hydrationMocks.revision });
+        }
+        return { data: [staleEntry], error: null } as never;
+      }
+      return { data: [hydratedEntry], error: null } as never;
+    });
+
+    const { result } = renderHook(() => useReportData(defaultOptions), {
+      wrapper: createWrapper(),
+    });
+
+    await waitFor(() => {
+      expect(mapReportEntries(result.current.entries ?? [])[0]?.handler).toBe('Owner Name');
+    });
+    expect(mockGetEntriesByShowFromReplication).toHaveBeenCalledTimes(2);
+  });
+
   it('keeps the cached printed handler available when an identity refresh completes offline', async () => {
     const cachedEntry = {
       id: 'entry-1',

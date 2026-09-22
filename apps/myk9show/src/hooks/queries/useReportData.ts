@@ -1,4 +1,4 @@
-import { useEffect, useMemo } from 'react';
+import { useEffect, useMemo, useRef, useSyncExternalStore } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { getTrialsByShow } from '@/services/database/trials';
 import { getClassesByTrialId } from '@/services/database/classes';
@@ -35,6 +35,10 @@ export interface UseReportDataOptions {
   show: Show | null;
   trialId: string | 'all';
   classId: string | 'all';
+}
+
+function subscribeToHandlerPeopleRevision(onStoreChange: () => void): () => void {
+  return subscribeHandlerPeopleHydration(() => onStoreChange());
 }
 
 interface HydratedReportEntries {
@@ -127,40 +131,24 @@ async function hydrateEntryRegistrations(entries: ReportDbEntry[]): Promise<Hydr
 export function useReportData({ show, trialId, classId }: UseReportDataOptions) {
   const showId = show?.id ?? '';
   const queryClient = useQueryClient();
-  const hydrationRevisionAtRender = getHandlerPeopleHydrationRevision();
+  const handlerPeopleRevision = useSyncExternalStore(
+    subscribeToHandlerPeopleRevision,
+    getHandlerPeopleHydrationRevision,
+    getHandlerPeopleHydrationRevision
+  );
+  const previousHandlerPeopleRevision = useRef(handlerPeopleRevision);
   const reportQueryKey = useMemo(
     () => queryKeys.reportData(showId, trialId, classId),
     [classId, showId, trialId]
   );
 
   useEffect(() => {
-    if (!showId) return;
-
-    const invalidateIfRelevant = (ids: readonly string[]) => {
-      const cached = queryClient.getQueryData<HydratedReportEntries>(reportQueryKey);
-      // While the initial query is running the entries are not in the cache
-      // yet. Invalidate anyway so a completion during that window is replayed
-      // against the now-authoritative people cache.
-      const relevant =
-        !cached ||
-        cached.entries.some(entry => {
-          const identityPersonId = entry.handler_identity?.person?.id;
-          return [entry.handler_id, identityPersonId].some(
-            id => typeof id === 'string' && ids.includes(id)
-          );
-        });
-      if (relevant) void queryClient.invalidateQueries({ queryKey: reportQueryKey });
-    };
-
-    const unsubscribe = subscribeHandlerPeopleHydration(event => invalidateIfRelevant(event.ids));
-    // Subscribe first, then compare. This closes both sides of the render to
-    // effect gap: later events hit the listener; earlier events are detected
-    // by the revision and cause one scoped refresh.
-    if (getHandlerPeopleHydrationRevision() > hydrationRevisionAtRender) {
+    if (previousHandlerPeopleRevision.current === handlerPeopleRevision) return;
+    previousHandlerPeopleRevision.current = handlerPeopleRevision;
+    if (showId) {
       void queryClient.invalidateQueries({ queryKey: reportQueryKey });
     }
-    return unsubscribe;
-  }, [classId, hydrationRevisionAtRender, queryClient, reportQueryKey, showId, trialId]);
+  }, [handlerPeopleRevision, queryClient, reportQueryKey, showId]);
 
   const trialsQuery = useQuery({
     queryKey: queryKeys.showTrials(showId),

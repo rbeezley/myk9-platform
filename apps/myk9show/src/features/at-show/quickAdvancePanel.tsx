@@ -15,74 +15,44 @@
  * ranking when a steward or exhibitor happens to set them; with a paper gate
  * sheet — the common case — the chips are simply the next dogs by run order.
  *
- * Candidates come from the canonical projected read and re-render when the
- * replicated table changes, so this works offline and never shows a locked
- * stale snapshot.
+ * Candidates come from the replicated table and re-render on its changes, so
+ * this works offline and never shows a locked stale snapshot.
  */
 
-import { useEffect, useRef } from 'react';
+import { useEffect } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { ArrowLeft, CheckCircle2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { replicatedEntriesTable } from '@/services/replication/ReplicatedEntriesTable';
-import {
-  getHandlerPeopleHydrationRevision,
-  subscribeHandlerPeopleHydration,
-} from '@/services/database/entries/handlerHydration';
 import { badgeClass } from './slots/atShowChrome.helpers';
 import {
   toQuickAdvanceChips,
   formatChipLabel,
   type QuickAdvanceChip,
 } from './quickAdvanceReplicated';
-import { getLocalShowDayEntriesByClass, type LocalShowDayEntry } from '@/services/database/entries';
 
 function useQuickAdvanceChips(
   classId: string | undefined,
   scoredEntryId: string | undefined
 ): QuickAdvanceChip[] {
   const queryClient = useQueryClient();
-  const latestHandlerRevision = useRef(getHandlerPeopleHydrationRevision());
 
   // React to the table itself rather than to any one mutation path: a check-in
   // change can land from the entry list, a steward's device, or a sync pull.
   useEffect(() => {
     if (!classId) return;
-    const queryKey = ['at-show', 'quick-advance', classId] as const;
-    const invalidate = () => {
-      void queryClient.invalidateQueries({ queryKey });
-    };
-    const stopEntries = replicatedEntriesTable.subscribe(invalidate, { emitCurrent: false });
-    const stopHandlerPeople = subscribeHandlerPeopleHydration(event => {
-      latestHandlerRevision.current = event.revision;
-      const entries =
-        queryClient.getQueryData<{ entries: LocalShowDayEntry[] }>(queryKey)?.entries ?? [];
-      const relevantIds = new Set(
-        entries.flatMap(entry => [entry.handlerId, entry.dogOwnerId].filter(Boolean))
-      );
-      if (event.ids.some(id => relevantIds.has(id))) invalidate();
+    return replicatedEntriesTable.subscribe(() => {
+      void queryClient.invalidateQueries({ queryKey: ['at-show', 'quick-advance', classId] });
     });
-    return () => {
-      stopEntries();
-      stopHandlerPeople();
-    };
   }, [classId, queryClient]);
 
   const { data } = useQuery({
     queryKey: ['at-show', 'quick-advance', classId],
-    queryFn: async () => {
-      return getLocalShowDayEntriesByClass(classId as string);
-    },
+    queryFn: () => replicatedEntriesTable.getEntriesByClass(classId as string),
     enabled: !!classId,
-    networkMode: 'always',
   });
-  useEffect(() => {
-    if (data && latestHandlerRevision.current > data.hydrationRevision) {
-      void queryClient.invalidateQueries({ queryKey: ['at-show', 'quick-advance', classId] });
-    }
-  }, [classId, data, queryClient]);
 
-  return toQuickAdvanceChips(data?.entries ?? [], { excludeEntryId: scoredEntryId });
+  return toQuickAdvanceChips(data ?? [], { excludeEntryId: scoredEntryId });
 }
 
 export interface QuickAdvancePanelProps {

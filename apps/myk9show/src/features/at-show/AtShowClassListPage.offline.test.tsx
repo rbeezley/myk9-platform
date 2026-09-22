@@ -35,7 +35,6 @@ vi.mock('@/services/replication', () => ({
     subscribe: vi.fn(() => vi.fn()),
   },
   replicatedEntriesTable: { getEntriesByShow: vi.fn(), subscribe: vi.fn(() => vi.fn()) },
-  replicatedDogsTable: { getAllDogs: vi.fn().mockResolvedValue([]) },
 }));
 
 vi.mock('@/services/database/judges', () => ({

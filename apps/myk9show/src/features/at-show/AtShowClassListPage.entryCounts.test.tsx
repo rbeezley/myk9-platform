@@ -45,7 +45,6 @@ vi.mock('@/services/replication', () => ({
     sync: vi.fn(),
     subscribe: vi.fn(() => vi.fn()),
   },
-  replicatedDogsTable: { getAllDogs: vi.fn().mockResolvedValue([]) },
 }));
 
 const mockJudgeAssignmentData = vi.hoisted(() => ({

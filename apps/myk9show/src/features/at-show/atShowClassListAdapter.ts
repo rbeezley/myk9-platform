@@ -4,8 +4,8 @@
  * Fetches a show's trials → classes and maps each `ReplicatedClass` into a
  * ringside `ClassEntry` so the at-show ClassList can render myK9Q-faithful
  * class cards AND reuse ringside's pairing helper (`findPairedSectionedClass`)
- * for Novice Section A/B navigation. Entry counts come from the canonical
- * projected entries read (offline-first).
+ * for Novice Section A/B navigation. Entry counts come from the replicated
+ * entries table (offline-first).
  *
  * Not a full ringside ClassList extraction — a lean host-side picker (plan D3).
  */
@@ -25,8 +25,6 @@ import { getFavoriteClassIdsForTrial } from '@/features/show-today/accountTodayE
 import { composeClassTitle } from '@/services/entryDisplay/entryDisplaySelectors';
 import { buildNextUpPreview, type AtShowNextUpPreview } from './atShowNextUpPreview';
 import { countEntryAccounting } from '@/features/_shared/entryAccounting';
-import { getLocalShowDayEntriesByShow, type LocalShowDayEntry } from '@/services/database/entries';
-import type { ProjectedEntryHandler } from '@/services/database/entries/entryHandlerProjection';
 
 /** A trial and its classes (mapped to ringside `ClassEntry`), for grouped display. */
 export interface AtShowClassGroup {
@@ -34,14 +32,7 @@ export interface AtShowClassGroup {
   classes: ClassEntry[];
   /** Per-class "in ring / next up" row preview, keyed by class id. */
   nextUpByClassId: Map<string, AtShowNextUpPreview>;
-  /** Canonical handler/owner projections, retained for consumers that render entry identity. */
-  handlerIdentitiesByClassId?: Map<string, ProjectedEntryHandler[]>;
-  /** IDs used to filter authoritative handler-person completion events. */
-  handlerIdentityIds?: readonly string[];
 }
-
-/** Canonical show-day projection retains every typed replicated queue field. */
-export type AtShowProjectedEntry = LocalShowDayEntry;
 
 /** Render the class name from element + level (+ section). The '-' "no section" sentinel is handled by resolveClassSection inside composeClassTitle. */
 export function buildClassName(cls: ReplicatedClass): string {
@@ -95,8 +86,8 @@ export function toClassEntry(
   };
 }
 
-function groupEntriesByClass<T extends ReplicatedEntry>(entries: readonly T[]): Map<string, T[]> {
-  const entriesByClass = new Map<string, T[]>();
+function groupEntriesByClass(entries: ReplicatedEntry[]): Map<string, ReplicatedEntry[]> {
+  const entriesByClass = new Map<string, ReplicatedEntry[]>();
   for (const entry of entries) {
     const classId = entry.classId;
     if (!classId) continue;
@@ -105,10 +96,6 @@ function groupEntriesByClass<T extends ReplicatedEntry>(entries: readonly T[]): 
     else entriesByClass.set(classId, [entry]);
   }
   return entriesByClass;
-}
-
-function getProjectedHandlerIdentity(entry: ReplicatedEntry): ProjectedEntryHandler | undefined {
-  return (entry as AtShowProjectedEntry).handler_identity;
 }
 
 /**
@@ -195,54 +182,28 @@ export async function areAtShowEntryCountsKnown(showId: string): Promise<boolean
  * class — not a per-class fetch — so a show with many classes doesn't trigger
  * one full-table scan per class (matters on show-day / offline IndexedDB).
  */
-export interface AtShowClassListRead {
-  groups: AtShowClassGroup[];
-  hydrationRevision: number;
-}
-
-export async function fetchAtShowClassList(showId: string): Promise<AtShowClassListRead> {
-  const [trials, entryRead] = await Promise.all([
+export async function fetchAtShowClassList(showId: string): Promise<AtShowClassGroup[]> {
+  const [trials, allEntries] = await Promise.all([
     replicatedTrialsTable.getTrialsByShow(showId),
-    getLocalShowDayEntriesByShow(showId),
+    replicatedEntriesTable.getEntriesByShow(showId),
   ]);
-  const allEntries = entryRead.entries;
 
   const entriesByClass = groupEntriesByClass(allEntries);
 
-  const groups = await Promise.all(
+  return Promise.all(
     trials.map(async trial => {
       const classes = await replicatedClassesTable.getClassesByTrial(trial.id);
       const favoriteClassIds = getFavoriteClassIdsForTrial(showId, trial.id);
       const nextUpByClassId = new Map<string, AtShowNextUpPreview>();
-      const handlerIdentitiesByClassId = new Map<string, ProjectedEntryHandler[]>();
-      const handlerIdentityIds = new Set<string>();
       const classEntries = classes.map(cls => {
         // Same grouped-entries pass that feeds the counts — no extra fetch, so
         // the preview stays offline-first and costs nothing on show day.
         const classEntriesForClass = entriesByClass.get(cls.id) ?? [];
         nextUpByClassId.set(cls.id, buildNextUpPreview(classEntriesForClass));
-        handlerIdentitiesByClassId.set(
-          cls.id,
-          classEntriesForClass.flatMap(entry => {
-            const identity = getProjectedHandlerIdentity(entry);
-            return identity ? [identity] : [];
-          })
-        );
-        for (const entry of classEntriesForClass) {
-          if (entry.handlerId) handlerIdentityIds.add(entry.handlerId);
-          if (entry.dogOwnerId) handlerIdentityIds.add(entry.dogOwnerId);
-        }
         return toClassEntry(cls, classEntriesForClass, favoriteClassIds);
       });
       classEntries.sort((a, b) => a.class_order - b.class_order);
-      return {
-        trial,
-        classes: classEntries,
-        nextUpByClassId,
-        handlerIdentitiesByClassId,
-        handlerIdentityIds: [...handlerIdentityIds],
-      };
+      return { trial, classes: classEntries, nextUpByClassId };
     })
   );
-  return { groups, hydrationRevision: entryRead.hydrationRevision };
 }

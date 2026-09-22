@@ -4,8 +4,6 @@
 
 export * from './reads';
 export * from './publicReads';
-export * from './entryHandlerProjection';
-export * from './localShowDayRead';
 // updateEntryStatus excluded — conflicts with the secretary-signature version in secretary.ts.
 export {
   applyPromoCodeToEntry,

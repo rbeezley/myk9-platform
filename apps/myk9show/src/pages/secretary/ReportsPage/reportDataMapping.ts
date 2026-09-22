@@ -18,7 +18,10 @@ import { formatShowDateRange } from '@/lib/format/dates';
 import { resolveDogIdentityForOrganization } from '@/features/dogs/identity';
 import { resolveConfiguredRegistryId } from '@/features/registries';
 import { deriveJuniorStatus } from '@/features/registries/juniorHandlerPolicy';
-import { resolveHandlerPerson } from '@/features/registries/handlerIdentity';
+import {
+  projectHandlerIdentity,
+  resolveHandlerPerson,
+} from '@/features/registries/handlerIdentity';
 
 export function mapReportEntries(
   dbEntries: ReportDbEntry[],
@@ -85,7 +88,7 @@ function mapReportEntry(
 ): ReportEntry {
   const dog = e.dog;
   const registration = e.registration;
-  const handlerName = resolveReportHandlerName(e.handler);
+  const handlerName = resolveReportEntryHandlerName(e);
   // Pass the armband through as TEXT. `Number('12A')` is NaN, which the packet
   // model then reads as "no armband" -- so a suffixed armband silently vanished
   // from the Reports page just as it printed `#0` on the packet (MYK9-243).
@@ -159,6 +162,18 @@ function mapReportEntry(
         }
       : {}),
   };
+}
+
+function resolveReportEntryHandlerName(entry: ReportDbEntry): string {
+  const identity =
+    entry.handler_identity ??
+    projectHandlerIdentity({
+      assignedHandlerName: entry.handler,
+      assignedHandlerId: entry.handler_id,
+      assignedHandlerPerson: entry.handler_person,
+      ownerPerson: entry.dog?.owner,
+    });
+  return resolveReportHandlerName(identity.name);
 }
 
 function readMovedFromEntryId(entry: ReportDbEntry): string | null {

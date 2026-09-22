@@ -1,4 +1,4 @@
-# MYK9-603 local show-day read restructure
+# MYK9-603 printed handler identity restructure
 
 Status: in progress. Continues the canonical handler identity plan after whole-branch review of `381a9e1a9`.
 
@@ -8,20 +8,21 @@ The two-lens review of `f5ff11e5` found that the at-show class cards and quick-a
 
 ## Goal and boundaries
 
-Use the entry's assigned handler on show-day and printed check-in surfaces, with owner fallback only for truly unassigned entries. Preserve offline availability and existing queue state. This changes existing reads and report mapping; it adds no new UI surface. The new worktree branch replaces PR #2363 rather than extending its broad diff.
+Correct the handler printed on check-in sheets, run orders, AKC forms, gazettes, and scheduled emergency packets, with owner fallback only for truly unassigned entries. Preserve offline availability and existing print/report state. This changes existing print paths and adds no UI surface. Interactive Secretary Run Sheet behavior and the Show Desk people roster are explicitly deferred follow-up; no claim is made that this work changes either live surface. The new worktree branch replaces PR #2363 rather than extending its broad diff.
 
 ## Tasks
 
-1. Add a dedicated local projected show-day read for show and class scopes. Read replicated entries, dogs, and cached people without awaiting financial, release, or online sync requests. Preserve `isInRing`, check-in status, run order, score state, dog name/breed, and canonical `handler_identity`. Keep people refresh in the existing generation-guarded hydrator; expose a completion signal that cannot be lost before the initial query publishes. Test offline, cold cache, deferred refresh, and in-ring state with real replicated shapes.
-2. Migrate at-show class list and quick advance to that read. Remove the broad DB-row normalization where typed replicated rows suffice. Keep live subscriptions for entry writes and person changes. Update existing page mocks to the new import boundary. Test initial render and refresh for both screens, including an in-ring entry and a registered entry with an unresolved enrollment request.
-3. Migrate the actual Reports check-in print path (`reportRegistry` -> `toScoresheetModel` -> `reportDataMapping`) to `handler_identity`. Verify assigned text/person precedence, owner-only fallback, and assigned-but-unresolved behavior through a real projection fixture. Retain score-recording packet behavior unless it shares the same intended identity rule.
-4. Remove the two tracked `.superpowers/sdd` reports, then run focused tests, app typecheck, lint, changed-file format and quality ratchet. Run one shuffled app suite; stop if it hangs for 30 seconds. Verify OpenSpec artifacts if present, or record which are absent. Request a whole-branch adversarial review with at least two distinct lenses before shipping.
+1. Route the actual printed check-in and run-order paths (`reportRegistry` -> `toScoresheetModel` -> `reportDataMapping`) through canonical `handler_identity`. Verify assigned text/person precedence, owner fallback only for unassigned entries, and assigned-but-unresolved behavior through real projections.
+2. Audit the existing AKC entry form and gazette handler sections; use the same assigned-handler rule while preserving distinct owner and handler fields.
+3. Update the scheduled emergency packet RPC in a new timestamped migration using the actual `entries.handler`, `entries.handler_id`, `dogs.owner_id`, and `people` schema. Preserve service-role-only EXECUTE, security-definer search path, and all existing filters. Add SQL contract and behavioral fixture coverage. Do not push the migration to the shared database from this branch.
+4. Keep interactive Secretary Run Sheet behavior and the Show Desk people roster out of scope; track them as follow-up work if their live handler identity needs correction.
+5. Run focused tests, app typecheck, lint, changed-file format and quality ratchet. Run one shuffled app suite and stop if it produces no useful result for 30 seconds. Validate the OpenSpec change. Request two distinct adversarial review lenses on the final branch before shipping.
 
 ## Acceptance
 
-- At-show queues retain their established replicated read and do not gain an unused identity dependency.
-- A people refresh that finishes during initial report loading results in visible fresh identity.
-- The printed check-in sheet uses the canonical identity, including unknown when an assigned person cannot be resolved.
+- Printed check-in sheets, run orders, AKC forms, gazettes, and scheduled emergency packets use the assigned handler, with owner fallback only when unassigned.
+- A people refresh that finishes during initial report loading results in visible fresh identity on affected printouts.
+- A printout remains unknown when an assigned person cannot be resolved; this does not define interactive Secretary Run Sheet or Show Desk roster behavior.
 - Focused tests and required local checks pass, and review findings are addressed before PR creation.
 
 ## Corrective tasks after adversarial review

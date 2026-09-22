@@ -779,7 +779,7 @@ export const getEntriesByShow = async (showId: string) => {
   // A populated replica may contain only individually hydrated entries. Refresh
   // this show through the conflict-aware sync path before treating it as complete.
   // Failed/offline sync must not discard the entries already available locally.
-  await refreshShowEntriesForRead(showId);
+  const refreshCompleted = await refreshShowEntriesForRead(showId);
   const result = await readWithReplicationFallback({
     replication: async () => {
       const [entries, dogsMap, classesMap] = await Promise.all([
@@ -812,9 +812,14 @@ export const getEntriesByShow = async (showId: string) => {
     errorData: [],
     verifyOnlineWhenEmpty: true,
   });
-  if (result.error) return { ...result, resultsReadComplete: false };
+  if (result.error) return { ...result, resultsReadComplete: false, verified: false };
   const released = await withReleasedShowResults(showId, result.data);
-  return { ...result, data: released.entries, resultsReadComplete: released.resultsReadComplete };
+  return {
+    ...result,
+    data: released.entries,
+    resultsReadComplete: released.resultsReadComplete,
+    verified: refreshCompleted,
+  };
 };
 
 /**

@@ -78,6 +78,7 @@ import { getEntriesByShow } from '@/services/database/entries';
 describe('getEntriesByShow — cold local replica verifies online', () => {
   beforeEach(() => {
     mockEntriesTable.sync.mockReset();
+    mockEntriesTable.sync.mockResolvedValue({ success: true });
     onlineRows = [defaultOnlineRow];
     mockLoadHandlerPeople.mockReset();
     mockLoadHandlerPeople.mockResolvedValue(new Map());
@@ -121,7 +122,29 @@ describe('getEntriesByShow — cold local replica verifies online', () => {
     ]);
     const result = await getEntriesByShow('s1');
     expect(result.error).toBeNull();
+    expect(result.verified).toBe(false);
     expect(result.data.map(row => row.id)).toEqual(['offline-entry']);
+  });
+
+  it('does not verify cached entries when scoped sync reports failure', async () => {
+    mockEntriesTable.sync.mockResolvedValue({ success: false });
+    mockEntriesTable.getEntriesByShow.mockResolvedValue([
+      {
+        id: 'failed-sync-entry',
+        dogId: null,
+        classId: null,
+        showId: 's1',
+        registrationId: null,
+        deletedAt: null,
+        entryStatus: 'confirmed',
+      },
+    ]);
+
+    const result = await getEntriesByShow('s1');
+
+    expect(result.error).toBeNull();
+    expect(result.verified).toBe(false);
+    expect(result.data.map(row => row.id)).toEqual(['failed-sync-entry']);
   });
 
   it('returns cached entries after three seconds when scoped sync never settles', async () => {
@@ -143,6 +166,7 @@ describe('getEntriesByShow — cold local replica verifies online', () => {
       await vi.advanceTimersByTimeAsync(3000);
       const result = await pending;
       expect(result.error).toBeNull();
+      expect(result.verified).toBe(false);
       expect(result.data.map(row => row.id)).toEqual(['cached-entry']);
       expect(vi.getTimerCount()).toBe(0);
     } finally {
@@ -156,6 +180,7 @@ describe('getEntriesByShow — cold local replica verifies online', () => {
     const result = await getEntriesByShow('s1');
 
     expect(result.data).toHaveLength(1);
+    expect(result.verified).toBe(true);
     expect((result.data[0] as Record<string, unknown>).id).toBe('entry-online-1');
   });
 

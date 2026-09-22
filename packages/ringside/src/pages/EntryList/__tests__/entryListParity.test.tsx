@@ -26,7 +26,7 @@
  * `useAtShowEntryListHandlers.handleEntryClick`, which is tested there.
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { EntryListPage } from '../EntryListPage';
 import type { EntryListPageProps } from '../pageProps';
@@ -284,4 +284,90 @@ describe('combined mode renders what single-class mode must not', () => {
 
     expect(screen.queryByRole('button', { name: /all sections/i })).toBeNull();
   });
+});
+
+describe.each(PAGES)('class-scoped Results Sheet availability — $name', page => {
+  it('enables Results Sheet on the default Pending tab when the class has completed entries', () => {
+    const props = page.makeProps({
+      entries: [{ id: 'e1', classId: 'class-a' }],
+      loaded: true,
+      completedEntries: 1,
+    });
+    props.context = { ...props.context, role: 'secretary' };
+
+    render(
+      <MemoryRouter>
+        <EntryListPage {...props} />
+      </MemoryRouter>
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: /actions menu/i }));
+
+    expect(screen.getByRole('button', { name: 'Results Sheet' })).toBeEnabled();
+  });
+
+  it.each(['pending', 'completed'] as const)(
+    'keeps Results Sheet disabled on the %s tab when the class has no completed entries',
+    activeTab => {
+      const props = page.makeProps({
+        entries: [{ id: 'e1', classId: 'class-a' }],
+        loaded: true,
+        completedEntries: 0,
+      });
+      props.context = { ...props.context, role: 'secretary' };
+      props.derived = { ...props.derived, activeTab };
+
+      render(
+        <MemoryRouter>
+          <EntryListPage {...props} />
+        </MemoryRouter>
+      );
+
+      fireEvent.click(screen.getByRole('button', { name: /actions menu/i }));
+
+      expect(screen.getByRole('button', { name: 'Results Sheet' })).toBeDisabled();
+    }
+  );
+});
+
+const COMBINED_RESULTS_SHEET_CASES = [
+  ['pending', 'all'],
+  ['completed', 'all'],
+  ['pending', 'A'],
+  ['pending', 'B'],
+  ['completed', 'A'],
+  ['completed', 'B'],
+] as const;
+
+describe('combined class-scoped Results Sheet availability', () => {
+  it.each(COMBINED_RESULTS_SHEET_CASES)(
+    'enables Results Sheet on the %s status and %s section tab when filtered rows are empty',
+    (activeTab, sectionFilter) => {
+      const props = makeCombinedProps({
+        entries: [{ id: 'e1', classId: 'class-a' }],
+        loaded: true,
+        completedEntries: 1,
+      });
+      props.context = { ...props.context, role: 'secretary' };
+      props.derived = {
+        ...props.derived,
+        activeTab,
+        currentEntries: [],
+        filteredEntries: [],
+        pendingEntries: [],
+        completedEntries: [],
+      };
+      props.combined = { ...props.combined!, sectionFilter };
+
+      render(
+        <MemoryRouter>
+          <EntryListPage {...props} />
+        </MemoryRouter>
+      );
+
+      fireEvent.click(screen.getByRole('button', { name: /actions menu/i }));
+
+      expect(screen.getByRole('button', { name: 'Results Sheet' })).toBeEnabled();
+    }
+  );
 });

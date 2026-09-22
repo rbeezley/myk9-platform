@@ -1,6 +1,5 @@
 import { describe, expect, it } from 'vitest';
 import type { ReplicatedEntry } from '@/services/replication/ReplicatedEntriesTable';
-import { rowToEntry } from '@/services/replication/ReplicatedEntriesTable.mapper';
 import { projectEntryHandlerIdentity } from './entryHandlerProjection';
 
 const owner = { id: 'owner-1', first_name: 'Olivia', last_name: 'Owner' };
@@ -20,20 +19,15 @@ function entry(overrides: Partial<ReplicatedEntry>): ReplicatedEntry {
 
 const proxyEntry = entry({
   handlerId: assigned.id,
-  handler: null,
+  handler: undefined,
   dogOwnerId: owner.id,
 });
 
-const ownerHandledEntry = rowToEntry({
-  id: 'entry-1',
-  dog_id: 'dog-1',
-  handler: null,
-  dogs: { owner_id: owner.id },
-} as never);
+const ownerHandledEntry = entry({ dogOwnerId: owner.id });
 
 const unresolvedAssignedEntry = entry({
   handlerId: 'missing-handler',
-  handler: null,
+  handler: undefined,
   dogOwnerId: owner.id,
 });
 

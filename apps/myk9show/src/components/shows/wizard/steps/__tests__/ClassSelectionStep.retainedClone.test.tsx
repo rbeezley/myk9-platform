@@ -91,7 +91,7 @@ describe('ClassSelectionStep retained cloned classes', () => {
       trials: [
         {
           id: 'trial-1',
-          name: 'Saturday Trial',
+          nameOverride: 'Saturday Trial',
           dateTime: '2026-10-01T08:00:00.000Z',
           eventNumber: 'SW-1',
           trialType: 'Scent Work',
@@ -176,7 +176,7 @@ describe('ClassSelectionStep retained cloned classes', () => {
       trials: [
         {
           id: 'trial-1',
-          name: 'Saturday Trial',
+          nameOverride: 'Saturday Trial',
           dateTime: '2026-10-01T08:00:00.000Z',
           eventNumber: 'SW-1',
           trialType: 'Scent Work',

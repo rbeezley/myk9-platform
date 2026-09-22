@@ -32,7 +32,7 @@ vi.mock('@/store/wizardStore', () => ({
     trials: [
       {
         id: 'trial-1',
-        name: 'Trial 1',
+        nameOverride: 'Trial 1',
         dateTime: '2026-07-01T09:00:00Z',
         type: 'scent_work',
         classes: [{ id: 'class-1', name: 'Novice A', level: 'novice', element: 'container' }],

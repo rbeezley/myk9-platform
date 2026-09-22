@@ -1,11 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import { TrialType } from '@/types/template.types';
 import {
-  getNextTrialName,
   getTrialCreationCopy,
   isTrialSnapshotReady,
   resolveTrialTypeOptions,
 } from './TrialConfigurationStep.helpers';
+import { getEffectiveTrialNames, getTrialLocalDay } from '@/utils/wizardTrialNames';
 
 describe('resolveTrialTypeOptions', () => {
   it('keeps the full AKC discipline list even when templates only include Scent Work', () => {
@@ -49,47 +49,72 @@ describe('trial creation wording', () => {
     });
   });
 
-  it('allocates the first unused persisted same-day trial name', () => {
-    expect(
-      getNextTrialName(
-        [
-          { name: 'Saturday Trial 1', trialDate: '2026-08-01' },
-          { name: 'Saturday Trial 3', trialDate: '2026-08-01' },
-        ],
-        '2026-08-01'
-      )
-    ).toBe('Saturday Trial 2');
+  it('derives generated names from same-day persisted trials and draft order', () => {
+    const persisted = [{ id: 'saved-1', name: 'Custom Novice Trial', trialDate: '2026-08-01' }];
+    const drafts = [
+      { id: 'draft-1', trialDate: '2026-08-01' },
+      { id: 'draft-2', trialDate: '2026-08-01' },
+    ];
+
+    expect(getEffectiveTrialNames(drafts, persisted)).toEqual([
+      'Saturday Trial 2',
+      'Saturday Trial 3',
+    ]);
   });
 
-  it('does not count trials from another day', () => {
-    expect(
-      getNextTrialName([{ name: 'Sunday Trial 1', trialDate: '2026-08-02' }], '2026-08-01')
-    ).toBe('Saturday Trial 1');
+  it('recalculates draft names after additions, removals, and reorder', () => {
+    const first = { id: 'draft-1', trialDate: '2026-08-01' };
+    const second = { id: 'draft-2', trialDate: '2026-08-01' };
+    const otherDay = { id: 'draft-3', trialDate: '2026-08-02' };
+
+    expect(getEffectiveTrialNames([first, second, otherDay])).toEqual([
+      'Saturday Trial 1',
+      'Saturday Trial 2',
+      'Sunday Trial 1',
+    ]);
+    expect(getEffectiveTrialNames([second, otherDay])).toEqual([
+      'Saturday Trial 1',
+      'Sunday Trial 1',
+    ]);
+    expect(getEffectiveTrialNames([second, first])).toEqual([
+      'Saturday Trial 1',
+      'Saturday Trial 2',
+    ]);
   });
 
-  it('reserves a same-day slot for unrelated trial names', () => {
+  it('recalculates a draft name when that trial moves to another local day', () => {
     expect(
-      getNextTrialName([{ name: 'Veteran Sweepstakes', trialDate: '2026-08-01' }], '2026-08-01')
-    ).toBe('Saturday Trial 2');
+      getEffectiveTrialNames([
+        { id: 'moved', trialDate: '2026-08-01T08:00:00' },
+        { id: 'remaining', trialDate: '2026-08-01T10:00:00' },
+      ])
+    ).toEqual(['Saturday Trial 1', 'Saturday Trial 2']);
+
+    expect(
+      getEffectiveTrialNames([
+        { id: 'moved', trialDate: '2026-08-02T08:00:00' },
+        { id: 'remaining', trialDate: '2026-08-01T10:00:00' },
+      ])
+    ).toEqual(['Sunday Trial 1', 'Saturday Trial 1']);
   });
 
-  it('counts same-day custom names as occupied trial numbers', () => {
-    expect(
-      getNextTrialName([{ name: 'Scent Work Novice', trialDate: '2026-08-01' }], '2026-08-01')
-    ).toBe('Saturday Trial 2');
+  it('keeps an explicit override and restores the generated default when cleared', () => {
+    const draft = { id: 'draft-1', trialDate: '2026-08-01' };
+    expect(getEffectiveTrialNames([{ ...draft, nameOverride: 'Veteran Sweepstakes' }])).toEqual([
+      'Veteran Sweepstakes',
+    ]);
+    expect(getEffectiveTrialNames([draft])).toEqual(['Saturday Trial 1']);
   });
 
-  it('fills an available number while reserving a slot for custom-named trials', () => {
-    expect(
-      getNextTrialName(
-        [
-          { name: 'Saturday Trial 1', trialDate: '2026-08-01' },
-          { name: 'Saturday Trial 3', trialDate: '2026-08-01' },
-          { name: 'Scent Work Novice', trialDate: '2026-08-01' },
-        ],
-        '2026-08-01'
-      )
-    ).toBe('Saturday Trial 4');
+  it('resolves an offset timestamp to its local calendar day at a UTC boundary', () => {
+    const previousTimezone = process.env.TZ;
+    process.env.TZ = 'America/Chicago';
+    try {
+      expect(getTrialLocalDay('2026-08-02T01:00:00Z')).toBe('2026-08-01');
+    } finally {
+      if (previousTimezone === undefined) delete process.env.TZ;
+      else process.env.TZ = previousTimezone;
+    }
   });
 
   it('uses first-trial wording for a selected day with no trial on that day', () => {

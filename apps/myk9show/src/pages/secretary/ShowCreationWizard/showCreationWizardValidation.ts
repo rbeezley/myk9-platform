@@ -2,6 +2,7 @@
  * Validation logic for the Show Creation Wizard
  */
 import { toLocalDateOnly } from '@/utils/date-format';
+import { getEffectiveTrialNames, type TrialNameSource } from '@/utils/wizardTrialNames';
 
 interface ShowData {
   name: string;
@@ -21,7 +22,7 @@ interface ShowData {
 
 interface Trial {
   id: string;
-  name: string;
+  nameOverride?: string | undefined;
   dateTime: string;
   eventNumber: string;
   trialType?: string | undefined;
@@ -79,15 +80,27 @@ function toDatePart(value: string | undefined | null): string {
 /**
  * Get validation messages for the Trial Configuration step (step 1)
  */
-export function getTrialValidationMessages(trials: Trial[], organization?: string): string[] {
+export function getTrialValidationMessages(
+  trials: Trial[],
+  organization?: string,
+  existingTrials: TrialNameSource[] = []
+): string[] {
   const messages: string[] = [];
   const requiresEventNumber = organization === 'AKC';
+  const names = getEffectiveTrialNames(
+    trials.map(trial => ({
+      id: trial.id,
+      trialDate: trial.dateTime,
+      nameOverride: trial.nameOverride,
+    })),
+    existingTrials
+  );
 
   if (trials.length === 0) {
     messages.push('At least one trial is required');
   } else {
     trials.forEach((trial, index) => {
-      if (!trial.name?.trim()) messages.push(`Trial ${index + 1} name is required`);
+      if (!names[index]?.trim()) messages.push(`Trial ${index + 1} name is required`);
       if (!trial.trialType) messages.push(`Trial ${index + 1} type is required`);
       if (!trial.dateTime) messages.push(`Trial ${index + 1} date and time is required`);
       if (requiresEventNumber && !trial.eventNumber?.trim())
@@ -101,17 +114,28 @@ export function getTrialValidationMessages(trials: Trial[], organization?: strin
 /**
  * Get validation messages for the Class Selection step (step 2)
  */
-export function getClassValidationMessages(trials: Trial[]): string[] {
+export function getClassValidationMessages(
+  trials: Trial[],
+  existingTrials: TrialNameSource[] = []
+): string[] {
   const messages: string[] = [];
+  const names = getEffectiveTrialNames(
+    trials.map(trial => ({
+      id: trial.id,
+      trialDate: trial.dateTime,
+      nameOverride: trial.nameOverride,
+    })),
+    existingTrials
+  );
 
   const totalClasses = trials.reduce((sum, trial) => sum + trial.classes.length, 0);
   if (totalClasses === 0) {
     messages.push('At least one class must be added to the trials');
   } else {
     // Ensure every trial has at least one class
-    trials.forEach(trial => {
+    trials.forEach((trial, index) => {
       if (trial.classes.length === 0) {
-        messages.push(`${trial.name || 'A trial'} needs at least one class`);
+        messages.push(`${names[index] || 'A trial'} needs at least one class`);
       }
     });
   }
@@ -125,15 +149,16 @@ export function getClassValidationMessages(trials: Trial[]): string[] {
 export function getValidationMessagesForStep(
   step: number,
   show: ShowData,
-  trials: Trial[]
+  trials: Trial[],
+  existingTrials: TrialNameSource[] = []
 ): string[] {
   switch (step) {
     case 0:
       return getShowDetailsValidationMessages(show);
     case 1:
-      return getTrialValidationMessages(trials, show.organization);
+      return getTrialValidationMessages(trials, show.organization, existingTrials);
     case 2:
-      return getClassValidationMessages(trials);
+      return getClassValidationMessages(trials, existingTrials);
     case 3:
       // Review step shows its own validation
       return [];

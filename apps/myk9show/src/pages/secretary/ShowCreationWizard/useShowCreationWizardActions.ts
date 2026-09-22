@@ -18,6 +18,7 @@ import { deriveRegistryId } from '@/features/registries';
 import { useAuthContext } from '@/hooks/useAuthContext';
 import { useNetworkStatus } from '@/hooks/useNetworkStatus';
 import { useReplicationSync } from '@/hooks/useReplicationSync';
+import { getEffectiveTrialNames, type TrialNameSource } from '@/utils/wizardTrialNames';
 import { showQueryKeys } from '@/hooks/queries/useShowsDatabase';
 import { persistShowJudgeAssignments } from '@/services/database/judges';
 import type { Show } from '@/types/show-types';
@@ -85,6 +86,24 @@ export function useShowCreationWizardActions({
       showOrganization: string
     ): Promise<Record<string, string>> => {
       const trialIdMap: Record<string, string> = {};
+      const persistedNameSources: TrialNameSource[] = existingTrials
+        .filter(trial => trial.showId === showId)
+        .map(trial => ({
+          id: trial.id,
+          name: trial.name ?? '',
+          trialDate: trial.trialDate ?? '',
+        }));
+      const effectiveNames = getEffectiveTrialNames(
+        trials.map(trial => ({
+          id: trial.id,
+          trialDate: trial.dateTime,
+          nameOverride: trial.nameOverride,
+        })),
+        persistedNameSources
+      );
+      const effectiveNameByTrialId = new Map(
+        trials.map((trial, index) => [trial.id, effectiveNames[index]])
+      );
 
       // In edit mode, only add trials that don't already exist
       const trialsToAdd = editMode
@@ -112,7 +131,7 @@ export function useShowCreationWizardActions({
       // partially-populated trialIdMap if one insert fails, causing classes
       // for the failed trial to be silently dropped with no trialId.
       for (const [index, wizardTrial] of trialsToAdd.entries()) {
-        const trialName = wizardTrial.name || `Trial ${index + 1}`;
+        const trialName = effectiveNameByTrialId.get(wizardTrial.id) ?? `Trial ${index + 1}`;
         const newTrial: TrialInput = {
           showId,
           showName,
@@ -156,7 +175,14 @@ export function useShowCreationWizardActions({
         showId,
         existingTrials,
         editMode,
-        { preEntryFee: show.preEntryFee, dayOfShowFee: show.dayOfShowFee }
+        { preEntryFee: show.preEntryFee, dayOfShowFee: show.dayOfShowFee },
+        existingTrials
+          .filter(trial => trial.showId === showId)
+          .map(trial => ({
+            id: trial.id,
+            name: trial.name ?? '',
+            trialDate: trial.trialDate ?? '',
+          }))
       );
 
       // In add-classes mode, trial.classes includes both existing and new classes.
@@ -269,7 +295,16 @@ export function useShowCreationWizardActions({
           judgeDetails,
           clubs,
           status,
-          editMode
+          editMode,
+          editMode?.mode === 'add-trials'
+            ? existingTrials
+                .filter(trial => trial.showId === editMode.showId)
+                .map(trial => ({
+                  id: trial.id,
+                  name: trial.name ?? '',
+                  trialDate: trial.trialDate ?? '',
+                }))
+            : []
         );
 
         // Save to show store and get the real DB UUID back
@@ -445,6 +480,7 @@ export function useShowCreationWizardActions({
     [
       show,
       trials,
+      existingTrials,
       judgeDetails,
       clubs,
       editMode,

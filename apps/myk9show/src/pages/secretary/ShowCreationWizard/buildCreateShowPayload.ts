@@ -6,6 +6,7 @@ import type { ReplicatedClass } from '@/services/replication/ReplicatedClassesTa
 import { toLocalDateOnly } from '@/utils/date-format';
 import { deriveRegistryId } from '@/features/registries';
 import { resolvePremiumStyle, type PremiumStyle } from '@/types/premium-types';
+import { getEffectiveTrialNames } from '@/utils/wizardTrialNames';
 import type { JudgeDetailsMap, ShowStatus } from './show-creation-wizard-types';
 import {
   createClassDataFromWizard,
@@ -131,10 +132,17 @@ export function buildCreateShowPayload(
   const trialIdMap: Record<string, string> = {};
   // Registry is show-wide (scoping §7) — derive once from the show's organization.
   const registryId = deriveRegistryId(show.organization);
+  const effectiveTrialNames = getEffectiveTrialNames(
+    trials.map(trial => ({
+      id: trial.id,
+      trialDate: trial.dateTime,
+      nameOverride: trial.nameOverride,
+    }))
+  );
   const trialPayloads: TrialRpcPayload[] = trials.map((wizardTrial, index) => {
     const trialId = crypto.randomUUID();
     trialIdMap[wizardTrial.id] = trialId;
-    const trialName = wizardTrial.name || `Trial ${index + 1}`;
+    const trialName = effectiveTrialNames[index] ?? `Trial ${index + 1}`;
     return {
       registry_id: registryId,
       id: trialId,

@@ -179,7 +179,7 @@ describe('CloneFromShowCombobox', () => {
 
     await waitFor(() =>
       expect(mockAddTrial).toHaveBeenCalledWith({
-        name: 'Friday Trial 1',
+        nameOverride: 'Friday Trial 1',
         dateTime: '',
         eventNumber: '',
         trialType: 'Nosework',
@@ -287,7 +287,7 @@ describe('CloneFromShowCombobox', () => {
 
     await waitFor(() => expect(mockGetClassesByTrialId).toHaveBeenCalledWith('trial-1'));
     expect(mockAddTrial).toHaveBeenCalledWith({
-      name: 'Friday Trial 1',
+      nameOverride: 'Friday Trial 1',
       dateTime: '',
       eventNumber: '',
       trialType: 'Nosework',

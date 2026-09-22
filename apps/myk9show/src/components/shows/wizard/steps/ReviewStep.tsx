@@ -11,6 +11,7 @@ import { format } from 'date-fns';
 import { formatFee } from '@/utils/format';
 import { formatTrialTypeLabel } from '@/types/template.types';
 import { countLabel } from '@/utils/pluralize';
+import { getEffectiveTrialNames, type TrialNameSource } from '@/utils/wizardTrialNames';
 import { ReviewStepActions } from './ReviewStepActions';
 
 interface ReviewStepProps {
@@ -28,6 +29,8 @@ interface ReviewStepProps {
    * the secretary to see them.
    */
   officialsUnknown?: boolean | undefined;
+  /** Current persisted trials for this show, used when naming draft trials. */
+  existingTrials?: TrialNameSource[] | undefined;
 }
 
 export const ReviewStep: React.FC<ReviewStepProps> = ({
@@ -37,10 +40,23 @@ export const ReviewStep: React.FC<ReviewStepProps> = ({
   onBack,
   submitLabel = 'Create Show',
   officialsUnknown = false,
+  existingTrials = [],
 }) => {
   const { show, trials, judgeDetails, markStepCompleted, setCurrentStep } = useWizardStore();
   const { clubs } = useClubStore();
   const resolvePersonName = useResolvePersonName();
+  const effectiveTrialNames = useMemo(
+    () =>
+      getEffectiveTrialNames(
+        trials.map(trial => ({
+          id: trial.id,
+          trialDate: trial.dateTime,
+          nameOverride: trial.nameOverride,
+        })),
+        existingTrials
+      ),
+    [trials, existingTrials]
+  );
 
   // Blocking issues are already listed in the error card above; this names them
   // at the moment of action so the refusal is explained rather than silent.
@@ -374,7 +390,7 @@ export const ReviewStep: React.FC<ReviewStepProps> = ({
                         <Badge variant="outline" className="bg-background">
                           Trial {trialIndex + 1}
                         </Badge>
-                        <h4 className="font-semibold text-lg">{trial.name}</h4>
+                        <h4 className="font-semibold text-lg">{effectiveTrialNames[trialIndex]}</h4>
                       </div>
                     </div>
 

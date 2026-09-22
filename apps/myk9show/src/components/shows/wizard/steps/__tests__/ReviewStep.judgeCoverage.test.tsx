@@ -45,7 +45,7 @@ vi.mock('@/store/wizardStore', () => ({
     trials: [
       {
         id: 'trial-1',
-        name: 'Trial 1',
+        nameOverride: 'Trial 1',
         dateTime: '2026-07-01T08:00:00.000Z',
         classes: [
           { id: 'c1', name: 'Interior Novice A', judgeId: 'judge-1' },

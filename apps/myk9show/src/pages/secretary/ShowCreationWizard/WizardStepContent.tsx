@@ -8,6 +8,7 @@ import ClassSelectionStep from '@/components/shows/wizard/steps/ClassSelectionSt
 import ReviewStep from '@/components/shows/wizard/steps/ReviewStep';
 import type { EditMode } from './show-creation-wizard-types';
 import { getSubmitLabel } from './wizardLabels';
+import type { TrialNameSource } from '@/utils/wizardTrialNames';
 
 interface WizardStepContentProps {
   currentStep: number;
@@ -50,23 +51,23 @@ export const WizardStepContent: React.FC<WizardStepContentProps> = ({
   onRetryExistingTrials,
 }) => {
   const stepProps = { className: '' };
+  const showExistingTrials =
+    editMode?.mode === 'add-trials' ? existingTrials.filter(t => t.showId === editMode.showId) : [];
+  const existingTrialNameSources: TrialNameSource[] = showExistingTrials.map(trial => ({
+    id: trial.id,
+    name: trial.name ?? '',
+    trialDate: trial.trialDate ?? '',
+  }));
 
   switch (currentStep) {
     case 0:
       return <ShowDetailsStep {...stepProps} />;
     case 1: {
-      const showExistingTrials =
-        editMode?.mode === 'add-trials'
-          ? existingTrials.filter(t => t.showId === editMode.showId)
-          : [];
       return (
         <TrialConfigurationStep
           {...stepProps}
           existingTrialCount={showExistingTrials.length}
-          existingTrials={showExistingTrials.map(trial => ({
-            name: trial.name ?? '',
-            trialDate: trial.trialDate,
-          }))}
+          existingTrials={existingTrialNameSources}
           existingTrialsReady={existingTrialsReady}
           existingTrialsReadStatus={existingTrialsReadStatus}
           existingTrialsReadError={existingTrialsReadError}
@@ -91,6 +92,7 @@ export const WizardStepContent: React.FC<WizardStepContentProps> = ({
                 }))
               : undefined
           }
+          existingTrials={existingTrialNameSources}
         />
       );
     case 3:
@@ -102,6 +104,7 @@ export const WizardStepContent: React.FC<WizardStepContentProps> = ({
           onBack={onBack}
           officialsUnknown={officialsUnknown}
           submitLabel={getSubmitLabel(editMode?.mode)}
+          existingTrials={existingTrialNameSources}
         />
       );
     default:

@@ -2,11 +2,14 @@
 
 - [x] 1.1 Add the authorized **Add a new trial** entry to the existing show Actions menu.
 - [x] 1.2 Derive first/another and day-scoped next-trial wording from current show trials.
+- [ ] 1.3 Replace stored generated names with an explicit `nameOverride`; derive generated labels from current same-show trials and draft ordering.
+- [ ] 1.4 Use one effective-name helper for the wizard field, duplicate validation, preview/transform, and save payloads; allow clearing an override to restore the suggested name.
+- [ ] 1.5 Version and migrate persisted wizard drafts, preserving custom labels and recognizing only exact legacy generated weekday labels.
 
 ## 2. Testing
 
-- [x] 2.1 Add focused tests for the Actions menu, day-scoped numbering (including custom names and date changes), latest trial snapshots, and zero/one/multiple/different-day trials.
-- [x] 2.2 Run focused Vitest, relevant typecheck, changed-file lint, and code-quality ratchet.
+- [ ] 2.1 Add focused tests for migration, custom-name override/reset, generated date moves, add/remove/reorder, different days, save payloads, local timezone boundaries, and current snapshots.
+- [ ] 2.2 Run focused Vitest, relevant typecheck, changed-file lint, code-quality ratchet, and shuffled app suite.
 
 ## 3. Delivery
 

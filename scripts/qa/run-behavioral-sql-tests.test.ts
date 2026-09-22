@@ -1,4 +1,12 @@
-import { chmodSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
+import {
+  chmodSync,
+  existsSync,
+  mkdtempSync,
+  readFileSync,
+  readdirSync,
+  rmSync,
+  writeFileSync,
+} from 'node:fs';
 import { tmpdir } from 'node:os';
 import { basename, join, resolve } from 'node:path';
 import { spawnSync } from 'node:child_process';
@@ -7,6 +15,10 @@ import { describe, expect, it } from 'vitest';
 
 const repositoryRoot = resolve(import.meta.dirname, '../..');
 const runner = resolve(repositoryRoot, 'scripts/qa/run-behavioral-sql-tests.sh');
+const hardDeleteShowMigration = resolve(
+  repositoryRoot,
+  'supabase/migrations/20260920173147_harden_hard_delete_show_money_guards.sql'
+);
 const workflow = readFileSync(resolve(repositoryRoot, '.github/workflows/ci.yml'), 'utf8');
 const pullRefundFixture = readFileSync(
   resolve(repositoryRoot, 'supabase/tests/pull_refund_decision_rls_test.sql'),
@@ -40,6 +52,7 @@ const launchCriticalSqlTests = [
   'club_secretary_grant_test.sql',
   'club_show_managers_visibility_test.sql',
   'club_delete_restrict_test.sql',
+  'hard_delete_show_money_guards_test.sql',
   'stripe_ledger_fks_restrict_test.sql',
   'create_show_with_children_tenant_isolation_test.sql',
   'show_officials_label_not_permission_test.sql',
@@ -98,6 +111,34 @@ const launchCriticalSqlTests = [
 ];
 
 describe('behavioral SQL test harness', () => {
+  it('locks the target show before guards and preserves the RPC security contract', () => {
+    expect(existsSync(hardDeleteShowMigration)).toBe(true);
+    if (!existsSync(hardDeleteShowMigration)) return;
+
+    const migration = readFileSync(hardDeleteShowMigration, 'utf8');
+    expect(migration).toContain(
+      'CREATE OR REPLACE FUNCTION public.hard_delete_show(p_show_id UUID)'
+    );
+    expect(migration).toContain('SECURITY DEFINER');
+    expect(migration).toContain('SET search_path = public');
+    expect(migration).toContain('IF NOT (SELECT is_platform_admin()) THEN');
+    expect(migration).toContain(
+      'REVOKE ALL ON FUNCTION public.hard_delete_show(UUID) FROM PUBLIC, anon;'
+    );
+    expect(migration).toContain(
+      'GRANT EXECUTE ON FUNCTION public.hard_delete_show(UUID) TO authenticated;'
+    );
+
+    const targetLockMatch =
+      /PERFORM 1\s+FROM public\.shows\s+WHERE id = p_show_id\s+FOR UPDATE;/.exec(migration);
+    const targetLock = targetLockMatch?.index ?? -1;
+    const firstGuard = migration.indexOf('SELECT count(*) INTO');
+    const firstDelete = migration.indexOf('DELETE FROM entries');
+    expect(targetLock).toBeGreaterThanOrEqual(0);
+    expect(firstGuard).toBeGreaterThan(targetLock);
+    expect(firstDelete).toBeGreaterThan(firstGuard);
+  });
+
   it('seeds pull/refund people before auth users so the signup trigger adopts them', () => {
     const peopleInsert = pullRefundFixture.indexOf('INSERT INTO public.people');
     const authInsert = pullRefundFixture.indexOf('INSERT INTO auth.users');

@@ -22,6 +22,8 @@
 - [x] 4.2 Run the focused at-show suite after rollback (68 files, 562 tests passed)
 - [x] 4.3 Route the actual Reports check-in print mapper through canonical handler identity and test the printed output with a real projection fixture
 - [ ] 4.4 Remove task scratch reports from the tracked diff, rerun focused tests and one shuffled app suite, and complete two-lens fallback adversarial review on the final branch
+  - Final focused app run: 17 changed test files, 214 tests passed. App/test/E2E/edge/API typecheck, monorepo lint, formatting, quality ratchet, and OpenSpec validation passed. Final shuffled run started with seed `1790115751024`, produced only jsdom navigation/CSS warnings and no useful test verdict within 30 seconds, and was interrupted with exit `130` per repository rule.
 - [x] 4.5 Make Reports respond to deferred handler-person hydration, including the initial read and owner fallback; focused tests passed (23 tests)
 - [x] 4.6 Resolve ID-only assigned handlers on the AKC entry form without borrowing a sibling entry's junior identity; focused tests passed (10 tests)
 - [ ] 4.7 Rebuild the scheduled emergency packet RPC with assigned-person/owner precedence and behavioral SQL coverage; contract tests passed, behavioral DB fixture awaits CI
+  - Migration `20260922220537` was checked against `origin/main` and the linked database migration list (latest remote `20260919205500`). The local migration guard could not complete its database query because `MYK9_MIGRATION_DATABASE_URL` is unset; CI must run that gate. No `db push` was run.

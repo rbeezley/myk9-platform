@@ -8,6 +8,15 @@ export interface TrialNameSource {
   nameOverride?: string | undefined;
 }
 
+export interface WizardTrialView {
+  /** Effective draft labels keyed by stable wizard trial id. */
+  effectiveNamesByTrialId: ReadonlyMap<string, string>;
+  /** Persisted trials already belonging to this show. */
+  persistedTrialCount: number;
+  /** True when this show has persisted trials or the wizard already has drafts. */
+  hasAnyTrials: boolean;
+}
+
 /** Resolve a trial's calendar day without shifting date-only/local wall times. */
 export function getTrialLocalDay(value: string): string {
   if (/^\d{4}-\d{2}-\d{2}$/.test(value)) return value;
@@ -50,4 +59,20 @@ export function getEffectiveTrialNames(
   persistedTrials: readonly TrialNameSource[] = []
 ): string[] {
   return draftTrials.map(trial => getEffectiveTrialName(trial, persistedTrials, draftTrials));
+}
+
+/** Build the single naming/copy snapshot consumed by every wizard surface. */
+export function createWizardTrialView(
+  draftTrials: readonly (TrialNameSource & { id: string })[],
+  persistedTrials: readonly TrialNameSource[]
+): WizardTrialView {
+  const effectiveNames = getEffectiveTrialNames(draftTrials, persistedTrials);
+
+  return {
+    effectiveNamesByTrialId: new Map(
+      draftTrials.map((trial, index) => [trial.id, effectiveNames[index] ?? ''])
+    ),
+    persistedTrialCount: persistedTrials.length,
+    hasAnyTrials: persistedTrials.length > 0 || draftTrials.length > 0,
+  };
 }

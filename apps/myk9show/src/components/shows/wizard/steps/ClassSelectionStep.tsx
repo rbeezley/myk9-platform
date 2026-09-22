@@ -17,7 +17,7 @@ import { useWizardStore } from '@/store/wizardStore';
 import { useTemplates } from '@/hooks/useTemplates';
 import { ClassTemplate, ClassDefinition } from '@/types/template.types';
 import { prewarmClassRulesCache } from '@/services/sportTemplateService';
-import { getEffectiveTrialNames, type TrialNameSource } from '@/utils/wizardTrialNames';
+import type { WizardTrialView } from '@/utils/wizardTrialNames';
 import {
   buildRetainedClassDefinition,
   buildWizardClassItem,
@@ -39,8 +39,8 @@ interface ClassSelectionStepProps {
   className?: string;
   /** Classes that already exist in the DB (for add-classes mode). */
   existingDBClasses?: ExistingClassInfo[] | undefined;
-  /** Current persisted trials for this show, used when naming draft trials. */
-  existingTrials?: TrialNameSource[] | undefined;
+  /** Shared naming and show-level trial context created by the wizard page. */
+  trialView: WizardTrialView;
   /** True once the user has clicked Next — gates eager validation errors. */
   submitted?: boolean;
 }
@@ -53,7 +53,7 @@ interface TrialClassState {
 export const ClassSelectionStep: React.FC<ClassSelectionStepProps> = ({
   className,
   existingDBClasses = [],
-  existingTrials = [],
+  trialView,
   submitted = false,
 }) => {
   const {
@@ -78,16 +78,8 @@ export const ClassSelectionStep: React.FC<ClassSelectionStepProps> = ({
 
   const { templates } = useTemplates();
   const effectiveTrialNames = useMemo(
-    () =>
-      getEffectiveTrialNames(
-        trials.map(trial => ({
-          id: trial.id,
-          trialDate: trial.dateTime,
-          nameOverride: trial.nameOverride,
-        })),
-        existingTrials
-      ),
-    [trials, existingTrials]
+    () => trials.map(trial => trialView.effectiveNamesByTrialId.get(trial.id) ?? ''),
+    [trials, trialView]
   );
 
   // Pre-warm class rules cache so rules are already fetched by the time the user saves.

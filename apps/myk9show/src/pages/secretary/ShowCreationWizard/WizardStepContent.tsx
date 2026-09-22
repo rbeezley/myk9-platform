@@ -1,5 +1,4 @@
 import React from 'react';
-import type { Trial } from '@/store/trialStore';
 import type { ReplicatedReadStatus } from '@/store/trial-store-types';
 import type { SyncableClassData } from '@/store/classStore';
 import ShowDetailsStep from '@/components/shows/wizard/steps/ShowDetailsStep';
@@ -8,12 +7,12 @@ import ClassSelectionStep from '@/components/shows/wizard/steps/ClassSelectionSt
 import ReviewStep from '@/components/shows/wizard/steps/ReviewStep';
 import type { EditMode } from './show-creation-wizard-types';
 import { getSubmitLabel } from './wizardLabels';
-import type { TrialNameSource } from '@/utils/wizardTrialNames';
+import type { WizardTrialView } from '@/utils/wizardTrialNames';
 
 interface WizardStepContentProps {
   currentStep: number;
   editMode: EditMode | undefined;
-  existingTrials: Trial[];
+  trialView: WizardTrialView;
   existingTrialsReady: boolean;
   existingClasses: SyncableClassData[];
   hasAttemptedNext: boolean;
@@ -38,7 +37,7 @@ interface WizardStepContentProps {
 export const WizardStepContent: React.FC<WizardStepContentProps> = ({
   currentStep,
   editMode,
-  existingTrials,
+  trialView,
   existingTrialsReady,
   existingClasses,
   hasAttemptedNext,
@@ -51,14 +50,6 @@ export const WizardStepContent: React.FC<WizardStepContentProps> = ({
   onRetryExistingTrials,
 }) => {
   const stepProps = { className: '' };
-  const showExistingTrials =
-    editMode?.mode === 'add-trials' ? existingTrials.filter(t => t.showId === editMode.showId) : [];
-  const existingTrialNameSources: TrialNameSource[] = showExistingTrials.map(trial => ({
-    id: trial.id,
-    name: trial.name ?? '',
-    trialDate: trial.trialDate ?? '',
-  }));
-
   switch (currentStep) {
     case 0:
       return <ShowDetailsStep {...stepProps} />;
@@ -66,8 +57,7 @@ export const WizardStepContent: React.FC<WizardStepContentProps> = ({
       return (
         <TrialConfigurationStep
           {...stepProps}
-          existingTrialCount={showExistingTrials.length}
-          existingTrials={existingTrialNameSources}
+          trialView={trialView}
           existingTrialsReady={existingTrialsReady}
           existingTrialsReadStatus={existingTrialsReadStatus}
           existingTrialsReadError={existingTrialsReadError}
@@ -92,7 +82,7 @@ export const WizardStepContent: React.FC<WizardStepContentProps> = ({
                 }))
               : undefined
           }
-          existingTrials={existingTrialNameSources}
+          trialView={trialView}
         />
       );
     case 3:
@@ -104,7 +94,7 @@ export const WizardStepContent: React.FC<WizardStepContentProps> = ({
           onBack={onBack}
           officialsUnknown={officialsUnknown}
           submitLabel={getSubmitLabel(editMode?.mode)}
-          existingTrials={existingTrialNameSources}
+          trialView={trialView}
         />
       );
     default:

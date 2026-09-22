@@ -3,7 +3,6 @@ import {
   formatTrialTypeLabel,
   getTrialTypesForOrganization,
 } from '@/types/template.types';
-import { getTrialLocalDay, type TrialNameSource } from '@/utils/wizardTrialNames';
 import type { ReplicatedReadStatus } from '@/store/trial-store-types';
 
 interface TrialTypeTemplateOption {
@@ -18,16 +17,8 @@ export interface TrialCreationCopy {
   emptyStateDescription: string;
 }
 
-export function getTrialCreationCopy(
-  existingTrials: readonly TrialNameSource[],
-  selectedDate?: string
-): TrialCreationCopy {
-  const normalizedSelectedDate = selectedDate ? getTrialLocalDay(selectedDate) : '';
-  const hasTrialOnSelectedDate = normalizedSelectedDate
-    ? existingTrials.some(trial => getTrialLocalDay(trial.trialDate) === normalizedSelectedDate)
-    : existingTrials.length > 0;
-
-  if (!hasTrialOnSelectedDate) {
+export function getTrialCreationCopy(hasAnyTrials: boolean): TrialCreationCopy {
+  if (!hasAnyTrials) {
     return {
       addTrialLabel: 'Add First Trial',
       emptyStateTitle: 'Schedule Your Trials',

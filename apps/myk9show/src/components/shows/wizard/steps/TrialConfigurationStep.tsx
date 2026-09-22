@@ -18,7 +18,7 @@ import { useWizardStore } from '@/store/wizardStore';
 import type { ReplicatedReadStatus } from '@/store/trial-store-types';
 import { useTemplates } from '@/hooks/useTemplates';
 import { formatTrialTypeLabel } from '@/types/template.types';
-import { getEffectiveTrialNames, type TrialNameSource } from '@/utils/wizardTrialNames';
+import type { WizardTrialView } from '@/utils/wizardTrialNames';
 import { getTrialCreationCopy, resolveTrialTypeOptions } from './TrialConfigurationStep.helpers';
 
 /** Parse a date string safely — handles both YYYY-MM-DD and ISO datetime */
@@ -32,10 +32,8 @@ function safeParseDateString(str: string | undefined): Date | undefined {
 
 interface TrialConfigurationStepProps {
   className?: string;
-  /** Number of existing trials already in the show (for add-trials mode info banner). */
-  existingTrialCount?: number;
-  /** Current show trials, used for first/another copy and day-scoped numbering. */
-  existingTrials?: TrialNameSource[];
+  /** Shared naming and show-level trial context created by the wizard page. */
+  trialView: WizardTrialView;
   /** True once the user has clicked Next — gates the "at least one trial required" error. */
   submitted?: boolean;
   /** Existing-show trials are addable only after a confirmed replicated snapshot. */
@@ -50,8 +48,7 @@ interface TrialConfigurationStepProps {
 
 export const TrialConfigurationStep: React.FC<TrialConfigurationStepProps> = ({
   className,
-  existingTrialCount = 0,
-  existingTrials = [],
+  trialView,
   submitted = false,
   existingTrialsReady = true,
   existingTrialsReadStatus,
@@ -66,29 +63,13 @@ export const TrialConfigurationStep: React.FC<TrialConfigurationStepProps> = ({
     return resolveTrialTypeOptions(show.organization, templates);
   }, [show.organization, templates]);
 
-  const allTrials = useMemo(
-    () => [
-      ...existingTrials,
-      ...trials.map(trial => ({ id: trial.id, trialDate: trial.dateTime })),
-    ],
-    [existingTrials, trials]
-  );
-  const draftNameSources = useMemo(
-    () =>
-      trials.map(trial => ({
-        id: trial.id,
-        trialDate: trial.dateTime,
-        nameOverride: trial.nameOverride,
-      })),
-    [trials]
+  const creationCopy = useMemo(
+    () => getTrialCreationCopy(trialView.hasAnyTrials),
+    [trialView.hasAnyTrials]
   );
   const effectiveTrialNames = useMemo(
-    () => getEffectiveTrialNames(draftNameSources, existingTrials),
-    [draftNameSources, existingTrials]
-  );
-  const creationCopy = useMemo(
-    () => getTrialCreationCopy(allTrials, show.startDate || undefined),
-    [show.startDate, allTrials]
+    () => trials.map(trial => trialView.effectiveNamesByTrialId.get(trial.id) ?? ''),
+    [trials, trialView]
   );
   const canAddTrial = existingTrialsReady;
   const isExistingTrialsLoading = !canAddTrial && existingTrialsReadStatus === 'loading';
@@ -236,10 +217,11 @@ export const TrialConfigurationStep: React.FC<TrialConfigurationStepProps> = ({
           ) : null}
 
           {/* Existing trials info banner */}
-          {existingTrialCount > 0 && (
+          {trialView.persistedTrialCount > 0 && (
             <div className="rounded-lg border border-border bg-muted/50 px-4 py-3 text-sm text-muted-foreground">
               <span className="font-medium text-foreground">
-                {existingTrialCount} existing {existingTrialCount === 1 ? 'trial' : 'trials'}
+                {trialView.persistedTrialCount} existing{' '}
+                {trialView.persistedTrialCount === 1 ? 'trial' : 'trials'}
               </span>{' '}
               already exist. Use Edit Trial on the trial detail page to make changes to them.
             </div>
@@ -280,151 +262,158 @@ export const TrialConfigurationStep: React.FC<TrialConfigurationStepProps> = ({
             </div>
           ) : (
             <div className="space-y-4">
-              {trials.map((trial, index) => (
-                <div
-                  key={trial.id}
-                  className="border border-border rounded-xl p-5 space-y-4 bg-card/50 hover:bg-card/80 transition-colors duration-200 shadow-sm"
-                >
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <GripVertical className="h-4 w-4 text-muted-foreground" />
-                      <h4 className="font-medium">Trial {index + 1}</h4>
+              {trials.map((trial, index) => {
+                const trialName = trialView.effectiveNamesByTrialId.get(trial.id) ?? '';
+                return (
+                  <div
+                    key={trial.id}
+                    className="border border-border rounded-xl p-5 space-y-4 bg-card/50 hover:bg-card/80 transition-colors duration-200 shadow-sm"
+                  >
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <GripVertical className="h-4 w-4 text-muted-foreground" />
+                        <h4 className="font-medium">{trialName}</h4>
+                      </div>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => removeTrial(trial.id)}
+                        aria-label={`Remove ${trialName}`}
+                        title="Remove trial"
+                        className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
                     </div>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => removeTrial(trial.id)}
-                      aria-label={`Remove Trial ${index + 1}`}
-                      title="Remove trial"
-                      className="text-destructive hover:text-destructive hover:bg-destructive/10"
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
-                  </div>
 
-                  <div className="grid grid-cols-3 gap-4">
-                    <div className="space-y-2">
-                      <Label htmlFor={`trial-${trial.id}-name`}>
-                        Trial Name <span className="text-destructive">*</span>
-                      </Label>
-                      <Input
-                        id={`trial-${trial.id}-name`}
-                        value={effectiveTrialNames[index] ?? ''}
-                        onChange={e => updateTrial(trial.id, { nameOverride: e.target.value })}
-                        placeholder="e.g., Trial 1, Novice Trial"
-                        className="h-10"
-                      />
-                      {trial.nameOverride !== undefined && (
-                        <Button
-                          type="button"
-                          variant="link"
-                          onClick={() => updateTrial(trial.id, { nameOverride: undefined })}
-                          className="min-h-11 px-0 py-1"
+                    <div className="grid grid-cols-3 gap-4">
+                      <div className="space-y-2">
+                        <Label htmlFor={`trial-${trial.id}-name`}>
+                          Trial Name <span className="text-destructive">*</span>
+                        </Label>
+                        <Input
+                          id={`trial-${trial.id}-name`}
+                          value={trialName}
+                          onChange={e => updateTrial(trial.id, { nameOverride: e.target.value })}
+                          placeholder="e.g., Trial 1, Novice Trial"
+                          className="h-10"
+                        />
+                        {trial.nameOverride !== undefined && (
+                          <Button
+                            type="button"
+                            variant="link"
+                            onClick={() => updateTrial(trial.id, { nameOverride: undefined })}
+                            className="min-h-11 px-0 py-1"
+                          >
+                            Use suggested name
+                          </Button>
+                        )}
+                        {errors[`trial-${index}-name`] && (
+                          <p className="text-sm text-destructive">
+                            {errors[`trial-${index}-name`]}
+                          </p>
+                        )}
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label htmlFor={`trial-${trial.id}-type`}>
+                          Trial Type <span className="text-destructive">*</span>
+                        </Label>
+                        <Select
+                          value={trial.trialType ?? ''}
+                          onValueChange={value => updateTrial(trial.id, { trialType: value })}
                         >
-                          Use suggested name
-                        </Button>
-                      )}
-                      {errors[`trial-${index}-name`] && (
-                        <p className="text-sm text-destructive">{errors[`trial-${index}-name`]}</p>
-                      )}
+                          <SelectTrigger id={`trial-${trial.id}-type`} className="h-10">
+                            <SelectValue placeholder="Select discipline" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {trialTypeOptions.map(type => (
+                              <SelectItem key={type} value={type}>
+                                {formatTrialTypeLabel(type)}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        {errors[`trial-${index}-trialType`] && (
+                          <p className="text-sm text-destructive">
+                            {errors[`trial-${index}-trialType`]}
+                          </p>
+                        )}
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label
+                          htmlFor={`trial-${trial.id}-eventNumber`}
+                          className="flex items-center gap-1.5"
+                        >
+                          Event Number
+                          {show.organization === 'AKC' && (
+                            <span className="text-destructive">*</span>
+                          )}
+                          <TooltipProvider>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <HelpCircle className="h-3.5 w-3.5 text-muted-foreground cursor-help" />
+                              </TooltipTrigger>
+                              <TooltipContent side="top" className="max-w-xs">
+                                <p>
+                                  {show.organization === 'AKC'
+                                    ? 'Required for AKC events. Needed for the AKC XML results submission. Assigned by AKC when you apply for the event.'
+                                    : 'The number assigned to this trial by the sanctioning organization. Optional for non-AKC events.'}
+                                </p>
+                              </TooltipContent>
+                            </Tooltip>
+                          </TooltipProvider>
+                        </Label>
+                        <Input
+                          id={`trial-${trial.id}-eventNumber`}
+                          value={trial.eventNumber}
+                          onChange={e => updateTrial(trial.id, { eventNumber: e.target.value })}
+                          placeholder={
+                            show.organization === 'AKC'
+                              ? 'Required: AKC event number'
+                              : 'Optional event number'
+                          }
+                          className="h-10"
+                          required={show.organization === 'AKC'}
+                        />
+                        {errors[`trial-${index}-eventNumber`] && (
+                          <p className="text-sm text-destructive">
+                            {errors[`trial-${index}-eventNumber`]}
+                          </p>
+                        )}
+                      </div>
                     </div>
 
                     <div className="space-y-2">
-                      <Label htmlFor={`trial-${trial.id}-type`}>
-                        Trial Type <span className="text-destructive">*</span>
+                      <Label htmlFor={`trial-${trial.id}-dateTime`}>
+                        Trial Date & Time <span className="text-destructive">*</span>
                       </Label>
-                      <Select
-                        value={trial.trialType ?? ''}
-                        onValueChange={value => updateTrial(trial.id, { trialType: value })}
-                      >
-                        <SelectTrigger id={`trial-${trial.id}-type`} className="h-10">
-                          <SelectValue placeholder="Select discipline" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {trialTypeOptions.map(type => (
-                            <SelectItem key={type} value={type}>
-                              {formatTrialTypeLabel(type)}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                      {errors[`trial-${index}-trialType`] && (
-                        <p className="text-sm text-destructive">
-                          {errors[`trial-${index}-trialType`]}
-                        </p>
-                      )}
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label
-                        htmlFor={`trial-${trial.id}-eventNumber`}
-                        className="flex items-center gap-1.5"
-                      >
-                        Event Number
-                        {show.organization === 'AKC' && <span className="text-destructive">*</span>}
-                        <TooltipProvider>
-                          <Tooltip>
-                            <TooltipTrigger asChild>
-                              <HelpCircle className="h-3.5 w-3.5 text-muted-foreground cursor-help" />
-                            </TooltipTrigger>
-                            <TooltipContent side="top" className="max-w-xs">
-                              <p>
-                                {show.organization === 'AKC'
-                                  ? 'Required for AKC events. Needed for the AKC XML results submission. Assigned by AKC when you apply for the event.'
-                                  : 'The number assigned to this trial by the sanctioning organization. Optional for non-AKC events.'}
-                              </p>
-                            </TooltipContent>
-                          </Tooltip>
-                        </TooltipProvider>
-                      </Label>
-                      <Input
-                        id={`trial-${trial.id}-eventNumber`}
-                        value={trial.eventNumber}
-                        onChange={e => updateTrial(trial.id, { eventNumber: e.target.value })}
-                        placeholder={
-                          show.organization === 'AKC'
-                            ? 'Required: AKC event number'
-                            : 'Optional event number'
-                        }
+                      <DateTimePicker
+                        id={`trial-${trial.id}-dateTime`}
+                        value={safeParseDateString(trial.dateTime)}
+                        onChange={date => handleTrialDateTimeChange(trial.id, date)}
+                        placeholder="Pick trial date and time"
                         className="h-10"
-                        required={show.organization === 'AKC'}
+                        minDate={startOfDay(safeParseDateString(show.startDate) || new Date())}
+                        maxDate={
+                          show.endDate
+                            ? startOfDay(safeParseDateString(show.endDate) || new Date())
+                            : undefined
+                        }
+                        defaultMonth={safeParseDateString(show.startDate)}
+                        showTime={true}
+                        timeFormat="12h"
                       />
-                      {errors[`trial-${index}-eventNumber`] && (
+                      {errors[`trial-${index}-dateTime`] && (
                         <p className="text-sm text-destructive">
-                          {errors[`trial-${index}-eventNumber`]}
+                          {errors[`trial-${index}-dateTime`]}
                         </p>
                       )}
                     </div>
                   </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor={`trial-${trial.id}-dateTime`}>
-                      Trial Date & Time <span className="text-destructive">*</span>
-                    </Label>
-                    <DateTimePicker
-                      id={`trial-${trial.id}-dateTime`}
-                      value={safeParseDateString(trial.dateTime)}
-                      onChange={date => handleTrialDateTimeChange(trial.id, date)}
-                      placeholder="Pick trial date and time"
-                      className="h-10"
-                      minDate={startOfDay(safeParseDateString(show.startDate) || new Date())}
-                      maxDate={
-                        show.endDate
-                          ? startOfDay(safeParseDateString(show.endDate) || new Date())
-                          : undefined
-                      }
-                      defaultMonth={safeParseDateString(show.startDate)}
-                      showTime={true}
-                      timeFormat="12h"
-                    />
-                    {errors[`trial-${index}-dateTime`] && (
-                      <p className="text-sm text-destructive">
-                        {errors[`trial-${index}-dateTime`]}
-                      </p>
-                    )}
-                  </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           )}
 

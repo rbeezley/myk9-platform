@@ -5,7 +5,11 @@ import {
   isTrialSnapshotReady,
   resolveTrialTypeOptions,
 } from './TrialConfigurationStep.helpers';
-import { getEffectiveTrialNames, getTrialLocalDay } from '@/utils/wizardTrialNames';
+import {
+  createWizardTrialView,
+  getEffectiveTrialNames,
+  getTrialLocalDay,
+} from '@/utils/wizardTrialNames';
 
 describe('resolveTrialTypeOptions', () => {
   it('keeps the full AKC discipline list even when templates only include Scent Work', () => {
@@ -33,7 +37,7 @@ describe('resolveTrialTypeOptions', () => {
 
 describe('trial creation wording', () => {
   it('uses first-trial wording when the show has no current trials', () => {
-    expect(getTrialCreationCopy([])).toEqual({
+    expect(getTrialCreationCopy(false)).toEqual({
       addTrialLabel: 'Add First Trial',
       emptyStateTitle: 'Schedule Your Trials',
       emptyStateDescription:
@@ -42,7 +46,7 @@ describe('trial creation wording', () => {
   });
 
   it('uses another-trial wording when the show already has a trial', () => {
-    expect(getTrialCreationCopy([{ name: 'Saturday Trial 1', trialDate: '2026-08-01' }])).toEqual({
+    expect(getTrialCreationCopy(true)).toEqual({
       addTrialLabel: 'Add Another Trial',
       emptyStateTitle: 'Add Another Trial',
       emptyStateDescription: 'Add another trial to continue setting up this show.',
@@ -117,18 +121,13 @@ describe('trial creation wording', () => {
     }
   });
 
-  it('uses first-trial wording for a selected day with no trial on that day', () => {
-    expect(
-      getTrialCreationCopy([{ name: 'Sunday Trial 1', trialDate: '2026-08-02' }], '2026-08-01')
-        .addTrialLabel
-    ).toBe('Add First Trial');
-  });
+  it('uses show-level add-another copy when existing trials are on another day', () => {
+    const view = createWizardTrialView(
+      [],
+      [{ id: 'sunday-trial', name: 'Sunday Trial 1', trialDate: '2026-08-02' }]
+    );
 
-  it('uses another-trial wording when the selected day already has a trial', () => {
-    expect(
-      getTrialCreationCopy([{ name: 'Saturday Trial 1', trialDate: '2026-08-01' }], '2026-08-01')
-        .addTrialLabel
-    ).toBe('Add Another Trial');
+    expect(getTrialCreationCopy(view.hasAnyTrials).addTrialLabel).toBe('Add Another Trial');
   });
 
   it('fails closed before a current trial snapshot is confirmed', () => {

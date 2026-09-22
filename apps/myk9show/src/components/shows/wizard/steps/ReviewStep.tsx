@@ -11,7 +11,7 @@ import { format } from 'date-fns';
 import { formatFee } from '@/utils/format';
 import { formatTrialTypeLabel } from '@/types/template.types';
 import { countLabel } from '@/utils/pluralize';
-import { getEffectiveTrialNames, type TrialNameSource } from '@/utils/wizardTrialNames';
+import type { WizardTrialView } from '@/utils/wizardTrialNames';
 import { ReviewStepActions } from './ReviewStepActions';
 
 interface ReviewStepProps {
@@ -29,8 +29,8 @@ interface ReviewStepProps {
    * the secretary to see them.
    */
   officialsUnknown?: boolean | undefined;
-  /** Current persisted trials for this show, used when naming draft trials. */
-  existingTrials?: TrialNameSource[] | undefined;
+  /** Shared naming and show-level trial context created by the wizard page. */
+  trialView: WizardTrialView;
 }
 
 export const ReviewStep: React.FC<ReviewStepProps> = ({
@@ -40,22 +40,14 @@ export const ReviewStep: React.FC<ReviewStepProps> = ({
   onBack,
   submitLabel = 'Create Show',
   officialsUnknown = false,
-  existingTrials = [],
+  trialView,
 }) => {
   const { show, trials, judgeDetails, markStepCompleted, setCurrentStep } = useWizardStore();
   const { clubs } = useClubStore();
   const resolvePersonName = useResolvePersonName();
   const effectiveTrialNames = useMemo(
-    () =>
-      getEffectiveTrialNames(
-        trials.map(trial => ({
-          id: trial.id,
-          trialDate: trial.dateTime,
-          nameOverride: trial.nameOverride,
-        })),
-        existingTrials
-      ),
-    [trials, existingTrials]
+    () => trials.map(trial => trialView.effectiveNamesByTrialId.get(trial.id) ?? ''),
+    [trials, trialView]
   );
 
   // Blocking issues are already listed in the error card above; this names them

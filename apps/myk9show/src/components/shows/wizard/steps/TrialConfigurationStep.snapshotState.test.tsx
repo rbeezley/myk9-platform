@@ -1,7 +1,11 @@
 import { render, screen } from '@/test/utils/testUtils';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import type { ComponentProps } from 'react';
 import TrialConfigurationStep from './TrialConfigurationStep';
+import { WizardValidationBanner } from '@/pages/secretary/ShowCreationWizard/WizardValidationBanner';
+import { getTrialValidationMessages } from '@/pages/secretary/ShowCreationWizard/showCreationWizardValidation';
+import { createWizardTrialView, type TrialNameSource } from '@/utils/wizardTrialNames';
 
 const wizardState = vi.hoisted(() => ({
   show: {
@@ -59,6 +63,24 @@ vi.mock('@/components/ui/date-time-picker', () => ({
   ),
 }));
 
+function makeTrialView(existingTrials: TrialNameSource[] = []) {
+  return createWizardTrialView(
+    wizardState.trials.map(trial => ({
+      id: trial.id,
+      trialDate: trial.dateTime,
+      nameOverride: trial.nameOverride,
+    })),
+    existingTrials
+  );
+}
+
+function renderTrialConfiguration(
+  existingTrials: TrialNameSource[] = [],
+  props: Omit<ComponentProps<typeof TrialConfigurationStep>, 'trialView'> = {}
+) {
+  return render(<TrialConfigurationStep {...props} trialView={makeTrialView(existingTrials)} />);
+}
+
 describe('TrialConfigurationStep existing snapshot state', () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -66,14 +88,12 @@ describe('TrialConfigurationStep existing snapshot state', () => {
   });
 
   it('shows the read error and an explicit retry instead of false checking copy', () => {
-    render(
-      <TrialConfigurationStep
-        existingTrialsReady={false}
-        existingTrialsReadStatus="error"
-        existingTrialsReadError="Replicated trial read failed"
-        onRetryExistingTrials={vi.fn()}
-      />
-    );
+    renderTrialConfiguration([], {
+      existingTrialsReady: false,
+      existingTrialsReadStatus: 'error',
+      existingTrialsReadError: 'Replicated trial read failed',
+      onRetryExistingTrials: vi.fn(),
+    });
 
     expect(screen.getByRole('alert')).toHaveTextContent('Replicated trial read failed');
     expect(screen.getByRole('button', { name: 'Retry' })).toBeEnabled();
@@ -84,14 +104,12 @@ describe('TrialConfigurationStep existing snapshot state', () => {
   it('wires Retry to the existing snapshot loader', async () => {
     const user = userEvent.setup();
     const retry = vi.fn();
-    render(
-      <TrialConfigurationStep
-        existingTrialsReady={false}
-        existingTrialsReadStatus="error"
-        existingTrialsReadError="Read failed"
-        onRetryExistingTrials={retry}
-      />
-    );
+    renderTrialConfiguration([], {
+      existingTrialsReady: false,
+      existingTrialsReadStatus: 'error',
+      existingTrialsReadError: 'Read failed',
+      onRetryExistingTrials: retry,
+    });
 
     await user.click(screen.getByRole('button', { name: 'Retry' }));
 
@@ -99,13 +117,11 @@ describe('TrialConfigurationStep existing snapshot state', () => {
   });
 
   it('shows loading copy and keeps Add Trial disabled while retrying', () => {
-    render(
-      <TrialConfigurationStep
-        existingTrialsReady={false}
-        existingTrialsReadStatus="loading"
-        onRetryExistingTrials={vi.fn()}
-      />
-    );
+    renderTrialConfiguration([], {
+      existingTrialsReady: false,
+      existingTrialsReadStatus: 'loading',
+      onRetryExistingTrials: vi.fn(),
+    });
 
     expect(screen.getByRole('status')).toHaveTextContent('Loading the current trials');
     expect(screen.getAllByRole('button', { name: 'Add First Trial' })[0]).toBeDisabled();
@@ -113,17 +129,16 @@ describe('TrialConfigurationStep existing snapshot state', () => {
 
   it('re-enables Add Trial after a confirmed snapshot recovers', async () => {
     const user = userEvent.setup();
-    const { rerender } = render(
-      <TrialConfigurationStep
-        existingTrialsReady={false}
-        existingTrialsReadStatus="error"
-        existingTrialsReadError="Read failed"
-        onRetryExistingTrials={vi.fn()}
-      />
-    );
+    const { rerender } = renderTrialConfiguration([], {
+      existingTrialsReady: false,
+      existingTrialsReadStatus: 'error',
+      existingTrialsReadError: 'Read failed',
+      onRetryExistingTrials: vi.fn(),
+    });
 
     rerender(
       <TrialConfigurationStep
+        trialView={makeTrialView()}
         existingTrialsReady
         existingTrialsReadStatus="ready"
         onRetryExistingTrials={vi.fn()}
@@ -139,11 +154,11 @@ describe('TrialConfigurationStep existing snapshot state', () => {
 
   it('uses the latest existing-trial snapshot when creating a trial', async () => {
     const user = userEvent.setup();
-    const { rerender } = render(<TrialConfigurationStep existingTrials={[]} />);
+    const { rerender } = renderTrialConfiguration();
 
     rerender(
       <TrialConfigurationStep
-        existingTrials={[{ name: 'Scent Work Novice', trialDate: '2026-08-01' }]}
+        trialView={makeTrialView([{ name: 'Scent Work Novice', trialDate: '2026-08-01' }])}
       />
     );
     await user.click(screen.getAllByRole('button', { name: 'Add Another Trial' })[0]);
@@ -162,16 +177,47 @@ describe('TrialConfigurationStep existing snapshot state', () => {
         classes: [],
       },
     ];
-    const { rerender } = render(<TrialConfigurationStep existingTrials={[]} />);
+    const { rerender } = renderTrialConfiguration();
     expect(screen.getByLabelText('Trial Name *')).toHaveValue('Saturday Trial 1');
+    expect(screen.getByText('Saturday Trial 1')).toBeInTheDocument();
 
+    const trialView = makeTrialView([
+      { id: 'saved-trial', name: 'Scent Work Novice', trialDate: '2026-08-01' },
+    ]);
     rerender(
-      <TrialConfigurationStep
-        existingTrials={[{ id: 'saved-trial', name: 'Scent Work Novice', trialDate: '2026-08-01' }]}
-      />
+      <>
+        <TrialConfigurationStep trialView={trialView} />
+        <WizardValidationBanner
+          messages={getTrialValidationMessages(
+            [
+              {
+                id: 'draft-trial',
+                dateTime: '2026-08-01T08:00:00',
+                eventNumber: '',
+                classes: [],
+              },
+            ],
+            trialView,
+            'AKC'
+          )}
+          expanded
+          onToggle={vi.fn()}
+        />
+      </>
     );
 
     expect(screen.getByLabelText('Trial Name *')).toHaveValue('Saturday Trial 2');
+    expect(screen.getByText('Saturday Trial 2')).toBeInTheDocument();
+    expect(screen.getByRole('alert')).toHaveTextContent('Saturday Trial 2 type is required');
+  });
+
+  it('uses show-level copy for trials already scheduled on another day', () => {
+    const { getAllByRole } = renderTrialConfiguration([
+      { id: 'saved-sunday', name: 'Sunday Trial 1', trialDate: '2026-08-02' },
+    ]);
+
+    expect(getAllByRole('button', { name: 'Add Another Trial' })).toHaveLength(2);
+    expect(screen.queryByRole('button', { name: 'Add First Trial' })).not.toBeInTheDocument();
   });
 
   it('restores the suggested name when a custom override is cleared', async () => {
@@ -186,7 +232,7 @@ describe('TrialConfigurationStep existing snapshot state', () => {
       },
     ];
 
-    render(<TrialConfigurationStep />);
+    renderTrialConfiguration();
     expect(screen.getByLabelText('Trial Name *')).toHaveValue('Custom Saturday Trial');
     await user.click(screen.getByRole('button', { name: 'Use suggested name' }));
 
@@ -206,7 +252,7 @@ describe('TrialConfigurationStep existing snapshot state', () => {
       },
     ];
 
-    render(<TrialConfigurationStep />);
+    renderTrialConfiguration();
     await user.click(
       screen.getByRole('button', { name: 'Change trial-draft-trial-dateTime to next day' })
     );
@@ -227,7 +273,7 @@ describe('TrialConfigurationStep existing snapshot state', () => {
       },
     ];
 
-    render(<TrialConfigurationStep />);
+    renderTrialConfiguration();
     await user.click(
       screen.getByRole('button', { name: 'Change trial-draft-trial-dateTime to same day' })
     );

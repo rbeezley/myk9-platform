@@ -2,7 +2,7 @@
  * Validation logic for the Show Creation Wizard
  */
 import { toLocalDateOnly } from '@/utils/date-format';
-import { getEffectiveTrialNames, type TrialNameSource } from '@/utils/wizardTrialNames';
+import type { WizardTrialView } from '@/utils/wizardTrialNames';
 
 interface ShowData {
   name: string;
@@ -82,29 +82,22 @@ function toDatePart(value: string | undefined | null): string {
  */
 export function getTrialValidationMessages(
   trials: Trial[],
-  organization?: string,
-  existingTrials: TrialNameSource[] = []
+  trialView: WizardTrialView,
+  organization?: string
 ): string[] {
   const messages: string[] = [];
   const requiresEventNumber = organization === 'AKC';
-  const names = getEffectiveTrialNames(
-    trials.map(trial => ({
-      id: trial.id,
-      trialDate: trial.dateTime,
-      nameOverride: trial.nameOverride,
-    })),
-    existingTrials
-  );
-
   if (trials.length === 0) {
     messages.push('At least one trial is required');
   } else {
     trials.forEach((trial, index) => {
-      if (!names[index]?.trim()) messages.push(`Trial ${index + 1} name is required`);
-      if (!trial.trialType) messages.push(`Trial ${index + 1} type is required`);
-      if (!trial.dateTime) messages.push(`Trial ${index + 1} date and time is required`);
+      const trialName = trialView.effectiveNamesByTrialId.get(trial.id) ?? `Trial ${index + 1}`;
+      if (!trialView.effectiveNamesByTrialId.get(trial.id)?.trim())
+        messages.push(`${trialName} name is required`);
+      if (!trial.trialType) messages.push(`${trialName} type is required`);
+      if (!trial.dateTime) messages.push(`${trialName} date and time is required`);
       if (requiresEventNumber && !trial.eventNumber?.trim())
-        messages.push(`Trial ${index + 1} event number is required for AKC events`);
+        messages.push(`${trialName} event number is required for AKC events`);
     });
   }
 
@@ -114,28 +107,19 @@ export function getTrialValidationMessages(
 /**
  * Get validation messages for the Class Selection step (step 2)
  */
-export function getClassValidationMessages(
-  trials: Trial[],
-  existingTrials: TrialNameSource[] = []
-): string[] {
+export function getClassValidationMessages(trials: Trial[], trialView: WizardTrialView): string[] {
   const messages: string[] = [];
-  const names = getEffectiveTrialNames(
-    trials.map(trial => ({
-      id: trial.id,
-      trialDate: trial.dateTime,
-      nameOverride: trial.nameOverride,
-    })),
-    existingTrials
-  );
 
   const totalClasses = trials.reduce((sum, trial) => sum + trial.classes.length, 0);
   if (totalClasses === 0) {
     messages.push('At least one class must be added to the trials');
   } else {
     // Ensure every trial has at least one class
-    trials.forEach((trial, index) => {
+    trials.forEach(trial => {
       if (trial.classes.length === 0) {
-        messages.push(`${names[index] || 'A trial'} needs at least one class`);
+        messages.push(
+          `${trialView.effectiveNamesByTrialId.get(trial.id) || 'A trial'} needs at least one class`
+        );
       }
     });
   }
@@ -150,15 +134,15 @@ export function getValidationMessagesForStep(
   step: number,
   show: ShowData,
   trials: Trial[],
-  existingTrials: TrialNameSource[] = []
+  trialView: WizardTrialView
 ): string[] {
   switch (step) {
     case 0:
       return getShowDetailsValidationMessages(show);
     case 1:
-      return getTrialValidationMessages(trials, show.organization, existingTrials);
+      return getTrialValidationMessages(trials, trialView, show.organization);
     case 2:
-      return getClassValidationMessages(trials, existingTrials);
+      return getClassValidationMessages(trials, trialView);
     case 3:
       // Review step shows its own validation
       return [];

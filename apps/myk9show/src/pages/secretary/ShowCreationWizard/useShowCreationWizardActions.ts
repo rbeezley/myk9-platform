@@ -18,7 +18,7 @@ import { deriveRegistryId } from '@/features/registries';
 import { useAuthContext } from '@/hooks/useAuthContext';
 import { useNetworkStatus } from '@/hooks/useNetworkStatus';
 import { useReplicationSync } from '@/hooks/useReplicationSync';
-import { getEffectiveTrialNames, type TrialNameSource } from '@/utils/wizardTrialNames';
+import type { WizardTrialView } from '@/utils/wizardTrialNames';
 import { showQueryKeys } from '@/hooks/queries/useShowsDatabase';
 import { persistShowJudgeAssignments } from '@/services/database/judges';
 import type { Show } from '@/types/show-types';
@@ -38,6 +38,7 @@ import { createDraftShow, finishShowSave } from './showSaveCompletion';
 
 interface UseShowCreationWizardActionsOptions {
   editMode?: EditMode | undefined;
+  trialView: WizardTrialView;
   setIsLoading: (loading: boolean) => void;
   /**
    * Called once the show row exists. `passcodes` carries the freshly-generated
@@ -55,6 +56,7 @@ interface UseShowCreationWizardActionsOptions {
 
 export function useShowCreationWizardActions({
   editMode,
+  trialView,
   setIsLoading,
   onCreated,
 }: UseShowCreationWizardActionsOptions) {
@@ -86,24 +88,6 @@ export function useShowCreationWizardActions({
       showOrganization: string
     ): Promise<Record<string, string>> => {
       const trialIdMap: Record<string, string> = {};
-      const persistedNameSources: TrialNameSource[] = existingTrials
-        .filter(trial => trial.showId === showId)
-        .map(trial => ({
-          id: trial.id,
-          name: trial.name ?? '',
-          trialDate: trial.trialDate ?? '',
-        }));
-      const effectiveNames = getEffectiveTrialNames(
-        trials.map(trial => ({
-          id: trial.id,
-          trialDate: trial.dateTime,
-          nameOverride: trial.nameOverride,
-        })),
-        persistedNameSources
-      );
-      const effectiveNameByTrialId = new Map(
-        trials.map((trial, index) => [trial.id, effectiveNames[index]])
-      );
 
       // In edit mode, only add trials that don't already exist
       const trialsToAdd = editMode
@@ -131,7 +115,8 @@ export function useShowCreationWizardActions({
       // partially-populated trialIdMap if one insert fails, causing classes
       // for the failed trial to be silently dropped with no trialId.
       for (const [index, wizardTrial] of trialsToAdd.entries()) {
-        const trialName = effectiveNameByTrialId.get(wizardTrial.id) ?? `Trial ${index + 1}`;
+        const trialName =
+          trialView.effectiveNamesByTrialId.get(wizardTrial.id) ?? `Trial ${index + 1}`;
         const newTrial: TrialInput = {
           showId,
           showName,
@@ -156,7 +141,7 @@ export function useShowCreationWizardActions({
 
       return trialIdMap;
     },
-    [editMode, existingTrials, trials, addTrialToStore, user]
+    [editMode, existingTrials, trials, addTrialToStore, user, trialView]
   );
 
   /**
@@ -176,13 +161,7 @@ export function useShowCreationWizardActions({
         existingTrials,
         editMode,
         { preEntryFee: show.preEntryFee, dayOfShowFee: show.dayOfShowFee },
-        existingTrials
-          .filter(trial => trial.showId === showId)
-          .map(trial => ({
-            id: trial.id,
-            name: trial.name ?? '',
-            trialDate: trial.trialDate ?? '',
-          }))
+        trialView
       );
 
       // In add-classes mode, trial.classes includes both existing and new classes.
@@ -211,8 +190,7 @@ export function useShowCreationWizardActions({
     },
     // show.dayOfShowFee / show.preEntryFee intentionally excluded — fee changes
     // should not invalidate already-built class arrays mid-wizard.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [trials, judgeDetails, existingTrials, editMode, existingDBClasses]
+    [trials, judgeDetails, existingTrials, editMode, existingDBClasses, trialView]
   );
 
   /**
@@ -243,6 +221,7 @@ export function useShowCreationWizardActions({
           } = await saveShowAtomicOnline({
             show,
             trials,
+            trialView,
             judgeDetails,
             clubs,
             status,
@@ -296,15 +275,7 @@ export function useShowCreationWizardActions({
           clubs,
           status,
           editMode,
-          editMode?.mode === 'add-trials'
-            ? existingTrials
-                .filter(trial => trial.showId === editMode.showId)
-                .map(trial => ({
-                  id: trial.id,
-                  name: trial.name ?? '',
-                  trialDate: trial.trialDate ?? '',
-                }))
-            : []
+          trialView
         );
 
         // Save to show store and get the real DB UUID back
@@ -480,7 +451,7 @@ export function useShowCreationWizardActions({
     [
       show,
       trials,
-      existingTrials,
+      trialView,
       judgeDetails,
       clubs,
       editMode,

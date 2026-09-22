@@ -7,7 +7,7 @@ import type { Show } from '@/types/show-types';
 import type { ShowInput } from '@/store/showStore';
 import type { ClassData } from '@/components/classes/types/classTypes';
 import { resolvePremiumStyle, type PremiumStyle } from '@/types/premium-types';
-import { getEffectiveTrialNames, type TrialNameSource } from '@/utils/wizardTrialNames';
+import type { WizardTrialView } from '@/utils/wizardTrialNames';
 import type { JudgeDetailsMap, ShowStatus, EditMode } from './show-creation-wizard-types';
 
 export interface WizardShowData {
@@ -114,22 +114,11 @@ export function createClassDataFromWizard(
   judgeDetails: JudgeDetailsMap,
   showId: string,
   existingTrials: ExistingTrial[],
-  editMode?: EditMode,
-  showFees?: { preEntryFee?: number; dayOfShowFee?: number },
-  persistedNameSources: TrialNameSource[] = []
+  editMode: EditMode | undefined,
+  showFees: { preEntryFee?: number; dayOfShowFee?: number } | undefined,
+  trialView: WizardTrialView
 ): ClassData[] {
   const classes: ClassData[] = [];
-  const effectiveNames = getEffectiveTrialNames(
-    wizardTrials.map(trial => ({
-      id: trial.id,
-      trialDate: trial.dateTime,
-      nameOverride: trial.nameOverride,
-    })),
-    persistedNameSources
-  );
-  const effectiveNameByTrialId = new Map(
-    wizardTrials.map((trial, index) => [trial.id, effectiveNames[index]])
-  );
 
   // In add-classes mode, process ALL trials (we're adding classes to existing trials).
   // In other edit modes, only create classes for NEW trials.
@@ -156,9 +145,10 @@ export function createClassDataFromWizard(
         const classData: ClassData = {
           id: classId,
           trialId: trialId,
-          trial: effectiveNameByTrialId.get(wizardTrial.id) ?? '',
+          trial: trialView.effectiveNamesByTrialId.get(wizardTrial.id) ?? '',
           trialDate: format(new Date(wizardTrial.dateTime), 'yyyy-MM-dd'),
-          trialNumber: wizardTrial.eventNumber || effectiveNameByTrialId.get(wizardTrial.id) || '',
+          trialNumber:
+            wizardTrial.eventNumber || trialView.effectiveNamesByTrialId.get(wizardTrial.id) || '',
           classOrder: String(index + 1),
           status: 'Scheduled' as const,
           judge: judgeDetails[cls.judgeId || '']?.name || 'TBD',
@@ -236,8 +226,8 @@ export function transformWizardDataToShow(
   judgeDetails: JudgeDetailsMap,
   clubs: Club[],
   status: ShowStatus,
-  editMode?: EditMode,
-  persistedNameSources: TrialNameSource[] = []
+  editMode: EditMode | undefined,
+  trialView: WizardTrialView
 ): Show {
   // Use existing ID in edit mode, or generate new ID for new shows
   const showId = editMode
@@ -264,17 +254,9 @@ export function transformWizardDataToShow(
   });
 
   // Transform trials
-  const effectiveTrialNames = getEffectiveTrialNames(
-    trials.map(trial => ({
-      id: trial.id,
-      trialDate: trial.dateTime,
-      nameOverride: trial.nameOverride,
-    })),
-    persistedNameSources
-  );
   const showTrials = trials.map((trial, index) => ({
     id: trial.id,
-    name: effectiveTrialNames[index] ?? '',
+    name: trialView.effectiveNamesByTrialId.get(trial.id) ?? '',
     date: trial.dateTime,
     trialNumber: `${index + 1}`,
     status: 'Upcoming',

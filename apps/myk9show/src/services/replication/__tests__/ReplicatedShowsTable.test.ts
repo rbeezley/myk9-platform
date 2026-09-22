@@ -1012,7 +1012,7 @@ describe('ReplicatedShowsTable', () => {
       await table.set('show-1', show);
       await table.updateShowStyle('show-1', 'heritage');
 
-      const restored = await table.revertFailedStyleMutation('show-1', 'heritage');
+      const restored = await table.reconcileShowStyleMutations('show-1', ['style-edit']);
 
       expect(restored).toMatchObject({ id: 'show-1', style: 'monogram', _syncStatus: 'synced' });
       expect(await table.get('show-1')).toMatchObject({ style: 'monogram' });
@@ -1031,11 +1031,17 @@ describe('ReplicatedShowsTable', () => {
 
       const queuedMutations = [
         { id: 'name-edit', tableName: 'shows', rowId: 'show-1' },
-        { id: 'style-edit', tableName: 'shows', rowId: 'show-1' },
+        {
+          id: 'style-edit',
+          tableName: 'shows',
+          rowId: 'show-1',
+          rpc: { name: 'update_show_style', args: { p_style: 'heritage' } },
+        },
       ];
       table.setMutationManager({
         getPendingMutationsForRow: vi.fn().mockResolvedValue(queuedMutations),
         getFailedMutations: vi.fn().mockResolvedValue([]),
+        requestUpload: vi.fn(),
       } as never);
       vi.spyOn(
         table as unknown as {
@@ -1049,7 +1055,7 @@ describe('ReplicatedShowsTable', () => {
       await table.updateShow('show-1', { name: 'Updated Show Name' });
       await table.updateShowStyle('show-1', 'heritage');
 
-      const restored = await table.revertFailedStyleMutation('show-1', 'heritage', 'style-edit');
+      const restored = await table.reconcileShowStyleMutations('show-1', ['style-edit']);
       const replica = await table.getReplicatedRow('show-1');
 
       expect(restored).toMatchObject({ name: 'Updated Show Name', style: 'monogram' });
@@ -1057,6 +1063,82 @@ describe('ReplicatedShowsTable', () => {
         isDirty: true,
         syncStatus: 'pending',
         data: { name: 'Updated Show Name', style: 'monogram' },
+      });
+    });
+
+    it('clears dirty state after overlapping rejected style mutations are both discarded', async () => {
+      const show: ReplicatedShow = {
+        id: 'show-1',
+        name: 'Known Show',
+        organization: 'AKC',
+        startDate: '2026-06-15',
+        endDate: '2026-06-16',
+        style: 'monogram',
+      };
+      const olderStyle = {
+        id: 'style-a',
+        tableName: 'shows',
+        operation: 'UPDATE',
+        rowId: 'show-1',
+        data: { id: 'show-1', style: 'heritage' },
+        rpc: { name: 'update_show_style', args: { p_show_id: 'show-1', p_style: 'heritage' } },
+        timestamp: 1,
+        sequenceNumber: 1,
+        retries: 0,
+        status: 'pending',
+        authUserId: 'user-1',
+      };
+      const newerStyle = {
+        ...olderStyle,
+        id: 'style-b',
+        data: { id: 'show-1', style: 'poster' },
+        rpc: { name: 'update_show_style', args: { p_show_id: 'show-1', p_style: 'poster' } },
+        timestamp: 2,
+        sequenceNumber: 2,
+      };
+      let pending = [] as (typeof olderStyle)[];
+      let failed = [] as (typeof olderStyle)[];
+      table.setMutationManager({
+        getPendingMutationsForRow: vi.fn(async () => pending),
+        getFailedMutations: vi.fn(async () => failed),
+        requestUpload: vi.fn(),
+      } as never);
+      vi.spyOn(
+        table as unknown as { queueMutation: (...args: unknown[]) => Promise<string | null> },
+        'queueMutation'
+      )
+        .mockResolvedValueOnce('style-a')
+        .mockResolvedValueOnce('style-b');
+
+      await table.set('show-1', show);
+      await table.updateShowStyle('show-1', 'heritage');
+      pending = [olderStyle];
+      await table.updateShowStyle('show-1', 'poster');
+      pending = [olderStyle, newerStyle];
+
+      pending = [newerStyle];
+      failed = [olderStyle];
+      await table.reconcileShowStyleMutations('show-1', ['style-a']);
+      pending = [];
+      failed = [olderStyle, newerStyle];
+      await table.reconcileShowStyleMutations('show-1', ['style-b']);
+      const reloadedWithOlderFailure = new ReplicatedShowsTable();
+      await expect(reloadedWithOlderFailure.getReplicatedRow('show-1')).resolves.toMatchObject({
+        isDirty: true,
+        data: { style: 'heritage' },
+        baseData: { style: 'monogram' },
+      });
+
+      failed = [newerStyle];
+      await table.reconcileShowStyleMutations('show-1');
+      failed = [];
+      await table.reconcileShowStyleMutations('show-1');
+
+      const reloadedAfterDiscard = new ReplicatedShowsTable();
+      await expect(reloadedAfterDiscard.getReplicatedRow('show-1')).resolves.toMatchObject({
+        isDirty: false,
+        syncStatus: 'synced',
+        data: { style: 'monogram' },
       });
     });
 

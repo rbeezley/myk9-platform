@@ -2,15 +2,15 @@ import { QueryClient } from '@tanstack/react-query';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Show } from '@/types/show-types';
 import { showQueryKeys } from '@/hooks/queries/useShowsDatabase';
-import { reconcileFailedShowStyle, saveShowDraftStyle } from './showStylePersistence';
+import { reconcileShowStyleMutations, saveShowDraftStyle } from './showStylePersistence';
 
 const updateShowStyleMock = vi.hoisted(() => vi.fn());
-const revertFailedStyleMutationMock = vi.hoisted(() => vi.fn());
+const reconcileShowStyleMutationsMock = vi.hoisted(() => vi.fn());
 
 vi.mock('@/services/replication', () => ({
   replicatedShowsTable: {
     updateShowStyle: updateShowStyleMock,
-    revertFailedStyleMutation: revertFailedStyleMutationMock,
+    reconcileShowStyleMutations: reconcileShowStyleMutationsMock,
   },
 }));
 
@@ -67,7 +67,7 @@ describe('saveShowDraftStyle', () => {
   beforeEach(() => {
     updateShowStyleMock.mockReset();
     updateShowStyleMock.mockResolvedValue('mutation-1');
-    revertFailedStyleMutationMock.mockReset();
+    reconcileShowStyleMutationsMock.mockReset();
   });
 
   it('updates only the matching show style and sync metadata in every existing show cache', async () => {
@@ -171,21 +171,20 @@ describe('saveShowDraftStyle', () => {
   it('reconciles a permanently rejected style to the replicated base style', async () => {
     const queryClient = new QueryClient();
     seedShowCaches(queryClient);
-    revertFailedStyleMutationMock.mockResolvedValue({
+    reconcileShowStyleMutationsMock.mockResolvedValue({
       ...show,
       style: 'monogram',
       _syncStatus: 'synced',
       _lastModified: new Date('2026-01-01T00:00:00.000Z'),
     });
 
-    await reconcileFailedShowStyle({
+    await reconcileShowStyleMutations({
       showId: 'show-1',
-      attemptedStyle: 'heritage',
-      mutationId: 'mutation-1',
+      excludedMutationIds: ['mutation-1'],
       queryClient,
     });
 
-    expect(revertFailedStyleMutationMock).toHaveBeenCalledWith('show-1', 'heritage', 'mutation-1');
+    expect(reconcileShowStyleMutationsMock).toHaveBeenCalledWith('show-1', ['mutation-1']);
     expect(queryClient.getQueryData<Show>(showQueryKeys.detail('show-1'))).toMatchObject({
       style: 'monogram',
       _syncStatus: 'synced',

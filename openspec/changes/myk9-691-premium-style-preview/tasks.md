@@ -9,6 +9,7 @@
 
 - [x] 2.1 Add focused UI, RPC, and persistence tests for default, selection/link, live preview, save, cancel, error behavior, cold-row handling, complete cache patching, generic-style exclusion, queue/local-write atomicity, permanent rejection reconciliation, public cache synchronization, and show-scoped async state. (The SQL behavioral test is present but could not execute without a Postgres runtime.)
 - [x] 2.2 Run focused shuffled Vitest, app/test/edge/API typechecks, changed-file formatting, lint, and code-quality ratchet. The aggregate E2E typecheck helper and `tsx` migration guard were blocked by sandbox temporary-IPC `EPERM`; the SQL behavioral script remains unexecuted without a Postgres runtime.
+- [ ] 2.3 Add regression coverage for ordered overlapping style mutations, failure/discard in both orders, retry, unrelated dirty edits, and replica/cache agreement; reconcile the entire style-mutation lineage so removing the final failed style mutation cannot strand a dirty row.
 
 ## 3. Delivery
 

@@ -2,6 +2,7 @@ import type { IDBPDatabase } from 'idb';
 import type { Logger } from './dependencies';
 import { REPLICATION_STORES } from './core/DatabaseManager';
 import type { PendingMutation, ReplicatedRow } from './types';
+import { compareMutationOrder } from './mutation-ordering';
 
 export async function markReplicatedRowSynced(
   db: IDBPDatabase,
@@ -9,6 +10,11 @@ export async function markReplicatedRowSynced(
   newServerVersion?: number
 ): Promise<void> {
   if (mutation.operation === 'DELETE') return;
+
+  if (isShowStyleMutation(mutation)) {
+    await markShowStyleMutationSynced(db, mutation, newServerVersion);
+    return;
+  }
 
   const key = [mutation.tableName, String(mutation.rowId)];
   const [existingRow, pendingMutations] = (await Promise.all([
@@ -31,6 +37,94 @@ export async function markReplicatedRowSynced(
     lastSyncedAt: Date.now(),
     ...(newServerVersion !== undefined && { serverVersion: newServerVersion }),
   });
+}
+
+function isShowStyleMutation(mutation: PendingMutation): boolean {
+  return mutation.tableName === 'shows' && mutation.rpc?.name === 'update_show_style';
+}
+
+function mutationStyle(mutation: PendingMutation): string | undefined {
+  const style = mutation.rpc?.args?.p_style ?? mutation.data.style;
+  return typeof style === 'string' ? style : undefined;
+}
+
+async function markShowStyleMutationSynced(
+  db: IDBPDatabase,
+  mutation: PendingMutation,
+  newServerVersion?: number
+): Promise<void> {
+  const tx = db.transaction(
+    [
+      REPLICATION_STORES.REPLICATED_TABLES,
+      REPLICATION_STORES.PENDING_MUTATIONS,
+      REPLICATION_STORES.FAILED_MUTATIONS,
+    ],
+    'readwrite'
+  );
+  const [existingRow, pending, failed] = (await Promise.all([
+    tx
+      .objectStore(REPLICATION_STORES.REPLICATED_TABLES)
+      .get([mutation.tableName, String(mutation.rowId)]),
+    tx
+      .objectStore(REPLICATION_STORES.PENDING_MUTATIONS)
+      .index('tableName_rowId')
+      .getAll([mutation.tableName, String(mutation.rowId)]),
+    tx.objectStore(REPLICATION_STORES.FAILED_MUTATIONS).getAll(),
+  ])) as [ReplicatedRow<Record<string, unknown>> | undefined, PendingMutation[], PendingMutation[]];
+  if (!existingRow) {
+    await tx.done;
+    return;
+  }
+
+  const failedStyleMutations = failed.filter(
+    item =>
+      item.authUserId === mutation.authUserId &&
+      item.tableName === mutation.tableName &&
+      String(item.rowId) === String(mutation.rowId) &&
+      isShowStyleMutation(item)
+  );
+  const superseded = failedStyleMutations.filter(
+    item => compareStyleMutationOrder(item, mutation) < 0
+  );
+  const supersededIds = new Set(superseded.map(item => item.id));
+  const survivingFailedStyles = failedStyleMutations.filter(item => !supersededIds.has(item.id));
+  const otherPending = pending.filter(
+    item => item.id !== mutation.id && item.authUserId === mutation.authUserId
+  );
+  const outstandingStyles = [...otherPending, ...survivingFailedStyles]
+    .filter(isShowStyleMutation)
+    .sort(compareStyleMutationOrder);
+  const acceptedStyle = mutationStyle(mutation);
+  const latestOutstandingStyle = outstandingStyles.at(-1);
+  const localStyle = latestOutstandingStyle ? mutationStyle(latestOutstandingStyle) : acceptedStyle;
+  const hasAnotherMutation = otherPending.length > 0 || latestOutstandingStyle !== undefined;
+  const keepDirty = existingRow.isDirty && hasAnotherMutation;
+  const data =
+    localStyle === undefined ? existingRow.data : { ...existingRow.data, style: localStyle };
+  const baseData =
+    keepDirty && acceptedStyle !== undefined && existingRow.baseData
+      ? { ...existingRow.baseData, style: acceptedStyle }
+      : keepDirty
+        ? existingRow.baseData
+        : undefined;
+
+  await tx.objectStore(REPLICATION_STORES.REPLICATED_TABLES).put({
+    ...existingRow,
+    data,
+    ...(keepDirty ? { baseData } : { baseData: undefined, baseVersion: undefined }),
+    isDirty: keepDirty,
+    syncStatus: keepDirty ? 'pending' : 'synced',
+    lastSyncedAt: Date.now(),
+    ...(newServerVersion !== undefined && { serverVersion: newServerVersion }),
+  });
+  for (const id of supersededIds) {
+    await tx.objectStore(REPLICATION_STORES.FAILED_MUTATIONS).delete(id);
+  }
+  await tx.done;
+}
+
+function compareStyleMutationOrder(a: PendingMutation, b: PendingMutation): number {
+  return compareMutationOrder(a, b) || a.id.localeCompare(b.id);
 }
 
 export function remapDogIdReferences<T extends Record<string, unknown>>(

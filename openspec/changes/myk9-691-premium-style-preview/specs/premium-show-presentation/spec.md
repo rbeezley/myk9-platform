@@ -68,3 +68,9 @@ and warm query caches before presenting retry/discard actions.
 
 - **WHEN** a generic show edit is saved while a style mutation is pending
 - **THEN** the generic mutation omits `style` and cannot overwrite the pending style with a stale full row
+
+#### Scenario: Multiple failed style saves reconcile as one lineage
+
+- **WHEN** two style saves are queued in order, both are permanently rejected, and the user discards them in either order
+- **THEN** the replicated show follows the newest remaining style intent while either mutation remains, then returns to its clean base style and is marked clean after the final style mutation is removed
+- **AND** unrelated queued show edits remain intact and dirty until they sync or are discarded

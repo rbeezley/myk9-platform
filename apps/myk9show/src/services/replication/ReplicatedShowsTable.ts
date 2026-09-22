@@ -74,6 +74,22 @@ export interface ReplicatedShow {
   _localOnly?: boolean | undefined;
 }
 
+function isShowStyleMutation(mutation: { tableName: string; rpc?: { name: string } }): boolean {
+  return mutation.tableName === 'shows' && mutation.rpc?.name === 'update_show_style';
+}
+
+function getMutationStyle(mutation: {
+  data: Record<string, unknown>;
+  rpc?: { args?: Record<string, unknown> };
+}): string | undefined {
+  const style = mutation.rpc?.args?.p_style ?? mutation.data.style;
+  return typeof style === 'string' ? style : undefined;
+}
+
+function isConcurrentReplicaWrite(error: unknown): boolean {
+  return error instanceof Error && error.message.includes('Concurrent modification detected');
+}
+
 /**
  * Convert database row to app Show type
  */
@@ -415,41 +431,82 @@ export class ReplicatedShowsTable extends ReplicatedTable<ReplicatedShow> {
     return mutationId;
   }
 
-  /**
-   * Revert only the style from a permanently rejected mutation. Other edits can
-   * share the row's dirty snapshot, so they must survive style reconciliation.
-   * A later style edit wins over an earlier rejection, so only revert when the
-   * row still carries the rejected style value.
-   */
-  async revertFailedStyleMutation(
+  /** Reconcile the replicated style against the remaining mutation lineage. */
+  async reconcileShowStyleMutations(
     showId: string,
-    attemptedStyle: string,
-    mutationId?: string
+    excludedMutationIds: readonly string[] = []
   ): Promise<ReplicatedShow | null> {
-    const row = await this.getReplicatedRow(showId);
-    if (!row || !row.isDirty || row.data.style !== attemptedStyle || !row.baseData) return null;
+    const excluded = new Set(excludedMutationIds);
 
-    const restored = {
-      ...row.data,
-      style: row.baseData.style,
-      id: showId,
-      _syncStatus: 'pending' as const,
-      _lastModified: new Date(),
-    };
+    for (let attempt = 0; attempt < 3; attempt += 1) {
+      const row = await this.getReplicatedRow(showId);
+      if (!row) return null;
+      if (!row.isDirty || !row.baseData)
+        return this.withReplicaSyncStatus(row.data, row.syncStatus);
 
-    if (await this.hasOtherMutationsForRow(showId, mutationId)) {
-      await this.set(showId, restored, true, row.version);
-    } else {
-      // All other queued writes have either succeeded or been discarded. Keep
-      // their now-current local values, roll back just style, and release the
-      // dirty marker left behind by the failed style RPC.
-      await this.replaceFromRemote(
-        showId,
-        { ...restored, _syncStatus: 'synced' },
-        row.serverVersion
-      );
+      const mutations = await this.getMutationsForRow(showId);
+      if (mutations === null) return this.withReplicaSyncStatus(row.data, row.syncStatus);
+
+      const remaining = mutations.filter(mutation => !excluded.has(mutation.id));
+      const styleMutations = remaining.filter(isShowStyleMutation);
+      const latestStyleMutation = styleMutations.at(-1);
+      const targetStyle = latestStyleMutation
+        ? getMutationStyle(latestStyleMutation)
+        : row.baseData.style;
+      if (targetStyle === undefined) return this.withReplicaSyncStatus(row.data, row.syncStatus);
+
+      const hasOtherMutations = remaining.some(mutation => !isShowStyleMutation(mutation));
+      const shouldRemainDirty = Boolean(latestStyleMutation) || hasOtherMutations;
+      const nextData: ReplicatedShow = {
+        ...row.data,
+        style: targetStyle,
+        id: showId,
+        _lastModified: new Date(),
+        _syncStatus: 'pending',
+      };
+
+      if (shouldRemainDirty) {
+        if (row.data.style !== targetStyle) {
+          try {
+            await this.set(showId, nextData, true, row.version);
+          } catch (error) {
+            if (isConcurrentReplicaWrite(error)) continue;
+            throw error;
+          }
+        }
+        const current = await this.getReplicatedRow(showId);
+        return current ? this.withReplicaSyncStatus(current.data, current.syncStatus) : null;
+      }
+
+      if (row.data.style === targetStyle) {
+        if (await this.markAsSynced(showId, row.version)) {
+          const current = await this.getReplicatedRow(showId);
+          return current ? this.withReplicaSyncStatus(current.data, current.syncStatus) : null;
+        }
+        continue;
+      }
+
+      try {
+        await this.set(showId, nextData, true, row.version);
+      } catch (error) {
+        if (isConcurrentReplicaWrite(error)) continue;
+        throw error;
+      }
+      if (await this.markAsSynced(showId, row.version + 1)) {
+        const current = await this.getReplicatedRow(showId);
+        return current ? this.withReplicaSyncStatus(current.data, current.syncStatus) : null;
+      }
     }
-    return this.get(showId);
+
+    const latest = await this.getReplicatedRow(showId);
+    return latest ? this.withReplicaSyncStatus(latest.data, latest.syncStatus) : null;
+  }
+
+  private withReplicaSyncStatus(
+    show: ReplicatedShow,
+    syncStatus: 'synced' | 'pending' | 'conflict' | 'error'
+  ): ReplicatedShow {
+    return { ...show, _syncStatus: syncStatus };
   }
 
   /**

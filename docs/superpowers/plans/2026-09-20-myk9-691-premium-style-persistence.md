@@ -23,6 +23,37 @@
 - Do not run `supabase db push` from this branch. A post-merge push requires explicit approval.
 - Batch local corrections before the single PR push to conserve Vercel preview quota.
 
+### Structural recovery correction (2026-09-22)
+
+**Problem:** A/B style writes can both fail, then both be discarded, while
+style-only comparisons leave the replica dirty with no remaining mutation.
+
+**Alternatives considered:**
+
+1. Remove optimistic style writes from the replicated show and derive a
+   persisted overlay from queued RPCs. This avoids row rollback, but makes
+   offline reload and every style reader depend on queue hydration and overlay
+   semantics.
+2. Reconcile by show-scoped mutation lineage. The queue already retains style
+   RPC identity, arguments, sequence, and failed/pending state; existing show
+   readers already use the replicated row. This keeps one source for offline
+   display and narrows the change to queue inspection plus the show adapter.
+
+**Decision:** Use mutation-lineage reconciliation. Read all pending and failed
+mutations for the show, select the newest remaining style intent by sequence
+(legacy fallback: timestamp then ID), preserve unrelated dirty edits, and
+restore the base style/clean state when the final style mutation is removed.
+Failure handling excludes the just-failed mutation; discard handling runs after
+queue deletion; retry reuses its existing sequence and local intent.
+
+**Testing plan:** Add a real-table regression reproducing A then B, failure of
+A then B, and discard in both orders. Assert the local replica and React Query
+cache follow the newest remaining intent and return to the clean base after the
+last discard. Also cover retry, a generic unrelated dirty edit, and a later
+successful style mutation. Run the focused replication and style-persistence
+tests shuffled, then relevant typecheck, lint, format, and code-quality ratchet.
+Do not alter the RPC migration or push to the database.
+
 ---
 
 ### Task 1: Define the server-authorized style command

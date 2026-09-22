@@ -13,12 +13,15 @@
 - [x] 3.1 Run the focused suite, app typecheck, repository lint, changed-file formatting check, and code-quality ratchet; verify all pass or document unrelated failures
   - Task 7 evidence (2026-09-20): the complete touched-test suite passed in one command (`18` files, `168` tests). App typecheck, repository lint, `pnpm format:check:changed`, and the code-quality ratchet passed. The stale unused import exposed by lint was removed, and the secretary replication test received only mechanical Prettier formatting. Review-tier classified the branch as `adversarial` because the task evidence reports are in the diff.
 - [ ] 3.2 Run the shuffled app suite and validate the OpenSpec change
-  - Limitation: the shuffled app suite started with seed `1789927667745`, emitted no useful output for 30 seconds after startup, and was interrupted with exit `130`; it was not a passing run. The isolated branch lacks the active change's `.openspec.yaml`, proposal, design, and spec artifacts. `pnpm openspec validate print-assigned-entry-handler --type change --json` was attempted and exited `1` because the change had no delta specs.
+  - The active change artifacts have been restored; `pnpm openspec validate print-assigned-entry-handler --type change --json` passes. The shuffled app suite started with seed `1790114133288`, produced no useful test result for 30 seconds, and was interrupted with exit `130`; it was not a passing run.
 - [ ] 3.3 Open and merge the reviewed PR with CI green, update MYK9-603 with audit/test evidence, and archive the change
 
 ## 4. Structural correction after whole-branch review
 
-- [x] 4.1 Replace at-show general entry reads with a dedicated local projected show-day read that preserves ring/check-in state and does not await online financial or release joins
-- [x] 4.2 Verify initial and deferred people hydration cannot lose the first visible refresh, including a registered entry whose enrollment request stalls
+- [x] 4.1 Remove the redundant at-show identity migration after review proved those screens have no production handler-identity reader; preserve the established replica-backed queue reads
+- [x] 4.2 Run the focused at-show suite after rollback (68 files, 562 tests passed)
 - [x] 4.3 Route the actual Reports check-in print mapper through canonical handler identity and test the printed output with a real projection fixture
-- [ ] 4.4 Remove task scratch reports from the tracked diff, rerun focused tests and one shuffled app suite, and complete two-lens fallback adversarial review
+- [ ] 4.4 Remove task scratch reports from the tracked diff, rerun focused tests and one shuffled app suite, and complete two-lens fallback adversarial review on the final branch
+- [x] 4.5 Make Reports respond to deferred handler-person hydration, including the initial read and owner fallback; focused tests passed (23 tests)
+- [x] 4.6 Resolve ID-only assigned handlers on the AKC entry form without borrowing a sibling entry's junior identity; focused tests passed (10 tests)
+- [ ] 4.7 Rebuild the scheduled emergency packet RPC with assigned-person/owner precedence and behavioral SQL coverage; contract tests passed, behavioral DB fixture awaits CI

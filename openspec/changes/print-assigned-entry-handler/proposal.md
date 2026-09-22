@@ -5,9 +5,9 @@ Check-in sheets and run orders can name a dog's owner even when the entry assign
 ## What Changes
 
 - Project assigned handler identity once at the entry read boundary, with owner fallback only when no handler is assigned.
-- Use a dedicated local projected read for at-show queues so unrelated online enrichment cannot delay them.
+- Keep at-show queues on their existing replicated read because those screens do not display handler identity.
 - Apply the projection to the existing check-in, run-order, and organization print paths.
-- Test real entry shapes, initial hydration, offline reads, and an assigned handler who differs from the owner.
+- Test real entry shapes, deferred report hydration, and an assigned handler who differs from the owner, including automated packet output.
 
 ## Non-Goals
 

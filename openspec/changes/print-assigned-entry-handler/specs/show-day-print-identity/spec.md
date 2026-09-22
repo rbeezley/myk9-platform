@@ -23,15 +23,6 @@ Check-in sheets and run orders SHALL display the entry's assigned handler when p
 - **WHEN** an entry has an assigned handler identity that is unavailable in the local people cache
 - **THEN** the printed and show-day handler remains unknown rather than showing the dog's owner
 
-### Requirement: Show-day identity is available offline
-
-At-show class and quick-advance reads SHALL render replicated queue state and cached identity without waiting for online financial, result-release, or enrollment reads.
-
-#### Scenario: Connection stalls during a show
-
-- **WHEN** replicated entries are available and an online enrichment request does not resolve
-- **THEN** the class list and quick-advance candidates still render local run order, ring state, and handler identity
-
 ### Requirement: Handler precedence is consistent across paperwork
 
 Every organization-specific entry form or gazette section that labels a handler SHALL use the assigned handler before the owner fallback.

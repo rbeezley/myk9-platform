@@ -473,7 +473,13 @@ describe('AuthContext RBAC lifecycle', () => {
       const auth = useAuthContext();
       return (
         <div>
-          <span data-testid="cached-person-id">{auth.userWithRoles?.databaseUserId ?? 'none'}</span>
+          <span data-testid="cached-person-id">{auth.personId ?? 'none'}</span>
+          <span data-testid="cached-user-with-roles-id">
+            {auth.userWithRoles?.databaseUserId ?? 'none'}
+          </span>
+          <span data-testid="cached-user-roles">
+            {auth.userWithRoles?.roles.join(',') ?? 'none'}
+          </span>
           <span data-testid="cached-person-state">{auth.personIdentityState}</span>
         </div>
       );
@@ -483,8 +489,10 @@ describe('AuthContext RBAC lifecycle', () => {
 
     await waitFor(() => {
       expect(screen.getByTestId('cached-person-id')).toHaveTextContent('person-cached');
+      expect(screen.getByTestId('cached-user-roles')).toHaveTextContent(UserRole.EXHIBITOR);
     });
     expect(screen.getByTestId('cached-person-state')).toHaveTextContent('unresolved');
+    expect(screen.getByTestId('cached-user-with-roles-id')).toHaveTextContent('none');
   });
 
   it('saves a confirmed profile identity to the account-scoped cache', async () => {
@@ -513,13 +521,21 @@ describe('AuthContext RBAC lifecycle', () => {
 
     const TestComponent = () => {
       const auth = useAuthContext();
-      return <span data-testid="saved-person-id">{auth.personId ?? 'none'}</span>;
+      return (
+        <div>
+          <span data-testid="saved-person-id">{auth.personId ?? 'none'}</span>
+          <span data-testid="saved-user-with-roles-id">
+            {auth.userWithRoles?.databaseUserId ?? 'none'}
+          </span>
+        </div>
+      );
     };
 
     renderWithAuthProvider(<TestComponent />);
 
     await waitFor(() => {
       expect(screen.getByTestId('saved-person-id')).toHaveTextContent('person-live');
+      expect(screen.getByTestId('saved-user-with-roles-id')).toHaveTextContent('person-live');
       expect(loadPersonIdentityCache(mockUser.id)?.personId).toBe('person-live');
     });
   });
@@ -603,8 +619,12 @@ describe('AuthContext RBAC lifecycle', () => {
       const balance = useMyEntryBalanceSummary();
       return (
         <div>
-          <span data-testid="integration-person-id">
+          <span data-testid="integration-person-id">{auth.personId ?? 'none'}</span>
+          <span data-testid="integration-user-with-roles-id">
             {auth.userWithRoles?.databaseUserId ?? 'none'}
+          </span>
+          <span data-testid="integration-user-roles">
+            {auth.userWithRoles?.roles.join(',') ?? 'none'}
           </span>
           <span data-testid="integration-identity-state">{auth.personIdentityState}</span>
           <span data-testid="integration-identity-usable">
@@ -623,6 +643,7 @@ describe('AuthContext RBAC lifecycle', () => {
     expect(onlineManager.isOnline()).toBe(false);
     await waitFor(() => {
       expect(screen.getByTestId('integration-person-id')).toHaveTextContent('person-cached');
+      expect(screen.getByTestId('integration-user-roles')).toHaveTextContent(UserRole.EXHIBITOR);
       expect(screen.getByTestId('integration-identity-state')).toHaveTextContent('unresolved');
       expect(screen.getByTestId('integration-identity-usable')).toHaveTextContent('true');
       expect(screen.getByTestId('integration-has-entry')).toHaveTextContent('true');
@@ -630,6 +651,7 @@ describe('AuthContext RBAC lifecycle', () => {
       expect(screen.getByTestId('integration-entered')).toHaveTextContent('1');
       expect(screen.getByTestId('integration-balance')).toHaveTextContent('unknown');
     });
+    expect(screen.getByTestId('integration-user-with-roles-id')).toHaveTextContent('none');
     expect(mockGetUserEntries).toHaveBeenCalledTimes(4);
     expect(mockGetUserEntries).toHaveBeenCalledWith('person-cached');
   });

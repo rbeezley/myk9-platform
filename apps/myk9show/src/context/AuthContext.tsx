@@ -114,11 +114,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     // Priority 0: Mock user for development testing
     if (import.meta.env.DEV && currentMockUser && MOCK_USERS[currentMockUser]) {
-      return buildDevUserWithMockRoles(
-        auth.user,
-        MOCK_USERS[currentMockUser],
-        personId ?? undefined
-      );
+      return buildDevUserWithMockRoles(auth.user, MOCK_USERS[currentMockUser], userProfile?.id);
     }
 
     // Priority 1: Database RBAC (from rbacService) — only use once loaded.
@@ -143,7 +139,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           roles,
           permissions,
           scopes: buildActiveRoleScopes(currentRbacRoles, auth.user.id),
-          databaseUserId: personId ?? undefined,
+          databaseUserId: userProfile?.id,
         } as UserWithRoles;
       }
     }
@@ -155,7 +151,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (import.meta.env.DEV && auth.user.email) {
       const aliasKey = DEV_AUTH_ROLE_ALIASES[auth.user.email.toLowerCase()];
       if (aliasKey) {
-        return buildDevUserWithMockRoles(auth.user, MOCK_USERS[aliasKey], personId ?? undefined);
+        return buildDevUserWithMockRoles(auth.user, MOCK_USERS[aliasKey], userProfile?.id);
       }
     }
 
@@ -180,7 +176,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     rbacBelongsToCurrentUser,
     rbacError,
     rbacLoaded,
-    personId,
+    userProfile?.id,
   ]);
 
   const canReadHideCounts = userWithRoles

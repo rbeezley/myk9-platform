@@ -69,6 +69,17 @@ describe('getMyEntriesPresentation', () => {
     ).toBe('confirmed-empty');
   });
 
+  it('keeps an empty confirmed read pending while auth is settling', () => {
+    expect(
+      getMyEntriesPresentation({
+        identityState: 'pending-auth',
+        readState: 'confirmed',
+        entryCount: 0,
+        isLoading: false,
+      })
+    ).toBe('identity-pending');
+  });
+
   it('keeps a cached identity pending until the authoritative profile resolves', () => {
     expect(
       getMyEntriesPresentation({

@@ -66,7 +66,9 @@ export function getMyEntriesPresentation({
   // authoritative profile still leaves the account identity unconfirmed. An
   // empty result from that read is therefore not entitled to the first-run
   // claim, even when the replica reports a confirmed source.
-  if (identityState === 'unresolved') return 'identity-pending';
+  if (identityState === 'pending-auth' || identityState === 'unresolved') {
+    return 'identity-pending';
+  }
   if (readState === 'identity-unresolved' || readState === 'read-pending') {
     return 'identity-pending';
   }

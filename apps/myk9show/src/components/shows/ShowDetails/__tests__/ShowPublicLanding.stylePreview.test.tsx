@@ -29,6 +29,12 @@ vi.mock('@/features/heritage/landing/HeritageLandingPage', () => ({
   ),
 }));
 
+vi.mock('@/features/banner/landing/BannerLandingPage', () => ({
+  BannerLandingPage: ({ show }: { show: { style?: string | null } }) => (
+    <div data-testid="banner-landing">{show.style}</div>
+  ),
+}));
+
 function makeShow(overrides: Partial<Show> = {}): Show {
   return { id: 'show-1', name: 'Test Show', style: null, ...overrides } as Show;
 }
@@ -82,6 +88,20 @@ describe('ShowPublicLanding style preview', () => {
     await waitFor(() => expect(onSaveDraftStyle).toHaveBeenCalledWith('heritage'));
     expect(screen.getByText('Current: Heritage')).toBeInTheDocument();
     expect(screen.queryByText('Pending: Heritage')).not.toBeInTheDocument();
+  });
+
+  it('moves through styles with arrow keys and previews the selected option', async () => {
+    entitlement.canAuthorizePremium = true;
+    const user = renderPreview().user;
+
+    await user.tab();
+    expect(screen.getByRole('radio', { name: 'Monogram' })).toHaveFocus();
+
+    await user.keyboard('{ArrowRight}');
+
+    expect(screen.getByRole('radio', { name: 'Banner' })).toHaveAttribute('aria-checked', 'true');
+    expect(screen.getByText('Pending: Banner')).toBeInTheDocument();
+    expect(screen.getByTestId('banner-landing')).toHaveTextContent('banner');
   });
 
   it('cancels a pending style without changing the preview or persistence', async () => {
@@ -168,8 +188,14 @@ describe('ShowPublicLanding style preview', () => {
     await user.click(screen.getByRole('radio', { name: 'Heritage' }));
     await user.click(screen.getByRole('button', { name: 'Save style' }));
 
-    expect(screen.getByRole('radio', { name: 'Heritage' })).toBeDisabled();
-    expect(screen.getByRole('radio', { name: 'Monogram' })).toBeDisabled();
+    expect(screen.getByRole('radio', { name: 'Heritage' })).toHaveAttribute(
+      'aria-disabled',
+      'true'
+    );
+    expect(screen.getByRole('radio', { name: 'Monogram' })).toHaveAttribute(
+      'aria-disabled',
+      'true'
+    );
     resolveSave();
     await waitFor(() => expect(screen.getByText('Current: Heritage')).toBeInTheDocument());
   });

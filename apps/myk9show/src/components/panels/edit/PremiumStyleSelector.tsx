@@ -4,6 +4,8 @@ import {
   PREMIUM_STYLE_LABELS,
   resolvePremiumStyle,
 } from '@/types/premium-types';
+import { Label } from '@/components/ui/label';
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 
 const STYLE_TAGLINES: Record<PremiumStyle, string> = {
   monogram: 'Centered TC monogram, large serif title - conservative classic.',
@@ -35,36 +37,50 @@ export function PremiumStyleSelector({
   const available = availableStyles ? new Set(availableStyles) : null;
 
   return (
-    <div className="grid grid-cols-1 gap-2 sm:grid-cols-2" role="radiogroup" aria-label={ariaLabel}>
+    <RadioGroup
+      value={resolvePremiumStyle(selectedStyle)}
+      onValueChange={value => onSelect(value as PremiumStyle)}
+      className="grid grid-cols-1 gap-2 sm:grid-cols-2"
+      aria-label={ariaLabel}
+      disabled={disabled}
+    >
       {getPremiumStyleOptions()
         .filter(option => !available || available.has(option.value))
         .map(option => {
           const selected = resolvePremiumStyle(selectedStyle) === option.value;
+          const id = `premium-style-${option.value}`;
           return (
-            <button
-              key={option.value}
-              type="button"
-              role="radio"
-              aria-checked={selected}
-              aria-label={PREMIUM_STYLE_LABELS[option.value]}
-              disabled={disabled}
-              onClick={() => onSelect(option.value)}
-              className={`min-h-11 rounded-md border p-3 text-left transition-colors ${
-                selected ? 'border-primary bg-primary/10' : 'border-border hover:border-primary/50'
-              }`}
-            >
-              <span className="flex items-center gap-2">
-                <span className={`text-sm font-medium ${selected ? 'text-primary' : ''}`}>
-                  {PREMIUM_STYLE_LABELS[option.value]}
+            <div key={option.value}>
+              <RadioGroupItem
+                value={option.value}
+                id={id}
+                aria-labelledby={`${id}-name`}
+                className="peer sr-only"
+              />
+              <Label
+                htmlFor={id}
+                className={`flex min-h-11 cursor-pointer flex-col rounded-md border p-3 text-left normal-case tracking-normal transition-colors peer-disabled:cursor-not-allowed peer-disabled:opacity-50 ${
+                  selected
+                    ? 'border-primary bg-primary/10'
+                    : 'border-border hover:border-primary/50'
+                } peer-focus-visible:ring-2 peer-focus-visible:ring-ring peer-focus-visible:ring-offset-2`}
+              >
+                <span className="flex items-center gap-2">
+                  <span
+                    id={`${id}-name`}
+                    className={`text-sm font-medium ${selected ? 'text-primary' : ''}`}
+                  >
+                    {PREMIUM_STYLE_LABELS[option.value]}
+                  </span>
+                  {selected && <span aria-hidden="true">✓</span>}
                 </span>
-                {selected && <span aria-hidden="true">✓</span>}
-              </span>
-              <span className="mt-1 block text-xs leading-snug text-muted-foreground">
-                {STYLE_TAGLINES[option.value]}
-              </span>
-            </button>
+                <span className="mt-1 block text-xs leading-snug text-muted-foreground">
+                  {STYLE_TAGLINES[option.value]}
+                </span>
+              </Label>
+            </div>
           );
         })}
-    </div>
+    </RadioGroup>
   );
 }

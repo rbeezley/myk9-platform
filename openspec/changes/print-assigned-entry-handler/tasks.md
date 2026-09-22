@@ -15,3 +15,10 @@
 - [ ] 3.2 Run the shuffled app suite and validate the OpenSpec change
   - Limitation: the shuffled app suite started with seed `1789927667745`, emitted no useful output for 30 seconds after startup, and was interrupted with exit `130`; it was not a passing run. The isolated branch lacks the active change's `.openspec.yaml`, proposal, design, and spec artifacts. `pnpm openspec validate print-assigned-entry-handler --type change --json` was attempted and exited `1` because the change had no delta specs.
 - [ ] 3.3 Open and merge the reviewed PR with CI green, update MYK9-603 with audit/test evidence, and archive the change
+
+## 4. Structural correction after whole-branch review
+
+- [x] 4.1 Replace at-show general entry reads with a dedicated local projected show-day read that preserves ring/check-in state and does not await online financial or release joins
+- [x] 4.2 Verify initial and deferred people hydration cannot lose the first visible refresh, including a registered entry whose enrollment request stalls
+- [x] 4.3 Route the actual Reports check-in print mapper through canonical handler identity and test the printed output with a real projection fixture
+- [ ] 4.4 Remove task scratch reports from the tracked diff, rerun focused tests and one shuffled app suite, and complete two-lens fallback adversarial review

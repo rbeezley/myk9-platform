@@ -1,9 +1,7 @@
-import { useEffect } from 'react';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useQuery } from '@tanstack/react-query';
 import { queryKeys, cacheStrategies } from '@/lib/queryClient';
 import { shouldShowSection } from '@/components/classes/ClassDetailsMain.helpers';
 import { fetchReplicatedCheckInEntries } from './useCheckInReportReplication';
-import { subscribeHandlerPeopleHydration } from '@/services/database/entries/handlerHydration';
 
 // Types
 export interface CheckInEntryRow {
@@ -14,7 +12,6 @@ export interface CheckInEntryRow {
   armband_number: number | null;
   handler_first_name: string | null;
   handler_last_name: string | null;
-  handler_identity_ids?: readonly string[];
   dog_call_name: string | null;
   dog_breed_name: string | null;
   class_id: string;
@@ -38,7 +35,6 @@ export interface ExhibitorCheckInGroup {
   key: string;
   armbandNumber: number;
   handlerName: string;
-  handlerIdentityIds: string[];
   dogName: string;
   dogBreed: string;
   entries: CheckInClassEntry[];
@@ -90,14 +86,12 @@ export function groupEntriesByExhibitor(rows: CheckInEntryRow[]): ExhibitorCheck
     const key = `${row.dog_id}:${row.handler_id}`;
     const status = row.check_in_status || 'no-status';
     if (!map.has(key)) {
-      const identityIds = row.handler_identity_ids ?? (row.handler_id ? [row.handler_id] : []);
       map.set(key, {
         group: {
           key,
           armbandNumber: row.armband_number ?? 0,
           handlerName:
             [row.handler_first_name, row.handler_last_name].filter(Boolean).join(' ') || 'Unknown',
-          handlerIdentityIds: [...identityIds],
           dogName: row.dog_call_name || 'Unknown',
           dogBreed: row.dog_breed_name || '',
           entries: [],
@@ -106,10 +100,6 @@ export function groupEntriesByExhibitor(rows: CheckInEntryRow[]): ExhibitorCheck
       });
     }
     const item = map.get(key)!;
-    const identityIds = row.handler_identity_ids ?? (row.handler_id ? [row.handler_id] : []);
-    item.group.handlerIdentityIds = [
-      ...new Set([...item.group.handlerIdentityIds, ...identityIds]),
-    ];
     item.group.entries.push({
       entryId: row.id,
       classId: row.class_id,
@@ -138,20 +128,6 @@ export function groupEntriesByExhibitor(rows: CheckInEntryRow[]): ExhibitorCheck
 
 // Hook
 export function useCheckInReport(showId: string | undefined) {
-  const queryClient = useQueryClient();
-
-  useEffect(() => {
-    if (!showId) return;
-    const queryKey = queryKeys.checkInReport(showId);
-    return subscribeHandlerPeopleHydration(event => {
-      const currentGroups = queryClient.getQueryData<ExhibitorCheckInGroup[]>(queryKey) ?? [];
-      const relevantIds = new Set(currentGroups.flatMap(group => group.handlerIdentityIds ?? []));
-      if (event.ids.some(id => relevantIds.has(id))) {
-        void queryClient.invalidateQueries({ queryKey });
-      }
-    });
-  }, [queryClient, showId]);
-
   return useQuery({
     queryKey: queryKeys.checkInReport(showId ?? ''),
     queryFn: async () => {

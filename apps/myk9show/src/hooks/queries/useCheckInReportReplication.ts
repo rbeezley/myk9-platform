@@ -1,7 +1,6 @@
 import {
   replicatedArmbandsTable,
   replicatedClassesTable,
-  replicatedDogsTable,
   replicatedEntriesTable,
   replicatedTrialsTable,
   type ReplicatedArmband,
@@ -9,12 +8,6 @@ import {
   type ReplicatedEntry,
   type ReplicatedTrial,
 } from '@/services/replication';
-import { loadHandlerPeople } from '@/services/database/entries/handlerHydration';
-import {
-  collectHandlerIdentityIds,
-  withReplicatedDogOwner,
-} from '@/services/database/entries/entryHandlerReadBoundary';
-import { projectEntryHandlerIdentity } from '@/services/database/entries/entryHandlerProjection';
 import type { CheckInEntryRow } from './useCheckInReport';
 
 function isNotDeleted(entry: ReplicatedEntry) {
@@ -95,56 +88,41 @@ async function getClassForEntry(
 }
 
 export async function fetchReplicatedCheckInEntries(showId: string): Promise<CheckInEntryRow[]> {
-  const [entries, trials, armbands, dogs] = await Promise.all([
+  const [entries, trials, armbands] = await Promise.all([
     replicatedEntriesTable.getEntriesByShow(showId),
     replicatedTrialsTable.getTrialsByShow(showId),
     replicatedArmbandsTable.getByShow(showId),
-    replicatedDogsTable.getAllDogs(),
   ]);
   const trialsById = new Map(trials.map(trial => [trial.id, trial]));
-  const dogsById = new Map(dogs.map(dog => [dog.id, dog]));
   const { byEntryId: armbandsByEntryId, byDogId: armbandsByDogId } = buildArmbandMaps(armbands);
   const classCache = new Map<string, Promise<ReplicatedClass | null>>();
-  const activeEntries = entries
-    .filter(isNotDeleted)
-    .map(entry => withReplicatedDogOwner(entry, dogsById));
-  const classesByEntryId = new Map(
-    await Promise.all(
-      activeEntries.map(
-        async entry => [entry.id, await getClassForEntry(entry, classCache)] as const
-      )
-    )
+  const activeEntries = entries.filter(isNotDeleted);
+
+  return Promise.all(
+    activeEntries.map(async entry => {
+      const cls = await getClassForEntry(entry, classCache);
+      const trialId = getEntryTrialId(entry, cls);
+      const trial = trialId ? (trialsById.get(trialId) ?? null) : null;
+      const handler = splitHandlerName(entry.handlerName ?? entry.handler);
+
+      return {
+        id: entry.id,
+        dog_id: entry.dogId ?? '',
+        handler_id: entry.handlerId ?? '',
+        check_in_status: getEntryCheckInStatus(entry),
+        armband_number: armbandNumberForEntry(entry, armbandsByEntryId, armbandsByDogId),
+        handler_first_name: handler.firstName,
+        handler_last_name: handler.lastName,
+        dog_call_name: getDogCallName(entry),
+        dog_breed_name: getDogBreed(entry),
+        class_id: getEntryClassId(entry),
+        element: cls?.element ?? null,
+        level: cls?.level ?? null,
+        section: cls?.section ?? null,
+        trial_id: trialId,
+        trial_date: trial?.date ?? trial?.trial_date ?? '',
+        trial_number: trialNumber(trial),
+      };
+    })
   );
-  const handlerPeople = await loadHandlerPeople(collectHandlerIdentityIds(activeEntries));
-
-  return activeEntries.map(entry => {
-    const cls = classesByEntryId.get(entry.id) ?? null;
-    const trialId = getEntryTrialId(entry, cls);
-    const trial = trialId ? (trialsById.get(trialId) ?? null) : null;
-    const handlerIdentity = projectEntryHandlerIdentity(entry, handlerPeople);
-    const handler =
-      handlerIdentity.source === 'unknown'
-        ? splitHandlerName(undefined)
-        : splitHandlerName(handlerIdentity.name ?? undefined);
-
-    return {
-      id: entry.id,
-      dog_id: entry.dogId ?? '',
-      handler_id: entry.handlerId ?? '',
-      check_in_status: getEntryCheckInStatus(entry),
-      armband_number: armbandNumberForEntry(entry, armbandsByEntryId, armbandsByDogId),
-      handler_first_name: handler.firstName,
-      handler_last_name: handler.lastName,
-      handler_identity_ids: collectHandlerIdentityIds([entry]),
-      dog_call_name: getDogCallName(entry),
-      dog_breed_name: getDogBreed(entry),
-      class_id: getEntryClassId(entry),
-      element: cls?.element ?? null,
-      level: cls?.level ?? null,
-      section: cls?.section ?? null,
-      trial_id: trialId,
-      trial_date: trial?.date ?? trial?.trial_date ?? '',
-      trial_number: trialNumber(trial),
-    };
-  });
 }

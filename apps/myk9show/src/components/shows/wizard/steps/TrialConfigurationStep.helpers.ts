@@ -69,16 +69,29 @@ export function getNextTrialName(
   const normalizedDate = dateOnly(selectedDate);
   const trialDate = parseLocalDateString(normalizedDate);
   const dayName = trialDate ? format(trialDate, 'EEEE') : 'Trial';
-  const usedNames = new Set(
-    existingTrials
-      .filter(trial => dateOnly(trial.trialDate) === normalizedDate)
-      .map(trial => trial.name.trim().toLowerCase())
+  const sameDayTrials = existingTrials.filter(
+    trial => dateOnly(trial.trialDate) === normalizedDate
   );
+  const namePattern = new RegExp(`^${dayName} trial (\\d+)$`, 'i');
+  const occupiedNumbers = new Set<number>();
+  let customNameCount = 0;
+
+  for (const trial of sameDayTrials) {
+    const match = namePattern.exec(trial.name.trim());
+    if (match) occupiedNumbers.add(Number(match[1]));
+    else customNameCount += 1;
+  }
+
+  // Custom names still occupy a same-day slot; reserve the earliest unused
+  // numbers for them, then select the earliest remaining number for this trial.
+  for (let reserved = 0; reserved < customNameCount; reserved += 1) {
+    let number = 1;
+    while (occupiedNumbers.has(number)) number += 1;
+    occupiedNumbers.add(number);
+  }
 
   let trialNumber = 1;
-  while (usedNames.has(`${dayName} trial ${trialNumber}`.toLowerCase())) {
-    trialNumber += 1;
-  }
+  while (occupiedNumbers.has(trialNumber)) trialNumber += 1;
 
   return `${dayName} Trial ${trialNumber}`;
 }

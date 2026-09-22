@@ -5,7 +5,7 @@
 
 ## 2. Testing
 
-- [x] 2.1 Add focused tests for the Actions menu and zero, one, multiple same-day, and different-day trials.
+- [x] 2.1 Add focused tests for the Actions menu, day-scoped numbering (including custom names and date changes), latest trial snapshots, and zero/one/multiple/different-day trials.
 - [x] 2.2 Run focused Vitest, relevant typecheck, changed-file lint, and code-quality ratchet.
 
 ## 3. Delivery

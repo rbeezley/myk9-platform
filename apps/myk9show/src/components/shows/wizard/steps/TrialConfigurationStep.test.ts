@@ -67,10 +67,29 @@ describe('trial creation wording', () => {
     ).toBe('Saturday Trial 1');
   });
 
-  it('does not reserve generated names for unrelated same-day trial names', () => {
+  it('reserves a same-day slot for unrelated trial names', () => {
     expect(
       getNextTrialName([{ name: 'Veteran Sweepstakes', trialDate: '2026-08-01' }], '2026-08-01')
-    ).toBe('Saturday Trial 1');
+    ).toBe('Saturday Trial 2');
+  });
+
+  it('counts same-day custom names as occupied trial numbers', () => {
+    expect(
+      getNextTrialName([{ name: 'Scent Work Novice', trialDate: '2026-08-01' }], '2026-08-01')
+    ).toBe('Saturday Trial 2');
+  });
+
+  it('fills an available number while reserving a slot for custom-named trials', () => {
+    expect(
+      getNextTrialName(
+        [
+          { name: 'Saturday Trial 1', trialDate: '2026-08-01' },
+          { name: 'Saturday Trial 3', trialDate: '2026-08-01' },
+          { name: 'Scent Work Novice', trialDate: '2026-08-01' },
+        ],
+        '2026-08-01'
+      )
+    ).toBe('Saturday Trial 4');
   });
 
   it('uses first-trial wording for a selected day with no trial on that day', () => {

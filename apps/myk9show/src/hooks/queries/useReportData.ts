@@ -1,4 +1,5 @@
-import { useQuery } from '@tanstack/react-query';
+import { useEffect, useMemo } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { getTrialsByShow } from '@/services/database/trials';
 import { getClassesByTrialId } from '@/services/database/classes';
 import {
@@ -12,6 +13,10 @@ import { loadDogRegistrations } from '@/services/database/dogs/reads';
 import { loadJuniorHandlerProfiles } from '@/services/database/users/juniorHandlerProfiles';
 import { refreshShowEntriesForRead } from '@/services/database/entries/refreshShowEntriesForRead';
 import type { ReportDbEntry } from '@/lib/reports/types';
+import {
+  getHandlerPeopleHydrationRevision,
+  subscribeHandlerPeopleHydration,
+} from '@/services/database/entries/handlerHydration';
 
 /**
  * Why the report data cannot be described by `isLoading` / `isError` alone.
@@ -121,6 +126,41 @@ async function hydrateEntryRegistrations(entries: ReportDbEntry[]): Promise<Hydr
  */
 export function useReportData({ show, trialId, classId }: UseReportDataOptions) {
   const showId = show?.id ?? '';
+  const queryClient = useQueryClient();
+  const hydrationRevisionAtRender = getHandlerPeopleHydrationRevision();
+  const reportQueryKey = useMemo(
+    () => queryKeys.reportData(showId, trialId, classId),
+    [classId, showId, trialId]
+  );
+
+  useEffect(() => {
+    if (!showId) return;
+
+    const invalidateIfRelevant = (ids: readonly string[]) => {
+      const cached = queryClient.getQueryData<HydratedReportEntries>(reportQueryKey);
+      // While the initial query is running the entries are not in the cache
+      // yet. Invalidate anyway so a completion during that window is replayed
+      // against the now-authoritative people cache.
+      const relevant =
+        !cached ||
+        cached.entries.some(entry => {
+          const identityPersonId = entry.handler_identity?.person?.id;
+          return [entry.handler_id, identityPersonId].some(
+            id => typeof id === 'string' && ids.includes(id)
+          );
+        });
+      if (relevant) void queryClient.invalidateQueries({ queryKey: reportQueryKey });
+    };
+
+    const unsubscribe = subscribeHandlerPeopleHydration(event => invalidateIfRelevant(event.ids));
+    // Subscribe first, then compare. This closes both sides of the render to
+    // effect gap: later events hit the listener; earlier events are detected
+    // by the revision and cause one scoped refresh.
+    if (getHandlerPeopleHydrationRevision() > hydrationRevisionAtRender) {
+      void queryClient.invalidateQueries({ queryKey: reportQueryKey });
+    }
+    return unsubscribe;
+  }, [classId, hydrationRevisionAtRender, queryClient, reportQueryKey, showId, trialId]);
 
   const trialsQuery = useQuery({
     queryKey: queryKeys.showTrials(showId),
@@ -180,27 +220,40 @@ export function useReportData({ show, trialId, classId }: UseReportDataOptions) 
   });
 
   const entriesQuery = useQuery({
-    queryKey: queryKeys.reportData(showId, trialId, classId),
+    queryKey: reportQueryKey,
     queryFn: async () => {
-      if (classId !== 'all') {
-        const { data, error } = await getEntriesByClass(classId);
+      const readEntries = async (): Promise<HydratedReportEntries> => {
+        if (classId !== 'all') {
+          const { data, error } = await getEntriesByClass(classId);
+          if (error) throw error;
+          return hydrateEntryRegistrations((data ?? []) as ReportDbEntry[]);
+        }
+        // Staff reports use the same replication-backed scoped reads as class
+        // reports. The exhibitor show read resolves release visibility online and
+        // must mask raw cached scores when that optional request is unavailable.
+        // Retain the bounded refresh that show reports used before selecting
+        // scoped reads, so an online partial cache still has a chance to fill.
+        await refreshShowEntriesForRead(showId);
+        if (trialId === 'all') {
+          const { data, error } = await getEntriesByShowFromReplication(showId);
+          if (error) throw error;
+          return hydrateEntryRegistrations((data ?? []) as ReportDbEntry[]);
+        }
+        const { data, error } = await getEntriesByTrial(trialId);
         if (error) throw error;
         return hydrateEntryRegistrations((data ?? []) as ReportDbEntry[]);
+      };
+
+      let revision = getHandlerPeopleHydrationRevision();
+      let data = await readEntries();
+      // React Query can ignore invalidation while the first fetch has no cached
+      // data yet. If people completed during that fetch, replay the scoped read
+      // now; the authoritative person rows are already persisted locally.
+      while (getHandlerPeopleHydrationRevision() > revision) {
+        revision = getHandlerPeopleHydrationRevision();
+        data = await readEntries();
       }
-      // Staff reports use the same replication-backed scoped reads as class
-      // reports. The exhibitor show read resolves release visibility online and
-      // must mask raw cached scores when that optional request is unavailable.
-      // Retain the bounded refresh that show reports used before selecting
-      // scoped reads, so an online partial cache still has a chance to fill.
-      await refreshShowEntriesForRead(showId);
-      if (trialId === 'all') {
-        const { data, error } = await getEntriesByShowFromReplication(showId);
-        if (error) throw error;
-        return hydrateEntryRegistrations((data ?? []) as ReportDbEntry[]);
-      }
-      const { data, error } = await getEntriesByTrial(trialId);
-      if (error) throw error;
-      return hydrateEntryRegistrations((data ?? []) as ReportDbEntry[]);
+      return data;
     },
     enabled:
       selectedTrialIsInShow &&

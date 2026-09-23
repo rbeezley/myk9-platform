@@ -34,6 +34,8 @@ describe('canonicalizeTrialType', () => {
     expect(canonicalizeTrialType('Trial for Scent Work')).toBeUndefined();
     expect(canonicalizeTrialType('AKC Nosework')).toBeUndefined();
     expect(canonicalizeTrialType('future_discipline')).toBeUndefined();
+    expect(canonicalizeTrialType('constructor')).toBeUndefined();
+    expect(canonicalizeTrialType('__proto__')).toBeUndefined();
     expect(canonicalizeTrialType(undefined)).toBeUndefined();
   });
 });

@@ -40,21 +40,26 @@ function normalizeTrialTypeToken(value: string): string {
   return value.toLowerCase().replace(/[^a-z0-9]/g, '');
 }
 
-const TRIAL_TYPE_BY_TOKEN = new Map<string, TrialType>();
-for (const [key, value] of Object.entries(TrialType)) {
-  TRIAL_TYPE_BY_TOKEN.set(normalizeTrialTypeToken(key), value as TrialType);
-  TRIAL_TYPE_BY_TOKEN.set(normalizeTrialTypeToken(value), value as TrialType);
-}
-
 // Explicit historic/catalog labels. Prefixes are intentionally exact aliases, not fuzzy matches.
 const TRIAL_TYPE_ALIASES: Readonly<Record<string, TrialType>> = {
   'AKC Scent Work': TrialType.SCENT_WORK,
   'UKC Nosework': TrialType.NOSEWORK,
   'ASCA Scent Detection': TrialType.SCENT_DETECTION,
 };
-for (const [alias, canonical] of Object.entries(TRIAL_TYPE_ALIASES)) {
-  TRIAL_TYPE_BY_TOKEN.set(normalizeTrialTypeToken(alias), canonical);
-}
+
+const TRIAL_TYPE_BY_TOKEN: Readonly<Record<string, TrialType>> = Object.freeze(
+  (() => {
+    const lookup = Object.create(null) as Record<string, TrialType>;
+    for (const [key, value] of Object.entries(TrialType)) {
+      lookup[normalizeTrialTypeToken(key)] = value as TrialType;
+      lookup[normalizeTrialTypeToken(value)] = value as TrialType;
+    }
+    for (const [alias, canonical] of Object.entries(TRIAL_TYPE_ALIASES)) {
+      lookup[normalizeTrialTypeToken(alias)] = canonical;
+    }
+    return lookup;
+  })()
+);
 
 /**
  * Classify a stored/display trial-type value using exact canonical tokens.
@@ -62,7 +67,7 @@ for (const [alias, canonical] of Object.entries(TRIAL_TYPE_ALIASES)) {
  */
 export function canonicalizeTrialType(trialType: string | null | undefined): TrialType | undefined {
   if (!trialType) return undefined;
-  return TRIAL_TYPE_BY_TOKEN.get(normalizeTrialTypeToken(trialType));
+  return TRIAL_TYPE_BY_TOKEN[normalizeTrialTypeToken(trialType)];
 }
 
 /** Trial types offered by each organization. "Other" org shows all types. */

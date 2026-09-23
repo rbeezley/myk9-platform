@@ -130,14 +130,26 @@ set in the deployed database.
 ## Eligibility and Concurrency
 
 The RPC retains its signature, `SECURITY DEFINER`, empty `search_path`, fully
-qualified references, in-function site-admin check, authenticated execute grant,
-and `42501`/`23503`/`55P03` error contract. It checks the FK manifest, locks the
-target show then target trials and classes in ID order, and rejects every
-enrollment or entry reached through show, trial, class, or enrollment ownership
-before any delete. Cross-show entries that point into the target are an explicit
-refusal. Each retained FK edge gets a dynamic existence check; only identifiers
-from the reviewed manifest are inserted into SQL through `%I`, with the show ID
-bound by `USING`. It deletes only classes, trials, then the exact show.
+qualified references, in-function site-admin check, and authenticated execute
+grant. After setting a two-second transaction-local lock timeout and before
+reading the FK catalog, it takes `SHARE UPDATE EXCLUSIVE` schema-stability locks
+on `classes`, `trials`, then `shows`. This deterministic child-to-parent order
+matches the hierarchy and prevents concurrent FK DDL from changing the reviewed
+graph during the check/delete transaction. PostgreSQL's lock matrix makes this
+mode compatible with ordinary `ROW EXCLUSIVE` DML while conflicting with the
+`SHARE ROW EXCLUSIVE` lock used by `ADD FOREIGN KEY` on its referenced relation.
+The locks remain held through the deletes.
+
+The function then locks the target show, trials, and classes in ID order, and
+rejects every enrollment or entry reached through show, trial, class, or
+enrollment ownership before any delete. Cross-show entries that point into the
+target are an explicit refusal. Each retained FK edge gets a dynamic existence
+check; only identifiers from the reviewed manifest are inserted into SQL
+through `%I`, with the show ID bound by `USING`. It deletes only classes, trials,
+then the exact show. Lock-timeout `55P03` continues to use operator-only retry
+guidance. If PostgreSQL selects the RPC as a deadlock victim, the function
+preserves native `40P01`; the app classifies it as retryable and does not
+automatically retry.
 
 The show/trial/class `FOR UPDATE` locks conflict with FK-backed child inserts
 and updates, preventing an otherwise-unused decision from racing a new
@@ -151,15 +163,22 @@ entry.
 The local two-session harness holds an uncommitted enrollment insert, then an
 uncommitted cross-show entry targeting a target class. In both cases deletion
 must time out with the show intact; after writer commit, an authenticated
-site-admin operator retry must refuse the now-populated target with `23503`.
-The runner's exact loopback URL guard remains mandatory. This harness is
-source-checked here but requires a migrated local database for behavioral
-execution.
+site-admin operator retry must refuse the now-populated target with `23503`. A
+third interleave holds a class `FOR KEY SHARE` row lock, waits until the RPC
+holds the target trial lock and blocks on that class, then requests trial
+`FOR KEY SHARE` and commits the actual cross-show entry after the RPC's native
+`40P01` abort. Separate cases prove ordinary updates on unrelated show/trial/
+class rows overlap the RPC's schema locks, and that `ADD FOREIGN KEY` blocks
+until a catalog-check/delete transaction commits. The runner's exact loopback
+URL guard remains mandatory. These scenarios require a migrated local database
+for behavioral execution.
 
 ## Test-fixture and Operator Flow
 
-The SQL fixture includes a sparse show with trials/classes as the only successful
-case; independent unpaid enrollment/entry, status history, result submission,
+The SQL fixture invokes the successful sparse-show RPC as `authenticated`, not
+as the table owner, and includes a club-admin positive control for the existing
+`soft_delete_show` path. It also includes independent unpaid enrollment/entry,
+status history, result submission,
 activity log, payout, print, incident, packet snapshot/claim, and email fixtures
 must refuse while their records survive. Separate cross-show entry and
 result-submission fixtures cover target class/trial references. An empty new FK

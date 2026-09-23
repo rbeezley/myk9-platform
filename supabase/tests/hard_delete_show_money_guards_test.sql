@@ -10,7 +10,8 @@ INSERT INTO public.people (id, first_name, last_name, email, auth_user_id)
 VALUES
   ('00000000-0000-0000-0000-000000615002', 'MYK9', 'Handler', 'myk9-615-handler@example.test', NULL),
   ('00000000-0000-0000-0000-000000615009', 'MYK9', 'Admin', 'myk9-615-admin@example.test', NULL),
-  ('00000000-0000-0000-0000-000000615010', 'MYK9', 'NoAdmin', 'myk9-615-noadmin@example.test', NULL);
+  ('00000000-0000-0000-0000-000000615010', 'MYK9', 'NoAdmin', 'myk9-615-noadmin@example.test', NULL),
+  ('00000000-0000-0000-0000-000000615011', 'MYK9', 'ClubAdmin', 'myk9-615-club-admin@example.test', NULL);
 
 INSERT INTO auth.users (
   id, instance_id, aud, role, email, encrypted_password, email_confirmed_at,
@@ -23,23 +24,36 @@ VALUES
    '{}', '{}', false, false, false),
   ('00000000-0000-0000-0000-000000615110', '00000000-0000-0000-0000-000000000000',
    'authenticated', 'authenticated', 'myk9-615-noadmin@example.test', '', now(), now(), now(),
+   '{}', '{}', false, false, false),
+  ('00000000-0000-0000-0000-000000615111', '00000000-0000-0000-0000-000000000000',
+   'authenticated', 'authenticated', 'myk9-615-club-admin@example.test', '', now(), now(), now(),
    '{}', '{}', false, false, false);
 
 UPDATE public.people SET auth_user_id = '00000000-0000-0000-0000-000000615109'
 WHERE id = '00000000-0000-0000-0000-000000615009';
 UPDATE public.people SET auth_user_id = '00000000-0000-0000-0000-000000615110'
 WHERE id = '00000000-0000-0000-0000-000000615010';
+UPDATE public.people SET auth_user_id = '00000000-0000-0000-0000-000000615111'
+WHERE id = '00000000-0000-0000-0000-000000615011';
 
 INSERT INTO public.user_roles (user_id, role_id, club_id, is_active, auth_user_id)
 SELECT '00000000-0000-0000-0000-000000615009'::uuid, roles.id, NULL::uuid, true,
        '00000000-0000-0000-0000-000000615109'::uuid
 FROM public.roles WHERE roles.name = 'site_admin';
 
+INSERT INTO public.club_members (club_id, person_id, membership_status)
+VALUES ('00000000-0000-0000-0000-000000615001', '00000000-0000-0000-0000-000000615011', 'active');
+INSERT INTO public.user_roles (user_id, role_id, club_id, is_active, auth_user_id)
+SELECT '00000000-0000-0000-0000-000000615011'::uuid, roles.id,
+       '00000000-0000-0000-0000-000000615001'::uuid, true,
+       '00000000-0000-0000-0000-000000615111'::uuid
+FROM public.roles WHERE roles.name = 'club_admin';
+
 INSERT INTO public.shows (id, name, organization, start_date, end_date, club_id, status)
 SELECT ('00000000-0000-0000-0000-' || lpad(n::text, 12, '0'))::uuid,
        'MYK9-615 fixture ' || n, 'AKC', DATE '2026-09-01', DATE '2026-09-02',
        '00000000-0000-0000-0000-000000615001', 'draft'
-FROM generate_series(615020, 615036) AS n;
+FROM generate_series(615020, 615037) AS n;
 
 INSERT INTO public.trials (id, show_id, name, date)
 VALUES
@@ -208,7 +222,11 @@ BEGIN
 
   -- The only successful boundary is a show containing no enrollments, entries,
   -- or retained evidence; trials and classes alone are structural children.
+  -- Calling under the actual authenticated role proves the RPC execute grant,
+  -- not merely the function owner's ability to invoke it.
+  SET LOCAL ROLE authenticated;
   PERFORM public.hard_delete_show('00000000-0000-0000-0000-000000615020');
+  RESET ROLE;
   IF EXISTS (SELECT 1 FROM public.shows WHERE id = '00000000-0000-0000-0000-000000615020')
      OR EXISTS (SELECT 1 FROM public.trials WHERE id = '00000000-0000-0000-0000-000000616020')
      OR EXISTS (SELECT 1 FROM public.classes WHERE id = '00000000-0000-0000-0000-000000617020') THEN
@@ -244,6 +262,20 @@ BEGIN
   IF EXISTS (SELECT 1 FROM public.qa_unknown_show_child) THEN
     RAISE EXCEPTION 'FAIL MYK9-615: empty unclassified child table unexpectedly had evidence rows';
   END IF;
+
+  PERFORM set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-000000615111', true);
+  PERFORM set_config('request.jwt.claims',
+    '{"sub":"00000000-0000-0000-0000-000000615111","role":"authenticated"}', true);
+  SET LOCAL ROLE authenticated;
+  PERFORM public.soft_delete_show('00000000-0000-0000-0000-000000615037');
+  RESET ROLE;
+  IF NOT EXISTS (
+    SELECT 1 FROM public.shows
+    WHERE id = '00000000-0000-0000-0000-000000615037' AND deleted_at IS NOT NULL
+  ) THEN
+    RAISE EXCEPTION 'FAIL MYK9-615: club admin could not soft-delete their own show';
+  END IF;
+  RAISE NOTICE 'PASS MYK9-615 club admin can use soft_delete_show on their own show';
 
   PERFORM set_config('request.jwt.claims', '', true);
   PERFORM set_config('request.jwt.claim.sub', '', true);

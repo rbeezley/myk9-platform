@@ -85,6 +85,14 @@ BEGIN
   END IF;
 
   PERFORM pg_catalog.set_config('lock_timeout', '2s', true);
+
+  -- ADD FOREIGN KEY takes SHARE ROW EXCLUSIVE on its referenced relation.
+  -- This order follows the target hierarchy from child to parent and blocks
+  -- graph DDL while remaining compatible with ordinary ROW EXCLUSIVE DML.
+  LOCK TABLE public.classes IN SHARE UPDATE EXCLUSIVE MODE;
+  LOCK TABLE public.trials IN SHARE UPDATE EXCLUSIVE MODE;
+  LOCK TABLE public.shows IN SHARE UPDATE EXCLUSIVE MODE;
+
   PERFORM 1
   FROM public.shows
   WHERE id = p_show_id
@@ -234,10 +242,14 @@ BEGIN
   WHERE t.id = c.trial_id AND t.show_id = p_show_id;
   DELETE FROM public.trials WHERE show_id = p_show_id;
   DELETE FROM public.shows WHERE id = p_show_id;
-EXCEPTION WHEN lock_not_available THEN
-  RAISE EXCEPTION
-    'Show deletion encountered a lock conflict within the 2-second timeout; no deletion occurred. An operator may retry during a quiet window; automated retries are disabled.'
-    USING ERRCODE = '55P03';
+EXCEPTION
+  WHEN deadlock_detected THEN
+    -- Preserve native 40P01; the application maps it to operator-only retry.
+    RAISE;
+  WHEN lock_not_available THEN
+    RAISE EXCEPTION
+      'Show deletion encountered a lock conflict within the 2-second timeout; no deletion occurred. An operator may retry during a quiet window; automated retries are disabled.'
+      USING ERRCODE = '55P03';
 END;
 $$;
 

@@ -229,4 +229,7 @@ expect_timeout_then_refusal enrollment-insert "$enrollment_show_id" 'entries or 
 start_writer cross-show-entry
 expect_timeout_then_refusal cross-show-entry "$cross_show_id" 'cross-show entry association'
 
-echo "HARD DELETE SHOW CONCURRENCY TESTS PASSED (2 two-session insert races; local database only)"
+bash "$(dirname "$0")/hard-delete-show-lock-protocol.sh" "$DATABASE_URL" "$admin_auth_id" "$club_id" \
+  "$handler_person_id" "$other_show_id" "$enrollment_show_id" "$enrollment_trial_id" "$cross_class_id"
+
+echo "HARD DELETE SHOW CONCURRENCY TESTS PASSED (2 insert races plus lock protocol; local database only)"

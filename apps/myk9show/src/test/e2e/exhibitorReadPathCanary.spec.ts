@@ -34,28 +34,52 @@ function readPathTable(response: Response): string | undefined {
   return table && READ_PATH.includes(table) ? table : undefined;
 }
 
+/**
+ * THE one place a live read is judged. Absence is a positive finding: a read
+ * counts as "no data" ONLY when it succeeded AND parsed to a well-formed
+ * result with zero rows. Every other outcome — an error status, unparseable
+ * JSON, a payload of the wrong shape — is breakage.
+ *
+ * Two Codex rounds on #2392 each found a different path where something that
+ * was not a successful empty read still defaulted to zero and skipped as
+ * data-absent (a read never issued; malformed JSON). Both came from judging
+ * reads in more than one place with "0" as the fallback. There is no fallback
+ * here: a read that is not provably empty is not empty.
+ */
+type ReadOutcome = { ok: true; rows: number } | { ok: false; reason: string };
+
+async function judgeRead(response: Response): Promise<ReadOutcome> {
+  if (response.status() >= 400) return { ok: false, reason: `HTTP ${response.status()}` };
+  let body: unknown;
+  try {
+    body = await response.json();
+  } catch {
+    return { ok: false, reason: `HTTP ${response.status()} with unparseable JSON` };
+  }
+  if (Array.isArray(body)) return { ok: true, rows: body.length };
+  // `.single()` / `.maybeSingle()` reads answer with one object.
+  if (body !== null && typeof body === 'object') return { ok: true, rows: 1 };
+  return { ok: false, reason: `unexpected payload: ${JSON.stringify(body).slice(0, 60)}` };
+}
+
 test('exhibitor read path works against live data', async ({ page }) => {
   const broken: string[] = [];
+  // Undefined until a read of that table has been JUDGED ok. Zero is never a
+  // default: it can only come from a successful, well-formed empty read.
   let profileRows: number | undefined;
-  let entryRows = 0;
-  // Zero rows is "staging is empty" ONLY if the read actually completed. A
-  // regression that stops the entries read from being issued would otherwise
-  // leave entryRows at 0 and skip as data-absent (Codex review, #2392).
-  let entriesReadCompleted = false;
+  let entryRows: number | undefined;
 
   page.on('response', async response => {
     const table = readPathTable(response);
     if (!table || response.request().method() !== 'GET') return;
-    if (response.status() >= 400) {
-      broken.push(`${response.status()} ${table}`);
+    const outcome = await judgeRead(response);
+    if (!outcome.ok) {
+      broken.push(`${table}: ${outcome.reason}`);
       return;
     }
-    const rows = await response.json().catch(() => null);
-    const count = Array.isArray(rows) ? rows.length : rows ? 1 : 0;
-    if (table === 'exhibitor_profiles') profileRows = count;
+    if (table === 'exhibitor_profiles') profileRows = outcome.rows;
     if (table === 'view_authenticated_entry_results') {
-      entryRows += count;
-      entriesReadCompleted = true;
+      entryRows = (entryRows ?? 0) + outcome.rows;
     }
   });
 
@@ -97,7 +121,7 @@ test('exhibitor read path works against live data', async ({ page }) => {
     'the demo exhibitor has a profile row, yet My Shows did not mount'
   ).toBeVisible();
   await expect
-    .poll(() => entriesReadCompleted || broken.length > 0, {
+    .poll(() => entryRows !== undefined || broken.length > 0, {
       timeout: 15000,
       message:
         'My Shows mounted but the entries view was never read successfully. The read ' +

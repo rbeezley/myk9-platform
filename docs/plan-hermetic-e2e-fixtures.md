@@ -339,6 +339,20 @@ reads without the canary left nothing to catch a broken read path.
   Verified all branches: data present → pass; zero rows → skip; 403 → fail;
   read aborted → fail ("the entries view was never read successfully").
 
+#### Fourth Codex round (2026-09-23) — restructured, not patched
+
+- **P2: malformed JSON with HTTP 200 was counted as zero rows** and skipped as
+  data-absent. This was the SECOND finding on the canary, so per the
+  convergence rule it was restructured rather than patched. Both findings had
+  one cause: reads were judged in several places, with 0 as the fallback.
+  Now one function, `judgeRead`, classifies every live read. Absence is a
+  positive finding: only a successful, well-formed empty result counts as
+  "no data". An error status, unparseable JSON or a wrong-shaped payload is
+  breakage. The row counters start `undefined`, never 0.
+- Mutation matrix: present → pass; zero rows → skip; 403 → fail; read aborted
+  → fail; malformed entries JSON → fail; malformed profile JSON → fail. Live
+  empty staging → skip.
+
 ### Phase 5 — testing
 
 A phase is not complete until its tests pass.

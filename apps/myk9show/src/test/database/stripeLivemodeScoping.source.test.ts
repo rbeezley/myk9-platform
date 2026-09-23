@@ -79,8 +79,8 @@ describe('Stripe persisted-id mode scoping', () => {
   it('scopes cart payment history customer lookup by livemode', () => {
     const cartCustomerLookup = requireSlice(
       webhookSource,
-      '// Get stripe_customers record for this person',
-      "// Resolve each class's trial"
+      'async function handleEntryPaymentCompleted(',
+      'const rates = decodeStampedPlatformFeeRates('
     );
 
     expect(cartCustomerLookup).toContain(".from('stripe_customers')");

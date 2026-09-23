@@ -2,8 +2,8 @@
 BEGIN;
 INSERT INTO public.clubs (id, name)
 VALUES ('00000000-0000-0000-0000-000000639801', 'MYK9-639 refund club');
-INSERT INTO public.shows (id, name, type, organization, start_date, end_date, club_id, status)
-VALUES ('00000000-0000-0000-0000-000000639802', 'MYK9-639 refund show', 'Scent Work Trial', 'AKC',
+INSERT INTO public.shows (id, name, organization, start_date, end_date, club_id, status)
+VALUES ('00000000-0000-0000-0000-000000639802', 'MYK9-639 refund show', 'AKC',
         current_date + 10, current_date + 11, '00000000-0000-0000-0000-000000639801', 'published');
 INSERT INTO public.trials (id, show_id, name, date, registry_id, trial_type)
 VALUES ('00000000-0000-0000-0000-000000639803', '00000000-0000-0000-0000-000000639802',
@@ -14,10 +14,10 @@ VALUES
    'MYK9-639 waitlist class', 'Container', 'Novice', 1, true),
   ('00000000-0000-0000-0000-000000639805', '00000000-0000-0000-0000-000000639803',
    'MYK9-639 denial class', 'Interior', 'Novice', 1, false);
-INSERT INTO public.dogs (id, name, breed, status)
+INSERT INTO public.dogs (id, name, call_name, breed, status)
 VALUES
-  ('00000000-0000-0000-0000-000000639806', 'MYK9-639 Full Dog', 'Beagle', 'active'),
-  ('00000000-0000-0000-0000-000000639807', 'MYK9-639 Cart Dog', 'Beagle', 'active');
+  ('00000000-0000-0000-0000-000000639806', 'MYK9-639 Full Dog', 'Full Dog', 'Beagle', 'active'),
+  ('00000000-0000-0000-0000-000000639807', 'MYK9-639 Cart Dog', 'Cart Dog', 'Beagle', 'active');
 INSERT INTO public.dog_registrations (dog_id, organization, registration_number)
 VALUES
   ('00000000-0000-0000-0000-000000639806', 'AKC', 'SR6398001'),

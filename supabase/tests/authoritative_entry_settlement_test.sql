@@ -6,8 +6,8 @@ BEGIN;
 -- MYK9-639-RACE-SETUP-BEGIN: the concurrency runner reuses this fixture setup.
 INSERT INTO public.clubs (id, name)
 VALUES ('00000000-0000-0000-0000-000000639701', 'MYK9-639 settlement club');
-INSERT INTO public.shows (id, name, type, organization, start_date, end_date, club_id, status)
-VALUES ('00000000-0000-0000-0000-000000639702', 'MYK9-639 settlement show', 'Scent Work Trial', 'AKC',
+INSERT INTO public.shows (id, name, organization, start_date, end_date, club_id, status)
+VALUES ('00000000-0000-0000-0000-000000639702', 'MYK9-639 settlement show', 'AKC',
         current_date + 10, current_date + 11, '00000000-0000-0000-0000-000000639701', 'published');
 INSERT INTO public.trials (id, show_id, name, date, registry_id, trial_type)
 VALUES ('00000000-0000-0000-0000-000000639703', '00000000-0000-0000-0000-000000639702',
@@ -483,8 +483,8 @@ BEGIN
 END;
 $$;
 
-INSERT INTO public.shows (id, name, type, organization, start_date, end_date, club_id, status)
-VALUES ('00000000-0000-0000-0000-000000639740', 'MYK9-639 other show', 'Scent Work Trial', 'AKC',
+INSERT INTO public.shows (id, name, organization, start_date, end_date, club_id, status)
+VALUES ('00000000-0000-0000-0000-000000639740', 'MYK9-639 other show', 'AKC',
         current_date + 20, current_date + 21, '00000000-0000-0000-0000-000000639701', 'draft');
 INSERT INTO public.trials (id, show_id, name, date, registry_id, trial_type)
 VALUES ('00000000-0000-0000-0000-000000639741', '00000000-0000-0000-0000-000000639740',

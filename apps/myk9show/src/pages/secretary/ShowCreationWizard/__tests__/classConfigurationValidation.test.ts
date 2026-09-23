@@ -63,10 +63,21 @@ describe('normalizeWizardClassSelections', () => {
     }
   });
 
-  it('validates persisted scent_work trial types against the registry catalog', () => {
+  it.each([
+    'Scent Work',
+    'SCENT_WORK',
+    'scent_work',
+    'scent-work',
+    'Scentwork',
+    'AKC Scent Work',
+    'UKC Nosework',
+    'Nosework',
+    'ASCA Scent Detection',
+    'Scent Detection',
+  ])('validates %s trial types against the registry catalog', trialType => {
     expect(() =>
       normalizeWizardClassSelections('AKC', [
-        trial('scent_work', {
+        trial(trialType, {
           className: 'Cloned Container Master B',
           element: 'Container',
           level: 'Master',
@@ -74,6 +85,24 @@ describe('normalizeWizardClassSelections', () => {
         }),
       ])
     ).toThrow(/Cloned Container Master B.*AKC registry/i);
+  });
+
+  it('leaves an unclassified custom discipline outside the scent-work matrix', () => {
+    const normalized = normalizeWizardClassSelections('AKC', [
+      trial('Future Discipline', {
+        className: 'Custom Container Master B',
+        element: 'Container',
+        level: 'Master',
+        section: 'B',
+      }),
+    ]);
+
+    expect(normalized[0]!.triple).toEqual({
+      registryId: 'AKC',
+      element: 'Container',
+      level: 'Master',
+      section: 'B',
+    });
   });
 
   it('rejects the retained-class unresolved element sentinel for non-scent trials', () => {

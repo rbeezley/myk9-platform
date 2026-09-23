@@ -36,6 +36,35 @@ export enum TrialType {
   OTHER = 'Other',
 }
 
+function normalizeTrialTypeToken(value: string): string {
+  return value.toLowerCase().replace(/[^a-z0-9]/g, '');
+}
+
+const TRIAL_TYPE_BY_TOKEN = new Map<string, TrialType>();
+for (const [key, value] of Object.entries(TrialType)) {
+  TRIAL_TYPE_BY_TOKEN.set(normalizeTrialTypeToken(key), value as TrialType);
+  TRIAL_TYPE_BY_TOKEN.set(normalizeTrialTypeToken(value), value as TrialType);
+}
+
+// Explicit historic/catalog labels. Prefixes are intentionally exact aliases, not fuzzy matches.
+const TRIAL_TYPE_ALIASES: Readonly<Record<string, TrialType>> = {
+  'AKC Scent Work': TrialType.SCENT_WORK,
+  'UKC Nosework': TrialType.NOSEWORK,
+  'ASCA Scent Detection': TrialType.SCENT_DETECTION,
+};
+for (const [alias, canonical] of Object.entries(TRIAL_TYPE_ALIASES)) {
+  TRIAL_TYPE_BY_TOKEN.set(normalizeTrialTypeToken(alias), canonical);
+}
+
+/**
+ * Classify a stored/display trial-type value using exact canonical tokens.
+ * Unknown values remain undefined; this is classification, not presentation.
+ */
+export function canonicalizeTrialType(trialType: string | null | undefined): TrialType | undefined {
+  if (!trialType) return undefined;
+  return TRIAL_TYPE_BY_TOKEN.get(normalizeTrialTypeToken(trialType));
+}
+
 /** Trial types offered by each organization. "Other" org shows all types. */
 export const TRIAL_TYPES_BY_ORGANIZATION: Record<string, TrialType[]> = {
   [Organization.AKC]: [

@@ -1,5 +1,42 @@
 import { describe, expect, it } from 'vitest';
-import { disciplineUsesJumpHeight, formatTrialTypeLabel } from '../template.types';
+import {
+  canonicalizeTrialType,
+  disciplineUsesJumpHeight,
+  formatTrialTypeLabel,
+  TrialType,
+} from '../template.types';
+
+describe('canonicalizeTrialType', () => {
+  it('classifies every declared enum key and value', () => {
+    for (const [key, value] of Object.entries(TrialType)) {
+      expect(canonicalizeTrialType(key)).toBe(value);
+      expect(canonicalizeTrialType(value)).toBe(value);
+    }
+  });
+
+  it.each([
+    ['Scent Work', TrialType.SCENT_WORK],
+    ['SCENT_WORK', TrialType.SCENT_WORK],
+    ['scent_work', TrialType.SCENT_WORK],
+    ['scent-work', TrialType.SCENT_WORK],
+    ['Scentwork', TrialType.SCENT_WORK],
+    ['AKC Scent Work', TrialType.SCENT_WORK],
+    ['AKC_Scent_Work', TrialType.SCENT_WORK],
+    ['Nosework', TrialType.NOSEWORK],
+    ['UKC Nosework', TrialType.NOSEWORK],
+    ['Scent Detection', TrialType.SCENT_DETECTION],
+    ['ASCA Scent Detection', TrialType.SCENT_DETECTION],
+  ])('classifies %s exactly', (input, expected) => {
+    expect(canonicalizeTrialType(input)).toBe(expected);
+  });
+
+  it('does not classify unknown or substring-only matches as a known discipline', () => {
+    expect(canonicalizeTrialType('Trial for Scent Work')).toBeUndefined();
+    expect(canonicalizeTrialType('AKC Nosework')).toBeUndefined();
+    expect(canonicalizeTrialType('future_discipline')).toBeUndefined();
+    expect(canonicalizeTrialType(undefined)).toBeUndefined();
+  });
+});
 
 describe('formatTrialTypeLabel', () => {
   it('returns display labels for enum values', () => {

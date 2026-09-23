@@ -1,7 +1,7 @@
 import { deriveRegistryId } from '@/features/registries';
 import { getScentWorkSport, normalizeScentWorkTriple } from '@/features/registries/scentWork';
 import type { RegistryId } from '@/features/registries';
-import { formatTrialTypeLabel } from '@/types/template.types';
+import { canonicalizeTrialType, TrialType } from '@/types/template.types';
 import type { WizardTrial } from './showCreationWizardTransformers';
 
 export interface CanonicalWizardClassTriple {
@@ -33,8 +33,12 @@ export class InvalidWizardClassConfigurationError extends Error {
 }
 
 function isScentWorkTrial(trialType: string | undefined): boolean {
-  const label = formatTrialTypeLabel(trialType);
-  return label === 'Scent Work' || label === 'Nosework' || label === 'Scent Detection';
+  const canonical = canonicalizeTrialType(trialType);
+  return (
+    canonical === TrialType.SCENT_WORK ||
+    canonical === TrialType.NOSEWORK ||
+    canonical === TrialType.SCENT_DETECTION
+  );
 }
 
 function textValue(value: unknown): string {
@@ -86,6 +90,9 @@ export function normalizeWizardClassSelections(
         }
         triple = { registryId, ...result.triple };
       } else {
+        // Unclassified/custom disciplines keep their own sport-specific vocabulary. Missing or
+        // sentinel identity parts are still rejected above; only configured scent disciplines
+        // receive registry-matrix validation.
         if (!level) {
           invalidClasses.push({ className, reason: 'registry level is missing' });
           continue;

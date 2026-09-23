@@ -43,7 +43,6 @@ vi.mock('@/services/database/shows', () => ({
   getDeletedShows: vi.fn().mockResolvedValue({ data: [], error: null }),
   restoreShow: vi.fn().mockResolvedValue({ error: null }),
   hardDeleteShow: mockHardDeleteShow,
-  SHOW_HAS_STRIPE_ORDERS: 'SHOW_HAS_STRIPE_ORDERS',
 }));
 
 vi.mock('@/services/database/trials', () => ({
@@ -129,6 +128,24 @@ function setCountsPerTable(countsMap: Record<string, number>) {
 /** All counts zero */
 function setAllCountsZero() {
   setCountsPerTable({});
+}
+
+async function triggerShowDeleteError(error: { code: string; message: string }) {
+  mockHardDeleteShow.mockResolvedValue({ error });
+  setCountsPerTable({ shows: 1 });
+
+  render(<DeletedEntitiesTab />);
+
+  await waitFor(() => {
+    expect(screen.getByTestId('section-show')).toBeInTheDocument();
+  });
+
+  fireEvent.click(screen.getByText('Delete Shows'));
+  await waitFor(() => {
+    expect(screen.getByText('Permanently Delete Show?')).toBeInTheDocument();
+  });
+
+  fireEvent.click(screen.getByRole('button', { name: 'Delete Forever' }));
 }
 
 /* ------------------------------------------------------------------ */
@@ -222,62 +239,47 @@ describe('DeletedEntitiesTab', () => {
     expect(screen.getByText(/permanently delete "Test Name"/i)).toBeInTheDocument();
   });
 
-  // MYK9-527: the ledger guard's refusal is not transient, so "Please try
-  // again" is the wrong advice. Its own message must reach the admin.
-  it('renders the Stripe ledger guard message instead of the generic retry advice', async () => {
-    mockHardDeleteShow.mockResolvedValue({
-      error: {
-        code: 'SHOW_HAS_STRIPE_ORDERS',
-        message:
-          'This show has 3 Stripe orders; refunds and reconciliation still reference them. Resolve or reassign those orders before deleting the show permanently.',
-      },
-    });
-    setCountsPerTable({ shows: 1 });
-
-    render(<DeletedEntitiesTab />);
-
-    await waitFor(() => {
-      expect(screen.getByTestId('section-show')).toBeInTheDocument();
-    });
-
-    fireEvent.click(screen.getByText('Delete Shows'));
-    await waitFor(() => {
-      expect(screen.getByText('Permanently Delete Show?')).toBeInTheDocument();
-    });
-
-    fireEvent.click(screen.getByRole('button', { name: 'Delete Forever' }));
+  it.each([
+    {
+      code: '23503',
+      message:
+        'This show has records that must be kept for history and reconciliation, so it cannot be permanently deleted.',
+    },
+    {
+      code: '55P03',
+      message:
+        'Show deletion could not be completed because the database is busy. No data was deleted. An operator may retry during a quiet window; automatic retries are disabled.',
+    },
+    {
+      code: '40P01',
+      message:
+        'Show deletion could not be completed because the database is busy. No data was deleted. An operator may retry during a quiet window; automatic retries are disabled.',
+    },
+    {
+      code: '42501',
+      message: 'Only a site administrator can permanently delete a show.',
+    },
+  ])('shows the specific message for show deletion error $code', async ({ code, message }) => {
+    await triggerShowDeleteError({ code, message });
 
     await waitFor(() => {
-      expect(mockNotifyError).toHaveBeenCalledWith(
-        'This show has 3 Stripe orders; refunds and reconciliation still reference them. Resolve or reassign those orders before deleting the show permanently.'
-      );
+      expect(mockNotifyError).toHaveBeenCalledWith(message);
     });
-    expect(mockNotifyError).not.toHaveBeenCalledWith(expect.stringContaining('Please try again'));
+    expect(mockNotifyError).not.toHaveBeenCalledWith(
+      "Couldn't permanently delete Show. Please try again."
+    );
   });
 
-  it('still shows the generic retry advice for an unrelated delete failure', async () => {
-    mockHardDeleteShow.mockResolvedValue({
-      error: { code: '40P01', message: 'deadlock detected' },
-    });
-    setCountsPerTable({ shows: 1 });
+  it('does not treat the retired Stripe preflight code as a specific show refusal', async () => {
+    const retiredMessage = 'This show has 3 Stripe orders; resolve them before deleting.';
 
-    render(<DeletedEntitiesTab />);
-
-    await waitFor(() => {
-      expect(screen.getByTestId('section-show')).toBeInTheDocument();
-    });
-
-    fireEvent.click(screen.getByText('Delete Shows'));
-    await waitFor(() => {
-      expect(screen.getByText('Permanently Delete Show?')).toBeInTheDocument();
-    });
-
-    fireEvent.click(screen.getByRole('button', { name: 'Delete Forever' }));
+    await triggerShowDeleteError({ code: 'SHOW_HAS_STRIPE_ORDERS', message: retiredMessage });
 
     await waitFor(() => {
       expect(mockNotifyError).toHaveBeenCalledWith(
         "Couldn't permanently delete Show. Please try again."
       );
     });
+    expect(mockNotifyError).not.toHaveBeenCalledWith(retiredMessage);
   });
 });

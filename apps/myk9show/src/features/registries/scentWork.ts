@@ -14,6 +14,100 @@ export function getScentWorkSport(registryId: RegistryId): RegistrySport {
   return getSport(getRegistry(registryId), SCENT_WORK);
 }
 
+export interface NormalizedScentWorkTriple {
+  element: string;
+  level: string;
+  section: string;
+}
+
+export type ScentWorkTripleResult =
+  { valid: true; triple: NormalizedScentWorkTriple } | { valid: false; reason: string };
+
+/** Normalize and validate a class identity against one registry's configured scent-work catalog. */
+export function normalizeScentWorkTriple(
+  sport: RegistrySport,
+  raw: { element: string; level: string; section: string }
+): ScentWorkTripleResult {
+  const clean = (value: string) => value.trim();
+  const key = (value: string) => clean(value).toLocaleLowerCase();
+  const elementInput = clean(raw.element);
+  const element = sport.elements.find(
+    candidate =>
+      key(candidate.label) === key(elementInput) ||
+      (!!candidate.gridLabel && key(candidate.gridLabel) === key(elementInput))
+  );
+  if (!element) {
+    return {
+      valid: false,
+      reason: `registry element “${elementInput || 'missing'}” is not configured`,
+    };
+  }
+
+  const levelInput = clean(raw.level);
+  const sectionInput = clean(raw.section);
+  const allLevels = new Map(sport.levels.map(level => [level.key, level]));
+  const offeredLevels = element.levels.map(levelKey => allLevels.get(levelKey)).filter(Boolean);
+  const standalone =
+    offeredLevels.length === 1 && key(offeredLevels[0]!.label) === key(element.label);
+  if (standalone && (!levelInput || key(levelInput) === key(element.label))) {
+    if (sectionInput) {
+      return {
+        valid: false,
+        reason: `section “${sectionInput}” is not configured for ${element.label}`,
+      };
+    }
+    return { valid: true, triple: { element: element.label, level: '', section: '' } };
+  }
+
+  let level = offeredLevels.find(candidate => key(candidate!.label) === key(levelInput));
+  let section = sectionInput;
+  // Some legacy wizard rows store a variant label as part of the level (for example “Novice A”).
+  if (!level) {
+    for (const candidate of offeredLevels) {
+      for (const variant of element.variantsByLevel?.[candidate!.key] ?? []) {
+        if (key(`${candidate!.label} ${variant.label}`) === key(levelInput)) {
+          level = candidate;
+          section = variant.key;
+          break;
+        }
+      }
+      if (level) break;
+    }
+  }
+  if (!level) {
+    return {
+      valid: false,
+      reason: `level “${levelInput || 'missing'}” is not configured for ${element.label}`,
+    };
+  }
+
+  const variants = element.variantsByLevel?.[level.key] ?? [];
+  const hasRequiredOwnership = variants.some(variant => variant.kind === 'ownership');
+  let canonicalSection = '';
+  if (section) {
+    const variant = variants.find(
+      candidate => key(candidate.key) === key(section) || key(candidate.label) === key(section)
+    );
+    if (!variant) {
+      return {
+        valid: false,
+        reason: `section “${section}” is not configured for ${element.label} ${level.label}`,
+      };
+    }
+    canonicalSection = variant.key;
+  } else if (hasRequiredOwnership) {
+    return {
+      valid: false,
+      reason: `section is required for ${element.label} ${level.label}`,
+    };
+  }
+
+  return {
+    valid: true,
+    triple: { element: element.label, level: level.label, section: canonicalSection },
+  };
+}
+
 function levelsByOrder(sport: RegistrySport): readonly LevelSpec[] {
   return [...sport.levels].sort((a, b) => a.order - b.order);
 }

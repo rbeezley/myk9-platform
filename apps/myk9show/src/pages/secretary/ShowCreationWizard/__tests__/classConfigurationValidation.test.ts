@@ -63,6 +63,31 @@ describe('normalizeWizardClassSelections', () => {
     }
   });
 
+  it('validates persisted scent_work trial types against the registry catalog', () => {
+    expect(() =>
+      normalizeWizardClassSelections('AKC', [
+        trial('scent_work', {
+          className: 'Cloned Container Master B',
+          element: 'Container',
+          level: 'Master',
+          section: 'B',
+        }),
+      ])
+    ).toThrow(/Cloned Container Master B.*AKC registry/i);
+  });
+
+  it('rejects the retained-class unresolved element sentinel for non-scent trials', () => {
+    expect(() =>
+      normalizeWizardClassSelections('AKC', [
+        trial('Obedience', {
+          className: 'Retained class',
+          element: 'Unknown Element',
+          level: 'Novice',
+        }),
+      ])
+    ).toThrow(/Retained class.*element.*unresolved/i);
+  });
+
   it('canonicalizes configured standalone elements to an empty level', () => {
     const normalized = normalizeWizardClassSelections('AKC', [
       trial('Scent Work', {

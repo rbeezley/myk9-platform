@@ -1,6 +1,7 @@
 import { deriveRegistryId } from '@/features/registries';
 import { getScentWorkSport, normalizeScentWorkTriple } from '@/features/registries/scentWork';
 import type { RegistryId } from '@/features/registries';
+import { formatTrialTypeLabel } from '@/types/template.types';
 import type { WizardTrial } from './showCreationWizardTransformers';
 
 export interface CanonicalWizardClassTriple {
@@ -32,14 +33,16 @@ export class InvalidWizardClassConfigurationError extends Error {
 }
 
 function isScentWorkTrial(trialType: string | undefined): boolean {
-  const normalized = trialType?.trim().toLocaleLowerCase();
-  return (
-    normalized === 'scent work' || normalized === 'nosework' || normalized === 'scent detection'
-  );
+  const label = formatTrialTypeLabel(trialType);
+  return label === 'Scent Work' || label === 'Nosework' || label === 'Scent Detection';
 }
 
 function textValue(value: unknown): string {
   return typeof value === 'string' ? value.trim() : '';
+}
+
+function isUnresolvedClassPart(value: string): boolean {
+  return /^unknown(?:\s+(?:element|level|section))?$/i.test(value);
 }
 
 /** Validate the full wizard class set before any create/edit writer performs its first mutation. */
@@ -61,15 +64,15 @@ export function normalizeWizardClassSelections(
       const level = textValue(customizations.level);
       const section = textValue(customizations.section);
 
-      if (!element || element.toLocaleLowerCase() === 'unknown') {
+      if (!element || isUnresolvedClassPart(element)) {
         invalidClasses.push({ className, reason: 'registry element is missing or unresolved' });
         continue;
       }
-      if (level.toLocaleLowerCase() === 'unknown') {
+      if (isUnresolvedClassPart(level)) {
         invalidClasses.push({ className, reason: 'registry level is unresolved' });
         continue;
       }
-      if (section.toLocaleLowerCase() === 'unknown') {
+      if (isUnresolvedClassPart(section)) {
         invalidClasses.push({ className, reason: 'registry section is unresolved' });
         continue;
       }
@@ -100,7 +103,7 @@ export function normalizeWizardClassSelections(
         sourceIndex: index,
         className,
         templateId: selection.templateId,
-        judgeId: selection.judgeId,
+        ...(selection.judgeId === undefined ? {} : { judgeId: selection.judgeId }),
         triple,
       });
     }

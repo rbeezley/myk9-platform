@@ -3,6 +3,10 @@
  */
 import { toLocalDateOnly } from '@/utils/date-format';
 import type { WizardTrialView } from '@/utils/wizardTrialNames';
+import {
+  InvalidWizardClassConfigurationError,
+  normalizeWizardClassSelections,
+} from './classConfigurationValidation';
 
 interface ShowData {
   name: string;
@@ -107,7 +111,11 @@ export function getTrialValidationMessages(
 /**
  * Get validation messages for the Class Selection step (step 2)
  */
-export function getClassValidationMessages(trials: Trial[], trialView: WizardTrialView): string[] {
+export function getClassValidationMessages(
+  trials: Trial[],
+  trialView: WizardTrialView,
+  organization: string
+): string[] {
   const messages: string[] = [];
 
   const totalClasses = trials.reduce((sum, trial) => sum + trial.classes.length, 0);
@@ -122,6 +130,15 @@ export function getClassValidationMessages(trials: Trial[], trialView: WizardTri
         );
       }
     });
+  }
+
+  if (totalClasses > 0) {
+    try {
+      normalizeWizardClassSelections(organization, trials);
+    } catch (error) {
+      if (!(error instanceof InvalidWizardClassConfigurationError)) throw error;
+      messages.push(error.message);
+    }
   }
 
   return messages;
@@ -142,7 +159,7 @@ export function getValidationMessagesForStep(
     case 1:
       return getTrialValidationMessages(trials, trialView, show.organization);
     case 2:
-      return getClassValidationMessages(trials, trialView);
+      return getClassValidationMessages(trials, trialView, show.organization);
     case 3:
       // Review step shows its own validation
       return [];

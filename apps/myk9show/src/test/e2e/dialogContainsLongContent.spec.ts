@@ -125,7 +125,7 @@ const CASES: DialogCase[] = [
       await expect(
         trigger,
         'No "Add to calendar" item in the show card Actions menu. It is withheld while ' +
-          'the show relation is still replicating (empty showId), so check the fixture\'s ' +
+          "the show relation is still replicating (empty showId), so check the fixture's " +
           'shows route before suspecting the dialog.'
       ).toBeVisible();
       await trigger.click();

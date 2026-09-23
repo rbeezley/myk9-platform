@@ -68,12 +68,6 @@ import {
   type TableSyncStatus,
 } from './replicationSyncStatus';
 import { getRingsideUploadSyncTargets, type UploadSyncTarget } from './ringsideUploadSyncTargets';
-import {
-  forgetShowStyleMutations,
-  forgetSuccessfulShowStyleMutation,
-  forgetSuccessfulShowStyleForShow,
-  reconcileShowStyleMutations,
-} from '@/features/premium/showStylePersistence';
 
 interface SyncStatus {
   isSyncing: boolean;
@@ -118,17 +112,6 @@ const REPLICATED_TABLE_NAME_SET: ReadonlySet<string> = new Set(REPLICATED_TABLE_
 const ENTRY_RESULT_REPLICA_VERSION_KEY = 'myk9:entry-result-replica-version';
 const ENTRY_RESULT_REPLICA_VERSION = '20260620-authenticated-entry-results-view-v2';
 let entryResultReplicaVersionPromise: Promise<void> | null = null;
-
-function groupStyleFailures(mutations: SyncFailedEventDetail['mutations']) {
-  const groups = new Map<string, string[]>();
-  for (const mutation of mutations) {
-    if (mutation.tableName !== 'shows' || mutation.rpc?.name !== 'update_show_style') continue;
-    const ids = groups.get(mutation.rowId ?? '');
-    if (ids) ids.push(mutation.id);
-    else if (mutation.rowId) groups.set(mutation.rowId, [mutation.id]);
-  }
-  return [...groups].map(([showId, mutationIds]) => ({ showId, mutationIds }));
-}
 
 // Connect the shared MutationManager (owned by sharedMutationManager.ts so
 // hooks can import it read-only) to all replicated tables.
@@ -632,24 +615,6 @@ export const ReplicationSyncProvider: React.FC<ReplicationSyncProviderProps> = (
       for (const table of tables) {
         queryClient.invalidateQueries({ queryKey: [table] });
       }
-      for (const mutation of detail.mutations ?? []) {
-        if (mutation.tableName === 'shows' && mutation.rpcName === 'update_show_style') {
-          if (mutation.mutationId) forgetSuccessfulShowStyleMutation(mutation.mutationId);
-          else forgetSuccessfulShowStyleForShow(mutation.rowId);
-        }
-      }
-      const successfulStyleShowIds = new Set(
-        (detail.mutations ?? [])
-          .filter(
-            mutation => mutation.tableName === 'shows' && mutation.rpcName === 'update_show_style'
-          )
-          .map(mutation => mutation.rowId)
-      );
-      void Promise.all(
-        [...successfulStyleShowIds].map(showId =>
-          reconcileShowStyleMutations({ showId, queryClient })
-        )
-      );
       void getRingsideUploadSyncTargets(detail, {
         getEntry: id => replicatedEntriesTable.get(id),
         getClass: id => replicatedClassesTable.get(id),
@@ -691,20 +656,6 @@ export const ReplicationSyncProvider: React.FC<ReplicationSyncProviderProps> = (
 
       for (const failureDetail of splitPermanentScoreAuthorizationFailures(detail)) {
         const ids = failureDetail.mutations.map(m => m.id).filter(Boolean);
-        const styleFailures = failureDetail.mutations.filter(
-          mutation => mutation.tableName === 'shows' && mutation.rpc?.name === 'update_show_style'
-        );
-        if (styleFailures.length > 0) {
-          void Promise.all(
-            groupStyleFailures(styleFailures).map(group =>
-              reconcileShowStyleMutations({
-                showId: group.showId,
-                excludedMutationIds: group.mutationIds,
-                queryClient,
-              })
-            )
-          );
-        }
         const isPermanentScoreAuthorizationFailure =
           hasPermanentScoreAuthorizationFailure(failureDetail);
         const toastId = ids[0]
@@ -734,31 +685,14 @@ export const ReplicationSyncProvider: React.FC<ReplicationSyncProviderProps> = (
           action: {
             label: isPermanentScoreAuthorizationFailure ? 'Retry after access is fixed' : 'Retry',
             onClick: () => {
-              void Promise.allSettled(ids.map(id => mutationManager.retryFailedMutation(id))).then(
-                () =>
-                  Promise.all(
-                    groupStyleFailures(styleFailures).map(group =>
-                      reconcileShowStyleMutations({ showId: group.showId, queryClient })
-                    )
-                  )
-              );
+              void Promise.allSettled(ids.map(id => mutationManager.retryFailedMutation(id)));
               clearToastId();
             },
           },
           cancel: {
             label: 'Discard',
             onClick: () => {
-              void Promise.allSettled(
-                ids.map(id => mutationManager.discardFailedMutation(id))
-              ).then(() => {
-                const groups = groupStyleFailures(styleFailures);
-                return Promise.all(
-                  groups.map(async group => {
-                    await reconcileShowStyleMutations({ showId: group.showId, queryClient });
-                    forgetShowStyleMutations(group.mutationIds);
-                  })
-                );
-              });
+              void Promise.allSettled(ids.map(id => mutationManager.discardFailedMutation(id)));
               clearToastId();
             },
           },

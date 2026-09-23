@@ -1,181 +1,79 @@
-import type { QueryClient } from '@tanstack/react-query';
+import { onlineManager } from '@tanstack/react-query';
 import type { Show } from '@/types/show-types';
 import type { ShowStyle } from '@/features/registries';
-import { showQueryKeys } from '@/hooks/queries/useShowsDatabase';
+import { createSessionBoundSupabaseClient, supabase } from '@/services/database/supabaseClient';
+import { mutationManager } from '@/services/replication/sharedMutationManager';
 import { replicatedShowsTable } from '@/services/replication';
 
 interface SaveShowDraftStyleInput {
   show: Show;
   style: ShowStyle;
-  queryClient: QueryClient;
+  ownerId: string;
 }
 
-interface ReconcileFailedShowStyleInput {
-  showId: string;
-  excludedMutationIds?: readonly string[];
-  queryClient: QueryClient;
-}
-
-const SHOW_COLLECTION_SEGMENTS = new Set([
-  'list',
-  'search',
-  'club',
-  'status',
-  'upcoming',
-  'dateRange',
-  'withEntryCounts',
-  'deleted',
-  'public',
-]);
-
-const rollbackByMutationId = new Map<
-  string,
-  { show: Show; style: ShowStyle; queryClient: QueryClient }
->();
-
-type ShowCachePatch = {
-  style: ShowStyle;
-  _syncStatus: NonNullable<Show['_syncStatus']>;
-  _lastModified: Date;
-};
-
-function patchExistingShowCaches(
-  queryClient: QueryClient,
-  showId: string,
-  patch: ShowCachePatch
-): void {
-  const detailKey = showQueryKeys.detail(showId);
-  if (queryClient.getQueryData(detailKey) !== undefined) {
-    queryClient.setQueryData<Show>(detailKey, current =>
-      current ? { ...current, ...patch } : current
-    );
-  }
-
-  for (const [queryKey, current] of queryClient.getQueriesData<unknown>({
-    predicate: query => {
-      const [root, segment] = query.queryKey;
-      return (
-        root === showQueryKeys.all[0] &&
-        typeof segment === 'string' &&
-        SHOW_COLLECTION_SEGMENTS.has(segment)
-      );
-    },
-  })) {
-    if (!Array.isArray(current)) continue;
-    const matchingIndex = current.findIndex(
-      item => item && typeof item === 'object' && 'id' in item && item.id === showId
-    );
-    if (matchingIndex < 0) continue;
-    queryClient.setQueryData(
-      queryKey,
-      current.map((item, index) => (index === matchingIndex ? { ...item, ...patch } : item))
-    );
+export class ShowStyleSaveError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'ShowStyleSaveError';
   }
 }
 
-function cachedStyleMatchesAny(
-  queryClient: QueryClient,
-  showId: string,
-  expectedStyles: ReadonlySet<ShowStyle>
-): boolean {
-  const detail = queryClient.getQueryData<Show>(showQueryKeys.detail(showId));
-  if (detail && detail.style && !expectedStyles.has(detail.style as ShowStyle)) return false;
-
-  for (const [, current] of queryClient.getQueriesData<unknown>({
-    predicate: query => {
-      const [root, segment] = query.queryKey;
-      return (
-        root === showQueryKeys.all[0] &&
-        typeof segment === 'string' &&
-        SHOW_COLLECTION_SEGMENTS.has(segment)
-      );
-    },
-  })) {
-    if (!Array.isArray(current)) continue;
-    const matching = current.find(
-      item => item && typeof item === 'object' && 'id' in item && item.id === showId
-    );
-    if (matching && (!('style' in matching) || !expectedStyles.has(matching.style as ShowStyle))) {
-      return false;
-    }
+async function getSessionForOwner(ownerId: string) {
+  const { data, error } = await supabase.auth.getSession();
+  if (error) throw error;
+  if (!data.session || data.session.user.id !== ownerId) {
+    throw new ShowStyleSaveError('Your account changed. Reload this show before saving a style.');
   }
-
-  return true;
+  return data.session;
 }
 
-/** Save a draft style through replication and patch every warm show cache. */
+async function assertShowHasNoPendingChanges(showId: string): Promise<void> {
+  const [replicatedRow, pendingMutations] = await Promise.all([
+    replicatedShowsTable.getReplicatedRow(showId),
+    mutationManager.getPendingMutationsForRow('shows', showId),
+  ]);
+  if (replicatedRow?.isDirty || pendingMutations.length > 0) {
+    throw new ShowStyleSaveError('Sync this show’s pending changes before saving its style.');
+  }
+}
+
+/** Save online, then let the normal versioned show sync refresh persistent readers. */
 export async function saveShowDraftStyle({
   show,
   style,
-  queryClient,
-}: SaveShowDraftStyleInput): Promise<Show> {
-  await queryClient.cancelQueries({ queryKey: showQueryKeys.all });
-  const mutationId = await replicatedShowsTable.updateShowStyle(show.id, style);
-  if (mutationId) rollbackByMutationId.set(mutationId, { show, style, queryClient });
-
-  const now = new Date();
-  const patch = {
-    style,
-    _syncStatus: 'pending' as const,
-    _lastModified: now,
-  };
-
-  patchExistingShowCaches(queryClient, show.id, patch);
-
-  return { ...show, ...patch };
-}
-
-/** Reconcile replica and warm caches from the remaining show-style queue lineage. */
-export async function reconcileShowStyleMutations({
-  showId,
-  excludedMutationIds = [],
-  queryClient,
-}: ReconcileFailedShowStyleInput): Promise<void> {
-  const excluded = new Set(excludedMutationIds);
-  const records = [...rollbackByMutationId.entries()].filter(
-    ([, record]) => record.show.id === showId
-  );
-  const remainingRecords = records.filter(([mutationId]) => !excluded.has(mutationId));
-  const fallbackRecord = remainingRecords.at(-1)?.[1] ?? records[0]?.[1];
-  const fallbackShow = fallbackRecord?.show;
-  const fallbackStyle = remainingRecords.at(-1)?.[1].style ?? records[0]?.[1].show.style;
-  const expectedStyles = new Set<ShowStyle>(
-    records
-      .flatMap(([, record]) => [record.style, record.show.style as ShowStyle])
-      .filter((style): style is ShowStyle => typeof style === 'string')
-  );
-  const restored = await replicatedShowsTable.reconcileShowStyleMutations(
-    showId,
-    excludedMutationIds
-  );
-  if (!restored && (!fallbackShow || !cachedStyleMatchesAny(queryClient, showId, expectedStyles))) {
-    return;
+  ownerId,
+}: SaveShowDraftStyleInput): Promise<void> {
+  if (!onlineManager.isOnline() || (typeof navigator !== 'undefined' && !navigator.onLine)) {
+    throw new ShowStyleSaveError('Reconnect to the internet before saving this style.');
   }
-  const previousStyle = restored?.style ?? fallbackStyle;
 
-  if (previousStyle) {
-    patchExistingShowCaches(queryClient, showId, {
-      style: previousStyle as ShowStyle,
-      _syncStatus: restored?._syncStatus ?? (remainingRecords.length > 0 ? 'pending' : 'synced'),
-      _lastModified: restored?._lastModified ?? fallbackShow?._lastModified ?? new Date(),
-    });
-  } else {
-    await queryClient.invalidateQueries({ queryKey: showQueryKeys.detail(showId) });
-    await queryClient.invalidateQueries({ queryKey: showQueryKeys.all });
+  const session = await getSessionForOwner(ownerId);
+  await assertShowHasNoPendingChanges(show.id);
+  await getSessionForOwner(ownerId);
+
+  const sessionClient = createSessionBoundSupabaseClient(session.access_token);
+  const { data, error } = await sessionClient.rpc('update_show_style', {
+    p_show_id: show.id,
+    p_style: style,
+  });
+  if (error) throw error;
+  if (typeof data !== 'number') {
+    throw new ShowStyleSaveError(
+      'The server did not confirm the saved style version. Refresh and try again.'
+    );
   }
-}
 
-/** Clear the exact rollback record when the upload event carries queue identity. */
-export function forgetSuccessfulShowStyleMutation(mutationId: string): void {
-  rollbackByMutationId.delete(mutationId);
-}
-
-export function forgetSuccessfulShowStyleForShow(showId: string): void {
-  for (const [mutationId, rollback] of rollbackByMutationId) {
-    if (rollback.show.id === showId) rollbackByMutationId.delete(mutationId);
+  // No persistent replica or query-cache write is safe here: those stores are
+  // shared across auth changes. The RPC's UPDATE advances shows.updated_at and
+  // version, so the established incremental show sync can refresh readers.
+  try {
+    await getSessionForOwner(ownerId);
+  } catch {
+    throw new ShowStyleSaveError(
+      'The style may have been saved, but your account changed or could not be confirmed. Reload this show before continuing.'
+    );
   }
-}
-
-export function forgetShowStyleMutations(mutationIds: readonly string[]): void {
-  for (const mutationId of mutationIds) rollbackByMutationId.delete(mutationId);
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(new Event('replication:sync-requested'));
+  }
 }

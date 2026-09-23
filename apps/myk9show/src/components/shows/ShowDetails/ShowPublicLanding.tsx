@@ -1,4 +1,5 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, useSyncExternalStore } from 'react';
+import { onlineManager } from '@tanstack/react-query';
 import { getShowStyle } from '@/features/registries';
 import { STYLED_LANDING_BY_STYLE } from '@/features/_shared/styledLandingRegistry';
 import type { ShowStyle } from '@/features/registries';
@@ -6,6 +7,7 @@ import { useEntitlement } from '@/features/entitlement/useEntitlement';
 import { PremiumStyleSelector } from '@/components/panels/edit/PremiumStyleSelector';
 import { PREMIUM_STYLE_LABELS } from '@/types/premium-types';
 import { Button } from '@/components/ui/button';
+import { ShowStyleSaveError } from '@/features/premium/showStylePersistence';
 import { StaleShowNotice } from './StaleShowNotice';
 import type { Show } from '@/types/show-types';
 import type { Trial } from '@/components/trials/types/trial.types';
@@ -75,13 +77,20 @@ export function ShowPublicLanding({
   const [committedStyle, setCommittedStyle] = useState<ShowStyle>(persistedPreviewStyle);
   const [pendingStyle, setPendingStyle] = useState<ShowStyle | null>(null);
   const [saveError, setSaveError] = useState(false);
+  const [saveErrorMessage, setSaveErrorMessage] = useState<string | null>(null);
   const [entitlementError, setEntitlementError] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const isOnline = useSyncExternalStore(
+    listener => onlineManager.subscribe(listener),
+    () => onlineManager.isOnline(),
+    () => true
+  );
 
   useEffect(() => {
     setCommittedStyle(persistedPreviewStyle);
     setPendingStyle(null);
     setSaveError(false);
+    setSaveErrorMessage(null);
     setEntitlementError(false);
   }, [persistedPreviewStyle, show.id, styleEditorEnabled]);
 
@@ -137,14 +146,16 @@ export function ShowPublicLanding({
     if (!onSaveDraftStyle || isSaving) return;
     setIsSaving(true);
     setSaveError(false);
+    setSaveErrorMessage(null);
     setEntitlementError(false);
     try {
       await onSaveDraftStyle(style);
       setCommittedStyle(style);
       setPendingStyle(null);
-    } catch {
+    } catch (error) {
       setPendingStyle(null);
       setSaveError(true);
+      setSaveErrorMessage(error instanceof ShowStyleSaveError ? error.message : null);
     } finally {
       setIsSaving(false);
     }
@@ -159,16 +170,20 @@ export function ShowPublicLanding({
           previewStyle={previewStyle}
           pendingStyle={pendingStyle}
           saveError={saveError}
+          saveErrorMessage={saveErrorMessage}
           entitlementError={entitlementError}
           isSaving={isSaving}
+          isOnline={isOnline}
           onSelect={style => {
             setPendingStyle(style === committedStyle ? null : style);
             setSaveError(false);
+            setSaveErrorMessage(null);
             setEntitlementError(false);
           }}
           onCancel={() => {
             setPendingStyle(null);
             setSaveError(false);
+            setSaveErrorMessage(null);
             setEntitlementError(false);
           }}
           onSave={style => void handleSaveStyle(style)}
@@ -196,8 +211,10 @@ interface PremiumStylePreviewControlsProps {
   previewStyle: ShowStyle;
   pendingStyle: ShowStyle | null;
   saveError: boolean;
+  saveErrorMessage: string | null;
   entitlementError: boolean;
   isSaving: boolean;
+  isOnline: boolean;
   onSelect: (style: ShowStyle) => void;
   onCancel: () => void;
   onSave: (style: ShowStyle) => void;
@@ -210,8 +227,10 @@ function PremiumStylePreviewControls({
   previewStyle,
   pendingStyle,
   saveError,
+  saveErrorMessage,
   entitlementError,
   isSaving,
+  isOnline,
   onSelect,
   onCancel,
   onSave,
@@ -267,11 +286,17 @@ function PremiumStylePreviewControls({
           Premium styles beyond Monogram require an active Premium entitlement.
         </p>
       )}
+      {!isOnline && (
+        <p className="mt-3 text-sm text-muted-foreground">
+          Reconnect to save this style. Style changes are not stored offline.
+        </p>
+      )}
       {(saveError || entitlementError) && (
         <p role="alert" className="mt-3 text-sm text-destructive">
           {entitlementError
             ? `Premium access is no longer available. Your current style is still ${PREMIUM_STYLE_LABELS[committedStyle]}.`
-            : `We couldn't save that style. Your current style is still ${PREMIUM_STYLE_LABELS[committedStyle]}.`}
+            : (saveErrorMessage ??
+              'Could not confirm whether style saved. Sync and reload before retrying.')}
         </p>
       )}
       <div className="mt-4 flex flex-wrap justify-end gap-2">
@@ -287,7 +312,7 @@ function PremiumStylePreviewControls({
         <Button
           type="button"
           size="touch"
-          disabled={!pendingStyle || isSaving}
+          disabled={!pendingStyle || isSaving || !isOnline}
           onClick={handleSave}
         >
           {isSaving ? 'Saving…' : 'Save style'}

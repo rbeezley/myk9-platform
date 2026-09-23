@@ -1,17 +1,22 @@
-## 1. Behavior
+## 1. Preview behavior and persistence
 
-- [x] 1.1 Keep Preview as the sole premium style editor; replace the Settings selector with a deep-link to Preview.
-- [x] 1.2 Support current/pending indication, live preview, Save, Cancel, entitlement filtering, and understandable save errors.
-- [x] 1.3 Route Save through `public.update_show_style(uuid, text)` with authenticated tenant and Premium authorization, preserving draft-versus-published behavior. The migration also rejects raw authenticated `shows.style` updates; live SQL behavioral verification remains pending because no local Postgres runtime was available.
-- [x] 1.4 Implement the style-only offline mutation without fabricating cold rows; discard a queued mutation when local write fails, reconcile permanent rejection, patch every returned cache field, and scope pending/error state to the show.
+- [x] 1.1 Keep Preview as the sole style editor; Settings links to the existing Preview surface.
+- [x] 1.2 Support current/pending indication, live preview, Save, Cancel, entitlement filtering, and understandable errors.
+- [x] 1.3 Add authenticated `update_show_style` RPC authorization and the direct-update trigger boundary.
+- [x] 1.4 Cover the SECURITY DEFINER `create_show_with_children` path so free managers cannot create Premium-style shows; keep Monogram/Premium controls.
+- [x] 1.5 Make Save online-only, session-bound, and disabled with clear reconnect guidance while offline.
+- [x] 1.6 Block saves when the current show row is dirty or has pending work; recheck auth after async preflight and RPC acknowledgement.
+- [x] 1.7 After an owner-verified acknowledgement, dispatch the existing replication sync request; do not write shared replica or query caches directly.
+- [x] 1.8 Remove offline style queue, style-specific rollback/projection, and upload/sync lifecycle hooks; preserve unrelated replication behavior.
 
-## 2. Testing
+## 2. Testing and verification
 
-- [x] 2.1 Add focused UI, RPC, and persistence tests for default, selection/link, live preview, save, cancel, error behavior, cold-row handling, complete cache patching, generic-style exclusion, queue/local-write atomicity, permanent rejection reconciliation, public cache synchronization, and show-scoped async state. (The SQL behavioral test is present but could not execute without a Postgres runtime.)
-- [x] 2.2 Run focused shuffled Vitest, app/test/edge/API typechecks, changed-file formatting, lint, and code-quality ratchet. The aggregate E2E typecheck helper and `tsx` migration guard were blocked by sandbox temporary-IPC `EPERM`; the SQL behavioral script remains unexecuted without a Postgres runtime.
-- [ ] 2.3 Add regression coverage for ordered overlapping style mutations, failure/discard in both orders, retry, unrelated dirty edits, and replica/cache agreement; reconcile the entire style-mutation lineage so removing the final failed style mutation cannot strand a dirty row.
+- [x] 2.1 Add tests for offline no-mutation behavior, exact RPC, sync request without replica/cache writes, RPC error, cancellation, and pending-work precondition.
+- [x] 2.2 Test owner changes during async preflight and during the RPC; no RPC under a switched owner and no sync request for the new owner.
+- [x] 2.3 Run focused persistence and Preview tests, app typecheck, format/diff checks, and the code-quality ratchet.
+- [ ] 2.4 Run the behavioral SQL test in CI. Local execution is unavailable without a Postgres runtime; report the limit accurately.
 
 ## 3. Delivery
 
-- [x] 3.1 Validate the OpenSpec artifacts and implementation against MYK9-691.
-- [ ] 3.2 Commit, push, open a PR, resolve adversarial review findings, and verify required CI.
+- [x] 3.1 Save the implementation plan and OpenSpec design/spec/tasks for the online-only contract.
+- [ ] 3.2 Record verification and PR evidence on MYK9-691 after review. Keep the issue In Progress through merge and any separately authorized rollout gate.

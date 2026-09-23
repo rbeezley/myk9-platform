@@ -65,13 +65,13 @@ JOIN public.roles r ON r.name = 'club_admin';
 
 INSERT INTO public.shows (
   id, name, organization, start_date, end_date, club_id, status, style,
-  accept_check_payments, accept_cash_payments, allow_non_owner_handlers
+  accept_check_payments, accept_cash_payments, allow_non_owner_handlers, updated_at
 )
 VALUES (
   '00000000-0000-0000-0000-000000691021', 'MYK9-691 Style Show', 'AKC',
   current_date + 10, current_date + 11,
   '00000000-0000-0000-0000-000000691001', 'draft', 'banner',
-  true, false, false
+  true, false, false, '2000-01-01T00:00:00Z'
 );
 
 DO $$
@@ -84,6 +84,7 @@ DECLARE
   v_accept_check boolean;
   v_accept_cash boolean;
   v_allow_non_owner boolean;
+  v_updated_at timestamptz;
   v_public_execute boolean;
   v_anon_execute boolean;
   v_authenticated_execute boolean;
@@ -156,16 +157,17 @@ BEGIN
   RESET ROLE;
 
   SELECT s.style, s.status, s.accept_check_payments, s.accept_cash_payments,
-         s.allow_non_owner_handlers, s.version
+         s.allow_non_owner_handlers, s.version, s.updated_at
     INTO v_style, v_status, v_accept_check, v_accept_cash, v_allow_non_owner,
-         v_version_after
+         v_version_after, v_updated_at
   FROM public.shows s
   WHERE s.id = v_show_id;
   IF v_style <> 'heritage' OR v_status <> 'draft'
      OR v_accept_check IS DISTINCT FROM true
      OR v_accept_cash IS DISTINCT FROM false
      OR v_allow_non_owner IS DISTINCT FROM false
-     OR v_version_after <> v_version_before + 1 THEN
+     OR v_version_after <> v_version_before + 1
+     OR v_updated_at <= '2000-01-01T00:00:00Z'::timestamptz THEN
     RAISE EXCEPTION 'FAIL style save changed an unrelated show field or version: %, %, %, %, %, %',
       v_style, v_status, v_accept_check, v_accept_cash, v_allow_non_owner, v_version_after;
   END IF;
@@ -215,6 +217,101 @@ BEGIN
     RAISE EXCEPTION 'FAIL free manager show insert did not retain the Monogram default';
   END IF;
   RAISE NOTICE 'PASS free manager can insert a show with the Monogram default';
+
+  -- The SECURITY DEFINER wizard must apply the same entitlement boundary as
+  -- the direct INSERT trigger and the style-only RPC. A rejected show must not
+  -- leave its show or any child rows behind.
+  BEGIN
+    PERFORM public.create_show_with_children(
+      jsonb_build_object(
+        'id', '00000000-0000-0000-0000-000000691025',
+        'name', 'MYK9-691 Free Premium Wizard', 'organization', 'AKC',
+        'start_date', (current_date + 18)::text,
+        'end_date', (current_date + 19)::text,
+        'club_id', '00000000-0000-0000-0000-000000691001',
+        'status', 'draft', 'style', 'heritage',
+        'accept_check_payments', true, 'accept_cash_payments', false
+      ),
+      jsonb_build_array(jsonb_build_object(
+        'id', '00000000-0000-0000-0000-000000691125',
+        'name', 'Rejected Premium Wizard Trial',
+        'date', (current_date + 18)::text
+      )),
+      '[]'::jsonb,
+      NULL
+    );
+    RAISE EXCEPTION 'FAIL free manager created a Premium-style show';
+  EXCEPTION WHEN SQLSTATE '42501' THEN
+    RAISE NOTICE 'PASS free manager Premium-style wizard creation is denied with SQLSTATE 42501';
+  END;
+  IF EXISTS (SELECT 1 FROM public.shows
+             WHERE id = '00000000-0000-0000-0000-000000691025')
+     OR EXISTS (SELECT 1 FROM public.trials
+                WHERE id = '00000000-0000-0000-0000-000000691125') THEN
+    RAISE EXCEPTION 'FAIL rejected Premium wizard creation left show or trial rows';
+  END IF;
+
+  -- Monogram remains available to a free manager through the same wizard.
+  PERFORM public.create_show_with_children(
+    jsonb_build_object(
+      'id', '00000000-0000-0000-0000-000000691026',
+      'name', 'MYK9-691 Free Monogram Wizard', 'organization', 'AKC',
+      'start_date', (current_date + 20)::text,
+      'end_date', (current_date + 21)::text,
+      'club_id', '00000000-0000-0000-0000-000000691001',
+      'status', 'draft', 'style', 'monogram',
+      'accept_check_payments', true, 'accept_cash_payments', false
+    ),
+    jsonb_build_array(jsonb_build_object(
+      'id', '00000000-0000-0000-0000-000000691126',
+      'name', 'Free Monogram Wizard Trial',
+      'date', (current_date + 20)::text
+    )),
+    '[]'::jsonb,
+    NULL
+  );
+  IF NOT EXISTS (SELECT 1 FROM public.shows
+                 WHERE id = '00000000-0000-0000-0000-000000691026'
+                   AND style = 'monogram')
+     OR NOT EXISTS (SELECT 1 FROM public.trials
+                    WHERE id = '00000000-0000-0000-0000-000000691126') THEN
+    RAISE EXCEPTION 'FAIL free manager could not create a Monogram show with a trial';
+  END IF;
+  RAISE NOTICE 'PASS free manager can create Monogram show and child through wizard';
+  RESET ROLE;
+
+  -- An entitled manager can still create a Premium-style show through the
+  -- same privileged path.
+  PERFORM set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-000000691102', true);
+  PERFORM set_config('request.jwt.claims', jsonb_build_object(
+    'sub', '00000000-0000-0000-0000-000000691102', 'role', 'authenticated')::text, true);
+  SET LOCAL ROLE authenticated;
+  PERFORM public.create_show_with_children(
+    jsonb_build_object(
+      'id', '00000000-0000-0000-0000-000000691027',
+      'name', 'MYK9-691 Premium Wizard', 'organization', 'AKC',
+      'start_date', (current_date + 22)::text,
+      'end_date', (current_date + 23)::text,
+      'club_id', '00000000-0000-0000-0000-000000691001',
+      'status', 'draft', 'style', 'heritage',
+      'accept_check_payments', true, 'accept_cash_payments', false
+    ),
+    jsonb_build_array(jsonb_build_object(
+      'id', '00000000-0000-0000-0000-000000691127',
+      'name', 'Premium Wizard Trial',
+      'date', (current_date + 22)::text
+    )),
+    '[]'::jsonb,
+    NULL
+  );
+  IF NOT EXISTS (SELECT 1 FROM public.shows
+                 WHERE id = '00000000-0000-0000-0000-000000691027'
+                   AND style = 'heritage')
+     OR NOT EXISTS (SELECT 1 FROM public.trials
+                    WHERE id = '00000000-0000-0000-0000-000000691127') THEN
+    RAISE EXCEPTION 'FAIL Premium manager could not create Premium show with a trial';
+  END IF;
+  RAISE NOTICE 'PASS Premium manager can create Premium show and child through wizard';
   RESET ROLE;
 
   -- A manager of another club and an ordinary authenticated user cannot cross

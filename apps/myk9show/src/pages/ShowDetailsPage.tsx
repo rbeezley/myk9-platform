@@ -1,6 +1,5 @@
 import React, { useEffect, useMemo } from 'react';
 import { useParams, useNavigate, useSearchParams, useMatch, useLocation } from 'react-router-dom';
-import { useQueryClient } from '@tanstack/react-query';
 import { readEntryDogId, withEntryDogContext } from '@/features/registration/entryDogContext';
 import { type PrimaryTabDef } from '@/components/common/PrimaryTabs';
 import { useUrlTab } from '@/hooks/useUrlTab';
@@ -62,7 +61,6 @@ const ShowDetailsPage: React.FC = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const { hash } = useLocation();
-  const queryClient = useQueryClient();
   const managementSectionMatch = useMatch('/shows/:id/:section/*');
   const { endNavigation } = useNavigationPerformance();
   const { user, loading: authLoading, userWithRoles, rbacLoading } = useAuthContext();
@@ -511,7 +509,11 @@ const ShowDetailsPage: React.FC = () => {
         onRetry={() => void refetchShow()}
         styleMode={canManageShow ? 'manager-draft-preview' : 'public'}
         onSaveDraftStyle={style =>
-          saveShowDraftStyle({ show: actualCurrentShow, style, queryClient }).then(() => undefined)
+          saveShowDraftStyle({
+            show: actualCurrentShow,
+            style,
+            ownerId: user?.id ?? '',
+          }).then(() => undefined)
         }
       />
     );

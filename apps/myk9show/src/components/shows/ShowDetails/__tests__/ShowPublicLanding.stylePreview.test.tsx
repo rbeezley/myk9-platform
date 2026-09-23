@@ -1,7 +1,9 @@
-import { describe, expect, it, vi, beforeEach } from 'vitest';
+import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest';
+import { onlineManager } from '@tanstack/react-query';
 import type { Show } from '@/types/show-types';
 import type { Trial } from '@/components/trials/types/trial.types';
 import { render, screen, waitFor } from '@/test/utils/testUtils';
+import { ShowStyleSaveError } from '@/features/premium/showStylePersistence';
 import { ShowPublicLanding } from '../ShowPublicLanding';
 
 const entitlement = vi.hoisted(() => ({
@@ -62,7 +64,10 @@ describe('ShowPublicLanding style preview', () => {
   beforeEach(() => {
     entitlement.canAuthorizePremium = false;
     entitlement.isLoading = false;
+    onlineManager.setOnline(true);
   });
+
+  afterEach(() => onlineManager.setOnline(true));
 
   it('shows Monogram as the current default and filters premium styles without entitlement', () => {
     renderPreview();
@@ -88,6 +93,28 @@ describe('ShowPublicLanding style preview', () => {
     await waitFor(() => expect(onSaveDraftStyle).toHaveBeenCalledWith('heritage'));
     expect(screen.getByText('Current: Heritage')).toBeInTheDocument();
     expect(screen.queryByText('Pending: Heritage')).not.toBeInTheDocument();
+  });
+
+  it('keeps the local preview while offline and enables Save again after reconnecting', async () => {
+    entitlement.canAuthorizePremium = true;
+    onlineManager.setOnline(false);
+    const onSaveDraftStyle = vi.fn().mockResolvedValue(undefined);
+    const user = renderPreview({ onSaveDraftStyle }).user;
+
+    await user.click(screen.getByRole('radio', { name: 'Heritage' }));
+
+    expect(
+      screen.getByText('Reconnect to save this style. Style changes are not stored offline.')
+    ).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Save style' })).toBeDisabled();
+    expect(screen.getByTestId('heritage-landing')).toHaveTextContent('heritage');
+    expect(onSaveDraftStyle).not.toHaveBeenCalled();
+
+    onlineManager.setOnline(true);
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Save style' })).toBeEnabled());
+    await user.click(screen.getByRole('button', { name: 'Save style' }));
+
+    await waitFor(() => expect(onSaveDraftStyle).toHaveBeenCalledWith('heritage'));
   });
 
   it('moves through styles with arrow keys and previews the selected option', async () => {
@@ -117,7 +144,7 @@ describe('ShowPublicLanding style preview', () => {
     expect(onSaveDraftStyle).not.toHaveBeenCalled();
   });
 
-  it('keeps the persisted style active and explains a save error', async () => {
+  it('does not claim the prior style remained active after an ambiguous save error', async () => {
     entitlement.canAuthorizePremium = true;
     const onSaveDraftStyle = vi.fn().mockRejectedValue(new Error('offline queue unavailable'));
     const user = renderPreview({ onSaveDraftStyle }).user;
@@ -126,10 +153,22 @@ describe('ShowPublicLanding style preview', () => {
     await user.click(screen.getByRole('button', { name: 'Save style' }));
 
     expect(await screen.findByRole('alert')).toHaveTextContent(
-      "We couldn't save that style. Your current style is still Monogram."
+      'Could not confirm whether style saved. Sync and reload before retrying.'
     );
-    expect(screen.getByText('Current: Monogram')).toBeInTheDocument();
-    expect(screen.getByTestId('monogram-landing')).toHaveTextContent('monogram');
+    expect(screen.getByRole('alert')).not.toHaveTextContent('Your current style is still');
+  });
+
+  it('preserves specific save guidance from the persistence boundary', async () => {
+    entitlement.canAuthorizePremium = true;
+    const message = 'Sync this show’s pending changes before saving its style.';
+    const user = renderPreview({
+      onSaveDraftStyle: vi.fn().mockRejectedValue(new ShowStyleSaveError(message)),
+    }).user;
+
+    await user.click(screen.getByRole('radio', { name: 'Heritage' }));
+    await user.click(screen.getByRole('button', { name: 'Save style' }));
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(message);
   });
 
   it('uses the draft style as the manager baseline when public experience is published', () => {

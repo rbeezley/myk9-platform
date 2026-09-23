@@ -2,202 +2,195 @@ import { QueryClient } from '@tanstack/react-query';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Show } from '@/types/show-types';
 import { showQueryKeys } from '@/hooks/queries/useShowsDatabase';
-import { reconcileShowStyleMutations, saveShowDraftStyle } from './showStylePersistence';
+import { saveShowDraftStyle } from './showStylePersistence';
 
-const updateShowStyleMock = vi.hoisted(() => vi.fn());
-const reconcileShowStyleMutationsMock = vi.hoisted(() => vi.fn());
+const mocks = vi.hoisted(() => ({
+  getSession: vi.fn(),
+  rpc: vi.fn(),
+  getReplicatedRow: vi.fn(),
+  setReplicaRow: vi.fn(),
+  getPendingForRow: vi.fn(),
+  boundClient: vi.fn(),
+}));
+
+vi.mock('@/services/database/supabaseClient', () => ({
+  supabase: { auth: { getSession: mocks.getSession } },
+  createSessionBoundSupabaseClient: (token: string) => mocks.boundClient(token),
+}));
+
+vi.mock('@/services/replication/sharedMutationManager', () => ({
+  mutationManager: { getPendingMutationsForRow: mocks.getPendingForRow },
+}));
 
 vi.mock('@/services/replication', () => ({
   replicatedShowsTable: {
-    updateShowStyle: updateShowStyleMock,
-    reconcileShowStyleMutations: reconcileShowStyleMutationsMock,
+    getReplicatedRow: mocks.getReplicatedRow,
+    set: mocks.setReplicaRow,
   },
 }));
 
-const show: Show = {
+const show = {
   id: 'show-1',
   name: 'Bluegrass Classic',
-  organization: 'AKC',
-  startDate: '2026-03-22',
-  endDate: '2026-03-23',
-  location: 'Louisville, KY',
-  status: 'upcoming',
-  events: ['Agility'],
-  source: 'myK9Show',
-  entryOpenDate: '2026-01-01',
-  entryCloseDate: '2026-12-31',
-  preEntryFee: '25',
-  clubId: 'club-1',
-  clubName: 'Bluegrass KC',
-  clubAddress: '123 Main Street',
-  clubEmail: 'club@example.com',
-  logoUrl: '',
-  coverImageUrl: '',
-  accentColor: '#0d4d4f',
-  assignedJudges: [],
-  stats: [],
-  trials: [],
-  acceptCheckPayments: true,
-  allowNonOwnerHandlers: false,
   style: 'monogram',
-};
+  location: 'Louisville',
+} as Show;
 
-const otherShow: Show = { ...show, id: 'show-2', name: 'Other Show', style: 'poster' };
-const statistics = { total: 2, byStatus: { upcoming: 1, published: 1 } };
+function makeQueryClient(): QueryClient {
+  const queryClient = new QueryClient();
+  queryClient.setQueryData(showQueryKeys.detail(show.id), show);
+  queryClient.setQueryData(showQueryKeys.lists(), [show]);
+  queryClient.setQueryData(showQueryKeys.statistics(), { total: 1 });
+  return queryClient;
+}
 
-function seedShowCaches(queryClient: QueryClient): void {
-  queryClient.setQueryData(showQueryKeys.detail('show-1'), show);
-  queryClient.setQueryData(showQueryKeys.lists(), [show, otherShow]);
-  queryClient.setQueryData(showQueryKeys.list({ status: 'upcoming' }), [show, otherShow]);
-  queryClient.setQueryData(showQueryKeys.search('bluegrass'), [show, otherShow]);
-  queryClient.setQueryData(showQueryKeys.byClub('club-1'), [show, otherShow]);
-  queryClient.setQueryData(showQueryKeys.byStatus('upcoming'), [show, otherShow]);
-  queryClient.setQueryData(showQueryKeys.upcoming(), [show, otherShow]);
-  queryClient.setQueryData(showQueryKeys.byDateRange('2026-01-01', '2026-12-31'), [
-    show,
-    otherShow,
-  ]);
-  queryClient.setQueryData(showQueryKeys.withEntryCounts(), [show, otherShow]);
-  queryClient.setQueryData(showQueryKeys.deleted(), [show, otherShow]);
-  queryClient.setQueryData(['shows', 'public'], [show, otherShow]);
-  queryClient.setQueryData(showQueryKeys.statistics(), statistics);
+function setOnline(value: boolean): () => void {
+  const original = Object.getOwnPropertyDescriptor(navigator, 'onLine');
+  Object.defineProperty(navigator, 'onLine', { configurable: true, value });
+  return () => {
+    if (original) Object.defineProperty(navigator, 'onLine', original);
+    else Reflect.deleteProperty(navigator, 'onLine');
+  };
 }
 
 describe('saveShowDraftStyle', () => {
   beforeEach(() => {
-    updateShowStyleMock.mockReset();
-    updateShowStyleMock.mockResolvedValue('mutation-1');
-    reconcileShowStyleMutationsMock.mockReset();
+    vi.clearAllMocks();
+    mocks.getSession.mockResolvedValue({
+      data: { session: { user: { id: 'owner-1' }, access_token: 'token-1' } },
+      error: null,
+    });
+    mocks.rpc.mockResolvedValue({ data: 9, error: null });
+    mocks.getReplicatedRow.mockResolvedValue({ isDirty: false });
+    mocks.getPendingForRow.mockResolvedValue([]);
+    mocks.boundClient.mockImplementation((token: string) => ({ rpc: mocks.rpc, token }));
   });
 
-  it('updates only the matching show style and sync metadata in every existing show cache', async () => {
-    const queryClient = new QueryClient();
-    seedShowCaches(queryClient);
-    const unseededKey = showQueryKeys.search('unseeded');
-    const before = queryClient.getQueryData(showQueryKeys.statistics());
+  it('does not call the RPC or mutate local data while offline', async () => {
+    const restoreOnline = setOnline(false);
+    const queryClient = makeQueryClient();
+    try {
+      await expect(
+        saveShowDraftStyle({ show, style: 'heritage', ownerId: 'owner-1' })
+      ).rejects.toThrow('Reconnect to the internet');
+      expect(mocks.getSession).not.toHaveBeenCalled();
+      expect(mocks.rpc).not.toHaveBeenCalled();
+      expect(mocks.setReplicaRow).not.toHaveBeenCalled();
+      expect(queryClient.getQueryData<Show>(showQueryKeys.detail(show.id))?.style).toBe('monogram');
+    } finally {
+      restoreOnline();
+    }
+  });
 
-    const result = await saveShowDraftStyle({ show, style: 'heritage', queryClient });
-
-    expect(updateShowStyleMock).toHaveBeenCalledWith('show-1', 'heritage');
-    expect(result).toMatchObject({
-      id: 'show-1',
-      style: 'heritage',
-      status: 'upcoming',
-      acceptCheckPayments: true,
-      allowNonOwnerHandlers: false,
-    });
-    expect(queryClient.getQueryData(showQueryKeys.detail('show-1'))).toMatchObject({
-      id: 'show-1',
-      style: 'heritage',
-      _syncStatus: 'pending',
-      _lastModified: expect.any(Date),
-    });
-
-    for (const key of [
-      showQueryKeys.lists(),
-      showQueryKeys.list({ status: 'upcoming' }),
-      showQueryKeys.search('bluegrass'),
-      showQueryKeys.byClub('club-1'),
-      showQueryKeys.byStatus('upcoming'),
-      showQueryKeys.upcoming(),
-      showQueryKeys.byDateRange('2026-01-01', '2026-12-31'),
-      showQueryKeys.withEntryCounts(),
-      showQueryKeys.deleted(),
-      ['shows', 'public'],
-    ]) {
-      expect(queryClient.getQueryData<Show[]>(key)).toEqual([
-        expect.objectContaining({ id: 'show-1', style: 'heritage', _syncStatus: 'pending' }),
-        otherShow,
-      ]);
+  it('uses the captured session RPC and nudges normal sync without writing replica or caches', async () => {
+    const queryClient = makeQueryClient();
+    let syncRequested = false;
+    const listener = () => {
+      syncRequested = true;
+    };
+    window.addEventListener('replication:sync-requested', listener);
+    try {
+      await saveShowDraftStyle({ show, style: 'heritage', ownerId: 'owner-1' });
+    } finally {
+      window.removeEventListener('replication:sync-requested', listener);
     }
 
-    expect(queryClient.getQueryData(showQueryKeys.statistics())).toBe(before);
-    expect(queryClient.getQueryData(unseededKey)).toBeUndefined();
+    expect(mocks.boundClient).toHaveBeenCalledWith('token-1');
+    expect(mocks.rpc).toHaveBeenCalledWith('update_show_style', {
+      p_show_id: 'show-1',
+      p_style: 'heritage',
+    });
+    expect(syncRequested).toBe(true);
+    expect(mocks.setReplicaRow).not.toHaveBeenCalled();
+    expect(queryClient.getQueryData<Show>(showQueryKeys.detail(show.id))?.style).toBe('monogram');
+    expect(queryClient.getQueryData<Show[]>(showQueryKeys.lists())?.[0]?.style).toBe('monogram');
+    expect(queryClient.getQueryData(showQueryKeys.statistics())).toEqual({ total: 1 });
   });
 
-  it('leaves every cache unchanged when the queued style update fails', async () => {
-    const queryClient = new QueryClient();
-    seedShowCaches(queryClient);
-    const before = queryClient
-      .getQueryCache()
-      .getAll()
-      .map(query => [query.queryKey, query.state.data] as const);
-    updateShowStyleMock.mockRejectedValue(new Error('queue failed'));
+  it('does not save while the show row or mutation queue has pending work', async () => {
+    mocks.getReplicatedRow.mockResolvedValueOnce({ isDirty: true });
+    await expect(
+      saveShowDraftStyle({ show, style: 'heritage', ownerId: 'owner-1' })
+    ).rejects.toThrow('Sync this show’s pending changes');
+    expect(mocks.rpc).not.toHaveBeenCalled();
+    expect(mocks.setReplicaRow).not.toHaveBeenCalled();
 
-    await expect(saveShowDraftStyle({ show, style: 'heritage', queryClient })).rejects.toThrow(
-      'queue failed'
+    mocks.getReplicatedRow.mockResolvedValueOnce({ isDirty: false });
+    mocks.getPendingForRow.mockResolvedValueOnce([{ id: 'pending-show-update' }]);
+    await expect(
+      saveShowDraftStyle({ show, style: 'heritage', ownerId: 'owner-1' })
+    ).rejects.toThrow('Sync this show’s pending changes');
+    expect(mocks.rpc).not.toHaveBeenCalled();
+  });
+
+  it('rechecks the owner after async preflight before invoking the RPC', async () => {
+    let currentOwner = 'owner-1';
+    mocks.getSession.mockImplementation(async () => ({
+      data: { session: { user: { id: currentOwner }, access_token: `${currentOwner}-token` } },
+      error: null,
+    }));
+    let enteredPreflight!: () => void;
+    let finishPreflight!: () => void;
+    const preflightStarted = new Promise<void>(resolve => {
+      enteredPreflight = resolve;
+    });
+    const preflightGate = new Promise<void>(resolve => {
+      finishPreflight = resolve;
+    });
+    mocks.getPendingForRow.mockImplementationOnce(async () => {
+      enteredPreflight();
+      await preflightGate;
+      return [];
+    });
+
+    const save = saveShowDraftStyle({ show, style: 'heritage', ownerId: 'owner-1' });
+    await preflightStarted;
+    currentOwner = 'owner-2';
+    finishPreflight();
+
+    await expect(save).rejects.toThrow('Your account changed');
+    expect(mocks.rpc).not.toHaveBeenCalled();
+  });
+
+  it('leaves replica and warm readers unchanged when the RPC fails', async () => {
+    const queryClient = makeQueryClient();
+    mocks.rpc.mockResolvedValue({ data: null, error: new Error('permission denied') });
+
+    await expect(
+      saveShowDraftStyle({ show, style: 'heritage', ownerId: 'owner-1' })
+    ).rejects.toThrow('permission denied');
+
+    expect(mocks.setReplicaRow).not.toHaveBeenCalled();
+    expect(queryClient.getQueryData<Show>(showQueryKeys.detail(show.id))?.style).toBe('monogram');
+  });
+
+  it('does not request sync when authentication changes while the RPC is in flight', async () => {
+    mocks.getSession
+      .mockResolvedValueOnce({
+        data: { session: { user: { id: 'owner-1' }, access_token: 'token-1' } },
+        error: null,
+      })
+      .mockResolvedValueOnce({
+        data: { session: { user: { id: 'owner-1' }, access_token: 'token-1' } },
+        error: null,
+      })
+      .mockResolvedValueOnce({
+        data: { session: { user: { id: 'owner-2' }, access_token: 'token-2' } },
+        error: null,
+      });
+    const dispatchSpy = vi.spyOn(window, 'dispatchEvent');
+
+    await expect(
+      saveShowDraftStyle({ show, style: 'heritage', ownerId: 'owner-1' })
+    ).rejects.toThrow(
+      'The style may have been saved, but your account changed or could not be confirmed'
     );
 
-    for (const [key, data] of before) {
-      expect(queryClient.getQueryData(key)).toBe(data);
-    }
-  });
-
-  it('does not rewrite a filtered cache that does not contain the target show', async () => {
-    const queryClient = new QueryClient({
-      defaultOptions: { queries: { structuralSharing: false } },
-    });
-    const filteredKey = showQueryKeys.search('other-show');
-    const filteredShows = [otherShow];
-    queryClient.setQueryData(filteredKey, filteredShows);
-    const beforeData = queryClient.getQueryData<Show[]>(filteredKey);
-    const beforeUpdatedAt = queryClient.getQueryState(filteredKey)?.dataUpdatedAt;
-
-    await saveShowDraftStyle({ show, style: 'heritage', queryClient });
-
-    expect(queryClient.getQueryData(filteredKey)).toBe(beforeData);
-    expect(queryClient.getQueryState(filteredKey)?.dataUpdatedAt).toBe(beforeUpdatedAt);
-  });
-
-  it('cancels in-flight show reads before applying a saved style', async () => {
-    let resolveOldRead!: (value: Show) => void;
-    const oldRead = queryClientForOldShowRead();
-    oldRead.setQueryData(showQueryKeys.detail('show-1'), show);
-    const oldReadPromise = oldRead.fetchQuery({
-      queryKey: showQueryKeys.detail('show-1'),
-      queryFn: () =>
-        new Promise<Show>(resolve => {
-          resolveOldRead = resolve;
-        }),
-    });
-
-    await saveShowDraftStyle({ show, style: 'heritage', queryClient: oldRead });
-    resolveOldRead({ ...show, style: 'monogram' });
-    await oldReadPromise.catch(() => undefined);
-
-    expect(oldRead.getQueryData<Show>(showQueryKeys.detail('show-1'))?.style).toBe('heritage');
-  });
-
-  it('reconciles a permanently rejected style to the replicated base style', async () => {
-    const queryClient = new QueryClient();
-    seedShowCaches(queryClient);
-    reconcileShowStyleMutationsMock.mockResolvedValue({
-      ...show,
-      style: 'monogram',
-      _syncStatus: 'synced',
-      _lastModified: new Date('2026-01-01T00:00:00.000Z'),
-    });
-
-    await reconcileShowStyleMutations({
-      showId: 'show-1',
-      excludedMutationIds: ['mutation-1'],
-      queryClient,
-    });
-
-    expect(reconcileShowStyleMutationsMock).toHaveBeenCalledWith('show-1', ['mutation-1']);
-    expect(queryClient.getQueryData<Show>(showQueryKeys.detail('show-1'))).toMatchObject({
-      style: 'monogram',
-      _syncStatus: 'synced',
-    });
-    expect(queryClient.getQueryData<Show[]>(showQueryKeys.lists())?.[0]).toMatchObject({
-      style: 'monogram',
-      _syncStatus: 'synced',
-    });
+    expect(mocks.rpc).toHaveBeenCalledTimes(1);
+    expect(mocks.setReplicaRow).not.toHaveBeenCalled();
+    expect(dispatchSpy).not.toHaveBeenCalledWith(
+      expect.objectContaining({ type: 'replication:sync-requested' })
+    );
+    dispatchSpy.mockRestore();
   });
 });
-
-function queryClientForOldShowRead(): QueryClient {
-  return new QueryClient({
-    defaultOptions: { queries: { retry: false } },
-  });
-}

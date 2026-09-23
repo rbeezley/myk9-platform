@@ -14,7 +14,11 @@ security invoker
 set search_path = ''
 as $$
 begin
-  if current_user <> 'postgres' then
+  -- SECURITY DEFINER writers execute as postgres, so current_user alone does
+  -- not distinguish trusted maintenance from an authenticated caller. Keep the
+  -- JWT identity visible to the trigger and enforce Premium for any
+  -- user-originated privileged insert/update as well as ordinary table writes.
+  if auth.uid() is not null then
     if tg_op = 'INSERT' then
       if new.style is not null
          and new.style <> 'monogram'
@@ -22,8 +26,15 @@ begin
         raise exception 'Premium access is required for this show style'
           using errcode = '42501';
       end if;
-    elsif new.style is distinct from old.style then
+    elsif current_user <> 'postgres'
+          and new.style is distinct from old.style then
       raise exception 'Show style must be changed through update_show_style'
+        using errcode = '42501';
+    elsif tg_op = 'UPDATE'
+          and new.style is distinct from old.style
+          and new.style <> 'monogram'
+          and not public.has_effective_premium_access(public.get_my_person_id(), now()) then
+      raise exception 'Premium access is required for this show style'
         using errcode = '42501';
     end if;
   end if;

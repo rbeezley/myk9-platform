@@ -72,6 +72,7 @@ const launchCriticalSqlTests = [
   'myk9_474_public_judge_names_test.sql',
   'judge_qualification_rpc_authorization_test.sql',
   'notification_preferences_sms_rls_test.sql',
+  'people_private_data_access_test.sql',
   'paperwork_prints_rls_test.sql',
   'placement_soft_delete_ranking_test.sql',
   'pre_rule_table_grants_test.sql',

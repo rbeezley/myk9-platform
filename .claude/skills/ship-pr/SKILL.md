@@ -5,7 +5,7 @@ description: Use when shipping or merging an existing PR/branch through review-c
 
 # Ship PR
 
-Use when a feature branch is ready to ship — whether it has an open PR or not. Bundles simplify → commit → PR creation (if needed) → review-comment fixes → **independent review gate** → squash-merge → close-out → worktree cleanup, in that order.
+Use when a feature branch is ready to ship — whether it has an open PR or not. Bundles simplify → commit → PR creation (if needed) → review-comment fixes → risk-appropriate review gate (optional for bounded low-risk changes) → squash-merge → close-out → worktree cleanup, in that order.
 
 This file is shared by Claude Code and Codex (`.agents/skills/ship-pr` is a symlink to it). Where the two harnesses differ, both paths are spelled out. "The instruction file" means `CLAUDE.md` for Claude Code and `AGENTS.md` for Codex.
 
@@ -112,12 +112,19 @@ After fixes, invoke `/commit` to push.
 pnpm qa:review-tier --base origin/main
 ```
 
-The printed `tier:` is the floor for this PR. Do NOT run a cross-harness
-review when the floor is `adversarial` or `none` — that is the whole point
-of the calculator, and a needless Codex/Claude round is the budget leaving.
+The printed `review:` says whether evidence is required. To evaluate a
+dependency-only PR, include its existing label: `pnpm qa:review-tier --base
+origin/main --label dependencies`. CI remains mandatory even when review is
+optional; reviewers are welcome whenever useful. The printed `tier:` remains
+the floor when the optional route does not apply.
 `scripts/qa/post-review-gate.sh` is the only writer of `Review gate:`
 comments for every tier — never type an evidence line by hand.
 
+- **`review: optional (...)`** — no synthetic attestation is needed; the gate
+  passes without review evidence while the diff stays eligible. A newly added
+  independent-risk path, an edit to an existing test file, a `package.json`
+  change outside the dependency fields, or removal of the `dependencies` label
+  restores the review requirement. A voluntary review can still use the normal process.
 - **`none`** — no review log required (`/dev/null` is fine):
   `bash scripts/qa/post-review-gate.sh $PR_NUMBER none <base-sha> <head-sha> "low-risk paths, CI green" /dev/null`
 - **`adversarial`** — run at least 2 subagent reviews with distinct
@@ -231,7 +238,7 @@ cd "/Users/richardbeezley/AI Projects/myk9-platform"
 
 Reading the rollup — three traps from the instruction file's LESSONS:
 
-- A red `Vercel – …` context whose `targetUrl` ends `?upgradeToPro=build-rate-limit` is an account quota, not a verdict on the diff; GitHub leaves the PR `MERGEABLE`/`UNSTABLE`, not `BLOCKED`. Merge on the Actions jobs plus the app's own Vercel context and say which check you ignored.
+- A red `Vercel – …` context whose `targetUrl` ends `?upgradeToPro=build-rate-limit` is an account quota, not a verdict on the diff; GitHub leaves the PR `MERGEABLE`/`UNSTABLE`, not `BLOCKED`. Merge on the Actions jobs and say which check you ignored. (myK9Show itself no longer builds PR previews; only the guides project does.)
 - A red check is a verdict on the base it ran against: if its run predates the `main` commit that fixed that failure, merge `origin/main` in and push — a rerun keeps the stale merge ref. **That push is a new head:** go back to Step 3 and Step 4, and record the gate for the new SHA before merging. Conflict resolutions and integration changes must not skip the review.
 - "No pending checks" is not "settled" — and neither is "nothing failed". Seconds after a push a
   lone fast status context has nothing pending and nothing red while no CI job has registered at
@@ -275,8 +282,8 @@ Then tell the user: "Auto-merge armed — GitHub will merge when required checks
 Do this **before** Step 7: once the worktree is removed the harness keeps its CWD there, and later shell calls fail.
 
 1. Confirm the merge: `gh pr view $PR_NUMBER --json state,mergeCommit`.
-2. A merge is not a deploy. Check the production build for a `main` commit at or after the merge commit (`gh api repos/<owner>/<repo>/commits/<sha>/status`); a Vercel build-rate-limit failure on `main` leaves staging serving the previous bundle.
-3. Move the Linear issue to Done only after reading its **full** description with `get_issue` (list results truncate acceptance criteria) and checking every criterion. If the production build has not gone green yet, leave the issue **In Progress**, say so, and tell the user what to re-check.
+2. A merge is not a deploy. The frontend goes live only on the next **Deploy myK9Show** run (`gh workflow run deploy-myk9show.yml`, only when the user asks); its summary names the deployed commit.
+3. Move the Linear issue to Done only after reading its **full** description with `get_issue` (list results truncate acceptance criteria) and checking every criterion. If a criterion needs production evidence and no deploy run has shipped the merge commit yet, leave the issue **In Progress**, say so, and tell the user a deploy is pending.
 
 ---
 

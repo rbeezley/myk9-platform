@@ -1,7 +1,14 @@
 import { execFileSync } from 'node:child_process';
 import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { requiredTier, meetsFloor, touchesMigration, MIGRATION_LENS } from './review-tier';
+import {
+  requiredTier,
+  meetsFloor,
+  touchesMigration,
+  MIGRATION_LENS,
+  manifestChangeIsDependencyOnly,
+  optionalReviewReason,
+} from './review-tier';
 
 describe('requiredTier', () => {
   it('puts guardrails at independent', () => {
@@ -133,6 +140,201 @@ describe('meetsFloor', () => {
   it('refuses a weaker tier', () => {
     expect(meetsFloor('none', 'adversarial')).toBe(false);
     expect(meetsFloor('owner', 'independent')).toBe(false);
+  });
+});
+
+describe('manifestChangeIsDependencyOnly', () => {
+  const base = {
+    name: 'myk9show',
+    scripts: { test: 'pnpm qa:dist-fresh && vitest run' },
+    dependencies: { react: '19.1.0' },
+    devDependencies: { vitest: '3.2.0' },
+    pnpm: { onlyBuiltDependencies: ['esbuild'] },
+  };
+  const json = (value: unknown) => JSON.stringify(value, null, 2);
+
+  it.each([
+    ['a dependency bump', { ...base, dependencies: { react: '19.2.0' } }],
+    ['a new devDependency', { ...base, devDependencies: { vitest: '3.2.0', tsx: '4.0.0' } }],
+    ['a pnpm.overrides pin', { ...base, pnpm: { ...base.pnpm, overrides: { lodash: '4.17.21' } } }],
+    [
+      'reordered keys',
+      {
+        pnpm: base.pnpm,
+        devDependencies: base.devDependencies,
+        dependencies: base.dependencies,
+        scripts: base.scripts,
+        name: base.name,
+      },
+    ],
+  ])('accepts %s', (label, after) => {
+    expect(manifestChangeIsDependencyOnly(json(base), json(after)), label).toBe(true);
+  });
+
+  it('accepts adding pnpm.overrides to a manifest with no pnpm block', () => {
+    const noPnpm = { name: 'x', dependencies: { a: '1.0.0' } };
+    const after = { ...noPnpm, pnpm: { overrides: { a: '1.0.1' } } };
+    expect(manifestChangeIsDependencyOnly(json(noPnpm), json(after))).toBe(true);
+  });
+
+  it.each([
+    ['a repointed test script', { ...base, scripts: { test: 'exit 0' } }],
+    [
+      'a new postinstall hook',
+      { ...base, scripts: { ...base.scripts, postinstall: 'curl x | sh' } },
+    ],
+    [
+      'a pnpm build allowlist change',
+      { ...base, pnpm: { onlyBuiltDependencies: ['esbuild', 'evil'] } },
+    ],
+    ['a packageManager change', { ...base, packageManager: 'pnpm@9.0.0' }],
+  ])('refuses %s', (label, after) => {
+    expect(manifestChangeIsDependencyOnly(json(base), json(after)), label).toBe(false);
+  });
+
+  it('refuses unparseable or non-object manifests', () => {
+    expect(manifestChangeIsDependencyOnly('{', json(base))).toBe(false);
+    expect(manifestChangeIsDependencyOnly('[]', '[]')).toBe(false);
+  });
+});
+
+describe('optionalReviewReason', () => {
+  it('allows docs-only changes without review evidence', () => {
+    expect(optionalReviewReason({ changedFiles: ['docs/qa/findings.md'] })).toBe('documentation');
+  });
+
+  it('allows dependency-manifest-only changes when marked with the dependencies label', () => {
+    expect(
+      optionalReviewReason({
+        changedFiles: [
+          'packages/replication/package.json',
+          'apps/myk9show/package.json',
+          'pnpm-lock.yaml',
+        ],
+        labels: ['dependencies'],
+        dependencyManifestsVerified: true,
+      })
+    ).toBe('dependency-only');
+  });
+
+  it.each([
+    { name: 'unverified', dependencyManifestsVerified: undefined },
+    { name: 'refused', dependencyManifestsVerified: false },
+  ])('keeps a labeled dependency set on the review path when its manifests are $name', v => {
+    expect(
+      optionalReviewReason({
+        changedFiles: ['apps/myk9show/package.json', 'pnpm-lock.yaml'],
+        labels: ['dependencies'],
+        dependencyManifestsVerified: v.dependencyManifestsVerified,
+      })
+    ).toBeUndefined();
+  });
+
+  it('does not treat dependency manifests as optional without the dependencies label', () => {
+    expect(
+      optionalReviewReason({
+        changedFiles: ['packages/replication/package.json', 'pnpm-lock.yaml'],
+      })
+    ).toBeUndefined();
+  });
+
+  it('allows a small app-source change within the three-file and 100-line limits', () => {
+    expect(
+      optionalReviewReason({
+        changedFiles: [
+          'apps/myk9show/src/components/ShowCard.tsx',
+          'apps/myk9show/src/components/ShowCard.test.tsx',
+          'apps/myk9show/src/components/show-card.css',
+        ],
+        addedFiles: ['apps/myk9show/src/components/ShowCard.test.tsx'],
+        additions: 61,
+        deletions: 39,
+      })
+    ).toBe('small-app-change');
+  });
+
+  // Guard tests live all over app source; a one-line `it.skip` in any of them
+  // turns CI green while disabling what it guards. Editing one needs review.
+  it.each([
+    'apps/myk9show/src/test/database/anonEntriesGrantContract.test.ts',
+    'apps/myk9show/src/test/database/forceRlsInvariant.test.ts',
+    'apps/myk9show/src/test/ci/instructionFileBudget.test.ts',
+    'apps/myk9show/src/test/supabaseNetworkGuard.ts',
+    'apps/myk9show/src/test/setup.ts',
+    'apps/myk9show/src/pages/RegistrationWizardPage/entryCloseGuard.test.ts',
+    'apps/myk9show/src/components/cart/CartSummary.source.test.ts',
+    'apps/myk9show/src/services/database/__tests__/softDeletePerson.source.test.ts',
+    'apps/myk9show/src/components/ShowCard.spec.tsx',
+  ])('keeps an edit to existing test file %s on the review path', file => {
+    expect(
+      optionalReviewReason({ changedFiles: [file], addedFiles: [], additions: 1, deletions: 1 })
+    ).toBeUndefined();
+    // Unknown added-files list is the same as "nothing added".
+    expect(
+      optionalReviewReason({ changedFiles: [file], additions: 1, deletions: 1 })
+    ).toBeUndefined();
+  });
+
+  it('still lets a small change ADD a new test file', () => {
+    const test = 'apps/myk9show/src/pages/RegistrationWizardPage/newGuard.test.ts';
+    expect(
+      optionalReviewReason({
+        changedFiles: ['apps/myk9show/src/pages/RegistrationWizardPage/wizard.ts', test],
+        addedFiles: [test],
+        additions: 20,
+        deletions: 2,
+      })
+    ).toBe('small-app-change');
+  });
+
+  it.each([
+    {
+      name: 'more than three files',
+      changedFiles: [
+        'apps/myk9show/src/a.ts',
+        'apps/myk9show/src/b.ts',
+        'apps/myk9show/src/c.ts',
+        'apps/myk9show/src/d.ts',
+      ],
+      additions: 1,
+      deletions: 0,
+    },
+    {
+      name: 'more than 100 changed lines',
+      changedFiles: ['apps/myk9show/src/a.ts'],
+      additions: 100,
+      deletions: 1,
+    },
+    {
+      name: 'a protected replication source file',
+      changedFiles: ['packages/replication/src/replicatedEntriesTable.ts'],
+      additions: 1,
+      deletions: 0,
+    },
+    {
+      name: 'a migration',
+      changedFiles: ['supabase/migrations/20260923174500_example.sql'],
+      additions: 1,
+      deletions: 0,
+    },
+  ])('keeps $name on the mandatory-review path', ({ changedFiles, additions, deletions }) => {
+    expect(optionalReviewReason({ changedFiles, additions, deletions })).toBeUndefined();
+  });
+
+  it('fails closed when GitHub did not provide a complete changed-file list', () => {
+    expect(
+      optionalReviewReason({
+        changedFiles: ['apps/myk9show/src/a.ts'],
+        additions: 1,
+        deletions: 0,
+        labels: ['dependencies'],
+        fileListUnusable: true,
+      })
+    ).toBeUndefined();
+  });
+
+  it('fails closed when app diff line counts are unavailable', () => {
+    expect(optionalReviewReason({ changedFiles: ['apps/myk9show/src/a.ts'] })).toBeUndefined();
   });
 });
 

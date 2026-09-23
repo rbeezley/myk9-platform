@@ -2,6 +2,7 @@ import { render, screen } from '@/test/utils/testUtils';
 import { fireEvent, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { useWizardStore } from '@/store/wizardStore';
 
 const mockUpdateShowData = vi.fn();
 
@@ -73,6 +74,24 @@ describe('ShowDetailsStep — Payment Methods section', () => {
     // The old standalone "Payment Methods" heading is gone — the accept-check /
     // accept-cash checkboxes now live under the Fees & Payments group.
     expect(screen.queryByText('Payment Methods')).not.toBeInTheDocument();
+  });
+
+  it('locks show-detail editing while a clone snapshot is loading', () => {
+    const currentState = useWizardStore();
+    vi.mocked(useWizardStore).mockReturnValueOnce({
+      ...currentState,
+      cloneHydration: {
+        status: 'hydrating',
+        sourceShowId: 'source-1',
+        sourceShowName: 'Cloned show',
+      },
+    });
+
+    render(<ShowDetailsStep />);
+
+    const lockedForm = screen.getByTestId('clone-locked-show-details');
+    expect(lockedForm).toHaveAttribute('inert');
+    expect(lockedForm).toHaveAttribute('aria-busy', 'true');
   });
 
   it('preserves the current wizard route when handing off complete club creation', () => {

@@ -3,43 +3,6 @@ const LEGACY_GENERATED_NAME =
 
 export const WIZARD_STORE_VERSION = 1;
 
-export interface PersistedCloneHydration {
-  status: 'idle' | 'hydrating' | 'ready' | 'failed';
-  sourceShowId: string | null;
-  sourceShowName: string | null;
-}
-
-/** A fetch cannot survive a page reload; make an interrupted clone explicitly retryable. */
-export function recoverInterruptedCloneHydration(value: unknown): PersistedCloneHydration {
-  if (!value || typeof value !== 'object') {
-    return { status: 'idle', sourceShowId: null, sourceShowName: null };
-  }
-
-  const persisted = value as Record<string, unknown>;
-  const sourceShowId = typeof persisted.sourceShowId === 'string' ? persisted.sourceShowId : null;
-  const sourceShowName =
-    typeof persisted.sourceShowName === 'string' ? persisted.sourceShowName : null;
-  const status = persisted.status;
-
-  if (!sourceShowId) {
-    return { status: 'idle', sourceShowId: null, sourceShowName: null };
-  }
-
-  if (status === 'hydrating') {
-    return {
-      status: 'failed',
-      sourceShowId,
-      sourceShowName,
-    };
-  }
-
-  if (status === 'ready' || status === 'failed') {
-    return { status, sourceShowId, sourceShowName };
-  }
-
-  return { status: 'idle', sourceShowId: null, sourceShowName: null };
-}
-
 /** Convert persisted generated labels to derived defaults and retain custom names as overrides. */
 export function migrateWizardState(persistedState: unknown, version: number): unknown {
   if (version >= WIZARD_STORE_VERSION || !persistedState || typeof persistedState !== 'object') {

@@ -44,6 +44,7 @@ export const ShowDetailsStep: React.FC<ShowDetailsStepProps> = ({
   const { clubs, loadClubs, syncClubs } = useClubStore();
   const { people, loadPeople, loadUsers, isLoading } = useUserStore();
   const { userWithRoles } = useAuthContext();
+  const cloneHydrating = cloneHydration.status === 'hydrating';
 
   const editMode = mode === 'create' && cloneHydration.status !== 'idle' ? 'clone' : mode;
   const organizationEditable = canChangeShowOrganization({
@@ -105,14 +106,13 @@ export const ShowDetailsStep: React.FC<ShowDetailsStepProps> = ({
 
   // Auto-fill secretary with the logged-in user (overridable)
   useEffect(() => {
+    if (cloneHydrating) return;
     if (!show.officials.secretary[0] && userWithRoles?.databaseUserId) {
       updateShowData({
         officials: { ...show.officials, secretary: [userWithRoles.databaseUserId] },
       });
     }
-    // Depend on secretary[0] primitive, not show.officials object, to avoid re-triggering
-    // on every updateShowData call that produces a new officials reference.
-  }, [show.officials.secretary[0], userWithRoles?.databaseUserId, updateShowData]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [cloneHydrating, show.officials, userWithRoles?.databaseUserId, updateShowData]);
 
   // Search states
   const [clubSearchTerm, setClubSearchTerm] = useState('');
@@ -120,10 +120,11 @@ export const ShowDetailsStep: React.FC<ShowDetailsStepProps> = ({
 
   // Auto-select club if user has exactly one
   useEffect(() => {
+    if (cloneHydrating) return;
     if (!show.clubId && scopedClubs.length === 1) {
       updateShowData({ clubId: scopedClubs[0].id });
     }
-  }, [show.clubId, scopedClubs, updateShowData]);
+  }, [cloneHydrating, show.clubId, scopedClubs, updateShowData]);
 
   // Derived data
   const filteredClubsList = React.useMemo(
@@ -165,60 +166,66 @@ export const ShowDetailsStep: React.FC<ShowDetailsStepProps> = ({
         {/* Clone from previous show — optional, prefills every group below */}
         <CloneFromShowCombobox clubId={show.clubId || undefined} />
 
-        <BasicsSection
-          show={show}
-          onUpdate={handleUpdateShow}
-          organizationDisabled={!organizationEditable}
-          organizationValue={
-            mode === 'add-trials' || mode === 'add-classes' ? persistedOrganization : undefined
-          }
-          organizationHint={organizationHint}
-          clubField={
-            <HostClubField
-              clubId={show.clubId}
-              clubs={clubs}
-              filteredClubs={filteredClubsList}
-              showSearch={showClubSearch}
-              setShowSearch={setShowClubSearch}
-              searchTerm={clubSearchTerm}
-              setSearchTerm={setClubSearchTerm}
-              onSelectClub={clubId => updateShowData({ clubId })}
-              createClubHref={createClubHref}
-            />
-          }
-        />
+        <div
+          data-testid="clone-locked-show-details"
+          inert={cloneHydrating}
+          aria-busy={cloneHydrating}
+        >
+          <BasicsSection
+            show={show}
+            onUpdate={handleUpdateShow}
+            organizationDisabled={!organizationEditable}
+            organizationValue={
+              mode === 'add-trials' || mode === 'add-classes' ? persistedOrganization : undefined
+            }
+            organizationHint={organizationHint}
+            clubField={
+              <HostClubField
+                clubId={show.clubId}
+                clubs={clubs}
+                filteredClubs={filteredClubsList}
+                showSearch={showClubSearch}
+                setShowSearch={setShowClubSearch}
+                searchTerm={clubSearchTerm}
+                setSearchTerm={setClubSearchTerm}
+                onSelectClub={clubId => updateShowData({ clubId })}
+                createClubHref={createClubHref}
+              />
+            }
+          />
 
-        <DatesEntrySection
-          show={show}
-          dateRangeValid={dateRangeValid}
-          entryDatesValid={entryDatesValid}
-          onUpdate={updateShowData}
-        />
+          <DatesEntrySection
+            show={show}
+            dateRangeValid={dateRangeValid}
+            entryDatesValid={entryDatesValid}
+            onUpdate={updateShowData}
+          />
 
-        <FeesPaymentsSection show={show} onUpdate={updateShowData} />
+          <FeesPaymentsSection show={show} onUpdate={updateShowData} />
 
-        <MoreOptionsSection show={show} onUpdate={updateShowData} />
+          <MoreOptionsSection show={show} onUpdate={updateShowData} />
 
-        <OfficialsSection
-          people={people}
-          peopleLoading={peopleLoading}
-          selectedChairmanId={selectedChairmanId}
-          selectedSecretaryId={selectedSecretaryId}
-          secretaryIsSelf={selectedSecretaryId === userWithRoles?.databaseUserId}
-          selectedJudges={selectedJudges}
-          onOpenOfficialPicker={() => void loadUsers()}
-          onSelectChairman={id =>
-            updateShowData({ officials: { ...show.officials, chairman: [id] } })
-          }
-          onSelectSecretary={id =>
-            updateShowData({ officials: { ...show.officials, secretary: [id] } })
-          }
-          onCreatePerson={handleCreateOfficialPerson}
-          onAddJudge={handleAddJudge}
-          onRemoveJudge={removeJudgeFromShow}
-          onSaveCredentials={handleSaveJudgeCredentials}
-          onCreateJudge={handleCreateNewJudge}
-        />
+          <OfficialsSection
+            people={people}
+            peopleLoading={peopleLoading}
+            selectedChairmanId={selectedChairmanId}
+            selectedSecretaryId={selectedSecretaryId}
+            secretaryIsSelf={selectedSecretaryId === userWithRoles?.databaseUserId}
+            selectedJudges={selectedJudges}
+            onOpenOfficialPicker={() => void loadUsers()}
+            onSelectChairman={id =>
+              updateShowData({ officials: { ...show.officials, chairman: [id] } })
+            }
+            onSelectSecretary={id =>
+              updateShowData({ officials: { ...show.officials, secretary: [id] } })
+            }
+            onCreatePerson={handleCreateOfficialPerson}
+            onAddJudge={handleAddJudge}
+            onRemoveJudge={removeJudgeFromShow}
+            onSaveCredentials={handleSaveJudgeCredentials}
+            onCreateJudge={handleCreateNewJudge}
+          />
+        </div>
       </div>
     </div>
   );

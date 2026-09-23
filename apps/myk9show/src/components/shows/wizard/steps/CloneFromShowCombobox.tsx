@@ -7,7 +7,7 @@
  * Selecting "Start fresh" resets show data back to the wizard's empty defaults.
  */
 
-import React, { useState, useMemo, useRef } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { Copy, ChevronsUpDown, Check, X } from 'lucide-react';
 import { formatShortCalendarDate } from '@/lib/format/dates';
 import { Button } from '@/components/ui/button';
@@ -29,21 +29,29 @@ interface CloneFromShowComboboxProps {
 
 export const CloneFromShowCombobox: React.FC<CloneFromShowComboboxProps> = ({ clubId }) => {
   const {
-    updateShowData,
-    addJudgeToShow,
-    addTrial,
-    resetWizard,
     cloneHydration,
-    setCloneHydration,
+    cloneGeneration,
+    beginCloneHydration,
+    failCloneHydration,
+    cancelCloneHydration,
+    completeCloneHydration,
+    resetWizard,
   } = useWizardStore();
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState('');
-  const cloneRequestIdRef = useRef(0);
   const clonedShowName = cloneHydration.sourceShowName;
   const cloneFailed = cloneHydration.status === 'failed';
   const { people } = useUserStore();
   const { data: allShows = [], isLoading, isError } = useShowsQuery();
   const { templates } = useTemplates();
+
+  useEffect(() => {
+    const generation = cloneGeneration;
+    const wasHydrating = cloneHydration.status === 'hydrating';
+    return () => {
+      if (wasHydrating) cancelCloneHydration(generation);
+    };
+  }, [cancelCloneHydration, cloneGeneration, cloneHydration.status]);
 
   // Determine which club IDs this user has secretary/admin access to
   const userClubIds = useUserClubIds();
@@ -77,36 +85,23 @@ export const CloneFromShowCombobox: React.FC<CloneFromShowComboboxProps> = ({ cl
   }, [candidateShows, search]);
 
   const handleSelect = async (show: Show) => {
-    const requestId = cloneRequestIdRef.current + 1;
-    cloneRequestIdRef.current = requestId;
+    const generation = beginCloneHydration(show.id, show.name);
     setOpen(false);
     setSearch('');
-    resetWizard();
-    setCloneHydration({ status: 'hydrating', sourceShowId: show.id, sourceShowName: show.name });
 
-    // Prefill all non-date show fields
-    updateShowData({
-      name: show.name,
-      organization: show.organization as 'AKC' | 'UKC' | 'Other',
-      location: show.location || '',
-      clubId: show.clubId || '',
-      preEntryFee: parseFloat(show.preEntryFee) || 0,
-      dayOfShowFee: parseFloat(show.dayOfShowFee || '0') || 0,
-      startingArmbandNumber: show.startingArmbandNumber ?? 100,
-      acceptCheckPayments: show.acceptCheckPayments ?? false,
-      acceptCashPayments: show.acceptCashPayments ?? false,
-      // Dates are intentionally left blank so the secretary fills them in
-      startDate: '',
-      endDate: '',
-      entryOpenDate: '',
-      entryCloseDate: '',
-    });
+    let sourceTrials: Show['trials'];
+    try {
+      sourceTrials = await getCloneSourceTrials(show);
+    } catch {
+      failCloneHydration(generation);
+      return;
+    }
 
-    // Re-add judges from the source show
-    if (show.assignedJudges?.length) {
-      for (const assignment of show.assignedJudges) {
-        const person = people.find(p => p.id === assignment.judgeId);
-        addJudgeToShow(assignment.judgeId, {
+    const judges = (show.assignedJudges || []).map(assignment => {
+      const person = people.find(candidate => candidate.id === assignment.judgeId);
+      return {
+        judgeId: assignment.judgeId,
+        details: {
           name: person
             ? `${person.firstName} ${person.lastName}`
             : assignment.judgeName || 'Unknown Judge',
@@ -114,69 +109,83 @@ export const CloneFromShowCombobox: React.FC<CloneFromShowComboboxProps> = ({ cl
           phone: person?.phone || '',
           certifications: person?.judgeQualifications?.map(q => q.organization) || [],
           notes: '',
-        });
-      }
-    }
+        },
+      };
+    });
 
-    let sourceTrials: Show['trials'];
-    try {
-      sourceTrials = await getCloneSourceTrials(show);
-    } catch {
-      if (requestId !== cloneRequestIdRef.current) return;
-      setCloneHydration({ status: 'failed', sourceShowId: show.id, sourceShowName: show.name });
-      return;
-    }
-    if (requestId !== cloneRequestIdRef.current) return;
+    const trials = sourceTrials.map(trial => {
+      const sourceClasses = trial.classes || [];
+      // Wizard state stores one template id per class. Normal trial data is single-sport, and
+      // customizations preserve the visible class details if the template cannot be recovered.
+      const template = resolveCloneTemplate({
+        templates,
+        organization: show.organization,
+        trialType: trial.trialType,
+        classes: sourceClasses,
+      });
 
-    if (sourceTrials.length) {
-      for (const trial of sourceTrials) {
-        const sourceClasses = trial.classes || [];
-        // Wizard state stores one template id per class. Normal trial data is single-sport, and
-        // customizations preserve the visible class details if the template cannot be recovered.
-        const template = resolveCloneTemplate({
-          templates,
-          organization: show.organization,
-          trialType: trial.trialType,
-          classes: sourceClasses,
-        });
+      return {
+        nameOverride: trial.name || 'Trial',
+        dateTime: '',
+        eventNumber: '',
+        trialType: trial.trialType,
+        classes: sourceClasses.map(cls => {
+          const judgeId =
+            (show.assignedJudges || []).find(judge => judge.assignedClasses?.includes(cls.id))
+              ?.judgeId || undefined;
 
-        addTrial({
-          nameOverride: trial.name || 'Trial',
-          dateTime: '',
-          eventNumber: '',
-          trialType: trial.trialType,
-          classes: sourceClasses.map(cls => {
-            const judgeId =
-              (show.assignedJudges || []).find(judge => judge.assignedClasses?.includes(cls.id))
-                ?.judgeId || undefined;
+          return {
+            templateId: cls.templateId || template?.id || '',
+            customizations: {
+              className: cls.name,
+              element: cls.element,
+              level: cls.level,
+              section: cls.section,
+              entryFee: cls.entryFee,
+              hidesUsed: cls.hidesUsed,
+              distractionsUsed: cls.distractionsUsed,
+              itemsUsed: cls.itemsUsed,
+              timeLimit1: cls.timeLimit1,
+              timeLimit2: cls.timeLimit2,
+              timeLimit3: cls.timeLimit3,
+            },
+            ...(judgeId ? { judgeId } : {}),
+          };
+        }),
+      };
+    });
 
-            return {
-              templateId: cls.templateId || template?.id || '',
-              customizations: {
-                className: cls.name,
-                element: cls.element,
-                level: cls.level,
-                section: cls.section,
-                entryFee: cls.entryFee,
-                hidesUsed: cls.hidesUsed,
-                distractionsUsed: cls.distractionsUsed,
-                itemsUsed: cls.itemsUsed,
-                timeLimit1: cls.timeLimit1,
-                timeLimit2: cls.timeLimit2,
-                timeLimit3: cls.timeLimit3,
-              },
-              ...(judgeId ? { judgeId } : {}),
-            };
-          }),
-        });
-      }
-    }
-    setCloneHydration({ status: 'ready', sourceShowId: show.id, sourceShowName: show.name });
+    completeCloneHydration(generation, {
+      sourceShowId: show.id,
+      sourceShowName: show.name,
+      show: {
+        name: show.name,
+        organization: show.organization as 'AKC' | 'UKC' | 'Other',
+        location: show.location || '',
+        clubId: show.clubId || '',
+        preEntryFee: parseFloat(show.preEntryFee) || 0,
+        dayOfShowFee: parseFloat(show.dayOfShowFee || '0') || 0,
+        startingArmbandNumber: show.startingArmbandNumber ?? 100,
+        acceptCheckPayments: show.acceptCheckPayments ?? false,
+        acceptCashPayments: show.acceptCashPayments ?? false,
+        judgeIds: judges.map(judge => judge.judgeId),
+        // Dates are intentionally left blank so the secretary fills them in.
+        startDate: '',
+        endDate: '',
+        entryOpenDate: '',
+        entryCloseDate: '',
+      },
+      judgeDetails: Object.fromEntries(judges.map(({ judgeId, details }) => [judgeId, details])),
+      trials,
+    });
   };
 
   const handleStartFresh = () => {
-    cloneRequestIdRef.current += 1;
     resetWizard();
+  };
+
+  const handleCancelClone = () => {
+    cancelCloneHydration(cloneGeneration);
   };
 
   const handleRetryClone = () => {
@@ -221,11 +230,13 @@ export const CloneFromShowCombobox: React.FC<CloneFromShowComboboxProps> = ({ cl
                 type="button"
                 variant="ghost"
                 size="sm"
-                onClick={handleStartFresh}
+                onClick={
+                  cloneHydration.status === 'hydrating' ? handleCancelClone : handleStartFresh
+                }
                 className="h-8 gap-1.5 text-muted-foreground hover:text-foreground px-2"
               >
                 <X className="h-3.5 w-3.5" />
-                Start fresh
+                {cloneHydration.status === 'hydrating' ? 'Cancel clone' : 'Start fresh'}
               </Button>
             </div>
           ) : (
@@ -290,13 +301,19 @@ export const CloneFromShowCombobox: React.FC<CloneFromShowComboboxProps> = ({ cl
       {cloneFailed && (
         <div className="mt-3 pl-11" role="alert">
           <p className="text-xs text-destructive">
-            We could not load the cloned classes. The organization stays locked until the clone
-            finishes safely.
+            {cloneHydration.failureReason === 'load-failed'
+              ? 'We could not load the cloned classes. Your current draft is unchanged; retry the clone or start fresh.'
+              : 'The clone is still loading. Your current draft is unchanged; retry the clone or start fresh.'}
           </p>
           <Button type="button" variant="ghost" size="sm" onClick={handleRetryClone}>
             Retry clone
           </Button>
         </div>
+      )}
+      {cloneHydration.status === 'hydrating' && (
+        <p className="mt-3 pl-11 text-xs text-muted-foreground" role="status" aria-live="polite">
+          Loading the complete show before applying the clone. Editing is paused until it finishes.
+        </p>
       )}
       {clonedShowName && !cloneFailed && (
         <p className="text-xs text-muted-foreground mt-3 pl-11">

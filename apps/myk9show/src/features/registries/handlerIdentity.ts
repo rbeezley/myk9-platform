@@ -56,6 +56,67 @@ export interface HandlerPersonLike {
   last_name?: string | null | undefined;
 }
 
+export type HandlerIdentitySource = 'assigned-text' | 'assigned-person' | 'owner' | 'unknown';
+
+export interface HandlerIdentityProjection<TPerson extends HandlerPersonLike = HandlerPersonLike> {
+  name: string | null;
+  person: TPerson | null;
+  source: HandlerIdentitySource;
+}
+
+export interface ProjectHandlerIdentityInput<
+  TPerson extends HandlerPersonLike = HandlerPersonLike,
+> {
+  assignedHandlerName?: string | null | undefined;
+  assignedHandlerId?: string | null | undefined;
+  assignedHandlerPerson?: TPerson | null | undefined;
+  ownerPerson?: TPerson | null | undefined;
+}
+
+function personName(person: HandlerPersonLike | null | undefined): string {
+  return `${person?.first_name ?? ''} ${person?.last_name ?? ''}`.trim();
+}
+
+/**
+ * Project one entry's handler identity using the stored text, assigned person,
+ * and owner in that order. An assigned ID that cannot be resolved stays
+ * unknown rather than borrowing the dog's owner.
+ */
+export function projectHandlerIdentity<TPerson extends HandlerPersonLike>({
+  assignedHandlerName,
+  assignedHandlerId,
+  assignedHandlerPerson,
+  ownerPerson,
+}: ProjectHandlerIdentityInput<TPerson>): HandlerIdentityProjection<TPerson> {
+  const printedName = assignedHandlerName?.trim() ?? '';
+  if (printedName) {
+    const matchingAssignedPerson = resolveHandlerPerson({
+      printedHandlerName: printedName,
+      handlerIdPerson: assignedHandlerPerson,
+      ownerPerson: null,
+    });
+    return { name: printedName, person: matchingAssignedPerson, source: 'assigned-text' };
+  }
+
+  const assignedPersonName = personName(assignedHandlerPerson);
+  if (assignedPersonName) {
+    return {
+      name: assignedPersonName,
+      person: assignedHandlerPerson ?? null,
+      source: 'assigned-person',
+    };
+  }
+
+  if (assignedHandlerId?.trim()) {
+    return { name: null, person: null, source: 'unknown' };
+  }
+
+  const ownerName = personName(ownerPerson);
+  return ownerName
+    ? { name: ownerName, person: ownerPerson ?? null, source: 'owner' }
+    : { name: null, person: null, source: 'unknown' };
+}
+
 /**
  * Case, punctuation and whitespace folded away. Hyphens and apostrophes become
  * spaces so `Owner-Smith` and `O'Brien` survive a secretary typing them either

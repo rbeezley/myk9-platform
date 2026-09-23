@@ -326,6 +326,10 @@ export const mapReplicatedEntryToDbRow = (
       class_id: 'classId',
       show_id: 'showId',
       dog_id: 'dogId',
+      // Preserve the canonical owner dependency even when the separate dog
+      // cache row is unavailable. At-show consumers use this ID to match a
+      // later handler-person hydration completion.
+      dog_owner_id: 'dogOwnerId',
       handler_id: 'handlerId',
       armband: 'armband',
       handler: 'handler',
@@ -374,6 +378,10 @@ export const mapReplicatedEntryToDbRow = (
     comped_reason: entry.compedReason ?? entry.comped_reason ?? null,
     is_scored: entry.isScored ?? false,
     created_at: entry.submittedAt ?? entry.updated_at ?? null,
+    // Replicated entry-result views carry denormalized dog identity so
+    // show-day reads can still render when the separate dogs cache is cold.
+    dog_call_name: options?.dog?.callName ?? entry.dogCallName ?? entry.dog_call_name ?? null,
+    dog_breed: options?.dog?.breed ?? entry.dogBreed ?? entry.dog_breed ?? null,
   };
 
   // Attach dog sub-object when provided

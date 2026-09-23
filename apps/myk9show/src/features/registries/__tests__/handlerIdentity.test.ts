@@ -8,6 +8,7 @@ import { describe, it, expect } from 'vitest';
 import {
   handlerNameMatchesPerson,
   normalizeHandlerName,
+  projectHandlerIdentity,
   resolveHandlerPerson,
 } from '../handlerIdentity';
 
@@ -163,5 +164,52 @@ describe('normalizeHandlerName', () => {
     expect(normalizeHandlerName("  O'Brien-Smith,  Sarah ")).toBe('o brien smith sarah');
     expect(normalizeHandlerName('José')).toBe('josé');
     expect(normalizeHandlerName(null)).toBe('');
+  });
+});
+
+describe('projectHandlerIdentity', () => {
+  it('uses stored assigned text before joined person or owner', () => {
+    expect(
+      projectHandlerIdentity({
+        assignedHandlerName: 'Entry Text',
+        assignedHandlerId: 'person-kid',
+        assignedHandlerPerson: KID,
+        ownerPerson: OWNER,
+      })
+    ).toMatchObject({ name: 'Entry Text', source: 'assigned-text' });
+  });
+
+  it('does not attach stale assigned-person metadata to mismatched stored text', () => {
+    expect(
+      projectHandlerIdentity({
+        assignedHandlerName: 'Grandma Smith',
+        assignedHandlerId: KID.id,
+        assignedHandlerPerson: KID,
+        ownerPerson: OWNER,
+      })
+    ).toMatchObject({ name: 'Grandma Smith', person: null, source: 'assigned-text' });
+  });
+
+  it('uses the joined assigned person when handler text is absent', () => {
+    expect(
+      projectHandlerIdentity({
+        assignedHandlerId: 'person-kid',
+        assignedHandlerPerson: KID,
+        ownerPerson: OWNER,
+      })
+    ).toMatchObject({ name: 'Chris Kid', source: 'assigned-person' });
+  });
+
+  it('uses the owner only when there is no assigned handler', () => {
+    expect(projectHandlerIdentity({ ownerPerson: OWNER })).toMatchObject({
+      name: 'Sarah Owner',
+      source: 'owner',
+    });
+  });
+
+  it('does not replace an unresolved assigned id with the owner', () => {
+    expect(
+      projectHandlerIdentity({ assignedHandlerId: 'deleted-handler', ownerPerson: OWNER })
+    ).toMatchObject({ name: null, source: 'unknown', person: null });
   });
 });

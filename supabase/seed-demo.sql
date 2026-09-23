@@ -4,8 +4,11 @@
 -- WHAT THIS IS
 --   A realistic, *publicly visible* LEAN demo dataset (2 clubs, the three
 --   Heartland shows -- AKC ...010 with 4 trials and 11 classes, UKC ...011,
---   ASCA ...012 -- 6 dogs, 13 hand-authored entries on the demo show) that
---   preserves the golden paths. It also includes complete show officials and
+--   ASCA ...012 -- plus one entry-free PAST Prairie Trail show that exists only
+--   as a cross-club class target (section 4c), 6 dogs, 13 hand-authored entries
+--   on the demo show) that preserves the golden paths. Every staging e2e spec and
+--   scheduled walk that needs a specific row points at this lean set;
+--   seedDemoStagingConsumersContract.test.ts pins that. It also includes complete show officials and
 --   full RBAC role coverage so every role's golden path is walkable after a reseed:
 --     - Show officials are modeled through user_roles grants. A class's judge is
 --       ONLY its judge_assignments row (section 11); classes.judge_name was
@@ -170,6 +173,8 @@ END $$;
 --   MYK9-490 single-registry sibling shows, same club:
 --   show   dededede-0000-0000-0000-000000000011 (UKC)  trial ...025  class dec1a55e-...04{1,2}
 --   show   dededede-0000-0000-0000-000000000012 (ASCA) trial ...026  class dec1a55e-...04{3,4}
+--   show   dededede-0000-0000-0000-000000000013 (AKC, Prairie Trail, past) trial ...027  class ...046
+--          -- the cross-club class fixture (section 4c); upserted, never deleted
 --   dog    dededede-0000-0000-0000-00000000004{1..6}
 --   entry  dededede-0000-0000-0000-00000000005{1..8}, ...067/...068, ...069 (+ ...059/...060 refund fixtures)
 --   armband      dededede-0000-0000-0000-00000000006{1..6}
@@ -589,9 +594,9 @@ DELETE FROM public.club_stripe_accounts WHERE club_id IN (
 --    its own club" is only half the contract. The other half, "and NOT on someone
 --    else's", is INEXPRESSIBLE with a single seeded club: there is no second
 --    subject to be rejected from. Prairie Trail exists to be that subject. It
---    deliberately has no show, no trials and no entries — it is a scope boundary,
---    not a second demo dataset, and adding fixtures to it would slow every walk
---    without testing anything new.
+--    has no entries and no current show -- it is a scope boundary, not a second
+--    demo dataset. Its one PAST show/trial/class (section 4c) exists only as the
+--    cross-club class a real Heartland viewer must be refused on.
 -- ---------------------------------------------------------------------------
 INSERT INTO public.clubs (id, name, city, state, email, description, club_number, version)
 VALUES (
@@ -1063,6 +1068,111 @@ VALUES
   ('dec1a55e-0000-0000-0000-000000000044', 'dededede-0000-0000-0000-000000000026',
    'Exterior Open', 'Open', 'Exterior', NULL,
    30.00, 'upcoming', 180, 2, 1, false, 'single', true, 2, 1);
+
+-- ---------------------------------------------------------------------------
+-- 4c. CROSS-CLUB CLASS FIXTURE (Prairie Trail, MYK9-464 / MYK9-558)
+--
+-- crossClubClassScope.spec.ts proves, with REAL club-scoped viewers, that a
+-- Heartland secretary or club admin gets no operational surface on a class
+-- another club owns. It used to point at MYK9-109 Load Club 1's class; that
+-- club is opt-in load-fixture data since MYK9-558, so a plain reseed removed
+-- the spec's target. This is the smallest lean-seed replacement: ONE show, ONE
+-- trial, ONE class under Prairie Trail, and nothing else -- no entries, no
+-- judge, no officials, no visibility row.
+--
+-- Deliberately in the PAST (CURRENT_DATE - 60, entry window long closed), so it
+-- never appears in Find Shows' default "upcoming" view or on a Heartland
+-- secretary's dashboard, and nobody can enter it. The Oct 10 readiness check
+-- (MYK9-558: "Find Shows lists only the three Heartland shows") stays true.
+--
+-- UPSERTED, never deleted: section 0 deletes only ids the paid-stray guard
+-- (public.seed_demo_assert_no_paid_strays) names, and extending that list would
+-- need a migration. An upsert destroys nothing, so it needs no guard. Each row
+-- is reset to its declared state (deleted_at cleared) on every reseed.
+-- seedDemoStagingConsumersContract.test.ts pins the spec to these ids.
+-- ---------------------------------------------------------------------------
+INSERT INTO public.shows (
+  id, name, organization, description,
+  start_date, end_date, entry_open_date, entry_close_date,
+  location, city, state, latitude, longitude, status, club_id,
+  pre_entry_fee, day_of_show_fee,
+  allow_non_owner_handlers, results_visible_to_all,
+  starting_armband_number, default_judge_day_capacity,
+  mail_in_strategy, mail_in_auto_release, waitlist_payment_deadline_hours,
+  accept_check_payments, accept_cash_payments,
+  cc_secretary_on_exhibitor_emails,
+  style, experience_is_published, experience_published_content,
+  brand_color, version, is_nationals
+)
+VALUES (
+  'dededede-0000-0000-0000-000000000013',
+  'Prairie Trail Spring Scent Work Trial',
+  'AKC',
+  'A past AKC Scent Work trial hosted by the Prairie Trail Dog Sports Club.',
+  ((CURRENT_DATE - 60)::timestamp AT TIME ZONE 'UTC'), ((CURRENT_DATE - 60)::timestamp AT TIME ZONE 'UTC'),
+  ((CURRENT_DATE - 120)::timestamp AT TIME ZONE 'UTC'), ((CURRENT_DATE - 67)::timestamp AT TIME ZONE 'UTC'),
+  '200 Prairie Road, Wichita, KS 67202',
+  'Wichita', 'Kansas',
+  37.69, -97.34,
+  'published',
+  'dededede-0000-0000-0000-000000000002',
+  30.00, 35.00,
+  true, true,
+  100, 125,
+  'none', false, 48,
+  true, true,
+  true,
+  'headline', false, '{}'::jsonb,
+  '#0d4d4f', 1, false
+)
+ON CONFLICT (id) DO UPDATE
+  SET name             = EXCLUDED.name,
+      organization     = EXCLUDED.organization,
+      description      = EXCLUDED.description,
+      start_date       = EXCLUDED.start_date,
+      end_date         = EXCLUDED.end_date,
+      entry_open_date  = EXCLUDED.entry_open_date,
+      entry_close_date = EXCLUDED.entry_close_date,
+      status           = EXCLUDED.status,
+      club_id          = EXCLUDED.club_id,
+      deleted_at       = NULL,
+      deleted_by       = NULL;
+
+INSERT INTO public.trials (
+  id, show_id, name, date, trial_number, status,
+  planned_start_time, allow_self_checkin, trial_type, pipeline_stage,
+  display_order, category, registry_id, timezone, version
+)
+VALUES
+  ('dededede-0000-0000-0000-000000000027', 'dededede-0000-0000-0000-000000000013',
+   'Trial 1', (CURRENT_DATE - 60), 'Trial 1', 'upcoming',
+   '8:00 AM', false, 'scent_work', 1, 1, 'Trial 1', 'AKC', 'America/Chicago', 1)
+ON CONFLICT (id) DO UPDATE
+  SET show_id     = EXCLUDED.show_id,
+      name        = EXCLUDED.name,
+      date        = EXCLUDED.date,
+      registry_id = EXCLUDED.registry_id,
+      deleted_at  = NULL,
+      deleted_by  = NULL;
+
+INSERT INTO public.classes (
+  id, trial_id, name, level, element, section,
+  entry_fee, status, time_limit_seconds, num_hides, num_areas,
+  has_blank, timer_mode, hides_known, display_order, version
+)
+VALUES
+  ('dec1a55e-0000-0000-0000-000000000046', 'dededede-0000-0000-0000-000000000027',
+   'Container Novice A', 'Novice', 'Container', 'A',
+   30.00, 'upcoming', 120, 1, 1, false, 'single', true, 1, 1)
+ON CONFLICT (id) DO UPDATE
+  SET trial_id   = EXCLUDED.trial_id,
+      name       = EXCLUDED.name,
+      level      = EXCLUDED.level,
+      element    = EXCLUDED.element,
+      section    = EXCLUDED.section,
+      status     = EXCLUDED.status,
+      deleted_at = NULL,
+      deleted_by = NULL;
 
 -- ---------------------------------------------------------------------------
 -- 5. Dogs (6)  -- owner_id resolved from protected accounts by email

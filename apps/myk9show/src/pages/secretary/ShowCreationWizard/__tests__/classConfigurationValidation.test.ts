@@ -30,6 +30,17 @@ describe('normalizeWizardClassSelections', () => {
         }),
       ])
     ).toThrow(/Unresolved class.*element/i);
+
+    expect(() =>
+      normalizeWizardClassSelections('AKC', [
+        trial('Obedience', {
+          className: 'Unresolved section',
+          element: 'Utility',
+          level: 'B',
+          section: 'Unknown',
+        }),
+      ])
+    ).toThrow(/Unresolved section.*section/i);
   });
 
   it('rejects a level and section combination not present in the selected registry', () => {

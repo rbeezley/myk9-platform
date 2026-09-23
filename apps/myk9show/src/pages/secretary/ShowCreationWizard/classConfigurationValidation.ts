@@ -12,6 +12,7 @@ export interface CanonicalWizardClassTriple {
 
 export interface NormalizedWizardClassSelection {
   trialId: string;
+  sourceIndex: number;
   className: string;
   templateId: string;
   judgeId?: string;
@@ -68,6 +69,10 @@ export function normalizeWizardClassSelections(
         invalidClasses.push({ className, reason: 'registry level is unresolved' });
         continue;
       }
+      if (section.toLocaleLowerCase() === 'unknown') {
+        invalidClasses.push({ className, reason: 'registry section is unresolved' });
+        continue;
+      }
 
       let triple: CanonicalWizardClassTriple;
       if (isScentWorkTrial(trial.trialType)) {
@@ -92,6 +97,7 @@ export function normalizeWizardClassSelections(
       seen.add(semanticKey);
       normalized.push({
         trialId: trial.id,
+        sourceIndex: index,
         className,
         templateId: selection.templateId,
         judgeId: selection.judgeId,

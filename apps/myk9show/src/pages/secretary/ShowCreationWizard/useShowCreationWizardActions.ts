@@ -35,6 +35,10 @@ import { saveShowAtomicOnline } from './saveShowAtomicOnline';
 import { buildRuleMap } from './buildRuleMap';
 import { createWizardClasses } from './createWizardClasses';
 import { createDraftShow, finishShowSave } from './showSaveCompletion';
+import {
+  normalizeWizardClassSelections,
+  type NormalizedWizardClassSelection,
+} from './classConfigurationValidation';
 
 interface UseShowCreationWizardActionsOptions {
   editMode?: EditMode | undefined;
@@ -150,7 +154,11 @@ export function useShowCreationWizardActions({
    * so scoring works fully offline.
    */
   const createClasses = useCallback(
-    async (showId: string, trialIdMap: Record<string, string>) => {
+    async (
+      showId: string,
+      trialIdMap: Record<string, string>,
+      normalizedClasses: readonly NormalizedWizardClassSelection[]
+    ) => {
       logger.debug('createClasses called', 'wizard', { showId, trialIdMap });
 
       const allClasses = createClassDataFromWizard(
@@ -161,7 +169,8 @@ export function useShowCreationWizardActions({
         existingTrials,
         editMode,
         { preEntryFee: show.preEntryFee, dayOfShowFee: show.dayOfShowFee },
-        trialView
+        trialView,
+        normalizedClasses
       );
 
       // In add-classes mode, trial.classes includes both existing and new classes.
@@ -206,6 +215,8 @@ export function useShowCreationWizardActions({
 
       try {
         setIsLoading(true);
+        // Validate the complete class set before the show/trial writers below can mutate data.
+        const normalizedClasses = normalizeWizardClassSelections(show.organization, trials);
 
         // New-show + online path: single atomic RPC
         // (create_show_with_children, migration 145) writes shows + trials +
@@ -321,7 +332,7 @@ export function useShowCreationWizardActions({
         const trialIdMap = await createTrials(realShowId, savedShow.name, savedShow.organization);
 
         // Create classes using the real trial UUIDs (await for offline-first storage)
-        await createClasses(realShowId, trialIdMap);
+        await createClasses(realShowId, trialIdMap, normalizedClasses);
 
         // Persist judge assignments to judge_assignments table
         const judges = wizardShow.assignedJudges || [];

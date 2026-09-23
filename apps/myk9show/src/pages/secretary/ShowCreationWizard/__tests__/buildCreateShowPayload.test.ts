@@ -254,6 +254,7 @@ describe('buildCreateShowPayload', () => {
           customizations: {
             element: 'Container',
             level: 'Novice',
+            section: 'A',
             className: 'NW1 Containers',
           },
           judgeId: 'judge-uuid-a',
@@ -319,7 +320,13 @@ describe('buildCreateShowPayload', () => {
       ],
     };
 
-    const { rpcInput } = buildCreateShowPayload(baseShow, [standaloneClass], {}, new Map(), 'draft');
+    const { rpcInput } = buildCreateShowPayload(
+      baseShow,
+      [standaloneClass],
+      {},
+      new Map(),
+      'draft'
+    );
 
     expect(rpcInput.p_classes).toHaveLength(1);
     expect(rpcInput.p_classes[0]!.element).toBe('Detective');
@@ -332,16 +339,32 @@ describe('buildCreateShowPayload', () => {
       classes: [
         {
           templateId: 'tmpl-containers',
-          customizations: { element: 'Containers', level: 'Novice', className: 'Containers Novice' },
+          customizations: {
+            element: 'Containers',
+            level: 'Novice',
+            section: 'A',
+            className: 'Containers Novice',
+          },
         },
         {
           templateId: 'tmpl-container',
-          customizations: { element: 'Container', level: 'Novice', className: 'Container Novice' },
+          customizations: {
+            element: 'Container',
+            level: 'Novice',
+            section: 'A',
+            className: 'Container Novice',
+          },
         },
       ],
     };
 
-    const { rpcInput } = buildCreateShowPayload(baseShow, [duplicateClasses], {}, new Map(), 'draft');
+    const { rpcInput } = buildCreateShowPayload(
+      baseShow,
+      [duplicateClasses],
+      {},
+      new Map(),
+      'draft'
+    );
 
     expect(rpcInput.p_classes).toHaveLength(1);
     expect(rpcInput.p_classes[0]!.element).toBe('Container');
@@ -353,7 +376,12 @@ describe('buildCreateShowPayload', () => {
       classes: [
         {
           templateId: 'tmpl-1',
-          customizations: { element: 'Container', level: 'Novice', className: 'NW1 Containers' },
+          customizations: {
+            element: 'Container',
+            level: 'Novice',
+            section: 'A',
+            className: 'NW1 Containers',
+          },
           judgeId: 'judge-uuid-a',
         },
       ],
@@ -376,7 +404,12 @@ describe('buildCreateShowPayload', () => {
       classes: [
         {
           templateId: 'tmpl-1',
-          customizations: { element: 'Container', level: 'Novice', className: 'NW1 Containers' },
+          customizations: {
+            element: 'Container',
+            level: 'Novice',
+            section: 'A',
+            className: 'NW1 Containers',
+          },
           // no judgeId
         },
       ],
@@ -400,6 +433,7 @@ describe('buildCreateShowPayload', () => {
           customizations: {
             element: 'Container',
             level: 'Novice',
+            section: 'A',
             className: 'NW1 Containers',
           },
         },
@@ -487,7 +521,7 @@ describe('buildCreateShowPayload', () => {
       classes: [
         {
           templateId: 'tmpl-unknown',
-          customizations: { element: 'Container', level: 'Novice', className: 'NW1' },
+          customizations: { element: 'Container', level: 'Novice', section: 'A', className: 'NW1' },
         },
       ],
     };
@@ -570,7 +604,7 @@ describe('buildCreateShowPayload', () => {
       classes: [
         {
           templateId: 'tmpl-1',
-          customizations: { element: 'Container', level: 'Novice', className: 'NW1' },
+          customizations: { element: 'Container', level: 'Novice', section: 'A', className: 'NW1' },
         },
       ],
     };

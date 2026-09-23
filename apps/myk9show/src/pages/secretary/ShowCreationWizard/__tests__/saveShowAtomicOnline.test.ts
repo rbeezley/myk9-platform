@@ -215,6 +215,38 @@ describe('saveShowAtomicOnline', () => {
     expect(showsSetMock).not.toHaveBeenCalled();
   });
 
+  it('rejects invalid class identity before the atomic RPC or local cache writes', async () => {
+    const invalidTrial: WizardTrial = {
+      id: 'wizard-trial-invalid',
+      trialType: 'Scent Work',
+      dateTime: '2026-06-01T09:00:00',
+      eventNumber: 'EVT-INVALID',
+      classes: [
+        {
+          templateId: 'template-invalid',
+          customizations: { className: 'Unknown class', element: 'Unknown', level: 'Unknown' },
+        },
+      ],
+    };
+
+    await expect(
+      saveShowAtomicOnline({
+        show: baseShow,
+        trials: [invalidTrial],
+        judgeDetails: {},
+        clubs: [],
+        status: 'unpublished',
+        queryClient: makeQueryClient(),
+        triggerSync: vi.fn().mockResolvedValue(undefined),
+      })
+    ).rejects.toThrow(/Unknown class.*element/i);
+
+    expect(rpcMock).not.toHaveBeenCalled();
+    expect(showsSetMock).not.toHaveBeenCalled();
+    expect(trialsSetMock).not.toHaveBeenCalled();
+    expect(classesSetMock).not.toHaveBeenCalled();
+  });
+
   it('does not throw when IndexedDB seeding fails after a successful RPC', async () => {
     rpcMock.mockResolvedValue({ error: null });
     showsSetMock.mockRejectedValueOnce(new Error('indexeddb-down'));

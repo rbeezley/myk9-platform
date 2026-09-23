@@ -9,6 +9,7 @@ import type { ClassData } from '@/components/classes/types/classTypes';
 import { resolvePremiumStyle, type PremiumStyle } from '@/types/premium-types';
 import type { WizardTrialView } from '@/utils/wizardTrialNames';
 import type { JudgeDetailsMap, ShowStatus, EditMode } from './show-creation-wizard-types';
+import type { NormalizedWizardClassSelection } from './classConfigurationValidation';
 
 export interface WizardShowData {
   name: string;
@@ -116,9 +117,13 @@ export function createClassDataFromWizard(
   existingTrials: ExistingTrial[],
   editMode: EditMode | undefined,
   showFees: { preEntryFee?: number; dayOfShowFee?: number } | undefined,
-  trialView: WizardTrialView
+  trialView: WizardTrialView,
+  normalizedClasses: readonly NormalizedWizardClassSelection[]
 ): ClassData[] {
   const classes: ClassData[] = [];
+  const normalizedBySource = new Map(
+    normalizedClasses.map(selection => [`${selection.trialId}|${selection.sourceIndex}`, selection])
+  );
 
   // In add-classes mode, process ALL trials (we're adding classes to existing trials).
   // In other edit modes, only create classes for NEW trials.
@@ -135,9 +140,9 @@ export function createClassDataFromWizard(
 
     if (trialId && wizardTrial.classes.length > 0) {
       wizardTrial.classes.forEach((cls, index) => {
-        const className = (cls.customizations?.className as string) || `Class ${index + 1}`;
-        const element = (cls.customizations?.element as string) || 'Unknown';
-        const level = (cls.customizations?.level as string) || 'Unknown';
+        const normalized = normalizedBySource.get(`${wizardTrial.id}|${index}`);
+        if (!normalized) return;
+        const className = normalized.className;
 
         // Generate a proper UUID for the class
         const classId = crypto.randomUUID();
@@ -156,9 +161,9 @@ export function createClassDataFromWizard(
           // RPC payload can write a class-level judge_assignment. Dropping it
           // here is what left judges off the class-centric judge dashboard.
           judgeId: cls.judgeId || undefined,
-          element: element,
-          level: level,
-          section: (cls.customizations?.section as string) || '',
+          element: normalized.triple.element,
+          level: normalized.triple.level,
+          section: normalized.triple.section,
           hidesUsed: '0',
           distractionsUsed: '0',
           itemsUsed: '',

@@ -8,6 +8,7 @@ import { deriveRegistryId } from '@/features/registries';
 import { resolvePremiumStyle, type PremiumStyle } from '@/types/premium-types';
 import type { WizardTrialView } from '@/utils/wizardTrialNames';
 import type { JudgeDetailsMap, ShowStatus } from './show-creation-wizard-types';
+import { normalizeWizardClassSelections } from './classConfigurationValidation';
 import {
   createClassDataFromWizard,
   type WizardShowData,
@@ -126,6 +127,7 @@ export function buildCreateShowPayload(
   status: ShowStatus,
   trialView: WizardTrialView
 ): CreateShowPayloadResult {
+  const normalizedClasses = normalizeWizardClassSelections(show.organization, trials);
   const showId = crypto.randomUUID();
   const dbStatus = mapShowStatus(status);
   const showStyle = normalizeShowStyle(show.style);
@@ -164,7 +166,8 @@ export function buildCreateShowPayload(
     [],
     undefined,
     { preEntryFee: show.preEntryFee, dayOfShowFee: show.dayOfShowFee },
-    trialView
+    trialView,
+    normalizedClasses
   );
 
   const classPayloads: ClassRpcPayload[] = allClassData.map(cls => {

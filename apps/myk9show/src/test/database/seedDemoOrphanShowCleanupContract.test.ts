@@ -18,10 +18,23 @@ const extractDeleteStatements = (sql: string, table: string): string[] => {
     throw new Error(`Invalid table name: ${table}`);
   }
 
-  const statementPattern = new RegExp(`\\bDELETE\\s+FROM\\s+public\\.${table}\\b[\\s\\S]*?;`, 'gi');
-  return [...stripSqlComments(sql).matchAll(statementPattern)].map(([statement]) =>
-    statement.replace(/\s+/g, ' ').replace(/\( /g, '(').replace(/ \)/g, ')').trim()
+  const identifier = (name: string) => `(?:${name}|"${name}")`;
+  const target = `(?:${identifier('public')}\\s*\\.\\s*)?${identifier(table)}`;
+  const deleteTarget = new RegExp(
+    `^\\s*DELETE\\s+FROM\\s+(?:ONLY\\s*)?(?:\\(\\s*)?${target}(?:\\s*\\)|\\s|;|$)`,
+    'i'
   );
+  const statements =
+    sql
+      .replace(/--[^\n]*/g, ' ')
+      .replace(/\/\*[\s\S]*?\*\//g, ' ')
+      .match(/\bDELETE\b[\s\S]*?(?:;|$)/gi) ?? [];
+
+  return statements
+    .filter(statement => deleteTarget.test(statement))
+    .map(statement =>
+      statement.replace(/\s+/g, ' ').replace(/\( /g, '(').replace(/ \)/g, ')').trim()
+    );
 };
 
 const expectedShowDeletes = [
@@ -51,6 +64,38 @@ describe('MYK9-615 orphan cleanup boundary', () => {
 
     expect(expectedShowDeletes).not.toContain(broadShowDelete[0]);
     expect(expectedEnrollmentDeletes).not.toContain(showOnlyEnrollmentDelete[0]);
+
+    const showDeleteVariants = [
+      'DELETE FROM ONLY public.shows WHERE true;',
+      'DELETE FROM ONLY(public.shows) WHERE true;',
+      'DELETE/* comment */FROM public.shows WHERE true;',
+      'DELETE FROM shows WHERE true;',
+      'DELETE FROM ONLY ("public"."shows") WHERE true;',
+      'DELETE FROM "public".shows WHERE true;',
+      'DELETE FROM public."shows" WHERE true;',
+      'DELETE FROM ONLY "shows" WHERE true;',
+    ];
+    const enrollmentDeleteVariants = [
+      'DELETE FROM ONLY public.enrollments WHERE true;',
+      'DELETE FROM ONLY(public.enrollments) WHERE true;',
+      'DELETE/* comment */FROM public.enrollments WHERE true;',
+      'DELETE FROM enrollments WHERE true;',
+      'DELETE FROM ONLY ("public"."enrollments") WHERE true;',
+      'DELETE FROM "public".enrollments WHERE true;',
+      'DELETE FROM public."enrollments" WHERE true;',
+      'DELETE FROM ONLY "enrollments" WHERE true;',
+    ];
+
+    for (const mutation of showDeleteVariants) {
+      expect(extractDeleteStatements(`${seed}\n${mutation}`, 'shows')).not.toEqual(
+        expectedShowDeletes
+      );
+    }
+    for (const mutation of enrollmentDeleteVariants) {
+      expect(extractDeleteStatements(`${seed}\n${mutation}`, 'enrollments')).not.toEqual(
+        expectedEnrollmentDeletes
+      );
+    }
   });
 
   it('keeps the canonical seed free of the observed orphan and broad show deletion', () => {

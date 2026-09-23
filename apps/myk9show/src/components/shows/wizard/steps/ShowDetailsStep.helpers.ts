@@ -4,6 +4,19 @@ import type { Club } from '@/types/club-types';
 import { UserRole } from '@/types/auth-types';
 import type { User } from '@/types/user-types';
 import type { ResolvedJudge } from './ShowDetailsStep.types';
+import type { CloneHydrationStatus } from '@/store/wizardStore';
+
+export type OrganizationEditMode = 'create' | 'clone' | 'add-trials' | 'add-classes';
+
+export function canChangeShowOrganization(input: {
+  mode: OrganizationEditMode;
+  cloneStatus: CloneHydrationStatus;
+  selectedClassCount: number;
+}): boolean {
+  if (input.mode === 'add-trials' || input.mode === 'add-classes') return false;
+  if (input.mode === 'create') return input.selectedClassCount === 0;
+  return input.cloneStatus === 'ready' && input.selectedClassCount === 0;
+}
 
 // Re-export shared people utilities for backward compatibility
 export { getAllPeopleSorted, filterPeopleByName, getPersonName } from '@/lib/people-utils';

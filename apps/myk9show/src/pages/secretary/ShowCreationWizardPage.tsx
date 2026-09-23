@@ -438,6 +438,11 @@ const ShowCreationWizardPage: React.FC = () => {
                       editMode?.mode === 'add-trials' ? trialsReadError : undefined
                     }
                     onRetryExistingTrials={editMode?.mode === 'add-trials' ? loadTrials : undefined}
+                    persistedOrganization={
+                      editModeResolution.state === 'resolved'
+                        ? editModeResolution.show.organization
+                        : undefined
+                    }
                   />
                 )}
               </div>

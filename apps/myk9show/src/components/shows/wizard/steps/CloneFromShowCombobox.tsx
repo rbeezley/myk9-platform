@@ -28,12 +28,19 @@ interface CloneFromShowComboboxProps {
 }
 
 export const CloneFromShowCombobox: React.FC<CloneFromShowComboboxProps> = ({ clubId }) => {
+  const {
+    updateShowData,
+    addJudgeToShow,
+    addTrial,
+    resetWizard,
+    cloneHydration,
+    setCloneHydration,
+  } = useWizardStore();
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState('');
-  const [clonedShowName, setClonedShowName] = useState<string | null>(null);
+  const [cloneFailed, setCloneFailed] = useState(cloneHydration.status === 'failed');
   const cloneRequestIdRef = useRef(0);
-
-  const { updateShowData, addJudgeToShow, addTrial, resetWizard } = useWizardStore();
+  const clonedShowName = cloneHydration.sourceShowName;
   const { people } = useUserStore();
   const { data: allShows = [], isLoading, isError } = useShowsQuery();
   const { templates } = useTemplates();
@@ -74,8 +81,9 @@ export const CloneFromShowCombobox: React.FC<CloneFromShowComboboxProps> = ({ cl
     cloneRequestIdRef.current = requestId;
     setOpen(false);
     setSearch('');
-    setClonedShowName(show.name);
+    setCloneFailed(false);
     resetWizard();
+    setCloneHydration({ status: 'hydrating', sourceShowId: show.id, sourceShowName: show.name });
 
     // Prefill all non-date show fields
     updateShowData({
@@ -111,7 +119,15 @@ export const CloneFromShowCombobox: React.FC<CloneFromShowComboboxProps> = ({ cl
       }
     }
 
-    const sourceTrials = await getCloneSourceTrials(show);
+    let sourceTrials: Show['trials'];
+    try {
+      sourceTrials = await getCloneSourceTrials(show);
+    } catch {
+      if (requestId !== cloneRequestIdRef.current) return;
+      setCloneFailed(true);
+      setCloneHydration({ status: 'failed', sourceShowId: show.id, sourceShowName: show.name });
+      return;
+    }
     if (requestId !== cloneRequestIdRef.current) return;
 
     if (sourceTrials.length) {
@@ -157,12 +173,18 @@ export const CloneFromShowCombobox: React.FC<CloneFromShowComboboxProps> = ({ cl
         });
       }
     }
+    setCloneHydration({ status: 'ready', sourceShowId: show.id, sourceShowName: show.name });
   };
 
   const handleStartFresh = () => {
     cloneRequestIdRef.current += 1;
-    setClonedShowName(null);
+    setCloneFailed(false);
     resetWizard();
+  };
+
+  const handleRetryClone = () => {
+    const sourceShow = candidateShows.find(show => show.id === cloneHydration.sourceShowId);
+    if (sourceShow) void handleSelect(sourceShow);
   };
 
   if (isError) {
@@ -268,7 +290,18 @@ export const CloneFromShowCombobox: React.FC<CloneFromShowComboboxProps> = ({ cl
         </div>
       </div>
       {/* Subtle note that dates are excluded */}
-      {clonedShowName && (
+      {cloneFailed && (
+        <div className="mt-3 pl-11" role="alert">
+          <p className="text-xs text-destructive">
+            We could not load the cloned classes. The organization stays locked until the clone
+            finishes safely.
+          </p>
+          <Button type="button" variant="ghost" size="sm" onClick={handleRetryClone}>
+            Retry clone
+          </Button>
+        </div>
+      )}
+      {clonedShowName && !cloneFailed && (
         <p className="text-xs text-muted-foreground mt-3 pl-11">
           Show dates and entry period dates were left blank. Fill them in below.
         </p>
@@ -284,19 +317,16 @@ async function getCloneSourceTrials(show: Show): Promise<Show['trials']> {
     show.trials.map(async trial => {
       if (trial.classes?.length) return trial;
 
-      try {
-        // Show-list reads can come from a cold replicated class store. Hydrate the selected
-        // trial lazily so clone preserves class structure without widening every list query.
-        const { data, error } = await getClassesByTrialId(trial.id);
-        if (error || data.length === 0) return trial;
+      // Show-list reads can come from a cold replicated class store. Hydrate the selected
+      // trial lazily so clone preserves class structure without widening every list query.
+      const { data, error } = await getClassesByTrialId(trial.id);
+      if (error) throw error;
+      if (data.length === 0) return trial;
 
-        return {
-          ...trial,
-          classes: data.map(mapFetchedClassToShowClass),
-        };
-      } catch {
-        return trial;
-      }
+      return {
+        ...trial,
+        classes: data.map(mapFetchedClassToShowClass),
+      };
     })
   );
 }

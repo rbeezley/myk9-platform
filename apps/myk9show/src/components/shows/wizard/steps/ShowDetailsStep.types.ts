@@ -8,6 +8,8 @@ export type { OrganizationOption } from '@/data/organizations';
 
 export interface ShowDetailsStepProps {
   className?: string;
+  mode?: 'create' | 'clone' | 'add-trials' | 'add-classes';
+  persistedOrganization?: string | undefined;
 }
 
 export interface ResolvedJudge {

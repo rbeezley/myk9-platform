@@ -21,6 +21,9 @@ interface BasicsSectionProps {
   onUpdate: (patch: Partial<ShowDraft>) => void;
   /** Host-club picker, supplied by the step (which owns club state). */
   clubField: React.ReactNode;
+  organizationDisabled?: boolean | undefined;
+  organizationValue?: string | undefined;
+  organizationHint?: string | undefined;
 }
 
 /* ------------------------------------------------------------------ */
@@ -28,7 +31,14 @@ interface BasicsSectionProps {
 /*  host club, location. The three fields a secretary always fills.    */
 /* ------------------------------------------------------------------ */
 
-export const BasicsSection: React.FC<BasicsSectionProps> = ({ show, onUpdate, clubField }) => (
+export const BasicsSection: React.FC<BasicsSectionProps> = ({
+  show,
+  onUpdate,
+  clubField,
+  organizationDisabled = false,
+  organizationValue,
+  organizationHint,
+}) => (
   <div>
     <SectionHeading>Basics</SectionHeading>
     <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
@@ -50,7 +60,8 @@ export const BasicsSection: React.FC<BasicsSectionProps> = ({ show, onUpdate, cl
           Organization <span className="text-destructive">*</span>
         </Label>
         <Select
-          value={show.organization || ''}
+          value={organizationValue ?? show.organization ?? ''}
+          disabled={organizationDisabled}
           onValueChange={value => onUpdate({ organization: value })}
         >
           <SelectTrigger id="show-organization" className="bg-input h-10">
@@ -68,6 +79,11 @@ export const BasicsSection: React.FC<BasicsSectionProps> = ({ show, onUpdate, cl
             ))}
           </SelectContent>
         </Select>
+        {organizationHint && (
+          <p className="text-xs text-muted-foreground" data-testid="organization-guidance">
+            {organizationHint}
+          </p>
+        )}
       </div>
 
       {clubField}

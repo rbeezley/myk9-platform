@@ -16,12 +16,20 @@ const DEFAULT_TRIAL_TYPE: Partial<Record<string, string>> = {
 };
 
 export type ShowDraft = WizardState['show'];
+export type CloneHydrationStatus = 'idle' | 'hydrating' | 'ready' | 'failed';
+
+export interface CloneHydrationState {
+  status: CloneHydrationStatus;
+  sourceShowId: string | null;
+  sourceShowName: string | null;
+}
 
 interface WizardState {
   currentStep: number;
   completedSteps: number[];
   isDirty: boolean;
   lastSaved: Date | null;
+  cloneHydration: CloneHydrationState;
 
   // Show data
   show: {
@@ -103,6 +111,7 @@ interface WizardActions {
 
   // State management
   setDirty: (isDirty: boolean) => void;
+  setCloneHydration: (cloneHydration: CloneHydrationState) => void;
   saveProgress: () => void;
   resetWizard: () => void;
   loadDraft: (draft: Partial<WizardState>) => void;
@@ -113,6 +122,7 @@ const initialState: WizardState = {
   completedSteps: [],
   isDirty: false,
   lastSaved: null,
+  cloneHydration: { status: 'idle', sourceShowId: null, sourceShowName: null },
   show: {
     name: '',
     organization: 'AKC',
@@ -245,6 +255,8 @@ export const useWizardStore = create<WizardState & WizardActions>()(
       // State management
       setDirty: isDirty => set({ isDirty }),
 
+      setCloneHydration: cloneHydration => set({ cloneHydration }),
+
       saveProgress: () =>
         set({
           lastSaved: new Date(),
@@ -268,6 +280,7 @@ export const useWizardStore = create<WizardState & WizardActions>()(
         currentStep: state.currentStep,
         completedSteps: state.completedSteps,
         lastSaved: state.lastSaved,
+        cloneHydration: state.cloneHydration,
         show: state.show,
         trials: state.trials,
         judgeAssignments: state.judgeAssignments,

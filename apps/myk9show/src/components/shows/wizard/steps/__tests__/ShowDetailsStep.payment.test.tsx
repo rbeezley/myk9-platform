@@ -27,6 +27,8 @@ vi.mock('@/store/wizardStore', () => ({
       acceptCashPayments: false,
       style: 'monogram',
     },
+    trials: [],
+    cloneHydration: { status: 'idle', sourceShowId: null, sourceShowName: null },
     updateShowData: mockUpdateShowData,
     addJudgeToShow: vi.fn(),
     removeJudgeFromShow: vi.fn(),
@@ -193,4 +195,18 @@ describe('ShowDetailsStep — Step-1 grouping', () => {
     expect(within(basics as HTMLElement).getByText('Host Club')).toBeInTheDocument();
     expect(within(basics as HTMLElement).getByLabelText(/show name/i)).toBeInTheDocument();
   });
+
+  it.each(['add-trials', 'add-classes'] as const)(
+    'keeps the persisted organization locked in %s mode even when the child snapshot is empty',
+    mode => {
+      render(<ShowDetailsStep mode={mode} persistedOrganization="UKC" />);
+
+      const organization = screen.getByRole('combobox', { name: /organization/i });
+      expect(organization).toBeDisabled();
+      expect(organization).toHaveTextContent('UKC');
+      expect(screen.getByTestId('organization-guidance')).toHaveTextContent(
+        /create a separate show/i
+      );
+    }
+  );
 });

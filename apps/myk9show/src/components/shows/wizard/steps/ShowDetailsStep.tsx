@@ -13,6 +13,7 @@ import {
   resolveSelectedJudges,
   isValidDateRange,
   isValidEntryDates,
+  canChangeShowOrganization,
 } from './ShowDetailsStep.helpers';
 import {
   BasicsSection,
@@ -24,14 +25,49 @@ import {
 } from './sections';
 import { useShowDetailsStepActions } from './useShowDetailsStepActions';
 
-export const ShowDetailsStep: React.FC<ShowDetailsStepProps> = ({ className }) => {
+export const ShowDetailsStep: React.FC<ShowDetailsStepProps> = ({
+  className,
+  mode = 'create',
+  persistedOrganization,
+}) => {
   logger.debug('ShowDetailsStep component loaded', 'wizard');
   const location = useLocation();
-  const { show, updateShowData, addJudgeToShow, removeJudgeFromShow, judgeDetails } =
-    useWizardStore();
+  const {
+    show,
+    trials,
+    cloneHydration,
+    updateShowData,
+    addJudgeToShow,
+    removeJudgeFromShow,
+    judgeDetails,
+  } = useWizardStore();
   const { clubs, loadClubs, syncClubs } = useClubStore();
   const { people, loadPeople, loadUsers, isLoading } = useUserStore();
   const { userWithRoles } = useAuthContext();
+
+  const editMode = mode === 'create' && cloneHydration.status !== 'idle' ? 'clone' : mode;
+  const organizationEditable = canChangeShowOrganization({
+    mode: editMode,
+    cloneStatus: cloneHydration.status,
+    selectedClassCount: trials.reduce((count, trial) => count + trial.classes.length, 0),
+  });
+  const organizationHint =
+    mode === 'add-trials' || mode === 'add-classes'
+      ? 'This is an existing show. Its sanctioning organization cannot change in this wizard; create a separate show instead.'
+      : editMode === 'clone' && cloneHydration.status === 'hydrating'
+        ? 'Cloned classes are still loading. Wait for them to finish before changing the organization.'
+        : editMode === 'clone' && cloneHydration.status === 'failed'
+          ? 'Cloned classes could not be loaded. Retry the clone or start fresh before changing the organization.'
+          : editMode === 'clone' && !organizationEditable
+            ? 'To change the organization, clear all selected cloned classes in the Classes step first.'
+            : mode === 'create' && !organizationEditable
+              ? 'To change the organization, clear all selected classes first.'
+              : undefined;
+
+  const handleUpdateShow = (patch: Parameters<typeof updateShowData>[0]) => {
+    if ('organization' in patch && !organizationEditable) return;
+    updateShowData(patch);
+  };
 
   // Only surface a "loading" state on the pickers during the initial fetch —
   // not during unrelated create/update mutations that also flip isLoading.
@@ -131,7 +167,12 @@ export const ShowDetailsStep: React.FC<ShowDetailsStepProps> = ({ className }) =
 
         <BasicsSection
           show={show}
-          onUpdate={updateShowData}
+          onUpdate={handleUpdateShow}
+          organizationDisabled={!organizationEditable}
+          organizationValue={
+            mode === 'add-trials' || mode === 'add-classes' ? persistedOrganization : undefined
+          }
+          organizationHint={organizationHint}
           clubField={
             <HostClubField
               clubId={show.clubId}

@@ -7,6 +7,12 @@ const mockUpdateShowData = vi.fn();
 const mockAddJudgeToShow = vi.fn();
 const mockAddTrial = vi.fn();
 const mockResetWizard = vi.fn();
+const mockSetCloneHydration = vi.fn();
+const mockCloneHydration = {
+  status: 'idle' as 'idle' | 'hydrating' | 'ready' | 'failed',
+  sourceShowId: null as string | null,
+  sourceShowName: null as string | null,
+};
 const mockGetClassesByTrialId = vi.hoisted(() => vi.fn());
 
 const mockShows: Show[] = [
@@ -68,6 +74,8 @@ vi.mock('@/store/wizardStore', () => ({
     addJudgeToShow: mockAddJudgeToShow,
     addTrial: mockAddTrial,
     resetWizard: mockResetWizard,
+    setCloneHydration: mockSetCloneHydration,
+    cloneHydration: mockCloneHydration,
   })),
 }));
 
@@ -137,6 +145,21 @@ async function selectSourceShow() {
 describe('CloneFromShowCombobox', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    Object.assign(mockCloneHydration, {
+      status: 'idle',
+      sourceShowId: null,
+      sourceShowName: null,
+    });
+    mockResetWizard.mockImplementation(() => {
+      Object.assign(mockCloneHydration, {
+        status: 'idle',
+        sourceShowId: null,
+        sourceShowName: null,
+      });
+    });
+    mockSetCloneHydration.mockImplementation(value => {
+      Object.assign(mockCloneHydration, value);
+    });
     mockShowsQueryState = { data: mockShows, isLoading: false, isError: false };
     mockGetClassesByTrialId.mockResolvedValue({ data: [], error: null });
   });
@@ -305,6 +328,62 @@ describe('CloneFromShowCombobox', () => {
         },
       ],
     });
+  });
+
+  it('keeps organization switching blocked while clone classes are hydrating, then marks the clone ready', async () => {
+    const sourceTrial = mockShows[0]!.trials[0]!;
+    let resolveClasses: (value: {
+      data: Array<Record<string, unknown>>;
+      error: null;
+    }) => void = () => {};
+    const pendingClasses = new Promise<{ data: Array<Record<string, unknown>>; error: null }>(
+      resolve => {
+        resolveClasses = resolve;
+      }
+    );
+    mockShowsQueryState = {
+      data: [{ ...mockShows[0]!, trials: [{ ...sourceTrial, classes: [] }] } as Show],
+      isLoading: false,
+      isError: false,
+    };
+    mockGetClassesByTrialId.mockReturnValueOnce(pendingClasses);
+
+    await selectSourceShow();
+
+    expect(mockSetCloneHydration).toHaveBeenCalledWith({
+      status: 'hydrating',
+      sourceShowId: 'show-1',
+      sourceShowName: 'Heartland Spring Trial',
+    });
+    resolveClasses({ data: [], error: null });
+    await waitFor(() =>
+      expect(mockSetCloneHydration).toHaveBeenLastCalledWith({
+        status: 'ready',
+        sourceShowId: 'show-1',
+        sourceShowName: 'Heartland Spring Trial',
+      })
+    );
+  });
+
+  it('fails closed and offers retry when clone class hydration fails', async () => {
+    const sourceTrial = mockShows[0]!.trials[0]!;
+    mockShowsQueryState = {
+      data: [{ ...mockShows[0]!, trials: [{ ...sourceTrial, classes: [] }] } as Show],
+      isLoading: false,
+      isError: false,
+    };
+    mockGetClassesByTrialId.mockResolvedValueOnce({ data: [], error: new Error('offline') });
+
+    await selectSourceShow();
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(/could not load.*classes/i);
+    expect(mockAddTrial).not.toHaveBeenCalled();
+    expect(mockSetCloneHydration).toHaveBeenLastCalledWith({
+      status: 'failed',
+      sourceShowId: 'show-1',
+      sourceShowName: 'Heartland Spring Trial',
+    });
+    expect(screen.getByRole('button', { name: /retry clone/i })).toBeVisible();
   });
 
   it('does not append hydrated trials after start fresh cancels the selection', async () => {

@@ -4,6 +4,34 @@ import type { Page } from '@playwright/test';
 import { createOwnedShowTeardown } from '../e2e/helpers/ownedShowTeardown';
 
 describe('createOwnedShowTeardown', () => {
+  function createResponsePage() {
+    type Listener = (response: unknown) => void;
+    const listeners = new Set<Listener>();
+    const page = {
+      on: vi.fn((_event: string, listener: Listener) => listeners.add(listener)),
+      off: vi.fn((_event: string, listener: Listener) => listeners.delete(listener)),
+    } as unknown as Page;
+
+    return {
+      page,
+      emitResponse(response: {
+        method?: string;
+        url?: string;
+        ok?: boolean;
+        json: () => Promise<unknown>;
+      }) {
+        const playwrightResponse = {
+          request: () => ({ method: () => response.method ?? 'POST' }),
+          url: () => response.url ?? 'https://example.test/rest/v1/shows',
+          ok: () => response.ok ?? true,
+          json: response.json,
+        };
+        for (const listener of listeners) listener(playwrightResponse);
+      },
+      listenerCount: () => listeners.size,
+    };
+  }
+
   it('deletes duplicate IDs once, continues after refusals, and retains only refused IDs', async () => {
     const teardown = createOwnedShowTeardown();
     teardown.track('show-owned-1');
@@ -93,5 +121,102 @@ describe('createOwnedShowTeardown', () => {
 
     expect(teardown.pending()).toEqual([]);
     expect(page.evaluate).toHaveBeenCalledTimes(3);
+  });
+
+  it('tracks the successful GUI create response before later navigation assertions', async () => {
+    const teardown = createOwnedShowTeardown();
+    const responsePage = createResponsePage();
+    teardown.attachShowCreateObserver(responsePage.page);
+    responsePage.emitResponse({ json: async () => ({ id: 'gui-created-before-navigation' }) });
+
+    // The following navigation assertion may fail; response observation already owns the ID.
+    await teardown.awaitObservedCreates();
+
+    expect(teardown.pending()).toEqual(['gui-created-before-navigation']);
+  });
+
+  it('accepts PostgREST array responses and de-duplicates repeated successful responses', async () => {
+    const teardown = createOwnedShowTeardown();
+    const responsePage = createResponsePage();
+    teardown.attachShowCreateObserver(responsePage.page);
+    responsePage.emitResponse({
+      json: async () => [{ id: 'gui-created-1' }, { id: 'gui-created-2' }],
+    });
+    responsePage.emitResponse({ json: async () => ({ id: 'gui-created-1' }) });
+
+    await teardown.awaitObservedCreates();
+
+    expect(teardown.pending()).toEqual(['gui-created-1', 'gui-created-2']);
+  });
+
+  it('ignores unsuccessful responses, non-POST requests, and unrelated tables', async () => {
+    const teardown = createOwnedShowTeardown();
+    const responsePage = createResponsePage();
+    teardown.attachShowCreateObserver(responsePage.page);
+    responsePage.emitResponse({ ok: false, json: async () => ({ id: 'failed-show' }) });
+    responsePage.emitResponse({ method: 'GET', json: async () => ({ id: 'read-show' }) });
+    responsePage.emitResponse({
+      url: 'https://example.test/rest/v1/trials',
+      json: async () => ({ id: 'trial-id' }),
+    });
+
+    await teardown.awaitObservedCreates();
+
+    expect(teardown.pending()).toEqual([]);
+  });
+
+  it('ignores a successful response whose decoded JSON has no valid show ID', async () => {
+    const teardown = createOwnedShowTeardown();
+    const responsePage = createResponsePage();
+    teardown.attachShowCreateObserver(responsePage.page);
+    responsePage.emitResponse({ json: async () => ({ id: 42 }) });
+    responsePage.emitResponse({ json: async () => 'not a PostgREST row' });
+    responsePage.emitResponse({ json: async () => ({ id: '   ' }) });
+
+    await teardown.awaitObservedCreates();
+
+    expect(teardown.pending()).toEqual([]);
+  });
+
+  it('waits for response parsing before cleanup snapshots IDs', async () => {
+    const teardown = createOwnedShowTeardown();
+    const responsePage = createResponsePage();
+    let resolveBody!: (body: unknown) => void;
+    teardown.attachShowCreateObserver(responsePage.page);
+    responsePage.emitResponse({
+      json: () => new Promise(resolve => (resolveBody = resolve)),
+    });
+    const deleteShow = vi.fn(async () => ({}));
+
+    const cleanup = teardown.cleanup(deleteShow);
+    await Promise.resolve();
+    expect(deleteShow).not.toHaveBeenCalled();
+    resolveBody({ id: 'parsed-before-cleanup-snapshot' });
+    await cleanup;
+
+    expect(deleteShow).toHaveBeenCalledWith('parsed-before-cleanup-snapshot');
+    expect(responsePage.listenerCount()).toBe(0);
+  });
+
+  it('reports rejected response parsing after attempting every known ID', async () => {
+    const teardown = createOwnedShowTeardown();
+    const responsePage = createResponsePage();
+    teardown.track('known-show');
+    teardown.attachShowCreateObserver(responsePage.page);
+    responsePage.emitResponse({
+      json: async () => Promise.reject(new SyntaxError('malformed JSON response')),
+    });
+    responsePage.emitResponse({
+      json: async () => Promise.reject(new Error('response body unavailable')),
+    });
+    const deleteShow = vi.fn(async () => ({ error: new Error('delete refused') }));
+
+    await expect(teardown.cleanup(deleteShow)).rejects.toThrow(
+      /malformed JSON response.*response body unavailable.*known-show: delete refused/
+    );
+
+    expect(deleteShow).toHaveBeenCalledTimes(1);
+    expect(deleteShow).toHaveBeenCalledWith('known-show');
+    expect(responsePage.listenerCount()).toBe(0);
   });
 });

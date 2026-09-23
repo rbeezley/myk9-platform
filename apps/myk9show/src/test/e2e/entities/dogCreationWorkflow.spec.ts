@@ -7,14 +7,21 @@
 
 import { test, expect } from '@playwright/test';
 import { TestSetup } from '../helpers/testSetup';
+import { createOwnedShowTeardown } from '../helpers/ownedShowTeardown';
 
 test.describe('Dog Creation GUI Workflows', () => {
   let testSetup: TestSetup;
+  let ownedShows: ReturnType<typeof createOwnedShowTeardown>;
 
   test.beforeEach(async ({ page }) => {
     testSetup = new TestSetup(page);
+    ownedShows = createOwnedShowTeardown();
     await testSetup.clearTestData();
     await testSetup.mockApiResponses();
+  });
+
+  test.afterEach(async ({ page }) => {
+    await ownedShows.cleanup(page);
   });
 
   test.describe('Add Dog Wizard', () => {
@@ -207,6 +214,8 @@ test.describe('Dog Creation GUI Workflows', () => {
 
   test.describe('Show Creation Workflow', () => {
     test('should create new show through show wizard', async ({ page }) => {
+      await testSetup.signIn('admin');
+
       // Navigate to admin area and create show
       await page.goto('/admin/shows/add');
 
@@ -228,7 +237,19 @@ test.describe('Dog Creation GUI Workflows', () => {
       await page.fill('[data-testid="veteran-fee-input"]', '30');
 
       // Submit
+      ownedShows.attachShowCreateObserver(page);
+      const showCreateResponse = page.waitForResponse(response => {
+        const responseUrl = new URL(response.url());
+        return (
+          response.request().method() === 'POST' && responseUrl.pathname.endsWith('/rest/v1/shows')
+        );
+      });
       await page.click('[data-testid="create-show-button"]');
+      await showCreateResponse;
+      await ownedShows.awaitObservedCreates();
+
+      // Navigation remains a workflow assertion; response observation owns the ID.
+      await page.waitForURL(/\/shows\/[0-9a-f-]{36}/);
 
       // Verify success
       await expect(page.locator('[data-testid="success-message"]')).toContainText(

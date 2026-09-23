@@ -1,6 +1,11 @@
 import { expect, test, type Page } from '@playwright/test';
 import { signInAsSecretary } from '../shared/auth';
-import { LIVE_SECRETARY_SHOW_ID } from '../shared/seededShows';
+import {
+  installSecretaryFixture,
+  NON_OWNED_DOG_CALL_NAME,
+  NON_OWNED_DOG_SEARCH,
+  SECRETARY_FIXTURE_SHOW_ID,
+} from '../../helpers/secretaryFixture';
 import {
   type BrowserHealth,
   createBrowserHealth,
@@ -11,13 +16,12 @@ import {
 
 test.describe.configure({ mode: 'serial' });
 
-const SHOW_ID = LIVE_SECRETARY_SHOW_ID;
-// A lean-seed dog owned by the demo exhibitor, not the secretary (seed-demo.sql
-// section 5). Willow holds paid entries, so no dog-delete path can remove it
-// between reseeds. This was the MYK9-109 load dog 'Echo 10' until MYK9-558 made
-// that fixture opt-in. Pinned by seedDemoStagingConsumersContract.test.ts.
-const NON_OWNED_DOG_SEARCH = 'Willow';
-const NON_OWNED_DOG_LABEL = 'Willow';
+// Every show-scoped case runs on the hermetic secretary show
+// (docs/plan-hermetic-e2e-fixtures.md). They opened the seeded show until
+// staging was emptied on 2026-09-20; the mail-in case then read "Show not
+// found." and the entries case rendered its chrome around a show that no
+// longer existed, which passed or failed by timing.
+const SHOW_ID = SECRETARY_FIXTURE_SHOW_ID;
 const healthByTest = new Map<string, BrowserHealth>();
 
 test.describe('Phase 1 UAT - Secretary critical path', () => {
@@ -77,6 +81,7 @@ test.describe('Phase 1 UAT - Secretary critical path', () => {
   }) => {
     await page.clock.setFixedTime(new Date('2026-05-15T12:00:00.000Z'));
 
+    await installSecretaryFixture(page);
     await signInAsSecretary(page, `/secretary/register/${SHOW_ID}`);
 
     await expect(page.getByRole('heading', { name: 'Add entry for someone else' })).toBeVisible({
@@ -88,13 +93,13 @@ test.describe('Phase 1 UAT - Secretary critical path', () => {
     const search = page.getByPlaceholder(/Search all dogs/i);
     await expect(search).toBeVisible();
     await search.fill(NON_OWNED_DOG_SEARCH);
-    await waitForDogSearch(page, NON_OWNED_DOG_SEARCH.toLowerCase());
+    await waitForDogSearch(page, 'echo');
 
     await expect(page.getByText(/^\d+ dogs?/)).toBeVisible();
     await expect(page.getByText(/No dogs match your search/i)).not.toBeVisible();
 
     const dog = page.getByRole('checkbox', {
-      name: `Select ${NON_OWNED_DOG_LABEL}`,
+      name: `Select ${NON_OWNED_DOG_CALL_NAME}`,
       exact: true,
     });
     await expect(dog).toBeVisible();
@@ -112,6 +117,7 @@ test.describe('Phase 1 UAT - Secretary critical path', () => {
 
   test('entry management exposes review, waitlist, and export controls', async ({ page }) => {
     test.setTimeout(60_000);
+    await installSecretaryFixture(page);
     await signInAsSecretary(page, `/shows/${SHOW_ID}/entries`);
 
     await expect(page.getByRole('heading', { name: 'Entry Management' })).toBeVisible({
@@ -137,6 +143,7 @@ test.describe('Phase 1 UAT - Secretary critical path', () => {
   });
 
   test('reports page exposes financial and statistics report choices', async ({ page }) => {
+    await installSecretaryFixture(page);
     await signInAsSecretary(page, `/shows/${SHOW_ID}/reports`);
 
     await expect(page.getByRole('heading', { name: 'Reports' })).toBeVisible({ timeout: 15000 });

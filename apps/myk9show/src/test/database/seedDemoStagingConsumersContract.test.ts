@@ -173,13 +173,13 @@ describe('staging consumers of the lean demo seed (MYK9-558)', () => {
     }
   });
 
-  it('secretary critical path: the mail-in dog is a lean dog the secretary does not own', () => {
+  it('secretary critical path: the mail-in dog comes from the hermetic fixture, not the seed', () => {
+    // MYK9-702 moved this spec onto installSecretaryFixture, so no reseed can
+    // take its dog away. Pin that it still reads the dog from the fixture.
     const source = spec('uat/secretary/critical-path.spec.ts');
-    const label = constOf(source, 'NON_OWNED_DOG_LABEL');
-    const query = constOf(source, 'NON_OWNED_DOG_SEARCH').toLowerCase();
-    const dog = dogs.find(d => d[2] === label);
-    expect(dog, `${label} is not a seeded dog call name`).toBeDefined();
-    expect(`${dog![1]} ${dog![2]}`.toLowerCase()).toContain(query);
-    expect(whole(dog!)).not.toContain('secretary@myk9t.com');
+    expect(source).toMatch(
+      /NON_OWNED_DOG_SEARCH[\s\S]*?from '\.\.\/\.\.\/helpers\/secretaryFixture'/
+    );
+    expect(source).not.toMatch(/const NON_OWNED_DOG_SEARCH\s*=/);
   });
 });

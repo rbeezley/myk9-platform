@@ -22,8 +22,9 @@ INSERT INTO public.dog_registrations (dog_id, organization, registration_number)
 VALUES
   ('00000000-0000-0000-0000-000000639806', 'AKC', 'SR6398001'),
   ('00000000-0000-0000-0000-000000639807', 'AKC', 'SR6398002');
-INSERT INTO public.people (id, first_name, last_name)
-VALUES ('00000000-0000-0000-0000-000000639808', 'MYK9-639', 'Refund Exhibitor');
+INSERT INTO public.people (id, first_name, last_name, email)
+VALUES ('00000000-0000-0000-0000-000000639808', 'MYK9-639', 'Refund Exhibitor',
+        'myk9-639-refund@example.test');
 INSERT INTO auth.users (
   id, instance_id, aud, role, email, encrypted_password, email_confirmed_at,
   created_at, updated_at, raw_app_meta_data, raw_user_meta_data,
@@ -33,9 +34,11 @@ INSERT INTO auth.users (
   'authenticated', 'authenticated', 'myk9-639-refund@example.test', '', now(), now(), now(), '{}', '{}',
   false, false, false
 );
-INSERT INTO public.exhibitor_profiles (id, person_id, auth_user_id)
-VALUES ('00000000-0000-0000-0000-000000639810',
-        '00000000-0000-0000-0000-000000639808', '00000000-0000-0000-0000-000000639809');
+-- The auth.users trigger adopts the matching person and creates the profile.
+-- Give that generated profile the stable fixture ID before any cart references it.
+UPDATE public.exhibitor_profiles SET id = '00000000-0000-0000-0000-000000639810'
+ WHERE person_id = '00000000-0000-0000-0000-000000639808'
+   AND auth_user_id = '00000000-0000-0000-0000-000000639809';
 
 SET LOCAL ROLE service_role;
 INSERT INTO public.entries (

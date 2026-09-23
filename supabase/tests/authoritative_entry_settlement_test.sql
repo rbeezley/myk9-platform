@@ -38,8 +38,9 @@ VALUES
   ('00000000-0000-0000-0000-000000639710', 'AKC', 'SR6397002', true),
   ('00000000-0000-0000-0000-000000639730', 'AKC', 'SR6397003', true),
   ('00000000-0000-0000-0000-000000639760', 'AKC', 'SR6397004', true);
-INSERT INTO public.people (id, first_name, last_name)
-VALUES ('00000000-0000-0000-0000-000000639721', 'MYK9-639', 'Cart Exhibitor');
+INSERT INTO public.people (id, first_name, last_name, email)
+VALUES ('00000000-0000-0000-0000-000000639721', 'MYK9-639', 'Cart Exhibitor',
+        'myk9-639-settlement-cart@example.test');
 INSERT INTO auth.users (
   id, instance_id, aud, role, email, encrypted_password, email_confirmed_at,
   created_at, updated_at, raw_app_meta_data, raw_user_meta_data,
@@ -49,9 +50,11 @@ INSERT INTO auth.users (
   '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated',
   'myk9-639-settlement-cart@example.test', '', now(), now(), now(), '{}', '{}', false, false, false
 );
-INSERT INTO public.exhibitor_profiles (id, person_id, auth_user_id)
-VALUES ('00000000-0000-0000-0000-000000639723',
-        '00000000-0000-0000-0000-000000639721', '00000000-0000-0000-0000-000000639722');
+-- The auth.users trigger adopts the matching person and creates the profile.
+-- Give that generated profile the stable fixture ID before any cart references it.
+UPDATE public.exhibitor_profiles SET id = '00000000-0000-0000-0000-000000639723'
+ WHERE person_id = '00000000-0000-0000-0000-000000639721'
+   AND auth_user_id = '00000000-0000-0000-0000-000000639722';
 
 SET LOCAL ROLE service_role;
 INSERT INTO public.entries (

@@ -271,6 +271,82 @@ describe('buildCreateShowPayload', () => {
     expect(rpcInput.p_classes[0]!.trial_id).toBe(trialIdMap['wizard-trial-1']);
   });
 
+  it('rejects a class with an unresolved registry element before returning a payload', () => {
+    const invalidTrial: WizardTrial = {
+      ...baseTrial,
+      classes: [
+        {
+          templateId: 'tmpl-invalid',
+          customizations: { element: 'Unknown', level: 'Unknown', className: 'Unresolved class' },
+        },
+      ],
+    };
+
+    expect(() => buildCreateShowPayload(baseShow, [invalidTrial], {}, new Map(), 'draft')).toThrow(
+      /Unresolved class.*element/i
+    );
+  });
+
+  it('rejects a class triple that is configured for a different registry', () => {
+    const ukcOnlyClass: WizardTrial = {
+      ...baseTrial,
+      classes: [
+        {
+          templateId: 'tmpl-ukc-only',
+          customizations: {
+            element: 'Container',
+            level: 'Master',
+            section: 'B',
+            className: 'Container Master B',
+          },
+        },
+      ],
+    };
+
+    expect(() => buildCreateShowPayload(baseShow, [ukcOnlyClass], {}, new Map(), 'draft')).toThrow(
+      /Container Master B.*registry/i
+    );
+  });
+
+  it('normalizes configured standalone classes to an empty level', () => {
+    const standaloneClass: WizardTrial = {
+      ...baseTrial,
+      classes: [
+        {
+          templateId: 'tmpl-detective',
+          customizations: { element: 'Detective', level: 'Detective', className: 'Detective' },
+        },
+      ],
+    };
+
+    const { rpcInput } = buildCreateShowPayload(baseShow, [standaloneClass], {}, new Map(), 'draft');
+
+    expect(rpcInput.p_classes).toHaveLength(1);
+    expect(rpcInput.p_classes[0]!.element).toBe('Detective');
+    expect(rpcInput.p_classes[0]!.level).toBeNull();
+  });
+
+  it('deduplicates aliases that normalize to the same class triple within one trial', () => {
+    const duplicateClasses: WizardTrial = {
+      ...baseTrial,
+      classes: [
+        {
+          templateId: 'tmpl-containers',
+          customizations: { element: 'Containers', level: 'Novice', className: 'Containers Novice' },
+        },
+        {
+          templateId: 'tmpl-container',
+          customizations: { element: 'Container', level: 'Novice', className: 'Container Novice' },
+        },
+      ],
+    };
+
+    const { rpcInput } = buildCreateShowPayload(baseShow, [duplicateClasses], {}, new Map(), 'draft');
+
+    expect(rpcInput.p_classes).toHaveLength(1);
+    expect(rpcInput.p_classes[0]!.element).toBe('Container');
+  });
+
   it('carries the per-class judgeId into p_classes[].judge_id (class-level assignment grain)', () => {
     const trialWithClass: WizardTrial = {
       ...baseTrial,

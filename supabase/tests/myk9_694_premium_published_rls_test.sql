@@ -202,15 +202,13 @@ BEGIN
   IF NOT denied THEN
     RAISE EXCEPTION 'FAIL manager staged a new legacy flat premium object after cutover';
   END IF;
-  IF NOT EXISTS (
+  IF EXISTS (
     SELECT 1
-    FROM storage.buckets
-    WHERE id = 'premium-published'
-      AND public = false
-      AND file_size_limit = 26214400
-      AND 'application/pdf' = ANY(allowed_mime_types)
+    FROM storage.objects
+    WHERE bucket_id = 'premium-published'
+      AND name = other_show::text || '.pdf'
   ) THEN
-    RAISE EXCEPTION 'FAIL premium-published bucket privacy/constraints were not applied';
+    RAISE EXCEPTION 'FAIL authenticated manager could list another club premium object';
   END IF;
   IF EXISTS (
     SELECT 1 FROM pg_policies
@@ -563,8 +561,20 @@ END;
 $$;
 
 RESET ROLE;
+-- Bucket metadata is not exposed to authenticated users for private buckets;
+-- validate its configuration as the privileged test role after role reset.
 DO $$
 BEGIN
+  IF NOT EXISTS (
+    SELECT 1
+    FROM storage.buckets
+    WHERE id = 'premium-published'
+      AND public = false
+      AND file_size_limit = 26214400
+      AND 'application/pdf' = ANY(allowed_mime_types)
+  ) THEN
+    RAISE EXCEPTION 'FAIL premium-published bucket privacy/constraints were not applied';
+  END IF;
   IF NOT EXISTS (
     SELECT 1 FROM storage.objects
     WHERE bucket_id = 'premium-published'

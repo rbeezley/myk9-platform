@@ -15,32 +15,37 @@ const migrationSource = readFileSync(
   ),
   'utf8'
 );
+const settlementSource = readFileSync(
+  resolve(
+    __dirname,
+    '../../../../../supabase/migrations/20260922184700_myk9_639_authoritative_entry_settlement.sql'
+  ),
+  'utf8'
+);
 
 describe('stripe-webhook snapshot wiring (source-pinned)', () => {
-  it('imports the pure snapshot helpers', () => {
-    expect(webhookSource).toContain('buildOrderSnapshotFields');
+  it('captures processing fees and delegates entry order snapshots to SQL', () => {
     expect(webhookSource).toContain('extractProcessingFeeCents');
-    // The payment-link snapshot is built from the ACCEPTED entries, never
-    // back-derived from the gross session total (review finding 2): deriving it
-    // from the total made `amount == subtotal + fee` true by construction, so a
-    // make-whole refund guaranteed a false Mismatch and the tie-out was a
-    // tautology on that path.
-    expect(webhookSource).toContain('resolveAcceptedEntrySnapshot');
-    expect(webhookSource).not.toContain('deriveEntryFeeFromTotalCents');
+    expect(webhookSource).toContain("'settle_entry_order'");
+    expect(webhookSource).toContain('stripe_processing_fee_cents: processingFeeCents');
+    expect(webhookSource).not.toContain('buildOrderSnapshotFields');
+    expect(settlementSource).toContain('INSERT INTO public.stripe_orders');
+    expect(settlementSource).toContain('p_verified_gross_cents');
+    expect(settlementSource).toContain('entry_subtotal_cents');
+    expect(settlementSource).toContain('platform_fee_cents');
   });
 
   it('fetches the charge balance transaction to capture the processing fee', () => {
     expect(webhookSource).toContain("expand: ['latest_charge.balance_transaction']");
   });
 
-  it('spreads snapshot fields into EVERY stripe_orders insert', () => {
-    // Was three sites; `handleOneTimePaymentCompleted` was deleted on main by the
-    // Stripe money-path audit (#1381), leaving the cart and payment-link inserts.
-    // The count is pinned so a NEW insert site cannot be added without a snapshot.
-    const inserts = webhookSource.match(/\.from\('stripe_orders'\)\s*\.insert\(/g) ?? [];
-    const spreads = webhookSource.match(/\.\.\.buildOrderSnapshotFields\(/g) ?? [];
-    expect(spreads.length).toBe(2);
-    expect(spreads.length).toBe(inserts.length);
+  it('persists gross order amount and full-refund metadata in the shared SQL authority', () => {
+    expect(settlementSource).toContain('p_verified_gross_cents');
+    expect(settlementSource).toContain("'overflow_refund'");
+    expect(settlementSource).toContain("'action', 'refund'");
+    expect(settlementSource).toContain("'amount_cents', v_expected_make_whole");
+    expect(settlementSource).toContain("'paid_amount_cents', p_verified_gross_cents");
+    expect(settlementSource).toContain("WHEN v_accepted_subtotal = 0 THEN 'full_make_whole'");
   });
 
   it('never rewrites the immutable charge facts in the refund path', () => {
@@ -174,13 +179,11 @@ describe('stripe-webhook snapshot wiring (source-pinned)', () => {
     expect(body).not.toContain('resolveCumulativeRefundedCents');
   });
 
-  it('keeps amount_cents GROSS at the cart insert (no pre-netted overflow refund)', () => {
-    // Collection invariant: pre-netting the overflow refund out of amount_cents
-    // AND recording it in refunded_cents double-subtracts it (review finding A).
-    expect(webhookSource).toContain('amount_cents: freshTotalCents');
-    // Word-boundary: metadata.paid_amount_cents legitimately carries the
-    // paid-only figure; the amount_cents COLUMN must not.
-    expect(webhookSource).not.toMatch(/\bamount_cents: paidOrderAmountCents/);
+  it('keeps gross amount in SQL and separates the make-whole amount', () => {
+    expect(settlementSource).toContain('p_verified_gross_cents');
+    expect(settlementSource).toContain('v_expected_make_whole');
+    expect(settlementSource).toContain('amount_cents, currency, status');
+    expect(settlementSource).not.toContain('amount_cents - v_expected_make_whole');
   });
 
   it('records the cart-overflow auto-refund it issues as MAKE-WHOLE, not post-hoc', () => {

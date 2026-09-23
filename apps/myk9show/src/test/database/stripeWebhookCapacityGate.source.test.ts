@@ -21,35 +21,35 @@ const recoveredCartMigration = readFileSync(
   resolve(root, 'supabase/migrations/20260906140000_link_recovered_cart_items_to_entries.sql'),
   'utf8'
 );
-const compactCapacityGateMigration = capacityGateMigration.replace(/\s+/g, ' ');
-const recoveredBranchStart = webhookSource.indexOf('if (item.entry_id)');
-const recoveredBranch = webhookSource.slice(
-  recoveredBranchStart,
-  webhookSource.indexOf('const entryInsert', recoveredBranchStart)
+const settlementMigration = readFileSync(
+  resolve(root, 'supabase/migrations/20260922184700_myk9_639_authoritative_entry_settlement.sql'),
+  'utf8'
 );
+const lineageMigration = readFileSync(
+  resolve(root, 'supabase/migrations/20260922184500_myk9_639_entry_payment_lineage.sql'),
+  'utf8'
+);
+const compactCapacityGateMigration = capacityGateMigration.replace(/\s+/g, ' ');
 
 describe('stripe webhook online cart capacity gate', () => {
-  it('routes paid cart entry creation through the atomic capacity RPC', () => {
-    expect(webhookSource).toContain("rpc('create_online_paid_entry'");
-    expect(webhookSource).not.toContain(
-      ".from('entries')\n      .insert(\n        buildEntryInsert"
-    );
+  it('routes cart and payment-link settlement through one SQL authority', () => {
+    expect(webhookSource.match(/'settle_entry_order'/g)).toHaveLength(2);
+    expect(webhookSource).toContain('loadEntrySettlementLinePricesFromStripe');
+    expect(webhookSource).toContain("'cart_item_id'");
+    expect(webhookSource).toContain("'entry_id'");
+    expect(webhookSource).not.toContain('reconcileEntryPaymentRequest');
+    expect(webhookSource).not.toContain('resolvePaidWaitlistOffers');
   });
 
-  it('marks recovered existing entries paid instead of inserting duplicate rows', () => {
-    expect(recoveredBranch).toContain('if (item.entry_id)');
-    expect(recoveredBranch).toContain("payment_status: 'paid'");
-    expect(recoveredBranch).toContain("payment_method: 'online'");
-    expect(recoveredBranch).toContain("entry_status: 'confirmed'");
-    expect(recoveredBranch).toContain('entry_fee: lineAmountCents / 100');
-    expect(recoveredBranch).toContain(".eq('payment_status', 'pending')");
-    expect(recoveredBranch).toContain(".eq('dog_id', item.dog_id)");
-    expect(recoveredBranch).toContain(".eq('class_id', item.class_id)");
-    expect(recoveredBranch).toContain(".eq('show_id', cart.show_id)");
-    expect(recoveredBranch).toContain(".is('deleted_at', null)");
-    expect(recoveredBranch).toContain('INACTIVE_ENTRY_STATUSES.has');
-    expect(recoveredBranch).toContain('expireRecoveredEntryPaymentLinks');
-    expect(webhookSource).toContain('await resolvePaidWaitlistOffers(paidLineIds, session.id)');
+  it('keeps capacity creation and recovered lineage resolution in SQL', () => {
+    expect(settlementMigration).toContain('public.create_online_paid_entry');
+    expect(settlementMigration).toContain('resolve_entry_payment_lineage');
+    expect(lineageMigration).toContain('quote_entry_payment_lineage');
+    expect(settlementMigration).toContain("payment_status = 'paid'");
+    expect(settlementMigration).toContain("payment_method = 'online'");
+    expect(settlementMigration).toContain("entry_status = 'confirmed'");
+    expect(settlementMigration).toContain("status = 'accepted'");
+    expect(webhookSource).not.toContain(".from('entries').update({");
     expect(recoveredCartMigration).toContain('ADD COLUMN IF NOT EXISTS entry_id uuid');
     expect(recoveredCartMigration).toContain('entry_cart_items_entry_id_idx');
     expect(recoveredCartMigration.toLowerCase()).toContain(
@@ -99,22 +99,19 @@ describe('stripe webhook online cart capacity gate', () => {
     expect(capacityGateMigration).toContain('waitlist_entry_id := v_waitlist_entry.id');
   });
 
-  it('refunds no-service overflow lines instead of leaving paid missing entries', () => {
-    expect(webhookSource).toContain('decideCartOverflowRefund');
+  it('refunds rejected settlement lines using the SQL-computed amount', () => {
+    expect(webhookSource).toContain('expectedMakeWholeRefundCents');
     expect(webhookSource).toContain('issueCartOverflowAutoRefund');
     expect(webhookSource).toContain("type: 'entry_cart_overflow_auto_refund'");
     expect(webhookSource).toContain('waitlistedCartItemIds');
     expect(webhookSource).toContain('deniedCartItemIds');
-    expect(webhookSource).not.toContain('Paid entries missing — manual reconciliation needed');
   });
 
-  it('keeps stripe_orders scoped to paid entries and records overflow explicitly', () => {
-    expect(webhookSource).toContain('amount_cents: paidOrderAmountCents');
-    expect(webhookSource).toContain('entry_ids: entryIds');
-    expect(webhookSource).toContain('collected_amount_cents');
-    expect(webhookSource).toContain('overflow_refund');
-    expect(webhookSource).toContain('waitlisted_cart_item_ids');
-    expect(webhookSource).toContain('denied_cart_item_ids');
+  it('persists exact issuance snapshots and gross overflow refund metadata', () => {
+    expect(settlementMigration).toContain('entry_fee_snapshot');
+    expect(settlementMigration).toContain("'overflow_refund'");
+    expect(settlementMigration).toContain("'paid_amount_cents', p_verified_gross_cents");
+    expect(settlementMigration).toContain('p_verified_gross_cents');
   });
 
   it('keeps the online capacity RPC service-role only', () => {

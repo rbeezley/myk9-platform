@@ -1,38 +1,28 @@
 import 'jsr:@supabase/functions-js/edge-runtime.d.ts';
 import Stripe from 'npm:stripe@17.7.0';
 import { createClient } from 'npm:@supabase/supabase-js@2.49.1';
-import { buildEntryInsert, extractPaymentIntentId } from '../_shared/entryFromCartItem.ts';
+import { extractPaymentIntentId } from '../_shared/entryFromCartItem.ts';
 import { accountToRowPatch } from '../_shared/connectAccountMapper.ts';
 import { parsePremiumPriceIds, priceIdToTier } from '../_shared/premiumPrices.ts';
-import { sessionMatchesCart } from '../_shared/sessionCartGuard.ts';
-import {
-  INACTIVE_ENTRY_STATUSES,
-  reconcileEntryPaymentRequest,
-} from '../_shared/entryPaymentReconcile.ts';
-import { reconcileEntryPaymentUpdateOutcome } from '../_shared/entryPaymentUpdateReconcile.ts';
 import { alertAdmin } from '../_shared/alertAdmin.ts';
-import { authoritativeEntryFeeCents } from '../_shared/authoritativeFee.ts';
+import { decodeStampedPlatformFeeRates } from '../_shared/platformFee.ts';
 import {
-  calculatePlatformFeeCents,
-  decodeStampedPlatformFeeRates,
-} from '../_shared/platformFee.ts';
-import {
-  buildOrderSnapshotFields,
   extractProcessingFeeCents,
-  resolveAcceptedEntrySnapshot,
   refundKindFromMetadata,
   MAKE_WHOLE_METADATA_KEY,
 } from '../_shared/orderSnapshot.ts';
-import { loadEntryPaymentLineItemFeesFromStripe } from '../_shared/entryPaymentLineItems.ts';
+import { loadEntrySettlementLinePricesFromStripe } from '../_shared/entryPaymentLineItems.ts';
+import {
+  mapAcceptedEntryFees,
+  normalizeEntryOrderSettlement,
+  type EntryOrderSettlement,
+} from '../_shared/entryOrderSettlement.ts';
 import {
   resolveWithdrawalPolicy,
   type ShowWithdrawalColumns,
   type ClubWithdrawalColumns,
 } from '../_shared/withdrawalPolicy.ts';
-import {
-  decideCartOverflowRefund,
-  type CartOverflowRefundDecision,
-} from '../_shared/cartOverflowRefund.ts';
+import type { CartOverflowRefundDecision } from '../_shared/cartOverflowRefund.ts';
 import { isStripeLiveMode } from '../_shared/stripeMode.ts';
 import {
   allRefundsAppOriginated,
@@ -71,20 +61,6 @@ const stripe = new Stripe(stripeSecret, {
 const stripeLivemode = isStripeLiveMode(stripeSecret);
 
 const supabase = createClient(supabaseUrl, supabaseServiceKey);
-
-type OnlinePaidEntryCapacityOutcome = {
-  outcome: 'created_entry' | 'waitlisted' | 'denied';
-  entry_id: string | null;
-  waitlist_entry_id: string | null;
-};
-
-type CartOverflowLine = {
-  cartItemId: string;
-  classId: string;
-  dogId: string;
-  waitlistEntryId?: string;
-  errorMessage?: string;
-};
 
 Deno.serve(
   createWebhookRequestHandler({
@@ -904,9 +880,6 @@ async function handleEntryPaymentCompleted(session: Stripe.Checkout.Session) {
     return;
   }
 
-  console.log(`Processing entry payment for cart: ${cartId}`);
-
-  // Get cart with items
   const { data: cart, error: cartError } = await supabase
     .from('entry_carts')
     .select(
@@ -914,861 +887,175 @@ async function handleEntryPaymentCompleted(session: Stripe.Checkout.Session) {
       *,
       exhibitor:exhibitor_profiles(id, person_id),
       items:entry_cart_items(
-        id,
-        entry_id,
-        dog_id,
-        class_id,
-        handler_id,
-        entry_fee_cents,
-        jump_height,
-        special_requests
+        id, entry_id, dog_id, class_id, handler_id, entry_fee_cents,
+        jump_height, special_requests
       )
     `
     )
     .eq('id', cartId)
     .single();
-
   if (cartError || !cart) {
-    // A PAID session whose cart row is gone (owner DELETE is allowed by RLS,
-    // and Checkout tabs stay payable until they expire): charge taken, zero
-    // entries, no Stripe retry — same severity as every other paid-but-broken
-    // state (round-13 review).
-    console.error('Cart not found:', cartError);
+    console.error('Paid entry checkout cart could not be loaded:', cartError);
     await alertAdmin(
       'Paid checkout has no cart — entries NOT created',
-      `<p>Checkout session <code>${session.id}</code> was PAID, but cart
-       <code>${cartId}</code> no longer exists${cartError ? ' (read error below)' : ''} —
-       no entries were created and Stripe will not retry.</p>
-       ${cartError ? `<pre>${cartError.message}</pre>` : ''}
-       <p>Recovery: verify the payment in the Stripe dashboard and refund it
-       (Payments → search the session's payment intent → Refund), or recreate the
-       entries manually if the exhibitor confirms what they ordered.</p>`,
+      `<p>Checkout session <code>${session.id}</code> was PAID, but cart <code>${cartId}</code> could not be read. No entries were created.</p><p>Verify the payment and refund it, or restore the cart and re-send the event.</p>`,
       { source: 'stripe-webhook', dedupeKey: `paid-checkout-no-cart-${session.id}` }
     );
     return;
   }
 
-  // Refuse a paid session the cart no longer points at: the exhibitor started
-  // checkout, abandoned the Stripe tab, changed the cart, then paid the OLD
-  // page — entries from the CURRENT cart would not match the stale charge
-  // (Codex round-3 P1). Cart mutations null stripe_checkout_session_id, which
-  // is what makes this id equality decisive. The cart stays active so a fresh
-  // checkout works; the operator refunds the stale charge.
-  const staleGuard = sessionMatchesCart({
-    sessionId: session.id,
-    sessionAmountTotal: session.amount_total ?? null,
-    cartSessionId: cart.stripe_checkout_session_id ?? null,
-    cartTotalCents: cart.total_cents ?? null,
-    cartItemCount: cart.items?.length ?? 0,
-    cartExpiresAt: cart.expires_at ?? null,
-    nowIso: new Date().toISOString(),
-    cartSubtotalCents: cart.subtotal_cents ?? null,
-    itemFeesSumCents: (cart.items ?? []).reduce(
-      (sum: number, i: { entry_fee_cents: number }) => sum + (i.entry_fee_cents ?? 0),
-      0
-    ),
-  });
-  if (!staleGuard.ok) {
-    const stalePiId = extractPaymentIntentId(session.payment_intent);
-    console.error(`CRITICAL: stale-session payment for cart ${cartId} — ${staleGuard.reason}`);
-    await alertAdmin(
-      'Stale checkout payment needs a refund',
-      `<p>Checkout session <code>${session.id}</code> was PAID, but cart
-       <code>${cartId}</code> changed after that checkout started
-       (${staleGuard.reason}).</p>
-       <p>No entries were created for this charge. Refund payment intent
-       <code>${stalePiId ?? 'unknown — look up the session in Stripe'}</code> from the
-       Stripe dashboard. The exhibitor's cart is untouched and they can check out
-       again normally.</p>`,
-      { source: 'stripe-webhook', dedupeKey: `stale-checkout-refund-${session.id}` }
-    );
-    return;
-  }
-
-  // Round-15 P1: every number the guard above compared is OWNER-WRITABLE
-  // (cart totals, item fees — migration 009's update policies have no column
-  // restrictions), and the pinned webhook payload omits amount_total. A user
-  // could mutate item fees AND the stored subtotal in lockstep after starting
-  // checkout, pay the original Stripe amount, and get inflated paid entries
-  // (which the payout cron would then pay the club for). Verify against two
-  // sources the payer cannot write: a FRESH session retrieve from Stripe's
-  // API (modern SDK version — amount_total always present) and authoritative
-  // per-item fees recomputed from show/class pricing. Runs BEFORE the claim
-  // so a rejected cart stays active.
   const freshSession = await stripe.checkout.sessions.retrieve(session.id);
   const freshGate = decideFreshSessionGate(freshSession);
   if (freshGate.action === 'skip') {
-    // Delayed-notification methods (e.g. some bank debits) fire
-    // checkout.session.completed before money actually lands; Stripe redrives
-    // this exact handler via checkout.session.async_payment_succeeded once it
-    // does (both events route to handleCheckoutCompleted — see the event
-    // switch above). ACK the webhook without processing.
     console.log(`Checkout session ${session.id}: ${freshGate.reason} — waiting for a paid event`);
     return;
   }
-  const freshTotalCents = freshGate.amountTotalCents;
-
-  const { data: showFees, error: showFeesError } = await supabase
-    .from('shows')
-    .select('pre_entry_fee, day_of_show_fee, start_date')
-    .eq('id', cart.show_id)
-    .single();
-
-  const classIds = [...new Set(cart.items.map((i: { class_id: string }) => i.class_id))];
-  // Filter to only classes whose trial belongs to this show (P1b class-show
-  // membership check). A class from a different show would pass the fee
-  // verification only by coincidence of equal fees, but would produce an entry
-  // with a trial_id from the wrong show.
-  const { data: classRows, error: classesError } = await supabase
-    .from('classes')
-    .select('id, trial_id, entry_fee, trial:trials!inner(show_id)')
-    .in('id', classIds)
-    .eq('trial.show_id', cart.show_id);
-
-  if (freshTotalCents == null || showFeesError || !showFees || classesError || !classRows) {
-    console.error(
-      `CRITICAL: cannot verify paid amount for cart ${cartId} — ` +
-        `freshTotal=${freshTotalCents}, showFeesError=${showFeesError?.message}, classesError=${classesError?.message}`
+  const paymentIntentId = extractPaymentIntentId(freshSession.payment_intent);
+  const grossCents = freshGate.amountTotalCents;
+  let linePrices;
+  try {
+    linePrices = await loadEntrySettlementLinePricesFromStripe(
+      stripe.checkout.sessions,
+      session.id,
+      'cart_item_id'
     );
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
     await alertAdmin(
-      'Paid checkout could not be verified — entries NOT created',
-      `<p>Checkout session <code>${session.id}</code> was PAID, but the authoritative
-       fee data needed to verify the amount could not be loaded, so no entries were
-       created and Stripe will not retry. The cart is untouched.</p>
-       <p>Recovery: check the function logs; if this was a transient database error,
-       re-send the event from the Stripe dashboard (Developers → Events → Resend).</p>`,
-      { source: 'stripe-webhook', dedupeKey: `checkout-verify-failed-${session.id}` }
+      'Paid cart has incomplete Stripe line evidence',
+      `<p>Session <code>${session.id}</code> was paid, but its entry lines could not be matched to cart items. No entries were settled.</p><pre>${message}</pre>`,
+      { source: 'stripe-webhook', dedupeKey: `cart-lines-invalid-${session.id}` }
     );
+    await issueCartOverflowAutoRefund({
+      session: freshSession,
+      paymentIntentId,
+      decision: fullCartRefundDecision(grossCents, paymentIntentId),
+      invalidCartItemIds: cart.items.map((item: { id: string }) => item.id),
+      waitlistedCartItemIds: [],
+      deniedCartItemIds: [],
+      failedCartItemIds: [],
+    });
     return;
   }
 
-  // Fail closed if any cart item's class was filtered out (cross-show class_id).
-  // A missing class produces trial_id: null entries and distorts payout math.
-  // !classRows above catches null; this catches a partial result (truthy array
-  // with fewer rows than classIds).
-  const classRowIds = new Set(classRows.map((c: { id: string }) => c.id));
-  const missingClassIds = classIds.filter((id: string) => !classRowIds.has(id));
-  if (missingClassIds.length > 0) {
-    console.error(
-      `CRITICAL: ${missingClassIds.length} class(es) not found in show ${cart.show_id} ` +
-        `for cart ${cartId} — possible cross-show class_id: ${missingClassIds.join(', ')}`
-    );
-    await alertAdmin(
-      'Cart classes do not belong to show — entries NOT created',
-      `<p>Checkout session <code>${session.id}</code> was PAID, but ${missingClassIds.length}
-       class(es) in cart <code>${cartId}</code> did not pass the show-membership filter.
-       This may indicate a cross-show class_id was injected into the cart.</p>
-       <p>Missing class IDs: <code>${missingClassIds.join(', ')}</code></p>
-       <p>No entries were created. Refund payment intent from the Stripe dashboard and
-       investigate the cart before manually re-entering.</p>`,
-      { source: 'stripe-webhook', dedupeKey: `cart-classes-mismatch-${session.id}` }
-    );
-    return;
-  }
-
-  const feeByClass = new Map<string, number | string | null>(
-    classRows.map((c: { id: string; entry_fee: number | string | null }) => [c.id, c.entry_fee])
-  );
-  const nowIso = new Date().toISOString();
-  const authoritativeByClass = new Map<string, number>(
-    classIds.map((classId: string) => [
-      classId,
-      authoritativeEntryFeeCents({
-        showPreEntryFee: showFees.pre_entry_fee,
-        showDayOfShowFee: showFees.day_of_show_fee,
-        showStartDate: showFees.start_date,
-        classEntryFee: feeByClass.get(classId) ?? null,
-        nowIso,
-      }),
-    ])
-  );
-  const authoritativeSubtotal = (cart.items as { class_id: string }[]).reduce(
-    (sum, i) => sum + (authoritativeByClass.get(i.class_id) ?? 0),
-    0
-  );
-  // Validate the platform fee against the rate STAMPED on the session at
-  // checkout, not a live read — stripe-checkout now charges from the
-  // platform_settings row, and a site admin changing that rate between charge
-  // and webhook must not make this reject a correctly-charged session (which
-  // would leave the exhibitor paid with no entries). Fall back to the env var
-  // for sessions created before the stamp existed.
-  // The flat component and the floor read back as 0 when the stamp is ABSENT
-  // (decodeStampedPlatformFeeRates), never from env or the live row: a session
-  // created before those columns existed was charged percentage-only, and
-  // re-validating it against a live non-zero flat would reject a correctly
-  // charged payment — exhibitor paid, no entries.
-  const stampedFeeRates = decodeStampedPlatformFeeRates(
-    freshSession.metadata,
-    Deno.env.get('PLATFORM_FEE_PERCENT')
-  );
-  const authoritativeTotal =
-    authoritativeSubtotal + calculatePlatformFeeCents(authoritativeSubtotal, stampedFeeRates);
-  if (authoritativeTotal !== freshTotalCents) {
-    const piId = extractPaymentIntentId(session.payment_intent);
-    console.error(
-      `CRITICAL: paid total ${freshTotalCents}¢ does not match authoritative pricing ` +
-        `${authoritativeTotal}¢ for cart ${cartId} — entries NOT created`
-    );
-    await alertAdmin(
-      'Paid amount disagrees with authoritative pricing — verify, then refund',
-      `<p>Checkout session <code>${session.id}</code> charged ${(freshTotalCents / 100).toFixed(2)}
-       USD, but the show/class pricing says this cart is worth
-       ${(authoritativeTotal / 100).toFixed(2)} USD. No entries were created; the cart
-       is untouched.</p>
-       <p>Benign cause: the show's fees changed (or the day-of-show fee tier started)
-       between checkout and payment. Malicious cause: cart values were tampered after
-       checkout started. Either way the charge doesn't match current pricing — refund
-       payment intent <code>${piId ?? 'unknown'}</code> from the Stripe dashboard and
-       ask the exhibitor to check out again.</p>`,
-      { source: 'stripe-webhook', dedupeKey: `paid-amount-mismatch-${session.id}` }
-    );
-    return;
-  }
-
-  // Idempotency latch: atomically claim the cart by flipping active → submitted.
-  // A re-delivered event would otherwise create duplicate paid entries — which
-  // the payout cron would then pay the club for twice.
-  // Expiry is already enforced in pure code by sessionMatchesCart above (the
-  // cartExpiresAt < now check on the SAME cart.expires_at read), so the claim
-  // only needs the status latch for idempotency. We deliberately do NOT
-  // re-filter on expires_at here: a raw ISO timestamp inside PostgREST's .or()
-  // mini-language misparses the dotted/colon'd value and the whole UPDATE
-  // fails with `column entry_carts.expires_at does not exist`. The TOCTOU window
-  // the .or() guarded is sub-millisecond and fully covered by the read-time
-  // check, so dropping it is safe.
-  const { data: claimed, error: claimError } = await supabase
-    .from('entry_carts')
-    .update({ status: 'submitted' })
-    .eq('id', cartId)
-    .eq('status', 'active')
-    .select('id');
-
-  if (claimError) {
-    // Same severity as the entries-shortfall below — email, don't just log.
-    console.error(`CRITICAL: failed to claim cart ${cartId} after payment:`, claimError);
-    await alertAdmin(
-      'Paid cart could not be claimed — entries NOT created',
-      `<p>Checkout session <code>${session.id}</code> was PAID, but claiming cart
-       <code>${cartId}</code> failed with a database error, so no entries were created
-       and Stripe will not retry the event.</p>
-       <pre>${claimError.message}</pre>
-       <p>Recovery: verify the payment in the Stripe dashboard, then create the
-       entries manually from the cart items (or refund the payment).</p>`,
-      { source: 'stripe-webhook', dedupeKey: `cart-claim-failed-${session.id}` }
-    );
-    return;
-  }
-  if (!claimed || claimed.length === 0) {
-    // Already-claimed cart: benign for a RE-DELIVERED event (same payment
-    // intent that created the entries), but a SECOND paid session on the same
-    // cart is a real duplicate CHARGE with nothing to show for it (Codex P1).
-    // Distinguish them by whether this intent created any entries.
-    const dupIntentId = extractPaymentIntentId(session.payment_intent);
-    const { data: existingOrder } = await supabase
-      .from('stripe_orders')
-      .select('id')
-      .eq('stripe_checkout_session_id', session.id)
-      .maybeSingle();
-    if (existingOrder) {
-      console.log(`Cart ${cartId} already processed with order ${existingOrder.id} — skipping`);
-      return;
-    }
-    if (dupIntentId) {
-      const { data: intentEntries } = await supabase
-        .from('entries')
-        .select('id')
-        .eq('stripe_payment_intent_id', dupIntentId)
-        .limit(1);
-      if (!intentEntries || intentEntries.length === 0) {
-        console.error(
-          `CRITICAL: paid session ${session.id} (${dupIntentId}) hit already-claimed cart ${cartId} — duplicate charge, needs manual refund`
-        );
-        await alertAdmin(
-          'Possible duplicate entry payment — verify, then refund',
-          `<p>Checkout session <code>${session.id}</code> was PAID for cart
-           <code>${cartId}</code>, but that cart was already claimed and this payment
-           intent owns no entries — most likely the exhibitor was charged twice.</p>
-           <p>VERIFY FIRST (a racing duplicate webhook delivery can trip this while
-           the winner's entries are still inserting): in the Stripe dashboard confirm
-           TWO separate successful payments exist for this cart, and in the entries
-           page confirm the cart's entries exist once. Then refund payment intent
-           <code>${dupIntentId}</code> (Payments → search the id → Refund). No entries
-           or orders were created for it, so the dashboard refund is the complete
-           fix.</p>`,
-          { source: 'stripe-webhook', dedupeKey: `duplicate-entry-payment-${session.id}` }
-        );
-        return;
-      }
-    }
-    console.log(`Cart ${cartId} already processed (duplicate event delivery) — skipping`);
-    return;
-  }
-
-  // Get stripe_customers record for this person
   const { data: stripeCustomer } = await supabase
     .from('stripe_customers')
     .select('id')
     .eq('person_id', cart.exhibitor.person_id)
     .eq('livemode', stripeLivemode)
-    .single();
-
-  // Resolve each class's trial: entries carry denormalized show_id/trial_id
-  // FKs that nothing else populates, and the payout calc + refund join +
-  // secretary entries list all filter on show_id. classRows was loaded (and
-  // error-gated) by the verification block above.
-  const trialByClass = new Map<string, string | null>(
-    classRows.map((c: { id: string; trial_id: string | null }) => [c.id, c.trial_id])
+    .maybeSingle();
+  const rates = decodeStampedPlatformFeeRates(
+    freshSession.metadata,
+    Deno.env.get('PLATFORM_FEE_PERCENT')
   );
-
-  // Create entries from cart items, stamping the payment intent as the
-  // per-entry refund key for stripe-refund-entry. Fees come from the
-  // AUTHORITATIVE map (verified against the paid amount above), never from
-  // the owner-writable item rows.
-  const paymentIntentId = extractPaymentIntentId(session.payment_intent);
-  const entryIds: string[] = [];
-  const paidLineIds: string[] = [];
-  const noServiceLineIds: string[] = [];
-  const lineAmountsById = new Map<string, number>();
-  const waitlistedLines: CartOverflowLine[] = [];
-  const deniedLines: CartOverflowLine[] = [];
-  const failedLines: CartOverflowLine[] = [];
-  for (const item of cart.items) {
-    const lineAmountCents = authoritativeByClass.get(item.class_id) ?? item.entry_fee_cents;
-
-    // Finish Payment recovery lines point at entries that already exist. Mark
-    // those rows paid in place; calling create_online_paid_entry here would
-    // collide with entries_dog_class_unique_idx and refund the whole charge.
-    if (item.entry_id) {
-      const { data: existingEntry, error: existingEntryError } = await supabase
-        .from('entries')
-        .select(
-          'id, dog_id, class_id, show_id, payment_status, entry_status, entry_fee, moved_from_entry_id'
-        )
-        .eq('id', item.entry_id)
-        .eq('dog_id', item.dog_id)
-        .eq('class_id', item.class_id)
-        .eq('show_id', cart.show_id)
-        .is('deleted_at', null)
-        .maybeSingle();
-
-      const isInactiveExistingEntry = existingEntry
-        ? INACTIVE_ENTRY_STATUSES.has(existingEntry.entry_status ?? '')
-        : false;
-      if (
-        existingEntryError ||
-        !existingEntry ||
-        existingEntry.payment_status !== 'pending' ||
-        isInactiveExistingEntry
-      ) {
-        const errorMessage =
-          existingEntryError?.message ??
-          (!existingEntry
-            ? 'Recovered entry was not found in this show'
-            : existingEntry.payment_status !== 'pending'
-              ? 'Recovered entry is no longer unpaid'
-              : 'Recovered entry is no longer active');
-        console.error(`Error recovering existing entry for cart item ${item.id}:`, errorMessage);
-        noServiceLineIds.push(item.id);
-        lineAmountsById.set(item.id, lineAmountCents);
-        failedLines.push({
-          cartItemId: item.id,
-          classId: item.class_id,
-          dogId: item.dog_id,
-          errorMessage,
-        });
-        continue;
-      }
-
-      const loadedMoneyRoot = await loadPaymentReconciliationEntries([existingEntry.id]);
-      const moneyRootId = loadedMoneyRoot.reconciliationEntryIds[0] ?? existingEntry.id;
-      const moneyRoot =
-        loadedMoneyRoot.entries.find(entry => entry.id === moneyRootId) ?? existingEntry;
-      if (
-        loadedMoneyRoot.error ||
-        loadedMoneyRoot.blockedEntryIds.includes(existingEntry.id) ||
-        moneyRoot.payment_status !== 'pending'
-      ) {
-        const errorMessage =
-          loadedMoneyRoot.error?.message ??
-          (loadedMoneyRoot.blockedEntryIds.includes(existingEntry.id)
-            ? 'Recovered entry money root could not be reconciled safely'
-            : 'Recovered entry money root is no longer unpaid');
-        console.error(
-          `Error recovering existing entry root for cart item ${item.id}:`,
-          errorMessage
-        );
-        noServiceLineIds.push(item.id);
-        lineAmountsById.set(item.id, lineAmountCents);
-        failedLines.push({
-          cartItemId: item.id,
-          classId: item.class_id,
-          dogId: item.dog_id,
-          errorMessage,
-        });
-        continue;
-      }
-
-      const { data: updatedEntryRows, error: updateEntryError } = await supabase
-        .from('entries')
-        .update({
-          payment_status: 'paid',
-          payment_method: 'online',
-          stripe_payment_intent_id: paymentIntentId,
-          entry_fee: lineAmountCents / 100,
-          ...(moneyRoot.id === existingEntry.id && existingEntry.entry_status === 'pending-payment'
-            ? { entry_status: 'confirmed' }
-            : {}),
-        })
-        .eq('id', moneyRoot.id)
-        .eq('payment_status', 'pending')
-        .not('entry_status', 'in', `(${[...INACTIVE_ENTRY_STATUSES].join(',')})`)
-        .select('id');
-
-      if (updateEntryError || !updatedEntryRows || updatedEntryRows.length === 0) {
-        const errorMessage =
-          updateEntryError?.message ?? 'Recovered entry payment update was not applied';
-        console.error(`Error marking recovered entry paid for cart item ${item.id}:`, errorMessage);
-        noServiceLineIds.push(item.id);
-        lineAmountsById.set(item.id, lineAmountCents);
-        failedLines.push({
-          cartItemId: item.id,
-          classId: item.class_id,
-          dogId: item.dog_id,
-          errorMessage,
-        });
-        continue;
-      }
-
-      if (moneyRoot.id !== existingEntry.id && existingEntry.entry_status === 'pending-payment') {
-        const { error: destinationStatusError } = await supabase
-          .from('entries')
-          .update({ entry_status: 'confirmed' })
-          .eq('id', existingEntry.id)
-          .eq('entry_status', 'pending-payment');
-        if (destinationStatusError) {
-          console.error(
-            `Failed to advance recovered move-up destination ${existingEntry.id}:`,
-            destinationStatusError
-          );
-        }
-      }
-
-      // Receipts and order history name the live destination the exhibitor
-      // bought; the original root remains the payment-bearing row.
-      entryIds.push(existingEntry.id);
-      paidLineIds.push(moneyRoot.id);
-      lineAmountsById.set(moneyRoot.id, lineAmountCents);
-
-      await expireRecoveredEntryPaymentLinks(existingEntry.id, session.id);
-      if (moneyRoot.id !== existingEntry.id) {
-        await expireRecoveredEntryPaymentLinks(moneyRoot.id, session.id);
-      }
-      continue;
-    }
-
-    const entryInsert = buildEntryInsert(
-      {
-        ...item,
-        entry_fee_cents: lineAmountCents,
+  const processingFeeCents = await fetchProcessingFeeCents(paymentIntentId);
+  const { data: settlementData, error: settlementError } = await supabase.rpc(
+    'settle_entry_order',
+    {
+      p_source_kind: 'cart',
+      p_source_id: cartId,
+      p_order_facts: {
+        customer_id: stripeCustomer?.id ?? null,
+        currency: freshSession.currency || 'usd',
+        paid_at: new Date().toISOString(),
+        stripe_processing_fee_cents: processingFeeCents,
+        platform_fee_rate: rates.percent,
+        platform_fee_flat_cents: rates.flatCents,
+        platform_fee_min_cents: rates.minCents,
       },
-      paymentIntentId,
-      new Date().toISOString(),
-      {
-        showId: cart.show_id,
-        trialId: trialByClass.get(item.class_id) ?? null,
-      }
-    );
-    const { data: entry, error: entryError } = await supabase.rpc('create_online_paid_entry', {
-      p_dog_id: entryInsert.dog_id,
-      p_class_id: entryInsert.class_id,
-      p_handler_id: entryInsert.handler_id,
-      p_entry_fee: entryInsert.entry_fee,
-      p_jump_height: entryInsert.jump_height,
-      p_special_requests: entryInsert.special_requests,
-      p_payment_intent_id: entryInsert.stripe_payment_intent_id,
-      p_submitted_at: entryInsert.submitted_at,
-      p_show_id: entryInsert.show_id,
-      p_trial_id: entryInsert.trial_id,
-      p_exhibitor_id: cart.exhibitor.id,
-    });
-
-    if (entryError) {
-      console.error(`Error creating entry for cart item ${item.id}:`, entryError);
-      noServiceLineIds.push(item.id);
-      lineAmountsById.set(item.id, lineAmountCents);
-      failedLines.push({
-        cartItemId: item.id,
-        classId: item.class_id,
-        dogId: item.dog_id,
-        errorMessage: entryError.message,
-      });
-      continue;
+      p_verified_gross_cents: grossCents!,
+      p_verified_session_id: freshSession.id,
+      p_verified_payment_intent_id: paymentIntentId!,
+      p_verified_line_prices: linePrices,
     }
-
-    const outcome = normalizeCapacityOutcome(entry);
-    if (!outcome) {
-      console.error(`Capacity RPC returned no outcome for cart item ${item.id}`);
-      noServiceLineIds.push(item.id);
-      lineAmountsById.set(item.id, lineAmountCents);
-      failedLines.push({
-        cartItemId: item.id,
-        classId: item.class_id,
-        dogId: item.dog_id,
-        errorMessage: 'Capacity RPC returned no outcome',
-      });
-    } else if (outcome.outcome === 'created_entry' && outcome.entry_id) {
-      entryIds.push(outcome.entry_id);
-      paidLineIds.push(outcome.entry_id);
-      lineAmountsById.set(outcome.entry_id, lineAmountCents);
-    } else if (outcome.outcome === 'waitlisted' && outcome.waitlist_entry_id) {
-      noServiceLineIds.push(item.id);
-      lineAmountsById.set(item.id, lineAmountCents);
-      waitlistedLines.push({
-        cartItemId: item.id,
-        classId: item.class_id,
-        dogId: item.dog_id,
-        waitlistEntryId: outcome.waitlist_entry_id,
-      });
-    } else {
-      noServiceLineIds.push(item.id);
-      lineAmountsById.set(item.id, lineAmountCents);
-      deniedLines.push({ cartItemId: item.id, classId: item.class_id, dogId: item.dog_id });
-    }
-  }
-
-  await resolvePaidWaitlistOffers(paidLineIds, session.id);
-
-  // Freeze the withdrawal policy these entries were paid under (best-effort).
-  await stampWithdrawalSnapshot([...new Set([...entryIds, ...paidLineIds])], cart.show_id);
-
-  const overflowRefundDecision = decideCartOverflowRefund({
-    paymentIntentId,
-    sessionAmountTotalCents: freshTotalCents,
-    paidLineIds,
-    noServiceLineIds,
-    lineAmountsById,
-    // The STAMPED rates, so the flat per-checkout component and the floor stay
-    // with the served lines instead of being refunded away (MYK9-197 B1).
-    platformFeeRates: stampedFeeRates,
-  });
-  const paidOrderAmountCents =
-    overflowRefundDecision.paidAmountCents ??
-    paidLineIds.reduce((sum, id) => sum + (lineAmountsById.get(id) ?? 0), 0);
-  const paidEntrySubtotalCents = paidLineIds.reduce(
-    (sum, id) => sum + (lineAmountsById.get(id) ?? 0),
-    0
   );
-
-  if (noServiceLineIds.length > 0) {
-    console.error(
-      `Cart ${cartId} paid (${paymentIntentId ?? 'no intent'}) with ` +
-        `${entryIds.length}/${cart.items.length} paid entries, ` +
-        `${waitlistedLines.length} waitlisted, ${deniedLines.length} denied, ` +
-        `${failedLines.length} failed`
-    );
+  const settlement = normalizeEntryOrderSettlement(settlementData);
+  if (settlementError || !settlement) {
+    console.error('Authoritative cart settlement failed:', settlementError);
     await alertAdmin(
-      'Paid cart had overflow lines',
-      `<p>Cart <code>${cartId}</code> was PAID (payment intent
-       <code>${paymentIntentId ?? 'unknown'}</code>) and the server capacity gate
-       created ${entryIds.length} paid entries, ${waitlistedLines.length} waitlist rows,
-       and ${deniedLines.length} denied lines. Failed no-service lines:
-       ${failedLines.length}.</p>
-       <p>The webhook will auto-refund the denied/waitlisted/no-service share when
-       it can derive the amount.</p>`,
-      { source: 'stripe-webhook', dedupeKey: `cart-overflow-${session.id}` }
+      'Paid cart could not be settled',
+      `<p>Session <code>${session.id}</code> was paid, but the authoritative settlement did not complete. No partial settlement was committed.</p><pre>${settlementError?.message ?? 'Malformed settlement response'}</pre>`,
+      { source: 'stripe-webhook', dedupeKey: `cart-settlement-failed-${session.id}` }
     );
-  }
-
-  console.log(`Created ${entryIds.length} entries from cart ${cartId}`);
-
-  // Immutable financial snapshot (MYK9-54): the platform fee on the paid-entry
-  // subtotal at the rate applied at charge time, plus Stripe's actual processing
-  // fee. A missing processing fee stays NULL (pending), never an estimated zero.
-  const snapshotProcessingFeeCents = await fetchProcessingFeeCents(paymentIntentId);
-  const snapshotPlatformFeeCents = calculatePlatformFeeCents(
-    paidEntrySubtotalCents,
-    stampedFeeRates
-  );
-
-  // Create stripe_orders record
-  const { error: orderError } = await supabase.from('stripe_orders').insert({
-    customer_id: stripeCustomer?.id || null,
-    stripe_payment_intent_id: paymentIntentId,
-    stripe_checkout_session_id: session.id,
-    // COLLECTION INVARIANT (see _shared/orderSnapshot.ts): amount_cents is the
-    // GROSS amount the customer was actually charged — the full session total,
-    // NOT pre-netted by the cart-overflow auto-refund. The overflow share is
-    // recorded as a refund in refunded_cents (by issueCartOverflowAutoRefund
-    // and/or the charge.refunded handler), so collected = amount_cents −
-    // refunded_cents subtracts it EXACTLY ONCE. Pre-netting here as well made a
-    // fully-invalid cart report NEGATIVE collections (review finding A).
-    // Denied/waitlisted/no-service cart lines remain explicit metadata and never
-    // masquerade as paid entry_ids; the paid-only service amount lives in
-    // metadata.paid_amount_cents and in entry_subtotal_cents below.
-    amount_cents: freshTotalCents,
-    ...buildOrderSnapshotFields({
-      entrySubtotalCents: paidEntrySubtotalCents,
-      platformFeeCents: snapshotPlatformFeeCents,
-      platformFeeRate: stampedFeeRates.percent,
-      stripeProcessingFeeCents: snapshotProcessingFeeCents,
-    }),
-    currency: session.currency || 'usd',
-    status: 'succeeded',
-    order_type: 'entry',
-    metadata: {
-      cart_id: cartId,
-      entry_count: entryIds.length,
-      paid_entry_count: entryIds.length,
-      collected_amount_cents: freshTotalCents ?? 0,
-      paid_amount_cents: paidOrderAmountCents,
-      paid_entry_subtotal_cents: paidEntrySubtotalCents,
-      overflow_refund: serializeCartOverflowRefundDecision(overflowRefundDecision),
-      waitlisted_cart_item_ids: waitlistedLines.map(line => line.cartItemId),
-      waitlist_entry_ids: waitlistedLines
-        .map(line => line.waitlistEntryId)
-        .filter((id): id is string => Boolean(id)),
-      denied_cart_item_ids: deniedLines.map(line => line.cartItemId),
-      failed_cart_item_ids: failedLines.map(line => line.cartItemId),
-    },
-    show_id: cart.show_id,
-    entry_ids: entryIds,
-    paid_at: new Date().toISOString(),
-  });
-
-  if (orderError && orderError.code === '23505') {
-    // unique_violation on the stripe_checkout_session_id index. We only reach
-    // this line AFTER winning the cart-claim latch and inserting a fresh entry
-    // set (entryIds) — genuine re-deliveries short-circuit earlier at the cart
-    // claim. So a conflicting order row already exists for this session, and
-    // the ONLY benign explanation is a network retry of THIS invocation's own
-    // insert (silent success, error surfaced to the client): in that case the
-    // existing row's entry_ids equal the set we just built. Any other case
-    // means a second entry set was created for one payment — duplicate entries
-    // and payout drift — which must alert, not be suppressed.
-    const { data: existingOrder } = await supabase
-      .from('stripe_orders')
-      .select('entry_ids')
-      .eq('stripe_checkout_session_id', session.id)
-      .maybeSingle();
-    const existingEntryIds = ((existingOrder?.entry_ids as string[] | null) ?? []).slice().sort();
-    const sortedEntryIds = entryIds.slice().sort();
-    const sameEntrySet =
-      existingEntryIds.length === sortedEntryIds.length &&
-      existingEntryIds.every((id, i) => id === sortedEntryIds[i]);
-
-    if (sameEntrySet) {
-      console.log(
-        `stripe_orders row already recorded for session ${session.id} with matching entries (idempotent retry)`
-      );
-    } else {
-      console.error('Duplicate stripe_orders session with mismatched entry set:', orderError);
-      await alertAdmin(
-        'Duplicate Stripe order — possible duplicate entries',
-        `<p>A <code>stripe_orders</code> row already exists for Checkout Session
-         <code>${session.id}</code>, but this webhook run created a different entry
-         set:</p>
-         <p>existing: <code>${existingEntryIds.join(', ') || '(none)'}</code><br/>
-         this run: <code>${sortedEntryIds.join(', ') || '(none)'}</code></p>
-         <p>This likely means duplicate entries were created for a single payment.
-         Reconcile: remove the extra entries created by this run and verify payout
-         math (payment intent <code>${paymentIntentId ?? 'unknown'}</code>).</p>`,
-        { source: 'stripe-webhook', dedupeKey: `duplicate-stripe-order-${session.id}` }
-      );
-      // Do NOT fall through to the success log + confirmation email: the order
-      // insert failed and these duplicate entries are slated for removal.
-      // Emailing the exhibitor would confirm entries that the alert says to
-      // delete, and logging "created order" would be false.
-      return;
+    if (isDeterministicSettlementRejection(settlementError?.code)) {
+      await issueCartOverflowAutoRefund({
+        session: freshSession,
+        paymentIntentId,
+        decision: fullCartRefundDecision(grossCents, paymentIntentId),
+        invalidCartItemIds: cart.items.map((item: { id: string }) => item.id),
+        waitlistedCartItemIds: [],
+        deniedCartItemIds: [],
+        failedCartItemIds: [],
+      });
     }
-  } else if (orderError) {
-    // Entries exist and the exhibitor is fine, but the order row drives the
-    // payment-history surfaces and reconciliation — losing it silently makes
-    // the charge invisible to every dashboard.
-    console.error('Error creating stripe_orders record:', orderError);
-    await alertAdmin(
-      'Entry payment recorded without a stripe_orders row',
-      `<p>Entries for cart <code>${cartId}</code> were created and the exhibitor is
-       unaffected, but inserting the <code>stripe_orders</code> record failed:</p>
-       <pre>${orderError.message}</pre>
-       <p>Recovery: insert the order row manually (payment intent
-       <code>${paymentIntentId ?? 'unknown'}</code>, session <code>${session.id}</code>)
-       so payment history and reconciliation stay complete.</p>`,
-      { source: 'stripe-webhook', dedupeKey: `order-insert-failed-${session.id}` }
-    );
+    return;
   }
 
-  if (snapshotProcessingFeeCents === null) {
-    await warnMissingProcessingFee(paymentIntentId, `cart ${cartId}`);
-  }
+  const acceptedLines = settlement.lineResults.filter(line => line.outcome === 'accepted');
+  const waitlistedLines = settlement.lineResults.filter(line => line.outcome === 'waitlisted');
+  const deniedLines = settlement.lineResults.filter(line => line.outcome === 'denied');
+  const invalidCartItemIds = settlement.lineResults
+    .filter(line => line.outcome !== 'accepted')
+    .map(line => line.lineId);
+  const waitlistEntryIds = waitlistedLines
+    .map(line => line.waitlistEntryId)
+    .filter((id): id is string => Boolean(id));
 
-  if (noServiceLineIds.length > 0) {
+  await completeEntrySettlementSideEffects(settlement, freshSession, cart.show_id, true);
+
+  if (settlement.expectedMakeWholeRefundCents > 0) {
     await issueCartOverflowAutoRefund({
-      session,
+      session: freshSession,
       paymentIntentId,
-      decision: overflowRefundDecision,
-      invalidCartItemIds: noServiceLineIds,
-      waitlistedCartItemIds: waitlistedLines.map(line => line.cartItemId),
-      deniedCartItemIds: deniedLines.map(line => line.cartItemId),
-      failedCartItemIds: failedLines.map(line => line.cartItemId),
+      decision: {
+        action: 'refund',
+        amountCents: settlement.expectedMakeWholeRefundCents,
+        paidAmountCents: Math.max(0, grossCents! - settlement.expectedMakeWholeRefundCents),
+        reason: acceptedLines.length === 0 ? 'full_make_whole' : 'partial_no_service_lines',
+      },
+      invalidCartItemIds,
+      waitlistedCartItemIds: waitlistedLines.map(line => line.lineId),
+      deniedCartItemIds: deniedLines.map(line => line.lineId),
+      failedCartItemIds: [],
     });
   }
 
-  console.log(`Entry payment completed for cart ${cartId}, created order`);
-
-  // Send confirmation email. Pass authoritative totals — cart snapshot totals
-  // are owner-writable and must not appear on a payment receipt.
-  await sendEntryConfirmationEmail(cart, entryIds, session, {
-    subtotalCents: paidEntrySubtotalCents,
-    platformFeeCents: Math.max(0, paidOrderAmountCents - paidEntrySubtotalCents),
-    totalCents: paidOrderAmountCents,
+  const { data: orderSnapshot, error: orderSnapshotError } = await supabase
+    .from('stripe_orders')
+    .select('entry_subtotal_cents, platform_fee_cents, amount_cents')
+    .eq('id', settlement.orderId)
+    .single();
+  if (orderSnapshotError || !orderSnapshot) {
+    await alertAdmin(
+      'Paid cart receipt totals could not be loaded',
+      `<p>Settlement order <code>${settlement.orderId}</code> exists for session <code>${session.id}</code>, but its stored receipt totals could not be read.</p>`,
+      { source: 'stripe-webhook', dedupeKey: `cart-receipt-snapshot-read-${session.id}` }
+    );
+    return;
+  }
+  if (processingFeeCents === null)
+    await warnMissingProcessingFee(paymentIntentId, `cart ${cartId}`);
+  const entryFeesById = mapAcceptedEntryFees(acceptedLines, linePrices);
+  if (settlement.canonicalEntryIds.some(entryId => !entryFeesById.has(entryId))) {
+    await alertAdmin(
+      'Paid cart receipt line prices could not be reconciled',
+      `<p>Settlement order <code>${settlement.orderId}</code> exists for session <code>${session.id}</code>, but at least one accepted entry has no verified Stripe line amount. No confirmation email was sent.</p>`,
+      { source: 'stripe-webhook', dedupeKey: `cart-receipt-line-price-${session.id}` }
+    );
+    return;
+  }
+  await sendEntryConfirmationEmail(cart, settlement.canonicalEntryIds, freshSession, {
+    subtotalCents: orderSnapshot.entry_subtotal_cents ?? 0,
+    platformFeeCents: orderSnapshot.platform_fee_cents ?? 0,
+    totalCents: Math.max(0, orderSnapshot.amount_cents - settlement.expectedMakeWholeRefundCents),
+    entryFeesById,
   });
-}
-
-/**
- * Handle a secretary-initiated entry payment-link completion
- * (metadata.type='entry_payment_request' from the stripe-payment-link fn).
- *
- * Unlike the cart flow, the entries ALREADY EXIST — a mail-in entry sitting at
- * payment_status='pending', or a promoted waitlist entry at 'pending-payment'.
- * We MARK them paid (not create them); see _shared/entryPaymentReconcile.ts.
- * The persisted entry_payment_links row is both the anti-tamper anchor (a paid
- * session must have one) and the idempotency latch (once it leaves 'open', a
- * re-delivered event is a no-op).
- */
-type PaymentReconciliationEntry = {
-  id: string;
-  payment_status: string | null;
-  entry_status: string | null;
-  deleted_at: string | null;
-  moved_from_entry_id: string | null;
-  stripe_payment_intent_id: string | null;
-};
-
-async function loadPaymentReconciliationEntries(entryIds: string[]): Promise<{
-  entries: PaymentReconciliationEntry[];
-  reconciliationEntryIds: string[];
-  duplicateEntryIds: string[];
-  lifecycleEntryIdsByRoot: Record<string, string>;
-  blockedEntryIds: string[];
-  error: { message: string } | null;
-}> {
-  const entriesById = new Map<string, PaymentReconciliationEntry>();
-  let lookupIds = [...new Set(entryIds)];
-  let error: { message: string } | null = null;
-  const blockedEntryIds: string[] = [];
-  for (let hop = 0; hop <= 16 && lookupIds.length > 0; hop += 1) {
-    const response = await supabase
-      .from('entries')
-      .select(
-        'id, payment_status, entry_status, deleted_at, moved_from_entry_id, stripe_payment_intent_id'
-      )
-      .in('id', lookupIds);
-    if (response.error) {
-      error = response.error;
-      break;
-    }
-    for (const row of (response.data ?? []) as PaymentReconciliationEntry[]) {
-      entriesById.set(row.id, row);
-    }
-    lookupIds = [
-      ...new Set(
-        (response.data ?? [])
-          .map(row => (row as { moved_from_entry_id?: string | null }).moved_from_entry_id)
-          .filter((id): id is string => Boolean(id) && !entriesById.has(id))
-      ),
-    ];
-  }
-
-  const reconciliationEntryIds = entryIds.map(entryId => {
-    let currentId = entryId;
-    let blocked = false;
-    const entry = entriesById.get(entryId);
-    if (entry?.deleted_at || entry?.entry_status === 'moved') {
-      blockedEntryIds.push(entryId);
-      return entryId;
-    }
-    if (INACTIVE_ENTRY_STATUSES.has(entriesById.get(entryId)?.entry_status ?? '')) {
-      return currentId;
-    }
-    const seen = new Set<string>();
-    while (true) {
-      if (seen.has(currentId)) {
-        blockedEntryIds.push(entryId);
-        blocked = true;
-        break;
-      }
-      seen.add(currentId);
-      const parentId = entriesById.get(currentId)?.moved_from_entry_id;
-      if (!parentId) break;
-      if (!entriesById.has(parentId)) {
-        blockedEntryIds.push(entryId);
-        blocked = true;
-        break;
-      }
-      if (entriesById.get(parentId)?.deleted_at) {
-        blockedEntryIds.push(entryId);
-        blocked = true;
-        break;
-      }
-      currentId = parentId;
-    }
-    const resolvedRoot = entriesById.get(currentId);
-    if (currentId !== entryId && INACTIVE_ENTRY_STATUSES.has(resolvedRoot?.entry_status ?? '')) {
-      blockedEntryIds.push(entryId);
-      blocked = true;
-    }
-    return blocked ? entryId : currentId;
-  });
-  // A payment link may redundantly contain both a moved money root and its
-  // live destination. The root row is still the settlement target; only the
-  // stale root checkout line is a duplicate. Keep the root eligible whenever
-  // an unblocked destination already resolves to it.
-  const blockedRootIds = new Set(blockedEntryIds);
-  for (const [index, rootId] of reconciliationEntryIds.entries()) {
-    if (rootId !== entryIds[index] && !blockedRootIds.has(entryIds[index])) {
-      blockedRootIds.delete(rootId);
-    }
-  }
-  blockedEntryIds.splice(0, blockedEntryIds.length, ...blockedRootIds);
-  const lifecycleEntryIdsByRoot: Record<string, string> = {};
-  for (const [index, entryId] of entryIds.entries()) {
-    const row = entriesById.get(entryId);
-    const rootId = reconciliationEntryIds[index];
-    if (row?.entry_status === 'pending-payment' && rootId && rootId !== entryId) {
-      lifecycleEntryIdsByRoot[rootId] = entryId;
-    }
-  }
-  const indicesByRoot = new Map<string, number[]>();
-  for (const [index, rootId] of reconciliationEntryIds.entries()) {
-    const indices = indicesByRoot.get(rootId) ?? [];
-    indices.push(index);
-    indicesByRoot.set(rootId, indices);
-  }
-  const duplicateEntryIds: string[] = [];
-  for (const [rootId, indices] of indicesByRoot) {
-    const canonicalIndex = indices.find(index => entryIds[index] === rootId) ?? indices[0];
-    for (const index of indices) {
-      if (index !== canonicalIndex) duplicateEntryIds.push(entryIds[index]);
-    }
-  }
-
-  return {
-    entries: [...entriesById.values()],
-    reconciliationEntryIds,
-    duplicateEntryIds,
-    lifecycleEntryIdsByRoot,
-    blockedEntryIds: [...new Set(blockedEntryIds)],
-    error,
-  };
+  console.log(
+    `Cart ${cartId} settled by SQL order ${settlement.orderId} (${settlement.canonicalEntryIds.length} entries, ${waitlistEntryIds.length} waitlisted)`
+  );
 }
 
 async function handleEntryPaymentRequestCompleted(session: Stripe.Checkout.Session) {
-  // MP-07: the webhook payload's payment_status/amount_total are untrusted
-  // (same reasoning as the cart path's fresh retrieve above) — a payment
-  // link's payload could carry a stale/tampered amount_total, and delayed
-  // payment methods can deliver checkout.session.completed before money
-  // actually lands. Retrieve fresh and use ONLY the fresh values for every
-  // downstream write; never the payload's.
   const freshSession = await stripe.checkout.sessions.retrieve(session.id);
   const freshGate = decideFreshSessionGate(freshSession);
   if (freshGate.action === 'skip') {
@@ -1777,10 +1064,8 @@ async function handleEntryPaymentRequestCompleted(session: Stripe.Checkout.Sessi
     );
     return;
   }
-  const freshAmountTotalCents = freshGate.amountTotalCents;
-
-  const paymentIntentId = extractPaymentIntentId(session.payment_intent);
-
+  const paymentIntentId = extractPaymentIntentId(freshSession.payment_intent);
+  const grossCents = freshGate.amountTotalCents;
   const { data: link, error: linkError } = await supabase
     .from('entry_payment_links')
     .select('id, show_id, entry_ids, status')
@@ -1788,22 +1073,15 @@ async function handleEntryPaymentRequestCompleted(session: Stripe.Checkout.Sessi
     .maybeSingle();
 
   if (linkError || !link) {
-    // A PAID session with no link row: tampering, or the row was lost. Charge
-    // taken, nothing marked paid, no Stripe retry — alert (Task 3.5 refund).
-    console.error('Paid payment-link session has no link row:', linkError);
     await alertAdmin(
       'Paid payment link has no record — entries NOT marked paid',
-      `<p>Checkout session <code>${session.id}</code> (entry_payment_request) was PAID,
-       but no <code>entry_payment_links</code> row matches it. No entries were marked
-       paid and Stripe will not retry.</p>
-       <p>Recovery: verify the payment in Stripe and refund it, or stamp the entries
-       manually.</p>`,
+      `<p>Paid session <code>${session.id}</code> has no persisted entry-payment link. No entries were settled.</p>`,
       { source: 'stripe-webhook', dedupeKey: `payment-link-no-record-${session.id}` }
     );
     await issueEntryPaymentAutoRefund({
-      session,
+      session: freshSession,
       paymentIntentId,
-      amountCents: freshAmountTotalCents,
+      amountCents: grossCents,
       reason: 'no_link_record',
       invalidEntryIds: [],
       linkId: null,
@@ -1811,496 +1089,148 @@ async function handleEntryPaymentRequestCompleted(session: Stripe.Checkout.Sessi
     return;
   }
 
-  const entryIds = (link.entry_ids as string[] | null) ?? [];
-  const loadedEntries = await loadPaymentReconciliationEntries(entryIds);
-  const entriesError = loadedEntries.error;
-  if (entriesError) {
-    console.error('Failed to load entries for payment link:', entriesError);
-    await alertAdmin(
-      'Payment link paid but entries could not be read',
-      `<p>Session <code>${session.id}</code> was PAID but loading its entries failed:</p>
-       <pre>${entriesError.message}</pre>
-       <p>Recovery: mark entries <code>${entryIds.join(', ')}</code> paid manually.</p>`,
-      { source: 'stripe-webhook', dedupeKey: `payment-link-entries-unreadable-${session.id}` }
+  let linePrices;
+  try {
+    linePrices = await loadEntrySettlementLinePricesFromStripe(
+      stripe.checkout.sessions,
+      session.id,
+      'entry_id'
     );
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    await alertAdmin(
+      'Paid payment link has incomplete Stripe line evidence',
+      `<p>Session <code>${session.id}</code> could not be matched to its persisted entry lines. No entries were settled.</p><pre>${message}</pre>`,
+      { source: 'stripe-webhook', dedupeKey: `payment-link-lines-invalid-${session.id}` }
+    );
+    await issueEntryPaymentAutoRefund({
+      session: freshSession,
+      paymentIntentId,
+      amountCents: grossCents,
+      reason: 'full_make_whole',
+      invalidEntryIds: link.entry_ids,
+      linkId: link.id,
+    });
     return;
   }
 
-  const {
-    entries,
-    reconciliationEntryIds,
-    duplicateEntryIds,
-    lifecycleEntryIdsByRoot,
-    blockedEntryIds,
-  } = loadedEntries;
-
-  const result = reconcileEntryPaymentRequest({
-    linkStatus: link.status,
-    sessionPaymentStatus: freshSession.payment_status ?? null,
-    expectedEntryIds: entryIds,
-    entries,
-    reconciliationEntryIds,
-    duplicateEntryIds,
-    lifecycleEntryIdsByRoot,
-    blockedEntryIds,
-    paymentIntentId,
-  });
-
-  if (result.action === 'skip') {
-    console.log(
-      `Payment link ${session.id} skipped (${result.skipReason}; link status: ${link.status}, payment_status: ${freshSession.payment_status})`
-    );
-    return;
-  }
-
-  // Entries the link was created for that no longer exist/in-show, or that were
-  // already paid by another link. The valid subset is still marked paid; the
-  // invalid subset is refunded below after the stripe_orders row is recorded.
-  if (result.missingEntryIds.length > 0) {
-    console.error(`Payment link ${session.id} references missing entries:`, result.missingEntryIds);
-    await alertAdmin(
-      'Payment link paid for entries that no longer exist',
-      `<p>Session <code>${session.id}</code> was PAID, but these entries it was created for
-       are gone (deleted/withdrawn since): <code>${result.missingEntryIds.join(', ')}</code>
-       (payment intent <code>${paymentIntentId ?? 'unknown'}</code>).</p>
-       <p>The webhook will auto-refund the invalid portion after recording payment history.</p>`,
-      { source: 'stripe-webhook', dedupeKey: `payment-link-missing-entries-${session.id}` }
-    );
-  }
-  if (result.inactiveEntryIds.length > 0) {
-    console.error(
-      `Payment link ${session.id} references inactive entries:`,
-      result.inactiveEntryIds
-    );
-    await alertAdmin(
-      'Payment link paid for inactive entries',
-      `<p>Session <code>${session.id}</code> was PAID, but these entries are no longer
-       active in the show: <code>${result.inactiveEntryIds.join(', ')}</code>
-       (payment intent <code>${paymentIntentId ?? 'unknown'}</code>).</p>
-       <p>The webhook will auto-refund the invalid portion after recording payment history.</p>`,
-      { source: 'stripe-webhook', dedupeKey: `payment-link-inactive-entries-${session.id}` }
-    );
-  }
-
-  // Apply per-entry patches. The payment + active-status guards make each
-  // update a no-op if something already paid/removed it after the pre-read.
-  // Marks payment_method='online' so cron-process-payouts actually pays the
-  // club for these entries (Task 1 / Task 3 Step 4).
-  const plannedPatchIds = result.patches.map(p => p.id);
-  const updatedEntryIds: string[] = [];
-  const inactiveEntryStatusFilter = `(${[...INACTIVE_ENTRY_STATUSES].join(',')})`;
-  for (const patch of result.patches) {
-    if (patch.allowExpiredPromotionClaim) {
-      const collided = await paidExpiredClaimHasReplacementOffer(patch.id, session.id);
-      if (collided) continue;
-    }
-
-    const update: Record<string, unknown> = {
-      payment_status: patch.payment_status,
-      payment_method: patch.payment_method,
-      stripe_payment_intent_id: patch.stripe_payment_intent_id,
-    };
-    if (
-      patch.entry_status &&
-      (!patch.entryStatusEntryId || patch.entryStatusEntryId === patch.id)
-    ) {
-      update.entry_status = patch.entry_status;
-    }
-    let updateQuery = supabase
-      .from('entries')
-      .update(update)
-      .eq('id', patch.id)
-      .eq('payment_status', 'pending');
-    updateQuery = patch.allowExpiredPromotionClaim
-      ? updateQuery.eq('entry_status', 'promotion-expired')
-      : updateQuery.not('entry_status', 'in', inactiveEntryStatusFilter);
-
-    const { data: updatedRows, error } = await updateQuery.select('id');
-    if (error) {
-      console.error(`Failed to mark entry ${patch.id} paid:`, error);
-      await alertAdmin(
-        'Payment link paid but an entry could not be stamped',
-        `<p>Session <code>${session.id}</code> was PAID but stamping entry
-         <code>${patch.id}</code> failed:</p><pre>${error.message}</pre>
-         <p>Until it is stamped paid+online, cron-process-payouts will NOT pay the
-         club for it. Recovery: stamp the entry manually.</p>`,
-        { source: 'stripe-webhook', dedupeKey: `payment-link-stamp-failed-${patch.id}` }
-      );
-    }
-    updatedEntryIds.push(...((updatedRows ?? []) as { id: string }[]).map(row => row.id));
-
-    if (
-      updatedRows?.length &&
-      patch.entry_status &&
-      patch.entryStatusEntryId &&
-      patch.entryStatusEntryId !== patch.id
-    ) {
-      const { error: lifecycleError } = await supabase
-        .from('entries')
-        .update({ entry_status: patch.entry_status })
-        .eq('id', patch.entryStatusEntryId)
-        .eq('entry_status', 'pending-payment')
-        .not('entry_status', 'in', inactiveEntryStatusFilter);
-      if (lifecycleError) {
-        console.error(
-          `Failed to advance move-up destination ${patch.entryStatusEntryId}:`,
-          lifecycleError
-        );
-      }
-    }
-  }
-
-  // Freeze the withdrawal policy these entries were paid under (best-effort).
-  const withdrawalSnapshotEntryIds = [
-    ...updatedEntryIds,
-    ...result.patches
-      .map(patch => patch.entryStatusEntryId)
-      .filter((id): id is string => Boolean(id)),
-  ];
-  await stampWithdrawalSnapshot(
-    [...new Set(withdrawalSnapshotEntryIds)],
-    link.show_id as string | null
-  );
-
-  const noOpPatchIds = plannedPatchIds.filter(id => !updatedEntryIds.includes(id));
-  let rereadNoOpEntries: {
-    id: string;
-    payment_status: string | null;
-    entry_status: string | null;
-    stripe_payment_intent_id: string | null;
-  }[] = [];
-  if (noOpPatchIds.length > 0) {
-    const { data: noOpEntriesData, error: noOpEntriesError } = await supabase
-      .from('entries')
-      .select('id, payment_status, entry_status, stripe_payment_intent_id')
-      .in('id', noOpPatchIds);
-    if (noOpEntriesError) {
-      console.error('Failed to re-read no-op entry payment patches:', noOpEntriesError);
-      await alertAdmin(
-        'Payment link paid but no-op entries could not be re-read',
-        `<p>Session <code>${session.id}</code> was PAID but these planned entry
-         stamps did not update and could not be re-read:
-         <code>${noOpPatchIds.join(', ')}</code>.</p>
-         <pre>${noOpEntriesError.message}</pre>
-         <p>The webhook will treat them as invalid for refund safety.</p>`,
-        { source: 'stripe-webhook', dedupeKey: `payment-link-noop-reread-failed-${session.id}` }
-      );
-    } else {
-      rereadNoOpEntries = (noOpEntriesData ?? []) as {
-        id: string;
-        payment_status: string | null;
-        entry_status: string | null;
-        stripe_payment_intent_id: string | null;
-      }[];
-    }
-  }
-
-  // Loaded UNCONDITIONALLY (MYK9-54 review finding 2): these authoritative
-  // per-entry line-item fees are what the financial snapshot below is built
-  // from, not just the refund amount. Deriving the snapshot from the session
-  // total instead overstated the platform fee on every partial-invalid order.
-  const entryFeesById = await loadEntryPaymentLineItemFees(session.id);
-  // Checkout lines point at the live move-up destination, while the payment
-  // stamp is applied to its original money root. Keep the destination's
-  // authoritative line fee available under the root id for refund arithmetic.
-  for (let index = 0; index < entryIds.length; index += 1) {
-    const destinationId = entryIds[index];
-    const rootId = reconciliationEntryIds[index];
-    const destinationFee = entryFeesById.get(destinationId);
-    if (rootId && destinationFee != null && !entryFeesById.has(rootId)) {
-      entryFeesById.set(rootId, destinationFee);
-    }
-  }
-  // Declared here rather than beside the snapshot below because the make-whole
-  // refund needs them too: the flat per-checkout component and the floor are
-  // earned once per CHARGE, so splitting them across the invalid entries
-  // refunded fee income the platform had genuinely retained (MYK9-197 B1).
-  // Absent stamps read as 0 — see decodeStampedPlatformFeeRates.
-  const linkFeeRates = decodeStampedPlatformFeeRates(
+  const rates = decodeStampedPlatformFeeRates(
     freshSession.metadata,
     Deno.env.get('PLATFORM_FEE_PERCENT')
   );
-  const updateOutcome = reconcileEntryPaymentUpdateOutcome({
-    plannedPatchIds,
-    updatedEntryIds,
-    rereadNoOpEntries,
-    initialMissingEntryIds: result.missingEntryIds,
-    initialInactiveEntryIds: result.inactiveEntryIds,
-    initialUnresolvedEntryIds: result.unresolvedEntryIds,
-    initialAlreadyPaidEntryIds: result.alreadyPaidEntryIds,
-    initialSameIntentPaidEntryIds: result.sameIntentPaidEntryIds,
-    paymentIntentId,
-    sessionAmountTotalCents: freshAmountTotalCents,
-    entryFeesById,
-    platformFeeRates: linkFeeRates,
-  });
-
-  // Payment history. Idempotent via the UNIQUE stripe_payment_intent_id /
-  // stripe_checkout_session_id; a benign retry hits 23505 and is ignored.
-  const paidIds = updateOutcome.paidEntryIds;
-  // Close the link (idempotency latch) after reconciliation. Same-intent paid
-  // rows make concurrent Stripe deliveries idempotent without closing the retry
-  // path before entries are stamped. Expired promotion claims are allowed to
-  // revive only when at least one entry was actually stamped paid.
-  const shouldCloseLink =
-    link.status === 'open' || (link.status === 'expired' && paidIds.length > 0);
-  if (shouldCloseLink) {
-    const linkCloseStatus = link.status === 'expired' ? 'expired' : 'open';
-    const { data: closedLinks, error: linkCloseError } = await supabase
-      .from('entry_payment_links')
-      .update({ status: 'paid', updated_at: new Date().toISOString() })
-      .eq('id', link.id)
-      .eq('status', linkCloseStatus)
-      .select('id');
-
-    if (linkCloseError) {
-      console.error(`Payment link ${session.id} could not be closed:`, linkCloseError);
-      await alertAdmin(
-        'Payment link paid but the link could not be latched',
-        `<p>Session <code>${session.id}</code> reconciled entries, but updating
-         the <code>entry_payment_links</code> row to <code>paid</code> failed:</p>
-         <pre>${linkCloseError.message}</pre>
-         <p>Recovery: set the link row to paid after verifying the entry stamps.</p>`,
-        { source: 'stripe-webhook', dedupeKey: `payment-link-latch-failed-${session.id}` }
-      );
-    } else if ((closedLinks ?? []).length === 0) {
-      console.log(`Payment link ${session.id} was already closed by another webhook handler`);
+  const processingFeeCents = await fetchProcessingFeeCents(paymentIntentId);
+  const { data: settlementData, error: settlementError } = await supabase.rpc(
+    'settle_entry_order',
+    {
+      p_source_kind: 'payment_link',
+      p_source_id: link.id,
+      p_order_facts: {
+        customer_id: null,
+        currency: freshSession.currency || 'usd',
+        paid_at: new Date().toISOString(),
+        stripe_processing_fee_cents: processingFeeCents,
+        platform_fee_rate: rates.percent,
+        platform_fee_flat_cents: rates.flatCents,
+        platform_fee_min_cents: rates.minCents,
+      },
+      p_verified_gross_cents: grossCents!,
+      p_verified_session_id: freshSession.id,
+      p_verified_payment_intent_id: paymentIntentId!,
+      p_verified_line_prices: linePrices,
     }
-  }
-
-  await resolvePaidWaitlistOffers(paidIds, session.id);
-
-  // Immutable financial snapshot (MYK9-54 review finding 2). Built from the
-  // ACCEPTED entries and their authoritative Checkout line-item fees — the same
-  // way the cart path uses paidEntrySubtotalCents — NOT by back-deriving the
-  // split from the session total. The session total includes lines that were
-  // never accepted (missing/inactive/already-paid entries, auto-refunded below),
-  // so deriving from it overstated platform_fee_cents on every partial-invalid
-  // order AND forced `amount == subtotal + fee` to hold by construction, which
-  // made the tie-out `amount == subtotal + fee + make_whole` fail by exactly the
-  // refund. Capture Stripe's actual processing fee (NULL = pending, never zero).
-  const linkFeeSplit = resolveAcceptedEntrySnapshot(paidIds, entryFeesById, linkFeeRates);
-  if (linkFeeSplit.status === 'unverifiable') {
-    // Columns stay NULL (rate-unverifiable), never a guessed number that would
-    // silently enter platform income reporting.
+  );
+  const settlement = normalizeEntryOrderSettlement(settlementData);
+  if (settlementError || !settlement) {
+    console.error('Authoritative payment-link settlement failed:', settlementError);
     await alertAdmin(
-      'Payment-link order recorded without a fee snapshot',
-      `<p>Session <code>${session.id}</code> was PAID, but Stripe reported no
-       line-item fee for accepted entries
-       <code>${linkFeeSplit.missingFeeEntryIds.join(', ')}</code>.</p>
-       <p><code>entry_subtotal_cents</code> / <code>platform_fee_cents</code> were
-       left NULL rather than estimated, so this order reports as
-       rate-unverifiable in reconciliation until the values are set by hand.</p>`,
-      { source: 'stripe-webhook', dedupeKey: `payment-link-fee-unverifiable-${session.id}` }
+      'Paid payment link could not be settled',
+      `<p>Session <code>${session.id}</code> was paid, but authoritative settlement did not complete. No partial settlement was committed.</p><pre>${settlementError?.message ?? 'Malformed settlement response'}</pre>`,
+      { source: 'stripe-webhook', dedupeKey: `payment-link-settlement-failed-${session.id}` }
     );
-  }
-  const linkProcessingFeeCents = await fetchProcessingFeeCents(paymentIntentId);
-
-  const { error: orderError } = await supabase.from('stripe_orders').insert({
-    // customer_id is a UUID FK to stripe_customers(id) — NOT Stripe's cus_… id.
-    // A link payer may have no stripe_customers row at all, so leave it null
-    // (writing session.customer here threw an invalid-uuid error every time).
-    customer_id: null,
-    stripe_payment_intent_id: paymentIntentId,
-    stripe_checkout_session_id: session.id,
-    amount_cents: freshAmountTotalCents ?? 0,
-    currency: session.currency || 'usd',
-    status: 'succeeded',
-    order_type: 'entry',
-    ...buildOrderSnapshotFields({
-      entrySubtotalCents: linkFeeSplit.entrySubtotalCents,
-      platformFeeCents: linkFeeSplit.platformFeeCents,
-      platformFeeRate: linkFeeRates.percent,
-      stripeProcessingFeeCents: linkProcessingFeeCents,
-    }),
-    metadata: { entry_payment_link_id: link.id, entry_count: paidIds.length },
-    show_id: link.show_id,
-    entry_ids: paidIds,
-    paid_at: new Date().toISOString(),
-  });
-  if (linkProcessingFeeCents === null) {
-    await warnMissingProcessingFee(paymentIntentId, `payment link ${link.id}`);
-  }
-  if (orderError && orderError.code !== '23505') {
-    console.error('Error creating stripe_orders for payment link:', orderError);
-    await alertAdmin(
-      'Entry payment-link recorded without a stripe_orders row',
-      `<p>Entries for session <code>${session.id}</code> were marked paid, but
-       inserting the <code>stripe_orders</code> record failed:</p>
-       <pre>${orderError.message}</pre>
-       <p>Recovery: insert the order row manually (payment intent
-       <code>${paymentIntentId ?? 'unknown'}</code>) so payment history stays complete.</p>`,
-      { source: 'stripe-webhook', dedupeKey: `payment-link-order-insert-failed-${session.id}` }
-    );
-  }
-
-  if (updateOutcome.alreadyPaidEntryIds.length > 0) {
-    await alertAdmin(
-      'Payment link paid for already-paid entries',
-      `<p>Session <code>${session.id}</code> paid for entries that were already paid:
-       <code>${updateOutcome.alreadyPaidEntryIds.join(', ')}</code> (payment intent
-       <code>${paymentIntentId ?? 'unknown'}</code>).</p>
-       <p>The webhook will auto-refund the invalid portion; if the exhibitor received
-       no new paid entries, it refunds the full charge including platform fee.</p>`,
-      { source: 'stripe-webhook', dedupeKey: `payment-link-already-paid-${session.id}` }
-    );
-  }
-
-  if (updateOutcome.unknownNoOpEntryIds.length > 0) {
-    await alertAdmin(
-      'Payment link paid but entries did not stamp',
-      `<p>Session <code>${session.id}</code> was PAID but these entries did not update
-       despite still being present and not clearly paid/inactive:
-       <code>${updateOutcome.unknownNoOpEntryIds.join(', ')}</code>.</p>
-       <p>The webhook will treat them as invalid for refund safety.</p>`,
-      { source: 'stripe-webhook', dedupeKey: `payment-link-unknown-noop-${session.id}` }
-    );
-  }
-
-  if (updateOutcome.unresolvedEntryIds.length > 0) {
-    await alertAdmin(
-      'Payment link move-up root could not be reconciled',
-      `<p>Session <code>${session.id}</code> was PAID, but these live destination
-       entries could not be safely matched to their money roots:
-       <code>${updateOutcome.unresolvedEntryIds.join(', ')}</code>.</p>
-       <p>The affected lines will be refunded; verify the move-up history before
-       restoring or reissuing any payment link.</p>`,
-      { source: 'stripe-webhook', dedupeKey: `payment-link-unresolved-root-${session.id}` }
-    );
-  }
-
-  const invalidEntryIds = updateOutcome.invalidEntryIds;
-  if (invalidEntryIds.length > 0) {
-    const decision = updateOutcome.refundDecision;
-
-    if (decision.action === 'refund') {
+    if (isDeterministicSettlementRejection(settlementError?.code)) {
       await issueEntryPaymentAutoRefund({
-        session,
+        session: freshSession,
         paymentIntentId,
-        amountCents: decision.amountCents,
-        reason: decision.reason,
-        invalidEntryIds,
+        amountCents: grossCents,
+        reason: 'full_make_whole',
+        invalidEntryIds: link.entry_ids,
         linkId: link.id,
       });
-    } else if (decision.action === 'needs_manual_amount') {
-      await alertAdmin(
-        'Payment link auto-refund needs manual amount',
-        `<p>Session <code>${session.id}</code> was PAID and has invalid entries
-         <code>${invalidEntryIds.join(', ')}</code>, but the webhook could not derive
-         fees for: <code>${decision.missingFeeEntryIds.join(', ')}</code>.</p>
-         <p>Recovery: refund the invalid portion from Stripe, including the matching
-         share of the platform fee.</p>`,
-        { source: 'stripe-webhook', dedupeKey: `payment-link-refund-manual-amount-${session.id}` }
-      );
-    } else if (decision.action === 'cannot_refund') {
-      await alertAdmin(
-        'Payment link auto-refund could not be created',
-        `<p>Session <code>${session.id}</code> was PAID and has invalid entries
-         <code>${invalidEntryIds.join(', ')}</code>, but auto-refund could not run:
-         <code>${decision.reason}</code>.</p>`,
-        { source: 'stripe-webhook', dedupeKey: `payment-link-refund-cannot-refund-${session.id}` }
-      );
     }
+    return;
   }
 
+  await completeEntrySettlementSideEffects(settlement, freshSession, link.show_id, false);
+  if (processingFeeCents === null) {
+    await warnMissingProcessingFee(paymentIntentId, `payment link ${link.id}`);
+  }
+  const invalidEntryIds = settlement.lineResults
+    .filter(line => line.outcome !== 'accepted')
+    .map(line => line.lineId);
+  if (settlement.expectedMakeWholeRefundCents > 0) {
+    await issueEntryPaymentAutoRefund({
+      session: freshSession,
+      paymentIntentId,
+      amountCents: settlement.expectedMakeWholeRefundCents,
+      reason:
+        settlement.canonicalEntryIds.length === 0 ? 'full_make_whole' : 'partial_invalid_entries',
+      invalidEntryIds,
+      linkId: link.id,
+    });
+  }
   console.log(
-    `Payment link ${session.id} reconciled: ${paidIds.length} entr${
-      paidIds.length === 1 ? 'y' : 'ies'
-    } marked paid (show ${link.show_id})`
+    `Payment link ${session.id} settled by SQL order ${settlement.orderId} (${settlement.canonicalEntryIds.length} entries)`
   );
 }
 
-async function paidExpiredClaimHasReplacementOffer(
-  entryId: string,
-  sessionId: string
-): Promise<boolean> {
-  const { data: linkedOffer, error: linkedOfferError } = await supabase
-    .from('waitlist_entries')
-    .select('id, class_id, status, promoted_entry_id')
-    .eq('promoted_entry_id', entryId)
-    .maybeSingle();
+async function completeEntrySettlementSideEffects(
+  settlement: EntryOrderSettlement,
+  session: Stripe.Checkout.Session,
+  showId: string,
+  expireOtherLinks: boolean
+) {
+  const accepted = settlement.lineResults.filter(line => line.outcome === 'accepted');
+  const paidIds = [
+    ...new Set(
+      accepted.flatMap(line =>
+        [line.entryId, line.moneyRootEntryId].filter((id): id is string => Boolean(id))
+      )
+    ),
+  ];
+  await stampWithdrawalSnapshot(paidIds, showId);
 
-  if (linkedOfferError || !linkedOffer) {
-    console.error(
-      `Paid expired waitlist claim ${entryId} has no resolvable waitlist row:`,
-      linkedOfferError
-    );
-    await alertAdmin(
-      'Paid expired waitlist claim could not be verified',
-      `<p>Session <code>${sessionId}</code> paid expired promotion entry
-       <code>${entryId}</code>, but the linked waitlist row could not be loaded.
-       The webhook left the entry unpaid so the charge can be refunded.</p>
-       ${linkedOfferError ? `<pre>${linkedOfferError.message}</pre>` : ''}`,
-      { source: 'stripe-webhook', dedupeKey: `expired-claim-unverified-${entryId}` }
-    );
-    return true;
+  for (const line of accepted) {
+    if (!line.entryId) continue;
+    if (expireOtherLinks) {
+      if (line.moneyRootEntryId)
+        await expireRecoveredEntryPaymentLinks(line.moneyRootEntryId, session.id);
+      if (line.moneyRootEntryId !== line.entryId) {
+        await expireRecoveredEntryPaymentLinks(line.entryId, session.id);
+      }
+    }
   }
-
-  const { data: replacementOffer, error: replacementError } = await supabase
-    .from('waitlist_entries')
-    .select('id, promoted_entry_id')
-    .eq('class_id', linkedOffer.class_id)
-    .eq('status', 'offered')
-    .neq('promoted_entry_id', entryId)
-    .limit(1)
-    .maybeSingle();
-
-  if (replacementError) {
-    console.error(
-      `Could not check replacement waitlist offers before reviving ${entryId}:`,
-      replacementError
-    );
-    await alertAdmin(
-      'Paid expired waitlist claim collision check failed',
-      `<p>Session <code>${sessionId}</code> paid expired promotion entry
-       <code>${entryId}</code>, but checking for a replacement offer failed.
-       The webhook left the entry unpaid so the charge can be refunded.</p>
-       <pre>${replacementError.message}</pre>`,
-      { source: 'stripe-webhook', dedupeKey: `expired-claim-collision-check-failed-${entryId}` }
-    );
-    return true;
-  }
-
-  if (replacementOffer) {
-    console.error(
-      `Paid expired waitlist claim ${entryId} collided with replacement waitlist offer ${replacementOffer.id}`
-    );
-    await alertAdmin(
-      'Paid expired waitlist claim collided with a replacement offer',
-      `<p>Session <code>${sessionId}</code> paid expired promotion entry
-       <code>${entryId}</code>, but waitlist offer <code>${replacementOffer.id}</code>
-       is already active for the same class. The webhook left the expired entry
-       unpaid so the charge can be refunded instead of double-selling the spot.</p>`,
-      { source: 'stripe-webhook', dedupeKey: `expired-claim-collision-${entryId}` }
-    );
-    return true;
-  }
-
-  return false;
 }
 
-async function resolvePaidWaitlistOffers(entryIds: string[], sessionId: string) {
-  if (entryIds.length === 0) return;
-
-  const { error } = await supabase
-    .from('waitlist_entries')
-    .update({ status: 'accepted', updated_at: new Date().toISOString() })
-    .in('promoted_entry_id', entryIds)
-    .in('status', ['offered', 'expired']);
-
-  if (error) {
-    console.error('Payment link paid but waitlist row could not be resolved:', error);
-    await alertAdmin(
-      'Payment link paid but waitlist offer stayed open',
-      `<p>Session <code>${sessionId}</code> paid entries
-       <code>${entryIds.join(', ')}</code>, but resolving the linked
-       <code>waitlist_entries.promoted_entry_id</code> rows failed:</p>
-       <pre>${error.message}</pre>
-       <p>Recovery: mark the matching waitlist row accepted manually so the
-       cascade does not offer the spot again.</p>`,
-      { source: 'stripe-webhook', dedupeKey: `waitlist-offer-not-resolved-${sessionId}` }
-    );
+function fullCartRefundDecision(
+  grossCents: number | null,
+  paymentIntentId: string | null
+): CartOverflowRefundDecision {
+  if (grossCents == null || grossCents <= 0) {
+    return { action: 'cannot_refund', reason: 'missing_amount', paidAmountCents: null };
   }
+  if (!paymentIntentId) {
+    return { action: 'cannot_refund', reason: 'missing_payment_intent', paidAmountCents: 0 };
+  }
+  return {
+    action: 'refund',
+    amountCents: grossCents,
+    paidAmountCents: 0,
+    reason: 'full_make_whole',
+  };
+}
+
+function isDeterministicSettlementRejection(code: string | undefined): boolean {
+  return code === '22023' || code === '23514' || code === '23505';
 }
 
 async function expireRecoveredEntryPaymentLinks(entryId: string, sessionId: string) {
@@ -2375,15 +1305,6 @@ async function expireRecoveredEntryPaymentLinks(entryId: string, sessionId: stri
       );
     }
   }
-}
-
-async function loadEntryPaymentLineItemFees(sessionId: string): Promise<Map<string, number>> {
-  try {
-    return await loadEntryPaymentLineItemFeesFromStripe(stripe.checkout.sessions, sessionId);
-  } catch (err) {
-    console.error(`Could not load line items for payment-link session ${sessionId}:`, err);
-  }
-  return new Map<string, number>();
 }
 
 async function issueEntryPaymentAutoRefund(input: {
@@ -2500,60 +1421,6 @@ async function issueEntryPaymentAutoRefund(input: {
       { source: 'stripe-webhook', dedupeKey: `payment-link-refund-failed-${input.session.id}` }
     );
   }
-}
-
-function normalizeCapacityOutcome(data: unknown): OnlinePaidEntryCapacityOutcome | null {
-  const row = Array.isArray(data) ? data[0] : data;
-  if (!row || typeof row !== 'object') return null;
-
-  const candidate = row as {
-    outcome?: unknown;
-    entry_id?: unknown;
-    waitlist_entry_id?: unknown;
-  };
-  if (
-    candidate.outcome !== 'created_entry' &&
-    candidate.outcome !== 'waitlisted' &&
-    candidate.outcome !== 'denied'
-  ) {
-    return null;
-  }
-
-  return {
-    outcome: candidate.outcome,
-    entry_id: typeof candidate.entry_id === 'string' ? candidate.entry_id : null,
-    waitlist_entry_id:
-      typeof candidate.waitlist_entry_id === 'string' ? candidate.waitlist_entry_id : null,
-  };
-}
-
-function serializeCartOverflowRefundDecision(decision: CartOverflowRefundDecision) {
-  if (decision.action === 'none') {
-    return {
-      action: decision.action,
-      paid_amount_cents: decision.paidAmountCents,
-    };
-  }
-  if (decision.action === 'refund') {
-    return {
-      action: decision.action,
-      amount_cents: decision.amountCents,
-      paid_amount_cents: decision.paidAmountCents,
-      reason: decision.reason,
-    };
-  }
-  if (decision.action === 'needs_manual_amount') {
-    return {
-      action: decision.action,
-      missing_line_ids: decision.missingLineIds,
-      paid_amount_cents: decision.paidAmountCents,
-    };
-  }
-  return {
-    action: decision.action,
-    reason: decision.reason,
-    paid_amount_cents: decision.paidAmountCents,
-  };
 }
 
 async function issueCartOverflowAutoRefund(input: {
@@ -2701,7 +1568,12 @@ async function sendEntryConfirmationEmail(
   },
   entryIds: string[],
   session: Stripe.Checkout.Session,
-  authoritative: { subtotalCents: number; platformFeeCents: number; totalCents: number }
+  authoritative: {
+    subtotalCents: number;
+    platformFeeCents: number;
+    totalCents: number;
+    entryFeesById: Map<string, number>;
+  }
 ) {
   let deliveryAttemptRecorded = false;
   let recipientEmail: string | null = null;
@@ -2755,15 +1627,12 @@ async function sendEntryConfirmationEmail(
       return;
     }
 
-    // Get entry details with dog and class info. entries has entry_fee in
-    // DOLLARS — there is no entry_fee_cents column; selecting it errors the
-    // whole query and silently skipped every confirmation email (Codex P1).
+    // Get the SQL-selected live entry details for the receipt.
     const { data: entries, error: entriesError } = await supabase
       .from('entries')
       .select(
         `
         id,
-        entry_fee,
         dogs:dog_id (name, call_name),
         classes:class_id (name, level)
       `
@@ -2816,8 +1685,10 @@ async function sendEntryConfirmationEmail(
           'Unknown',
         className: (e.classes as { name: string })?.name || 'Unknown',
         classLevel: (e.classes as { level?: string })?.level || undefined,
-        // cents, matching subtotal/platformFee/total below
-        entryFee: Math.round(Number(e.entry_fee ?? 0) * 100),
+        // Use the exact verified Stripe line amount, keyed by the SQL-returned
+        // live entry. A moved destination can have a zero stored entry_fee
+        // while the money-root obligation remains payable.
+        entryFee: authoritative.entryFeesById.get(e.id)!,
       })),
       subtotal: authoritative.subtotalCents,
       platformFee: authoritative.platformFeeCents,

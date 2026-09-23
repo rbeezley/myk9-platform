@@ -7,6 +7,7 @@ import {
   stampPlatformFeeRates,
 } from '../_shared/platformFee.ts';
 import { authoritativeEntryFeeCents } from '../_shared/authoritativeFee.ts';
+import { normalizeEntryPaymentQuote } from '../_shared/entryPaymentQuote.ts';
 import { parsePremiumPriceIds } from '../_shared/premiumPrices.ts';
 import { isStripeLiveMode } from '../_shared/stripeMode.ts';
 import { resolveCheckoutSession } from '../_shared/priorCheckoutSession.ts';
@@ -370,6 +371,7 @@ async function handleEntryCheckout(
       exhibitor:exhibitor_profiles!inner(auth_user_id),
       items:entry_cart_items(
         id,
+        entry_id,
         dog_id,
         class_id,
         handler_id,
@@ -570,22 +572,101 @@ async function handleEntryCheckout(
     }
   }
 
+  const recoveredRootFees = new Map<string, number>();
+  const recoveredLiveEntriesByCartItem = new Map<
+    string,
+    { id: string; dogId: string; className: string | null; dogName: string | null }
+  >();
+  const recoveredLiveIds: string[] = [];
+  for (const item of cart.items as {
+    id: string;
+    entry_id: string | null;
+    dog_id: string;
+  }[]) {
+    if (!item.entry_id) continue;
+    const { data: quoteData, error: quoteError } = await supabase.rpc(
+      'quote_entry_payment_lineage',
+      { p_source_entry_id: item.entry_id }
+    );
+    const quote = normalizeEntryPaymentQuote(quoteData, item.entry_id, cart.show_id, item.dog_id);
+    if (quoteError || !quote) {
+      console.error(`Could not quote recovered cart item ${item.id}:`, quoteError);
+      return corsResponse(
+        corsHeaders,
+        { error: 'A recovered entry changed. Refresh your cart and try again.' },
+        409
+      );
+    }
+    recoveredRootFees.set(item.id, quote.entryFeeCents);
+    recoveredLiveIds.push(quote.liveEntryId);
+    recoveredLiveEntriesByCartItem.set(item.id, {
+      id: quote.liveEntryId,
+      dogId: quote.dogId,
+      dogName: null,
+      className: null,
+    });
+  }
+
+  if (recoveredLiveIds.length > 0) {
+    const { data: liveEntries, error: liveEntriesError } = await supabase
+      .from('entries')
+      .select('id, dog_id, show_id, dog:dog_id(call_name), class:class_id(name)')
+      .in('id', [...new Set(recoveredLiveIds)]);
+    const liveById = new Map(
+      (
+        (liveEntries ?? []) as unknown as Array<{
+          id: string;
+          dog_id: string;
+          show_id: string;
+          dog: { call_name: string | null } | null;
+          class: { name: string | null } | null;
+        }>
+      ).map(entry => [entry.id, entry])
+    );
+    if (
+      liveEntriesError ||
+      liveById.size !== new Set(recoveredLiveIds).size ||
+      [...recoveredLiveEntriesByCartItem.values()].some(entry => {
+        const live = liveById.get(entry.id);
+        return !live || live.show_id !== cart.show_id || live.dog_id !== entry.dogId;
+      })
+    ) {
+      console.error('Could not load live labels for recovered cart entries:', liveEntriesError);
+      return corsResponse(
+        corsHeaders,
+        { error: 'A recovered entry changed. Refresh your cart and try again.' },
+        409
+      );
+    }
+    for (const [itemId, entry] of recoveredLiveEntriesByCartItem) {
+      const live = liveById.get(entry.id)!;
+      recoveredLiveEntriesByCartItem.set(itemId, {
+        ...entry,
+        dogName: live.dog?.call_name ?? null,
+        className: live.class?.name ?? null,
+      });
+    }
+  }
+
   const nowIso = new Date().toISOString();
   const itemsWithAuthoritativeFee = (
     cart.items as {
       id: string;
+      entry_id: string | null;
       entry_fee_cents: number;
       class?: { entry_fee?: number | string | null };
     }[]
   ).map(item => ({
     item,
-    authoritativeCents: authoritativeEntryFeeCents({
-      showPreEntryFee: showFees.pre_entry_fee,
-      showDayOfShowFee: showFees.day_of_show_fee,
-      showStartDate: showFees.start_date,
-      classEntryFee: item.class?.entry_fee ?? null,
-      nowIso,
-    }),
+    authoritativeCents: item.entry_id
+      ? recoveredRootFees.get(item.id)!
+      : authoritativeEntryFeeCents({
+          showPreEntryFee: showFees.pre_entry_fee,
+          showDayOfShowFee: showFees.day_of_show_fee,
+          showStartDate: showFees.start_date,
+          classEntryFee: item.class?.entry_fee ?? null,
+          nowIso,
+        }),
   }));
   const driftedItems = itemsWithAuthoritativeFee.filter(
     x => x.item.entry_fee_cents !== x.authoritativeCents
@@ -634,20 +715,26 @@ async function handleEntryCheckout(
   // Build line items for Stripe
   const lineItems: Stripe.Checkout.SessionCreateParams.LineItem[] = cart.items.map(
     (item: {
+      id: string;
+      entry_id: string | null;
       entry_fee_cents: number;
       dog?: { call_name?: string };
       class?: { name?: string; trial?: { show?: { name?: string } } };
-    }) => ({
-      price_data: {
-        currency: 'usd',
-        unit_amount: item.entry_fee_cents,
-        product_data: {
-          name: `${item.dog?.call_name || 'Dog'} - ${item.class?.name || 'Class'}`,
-          description: item.class?.trial?.show?.name || 'Show Entry',
+    }) => {
+      const recovered = item.entry_id ? recoveredLiveEntriesByCartItem.get(item.id) : null;
+      return {
+        price_data: {
+          currency: 'usd',
+          unit_amount: item.entry_fee_cents,
+          product_data: {
+            name: `${recovered?.dogName || item.dog?.call_name || 'Dog'} - ${recovered?.className || item.class?.name || 'Class'}`,
+            description: item.class?.trial?.show?.name || 'Show Entry',
+            metadata: { type: 'entry', cart_item_id: item.id },
+          },
         },
-      },
-      quantity: 1,
-    })
+        quantity: 1,
+      };
+    }
   );
 
   if (lineItems.length === 0) {

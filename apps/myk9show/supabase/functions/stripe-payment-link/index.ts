@@ -2,9 +2,12 @@ import 'jsr:@supabase/functions-js/edge-runtime.d.ts';
 import Stripe from 'npm:stripe@17.7.0';
 import { createClient } from 'npm:@supabase/supabase-js@2.49.1';
 import { calculatePlatformFeeCents, resolvePlatformFeeRates } from '../_shared/platformFee.ts';
-import { authoritativeEntryFeeCents } from '../_shared/authoritativeFee.ts';
-import { buildEntryPaymentLinkSession } from '../_shared/entryPaymentLink.ts';
+import {
+  buildEntryPaymentLinkSession,
+  type PaymentLinkEntry,
+} from '../_shared/entryPaymentLink.ts';
 import { isStripeLiveMode } from '../_shared/stripeMode.ts';
+import { normalizeEntryPaymentQuote } from '../_shared/entryPaymentQuote.ts';
 import {
   resolveWithdrawalPolicy,
   describeWithdrawalPolicyText,
@@ -103,6 +106,7 @@ interface PaymentLinkRequest {
 
 interface EntryRow {
   id: string;
+  dog_id: string;
   payment_status: string | null;
   entry_status: string | null;
   dog: { call_name: string | null } | null;
@@ -174,6 +178,7 @@ Deno.serve(async req => {
       .select(
         `
         id,
+        dog_id,
         payment_status,
         entry_status,
         dog:dog_id(call_name),
@@ -340,20 +345,79 @@ Deno.serve(async req => {
     });
 
     // Recompute each fee from the authority chain — never trust a client value.
-    const nowIso = new Date().toISOString();
-    const linkEntries = entries.map(e => ({
-      entryId: e.id,
-      authoritativeFeeCents: authoritativeEntryFeeCents({
-        showPreEntryFee: show.pre_entry_fee,
-        showDayOfShowFee: show.day_of_show_fee,
-        showStartDate: show.start_date,
-        classEntryFee: e.class?.entry_fee ?? null,
-        nowIso,
-      }),
-      dogName: e.dog?.call_name || 'Dog',
-      className: e.class?.name || 'Class',
-      showName: show.name || 'Show Entry',
-    }));
+    const linkEntries: PaymentLinkEntry[] = [];
+    const liveEntryIds: string[] = [];
+    const quotesBySource = new Map<
+      string,
+      { liveEntryId: string; dogId: string; amountCents: number }
+    >();
+    for (const entry of entries) {
+      const { data: quoteData, error: quoteError } = await supabase.rpc(
+        'quote_entry_payment_lineage',
+        {
+          p_source_entry_id: entry.id,
+          p_allow_expired_promotion: entry.entry_status === 'promotion-expired',
+        }
+      );
+      const quote = normalizeEntryPaymentQuote(quoteData, entry.id, show.id, entry.dog_id);
+      if (quoteError || !quote) {
+        console.error(`Payment-link quote failed for entry ${entry.id}:`, quoteError);
+        return corsResponse(
+          corsHeaders,
+          { error: 'One or more entries changed. Refresh the show and try again.' },
+          409
+        );
+      }
+      liveEntryIds.push(quote.liveEntryId);
+      quotesBySource.set(entry.id, {
+        liveEntryId: quote.liveEntryId,
+        dogId: quote.dogId,
+        amountCents: quote.entryFeeCents,
+      });
+    }
+
+    const { data: liveRows, error: liveRowsError } = await supabase
+      .from('entries')
+      .select('id, dog_id, show_id, dog:dog_id(call_name), class:class_id(name)')
+      .in('id', [...new Set(liveEntryIds)]);
+    const liveEntriesById = new Map(
+      (
+        (liveRows ?? []) as unknown as Array<{
+          id: string;
+          dog_id: string;
+          show_id: string;
+          dog: { call_name: string | null } | null;
+          class: { name: string | null } | null;
+        }>
+      ).map(row => [row.id, row])
+    );
+    if (
+      liveRowsError ||
+      liveEntriesById.size !== new Set(liveEntryIds).size ||
+      [...quotesBySource.values()].some(quote => {
+        const live = liveEntriesById.get(quote.liveEntryId);
+        return !live || live.show_id !== show.id || live.dog_id !== quote.dogId;
+      })
+    ) {
+      console.error('Could not load the live entries for payment-link labels:', liveRowsError);
+      return corsResponse(
+        corsHeaders,
+        { error: 'One or more entries changed. Refresh the show and try again.' },
+        409
+      );
+    }
+
+    for (const entry of entries) {
+      const quote = quotesBySource.get(entry.id)!;
+      const live = liveEntriesById.get(quote.liveEntryId)!;
+      linkEntries.push({
+        entryId: entry.id,
+        authoritativeFeeCents: quote.amountCents,
+        dogName: live.dog?.call_name || 'Dog',
+        className: live.class?.name || 'Class',
+        showName: show.name || 'Show Entry',
+      });
+    }
 
     // Re-request safety: expire any prior OPEN links covering these entries so
     // two live links can't both be paid (full handling in Task 3.5 Step 2).
@@ -512,6 +576,11 @@ Deno.serve(async req => {
       stripe_checkout_session_id: session.id,
       status: 'open',
       amount_cents: amountCents,
+      entry_fee_snapshot: linkEntries.map(entry => ({
+        entry_id: entry.entryId,
+        amount_cents: entry.authoritativeFeeCents,
+      })),
+      platform_fee_cents: calculatePlatformFeeCents(amountCents, platformFeeRates),
       created_by: userId,
     });
     if (insertError) {

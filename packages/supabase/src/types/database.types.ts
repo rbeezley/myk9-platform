@@ -2704,8 +2704,10 @@ export type Database = {
           amount_cents: number
           created_at: string
           created_by: string | null
+          entry_fee_snapshot: Json | null
           entry_ids: string[]
           id: string
+          platform_fee_cents: number | null
           show_id: string
           status: string
           stripe_checkout_session_id: string
@@ -2715,8 +2717,10 @@ export type Database = {
           amount_cents: number
           created_at?: string
           created_by?: string | null
+          entry_fee_snapshot?: Json | null
           entry_ids: string[]
           id?: string
+          platform_fee_cents?: number | null
           show_id: string
           status?: string
           stripe_checkout_session_id: string
@@ -2726,8 +2730,10 @@ export type Database = {
           amount_cents?: number
           created_at?: string
           created_by?: string | null
+          entry_fee_snapshot?: Json | null
           entry_ids?: string[]
           id?: string
+          platform_fee_cents?: number | null
           show_id?: string
           status?: string
           stripe_checkout_session_id?: string
@@ -13562,6 +13568,33 @@ export type Database = {
       self_checkin_entry: {
         Args: { p_entry_id: string; p_new_status: string }
         Returns: undefined
+      }
+      quote_entry_payment_lineage: {
+        Args: { p_allow_expired_promotion?: boolean; p_source_entry_id: string }
+        Returns: {
+          dog_id: string
+          entry_fee_cents: number
+          live_entry_id: string
+          money_root_entry_id: string
+          show_id: string
+        }[]
+      }
+      settle_entry_order: {
+        Args: {
+          p_order_facts: Json
+          p_source_id: string
+          p_source_kind: string
+          p_verified_gross_cents: number
+          p_verified_line_prices: Json
+          p_verified_payment_intent_id: string
+          p_verified_session_id: string
+        }
+        Returns: {
+          canonical_entry_ids: string[]
+          expected_make_whole_refund_cents: number
+          line_results: Json
+          order_id: string
+        }[]
       }
       set_club_authorization: {
         Args: { p_authorized: boolean; p_club_id: string }

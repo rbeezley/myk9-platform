@@ -1,5 +1,6 @@
 # Review gate — posts a `Review gate` commit status on the PR head that is
-# green only when accepted review evidence has been recorded against THAT SHA
+# green when accepted review evidence is recorded against THAT SHA or the
+# changed paths qualify for the bounded optional-review policy in review-tier.ts
 # (scripts/qa/review-gate.ts explains the format and the #2040 incident).
 # A documented `owner` override is accepted only from an OWNER or MEMBER,
 # claims the real floor it is skipping, and names an `Override reason:` and a
@@ -15,6 +16,8 @@
 # checks out the BASE branch (the default for this event) and only reads PR
 # metadata — no PR-controlled code ever executes. Keep it that way: never add
 # `ref: github.event.pull_request.head.*` to the checkout in this file.
+# `pull_request_target` also re-evaluates when a label changes, since the
+# `dependencies` label opts dependency-only diffs into optional review.
 # `issue_comment` re-evaluates when the review evidence is posted, EDITED or
 # DELETED, so the status flips green without another push and cannot stay
 # green after an attestation is corrected or withdrawn. It is filtered to PR
@@ -27,7 +30,7 @@ name: Review gate
 
 on:
   pull_request_target:
-    types: [opened, synchronize, reopened, ready_for_review]
+    types: [opened, synchronize, reopened, ready_for_review, labeled, unlabeled]
   issue_comment:
     types: [created, edited, deleted]
 

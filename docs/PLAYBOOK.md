@@ -96,13 +96,30 @@ refuses evidence below. Four tiers, weakest to strongest: `none` < `owner` <
   **On #1536, two clean subagent rounds still missed a P1 that Codex caught** —
   this tier is real evidence, not a substitute for `independent`; do not reach for it
   just because it is cheaper.
-- **`none`** — docs only. Verdict is exactly `low-risk paths, CI green`, no log
-  required. "Docs only" is a path rule, not a subject-matter one in reverse: a docs
-  path whose NAME carries money or auth still floors higher (the money pattern has no
-  directory anchor, so `docs/archive/stripe-notes.md` floors at `independent`). When
-  a log IS supplied for `none` or `owner` it is hashed and quoted into the comment,
-  and one carrying `[P*]` bullets is refused — the record may never assert less than
-  the log shows.
+- **Optional review** — the `Review gate` passes without review evidence for
+  bounded low-risk diffs; all normal CI checks remain required. The eligible cases
+  are docs-only changes; app-source diffs touching at most 3 files and 100 total
+  added/deleted lines outside every independent path, where any test or test-support
+  file (`*.test.*`, `*.spec.*`, `test/`, `__tests__/`, `__mocks__/`) is newly ADDED —
+  editing, deleting or renaming an existing test needs review, because guard and
+  contract tests live throughout app source and one `it.skip` disables them; and
+  dependency-only diffs whose files are only workspace `package.json` files plus
+  `pnpm-lock.yaml`, when the PR has the existing `dependencies` label AND every
+  changed manifest differs from its merge-base version only in `dependencies`,
+  `devDependencies`, `peerDependencies`, `optionalDependencies` or `pnpm.overrides`
+  (a `scripts`, lifecycle-hook or other `pnpm` change needs review). An incomplete or truncated file
+  list, a migration, or an independent path never qualifies. A current-head review
+  that reports unaddressed findings still fails the gate. Reviewers may review any
+  optional PR when it would add value.
+- **`none`** — docs-only. No review comment is required; the gate succeeds
+  automatically when the changed-file list is complete. The existing `none`
+  attestation (`low-risk paths, CI green`) remains supported for explicit records.
+  "Docs only" is a path rule, not a subject-matter one in reverse: a docs path whose
+  NAME carries money or auth still floors higher (the money pattern has no directory
+  anchor, so `docs/archive/stripe-notes.md` floors at `independent`). When a log IS
+  supplied for `none` or `owner` it is hashed and quoted into the comment, and one
+  carrying `[P*]` bullets is refused — the record may never assert less than the log
+  shows.
 - **`owner` override** — when the required harness is genuinely unavailable (usage
   limit, outage, auth failure — not merely slow or inconvenient), a repository OWNER
   or MEMBER may defer scrutiny rather than silently treat same-harness agents as

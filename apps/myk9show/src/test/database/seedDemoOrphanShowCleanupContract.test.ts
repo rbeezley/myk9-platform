@@ -13,7 +13,46 @@ const oldCleanupPath = join(repoRoot, 'scripts/qa/cleanup-known-orphan-show.sql'
 const stripSqlComments = (text: string): string =>
   text.replace(/\/\*[\s\S]*?\*\//g, '').replace(/--[^\n]*/g, '');
 
+const extractDeleteStatements = (sql: string, table: string): string[] => {
+  if (!/^[a-z_]+$/i.test(table)) {
+    throw new Error(`Invalid table name: ${table}`);
+  }
+
+  const statementPattern = new RegExp(`\\bDELETE\\s+FROM\\s+public\\.${table}\\b[\\s\\S]*?;`, 'gi');
+  return [...stripSqlComments(sql).matchAll(statementPattern)].map(([statement]) =>
+    statement.replace(/\s+/g, ' ').replace(/\( /g, '(').replace(/ \)/g, ')').trim()
+  );
+};
+
+const expectedShowDeletes = [
+  "DELETE FROM public.shows WHERE id >= 'a1090000-0000-0000-0010-000000000000'::uuid AND id < 'a1090000-0000-0000-0011-000000000000'::uuid;",
+  "DELETE FROM public.shows WHERE id IN ('dededede-0000-0000-0000-000000000011','dededede-0000-0000-0000-000000000012');",
+  "DELETE FROM public.shows WHERE id = 'dededede-0000-0000-0000-000000000010';",
+];
+
+const expectedEnrollmentDeletes = [
+  "DELETE FROM public.enrollments WHERE id = 'dededede-0000-0000-0000-000000000070' OR (show_id = 'dededede-0000-0000-0000-000000000010' AND handler_id = (SELECT id FROM public.people WHERE lower(email)='exhibitor@myk9t.com'));",
+];
+
 describe('MYK9-615 orphan cleanup boundary', () => {
+  it('pins the canonical seed delete allowlist and rejects broad mutations', () => {
+    expect(extractDeleteStatements(seed, 'shows')).toEqual(expectedShowDeletes);
+    expect(extractDeleteStatements(seed, 'enrollments')).toEqual(expectedEnrollmentDeletes);
+    expect(seed).not.toContain(ORPHAN_SHOW_ID);
+
+    const broadShowDelete = extractDeleteStatements(
+      "DELETE FROM public.shows WHERE status = 'published';",
+      'shows'
+    );
+    const showOnlyEnrollmentDelete = extractDeleteStatements(
+      "DELETE FROM public.enrollments WHERE show_id = 'dededede-0000-0000-0000-000000000010';",
+      'enrollments'
+    );
+
+    expect(expectedShowDeletes).not.toContain(broadShowDelete[0]);
+    expect(expectedEnrollmentDeletes).not.toContain(showOnlyEnrollmentDelete[0]);
+  });
+
   it('keeps the canonical seed free of the observed orphan and broad show deletion', () => {
     expect(seed).not.toContain(ORPHAN_SHOW_ID);
     expect(seed).not.toContain(ORPHAN_TITLE);

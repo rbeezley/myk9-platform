@@ -3,40 +3,49 @@ import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
 /**
- * Regression contract for the stripe-webhook entry-payment cart claim.
- *
- * The bug this pins against (found 2026-06-20 driving a live sandbox payment):
- * the claim that flips a paid cart `active → submitted` filtered on expiry with
- *
- *     .or(`expires_at.is.null,expires_at.gt.${new Date().toISOString()}`)
- *
- * A raw ISO timestamp inside PostgREST's `.or()` mini-language misparses the
- * dotted/colon'd value, so the whole UPDATE failed at runtime with
- * `column entry_carts.expires_at does not exist`. Because Stripe already has
- * its 200 (EdgeRuntime.waitUntil), the event is NOT retried — the exhibitor is
- * charged and ZERO entries are created, signalled only by an admin email.
- *
- * Expiry is already enforced upstream in pure code by `sessionMatchesCart`
- * (see sessionCartGuard.test.ts: "rejects a paid session for an EXPIRED cart"),
- * so the claim only needs the `status = 'active'` idempotency latch. These
- * assertions guard against anyone re-adding a PostgREST filter on `expires_at`
- * to the UPDATE.
+ * The settlement RPC owns the cart latch and exact Stripe-session binding. These
+ * source contracts keep the webhook as a facts/evidence adapter, not a second
+ * mutable settlement authority.
  */
 const source = readFileSync(
   resolve(__dirname, '../../../supabase/functions/stripe-webhook/index.ts'),
   'utf8'
 );
+const settlement = readFileSync(
+  resolve(
+    __dirname,
+    '../../../../../supabase/migrations/20260922184700_myk9_639_authoritative_entry_settlement.sql'
+  ),
+  'utf8'
+);
 
 describe('stripe-webhook entry-payment cart claim', () => {
-  it('flips the paid cart active → submitted as an idempotency latch', () => {
-    expect(source).toContain(".update({ status: 'submitted' })");
-    expect(source).toContain(".eq('status', 'active')");
+  it('passes the cart and freshly verified Stripe facts to the settlement RPC', () => {
+    const start = source.indexOf('async function handleEntryPaymentCompleted');
+    const end = source.indexOf('async function handleEntryPaymentRequestCompleted', start);
+    const handler = source.slice(start, end);
+    expect(handler).toContain("p_source_kind: 'cart'");
+    expect(handler).toContain('p_source_id: cartId');
+    expect(handler).toContain('p_verified_session_id: freshSession.id');
+    expect(handler).toContain('p_verified_payment_intent_id: paymentIntentId');
+    expect(handler).toContain('p_verified_line_prices: linePrices');
+    expect(handler).toContain('stripe.checkout.sessions.retrieve(session.id)');
   });
 
-  it('never filters the claim on expires_at via a PostgREST .or() (the silent charge-without-entries bug)', () => {
-    // These tokens only appear inside a PostgREST filter string, never in
-    // legitimate JS property access like `cart.expires_at`.
-    expect(source).not.toContain('expires_at.gt.');
-    expect(source).not.toContain('expires_at.is.null');
+  it('locks and claims the active cart only when it still references this session', () => {
+    expect(settlement).toContain(
+      'FROM public.entry_carts AS c WHERE c.id = p_source_id FOR UPDATE'
+    );
+    expect(settlement).toContain(
+      'v_cart.stripe_checkout_session_id IS DISTINCT FROM p_verified_session_id'
+    );
+    expect(settlement).toContain("v_cart.status IS DISTINCT FROM 'active'");
+    expect(settlement).toContain("UPDATE public.entry_carts SET status = 'submitted'");
+    expect(settlement).toContain("WHERE id = p_source_id AND status = 'active'");
+    expect(settlement).toContain('hashtextextended(p_verified_session_id, 0)');
+  });
+
+  it('does not keep a second PostgREST cart-status writer in the webhook', () => {
+    expect(source).not.toContain(".from('entry_carts')\n      .update({ status: 'submitted' })");
   });
 });

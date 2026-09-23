@@ -13,6 +13,10 @@ import {
 } from '../_shared/orderSnapshot.ts';
 import { loadEntrySettlementLinePricesFromStripe } from '../_shared/entryPaymentLineItems.ts';
 import {
+  isTransientSettlementSqlError,
+  retryTransientSettlement,
+} from '../_shared/transientSettlementRetry.ts';
+import {
   mapAcceptedEntryFees,
   normalizeEntryOrderSettlement,
   type EntryOrderSettlement,
@@ -967,9 +971,8 @@ async function handleEntryPaymentCompleted(session: Stripe.Checkout.Session) {
     Deno.env.get('PLATFORM_FEE_PERCENT')
   );
   const processingFeeCents = await fetchProcessingFeeCents(paymentIntentId);
-  const { data: settlementData, error: settlementError } = await supabase.rpc(
-    'settle_entry_order',
-    {
+  const { data: settlementData, error: settlementError } = await retryTransientSettlement(() =>
+    supabase.rpc('settle_entry_order', {
       p_source_kind: 'cart',
       p_source_id: cartId,
       p_order_facts: {
@@ -985,14 +988,17 @@ async function handleEntryPaymentCompleted(session: Stripe.Checkout.Session) {
       p_verified_session_id: freshSession.id,
       p_verified_payment_intent_id: paymentIntentId!,
       p_verified_line_prices: linePrices,
-    }
+    })
   );
   const settlement = normalizeEntryOrderSettlement(settlementData);
   if (settlementError || !settlement) {
     console.error('Authoritative cart settlement failed:', settlementError);
+    const transientFailure = isTransientSettlementSqlError(settlementError?.code);
     await alertAdmin(
-      'Paid cart could not be settled',
-      `<p>Session <code>${session.id}</code> was paid, but the authoritative settlement did not complete. No partial settlement was committed.</p><pre>${settlementError?.message ?? 'Malformed settlement response'}</pre>`,
+      transientFailure
+        ? 'Paid cart settlement retries exhausted'
+        : 'Paid cart could not be settled',
+      `<p>Session <code>${session.id}</code> was paid, but the authoritative settlement did not complete. No partial settlement was committed.${transientFailure ? ' Replay the same Stripe event after checking for an existing order, or refund manually; no automatic refund was attempted.' : ''}</p><pre>${settlementError?.message ?? 'Malformed settlement response'}</pre>`,
       { source: 'stripe-webhook', dedupeKey: `cart-settlement-failed-${session.id}` }
     );
     if (isDeterministicSettlementRejection(settlementError?.code)) {
@@ -1137,9 +1143,8 @@ async function handleEntryPaymentRequestCompleted(session: Stripe.Checkout.Sessi
     Deno.env.get('PLATFORM_FEE_PERCENT')
   );
   const processingFeeCents = await fetchProcessingFeeCents(paymentIntentId);
-  const { data: settlementData, error: settlementError } = await supabase.rpc(
-    'settle_entry_order',
-    {
+  const { data: settlementData, error: settlementError } = await retryTransientSettlement(() =>
+    supabase.rpc('settle_entry_order', {
       p_source_kind: 'payment_link',
       p_source_id: link.id,
       p_order_facts: {
@@ -1155,14 +1160,17 @@ async function handleEntryPaymentRequestCompleted(session: Stripe.Checkout.Sessi
       p_verified_session_id: freshSession.id,
       p_verified_payment_intent_id: paymentIntentId!,
       p_verified_line_prices: linePrices,
-    }
+    })
   );
   const settlement = normalizeEntryOrderSettlement(settlementData);
   if (settlementError || !settlement) {
     console.error('Authoritative payment-link settlement failed:', settlementError);
+    const transientFailure = isTransientSettlementSqlError(settlementError?.code);
     await alertAdmin(
-      'Paid payment link could not be settled',
-      `<p>Session <code>${session.id}</code> was paid, but authoritative settlement did not complete. No partial settlement was committed.</p><pre>${settlementError?.message ?? 'Malformed settlement response'}</pre>`,
+      transientFailure
+        ? 'Paid payment-link settlement retries exhausted'
+        : 'Paid payment link could not be settled',
+      `<p>Session <code>${session.id}</code> was paid, but authoritative settlement did not complete. No partial settlement was committed.${transientFailure ? ' Replay the same Stripe event after checking for an existing order, or refund manually; no automatic refund was attempted.' : ''}</p><pre>${settlementError?.message ?? 'Malformed settlement response'}</pre>`,
       { source: 'stripe-webhook', dedupeKey: `payment-link-settlement-failed-${session.id}` }
     );
     if (isDeterministicSettlementRejection(settlementError?.code)) {

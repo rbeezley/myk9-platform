@@ -2,130 +2,91 @@ import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
-/**
- * Regression contract for the stripe-webhook `entry_payment_request` branch
- * (secretary-initiated payment links — mail-in + waitlist pay-to-claim).
- *
- * The behavioral rules live in (and are unit-tested via) the pure helper
- * _shared/entryPaymentReconcile.ts. These source assertions pin the WIRING that
- * a pure helper can't: that the webhook dispatches to the branch, anchors on the
- * persisted link row (anti-tamper + idempotency), and records payment history.
- */
+const root = resolve(__dirname, '../../../../..');
 const source = readFileSync(
-  resolve(__dirname, '../../../supabase/functions/stripe-webhook/index.ts'),
+  resolve(root, 'apps/myk9show/supabase/functions/stripe-webhook/index.ts'),
+  'utf8'
+);
+const settlement = readFileSync(
+  resolve(root, 'supabase/migrations/20260922184700_myk9_639_authoritative_entry_settlement.sql'),
+  'utf8'
+);
+const lineage = readFileSync(
+  resolve(root, 'supabase/migrations/20260922184500_myk9_639_entry_payment_lineage.sql'),
   'utf8'
 );
 
-const lineItemSource = readFileSync(
-  resolve(__dirname, '../../../supabase/functions/_shared/entryPaymentLineItems.ts'),
-  'utf8'
+const linkHandlerStart = source.indexOf('async function handleEntryPaymentRequestCompleted');
+const linkHandlerEnd = source.indexOf(
+  '\nasync function completeEntrySettlementSideEffects',
+  linkHandlerStart
 );
+const linkHandler = source.slice(linkHandlerStart, linkHandlerEnd);
 
-describe('stripe-webhook entry_payment_request branch', () => {
-  it('dispatches checkout.session.completed of type entry_payment_request to its own handler', () => {
+describe('stripe-webhook payment-link settlement contract', () => {
+  it('routes completed and async-paid link sessions through the same handler', () => {
     expect(source).toContain("checkoutType === 'entry_payment_request'");
-    expect(source).toContain('handleEntryPaymentRequestCompleted');
-  });
-
-  it('routes async Checkout payment success through the same paid-session handler', () => {
+    expect(source).toContain('handleEntryPaymentRequestCompleted(session)');
     expect(source).toContain("case 'checkout.session.async_payment_succeeded':");
     expect(source).toContain(
       'await handleCheckoutCompleted(event.data.object as Stripe.Checkout.Session)'
     );
-    expect(source).toContain("case 'checkout.session.async_payment_failed':");
-    expect(source).toContain('entries remain pending');
   });
 
-  it('decides reconciliation via the pure helper (real rules are unit-tested there)', () => {
-    expect(source).toContain('reconcileEntryPaymentRequest');
-    expect(source).toContain('reconcileEntryPaymentUpdateOutcome');
+  it('binds the RPC to the persisted link, fresh Stripe facts, and exact entry-price evidence', () => {
+    expect(linkHandler).toContain(".from('entry_payment_links')");
+    expect(linkHandler).toContain(".eq('stripe_checkout_session_id', session.id)");
+    expect(linkHandler).toContain('stripe.checkout.sessions.retrieve(session.id)');
+    expect(linkHandler).toContain("p_source_kind: 'payment_link'");
+    expect(linkHandler).toContain('p_source_id: link.id');
+    expect(linkHandler).toContain('p_verified_session_id: freshSession.id');
+    expect(linkHandler).toContain('p_verified_payment_intent_id: paymentIntentId');
+    expect(linkHandler).toContain('p_verified_line_prices: linePrices');
+    expect(linkHandler).toContain("'entry_id'");
+    expect(linkHandler).toContain('retryTransientSettlement(() =>');
   });
 
-  it('feeds the session payment_status + expected entry ids to the helper (F3/F4 coherence checks)', () => {
-    // MP-07: the helper must see the FRESH-retrieved payment_status, never the
-    // untrusted webhook payload's.
-    expect(source).toContain('sessionPaymentStatus: freshSession.payment_status');
-    expect(source).not.toContain('sessionPaymentStatus: session.payment_status');
-    expect(source).toContain('expectedEntryIds: entryIds');
-    // alerts when the paid link references entries that no longer exist (F4)
-    expect(source).toContain('missingEntryIds');
-    expect(source).toContain('inactiveEntryIds');
-  });
-
-  it('anchors on the persisted entry_payment_links row (anti-tamper + idempotency latch)', () => {
-    expect(source).toContain('entry_payment_links');
-    // closes the link so a re-delivered event is a no-op
-    expect(source).toContain("status: 'paid'");
-    expect(source).toContain('closedLinks');
-    expect(source).toContain('linkCloseError');
-    expect(source).toContain('already closed by another webhook handler');
-  });
-
-  it('latches successful expired promotion claims to paid so Stripe retries do not refund them', () => {
-    expect(source).toContain("link.status === 'expired' && paidIds.length > 0");
-    expect(source).toContain("link.status === 'expired' ? 'expired' : 'open'");
-    expect(source).toContain(".eq('status', linkCloseStatus)");
-  });
-
-  it('records payment history in stripe_orders so the charge is visible + payout-eligible', () => {
-    expect(source).toContain('stripe_orders');
-    expect(source).toContain('stripe_payment_intent_id: paymentIntentId');
-    // benign duplicate (unique violation) is ignored, like the cart path
-    expect(source).toContain("orderError.code !== '23505'");
-  });
-
-  it('auto-refunds invalid paid-for-nothing link charges through Stripe with an explicit amount', () => {
-    expect(source).toContain('updateOutcome.refundDecision');
-    expect(source).toContain('loadEntryPaymentLineItemFeesFromStripe');
-    expect(lineItemSource).toContain('listLineItems');
-    expect(lineItemSource).toContain("expand: ['data.price.product']");
-    expect(lineItemSource).toContain('product.metadata?.entry_id');
-    expect(source).toContain('stripe.refunds.create');
-    expect(source).toContain('payment_intent: input.paymentIntentId');
-    expect(source).toContain('amount: input.amountCents');
-    expect(source).toContain('entry_payment_request_auto_refund');
-    expect(source).toContain('reconcileCreatedMakeWholeRefund');
-    expect(source).toContain('resolveRefundLedgerAction(refund.status)');
-    expect(source).not.toMatch(/\.update\(\{[^}]*status: 'refunded'/s);
-    expect(source).toContain('allFromAppRefund');
-  });
-
-  it('derives paid entry ids from actual guarded update results, not planned patches', () => {
-    expect(source).toContain(".eq('payment_status', 'pending')");
-    expect(source).toContain(".not('entry_status', 'in', inactiveEntryStatusFilter)");
-    expect(source).toContain(".select('id')");
-    expect(source).toContain('updatedEntryIds');
-    expect(source).toContain('paidIds = updateOutcome.paidEntryIds');
-  });
-
-  it('resolves linked waitlist offers only after entries are actually marked paid', () => {
-    expect(source).toContain('await resolvePaidWaitlistOffers(paidIds, session.id)');
-    expect(source).toContain(".from('waitlist_entries')");
-    expect(source).toContain(".update({ status: 'accepted'");
-    expect(source).toContain(".in('promoted_entry_id', entryIds)");
-    expect(source).toContain(".in('status', ['offered', 'expired'])");
-  });
-
-  it('fails paid expired waitlist claims closed when a replacement offer exists', () => {
-    expect(source).toContain('paidExpiredClaimHasReplacementOffer(patch.id, session.id)');
-    expect(source).toContain(".eq('promoted_entry_id', entryId)");
-    expect(source).toContain(".eq('status', 'offered')");
-    expect(source).toContain(".neq('promoted_entry_id', entryId)");
-    expect(source).toContain('left the expired entry');
-    expect(source).toContain('double-selling the spot');
-  });
-
-  it('re-reads no-op patch ids so races become invalid refund candidates', () => {
-    expect(source).toContain('noOpPatchIds');
-    expect(source).toContain(
-      ".select('id, payment_status, entry_status, stripe_payment_intent_id')"
+  it('serializes same-session retries and closes the link in the SQL transaction', () => {
+    expect(settlement).toContain('pg_advisory_xact_lock');
+    expect(settlement).toContain(
+      'WHERE o.stripe_checkout_session_id = p_verified_session_id FOR UPDATE'
     );
-    expect(source).toContain('rereadNoOpEntries');
-    expect(source).toContain('invalidEntryIds = updateOutcome.invalidEntryIds');
+    expect(settlement).toContain("v_existing.metadata->>'settlement_source_id'");
+    expect(settlement).toContain('FROM public.entry_payment_links AS l');
+    expect(settlement).toContain("WHERE id = p_source_id AND status IN ('open', 'expired')");
+    expect(settlement).toContain("UPDATE public.entry_payment_links SET status = 'paid'");
   });
 
-  it('classifies same-intent paid rows as idempotent success instead of refund candidates', () => {
-    expect(source).toContain('initialSameIntentPaidEntryIds: result.sameIntentPaidEntryIds');
-    expect(source).toContain('stripe_payment_intent_id');
+  it('accepts an expired promotion only for its still-valid claim with no replacement offer', () => {
+    expect(settlement).toContain("IF v_link.status = 'expired' THEN");
+    expect(settlement).toContain("v_root_status IS DISTINCT FROM 'promotion-expired'");
+    expect(lineage).toContain("v_live_status = 'promotion-expired'");
+    expect(lineage).toContain("w.promoted_entry_id = v_live_id AND w.status = 'expired'");
+    expect(lineage).toContain("w.status = 'offered'");
+    expect(lineage).toContain('w.promoted_entry_id IS DISTINCT FROM v_live_id');
+    expect(settlement).toContain("SET status = 'accepted', updated_at = now()");
+  });
+
+  it('uses SQL-computed make-whole amounts and refunds deterministic no-settlement failures', () => {
+    expect(linkHandler).toContain('settlement.expectedMakeWholeRefundCents');
+    expect(linkHandler).toContain('issueEntryPaymentAutoRefund(');
+    expect(linkHandler).toContain('isDeterministicSettlementRejection(settlementError?.code)');
+    expect(settlement).toContain('expected_make_whole_refund_cents');
+    expect(settlement).toContain("'paid_amount_cents'");
+    expect(source).toContain('reconcileCreatedMakeWholeRefund(input.paymentIntentId, refund)');
+  });
+
+  it('bounds deadlock retries and alerts for manual replay without auto-refunding transient errors', () => {
+    expect(source).toContain('isTransientSettlementSqlError(settlementError?.code)');
+    expect(source).toContain('settlement retries exhausted');
+    expect(source).toContain('no automatic refund was attempted');
+    expect(source).toContain('if (isDeterministicSettlementRejection(settlementError?.code))');
+    expect(source).not.toMatch(/function isDeterministicSettlementRejection\([\s\S]*?40P01/);
+  });
+
+  it('does not keep TypeScript entry, waitlist, or payment-link latch writers', () => {
+    expect(linkHandler).not.toContain(".from('entries').update(");
+    expect(linkHandler).not.toContain(".from('waitlist_entries').update(");
+    expect(linkHandler).not.toContain(".from('entry_payment_links').update(");
   });
 });

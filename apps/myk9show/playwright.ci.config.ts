@@ -67,6 +67,11 @@ const REGRESSION_SPECS = [
   '**/dogPanelAccessibleNames.spec.ts',
   '**/cross-role-workflows.spec.ts',
   '**/simple-connectivity.spec.ts',
+  // The live-data exhibitor canary. Here it runs with
+  // MYK9_PLAYWRIGHT_REGRESSION_ENABLED=true, so a seeded database missing the
+  // demo exhibitor's data FAILS instead of skipping: an empty staging is an
+  // operational condition, reported once a night, not on every PR.
+  '**/exhibitorReadPathCanary.spec.ts',
   // Admin-authed: Nightly supplies every E2E_* credential, PR smoke only gets
   // E2E_SECRETARY_*, so this cannot live in PR_SMOKE_SPECS.
   '**/admin/userRosterDrilldown.spec.ts',
@@ -159,7 +164,19 @@ const REGRESSION_SPECS = [
 // Exhibitor-authed and ~14s per case; its seed-data dependency is stated in
 // docs/qa/e2e-suite-map.md and surfaced in the spec's own failure messages.
 // Verified green under this config before promotion (2026-09-14).
+// The exhibitor-authed UI specs in this list run on hermetic fixtures
+// (helpers/exhibitorFixture.ts, helpers/secretaryFixture.ts) and no longer
+// read seeded staging rows; the 2026-09-20 wipe turned this gate red for
+// every PR (MYK9-702). Two specs keep that honest:
+// - exhibitorFixtureSmoke carries the positive control: with the profile row
+//   removed the exhibitor lands on /onboarding, so the fixture is proven to
+//   be what makes the converted specs pass.
+// - exhibitorReadPathCanary is the one live read. It SKIPS, with a named
+//   annotation, when staging lacks the data, and FAILS when a read on the
+//   path errors or its data does not render.
 const PR_SMOKE_SPECS = [
+  '**/exhibitorFixtureSmoke.spec.ts',
+  '**/exhibitorReadPathCanary.spec.ts',
   '**/simple-connectivity.spec.ts',
   '**/uat/secretary/qa-regression-proof.spec.ts',
   '**/uat/secretary/critical-path.spec.ts',
